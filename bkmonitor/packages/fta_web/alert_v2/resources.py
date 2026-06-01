@@ -9,6 +9,8 @@ specific language governing permissions and limitations under the License.
 """
 
 import abc
+import operator
+from functools import reduce
 from typing import Any
 from collections.abc import Callable, Iterable
 
@@ -27,7 +29,7 @@ from bkmonitor.utils.alert_drilling import (
     merge_dimensions_into_conditions,
 )
 from bkmonitor.utils.thread_backend import ThreadPool
-from constants.alert import APMTargetType, K8STargetType
+from constants.alert import APMTargetType, K8STargetType, K8S_RESOURCE_TYPE
 from constants.apm import ApmAlertHelper
 from constants.data_source import DataTypeLabel, DataSourceLabel
 from core.drf_resource import Resource, resource, api
@@ -47,7 +49,7 @@ from apm_web.event.resources import (
     EventTimeSeriesResource as APMEventTimeSeriesResource,
 )
 
-from monitor_web.data_explorer.event.utils import get_cluster_table_map
+from monitor_web.data_explorer.event.utils import get_cluster_table_map, k8s_cond_handler
 
 
 class AlertDetailResource(BaseAlertDetailResource):
@@ -148,41 +150,44 @@ class AlertEventBaseResource(Resource, abc.ABC):
     def build_k8s_query(
         cls, alert: AlertDocument, target: BaseTarget, q: QueryConfigBuilder
     ) -> QueryConfigBuilder | None:
-        """
-        构建 K8S 事件查询。
+        """构建 K8S 事件查询。
+
+        基于目标关联的 K8S 资源列表，校验并构造合法查询对象，确定 K8S 事件结果表并构建 OR 语义的 where 条件。
+
         :param alert: 告警文档对象
         :param target: 目标对象
         :param q: 查询构建器
-        :return: 构建好的查询配置，如果无关联 K8S 资源则返回 None
+        :return: 构建好的查询配置，如果无合法的关联 K8S 资源则返回 None
         """
-        related_targets: list[dict[str, Any]] = target.list_related_k8s_targets().get("target_list", [])
-        if not related_targets:
+        related_k8s_targets: dict[str, str | list] = target.list_related_k8s_targets()
+        is_workload: bool = related_k8s_targets["resource_type"] == K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD]
+
+        # 合法查询对象构造
+        valid_k8s_targets: list[dict[str, Any]] = []
+        for related_target in related_k8s_targets["target_list"]:
+            if not all([related_target.get("bcs_cluster_id"), related_target.get("namespace")]):
+                continue
+
+            workload: str = related_target.pop("workload", "")
+            if is_workload:
+                if not workload:
+                    continue
+                kind, name = workload.split(":", 1)
+                related_target["kind"] = kind
+                related_target["name"] = name
+
+            valid_k8s_targets.append(related_target)
+
+        if not valid_k8s_targets:
             return None
 
-        # 非服务类告警只有一个 k8s 目标，服务类告警直接复用服务关联事件检索，不走此逻辑。
-        related_k8s_target: dict[str, Any] = related_targets[0]
-
-        bcs_cluster_id: str = related_k8s_target.get("bcs_cluster_id", "")
-        if not bcs_cluster_id:
-            # 没有集群 ID，无法查询事件
-            return None
-
+        bcs_cluster_id: str = valid_k8s_targets[0]["bcs_cluster_id"]
         table: str = get_cluster_table_map((bcs_cluster_id,)).get(bcs_cluster_id, "")
         if not table:
             return None
 
-        filter_q: Q = Q()
-        workload: str | None = related_k8s_target.pop("workload", "")
-        if workload and target.TARGET_TYPE == K8STargetType.WORKLOAD:
-            # 工作负载类型，按 kind 和 name 查询
-            kind, name = workload.split(":")
-            filter_q &= Q(kind=kind, name=name)
-            if related_k8s_target.get("namespace"):
-                filter_q &= Q(namespace=related_k8s_target["namespace"])
-        else:
-            # 其他类型（Pod、Node、Service等），按资源类型字段查询。
-            filter_q &= Q(**{key: value for key, value in related_k8s_target.items()})
-
+        # 通过 k8s_cond_handler 展开关联的查询条件
+        filter_q: Q = reduce(operator.or_, [k8s_cond_handler(k8s_target) for k8s_target in valid_k8s_targets])
         return q.table(table).conditions(q_to_conditions(filter_q))
 
     @classmethod
