@@ -174,6 +174,19 @@ class PaaSController(BaseController):
         return False
 
 
+@register_controller(SpaceFunction.RUM.value)
+class RUMController(BaseController):
+    @property
+    def related(self):
+        return True
+
+    @property
+    def accessed(self):
+        from rum_web.models import Application
+
+        return Application.objects.filter(bk_biz_id=self.space.bk_biz_id, is_deleted=False).exists()
+
+
 def cmdb_require(space):
     if space.bk_biz_id > 0:
         return True
