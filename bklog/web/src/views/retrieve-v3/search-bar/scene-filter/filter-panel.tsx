@@ -71,7 +71,7 @@ export default defineComponent({
     const apiOptions = ref<Record<string, { loading: boolean; options: Array<{ id: string; name: string }> }>>({});
 
     const currentScene = computed<SceneConfig | undefined>(() => sceneConfigs.value
-      .find(scene => scene.type === props.activeScene),
+      .find((scene: { type: string; }) => scene.type === props.activeScene),
     );
 
     /** 拉取 dynamic 类型维度的可选值 */
@@ -82,12 +82,13 @@ export default defineComponent({
 
       try {
         // 构建级联筛选条件：已选的其他维度值
-        const filters: Record<string, string> = {};
+        const filters: Record<string, string[]> = {};
         const currentFields = currentScene.value?.fields ?? [];
         for (const f of currentFields) {
-          if (f.key !== field.key && props.filterValues[f.key]) {
-            filters[f.key] = String(props.filterValues[f.key]);
-          }
+          if (f.key === field.key) continue;
+          const val = props.filterValues[f.key];
+          if (val == null || val === '' || (Array.isArray(val) && val.length === 0)) continue;
+          filters[f.key] = Array.isArray(val) ? val.map(String) : [String(val)];
         }
 
         const res = await http.request('retrieve/getSceneDimensionValues', {
@@ -227,41 +228,38 @@ export default defineComponent({
       return apiOptions.value[fieldName];
     };
 
-    // 输入框本地缓存
-    const localInputValues = ref<Record<string, string>>({});
+    // 标签输入本地缓存
+    const localTagValues = ref<Record<string, string[]>>({});
 
     // 父组件 filterValues 变化时（切换场景、清空等），同步重置本地缓存
     watch(
       () => props.filterValues,
       (newVal) => {
-        const next: Record<string, string> = {};
+        const next: Record<string, string[]> = {};
         for (const [k, v] of Object.entries(newVal ?? {})) {
-          if (typeof v === 'string') {
-            next[k] = v;
+          if (Array.isArray(v)) {
+            next[k] = v.map(String);
+          } else if (typeof v === 'string' && v !== '') {
+            next[k] = [v];
           }
         }
-        localInputValues.value = next;
+        localTagValues.value = next;
       },
       { immediate: true, deep: true },
     );
 
-    const getLocalInputValue = (fieldName: string) => {
-      return localInputValues.value[fieldName] ?? props.filterValues[fieldName] ?? '';
+    const getLocalTagValues = (fieldName: string) => {
+      return localTagValues.value[fieldName] ?? (Array.isArray(props.filterValues[fieldName]) ? props.filterValues[fieldName] : []);
     };
 
-    const handleInputChange = (fieldName: string, value: string) => {
-      localInputValues.value = { ...localInputValues.value, [fieldName]: value };
+    const handleTagChange = (fieldName: string, tags: string[]) => {
+      localTagValues.value = { ...localTagValues.value, [fieldName]: tags };
+      handleFieldChange(fieldName, tags);
     };
 
-    const handleInputConfirm = (fieldName: string) => {
-      const val = localInputValues.value[fieldName] ?? '';
-      if (val === (props.filterValues[fieldName] ?? '')) return;
-      handleFieldChange(fieldName, val);
-    };
-
-    const handleInputClear = (fieldName: string) => {
-      localInputValues.value = { ...localInputValues.value, [fieldName]: '' };
-      handleFieldChange(fieldName, '');
+    const handleTagClear = (fieldName: string) => {
+      localTagValues.value = { ...localTagValues.value, [fieldName]: [] };
+      handleFieldChange(fieldName, []);
     };
 
     const renderSceneTabBar = () => (
@@ -278,11 +276,41 @@ export default defineComponent({
       </div>
     );
 
+    /** 获取 bk-select 的 value，确保多选字段值为数组 */
+    const getSelectValue = (field: FilterFieldConfig) => {
+      const raw = props.filterValues[field.key];
+      if (raw == null || raw === '') return field.multiple ? [] : '';
+      if (field.multiple) {
+        const arr = Array.isArray(raw) ? raw : [raw];
+        return arr.map(v => String(v));
+      }
+      return String(raw);
+    };
+
+    /** 获取字段的 options，dynamic 类型初始用 currentValue 回显，接口返回后用接口数据 */
+    const getFieldOptions = (field: FilterFieldConfig) => {
+      if (field.choicesType === 'static') {
+        return field.choices ?? [];
+      }
+
+      // dynamic：接口已返回数据时优先使用
+      const loadedOptions = getApiFieldState(field.key).options;
+      if (loadedOptions.length > 0) {
+        return loadedOptions;
+      }
+
+      // 接口未返回时，从当前值组装临时 options 以支持回显
+      const currentValue = props.filterValues[field.key];
+      if (currentValue == null || currentValue === '' || (Array.isArray(currentValue) && currentValue.length === 0)) {
+        return [];
+      }
+      const ids = Array.isArray(currentValue) ? currentValue : [currentValue];
+      return ids.map(id => ({ id: String(id), name: String(id) }));
+    };
+
     const renderFilterField = (field: FilterFieldConfig) => {
       if (field.choicesType === 'static' || field.choicesType === 'dynamic') {
-        const options = field.choicesType === 'static'
-          ? (field.choices ?? [])
-          : (getApiFieldState(field.key).options);
+        const options = getFieldOptions(field);
         const loading = field.choicesType === 'dynamic' ? (getApiFieldState(field.key).loading ?? false) : false;
 
         return (
@@ -290,7 +318,7 @@ export default defineComponent({
             <span class='field-label' v-bk-overflow-tips>{field.name}</span>
             <div class='field-input'>
               <bk-select
-                value={props.filterValues[field.key] ?? (field.multiple ? [] : '')}
+                value={getSelectValue(field)}
                 placeholder={field.placeholder || t('请选择')}
                 multiple={field.multiple}
                 clearable={true}
@@ -319,14 +347,15 @@ export default defineComponent({
         <div class='filter-field-item' key={field.key}>
           <span class='field-label' v-bk-overflow-tips>{field.name}</span>
           <div class='field-input'>
-            <bk-input
-              value={getLocalInputValue(field.key)}
-              placeholder={field.placeholder || t('请输入')}
+            <bk-tag-input
+              value={getLocalTagValues(field.key)}
+              placeholder={field.placeholder}
+              allow-create={true}
+              has-delete-icon={true}
+              allow-next-focus={true}
               clearable={true}
-              on-change={(val: string) => handleInputChange(field.key, val)}
-              on-blur={() => handleInputConfirm(field.key)}
-              on-enter={() => handleInputConfirm(field.key)}
-              on-clear={() => handleInputClear(field.key)}
+              on-change={(tags: string[]) => handleTagChange(field.key, tags)}
+              on-removeAll={() => handleTagClear(field.key)}
             />
           </div>
         </div>

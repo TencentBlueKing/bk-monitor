@@ -414,6 +414,16 @@ export default defineComponent({
       loadTrendData,
     );
 
+    addEvent(RetrieveEvent.TREND_GRAPH_CLEAR, () => {
+      logChartCancel?.();
+      isSearchingCanceled = true;
+      runningTimer && clearTimeout(runningTimer);
+      isStart.value = false;
+      setChartData(null, null, true);
+      store.commit('SET_APP_STATE', { searchTotal: 0, tookTime: 0 });
+      store.commit('retrieve/updateTrendDataLoading', false);
+    });
+
     addEvent(RetrieveEvent.SEARCH_CANCEL, () => {
       logChartCancel?.();
       isSearchingCanceled = true;

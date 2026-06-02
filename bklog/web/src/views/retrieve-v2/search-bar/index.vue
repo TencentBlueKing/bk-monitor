@@ -305,7 +305,13 @@ const setRouteParams = () => {
  */
 const requestIndexSetList = () => {
   if (route.query.tab === 'origin' || !route.query.tab) {
-    store.dispatch('requestIndexSetQuery');
+    if (isSceneMode.value) {
+      store.dispatch('requestIndexSetFieldInfo').then((resp) => {
+        store.dispatch('requestIndexSetQuery');
+      });
+    } else {
+      store.dispatch('requestIndexSetQuery');
+    }
   }
 };
 
