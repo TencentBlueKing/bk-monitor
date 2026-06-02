@@ -86,24 +86,24 @@ ES_CAPABILITIES: list[dict[str, Any]] = [
     {
         "operation": "cat_segments",
         "status": "active",
-        "required_params": ["index_pattern"],  # per-segment 最重；禁全集群扫描
-        "optional_params": [],
+        "required_params": [],
+        "optional_params": ["index_pattern"],
         "evidence": "段级信息（committed/searchable/size）；看段合并 / global-ordinals 重建态",
         "cannot_prove": "证明不了某次查询期聚合一定塌缩（需 terms_agg_probe 实测）",
     },
     {
         "operation": "cat_recovery",
         "status": "active",
-        "required_params": ["index_pattern"],  # 与 cat_segments 同构（cat 直透），同样禁全集群扫描
-        "optional_params": [],
+        "required_params": [],
+        "optional_params": ["index_pattern"],
         "evidence": "分片恢复 stage / 进度；看是否处于恢复/重定位窗口",
         "cannot_prove": "证明不了字段聚合可用性",
     },
     {
         "operation": "cat_indices",
         "status": "active",
-        "required_params": ["index_pattern"],  # 禁全集群索引名枚举
-        "optional_params": [],
+        "required_params": [],
+        "optional_params": ["index_pattern"],
         "evidence": "逐物理索引的 creation.date（滚动时间表）/docs.count/store.size/health；对齐'塌缩→恢复'起止 vs 索引滚动时刻",
         "cannot_prove": "证明不了某索引内字段是否可聚合（需 field_mapping / terms_agg_probe）",
     },
@@ -252,21 +252,6 @@ def _require(params: dict[str, Any], key: str) -> str:
     return value
 
 
-def _require_index_pattern(params: dict[str, Any], operation: str) -> str:
-    """重型/枚举型 cat 必须限定 index_pattern：禁止全集群扫描（跨集群索引名枚举 + ES 侧重负载，
-    Python 侧 500 行截断只防输出爆、不防 ES 扫描成本）。集群级概览改用 cluster_health。"""
-    index_pattern = str(params.get("index_pattern") or "").strip()
-    if not index_pattern:
-        _raise(
-            f"{operation} 必须传 index_pattern（不允许全集群扫描）。",
-            error_code="OPERATION_NOT_ALLOWED",
-            next_actions=[
-                "传 index_pattern 限定范围（取自 trace / 告警策略的目标索引）；集群级概览用 cluster_health。",
-            ],
-        )
-    return index_pattern
-
-
 def _extract_total(hits: dict[str, Any]):
     total = hits.get("total") if isinstance(hits, dict) else None
     if isinstance(total, dict):  # ES7+: {"value": N, "relation": ...}
@@ -362,12 +347,12 @@ def _cat_shards(client, cluster_id: int, params: dict[str, Any]) -> dict[str, An
 
 def _cat_passthrough(client, cluster_id: int, params: dict[str, Any], operation: str) -> dict[str, Any]:
     """cat_segments / cat_recovery：只读 cat 直透，输出按 CAT_MAX_ROWS 截断并显式标注（不静默截断）。
-    必须传 index_pattern：per-segment / per-recovery 粒度，全集群扫描 ES 负载重（500 行只截输出不截 ES 扫描）。"""
-    index_pattern = _require_index_pattern(params, operation)
+    index_pattern 可选：运维工具按设计支持全集群视图（多租户/跨集群是设计需求，非安全问题）。"""
+    index_pattern = str(params.get("index_pattern") or "").strip()
     cat_fn = {"cat_segments": client.cat.segments, "cat_recovery": client.cat.recovery}[operation]
     kwargs = {"format": "json", "params": {"request_timeout": ES_REQUEST_TIMEOUT}}
     try:
-        rows = cat_fn(index=index_pattern, **kwargs)
+        rows = cat_fn(index=index_pattern, **kwargs) if index_pattern else cat_fn(**kwargs)
     except Exception as error:
         _es_query_error(operation, error)
     rows = rows or []
@@ -387,9 +372,9 @@ def _cat_passthrough(client, cluster_id: int, params: dict[str, Any], operation:
 def _cat_indices(client, cluster_id: int, params: dict[str, Any]) -> dict[str, Any]:
     """cat/indices：取每个物理索引的 creation.date（= 一次滚动事件）+ 规模/健康，按创建时间倒序。
     用途：把'塌缩→恢复'窗口的起止时刻去对索引滚动时刻 —— 对得上→B1(映射 race)；对不上→运行时(A/B2)。
-    必须传 index_pattern：禁止全集群索引名枚举（跨集群元信息泄露面）。
+    index_pattern 可选：运维工具按设计支持全集群滚动表（多租户/跨集群是设计需求，非安全问题）。
     """
-    index_pattern = _require_index_pattern(params, "cat_indices")
+    index_pattern = str(params.get("index_pattern") or "").strip()
     kwargs = {
         "format": "json",
         "h": "index,health,status,docs.count,store.size,creation.date,creation.date.string",
@@ -397,7 +382,7 @@ def _cat_indices(client, cluster_id: int, params: dict[str, Any]) -> dict[str, A
         "params": {"request_timeout": ES_REQUEST_TIMEOUT},
     }
     try:
-        rows = client.cat.indices(index=index_pattern, **kwargs)
+        rows = client.cat.indices(index=index_pattern, **kwargs) if index_pattern else client.cat.indices(**kwargs)
     except Exception as error:
         _es_query_error("cat_indices", error)
     rows = rows or []
@@ -843,7 +828,7 @@ KernelRPCRegistry.register_function(
             "cluster_health | cat_shards | cat_segments | cat_recovery | cat_indices | "
             "field_mapping | terms_agg_probe | node_breaker_stats"
         ),
-        "index_pattern": "field_mapping / terms_agg_probe / cat_indices / cat_segments / cat_recovery 必填；cat_shards 可选",
+        "index_pattern": "field_mapping / terms_agg_probe 必填；cat_* 可选（运维工具支持全集群视图）",
         "field": "field_mapping / terms_agg_probe 必填",
     },
     example_params={
