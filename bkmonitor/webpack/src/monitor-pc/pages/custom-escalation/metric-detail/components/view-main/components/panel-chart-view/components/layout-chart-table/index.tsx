@@ -416,7 +416,9 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
             default: ({ row }) => (
               <span class='num-cell'>
                 {this.isNullOrUndefined(row.max)}
-                <span class='gray-text'>@{dayjs(row.maxTime).format('HH:mm')}</span>
+                {row.maxTime != null && row.maxTime !== 0 && (
+                  <span class='gray-text'>@{dayjs(row.maxTime).format('HH:mm')}</span>
+                )}
               </span>
             ),
           }}
@@ -431,7 +433,9 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
             default: ({ row }) => (
               <span class='num-cell'>
                 {this.isNullOrUndefined(row.min)}
-                <span class='gray-text'>@{dayjs(row.minTime).format('HH:mm')}</span>
+                {row.minTime != null && row.minTime !== 0 && (
+                  <span class='gray-text'>@{dayjs(row.minTime).format('HH:mm')}</span>
+                )}
               </span>
             ),
           }}
@@ -446,7 +450,9 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
             default: ({ row }) => (
               <span class='num-cell'>
                 {this.isNullOrUndefined(row.latest)}
-                <span class='gray-text'>@{dayjs(row.latestTime).format('HH:mm')}</span>
+                {row.latestTime != null && row.latestTime !== 0 && (
+                  <span class='gray-text'>@{dayjs(row.latestTime).format('HH:mm')}</span>
+                )}
               </span>
             ),
           }}
@@ -459,7 +465,14 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
         <bk-table-column
           width={80}
           scopedSlots={{
-            default: ({ row }) => this.isNullOrUndefined(row.avg),
+            default: ({ row }) => (
+              <span class='num-cell'>
+                {this.isNullOrUndefined(row.avg)}
+                {row.avgTime != null && row.avgTime !== 0 && (
+                  <span class='gray-text'>@{dayjs(row.avgTime).format('HH:mm')}</span>
+                )}
+              </span>
+            ),
           }}
           label={this.$t('平均值')}
           prop='avg'
@@ -469,7 +482,14 @@ export default class LayoutChartTable extends tsc<ILayoutChartTableProps, ILayou
         <bk-table-column
           width={80}
           scopedSlots={{
-            default: ({ row }) => this.isNullOrUndefined(row.total),
+            default: ({ row }) => (
+              <span class='num-cell'>
+                {this.isNullOrUndefined(row.total)}
+                {row.totalTime != null && row.totalTime !== 0 && (
+                  <span class='gray-text'>@{dayjs(row.totalTime).format('HH:mm')}</span>
+                )}
+              </span>
+            ),
           }}
           label={this.$t('累计值')}
           prop='total'
