@@ -223,6 +223,7 @@ export default defineComponent({
                         actions: () => {
                           return this.defaultMainIssue ? null : (
                             <Button
+                              class='set-main-btn'
                               size='small'
                               theme='primary'
                               outline
