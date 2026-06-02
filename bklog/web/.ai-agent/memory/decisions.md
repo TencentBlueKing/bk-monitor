@@ -88,3 +88,11 @@ Constraint:
 - Preserve unchanged row/object references when no value changes to reduce allocation pressure before Vuex commit.
 - Do not persist heavy `origin_log_list` into `indexSetQueryResult` for the result list path; expand view should use the normalized `list` row data instead.
 - In `expand-view.vue`, avoid `JSON.parse(JSON.stringify(result))` for JSON cache creation; it duplicates large row data and increases main-thread cost. Prefer `Object.freeze(result)` after values are already normalized.
+
+## 2026-06-01 Retrieve dotted field rendering compatibility
+
+- Context: Search API can return flattened dotted keys such as attributes.line and attributes.sampled without a parent attributes object.
+- Decision: parseTableRowData must first read exact row keys before trying nested path parsing. This preserves display for flattened fields.
+- Decision: When requesting a parent field such as attributes and no direct parent value exists, aggregate row keys with prefix attributes. into a JSON object for display, e.g. { line: ..., sampled: ... }.
+- Rationale: OTel / flattened ES fields use dotted key names as real field keys. Treating all dotted names as nested paths causes table cells and JSON/KV expansion to render - incorrectly.
+- Verification: Static dotted field parser test and npm run build passed.
