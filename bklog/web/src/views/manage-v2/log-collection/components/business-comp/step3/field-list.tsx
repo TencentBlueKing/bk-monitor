@@ -1156,7 +1156,7 @@ export default defineComponent({
         width: 60,
         cell: (h, { row }) => (
           <div class='table-operation'>
-            {isLogDelimiter.value &&
+            {(isLogDelimiter.value || isLogRegexp.value) &&
               !row.is_built_in && (
                 <i
                   class={`bklog-icon bklog-${row.is_delete ? 'visible' : 'invisible'} icons`}
@@ -1191,7 +1191,7 @@ export default defineComponent({
           {t('可见字段')}
           {` (${visibleData.value.length})`}
         </span>
-        {isLogDelimiter.value && (
+        {(isLogDelimiter.value || isLogRegexp.value) && (
           <span
             class={{
               'tab-item': true,
@@ -1228,9 +1228,7 @@ export default defineComponent({
       const newList = updateList(props.data, row, item => ({ ...item, is_delete: !item.is_delete }));
       emit('change', newList);
     };
-    const showColumns = computed(() =>
-      isLogRegexp.value ? columns.value.filter(item => item.colKey !== 'operation') : columns.value,
-    );
+    const showColumns = computed(() => columns.value);
     /**
      * 字段表格
      * @returns
