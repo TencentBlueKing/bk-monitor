@@ -302,6 +302,9 @@ export default defineComponent({
         const orders = (order === 'none' ? 'asc' : order) as 'asc' | 'desc';
 
         childList = orderBy(childList, [sortField], orders);
+      } else {
+        // 未设置排序时，默认按数量降序排列
+        childList = orderBy(childList, ['data.count'], 'desc');
       }
 
       for (const c of childList) {
