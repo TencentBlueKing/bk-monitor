@@ -178,3 +178,153 @@ export const formatAdditionalFields = (state: any, addition: Record<string, any>
 
   return copyAddition;
 };
+
+/**
+ * 判断当前是否为场景化检索模式
+ */
+export const isSceneRetrieve = (state: any): boolean => {
+  return state.indexItem?.retrieve_type === 'scene';
+};
+
+/**
+ * 判断场景过滤值的单个字段值是否为空
+ * 空值定义：undefined / null / '' / []
+ */
+export const isEmptyFilterValue = (val: any): boolean => {
+  if (val === undefined || val === null || val === '') return true;
+  if (Array.isArray(val) && val.length === 0) return true;
+  return false;
+};
+
+/**
+ * 判断场景过滤条件整体是否为空（所有字段值均为空时返回 true）
+ */
+export const isSceneFilterValuesEmpty = (filterValues: Record<string, any> | undefined | null): boolean => {
+  if (!filterValues || typeof filterValues !== 'object') return true;
+  return Object.values(filterValues).every(isEmptyFilterValue);
+};
+
+/**
+ * 根据 scene_active 和 scene_filter_values 组装 table_id_conditions 和 scene_filter_values
+ * - static / dynamic 类型的字段 → table_id_conditions
+ * - free_input 类型的字段 → scene_filter_values
+ *
+ * @param state Vuex state
+ * @param sceneConfigs 场景配置列表（来自 retrieve/sceneConfigList getter）
+ */
+export const buildTableIdConditions = (
+  state: any,
+  sceneConfigs: any[] = [],
+): {
+  table_id_conditions: Array<Array<{ field_name: string; value: any[]; op: string }>>;
+  scene_filter_values: Array<{ field: string; operator: string; value: any[] }>;
+} => {
+  const { scene_active: sceneActive, scene_filter_values = {} } = state.indexItem ?? {};
+
+  const emptyResult = {
+    table_id_conditions: [],
+    scene_filter_values: [],
+  };
+
+  if (!sceneActive) return emptyResult;
+
+  // 根据 sceneActive 找到当前场景的配置，建立 fieldName → choicesType 的映射
+  const activeConfig = sceneConfigs.find((s: any) => s.type === sceneActive);
+  const fieldChoicesTypeMap: Record<string, string> = {};
+  if (activeConfig) {
+    (activeConfig.fields ?? []).forEach((f: any) => {
+      fieldChoicesTypeMap[f.key] = f.choicesType ?? 'static';
+    });
+  }
+
+  const conditions: Array<{ field_name: string; value: any[]; op: string }> = [];
+  const filterValues: Array<{ field: string; operator: string; value: any[] }> = [];
+
+  // 第一个固定条件：场景
+  conditions.push({
+    field_name: 'scene',
+    value: [sceneActive],
+    op: 'eq',
+  });
+
+  // 由 scene_filter_values 生成后续条件，根据 choicesType 分类
+  for (const [fieldName, fieldValue] of Object.entries(scene_filter_values)) {
+    if (fieldValue === undefined || fieldValue === null || fieldValue === '') continue;
+
+    const valueArray = Array.isArray(fieldValue) ? fieldValue : [fieldValue];
+    if (valueArray.length === 0) continue;
+
+    const choicesType = fieldChoicesTypeMap[fieldName] ?? 'static';
+
+    if (choicesType === 'free_input') {
+      // free_input 类型放入 scene_filter_values
+      filterValues.push({
+        field: fieldName,
+        operator: '=',
+        value: valueArray,
+      });
+    } else {
+      // static / dynamic 类型放入 table_id_conditions
+      conditions.push({
+        field_name: fieldName,
+        value: valueArray,
+        op: 'eq',
+      });
+    }
+  }
+
+  return {
+    table_id_conditions: [conditions],
+    scene_filter_values: filterValues,
+  };
+};
+
+/**
+ * 从历史记录中的 table_id_conditions 和 scene_filter_values 反向解析出 scene_active 和 scene_filter_values
+ * - table_id_conditions 中 field_name 为 "scene" 的条目 → 提取为 scene_active
+ * - table_id_conditions 中除 scene 外的字段 → 转换为 { fieldName: value } 格式，写入 scene_filter_values
+ * - 历史记录中的 scene_filter_values（{field, operator, value} 格式）→ 转换为 { fieldName: value } 格式，合并到 scene_filter_values
+ *
+ * @param tableIdConditions 历史记录中的 table_id_conditions
+ * @param sceneFilterValues 历史记录中的 scene_filter_values
+ */
+export const parseTableIdConditions = (
+  tableIdConditions?: Array<Array<{ field_name: string; value: any[]; op: string }>>,
+  sceneFilterValues?: Array<{ field: string; operator: string; value: any[] }>,
+): {
+  scene_active: string;
+  scene_filter_values: Record<string, any>;
+} => {
+  let sceneActive = '';
+  const filterValues: Record<string, any> = {};
+
+  // 从 table_id_conditions 解析
+  if (Array.isArray(tableIdConditions) && tableIdConditions.length > 0) {
+    const innerConditions = tableIdConditions[0];
+    if (Array.isArray(innerConditions)) {
+      for (const condition of innerConditions) {
+        const { field_name, value } = condition;
+        if (field_name === 'scene') {
+          // scene 字段 → scene_active
+          sceneActive = Array.isArray(value) ? (value[0] ?? '') : value;
+        } else {
+          // 非 scene 字段 → scene_filter_values
+          filterValues[field_name] = Array.isArray(value) && value.length === 1 ? value[0] : value;
+        }
+      }
+    }
+  }
+
+  // 从历史记录的 scene_filter_values 合并
+  if (Array.isArray(sceneFilterValues)) {
+    for (const item of sceneFilterValues) {
+      const { field, value } = item;
+      filterValues[field] = Array.isArray(value) && value.length === 1 ? value[0] : value;
+    }
+  }
+
+  return {
+    scene_active: sceneActive,
+    scene_filter_values: filterValues,
+  };
+};

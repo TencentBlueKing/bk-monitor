@@ -131,6 +131,11 @@ enum RetrieveEvent {
   TREND_GRAPH_SEARCH = 'trend-graph-search',
 
   /**
+   * 趋势图清空（仅清空数据）
+   */
+  TREND_GRAPH_CLEAR = 'trend-graph-clear',
+
+  /**
    * 趋势图缩放
    */
   TREND_GRAPH_ZOOM = 'trend-graph-zoom',
@@ -154,6 +159,11 @@ enum RetrieveEvent {
    * AI 助手关闭
    */
   AI_CLOSE = 'ai-close',
+
+  /**
+   * 场景筛选面板高度变化
+   */
+  SCENE_FILTER_PANEL_HEIGHT_CHANGE = 'scene-filter-panel-height-change',
 }
 
 export default RetrieveEvent;

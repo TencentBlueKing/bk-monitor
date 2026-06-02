@@ -26,11 +26,13 @@
 
 import { computed, defineComponent } from 'vue';
 
+import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
 import { BK_LOG_STORAGE } from '../../store/store.type';
 import V3Container from './container';
 import V3Collection from './favorite';
+import SceneFilter from './search-bar/scene-filter';
 import V3Searchbar from './search-bar';
 import V3SearchResult from './search-result';
 import V3Toolbar from './toolbar';
@@ -47,6 +49,7 @@ export default defineComponent({
   name: 'RetrieveV3',
   setup() {
     const store = useStore();
+    const { t } = useLocale();
     const aiAssitantRef = RetrieveHelper.aiAssitantHelper.getAiAssitantInstance();
 
     const {
@@ -58,6 +61,11 @@ export default defineComponent({
     } = useAppInit();
 
     const isStartTextEllipsis = computed(() => store.state.storage[BK_LOG_STORAGE.TEXT_ELLIPSIS_DIR] === 'start');
+    const isSceneMode = computed(() => store.getters.isSceneMode);
+    const isFirstSearch = computed(() => store.state.indexSetQueryResult.search_count < 1);
+    const isSceneLoading = computed(
+      () => store.state.indexFieldInfo.is_loading || store.state.indexSetQueryResult.is_loading,
+    );
 
     /**
      * AI 助手关闭
@@ -82,18 +90,44 @@ export default defineComponent({
      * 渲染结果内容
      * @returns
      */
+    const renderSearchBar = () => {
+      const stickyClass = {
+        'is-sticky-top': isSearchContextStickyTop.value,
+        'is-sticky-top-result': isSearchResultStickyTop.value,
+      };
+
+      if (isSceneMode.value) {
+        return <SceneFilter isSticky={isSearchContextStickyTop.value} />;
+      }
+
+      return <V3Searchbar class={stickyClass} />;
+    };
+
+    /**
+     * 渲染场景化检索空状态提示
+     */
+    const renderSceneEmptyTip = () => (
+      <div class='scene-empty-tip' v-bkloading={{ isLoading: isSceneLoading.value }}>
+        <bk-exception class='exception-wrap-item' type='search-empty' scene='part'>
+          <h1 class='scene-empty-tip-title'>{t('当前日志未过滤')}</h1>
+          <div class='scene-empty-tip-desc'>
+            {t('请先按照标签过滤日志范围后，再进行日志检索')}
+          </div>
+          <div class='scene-empty-tip-detail'>
+            {t('场景化检索默认搜索全量日志，为保证检索体验及集群稳定性，请通过顶部标签过滤数据后查看日志。可随时修改标签过滤内容')}
+          </div>
+        </bk-exception>
+      </div>
+    );
+
     const renderResultContent = () => {
       if (isPreApiLoaded.value) {
         return [
           <V3Toolbar></V3Toolbar>,
           <V3Container>
-            <V3Searchbar
-              class={{
-                'is-sticky-top': isSearchContextStickyTop.value,
-                'is-sticky-top-result': isSearchResultStickyTop.value,
-              }}
-            ></V3Searchbar>
-            <V3SearchResult></V3SearchResult>
+            {renderSearchBar()}
+            <V3SearchResult v-show={!(isSceneMode.value && isFirstSearch.value)}></V3SearchResult>
+            {isSceneMode.value && isFirstSearch.value && renderSceneEmptyTip()}
           </V3Container>,
         ];
       }
@@ -112,6 +146,7 @@ export default defineComponent({
           'v3-bklog-root',
           { 'is-start-text-ellipsis': isStartTextEllipsis.value },
           { 'is-sticky-top': isSearchContextStickyTop.value, 'is-sticky-top-result': isSearchResultStickyTop.value },
+          { 'is-scene-mode': isSceneMode.value },
         ]}
         v-bkloading={{ isLoading: !isPreApiLoaded.value }}
       >
