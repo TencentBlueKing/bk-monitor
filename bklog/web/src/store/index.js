@@ -1056,11 +1056,11 @@ const store = new Vuex.Store({
         contextAndRealtime,
         indexSetValue,
         toolMessage: {
-          webConsole: bcsWebConsole.is_active ? 'WebConsole' : bcsWebConsole?.extra?.reason,
-          realTimeLog: contextAndRealtime.is_active
+          webConsole: bcsWebConsole?.is_active ? 'WebConsole' : bcsWebConsole?.extra?.reason,
+          realTimeLog: contextAndRealtime?.is_active
             ? window.mainComponent.$t('实时日志')
             : contextAndRealtime?.extra?.reason,
-          contextLog: contextAndRealtime.is_active
+          contextLog: contextAndRealtime?.is_active
             ? window.mainComponent.$t('上下文')
             : contextAndRealtime?.extra?.reason,
         },

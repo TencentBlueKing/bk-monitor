@@ -497,6 +497,12 @@ const getSceneFieldStatisticsGraph = {
   method: 'post',
 };
 
+/** 场景化检索 - 检索历史 */
+const getSceneSearchHistory = {
+  url: '/search/scene/history/',
+  method: 'post',
+};
+
 /** 场景化检索 - 导出历史 */
 const getSceneExportHistory = {
   url: '/search/scene/export/history/',
@@ -588,5 +594,6 @@ export {
   getSceneExport,
   getSceneAsyncExport,
   getSceneQuickExport,
+  getSceneSearchHistory,
   getSceneExportHistory,
 };

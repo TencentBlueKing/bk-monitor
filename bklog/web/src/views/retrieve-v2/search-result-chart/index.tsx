@@ -359,6 +359,9 @@ export default defineComponent({
 
     // 加载趋势图数据
     const loadTrendData = () => {
+      // 场景化检索模式下，过滤条件为空时不加载趋势图
+      if (store.getters.isSceneMode && store.getters.isSceneFilterEmpty) return;
+
       cacheChartOptions();
       store.commit('retrieve/updateTrendDataLoading', true); // 开始加载前，打开loading
       store.commit('retrieve/updateTotalCountLoaded', false); // 重置总数加载状态

@@ -95,27 +95,59 @@ export default defineComponent({
       });
     };
 
+    // ---- 条件变更提示条逻辑 ----
+    const { t } = useLocale();
+    const { addEvent } = useRetrieveEvent();
+
+    /** 上次查询时的 filterValues 快照 */
+    const lastQueriedFilterValues = ref<FilterValues | null>(null);
+    /** 是否显示提示条 */
+    const showQueryHint = ref(false);
+    /** 上次查询时的 activeScene 快照 */
+    const lastQueriedScene = ref<string | null>(null);
+
+    /** 除去值为空数组的字段 */
+    const normalizeFilterValues = (values: FilterValues): FilterValues => {
+      const result: FilterValues = {};
+      for (const [key, val] of Object.entries(values)) {
+        if (Array.isArray(val) && val.length === 0) continue;
+        result[key] = val;
+      }
+      return result;
+    };
+
+    /** 根据当前值与快照的对比，更新提示条状态 */
+    const updateQueryHint = () => {
+      if (lastQueriedFilterValues.value === null) return;
+      const filtersChanged = !isEqual(
+        normalizeFilterValues(filterValues.value),
+        normalizeFilterValues(lastQueriedFilterValues.value),
+      );
+      const sceneChanged = activeScene.value !== lastQueriedScene.value;
+      showQueryHint.value = filtersChanged || sceneChanged;
+    };
+
     const handleSceneChange = (type: string) => {
       activeScene.value = type;
       filterValues.value = {};
       filterLabels.value = {};
-      syncUrlParams();
+      updateQueryHint();
     };
 
     const handleFilterChange = (
-      payload: { values: FilterValues; labels?: { fieldName: string; labels: Record<string, string> } }
+      payload: { values: FilterValues; labels?: { fieldName: string; labels: Record<string, string> } },
     ) => {
       filterValues.value = payload.values;
       if (payload.labels) {
         filterLabels.value = { ...filterLabels.value, [payload.labels.fieldName]: payload.labels.labels };
       }
-      syncUrlParams();
+      updateQueryHint();
     };
 
     const handleClear = () => {
       filterValues.value = {};
       filterLabels.value = {};
-      syncUrlParams();
+      showQueryHint.value = false;
     };
 
     // 每场景独立的显示字段配置
@@ -157,47 +189,25 @@ export default defineComponent({
       saveLocalSceneDisplayFields(sceneDisplayFields.value);
     };
 
-    // ---- 条件变更提示条逻辑 ----
-    const { t } = useLocale();
-    const { addEvent } = useRetrieveEvent();
-
-    /** 是否已经执行过至少一次查询 */
-    const hasQueried = ref(false);
-    /** 上次查询时的 filterValues 快照 */
-    const lastQueriedFilterValues = ref<FilterValues | null>(null);
-    /** 是否显示提示条 */
-    const showQueryHint = ref(false);
-
-    /** 上次查询时的 activeScene 快照 */
-    const lastQueriedScene = ref<string | null>(null);
-
-    // 监听查询事件，记录快照并隐藏提示条
-    addEvent(RetrieveEvent.SEARCH_VALUE_CHANGE, () => {
-      hasQueried.value = true;
-      lastQueriedFilterValues.value = JSON.parse(JSON.stringify(store.state.indexItem.scene_filter_values ?? {}));
-      lastQueriedScene.value = activeScene.value;
-      showQueryHint.value = false;
-    });
+    // 监听 is_loading 从 false→true，表示查询开始
+    watch(
+      () => store.state.indexSetQueryResult.is_loading,
+      (newVal, oldVal) => {
+        if (newVal && !oldVal) {
+          lastQueriedFilterValues.value = JSON.parse(JSON.stringify(store.state.indexItem.scene_filter_values ?? {}));
+          lastQueriedScene.value = activeScene.value;
+          showQueryHint.value = false;
+          syncUrlParams();
+        }
+      },
+    );
 
     // 监听索引集切换，重置快照
     addEvent(RetrieveEvent.INDEX_SET_ID_CHANGE, () => {
-      hasQueried.value = false;
       lastQueriedFilterValues.value = null;
       lastQueriedScene.value = null;
       showQueryHint.value = false;
     });
-
-    // 监听 filterValues 和 activeScene 变化，对比快照
-    watch(
-      [filterValues, activeScene],
-      ([newFilterValues, newScene]) => {
-        if (!hasQueried.value || lastQueriedFilterValues.value === null) return;
-        const filtersChanged = !isEqual(newFilterValues, lastQueriedFilterValues.value);
-        const sceneChanged = newScene !== lastQueriedScene.value;
-        showQueryHint.value = filtersChanged || sceneChanged;
-      },
-      { deep: true },
-    );
 
     const shortcutKey = getOs() === 'macos' ? 'cmd+shift+enter' : 'ctrl+shift+enter';
 
