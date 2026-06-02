@@ -132,3 +132,61 @@ def test_batch_get_metric_info_maps_prefetch_equivalence(create_and_delete_ts_gr
     # 预取数据确实按 table_id / group_id 正确分桶命中
     assert "metric_a" in field_map_by_table[group.table_id]
     assert [m.field_name for m in metrics_by_group[group.time_series_group_id]] == ["metric_a"]
+
+
+def test_batch_prefetch_equivalence_multi_group_and_empty_bucket(create_and_delete_ts_group_record):
+    """多 group + 某表无字段(空桶回退) 场景下，逐 group 自查与批量预取仍逐组完全一致。
+    覆盖两个关键边界：跨 group 分桶、field_map 为空 dict 时 to_metric_info_with_label 的回退行为。"""
+    group_a = models.TimeSeriesGroup.objects.get(table_id=DEFAULT_TABLE_ID)  # 有字段，指标可命中
+    group_b = models.TimeSeriesGroup.objects.create(
+        bk_data_id=DEFAULT_DATA_ID + 1,
+        bk_biz_id=DEFAULT_BIZ_ID,
+        table_id="test_table_id_b",
+        time_series_group_id=DEFAULT_GROUP_ID + 1,
+    )
+    try:
+        # group_a：有指标 + 有对应字段
+        models.TimeSeriesMetric.objects.create(
+            group_id=group_a.time_series_group_id, table_id=group_a.table_id, field_name="metric_a", tag_list=["dim_x"]
+        )
+        _create_rt_field(group_a.table_id, group_a.bk_tenant_id, "metric_a", "double", "metric")
+        _create_rt_field(group_a.table_id, group_a.bk_tenant_id, "dim_x", "string", "dimension")
+        # group_b：有指标但【不建】ResultTableField → 预取得到空桶，触发 to_metric_info_with_label 的回退分支
+        models.TimeSeriesMetric.objects.create(
+            group_id=group_b.time_series_group_id, table_id=group_b.table_id, field_name="metric_b", tag_list=["dim_y"]
+        )
+
+        groups = [group_a, group_b]
+        field_map_by_table, scope_map_by_group, metrics_by_group = models.TimeSeriesGroup.batch_get_metric_info_maps(
+            groups, group_a.bk_tenant_id
+        )
+
+        # 逐组比对：两条路径结果必须完全一致
+        for g in groups:
+            result_self = g.get_metric_info_list_with_label("", "")
+            result_batch = g.get_metric_info_list_with_label(
+                "",
+                "",
+                field_map=field_map_by_table.get(g.table_id, {}),
+                scope_map=scope_map_by_group.get(g.time_series_group_id, {}),
+                metrics=metrics_by_group.get(g.time_series_group_id, []),
+            )
+            assert result_self == result_batch, f"group {g.table_id} 预取/自查结果不一致"
+
+        # group_a 命中 1 个指标；group_b 因表无字段(空桶回退后 field_name 不命中) → 空
+        assert len(group_a.get_metric_info_list_with_label("", "")) == 1
+        assert group_a.get_metric_info_list_with_label("", "") == [
+            group_a.get_metric_info_list_with_label(
+                "",
+                "",
+                field_map=field_map_by_table.get(group_a.table_id, {}),
+                scope_map={},
+                metrics=metrics_by_group.get(group_a.time_series_group_id, []),
+            )[0]
+        ]
+        assert group_b.get_metric_info_list_with_label("", "") == []
+        # 空桶：group_b 的表不在字段预取结果里，但其指标已被正确分桶
+        assert group_b.table_id not in field_map_by_table
+        assert [m.field_name for m in metrics_by_group[group_b.time_series_group_id]] == ["metric_b"]
+    finally:
+        models.TimeSeriesGroup.objects.filter(time_series_group_id=group_b.time_series_group_id).delete()
