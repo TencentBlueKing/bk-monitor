@@ -1770,7 +1770,7 @@
                       ]
                     },
                     "caller_server": {
-                      "field": "resource.service.nameservice.name"
+                      "field": "resource.service.name"
                     },
                     "caller_service": {
                       "field": "attributes.trpc.caller_service"
