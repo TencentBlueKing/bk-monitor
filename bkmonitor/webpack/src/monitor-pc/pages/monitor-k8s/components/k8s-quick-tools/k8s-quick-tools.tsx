@@ -25,7 +25,7 @@
  */
 /** biome-ignore-all lint/correctness/noUnusedVariables: <explanation> */
 
-import { Component, Inject, Prop, ProvideReactive, Ref } from 'vue-property-decorator';
+import { Component, Inject, InjectReactive, Prop, ProvideReactive, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import K8sDimensionDrillDown from 'monitor-ui/chart-plugins/plugins/k8s-custom-graph/k8s-dimension-drilldown';
@@ -70,6 +70,7 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
     item: K8sTableGroupByEvent,
     showCancelDrill?: boolean
   ) => void;
+  @InjectReactive({ from: 'isApmMonitor', default: false }) isApmMonitor!: boolean;
 
   /** popover 实例 */
   popoverInstance = null;
@@ -105,7 +106,7 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
     const filters = this.filters;
     const hasFilter = filters?.includes?.(this.filterValue);
     const elAttr = hasFilter
-      ? { className: ['selected'], text: '移除该筛选项' }
+      ? { className: ['selected', { 'apm-disabled': this.isApmMonitor }], text: '移除该筛选项' }
       : { className: ['icon-monitor icon-a-sousuo'], text: '添加为筛选项' };
     return {
       hasFilter: hasFilter,
@@ -145,7 +146,10 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
    *
    */
   handleNewK8sPage(targetScene: SceneEnum) {
-    const { scene: currentScene, groupBy, filterBy, ...rest } = this.$route.query;
+    // const { scene: currentScene, groupBy, filterBy, ...rest } = this.$route.query;
+    const { ...rest } = this.$route.query?.apmK8sParams
+      ? JSON.parse(this.$route.query?.apmK8sParams as string)
+      : this.$route.query;
     const targetPageGroupInstance = K8sGroupDimension.createInstance(targetScene);
     targetPageGroupInstance.addGroupFilter(this.groupByField);
     // 事件场景 跳转
@@ -204,9 +208,16 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
   }
 
   gotoK8sPageByQuery(query: Record<string, any>) {
-    const targetRoute = this.$router.resolve({
+    let targetRoute = this.$router.resolve({
       query,
     });
+    // apm服务内的容器跳转
+    if (this.isApmMonitor) {
+      targetRoute = this.$router.resolve({
+        path: '/k8s-new',
+        query,
+      });
+    }
     this.handlePopoverHide();
     window.open(`${location.origin}${location.pathname}${location.search}${targetRoute.href}`, '_blank');
   }
@@ -284,7 +295,7 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
         >
           <i
             class={this.filterToolConfig.className}
-            onClick={this.handleFilterChange}
+            onClick={this.isApmMonitor ? () => {} : this.handleFilterChange}
           />
         </div>
         <K8sDimensionDrillDown
