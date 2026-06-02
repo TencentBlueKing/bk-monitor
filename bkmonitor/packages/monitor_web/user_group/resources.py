@@ -2,7 +2,6 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 
 import pytz
-from django.db.models import Q
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -121,8 +120,6 @@ class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
         for duty_rule in validated_request_data["duty_rules"]:
             # 获取那些未排班时间与预览时间有重叠的快照
             snaps = DutyRuleSnap.objects.filter(
-                Q(end_time__gte=begin_time) | Q(end_time__isnull=True) | Q(end_time=""),
-                next_plan_time__lte=preview_end_time,
                 user_group_id=user_group.id if user_group else -1,
                 duty_rule_id=duty_rule["id"],
             )
@@ -130,6 +127,8 @@ class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
             # 完成预览时间段内未完成的排班
             # 注意 get_duty_plan 返回的计划没有精确限制开始和结束的时间
             for snap in snaps:
+                if (snap.end_time and snap.end_time < begin_time) or snap.next_plan_time > preview_end_time:
+                    continue
                 duty_manager = DutyRuleManager(
                     duty_rule=snap.rule_snap,
                     begin_time=snap.next_plan_time,
