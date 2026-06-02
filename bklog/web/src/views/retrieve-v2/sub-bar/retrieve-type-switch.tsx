@@ -27,6 +27,7 @@
 import { computed, defineComponent } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+import http from '@/api';
 import { useRoute, useRouter } from 'vue-router/composables';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import { getAllSceneFieldOpKeys } from '../../retrieve-v3/search-bar/scene-filter/scene-config';
@@ -100,7 +101,10 @@ export default defineComponent({
         for (const key of getAllSceneFieldOpKeys(sceneConfigs.value)) {
           delete cleanQuery[key];
         }
-        router.replace({ query: cleanQuery });
+        router.replace({
+          params: { ...route.params, indexId: store.state.indexId || undefined },
+          query: cleanQuery,
+        });
       } else {
         store.commit('updateIndexItemParams', {
           retrieve_type: type,
@@ -110,6 +114,16 @@ export default defineComponent({
         // 清空检索数据
         resetRetrieveData(store);
         RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_CLEAR);
+
+        // 获取场景化检索用户自定义配置
+        http.request('retrieve/getSceneUserCustomConfig', {
+          query: {
+            bk_biz_id: store.state.bkBizId,
+            scene_id: SceneType.Container,
+          },
+        }).then((res) => {
+          store.commit('retrieve/updateCatchFieldCustomConfig', res.data);
+        });
 
         router.replace({
           query: {
@@ -122,10 +136,8 @@ export default defineComponent({
         });
       }
 
-      // 切换检索模式时，如果收藏面板展开，先清空选中态和搜索值，再重新获取收藏列表
-      if (RetrieveHelper.isFavoriteShown) {
-        RetrieveHelper.fire(RetrieveEvent.FAVORITE_LIST_REFRESH);
-      }
+      // 切换检索模式时，需要重新获取收藏列表
+      RetrieveHelper.fire(RetrieveEvent.FAVORITE_LIST_REFRESH);
     };
 
     return () => (

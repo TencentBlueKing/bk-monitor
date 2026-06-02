@@ -417,9 +417,14 @@ export default defineComponent({
       ops: string[] | undefined,
       // eslint-disable-next-line no-unused-vars
       onChange: (newOp: string) => void,
-      label?: string,
-      placement: string = 'bottom-start',
+      options?: {
+        label?: string;
+        placement?: string;
+        choicesType?: string;
+        fieldType?: string;
+      },
     ) => {
+      const { label, placement = 'bottom-start', choicesType, fieldType } = options ?? {};
       let popoverRef: any = null;
 
       const handleOpClick = (opKey: string) => {
@@ -434,7 +439,7 @@ export default defineComponent({
               class={['operator-popover-item bklog-v3-popover-tag', { 'is-active': opKey === currentOp }]}
               onClick={() => handleOpClick(opKey)}
             >
-              <span class='op-symbol'>{getOperatorDisplay(opKey)}</span>
+              <span class='op-symbol'>{getOperatorDisplay(opKey, choicesType, fieldType)}</span>
             </li>
           ))}
         </ul>
@@ -452,7 +457,7 @@ export default defineComponent({
         >
           <span class='field-operator-trigger'>
             {label && <span class='operator-label'>{label}</span>}
-            <span class='operator-value'>{getOperatorDisplay(currentOp)}</span>
+            <span class='operator-value'>{getOperatorDisplay(currentOp, choicesType, fieldType)}</span>
           </span>
         </BklogPopover>
       );
@@ -470,7 +475,12 @@ export default defineComponent({
           <div class='filter-field-item' key={field.key}>
             <div class='field-label-row'>
               <span class='field-label' v-bk-overflow-tips>{field.name}</span>
-              {renderOperatorSelector(currentOp, field.ops, newOp => handleOperatorChange(field.key, newOp))}
+              {renderOperatorSelector(
+                currentOp,
+                field.ops,
+                newOp => handleOperatorChange(field.key, newOp),
+                { choicesType: field.choicesType, fieldType: field.fieldType },
+              )}
             </div>
             <div class={['field-input', 'is-fixed-layout', { 'is-active': isFieldActive }]}>
               <div class='field-input-placeholder' />
@@ -509,7 +519,12 @@ export default defineComponent({
         <div class='filter-field-item' key={field.key}>
           <div class='field-label-row'>
             <span class='field-label' v-bk-overflow-tips>{field.name}</span>
-            {renderOperatorSelector(currentOp, field.ops, newOp => handleOperatorChange(field.key, newOp))}
+            {renderOperatorSelector(
+              currentOp,
+              field.ops,
+              newOp => handleOperatorChange(field.key, newOp),
+              { choicesType: field.choicesType, fieldType: field.fieldType },
+            )}
           </div>
           <div class={['field-input', 'is-fixed-layout', { 'is-active': isFieldActive }]}>
             <div class='field-input-placeholder' />
@@ -581,13 +596,18 @@ export default defineComponent({
                   {editDisplayFields.value.map(([name, op]) => {
                     const field = allFieldsOfScene.value.find(f => f.key === name);
                     return (
-                      <li class='setting-field-item is-selected bklog-v3-popover-tag' key={name}>
-                        <i class='bklog-icon bklog-ketuodong drag-handle' />
+                      <li class='setting-field-item is-selected bklog-v3-popover-tag' key={name} onClick={() => handleRemoveField(name)}>
+                        <i class='bklog-icon bklog-ketuodong drag-handle' onClick={e => e.stopPropagation()} />
                         <span class='field-name'>{getFieldLabel(name)}</span>
-                        <span class='setting-field-operator'>
-                          {renderOperatorSelector(op, field?.ops, newOp => handleEditOperatorChange(name, newOp), `${t('默认操作符')}：`, 'bottom-end')}
+                        <span class='setting-field-operator' onClick={e => e.stopPropagation()}>
+                          {renderOperatorSelector(
+                            op,
+                            field?.ops,
+                            newOp => handleEditOperatorChange(name, newOp),
+                            { label: `${t('默认操作符')}：`, placement: 'bottom-end', choicesType: field?.choicesType, fieldType: field?.fieldType },
+                          )}
                         </span>
-                        <i class='bk-icon icon-close-circle-shape remove-icon' onClick={() => handleRemoveField(name)} />
+                        <i class='bk-icon icon-close-circle-shape remove-icon' />
                       </li>
                     );
                   })}

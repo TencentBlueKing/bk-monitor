@@ -385,8 +385,9 @@ export const useFavorite = () => {
   ): Promise<void> => {
     try {
       const { group_id, group_new_name } = groupData;
+      const sourceType = store.getters.isSceneMode ? 'scene' : 'index_set';
       const params = { group_id };
-      const data = { name: group_new_name, space_uid: spaceUid };
+      const data = { name: group_new_name, space_uid: spaceUid, source_type: sourceType };
       const requestStr = isCreate ? 'createGroup' : 'updateGroupName';
 
       await $http.request(`favorite/${requestStr}`, { params, data }).then(res => {
@@ -548,9 +549,11 @@ export const useFavorite = () => {
   /** 获取组列表 */
   const requestGroupList = async (spaceUid: number, callback?: (res: any) => void) => {
     try {
+      const sourceType = store.getters.isSceneMode ? 'scene' : 'index_set';
       const res = await $http.request('favorite/getGroupList', {
         query: {
           space_uid: spaceUid,
+          source_type: sourceType,
         },
       });
       callback?.(res || {});

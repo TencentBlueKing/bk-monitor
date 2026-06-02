@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { BK_LOG_STORAGE } from "./store.type";
-import { getOperatorDisplay, getDefaultOp, REVERSE_OPERATOR_MAP } from "@/views/retrieve-v3/search-bar/scene-filter/scene-config";
+import { getDefaultOp, REVERSE_OPERATOR_MAP, getOperatorRequestParam } from "@/views/retrieve-v3/search-bar/scene-filter/scene-config";
 import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
 
 export { isFeatureToggleOn };
@@ -259,13 +259,15 @@ export const buildTableIdConditions = (
 
   if (!sceneActive) return emptyResult;
 
-  // 根据 sceneActive 找到当前场景的配置，建立 fieldName → choicesType 和 fieldName → ops 的映射
+  // 根据 sceneActive 找到当前场景的配置，建立 fieldName → choicesType、fieldName → fieldType 和 fieldName → ops 的映射
   const activeConfig = sceneConfigs.find((s: any) => s.type === sceneActive);
   const fieldChoicesTypeMap: Record<string, string> = {};
+  const fieldFieldTypeMap: Record<string, string> = {};
   const fieldOpsMap: Record<string, string[]> = {};
   if (activeConfig) {
     (activeConfig.fields ?? []).forEach((f: any) => {
       fieldChoicesTypeMap[f.key] = f.choicesType ?? 'static';
+      fieldFieldTypeMap[f.key] = f.fieldType;
       fieldOpsMap[f.key] = f.ops ?? [];
     });
   }
@@ -291,13 +293,13 @@ export const buildTableIdConditions = (
     if (valueArray.length === 0) continue;
 
     const choicesType = fieldChoicesTypeMap[fieldName] ?? 'static';
-    const operatorDisplay = getOperatorDisplay(op);
+    const fieldType = fieldFieldTypeMap[fieldName] ?? '';
 
     if (choicesType === 'free_input') {
       // free_input 类型放入 scene_filter_values
       filterValues.push({
         field: fieldName,
-        operator: operatorDisplay,
+        operator: getOperatorRequestParam(op, choicesType, fieldType),
         value: valueArray,
       });
     } else {

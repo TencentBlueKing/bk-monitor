@@ -315,7 +315,7 @@ export default defineComponent({
         // 获取请求参数
         const params = buildQueryParams(startTime, endTime);
 
-        if ((!isUnionSearch.value && !!params.indexId) || (isUnionSearch.value && unionIndexList.value?.length)) {
+        if (store.getters.isSceneMode || (!isUnionSearch.value && !!params.indexId) || (isUnionSearch.value && unionIndexList.value?.length)) {
           yield { ...params, isInit: localIsInit };
 
           // 更新isInit状态
