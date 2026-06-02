@@ -26,14 +26,18 @@ ALLOWED_OPERATIONS = (
     "cat_shards",
     "cat_segments",
     "cat_recovery",
+    "cat_indices",
     "field_mapping",
     "terms_agg_probe",
+    "node_breaker_stats",
 )
 ES_REQUEST_TIMEOUT = 20  # 传输层 request_timeout（秒）
 ES_SEARCH_TIMEOUT = "15s"  # search body timeout，限制聚合耗时
 PROBE_TERMS_SIZE = 50  # terms 探针只为判塌缩，不需要全量取值
+INDEX_BREAKDOWN_SIZE = 200  # terms_agg_probe 按 _index 下钻的索引数上限
 MISSING_PLACEHOLDER = " "  # 对齐 unify-query 的 Missing(" ")
 CAT_MAX_ROWS = 500  # cat_* 输出硬上限，超出截断并显式告知（不静默截断）
+HEAP_PRESSURE_PERCENT = 85  # 节点 heap 使用率达此阈值视为压力态（B2 信号）
 
 # 声明式能力目录：扩展 = 加一行；每行自带 required_params + 排障语义（该证据验证 / 不能证明）。
 ES_CAPABILITIES: list[dict[str, Any]] = [
@@ -70,6 +74,14 @@ ES_CAPABILITIES: list[dict[str, Any]] = [
         "cannot_prove": "证明不了字段聚合可用性",
     },
     {
+        "operation": "cat_indices",
+        "status": "active",
+        "required_params": [],
+        "optional_params": ["index_pattern"],
+        "evidence": "逐物理索引的 creation.date（滚动时间表）/docs.count/store.size/health；对齐'塌缩→恢复'起止 vs 索引滚动时刻",
+        "cannot_prove": "证明不了某索引内字段是否可聚合（需 field_mapping / terms_agg_probe）",
+    },
+    {
         "operation": "field_mapping",
         "status": "active",
         "required_params": ["index_pattern", "field"],
@@ -83,10 +95,18 @@ ES_CAPABILITIES: list[dict[str, Any]] = [
         "required_params": ["index_pattern", "field"],
         "optional_params": [],
         "evidence": (
-            "size:0 terms 聚合 + 字段 exists 计数，并回传 _shards/timed_out；三方对照区分"
-            "分片失败 / doc_values·global-ordinals 退化 / 字段在文档里真缺失"
+            "size:0 terms 聚合 + 字段 exists 计数 + 按 _index 下钻，并回传 _shards/timed_out；"
+            "把塌缩归因到具体物理索引，区分 分片失败 / doc_values·global-ordinals 退化 / 字段在文档里真缺失"
         ),
-        "cannot_prove": "证明不了退化的根因时序（段合并 / ordinals 重建），需结合 cat_segments / unify-query trace",
+        "cannot_prove": "证明不了退化的根因时序（段合并 / ordinals 重建），需结合 cat_segments / node_breaker_stats / unify-query trace",
+    },
+    {
+        "operation": "node_breaker_stats",
+        "status": "active",
+        "required_params": [],
+        "optional_params": [],
+        "evidence": "逐节点 heap% / fielddata·request·parent breaker tripped 次数 / search 线程池 reject；正证'运行时压力致 ordinals 重建失败/超时'(B2)",
+        "cannot_prove": "证明不了历史某时刻的压力（只反映当前；窗口已恢复需 ES 服务端日志）",
     },
 ]
 
@@ -286,6 +306,51 @@ def _cat_passthrough(client, cluster_id: int, params: dict[str, Any], operation:
     }
 
 
+def _cat_indices(client, cluster_id: int, params: dict[str, Any]) -> dict[str, Any]:
+    """cat/indices：取每个物理索引的 creation.date（= 一次滚动事件）+ 规模/健康，按创建时间倒序。
+    用途：把'塌缩→恢复'窗口的起止时刻去对索引滚动时刻 —— 对得上→B1(映射 race)；对不上→运行时(A/B2)。
+    """
+    index_pattern = str(params.get("index_pattern") or "").strip()
+    kwargs = {
+        "format": "json",
+        "h": "index,health,status,docs.count,store.size,creation.date,creation.date.string",
+        "s": "creation.date:desc",  # 最近滚动在前
+        "params": {"request_timeout": ES_REQUEST_TIMEOUT},
+    }
+    try:
+        rows = client.cat.indices(index=index_pattern, **kwargs) if index_pattern else client.cat.indices(**kwargs)
+    except Exception as error:
+        _raise(f"cat_indices 查询失败: {error}", error_code="ES_UPSTREAM_ERROR")
+    rows = rows or []
+    truncated = len(rows) > CAT_MAX_ROWS
+    items = [
+        {
+            "index": row.get("index"),
+            "health": row.get("health"),
+            "status": row.get("status"),
+            "docs_count": row.get("docs.count"),
+            "store_size": row.get("store.size"),
+            "creation_date": row.get("creation.date"),  # epoch ms
+            "creation_date_string": row.get("creation.date.string"),  # ISO8601
+        }
+        for row in rows[:CAT_MAX_ROWS]
+    ]
+    summary = f"cat_indices: 共 {len(rows)} 个物理索引（按 creation.date 倒序）" + (
+        f"（截断至 {CAT_MAX_ROWS}）" if truncated else ""
+    )
+    return {
+        "operation": "cat_indices",
+        "cluster_id": cluster_id,
+        "index_pattern": index_pattern or None,
+        "summary": summary,
+        "items": items if items else [{"total_indices": 0}],
+        "next_actions": [
+            "把每个'塌缩→恢复'窗口的起止时刻对 creation_date：对得上滚动→B1(映射 race)；对不上→运行时(A/B2)。",
+        ],
+        "meta": {"total_indices": len(rows), "truncated": truncated},
+    }
+
+
 def _field_blocks(mappings: dict[str, Any], field: str) -> list[dict[str, Any]]:
     """兼容 ES get_field_mapping 的两种响应形状：
     - ES7+(typeless): mappings[field] = {full_name, mapping}
@@ -351,17 +416,43 @@ def _field_mapping(client, cluster_id: int, params: dict[str, Any]) -> dict[str,
     }
 
 
+def _probe_signals(agg_node: dict[str, Any]) -> dict[str, Any]:
+    """从带 probe(terms)+field_exists(filter) 的聚合节点提取塌缩信号（顶层与逐索引共用）。"""
+    buckets = ((agg_node.get("probe") or {}).get("buckets")) or []
+    exists_count = (agg_node.get("field_exists") or {}).get("doc_count")
+    missing_doc_count = None
+    non_missing = 0
+    for bucket in buckets:
+        if bucket.get("key") == MISSING_PLACEHOLDER:
+            missing_doc_count = bucket.get("doc_count")
+        else:
+            non_missing += 1
+    only_missing_bucket = bool(buckets) and non_missing == 0 and missing_doc_count is not None
+    return {
+        "buckets_returned": len(buckets),
+        "non_missing_buckets": non_missing,
+        "missing_bucket_doc_count": missing_doc_count,
+        "field_exists_doc_count": exists_count,
+        "only_missing_bucket": only_missing_bucket,
+    }
+
+
 def _terms_agg_probe(client, cluster_id: int, params: dict[str, Any]) -> dict[str, Any]:
     index_pattern = _require(params, "index_pattern")
     field = _require(params, "field")
+    sub_aggs = {
+        "probe": {"terms": {"field": field, "size": PROBE_TERMS_SIZE, "missing": MISSING_PLACEHOLDER}},
+        # exists 计数：区分“字段真缺失/为空”（exists=0）与“有值却聚不出 = doc_values/ordinals 退化”（exists>0）。
+        "field_exists": {"filter": {"exists": {"field": field}}},
+    }
     body = {
         "size": 0,  # 护栏：恒 size:0，绝不返回原始文档（消除跨租户读原文）
         "timeout": ES_SEARCH_TIMEOUT,
         "aggs": {
-            "probe": {"terms": {"field": field, "size": PROBE_TERMS_SIZE, "missing": MISSING_PLACEHOLDER}},
-            # exists 计数：同一 size:0 查询内多算一个 filter 子聚合（无额外请求），用于区分
-            # “字段在文档里真缺失/为空”（exists=0）与“字段有值却聚不出 = doc_values/ordinals 退化”（exists>0）。
-            "field_exists": {"filter": {"exists": {"field": field}}},
+            **sub_aggs,  # 顶层（整 pattern 汇总，保留原有信号）
+            # 按物理索引下钻（_index 元字段恒可聚合）：把塌缩归因到具体索引——
+            # 部分索引塌缩+部分正常=强指向 B1 结构性坏索引；全塌=更像运行时(A/B2)。
+            "by_index": {"terms": {"field": "_index", "size": INDEX_BREAKDOWN_SIZE}, "aggs": sub_aggs},
         },
     }
     try:
@@ -374,19 +465,32 @@ def _terms_agg_probe(client, cluster_id: int, params: dict[str, Any]) -> dict[st
     raw_total = hits.get("total")
     total_hits_relation = raw_total.get("relation") if isinstance(raw_total, dict) else "eq"  # ES7+ 可能是 gte 上限
     aggs = res.get("aggregations") or {}
-    buckets = ((aggs.get("probe") or {}).get("buckets")) or []
-    exists_count = (aggs.get("field_exists") or {}).get("doc_count")  # 匹配文档中该字段 exists 的篇数
-    missing_doc_count = None
-    non_missing = 0
-    for bucket in buckets:
-        if bucket.get("key") == MISSING_PLACEHOLDER:
-            missing_doc_count = bucket.get("doc_count")
-        else:
-            non_missing += 1
-    only_missing_bucket = bool(buckets) and non_missing == 0 and missing_doc_count is not None
+    top = _probe_signals(aggs)
+    exists_count = top["field_exists_doc_count"]
+    only_missing_bucket = top["only_missing_bucket"]
     shards_failed = shards.get("failed") or 0
     timed_out = bool(res.get("timed_out"))
-    signals = {
+
+    # 逐索引归因：把塌缩落到具体物理索引
+    per_index: list[dict[str, Any]] = []
+    collapsed_indices: list[str] = []  # exists>0 却只回 missing 桶（聚合塌缩）
+    healthy_indices: list[str] = []  # 有非空桶（正常）
+    absent_indices: list[str] = []  # 只回 missing 桶且 exists=0（字段真缺失，非退化 → 指向 ②）
+    for idx_bucket in ((aggs.get("by_index") or {}).get("buckets")) or []:
+        idx_name = idx_bucket.get("key")
+        idx_sig = _probe_signals(idx_bucket)
+        idx_sig["index"] = idx_name
+        idx_sig["doc_count"] = idx_bucket.get("doc_count")
+        per_index.append(idx_sig)
+        if idx_sig["only_missing_bucket"] and (idx_sig["field_exists_doc_count"] or 0) > 0:
+            collapsed_indices.append(idx_name)
+        elif idx_sig["only_missing_bucket"] and idx_sig["field_exists_doc_count"] == 0:
+            absent_indices.append(idx_name)
+        elif idx_sig["non_missing_buckets"] > 0:
+            healthy_indices.append(idx_name)
+
+    overall = {
+        "scope": "overall",
         "shards_total": shards.get("total"),
         "shards_successful": shards.get("successful"),
         "shards_failed": shards_failed,
@@ -395,12 +499,16 @@ def _terms_agg_probe(client, cluster_id: int, params: dict[str, Any]) -> dict[st
         "total_hits": total_hits,
         "total_hits_relation": total_hits_relation,
         "field_exists_doc_count": exists_count,
-        "buckets_returned": len(buckets),
-        "non_missing_buckets": non_missing,
-        "missing_bucket_doc_count": missing_doc_count,
+        "buckets_returned": top["buckets_returned"],
+        "non_missing_buckets": top["non_missing_buckets"],
+        "missing_bucket_doc_count": top["missing_bucket_doc_count"],
         "only_missing_bucket": only_missing_bucket,
+        "collapsed_index_count": len(collapsed_indices),
+        "healthy_index_count": len(healthy_indices),
+        "absent_index_count": len(absent_indices),
         "shard_failures": (shards.get("failures") or [])[:5],
     }
+
     if shards_failed:
         verdict = f"shards_failed={shards_failed} → 静默退化源于分片失败；看 shard_failures / 跑 cat_shards。"
     elif only_missing_bucket:
@@ -422,21 +530,106 @@ def _terms_agg_probe(client, cluster_id: int, params: dict[str, Any]) -> dict[st
             )
     elif timed_out:
         verdict = "timed_out=true → 聚合在限定时间内未完成，结果可能不完整（非确定性塌缩）。"
-    elif (total_hits or 0) > 0 and len(buckets) == 0:
+    elif (total_hits or 0) > 0 and top["buckets_returned"] == 0:
         verdict = f"total_hits>0 但 terms({field}) 返回 0 桶 → 异常退化 / 字段聚合不可用。"
     else:
-        verdict = f"terms({field}) 正常：{non_missing} 个非空桶，未见塌缩。"
+        verdict = f"terms({field}) 正常：{top['non_missing_buckets']} 个非空桶，未见塌缩。"
+
+    # 逐索引归因（B1 结构性坏索引 vs 运行时 A/B2 的判别加成）。
+    # 关键 gate：仅在「非分片失败 且 非超时」时追加——否则 shards_failed/timed_out 已定因(A/超时)，
+    # 此时某索引"看起来塌缩"只是失败分片没贡献桶（A 的逐索引表现），强追加 B1 后缀会与主判矛盾（§8.2 指纹表）。
+    if not shards_failed and not timed_out:
+        if collapsed_indices and healthy_indices:
+            verdict += (
+                f" 【按索引下钻】塌缩集中在 {len(collapsed_indices)} 个索引（如 {collapsed_indices[:3]}），"
+                f"另有 {len(healthy_indices)} 个索引正常 → 强指向 B1 结构性坏索引："
+                "用 cat_indices 对这些索引的 creation_date、用 field_mapping 核其字段 type/doc_values。"
+            )
+        elif collapsed_indices and not healthy_indices:
+            verdict += (
+                f" 【按索引下钻】{len(collapsed_indices)} 个索引全部塌缩 → 非单一坏索引，"
+                "更像运行时退化(A/B2)：跑 node_breaker_stats，并看 shards_failed/timed_out。"
+            )
+
     return {
         "operation": "terms_agg_probe",
         "cluster_id": cluster_id,
         "index_pattern": index_pattern,
         "field": field,
         "summary": verdict,
-        "items": [signals],
+        "items": [overall] + per_index[:CAT_MAX_ROWS],
         "next_actions": [
             "对照 field_mapping 确认字段 type/doc_values；",
-            "若复发，结合 unify-query trace 的 shards_failed/timed_out（需求①）交叉印证。",
+            "塌缩集中在部分索引→cat_indices 对滚动时刻(B1)；全索引塌缩→node_breaker_stats 看压力(B2)；",
+            "若复发，结合 unify-query trace 的 shards_failed/timed_out 交叉印证。",
         ],
+    }
+
+
+def _node_breaker_stats(client, cluster_id: int) -> dict[str, Any]:
+    """node stats：逐节点 heap% / circuit breaker tripped / search 线程池 reject。
+    正证'运行时压力致 global-ordinals 重建失败/超时'(B2)，与结构性坏索引(B1)区分；只取诊断必需的少量字段。
+    """
+    try:
+        stats = client.nodes.stats(metric="breaker,jvm,thread_pool", params={"request_timeout": ES_REQUEST_TIMEOUT})
+    except Exception as error:
+        _raise(f"node_breaker_stats 查询失败: {error}", error_code="ES_UPSTREAM_ERROR")
+    nodes = (stats or {}).get("nodes") or {}
+    items: list[dict[str, Any]] = []
+    flagged = 0
+    breaker_tripped_total: dict[str, int] = {}
+    max_heap = None
+    for node in nodes.values():
+        breakers = node.get("breakers") or {}
+        heap_pct = ((node.get("jvm") or {}).get("mem") or {}).get("heap_used_percent")
+        search_pool = (node.get("thread_pool") or {}).get("search") or {}
+        tripped = {name: (b or {}).get("tripped") for name, b in breakers.items()}
+        search_rejected = search_pool.get("rejected")
+        for name, value in tripped.items():
+            breaker_tripped_total[name] = breaker_tripped_total.get(name, 0) + (value or 0)
+        if heap_pct is not None:
+            max_heap = heap_pct if max_heap is None else max(max_heap, heap_pct)
+        under_pressure = (
+            any((value or 0) for value in tripped.values())
+            or (heap_pct or 0) >= HEAP_PRESSURE_PERCENT
+            or (search_rejected or 0) > 0
+        )
+        if under_pressure:
+            flagged += 1
+        items.append(
+            {
+                "node": node.get("name"),
+                "heap_used_percent": heap_pct,
+                "breaker_tripped": tripped,  # fielddata / request / parent / in_flight_requests / accounting
+                "search_rejected": search_rejected,
+                "search_queue": search_pool.get("queue"),
+                "under_pressure": under_pressure,
+            }
+        )
+    if flagged:
+        verdict = (
+            f"{flagged}/{len(items)} 个节点处压力态（breaker tripped / heap≥{HEAP_PRESSURE_PERCENT}% / search reject）→ "
+            "支持 B2：运行时压力致 global-ordinals 重建失败/超时；结合 terms_agg_probe(timed_out) 与塌缩窗口时刻确认。"
+        )
+    else:
+        verdict = (
+            f"{len(items)} 个节点当前未见明显压力（无 breaker tripped、heap<{HEAP_PRESSURE_PERCENT}%、无 search reject）→ "
+            "当前不支持 B2 压力假设（注意：只反映当前；已恢复的历史窗口需 ES 服务端日志取证）。"
+        )
+    return {
+        "operation": "node_breaker_stats",
+        "cluster_id": cluster_id,
+        "summary": verdict,
+        "items": items if items else [{"node_count": 0}],
+        "next_actions": [
+            "有 breaker tripped / heap 高 / search reject → B2；否则在 mapping 正常且 shards_failed=0 时回看 A（分片态）。",
+        ],
+        "meta": {
+            "node_count": len(items),
+            "flagged_nodes": flagged,
+            "breaker_tripped_total": breaker_tripped_total,
+            "max_heap_used_percent": max_heap,
+        },
     }
 
 
@@ -456,10 +649,14 @@ def es_diagnose(params: dict[str, Any]) -> dict[str, Any]:
         return _cluster_health(client, cluster_id)
     if operation == "cat_shards":
         return _cat_shards(client, cluster_id, params)
+    if operation == "cat_indices":
+        return _cat_indices(client, cluster_id, params)
     if operation in ("cat_segments", "cat_recovery"):
         return _cat_passthrough(client, cluster_id, params, operation)
     if operation == "field_mapping":
         return _field_mapping(client, cluster_id, params)
+    if operation == "node_breaker_stats":
+        return _node_breaker_stats(client, cluster_id)
     return _terms_agg_probe(client, cluster_id, params)
 
 
@@ -482,16 +679,19 @@ def list_es_capabilities(params: dict[str, Any]) -> dict[str, Any]:
 
 KernelRPCRegistry.register_function(
     func_name="bkm_cli.es_diagnose",
-    summary="ES 只读诊断（cluster_health/cat_shards/cat_segments/cat_recovery/field_mapping/terms_agg_probe）",
+    summary="ES 只读诊断（cluster_health/cat_shards/cat_segments/cat_recovery/cat_indices/field_mapping/terms_agg_probe/node_breaker_stats）",
     description=(
-        "经 metadata ClusterInfo 解析集群后受限只读调用 ES：仅 6 个白名单 operation，"
-        "search 恒 size:0，预解析 _shards/timed_out 等排障信号。"
+        "经 metadata ClusterInfo 解析集群后受限只读调用 ES：仅 8 个白名单 operation，"
+        "search 恒 size:0，预解析 _shards/timed_out/逐索引归因/节点压力等排障信号。"
     ),
     handler=es_diagnose,
     params_schema={
         "cluster_id": "ES 集群 id（取自 trace query-storage-id）",
-        "operation": "cluster_health | cat_shards | cat_segments | cat_recovery | field_mapping | terms_agg_probe",
-        "index_pattern": "field_mapping / terms_agg_probe 必填",
+        "operation": (
+            "cluster_health | cat_shards | cat_segments | cat_recovery | cat_indices | "
+            "field_mapping | terms_agg_probe | node_breaker_stats"
+        ),
+        "index_pattern": "field_mapping / terms_agg_probe 必填；cat_* 可选",
         "field": "field_mapping / terms_agg_probe 必填",
     },
     example_params={
@@ -516,8 +716,9 @@ BkmCliOpRegistry.register(
     func_name="bkm_cli.es_diagnose",
     summary="ES 只读诊断（经 metadata proxy，bkm-cli 不持凭据）",
     description=(
-        "受限只读 ES 诊断：cluster_health/cat_shards/cat_segments/cat_recovery/field_mapping/terms_agg_probe，"
-        "search 恒 size:0，定位聚合塌缩 / 分片静默退化类误告。"
+        "受限只读 ES 诊断：cluster_health/cat_shards/cat_segments/cat_recovery/cat_indices/"
+        "field_mapping/terms_agg_probe/node_breaker_stats，search 恒 size:0，"
+        "定位聚合塌缩 / 分片静默退化类误告（含逐索引归因 + 滚动时间表 + 节点压力）。"
     ),
     capability_level="readonly",
     risk_level="low",
