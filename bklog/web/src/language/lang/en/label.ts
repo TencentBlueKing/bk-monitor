@@ -974,4 +974,9 @@ export default {
   输入样例: 'Input example',
   退出: 'Exit',
   主动采集: 'Active Collection',
+  常规检索: 'Standard Search',
+  场景化检索: 'Contextual Search',
+  服务: 'Service',
+  客户端: 'Client',
+  清空查询: 'Clear Query',
 };

@@ -178,3 +178,48 @@ export const formatAdditionalFields = (state: any, addition: Record<string, any>
 
   return copyAddition;
 };
+
+/**
+ * 判断当前是否为场景化检索模式
+ */
+export const isSceneRetrieve = (state: any): boolean => {
+  return state.indexItem?.retrieve_type === 'scene';
+};
+
+/**
+ * 根据 scene_active 和 scene_filter_values 组装 table_id_conditions
+ *
+ * @param state Vuex state
+ */
+export const buildTableIdConditions = (
+  state: any,
+): Array<Array<{ field_name: string; value: any[]; op: string }>> => {
+  const { scene_active: sceneActive, scene_filter_values = {} } = state.indexItem ?? {};
+
+  if (!sceneActive) return [];
+
+  const conditions: Array<{ field_name: string; value: any[]; op: string }> = [];
+
+  // 第一个固定条件：场景
+  conditions.push({
+    field_name: 'scene',
+    value: [sceneActive],
+    op: 'eq',
+  });
+
+  // 由 scene_filter_values 生成后续条件
+  for (const [fieldName, fieldValue] of Object.entries(scene_filter_values)) {
+    if (fieldValue === undefined || fieldValue === null || fieldValue === '') continue;
+
+    const valueArray = Array.isArray(fieldValue) ? fieldValue : [fieldValue];
+    if (valueArray.length === 0) continue;
+
+    conditions.push({
+      field_name: fieldName,
+      value: valueArray,
+      op: 'eq',
+    });
+  }
+
+  return [conditions];
+};
