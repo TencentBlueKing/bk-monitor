@@ -63,6 +63,7 @@ class FakeESClient:
         self.cat = _FakeCat(cat_rows or [])
 
     def search(self, index, body, params):
+        self.last_search = {"index": index, "body": body, "params": params}
         return self._search
 
 
@@ -114,6 +115,43 @@ def test_es_ops_registered():
     # 8 个白名单 operation
     assert len(es.ALLOWED_OPERATIONS) == 8
     assert {c["operation"] for c in es.ES_CAPABILITIES} == set(es.ALLOWED_OPERATIONS)
+
+
+# ---------------- 服务端护栏（安全模型，非 CLI 自律）----------------
+
+
+def test_es_diagnose_rejects_non_allowlisted_operation():
+    # operation 白名单在服务端强制：非白名单项在解析集群/构造客户端之前就被拒（不靠 CLI 自律）。
+    with pytest.raises(CustomException) as exc:
+        es.es_diagnose({"cluster_id": "10", "operation": "_cluster/settings"})
+    assert exc.value.data["error_code"] == "OPERATION_NOT_ALLOWED"
+
+
+def test_terms_agg_probe_forces_size_zero_and_breakdown_aggs():
+    # AC3 硬门槛：probe 的 search body 恒 size:0（绝不返回原始文档→消除跨租户读原文），
+    # 且带 by_index 下钻 + field_exists 过滤（逐索引归因所依赖的结构）。
+    client = FakeESClient(search=_search_resp())
+    es._terms_agg_probe(client, 10, {"index_pattern": "idx-*", "field": "namespace"})
+    body = client.last_search["body"]
+    assert body["size"] == 0
+    assert body["aggs"]["probe"]["terms"]["field"] == "namespace"
+    assert body["aggs"]["field_exists"]["filter"]["exists"]["field"] == "namespace"
+    assert "by_index" in body["aggs"]
+
+
+def test_load_es_cluster_rejects_non_es_cluster_type(monkeypatch):
+    # cluster_type 守卫：拒绝把 kafka/influxdb 等非 ES 存储当 ES 直查，
+    # 避免对任意已注册存储 host 发带凭据的只读外呼。
+    from metadata.models import ClusterInfo
+
+    class _FakeCluster:
+        cluster_type = "kafka"
+        bk_tenant_id = "system"
+
+    monkeypatch.setattr(ClusterInfo.objects, "get", lambda **kwargs: _FakeCluster())
+    with pytest.raises(CustomException) as exc:
+        es._load_es_cluster(10)
+    assert exc.value.data["error_code"] == "OPERATION_NOT_ALLOWED"
 
 
 # ---------------- #6 可聚合类型 allowlist ----------------
