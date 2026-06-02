@@ -131,10 +131,16 @@
           .handle-content {
             position: relative;
             display: flex;
-            justify-content: space-around;
-            padding: 4px 0;
+            flex: 1;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            min-width: 0;
+            height: 100%;
+            padding: 0;
 
             .handle-card {
+              flex: 0 0 18px;
               margin-left: 0;
             }
           }
