@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, onActivated, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, onActivated, shallowRef } from 'vue';
 
 import { Button, InfoBox } from 'bkui-vue';
 import { getDocLink } from 'monitor-api/modules/commons';
@@ -79,14 +79,6 @@ export default defineComponent({
     onActivated(() => {
       navId.value = route.meta?.navId || '';
     });
-
-    watch(
-      props.introduceData,
-      v => {
-        console.log(v);
-      },
-      { immediate: true }
-    );
 
     const handleGotoLink = (item: IBtnAndLinkItem) => {
       if (item.url?.match?.(/^https?:\/\//)) {
