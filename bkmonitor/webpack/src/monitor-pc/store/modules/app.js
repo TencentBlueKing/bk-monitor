@@ -25,7 +25,7 @@
  */
 import Vue from 'vue';
 
-import { docCookies, LANGUAGE_COOKIE_KEY, LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils';
+import { docCookies, getBizRouteHref, LANGUAGE_COOKIE_KEY, LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils';
 
 export const SET_TITLE = 'SET_TITLE';
 export const SET_BACK = 'SET_BACK';
@@ -170,7 +170,7 @@ const mutations = {
       const { needClearQuery } = ctx.$route.meta;
       // 清空query查询条件
       if (needClearQuery) {
-        location.href = `${location.origin}${location.pathname}?bizId=${window.cc_biz_id}#${ctx.$route.path}`;
+        location.href = getBizRouteHref(ctx.$route.path, window.cc_biz_id);
       } else {
         location.search = `?bizId=${window.cc_biz_id}`;
       }
@@ -179,7 +179,7 @@ const mutations = {
     if (navId !== ctx.$route.name) {
       const parentRoute = ctx.$router.options.routes.find(item => item.name === navId);
       if (parentRoute) {
-        location.href = `${location.origin}${location.pathname}?bizId=${window.cc_biz_id}#${parentRoute.path}`;
+        location.href = getBizRouteHref(parentRoute.path, window.cc_biz_id);
       } else {
         handleReload();
       }
