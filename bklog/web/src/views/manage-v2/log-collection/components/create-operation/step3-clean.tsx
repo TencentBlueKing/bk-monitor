@@ -791,6 +791,9 @@ export default defineComponent({
     const handleChangeCleaningMode = (mode: string) => {
       cleaningMode.value = mode.value;
       formData.value.etl_config = cleaningMode.value;
+      if (cleaningMode.value !== 'bk_log_json') {
+        formData.value.etl_params.retain_extra_json = false;
+      }
     };
 
     // 对时间格式做校验逻辑
@@ -1036,6 +1039,9 @@ export default defineComponent({
                 const type = val ? 'bk_log_json' : 'bk_log_text';
                 cleaningMode.value = type;
                 formData.value.etl_config = type;
+                if (!val) {
+                  formData.value.etl_params.retain_extra_json = false;
+                }
               }}
             />
           </div>
@@ -1189,6 +1195,25 @@ export default defineComponent({
             <bk-radio value={false}>{t('丢弃')}</bk-radio>
           </bk-radio-group>
         </div>
+        {cleaningMode.value === 'bk_log_json' && (
+          <div class='label-form-box'>
+            <span class='label-title no-require'>{t('JSON 字段动态新增')}</span>
+            <div class='form-box mt-5'>
+              <bk-switcher
+                size='large'
+                theme='primary'
+                value={formData.value.etl_params.retain_extra_json}
+                on-change={(val: boolean) => {
+                  formData.value.etl_params.retain_extra_json = val;
+                }}
+              />
+              <InfoTips
+                class='ml-12'
+                tips={t('在日志采集中，若您的日志中产生新的JSON字段，我们会自动采集并合入 __ext_json 字段中，您可以通过 __ext_json.xxx 检索该数据')}
+              />
+            </div>
+          </div>
+        )}
         <div class='label-form-box'>
           <span class='label-title no-require'>{t('路径元数据')}</span>
           <div class='form-box mt-5'>
