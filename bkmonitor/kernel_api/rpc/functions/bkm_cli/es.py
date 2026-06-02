@@ -37,7 +37,8 @@ PROBE_TERMS_SIZE = 50  # terms 探针只为判塌缩，不需要全量取值
 INDEX_BREAKDOWN_SIZE = 200  # terms_agg_probe 按 _index 下钻的索引数上限
 MISSING_PLACEHOLDER = " "  # 对齐 unify-query 的 Missing(" ")
 CAT_MAX_ROWS = 500  # cat_* 输出硬上限，超出截断并显式告知（不静默截断）
-HEAP_PRESSURE_PERCENT = 85  # 节点 heap 使用率达此阈值视为压力态（B2 信号）
+HEAP_PRESSURE_PERCENT = 85  # 节点 heap 使用率(瞬时)达此阈值视为当前压力（B2 信号）
+OLD_GEN_PRESSURE_PERCENT = 85  # 老年代占用率(瞬时)达此阈值视为当前内存压力（比合计 heap 更对准 ordinals 压力）
 
 # 声明式能力目录：扩展 = 加一行；每行自带 required_params + 排障语义（该证据验证 / 不能证明）。
 ES_CAPABILITIES: list[dict[str, Any]] = [
@@ -105,8 +106,8 @@ ES_CAPABILITIES: list[dict[str, Any]] = [
         "status": "active",
         "required_params": [],
         "optional_params": [],
-        "evidence": "逐节点 heap% / fielddata·request·parent breaker tripped 次数 / search 线程池 reject；正证'运行时压力致 ordinals 重建失败/超时'(B2)",
-        "cannot_prove": "证明不了历史某时刻的压力（只反映当前；窗口已恢复需 ES 服务端日志）",
+        "evidence": "逐节点【瞬时】heap%/老年代占用%/search queue（正证当前内存压力=B2），及【自启动累计】breaker tripped/search reject（仅历史信号，两次调用比 delta 才是'当前在 trip'）",
+        "cannot_prove": "证明不了历史某时刻的压力（瞬时值只反映当下、累计值非当前；窗口已恢复需 ES 服务端日志）",
     },
 ]
 
@@ -591,8 +592,11 @@ def _terms_agg_probe(client, cluster_id: int, params: dict[str, Any]) -> dict[st
 
 
 def _node_breaker_stats(client, cluster_id: int) -> dict[str, Any]:
-    """node stats：逐节点 heap% / circuit breaker tripped / search 线程池 reject。
-    正证'运行时压力致 global-ordinals 重建失败/超时'(B2)，与结构性坏索引(B1)区分；只取诊断必需的少量字段。
+    """node stats，区分两类信号，避免把历史当当前：
+    - 【瞬时】heap% / 老年代占用% / search queue·active —— 反映查询时刻状态，用于正证“当前”内存压力(B2)；
+    - 【自节点启动累计】breaker tripped / search rejected —— 单调递增、仅重启归零，是历史信号，
+      不代表当前；要判“当前是否在 trip/reject”，须在塌缩窗口内两次调用本 op 比 delta。
+    当前压力判定(under_pressure_now)只用瞬时值，且以老年代占用为主（比合计 heap 更对准 ordinals/fielddata 内存压力）。
     """
     try:
         stats = client.nodes.stats(metric="breaker,jvm,thread_pool", params={"request_timeout": ES_REQUEST_TIMEOUT})
@@ -600,45 +604,62 @@ def _node_breaker_stats(client, cluster_id: int) -> dict[str, Any]:
         _raise(f"node_breaker_stats 查询失败: {error}", error_code="ES_UPSTREAM_ERROR")
     nodes = (stats or {}).get("nodes") or {}
     items: list[dict[str, Any]] = []
-    flagged = 0
-    breaker_tripped_total: dict[str, int] = {}
+    flagged = 0  # 当前(瞬时)压力节点数
+    breaker_tripped_cumulative_total: dict[str, int] = {}  # 自启动累计
     max_heap = None
+    max_old_gen = None
     for node in nodes.values():
         breakers = node.get("breakers") or {}
-        heap_pct = ((node.get("jvm") or {}).get("mem") or {}).get("heap_used_percent")
+        jvm_mem = (node.get("jvm") or {}).get("mem") or {}
+        heap_pct = jvm_mem.get("heap_used_percent")  # 瞬时（young+old 合计，受 GC 周期影响大）
+        old_pool = (jvm_mem.get("pools") or {}).get("old") or {}
+        old_used, old_max = old_pool.get("used_in_bytes"), old_pool.get("max_in_bytes")
+        # 瞬时老年代占用率；max 可能为 -1/缺失（如部分 GC 配置），此时置 None 不臆断
+        old_gen_pct = round(old_used / old_max * 100, 1) if (old_used is not None and old_max and old_max > 0) else None
         search_pool = (node.get("thread_pool") or {}).get("search") or {}
-        tripped = {name: (b or {}).get("tripped") for name, b in breakers.items()}
-        search_rejected = search_pool.get("rejected")
-        for name, value in tripped.items():
-            breaker_tripped_total[name] = breaker_tripped_total.get(name, 0) + (value or 0)
+        # parent/fielddata/request/in_flight_requests/accounting 的 tripped 全是自启动累计
+        tripped_cumulative = {name: (b or {}).get("tripped") for name, b in breakers.items()}
+        for name, value in tripped_cumulative.items():
+            breaker_tripped_cumulative_total[name] = breaker_tripped_cumulative_total.get(name, 0) + (value or 0)
         if heap_pct is not None:
             max_heap = heap_pct if max_heap is None else max(max_heap, heap_pct)
-        under_pressure = (
-            any((value or 0) for value in tripped.values())
-            or (heap_pct or 0) >= HEAP_PRESSURE_PERCENT
-            or (search_rejected or 0) > 0
-        )
-        if under_pressure:
+        if old_gen_pct is not None:
+            max_old_gen = old_gen_pct if max_old_gen is None else max(max_old_gen, old_gen_pct)
+        # 当前压力只看瞬时值（heap/old-gen）。search queue/active 仅作观测输出，不进判定——
+        # 默认 queue 容量上千，繁忙集群采样瞬间 queue>0 是常态，当阈值会换一种形式误报。
+        under_pressure_now = (heap_pct or 0) >= HEAP_PRESSURE_PERCENT or (old_gen_pct or 0) >= OLD_GEN_PRESSURE_PERCENT
+        if under_pressure_now:
             flagged += 1
         items.append(
             {
                 "node": node.get("name"),
+                # —— 瞬时（当前压力判据 / 观测）——
                 "heap_used_percent": heap_pct,
-                "breaker_tripped": tripped,  # fielddata / request / parent / in_flight_requests / accounting
-                "search_rejected": search_rejected,
+                "old_gen_used_percent": old_gen_pct,
                 "search_queue": search_pool.get("queue"),
-                "under_pressure": under_pressure,
+                "search_active": search_pool.get("active"),
+                "under_pressure_now": under_pressure_now,
+                # —— 自节点启动累计（历史信号，非当前；需两次调用比 delta）——
+                "breaker_tripped_cumulative": tripped_cumulative,
+                "search_rejected_cumulative": search_pool.get("rejected"),
             }
         )
+    boundary = "瞬时值只反映采样当下；已恢复的历史窗口需 ES 服务端日志取证。"
     if flagged:
         verdict = (
-            f"{flagged}/{len(items)} 个节点处压力态（breaker tripped / heap≥{HEAP_PRESSURE_PERCENT}% / search reject）→ "
-            "支持 B2：运行时压力致 global-ordinals 重建失败/超时；结合 terms_agg_probe(timed_out) 与塌缩窗口时刻确认。"
+            f"{flagged}/{len(items)} 个节点【当前】瞬时压力（heap≥{HEAP_PRESSURE_PERCENT}% 或 "
+            f"老年代≥{OLD_GEN_PRESSURE_PERCENT}%）→ 支持 B2：运行时压力致 global-ordinals 重建失败/超时；"
+            f"结合 terms_agg_probe(timed_out) 与塌缩窗口时刻确认。{boundary}"
         )
     else:
         verdict = (
-            f"{len(items)} 个节点当前未见明显压力（无 breaker tripped、heap<{HEAP_PRESSURE_PERCENT}%、无 search reject）→ "
-            "当前不支持 B2 压力假设（注意：只反映当前；已恢复的历史窗口需 ES 服务端日志取证）。"
+            f"{len(items)} 个节点【当前】无瞬时压力（heap<{HEAP_PRESSURE_PERCENT}% 且 "
+            f"老年代<{OLD_GEN_PRESSURE_PERCENT}%）→ 当前不支持 B2 压力假设。{boundary}"
+        )
+    if any(v for v in breaker_tripped_cumulative_total.values()):
+        verdict += (
+            " 注：breaker tripped 为【自启动累计】(非当前，parent breaker 尤其常 trip)——"
+            "要判'当前是否在 trip'，在塌缩窗口内隔数秒两次调用本 op 比 breaker_tripped_cumulative 的 delta。"
         )
     return {
         "operation": "node_breaker_stats",
@@ -646,13 +667,16 @@ def _node_breaker_stats(client, cluster_id: int) -> dict[str, Any]:
         "summary": verdict,
         "items": items if items else [{"node_count": 0}],
         "next_actions": [
-            "有 breaker tripped / heap 高 / search reject → B2；否则在 mapping 正常且 shards_failed=0 时回看 A（分片态）。",
+            "当前压力看瞬时值 heap_used_percent / old_gen_used_percent（search_queue/active 仅观测）；",
+            "breaker_tripped_cumulative / search_rejected_cumulative 是自启动累计，"
+            "塌缩窗口内两次调用比 delta 才是'当前在 trip/reject'。",
         ],
         "meta": {
             "node_count": len(items),
-            "flagged_nodes": flagged,
-            "breaker_tripped_total": breaker_tripped_total,
+            "flagged_now": flagged,
+            "breaker_tripped_cumulative_total": breaker_tripped_cumulative_total,
             "max_heap_used_percent": max_heap,
+            "max_old_gen_used_percent": max_old_gen,
         },
     }
 
