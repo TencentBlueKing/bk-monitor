@@ -185,6 +185,7 @@ export const getDefaultRetrieveParams = (defaultValue?) => {
       retrieve_type: 'normal',
       scene_active: '',
       scene_filter_values: {},
+      isSceneFilterChanged: false,
     },
     defaultValue,
     urlArgs,

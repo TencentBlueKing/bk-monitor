@@ -347,12 +347,18 @@ export default defineComponent({
           aiQueryResult.value.queryString = queryString;
         }
 
-        if (needReplace) {
+        if (needReplace && parseResult !== 'FAILED') {
           store.commit('updateIndexItemParams', queryParams);
           store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
 
           const { start_time, end_time } = queryParams as any;
-          setRouteParamsByKeywordAndAddition({ start_time, end_time }).then(() => {
+          setRouteParamsByKeywordAndAddition({ start_time, end_time }).then(async () => {
+            // 场景化检索模式下条件为空时跳过
+            if (store.getters.isSceneMode && store.getters.isSceneFilterEmpty) return;
+            // 检索条件有变更时先加载字段信息
+            if (store.state.indexItem.isSceneFilterChanged) {
+              await store.dispatch('requestIndexSetFieldInfo');
+            }
             RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
             store.dispatch('requestIndexSetQuery');
           });
@@ -424,11 +430,18 @@ export default defineComponent({
      * 处理 filterList 变化
      * @param newFilterList 新的 filterList
      */
-    const handleFilterChange = (newFilterList: string[]) => {
+    const handleFilterChange = async (newFilterList: string[]) => {
       // 更新 store 中的 filterList
       store.state.aiMode.filterList = newFilterList;
-      // 触发查询
-      store.dispatch('requestIndexSetQuery');
+      // 场景化检索模式下条件为空时跳过检索请求
+      if (!(store.getters.isSceneMode && store.getters.isSceneFilterEmpty)) {
+        // 检索条件有变更时先加载字段信息
+        if (store.state.indexItem.isSceneFilterChanged) {
+          await store.dispatch('requestIndexSetFieldInfo');
+        }
+        // 触发查询
+        store.dispatch('requestIndexSetQuery');
+      }
       // 更新 URL 参数
       setRouteParamsByKeywordAndAddition();
     };

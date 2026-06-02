@@ -31,8 +31,6 @@ export enum SceneType {
   Host = 'host',
   PaaS = 'bk_paas',
   Service = 'apm',
-  Client = 'client',
-  TRPC = 'trpc',
 }
 
 /** ============ 接口返回数据类型 ============ */
@@ -130,6 +128,8 @@ export interface SceneConfig {
   icon: string;
   /** 筛选字段列表 */
   fields: FilterFieldConfig[];
+  /** 是否禁用（接口未返回该场景配置时为 true，按钮置灰展示） */
+  disabled?: boolean;
 }
 
 /** 筛选条件值 */

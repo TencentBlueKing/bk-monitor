@@ -48,7 +48,13 @@
         background: #3a84ff;
       }
 
-      &:hover:not(.is-active) {
+      &.is-disabled {
+        cursor: not-allowed;
+        background-color: #dcdee5;
+        color: #fff;
+      }
+
+      &:hover:not(.is-active):not(.is-disabled) {
         background: #e4e9f2;
       }
     }
@@ -166,6 +172,10 @@
 
         .bk-tag-input .tag-list {
           overflow-x: hidden;
+        }
+
+        .bk-tag-input .tag-list .input {
+          min-width: 12px;
         }
       }
     }
