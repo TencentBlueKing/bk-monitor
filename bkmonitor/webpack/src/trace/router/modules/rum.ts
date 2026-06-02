@@ -29,7 +29,7 @@ export default [
   {
     path: '/rum',
     name: 'rum',
-    component: () => import(/* webpackChunkName: "rum" */ '../../pages/rum/rum'),
+    component: () => import(/* webpackChunkName: "rum" */ '../../pages/rum/rum-page'),
   },
   {
     path: '/rum/app/:appName/config',
