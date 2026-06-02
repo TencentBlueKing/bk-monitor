@@ -211,15 +211,7 @@ export default defineComponent({
     const isSearching = computed(() => store.state.indexSetQueryResult.is_loading);
 
     /** 场景过滤条件是否为空 */
-    const isSceneFilterEmpty = computed(() => {
-      const values = filterValues.value;
-      if (!values || typeof values !== 'object') return true;
-      return Object.values(values).every((val) => {
-        if (val === undefined || val === null || val === '') return true;
-        if (Array.isArray(val) && val.length === 0) return true;
-        return false;
-      });
-    });
+    const isSceneFilterEmpty = computed(() => store.getters.isSceneFilterEmpty);
 
     // ---- 快捷键搜索逻辑 ----
     const handleShortcutKeySearch = (event: KeyboardEvent) => {

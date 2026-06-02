@@ -156,6 +156,7 @@ export default class FilterRule extends tsc<IProps> {
             bk_biz_id: this.$store.state.bkBizId,
             space_uid: this.retrieveParams?.space_uid,
             table_id_conditions: this.retrieveParams?.table_id_conditions,
+            scene_filter_values: this.retrieveParams?.scene_filter_values,
           },
         };
       } else {

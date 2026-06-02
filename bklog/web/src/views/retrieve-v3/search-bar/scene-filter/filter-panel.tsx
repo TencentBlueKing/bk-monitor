@@ -354,6 +354,7 @@ export default defineComponent({
               has-delete-icon={true}
               allow-next-focus={true}
               clearable={true}
+              free-paste={true}
               on-change={(tags: string[]) => handleTagChange(field.key, tags)}
               on-removeAll={() => handleTagClear(field.key)}
             />

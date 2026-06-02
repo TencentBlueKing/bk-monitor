@@ -644,13 +644,7 @@ export default () => {
   // 判断场景模式下是否存在筛选标签（吸顶时标签栏占 34px）
   const hasSceneFilterTags = computed(() => {
     if (!isSceneMode.value) return false;
-    const filterValues = store.state.indexItem.scene_filter_values;
-    if (!filterValues) return false;
-    return Object.values(filterValues).some(val => {
-      if (val === undefined || val === null || val === '') return false;
-      if (Array.isArray(val) && val.length === 0) return false;
-      return true;
-    });
+    return !store.getters.isSceneFilterEmpty;
   });
 
   addEvent(RetrieveEvent.GLOBAL_SCROLL, event => {

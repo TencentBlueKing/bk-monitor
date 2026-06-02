@@ -593,6 +593,7 @@
           queryUrl = 'retrieve/getSceneExportHistory';
           params.space_uid = this.retrieveParams?.space_uid;
           params.table_id_conditions = this.retrieveParams?.table_id_conditions;
+          params.scene_filter_values = this.retrieveParams?.scene_filter_values;
           requestConfig = { data: params };
         } else if (this.isUnionSearch) {
           queryUrl = 'unionSearch/unionExportHistory';

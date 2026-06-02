@@ -27,6 +27,7 @@
 import { computed, defineComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import useStore from '@/hooks/use-store';
+import { isEmptyFilterValue } from '@/store/helper';
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 
 import './scene-filter-tags.scss';
@@ -83,8 +84,7 @@ export default defineComponent({
 
       for (const field of sceneConfig.fields) {
         const val = filterValues[field.key];
-        if (val === undefined || val === null || val === '') continue;
-        if (Array.isArray(val) && val.length === 0) continue;
+        if (isEmptyFilterValue(val)) continue;
 
         const fieldLabels = props.filterLabels[field.key] ?? {};
         const ids = Array.isArray(val) ? val : [val];
