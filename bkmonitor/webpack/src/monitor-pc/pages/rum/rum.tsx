@@ -29,7 +29,6 @@ import { Component as tsc } from 'vue-tsx-support';
 import { loadApp, mount, unmount } from '@blueking/bk-weweb';
 
 import introduce from '../../common/introduce';
-import GuidePage from '../../components/guide-page/guide-page';
 import aiWhaleStore from '@/store/modules/ai-whale';
 import '@blueking/bk-weweb';
 
@@ -69,6 +68,9 @@ export default class Rum extends tsc<object> {
       },
       handleAIBluekingShortcut: (shortcut: AIBluekingShortcut) => {
         aiWhaleStore.setCustomFallbackShortcut(shortcut);
+      },
+      setIntroduceData: (setData: (data) => void) => {
+        setData(introduce.data.rum.introduce);
       },
     };
   }
@@ -112,9 +114,9 @@ export default class Rum extends tsc<object> {
     this.unmountCallback = undefined;
   }
   render() {
-    if (this.showGuidePage) {
-      return <GuidePage guideData={introduce.data.rum.introduce} />;
-    }
+    // if (this.showGuidePage) {
+    //   return <GuidePage guideData={introduce.data.rum.introduce} />;
+    // }
     return (
       <div class='rum-wrap'>
         <div class='rum-wrap-iframe'>

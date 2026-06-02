@@ -1,3 +1,7 @@
+export interface IBtnAndLinkItem {
+  name: string;
+  url: string;
+}
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,15 +27,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+export interface ISPaceIntroduceData {
+  is_no_data?: boolean;
+  is_no_source?: boolean;
+  data?: {
+    buttons: IBtnAndLinkItem[];
+    introduce: string[];
+    links: IBtnAndLinkItem[];
+    subTitle: string;
+    title: string;
+  };
+}
+export type SpaceIntoduceType = Record<SpaceIntroduceKeys, ISPaceIntroduceData>;
 
-import type { AIBluekingShortcut } from '../../components/ai-whale/types';
-import type { ISPaceIntroduceData } from '../common/common';
-
-export type Vue3WewebData = {
-  enableAiAssistant?: boolean;
-  handleAIBluekingShortcut?: (shortcut: AIBluekingShortcut) => void;
-  host: string;
-  parentRoute: string;
-  setIntroduceData?: (callback: (data: ISPaceIntroduceData) => void) => void;
-  setUnmountCallback?: (callback: () => void) => void;
-};
+export type SpaceIntroduceKeys =
+  | 'apm-home'
+  | 'collect-config'
+  | 'custom-event'
+  | 'custom-metric'
+  | 'k8s'
+  | 'performance'
+  | 'uptime-check';
