@@ -141,10 +141,8 @@ ES_CAPABILITIES: list[dict[str, Any]] = [
 
 
 def _raise(message: str, *, error_code: str | None = None, next_actions: list[str] | None = None) -> NoReturn:
-    # error_code: §5.2 结构化错误码（CLUSTER_NOT_FOUND / OPERATION_NOT_ALLOWED / ES_UPSTREAM_ERROR …），
-    # 供 bkm-cli 端精确分类。注意：API 角色异常处理器 kernel_api/exceptions.py 默认用 failed() 把 data
-    # 置空——已在该处理器补透传 error_code/next_actions（同 PR）。若端到端仍收不到，再排查上游网关是否
-    # 在 result:false 响应里抹 data（本地未验证）。
+    # error_code: §5.2 结构化错误码，供 bkm-cli 端精确分类；next_actions: 给 agent 的恢复指引。
+    # 二者经 api_exception_handler 透传（failed() 默认会清空 data）；部署期验证见 spec §7.4。
     data: dict[str, Any] = {"next_actions": next_actions or []}
     if error_code:
         data["error_code"] = error_code
@@ -169,18 +167,32 @@ def _es_error_detail(error: Exception) -> str:
 
 def _es_query_error(operation: str, error: Exception) -> NoReturn:
     """ES 查询异常分类（跨 ES5/6/7 三套独立 RequestError 类，用 duck-type status_code，避免 import 耦合）：
-    - HTTP 400 = 确定性请求错（字段不可聚合 / fielddata 关闭 / DSL 非法 / 桶超限…），retry 无用 →
-      OPERATION_NOT_ALLOWED（CLI 落 invalid_argument，非可重试），message 带 ES error.type/reason；
-    - 其余（连接 / 5xx / 超时，status_code 为 'N/A' 或 5xx）→ ES_UPSTREAM_ERROR（provider_unavailable，可重试）。
+    - 400 = 确定性请求错（字段不可聚合 / fielddata 关闭 / DSL 非法 / 桶超限…），retry 无用 →
+      OPERATION_NOT_ALLOWED（CLI 落 invalid_argument）；
+    - 404 = 目标不存在（请求里某【具体】索引名在该集群不存在；通配符匹配空集返回 200 空、不会 404）→
+      INDEX_NOT_FOUND（CLI 落 target_not_found，非 ES 不可用、勿重试）；
+    - 其余（连接 / 5xx / 超时）→ ES_UPSTREAM_ERROR（provider_unavailable，可重试）。
+    message 一律带 ES error.type/reason；error_code 只取主因，最终以 message 为准。
     """
-    if getattr(error, "status_code", None) == 400:
-        detail = _es_error_detail(error)
+    status = getattr(error, "status_code", None)
+    detail = _es_error_detail(error)
+    if status == 400:
         _raise(
             f"{operation} 被 ES 拒绝(400{f'：{detail}' if detail else ''})。",
             error_code="OPERATION_NOT_ALLOWED",
             next_actions=[
                 "确定性请求错、重试无用：多为字段不可聚合（text 无 fielddata / object·nested·geo）或参数非法；"
                 "用 field_mapping 看 items[].aggregatable 与可聚合的 field_path（如 .keyword）再 probe。",
+            ],
+        )
+    if status == 404:
+        _raise(
+            f"{operation} 目标不存在(404{f'：{detail}' if detail else ''})。",
+            error_code="INDEX_NOT_FOUND",
+            next_actions=[
+                "请求里某具体索引名在该 cluster_id 内不存在（以 message 的 ES error.type/reason 为准，非 ES 不可用、勿重试）。",
+                "用 es-diagnose(operation=cat_indices)（index_pattern 可省=扫全集群）列真实索引名，"
+                "核对 trace 里的 index 属于该 cluster_id 后重试。",
             ],
         )
     _raise(f"{operation} 查询失败: {error}", error_code="ES_UPSTREAM_ERROR")

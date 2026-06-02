@@ -194,6 +194,20 @@ def test_es_query_error_429_is_retryable_upstream():
     assert exc.value.data["error_code"] == "ES_UPSTREAM_ERROR"
 
 
+def test_es_query_error_404_is_index_not_found_not_upstream():
+    # 404 = 具体索引不存在：是"目标不存在"（CLI target_not_found，勿重试），不能误判为 ES 不可用可重试。
+    err = FakeESError(
+        404,
+        error="index_not_found_exception",
+        info={"error": {"root_cause": [{"reason": "no such index [foo-2026.05.30]"}]}},
+    )
+    with pytest.raises(CustomException) as exc:
+        es._es_query_error("terms_agg_probe", err)
+    assert exc.value.data["error_code"] == "INDEX_NOT_FOUND"
+    # message 必须带 ES error.type/reason（分类标签只取主因，真相以 message 为准）
+    assert "index_not_found_exception" in str(exc.value) or "no such index" in str(exc.value)
+
+
 # ---------------- #2/#4/#5 terms_agg_probe verdict 链 ----------------
 
 

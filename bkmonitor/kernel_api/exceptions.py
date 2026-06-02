@@ -37,10 +37,9 @@ def api_exception_handler(exc, context):
         json_data["detail"] = exc.detail
         code = getattr(exc, "status_code", code)
 
-    # 透传 CustomException 携带的 bkm-cli 结构化错误约定字段（error_code / next_actions），
-    # 让客户端能精确分类错误并给出恢复指引（failed() 默认把 data 置空，会丢掉这些）。
-    # 只放行这两个我们自有的键——不整体透出 exc.data：BKAPIError 等会把上游原始响应体塞进
-    # data，整体透出会让所有 API 角色端点泄露内部信息。
+    # 透传 CustomException 的结构化字段 error_code/next_actions（failed() 默认清空 data）。
+    # 只放行这两个自有键，不整体透出 exc.data——BKAPIError 等会把上游原始响应体塞进 data，
+    # 整体透出会让所有 API 角色端点泄露内部信息。
     exc_data = getattr(exc, "data", None)
     if isinstance(exc_data, dict):
         structured = {key: exc_data[key] for key in ("error_code", "next_actions") if key in exc_data}
