@@ -31,6 +31,7 @@ from apps.api import (
     BkDataMetaApi,
     BkDataResourceCenterApi,
 )
+from apps.log_clustering.handlers.aiops.config import get_online_clustering_config
 from apps.log_clustering.handlers.aiops.base import BaseAiopsHandler
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.constants import BKDATA_ES_TYPE_MAP, PARSE_FAILURE_FIELD
@@ -213,6 +214,7 @@ class DataAccessHandler(BaseAiopsHandler):
         return BkDataDatabusApi.post_tasks(params=params)
 
     def add_cluster_group(self, result_table_id, bk_biz_id):
+        self.conf = get_online_clustering_config(bk_biz_id)
         storage_config = BkDataMetaApi.result_tables.storages({"result_table_id": result_table_id})
         cluster_resource_groups = BkDataResourceCenterApi.cluster_query_digest(
             params={

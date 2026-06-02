@@ -16,6 +16,10 @@ export const issueSearch = request('POST', 'fta/issue/issue/search/');
 export const issueTopN = request('POST', 'fta/issue/issue/top_n/');
 export const exportIssue = request('POST', 'fta/issue/issue/export/');
 export const listRecentAssignees = request('POST', 'fta/issue/issue/recent_assignees/');
+export const mergeIssue = request('POST', 'fta/issue/issue/merge/');
+export const splitIssue = request('POST', 'fta/issue/issue/split/');
+export const listMergeSources = request('GET', 'fta/issue/issue/merge_sources/');
+export const alertIssueEnrich = request('POST', 'fta/issue/issue/alert_enrich/');
 
 
 export default {
@@ -35,4 +39,8 @@ export default {
   issueTopN,
   exportIssue,
   listRecentAssignees,
+  mergeIssue,
+  splitIssue,
+  listMergeSources,
+  alertIssueEnrich,
 };

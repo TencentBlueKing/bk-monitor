@@ -84,13 +84,16 @@ class GetFunctionShortcutResource(Resource):
             name = str(cls.function_name_map.get(function, function))
 
             if function == "dashboard":
-                # 查询仪表盘信息
-                dashboard_uids = {access_record["dashboard_uid"] for access_record in access_records}
-                dashboards = Dashboard.objects.filter(uid__in=dashboard_uids)
+                # 先从访问记录的业务ID解析出 Grafana Org（Org.name 即业务ID字符串），
+                # 以便查询 dashboard 时带上 org_id，命中 (org_id, uid) 联合索引，避免仅按 uid 过滤造成全表扫描
+                biz_ids = {str(access_record["bk_biz_id"]) for access_record in access_records}
+                org_ids_to_biz_id = {org.id: org.name for org in Org.objects.filter(name__in=biz_ids)}
 
-                # 获取业务ID与 Grafana Org 的映射
-                org_ids = {dashboard.org_id for dashboard in dashboards}
-                org_ids_to_biz_id = {org.id: org.name for org in Org.objects.filter(id__in=org_ids)}
+                # 查询仪表盘信息：只取展示所需字段，避免加载大字段 dashboard.data
+                dashboard_uids = {access_record["dashboard_uid"] for access_record in access_records}
+                dashboards = Dashboard.objects.filter(org_id__in=org_ids_to_biz_id.keys(), uid__in=dashboard_uids).only(
+                    "id", "uid", "title", "org_id", "folder_id"
+                )
 
                 # 确定已存在的仪表盘
                 exists_dashboards: dict[tuple[str, str], Dashboard] = {
@@ -119,7 +122,7 @@ class GetFunctionShortcutResource(Resource):
 
                 # 获取并补充文件夹信息
                 folder_ids = {item["folder_id"] for item in items if item["folder_id"]}
-                folders = Dashboard.objects.filter(id__in=folder_ids, is_folder=True)
+                folders = Dashboard.objects.filter(id__in=folder_ids, is_folder=True).only("id", "title")
                 folder_id_to_name = {folder.id: folder.title for folder in folders}
                 for item in items:
                     item["folder_title"] = folder_id_to_name.get(item["folder_id"], "General")
@@ -216,9 +219,11 @@ class GetFunctionShortcutResource(Resource):
                 if not user:
                     continue
 
-                # 获取收藏的仪表盘
+                # 获取收藏的仪表盘：只取展示所需字段，避免加载大字段 dashboard.data
                 starred_dashboard_ids = Star.objects.filter(user_id=user.id).values_list("dashboard_id", flat=True)
-                dashboards = Dashboard.objects.filter(id__in=starred_dashboard_ids)
+                dashboards = Dashboard.objects.filter(id__in=starred_dashboard_ids).only(
+                    "id", "org_id", "uid", "title", "slug"
+                )
 
                 # 获取业务ID与 Grafana Org 的映射
                 org_id_to_biz_id: dict[int, int] = {

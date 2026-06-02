@@ -589,6 +589,13 @@ class HostTarget(DefaultTarget):
     def _get_k8s_resource_type(self) -> str:
         return K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD]
 
+    # Source.name（小写）-> 标准 K8S workload kind（大写）的映射
+    _SOURCE_TYPE_TO_K8S_KIND: dict[str, str] = {
+        SourceK8sDeployment.name: "Deployment",
+        SourceK8sDaemonSet.name: "DaemonSet",
+        SourceK8sStatefulSet.name: "StatefulSet",
+    }
+
     def _list_related_k8s_targets(self) -> list[dict[str, Any]]:
         if not self._alert.event.ip:
             return []
@@ -616,8 +623,9 @@ class HostTarget(DefaultTarget):
                 info: dict[str, Any] = node.source_info.to_source_info()
                 bcs_cluster_id: str = info.get("bcs_cluster_id", "")
                 namespace: str = info.get("namespace", "")
-                workload_kind: str = node.source_type
-                workload_name: str = info.get(workload_kind, "")
+                source_type: str = node.source_type
+                workload_name: str = info.get(source_type, "")
+                workload_kind: str = self._SOURCE_TYPE_TO_K8S_KIND.get(source_type, "")
                 if not all([bcs_cluster_id, namespace, workload_kind, workload_name]):
                     continue
 

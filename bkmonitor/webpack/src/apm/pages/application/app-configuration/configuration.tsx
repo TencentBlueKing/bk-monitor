@@ -27,6 +27,7 @@ import { Component, Prop, Provide, ProvideReactive, Ref } from 'vue-property-dec
 import { Component as tsc } from 'vue-tsx-support';
 
 import { applicationInfoByAppName, listEsClusterGroups, metaConfigInfo } from 'monitor-api/modules/apm_meta';
+import { serviceList } from 'monitor-api/modules/apm_service';
 import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
 
@@ -37,6 +38,7 @@ import BasicConfiguration from './basic-configuration';
 import ConfigurationView from './configuration-view';
 import DataStatus from './data-state/data-state';
 import StorageState from './storage-state/storage-state';
+import CodeRedefine from './return-code';
 
 import type { IAppInfo, IClusterItem, IMenuItem } from './type';
 import type { INavItem } from 'monitor-pc/pages/monitor-k8s/typings';
@@ -165,11 +167,22 @@ export default class ApplicationConfiguration extends tsc<undefined> {
   }
 
   async created() {
+    this.checkTrpcService();
     await this.getAppBaseInfo();
     const { query } = this.$route;
     // this.activeMenu = (query.active as string) || 'baseInfo';
     this.activeMenu = (query.active as string) || 'basicConfiguration';
     this.getEsCluster();
+  }
+
+  async checkTrpcService() {
+    const data = await serviceList({
+      app_name: this.appName,
+    });
+    const trpcService = data.find(item => item.system.name === 'trpc');
+    if (trpcService) {
+      this.menuList.push({ id: 'codeRedefine', name: window.i18n.tc('返回码') });
+    }
   }
 
   /**
@@ -321,6 +334,8 @@ export default class ApplicationConfiguration extends tsc<undefined> {
         );
       case 'dataStatus': // 数据状态
         return <DataStatus data={this.appInfo} />;
+      case 'codeRedefine': // 返回码重定义
+        return <CodeRedefine appName={this.appName} />;
       // case 'indicatorDimension': // 指标维度
       //   return <IndicatorDimension />;
       default:

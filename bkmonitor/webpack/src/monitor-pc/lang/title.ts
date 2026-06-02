@@ -273,4 +273,15 @@ export default {
   维度统计: 'Dimension Statistics',
   查看完整评论: 'View full comment',
   编辑评论: 'Edit comment',
+
+  // Issues 拆分合并
+  合并明细: 'Merge details',
+  '已并入但隐藏的 Issue': 'Issue merged but hidden',
+  拆分依据: 'Split criteria',
+  '合并 Issue': 'Merge Issue',
+  合并设置: 'Merge settings',
+  '主 Issue': 'Main Issue',
+  '被合并 Issue': 'Merged Issue',
+  合并依据: 'Merge criteria',
+  '合并策略：': 'Merge strategy:',
 };

@@ -19,19 +19,22 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-
     min-height: 32px;
     max-height: 200px;
     padding: 4px 0 0 4px;
     overflow: auto;
     cursor: text;
-    background: #ffffff;
+    background: #fff;
     border: 1px solid #c4c6cc;
     border-radius: 2px;
 
     &.active {
       border-color: #3a84ff;
-      box-shadow: 0 0 4px rgba(58, 132, 255, 0.4);
+      box-shadow: 0 0 4px rgb(58 132 255 / 40%);
+    }
+
+    &.disabled {
+      cursor: not-allowed;
     }
 
     .placeholder-span {

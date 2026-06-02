@@ -86,6 +86,7 @@ class IncidentQueryTransformer(BaseQueryTransformer):
         QueryField("end_time", _lazy("故障结束时间")),
         QueryField("snapshot", _lazy("故障图谱快照")),
         QueryField("alert_count", _lazy("故障告警数")),
+        QueryField("extra_info", _lazy("故障额外信息"),searchable=False),
     ]
     doc_cls = IncidentDocument
 

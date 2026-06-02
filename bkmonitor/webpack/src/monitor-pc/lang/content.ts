@@ -267,6 +267,7 @@ export default {
   报警关闭时执行: 'When alarm is closed',
   报警确认时执行: 'When alarm is acknowledged',
   故障ID: 'Incident ID',
+  合并前故障ID: 'Incident ID before merging',
   故障UUID: 'Incident UUID',
   故障内部ID: 'Internal Incident ID',
   故障名称: 'Incident Name',
@@ -426,8 +427,8 @@ export default {
     'Automatically discover new metrics according to rules, existing metrics do not take effect.',
 
   // Issues 活动内容
-  '拆分为 {0} 个 Issue:': 'Split into {0} Issues:',
-  '合并进 Issue:': 'Merged into Issue:',
+  '拆分为 {0} 个 Issue：': 'Split into {0} Issues：',
+  '合并进 Issue：': 'Merged into Issue：',
   未解决: 'Unresolved',
   未分派: 'Unassigned',
   分派给我: 'Assigned to me',
@@ -458,4 +459,21 @@ export default {
   一键反馈: 'One-click feedback',
   '若您仍无法确认问题原因，请点击下方反馈按钮与我们联系，平台将第一时间响应处理。':
     'If you still cannot identify the cause, please click the feedback button below to contact us. We will respond as soon as possible.',
+  '配置保存成功，需要 5 分钟左右生效。': 'Configuration saved successfully, it will take effect in 5 minutes.',
+  '删除成功，需要 5 分钟左右生效。': 'Deleted successfully, it will take effect in 5 minutes.',
+  '类型、返回码的组合值须唯一': 'The combination of type and return code must be unique',
+  '类型、返回码、备注范围的组合值须唯一': 'The combination of type, return code, and remark range must be unique',
+  返回码不能为空: 'Return code cannot be empty',
+  备注范围: 'Remark range',
+  '被调 Service、被调接口、是否全局的组合值须唯一':
+    'The combination of the invoked Service, the invoked Interface, and the "Is Global" flag must be unique',
+  备注不能为空: 'Remark cannot be empty',
+  可配置全局返回码规则: 'Can configure global return code rules',
+  点击: 'Click',
+  '是否确认删除？': 'Are you sure you want to delete?',
+  '「被调」类型无需填写「被调服务」':
+    'For the "Callee" type, the "Callee Service" field does not need to be filled in.',
+  '当前已有配置正在编辑，请先保存或取消': 'A configuration is currently being edited; please save or cancel first.',
+  保存并应用为全局: 'Save and Apply Globally',
+  批量编辑: 'Batch Edit',
 };

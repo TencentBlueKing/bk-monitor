@@ -466,6 +466,24 @@ export default defineComponent({
 
       return value && value !== ' ' ? isNaN(value) : true;
     };
+
+    /** int 类型最大值 */
+    const MAX_INT_VALUE = 2_147_483_647;
+
+    /** 根据清洗结果 value 推断字段类型 */
+    const detectFieldType = (value: unknown): string => {
+      if (typeof value === 'number') {
+        if (Number.isInteger(value)) {
+          return value > MAX_INT_VALUE ? 'long' : 'int';
+        }
+        return 'double';
+      }
+      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        return 'object';
+      }
+      return 'string';
+    };
+
     /**
      * 清洗模式 - 清洗/调试按钮
      */
@@ -489,6 +507,8 @@ export default defineComponent({
       const urlParams = {};
       isDebugLoading.value = !isRefresh;
       isValueRefresh.value = isRefresh;
+      // 缓存当前已有字段，用于再次清洗时合并保留旧配置
+      const existingFields = structuredClone(formData.value.etl_fields || []);
       /**
        * 非刷新场景下才清空表格数据
        */
@@ -514,37 +534,127 @@ export default defineComponent({
             item.verdict = judgeNumber(item);
           }
           const fields = formData.value.etl_fields;
-          const list = dataFields.reduce((arr, item, index) => {
-            const field = { 
-              ...structuredClone(rowTemplate.value),
-              ...item,
-              // 如果接口未返回 field_index，则使用数组索引作为唯一标识
-              field_index: item.field_index ?? index + 1,
-            };
-            arr.push(field);
-            return arr;
-          }, []);
+
+          /**
+           * 创建新字段对象，应用 detectFieldType 推断类型
+           */
+          const createNewField = (item, index) => ({
+            ...structuredClone(rowTemplate.value),
+            ...item,
+            field_type: detectFieldType(item.value),
+            field_index: item.field_index ?? index + 1,
+          });
+
           /**
            * 当只刷新值的时候，只更新对应字段的值
            */
           if (isRefresh) {
+            const valueMap = dataFields.reduce((map, item, index) => {
+              const key = cleaningMode.value === 'bk_log_delimiter'
+                ? (item.field_index ?? index + 1)
+                : item.field_name;
+              map[key] = item.value;
+              return map;
+            }, {});
             formData.value.etl_fields = fields.map(item => {
-              let info = {};
-              info = list.find(ele => ele.field_name === item.field_name);
-              if (cleaningMode.value === 'bk_log_delimiter') {
-                info = list.find(ele => ele.field_index === item.field_index);
-              }
+              if (item.is_built_in) return item;
+              const key = cleaningMode.value === 'bk_log_delimiter'
+                ? item.field_index
+                : item.field_name;
               return {
                 ...item,
-                value: info.value,
+                value: valueMap[key] ?? '',
               };
             });
             return;
           }
-          /**
-           * 当点击调试/清洗按钮的，更新字段表格里的所有内容
-           */
-          formData.value.etl_fields = list;
+
+          // 判断是否为首次清洗（无提取方式 || 提取方式变化 || 无已有字段配置）
+          const isFirstClean = !formData.value.etl_config
+            || formData.value.etl_config !== cleaningMode.value
+            || !existingFields.length;
+
+          if (isFirstClean) {
+            // 首次清洗：对每个字段应用 detectFieldType 推断类型
+            const list = dataFields.reduce((arr, item, index) => {
+              arr.push(createNewField(item, index));
+              return arr;
+            }, []);
+            formData.value.etl_fields = list;
+            formData.value.etl_config = cleaningMode.value;
+            return;
+          }
+
+          // 再次清洗：根据清洗模式合并已有字段配置
+          const etlConfig = cleaningMode.value;
+
+          if (etlConfig === 'bk_log_json' || etlConfig === 'bk_log_regexp') {
+            // JSON/正则模式：按 field_name 匹配，保留旧字段配置
+            const list = dataFields.reduce((arr, item, index) => {
+              const existingField = existingFields.find(
+                field => !field.is_built_in && field.field_name === item.field_name,
+              );
+              if (existingField) {
+                // 已有字段：保留旧配置，仅覆盖接口返回的值
+                arr.push({
+                  ...existingField,
+                  ...item,
+                  field_type: existingField.field_type,
+                  field_index: item.field_index ?? index + 1,
+                });
+              } else {
+                // 新增字段：应用类型推断
+                arr.push(createNewField(item, index));
+              }
+              return arr;
+            }, []);
+
+            // JSON 模式下：已标记 is_delete 的字段需追加回列表
+            if (etlConfig === 'bk_log_json') {
+              const deletedFields = existingFields.filter(
+                field => field.is_delete && !dataFields.find(item => item.field_name === field.field_name),
+              );
+              list.push(...deletedFields);
+            }
+
+            formData.value.etl_fields = list;
+            formData.value.etl_config = cleaningMode.value;
+          } else if (etlConfig === 'bk_log_delimiter') {
+            // 分隔符模式：按 field_index 匹配已有字段，保留旧配置
+            const nonDeletedFields = existingFields.filter(
+              item => item.field_name && !item.is_delete,
+            );
+            const deletedFields = existingFields.filter(item => item.is_delete);
+            const list = [...deletedFields];
+
+            if (nonDeletedFields.length) {
+              nonDeletedFields.forEach((item, idx) => {
+                const child = dataFields[idx];
+                if (child) {
+                  // 已有字段：保留旧配置，仅更新 value
+                  list.push({
+                    ...item,
+                    value: child.value,
+                  });
+                } else {
+                  list.push({ ...item, value: '' });
+                }
+              });
+              // 处理 dataFields 中超出已有字段范围的新增字段
+              if (dataFields.length > nonDeletedFields.length) {
+                dataFields.slice(nonDeletedFields.length).forEach((item, idx) => {
+                  list.push(createNewField(item, nonDeletedFields.length + idx));
+                });
+              }
+            } else {
+              dataFields.forEach((item, index) => {
+                list.push(createNewField(item, index));
+              });
+            }
+
+            formData.value.etl_fields = list;
+            formData.value.etl_config = cleaningMode.value;
+          }
         })
         .catch(err => {
           console.log(err);
@@ -790,7 +900,6 @@ export default defineComponent({
     /** 选择清洗模式 */
     const handleChangeCleaningMode = (mode: string) => {
       cleaningMode.value = mode.value;
-      formData.value.etl_config = cleaningMode.value;
       if (cleaningMode.value !== 'bk_log_json') {
         formData.value.etl_params.retain_extra_json = false;
       }
@@ -1038,7 +1147,6 @@ export default defineComponent({
               on-change={(val: boolean) => {
                 const type = val ? 'bk_log_json' : 'bk_log_text';
                 cleaningMode.value = type;
-                formData.value.etl_config = type;
                 if (!val) {
                   formData.value.etl_params.retain_extra_json = false;
                 }

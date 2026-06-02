@@ -1019,3 +1019,151 @@ class TestMergeReasonsOptional:
         )
         assert s.is_valid(), s.errors
         assert s.validated_data["reasons"] == []
+
+
+class TestMergeAllowsInactiveMember:
+    """放开 member 状态门槛：非活跃（已解决 / 已归档）Issue 可并入活跃主；main 仍必须活跃。
+
+    直接驱动 ``MergeResource.perform_request``，mock 掉 ES 查询 + 关系表 SQL + 事务，
+    断言「member 非活跃不再被拦」且「main 非活跃仍被拦」。
+    """
+
+    MAIN_ID = "1716000000abcdef01"
+    MEMBER_ID = "1716000000abcdef02"
+
+    class _Hit:
+        """模拟 ES hit：暴露 meta.id / bk_biz_id / status。"""
+
+        def __init__(self, _id, status, bk_biz_id="2"):
+            from types import SimpleNamespace
+
+            self.meta = SimpleNamespace(id=_id)
+            self.bk_biz_id = bk_biz_id
+            self.status = status
+
+    def _patch_io(self, monkeypatch, hits):
+        """patch ES search / IssueMergeRelation.objects / transaction / router / 活动日志写入。"""
+        import contextlib
+        from unittest import mock
+        from unittest.mock import MagicMock
+
+        from kernel_api.views.v4 import issue as issue_mod
+
+        # 校验 1：ES 存在性 + status 查询
+        search_mock = MagicMock()
+        search_mock.filter.return_value.source.return_value.params.return_value.execute.return_value.hits = hits
+        monkeypatch.setattr(issue_mod.IssueDocument, "search", classmethod(lambda cls, **kw: search_mock))
+
+        # 校验 3/4/5 关系查询全部"无冲突"，bulk_create 捕获写入行
+        manager = MagicMock()
+        manager.select_for_update.return_value.filter.return_value.values.return_value.first.return_value = None
+        manager.filter.return_value.values_list.return_value.distinct.return_value = []
+        captured: dict = {}
+        manager.bulk_create.side_effect = lambda objs, **kw: captured.update({"rows": list(objs)})
+        monkeypatch.setattr(issue_mod.IssueMergeRelation, "objects", manager)
+
+        # 事务 / 路由：避免触真实 DB 连接
+        fake_tx = mock.Mock()
+        fake_tx.atomic = lambda *a, **k: contextlib.nullcontext()
+        monkeypatch.setattr(issue_mod, "transaction", fake_tx)
+        fake_router = mock.Mock()
+        fake_router.db_for_write = lambda *a, **k: "default"
+        monkeypatch.setattr(issue_mod, "router", fake_router)
+
+        # 活动日志写入 noop（避免触 ES）
+        monkeypatch.setattr(issue_mod.IssueActivityDocument, "bulk_create", classmethod(lambda cls, acts, **kw: None))
+        return captured
+
+    def _data(self):
+        return {
+            "bk_biz_id": 2,
+            "main_issue_id": self.MAIN_ID,
+            "members": [self.MEMBER_ID],
+            "reasons": [],
+            "operator": "alice",
+        }
+
+    @pytest.mark.parametrize("member_status_attr", ["RESOLVED", "ARCHIVED"])
+    def test_inactive_member_can_merge_into_active_main(self, monkeypatch, member_status_attr):
+        from constants.issue import IssueStatus
+        from kernel_api.views.v4.issue import MergeResource
+
+        hits = [
+            self._Hit(self.MAIN_ID, IssueStatus.UNRESOLVED),
+            self._Hit(self.MEMBER_ID, getattr(IssueStatus, member_status_attr)),
+        ]
+        captured = self._patch_io(monkeypatch, hits)
+
+        result = MergeResource().perform_request(self._data())
+
+        assert result["status"] == "ok"
+        assert result["members"] == [self.MEMBER_ID]
+        # 非活跃 member 不影响关系写入：确实写了 1 条 active 关系
+        rows = captured["rows"]
+        assert len(rows) == 1
+        assert rows[0].member_issue_id == self.MEMBER_ID
+        assert rows[0].main_issue_id == self.MAIN_ID
+
+    def test_inactive_main_still_blocked(self, monkeypatch):
+        from bkmonitor.issue_merge import MergeMainStatusForbiddenError
+        from constants.issue import IssueStatus
+        from kernel_api.views.v4.issue import MergeResource
+
+        hits = [
+            self._Hit(self.MAIN_ID, IssueStatus.RESOLVED),
+            self._Hit(self.MEMBER_ID, IssueStatus.UNRESOLVED),
+        ]
+        self._patch_io(monkeypatch, hits)
+
+        with pytest.raises(MergeMainStatusForbiddenError):
+            MergeResource().perform_request(self._data())
+
+
+class TestListIssueHistoryExcludesActiveMembers:
+    """ListIssueHistory 自建 ES 查询、未走 get_search_object，必须单独排除 active 冻结 member，
+    否则放开非活跃合并后 RESOLVED 冻结 member 会泄漏进"同问题历史"。
+    """
+
+    def _patch(self, monkeypatch, *, active_member_ids):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
+        from bkmonitor.documents.issue import IssueDocument
+        from bkmonitor.issue_merge import IssueMergeResolver
+
+        current = SimpleNamespace(fingerprint="fp-1", bk_biz_id="2", id="iss-cur")
+        monkeypatch.setattr(IssueDocument, "get_issue_or_raise", classmethod(lambda cls, *a, **k: current))
+        monkeypatch.setattr(
+            IssueMergeResolver, "get_active_member_ids", staticmethod(lambda *a, **k: active_member_ids)
+        )
+
+        search_mock = MagicMock()
+        search_mock.filter.return_value = search_mock
+        search_mock.exclude.return_value = search_mock
+        search_mock.sort.return_value = search_mock
+        search_mock.params.return_value = search_mock
+        search_mock.execute.return_value.hits = []
+        monkeypatch.setattr(IssueDocument, "search", classmethod(lambda cls, **kw: search_mock))
+        return search_mock
+
+    def test_excludes_active_members(self, monkeypatch):
+        from fta_web.issue.resources import ListIssueHistoryResource
+
+        search_mock = self._patch(monkeypatch, active_member_ids=["m1", "m2"])
+        ListIssueHistoryResource().perform_request({"bk_biz_id": 2, "issue_id": "iss-cur"})
+
+        terms_excludes = [
+            c
+            for c in search_mock.exclude.call_args_list
+            if c.args[:1] == ("terms",) and c.kwargs.get("_id") == ["m1", "m2"]
+        ]
+        assert terms_excludes, "应对 active 冻结 member 调用 exclude(terms, _id=[...])"
+
+    def test_no_active_members_no_terms_exclude(self, monkeypatch):
+        from fta_web.issue.resources import ListIssueHistoryResource
+
+        search_mock = self._patch(monkeypatch, active_member_ids=[])
+        ListIssueHistoryResource().perform_request({"bk_biz_id": 2, "issue_id": "iss-cur"})
+
+        terms_excludes = [c for c in search_mock.exclude.call_args_list if c.args[:1] == ("terms",)]
+        assert not terms_excludes

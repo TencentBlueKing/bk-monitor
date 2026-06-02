@@ -222,9 +222,15 @@ class UnifyQueryMappingHandler:
                 }
             )
         # doris需要映射字段类型，根据新的类型获取操作列表
+        indices_list = self.indices.split(",")
+
         is_doris = (
             str(IndexSetTag.get_tag_id("Doris")) in list(self.index_set.tag_ids)
-            or CollectorConfig.get_storage_cluster_type_by_table_id(self.indices) == DORIS_CLUSTER_TYPE
+            or DORIS_CLUSTER_TYPE in {
+                storage_cluster_type for storage_cluster_type in CollectorConfig.get_storage_cluster_type_map_by_table_ids(
+                    indices_list
+                ).values()
+            }
         )
         if is_doris:
             for field in fields_list:

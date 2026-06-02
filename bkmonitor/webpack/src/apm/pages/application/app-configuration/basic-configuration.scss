@@ -158,6 +158,46 @@
       margin-bottom: 0px !important;
     }
   }
+
+  .data-relation-container {
+    width: 100%;
+
+    .relation-sub {
+      color: #979ba5;
+    }
+
+    .log-relation-form {
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-start;
+      margin-top: 16px;
+    }
+
+    .log-relation-content {
+      .relation-info-tag {
+        height: 32px;
+        margin: 4px 6px 4px 0;
+        line-height: 32px;
+      }
+    }
+
+    .log-relation-label {
+      width: 92px;
+      margin: 10px 24px 0 0;
+      line-height: 20px;
+      color: #979ba5;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    // 编辑状态样式
+    &.data-relation-edit {
+      .log-relation-label {
+        margin-top: 7px;
+        color: #63656e;
+      }
+    }
+  }
 }
 
 .extension {

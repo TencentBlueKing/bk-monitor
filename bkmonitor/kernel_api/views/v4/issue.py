@@ -31,7 +31,6 @@ from bkmonitor.issue_merge import (
     MergeIssuesNotFoundError,
     MergeMainStatusForbiddenError,
     MergeMemberIsAnotherMainError,
-    MergeMemberStatusForbiddenError,
     MergeTargetIsMemberError,
     SplitNotFoundError,
 )
@@ -290,7 +289,10 @@ class MergeResource(Resource):
 
     校验顺序（按"轻量 → 重"组织）：
     1. ES 存在性 + 跨业务一致（同次 ES 查询同时拉 bk_biz_id 与 status）
-    2. status 白名单：main 与 members 当前 ES status 必须 ∈ ACTIVE_STATUSES
+    2. status 白名单：仅 main 当前 ES status 必须 ∈ ACTIVE_STATUSES。
+       member 不限状态——非活跃（已解决/已归档）Issue 也可并入活跃主：合并后 member 被冻结，
+       自身 status 不再权威，由主状态变更级联（_cascade_follow_status）与拆分重置接管。
+       合并对非活跃 member 仅追加其影响范围/告警到主聚合，不改变告警路由。
     3. 防链式（main 端）：main 自身不能是别行 active 关系的 member
     4. 防链式（member 端）：members 自身不能是别行 active 关系的 main
     5. 任一 member 不能已在 active 关系（不可重复合并）
@@ -340,19 +342,12 @@ class MergeResource(Resource):
         if not biz_set or len(biz_set) > 1 or str(bk_biz_id) not in biz_set:
             raise MergeCrossBizForbiddenError()
 
-        # 校验 2: status 白名单
+        # 校验 2: status 白名单（仅约束 main）
+        # member 刻意不校验状态：非活跃 Issue 也允许并入活跃主（详见类 docstring）。
         status_map = {hit.meta.id: getattr(hit, "status", None) for hit in biz_hits}
         main_status = status_map.get(main_id)
         if main_status not in IssueStatus.ACTIVE_STATUSES:
             raise MergeMainStatusForbiddenError(main_id, main_status or "UNKNOWN")
-
-        invalid_members = [
-            {"issue_id": mid, "status": status_map.get(mid) or "UNKNOWN"}
-            for mid in members
-            if status_map.get(mid) not in IssueStatus.ACTIVE_STATUSES
-        ]
-        if invalid_members:
-            raise MergeMemberStatusForbiddenError(invalid_members)
 
         # SQL 关系校验 3/4/5 + 写入放进同一事务，对关系行加锁（select_for_update）重查：
         # 表无 DB UNIQUE 约束，唯一性靠应用层 SELECT。并发 merge 同一 member 时，两侧校验 5
