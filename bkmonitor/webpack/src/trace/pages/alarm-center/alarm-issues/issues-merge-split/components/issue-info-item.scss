@@ -53,6 +53,16 @@
         color: #8f9fbd;
         white-space: nowrap;
       }
+
+      .name-skeleton {
+        width: 60px;
+        height: 24px;
+      }
+
+      .desc-skeleton {
+        width: 188px;
+        height: 24px;
+      }
     }
   }
 
@@ -61,6 +71,10 @@
     flex-wrap: wrap;
     gap: 4px;
     align-items: center;
+
+    .tag-skeleton {
+      height: 22px;
+    }
 
     .tag-item {
       display: flex;

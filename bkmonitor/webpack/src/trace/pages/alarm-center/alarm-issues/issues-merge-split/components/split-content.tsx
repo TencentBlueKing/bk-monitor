@@ -28,6 +28,7 @@ import { type PropType, computed, defineComponent, onMounted, shallowRef } from 
 
 import { Button, Input } from 'bkui-vue';
 import dayjs from 'dayjs';
+import { useI18n } from 'vue-i18n';
 
 import { fetchMergeSources } from '../../services/issues-operations';
 import IssueInfoItem from './issue-info-item';
@@ -49,6 +50,8 @@ export default defineComponent({
   },
   emits: ['success'],
   setup(props, { emit }) {
+    const { t } = useI18n();
+    const loading = shallowRef(false);
     const searchKey = shallowRef('');
 
     const mergeSources = shallowRef<ListMergeSourcesResponse | null>(null);
@@ -69,10 +72,12 @@ export default defineComponent({
     const getIssueMergeSources = async () => {
       const issue = props.issues[0];
       if (!issue) return;
+      loading.value = true;
       const data = await fetchMergeSources({
         bk_biz_id: issue.bk_biz_id,
         main_issue_id: issue.id,
       });
+      loading.value = false;
       mergeSources.value = data;
     };
 
@@ -80,6 +85,51 @@ export default defineComponent({
       if (type === 'clear-filter') {
         searchKey.value = '';
       }
+    };
+
+    const renderSplitContent = () => {
+      if (loading.value) {
+        return new Array(3).fill(0).map((_, index) => (
+          <IssueInfoItem
+            key={index}
+            loading={true}
+          />
+        ));
+      }
+
+      if (targetIssues.value.length === 0)
+        return (
+          <EmptyStatus
+            type={searchKey.value ? 'search-empty' : 'empty'}
+            onOperation={handleOperation}
+          />
+        );
+
+      return targetIssues.value.map(issue => (
+        <IssueInfoItem
+          key={issue.member_issue_id}
+          v-slots={{
+            actions: () => (
+              <Button
+                class='split-btn'
+                size='small'
+                theme='primary'
+                outline
+                onClick={() => handleSplit(issue)}
+              >
+                <i class='icon-monitor icon-ziyuantuopu' />
+                {t('拆分为新 Issue')}
+              </Button>
+            ),
+            suffix: () => (
+              <span class='operate-record'>{`${issue.merge_operator} · ${dayjs(issue.merge_time * 1000).format('YYYY-MM-DD HH:mm')}`}</span>
+            ),
+          }}
+          desc={issue.anomaly_message}
+          list={getMetricList(issue)}
+          name={issue.member_name}
+        />
+      ));
     };
 
     /** 处理拆分按钮点击，打开弹窗 */
@@ -108,11 +158,9 @@ export default defineComponent({
     return {
       searchKey,
       targetIssues,
-      getMetricList,
-      handleOperation,
-      handleSplit,
       dialogVisible,
       currentSplitIssue,
+      renderSplitContent,
       handleDialogShowChange,
       handleDialogSuccess,
     };
@@ -136,39 +184,7 @@ export default defineComponent({
               type='search'
             />
           </div>
-          <div class='issue-content'>
-            {this.targetIssues.map(issue => (
-              <IssueInfoItem
-                key={issue.member_issue_id}
-                v-slots={{
-                  actions: () => (
-                    <Button
-                      class='split-btn'
-                      size='small'
-                      theme='primary'
-                      outline
-                      onClick={() => this.handleSplit(issue)}
-                    >
-                      <i class='icon-monitor icon-ziyuantuopu' />
-                      {this.$t('拆分为新 Issue')}
-                    </Button>
-                  ),
-                  suffix: () => (
-                    <span class='operate-record'>{`${issue.merge_operator} · ${dayjs(issue.merge_time * 1000).format('YYYY-MM-DD HH:mm')}`}</span>
-                  ),
-                }}
-                desc={issue.anomaly_message}
-                list={this.getMetricList(issue)}
-                name={issue.member_name}
-              />
-            ))}
-            {this.targetIssues.length === 0 && (
-              <EmptyStatus
-                type={this.searchKey ? 'search-empty' : 'empty'}
-                onOperation={this.handleOperation}
-              />
-            )}
-          </div>
+          <div class='issue-content'>{this.renderSplitContent()}</div>
         </div>
         <IssuesSplitDialog
           bizId={this.issues[0]?.bk_biz_id}
