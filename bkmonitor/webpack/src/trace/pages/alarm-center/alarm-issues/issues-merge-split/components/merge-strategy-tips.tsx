@@ -24,10 +24,53 @@
  * IN THE SOFTWARE.
  */
 
-export * from './common';
-export * from './constants';
-export * from './detail';
-export * from './dialog';
-export * from './issues-merge-split';
-export * from './service';
-export * from './table';
+import { defineComponent } from 'vue';
+
+import { useI18n } from 'vue-i18n';
+
+import './merge-strategy-tips.scss';
+
+export default defineComponent({
+  name: 'MergeStrategyTips',
+  props: {
+    hasMainIssue: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  setup() {
+    const { t } = useI18n();
+
+    return {
+      t,
+    };
+  },
+  render() {
+    return (
+      <div class='merge-strategy-tips'>
+        <div class='merge-strategy-icon'>
+          <i class='icon-monitor icon-hint' />
+        </div>
+        <div class='merge-strategy-content'>
+          <div class='merge-strategy-title'>{this.t('合并策略：')}</div>
+          <ul class='merge-strategy-list'>
+            {!this.hasMainIssue && (
+              <li class='merge-strategy-item'>
+                {this.$t('默认保留第 1 条选中的 Issue 作为主 Issue，也可以在下方表单切换；')}
+              </li>
+            )}
+
+            <li class='merge-strategy-item'>
+              <span class='item-name'>【{this.$t('主 Issue')}】</span>
+              <span>{this.$t('只能继续作为主 Issue，不支持再合并入其他 Issue；')}</span>
+            </li>
+            <li class='merge-strategy-item'>
+              <span class='item-name'>【{this.$t('被合并 Issue')}】</span>
+              <span> {this.$t('事件数、影响范围会并入主 Issue；')}</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    );
+  },
+});
