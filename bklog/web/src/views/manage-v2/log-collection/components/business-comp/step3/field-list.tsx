@@ -382,6 +382,16 @@ export default defineComponent({
       }
       return <div class='disabled-work'>{t('无需设置')}</div>;
     };
+    /** 格式化字段值用于显示 */
+    const formatDisplayValue = (value: unknown): string => {
+      if (Array.isArray(value)) {
+        return `[ ${value.join(', ')} ]`;
+      }
+      if (typeof value === 'object' && value !== null) {
+        return JSON.stringify(value);
+      }
+      return String(value ?? '');
+    };
     /**
      * 值 render
      * @param row
@@ -389,13 +399,14 @@ export default defineComponent({
      */
     const renderValue = (h, { row }) => {
       if (!row.is_built_in) {
+        const displayValue = formatDisplayValue(row.value);
         return (
           <div
             class='word-breaker bg-gray'
-            title={row.value}
+            title={displayValue}
             v-bkloading={{ isLoading: props.refresh, size: 'mini' }}
           >
-            {row.value}
+            {displayValue}
           </div>
         );
       }
