@@ -35,9 +35,12 @@ import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import { useRoute, useRouter } from 'vue-router/composables';
 
-import { getSceneFieldKeys } from './search-bar/scene-filter/scene-config';
+import { getSceneFieldKeys, getDefaultOp, getSceneConfig, getAllSceneFieldOpKeys } from './search-bar/scene-filter/scene-config';
+import { resetRetrieveData } from './search-bar/scene-filter/scene-retrieve-utils';
+import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
 
 import $http from '@/api';
+import { RetrieveType } from '../retrieve-v2/sub-bar/retrieve-type-switch';
 
 export default () => {
   const store = useStore();
@@ -447,10 +450,10 @@ export default () => {
           RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type, false);
 
           resolveAdditionKeyword().then(async () => {
-            if (isSceneMode.value) {
+            if (store.state.indexItem.retrieve_type === RetrieveType.Scene) {
               // 场景化检索：请求场景配置，从URL获取筛选参数
-              await requestSceneConfigs();
-              if (store.getters.isSceneFilterEmpty) {
+              const sceneCleared = await requestSceneConfigs();
+              if (!sceneCleared && store.getters.isSceneFilterEmpty) {
                 RetrieveHelper.setSearchingValue(false);
                 return;
               }
@@ -488,6 +491,9 @@ export default () => {
                       exception_msg: 'index-set-field-not-found',
                     });
                     RetrieveHelper.setSearchingValue(false);
+                    if (isSceneMode.value) {
+                      RetrieveHelper.fire(RetrieveEvent.SCENE_FIELD_EMPTY);
+                    }
                   }
                 } else {
                   RetrieveHelper.setSearchingValue(false);
@@ -564,34 +570,83 @@ export default () => {
   };
 
   /**
+   * 清空场景化检索条件并回退到常规检索
+   */
+  const clearSceneRetrieveToNormal = (configs: any[]) => {
+    store.commit('updateIndexItemParams', {
+      retrieve_type: 'normal',
+      scene_active: '',
+      scene_filter_values: {},
+      keyword: '',
+      addition: [],
+    });
+    store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 0 });
+
+    resetRetrieveData(store);
+
+    // 从 URL 中清除场景相关参数及 keyword/addition
+    const cleanQuery: Record<string, any> = { ...route.query, retrieve_type: 'normal' };
+    delete cleanQuery.scene_active;
+    delete cleanQuery.keyword;
+    delete cleanQuery.addition;
+    for (const key of getAllSceneFieldOpKeys(configs)) {
+      delete cleanQuery[key];
+    }
+    router.replace({ query: cleanQuery });
+  };
+
+  /**
    * 请求场景配置数据，接口返回后从 URL query 中回填场景筛选值
    */
-  const requestSceneConfigs = async () => {
+  const requestSceneConfigs = async (): Promise<boolean> => {
     await store.dispatch('retrieve/requestSceneConfigs');
     const configs = store.getters['retrieve/sceneConfigList'];
     const sceneActive = store.state.indexItem.scene_active;
-    if (!sceneActive || !configs.length) return;
+
+    // 当前是场景化检索模式但不在灰度业务中，清空场景化检索条件并回退到常规检索
+    if (sceneActive && !isFeatureToggleOn('scene_search', [String(bkBizId.value), String(spaceUid.value)])) {
+      clearSceneRetrieveToNormal(configs);
+      return true;
+    }
+
+    if (!sceneActive || !configs.length) return false;
 
     const sceneFieldKeys = getSceneFieldKeys(configs, sceneActive);
-    if (!sceneFieldKeys.length) return;
+    if (!sceneFieldKeys.length) return false;
 
     // 读取当前业务的场景显示字段配置，以显示字段为主过滤回填值
     const allDisplayFields = store.state.storage[BK_LOG_STORAGE.SCENE_DISPLAY_FIELDS] ?? {};
     const bizDisplayFields = allDisplayFields[bkBizId.value] ?? {};
-    const sceneDisplayFields: string[] | null | undefined = bizDisplayFields[sceneActive];
+    // 格式: Array<[fieldKey, op]> | null
+    const sceneDisplayFields: Array<[string, string]> | null | undefined = bizDisplayFields[sceneActive];
+    const displayFieldKeys = sceneDisplayFields?.map(([k]) => k);
+
+    const sceneConfig = getSceneConfig(configs, sceneActive);
+    const fieldOpsMap = new Map<string, string[]>();
+    sceneConfig?.fields.forEach(f => fieldOpsMap.set(f.key, f.ops ?? []));
 
     const result: Record<string, any> = {};
     for (const fieldKey of sceneFieldKeys) {
       const val = route.query[fieldKey];
       if (val === undefined || val === null || val === '') continue;
       // 显示字段为 null/undefined/空数组 表示全部显示，否则只回填显示字段中的值
-      if (sceneDisplayFields && sceneDisplayFields.length > 0 && !sceneDisplayFields.includes(fieldKey)) continue;
-      result[fieldKey] = val;
+      if (displayFieldKeys && displayFieldKeys.length > 0 && !displayFieldKeys.includes(fieldKey)) continue;
+
+      // 读取 URL 中的操作符参数: field[op]=op，无则使用本地存储中的 op，再无则从字段配置取默认操作符
+      const opFromUrl = route.query[`${fieldKey}[op]`];
+      const storedTuple = sceneDisplayFields?.find(([k]) => k === fieldKey);
+      const opFromStorage = (Array.isArray(storedTuple) && storedTuple.length >= 2) ? storedTuple[1] : undefined;
+      const defaultOp = getDefaultOp(fieldOpsMap.get(fieldKey));
+      const op = opFromUrl || opFromStorage || defaultOp;
+
+      result[fieldKey] = { op, value: val };
     }
 
     if (Object.keys(result).length) {
       store.commit('updateIndexItem', { scene_filter_values: result });
     }
+
+    return false;
   };
 
   getIndexSetList(() => {

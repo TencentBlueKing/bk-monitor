@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, nextTick } from 'vue';
+import { computed, defineComponent, ref, nextTick, watch, onBeforeUnmount } from 'vue';
 
 import useElementEvent from '@/hooks/use-element-event';
 import useLocale from '@/hooks/use-locale';
@@ -321,7 +321,13 @@ export default defineComponent({
     const handleRequestResponse = (resp?: any) => {
       const content = resp?.choices[0]?.delta?.content ?? '{}';
       try {
-        const contentObj: AiQueryContent = JSON.parse(content);
+        // 兼容 AI 响应内容被 markdown 代码块包裹的情况（如 ```json\n{...}\n```）
+        let jsonStr = content.trim();
+        const codeBlockMatch = jsonStr.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?\s*```$/i);
+        if (codeBlockMatch) {
+          jsonStr = codeBlockMatch[1].trim();
+        }
+        const contentObj: AiQueryContent = JSON.parse(jsonStr);
         const {
           end_time: endTime,
           start_time: startTime,
@@ -447,13 +453,33 @@ export default defineComponent({
     };
 
     const handleCloseAiParsedText = () => {
-      console.log('handleCloseAiParsedText');
       aiQueryResult.value.queryString = '';
       aiQueryResult.value.parseResult = undefined;
       aiQueryResult.value.explain = undefined;
       aiQueryResult.value.startTime = undefined;
       aiQueryResult.value.endTime = undefined;
     };
+
+    /** 清理 AI 相关状态 */
+    const clearAiState = () => {
+      store.commit('updateAiMode', {
+        active: false,
+        filterList: [],
+      });
+      handleCloseAiParsedText();
+      searchMode.value = 'normal';
+    };
+
+    // 切换场景时，清理 AI 相关状态
+    watch(() => store.state.indexItem.scene_active, (newVal, oldVal) => {
+      if (newVal !== oldVal) {
+        clearAiState();
+      }
+    });
+
+    onBeforeUnmount(() => {
+      clearAiState();
+    });
 
     /**
      * 切换到普通模式

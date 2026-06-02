@@ -132,7 +132,8 @@ enum BK_LOG_STORAGE {
   RESULT_DISPLAY_LINES = '_20',
   /**
    * 场景化检索-显示字段配置（按 bk_biz_id 隔离）
-   * 值: { [bkBizId: string]: { [sceneType: string]: string[] | null } }
+   * 值: { [bkBizId: string]: { [sceneType: string]: Array<[fieldKey: string, op: string]> | null } }
+   * null 表示全部显示、默认顺序
    */
   SCENE_DISPLAY_FIELDS = '_21',
 }

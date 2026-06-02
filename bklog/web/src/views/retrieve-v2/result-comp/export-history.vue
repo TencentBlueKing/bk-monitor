@@ -553,12 +553,18 @@
             sceneParts.push(`scene_active=${encodeURIComponent(scene_active)}`);
           }
           for (const [fieldKey, fieldValue] of Object.entries(scene_filter_values)) {
-            if (fieldValue !== undefined && fieldValue !== null && fieldValue !== '') {
-              if (Array.isArray(fieldValue)) {
+            const rawValue = fieldValue?.value ?? fieldValue;
+            const op = fieldValue?.op;
+            if (rawValue !== undefined && rawValue !== null && rawValue !== '') {
+              if (Array.isArray(rawValue)) {
                 // 数组值展开为多个同 key 参数（与 Vue Router 行为一致）
-                fieldValue.forEach(v => sceneParts.push(`${fieldKey}=${encodeURIComponent(v)}`));
+                rawValue.forEach(v => sceneParts.push(`${fieldKey}=${encodeURIComponent(v)}`));
               } else {
-                sceneParts.push(`${fieldKey}=${encodeURIComponent(fieldValue)}`);
+                sceneParts.push(`${fieldKey}=${encodeURIComponent(rawValue)}`);
+              }
+              // 操作符参数
+              if (op) {
+                sceneParts.push(`${fieldKey}[op]=${encodeURIComponent(op)}`);
               }
             }
           }

@@ -77,7 +77,6 @@
             :total-count="totalCount"
           />
           <BkLogPopover
-            v-if="!isSceneMode"
             ref="refFieldsSettingPopper"
             content-class="bklog-v3-select-dropdown"
             :options="tippyOptions"
@@ -201,7 +200,6 @@ export default {
     ...mapGetters({
       unionIndexList: 'unionIndexList',
       isUnionSearch: 'isUnionSearch',
-      isSceneMode: 'isSceneMode',
     }),
     ...mapState({
       indexSetList: state => state.retrieve?.indexSetList ?? [],

@@ -1351,4 +1351,8 @@ export default {
     'Please filter the log range by tags before performing log retrieval',
   '场景化检索默认搜索全量日志，为保证检索体验及集群稳定性，请通过顶部标签过滤数据后查看日志。可随时修改标签过滤内容':
     'Contextualized search defaults to searching the entire log. To ensure a better search experience and cluster stability, please filter data using the tags at the top and then view the logs. You can modify the tag filters at any time',
+  未匹配到索引集: 'No index set matched',
+  '根据过滤条件未匹配到索引集，请修改过滤条件': 'No index set matched the filter criteria. Please modify the filter criteria',
+  '若仍无结果返回，可点击联系': 'If there are still no results, you can click to contact',
+  BK助手: 'BK Assistant',
 };

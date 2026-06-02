@@ -956,6 +956,7 @@ export default {
   集群英文名称: 'Cluster English Name',
   Doris集群: 'Doris Cluster',
   '最大自定义天数为{n}': 'Maximum custom days is {n}',
+  默认操作符: 'Default Operator',
   选中值: 'Selected Value',
   整体: 'Overall',
   用户: 'User',
@@ -979,4 +980,5 @@ export default {
   服务: 'Service',
   客户端: 'Client',
   清空查询: 'Clear Query',
+  场景: 'Scene',
 };

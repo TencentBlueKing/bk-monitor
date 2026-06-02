@@ -37,7 +37,7 @@ import AutoRefresh from './auto-refresh-new.tsx';
 
 import * as authorityMap from '@/common/authority-map';
 import { BK_LOG_STORAGE } from '@/store/store.type';
-import { parseTableIdConditions } from '@/store/helper';
+import { parseTableIdConditions, isFeatureToggleOn } from '@/store/helper';
 
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import ShareLink from './share-link.tsx';
@@ -54,7 +54,8 @@ const router = useRouter();
 const store = useStore();
 
 const isSceneMode = computed(() => store.getters.isSceneMode);
-const retrieveType = computed(() => isSceneMode.value ? RetrieveType.Scene : RetrieveType.Normal);
+const isSceneRetrieveEnabled = computed(() => isFeatureToggleOn('scene_search', [String(store.state.bkBizId), String(store.state.spaceUid)]));
+const retrieveType = computed(() => (isSceneMode.value ? RetrieveType.Scene : RetrieveType.Normal));
 const fieldSettingRef = ref(null);
 const timeSettingRef = ref(null);
 const isShowClusterSetting = ref(false);
@@ -285,6 +286,8 @@ const handleHistoryChange = (payload) => {
         if (resp?.data?.fields?.length) {
           store.dispatch('requestIndexSetQuery');
           RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+        } else {
+          RetrieveHelper.fire(RetrieveEvent.SCENE_FIELD_EMPTY);
         }
       });
     });
@@ -388,6 +391,7 @@ function handleIndexConfigSliderOpen() {
 <template>
   <div class="subbar-container">
     <RetrieveTypeSwitch
+      v-if="isSceneRetrieveEnabled"
       :style="{ margin: `0 ${retrieveType === RetrieveType.Normal ? 8 : 0}px 0 8px` }"
     />
     <div

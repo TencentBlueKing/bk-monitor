@@ -119,12 +119,18 @@
 
   &-desc {
     color: #313238;
-    font-size: 18px;
+    font-size: 17px;
     margin-bottom: 24px;
   }
 
   &-detail {
     font-size: 14px;
-    color: #c4c6cc;
+    // color: #c4c6cc;
+    color: #4d4f56;
+  }
+
+  .segment-span-tag {
+    margin-left: 8px;
+    color: #3a84ff;
   }
 }

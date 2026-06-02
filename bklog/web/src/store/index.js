@@ -1715,6 +1715,7 @@ const store = new Vuex.Store({
           query: {
             space_uid: payload?.spaceUid ?? state.spaceUid,
             order_type: payload?.sort ?? (localStorage.getItem('favoriteSortType') || 'NAME_ASC'),
+            source_type: isSceneRetrieve(state) ? 'scene' : 'index_set',
           },
         })
         .then((resp) => {
@@ -2021,22 +2022,37 @@ const store = new Vuex.Store({
         ...userConfig,
       };
       delete indexSetConfig.isUpdate;
-      const queryParams = {
-        index_set_id: state.indexId,
-        index_set_type: getters.isUnionSearch ? 'union' : 'single',
-        index_set_config: indexSetConfig,
-      };
-      if (getters.isUnionSearch) {
-        delete queryParams.index_set_id;
-        queryParams.index_set_ids = state.unionIndexList;
+
+      let requestName;
+      let queryParams;
+      if (getters.isSceneMode) {
+        // 场景化检索模式：新接口参数包含旧接口 index_set_config 中的所有字段
+        // 区别：字段从嵌套变为顶层 + 增加 bk_biz_id/scene_id 路由参数
+        requestName = 'retrieve/sceneFieldsConfig';
+        queryParams = {
+          bk_biz_id: state.bkBizId,
+          scene_id: state.indexItem.scene_active,
+          scene_config: indexSetConfig,
+        };
+      } else {
+        // 常规模式：保持原有逻辑
+        requestName = 'retrieve/updateUserFiledTableConfig';
+        queryParams = {
+          index_set_id: state.indexId,
+          index_set_type: getters.isUnionSearch ? 'union' : 'single',
+          index_set_config: indexSetConfig,
+        };
+        if (getters.isUnionSearch) {
+          delete queryParams.index_set_id;
+          queryParams.index_set_ids = state.unionIndexList;
+        }
       }
+
       return http
-        .request('retrieve/updateUserFiledTableConfig', {
-          data: queryParams,
-        })
+        .request(requestName, { data: queryParams })
         .then((res) => {
           if (res.code === 0 && !userConfig.isUpdate) {
-            const updatedUserConfig = res.data.index_set_config;
+            const updatedUserConfig = getters.isSceneMode ? res.data : res.data.index_set_config;
             commit('retrieve/updateCatchFieldCustomConfig', updatedUserConfig);
           }
           return res;
