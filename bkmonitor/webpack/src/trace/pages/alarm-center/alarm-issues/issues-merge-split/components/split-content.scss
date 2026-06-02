@@ -4,6 +4,7 @@
   overflow-y: auto;
 
   .issue-group {
+    overflow: hidden;
     border: 1px solid #c1cde5;
     border-radius: 4px;
   }
@@ -60,6 +61,8 @@
   .issue-content {
     .issue-info-item {
       .split-btn {
+        border-radius: 4px;
+
         .icon-ziyuantuopu {
           margin-right: 4px;
           font-size: 14px;

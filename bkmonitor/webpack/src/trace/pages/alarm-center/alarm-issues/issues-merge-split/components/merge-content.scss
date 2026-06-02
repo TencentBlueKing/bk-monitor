@@ -22,6 +22,7 @@
     }
 
     .issue-list {
+      overflow: hidden;
       background-color: #fff;
       border: 1px solid #c1cde5;
       border-radius: 4px;
@@ -67,6 +68,12 @@
           .issue-group-tips {
             font-size: 12px;
             color: #4e5e7a;
+          }
+        }
+
+        .issue-content {
+          .set-main-btn {
+            border-radius: 4px;
           }
         }
 
