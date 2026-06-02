@@ -116,8 +116,9 @@ ES_CAPABILITIES: list[dict[str, Any]] = [
 
 def _raise(message: str, *, error_code: str | None = None, next_actions: list[str] | None = None) -> NoReturn:
     # error_code: §5.2 结构化错误码（CLUSTER_NOT_FOUND / OPERATION_NOT_ALLOWED / ES_UPSTREAM_ERROR …），
-    # 供 bkm-cli 端精确分类。注意：当前 apigateway 在 result:false 响应里会抹掉 data，该字段短期到不了
-    # 客户端（见 es-readonly spec 的 error-path follow-up）；契约已就位，网关透传 data 后自动生效。
+    # 供 bkm-cli 端精确分类。注意：API 角色异常处理器 kernel_api/exceptions.py 默认用 failed() 把 data
+    # 置空——已在该处理器补透传 error_code/next_actions（同 PR）。若端到端仍收不到，再排查上游网关是否
+    # 在 result:false 响应里抹 data（本地未验证）。
     data: dict[str, Any] = {"next_actions": next_actions or []}
     if error_code:
         data["error_code"] = error_code
@@ -368,6 +369,30 @@ def _field_blocks(mappings: dict[str, Any], field: str) -> list[dict[str, Any]]:
     return blocks
 
 
+def _agg_leaf_row(index_name: str, queried_field: str, field_path: str, definition: dict[str, Any]) -> dict[str, Any]:
+    """把单个叶子字段定义解析成可聚合性行。
+    - text：默认无 doc_values、不可聚合，除非显式 fielddata=true；
+    - 其余(keyword/数值/date)：默认 doc_values=true → 可聚合。
+    field_path 为点号全路径（如 namespace / namespace.keyword），agent 可直接拿去 terms_agg_probe。
+    """
+    field_type = definition.get("type")
+    is_text = field_type == "text"
+    fielddata = bool(definition.get("fielddata", False))
+    doc_values = definition.get("doc_values", not is_text)
+    aggregatable = (bool(doc_values) and not is_text) or (is_text and fielddata)
+    return {
+        "index": index_name,
+        "field": queried_field,
+        "field_path": field_path,
+        "type": field_type,
+        "doc_values": doc_values,
+        "fielddata": fielddata,
+        "indexed": definition.get("index", True),
+        "eager_global_ordinals": definition.get("eager_global_ordinals", False),
+        "aggregatable": aggregatable,
+    }
+
+
 def _field_mapping(client, cluster_id: int, params: dict[str, Any]) -> dict[str, Any]:
     index_pattern = _require(params, "index_pattern")
     field = _require(params, "field")
@@ -382,36 +407,35 @@ def _field_mapping(client, cluster_id: int, params: dict[str, Any]) -> dict[str,
         for field_block in _field_blocks(body.get("mappings") or {}, field):
             leaf_mapping = field_block.get("mapping") or {}
             for leaf_name, definition in leaf_mapping.items():
-                field_type = definition.get("type")
-                # keyword/数值/日期默认 doc_values=true；text 默认 false（不可聚合，除非 fielddata）
-                doc_values = definition.get("doc_values", field_type != "text")
-                items.append(
-                    {
-                        "index": index_name,
-                        "field": field,
-                        "leaf": leaf_name,
-                        "type": field_type,
-                        "doc_values": doc_values,
-                        "indexed": definition.get("index", True),
-                        "eager_global_ordinals": definition.get("eager_global_ordinals", False),
-                        "aggregatable": bool(doc_values) and field_type != "text",
-                    }
-                )
+                if not isinstance(definition, dict):
+                    continue
+                items.append(_agg_leaf_row(index_name, field, leaf_name, definition))
+                # multi-field 子字段（如 namespace.keyword）：text 父字段最常见的可聚合“替身”，
+                # 必须显式暴露——否则查 text 父字段会误判“不可聚合”，漏掉真正能聚合的 .keyword。
+                # 单层即可：ES 不允许 multi-field 嵌套。每个子字段按自身定义重算可聚合性。
+                for sub_name, sub_def in (definition.get("fields") or {}).items():
+                    if isinstance(sub_def, dict):
+                        items.append(_agg_leaf_row(index_name, field, f"{leaf_name}.{sub_name}", sub_def))
     if not items:
         _raise(
             f"在 {index_pattern} 未找到字段 {field} 的 mapping。",
             next_actions=["确认 index_pattern 与 field 正确，或用 cat_shards 确认索引存在。"],
         )
+    agg_paths = sorted({str(item["field_path"]) for item in items if item["aggregatable"]})
     types = sorted({str(item["type"]) for item in items})
     return {
         "operation": "field_mapping",
         "cluster_id": cluster_id,
         "index_pattern": index_pattern,
         "field": field,
-        "summary": f"field_mapping: {field} 在 {len(items)} 个索引映射中 type={types}",
+        "summary": (
+            f"field_mapping: {field} → {len(items)} 个字段叶子(含 multi-field 子字段)，type={types}；"
+            f"可聚合路径={agg_paths or '无'}"
+        ),
         "items": items,
         "next_actions": [
-            "若 type=keyword 且 doc_values=true 但 terms 仍塌缩，用 terms_agg_probe 抓聚合期 _shards 真相。"
+            "聚合用 items[].field_path 中 aggregatable=true 的路径（text 父字段常需改用其 .keyword 子字段）；",
+            "选定可聚合路径后，若仍塌缩，用 terms_agg_probe(field=该路径) 抓聚合期 _shards 真相。",
         ],
     }
 
