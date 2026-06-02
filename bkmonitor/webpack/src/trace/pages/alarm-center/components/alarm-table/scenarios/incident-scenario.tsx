@@ -122,6 +122,9 @@ export class IncidentScenario extends BaseScenario {
     _renderCtx: TableCellRenderContext
   ): SlotReturnValue {
     const rectColor = IncidentLevelIconMap?.[row?.level]?.iconColor;
+    const isMerged = row?.status === 'merged';
+    const targetIncidentId = row?.extra_info?.merge_info?.target_incident_doc_id;
+    const linkId = isMerged ? targetIncidentId : row?.id;
     return (
       <div class='explore-col lever-rect-col'>
         <i
@@ -135,7 +138,7 @@ export class IncidentScenario extends BaseScenario {
         >
           <a
             class='lever-rect-link'
-            href={this.getIncidentDetailUrl(row.id, row.bk_biz_id)}
+            href={this.getIncidentDetailUrl(linkId, row.bk_biz_id)}
             rel='noopener noreferrer'
             target='_blank'
           >
@@ -188,32 +191,47 @@ export class IncidentScenario extends BaseScenario {
    * @description 故障名称列 hover：与告警名称列同款布局，仅展示故障 ID（不含告警策略）
    */
   private handleIncidentNameHover(e: MouseEvent, row: IncidentTableItem) {
+    // 合并前(被合并)故障 ID
+    const originIncidentId = row?.extra_info?.merge_info?.origin_incident_doc_id;
+    // 合并目标故障 ID
+    const targetIncidentId = row?.extra_info?.merge_info?.target_incident_doc_id;
+    const isMerged = row?.status === 'merged';
+    const id = isMerged ? targetIncidentId : row?.id;
     const content = (
-      <div class='alarm-name-popover-container'>
+      <div class={['alarm-name-popover-container', isMerged ? 'alarm-name-popover-container-merged' : '']}>
         <div class='alarm-name-popover-item'>
           <span class='alarm-name-popover-item-label'>{window.i18n.t('故障ID')} : </span>
           <div
             class='alarm-name-popover-item-value'
-            onClick={() => this.handleCopyIncidentField(row?.id)}
+            onClick={() => this.handleCopyIncidentField(id)}
           >
-            <span class='item-text'>{row?.id || '--'}</span>
+            <span class='item-text'>{id || '--'}</span>
             <i class='icon-monitor icon-mc-copy' />
           </div>
         </div>
-        <div class='alarm-name-popover-item'>
-          <span class='alarm-name-popover-item-label'>{window.i18n.t('故障名称')} : </span>
-          <div class='alarm-name-popover-item-value'>
-            <a
-              style='color: inherit'
-              href={this.getIncidentDetailUrl(row.id, row.bk_biz_id)}
-              rel='noopener noreferrer'
-              target='_blank'
-            >
-              <span class='alarm-name-popover-item-value'>{row?.incident_name || '--'}</span>
-              <i class='icon-monitor icon-mc-goto' />
-            </a>
+        {isMerged && (
+          <div class='alarm-name-popover-item'>
+            <span class='alarm-name-popover-item-label'>{window.i18n.t('合并前故障ID')} : </span>
+            <div class='alarm-name-popover-item-value'>
+              {originIncidentId ? (
+                <a
+                  style='color: inherit'
+                  href={this.getIncidentDetailUrl(originIncidentId, row.bk_biz_id)}
+                  rel='noopener noreferrer'
+                  target='_blank'
+                >
+                  <span class='item-text'>{originIncidentId}</span>
+                  <i class='icon-monitor icon-mc-goto' />
+                </a>
+              ) : (
+                <span>
+                  <span class='item-text'>--</span>
+                  <i class='icon-monitor icon-mc-goto' />
+                </span>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     ) as unknown as TippyContent;
     this.context.hoverPopoverTools.showPopover(e, content);
@@ -240,6 +258,9 @@ export class IncidentScenario extends BaseScenario {
    * @param {string} activeTab 跳转至故障页面后激活显示的tab
    */
   private getIncidentDetailUrl(id: string, bkBizId?: number | string) {
+    if (!id) {
+      return '';
+    }
     const timeRange = get(this.context.timeRange) || [];
     const { href } = this.context.router.resolve({
       name: 'incident-detail',

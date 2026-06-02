@@ -184,8 +184,8 @@ class GetIncidentDiagnosisResource(IncidentBaseResource):
 class UpdateIncidentDetailResource(IncidentBaseResource):
     """更新 incident_manager 故障详情。"""
 
-    action = "/incident/incident/update_incident_detail/"
-    method = "PUT"
+    action = "/incident/bkmonitor_api/update_incident_detail/"
+    method = "POST"
 
     class RequestSerializer(serializers.Serializer):
         incident_id = serializers.IntegerField(label="故障ID", required=True)
@@ -208,7 +208,7 @@ class UpdateIncidentDetailResource(IncidentBaseResource):
 class GetIncidentSnapshotResource(IncidentBaseResource):
     """获取 incident_manager 故障快照。"""
 
-    action = "/incident/incident/get_incident_snapshot/"
+    action = "/incident/bkmonitor_api/get_incident_snapshot/"
     method = "GET"
 
     class RequestSerializer(serializers.Serializer):

@@ -281,6 +281,7 @@ export default defineComponent({
 
       filterData.value.splice(groupIndex, 1);
       updateTableIndexes();
+      emitConditionsChange();
     };
 
     /**
@@ -297,6 +298,7 @@ export default defineComponent({
           tableIndex: filterData.value.length,
         },
       ]);
+      emitConditionsChange();
     };
 
     /**
@@ -317,6 +319,7 @@ export default defineComponent({
         }
         currentGroup.splice(rowIndex, 1);
       }
+      emitConditionsChange();
     };
 
     /**
@@ -698,6 +701,7 @@ export default defineComponent({
                     value={separator.value}
                     on-selected={(val: string) => {
                       separator.value = val;
+                      emitConditionsChange();
                     }}
                   >
                     {globalDataDelimiter.value.map(option => (

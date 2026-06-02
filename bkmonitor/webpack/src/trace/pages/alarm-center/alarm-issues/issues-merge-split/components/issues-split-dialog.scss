@@ -1,0 +1,36 @@
+.issues-split-dialog {
+  .bk-dialog-content {
+    padding: 0;
+  }
+
+  .split-dialog-content {
+    padding: 0 24px;
+
+    .issue-preview-section {
+      margin-bottom: 16px;
+
+      .issue-info-item {
+        padding: 12px 16px 16px;
+        border: 1px solid #dcdee5;
+        border-radius: 8px;
+      }
+
+      .operate-record {
+        font-size: 12px;
+        color: #8f9fbd;
+      }
+    }
+
+    .reason-section {
+      .reason-checkbox-group .bk-checkbox {
+        min-width: 33%;
+      }
+    }
+  }
+
+  .dialog-footer {
+    .confirm-btn {
+      margin-right: 8px;
+    }
+  }
+}

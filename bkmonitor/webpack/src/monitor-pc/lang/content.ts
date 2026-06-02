@@ -267,6 +267,7 @@ export default {
   报警关闭时执行: 'When alarm is closed',
   报警确认时执行: 'When alarm is acknowledged',
   故障ID: 'Incident ID',
+  合并前故障ID: 'Incident ID before merging',
   故障UUID: 'Incident UUID',
   故障内部ID: 'Internal Incident ID',
   故障名称: 'Incident Name',
@@ -426,8 +427,8 @@ export default {
     'Automatically discover new metrics according to rules, existing metrics do not take effect.',
 
   // Issues 活动内容
-  '拆分为 {0} 个 Issue:': 'Split into {0} Issues:',
-  '合并进 Issue:': 'Merged into Issue:',
+  '拆分为 {0} 个 Issue：': 'Split into {0} Issues：',
+  '合并进 Issue：': 'Merged into Issue：',
   未解决: 'Unresolved',
   未分派: 'Unassigned',
   分派给我: 'Assigned to me',

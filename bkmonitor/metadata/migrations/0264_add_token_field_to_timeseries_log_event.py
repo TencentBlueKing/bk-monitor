@@ -10,6 +10,26 @@ def fill_log_group_token(apps, schema_editor):
     )
 
 
+def fill_event_group_token(apps, schema_editor):
+    EventGroup = apps.get_model("metadata", "EventGroup")
+    DataSource = apps.get_model("metadata", "DataSource")
+
+    # 通过 bk_data_id 关联 DataSource，回填其 token 到 EventGroup.token
+    ds_token_map = dict(DataSource.objects.exclude(token="").values_list("bk_data_id", "token"))
+    if not ds_token_map:
+        return
+
+    to_update = []
+    for eg in EventGroup.objects.filter(token=""):
+        token = ds_token_map.get(eg.bk_data_id)
+        if token and eg.token != token:
+            eg.token = token
+            to_update.append(eg)
+
+    if to_update:
+        EventGroup.objects.bulk_update(to_update, ["token"], batch_size=500)
+
+
 class Migration(migrations.Migration):
     dependencies = [
         ("metadata", "0263_vmshortlinkrecord_data_labels"),
@@ -32,4 +52,5 @@ class Migration(migrations.Migration):
             field=models.CharField(default="", max_length=256, verbose_name="自定义上报 Token"),
         ),
         migrations.RunPython(fill_log_group_token),
+        migrations.RunPython(fill_event_group_token),
     ]

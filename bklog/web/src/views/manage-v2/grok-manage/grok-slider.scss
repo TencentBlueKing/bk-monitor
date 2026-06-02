@@ -73,11 +73,44 @@
         margin-bottom: 8px;
       }
 
-      .debug-result-content {
-        font-size: 12px;
-        color: #313238;
+      // 调试结果表格
+      .debug-result-table {
+        width: 100%;
+        border-collapse: collapse;
+        border: none;
+
+        th, td {
+          padding: 8px 12px;
+          font-size: 12px;
+          text-align: left;
+          border: none;
+        }
+
+        th {
+          font-weight: 400;
+          color: #8E9BB3;
+          background: transparent;
+          border-bottom: 1px solid #DCDEE5;
+        }
+
+        td {
+          color: #4D4F56;
+          border-bottom: 1px solid #F0F1F5;
+        }
+
+        tr:last-child td {
+          border-bottom: none;
+        }
+      }
+
+      .debug-result-field {
+        flex-shrink: 0;
+        width: 120px;
+        color: #4D4F56;
+      }
+
+      .debug-result-value {
         word-break: break-all;
-        line-height: 20px;
       }
     }
   }
