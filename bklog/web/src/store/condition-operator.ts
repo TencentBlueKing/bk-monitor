@@ -79,6 +79,13 @@ class ConditionOperator {
    * 是否启用通配符
    */
   get isWildcardMatch() {
+    const valueList = Array.isArray(this.item.value) ? this.item.value : [this.item.value];
+    const hasWildcardValue = valueList.some(value => typeof value === 'string' && /[*?]/.test(value));
+
+    if (hasWildcardValue) {
+      return true;
+    }
+
     if (typeof this.item.isInclude === 'boolean') {
       return this.item.isInclude;
     }
@@ -176,7 +183,7 @@ class ConditionOperator {
           relation: newRelation,
           field: this.item.field,
           isInclude: this.isWildcardMatch,
-          value: Array.isArray(this.item.value) ? this.item.value : [this.item.value],
+            value: Array.isArray(this.item.value) ? this.item.value : [this.item.value],
           hidden_values: this.item.hidden_values ?? [],
           disabled: this.item.disabled ?? false,
         };
