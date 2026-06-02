@@ -51,4 +51,24 @@ export default [
       },
     },
   },
+  {
+    path: '/trace/rum/app/:appName/config',
+    name: 'rumAppConfig',
+    components: {
+      noCache: Rum,
+    },
+    meta: {
+      title: 'RUM应用配置',
+      needBack: true,
+      navId: 'rum',
+      authority: {
+        map: rumAuth,
+        page: rumAuth.VIEW_AUTH,
+      },
+      route: {
+        parent: 'rum',
+      },
+      noNavBar: true,
+    },
+  },
 ] as RouteConfig[];

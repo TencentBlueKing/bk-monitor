@@ -58,7 +58,9 @@ export default defineComponent({
      * 返回上一页
      */
     const handleBackPage = () => {
-      router.back();
+      router.push({
+        name: 'rum',
+      });
     };
 
     /**
