@@ -144,10 +144,11 @@ export function useIssuesMergeActions(options: UseIssuesMergeActionsOptions) {
   /**
    * @description 处理合并按钮点击。
    * 将选中行对应的 Issue 数据填入侧栏，以 merge 模式打开。
+   * 结果按 selectedRowKeys 的顺序排列。
    */
   const handleIssuesMergeClick = () => {
-    const selectedSet = new Set(selectedRowKeys.value);
-    mergeSplitIssues.value = data.value.filter(item => selectedSet.has(item.id));
+    const itemMap = new Map(data.value.map(item => [item.id, item]));
+    mergeSplitIssues.value = selectedRowKeys.value.map(id => itemMap.get(id)).filter(Boolean);
     mergeSplitType.value = 'merge';
     mergeSplitShow.value = true;
   };

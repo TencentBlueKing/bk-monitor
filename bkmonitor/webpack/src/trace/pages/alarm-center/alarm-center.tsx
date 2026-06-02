@@ -117,6 +117,10 @@ import './alarm-center.scss';
 
 /** 表格固定配置项(表头吸顶、横向滚动条吸底) */
 const tableAffixed = { container: `.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}` };
+
+/** IssuesTable 表头吸顶配置（offsetTop 避让吸顶的工具栏） */
+const issuesTableAffixed = { container: tableAffixed.container, offsetTop: 56 };
+
 export default defineComponent({
   name: 'AlarmCenter',
   setup() {
@@ -1222,7 +1226,7 @@ export default defineComponent({
                               }
                               columns={this.tableSourceColumns}
                               data={this.data as IssueItem[]}
-                              headerAffixedTop={tableAffixed}
+                              headerAffixedTop={issuesTableAffixed}
                               highlightedRowIds={this.highlightedRowIds}
                               horizontalScrollAffixedBottom={tableAffixed}
                               loading={this.loading}
