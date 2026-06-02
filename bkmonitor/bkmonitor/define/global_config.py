@@ -735,6 +735,11 @@ STANDARD_CONFIGS = OrderedDict(
                 label=_("APM 自定义指标 V2 开启的白名单，支持业务ID(整业务)或'业务ID-应用名'(单应用)格式"), default=[]
             ),
         ),
+        # 在暂停自定义指标下发时，允许下发白名单内的业务
+        (
+            "REFRESH_CUSTOM_REPORT_BIZ_ID_WHITE_LIST",
+            slz.ListField(label=_("在暂停自定义指标下发时，允许下发白名单内的业务"), default=[]),
+        ),
     ]
 )
 
