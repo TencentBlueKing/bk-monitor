@@ -66,6 +66,7 @@ interface Props {
 export default class RedefineTabContent extends tsc<Props> {
   @Prop({ default: '' }) appName: string;
   @Prop({ default: false }) isBatchEdit: boolean;
+  @Prop({ default: window.innerHeight - 350 }) tableMaxHeight: number;
 
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   @InjectReactive('callOptions') readonly callOptions: CallOptions;
@@ -947,7 +948,7 @@ export default class RedefineTabContent extends tsc<Props> {
           ) : (
             <bk-table
               ref='tableRef'
-              max-height='100%'
+              max-height={this.tableMaxHeight}
               data={this.showData}
               empty-text={this.filterValues.length ? this.$tc('搜索结果为空') : this.$t('暂无数据')}
               row-class-name='return-code-redefine-row'
