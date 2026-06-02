@@ -27,6 +27,7 @@ from kernel_api.rpc.functions.admin.api_auth_token import (
 )
 from kernel_api.rpc.functions.admin import apm as admin_apm
 from kernel_api.rpc.functions.admin import bcs_cluster as admin_bcs_cluster
+from kernel_api.rpc.functions.admin import custom_report as admin_custom_report
 from kernel_api.rpc.functions.admin.bcs_cluster import _serialize_bcs_cluster
 from kernel_api.rpc.functions.admin.cluster_info import (
     _build_es_cluster_overview,
@@ -138,6 +139,7 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.bkbase_result_table.detail",
         "admin.custom_report.list",
         "admin.custom_report.detail",
+        "admin.custom_report.scope_list",
         "admin.custom_report.metric_list",
         "admin.custom_report.refresh_metrics",
         "admin.api_auth_token.list",
@@ -1704,6 +1706,81 @@ def test_custom_report_refresh_metrics_function_registered():
     assert detail["func_name"] == "admin.custom_report.refresh_metrics"
     assert "write" in detail["description"]
     assert "expired_time" in detail["params_schema"]
+
+
+def test_custom_report_scope_and_metric_list_functions_registered():
+    scope_list = KernelRPCRegistry.get_function_detail("admin.custom_report.scope_list")
+    assert scope_list is not None
+    assert scope_list["func_name"] == "admin.custom_report.scope_list"
+    assert "scope_name" in scope_list["params_schema"]
+    assert "create_from" in scope_list["params_schema"]
+
+    metric_list = KernelRPCRegistry.get_function_detail("admin.custom_report.metric_list")
+    assert metric_list is not None
+    assert "scope_id" in metric_list["params_schema"]
+    assert "field_scope" in metric_list["params_schema"]
+
+
+def test_custom_report_scope_serializer_returns_scope_metadata():
+    scope = SimpleNamespace(
+        id=2,
+        group_id=1001,
+        scope_name="checkout-api||production",
+        dimension_config={"service_name": {"alias": "服务", "common": True, "hidden": False}},
+        auto_rules=["checkout_*"],
+        create_from="data",
+        last_modify_time=datetime(2026, 4, 26, 10, 40, 0),
+    )
+
+    item = admin_custom_report._serialize_time_series_scope(scope, {2: 3})
+
+    assert item == {
+        "scope_id": 2,
+        "group_id": 1001,
+        "scope_name": "checkout-api||production",
+        "dimension_config": {"service_name": {"alias": "服务", "common": True, "hidden": False}},
+        "auto_rules": ["checkout_*"],
+        "metric_count": 3,
+        "create_from": "data",
+        "last_modify_time": "2026-04-26 10:40:00",
+    }
+
+
+def test_custom_report_metric_serializer_returns_scope_and_field_config():
+    scope = SimpleNamespace(id=2, scope_name="checkout-api||production")
+    metric = SimpleNamespace(
+        field_id=7001,
+        field_name="http_request_total",
+        table_id="2_bkmonitor_time_series.__default__",
+        scope_id=2,
+        field_scope="checkout-api||production",
+        tag_list=["service_name", "scope_name", "target"],
+        field_config={
+            "alias": "HTTP 请求数",
+            "unit": "none",
+            "hidden": False,
+            "aggregate_method": "sum",
+            "function": "sum",
+            "interval": 60,
+            "disabled": False,
+        },
+        is_active=True,
+        create_time=datetime(2026, 4, 26, 10, 0, 0),
+        last_modify_time=datetime(2026, 4, 26, 10, 30, 0),
+    )
+
+    item = admin_custom_report._serialize_time_series_metric(metric, {2: scope})
+
+    assert item["field_id"] == 7001
+    assert item["field_name"] == "http_request_total"
+    assert item["scope"] == {"id": 2, "name": "checkout-api||production"}
+    assert item["field_scope"] == "checkout-api||production"
+    assert item["tag_list"] == ["service_name", "scope_name", "target"]
+    assert item["field_config"]["alias"] == "HTTP 请求数"
+    assert item["description"] == "HTTP 请求数"
+    assert item["unit"] == "none"
+    assert item["create_time"] == "2026-04-26 10:00:00"
+    assert item["update_time"] == "2026-04-26 10:30:00"
 
 
 def test_es_storage_functions_registered():
