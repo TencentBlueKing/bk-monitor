@@ -138,9 +138,13 @@ class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
                 )
                 duty_plans[duty_rule["id"]].extend(duty_manager.get_duty_plan())
 
-            # 找到当前规则的最后一次plan_time
+            # API 模式下的预览逻辑：
+            # 假设告警组关联了该轮值规则，需要获取排班计划预览
+            # 存在两种情况：
+            # 1. 之前已经关联过该轮值规则，排班快照已存在 → 使用快照生成计划（上面的逻辑）
+            # 2. 之前从未关联过，没有快照 → 重新生成排班计划（下面的逻辑）
             if not user_group or (not snaps and source_type == PreviewSerializer.SourceType.API):
-                # 如果不是通过内部保存内容预览，直接生成
+                # 没有用户组（API 模式）或没有快照时，重新生成排班计划
                 # 通过该方法，刷新 duty_rule.duty_arranges 的生效时间（begin_time）
                 # 问题： 按周排班， 此时刷新的生效时间不是当前， 而是下一周起始时间。当前到下周内无排班计划
                 # 1. 先拿当周排班计划
