@@ -57,6 +57,10 @@ export default defineComponent({
       }>,
       default: null,
     },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
   },
   render() {
     return (
@@ -71,28 +75,45 @@ export default defineComponent({
                 <i class={['icon-monitor', 'sign-icon', this.icon.icon]} />
               </div>
             )}
-            <span class='issue-name'>{this.name}</span>
+            {this.loading ? (
+              <div class='skeleton-element name-skeleton' />
+            ) : (
+              <span class='issue-name'>{this.name}</span>
+            )}
             <span class='divider' />
-            <span
-              class='issue-desc'
-              v-overflow-tips
-            >
-              {this.desc}
-            </span>
+            {this.loading ? (
+              <div class='skeleton-element desc-skeleton' />
+            ) : (
+              <span
+                class='issue-desc'
+                v-overflow-tips
+              >
+                {this.desc}
+              </span>
+            )}
           </div>
+
           {this.$slots.actions?.()}
         </div>
         <div class='issue-metrics-row'>
           {this.$slots.prefix?.()}
-          {this.list.map((item, index) => (
-            <div
-              key={index}
-              class='tag-item metric-item'
-            >
-              <div class='label'>{typeof item === 'string' ? item : item.label}</div>
-              {typeof item === 'object' && <div class='value'>{item.value}</div>}
-            </div>
-          ))}
+          {this.loading
+            ? new Array(3).fill(0).map((_, index) => (
+                <div
+                  key={index}
+                  style={{ width: `${Math.random() * 80 + 60}px` }}
+                  class='skeleton-element tag-skeleton'
+                />
+              ))
+            : this.list.map((item, index) => (
+                <div
+                  key={index}
+                  class='tag-item metric-item'
+                >
+                  <div class='label'>{typeof item === 'string' ? item : item.label}</div>
+                  {typeof item === 'object' && <div class='value'>{item.value}</div>}
+                </div>
+              ))}
           {this.$slots.suffix?.()}
         </div>
       </div>
