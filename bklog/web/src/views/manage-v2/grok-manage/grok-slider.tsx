@@ -75,7 +75,7 @@ export default defineComponent({
 
     // 调试相关状态
     const debugStatus = ref<DebugStatus>(DebugStatus.NONE); // 调试状态
-    const debugResult = ref(''); // 调试结果
+    const debugResult = ref<Array<{ field: string; value: any }>>([]); // 调试结果
     const debugLoading = ref(false); // 调试加载状态
     const debugErrorMsg = ref(''); // 调试错误信息
 
@@ -132,7 +132,7 @@ export default defineComponent({
       formData.pattern = '';
       formData.sample = '';
       debugStatus.value = DebugStatus.NONE;
-      debugResult.value = '';
+      debugResult.value = [];
       debugErrorMsg.value = '';
       lastDebuggedPattern.value = '';
       lastDebuggedSample.value = '';
@@ -181,7 +181,7 @@ export default defineComponent({
 
         debugLoading.value = true;
         debugStatus.value = DebugStatus.NONE;
-        debugResult.value = '';
+        debugResult.value = [];
         debugErrorMsg.value = '';
 
         const response = await http.request('grok/debugGrok', {
@@ -197,20 +197,18 @@ export default defineComponent({
         if (data === null) {
           // 匹配失败，不展示结果
           debugStatus.value = DebugStatus.FAILED;
-          debugResult.value = '';
+          debugResult.value = [];
         } else {
           // 调试成功
           debugStatus.value = DebugStatus.SUCCESS;
           // 获取除 _matched 外的其他字段
           const { _matched, ...rest } = data;
-          // 如果只有 _matched 字段，显示其内容（字符串）
-          // 否则显示剩下的键值对，格式为 key: value
+          // 如果只有 _matched 字段，显示其内容
+          // 否则显示剩下的键值对
           if (Object.keys(rest).length === 0) {
-            debugResult.value = _matched;
+            debugResult.value = [{ field: '_matched', value: _matched }];
           } else {
-            debugResult.value = Object.entries(rest)
-              .map(([key, value]) => `${key}: ${value}`)
-              .join(',');
+            debugResult.value = Object.entries(rest).map(([key, value]) => ({ field: key, value }));
           }
         }
         // 记录调试的内容
@@ -293,7 +291,22 @@ export default defineComponent({
 
       return (
         <div class='debug-result'>
-          <div class='debug-result-content'>{debugResult.value}</div>
+          <table class='debug-result-table'>
+            <thead>
+              <tr>
+                <th>{t('字段名')}</th>
+                <th>{t('解析结果')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {debugResult.value.map(row => (
+                <tr key={row.field}>
+                  <td class='debug-result-field'>{row.field}</td>
+                  <td class='debug-result-value'>{row.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       );
     };
@@ -372,14 +385,9 @@ export default defineComponent({
               {/* Grok 定义 */}
               <bk-form-item
                 property='pattern'
+                label={t('Grok 定义（可引用其他模式）')}
                 required
               >
-                <div
-                  class='grok-pattern-label'
-                  slot='label'
-                >
-                  <span>{t('Grok 定义（可引用其他模式）')}</span>
-                </div>
                 <GrokInput
                   grokMode={grokModeEnabled.value}
                   popoverPosition='editor'
