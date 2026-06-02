@@ -182,8 +182,10 @@ export default {
   对比的TraceID相同: 'The compared TraceID is the same',
   '打开后，除了采集启用的指标还会采集未来新增的指标。':
     'After opening, in addition to collecting enabled indicators, future new indicators will also be collected.',
-  '因为当前是旧的存储模式，开启采集新增指标后会切换成新的存储模式，旧的历史数据会丢失，请确认是否继续。':
-    'Because the current storage mode is old, after enabling the collection of new indicators, it will switch to the new storage mode, and the old historical data will be lost. Please confirm whether to continue.',
+  '开启自动发现，已有数据不会丢失，但可能会导致维度爆炸问题，请确认维度数据':
+    'After opening automatic discovery, existing data will not be lost, but it may cause dimension explosion problems, please confirm the dimension data',
+  '关闭自动发现，将以手动维护的指标和维度为准，其他数据将被丢弃':
+    'After closing automatic discovery, the indicators and dimensions maintained manually will be used as the standard, and other data will be discarded',
   '添加新的屏蔽范围将会覆盖之前的屏蔽内容，确定覆盖？':
     'Adding a new blocking range will overwrite the previous blocked content, are you sure to proceed?',
   '批量粘贴请使用;进行分隔': 'Please use bulk pasting; Separate',

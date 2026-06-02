@@ -107,6 +107,7 @@ export default {
   黑名单: 'Black List',
   指标维度设置: 'Metric / Dimension Setting',
   此操作存在危险: 'This operation is dangerous',
+  此操作存在风险: 'This operation is risky',
   DB设置: 'DB settings',
   DB类型: 'DB type',
   '{0}月': '{0} month',
