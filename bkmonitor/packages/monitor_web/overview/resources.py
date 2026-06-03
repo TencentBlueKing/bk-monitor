@@ -85,6 +85,7 @@ class GetFunctionShortcutResource(Resource):
         pool = ThreadPool(min(len(apps), 10))
         results = pool.map_ignore_exception(_collect, list(apps.values()))
         pool.close()
+        pool.join()
         return dict(results)
 
     @classmethod
@@ -404,7 +405,8 @@ class GetFunctionShortcutResource(Resource):
 
         for record in result:
             for item in record["items"]:
-                item["bk_biz_name"] = biz_id_name_map[item["bk_biz_id"]]
+                # 业务空间可能取不到详情（已删除/无权限），缺省置空名而非下标抛 KeyError 拖垮整个首页入口
+                item["bk_biz_name"] = biz_id_name_map.get(item["bk_biz_id"], "")
 
         return result
 

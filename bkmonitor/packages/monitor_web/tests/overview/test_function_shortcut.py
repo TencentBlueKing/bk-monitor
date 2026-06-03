@@ -125,3 +125,72 @@ class TestFavoriteApmServiceUsesCorrectApp:
         assert by_service["svc-c"]["application_id"] == 2
         assert by_service["svc-c"]["bk_biz_id"] == 200
         assert by_service["svc-c"]["app_name"] == "app_2"
+
+
+class TestRecentApmService:
+    """get_recent_shortcuts 的 apm_service 分支：并发预取 + 存在性过滤 + limit 截断。"""
+
+    def _patch_ctx(self, access_records, apps_qs, per_app):
+        """构造 recent apm_service 所需的 mock 上下文。"""
+        user_config = SimpleNamespace(value={"apm_service": access_records})
+        ctx = []
+        p_uc = mock.patch(f"{MODULE}.UserConfig")
+        p_app = mock.patch(f"{MODULE}.Application.objects")
+        p_svc = mock.patch(
+            f"{MODULE}.ServiceHandler.list_services",
+            side_effect=lambda app: per_app[app.application_id],
+        )
+        ctx.extend([p_uc, p_app, p_svc])
+        uc = p_uc.start()
+        uc.objects.filter.return_value.first.return_value = user_config
+        app_objs = p_app.start()
+        app_objs.filter.return_value = apps_qs
+        p_svc.start()
+        return ctx
+
+    @staticmethod
+    def _stop(ctx):
+        for p in ctx:
+            p.stop()
+
+    def test_parallel_equivalence_and_filtering(self):
+        """并发预取与串行等价；过期服务、不存在的应用都被正确过滤，且各项归属正确应用。"""
+        app1, app2 = _app(1, 100), _app(2, 200)
+        access_records = [
+            {"application_id": 1, "service_name": "svc-a"},  # 存在
+            {"application_id": 2, "service_name": "svc-c"},  # 存在
+            {"application_id": 2, "service_name": "svc-stale"},  # 已过期 → 过滤
+            {"application_id": 999, "service_name": "svc-x"},  # 应用不存在 → 跳过
+        ]
+        per_app = {1: [_svc("svc-a")], 2: [_svc("svc-c")]}
+
+        ctx = self._patch_ctx(access_records, [app1, app2], per_app)
+        try:
+            result = GetFunctionShortcutResource.get_recent_shortcuts("admin", ["apm_service"], limit=10)
+        finally:
+            self._stop(ctx)
+
+        items = result[0]["items"]
+        by_service = {item["service_name"]: item for item in items}
+        assert set(by_service) == {"svc-a", "svc-c"}
+        assert by_service["svc-a"]["application_id"] == 1
+        assert by_service["svc-a"]["bk_biz_id"] == 100
+        assert by_service["svc-c"]["application_id"] == 2
+        assert by_service["svc-c"]["bk_biz_id"] == 200
+
+    def test_limit_truncation(self):
+        """limit 截断生效：两条均有效但 limit=1 时只返回 1 条。"""
+        app1, app2 = _app(1, 100), _app(2, 200)
+        access_records = [
+            {"application_id": 1, "service_name": "svc-a"},
+            {"application_id": 2, "service_name": "svc-c"},
+        ]
+        per_app = {1: [_svc("svc-a")], 2: [_svc("svc-c")]}
+
+        ctx = self._patch_ctx(access_records, [app1, app2], per_app)
+        try:
+            result = GetFunctionShortcutResource.get_recent_shortcuts("admin", ["apm_service"], limit=1)
+        finally:
+            self._stop(ctx)
+
+        assert len(result[0]["items"]) == 1
