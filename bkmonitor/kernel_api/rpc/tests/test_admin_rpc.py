@@ -627,6 +627,28 @@ def test_datalink_component_list_accepts_cluster_config_kind():
     assert response["data"]["items"][0]["bk_biz_id"] == 0
 
 
+def test_datalink_databus_serializer_includes_consumer_group():
+    databus = SimpleNamespace(
+        name="l_1575783",
+        namespace="bklog",
+        create_time=None,
+        last_modify_time=None,
+        status="Ok",
+        data_link_name="l_1575783",
+        bk_biz_id=7,
+        bk_tenant_id="default",
+        data_id_name="l_1575783",
+        bk_data_id=1575783,
+        sink_names=["ElasticSearchBinding:l_1575783"],
+        consumer_group="bkmonitorv3_transfer0bkmonitor_15757830",
+    )
+
+    item = admin_datalink._serialize_component(databus, "Databus")
+
+    assert item["kind"] == "Databus"
+    assert item["consumer_group"] == "bkmonitorv3_transfer0bkmonitor_15757830"
+
+
 def test_datalink_component_detail_accepts_cluster_config_kind_with_component_config():
     cluster_config = SimpleNamespace(
         name="default-vm",
