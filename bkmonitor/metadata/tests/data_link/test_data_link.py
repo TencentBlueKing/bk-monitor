@@ -3305,6 +3305,54 @@ def test_get_bkbase_components_config_extracts_result_table_id_case_insensitive(
     assert extra_config["bkbase_table_id"] == "2_bkm_space_42_bkapm_metric_bkapp_ai_adb84"
 
 
+def test_get_bkbase_components_config_extracts_databus_consumer_group():
+    """同步 Databus 时，应反填 BKBase spec.consumerGroup。"""
+    config = {
+        "kind": "Databus",
+        "metadata": {"name": "l_1575783", "namespace": "bkmonitor", "labels": {"bk_biz_id": "7"}},
+        "spec": {
+            "sinks": [{"kind": "ElasticSearchBinding", "name": "l_1575783"}],
+            "sources": [{"kind": "DataId", "name": "l_1575783"}],
+            "consumerGroup": "bkmonitorv3_transfer0bkmonitor_15757830",
+        },
+        "status": {"phase": "Ok"},
+    }
+
+    base_config, extra_config = _get_bkbase_components_config(
+        bk_tenant_id="default",
+        kind=DataLinkKind.DATABUS.value,
+        namespace="bkmonitor",
+        config=config,
+    )
+
+    assert base_config["name"] == "l_1575783"
+    assert extra_config["data_id_name"] == "l_1575783"
+    assert extra_config["sink_names"] == ["ElasticSearchBinding:l_1575783"]
+    assert extra_config["consumer_group"] == "bkmonitorv3_transfer0bkmonitor_15757830"
+
+
+def test_get_bkbase_components_config_defaults_databus_consumer_group():
+    """同步 Databus 时，缺省 consumerGroup 应落为空字符串。"""
+    config = {
+        "kind": "Databus",
+        "metadata": {"name": "l_1575784", "namespace": "bkmonitor", "labels": {"bk_biz_id": "7"}},
+        "spec": {
+            "sinks": [{"kind": "ElasticSearchBinding", "name": "l_1575784"}],
+            "sources": [{"kind": "DataId", "name": "l_1575784"}],
+        },
+        "status": {"phase": "Ok"},
+    }
+
+    _, extra_config = _get_bkbase_components_config(
+        bk_tenant_id="default",
+        kind=DataLinkKind.DATABUS.value,
+        namespace="bkmonitor",
+        config=config,
+    )
+
+    assert extra_config["consumer_group"] == ""
+
+
 def test_get_bkbase_components_config_supports_basereport_sink():
     """BKBase 组件反向同步时，应只持久化 BasereportSink 实际关联的 VMStorageBinding。"""
     config = {

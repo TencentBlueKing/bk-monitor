@@ -510,6 +510,7 @@ def test_compose_data_bus_config(create_or_delete_records):
 
     content = data_bus_ins.compose_config(sinks)
     assert json.dumps(content) == expect_config
+    assert "consumerGroup" not in content["spec"]
 
     # 多租户模式
     settings.ENABLE_MULTI_TENANT_MODE = True
@@ -535,6 +536,53 @@ def test_compose_data_bus_config(create_or_delete_records):
 
     content = data_bus_ins.compose_config(sinks)
     assert json.dumps(content) == expect_config
+    assert "consumerGroup" not in content["spec"]
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_databus_config_with_consumer_group(create_or_delete_records):
+    """
+    测试DataBusConfig配置consumer group时能否正确生成
+    """
+    settings.ENABLE_MULTI_TENANT_MODE = False
+    ds = models.DataSource.objects.get(bk_data_id=50010)
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
+
+    bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id)
+    consumer_group = "bkmonitorv3_transfer0bkmonitor_15757830"
+
+    sinks = [
+        {
+            "kind": DataLinkKind.VMSTORAGEBINDING.value,
+            "name": bkbase_vmrt_name,
+            "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+        }
+    ]
+
+    data_bus_ins, _ = DataBusConfig.objects.get_or_create(
+        name=bkbase_vmrt_name,
+        data_id_name=bkbase_data_name,
+        data_link_name=bkbase_data_name,
+        namespace="bkmonitor",
+        bk_biz_id=111,
+    )
+    data_bus_ins.consumer_group = consumer_group
+    content = data_bus_ins.compose_config(sinks)
+    assert content["spec"]["consumerGroup"] == consumer_group
+
+    log_databus_ins, _ = models.DataBusConfig.objects.get_or_create(
+        bk_tenant_id="system",
+        bk_biz_id=1,
+        name="base_1_agent_event_consumer",
+        namespace="bkmonitor",
+        data_link_name="base_1_agent_event_consumer",
+        data_id_name="base_1_agent_event_consumer",
+    )
+    log_databus_ins.consumer_group = consumer_group
+    log_sinks = [{"kind": "ElasticSearchBinding", "name": "base_1_agent_event_consumer", "namespace": "bkmonitor"}]
+    assert log_databus_ins.compose_log_config(sinks=log_sinks, rules=[])["spec"]["consumerGroup"] == consumer_group
+    assert log_databus_ins.compose_base_event_config()["spec"]["consumerGroup"] == consumer_group
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -564,6 +612,7 @@ def test_compose_log_databus_config(create_or_delete_records):
     }
     actual_result = log_databus_ins.compose_base_event_config()
     assert actual_result == expected_config
+    assert "consumerGroup" not in actual_result["spec"]
 
     # 多租户模式
     settings.ENABLE_MULTI_TENANT_MODE = True
@@ -591,6 +640,7 @@ def test_compose_log_databus_config(create_or_delete_records):
     }
     actual_result = log_databus_ins.compose_base_event_config()
     assert actual_result == expected_config
+    assert "consumerGroup" not in actual_result["spec"]
 
 
 @pytest.mark.django_db(databases="__all__")
