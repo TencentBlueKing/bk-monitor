@@ -178,13 +178,14 @@ class AlertEventBaseResource(Resource, abc.ABC):
             resource_type: str = related_k8s_targets["resource_type"]
             for related_target in related_k8s_targets["target_list"]:
                 # Node 对象
+                node: str = related_target.pop("target", "")
                 if resource_type == K8S_RESOURCE_TYPE[K8STargetType.NODE]:
-                    if not all([related_target.get("bcs_cluster_id"), related_target.get("target")]):
+                    if not all([related_target.get("bcs_cluster_id"), node]):
                         continue
                     valid_k8s_targets.append(
                         {
                             "bcs_cluster_id": related_target["bcs_cluster_id"],
-                            "host": related_target["target"],
+                            "host": node,
                         }
                     )
                     continue
