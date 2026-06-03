@@ -99,16 +99,21 @@ def _get_tenant_prefix(bk_tenant_id: str) -> str:
 def _get_old_space_ids(
     bk_tenant_id: str, prefix: str, space_ids: list[str] | tuple[str, ...] | set[str] | None = None
 ) -> list[str]:
-    if space_ids is not None:
-        normalized_space_ids = {_normalize_old_space_id(space_id, prefix) for space_id in space_ids if space_id}
-        return sorted(space_id for space_id in normalized_space_ids if space_id)
-
-    return list(
+    # 租户内所有未加前缀的 BKCI 旧 space_id，作为后续合法性校验的全集。
+    existing_old_space_ids = set(
         Space.objects.filter(bk_tenant_id=bk_tenant_id, space_type_id=BKCI_SPACE_TYPE)
         .exclude(space_id__startswith=prefix)
-        .order_by("space_id")
         .values_list("space_id", flat=True)
     )
+
+    if space_ids is not None:
+        # 显式传入时，先做前缀归一化，再与租户内真实存在的旧 space_id 取交集。避免误传
+        # 不属于该租户/不存在的 space_id 时，对 SpaceStickyInfo、BkAppSpaceRecord 等
+        # 全局表造成跨租户、跨空间的错误改写。
+        normalized_space_ids = {_normalize_old_space_id(space_id, prefix) for space_id in space_ids if space_id}
+        return sorted(normalized_space_ids & existing_old_space_ids)
+
+    return sorted(existing_old_space_ids)
 
 
 def _normalize_old_space_id(space_id: str, prefix: str) -> str:
@@ -386,7 +391,7 @@ def _collect_space_resource_changes(old_space_id: str, new_space_id: str) -> lis
             changes["space_id"] = {"old": old_space_id, "new": new_space_id}
         if row.resource_type in {BKCI_SPACE_TYPE, BCS_RESOURCE_TYPE} and row.resource_id == old_space_id:
             changes["resource_id"] = {"old": old_space_id, "new": new_space_id}
-        new_dimension_values = _replace_json_value(row.dimension_values, old_space_id, new_space_id)
+        new_dimension_values = _replace_dimension_project_id(row.dimension_values, old_space_id, new_space_id)
         if new_dimension_values != row.dimension_values:
             changes["dimension_values"] = {"old": row.dimension_values, "new": new_dimension_values}
         if changes:
@@ -444,6 +449,37 @@ def _collect_record_rule_v4_flow_changes(
             )
         )
     return records
+
+
+def _replace_dimension_project_id(value: Any, old_space_id: str, new_space_id: str) -> Any:
+    """仅替换 ``dimension_values`` 中 ``project_id`` 键对应的旧 space_id。
+
+    ``SpaceResource.dimension_values`` 通常是形如
+    ``[{"project_id": "demo", "cluster_id": "BCS-K8S-1000", "namespace": ["demo", ...]}]``
+    的列表。其中只有 ``project_id`` 才是 BKCI 的 space_id（项目 code），需要加上租户前缀；
+    而 ``namespace``、``cluster_id`` 等字段的取值可能恰好等于项目 code（例如某些命名空间
+    与项目同名），若做全量递归替换会把这些无关字段一起改写，破坏资源维度数据。因此这里只
+    针对 ``project_id`` 键、且值精确等于 ``old_space_id`` 时才替换。
+
+    Args:
+        value: 原始 ``dimension_values``，一般是 ``list[dict]``，也兼容其他结构原样返回。
+        old_space_id: 旧的（未加前缀）BKCI space_id。
+        new_space_id: 新的（带租户前缀）BKCI space_id。
+
+    Returns:
+        替换后的 ``dimension_values``，不会修改入参对象。
+    """
+    if isinstance(value, list):
+        return [_replace_dimension_project_id(item, old_space_id, new_space_id) for item in value]
+    if isinstance(value, dict):
+        new_dict: dict[Any, Any] = {}
+        for key, item in value.items():
+            if key == "project_id" and item == old_space_id:
+                new_dict[key] = new_space_id
+            else:
+                new_dict[key] = item
+        return new_dict
+    return value
 
 
 def _replace_json_value(value: Any, old_value: str, new_value: str) -> Any:
