@@ -208,6 +208,99 @@ class TestMergeResolverHydrate:
         assert "merge_status" not in issues[0]
 
 
+class TestMergeStatusConflictHint:
+    """终态主 Issue 持有活跃 member 时，merge_status 暴露 status_conflict + active_member_count。
+
+    合并/拆分与状态解耦后，活跃 member 可被并入已结案（resolved/archived）主 Issue，主状态不级联，
+    于是出现「历史 Issue 下仍有活跃关联问题」。该提示让前端避免用户误判异常已结束。
+    需 mock Step 2 的 IssueDocument.search（取 member ES 状态）；不 mock 时 ES 失败 fail-open，
+    回落到 Step 1 默认值（status_conflict=False / active_member_count=0）。
+    """
+
+    @staticmethod
+    def _ctx(main_to_members):
+        ctx = MergeResolverContext(bk_biz_id=2)
+        ctx._loaded = True
+        ctx._main_to_members = main_to_members
+        ctx._member_to_main = {m["member_issue_id"]: main for main, members in main_to_members.items() for m in members}
+        return ctx
+
+    @staticmethod
+    def _patch_member_docs(monkeypatch, status_by_id):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
+        from bkmonitor.documents.issue import IssueDocument
+
+        hits = [
+            SimpleNamespace(
+                meta=SimpleNamespace(id=mid),
+                status=st,
+                first_alert_time=None,
+                last_alert_time=None,
+                impact_scope=None,
+            )
+            for mid, st in status_by_id.items()
+        ]
+        search_mock = MagicMock()
+        search_mock.filter.return_value.source.return_value.params.return_value.execute.return_value.hits = hits
+        monkeypatch.setattr(IssueDocument, "search", classmethod(lambda cls, **kw: search_mock))
+
+    def test_conflict_when_terminal_main_holds_active_member(self, monkeypatch):
+        from constants.issue import IssueStatus
+
+        ctx = self._ctx({"a1": [{"member_issue_id": "b1"}, {"member_issue_id": "b2"}]})
+        self._patch_member_docs(monkeypatch, {"b1": IssueStatus.UNRESOLVED, "b2": IssueStatus.RESOLVED})
+
+        issues = [{"id": "a1", "status": IssueStatus.RESOLVED}]
+        IssueMergeResolver.hydrate_aggregations(issues, ctx)
+
+        ms = issues[0]["merge_status"]
+        assert ms["role"] == "main"
+        assert ms["active_member_count"] == 1  # 仅 b1 活跃；b2 已解决不计入
+        assert ms["status_conflict"] is True
+
+    def test_no_conflict_when_main_active(self, monkeypatch):
+        from constants.issue import IssueStatus
+
+        ctx = self._ctx({"a1": [{"member_issue_id": "b1"}]})
+        self._patch_member_docs(monkeypatch, {"b1": IssueStatus.UNRESOLVED})
+
+        issues = [{"id": "a1", "status": IssueStatus.UNRESOLVED}]
+        IssueMergeResolver.hydrate_aggregations(issues, ctx)
+
+        ms = issues[0]["merge_status"]
+        assert ms["active_member_count"] == 1
+        assert ms["status_conflict"] is False  # 主非终态，活跃 member 属正常合并，不算冲突
+
+    def test_no_conflict_when_terminal_main_all_members_inactive(self, monkeypatch):
+        from constants.issue import IssueStatus
+
+        ctx = self._ctx({"a1": [{"member_issue_id": "b1"}, {"member_issue_id": "b2"}]})
+        self._patch_member_docs(monkeypatch, {"b1": IssueStatus.RESOLVED, "b2": IssueStatus.ARCHIVED})
+
+        issues = [{"id": "a1", "status": IssueStatus.ARCHIVED}]
+        IssueMergeResolver.hydrate_aggregations(issues, ctx)
+
+        ms = issues[0]["merge_status"]
+        assert ms["active_member_count"] == 0
+        assert ms["status_conflict"] is False  # 主终态但 member 已随主结案，无冲突
+
+    def test_conflict_fields_default_when_es_fails(self):
+        from constants.issue import IssueStatus
+
+        # 不 mock IssueDocument.search → Step 2 ES 查询失败 fail-open，保留 Step 1 默认值
+        ctx = self._ctx({"a1": [{"member_issue_id": "b1"}]})
+
+        issues = [{"id": "a1", "status": IssueStatus.RESOLVED}]
+        IssueMergeResolver.hydrate_aggregations(issues, ctx)
+
+        ms = issues[0]["merge_status"]
+        assert ms["role"] == "main"
+        assert ms["status_conflict"] is False
+        assert ms["active_member_count"] == 0
+
+
 class TestExpandAndFilter:
     """expand_to_full_ids / filter_out_members / resolve_display_id 行为。"""
 
