@@ -382,6 +382,16 @@ export default defineComponent({
       }
       return <div class='disabled-work'>{t('无需设置')}</div>;
     };
+    /** 格式化字段值用于显示 */
+    const formatDisplayValue = (value: unknown): string => {
+      if (Array.isArray(value)) {
+        return `[ ${value.join(', ')} ]`;
+      }
+      if (typeof value === 'object' && value !== null) {
+        return JSON.stringify(value);
+      }
+      return String(value ?? '');
+    };
     /**
      * 值 render
      * @param row
@@ -389,13 +399,14 @@ export default defineComponent({
      */
     const renderValue = (h, { row }) => {
       if (!row.is_built_in) {
+        const displayValue = formatDisplayValue(row.value);
         return (
           <div
             class='word-breaker bg-gray'
-            title={row.value}
+            title={displayValue}
             v-bkloading={{ isLoading: props.refresh, size: 'mini' }}
           >
-            {row.value}
+            {displayValue}
           </div>
         );
       }
@@ -1145,7 +1156,7 @@ export default defineComponent({
         width: 60,
         cell: (h, { row }) => (
           <div class='table-operation'>
-            {isLogDelimiter.value &&
+            {(isLogDelimiter.value || isLogRegexp.value) &&
               !row.is_built_in && (
                 <i
                   class={`bklog-icon bklog-${row.is_delete ? 'visible' : 'invisible'} icons`}
@@ -1180,7 +1191,7 @@ export default defineComponent({
           {t('可见字段')}
           {` (${visibleData.value.length})`}
         </span>
-        {isLogDelimiter.value && (
+        {(isLogDelimiter.value || isLogRegexp.value) && (
           <span
             class={{
               'tab-item': true,
@@ -1217,9 +1228,7 @@ export default defineComponent({
       const newList = updateList(props.data, row, item => ({ ...item, is_delete: !item.is_delete }));
       emit('change', newList);
     };
-    const showColumns = computed(() =>
-      isLogRegexp.value ? columns.value.filter(item => item.colKey !== 'operation') : columns.value,
-    );
+    const showColumns = computed(() => columns.value);
     /**
      * 字段表格
      * @returns

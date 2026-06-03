@@ -544,6 +544,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
     data_id_name = models.CharField(verbose_name="关联消费数据源名称", max_length=64)
     bk_data_id = models.IntegerField(verbose_name="数据源ID", default=0)
     sink_names = models.JSONField(verbose_name="处理配置列表", default=list, help_text="格式为kind:name，便于检索")
+    consumer_group = models.CharField(verbose_name="Consumer Group", max_length=255, default="", blank=True)
 
     class Meta:
         verbose_name = "清洗任务配置"
@@ -581,6 +582,9 @@ class DataBusConfig(DataLinkResourceConfigBase):
             },
             "spec": {
                 "maintainers": {{maintainers}},
+                {% if consumer_group %}
+                "consumerGroup": {{consumer_group}},
+                {% endif %}
                 "sinks": {{sinks}},
                 "sources": [
                     {
@@ -615,6 +619,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "data_id_name": self.data_id_name,
             "transform": json.dumps(transform),
             "maintainers": json.dumps(maintainer),
+            "consumer_group": json.dumps(self.consumer_group) if self.consumer_group else None,
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
@@ -644,6 +649,9 @@ class DataBusConfig(DataLinkResourceConfigBase):
             },
             "spec": {
                 "maintainers": {{maintainers}},
+                {% if consumer_group %}
+                "consumerGroup": {{consumer_group}},
+                {% endif %}
                 "sinks": {{sinks}},
                 "sources": [
                     {
@@ -677,6 +685,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "sinks": json.dumps(sinks),
             "rules": json.dumps(rules),
             "data_id_name": self.data_id_name,
+            "consumer_group": json.dumps(self.consumer_group) if self.consumer_group else None,
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
@@ -708,6 +717,9 @@ class DataBusConfig(DataLinkResourceConfigBase):
                 },
                 "spec": {
                     "maintainers": {{maintainers}},
+                    {% if consumer_group %}
+                    "consumerGroup": {{consumer_group}},
+                    {% endif %}
                     "sinks": [{
                         "kind": "ElasticSearchBinding",
                         "name": "{{name}}",
@@ -737,6 +749,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "namespace": self.namespace,
             "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
             "maintainers": json.dumps(maintainer),
+            "consumer_group": json.dumps(self.consumer_group) if self.consumer_group else None,
         }
 
         # 现阶段仅在多租户模式下添加tenant字段

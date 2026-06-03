@@ -5,10 +5,14 @@
   height: 100%;
 
   .issues-toolbar-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
     display: flex;
     column-gap: 8px;
     align-items: center;
     padding: 12px;
+    background-color: #fff;
 
     .bk-button {
       height: 32px;
@@ -49,6 +53,10 @@
         padding: 0 20px;
         line-height: 22px;
         color: #4e5e7a;
+      }
+
+      &.issues-toolbar-merge-btn {
+        padding: 0 20px;
       }
     }
   }

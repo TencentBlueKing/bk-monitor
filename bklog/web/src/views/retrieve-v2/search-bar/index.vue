@@ -24,6 +24,7 @@ import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import {
   clearStorageCommonFilterAddition,
   getCommonFilterAddition,
+  getCommonFilterAdditionWithValues,
 } from '@/store/helper';
 import RequestPool from '@/store/request-pool';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '@/store/store.type';
@@ -121,6 +122,10 @@ const isFilterSecFocused = computed(
   () =>
     isGloalUsage.value &&
     store.state.retrieve.catchFieldCustomConfig.fixedFilterAddition
+);
+const commonFilterAdditionForBookmark = computed(() => (
+  isFilterSecFocused.value ? getCommonFilterAdditionWithValues(store.state) : []
+),
 );
 // const indexItem = computed(() => store.state.indexItem);
 const keyword = computed(() => {
@@ -926,6 +931,7 @@ defineExpose({
               :active-favorite="!activeFavorite?.id"
               :addition="uiQueryValue"
               :class="{ disabled: isInputLoading }"
+              :common-filter-addition="commonFilterAdditionForBookmark"
               :match-s-q-l-str="matchSQLStr"
               :search-mode="SEARCH_MODE_DIC[activeIndex]"
               :sql="sqlQueryValue"

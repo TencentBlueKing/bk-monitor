@@ -1340,6 +1340,10 @@ export default {
   'Grok 模式': 'Grok pattern',
   '当检测到 %{PATTERN} 就按 Grok 处理，否则按传统正则':
     'When %{PATTERN} is detected, process it with Grok; otherwise, process it with traditional regular expressions',
+  '请选择一条 Grok 模式查看调试结果': 'Please select a Grok pattern to view the debugging results',
+  输出结果: 'Output result',
+  暂无调试结果: 'No debugging results yet',
+  解析结果: 'Parsing result',
   '请先按照 {0} 日志范围后，再进行日志检索！': 'Please narrow down the log range using {0} before performing a log search!',
   场景过滤: 'Scene Filter',
   筛选字段不能为空: 'The filter field cannot be empty',

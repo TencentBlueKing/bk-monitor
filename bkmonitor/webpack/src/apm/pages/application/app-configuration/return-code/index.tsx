@@ -56,6 +56,7 @@ export default class ReturnCode extends tsc<ReturnCodeProps> {
   isBatchEdit = false;
   currentEditRowId = '';
   isBatchEditLoading = false;
+  tableMaxHeight = window.innerHeight - 350;
 
   get isRedefineTab() {
     return this.activeTab === 'redefine';
@@ -64,6 +65,16 @@ export default class ReturnCode extends tsc<ReturnCodeProps> {
   handleTabClick(id: string) {
     this.handleCancelBatchEdit();
     this.activeTab = id;
+    const { query } = this.$route;
+    this.$router.replace({
+      query: {
+        ...query,
+        type: id,
+      },
+      params: {
+        appName: this.appName,
+      },
+    });
   }
 
   handleBatchEdit() {
@@ -83,6 +94,22 @@ export default class ReturnCode extends tsc<ReturnCodeProps> {
 
   handleAddRow() {
     this.tabContentRef?.addRow();
+  }
+
+  handleWindowResize() {
+    this.tableMaxHeight = window.innerHeight - 350;
+  }
+
+  mounted() {
+    const { query } = this.$route;
+    if (query.type) {
+      this.activeTab = query.type as string;
+    }
+    window.addEventListener('resize', this.handleWindowResize);
+  }
+
+  beforeDestroy() {
+    window.removeEventListener('resize', this.handleWindowResize);
   }
 
   async fileChange(e) {
@@ -221,6 +248,7 @@ export default class ReturnCode extends tsc<ReturnCodeProps> {
           ref='tabContentRef'
           isBatchEdit={this.isBatchEdit}
           appName={this.appName}
+          tableMaxHeight={this.tableMaxHeight}
           onCurrentEditRowIdChange={this.handleCurrentEditRowIdChange}
           onBatchSaveSuccess={this.handleBatchSaveSuccess}
           onBatchSaveFailed={this.handleBatchSaveFailed}

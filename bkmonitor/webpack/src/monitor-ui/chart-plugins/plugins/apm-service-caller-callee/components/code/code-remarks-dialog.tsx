@@ -55,8 +55,8 @@ export default class CodeRemarksDialog extends tsc<CodeRemarksDialogProps, CodeR
       .then(() => {
         this.$bkMessage({
           theme: 'success',
-          message: this.$tc('修改备注成功')
-        })
+          message: this.$tc('修改备注成功'),
+        });
         this.$emit('success');
       })
       .finally(() => {
@@ -70,6 +70,10 @@ export default class CodeRemarksDialog extends tsc<CodeRemarksDialogProps, CodeR
       name: 'application-config',
       params: {
         appName: query['filter-app_name'] as string,
+      },
+      query: {
+        active: 'codeRedefine',
+        type: 'remark',
       },
     });
     window.open(routeData.href, '_blank');
