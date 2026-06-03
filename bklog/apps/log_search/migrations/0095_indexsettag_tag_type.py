@@ -18,7 +18,7 @@ def migrate_tag_types(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("log_search", "0092_indexsettag_value_and_unique_together"),
+        ("log_search", "0094_indexsettag_value_and_unique_together"),
     ]
 
     operations = [

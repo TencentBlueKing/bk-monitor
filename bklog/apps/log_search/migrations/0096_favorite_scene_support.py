@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("log_search", "0095_merge_20260423"),
+        ("log_search", "0095_indexsettag_tag_type"),
     ]
 
     operations = [
