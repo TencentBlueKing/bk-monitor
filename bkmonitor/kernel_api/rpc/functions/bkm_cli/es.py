@@ -31,12 +31,17 @@ ALLOWED_OPERATIONS = (
     "terms_agg_probe",
     "node_breaker_stats",
 )
-ES_REQUEST_TIMEOUT = 20  # 传输层 request_timeout（秒）
-ES_SEARCH_TIMEOUT = "15s"  # search body timeout，限制聚合耗时
+ES_REQUEST_TIMEOUT = 20  # 传输层 request_timeout（秒，多数只读 op 共用）
+# terms_agg_probe 是有意的诊断慢查询、非热路径：跨 rollover 代聚合（最具 B1 价值）恰恰最易超时。
+# 给 probe 单独放宽超时；但须 < CLI 默认 30s 抓取超时，让服务端结构化 ES_QUERY_TIMEOUT 先于 CLI abort 触发。
+PROBE_SEARCH_TIMEOUT = "20s"  # probe search body timeout（> 通用 15s）
+PROBE_REQUEST_TIMEOUT = 25  # probe 传输层 request_timeout（> body，且 < CLI 30s 上限）
 PROBE_TERMS_SIZE = 50  # terms 探针只为判塌缩，不需要全量取值
 INDEX_BREAKDOWN_SIZE = 200  # terms_agg_probe 按 _index 下钻的索引数上限
 MISSING_PLACEHOLDER = " "  # 对齐 unify-query 的 Missing(" ")
 CAT_MAX_ROWS = 500  # cat_* 输出硬上限，超出截断并显式告知（不静默截断）
+CLUSTER_LIST_MAX_ROWS = 500  # list_es_clusters 输出硬上限，同 cat_* 显式截断语义
+FIELD_LIST_MAX = 100  # field_mapping list 模式输出字段上限，按可聚合优先排序后截断并显式告知
 HEAP_PRESSURE_PERCENT = 85  # 节点 heap 使用率(瞬时)达此阈值视为当前压力（B2 信号）
 OLD_GEN_PRESSURE_PERCENT = 85  # 老年代占用率(瞬时)达此阈值视为当前内存压力（比合计 heap 更对准 ordinals 压力）
 
@@ -110,9 +115,9 @@ ES_CAPABILITIES: list[dict[str, Any]] = [
     {
         "operation": "field_mapping",
         "status": "active",
-        "required_params": ["index_pattern", "field"],
-        "optional_params": [],
-        "evidence": "字段 type / doc_values / 是否可聚合",
+        "required_params": ["index_pattern"],
+        "optional_params": ["field"],
+        "evidence": "带 field：该字段 type/doc_values/是否可聚合（含 multi-field 子字段）；省略 field=list 模式：枚举 index_pattern 下所有字段路径、按可聚合优先排序，供字段名未知时自发现可 probe 的字段",
         "cannot_prove": "证明不了某次查询期分片是否瞬态退化",
     },
     {
@@ -176,6 +181,20 @@ def _es_query_error(operation: str, error: Exception) -> NoReturn:
     """
     status = getattr(error, "status_code", None)
     detail = _es_error_detail(error)
+    # 传输层超时：ES5/6/7 客户端 ReadTimeout 一律 raise ConnectionTimeout("TIMEOUT", ...)，其 status_code 恒为
+    # 字符串 "TIMEOUT"（args[0]，见 connection/http_urllib3.py，跨版本一致）；连接拒绝/DNS/SSL 则是 "N/A"。
+    # duck-type "TIMEOUT" 即可区分，无需 import；兜底再按类名匹配。跨多代 rollover 聚合最易读超时，此时引导
+    # 缩到单个具体物理索引，而非原样重试同一宽 pattern（会再超时）。
+    if status == "TIMEOUT" or "Timeout" in type(error).__name__:
+        _raise(
+            f"{operation} 聚合在限定时间内未完成（传输层超时{f'：{detail}' if detail else ''}）。",
+            error_code="ES_QUERY_TIMEOUT",
+            next_actions=[
+                "查询超时、勿用同一宽 index_pattern 重试（会再超时）：先 es-diagnose(operation=cat_indices) "
+                "拿该 pattern 下逐物理索引名（按 creation.date 倒序）；",
+                "改用单个【具体】物理索引名（取最近 1–2 个 rollover 代）重跑，逐代缩小后再人工合并各代归因。",
+            ],
+        )
     if status == 400:
         _raise(
             f"{operation} 被 ES 拒绝(400{f'：{detail}' if detail else ''})。",
@@ -470,9 +489,42 @@ def _agg_leaf_row(index_name: str, queried_field: str, field_path: str, definiti
     }
 
 
-def _field_mapping(client, cluster_id: int, params: dict[str, Any]) -> dict[str, Any]:
-    index_pattern = _require(params, "index_pattern")
-    field = _require(params, "field")
+def _emit_leaf_rows(
+    mappings: dict[str, Any], index_name: str, queried_field: str, field_names: list[str]
+) -> list[dict[str, Any]]:
+    """对给定字段名集合，复用 _field_blocks（兼容 ES7 typeless / ES5-6 typed 两种形状）+ _agg_leaf_row 展平成
+    可聚合性行，含 multi-field 子字段。单字段模式与 list 模式共用，保证两条路径逐字段产出一致。"""
+    rows: list[dict[str, Any]] = []
+    for fname in field_names:
+        for field_block in _field_blocks(mappings, fname):
+            leaf_mapping = field_block.get("mapping") or {}
+            for leaf_name, definition in leaf_mapping.items():
+                if not isinstance(definition, dict):
+                    continue
+                rows.append(_agg_leaf_row(index_name, queried_field, leaf_name, definition))
+                # multi-field 子字段（如 namespace.keyword）：text 父字段最常见的可聚合“替身”，必须显式暴露——
+                # 否则查 text 父字段会误判“不可聚合”，漏掉真正能聚合的 .keyword。单层即可（ES 不允许 multi-field 嵌套）。
+                for sub_name, sub_def in (definition.get("fields") or {}).items():
+                    if isinstance(sub_def, dict):
+                        rows.append(_agg_leaf_row(index_name, queried_field, f"{leaf_name}.{sub_name}", sub_def))
+    return rows
+
+
+def _all_field_names(mappings: dict[str, Any]) -> list[str]:
+    """从 get_field_mapping(fields="*") 单索引 mappings 里收集字段名（ES7 typeless 与 ES5/6 typed 都覆盖），
+    交给 _field_blocks 取块——与单字段路径同一套形状处理，不另写遍历。"""
+    names: set[str] = set()
+    for key, block in (mappings or {}).items():
+        if isinstance(block, dict) and "mapping" in block:
+            names.add(key)  # ES7: mappings[<field>] = {full_name, mapping}
+        elif isinstance(block, dict):
+            for sub_key, sub_block in block.items():  # ES5/6: mappings[<doc_type>][<field>] = {full_name, mapping}
+                if isinstance(sub_block, dict) and "mapping" in sub_block:
+                    names.add(sub_key)
+    return sorted(names)
+
+
+def _field_mapping_single(client, cluster_id: int, index_pattern: str, field: str) -> dict[str, Any]:
     try:
         mapping = client.indices.get_field_mapping(
             index=index_pattern, fields=field, params={"request_timeout": ES_REQUEST_TIMEOUT}
@@ -481,22 +533,11 @@ def _field_mapping(client, cluster_id: int, params: dict[str, Any]) -> dict[str,
         _es_query_error("field_mapping", error)
     items: list[dict[str, Any]] = []
     for index_name, body in (mapping or {}).items():
-        for field_block in _field_blocks(body.get("mappings") or {}, field):
-            leaf_mapping = field_block.get("mapping") or {}
-            for leaf_name, definition in leaf_mapping.items():
-                if not isinstance(definition, dict):
-                    continue
-                items.append(_agg_leaf_row(index_name, field, leaf_name, definition))
-                # multi-field 子字段（如 namespace.keyword）：text 父字段最常见的可聚合“替身”，
-                # 必须显式暴露——否则查 text 父字段会误判“不可聚合”，漏掉真正能聚合的 .keyword。
-                # 单层即可：ES 不允许 multi-field 嵌套。每个子字段按自身定义重算可聚合性。
-                for sub_name, sub_def in (definition.get("fields") or {}).items():
-                    if isinstance(sub_def, dict):
-                        items.append(_agg_leaf_row(index_name, field, f"{leaf_name}.{sub_name}", sub_def))
+        items.extend(_emit_leaf_rows(body.get("mappings") or {}, index_name, field, [field]))
     if not items:
         _raise(
             f"在 {index_pattern} 未找到字段 {field} 的 mapping。",
-            next_actions=["确认 index_pattern 与 field 正确，或用 cat_shards 确认索引存在。"],
+            next_actions=["确认 index_pattern 与 field 正确；或省略 field 跑 field_mapping 列出该索引所有可聚合字段。"],
         )
     agg_paths = sorted({str(item["field_path"]) for item in items if item["aggregatable"]})
     types = sorted({str(item["type"]) for item in items})
@@ -515,6 +556,75 @@ def _field_mapping(client, cluster_id: int, params: dict[str, Any]) -> dict[str,
             "选定可聚合路径后，若仍塌缩，用 terms_agg_probe(field=该路径) 抓聚合期 _shards 真相。",
         ],
     }
+
+
+def _field_mapping_list(client, cluster_id: int, index_pattern: str) -> dict[str, Any]:
+    """list 模式（field 省略）：枚举 index_pattern 下所有字段叶子、按可聚合优先排序，供 agent 在字段名未知时自发现
+    可 probe 的字段。用 get_field_mapping(fields="*")——响应形状与单字段一致 → 复用 _field_blocks/_agg_leaf_row。"""
+    try:
+        mapping = client.indices.get_field_mapping(
+            index=index_pattern, fields="*", params={"request_timeout": ES_REQUEST_TIMEOUT}
+        )
+    except Exception as error:
+        _es_query_error("field_mapping", error)
+    rows: list[dict[str, Any]] = []
+    for index_name, body in (mapping or {}).items():
+        mappings = body.get("mappings") or {}
+        rows.extend(_emit_leaf_rows(mappings, index_name, "*", _all_field_names(mappings)))
+    if not rows:
+        _raise(
+            f"在 {index_pattern} 未枚举到任何字段（index_pattern 可能匹配空集）。",
+            next_actions=["用 cat_indices(index_pattern) 确认有物理索引匹配；或放宽 index_pattern。"],
+        )
+    # 去重到 field_path（同一字段可能跨多个物理索引重复出现）：list 模式只需告诉 agent 有哪些字段可探。
+    seen: set[str] = set()
+    deduped: list[dict[str, Any]] = []
+    for row in rows:
+        path = str(row["field_path"])
+        if path in seen:
+            continue
+        seen.add(path)
+        deduped.append(
+            {
+                "field_path": path,
+                "type": row["type"],
+                "doc_values": row["doc_values"],
+                "aggregatable": row["aggregatable"],
+            }
+        )
+    # aggregatable-first，再按 field_path 字典序：能直接 probe 的字段排在最前。
+    deduped.sort(key=lambda r: (not r["aggregatable"], r["field_path"]))
+    total = len(deduped)
+    agg_count = sum(1 for r in deduped if r["aggregatable"])
+    truncated = total > FIELD_LIST_MAX
+    items = deduped[:FIELD_LIST_MAX]
+    summary = (
+        f"field_mapping(list): {index_pattern} 共 {total} 个字段路径，其中 {agg_count} 个 aggregatable=true"
+        f"（已按可聚合优先排序，可直接挑前面的 field_path 跑 terms_agg_probe）"
+    )
+    if truncated:
+        summary += f"；按可聚合优先排序后截断至前 {FIELD_LIST_MAX}（缺失字段可能在截断外，带 field 单查可确认），缩小 index_pattern 看全量"
+    return {
+        "operation": "field_mapping",
+        "cluster_id": cluster_id,
+        "index_pattern": index_pattern,
+        "field": None,
+        "summary": summary,
+        "items": items,
+        "next_actions": [
+            "省略 field=列举模式：用某个 aggregatable=true 的 field_path 跑 terms_agg_probe(field=该路径)；",
+            "要看单字段 doc_values/fielddata/multi-field 细节，再带 field 跑一次 field_mapping。",
+        ],
+        "meta": {"total_field_paths": total, "aggregatable_count": agg_count, "truncated": truncated},
+    }
+
+
+def _field_mapping(client, cluster_id: int, params: dict[str, Any]) -> dict[str, Any]:
+    index_pattern = _require(params, "index_pattern")
+    field = str(params.get("field") or "").strip()  # field 现可选：省略=list 模式（自发现可聚合字段）
+    if field:
+        return _field_mapping_single(client, cluster_id, index_pattern, field)
+    return _field_mapping_list(client, cluster_id, index_pattern)
 
 
 def _probe_signals(agg_node: dict[str, Any]) -> dict[str, Any]:
@@ -548,7 +658,7 @@ def _terms_agg_probe(client, cluster_id: int, params: dict[str, Any]) -> dict[st
     }
     body = {
         "size": 0,  # 护栏：恒 size:0，绝不返回原始文档（消除跨租户读原文）
-        "timeout": ES_SEARCH_TIMEOUT,
+        "timeout": PROBE_SEARCH_TIMEOUT,
         "aggs": {
             **sub_aggs,  # 顶层（整 pattern 汇总，保留原有信号）
             # 按物理索引下钻（_index 元字段恒可聚合）：把塌缩归因到具体索引——
@@ -557,7 +667,7 @@ def _terms_agg_probe(client, cluster_id: int, params: dict[str, Any]) -> dict[st
         },
     }
     try:
-        res = client.search(index=index_pattern, body=body, params={"request_timeout": ES_REQUEST_TIMEOUT})
+        res = client.search(index=index_pattern, body=body, params={"request_timeout": PROBE_REQUEST_TIMEOUT})
     except Exception as error:
         _es_query_error("terms_agg_probe", error)
     shards = res.get("_shards") or {}
@@ -824,6 +934,52 @@ def list_es_capabilities(params: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def list_es_clusters(params: dict[str, Any]) -> dict[str, Any]:
+    """列出 metadata 注册的全部 ES 集群（仅元数据，不连任何 ES、不做 health 探活）。
+    用途：fleet/审计/没有 trace cluster_id 时挑集群——此前只能暴力扫 list-es-capabilities cluster_id 1..N。
+    安全：只回非敏感字段（id/name/version/type），绝不回 domain/host/port/凭据（显式 .values 白名单，不用 to_dict）；
+    不探活——纯 ClusterInfo 读，避免打到不可达集群超时。跨租户/跨集群是运维工具设计需求，不加 per-caller 鉴权。
+    """
+    from metadata.models import ClusterInfo
+
+    name_contains = str(params.get("name_contains") or "").strip()
+    queryset = ClusterInfo.objects.filter(cluster_type=ClusterInfo.TYPE_ES)
+    if name_contains:
+        queryset = queryset.filter(cluster_name__icontains=name_contains)
+    queryset = queryset.order_by("cluster_id")
+    # 安全白名单：显式 .values()，绝不 to_dict()（会 dump domain/port/username/password/ssl 等敏感字段）。
+    safe_fields = ("cluster_id", "cluster_name", "display_name", "cluster_type", "version")
+    total = queryset.count()
+    items = [
+        {
+            "cluster_id": row["cluster_id"],
+            "cluster_name": row["cluster_name"],
+            "display_name": row["display_name"] or None,
+            "cluster_type": row["cluster_type"],
+            "version": row["version"],  # 可能为 null（部分集群未登记版本），如实回传、不阻断
+        }
+        for row in queryset.values(*safe_fields)[:CLUSTER_LIST_MAX_ROWS]
+    ]
+    truncated = total > CLUSTER_LIST_MAX_ROWS
+    filter_note = f"（name_contains={name_contains!r}）" if name_contains else ""
+    summary = f"共 {total} 个 ES 集群{filter_note}，返回 {len(items)} 个（仅元数据，未做 health 探活）"
+    next_actions = [
+        "选 items[].cluster_id 跑 list-es-capabilities（看该集群可用 operation）或 es-diagnose（cluster_health/cat_indices…）；",
+        "version 为 null 表示该集群未登记版本，不影响诊断；要看健康度请显式跑 es-diagnose(operation=cluster_health)。",
+    ]
+    if truncated:
+        summary += f"（截断至 {CLUSTER_LIST_MAX_ROWS}）"
+        next_actions.insert(0, f"结果超 {CLUSTER_LIST_MAX_ROWS} 已截断：用 name_contains 子串过滤收窄后重列。")
+    return {
+        "count": total,
+        "returned": len(items),
+        "truncated": truncated,
+        "items": items,
+        "summary": summary,
+        "next_actions": next_actions,
+    }
+
+
 # ---------------- 注册 ----------------
 
 KernelRPCRegistry.register_function(
@@ -841,7 +997,7 @@ KernelRPCRegistry.register_function(
             "field_mapping | terms_agg_probe | node_breaker_stats"
         ),
         "index_pattern": "field_mapping / terms_agg_probe 必填；cat_* 可选（运维工具支持全集群视图）",
-        "field": "field_mapping / terms_agg_probe 必填",
+        "field": "terms_agg_probe 必填；field_mapping 可选（省略=列出 index_pattern 下所有可聚合字段路径，按可聚合优先排序）",
     },
     example_params={
         "cluster_id": "10",
@@ -858,6 +1014,18 @@ KernelRPCRegistry.register_function(
     handler=list_es_capabilities,
     params_schema={"cluster_id": "ES 集群 id（取自 trace query-storage-id）"},
     example_params={"cluster_id": "10"},
+)
+
+KernelRPCRegistry.register_function(
+    func_name="bkm_cli.list_es_clusters",
+    summary="列出 metadata 注册的全部 ES 集群（仅元数据，不探活）",
+    description=(
+        "从 ClusterInfo 读取 cluster_type=elasticsearch 的集群清单，仅回非敏感元数据"
+        "（cluster_id/cluster_name/version/...），不连 ES、不做 health 探活；供 fleet/审计/挑 cluster_id。"
+    ),
+    handler=list_es_clusters,
+    params_schema={"name_contains": "可选：按 cluster_name 子串过滤（大集群群收窄用）"},
+    example_params={"name_contains": "bklog"},
 )
 
 BkmCliOpRegistry.register(
@@ -898,4 +1066,20 @@ BkmCliOpRegistry.register(
     audit_tags=["es", "readonly", "discovery"],
     params_schema={"cluster_id": "string"},
     example_params={"cluster_id": "10"},
+)
+
+BkmCliOpRegistry.register(
+    op_id="list-es-clusters",
+    func_name="bkm_cli.list_es_clusters",
+    summary="发现 metadata 注册的全部 ES 集群（仅元数据，不探活）",
+    description=(
+        "列出所有 ES 集群的 cluster_id/name/version，供 agent 在没有 trace cluster_id 时挑集群；"
+        "不返回 host/凭据，不做 health 探活。"
+    ),
+    capability_level="readonly",
+    risk_level="low",
+    requires_confirmation=False,
+    audit_tags=["es", "readonly", "discovery"],
+    params_schema={"name_contains": "string"},
+    example_params={"name_contains": "bklog"},
 )
