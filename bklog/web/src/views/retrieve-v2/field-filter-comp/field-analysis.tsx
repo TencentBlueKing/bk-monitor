@@ -215,13 +215,8 @@ export default class FieldAnalysis extends Vue {
       this.infoLoading = true;
       this.chartLoading = true;
 
-      const isScene = store.getters.isSceneMode;
-      const urlStr = isScene
-        ? 'retrieve/getSceneFieldStatisticsInfo'
-        : 'retrieve/fieldStatisticsInfo';
-
       const res = await $http.request(
-        urlStr,
+        'retrieve/fieldStatisticsInfo',
         { data: { ...this.queryParams } },
         { cancelToken: new CancelToken(c => (this.getInfoCancelFn = c)) },
       );
@@ -245,13 +240,8 @@ export default class FieldAnalysis extends Vue {
         });
       }
 
-      const isScene = store.getters.isSceneMode;
-      const urlStr = isScene
-        ? 'retrieve/getSceneFieldStatisticsGraph'
-        : 'retrieve/fieldStatisticsGraph';
-
       const res = await $http.request(
-        urlStr,
+        'retrieve/fieldStatisticsGraph',
         { data },
         {
           catchIsShowMessage: false,

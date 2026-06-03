@@ -217,14 +217,8 @@ export default defineComponent({
       }
     });
 
-    addEvent(RetrieveEvent.AUTO_REFRESH, async () => {
+    addEvent(RetrieveEvent.AUTO_REFRESH, () => {
       resetPageState();
-      // 场景化检索模式下条件为空时跳过
-      if (store.getters.isSceneMode && store.getters.isSceneFilterEmpty) return;
-      // 检索条件有变更时先加载字段信息
-      if (store.state.indexItem.isSceneFilterChanged) {
-        await store.dispatch('requestIndexSetFieldInfo');
-      }
       store.dispatch('requestIndexSetQuery', { from: 'auto_refresh' });
     });
 

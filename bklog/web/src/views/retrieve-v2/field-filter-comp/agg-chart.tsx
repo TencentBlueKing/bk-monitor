@@ -313,7 +313,6 @@ export default class AggChart extends tsc<object> {
     this.listLoading = true;
     this.resetCache();
     try {
-      const isScene = store.getters.isSceneMode;
       const indexSetIDs = this.isUnionSearch
         ? this.unionIndexList
         : [window.__IS_MONITOR_COMPONENT__ ? this.route.query.indexId : this.route.params.indexId];
@@ -322,13 +321,10 @@ export default class AggChart extends tsc<object> {
         ...this.retrieveParams,
         agg_field: this.fieldName,
         limit,
-        ...(isScene ? {} : { index_set_ids: indexSetIDs }),
+        index_set_ids: indexSetIDs,
       };
 
-      const urlStr = isScene
-        ? 'retrieve/getSceneFieldFetchTopList'
-        : 'retrieve/fieldFetchTopList';
-      const res = await $http.request(urlStr, { data });
+      const res = await $http.request('retrieve/fieldFetchTopList', { data });
 
       if (res.code === 0) {
         this.emitDistinctCount(res.data.distinct_count);
