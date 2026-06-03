@@ -1397,16 +1397,25 @@ class GetKubernetesNodeList(KubernetesResource):
         offset = (page - 1) * page_size
         sort_field = self.get_sort(params)
         if sort_field:
+            # prefetch_related("labels") 预取多对多标签，避免逐行渲染 label_list 列时 self.labels.all() 触发 N+1 查询
             if sort_field not in self.client_sort_fields:
                 # 取一页数据
-                result_data = self.model_class.objects.order_by(sort_field).filter(*self.query_set_list)[
-                    offset : offset + page_size
-                ]
+                result_data = (
+                    self.model_class.objects.order_by(sort_field)
+                    .filter(*self.query_set_list)
+                    .prefetch_related("labels")[offset : offset + page_size]
+                )
             else:
                 # 如果排序列是资源使用率列，则取全部数据，用于按资源使用率排序，排序后再取指定页
-                result_data = self.model_class.objects.order_by(sort_field).filter(*self.query_set_list)
+                result_data = (
+                    self.model_class.objects.order_by(sort_field)
+                    .filter(*self.query_set_list)
+                    .prefetch_related("labels")
+                )
         else:
-            result_data = self.model_class.objects.filter(*self.query_set_list)[offset : offset + page_size]
+            result_data = self.model_class.objects.filter(*self.query_set_list).prefetch_related("labels")[
+                offset : offset + page_size
+            ]
         self.data = result_data
 
     def get_overview_data(self, params, data):
