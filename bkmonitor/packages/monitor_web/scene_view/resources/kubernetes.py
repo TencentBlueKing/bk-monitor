@@ -439,12 +439,17 @@ class KubernetesResource(ApiAuthResource, abc.ABC):
         page_size = params.get("page_size", 10)
         offset = (page - 1) * page_size
         sort_field = self.get_sort(params)
+        # prefetch_related("labels") 预取多对多标签，避免逐行渲染时 self.labels.all() 触发 N+1 查询
         if sort_field:
-            result_data = self.model_class.objects.order_by(sort_field).filter(*self.query_set_list)[
+            result_data = (
+                self.model_class.objects.order_by(sort_field)
+                .filter(*self.query_set_list)
+                .prefetch_related("labels")[offset : offset + page_size]
+            )
+        else:
+            result_data = self.model_class.objects.filter(*self.query_set_list).prefetch_related("labels")[
                 offset : offset + page_size
             ]
-        else:
-            result_data = self.model_class.objects.filter(*self.query_set_list)[offset : offset + page_size]
         self.data = result_data
 
     def patch_status_filter_data_wrap(self, data: dict) -> list:
