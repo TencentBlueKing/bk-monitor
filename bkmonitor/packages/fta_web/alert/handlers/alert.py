@@ -662,16 +662,22 @@ class AlertQueryHandler(BaseBizQueryHandler):
         在 __init__ 内对 self.conditions 原地改写，可一处覆盖所有经 AlertQueryHandler
         的查询路径（search / date_histogram / TopN）。
 
+        biz 维度用已解析的 self.authorized_bizs 而非原始 self.bk_biz_ids：全业务查询传
+        bk_biz_ids=[-1] 时 BaseBizQueryHandler 已把它解析为用户实际授权的业务集
+        （authorized_bizs），用它查合并关系才命中；直接用 [-1] 查 IssueMergeRelation 无结果，
+        会让全业务列表 / TopN / histogram 的 issue_id 过滤漏掉 active members。
+
         fail-open：关系层异常或无合并关系时保持原条件，体感等同「无合并」。
         """
         conditions = self.conditions or []
         issue_conditions = [c for c in conditions if c.get("origin_key") == "issue_id" and c.get("value")]
-        if not issue_conditions or not self.bk_biz_ids:
+        biz_ids = self.authorized_bizs
+        if not issue_conditions or not biz_ids:
             return
         try:
             from bkmonitor.issue_merge import IssueMergeResolver, MergeResolverContext
 
-            ctx = MergeResolverContext(self.bk_biz_ids)
+            ctx = MergeResolverContext(biz_ids)
             ctx.load()
             if ctx.degraded:
                 return

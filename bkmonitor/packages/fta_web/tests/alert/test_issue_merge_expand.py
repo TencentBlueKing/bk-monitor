@@ -29,12 +29,14 @@ def _make_ctx(main_to_members: dict, member_to_main: dict, degraded: bool = Fals
     return ctx
 
 
-def _handler(conditions: list, bk_biz_ids=None) -> AlertQueryHandler:
-    # 绕过 __init__：只需 conditions / bk_biz_ids 两个属性即可驱动被测方法，
-    # 避免 BaseBizQueryHandler 的鉴权 / ES 依赖。
+def _handler(conditions: list, bk_biz_ids=None, authorized_bizs=None) -> AlertQueryHandler:
+    # 绕过 __init__：被测方法只读 conditions / authorized_bizs，置这两个属性即可，
+    # 避免 BaseBizQueryHandler 的鉴权 / ES 依赖。authorized_bizs 默认跟随 bk_biz_ids
+    # （等价于 BaseBizQueryHandler 对单业务的解析结果）。
     handler = AlertQueryHandler.__new__(AlertQueryHandler)
     handler.conditions = conditions
     handler.bk_biz_ids = bk_biz_ids if bk_biz_ids is not None else [2]
+    handler.authorized_bizs = authorized_bizs if authorized_bizs is not None else handler.bk_biz_ids
     return handler
 
 
@@ -105,3 +107,26 @@ class TestAlertQueryHandlerIssueExpand:
         with mock.patch("bkmonitor.issue_merge.MergeResolverContext", boom):
             handler._expand_merged_issue_conditions()  # 不应抛
         assert handler.conditions[0]["value"] == ["a1"]
+
+    def test_all_biz_query_uses_authorized_bizs(self):
+        # 全业务查询：bk_biz_ids=[-1]，权限层解析出 authorized_bizs=[2, 3]。
+        # 合并关系必须按 authorized_bizs 查（用 [-1] 查 IssueMergeRelation 会无结果，
+        # 导致 TopN / histogram / 全业务列表的 issue_id 过滤漏掉 active members）。
+        ctx = _make_ctx({"a1": [{"member_issue_id": "b1"}]}, {"b1": "a1"})
+        handler = _handler(
+            [{"origin_key": "issue_id", "key": "issue_id", "value": ["a1"], "method": "eq"}],
+            bk_biz_ids=[-1],
+            authorized_bizs=[2, 3],
+        )
+        captured = {}
+
+        def _capture(biz):
+            captured["biz"] = biz
+            return ctx
+
+        with mock.patch("bkmonitor.issue_merge.MergeResolverContext", side_effect=_capture):
+            handler._expand_merged_issue_conditions()
+        # 用 authorized_bizs 而非原始 [-1] 构造上下文
+        assert captured["biz"] == [2, 3]
+        # 展开生效
+        assert set(handler.conditions[0]["value"]) == {"a1", "b1"}
