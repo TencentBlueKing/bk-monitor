@@ -51,8 +51,8 @@ from bkmonitor.models import (
     ActionPlugin,
     AlertAssignGroup,
     AlertAssignRule,
-    DutyRule,
     DutyArrange,
+    DutyRule,
     DutyRuleRelation,
     StrategyActionConfigRelation,
     UserGroup,
@@ -61,10 +61,10 @@ from bkmonitor.models.as_code import AsCodeImportTask
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.serializers import BkBizIdSerializer
 from bkmonitor.views import serializers
+from constants.action import NoticeChannel
 from constants.strategy import DATALINK_SOURCE
 from core.drf_resource import Resource, api
 from core.drf_resource.tasks import step
-from constants.action import NoticeChannel
 from monitor_web.commons.report.resources import send_frontend_report_event
 
 logger = logging.getLogger("monitor_web")
@@ -271,8 +271,6 @@ class ExportConfigResource(Resource):
                 "alert_notice",
                 "need_duty",
                 "duty_rules",
-                "app",
-                "update_time",
             )
         )
 

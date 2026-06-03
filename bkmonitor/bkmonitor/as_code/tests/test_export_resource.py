@@ -47,10 +47,13 @@ def make_user_group():
     )
 
 
-def patch_duty_arranges(monkeypatch):
+def patch_duty_arranges(monkeypatch, users=None):
+    if users is None:
+        users = [{"type": "user", "id": "admin"}]
+
     def filter_duty_arranges(**kwargs):
         assert kwargs == {"user_group_id__in": [1]}
-        return FakeDutyArrangeQuerySet([SimpleNamespace(user_group_id=1, users=[{"type": "user", "id": "admin"}])])
+        return FakeDutyArrangeQuerySet([SimpleNamespace(user_group_id=1, users=users)])
 
     monkeypatch.setattr(as_code_resources.DutyArrange.objects, "filter", filter_duty_arranges)
 
@@ -108,3 +111,35 @@ def test_export_notice_group_configs_keep_yaml_fields(monkeypatch):
         "mention_list": [{"member_type": "group", "id": "all"}],
         "users": ["admin"],
     }
+
+
+def test_export_notice_group_configs_keep_empty_mentions_without_wx_bot(monkeypatch):
+    user_group = make_user_group()
+    user_group.channels = [NoticeChannel.USER]
+    patch_duty_arranges(monkeypatch)
+
+    configs = as_code_resources.ExportConfigResource.build_notice_group_export_configs([user_group])
+
+    assert configs[0]["mention_list"] == []
+
+
+def test_export_notice_group_configs_ignore_duty_arranges_when_need_duty(monkeypatch):
+    user_group = make_user_group()
+    user_group.need_duty = True
+    user_group.duty_rules = [100]
+    patch_duty_arranges(monkeypatch, users=[{"type": "user", "id": "should-not-export"}])
+
+    configs = as_code_resources.ExportConfigResource.build_notice_group_export_configs([user_group])
+    parser = as_code_resources.NoticeGroupConfigParser(bk_biz_id=2, duty_rules={"primary": 100})
+    exported_configs = list(
+        as_code_resources.ExportConfigResource.transform_configs(
+            parser=parser,
+            configs=configs,
+            with_id=False,
+            lock_filename=False,
+        )
+    )
+
+    content = yaml.safe_load(exported_configs[0][2])
+    assert content["duty_rules"] == ["primary"]
+    assert "users" not in content
