@@ -1021,11 +1021,11 @@ class TestMergeReasonsOptional:
         assert s.validated_data["reasons"] == []
 
 
-class TestMergeAllowsInactiveMember:
-    """放开 member 状态门槛：非活跃（已解决 / 已归档）Issue 可并入活跃主；main 仍必须活跃。
+class TestMergeDecoupledFromStatus:
+    """合并与 Issue 状态完全解耦：main 与 member 处于任意状态（含已解决 / 已归档）都可参与合并。
 
     直接驱动 ``MergeResource.perform_request``，mock 掉 ES 查询 + 关系表 SQL + 事务，
-    断言「member 非活跃不再被拦」且「main 非活跃仍被拦」。
+    断言「member 非活跃可并入」且「main 非活跃也可作为合并目标」。
     """
 
     MAIN_ID = "1716000000abcdef01"
@@ -1049,12 +1049,12 @@ class TestMergeAllowsInactiveMember:
 
         from kernel_api.views.v4 import issue as issue_mod
 
-        # 校验 1：ES 存在性 + status 查询
+        # 校验 1：ES 存在性查询
         search_mock = MagicMock()
         search_mock.filter.return_value.source.return_value.params.return_value.execute.return_value.hits = hits
         monkeypatch.setattr(issue_mod.IssueDocument, "search", classmethod(lambda cls, **kw: search_mock))
 
-        # 校验 3/4/5 关系查询全部"无冲突"，bulk_create 捕获写入行
+        # 校验 2/3/4 关系查询全部"无冲突"，bulk_create 捕获写入行
         manager = MagicMock()
         manager.select_for_update.return_value.filter.return_value.values.return_value.first.return_value = None
         manager.filter.return_value.values_list.return_value.distinct.return_value = []
@@ -1104,19 +1104,25 @@ class TestMergeAllowsInactiveMember:
         assert rows[0].member_issue_id == self.MEMBER_ID
         assert rows[0].main_issue_id == self.MAIN_ID
 
-    def test_inactive_main_still_blocked(self, monkeypatch):
-        from bkmonitor.issue_merge import MergeMainStatusForbiddenError
+    @pytest.mark.parametrize("main_status_attr", ["RESOLVED", "ARCHIVED"])
+    def test_inactive_main_now_allowed(self, monkeypatch, main_status_attr):
+        """主非活跃（已解决 / 已归档）也可作为合并目标：状态门槛已彻底移除，合并/拆分与状态解耦。"""
         from constants.issue import IssueStatus
         from kernel_api.views.v4.issue import MergeResource
 
         hits = [
-            self._Hit(self.MAIN_ID, IssueStatus.RESOLVED),
+            self._Hit(self.MAIN_ID, getattr(IssueStatus, main_status_attr)),
             self._Hit(self.MEMBER_ID, IssueStatus.UNRESOLVED),
         ]
-        self._patch_io(monkeypatch, hits)
+        captured = self._patch_io(monkeypatch, hits)
 
-        with pytest.raises(MergeMainStatusForbiddenError):
-            MergeResource().perform_request(self._data())
+        result = MergeResource().perform_request(self._data())
+
+        assert result["status"] == "ok"
+        rows = captured["rows"]
+        assert len(rows) == 1
+        assert rows[0].main_issue_id == self.MAIN_ID
+        assert rows[0].member_issue_id == self.MEMBER_ID
 
 
 class TestListIssueHistoryExcludesActiveMembers:

@@ -120,10 +120,13 @@ class MergeIssuesNotFoundError(IssuesMergeError):
 
 
 class MergeMainStatusForbiddenError(IssuesMergeError):
-    """主 Issue 当前 ES 状态不允许作为合并目标（必须 ∈ ACTIVE_STATUSES）。
+    """⚠ 已废弃，不再 raise（保留仅为错误码 3337106 占位 + 历史兼容）。
 
-    防止把活跃成员合并到已 RESOLVED / ARCHIVED 的主 Issue——主状态不会因合并变更，
-    会立刻造成 ES 层状态发散（主已结案但拿到活跃 member）。
+    曾用于禁止把成员合并到已 RESOLVED / ARCHIVED 的主 Issue。现已放开该限制：合并/拆分只
+    建立或解除合并关系，与 Issue 状态解耦——主 Issue 处于任意状态都可作为合并目标。被合并
+    member 合并后冻结 + 列表隐藏，自身 ES 状态不再权威，由主状态级联（_cascade_follow_status）
+    与拆分重置接管，故 `MergeResource` 不再对 main 校验状态。保留本类避免错误码回收造成的
+    客户端兼容问题；如需彻底移除，同步删 `__init__`/`__all__` 导出与单测。
     """
 
     status_code = 400
@@ -149,8 +152,8 @@ class MergeMemberStatusForbiddenError(IssuesMergeError):
 
     曾用于禁止把已 RESOLVED / ARCHIVED 的 member 合并进活跃主。现已放开该限制：
     member 合并后被冻结，自身 ES 状态不再权威，由主状态级联与拆分重置接管，故
-    `MergeResource` 不再对 member 校验状态（仅 main 仍须活跃）。保留本类避免错误码
-    回收造成的客户端兼容问题；如需彻底移除，同步删 `__init__`/`__all__` 导出与单测。
+    `MergeResource` 不再对 member 校验状态（main 同样已放开，见 ``MergeMainStatusForbiddenError``）。
+    保留本类避免错误码回收造成的客户端兼容问题；如需彻底移除，同步删 `__init__`/`__all__` 导出与单测。
     """
 
     status_code = 400
