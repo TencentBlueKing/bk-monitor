@@ -648,6 +648,38 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 "page_size": self.page_size,
             }
         )
+        # 合并/拆分独立映射层：按 issue_id 过滤告警时把主 Issue 展开为 [main, ...members]
+        self._expand_merged_issue_conditions()
+
+    def _expand_merged_issue_conditions(self):
+        """合并/拆分独立映射层：把 issue_id 过滤条件展开为 [main, ...active members]。
+
+        合并不改写 alert.issue_id（被并入 Issue 的告警物理上仍指向自身），主 Issue
+        要在告警列表 / 趋势 / 维度统计里聚合展示被并入 Issue 的告警，必须在「按
+        issue_id 反查 alert」时把查询值扩展为主 + 全部 active member。语义与
+        IssueQueryHandler.add_alert_trend 一致。
+
+        在 __init__ 内对 self.conditions 原地改写，可一处覆盖所有经 AlertQueryHandler
+        的查询路径（search / date_histogram / TopN）。
+
+        fail-open：关系层异常或无合并关系时保持原条件，体感等同「无合并」。
+        """
+        conditions = self.conditions or []
+        issue_conditions = [c for c in conditions if c.get("origin_key") == "issue_id" and c.get("value")]
+        if not issue_conditions or not self.bk_biz_ids:
+            return
+        try:
+            from bkmonitor.issue_merge import IssueMergeResolver, MergeResolverContext
+
+            ctx = MergeResolverContext(self.bk_biz_ids)
+            ctx.load()
+            if ctx.degraded:
+                return
+            for condition in issue_conditions:
+                values = condition["value"] if isinstance(condition["value"], list) else [condition["value"]]
+                condition["value"] = IssueMergeResolver.expand_to_full_ids(values, ctx)
+        except Exception:
+            logger.warning("[issue-merge] expand issue_id conditions failed (fail-open)", exc_info=True)
 
     def get_search_object(
         self,
