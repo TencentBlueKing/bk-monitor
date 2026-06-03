@@ -653,6 +653,34 @@ def test_merge_component_config_merges_config_fields_and_drops_runtime_fields():
     assert merged_config["spec"]["storage_config"] == {"override": "new"}
 
 
+def test_merge_component_config_blocks_immutable_result_table_biz_id_change():
+    existing_config = {
+        "kind": DataLinkKind.RESULTTABLE.value,
+        "metadata": {
+            "name": "result_table",
+            "namespace": "bkmonitor",
+        },
+        "spec": {
+            "alias": "result_table",
+            "bizId": 1,
+        },
+    }
+    config = {
+        "kind": DataLinkKind.RESULTTABLE.value,
+        "metadata": {
+            "name": "result_table",
+            "namespace": "bkmonitor",
+        },
+        "spec": {
+            "alias": "result_table",
+            "bizId": 2,
+        },
+    }
+
+    with pytest.raises(ValueError, match=r"spec\.bizId"):
+        DataLink.merge_component_config(existing_config, config)
+
+
 @pytest.mark.django_db(databases="__all__")
 def test_apply_data_link_merges_existing_component_config_before_apply(create_or_delete_records, mocker):
     ds = models.DataSource.objects.get(bk_data_id=50010)
@@ -725,6 +753,56 @@ def test_apply_data_link_merges_existing_component_config_before_apply(create_or
     assert result_table_config["spec"]["alias"] == bkbase_vmrt_name
     assert result_table_config["spec"]["bizId"] == 2
     assert result_table_config["spec"]["custom_config"] == {"keep": True}
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_apply_data_link_blocks_result_table_biz_id_change_before_apply(create_or_delete_records, mocker):
+    ds = models.DataSource.objects.get(bk_data_id=50010)
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
+    bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id)
+
+    data_link_ins, _ = DataLink.objects.get_or_create(
+        data_link_name=bkbase_data_name,
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
+    )
+
+    def _get_data_link(bk_tenant_id, kind, namespace, name):
+        if kind == DataLinkKind.get_choice_value(DataLinkKind.RESULTTABLE.value) and name == bkbase_vmrt_name:
+            return {
+                "kind": DataLinkKind.RESULTTABLE.value,
+                "metadata": {
+                    "name": name,
+                    "namespace": namespace,
+                },
+                "spec": {
+                    "alias": name,
+                    "bizId": 1,
+                },
+            }
+        raise BKAPIError(
+            system_name="bkdata",
+            url="/v4/namespaces/{namespace}/{kind}/{name}/",
+            result={"message": f"resource {name} of kind {kind} not found"},
+        )
+
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+    with (
+        patch("metadata.models.data_link.data_link.api.bkdata.get_data_link", side_effect=_get_data_link),
+        patch.object(
+            DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
+        ) as mock_apply_with_retry,
+    ):
+        with pytest.raises(ValueError, match=r"spec\.bizId"):
+            data_link_ins.apply_data_link(
+                bk_biz_id=1001,
+                data_source=ds,
+                table_id=rt.table_id,
+                storage_cluster_name="vm-plat",
+            )
+
+    mock_apply_with_retry.assert_not_called()
 
 
 @pytest.mark.django_db(databases="__all__")
