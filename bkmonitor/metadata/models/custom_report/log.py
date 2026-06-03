@@ -79,6 +79,7 @@ class LogGroup(CustomGroupBase):
         bk_tenant_id,
         table_id=None,
         max_rate=-1,
+        is_need_deploy_collector_config: bool = True,
     ) -> "LogGroup":
         """
         创建一个新的自定义分组记录
@@ -104,6 +105,7 @@ class LogGroup(CustomGroupBase):
             operator=operator,
             max_rate=max_rate,
             bk_tenant_id=bk_tenant_id,
+            is_need_deploy_collector_config=is_need_deploy_collector_config,
             **filter_kwargs,
         )
 
@@ -115,7 +117,8 @@ class LogGroup(CustomGroupBase):
         # 下发配置到 BkCollector
         from metadata.task.tasks import refresh_custom_log_report_config
 
-        refresh_custom_log_report_config.delay(log_group_id=group.log_group_id)
+        if group.is_need_deploy_collector_config:
+            refresh_custom_log_report_config.delay(log_group_id=group.log_group_id)
 
         return group
 
@@ -133,7 +136,8 @@ class LogGroup(CustomGroupBase):
         # 下发配置到 BkCollector
         from metadata.task.tasks import refresh_custom_log_report_config
 
-        refresh_custom_log_report_config.delay(log_group_id=self.log_group_id)
+        if self.is_need_deploy_collector_config:
+            refresh_custom_log_report_config.delay(log_group_id=self.log_group_id)
 
         return resp
 
