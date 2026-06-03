@@ -576,34 +576,53 @@ def _field_mapping_list(client, cluster_id: int, index_pattern: str) -> dict[str
             f"在 {index_pattern} 未枚举到任何字段（index_pattern 可能匹配空集）。",
             next_actions=["用 cat_indices(index_pattern) 确认有物理索引匹配；或放宽 index_pattern。"],
         )
-    # 去重到 field_path（同一字段可能跨多个物理索引重复出现）：list 模式只需告诉 agent 有哪些字段可探。
-    seen: set[str] = set()
-    deduped: list[dict[str, Any]] = []
+    # 按 field_path 聚合【全部】物理索引的行（不能只留第一条）：跨 rollover / 宽 index_pattern 时，同名字段在不同
+    # 索引里 type/可聚合性可能不一致（如 idx-new.namespace=keyword 可聚合、idx-old.namespace=text 不可聚合）。
+    # 只留第一条会把"局部可聚合"误报成整 pattern 可直接 probe → agent 据此对宽 pattern probe 仍会 400/误判。
+    # 故只有【全体索引一致单一类型且都可聚合】才标 clean aggregatable=true；类型或可聚合性跨索引分歧 → conflicted=true、
+    # aggregatable 保守取 false，并回 types/indices 供 agent 收窄到具体物理索引再 probe。
+    groups: dict[str, list[dict[str, Any]]] = {}
+    order: list[str] = []
     for row in rows:
         path = str(row["field_path"])
-        if path in seen:
-            continue
-        seen.add(path)
-        deduped.append(
+        if path not in groups:
+            groups[path] = []
+            order.append(path)
+        groups[path].append(row)
+    items: list[dict[str, Any]] = []
+    for path in order:
+        grp = groups[path]
+        types = sorted({str(r["type"]) for r in grp})
+        agg_indices = sum(1 for r in grp if r["aggregatable"])
+        uniform_type = len(types) == 1
+        aggregatable = uniform_type and agg_indices == len(grp)  # clean：全索引同一类型且都可聚合
+        conflicted = (not uniform_type) or (0 < agg_indices < len(grp))  # 类型或可聚合性跨索引分歧
+        items.append(
             {
                 "field_path": path,
-                "type": row["type"],
-                "doc_values": row["doc_values"],
-                "aggregatable": row["aggregatable"],
+                "type": types[0] if uniform_type else None,  # 冲突时为 None，看 types
+                "types": types,
+                "aggregatable": aggregatable,
+                "conflicted": conflicted,
+                "indices": len(grp),
+                "aggregatable_indices": agg_indices,
             }
         )
-    # aggregatable-first，再按 field_path 字典序：能直接 probe 的字段排在最前。
-    deduped.sort(key=lambda r: (not r["aggregatable"], r["field_path"]))
-    total = len(deduped)
-    agg_count = sum(1 for r in deduped if r["aggregatable"])
+    # 排序：clean 可聚合(可直接 probe) → conflicted(需收窄) → 一致不可聚合；同档按 field_path。
+    items.sort(key=lambda it: (0 if it["aggregatable"] else 1 if it["conflicted"] else 2, it["field_path"]))
+    total = len(items)
+    clean_agg = sum(1 for it in items if it["aggregatable"])
+    conflicted_count = sum(1 for it in items if it["conflicted"])
     truncated = total > FIELD_LIST_MAX
-    items = deduped[:FIELD_LIST_MAX]
+    items = items[:FIELD_LIST_MAX]
     summary = (
-        f"field_mapping(list): {index_pattern} 共 {total} 个字段路径，其中 {agg_count} 个 aggregatable=true"
-        f"（已按可聚合优先排序，可直接挑前面的 field_path 跑 terms_agg_probe）"
+        f"field_mapping(list): {index_pattern} 共 {total} 个字段路径——{clean_agg} 个全索引一致可聚合(clean,可直接 probe)、"
+        f"{conflicted_count} 个跨索引 type/可聚合性冲突(conflicted,需收窄到具体物理索引)（已按 clean→conflicted→不可聚合排序）"
     )
     if truncated:
-        summary += f"；按可聚合优先排序后截断至前 {FIELD_LIST_MAX}（缺失字段可能在截断外，带 field 单查可确认），缩小 index_pattern 看全量"
+        summary += (
+            f"；截断至前 {FIELD_LIST_MAX}（缺失字段可能在截断外，带 field 单查可确认），缩小 index_pattern 看全量"
+        )
     return {
         "operation": "field_mapping",
         "cluster_id": cluster_id,
@@ -612,10 +631,16 @@ def _field_mapping_list(client, cluster_id: int, index_pattern: str) -> dict[str
         "summary": summary,
         "items": items,
         "next_actions": [
-            "省略 field=列举模式：用某个 aggregatable=true 的 field_path 跑 terms_agg_probe(field=该路径)；",
-            "要看单字段 doc_values/fielddata/multi-field 细节，再带 field 跑一次 field_mapping。",
+            "clean(aggregatable=true) 的 field_path 可直接对该 index_pattern 跑 terms_agg_probe；",
+            "conflicted=true 的字段【勿】对宽 pattern 直接 probe（跨索引类型不一会 400/误判）：带 field 跑 field_mapping "
+            "看逐索引 type，对可聚合的那代具体物理索引单独 probe。",
         ],
-        "meta": {"total_field_paths": total, "aggregatable_count": agg_count, "truncated": truncated},
+        "meta": {
+            "total_field_paths": total,
+            "clean_aggregatable_count": clean_agg,
+            "conflicted_count": conflicted_count,
+            "truncated": truncated,
+        },
     }
 
 

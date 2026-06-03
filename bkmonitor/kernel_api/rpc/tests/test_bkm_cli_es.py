@@ -319,10 +319,38 @@ def test_field_mapping_list_mode_sorts_aggregatable_first():
     assert set(aggs) == {"namespace.keyword", "ts"}
     assert set(non_aggs) == {"namespace", "geo"}
     assert "namespace.keyword" in paths  # multi-field 子字段在 list 模式也 surface
-    assert result["meta"]["aggregatable_count"] == 2
+    assert result["meta"]["clean_aggregatable_count"] == 2
+    assert result["meta"]["conflicted_count"] == 0  # 单索引、无跨索引分歧
     assert result["meta"]["total_field_paths"] == 4
-    assert set(result["items"][0].keys()) == {"field_path", "type", "doc_values", "aggregatable"}
-    assert "2 个 aggregatable=true" in result["summary"]
+    assert set(result["items"][0].keys()) == {
+        "field_path",
+        "type",
+        "types",
+        "aggregatable",
+        "conflicted",
+        "indices",
+        "aggregatable_indices",
+    }
+    assert "2 个全索引一致可聚合" in result["summary"]
+
+
+def test_field_mapping_list_mode_conflicting_field_not_clean_aggregatable():
+    # 真实问题：跨索引同名字段 type 不一致（idx-new=keyword 可聚合 / idx-old=text 不可聚合）。
+    # 必须标 conflicted、aggregatable 保守取 false——绝不把"第一个索引可聚合"误报成整 pattern 可直接 probe。
+    mapping = {
+        "idx-new": {"mappings": {"ns": {"full_name": "ns", "mapping": {"ns": {"type": "keyword"}}}}},
+        "idx-old": {"mappings": {"ns": {"full_name": "ns", "mapping": {"ns": {"type": "text"}}}}},
+    }
+    result = es._field_mapping(FakeESClient(mapping=mapping), 10, {"index_pattern": "idx-*"})
+    ns = next(it for it in result["items"] if it["field_path"] == "ns")
+    assert ns["conflicted"] is True
+    assert ns["aggregatable"] is False  # 保守：非全体一致可聚合
+    assert ns["type"] is None and set(ns["types"]) == {"keyword", "text"}
+    assert ns["indices"] == 2
+    assert ns["aggregatable_indices"] == 1
+    assert result["meta"]["conflicted_count"] == 1
+    assert result["meta"]["clean_aggregatable_count"] == 0
+    assert "conflicted" in result["summary"]
 
 
 def test_field_mapping_list_mode_truncates_and_flags():
@@ -362,7 +390,7 @@ def test_field_mapping_list_mode_es5_6_typed_shape():
     }
     result = es._field_mapping(FakeESClient(mapping=mapping), 10, {"index_pattern": "idx-*"})
     assert "host" in [it["field_path"] for it in result["items"]]
-    assert result["meta"]["aggregatable_count"] == 1
+    assert result["meta"]["clean_aggregatable_count"] == 1
 
 
 # ---------------- #6 错误分类（duck-type status_code）----------------
