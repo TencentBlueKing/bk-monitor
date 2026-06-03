@@ -23,11 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, ref, onMounted, PropType, computed } from 'vue';
+import { defineComponent, ref, onMounted, PropType } from 'vue';
 
 import BklogPopover from '@/components/bklog-popover';
 import useLocale from '@/hooks/use-locale';
-import useStore from '@/hooks/use-store';
 
 import AddGroup from '../collect-list/add-group';
 
@@ -52,8 +51,6 @@ export default defineComponent({
   emits: ['handle'],
   setup(props, { emit, expose }) {
     const { t } = useLocale();
-    const store = useStore();
-    const isSceneMode = computed(() => store.getters.isSceneMode);
     const addPopoverRef = ref(null);
     const sortPopoverRef = ref(null);
     const active = ref('');
@@ -159,14 +156,12 @@ export default defineComponent({
     return () => (
       <div class='collect-tool-box'>
         <span class='tool-checkbox'>
-          {!isSceneMode.value && (
-            <bk-checkbox
-              value={props.isChecked}
-              onChange={handleChangeIndex}
-            >
-              {t('仅查看当前索引集')}
-            </bk-checkbox>
-          )}
+          <bk-checkbox
+            value={props.isChecked}
+            onChange={handleChangeIndex}
+          >
+            {t('仅查看当前索引集')}
+          </bk-checkbox>
         </span>
         <span class='tool-icon-box'>
           {/* 新建收藏分组 */}
