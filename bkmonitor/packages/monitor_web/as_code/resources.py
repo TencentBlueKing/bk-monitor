@@ -36,7 +36,6 @@ from bkmonitor.action.serializers import (
     ActionConfigDetailSlz,
     AssignRuleSlz,
     DutyRuleDetailSlz,
-    UserGroupDetailSlz,
 )
 from bkmonitor.action.utils import get_assign_rule_related_resource_dict
 from bkmonitor.as_code.parse import import_code_config
@@ -53,6 +52,7 @@ from bkmonitor.models import (
     AlertAssignGroup,
     AlertAssignRule,
     DutyRule,
+    DutyArrange,
     DutyRuleRelation,
     StrategyActionConfigRelation,
     UserGroup,
@@ -64,8 +64,8 @@ from bkmonitor.views import serializers
 from constants.strategy import DATALINK_SOURCE
 from core.drf_resource import Resource, api
 from core.drf_resource.tasks import step
+from constants.action import NoticeChannel
 from monitor_web.commons.report.resources import send_frontend_report_event
-from monitor_web.grafana.utils import get_org_id
 
 logger = logging.getLogger("monitor_web")
 
@@ -257,9 +257,24 @@ class ExportConfigResource(Resource):
             user_groups = user_groups.filter(app=app)
 
         # 配置生成
-        user_group_configs = []
-        for user_group in user_groups:
-            user_group_configs.append(UserGroupDetailSlz(user_group).data)
+        user_group_configs = cls.build_notice_group_export_configs(
+            user_groups.only(
+                "id",
+                "name",
+                "bk_biz_id",
+                "desc",
+                "path",
+                "channels",
+                "mention_list",
+                "mention_type",
+                "action_notice",
+                "alert_notice",
+                "need_duty",
+                "duty_rules",
+                "app",
+                "update_time",
+            )
+        )
 
         # 查询关联告警组相关的轮值规则
         duty_rules_ids = {}
@@ -270,6 +285,49 @@ class ExportConfigResource(Resource):
         # 转换为AsCode配置
         parser = NoticeGroupConfigParser(bk_biz_id=bk_biz_id, duty_rules=duty_rules_ids)
         yield from cls.transform_configs(parser, user_group_configs, with_id, lock_filename)
+
+    @classmethod
+    def build_notice_group_export_configs(cls, user_groups: Iterable[UserGroup]) -> list[dict[str, Any]]:
+        """
+        构造 AsCode 告警组导出配置。
+
+        UserGroupDetailSlz 面向详情页，会额外查询排班、策略数、分派规则数并翻译用户展示名。
+        导出 YAML 只依赖告警组基础字段、通知配置和非轮值场景的用户列表，这里按导出所需字段批量读取。
+        """
+        user_groups = list(user_groups)
+        user_group_ids = [user_group.id for user_group in user_groups]
+        duty_arranges_mapping: dict[int, list[dict[str, Any]]] = defaultdict(list)
+        if user_group_ids:
+            duty_arranges = DutyArrange.objects.filter(user_group_id__in=user_group_ids).only(
+                "id", "user_group_id", "users", "order"
+            )
+            for duty_arrange in duty_arranges.order_by("order"):
+                duty_arranges_mapping[duty_arrange.user_group_id].append({"users": duty_arrange.users or []})
+
+        user_group_configs = []
+        for user_group in user_groups:
+            channels = user_group.channels or NoticeChannel.DEFAULT_CHANNELS
+            mention_list = user_group.mention_list or []
+            if user_group.mention_type == 0 and not mention_list and NoticeChannel.WX_BOT in channels:
+                mention_list = [{"type": "group", "id": "all"}]
+
+            user_group_configs.append(
+                {
+                    "id": user_group.id,
+                    "name": user_group.name,
+                    "bk_biz_id": user_group.bk_biz_id,
+                    "desc": user_group.desc or "",
+                    "path": user_group.path or "",
+                    "channels": channels,
+                    "mention_list": mention_list,
+                    "action_notice": user_group.action_notice or [],
+                    "alert_notice": user_group.alert_notice or [],
+                    "need_duty": user_group.need_duty,
+                    "duty_arranges": duty_arranges_mapping.get(user_group.id, []),
+                    "duty_rules": user_group.duty_rules or [],
+                }
+            )
+        return user_group_configs
 
     @classmethod
     def export_duties(
@@ -341,6 +399,8 @@ class ExportConfigResource(Resource):
         """
         导出grafana仪表盘配置
         """
+        from monitor_web.grafana.utils import get_org_id
+
         if dashboard_uids is not None and not dashboard_uids:
             return
 
