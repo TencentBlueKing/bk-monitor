@@ -123,7 +123,7 @@ class RumApplicationConfig(BkCollectorConfig):
 
         rum_data_source = self._application.rum_datasource
         if rum_data_source:
-            data_ids["rum_data_id"] = rum_data_source.bk_data_id
+            data_ids["trace_data_id"] = rum_data_source.bk_data_id
 
         return data_ids
 
