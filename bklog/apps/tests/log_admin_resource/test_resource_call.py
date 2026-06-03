@@ -325,7 +325,8 @@ class CollectorResourceCallTest(ClearRequestLocalMixin, TestCase):
         return json.loads(response.content)
 
     @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
-    def test_collector_list_filters_by_storage_cluster_without_biz_filter(self):
+    @patch("apps.log_admin_resource.handlers.collector._get_primary_index_set", return_value=(None, None))
+    def test_collector_list_filters_by_storage_cluster_without_biz_filter(self, mock_get_primary_index_set):
         content = self._call(
             "bklog.collector.list",
             {"storage_cluster_id": 25, "page": 1, "page_size": 20},
@@ -339,6 +340,50 @@ class CollectorResourceCallTest(ClearRequestLocalMixin, TestCase):
         self.assertEqual(item["storage_cluster_id"], 25)
         self.assertEqual(item["log_access_type"], "container_file")
         self.assertEqual(item["log_access_type_name"], "容器文件采集")
+        mock_get_primary_index_set.assert_not_called()
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("apps.log_admin_resource.handlers.collector._get_primary_index_set", return_value=(None, None))
+    def test_collector_list_filters_by_log_access_type_without_per_row_index_lookup(self, mock_get_primary_index_set):
+        content = self._call(
+            "bklog.collector.list",
+            {"log_access_type": "container_file", "page": 1, "page_size": 20},
+        )
+
+        self.assertTrue(content["result"])
+        result = content["data"]["result"]
+        self.assertEqual(result["total"], 1)
+        self.assertEqual(result["items"][0]["collector_config_id"], 10402)
+        self.assertEqual(result["items"][0]["log_access_type"], "container_file")
+        mock_get_primary_index_set.assert_not_called()
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("apps.log_admin_resource.handlers.collector._get_primary_index_set", return_value=(None, None))
+    def test_collector_list_paginates_without_per_row_index_lookup(self, mock_get_primary_index_set):
+        CollectorConfig.objects.create(
+            collector_config_id=10403,
+            collector_config_name="host-access-log",
+            collector_plugin_id=self.plugin.collector_plugin_id,
+            bk_biz_id=3,
+            collector_scenario_id="row",
+            category_id="host",
+            target_object_type="HOST",
+            bk_data_id=150090,
+            table_id="3_bklog.host_access_log",
+            etl_config="bk_log_text",
+            environment="host",
+        )
+
+        content = self._call(
+            "bklog.collector.list",
+            {"page": 1, "page_size": 1, "ordering": "collector_config_id"},
+        )
+
+        self.assertTrue(content["result"])
+        result = content["data"]["result"]
+        self.assertEqual(result["total"], 2)
+        self.assertEqual([item["collector_config_id"] for item in result["items"]], [10402])
+        mock_get_primary_index_set.assert_not_called()
 
     @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     @patch("apps.api.TransferApi.get_result_table_storage", return_value=METADATA_STORAGE)
