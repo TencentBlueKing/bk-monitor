@@ -2,6 +2,12 @@
   .list-edit-item {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
+
+    .list-edit-item-content {
+      display: flex;
+      align-items: center;
+    }
 
     .bk-form-item {
       margin: 0 !important;
@@ -25,5 +31,9 @@
 
   .mt-8 {
     margin-top: 8px;
+  }
+
+  .mt-24 {
+    margin-top: 24px;
   }
 }

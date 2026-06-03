@@ -278,11 +278,18 @@ class ResultTableConfig(DataLinkResourceConfigBase):
                 }
             }
             """
+
+        # 优先使用ResultTableConfig记录的bkbase_table_id，因为重建链路的所属业务并不稳定
+        if self.bkbase_table_id:
+            bk_biz_id = int(self.bkbase_table_id.split("_")[0])
+        else:
+            bk_biz_id = self.datalink_biz_ids.label_biz_id
+
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
-            "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
+            "bk_biz_id": bk_biz_id,  # 数据实际归属的业务ID
             "monitor_biz_id": self.datalink_biz_ids.data_biz_id,  # 接入者的业务ID
             "data_type": self.data_type,
             "maintainers": json.dumps(maintainer),
@@ -318,14 +325,20 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
 
     def compose_config(
         self,
-        storage_cluster_name,
-        write_alias_format,
-        unique_field_list,
+        storage_cluster_name: str,
+        write_alias_format: str,
+        unique_field_list: list[str],
         json_field_list: list[str] | None = None,
-    ):
+        rt_name: str | None = None,
+    ) -> dict[str, Any]:
         """
         结果表- ES存储关联关系
         在日志链路中,整套链路各个资源的name相同
+
+        Args:
+            rt_name: 关联的 ResultTable 名称。默认沿用 ``self.name``，以兼容历史上
+                binding 与 RT 同名的调用方式；当 compose 复用到不同名的 RT 时，由
+                调用方显式传入实际 RT name。
         """
         tpl = """
             {
@@ -341,7 +354,7 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
                 "spec": {
                     "data": {
                         "kind": "ResultTable",
-                        "name": "{{name}}",
+                        "name": "{{rt_name}}",
                         {% if tenant %}
                         "tenant": "{{ tenant }}",
                         {% endif %}
@@ -372,6 +385,7 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
         maintainer = settings.BK_DATA_PROJECT_MAINTAINER.split(",")
         render_params = {
             "name": self.name,
+            "rt_name": rt_name if rt_name is not None else self.name,
             "namespace": self.namespace,
             "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
             "storage_cluster_name": storage_cluster_name,
@@ -412,8 +426,8 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
     def compose_config(
         self,
         whitelist: dict[Literal["metrics", "tags"], list[str]] | None = None,
-        bk_data_id: int | str | None = None,
         rt_name: str | None = None,
+        metric_group_dimensions: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """
         组装VM存储配置，与结果表相关联
@@ -423,6 +437,7 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
             的 name 已被各自独立 claim/复用时，必须由调用方显式传入
             ``vm_table_id_ins.name``，否则 payload 里 ``spec.data.name`` 会指向
             一个并不存在的 ResultTable，造成 BKBase 侧引用失效。
+        :param metric_group_dimensions: 指标组维度。如果为空，[{"key": "service_name", "default_value": "unknown_service"}]
         """
         tpl = """
             {
@@ -480,6 +495,20 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
                 }
             )
 
+        # 指标组维度配置
+        metric_group_dimensions_list: list[str] = []
+        dd_version: str | None = None
+        for dim in metric_group_dimensions or []:
+            key = dim.get("key")
+            if not key:
+                continue
+            if "default_value" in dim and dim["default_value"] is not None:
+                metric_group_dimensions_list.append(f"{key}|{dim['default_value']}")
+            else:
+                metric_group_dimensions_list.append(key)
+        if metric_group_dimensions_list:
+            dd_version = "v2"
+
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
@@ -488,25 +517,11 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
             "vm_name": self.vm_cluster_name,
             "maintainers": json.dumps(maintainer),
             "whitelist_config": whitelist_config,
+            "metric_group_dimensions": json.dumps(metric_group_dimensions_list)
+            if metric_group_dimensions_list
+            else None,
+            "dd_version": dd_version,
         }
-
-        if bk_data_id:
-            # TimeSeriesGroup 中存在metric_group_dimensions才使用 v2 的 vmstoragebinding 配置
-            from metadata.models.custom_report.time_series import TimeSeriesGroup
-
-            ts_group = TimeSeriesGroup.objects.filter(bk_data_id=bk_data_id, is_delete=False).first()
-            if ts_group and ts_group.metric_group_dimensions:
-                metric_group_dimensions = []
-                for dim in ts_group.metric_group_dimensions:
-                    key = dim.get("key")
-                    if not key:
-                        continue
-                    if "default_value" in dim and dim["default_value"] is not None:
-                        metric_group_dimensions.append(f"{key}|{dim['default_value']}")
-                    else:
-                        metric_group_dimensions.append(key)
-                render_params["metric_group_dimensions"] = json.dumps(metric_group_dimensions)
-                render_params["dd_version"] = "v2"
 
         # 现阶段仅在多租户模式下添加tenant字段
         if settings.ENABLE_MULTI_TENANT_MODE:
@@ -529,6 +544,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
     data_id_name = models.CharField(verbose_name="关联消费数据源名称", max_length=64)
     bk_data_id = models.IntegerField(verbose_name="数据源ID", default=0)
     sink_names = models.JSONField(verbose_name="处理配置列表", default=list, help_text="格式为kind:name，便于检索")
+    consumer_group = models.CharField(verbose_name="Consumer Group", max_length=255, default="", blank=True)
 
     class Meta:
         verbose_name = "清洗任务配置"
@@ -566,6 +582,9 @@ class DataBusConfig(DataLinkResourceConfigBase):
             },
             "spec": {
                 "maintainers": {{maintainers}},
+                {% if consumer_group %}
+                "consumerGroup": {{consumer_group}},
+                {% endif %}
                 "sinks": {{sinks}},
                 "sources": [
                     {
@@ -600,6 +619,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "data_id_name": self.data_id_name,
             "transform": json.dumps(transform),
             "maintainers": json.dumps(maintainer),
+            "consumer_group": json.dumps(self.consumer_group) if self.consumer_group else None,
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
@@ -629,6 +649,9 @@ class DataBusConfig(DataLinkResourceConfigBase):
             },
             "spec": {
                 "maintainers": {{maintainers}},
+                {% if consumer_group %}
+                "consumerGroup": {{consumer_group}},
+                {% endif %}
                 "sinks": {{sinks}},
                 "sources": [
                     {
@@ -662,6 +685,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "sinks": json.dumps(sinks),
             "rules": json.dumps(rules),
             "data_id_name": self.data_id_name,
+            "consumer_group": json.dumps(self.consumer_group) if self.consumer_group else None,
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
@@ -693,6 +717,9 @@ class DataBusConfig(DataLinkResourceConfigBase):
                 },
                 "spec": {
                     "maintainers": {{maintainers}},
+                    {% if consumer_group %}
+                    "consumerGroup": {{consumer_group}},
+                    {% endif %}
                     "sinks": [{
                         "kind": "ElasticSearchBinding",
                         "name": "{{name}}",
@@ -722,6 +749,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "namespace": self.namespace,
             "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
             "maintainers": json.dumps(maintainer),
+            "consumer_group": json.dumps(self.consumer_group) if self.consumer_group else None,
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
@@ -803,11 +831,19 @@ class BasereportSinkConfig(DataLinkResourceConfigBase):
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
 
-    def compose_config(self, vmrt_prefix: str, include_cmdb: bool = False) -> dict[str, Any]:
+    def compose_config(
+        self,
+        vmrt_prefix: str,
+        include_cmdb: bool = False,
+        metric_type_to_vm_storage_binding_name: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
         """组装基础采集处理配置。"""
         mappings: list[dict[str, Any]] = []
-        for usage in constants.BASEREPORT_USAGES:
-            vmrt_name = f"{vmrt_prefix}_{usage}" if vmrt_prefix else usage
+        if metric_type_to_vm_storage_binding_name is None:
+            metric_type_to_vm_storage_binding_name = {
+                usage: f"{vmrt_prefix}_{usage}" if vmrt_prefix else usage for usage in constants.BASEREPORT_USAGES
+            }
+        for metric_type, vmrt_name in metric_type_to_vm_storage_binding_name.items():
             sink_config = {
                 "kind": DataLinkKind.VMSTORAGEBINDING.value,
                 "name": vmrt_name,
@@ -817,7 +853,7 @@ class BasereportSinkConfig(DataLinkResourceConfigBase):
                 sink_config["tenant"] = self.bk_tenant_id
             mappings.append(
                 {
-                    "metric_type": usage,
+                    "metric_type": metric_type,
                     "sinks": [sink_config],
                 }
             )
@@ -829,7 +865,7 @@ class BasereportSinkConfig(DataLinkResourceConfigBase):
                 }
                 if settings.ENABLE_MULTI_TENANT_MODE:
                     cmdb_sink_config["tenant"] = self.bk_tenant_id
-                mappings.append({"metric_type": f"{usage}_cmdb", "sinks": [cmdb_sink_config]})
+                mappings.append({"metric_type": f"{metric_type}_cmdb", "sinks": [cmdb_sink_config]})
 
         metadata = {
             "name": self.name,
@@ -887,9 +923,15 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
         original_json_fields: list[str],
         expires: str,
         flush_timeout: int | None,
+        rt_name: str | None = None,
     ) -> dict[str, Any]:
         """
         组装Doris存储绑定配置
+
+        Args:
+            rt_name: 关联的 ResultTable 名称。默认沿用 ``self.name``，以兼容历史上
+                binding 与 RT 同名的调用方式；当 compose 复用到不同名的 RT 时，由
+                调用方显式传入实际 RT name。
         """
         tpl = """
         {
@@ -904,7 +946,7 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
             },
             "spec": {
                 "data": {
-                    "name": "{{name}}",
+                    "name": "{{rt_name}}",
                     {% if tenant %}
                     "tenant": "{{ tenant }}",
                     {% endif %}
@@ -938,6 +980,7 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
 
         render_params = {
             "name": self.name,
+            "rt_name": rt_name if rt_name is not None else self.name,
             "namespace": self.namespace,
             "bk_biz_id": self.datalink_biz_ids.data_biz_id,
             "monitor_biz_id": self.datalink_biz_ids.label_biz_id,

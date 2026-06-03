@@ -23,9 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-window.__IS_MONITOR_COMPONENT__ = true;
-window.__IS_MONITOR_TRACE__ = true;
-window.__IS_MONITOR_APM__ = false;
 import Vue from 'vue';
 import {
   bkBackTop,
@@ -205,6 +202,11 @@ const initGlobalComponents = () => {
   Vue.component('BkVirtualScroll', bkVirtualScroll);
   Vue.component('BkZoomImage', bkZoomImage);
 };
+const initWindowState = () => {
+  window.__IS_MONITOR_COMPONENT__ = true;
+  window.__IS_MONITOR_TRACE__ = true;
+  window.__IS_MONITOR_APM__ = false;
+}
 const Vue2 = Vue;
 export {
   MonitorTraceLog,
@@ -212,5 +214,6 @@ export {
   i18n,
   Vue2,
   initMonitorState,
+  initWindowState,
   initGlobalComponents,
 };

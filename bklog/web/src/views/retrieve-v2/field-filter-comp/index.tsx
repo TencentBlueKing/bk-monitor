@@ -73,7 +73,8 @@ export default class FieldFilterComp extends tsc<object> {
 
   isShowErrInfo = false;
   get errInfo() {
-    const key = 'retrieve/getLogTableHead';
+    const isScene = this.$store.getters.isSceneMode;
+    const key = isScene ? 'retrieve/getSceneFields' : 'retrieve/getLogTableHead';
     return this.$store.state.apiErrorInfo[key] || '';
   }
   /** 可选字段 */
@@ -291,9 +292,23 @@ export default class FieldFilterComp extends tsc<object> {
   }
   /** 未开启白名单时 是否由前端来统计总数 */
   get isFrontStatistics() {
-    const { scenario_id_white_list: scenarioIdWhiteList } = (window as any).FIELD_ANALYSIS_CONFIG || {};
-    const scenarioID = this.indexSetItem.items?.[0]?.scenario_id;
-    return !(scenarioIdWhiteList?.includes(scenarioID) && isFeatureToggleOn('field_analysis_config', this.bkBizId));
+    let isFront = true;
+    const { field_analysis_config: fieldAnalysisToggle } = (window as any).FEATURE_TOGGLE;
+    switch (fieldAnalysisToggle) {
+      case 'on':
+        isFront = false;
+        break;
+      case 'off':
+        isFront = true;
+        break;
+      default: {
+        const { scenario_id_white_list: scenarioIdWhiteList } = (window as any).FIELD_ANALYSIS_CONFIG || {};
+        const scenarioID = this.indexSetItem.items?.[0]?.scenario_id;
+        isFront = !(scenarioIdWhiteList?.includes(scenarioID) && isFeatureToggleOn('field_analysis_config', this.bkBizId));
+        break;
+      }
+    }
+    return isFront;
   }
 
   get indexSetId() {

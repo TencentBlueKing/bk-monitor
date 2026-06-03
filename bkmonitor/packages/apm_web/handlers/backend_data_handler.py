@@ -653,8 +653,67 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
     性能分析后端适配器
     """
 
+    @cached_property
+    def _profiling_config(self):
+        datasource_config = api.apm_api.detail_application(
+            {
+                "bk_biz_id": self.app.bk_biz_id,
+                "app_name": self.app.app_name,
+            }
+        )
+        return datasource_config.get("profiling_config", {})
+
+    @cached_property
+    def profiling_bkdata_datalink_config(self):
+        return self._profiling_config.get("bkdata_datalink_config") or {}
+
     def storage_info(self):
-        return api.bkdata.get_raw_data_storages_info(raw_data_id=self.bk_data_id) if self.bk_data_id else []
+        if not self.bk_data_id:
+            return []
+
+        if self._is_v4_datalink():
+            return self._v4_storage_info(self.profiling_bkdata_datalink_config)
+
+        return api.bkdata.get_raw_data_storages_info(raw_data_id=self.bk_data_id)
+
+    def _v4_storage_info(self, config):
+        databus_name = config.get("v4_resource_names", {}).get("databus_name")
+        namespace = config.get("namespace", "bklog")
+        if not databus_name:
+            return []
+
+        v4_data = api.bkdata.get_v4_data_storage_info(
+            namespace=namespace,
+            databus_name=databus_name,
+        )
+        if not v4_data:
+            return []
+
+        table_info = v4_data.get("table_info", {})
+        task_status = v4_data.get("task_status", "")
+
+        status_display_map = {
+            "running": _("运行中"),
+            "stopped": _("停止"),
+            "failed": _("异常"),
+        }
+
+        return [
+            {
+                "result_table_id": f"{table_info.get('bk_biz_id', '')}_{table_info.get('rt_name', '')}",
+                "storage_type": table_info.get("cluster_type", ""),
+                "storage_type_alias": table_info.get("cluster_type", "").title()
+                if table_info.get("cluster_type")
+                else "",
+                "storage_cluster": table_info.get("resource_name", ""),
+                "storage_cluster_alias": table_info.get("resource_name", ""),
+                "expire_time_alias": f"{table_info.get('expire', '')}天" if table_info.get("expire") else "",
+                "status": task_status,
+                "status_display": status_display_map.get(task_status, task_status),
+                "created_by": self.app.create_user,
+                "created_at": self._profiling_config.get("created"),
+            }
+        ]
 
     @property
     def storage_status(self):
@@ -698,7 +757,14 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
             data_view_config.update(kwargs)
         return target
 
+    def _is_v4_datalink(self):
+        return (self.profiling_bkdata_datalink_config.get("version") or 3) == 4
+
     def _get_data_view(self, start_time: int, end_time: int, **kwargs):
+        # V4链路暂无对应的output_count接口，直接返回空避免V3接口权限报错
+        if self._is_v4_datalink():
+            return []
+
         storages = self.storage_info()
         storage_result_table_id = None
         for storage in storages:

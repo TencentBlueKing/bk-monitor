@@ -1,19 +1,17 @@
-# -*- coding: utf-8 -*-
 """
 正则特有分支测试
 regex operator, named group mapping
 """
+
 from unittest import TestCase
 
 from apps.log_databus.handlers.etl_storage.bk_log_regexp import BkLogRegexpEtlStorage
 from apps.tests.log_databus.v4_clean.helpers import (
     find_rules_by_output,
-    find_rules_by_type,
-    get_output_ids,
     assert_rule_exists,
     assert_rule_absent,
 )
-from apps.tests.log_databus.v4_clean.testdata.built_in_configs import get_fresh_config
+from apps.tests.log_databus.v4_clean.testdata.built_in_configs import build_test_field_list, get_fresh_config
 from apps.tests.log_databus.v4_clean.testdata.field_fixtures import make_field
 
 
@@ -30,7 +28,8 @@ class TestRegexpRegexOperator(TestCase):
             "retain_original_text": True,
         }
         fields = [make_field("ip"), make_field("method")]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         rules = result["clean_rules"]
         sep_rules = find_rules_by_output(rules, "bk_separator_object")
         self.assertEqual(len(sep_rules), 1)
@@ -56,7 +55,8 @@ class TestRegexpNamedGroups(TestCase):
             make_field("request_time"),
             make_field("method"),
         ]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         rules = result["clean_rules"]
 
         for field_name in ["request_ip", "request_time", "method"]:
@@ -73,7 +73,8 @@ class TestRegexpNamedGroups(TestCase):
             "retain_original_text": True,
         }
         fields = [make_field("ip"), make_field("debug", is_delete=True)]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         rules = result["clean_rules"]
         assert_rule_exists(self, rules, "ip")
         assert_rule_absent(self, rules, "debug")
@@ -92,7 +93,8 @@ class TestRegexpLogField(TestCase):
             "retain_original_text": False,
         }
         fields = [make_field("ip")]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         rules = result["clean_rules"]
         log_rules = find_rules_by_output(rules, "log")
         self.assertEqual(len(log_rules), 1)
@@ -112,15 +114,19 @@ class TestRegexpStructure(TestCase):
             "retain_original_text": True,
         }
         fields = [make_field("ip")]
-        result = self.storage.build_log_v4_data_link(fields, etl_params, get_fresh_config())
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
         rules = result["clean_rules"]
 
         # json_de 是第一条
         self.assertEqual(rules[0]["operator"]["type"], "json_de")
 
         # 找到 regex 规则在 rules 中的位置
-        regex_idx = next(i for i, r in enumerate(rules) if r.get("operator", {}).get("type") == "regex"
-                         and r["output_id"] == "bk_separator_object")
+        regex_idx = next(
+            i
+            for i, r in enumerate(rules)
+            if r.get("operator", {}).get("type") == "regex" and r["output_id"] == "bk_separator_object"
+        )
         # regex 之后应有 ip assign
         ip_idx = next(i for i, r in enumerate(rules) if r["output_id"] == "ip")
         self.assertGreater(ip_idx, regex_idx)

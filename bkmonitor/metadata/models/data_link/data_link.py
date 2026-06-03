@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
+from copy import deepcopy
 from functools import partial
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -18,6 +19,8 @@ from django.db import models, transaction
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 from core.drf_resource import api
+from core.errors.api import BKAPIError
+from metadata.config import DATABASE_CONNECTION_NAME
 from metadata.models.data_link import utils
 from metadata.models.data_link.component_reuse import (
     ComponentReuseError,
@@ -30,8 +33,11 @@ from metadata.models.data_link.constants import (
     BASEREPORT_USAGES,
     BK_EXPORTER_TRANSFORMER_FORMAT,
     BK_STANDARD_TRANSFORMER_FORMAT,
+    SYSTEM_PROC_PERF_BASEREPORT_METRIC_TYPE,
     SYSTEM_PROC_PERF_DATABUS_FORMAT,
+    SYSTEM_PROC_PORT_BASEREPORT_METRIC_TYPE,
     SYSTEM_PROC_PORT_DATABUS_FORMAT,
+    DataLinkImmutableField,
     DataLinkKind,
     DataLinkResourceStatus,
 )
@@ -52,6 +58,8 @@ if TYPE_CHECKING:
     from metadata.models.data_link.data_link_configs import DataLinkResourceConfigBase
 
 logger = logging.getLogger("metadata")
+
+_MISSING_CONFIG_FIELD = object()
 
 
 CUSTOM_EVENT_CLEAN_RULES: list[dict[str, Any]] = [
@@ -169,8 +177,8 @@ class DataLink(models.Model):
             DataBusConfig,
         ],
         BASE_EVENT_V1: [ResultTableConfig, ESStorageBindingConfig, DataBusConfig],
-        SYSTEM_PROC_PERF: [ResultTableConfig, VMStorageBindingConfig, DataBusConfig],
-        SYSTEM_PROC_PORT: [ResultTableConfig, VMStorageBindingConfig, DataBusConfig],
+        SYSTEM_PROC_PERF: [ResultTableConfig, VMStorageBindingConfig, BasereportSinkConfig, DataBusConfig],
+        SYSTEM_PROC_PORT: [ResultTableConfig, VMStorageBindingConfig, BasereportSinkConfig, DataBusConfig],
         BK_LOG: [ResultTableConfig, ESStorageBindingConfig, DorisStorageBindingConfig, DataBusConfig],
         BK_STANDARD_V2_EVENT: [ResultTableConfig, ESStorageBindingConfig, DataBusConfig],
     }
@@ -219,10 +227,17 @@ class DataLink(models.Model):
 
     def delete_data_link(self):
         """删除数据链路"""
+        logger.info("delete_data_link: data_link_name->[%s]", self.data_link_name)
         component_classes = self.STRATEGY_RELATED_COMPONENTS[self.data_link_strategy]
         for component_class in reversed(component_classes):
             components = component_class.objects.filter(data_link_name=self.data_link_name)
             for component in components:
+                logger.info(
+                    "delete_data_link: delete data_link_name->[%s] kind->[%s] component->[%s]",
+                    self.data_link_name,
+                    component.kind,
+                    component.name,
+                )
                 component.delete_config()
         self.delete()
 
@@ -263,6 +278,7 @@ class DataLink(models.Model):
         bk_biz_id: int,
         data_source: "DataSource",
         table_id: str,
+        existing_context: ExistingComponentContext | None = None,
     ) -> list[dict[str, Any]]:
         """生成自定义事件链路
 
@@ -270,6 +286,8 @@ class DataLink(models.Model):
             bk_biz_id: 业务ID
             data_source: 数据源
             table_id: 结果表ID
+            existing_context: 既有组件复用上下文。显式传入时按同 kind 组件唯一性
+                尝试复用已有组件；默认不启用复用。
         """
         from metadata.models import ResultTableOption
 
@@ -287,9 +305,25 @@ class DataLink(models.Model):
             raise ValueError("compose_custom_event_configs: lack storage config")
 
         config_list = []
-        with transaction.atomic():
+        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+            existing_rt = (
+                existing_context.claim(ResultTableConfig, lambda c: True) if existing_context is not None else None
+            )
+            rt_name = existing_rt.name if existing_rt is not None else self.data_link_name
+
+            existing_binding = (
+                existing_context.claim(ESStorageBindingConfig, lambda c: True) if existing_context is not None else None
+            )
+            binding_name = existing_binding.name if existing_binding is not None else self.data_link_name
+
+            existing_databus = (
+                existing_context.claim(DataBusConfig, lambda c: True) if existing_context is not None else None
+            )
+            databus_name = existing_databus.name if existing_databus is not None else self.data_link_name
+            databus_data_id_name = existing_databus.data_id_name if existing_databus is not None else bkbase_data_name
+
             es_table_ins, _ = ResultTableConfig.objects.update_or_create(
-                name=self.data_link_name,
+                name=rt_name,
                 namespace=self.namespace,
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
@@ -298,14 +332,17 @@ class DataLink(models.Model):
             )
 
             es_storage_ins, _ = ESStorageBindingConfig.objects.update_or_create(
-                name=self.data_link_name,
+                name=binding_name,
                 namespace=self.namespace,
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 data_link_name=self.data_link_name,
-                es_cluster_name=es_storage.storage_cluster.cluster_name,
-                timezone=es_storage.time_zone,  # 时区,默认0时区
-                defaults={"table_id": table_id, "bkbase_result_table_name": self.data_link_name},
+                defaults={
+                    "table_id": table_id,
+                    "bkbase_result_table_name": es_table_ins.name,
+                    "es_cluster_name": es_storage.storage_cluster.cluster_name,
+                    "timezone": es_storage.time_zone,
+                },
             )
 
             fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
@@ -316,12 +353,12 @@ class DataLink(models.Model):
             ).get_value()
 
             databus_ins, _ = DataBusConfig.objects.update_or_create(
-                name=self.data_link_name,
+                name=databus_name,
                 namespace=self.namespace,
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 data_link_name=self.data_link_name,
-                data_id_name=bkbase_data_name,
+                data_id_name=databus_data_id_name,
                 defaults={
                     "bk_data_id": data_source.bk_data_id,
                     "sink_names": [f"{DataLinkKind.ESSTORAGEBINDING.value}:{es_storage_ins.name}"],
@@ -334,6 +371,7 @@ class DataLink(models.Model):
                 write_alias_format=write_alias,
                 unique_field_list=unique_field_list,
                 json_field_list=["event", "dimension"],
+                rt_name=es_table_ins.name,
             )
 
             sinks = [
@@ -364,6 +402,7 @@ class DataLink(models.Model):
         bk_biz_id: int,
         data_source: "DataSource",
         table_id: str,
+        existing_context: ExistingComponentContext | None = None,
     ) -> list[dict[str, Any]]:
         """生成日志链路配置
 
@@ -372,6 +411,8 @@ class DataLink(models.Model):
             data_source: 数据源
             table_id: 结果表ID
             storage_cluster_name: 存储集群名称
+            existing_context: 既有组件复用上下文。显式传入时按同 kind 组件唯一性
+                尝试复用已有组件；默认不启用复用。
         """
         from metadata.models import ResultTableOption
         from metadata.models.result_table import LogV4DataLinkOption
@@ -388,7 +429,7 @@ class DataLink(models.Model):
         doris_storage = DorisStorage.objects.filter(bk_tenant_id=self.bk_tenant_id, table_id=table_id).first()
 
         config_list: list[dict[str, Any]] = []
-        with transaction.atomic():
+        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
             # 获取结果表选项
             option = ResultTableOption.objects.get(
                 bk_tenant_id=self.bk_tenant_id, table_id=table_id, name=ResultTableOption.OPTION_V4_LOG_DATA_LINK
@@ -398,13 +439,18 @@ class DataLink(models.Model):
             fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
             clean_rules = [clean_rule.model_dump() for clean_rule in datalink_option.clean_rules]
 
+            existing_rt = (
+                existing_context.claim(ResultTableConfig, lambda c: True) if existing_context is not None else None
+            )
+            rt_name = existing_rt.name if existing_rt is not None else self.data_link_name
+
             # 创建结果表配置
             result_table, _ = ResultTableConfig.objects.update_or_create(
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 namespace=self.namespace,
                 data_link_name=self.data_link_name,
-                name=self.data_link_name,
+                name=rt_name,
                 defaults={"table_id": table_id},
             )
 
@@ -415,17 +461,23 @@ class DataLink(models.Model):
             # 创建ES存储绑定配置
             if es_storage and datalink_option.es_storage_config:
                 storage_option = datalink_option.es_storage_config
+                existing_binding = (
+                    existing_context.claim(ESStorageBindingConfig, lambda c: True)
+                    if existing_context is not None
+                    else None
+                )
+                binding_name = existing_binding.name if existing_binding is not None else self.data_link_name
                 binding, _ = ESStorageBindingConfig.objects.update_or_create(
                     bk_tenant_id=self.bk_tenant_id,
                     bk_biz_id=bk_biz_id,
                     namespace=self.namespace,
                     data_link_name=self.data_link_name,
-                    name=self.data_link_name,
+                    name=binding_name,
                     defaults={
                         "es_cluster_name": es_storage.storage_cluster.cluster_name,
                         "timezone": es_storage.time_zone,
                         "table_id": table_id,
-                        "bkbase_result_table_name": self.data_link_name,
+                        "bkbase_result_table_name": result_table.name,
                     },
                 )
 
@@ -439,6 +491,7 @@ class DataLink(models.Model):
                         write_alias_format=write_alias,
                         unique_field_list=storage_option.unique_field_list,
                         json_field_list=storage_option.json_field_list,
+                        rt_name=result_table.name,
                     )
                 )
                 databus_sinks.append(
@@ -452,15 +505,21 @@ class DataLink(models.Model):
             # 创建 Doris 存储绑定配置
             if doris_storage and datalink_option.doris_storage_config:
                 storage_option = datalink_option.doris_storage_config
+                existing_binding = (
+                    existing_context.claim(DorisStorageBindingConfig, lambda c: True)
+                    if existing_context is not None
+                    else None
+                )
+                binding_name = existing_binding.name if existing_binding is not None else self.data_link_name
                 binding, _ = DorisStorageBindingConfig.objects.update_or_create(
                     bk_tenant_id=self.bk_tenant_id,
                     bk_biz_id=bk_biz_id,
                     namespace=self.namespace,
                     data_link_name=self.data_link_name,
-                    name=self.data_link_name,
+                    name=binding_name,
                     defaults={
                         "table_id": table_id,
-                        "bkbase_result_table_name": self.data_link_name,
+                        "bkbase_result_table_name": result_table.name,
                         "doris_cluster_name": doris_storage.storage_cluster.cluster_name,
                     },
                 )
@@ -473,6 +532,7 @@ class DataLink(models.Model):
                         original_json_fields=storage_option.original_json_fields,
                         expires=f"{doris_storage.expire_days}d",
                         flush_timeout=storage_option.flush_timeout,
+                        rt_name=result_table.name,
                     )
                 )
                 databus_sinks.append(
@@ -493,13 +553,18 @@ class DataLink(models.Model):
                 raise ValueError("至少需要一个存储绑定配置")
 
             # 创建数据总线配置
+            existing_databus = (
+                existing_context.claim(DataBusConfig, lambda c: True) if existing_context is not None else None
+            )
+            databus_name = existing_databus.name if existing_databus is not None else self.data_link_name
+            databus_data_id_name = existing_databus.data_id_name if existing_databus is not None else bkbase_data_name
             databus, _ = DataBusConfig.objects.update_or_create(
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 namespace=self.namespace,
                 data_link_name=self.data_link_name,
-                name=self.data_link_name,
-                data_id_name=bkbase_data_name,
+                name=databus_name,
+                data_id_name=databus_data_id_name,
                 defaults={
                     "bk_data_id": data_source.bk_data_id,
                     "sink_names": [f"{sink['kind']}:{sink['name']}" for sink in databus_sinks],
@@ -548,13 +613,19 @@ class DataLink(models.Model):
             bkbase_vmrt_name = f"{bkbase_vmrt_prefix}_{data_link_strategy}"
         else:
             bkbase_vmrt_name = data_link_strategy
+        bkbase_vmrt_cmdb_name = f"{bkbase_vmrt_name}_cmdb"
+        cmdb_table_id = f"{table_id}_cmdb"
 
         transform_format_map = {
             DataLink.SYSTEM_PROC_PERF: SYSTEM_PROC_PERF_DATABUS_FORMAT,
             DataLink.SYSTEM_PROC_PORT: SYSTEM_PROC_PORT_DATABUS_FORMAT,
         }
+        basereport_metric_type_map = {
+            DataLink.SYSTEM_PROC_PERF: SYSTEM_PROC_PERF_BASEREPORT_METRIC_TYPE,
+            DataLink.SYSTEM_PROC_PORT: SYSTEM_PROC_PORT_BASEREPORT_METRIC_TYPE,
+        }
 
-        with transaction.atomic():
+        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
             vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
                 data_link_name=self.data_link_name,
@@ -577,13 +648,45 @@ class DataLink(models.Model):
                 },
             )
 
+            vm_table_id_ins_cmdb, _ = ResultTableConfig.objects.update_or_create(
+                name=bkbase_vmrt_cmdb_name,
+                data_link_name=self.data_link_name,
+                namespace=self.namespace,
+                bk_biz_id=bk_biz_id,
+                bk_tenant_id=self.bk_tenant_id,
+                defaults={"table_id": cmdb_table_id},
+            )
+
+            vm_storage_ins_cmdb, _ = VMStorageBindingConfig.objects.update_or_create(
+                name=bkbase_vmrt_cmdb_name,
+                data_link_name=self.data_link_name,
+                namespace=self.namespace,
+                bk_biz_id=bk_biz_id,
+                bk_tenant_id=self.bk_tenant_id,
+                defaults={
+                    "table_id": cmdb_table_id,
+                    "bkbase_result_table_name": bkbase_vmrt_cmdb_name,
+                    "vm_cluster_name": storage_cluster_name,
+                },
+            )
+
+            basereport_sink_ins, _ = BasereportSinkConfig.objects.update_or_create(
+                name=self.data_link_name,
+                data_link_name=self.data_link_name,
+                namespace=self.namespace,
+                bk_biz_id=bk_biz_id,
+                bk_tenant_id=self.bk_tenant_id,
+                defaults={
+                    "vm_storage_binding_names": [vm_storage_ins.name, vm_storage_ins_cmdb.name],
+                    "result_table_ids": [table_id, cmdb_table_id],
+                },
+            )
             sink_item = {
-                "kind": DataLinkKind.VMSTORAGEBINDING.value,
-                "name": bkbase_vmrt_name,
+                "kind": DataLinkKind.BASEREPORTSINK.value,
+                "name": self.data_link_name,
                 "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+                **({"tenant": self.bk_tenant_id} if settings.ENABLE_MULTI_TENANT_MODE else {}),
             }
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                sink_item["tenant"] = self.bk_tenant_id
 
             data_bus_ins, _ = DataBusConfig.objects.update_or_create(
                 name=self.data_link_name,
@@ -598,11 +701,25 @@ class DataLink(models.Model):
                 },
             )
 
-        return [
+        configs = [
             vm_table_id_ins.compose_config(),
             vm_storage_ins.compose_config(),
-            data_bus_ins.compose_config(sinks=[sink_item], transform_format=transform_format_map[data_link_strategy]),
+            vm_table_id_ins_cmdb.compose_config(),
+            vm_storage_ins_cmdb.compose_config(),
         ]
+        configs.append(
+            basereport_sink_ins.compose_config(
+                vmrt_prefix="",
+                metric_type_to_vm_storage_binding_name={
+                    basereport_metric_type_map[data_link_strategy]: vm_storage_ins.name,
+                    f"{basereport_metric_type_map[data_link_strategy]}_cmdb": vm_storage_ins_cmdb.name,
+                },
+            )
+        )
+        configs.append(
+            data_bus_ins.compose_config(sinks=[sink_item], transform_format=transform_format_map[data_link_strategy])
+        )
+        return configs
 
     def compose_basereport_time_series_configs(
         self,
@@ -640,7 +757,7 @@ class DataLink(models.Model):
         config_list = []
         basereport_result_table_ids = []
         basereport_vm_storage_binding_names = []
-        with transaction.atomic():
+        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
             # 创建11个ResultTableConfig和VMStorageBindingConfig
             for usage in BASEREPORT_USAGES:
                 if bkbase_vmrt_prefix:
@@ -801,7 +918,7 @@ class DataLink(models.Model):
         result_table_ids = []
         vm_storage_binding_names = []
 
-        with transaction.atomic():
+        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
             for usage in BASEREPORT_USAGES:
                 usage_vmrt_name = f"{bkbase_vmrt_prefix}_{usage}"
                 usage_monitor_table_id = f"{self.bk_tenant_id}_{bk_biz_id}_{extra_source}.{usage}"
@@ -907,7 +1024,7 @@ class DataLink(models.Model):
 
         config_list = []
 
-        with transaction.atomic():
+        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
             es_table_ins, _ = ResultTableConfig.objects.update_or_create(
                 name=component_name,
                 namespace=self.namespace,
@@ -923,9 +1040,12 @@ class DataLink(models.Model):
                 bk_tenant_id=self.bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 data_link_name=self.data_link_name,
-                es_cluster_name=storage_cluster_name,
-                timezone=timezone,  # 时区,默认0时区
-                defaults={"table_id": table_id, "bkbase_result_table_name": component_name},
+                defaults={
+                    "table_id": table_id,
+                    "bkbase_result_table_name": component_name,
+                    "es_cluster_name": storage_cluster_name,
+                    "timezone": timezone,
+                },
             )
 
             fields = generate_result_table_field_list(table_id=table_id, bk_tenant_id=self.bk_tenant_id)
@@ -994,7 +1114,7 @@ class DataLink(models.Model):
             bkbase_vmrt_name,
         )
 
-        with transaction.atomic():
+        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
             # 渲染所需的资源配置
             vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
@@ -1112,7 +1232,7 @@ class DataLink(models.Model):
             conditions,
         )
 
-        with transaction.atomic():
+        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
             vm_conditional_ins, _ = ConditionalSinkConfig.objects.update_or_create(
                 name=bkbase_vmrt_name,
                 namespace=self.namespace,
@@ -1174,6 +1294,9 @@ class DataLink(models.Model):
         注意：``vm_cluster_name`` 放在 defaults 中，允许复用既有 binding 时同步更新 VM 集群名称；
         ``DataBusConfig`` 仍按 ``data_id_name`` 作为稳定查询条件命中既有记录。
         """
+
+        from metadata.models import ResultTableOption
+
         logger.info(
             "compose_configs: data_link_name->[%s] ,bk_data_id->[%s],table_id->[%s],vm_cluster_name->[%s] "
             "start to compose configs",
@@ -1192,34 +1315,36 @@ class DataLink(models.Model):
             bkbase_vmrt_name,
         )
 
-        # 解析 compose 所需的 name：优先复用既有组件的 name（若 claim 命中），否则回退到
-        # 新生成的 bkbase_vmrt_name 作为新建名称。三个 claim 的 predicate 与
-        # compose_bk_plugin_time_series_config 语义保持一致：
-        #   - ResultTableConfig / VMStorageBindingConfig 按 table_id 匹配；
-        #   - DataBusConfig 按 data_id_name 匹配（bkbase_data_name 是由 data_source
-        #     与 strategy 共同决定的稳定值）。
+        # 解析 compose 所需的 name：优先复用既有组件的 name（若同 kind 恰好只有
+        # 一条可 claim），否则回退到新生成的 bkbase_vmrt_name 作为新建名称。
+        # 存量链路里 table_id / bk_data_id 可能缺失，复用判断只依赖 datalink
+        # 下同 kind 组件的一对一关系；同 kind 多条会留给 leftover 校验兜底。
         existing_rt = (
-            existing_context.claim(ResultTableConfig, lambda c: c.table_id == table_id)
-            if existing_context is not None
-            else None
+            existing_context.claim(ResultTableConfig, lambda c: True) if existing_context is not None else None
         )
         rt_name = existing_rt.name if existing_rt is not None else bkbase_vmrt_name
 
         existing_binding = (
-            existing_context.claim(VMStorageBindingConfig, lambda c: c.table_id == table_id)
-            if existing_context is not None
-            else None
+            existing_context.claim(VMStorageBindingConfig, lambda c: True) if existing_context is not None else None
         )
         binding_name = existing_binding.name if existing_binding is not None else bkbase_vmrt_name
 
         existing_databus = (
-            existing_context.claim(DataBusConfig, lambda c: c.data_id_name == bkbase_data_name)
-            if existing_context is not None
-            else None
+            existing_context.claim(DataBusConfig, lambda c: True) if existing_context is not None else None
         )
-        databus_name = existing_databus.name if existing_databus is not None else bkbase_vmrt_name
 
-        with transaction.atomic():
+        databus_name = existing_databus.name if existing_databus is not None else bkbase_vmrt_name
+        bkbase_data_name = existing_databus.data_id_name if existing_databus is not None else bkbase_data_name
+
+        # 获取指标组维度配置
+        result_table_option = ResultTableOption.objects.filter(
+            table_id=table_id, bk_tenant_id=self.bk_tenant_id, name=ResultTableOption.OPTION_METRIC_GROUP_DIMENSIONS
+        ).first()
+        metric_group_dimensions: list[dict[str, Any]] | None = (
+            result_table_option.get_value() if result_table_option is not None else None
+        )
+
+        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
             # 渲染所需的资源配置
             vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
                 name=rt_name,
@@ -1274,7 +1399,9 @@ class DataLink(models.Model):
             vm_table_id_ins.compose_config(),
             # 显式透传 RT 的 name，避免复用后 RT/Binding 被独立 claim 成不同 name 时
             # binding payload 的 spec.data.name 仍然指向 binding 自己的 name（不存在的 RT）。
-            vm_storage_ins.compose_config(bk_data_id=data_source.bk_data_id, rt_name=vm_table_id_ins.name),
+            vm_storage_ins.compose_config(
+                rt_name=vm_table_id_ins.name, metric_group_dimensions=metric_group_dimensions
+            ),
             data_bus_ins.compose_config(sinks),
         ]
         return configs
@@ -1319,30 +1446,27 @@ class DataLink(models.Model):
                     tags.append(field.field_name)
             whitelist = {"metrics": metrics, "tags": tags}
 
-        # 解析 compose 所需的 name：优先复用既有组件的 name（若 claim 命中），否则回退到
-        # 新生成的 bkbase_vmrt_name 作为新建名称。
+        # 解析 compose 所需的 name：优先复用既有组件的 name（若同 kind 恰好只有
+        # 一条可 claim），否则回退到新生成的 bkbase_vmrt_name 作为新建名称。
+        # 存量链路里 table_id / bk_data_id 可能缺失，复用判断只依赖 datalink
+        # 下同 kind 组件的一对一关系；同 kind 多条会留给 leftover 校验兜底。
         existing_rt = (
-            existing_context.claim(ResultTableConfig, lambda c: c.table_id == table_id)
-            if existing_context is not None
-            else None
+            existing_context.claim(ResultTableConfig, lambda c: True) if existing_context is not None else None
         )
         rt_name = existing_rt.name if existing_rt is not None else bkbase_vmrt_name
 
         existing_binding = (
-            existing_context.claim(VMStorageBindingConfig, lambda c: c.table_id == table_id)
-            if existing_context is not None
-            else None
+            existing_context.claim(VMStorageBindingConfig, lambda c: True) if existing_context is not None else None
         )
         binding_name = existing_binding.name if existing_binding is not None else bkbase_vmrt_name
 
         existing_databus = (
-            existing_context.claim(DataBusConfig, lambda c: c.data_id_name == bkbase_data_name)
-            if existing_context is not None
-            else None
+            existing_context.claim(DataBusConfig, lambda c: True) if existing_context is not None else None
         )
         databus_name = existing_databus.name if existing_databus is not None else bkbase_vmrt_name
+        bkbase_data_name = existing_databus.data_id_name if existing_databus is not None else bkbase_data_name
 
-        with transaction.atomic():
+        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
             # 渲染所需的资源配置
             vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
                 name=rt_name,
@@ -1448,7 +1572,7 @@ class DataLink(models.Model):
 
         # 把 compose（含内部 update_or_create）和 leftover 校验放进同一个外层事务：
         #
-        # compose_*_configs 内部各自有 ``with transaction.atomic()`` 包住三类组件的
+        # compose_*_configs 内部各自有同一个 metadata DB alias 的 atomic 包住三类组件的
         # update_or_create，所以在没有外层事务时，这几条写入会在 compose 返回时就
         # 被提交。随后如果 _check_leftover_or_raise 发现有孤儿组件、抛
         # ComponentReuseError，本次新建/更新的 RT/Binding/DataBus 已经持久化到本地库，
@@ -1458,7 +1582,7 @@ class DataLink(models.Model):
         # 解决方式：把两者都裹在最外层 atomic() 里，compose 内部的 atomic() 会降级为
         # savepoint，外层异常触发时连带一起回滚，保证 "apply 不通过 -> 本地无副作用"。
         try:
-            with transaction.atomic():
+            with transaction.atomic(using=DATABASE_CONNECTION_NAME):
                 configs: list[dict[str, Any]] = self.compose_configs(*args, existing_context=existing_context, **kwargs)
                 if existing_context is not None:
                     # compose 已跑完，本次 apply 的所有既有组件认领都已完成；
@@ -1466,16 +1590,19 @@ class DataLink(models.Model):
                     # 一旦 strict 策略不通过会抛 ComponentReuseError，连带上面的 compose
                     # 写入一起回滚，避免失败的 apply 留下持久化副作用。
                     self._check_leftover_or_raise(existing_context)
-        except ComponentReuseError:
+        except ComponentReuseError as e:
             logger.error(
                 "apply_data_link: data_link_name->[%s] leftover check failed, "
-                "rollback compose-side DB writes in this attempt",
+                "rollback compose-side DB writes in this attempt, error->[%s]",
                 self.data_link_name,
+                e,
             )
             raise
         except Exception as e:  # pylint: disable=broad-except
             logger.error("apply_data_link: data_link_name->[%s] compose config error->[%s]", self.data_link_name, e)
             raise e
+
+        configs = self.merge_existing_component_configs(configs)
 
         logger.info(
             "apply_data_link: data_link_name->[%s],strategy->[%s] try to use configs->[%s] to apply",
@@ -1499,6 +1626,154 @@ class DataLink(models.Model):
             self.data_link_strategy,
             response,
         )
+
+    @classmethod
+    def _fill_missing_dict(cls, target: dict[str, Any], existing: dict[str, Any]) -> None:
+        """把旧配置中存在、当前配置中缺失的字段补到 target，当前配置已有值保持优先。
+
+        target 是本次 compose 配置的工作副本，existing 是 BKBase 查询回来的旧配置工作副本。
+        这里不做覆盖，只做补缺：
+        - target 已有普通字段时保持本次 compose 结果；
+        - target 和 existing 对应值都是 dict 时继续递归补缺；
+        - target 缺少字段时直接搬入 existing 中的值。
+        """
+        for key, existing_value in existing.items():
+            if key not in target:
+                target[key] = existing_value
+            # 暂时不支持嵌套覆盖，除非后续有需求
+            # elif isinstance(existing_value, dict) and isinstance(target[key], dict):
+            #     cls._fill_missing_dict(target[key], existing_value)
+
+    @classmethod
+    def merge_component_config(cls, existing_config: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
+        """把 BKBase 侧已有配置与本次配置合并，过滤掉 status 等运行态字段。
+
+        单个组件的合并策略：
+        1. 以本次 compose 出来的 config 作为最终 payload 主体，保证代码侧声明的配置优先；
+        2. 只从 BKBase 旧配置里读取 metadata.labels、metadata.annotations 和 spec；
+        3. 旧配置只用于补齐本次 config 缺失的字段，不覆盖本次 config 已声明的字段；
+        4. metadata.name、namespace、tenant、resourceVersion、status 等非配置字段不从旧配置回填；
+        5. metadata/spec 属于组件标准结构，缺失时直接报错，避免吞掉异常后生成不完整 payload。
+        """
+        existing_config = deepcopy(existing_config)
+        merged_config = config
+        cls.check_component_immutable_fields(existing_config, merged_config)
+
+        existing_metadata = existing_config["metadata"]
+        merged_metadata = merged_config["metadata"]
+        # 合并metadata，仅处理labels和annotations
+        for metadata_key in ("labels", "annotations"):
+            if metadata_key not in existing_metadata:
+                continue
+            if metadata_key not in merged_metadata:
+                merged_metadata[metadata_key] = existing_metadata[metadata_key]
+                continue
+            cls._fill_missing_dict(merged_metadata[metadata_key], existing_metadata[metadata_key])
+
+        # 合并spec
+        cls._fill_missing_dict(merged_config["spec"], existing_config["spec"])
+
+        return merged_config
+
+    @classmethod
+    def _get_component_field_value(cls, config: dict[str, Any], field_path: tuple[str, ...]) -> Any:
+        current: Any = config
+        for key in field_path:
+            if not isinstance(current, dict) or key not in current:
+                return _MISSING_CONFIG_FIELD
+            current = current[key]
+        return current
+
+    @classmethod
+    def check_component_immutable_fields(cls, existing_config: dict[str, Any], config: dict[str, Any]) -> None:
+        """检查指定组件中配置后不允许修改的字段。
+
+        只有 BKBase 已有配置与本次配置都包含目标字段时才比较；缺失字段继续按原有
+        merge 补缺逻辑处理，避免影响首次下发或历史组件字段不完整的场景。
+        """
+        kind = config.get("kind")
+        if not kind:
+            return
+
+        for immutable_field in DataLinkImmutableField.fields_for_kind(kind):
+            existing_value = cls._get_component_field_value(existing_config, immutable_field.field_path)
+            current_value = cls._get_component_field_value(config, immutable_field.field_path)
+            if existing_value is _MISSING_CONFIG_FIELD or current_value is _MISSING_CONFIG_FIELD:
+                continue
+            if existing_value == current_value:
+                continue
+
+            raise ValueError(
+                "merge_component_config: immutable component field changed,"
+                f"kind->[{kind}],field->[{immutable_field.display_path}],"
+                f"existing_value->[{existing_value}],current_value->[{current_value}]"
+            )
+
+    def get_existing_component_config(
+        self,
+        kind: str,
+        name: str,
+        namespace: str,
+    ) -> dict[str, Any] | None:
+        """直接查询 BKBase 组件配置；只把明确不存在视为可忽略。"""
+        bkbase_kind = DataLinkKind.get_choice_value(kind)
+        if not bkbase_kind:
+            logger.info("get_existing_component_config: kind is not valid,kind->[%s]", kind)
+            return None
+
+        try:
+            return api.bkdata.get_data_link(
+                bk_tenant_id=self.bk_tenant_id,
+                kind=bkbase_kind,
+                namespace=namespace,
+                name=name,
+            )
+        except BKAPIError as error:
+            # 这里必须直接区分 not found 与其它 API 异常：资源不存在可以继续 apply，
+            # 权限、网关或服务异常则要抛出，避免误判为“无旧配置”后覆盖 BKBase 侧真实状态。
+            if f"resource {name} of kind {kind} not found".lower() in error.message.lower():
+                return None
+            logger.error(
+                "get_existing_component_config: bkbase api error,kind->[%s],name->[%s],namespace->[%s],error->[%s]",
+                kind,
+                name,
+                namespace,
+                error,
+            )
+            raise
+
+    def merge_existing_component_configs(self, configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """下发前查询 BKBase 侧已有组件配置，并把配置字段合并进本次 payload。
+
+        合并策略：
+        - 组件明确 not found 时视为无旧配置，其它 API 异常继续抛出；
+        - 仅合并 metadata.labels、metadata.annotations 和 spec；
+        - 本次 compose 配置优先，旧配置只补当前缺失字段，status 等运行态字段不回填。
+        """
+
+        merged_configs: list[dict[str, Any]] = []
+        for config in configs:
+            metadata = config["metadata"]
+            kind = config["kind"]
+            name = metadata["name"]
+            namespace = metadata["namespace"]
+
+            # 校验配置是否合法
+            if not kind or not name or not namespace:
+                raise ValueError(
+                    f"merge_existing_component_configs: kind->[{kind}],name->[{name}],namespace->[{namespace}] "
+                    "is invalid"
+                )
+
+            # 查询已有配置
+            existing_config = self.get_existing_component_config(kind, name, namespace)
+            if not isinstance(existing_config, dict):
+                merged_configs.append(config)
+                continue
+
+            # 合并配置
+            merged_configs.append(self.merge_component_config(existing_config, config))
+        return merged_configs
 
     def _leftover_policy(self, kind: type["DataLinkResourceConfigBase"]) -> Literal["strict", "keep"]:
         """按 (strategy, kind) 查找 leftover 策略，未声明时默认 ``strict``。"""
@@ -1638,20 +1913,24 @@ class DataLink(models.Model):
             "monitor_table_id": table_id,
             "storage_type": resolved_storage_type,
             "storage_cluster_id": resolved_storage_cluster_id,
+            "status": DataLinkResourceStatus.OK.value,
         }
         if rt:
             bkbase_rt_name = rt.name
             defaults.update(
                 {
                     "bkbase_rt_name": bkbase_rt_name,
-                    "bkbase_table_id": f"{rt.datalink_biz_ids.data_biz_id}_{bkbase_rt_name}",
+                    # 优先使用ResultTableConfig记录的bkbase_table_id，因为重建链路的所属业务并不稳定
+                    "bkbase_table_id": rt.bkbase_table_id
+                    if rt.bkbase_table_id
+                    else f"{rt.datalink_biz_ids.data_biz_id}_{bkbase_rt_name}",
                 }
             )
         if databus:
             defaults["bkbase_data_name"] = databus.data_id_name
 
         try:
-            with transaction.atomic():
+            with transaction.atomic(using=DATABASE_CONNECTION_NAME):
                 BkBaseResultTable.objects.update_or_create(
                     bk_tenant_id=self.bk_tenant_id,
                     data_link_name=self.data_link_name,
@@ -1676,7 +1955,7 @@ class DataLink(models.Model):
             return
 
         try:
-            with transaction.atomic():
+            with transaction.atomic(using=DATABASE_CONNECTION_NAME):
                 # 创建11个ResultTableConfig和VMStorageBindingConfig
                 for source_item in [source, extra_source]:
                     if not source_item:

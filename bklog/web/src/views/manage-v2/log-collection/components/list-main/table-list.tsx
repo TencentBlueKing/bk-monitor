@@ -50,6 +50,8 @@ import TagMore from '../common-comp/tag-more';
 import type { IListItemData } from '../../type';
 import StopTypeDialog from './stop-type-dialog';
 import TableComponent from '../common-comp/table-component';
+import ClusterFilter from '@/views/retrieve-v2/search-result-panel/log-clustering/components/finger-tools/cluster-filter.tsx';
+import '@/views/retrieve-v2/search-result-panel/log-clustering/components/finger-tools/cluster-filter.scss';
 import './table-list.scss';
 
 const CancelToken = axios.CancelToken;
@@ -71,7 +73,8 @@ interface ITableRowData {
   total_usage?: number;
   bk_data_name?: string;
   bk_data_id?: number | string;
-  parent_index_sets?: Array<{ index_set_name: string;[key: string]: unknown }>;
+  parent_index_sets?: Array<{ index_set_id?: number | string; index_set_name: string;[key: string]: unknown }>;
+  parent_index_set_ids?: Array<number | string>;
   scenario_id?: string;
   scenario_name?: string;
   collector_scenario_id?: string;
@@ -100,7 +103,7 @@ interface IMenuItem {
  */
 interface IFilterCondition {
   key: string;
-  value: string[];
+  value: (string | number)[];
 }
 
 /**
@@ -188,11 +191,15 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    indexGroupList: {
+      type: Array as PropType<IListItemData[]>,
+      default: () => [],
+    },
   },
 
-  emits: [],
+  emits: ['refresh-index-group'],
 
-  setup(props) {
+  setup(props, { emit }) {
     const { t } = useLocale();
     const store = useStore();
     const showStopTypeDialog = ref(false);
@@ -216,13 +223,27 @@ export default defineComponent({
     const { authGlobalInfo, operateHandler, checkCreateAuth, spaceUid, bkBizId, isAllowedCreate } = useCollectList();
     const tableList = ref<ITableRowData[]>([]);
     const listLoading = ref(false);
-    const isLoading = computed(() => listLoading.value || props.leftLoading);
+    const isLoading = computed(() => listLoading.value);
     // 保存原始数据顺序的索引映射（用于恢复排序）
     const originalOrderMap = ref<Map<number | string, number>>(new Map());
     // 用户信息映射（username -> display_name）
     const userDisplayNameMap = ref<Map<string, string>>(new Map());
     // 全量标签列表（用于标签管理）
     const selectLabelList = ref<Array<{ tag_id: number; name: string; color: string; is_built_in?: boolean }>>([]);
+    // 标签过滤下拉选项列表
+    const filterLabelList = ref<Array<{ id: number; name: string }>>([]);
+    // 标签过滤当前选中项
+    const tagSelect = ref<(string | number)[]>(['all']);
+    const editingIndexSetRowId = ref<number | string>('');
+    const updatingIndexSetRowId = ref<number | string>('');
+    const editingIndexSetDraftIds = ref<Record<string, Array<number | string>>>({});
+    const localParentIndexSetMap = ref<Record<string, {
+      ids: Array<number | string>;
+      sets: ITableRowData['parent_index_sets'];
+    }>>({});
+    const indexSetSelectRef = ref<{ close?:() => void } | null>(null);
+    const pendingIndexSetSubmitRowId = ref<number | string>('');
+    const editingIndexSetRowMap = new Map<string, ITableRowData>();
 
     // 容器和表格高度相关
     const containerRef = ref<HTMLElement | null>(null);
@@ -240,13 +261,14 @@ export default defineComponent({
     // 过滤条件
     const conditions = ref<IFilterCondition[]>([]);
     // 表格过滤值（用于设置默认选中状态）
-    const filterValue = ref<Record<string, string>>({
+    const filterValue = ref<Record<string, string | (string | number)[]>>({
       log_access_type: '',
       collector_scenario_id: '',
       storage_display_name: '',
       status: '',
       created_by: '',
       updated_by: '',
+      tags: [],
     });
 
     const pagination = ref({
@@ -428,6 +450,357 @@ export default defineComponent({
       return <span>{displayName}</span>;
     };
 
+    const getRowUniqueId = (row: ITableRowData) => (
+      row.collector_config_id || row.index_set_id || row.bk_data_id || row.name
+    );
+
+    const getLocalParentIndexSet = (row: ITableRowData) => {
+      return localParentIndexSetMap.value[String(getRowUniqueId(row))];
+    };
+
+    const getRowParentIndexSets = (row: ITableRowData) => {
+      return getLocalParentIndexSet(row)?.sets || row.parent_index_sets || [];
+    };
+
+    const getRowParentIndexSetIds = (row: ITableRowData) => {
+      const localParentIndexSet = getLocalParentIndexSet(row);
+      if (localParentIndexSet) {
+        return localParentIndexSet.ids;
+      }
+
+      if (Array.isArray(row.parent_index_set_ids)) {
+        return row.parent_index_set_ids;
+      }
+      return (row.parent_index_sets || [])
+        .map(item => item.index_set_id)
+        .filter(id => id !== undefined && id !== null) as Array<number | string>;
+    };
+
+    const buildParentIndexSets = (ids: Array<number | string>) => {
+      const indexSetMap = new Map((props.indexGroupList || []).map(item => [String(item.index_set_id), item]));
+      return ids.map(id => {
+        const matched = indexSetMap.get(String(id));
+        return {
+          index_set_id: id,
+          index_set_name: matched?.index_set_name || String(id),
+        };
+      });
+    };
+
+    const getRowEditAuthKey = (row: ITableRowData) => {
+      const isBkDataOrEs = ['bkdata', 'es'].includes(row.log_access_type);
+      return isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.MANAGE_COLLECTION_AUTH;
+    };
+
+    const isRowIndexSetEditable = (row: ITableRowData) => {
+      return getOperatorCanClick(row, 'edit');
+    };
+
+    const updateParentIndexSetLocal = (row: ITableRowData, ids: Array<number | string>) => {
+      const rowId = getRowUniqueId(row);
+      const parentIndexSets = buildParentIndexSets(ids);
+      row.parent_index_set_ids = ids;
+      row.parent_index_sets = parentIndexSets;
+      localParentIndexSetMap.value = {
+        ...localParentIndexSetMap.value,
+        [String(rowId)]: {
+          ids,
+          sets: parentIndexSets,
+        },
+      };
+
+      tableList.value = tableList.value.map(item => {
+        if (getRowUniqueId(item) !== rowId) {
+          return item;
+        }
+
+        return {
+          ...item,
+          parent_index_set_ids: ids,
+          parent_index_sets: parentIndexSets,
+        };
+      });
+
+      if (getRowUniqueId(currentRow.value) === rowId) {
+        currentRow.value = {
+          ...currentRow.value,
+          parent_index_set_ids: ids,
+          parent_index_sets: parentIndexSets,
+        };
+      }
+    };
+
+    const normalizeIndexSetIds = (ids: Array<number | string>) => {
+      return ids.map(id => Number(id)).filter(id => Number.isInteger(id));
+    };
+
+    const getDiffIndexSetIds = (sourceIds: number[], targetIds: number[]) => {
+      const sourceSet = new Set(sourceIds);
+      const targetSet = new Set(targetIds);
+      return {
+        addIds: targetIds.filter(id => !sourceSet.has(id)),
+        removeIds: sourceIds.filter(id => !targetSet.has(id)),
+      };
+    };
+
+    const requestUpdateParentIndexSet = async (
+      row: ITableRowData,
+      oldIds: Array<number | string>,
+      ids: Array<number | string>,
+    ) => {
+      const childIndexSetId = Number(row.index_set_id);
+      if (!Number.isInteger(childIndexSetId)) {
+        return { result: false };
+      }
+
+      const normalizedOldIds = normalizeIndexSetIds(oldIds);
+      const normalizedIds = normalizeIndexSetIds(ids);
+      const { addIds, removeIds } = getDiffIndexSetIds(normalizedOldIds, normalizedIds);
+      const requestList = [
+        ...addIds.map(indexSetId => $http.request('collect/addIndexSetsToGroup', {
+          params: {
+            index_set_id: indexSetId,
+          },
+          data: {
+            child_index_set_ids: [childIndexSetId],
+          },
+        })),
+        ...removeIds.map(indexSetId => $http.request('collect/removeIndexSetsFromGroup', {
+          params: {
+            index_set_id: indexSetId,
+          },
+          data: {
+            child_index_set_ids: [childIndexSetId],
+          },
+        })),
+      ];
+
+      if (!requestList.length) {
+        return { result: true };
+      }
+
+      const results = await Promise.all(requestList);
+      return { result: results.every(item => item?.result) };
+    };
+
+    const setEditingIndexSetDraftIds = (rowId: number | string, ids: Array<number | string>) => {
+      editingIndexSetDraftIds.value = {
+        ...editingIndexSetDraftIds.value,
+        [String(rowId)]: ids,
+      };
+    };
+
+    const clearEditingIndexSetDraftIds = (rowId: number | string) => {
+      const nextDraftIds = { ...editingIndexSetDraftIds.value };
+      delete nextDraftIds[String(rowId)];
+      editingIndexSetDraftIds.value = nextDraftIds;
+    };
+
+    const isSameIndexSetIds = (sourceIds: Array<number | string>, targetIds: Array<number | string>) => {
+      return sourceIds.map(String).sort().join(',') === targetIds.map(String).sort().join(',');
+    };
+
+    const handleParentIndexSetSubmit = async (row: ITableRowData) => {
+      const rowId = getRowUniqueId(row);
+      editingIndexSetRowMap.delete(String(rowId));
+      pendingIndexSetSubmitRowId.value = '';
+      if (updatingIndexSetRowId.value === rowId) {
+        return;
+      }
+
+      const oldIds = getRowParentIndexSetIds(row);
+      const ids = editingIndexSetDraftIds.value[String(rowId)] || oldIds;
+      if (isSameIndexSetIds(oldIds, ids)) {
+        clearEditingIndexSetDraftIds(rowId);
+        if (editingIndexSetRowId.value === rowId) {
+          editingIndexSetRowId.value = '';
+        }
+        return;
+      }
+
+      updatingIndexSetRowId.value = rowId;
+      updateParentIndexSetLocal(row, ids);
+      await nextTick();
+
+      let shouldExitEdit = false;
+      try {
+        const res = await requestUpdateParentIndexSet(row, oldIds, ids);
+        if (res?.result) {
+          showMessage(t('更新成功'));
+          shouldExitEdit = true;
+          emit('refresh-index-group');
+        } else {
+          updateParentIndexSetLocal(row, oldIds);
+          showMessage(t('更新失败'), 'error');
+        }
+      } catch (error) {
+        updateParentIndexSetLocal(row, oldIds);
+        showMessage(t('更新失败'), 'error');
+        console.log('更新所属索引集失败:', error);
+      } finally {
+        updatingIndexSetRowId.value = '';
+        clearEditingIndexSetDraftIds(rowId);
+        if (shouldExitEdit && editingIndexSetRowId.value === rowId) {
+          await nextTick();
+          editingIndexSetRowId.value = '';
+        }
+      }
+    };
+
+    const isIndexSetSelectElement = (target: HTMLElement) => {
+      return !!target.closest(
+        [
+          '.index-set-inline-select-wrap',
+          '.bk-select-dropdown',
+          '.bk-select-popover',
+          '.bk-select-extension',
+          '.bk-option',
+          '.bk-options',
+          '.bk-popover',
+          '.bk-pop2-content',
+          '.tippy-box',
+        ].join(','),
+      );
+    };
+
+    const waitIndexSetSelectPopoverClosed = () => {
+      return new Promise(resolve => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            window.setTimeout(resolve, 80);
+          });
+        });
+      });
+    };
+
+    const submitParentIndexSetAfterSelectClose = async (row: ITableRowData) => {
+      const rowId = getRowUniqueId(row);
+      if (updatingIndexSetRowId.value === rowId || pendingIndexSetSubmitRowId.value === rowId) {
+        return;
+      }
+
+      pendingIndexSetSubmitRowId.value = rowId;
+      indexSetSelectRef.value?.close?.();
+      await waitIndexSetSelectPopoverClosed();
+
+      if (editingIndexSetRowId.value !== rowId) {
+        pendingIndexSetSubmitRowId.value = '';
+        return;
+      }
+
+      await handleParentIndexSetSubmit(row);
+    };
+
+    const exitIndexSetEdit = () => {
+      const rowId = editingIndexSetRowId.value;
+      if (!rowId || updatingIndexSetRowId.value === rowId || pendingIndexSetSubmitRowId.value === rowId) {
+        return;
+      }
+
+      const editingRow = editingIndexSetRowMap.get(String(rowId));
+      if (!editingRow) {
+        clearEditingIndexSetDraftIds(rowId);
+        editingIndexSetRowId.value = '';
+        return;
+      }
+
+      void submitParentIndexSetAfterSelectClose(editingRow);
+    };
+
+    const handleDocumentMouseDown = (event: MouseEvent) => {
+      if (!editingIndexSetRowId.value) {
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+      if (!target || isIndexSetSelectElement(target)) {
+        return;
+      }
+
+      exitIndexSetEdit();
+    };
+
+    const renderParentIndexSetCell = (row: ITableRowData) => {
+      const rowId = getRowUniqueId(row);
+      const selectedIds = getRowParentIndexSetIds(row);
+      const draftSelectedIds = editingIndexSetDraftIds.value[String(rowId)] || selectedIds;
+      const parentIndexSets = getRowParentIndexSets(row);
+      const indexSetName = parentIndexSets.map(item => ({
+        ...item,
+        name: item.index_set_name,
+      }));
+      const isEditing = editingIndexSetRowId.value === rowId;
+      const isUpdating = updatingIndexSetRowId.value === rowId;
+      const canEdit = isRowIndexSetEditable(row);
+
+      if (isEditing) {
+        return (
+          <div
+            class='index-set-inline-select-wrap'
+            v-bkloading={{ isLoading: isUpdating, size: 'mini' }}
+          >
+            <bk-select
+              ref={indexSetSelectRef}
+              class='index-set-inline-select'
+              disabled={isUpdating}
+              display-tag
+              loading={isUpdating}
+              multiple
+              searchable
+              value={draftSelectedIds}
+              auto-height={false}
+              onChange={(val: Array<number | string>) => {
+                setEditingIndexSetDraftIds(rowId, val || []);
+              }}
+              onToggle={(isOpen: boolean) => {
+                if (!isOpen) {
+                  void submitParentIndexSetAfterSelectClose(row);
+                }
+              }}
+            >
+              {(props.indexGroupList || []).map((option: IListItemData) => (
+                <bk-option
+                  id={option.index_set_id}
+                  key={option.index_set_id}
+                  name={option.index_set_name}
+                />
+              ))}
+            </bk-select>
+          </div>
+        );
+      }
+
+      return (
+        <div class='index-set-inline-display'>
+          <span class='index-set-inline-tags'>
+            {parentIndexSets.length > 0 ? (
+              <TagMore
+                tags={indexSetName}
+                title={t('所属索引集')}
+              />
+            ) : (
+              '--'
+            )}
+          </span>
+          {canEdit && (
+            <span
+              class='bk-icon icon-edit-line index-set-inline-edit'
+              v-cursor={{ active: !row.permission?.[getRowEditAuthKey(row)] }}
+              on-click={() => {
+                if (!row.permission?.[getRowEditAuthKey(row)]) {
+                  handleEditOperation(row, 'edit');
+                  return;
+                }
+                setEditingIndexSetDraftIds(rowId, getRowParentIndexSetIds(row));
+                editingIndexSetRowMap.set(String(rowId), row);
+                editingIndexSetRowId.value = rowId;
+              }}
+            />
+          )}
+        </div>
+      );
+    };
+
     // 所有列定义
     const allColumns = computed(() => [
       {
@@ -484,21 +857,9 @@ export default defineComponent({
       {
         title: t('所属索引集'),
         colKey: 'index_set_name',
-        width: 200,
-        cell: (h, { row }: { row: ITableRowData }) => {
-          const indexSetName = (row.parent_index_sets || []).map(item => ({
-            ...item,
-            name: item.index_set_name,
-          }));
-          return row.parent_index_sets?.length > 0 ? (
-            <TagMore
-              tags={indexSetName}
-              title={t('所属索引集')}
-            />
-          ) : (
-            '--'
-          );
-        },
+        className: 'index-set-name-cell',
+        width: 240,
+        cell: (h, { row }: { row: ITableRowData }) => renderParentIndexSetCell(row),
       },
       {
         title: t('接入类型'),
@@ -532,7 +893,22 @@ export default defineComponent({
         width: 100,
       },
       {
-        title: t('标签'),
+        title: (h) => {
+          const isActive = filterValue.value.tags.length > 0;
+          return (
+            <ClusterFilter
+              title={t('标签')}
+              searchable
+              popoverMinWidth={200}
+              select={tagSelect.value}
+              selectList={filterLabelList.value}
+              toggle={() => handleToggleTagSelect()}
+              isActive={isActive}
+              on-selected={(v: string[]) => handleTagSelectChange(v)}
+              on-submit={(v: string[]) => handleTagSubmit(v)}
+            />
+          );
+        },
         colKey: 'tags',
         showTips: false,
         cell: (h, { row }: { row: ITableRowData }) => (
@@ -686,7 +1062,9 @@ export default defineComponent({
           status: '',
           created_by: '',
           updated_by: '',
+          tags: [],
         };
+        tagSelect.value = ['all'];
         searchKey.value = '';
         reloadList();
       },
@@ -753,12 +1131,60 @@ export default defineComponent({
     const fetchLabelList = () => {
       $http.request('unionSearch/unionLabelList').then(res => {
         selectLabelList.value = res.data || [];
+        // 构建过滤列表："全部"选项 + 非内置标签
+        const notBuiltInList = (res.data || [])
+          .filter(item => !item.is_built_in)
+          .map(item => ({
+            id: item.tag_id,
+            name: item.name,
+          }));
+        filterLabelList.value = [{ id: 'all', name: t('全部') }, ...notBuiltInList];
       });
     };
 
     /** 更新行数据中的标签 */
     const handleUpdateTags = (row: ITableRowData, newTags: Array<{ name: string;[key: string]: unknown }>) => {
       row.tags = newTags;
+    };
+
+    /** 标签过滤 - 处理选中项变化 */
+    const handleTagSelectChange = (v: (string | number)[]) => {
+      if (!v.length) {
+        tagSelect.value = ['all'];
+        return;
+      }
+      const lastSelect = v[v.length - 1];
+      if (lastSelect === 'all') {
+        tagSelect.value = [lastSelect];
+      } else {
+        tagSelect.value = v.filter(item => !(item === 'all'));
+      }
+    };
+
+    /** 标签过滤 - 处理提交（确定按钮） */
+    const handleTagSubmit = (v: (string | number)[]) => {
+      const tags = !v.includes('all') ? (v as number[]) : [];
+      filterValue.value = { ...filterValue.value, tags };
+
+      // 重建 conditions，保留非 tags 的过滤条件
+      const newConditions: IFilterCondition[] = [];
+      for (const condition of conditions.value) {
+        if (condition.key !== 'tags') {
+          newConditions.push(condition);
+        }
+      }
+      if (tags.length > 0) {
+        newConditions.push({ key: 'tags', value: tags });
+      }
+
+      conditions.value = newConditions;
+      reloadList();
+    };
+
+    /** 标签过滤 - 处理下拉框展开/关闭时重置选中项 */
+    const handleToggleTagSelect = () => {
+      const currentTags = filterValue.value.tags;
+      tagSelect.value = Array.isArray(currentTags) && currentTags.length > 0 ? [...currentTags] : ['all'];
     };
 
     onMounted(() => {
@@ -772,6 +1198,7 @@ export default defineComponent({
         calculateMaxTableHeight();
         // 监听窗口大小变化
         window.addEventListener('resize', handleWindowResize);
+        document.addEventListener('mousedown', handleDocumentMouseDown, true);
       });
     });
 
@@ -781,6 +1208,7 @@ export default defineComponent({
       stopCollectStatusTimer();
       // 移除窗口大小变化监听
       window.removeEventListener('resize', handleWindowResize);
+      document.removeEventListener('mousedown', handleDocumentMouseDown, true);
       listInterfaceCancel.value?.();
     });
 
@@ -924,7 +1352,18 @@ export default defineComponent({
           },
         );
         listLoading.value = false;
-        tableList.value = (res.data?.list || []) as ITableRowData[];
+        tableList.value = ((res.data?.list || []) as ITableRowData[]).map(item => {
+          const localParentIndexSet = getLocalParentIndexSet(item);
+          if (!localParentIndexSet) {
+            return item;
+          }
+
+          return {
+            ...item,
+            parent_index_set_ids: localParentIndexSet.ids,
+            parent_index_sets: localParentIndexSet.sets,
+          };
+        });
         pagination.value.total = res.data?.total || 0;
         // 收集索引集ID并保存原始数据顺序
         const indexSetIds: Array<number | string> = [];
@@ -1009,11 +1448,12 @@ export default defineComponent({
           query: { space_uid: spaceUid.value },
         });
         if (res.data) {
-          const { created_by, updated_by } = res.data;
+          const createdByList = res.data.created_by || [];
+          const updatedByList = res.data.updated_by || [];
 
           // 提取所有用户ID并去重
-          const createdByUserIds = extractUserIds(created_by || []);
-          const updatedByUserIds = extractUserIds(updated_by || []);
+          const createdByUserIds = extractUserIds(createdByList);
+          const updatedByUserIds = extractUserIds(updatedByList);
           const allUserIds = [...new Set([...createdByUserIds, ...updatedByUserIds])];
 
           // 批量获取用户信息
@@ -1023,8 +1463,8 @@ export default defineComponent({
           }
 
           // 处理过滤选项，添加用户显示名称
-          const processedCreatedBy = processFilterItemsWithUserInfo(created_by || [], userInfoMap);
-          const processedUpdatedBy = processFilterItemsWithUserInfo(updated_by || [], userInfoMap);
+          const processedCreatedBy = processFilterItemsWithUserInfo(createdByList, userInfoMap);
+          const processedUpdatedBy = processFilterItemsWithUserInfo(updatedByList, userInfoMap);
 
           IFilterValues.value = {
             ...IFilterValues.value,
@@ -1221,18 +1661,26 @@ export default defineComponent({
      * 处理表格过滤变化
      * @param filters - 过滤对象
      */
-    const handleFilterChange = (filters: Record<string, string>) => {
+    const handleFilterChange = (filters: Record<string, string | string[]>) => {
       // 同步更新 filterValue
       filterValue.value = { ...filterValue.value, ...filters };
 
       // 创建新的搜索条件数组
       const newConditions: IFilterCondition[] = [];
 
+      // 保留 tags 条件（由 ClusterFilter 管理）
+      const tagsFilter = filterValue.value.tags;
+      if (Array.isArray(tagsFilter) && tagsFilter.length > 0) {
+        newConditions.push({ key: 'tags', value: tagsFilter });
+      }
+
       for (const key of Object.keys(filters || {})) {
-        if (filters[key]) {
+        const value = filters[key];
+        if (key === 'tags') continue; // tags 由 ClusterFilter 单独管理
+        if (value) {
           newConditions.push({
             key,
-            value: [filters[key]],
+            value: [value as string],
           });
         }
       }
@@ -1282,9 +1730,8 @@ export default defineComponent({
           if (sortBy === 'created_at' || sortBy === 'updated_at') {
             aValue = parseDateToTimestamp(aValue as string);
             bValue = parseDateToTimestamp(bValue as string);
-          }
-          // 处理 name 字段：字符串比较
-          else if (sortBy === 'name') {
+          } else if (sortBy === 'name') {
+            // 处理 name 字段：字符串比较
             aValue = (aValue as string) || '';
             bValue = (bValue as string) || '';
             const comparison = (aValue as string).localeCompare(bValue as string);
@@ -1326,6 +1773,8 @@ export default defineComponent({
     const handleEmptyOperation = (type: string) => {
       if (type === 'clear-filter') {
         conditions.value = [];
+        filterValue.value.tags = [];
+        tagSelect.value = ['all'];
       }
       searchKey.value = '';
       reloadList();

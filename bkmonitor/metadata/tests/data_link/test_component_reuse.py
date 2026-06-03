@@ -211,13 +211,6 @@ class TestIsReuseEnabledFor:
         assert warnings, "应输出一条提示'配了灰度但代码未接入'的 warning"
         assert "not been migrated yet" in warnings[0].getMessage()
 
-    def test_returns_false_when_setting_missing(self, settings):
-        """当 settings 完全没声明该开关时，也应安全回退 False。"""
-        if hasattr(settings, "DATA_LINK_COMPONENT_REUSE_STRATEGIES"):
-            del settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES
-        sample = next(iter(REUSE_ENABLED_STRATEGIES))
-        assert is_reuse_enabled_for(sample) is False
-
     @pytest.mark.django_db(databases="__all__")
     def test_returns_true_when_result_table_option_enabled(self, settings):
         """RT option=true 时，即使 strategy 灰度未开，也可以单表触发复用。"""

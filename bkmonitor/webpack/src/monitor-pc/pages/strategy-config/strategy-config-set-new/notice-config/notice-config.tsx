@@ -194,7 +194,7 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
         { signal: 'recovered', message_tmpl: '', title_tmpl: '' },
         { signal: 'closed', message_tmpl: '', title_tmpl: '' },
       ],
-      voice_notice: 'serial',
+      voice_notice: 'parallel',
     },
   };
 
@@ -298,13 +298,9 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
   handleValue(data: INoticeValue) {
     this.data = data;
 
-    // 语音拨打顺序字段不存在或者为空时，默认串行; 删减告警组只剩1个时页面隐藏该选项，字段值改为串行
-    if (
-      !Object.keys(data.config).includes('voice_notice') ||
-      !data.config.voice_notice ||
-      data.user_groups.length === 1
-    ) {
-      this.data.config.voice_notice = 'serial';
+    // 语音拨打顺序字段不存在或者为空时，默认并行（与后端/ascode 默认一致）;
+    if (!Object.keys(data.config).includes('voice_notice') || !data.config.voice_notice) {
+      this.data.config.voice_notice = 'parallel';
     }
 
     Object.keys(this.assignMode).forEach(key => {

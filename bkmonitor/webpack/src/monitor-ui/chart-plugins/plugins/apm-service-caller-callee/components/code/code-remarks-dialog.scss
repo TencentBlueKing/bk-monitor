@@ -1,14 +1,56 @@
 .code-remarks-dialog {
+  .bk-dialog-header {
+    position: relative;
+    z-index: 1;
+  }
+
+  .code-remarks-dialog-header {
+    display: flex;
+    align-items: center;
+
+    .code-remarks-dialog-header-title {
+      font-size: 20px;
+      color: #313238;
+      letter-spacing: 0;
+    }
+
+    .code-remarks-dialog-header-text {
+      font-size: 14px;
+    }
+
+    .log-config-btn {
+      margin-left: 18px;
+      display: flex;
+      align-items: center;
+      line-height: 24px;
+    }
+
+    .icon-monitor {
+      margin-right: 6px;
+      font-size: 12px;
+    }
+  }
+
   .bk-dialog-body {
     .code {
-      font-size: 14px;
-      color: #4d4f56;
-      line-height: 22px;
       margin-bottom: 6px;
+      font-size: 14px;
+      line-height: 22px;
+      color: #4d4f56;
     }
 
     .remark-input {
       
+    }
+  }
+
+  .code-remarks-dialog-footer {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    
+    .save-global-btn {
+      margin-right: auto;
     }
   }
 }

@@ -64,6 +64,7 @@ import { safeParseJsonValueForWhere } from '../trace-explore/utils';
 import { TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY } from './constants';
 // import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
 import DashboardPanel from './dashboard-panel/dashboard-panel';
+import { formatSpanLinks } from './utils/format-span-links';
 import DecodeDialog from '@/components/decode-dialog/decode-dialog';
 
 import type { Span } from '../../components/trace-view/typings';
@@ -89,7 +90,7 @@ const guideInfoData: Record<string, IGuideInfo> = {
 type TabName = 'BasicInfo' | 'Container' | 'Event' | 'Host' | 'Index' | 'Log' | 'Process' | 'Profiling';
 
 /** 不需要解码的属性名白名单 */
-const UNDECODED_PROPERTY_NAMES_WHITELIST = ['net.peer.port'];
+const UNDECODED_PROPERTY_NAMES_WHITELIST = ['net.peer.port', 'span_id', 'trace_id'];
 export default defineComponent({
   name: 'SpanDetails',
   props: {
@@ -220,6 +221,7 @@ export default defineComponent({
         EListItemType.tags,
         EListItemType.stageTime,
         EListItemType.resource,
+        EListItemType.links,
         EListItemType.events,
       ];
       // 如果 defaultExpand 为 true，强制展开所有项
@@ -271,6 +273,7 @@ export default defineComponent({
       if (curSpan) originalData.value = handleFormatJson(curSpan);
       const {
         kind,
+        links,
         trace_id: originTraceId,
         resource,
         is_virtual: isVirtual,
@@ -468,6 +471,18 @@ export default defineComponent({
           },
         });
       }
+      const linkList = formatSpanLinks(links);
+      /** Links 信息 */
+      if (linkList.length) {
+        info.list.push({
+          type: EListItemType.links,
+          isExpan: basicInfoExpand.value.includes(EListItemType.links),
+          title: 'Links',
+          [EListItemType.links]: {
+            list: linkList,
+          },
+        });
+      }
       /** Events信息 来源：status_message & events */
       if (events?.length) {
         const eventList = [];
@@ -565,7 +580,14 @@ export default defineComponent({
     };
 
     const handleSmallExpanChange = (isExpan: boolean, index: number, childIndex: number) => {
-      info.list[index][EListItemType.events].list[childIndex].isExpan = !isExpan;
+      const item = info.list[index];
+      if (item.type === EListItemType.links) {
+        item[EListItemType.links].list[childIndex].isExpan = !isExpan;
+        return;
+      }
+      if (item.type === EListItemType.events) {
+        item[EListItemType.events].list[childIndex].isExpan = !isExpan;
+      }
     };
 
     /** 添加查询语句查询 */
@@ -986,7 +1008,7 @@ export default defineComponent({
           return spanDetailQueryStore.queryData?.bk_host_id ? t('主机监控') : '';
         case 'Log':
           return spanDetailQueryStore.queryData?.indexId || spanDetailQueryStore.queryData.unionList
-            ? t('日志检索')
+            ? t('更多日志')
             : '';
         case 'Profiling':
           return spanId.value ? t('Profiling检索') : '';
@@ -1107,14 +1129,15 @@ export default defineComponent({
       switch (activeTab.value) {
         case 'Log': {
           if (!spanDetailQueryStore.queryData?.indexId && !spanDetailQueryStore.queryData?.unionList) return;
-          const { indexId, unionList, start_time, end_time, addition } = spanDetailQueryStore.queryData;
+          const { indexId, unionList, start_time, end_time, addition, search_mode, keyword } =
+            spanDetailQueryStore.queryData;
           const startMs = toUnixMilliseconds(start_time);
           const endMs = toUnixMilliseconds(end_time);
           let url = '';
           if (unionList) {
-            url = `${window.bk_log_search_url}#/retrieve?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}&unionList=${unionList}`;
+            url = `${window.bk_log_search_url}#/retrieve?bizId=${window.bk_biz_id}&search_mode=${search_mode}&keyword=${keyword}&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}&unionList=${unionList}`;
           } else {
-            url = `${window.bk_log_search_url}#/retrieve/${indexId}?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}`;
+            url = `${window.bk_log_search_url}#/retrieve/${indexId}?bizId=${window.bk_biz_id}&search_mode=${search_mode}&keyword=${keyword}&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}`;
           }
           window.open(url, '_blank');
           return;
@@ -1152,6 +1175,15 @@ export default defineComponent({
           return;
         }
       }
+    };
+
+    // 跳转服务下的关联配置
+    const handleConfigQuickJump = () => {
+      const url = location.href.replace(
+        location.hash,
+        `#/apm/service-config?app_name=${appName.value}&service_name=${props.spanDetails.service_name}`
+      );
+      window.open(url, '_blank');
     };
 
     /** 是否显示空数据提示 */
@@ -1300,16 +1332,32 @@ export default defineComponent({
                       setting: () => {
                         return (
                           exploreButtonName.value && (
-                            <Button
-                              class='quick-jump'
-                              size='small'
-                              theme='primary'
-                              outline
-                              onClick={handleQuickJump}
-                            >
-                              {exploreButtonName.value}
-                              <i class='icon-monitor icon-fenxiang' />
-                            </Button>
+                            <div class='quick-jump-container'>
+                              {activeTab.value === 'Log' && (
+                                <Button
+                                  class='quick-jump'
+                                  size='small'
+                                  theme='primary'
+                                  outline
+                                  text
+                                  onClick={handleConfigQuickJump}
+                                >
+                                  {t('关联配置')}
+                                  <i class='icon-monitor icon-fenxiang' />
+                                </Button>
+                              )}
+                              <Button
+                                class='quick-jump'
+                                size='small'
+                                theme='primary'
+                                outline
+                                text
+                                onClick={handleQuickJump}
+                              >
+                                {exploreButtonName.value}
+                                <i class='icon-monitor icon-fenxiang' />
+                              </Button>
+                            </div>
                           )
                         );
                       },
@@ -1369,6 +1417,32 @@ export default defineComponent({
                           <span class='expan-item-subtitle'>
                             {item.isExpan ? '' : content.list.map(kv => `${kv.label} = ${kv.content}`).join('  |  ')}
                           </span>,
+                          isExpan => handleExpanChange(isExpan, index)
+                        );
+                      }
+                      if (item.type === EListItemType.links && activeTab.value === 'BasicInfo') {
+                        const content = item[item.type];
+                        return expandItem(
+                          item.isExpan,
+                          item.title,
+                          <div>
+                            {content.list.map((child, childIndex) => (
+                              <div key={child.content.map(kv => `${kv.label}:${kv.content}`).join('|')}>
+                                {expanItemSmall(
+                                  child.isExpan,
+                                  child.header.name,
+                                  tagsTemplate(child.content),
+                                  <span class='expan-item-small-subtitle'>
+                                    {child.isExpan
+                                      ? ''
+                                      : child.content.map(kv => `${kv.label} = ${kv.content}`).join('  |  ')}
+                                  </span>,
+                                  isExpan => handleSmallExpanChange(isExpan, index, childIndex)
+                                )}
+                              </div>
+                            ))}
+                          </div>,
+                          '',
                           isExpan => handleExpanChange(isExpan, index)
                         );
                       }

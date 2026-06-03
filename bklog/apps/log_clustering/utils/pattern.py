@@ -9,8 +9,8 @@ from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingAr
 
 NUMBER_REGEX_LST = ["NUMBER", "PERIOD", "IP", "CAPACITY"]
 PATTERN_GAP_REGEX = r"[\s\S]*?"
-PATTERN_PLACEHOLDER_REGEX = re.compile(r"#([A-Za-z0-9_]+)#")
-PATTERN_TOKEN_REGEX = re.compile(r"#([A-Za-z0-9_]+)#|\*")
+PATTERN_PLACEHOLDER_REGEX = re.compile(r"#([A-Za-z0-9_-]+)#")
+PATTERN_TOKEN_REGEX = re.compile(r"#([A-Za-z0-9_-]+)#|\*")
 
 RISK_REASON_NO_PLACEHOLDER = "no_placeholder"
 RISK_REASON_UNKNOWN_PLACEHOLDER = "unknown_placeholder"
@@ -220,13 +220,18 @@ def _decode_predefined_variables(predefined_varibles) -> list[str]:
 
 
 def _build_placeholder_regex_mapping(predefined_varibles=None) -> dict[str, str]:
-    """把预定义占位符配置转成 NAME -> raw regex 的映射。"""
+    """把预定义占位符配置转成 NAME -> raw regex 的映射，同名规则合并匹配。"""
 
     regex_list = _decode_predefined_variables(predefined_varibles)
     regex_mapping = {}
     for name, compiled_regex in parse_regex(regex_list):
-        regex_mapping[name.upper()] = compiled_regex.pattern
-    return regex_mapping
+        regex = _normalize_capturing_groups(compiled_regex.pattern)
+        regex = _strip_outer_regex_anchors(regex)
+        regex_mapping.setdefault(name.upper(), []).append(regex)
+    return {
+        name: regexes[0] if len(regexes) == 1 else "|".join(f"(?:{regex})" for regex in regexes)
+        for name, regexes in regex_mapping.items()
+    }
 
 
 def _normalize_capturing_groups(regex: str) -> str:

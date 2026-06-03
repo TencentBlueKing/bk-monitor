@@ -26,7 +26,7 @@ from django.core.cache import cache
 from django.utils.translation import gettext_lazy as _
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE, MINI_CLUSTERING_CONFIG
+from apps.feature_toggle.plugins.constants import MINI_CLUSTERING_CONFIG
 from apps.log_clustering.constants import (
     CLUSTERING_CONFIG_DEFAULT,
     CLUSTERING_CONFIG_EXCLUDE,
@@ -45,6 +45,7 @@ from apps.log_clustering.exceptions import (
     DorisStorageNotExistException,
     RegexTemplateNotExistException,
 )
+from apps.log_clustering.handlers.aiops.config import get_online_clustering_config
 from apps.log_clustering.handlers.dataflow.constants import OnlineTaskTrainingArgs
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.handlers.pipline_service.constants import OperatorServiceEnum
@@ -135,12 +136,16 @@ class ClusteringConfigHandler:
 
         clustering_fields = params.get("clustering_fields", DEFAULT_CLUSTERING_FIELDS)
 
-        conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
-        default_conf = conf.get(CLUSTERING_CONFIG_DEFAULT)
         es_storage = ""
+        collector_config_name_en = ""
+
+        # 非业务类型的项目空间业务 id 为负数，需要通过 Space 的关系拿到其关联的真正的业务ID。然后以这个关联业务ID在计算平台操作, 没有则不允许创建聚类
+        related_space_pre_bk_biz_id = space_uid_to_bk_biz_id(log_index_set.space_uid)
+        bk_biz_id = self.validate_bk_biz_id(related_space_pre_bk_biz_id)
+        conf = get_online_clustering_config(bk_biz_id)
+        default_conf = conf.get(CLUSTERING_CONFIG_DEFAULT) or {}
         storage_type = conf.get("storage_type", StorageTypeEnum.ELASTICSEARCH.value)
         doris_storage = conf.get("doris_storage", "") if storage_type == StorageTypeEnum.DORIS.value else ""
-        collector_config_name_en = ""
 
         if collector_config_id:
             # 配置检查
@@ -165,10 +170,6 @@ class ClusteringConfigHandler:
                 etl_config=collector_config.etl_config,
                 clustering_fields=clustering_fields,
             )
-
-        # 非业务类型的项目空间业务 id 为负数，需要通过 Space 的关系拿到其关联的真正的业务ID。然后以这个关联业务ID在计算平台操作, 没有则不允许创建聚类
-        related_space_pre_bk_biz_id = space_uid_to_bk_biz_id(log_index_set.space_uid)
-        bk_biz_id = self.validate_bk_biz_id(related_space_pre_bk_biz_id)
 
         if storage_type == StorageTypeEnum.DORIS.value and not doris_storage:
             raise DorisStorageNotExistException(DorisStorageNotExistException.MESSAGE.format(index_set_id=index_set_id))

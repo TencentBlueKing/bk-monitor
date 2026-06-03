@@ -20,6 +20,7 @@ from typing import Any
 from django.conf import settings
 from django.db import models
 from django.db import utils as django_db_utils
+from django.db.models import Q
 from django.db.transaction import atomic
 from django.utils import timezone
 from django.utils.functional import cached_property
@@ -739,6 +740,8 @@ class TimeSeriesGroup(CustomGroupBase):
         default_storage_config=None,
         additional_options: dict | None = None,
         data_label: str | None = None,
+        metric_group_dimensions: list[dict] | None = None,
+        is_need_deploy_collector_config: bool = True,
     ):
         """
         创建一个新的自定义分组记录
@@ -755,8 +758,15 @@ class TimeSeriesGroup(CustomGroupBase):
         :param additional_options: 附带创建的 ResultTableOption
         :param data_label: 数据标签
         :param bk_tenant_id: 租户ID
+        :param metric_group_dimensions: 指标分组的维度key配置，如 [{"key": "scope_name", "default_value": "default"}]
+        :param is_need_deploy_collector_config: 是否需要下发 collector 配置
         :return: group object
         """
+        # 将 metric_group_dimensions 合并到 additional_options，流向 ResultTableOption
+        if metric_group_dimensions is not None:
+            if additional_options is None:
+                additional_options = {}
+            additional_options["metric_group_dimensions"] = metric_group_dimensions
 
         custom_group = super().create_custom_group(
             bk_data_id=bk_data_id,
@@ -768,11 +778,17 @@ class TimeSeriesGroup(CustomGroupBase):
             table_id=table_id,
             is_builtin=is_builtin,
             is_split_measurement=is_split_measurement,
+            is_need_deploy_collector_config=is_need_deploy_collector_config,
             default_storage_config=default_storage_config,
             additional_options=additional_options,
             data_label=data_label,
             bk_tenant_id=bk_tenant_id,
         )
+
+        # 写入 metric_group_dimensions 模型字段
+        if metric_group_dimensions is not None:
+            custom_group.metric_group_dimensions = metric_group_dimensions
+            custom_group.save(update_fields=["metric_group_dimensions"])
 
         # 需要刷新一次外部依赖的consul，触发transfer更新
         from metadata.models import DataSource
@@ -805,6 +821,7 @@ class TimeSeriesGroup(CustomGroupBase):
         metric_info_list=None,
         data_label: str | None = None,
         options: dict[str, Any] | None = None,
+        metric_group_dimensions: list[dict] | None = None,
     ):
         """
         修改一个自定义时序组
@@ -817,9 +834,16 @@ class TimeSeriesGroup(CustomGroupBase):
         :param metric_info_list: metric信息
         :param data_label: 数据标签
         :param options: 结果表选项内容
+        :param metric_group_dimensions: 指标分组的维度key配置，如 [{"key": "scope_name", "default_value": "default"}]
         :return: True or raise
         """
-        return self.modify_custom_group(
+        # 将 metric_group_dimensions 合并到 options，流向 ResultTableOption
+        if metric_group_dimensions is not None:
+            if options is None:
+                options = {}
+            options["metric_group_dimensions"] = metric_group_dimensions
+
+        result = self.modify_custom_group(
             operator=operator,
             custom_group_name=time_series_group_name,
             label=label,
@@ -830,6 +854,13 @@ class TimeSeriesGroup(CustomGroupBase):
             data_label=data_label,
             options=options,
         )
+
+        # 写入 metric_group_dimensions 模型字段
+        if metric_group_dimensions is not None and self.metric_group_dimensions != metric_group_dimensions:
+            self.metric_group_dimensions = metric_group_dimensions
+            self.save(update_fields=["metric_group_dimensions", "last_modify_user"])
+
+        return result
 
     @atomic(config.DATABASE_CONNECTION_NAME)
     def delete_time_series_group(self, operator):
@@ -849,6 +880,7 @@ class TimeSeriesGroup(CustomGroupBase):
             "bk_biz_id": self.bk_biz_id,
             "table_id": self.table_id,
             "label": self.label,
+            "token": self.token,
             "is_enable": self.is_enable,
             "creator": self.creator,
             "create_time": self.create_time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -856,6 +888,7 @@ class TimeSeriesGroup(CustomGroupBase):
             "last_modify_time": self.last_modify_time.strftime("%Y-%m-%d %H:%M:%S"),
             "metric_info_list": self.get_metric_info_list(),
             "data_label": self.data_label,
+            "metric_group_dimensions": self.metric_group_dimensions,
         }
 
     def to_json_v2(self):
@@ -887,6 +920,7 @@ class TimeSeriesGroup(CustomGroupBase):
                     "bk_biz_id": self.bk_biz_id,
                     "table_id": metric["table_id"],
                     "label": self.label,
+                    "token": self.token,
                     "is_enable": self.is_enable,
                     "creator": self.creator,
                     "create_time": self.create_time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -953,10 +987,11 @@ class TimeSeriesGroup(CustomGroupBase):
             'last_modify_time': 1662009139.0
         }]
         """
-        redis_data = self.get_metrics_from_redis()
-        # 如果不需要过滤，则直接返回
+        # 无维度过滤条件时，后续不会用到 redis_data，提前返回，避免无谓地拉取 redis/bkdata 指标数据
+        # （bkdata 来源的数据源会在 get_metrics_from_redis 内逐 group 发起 /v4/dd/ 查询，批量场景下是主要耗时来源）
         if not (dimension_name or dimension_value):
             return []
+        redis_data = self.get_metrics_from_redis()
         # 过滤到满足条件的 metric 信息
         metric_by_dimension_name, metric_by_dimension_value = self._filter_metric_by_dimension(
             redis_data,
@@ -983,11 +1018,18 @@ class TimeSeriesGroup(CustomGroupBase):
         # 否则，返回存在的值
         return list(metric_by_dimension_name or metric_by_dimension_value)
 
-    def get_metric_info_list_with_label(self, dimension_name: str, dimension_value: str):
+    def get_metric_info_list_with_label(
+        self, dimension_name: str, dimension_value: str, field_map=None, scope_map=None, metrics=None
+    ):
+        """获取带 label 的指标信息列表
+
+        field_map / scope_map / metrics 为可选的预取数据，用于批量场景（无维度过滤、一次处理多个 group）：
+        由调用方按 group 预取后传入，避免逐 group 的 N+1 查询；不传入时退化为按当前 group 自查，
+        保持原有行为，兼容其它调用方（如 check_k8s_metrics 管理命令）。
+        """
         metric_info_list = []
 
         metric_filter_params = {"group_id": self.time_series_group_id}
-        orm_field_map = {}
 
         # 如果是serviceMonitor上报的指标，
         # TimeSeriesMetric的tag值会包含 bk_monitor_name
@@ -1005,23 +1047,30 @@ class TimeSeriesGroup(CustomGroupBase):
         if metric_list:
             metric_filter_params["field_name__in"] = metric_list
 
-        for orm_field in (
-            ResultTableField.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
-            .values(*TimeSeriesMetric.ORM_FIELD_NAMES)
-            .iterator()
-        ):
-            orm_field_map[orm_field["field_name"]] = orm_field
+        # 字段信息（ResultTableField）：未预取时按当前 group 的结果表查询
+        if field_map is None:
+            field_map = {}
+            for orm_field in (
+                ResultTableField.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
+                .values(*TimeSeriesMetric.ORM_FIELD_NAMES)
+                .iterator()
+            ):
+                field_map[orm_field["field_name"]] = orm_field
 
-        # 获取对应的 scope 列表
-        scope_map = {}
-        for scope in TimeSeriesScope.objects.filter(group_id=self.time_series_group_id):
-            scope_map[scope.id] = scope
+        # scope 列表：未预取时按当前 group 查询
+        if scope_map is None:
+            scope_map = {}
+            for scope in TimeSeriesScope.objects.filter(group_id=self.time_series_group_id):
+                scope_map[scope.id] = scope
 
-        # 获取过期分界线
-        last = datetime.datetime.now() - datetime.timedelta(seconds=settings.TIME_SERIES_METRIC_EXPIRED_SECONDS)
-        # 查找过期时间以前的数据
-        for metric in TimeSeriesMetric.objects.filter(**metric_filter_params, last_modify_time__gt=last).iterator():
-            metric_info = metric.to_metric_info_with_label(self, field_map=orm_field_map, scope_map=scope_map)
+        # 指标记录（TimeSeriesMetric）：未预取时按当前 group 查询过期分界线以内的数据
+        if metrics is None:
+            # 与 last_modify_time 的写入保持一致使用时区感知时间（见本类 update_metrics 等），避免 naive datetime 比较
+            last = tz_now() - datetime.timedelta(seconds=settings.TIME_SERIES_METRIC_EXPIRED_SECONDS)
+            metrics = TimeSeriesMetric.objects.filter(**metric_filter_params, last_modify_time__gt=last).iterator()
+
+        for metric in metrics:
+            metric_info = metric.to_metric_info_with_label(self, field_map=field_map, scope_map=scope_map)
             # 当一个指标可能某些原因被删除时，不必再追加到结果中
             if metric_info is None:
                 continue
@@ -1029,6 +1078,46 @@ class TimeSeriesGroup(CustomGroupBase):
             metric_info_list.append(metric_info)
 
         return metric_info_list
+
+    @classmethod
+    def batch_get_metric_info_maps(cls, groups: list, bk_tenant_id: str):
+        """为一批 TimeSeriesGroup 批量预取 get_metric_info_list_with_label 所需的关联数据，
+        避免逐 group 的 N+1 查询（仅用于无维度过滤的批量场景）。
+
+        复用 filter_model_by_in_page 做分页 in 查询（默认每批 500，规避超大 in 列表），返回：
+        - field_map_by_table[table_id][field_name] -> ResultTableField values 字典
+        - scope_map_by_group[group_id][scope_id]   -> TimeSeriesScope 实例
+        - metrics_by_group[group_id]               -> list[TimeSeriesMetric]
+        """
+        table_ids = list({group.table_id for group in groups})
+        group_ids = list({group.time_series_group_id for group in groups})
+
+        # 批量拉取字段信息（按结果表）
+        field_map_by_table = defaultdict(dict)
+        for orm_field in filter_model_by_in_page(
+            ResultTableField,
+            "table_id__in",
+            table_ids,
+            value_func="values",
+            value_field_list=list(TimeSeriesMetric.ORM_FIELD_NAMES),
+            other_filter={"bk_tenant_id": bk_tenant_id},
+        ):
+            field_map_by_table[orm_field["table_id"]][orm_field["field_name"]] = orm_field
+
+        # 批量拉取 scope（按 group）
+        scope_map_by_group = defaultdict(dict)
+        for scope in filter_model_by_in_page(TimeSeriesScope, "group_id__in", group_ids):
+            scope_map_by_group[scope.group_id][scope.id] = scope
+
+        # 批量拉取过期分界线以内的指标记录（按 group），时间基准与 get_metric_info_list_with_label 保持一致
+        last = tz_now() - datetime.timedelta(seconds=settings.TIME_SERIES_METRIC_EXPIRED_SECONDS)
+        metrics_by_group = defaultdict(list)
+        for metric in filter_model_by_in_page(
+            TimeSeriesMetric, "group_id__in", group_ids, other_filter={"last_modify_time__gt": last}
+        ):
+            metrics_by_group[metric.group_id].append(metric)
+
+        return field_map_by_table, scope_map_by_group, metrics_by_group
 
     def get_metric_info_list(self):
         metric_info_list = []
@@ -1052,7 +1141,7 @@ class TimeSeriesGroup(CustomGroupBase):
 
         # 如果是插件白名单模式，不需要判断过期时间
         if self.is_auto_discovery():
-            time_series_metric_query = time_series_metric_query.filter(last_modify_time__gt=last)
+            time_series_metric_query = time_series_metric_query.filter(Q(last_modify_time__gt=last) | Q(is_active=True))
         # 查找过期时间以前的数据
         for metric in time_series_metric_query.iterator():
             metric_info = metric.to_metric_info(field_map=orm_field_map, group=self, scope_map=scope_map)

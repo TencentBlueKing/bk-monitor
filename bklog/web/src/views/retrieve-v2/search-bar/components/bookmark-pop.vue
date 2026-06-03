@@ -34,6 +34,10 @@
       default: false,
       type: Boolean,
     },
+    commonFilterAddition: {
+      default: () => [],
+      type: Array,
+    },
   });
   const emit = defineEmits(['refresh', 'save-current-active-favorite','instanceShow']);
   const { $t } = useLocale();
@@ -48,6 +52,12 @@
   //   return indexSetItemList.value?.map(item => item?.index_set_name).join(',');
   // });
   const indexSetName = computed(() => {
+    if (store.getters.isSceneMode) {
+      const sceneConfigs = store.getters['retrieve/sceneConfigList'] ?? [];
+      const sceneActive = store.state.indexItem?.scene_active ?? '';
+      const sceneConfig = sceneConfigs.find(s => s.type === sceneActive);
+      return sceneConfig?.label ?? sceneActive ?? '';
+    }
     const indexSetList = store.state.retrieve.flatIndexSetList || [];
     const indexSetId = store.state.indexId;
     const indexSet = indexSetList.find(item => item.index_set_id == indexSetId);
@@ -173,7 +183,7 @@
   // 确认新增组事件
   const handleCreateGroup = () => {
     checkInputFormRef.value.validate().then(async () => {
-      const data = { name: verifyData.value.groupName, space_uid: spaceUid.value };
+      const data = { name: verifyData.value.groupName, space_uid: spaceUid.value, source_type: store.getters.isSceneMode ? 'scene' : 'index_set' };
       try {
         const res = await $http.request('favorite/createGroup', {
           data,
@@ -209,32 +219,91 @@
       }),
   );
 
+  const formatValueStr = (value) => {
+    if (Array.isArray(value)) {
+      return `[${value.map(v => `'${v}'`).join(',')}]`;
+    }
+    return `[${value !== null && value !== undefined ? `'${value}'` : ''}]`;
+  };
+
+  const formatConditionStr = ({ field, operator, value }) => {
+    if (field === '_ip-select_') {
+      const target = value?.[0] ?? {};
+      return Object.keys(target)
+        .reduce((output, key) => {
+          return [...output, `${key}:[${(target[key] ?? []).map(c => c.ip ?? c.objectId ?? c.id).join(' ')}]`];
+        }, [])
+        .join(' AND ');
+    }
+    return `${field} ${operator} ${formatValueStr(value)}`;
+  };
+
+  const allConditions = computed(() => {
+    const conditions = formatAddition.value.map(formatConditionStr);
+    if (props.commonFilterAddition?.length) {
+      props.commonFilterAddition.forEach(item => {
+        conditions.push(formatConditionStr(item));
+      });
+    }
+    return conditions;
+  });
+
   const additionString = computed(() => {
-    return `* AND (${formatAddition.value
-      .map(({ field, operator, value }) => {
-        if (field === '_ip-select_') {
-          const target = value?.[0] ?? {};
-          return Object.keys(target)
-            .reduce((output, key) => {
-              return [...output, `${key}:[${(target[key] ?? []).map(c => c.ip ?? c.objectId ?? c.id).join(' ')}]`];
-            }, [])
-            .join(' AND ');
-        }
-        return `${field} ${operator} [${value?.toString() ?? ''}]`;
-      })
+    return `* AND (${allConditions.value.join(' AND ')})`;
+  });
+
+  const commonFilterAdditionString = computed(() => {
+    if (!props.commonFilterAddition?.length) return '';
+    return `AND (${props.commonFilterAddition
+      .map(({ field, operator, value }) => `${field} ${operator} ${formatValueStr(value)}`)
       .join(' AND ')})`;
   });
 
+  const sceneFilterString = computed(() => {
+    if (!store.getters.isSceneMode) return '';
+
+    const {
+      table_id_conditions: tableIdConditions, scene_filter_values: sceneFilterValues,
+    } = store.getters.retrieveParams;
+
+    const staticParts = (tableIdConditions?.[0] ?? [])
+      .filter(item => item.field_name !== 'scene')
+      .map(item => `${item.field_name} ${item.op} ${item.value.join(',')}`);
+
+    const freeInputParts = (sceneFilterValues ?? [])
+      .map(item => `(${item.field} ${item.operator} [${item.value.join(',')}])`);
+
+    const segments = [];
+    if (staticParts.length > 0) {
+      segments.push(`((${staticParts.join(' AND ')}))`);
+    }
+    if (freeInputParts.length > 0) {
+      segments.push(freeInputParts.join(' AND '));
+    }
+
+    return segments.length > 0 ? segments.join(' AND ') : '';
+  });
+
   const sqlString = computed(() => {
+    const scenePrefix = sceneFilterString.value;
+
     if ('sqlChart' === props.searchMode) {
       return props.extendParams.chart_params.sql;
     }
 
     if (['sql'].includes(props.searchMode)) {
-      return props.sql;
+    if (['sql'].includes(props.searchMode)) {
+      const sql = commonFilterAdditionString.value
+        ? `${props.sql} ${commonFilterAdditionString.value}`
+        : props.sql;
+
+      return scenePrefix
+        ? `${scenePrefix} AND ${sql}`
+        : sql;
+}
     }
 
-    return additionString.value;
+    return scenePrefix ? `${scenePrefix} AND ${additionString.value}` : additionString.value;
   });
 
   // 新建提交逻辑
@@ -242,8 +311,18 @@
     const { name, group_id, display_fields, id, is_enable_display_fields } = favoriteData.value;
 
     const searchParams = ['sql', 'sqlChart'].includes(props.searchMode)
-      ? { keyword: props.sql, addition: [], ...(props.extendParams ?? {}) }
-      : { addition: formatAddition.value.filter(v => v.field !== '_ip-select_'), keyword: '*' };
+      ? {
+          keyword: sqlString.value,
+          addition: [],
+          ...(props.extendParams ?? {}),
+        }
+      : {
+          addition: [
+            ...formatAddition.value.filter(v => v.field !== '_ip-select_'),
+            ...props.commonFilterAddition,
+          ],
+          keyword: '*',
+        };
 
     const data = {
       name,
@@ -259,7 +338,17 @@
       pid: store.state.indexItem.pid,
       ...searchParams,
     };
-    if (indexSetItem.value.isUnionIndex) {
+
+    if (store.getters.isSceneMode) {
+      // 场景化收藏
+      const { table_id_conditions, scene_filter_values } = store.getters.retrieveParams;
+      Object.assign(data, {
+        source_type: 'scene',
+        scene_id: store.state.indexItem.scene_active,
+        table_id_conditions,
+        scene_filter_values,
+      });
+    } else if (indexSetItem.value.isUnionIndex) {
       Object.assign(data, {
         index_set_ids: indexSetItem.value.ids,
         index_set_type: 'union',
@@ -333,6 +422,10 @@
   };
   const showPopover = () => {
     popoverShow.value = true;
+    // 打开弹窗时，若未选择分组，则默认选中个人分组
+    if (!favoriteData.value.group_id && privateGroupID.value) {
+      favoriteData.value.group_id = privateGroupID.value;
+    }
     popoverContentRef.value.showHandler();
   };
   const hidePopover = () => {
@@ -523,7 +616,7 @@
             </bk-select>
           </bk-form-item>
 
-          <bk-form-item :label="$t('索引集')">
+          <bk-form-item :label="store.getters.isSceneMode ? $t('场景') : $t('索引集')">
             <bk-input
               :value="indexSetName"
               readonly

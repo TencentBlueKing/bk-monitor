@@ -1535,9 +1535,6 @@ FETCH_TIME_SERIES_METRIC_INTERVAL_SECONDS = 7200
 # 自定义指标过期时间
 TIME_SERIES_METRIC_EXPIRED_SECONDS = 30 * 24 * 3600
 
-# 是否使用 is_active 字段来过滤时序指标（开启时使用 is_active=True，关闭时使用过期时间过滤）
-ENABLE_TS_METRIC_FILTER_BY_IS_ACTIVE = False
-
 # bk-notice-sdk requirment
 if not os.getenv("BK_API_URL_TMPL"):
     os.environ["BK_API_URL_TMPL"] = f"{BK_COMPONENT_API_URL}/api/{{api_name}}"
@@ -1590,6 +1587,8 @@ ENABLE_V2_VM_DATA_LINK = os.getenv("ENABLE_V2_VM_DATA_LINK", "true").lower() == 
 ENABLE_PLUGIN_ACCESS_V4_DATA_LINK = os.getenv("ENABLE_PLUGIN_ACCESS_V4_DATA_LINK", "true").lower() == "true"
 # 是否让拨测默认接入独立 BKData 链路，默认开启
 ENABLE_UPTIMECHECK_BKDATA = os.getenv("ENABLE_UPTIMECHECK_BKDATA", "true").lower() == "true"
+# APM Tracing 是否启用 BKBase 数据链路（创建新 APM 应用时走 BKBase 而非 Transfer）
+ENABLE_TRACING_BKDATA = os.getenv("ENABLE_TRACING_BKDATA", "false").lower() == "true"
 # 是否启用influxdb，默认关闭
 ENABLE_INFLUXDB_STORAGE = os.getenv("BKAPP_ENABLE_INFLUXDB_STORAGE", "false").lower() == "true"
 # 是否开启空间内置数据链路初始化
@@ -1602,7 +1601,7 @@ DEFAULT_VM_DATA_LINK_NAMESPACE = "bkmonitor"
 # 仅声明在此集合中的 data_link_strategy，在 apply_data_link 时才会构造
 # ExistingComponentContext 并做 claim / leftover 检查；未声明的 strategy 维持旧行为。
 # 取值范围与 metadata.models.data_link.data_link.DataLink.*_STRATEGY 常量一致。
-DATA_LINK_COMPONENT_REUSE_STRATEGIES: set[str] = set()
+DATA_LINK_COMPONENT_REUSE_STRATEGIES: set[str] = {"bk_standard_v2_time_series"}
 
 # Kafka采样接口重试次数
 KAFKA_TAIL_API_RETRY_TIMES = 3
@@ -1769,10 +1768,10 @@ APM_SERVICE_CACHE_APPLICATIONS = []
 # 企业微信模块化（layouts）消息通知灰度业务列表
 WECOM_LAYOUTS_BIZ_LIST = []
 
-# 允许 APM 配置指标分组维度的应用白名单，格式：["业务ID-应用名1", "业务ID-应用名2"]
+# 允许 APM 配置指标分组维度的白名单，格式：["2"](整业务) 或 ["2-app_name"](单应用)
 APM_METRIC_GROUP_DIMENSIONS_WHITELIST = []
 
-# APM 自定义指标 V2 开启的应用白名单，格式：["业务ID-应用名1", "业务ID-应用名2"]
+# APM 自定义指标 V2 开启的白名单，格式：["2"](整业务) 或 ["2-app_name"](单应用)
 APM_CUSTOM_METRIC_V2_ENABLED_LIST = []
 
 # 文档中心对应文档版本

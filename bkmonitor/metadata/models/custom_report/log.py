@@ -28,6 +28,8 @@ class LogGroup(CustomGroupBase):
 
     log_group_id = models.BigAutoField(verbose_name="分组ID", primary_key=True)
     log_group_name = models.CharField(verbose_name="日志分组名", max_length=255, db_index=True)
+
+    # 待废弃，复用 base model 中的 token 字段
     bk_data_token = models.CharField(verbose_name="上报Token", max_length=255, null=True, blank=True)
 
     GROUP_ID_FIELD = "log_group_id"
@@ -58,7 +60,7 @@ class LogGroup(CustomGroupBase):
             "log_group_name": self.log_group_name,
             "label": self.label,
             "is_enable": self.is_enable,
-            "bk_data_token": self.bk_data_token if with_token else "",
+            "bk_data_token": (self.token or self.bk_data_token or "") if with_token else "",
             "creator": self.creator,
             "create_time": self.create_time.strftime("%Y-%m-%d %H:%M:%S"),
             "last_modify_user": self.last_modify_user,
@@ -77,6 +79,7 @@ class LogGroup(CustomGroupBase):
         bk_tenant_id,
         table_id=None,
         max_rate=-1,
+        is_need_deploy_collector_config: bool = True,
     ) -> "LogGroup":
         """
         创建一个新的自定义分组记录
@@ -102,6 +105,7 @@ class LogGroup(CustomGroupBase):
             operator=operator,
             max_rate=max_rate,
             bk_tenant_id=bk_tenant_id,
+            is_need_deploy_collector_config=is_need_deploy_collector_config,
             **filter_kwargs,
         )
 
@@ -110,14 +114,11 @@ class LogGroup(CustomGroupBase):
 
         DataSource.objects.get(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id).refresh_consul_config()
 
-        # 更新 BkDataToken
-        group.bk_data_token = group.get_bk_data_token()
-        group.save()
-
         # 下发配置到 BkCollector
         from metadata.task.tasks import refresh_custom_log_report_config
 
-        refresh_custom_log_report_config.delay(log_group_id=group.log_group_id)
+        if group.is_need_deploy_collector_config:
+            refresh_custom_log_report_config.delay(log_group_id=group.log_group_id)
 
         return group
 
@@ -135,7 +136,8 @@ class LogGroup(CustomGroupBase):
         # 下发配置到 BkCollector
         from metadata.task.tasks import refresh_custom_log_report_config
 
-        refresh_custom_log_report_config.delay(log_group_id=self.log_group_id)
+        if self.is_need_deploy_collector_config:
+            refresh_custom_log_report_config.delay(log_group_id=self.log_group_id)
 
         return resp
 
@@ -147,6 +149,9 @@ class LogGroup(CustomGroupBase):
         return self.delete_custom_group(operator=operator)
 
     def get_bk_data_token(self) -> str:
+        """
+        【已废弃】token 生成不再根据已有信息动态变化，请不要再调用该方法，作为兼容暂时先保留（20260527，半年后可删除）
+        """
         params = {
             "log_data_id": self.bk_data_id,
             "bk_biz_id": self.bk_biz_id,

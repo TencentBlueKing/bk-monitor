@@ -929,6 +929,14 @@ class TrpcAttributes:
     TRPC_CALLEE_METHOD = "trpc.callee_method"
     TRPC_STATUS_TYPE = "trpc.status_type"
     TRPC_STATUS_CODE = "trpc.status_code"
+    TRPC_STATUS_MSG = "trpc.status_msg"
+
+
+class RpcAttributes:
+    """for rpc"""
+
+    RPC_ERROR_CODE = "rpc.error_code"
+    RPC_ERROR_MESSAGE = "rpc.error_message"
 
 
 class CommonMetricTag(CachedEnum):
@@ -2047,8 +2055,6 @@ class SpanKindCachedEnum(CachedEnum):
 
 TRACE_RESULT_TABLE_OPTION = {
     "es_unique_field_list": [
-        "bk_biz_id",
-        "app_name",
         "trace_id",
         "span_id",
         "parent_span_id",

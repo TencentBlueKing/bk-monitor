@@ -27,11 +27,13 @@ import Vue from 'vue';
 
 import { Component, Inject, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-// TODO: 只要先加载@blueking/monitor-apm-log，就一定会错乱
+import dayjs from 'dayjs';
+
 import {
   i18n,
   initGlobalComponents,
   initMonitorState,
+  initWindowState,
   MonitorApmLog as Log,
   logStore,
 } from '@blueking/monitor-apm-log/main';
@@ -61,6 +63,7 @@ export default class MonitorRetrieve extends tsc<void> {
   empty = true;
   loading = true;
   async created() {
+    initWindowState();
     this.init();
   }
   beforeDestroy() {
@@ -146,9 +149,66 @@ export default class MonitorRetrieve extends tsc<void> {
     window.open(url);
   }
 
+  toUnixMilliseconds(value: unknown) {
+    if (value === undefined || value === null || value === '') return '';
+    const s = String(value).trim();
+    if (/^\d+$/.test(s)) {
+      const n = Number(s);
+      return String(n).padEnd(13, '0');
+    }
+    const d = dayjs(s);
+    return d.isValid() ? String(d.valueOf()) : s;
+  }
+
+  handleQuickJump(type: 'config' | 'log') {
+    if (type === 'config') {
+      const appName = this.$route.query['filter-app_name'];
+      const serviceName = this.$route.query['filter-service_name'];
+      const url = location.href.replace(
+        location.hash,
+        `#/apm/service-config?app_name=${appName}&service_name=${serviceName}`
+      );
+      window.open(url, '_blank');
+    } else {
+      const { indexId, unionList, start_time, end_time, addition, search_mode, keyword } = this.$route.query;
+      const startMs = this.toUnixMilliseconds(start_time);
+      const endMs = this.toUnixMilliseconds(end_time);
+      let url = '';
+      if (unionList) {
+        url = `${window.bk_log_search_url}#/retrieve?bizId=${window.bk_biz_id}&search_mode=${search_mode}&keyword=${keyword}&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}&unionList=${unionList}`;
+      } else {
+        url = `${window.bk_log_search_url}#/retrieve/${indexId}?bizId=${window.bk_biz_id}&search_mode=${search_mode}&keyword=${keyword}&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}`;
+      }
+      window.open(url, '_blank');
+    }
+  }
   render() {
     return (
       <div class='monitor-retrieve'>
+        <div class='quick-jump-container'>
+          <bk-button
+            class='quick-jump'
+            size='small'
+            theme='primary'
+            outline
+            text
+            onClick={() => this.handleQuickJump('config')}
+          >
+            {this.$t('关联配置')}
+            <i class='icon-monitor icon-fenxiang' />
+          </bk-button>
+          <bk-button
+            class='quick-jump'
+            size='small'
+            theme='primary'
+            outline
+            text
+            onClick={() => this.handleQuickJump('log')}
+          >
+            {this.$t('更多日志')}
+            <i class='icon-monitor icon-fenxiang' />
+          </bk-button>
+        </div>
         {this.empty ? (
           <div class='apm-empty-log'>
             {this.loading ? (

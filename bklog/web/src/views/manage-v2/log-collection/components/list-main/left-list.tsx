@@ -9,7 +9,7 @@
  * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
  *
  * ---------------------------------------------------
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of the Software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
  * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
  * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
@@ -24,14 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, onMounted, onBeforeUnmount, watch } from 'vue';
+import { computed, defineComponent, nextTick, onBeforeUnmount, onMounted, ref, watch, type PropType } from 'vue';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import useLocale from '@/hooks/use-locale';
 import ItemSkeleton from '@/skeleton/item-skeleton';
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 
-import { useOperation } from '../../hook/useOperation';
 import { showMessage } from '../../utils';
 import AddIndexSet from '../business-comp/step2/add-index-set';
 import ListItem from './list-item';
@@ -44,48 +43,49 @@ import 'tippy.js/themes/light.css';
 
 export default defineComponent({
   name: 'LeftList',
-  emits: ['choose', 'loading'],
+  props: {
+    listData: {
+      type: Array as PropType<IListItemData[]>,
+      default: () => [],
+    },
+    total: {
+      type: Number,
+      default: 0,
+    },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  emits: ['choose', 'refresh'],
 
   setup(props, { emit }) {
     const { t } = useLocale();
     const route = useRoute();
     const router = useRouter();
-    const { indexGroupLoading, getIndexGroupList } = useOperation();
     const activeKey = ref<number | string>('all');
-
-    // 监听左侧列表加载状态变化，通知父组件
-    watch(
-      () => indexGroupLoading.value,
-      (val) => {
-        emit('loading', val);
-      },
-      { immediate: true },
-    );
     const addPanelRef = ref();
     const addIndexSetRef = ref();
     const rootRef = ref();
     const formData = ref<IListItemData>({ index_set_name: '' });
     const isHover = ref(false);
     let tippyInstance: Instance | null = null;
+    let isInitialized = false;
     const searchValue = ref<string>('');
-    const listData = ref<IListItemData[]>([]);
-    const total = ref(0);
 
     const baseItem = computed(() => [
       {
         index_set_name: t('全部采集项'),
-        index_count: total.value,
+        index_count: props.total,
         index_set_id: 'all',
         icon: 'all2',
         unEditable: true,
       },
     ]);
-    /**
-     *
-     * 过滤后的数据
-     */
+
+    /** 过滤后的数据 */
     const filterDataList = computed(() =>
-      (listData.value || []).filter((item: IListItemData) => (item.index_set_name ?? '').includes(searchValue.value)),
+      (props.listData || []).filter((item: IListItemData) => (item.index_set_name ?? '').includes(searchValue.value)),
     );
 
     /** 选中索引集 */
@@ -108,6 +108,10 @@ export default defineComponent({
       }
     };
 
+    const refreshListData = () => {
+      emit('refresh');
+    };
+
     const handelDelItem = (item: IListItemData) => {
       $http
         .request('collect/delIndexGroup', {
@@ -119,7 +123,7 @@ export default defineComponent({
           if (res.result) {
             showMessage(t('删除成功'));
             handleItem(baseItem.value[0]);
-            getListData();
+            refreshListData();
           }
         })
         .catch(err => {
@@ -128,15 +132,7 @@ export default defineComponent({
     };
 
     const handleRenameItem = () => {
-      getIndexGroupList((data: { list: IListItemData[]; total: number }) => {
-        listData.value = data.list;
-        total.value = data.total;
-        initActionPop();
-        const updatedItem = data.list.find(item => item.index_set_id === activeKey.value);
-        if (updatedItem) {
-          emit('choose', updatedItem);
-        }
-      });
+      refreshListData();
     };
 
     const renderBaseItem = (item: IListItemData) => (
@@ -148,22 +144,12 @@ export default defineComponent({
         on-rename={handleRenameItem}
       />
     );
-    /**
-     * 获取列表数据
-     * @returns Promise，数据加载完成后 resolve
-     */
-    const getListData = (): Promise<{ list: IListItemData[]; total: number }> => {
-      return new Promise((resolve) => {
-        getIndexGroupList((data: { list: IListItemData[]; total: number }) => {
-          listData.value = data.list;
-          total.value = data.total;
-          initActionPop();
-          resolve(data);
-        });
-      });
-    };
 
     const initActionPop = () => {
+      if (!rootRef.value || !addPanelRef.value) {
+        return;
+      }
+      tippyInstance?.destroy();
       tippyInstance = tippy(rootRef.value as SingleTarget, {
         content: addPanelRef.value,
         trigger: 'click',
@@ -181,45 +167,60 @@ export default defineComponent({
         },
       });
     };
+
     const handleEditGroupCancel = () => {
       tippyInstance?.hide();
     };
-    /**
-     * 新增/修改索引集
-     */
+
+    /** 新增/修改索引集 */
     const handleEditGroupSubmit = () => {
-      getListData();
+      refreshListData();
     };
 
-    onMounted(async () => {
-      const data = await getListData();
-
-      // 优先从路由参数获取 indexSetId
-      const routeIndexSetId = route.query.indexSetId;
-
-      if (routeIndexSetId) {
-        // 查找匹配的索引集
-        const targetItem = data.list.find(item => String(item.index_set_id) === String(routeIndexSetId));
-        if (targetItem) {
-          activeKey.value = targetItem.index_set_id ?? '';
-          emit('choose', targetItem);
+    watch(
+      () => [props.loading, props.listData],
+      () => {
+        if (props.loading) {
           return;
         }
-      }
-      // 默认选中"全部采集项"
-      handleItem(baseItem.value[0]);
+
+        nextTick(initActionPop);
+
+        const routeIndexSetId = route.query.indexSetId;
+        if (!isInitialized) {
+          isInitialized = true;
+          if (routeIndexSetId) {
+            const targetItem = props.listData.find(item => String(item.index_set_id) === String(routeIndexSetId));
+            if (targetItem) {
+              activeKey.value = targetItem.index_set_id ?? '';
+              emit('choose', targetItem);
+              return;
+            }
+          }
+          handleItem(baseItem.value[0]);
+          return;
+        }
+
+        const updatedItem = props.listData.find(item => item.index_set_id === activeKey.value);
+        if (updatedItem) {
+          emit('choose', updatedItem);
+        }
+      },
+      { immediate: true },
+    );
+
+    onMounted(() => {
+      nextTick(initActionPop);
     });
 
     onBeforeUnmount(() => {
       tippyInstance?.hide();
       tippyInstance?.destroy();
     });
-    /**
-     * 列表内容render
-     * @returns
-     */
+
+    /** 列表内容render */
     const renderListMain = () => {
-      if (indexGroupLoading.value) {
+      if (props.loading) {
         return (
           <ItemSkeleton
             style={{ padding: '0 16px' }}

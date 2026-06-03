@@ -32,7 +32,7 @@ from apm.constants import (
     GLOBAL_CONFIG_BK_BIZ_ID,
 )
 from apm.core.handlers.bk_data.constants import FlowStatus
-from apm.models.doris import BkDataDorisProvider, BkDataDorisV4Provider, compose_profile_data_id_name
+from apm.models.doris import BkDataDorisProvider, BkDataDorisV4Provider, compose_profile_data_id_name, _V4_NAMESPACE
 from apm.models.shared_datasource import BaseSharedDataSource, SHARED_DS_REGISTRY
 from apm.utils.es_search import EsSearch
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
@@ -200,6 +200,12 @@ class ApmDataSourceConfigBase(models.Model):
         """判断是否为共享数据源"""
         return self.shared_datasource_id is not None
 
+    def is_ready(self) -> bool:
+        """判断数据源是否已准备就绪"""
+        if not self.bk_data_id or self.bk_data_id == -1 or not self.result_table_id:
+            return False
+        return True
+
     def to_link_info(self) -> dict[str, Any]:
         """导出链路元数据字典。
 
@@ -255,6 +261,15 @@ class ApmDataSourceConfigBase(models.Model):
         if not option:
             # 关闭
             obj.stop(bk_biz_id, app_name)
+            return
+
+        obj.apply_datalink()
+
+    def apply_datalink(self) -> None:
+        """应用数据链路。
+
+        默认数据源类型无需额外处理，子类可覆写以接入 metadata 数据链路。
+        """
 
     def _apply_exclusive_datasource(self, **options) -> None:
         """独占模式"""
@@ -666,18 +681,153 @@ class TraceDataSource(ApmDataSourceConfigBase):
     }
 
     DEFAULT_LIMIT_MAX_SIZE = 10000
+    OUTER_FIELDS = {
+        "iterationIndex",
+        "__ext",
+        "bk_host_id",
+        "cloudId",
+        "gseIndex",
+        "path",
+        "serverIp",
+        "dtEventTimeStamp",
+        "time",
+        "log",
+    }
+    FIELD_TYPE_MAP = {
+        ("object", "object"): "dict",
+        ("long", "long"): "long",
+        ("nested", "nested"): "nested",
+        ("int", "integer"): "long",
+        ("string", "keyword"): "string",
+        ("timestamp", "date"): "long",
+    }
+    LEGACY_OPTION_ENABLE_V4_TRACING_DATA_LINK = "enable_v4_tracing_data_link"
 
     index_set_id = models.IntegerField("索引集id", null=True)
     index_set_name = models.CharField("索引集名称", max_length=512, null=True)
+    bkdata_datalink_config = models.JSONField("BkData链路配置", default=dict)
 
     def to_json(self):
         return {**super().to_json(), "index_set_id": self.index_set_id}
+
+    def _build_result_table_option(self, use_bkbase_v4_link: bool) -> dict[str, Any]:
+        """构建结果表 option，通过日志 V4 通用配置声明 APM Trace 数据链路。"""
+        option = dict(TRACE_RESULT_TABLE_OPTION)
+        if use_bkbase_v4_link:
+            option[metadata_models.ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK] = True
+            option[metadata_models.ResultTableOption.OPTION_V4_LOG_DATA_LINK] = self._build_v4_datalink_option()
+        return option
+
+    @classmethod
+    def _build_v4_datalink_option(cls) -> dict[str, Any]:
+        """生成 metadata 日志 V4 链路可识别的通用 Clean 配置。"""
+        return {
+            "clean_rules": cls._build_clean_rules(TraceDataSourceConfig.TRACE_FIELD_LIST),
+            "es_storage_config": {
+                "unique_field_list": TRACE_RESULT_TABLE_OPTION["es_unique_field_list"],
+                "json_field_list": [],
+            },
+            "doris_storage_config": None,
+        }
+
+    @classmethod
+    def _build_clean_rules(cls, field_list: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """基于 Trace 字段列表生成 BKBase Clean 清洗规则。"""
+        rules: list[dict[str, Any]] = [
+            {
+                "input_id": "__raw_data",
+                "output_id": "json_data",
+                "operator": {"type": "json_de"},
+            },
+            {
+                "input_id": "json_data",
+                "output_id": "items",
+                "operator": {"type": "get", "key_index": [{"type": "key", "value": "items"}]},
+            },
+            {
+                "input_id": "items",
+                "output_id": "iter_item",
+                "operator": {"type": "iter"},
+            },
+            {
+                "input_id": "json_data",
+                "output_id": "time",
+                "operator": {
+                    "type": "assign",
+                    "key_index": "time",
+                    "output_type": "long",
+                    "alias": "time",
+                    "in_place_time_parsing": {
+                        "from": {"format": "Unix Timestamp", "zone": None},
+                        "to": "millis",
+                        "interval_format": None,
+                        "now_if_parse_failed": True,
+                    },
+                },
+            },
+        ]
+
+        for field in field_list:
+            field_name = field.get("field_name", "")
+            if not field_name or field_name in cls.OUTER_FIELDS or field.get("is_disabled"):
+                continue
+
+            bkm_type = field.get("field_type") or field.get("type", "string")
+            es_type = field.get("option", {}).get("es_type", "keyword")
+            output_type = cls.FIELD_TYPE_MAP.get((bkm_type, es_type))
+            if output_type is None:
+                logger.warning(
+                    f"_build_clean_rules: unmapped type combo (bkm_type={bkm_type}, es_type={es_type}) "
+                    f"for field '{field_name}', falling back to 'string'"
+                )
+                output_type = "string"
+
+            rules.append(
+                {
+                    "input_id": "iter_item",
+                    "output_id": field_name,
+                    "operator": {
+                        "type": "assign",
+                        "key_index": field_name,
+                        "output_type": output_type,
+                        "alias": field.get("description") or field.get("alias_name") or field_name,
+                        "default_value": None,
+                    },
+                }
+            )
+        return rules
+
+    def _should_enable_bkdata_datalink(self, table_id: str, bk_tenant_id: str) -> bool:
+        """判断 Trace RT 是否应接入 BKBase V4 链路。
+
+        全局开关只决定新建默认行为；已接入 V4 的 RT 后续更新需要保留配置，避免隐式回退。
+        """
+        return (
+            self.is_bkbase_v4_link()
+            or settings.ENABLE_TRACING_BKDATA
+            or self._has_legacy_v4_tracing_datalink_option(table_id=table_id, bk_tenant_id=bk_tenant_id)
+        )
+
+    @classmethod
+    def _has_legacy_v4_tracing_datalink_option(cls, table_id: str, bk_tenant_id: str) -> bool:
+        """兼容 3.11 Trace 专用 V4 option，命中后升级为日志 V4 通用配置。"""
+        enabled_option = metadata_models.ResultTableOption.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            table_id=table_id,
+            name=cls.LEGACY_OPTION_ENABLE_V4_TRACING_DATA_LINK,
+        ).first()
+        return bool(enabled_option and enabled_option.get_value())
+
+    def is_bkbase_v4_link(self) -> bool:
+        """判断当前 Trace 数据源是否已经使用 BKBase V4 链路。"""
+        return (self.bkdata_datalink_config.get("version") or 3) == 4
 
     def to_link_info(self) -> dict[str, Any]:
         """导出链路元数据字典（含 Trace 特有字段）。"""
         info = super().to_link_info()
         info["index_set_id"] = self.index_set_id
         info["index_set_name"] = self.index_set_name
+        info["bkdata_datalink_config"] = self.bkdata_datalink_config
         return info
 
     def set_from_shared(self, shared_info: dict[str, Any]) -> None:
@@ -685,12 +835,31 @@ class TraceDataSource(ApmDataSourceConfigBase):
         super().set_from_shared(shared_info)
         self.index_set_id = shared_info.get("index_set_id")
         self.index_set_name = shared_info.get("index_set_name")
+        self.bkdata_datalink_config = shared_info.get("bkdata_datalink_config") or {}
 
     def reset_link_info(self) -> None:
         """重置当前数据源链路信息为未创建状态（含 Trace 特有字段）。"""
         super().reset_link_info()
         self.index_set_id = None
         self.index_set_name = None
+        self.bkdata_datalink_config = {}
+
+    def apply_datalink(self) -> None:
+        """委托 metadata 层 ResultTable.apply_datalink() 处理 Trace 链路路由。
+
+        APM 创建结果表时使用 is_sync_db=False，不会自动触发 metadata 的数据链路逻辑。
+        这里在 APM 数据源流程结束后显式触发，并兼容共享 Trace 数据源的全局结果表租户。
+        """
+        from metadata.models import ResultTable
+
+        bk_tenant_id = DEFAULT_TENANT_ID if self.is_shared else bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
+        try:
+            result_table = ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=self.result_table_id)
+        except ResultTable.DoesNotExist:
+            logger.warning(f"apply_datalink: ResultTable not found for table_id={self.result_table_id}, skip")
+            return
+
+        result_table.apply_datalink()
 
     @property
     def table_id(self) -> str:
@@ -720,6 +889,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
             bk_tenant_id = bk_biz_id_to_bk_tenant_id(self.bk_biz_id)
             table_name_zh = self.app_name
 
+        use_bkbase_v4_link = self._should_enable_bkdata_datalink(table_id=table_id, bk_tenant_id=bk_tenant_id)
         params = {
             "bk_data_id": self.bk_data_id,
             # 必须为 库名.表名
@@ -751,7 +921,7 @@ class TraceDataSource(ApmDataSourceConfigBase):
             "is_time_field_only": True,
             "bk_biz_id": bk_biz_id,
             "label": "application_check",
-            "option": TRACE_RESULT_TABLE_OPTION,
+            "option": self._build_result_table_option(use_bkbase_v4_link=use_bkbase_v4_link),
             "time_option": {
                 "es_type": "date",
                 "es_format": "epoch_millis",
@@ -816,6 +986,9 @@ class TraceDataSource(ApmDataSourceConfigBase):
                 "elasticsearch": params["default_storage_config"],
             }
             resource.metadata.modify_result_table(params)
+            if use_bkbase_v4_link and not self.is_bkbase_v4_link():
+                self.bkdata_datalink_config = {"version": 4}
+                self.save(update_fields=["bkdata_datalink_config"])
 
             return
 
@@ -825,6 +998,8 @@ class TraceDataSource(ApmDataSourceConfigBase):
         self.result_table_id = table_id
         self.index_set_name = index_set_name
         self.index_set_id = index_set_id
+        if use_bkbase_v4_link:
+            self.bkdata_datalink_config = {"version": 4}
         self.save()
 
     def update_or_create_index_set(self, storage_id, bk_biz_id: int, table_id: str, index_set_id=None):
@@ -1326,6 +1501,13 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     def is_bkbase_v4_link(self) -> bool:
         return (self.bkdata_datalink_config.get("version") or 3) == 4
 
+    def to_json(self):
+        return {
+            **super().to_json(),
+            "bkdata_datalink_config": self.bkdata_datalink_config,
+            "created": self.created,
+        }
+
     @classmethod
     def apply_datasource(cls, bk_biz_id, app_name, **options):
         option = options["option"]
@@ -1352,7 +1534,9 @@ class ProfileDataSource(ApmDataSourceConfigBase):
         maintainer = global_user if not apm_maintainers else f"{global_user},{apm_maintainers}"
 
         # 判断是否使用 V4 链路（以 profile_bk_biz_id 作为判断依据，负数业务映射到公共业务 ID）
-        use_v4 = profile_bk_biz_id in settings.APM_PROFILE_V4_BIZ_WHITE_LIST
+        # GlobalConfig 前端输入的值可能为字符串，统一转 int 比较
+        v4_white_list = [int(x) for x in settings.APM_PROFILE_V4_BIZ_WHITE_LIST]
+        use_v4 = profile_bk_biz_id in v4_white_list
 
         if use_v4:
             # V4 声明式链路：轮询可能长达 5 分钟，不可放入事务内
@@ -1366,6 +1550,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
             data_id_name = compose_profile_data_id_name(provider.data_biz_id, obj.app_name)
             obj.bkdata_datalink_config = {
                 "version": 4,
+                "namespace": _V4_NAMESPACE,
                 "v4_resource_names": {
                     "data_id_name": data_id_name,
                     "result_table_name": None,
@@ -1380,6 +1565,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
             resource_names = provider.get_resource_names(bk_data_id=essentials["bk_data_id"])
             bkdata_datalink_config = {
                 "version": 4,
+                "namespace": _V4_NAMESPACE,
                 "v4_resource_names": {
                     "data_id_name": resource_names["data_id_name"],
                     "result_table_name": resource_names["result_table_name"],

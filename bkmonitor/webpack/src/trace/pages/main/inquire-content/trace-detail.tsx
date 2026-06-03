@@ -256,7 +256,7 @@ export default defineComponent({
     // 快捷跳转文案
     const exploreButtonName = computed(() => {
       if (state.activePanel === 'log') {
-        return t('日志检索');
+        return t('更多日志');
       }
       return '';
     });
@@ -857,15 +857,22 @@ export default defineComponent({
     // 日志检索快捷跳转
     const handleLogQuickJump = () => {
       if (!spanDetailQueryStore.queryData?.indexId && !spanDetailQueryStore.queryData?.unionList) return;
-      const { indexId, unionList, start_time, end_time, addition } = spanDetailQueryStore.queryData;
+      const { indexId, unionList, start_time, end_time, addition, search_mode, keyword } =
+        spanDetailQueryStore.queryData;
       const startMs = toUnixMilliseconds(start_time);
       const endMs = toUnixMilliseconds(end_time);
       let url = '';
       if (unionList) {
-        url = `${window.bk_log_search_url}#/retrieve?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}&unionList=${unionList}`;
+        url = `${window.bk_log_search_url}#/retrieve?bizId=${window.bk_biz_id}&search_mode=${search_mode}&keyword=${keyword}&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}&unionList=${unionList}`;
       } else {
-        url = `${window.bk_log_search_url}#/retrieve/${indexId}?bizId=${window.bk_biz_id}&search_mode=ui&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}`;
+        url = `${window.bk_log_search_url}#/retrieve/${indexId}?bizId=${window.bk_biz_id}&search_mode=${search_mode}&keyword=${keyword}&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}`;
       }
+      window.open(url, '_blank');
+    };
+
+    // 跳转应用配置
+    const handleConfigQuickJump = () => {
+      const url = location.href.replace(location.hash, `#/apm/application/config/${props.appName}`);
       window.open(url, '_blank');
     };
     return {
@@ -925,6 +932,7 @@ export default defineComponent({
       handleChangeEnableTimeALignment,
       disabledSpanKindById,
       handleLogQuickJump,
+      handleConfigQuickJump,
       t,
     };
   },
@@ -1124,16 +1132,32 @@ export default defineComponent({
                 }
                 if (this.exploreButtonName) {
                   return (
-                    <Button
-                      class='quick-jump'
-                      size='small'
-                      theme='primary'
-                      outline
-                      onClick={this.handleLogQuickJump}
-                    >
-                      {this.exploreButtonName}
-                      <i class='icon-monitor icon-fenxiang' />
-                    </Button>
+                    <div class='quick-jump-container'>
+                      {this.activePanel === 'log' && (
+                        <Button
+                          class='quick-jump'
+                          size='small'
+                          theme='primary'
+                          text
+                          outline
+                          onClick={this.handleConfigQuickJump}
+                        >
+                          {this.t('关联配置')}
+                          <i class='icon-monitor icon-fenxiang' />
+                        </Button>
+                      )}
+                      <Button
+                        class='quick-jump'
+                        size='small'
+                        text
+                        theme='primary'
+                        outline
+                        onClick={this.handleLogQuickJump}
+                      >
+                        {this.exploreButtonName}
+                        <i class='icon-monitor icon-fenxiang' />
+                      </Button>
+                    </div>
                   );
                 }
                 return '';

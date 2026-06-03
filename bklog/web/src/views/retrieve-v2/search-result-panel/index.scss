@@ -8,12 +8,26 @@
     overflow: visible;
 
     .field-list-sticky {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      align-self: start;
+
       &.is-show {
-        position: sticky;
-        top: var(--offset-search-bar);
-        z-index: 3;
-        align-self: start;
+        top: 0;
+        transform: translateX(-8px);
         height: calc(100vh - var(--offset-search-bar) - var(--header-height) - 100px);
+      }
+
+      &.is-close {
+        top: var(--offset-search-bar);
+        transform: translateX(-8px);
+        z-index: 4;
+        flex: 0 0 24px;
+        width: 24px;
+        height: 32px;
+        margin-right: -24px;
+        overflow: hidden;
       }
     }
 

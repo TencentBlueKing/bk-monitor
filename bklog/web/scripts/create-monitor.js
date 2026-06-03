@@ -106,8 +106,13 @@ const createMonitorConfig = (config) => {
     resolve: {
       ...config.resolve,
       alias: {
+        ...(config.resolve?.alias || {}),
         vue$: "vue/dist/vue.esm.js",
         "@": resolve("src"),
+        // Force CodeMirror runtime singletons to avoid cross-package instanceof breakage.
+        "@codemirror/state$": resolve(__dirname, "../node_modules/@codemirror/state"),
+        "@codemirror/view$": resolve(__dirname, "../node_modules/@codemirror/view"),
+        codemirror$: resolve(__dirname, "../node_modules/codemirror/dist/index.js"),
       },
     },
     experiments: {

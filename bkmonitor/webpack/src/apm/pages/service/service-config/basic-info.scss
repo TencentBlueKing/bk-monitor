@@ -22,6 +22,14 @@
 
     @include flex-align;
 
+    &.config-form-item-log {
+      align-items: flex-start;
+
+      & > .label {
+        margin-top: 6px;
+      }
+    }
+
     .label {
       width: 92px;
       margin-right: 24px;
@@ -36,10 +44,31 @@
       @include flex-align;
     }
 
+    .log-content {
+      display: block;
+
+      .log-config-btn {
+        margin-bottom: 4px;
+
+        .icon-monitor {
+          margin-right: 8px;
+          font-size: 12px;
+        }
+
+        & + .edit-form-item {
+          margin-top: 24px;
+        }
+      }
+    }
+
     .category-icon {
       width: 14px;
       height: 14px;
       margin-right: 4px;
+    }
+
+    .info-log-row {
+      @include flex-align;
     }
 
     .relation-info-tag:first-child {
@@ -47,6 +76,10 @@
     }
 
     .relation-info-tag {
+      height: 32px;
+      margin: 4px 0 4px 6px;
+      line-height: 32px;
+
       .tag-label {
         margin-right: 4px;
       }
@@ -59,6 +92,49 @@
         width: 14px;
         height: 14px;
         margin-right: 4px;
+      }
+    }
+
+    .log-global-tag {
+      margin-left: 8px;
+      font-size: 12px;
+      line-height: 20px;
+
+      @include flex-align;
+    }
+
+    .log-global-tag-hd {
+      position: relative;
+      padding-right: 8px;
+      margin-right: 8px;
+      color: #979BA5;
+
+      &::after {
+        position: absolute;
+        top: 50%;
+        right: 0;
+        width: 1px;
+        height: 12px;
+        content: '';
+        background-color: #979BA5;
+        transform: translateY(-50%);
+      }
+    }
+
+    .log-global-tag-bd {
+      color: #3A84FF;
+      cursor: pointer;
+
+      @include flex-align;
+
+      &.disabled {
+        color: #979BA5;
+        cursor: default;
+      }
+
+      .icon-monitor {
+        margin-right: 4px;
+        font-size: 12px;
       }
     }
 

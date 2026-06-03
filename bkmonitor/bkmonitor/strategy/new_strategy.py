@@ -1084,9 +1084,14 @@ class Algorithm(AbstractConfig):
             return self.config
 
         serializer_class = self.Serializer.AlgorithmSerializers.get(self.type)
+        merged_config = copy.deepcopy(self.config)
+
+        if isinstance(algorithm.config.get("args"), Mapping) and isinstance(self.config.get("args"), Mapping):
+            merged_config["args"] = {**copy.deepcopy(algorithm.config["args"]), **copy.deepcopy(self.config["args"])}
+
         ai_service_control_field_names = self._get_ai_service_control_field_names(serializer_class)
         if not ai_service_control_field_names:
-            return self.config
+            return merged_config
 
         base_ai_service_control_config = {
             key: value for key, value in algorithm.config.items() if key in ai_service_control_field_names
@@ -1098,7 +1103,6 @@ class Algorithm(AbstractConfig):
             base_ai_service_control_config, request_ai_service_control_config, AIServiceControlMixin
         )
 
-        merged_config = copy.deepcopy(self.config)
         merged_config.update(merged_ai_service_control_config)
         return merged_config
 

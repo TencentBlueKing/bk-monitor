@@ -107,7 +107,7 @@ export default defineComponent({
       }).catch(() => []);
       indexSetList.value = data;
       // 优先选择列表里第一个有数据的索引集
-      const dataValidItem = data.find(item => item.tags.every(tag => tag.tag_id !== 4));
+      const dataValidItem = data.find(item => item.tags?.every(tag => tag.tag_id !== 4));
       const indexSetId = dataValidItem ? dataValidItem.index_set_id : data?.[0]?.index_set_id || '';
       handleChangeIndexSet(indexSetId);
       selectLoading.value = false;

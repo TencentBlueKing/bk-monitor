@@ -30,7 +30,7 @@ from core.drf_resource import api
 from metadata import config
 from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE, DataIdCreatedFromSystem
-from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_MONITOR
+from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_MONITOR, DataLinkResourceStatus
 from metadata.utils.basic import getitems
 
 from .common import BaseModel, Label, OptionBase
@@ -576,10 +576,13 @@ class ResultTable(models.Model):
         # 删除数据链路及对应的关联记录
         for record in records:
             data_link_name = record.data_link_name
-            DataLink.objects.get(bk_tenant_id=self.bk_tenant_id, data_link_name=data_link_name).delete_data_link()
-            record.delete()
+            datalink = DataLink.objects.filter(bk_tenant_id=self.bk_tenant_id, data_link_name=data_link_name).first()
+            if datalink:
+                datalink.delete_data_link()
+            record.status = DataLinkResourceStatus.TERMINATING.value
+            record.save()
 
-    def apply_datalink(self, force_update: bool = False) -> None:
+    def apply_datalink(self, force_update: bool = False, delay: bool = True) -> None:
         """创建数据链路"""
         from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS
         from metadata.task.datalink import apply_event_group_datalink, apply_log_datalink
@@ -626,25 +629,35 @@ class ResultTable(models.Model):
                 bk_data_id = datasource.bk_data_id
                 bk_tenant_id = self.bk_tenant_id
                 table_id = self.table_id
-                try:
-                    on_commit(
-                        func=lambda: access_bkdata_vm.delay(
-                            bk_tenant_id,
-                            target_bk_biz_id,
-                            table_id,
-                            bk_data_id,
-                            is_v4_datalink_etl_config,
-                            force_update=force_update,
-                        ),
-                        using=config.DATABASE_CONNECTION_NAME,
+                if delay:
+                    try:
+                        on_commit(
+                            func=lambda: access_bkdata_vm.delay(
+                                bk_tenant_id,
+                                target_bk_biz_id,
+                                table_id,
+                                bk_data_id,
+                                is_v4_datalink_etl_config,
+                                force_update=force_update,
+                            ),
+                            using=config.DATABASE_CONNECTION_NAME,
+                        )
+                    except Exception as e:  # pylint: disable=broad-except
+                        logger.error("create_result_table: access vm error: %s", e)
+                else:
+                    access_bkdata_vm(
+                        bk_tenant_id,
+                        target_bk_biz_id,
+                        table_id,
+                        bk_data_id,
+                        is_v4_datalink_etl_config,
+                        force_update=force_update,
                     )
-                except Exception as e:  # pylint: disable=broad-except
-                    logger.error("create_result_table: access vm error: %s", e)
         elif self.default_storage in [ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS]:
-            # 如果存在日志V4数据链路配置，则创建日志V4数据链路
+            # 日志 V4 数据链路
             if options and options.get(ResultTableOption.OPTION_ENABLE_V4_LOG_DATA_LINK, False):
                 apply_log_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
-            # 如果存在事件组V4数据链路配置或默认启用事件组V4数据链路，则创建事件组V4数据链路
+            # 事件组 V4 数据链路
             elif datasource.etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value:
                 apply_event_group_datalink(bk_tenant_id=self.bk_tenant_id, table_id=self.table_id)
         else:
@@ -1386,6 +1399,21 @@ class ResultTable(models.Model):
                 modify_enable_field_black_list_option_value != enable_field_black_list_option_value
                 or modify_enable_field_black_list_option_value is False
             ):
+                force_update_datalink = True
+
+            # 检查指标组维度配置是否发生变化
+            metric_group_dimensions_option = ResultTableOption.objects.filter(
+                table_id=self.table_id,
+                bk_tenant_id=self.bk_tenant_id,
+                name=ResultTableOption.OPTION_METRIC_GROUP_DIMENSIONS,
+            ).first()
+            existing_metric_group_dimensions_option_value = (
+                (metric_group_dimensions_option.get_value() or []) if metric_group_dimensions_option else []
+            )
+            new_metric_group_dimensions_option_value = (
+                option.get(ResultTableOption.OPTION_METRIC_GROUP_DIMENSIONS) or []
+            )
+            if existing_metric_group_dimensions_option_value != new_metric_group_dimensions_option_value:
                 force_update_datalink = True
 
             # 目前rt的option存在清洗和查询两类option，清洗的option需要清理，查询的option需要保留。
@@ -2882,6 +2910,7 @@ class ResultTableOption(OptionBase):
     OPTION_ENABLE_PLUGIN_V4_DATA_LINK = "enable_plugin_v4_data_link"
     OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE = "enable_data_link_component_reuse"
     OPTION_BINDING_BCS_CLUSTER_ID = "binding_bcs_cluster_id"
+    OPTION_METRIC_GROUP_DIMENSIONS = "metric_group_dimensions"
 
     # 选项类型
     TYPE_BOOL = "bool"

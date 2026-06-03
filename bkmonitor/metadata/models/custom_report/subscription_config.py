@@ -157,11 +157,11 @@ class CustomReportSubscription(models.Model):
         # 1. 从数据库查询到bk_biz_id到自定义上报配置的数据
         result = (
             query_set.extra(
-                select={"token": f"{data_source_table_name}.token"},
+                select={"data_source_token": f"{data_source_table_name}.token"},
                 tables=[data_source_table_name],
                 where=[f"{group_table_name}.bk_data_id={data_source_table_name}.bk_data_id"],
             )
-            .values("bk_biz_id", "bk_data_id", "token", "max_rate", "max_future_time_offset")
+            .values("bk_biz_id", "bk_data_id", "token", "data_source_token", "max_rate", "max_future_time_offset")
             .distinct()
         )
         biz_id_to_data_id_config: dict[int, list[tuple[dict[str, Any], str]]] = {}
@@ -189,14 +189,15 @@ class CustomReportSubscription(models.Model):
             protocol = cls.get_protocol(r["bk_data_id"])
             # 根据格式决定使用那种配置
             if protocol == "json":
+                token = r.get("token") or r.get("data_source_token") or ""
                 # json格式: bk-collector-report-v2.conf
                 item = {
-                    "bk_data_token": r["token"],
+                    "bk_data_token": token,
                     "bk_data_id": r["bk_data_id"],
                     "token_config": {
                         "name": "token_checker/proxy",
                         "proxy_dataid": r["bk_data_id"],
-                        "proxy_token": r["token"],
+                        "proxy_token": token,
                     },
                     "qps_config": {
                         "name": "rate_limiter/token_bucket",
@@ -235,6 +236,7 @@ class CustomReportSubscription(models.Model):
                     "bk_data_token": group_info["access_token"],
                     "bk_biz_id": r["bk_biz_id"],
                     "bk_data_id": r["bk_data_id"],
+                    "metric_data_id": r["bk_data_id"],
                     "bk_app_name": "prometheus_report",
                     "qps_config": {
                         "name": "rate_limiter/token_bucket",
@@ -257,7 +259,9 @@ class CustomReportSubscription(models.Model):
         from metadata.models.custom_report.event import EventGroup
         from metadata.models.data_source import DataSource
 
-        qs = EventGroup.objects.filter(is_enable=True, is_delete=False, bk_tenant_id=bk_tenant_id)
+        qs = EventGroup.objects.filter(
+            is_enable=True, is_delete=False, is_need_deploy_collector_config=True, bk_tenant_id=bk_tenant_id
+        )
         if bk_biz_id is not None:
             qs = qs.filter(bk_biz_id=bk_biz_id)
 
@@ -277,7 +281,9 @@ class CustomReportSubscription(models.Model):
         from metadata.models.custom_report.time_series import TimeSeriesGroup
         from metadata.models.data_source import DataSource
 
-        qs = TimeSeriesGroup.objects.filter(is_enable=True, is_delete=False, bk_tenant_id=bk_tenant_id)
+        qs = TimeSeriesGroup.objects.filter(
+            is_enable=True, is_delete=False, is_need_deploy_collector_config=True, bk_tenant_id=bk_tenant_id
+        )
         if bk_biz_id is not None:
             qs = qs.filter(bk_biz_id=bk_biz_id)
 
@@ -544,6 +550,10 @@ class LogSubscriptionConfig(models.Model):
         """
         Refresh Config
         """
+        if not log_group.is_need_deploy_collector_config:
+            logger.info("log_group(%s) does not need deploy collector config, skip", log_group.log_group_id)
+            return
+
         bk_tenant_id = log_group.bk_tenant_id
         bk_biz_id = log_group.bk_biz_id
 
@@ -572,6 +582,7 @@ class LogSubscriptionConfig(models.Model):
     @classmethod
     def refresh_k8s(cls, log_groups: list["LogGroup"]) -> None:
         """批量刷新多个 log_group 的 k8s 配置"""
+        log_groups = [log_group for log_group in log_groups if log_group.is_need_deploy_collector_config]
         if not log_groups:
             return
 
@@ -637,7 +648,7 @@ class LogSubscriptionConfig(models.Model):
         if max_rate == -1:
             max_rate = LOG_REPORT_MAX_QPS
         return {
-            "bk_data_token": log_group.get_bk_data_token(),
+            "bk_data_token": log_group.token or log_group.bk_data_token or log_group.get_bk_data_token(),
             "bk_biz_id": log_group.bk_biz_id,
             "bk_app_name": log_group.log_group_name,
             "log_data_id": log_group.bk_data_id,

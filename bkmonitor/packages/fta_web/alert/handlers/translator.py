@@ -202,9 +202,19 @@ class BizTranslator(AbstractTranslator):
                 self.__class__.biz_map_cache = resource.space.get_space_map()
         return self.__class__.biz_map_cache
 
-    def translate(self, values: list[int]) -> dict:
+    def translate(self, values: list[int | str]) -> dict:
         biz_map = self.biz_map()
-        return {value: biz_map[value]["display_name"] if value in biz_map else str(value) for value in values}
+        result = {}
+        for value in values:
+            # 兼容 bk_biz_id 为字符串类型（ES Keyword 聚合返回的 bucket.key）
+            lookup_key = value
+            if isinstance(value, str):
+                try:
+                    lookup_key = int(value)
+                except (ValueError, TypeError):
+                    pass
+            result[value] = biz_map[lookup_key]["display_name"] if lookup_key in biz_map else str(value)
+        return result
 
 
 class CategoryTranslator(AbstractTranslator):
@@ -282,9 +292,9 @@ class TopoNodeTranslator(AbstractTranslator):
         if "set" in grouped:
             set_ids = grouped["set"]
             try:
-                params=[{ "bk_biz_id": biz_id, "bk_set_ids": set_ids} for biz_id in self.bk_biz_ids  ]
+                params = [{"bk_biz_id": biz_id, "bk_set_ids": set_ids} for biz_id in self.bk_biz_ids]
                 sets_list = api.cmdb.get_set.bulk_request(params)
-                for sets in  sets_list:
+                for sets in sets_list:
                     for s in sets:
                         label = self.TYPE_LABEL_MAP.get("set", "set")
                         name_map[f"set|{s.bk_set_id}"] = f"{label}|{s.bk_set_name}"
@@ -294,9 +304,9 @@ class TopoNodeTranslator(AbstractTranslator):
         if "module" in grouped:
             module_ids = grouped["module"]
             try:
-                params=[{ "bk_biz_id": biz_id, "bk_module_ids": module_ids} for biz_id in self.bk_biz_ids  ]
+                params = [{"bk_biz_id": biz_id, "bk_module_ids": module_ids} for biz_id in self.bk_biz_ids]
                 modules_list = api.cmdb.get_module.bulk_request(params)
-                for modules in  modules_list:
+                for modules in modules_list:
                     for m in modules:
                         label = self.TYPE_LABEL_MAP.get("module", "module")
                         name_map[f"module|{m.bk_module_id}"] = f"{label}|{m.bk_module_name}"

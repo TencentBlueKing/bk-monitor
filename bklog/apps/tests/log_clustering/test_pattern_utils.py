@@ -1,5 +1,6 @@
 import base64
 import json
+import re
 
 from django.test import SimpleTestCase
 
@@ -23,6 +24,7 @@ PREDEFINED_VARIABLES = encode_predefined_variables(
     [
         r"PATH:[^ ]+",
         r"NUMBER:\d+",
+        r"IP-PORT:[^ ]+",
     ]
 )
 
@@ -37,6 +39,18 @@ class TestPatternUtils(SimpleTestCase):
                 {"name": "NUMBER", "index": 0},
                 {"name": "PATH", "index": 1},
                 {"name": "NUMBER", "index": 2},
+            ],
+        )
+
+    def test_parse_pattern_placeholders_supports_hyphenated_names(self):
+        result = parse_pattern_placeholders("#DATETIME# client #IP-PORT# local #IP-PORT#")
+
+        self.assertEqual(
+            result,
+            [
+                {"name": "DATETIME", "index": 0},
+                {"name": "IP-PORT", "index": 1},
+                {"name": "IP-PORT", "index": 2},
             ],
         )
 
@@ -64,6 +78,17 @@ class TestPatternUtils(SimpleTestCase):
         self.assertIn(r"\)", result)
         self.assertIn(r"(\d+)", result)
         self.assertFalse(result.endswith("$"))
+
+    def test_build_doris_regexp_treats_hyphenated_placeholder_as_variable(self):
+        result = build_doris_regexp(
+            "traceId #PATH# client address #IP-PORT# local address #IP-PORT#",
+            placeholder_index=1,
+            predefined_varibles=PREDEFINED_VARIABLES,
+        )
+
+        self.assertIn(r"([^ ]+)", result)
+        self.assertIn(r"(?:[^ ]+)", result)
+        self.assertNotIn(r"\#IP\-PORT\#", result)
 
     def test_build_doris_regexp_normalizes_inner_capturing_groups(self):
         predefined_variables = encode_predefined_variables(
@@ -100,6 +125,61 @@ class TestPatternUtils(SimpleTestCase):
             result,
             r"Apr[\s\S]*?(?:[-+]?[0-9]+(?:\.[0-9]+)?)[\s\S]*?(\d{2}:\d{2}:\d{2}(?:\.\d{6})?)[\s\S]*?[\s\S]*?[\s\S]*?systemd[\s\S]*?Started[\s\S]*?Session[\s\S]*?(?:[-+]?[0-9]+(?:\.[0-9]+)?)[\s\S]*?of[\s\S]*?user[\s\S]*?root\.",
         )
+
+    def test_build_doris_regexp_keeps_duplicate_named_placeholder_rules_for_anchor_placeholder(self):
+        predefined_variables = encode_predefined_variables(
+            [
+                r"DATETIME:\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}",
+                r"NUMBER:^[-+]?[0-9]+(?:\.[0-9]+)?$",
+                r"UUID:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+                r"UUID:[0-9a-fA-F]{32}",
+            ]
+        )
+        regex = build_doris_regexp(
+            "#DATETIME# INFO auth_manager.py #NUMBER# #UUID# message success",
+            placeholder_index=1,
+            predefined_varibles=predefined_variables,
+        )
+
+        for uuid_value in [
+            "d8369e7c-52f0-4c6b-9e88-bf813bd281c4",
+            "d8369e7c52f04c6b9e88bf813bd281c4",
+        ]:
+            with self.subTest(uuid_value=uuid_value):
+                match = re.search(
+                    regex,
+                    f"2026-05-28 20:31:17 INFO auth_manager.py 238 {uuid_value} message success",
+                )
+
+                self.assertIsNotNone(match)
+                self.assertEqual(match.group(1), "238")
+
+    def test_build_doris_regexp_extracts_duplicate_named_placeholder_rules_for_target_placeholder(self):
+        predefined_variables = encode_predefined_variables(
+            [
+                r"DATETIME:\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}",
+                r"UUID:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+                r"UUID:[0-9a-fA-F]{32}",
+            ]
+        )
+        regex = build_doris_regexp(
+            "#DATETIME# INFO request_id #UUID# message success",
+            placeholder_index=1,
+            predefined_varibles=predefined_variables,
+        )
+
+        for uuid_value in [
+            "d8369e7c-52f0-4c6b-9e88-bf813bd281c4",
+            "d8369e7c52f04c6b9e88bf813bd281c4",
+        ]:
+            with self.subTest(uuid_value=uuid_value):
+                match = re.search(
+                    regex,
+                    f"2026-05-28 20:31:17 INFO request_id {uuid_value} message success",
+                )
+
+                self.assertIsNotNone(match)
+                self.assertEqual(match.group(1), uuid_value)
 
     def test_escape_sql_literal_handles_backslash_and_quote(self):
         result = escape_sql_literal(r"foo\bar'baz")
