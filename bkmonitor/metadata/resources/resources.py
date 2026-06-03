@@ -419,13 +419,11 @@ class ModifyResultTableResource(Resource):
         data_label = serializers.CharField(required=False, label="数据标签", default=None)
         labels = serializers.DictField(required=False, label="扩展标签", default=None)
         need_delete_storages = serializers.DictField(required=False, label="需要删除的额外存储", default=None)
-        default_storage_config = serializers.DictField(required=False, label="默认存储配置更新", default=None)
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         """执行结果表修改请求"""
         table_id = validated_request_data.pop("table_id")
         query_alias_settings = validated_request_data.pop("query_alias_settings", None)
-        default_storage_config = validated_request_data.pop("default_storage_config", None)
         operator = validated_request_data.get("operator", None)
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
 
@@ -440,9 +438,6 @@ class ModifyResultTableResource(Resource):
 
         # 处理ES存储相关的逻辑
         if result_table.default_storage == models.ClusterInfo.TYPE_ES:
-            # 更新默认存储配置（如 index_set）
-            self._update_es_storage_config(table_id, default_storage_config, bk_tenant_id)
-
             # 处理ES存储索引更新
             self._handle_es_storage_index_update(table_id, validated_request_data, bk_tenant_id, is_moving_cluster)
 
@@ -453,25 +448,6 @@ class ModifyResultTableResource(Resource):
             self._push_es_route(result_table, bk_tenant_id)
 
         return result_table.to_json()
-
-    def _update_es_storage_config(
-        self, table_id: str, storage_config: dict | None, bk_tenant_id: str
-    ) -> None:
-        """根据 default_storage_config 更新 ESStorage 可变字段（如 index_set）"""
-        if not storage_config:
-            return
-        update_fields = {}
-        if "index_set" in storage_config:
-            update_fields["index_set"] = storage_config["index_set"]
-        if not update_fields:
-            return
-        updated = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).update(**update_fields)
-        if updated:
-            logger.info(
-                "ModifyResultTableResource: updated ESStorage for table_id->[%s], fields->[%s]",
-                table_id,
-                list(update_fields.keys()),
-            )
 
     def _handle_query_alias_settings(
         self, table_id: str, query_alias_settings: Any, operator: str | None, bk_tenant_id: str
@@ -1330,6 +1306,7 @@ class ModifyTimeSeriesGroupResource(Resource):
         enable_field_black_list = serializers.BooleanField(required=False, label="黑名单的启用状态", default=None)
         data_label = serializers.CharField(label="数据标签", required=False, default=None)
         options = serializers.DictField(required=False, label="结果表选项内容", default=None)
+        metric_group_dimensions = serializers.JSONField(required=False, label="指标分组的维度key配置")
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data.pop("bk_tenant_id")
@@ -2085,10 +2062,32 @@ class QueryBCSMetricsResource(Resource):
             bk_tenant_id=bk_tenant_id, bk_data_id__in=data_ids, is_delete=False
         )
 
-        for time_series_group in query_set:
+        groups = list(query_set)
+
+        # 无维度过滤的批量场景下（如指标缓存按业务全量重建，单业务可达上百个 group），
+        # 批量预取关联数据，避免在 get_metric_info_list_with_label 中逐 group 触发 N+1 查询
+        field_map_by_table = scope_map_by_group = metrics_by_group = None
+        if not (dimension_name or dimension_value) and groups:
+            (
+                field_map_by_table,
+                scope_map_by_group,
+                metrics_by_group,
+            ) = models.TimeSeriesGroup.batch_get_metric_info_maps(groups, bk_tenant_id)
+
+        for time_series_group in groups:
             # 基于group的dataid，对数据补充集群id字段
             cluster_id = data_id_cluster_map[time_series_group.bk_data_id]
-            metrics = time_series_group.get_metric_info_list_with_label(dimension_name, dimension_value)
+            if metrics_by_group is not None:
+                # 命中批量预取：直接复用预取数据，避免逐 group 查询
+                metrics = time_series_group.get_metric_info_list_with_label(
+                    dimension_name,
+                    dimension_value,
+                    field_map=field_map_by_table.get(time_series_group.table_id, {}),
+                    scope_map=scope_map_by_group.get(time_series_group.time_series_group_id, {}),
+                    metrics=metrics_by_group.get(time_series_group.time_series_group_id, []),
+                )
+            else:
+                metrics = time_series_group.get_metric_info_list_with_label(dimension_name, dimension_value)
             # 获取是否为内置指标，用于判断是否存在于文件白名单中
             is_built_in_metric = time_series_group.bk_data_id in data_id_cluster_map["built_in_metric_data_id_list"]
             # 遍历该group自定义k8s指标，记录其cluster_id和维度信息
