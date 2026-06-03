@@ -414,6 +414,8 @@ class BaseK8STarget(BaseTarget):
         if "workload_kind" in alert_dimensions and "workload_name" in alert_dimensions:
             # 如果存在工作负载信息，组合成 workload 字段
             target["workload"] = f"{alert_dimensions['workload_kind']}:{alert_dimensions['workload_name']}"
+        if "target" in alert_dimensions:
+            target["target"] = alert_dimensions["target"]
 
         return [target]
 
