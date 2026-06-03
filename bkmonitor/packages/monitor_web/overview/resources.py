@@ -34,6 +34,7 @@ from bkmonitor.models import StrategyModel
 from bkmonitor.models.base import Shield
 from bkmonitor.models.home import HomeAlarmGraphConfig
 from bkmonitor.utils.request import get_request, get_request_tenant_id
+from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.views import serializers
 from core.drf_resource import Resource, api
 from core.errors.api import BKAPIError
@@ -61,6 +62,30 @@ class GetFunctionShortcutResource(Resource):
         # dashboard, apm_service, log_retrieve
         functions = serializers.ListField(child=serializers.CharField(), label="功能列表", allow_empty=False)
         limit = serializers.IntegerField(label="限制", default=10)
+
+    @classmethod
+    def _build_app_services_map(cls, apps: dict[int, "Application"]) -> dict[int, set[str]]:
+        """并发获取每个应用的当前服务集合，返回 {application_id: {topo_key, ...}}。
+
+        各应用的服务查询相互独立（`ServiceHandler.list_services` 内部含 APM topo / profiling
+        远程调用），原先按应用串行累积，应用数较多时墙钟时间线性放大。这里改为并发拉取，
+        墙钟时间由「串行求和」降为「最慢单次」。成功路径与串行实现产出完全一致。
+
+        使用 `map_ignore_exception`：单个应用查询失败时跳过该应用（不纳入结果），下游
+        按「该应用服务视为不存在、对应记录被过滤」处理；相较原串行实现会因个别应用异常
+        导致整个首页快捷入口 500，这里更稳健（其余应用不受影响）。
+        """
+        if not apps:
+            return {}
+
+        def _collect(app: "Application") -> tuple[int, set[str]]:
+            services = ServiceHandler.list_services(app)
+            return app.application_id, {service["topo_key"] for service in services}
+
+        pool = ThreadPool(min(len(apps), 10))
+        results = pool.map_ignore_exception(_collect, list(apps.values()))
+        pool.close()
+        return dict(results)
 
     @classmethod
     def get_recent_shortcuts(cls, username: str, functions: list[str], limit: int = 10):
@@ -130,11 +155,8 @@ class GetFunctionShortcutResource(Resource):
                 app_ids = {access_record["application_id"] for access_record in access_records}
                 apps = {app.application_id: app for app in Application.objects.filter(application_id__in=app_ids)}
 
-                # 获取服务信息
-                app_services: dict[int, set[str]] = {}
-                for app in apps.values():
-                    services = ServiceHandler.list_services(app)
-                    app_services[app.application_id] = {service["topo_key"] for service in services}
+                # 获取服务信息（各应用相互独立，并发拉取以消除逐应用串行的 N+1）
+                app_services = cls._build_app_services_map(apps)
 
                 for access_record in access_records:
                     # 判断应用是否存在
@@ -142,8 +164,8 @@ class GetFunctionShortcutResource(Resource):
                         continue
                     app = apps[access_record["application_id"]]
 
-                    # 判断服务是否存在
-                    if access_record["service_name"] not in app_services[access_record["application_id"]]:
+                    # 判断服务是否存在（应用查询失败时已被跳过，缺省视为无服务）
+                    if access_record["service_name"] not in app_services.get(access_record["application_id"], set()):
                         continue
 
                     items.append(
@@ -281,22 +303,22 @@ class GetFunctionShortcutResource(Resource):
                     )
                 }
 
-                # 获取当前服务，去除过期服务
-                app_services: dict[int, set[str]] = {}
-                for app in apps.values():
-                    services = ServiceHandler.list_services(app)
-                    app_services[app.application_id] = {service["topo_key"] for service in services}
+                # 获取当前服务，去除过期服务（各应用相互独立，并发拉取以消除逐应用串行的 N+1）
+                app_services = cls._build_app_services_map(apps)
 
                 for apm_config in apm_configs:
                     # 判断应用是否存在
                     app_id = int(apm_config.level_key)
                     if app_id not in apps:
                         continue
+                    # 取本条配置对应的应用（此前误用上一循环残留的 app，恒为最后一个应用，
+                    # 导致收藏项的 bk_biz_id/app_name/application_id/app_alias 错位）
+                    app = apps[app_id]
 
                     # 获取服务名称
                     service_names = apm_config.config_value
                     for service_name in service_names:
-                        if service_name not in app_services[app_id]:
+                        if service_name not in app_services.get(app_id, set()):
                             continue
 
                         items.append(
