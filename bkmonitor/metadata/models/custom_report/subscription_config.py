@@ -259,7 +259,9 @@ class CustomReportSubscription(models.Model):
         from metadata.models.custom_report.event import EventGroup
         from metadata.models.data_source import DataSource
 
-        qs = EventGroup.objects.filter(is_enable=True, is_delete=False, bk_tenant_id=bk_tenant_id)
+        qs = EventGroup.objects.filter(
+            is_enable=True, is_delete=False, is_need_deploy_collector_config=True, bk_tenant_id=bk_tenant_id
+        )
         if bk_biz_id is not None:
             qs = qs.filter(bk_biz_id=bk_biz_id)
 
@@ -279,7 +281,9 @@ class CustomReportSubscription(models.Model):
         from metadata.models.custom_report.time_series import TimeSeriesGroup
         from metadata.models.data_source import DataSource
 
-        qs = TimeSeriesGroup.objects.filter(is_enable=True, is_delete=False, bk_tenant_id=bk_tenant_id)
+        qs = TimeSeriesGroup.objects.filter(
+            is_enable=True, is_delete=False, is_need_deploy_collector_config=True, bk_tenant_id=bk_tenant_id
+        )
         if bk_biz_id is not None:
             qs = qs.filter(bk_biz_id=bk_biz_id)
 
@@ -546,6 +550,10 @@ class LogSubscriptionConfig(models.Model):
         """
         Refresh Config
         """
+        if not log_group.is_need_deploy_collector_config:
+            logger.info("log_group(%s) does not need deploy collector config, skip", log_group.log_group_id)
+            return
+
         bk_tenant_id = log_group.bk_tenant_id
         bk_biz_id = log_group.bk_biz_id
 
@@ -574,6 +582,7 @@ class LogSubscriptionConfig(models.Model):
     @classmethod
     def refresh_k8s(cls, log_groups: list["LogGroup"]) -> None:
         """批量刷新多个 log_group 的 k8s 配置"""
+        log_groups = [log_group for log_group in log_groups if log_group.is_need_deploy_collector_config]
         if not log_groups:
             return
 
