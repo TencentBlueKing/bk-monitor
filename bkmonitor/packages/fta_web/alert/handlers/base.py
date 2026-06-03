@@ -724,7 +724,7 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
     ):
         super().__init__(**kwargs)
         # bk_biz_ids：原始请求入参，可能含 -1（"全部授权业务"哨兵）。
-        # ⚠️ 禁止直接用于 ES/DB 按业务过滤（terms / __in）——不存在 bk_biz_id=-1 的数据会查空。
+        # 禁止直接用于 ES/DB 按业务过滤（terms / __in）——不存在 bk_biz_id=-1 的数据会查空。
         #    简单过滤取值用 get_biz_filter_ids()（已解析 -1）；告警可见性用 add_biz_condition。
         #    仅可用于"是否带业务范围"的意图判断（if self.bk_biz_ids / if not self.bk_biz_ids）。
         self.bk_biz_ids = bk_biz_ids
@@ -770,9 +770,9 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
         - 不含 -1 → 用请求业务集（权限交由上游 / 各自 add_biz_condition 把关）。
         - 末尾剔除残留 -1（无 request 上下文时 parse_biz_item 可能原样返回带 -1 的入参）。
 
-        ⚠️ 不替代 ``add_biz_condition``：告警/Issue 的完整可见性是三路模型
+        注意：不替代 ``add_biz_condition``：告警/Issue 的完整可见性是三路模型
         （authorized ∪ unauthorized+负责人 ∪ 无业务→我的），ES 可见性过滤仍走它。
-        ⚠️ 大集合 + ES ``terms``：authorized_bizs 在 admin 下可能超过上限(65536)，
+        注意：大集合 + ES ``terms``：authorized_bizs 在 admin 下可能超过上限(65536)，
         ES 侧请用 ``build_es_terms_query`` 分块，勿直接塞进 ``.filter("terms", ...)``。
         """
         if not self.bk_biz_ids:
