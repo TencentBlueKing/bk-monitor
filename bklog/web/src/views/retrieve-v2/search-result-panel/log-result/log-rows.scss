@@ -485,7 +485,7 @@
   }
 
   > .bklog-row-hover-operator {
-    position: absolute;
+    position: fixed;
     z-index: 200;
     width: max-content;
     min-width: 0;

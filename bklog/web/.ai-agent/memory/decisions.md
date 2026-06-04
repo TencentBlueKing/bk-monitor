@@ -183,3 +183,17 @@ Constraint:
 - Keep fuzzy match relation row (`组间关系`, `AND`, `OR`) on one line with nowrap flex styles.
 - Vue2 template refs inside `v-for` are not reliable for focusing the current edited tag; use a component root ref plus `data-fuzzy-edit-index` selector, then `focus()` and `select()` after `nextTick()`.
 - Browser validation on `http://appdev.woa.com:8001`: select `log` field + `包含`, create two tags, relation row stays inline, double-click second tag focuses `.fuzzy-match-tag-edit[data-fuzzy-edit-index="1"]`.
+
+
+## 2026-06-04 检索结果原始模式首行 hover 操作浮层防裁剪
+
+- 场景：`retrieve-v2` 日志检索结果切换到“原始”模式后，第一行 hover 操作浮层仍需保持产品设计的 `transform: translate(0, -32px)`，但不能被顶部工具栏/结果容器上边界裁剪。
+- 根因：原始模式没有 table sticky row header，第一行 row 紧贴 `.bklog-result-container` 顶部；浮层 anchor top 使用 `rowTop + 4` 后再上移 32px，最终视觉 top 变成负数，受到 `.bklog-result-container { overflow: hidden }` 裁剪。
+- 决策：不改动 `transform: translate(0, -32px)`；改为在 `updateHoverOperatorPosition` 中对 anchor top 做下限保护：`Math.max(rowTop, operatorTranslateY + rowPaddingTop)`，确保上移后视觉 top 不小于容器内 4px。
+- 验证：浏览器访问 `http://appdev.woa.com:8001`，切换“原始”，hover 第一行；测得 `.bklog-row-hover-operator` transform 为 `matrix(1,0,0,1,0,-32)`、opacity=1、z-index=200、top/bottom=416/444，操作浮层完整可见未被裁剪。
+
+## 2026-06-04 Hover operator first-row clipping fix
+
+- Context: retrieve-v2 `log-rows.tsx` hover row operator in original display mode must keep product motion `translate(0, -32px)` but must not be clipped by the result container and must not cover row text/click/selection area.
+- Decision: render `.bklog-row-hover-operator` as `position: fixed` and compute viewport-based `top/right` from the hovered row. Do not clamp anchor downward. This keeps the final visual operator above the first row while escaping `.bklog-result-container { overflow: hidden }`.
+- Verification: browser E2E on `http://appdev.woa.com:8001` original mode, first row hover. Measured operator visible, transform matrix y=-32, operator rect top/bottom `384/412`, first row rect top/bottom `412/442`, root top `411`; no overlap with row text and no clipping.

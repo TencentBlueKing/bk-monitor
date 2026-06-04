@@ -1263,8 +1263,20 @@ export default defineComponent({
 
       const rootRect = rootEl.getBoundingClientRect();
       const rowRect = rowEl.getBoundingClientRect();
-      hoverOperatorState.top = rowRect.top - rootRect.top + 4;
-      hoverOperatorState.right = 12;
+      const rowPaddingTop = 4;
+      const rowPaddingRight = 12;
+
+      /**
+       * Keep the product motion translate(0, -32px) unchanged.
+       * Render the operator as a fixed overlay so it can move above the first row without being clipped by
+       * .bklog-result-container overflow hidden. Do not clamp the anchor downward: that would make the
+       * floating actions cover the row text and steal text click/selection interactions.
+       */
+      hoverOperatorState.top = rowRect.top + rowPaddingTop;
+      hoverOperatorState.right = Math.max(
+        rowPaddingRight,
+        window.innerWidth - Math.min(rootRect.right, window.innerWidth) + rowPaddingRight,
+      );
     };
 
     const handleRowMouseenter = (event: MouseEvent, row, rowIndex: number) => {
