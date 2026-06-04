@@ -162,9 +162,15 @@ class AlertEventBaseResource(Resource, abc.ABC):
         valid_k8s_targets: list[dict[str, Any]] = []
         # 主机告警场景
         if target.TARGET_TYPE == EventTargetType.HOST:
-            k8s_node_info = resource.scene_view.get_kubernetes_node(
-                {"bk_biz_id": alert.event.bk_biz_id, "node_ip": target.list_related_host_targets()[0]["bk_target_ip"]}
-            )
+            try:
+                k8s_node_info = resource.scene_view.get_kubernetes_node(
+                    {
+                        "bk_biz_id": alert.event.bk_biz_id,
+                        "node_ip": target.list_related_host_targets()[0]["bk_target_ip"],
+                    }
+                )
+            except Exception:  # noqa
+                return None
             k8s_node_map: dict[str, Any] = {item["key"]: item["value"] for item in k8s_node_info}
             if k8s_node_map.get("bcs_cluster_id") and k8s_node_map.get("name"):
                 valid_k8s_targets.append(
@@ -177,20 +183,18 @@ class AlertEventBaseResource(Resource, abc.ABC):
             related_k8s_targets = target.list_related_k8s_targets()
             resource_type: str = related_k8s_targets["resource_type"]
             for related_target in related_k8s_targets["target_list"]:
-                # Node 对象
-                node: str = related_target.pop("target", "")
-                if resource_type == K8S_RESOURCE_TYPE[K8STargetType.NODE]:
-                    if not all([related_target.get("bcs_cluster_id"), node]):
-                        continue
-                    valid_k8s_targets.append(
-                        {
-                            "bcs_cluster_id": related_target["bcs_cluster_id"],
-                            "host": node,
-                        }
-                    )
+                bcs_cluster_id: str | None = related_target.get("bcs_cluster_id")
+                if not bcs_cluster_id:
                     continue
 
-                if not all([related_target.get("bcs_cluster_id"), related_target.get("namespace")]):
+                # Node 对象（集群级别的资源，无 namespace 属性）
+                if resource_type == K8S_RESOURCE_TYPE[K8STargetType.NODE]:
+                    node: str = related_target.get("node", "")
+                    if node:
+                        valid_k8s_targets.append({"bcs_cluster_id": bcs_cluster_id, "host": node})
+                    continue
+
+                if not related_target.get("namespace"):
                     continue
 
                 workload: str = related_target.pop("workload", "")
