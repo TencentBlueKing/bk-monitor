@@ -71,6 +71,7 @@ from monitor_web.constants import (
     GRAPH_RESOURCE,
     OVERVIEW_ICON,
 )
+from monitor_web.k8s.core.filters import escape_promql_regex
 from monitor_web.scene_view.resources.serializers import KubernetesListRequestSerializer
 from monitor_web.data_explorer.event import (
     utils as event_utils,
@@ -4062,7 +4063,8 @@ class GetKubernetesOverCommitAnalysis(Resource):
                     return []
             except EmptyResultSet:
                 return []
-            node_ips = "|".join(node.name for node in node_list)
+            # node 名常为 IP（含 . ），需转义后再拼入 node=~"^(...)$"，避免 . 误匹配
+            node_ips = "|".join(escape_promql_regex(node.name) for node in node_list)
             cpu_over_commit_promql = (
                 "sum by(bcs_cluster_id)"
                 " (kube_pod_container_resource_requests_cpu_cores{"
