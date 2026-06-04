@@ -322,6 +322,46 @@ class EtlStorage:
                 "now_if_parse_failed": True,
             }
 
+    @staticmethod
+    def _has_user_time_field(built_in_config: dict) -> bool:
+        """
+        用户是否自定义了时间字段
+        有real_path说明时间来源于bk_separator_object（用户指定字段）而非json_data（采集器默认上报）
+        """
+        time_field = built_in_config.get("time_field") or {}
+        return "real_path" in time_field.get("option", {})
+
+    @staticmethod
+    def _build_utctime_fallback() -> dict:
+        """
+        用户自定义时间字段解析失败时的兜底配置
+        回退到采集器（GSE）上报的utctime（UTC时间），全部失败再使用当前时间
+        """
+        return {
+            "fallback_fields": [
+                {
+                    "field": "utctime",
+                    "time_format": {"format": "%Y-%m-%d %H:%M:%S", "zone": 0},
+                }
+            ],
+            "now_if_parse_failed": True,
+        }
+
+    def _build_utctime_extract_v4(self, built_in_config: dict) -> list:
+        """
+        仅当用户自定义时间字段时，从json_data提取utctime为输出字段，供time_fallback引用
+        默认时间字段路径直接取json_data.utctime，无需额外声明
+        """
+        if not self._has_user_time_field(built_in_config):
+            return []
+        return [
+            {
+                "input_id": "json_data",
+                "output_id": "utctime",
+                "operator": {"type": "get", "key_index": [{"type": "key", "value": "utctime"}]},
+            }
+        ]
+
     def _build_built_in_fields_v4(self, built_in_config: dict, storage_cluster_type=STORAGE_CLUSTER_TYPE) -> list:
         """
         构建V4版本的内置字段规则
@@ -381,7 +421,7 @@ class EtlStorage:
             is_nanos = time_fmt.get("es_format", "epoch_millis") == "strict_date_optional_time_nanos"
 
             # 判断是否为用户指定的时间字段：有real_path说明时间来源于bk_separator_object而非json_data
-            has_user_time_field = "real_path" in time_field.get("option", {})
+            has_user_time_field = self._has_user_time_field(built_in_config)
 
             # 读取用户配置的时区偏移
             user_time_zone = time_field.get("option", {}).get("time_zone")
@@ -523,6 +563,12 @@ class EtlStorage:
                 storage_cluster_type=storage_cluster_type,
             )
 
+            # 用户自定义时间字段：解析失败回退到采集器上报的utctime
+            time_fallback = self._build_utctime_fallback()
+            # 关闭主解析的now短路，把"全部失败用当前时间"交给time_fallback，否则解析失败会立即用now()而到不了fallback
+            if storage_cluster_type == STORAGE_CLUSTER_TYPE:
+                v4_time_parsing["now_if_parse_failed"] = False
+
             field_index = user_time_field.get("field_index")
             if self.separator_key_is_index and field_index is not None:
                 key_index = str(field_index - 1)
@@ -540,6 +586,7 @@ class EtlStorage:
                     "input_type": None,
                     "fixed_value": None,
                     "default_value": None,
+                    "time_fallback": time_fallback,
                 },
             }
 
@@ -563,6 +610,7 @@ class EtlStorage:
                     "input_type": None,
                     "fixed_value": None,
                     "default_value": None,
+                    "time_fallback": time_fallback,
                 },
             }
 
@@ -601,6 +649,12 @@ class EtlStorage:
             # 纳秒级时间解析的输出应为strict_date_optional_time_nanos格式字符串，与ES mapping保持一致
             nanos_v4_time_parsing["to"] = "strict_date_optional_time_nanos"
 
+            # 用户自定义时间字段（纳秒级）解析失败时，同样回退到采集器utctime
+            time_fallback = self._build_utctime_fallback()
+            # 关闭主解析的now短路，把"全部失败用当前时间"交给time_fallback
+            if storage_cluster_type == STORAGE_CLUSTER_TYPE:
+                nanos_v4_time_parsing["now_if_parse_failed"] = False
+
             field_index = nanos_time_field.get("field_index")
             if self.separator_key_is_index and field_index is not None:
                 key_index = str(field_index - 1)
@@ -620,6 +674,7 @@ class EtlStorage:
                     "fixed_value": None,
                     "is_time_field": None,
                     "default_value": None,
+                    "time_fallback": time_fallback,
                 },
             }
 
