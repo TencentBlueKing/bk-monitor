@@ -162,8 +162,8 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       call_filter: routeCallOptions.call_filter || [],
       tool_mode: routeCallOptions.tool_mode || EGroupCompareType.compare,
       kind: this.callType,
-      perspective_type: 'single',
-      perspective_group_by: [],
+      perspective_type: routeCallOptions.perspective_type || 'single',
+      perspective_group_by: routeCallOptions.perspective_group_by || [],
     };
   }
 
@@ -178,6 +178,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
           (Array.isArray(val) && val.length < 1) ||
           (key === 'tool_mode' && val === EGroupCompareType.compare) ||
           (key === 'kind' && val === 'caller') ||
+          (key === 'perspective_type' && val === 'single') ||
           key in this.panelScopedVars
         )
           continue;
@@ -215,10 +216,24 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
     this.chartPointOption = {};
     this.replaceRouteQuery();
   }
+  /** 同步单/多视角状态到 callOptions */
+  handlePerspectiveChange(data: { perspective_group_by: string[]; perspective_type: string }) {
+    this.callOptions = {
+      ...this.callOptions,
+      perspective_type: data.perspective_type,
+      perspective_group_by: data.perspective_group_by,
+    };
+    this.replaceRouteQuery();
+  }
   /** 表格下钻 */
-  handleTableDrill(data: IFilterCondition[]) {
+  handleTableDrill(
+    data:
+      | IFilterCondition[]
+      | { filter: IFilterCondition[]; perspective_group_by?: string[]; perspective_type?: string }
+  ) {
+    const payload = Array.isArray(data) ? { filter: data } : data;
     const call_filter = this.callOptions.call_filter.slice(0);
-    for (const item of data) {
+    for (const item of payload.filter) {
       if (item.key === 'time') {
         this.chartPointOption = {
           time: item.value[0] ? dayjs(+item.value[0] * 1000).format('YYYY-MM-DD HH:mm:ssZZ') : '',
@@ -234,7 +249,13 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
       }
       callerItem.value = item.value;
     }
-    this.searchFilterData(call_filter);
+    this.callOptions = {
+      ...this.callOptions,
+      call_filter: structuredClone(call_filter),
+      ...(payload.perspective_type && { perspective_type: payload.perspective_type }),
+      ...(payload.perspective_group_by && { perspective_group_by: payload.perspective_group_by }),
+    };
+    this.replaceRouteQuery();
   }
   // 关闭表格中的筛选tag, 调用查询接口
   handleCloseTag(data: IFilterCondition) {
@@ -474,6 +495,7 @@ export default class ApmServiceCallerCallee extends tsc<IApmServiceCallerCalleeP
               onCloseTag={this.handleCloseTag}
               onDrill={this.handleTableDrill}
               onHandleDetail={this.handleDetail}
+              onPerspectiveChange={this.handlePerspectiveChange}
             />
           </div>
         </bk-resize-layout>

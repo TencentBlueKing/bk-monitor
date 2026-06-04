@@ -2,7 +2,6 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 
 import pytz
-from django.db.models import Q
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -111,14 +110,41 @@ class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
             begin_time = validated_request_data["begin_time"]
             begin_datetime = time_tools.str2datetime(begin_time)
             begin_time = time_tools.datetime2str(begin_datetime)
+
+        source_type = validated_request_data["source_type"]
         preview_end_time = time_tools.datetime2str(begin_datetime + timedelta(days=validated_request_data["days"]))
         user_group = validated_request_data["user_group"]
         duty_plans = defaultdict(list)
         origin_duty_plans = user_group.duty_plans if user_group else []
+        new_duty_rule_ids = []
         for duty_rule in validated_request_data["duty_rules"]:
-            # step1 找到当前规则的最后一次plan_time
-            if not user_group:
-                # 如果不是通过内部保存内容预览，直接生成
+            # 获取那些未排班时间与预览时间有重叠的快照
+            snaps = DutyRuleSnap.objects.filter(
+                user_group_id=user_group.id if user_group else -1,
+                duty_rule_id=duty_rule["id"],
+            )
+
+            # 完成预览时间段内未完成的排班
+            # 注意 get_duty_plan 返回的计划没有精确限制开始和结束的时间
+            for snap in snaps:
+                if (snap.end_time and snap.end_time < begin_time) or snap.next_plan_time > preview_end_time:
+                    continue
+                duty_manager = DutyRuleManager(
+                    duty_rule=snap.rule_snap,
+                    begin_time=snap.next_plan_time,
+                    end_time=preview_end_time,
+                    snap_end_time=snap.end_time,
+                    last_user_index=snap.next_user_index,
+                )
+                duty_plans[duty_rule["id"]].extend(duty_manager.get_duty_plan())
+
+            # API 模式下的预览逻辑：
+            # 假设告警组关联了该轮值规则，需要获取排班计划预览
+            # 存在两种情况：
+            # 1. 之前已经关联过该轮值规则，排班快照已存在 → 使用快照生成计划（上面的逻辑）
+            # 2. 之前从未关联过，没有快照 → 重新生成排班计划（下面的逻辑）
+            if not user_group or (not snaps and source_type == PreviewSerializer.SourceType.API):
+                # 没有用户组（API 模式）或没有快照时，重新生成排班计划
                 # 通过该方法，刷新 duty_rule.duty_arranges 的生效时间（begin_time）
                 # 问题： 按周排班， 此时刷新的生效时间不是当前， 而是下一周起始时间。当前到下周内无排班计划
                 # 1. 先拿当周排班计划
@@ -132,29 +158,13 @@ class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
                 # 基于刷新后的生效时间，获取轮值计划预览
                 duty_manager = DutyRuleManager(duty_rule=duty_rule, begin_time=begin_time, end_time=preview_end_time)
                 duty_plans[duty_rule["id"]] += duty_manager.get_duty_plan()
+                # 记录重新生成的规则id,避免与origin_duty_plans 中的重复
+                new_duty_rule_ids.append(duty_rule["id"])
                 continue
 
-            # 获取那些未排班时间与预览时间有重叠的快照
-            snaps = DutyRuleSnap.objects.filter(
-                Q(end_time__gte=begin_time) | Q(end_time__isnull=True) | Q(end_time=""),
-                next_plan_time__lte=preview_end_time,
-                user_group_id=user_group.id,
-                duty_rule_id=duty_rule["id"],
-            )
-
-            # 完成预览时间段内未完成的排班
-            # 注意 get_duty_plan 返回的计划没有精确限制开始和结束的时间
-            for snap in snaps:
-                duty_manager = DutyRuleManager(
-                    duty_rule=snap.rule_snap,
-                    begin_time=snap.next_plan_time,
-                    end_time=preview_end_time,
-                    snap_end_time=snap.end_time,
-                    last_user_index=snap.next_user_index,
-                )
-                duty_plans[duty_rule["id"]].extend(duty_manager.get_duty_plan())
-
         for duty_plan in origin_duty_plans:
+            if duty_plan.duty_rule_id in new_duty_rule_ids:
+                continue
             duty_plans[duty_plan.duty_rule_id].append(
                 {
                     "users": duty_plan.users,

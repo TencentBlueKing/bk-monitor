@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -37,6 +36,15 @@ def api_exception_handler(exc, context):
         # drf exc
         json_data["detail"] = exc.detail
         code = getattr(exc, "status_code", code)
+
+    # 透传 CustomException 的结构化字段 error_code/next_actions（failed() 默认清空 data）。
+    # 只放行这两个自有键，不整体透出 exc.data——BKAPIError 等会把上游原始响应体塞进 data，
+    # 整体透出会让所有 API 角色端点泄露内部信息。
+    exc_data = getattr(exc, "data", None)
+    if isinstance(exc_data, dict):
+        structured = {key: exc_data[key] for key in ("error_code", "next_actions") if key in exc_data}
+        if structured:
+            json_data["data"] = structured
 
     json_data["code"] = code
     json_data.pop("msg", None)

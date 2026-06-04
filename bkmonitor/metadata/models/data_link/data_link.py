@@ -33,8 +33,11 @@ from metadata.models.data_link.constants import (
     BASEREPORT_USAGES,
     BK_EXPORTER_TRANSFORMER_FORMAT,
     BK_STANDARD_TRANSFORMER_FORMAT,
+    SYSTEM_PROC_PERF_BASEREPORT_METRIC_TYPE,
     SYSTEM_PROC_PERF_DATABUS_FORMAT,
+    SYSTEM_PROC_PORT_BASEREPORT_METRIC_TYPE,
     SYSTEM_PROC_PORT_DATABUS_FORMAT,
+    DataLinkImmutableField,
     DataLinkKind,
     DataLinkResourceStatus,
 )
@@ -55,6 +58,8 @@ if TYPE_CHECKING:
     from metadata.models.data_link.data_link_configs import DataLinkResourceConfigBase
 
 logger = logging.getLogger("metadata")
+
+_MISSING_CONFIG_FIELD = object()
 
 
 CUSTOM_EVENT_CLEAN_RULES: list[dict[str, Any]] = [
@@ -172,8 +177,8 @@ class DataLink(models.Model):
             DataBusConfig,
         ],
         BASE_EVENT_V1: [ResultTableConfig, ESStorageBindingConfig, DataBusConfig],
-        SYSTEM_PROC_PERF: [ResultTableConfig, VMStorageBindingConfig, DataBusConfig],
-        SYSTEM_PROC_PORT: [ResultTableConfig, VMStorageBindingConfig, DataBusConfig],
+        SYSTEM_PROC_PERF: [ResultTableConfig, VMStorageBindingConfig, BasereportSinkConfig, DataBusConfig],
+        SYSTEM_PROC_PORT: [ResultTableConfig, VMStorageBindingConfig, BasereportSinkConfig, DataBusConfig],
         BK_LOG: [ResultTableConfig, ESStorageBindingConfig, DorisStorageBindingConfig, DataBusConfig],
         BK_STANDARD_V2_EVENT: [ResultTableConfig, ESStorageBindingConfig, DataBusConfig],
     }
@@ -608,10 +613,16 @@ class DataLink(models.Model):
             bkbase_vmrt_name = f"{bkbase_vmrt_prefix}_{data_link_strategy}"
         else:
             bkbase_vmrt_name = data_link_strategy
+        bkbase_vmrt_cmdb_name = f"{bkbase_vmrt_name}_cmdb"
+        cmdb_table_id = f"{table_id}_cmdb"
 
         transform_format_map = {
             DataLink.SYSTEM_PROC_PERF: SYSTEM_PROC_PERF_DATABUS_FORMAT,
             DataLink.SYSTEM_PROC_PORT: SYSTEM_PROC_PORT_DATABUS_FORMAT,
+        }
+        basereport_metric_type_map = {
+            DataLink.SYSTEM_PROC_PERF: SYSTEM_PROC_PERF_BASEREPORT_METRIC_TYPE,
+            DataLink.SYSTEM_PROC_PORT: SYSTEM_PROC_PORT_BASEREPORT_METRIC_TYPE,
         }
 
         with transaction.atomic(using=DATABASE_CONNECTION_NAME):
@@ -637,13 +648,45 @@ class DataLink(models.Model):
                 },
             )
 
+            vm_table_id_ins_cmdb, _ = ResultTableConfig.objects.update_or_create(
+                name=bkbase_vmrt_cmdb_name,
+                data_link_name=self.data_link_name,
+                namespace=self.namespace,
+                bk_biz_id=bk_biz_id,
+                bk_tenant_id=self.bk_tenant_id,
+                defaults={"table_id": cmdb_table_id},
+            )
+
+            vm_storage_ins_cmdb, _ = VMStorageBindingConfig.objects.update_or_create(
+                name=bkbase_vmrt_cmdb_name,
+                data_link_name=self.data_link_name,
+                namespace=self.namespace,
+                bk_biz_id=bk_biz_id,
+                bk_tenant_id=self.bk_tenant_id,
+                defaults={
+                    "table_id": cmdb_table_id,
+                    "bkbase_result_table_name": bkbase_vmrt_cmdb_name,
+                    "vm_cluster_name": storage_cluster_name,
+                },
+            )
+
+            basereport_sink_ins, _ = BasereportSinkConfig.objects.update_or_create(
+                name=self.data_link_name,
+                data_link_name=self.data_link_name,
+                namespace=self.namespace,
+                bk_biz_id=bk_biz_id,
+                bk_tenant_id=self.bk_tenant_id,
+                defaults={
+                    "vm_storage_binding_names": [vm_storage_ins.name, vm_storage_ins_cmdb.name],
+                    "result_table_ids": [table_id, cmdb_table_id],
+                },
+            )
             sink_item = {
-                "kind": DataLinkKind.VMSTORAGEBINDING.value,
-                "name": bkbase_vmrt_name,
+                "kind": DataLinkKind.BASEREPORTSINK.value,
+                "name": self.data_link_name,
                 "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+                **({"tenant": self.bk_tenant_id} if settings.ENABLE_MULTI_TENANT_MODE else {}),
             }
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                sink_item["tenant"] = self.bk_tenant_id
 
             data_bus_ins, _ = DataBusConfig.objects.update_or_create(
                 name=self.data_link_name,
@@ -658,11 +701,25 @@ class DataLink(models.Model):
                 },
             )
 
-        return [
+        configs = [
             vm_table_id_ins.compose_config(),
             vm_storage_ins.compose_config(),
-            data_bus_ins.compose_config(sinks=[sink_item], transform_format=transform_format_map[data_link_strategy]),
+            vm_table_id_ins_cmdb.compose_config(),
+            vm_storage_ins_cmdb.compose_config(),
         ]
+        configs.append(
+            basereport_sink_ins.compose_config(
+                vmrt_prefix="",
+                metric_type_to_vm_storage_binding_name={
+                    basereport_metric_type_map[data_link_strategy]: vm_storage_ins.name,
+                    f"{basereport_metric_type_map[data_link_strategy]}_cmdb": vm_storage_ins_cmdb.name,
+                },
+            )
+        )
+        configs.append(
+            data_bus_ins.compose_config(sinks=[sink_item], transform_format=transform_format_map[data_link_strategy])
+        )
+        return configs
 
     def compose_basereport_time_series_configs(
         self,
@@ -1600,6 +1657,7 @@ class DataLink(models.Model):
         """
         existing_config = deepcopy(existing_config)
         merged_config = config
+        cls.check_component_immutable_fields(existing_config, merged_config)
 
         existing_metadata = existing_config["metadata"]
         merged_metadata = merged_config["metadata"]
@@ -1616,6 +1674,40 @@ class DataLink(models.Model):
         cls._fill_missing_dict(merged_config["spec"], existing_config["spec"])
 
         return merged_config
+
+    @classmethod
+    def _get_component_field_value(cls, config: dict[str, Any], field_path: tuple[str, ...]) -> Any:
+        current: Any = config
+        for key in field_path:
+            if not isinstance(current, dict) or key not in current:
+                return _MISSING_CONFIG_FIELD
+            current = current[key]
+        return current
+
+    @classmethod
+    def check_component_immutable_fields(cls, existing_config: dict[str, Any], config: dict[str, Any]) -> None:
+        """检查指定组件中配置后不允许修改的字段。
+
+        只有 BKBase 已有配置与本次配置都包含目标字段时才比较；缺失字段继续按原有
+        merge 补缺逻辑处理，避免影响首次下发或历史组件字段不完整的场景。
+        """
+        kind = config.get("kind")
+        if not kind:
+            return
+
+        for immutable_field in DataLinkImmutableField.fields_for_kind(kind):
+            existing_value = cls._get_component_field_value(existing_config, immutable_field.field_path)
+            current_value = cls._get_component_field_value(config, immutable_field.field_path)
+            if existing_value is _MISSING_CONFIG_FIELD or current_value is _MISSING_CONFIG_FIELD:
+                continue
+            if existing_value == current_value:
+                continue
+
+            raise ValueError(
+                "merge_component_config: immutable component field changed,"
+                f"kind->[{kind}],field->[{immutable_field.display_path}],"
+                f"existing_value->[{existing_value}],current_value->[{current_value}]"
+            )
 
     def get_existing_component_config(
         self,

@@ -42,9 +42,6 @@ class MetricHelper:
     # 默认查询近 1h 的数据
     DEFAULT_TIME_DURATION: datetime.timedelta = datetime.timedelta(hours=1)
 
-    # 最多查询近 30d 的数据
-    MAX_TIME_DURATION: datetime.timedelta = datetime.timedelta(days=30)
-
     MAX_OPTION_LIMIT: int = 9999
 
     MAX_DATA_LIMIT: int = 24 * 60 * 30
@@ -120,13 +117,10 @@ class MetricHelper:
     @classmethod
     def get_time_range(cls, start_time: int | None = None, end_time: int | None = None, with_accuracy: bool = True):
         now: int = int(datetime.datetime.now().timestamp())
-        # 最早查询起始时间
-        earliest_start_time: int = now - int(cls.MAX_TIME_DURATION.total_seconds())
         # 默认查询起始时间
         default_start_time: int = now - int(cls.DEFAULT_TIME_DURATION.total_seconds())
 
-        # 开始时间不能小于 earliest_start_time
-        start_time = max(earliest_start_time, start_time or default_start_time)
+        start_time = start_time or default_start_time
 
         # 结束时间不能大于 now
         end_time = min(now, end_time or now)

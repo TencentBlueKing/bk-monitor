@@ -389,7 +389,7 @@ export function createShootingModule(
   const eventTitle = (item: IEventsAnalysis, subContent = null) => {
     // 判断是否为子级标题
     const isChild = !!subContent;
-    const config = EVENTS_TYPE_MAP[item.type as keyof typeof EVENTS_TYPE_MAP];
+    const config = EVENTS_TYPE_MAP[item.type as keyof typeof EVENTS_TYPE_MAP] ?? EVENTS_TYPE_MAP['default'];
 
     const renderTitleInfo = () => {
       // 父级Collapse title
@@ -446,12 +446,15 @@ export function createShootingModule(
     return (
       <span class='event-title'>
         {/* 渲染标题icon（仅父级显示）*/}
-        {!isChild && (
-          <span
-            style={{ backgroundImage: `url(${base64Svg[config.iconType]})` }}
-            class='event-icon'
-          />
-        )}
+        {!isChild &&
+          (config.iconType ? (
+            <span
+              style={{ backgroundImage: `url(${base64Svg[config.iconType]})` }}
+              class='event-icon'
+            />
+          ) : (
+            <i class='icon-monitor icon-shijianjiansuo event-icon' />
+          ))}
         {/* 渲染标题内容 */}
         {renderTitleInfo()}
       </span>

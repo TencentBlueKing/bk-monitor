@@ -27,8 +27,13 @@ from kernel_api.rpc.functions.admin.api_auth_token import (
 )
 from kernel_api.rpc.functions.admin import apm as admin_apm
 from kernel_api.rpc.functions.admin import bcs_cluster as admin_bcs_cluster
+from kernel_api.rpc.functions.admin import custom_report as admin_custom_report
 from kernel_api.rpc.functions.admin.bcs_cluster import _serialize_bcs_cluster
-from kernel_api.rpc.functions.admin.cluster_info import _build_es_cluster_overview, _serialize_cluster_info
+from kernel_api.rpc.functions.admin.cluster_info import (
+    _build_es_cluster_overview,
+    _serialize_cluster_info,
+    _serialize_cluster_space_vm_info,
+)
 from kernel_api.rpc.functions.admin.datasource import _serialize_datasource
 from kernel_api.rpc.functions.admin import datalink as admin_datalink
 from kernel_api.rpc.functions.admin.datalink import (
@@ -105,6 +110,7 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.result_table.field_options",
         "admin.cluster_info.list",
         "admin.cluster_info.detail",
+        "admin.cluster_info.space_vm_info_list",
         "admin.bcs_cluster.list",
         "admin.bcs_cluster.detail",
         "admin.bcs_cluster.data_id_list",
@@ -133,6 +139,7 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.bkbase_result_table.detail",
         "admin.custom_report.list",
         "admin.custom_report.detail",
+        "admin.custom_report.scope_list",
         "admin.custom_report.metric_list",
         "admin.custom_report.refresh_metrics",
         "admin.api_auth_token.list",
@@ -283,6 +290,47 @@ def test_space_vm_info_serializer_includes_vm_cluster_or_null():
 
     missing_cluster_item = admin_space._serialize_space_vm_info(space_vm_info, {})
     assert missing_cluster_item["vm_cluster"] is None
+
+
+def test_cluster_space_vm_info_serializer_includes_space_summary_or_null():
+    space_vm_info = SimpleNamespace(
+        id=1,
+        space_type="bkcc",
+        space_id="2",
+        vm_cluster_id=10001,
+        vm_retention_time="30d",
+        status="normal",
+        creator="admin",
+        create_time=datetime(2026, 5, 27, 10, 0, 0),
+        updater="admin",
+        update_time=datetime(2026, 5, 27, 10, 5, 0),
+    )
+    space = SimpleNamespace(
+        id=2,
+        bk_tenant_id="system",
+        space_type_id="bkcc",
+        space_id="2",
+        space_name="蓝鲸监控",
+        space_code=None,
+        status="normal",
+        time_zone="Asia/Shanghai",
+        language="zh-hans",
+        is_bcs_valid=True,
+        is_global=False,
+        creator="admin",
+        create_time=datetime(2026, 5, 27, 9, 0, 0),
+        last_modify_user="admin",
+        last_modify_time=datetime(2026, 5, 27, 9, 5, 0),
+    )
+
+    item = _serialize_cluster_space_vm_info(space_vm_info, {("bkcc", "2"): space})
+
+    assert item["space_vm_info"]["vm_cluster_id"] == 10001
+    assert item["space"]["space_uid"] == "bkcc__2"
+    assert item["space"]["space_name"] == "蓝鲸监控"
+
+    missing_space_item = _serialize_cluster_space_vm_info(space_vm_info, {})
+    assert missing_space_item["space"] is None
 
 
 def test_render_image_task_serializer_extracts_options_and_duration():
@@ -577,6 +625,28 @@ def test_datalink_component_list_accepts_cluster_config_kind():
     assert response["data"]["items"][0]["status"] == ""
     assert response["data"]["items"][0]["data_link_name"] is None
     assert response["data"]["items"][0]["bk_biz_id"] == 0
+
+
+def test_datalink_databus_serializer_includes_consumer_group():
+    databus = SimpleNamespace(
+        name="l_1575783",
+        namespace="bklog",
+        create_time=None,
+        last_modify_time=None,
+        status="Ok",
+        data_link_name="l_1575783",
+        bk_biz_id=7,
+        bk_tenant_id="default",
+        data_id_name="l_1575783",
+        bk_data_id=1575783,
+        sink_names=["ElasticSearchBinding:l_1575783"],
+        consumer_group="bkmonitorv3_transfer0bkmonitor_15757830",
+    )
+
+    item = admin_datalink._serialize_component(databus, "Databus")
+
+    assert item["kind"] == "Databus"
+    assert item["consumer_group"] == "bkmonitorv3_transfer0bkmonitor_15757830"
 
 
 def test_datalink_component_detail_accepts_cluster_config_kind_with_component_config():
@@ -1587,6 +1657,13 @@ def test_cluster_info_detail_function_registered():
     assert "cluster_id" in detail["params_schema"]
 
 
+def test_cluster_info_space_vm_info_list_function_registered():
+    detail = KernelRPCRegistry.get_function_detail("admin.cluster_info.space_vm_info_list")
+    assert detail is not None
+    assert detail["func_name"] == "admin.cluster_info.space_vm_info_list"
+    assert "search" in detail["params_schema"]
+
+
 def test_cluster_info_list_supports_lightweight_include():
     detail = KernelRPCRegistry.get_function_detail("admin.cluster_info.list")
     assert detail is not None
@@ -1653,6 +1730,81 @@ def test_custom_report_refresh_metrics_function_registered():
     assert "expired_time" in detail["params_schema"]
 
 
+def test_custom_report_scope_and_metric_list_functions_registered():
+    scope_list = KernelRPCRegistry.get_function_detail("admin.custom_report.scope_list")
+    assert scope_list is not None
+    assert scope_list["func_name"] == "admin.custom_report.scope_list"
+    assert "scope_name" in scope_list["params_schema"]
+    assert "create_from" in scope_list["params_schema"]
+
+    metric_list = KernelRPCRegistry.get_function_detail("admin.custom_report.metric_list")
+    assert metric_list is not None
+    assert "scope_id" in metric_list["params_schema"]
+    assert "field_scope" in metric_list["params_schema"]
+
+
+def test_custom_report_scope_serializer_returns_scope_metadata():
+    scope = SimpleNamespace(
+        id=2,
+        group_id=1001,
+        scope_name="checkout-api||production",
+        dimension_config={"service_name": {"alias": "服务", "common": True, "hidden": False}},
+        auto_rules=["checkout_*"],
+        create_from="data",
+        last_modify_time=datetime(2026, 4, 26, 10, 40, 0),
+    )
+
+    item = admin_custom_report._serialize_time_series_scope(scope, {2: 3})
+
+    assert item == {
+        "scope_id": 2,
+        "group_id": 1001,
+        "scope_name": "checkout-api||production",
+        "dimension_config": {"service_name": {"alias": "服务", "common": True, "hidden": False}},
+        "auto_rules": ["checkout_*"],
+        "metric_count": 3,
+        "create_from": "data",
+        "last_modify_time": "2026-04-26 10:40:00",
+    }
+
+
+def test_custom_report_metric_serializer_returns_scope_and_field_config():
+    scope = SimpleNamespace(id=2, scope_name="checkout-api||production")
+    metric = SimpleNamespace(
+        field_id=7001,
+        field_name="http_request_total",
+        table_id="2_bkmonitor_time_series.__default__",
+        scope_id=2,
+        field_scope="checkout-api||production",
+        tag_list=["service_name", "scope_name", "target"],
+        field_config={
+            "alias": "HTTP 请求数",
+            "unit": "none",
+            "hidden": False,
+            "aggregate_method": "sum",
+            "function": "sum",
+            "interval": 60,
+            "disabled": False,
+        },
+        is_active=True,
+        create_time=datetime(2026, 4, 26, 10, 0, 0),
+        last_modify_time=datetime(2026, 4, 26, 10, 30, 0),
+    )
+
+    item = admin_custom_report._serialize_time_series_metric(metric, {2: scope})
+
+    assert item["field_id"] == 7001
+    assert item["field_name"] == "http_request_total"
+    assert item["scope"] == {"id": 2, "name": "checkout-api||production"}
+    assert item["field_scope"] == "checkout-api||production"
+    assert item["tag_list"] == ["service_name", "scope_name", "target"]
+    assert item["field_config"]["alias"] == "HTTP 请求数"
+    assert item["description"] == "HTTP 请求数"
+    assert item["unit"] == "none"
+    assert item["create_time"] == "2026-04-26 10:00:00"
+    assert item["update_time"] == "2026-04-26 10:30:00"
+
+
 def test_es_storage_functions_registered():
     for func_name in [
         "admin.es_storage.list",
@@ -1716,6 +1868,7 @@ def test_storage_functions_registered():
 
     assert "table_id" in KernelRPCRegistry.get_function_detail("admin.doris_storage.list")["params_schema"]
     assert "id" in KernelRPCRegistry.get_function_detail("admin.vm_storage.detail")["params_schema"]
+    assert "vm_cluster_id" in KernelRPCRegistry.get_function_detail("admin.vm_storage.list")["params_schema"]
     assert (
         "data_link_name" in KernelRPCRegistry.get_function_detail("admin.bkbase_result_table.detail")["params_schema"]
     )

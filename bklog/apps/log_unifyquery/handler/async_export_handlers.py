@@ -28,8 +28,10 @@ from django.conf import settings
 from django.utils.http import urlencode
 from rest_framework.reverse import reverse
 
+from apps.api import TransferApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH_EXPORT
+from apps.log_databus.constants import DORIS_CLUSTER_TYPE, DORIS_DEFAULT_EXPIRE_DAYS
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import (
     ASYNC_COUNT_SIZE,
@@ -251,23 +253,47 @@ class UnifyQueryAsyncExportHandlers:
 
     @classmethod
     def get_index_set_retention(cls, index_set_ids):
-        index_set_id_dict = cls.get_data_id(index_set_ids)
-        data_id_retention_dict = cls.get_retention(list(index_set_id_dict.keys()))
-        return {index_set_id_dict.get(data_id): retention for data_id, retention in data_id_retention_dict.items()}
+        data_id_to_index_set_id_map, result_table_id_to_index_set_id_map = (
+            cls.get_data_id_to_index_set_id_map_and_result_table_id_to_index_set_id_map(index_set_ids)
+        )
+        data_id_to_retention_map = cls.get_retention(list(data_id_to_index_set_id_map.keys()))
+        es_retention_map = {
+            data_id_to_index_set_id_map.get(data_id): retention
+            for data_id, retention in data_id_to_retention_map.items()
+        }
 
-    @classmethod
-    def get_data_id(cls, index_set_ids: list):
-        log_index_sets = LogIndexSet.objects.filter(index_set_id__in=index_set_ids)
-        log_index_set_dict = {
-            log_index_set.collector_config_id: log_index_set.index_set_id
-            for log_index_set in log_index_sets
-            if log_index_set.collector_config_id
+        doris_expire_days_map = cls.get_doris_index_set_id_to_expire_days_map(result_table_id_to_index_set_id_map)
+
+        return es_retention_map | doris_expire_days_map
+
+    @staticmethod
+    def get_data_id_to_index_set_id_map_and_result_table_id_to_index_set_id_map(index_set_ids: list):
+        index_set_objs = LogIndexSet.objects.filter(index_set_id__in=index_set_ids)
+
+        collector_config_id_to_index_set_id_map = {
+            index_set_obj.collector_config_id: index_set_obj.index_set_id
+            for index_set_obj in index_set_objs
+            if index_set_obj.collector_config_id
         }
-        collector_configs = CollectorConfig.objects.filter(collector_config_id__in=log_index_set_dict.keys())
-        return {
-            collector_config.bk_data_id: log_index_set_dict.get(collector_config.collector_config_id)
-            for collector_config in collector_configs
-        }
+
+        collector_config_objs = CollectorConfig.objects.filter(
+            collector_config_id__in=collector_config_id_to_index_set_id_map.keys()
+        )
+
+        if not collector_config_objs:
+            return {}, {}
+
+        data_id_to_index_set_id_map = {}
+        result_table_id_to_index_set_id_map = {}
+
+        for collector_config_obj in collector_config_objs:
+            current_index_set_id = collector_config_id_to_index_set_id_map.get(collector_config_obj.collector_config_id)
+            if collector_config_obj.storage_cluster_type == DORIS_CLUSTER_TYPE:
+                result_table_id_to_index_set_id_map[collector_config_obj.table_id] = current_index_set_id
+            else:
+                data_id_to_index_set_id_map[collector_config_obj.bk_data_id] = current_index_set_id
+
+        return data_id_to_index_set_id_map, result_table_id_to_index_set_id_map
 
     @classmethod
     def get_retention(cls, data_ids):
@@ -288,6 +314,27 @@ class UnifyQueryAsyncExportHandlers:
                 shipper, *_ = result_table["shipper_list"]
                 result[val["bk_data_id"]] = shipper["storage_config"]["retention"]
         return result
+
+    @staticmethod
+    def get_doris_index_set_id_to_expire_days_map(result_table_id_to_index_set_id_map):
+
+        if not result_table_id_to_index_set_id_map:
+            return {}
+
+        doris_result_table_list = ",".join(result_table_id_to_index_set_id_map.keys())
+
+        result = TransferApi.get_result_table_storage(
+            {"result_table_list": doris_result_table_list, "storage_type": DORIS_CLUSTER_TYPE}
+        )
+
+        index_set_id_to_expire_days_map = {}
+
+        for result_table_id, storage_cluster_info in result.items():
+            expire_days = storage_cluster_info.get("storage_config", {}).get("expire_days", DORIS_DEFAULT_EXPIRE_DAYS)
+            current_index_set_id = result_table_id_to_index_set_id_map[result_table_id]
+            index_set_id_to_expire_days_map[current_index_set_id] = expire_days
+
+        return index_set_id_to_expire_days_map
 
 
 class UnifyQueryUnionAsyncExportHandlers:

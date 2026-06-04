@@ -36,6 +36,7 @@ import IssuesImpactScopeDrawer from './components/issues-impact-scope-drawer/iss
 import { useIssuesDialogs } from './components/issues-operation-dialogs/hooks/use-issues-dialogs';
 import IssuesOperationDialogs from './components/issues-operation-dialogs/issues-operation-dialogs';
 import { IssuesBatchActionEnum } from './constant';
+import { useIssuesMergeActions } from './hooks/use-issues-merge-actions';
 import { useIssuesTable } from './hooks/use-issues-table';
 import IssuesTable from './issues-table/issues-table';
 import IssuesToolbar from './issues-toolbar/issues-toolbar';
@@ -64,6 +65,14 @@ export default defineComponent({
     /** table 选中的 rowKey 数组 */
     const selectedRowKeys = shallowRef<string[]>([]);
 
+    /** 是否有选中行 */
+    const hasSelection = computed(() => selectedRowKeys.value.length > 0);
+
+    const { mergeDisabled, mergeDisabledTip, handleIssuesMergeClick, handleIssuesSplitClick } = useIssuesMergeActions({
+      data,
+      selectedRowKeys,
+    });
+
     const {
       issuesDialogShow,
       issuesDialogType,
@@ -79,9 +88,9 @@ export default defineComponent({
 
     /**
      * @description 展示 Issue 详情
-     * @param {IssueItem['id']} _id - Issue ID
+     * @param {IssueItem} _item - Issue 行数据
      */
-    const handleShowDetail = (_id: IssueItem['id']) => {
+    const handleShowDetail = (_item: IssueItem) => {
       // TODO: 接入详情抽屉逻辑
     };
 
@@ -135,7 +144,11 @@ export default defineComponent({
       <div class='alarm-issues'>
         <IssuesToolbar
           batchAction={action => handleIssuesDialogShow(action, selectedRowKeys.value)}
-          issuesIds={selectedRowKeys.value}
+          hasSelection={hasSelection.value}
+          mergeDisabled={mergeDisabled.value}
+          mergeDisabledTip={mergeDisabledTip.value}
+          onExport={() => Promise.resolve()}
+          onMerge={handleIssuesMergeClick}
         >
           <IssuesTable
             pagination={{
@@ -158,6 +171,7 @@ export default defineComponent({
             onSelectionChange={handleSelectionChange}
             onShowDetail={handleShowDetail}
             onSortChange={sort => handleSortChange(sort as string)}
+            onSplitClick={handleIssuesSplitClick}
           />
         </IssuesToolbar>
 
