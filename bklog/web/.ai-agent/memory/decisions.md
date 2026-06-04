@@ -147,3 +147,10 @@ Constraint:
 - 当 `ui-input-option.vue` 渲染 `FuzzyMatchMode` 时，外层原有“检索内容 / 批量输入 / 清空”标题行必须隐藏，避免双标题和职责重复。
 - “检索内容”、`BatchInput`、`清空`、右侧“匹配模式 ?”统一迁移到 `fuzzy-match-mode.vue` 内部实现；批量输入结果由组件内合并为换行文本并按当前模式输出最终 value。
 - 父组件仍只允许 `<FuzzyMatchMode v-model="fuzzyMatchValue" :type="fuzzyMatchEngine" />` 调用形态。
+
+## 2026-06-04 Fuzzy Match tag relation/focus fixes
+
+- Scope: `src/views/retrieve-v2/search-bar/ui-mode/fuzzy-match-mode.vue`.
+- Keep fuzzy match relation row (`组间关系`, `AND`, `OR`) on one line with nowrap flex styles.
+- Vue2 template refs inside `v-for` are not reliable for focusing the current edited tag; use a component root ref plus `data-fuzzy-edit-index` selector, then `focus()` and `select()` after `nextTick()`.
+- Browser validation on `http://appdev.woa.com:8001`: select `log` field + `包含`, create two tags, relation row stays inline, double-click second tag focuses `.fuzzy-match-tag-edit[data-fuzzy-edit-index="1"]`.
