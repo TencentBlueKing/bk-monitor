@@ -1590,8 +1590,8 @@ ENABLE_V2_VM_DATA_LINK = os.getenv("ENABLE_V2_VM_DATA_LINK", "true").lower() == 
 ENABLE_PLUGIN_ACCESS_V4_DATA_LINK = os.getenv("ENABLE_PLUGIN_ACCESS_V4_DATA_LINK", "true").lower() == "true"
 # 是否让拨测默认接入独立 BKData 链路，默认开启
 ENABLE_UPTIMECHECK_BKDATA = os.getenv("ENABLE_UPTIMECHECK_BKDATA", "true").lower() == "true"
-# APM Tracing 是否启用 BKBase 数据链路（创建新 APM 应用时走 BKBase 而非 Transfer）
-ENABLE_TRACING_BKDATA = os.getenv("ENABLE_TRACING_BKDATA", "false").lower() == "true"
+# APM Tracing 是否启用 BKBase 数据链路（仅对新创建的 APM 应用生效，存量应用不自动切换）
+ENABLE_NEW_APM_APP_BKDATA_TRACING = os.getenv("ENABLE_NEW_APM_APP_BKDATA_TRACING", "false").lower() == "true"
 # 是否启用influxdb，默认关闭
 ENABLE_INFLUXDB_STORAGE = os.getenv("BKAPP_ENABLE_INFLUXDB_STORAGE", "false").lower() == "true"
 # 是否开启空间内置数据链路初始化
