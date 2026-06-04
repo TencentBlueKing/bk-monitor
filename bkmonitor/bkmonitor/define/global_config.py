@@ -474,6 +474,10 @@ ADVANCED_OPTIONS = OrderedDict(
             "BCS_DISCOVER_BCS_CLUSTER_BIZ_WHITE_LIST",
             slz.ListField(label="BCS集群自动发现任务白名单业务ID列表", default=[]),
         ),
+        (
+            "ALARM_CACHE_REFRESH_BIZ_CONCURRENT",
+            slz.IntegerField(label="告警缓存刷新任务的业务并发度", default=3),
+        ),
     ]
 )
 
