@@ -147,3 +147,33 @@ Constraint:
 - 当 `ui-input-option.vue` 渲染 `FuzzyMatchMode` 时，外层原有“检索内容 / 批量输入 / 清空”标题行必须隐藏，避免双标题和职责重复。
 - “检索内容”、`BatchInput`、`清空`、右侧“匹配模式 ?”统一迁移到 `fuzzy-match-mode.vue` 内部实现；批量输入结果由组件内合并为换行文本并按当前模式输出最终 value。
 - 父组件仍只允许 `<FuzzyMatchMode v-model="fuzzyMatchValue" :type="fuzzyMatchEngine" />` 调用形态。
+
+## 2026-06-04 检索结果行操作改为 hover 浮层
+
+- 文件：`src/views/retrieve-v2/search-result-panel/log-result/log-rows.tsx`、`log-rows.scss`、`log-row-attributes.ts`。
+- 决策：移除日志检索结果右侧固定操作列，不再把操作列计入表格宽度、列宽分配、横向滚动 sticky/fixed right 占位或阴影计算。
+- 实现：每行渲染 `bklog-row-hover-operator`，默认 `width: 0` 不参与表格 scrollWidth；hover/focus/AI active 时通过 sticky right + absolute content 从当前行右侧滑出，操作层 z-index 高于行内容，并在横向滚动时吸附可视区域最右侧。
+- 约束：保留 `OperatorTools` 原操作能力和点击回调；Monitor Trace 环境仍不显示行操作。
+
+## 2026-06-04 Retrieve V2 Row Hover Operator Style Refinement
+
+- Scope: `src/views/retrieve-v2/search-result-panel/log-result/log-rows.scss`, `src/views/retrieve-v2/components/result-cell-element/operator-tools.vue`.
+- Decision: row hover operator overlay should not use a fixed container width; it uses `width: max-content` and sizes by visible action count.
+- Operator item sizing: each action is `20px x 20px`, with `gap: 2px` between actions.
+- Overlay card: lightweight border/background/shadow is kept on the hover overlay, but previous 30px item sizing, 8px gap, and 40px action container height were removed.
+- Tooltip UX: all operator tooltips use `delay: 500` to avoid immediate tooltip noise while moving across row actions.
+- Verification: static assertions, `git diff --check`, `eslint operator-tools.vue --quiet`, and `npm run build` passed.
+
+## 2026-06-04 Retrieve v2 row hover operator z-index fix
+
+- Context: after removing the fixed right operation column, row actions are shown as `.bklog-row-hover-operator` on row hover.
+- Issue: the hover operator was translated upward with `transform: translate(0, -32px)`, causing it to enter the sticky `.bklog-row-container.row-header` area and be covered by the header.
+- Decision: keep the operator anchored inside the current row by using `transform: translateX(0)` on hover, and raise the hovered row/operator z-index above the sticky header (`row z-index: 120`, operator z-index: 130).
+- Constraint: do not move row operators into the header layer; operators must stay aligned to the current row top/right padding and remain sticky to the visible right edge during horizontal scroll.
+
+## 2026-06-04 Retrieve v2 row hover operator overlay clipping fix
+
+- Context: `src/views/retrieve-v2/search-result-panel/log-result/log-rows.tsx` row hover action overlay must keep product-designed `transform: translate(0, -32px)`.
+- Problem: rendering `.bklog-row-hover-operator` inside each row caused the first row overlay to enter sticky header area and be clipped by `.bklog-row-box { overflow: hidden; }`; changing/removing transform is not acceptable.
+- Decision: render a single `.bklog-row-hover-operator` as a direct child of `.bklog-result-container`, position it absolutely from the hovered row's bounding rect, and keep `transform: translate(0, -32px)` in the overlay visible state. This escapes `.bklog-row-box` clipping while preserving the designed upward animation.
+- Verification: browser test on `http://appdev.woa.com:8001` confirmed operator is direct child of `.bklog-result-container`, `handle-content` is visible (`76x28`, opacity 1), overlaps sticky header but has `z-index: 200` vs header `z-index: 2`, and is not clipped by row-box.
