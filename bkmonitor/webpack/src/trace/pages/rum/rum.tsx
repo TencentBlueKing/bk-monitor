@@ -152,6 +152,7 @@ export default defineComponent({
     const showCreateApp = shallowRef(false);
     const showSdkReport = shallowRef(false);
     const sdkReportAppInfo = shallowRef<Partial<IRumAppConfig>>(null);
+    const loading = shallowRef(false);
 
     const searchLabel = (k: RumCriteriaKey) => {
       const map: Record<RumCriteriaKey, string> = {
@@ -230,8 +231,10 @@ export default defineComponent({
     // });
 
     const getRumList = async () => {
+      loading.value = true;
       const { data } = await listApplication().catch(() => ({ columns: [], total: 0, data: [] }));
       appListResource.value = data;
+      loading.value = false;
       getRumAsyncResource();
     };
 
@@ -519,6 +522,7 @@ export default defineComponent({
       sdkReportAppInfo.value = params;
       handleCreateAppShowChange(false);
       handleSdkReportShowChange(true);
+      getRumList();
     };
     const handleSdkReportShowChange = (show: boolean) => {
       showSdkReport.value = show;
@@ -575,6 +579,7 @@ export default defineComponent({
                 // data={tablePageData.value.rows as unknown as Record<string, unknown>[]}
                 data={filteredTableData.value as unknown as Record<string, unknown>[]}
                 filterValue={criteriaToFilterValue(rumCriteria.value)}
+                loading={loading.value}
                 // pagination={tablePageData.value.pagination}
                 rowKey='id'
                 sort={tableSort.value}
