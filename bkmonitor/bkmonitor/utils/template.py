@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+import datetime
 import json
 import logging
 import re
@@ -54,12 +55,45 @@ def _is_allowed_template_callable(obj):
     return module.startswith(SAFE_CALLABLE_MODULE_PREFIXES)
 
 
+# 放行内置不可变类型（字符串/时间）实例的原生方法；可变容器与匹配对象只放行只读方法。
+SAFE_IMMUTABLE_METHOD_TYPES = (
+    str,
+    datetime.date,
+    datetime.time,
+    datetime.datetime,
+    datetime.timedelta,
+)
+_DICT_READONLY_METHODS = frozenset({"get", "keys", "values", "items", "copy"})
+_RE_MATCH_TYPE = type(re.match("", ""))
+_RE_MATCH_READONLY_METHODS = frozenset({"group", "groups", "groupdict", "start", "end", "span"})
+_DENIED_BUILTIN_METHODS = frozenset({"format", "format_map"})
+
+
+def _is_safe_builtin_method(obj):
+    # 仅认内置类型的原生（C 实现）绑定方法，避免放行自定义对象或其子类新增的方法
+    if not isinstance(obj, types.BuiltinMethodType):
+        return False
+    receiver = getattr(obj, "__self__", None)
+    name = getattr(obj, "__name__", "")
+    if receiver is None or isinstance(receiver, type) or name in _DENIED_BUILTIN_METHODS:
+        return False
+    # 不可变类型的原生方法无副作用，整体放行
+    if isinstance(receiver, SAFE_IMMUTABLE_METHOD_TYPES):
+        return True
+    # 可变容器（字典）与匹配对象只放行只读方法，不放开会修改其内容的方法
+    if isinstance(receiver, dict):
+        return name in _DICT_READONLY_METHODS
+    if isinstance(receiver, _RE_MATCH_TYPE):
+        return name in _RE_MATCH_READONLY_METHODS
+    return False
+
+
 class SafeSandboxedEnvironment(SandboxedEnvironment):
     """在默认沙箱基础上进一步约束模板可访问的对象范围。
 
     - 不暴露模块类型的对象及其属性；
     - 调用实参只接受数据值，不接受可调用对象；
-    - 仅允许调用模板显式提供的 helper 与 Jinja 内置函数。
+    - 仅允许调用模板显式提供的 helper、Jinja 内置函数，以及内置数据类型的原生方法。
     """
 
     def is_safe_attribute(self, obj, attr, value):
@@ -70,7 +104,7 @@ class SafeSandboxedEnvironment(SandboxedEnvironment):
     def is_safe_callable(self, obj):
         if not super().is_safe_callable(obj):
             return False
-        return _is_allowed_template_callable(obj)
+        return _is_allowed_template_callable(obj) or _is_safe_builtin_method(obj)
 
     def call(__self, __context, __obj, *args, **kwargs):
         # 形参用双下划线，沿用 jinja 约定避免与模板 kwargs 冲突。
