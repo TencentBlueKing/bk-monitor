@@ -18,7 +18,6 @@ from urllib.parse import urlencode
 
 from django.conf import settings
 from django.utils.translation import ugettext as _
-from jinja2.sandbox import SandboxedEnvironment as Environment
 
 from alarm_backends.core.context import logger
 from alarm_backends.service.new_report.handler.base import BaseReportHandler
@@ -26,6 +25,7 @@ from bkm_space.api import SpaceApi
 from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.models import Report
 from bkmonitor.report.utils import get_data_range
+from bkmonitor.utils.template import SafeSandboxedEnvironment as Environment
 from constants.new_report import (
     LogColShowTypeEnum,
     YearOnYearChangeEnum,
