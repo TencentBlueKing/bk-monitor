@@ -147,3 +147,48 @@ Constraint:
 - 当 `ui-input-option.vue` 渲染 `FuzzyMatchMode` 时，外层原有“检索内容 / 批量输入 / 清空”标题行必须隐藏，避免双标题和职责重复。
 - “检索内容”、`BatchInput`、`清空`、右侧“匹配模式 ?”统一迁移到 `fuzzy-match-mode.vue` 内部实现；批量输入结果由组件内合并为换行文本并按当前模式输出最终 value。
 - 父组件仍只允许 `<FuzzyMatchMode v-model="fuzzyMatchValue" :type="fuzzyMatchEngine" />` 调用形态。
+
+
+## 2026-06-03 上下文日志改为独立路由打开
+
+- 点击日志结果行操作中的“上下文”时，不再打开全屏 Dialog，而是通过 retrieve-context-log 路由新开浏览器 tab。
+- 上下文路由路径：/retrieve/context-log，页面组件：src/views/retrieve-v3/search-result/original-log/context-log/page.tsx。
+- 参数通过 URL payload 承载，payload 使用 base64Encode(JSON.stringify(...))，避免新 tab 依赖原 tab 的内存态或 sessionStorage。
+- ContextLog 组件支持 mode=dialog/page 两种渲染模式；page 模式直接渲染内容，不渲染 bk-dialog，ESC 不关闭，右上角由关闭语义改为“返回”。
+- 返回时使用 payload 中的 backRoute 回到日志检索首页，并保留跳转来源的 route params/query。
+- 新 tab 独立页面会根据 payload 的 indexSetId 与 retrieveParams 初始化必要 store 状态并请求字段信息，保证上下文内容可直接路由打开。
+
+## 2026-06-03 上下文新 Tab 路由副作用收敛
+
+- 背景：日志检索 v2 点击“上下文”从弹窗改为新浏览器 Tab 路由打开后，需要避免 URL 过长、敏感日志内容进入地址栏、旧弹窗残留 watcher、字段初始化竞态等副作用。
+- 决策：上下文路由 URL payload 只携带白名单定位字段，不再 fallback 携带整行日志；保留 `dtEventTimeStamp`、`__id__`、`index`、`__result_table`、`__index_set_id__`、`gseIndex`、`iterationIndex`、`_time/time`、`bk_host_id/serverIp/cloudId/path` 以及配置的 `context_fields/time_field`。
+- 决策：移除 `log-result.vue` 中旧的 `ContextLog` 弹窗实例、`isShowContextLog` 状态和 import，避免无效全局 keyup listener / watcher 常驻；实时日志弹窗保留。
+- 决策：`context-route.ts` 使用 `encodeURIComponent(base64(JSON))` / `decodeURIComponent` 做 URI-safe payload；移除 sessionStorage token 备用逻辑，保持“URL 直接打开”单链路。
+- 决策：`context-log/page.tsx` 使用 `ready` gate，完成 index item / field info 初始化后再渲染 `ContextLog`，避免子组件 immediate watcher 早于字段初始化发起上下文请求；初始化失败也通过 `finally` 解除 loading。
+- 决策：禁止对 store 中的 `context_fields` 原数组执行 `push(timeField)`，统一使用去重后的新数组，避免多次点击导致配置数组被污染。
+
+## 2026-06-03 retrieve context route bugfix
+
+- 问题：点击日志结果“上下文”新开 Tab 后进入检索首页，而不是上下文独立页面。
+- 根因：Vue Router 按顺序匹配，`/retrieve/context-log` 注册在 `/retrieve/:indexId?` 后面，导致 `context-log` 被当作 `indexId` 命中 `retrieve` 路由。
+- 修复：将 `retrieve-context-log` 路由移动到 `/retrieve/:indexId?` 之前，并保留注释说明顺序约束。
+- 验证：使用项目当前 `vue-router` 在 Node 中执行 `router.match('/retrieve/context-log?payload=abc&spaceUid=s&bizId=1')`，断言命中 `retrieve-context-log`；执行 `npm run build` 通过。
+
+## 2026-06-03 Retrieve context-log page route rendering fix
+
+- Context log independent route `/retrieve/context-log` must not rely on the old dialog `isShow` timing only.
+- In `src/views/retrieve-v3/search-result/original-log/context-log/index.tsx`, page mode sets internal `isShow` to true, but the content request watcher must also react to `isShow.value`; otherwise first render can skip `getContentLog` and never retry.
+- Added `loadContextLog()` with `nextTick`, deep watch on `[isShow.value, indexSetId, logParams]`, an `onMounted` trigger, and `contextLoadKey` dedupe.
+- Verified on `http://appdev.woa.com:8001/#/retrieve/context-log?...`: route opens, updated chunk loads, `getContentLog` is triggered, upper context area renders 100 rows (-50..49), and no longer shows empty state.
+
+
+## 2026-06-04 ContextLog page resize layout height fix
+
+- ContextLog independent route page must not use `height: 100vh` inside the app shell because `.manage-content` / `.log-search-container` already provides the available viewport height after global headers.
+- Use `height: 100%`, `display: flex`, `min-height: 0`, and `overflow: hidden` on `.log-context-page-main`, and ensure nested flex containers also set `min-height: 0`.
+- Verified in browser at `http://appdev.woa.com:8001/#/retrieve/context-log?...`: expanded state main 778px + aside 250px = container 1028px; collapsed state aside 42px and expandable back to 249px. This avoids main+aside overflow and keeps bk-resize-layout collapse/expand usable.
+
+## 2026-06-04 Context Log Headless Layout Adjustment
+- Context log route opened from log result defaults `hl=1`.
+- `hl=1` hides only `HeadNav`; `NoticeComponent` remains rendered.
+- `.log-search-container.is-headless` height is `calc(100% - var(--notice-component-height))`, so context route no longer subtracts the 52px header height when the header is hidden.
