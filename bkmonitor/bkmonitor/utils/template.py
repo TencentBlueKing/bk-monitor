@@ -56,25 +56,17 @@ def _is_allowed_template_callable(obj):
     return module.startswith(SAFE_CALLABLE_MODULE_PREFIXES)
 
 
-# 放行内置数据类型实例上的原生方法（如字符串、字典、时间对象的取值/格式化方法）。
-SAFE_BUILTIN_METHOD_TYPES = (
+# 放行内置不可变类型（字符串/时间）实例的原生方法；可变容器与匹配对象只放行只读方法。
+SAFE_IMMUTABLE_METHOD_TYPES = (
     str,
-    bytes,
-    bytearray,
-    bool,
-    int,
-    float,
-    complex,
-    dict,
-    list,
-    tuple,
-    set,
-    frozenset,
     datetime.date,
     datetime.time,
     datetime.datetime,
     datetime.timedelta,
 )
+_DICT_READONLY_METHODS = frozenset({"get", "keys", "values", "items", "copy"})
+_RE_MATCH_TYPE = type(re.match("", ""))
+_RE_MATCH_READONLY_METHODS = frozenset({"group", "groups", "groupdict", "start", "end", "span"})
 _DENIED_BUILTIN_METHODS = frozenset({"format", "format_map"})
 
 
@@ -83,11 +75,18 @@ def _is_safe_builtin_method(obj):
     if not isinstance(obj, types.BuiltinMethodType):
         return False
     receiver = getattr(obj, "__self__", None)
-    if receiver is None or isinstance(receiver, type):
+    name = getattr(obj, "__name__", "")
+    if receiver is None or isinstance(receiver, type) or name in _DENIED_BUILTIN_METHODS:
         return False
-    return (
-        isinstance(receiver, SAFE_BUILTIN_METHOD_TYPES) and getattr(obj, "__name__", "") not in _DENIED_BUILTIN_METHODS
-    )
+    # 不可变类型的原生方法无副作用，整体放行
+    if isinstance(receiver, SAFE_IMMUTABLE_METHOD_TYPES):
+        return True
+    # 可变容器（字典）与匹配对象只放行只读方法，不放开会修改其内容的方法
+    if isinstance(receiver, dict):
+        return name in _DICT_READONLY_METHODS
+    if isinstance(receiver, _RE_MATCH_TYPE):
+        return name in _RE_MATCH_READONLY_METHODS
+    return False
 
 
 class SafeSandboxedEnvironment(SandboxedEnvironment):
