@@ -469,6 +469,9 @@ UNIFY_QUERY_ROUTING_RULES = []
 # bk-monitor-worker api 地址
 BMW_API_URL = os.getenv("BMW_API_URL", "http://bk-monitor-bk-monitor-worker-web-service:10211")
 
+# 告警缓存刷新任务的业务并发度
+ALARM_CACHE_REFRESH_BIZ_CONCURRENT = 3
+
 # bkmonitorbeat 升级支持新版节点ID(bk_cloud_id:ip)的版本
 BKMONITORBEAT_SUPPORT_NEW_NODE_ID_VERSION = "1.13.95"
 
