@@ -71,6 +71,7 @@ from monitor_web.constants import (
     GRAPH_RESOURCE,
     OVERVIEW_ICON,
 )
+from monitor_web.k8s.core.filters import escape_promql_regex
 from monitor_web.scene_view.resources.serializers import KubernetesListRequestSerializer
 from monitor_web.data_explorer.event import (
     utils as event_utils,
@@ -2307,11 +2308,14 @@ class GetKubernetesUsageRatio(GetKubernetesGrafanaMetricRecords):
             instance = BCSNode.objects.build_promql_param_instance(bk_biz_id, bcs_cluster_id)
             if not instance:
                 return []
+            # instance 由 build_promql_param_instance 生成，形如 ^(ip:|ip:)；此处必须用 f-string 实际填充。
+            # 原写法是普通字符串占位 {instance} 再用 % 格式化，但 % 不会替换花括号占位，
+            # 会把 {instance} 当字面量，导致单集群 CPU 概览过滤匹配不到任何 instance、查不到数据。
             cpu_summary_promql = (
                 '(1 - avg(irate(node_cpu_seconds_total{mode="idle",'
-                'instance=~"{instance}", '
+                f'instance=~"{instance}", '
                 f'bcs_cluster_id="{bcs_cluster_id}"}}[5m]))) * 100'
-            ) % {"bcs_cluster_id": bcs_cluster_id, "instance": instance}
+            )
             memory_summary_promql = (
                 "(SUM by(bcs_cluster_id)"
                 " (node_memory_MemTotal_bytes{"
@@ -4062,7 +4066,8 @@ class GetKubernetesOverCommitAnalysis(Resource):
                     return []
             except EmptyResultSet:
                 return []
-            node_ips = "|".join(node.name for node in node_list)
+            # node 名常为 IP（含 . ），需转义后再拼入 node=~"^(...)$"，避免 . 误匹配
+            node_ips = "|".join(escape_promql_regex(node.name) for node in node_list)
             cpu_over_commit_promql = (
                 "sum by(bcs_cluster_id)"
                 " (kube_pod_container_resource_requests_cpu_cores{"

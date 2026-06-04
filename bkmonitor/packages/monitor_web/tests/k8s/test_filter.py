@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -11,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from datetime import datetime
 
-import mock
+from unittest import mock
 from django.test import TestCase
 from django.utils import timezone
 from humanize import naturaldelta
@@ -58,6 +57,20 @@ class TestFilter(TestCase):
         self.assertEqual(
             ContainerFilter("bk-monitor-web").filter_string(),
             'container_name="bk-monitor-web"',
+        )
+
+    def test_filter_string_escapes_regex(self):
+        # 多值走 =~ 正则匹配，资源名中的正则元字符（如 . ）需转义，避免误匹配
+        self.assertEqual(
+            PodFilter(["app.v1-abc", "app.v2-def"]).filter_string(),
+            r'pod_name=~"^(app\.v1-abc|app\.v2-def)$"',
+        )
+        # 单值走精确匹配（=），不经过正则，保持原样
+        self.assertEqual(PodFilter("app.v1").filter_string(), 'pod_name="app.v1"')
+        # 常见带连字符名称不应被转义（- 在正则中无特殊含义）
+        self.assertEqual(
+            PodFilter(["bk-monitor-web-5dc76bbfd7-8w9c6", "bk-monitor-web-query-api-5c6d68c5dc-jcn74"]).filter_string(),
+            'pod_name=~"^(bk-monitor-web-5dc76bbfd7-8w9c6|bk-monitor-web-query-api-5c6d68c5dc-jcn74)$"',
         )
 
     def test_filter_with_resource_ns(self):
@@ -999,9 +1012,9 @@ class TestK8sListResources(TestCase):
                 {
                     "count": len(orm_resource + promql_resource[:1]),
                     "items": [
-                        {'bcs_cluster_id': 'BCS-K8S-00000', 'bk_biz_id': 2, 'namespace': 'apm-demo'},
-                        {'bcs_cluster_id': 'BCS-K8S-00000', 'bk_biz_id': 2, 'namespace': 'default'},
-                        {'bcs_cluster_id': 'BCS-K8S-00000', 'bk_biz_id': 2, 'namespace': 'blueking'},
+                        {"bcs_cluster_id": "BCS-K8S-00000", "bk_biz_id": 2, "namespace": "apm-demo"},
+                        {"bcs_cluster_id": "BCS-K8S-00000", "bk_biz_id": 2, "namespace": "default"},
+                        {"bcs_cluster_id": "BCS-K8S-00000", "bk_biz_id": 2, "namespace": "blueking"},
                     ],
                 },
             )
@@ -1096,8 +1109,8 @@ class TestK8sListResources(TestCase):
             ns_list = ListK8SResources()(validated_request_data)["items"]
             self.assertEqual(
                 [
-                    {'bk_biz_id': 2, 'bcs_cluster_id': 'BCS-K8S-00000', 'namespace': 'bkmonitor-operator'},
-                    {'bk_biz_id': 2, 'bcs_cluster_id': 'BCS-K8S-00000', 'namespace': 'blueking'},
+                    {"bk_biz_id": 2, "bcs_cluster_id": "BCS-K8S-00000", "namespace": "bkmonitor-operator"},
+                    {"bk_biz_id": 2, "bcs_cluster_id": "BCS-K8S-00000", "namespace": "blueking"},
                 ],
                 ns_list,
             )
@@ -1137,7 +1150,7 @@ class TestK8sListResources(TestCase):
         self.assertEqual(
             meta.meta_prom,
             "sum by (workload_kind, workload_name, namespace) "
-            '(rate(container_cpu_usage_seconds_total{'
+            "(rate(container_cpu_usage_seconds_total{"
             'bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD"}[1m]))',
         )
         # orm_resource = (
@@ -1148,8 +1161,8 @@ class TestK8sListResources(TestCase):
         # 验证get_from_meta
         workload_list = ListK8SResources()(validated_request_data)
         expect_workload_list = [
-            {'workload': 'Deployment:bk-monitor-web'},
-            {'workload': 'Deployment:bk-monitor-web-worker'},
+            {"workload": "Deployment:bk-monitor-web"},
+            {"workload": "Deployment:bk-monitor-web-worker"},
         ]
         self.assertEqual(
             workload_list,
@@ -1212,9 +1225,9 @@ class TestK8sListResources(TestCase):
             validated_request_data["with_history"] = True
             workload_list = ListK8SResources()(validated_request_data)
             expect_workload_list = [
-                {'namespace': 'blueking', 'workload': 'Deployment:bk-monitor-web'},
-                {'namespace': 'blueking', 'workload': 'Deployment:bk-monitor-web-beat'},
-                {'namespace': 'blueking', 'workload': 'Deployment:bk-monitor-web-worker'},
+                {"namespace": "blueking", "workload": "Deployment:bk-monitor-web"},
+                {"namespace": "blueking", "workload": "Deployment:bk-monitor-web-beat"},
+                {"namespace": "blueking", "workload": "Deployment:bk-monitor-web-worker"},
             ]
             self.assertEqual(
                 workload_list,
@@ -1261,7 +1274,7 @@ class TestK8sListResources(TestCase):
         self.assertEqual(
             meta.meta_prom,
             "sum by (workload_kind, workload_name, namespace, pod_name) "
-            '(rate(container_cpu_usage_seconds_total{'
+            "(rate(container_cpu_usage_seconds_total{"
             'bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",container_name!="POD"}[1m]))',
         )
 
@@ -1373,7 +1386,7 @@ class TestK8sListResources(TestCase):
         self.assertEqual(
             meta.meta_prom,
             (
-                'sum by (workload_kind, workload_name, namespace, container_name, pod_name) '
+                "sum by (workload_kind, workload_name, namespace, container_name, pod_name) "
                 '(rate(container_cpu_usage_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",'
                 'container_name!="POD"}[1m]))'
             ),
@@ -1383,11 +1396,12 @@ class TestK8sListResources(TestCase):
         orm_resource = (
             BCSContainer.objects.filter(namespace="blueking", workload_name="bk-monitor-web")
             # BCSContainer.objects.filter(**validated_request_data["filter_dict"])
-            .filter(name__icontains=validated_request_data["query_string"]).only(*K8sContainerMeta.only_fields)
+            .filter(name__icontains=validated_request_data["query_string"])
+            .only(*K8sContainerMeta.only_fields)
         )
         # 验证 get_from_meta
         contianer_list = ListK8SResources()(validated_request_data)
-        expect_container_list = [{'container': 'bk-monitor-web'}]
+        expect_container_list = [{"container": "bk-monitor-web"}]
         self.assertEqual(
             contianer_list,
             {"count": len(expect_container_list), "items": expect_container_list},
@@ -1412,7 +1426,7 @@ class TestK8sListResources(TestCase):
         self.assertEqual(
             meta.meta_prom,
             (
-                'sum by (workload_kind, workload_name, namespace, container_name, pod_name) '
+                "sum by (workload_kind, workload_name, namespace, container_name, pod_name) "
                 '(last_over_time(rate(container_cpu_usage_seconds_total{bcs_cluster_id="BCS-K8S-00000",bk_biz_id="2",'
                 'container_name!="POD",namespace="blueking",workload_name="bk-monitor-web",'
                 'container_name=~"(monitor)"}[1m])[1m:]))'
