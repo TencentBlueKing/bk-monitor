@@ -2308,11 +2308,14 @@ class GetKubernetesUsageRatio(GetKubernetesGrafanaMetricRecords):
             instance = BCSNode.objects.build_promql_param_instance(bk_biz_id, bcs_cluster_id)
             if not instance:
                 return []
+            # instance 由 build_promql_param_instance 生成，形如 ^(ip:|ip:)；此处必须用 f-string 实际填充。
+            # 原写法是普通字符串占位 {instance} 再用 % 格式化，但 % 不会替换花括号占位，
+            # 会把 {instance} 当字面量，导致单集群 CPU 概览过滤匹配不到任何 instance、查不到数据。
             cpu_summary_promql = (
                 '(1 - avg(irate(node_cpu_seconds_total{mode="idle",'
-                'instance=~"{instance}", '
+                f'instance=~"{instance}", '
                 f'bcs_cluster_id="{bcs_cluster_id}"}}[5m]))) * 100'
-            ) % {"bcs_cluster_id": bcs_cluster_id, "instance": instance}
+            )
             memory_summary_promql = (
                 "(SUM by(bcs_cluster_id)"
                 " (node_memory_MemTotal_bytes{"
