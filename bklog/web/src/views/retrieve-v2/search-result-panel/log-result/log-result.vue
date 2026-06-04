@@ -98,24 +98,15 @@ export default {
     },
     getContextRouteLogParams(row, contextFields = [], timeField = '') {
       const safeParams = {
-        dtEventTimeStamp: row.dtEventTimeStamp,
+        dtEventTimeStamp: parseTableRowData(
+          row,
+          'dtEventTimeStamp',
+          '',
+          this.$store.state.isFormatDate,
+          ''
+        ),
       };
-      const baseFields = [
-        '__id__',
-        'index',
-        '__result_table',
-        '__index_set_id__',
-        'gseIndex',
-        'iterationIndex',
-        '_time',
-        'time',
-        'bk_host_id',
-        'serverIp',
-        'cloudId',
-        'path',
-      ];
       const fields = [
-        ...baseFields,
         ...(Array.isArray(contextFields) ? contextFields : []),
         timeField,
       ].filter(Boolean);
@@ -133,13 +124,36 @@ export default {
       });
       return safeParams;
     },
+    getContextRouteRetrieveParams() {
+      const {
+        start_time: startTime,
+        end_time: endTime,
+        format,
+      } = this.retrieveParams || {};
+      return {
+        start_time: startTime,
+        end_time: endTime,
+        format,
+      };
+    },
+    getIndexSetIdByRow(row = {}) {
+      const rowIndexSetId = row.__index_set_id__ ?? row.index_set_id;
+      if (rowIndexSetId !== undefined && rowIndexSetId !== null && rowIndexSetId !== '') {
+        return Number(rowIndexSetId);
+      }
+
+      const storeIndexId = this.$store.getters.indexId;
+      if (storeIndexId !== undefined && storeIndexId !== null && storeIndexId !== '') {
+        return Number(storeIndexId);
+      }
+
+      return Number(this.$route.params.indexId || 0);
+    },
     openContextLogPage(row, indexSetId) {
       const payload = encodeContextRoutePayload({
         indexSetId,
-        rowIndex: Math.max(0, this.currentIndex),
         logParams: row,
-        retrieveParams: this.retrieveParams,
-        targetFields: this.targetFields,
+        retrieveParams: this.getContextRouteRetrieveParams(),
         backRoute: {
           name: 'retrieve',
           params: { ...this.$route.params },

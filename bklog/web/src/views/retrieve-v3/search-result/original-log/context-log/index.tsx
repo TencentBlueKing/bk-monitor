@@ -94,7 +94,8 @@ export default defineComponent({
     const logResultRef = ref();
     const contextLog = ref();
     const isShow = ref(false);
-    const logLoading = ref(false); // 展示的字段名
+    const logLoading = ref(props.mode === 'page'); // 展示的字段名
+    const hasLoadedOnce = ref(false);
     const logList = ref<any[]>([]);
     const reverseLogList = ref<any[]>([]);
     const zero = ref(true);
@@ -147,6 +148,7 @@ export default defineComponent({
       clearContextLogTimers();
       contextLog.value?.removeEventListener('scroll', handleScroll);
       logLoading.value = false;
+      hasLoadedOnce.value = false;
       $http.cancel(contentLogRequestId);
     };
 
@@ -193,10 +195,21 @@ export default defineComponent({
       }
       contextLoadKey = nextLoadKey;
 
+      const requestSeq = contextLogRequestSeq;
+      hasLoadedOnce.value = false;
+      logLoading.value = true;
       localParams.value = {};
       deepClone(props.logParams);
-      await requestFields();
-      await requestContentLog();
+
+      try {
+        await requestFields();
+        await requestContentLog();
+      } finally {
+        if (isCurrentContextLogRequest(requestSeq)) {
+          hasLoadedOnce.value = true;
+          logLoading.value = false;
+        }
+      }
     };
 
     watch(
@@ -228,6 +241,7 @@ export default defineComponent({
 
     const initLogValues = () => {
       logLoading.value = false;
+      hasLoadedOnce.value = false;
       logList.value = [];
       rawList = [];
       reverseLogList.value = [];
@@ -449,6 +463,7 @@ export default defineComponent({
         }
       } finally {
         if (isCurrentContextLogRequest(requestSeq)) {
+          hasLoadedOnce.value = true;
           logLoading.value = false;
           if (highlightList.value.length) {
             highlightTimer = setTimeout(() => {
@@ -692,7 +707,7 @@ export default defineComponent({
                     show-type={showType.value}
                   />
                 )
-              ) : !logLoading.value ? (
+              ) : hasLoadedOnce.value && !logLoading.value ? (
                 <bk-exception
                   style='margin-top: 80px'
                   scene='part'

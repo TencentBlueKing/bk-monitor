@@ -192,3 +192,16 @@ Constraint:
 - Context log route opened from log result defaults `hl=1`.
 - `hl=1` hides only `HeadNav`; `NoticeComponent` remains rendered.
 - `.log-search-container.is-headless` height is `calc(100% - var(--notice-component-height))`, so context route no longer subtracts the 52px header height when the header is hidden.
+
+## 2026-06-04 上下文新开 Tab 路由参数收敛
+
+- 新开上下文路由 payload 收敛为最小必要参数：`indexSetId`、`logParams`、`retrieveParams.start_time/end_time/format`、`backRoute`。
+- 删除 URL payload 中非必要字段：`rowIndex`、`targetFields`、完整 `retrieveParams`（如 keyword/addition/search_mode/begin/size 等）。
+- `logParams` 只保留 `dtEventTimeStamp` 与索引集上下文配置字段 `context_fields + time_field`，不再携带固定 `baseFields` 白名单和整行日志，降低 URL 过长与敏感日志泄露风险。
+- 独立上下文页继续在 ready 后加载 `ContextLog`，右侧结果使用默认参数兜底，不再依赖 payload 的 rowIndex/targetFields。
+\n- 2026-06-04：retrieve-v2 上下文新 tab 路由点击入口需显式解析 indexSetId，优先使用 row.__index_set_id__/row.index_set_id，其次 store.getters.indexId，最后 route.params.indexId；避免参数收敛后遗漏方法导致 handleClickTools 运行时异常。\n
+## 2026-06-04 ContextLog page initial loading state
+
+- ContextLog 独立路由 page 模式首帧必须优先展示 loading，不能在 `requestFields -> requestContentLog` 之间短暂渲染“暂无数据”。
+- 在 `context-log/index.tsx` 中增加 `hasLoadedOnce`，page 模式初始化 `logLoading=true`，`loadContextLog` 开始时立即进入 loading，只有首轮上下文请求完成后才允许空态展示。
+- 空态条件应为 `hasLoadedOnce && !logLoading && logList.length === 0`。

@@ -7,37 +7,19 @@
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  */
 
-import { base64Decode, base64Encode } from '@/common/util';
+import { base64Decode, base64Encode } from "@/common/util";
 
-import type { ConsitionItem } from '@/store/store.type';
-
-/** 上下文日志路由携带的检索参数（与 store.getters.retrieveParams 子集对齐） */
+/** 上下文日志路由只携带页面直开所需的最小检索参数 */
 export interface IContextRetrieveParams {
-  addition: ConsitionItem[];
-  keyword: string;
-  search_mode: string;
-  start_time?: string;
-  end_time?: string;
+  start_time?: string | number;
+  end_time?: string | number;
   format?: string;
-  begin?: number;
-  size?: number;
-  ip_chooser?: Record<string, unknown>;
-  host_scopes?: Record<string, unknown>;
-  interval?: string;
-  sort_list?: Array<[string, string]>;
-  bk_biz_id?: number;
-  time_zone?: string;
-  space_uid?: string;
-  table_id_conditions?: unknown;
-  scene_filter_values?: Record<string, unknown>;
 }
 
 export interface IContextRoutePayload {
   indexSetId: number;
-  rowIndex: number;
   logParams: Record<string, any>;
   retrieveParams: IContextRetrieveParams;
-  targetFields: string[];
   backRoute: {
     name?: string;
     params?: Record<string, any>;
@@ -45,15 +27,13 @@ export interface IContextRoutePayload {
   };
 }
 
-const toUriSafePayload = (payload: string) => payload
-  .replace(/\+/g, '-')
-  .replace(/\//g, '_')
-  .replace(/=+$/g, '');
+const toUriSafePayload = (payload: string) =>
+  payload.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 
 const fromUriSafePayload = (payload: string) => {
-  const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+  const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
   const padding = base64.length % 4;
-  return padding ? base64.padEnd(base64.length + 4 - padding, '=') : base64;
+  return padding ? base64.padEnd(base64.length + 4 - padding, "=") : base64;
 };
 
 export const encodeContextRoutePayload = (payload: IContextRoutePayload) => {
@@ -76,7 +56,9 @@ const decodePayloadCandidates = (payload: string) => {
   return [...new Set(candidates)];
 };
 
-export const decodeContextRoutePayload = (payload = ''): IContextRoutePayload | null => {
+export const decodeContextRoutePayload = (
+  payload = "",
+): IContextRoutePayload | null => {
   if (!payload) {
     return null;
   }
@@ -92,6 +74,6 @@ export const decodeContextRoutePayload = (payload = ''): IContextRoutePayload | 
     }
   }
 
-  console.warn('decode context route payload error', errors);
+  console.warn("decode context route payload error", errors);
   return null;
 };
