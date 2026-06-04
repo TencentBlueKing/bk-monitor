@@ -177,3 +177,9 @@ Constraint:
 - Problem: rendering `.bklog-row-hover-operator` inside each row caused the first row overlay to enter sticky header area and be clipped by `.bklog-row-box { overflow: hidden; }`; changing/removing transform is not acceptable.
 - Decision: render a single `.bklog-row-hover-operator` as a direct child of `.bklog-result-container`, position it absolutely from the hovered row's bounding rect, and keep `transform: translate(0, -32px)` in the overlay visible state. This escapes `.bklog-row-box` clipping while preserving the designed upward animation.
 - Verification: browser test on `http://appdev.woa.com:8001` confirmed operator is direct child of `.bklog-result-container`, `handle-content` is visible (`76x28`, opacity 1), overlaps sticky header but has `z-index: 200` vs header `z-index: 2`, and is not clipped by row-box.
+## 2026-06-04 Fuzzy Match tag relation/focus fixes
+
+- Scope: `src/views/retrieve-v2/search-bar/ui-mode/fuzzy-match-mode.vue`.
+- Keep fuzzy match relation row (`组间关系`, `AND`, `OR`) on one line with nowrap flex styles.
+- Vue2 template refs inside `v-for` are not reliable for focusing the current edited tag; use a component root ref plus `data-fuzzy-edit-index` selector, then `focus()` and `select()` after `nextTick()`.
+- Browser validation on `http://appdev.woa.com:8001`: select `log` field + `包含`, create two tags, relation row stays inline, double-click second tag focuses `.fuzzy-match-tag-edit[data-fuzzy-edit-index="1"]`.
