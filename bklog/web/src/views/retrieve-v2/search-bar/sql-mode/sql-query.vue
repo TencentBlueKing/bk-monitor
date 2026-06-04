@@ -338,7 +338,7 @@ onBeforeUnmount(() => {
   .search-sql-query {
     display: inline-flex;
     align-items: center;
-    flex: 1;
+    width: 100%;
 
     .empty-placeholder-text {
       position: absolute;

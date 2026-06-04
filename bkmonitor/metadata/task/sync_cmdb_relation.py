@@ -16,7 +16,6 @@ from django.conf import settings
 from django.db import transaction
 
 from alarm_backends.core.lock.service_lock import share_lock
-from bkmonitor.utils.cipher import transform_data_id_to_token
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.prometheus import metrics
 from metadata.models import (
@@ -51,6 +50,8 @@ def sync_relation_redis_data():
     # 批量获取所有内置RT对象
     existing_rts = ResultTable.objects.filter(is_builtin=True)
     existing_rts_dict = {rt.table_id: rt for rt in existing_rts}
+    existing_time_series_groups = TimeSeriesGroup.objects.filter(table_id__in=existing_rts_dict.keys())
+    existing_time_series_groups_dict = {group.table_id: group for group in existing_time_series_groups}
     for field, value in redis_data.items():
         try:
             # 将json解析放在try中，确保value是有效的JSON字符串
@@ -83,8 +84,8 @@ def sync_relation_redis_data():
                 )
                 continue
 
-        data_name = f"{biz_id}_{space_type}_built_in_time_series"
-        table_id = f"{biz_id}_{space_type}_built_in_time_series.__default__"  # table_id有限制，必须以业务ID数字开头
+        table_id, data_name = TimeSeriesGroup.make_cmdb_relation_builtin_table_id_and_group_name(biz_id, space_type)
+
         token = value_dict.get("token")  # Redis缓存中的Token数据
 
         logger.info("sync_relation_redis_data start sync builtin redis data, field=%s", key)
@@ -94,24 +95,12 @@ def sync_relation_redis_data():
         if rt:
             try:
                 new_modify_time = str(int(time.time()))
-                ds = DataSource.objects.get(data_name=data_name)
-                generated_token = transform_data_id_to_token(
-                    metric_data_id=ds.bk_data_id, bk_biz_id=biz_id, app_name=data_name
-                )
-                # 兼容历史问题，如果DB中存储的Token和生成的不一致，更新之
-                if ds.token != generated_token:
-                    logger.info(
-                        "sync_relation_redis_data: data_id->[%s] ,token is not same,db_record->[%s],"
-                        "generated_token->[%s]",
-                        ds.bk_data_id,
-                        ds.token,
-                        generated_token,
-                    )
-                    ds.token = generated_token
-                    ds.save()
+                ds = DataSource.objects.get(bk_tenant_id=bk_tenant_id, data_name=data_name)
+                ts_group = existing_time_series_groups_dict.get(table_id)
+                token = (ts_group.token if ts_group else "") or ds.token
 
                 # 更新Redis中的数据
-                value_dict["token"] = generated_token
+                value_dict["token"] = token
                 value_dict["modifyTime"] = new_modify_time
                 RedisTools.hset_to_redis(redis_key, key, json.dumps(value_dict))
                 logger.info(
@@ -126,7 +115,7 @@ def sync_relation_redis_data():
                 )
                 continue
         else:
-            if token:  # RT不存在，Token不存在场景 -> 创建新DS&RT -> 写入Redis
+            if token:  # RT不存在，Token存在场景 -> 跳过创建
                 continue
 
             try:
@@ -144,7 +133,7 @@ def sync_relation_redis_data():
                         space_uid=key,
                         bk_biz_id=biz_id,
                     )
-                    new_rt = TimeSeriesGroup.create_time_series_group(
+                    ts_group = TimeSeriesGroup.create_time_series_group(
                         bk_data_id=ds.bk_data_id,
                         bk_biz_id=biz_id,
                         time_series_group_name=data_name,
@@ -157,16 +146,10 @@ def sync_relation_redis_data():
                         },
                         bk_tenant_id=bk_tenant_id,
                     )
-                    generated_token = transform_data_id_to_token(
-                        metric_data_id=ds.bk_data_id,
-                        bk_biz_id=biz_id,
-                        app_name=data_name,
-                    )
-                ds.token = generated_token
-                ds.save()
+                token = ts_group.token or ds.token
                 # 更新Redis中的Token和modifyTime
-                value_dict["token"] = generated_token
-                value_dict["modifyTime"] = new_rt.last_modify_time
+                value_dict["token"] = token
+                value_dict["modifyTime"] = ts_group.last_modify_time
                 RedisTools.hset_to_redis(redis_key, key, json.dumps(value_dict))
                 logger.info(
                     "sync_relation_redis_data: Create Data For Field->[%s],has completed,value->[%s]",

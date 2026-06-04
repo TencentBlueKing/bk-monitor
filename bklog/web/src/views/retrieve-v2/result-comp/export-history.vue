@@ -292,7 +292,6 @@
 <script>
   import { formatDate, blobDownload } from '@/common/util';
   import { mapGetters } from 'vuex';
-  import { parseTableIdConditions } from '@/store/helper.ts';
 
   import { axiosInstance } from '@/api';
 
@@ -353,11 +352,7 @@
       ...mapGetters({
         unionIndexList: 'unionIndexList',
         isUnionSearch: 'isUnionSearch',
-        retrieveParams: 'retrieveParams',
       }),
-      isScene() {
-        return this.$store.getters.isSceneMode;
-      },
     },
     watch: {
       showHistoryExport(val) {
@@ -395,15 +390,11 @@
         const data = params.search_dict;
         const stringParamsIndexSetID = String(params.log_index_set_id);
 
-        let downRequestUrl;
-        if (this.isScene) {
-          downRequestUrl = '/search/scene/export/sample/';
-        } else if (this.isUnionSearch) {
+        let downRequestUrl = `/search/index_set/${stringParamsIndexSetID}/export/`;
+        if (this.isUnionSearch) {
           // 判断是否是联合查询 如果是 则加参数
           downRequestUrl = '/search/index_set/union_search/export/';
           Object.assign(data, { index_set_ids: this.unionIndexList });
-        } else {
-          downRequestUrl = `/search/index_set/${stringParamsIndexSetID}/export/`;
         }
 
         axiosInstance
@@ -432,15 +423,7 @@
        */
       downloadAsync(data) {
         this.tableLoading = true;
-        let downRequestUrl;
-
-        if (this.isScene) {
-          downRequestUrl = 'retrieve/getSceneAsyncExport';
-        } else if (this.isUnionSearch) {
-          downRequestUrl = 'retrieve/unionExportAsync';
-        } else {
-          downRequestUrl = 'retrieve/exportAsync';
-        }
+        let downRequestUrl = this.isUnionSearch ? `retrieve/unionExportAsync` : 'retrieve/exportAsync';
 
         if (this.isUnionSearch) {
           Object.assign(data, {
@@ -454,7 +437,7 @@
           });
         }
 
-        const requestConfig = this.isScene || this.isUnionSearch
+        const requestConfig = this.isUnionSearch
           ? { data }
           : {
               params: { index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId },
@@ -530,50 +513,14 @@
               break;
           }
         }
-
-        // 拼接 URL 参数
         const params = Object.keys(queryParamsStr)
           .reduce((output, key) => {
             output.push(`${key}=${encodeURIComponent(queryParamsStr[key])}`);
             return output;
           }, [])
           .join('&');
-
-        // 场景化检索下，search_dict 会附加 table_id_conditions 和 scene_filter_values
-        // 单独解析并拼接场景化参数
-        let sceneParams = '';
-        if (dict.table_id_conditions || dict.scene_filter_values) {
-          const { scene_active, scene_filter_values } = parseTableIdConditions(
-            dict.table_id_conditions,
-            dict.scene_filter_values,
-          );
-          const sceneParts = [];
-          sceneParts.push('retrieve_type=scene');
-          if (scene_active) {
-            sceneParts.push(`scene_active=${encodeURIComponent(scene_active)}`);
-          }
-          for (const [fieldKey, fieldValue] of Object.entries(scene_filter_values)) {
-            const rawValue = fieldValue?.value ?? fieldValue;
-            const op = fieldValue?.op;
-            if (rawValue !== undefined && rawValue !== null && rawValue !== '') {
-              if (Array.isArray(rawValue)) {
-                // 数组值展开为多个同 key 参数（与 Vue Router 行为一致）
-                rawValue.forEach(v => sceneParts.push(`${fieldKey}=${encodeURIComponent(v)}`));
-              } else {
-                sceneParts.push(`${fieldKey}=${encodeURIComponent(rawValue)}`);
-              }
-              // 操作符参数
-              if (op) {
-                sceneParts.push(`${fieldKey}[op]=${encodeURIComponent(op)}`);
-              }
-            }
-          }
-          sceneParams = sceneParts.join('&');
-        }
-
-        const allParams = [params, sceneParams].filter(Boolean).join('&');
         const siteUrl = window.__IS_MONITOR_COMPONENT__ ? window.site_url : window.SITE_URL;
-        const jumpUrl = `${siteUrl}#/retrieve/${indexSetID}?spaceUid=${spaceUid}&bizId=${dict.bk_biz_id}&${allParams}`;
+        const jumpUrl = `${siteUrl}#/retrieve/${indexSetID}?spaceUid=${spaceUid}&bizId=${dict.bk_biz_id}&${params}`;
         window.open(jumpUrl, '_blank');
       },
       /**
@@ -616,39 +563,21 @@
         isReset && (this.pagination.current = 1);
         !isPolling && (this.tableLoading = true);
         const { limit, current } = this.pagination;
-        let queryUrl;
-        let requestConfig;
-
+        const queryUrl = this.isUnionSearch ? 'unionSearch/unionExportHistory' : 'retrieve/getExportHistoryList';
         const params = {
+          index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
           bk_biz_id: this.bkBizId,
           page: current,
           pagesize: limit,
           show_all: this.isSearchAll,
         };
-
-        if (this.isScene) {
-          queryUrl = 'retrieve/getSceneExportHistory';
-          params.space_uid = this.retrieveParams?.space_uid;
-          params.table_id_conditions = this.retrieveParams?.table_id_conditions;
-          params.scene_filter_values = this.retrieveParams?.scene_filter_values;
-          requestConfig = { data: params };
-        } else if (this.isUnionSearch) {
-          queryUrl = 'unionSearch/unionExportHistory';
-          params.index_set_id = window.__IS_MONITOR_COMPONENT__
-          ? this.$route.query.indexId : this.$route.params.indexId;
-          params.index_set_ids = this.unionIndexList;
-        } else {
-          queryUrl = 'retrieve/getExportHistoryList';
-          params.index_set_id = window.__IS_MONITOR_COMPONENT__
-          ? this.$route.query.indexId : this.$route.params.indexId;
+        if (this.isUnionSearch) {
+          Object.assign(params, { index_set_ids: this.unionIndexList });
         }
-
-        if (!this.isScene) {
-          requestConfig = { params };
-        }
-
         this.$http
-          .request(queryUrl, requestConfig)
+          .request(queryUrl, {
+            params,
+          })
           .then(res => {
             if (res.result) {
               this.pagination.count = res.data.total;
