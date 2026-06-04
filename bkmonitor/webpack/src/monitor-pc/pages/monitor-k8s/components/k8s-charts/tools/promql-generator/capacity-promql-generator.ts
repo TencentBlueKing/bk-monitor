@@ -41,8 +41,10 @@ export class K8sCapacityPromqlGenerator extends K8sBasePromqlGenerator {
     switch (metric) {
       case 'node_cpu_seconds_total': // 节点CPU使用量
         return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(last_over_time(rate(node_cpu_seconds_total{${K8sBasePromqlGenerator.createCommonPromqlContent(context)},mode!="idle"}[$interval])[$interval:] $time_shift))`;
-      case 'node_cpu_capacity_ratio': // 节点CPU装箱率
-        return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(sum by (${context.groupByField},pod) (kube_pod_container_resource_requests{${K8sBasePromqlGenerator.createCommonPromqlContent(context)},container_name!="POD",resource="cpu"})
+      case 'node_cpu_capacity_ratio': // 节点CPU装箱率（含原生 sidecar：常规容器 request + 运行中的 restartable-init request，用 status_running==1 近似识别 sidecar）
+        return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)}(sum by (${context.groupByField},pod) (kube_pod_container_resource_requests{${K8sBasePromqlGenerator.createCommonPromqlContent(context)},container_name!="POD",resource="cpu"}
+ or
+ (kube_pod_init_container_resource_requests{${K8sBasePromqlGenerator.createCommonPromqlContent(context)},container_name!="POD",resource="cpu"} * on(namespace,pod,container) group_left() (kube_pod_init_container_status_running{bcs_cluster_id="${clusterId}"}==1)))
  /
  on (pod) group_left() count(count by (pod)(kube_pod_status_phase{bcs_cluster_id="${clusterId}",phase!="Evicted"})) by(pod))
 /
@@ -57,8 +59,10 @@ ${K8sBasePromqlGenerator.createCommonPromqlMethod(context)} (kube_node_status_al
         -
        ${K8sBasePromqlGenerator.createCommonPromqlMethod(context)} (last_over_time(node_memory_MemAvailable_bytes{${K8sBasePromqlGenerator.createCommonPromqlContent(context)}}[$interval:] $time_shift))`;
 
-      case 'node_memory_capacity_ratio': // 节点内存装箱率
-        return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)} (sum by (${context.groupByField},pod) (kube_pod_container_resource_requests{${K8sBasePromqlGenerator.createCommonPromqlContent(context)},container_name!="POD",resource="memory"})
+      case 'node_memory_capacity_ratio': // 节点内存装箱率（含原生 sidecar：常规容器 request + 运行中的 restartable-init request，用 status_running==1 近似识别 sidecar）
+        return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)} (sum by (${context.groupByField},pod) (kube_pod_container_resource_requests{${K8sBasePromqlGenerator.createCommonPromqlContent(context)},container_name!="POD",resource="memory"}
+ or
+ (kube_pod_init_container_resource_requests{${K8sBasePromqlGenerator.createCommonPromqlContent(context)},container_name!="POD",resource="memory"} * on(namespace,pod,container) group_left() (kube_pod_init_container_status_running{bcs_cluster_id="${clusterId}"}==1)))
  /
  on (pod) group_left() count(count by (pod)(kube_pod_status_phase{bcs_cluster_id="${clusterId}",phase!="Evicted"})) by(pod))
 /
