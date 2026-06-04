@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import datetime
 import json
 import logging
 import re
@@ -55,12 +56,46 @@ def _is_allowed_template_callable(obj):
     return module.startswith(SAFE_CALLABLE_MODULE_PREFIXES)
 
 
+# 放行内置数据类型实例上的原生方法（如字符串、字典、时间对象的取值/格式化方法）。
+SAFE_BUILTIN_METHOD_TYPES = (
+    str,
+    bytes,
+    bytearray,
+    bool,
+    int,
+    float,
+    complex,
+    dict,
+    list,
+    tuple,
+    set,
+    frozenset,
+    datetime.date,
+    datetime.time,
+    datetime.datetime,
+    datetime.timedelta,
+)
+_DENIED_BUILTIN_METHODS = frozenset({"format", "format_map"})
+
+
+def _is_safe_builtin_method(obj):
+    # 仅认内置类型的原生（C 实现）绑定方法，避免放行自定义对象或其子类新增的方法
+    if not isinstance(obj, types.BuiltinMethodType):
+        return False
+    receiver = getattr(obj, "__self__", None)
+    if receiver is None or isinstance(receiver, type):
+        return False
+    return (
+        isinstance(receiver, SAFE_BUILTIN_METHOD_TYPES) and getattr(obj, "__name__", "") not in _DENIED_BUILTIN_METHODS
+    )
+
+
 class SafeSandboxedEnvironment(SandboxedEnvironment):
     """在默认沙箱基础上进一步约束模板可访问的对象范围。
 
     - 不暴露模块类型的对象及其属性；
     - 调用实参只接受数据值，不接受可调用对象；
-    - 仅允许调用模板显式提供的 helper 与 Jinja 内置函数。
+    - 仅允许调用模板显式提供的 helper、Jinja 内置函数，以及内置数据类型的原生方法。
     """
 
     def is_safe_attribute(self, obj, attr, value):
@@ -71,7 +106,7 @@ class SafeSandboxedEnvironment(SandboxedEnvironment):
     def is_safe_callable(self, obj):
         if not super().is_safe_callable(obj):
             return False
-        return _is_allowed_template_callable(obj)
+        return _is_allowed_template_callable(obj) or _is_safe_builtin_method(obj)
 
     def call(__self, __context, __obj, *args, **kwargs):
         # 形参用双下划线，沿用 jinja 约定避免与模板 kwargs 冲突。
