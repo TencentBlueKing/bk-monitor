@@ -563,11 +563,8 @@ class EtlStorage:
                 storage_cluster_type=storage_cluster_type,
             )
 
-            # 用户自定义时间字段：解析失败回退到采集器上报的utctime
+            # 用户自定义时间字段：解析失败按序回退到采集器上报的utctime，全部失败再由now_if_parse_failed收口
             time_fallback = self._build_utctime_fallback()
-            # 关闭主解析的now短路，把"全部失败用当前时间"交给time_fallback，否则解析失败会立即用now()而到不了fallback
-            if storage_cluster_type == STORAGE_CLUSTER_TYPE:
-                v4_time_parsing["now_if_parse_failed"] = False
 
             field_index = user_time_field.get("field_index")
             if self.separator_key_is_index and field_index is not None:
@@ -649,11 +646,8 @@ class EtlStorage:
             # 纳秒级时间解析的输出应为strict_date_optional_time_nanos格式字符串，与ES mapping保持一致
             nanos_v4_time_parsing["to"] = "strict_date_optional_time_nanos"
 
-            # 用户自定义时间字段（纳秒级）解析失败时，同样回退到采集器utctime
+            # 用户自定义时间字段（纳秒级）解析失败时，同样按序回退到采集器utctime
             time_fallback = self._build_utctime_fallback()
-            # 关闭主解析的now短路，把"全部失败用当前时间"交给time_fallback
-            if storage_cluster_type == STORAGE_CLUSTER_TYPE:
-                nanos_v4_time_parsing["now_if_parse_failed"] = False
 
             field_index = nanos_time_field.get("field_index")
             if self.separator_key_is_index and field_index is not None:
