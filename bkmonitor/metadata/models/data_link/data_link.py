@@ -37,6 +37,7 @@ from metadata.models.data_link.constants import (
     SYSTEM_PROC_PERF_DATABUS_FORMAT,
     SYSTEM_PROC_PORT_BASEREPORT_METRIC_TYPE,
     SYSTEM_PROC_PORT_DATABUS_FORMAT,
+    DataLinkImmutableField,
     DataLinkKind,
     DataLinkResourceStatus,
 )
@@ -57,6 +58,8 @@ if TYPE_CHECKING:
     from metadata.models.data_link.data_link_configs import DataLinkResourceConfigBase
 
 logger = logging.getLogger("metadata")
+
+_MISSING_CONFIG_FIELD = object()
 
 
 CUSTOM_EVENT_CLEAN_RULES: list[dict[str, Any]] = [
@@ -1654,6 +1657,7 @@ class DataLink(models.Model):
         """
         existing_config = deepcopy(existing_config)
         merged_config = config
+        cls.check_component_immutable_fields(existing_config, merged_config)
 
         existing_metadata = existing_config["metadata"]
         merged_metadata = merged_config["metadata"]
@@ -1670,6 +1674,40 @@ class DataLink(models.Model):
         cls._fill_missing_dict(merged_config["spec"], existing_config["spec"])
 
         return merged_config
+
+    @classmethod
+    def _get_component_field_value(cls, config: dict[str, Any], field_path: tuple[str, ...]) -> Any:
+        current: Any = config
+        for key in field_path:
+            if not isinstance(current, dict) or key not in current:
+                return _MISSING_CONFIG_FIELD
+            current = current[key]
+        return current
+
+    @classmethod
+    def check_component_immutable_fields(cls, existing_config: dict[str, Any], config: dict[str, Any]) -> None:
+        """检查指定组件中配置后不允许修改的字段。
+
+        只有 BKBase 已有配置与本次配置都包含目标字段时才比较；缺失字段继续按原有
+        merge 补缺逻辑处理，避免影响首次下发或历史组件字段不完整的场景。
+        """
+        kind = config.get("kind")
+        if not kind:
+            return
+
+        for immutable_field in DataLinkImmutableField.fields_for_kind(kind):
+            existing_value = cls._get_component_field_value(existing_config, immutable_field.field_path)
+            current_value = cls._get_component_field_value(config, immutable_field.field_path)
+            if existing_value is _MISSING_CONFIG_FIELD or current_value is _MISSING_CONFIG_FIELD:
+                continue
+            if existing_value == current_value:
+                continue
+
+            raise ValueError(
+                "merge_component_config: immutable component field changed,"
+                f"kind->[{kind}],field->[{immutable_field.display_path}],"
+                f"existing_value->[{existing_value}],current_value->[{current_value}]"
+            )
 
     def get_existing_component_config(
         self,

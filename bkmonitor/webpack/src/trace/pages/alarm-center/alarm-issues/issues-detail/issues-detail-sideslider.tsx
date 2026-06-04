@@ -253,6 +253,7 @@ export default defineComponent({
       timezone,
       refreshInterval,
       detail,
+      loading,
       conditions,
       queryString,
       filterMode,
@@ -305,6 +306,7 @@ export default defineComponent({
               }}
               detail={this.detail}
               isFullscreen={this.isFullscreen}
+              loading={this.loading}
               showStepBtn={this.showStepBtn}
               onNameChange={this.handleNameChange}
               onNext={this.handleNext}

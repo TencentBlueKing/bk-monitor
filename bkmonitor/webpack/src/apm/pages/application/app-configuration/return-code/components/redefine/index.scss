@@ -6,7 +6,7 @@
 
   .submit-table {
     flex: 1;
-    overflow-y: auto;
+    overflow: hidden;
 
     .skeleton-wrap {
       .skeleton-element {

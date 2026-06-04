@@ -57,6 +57,12 @@ const drillListMap = {
   [SceneEnum.Capacity]: {
     node: [],
   },
+  [SceneEnum.GPU]: {
+    namespace: ['workload', 'pod', 'container'],
+    workload: ['pod', 'container'],
+    pod: ['container'],
+    container: [],
+  },
 };
 @Component
 export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProps, K8sDimensionDrillDownEvents> {

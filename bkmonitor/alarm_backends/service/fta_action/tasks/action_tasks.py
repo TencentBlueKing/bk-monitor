@@ -41,11 +41,32 @@ from bkmonitor.documents import ActionInstanceDocument, AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.models import ActionInstance, ConvergeRelation
 from bkmonitor.models.strategy import DutyRule, DutyRuleRelation, UserGroup
+from bkmonitor.utils.tenant import (
+    bk_biz_id_to_bk_tenant_id,
+    get_local_tenant_id,
+    set_local_tenant_id,
+)
 from constants.action import ActionPluginType, ActionSignal, ActionStatus, ConvergeType, FailureType
 from core.errors.alarm_backends import LockError
 from core.prometheus import metrics
 
 logger = logging.getLogger("fta_action.run")
+
+
+def _resolve_action_tenant_id(processor) -> str | None:
+    """
+    解析 action 所属租户ID。
+
+    优先使用 processor.bk_tenant_id；个别 processor（如 message_queue）自定义 __init__ 未设置该属性时，
+    按 action 所属业务兜底推导；processor 初始化提前 return（连 action 都没有）时返回 None，由调用方跳过设置。
+    """
+    bk_tenant_id = getattr(processor, "bk_tenant_id", None)
+    if bk_tenant_id:
+        return bk_tenant_id
+    action = getattr(processor, "action", None)
+    if action is not None:
+        return bk_biz_id_to_bk_tenant_id(action.bk_biz_id)
+    return None
 
 
 @app.task(ignore_result=True, queue="celery_running_action")
@@ -79,8 +100,26 @@ def run_action(action_type, action_info):
     processor = None
     is_finished = False
     start_time = time.time()
+    # 多租户：当前任务运行在 celery worker 中，无 HTTP request 上下文。需将 action 所属租户写入
+    # thread-local，否则下游（如作业平台轮询 GetJobInstanceStatusResource）调用 get_request_tenant_id()
+    # 时在多租户模式下会抛 "cannot get tenant_id"。worker 线程会被后续任务复用，故在 finally 里恢复，
+    # 避免污染同线程的后续任务。
+    previous_tenant_id = get_local_tenant_id()
     try:
         processor: BaseActionProcessor = module.ActionProcessor(action_info["id"], alerts=action_info.get("alerts"))
+        # 解析并注入 action 所属租户。租户推导失败（如业务无对应空间）不应中断动作执行，
+        # 退回改动前的"不设租户"行为并仅记录告警，避免把原本可执行的动作误标为失败。
+        try:
+            bk_tenant_id = _resolve_action_tenant_id(processor)
+            if bk_tenant_id:
+                set_local_tenant_id(bk_tenant_id)
+        except Exception as tenant_error:  # NOCC:broad-except(设计如此:)
+            logger.warning(
+                "[run_action_worker] action(%s) action_type(%s) resolve tenant failed: %s",
+                action_info["id"],
+                action_type,
+                tenant_error,
+            )
         # 如果带了执行函数，则执行执行函数，没有的话，直接做执行操作
         func_name = action_info.get("function", "execute")
         func = getattr(processor, func_name)
@@ -112,6 +151,9 @@ def run_action(action_type, action_info):
         )
         is_finished = True
         exc = error
+    finally:
+        # 恢复线程本地租户，避免污染同 worker 线程复用时的后续任务
+        set_local_tenant_id(previous_tenant_id)
 
     if processor:
         if getattr(processor, "is_finished", True):

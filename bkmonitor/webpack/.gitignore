@@ -109,3 +109,5 @@ monitor-vue2-components
 
 monitor-trace-explore
 monitor-alarm-center
+
+.agents/**
