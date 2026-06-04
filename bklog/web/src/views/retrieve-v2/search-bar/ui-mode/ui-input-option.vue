@@ -309,12 +309,17 @@ const fuzzyMatchEngine = computed(() => {
 
 const fuzzyMatchValue = computed({
   get() {
-    return condition.value.value?.[0] ?? '';
+    return Array.isArray(condition.value.value) ? condition.value.value : [];
   },
-  set(value: string) {
-    condition.value.value = [String(value ?? '')];
+  set(value: string[]) {
+    condition.value.value = Array.isArray(value) ? [...value] : [];
+    condition.value.isInclude = condition.value.value.some(item => typeof item === 'string' && /[*?]/.test(item));
   },
 });
+
+const handleFuzzyRelationChange = (relation: string) => {
+  condition.value.relation = relation;
+};
 
 const scrollActiveItemIntoView = () => {
   if (activeIndex.value >= 0) {
@@ -1500,7 +1505,10 @@ defineExpose({
             <template v-if="isFuzzyMatchAvailable">
               <FuzzyMatchMode
                 v-model="fuzzyMatchValue"
+                :relation="condition.relation"
                 :type="fuzzyMatchEngine"
+                @batch-show-change="handleBatchShowChange"
+                @relation-change="handleFuzzyRelationChange"
               />
             </template>
             <template v-else-if="activeFieldItem.field_name === '*'">
@@ -1615,7 +1623,7 @@ defineExpose({
             {{ $t('仅支持输入数值类型') }}
           </div>
           <div
-            v-show="condition.value.length > 1 && activeFieldItem.field_type === 'text'"
+            v-show="!isFuzzyMatchAvailable && condition.value.length > 1 && activeFieldItem.field_type === 'text'"
             class="ui-value-row"
           >
             <div class="ui-value-label">
