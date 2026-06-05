@@ -139,3 +139,25 @@ class TestCustomEventCacheManagerPlatformGroup(TestCase):
             tables = self.get_custom_tables(self.OWNER_BIZ)
         group_ids = [table["event_group_id"] for table in tables]
         self.assertEqual(group_ids, [102])
+
+    def test_bkci_related_biz_platform_group_not_resurrected(self):
+        """BKCI 空间任务：关联业务的平台级分组不经 k8s 名称匹配产出，普通分组不受影响"""
+        neg_biz = -100
+        self.metadata_groups[101]["event_group_name"] = "platform_group_BCS-K8S-12345"
+        self.metadata_groups[102]["event_group_name"] = "normal_group_BCS-K8S-12345"
+        cluster = {"cluster_id": "BCS-K8S-12345", "name": "test-cluster", "bk_biz_id": neg_biz}
+        related_space = mock.Mock(bk_biz_id=self.OWNER_BIZ)
+        with (
+            mock.patch(
+                "monitor_web.strategies.metric_list_cache.bk_biz_id_to_space_uid", return_value="bkci__testproj"
+            ),
+            mock.patch(
+                "monitor_web.strategies.metric_list_cache.SpaceApi.get_related_space", return_value=related_space
+            ),
+            mock.patch("core.drf_resource.api.kubernetes.fetch_k8s_cluster_list", return_value=[cluster]),
+            mock.patch("core.drf_resource.api.kubernetes.fetch_bcs_cluster_alert_enabled_id_list", return_value=[]),
+        ):
+            tables = self.get_custom_tables(neg_biz)
+        group_ids = [table["event_group_id"] for table in tables]
+        self.assertEqual(group_ids, [102])
+        self.assertEqual(tables[0]["bk_biz_id"], neg_biz)
