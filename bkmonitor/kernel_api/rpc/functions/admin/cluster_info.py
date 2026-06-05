@@ -39,6 +39,7 @@ FUNC_CLUSTER_INFO_DETAIL = "admin.cluster_info.detail"
 FUNC_CLUSTER_INFO_SPACE_VM_INFO_LIST = "admin.cluster_info.space_vm_info_list"
 FUNC_CLUSTER_INFO_COMPONENT_CONFIG = "admin.cluster_info.component_config"
 FUNC_CLUSTER_INFO_ES_OVERVIEW = "admin.cluster_info.es_overview"
+FUNC_CLUSTER_INFO_HEALTH_CHECK = "admin.cluster_info.health_check"
 INSPECT_SAFETY_LEVEL = "inspect"
 
 CLUSTER_INFO_FIELDS = [
@@ -791,6 +792,58 @@ def get_component_config(params: dict[str, Any]) -> dict[str, Any]:
             "name": name,
         },
     )
+
+
+@KernelRPCRegistry.register(
+    FUNC_CLUSTER_INFO_HEALTH_CHECK,
+    summary="Admin 探测非 ES ClusterInfo 健康状态",
+    description=(
+        "inspect 级别能力，针对非 elasticsearch ClusterInfo 调用模型侧 health_check，"
+        "执行简单健康检查和连通性测试；ES 集群请使用 admin.cluster_info.es_overview。"
+    ),
+    params_schema={
+        "bk_tenant_id": "可选，租户 ID",
+        "cluster_id": "必填，ClusterInfo.cluster_id，不能是 elasticsearch 集群",
+        "timeout": "可选，探测超时时间，单位秒，必须是正整数；默认使用 ClusterInfo.DEFAULT_CHECK_TIMEOUT",
+    },
+    example_params={"bk_tenant_id": "system", "cluster_id": 1, "timeout": 5},
+)
+def check_cluster_info_health(params: dict[str, Any]) -> dict[str, Any]:
+    bk_tenant_id = get_bk_tenant_id(params)
+    cluster_id = params.get("cluster_id")
+    if cluster_id in (None, ""):
+        raise CustomException(message="cluster_id 为必填项")
+    try:
+        cluster_id = int(cluster_id)
+    except (TypeError, ValueError) as error:
+        raise CustomException(message="cluster_id 必须是整数") from error
+
+    timeout = params.get("timeout")
+    if timeout in (None, ""):
+        timeout = None
+    else:
+        try:
+            timeout = int(timeout)
+        except (TypeError, ValueError) as error:
+            raise CustomException(message="timeout 必须是正整数") from error
+        if timeout <= 0:
+            raise CustomException(message="timeout 必须是正整数")
+
+    try:
+        cluster = models.ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_id=cluster_id)
+    except models.ClusterInfo.DoesNotExist as error:
+        raise CustomException(message=f"未找到 ClusterInfo: cluster_id={cluster_id}") from error
+
+    if cluster.cluster_type == models.ClusterInfo.TYPE_ES:
+        raise CustomException(message="elasticsearch 集群已有独立大盘，请使用 admin.cluster_info.es_overview")
+
+    response = build_response(
+        operation="cluster_info.health_check",
+        func_name=FUNC_CLUSTER_INFO_HEALTH_CHECK,
+        bk_tenant_id=bk_tenant_id,
+        data=cluster.health_check(timeout=timeout),
+    )
+    return _mark_inspect_response(response)
 
 
 @KernelRPCRegistry.register(
