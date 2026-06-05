@@ -426,6 +426,44 @@ class CollectorResourceCallTest(ClearRequestLocalMixin, TestCase):
         self.assertEqual(by_id[901]["index_count"], 1)
 
     @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("apps.log_admin_resource.handlers.index_set._get_visible_indexes", return_value=[])
+    def test_index_set_list_paginates_without_per_row_index_lookup(self, mock_get_visible_indexes):
+        LogIndexSet.objects.create(
+            index_set_id=990,
+            index_set_name="host-access-log",
+            space_uid="bkcc__3",
+            category_id="host",
+            scenario_id=Scenario.LOG,
+        )
+
+        content = self._call(
+            "bklog.index_set.list",
+            {"page": 1, "page_size": 1, "ordering": "index_set_id"},
+        )
+
+        self.assertTrue(content["result"])
+        result = content["data"]["result"]
+        self.assertEqual(result["total"], 4)
+        self.assertEqual([item["index_set_id"] for item in result["items"]], [755])
+        mock_get_visible_indexes.assert_not_called()
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("apps.log_admin_resource.handlers.index_set._get_visible_indexes", return_value=[])
+    def test_index_set_list_filters_result_table_without_per_row_index_lookup(self, mock_get_visible_indexes):
+        content = self._call(
+            "bklog.index_set.list",
+            {"result_table_id": "bcs_checkinsvr", "page": 1, "page_size": 20},
+        )
+
+        self.assertTrue(content["result"])
+        result = content["data"]["result"]
+        self.assertEqual(result["total"], 2)
+        by_id = {item["index_set_id"]: item for item in result["items"]}
+        self.assertEqual(by_id[755]["result_table_ids"], ["2_bklog.bcs_checkinsvr"])
+        self.assertEqual(by_id[901]["result_table_ids"], ["2_bklog.bcs_checkinsvr"])
+        mock_get_visible_indexes.assert_not_called()
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     def test_index_set_detail_resolves_collectors_from_index_set_to_collector_config(self):
         content = self._call("bklog.index_set.detail", {"index_set_id": 755})
 
