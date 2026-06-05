@@ -111,7 +111,7 @@ export default defineComponent({
     const resolvedId = deepRef(props.id);
     const idResolving = deepRef(false);
     let idResolvePromise: null | Promise<void> = null;
-    if (props.id && String(props.id).length < 16) {
+    if (props.id && String(props.id).length < 11) {
       idResolving.value = true;
       idResolvePromise = getIncidentDocId({ incident_id: props.id })
         .then(res => {
@@ -306,7 +306,7 @@ export default defineComponent({
         .catch(err => {
           console.log(err);
         })
-        .finally(() => {});
+        .finally(() => { });
     };
     /** 获取故障流转列表 */
     const getIncidentOperations = () => {
