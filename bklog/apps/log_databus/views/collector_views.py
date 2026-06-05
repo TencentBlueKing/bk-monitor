@@ -159,10 +159,10 @@ class CollectorViewSet(ModelViewSet):
             qs = qs.exclude(
                 collector_scenario_id__in=[CollectorScenarioEnum.CUSTOM.value, CollectorScenarioEnum.CLIENT.value]
             )
-        if self.request.query_params.get(IGNORE_DISPLAY_CONFIG):
-            return qs.all()
         if self.request.query_params.get(HAVE_TABLE_ID):
             qs = qs.filter(table_id__isnull=False)
+        if self.request.query_params.get(IGNORE_DISPLAY_CONFIG):
+            return qs.all()
         return qs.filter(is_display=True)
 
     def get_serializer_class(self, *args, **kwargs):
