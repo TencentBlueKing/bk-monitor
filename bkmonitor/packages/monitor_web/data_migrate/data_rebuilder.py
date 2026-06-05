@@ -1224,8 +1224,7 @@ def update_migrate_data_id_routes(
         cluster_name = f"migrate_{kafka_cluster_name}"
         cluster = migrate_kafka_clusters.get(cluster_name)
         if cluster is None:
-            print(f"data_id({data_id}) migrate failed, kafka cluster({cluster_name}) not found")
-            continue
+            raise ValueError(f"kafka cluster({cluster_name}) not found")
 
         data_source = DataSource.objects.filter(bk_data_id=data_id).first()
         if data_source is None:
