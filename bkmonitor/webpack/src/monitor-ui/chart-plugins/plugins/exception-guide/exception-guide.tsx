@@ -97,7 +97,10 @@ class ExceptionGuide extends CommonSimpleChart {
         <bk-exception type={this.guideInfo.type}>
           <span>{this.guideInfo.title}</span>
           <div class='text-wrap'>
-            <pre class='text-row'>{this.guideInfo.subTitle}</pre>
+            <pre
+              class='text-row'
+              domPropsInnerHTML={this.guideInfo.subTitle}
+            />
             {this.guideInfo.link && (
               <bk-button
                 theme='primary'
