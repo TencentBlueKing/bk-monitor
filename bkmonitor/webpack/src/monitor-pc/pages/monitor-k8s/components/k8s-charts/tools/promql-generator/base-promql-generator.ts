@@ -145,13 +145,15 @@ export abstract class K8sBasePromqlGenerator {
    * @description 资源值以 =~"^(...)$" 形式拼入 PromQL，合法 K8s 资源名可能包含 . 等正则元字符，
    * 不转义会导致误匹配。多个资源名以 | 连接（K8s 名称不含 |），按 | 切分后逐个转义再拼回。
    * 不转义 -（正则中无特殊含义），保持常见带连字符资源名的输出整洁。
+   * 注意：输出用于双引号字符串字面量内，PromQL 字符串遵循 Go 转义规则，单写 \. 不是
+   * 合法转义序列（解析报 unknown escape sequence），正则转义引入的反斜杠须再成对转义为 \\.
    * @param {string} value 以 | 连接的资源值
    * @returns {string} 转义后的资源值
    */
   static escapeRegExpValues(value: string | undefined): string {
     return (value || '')
       .split('|')
-      .map(item => item.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+      .map(item => item.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\/g, '\\\\'))
       .join('|');
   }
 
