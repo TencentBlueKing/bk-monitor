@@ -27,6 +27,7 @@ from kernel_api.rpc.functions.admin.api_auth_token import (
 )
 from kernel_api.rpc.functions.admin import apm as admin_apm
 from kernel_api.rpc.functions.admin import bcs_cluster as admin_bcs_cluster
+from kernel_api.rpc.functions.admin import cluster_info as admin_cluster_info
 from kernel_api.rpc.functions.admin import custom_report as admin_custom_report
 from kernel_api.rpc.functions.admin.bcs_cluster import _serialize_bcs_cluster
 from kernel_api.rpc.functions.admin.cluster_info import (
@@ -111,6 +112,7 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.cluster_info.list",
         "admin.cluster_info.detail",
         "admin.cluster_info.space_vm_info_list",
+        "admin.cluster_info.health_check",
         "admin.bcs_cluster.list",
         "admin.bcs_cluster.detail",
         "admin.bcs_cluster.data_id_list",
@@ -1662,6 +1664,49 @@ def test_cluster_info_space_vm_info_list_function_registered():
     assert detail is not None
     assert detail["func_name"] == "admin.cluster_info.space_vm_info_list"
     assert "search" in detail["params_schema"]
+
+
+def test_cluster_info_health_check_function_registered():
+    detail = KernelRPCRegistry.get_function_detail("admin.cluster_info.health_check")
+    assert detail is not None
+    assert detail["func_name"] == "admin.cluster_info.health_check"
+    assert "timeout" in detail["params_schema"]
+
+
+def test_cluster_info_health_check_uses_model_health_check():
+    health_result = {
+        "cluster_id": 1,
+        "cluster_name": "kafka-default",
+        "cluster_type": "kafka",
+        "status": "available",
+        "is_connected": True,
+        "is_available": True,
+        "error": None,
+        "details": {"broker_count": 2},
+    }
+    cluster = SimpleNamespace(
+        cluster_id=1,
+        cluster_type="kafka",
+        health_check=Mock(return_value=health_result),
+    )
+
+    with patch.object(admin_cluster_info.models.ClusterInfo.objects, "get", return_value=cluster) as cluster_get:
+        result = admin_cluster_info.check_cluster_info_health(
+            {"bk_tenant_id": "system", "cluster_id": "1", "timeout": "3"}
+        )
+
+    cluster_get.assert_called_once_with(bk_tenant_id="system", cluster_id=1)
+    cluster.health_check.assert_called_once_with(timeout=3)
+    assert result["data"] == health_result
+    assert result["meta"]["safety_level"] == "inspect"
+
+
+def test_cluster_info_health_check_rejects_es_cluster():
+    cluster = SimpleNamespace(cluster_id=1, cluster_type="elasticsearch")
+
+    with patch.object(admin_cluster_info.models.ClusterInfo.objects, "get", return_value=cluster):
+        with pytest.raises(CustomException, match="admin.cluster_info.es_overview"):
+            admin_cluster_info.check_cluster_info_health({"bk_tenant_id": "system", "cluster_id": 1})
 
 
 def test_cluster_info_list_supports_lightweight_include():
