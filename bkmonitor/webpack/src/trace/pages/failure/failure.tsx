@@ -106,12 +106,11 @@ export default defineComponent({
   setup(props) {
     const route = useRoute();
     const router = useRouter();
-
     // 解析真实的 incident ID（当 id 长度 < 16 时，说明是短 id，需通过接口换取真实 id）
     const resolvedId = deepRef(props.id);
     const idResolving = deepRef(false);
     let idResolvePromise: null | Promise<void> = null;
-    if (props.id && String(props.id).length < 16) {
+    if (props.id && String(props.id).length < 11) {
       idResolving.value = true;
       idResolvePromise = getIncidentDocId({ incident_id: props.id })
         .then(res => {
@@ -306,7 +305,7 @@ export default defineComponent({
         .catch(err => {
           console.log(err);
         })
-        .finally(() => {});
+        .finally(() => { });
     };
     /** 获取故障流转列表 */
     const getIncidentOperations = () => {
