@@ -8,3 +8,7 @@
 
 bkmonitor/uv.lock
 
+
+# Test fixture expectations contain dummy IPs (1.1.1.1 / 2.2.2.2) defined by the
+# shared add_bcs_nodes fixture in conftest; they are long-public placeholder data.
+bkmonitor/packages/monitor_web/tests/scene_view/bkmonitor/models/test_bcs_node.py
