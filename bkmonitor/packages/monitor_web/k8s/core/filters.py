@@ -8,9 +8,24 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import re
+
 from monitor_web.k8s.core.errors import K8sResourceNotFound, MultiWorkloadError
 
 filter_options = {}
+
+# PromQL(RE2) 正则元字符，用于 =~ 匹配前转义资源名。
+# 不含 -：其在正则中无特殊含义，转义反而让常见带连字符的资源名输出变脏。
+_PROMQL_REGEX_METACHAR = re.compile(r"([\\.^$|?*+()\[\]{}])")
+
+
+def escape_promql_regex(value: str) -> str:
+    """转义 PromQL 正则匹配值中的特殊字符。
+
+    资源值会以 =~"^(...)$" 形式拼入 PromQL，合法 K8s 资源名可包含 . 等正则元字符，
+    不转义会导致误匹配（如 app.v2 会匹配到 appXv2）。
+    """
+    return _PROMQL_REGEX_METACHAR.sub(r"\\\1", value)
 
 
 def register_filter(filter_cls):
@@ -50,7 +65,7 @@ class ResourceFilter:
             return self.fuzzy_filter_string()
         if len(self.value) == 1:
             return f'{self.filter_field}="{self.value[0]}"'
-        value_regex = "|".join(self.value)
+        value_regex = "|".join(escape_promql_regex(value) for value in self.value)
         return f'{self.filter_field}=~"^({value_regex})$"'
 
     def fuzzy_filter_string(self) -> str:
