@@ -16,6 +16,7 @@ from bkmonitor.models import BCSCluster
 from monitor_web.k8s.core.filters import (
     ContainerFilter,
     NamespaceFilter,
+    NodeFilter,
     PodFilter,
     WorkloadFilter,
     load_resource_filter,
@@ -57,10 +58,17 @@ class TestFilter(TestCase):
         )
 
     def test_filter_string_escapes_regex(self):
-        # 多值走 =~ 正则匹配，资源名中的正则元字符（如 . ）需转义，避免误匹配
+        # 多值走 =~ 正则匹配，资源名中的正则元字符（如 . ）需转义，避免误匹配。
+        # 输出处于双引号字符串字面量内，反斜杠须成对（\\.），
+        # 单写 \. 会被 PromQL 解析报 unknown escape sequence。
         self.assertEqual(
             PodFilter(["app.v1-abc", "app.v2-def"]).filter_string(),
-            r'pod_name=~"^(app\.v1-abc|app\.v2-def)$"',
+            r'pod_name=~"^(app\\.v1-abc|app\\.v2-def)$"',
+        )
+        # node 名常为 IP，是最典型的含 . 资源名
+        self.assertEqual(
+            NodeFilter(["127.0.0.1", "127.0.0.2"]).filter_string(),
+            r'node=~"^(127\\.0\\.0\\.1|127\\.0\\.0\\.2)$"',
         )
         # 单值走精确匹配（=），不经过正则，保持原样
         self.assertEqual(PodFilter("app.v1").filter_string(), 'pod_name="app.v1"')
