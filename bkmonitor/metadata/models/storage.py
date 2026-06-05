@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import abc
 import base64
 import datetime
+import ipaddress
 import json
 import logging
 import random
@@ -222,7 +223,8 @@ class ClusterInfo(models.Model):
     def check(self, timeout: int | None = None) -> dict[str, Any]:
         """探测集群连接和可用状态，返回统一结构。"""
 
-        timeout = timeout or self.DEFAULT_CHECK_TIMEOUT
+        if timeout is None:
+            timeout = self.DEFAULT_CHECK_TIMEOUT
         checker_name = {
             self.TYPE_DORIS: "_check_doris_cluster",
             self.TYPE_ES: "_check_es_cluster",
@@ -243,6 +245,8 @@ class ClusterInfo(models.Model):
             )
 
         try:
+            if not isinstance(timeout, int) or isinstance(timeout, bool) or timeout <= 0:
+                raise ValueError("timeout 必须是大于 0 的整数")
             return getattr(self, checker_name)(timeout=timeout)
         except ValueError as error:
             return self._build_cluster_check_result(
@@ -320,6 +324,40 @@ class ClusterInfo(models.Model):
 
         return AdminClient
 
+    def _normalize_kafka_bootstrap_host(self, host: str) -> str:
+        if host.startswith("["):
+            match = re.fullmatch(r"\[(?P<address>[^\]]+)\](?::(?P<port>\d+))?", host)
+            if not match:
+                raise ValueError(f"Kafka bootstrap host 非法: {host}")
+
+            address = ipaddress.ip_address(match.group("address"))
+            port = int(match.group("port") or self.port)
+            if address.version == 6:
+                return f"[{address.compressed}]:{port}"
+            return f"{address.compressed}:{port}"
+
+        if host.count(":") == 1:
+            return host
+
+        if host.count(":") > 1:
+            address_part, port_part = host.rsplit(":", 1)
+            if port_part.isdigit():
+                try:
+                    address = ipaddress.ip_address(address_part)
+                except ValueError:
+                    pass
+                else:
+                    if address.version == 6:
+                        return f"[{address.compressed}]:{int(port_part)}"
+                    return f"{address.compressed}:{int(port_part)}"
+
+            address = ipaddress.ip_address(host)
+            if address.version == 6:
+                return f"[{address.compressed}]:{self.port}"
+            return f"{address.compressed}:{self.port}"
+
+        return f"{host}:{self.port}"
+
     def _compose_kafka_bootstrap_servers(self) -> str:
         self._validate_check_endpoint()
         bootstrap_servers = []
@@ -327,12 +365,7 @@ class ClusterInfo(models.Model):
             host = host.strip()
             if not host:
                 continue
-            if host.startswith("[") and "]:" in host:
-                bootstrap_servers.append(host)
-            elif host.count(":") == 1:
-                bootstrap_servers.append(host)
-            else:
-                bootstrap_servers.append(f"{host}:{self.port}")
+            bootstrap_servers.append(self._normalize_kafka_bootstrap_host(host))
 
         if not bootstrap_servers:
             raise ValueError("Kafka bootstrap servers 为空")

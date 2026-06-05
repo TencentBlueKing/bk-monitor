@@ -85,6 +85,33 @@ def test_check_kafka_cluster_requires_auth_info():
     assert result["error"]["code"] == ClusterInfo.CHECK_ERROR_INVALID_CONFIG
 
 
+def test_check_rejects_non_positive_timeout():
+    result = make_cluster(ClusterInfo.TYPE_KAFKA).check(timeout=0)
+
+    assert_standard_check_fields(result)
+    assert result["status"] == ClusterInfo.CHECK_STATUS_UNAVAILABLE
+    assert result["is_connected"] is False
+    assert result["is_available"] is False
+    assert result["error"]["code"] == ClusterInfo.CHECK_ERROR_INVALID_CONFIG
+    assert result["error"]["details"]["message"] == "timeout 必须是大于 0 的整数"
+
+
+@pytest.mark.parametrize(
+    ("domain_name", "expected"),
+    [
+        ("::1", "[::1]:9092"),
+        ("[::1]", "[::1]:9092"),
+        ("[::1]:9093", "[::1]:9093"),
+        ("::1:9093", "[::1]:9093"),
+        ("2001:db8::1", "[2001:db8::1]:9092"),
+    ],
+)
+def test_compose_kafka_bootstrap_servers_supports_ipv6(domain_name, expected):
+    cluster = make_cluster(ClusterInfo.TYPE_KAFKA, domain_name=domain_name)
+
+    assert cluster._compose_kafka_bootstrap_servers() == expected
+
+
 def test_check_kafka_cluster_connection_failed(mocker):
     admin_client = mocker.Mock()
     admin_client.list_topics.side_effect = RuntimeError("metadata timeout")
