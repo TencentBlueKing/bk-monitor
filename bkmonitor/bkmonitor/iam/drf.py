@@ -77,7 +77,12 @@ class BusinessActionPermission(IAMPermission):
 
     def has_permission(self, request, view):
         if not request.biz_id:
-            return True
+            # 安全修复: biz_id 缺失时拒绝请求，而非直接放行
+            logger.warning("BusinessActionPermission: biz_id is missing, denying permission")
+            raise PermissionDeniedError(
+                action_name="business_action",
+                resources=[],
+            )
         self.resources = [ResourceEnum.BUSINESS.create_instance(request.biz_id)]
         return super().has_permission(request, view)
 

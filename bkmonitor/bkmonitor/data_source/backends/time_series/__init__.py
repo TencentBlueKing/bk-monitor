@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 
 def escape_sql_field_name(field_name):
-    for k in ["`", " ", "(", ")"]:
-        if k in field_name:
-            return field_name
-    return f"`{field_name}`"
+    # 正确转义反引号字符，防止 SQL 注入
+    # 参考 MySQL 文档: 在标识符中，反引号通过双写来转义
+    escaped = field_name.replace("`", "``")
+    return f"`{escaped}`"

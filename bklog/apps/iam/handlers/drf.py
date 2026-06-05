@@ -93,7 +93,9 @@ class BusinessActionPermission(IAMPermission):
         else:
             bk_biz_id = self.fetch_biz_id_by_request(request)
         if not bk_biz_id:
-            return True
+            # 安全修复: bk_biz_id 缺失时拒绝请求，而非直接放行
+            from apps.iam.exceptions import NotHaveInstanceIdError
+            raise NotHaveInstanceIdError
         self.resources = [ResourceEnum.BUSINESS.create_instance(bk_biz_id)]
         return super().has_permission(request, view)
 

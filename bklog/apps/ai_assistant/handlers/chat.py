@@ -87,7 +87,12 @@ class ChatHandler:
             raise ApiRequestError(f"aidev request error: {e}  => {exc_info}", request_id)
 
         end_time = time.time() - start_time
-        logger.info(f"[call_chat_completion] params: {json.dumps(data)}, time taken: {end_time}s")
+        # 安全修复: 不记录完整提示词内容，防止敏感数据通过日志泄露
+        logger.info(
+            f"[call_chat_completion] model={data.get('model')}, "
+            f"message_count={len(data.get('messages', []))}, "
+            f"stream={data.get('stream')}, time taken: {end_time}s"
+        )
 
     def interpret_log(self, index_set_id: str, log_data: dict, query: str, chat_context: list, stream=True):
         """
@@ -109,10 +114,11 @@ class ChatHandler:
         feature_conf = InterpretLogFeatureConf(**custom_conf)
 
         # 构造消息列表
+        # 安全修复: 用户日志数据放入 user role 而非 system role，防止提示词注入
         messages = [
-            {"role": "system", "content": feature_conf.prompt.format(log_content=json.dumps(log_data))},
+            {"role": "system", "content": feature_conf.prompt},
             *chat_context[-feature_conf.max_chat_context_count * 2 :],
-            {"role": "user", "content": query},
+            {"role": "user", "content": f"以下是我需要分析的日志内容:\n{json.dumps(log_data)}\n\n我的问题: {query}"},
         ]
 
         # 调用OpenAI接口
