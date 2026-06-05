@@ -75,7 +75,9 @@ class TransferEtlHandler(EtlHandler):
             storage_cluster_type = cluster_info.get("cluster_type") or STORAGE_CLUSTER_TYPE
 
         # es 集群获取 es 版本, doris 集群将 es 版本设置为空
-        es_version = (cluster_info["cluster_config"].get("version") or "") if storage_cluster_type == STORAGE_CLUSTER_TYPE else ""
+        es_version = (
+                cluster_info["cluster_config"]["version"] or ""
+        ) if storage_cluster_type == STORAGE_CLUSTER_TYPE else ""
 
         self.check_es_storage_capacity(cluster_info, storage_cluster_id)
         is_add = False if self.data.table_id else True
