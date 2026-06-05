@@ -32,5 +32,10 @@
     &:hover {
       background: #f5f7fa;
     }
+
+    &.disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
   }
 }

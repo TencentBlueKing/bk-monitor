@@ -23,12 +23,39 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import MonitorK8sApm from 'monitor-pc/pages/monitor-k8s/monitor-k8s-apm';
-import { Component } from 'vue-property-decorator';
+import { Component, Inject, Provide, ProvideReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+
+import MonitorK8sApm from 'monitor-pc/pages/monitor-k8s/monitor-k8s-apm';
 
 @Component
 export default class ApmMonitorK8s extends tsc<Record<string, never>> {
+  // 处理时间范围变化
+  @Inject('handleTimeRangeChange') handleTimeRangeChange: (v: [string, string]) => void;
+  // 处理自定义路由参数变化
+  @Inject({ from: 'handleCustomRouteQueryChange', default: () => {} }) handleCustomRouteQueryChange: (
+    customRouteQuery: Record<string, number | string>
+  ) => void;
+
+  @ProvideReactive('isApmMonitor') isApmMonitor = true;
+
+  // apm容器事件汇总处理
+  @Provide('handleApmK8sNewEventChange')
+  handleK8sNewEventChange(eventName: string, params: any) {
+    // 图表滑动时间范围同步
+    if (eventName === 'apmK8sNewTimeRangeChange') {
+      this.handleTimeRangeChange(params);
+      return;
+    }
+    // 更新apm自定义路由参数
+    if (eventName === 'apmK8sNewCustomRouteQueryChange') {
+      this.handleCustomRouteQueryChange({
+        apmK8sParams: JSON.stringify(params),
+      });
+      return;
+    }
+  }
+
   render() {
     return <MonitorK8sApm />;
   }

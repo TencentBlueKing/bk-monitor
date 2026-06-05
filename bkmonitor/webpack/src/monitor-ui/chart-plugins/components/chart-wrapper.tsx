@@ -489,15 +489,15 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
         );
       case 'log-retrieve':
         return <monitor-retrieve />;
+      case 'container':
+        return <ApmMonitorK8s />
       case 'exception-guide':
         return (
-          // TODO: 本地调试临时变更，后续会恢复
-          <ApmMonitorK8s />
-          // <ExceptionGuide
-          //   clearErrorMsg={this.handleClearErrorMsg}
-          //   panel={this.panel}
-          //   onErrorMsg={this.handleErrorMsgChange}
-          // />
+          <ExceptionGuide
+            clearErrorMsg={this.handleClearErrorMsg}
+            panel={this.panel}
+            onErrorMsg={this.handleErrorMsgChange}
+          />
         );
       case 'resource':
         return (
