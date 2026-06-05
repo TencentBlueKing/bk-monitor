@@ -469,6 +469,9 @@ UNIFY_QUERY_ROUTING_RULES = []
 # bk-monitor-worker api 地址
 BMW_API_URL = os.getenv("BMW_API_URL", "http://bk-monitor-bk-monitor-worker-web-service:10211")
 
+# 告警缓存刷新任务的业务并发度
+ALARM_CACHE_REFRESH_BIZ_CONCURRENT = 3
+
 # bkmonitorbeat 升级支持新版节点ID(bk_cloud_id:ip)的版本
 BKMONITORBEAT_SUPPORT_NEW_NODE_ID_VERSION = "1.13.95"
 
@@ -1633,13 +1636,22 @@ ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST = []
 # 使用RT中的路由过滤别名的结果表列表
 SPECIAL_RT_ROUTE_ALIAS_RESULT_TABLE_LIST = []
 
-# BCS集群自动发现任务周期
-BCS_DISCOVER_BCS_CLUSTER_INTERVAL = 5
 # BCS集群自动发现任务的起始集群ID（严格大于，不包含该ID本身）。
-# 取值示例: "BCS-K8S-10000" 表示仅接管后缀 > 10000 的集群的新增与删除；
-# 阈值以下（含阈值）的集群不会被本任务新增，也不会被标记为删除，但已存在集群的状态/业务/项目仍会正常更新。
+# 取值示例: "BCS-K8S-10000" 表示仅接管后缀 > 10000 的集群的变更；
 # 留空表示禁用阈值过滤，全部集群均由本任务接管（保持历史行为）。
 BCS_DISCOVER_START_CLUSTER_ID = os.getenv("BCS_DISCOVER_START_CLUSTER_ID", "")
+
+# BCS集群自动发现任务黑名单业务ID列表
+BCS_DISCOVER_BCS_CLUSTER_BIZ_BLACK_LIST = []
+
+# BCS集群自动发现任务白名单业务ID列表（作为 BCS_DISCOVER_START_CLUSTER_ID 阈值的例外：
+# 命中白名单的业务，即使集群ID后缀不大于阈值也会被接管；为空表示无例外）
+BCS_DISCOVER_BCS_CLUSTER_BIZ_WHITE_LIST = []
+
+# 是否禁用BCS集群内置公共dataid资源刷新
+DISABLE_BCS_CLUSTER_REFRESH_COMMON_RESOURCE = (
+    os.getenv("DISABLE_BCS_CLUSTER_REFRESH_COMMON_RESOURCE", "false").lower() == "true"
+)
 
 # BKCC 业务同步任务的起始业务 ID（严格大于，不包含该 ID 本身）。
 # 取值示例: "1000" 表示仅接管 bk_biz_id > 1000 的 CMDB 业务的新增、删除及 V4 内置链路检查；

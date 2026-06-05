@@ -21,6 +21,7 @@
 - `python manage.py data_migrate export ...`
 - `python manage.py data_migrate import ...`
 - `python manage.py data_migrate enable-closed-strategies ...`
+- `python manage.py data_migrate update-migrate-data-id-routes ...`
 - `python manage.py data_migrate disable-models ...`
 - `python manage.py data_migrate replace-tenant-id ...`
 - `python manage.py data_migrate restore-disabled-models ...`
@@ -82,6 +83,20 @@ python manage.py data_migrate enable-closed-strategies \
 - 只处理其中 `bkmonitor.strategymodel` 对应的策略 ID
 - 仅重新开启当前仍处于关闭状态的策略，并输出每个业务的处理统计
 - `--bk-biz-ids` 仅支持正整数业务 ID
+
+### 更新单个迁移双写路由
+
+```bash
+python manage.py data_migrate update-migrate-data-id-routes \
+  --bk-data-id 123 \
+  --kafka-cluster-name kafka_cluster
+```
+
+说明：
+
+- 当前仅支持单个数据 ID
+- 会查找名称为 `migrate_kafka_data_id_<bk_data_id>` 的既有迁移双写路由
+- `--kafka-cluster-name` 传迁移前 Kafka 集群名称，命令内部会更新到对应的 `migrate_<kafka_cluster_name>` 集群
 
 ### 恢复自增游标
 

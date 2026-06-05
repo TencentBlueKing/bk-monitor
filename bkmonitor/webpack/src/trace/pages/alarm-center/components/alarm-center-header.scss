@@ -52,4 +52,13 @@
       }
     }
   }
+
+  .access-guide-link {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #3a84ff;
+    cursor: pointer;
+    margin-right: 10px;
+  }
 }

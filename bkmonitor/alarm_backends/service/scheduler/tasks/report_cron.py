@@ -100,7 +100,7 @@ def register_alarm_cache_bmw_task():
                     "service_instance": 7013,  # ~116.9 min
                 },
                 # 并发度
-                "biz_concurrent": 4,
+                "biz_concurrent": settings.ALARM_CACHE_REFRESH_BIZ_CONCURRENT,
                 "event_handle_interval": 120,
             },
             "options": {"queue": "alarm"},

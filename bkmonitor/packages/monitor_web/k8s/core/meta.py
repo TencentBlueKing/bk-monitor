@@ -500,6 +500,22 @@ class K8sResourceMeta:
     def add_filter(self, filter_obj):
         self.filter.add(filter_obj)
 
+    def pod_requests_with_sidecar_expr(self, filter_string):
+        """容器 request 求和口径（含原生 sidecar），用于对齐调度器装箱口径。
+
+        = 常规容器 request  or  运行中的 restartable-init(sidecar) request。
+        sidecar 用 kube_pod_init_container_status_running == 1 近似识别：普通 init 跑完即停、
+        running 置 0；只有常驻 sidecar 持续 running。不依赖 KSM / k8s 版本，也不从 pod spec
+        精确判定（准确性与成本权衡）。用 or 取并集，保证无 sidecar 的 pod 不被丢弃。
+        注意：仅在 node / cluster 维度精确，workload / namespace 维度 init 指标可能缺相应标签。
+        """
+        running_sidecar = (
+            f"kube_pod_init_container_resource_requests{{{filter_string}}}"
+            " * on(namespace,pod,container) group_left() "
+            f"(kube_pod_init_container_status_running{{{self.bcs_cluster_id_filter}}} == 1)"
+        )
+        return f"(kube_pod_container_resource_requests{{{filter_string}}} or ({running_sidecar}))"
+
 
 class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     resource_field = "pod_name"
@@ -790,7 +806,7 @@ class K8sClusterMeta(K8sResourceMeta):
         if self.agg_method:
             return (
                 "sum by (bcs_cluster_id)(sum by (bcs_cluster_id,pod) "
-                f"({self.agg_method}_over_time(kube_pod_container_resource_requests{{{filter_string}}}[1m:]))"
+                f"({self.agg_method}_over_time({self.pod_requests_with_sidecar_expr(filter_string)}[1m:]))"
                 " / "
                 f"on (pod) group_left() count (count by (pod)"
                 f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}})) by (pod))'
@@ -799,7 +815,7 @@ class K8sClusterMeta(K8sResourceMeta):
             )
         return (
             "sum by (bcs_cluster_id)(sum by (bcs_cluster_id,pod) "
-            f"(kube_pod_container_resource_requests{{{filter_string}}})"
+            f"({self.pod_requests_with_sidecar_expr(filter_string)})"
             " / "
             f"on (pod) group_left() count (count by (pod)"
             f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}})) by (pod))'
@@ -846,7 +862,7 @@ class K8sClusterMeta(K8sResourceMeta):
         if self.agg_method:
             return (
                 "sum by (bcs_cluster_id)(sum by (bcs_cluster_id,pod) "
-                f"({self.agg_method}_over_time(kube_pod_container_resource_requests{{{filter_string}}}[1m:]))"
+                f"({self.agg_method}_over_time({self.pod_requests_with_sidecar_expr(filter_string)}[1m:]))"
                 " / "
                 f"on (pod) group_left() count (count by (pod)"
                 f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}})) by (pod))'
@@ -855,7 +871,7 @@ class K8sClusterMeta(K8sResourceMeta):
             )
         return (
             "sum by (bcs_cluster_id)(sum by (bcs_cluster_id,pod) "
-            f"(kube_pod_container_resource_requests{{{filter_string}}})"
+            f"({self.pod_requests_with_sidecar_expr(filter_string)})"
             " / "
             f"on (pod) group_left() count (count by (pod)"
             f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}})) by (pod))'
@@ -1034,7 +1050,7 @@ class K8sNodeMeta(K8sResourceMeta):
         if self.agg_method:
             return (
                 "sum by (node)(sum by (node,pod) "
-                f"({self.agg_method}_over_time(kube_pod_container_resource_requests{{{filter_string}}}[1m:]))"
+                f"({self.agg_method}_over_time({self.pod_requests_with_sidecar_expr(filter_string)}[1m:]))"
                 " / "
                 f"on (pod) group_left() count (count by (pod)"
                 f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}})) by (pod))'
@@ -1043,7 +1059,7 @@ class K8sNodeMeta(K8sResourceMeta):
             )
         return (
             "sum by (node)(sum by (node,pod) "
-            f"(kube_pod_container_resource_requests{{{filter_string}}})"
+            f"({self.pod_requests_with_sidecar_expr(filter_string)})"
             " / "
             f"on (pod) group_left() count (count by (pod)"
             f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}})) by (pod))'
@@ -1091,7 +1107,7 @@ class K8sNodeMeta(K8sResourceMeta):
         if self.agg_method:
             return (
                 "sum by (node)(sum by (node,pod) "
-                f"({self.agg_method}_over_time(kube_pod_container_resource_requests{{{filter_string}}}[1m:]))"
+                f"({self.agg_method}_over_time({self.pod_requests_with_sidecar_expr(filter_string)}[1m:]))"
                 " / "
                 f"on (pod) group_left() count (count by (pod)"
                 f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}})) by (pod))'
@@ -1100,7 +1116,7 @@ class K8sNodeMeta(K8sResourceMeta):
             )
         return (
             "sum by (node)(sum by (node,pod) "
-            f"(kube_pod_container_resource_requests{{{filter_string}}})"
+            f"({self.pod_requests_with_sidecar_expr(filter_string)})"
             " / "
             f"on (pod) group_left() count (count by (pod)"
             f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}})) by (pod))'

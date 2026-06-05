@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,9 +7,9 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import urllib.parse
-from typing import Optional
 
 import requests
 from django.conf import settings
@@ -22,7 +21,7 @@ from core.prometheus.tools import get_metric_agg_gateway_url
 logger = logging.getLogger("bkmonitor")
 
 
-def get_agg_gateway_url() -> Optional[str]:
+def get_agg_gateway_url() -> str | None:
     """获取聚合网关 URL"""
     # TODO: agg_gateway_url should include scheme part
     agg_gateway_url = get_metric_agg_gateway_url()
@@ -34,11 +33,23 @@ def get_agg_gateway_url() -> Optional[str]:
 
 def register_report_task():
     """注册聚合网关上报任务"""
+
+    # 获取聚合网关URL
     agg_gateway_url = get_metric_agg_gateway_url()
     if not agg_gateway_url:
         return
+
+    # 如果自定义上报默认服务器域名或IP未配置，则跳过上报监控指标
+    if not settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN and not settings.CUSTOM_REPORT_DEFAULT_PROXY_IP:
+        logger.warning("custom report proxy domain or ip is not configured, skipping report monitor metrics")
+    report_domain = (
+        settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN[0]
+        if settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN
+        else settings.CUSTOM_REPORT_DEFAULT_PROXY_IP[0]
+    )
+
     url = urllib.parse.urljoin(f"http://{agg_gateway_url}", "report")
-    report_url = f"http://{settings.CUSTOM_REPORT_DEFAULT_PROXY_IP[0]}:4318"
+    report_url = f"http://{report_domain}:4318"
 
     job_infos = [
         {
