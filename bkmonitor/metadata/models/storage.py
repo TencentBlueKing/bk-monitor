@@ -220,7 +220,7 @@ class ClusterInfo(models.Model):
 
         return data
 
-    def check(self, timeout: int | None = None) -> dict[str, Any]:
+    def health_check(self, timeout: int | None = None) -> dict[str, Any]:
         """探测集群连接和可用状态，返回统一结构。"""
 
         if timeout is None:
@@ -261,7 +261,7 @@ class ClusterInfo(models.Model):
             )
         except Exception as error:  # pylint: disable=broad-except
             logger.exception(
-                "ClusterInfo.check failed, cluster_id->[%s], cluster_type->[%s]",
+                "ClusterInfo.health_check failed, cluster_id->[%s], cluster_type->[%s]",
                 self.cluster_id,
                 self.cluster_type,
             )

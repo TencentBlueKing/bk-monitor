@@ -42,7 +42,7 @@ def assert_standard_check_fields(result: dict):
     }
 
 
-def test_check_kafka_cluster_available(mocker):
+def test_health_check_kafka_cluster_available(mocker):
     metadata = SimpleNamespace(brokers={1: object(), 2: object()}, topics={"topic_a": object()})
     admin_client = mocker.Mock()
     admin_client.list_topics.return_value = metadata
@@ -57,7 +57,7 @@ def test_check_kafka_cluster_available(mocker):
         sasl_mechanisms="SCRAM-SHA-256",
     )
 
-    result = cluster.check(timeout=3)
+    result = cluster.health_check(timeout=3)
 
     assert_standard_check_fields(result)
     assert result["status"] == ClusterInfo.CHECK_STATUS_AVAILABLE
@@ -73,10 +73,10 @@ def test_check_kafka_cluster_available(mocker):
     assert admin_conf["sasl.mechanisms"] == "SCRAM-SHA-256"
 
 
-def test_check_kafka_cluster_requires_auth_info():
+def test_health_check_kafka_cluster_requires_auth_info():
     cluster = make_cluster(ClusterInfo.TYPE_KAFKA, is_auth=True, username="", password="")
 
-    result = cluster.check()
+    result = cluster.health_check()
 
     assert_standard_check_fields(result)
     assert result["status"] == ClusterInfo.CHECK_STATUS_UNAVAILABLE
@@ -85,8 +85,8 @@ def test_check_kafka_cluster_requires_auth_info():
     assert result["error"]["code"] == ClusterInfo.CHECK_ERROR_INVALID_CONFIG
 
 
-def test_check_rejects_non_positive_timeout():
-    result = make_cluster(ClusterInfo.TYPE_KAFKA).check(timeout=0)
+def test_health_check_rejects_non_positive_timeout():
+    result = make_cluster(ClusterInfo.TYPE_KAFKA).health_check(timeout=0)
 
     assert_standard_check_fields(result)
     assert result["status"] == ClusterInfo.CHECK_STATUS_UNAVAILABLE
@@ -112,7 +112,7 @@ def test_compose_kafka_bootstrap_servers_supports_ipv6(domain_name, expected):
     assert cluster._compose_kafka_bootstrap_servers() == expected
 
 
-def test_check_kafka_cluster_connection_failed(mocker):
+def test_health_check_kafka_cluster_connection_failed(mocker):
     admin_client = mocker.Mock()
     admin_client.list_topics.side_effect = RuntimeError("metadata timeout")
     mocker.patch.object(
@@ -121,7 +121,7 @@ def test_check_kafka_cluster_connection_failed(mocker):
         return_value=mocker.Mock(return_value=admin_client),
     )
 
-    result = make_cluster(ClusterInfo.TYPE_KAFKA).check()
+    result = make_cluster(ClusterInfo.TYPE_KAFKA).health_check()
 
     assert_standard_check_fields(result)
     assert result["status"] == ClusterInfo.CHECK_STATUS_UNAVAILABLE
@@ -132,12 +132,12 @@ def test_check_kafka_cluster_connection_failed(mocker):
 
 
 @pytest.mark.parametrize("health_status", ["green", "yellow"])
-def test_check_es_cluster_available(mocker, health_status):
+def test_health_check_es_cluster_available(mocker, health_status):
     client = mocker.Mock()
     client.cluster.health.return_value = {"status": health_status, "number_of_nodes": 2}
     mocker.patch("metadata.models.storage.es_tools.get_client", return_value=client)
 
-    result = make_cluster(ClusterInfo.TYPE_ES).check(timeout=3)
+    result = make_cluster(ClusterInfo.TYPE_ES).health_check(timeout=3)
 
     assert_standard_check_fields(result)
     assert result["status"] == ClusterInfo.CHECK_STATUS_AVAILABLE
@@ -147,12 +147,12 @@ def test_check_es_cluster_available(mocker, health_status):
     client.cluster.health.assert_called_once_with(request_timeout=3)
 
 
-def test_check_es_cluster_red_is_unavailable(mocker):
+def test_health_check_es_cluster_red_is_unavailable(mocker):
     client = mocker.Mock()
     client.cluster.health.return_value = {"status": "red", "number_of_nodes": 1}
     mocker.patch("metadata.models.storage.es_tools.get_client", return_value=client)
 
-    result = make_cluster(ClusterInfo.TYPE_ES).check()
+    result = make_cluster(ClusterInfo.TYPE_ES).health_check()
 
     assert_standard_check_fields(result)
     assert result["status"] == ClusterInfo.CHECK_STATUS_UNAVAILABLE
@@ -161,11 +161,11 @@ def test_check_es_cluster_red_is_unavailable(mocker):
     assert result["error"]["code"] == ClusterInfo.CHECK_ERROR_CLUSTER_UNHEALTHY
 
 
-def test_check_vm_cluster_available(mocker):
+def test_health_check_vm_cluster_available(mocker):
     response = mocker.Mock(status_code=200, text="ok")
     request = mocker.patch("metadata.models.storage.requests.get", return_value=response)
 
-    result = make_cluster(ClusterInfo.TYPE_VM, domain_name="vm.example.com", port=8428).check(timeout=4)
+    result = make_cluster(ClusterInfo.TYPE_VM, domain_name="vm.example.com", port=8428).health_check(timeout=4)
 
     assert_standard_check_fields(result)
     assert result["status"] == ClusterInfo.CHECK_STATUS_AVAILABLE
@@ -175,11 +175,11 @@ def test_check_vm_cluster_available(mocker):
     request.assert_called_once_with("http://vm.example.com:8428/health", timeout=4, verify=True)
 
 
-def test_check_vm_cluster_http_unhealthy(mocker):
+def test_health_check_vm_cluster_http_unhealthy(mocker):
     response = mocker.Mock(status_code=503, text="not ready")
     mocker.patch("metadata.models.storage.requests.get", return_value=response)
 
-    result = make_cluster(ClusterInfo.TYPE_VM).check()
+    result = make_cluster(ClusterInfo.TYPE_VM).health_check()
 
     assert_standard_check_fields(result)
     assert result["status"] == ClusterInfo.CHECK_STATUS_UNAVAILABLE
@@ -188,7 +188,7 @@ def test_check_vm_cluster_http_unhealthy(mocker):
     assert result["error"]["code"] == ClusterInfo.CHECK_ERROR_HTTP_UNHEALTHY
 
 
-def test_check_doris_cluster_available(mocker):
+def test_health_check_doris_cluster_available(mocker):
     cursor = mocker.Mock()
     cursor.__enter__ = mocker.Mock(return_value=cursor)
     cursor.__exit__ = mocker.Mock(return_value=None)
@@ -198,7 +198,7 @@ def test_check_doris_cluster_available(mocker):
     connect = mocker.patch("metadata.models.storage.pymysql.connect", return_value=connection)
 
     cluster = make_cluster(ClusterInfo.TYPE_DORIS, port=9030, username="root", password="password")
-    result = cluster.check(timeout=2)
+    result = cluster.health_check(timeout=2)
 
     assert_standard_check_fields(result)
     assert result["status"] == ClusterInfo.CHECK_STATUS_AVAILABLE
@@ -211,8 +211,8 @@ def test_check_doris_cluster_available(mocker):
 
 
 @pytest.mark.parametrize("cluster_type", [ClusterInfo.TYPE_REDIS, ClusterInfo.TYPE_INFLUXDB, ClusterInfo.TYPE_ARGUS])
-def test_check_unsupported_cluster_type(cluster_type):
-    result = make_cluster(cluster_type).check()
+def test_health_check_unsupported_cluster_type(cluster_type):
+    result = make_cluster(cluster_type).health_check()
 
     assert_standard_check_fields(result)
     assert result["status"] == ClusterInfo.CHECK_STATUS_UNSUPPORTED
