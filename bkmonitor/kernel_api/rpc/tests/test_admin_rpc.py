@@ -32,6 +32,10 @@ from kernel_api.rpc.functions.admin import custom_report as admin_custom_report
 from kernel_api.rpc.functions.admin.bcs_cluster import _serialize_bcs_cluster
 from kernel_api.rpc.functions.admin.cluster_info import (
     _build_es_cluster_overview,
+    _build_es_analysis_storage_index,
+    _parse_es_analysis_index_base,
+    _parse_es_analysis_owner,
+    _serialize_es_analysis_index_row,
     _serialize_cluster_info,
     _serialize_cluster_space_vm_info,
 )
@@ -112,6 +116,8 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.cluster_info.list",
         "admin.cluster_info.detail",
         "admin.cluster_info.space_vm_info_list",
+        "admin.cluster_info.es_overview",
+        "admin.cluster_info.es_storage_analysis",
         "admin.cluster_info.health_check",
         "admin.bcs_cluster.list",
         "admin.bcs_cluster.detail",
@@ -1673,6 +1679,14 @@ def test_cluster_info_health_check_function_registered():
     assert "timeout" in detail["params_schema"]
 
 
+def test_cluster_info_es_storage_analysis_function_registered():
+    detail = KernelRPCRegistry.get_function_detail("admin.cluster_info.es_storage_analysis")
+    assert detail is not None
+    assert detail["func_name"] == "admin.cluster_info.es_storage_analysis"
+    assert "inspect" in detail["description"]
+    assert "cluster_id" in detail["params_schema"]
+
+
 def test_cluster_info_health_check_uses_model_health_check():
     health_result = {
         "cluster_id": 1,
@@ -1707,6 +1721,95 @@ def test_cluster_info_health_check_rejects_es_cluster():
     with patch.object(admin_cluster_info.models.ClusterInfo.objects, "get", return_value=cluster):
         with pytest.raises(CustomException, match="admin.cluster_info.es_overview"):
             admin_cluster_info.check_cluster_info_health({"bk_tenant_id": "system", "cluster_id": 1})
+
+
+def _fake_es_analysis_storage(table_id):
+    return SimpleNamespace(
+        table_id=table_id,
+        bk_tenant_id="system",
+        storage_cluster_id=1,
+        source_type="log",
+        retention=30,
+        slice_size=500,
+        slice_gap=120,
+        date_format="%Y%m%d%H",
+        time_zone=0,
+        index_set=None,
+        need_create_index=True,
+    )
+
+
+def test_es_analysis_index_base_parses_v1_and_v2_physical_index_names():
+    assert _parse_es_analysis_index_base("v2_2_bklog_demo_2026060612_0") == "2_bklog_demo"
+    assert _parse_es_analysis_index_base("2_bklog_demo_2026060612_0") == "2_bklog_demo"
+    assert _parse_es_analysis_index_base(".security-7") is None
+
+
+def test_es_analysis_owner_parses_biz_and_space_prefixes():
+    assert _parse_es_analysis_owner("2_bklog.demo") == {"owner_type": "biz", "bk_biz_id": 2}
+    assert _parse_es_analysis_owner("space_125_bklog.csu250409__default__json") == {
+        "owner_type": "space",
+        "bk_biz_id": -125,
+    }
+    assert _parse_es_analysis_owner("space_demo.bklog.demo") == {
+        "owner_type": "space",
+        "bk_biz_id": None,
+    }
+    assert _parse_es_analysis_owner(None) == {"owner_type": "unknown", "bk_biz_id": None}
+
+
+def test_es_analysis_index_row_matches_physical_es_storage_and_counts_shards():
+    warnings = []
+    storage_by_base, ambiguous_bases = _build_es_analysis_storage_index(
+        [_fake_es_analysis_storage("2_bklog.demo")], {}, warnings
+    )
+
+    item = _serialize_es_analysis_index_row(
+        {
+            "index": "v2_2_bklog_demo_2026060612_0",
+            "health": "green",
+            "status": "open",
+            "docs.count": "10",
+            "store.size": "1024",
+            "pri": "2",
+            "rep": "1",
+        },
+        storage_by_base,
+        ambiguous_bases,
+    )
+
+    assert warnings == []
+    assert item["base_index"] == "2_bklog_demo"
+    assert item["store_bytes"] == 1024
+    assert item["docs_count"] == 10
+    assert item["primary_shards"] == 2
+    assert item["replica_shards"] == 2
+    assert item["shards"] == 4
+    assert item["match_status"] == "matched"
+    assert item["match_reason"] == "base_index"
+    assert item["matched_table_id"] == "2_bklog.demo"
+    assert item["owner_type"] == "biz"
+    assert item["bk_biz_id"] == 2
+
+
+def test_es_analysis_ambiguous_base_index_goes_to_other_with_warning():
+    warnings = []
+    storage_by_base, ambiguous_bases = _build_es_analysis_storage_index(
+        [_fake_es_analysis_storage("2.a_b"), _fake_es_analysis_storage("2_a.b")], {}, warnings
+    )
+
+    item = _serialize_es_analysis_index_row(
+        {"index": "2_a_b_2026060612_0", "store.size": "2048"},
+        storage_by_base,
+        ambiguous_bases,
+    )
+
+    assert storage_by_base == {}
+    assert "2_a_b" in ambiguous_bases
+    assert warnings[0]["code"] == "ES_STORAGE_BASE_INDEX_CONFLICT"
+    assert item["match_status"] == "other"
+    assert item["match_reason"] == "ambiguous_base_index"
+    assert item["matched_table_id"] is None
 
 
 def test_cluster_info_list_supports_lightweight_include():
