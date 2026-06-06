@@ -58,6 +58,10 @@ class FakeRedisClient:
     def smembers(self, key):
         return self._data.get(key) or set()
 
+    def pttl(self, key):
+        # 键存在返回固定剩余毫秒；不存在返回 -2（Redis PTTL 语义）
+        return 123456 if (self._data.get(key) is not None) else -2
+
 
 def _make_key_obj(fake_client, key_type: str, key_tpl: str):
     """创建最小化的假 key 对象。"""
@@ -610,12 +614,16 @@ def test_read_cache_key_routing_echo(mocker):
     assert routing["backend"] == "service"
     assert routing["db"] == 10
     assert routing["process_cluster"] == "default"
-    assert routing["node"]["host"] == "127.0.0.1"
-    assert routing["node"]["port"] == 6379
     assert routing["node"]["cluster_name"] == "default"
     assert routing["node"]["is_default"] is True
-    # 密码绝不回显
+    # 红线：host/port（内网拓扑）与 password 绝不回显
+    assert "host" not in routing["node"]
+    assert "port" not in routing["node"]
     assert "password" not in routing["node"]
+    # 回归：node 不含任何 IP 形态值
+    import re as _re
+
+    assert not any(isinstance(v, str) and _re.search(r"\d+\.\d+\.\d+\.\d+", v) for v in routing["node"].values())
 
 
 def test_read_cache_key_routing_echo_failure_does_not_break_read(mocker):
@@ -637,3 +645,107 @@ def test_read_cache_key_routing_echo_failure_does_not_break_read(mocker):
     assert result["exists"] is True
     assert result["value"] == "locked"
     assert "error" in result["routing"]
+
+
+# ---------- ttl_ms (F6) ----------
+
+
+def test_read_cache_key_ttl_ms_present(mocker):
+    fake = FakeRedisClient()
+    fake._data["test.detect.lock.42"] = b"locked"
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(fake, "string", "test.detect.lock.{strategy_id}"),
+    )
+    result = read_cache_key({"key_name": "SERVICE_LOCK_NODATA", "params": {"strategy_id": 42}})
+    assert result["ttl_ms"] == 123456
+
+
+def test_read_cache_key_ttl_ms_missing_key_is_minus_two(mocker):
+    fake = FakeRedisClient()  # 空，键不存在
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(fake, "string", "test.detect.lock.{strategy_id}"),
+    )
+    result = read_cache_key({"key_name": "SERVICE_LOCK_NODATA", "params": {"strategy_id": 42}})
+    assert result["exists"] is False
+    assert result["ttl_ms"] == -2
+
+
+def test_read_cache_key_ttl_ms_failure_is_none(mocker):
+    class NoPttlClient(FakeRedisClient):
+        def pttl(self, key):
+            raise Exception("PTTL unsupported")
+
+    fake = NoPttlClient()
+    fake._data["test.detect.lock.42"] = b"locked"
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(fake, "string", "test.detect.lock.{strategy_id}"),
+    )
+    result = read_cache_key({"key_name": "SERVICE_LOCK_NODATA", "params": {"strategy_id": 42}})
+    # ttl 回显失败不影响主读取
+    assert result["value"] == "locked"
+    assert result["ttl_ms"] is None
+
+
+# ---------- list-cache-routing (F2) ----------
+
+
+def test_list_cache_routing(mocker):
+    from kernel_api.rpc.functions.bkm_cli.cache import list_cache_routing
+
+    # node 故意不带 host/port：_node_identity 不读取它们，输出契约就是"不含 host/port"
+    node_default = SimpleNamespace(
+        id=2,
+        node_alias="monitor-01",
+        cluster_name="default",
+        cache_type="SentinelRedisCache",
+        is_default=True,
+        is_enable=True,
+    )
+    node_b = SimpleNamespace(
+        id=5,
+        node_alias="monitor-02",
+        cluster_name="default",
+        cache_type="RedisCache",
+        is_default=False,
+        is_enable=True,
+    )
+    router_b = SimpleNamespace(strategy_score=100000, node=node_b)
+
+    class FakeRouterQS:
+        def filter(self, **kwargs):
+            return self
+
+        def select_related(self, *args):
+            return self
+
+        def order_by(self, *args):
+            return [router_b]
+
+    class FakeNodeQS:
+        def filter(self, **kwargs):
+            return self
+
+        def first(self):
+            return node_default
+
+    mocker.patch("bkmonitor.models.CacheRouter", SimpleNamespace(objects=FakeRouterQS()))
+    mocker.patch("bkmonitor.models.CacheNode", SimpleNamespace(objects=FakeNodeQS()))
+    mocker.patch("alarm_backends.core.cluster.get_cluster", return_value=SimpleNamespace(name="default"))
+
+    result = list_cache_routing({})
+
+    assert result["cluster_name"] == "default"
+    assert result["router_count"] == 1
+    r0 = result["routers"][0]
+    assert r0["strategy_score"] == 100000
+    assert r0["score_range"] == {"floor": 0, "ceil": 99999}
+    assert r0["node"]["node_alias"] == "monitor-02"
+    assert result["default_node"]["node_alias"] == "monitor-01"
+    # 红线：路由表也不回显 host/port
+    for n in (r0["node"], result["default_node"]):
+        assert "host" not in n
+        assert "port" not in n
+        assert "password" not in n

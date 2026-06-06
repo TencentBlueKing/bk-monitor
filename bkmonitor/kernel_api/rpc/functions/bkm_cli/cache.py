@@ -327,6 +327,23 @@ def _read_set(key_obj, key_params: dict[str, Any], limit: int) -> dict[str, Any]
     }
 
 
+def _node_identity(node) -> dict[str, Any]:
+    """CacheNode 身份字段（对账够用，且不含敏感信息）。
+
+    故意不含 host/port（内部 Redis 拓扑/内网 IP，排障输出可能贴进归档/PR 触红线）
+    与 password/connection_kwargs（凭据）。read-cache-key routing 与 list-cache-routing
+    共用本函数，保证两条出口的脱敏纪律一致。
+    """
+    return {
+        "id": node.id,
+        "node_alias": getattr(node, "node_alias", "") or "",
+        "cluster_name": node.cluster_name,
+        "cache_type": node.cache_type,
+        "is_default": bool(node.is_default),
+        "is_enable": bool(node.is_enable),
+    }
+
+
 def _resolve_routing(key_obj, similar_key) -> dict[str, Any]:
     """回显本次读取实际路由到的 Redis 节点身份。
 
@@ -353,20 +370,24 @@ def _resolve_routing(key_obj, similar_key) -> dict[str, Any]:
             "backend": backend,
             "db": CACHE_BACKEND_CONF_MAP.get(backend, {}).get("db", 0),
             "process_cluster": get_cluster().name,
-            "node": {
-                "id": node.id,
-                "node_alias": getattr(node, "node_alias", "") or "",
-                "cluster_name": node.cluster_name,
-                "cache_type": node.cache_type,
-                "host": node.host,
-                "port": node.port,
-                "is_default": bool(node.is_default),
-                "is_enable": bool(node.is_enable),
-            },
+            "node": _node_identity(node),
         }
     except Exception as exc:
         # 回显属于附加诊断信息，任何失败都不能影响主读取
         return {"error": str(exc)}
+
+
+def _resolve_ttl_ms(key_obj, similar_key) -> int | None:
+    """回显键的剩余 TTL（毫秒）。Redis PTTL 语义：-1=永不过期，-2=键不存在，>=0=剩余毫秒。
+
+    用途：exists=false 时区分"刚过期(-2 但曾存在,无法区分)"与"持续刷新"；exists=true 时
+    判断是否在被持续刷新（TTL 接近满值）还是陈旧将过期。必须传 SimilarStr 原对象以保留
+    strategy_id 路由（str() 会丢路由属性）。失败兜底 None，不影响主读取。
+    """
+    try:
+        return int(key_obj.client.pttl(similar_key))
+    except Exception:
+        return None
 
 
 def read_cache_key(params: dict[str, Any]) -> dict[str, Any]:
@@ -408,6 +429,7 @@ def read_cache_key(params: dict[str, Any]) -> dict[str, Any]:
         "resolved_key": resolved_key,
         "label": spec.label,
         "routing": _resolve_routing(key_obj, similar_key),
+        "ttl_ms": _resolve_ttl_ms(key_obj, similar_key),
         **data,
     }
 
@@ -556,6 +578,52 @@ def read_config_cache(params: dict[str, Any]) -> dict[str, Any]:
         )
 
 
+# ---------- list-cache-routing ----------
+
+
+def list_cache_routing(params: dict[str, Any]) -> dict[str, Any]:
+    """列出当前集群的 alarm_backends Redis 缓存路由表（CacheRouter）+ 默认节点。
+
+    用途：给 read-cache-key 的 routing 回显提供独立信源做双边对账——routing 回显与实际读取
+    共用 get_node_by_strategy_id（单边自指），本 op 直读 CacheRouter/CacheNode 表，可交叉核对
+    strategy_id -> node 映射全貌。纯只读：不调 CacheNode.default_node()（其 get_or_create 有写
+    副作用），改用 filter(is_default=True) 只读取。不回显 host/port（与 read-cache-key 一致）。
+
+    strategy_score 是区间的开区间上界（与 redis_cluster.get_node_by_strategy_id 一致）：
+    某 strategy_id 命中第一个 strategy_score > strategy_id 的路由行；strategy_id=0 走默认节点。
+    """
+    from alarm_backends.core.cluster import get_cluster
+    from bkmonitor.models import CacheNode, CacheRouter
+
+    cluster_name = get_cluster().name
+    routers = list(
+        CacheRouter.objects.filter(cluster_name=cluster_name).select_related("node").order_by("strategy_score")
+    )
+
+    items = []
+    prev_floor = 0
+    for router in routers:
+        items.append(
+            {
+                "strategy_score": router.strategy_score,
+                # 命中区间 [floor, ceil]：floor=上一行 score，ceil=本行 score-1
+                "score_range": {"floor": prev_floor, "ceil": router.strategy_score - 1},
+                "node": _node_identity(router.node),
+            }
+        )
+        prev_floor = router.strategy_score
+
+    # 默认节点（strategy_id=0 或路由表未命中时的落点）——只读查询，绝不触发 default_node() 的写
+    default_node = CacheNode.objects.filter(is_default=True, cluster_name=cluster_name).first()
+
+    return {
+        "cluster_name": cluster_name,
+        "router_count": len(items),
+        "routers": items,
+        "default_node": _node_identity(default_node) if default_node else None,
+    }
+
+
 KernelRPCRegistry.register_function(
     func_name="bkm_cli.read_cache_key",
     summary="运行时 Redis 缓存键只读查询",
@@ -586,8 +654,9 @@ BkmCliOpRegistry.register(
     description=(
         "按白名单键常量名读取 alarm_backends 运行时 Redis 缓存。"
         "key_name 参数对应 key.py 中的键常量，类比 read-db-model 的 model 参数。"
-        "输出 routing 字段回显实际路由到的 Redis 节点（host/port/db/cluster_name），"
-        "用于核对服务桥与 alarm_backends worker 是否读写同一实例。"
+        "输出 routing 字段回显实际路由到的 Redis 节点（node.id/node_alias/cluster_name/cache_type，"
+        "不含 host/port），用于核对服务桥与 alarm_backends worker 是否读写同一实例；"
+        "配合 list-cache-routing 可做双边对账。输出 ttl_ms 为键剩余 TTL（-1 永不过期/-2 不存在/>=0 毫秒）。"
     ),
     capability_level="readonly",
     risk_level="low",
@@ -645,4 +714,34 @@ BkmCliOpRegistry.register(
         "cache_type": "strategy",
         "params": {"strategy_id": 121950},
     },
+)
+
+KernelRPCRegistry.register_function(
+    func_name="bkm_cli.list_cache_routing",
+    summary="列出 alarm_backends Redis 缓存路由表 (CacheRouter)",
+    description=(
+        "只读列出当前集群 CacheRouter 路由表 + 默认节点，给 read-cache-key 的 routing 回显"
+        "提供独立信源做 strategy_id -> node 双边对账。不含 host/port/password。无入参。"
+    ),
+    handler=lambda params: list_cache_routing(params or {}),
+    params_schema={},
+    example_params={},
+)
+
+BkmCliOpRegistry.register(
+    op_id="list-cache-routing",
+    func_name="bkm_cli.list_cache_routing",
+    summary="列出 alarm_backends Redis 缓存路由表 (CacheRouter)",
+    description=(
+        "只读列出当前集群 CacheRouter 路由表（strategy_score 区间 -> node）+ 默认节点。"
+        "用于核对 read-cache-key routing 回显的 strategy_id -> node 落点（解单边自指）。"
+        "node 不含 host/port/password。strategy_score 是开区间上界：strategy_id 命中第一个 "
+        "strategy_score > strategy_id 的行；strategy_id=0 走 default_node。无入参。"
+    ),
+    capability_level="readonly",
+    risk_level="low",
+    requires_confirmation=False,
+    audit_tags=["cache", "redis", "readonly", "routing"],
+    params_schema={},
+    example_params={},
 )
