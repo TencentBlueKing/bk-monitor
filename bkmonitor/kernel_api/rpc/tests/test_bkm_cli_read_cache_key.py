@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from types import SimpleNamespace
+
 import pytest
 
 from core.drf_resource.exceptions import CustomException
@@ -536,3 +538,102 @@ def test_read_cache_key_issue_legacy_migration_done_missing(mocker):
 
     assert result["exists"] is False
     assert result["value"] is None
+
+
+# ---------- routing echo ----------
+
+
+class FakeSimilarKey(str):
+    """模拟 SimilarStr：携带 strategy_id 路由属性的字符串。"""
+
+    strategy_id = 0
+
+
+def _make_routed_key_obj(fake_client, key_type: str, key_tpl: str, backend: str = "service", strategy_id: int = 0):
+    """创建带 backend 属性、get_key 返回 SimilarStr 形态对象的假 key。"""
+
+    class FakeKey:
+        def get_key(self, **kwargs):
+            key = FakeSimilarKey(key_tpl.format(**kwargs))
+            key.strategy_id = strategy_id
+            return key
+
+        @property
+        def client(self):
+            return fake_client
+
+    obj = FakeKey()
+    obj.key_type = key_type
+    obj.backend = backend
+    return obj
+
+
+def _fake_cache_node():
+    return SimpleNamespace(
+        id=7,
+        node_alias="demo-node",
+        cluster_name="default",
+        cache_type="RedisCache",
+        host="127.0.0.1",
+        port=6379,
+        is_default=True,
+        is_enable=True,
+    )
+
+
+def test_read_cache_key_routing_echo(mocker):
+    fake = FakeRedisClient()
+    fake._data["test.detect.lock.42"] = b"locked"
+
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_routed_key_obj(fake, "string", "test.detect.lock.{strategy_id}", strategy_id=42),
+    )
+    mocker.patch(
+        "alarm_backends.core.storage.redis_cluster.get_node_by_strategy_id",
+        return_value=_fake_cache_node(),
+    )
+    mocker.patch(
+        "alarm_backends.core.cluster.get_cluster",
+        return_value=SimpleNamespace(name="default"),
+    )
+    mocker.patch.dict(
+        "alarm_backends.core.storage.redis.CACHE_BACKEND_CONF_MAP",
+        {"service": {"db": 10}},
+    )
+
+    result = read_cache_key({"key_name": "SERVICE_LOCK_NODATA", "params": {"strategy_id": 42}})
+
+    assert result["value"] == "locked"
+    routing = result["routing"]
+    assert routing["strategy_id"] == 42
+    assert routing["backend"] == "service"
+    assert routing["db"] == 10
+    assert routing["process_cluster"] == "default"
+    assert routing["node"]["host"] == "127.0.0.1"
+    assert routing["node"]["port"] == 6379
+    assert routing["node"]["cluster_name"] == "default"
+    assert routing["node"]["is_default"] is True
+    # 密码绝不回显
+    assert "password" not in routing["node"]
+
+
+def test_read_cache_key_routing_echo_failure_does_not_break_read(mocker):
+    fake = FakeRedisClient()
+    fake._data["test.detect.lock.42"] = b"locked"
+
+    mocker.patch(
+        "kernel_api.rpc.functions.bkm_cli.cache._get_key_obj",
+        return_value=_make_key_obj(fake, "string", "test.detect.lock.{strategy_id}"),
+    )
+    mocker.patch(
+        "alarm_backends.core.storage.redis_cluster.get_node_by_strategy_id",
+        side_effect=Exception("router table unavailable"),
+    )
+
+    result = read_cache_key({"key_name": "SERVICE_LOCK_NODATA", "params": {"strategy_id": 42}})
+
+    # 主读取不受回显失败影响
+    assert result["exists"] is True
+    assert result["value"] == "locked"
+    assert "error" in result["routing"]

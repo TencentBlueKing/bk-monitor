@@ -327,6 +327,48 @@ def _read_set(key_obj, key_params: dict[str, Any], limit: int) -> dict[str, Any]
     }
 
 
+def _resolve_routing(key_obj, similar_key) -> dict[str, Any]:
+    """回显本次读取实际路由到的 Redis 节点身份。
+
+    与 RedisProxy 的路由逻辑保持一致：按 SimilarStr.strategy_id 调 get_node_by_strategy_id。
+    用途：核对服务桥读到的 Redis 实例与 alarm_backends worker 写入的实例是否一致
+    （定位 exists=false 是键不存在还是读错了实例）。
+    仅在主读取完成后调用（路由缓存已由主读取填充，不引入新的节点解析副作用）；
+    回显失败不影响主读取结果。
+
+    前提：主读取通过 RedisProxy 以相同 strategy_id 路由，已先行触发同一 get_node_by_strategy_id
+    （strategy_id=0 时其内部 default_node() 的 get_or_create 写已由主读取完成）。若将来出现绕过
+    RedisProxy 的读取路径，需重新评估本函数是否会成为 default_node() 的首个调用方而引入写副作用。
+    """
+    try:
+        from alarm_backends.core.cluster import get_cluster
+        from alarm_backends.core.storage.redis import CACHE_BACKEND_CONF_MAP
+        from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
+
+        backend = getattr(key_obj, "backend", None)
+        strategy_id = int(getattr(similar_key, "strategy_id", 0) or 0)
+        node = get_node_by_strategy_id(strategy_id)
+        return {
+            "strategy_id": strategy_id,
+            "backend": backend,
+            "db": CACHE_BACKEND_CONF_MAP.get(backend, {}).get("db", 0),
+            "process_cluster": get_cluster().name,
+            "node": {
+                "id": node.id,
+                "node_alias": getattr(node, "node_alias", "") or "",
+                "cluster_name": node.cluster_name,
+                "cache_type": node.cache_type,
+                "host": node.host,
+                "port": node.port,
+                "is_default": bool(node.is_default),
+                "is_enable": bool(node.is_enable),
+            },
+        }
+    except Exception as exc:
+        # 回显属于附加诊断信息，任何失败都不能影响主读取
+        return {"error": str(exc)}
+
+
 def read_cache_key(params: dict[str, Any]) -> dict[str, Any]:
     key_name = str(params.get("key_name") or "").strip()
     if not key_name:
@@ -341,7 +383,8 @@ def read_cache_key(params: dict[str, Any]) -> dict[str, Any]:
     limit = _normalize_limit(params.get("limit"))
 
     key_obj = _get_key_obj(key_name)
-    resolved_key = str(key_obj.get_key(**key_params))
+    similar_key = key_obj.get_key(**key_params)
+    resolved_key = str(similar_key)
 
     if spec.key_type == "string":
         data = _read_string(key_obj, key_params)
@@ -364,6 +407,7 @@ def read_cache_key(params: dict[str, Any]) -> dict[str, Any]:
         "key_type": spec.key_type,
         "resolved_key": resolved_key,
         "label": spec.label,
+        "routing": _resolve_routing(key_obj, similar_key),
         **data,
     }
 
@@ -542,6 +586,8 @@ BkmCliOpRegistry.register(
     description=(
         "按白名单键常量名读取 alarm_backends 运行时 Redis 缓存。"
         "key_name 参数对应 key.py 中的键常量，类比 read-db-model 的 model 参数。"
+        "输出 routing 字段回显实际路由到的 Redis 节点（host/port/db/cluster_name），"
+        "用于核对服务桥与 alarm_backends worker 是否读写同一实例。"
     ),
     capability_level="readonly",
     risk_level="low",
