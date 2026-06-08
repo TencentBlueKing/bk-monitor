@@ -27,6 +27,7 @@
 import { type PropType, defineComponent, useTemplateRef } from 'vue';
 
 import { Button, Switcher } from 'bkui-vue';
+import { getAlarmCenterListHash } from 'monitor-common/utils/alarm-center-router';
 import { isEnFn } from 'monitor-pc/utils';
 import { useI18n } from 'vue-i18n';
 
@@ -43,8 +44,10 @@ import './alert-info-card.scss';
 const JUMP_HASH_MAP: Record<'edit' | 'event', (id: number) => string> = {
   edit: id => `#/strategy-config/edit/${id}`,
   event: id => {
-    const strategyKey = isEnFn() ? 'strategy_id' : window.i18n.t('策略ID');
-    return `#/event-center?queryString=${strategyKey} : ${id}`;
+    const isEn = isEnFn();
+    return getAlarmCenterListHash({
+      queryString: `${isEn ? 'strategy_id' : window.i18n.t('策略ID')} : ${id}`,
+    });
   },
 };
 
@@ -152,7 +155,7 @@ export default defineComponent({
     const handlePageJump = (type: 'edit' | 'event') => {
       const { id } = props.strategyInfo ?? {};
       const hash = JUMP_HASH_MAP[type](id);
-      const url = `${location.origin}${location.pathname}${location.search}${hash}`;
+      const url = location.href.replace(location.hash, hash);
       window.open(url, '_blank', 'noopener,noreferrer');
     };
 
