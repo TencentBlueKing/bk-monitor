@@ -542,7 +542,14 @@ def get_data_source(data_id):
     return DataSource.objects.get(bk_data_id=data_id)
 
 
-def access_v2_bkdata_vm(bk_tenant_id: str, bk_biz_id: int, table_id: str, data_id: int, force_update: bool = False):
+def access_v2_bkdata_vm(
+    bk_tenant_id: str,
+    bk_biz_id: int,
+    table_id: str,
+    data_id: int,
+    force_update: bool = False,
+    consumer_group: str | None = None,
+):
     """接入计算平台V4链路
 
     Args:
@@ -646,6 +653,7 @@ def access_v2_bkdata_vm(bk_tenant_id: str, bk_biz_id: int, table_id: str, data_i
             monitor_table_id=table_id,
             storage_cluster_name=vm_cluster_name,
             bcs_cluster_id=bcs_cluster_id,
+            consumer_group=consumer_group,
         )
 
         report_metadata_data_link_access_metric(
@@ -712,6 +720,7 @@ def create_bkbase_data_link(
     data_link_strategy: str = DataLink.BK_STANDARD_V2_TIME_SERIES,
     namespace: str | None = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
     bcs_cluster_id: str | None = None,
+    consumer_group: str | None = None,
 ):
     """
     申请计算平台链路
@@ -793,6 +802,7 @@ def create_bkbase_data_link(
             data_source=data_source,
             table_id=monitor_table_id,
             storage_cluster_name=storage_cluster_name,
+            consumer_group=consumer_group,
         )
         # 2.1 上报链路接入指标
     except Exception as e:  # pylint: disable=broad-except
