@@ -1410,7 +1410,7 @@ class ResultTable(models.Model):
             ):
                 force_update_datalink = True
 
-            # 检查指标组维度配置是否发生变化或指标组维度配置不为空
+            # 检查指标组维度配置是否发生变化或指标组维度配置不为空但没有迁移到V4链路
             metric_group_dimensions_option = ResultTableOption.objects.filter(
                 table_id=self.table_id,
                 bk_tenant_id=self.bk_tenant_id,
@@ -1422,9 +1422,9 @@ class ResultTable(models.Model):
             new_metric_group_dimensions_option_value = (
                 option.get(ResultTableOption.OPTION_METRIC_GROUP_DIMENSIONS) or []
             )
-            if (
-                existing_metric_group_dimensions_option_value != new_metric_group_dimensions_option_value
-                or new_metric_group_dimensions_option_value
+            if existing_metric_group_dimensions_option_value != new_metric_group_dimensions_option_value or (
+                new_metric_group_dimensions_option_value
+                and self.data_source.created_from == DataIdCreatedFromSystem.BKGSE.value
             ):
                 force_update_datalink = True
 
