@@ -3,7 +3,9 @@ from apps.log_admin_resource.handlers.collector import serialize_collectors
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import IndexSetDataType
 from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
-from bkm_space.utils import space_uid_to_bk_biz_id
+from bkm_space.api import SpaceApi
+from bkm_space.define import SpaceTypeEnum
+from bkm_space.utils import parse_space_uid, space_uid_to_bk_biz_id
 
 
 def list_index_sets(params):
@@ -73,12 +75,18 @@ def get_index_set_detail(params):
 
 def _serialize_index_sets(index_sets):
     visible_indexes_map = _get_visible_indexes_map(index_sets)
+    bk_biz_id_map = _build_bk_biz_id_map(index_sets)
     return [
-        _serialize_index_set(index_set, visible_indexes_map.get(index_set.index_set_id, [])) for index_set in index_sets
+        _serialize_index_set(
+            index_set,
+            visible_indexes_map.get(index_set.index_set_id, []),
+            bk_biz_id=bk_biz_id_map.get(index_set.space_uid, 0),
+        )
+        for index_set in index_sets
     ]
 
 
-def _serialize_index_set(index_set, indexes=None):
+def _serialize_index_set(index_set, indexes=None, bk_biz_id=None):
     if indexes is None:
         indexes = _get_visible_indexes(index_set)
     first_index = indexes[0] if indexes else None
@@ -86,7 +94,7 @@ def _serialize_index_set(index_set, indexes=None):
         "index_set_id": index_set.index_set_id,
         "index_set_name": index_set.index_set_name,
         "space_uid": index_set.space_uid,
-        "bk_biz_id": _get_bk_biz_id(index_set),
+        "bk_biz_id": _get_bk_biz_id(index_set) if bk_biz_id is None else bk_biz_id,
         "category_id": index_set.category_id,
         "collector_config_id": index_set.collector_config_id,
         "scenario_id": index_set.scenario_id,
@@ -233,6 +241,38 @@ def _get_member_index_sets(index_set):
 
 def _get_bk_biz_id(index_set):
     return space_uid_to_bk_biz_id(index_set.space_uid)
+
+
+def _build_bk_biz_id_map(index_sets):
+    """批量构建 space_uid -> bk_biz_id 映射，避免逐行调用 SpaceApi.get_space_detail 造成 N+1。
+
+    与 space_uid_to_bk_biz_id 语义保持一致：BKCC 空间直接解析为业务 ID，
+    非 BKCC 空间通过一次性的 SpaceApi.batch_get_space_detail 解析为负的空间自增 ID，
+    解析失败或空间不存在时返回 0。
+    """
+    bk_biz_id_map = {}
+    non_bkcc_space_uids = set()
+    for index_set in index_sets:
+        space_uid = index_set.space_uid
+        if not space_uid or space_uid in bk_biz_id_map or space_uid in non_bkcc_space_uids:
+            continue
+        try:
+            space_type, space_id = parse_space_uid(space_uid)
+        except ValueError:
+            bk_biz_id_map[space_uid] = 0
+            continue
+        if space_type == SpaceTypeEnum.BKCC.value:
+            bk_biz_id_map[space_uid] = int(space_id)
+        else:
+            non_bkcc_space_uids.add(space_uid)
+
+    if non_bkcc_space_uids:
+        space_detail_map = SpaceApi.batch_get_space_detail(non_bkcc_space_uids)
+        for space_uid in non_bkcc_space_uids:
+            space = space_detail_map.get(space_uid)
+            bk_biz_id_map[space_uid] = -int(space.id) if space else 0
+
+    return bk_biz_id_map
 
 
 def _apply_ordering(qs, ordering):
