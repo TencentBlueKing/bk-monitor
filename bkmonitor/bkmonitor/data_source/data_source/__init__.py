@@ -2200,9 +2200,30 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
         return records
 
     def process_unify_query_log(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        processed_records: list[dict[str, Any]] = []
         for record in records:
-            record.pop("_meta", None)
-        return records
+            processed_record: dict[str, Any] = {}
+            for field, value in record.items():
+                if field == "_meta":
+                    # 排除无需返回的字段。
+                    continue
+
+                if self.OBJECT_FIELD_SEPERATOR not in field:
+                    # 不包含分隔符，设置 kv 并提前返回。
+                    processed_record[field] = value
+                    continue
+
+                current: dict[str, Any] = processed_record
+                field_parts: list[str] = field.split(self.OBJECT_FIELD_SEPERATOR)
+                for field_part in field_parts[:-1]:
+                    if field_part not in current:
+                        current[field_part] = {}
+                    current = current[field_part]
+                current[field_parts[-1]] = value
+
+            processed_records.append(processed_record)
+
+        return processed_records
 
     def is_dimensions_field(self, field: str) -> bool:
         """日志检索维度都是完整的，不需要补全"""

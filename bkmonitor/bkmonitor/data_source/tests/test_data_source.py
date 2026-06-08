@@ -505,6 +505,39 @@ class TestDataSource:
             "end_time": 654,
         }
 
+    def test_log_search_time_series_process_unify_query_log(self):
+        query_config = {
+            "result_table_id": "2_bklog.nginx_access_error_1",
+            "index_set_id": 1,
+            "agg_method": "COUNT",
+            "agg_dimension": [],
+            "agg_condition": [],
+        }
+        data_source = LogSearchTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=1)
+
+        records = [
+            {
+                "_meta": {"__index": "v2_2_bklog_nginx_access_error"},
+                "message": "hello",
+                "attributes.service.name": "demo",
+                "attributes.http.status_code": 200,
+                "labels.env": "prod",
+                "events": [{"name": "exception"}],
+            }
+        ]
+
+        assert data_source.process_unify_query_log(records) == [
+            {
+                "message": "hello",
+                "attributes": {
+                    "service": {"name": "demo"},
+                    "http": {"status_code": 200},
+                },
+                "labels": {"env": "prod"},
+                "events": [{"name": "exception"}],
+            }
+        ]
+
     @pytest.mark.parametrize(
         ("white_list", "bk_biz_id", "expected"),
         [
