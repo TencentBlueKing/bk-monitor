@@ -26,6 +26,16 @@ class SpanHandler:
     EXCEPTION_NAME = "exception"
     EXCEPTION_REFER = "exception.refer"
     EXCEPTION_ALIAS = "exception.alias"
+    ERROR_SPAN_FIELDS = [
+        OtlpKey.RESOURCE,
+        OtlpKey.SPAN_NAME,
+        OtlpKey.TRACE_ID,
+        OtlpKey.EVENTS,
+        OtlpKey.ATTRIBUTES,
+        OtlpKey.STATUS,
+        OtlpKey.START_TIME,
+        OtlpKey.END_TIME,
+    ]
     DEFAULT_EXCEPTION_REFER = f"{OtlpKey.EVENTS}.{OtlpKey.get_attributes_key(SpanAttributes.EXCEPTION_TYPE)}"
     RPC_EXCEPTION_FIELDS = {
         RpcAttributes.RPC_ERROR_CODE: RpcAttributes.RPC_ERROR_MESSAGE,
@@ -127,16 +137,23 @@ class SpanHandler:
         :param span: span 数据
         :return: 补齐 exception event 后的 span 数据
         """
-        events: list[dict[str, Any]] = span.get(OtlpKey.EVENTS, [])
-        if any(event.get("name") == cls.EXCEPTION_NAME for event in events):
-            return span
+        events: list[dict[str, Any]] = span.get(OtlpKey.EVENTS) or []
+        span[OtlpKey.EVENTS] = events
+        exception_refers: set[str] = {
+            (event.get(OtlpKey.ATTRIBUTES) or {}).get(cls.EXCEPTION_REFER, "")
+            for event in events
+            if event.get("name") == cls.EXCEPTION_NAME
+        }
 
-        attributes: dict[str, Any] = span.get(OtlpKey.ATTRIBUTES, {})
-        status_message: str = span.get("status", {}).get("message", "")
+        attributes: dict[str, Any] = span.get(OtlpKey.ATTRIBUTES) or {}
+        status_message: str = (span.get(OtlpKey.STATUS) or {}).get("message", "")
         for code_field, message_field in cls.RPC_EXCEPTION_FIELDS.items():
             code: Any | None = attributes.get(code_field)
+            # 注：code 可能为 0，因此不要改写为 `if not code` 去判断
             if code is None or code == "":
                 continue
+            if code_field in exception_refers:
+                break
 
             exception_type: str = str(code)
             message_text: str = attributes.get(message_field) or status_message
@@ -153,7 +170,6 @@ class SpanHandler:
                     },
                 }
             )
-            span[OtlpKey.EVENTS] = events
             break
 
         return span
@@ -171,14 +187,14 @@ class SpanHandler:
     def get_exception_events(cls, span: dict[str, Any]) -> list[dict[str, Any]]:
         """返回标准化后的逻辑异常事件列表。"""
         span = cls.process_rpc_span(span)
-        status_message: str = span.get("status", {}).get("message", "")
+        status_message: str = (span.get(OtlpKey.STATUS) or {}).get("message", "")
 
         exception_events: list[dict[str, Any]] = []
-        for event in span.get(OtlpKey.EVENTS, []):
+        for event in span.get(OtlpKey.EVENTS) or []:
             if event.get("name") != cls.EXCEPTION_NAME:
                 continue
 
-            event_attributes: dict[str, Any] = event.get(OtlpKey.ATTRIBUTES, {})
+            event_attributes: dict[str, Any] = event.get(OtlpKey.ATTRIBUTES) or {}
             exception_type: str = event_attributes.get(SpanAttributes.EXCEPTION_TYPE, cls.UNKNOWN_EXCEPTION_TYPE)
             exception_refer: str = event_attributes.get(cls.EXCEPTION_REFER, cls.DEFAULT_EXCEPTION_REFER)
             exception_alias: str = event_attributes.get(cls.EXCEPTION_ALIAS, exception_type)
@@ -214,8 +230,8 @@ class SpanHandler:
                     "exception_type": cls.UNKNOWN_EXCEPTION_TYPE,
                     "exception_refer": "",
                     "exception_alias": cls.UNKNOWN_EXCEPTION_TYPE,
-                    "exception_message": span.get("status", {}).get("message", ""),
-                    "timestamp": int(span.get("time", span.get(OtlpKey.START_TIME, 0))),
+                    "exception_message": (span.get(OtlpKey.STATUS) or {}).get("message", ""),
+                    "timestamp": int(span.get(OtlpKey.END_TIME) or span.get(OtlpKey.START_TIME) or 0),
                     "stacktrace": "",
                     "has_stack": False,
                 }

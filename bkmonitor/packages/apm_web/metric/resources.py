@@ -1433,22 +1433,6 @@ class InstanceListResource(Resource):
 
 class ErrorListResource(ServiceAndComponentCompatibleResource):
     app_name = ""
-    ERROR_SPAN_FIELDS = [
-        "resource.service.name",
-        "span_name",
-        "trace_id",
-        "events.name",
-        "events.timestamp",
-        "events.attributes.exception.type",
-        "events.attributes.exception.stacktrace",
-        "attributes.rpc.error_code",
-        "attributes.rpc.error_message",
-        "attributes.trpc.status_code",
-        "attributes.trpc.status_msg",
-        "status.message",
-        "start_time",
-        "time",
-    ]
 
     need_dynamic_sort_column = True
     need_overview = True
@@ -1579,7 +1563,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             "filter_params": [{"key": "status.code", "op": "=", "value": ["2"]}],
             "start_time": data["start_time"],
             "end_time": data["end_time"],
-            "fields": self.ERROR_SPAN_FIELDS,
+            "fields": SpanHandler.ERROR_SPAN_FIELDS,
         }
 
         # 分类可以通过两种方式进行查询
@@ -1619,25 +1603,24 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
     def format_time(self, time_int):
         return datetime.datetime.fromtimestamp(int(time_int) // 1000).strftime("%Y-%m-%d %H:%M:%S")
 
-    def compare_time(self, times: list):
+    def compare_time(self, times: list[int]) -> tuple[int, int]:
         times.sort()
-        # 将毫秒时间戳转换为秒级时间戳
-        return int(times[0]) // 1000, int(times[-1]) // 1000
+        # 将微秒时间戳转换为秒级时间戳
+        return int(times[0]) // 1000000, int(times[-1]) // 1000000
 
     def combine_errors(
         self,
         bk_biz_id: int,
         service_mappings: dict[str, dict[str, Any]],
-        trace_id: str,
         service: str,
         endpoint: str,
-        error_count: int,
         exception_type: str,
         exception_refer: str,
-        timestamps: set[int],
-        has_stack: bool,
+        errors: list[dict[str, Any]],
     ) -> dict[str, Any]:
-        first_time, last_time = self.compare_time(list(timestamps))
+        errors = sorted(errors, key=lambda error: (error["has_stack"], error["timestamp"]), reverse=True)
+        times: set[int] = {error["timestamp"] for error in errors}
+        first_time, last_time = self.compare_time(list(times))
 
         return {
             "bk_biz_id": bk_biz_id,
@@ -1647,12 +1630,12 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             "message": {
                 "title": f"{endpoint}: {exception_type}",
                 "subtitle": "",
-                "is_stack": _lazy("有Stack") if has_stack else _lazy("没有Stack"),
+                "is_stack": _lazy("有Stack") if errors[0]["has_stack"] else _lazy("没有Stack"),
             },
             "category": service_mappings.get(service, {}).get("extra_data", {}).get("category"),
-            "error_count": error_count,
+            "error_count": len(errors),
             "service": service,
-            "trace_id": trace_id,
+            "trace_id": errors[0]["trace_id"],
             "app_name": self.app_name,
             "operations": {"operate": _lazy("调用链")},
             "exception_type": exception_type,
@@ -1668,22 +1651,17 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
         trace_id: str,
         exception_event: dict[str, Any],
     ) -> None:
-        if key not in error_map:
-            error_map[key] = {
+        error: dict[str, Any] = {**exception_event, "trace_id": trace_id}
+        error_map.setdefault(
+            key,
+            {
                 "service": service,
                 "endpoint": endpoint,
                 "exception_type": exception_event["exception_type"],
                 "exception_refer": exception_event["exception_refer"],
-                "error_count": 0,
-                "trace_id": trace_id,
-                "timestamps": set(),
-                "has_stack": False,
-            }
-
-        error_map[key]["error_count"] += 1
-        error_map[key]["trace_id"] = trace_id
-        error_map[key]["timestamps"].add(exception_event["timestamp"])
-        error_map[key]["has_stack"] = error_map[key]["has_stack"] or exception_event["has_stack"]
+                "errors": [],
+            },
+        )["errors"].append(error)
 
     def parse_errors(self, bk_biz_id: int, error_spans: list[dict[str, Any]]) -> list[dict[str, Any]]:
         # 获取service

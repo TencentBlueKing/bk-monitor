@@ -2618,7 +2618,7 @@ class QueryExceptionDetailEventResource(PageListResource):
         res: list[dict[str, Any]] = []
         for span in exception_spans:
             # 返回码错误优先展示返回码消息，其他错误沿用 span status message。
-            subtitle: str = span.get("status", {}).get("message", "")
+            subtitle: str = (span.get(OtlpKey.STATUS) or {}).get("message", "")
             for exception_event in SpanHandler.get_matched_exception_events(
                 span,
                 validated_data["exception_type"],
@@ -2644,8 +2644,8 @@ class QueryExceptionDetailEventResource(PageListResource):
                     }
                 )
 
-        # 对 res 基于 timestamp 字段排序 (倒序)
-        res = sorted(res, key=lambda x: x["timestamp"], reverse=True)
+        # 优先展示有堆栈的异常，同类异常再按时间倒序。
+        res = sorted(res, key=lambda item: (bool(item["content"]), item["timestamp"]), reverse=True)
         for index, r in enumerate(res, 1):
             r["id"] = index
 
@@ -2711,21 +2711,7 @@ class QueryExceptionEndpointResource(Resource):
             "app_name": validated_data["app_name"],
             "bk_biz_id": validated_data["bk_biz_id"],
             "filter_params": filter_params,
-            "fields": [
-                "resource.service.name",
-                "span_name",
-                "trace_id",
-                "events.name",
-                "events.timestamp",
-                "events.attributes.exception.type",
-                "events.attributes.exception.stacktrace",
-                "attributes.rpc.error_code",
-                "attributes.rpc.error_message",
-                "attributes.trpc.status_code",
-                "attributes.trpc.status_msg",
-                "status.message",
-                "start_time",
-            ],
+            "fields": SpanHandler.ERROR_SPAN_FIELDS,
         }
 
         exception_spans: list[dict[str, Any]] = api.apm_api.query_span(query_dict)
