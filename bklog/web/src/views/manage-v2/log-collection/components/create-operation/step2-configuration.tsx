@@ -845,6 +845,15 @@ export default defineComponent({
               on-selected={val => {
                 isConfigChange.value = true;
                 formData.value.bcs_cluster_id = val;
+                // 容器采集场景切换集群时清空 namespaces
+                if (props.scenarioId === 'container_file' || props.scenarioId === 'container_stdout') {
+                  if (formData.value.configs) {
+                    formData.value.configs = formData.value.configs.map(conf => ({
+                      ...conf,
+                      namespaces: [],
+                    }));
+                  }
+                }
               }}
             >
               {clusterList.value.map(item => (
