@@ -149,7 +149,7 @@ class SpanHandler:
         status_message: str = (span.get(OtlpKey.STATUS) or {}).get("message", "")
         for code_field, message_field in cls.RPC_EXCEPTION_FIELDS.items():
             code: Any | None = attributes.get(code_field)
-            # 注：code 可能为 0，因此不要改写为 `if not code` 去判断
+            # 注：code 可以为 0，因此不能改写为 `if not code`
             if code is None or code == "":
                 continue
             if code_field in exception_refers:
