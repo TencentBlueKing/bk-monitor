@@ -613,23 +613,23 @@ class ResultTable(models.Model):
                 and datasource.etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS
             )
 
-            if not settings.ENABLE_INFLUXDB_STORAGE or (settings.ENABLE_V2_VM_DATA_LINK and is_v4_datalink_etl_config):
-                # 如果存在指标组维度配置或开启插件V4链路，则强制将数据链路更新为V4链路
-                consumer_group = None
-                if ResultTableOption.OPTION_METRIC_GROUP_DIMENSIONS in options or options.get(
-                    ResultTableOption.OPTION_ENABLE_PLUGIN_V4_DATA_LINK, False
-                ):
-                    is_v4_datalink_etl_config = True
+            # 如果存在指标组维度配置或开启插件V4链路，则强制将数据链路更新为V4链路
+            consumer_group = None
+            if ResultTableOption.OPTION_METRIC_GROUP_DIMENSIONS in options or options.get(
+                ResultTableOption.OPTION_ENABLE_PLUGIN_V4_DATA_LINK, False
+            ):
+                is_v4_datalink_etl_config = True
 
-                    # 如果datasource是gse创建的，则需要注册到BKBASE并且设置consumer_group
-                    if datasource.created_from == DataIdCreatedFromSystem.BKGSE.value:
-                        logger.info(
-                            "apply_datalink: datasource created_from is BKGSE, register to bkbase, bk_data_id->[%s], table_id->[%s]",
-                            datasource.bk_data_id,
-                            self.table_id,
-                        )
-                        consumer_group = compose_transfer_consumer_group(datasource)
-                        datasource.register_to_bkbase(bk_biz_id=target_bk_biz_id, namespace=BKBASE_NAMESPACE_BK_MONITOR)
+            if not settings.ENABLE_INFLUXDB_STORAGE or (settings.ENABLE_V2_VM_DATA_LINK and is_v4_datalink_etl_config):
+                # 如果datasource是gse创建的，则需要注册到BKBASE并且设置consumer_group
+                if datasource.created_from == DataIdCreatedFromSystem.BKGSE.value and is_v4_datalink_etl_config:
+                    logger.info(
+                        "apply_datalink: datasource created_from is BKGSE, register to bkbase, bk_data_id->[%s], table_id->[%s]",
+                        datasource.bk_data_id,
+                        self.table_id,
+                    )
+                    consumer_group = compose_transfer_consumer_group(datasource)
+                    datasource.register_to_bkbase(bk_biz_id=target_bk_biz_id, namespace=BKBASE_NAMESPACE_BK_MONITOR)
 
                 # NOTE: 使用 on_commit 确保事务提交后再执行异步任务，避免事务未提交但异步任务先执行的情况
                 # 提取变量值到局部变量，确保闭包捕获的是值而不是引用
