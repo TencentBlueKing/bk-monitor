@@ -2085,6 +2085,7 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
 
     WILDCARD_PATTERN: str = "*"
     QUERY_SPECIAL_REGEX = re.compile(r"[+\-=&|><!(){}\[\]^\"~*?:/]|AND|OR|TO|NOT")
+    LOG_UNIFY_QUERY_ALL_BIZ_ID: int = -1
 
     # 用于灰度对账的临时白名单列表（类成员变量），对账完成后会清空此列表以恢复正常逻辑。
     LOG_UNIFY_QUERY_WHITE_BIZ_LIST: list[int] | None = None
@@ -2123,13 +2124,17 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
             return query_string
         return f"{self.WILDCARD_PATTERN}{query_string}{self.WILDCARD_PATTERN}"
 
-    def switch_unify_query(self, bk_biz_id: int):
+    def switch_unify_query(self, bk_biz_id: int) -> bool:
         # 如果数据源在 UnifyQueryDataSources 列表中，则使用 unify-query 查询
         if (self.data_source_label, self.data_type_label) in UnifyQueryDataSources:
             return True
 
-        # 白名单机制，只要业务在白名单中，就使用 unify-query 查询。
         white_list: list[str | int] = self._fetch_white_list()
+        # 全量灰度：如果 -1 在白名单中，全部使用 unify-query 查询。
+        if self.LOG_UNIFY_QUERY_ALL_BIZ_ID in white_list or str(self.LOG_UNIFY_QUERY_ALL_BIZ_ID) in white_list:
+            return True
+
+        # 白名单机制，只要业务在白名单中，就使用 unify-query 查询。
         if bk_biz_id in white_list or str(bk_biz_id) in white_list:
             return True
         return False
