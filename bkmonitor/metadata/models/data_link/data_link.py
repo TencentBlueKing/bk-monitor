@@ -52,6 +52,7 @@ from metadata.models.data_link.data_link_configs import (
 )
 from metadata.models.data_link.utils import generate_result_table_field_list, get_bkbase_raw_data_id_name
 from metadata.models.storage import ClusterInfo, DorisStorage, ESStorage
+from metadata.models.vm.record import AccessVMRecord
 
 if TYPE_CHECKING:
     from metadata.models import DataSource
@@ -1360,7 +1361,18 @@ class DataLink(models.Model):
         existing_rt = (
             existing_context.claim(ResultTableConfig, lambda c: True) if existing_context is not None else None
         )
-        rt_name = existing_rt.name if existing_rt is not None else bkbase_vmrt_name
+        # 复用已有AccessVMRecord记录的vm_result_table_id作为结果表名称
+        existing_vm_record = AccessVMRecord.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
+            result_table_id=table_id,
+        ).first()
+        rt_name = bkbase_vmrt_name
+        if existing_rt:
+            rt_name = existing_rt.name
+        elif existing_vm_record:
+            # 需要剔除业务ID前缀
+            vmrt_id = existing_vm_record.vm_result_table_id
+            rt_name = vmrt_id.split("_", 1)[-1]
 
         existing_binding = (
             existing_context.claim(VMStorageBindingConfig, lambda c: True) if existing_context is not None else None
@@ -1493,7 +1505,18 @@ class DataLink(models.Model):
         existing_rt = (
             existing_context.claim(ResultTableConfig, lambda c: True) if existing_context is not None else None
         )
-        rt_name = existing_rt.name if existing_rt is not None else bkbase_vmrt_name
+        # 复用已有AccessVMRecord记录的vm_result_table_id作为结果表名称
+        existing_vm_record = AccessVMRecord.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
+            result_table_id=table_id,
+        ).first()
+        rt_name = bkbase_vmrt_name
+        if existing_rt:
+            rt_name = existing_rt.name
+        elif existing_vm_record:
+            # 需要剔除业务ID前缀
+            vmrt_id = existing_vm_record.vm_result_table_id
+            rt_name = vmrt_id.split("_", 1)[-1]
 
         existing_binding = (
             existing_context.claim(VMStorageBindingConfig, lambda c: True) if existing_context is not None else None

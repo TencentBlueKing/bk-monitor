@@ -30,7 +30,7 @@ from metadata.models import (
     DataSource,
     DataSourceOption,
 )
-from metadata.models.data_link import DataLink
+from metadata.models.data_link import DataIdConfig, DataLink
 from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.data_link.utils import (
     compose_bkdata_data_id_name,
@@ -866,17 +866,36 @@ def create_bkbase_data_link(
             data_link_ins.data_link_name,
             vm_result_table_id,
         )
-    AccessVMRecord.objects.update_or_create(
+
+    # 创建AccessVMRecord记录
+    record, _ = AccessVMRecord.objects.get_or_create(
         bk_tenant_id=data_source.bk_tenant_id,
         result_table_id=monitor_table_id,
-        bk_base_data_id=data_source.bk_data_id,
         defaults={
+            "bk_base_data_id": data_source.bk_data_id,
             "bk_base_data_name": bkbase_data_name,
             "vm_cluster_id": storage_cluster_id,
             "vm_result_table_id": vm_result_table_id,
             "bcs_cluster_id": bcs_cluster_id,
         },
     )
+
+    # NOTE: v3->v4迁移场景中存在双dataid的问题，AccessVMRecord尽量记录bkbase v4链路实际使用的data_id
+    # 优先从DataIdConfig中获取计算平台数据ID，如果获取不到，则使用数据源的bk_data_id
+    if not record.bk_base_data_id:
+        try:
+            data_id_config = DataIdConfig.objects.get(bk_tenant_id=data_source.bk_tenant_id, name=bkbase_data_name)
+        except DataIdConfig.DoesNotExist:
+            logger.error(
+                "create_bkbase_data_link: DataIdConfig for data_link_name->[%s] not found, "
+                "fallback bk_base_data_id->[%s]",
+                data_link_ins.data_link_name,
+                data_source.bk_data_id,
+            )
+            return
+        record.bk_base_data_id = data_id_config.bk_data_id
+        record.save()
+
     logger.info(
         "create_bkbase_data_link:access bkbase success,data_id->[%s],storage_cluster_name->[%s],data_link_strategy->["
         "%s]",
