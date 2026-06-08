@@ -1761,7 +1761,7 @@ APM_UNIFY_QUERY_BLACK_BIZ_LIST = []
 # 事件 UnifyQuery 查询业务黑名单
 EVENT_UNIFY_QUERY_BLACK_BIZ_LIST = []
 
-# 日志 UnifyQuery 查询业务白名单（环境变量，逗号分隔业务 ID，优先级高于 DB 配置）
+# 日志 UnifyQuery 查询业务白名单（环境变量，逗号分隔业务 ID，-1 表示全量灰度，优先级高于 DB 配置）
 _log_uq_white_biz_env = os.getenv("LOG_UNIFY_QUERY_WHITE_BIZ_LIST", "")
 LOG_UNIFY_QUERY_WHITE_BIZ_LIST_ENV = (
     [int(biz_id.strip()) for biz_id in _log_uq_white_biz_env.split(",") if biz_id.strip()]
