@@ -190,3 +190,160 @@ class AddWebhookSettingResource(TapdAPIResource):
         )
         owner = serializers.CharField(label="配置负责人", required=False)
         rio_token = serializers.CharField(label="应用网关token", required=False)
+
+
+class GetStoryTemplateListResource(TapdAPIResource):
+    """
+    获取需求模板列表
+    """
+
+    action = "stories/template_list"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        workspace_id = serializers.IntegerField(label="项目ID")
+        workitem_type_id = serializers.IntegerField(label="需求类别ID", required=False)
+
+
+class GetBugTemplateListResource(TapdAPIResource):
+    """
+    获取缺陷模板列表
+    """
+
+    action = "bugs/template_list"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        workspace_id = serializers.IntegerField(label="项目ID")
+
+
+class GetDefaultStoryTemplateResource(TapdAPIResource):
+    """
+    获取指定需求模板的所有字段
+    """
+
+    action = "stories/get_default_story_template"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        workspace_id = serializers.IntegerField(label="项目ID")
+        template_id = serializers.IntegerField(label="模板ID")
+        use_priority_label = serializers.IntegerField(
+            label="是否替换优先级字段为priority_label", default=1, required=False
+        )
+
+
+class GetStoryFieldsLableResource(TapdAPIResource):
+    """
+    获取需求所有字段的中英文
+    """
+
+    action = "stories/get_fields_lable"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        workspace_id = serializers.IntegerField(label="项目ID")
+
+
+class GetDefaultBugTemplateResource(TapdAPIResource):
+    """
+    获取指定缺陷模板的所有字段
+    """
+
+    action = "bugs/get_default_bug_template"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        workspace_id = serializers.IntegerField(label="项目ID")
+        template_id = serializers.IntegerField(label="模板ID")
+        use_priority_label = serializers.IntegerField(
+            label="是否替换优先级字段为priority_label", default=1, required=False
+        )
+
+
+class GetBugFieldsLableResource(TapdAPIResource):
+    """
+    获取缺陷所有字段的中英文
+    """
+
+    action = "bugs/get_fields_lable"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        workspace_id = serializers.IntegerField(label="项目ID")
+
+
+class GetStoriesResource(TapdAPIResource):
+    """
+    获取需求列表
+    """
+
+    action = "stories"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        workspace_id = serializers.IntegerField(label="项目ID")
+        id = serializers.CharField(label="ID", required=False, help_text="支持多ID查询，多个以逗号分隔")
+        name = serializers.CharField(label="标题", required=False, help_text="支持模糊匹配")
+        priority_label = serializers.CharField(label="优先级", required=False)
+        limit = serializers.IntegerField(label="返回数量限制", required=False, default=30, min_value=1, max_value=200)
+        page = serializers.IntegerField(label="页码", required=False, default=1, min_value=1)
+        order = serializers.CharField(
+            label="排序规则",
+            required=False,
+            help_text="排序规则，格式：字段名 ASC或者DESC，然后urlencode。例如：按创建时间逆序：order=created%20desc",
+        )
+        fields = serializers.CharField(
+            label="设置获取的字段", required=False, help_text="设置获取的字段，多个字段间以','逗号隔开"
+        )
+
+
+class GetBugsResource(TapdAPIResource):
+    """
+    获取缺陷列表
+    """
+
+    action = "bugs"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        workspace_id = serializers.IntegerField(label="项目ID")
+        id = serializers.CharField(label="ID", required=False, help_text="支持多ID查询，多个以逗号分隔")
+        title = serializers.CharField(label="标题", required=False, help_text="支持模糊匹配")
+        priority_label = serializers.CharField(label="优先级", required=False)
+        severity = serializers.CharField(label="严重程度", required=False, help_text="支持枚举查询，多个以逗号分隔")
+        limit = serializers.IntegerField(label="返回数量限制", required=False, default=30, min_value=1, max_value=200)
+        page = serializers.IntegerField(label="页码", required=False, default=1, min_value=1)
+        order = serializers.CharField(
+            label="排序规则",
+            required=False,
+            help_text="排序规则，格式：字段名 ASC或者DESC，然后urlencode。例如：按创建时间逆序：order=created%20desc",
+        )
+        fields = serializers.CharField(
+            label="设置获取的字段", required=False, help_text="设置获取的字段，多个字段间以','逗号隔开"
+        )
+
+
+class GetTasksResource(TapdAPIResource):
+    """
+    获取任务列表
+    """
+
+    action = "tasks"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        workspace_id = serializers.IntegerField(label="项目ID")
+        id = serializers.CharField(label="ID", required=False, help_text="支持多ID查询，多个以逗号分隔")
+        name = serializers.CharField(label="任务标题", required=False, help_text="支持模糊匹配")
+        priority_label = serializers.CharField(label="优先级", required=False)
+        limit = serializers.IntegerField(label="返回数量限制", required=False, default=30, min_value=1, max_value=200)
+        page = serializers.IntegerField(label="页码", required=False, default=1, min_value=1)
+        order = serializers.CharField(
+            label="排序规则",
+            required=False,
+            help_text="排序规则，格式：字段名 ASC或者DESC，然后urlencode。例如：按创建时间逆序：order=created%20desc",
+        )
+        fields = serializers.CharField(
+            label="设置获取的字段", required=False, help_text="设置获取的字段，多个字段间以','逗号隔开"
+        )
