@@ -199,7 +199,7 @@ class SpanHandler:
             exception_refer: str = event_attributes.get(cls.EXCEPTION_REFER, cls.DEFAULT_EXCEPTION_REFER)
             exception_alias: str = event_attributes.get(cls.EXCEPTION_ALIAS, exception_type)
             exception_message: str = event_attributes.get(SpanAttributes.EXCEPTION_MESSAGE) or status_message
-            stacktrace: str = event_attributes.get(SpanAttributes.EXCEPTION_STACKTRACE, "")
+            stacktrace: str = event_attributes.get(SpanAttributes.EXCEPTION_STACKTRACE) or ""
             timestamp: int = int(event.get("timestamp", span.get(OtlpKey.START_TIME, 0)))
             exception_events.append(
                 {
