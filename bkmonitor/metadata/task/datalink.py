@@ -50,6 +50,7 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
             raise ValueError(f"apply_log_v4_datalink: tenant({bk_tenant_id}) {table_id} cannot switch back to transfer")
         return
 
+    # 如果这次是从transfer链路切换到V4链路，则需要设置consumer_group，避免数据链路切换时消费组不一致
     consumer_group = (
         compose_transfer_consumer_group(ds)
         if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value

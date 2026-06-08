@@ -568,6 +568,13 @@ class DataBusConfig(DataLinkResourceConfigBase):
                 )
             return
 
+        logger.info(
+            "apply_consumer_group: databus config consumer_group update, name->[%s],namespace->[%s],existing->[%s],input->[%s]",
+            self.name,
+            self.namespace,
+            self.consumer_group,
+            consumer_group,
+        )
         self.consumer_group = consumer_group
         self.save(update_fields=["consumer_group", "last_modify_time"])
 
