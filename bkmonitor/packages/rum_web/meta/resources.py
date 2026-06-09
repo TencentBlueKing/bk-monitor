@@ -554,7 +554,10 @@ class ListApplicationAsyncResource(AsyncColumnsListResource):
                     {
                         "application_id": application_id,
                         "app_name": app_mapping[application_id][0].app_name,
-                        **self.get_async_column_item(app_metric, validate_data["column"]),
+                        **{
+                            k: {"id": k, "value": v, "unit": "ms"}
+                            for k, v in self.get_async_column_item(app_metric, validate_data["column"]).items()
+                        },
                     }
                 )
 
