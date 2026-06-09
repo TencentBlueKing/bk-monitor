@@ -90,13 +90,16 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
 
         self.field: dict = {}
 
-        # desensitize — no index_set_id, skip DB queries
-        self.is_desensitize = False
+        # desensitize — 场景化检索没有固定 index_set_id，命中的结果表只有在 ts/raw
+        # 返回后才知道。这里先按请求语义（含全局/特权用户判定）确定是否脱敏，
+        # 真正的脱敏规则在取数后由 _init_scene_desensitize 按命中索引集懒加载。
+        self.is_desensitize = self._init_desensitize()
         self.field_configs: list = []
         self.text_fields: list = []
         self.text_fields_field_configs: list = []
         self.desensitize_handler = DesensitizeHandler([])
         self.text_fields_desensitize_handler = DesensitizeHandler([])
+        self._desensitize_initialized = False
 
         self.export_fields = params.get("export_fields")
         self.highlight: bool = params.get("can_highlight", True)
@@ -286,6 +289,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
 
         result = self.query_ts_raw(search_dict)
         self.verify_result_table_search_permission(result.get("result_table_id"))
+        self._init_scene_desensitize(result.get("result_table_id"))
         result = self._deal_query_result(result)
 
         if self.search_params.get("original_search"):
@@ -419,6 +423,73 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             )
 
         self._rt_perm_verified = True
+
+    def _init_scene_desensitize(self, result_table_ids: List[str]) -> None:
+        """按命中的结果表懒加载并合并脱敏配置。
+
+        场景化检索没有单一 index_set_id，且 ts/raw 返回的每行不携带来源结果表标记。
+        因此在取数后用 result_table_id 解析出全部命中索引集，把每个索引集的
+        DesensitizeConfig / DesensitizeFieldConfig **并集** 合并到一个脱敏 handler：
+        某字段只要在任一命中索引集被配置脱敏，就对所有行脱敏（宁可过度脱敏也不泄漏）。
+
+        幂等：scroll / 分页多次取数只初始化一次。
+        """
+        if self._desensitize_initialized:
+            return
+        if not self.is_desensitize:
+            self._desensitize_initialized = True
+            return
+
+        rt_ids = [rt for rt in (result_table_ids or []) if rt]
+        if not rt_ids:
+            self._desensitize_initialized = True
+            return
+
+        index_set_ids = self._map_result_tables_to_index_sets(rt_ids)
+        if not index_set_ids:
+            self._desensitize_initialized = True
+            return
+
+        from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
+
+        text_fields: set = set()
+        for cfg in DesensitizeConfig.objects.filter(index_set_id__in=index_set_ids):
+            for text_field in cfg.text_fields or []:
+                text_fields.add(text_field)
+        self.text_fields = list(text_fields)
+
+        field_configs: list = []
+        text_fields_field_configs: list = []
+        seen: set = set()
+        for obj in DesensitizeFieldConfig.objects.filter(index_set_id__in=index_set_ids):
+            _config = {
+                "field_name": obj.field_name or "",
+                "rule_id": obj.rule_id or 0,
+                "operator": obj.operator,
+                "params": obj.params,
+                "match_pattern": obj.match_pattern,
+                "sort_index": obj.sort_index,
+            }
+            # 多个索引集合并时去掉完全相同的规则，避免重复脱敏
+            dedupe_key = (
+                _config["field_name"],
+                _config["rule_id"],
+                _config["operator"],
+                _config["sort_index"],
+            )
+            if dedupe_key in seen:
+                continue
+            seen.add(dedupe_key)
+            if _config["field_name"] not in self.text_fields:
+                field_configs.append(_config)
+            else:
+                text_fields_field_configs.append(_config)
+
+        self.field_configs = field_configs
+        self.text_fields_field_configs = text_fields_field_configs
+        self.desensitize_handler = DesensitizeHandler(self.field_configs)
+        self.text_fields_desensitize_handler = DesensitizeHandler(self.text_fields_field_configs)
+        self._desensitize_initialized = True
 
     def fields(self, scope="default") -> dict:
         query_body = {
@@ -717,6 +788,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
                 break
 
             result_size += new_result_size
+            self._init_scene_desensitize(search_result.get("result_table_id"))
             yield self._deal_query_result(search_result)
 
     def export_data(self, is_quick_export: bool = False):
@@ -733,6 +805,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             if not search_result.get("list"):
                 break
 
+            self._init_scene_desensitize(search_result.get("result_table_id"))
             yield self._deal_query_result(search_result)
 
             total_count += len(search_result["list"])
@@ -757,13 +830,20 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             if not search_result.get("list"):
                 break
             self.verify_result_table_search_permission(search_result.get("result_table_id"))
+            self._init_scene_desensitize(search_result.get("result_table_id"))
             if not header_written:
                 result_table_options = list(search_result.get("result_table_options", {}).values())
                 result_schema = result_table_options[0]["result_schema"] if result_table_options else []
                 fields = [field["field_alias"] for field in result_schema]
                 csv_writer.writerow(fields)
                 header_written = True
+            apply_desensitize = (
+                self.field_configs or self.text_fields_field_configs
+            ) and self.is_desensitize
             for record in search_result["list"]:
+                if apply_desensitize:
+                    # export_chart_data 不走 _deal_query_result，需显式逐行脱敏
+                    record = self._log_desensitize(record)
                 csv_writer.writerow([record.get(field, "") for field in fields])
             yield row_buffer.getvalue()
             row_buffer.seek(0)
