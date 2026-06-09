@@ -867,28 +867,30 @@ def create_bkbase_data_link(
             vm_result_table_id,
         )
 
-    # 创建AccessVMRecord记录
-    record, created = AccessVMRecord.objects.get_or_create(
-        bk_tenant_id=data_source.bk_tenant_id,
-        result_table_id=monitor_table_id,
-        defaults={
-            "bk_base_data_id": data_source.bk_data_id,
-            "bk_base_data_name": bkbase_data_name,
-            "vm_cluster_id": storage_cluster_id,
-            "vm_result_table_id": vm_result_table_id,
-            "bcs_cluster_id": bcs_cluster_id,
-        },
-    )
+        # 查询AccessVMRecord记录，这里为了兼容可能存在的多条记录脏数据，默认取最新一条
+        vm_record = AccessVMRecord.objects.filter(
+            bk_tenant_id=data_source.bk_tenant_id,
+            result_table_id=monitor_table_id,
+        ).last()
 
-    # 如果记录已存在，则更新记录
-    if not created:
-        # NOTE: v3->v4迁移场景中存在双dataid的问题，这里默认先不更新bk_base_data_id，暂时还保留原有信息
-        record.bk_base_data_name = bkbase_data_name
-        record.vm_result_table_id = vm_result_table_id
-        record.bcs_cluster_id = bcs_cluster_id
-        record.vm_cluster_id = storage_cluster_id
-
-        record.save()
+        # 更新AccessVMRecord记录
+        if vm_record:
+            # NOTE: v3->v4迁移场景中存在双dataid的问题，这里默认先不更新bk_base_data_id，暂时还保留原有信息
+            vm_record.bk_base_data_name = bkbase_data_name
+            vm_record.vm_result_table_id = vm_result_table_id
+            vm_record.bcs_cluster_id = bcs_cluster_id
+            vm_record.vm_cluster_id = storage_cluster_id
+            vm_record.save()
+        else:
+            AccessVMRecord.objects.create(
+                bk_tenant_id=data_source.bk_tenant_id,
+                result_table_id=monitor_table_id,
+                bk_base_data_id=data_source.bk_data_id,
+                bk_base_data_name=bkbase_data_name,
+                vm_cluster_id=storage_cluster_id,
+                vm_result_table_id=vm_result_table_id,
+                bcs_cluster_id=bcs_cluster_id,
+            )
 
     logger.info(
         "create_bkbase_data_link:access bkbase success,data_id->[%s],storage_cluster_name->[%s],data_link_strategy->["
