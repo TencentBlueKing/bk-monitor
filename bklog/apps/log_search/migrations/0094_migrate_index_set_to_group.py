@@ -21,7 +21,7 @@ def migrate_index_set_to_group(apps, schema_editor):
 
     for index_set in index_sets.iterator(chunk_size=500):
         to_create = []
-        index_data_qs = LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id)
+        index_data_qs = LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id, type="result_table")
         for index_data in index_data_qs.iterator(chunk_size=500):
             mapped_index_set_id = rt_id_to_index_set_id.get(index_data.result_table_id)
             if not mapped_index_set_id:
@@ -44,25 +44,6 @@ def migrate_index_set_to_group(apps, schema_editor):
             index_set.save(update_fields=["is_group"])
 
 
-def rollback_index_set_to_group(apps, schema_editor):
-    LogIndexSet = apps.get_model("log_search", "LogIndexSet")
-    LogIndexSetData = apps.get_model("log_search", "LogIndexSetData")
-
-    index_sets = LogIndexSet.objects.filter(
-        scenario_id="log",
-        collector_config_id__isnull=True,
-        is_group=True,
-    )
-
-    for index_set in index_sets.iterator(chunk_size=500):
-        LogIndexSetData.objects.filter(
-            index_set_id=index_set.index_set_id,
-            type="index_set",
-        ).delete()
-        index_set.is_group = False
-        index_set.save(update_fields=["is_group"])
-
-
 class Migration(migrations.Migration):
     dependencies = [
         ("log_databus", "0049_collectorconfig_storage_cluster_type"),
@@ -70,5 +51,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(migrate_index_set_to_group, rollback_index_set_to_group),
+        migrations.RunPython(migrate_index_set_to_group),
     ]
