@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, computed, watch, onMounted } from 'vue';
+import { defineComponent, ref, computed, watch, onMounted, onUnmounted } from 'vue';
 
 import { getRegExp } from '@/common/util';
 import useFieldEgges from '@/hooks/use-field-egges';
@@ -62,6 +62,7 @@ export default defineComponent({
     const popoverRef = ref(null);
     const formRef = ref(null);
     const controlOperateRef = ref(null);
+    const contentInputWrapperRef = ref(null);
     const formData = ref({
       op: '',
       values: [],
@@ -76,6 +77,8 @@ export default defineComponent({
     const searchValue = ref('');
     const activeIndex = ref(0);
     const hoverIndex = ref(0);
+    const isMatchListShown = ref(true);
+    const fieldValueCache = ref<Record<string, string[]>>({});
 
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
@@ -129,6 +132,19 @@ export default defineComponent({
       ],
     };
 
+    const cacheCurrentFieldValues = () => {
+      const fieldName = currentFieldInfo.value?.field_name;
+      if (!fieldName) {
+        return;
+      }
+
+      fieldValueCache.value[fieldName] = [...(formData.value.values ?? [])];
+    };
+
+    const restoreFieldValues = (fieldName?: string) => {
+      formData.value.values = [...(fieldValueCache.value[fieldName] ?? [])];
+    };
+
     const initData = () => {
       if (props.data && filterFieldList.value.length) {
         activeIndex.value = filterFieldList.value.findIndex(
@@ -148,6 +164,7 @@ export default defineComponent({
           field_name: fieldInfo.field_name,
           field_alias: fieldInfo.field_alias,
         };
+        fieldValueCache.value[fieldInfo.field_name] = [...(props.data.value ?? [])];
       }
     };
 
@@ -173,14 +190,20 @@ export default defineComponent({
 
     const checkAndRequestEgges = () => {
       if (isValidateEgges(currentFieldInfo.value)) {
+        isMatchListShown.value = true;
         setIsRequesting(true);
         requestFieldEgges(currentFieldInfo.value);
       }
     };
 
     const handleFieldItemClick = (index: number) => {
-      activeIndex.value = index;
-      hoverIndex.value = index;
+      if (activeIndex.value !== index) {
+        cacheCurrentFieldValues();
+        activeIndex.value = index;
+        hoverIndex.value = index;
+        restoreFieldValues(currentFieldInfo.value?.field_name);
+      }
+
       checkAndRequestEgges();
     };
 
@@ -210,7 +233,13 @@ export default defineComponent({
 
     const handleChooseMatchItem = (e: any, item: string) => {
       e.stopPropagation();
+      isMatchListShown.value = true;
       formData.value.values.push(item);
+      cacheCurrentFieldValues();
+    };
+
+    const handleShowMatchList = () => {
+      isMatchListShown.value = true;
     };
 
     const handleClickKeyUp = () => {
@@ -227,7 +256,9 @@ export default defineComponent({
 
     const handelClickEnter = () => {
       if (activeIndex.value !== hoverIndex.value) {
+        cacheCurrentFieldValues();
         activeIndex.value = hoverIndex.value;
+        restoreFieldValues(currentFieldInfo.value?.field_name);
         checkAndRequestEgges();
       }
     };
@@ -248,6 +279,7 @@ export default defineComponent({
     const handlePopoverShow = () => {
       formRef.value?.clearError();
       controlOperateRef.value.bindKeyEvent();
+      isMatchListShown.value = true;
       initData();
       setTimeout(() => {
         const selectItemDom = fieldListMainRef.value.querySelector('.is-active');
@@ -261,8 +293,25 @@ export default defineComponent({
       controlOperateRef.value.unbindKeyEvent();
     };
 
+    const handleDocumentClick = (e: MouseEvent) => {
+      if (!isMatchListShown.value || !contentInputWrapperRef.value) {
+        return;
+      }
+
+      if (contentInputWrapperRef.value.contains(e.target as HTMLElement)) {
+        return;
+      }
+
+      isMatchListShown.value = false;
+    };
+
     onMounted(() => {
       handleFieldItemClick(activeIndex.value);
+      document.addEventListener('click', handleDocumentClick, true);
+    });
+
+    onUnmounted(() => {
+      document.removeEventListener('click', handleDocumentClick, true);
     });
 
     expose({
@@ -399,7 +448,10 @@ export default defineComponent({
                     property='values'
                     required
                   >
-                    <div class='content-input-wraper'>
+                    <div
+                      ref={contentInputWrapperRef}
+                      class='content-input-wraper'
+                    >
                       <bk-tag-input
                         clearable={false}
                         content-width={232}
@@ -412,11 +464,14 @@ export default defineComponent({
                         free-paste
                         on-change={(value) => {
                           formData.value.values = value;
+                          cacheCurrentFieldValues();
                         }}
+                        on-focus={handleShowMatchList}
                       />
                       {isValidateItem.value && (
                         <div
                           class='match-list-main'
+                          style={{ display: isMatchListShown.value ? 'block' : 'none' }}
                           v-bkloading={{
                             isLoading: isRequesting.value,
                             size: 'small',
