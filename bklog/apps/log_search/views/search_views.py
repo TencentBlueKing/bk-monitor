@@ -25,7 +25,9 @@ import math
 
 import arrow
 from django.conf import settings
+from django.db.models import F
 from django.http import StreamingHttpResponse
+from django.shortcuts import redirect
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from rest_framework import serializers
@@ -59,7 +61,11 @@ from apps.log_search.constants import (
     SQL_SUFFIX,
 )
 from apps.log_search.decorators import search_history_record
-from apps.log_search.exceptions import BaseSearchIndexSetException
+from apps.log_search.exceptions import (
+    AsyncExportTaskNotDownloadableException,
+    AsyncExportTaskNotFoundException,
+    BaseSearchIndexSetException,
+)
 from apps.log_search.handlers.es.querystring_builder import QueryStringBuilder
 from apps.log_search.handlers.index_set import (
     IndexSetCustomConfigHandler,
@@ -76,6 +82,7 @@ from apps.log_search.handlers.search.search_handlers_esquery import UnionSearchH
 from apps.log_search.models import AsyncTask, LogIndexSet
 from apps.log_search.permission import Permission
 from apps.log_search.serializers import (
+    AsyncExportDownloadUrlSerializer,
     BcsWebConsoleSerializer,
     ChartSerializer,
     CreateIndexSetFieldsConfigSerializer,
@@ -117,7 +124,7 @@ from apps.log_unifyquery.handler.context import UnifyQueryContextHandler
 from apps.log_unifyquery.handler.chart import UnifyQueryChartHandler
 from apps.log_unifyquery.handler.tail import UnifyQueryTailHandler
 from apps.utils.drf import detail_route, list_route
-from apps.utils.local import get_request_external_username, get_request_username
+from apps.utils.local import get_request_app_code, get_request_external_username, get_request_username
 from bkm_space.utils import space_uid_to_bk_biz_id
 
 
@@ -1820,6 +1827,37 @@ class SearchViewSet(APIViewSet):
         return AsyncExportHandlers(index_set_ids=index_set_ids, bk_biz_id=data["bk_biz_id"]).get_export_history(
             request=request, view=self, show_all=data["show_all"], is_union_search=True
         )
+
+    @list_route(methods=["GET"], url_path="async_export/download_file")
+    def async_export_download_file(self, request, *args, **kwargs):
+        """
+        @api {get} /search/index_set/async_export/download_file/ 异步导出-下载文件
+        @apiName async_export_download_file
+        @apiGroup 11_Search
+        @apiParam {Int} task_id 异步导出任务ID
+        @apiParam {Int} bk_biz_id 业务ID
+        @apiSuccessExample {json} 成功返回:
+            无返回值，用户访问该API后重定向到下载链接直接下载文件
+        """
+        data = self.params_valid(AsyncExportDownloadUrlSerializer)
+        query_set = AsyncTask.objects.filter(
+            id=data["task_id"],
+            bk_biz_id=data["bk_biz_id"],
+            source_app_code=get_request_app_code(),
+            export_type=ExportType.ASYNC,
+        )
+        external_username = get_request_external_username()
+        if external_username:
+            query_set = query_set.filter(created_by=external_username)
+
+        async_task = query_set.first()
+        if not async_task:
+            raise AsyncExportTaskNotFoundException()
+        if async_task.export_status != ExportStatus.SUCCESS or not async_task.download_url:
+            raise AsyncExportTaskNotDownloadableException()
+
+        AsyncTask.objects.filter(id=async_task.id).update(download_count=F("download_count") + 1)
+        return redirect(async_task.download_url)
 
     @list_route(methods=["GET"], url_path="union_search/history")
     def union_search_history(self, request, *args, **kwargs):

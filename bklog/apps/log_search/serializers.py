@@ -572,6 +572,11 @@ class GetExportHistorySerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"))
 
 
+class AsyncExportDownloadUrlSerializer(serializers.Serializer):
+    task_id = serializers.IntegerField(label=_("异步导出任务ID"))
+    bk_biz_id = serializers.IntegerField(label=_("业务id"))
+
+
 class UnionSearchGetExportHistorySerializer(serializers.Serializer):
     page = serializers.IntegerField(label=_("页码"))
     pagesize = serializers.IntegerField(label=_("页面大小"))

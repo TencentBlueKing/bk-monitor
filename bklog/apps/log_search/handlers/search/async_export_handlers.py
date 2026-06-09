@@ -34,6 +34,8 @@ from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import (
     ASYNC_COUNT_SIZE,
     MAX_GET_ATTENTION_SIZE,
+    MAX_ASYNC_COUNT,
+    MAX_QUICK_EXPORT_ASYNC_COUNT,
     ExportStatus,
     ExportType,
     IndexSetType,
@@ -111,6 +113,9 @@ class AsyncExportHandlers:
                 "start_time": self.search_dict["start_time"],
                 "end_time": self.search_dict["end_time"],
                 "export_type": ExportType.ASYNC,
+                "export_total_count": self.get_export_total_count(
+                    request_size=self.search_handler.size, is_quick_export=is_quick_export
+                ),
                 "created_by": self.request_user,
             }
         )
@@ -213,12 +218,15 @@ class AsyncExportHandlers:
             "export_type": export_task_history["export_type"],
             "export_status": export_task_history["export_status"] if retry_able else ExportStatus.DATA_EXPIRED,
             "error_msg": export_task_history["failed_reason"],
-            "download_url": export_task_history["download_url"],
+            "download_url": cls.get_async_export_download_url(export_task_history),
             "export_pkg_name": export_task_history["file_name"],
             "export_pkg_size": export_task_history["file_size"],
             "export_created_at": export_task_history["created_at"],
             "export_created_by": export_task_history["created_by"],
             "export_completed_at": export_task_history["completed_at"],
+            "exported_count": export_task_history["exported_count"],
+            "export_total_count": export_task_history["export_total_count"],
+            "download_count": export_task_history["download_count"],
             "download_able": download_able,
             "retry_able": retry_able,
             "index_set_type": export_task_history["index_set_type"],
@@ -236,6 +244,19 @@ class AsyncExportHandlers:
         return res
 
     @classmethod
+    def get_async_export_download_url(cls, export_task_history):
+        if not export_task_history["download_url"]:
+            return export_task_history["download_url"]
+
+        query_params = urlencode(
+            {
+                "task_id": export_task_history["id"],
+                "bk_biz_id": export_task_history["bk_biz_id"],
+            }
+        )
+        return f"/api/v1/search/index_set/async_export/download_file/?{query_params}"
+
+    @classmethod
     def judge_download_able(cls, status):
         if status == ExportStatus.DOWNLOAD_EXPIRED:
             return False
@@ -246,6 +267,15 @@ class AsyncExportHandlers:
         if retention and end_time:
             return arrow.now() < arrow.get(end_time, tzinfo=settings.TIME_ZONE).shift(days=retention)
         return True
+
+    @staticmethod
+    def get_export_total_count(request_size, is_quick_export: bool = False):
+        export_limit = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
+        try:
+            request_size = int(request_size or export_limit)
+        except (TypeError, ValueError):
+            request_size = export_limit
+        return min(request_size, export_limit)
 
     @classmethod
     def get_index_set_retention(cls, index_set_ids):
@@ -313,7 +343,6 @@ class AsyncExportHandlers:
 
     @staticmethod
     def get_doris_index_set_id_to_expire_days_map(result_table_id_to_index_set_id_map):
-
         if not result_table_id_to_index_set_id_map:
             return {}
 
@@ -388,6 +417,9 @@ class UnionAsyncExportHandlers:
                 "start_time": self.search_dict["start_time"],
                 "end_time": self.search_dict["end_time"],
                 "export_type": ExportType.ASYNC,
+                "export_total_count": AsyncExportHandlers.get_export_total_count(
+                    request_size=self.search_dict.get("size"), is_quick_export=is_quick_export
+                ),
                 "created_by": self.request_user,
             }
         )
