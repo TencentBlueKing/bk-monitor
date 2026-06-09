@@ -107,6 +107,8 @@ class TimeSeriesGroup(CustomGroupBase):
 
     FIELD_NAME_REGEX = re.compile(r"^[a-zA-Z0-9_]+$")
 
+    CMDB_RELATION_BUILT_IN_GROUP_NAME_REGEX = re.compile(r"^-?\d+_[a-z]+_built_in_time_series$")
+
     def is_enabled_data_scope(self) -> bool:
         """
         是否开启，指标按指定维度字段自动分组
@@ -176,6 +178,16 @@ class TimeSeriesGroup(CustomGroupBase):
 
         # 如果没有维度配置，返回默认值
         return False, default_name
+
+    def is_cmdb_relation_builtin(self):
+        return bool(self.CMDB_RELATION_BUILT_IN_GROUP_NAME_REGEX.match(self.time_series_group_name))
+
+    @classmethod
+    def make_cmdb_relation_builtin_table_id_and_group_name(cls, bk_biz_id, space_type):
+        return (
+            f"{bk_biz_id}_{space_type}_built_in_time_series.__default__",
+            f"{bk_biz_id}_{space_type}_built_in_time_series",
+        )
 
     # 组合一个默认的table_id
     @staticmethod
@@ -741,6 +753,7 @@ class TimeSeriesGroup(CustomGroupBase):
         additional_options: dict | None = None,
         data_label: str | None = None,
         metric_group_dimensions: list[dict] | None = None,
+        is_need_deploy_collector_config: bool = True,
     ):
         """
         创建一个新的自定义分组记录
@@ -758,6 +771,7 @@ class TimeSeriesGroup(CustomGroupBase):
         :param data_label: 数据标签
         :param bk_tenant_id: 租户ID
         :param metric_group_dimensions: 指标分组的维度key配置，如 [{"key": "scope_name", "default_value": "default"}]
+        :param is_need_deploy_collector_config: 是否需要下发 collector 配置
         :return: group object
         """
         # 将 metric_group_dimensions 合并到 additional_options，流向 ResultTableOption
@@ -776,6 +790,7 @@ class TimeSeriesGroup(CustomGroupBase):
             table_id=table_id,
             is_builtin=is_builtin,
             is_split_measurement=is_split_measurement,
+            is_need_deploy_collector_config=is_need_deploy_collector_config,
             default_storage_config=default_storage_config,
             additional_options=additional_options,
             data_label=data_label,

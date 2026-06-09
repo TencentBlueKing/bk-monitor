@@ -30,8 +30,9 @@ import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { useRoute } from 'vue-router/composables';
 import { useOperation } from '../../hook/useOperation';
+import { useCollectList } from '../../hook/useCollectList';
 import { showMessage, visibleScopeSelectList } from '../../utils';
-import { deepClone } from '@/common/util';
+import { deepClone, deepEqual } from '@/common/util';
 import FieldList from '../business-comp/step3/field-list';
 import ReportLogSlider from '../business-comp/step3/report-log-slider';
 import InfoTips from '../common-comp/info-tips';
@@ -41,7 +42,7 @@ import { useSpaceSelector } from '../../../hooks/use-space-selector';
 import * as authorityMap from '@/common/authority-map';
 import $http from '@/api';
 
-import type { ISelectItem } from '../../type';
+import type { ISelectItem, ISubmitOptions } from '../../type';
 
 import './step3-clean.scss';
 
@@ -85,17 +86,22 @@ export default defineComponent({
 
   emits: ['next', 'prev', 'cancel', 'change-submit'],
 
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     const store = useStore();
     const { t } = useLocale();
     const route = useRoute();
     const defaultRegex = '(?P<request_ip>[d.]+)[^[]+[(?P<request_time>[^]]+)]';
     const { cardRender } = useOperation();
+    const { goListPage } = useCollectList();
     const showReportLogSlider = ref(false);
     const jsonText = ref({});
     const fieldListRef = ref();
     const grokModeEnabled = ref(true);
     let isUnmounted = false;
+    /**
+     * 初始表单数据快照，用于对比是否有变更
+     */
+    const initialFormData = ref(null);
 
     const templateDialogVisible = ref(false);
     const templateName = ref('');
@@ -251,6 +257,20 @@ export default defineComponent({
     const showDebugPathRegexBtn = computed(() => formData.value.etl_params.path_regexp && pathExample.value);
 
     const isClean = computed(() => cleaningMode.value !== 'bk_log_text');
+
+    /**
+     * 保存初始表单数据快照
+     */
+    const saveInitialFormData = () => {
+      initialFormData.value = structuredClone(formData.value);
+    };
+
+    /**
+     * 判断配置是否有变更
+     */
+    const hasConfigChanged = () => {
+      return !deepEqual(formData.value, initialFormData.value);
+    };
 
     const isEditCleanItem = computed(() => route.name === 'clean-edit' || route.name === 'v2-clean-edit');
 
@@ -408,6 +428,8 @@ export default defineComponent({
         ...props.configData,
         etl_fields: eltField,
       };
+      // 保存初始表单数据快照
+      saveInitialFormData();
       if (!id) {
         return;
       }
@@ -430,6 +452,7 @@ export default defineComponent({
             if (props.isEdit || props.isClone || props.isCleanField) {
               getDataLog('init');
               await getCleanStash(id);
+              saveInitialFormData();
             }
           }
         })
@@ -1551,8 +1574,14 @@ export default defineComponent({
     };
     /**
      * 保存按钮
+     * @param options 保存选项配置
+     * @param options.action 操作类型: 'next'(默认) | 'back' | 'saveOnly'
+     * @param options.callback 保存完成后的回调函数
      */
-    const handleSubmit = async () => {
+    const handleSubmitSave = async ({
+      action = 'next',
+      callback,
+    }: ISubmitOptions = {}) => {
       handleSubmitValidate(() => {
         const { etl_params, etl_fields } = formData.value;
         // 为 metadata_fields 每项补充 metadata_type（对齐旧版）
@@ -1618,18 +1647,37 @@ export default defineComponent({
           .then(res => {
             loading.value = false;
             if (res?.result) {
-              const data = isNeedCreate ? { ...formData.value, ...curCollect.value } : formData.value;
-              emit('next', data);
-              if (props.isCleanField) {
-                emit('change-submit', true);
+              if (action === 'saveOnly') {
+                // 只保存，不跳转
+                showMessage(t('保存成功'));
+                callback?.(true);
+              } else if (action === 'back') {
+                showMessage(t('保存成功'));
+                // 保存成功后跳转到列表页
+                goListPage();
+              } else {
+                const data = isNeedCreate ? { ...formData.value, ...curCollect.value } : formData.value;
+                emit('next', data);
+                if (props.isCleanField) {
+                  emit('change-submit', true);
+                }
               }
+            } else {
+              callback?.(false);
             }
           })
           .catch(() => {
             loading.value = false;
+            callback?.(false);
           });
       });
     };
+
+    expose({
+      hasConfigChanged,
+      handleSubmitSave,
+    });
+
     return () => (
       <div
         class='operation-step3-clean'
@@ -1659,9 +1707,20 @@ export default defineComponent({
               class='width-88 mr-8'
               theme='primary'
               loading={loading.value}
-              on-click={handleSubmit}
+              on-click={() => handleSubmitSave()}
             >
               {props.isCleanField ? t('保存') : t('下一步')}
+            </bk-button>
+          )}
+          {/* 提交按钮：编辑模式且非清洗列表编辑且非模板编辑且显示"下一步"时显示 */}
+          {isUpdate.value && !props.isCleanField && !props.isTempField && !props.isCleanField && (
+            <bk-button
+              class='width-88 mr-8'
+              theme='primary'
+              loading={loading.value}
+              on-click={() => handleSubmitSave({ action: 'back' })}
+            >
+              {t('提交')}
             </bk-button>
           )}
 

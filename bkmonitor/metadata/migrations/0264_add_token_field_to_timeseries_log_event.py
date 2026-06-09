@@ -2,6 +2,8 @@
 
 from django.db import migrations, models
 
+from bkmonitor.utils.cipher import transform_data_id_to_token
+
 
 def fill_log_group_token(apps, schema_editor):
     LogGroup = apps.get_model("metadata", "LogGroup")
@@ -30,9 +32,42 @@ def fill_event_group_token(apps, schema_editor):
         EventGroup.objects.bulk_update(to_update, ["token"], batch_size=500)
 
 
+def fill_time_series_group_token(apps, schema_editor):
+    TimeSeriesGroup = apps.get_model("metadata", "TimeSeriesGroup")
+    DataSource = apps.get_model("metadata", "DataSource")
+    CustomTSTable = apps.get_model("monitor_web", "CustomTSTable")
+
+    ds_token_map = dict(DataSource.objects.exclude(token="").values_list("bk_data_id", "token"))
+    custom_ts_table_map = {
+        item["time_series_group_id"]: item
+        for item in CustomTSTable.objects.values("time_series_group_id", "bk_data_id", "bk_biz_id", "name", "protocol")
+    }
+
+    to_update = []
+    for ts_group in TimeSeriesGroup.objects.filter(token=""):
+        custom_ts_table = custom_ts_table_map.get(ts_group.time_series_group_id)
+        if custom_ts_table and custom_ts_table["protocol"] == "prometheus":
+            token = transform_data_id_to_token(
+                metric_data_id=custom_ts_table["bk_data_id"],
+                bk_biz_id=custom_ts_table["bk_biz_id"],
+                app_name=custom_ts_table["name"],
+            )
+        else:
+            bk_data_id = custom_ts_table["bk_data_id"] if custom_ts_table else ts_group.bk_data_id
+            token = ds_token_map.get(bk_data_id)
+
+        if token:
+            ts_group.token = token
+            to_update.append(ts_group)
+
+    if to_update:
+        TimeSeriesGroup.objects.bulk_update(to_update, ["token"], batch_size=500)
+
+
 class Migration(migrations.Migration):
     dependencies = [
         ("metadata", "0263_vmshortlinkrecord_data_labels"),
+        ("monitor_web", "0077_collectorpluginmeta_id"),
     ]
 
     operations = [
@@ -53,4 +88,5 @@ class Migration(migrations.Migration):
         ),
         migrations.RunPython(fill_log_group_token),
         migrations.RunPython(fill_event_group_token),
+        migrations.RunPython(fill_time_series_group_token),
     ]

@@ -29,7 +29,7 @@ import { Component, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { getLinkMapping } from 'monitor-api/modules/commons';
-import { APP_NAV_COLORS } from 'monitor-common/utils';
+import { APP_NAV_COLORS, getBizRouteHref } from 'monitor-common/utils';
 import { globalUrlFeatureMap } from 'monitor-common/utils/global-feature-map';
 import CommonNavBar from 'monitor-pc/pages/monitor-k8s/components/common-nav-bar';
 import AuthorityModal from 'monitor-ui/authority-modal';
@@ -184,7 +184,7 @@ export default class App extends tsc<object> {
     if (navId !== this.$route.name) {
       const parentRoute = this.$router.options.routes.find(item => item.name === navId);
       if (parentRoute) {
-        location.href = `${location.origin}${location.pathname}?bizId=${window.cc_biz_id}#${parentRoute.path}`;
+        location.href = getBizRouteHref(parentRoute.path, window.cc_biz_id);
       } else {
         this.handleReload();
       }
@@ -197,7 +197,7 @@ export default class App extends tsc<object> {
     const { needClearQuery } = this.$route.meta;
     // 清空query查询条件
     if (needClearQuery) {
-      location.href = `${location.origin}${location.pathname}?bizId=${window.cc_biz_id}#${this.$route.path}`;
+      location.href = getBizRouteHref(this.$route.path, window.cc_biz_id);
     } else {
       location.search = `?bizId=${window.cc_biz_id}`;
     }

@@ -36,7 +36,10 @@ import { CLUSTER_TYPES, ClusterType, useClusterType } from '../../../es-cluster/
 import { useOperation } from '../../hook/useOperation';
 import { showMessage } from '../../utils';
 import ClusterTable from '../business-comp/step4/cluster-table';
+import { deepEqual } from '@/common/util';
 import $http from '@/api';
+
+import type { ISubmitOptions } from '../../type';
 
 import './step4-storage.scss';
 
@@ -66,7 +69,7 @@ export default defineComponent({
 
   emits: ['prev', 'cancel'],
 
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     const { t } = useLocale();
     const store = useStore();
     const route = useRoute();
@@ -93,6 +96,10 @@ export default defineComponent({
       ...props.configData,
     });
     const cleanStash = ref({});
+    /**
+     * 初始表单数据快照，用于对比是否有变更
+     */
+    const initialFormData = ref(null);
 
     const bkBizId = computed(() => store.state.bkBizId);
     const spaceUid = computed(() => store.getters.spaceUid);
@@ -257,6 +264,20 @@ export default defineComponent({
      * 是否为编辑
      */
     const isUpdate = computed(() => route.name === 'collectEdit' && props.isEdit);
+
+    /**
+     * 保存初始表单数据快照
+     */
+    const saveInitialFormData = () => {
+      initialFormData.value = structuredClone(formData.value);
+    };
+
+    /**
+     * 判断配置是否有变更
+     */
+    const hasConfigChanged = () => {
+      return !deepEqual(formData.value, initialFormData.value);
+    };
 
     /** 是否为编辑模式 */
     const isEditMode = computed(() =>
@@ -566,9 +587,14 @@ export default defineComponent({
     ];
     /**
      * 自定义上报存储保存
-     * @returns
+     * @param options 保存选项配置
+     * @param options.action 操作类型: 'next'(默认) | 'saveOnly'
+     * @param options.callback 保存完成后的回调函数
      */
-    const handleCustomSubmit = () => {
+    const handleCustomSubmit = ({
+      action = 'next',
+      callback,
+    }: ISubmitOptions = {}) => {
       submitLoading.value = true;
       const {
         collector_config_name,
@@ -618,7 +644,15 @@ export default defineComponent({
         })
         .then(res => {
           res.result && showMessage(t('保存成功'));
-          emit('cancel');
+          if (action === 'saveOnly') {
+            // 只保存，不跳转
+            callback?.(true);
+          } else {
+            emit('cancel');
+          }
+        })
+        .catch(() => {
+          callback?.(false);
         })
         .finally(() => {
           submitLoading.value = false;
@@ -626,8 +660,14 @@ export default defineComponent({
     };
     /**
      * 采集场景提交
+     * @param options 保存选项配置
+     * @param options.action 操作类型: 'next'(默认) | 'saveOnly'
+     * @param options.callback 保存完成后的回调函数
      */
-    const handleNormalSubmit = () => {
+    const handleNormalSubmit = ({
+      action = 'next',
+      callback,
+    }: ISubmitOptions = {}) => {
       submitLoading.value = true;
       const { etl_params, etl_fields, clean_type } = cleanStash.value;
       const { retention, allocation_min_days, storage_replies, es_shards } = formData.value;
@@ -656,12 +696,19 @@ export default defineComponent({
         })
         .then(res => {
           if (res.data) {
-            emit('cancel');
-            store.commit('collect/updateCurCollect', { ...formData.value, ...data, ...res.data });
+            if (action === 'saveOnly') {
+              // 只保存，不跳转
+              callback?.(true);
+            } else {
+              emit('cancel');
+              store.commit('collect/updateCurCollect', { ...formData.value, ...data, ...res.data });
+            }
+          } else {
+            callback?.(false);
           }
         })
         .catch(() => {
-          console.log('error');
+          callback?.(false);
         })
         .finally(() => {
           submitLoading.value = false;
@@ -669,28 +716,36 @@ export default defineComponent({
     };
     /**
      * 保存配置
+     * @param options 保存选项配置
+     * @param options.action 操作类型: 'next'(默认) | 'saveOnly'
+     * @param options.callback 保存完成后的回调函数
      */
-    const handleSubmit = async () => {
+    const handleSubmitSave = async ({
+      action = 'next',
+      callback,
+    }: ISubmitOptions = {}) => {
       if (!clusterSelect.value) {
         showMessage(t('请选择集群'), 'error');
+        callback?.(false);
         return;
       }
       // 表单校验
       try {
         await storageFormRef.value?.validate();
       } catch {
+        callback?.(false);
         return;
       }
       if (isCustomReport.value) {
         /**
          * 自定义上报存储保存
          */
-        handleCustomSubmit();
+        handleCustomSubmit({ action, callback });
       } else {
         /**
          * 采集场景提交
          */
-        handleNormalSubmit();
+        handleNormalSubmit({ action, callback });
       }
     };
     /**
@@ -707,6 +762,8 @@ export default defineComponent({
         es_shards: props.configData.storage_shards_nums || props.configData.es_shards || formData.value.es_shards,
       };
       clusterSelect.value = props.configData.storage_cluster_id;
+      // 保存初始表单数据快照
+      saveInitialFormData();
     };
     // watch(
     //   () => props.isEdit || props.isClone,
@@ -717,6 +774,11 @@ export default defineComponent({
     //   },
     //   { immediate: true },
     // );
+
+    expose({
+      hasConfigChanged,
+      handleSubmitSave,
+    });
 
     return () => (
       <div class='operation-step4-storage'>
@@ -734,7 +796,7 @@ export default defineComponent({
             class='width-88 mr-8'
             loading={submitLoading.value}
             theme='primary'
-            on-click={handleSubmit}
+            on-click={handleSubmitSave}
           >
             {t('提交')}
           </bk-button>

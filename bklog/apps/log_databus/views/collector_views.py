@@ -381,6 +381,7 @@ class CollectorViewSet(ModelViewSet):
         @apiParam {Int} collector_config_id 采集项ID
         @apiSuccess {String} collector_scenario_id 日志类型 可选字段`row, section, win_event`
         @apiSuccess {String} collector_scenario_name 日志类型名称
+        @apiSuccess {String} log_access_type 日志接入类型
         @apiSuccess {String} collector_config_name 采集项名称
         @apiSuccess {String} category_id 数据分类
         @apiSuccess {String} category_name 数据分类显示名称

@@ -29,7 +29,7 @@ from bkmonitor.utils.alert_drilling import (
     merge_dimensions_into_conditions,
 )
 from bkmonitor.utils.thread_backend import ThreadPool
-from constants.alert import APMTargetType, K8STargetType, K8S_RESOURCE_TYPE
+from constants.alert import APMTargetType, EventTargetType, K8STargetType, K8S_RESOURCE_TYPE
 from constants.apm import ApmAlertHelper
 from constants.data_source import DataTypeLabel, DataSourceLabel
 from core.drf_resource import Resource, resource, api
@@ -159,24 +159,54 @@ class AlertEventBaseResource(Resource, abc.ABC):
         :param q: 查询构建器
         :return: 构建好的查询配置，如果无合法的关联 K8S 资源则返回 None
         """
-        related_k8s_targets: dict[str, str | list] = target.list_related_k8s_targets()
-        is_workload: bool = related_k8s_targets["resource_type"] == K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD]
-
-        # 合法查询对象构造
         valid_k8s_targets: list[dict[str, Any]] = []
-        for related_target in related_k8s_targets["target_list"]:
-            if not all([related_target.get("bcs_cluster_id"), related_target.get("namespace")]):
-                continue
-
-            workload: str = related_target.pop("workload", "")
-            if is_workload:
-                if not workload:
+        # 主机告警场景
+        if target.TARGET_TYPE == EventTargetType.HOST:
+            try:
+                k8s_node_info = resource.scene_view.get_kubernetes_node(
+                    {
+                        "bk_biz_id": alert.event.bk_biz_id,
+                        "node_ip": target.list_related_host_targets()[0]["bk_target_ip"],
+                    }
+                )
+            except Exception:  # noqa
+                return None
+            k8s_node_map: dict[str, Any] = {item["key"]: item["value"] for item in k8s_node_info}
+            if k8s_node_map.get("bcs_cluster_id") and k8s_node_map.get("name"):
+                valid_k8s_targets.append(
+                    {
+                        "bcs_cluster_id": k8s_node_map["bcs_cluster_id"]["value"],
+                        "host": k8s_node_map["name"],
+                    }
+                )
+        else:
+            related_k8s_targets = target.list_related_k8s_targets()
+            resource_type: str = related_k8s_targets["resource_type"]
+            for related_target in related_k8s_targets["target_list"]:
+                bcs_cluster_id: str | None = related_target.get("bcs_cluster_id")
+                if not bcs_cluster_id:
                     continue
-                kind, name = workload.split(":", 1)
-                related_target["kind"] = kind
-                related_target["name"] = name
 
-            valid_k8s_targets.append(related_target)
+                # Node 对象（集群级别的资源，无 namespace 属性）
+                if resource_type == K8S_RESOURCE_TYPE[K8STargetType.NODE]:
+                    node: str = related_target.get("node", "")
+                    if node:
+                        valid_k8s_targets.append({"bcs_cluster_id": bcs_cluster_id, "host": node})
+                    continue
+
+                if not related_target.get("namespace"):
+                    continue
+
+                workload: str = related_target.pop("workload", "")
+                # workload 对象
+                if resource_type == K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD]:
+                    if not workload:
+                        continue
+                    kind, name = workload.split(":", 1)
+                    related_target["kind"] = kind
+                    related_target["name"] = name
+
+                valid_k8s_targets.append(related_target)
 
         if not valid_k8s_targets:
             return None

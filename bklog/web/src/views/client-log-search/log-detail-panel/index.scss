@@ -259,7 +259,18 @@
       }
 
       .bk-big-tree {
-        height: 100%;
+        height: 100% !important;
+
+        &::-webkit-scrollbar {
+          width: 4px;
+          height: 4px;
+          background-color: #dedede;
+        }
+
+        &::-webkit-scrollbar-thumb {
+          background-color: #aaa;
+          border-radius: 2px;
+        }
 
         .is-root {
           padding-left: 8px;
@@ -277,6 +288,7 @@
       .tree-node-content {
         display: flex;
         align-items: center;
+        padding-right: 10px;
 
         .bklog-icon {
           font-size: 16px;
@@ -327,7 +339,7 @@
         &::-webkit-scrollbar {
           width: 4px;
           height: 8px;
-          background-color: #c4c6cc;
+          background-color: #dedede
         }
 
         &::-webkit-scrollbar-thumb {

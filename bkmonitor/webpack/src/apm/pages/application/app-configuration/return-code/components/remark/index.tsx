@@ -661,7 +661,7 @@ export default class RemarkTabContent extends tsc<Props> {
                 }
                 return (
                   <div class='interface-column'>
-                    {row.isImport && <div class='import-sign-bar' />}
+                    {(row.isImport || row.isNew) && <div class='new-sign-bar' />}
                     {/* 编辑态：可输入可选择 */}
                     <bk-select
                       clearable={false}
@@ -728,6 +728,7 @@ export default class RemarkTabContent extends tsc<Props> {
                         isEnableOptions: true,
                       }}
                       value={value}
+                      tippy-mode
                       getValueFn={this.getValueCallback(row.kind)}
                       onChange={data => this.handleValueTagSelectorChange(data as string, row.id)}
                     />
@@ -795,11 +796,10 @@ export default class RemarkTabContent extends tsc<Props> {
                 if (this.currentEditRowId !== row.id && !this.isBatchEdit) {
                   return (
                     <div class='interface-column-readonly'>
-                      <div
-                        class='value-content'
-                        v-bk-overflow-tips
-                      >
-                        {row[item.prop].map(item => (item === '0' ? this.$tc('全局生效') : item)).join(',')}
+                      <div class='tag-list-content'>
+                        {row[item.prop].map(item => (
+                          <bk-tag key={item}>{item === '0' ? this.$tc('全局生效') : item}</bk-tag>
+                        ))}
                       </div>
                     </div>
                   );
@@ -875,6 +875,7 @@ export default class RemarkTabContent extends tsc<Props> {
               {this.showColumn.map(item => this.renderColumn(item))}
               <bk-table-column
                 width={120}
+                fixed='right'
                 scopedSlots={{
                   default: ({ row }) => {
                     if (this.currentEditRowId === row.id) {

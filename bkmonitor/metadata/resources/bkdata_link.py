@@ -12,6 +12,7 @@ import json
 import logging
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -35,6 +36,15 @@ from metadata.models.space.constants import (
 from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
+
+
+@dataclass(frozen=True)
+class DataLinkMetadataTarget:
+    """QueryDataLinkMetadataResource 内部使用的真实租户目标."""
+
+    bk_tenant_id: str
+    bk_data_id: int
+    table_id: str
 
 
 class AddBkDataTableIdsResource(Resource):
@@ -670,36 +680,51 @@ class QueryDataLinkMetadataResource(Resource):
         if not targets:
             return []
 
-        # Step 2: 批量预取上下文
-        ctx = self._prefetch_context(bk_tenant_id, targets)
-
-        # Step 3: 遍历组装扁平行
+        # Step 2: 按真实租户分组预取上下文, 避免跨租户 table_id/data_id 缓存互相覆盖
         rows: list[dict[str, Any]] = []
-        for data_id, table_id in targets:
+        targets_by_tenant: dict[str, list[DataLinkMetadataTarget]] = {}
+        for target in targets:
+            targets_by_tenant.setdefault(target.bk_tenant_id, []).append(target)
+
+        for real_tenant_id, tenant_targets in targets_by_tenant.items():
+            # Step 3: 批量预取上下文
+            ctx = self._prefetch_context(real_tenant_id, tenant_targets)
+
+            # Step 4: 遍历组装扁平行
+            tenant_rows: list[dict[str, Any]] = []
+            for target in tenant_targets:
+                try:
+                    tenant_rows.append(self._build_row(real_tenant_id, target.bk_data_id, target.table_id, ctx))
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.warning(
+                        "QueryDataLinkMetadataResource: failed to build row "
+                        "(bk_tenant_id=%s, data_id=%s, table_id=%s): %s",
+                        real_tenant_id,
+                        target.bk_data_id,
+                        target.table_id,
+                        e,
+                    )
+                    tenant_rows.append(
+                        {
+                            "bk_tenant_id": real_tenant_id,
+                            "data_id": target.bk_data_id,
+                            "result_table_id": target.table_id,
+                            "error": f"Failed to build row: {e}",
+                        }
+                    )
+
+            # Step 5: 并发拉取 runtime 字段 (BKBase V4 API + ES live + 组件 status)
             try:
-                rows.append(self._build_row(bk_tenant_id, data_id, table_id, ctx))
+                self._enrich_with_runtime(tenant_rows, ctx)
             except Exception as e:  # pylint: disable=broad-except
                 logger.warning(
-                    "QueryDataLinkMetadataResource: failed to build row (data_id=%s, table_id=%s): %s",
-                    data_id,
-                    table_id,
+                    "QueryDataLinkMetadataResource: runtime enrich failed (bk_tenant_id=%s, non-fatal): %s",
+                    real_tenant_id,
                     e,
                 )
-                rows.append(
-                    {
-                        "data_id": data_id,
-                        "result_table_id": table_id,
-                        "error": f"Failed to build row: {e}",
-                    }
-                )
+            rows.extend(tenant_rows)
 
-        # Step 4: 并发拉取 runtime 字段 (BKBase V4 API + ES live + 组件 status)
-        try:
-            self._enrich_with_runtime(rows, ctx)
-        except Exception as e:  # pylint: disable=broad-except
-            logger.warning("QueryDataLinkMetadataResource: runtime enrich failed (non-fatal): %s", e)
-
-        # Step 5: 清理行内的临时引用 (_instance 等), 避免序列化问题
+        # Step 6: 清理行内的临时引用 (_instance 等), 避免序列化问题
         for row in rows:
             comps = row.get("bkbase_components")
             if isinstance(comps, list):
@@ -719,7 +744,7 @@ class QueryDataLinkMetadataResource(Resource):
         result_table_id: str | None,
         vm_result_table_id: str | None,
         component_name: str | None,
-    ) -> list[tuple[int, str]]:
+    ) -> list[DataLinkMetadataTarget]:
         """优先级 bk_data_id > result_table_id > vm_result_table_id > component_name."""
         if bk_data_id:
             return self._resolve_by_data_id(bk_tenant_id, bk_data_id)
@@ -731,33 +756,57 @@ class QueryDataLinkMetadataResource(Resource):
             return self._resolve_by_component_name(bk_tenant_id, component_name)
         return []
 
-    def _resolve_by_data_id(self, bk_tenant_id: str, bk_data_id: str) -> list[tuple[int, str]]:
+    def _resolve_by_data_id(self, bk_tenant_id: str, bk_data_id: str) -> list[DataLinkMetadataTarget]:
         try:
             data_id_int = int(bk_data_id)
         except (TypeError, ValueError):
             return []
-        if not models.DataSource.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id=data_id_int).exists():
-            return []
-        table_ids = list(
-            models.DataSourceResultTable.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id=data_id_int).values_list(
-                "table_id", flat=True
+        data_sources = list(models.DataSource.objects.filter(bk_data_id=data_id_int))
+        if len(data_sources) > 1:
+            logger.warning(
+                "QueryDataLinkMetadataResource: bk_data_id %s matched multiple tenants: %s",
+                data_id_int,
+                [ds.bk_tenant_id for ds in data_sources],
             )
-        )
-        return [(data_id_int, t) for t in table_ids]
+        targets: list[DataLinkMetadataTarget] = []
+        for ds in data_sources:
+            table_ids = list(
+                models.DataSourceResultTable.objects.filter(
+                    bk_tenant_id=ds.bk_tenant_id, bk_data_id=data_id_int
+                ).values_list("table_id", flat=True)
+            )
+            targets.extend(DataLinkMetadataTarget(ds.bk_tenant_id, data_id_int, t) for t in table_ids)
+        return targets
 
-    def _resolve_by_table_id(self, bk_tenant_id: str, table_id: str) -> list[tuple[int, str]]:
-        dsrt = models.DataSourceResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id=table_id).first()
-        if not dsrt:
-            return []
-        return [(int(dsrt.bk_data_id), table_id)]
+    def _resolve_by_table_id(self, bk_tenant_id: str, table_id: str) -> list[DataLinkMetadataTarget]:
+        dsrts = list(models.DataSourceResultTable.objects.filter(table_id=table_id))
+        if len(dsrts) > 1:
+            logger.warning(
+                "QueryDataLinkMetadataResource: table_id %s matched multiple tenants: %s",
+                table_id,
+                [dsrt.bk_tenant_id for dsrt in dsrts],
+            )
+        return [DataLinkMetadataTarget(dsrt.bk_tenant_id, int(dsrt.bk_data_id), table_id) for dsrt in dsrts]
 
-    def _resolve_by_vm_rt_id(self, bk_tenant_id: str, vm_rt_id: str) -> list[tuple[int, str]]:
-        vm_rec = models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id, vm_result_table_id=vm_rt_id).first()
-        if not vm_rec:
-            return []
-        return self._resolve_by_table_id(bk_tenant_id, vm_rec.result_table_id)
+    def _resolve_by_vm_rt_id(self, bk_tenant_id: str, vm_rt_id: str) -> list[DataLinkMetadataTarget]:
+        vm_records = list(models.AccessVMRecord.objects.filter(vm_result_table_id=vm_rt_id))
+        if len(vm_records) > 1:
+            logger.warning(
+                "QueryDataLinkMetadataResource: vm_result_table_id %s matched multiple tenants: %s",
+                vm_rt_id,
+                [vm.bk_tenant_id for vm in vm_records],
+            )
+        targets: list[DataLinkMetadataTarget] = []
+        for vm_rec in vm_records:
+            dsrt = models.DataSourceResultTable.objects.filter(
+                bk_tenant_id=vm_rec.bk_tenant_id, table_id=vm_rec.result_table_id
+            ).first()
+            if not dsrt:
+                continue
+            targets.append(DataLinkMetadataTarget(vm_rec.bk_tenant_id, int(dsrt.bk_data_id), vm_rec.result_table_id))
+        return targets
 
-    def _resolve_by_component_name(self, bk_tenant_id: str, component_name: str) -> list[tuple[int, str]]:
+    def _resolve_by_component_name(self, bk_tenant_id: str, component_name: str) -> list[DataLinkMetadataTarget]:
         """V4 BKBase 资源名反查 (DataLink-first + 7 ``*Config`` fallback).
 
         格式 ``{namespace}-{name}``:
@@ -792,29 +841,61 @@ class QueryDataLinkMetadataResource(Resource):
             models.ConditionalSinkConfig,
         )
 
-        for ns in namespaces:
-            link = models.DataLink.objects.filter(bk_tenant_id=bk_tenant_id, namespace=ns, data_link_name=name).first()
-
-            if not link:
-                for cfg_cls in config_models:
-                    try:
-                        cfg = cfg_cls.objects.filter(bk_tenant_id=bk_tenant_id, namespace=ns, name=name).first()
-                    except Exception as e:  # pylint: disable=broad-except
-                        logger.warning("scan %s for component_name failed: %s", cfg_cls.__name__, e)
-                        continue
-                    if cfg and getattr(cfg, "data_link_name", None):
-                        link = models.DataLink.objects.filter(
-                            bk_tenant_id=bk_tenant_id, namespace=ns, data_link_name=cfg.data_link_name
-                        ).first()
-                        if link:
-                            break
-
-            if link:
+        def _targets_from_links(links: list[Any]) -> list[DataLinkMetadataTarget]:
+            targets: list[DataLinkMetadataTarget] = []
+            for link in links:
                 try:
                     data_id = int(link.bk_data_id)
                 except (TypeError, ValueError):
                     data_id = link.bk_data_id
-                return [(data_id, tid) for tid in (link.table_ids or [])]
+                targets.extend(
+                    DataLinkMetadataTarget(link.bk_tenant_id, data_id, tid) for tid in (link.table_ids or [])
+                )
+            return targets
+
+        for ns in namespaces:
+            links = list(models.DataLink.objects.filter(namespace=ns, data_link_name=name))
+            if len(links) > 1:
+                logger.warning(
+                    "QueryDataLinkMetadataResource: component_name %s matched multiple DataLink tenants: %s",
+                    component_name,
+                    [link.bk_tenant_id for link in links],
+                )
+            direct_targets = _targets_from_links(links)
+            if direct_targets:
+                return direct_targets
+
+            fallback_targets: list[DataLinkMetadataTarget] = []
+            for cfg_cls in config_models:
+                try:
+                    configs = list(cfg_cls.objects.filter(namespace=ns, name=name))
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.warning("scan %s for component_name failed: %s", cfg_cls.__name__, e)
+                    continue
+                if len(configs) > 1:
+                    logger.warning(
+                        "QueryDataLinkMetadataResource: component_name %s matched multiple %s tenants: %s",
+                        component_name,
+                        cfg_cls.__name__,
+                        [cfg.bk_tenant_id for cfg in configs],
+                    )
+                for cfg in configs:
+                    if not getattr(cfg, "data_link_name", None):
+                        continue
+                    links = list(
+                        models.DataLink.objects.filter(
+                            bk_tenant_id=cfg.bk_tenant_id, namespace=ns, data_link_name=cfg.data_link_name
+                        )
+                    )
+                    if len(links) > 1:
+                        logger.warning(
+                            "QueryDataLinkMetadataResource: config %s/%s matched multiple DataLinks",
+                            cfg_cls.__name__,
+                            cfg.data_link_name,
+                        )
+                    fallback_targets.extend(_targets_from_links(links))
+            if fallback_targets:
+                return fallback_targets
 
         return []
 
@@ -822,10 +903,10 @@ class QueryDataLinkMetadataResource(Resource):
     # Step 2: 批量预取
     # ============================================================
 
-    def _prefetch_context(self, bk_tenant_id: str, targets: list[tuple[int, str]]) -> dict[str, Any]:
+    def _prefetch_context(self, bk_tenant_id: str, targets: list[DataLinkMetadataTarget]) -> dict[str, Any]:
         """批量预取所有依赖对象到 dict, 避免逐行 N+1 查询."""
-        data_ids = list({d for d, _ in targets})
-        table_ids = list({t for _, t in targets})
+        data_ids = list({target.bk_data_id for target in targets})
+        table_ids = list({target.table_id for target in targets})
 
         # ---- DataSource ----
         data_sources = {
@@ -1517,6 +1598,7 @@ class QueryDataLinkMetadataResource(Resource):
                     row,
                     "bkbase_metadata",
                     {
+                        "bk_tenant_id": row.get("bk_tenant_id"),
                         "bk_base_data_id": row.get("bk_base_data_id"),
                         "vm_rt_name": row.get("vm_rt_name"),
                         "monitor_data_id": row.get("data_id"),
@@ -1568,6 +1650,7 @@ class QueryDataLinkMetadataResource(Resource):
                     args.get("bk_base_data_id"),
                     args.get("vm_rt_name"),
                     args.get("monitor_data_id"),
+                    args.get("bk_tenant_id"),
                 )
             if kind == "es_runtime":
                 es_storage = ctx.get("es_storages", {}).get(args["table_id"])
@@ -1591,6 +1674,7 @@ class QueryDataLinkMetadataResource(Resource):
         bk_base_data_id: int | None,
         vm_rt_name: str | None,
         monitor_data_id: int | None = None,
+        bk_tenant_id: str | None = None,
     ) -> dict[str, Any] | None:
         """调 BKBase ``GET /v4/meta/datalink/metadata/``.
 
@@ -1621,6 +1705,8 @@ class QueryDataLinkMetadataResource(Resource):
                 return {"_error": f"invalid monitor_data_id: {monitor_data_id}"}
         else:
             return None
+        if bk_tenant_id:
+            params["bk_tenant_id"] = bk_tenant_id
         try:
             return api.bkdata.get_data_link_metadata(**params)
         except Exception as e:  # pylint: disable=broad-except

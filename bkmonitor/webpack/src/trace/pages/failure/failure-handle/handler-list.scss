@@ -77,10 +77,12 @@
         }
 
         .exception-desc {
+          min-width: 0;
+          max-width: 100%;
           padding: 0 20px;
           margin-top: 8px;
           color: #979ba5;
-          overflow-wrap: break-word;
+          word-break: break-word;
         }
       }
 

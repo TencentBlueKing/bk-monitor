@@ -48,6 +48,7 @@ import {
   promqlToQueryConfig,
   queryConfigToPromql,
 } from 'monitor-api/modules/strategies';
+import { getBizRouteHref } from 'monitor-common/utils';
 import { monitorDrag } from 'monitor-common/utils/drag-directive';
 import { copyText, Debounce, deepClone, getUrlParam, random } from 'monitor-common/utils/utils';
 
@@ -2892,7 +2893,7 @@ export default class DataRetrieval extends tsc<object> {
     if (navId !== this.$route.name) {
       const parentRoute = this.$router.options.routes.find(item => item.name === navId);
       if (parentRoute) {
-        location.href = `${location.origin}${location.pathname}?bizId=${window.cc_biz_id}#${parentRoute.path}`;
+        location.href = getBizRouteHref(parentRoute.path, window.cc_biz_id);
       } else {
         this.handleReload();
       }
@@ -2905,7 +2906,7 @@ export default class DataRetrieval extends tsc<object> {
     const { needClearQuery } = this.$route.meta;
     // 清空query查询条件
     if (needClearQuery) {
-      location.href = `${location.origin}${location.pathname}?bizId=${window.cc_biz_id}#${this.$route.path}`;
+      location.href = getBizRouteHref(this.$route.path, window.cc_biz_id);
     } else {
       location.search = `?bizId=${window.cc_biz_id}`;
     }
