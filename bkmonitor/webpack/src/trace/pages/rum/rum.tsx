@@ -194,10 +194,47 @@ export default defineComponent({
       return buildRumAppRows(appListResource.value, appAsyncResource.value);
     });
 
+    /** 支持前端排序的 metric 字段（对应 RumAppRow 中的 key） */
+    const SORTABLE_METRIC_KEYS = ['lcpP75', 'jsErrorRate', 'apiFailRate'] as const;
+
+    /**
+     * 根据 tableSort 解析排序字段与方向
+     * 格式：'-field' 降序 / 'field' 升序 / 空字符串 不排序
+     */
+    const parseSort = (sortStr: string | undefined): null | { desc: boolean; field: string } => {
+      if (!sortStr) return null;
+      const desc = sortStr.startsWith('-');
+      const field = desc ? sortStr.slice(1) : sortStr;
+      if (!SORTABLE_METRIC_KEYS.includes(field as any)) return null;
+      return { field, desc };
+    };
+
     const filteredTableData = computed(() => {
+      let list = tableData.value;
+
+      // 1. 筛选
       const c = rumCriteria.value;
-      if (!Object.keys(c).length) return tableData.value;
-      return tableData.value.filter(r => rowMatchesCriteria(r, c));
+      if (Object.keys(c).length) {
+        list = list.filter(r => rowMatchesCriteria(r, c));
+      }
+
+      // 2. 排序（按 tableSort）
+      const sort = parseSort(tableSort.value);
+      if (sort) {
+        const { field, desc } = sort;
+        const sign = desc ? -1 : 1;
+        list = [...list].sort((a, b) => {
+          const va = (a as any)[field]?.value ?? null;
+          const vb = (b as any)[field]?.value ?? null;
+          // null/undefined 排到最后
+          if (va == null && vb == null) return 0;
+          if (va == null) return 1;
+          if (vb == null) return -1;
+          return (va - vb) * sign;
+        });
+      }
+
+      return list;
     });
 
     watch(
