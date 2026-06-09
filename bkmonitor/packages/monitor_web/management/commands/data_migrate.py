@@ -35,6 +35,7 @@ from monitor_web.data_migrate.data_rebuilder import (
     rebuild_uptime_check,
     update_migrate_data_id_routes,
 )
+from monitor_web.data_migrate.subscription_tasks import stop_biz_subscription_tasks
 from monitor_web.data_migrate import (
     apply_auto_increment_from_directory,
     disable_models_in_directory,
@@ -108,7 +109,10 @@ class Command(BaseCommand):
             "    python manage.py data_migrate disable-models --directory /tmp/bkmonitor-data-migrate-20260307120000 --models monitor_web.CollectConfigMeta\n"
             "\n"
             "  恢复最近一次按模型关闭的数据:\n"
-            "    python manage.py data_migrate restore-disabled-models --directory /tmp/bkmonitor-data-migrate-20260307120000"
+            "    python manage.py data_migrate restore-disabled-models --directory /tmp/bkmonitor-data-migrate-20260307120000\n"
+            "\n"
+            "  停用业务下拨测、插件采集和 k8s 采集任务:\n"
+            "    python manage.py data_migrate stop-biz-subscription-tasks --bk-tenant-id tencent --bk-biz-ids 18901 --operator admin"
         )
         parser.add_argument(
             "action",
@@ -126,6 +130,7 @@ class Command(BaseCommand):
                 "sanitize-cluster-info",
                 "disable-models",
                 "restore-disabled-models",
+                "stop-biz-subscription-tasks",
             ],
             help="执行导出、导入、恢复游标或 handler 处理",
         )
@@ -196,6 +201,16 @@ class Command(BaseCommand):
             "--kafka-cluster-name",
             help="迁移前 Kafka 集群名称；仅 update-migrate-data-id-routes 动作需要",
         )
+        parser.add_argument(
+            "--operator",
+            default="system",
+            help="操作人；仅 stop-biz-subscription-tasks 动作需要",
+        )
+        parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="仅预览不执行停用；仅 stop-biz-subscription-tasks 动作需要",
+        )
 
     def handle(self, *args, **options):
         action = options["action"]
@@ -213,6 +228,7 @@ class Command(BaseCommand):
             "sanitize-cluster-info": self._handle_sanitize_cluster_info,
             "disable-models": self._handle_disable_models,
             "restore-disabled-models": self._handle_restore_disabled_models,
+            "stop-biz-subscription-tasks": self._handle_stop_biz_subscription_tasks,
         }
         handlers[action](options)
 
@@ -436,6 +452,25 @@ class Command(BaseCommand):
             raise CommandError(str(error)) from error
         self.stdout.write(self.style.SUCCESS(f"restore disabled models completed: {directory}"))
 
+    def _handle_stop_biz_subscription_tasks(self, options) -> None:
+        bk_tenant_id = self._load_bk_tenant_id(options.get("bk_tenant_id"), action_name="stop-biz-subscription-tasks")
+        bk_biz_ids = self._load_positive_biz_ids(options.get("bk_biz_ids"), action_name="stop-biz-subscription-tasks")
+        operator = self._load_operator(options.get("operator"), action_name="stop-biz-subscription-tasks")
+        result = stop_biz_subscription_tasks(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_ids=bk_biz_ids,
+            operator=operator,
+            dry_run=options.get("dry_run", False),
+        )
+        self.stdout.write(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        failed_count = result["summary"]["total"]["failed_count"]
+        if failed_count:
+            self.stdout.write(
+                self.style.WARNING(f"stop biz subscription tasks completed with failures: {failed_count}")
+            )
+        else:
+            self.stdout.write(self.style.SUCCESS("stop biz subscription tasks completed"))
+
     def _import_from_directory(self, directory: Path, options) -> None:
         """从已解压目录执行数据导入。"""
         try:
@@ -606,6 +641,13 @@ class Command(BaseCommand):
         if not kafka_cluster_name:
             raise CommandError(f"{action_name} 动作必须提供 --kafka-cluster-name")
         return kafka_cluster_name
+
+    def _load_operator(self, raw_operator: str | None, action_name: str) -> str:
+        """校验操作人参数。"""
+        operator = str(raw_operator or "").strip()
+        if not operator:
+            raise CommandError(f"{action_name} 动作必须提供 --operator")
+        return operator
 
     def _build_export_biz_tenant_id_map(self, target_tenant_id: str) -> dict[int | str, str]:
         """构造导出流程默认使用的租户替换映射。"""
