@@ -163,7 +163,11 @@ def compose_transfer_consumer_group(data_source: "DataSource") -> str:
     """按 transfer 规则生成消费组：配置前缀 + 数据源 Kafka topic。"""
     topic = data_source.mq_config.topic
     if not topic:
-        raise ValueError(f"data_source({data_source.bk_data_id}) mq topic is empty")
+        logger.warning(
+            "compose_transfer_consumer_group: data_source->[%s] mq topic is empty, not generate consumer group",
+            data_source.bk_data_id,
+        )
+        return ""
     return f"{settings.TRANSFER_CONSUMER_GROUP_ID}{topic}"
 
 
