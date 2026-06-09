@@ -1819,6 +1819,20 @@ def test_cluster_info_list_supports_lightweight_include():
     assert "associated_counts" in detail["params_schema"]["include"]
 
 
+def test_cluster_info_list_filters_by_cluster_id():
+    queryset = _FakeQuerySet([])
+
+    with patch.object(admin_cluster_info.models.ClusterInfo.objects, "all", return_value=queryset):
+        result_queryset = admin_cluster_info._build_cluster_info_queryset(
+            {"bk_tenant_id": "system", "cluster_id": "12"},
+            "system",
+        )
+
+    assert result_queryset is queryset
+    assert {"bk_tenant_id": "system"} in queryset.filters
+    assert {"cluster_id": 12} in queryset.filters
+
+
 def test_bcs_cluster_detail_function_registered():
     detail = KernelRPCRegistry.get_function_detail("admin.bcs_cluster.detail")
     assert detail is not None
@@ -2087,6 +2101,7 @@ def test_query_route_functions_registered():
 def test_cluster_info_list_params_schema():
     detail = KernelRPCRegistry.get_function_detail("admin.cluster_info.list")
     assert detail is not None
+    assert "cluster_id" in detail["params_schema"]
     assert "ordering" in detail["params_schema"]
 
 
