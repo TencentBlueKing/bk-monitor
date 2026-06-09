@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, onMounted, computed } from 'vue';
+import { defineComponent, ref, onMounted, computed, onBeforeUnmount } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -97,6 +97,7 @@ export default defineComponent({
     const jsonText = ref({});
     const fieldListRef = ref();
     const grokModeEnabled = ref(true);
+    let isUnmounted = false;
     /**
      * 初始表单数据快照，用于对比是否有变更
      */
@@ -348,7 +349,9 @@ export default defineComponent({
           }
         })
         .finally(() => {
-          basicLoading.value = false;
+          if (!isUnmounted) {
+            basicLoading.value = false;
+          }
         });
     };
     /**
@@ -410,6 +413,10 @@ export default defineComponent({
     };
 
     // 新建、编辑采集项时获取更新详情
+    onBeforeUnmount(() => {
+      isUnmounted = true;
+    });
+
     const setDetail = id => {
       /**
        * 初始化导入的配置
@@ -432,6 +439,9 @@ export default defineComponent({
           params: { collector_config_id: id },
         })
         .then(async res => {
+          if (isUnmounted || !res.data) {
+            return;
+          }
           if (res.data) {
             // 克隆时不覆盖curCollect，避免把第一步创建的新采集项ID覆盖为旧ID
             if (!props.isClone) {

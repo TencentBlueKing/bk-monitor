@@ -103,7 +103,8 @@ export default defineComponent({
 
     const bkBizId = computed(() => store.state.bkBizId);
     const spaceUid = computed(() => store.getters.spaceUid);
-    const curCollect = computed(() => store.getters['collect/curCollect']);
+    const curCollect = computed(() => store.getters['collect/curCollect'] || {});
+    const currentCollect = computed(() => (curCollect.value?.collector_config_id ? curCollect.value : formData.value));
 
     const getInitialTab = (): ClusterType => {
       const tabQuery = route.query.tab;
@@ -250,7 +251,7 @@ export default defineComponent({
     });
 
     const prependText = computed(() => {
-      const { table_id, collector_config_name_en } = curCollect.value;
+      const { table_id, collector_config_name_en } = currentCollect.value;
       if (props.isClone) {
         return collector_config_name_en || props.configData.collector_config_name_en;
       }
@@ -353,9 +354,12 @@ export default defineComponent({
 
     const getCleanStash = async () => {
       const isStorageEdit = isEditMode.value && !!route.query.step;
-      let id = curCollect.value.collector_config_id;
+      let id = currentCollect.value?.collector_config_id;
       if (isStorageEdit) {
         id = Number(route.params.collectorId);
+      }
+      if (!id) {
+        return;
       }
       try {
         const res = await $http.request('clean/getCleanStash', {
@@ -386,6 +390,7 @@ export default defineComponent({
           })
           .then(res => {
             if (res?.data) {
+              store.commit('collect/setCurCollect', res.data);
               const { storage_cluster_id, storage_shards_nums, storage_cluster_type } = res.data;
               if (storage_cluster_type) {
                 clusterType = storage_cluster_type;
@@ -666,10 +671,10 @@ export default defineComponent({
       submitLoading.value = true;
       const { etl_params, etl_fields, clean_type } = cleanStash.value;
       const { retention, allocation_min_days, storage_replies, es_shards } = formData.value;
-      const collectorConfigId = curCollect.value.collector_config_id;
+      const collectorConfigId = currentCollect.value?.collector_config_id || route.params.collectorId;
       const tableId = props.isClone
-        ? curCollect.value.collector_config_name_en
-        : (formData.value.table_id || curCollect.value.collector_config_name_en);
+        ? currentCollect.value.collector_config_name_en
+        : (formData.value.table_id || currentCollect.value.collector_config_name_en);
       const data = {
         collector_config_id: collectorConfigId,
         retention: Number(retention),
@@ -685,7 +690,7 @@ export default defineComponent({
       $http
         .request('collect/fieldCollection', {
           params: {
-            collector_config_id: curCollect.value.collector_config_id,
+            collector_config_id: collectorConfigId,
           },
           data,
         })
