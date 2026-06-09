@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -86,6 +87,27 @@ def _create_simple_rebuild_result_table(
         creator="system",
         last_modify_user="system",
     )
+
+
+def _apply_standard_v2_data_link(data_link_ins: DataLink, data_source: models.DataSource, table_id: str, **kwargs):
+    with (
+        patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
+        patch.object(DataLink, "get_existing_component_config", return_value=None),
+        patch.object(DataLink, "apply_data_link_with_retry", return_value={"status": "success"}) as mock_apply,
+    ):
+        data_link_ins.apply_data_link(
+            bk_biz_id=1001,
+            data_source=data_source,
+            table_id=table_id,
+            storage_cluster_name="vm-plat",
+            **kwargs,
+        )
+
+    return mock_apply.call_args.args[0]
+
+
+def _get_databus_config_payload(configs: list[dict]) -> dict:
+    return next(config for config in configs if config["kind"] == DataLinkKind.DATABUS.value)
 
 
 @pytest.fixture
@@ -297,6 +319,9 @@ def create_or_delete_records(mocker):
     models.ResultTable.objects.filter(table_id__in=["system_1_system_proc.perf", "system_1_system_proc.port"]).delete()
     models.AccessVMRecord.objects.filter(
         result_table_id__in=["system_1_system_proc.perf", "system_1_system_proc.port"]
+    ).delete()
+    models.KafkaTopicInfo.objects.filter(
+        bk_data_id__in=[50010, 50011, 50012, 60010, 60011, 70010, 80010, 90010, 90011]
     ).delete()
     models.DataLink.objects.filter(data_link_name__in=["base_1_system_proc_perf", "base_1_system_proc_port"]).delete()
 
@@ -609,6 +634,113 @@ def test_Standard_V2_Time_Series_apply_data_link(create_or_delete_records):
         BkBaseResultTable.objects.get(data_link_name=bkbase_data_name).status
         == DataLinkResourceStatus.INITIALIZING.value
     )
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_compose_transfer_consumer_group_uses_transfer_prefix_and_topic(create_or_delete_records, mocker):
+    ds = models.DataSource.objects.get(bk_data_id=50010)
+    models.KafkaTopicInfo.objects.update_or_create(
+        bk_data_id=ds.bk_data_id,
+        defaults={"topic": "0bkmonitor_50010", "partition": 1},
+    )
+
+    assert utils.compose_transfer_consumer_group(ds) == "bkmonitorv3_transfer0bkmonitor_50010"
+
+    mocker.patch.object(settings, "TRANSFER_CONSUMER_GROUP_ID", "custom_transfer_")
+    assert utils.compose_transfer_consumer_group(ds) == "custom_transfer_0bkmonitor_50010"
+
+
+def test_compose_transfer_consumer_group_raises_when_topic_empty():
+    data_source = SimpleNamespace(bk_data_id=50010, mq_config=SimpleNamespace(topic=""))
+
+    with pytest.raises(ValueError, match=r"data_source\(50010\) mq topic is empty"):
+        utils.compose_transfer_consumer_group(data_source)
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_apply_data_link_writes_consumer_group_when_local_empty(create_or_delete_records):
+    ds = models.DataSource.objects.get(bk_data_id=50010)
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
+    bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id)
+    data_link_ins = DataLink.objects.create(
+        data_link_name=bkbase_data_name,
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
+    )
+
+    configs = _apply_standard_v2_data_link(
+        data_link_ins,
+        ds,
+        rt.table_id,
+        consumer_group="bkmonitorv3_transfer0bkmonitor_50010",
+    )
+
+    databus_payload = _get_databus_config_payload(configs)
+    assert databus_payload["spec"]["consumerGroup"] == "bkmonitorv3_transfer0bkmonitor_50010"
+    assert DataBusConfig.objects.get(name=bkbase_vmrt_name).consumer_group == "bkmonitorv3_transfer0bkmonitor_50010"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_apply_data_link_keeps_existing_consumer_group(create_or_delete_records, caplog):
+    ds = models.DataSource.objects.get(bk_data_id=50010)
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
+    bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id)
+    data_link_ins = DataLink.objects.create(
+        data_link_name=bkbase_data_name,
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
+    )
+
+    _apply_standard_v2_data_link(data_link_ins, ds, rt.table_id, consumer_group="consumer_group_old")
+    caplog.set_level("WARNING", logger="metadata")
+    configs = _apply_standard_v2_data_link(data_link_ins, ds, rt.table_id, consumer_group="consumer_group_new")
+
+    databus_payload = _get_databus_config_payload(configs)
+    databus_config = DataBusConfig.objects.get(name=bkbase_vmrt_name)
+    assert databus_payload["spec"]["consumerGroup"] == "consumer_group_old"
+    assert databus_config.consumer_group == "consumer_group_old"
+    assert "keep existing" in caplog.text
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_apply_data_link_empty_consumer_group_does_not_update_existing(create_or_delete_records):
+    ds = models.DataSource.objects.get(bk_data_id=50010)
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
+    bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id)
+    data_link_ins = DataLink.objects.create(
+        data_link_name=bkbase_data_name,
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
+    )
+
+    _apply_standard_v2_data_link(data_link_ins, ds, rt.table_id, consumer_group="consumer_group_old")
+    configs = _apply_standard_v2_data_link(data_link_ins, ds, rt.table_id, consumer_group="")
+
+    databus_payload = _get_databus_config_payload(configs)
+    assert databus_payload["spec"]["consumerGroup"] == "consumer_group_old"
+    assert DataBusConfig.objects.get(name=bkbase_vmrt_name).consumer_group == "consumer_group_old"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_apply_data_link_empty_consumer_group_does_not_render_when_local_empty(create_or_delete_records):
+    ds = models.DataSource.objects.get(bk_data_id=50010)
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
+    bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id)
+    data_link_ins = DataLink.objects.create(
+        data_link_name=bkbase_data_name,
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
+    )
+
+    configs = _apply_standard_v2_data_link(data_link_ins, ds, rt.table_id, consumer_group="")
+
+    databus_payload = _get_databus_config_payload(configs)
+    assert "consumerGroup" not in databus_payload["spec"]
+    assert DataBusConfig.objects.get(name=bkbase_vmrt_name).consumer_group == ""
 
 
 def test_merge_component_config_merges_config_fields_and_drops_runtime_fields():
@@ -1054,9 +1186,11 @@ def test_create_bkbase_data_link_uses_configured_bkbase_result_table_datalink(cr
             data_source=ds,
             monitor_table_id=rt.table_id,
             storage_cluster_name="vm-plat",
+            consumer_group="vm_consumer_group",
         )
 
     assert mock_apply_data_link.call_args.args[0].data_link_name == configured_data_link_name
+    assert mock_apply_data_link.call_args.kwargs["consumer_group"] == "vm_consumer_group"
     assert mock_sync_metadata.call_args.args[0].data_link_name == configured_data_link_name
     assert not DataLink.objects.filter(data_link_name=generated_data_link_name).exists()
 
