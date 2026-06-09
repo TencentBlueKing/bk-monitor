@@ -26,7 +26,7 @@ def test_default_target_merges_addition_for_non_clustering_alert(monkeypatch: py
     )
 
     monkeypatch.setattr(target_module, "get_alert_query_config_or_none", lambda _: query_config)
-    monkeypatch.setattr(target_module, "get_log_clustering_info", lambda _: (None, None))
+    monkeypatch.setattr(target_module, "get_log_clustering_info", lambda _: ("", ""))
     monkeypatch.setattr(
         target_module,
         "get_biz_index_sets_with_cache",

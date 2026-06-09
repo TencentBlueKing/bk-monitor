@@ -92,16 +92,16 @@ def get_alert_dimensions(alert: AlertDocument) -> dict[str, Any]:
     return {k: v for k, v in dimensions.items() if k in dimension_fields}
 
 
-def _get_log_clustering_type(label: str) -> str | None:
+def _get_log_clustering_type(label: str) -> str:
     """获取日志聚类标签类型。"""
     if label.startswith("LogClustering/NewClass/") and label.split("/")[-1]:
         return ClusteringType.NEW_CLASS
     if label.startswith("LogClustering/Count/") and label.split("/")[-1]:
         return ClusteringType.COUNT
-    return None
+    return ""
 
 
-def get_log_clustering_info(strategy: dict[str, Any]) -> tuple[str | None, str | None]:
+def get_log_clustering_info(strategy: dict[str, Any]) -> tuple[str, str]:
     """从日志聚类告警策略标签中提取聚类类型和索引集 ID。"""
     for label in strategy.get("labels") or []:
         clustering_type = _get_log_clustering_type(label)
@@ -109,7 +109,7 @@ def get_log_clustering_info(strategy: dict[str, Any]) -> tuple[str | None, str |
             index_set_id: str = label.split("/")[-1]
             if index_set_id:
                 return clustering_type, index_set_id
-    return None, None
+    return "", ""
 
 
 def get_log_clustering_time_range(alert: AlertDocument, clustering_type: str) -> tuple[int, int] | None:
@@ -249,11 +249,16 @@ def build_log_search_condition(
             if log_operator is None:
                 continue
 
+            value: Any = condition.get("value", [])
+            values: list[Any] = value if isinstance(value, list) else [value]
+            if not values:
+                continue
+
             addition.append(
                 {
                     "field": condition_key,
                     "operator": log_operator,
-                    "value": condition.get("value", []),
+                    "value": values,
                 }
             )
 

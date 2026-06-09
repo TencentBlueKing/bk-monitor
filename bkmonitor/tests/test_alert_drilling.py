@@ -1,4 +1,4 @@
-from bkmonitor.utils.alert_drilling import build_log_search_condition
+from bkmonitor.utils.alert_drilling import build_log_search_condition, get_log_clustering_info
 
 
 def test_build_log_search_condition_merge_keyword_with_filters() -> None:
@@ -54,3 +54,27 @@ def test_build_log_search_condition_keeps_separate_filters_by_default() -> None:
         "addition": [{"field": "level", "operator": "=", "value": ["error"]}],
         "keyword": 'message: "failed"',
     }
+
+
+def test_build_log_search_condition_merge_scalar_values_and_skip_empty_values() -> None:
+    result = build_log_search_condition(
+        query_config={
+            "query_string": 'message: "failed"',
+            "agg_condition": [
+                {"key": "level", "method": "eq", "value": "error", "condition": "and"},
+                {"key": "status_code", "method": "eq", "value": 500, "condition": "and"},
+                {"key": "service", "method": "eq", "value": [], "condition": "and"},
+            ],
+        },
+        dimensions={},
+        is_merge2keyword=True,
+    )
+
+    assert result == {
+        "addition": [],
+        "keyword": '(message: "failed") AND (level: "error" AND status_code: 500)',
+    }
+
+
+def test_get_log_clustering_info_returns_empty_strings_without_clustering_label() -> None:
+    assert get_log_clustering_info({}) == ("", "")

@@ -352,7 +352,6 @@ class DefaultTarget(BaseTarget):
         clustering_type, clustering_index_set_id = get_log_clustering_info(self._alert.strategy or {})
         is_clustering: bool = bool(clustering_type and clustering_index_set_id)
         if is_clustering:
-            assert clustering_index_set_id is not None
             index_set_id = clustering_index_set_id
         else:
             if query_config.get("data_source_label") != DataSourceLabel.BK_LOG_SEARCH:
@@ -372,7 +371,6 @@ class DefaultTarget(BaseTarget):
         extra_filter_dict: dict[str, list[str]] = {}
         exclude_fields: set[str] | None = None
         if is_clustering:
-            assert clustering_type is not None
             time_range: tuple[int, int] | None = get_log_clustering_time_range(self._alert, clustering_type)
             if time_range:
                 start_time, end_time = time_range
