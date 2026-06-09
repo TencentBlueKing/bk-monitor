@@ -47,7 +47,7 @@ import {
 
 import BaseInfo from '../business-comp/step2/base-info';
 
-import type { IFormData, IValueItem, IContainerConfigItem } from '../../type'; // 基础信息组件
+import type { IFormData, IValueItem, IContainerConfigItem, ISubmitOptions } from '../../type'; // 基础信息组件
 import DeviceMetadata from '../business-comp/step2/device-metadata'; // 设备元数据组件
 import EventFilter from '../business-comp/step2/event-filter'; // 事件过滤器组件
 import LogFilter from '../business-comp/step2/log-filter'; // 日志过滤器组件
@@ -113,11 +113,11 @@ export default defineComponent({
 
   emits: ['next', 'prev', 'cancel', 'detail'],
 
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     const { t } = useLocale();
     const store = useStore();
     const route = useRoute();
-    const { bkBizId } = useCollectList();
+    const { bkBizId, goListPage } = useCollectList();
     const { cardRender } = useOperation();
     const baseInfoRef = ref();
     const showMultilineRegDialog = ref(false);
@@ -134,6 +134,13 @@ export default defineComponent({
      * 是否修改了内容
      */
     const isConfigChange = ref(false);
+
+    /**
+     * 判断配置是否有变更
+     */
+    const hasConfigChanged = () => {
+      return isConfigChange.value;
+    };
 
     const baseConditions = {
       type: 'none',
@@ -1315,8 +1322,14 @@ export default defineComponent({
     };
     /**
      * 新增/修改配置
+     * @param options 保存选项配置
+     * @param options.action 操作类型: 'next'(默认) | 'back' | 'saveOnly'
+     * @param options.callback 保存完成后的回调函数
      */
-    const setCollection = () => {
+    const setCollection = ({
+      action = 'next',
+      callback,
+    }: ISubmitOptions = {}) => {
       loadingSave.value = true;
       const {
         params,
@@ -1401,10 +1414,19 @@ export default defineComponent({
           };
           store.commit(`collect/${isUpdate.value ? 'updateCurCollect' : 'setCurCollect'}`, newConfig);
           res.result && showMessage(t('保存成功'));
-          emit('next', newConfig);
+          // 根据 action 参数决定执行不同操作
+          if (action === 'saveOnly') {
+            // 只保存，不跳转
+            callback?.(true);
+          } else if (action === 'back') {
+            goListPage();
+          } else {
+            emit('next', newConfig);
+          }
         })
         .catch(err => {
           console.log('保存采集配置出错:', err);
+          callback?.(false);
         })
         .finally(() => {
           loadingSave.value = false;
@@ -1412,8 +1434,14 @@ export default defineComponent({
     };
     /**
      * 保存配置
+     * @param options 保存选项配置
+     * @param options.action 操作类型: 'next'(默认) | 'back' | 'saveOnly'
+     * @param options.callback 保存完成后的回调函数
      */
-    const handleSubmitSave = () => {
+    const handleSubmitSave = ({
+      action = 'next',
+      callback,
+    }: ISubmitOptions = {}) => {
       if (!showClusterListKeys.includes(props.scenarioId)) {
         isTargetNodesEmpty.value = formData.value.target_nodes.length === 0;
       }
@@ -1460,21 +1488,36 @@ export default defineComponent({
            * 判断用户是否有修改行为，如果没有则直接跳转到下一步
            */
           if (!isConfigChange.value) {
-            emit('next', formData.value);
+            if (action === 'saveOnly') {
+              // 只保存，不跳转
+              callback?.(true);
+              return;
+            } if (action === 'back') {
+              goListPage();
+            } else {
+              emit('next', formData.value);
+            }
             return;
           }
           if (props.scenarioId === 'winevent') {
-            setCollection();
+            setCollection({ action, callback });
             return;
           }
           if (!isTargetNodesEmpty.value && isErr && isLogFilterErr && !isSegmentError.value && isConfigError && isMetadataValid) {
-            setCollection();
+            setCollection({ action, callback });
           }
         })
         .catch(() => {
           loadingSave.value = false;
+          callback?.(false);
         });
     };
+
+    expose({
+      hasConfigChanged,
+      handleSubmitSave,
+    });
+
     return () => (
       <div
         class='operation-step2-configuration'
@@ -1525,10 +1568,20 @@ export default defineComponent({
             class='width-88 mr-8'
             loading={loadingSave.value}
             theme='primary'
-            on-click={handleSubmitSave}
+            on-click={() => handleSubmitSave()}
           >
             {t('下一步')}
           </bk-button>
+          {isUpdate.value && (
+            <bk-button
+              class='width-88 mr-8'
+              loading={loadingSave.value}
+              theme='primary'
+              on-click={() => handleSubmitSave({ action: 'back' })}
+            >
+              {t('提交')}
+            </bk-button>
+          )}
           <bk-button
             on-click={() => {
               emit('cancel');
