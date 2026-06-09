@@ -1365,7 +1365,7 @@ class DataLink(models.Model):
         existing_vm_record = AccessVMRecord.objects.filter(
             bk_tenant_id=self.bk_tenant_id,
             result_table_id=table_id,
-        ).first()
+        ).last()
         rt_name = bkbase_vmrt_name
         if existing_rt:
             rt_name = existing_rt.name
@@ -1509,7 +1509,7 @@ class DataLink(models.Model):
         existing_vm_record = AccessVMRecord.objects.filter(
             bk_tenant_id=self.bk_tenant_id,
             result_table_id=table_id,
-        ).first()
+        ).last()
         rt_name = bkbase_vmrt_name
         if existing_rt:
             rt_name = existing_rt.name
