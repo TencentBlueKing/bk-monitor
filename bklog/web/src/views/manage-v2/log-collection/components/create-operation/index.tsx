@@ -146,6 +146,7 @@ export default defineComponent({
 
     const containerWidth = ref(0);
     let resizeObserver: ResizeObserver | null = null;
+    let isUnmounted = false;
     const pollingTimer = ref<number | null>(null);
     /** 当前步骤组件的 ref */
     const currentStepRef = ref<any>(null);
@@ -161,7 +162,7 @@ export default defineComponent({
       if (route.query.step) {
         step.value = Number(route.query.step);
       }
-      if (step.value !== 1 && isEdit && collectId.value) {
+      if (step.value !== 1 && isEdit.value && collectId.value) {
         getCollectStatus(Number(collectId.value));
       }
       if (mainRef.value) {
@@ -185,6 +186,7 @@ export default defineComponent({
     };
 
     onBeforeUnmount(() => {
+      isUnmounted = true;
       if (resizeObserver) {
         resizeObserver.disconnect();
         resizeObserver = null;
@@ -228,7 +230,7 @@ export default defineComponent({
           },
         })
         .then(res => {
-          if (!res.result) {
+          if (isUnmounted || !res.result) {
             return;
           }
           const status = res.data[0]?.status;
@@ -243,9 +245,11 @@ export default defineComponent({
             // 如果已经有定时器在运行，先清除
             clearPolling();
             // 每 3 秒轮询一次
-            pollingTimer.value = window.setInterval(() => {
-              getCollectStatus(id);
-            }, 3000);
+            if (!isUnmounted) {
+              pollingTimer.value = window.setInterval(() => {
+                getCollectStatus(id);
+              }, 3000);
+            }
           } else {
             // 状态不为 running 时，停止轮询
             clearPolling();

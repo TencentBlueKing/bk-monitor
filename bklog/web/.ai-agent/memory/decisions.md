@@ -205,6 +205,16 @@ Constraint:
 - ContextLog 独立路由 page 模式首帧必须优先展示 loading，不能在 `requestFields -> requestContentLog` 之间短暂渲染“暂无数据”。
 - 在 `context-log/index.tsx` 中增加 `hasLoadedOnce`，page 模式初始化 `logLoading=true`，`loadContextLog` 开始时立即进入 loading，只有首轮上下文请求完成后才允许空态展示。
 - 空态条件应为 `hasLoadedOnce && !logLoading && logList.length === 0`。
+## 2026-06-03 编辑采集项稳定性排查
+
+- 场景：`manage-v2/log-collection` 编辑采集项在生产偶现页面卡死/Chrome Error 5，接口数据量小，重点排查前端状态与副作用链路。
+- 结论：编辑页多数操作在新标签页打开，不能依赖列表页通过 Vuex `collect.curCollect` 传入的内存态；各步骤应以路由 `collectorId` + `collect/details` 为权威数据源，并在详情返回后同步 `collect.curCollect`。
+- 稳定性规则：
+  1. 编辑页 Step3/Step4 进入时如存在 route collectorId，应主动拉详情并落地 store，避免新标签页 store 为空导致后续逻辑读取空对象。
+  2. 轮询、延迟 tippy 初始化、异步详情请求必须在组件卸载时取消或通过 `isUnmounted/isDestroyed` 守卫，禁止卸载后继续落地 UI。
+  3. `field-list` 这类会动态初始化 tippy 的组件必须集中调度 timer，重复触发前先清理旧 timer，避免实例和延迟任务堆积。
+  4. 编辑页路由 query 应避免重复字段，减少异常导航状态。
+- 已落地：`create-operation/index.tsx` 轮询卸载保护；`step3-clean.tsx` 详情请求卸载保护；`step4-storage.tsx` 详情回填同步 store 并 fallback formData；`field-list.tsx` tippy 初始化 timer 清理；`useCollectList.ts` 清理重复 `query.collectorId`。
 ## 2026-06-04 检索结果行操作改为 hover 浮层
 
 - 文件：`src/views/retrieve-v2/search-result-panel/log-result/log-rows.tsx`、`log-rows.scss`、`log-row-attributes.ts`。
