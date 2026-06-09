@@ -13,7 +13,9 @@ from typing import Any
 
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
+from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
 from constants.data_source import DataSourceLabel, DataTypeLabel
+from constants.elasticsearch import QueryStringLogicOperators, QueryStringOperators
 
 logger = logging.getLogger("fta_action.run")
 
@@ -32,6 +34,13 @@ MONITOR_TO_LOG_OPERATOR_MAP: dict[str, str] = {
     "exclude": "not contains",
     "contains": "contains",
     "not contains": "not contains",
+}
+
+LOG_TO_QUERY_STRING_OPERATOR_MAP: dict[str, str] = {
+    "=": QueryStringOperators.EQUAL,
+    "!=": QueryStringOperators.NOT_EQUAL,
+    "contains": QueryStringOperators.INCLUDE,
+    "not contains": QueryStringOperators.NOT_INCLUDE,
 }
 
 
@@ -181,6 +190,7 @@ def build_log_search_condition(
     dimensions: dict[str, Any],
     exclude_fields: set[str] | None = None,
     extra_filter_dict: dict[str, Any] | None = None,
+    is_merge2keyword: bool = False,
 ) -> dict[str, Any]:
     """构造日志查询过滤条件。
 
@@ -192,6 +202,7 @@ def build_log_search_condition(
     :param dimensions: 已过滤的告警维度信息字典（仅包含有效维度字段）
     :param exclude_fields: 需要从 dimensions 和 agg_condition 中排除的字段
     :param extra_filter_dict: 额外过滤条件，格式为 {field: values}
+    :param is_merge2keyword: 是否将 addition 合并到有效的 keyword 中
     :return: 包含 addition 列表和 keyword 字符串的字典
     """
     exclude_fields = exclude_fields or set()
@@ -246,9 +257,20 @@ def build_log_search_condition(
                 }
             )
 
+    keyword: str = query_config.get("query_string", "")
+    if is_merge2keyword and keyword.strip() not in {"", "*"} and addition:
+        generator = QueryStringGenerator(LOG_TO_QUERY_STRING_OPERATOR_MAP)
+        for condition in addition:
+            generator.add_filter(condition["field"], condition["operator"], condition["value"])
+
+        filter_query_string: str = generator.to_query_string()
+        if filter_query_string:
+            keyword = f"({keyword}) {QueryStringLogicOperators.AND} ({filter_query_string})"
+            addition = []
+
     return {
         "addition": addition,
-        "keyword": query_config.get("query_string", ""),
+        "keyword": keyword,
     }
 
 
