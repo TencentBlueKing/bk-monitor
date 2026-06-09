@@ -1615,6 +1615,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
         service: str,
         endpoint: str,
         exception_type: str,
+        exception_alias: str,
         exception_refer: str,
         errors: list[dict[str, Any]],
     ) -> dict[str, Any]:
@@ -1628,7 +1629,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             "last_time": last_time,
             "endpoint": endpoint,
             "message": {
-                "title": f"{endpoint}: {exception_type}",
+                "title": f"{endpoint}: {exception_alias}",
                 "subtitle": "",
                 "is_stack": _lazy("有Stack") if errors[0]["has_stack"] else _lazy("没有Stack"),
             },
@@ -1639,6 +1640,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             "app_name": self.app_name,
             "operations": {"operate": _lazy("调用链")},
             "exception_type": exception_type,
+            "exception_alias": exception_alias,
             "exception_refer": exception_refer,
         }
 
@@ -1658,6 +1660,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
                 "service": service,
                 "endpoint": endpoint,
                 "exception_type": exception_event["exception_type"],
+                "exception_alias": exception_event["exception_alias"],
                 "exception_refer": exception_event["exception_refer"],
                 "errors": [],
             },
