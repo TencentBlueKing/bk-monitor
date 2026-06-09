@@ -51,5 +51,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(migrate_index_set_to_group),
+        migrations.RunPython(migrate_index_set_to_group, migrations.RunPython.noop),
     ]
