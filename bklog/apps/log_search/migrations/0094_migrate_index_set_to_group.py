@@ -66,7 +66,7 @@ def rollback_index_set_to_group(apps, schema_editor):
 class Migration(migrations.Migration):
     dependencies = [
         ("log_databus", "0049_collectorconfig_storage_cluster_type"),
-        ("log_search", "0094_asynctask_export_progress_and_download_count"),
+        ("log_search", "0093_logindexset_is_platform_index_and_more"),
     ]
 
     operations = [
