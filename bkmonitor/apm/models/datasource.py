@@ -800,13 +800,17 @@ class TraceDataSource(ApmDataSourceConfigBase):
     def _should_enable_bkdata_datalink(self, table_id: str, bk_tenant_id: str) -> bool:
         """判断 Trace RT 是否应接入 BKBase V4 链路。
 
-        全局开关只决定新建默认行为；已接入 V4 的 RT 后续更新需要保留配置，避免隐式回退。
+        已接入 V4 的 RT 后续更新需要保留配置，避免隐式回退；
+        全局开关仅对新创建的应用生效，已有 RT 的存量应用不自动切换。
         """
-        return (
-            self.is_bkbase_v4_link()
-            or settings.ENABLE_TRACING_BKDATA
-            or self._has_legacy_v4_tracing_datalink_option(table_id=table_id, bk_tenant_id=bk_tenant_id)
-        )
+        if self.is_bkbase_v4_link() or self._has_legacy_v4_tracing_datalink_option(
+            table_id=table_id, bk_tenant_id=bk_tenant_id
+        ):
+            return True
+        # 存量应用（已有 result_table_id）不自动切换，仅增量走全局开关
+        if self.result_table_id:
+            return False
+        return settings.ENABLE_NEW_APM_APP_BKDATA_TRACING
 
     @classmethod
     def _has_legacy_v4_tracing_datalink_option(cls, table_id: str, bk_tenant_id: str) -> bool:

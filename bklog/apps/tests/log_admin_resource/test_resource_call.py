@@ -508,3 +508,50 @@ class CollectorResourceCallTest(ClearRequestLocalMixin, TestCase):
 
         self.assertTrue(content["result"])
         self.assertEqual(content["data"]["result"]["index_set"]["bk_biz_id"], -66)
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("bkm_space.api.SpaceApi.batch_get_space_detail")
+    def test_index_set_list_batch_resolves_bk_biz_id_without_per_row_space_lookup(self, mock_batch):
+        mock_batch.return_value = {
+            "bkci__pipeline-a": SimpleNamespace(id=66),
+            "bkci__pipeline-b": SimpleNamespace(id=77),
+        }
+        LogIndexSet.objects.create(
+            index_set_id=981,
+            index_set_name="pipeline-a-log",
+            space_uid="bkci__pipeline-a",
+            category_id="platform",
+            scenario_id=Scenario.LOG,
+        )
+        LogIndexSet.objects.create(
+            index_set_id=982,
+            index_set_name="pipeline-b-log",
+            space_uid="bkci__pipeline-b",
+            category_id="platform",
+            scenario_id=Scenario.LOG,
+        )
+        LogIndexSet.objects.create(
+            index_set_id=983,
+            index_set_name="pipeline-c-log",
+            space_uid="bkcc__9",
+            category_id="platform",
+            scenario_id=Scenario.LOG,
+        )
+
+        content = self._call(
+            "bklog.index_set.list",
+            {"index_set_name": "pipeline", "page": 1, "page_size": 20, "ordering": "index_set_id"},
+        )
+
+        self.assertTrue(content["result"])
+        result = content["data"]["result"]
+        self.assertEqual(result["total"], 3)
+        by_id = {item["index_set_id"]: item for item in result["items"]}
+        self.assertEqual(by_id[981]["bk_biz_id"], -66)
+        self.assertEqual(by_id[982]["bk_biz_id"], -77)
+        # BKCC 业务空间直接解析，无需查询
+        self.assertEqual(by_id[983]["bk_biz_id"], 9)
+        # 整页非业务空间只触发一次批量查询，消除 N+1；BKCC 空间不进入批量集合
+        mock_batch.assert_called_once()
+        called_space_uids = mock_batch.call_args.args[0]
+        self.assertEqual(set(called_space_uids), {"bkci__pipeline-a", "bkci__pipeline-b"})
