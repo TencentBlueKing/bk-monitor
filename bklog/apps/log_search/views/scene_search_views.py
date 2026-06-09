@@ -13,9 +13,14 @@ import arrow
 from bkm_space.utils import space_uid_to_bk_biz_id
 from django.http import StreamingHttpResponse
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import SCENE_SEARCH
 from apps.generic import APIViewSet
 from apps.iam.handlers.actions import ActionEnum
 from apps.iam.handlers.drf import BusinessActionPermission
@@ -424,6 +429,49 @@ from apps.utils.scene_lucene import (  # noqa: E402, F401
 # Permission
 # ---------------------------------------------------------------------------
 
+def _resolve_scene_biz_id(request):
+    """解析场景化检索请求的业务 ID。
+
+    场景化检索接口约定只传 space_uid，这里统一解析顺序：
+    bk_biz_id（body/query） -> space_uid 反查 bk_biz_id -> 0。
+    供灰度开关与业务级权限两个权限类共用，避免重复实现。
+    """
+    bk_biz_id = (
+        request.data.get("bk_biz_id", 0)
+        or request.query_params.get("bk_biz_id", 0)
+    )
+    if bk_biz_id:
+        return bk_biz_id
+    space_uid = (
+        request.data.get("space_uid")
+        or request.query_params.get("space_uid")
+    )
+    if space_uid:
+        try:
+            return space_uid_to_bk_biz_id(space_uid) or 0
+        except Exception:
+            return 0
+    return 0
+
+
+class _SceneFeatureTogglePermission(BasePermission):
+    """SceneSearchViewSet 灰度开关后端拦截。
+
+    SCENE_SEARCH 开关此前仅作为前端可见性配置透传，后端不做拦截，
+    灰度未开的业务仍可直连 API 查询/导出。这里在权限层按业务校验开关，
+    与 _SceneViewBusinessPermission 配合（开关在前先拦截）。
+    """
+
+    def has_permission(self, request, view):
+        biz_id = _resolve_scene_biz_id(request)
+        # 解析不到业务 ID 时交由后续业务级权限处理，这里不放行也不误拦。
+        if not biz_id:
+            return True
+        if not FeatureToggleObject.switch(SCENE_SEARCH, int(biz_id)):
+            raise PermissionDenied(_("当前业务未开启场景化检索功能"))
+        return True
+
+
 class _SceneViewBusinessPermission(BusinessActionPermission):
     """SceneSearchViewSet 专用业务级权限校验。
 
@@ -435,22 +483,7 @@ class _SceneViewBusinessPermission(BusinessActionPermission):
 
     @classmethod
     def fetch_biz_id_by_request(cls, request):
-        bk_biz_id = (
-            request.data.get("bk_biz_id", 0)
-            or request.query_params.get("bk_biz_id", 0)
-        )
-        if bk_biz_id:
-            return bk_biz_id
-        space_uid = (
-            request.data.get("space_uid")
-            or request.query_params.get("space_uid")
-        )
-        if space_uid:
-            try:
-                return space_uid_to_bk_biz_id(space_uid) or 0
-            except Exception:
-                return 0
-        return 0
+        return _resolve_scene_biz_id(request)
 
 
 # ---------------------------------------------------------------------------
@@ -461,16 +494,23 @@ class SceneSearchViewSet(APIViewSet):
     serializer_class = serializers.Serializer
 
     def get_permissions(self):
-        # 所有 action 暂时统一走业务级 VIEW_BUSINESS。
-        # _SceneViewBusinessPermission 会把 space_uid 兜底解析成 bk_biz_id，
-        # 解决基类只认 bk_biz_id 入参导致的旁路问题。
+        # 两层校验，开关在前先拦截：
+        #   1. _SceneFeatureTogglePermission：按业务校验 SCENE_SEARCH 灰度开关，
+        #      灰度未开的业务直接拒绝，避免后端无拦截被直连。
+        #   2. _SceneViewBusinessPermission：所有 action 统一走业务级 VIEW_BUSINESS，
+        #      会把 space_uid 兜底解析成 bk_biz_id，解决基类只认 bk_biz_id 入参导致的旁路问题。
+        # 检索/导出类接口的索引集级 SEARCH_LOG 校验在 ts/raw 返回后按命中结果表执行
+        # （见 SceneUnifyQueryHandler.verify_result_table_search_permission）。
         # 后续若细化（如导出 EXPORT_LOG / 模板管理 MANAGE_SCENE_TEMPLATE）时按 action 分组替换即可：
         #   - 检索类：search/fields/chart/agg_field/total/dimension_values/history/aggs_*/field_statistics_*
         #   - 导出类：scene_sample_export/scene_async_export/scene_quick_export/scene_export_history/scene_export_chart_data
         #   - 模板读：list_config/retrieve_config
         #   - 模板写：create_config/update_config/delete_config/apply_config
         #   - 用户偏好：user_custom_config（写入侧由 handler 强制 username=当前用户）
-        return [_SceneViewBusinessPermission([ActionEnum.VIEW_BUSINESS])]
+        return [
+            _SceneFeatureTogglePermission(),
+            _SceneViewBusinessPermission([ActionEnum.VIEW_BUSINESS]),
+        ]
 
     @list_route(methods=["GET"], url_path="scenes")
     def scenes(self, request):
