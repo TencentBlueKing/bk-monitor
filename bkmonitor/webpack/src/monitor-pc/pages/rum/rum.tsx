@@ -45,9 +45,9 @@ export default class Rum extends tsc<object> {
   @Prop() a: number;
   unmountCallback: () => void;
   // 是否显示引导页（依赖 space_introduce 接口数据，未接入时通过本地兜底模板始终展示）
-  get showGuidePage() {
-    return introduce.getShowGuidePageByRoute(this.$route.meta?.navId);
-  }
+  // get showGuidePage() {
+  //   return introduce.getShowGuidePageByRoute(this.$route.meta?.navId);
+  // }
   get traceHost() {
     return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
   }
@@ -87,10 +87,11 @@ export default class Rum extends tsc<object> {
     }
   }
   async mounted() {
-    if (this.showGuidePage) {
-      this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', false);
-      return;
-    }
+    // console.log('mounted--------------------------', this.showGuidePage);
+    // if (this.showGuidePage) {
+    //   this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', false);
+    //   return;
+    // }
     await loadApp({
       url: this.traceUrl,
       id: traceAppId,
@@ -108,7 +109,7 @@ export default class Rum extends tsc<object> {
     }, 300);
   }
   beforeDestroy() {
-    if (this.showGuidePage) return;
+    // if (this.showGuidePage) return;
     this.unmountCallback?.();
     unmount(traceAppId);
     this.unmountCallback = undefined;
