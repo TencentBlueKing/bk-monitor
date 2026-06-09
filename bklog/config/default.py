@@ -624,7 +624,7 @@ FEATURE_TOGGLE = {
     # 日志脱敏
     "log_desensitize": os.environ.get("BKAPP_FEATURE_DESENSITIZE", "on"),
     # 新版采集管理
-    "log_manage_v2": "on",
+    "log_manage_v2": os.environ.get("BKAPP_FEATURE_LOG_MANAGE_V2", "on"),
     # 客户端日志
     "tgpa_task": os.environ.get("BKAPP_FEATURE_TGPA_TASK", "off"),
 }
