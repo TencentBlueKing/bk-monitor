@@ -292,17 +292,24 @@ const activeOperator = computed(
 );
 
 const FUZZY_MATCH_OPERATOR_LIST = ['contains match phrase', 'not contains match phrase', '=~', '!=~'];
+const FUZZY_NEGATIVE_OPERATOR_LIST = ['not contains match phrase', '!=~'];
 
 const isFuzzyMatchAvailable = computed(() => {
   return ['text', 'string'].includes(activeFieldItem.value.field_type)
     && FUZZY_MATCH_OPERATOR_LIST.includes(condition.value.operator);
 });
 
-const fuzzyMatchOperator = computed(() => {
-  if (!condition.value.isInclude) {
-    return condition.value.operator;
+const getFuzzyOperator = (isWildcard: boolean) => {
+  const isNegative = FUZZY_NEGATIVE_OPERATOR_LIST.includes(condition.value.operator);
+  if (isNegative) {
+    return isWildcard ? '!=~' : 'not contains match phrase';
   }
-  return condition.value.operator === 'not contains match phrase' ? '!=~' : '=~';
+
+  return isWildcard ? '=~' : 'contains match phrase';
+};
+
+const fuzzyMatchOperator = computed(() => {
+  return getFuzzyOperator(Boolean(condition.value.isInclude));
 });
 
 const fuzzyMatchEngine = computed(() => {

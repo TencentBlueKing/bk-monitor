@@ -77,7 +77,7 @@ const isAsteriskEscaped = (text: string, index: number) => {
   return slashCount % 2 === 1;
 };
 
-const startsWithUnescapedAsterisk = (text: string) => text.startsWith('*');
+const startsWithUnescapedAsterisk = (text: string) => text.startsWith('*') && !isAsteriskEscaped(text, 0);
 const endsWithUnescapedAsterisk = (text: string) => text.endsWith('*') && !isAsteriskEscaped(text, text.length - 1);
 const hasUnescapedWildcard = (text: string) => {
   for (let i = 0; i < text.length; i++) {
@@ -109,6 +109,7 @@ const escapeEdgeAsterisks = (text: string) => {
 
 const normalizeKeyword = (value: string) => escapeEdgeAsterisks(String(value ?? '').trim());
 const isExactOperator = (operator: string) => ['contains match phrase', 'not contains match phrase'].includes(operator);
+const isWildcardOperator = (operator: string) => ['=~', '!=~', '&=~', '&!=~'].includes(operator);
 
 const computeQuery = (mode: Mode, text: string) => {
   const value = normalizeKeyword(text);
@@ -157,6 +158,10 @@ const inferModeAndKeywords = (value: string | string[], operator = props.operato
   }
 
   if (values.some(item => hasUnescapedWildcard(item))) {
+    return { mode: 'custom', keywords: values };
+  }
+
+  if (isWildcardOperator(operator)) {
     return { mode: 'custom', keywords: values };
   }
 
