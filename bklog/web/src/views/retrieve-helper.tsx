@@ -228,10 +228,12 @@ class RetrieveHelper extends RetrieveBase {
     const formatRegStr = !regExpMark;
     this.markInstance.highlight(
       (keywords ?? []).map((keyword, index) => {
+        const colorPair = this.RGBA_LIST[index % this.RGBA_LIST.length];
         return {
           text: keyword,
           className: `highlight-${index}`,
-          backgroundColor: this.RGBA_LIST[index % this.RGBA_LIST.length],
+          backgroundColor: colorPair[0],
+          color: colorPair[1],
           textReg: this.getRegExp(keyword, caseSensitive ? '' : 'i', accuracy === 'exactly', formatRegStr),
         };
       }),

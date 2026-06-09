@@ -12,6 +12,7 @@ from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.data_link.data_link import DataLink
 from metadata.models.data_link.data_link_configs import DorisStorageBindingConfig, ESStorageBindingConfig
+from metadata.models.data_link.utils import compose_transfer_consumer_group
 from metadata.models.result_table import LogV4DataLinkOption
 from metadata.models.storage import ClusterInfo, DorisStorage, ESStorage
 
@@ -48,6 +49,13 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
             # 禁止从V4链路切换回transfer
             raise ValueError(f"apply_log_v4_datalink: tenant({bk_tenant_id}) {table_id} cannot switch back to transfer")
         return
+
+    # 如果这次是从transfer链路切换到V4链路，则需要设置consumer_group，避免数据链路切换时消费组不一致
+    consumer_group = (
+        compose_transfer_consumer_group(ds)
+        if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value
+        else None
+    )
 
     # 如果datasource是gse创建的，需要在bkbase上注册
     if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:
@@ -146,7 +154,7 @@ def apply_log_datalink(bk_tenant_id: str, table_id: str):
         bkbase_rt.status = DataLinkResourceStatus.CREATING.value
         bkbase_rt.save()
 
-    datalink.apply_data_link(bk_biz_id=rt.bk_biz_id, data_source=ds, table_id=table_id)
+    datalink.apply_data_link(bk_biz_id=rt.bk_biz_id, data_source=ds, table_id=table_id, consumer_group=consumer_group)
 
     # 回填 BkBaseResultTable 的 bkbase_rt_name / bkbase_table_id / bkbase_data_name 等。
     # 当 ES / Doris 两种存储同时存在时，按 ResultTable.default_storage 选择记录的存储类型；
@@ -247,6 +255,12 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
             )
         return
 
+    consumer_group = (
+        compose_transfer_consumer_group(ds)
+        if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value
+        else None
+    )
+
     # 如果datasource是gse创建的，需要在bkbase上注册
     if data_source_created_from != DataIdCreatedFromSystem.BKDATA.value:
         logger.info(
@@ -292,7 +306,7 @@ def apply_event_group_datalink(bk_tenant_id: str, table_id: str):
         bkbase_rt.save()
 
     # 创建/更新链路配置
-    datalink.apply_data_link(bk_biz_id=rt.bk_biz_id, data_source=ds, table_id=table_id)
+    datalink.apply_data_link(bk_biz_id=rt.bk_biz_id, data_source=ds, table_id=table_id, consumer_group=consumer_group)
 
     # 回填 BkBaseResultTable 的 bkbase_rt_name / bkbase_table_id / bkbase_data_name 等。
     # 事件组 V4 链路使用 ES 存储，按 table_id 关联到 ESStorage 拿到 storage_cluster_id。

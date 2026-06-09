@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from 'vue';
+import { computed, defineComponent } from 'vue';
 
 import { random } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
@@ -32,7 +32,7 @@ import { useI18n } from 'vue-i18n';
 import CommonHeader from '../../../components/common-header/common-header';
 import { useAlarmCenterStore } from '../../../store/modules/alarm-center';
 import { useAppStore } from '../../../store/modules/app';
-import { type AlarmType, alarmTypeMap } from '../typings';
+import { type AlarmType, AlarmType as AlarmTypeEnum, alarmTypeMap } from '../typings';
 
 import type { TimeRangeType } from '../../../components/time-range/utils';
 
@@ -49,6 +49,7 @@ export default defineComponent({
   emits: {
     alarmTypeChange: (_value: AlarmType) => true,
     favoriteShowChange: (_value: boolean) => true,
+    accessGuideClick: () => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -84,6 +85,12 @@ export default defineComponent({
       emit('favoriteShowChange', !props.isShowFavorite);
     };
 
+    const handleAccessGuideClick = () => {
+      emit('accessGuideClick');
+    };
+
+    const isIncidentMode = computed(() => alarmStore.alarmType === AlarmTypeEnum.INCIDENT);
+
     return {
       t,
       alarmTypeMap,
@@ -95,6 +102,8 @@ export default defineComponent({
       handleGotoOld,
       alarmStore,
       handleFavoriteShowChange,
+      handleAccessGuideClick,
+      isIncidentMode,
     };
   },
   render() {
@@ -112,6 +121,16 @@ export default defineComponent({
           onTimezoneChange={this.handleTimezoneChange}
         >
           {{
+            accessGuide: () =>
+              this.isIncidentMode ? (
+                <div
+                  class='access-guide-link'
+                  onClick={this.handleAccessGuideClick}
+                >
+                  <i class='icon-monitor icon-bangzhuwendang' />
+                  {this.t('接入指引')}
+                </div>
+              ) : null,
             left: () => (
               <div class='alarm-center-header-left'>
                 <div class='favorite-container'>
