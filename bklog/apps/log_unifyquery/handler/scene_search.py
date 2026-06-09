@@ -285,6 +285,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         search_dict["highlight"] = {"enable": self.highlight}
 
         result = self.query_ts_raw(search_dict)
+        self.verify_result_table_search_permission(result.get("result_table_id"))
         result = self._deal_query_result(result)
 
         if self.search_params.get("original_search"):
@@ -332,6 +333,92 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
                 if tag_ids.issubset(idx_tag_ids):
                     return f"bklog_index_set_{idx_set['index_set_id']}"
         return ""
+
+    # ------------------------------------------------------------------
+    # Result-table level search permission (post ts/raw)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _map_result_tables_to_index_sets(rt_ids: List[str]) -> List[int]:
+        """Map unify-query result_table_id list to index_set_id list.
+
+        result_table_id may arrive as the real result table id (e.g. ``2_bklog.xxx``)
+        or as the data_label (``bklog_index_set_{index_set_id}``). Handle both so the
+        permission check never silently misses a table.
+        """
+        from apps.log_search.models import LogIndexSetData
+
+        index_set_ids: set = set()
+        remaining: list = []
+        for rt in rt_ids:
+            if rt.startswith("bklog_index_set_"):
+                try:
+                    index_set_ids.add(int(rt.rsplit("_", 1)[-1]))
+                except (ValueError, IndexError):
+                    remaining.append(rt)
+            else:
+                remaining.append(rt)
+
+        if remaining:
+            index_set_ids.update(
+                LogIndexSetData.objects.filter(result_table_id__in=remaining)
+                .values_list("index_set_id", flat=True)
+                .distinct()
+            )
+        return list(index_set_ids)
+
+    def verify_result_table_search_permission(self, result_table_ids: List[str]) -> None:
+        """Verify current user has SEARCH_LOG permission on every index set hit.
+
+        Called after ts/raw returns, using the response's ``result_table_id`` list.
+        Strict semantics: if the user lacks SEARCH_LOG on any matched index set,
+        raise PermissionDeniedError listing the denied index sets (with apply url),
+        consistent with the index-set search permission flow.
+        """
+        if getattr(self, "_rt_perm_verified", False):
+            return
+        if settings.IGNORE_IAM_PERMISSION:
+            self._rt_perm_verified = True
+            return
+
+        rt_ids = [rt for rt in (result_table_ids or []) if rt]
+        if not rt_ids:
+            self._rt_perm_verified = True
+            return
+
+        index_set_ids = self._map_result_tables_to_index_sets(rt_ids)
+        if not index_set_ids:
+            self._rt_perm_verified = True
+            return
+
+        from apps.iam import ActionEnum, ResourceEnum
+        from apps.iam.exceptions import PermissionDeniedError
+        from apps.iam.handlers.permission import Permission
+
+        perm = Permission()
+        resources = [
+            [ResourceEnum.INDICES.create_simple_instance(instance_id=str(index_set_id))]
+            for index_set_id in index_set_ids
+        ]
+        permission_result = perm.batch_is_allowed([ActionEnum.SEARCH_LOG], resources)
+        denied = [
+            index_set_id
+            for index_set_id in index_set_ids
+            if not permission_result.get(str(index_set_id), {}).get(ActionEnum.SEARCH_LOG.id)
+        ]
+        if denied:
+            denied_resources = [
+                ResourceEnum.INDICES.create_simple_instance(instance_id=str(index_set_id))
+                for index_set_id in denied
+            ]
+            apply_data, apply_url = perm.get_apply_data([ActionEnum.SEARCH_LOG], denied_resources)
+            raise PermissionDeniedError(
+                action_name=ActionEnum.SEARCH_LOG.name,
+                apply_url=apply_url,
+                permission=apply_data,
+            )
+
+        self._rt_perm_verified = True
 
     def fields(self, scope="default") -> dict:
         query_body = {
@@ -564,6 +651,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
 
         logger.info("[scene_total] space_uid=%s", self.space_uid)
         result = self.query_ts_raw(search_dict)
+        self.verify_result_table_search_permission(result.get("result_table_id"))
         return {"total": result.get("total", 0)}
 
     def aggs_date_histogram(self, interval: str = "auto", group_field: str = None) -> dict:
@@ -668,6 +756,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             search_result = UnifyQueryHandler.query_ts_raw_with_scroll(search_params)
             if not search_result.get("list"):
                 break
+            self.verify_result_table_search_permission(search_result.get("result_table_id"))
             if not header_written:
                 result_table_options = list(search_result.get("result_table_options", {}).values())
                 result_schema = result_table_options[0]["result_schema"] if result_table_options else []
