@@ -591,7 +591,6 @@ APM_DORIS_STORAGE_CONFIG = {}
 # APM profile v4接入配置
 APM_PROFILE_V4_BIZ_WHITE_LIST = []
 APM_PROFILE_V4_DORIS_BINDING_CLUSTER = ""
-APM_PROFILE_V4_DATABUS_PREFER_CLUSTER = ""
 # {2:["foo", "bar"], 3:["baz"]}
 APM_PROFILING_ENABLED_APPS = {}
 # dis/enable profiling for all apps
