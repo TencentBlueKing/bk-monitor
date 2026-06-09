@@ -495,4 +495,5 @@ export default {
   '当前业务暂无 图谱RCA 分析结果': 'Current business has no Topology RCA analysis result',
   '参考下表接入数据，如有疑问请联系 {link}':
     'Refer to the following table for data access, if you have any questions, please contact {link}',
+  被调无需选择: 'Callee does not need to be selected',
 };
