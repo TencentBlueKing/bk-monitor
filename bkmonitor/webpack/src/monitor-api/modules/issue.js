@@ -20,6 +20,7 @@ export const mergeIssue = request('POST', 'fta/issue/issue/merge/');
 export const splitIssue = request('POST', 'fta/issue/issue/split/');
 export const listMergeSources = request('GET', 'fta/issue/issue/merge_sources/');
 export const alertIssueEnrich = request('POST', 'fta/issue/issue/alert_enrich/');
+export const listTapdWorkspace = request('POST', 'fta/issue/tapd/workspace/');
 
 
 export default {
@@ -43,4 +44,5 @@ export default {
   splitIssue,
   listMergeSources,
   alertIssueEnrich,
+  listTapdWorkspace,
 };
