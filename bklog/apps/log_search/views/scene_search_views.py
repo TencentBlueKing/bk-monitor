@@ -10,12 +10,15 @@ import math
 from io import BytesIO, TextIOWrapper
 
 import arrow
+from bkm_space.utils import space_uid_to_bk_biz_id
 from django.http import StreamingHttpResponse
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.response import Response
 
 from apps.generic import APIViewSet
+from apps.iam.handlers.actions import ActionEnum
+from apps.iam.handlers.drf import BusinessActionPermission
 from apps.log_search.constants import (
     ExportFileType,
     ExportStatus,
@@ -418,6 +421,39 @@ from apps.utils.scene_lucene import (  # noqa: E402, F401
 
 
 # ---------------------------------------------------------------------------
+# Permission
+# ---------------------------------------------------------------------------
+
+class _SceneViewBusinessPermission(BusinessActionPermission):
+    """SceneSearchViewSet 专用业务级权限校验。
+
+    基类 BusinessActionPermission.fetch_biz_id_by_request 只认 bk_biz_id，
+    场景化检索接口约定只传 space_uid，会被基类一行 `if not bk_biz_id: return True` 旁路。
+    这里覆写解析顺序：bk_biz_id（body/query） -> space_uid -> bk_biz_id 反查，
+    其他 BusinessActionPermission 调用点不受影响。
+    """
+
+    @classmethod
+    def fetch_biz_id_by_request(cls, request):
+        bk_biz_id = (
+            request.data.get("bk_biz_id", 0)
+            or request.query_params.get("bk_biz_id", 0)
+        )
+        if bk_biz_id:
+            return bk_biz_id
+        space_uid = (
+            request.data.get("space_uid")
+            or request.query_params.get("space_uid")
+        )
+        if space_uid:
+            try:
+                return space_uid_to_bk_biz_id(space_uid) or 0
+            except Exception:
+                return 0
+        return 0
+
+
+# ---------------------------------------------------------------------------
 # ViewSet
 # ---------------------------------------------------------------------------
 
@@ -425,7 +461,16 @@ class SceneSearchViewSet(APIViewSet):
     serializer_class = serializers.Serializer
 
     def get_permissions(self):
-        return []
+        # 所有 action 暂时统一走业务级 VIEW_BUSINESS。
+        # _SceneViewBusinessPermission 会把 space_uid 兜底解析成 bk_biz_id，
+        # 解决基类只认 bk_biz_id 入参导致的旁路问题。
+        # 后续若细化（如导出 EXPORT_LOG / 模板管理 MANAGE_SCENE_TEMPLATE）时按 action 分组替换即可：
+        #   - 检索类：search/fields/chart/agg_field/total/dimension_values/history/aggs_*/field_statistics_*
+        #   - 导出类：scene_sample_export/scene_async_export/scene_quick_export/scene_export_history/scene_export_chart_data
+        #   - 模板读：list_config/retrieve_config
+        #   - 模板写：create_config/update_config/delete_config/apply_config
+        #   - 用户偏好：user_custom_config（写入侧由 handler 强制 username=当前用户）
+        return [_SceneViewBusinessPermission([ActionEnum.VIEW_BUSINESS])]
 
     @list_route(methods=["GET"], url_path="scenes")
     def scenes(self, request):
@@ -605,6 +650,8 @@ class SceneSearchViewSet(APIViewSet):
         @apiGroup 14_SceneSearch
         @apiDescription 读/写/删当前用户的场景 UI 偏好（7 字段 camelCase JSON），与模板系统解耦。
         """
+        # username 故意只从请求上下文取（外部用户优先），不接受请求体/query 里传入的 username，
+        # 防止伪造其他用户的偏好。对应 Serializer 也不暴露 username 字段。
         username = get_request_external_username() or get_request_username()
 
         if request.method.upper() == "POST":
