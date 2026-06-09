@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import base64
+
 from django.conf import settings
 from rest_framework import serializers
 
@@ -20,8 +22,11 @@ class TapdAPIResource(APIResource):
     module_name = "tapd"
 
     def get_headers(self):
-        # todo 待tapd授权方式确定后补充
-        pass
+        credentials = f"{settings.TAPD_APP_ID}:{settings.TAPD_APP_SECRET}"
+        encoded_str = base64.b64encode(credentials.encode("utf-8")).decode("utf-8")
+        headers = {"Authorization": f"Basic {encoded_str}"}
+
+        return headers
 
 
 class GetGrantedWorkspacesResource(TapdAPIResource):
