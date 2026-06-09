@@ -9,14 +9,17 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+import copy
 
 from django.conf import settings
+from django.core.cache import cache
 from django.db.transaction import atomic
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.user import get_global_user, get_backend_username
+from bkmonitor.utils import group_by
 from common.log import logger
 from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE, EventSeverity
 from constants.common import DEFAULT_TENANT_ID
@@ -34,10 +37,20 @@ from rum_web.constants import (
     DefaultSetupConfig,
     NODATA_ERROR_STRATEGY_CONFIG_KEY,
     DataStatus,
+    RUM_APPLICATION_DEFAULT_METRIC,
     RUM_WEB_CLIENT_CHOICES,
 )
+from rum_web.handlers.service_handler import ServiceHandler
 from rum_web.handlers.backend_handler import telemetry_handler_registry
 from rum_web.models.application import Application, RumAppConfig
+from rum_web.metric_handler import (
+    LcpP75Instance,
+    JsErrorRateInstance,
+    ApiFailRateInstance,
+)
+from rum_web.metrics import APPLICATION_LIST
+from rum_web.resources import AsyncColumnsListResource
+from rum_web.serializers import ApplicationCacheSerializer
 
 
 class CreateApplicationResource(Resource):
@@ -463,11 +476,89 @@ class ListApplicationResource(PageListResource):
         return self.get_pagination_data(data, validate_data)
 
 
-class ListApplicationAsyncResource(Resource):
+class ListApplicationAsyncResource(AsyncColumnsListResource):
     """
     应用列表异步指标查询接口。
-    TODO: 待 RUM metric 字段定义完成后实现真实查询。
+    参考 APM 的 ListApplicationAsyncResource 实现。
     """
+
+    METRIC_MAP = {
+        "lcp_p75": LcpP75Instance,
+        "js_error_rate": JsErrorRateInstance,
+        "api_fail_rate": ApiFailRateInstance,
+    }
+
+    SyncResource = ListApplicationResource
+
+    @classmethod
+    def get_miss_application_and_cache_metric_data(cls, applications):
+        """
+        获取应用指标缓存数据及miss_application
+        :param applications: 应用列表
+        :return:
+        """
+
+        miss_application = []
+        cache_metric_data = {}
+
+        # 获取缓存数据
+        cache_key_maps = {str(app.get("application_id")): ServiceHandler.build_cache_key(app) for app in applications}
+        cache_data = cache.get_many(cache_key_maps.values())
+
+        for app in applications:
+            application_id = str(app.get("application_id"))
+            key = cache_key_maps.get(application_id)
+            app_cache_data = cache_data.get(key)
+            if app_cache_data:
+                cache_metric_data[application_id] = app_cache_data
+            else:
+                miss_application.append(app)
+        return miss_application, cache_metric_data
+
+    @classmethod
+    def get_metric_data(cls, metric_name: str, applications: list) -> dict:
+        """
+        获取应用指标数据
+        :param metric_name: 指标名称
+        :param applications: 应用列表
+        :return:
+        """
+
+        metric_data = APPLICATION_LIST(applications, metric_handler_cls=[cls.METRIC_MAP.get(metric_name)])
+
+        metric_map = {}
+        for app in applications:
+            application_id = str(app["application_id"])
+            app_metric = metric_data.get(application_id, copy.deepcopy(RUM_APPLICATION_DEFAULT_METRIC))
+            metric_map[application_id] = app_metric
+        return metric_map
+
+    def build_res(self, validate_data, app_mapping, metric_data):
+        """
+        获取返回数据
+        :param validate_data: 参数
+        :param app_mapping: 应用MAP
+        :param metric_data: 指标数据
+        :return:
+        """
+
+        res = []
+
+        for application_id in validate_data.get("application_ids"):
+            if application_id not in app_mapping:
+                continue
+
+            app_metric = metric_data.get(str(application_id), {})
+            if validate_data["column"] in app_metric:
+                res.append(
+                    {
+                        "application_id": application_id,
+                        "app_name": app_mapping[application_id][0].app_name,
+                        **self.get_async_column_item(app_metric, validate_data["column"]),
+                    }
+                )
+
+        return res
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
@@ -478,10 +569,35 @@ class ListApplicationAsyncResource(Resource):
 
     many_response_data = True
 
-    def perform_request(self, validated_request_data):
-        # TODO: 待 RUM metric 数据源定义 lcp_p75/js_error_rate/api_fail_rate 字段后，
-        #  通过 resource.grafana.graph_unify_query 查询真实指标数据
-        return []
+    def perform_request(self, validate_data):
+        res = []
+
+        application_ids = validate_data.get("application_ids")
+        if not application_ids:
+            return res
+
+        applications = Application.objects.filter(
+            bk_biz_id=validate_data["bk_biz_id"], application_id__in=[int(app_id) for app_id in application_ids]
+        )
+        application_mapping = group_by(applications, lambda i: str(i.application_id))
+
+        cache_applications = sorted(
+            ApplicationCacheSerializer(applications, many=True).data, key=lambda i: i.get("application_id", 0)
+        )
+
+        miss_application, cache_metric_data = self.get_miss_application_and_cache_metric_data(
+            applications=cache_applications
+        )
+
+        # 缓存中缺少部分应用时，补全数据
+        if miss_application:
+            metric_data = self.get_metric_data(metric_name=validate_data["column"], applications=miss_application)
+            cache_metric_data.update(metric_data)
+
+        res = self.build_res(
+            validate_data=validate_data, app_mapping=application_mapping, metric_data=cache_metric_data
+        )
+        return self.get_async_data(res, validate_data["column"])
 
 
 class GetMetaConfigInfoResource(Resource):
