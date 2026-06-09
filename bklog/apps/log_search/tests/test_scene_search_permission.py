@@ -249,3 +249,143 @@ class TestUserCustomConfigSerializersAntiSpoof(TestCase):
         )
         s.is_valid(raise_exception=True)
         self.assertNotIn("username", s.validated_data)
+
+
+# =========================================================================
+# 5. SceneUnifyQueryHandler.verify_result_table_search_permission
+#    结果表级 SEARCH_LOG 检索权限校验（ts/raw 返回后）
+# =========================================================================
+
+
+def _bare_scene_handler():
+    """构造一个不走 __init__ 的 SceneUnifyQueryHandler 裸实例，仅用于校验逻辑单测。"""
+    from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+
+    return SceneUnifyQueryHandler.__new__(SceneUnifyQueryHandler)
+
+
+class TestMapResultTablesToIndexSets(TestCase):
+    """覆盖 result_table_id -> index_set_id 的两种形态映射。"""
+
+    def test_data_label_form_parsed_without_db(self):
+        from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+
+        with patch("apps.log_search.models.LogIndexSetData") as m_model:
+            result = SceneUnifyQueryHandler._map_result_tables_to_index_sets(
+                ["bklog_index_set_123", "bklog_index_set_456"]
+            )
+            # 纯 data_label 形式不应触发 DB 查询
+            m_model.objects.filter.assert_not_called()
+        self.assertEqual(set(result), {123, 456})
+
+    def test_rt_id_form_queries_db(self):
+        from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+
+        with patch("apps.log_search.models.LogIndexSetData") as m_model:
+            qs = m_model.objects.filter.return_value.values_list.return_value.distinct
+            qs.return_value = [789]
+            result = SceneUnifyQueryHandler._map_result_tables_to_index_sets(
+                ["2_bklog.my_collector"]
+            )
+            m_model.objects.filter.assert_called_once_with(
+                result_table_id__in=["2_bklog.my_collector"]
+            )
+        self.assertEqual(set(result), {789})
+
+    def test_mixed_form(self):
+        from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+
+        with patch("apps.log_search.models.LogIndexSetData") as m_model:
+            qs = m_model.objects.filter.return_value.values_list.return_value.distinct
+            qs.return_value = [789]
+            result = SceneUnifyQueryHandler._map_result_tables_to_index_sets(
+                ["bklog_index_set_123", "2_bklog.my_collector"]
+            )
+        self.assertEqual(set(result), {123, 789})
+
+
+@override_settings(IGNORE_IAM_PERMISSION=False)
+class TestVerifyResultTableSearchPermission(TestCase):
+    """覆盖 verify_result_table_search_permission 的放行 / 拒绝 / 幂等路径。"""
+
+    def test_empty_result_table_ids_skips_iam(self):
+        handler = _bare_scene_handler()
+        with patch("apps.iam.handlers.permission.Permission") as m_perm_cls:
+            handler.verify_result_table_search_permission([])
+            m_perm_cls.assert_not_called()
+        self.assertTrue(handler._rt_perm_verified)
+
+    @override_settings(IGNORE_IAM_PERMISSION=True)
+    def test_ignore_iam_permission_skips(self):
+        handler = _bare_scene_handler()
+        with patch("apps.iam.handlers.permission.Permission") as m_perm_cls:
+            handler.verify_result_table_search_permission(["2_bklog.xxx"])
+            m_perm_cls.assert_not_called()
+        self.assertTrue(handler._rt_perm_verified)
+
+    def test_no_index_set_mapped_skips_iam(self):
+        handler = _bare_scene_handler()
+        with patch(
+            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
+            "_map_result_tables_to_index_sets",
+            return_value=[],
+        ), patch("apps.iam.handlers.permission.Permission") as m_perm_cls:
+            handler.verify_result_table_search_permission(["2_bklog.xxx"])
+            m_perm_cls.assert_not_called()
+        self.assertTrue(handler._rt_perm_verified)
+
+    def test_all_allowed_passes(self):
+        from apps.iam.handlers.actions import ActionEnum
+
+        handler = _bare_scene_handler()
+        with patch(
+            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
+            "_map_result_tables_to_index_sets",
+            return_value=[123, 456],
+        ), patch("apps.iam.handlers.permission.Permission") as m_perm_cls:
+            m_perm_cls.return_value.batch_is_allowed.return_value = {
+                "123": {ActionEnum.SEARCH_LOG.id: True},
+                "456": {ActionEnum.SEARCH_LOG.id: True},
+            }
+            handler.verify_result_table_search_permission(["2_bklog.a", "2_bklog.b"])
+            m_perm_cls.return_value.batch_is_allowed.assert_called_once()
+            m_perm_cls.return_value.get_apply_data.assert_not_called()
+        self.assertTrue(handler._rt_perm_verified)
+
+    def test_denied_raises_permission_denied(self):
+        from apps.iam.exceptions import PermissionDeniedError
+        from apps.iam.handlers.actions import ActionEnum
+
+        handler = _bare_scene_handler()
+        with patch(
+            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
+            "_map_result_tables_to_index_sets",
+            return_value=[123, 456],
+        ), patch("apps.iam.handlers.permission.Permission") as m_perm_cls:
+            m_perm_cls.return_value.batch_is_allowed.return_value = {
+                "123": {ActionEnum.SEARCH_LOG.id: True},
+                "456": {ActionEnum.SEARCH_LOG.id: False},
+            }
+            m_perm_cls.return_value.get_apply_data.return_value = ({}, "http://apply")
+            with self.assertRaises(PermissionDeniedError):
+                handler.verify_result_table_search_permission(["2_bklog.a", "2_bklog.b"])
+            m_perm_cls.return_value.get_apply_data.assert_called_once()
+        # 拒绝路径不应标记已校验
+        self.assertFalse(getattr(handler, "_rt_perm_verified", False))
+
+    def test_idempotent_second_call_skips_iam(self):
+        from apps.iam.handlers.actions import ActionEnum
+
+        handler = _bare_scene_handler()
+        with patch(
+            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
+            "_map_result_tables_to_index_sets",
+            return_value=[123],
+        ), patch("apps.iam.handlers.permission.Permission") as m_perm_cls:
+            m_perm_cls.return_value.batch_is_allowed.return_value = {
+                "123": {ActionEnum.SEARCH_LOG.id: True},
+            }
+            handler.verify_result_table_search_permission(["2_bklog.a"])
+            handler.verify_result_table_search_permission(["2_bklog.a"])
+            # 第二次命中缓存，IAM 只被调用一次
+            m_perm_cls.return_value.batch_is_allowed.assert_called_once()

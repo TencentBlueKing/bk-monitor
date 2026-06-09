@@ -93,6 +93,8 @@ class SceneAsyncExportHandler:
             sorted_fields=self.scene_handler.origin_order_by,
             size=1000,
         )
+        # 提交时即按 ts/raw 返回的 result_table_id 做结果表级检索权限校验，无权限直接报错
+        self.scene_handler.verify_result_table_search_permission(result.get("result_table_id"))
         if not result.get("list"):
             logger.error("can not create scene async_export task, reason: no data")
             raise PreCheckAsyncExportException()
