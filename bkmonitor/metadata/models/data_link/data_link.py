@@ -1361,18 +1361,19 @@ class DataLink(models.Model):
         existing_rt = (
             existing_context.claim(ResultTableConfig, lambda c: True) if existing_context is not None else None
         )
-        # 复用已有AccessVMRecord记录的vm_result_table_id作为结果表名称
-        existing_vm_record = AccessVMRecord.objects.filter(
-            bk_tenant_id=self.bk_tenant_id,
-            result_table_id=table_id,
-        ).last()
         rt_name = bkbase_vmrt_name
         if existing_rt:
             rt_name = existing_rt.name
-        elif existing_vm_record:
-            # 需要剔除业务ID前缀
-            vmrt_id = existing_vm_record.vm_result_table_id
-            rt_name = vmrt_id.split("_", 1)[-1]
+        else:
+            # 复用已有AccessVMRecord记录的vm_result_table_id作为结果表名称
+            existing_vm_record = AccessVMRecord.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                result_table_id=table_id,
+            ).last()
+            if existing_vm_record:
+                # 需要剔除业务ID前缀
+                vmrt_id = existing_vm_record.vm_result_table_id
+                rt_name = vmrt_id.split("_", 1)[-1]
 
         existing_binding = (
             existing_context.claim(VMStorageBindingConfig, lambda c: True) if existing_context is not None else None
@@ -1505,18 +1506,19 @@ class DataLink(models.Model):
         existing_rt = (
             existing_context.claim(ResultTableConfig, lambda c: True) if existing_context is not None else None
         )
-        # 复用已有AccessVMRecord记录的vm_result_table_id作为结果表名称
-        existing_vm_record = AccessVMRecord.objects.filter(
-            bk_tenant_id=self.bk_tenant_id,
-            result_table_id=table_id,
-        ).last()
         rt_name = bkbase_vmrt_name
         if existing_rt:
             rt_name = existing_rt.name
-        elif existing_vm_record:
-            # 需要剔除业务ID前缀
-            vmrt_id = existing_vm_record.vm_result_table_id
-            rt_name = vmrt_id.split("_", 1)[-1]
+        else:
+            # 复用已有AccessVMRecord记录的vm_result_table_id作为结果表名称
+            existing_vm_record = AccessVMRecord.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                result_table_id=table_id,
+            ).last()
+            if existing_vm_record:
+                # 需要剔除业务ID前缀
+                vmrt_id = existing_vm_record.vm_result_table_id
+                rt_name = vmrt_id.split("_", 1)[-1]
 
         existing_binding = (
             existing_context.claim(VMStorageBindingConfig, lambda c: True) if existing_context is not None else None
