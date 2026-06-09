@@ -24,31 +24,27 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef, shallowRef, watchEffect } from 'vue';
+import { shallowRef, watchEffect } from 'vue';
 
-import { get } from '@vueuse/core';
-
-import { getAlertK8sTarget } from '../services/alarm-detail';
+import { listServiceK8sTargets } from 'monitor-api/modules/apm_container';
 
 import type { AlertK8sTargetItem, K8sTableColumnKeysEnum, SceneEnum } from '../typings';
 
 /** useAlertK8s 入参选项 */
-interface UseAlertK8sOptions {
-  /** 告警ID */
-  alertId: MaybeRef<string>;
-  /** 业务ID */
-  bizId: MaybeRef<number>;
+interface UseTraceSpanK8sOptions {
+  appName: string;
+  bizId: number;
+  serviceName: string;
+  spanId: string;
 }
 
 /**
- * @function useAlertK8s 获取告警关联的 k8s基础信息 hook
- * @description 告警详情 - k8s 可选场景列表 & 关联容器对象列表
+ * @function useTraceSpanK8s 获取 Trace 下 Span 详情中的容器监控所需参数 hook
+ * @description Trace下 Span详情所需的容器监控所需参数 - k8s 可选场景列表 & 关联容器对象列表
  * @param {UseAlertK8sOptions} options 选项参数
- * @param {MaybeRef<string>} options.alertId 告警ID
- * @param {MaybeRef<number>} options.bizId 业务ID
  */
-export const useAlertK8s = (options: UseAlertK8sOptions) => {
-  const { alertId, bizId } = options;
+export const useTraceSpanK8s = (options: UseTraceSpanK8sOptions) => {
+  const { spanId, bizId, serviceName, appName } = options;
   /** 场景 */
   const scene = shallowRef<SceneEnum>();
   /** 当前选择的关联容器对象 */
@@ -79,9 +75,13 @@ export const useAlertK8s = (options: UseAlertK8sOptions) => {
    * @returns {Promise<void>}
    */
   const getTargetList = async () => {
-    const result = await getAlertK8sTarget({ alertId: get(alertId), bizId: get(bizId) });
+    const result = await listServiceK8sTargets({
+      span_id: spanId,
+      bk_biz_id: bizId,
+      service_name: serviceName,
+      app_name: appName,
+    });
     targetList.value = result.target_list;
-    groupBy.value = result.resource_type;
   };
 
   /**
@@ -94,11 +94,13 @@ export const useAlertK8s = (options: UseAlertK8sOptions) => {
       currentTarget.value = targetList.value[0];
       sceneList.value = currentTarget.value?.scenario_list ?? [];
       scene.value = sceneList.value[0];
+      groupBy.value = currentTarget.value?.resource_type;
     }
     loading.value = false;
   };
 
   watchEffect(handleRequest);
+
   return {
     scene,
     currentTarget,
