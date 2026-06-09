@@ -290,6 +290,7 @@ class CustomReportSubscription(models.Model):
 
             # 按协议分组收集配置
             protocol_config_maps = {}
+            config_id_to_protocol: dict[int, str] = {}
             try:
                 protocol_tpl = {}
                 for config_context, protocol in data_id_configs:
@@ -314,6 +315,7 @@ class CustomReportSubscription(models.Model):
                         config_context.setdefault("bk_biz_id", bk_biz_id)
                         config_content = compiled_template.render(config_context)
                         protocol_config_maps.setdefault(protocol, {})[config_id] = config_content
+                        config_id_to_protocol[config_id] = protocol
                     except Exception:  # pylint: disable=broad-except
                         # 单个失败，继续渲染模板
                         logger.exception(f"render config({config_context})")
@@ -322,6 +324,10 @@ class CustomReportSubscription(models.Model):
                 for protocol, config_map in protocol_config_maps.items():
                     BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, config_map, protocol)
 
+                # 在所有协议下执行清理，同一个 config_id(data_id) 只允许有一份配置存在
+                BkCollectorClusterConfig.clean_dup_secrets_in_multi_protocol(
+                    cluster_id, protocol_config_maps.keys(), config_id_to_protocol
+                )
             except Exception as e:  # pylint: disable=broad-except
                 logger.exception(f"refresh custom report ({bk_biz_id}) config to k8s({cluster_id}) error({e})")
 
