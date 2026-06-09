@@ -43,6 +43,7 @@ export default {
   'API 失败率': 'API failure rate',
   /** RUM 创建应用 */
   应用名称已存在: 'Application name already exists',
+  应用别名不能为空: 'Application alias is required',
   '应用将创建在当前业务 「蓝鲸」 下，创建后进入 SDK 接入引导':
     'The application will be created under the current business "BlueKing". After creation, you will be guided to access the SDK.',
   '作为唯一标识，创建后不可修改': 'Used as a unique identifier, cannot be modified after creation',

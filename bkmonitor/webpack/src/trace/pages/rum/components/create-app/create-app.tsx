@@ -69,6 +69,13 @@ export default defineComponent({
           message: () => appNameErr.value,
         },
       ],
+      app_alias: [
+        {
+          validator: val => !!val?.trim(),
+          message: t('应用别名不能为空'),
+          trigger: 'blur',
+        },
+      ],
     });
     const submitLoading = shallowRef(false);
 
@@ -102,6 +109,17 @@ export default defineComponent({
       } catch {
         return false;
       }
+    }
+
+    /**
+     * 应用名称输入框失焦时校验重名
+     */
+    async function handleAppNameBlur() {
+      if (!formData.app_name.trim()) return;
+      const isDuplicate = await checkAppDuplicate(formData.app_name);
+      appNameErr.value = isDuplicate ? t('应用名称已存在') : '';
+      /** 失焦后触发表单校验以显示错误提示 */
+      formRef.value?.validate('app_name').catch(() => {});
     }
 
     /** 提交创建应用：校验重名 → 表单验证 → 调用创建接口 → 触发成功回调 */
@@ -152,6 +170,7 @@ export default defineComponent({
       t,
       handleShowChange,
       handleSubmit,
+      handleAppNameBlur,
     };
   },
   render() {
@@ -183,6 +202,7 @@ export default defineComponent({
               <Input
                 v-model={this.formData.app_name}
                 placeholder={`www.example.com（${this.t('作为唯一标识，创建后不可修改')}）`}
+                onBlur={this.handleAppNameBlur}
                 onFocus={() => {
                   this.appNameErr = '';
                 }}
@@ -191,6 +211,7 @@ export default defineComponent({
             <Form.FormItem
               label={this.t('应用别名')}
               property={'app_alias'}
+              required
             >
               <Input
                 v-model={this.formData.app_alias}
