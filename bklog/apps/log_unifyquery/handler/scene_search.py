@@ -267,6 +267,40 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         pass
 
     # ------------------------------------------------------------------
+    # Query primitives override — unified post-query SEARCH_LOG verification
+    #
+    # 场景检索没有固定 index_set_id，命中的结果表只有在 unify-query 返回后才知道。
+    # ts/raw、ts、ts/reference 三类出数接口的响应都带 result_table_id，这里在
+    # 查询原语层统一做后置鉴权（单一卡点）：任何方法只要经 self.query_ts* 取数，
+    # 都会自动按命中结果表校验 SEARCH_LOG，避免逐个 call site 手动加导致遗漏。
+    # ------------------------------------------------------------------
+
+    def _verify_scene_permission(self, result) -> None:
+        self.verify_result_table_search_permission((result or {}).get("result_table_id"))
+
+    def query_ts(self, search_dict, raise_exception=True):
+        result = super().query_ts(search_dict, raise_exception=raise_exception)
+        self._verify_scene_permission(result)
+        return result
+
+    def query_ts_reference(self, search_dict, raise_exception=False):
+        result = super().query_ts_reference(search_dict, raise_exception=raise_exception)
+        self._verify_scene_permission(result)
+        return result
+
+    def query_ts_raw(self, search_dict, raise_exception=True, pre_search=False):
+        result = super().query_ts_raw(search_dict, raise_exception=raise_exception, pre_search=pre_search)
+        self._verify_scene_permission(result)
+        return result
+
+    def query_ts_raw_with_scroll(self, search_dict, raise_exception=True):
+        # 父类是 staticmethod，子类用实例方法重写；super() 调用静态实现，
+        # 经 self. 调用即命中本重写，从而获得后置鉴权。
+        result = super().query_ts_raw_with_scroll(search_dict, raise_exception=raise_exception)
+        self._verify_scene_permission(result)
+        return result
+
+    # ------------------------------------------------------------------
     # Override search — skip pre_search to avoid arrow.get() overflow
     # with millisecond timestamps (parent pre_search calls
     # arrow.get(self.start_time) which interprets ms as seconds → year 58000+).
@@ -288,7 +322,6 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         search_dict["highlight"] = {"enable": self.highlight}
 
         result = self.query_ts_raw(search_dict)
-        self.verify_result_table_search_permission(result.get("result_table_id"))
         self._init_scene_desensitize(result.get("result_table_id"))
         result = self._deal_query_result(result)
 
@@ -739,7 +772,6 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
 
         logger.info("[scene_total] space_uid=%s", self.space_uid)
         result = self.query_ts_raw(search_dict)
-        self.verify_result_table_search_permission(result.get("result_table_id"))
         return {"total": result.get("total", 0)}
 
     def aggs_date_histogram(self, interval: str = "auto", group_field: str = None) -> dict:
@@ -768,7 +800,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         search_dict["limit"] = size
         search_dict["scroll"] = scroll
         search_dict["is_search_after"] = True
-        return UnifyQueryApi.query_ts_raw(search_dict)
+        return self.query_ts_raw(search_dict)
 
     def search_after_result(self, search_result, sorted_fields):
         search_dict = copy.deepcopy(self.base_dict)
@@ -798,7 +830,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
                 break
 
             search_dict["result_table_options"] = result_table_options
-            search_result = UnifyQueryApi.query_ts_raw(search_dict)
+            search_result = self.query_ts_raw(search_dict)
             new_result_size = len(search_result.get("list", []))
 
             if new_result_size == 0:
@@ -818,7 +850,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         total_count = 0
         while total_count < max_result_count:
             search_params["clear_cache"] = total_count == 0
-            search_result = UnifyQueryHandler.query_ts_raw_with_scroll(search_params)
+            search_result = self.query_ts_raw_with_scroll(search_params)
             if not search_result.get("list"):
                 break
 
@@ -843,10 +875,9 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         csv_writer = csv.writer(row_buffer)
         while total_count < max_result_count:
             search_params["clear_cache"] = total_count == 0
-            search_result = UnifyQueryHandler.query_ts_raw_with_scroll(search_params)
+            search_result = self.query_ts_raw_with_scroll(search_params)
             if not search_result.get("list"):
                 break
-            self.verify_result_table_search_permission(search_result.get("result_table_id"))
             self._init_scene_desensitize(search_result.get("result_table_id"))
             if not header_written:
                 result_table_options = list(search_result.get("result_table_options", {}).values())
