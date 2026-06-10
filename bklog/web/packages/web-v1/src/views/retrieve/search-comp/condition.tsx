@@ -243,7 +243,6 @@ export default class Condition extends tsc<object> {
     return v;
   }
 
-  @Debounce(100)
   @Emit('inputChange')
   emitInputChange(v: string) {
     return v;
@@ -636,7 +635,10 @@ export default class Condition extends tsc<object> {
             free-paste
             onBlur={this.handleValueBlur}
             onChange={this.handleValueChange}
-            onInputchange={v => (this.catchTagInputStr = v)}
+            onInputchange={v => {
+              this.catchTagInputStr = v;
+              this.emitInputChange(v);
+            }}
             onRemoveAll={this.handleValueRemoveAll}
             onSelect={this.handleValueSelect}
           />
