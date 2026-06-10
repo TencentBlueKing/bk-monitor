@@ -404,7 +404,7 @@ export default defineComponent({
           thClassName: 'rum-th--dotted',
           width: 110,
           sorter: true,
-          cellRenderer: ((row: unknown) => {
+          cellRenderer: (row => {
             const r = row as RumAppRow;
             const metric = r[key];
             return <span class={metricClass(metric.tier)}>{metric.display}</span>;
