@@ -214,7 +214,11 @@ export default defineComponent({
                           type='number'
                         />
                       ) : (
-                        <span class='value-text'>{this.detail?.application_apdex_config?.apdex_view_load}</span>
+                        <span class='value-text'>
+                          {this.detail?.application_apdex_config?.apdex_view_load === undefined
+                            ? '--'
+                            : `${this.detail?.application_apdex_config?.apdex_view_load}ms`}
+                        </span>
                       )}
                     </Form.FormItem>
                     <Form.FormItem
@@ -231,7 +235,11 @@ export default defineComponent({
                           type='number'
                         />
                       ) : (
-                        <span class='value-text'>{this.detail?.application_apdex_config?.apdex_api_request}</span>
+                        <span class='value-text'>
+                          {this.detail?.application_apdex_config?.apdex_api_request === undefined
+                            ? '--'
+                            : `${this.detail?.application_apdex_config?.apdex_api_request}ms`}
+                        </span>
                       )}
                     </Form.FormItem>
                   </div>
@@ -267,7 +275,11 @@ export default defineComponent({
                           type='number'
                         />
                       ) : (
-                        <span class='value-text'>{this.detail?.application_qps_config}</span>
+                        <span class='value-text'>
+                          {this.detail?.application_qps_config === undefined
+                            ? '--'
+                            : `${this.detail?.application_qps_config}${this.$t('次/秒')}`}
+                        </span>
                       )}
                     </Form.FormItem>
                   </div>

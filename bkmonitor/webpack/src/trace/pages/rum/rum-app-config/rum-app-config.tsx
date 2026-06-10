@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, KeepAlive, onMounted, shallowRef } from 'vue';
+import { computed, defineComponent, onMounted, shallowRef } from 'vue';
 
 import { Tab } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
@@ -101,7 +101,6 @@ export default defineComponent({
 
     /** 处理应用操作（启用/停用/删除） */
     const handleAppOperation = (type: ApplicationOperationType) => {
-      console.log(type);
       // 删除返回列表页
       if (type === 'delete') {
         router.replace({
@@ -193,9 +192,7 @@ export default defineComponent({
               />
             ))}
           </Tab>
-          <div class='panel-tab-body'>
-            <KeepAlive>{this.getPanelComponent()}</KeepAlive>
-          </div>
+          <div class='panel-tab-body'>{this.getPanelComponent()}</div>
         </div>
         <SDKReport
           appInfo={this.appInfo}
