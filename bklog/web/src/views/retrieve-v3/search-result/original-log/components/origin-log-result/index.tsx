@@ -78,7 +78,16 @@ export default defineComponent({
     const timeFieldType = computed(() => fieldsMap.value[timeField.value]?.field_type);
     const visibleFields = computed(() => store.getters.visibleFields);
 
-    const requestOtherparams = cloneDeep(props.retrieveParams);
+    const requestOtherparams = cloneDeep(props.retrieveParams || {});
+    if (!Array.isArray(requestOtherparams.addition)) {
+      requestOtherparams.addition = [];
+    }
+    if (!requestOtherparams.search_mode) {
+      requestOtherparams.search_mode = 'ui';
+    }
+    if (!requestOtherparams.keyword) {
+      requestOtherparams.keyword = '*';
+    }
     delete requestOtherparams.format;
 
     // 隐藏掉tippy弹出框中的非必要按钮
@@ -116,9 +125,7 @@ export default defineComponent({
     const requestLogList = (isManualSearch = true) => {
       listLoading.value = true;
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
-      const searchUrl = store.getters.isSceneMode
-        ? '/search/scene/search/'
-        : `/search/index_set/${props.indexSetId}/search/`;
+      const searchUrl = `/search/index_set/${props.indexSetId}/search/`;
       // size = props.logIndex > 50 ? props.logIndex + 20 : 50;
       const requestData = {
         ...requestOtherparams,
@@ -146,10 +153,10 @@ export default defineComponent({
             readBlobRespToJson(resp.data).then(({ data, result }) => {
               if (result) {
                 begin += size;
-                total = data.total.toNumber();
-                const list = parseBigNumberList(data.list);
+                total = (data.total?.toNumber?.() ?? Number(data.total)) || 0;
+                const list = parseBigNumberList(data.list || []);
                 logList.value.push(...list);
-                if (isManualSearch) {
+                if (isManualSearch && list.length) {
                   choosedIndex.value = -1;
                   handleChooseRow(0, list[0]);
                 }
@@ -336,8 +343,7 @@ export default defineComponent({
       });
       if (Array.isArray(contextFields) && contextFields.length) {
         // 传参配置指定字段
-        contextFields.push(timeField);
-        contextFields.forEach((field) => {
+        [...new Set([...contextFields, timeField].filter(Boolean))].forEach((field) => {
           if (field === 'bk_host_id') {
             if (rowInfo[field]) {
               dialogNewParams[field] = rowInfo[field];
@@ -406,11 +412,25 @@ export default defineComponent({
     expose({
       // init: () => handleSearch(requestOtherparams.search_mode, false),
       init: () => {
-        // 初始化搜索框
-        const modeIndex = store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE];
-        searchBarRef.value.setLocalMode(modeIndex);
-        requestOtherparams.search_mode = modeIndex === 0 ? 'ui' : 'sql';
-        const addition = props.retrieveParams.addition;
+        if (!searchBarRef.value) {
+          setTimeout(() => {
+            if (searchBarRef.value) {
+              logResultRefInit();
+            }
+          });
+          return;
+        }
+        logResultRefInit();
+      },
+      reset: handleReset,
+    });
+
+    const logResultRefInit = () => {
+      // 初始化搜索框
+      const modeIndex = store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] ?? 0;
+      searchBarRef.value.setLocalMode(modeIndex);
+      requestOtherparams.search_mode = modeIndex === 0 ? 'ui' : 'sql';
+        const addition = Array.isArray(props.retrieveParams?.addition) ? props.retrieveParams.addition : [];
         // 初始化带上常用查询设置
         if (modeIndex === 0) {
           // ui 模式
@@ -420,7 +440,7 @@ export default defineComponent({
             const addAdditionList = addition.map(item => ({
               disabled: false,
               field: item.field,
-              field_type: fieldsMap.value[item.field].field_type,
+              field_type: fieldsMap.value[item.field]?.field_type || item.field_type || 'text',
               operator: item.operator,
               value: item.value,
               relation: 'OR',
@@ -440,22 +460,29 @@ export default defineComponent({
             requestOtherparams.addition = addition;
           }
         }
-        // 设置外部数据
-        const outerLogResult = store.state.indexSetQueryResult;
-        total = outerLogResult.total;
-        logList.value = outerLogResult.list.slice();
-        begin = logList.value.length;
-        setTimeout(() => {
-          // 自动定位到选中行
-          const isChoosedRow = Array.from(tableRef.value.querySelectorAll('.is-choosed'))[0];
-          const positionInfo = isChoosedRow.getBoundingClientRect();
-          if (positionInfo.top > window.innerHeight - 70) {
-            isChoosedRow.scrollIntoView();
-          }
-        });
-      },
-      reset: handleReset,
-    });
+        // 设置外部数据；独立上下文页面在新 Tab 打开时 Vuex 查询结果为空，需要主动请求右侧列表。
+        const outerLogResult = store.state.indexSetQueryResult || {};
+        const outerList = Array.isArray(outerLogResult.list) ? outerLogResult.list : [];
+        if (outerList.length) {
+          total = (outerLogResult.total?.toNumber?.() ?? Number(outerLogResult.total)) || outerList.length;
+          logList.value = outerList.slice();
+          begin = logList.value.length;
+          setTimeout(() => {
+            // 自动定位到选中行
+            const isChoosedRow = Array.from(tableRef.value?.querySelectorAll?.('.is-choosed') || [])[0] as HTMLElement | undefined;
+            if (!isChoosedRow) {
+              return;
+            }
+            const positionInfo = isChoosedRow.getBoundingClientRect();
+            if (positionInfo.top > window.innerHeight - 70) {
+              isChoosedRow.scrollIntoView();
+            }
+          });
+          return;
+        }
+
+      requestLogList(false);
+    };
 
     const rowStyle = `font-family: var(--bklog-v3-row-ctx-font);
     font-size: var(--table-fount-size);
@@ -517,7 +544,7 @@ export default defineComponent({
                       <div class='index-column'>
                         <span>{index + 1}</span>
                         <div class='choosed-bgd'>
-                          <div class={['check-icon-main', { 'is-monitor-apm-icon':isMonitorApm }]}>
+                          <div class={['check-icon-main', { 'is-monitor-apm-icon': isMonitorApm }]}>
                             {
                               isMonitorApm ? (
                                 <span class='bk-icon icon-check-1'></span>

@@ -52,6 +52,7 @@ from metadata.models.data_link.data_link_configs import (
 )
 from metadata.models.data_link.utils import generate_result_table_field_list, get_bkbase_raw_data_id_name
 from metadata.models.storage import ClusterInfo, DorisStorage, ESStorage
+from metadata.models.vm.record import AccessVMRecord
 
 if TYPE_CHECKING:
     from metadata.models import DataSource
@@ -241,7 +242,13 @@ class DataLink(models.Model):
                 component.delete_config()
         self.delete()
 
-    def compose_configs(self, *args, existing_context: "ExistingComponentContext | None" = None, **kwargs):
+    def compose_configs(
+        self,
+        *args,
+        existing_context: "ExistingComponentContext | None" = None,
+        consumer_group: str | None = None,
+        **kwargs,
+    ):
         """
         生成对应套餐的链路完整配置
 
@@ -269,6 +276,7 @@ class DataLink(models.Model):
             DataLink.BK_STANDARD_V2_EVENT: self.compose_custom_event_configs,
         }
         method = switcher[self.data_link_strategy]
+        kwargs["consumer_group"] = consumer_group
         if existing_context is not None and is_reuse_supported_for(self.data_link_strategy):
             return method(*args, existing_context=existing_context, **kwargs)
         return method(*args, **kwargs)
@@ -279,6 +287,7 @@ class DataLink(models.Model):
         data_source: "DataSource",
         table_id: str,
         existing_context: ExistingComponentContext | None = None,
+        consumer_group: str | None = None,
     ) -> list[dict[str, Any]]:
         """生成自定义事件链路
 
@@ -364,6 +373,7 @@ class DataLink(models.Model):
                     "sink_names": [f"{DataLinkKind.ESSTORAGEBINDING.value}:{es_storage_ins.name}"],
                 },
             )
+            databus_ins.apply_consumer_group(consumer_group)
 
             es_rt_config = es_table_ins.compose_config(fields=fields)
             es_binding_config = es_storage_ins.compose_config(
@@ -403,6 +413,7 @@ class DataLink(models.Model):
         data_source: "DataSource",
         table_id: str,
         existing_context: ExistingComponentContext | None = None,
+        consumer_group: str | None = None,
     ) -> list[dict[str, Any]]:
         """生成日志链路配置
 
@@ -570,6 +581,7 @@ class DataLink(models.Model):
                     "sink_names": [f"{sink['kind']}:{sink['name']}" for sink in databus_sinks],
                 },
             )
+            databus.apply_consumer_group(consumer_group)
 
             # 组装配置
             config_list.extend(
@@ -590,6 +602,7 @@ class DataLink(models.Model):
         storage_cluster_name: str,
         bk_biz_id: int,
         prefix: str | None = None,
+        consumer_group: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         生成系统进程链路配置
@@ -700,6 +713,7 @@ class DataLink(models.Model):
                     "sink_names": [f"{sink_item['kind']}:{sink_item['name']}"],
                 },
             )
+            data_bus_ins.apply_consumer_group(consumer_group)
 
         configs = [
             vm_table_id_ins.compose_config(),
@@ -729,6 +743,7 @@ class DataLink(models.Model):
         source: str,
         prefix: str | None = None,
         extra_source: str | None = None,
+        consumer_group: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         生成基础采集时序链路配置
@@ -843,6 +858,7 @@ class DataLink(models.Model):
                     "sink_names": [f"{DataLinkKind.BASEREPORTSINK.value}:{self.data_link_name}"],
                 },
             )
+            data_bus_ins.apply_consumer_group(consumer_group)
             basereport_sink_ins, _ = BasereportSinkConfig.objects.update_or_create(
                 name=self.data_link_name,
                 data_link_name=self.data_link_name,
@@ -882,6 +898,7 @@ class DataLink(models.Model):
                     storage_cluster_name=storage_cluster_name,
                     bk_biz_id=bk_biz_id,
                     extra_source=extra_source,
+                    consumer_group=consumer_group,
                 )
             )
 
@@ -899,6 +916,7 @@ class DataLink(models.Model):
         storage_cluster_name: str,
         bk_biz_id: int,
         extra_source: str,
+        consumer_group: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         生成基础采集额外主机维度链路配置。
@@ -960,6 +978,7 @@ class DataLink(models.Model):
                     "sink_names": [f"{DataLinkKind.BASEREPORTSINK.value}:{extra_data_link_name}"],
                 },
             )
+            data_bus_ins.apply_consumer_group(consumer_group)
             basereport_sink_ins, _ = BasereportSinkConfig.objects.update_or_create(
                 name=extra_data_link_name,
                 data_link_name=self.data_link_name,
@@ -998,7 +1017,13 @@ class DataLink(models.Model):
         return config_list
 
     def compose_base_event_configs(
-        self, data_source: "DataSource", table_id: str, storage_cluster_name: str, bk_biz_id: int, timezone: int = 0
+        self,
+        data_source: "DataSource",
+        table_id: str,
+        storage_cluster_name: str,
+        bk_biz_id: int,
+        timezone: int = 0,
+        consumer_group: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         生成基础事件链路配置(固定逻辑)
@@ -1067,6 +1092,7 @@ class DataLink(models.Model):
                     "sink_names": [f"{DataLinkKind.ESSTORAGEBINDING.value}:{component_name}"],
                 },
             )
+            databus_ins.apply_consumer_group(consumer_group)
 
             es_rt_config = es_table_ins.compose_config(fields=fields)
             es_binding_config = es_storage_ins.compose_config(
@@ -1086,7 +1112,12 @@ class DataLink(models.Model):
         return config_list
 
     def compose_bcs_federal_proxy_time_series_configs(
-        self, bk_biz_id: int, data_source: "DataSource", table_id: str, storage_cluster_name: str
+        self,
+        bk_biz_id: int,
+        data_source: "DataSource",
+        table_id: str,
+        storage_cluster_name: str,
+        consumer_group: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         生成联邦代理集群（父集群）时序数据链路配置
@@ -1144,7 +1175,13 @@ class DataLink(models.Model):
         return configs
 
     def compose_bcs_federal_subset_time_series_configs(
-        self, bk_biz_id: int, data_source: "DataSource", table_id: str, bcs_cluster_id: str, storage_cluster_name: str
+        self,
+        bk_biz_id: int,
+        data_source: "DataSource",
+        table_id: str,
+        bcs_cluster_id: str,
+        storage_cluster_name: str,
+        consumer_group: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         生成联邦子集群时序数据链路配置
@@ -1254,6 +1291,7 @@ class DataLink(models.Model):
                     "sink_names": [f"{DataLinkKind.CONDITIONALSINK.value}:{bkbase_vmrt_name}"],
                 },
             )
+            data_bus_ins.apply_consumer_group(consumer_group)
 
         vm_conditional_sink_config = vm_conditional_ins.compose_conditional_sink_config(conditions=conditions)
         conditional_sink = [
@@ -1277,6 +1315,7 @@ class DataLink(models.Model):
         table_id: str,
         storage_cluster_name: str,
         existing_context: "ExistingComponentContext | None" = None,
+        consumer_group: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         生成标准单指标单表时序数据链路配置 -- bk_standard_v2
@@ -1322,7 +1361,19 @@ class DataLink(models.Model):
         existing_rt = (
             existing_context.claim(ResultTableConfig, lambda c: True) if existing_context is not None else None
         )
-        rt_name = existing_rt.name if existing_rt is not None else bkbase_vmrt_name
+        rt_name = bkbase_vmrt_name
+        if existing_rt:
+            rt_name = existing_rt.name
+        else:
+            # 复用已有AccessVMRecord记录的vm_result_table_id作为结果表名称
+            existing_vm_record = AccessVMRecord.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                result_table_id=table_id,
+            ).last()
+            if existing_vm_record:
+                # 需要剔除业务ID前缀
+                vmrt_id = existing_vm_record.vm_result_table_id
+                rt_name = vmrt_id.split("_", 1)[-1]
 
         existing_binding = (
             existing_context.claim(VMStorageBindingConfig, lambda c: True) if existing_context is not None else None
@@ -1394,6 +1445,7 @@ class DataLink(models.Model):
                     "sink_names": [f"{sink_item['kind']}:{sink_item['name']}"],
                 },
             )
+            data_bus_ins.apply_consumer_group(consumer_group)
 
         configs = [
             vm_table_id_ins.compose_config(),
@@ -1413,6 +1465,7 @@ class DataLink(models.Model):
         table_id: str,
         storage_cluster_name: str,
         existing_context: "ExistingComponentContext | None" = None,
+        consumer_group: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         生成采集插件时序数据链路配置 -- bk_standard & bk_exporter
@@ -1453,7 +1506,19 @@ class DataLink(models.Model):
         existing_rt = (
             existing_context.claim(ResultTableConfig, lambda c: True) if existing_context is not None else None
         )
-        rt_name = existing_rt.name if existing_rt is not None else bkbase_vmrt_name
+        rt_name = bkbase_vmrt_name
+        if existing_rt:
+            rt_name = existing_rt.name
+        else:
+            # 复用已有AccessVMRecord记录的vm_result_table_id作为结果表名称
+            existing_vm_record = AccessVMRecord.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                result_table_id=table_id,
+            ).last()
+            if existing_vm_record:
+                # 需要剔除业务ID前缀
+                vmrt_id = existing_vm_record.vm_result_table_id
+                rt_name = vmrt_id.split("_", 1)[-1]
 
         existing_binding = (
             existing_context.claim(VMStorageBindingConfig, lambda c: True) if existing_context is not None else None
@@ -1518,6 +1583,7 @@ class DataLink(models.Model):
                     "sink_names": [f"{sink_item['kind']}:{sink_item['name']}"],
                 },
             )
+            data_bus_ins.apply_consumer_group(consumer_group)
 
         transform_format = self.DATABUS_TRANSFORMER_FORMAT.get(self.data_link_strategy)
 
@@ -1537,6 +1603,8 @@ class DataLink(models.Model):
         声明BkBaseResultTable -> 组装链路资源配置 -> 调用API申请
         """
         from metadata.models.bkdata.result_table import BkBaseResultTable
+
+        consumer_group: str | None = kwargs.pop("consumer_group", None)
 
         try:
             monitor_table_id: str | None = (
@@ -1583,7 +1651,12 @@ class DataLink(models.Model):
         # savepoint，外层异常触发时连带一起回滚，保证 "apply 不通过 -> 本地无副作用"。
         try:
             with transaction.atomic(using=DATABASE_CONNECTION_NAME):
-                configs: list[dict[str, Any]] = self.compose_configs(*args, existing_context=existing_context, **kwargs)
+                configs: list[dict[str, Any]] = self.compose_configs(
+                    *args,
+                    existing_context=existing_context,
+                    consumer_group=consumer_group,
+                    **kwargs,
+                )
                 if existing_context is not None:
                     # compose 已跑完，本次 apply 的所有既有组件认领都已完成；
                     # 此时 pool 中剩下的就是"未被 compose 消费的既有组件"，按策略决定是否放行。

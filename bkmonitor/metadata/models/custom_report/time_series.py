@@ -107,6 +107,8 @@ class TimeSeriesGroup(CustomGroupBase):
 
     FIELD_NAME_REGEX = re.compile(r"^[a-zA-Z0-9_]+$")
 
+    CMDB_RELATION_BUILT_IN_GROUP_NAME_REGEX = re.compile(r"^-?\d+_[a-z]+_built_in_time_series$")
+
     def is_enabled_data_scope(self) -> bool:
         """
         是否开启，指标按指定维度字段自动分组
@@ -176,6 +178,16 @@ class TimeSeriesGroup(CustomGroupBase):
 
         # 如果没有维度配置，返回默认值
         return False, default_name
+
+    def is_cmdb_relation_builtin(self):
+        return bool(self.CMDB_RELATION_BUILT_IN_GROUP_NAME_REGEX.match(self.time_series_group_name))
+
+    @classmethod
+    def make_cmdb_relation_builtin_table_id_and_group_name(cls, bk_biz_id, space_type):
+        return (
+            f"{bk_biz_id}_{space_type}_built_in_time_series.__default__",
+            f"{bk_biz_id}_{space_type}_built_in_time_series",
+        )
 
     # 组合一个默认的table_id
     @staticmethod

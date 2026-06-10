@@ -38,31 +38,21 @@
       :row-index="currentIndex"
       @close-dialog="hideDialog"
     />
-    <ContextLog
-      :is-show="isShowContextLog"
-      :log-params="logDialog.data"
-      :retrieve-params="retrieveParams"
-      :target-fields="targetFields"
-      :indexSetId="logDialog.indexSetId"
-      :row-index="currentIndex"
-      @close-dialog="hideDialog"
-    />
     <!-- <AiAssitant ref="refAiAssitant" @close="handleAiClose"></AiAssitant> -->
   </div>
 </template>
 
 <script>
 import { parseTableRowData } from "@/common/util";
+import { encodeContextRoutePayload } from "@/views/retrieve-v3/search-result/original-log/context-log/context-route";
 import RetrieveLoader from "@/skeleton/retrieve-loader";
 
-import ContextLog from "@/views/retrieve-v3/search-result/original-log/context-log/index.tsx";
 import RealTimeLog from "@/views/retrieve-v3/search-result/original-log/real-time-log";
 import LogRows from "./log-rows.tsx";
 import RetrieveHelper from "@/views/retrieve-helper";
 export default {
   components: {
     RetrieveLoader,
-    ContextLog,
     RealTimeLog,
     LogRows,
   },
@@ -80,7 +70,6 @@ export default {
     return {
       targetFields: [],
       isShowRealTimeLog: false,
-      isShowContextLog: false,
       logDialog: {
         type: "",
         data: {},
@@ -98,16 +87,89 @@ export default {
     // handleAiClose() {
     //   this.$el.querySelector(".ai-active")?.classList.remove("ai-active");
     // },
-    // 打开实时日志或上下文弹窗
+    // 打开实时日志弹窗
     openLogDialog(row, type, indexSetId) {
       this.logDialog.data = row;
       this.logDialog.type = type;
       this.logDialog.indexSetId = indexSetId;
       if (type === "realTimeLog") {
         this.isShowRealTimeLog = true;
-      } else {
-        this.isShowContextLog = true;
       }
+    },
+    getContextRouteLogParams(row, contextFields = [], timeField = '') {
+      const safeParams = {
+        dtEventTimeStamp: parseTableRowData(
+          row,
+          'dtEventTimeStamp',
+          '',
+          this.$store.state.isFormatDate,
+          ''
+        ),
+      };
+      const fields = [
+        ...(Array.isArray(contextFields) ? contextFields : []),
+        timeField,
+      ].filter(Boolean);
+      [...new Set(fields)].forEach((field) => {
+        const value = field === 'bk_host_id' ? row[field] : parseTableRowData(
+          row,
+          field,
+          '',
+          this.$store.state.isFormatDate,
+          ''
+        );
+        if (value !== undefined && value !== null && value !== '') {
+          safeParams[field] = value;
+        }
+      });
+      return safeParams;
+    },
+    getContextRouteRetrieveParams() {
+      const {
+        start_time: startTime,
+        end_time: endTime,
+        format,
+      } = this.retrieveParams || {};
+      return {
+        start_time: startTime,
+        end_time: endTime,
+        format,
+      };
+    },
+    getIndexSetIdByRow(row = {}) {
+      const rowIndexSetId = row.__index_set_id__ ?? row.index_set_id;
+      if (rowIndexSetId !== undefined && rowIndexSetId !== null && rowIndexSetId !== '') {
+        return Number(rowIndexSetId);
+      }
+
+      const storeIndexId = this.$store.getters.indexId;
+      if (storeIndexId !== undefined && storeIndexId !== null && storeIndexId !== '') {
+        return Number(storeIndexId);
+      }
+
+      return Number(this.$route.params.indexId || 0);
+    },
+    openContextLogPage(row, indexSetId) {
+      const payload = encodeContextRoutePayload({
+        indexSetId,
+        logParams: row,
+        retrieveParams: this.getContextRouteRetrieveParams(),
+        backRoute: {
+          name: 'retrieve',
+          params: { ...this.$route.params },
+          query: { ...this.$route.query },
+        },
+      });
+      const route = this.$router.resolve({
+        name: 'retrieve-context-log',
+        query: {
+          payload,
+          spaceUid: this.$store.getters.spaceUid,
+          bizId: this.$store.getters.bkBizId,
+          hl: '1',
+        },
+      });
+      window.open(route.href, '_blank');
     },
     openWebConsole(row) {
       // (('cluster', 'container_id'),
@@ -184,9 +246,8 @@ export default {
         //   });
         // } else
         if (Array.isArray(contextFields) && contextFields.length) {
-          // 传参配置指定字段
-          contextFields.push(timeField);
-          contextFields.forEach((field) => {
+          // 传参配置指定字段，避免 push 修改 store 中的 context_fields 配置
+          [...new Set([...contextFields, timeField].filter(Boolean))].forEach((field) => {
             if (field === "bk_host_id") {
               if (row[field]) dialogNewParams[field] = row[field];
             } else {
@@ -202,40 +263,20 @@ export default {
         } else {
           Object.assign(dialogNewParams, row);
         }
-        this.openLogDialog(dialogNewParams, event, this.getIndexSetIdByRow(row));
+        const indexSetId = this.getIndexSetIdByRow(row);
+        if (event === "contextLog") {
+          this.openContextLogPage(this.getContextRouteLogParams(row, contextFields, timeField), indexSetId);
+        } else {
+          this.openLogDialog(dialogNewParams, event, indexSetId);
+        }
       } else if (event === "webConsole") this.openWebConsole(row);
       else if (event === "logSource")
         this.$store.dispatch("changeShowUnionSource");
-    },
-    /**
-     * 从行数据中获取 index_set_id
-     * 场景化检索模式下，row.__index_set_id__ 可能不存在，
-     * 需要通过 row.__result_table 在 flatIndexSetList 的 indices 中查找匹配的 result_table_id，取其 index_set_id
-     */
-    getIndexSetIdByRow(row) {
-      if (row.__index_set_id__) {
-        return row.__index_set_id__;
-      }
-
-      if (this.$store.getters.isSceneMode && row.__result_table) {
-        const flatIndexSetList = this.$store.state.retrieve.flatIndexSetList;
-        for (const indexSet of flatIndexSetList) {
-          const matchedIndex = (indexSet.indices || []).find(
-            index => index.result_table_id === row.__result_table
-          );
-          if (matchedIndex) {
-            return matchedIndex.index_set_id;
-          }
-        }
-      }
-
-      return row.__index_set_id__;
     },
     // 关闭实时日志或上下文弹窗后的回调
     hideDialog() {
       this.logDialog.type = "";
       this.targetFields = [];
-      this.isShowContextLog = false;
       this.isShowRealTimeLog = false;
     },
   },

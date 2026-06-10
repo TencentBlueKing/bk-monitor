@@ -760,6 +760,7 @@ RETRIEVE_CHAIN = [
     "fields_is_empty",
     "deal_time",
     "add_container_configs",
+    "add_log_access_type",
     "encode_yaml_config",
 ]
 

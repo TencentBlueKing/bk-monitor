@@ -1097,6 +1097,9 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
     def add_filter(self, search_object, start_time: int = None, end_time: int = None):
         # 条件过滤
+        # 该方法当前无调用方（保留为历史）。若被复用：此处直接用 self.bk_biz_ids 做 terms 过滤，
+        #    bk_biz_ids 含 -1（"全部授权业务"哨兵）时会查空——改用 self.get_biz_filter_ids()
+        #    （已解析 -1），告警可见性请走 add_biz_condition。勿照此模板复制。
         if self.bk_biz_ids:
             search_object = search_object.filter("terms", **{"event.bk_biz_id": self.bk_biz_ids})
 

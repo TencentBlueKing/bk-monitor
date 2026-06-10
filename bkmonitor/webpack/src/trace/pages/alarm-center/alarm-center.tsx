@@ -44,6 +44,7 @@ import FavoriteBox, {
 import VueJsonPretty from 'vue-json-pretty';
 import { useRoute, useRouter } from 'vue-router';
 
+import DataAccess, { type SpaceInfo } from '../../components/data-access';
 import { EFieldType, EMode } from '../../components/retrieval-filter/typing';
 import { mergeWhereList } from '../../components/retrieval-filter/utils';
 import useUserConfig from '../../hooks/useUserConfig';
@@ -76,6 +77,8 @@ import {
   CAN_AUTO_SHOW_ALERT_DIALOG_ACTIONS,
   CONTENT_SCROLL_ELEMENT_CLASS_NAME,
   getDefaultAlarmCenterBizIds,
+  MY_ALARM_BIZ_ID,
+  MY_AUTH_BIZ_ID,
 } from './typings';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 import { useAppStore } from '@/store/modules/app';
@@ -84,8 +87,10 @@ import type { SelectOptions } from '@blueking/tdesign-ui/.';
 
 const ALARM_CENTER_SHOW_FAVORITE = 'ALARM_CENTER_SHOW_FAVORITE';
 
-import { Message } from 'bkui-vue';
+import { Alert, Message, Sideslider } from 'bkui-vue';
 import dayjs from 'dayjs';
+import difference from 'lodash/difference';
+import intersection from 'lodash/intersection';
 import { traceGenerateQueryString } from 'monitor-api/modules/apm_trace';
 import { handleTransformToTimestamp } from 'trace/components/time-range/utils';
 import { useI18n } from 'vue-i18n';
@@ -129,7 +134,6 @@ export default defineComponent({
     const route = useRoute();
     const alarmStore = useAlarmCenterStore();
     const appStore = useAppStore();
-
     const apmHooks = inject<AlarmCenterApmHooks | null>(ALARM_CENTER_APM_HOOKS_KEY, null);
     /** table 选中的 rowKey 数组 */
     const selectedRowKeys = shallowRef<string[]>([]);
@@ -150,7 +154,7 @@ export default defineComponent({
       handleQuickFilteringOperation,
     } = useQuickFilter();
 
-    const { data, loading, total, page, pageSize, ordering } = useAlarmTable();
+    const { data, loading, total, page, pageSize, ordering, enabledSpaces, wxCsLink } = useAlarmTable();
 
     /** 表格分页配置 */
     const pagination = computed(() => ({
@@ -158,6 +162,103 @@ export default defineComponent({
       pageSize: pageSize.value,
       total: total.value,
     }));
+
+    /** 是否为"我有权限/我有故障"虚拟业务 */
+    const isVirtualBiz = computed(() => alarmStore.bizIds?.some(id => [MY_AUTH_BIZ_ID, MY_ALARM_BIZ_ID].includes(id)));
+
+    /** 已选空间中已开启故障分析功能的 bizId 列表（与 enabledSpaces 取交集） */
+    const connectedBizIds = computed(() => intersection(alarmStore.bizIds, enabledSpaces.value));
+
+    /** 已选空间中未开启故障分析功能的 bizId 列表（与 enabledSpaces 取差集） */
+    const unconnectedBizIds = computed(() => difference(alarmStore.bizIds, enabledSpaces.value));
+
+    /** 排除无权限空间后的业务列表 */
+    const authorizedBizList = computed(() => {
+      if (!appStore.noAuthBizIds.length) return appStore.bizList;
+      return appStore.bizList.filter(({ bk_biz_id }) => !appStore.noAuthBizIds.includes(bk_biz_id));
+    });
+
+    /** 将 bizList 转换为 SpaceInfo[]，可按 bizId 过滤（已排除无权限空间） */
+    const toSpaceInfoList = (filterFn?: (bk_biz_id: number) => boolean): SpaceInfo[] => {
+      return authorizedBizList.value
+        .filter(({ bk_biz_id }) => !filterFn || filterFn(bk_biz_id))
+        .map(({ space_name, space_id, bk_biz_id }) => ({ space_name, space_id: space_id, bk_biz_id }));
+    };
+
+    /** 未开启故障分析功能的空间列表 */
+    const unconnectedSpaceList = computed(() => {
+      if (!unconnectedBizIds.value?.length) return null;
+      const result = toSpaceInfoList(id => unconnectedBizIds.value.includes(id));
+      return result.length ? result : null;
+    });
+
+    /** ============ 页面展示逻辑（接入指引提示 / 数据接入组件） ============ */
+
+    /** 是否展示接入指引提示：1. 虚拟业务并且不是全部都开启了故障分析功能；2. 混合选择（部分已开启故障分析功能，部分未开启） */
+    const showAccessGuideTip = computed(
+      () =>
+        alarmStore.alarmType === AlarmType.INCIDENT &&
+        !!alarmStore.bizIds?.length &&
+        !loading.value &&
+        ((isVirtualBiz.value &&
+          intersection(
+            authorizedBizList.value.map(({ bk_biz_id }) => bk_biz_id),
+            enabledSpaces.value
+          ).length < authorizedBizList.value.length) ||
+          (connectedBizIds.value.length > 0 && unconnectedBizIds.value.length > 0 && !!unconnectedSpaceList.value))
+    );
+
+    /** 是否直接展示数据接入组件（非侧滑）：1. 单选未开启故障分析功能；2. 多选（全部未开启故障分析功能） */
+    const showDataAccessDirect = computed(
+      () =>
+        alarmStore.alarmType === AlarmType.INCIDENT &&
+        !!alarmStore.bizIds?.length &&
+        !loading.value &&
+        !isVirtualBiz.value &&
+        connectedBizIds.value.length === 0 &&
+        unconnectedBizIds.value.length > 0 &&
+        !!unconnectedSpaceList.value
+    );
+
+    /** 接入指引提示中的未接入空间数量 */
+    const accessGuideTipCount = computed(() => {
+      if (isVirtualBiz.value) {
+        return authorizedBizList.value.length - enabledSpaces.value.length;
+      }
+      return unconnectedSpaceList.value?.length ?? 0;
+    });
+
+    /** ============ 侧滑数据接入 ============ */
+
+    /** 接入指引侧滑是否显示 */
+    const showAccessGuide = shallowRef(false);
+    /** 侧滑打开次数，用于强制重新渲染 DataAccess 组件 */
+    const dataAccessKey = shallowRef(0);
+    /** 接入指引来源：'tip'-来自告警提示点击，'header'-来自头部点击 */
+    const accessGuideFrom = shallowRef<'header' | 'tip'>('tip');
+
+    /** 侧滑数据接入的空间列表 */
+    const sidesliderSpaceList = computed(() => {
+      // 虚拟业务：展示全部有权限空间
+      if (isVirtualBiz.value) {
+        return toSpaceInfoList();
+      }
+      // 非虚拟业务：展示用户所选的空间（与业务下拉框一致）
+      return toSpaceInfoList(id => alarmStore.bizIds.includes(id));
+    });
+    /** 侧滑数据接入的所选空间总数 */
+    const sidesliderTotal = computed(() => sidesliderSpaceList.value?.length ?? 0);
+
+    /** 侧滑数据接入的展示模式：全部未开启功能用 empty（文案与外部一致），否则用 guide */
+    const sidesliderMode = computed(() => {
+      if (isVirtualBiz.value) {
+        // 虚拟业务：无已开启功能的空间时用 empty 模式
+        return enabledSpaces.value.length === 0 ? 'empty' : 'guide';
+      }
+      // 所有选中空间都未开启故障分析功能 → empty 模式
+      if (connectedBizIds.value.length === 0 && unconnectedBizIds.value.length > 0) return 'empty';
+      return 'guide';
+    });
     const {
       tableColumns: tableSourceColumns,
       storageColumns,
@@ -476,7 +577,8 @@ export default defineComponent({
     /** 业务变化 */
     const handleBizIdsChange = (bizIds: (number | string)[]) => {
       handleCurrentPageChange(1);
-      alarmStore.bizIds = bizIds as number[];
+      // 展开数组确保新引用
+      alarmStore.bizIds = [...bizIds] as number[];
     };
 
     /** URL参数 */
@@ -986,6 +1088,18 @@ export default defineComponent({
       page,
       pageSize,
       ordering,
+      showDataAccessDirect,
+      showAccessGuideTip,
+      showAccessGuide,
+      dataAccessKey,
+      accessGuideTipCount,
+      accessGuideFrom,
+      sidesliderSpaceList,
+      sidesliderTotal,
+      sidesliderMode,
+      unconnectedSpaceList,
+      enabledSpaces,
+      wxCsLink,
       tableSourceColumns,
       selectedRowKeys,
       defaultActiveRowKeys,
@@ -1130,6 +1244,11 @@ export default defineComponent({
             <AlarmCenterHeader
               class='alarm-center-header'
               isShowFavorite={this.isShowFavorite}
+              onAccessGuideClick={() => {
+                this.accessGuideFrom = 'header';
+                this.dataAccessKey += 1;
+                this.showAccessGuide = true;
+              }}
               onAlarmTypeChange={this.handleAlarmTypeChange}
               onFavoriteShowChange={this.handleFavoriteShowChange}
             />
@@ -1166,151 +1285,186 @@ export default defineComponent({
             onApply={this.handleApplyPermission}
             onClose={this.dismissPermissionTips}
           />
-          <div class='alarm-center-main'>
-            <TraceExploreLayout
-              class='alarm-center-layout'
+          {this.showAccessGuideTip && (
+            <Alert
+              class='access-guide-tip'
               v-slots={{
-                aside: () => {
-                  return (
-                    <div class='quick-filtering'>
-                      <QuickFiltering
-                        filterList={this.quickFilterList}
-                        filterValue={this.alarmStore.quickFilterValue}
-                        isFilterEmptyItem={false}
-                        isFirstInit={this.isFirstInit}
-                        loading={this.quickFilterLoading}
-                        onClose={this.updateIsCollapsed}
-                        onUpdate:filterValue={this.handleFilterValueChange}
-                      >
-                        {{
-                          empty: () => (
-                            <EmptyStatus
-                              type={this.quickFilterEmptyStatusType}
-                              onOperation={this.handleQuickFilteringOperation}
-                            />
-                          ),
-                        }}
-                      </QuickFiltering>
-                    </div>
-                  );
-                },
-                default: () => {
-                  return (
-                    <div class={CONTENT_SCROLL_ELEMENT_CLASS_NAME}>
-                      {this.alarmStore.alarmType !== AlarmType.ISSUES && (
-                        <div class='chart-trend'>
-                          <AlarmTrendChart total={this.total} />
-                        </div>
-                      )}
-                      {![AlarmType.INCIDENT, AlarmType.ISSUES].includes(this.alarmStore.alarmType) && (
-                        <div class='alarm-analysis'>
-                          <AlarmAnalysis onConditionChange={this.handleAddCondition} />
-                        </div>
-                      )}
-                      <div class='alarm-center-table'>
-                        {this.alarmStore.alarmType === AlarmType.ISSUES ? (
-                          <IssuesToolbar
-                            batchAction={action => this.handleIssuesDialogShow(action, this.selectedRowKeys)}
-                            hasSelection={this.hasSelection}
-                            mergeDisabled={this.mergeDisabled}
-                            mergeDisabledTip={this.mergeDisabledTip}
-                            onExport={this.handleExportIssues}
-                            onMerge={this.handleIssuesMergeClick}
-                          >
-                            <IssuesTable
-                              showEmptyOperation={
-                                this.alarmStore.filterMode === EMode.ui
-                                  ? this.alarmStore.conditions.length > 0 ||
-                                    this.alarmStore.residentCondition.length > 0
-                                  : this.alarmStore.queryString !== ''
-                              }
+                title: () => (
+                  <span class='tip-text'>
+                    {this.$t('当前选择，包含 {0} 个空间未开启故障分析功能，', [this.accessGuideTipCount])}
+                    <span
+                      class='tip-link'
+                      onClick={() => {
+                        this.accessGuideFrom = 'tip';
+                        this.dataAccessKey += 1;
+                        this.showAccessGuide = true;
+                      }}
+                    >
+                      {this.$t('查看相关接入指引')}
+                    </span>
+                  </span>
+                ),
+              }}
+              theme='info'
+              closable
+            />
+          )}
+
+          {this.showDataAccessDirect ? (
+            <div class='alarm-center-data-access'>
+              <DataAccess
+                spaceList={this.unconnectedSpaceList}
+                wxCsLink={this.wxCsLink}
+                onEnabled={() => this.handleBizIdsChange(this.alarmStore.bizIds)}
+              />
+            </div>
+          ) : (
+            <div class='alarm-center-main'>
+              <TraceExploreLayout
+                class='alarm-center-layout'
+                v-slots={{
+                  aside: () => {
+                    return (
+                      <div class='quick-filtering'>
+                        <QuickFiltering
+                          filterList={this.quickFilterList}
+                          filterValue={this.alarmStore.quickFilterValue}
+                          isFilterEmptyItem={false}
+                          isFirstInit={this.isFirstInit}
+                          loading={this.quickFilterLoading}
+                          onClose={this.updateIsCollapsed}
+                          onUpdate:filterValue={this.handleFilterValueChange}
+                        >
+                          {{
+                            empty: () => (
+                              <EmptyStatus
+                                type={this.quickFilterEmptyStatusType}
+                                onOperation={this.handleQuickFilteringOperation}
+                              />
+                            ),
+                          }}
+                        </QuickFiltering>
+                      </div>
+                    );
+                  },
+                  default: () => {
+                    return (
+                      <div class={CONTENT_SCROLL_ELEMENT_CLASS_NAME}>
+                        {this.alarmStore.alarmType !== AlarmType.ISSUES && (
+                          <div class='chart-trend'>
+                            <AlarmTrendChart total={this.total} />
+                          </div>
+                        )}
+                        {![AlarmType.INCIDENT, AlarmType.ISSUES].includes(this.alarmStore.alarmType) && (
+                          <div class='alarm-analysis'>
+                            <AlarmAnalysis onConditionChange={this.handleAddCondition} />
+                          </div>
+                        )}
+                        <div class='alarm-center-table'>
+                          {this.alarmStore.alarmType === AlarmType.ISSUES ? (
+                            <IssuesToolbar
+                              batchAction={action => this.handleIssuesDialogShow(action, this.selectedRowKeys)}
+                              hasSelection={this.hasSelection}
+                              mergeDisabled={this.mergeDisabled}
+                              mergeDisabledTip={this.mergeDisabledTip}
+                              onExport={this.handleExportIssues}
+                              onMerge={this.handleIssuesMergeClick}
+                            >
+                              <IssuesTable
+                                showEmptyOperation={
+                                  this.alarmStore.filterMode === EMode.ui
+                                    ? this.alarmStore.conditions.length > 0 ||
+                                      this.alarmStore.residentCondition.length > 0
+                                    : this.alarmStore.queryString !== ''
+                                }
+                                columns={this.tableSourceColumns}
+                                data={this.data as IssueItem[]}
+                                headerAffixedTop={issuesTableAffixed}
+                                highlightedRowIds={this.highlightedRowIds}
+                                horizontalScrollAffixedBottom={tableAffixed}
+                                loading={this.loading}
+                                nameChange={this.handleIssuesNameChange}
+                                pagination={this.pagination}
+                                scrollContainerSelector={`.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`}
+                                selectedRowKeys={this.selectedRowKeys}
+                                sort={this.ordering}
+                                onAction={(type: IssuesBatchActionType, id: string) =>
+                                  this.handleIssuesDialogShow(type, id)
+                                }
+                                onAssignClick={(id, data) =>
+                                  this.handleIssuesDialogShow(IssuesBatchActionEnum.ASSIGN, id, data)
+                                }
+                                onClearFilter={() => {
+                                  if (this.alarmStore.filterMode === EMode.ui) {
+                                    this.handleConditionChange([]);
+                                    this.handleResidentConditionChange([]);
+                                    return;
+                                  }
+                                  this.handleQueryStringChange('');
+                                }}
+                                onColumnResizeChange={(ctx: ColumnResizeContext) => {
+                                  if (ctx?.columnsWidth)
+                                    this.fieldsWidthConfig = { ...this.fieldsWidthConfig, ...ctx.columnsWidth };
+                                }}
+                                onCurrentPageChange={this.handleCurrentPageChange}
+                                onImpactScopeClick={this.handleImpactScopeClick}
+                                onPageSizeChange={this.handlePageSizeChange}
+                                onPriorityChange={this.handleIssuesPriorityChange}
+                                onSelectionChange={this.handleSelectedRowKeysChange}
+                                onShowDetail={this.handleIssuesShowDetail}
+                                onSortChange={sort => this.handleSortChange(sort as string)}
+                                onSplitClick={this.handleIssuesSplitClick}
+                              />
+                            </IssuesToolbar>
+                          ) : (
+                            <AlarmTable
+                              tableSettings={{
+                                checked: this.storageColumns,
+                                fields: this.allTableFields,
+                                disabled: this.lockedTableFields,
+                              }}
                               columns={this.tableSourceColumns}
-                              data={this.data as IssueItem[]}
-                              headerAffixedTop={issuesTableAffixed}
-                              highlightedRowIds={this.highlightedRowIds}
+                              data={this.data}
+                              defaultActiveRowKeys={this.defaultActiveRowKeys}
+                              headerAffixedTop={tableAffixed}
                               horizontalScrollAffixedBottom={tableAffixed}
+                              isSelectedFollower={this.isSelectedFollower}
                               loading={this.loading}
-                              nameChange={this.handleIssuesNameChange}
                               pagination={this.pagination}
                               scrollContainerSelector={`.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`}
                               selectedRowKeys={this.selectedRowKeys}
                               sort={this.ordering}
-                              onAction={(type: IssuesBatchActionType, id: string) =>
-                                this.handleIssuesDialogShow(type, id)
-                              }
-                              onAssignClick={(id, data) =>
-                                this.handleIssuesDialogShow(IssuesBatchActionEnum.ASSIGN, id, data)
-                              }
-                              onClearFilter={() => {
-                                if (this.alarmStore.filterMode === EMode.ui) {
-                                  this.handleConditionChange([]);
-                                  this.handleResidentConditionChange([]);
-                                  return;
-                                }
-                                this.handleQueryStringChange('');
-                              }}
+                              timeRange={this.alarmStore.timeRange}
                               onColumnResizeChange={(ctx: ColumnResizeContext) => {
                                 if (ctx?.columnsWidth)
                                   this.fieldsWidthConfig = { ...this.fieldsWidthConfig, ...ctx.columnsWidth };
                               }}
                               onCurrentPageChange={this.handleCurrentPageChange}
-                              onImpactScopeClick={this.handleImpactScopeClick}
+                              onDisplayColFieldsChange={displayColFields => {
+                                this.storageColumns = displayColFields;
+                              }}
+                              onOpenAlertDialog={this.handleAlertDialogShow}
                               onPageSizeChange={this.handlePageSizeChange}
-                              onPriorityChange={this.handleIssuesPriorityChange}
+                              onSaveAlertContentName={this.handleSaveAlertContentName}
                               onSelectionChange={this.handleSelectedRowKeysChange}
-                              onShowDetail={this.handleIssuesShowDetail}
+                              onShowActionDetail={this.handleShowActionDetail}
+                              onShowAlertDetail={this.handleShowAlertDetail}
                               onSortChange={sort => this.handleSortChange(sort as string)}
-                              onSplitClick={this.handleIssuesSplitClick}
                             />
-                          </IssuesToolbar>
-                        ) : (
-                          <AlarmTable
-                            tableSettings={{
-                              checked: this.storageColumns,
-                              fields: this.allTableFields,
-                              disabled: this.lockedTableFields,
-                            }}
-                            columns={this.tableSourceColumns}
-                            data={this.data}
-                            defaultActiveRowKeys={this.defaultActiveRowKeys}
-                            headerAffixedTop={tableAffixed}
-                            horizontalScrollAffixedBottom={tableAffixed}
-                            isSelectedFollower={this.isSelectedFollower}
-                            loading={this.loading}
-                            pagination={this.pagination}
-                            scrollContainerSelector={`.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`}
-                            selectedRowKeys={this.selectedRowKeys}
-                            sort={this.ordering}
-                            timeRange={this.alarmStore.timeRange}
-                            onColumnResizeChange={(ctx: ColumnResizeContext) => {
-                              if (ctx?.columnsWidth)
-                                this.fieldsWidthConfig = { ...this.fieldsWidthConfig, ...ctx.columnsWidth };
-                            }}
-                            onCurrentPageChange={this.handleCurrentPageChange}
-                            onDisplayColFieldsChange={displayColFields => {
-                              this.storageColumns = displayColFields;
-                            }}
-                            onOpenAlertDialog={this.handleAlertDialogShow}
-                            onPageSizeChange={this.handlePageSizeChange}
-                            onSaveAlertContentName={this.handleSaveAlertContentName}
-                            onSelectionChange={this.handleSelectedRowKeysChange}
-                            onShowActionDetail={this.handleShowActionDetail}
-                            onShowAlertDetail={this.handleShowAlertDetail}
-                            onSortChange={sort => this.handleSortChange(sort as string)}
-                          />
-                        )}
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                },
-              }}
-              initialDivide={208}
-              isCollapsed={this.isCollapsed}
-              maxWidth={500}
-              minWidth={160}
-              onUpdate:isCollapsed={this.updateIsCollapsed}
-            />
-          </div>
+                    );
+                  },
+                }}
+                initialDivide={208}
+                isCollapsed={this.isCollapsed}
+                maxWidth={500}
+                minWidth={160}
+                onUpdate:isCollapsed={this.updateIsCollapsed}
+              />
+            </div>
+          )}
           {this.alarmStore.alarmType === AlarmType.ISSUES ? (
             [
               <IssuesDetailSideSlider
@@ -1390,6 +1544,23 @@ export default defineComponent({
             }}
           />
         </div>
+        <Sideslider
+          width={1018}
+          extCls='data-access-sideSlider'
+          isShow={this.showAccessGuide}
+          title={this.$t('接入指引')}
+          onUpdate:isShow={(v: boolean) => (this.showAccessGuide = v)}
+        >
+          <DataAccess
+            key={this.dataAccessKey}
+            enabledBizIds={this.enabledSpaces}
+            mode={this.sidesliderMode}
+            spaceList={this.sidesliderSpaceList}
+            totalCount={this.sidesliderTotal}
+            wxCsLink={this.wxCsLink}
+            onEnabled={() => this.handleBizIdsChange(this.alarmStore.bizIds)}
+          />
+        </Sideslider>
         <EditFavorite
           key={this.favoriteType}
           data={this.editFavoriteData}

@@ -262,11 +262,7 @@ export default defineComponent({
       // 组装请求参数方法
       const buildQueryParams = (startTime, endTime) => {
         const indexId = window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId;
-        const urlStr = isUnionSearch.value
-          ? 'unionSearch/unionDateHistogram'
-          : store.getters.isSceneMode
-            ? 'retrieve/getSceneDateHistogram'
-            : 'retrieve/getLogChartList';
+        const urlStr = isUnionSearch.value ? 'unionSearch/unionDateHistogram' : 'retrieve/getLogChartList';
         const queryData = {
           ...retrieveParams.value,
           addition: formatAdditionalFields(store.state, [
@@ -315,7 +311,7 @@ export default defineComponent({
         // 获取请求参数
         const params = buildQueryParams(startTime, endTime);
 
-        if (store.getters.isSceneMode || (!isUnionSearch.value && !!params.indexId) || (isUnionSearch.value && unionIndexList.value?.length)) {
+        if ((!isUnionSearch.value && !!params.indexId) || (isUnionSearch.value && unionIndexList.value?.length)) {
           yield { ...params, isInit: localIsInit };
 
           // 更新isInit状态
@@ -343,14 +339,12 @@ export default defineComponent({
       const controller = new AbortController();
       logChartCancel = () => controller.abort();
 
-      const requestConfig: any = { data: queryData };
-      if (!store.getters.isSceneMode) {
-        requestConfig.params = { index_set_id: indexId };
-      }
-
       return http.request(
         urlStr,
-        requestConfig,
+        {
+          params: { index_set_id: indexId },
+          data: queryData,
+        },
         {
           signal: controller.signal,
         },
@@ -359,9 +353,6 @@ export default defineComponent({
 
     // 加载趋势图数据
     const loadTrendData = () => {
-      // 场景化检索模式下，过滤条件为空时不加载趋势图
-      if (store.getters.isSceneMode && store.getters.isSceneFilterEmpty) return;
-
       cacheChartOptions();
       store.commit('retrieve/updateTrendDataLoading', true); // 开始加载前，打开loading
       store.commit('retrieve/updateTotalCountLoaded', false); // 重置总数加载状态
@@ -416,16 +407,6 @@ export default defineComponent({
       ],
       loadTrendData,
     );
-
-    addEvent(RetrieveEvent.TREND_GRAPH_CLEAR, () => {
-      logChartCancel?.();
-      isSearchingCanceled = true;
-      runningTimer && clearTimeout(runningTimer);
-      isStart.value = false;
-      setChartData(null, null, true);
-      store.commit('SET_APP_STATE', { searchTotal: 0, tookTime: 0 });
-      store.commit('retrieve/updateTrendDataLoading', false);
-    });
 
     addEvent(RetrieveEvent.SEARCH_CANCEL, () => {
       logChartCancel?.();
@@ -510,22 +491,20 @@ export default defineComponent({
                     />
                   ))}
                 </bk-select>
-                {!store.getters.isSceneMode && (
-                  <BklogPopover
-                    ref={refGradePopover}
-                    content={() => (
-                      <GradeOption
-                        ref={refGradeOption}
-                        on-Change={handleGradeOptionChange}
-                      />
-                    )}
-                    beforeHide={beforePopoverHide}
-                    content-class='bklog-v3-grade-setting'
-                    options={tippyOptions as any}
-                  >
-                    <span class='bklog-icon bklog-shezhi' />
-                  </BklogPopover>
-                )}
+                <BklogPopover
+                  ref={refGradePopover}
+                  content={() => (
+                    <GradeOption
+                      ref={refGradeOption}
+                      on-Change={handleGradeOptionChange}
+                    />
+                  )}
+                  beforeHide={beforePopoverHide}
+                  content-class='bklog-v3-grade-setting'
+                  options={tippyOptions as any}
+                >
+                  <span class='bklog-icon bklog-shezhi' />
+                </BklogPopover>
               </div>
             )}
           </div>

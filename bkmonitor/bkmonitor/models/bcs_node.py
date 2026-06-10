@@ -82,7 +82,16 @@ class BCSNodeManager(BCSBaseManager):
         if not node_list:
             return None
         # ipv6 的 instance 的格式形如：[x:x:x:x:x:x:x:x]:port
-        ip_list = [f"\\\\[{node.ip}\\\\]:" if is_v6(node.ip) else f"{node.ip}:" for node in node_list if node.ip]
+        # 输出拼入双引号 PromQL 字符串字面量内的 instance=~""，正则转义的反斜杠须成对
+        # （文本 \\. / \\[，字符串解码回正则后即 \. / \[）：
+        # IPv4 的 . 不转义会被正则解释为任意字符产生误匹配；单写 \. 则被 PromQL 解析
+        # 报 unknown escape sequence。IP 值域仅含数字/点/冒号，点号替换即完备转义，
+        # 与 monitor_web 侧 escape_promql_regex 的双层转义语义一致。
+        ip_list = [
+            f"\\\\[{node.ip}\\\\]:" if is_v6(node.ip) else node.ip.replace(".", "\\\\.") + ":"
+            for node in node_list
+            if node.ip
+        ]
         instance = "^({})".format("|".join(ip_list))
         return instance
 

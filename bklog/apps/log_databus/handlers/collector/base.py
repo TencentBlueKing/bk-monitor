@@ -101,6 +101,7 @@ from apps.log_search.constants import (
     CustomTypeEnum,
     GlobalCategoriesEnum,
     InnerTag,
+    LogAccessTypeEnum,
 )
 from apps.log_search.handlers.biz import BizHandler
 from apps.log_search.handlers.index_set import IndexSetHandler
@@ -392,6 +393,26 @@ class CollectorHandler:
             container_configs.append(model_to_dict(config))
 
         collector_config["configs"] = container_configs
+        return collector_config
+
+    def add_log_access_type(self, collector_config, context):
+        """
+        补充新版日志接入类型
+        @param collector_config:
+        @param context:
+        @return:
+        """
+        container_collector_type = ""
+        if self.data.is_container_environment:
+            container_config = next(iter(collector_config.get("configs", [])), {})
+            container_collector_type = container_config.get("collector_type", "")
+
+        collector_config["log_access_type"] = LogAccessTypeEnum.get_log_access_type(
+            scenario_id=collector_config.get("scenario_id", ""),
+            collector_scenario_id=collector_config.get("collector_scenario_id", ""),
+            environment=collector_config.get("environment", ""),
+            container_collector_type=container_collector_type,
+        )
         return collector_config
 
     def encode_yaml_config(self, collector_config, context):

@@ -8,3 +8,9 @@
 
 bkmonitor/uv.lock
 
+
+# Dummy fixture IPs asserted by test_bcs_node.py (defined by the shared add_bcs_nodes
+# fixture in conftest). Exempt only these exact IPs in this file so any new
+# IPv4-looking string added to the test file is still checked.
+bkmonitor/packages/monitor_web/tests/scene_view/bkmonitor/models/test_bcs_node.py:[0-9]*:1\.1\.1\.1$
+bkmonitor/packages/monitor_web/tests/scene_view/bkmonitor/models/test_bcs_node.py:[0-9]*:2\.2\.2\.2$

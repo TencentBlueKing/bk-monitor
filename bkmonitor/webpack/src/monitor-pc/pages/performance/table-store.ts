@@ -34,13 +34,21 @@ import { commonPageSizeGet } from 'monitor-common/utils';
 import { isFullIpv6, padIPv6 } from 'monitor-common/utils/ip-utils';
 import { typeTools } from 'monitor-common/utils/utils.js';
 
-import type { CheckType, IConditionValue, IFieldConfig, IOption, ITableOptions, ITableRow } from './performance-type';
+import type {
+  CheckType,
+  IConditionValue,
+  IFieldConfig,
+  IOption,
+  ITableOptions,
+  ITableRow,
+  ITopoTreeNode,
+} from './performance-type';
 
 const IP_LIST_MATCH = new RegExp(/((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)/, 'g');
 const IPV6_LIST_MATCH = new RegExp(/([\da-fA-F]{4}:){7}[\da-fA-F]{4}/, 'g');
 const commonTopoLevel = ['biz', 'module', 'set'];
 export default class TableStore {
-  allClusterTopo = [];
+  allClusterTopo: Readonly<ITopoTreeNode[]> = [] as Readonly<ITopoTreeNode[]>;
   allData!: Readonly<Array<ITableRow>>;
   bizIdMap: Map<number, any> = new Map();
   cacheClusterMap = new Map();
@@ -154,7 +162,7 @@ export default class TableStore {
       name: window.i18n.t('采集状态'),
       id: 'status',
       checked: true,
-      disable: true,
+      disable: false,
       filterChecked: true,
       filterDisable: true,
       type: 'checkbox',
@@ -360,7 +368,7 @@ export default class TableStore {
       name: window.i18n.t('进程'),
       id: 'display_name',
       checked: true,
-      disable: true,
+      disable: false,
       filterChecked: false,
       filterDisable: false,
       options: [],
@@ -407,7 +415,7 @@ export default class TableStore {
     }
     const id = topo_link.shift();
     const name = topo_link_display.shift();
-    const node = { id, name };
+    const node: ITopoTreeNode = { id, name };
     const child = this.convertToTree(topo_link, topo_link_display);
     if (child) {
       node.children = [...(node.children || []), child];
