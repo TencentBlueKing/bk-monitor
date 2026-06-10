@@ -82,6 +82,7 @@ class _FakeQuerySet:
     def __init__(self, items):
         self.items = list(items)
         self.filters = []
+        self.excludes = []
         self.ordering = []
 
     def filter(self, **kwargs):
@@ -89,6 +90,7 @@ class _FakeQuerySet:
         return self
 
     def exclude(self, **kwargs):
+        self.excludes.append(kwargs)
         return self
 
     def order_by(self, *fields):
@@ -184,6 +186,10 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
     space_detail = KernelRPCRegistry.get_function_detail("admin.space.detail")
     assert space_detail is not None
     assert "SpaceVMInfo" in space_detail["description"]
+
+    space_list = KernelRPCRegistry.get_function_detail("admin.space.list")
+    assert space_list is not None
+    assert "bk_biz_id" in space_list["params_schema"]
 
     custom_report_list = KernelRPCRegistry.get_function_detail("admin.custom_report.list")
     assert custom_report_list is not None
@@ -559,6 +565,137 @@ def test_space_vm_info_serializer_includes_vm_cluster_or_null():
 
     missing_cluster_item = admin_space._serialize_space_vm_info(space_vm_info, {})
     assert missing_cluster_item["vm_cluster"] is None
+
+
+def test_space_es_usage_function_registered():
+    detail = KernelRPCRegistry.get_function_detail("admin.space.es_usage")
+
+    assert detail is not None
+    assert detail["func_name"] == "admin.space.es_usage"
+    assert "inspect" in detail["description"]
+    assert "实体表" in detail["description"]
+    assert "space_uid" in detail["params_schema"]
+
+
+def test_space_es_usage_prefix_uses_biz_id_or_space_pk():
+    cmdb_space = SimpleNamespace(space_type_id="bkcc", space_id="2", pk=20)
+    custom_space = SimpleNamespace(space_type_id="bkci", space_id="demo-project", pk=4779)
+
+    assert admin_space._build_space_es_usage_prefix(cmdb_space) == "2_"
+    assert admin_space._build_space_es_usage_prefix(custom_space) == "space_4779_"
+
+
+def test_space_list_filters_by_mapped_bk_biz_id():
+    positive_queryset = _FakeQuerySet([])
+    admin_space._apply_space_bk_biz_id_filter(positive_queryset, "2")
+
+    assert positive_queryset.filters == [{"space_type_id": "bkcc", "space_id": "2"}]
+    assert positive_queryset.excludes == []
+
+    negative_queryset = _FakeQuerySet([])
+    admin_space._apply_space_bk_biz_id_filter(negative_queryset, -4779)
+
+    assert negative_queryset.filters == [{"id": 4779}]
+    assert negative_queryset.excludes == [{"space_type_id": "bkcc"}]
+
+    with pytest.raises(CustomException, match="bk_biz_id 必须是整数"):
+        admin_space._apply_space_bk_biz_id_filter(_FakeQuerySet([]), "demo")
+
+
+def test_space_es_usage_builds_exact_table_index_patterns():
+    patterns = admin_space._build_es_usage_index_patterns(["2_bklog.demo", "space_4779_bklog.demo"])
+
+    assert patterns == [
+        "v2_2_bklog_demo_*",
+        "2_bklog_demo_*",
+        "v2_space_4779_bklog_demo_*",
+        "space_4779_bklog_demo_*",
+    ]
+
+
+def test_space_es_usage_cluster_aggregates_physical_storage_rows():
+    warnings = []
+    cluster = SimpleNamespace(
+        cluster_id=9,
+        cluster_name="es-main",
+        display_name="主 ES 集群",
+        cluster_type="elasticsearch",
+    )
+    storages = [_fake_es_analysis_storage("2_bklog.demo"), _fake_es_analysis_storage("2_bklog.legacy")]
+    index_rows = [
+        {
+            "index": "v2_2_bklog_demo_2026060612_0",
+            "health": "green",
+            "status": "open",
+            "docs.count": "10",
+            "store.size": "1024",
+            "pri": "2",
+            "rep": "1",
+        },
+        {
+            "index": "2_bklog_legacy_2026060612_0",
+            "health": "yellow",
+            "status": "open",
+            "docs.count": "5",
+            "store.size": "512",
+            "pri": "1",
+            "rep": "0",
+        },
+    ]
+
+    payload = admin_space._build_space_es_usage_cluster(
+        cluster=cluster,
+        es_storages=storages,
+        result_table_map={},
+        index_rows=index_rows,
+        current_table_ids={"2_bklog.demo"},
+        historical_table_ids={"2_bklog.legacy"},
+        historical_cluster_ids_by_table={"2_bklog.legacy": {9}},
+        warnings=warnings,
+    )
+
+    storages_by_table = {storage["table_id"]: storage for storage in payload["storages"]}
+    assert warnings == []
+    assert "role" not in payload
+    assert payload["summary"]["storage_count"] == 2
+    assert payload["summary"]["index_count"] == 2
+    assert payload["summary"]["docs_count"] == 15
+    assert payload["summary"]["store_size_bytes"] == 1536
+    assert payload["summary"]["shards"] == 5
+    assert payload["summary"]["health_counts"] == {"green": 1, "yellow": 1}
+    assert storages_by_table["2_bklog.demo"]["role"] == "current"
+    assert storages_by_table["2_bklog.demo"]["summary"]["index_count"] == 1
+    assert storages_by_table["2_bklog.legacy"]["role"] == "historical"
+    assert storages_by_table["2_bklog.legacy"]["historical_cluster_ids"] == [9]
+
+
+def test_space_es_usage_query_skips_failed_chunks_without_fallback(monkeypatch):
+    calls = []
+
+    class FakeCat:
+        def indices(self, **kwargs):
+            calls.append(kwargs)
+            raise RuntimeError("es unavailable")
+
+    monkeypatch.setattr(
+        admin_space.es_tools,
+        "get_client",
+        lambda bk_tenant_id, cluster_id: SimpleNamespace(cat=FakeCat()),
+    )
+    warnings = []
+
+    rows = admin_space._query_es_usage_index_rows(
+        bk_tenant_id="system",
+        cluster_id=9,
+        table_ids=["2_bklog.demo"],
+        timeout=30,
+        warnings=warnings,
+    )
+
+    assert rows == []
+    assert warnings[0]["code"] == "SPACE_ES_USAGE_INDEX_QUERY_FAILED"
+    assert calls[0]["index"] == "v2_2_bklog_demo_*,2_bklog_demo_*"
+    assert calls[0]["index"] != "*"
 
 
 def test_cluster_space_vm_info_serializer_includes_space_summary_or_null():
