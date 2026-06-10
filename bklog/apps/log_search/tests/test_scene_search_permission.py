@@ -470,7 +470,10 @@ class TestVerifyResultTableSearchPermission(TestCase):
             "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
             "_map_result_tables_to_index_sets",
             return_value=[123, 456],
-        ), patch("apps.iam.handlers.permission.Permission") as m_perm_cls:
+        ), patch("apps.log_search.models.LogIndexSet") as m_index_set, patch(
+            "apps.iam.handlers.permission.Permission"
+        ) as m_perm_cls:
+            m_index_set.objects.filter.return_value.values_list.return_value = []
             m_perm_cls.return_value.batch_is_allowed.return_value = {
                 "123": {ActionEnum.SEARCH_LOG.id: True},
                 "456": {ActionEnum.SEARCH_LOG.id: True},
@@ -483,6 +486,41 @@ class TestVerifyResultTableSearchPermission(TestCase):
                 resource = resource_group[0]
                 self.assertIn("_bk_iam_path_", resource.attribute)
                 self.assertEqual(resource.attribute["_bk_iam_path_"], "/space,2/")
+
+    def test_denied_resources_carry_index_set_name(self):
+        """回归：拒绝时申请数据需展示索引集名称。
+
+        _bk_iam_path_ 修复给 create_simple_instance 传了非空 attribute，会让
+        Indices 提前返回、跳过反查 name。这里批量查名塞进 attribute，确保
+        传给 get_apply_data 的资源带上 name。
+        """
+        from apps.iam.exceptions import PermissionDeniedError
+        from apps.iam.handlers.actions import ActionEnum
+
+        handler = _bare_scene_handler()
+        with patch(
+            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
+            "_map_result_tables_to_index_sets",
+            return_value=[123, 456],
+        ), patch("apps.log_search.models.LogIndexSet") as m_index_set, patch(
+            "apps.iam.handlers.permission.Permission"
+        ) as m_perm_cls:
+            m_index_set.objects.filter.return_value.values_list.return_value = [
+                (123, "idx-123"),
+                (456, "idx-456"),
+            ]
+            m_perm_cls.return_value.batch_is_allowed.return_value = {
+                "123": {ActionEnum.SEARCH_LOG.id: True},
+                "456": {ActionEnum.SEARCH_LOG.id: False},
+            }
+            m_perm_cls.return_value.get_apply_data.return_value = ({}, "http://apply")
+            with self.assertRaises(PermissionDeniedError):
+                handler.verify_result_table_search_permission(["2_bklog.a", "2_bklog.b"])
+            # get_apply_data 收到的 denied_resources 必须带 name
+            _actions, denied_resources = m_perm_cls.return_value.get_apply_data.call_args[0]
+            self.assertEqual(len(denied_resources), 1)
+            self.assertEqual(denied_resources[0].attribute["name"], "idx-456")
+            self.assertEqual(denied_resources[0].attribute["_bk_iam_path_"], "/space,2/")
 
 
 # =========================================================================
