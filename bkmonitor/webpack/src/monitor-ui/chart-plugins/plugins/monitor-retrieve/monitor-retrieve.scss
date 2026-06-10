@@ -1,5 +1,5 @@
 .monitor-retrieve {
-  // display: flex;
+  position: relative;
   width: 100%;
   height: 100%;
 
@@ -33,6 +33,37 @@
 
     .bk-button {
       width: 88px;
+    }
+  }
+
+  .subbar-container {
+    background-color: transparent !important;
+  }
+
+  .quick-jump-container {
+    position: absolute;
+    right: 10px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-right: 8px;
+
+    .quick-jump {
+      &:hover {
+        background-color: transparent !important;
+      }
+
+      &:first-child {
+        margin-right: -12px;
+      }
+
+      .icon-monitor {
+        margin-left: 4px;
+        font-size: 12px;
+        line-height: 15px;
+        transform: scale(0.85);
+      }
     }
   }
 }

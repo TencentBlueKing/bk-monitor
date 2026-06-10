@@ -66,6 +66,7 @@ interface Props {
 export default class RedefineTabContent extends tsc<Props> {
   @Prop({ default: '' }) appName: string;
   @Prop({ default: false }) isBatchEdit: boolean;
+  @Prop({ default: window.innerHeight - 350 }) tableMaxHeight: number;
 
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   @InjectReactive('callOptions') readonly callOptions: CallOptions;
@@ -97,8 +98,6 @@ export default class RedefineTabContent extends tsc<Props> {
     { label: this.$tc('超时'), value: 'timeout' },
     { label: this.$tc('成功'), value: 'success' },
   ];
-
-  codeRegex = /^(?:[a-zA-Z0-9]+_)?\d+(?:~\d+)?(?:,(?:[a-zA-Z0-9]+_)?\d+(?:~\d+)?)*$/;
 
   callTypeOptions = [
     { text: this.$tc('主调'), value: 'caller' },
@@ -147,7 +146,10 @@ export default class RedefineTabContent extends tsc<Props> {
       },
       {
         validator: (val: string) =>
-          !(val ?? '').toString().trim() || this.codeRegex.test((val ?? '').toString().trim()),
+          !(val ?? '').toString().trim() ||
+          /^(?:[a-zA-Z0-9]+_)?-?\d+(?:~-?\d+)?(?:,(?:[a-zA-Z0-9]+_)?-?\d+(?:~-?\d+)?)*$/.test(
+            (val ?? '').toString().trim()
+          ),
         message: window.i18n.tc('返回码格式错误'),
         trigger: 'blur',
       },
@@ -619,9 +621,15 @@ export default class RedefineTabContent extends tsc<Props> {
     this.showData = cloneDeep(this.data);
   }
 
+  handleBatchEdit() {
+    this.currentEditRowId = '';
+  }
+
   async handleBatchSave() {
     const validResult = await this.validRules();
     if (!validResult) {
+      // 无论成功失败都关闭 loading
+      this.$emit('batchSaveFailed');
       return;
     }
     const params = {
@@ -678,7 +686,7 @@ export default class RedefineTabContent extends tsc<Props> {
                 }
                 return (
                   <div class='interface-column'>
-                    {row.isImport && <div class='import-sign-bar' />}
+                    {(row.isImport || row.isNew) && <div class='new-sign-bar' />}
                     {/* 编辑态：类型可选且可自定义创建 */}
                     <bk-select
                       clearable={false}
@@ -738,11 +746,13 @@ export default class RedefineTabContent extends tsc<Props> {
                       },
                     ]
                   : [];
+                if (isCalleeServerDisabled) {
+                  return <span style='color: #c4c6cc;'>{this.$t('被调无需选择')}</span>;
+                }
                 return (
                   <div class='interface-column'>
                     <ValueTagSelector
                       style='width: 100%'
-                      disabled={isCalleeServerDisabled}
                       v-bk-tooltips={{
                         content: this.$t('「被调」类型无需填写「被调服务」'),
                         disabled: !isCalleeServerDisabled,
@@ -755,6 +765,7 @@ export default class RedefineTabContent extends tsc<Props> {
                         isEnableOptions: true,
                       }}
                       value={value}
+                      tippy-mode
                       getValueFn={this.getValueCallback(row.kind, item.prop)}
                       onChange={data => this.handleValueTagSelectorChange(data, item.prop, row.id)}
                     />
@@ -880,11 +891,10 @@ export default class RedefineTabContent extends tsc<Props> {
                 if (this.currentEditRowId !== row.id && !this.isBatchEdit) {
                   return (
                     <div class='interface-column-readonly'>
-                      <div
-                        class='value-content'
-                        v-bk-overflow-tips
-                      >
-                        {row[item.prop].map(item => (item === '0' ? this.$tc('全局生效') : item)).join(',')}
+                      <div class='tag-list-content'>
+                        {row[item.prop].map(item => (
+                          <bk-tag key={item}>{item === '0' ? this.$tc('全局生效') : item}</bk-tag>
+                        ))}
                       </div>
                     </div>
                   );
@@ -902,6 +912,7 @@ export default class RedefineTabContent extends tsc<Props> {
                       showEmpty={!item.loading && !item.options.length}
                       value={row[item.prop]}
                       multiple
+                      display-tag
                       searchable
                       onChange={v => this.handleValueChange(v, item.prop, row.id)}
                     >
@@ -940,7 +951,7 @@ export default class RedefineTabContent extends tsc<Props> {
           ) : (
             <bk-table
               ref='tableRef'
-              height='100%'
+              max-height={this.tableMaxHeight}
               data={this.showData}
               empty-text={this.filterValues.length ? this.$tc('搜索结果为空') : this.$t('暂无数据')}
               row-class-name='return-code-redefine-row'

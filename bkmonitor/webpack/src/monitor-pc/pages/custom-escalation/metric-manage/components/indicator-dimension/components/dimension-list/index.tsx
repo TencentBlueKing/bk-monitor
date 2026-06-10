@@ -337,8 +337,8 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
       type: 'dimension',
       name: dimensionInfo.name,
       scope: {
-        id: this.selectedGroupInfo.id,
-        name: this.selectedGroupInfo.name,
+        id: dimensionInfo.scope.id,
+        name: dimensionInfo.scope.name,
       },
       config: {},
     };
@@ -396,19 +396,23 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
     this.$bkMessage({ theme: 'success', message: this.$t('变更成功') });
   }
 
-   /**
+  /**
    * 处理表格滚动到底部事件
    * 加载下一页数据（虚拟滚动）
    */
-   handleScrollToBottom() {
+  handleScrollToBottom() {
     if (this.pagination.page * this.pagination.pageSize < this.pagination.total) {
       this.bottomLoadingOptions.isLoading = true;
-      this.showTableData.push(...this.tableData.slice(this.pagination.page * this.pagination.pageSize, (this.pagination.page + 1) * this.pagination.pageSize));
+      this.showTableData.push(
+        ...this.tableData.slice(
+          this.pagination.page * this.pagination.pageSize,
+          (this.pagination.page + 1) * this.pagination.pageSize
+        )
+      );
       this.pagination.page++;
       setTimeout(() => {
         this.bottomLoadingOptions.isLoading = false;
       }, 500);
-      
     }
   }
 
@@ -433,18 +437,16 @@ export default class DimensionTabDetail extends tsc<IProps, IEmits> {
             clearable
           />
         </div>
-        <div
-          class='table-container'
-        >
+        <div class='table-container'>
           <bk-table
             key={this.tableRenderKey}
             class='dimension-table'
             v-bkloading={{ isLoading: this.tableLoading }}
-            scroll-loading={this.bottomLoadingOptions}
-            on-scroll-end={this.handleScrollToBottom}
             data={this.showTableData}
             max-height={this.maxHeight}
             row-hover='auto'
+            scroll-loading={this.bottomLoadingOptions}
+            on-scroll-end={this.handleScrollToBottom}
           >
             {this.columnConfigs.map(config => (
               <bk-table-column

@@ -77,6 +77,88 @@ Vue.use(Vuex);
 export const SET_APP_STATE = 'SET_APP_STATE';
 
 let dateFieldSortList = [];
+const MAX_RENDER_STRING_LENGTH = 32 * 1024;
+
+const truncateLogRenderString = (value) => {
+  if (typeof value !== 'string' || value.length <= MAX_RENDER_STRING_LENGTH) {
+    return value;
+  }
+
+  return value.slice(0, MAX_RENDER_STRING_LENGTH);
+};
+
+const isPlainLogRenderObject = value => (
+  Object.prototype.toString.call(value) === '[object Object]'
+  && value !== null
+  && !value._isBigNumber
+);
+
+const normalizeLogRenderPrimitive = (value) => {
+  if (value?._isBigNumber) {
+    const stringValue = value.toString();
+    return stringValue.length < 16 ? Number(value) : stringValue;
+  }
+
+  if (typeof value === 'string') {
+    return truncateLogRenderString(value);
+  }
+
+  return value;
+};
+
+const normalizeLogRenderValue = (value) => {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  const primitiveValue = normalizeLogRenderPrimitive(value);
+  if (primitiveValue !== value || typeof primitiveValue !== 'object') {
+    return primitiveValue;
+  }
+
+  if (Array.isArray(value)) {
+    let changed = false;
+    const list = value.map((item) => {
+      const nextItem = normalizeLogRenderValue(item);
+      changed = changed || nextItem !== item;
+      return nextItem;
+    });
+
+    return changed ? list : value;
+  }
+
+  if (isPlainLogRenderObject(value)) {
+    let changed = false;
+    const output = {};
+    Object.keys(value).forEach((key) => {
+      const nextValue = normalizeLogRenderValue(value[key]);
+      changed = changed || nextValue !== value[key];
+      output[key] = nextValue;
+    });
+
+    return changed ? output : value;
+  }
+
+  return value;
+};
+
+const normalizeLogRenderRow = (row) => {
+  if (!isPlainLogRenderObject(row)) {
+    return normalizeLogRenderValue(row);
+  }
+
+  let changed = false;
+  const output = {};
+  Object.keys(row).forEach((key) => {
+    const nextValue = normalizeLogRenderValue(row[key]);
+    changed = changed || nextValue !== row[key];
+    output[key] = nextValue;
+  });
+
+  return changed ? output : row;
+};
+
+const normalizeLogRenderList = list => (Array.isArray(list) ? list.map(row => normalizeLogRenderRow(row)) : []);
 
 const stateTpl = {
   userMeta: {
@@ -1371,17 +1453,14 @@ const store = new Vuex.Store({
               const rsolvedData = data;
               if (result) {
                 const indexSetQueryResult = state.indexSetQueryResult;
-                const logList = parseBigNumberList(rsolvedData.list);
-                const originLogList = parseBigNumberList(rsolvedData.origin_log_list);
+                const logList = normalizeLogRenderList(rsolvedData.list);
                 rsolvedData.total = rsolvedData.total.toNumber();
                 const size = logList.length;
 
                 rsolvedData.list = Object.freeze(
                   payload.isPagination ? indexSetQueryResult.list.concat(logList) : logList,
                 );
-                rsolvedData.origin_log_list = Object.freeze(
-                  payload.isPagination ? indexSetQueryResult.origin_log_list.concat(originLogList) : originLogList,
-                );
+                rsolvedData.origin_log_list = [];
 
                 const catchUnionBeginList = parseBigNumberList(rsolvedData?.union_configs || []);
                 state.tookTime = payload.isPagination

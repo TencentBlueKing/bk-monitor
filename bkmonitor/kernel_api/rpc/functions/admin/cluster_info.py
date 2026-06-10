@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import re
 from typing import Any
 
 from core.drf_resource.exceptions import CustomException
@@ -39,6 +40,8 @@ FUNC_CLUSTER_INFO_DETAIL = "admin.cluster_info.detail"
 FUNC_CLUSTER_INFO_SPACE_VM_INFO_LIST = "admin.cluster_info.space_vm_info_list"
 FUNC_CLUSTER_INFO_COMPONENT_CONFIG = "admin.cluster_info.component_config"
 FUNC_CLUSTER_INFO_ES_OVERVIEW = "admin.cluster_info.es_overview"
+FUNC_CLUSTER_INFO_ES_STORAGE_ANALYSIS = "admin.cluster_info.es_storage_analysis"
+FUNC_CLUSTER_INFO_HEALTH_CHECK = "admin.cluster_info.health_check"
 INSPECT_SAFETY_LEVEL = "inspect"
 
 CLUSTER_INFO_FIELDS = [
@@ -128,6 +131,17 @@ SPACE_SUMMARY_FIELDS = [
     "last_modify_time",
 ]
 
+ES_STORAGE_ANALYSIS_RESULT_TABLE_FIELDS = [
+    "table_id",
+    "bk_tenant_id",
+    "table_name_zh",
+    "bk_biz_id",
+    "data_label",
+    "default_storage",
+    "is_enable",
+    "is_deleted",
+]
+
 STORAGE_MODEL_MAP: dict[str, type[Any] | None] = {
     models.ClusterInfo.TYPE_KAFKA: models.KafkaStorage,
     models.ClusterInfo.TYPE_ES: models.ESStorage,
@@ -153,6 +167,16 @@ def _parse_int(value: Any) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def _parse_optional_int_param(params: dict[str, Any], field: str) -> int | None:
+    value = params.get(field)
+    if value in (None, ""):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError) as error:
+        raise CustomException(message=f"{field} 必须是整数") from error
 
 
 def _get_nested(data: dict[str, Any] | None, path: list[str]) -> Any:
@@ -324,6 +348,237 @@ def _build_es_cluster_overview(
     )
 
 
+def _parse_es_analysis_index_base(index_name: Any) -> str | None:
+    normalized_index = str(index_name or "").strip()
+    if not normalized_index:
+        return None
+    if normalized_index.startswith("v2_"):
+        normalized_index = normalized_index[3:]
+
+    parts = normalized_index.rsplit("_", 2)
+    if len(parts) != 3:
+        return None
+
+    base_index, datetime_part, slice_part = parts
+    if not base_index or not datetime_part.isdigit() or not slice_part.isdigit():
+        return None
+    return base_index
+
+
+def _parse_es_analysis_owner(table_id: str | None) -> dict[str, Any]:
+    if not table_id:
+        return {"owner_type": "unknown", "bk_biz_id": None}
+
+    biz_match = re.match(r"^(?P<biz_id>\d+)", table_id)
+    if biz_match:
+        return {"owner_type": "biz", "bk_biz_id": int(biz_match.group("biz_id"))}
+
+    space_match = re.match(r"^space_(?P<space_id>\d+)(?:[_.]|$)", table_id)
+    if space_match:
+        return {"owner_type": "space", "bk_biz_id": -int(space_match.group("space_id"))}
+
+    first_segment = table_id.split(".", 1)[0]
+    if first_segment.startswith("space_"):
+        return {"owner_type": "space", "bk_biz_id": None}
+
+    return {"owner_type": "unknown", "bk_biz_id": None}
+
+
+def _serialize_es_analysis_result_table(result_table: Any | None) -> dict[str, Any] | None:
+    if result_table is None:
+        return None
+    return serialize_model(result_table, ES_STORAGE_ANALYSIS_RESULT_TABLE_FIELDS)
+
+
+def _serialize_es_analysis_storage(es_storage: Any, result_table: Any | None) -> dict[str, Any]:
+    return {
+        "table_id": es_storage.table_id,
+        "bk_tenant_id": es_storage.bk_tenant_id,
+        "storage_cluster_id": es_storage.storage_cluster_id,
+        "source_type": es_storage.source_type,
+        "retention": es_storage.retention,
+        "slice_size": es_storage.slice_size,
+        "slice_gap": es_storage.slice_gap,
+        "date_format": es_storage.date_format,
+        "time_zone": es_storage.time_zone,
+        "index_set": es_storage.index_set,
+        "need_create_index": es_storage.need_create_index,
+        "result_table": _serialize_es_analysis_result_table(result_table),
+    }
+
+
+def _build_es_analysis_storage_index(
+    es_storages: list[Any], result_table_map: dict[str, Any], warnings: list[dict[str, Any]]
+) -> tuple[dict[str, dict[str, Any]], set[str]]:
+    storage_by_base: dict[str, dict[str, Any]] = {}
+    ambiguous_bases: set[str] = set()
+    conflict_candidates: dict[str, list[str]] = {}
+
+    for es_storage in es_storages:
+        base_index = str(es_storage.table_id).replace(".", "_")
+        item = {
+            "base_index": base_index,
+            "table_id": es_storage.table_id,
+            "storage": _serialize_es_analysis_storage(es_storage, result_table_map.get(es_storage.table_id)),
+        }
+
+        if base_index in storage_by_base:
+            ambiguous_bases.add(base_index)
+            conflict_candidates.setdefault(base_index, [storage_by_base[base_index]["table_id"]]).append(
+                es_storage.table_id
+            )
+            storage_by_base.pop(base_index, None)
+            continue
+
+        if base_index in ambiguous_bases:
+            conflict_candidates.setdefault(base_index, []).append(es_storage.table_id)
+            continue
+
+        storage_by_base[base_index] = item
+
+    for base_index, table_ids in sorted(conflict_candidates.items()):
+        warnings.append(
+            {
+                "code": "ES_STORAGE_BASE_INDEX_CONFLICT",
+                "message": f"多个 ESStorage 映射到相同 base_index，相关索引将归类为 other: base_index={base_index}",
+                "details": {"base_index": base_index, "table_ids": sorted(set(table_ids))},
+            }
+        )
+
+    return storage_by_base, ambiguous_bases
+
+
+def _serialize_es_analysis_index_row(
+    row: dict[str, Any], storage_by_base: dict[str, dict[str, Any]], ambiguous_bases: set[str]
+) -> dict[str, Any]:
+    index_name = str(row.get("index") or "")
+    base_index = _parse_es_analysis_index_base(index_name)
+    store_bytes = _parse_int(row.get("store.size")) or 0
+    docs_count = _parse_int(row.get("docs.count"))
+    primary_shards = _parse_int(row.get("pri"))
+    replica_factor = _parse_int(row.get("rep"))
+    replica_shards = (
+        primary_shards * replica_factor if primary_shards is not None and replica_factor is not None else None
+    )
+    shards = primary_shards + replica_shards if primary_shards is not None and replica_shards is not None else None
+
+    matched = storage_by_base.get(base_index) if base_index is not None else None
+    if matched is not None:
+        match_status = "matched"
+        match_reason = "base_index"
+        matched_table_id = matched["table_id"]
+        matched_storage = matched["storage"]
+    elif base_index in ambiguous_bases:
+        match_status = "other"
+        match_reason = "ambiguous_base_index"
+        matched_table_id = None
+        matched_storage = None
+    elif base_index is None:
+        match_status = "other"
+        match_reason = "unrecognized_index_name"
+        matched_table_id = None
+        matched_storage = None
+    else:
+        match_status = "other"
+        match_reason = "unmatched_base_index"
+        matched_table_id = None
+        matched_storage = None
+
+    owner = _parse_es_analysis_owner(matched_table_id)
+    return {
+        "index": index_name,
+        "base_index": base_index,
+        "store_bytes": store_bytes,
+        "docs_count": docs_count,
+        "health": row.get("health"),
+        "status": row.get("status"),
+        "primary_shards": primary_shards,
+        "replica_shards": replica_shards,
+        "replica_factor": replica_factor,
+        "shards": shards,
+        "match_status": match_status,
+        "match_reason": match_reason,
+        "matched_table_id": matched_table_id,
+        "matched_storage": matched_storage,
+        **owner,
+    }
+
+
+def _build_es_storage_analysis(
+    cluster: models.ClusterInfo, bk_tenant_id: str
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    warnings: list[dict[str, Any]] = []
+    client = es_tools.get_client(bk_tenant_id=bk_tenant_id, cluster_id=cluster.cluster_id)
+
+    index_rows = _run_es_overview_query(
+        "index analysis",
+        warnings,
+        lambda: client.cat.indices(
+            index="*",
+            h="index,health,status,docs.count,store.size,pri,rep",
+            format="json",
+            bytes="b",
+            params={"request_timeout": 30},
+        ),
+    )
+    if not isinstance(index_rows, list):
+        index_rows = []
+        _append_es_overview_warning(
+            warnings,
+            "ES_STORAGE_ANALYSIS_INDEX_ROWS_UNAVAILABLE",
+            "ES 索引列表不可用，无法计算存储占用明细",
+        )
+
+    es_storages = list(
+        models.ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, storage_cluster_id=cluster.cluster_id)
+        .filter(Q(origin_table_id__isnull=True) | Q(origin_table_id=""))
+        .order_by("table_id")
+    )
+    result_table_map = {
+        result_table.table_id: result_table
+        for result_table in models.ResultTable.objects.filter(
+            bk_tenant_id=bk_tenant_id, table_id__in=[storage.table_id for storage in es_storages]
+        )
+    }
+    storage_by_base, ambiguous_bases = _build_es_analysis_storage_index(es_storages, result_table_map, warnings)
+
+    indices = [
+        _serialize_es_analysis_index_row(row, storage_by_base, ambiguous_bases)
+        for row in index_rows
+        if isinstance(row, dict)
+    ]
+    indices.sort(key=lambda item: item["store_bytes"], reverse=True)
+
+    total_store_bytes = sum(item["store_bytes"] for item in indices)
+    matched_indices = [item for item in indices if item["match_status"] == "matched"]
+    other_indices = [item for item in indices if item["match_status"] != "matched"]
+    matched_store_bytes = sum(item["store_bytes"] for item in matched_indices)
+    other_store_bytes = sum(item["store_bytes"] for item in other_indices)
+
+    return (
+        {
+            "cluster": {
+                "cluster_id": cluster.cluster_id,
+                "cluster_name": cluster.cluster_name,
+                "display_name": cluster.display_name,
+                "cluster_type": cluster.cluster_type,
+            },
+            "summary": {
+                "index_count": len(indices),
+                "total_store_bytes": total_store_bytes,
+                "matched_index_count": len(matched_indices),
+                "matched_store_bytes": matched_store_bytes,
+                "other_index_count": len(other_indices),
+                "other_store_bytes": other_store_bytes,
+                "es_storage_count": len(es_storages),
+            },
+            "indices": indices,
+            "inspect": True,
+        },
+        warnings,
+    )
+
+
 def _serialize_cluster_info(cluster: models.ClusterInfo) -> dict[str, Any]:
     item = {field: serialize_value(getattr(cluster, field, None)) for field in CLUSTER_INFO_FIELDS}
     for sensitive_field, flag_field in SENSITIVE_FLAG_MAP.items():
@@ -339,6 +594,9 @@ def _get_storage_model_for_cluster_type(cluster_type: str) -> type[Any] | None:
 def _build_cluster_info_queryset(params: dict[str, Any], bk_tenant_id: str | None):
     queryset = filter_by_bk_tenant_id(models.ClusterInfo.objects.all(), bk_tenant_id)
 
+    cluster_id = _parse_optional_int_param(params, "cluster_id")
+    if cluster_id is not None:
+        queryset = queryset.filter(cluster_id=cluster_id)
     if params.get("cluster_type") not in (None, ""):
         queryset = queryset.filter(cluster_type=str(params["cluster_type"]).strip())
     if params.get("cluster_name"):
@@ -411,6 +669,7 @@ def _enrich_clusters_with_storage_count(clusters: list[models.ClusterInfo], bk_t
     description="只读查询 ClusterInfo，支持受控过滤、白名单排序和分页；敏感字段以布尔标记代替。",
     params_schema={
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
+        "cluster_id": "可选，ClusterInfo.cluster_id 精确匹配",
         "cluster_type": "可选，集群类型精确匹配",
         "cluster_name": "可选，集群名称包含匹配",
         "is_default_cluster": "可选，是否默认集群",
@@ -794,6 +1053,58 @@ def get_component_config(params: dict[str, Any]) -> dict[str, Any]:
 
 
 @KernelRPCRegistry.register(
+    FUNC_CLUSTER_INFO_HEALTH_CHECK,
+    summary="Admin 探测非 ES ClusterInfo 健康状态",
+    description=(
+        "inspect 级别能力，针对非 elasticsearch ClusterInfo 调用模型侧 health_check，"
+        "执行简单健康检查和连通性测试；ES 集群请使用 admin.cluster_info.es_overview。"
+    ),
+    params_schema={
+        "bk_tenant_id": "可选，租户 ID",
+        "cluster_id": "必填，ClusterInfo.cluster_id，不能是 elasticsearch 集群",
+        "timeout": "可选，探测超时时间，单位秒，必须是正整数；默认使用 ClusterInfo.DEFAULT_CHECK_TIMEOUT",
+    },
+    example_params={"bk_tenant_id": "system", "cluster_id": 1, "timeout": 5},
+)
+def check_cluster_info_health(params: dict[str, Any]) -> dict[str, Any]:
+    bk_tenant_id = get_bk_tenant_id(params)
+    cluster_id = params.get("cluster_id")
+    if cluster_id in (None, ""):
+        raise CustomException(message="cluster_id 为必填项")
+    try:
+        cluster_id = int(cluster_id)
+    except (TypeError, ValueError) as error:
+        raise CustomException(message="cluster_id 必须是整数") from error
+
+    timeout = params.get("timeout")
+    if timeout in (None, ""):
+        timeout = None
+    else:
+        try:
+            timeout = int(timeout)
+        except (TypeError, ValueError) as error:
+            raise CustomException(message="timeout 必须是正整数") from error
+        if timeout <= 0:
+            raise CustomException(message="timeout 必须是正整数")
+
+    try:
+        cluster = models.ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_id=cluster_id)
+    except models.ClusterInfo.DoesNotExist as error:
+        raise CustomException(message=f"未找到 ClusterInfo: cluster_id={cluster_id}") from error
+
+    if cluster.cluster_type == models.ClusterInfo.TYPE_ES:
+        raise CustomException(message="elasticsearch 集群已有独立大盘，请使用 admin.cluster_info.es_overview")
+
+    response = build_response(
+        operation="cluster_info.health_check",
+        func_name=FUNC_CLUSTER_INFO_HEALTH_CHECK,
+        bk_tenant_id=bk_tenant_id,
+        data=cluster.health_check(timeout=timeout),
+    )
+    return _mark_inspect_response(response)
+
+
+@KernelRPCRegistry.register(
     FUNC_CLUSTER_INFO_ES_OVERVIEW,
     summary="Admin 查询 ES ClusterInfo 运行时大盘",
     description="inspect 级别能力，访问目标 ES 集群读取健康状态、存储使用量、索引数量、别名数量和 shard 使用情况；只用轻量 alias 列计数，不读取详细 alias map。",
@@ -825,6 +1136,45 @@ def get_es_cluster_overview(params: dict[str, Any]) -> dict[str, Any]:
     response = build_response(
         operation="cluster_info.es_overview",
         func_name=FUNC_CLUSTER_INFO_ES_OVERVIEW,
+        bk_tenant_id=bk_tenant_id,
+        data=data,
+        warnings=warnings,
+    )
+    return _mark_inspect_response(response)
+
+
+@KernelRPCRegistry.register(
+    FUNC_CLUSTER_INFO_ES_STORAGE_ANALYSIS,
+    summary="Admin 分析 ES ClusterInfo 索引存储占用并反向关联 ESStorage",
+    description="inspect 级别能力，访问目标 ES 集群读取索引存储明细，并基于物理 ESStorage.table_id 反向归因；不处理虚拟 ESStorage，不执行任何写操作。",
+    params_schema={
+        "bk_tenant_id": "可选，租户 ID",
+        "cluster_id": "必填，ClusterInfo.cluster_id，必须是 elasticsearch 集群",
+    },
+    example_params={"bk_tenant_id": "system", "cluster_id": 1},
+)
+def analyze_es_storage_usage(params: dict[str, Any]) -> dict[str, Any]:
+    bk_tenant_id = get_bk_tenant_id(params)
+    cluster_id = params.get("cluster_id")
+    if cluster_id in (None, ""):
+        raise CustomException(message="cluster_id 为必填项")
+    try:
+        cluster_id = int(cluster_id)
+    except (TypeError, ValueError) as error:
+        raise CustomException(message="cluster_id 必须是整数") from error
+
+    try:
+        cluster = models.ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_id=cluster_id)
+    except models.ClusterInfo.DoesNotExist as error:
+        raise CustomException(message=f"未找到 ClusterInfo: cluster_id={cluster_id}") from error
+
+    if cluster.cluster_type != models.ClusterInfo.TYPE_ES:
+        raise CustomException(message=f"cluster_id={cluster_id} 不是 elasticsearch 集群")
+
+    data, warnings = _build_es_storage_analysis(cluster, bk_tenant_id)
+    response = build_response(
+        operation="cluster_info.es_storage_analysis",
+        func_name=FUNC_CLUSTER_INFO_ES_STORAGE_ANALYSIS,
         bk_tenant_id=bk_tenant_id,
         data=data,
         warnings=warnings,

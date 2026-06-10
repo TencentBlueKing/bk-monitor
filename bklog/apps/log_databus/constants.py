@@ -760,6 +760,7 @@ RETRIEVE_CHAIN = [
     "fields_is_empty",
     "deal_time",
     "add_container_configs",
+    "add_log_access_type",
     "encode_yaml_config",
 ]
 
@@ -768,3 +769,6 @@ RETRIEVE_CHAIN = [
 BATCH_SYNC_CLUSTER_COUNT = 500
 
 MIN_FLATTENED_SUPPORT_VERSION = "7.3"
+
+# doris 集群默认日志过期天数
+DORIS_DEFAULT_EXPIRE_DAYS = 30

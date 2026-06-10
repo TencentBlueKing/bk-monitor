@@ -107,6 +107,7 @@ export default {
   黑名单: 'Black List',
   指标维度设置: 'Metric / Dimension Setting',
   此操作存在危险: 'This operation is dangerous',
+  此操作存在风险: 'This operation is risky',
   DB设置: 'DB settings',
   DB类型: 'DB type',
   '{0}月': '{0} month',
@@ -274,4 +275,15 @@ export default {
   维度统计: 'Dimension Statistics',
   查看完整评论: 'View full comment',
   编辑评论: 'Edit comment',
+
+  // Issues 拆分合并
+  合并明细: 'Merge details',
+  '已并入但隐藏的 Issue': 'Issue merged but hidden',
+  拆分依据: 'Split criteria',
+  '合并 Issue': 'Merge Issue',
+  合并设置: 'Merge settings',
+  '主 Issue': 'Main Issue',
+  '被合并 Issue': 'Merged Issue',
+  合并依据: 'Merge criteria',
+  '合并策略：': 'Merge strategy:',
 };

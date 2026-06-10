@@ -1,7 +1,10 @@
 import { Component, Emit, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import './code-remarks-dialog.scss';
+
 import { setCodeRemark } from 'monitor-api/modules/apm_service';
+
+import './code-remarks-dialog.scss';
+
 interface CodeRemarksDialogProps {
   isShow: boolean;
   code: string;
@@ -52,13 +55,28 @@ export default class CodeRemarksDialog extends tsc<CodeRemarksDialogProps, CodeR
       .then(() => {
         this.$bkMessage({
           theme: 'success',
-          message: this.$tc('修改备注成功')
-        })
+          message: this.$tc('修改备注成功'),
+        });
         this.$emit('success');
       })
       .finally(() => {
         this.loading = false;
       });
+  }
+
+  handleGoToAppConfig() {
+    const { query } = this.$route;
+    const routeData = this.$router.resolve({
+      name: 'application-config',
+      params: {
+        appName: query['filter-app_name'] as string,
+      },
+      query: {
+        active: 'codeRedefine',
+        type: 'remark',
+      },
+    });
+    window.open(routeData.href, '_blank');
   }
 
   @Emit('showChange')
@@ -69,15 +87,30 @@ export default class CodeRemarksDialog extends tsc<CodeRemarksDialogProps, CodeR
   render() {
     return (
       <bk-dialog
+        draggable={false}
         value={this.isShow}
         theme='primary'
         width={480}
         ext-cls='code-remarks-dialog'
         header-position='left'
-        title={this.$tc('返回码备注说明')}
         onCancel={this.handleCancel}
         loading={this.loading}
       >
+        <div
+          class='code-remarks-dialog-header'
+          slot='header'
+        >
+          <div class='code-remarks-dialog-header-title'>{this.$tc('返回码备注说明')}</div>
+          <bk-button
+            ext-cls='log-config-btn'
+            theme='primary'
+            text
+            onClick={this.handleGoToAppConfig}
+          >
+            <i class='icon-monitor icon-fenxiang' />
+            <span class='code-remarks-dialog-header-text'>{this.$t('应用配置')}</span>
+          </bk-button>
+        </div>
         <div class='code'>{this.code}</div>
         <bk-input
           class='remark-input'

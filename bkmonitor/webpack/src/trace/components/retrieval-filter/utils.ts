@@ -169,8 +169,7 @@ export function mergeWhereList(source: IWhereItem[], target: IWhereItem[]) {
     const sourceItem = sourceMap.get(item.key);
     if (
       !(
-        sourceItem &&
-        sourceItem.key === item.key &&
+        sourceItem?.key === item.key &&
         (sourceItem?.method || null) === (item?.method || null) &&
         JSON.stringify(sourceItem.value) === JSON.stringify(item.value) &&
         (sourceItem?.options?.is_wildcard || null) === (item?.options?.is_wildcard || null) &&
@@ -208,8 +207,6 @@ export function onClickOutside(element, callback, { once = false } = {}) {
 export function setCacheUIData(v: IFilterItem[]) {
   localStorage.setItem(RETRIEVAL_FILTER_UI_DATA_CACHE_KEY, JSON.stringify(v));
 }
-
-export const TIME_CONSUMING_REGEXP = /^([1-9][0-9]*|0)(\.[0-9]*[1-9])?(ns|μs|ms|s|m|h|d)$/;
 
 export const traceWhereFormatter = (where: IWhereItem[]) => {
   return where.map(item => ({
@@ -261,18 +258,6 @@ export const equalWhere = (source: INormalWhere[], target: INormalWhere[]) => {
   }
   return result;
 };
-
-export const DURATION_KEYS = ['trace_duration', 'elapsed_time'];
-export const TRACE_DEFAULT_RESIDENT_SETTING_KEY = [
-  'trace_id',
-  'trace_duration',
-  'resource.service.name',
-  'collections.resource.service.name',
-  'span_name',
-  'collections.span_name',
-];
-export const SPAN_DEFAULT_RESIDENT_SETTING_KEY = ['trace_id', 'elapsed_time', 'resource.service.name', 'span_name'];
-export const INPUT_TAG_KEYS = ['span_id', 'trace_id'];
 
 export function getDurationDisplay(value: Array<number | string>) {
   const str = value.map(v => (v ? `${formatDuration(Number(v))}` : '0ms')).join('~');
@@ -339,7 +324,3 @@ export const DEFAULT_GROUP_RELATION = 'OR';
 /* 空值的id和name */
 export const NULL_VALUE_NAME = `- ${window.i18n.t('空')} -`;
 export const NULL_VALUE_ID = '';
-/* Span 不支持弹出枚举值的字段 */
-export const SPAN_NOT_SUPPORT_ENUM_KEYS = ['time', 'start_time', 'end_time', 'parent_span_id', 'span_id', 'trace_id'];
-/* Trace 不支持弹出枚举值的字段 */
-export const TRACE_NOT_SUPPORT_ENUM_KEYS = ['min_start_time', 'max_end_time', 'trace_id', 'root_span_id'];

@@ -22,6 +22,26 @@ from core.drf_resource import api
 
 
 class SpanHandler:
+    UNKNOWN_EXCEPTION_TYPE = "unknown"
+    EXCEPTION_NAME = "exception"
+    EXCEPTION_REFER = "exception.refer"
+    EXCEPTION_ALIAS = "exception.alias"
+    ERROR_SPAN_FIELDS = [
+        OtlpKey.RESOURCE,
+        OtlpKey.SPAN_NAME,
+        OtlpKey.TRACE_ID,
+        OtlpKey.EVENTS,
+        OtlpKey.ATTRIBUTES,
+        OtlpKey.STATUS,
+        OtlpKey.START_TIME,
+        OtlpKey.END_TIME,
+    ]
+    DEFAULT_EXCEPTION_REFER = f"{OtlpKey.EVENTS}.{OtlpKey.get_attributes_key(SpanAttributes.EXCEPTION_TYPE)}"
+    RPC_EXCEPTION_FIELDS = {
+        RpcAttributes.RPC_ERROR_CODE: RpcAttributes.RPC_ERROR_MESSAGE,
+        TrpcAttributes.TRPC_STATUS_CODE: TrpcAttributes.TRPC_STATUS_MSG,
+    }
+
     @classmethod
     def get_lastly_span(cls, bk_biz_id, app_name):
         """获取一天内最近一条span"""
@@ -117,38 +137,35 @@ class SpanHandler:
         :param span: span 数据
         :return: 补齐 exception event 后的 span 数据
         """
-        events: list[dict[str, Any]] = span.get("events") or []
-        if any(event.get("name") == "exception" for event in events):
-            return span
+        events: list[dict[str, Any]] = span.get(OtlpKey.EVENTS) or []
+        span[OtlpKey.EVENTS] = events
+        exception_refers: set[str] = {
+            (event.get(OtlpKey.ATTRIBUTES) or {}).get(cls.EXCEPTION_REFER, "")
+            for event in events
+            if event.get("name") == cls.EXCEPTION_NAME
+        }
 
-        attributes: dict[str, Any] = span.get(OtlpKey.ATTRIBUTES, {}) or {}
-        status_message = (span.get("status") or {}).get("message")
-        code_fields: list[tuple[str, str]] = [
-            (RpcAttributes.RPC_ERROR_CODE, RpcAttributes.RPC_ERROR_MESSAGE),
-            (TrpcAttributes.TRPC_STATUS_CODE, TrpcAttributes.TRPC_STATUS_MSG),
-        ]
-        for code_field, message_field in code_fields:
-            code = attributes.get(code_field)
-            if code in (None, ""):
+        attributes: dict[str, Any] = span.get(OtlpKey.ATTRIBUTES) or {}
+        status_message: str = (span.get(OtlpKey.STATUS) or {}).get("message", "")
+        for code_field, message_field in cls.RPC_EXCEPTION_FIELDS.items():
+            code: Any | None = attributes.get(code_field)
+            # 注：code 可以为 0，因此不能改写为 `if not code`
+            if code is None or code == "":
                 continue
+            if code_field in exception_refers:
+                break
 
-            code_str = str(code)
-            message = attributes.get(message_field)
-            message_text = "" if message in (None, "") else str(message)
-            if not message_text and status_message is not None:
-                message_text = str(status_message)
+            exception_type: str = str(code)
+            message_text: str = attributes.get(message_field) or status_message
 
-            if not span.get("events"):
-                span["events"] = []
-
-            span["events"].append(
+            events.append(
                 {
-                    "name": "exception",
+                    "name": cls.EXCEPTION_NAME,
                     "timestamp": span["start_time"],
                     OtlpKey.ATTRIBUTES: {
-                        "exception.refer": code_field,
-                        SpanAttributes.EXCEPTION_TYPE: code_str,
-                        "exception.alias": _("返回码 - {code}").format(code=code_str),
+                        cls.EXCEPTION_REFER: code_field,
+                        SpanAttributes.EXCEPTION_TYPE: exception_type,
+                        cls.EXCEPTION_ALIAS: _("返回码 - {code}").format(code=exception_type),
                         SpanAttributes.EXCEPTION_MESSAGE: message_text,
                     },
                 }
@@ -156,3 +173,99 @@ class SpanHandler:
             break
 
         return span
+
+    @classmethod
+    def get_selected_exception_refer(cls, exception_type: str, exception_refer: str) -> str:
+        """返回当前筛选上下文使用的异常来源字段。"""
+        if exception_refer:
+            return exception_refer
+        if exception_type and exception_type != cls.UNKNOWN_EXCEPTION_TYPE:
+            return cls.DEFAULT_EXCEPTION_REFER
+        return ""
+
+    @classmethod
+    def get_exception_events(cls, span: dict[str, Any]) -> list[dict[str, Any]]:
+        """返回标准化后的逻辑异常事件列表。"""
+        span = cls.process_rpc_span(span)
+        status_message: str = (span.get(OtlpKey.STATUS) or {}).get("message", "")
+
+        exception_events: list[dict[str, Any]] = []
+        for event in span.get(OtlpKey.EVENTS) or []:
+            if event.get("name") != cls.EXCEPTION_NAME:
+                continue
+
+            event_attributes: dict[str, Any] = event.get(OtlpKey.ATTRIBUTES) or {}
+            exception_type: str = event_attributes.get(SpanAttributes.EXCEPTION_TYPE, cls.UNKNOWN_EXCEPTION_TYPE)
+            exception_refer: str = event_attributes.get(cls.EXCEPTION_REFER, cls.DEFAULT_EXCEPTION_REFER)
+            exception_alias: str = event_attributes.get(cls.EXCEPTION_ALIAS, exception_type)
+            exception_message: str = event_attributes.get(SpanAttributes.EXCEPTION_MESSAGE) or status_message
+            stacktrace: str = event_attributes.get(SpanAttributes.EXCEPTION_STACKTRACE) or ""
+            timestamp: int = int(event.get("timestamp", span.get(OtlpKey.START_TIME, 0)))
+            exception_events.append(
+                {
+                    "exception_type": exception_type,
+                    "exception_refer": exception_refer,
+                    "exception_alias": exception_alias,
+                    "exception_message": exception_message,
+                    "timestamp": timestamp,
+                    "stacktrace": stacktrace,
+                    "has_stack": bool(stacktrace),
+                }
+            )
+
+        return exception_events
+
+    @classmethod
+    def get_matched_exception_events(
+        cls,
+        span: dict[str, Any],
+        exception_type: str = "",
+        exception_refer: str = "",
+        include_unknown: bool = False,
+    ) -> list[dict[str, Any]]:
+        exception_events: list[dict[str, Any]] = cls.get_exception_events(span)
+        if not exception_events and include_unknown:
+            exception_events = [
+                {
+                    "exception_type": cls.UNKNOWN_EXCEPTION_TYPE,
+                    "exception_refer": "",
+                    "exception_alias": cls.UNKNOWN_EXCEPTION_TYPE,
+                    "exception_message": (span.get(OtlpKey.STATUS) or {}).get("message", ""),
+                    "timestamp": int(span.get(OtlpKey.END_TIME) or span.get(OtlpKey.START_TIME) or 0),
+                    "stacktrace": "",
+                    "has_stack": False,
+                }
+            ]
+
+        if not exception_type:
+            return exception_events
+
+        selected_exception_refer: str = cls.get_selected_exception_refer(exception_type, exception_refer)
+        return [
+            exception_event
+            for exception_event in exception_events
+            if exception_event.get("exception_type") == exception_type
+            and exception_event.get("exception_refer", "") == selected_exception_refer
+        ]
+
+    @classmethod
+    def build_exception_params(
+        cls, exception_type: str, exception_refer: str, operator_key: str = "op"
+    ) -> list[dict[str, Any]]:
+        """构造异常筛选条件。"""
+        if not exception_type:
+            return []
+
+        selected_exception_refer: str = cls.get_selected_exception_refer(exception_type, exception_refer)
+        if exception_type == cls.UNKNOWN_EXCEPTION_TYPE and not selected_exception_refer:
+            return []
+
+        operator_value: str = "equal" if operator_key == "operator" else "="
+        if selected_exception_refer == cls.DEFAULT_EXCEPTION_REFER:
+            return [
+                {"key": f"{OtlpKey.EVENTS}.name", operator_key: operator_value, "value": [cls.EXCEPTION_NAME]},
+                {"key": cls.DEFAULT_EXCEPTION_REFER, operator_key: operator_value, "value": [exception_type]},
+            ]
+
+        selected_key: str = OtlpKey.get_attributes_key(selected_exception_refer)
+        return [{"key": selected_key, operator_key: operator_value, "value": [exception_type]}]

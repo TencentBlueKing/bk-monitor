@@ -296,12 +296,15 @@ export default defineComponent({
         }
       }
 
+      // 未设置排序或取消排序时，默认按数量降序排列
       if (sortObj) {
         const [field, order] = sortObj;
-        const sortField = order === 'none' ? 'index' : `data.${field}`;
-        const orders = (order === 'none' ? 'asc' : order) as 'asc' | 'desc';
+        const sortField = order === 'none' ? 'data.count' : `data.${field}`;
+        const orders = (order === 'none' ? 'desc' : order) as 'asc' | 'desc';
 
         childList = orderBy(childList, [sortField], orders);
+      } else {
+        childList = orderBy(childList, ['data.count'], 'desc');
       }
 
       for (const c of childList) {

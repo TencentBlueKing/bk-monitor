@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AutoWidthInput from './auto-width-input';
@@ -45,6 +45,8 @@ interface IProps {
   fieldInfo?: IFieldItem;
   /* 是否多选，默认多选 */
   multiple?: boolean;
+  /* 是否通过 tippy 渲染下拉（用于 table 场景避免裁剪） */
+  tippyMode?: boolean;
   /* 是否禁用 */
   disabled?: boolean;
   /* 获取数据 */
@@ -63,6 +65,7 @@ export default class ValueTagSelector extends tsc<IProps> {
   @Prop({ type: Object, default: () => null }) fieldInfo: IFieldItem;
   @Prop({ type: Boolean, default: false }) autoFocus: boolean;
   @Prop({ type: Boolean, default: true }) multiple: boolean;
+  @Prop({ type: Boolean, default: false }) tippyMode: boolean;
   @Prop({ type: Boolean, default: false }) disabled: boolean;
   @Prop({
     type: Function,
@@ -88,8 +91,13 @@ export default class ValueTagSelector extends tsc<IProps> {
   isFocus = false;
   /* 是否通过上下键悬停下拉选项 */
   isChecked = false;
+  showSelector = false;
+  optionsWidth = 0;
+  popoverInstance = null;
 
   onClickOutsideFn = () => {};
+
+  @Ref('selector') selectorRef: HTMLDivElement;
 
   get hasCustomOption() {
     return !!this.inputValue;
@@ -125,6 +133,8 @@ export default class ValueTagSelector extends tsc<IProps> {
 
   beforeDestroy() {
     this.handleSelectorBlur();
+    this.onClickOutsideFn?.();
+    this.destroyPopoverInstance();
   }
 
   @Watch('value', { immediate: true })
@@ -132,10 +142,18 @@ export default class ValueTagSelector extends tsc<IProps> {
     this.localValue = JSON.parse(JSON.stringify(this.value));
   }
 
-  // @Watch('isShowDropDown')
-  // handleWatchIsShowDropDown() {
-  //   this.$emit('dropDownChange', this.isShowDropDown);
-  // }
+  @Watch('isShowDropDown')
+  handleWatchIsShowDropDown(v: boolean) {
+    if (this.tippyMode) {
+      if (v) {
+        this.showPopoverInstance();
+        return;
+      }
+      this.destroyPopoverInstance();
+    } else {
+      this.$emit('dropDownChange', this.isShowDropDown);
+    }
+  }
 
   /**
    * @description 下拉选项点击事件
@@ -148,10 +166,16 @@ export default class ValueTagSelector extends tsc<IProps> {
 
     if (!this.multiple) {
       this.inputValue = item.id;
+      this.isShowDropDown = false;
+      this.isFocus = false;
     } else {
       this.activeIndex = -1;
       if (this.localValue.some(v => v.id === item.id)) return;
       this.localValue.push(item);
+    }
+
+    if (this.tippyMode) {
+      this.popoverInstance?.hide?.();
     }
     this.handleChange();
   }
@@ -169,6 +193,7 @@ export default class ValueTagSelector extends tsc<IProps> {
     }
     this.activeIndex = this.localValue.length - 1;
     this.isFocus = true;
+    this.popoverInstance?.show?.();
     this.handleSelectorFocus();
   }
 
@@ -251,6 +276,26 @@ export default class ValueTagSelector extends tsc<IProps> {
    */
   handleShowShowDropDown(v: boolean) {
     this.isShowDropDown = v;
+    if (this.tippyMode) {
+      this.onClickOutsideFn?.();
+      this.onClickOutsideFn = () => {};
+      if (v) {
+        setTimeout(() => {
+          const clickInEls = [this.$el, this.selectorRef].filter(Boolean);
+          this.onClickOutsideFn = onClickOutside(
+            clickInEls,
+            () => {
+              this.isShowDropDown = false;
+              this.isFocus = false;
+              this.handleSelectorBlur();
+            },
+            { once: true }
+          );
+        }, 100);
+      }
+      return;
+    }
+
     if (this.isShowDropDown) {
       setTimeout(() => {
         onClickOutside(
@@ -264,6 +309,46 @@ export default class ValueTagSelector extends tsc<IProps> {
         );
       }, 100);
     }
+  }
+
+  showPopoverInstance() {
+    this.$nextTick(() => {
+      const target = this.$el?.querySelector?.('.value-tag-selector-component-wrap') as HTMLElement;
+      if (!target || !this.selectorRef) {
+        return;
+      }
+
+      this.optionsWidth = Math.ceil(target.getBoundingClientRect().width);
+      this.destroyPopoverInstance();
+      this.popoverInstance = this.$bkPopover(target, {
+        content: this.selectorRef,
+        trigger: 'manual',
+        placement: 'bottom-start',
+        theme: 'light common-monitor',
+        arrow: false,
+        interactive: true,
+        boundary: 'window',
+        distance: 4,
+        zIndex: 99999,
+        appendTo: () => document.body,
+        onHidden: () => {
+          this.popoverInstance = null;
+          this.showSelector = false;
+          this.isShowDropDown = false;
+        },
+      });
+      this.showSelector = true;
+      this.popoverInstance?.show?.();
+    });
+  }
+
+  destroyPopoverInstance() {
+    this.onClickOutsideFn?.();
+    this.onClickOutsideFn = () => {};
+    this.showSelector = false;
+    this.popoverInstance?.hide?.();
+    this.popoverInstance?.destroy?.();
+    this.popoverInstance = null;
   }
 
   /**
@@ -373,17 +458,37 @@ export default class ValueTagSelector extends tsc<IProps> {
         >
           {renderContent()}
         </div>
-        {this.isShowDropDown && (
-          <ValueOptions
-            fieldInfo={this.fieldInfo}
-            getValueFn={this.getValueFn}
-            needUpDownCheck={this.isFocus}
-            noDataSimple={true}
-            search={this.inputValue}
-            selected={this.localValue.map(item => item.id)}
-            onIsChecked={this.handleIsChecked}
-            onSelect={this.handleCheck}
-          />
+        {this.tippyMode ? (
+          <div style='display: none;'>
+            <div ref='selector'>
+              <ValueOptions
+                width={this.optionsWidth}
+                fieldInfo={this.fieldInfo}
+                getValueFn={this.getValueFn}
+                isPopover={true}
+                show={this.showSelector}
+                needUpDownCheck={this.isFocus}
+                noDataSimple={true}
+                search={this.inputValue}
+                selected={this.localValue.map(item => item.id)}
+                onIsChecked={this.handleIsChecked}
+                onSelect={this.handleCheck}
+              />
+            </div>
+          </div>
+        ) : (
+          this.isShowDropDown && (
+            <ValueOptions
+              fieldInfo={this.fieldInfo}
+              getValueFn={this.getValueFn}
+              needUpDownCheck={this.isFocus}
+              noDataSimple={true}
+              search={this.inputValue}
+              selected={this.localValue.map(item => item.id)}
+              onIsChecked={this.handleIsChecked}
+              onSelect={this.handleCheck}
+            />
+          )
         )}
       </div>
     );

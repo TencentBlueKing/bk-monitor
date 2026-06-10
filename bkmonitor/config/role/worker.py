@@ -317,7 +317,7 @@ LONG_TASK_CRONTAB = [
     # 禁用采集项索引清理任务，30min
     ("metadata.task.config_refresh.manage_disable_es_storage", "*/30 * * * *", "global"),
     # 新版链路状态自动兜底刷新,15min 一次
-    ("metadata.task.refresh_data_link.refresh_data_link_status", "*/15 * * * *", "global"),
+    ("metadata.task.refresh_data_link.refresh_data_link_status", "0 */4 * * *", "global"),
 ]
 
 # 排除特定的定时任务

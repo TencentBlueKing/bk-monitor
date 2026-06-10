@@ -152,6 +152,13 @@ class AdminResourceCallViewTest(ClearRequestLocalMixin, TestCase):
 
 
 class TransferApiTenantGetterTest(TestCase):
+    @patch("apps.log_search.models.Space.get_tenant_id", return_value="tenant-19078")
+    def test_result_table_getter_uses_table_id_biz_id(self, mock_get_tenant_id):
+        tenant_id = TransferApi.get_result_table.bk_tenant_id({"table_id": "19078_bklog.test_migrate_app"})
+
+        self.assertEqual(tenant_id, "tenant-19078")
+        mock_get_tenant_id.assert_called_once_with(bk_biz_id=19078)
+
     @patch("apps.log_search.models.Space.get_tenant_id", return_value="tenant-2")
     def test_result_table_storage_getter_uses_result_table_list_biz_id(self, mock_get_tenant_id):
         tenant_id = TransferApi.get_result_table_storage.bk_tenant_id(
@@ -159,7 +166,25 @@ class TransferApiTenantGetterTest(TestCase):
         )
 
         self.assertEqual(tenant_id, "tenant-2")
-        mock_get_tenant_id.assert_called_once_with(bk_biz_id="2")
+        mock_get_tenant_id.assert_called_once_with(bk_biz_id=2)
+
+    @patch("apps.log_search.models.Space.get_tenant_id", return_value="tenant-space-1")
+    def test_result_table_storage_getter_supports_space_result_table_id(self, mock_get_tenant_id):
+        tenant_id = TransferApi.get_result_table_storage.bk_tenant_id(
+            {"result_table_list": "space_1_bklog.stag_20", "storage_type": "elasticsearch"}
+        )
+
+        self.assertEqual(tenant_id, "tenant-space-1")
+        mock_get_tenant_id.assert_called_once_with(bk_biz_id=-1)
+
+    @patch("apps.log_search.models.Space.get_tenant_id", return_value="tenant-space-1")
+    def test_snapshot_state_getter_uses_first_table_id(self, mock_get_tenant_id):
+        tenant_id = TransferApi.get_result_table_snapshot_state.bk_tenant_id(
+            {"table_ids": ["space_1_bklog.stag_20", "space_2_bklog.other"]}
+        )
+
+        self.assertEqual(tenant_id, "tenant-space-1")
+        mock_get_tenant_id.assert_called_once_with(bk_biz_id=-1)
 
 
 class CollectorResourceCallTest(ClearRequestLocalMixin, TestCase):
@@ -300,7 +325,8 @@ class CollectorResourceCallTest(ClearRequestLocalMixin, TestCase):
         return json.loads(response.content)
 
     @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
-    def test_collector_list_filters_by_storage_cluster_without_biz_filter(self):
+    @patch("apps.log_admin_resource.handlers.collector._get_primary_index_set", return_value=(None, None))
+    def test_collector_list_filters_by_storage_cluster_without_biz_filter(self, mock_get_primary_index_set):
         content = self._call(
             "bklog.collector.list",
             {"storage_cluster_id": 25, "page": 1, "page_size": 20},
@@ -314,6 +340,50 @@ class CollectorResourceCallTest(ClearRequestLocalMixin, TestCase):
         self.assertEqual(item["storage_cluster_id"], 25)
         self.assertEqual(item["log_access_type"], "container_file")
         self.assertEqual(item["log_access_type_name"], "容器文件采集")
+        mock_get_primary_index_set.assert_not_called()
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("apps.log_admin_resource.handlers.collector._get_primary_index_set", return_value=(None, None))
+    def test_collector_list_filters_by_log_access_type_without_per_row_index_lookup(self, mock_get_primary_index_set):
+        content = self._call(
+            "bklog.collector.list",
+            {"log_access_type": "container_file", "page": 1, "page_size": 20},
+        )
+
+        self.assertTrue(content["result"])
+        result = content["data"]["result"]
+        self.assertEqual(result["total"], 1)
+        self.assertEqual(result["items"][0]["collector_config_id"], 10402)
+        self.assertEqual(result["items"][0]["log_access_type"], "container_file")
+        mock_get_primary_index_set.assert_not_called()
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("apps.log_admin_resource.handlers.collector._get_primary_index_set", return_value=(None, None))
+    def test_collector_list_paginates_without_per_row_index_lookup(self, mock_get_primary_index_set):
+        CollectorConfig.objects.create(
+            collector_config_id=10403,
+            collector_config_name="host-access-log",
+            collector_plugin_id=self.plugin.collector_plugin_id,
+            bk_biz_id=3,
+            collector_scenario_id="row",
+            category_id="host",
+            target_object_type="HOST",
+            bk_data_id=150090,
+            table_id="3_bklog.host_access_log",
+            etl_config="bk_log_text",
+            environment="host",
+        )
+
+        content = self._call(
+            "bklog.collector.list",
+            {"page": 1, "page_size": 1, "ordering": "collector_config_id"},
+        )
+
+        self.assertTrue(content["result"])
+        result = content["data"]["result"]
+        self.assertEqual(result["total"], 2)
+        self.assertEqual([item["collector_config_id"] for item in result["items"]], [10402])
+        mock_get_primary_index_set.assert_not_called()
 
     @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     @patch("apps.api.TransferApi.get_result_table_storage", return_value=METADATA_STORAGE)
@@ -356,6 +426,44 @@ class CollectorResourceCallTest(ClearRequestLocalMixin, TestCase):
         self.assertEqual(by_id[901]["index_count"], 1)
 
     @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("apps.log_admin_resource.handlers.index_set._get_visible_indexes", return_value=[])
+    def test_index_set_list_paginates_without_per_row_index_lookup(self, mock_get_visible_indexes):
+        LogIndexSet.objects.create(
+            index_set_id=990,
+            index_set_name="host-access-log",
+            space_uid="bkcc__3",
+            category_id="host",
+            scenario_id=Scenario.LOG,
+        )
+
+        content = self._call(
+            "bklog.index_set.list",
+            {"page": 1, "page_size": 1, "ordering": "index_set_id"},
+        )
+
+        self.assertTrue(content["result"])
+        result = content["data"]["result"]
+        self.assertEqual(result["total"], 4)
+        self.assertEqual([item["index_set_id"] for item in result["items"]], [755])
+        mock_get_visible_indexes.assert_not_called()
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("apps.log_admin_resource.handlers.index_set._get_visible_indexes", return_value=[])
+    def test_index_set_list_filters_result_table_without_per_row_index_lookup(self, mock_get_visible_indexes):
+        content = self._call(
+            "bklog.index_set.list",
+            {"result_table_id": "bcs_checkinsvr", "page": 1, "page_size": 20},
+        )
+
+        self.assertTrue(content["result"])
+        result = content["data"]["result"]
+        self.assertEqual(result["total"], 2)
+        by_id = {item["index_set_id"]: item for item in result["items"]}
+        self.assertEqual(by_id[755]["result_table_ids"], ["2_bklog.bcs_checkinsvr"])
+        self.assertEqual(by_id[901]["result_table_ids"], ["2_bklog.bcs_checkinsvr"])
+        mock_get_visible_indexes.assert_not_called()
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     def test_index_set_detail_resolves_collectors_from_index_set_to_collector_config(self):
         content = self._call("bklog.index_set.detail", {"index_set_id": 755})
 
@@ -374,3 +482,76 @@ class CollectorResourceCallTest(ClearRequestLocalMixin, TestCase):
         self.assertTrue(result["index_set"]["is_group"])
         self.assertEqual([item["result_table_id"] for item in result["indexes"]], ["2_bklog.bcs_checkinsvr"])
         self.assertEqual([item["collector_config_id"] for item in result["collectors"]], [10402])
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("bkm_space.api.SpaceApi.get_space_detail")
+    def test_index_set_bk_biz_id_uses_space_uid_not_index_data_biz_id(self, mock_get_space_detail):
+        mock_get_space_detail.return_value = SimpleNamespace(id=66)
+        index_set = LogIndexSet.objects.create(
+            index_set_id=971,
+            index_set_name="pipeline-external-log",
+            space_uid="bkci__pipeline-demo",
+            category_id="platform",
+            scenario_id=Scenario.LOG,
+        )
+        LogIndexSetData.objects.create(
+            index_id=1971,
+            index_set_id=index_set.index_set_id,
+            bk_biz_id=2,
+            result_table_id="2_bklog.pipeline_external_log",
+            result_table_name="Pipeline 外部日志",
+            scenario_id=Scenario.LOG,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+
+        content = self._call("bklog.index_set.detail", {"index_set_id": 971})
+
+        self.assertTrue(content["result"])
+        self.assertEqual(content["data"]["result"]["index_set"]["bk_biz_id"], -66)
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("bkm_space.api.SpaceApi.batch_get_space_detail")
+    def test_index_set_list_batch_resolves_bk_biz_id_without_per_row_space_lookup(self, mock_batch):
+        mock_batch.return_value = {
+            "bkci__pipeline-a": SimpleNamespace(id=66),
+            "bkci__pipeline-b": SimpleNamespace(id=77),
+        }
+        LogIndexSet.objects.create(
+            index_set_id=981,
+            index_set_name="pipeline-a-log",
+            space_uid="bkci__pipeline-a",
+            category_id="platform",
+            scenario_id=Scenario.LOG,
+        )
+        LogIndexSet.objects.create(
+            index_set_id=982,
+            index_set_name="pipeline-b-log",
+            space_uid="bkci__pipeline-b",
+            category_id="platform",
+            scenario_id=Scenario.LOG,
+        )
+        LogIndexSet.objects.create(
+            index_set_id=983,
+            index_set_name="pipeline-c-log",
+            space_uid="bkcc__9",
+            category_id="platform",
+            scenario_id=Scenario.LOG,
+        )
+
+        content = self._call(
+            "bklog.index_set.list",
+            {"index_set_name": "pipeline", "page": 1, "page_size": 20, "ordering": "index_set_id"},
+        )
+
+        self.assertTrue(content["result"])
+        result = content["data"]["result"]
+        self.assertEqual(result["total"], 3)
+        by_id = {item["index_set_id"]: item for item in result["items"]}
+        self.assertEqual(by_id[981]["bk_biz_id"], -66)
+        self.assertEqual(by_id[982]["bk_biz_id"], -77)
+        # BKCC 业务空间直接解析，无需查询
+        self.assertEqual(by_id[983]["bk_biz_id"], 9)
+        # 整页非业务空间只触发一次批量查询，消除 N+1；BKCC 空间不进入批量集合
+        mock_batch.assert_called_once()
+        called_space_uids = mock_batch.call_args.args[0]
+        self.assertEqual(set(called_space_uids), {"bkci__pipeline-a", "bkci__pipeline-b"})

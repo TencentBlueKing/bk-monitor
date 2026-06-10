@@ -75,6 +75,7 @@ interface Props {
 export default class RemarkTabContent extends tsc<Props> {
   @Prop({ default: '' }) appName: string;
   @Prop({ default: false }) isBatchEdit: boolean;
+  @Prop({ default: window.innerHeight - 350 }) tableMaxHeight: number;
 
   @InjectReactive('timeRange') readonly timeRange!: TimeRangeType;
   @InjectReactive('callOptions') readonly callOptions: CallOptions;
@@ -604,9 +605,15 @@ export default class RemarkTabContent extends tsc<Props> {
     this.showData = cloneDeep(this.data);
   }
 
+  handleBatchEdit() {
+    this.currentEditRowId = '';
+  }
+
   async handleBatchSave() {
     const validResult = await this.validRules();
     if (!validResult) {
+      // 无论成功失败都关闭 loading
+      this.$emit('batchSaveFailed');
       return;
     }
     const params = {
@@ -654,7 +661,7 @@ export default class RemarkTabContent extends tsc<Props> {
                 }
                 return (
                   <div class='interface-column'>
-                    {row.isImport && <div class='import-sign-bar' />}
+                    {(row.isImport || row.isNew) && <div class='new-sign-bar' />}
                     {/* 编辑态：可输入可选择 */}
                     <bk-select
                       clearable={false}
@@ -721,6 +728,7 @@ export default class RemarkTabContent extends tsc<Props> {
                         isEnableOptions: true,
                       }}
                       value={value}
+                      tippy-mode
                       getValueFn={this.getValueCallback(row.kind)}
                       onChange={data => this.handleValueTagSelectorChange(data as string, row.id)}
                     />
@@ -788,11 +796,10 @@ export default class RemarkTabContent extends tsc<Props> {
                 if (this.currentEditRowId !== row.id && !this.isBatchEdit) {
                   return (
                     <div class='interface-column-readonly'>
-                      <div
-                        class='value-content'
-                        v-bk-overflow-tips
-                      >
-                        {row[item.prop].map(item => (item === '0' ? this.$tc('全局生效') : item)).join(',')}
+                      <div class='tag-list-content'>
+                        {row[item.prop].map(item => (
+                          <bk-tag key={item}>{item === '0' ? this.$tc('全局生效') : item}</bk-tag>
+                        ))}
                       </div>
                     </div>
                   );
@@ -856,7 +863,7 @@ export default class RemarkTabContent extends tsc<Props> {
           ) : (
             <bk-table
               ref='tableRef'
-              height='100%'
+              max-height={this.tableMaxHeight}
               data={this.showData}
               empty-text={this.filterValues.length ? this.$tc('搜索结果为空') : this.$t('暂无数据')}
               row-class-name='return-code-remark-row'
@@ -868,6 +875,7 @@ export default class RemarkTabContent extends tsc<Props> {
               {this.showColumn.map(item => this.renderColumn(item))}
               <bk-table-column
                 width={120}
+                fixed='right'
                 scopedSlots={{
                   default: ({ row }) => {
                     if (this.currentEditRowId === row.id) {

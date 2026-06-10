@@ -1,0 +1,57 @@
+.reason-section {
+  padding: 12px 16px 16px;
+  background: #f2f6fc;
+  border-radius: 8px;
+
+  .reason-section-header {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 24px;
+      color: #313238;
+    }
+
+    .reason-tips {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      font-size: 12px;
+      color: #8f9fbd;
+
+      .icon-hint {
+        font-size: 14px;
+      }
+    }
+  }
+
+  .reason-checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 0;
+    margin-bottom: 12px;
+
+    .bk-checkbox {
+      min-width: 25%;
+      margin-right: 0;
+
+      .bk-checkbox-label {
+        font-size: 12px;
+        line-height: 20px;
+        color: #4d4f56;
+      }
+
+      & ~ .bk-checkbox {
+        margin: 0;
+      }
+    }
+  }
+
+  .custom-reason-input {
+    width: 100%;
+  }
+}

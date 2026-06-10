@@ -106,7 +106,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const failureTopo = ref<InstanceType<typeof FailureTopo>>(null);
-    const active = ref<string>(FailureContentTabView.FAILURE_TOPO);
+    const active = ref<string>();
     const alertIdsObject = ref<IAlertObj | string>();
     const playLoading = inject<Ref<boolean>>('playLoading');
     const activeTab = ref<string>('AlarmDetail');
@@ -149,13 +149,11 @@ export default defineComponent({
     const inputStatus = ref<string>('success');
 
     const showTabList = computed(() => {
-      return tabList.filter(item => incidentResults.value[item.key]?.enabled);
+      return tabList.filter(item => incidentResults.value[item.key]?.enabled || item.key === 'incident_topology');
     });
 
-    const isShowTab = () => {
-      const tab = tabList.find(item => item.name === active.value);
-      return tab ? incidentResults.value[tab.key]?.enabled : true;
-    };
+    /** 故障拓扑是否启用 */
+    const isTopoEnabled = computed(() => incidentResults.value.incident_topology?.enabled);
 
     const handleChangeActive = (activeName: string) => {
       active.value = activeName;
@@ -185,13 +183,14 @@ export default defineComponent({
     watch(
       () => currentNodeData.value,
       () => {
-        incidentResults.value.incident_topology?.enabled && handleChangeActive(FailureContentTabView.FAILURE_TOPO);
+        handleChangeActive(FailureContentTabView.FAILURE_TOPO);
       }
     );
     watch(
       () => showTabList.value,
-      list => {
-        active.value = list[0]?.name || FailureContentTabView.FAILURE_VIEW;
+      () => {
+        // 故障拓扑未启用时，默认选中 FAILURE_VIEW
+        active.value = isTopoEnabled.value ? FailureContentTabView.FAILURE_TOPO : FailureContentTabView.FAILURE_VIEW;
       }
     );
     watch(
@@ -253,7 +252,6 @@ export default defineComponent({
       inputStatus,
       searchValidate,
       showTabList,
-      isShowTab,
       handleCloseCollapse,
     };
   },
@@ -267,7 +265,7 @@ export default defineComponent({
           onChange={this.handleChangeActive}
         />
         <KeepAlive>
-          {this.isShowTab() && this.active === FailureContentTabView.FAILURE_TOPO && (
+          {this.active === FailureContentTabView.FAILURE_TOPO && (
             <FailureTopo
               ref='failureTopo'
               isCollapsed={this.$props.isCollapsed}
@@ -289,7 +287,7 @@ export default defineComponent({
               onRefresh={this.refresh}
             />
           )} */}
-          {this.isShowTab() && this.active === FailureContentTabView.FAILURE_VIEW && (
+          {this.active === FailureContentTabView.FAILURE_VIEW && (
             <div class='failure-view-content'>
               <div class='content-head'>
                 <div class='head-tab'>

@@ -104,6 +104,23 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
           >
             <i class={regressionConfig?.icon} />
           </span>
+          {row.merge_status?.role === 'main' && row.merge_status.active_members?.length && (
+            <span
+              class='issues-merge-badge'
+              onClick={() => rendererCtx.handleSplitClick(row)}
+              onMouseenter={e =>
+                rendererCtx.hoverPopoverTools.showPopover(
+                  e,
+                  t('合并了 {n} 个 Issue，点击查看合并明细', { n: row.merge_status?.active_members?.length ?? 0 }),
+                  { theme: 'alarm-center-popover max-width-50vw text-wrap' }
+                )
+              }
+              onMouseleave={() => rendererCtx.hoverPopoverTools.clearPopoverTimer()}
+            >
+              <i class='icon-monitor icon-a-ziIssue' />
+              <span class='issues-merge-badge-count'>{row.merge_status?.active_members?.length ?? 0}</span>
+            </span>
+          )}
           <IssueNameCell
             ellipsisClass={renderCtx.isEnabledCellEllipsis(column)}
             name={row.name || ''}
@@ -322,6 +339,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
   const renderOperationCell = (row: IssueItem): SlotReturnValue => {
     const isResolved = row.status === IssueStatusEnum.RESOLVED;
     const isArchived = row.status === IssueStatusEnum.ARCHIVED;
+    const canSplit = row.merge_status?.role === 'main' && row.merge_status.active_members?.length;
     return (
       <div class='issues-operation-col'>
         {row.status !== IssueStatusEnum.ARCHIVED && (
@@ -338,6 +356,14 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
             onClick={() => rendererCtx.handleAction(row, 'archive')}
           >
             {isArchived ? t('恢复') : t('归档')}
+          </span>
+        )}
+        {canSplit && (
+          <span
+            class='operation-btn'
+            onClick={() => rendererCtx.handleSplitClick(row)}
+          >
+            {t('拆分')}
           </span>
         )}
       </div>

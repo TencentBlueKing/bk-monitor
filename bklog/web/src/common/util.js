@@ -1060,8 +1060,24 @@ export const parseTableRowData = (
   let data;
 
   try {
-    if (keyArr.length === 1) {
+    if (!row || typeof key !== 'string') {
+      data = undefined;
+    } else if (Object.prototype.hasOwnProperty.call(row, key)) {
+      // 优先兼容 ES flattened / OTel 这类扁平 dotted key，例如 attributes.line。
+      // 不能先按 attributes -> line 路径解析，否则 row['attributes.line'] 会显示为空。
       data = row[key];
+    } else if (keyArr.length === 1) {
+      const prefix = key + '.';
+      const matchedKeys = Object.keys(row).filter(rowKey => rowKey.startsWith(prefix));
+
+      if (matchedKeys.length) {
+        data = matchedKeys.reduce((output, rowKey) => {
+          output[rowKey.slice(prefix.length)] = row[rowKey];
+          return output;
+        }, {});
+      } else {
+        data = row[key];
+      }
     } else {
       for (let index = 0; index < keyArr.length; index++) {
         const item = keyArr[index];
@@ -1084,12 +1100,12 @@ export const parseTableRowData = (
           break;
         }
 
-        if (data[item]) {
+        if (data?.[item] !== undefined && data?.[item] !== null) {
           data = data[item];
         } else {
           // 如果 x.y 不存在 返回 x['y.z'] x['y.z.z.z'] ...
-          const validKey = keyArr.splice(index, keyArr.length - index).join('.');
-          data = data[validKey];
+          const validKey = keyArr.slice(index).join('.');
+          data = data?.[validKey];
           break;
         }
       }

@@ -1,8 +1,11 @@
 from apps.exceptions import ValidationError
-from apps.log_admin_resource.handlers.collector import serialize_collector
+from apps.log_admin_resource.handlers.collector import serialize_collectors
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import IndexSetDataType
 from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
+from bkm_space.api import SpaceApi
+from bkm_space.define import SpaceTypeEnum
+from bkm_space.utils import parse_space_uid, space_uid_to_bk_biz_id
 
 
 def list_index_sets(params):
@@ -24,24 +27,15 @@ def list_index_sets(params):
             qs = qs.filter(**{model_field: params[param_key]})
     if params.get("index_set_name"):
         qs = qs.filter(index_set_name__icontains=params["index_set_name"])
+    if params.get("result_table_id"):
+        qs = qs.filter(index_set_id__in=_get_index_set_ids_by_result_table_id(params["result_table_id"]))
 
     ordering = params.get("ordering") or params.get("order_by") or "-updated_at"
-    index_sets = list(_apply_ordering(qs, ordering))
-    if params.get("result_table_id"):
-        result_table_id = params["result_table_id"].lower()
-        index_sets = [
-            index_set
-            for index_set in index_sets
-            if any(
-                result_table_id in (index_data.result_table_id or "").lower()
-                for index_data in _get_visible_indexes(index_set)
-            )
-        ]
-
-    summaries = [_serialize_index_set(index_set) for index_set in index_sets]
-    total = len(summaries)
+    qs = _apply_ordering(qs, ordering)
+    total = qs.count()
     start = (page - 1) * page_size
-    return {"items": summaries[start : start + page_size], "page": page, "page_size": page_size, "total": total}
+    index_sets = list(qs[start : start + page_size])
+    return {"items": _serialize_index_sets(index_sets), "page": page, "page_size": page_size, "total": total}
 
 
 def get_index_set_detail(params):
@@ -54,8 +48,9 @@ def get_index_set_detail(params):
     except LogIndexSet.DoesNotExist:
         raise ValidationError(f"index_set_id does not exist: {index_set_id}")
 
-    indexes = [_serialize_index_set_data(item, index_set.index_set_id) for item in _get_visible_indexes(index_set)]
-    collectors = [serialize_collector(collector) for collector in _get_collectors(index_set)]
+    visible_indexes = _get_visible_indexes(index_set)
+    indexes = [_serialize_index_set_data(item, index_set.index_set_id) for item in visible_indexes]
+    collectors = serialize_collectors(_get_collectors(index_set))
     warnings = [
         {"code": "storage_cluster_not_found", "message": "{} has no storage_cluster_id".format(item["result_table_id"])}
         for item in indexes
@@ -63,7 +58,7 @@ def get_index_set_detail(params):
     ]
 
     return {
-        "index_set": _serialize_index_set(index_set),
+        "index_set": _serialize_index_set(index_set, visible_indexes),
         "indexes": indexes,
         "collectors": collectors,
         "raw": {
@@ -78,14 +73,28 @@ def get_index_set_detail(params):
     }
 
 
-def _serialize_index_set(index_set):
-    indexes = _get_visible_indexes(index_set)
+def _serialize_index_sets(index_sets):
+    visible_indexes_map = _get_visible_indexes_map(index_sets)
+    bk_biz_id_map = _build_bk_biz_id_map(index_sets)
+    return [
+        _serialize_index_set(
+            index_set,
+            visible_indexes_map.get(index_set.index_set_id, []),
+            bk_biz_id=bk_biz_id_map.get(index_set.space_uid, 0),
+        )
+        for index_set in index_sets
+    ]
+
+
+def _serialize_index_set(index_set, indexes=None, bk_biz_id=None):
+    if indexes is None:
+        indexes = _get_visible_indexes(index_set)
     first_index = indexes[0] if indexes else None
     return {
         "index_set_id": index_set.index_set_id,
         "index_set_name": index_set.index_set_name,
         "space_uid": index_set.space_uid,
-        "bk_biz_id": _get_bk_biz_id(index_set, indexes),
+        "bk_biz_id": _get_bk_biz_id(index_set) if bk_biz_id is None else bk_biz_id,
         "category_id": index_set.category_id,
         "collector_config_id": index_set.collector_config_id,
         "scenario_id": index_set.scenario_id,
@@ -138,6 +147,72 @@ def _get_visible_indexes(index_set):
     )
 
 
+def _get_visible_indexes_map(index_sets):
+    visible_indexes_map = {index_set.index_set_id: [] for index_set in index_sets}
+    if not index_sets:
+        return visible_indexes_map
+
+    normal_index_set_ids = [index_set.index_set_id for index_set in index_sets if not index_set.is_group]
+    group_index_set_ids = [index_set.index_set_id for index_set in index_sets if index_set.is_group]
+
+    if normal_index_set_ids:
+        normal_indexes = LogIndexSetData.objects.filter(
+            index_set_id__in=normal_index_set_ids,
+            type=IndexSetDataType.RESULT_TABLE.value,
+        ).order_by("index_set_id", "index_id")
+        for index_data in normal_indexes:
+            visible_indexes_map[index_data.index_set_id].append(index_data)
+
+    group_child_ids_map = _get_group_child_ids_map(group_index_set_ids)
+    child_index_set_ids = sorted({child_id for child_ids in group_child_ids_map.values() for child_id in child_ids})
+    if child_index_set_ids:
+        child_index_data_map = {child_id: [] for child_id in child_index_set_ids}
+        child_indexes = LogIndexSetData.objects.filter(
+            index_set_id__in=child_index_set_ids,
+            type=IndexSetDataType.RESULT_TABLE.value,
+        ).order_by("index_set_id", "index_id")
+        for index_data in child_indexes:
+            child_index_data_map[index_data.index_set_id].append(index_data)
+        for group_index_set_id, child_ids in group_child_ids_map.items():
+            for child_id in sorted(child_ids):
+                visible_indexes_map[group_index_set_id].extend(child_index_data_map.get(child_id, []))
+
+    return visible_indexes_map
+
+
+def _get_index_set_ids_by_result_table_id(result_table_id):
+    matched_child_ids = set(
+        LogIndexSetData.objects.filter(
+            result_table_id__icontains=result_table_id,
+            type=IndexSetDataType.RESULT_TABLE.value,
+        ).values_list("index_set_id", flat=True)
+    )
+    if not matched_child_ids:
+        return []
+
+    matched_group_ids = set(
+        LogIndexSetData.objects.filter(
+            result_table_id__in=[str(index_set_id) for index_set_id in matched_child_ids],
+            type=IndexSetDataType.INDEX_SET.value,
+        ).values_list("index_set_id", flat=True)
+    )
+    return list(matched_child_ids | matched_group_ids)
+
+
+def _get_group_child_ids_map(group_index_set_ids):
+    group_child_ids_map = {group_index_set_id: [] for group_index_set_id in group_index_set_ids}
+    if not group_index_set_ids:
+        return group_child_ids_map
+
+    group_links = LogIndexSetData.objects.filter(
+        index_set_id__in=group_index_set_ids,
+        type=IndexSetDataType.INDEX_SET.value,
+    ).order_by("index_set_id", "index_id")
+    for group_link in group_links:
+        group_child_ids_map[group_link.index_set_id].append(int(group_link.result_table_id))
+    return group_child_ids_map
+
+
 def _get_collectors(index_set):
     member_index_sets = _get_member_index_sets(index_set)
     collector_config_ids = [
@@ -164,16 +239,40 @@ def _get_member_index_sets(index_set):
     return [child_map[child_id] for child_id in child_ids if child_id in child_map]
 
 
-def _get_bk_biz_id(index_set, indexes):
-    for item in indexes:
-        if item.bk_biz_id is not None:
-            return item.bk_biz_id
-    if index_set.space_uid.startswith("bkcc__"):
+def _get_bk_biz_id(index_set):
+    return space_uid_to_bk_biz_id(index_set.space_uid)
+
+
+def _build_bk_biz_id_map(index_sets):
+    """批量构建 space_uid -> bk_biz_id 映射，避免逐行调用 SpaceApi.get_space_detail 造成 N+1。
+
+    与 space_uid_to_bk_biz_id 语义保持一致：BKCC 空间直接解析为业务 ID，
+    非 BKCC 空间通过一次性的 SpaceApi.batch_get_space_detail 解析为负的空间自增 ID，
+    解析失败或空间不存在时返回 0。
+    """
+    bk_biz_id_map = {}
+    non_bkcc_space_uids = set()
+    for index_set in index_sets:
+        space_uid = index_set.space_uid
+        if not space_uid or space_uid in bk_biz_id_map or space_uid in non_bkcc_space_uids:
+            continue
         try:
-            return int(index_set.space_uid.split("__", 1)[1])
-        except (IndexError, ValueError):
-            return 0
-    return 0
+            space_type, space_id = parse_space_uid(space_uid)
+        except ValueError:
+            bk_biz_id_map[space_uid] = 0
+            continue
+        if space_type == SpaceTypeEnum.BKCC.value:
+            bk_biz_id_map[space_uid] = int(space_id)
+        else:
+            non_bkcc_space_uids.add(space_uid)
+
+    if non_bkcc_space_uids:
+        space_detail_map = SpaceApi.batch_get_space_detail(non_bkcc_space_uids)
+        for space_uid in non_bkcc_space_uids:
+            space = space_detail_map.get(space_uid)
+            bk_biz_id_map[space_uid] = -int(space.id) if space else 0
+
+    return bk_biz_id_map
 
 
 def _apply_ordering(qs, ordering):
