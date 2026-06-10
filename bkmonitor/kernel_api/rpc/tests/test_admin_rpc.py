@@ -82,6 +82,7 @@ class _FakeQuerySet:
     def __init__(self, items):
         self.items = list(items)
         self.filters = []
+        self.excludes = []
         self.ordering = []
 
     def filter(self, **kwargs):
@@ -89,6 +90,7 @@ class _FakeQuerySet:
         return self
 
     def exclude(self, **kwargs):
+        self.excludes.append(kwargs)
         return self
 
     def order_by(self, *fields):
@@ -185,6 +187,10 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
     space_detail = KernelRPCRegistry.get_function_detail("admin.space.detail")
     assert space_detail is not None
     assert "SpaceVMInfo" in space_detail["description"]
+
+    space_list = KernelRPCRegistry.get_function_detail("admin.space.list")
+    assert space_list is not None
+    assert "bk_biz_id" in space_list["params_schema"]
 
     custom_report_list = KernelRPCRegistry.get_function_detail("admin.custom_report.list")
     assert custom_report_list is not None
@@ -578,6 +584,23 @@ def test_space_es_usage_prefix_uses_biz_id_or_space_pk():
 
     assert admin_space._build_space_es_usage_prefix(cmdb_space) == "2_"
     assert admin_space._build_space_es_usage_prefix(custom_space) == "space_4779_"
+
+
+def test_space_list_filters_by_mapped_bk_biz_id():
+    positive_queryset = _FakeQuerySet([])
+    admin_space._apply_space_bk_biz_id_filter(positive_queryset, "2")
+
+    assert positive_queryset.filters == [{"space_type_id": "bkcc", "space_id": "2"}]
+    assert positive_queryset.excludes == []
+
+    negative_queryset = _FakeQuerySet([])
+    admin_space._apply_space_bk_biz_id_filter(negative_queryset, -4779)
+
+    assert negative_queryset.filters == [{"id": 4779}]
+    assert negative_queryset.excludes == [{"space_type_id": "bkcc"}]
+
+    with pytest.raises(CustomException, match="bk_biz_id 必须是整数"):
+        admin_space._apply_space_bk_biz_id_filter(_FakeQuerySet([]), "demo")
 
 
 def test_space_es_usage_builds_exact_table_index_patterns():
