@@ -142,6 +142,20 @@ export default {
         return Number(rowIndexSetId);
       }
 
+      // 场景化检索模式下，row.__index_set_id__ 可能不存在，
+      // 需要通过 row.__result_table 在 flatIndexSetList 的 indices 中查找匹配的 result_table_id，取其 index_set_id
+      if (this.$store.getters.isSceneMode && row.__result_table) {
+        const flatIndexSetList = this.$store.state.retrieve.flatIndexSetList;
+        for (const indexSet of flatIndexSetList) {
+          const matchedIndex = (indexSet.indices || []).find(
+            index => index.result_table_id === row.__result_table
+          );
+          if (matchedIndex) {
+            return matchedIndex.index_set_id;
+          }
+        }
+      }
+
       const storeIndexId = this.$store.getters.indexId;
       if (storeIndexId !== undefined && storeIndexId !== null && storeIndexId !== '') {
         return Number(storeIndexId);
@@ -267,35 +281,11 @@ export default {
         if (event === "contextLog") {
           this.openContextLogPage(this.getContextRouteLogParams(row, contextFields, timeField), indexSetId);
         } else {
-          this.openLogDialog(dialogNewParams, event, this.getIndexSetIdByRow(row));
+          this.openLogDialog(dialogNewParams, event, indexSetId);
         }
       } else if (event === "webConsole") this.openWebConsole(row);
       else if (event === "logSource")
         this.$store.dispatch("changeShowUnionSource");
-    },
-    /**
-     * 从行数据中获取 index_set_id
-     * 场景化检索模式下，row.__index_set_id__ 可能不存在，
-     * 需要通过 row.__result_table 在 flatIndexSetList 的 indices 中查找匹配的 result_table_id，取其 index_set_id
-     */
-    getIndexSetIdByRow(row) {
-      if (row.__index_set_id__) {
-        return row.__index_set_id__;
-      }
-
-      if (this.$store.getters.isSceneMode && row.__result_table) {
-        const flatIndexSetList = this.$store.state.retrieve.flatIndexSetList;
-        for (const indexSet of flatIndexSetList) {
-          const matchedIndex = (indexSet.indices || []).find(
-            index => index.result_table_id === row.__result_table
-          );
-          if (matchedIndex) {
-            return matchedIndex.index_set_id;
-          }
-        }
-      }
-
-      return row.__index_set_id__;
     },
     // 关闭实时日志或上下文弹窗后的回调
     hideDialog() {
