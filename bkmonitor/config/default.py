@@ -1454,6 +1454,9 @@ BKCRYPTO = {
     },
 }
 
+# 自定义上报/APM使用的密钥
+CUSTOM_REPORT_AES_KEY = os.getenv("CUSTOM_REPORT_AES_KEY", "")
+
 # 特别的AES加密配置信息(全局配置)
 SPECIFY_AES_KEY = ""
 BK_CRYPTO_KEY = os.getenv("BKAPP_BK_CRYPTO_KEY", "")
