@@ -431,14 +431,29 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         from apps.iam import ActionEnum, ResourceEnum
         from apps.iam.exceptions import PermissionDeniedError
         from apps.iam.handlers.permission import Permission
+        from apps.log_search.models import LogIndexSet
 
         # 必须显式带上空间/业务属性：场景检索命中的索引集都属于同一个 space_uid，
         # 而用户的 SEARCH_LOG 策略通常是空间级下发（条件里含 indices._bk_iam_path_）。
         # IAM SDK 本地求值（含 expr.render 的 debug 日志）会遍历该字段，
-        # 资源缺 _bk_iam_path_ 时直接 KeyError 整批 500。不传 attribute 会退化成
-        # 按 index_set_id 反查 LogIndexSet 补路径，一旦查不到就返回空 attribute 触发崩溃。
-        def _build_indices_attribute() -> dict:
-            attribute = {"space_uid": self.space_uid}
+        # 资源缺 _bk_iam_path_ 时直接 KeyError 整批 500。
+        #
+        # 同时必须带上 name：ResourceEnum.INDICES.create_simple_instance 一旦收到非空
+        # attribute 就提前返回、不再反查 LogIndexSet，导致申请数据里索引集名称为空。
+        # 这里一次性批量查出名称塞进 attribute，兼顾本地求值（_bk_iam_path_）与申请展示（name），
+        # 且避免逐资源反查 DB。
+        name_map = dict(
+            LogIndexSet.objects.filter(index_set_id__in=index_set_ids).values_list(
+                "index_set_id", "index_set_name"
+            )
+        )
+
+        def _build_indices_attribute(index_set_id) -> dict:
+            attribute = {
+                "space_uid": self.space_uid,
+                "id": str(index_set_id),
+                "name": name_map.get(index_set_id, ""),
+            }
             if self.bk_biz_id:
                 attribute["bk_biz_id"] = self.bk_biz_id
             return attribute
@@ -447,7 +462,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         resources = [
             [
                 ResourceEnum.INDICES.create_simple_instance(
-                    instance_id=str(index_set_id), attribute=_build_indices_attribute()
+                    instance_id=str(index_set_id), attribute=_build_indices_attribute(index_set_id)
                 )
             ]
             for index_set_id in index_set_ids
@@ -461,7 +476,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         if denied:
             denied_resources = [
                 ResourceEnum.INDICES.create_simple_instance(
-                    instance_id=str(index_set_id), attribute=_build_indices_attribute()
+                    instance_id=str(index_set_id), attribute=_build_indices_attribute(index_set_id)
                 )
                 for index_set_id in denied
             ]
