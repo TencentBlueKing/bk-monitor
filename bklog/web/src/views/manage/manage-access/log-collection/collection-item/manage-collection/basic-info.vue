@@ -384,7 +384,7 @@
       },
       // 自定义上报基本信息
       isCustomReport() {
-        return this.$route.name === 'custom-report-detail' || this.$route.query.typeKey === 'custom_report';
+        return this.$route.name === 'custom-report-detail' || this.collectorData.log_access_type === 'custom_report';
       },
       isWinEventLog() {
         return this.collectorData.collector_scenario_id === 'wineventlog';
@@ -497,7 +497,7 @@
             spaceUid: this.$store.state.spaceUid,
             backRoute,
             type: 'basicInfo',
-            typeKey: this.$route.query.typeKey,
+            typeKey: this.collectorData.log_access_type,
           },
         });
       },

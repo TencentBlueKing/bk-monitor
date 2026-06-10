@@ -62,6 +62,10 @@ export default class MonitorRetrieve extends tsc<void> {
   isInit = false;
   empty = true;
   loading = true;
+  bklogContentDom: HTMLElement | null = null;
+  bklogContentScrollTop = 0;
+  showQuickJump = true;
+
   async created() {
     initWindowState();
     this.init();
@@ -72,6 +76,8 @@ export default class MonitorRetrieve extends tsc<void> {
       window.mainComponent.$destroy();
       window.mainComponent = null;
     }
+
+    this.bklogContentDom?.removeEventListener('scroll', this.handleBklogContentScroll);
   }
 
   async init() {
@@ -105,6 +111,8 @@ export default class MonitorRetrieve extends tsc<void> {
       });
       await this.$nextTick();
       window.mainComponent.$mount(this.$el.querySelector('#main'));
+      this.bklogContentDom = (await this.handleGetBklogContent()) as HTMLElement;
+      this.bklogContentDom?.addEventListener('scroll', this.handleBklogContentScroll);
     } else {
       this.empty = true;
     }
@@ -182,33 +190,58 @@ export default class MonitorRetrieve extends tsc<void> {
       window.open(url, '_blank');
     }
   }
+
+  async handleGetBklogContent() {
+    let timer = null;
+    let target = null;
+    return new Promise(resolve => {
+      timer = setInterval(() => {
+        target = document.querySelector('.v3-bklog-content');
+        if (target) {
+          clearInterval(timer);
+          resolve(target);
+        }
+      }, 1000);
+    });
+  }
+
+  handleBklogContentScroll() {
+    this.bklogContentScrollTop = this.bklogContentDom?.scrollTop || 0;
+    this.showQuickJump = this.bklogContentScrollTop <= 14;
+  }
+
   render() {
     return (
       <div class='monitor-retrieve'>
-        <div class='quick-jump-container'>
-          <bk-button
-            class='quick-jump'
-            size='small'
-            theme='primary'
-            outline
-            text
-            onClick={() => this.handleQuickJump('config')}
+        {this.showQuickJump && (
+          <div
+            class='quick-jump-container'
+            style={{ top: `${14 - this.bklogContentScrollTop}px` }}
           >
-            {this.$t('关联配置')}
-            <i class='icon-monitor icon-fenxiang' />
-          </bk-button>
-          <bk-button
-            class='quick-jump'
-            size='small'
-            theme='primary'
-            outline
-            text
-            onClick={() => this.handleQuickJump('log')}
-          >
-            {this.$t('更多日志')}
-            <i class='icon-monitor icon-fenxiang' />
-          </bk-button>
-        </div>
+            <bk-button
+              class='quick-jump'
+              size='small'
+              theme='primary'
+              outline
+              text
+              onClick={() => this.handleQuickJump('config')}
+            >
+              {this.$t('关联配置')}
+              <i class='icon-monitor icon-fenxiang' />
+            </bk-button>
+            <bk-button
+              class='quick-jump'
+              size='small'
+              theme='primary'
+              outline
+              text
+              onClick={() => this.handleQuickJump('log')}
+            >
+              {this.$t('更多日志')}
+              <i class='icon-monitor icon-fenxiang' />
+            </bk-button>
+          </div>
+        )}
         {this.empty ? (
           <div class='apm-empty-log'>
             {this.loading ? (

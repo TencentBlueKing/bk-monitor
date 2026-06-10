@@ -580,7 +580,12 @@ export default defineComponent({
           const sortedClusters = sortByPermission(clusterRes.data);
           clusterList.value = sortedClusters.filter(cluster => !cluster.is_platform);
 
-          // 处理路由参数设置默认集群
+          // 编辑模式下，集群ID由 fetchIndexSetData 回填，这里只需加载集群列表用于下拉框展示
+          if (props.isEdit) {
+            return;
+          }
+
+          // 处理路由参数设置默认集群（仅新建模式）
           const targetClusterId = route.query.cluster;
           if (targetClusterId) {
             const numericClusterId = Number(targetClusterId);

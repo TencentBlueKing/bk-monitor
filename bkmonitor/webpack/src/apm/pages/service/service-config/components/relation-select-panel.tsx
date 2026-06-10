@@ -151,21 +151,28 @@ export default class RelationSelectPanel extends tsc<
     this.refreshTreeData(this.localValue);
   }
 
-  async handleCheckChange(ids: string[], node: TreeNode) {
+  async handleCheckChange(_: string[], node: TreeNode) {
     this.updateNodesState([node.id], node.state.checked, node.state.checked);
-    const value = this.treeRef.nodes.filter(node => node.state.checked && !node.state.disabled).map(node => node.id);
-    const list = [...this.localValue];
-    if (this.searchVal) {
-      if (node.state.checked) {
-        list.push(...value);
-      } else {
-        const index = list.indexOf(node.id);
-        if (index > -1) {
-          list.splice(index, 1);
-        }
+
+    /**
+     * 已选择的节点是否保留的判断
+     * 1. 不是当前选择节点的子集，保留已选择的节点
+     * 2. 是当前选择节点的子集，删除已选择的节点
+     */
+    const filterValue = this.localValue.filter(val => {
+      return !val.startsWith(node.id);
+    });
+
+    const list = [...filterValue];
+    if (node.state.checked) {
+      list.push(node.id);
+    } else {
+      const index = list.indexOf(node.id);
+      if (index > -1) {
+        list.splice(index, 1);
       }
     }
-    this.localValue = Array.from(new Set(!this.searchVal ? value : list));
+    this.localValue = Array.from(new Set(list));
     this.$emit('change', this.localValue);
   }
 
@@ -179,7 +186,6 @@ export default class RelationSelectPanel extends tsc<
   async lazyMethod(node: TreeNode) {
     if (node.data.type === 'workload') {
       const [bcs_cluster_id, namespace] = node.data.id.split('/');
-      this.loading = true;
       const { items } = await this.getListResources({
         bcs_cluster_id,
         namespace,
@@ -189,7 +195,6 @@ export default class RelationSelectPanel extends tsc<
         query_string: node.data.queryFrom === QueryFromType.NameSpace ? '' : this.searchVal,
       });
       node.data.children.push(...items);
-      this.loading = false;
     }
     setTimeout(() => {
       this.refreshTreeData(this.localValue);
@@ -432,6 +437,28 @@ export default class RelationSelectPanel extends tsc<
     );
   }
 
+  renderTreeSkeleton() {
+    return (
+      <div class='tree-skeleton'>
+        {new Array(12).fill(0).map((_, index) => (
+          <div
+            key={index}
+            style={{
+              paddingLeft: `${index % 3 === 0 ? 0 : 20}px`,
+              paddingRight: '20px',
+            }}
+            class='tree-skeleton-item'
+          >
+            <div
+              style='width: 100%; height: 20px'
+              class='skeleton-element'
+            />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   render() {
     return (
       <div class='relation-select-panel-comp'>
@@ -444,39 +471,43 @@ export default class RelationSelectPanel extends tsc<
             onChange={this.handleSearch}
           />
           <div class='relation-workload-tree'>
-            <bk-big-tree
-              ref='tree'
-              scopedSlots={{
-                default: ({ data }) => {
-                  if (data.type === 'more') return this.renderLoadMore(data);
-                  return (
-                    <div class={['bk-tree-node', { root: data.root }]}>
-                      <span
-                        style='padding-right: 5px;'
-                        class='node-content'
-                      >
+            {this.loading ? (
+              this.renderTreeSkeleton()
+            ) : (
+              <bk-big-tree
+                ref='tree'
+                scopedSlots={{
+                  default: ({ data }) => {
+                    if (data.type === 'more') return this.renderLoadMore(data);
+                    return (
+                      <div class={['bk-tree-node', { root: data.root }]}>
                         <span
-                          class='item-name'
-                          v-bk-overflow-tips
+                          style='padding-right: 5px;'
+                          class='node-content'
                         >
-                          {this.getSearchNode(data.name, this.searchVal)}
+                          <span
+                            class='item-name'
+                            v-bk-overflow-tips
+                          >
+                            {this.getSearchNode(data.name, this.searchVal)}
+                          </span>
+                          {data.count !== undefined && <span class='item-count'>{data.count}</span>}
                         </span>
-                        {data.count !== undefined && <span class='item-count'>{data.count}</span>}
-                      </span>
-                    </div>
-                  );
-                },
-              }}
-              check-strictly={false}
-              data={this.data}
-              default-checked-nodes={this.localValue}
-              default-expanded-nodes={this.getDefaultExpandedIds()}
-              lazy-disabled={this.lazyDisabled}
-              lazy-method={this.lazyMethod}
-              selectable={true}
-              show-checkbox={this.isShowCheckbox}
-              on-check-change={this.handleCheckChange}
-            />
+                      </div>
+                    );
+                  },
+                }}
+                check-strictly={false}
+                data={this.data}
+                default-checked-nodes={this.localValue}
+                default-expanded-nodes={this.getDefaultExpandedIds()}
+                lazy-disabled={this.lazyDisabled}
+                lazy-method={this.lazyMethod}
+                selectable={true}
+                show-checkbox={this.isShowCheckbox}
+                on-check-change={this.handleCheckChange}
+              />
+            )}
           </div>
         </div>
         <div class='selected-panel'>

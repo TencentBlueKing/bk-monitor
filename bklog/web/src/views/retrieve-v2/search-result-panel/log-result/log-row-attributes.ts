@@ -29,7 +29,6 @@ export const ROW_KEY = '__component_row_key';
 export const ROW_EXPAND = '__component_row_expand';
 export const ROW_F_ORIGIN_TIME = '__component_origin_time';
 export const ROW_F_ORIGIN_CTX = '__component_origin_content';
-export const ROW_F_ORIGIN_OPT = '__component_table_operator';
 export const ROW_F_JSON = '__component_format_json';
 export const ROW_IS_IN_SECTION = '__component_is_in_section';
 export const ROW_SOURCE = '__component_row_source';

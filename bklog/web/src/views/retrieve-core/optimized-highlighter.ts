@@ -63,6 +63,7 @@ export interface KeywordItem {
   text: string;
   className: string;
   backgroundColor: string;
+  color: string;
   textReg: RegExp;
 }
 
@@ -524,6 +525,9 @@ export default class OptimizedHighlighter {
       if (matchedKeywordItem?.backgroundColor) {
         for (const element of group) {
           element.style.backgroundColor = matchedKeywordItem.backgroundColor;
+          if (matchedKeywordItem.color) {
+            element.style.color = matchedKeywordItem.color;
+          }
         }
       }
     }
@@ -585,9 +589,12 @@ export default class OptimizedHighlighter {
           if (element.parentElement?.classList.contains('valid-text')) {
             element.classList.add('valid-text');
           }
-          const backgroundColor = this.getBackgroundColor(element.textContent);
-          if (backgroundColor) {
-            element.style.backgroundColor = backgroundColor;
+          const colors = this.getColors(element.textContent);
+          if (colors.backgroundColor) {
+            element.style.backgroundColor = colors.backgroundColor;
+          }
+          if (colors.color) {
+            element.style.color = colors.color;
           }
         },
       });
@@ -668,6 +675,9 @@ export default class OptimizedHighlighter {
           if (keywordItem?.backgroundColor) {
             element.style.backgroundColor = keywordItem.backgroundColor;
           }
+          if (keywordItem?.color) {
+            element.style.color = keywordItem.color;
+          }
         },
       });
 
@@ -700,9 +710,12 @@ export default class OptimizedHighlighter {
         if (element.parentElement?.classList.contains('valid-text')) {
           element.classList.add('valid-text');
         }
-        const backgroundColor = this.getBackgroundColor(element.textContent);
-        if (backgroundColor) {
-          element.style.backgroundColor = backgroundColor;
+        const colors = this.getColors(element.textContent);
+        if (colors.backgroundColor) {
+          element.style.backgroundColor = colors.backgroundColor;
+        }
+        if (colors.color) {
+          element.style.color = colors.color;
         }
       },
     });
@@ -718,9 +731,9 @@ export default class OptimizedHighlighter {
     });
   }
 
-  private getBackgroundColor(keyword: string): string {
+  private getColors(keyword: string): { backgroundColor: string; color: string } {
     if (!keyword) {
-      return '';
+      return { backgroundColor: '', color: '' };
     }
 
     // 首先尝试精确匹配（文本内容与关键字文本完全相等）
@@ -731,12 +744,16 @@ export default class OptimizedHighlighter {
     });
 
     if (exactMatch) {
-      return exactMatch.backgroundColor;
+      return { backgroundColor: exactMatch.backgroundColor, color: exactMatch.color };
     }
 
     // 如果没有精确匹配，按关键字在数组中的顺序查找第一个匹配的正则表达式
     // 这样可以保持用户输入的顺序，确保颜色匹配的一致性
-    return this.currentKeywords.find(k => k.textReg.test(keyword))?.backgroundColor || '';
+    const matchedKeyword = this.currentKeywords.find(k => k.textReg.test(keyword));
+    return {
+      backgroundColor: matchedKeyword?.backgroundColor || '',
+      color: matchedKeyword?.color || '',
+    };
   }
 
   private resetState(): void {
