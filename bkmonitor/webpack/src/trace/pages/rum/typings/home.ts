@@ -136,3 +136,23 @@ export interface RumTableItem {
   /** span 原始结果表 */
   span_result_table_id: string;
 }
+
+/** 排序指标字段枚举（单一数据源，类型与常量均由此推导） */
+const SortableMetric = {
+  lcpP75: 'lcpP75',
+  jsErrorRate: 'jsErrorRate',
+  apiFailRate: 'apiFailRate',
+} as const;
+
+/** 由 SortableMetric 自动推导的联合类型 */
+export type SortableMetricKey = (typeof SortableMetric)[keyof typeof SortableMetric];
+
+/** 排序字段常量数组，与 SortableMetric 联动 */
+export const SORTABLE_METRIC_KEYS = Object.values(SortableMetric) as readonly SortableMetricKey[];
+
+/** 排序列的标题 i18n key 映射 */
+export const METRIC_COLUMN_TITLES: Record<SortableMetricKey, string> = {
+  [SortableMetric.lcpP75]: 'LCP P75',
+  [SortableMetric.jsErrorRate]: 'JS 错误率',
+  [SortableMetric.apiFailRate]: 'API 失败率',
+};

@@ -42,7 +42,7 @@ const EMPTY_METRIC: RumAppMetricView = {
 };
 
 const getMetricItem = (metrics: MetricMap, key: RumAsyncMetricKey, applicationId: number) =>
-  metrics[key]?.find(item => item.application_id === applicationId)?.[key];
+  metrics[key]?.find(item => `${item.application_id}` === `${applicationId}`)?.[key];
 
 const getLcpTier = (value: number): MetricTier => {
   if (value <= 2500) return 'good';

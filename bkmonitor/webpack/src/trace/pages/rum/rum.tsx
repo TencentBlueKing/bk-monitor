@@ -39,9 +39,10 @@ import CommonTable from '../alarm-center/components/alarm-table/components/commo
 import CreateApp from './components/create-app/create-app';
 import SDKReport from './components/sdk-report/sdk-report';
 import { type MetricMap, buildRumAppRows } from './rum-controller';
+import { METRIC_COLUMN_TITLES, SORTABLE_METRIC_KEYS } from './typings/home';
 
 import type { BaseTableColumn } from '../trace-explore/components/trace-explore-table/typing';
-import type { MetricTier, RumApplicationAsyncItem, RumAppRow, RumTableItem } from './typings';
+import type { MetricTier, RumApplicationAsyncItem, RumAppRow, RumTableItem, SortableMetricKey } from './typings';
 import type { IRumAppConfig } from './typings/rum-app-config';
 import type { FilterValue } from '@blueking/tdesign-ui';
 import type { BkUiSettings } from '@blueking/tdesign-ui';
@@ -194,10 +195,44 @@ export default defineComponent({
       return buildRumAppRows(appListResource.value, appAsyncResource.value);
     });
 
+    /**
+     * 根据 tableSort 解析排序字段与方向
+     * 格式：'-field' 降序 / 'field' 升序 / 空字符串 不排序
+     */
+    const parseSort = (sortStr: string | undefined): null | { desc: boolean; field: SortableMetricKey } => {
+      if (!sortStr) return null;
+      const desc = sortStr.startsWith('-');
+      const field = (desc ? sortStr.slice(1) : sortStr) as SortableMetricKey;
+      if (!SORTABLE_METRIC_KEYS.includes(field)) return null;
+      return { field, desc };
+    };
+
     const filteredTableData = computed(() => {
+      let list = tableData.value;
+
+      // 1. 筛选
       const c = rumCriteria.value;
-      if (!Object.keys(c).length) return tableData.value;
-      return tableData.value.filter(r => rowMatchesCriteria(r, c));
+      if (Object.keys(c).length) {
+        list = list.filter(r => rowMatchesCriteria(r, c));
+      }
+
+      // 2. 排序（按 tableSort）
+      const sort = parseSort(tableSort.value);
+      if (sort) {
+        const { field, desc } = sort;
+        const sign = desc ? -1 : 1;
+        list = [...list].sort((a: RumAppRow, b: RumAppRow) => {
+          const va = a?.[field]?.value ?? null;
+          const vb = b?.[field]?.value ?? null;
+          // null/undefined 排到最后
+          if (va == null && vb == null) return 0;
+          if (va == null) return 1;
+          if (vb == null) return -1;
+          return (va - vb) * sign;
+        });
+      }
+
+      return list;
     });
 
     watch(
@@ -363,39 +398,18 @@ export default defineComponent({
             return <span>{r.description || '--'}</span>;
           }) as unknown as BaseTableColumn['cellRenderer'],
         },
-        {
-          colKey: 'lcpP75',
-          title: t('LCP P75'),
+        ...SORTABLE_METRIC_KEYS.map(key => ({
+          colKey: key,
+          title: t(METRIC_COLUMN_TITLES[key]),
           thClassName: 'rum-th--dotted',
           width: 110,
           sorter: true,
           cellRenderer: (row => {
             const r = row as RumAppRow;
-            return <span class={metricClass(r.lcpP75.tier)}>{r.lcpP75.display}</span>;
+            const metric = r[key];
+            return <span class={metricClass(metric.tier)}>{metric.display}</span>;
           }) as unknown as BaseTableColumn['cellRenderer'],
-        },
-        {
-          colKey: 'jsErrorRate',
-          title: t('JS 错误率'),
-          thClassName: 'rum-th--dotted',
-          width: 110,
-          sorter: true,
-          cellRenderer: (row => {
-            const r = row as RumAppRow;
-            return <span class={metricClass(r.jsErrorRate.tier)}>{r.jsErrorRate.display}</span>;
-          }) as unknown as BaseTableColumn['cellRenderer'],
-        },
-        {
-          colKey: 'apiFailureRate',
-          title: t('API 失败率'),
-          thClassName: 'rum-th--dotted',
-          width: 110,
-          sorter: true,
-          cellRenderer: (row => {
-            const r = row as RumAppRow;
-            return <span class={metricClass(r.apiFailRate.tier)}>{r.apiFailRate.display}</span>;
-          }) as unknown as BaseTableColumn['cellRenderer'],
-        },
+        })),
         {
           colKey: 'dataStatus',
           title: t('数据状态'),
@@ -460,23 +474,11 @@ export default defineComponent({
         { label: t('展示名称'), field: 'appAlias' },
         { label: t('应用状态'), field: 'appStatus' },
         { label: t('描述'), field: 'description' },
-        { label: t('LCP P75'), field: 'lcpP75', disabled: true },
-        { label: t('JS 错误率'), field: 'jsErrorRate', disabled: true },
-        { label: t('API 失败率'), field: 'apiFailureRate', disabled: true },
+        ...SORTABLE_METRIC_KEYS.map(key => ({ label: t(METRIC_COLUMN_TITLES[key]), field: key, disabled: true })),
         { label: t('数据状态'), field: 'dataStatus', disabled: true },
         { label: t('操作'), field: 'operations', disabled: true },
       ],
-      checked: [
-        'appName',
-        'appAlias',
-        'appStatus',
-        'description',
-        'lcpP75',
-        'jsErrorRate',
-        'apiFailureRate',
-        'dataStatus',
-        'operations',
-      ],
+      checked: ['appName', 'appAlias', 'appStatus', 'description', ...SORTABLE_METRIC_KEYS, 'dataStatus', 'operations'],
     }));
 
     const handleTimeRangeChange = (value: TimeRangeType) => {
