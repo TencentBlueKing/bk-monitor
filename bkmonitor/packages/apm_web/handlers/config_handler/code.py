@@ -11,6 +11,9 @@ specific language governing permissions and limitations under the License.
 from typing import Any
 
 from django.utils.translation import gettext_lazy as _
+from rest_framework import serializers
+
+from apm_web.models import ApmMetaConfig, Application
 
 
 class CodeRemarkHandler:
@@ -69,6 +72,19 @@ class CodeRemarkHandler:
         "999": _("未明确错误"),
         "1000": _("未明确流式错误"),
     }
+
+    @classmethod
+    def get_app_remark_configs(cls, bk_biz_id: int, app_name: str) -> list[dict[str, Any]]:
+        """获取应用级返回码备注配置。"""
+        app: Application = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+        if not app:
+            raise serializers.ValidationError(_("应用不存在"))
+
+        config_obj: ApmMetaConfig = ApmMetaConfig.get_application_config_value(
+            app.application_id, cls.APM_CODE_REMARK_CONFIG_KEY
+        )
+        config_value: dict[str, Any] = (config_obj and config_obj.config_value) or {}
+        return config_value.get("remarks", [])
 
     @classmethod
     def build_service_code_remark_config(

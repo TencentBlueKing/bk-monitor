@@ -925,8 +925,6 @@ class GetCodeRemarksResource(Resource):
       - 传 service_name（服务配置场景）：按 kind + service_name 过滤全局/服务级备注，返回 code → remark 字典
     """
 
-    APM_CODE_REMARK_CONFIG_KEY = CodeRemarkHandler.APM_CODE_REMARK_CONFIG_KEY
-
     class RequestSerializer(BaseCodeRedefinedRequestSerializer):
         pass
 
@@ -936,14 +934,7 @@ class GetCodeRemarksResource(Resource):
         service_name: str | None = validated_request_data.get("service_name")
         kind: str | None = validated_request_data.get("kind")
 
-        app = Application.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
-        if not app:
-            raise serializers.ValidationError(_("应用不存在"))
-
-        config_obj = ApmMetaConfig.get_application_config_value(app.application_id, self.APM_CODE_REMARK_CONFIG_KEY)
-
-        # 应用配置场景直接返回用户显式配置的备注
-        remark_configs: list[dict[str, Any]] = ((config_obj and config_obj.config_value) or {}).get("remarks", [])
+        remark_configs: list[dict[str, Any]] = CodeRemarkHandler.get_app_remark_configs(bk_biz_id, app_name)
         if not service_name:
             return remark_configs
 

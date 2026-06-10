@@ -2648,15 +2648,9 @@ class QueryExceptionDetailEventResource(PageListResource):
                     if span_service_name and code_remark_kind:
                         # 首次备注配置为空时，去查询应用级备注配置
                         if remark_configs is None:
-                            application = Application.objects.get(
-                                bk_biz_id=validated_data["bk_biz_id"],
-                                app_name=validated_data["app_name"],
+                            remark_configs = CodeRemarkHandler.get_app_remark_configs(
+                                validated_data["bk_biz_id"], validated_data["app_name"]
                             )
-                            config_obj = ApmMetaConfig.get_application_config_value(
-                                application.application_id,
-                                CodeRemarkHandler.APM_CODE_REMARK_CONFIG_KEY,
-                            )
-                            remark_configs = ((config_obj and config_obj.config_value) or {}).get("remarks", [])
 
                         # 同一服务和调用方向复用最终生效的备注配置
                         cache_key: tuple[str, str] = (span_service_name, code_remark_kind)
@@ -2668,9 +2662,7 @@ class QueryExceptionDetailEventResource(PageListResource):
                             )
 
                         code_remark_config: dict[str, str] = code_remark_config_cache[cache_key]
-                        remark: str = code_remark_config.get(exception_type) or code_remark_config.get(
-                            f"err_{exception_type}", ""
-                        )
+                        remark: str = code_remark_config.get(exception_type, "")
                         if remark:
                             exception_alias = f"{exception_alias}（{remark}）"
                 elif exception_type != self.UNKNOWN and not current_subtitle:
