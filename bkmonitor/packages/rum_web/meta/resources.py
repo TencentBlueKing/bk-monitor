@@ -236,6 +236,7 @@ class GetApplicationInfoByAppNameResource(ApiAuthResource):
 
         def to_representation(self, instance):
             data = super().to_representation(instance)
+            data["es_storage_index_name"] = instance.span_result_table_id.replace(".", "_")
             data["is_create_finished"] = bool(instance.span_result_table_id and instance.metric_result_table_id)
             # 将所有配置写入响应
             for config in instance.get_all_config():
