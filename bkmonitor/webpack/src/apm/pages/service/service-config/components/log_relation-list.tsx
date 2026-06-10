@@ -33,6 +33,7 @@ import { random } from 'monitor-common/utils';
 import './log_relation-list.scss';
 
 export interface ILogRelation {
+  is_global?: boolean;
   related_bk_biz_id: number | string;
   value_list: string[];
 }
@@ -61,17 +62,32 @@ export default class LogRelationList extends tsc<IProp> {
 
   logRelationList: ILogRelationList[] = [];
 
+  get serviceLogRelationList() {
+    return this.logRelationList.filter(item => !item.is_global);
+  }
+
   @Watch('value', { immediate: true })
   async handleWatchValue() {
     if (this.value.length) {
       const logRelationList = [];
       await this.getIndexSetList(this.value.map(item => item.related_bk_biz_id).filter(v => !!v));
+      // 使用一个临时对象来跟踪已经使用过的项，避免 key 重复
+      const usedItems = new Set();
       for (const v of this.value) {
-        const logRelationListItem = this.logRelationList.find(
-          item =>
+        let logRelationListItem = null;
+        // 查找匹配的项，确保不重复使用同一个项
+        for (const item of this.logRelationList) {
+          if (
+            !usedItems.has(item) &&
             item.related_bk_biz_id === v.related_bk_biz_id &&
             JSON.stringify(v.value_list) === JSON.stringify(item.value_list)
-        );
+          ) {
+            logRelationListItem = item;
+            usedItems.add(item);
+            break;
+          }
+        }
+
         if (logRelationListItem) {
           logRelationList.push(logRelationListItem);
         } else {
@@ -82,6 +98,16 @@ export default class LogRelationList extends tsc<IProp> {
           });
         }
       }
+      // 没有
+      if (logRelationList.every(item => item.is_global)) {
+        logRelationList.push({
+          value_list: [],
+          related_bk_biz_id: '',
+          indexSetList: [],
+          key: random(8),
+          is_global: false,
+        });
+      }
       this.logRelationList = logRelationList;
     } else {
       this.logRelationList = [
@@ -90,6 +116,7 @@ export default class LogRelationList extends tsc<IProp> {
           related_bk_biz_id: '',
           indexSetList: [],
           key: random(8),
+          is_global: false,
         },
       ];
     }
@@ -123,6 +150,7 @@ export default class LogRelationList extends tsc<IProp> {
       related_bk_biz_id: '',
       indexSetList: [],
       key: random(8),
+      is_global: false,
     });
     this.handleChange();
   }
@@ -200,6 +228,7 @@ export default class LogRelationList extends tsc<IProp> {
       this.logRelationList.map(item => ({
         related_bk_biz_id: item.related_bk_biz_id,
         value_list: item.value_list,
+        is_global: item.is_global,
       }))
     );
   }
@@ -222,50 +251,57 @@ export default class LogRelationList extends tsc<IProp> {
         {this.logRelationList.map((item, index) => (
           <div
             key={item.key}
-            class={['list-edit-item', { 'mt-8': index !== 0 }]}
+            class={['list-edit-item', { 'mt-24': index !== 0 }]}
           >
-            <bk-form-item>
-              <bk-select
-                vModel={item.related_bk_biz_id}
-                display-key='name'
-                id-Key='id'
-                list={this.bizSelectList}
-                search-placeholder={this.$t('请输入 关键字')}
-                enable-virtual-scroll
-                searchable
-                onChange={v => this.handleLogBizChange(index, v)}
-              />
-            </bk-form-item>
-            <bk-form-item ref={`${item.key}-indexSet`}>
-              <bk-select
-                style='width:290px'
-                vModel={item.value_list}
-                auto-height={false}
-                multiple={true}
-                search-placeholder={this.$t('请输入 关键字')}
-                display-tag
-                searchable
-                onChange={() => this.handleChange()}
-              >
-                {item.indexSetList.map(option => (
-                  <bk-option
-                    id={option.id}
-                    key={option.id}
-                    name={option.name}
-                  />
-                ))}
-              </bk-select>
-            </bk-form-item>
-            <span
-              class='icon-monitor icon-mc-plus-fill'
-              onClick={() => this.handleAdd(index)}
-            />
-            {this.logRelationList.length > 1 && (
-              <span
-                class='icon-monitor icon-mc-minus-plus'
-                onClick={() => this.handleDel(index)}
-              />
-            )}
+            <div class='list-edit-item-content'>
+              <bk-form-item>
+                <bk-select
+                  vModel={item.related_bk_biz_id}
+                  disabled={item.is_global}
+                  display-key='name'
+                  id-Key='id'
+                  list={this.bizSelectList}
+                  search-placeholder={this.$t('请输入 关键字')}
+                  enable-virtual-scroll
+                  searchable
+                  onChange={v => this.handleLogBizChange(index, v)}
+                />
+              </bk-form-item>
+              <bk-form-item ref={`${item.key}-indexSet`}>
+                <bk-select
+                  style='width:290px'
+                  vModel={item.value_list}
+                  auto-height={false}
+                  disabled={item.is_global}
+                  multiple={true}
+                  search-placeholder={this.$t('请输入 关键字')}
+                  display-tag
+                  searchable
+                  onChange={() => this.handleChange()}
+                >
+                  {item.indexSetList.map(option => (
+                    <bk-option
+                      id={option.id}
+                      key={option.id}
+                      name={option.name}
+                    />
+                  ))}
+                </bk-select>
+              </bk-form-item>
+              {!item.is_global && (
+                <span
+                  class='icon-monitor icon-mc-plus-fill'
+                  onClick={() => this.handleAdd(index)}
+                />
+              )}
+              {this.serviceLogRelationList.length > 1 && !item.is_global && (
+                <span
+                  class='icon-monitor icon-mc-minus-plus'
+                  onClick={() => this.handleDel(index)}
+                />
+              )}
+            </div>
+            {this.$scopedSlots?.itemExtra?.({ item, index })}
           </div>
         ))}
       </div>

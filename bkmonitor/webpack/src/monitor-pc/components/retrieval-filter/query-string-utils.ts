@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Debounce } from 'monitor-common/utils';
+import { Debounce, xssFilter } from 'monitor-common/utils';
 
 import { EFieldType, EQueryStringTokenType } from './utils';
 
@@ -389,7 +389,7 @@ export class QueryStringEditor {
         (item, index) =>
           `<span token-type="${item.type}" token-index="${index}" style="color: ${
             queryStringColorMap[item.type]?.color || defaultColor
-          };" class="str-item">${item.value}</span>`
+          };" class="str-item">${xssFilter(item.value)}</span>`
       )
       .join('');
     replaceContent(this.editorEl, content, isLast);
@@ -576,7 +576,7 @@ export function setGlobalOffset(editor, targetOffset) {
     currentOffset += nodeLength;
   }
   // 处理越界情况（放置到最后一个位置）
-  if (!targetNode || targetNode.nodeType !== Node.TEXT_NODE) {
+  if (targetNode?.nodeType !== Node.TEXT_NODE) {
     const allChildren = editor.childNodes;
     targetNode = editor;
     targetNodeOffset = allChildren.length;

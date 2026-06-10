@@ -74,5 +74,36 @@
         }
       }
     }
+
+    &-data-access {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      margin: 0 8px 8px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px 0 #0000001a;
+    }
+
+    .access-guide-tip {
+      margin: 0 8px 8px;
+      color: #4d4f56;
+      background: #f0f5ff;
+      border: 1px solid #a3c5fd;
+      border-radius: 2px;
+
+      .bk-alert-wraper {
+        display: flex;
+        align-items: center;
+      }
+
+      .tip-link {
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
   }
 }

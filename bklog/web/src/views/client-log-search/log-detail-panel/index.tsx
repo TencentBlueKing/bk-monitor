@@ -591,7 +591,7 @@ export default defineComponent({
     const handleScrollToTop = () => {
       const el = logContentScrollRef.value;
       if (el) {
-        el.scrollTo({ top: 0, behavior: 'smooth' });
+        el.scrollTop = 0;
       }
     };
 
@@ -812,6 +812,7 @@ export default defineComponent({
             default-expand-all={true}
             expand-on-click={true}
             padding={24}
+            fixed-width
             enable-title-tip={true}
             on-node-click={handleNodeClick}
             on-expand-change={handleExpandChange}

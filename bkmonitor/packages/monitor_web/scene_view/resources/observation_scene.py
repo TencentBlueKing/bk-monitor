@@ -129,7 +129,7 @@ class GetObservationSceneStatusList(CacheResource):
         if not event_group:
             return False
 
-        data_source = CustomEventDataSource(table=event_group.table_id)
+        data_source = CustomEventDataSource(table=event_group.table_id, bk_tenant_id=get_request_tenant_id())
         records, total = data_source.query_log(start_time=(int(time.time()) - 180) * 1000, limit=1)
         return bool(records)
 
@@ -180,6 +180,7 @@ class GetObservationSceneStatusList(CacheResource):
             try:
                 data_source = BkMonitorLogDataSource(
                     bk_biz_id=bk_biz_id,
+                    bk_tenant_id=get_request_tenant_id(),
                     table=group_info.table_id,
                     group_by=[],
                     filter_dict=filter_dict,

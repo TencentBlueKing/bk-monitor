@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, KeepAlive, shallowRef, useTemplateRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, inject, KeepAlive, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { Tab } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
@@ -51,12 +51,19 @@ import PanelProcess from './components/panel-process';
 import PanelTrace from './components/panel-trace';
 
 import type { IAuthority } from '@/typings/authority';
+import type { TdPrimaryTableProps } from '@blueking/tdesign-ui/.';
 
 import './common-detail.scss';
 
 export default defineComponent({
   name: 'AlarmDetail',
-  setup() {
+  props: {
+    headerAffixedTop: {
+      type: Object as PropType<TdPrimaryTableProps['headerAffixedTop']>,
+      default: () => null,
+    },
+  },
+  setup(props) {
     const boxWrapRef = useTemplateRef<HTMLDivElement>('boxWrap');
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
     const { alarmDetail, bizId, alarmId, timeRange, defaultTab } = storeToRefs(alarmCenterDetailStore);
@@ -196,10 +203,12 @@ export default defineComponent({
         case ALARM_CENTER_PANEL_TAB_MAP.LOG:
           return (
             <PanelLog
-              headerAffixedTop={{
-                offsetTop: 51,
-                container: () => boxWrapRef.value,
-              }}
+              headerAffixedTop={
+                props.headerAffixedTop || {
+                  offsetTop: 51,
+                  container: () => boxWrapRef.value,
+                }
+              }
               detail={alarmDetail.value}
             />
           );

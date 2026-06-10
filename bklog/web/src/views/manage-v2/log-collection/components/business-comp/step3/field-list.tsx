@@ -169,6 +169,8 @@ export default defineComponent({
     const typeKey = ref('visible');
     const showBuiltIn = ref(false);
     let tippyInstances: Instance[] = [];
+    let menuInitTimer: ReturnType<typeof setTimeout> | null = null;
+    let isDestroyed = false;
     const formData = ref({ tableList: [] as FieldItem[] });
     // 获取全局数据
     const globalsData = computed(() => store.getters['globals/globalsData']);
@@ -382,6 +384,16 @@ export default defineComponent({
       }
       return <div class='disabled-work'>{t('无需设置')}</div>;
     };
+    /** 格式化字段值用于显示 */
+    const formatDisplayValue = (value: unknown): string => {
+      if (Array.isArray(value)) {
+        return `[ ${value.join(', ')} ]`;
+      }
+      if (typeof value === 'object' && value !== null) {
+        return JSON.stringify(value);
+      }
+      return String(value ?? '');
+    };
     /**
      * 值 render
      * @param row
@@ -389,13 +401,14 @@ export default defineComponent({
      */
     const renderValue = (h, { row }) => {
       if (!row.is_built_in) {
+        const displayValue = formatDisplayValue(row.value);
         return (
           <div
             class='word-breaker bg-gray'
-            title={row.value}
+            title={displayValue}
             v-bkloading={{ isLoading: props.refresh, size: 'mini' }}
           >
-            {row.value}
+            {displayValue}
           </div>
         );
       }
@@ -406,6 +419,9 @@ export default defineComponent({
      * @returns
      */
     const initMenuPop = () => {
+      if (isDestroyed) {
+        return;
+      }
       // 销毁旧实例，避免重复绑定
       destroyTippyInstances();
 
@@ -459,6 +475,17 @@ export default defineComponent({
       // tippy 返回单个或数组，这里统一转为数组
       tippyInstances = Array.isArray(instances) ? instances : [instances];
     };
+
+    const scheduleInitMenuPop = (delay = 0) => {
+      if (menuInitTimer) {
+        clearTimeout(menuInitTimer);
+        menuInitTimer = null;
+      }
+      menuInitTimer = setTimeout(() => {
+        menuInitTimer = null;
+        initMenuPop();
+      }, delay);
+    };
     /** 销毁所有tippy */
     const destroyTippyInstances = () => {
       // biome-ignore lint/complexity/noForEach: 需要遍历数组并执行销毁操作，forEach 更简洁
@@ -472,19 +499,22 @@ export default defineComponent({
     };
     onMounted(() => {
       nextTick(() => {
-        initMenuPop();
+        scheduleInitMenuPop();
       });
     });
     onBeforeUnmount(() => {
+      isDestroyed = true;
+      if (menuInitTimer) {
+        clearTimeout(menuInitTimer);
+        menuInitTimer = null;
+      }
       destroyTippyInstances();
     });
     watch(
       () => props.loading,
       (val: boolean) => {
         if (!val) {
-          setTimeout(() => {
-            initMenuPop();
-          }, 1000);
+          scheduleInitMenuPop(1000);
         }
       },
     );
@@ -1097,9 +1127,7 @@ export default defineComponent({
               value={row.field_type}
               on-change={value => {
                 if (value === 'string') {
-                  setTimeout(() => {
-                    initMenuPop();
-                  }, 1000);
+                  scheduleInitMenuPop(1000);
                 }
                 const newList = updateList(props.data, row, item => ({
                   ...item,
@@ -1145,7 +1173,7 @@ export default defineComponent({
         width: 60,
         cell: (h, { row }) => (
           <div class='table-operation'>
-            {isLogDelimiter.value &&
+            {(isLogDelimiter.value || isLogRegexp.value) &&
               !row.is_built_in && (
                 <i
                   class={`bklog-icon bklog-${row.is_delete ? 'visible' : 'invisible'} icons`}
@@ -1180,7 +1208,7 @@ export default defineComponent({
           {t('可见字段')}
           {` (${visibleData.value.length})`}
         </span>
-        {isLogDelimiter.value && (
+        {(isLogDelimiter.value || isLogRegexp.value) && (
           <span
             class={{
               'tab-item': true,
@@ -1217,9 +1245,7 @@ export default defineComponent({
       const newList = updateList(props.data, row, item => ({ ...item, is_delete: !item.is_delete }));
       emit('change', newList);
     };
-    const showColumns = computed(() =>
-      isLogRegexp.value ? columns.value.filter(item => item.colKey !== 'operation') : columns.value,
-    );
+    const showColumns = computed(() => columns.value);
     /**
      * 字段表格
      * @returns

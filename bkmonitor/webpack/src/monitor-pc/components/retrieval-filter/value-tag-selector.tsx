@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Watch } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AutoWidthInput from './auto-width-input';
@@ -43,10 +43,16 @@ export interface IValue {
 interface IProps {
   autoFocus?: boolean;
   fieldInfo?: IFieldItem;
+  /* 是否多选，默认多选 */
+  multiple?: boolean;
+  /* 是否通过 tippy 渲染下拉（用于 table 场景避免裁剪） */
+  tippyMode?: boolean;
+  /* 是否禁用 */
+  disabled?: boolean;
   /* 获取数据 */
   getValueFn?: TGetValueFn;
   value?: IValue[];
-  onChange?: (v: IValue[]) => void;
+  onChange?: (v: IValue[] | string) => void;
   /* 下拉选项显隐 */
   onDropDownChange?: (v: boolean) => void;
   onSelectorBlur?: () => void;
@@ -58,6 +64,9 @@ export default class ValueTagSelector extends tsc<IProps> {
   @Prop({ type: Array, default: () => [] }) value: IValue[];
   @Prop({ type: Object, default: () => null }) fieldInfo: IFieldItem;
   @Prop({ type: Boolean, default: false }) autoFocus: boolean;
+  @Prop({ type: Boolean, default: true }) multiple: boolean;
+  @Prop({ type: Boolean, default: false }) tippyMode: boolean;
+  @Prop({ type: Boolean, default: false }) disabled: boolean;
   @Prop({
     type: Function,
     default: () =>
@@ -82,8 +91,13 @@ export default class ValueTagSelector extends tsc<IProps> {
   isFocus = false;
   /* 是否通过上下键悬停下拉选项 */
   isChecked = false;
+  showSelector = false;
+  optionsWidth = 0;
+  popoverInstance = null;
 
   onClickOutsideFn = () => {};
+
+  @Ref('selector') selectorRef: HTMLDivElement;
 
   get hasCustomOption() {
     return !!this.inputValue;
@@ -103,6 +117,10 @@ export default class ValueTagSelector extends tsc<IProps> {
     if (this.autoFocus) {
       this.focusFn();
     }
+
+    if (!this.multiple && this.value.length) {
+      this.inputValue = this.value[0].id;
+    }
   }
 
   /**
@@ -115,6 +133,8 @@ export default class ValueTagSelector extends tsc<IProps> {
 
   beforeDestroy() {
     this.handleSelectorBlur();
+    this.onClickOutsideFn?.();
+    this.destroyPopoverInstance();
   }
 
   @Watch('value', { immediate: true })
@@ -122,19 +142,41 @@ export default class ValueTagSelector extends tsc<IProps> {
     this.localValue = JSON.parse(JSON.stringify(this.value));
   }
 
-  // @Watch('isShowDropDown')
-  // handleWatchIsShowDropDown() {
-  //   this.$emit('dropDownChange', this.isShowDropDown);
-  // }
+  @Watch('isShowDropDown')
+  handleWatchIsShowDropDown(v: boolean) {
+    if (this.tippyMode) {
+      if (v) {
+        this.showPopoverInstance();
+        return;
+      }
+      this.destroyPopoverInstance();
+    } else {
+      this.$emit('dropDownChange', this.isShowDropDown);
+    }
+  }
 
   /**
    * @description 下拉选项点击事件
    * @param item
    */
   handleCheck(item: IValue) {
-    this.activeIndex = -1;
-    if (this.localValue.some(v => v.id === item.id)) return;
-    this.localValue.push(item);
+    if (this.disabled) {
+      return;
+    }
+
+    if (!this.multiple) {
+      this.inputValue = item.id;
+      this.isShowDropDown = false;
+      this.isFocus = false;
+    } else {
+      this.activeIndex = -1;
+      if (this.localValue.some(v => v.id === item.id)) return;
+      this.localValue.push(item);
+    }
+
+    if (this.tippyMode) {
+      this.popoverInstance?.hide?.();
+    }
     this.handleChange();
   }
 
@@ -142,11 +184,16 @@ export default class ValueTagSelector extends tsc<IProps> {
    * @description 点击输入框
    */
   handleClick() {
+    if (this.disabled) {
+      return;
+    }
+
     if (!this.isShowDropDown) {
       this.handleShowShowDropDown(true);
     }
     this.activeIndex = this.localValue.length - 1;
     this.isFocus = true;
+    this.popoverInstance?.show?.();
     this.handleSelectorFocus();
   }
 
@@ -155,6 +202,10 @@ export default class ValueTagSelector extends tsc<IProps> {
    * @param event
    */
   handleInput(value: string) {
+    if (this.disabled) {
+      return;
+    }
+
     this.inputValue = value;
     if (!this.isShowDropDown) {
       this.handleShowShowDropDown(true);
@@ -165,6 +216,11 @@ export default class ValueTagSelector extends tsc<IProps> {
    * @description 输入框失去焦点事件
    */
   handleBlur() {
+    if (!this.multiple) {
+      this.handleChange();
+      return;
+    }
+
     setTimeout(() => {
       this.inputValue = '';
     }, 300);
@@ -173,18 +229,26 @@ export default class ValueTagSelector extends tsc<IProps> {
    * @description 输入框enter事件
    */
   handleEnter() {
-    if (!this.inputValue || this.isChecked) {
+    if (this.disabled || !this.inputValue || this.isChecked) {
       return;
     }
-    if (this.localValue.some(v => v.id === this.inputValue)) {
+
+    if (this.multiple && this.localValue.some(v => v.id === this.inputValue)) {
       this.inputValue = '';
       return;
     }
-    this.localValue.push({ id: this.inputValue, name: this.inputValue });
-    this.activeIndex += 1;
-    this.inputValue = '';
+
+    if (this.multiple) {
+      const newItem = { id: this.inputValue, name: this.inputValue };
+      this.localValue.push(newItem);
+      this.activeIndex += 1;
+      this.inputValue = '';
+      this.isFocus = true;
+    } else {
+      this.isShowDropDown = false;
+      this.isFocus = false;
+    }
     this.handleChange();
-    this.isFocus = true;
   }
 
   /**
@@ -212,6 +276,26 @@ export default class ValueTagSelector extends tsc<IProps> {
    */
   handleShowShowDropDown(v: boolean) {
     this.isShowDropDown = v;
+    if (this.tippyMode) {
+      this.onClickOutsideFn?.();
+      this.onClickOutsideFn = () => {};
+      if (v) {
+        setTimeout(() => {
+          const clickInEls = [this.$el, this.selectorRef].filter(Boolean);
+          this.onClickOutsideFn = onClickOutside(
+            clickInEls,
+            () => {
+              this.isShowDropDown = false;
+              this.isFocus = false;
+              this.handleSelectorBlur();
+            },
+            { once: true }
+          );
+        }, 100);
+      }
+      return;
+    }
+
     if (this.isShowDropDown) {
       setTimeout(() => {
         onClickOutside(
@@ -227,17 +311,61 @@ export default class ValueTagSelector extends tsc<IProps> {
     }
   }
 
+  showPopoverInstance() {
+    this.$nextTick(() => {
+      const target = this.$el?.querySelector?.('.value-tag-selector-component-wrap') as HTMLElement;
+      if (!target || !this.selectorRef) {
+        return;
+      }
+
+      this.optionsWidth = Math.ceil(target.getBoundingClientRect().width);
+      this.destroyPopoverInstance();
+      this.popoverInstance = this.$bkPopover(target, {
+        content: this.selectorRef,
+        trigger: 'manual',
+        placement: 'bottom-start',
+        theme: 'light common-monitor',
+        arrow: false,
+        interactive: true,
+        boundary: 'window',
+        distance: 4,
+        zIndex: 99999,
+        appendTo: () => document.body,
+        onHidden: () => {
+          this.popoverInstance = null;
+          this.showSelector = false;
+          this.isShowDropDown = false;
+        },
+      });
+      this.showSelector = true;
+      this.popoverInstance?.show?.();
+    });
+  }
+
+  destroyPopoverInstance() {
+    this.onClickOutsideFn?.();
+    this.onClickOutsideFn = () => {};
+    this.showSelector = false;
+    this.popoverInstance?.hide?.();
+    this.popoverInstance?.destroy?.();
+    this.popoverInstance = null;
+  }
+
   /**
    * @description 删除tag
    * @param index
    */
   handleDelete(index: number) {
+    if (this.disabled) {
+      return;
+    }
+
     this.localValue.splice(index, 1);
     this.handleChange();
   }
 
   handleChange() {
-    this.$emit('change', this.localValue);
+    this.$emit('change', this.multiple ? this.localValue : this.inputValue);
   }
   handleTagUpdate(v: string, index: number) {
     if (v) {
@@ -296,42 +424,71 @@ export default class ValueTagSelector extends tsc<IProps> {
         isFocus={this.isFocus}
         placeholder={`${this.$t('请输入')} ${this.$t('或')} ${this.$t('选择')}`}
         value={this.inputValue}
+        disabled={this.disabled}
         onBackspaceNull={this.handleBackspaceNull}
         onBlur={this.handleBlur}
         onEnter={this.handleEnter}
         onInput={this.handleInput}
       />
     );
+
+    const renderContent = () => {
+      if (!this.multiple) {
+        return inputRender('input');
+      }
+
+      return this.localValue.length
+        ? this.localValue.map((item, index) => [
+            <ValueTagInput
+              key={item.id}
+              class={{ 'is-error': this.isTypeInteger ? !isNumeric(item.id) : false }}
+              value={item.id}
+              onChange={v => this.handleTagUpdate(v, index)}
+              onDelete={() => this.handleDelete(index)}
+            />,
+            this.activeIndex === index && inputRender(`${item.id}_input`),
+          ])
+        : inputRender('input');
+    };
     return (
       <div class='retrieval__value-tag-selector-component'>
         <div
-          class={['value-tag-selector-component-wrap', { active: this.isFocus }]}
+          class={['value-tag-selector-component-wrap', { active: this.isFocus, disabled: this.disabled }]}
           onClick={this.handleClick}
         >
-          {this.localValue.length
-            ? this.localValue.map((item, index) => [
-                <ValueTagInput
-                  key={item.id}
-                  class={{ 'is-error': this.isTypeInteger ? !isNumeric(item.id) : false }}
-                  value={item.id}
-                  onChange={v => this.handleTagUpdate(v, index)}
-                  onDelete={() => this.handleDelete(index)}
-                />,
-                this.activeIndex === index && inputRender(`${item.id}_input`),
-              ])
-            : inputRender('input')}
+          {renderContent()}
         </div>
-        {this.isShowDropDown && (
-          <ValueOptions
-            fieldInfo={this.fieldInfo}
-            getValueFn={this.getValueFn}
-            needUpDownCheck={this.isFocus}
-            noDataSimple={true}
-            search={this.inputValue}
-            selected={this.localValue.map(item => item.id)}
-            onIsChecked={this.handleIsChecked}
-            onSelect={this.handleCheck}
-          />
+        {this.tippyMode ? (
+          <div style='display: none;'>
+            <div ref='selector'>
+              <ValueOptions
+                width={this.optionsWidth}
+                fieldInfo={this.fieldInfo}
+                getValueFn={this.getValueFn}
+                isPopover={true}
+                show={this.showSelector}
+                needUpDownCheck={this.isFocus}
+                noDataSimple={true}
+                search={this.inputValue}
+                selected={this.localValue.map(item => item.id)}
+                onIsChecked={this.handleIsChecked}
+                onSelect={this.handleCheck}
+              />
+            </div>
+          </div>
+        ) : (
+          this.isShowDropDown && (
+            <ValueOptions
+              fieldInfo={this.fieldInfo}
+              getValueFn={this.getValueFn}
+              needUpDownCheck={this.isFocus}
+              noDataSimple={true}
+              search={this.inputValue}
+              selected={this.localValue.map(item => item.id)}
+              onIsChecked={this.handleIsChecked}
+              onSelect={this.handleCheck}
+            />
+          )
         )}
       </div>
     );

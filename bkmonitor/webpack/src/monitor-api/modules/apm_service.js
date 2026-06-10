@@ -25,6 +25,7 @@
  */
 import { request } from '../base';
 
+export const serviceList = request('POST', 'apm/service/service/service_list/');
 export const serviceConfig = request('POST', 'apm/service/service/service_config/');
 export const serviceInfo = request('POST', 'apm/service/service/service_info/');
 export const listCodeRedefinedRule = request('POST', 'apm/service/service/list_code_redefined_rule/');
@@ -42,6 +43,7 @@ export const applicationList = request('POST', 'apm/service/application/applicat
 export const logServiceRelationBkLogIndexSet = request('POST', 'apm/service/application/log_service_relation_bk_log_index_set/');
 
 export default {
+  serviceList,
   serviceConfig,
   serviceInfo,
   listCodeRedefinedRule,

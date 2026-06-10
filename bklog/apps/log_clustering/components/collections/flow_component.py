@@ -39,10 +39,15 @@ class CreatePredictFlowService(BaseService):
 
     def _execute(self, data, parent_data):
         index_set_id = data.get_one_of_inputs("index_set_id")
+        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
         flow = DataFlowHandler().create_predict_flow(index_set_id=index_set_id)
         DataFlowHandler().set_dataflow_resource(index_set_id, flow["flow_id"], DataFlowResourceUsageType.online)
         LogIndexSet.set_tag(index_set_id, InnerTag.CLUSTERING.value)
-        DataFlowHandler().operator_flow(flow_id=flow["flow_id"], consuming_mode="from_tail")
+        DataFlowHandler().operator_flow(
+            flow_id=flow["flow_id"],
+            consuming_mode="from_tail",
+            bk_biz_id=clustering_config.bk_biz_id,
+        )
         return True
 
 
@@ -69,9 +74,14 @@ class CreateLogCountAggregationFlowService(BaseService):
 
     def _execute(self, data, parent_data):
         index_set_id = data.get_one_of_inputs("index_set_id")
+        clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
         flow = DataFlowHandler().create_log_count_aggregation_flow(index_set_id=index_set_id)
         DataFlowHandler().set_dataflow_resource(index_set_id, flow["flow_id"], DataFlowResourceUsageType.agg)
-        DataFlowHandler().operator_flow(flow_id=flow["flow_id"], consuming_mode="continue")
+        DataFlowHandler().operator_flow(
+            flow_id=flow["flow_id"],
+            consuming_mode="continue",
+            bk_biz_id=clustering_config.bk_biz_id,
+        )
         # 添加索引集表标签
         LogIndexSet.set_tag(index_set_id, InnerTag.CLUSTERING.value)
         return True

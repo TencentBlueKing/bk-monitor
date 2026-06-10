@@ -30,11 +30,11 @@ import dayjs from 'dayjs';
 import { type ITabItem, EKind } from './type';
 export const CALLER_CALLEE_TYPE: ITabItem[] = [
   {
-    label: window.i18n.t('主调'),
+    label: String(window.i18n.t('主调')),
     id: EKind.caller,
   },
   {
-    label: window.i18n.t('被调'),
+    label: String(window.i18n.t('被调')),
     id: EKind.callee,
   },
 ];
@@ -356,3 +356,94 @@ export const createDrillDownList = (
   }
   document.addEventListener('click', removeWrap);
 };
+
+export type TagTraceMappingItem = {
+  field: string;
+  value?: Array<number | string>;
+};
+
+export type TraceWhereCondition = {
+  key: string;
+  operator: 'equal';
+  options?: { group_relation: 'OR' };
+  value: Array<number | string>;
+};
+
+const SERVER_TAG_BY_KIND: Record<string, string> = {
+  caller: 'caller_server',
+  callee: 'callee_server',
+};
+
+/** 根据 tag_trace_mapping 与行数据构建 Trace 检索 where 条件（空值不参与） */
+export function buildTraceWhereConditions(
+  tagTraceMapping: Record<string, TagTraceMappingItem>,
+  kind: string,
+  row: Record<string, unknown>,
+  fallbackServerName = '',
+  callFilter: Array<{ key: string; value: string[] }> = []
+): TraceWhereCondition[] {
+  const conditions: TraceWhereCondition[] = [];
+  const kindMapping = tagTraceMapping[kind];
+
+  if (kindMapping?.field && kindMapping?.value?.length) {
+    conditions.push({
+      key: kindMapping.field,
+      operator: 'equal',
+      value: kindMapping.value,
+      options: { group_relation: 'OR' },
+    });
+  }
+
+  for (const tagKey of Object.keys(tagTraceMapping)) {
+    if (tagKey === 'caller' || tagKey === 'callee') {
+      continue;
+    }
+    const rowValue = row[tagKey];
+    if (rowValue === undefined || rowValue === null || rowValue === '') {
+      continue;
+    }
+    const mapping = tagTraceMapping[tagKey];
+    if (!mapping?.field) {
+      continue;
+    }
+    conditions.push({
+      key: mapping.field,
+      operator: 'equal',
+      value: [rowValue as number | string],
+    });
+  }
+
+  for (const filter of callFilter) {
+    if (filter.key === 'time') {
+      continue;
+    }
+    const mapping = tagTraceMapping[filter.key];
+    if (!mapping?.field) {
+      continue;
+    }
+    const values = filter.value?.filter(value => value !== undefined && value !== null && value !== '');
+    if (!values?.length) {
+      continue;
+    }
+    if (conditions.some(item => item.key === mapping.field)) {
+      continue;
+    }
+    conditions.push({
+      key: mapping.field,
+      operator: 'equal',
+      value: values,
+    });
+  }
+
+  const serverTagKey = SERVER_TAG_BY_KIND[kind];
+  const serverMapping = serverTagKey ? tagTraceMapping[serverTagKey] : undefined;
+  if (fallbackServerName && serverMapping?.field && !conditions.some(item => item.key === serverMapping.field)) {
+    conditions.push({
+      key: serverMapping.field,
+      operator: 'equal',
+      value: [fallbackServerName],
+    });
+  }
+
+  return conditions;
+}

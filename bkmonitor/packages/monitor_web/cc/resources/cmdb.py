@@ -51,14 +51,15 @@ def get_agent_status(bk_biz_id: int, hosts: list[Host]) -> dict[int, int]:
     data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
     data_source = data_source_class(
         bk_biz_id=bk_biz_id,
-        interval=60,
+        interval=180,
         metrics=[{"field": "usage", "method": "AVG", "alias": "A"}],
         table="system.cpu_summary",
         group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id"],
     )
     query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
     now = int(time.time()) * 1000
-    records = query.query_data(start_time=now - 180000, end_time=now)
+    # 仅判定最近三分钟内是否有数据上报，使用 instant 查询取窗口聚合的单点，避免拉回区间序列
+    records = query.query_data(start_time=now - 180000, end_time=now, instant=True)
 
     # 统计已经存在数据的主机并设置状态为正常
     ip_to_host_id: dict[tuple, int] = {(host.bk_host_innerip, host.bk_cloud_id): host.bk_host_id for host in hosts}
@@ -196,14 +197,15 @@ def get_process_status(bk_biz_id: int, hosts: list[Host]) -> dict[int, dict[str,
     data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
     data_source = data_source_class(
         bk_biz_id=bk_biz_id,
-        interval=60,
+        interval=180,
         metrics=[{"field": "proc_exists", "method": "AVG", "alias": "A"}],
         table="system.proc_port",
         group_by=(["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"]),
     )
     query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
     now = int(time.time()) * 1000
-    records = query.query_data(start_time=now - 180000, end_time=now)
+    # 仅判定最近三分钟内进程是否存在，使用 instant 查询取窗口聚合的单点，避免拉回区间序列
+    records = query.query_data(start_time=now - 180000, end_time=now, instant=True)
 
     # 根据返回值记录进程状态
     result = defaultdict(dict)

@@ -465,7 +465,10 @@ class IssueDetailResource(Resource):
             result["redirected_from"] = redirected_from
 
         # 填充 anomaly_message（查询最新告警的 description）
-        self._fill_anomaly_message(issue, result)
+        # 合并视图：主 Issue 取「自身 + 全部 active member」范围内的最新告警，口径与
+        # 告警列表 / 趋势保持一致（未合并时 expand_to_full_ids 透传为 [display_id]）。
+        anomaly_issue_ids = IssueMergeResolver.expand_to_full_ids([display_id], ctx)
+        self._fill_anomaly_message(issue, result, issue_ids=anomaly_issue_ids)
 
         # 注入 split_info（独立 Issue 拿到拆分溯源信息）：
         # 仅当 issue 不是 active member 重定向得到的（redirected_from is None）
@@ -534,10 +537,15 @@ class IssueDetailResource(Resource):
         }
 
     @staticmethod
-    def _fill_anomaly_message(issue: "IssueDocument", result: dict) -> None:
-        """查询最新告警的 description 作为 anomaly_message"""
+    def _fill_anomaly_message(issue: "IssueDocument", result: dict, issue_ids: list[str] | None = None) -> None:
+        """查询最新告警的 description 作为 anomaly_message。
+
+        ``issue_ids``：参与查询的 Issue id 集合，合并视图下为主 Issue 自身 + 全部 active
+        member（由 caller 经 expand_to_full_ids 展开）；为空时退回 ``[issue.id]``。
+        """
         from bkmonitor.documents.alert import AlertDocument
 
+        query_issue_ids = issue_ids or [issue.id]
         try:
             # 优先使用 first_alert_time 限定索引范围；
             # 兜底使用 create_time 时提前 7 天，因为 issue.create_time 晚于实际告警时间
@@ -550,7 +558,7 @@ class IssueDetailResource(Resource):
             search = (
                 AlertDocument.search(start_time=start_time, end_time=end_time)
                 .filter("term", **{"event.bk_biz_id": issue.bk_biz_id})
-                .filter("term", issue_id=issue.id)
+                .filter("terms", issue_id=query_issue_ids)
                 .sort({"create_time": {"order": "desc"}})
                 .params(size=1)
                 .source(["event.description"])
@@ -591,6 +599,7 @@ class IssueAlertDateHistogramResultResource(Resource):
 
     @staticmethod
     def sliced_date_histogram(
+        bk_biz_ids: [int],
         start_time: int,
         end_time: int,
         interval: int | str = "auto",
@@ -641,6 +650,7 @@ class IssueAlertDateHistogramResultResource(Resource):
         results = IssueAlertDateHistogramResultResource().bulk_request(
             [
                 {
+                    "bk_biz_ids": bk_biz_ids,
                     "start_time": sliced_start,
                     "end_time": sliced_end,
                     "interval": interval,
@@ -942,7 +952,17 @@ class ListIssueHistoryResource(Resource):
         if not current_issue.fingerprint:
             return []
 
-        # 按 fingerprint 查"同一具体问题"已解决历史，排除当前 Issue 自身，按解决时间降序，最多 200 条
+        # 排除"当前是 active 关系冻结 member"的 Issue：合并后 member 归属主 Issue 展示，
+        # 不应再作为独立历史出现在"同问题历史"列表（与 Search/TopN/Export 的 active member
+        # 隐藏口径一致；本接口自建查询、未走 get_search_object，需单独排除）。放开"非活跃
+        # Issue 可并入活跃主"后，RESOLVED 冻结 member 更易命中同 fingerprint 历史查询，故必须排除。
+        # get_active_member_ids 内部 fail-open（SQL 失败返回 []，退化为不排除）。
+        from bkmonitor.issue_merge import IssueMergeResolver
+
+        active_member_ids = IssueMergeResolver.get_active_member_ids(bk_biz_id)
+
+        # 按 fingerprint 查"同一具体问题"已解决历史，排除当前 Issue 自身 + active 冻结 member，
+        # 按解决时间降序，最多 200 条
         search = (
             IssueDocument.search(all_indices=True)
             .filter("term", bk_biz_id=str(bk_biz_id))
@@ -952,6 +972,8 @@ class ListIssueHistoryResource(Resource):
             .sort("-resolved_time")
             .params(size=200)
         )
+        if active_member_ids:
+            search = search.exclude("terms", _id=active_member_ids)
         hits = search.execute().hits
 
         return [

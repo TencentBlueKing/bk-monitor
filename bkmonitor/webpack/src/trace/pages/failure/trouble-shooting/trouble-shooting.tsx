@@ -270,15 +270,19 @@ export default defineComponent({
             eventsData.value = Object.keys(res.contents).length
               ? Object.entries(res.contents)
                   .map(([key, value]) => {
-                    return {
-                      type: key,
-                      title: res.display?.labels_mapping[key]?.label || '',
-                      top: res.display?.labels_mapping[key]?.top || 0,
-                      unit: res.display?.labels_mapping[key]?.unit || '',
-                      total: res.display?.statistics[key]?.total || 0,
-                      contents: (value as IEventsContentsData[]).slice(0, 3), // 只展示前3条
-                      fields: res.display?.fields[key] || {},
-                    };
+                    const fields = res.display?.fields[key] || {};
+                    const title = res.display?.labels_mapping[key]?.label || '';
+                    return Object.keys(fields).length > 0 && !!title
+                      ? {
+                          type: key,
+                          title,
+                          top: res.display?.labels_mapping[key]?.top || 0,
+                          unit: res.display?.labels_mapping[key]?.unit || '',
+                          total: res.display?.statistics[key]?.total || 0,
+                          contents: (value as IEventsContentsData[]).slice(0, 3), // 只展示前3条
+                          fields,
+                        }
+                      : null;
                   })
                   .filter(Boolean)
               : [];

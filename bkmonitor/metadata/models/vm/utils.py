@@ -542,7 +542,14 @@ def get_data_source(data_id):
     return DataSource.objects.get(bk_data_id=data_id)
 
 
-def access_v2_bkdata_vm(bk_tenant_id: str, bk_biz_id: int, table_id: str, data_id: int, force_update: bool = False):
+def access_v2_bkdata_vm(
+    bk_tenant_id: str,
+    bk_biz_id: int,
+    table_id: str,
+    data_id: int,
+    force_update: bool = False,
+    consumer_group: str | None = None,
+):
     """接入计算平台V4链路
 
     Args:
@@ -646,6 +653,7 @@ def access_v2_bkdata_vm(bk_tenant_id: str, bk_biz_id: int, table_id: str, data_i
             monitor_table_id=table_id,
             storage_cluster_name=vm_cluster_name,
             bcs_cluster_id=bcs_cluster_id,
+            consumer_group=consumer_group,
         )
 
         report_metadata_data_link_access_metric(
@@ -712,6 +720,7 @@ def create_bkbase_data_link(
     data_link_strategy: str = DataLink.BK_STANDARD_V2_TIME_SERIES,
     namespace: str | None = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
     bcs_cluster_id: str | None = None,
+    consumer_group: str | None = None,
 ):
     """
     申请计算平台链路
@@ -793,6 +802,7 @@ def create_bkbase_data_link(
             data_source=data_source,
             table_id=monitor_table_id,
             storage_cluster_name=storage_cluster_name,
+            consumer_group=consumer_group,
         )
         # 2.1 上报链路接入指标
     except Exception as e:  # pylint: disable=broad-except
@@ -856,17 +866,32 @@ def create_bkbase_data_link(
             data_link_ins.data_link_name,
             vm_result_table_id,
         )
-    AccessVMRecord.objects.update_or_create(
+
+    # 查询AccessVMRecord记录，这里为了兼容可能存在的多条记录脏数据，默认取最新一条
+    vm_record = AccessVMRecord.objects.filter(
         bk_tenant_id=data_source.bk_tenant_id,
         result_table_id=monitor_table_id,
-        bk_base_data_id=data_source.bk_data_id,
-        defaults={
-            "bk_base_data_name": bkbase_data_name,
-            "vm_cluster_id": storage_cluster_id,
-            "vm_result_table_id": vm_result_table_id,
-            "bcs_cluster_id": bcs_cluster_id,
-        },
-    )
+    ).last()
+
+    # 更新AccessVMRecord记录
+    if vm_record:
+        # NOTE: v3->v4迁移场景中存在双dataid的问题，这里默认先不更新bk_base_data_id，暂时还保留原有信息
+        vm_record.bk_base_data_name = bkbase_data_name
+        vm_record.vm_result_table_id = vm_result_table_id
+        vm_record.bcs_cluster_id = bcs_cluster_id
+        vm_record.vm_cluster_id = storage_cluster_id
+        vm_record.save()
+    else:
+        AccessVMRecord.objects.create(
+            bk_tenant_id=data_source.bk_tenant_id,
+            result_table_id=monitor_table_id,
+            bk_base_data_id=data_source.bk_data_id,
+            bk_base_data_name=bkbase_data_name,
+            vm_cluster_id=storage_cluster_id,
+            vm_result_table_id=vm_result_table_id,
+            bcs_cluster_id=bcs_cluster_id,
+        )
+
     logger.info(
         "create_bkbase_data_link:access bkbase success,data_id->[%s],storage_cluster_name->[%s],data_link_strategy->["
         "%s]",

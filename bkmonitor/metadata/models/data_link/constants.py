@@ -93,6 +93,24 @@ class DataLinkResourceStatus(Enum):
         return -1
 
 
+class DataLinkImmutableField(Enum):
+    """已下发组件中不允许被后续 apply 修改的字段。"""
+
+    RESULT_TABLE_SPEC_BIZ_ID = (DataLinkKind.RESULTTABLE.value, ("spec", "bizId"))
+
+    def __init__(self, kind: str, field_path: tuple[str, ...]):
+        self.kind = kind
+        self.field_path = field_path
+
+    @property
+    def display_path(self) -> str:
+        return ".".join(self.field_path)
+
+    @classmethod
+    def fields_for_kind(cls, kind: str) -> list["DataLinkImmutableField"]:
+        return [field for field in cls if field.kind == kind]
+
+
 # 基础采集链路用途
 BASEREPORT_USAGES = [
     "cpu_summary",
@@ -111,6 +129,8 @@ BASEREPORT_USAGES = [
 BASEREPORT_DATABUS_FORMAT = "bkmonitor_basereport_v1"
 SYSTEM_PROC_PERF_DATABUS_FORMAT = "bkmonitor_proc_perf"
 SYSTEM_PROC_PORT_DATABUS_FORMAT = "bkmonitor_proc_port"
+SYSTEM_PROC_PERF_BASEREPORT_METRIC_TYPE = "proc"
+SYSTEM_PROC_PORT_BASEREPORT_METRIC_TYPE = "proc_port"
 
 
 # 基础采集数据链路来源 -- 主机系统、DBM、DEVX、Perforce

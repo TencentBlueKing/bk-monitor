@@ -409,6 +409,10 @@ export default defineComponent({
           ) : latestAlertId.value ? (
             <IssuesDetailAlarmPanel
               key={latestAlertId.value}
+              headerAffixedTop={{
+                container: `.${leftPanelClass}`,
+                offsetTop: 151,
+              }}
               alarmId={latestAlertId.value || ''}
               bizId={props.detail.bk_biz_id}
             />
@@ -421,6 +425,10 @@ export default defineComponent({
           ) : earliestAlertId.value ? (
             <IssuesDetailAlarmPanel
               key={earliestAlertId.value}
+              headerAffixedTop={{
+                container: `.${leftPanelClass}`,
+                offsetTop: 151,
+              }}
               alarmId={earliestAlertId.value}
               bizId={props.detail.bk_biz_id}
             />

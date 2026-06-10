@@ -113,6 +113,11 @@ export default {
   设为默认: 'Set as default',
   取消默认: 'Remove default',
   取消选择: 'Cancel Selection',
+  修改全局配置: 'Modify Global Configuration',
+  全局生效规则: 'Global Effective Rules',
+  备注: 'Remark',
+  返回码备注: 'Return Code Remark',
+  全局生效: 'Global Effective',
 
   // 规范：平台特性 术语
   新建节点: 'New Probe',
@@ -537,4 +542,11 @@ export default {
   'button-中': 'Medium',
   'button-低': 'Low',
   'button-富文本编辑': 'Rich Text Editor',
+
+  确认拆分: 'Confirm Split',
+  '拆分为新 Issue': 'Split to New Issue',
+  确认合并: 'Confirm Merge',
+  '设为主 Issue': 'Set as Main Issue',
+  了解更多: 'Learn More',
+  合并: 'Merge',
 };

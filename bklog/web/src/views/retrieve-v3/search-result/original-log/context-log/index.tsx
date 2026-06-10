@@ -25,6 +25,7 @@
  */
 
 import { defineComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router/composables';
 
 import { getFlatObjValues } from '@/common/util';
 import FieldsConfig from '@/components/common/fields-config.vue';
@@ -74,9 +75,18 @@ export default defineComponent({
       type: Number,
       default: 0,
     },
+    mode: {
+      type: String,
+      default: 'dialog',
+    },
+    backRoute: {
+      type: Object,
+      default: () => ({}),
+    },
   },
   setup(props, { emit }) {
     const store = useStore();
+    const router = useRouter();
     const { t } = useLocale();
 
     const logViewRef = ref();
@@ -84,7 +94,8 @@ export default defineComponent({
     const logResultRef = ref();
     const contextLog = ref();
     const isShow = ref(false);
-    const logLoading = ref(false); // 展示的字段名
+    const logLoading = ref(props.mode === 'page'); // 展示的字段名
+    const hasLoadedOnce = ref(false);
     const logList = ref<any[]>([]);
     const reverseLogList = ref<any[]>([]);
     const zero = ref(true);
@@ -108,40 +119,117 @@ export default defineComponent({
     let firstLogEl: HTMLElement | null = null;
     let throttleTimer: ReturnType<typeof setTimeout>;
     let timer: ReturnType<typeof setTimeout>;
+    let scrollBindTimer: ReturnType<typeof setTimeout>;
+    let highlightTimer: ReturnType<typeof setTimeout>;
+    let initLogResultTimer: ReturnType<typeof setTimeout>;
+    let filterCheckTimer: ReturnType<typeof setTimeout>;
+    let handleScroll = () => {};
     let displayFieldNames: string[] = [];
+    const totalFieldNames = ref<string[]>([]);
+    const isConfigLoading = ref(false);
+    let contextLogRequestSeq = 0;
 
+    const contentLogRequestId = 'retrieve_getContentLog_contextLog';
+    const isPageMode = () => props.mode === 'page';
+    const isContextLogVisible = () => (isPageMode() ? isShow.value : isShow.value && props.isShow);
+    const isCurrentContextLogRequest = (requestSeq: number) => isContextLogVisible() && requestSeq === contextLogRequestSeq;
+
+    const clearContextLogTimers = () => {
+      clearTimeout(timer);
+      clearTimeout(throttleTimer);
+      clearTimeout(scrollBindTimer);
+      clearTimeout(highlightTimer);
+      clearTimeout(initLogResultTimer);
+      clearTimeout(filterCheckTimer);
+    };
+
+    const cleanupContextLogEffects = () => {
+      contextLogRequestSeq += 1;
+      clearContextLogTimers();
+      contextLog.value?.removeEventListener('scroll', handleScroll);
+      logLoading.value = false;
+      hasLoadedOnce.value = false;
+      $http.cancel(contentLogRequestId);
+    };
 
     watch(
-      () => props.isShow,
+      () => [props.isShow, props.mode],
       () => {
-        isShow.value = props.isShow;
+        isShow.value = isPageMode() ? true : props.isShow;
         if (isShow.value) {
-          setTimeout(() => {
-            logResultRef.value.init();
+          contextLogRequestSeq += 1;
+          initLogResultTimer = setTimeout(() => {
+            nextTick(() => {
+              if (isContextLogVisible()) {
+                logResultRef.value?.init();
+              }
+            });
           });
+          return;
         }
+
+        cleanupContextLogEffects();
       },
       {
         immediate: true,
       },
     );
 
-    watch(
-      () => [props.indexSetId, props.logParams],
-      async () => {
-        if (props.indexSetId && props.logParams) {
-          localParams.value = {};
-          deepClone(props.logParams);
-          await requestContentLog();
+    let contextLoadKey = '';
+    const getContextLoadKey = () => JSON.stringify({
+      visible: isContextLogVisible(),
+      indexSetId: props.indexSetId,
+      logParams: props.logParams || {},
+    });
+
+    const loadContextLog = async (force = false) => {
+      await nextTick();
+
+      if (!isContextLogVisible() || !props.indexSetId || !props.logParams || !Object.keys(props.logParams).length) {
+        return;
+      }
+
+      const nextLoadKey = getContextLoadKey();
+      if (!force && contextLoadKey === nextLoadKey) {
+        return;
+      }
+      contextLoadKey = nextLoadKey;
+
+      const requestSeq = contextLogRequestSeq;
+      hasLoadedOnce.value = false;
+      logLoading.value = true;
+      localParams.value = {};
+      deepClone(props.logParams);
+
+      try {
+        await requestFields();
+        await requestContentLog();
+      } finally {
+        if (isCurrentContextLogRequest(requestSeq)) {
+          hasLoadedOnce.value = true;
+          logLoading.value = false;
         }
+      }
+    };
+
+    watch(
+      () => [isShow.value, props.indexSetId, props.logParams],
+      () => {
+        void loadContextLog();
       },
       {
         immediate: true,
+        deep: true,
       },
     );
 
     watch(activeFilterKey, () => {
-      setTimeout(() => {
+      clearTimeout(filterCheckTimer);
+      filterCheckTimer = setTimeout(() => {
+        if (!isContextLogVisible()) {
+          return;
+        }
+
         const lineDomList = Array.from(logViewRef.value?.$el.querySelectorAll('.line') || []);
         if (lineDomList.length && lineDomList.every((item: any) => item.style.display === 'none')) {
           isFilterEmpty.value = true;
@@ -153,6 +241,7 @@ export default defineComponent({
 
     const initLogValues = () => {
       logLoading.value = false;
+      hasLoadedOnce.value = false;
       logList.value = [];
       rawList = [];
       reverseLogList.value = [];
@@ -164,6 +253,7 @@ export default defineComponent({
     };
 
     const handleAfterLeave = () => {
+      cleanupContextLogEffects();
       dataFilterRef.value?.reset();
       logResultRef.value?.reset();
       highlightList.value = [];
@@ -191,23 +281,34 @@ export default defineComponent({
     };
 
     const handleKeyup = (event: any) => {
-      if (event.keyCode === 27) {
-        contextLog.value?.removeEventListener('scroll', handleScroll);
+      if (!isPageMode() && event.keyCode === 27 && isContextLogVisible()) {
+        cleanupContextLogEffects();
         handleAfterLeave();
       }
     };
 
     const deepClone = (obj, prefix = '') => {
+      if (!obj || typeof obj !== 'object') {
+        return;
+      }
+
       for (const key in obj) {
+        const value = obj[key];
+        if (value === undefined || value === null) {
+          continue;
+        }
+
         const prefixKey = prefix ? `${prefix}.${key}` : key;
-        if (typeof obj[key] === 'object') {
-          if (obj[key]?._isBigNumber) {
-            localParams.value[prefixKey] = obj[key].toString();
+        if (typeof value === 'object') {
+          if (value?._isBigNumber) {
+            localParams.value[prefixKey] = value.toString();
+          } else if (Array.isArray(value)) {
+            localParams.value[prefixKey] = value.join(',');
           } else {
-            deepClone(obj[key], prefixKey);
+            deepClone(value, prefixKey);
           }
         } else {
-          localParams.value[prefixKey] = String(obj[key])
+          localParams.value[prefixKey] = String(value)
             .replace(/<mark>/g, '')
             .replace(/<\/mark>/g, '');
         }
@@ -252,14 +353,55 @@ export default defineComponent({
       return ['log'];
     };
 
+    const requestFields = async () => {
+      if (!props.indexSetId) {
+        return false;
+      }
+
+      try {
+        isConfigLoading.value = true;
+        const res = await $http.request('retrieve/getLogTableHead', {
+          params: {
+            index_set_id: props.indexSetId,
+          },
+          query: {
+            scope: 'search_context',
+            start_time: props.retrieveParams?.start_time,
+            end_time: props.retrieveParams?.end_time,
+            is_realtime: 'True',
+          },
+        });
+        const { getFieldNames, getFieldName } = useFieldNameHook({ store });
+        displayFieldNames = (res.data?.display_fields || []).map(item => getFieldName(item));
+        totalFieldNames.value = getFieldNames(res.data?.fields || []);
+        return true;
+      } catch (err) {
+        console.warn(err);
+        return false;
+      } finally {
+        isConfigLoading.value = false;
+      }
+    };
+
     const requestContentLog = async (direction?: string) => {
+      if (!isContextLogVisible()) {
+        return;
+      }
+
+      const requestSeq = contextLogRequestSeq;
+      const paramsSnapshot = { ...localParams.value };
+      const dtEventTimeStamp = paramsSnapshot.dtEventTimeStamp ?? props.logParams?.dtEventTimeStamp;
+      if (!props.indexSetId || dtEventTimeStamp === undefined || dtEventTimeStamp === null || dtEventTimeStamp === 'None') {
+        return;
+      }
+
       const data: any = Object.assign(
         {
           size: 50,
           zero: zero.value,
-          dtEventTimeStamp: props.logParams.dtEventTimeStamp,
+          dtEventTimeStamp,
         },
-        localParams.value,
+        paramsSnapshot,
       );
       if (direction === 'down') {
         data.begin = nextBegin.value;
@@ -276,7 +418,14 @@ export default defineComponent({
             index_set_id: props.indexSetId,
           },
           data,
+        }, {
+          catchIsShowMessage: false,
+          requestId: contentLogRequestId,
         });
+
+        if (!isCurrentContextLogRequest(requestSeq)) {
+          return;
+        }
 
         const { list } = res.data;
         if (list?.length > 0) {
@@ -309,18 +458,27 @@ export default defineComponent({
           }
         }
       } catch (e) {
-        console.error(e);
-      } finally {
-        logLoading.value = false;
-        if (highlightList.value.length) {
-          setTimeout(() => {
-            dataFilterRef.value.getHighlightControl()?.initLightItemList(direction);
-          });
+        if (isCurrentContextLogRequest(requestSeq)) {
+          console.warn(e);
         }
-        if (zero.value) {
-          nextTick(() => {
-            initLogScrollPosition();
-          });
+      } finally {
+        if (isCurrentContextLogRequest(requestSeq)) {
+          hasLoadedOnce.value = true;
+          logLoading.value = false;
+          if (highlightList.value.length) {
+            highlightTimer = setTimeout(() => {
+              if (isCurrentContextLogRequest(requestSeq)) {
+                dataFilterRef.value?.getHighlightControl()?.initLightItemList(direction);
+              }
+            });
+          }
+          if (zero.value) {
+            nextTick(() => {
+              if (isCurrentContextLogRequest(requestSeq)) {
+                initLogScrollPosition();
+              }
+            });
+          }
         }
       }
     };
@@ -352,8 +510,12 @@ export default defineComponent({
     };
 
     const initLogScrollPosition = () => {
+      if (!isContextLogVisible() || !contextLog.value) {
+        return;
+      }
+
       // 确定第0条的位置
-      firstLogEl = document.querySelector('.dialog-log-markdown .log-init');
+      firstLogEl = contextLog.value.querySelector('.log-init');
       // 没有数据
       if (!firstLogEl) return;
       contextLog.value.removeEventListener('scroll', handleScroll);
@@ -370,17 +532,25 @@ export default defineComponent({
       zero.value = false;
 
       // 避免重复请求
-      setTimeout(() => {
-        contextLog.value.addEventListener('scroll', handleScroll, {
-          passive: true,
-        });
+      clearTimeout(scrollBindTimer);
+      scrollBindTimer = setTimeout(() => {
+        if (isContextLogVisible() && contextLog.value) {
+          contextLog.value.addEventListener('scroll', handleScroll, {
+            passive: true,
+          });
+        }
       });
     };
 
-    const handleScroll = () => {
+    handleScroll = () => {
+      if (!isContextLogVisible()) {
+        return;
+      }
+
       clearTimeout(timer);
+      const requestSeq = contextLogRequestSeq;
       timer = setTimeout(() => {
-        if (logLoading.value) {
+        if (!isCurrentContextLogRequest(requestSeq) || logLoading.value || !contextLog.value) {
           return;
         }
 
@@ -389,6 +559,10 @@ export default defineComponent({
           // 滚动到顶部
           requestContentLog('top').then(() => {
             nextTick(() => {
+              if (!isCurrentContextLogRequest(requestSeq) || !contextLog.value) {
+                return;
+              }
+
               // 记录刷新前滚动位置
               const newScrollHeight = contextLog.value.scrollHeight;
               contextLog.value.scrollTo({
@@ -438,6 +612,8 @@ export default defineComponent({
     };
 
     const handleChooseRow = (data: Record<string, string>) => {
+      cleanupContextLogEffects();
+      contextLogRequestSeq += 1;
       initLogValues();
       deepClone(data);
       requestContentLog();
@@ -451,105 +627,132 @@ export default defineComponent({
     onMounted(() => {
       document.addEventListener('keyup', handleKeyup);
       nextTick(() => {
-        (document.querySelector('.dialog-log-markdown') as HTMLElement).focus();
+        (document.querySelector('.dialog-log-markdown') as HTMLElement)?.focus?.();
       });
+      void loadContextLog();
     });
 
     onBeforeUnmount(() => {
+      cleanupContextLogEffects();
       document.removeEventListener('keyup', handleKeyup);
     });
 
-    return () => (
-      <bk-dialog
-        ext-cls='log-context-dialog-main'
-        draggable={false}
-        esc-close={false}
-        mask-close={false}
-        render-directives='if'
-        show-footer={false}
-        value={isShow.value}
-        fullscreen
-        on-after-leave={handleAfterLeave}
+    const handleBack = () => {
+      cleanupContextLogEffects();
+      const backRoute: any = props.backRoute || {};
+      router.push({
+        name: backRoute.name || 'retrieve',
+        params: backRoute.params || {},
+        query: backRoute.query || {},
+      });
+    };
+
+    const renderMainContent = () => (
+      <bk-resize-layout
+        style='height: 100%'
+        border={false}
+        initial-divide={initialDivide.value}
+        min={42}
+        placement='bottom'
       >
-        <bk-resize-layout
-          style='height: 100%'
-          border={false}
-          initial-divide={initialDivide.value}
-          min={42}
-          placement='bottom'
+        <div
+          class='context-log-wrapper'
+          slot='main'
         >
-          <div
-            class='context-log-wrapper'
-            slot='main'
-          >
-            <CommonHeader
-              paramsInfo={localParams.value}
-              targetFields={props.targetFields}
-            />
-            <div class='context-main'>
-              <div class='data-filter-wraper'>
-                <DataFilter
-                  ref={dataFilterRef}
-                  on-fields-config-update={handleConfirmFieldsConfig}
-                  on-fix-current-row={handleFixCurrentRow}
-                  on-handle-filter={handleFilter}
-                />
-              </div>
-              <div
-                ref={contextLog}
-                class='dialog-log-markdown'
-                v-bkloading={{
-                  isLoading: logLoading.value && !isFilterEmpty.value,
-                  opacity: 0.6,
-                }}
-              >
-                {logList.value.length > 0 ? (
-                  isFilterEmpty.value ? (
-                    <bk-exception
-                      style='margin-top: 80px'
-                      scene='part'
-                      type='search-empty'
-                    >
-                      <span>{t('搜索结果为空')}</span>
-                    </bk-exception>
-                  ) : (
-                    <LogView
-                      ref={logViewRef}
-                      filter-key={activeFilterKey.value}
-                      filter-type={filterType.value}
-                      ignore-case={ignoreCase.value}
-                      interval={interval.value}
-                      light-list={highlightList.value}
-                      log-list={logList.value}
-                      reverse-log-list={reverseLogList.value}
-                      show-type={showType.value}
-                    />
-                  )
-                ) : !logLoading.value ? (
+          <CommonHeader
+            paramsInfo={localParams.value}
+            targetFields={props.targetFields}
+            mode={props.mode}
+            on-back={handleBack}
+          />
+          <div class='context-main'>
+            <div class='data-filter-wraper'>
+              <DataFilter
+                ref={dataFilterRef}
+                display={displayFieldNames}
+                total={totalFieldNames.value}
+                is-config-loading={isConfigLoading.value}
+                on-fields-config-update={handleConfirmFieldsConfig}
+                on-fix-current-row={handleFixCurrentRow}
+                on-handle-filter={handleFilter}
+              />
+            </div>
+            <div
+              ref={contextLog}
+              class='dialog-log-markdown'
+              v-bkloading={{
+                isLoading: logLoading.value && !isFilterEmpty.value,
+                opacity: 0.6,
+              }}
+            >
+              {logList.value.length > 0 ? (
+                isFilterEmpty.value ? (
                   <bk-exception
                     style='margin-top: 80px'
                     scene='part'
-                    type='empty'
+                    type='search-empty'
                   >
-                    <span>{t('暂无数据')}</span>
+                    <span>{t('搜索结果为空')}</span>
                   </bk-exception>
-                ) : null}
-              </div>
+                ) : (
+                  <LogView
+                    ref={logViewRef}
+                    filter-key={activeFilterKey.value}
+                    filter-type={filterType.value}
+                    ignore-case={ignoreCase.value}
+                    interval={interval.value}
+                    light-list={highlightList.value}
+                    log-list={logList.value}
+                    reverse-log-list={reverseLogList.value}
+                    show-type={showType.value}
+                  />
+                )
+              ) : hasLoadedOnce.value && !logLoading.value ? (
+                <bk-exception
+                  style='margin-top: 80px'
+                  scene='part'
+                  type='empty'
+                >
+                  <span>{t('暂无数据')}</span>
+                </bk-exception>
+              ) : null}
             </div>
           </div>
-          {isShow.value && (
-            <LogResult
-              ref={logResultRef}
-              slot='aside'
-              indexSetId={props.indexSetId}
-              logIndex={props.rowIndex}
-              retrieveParams={props.retrieveParams}
-              on-choose-row={handleChooseRow}
-              on-toggle-collapse={handleToggleCollapse}
-            />
-          )}
-        </bk-resize-layout>
-      </bk-dialog>
+        </div>
+        {isShow.value && (
+          <LogResult
+            ref={logResultRef}
+            slot='aside'
+            indexSetId={props.indexSetId}
+            logIndex={props.rowIndex}
+            retrieveParams={props.retrieveParams}
+            on-choose-row={handleChooseRow}
+            on-toggle-collapse={handleToggleCollapse}
+          />
+        )}
+      </bk-resize-layout>
     );
+
+    return () => {
+      if (isPageMode()) {
+        return <div class='log-context-page-main'>{renderMainContent()}</div>;
+      }
+
+      return (
+        <bk-dialog
+          ext-cls='log-context-dialog-main'
+          draggable={false}
+          esc-close={false}
+          mask-close={false}
+          render-directives='if'
+          show-footer={false}
+          value={isShow.value}
+          fullscreen
+          on-after-leave={handleAfterLeave}
+        >
+          {renderMainContent()}
+        </bk-dialog>
+      );
+    };
   },
 });
