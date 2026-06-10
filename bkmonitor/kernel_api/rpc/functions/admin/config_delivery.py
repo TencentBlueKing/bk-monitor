@@ -54,6 +54,20 @@ FUNC_CONFIG_DELIVERY_BATCH_STATUS = "admin.config_delivery.batch_status"
 
 SUMMARY_SAMPLE_SIZE = 3
 APM_SUBSCRIPTION_TYPES = {"all", "platform", "application"}
+CONFIG_TARGET_IP_KEYS = {
+    "ip",
+    "inner_ip",
+    "inner_ipv6",
+    "outer_ip",
+    "outer_ipv6",
+    "login_ip",
+    "data_ip",
+    "bk_host_innerip",
+    "bk_host_innerip_v6",
+    "bk_host_outerip",
+    "bk_host_outerip_v6",
+    "proxy_ip",
+}
 NODE_MAN_DETAIL_SENSITIVE_KEYS = {
     "password",
     "passwd",
@@ -688,6 +702,60 @@ def _extract_config_target_host_ids(config: Any) -> set[int]:
     return host_ids
 
 
+def _extract_config_target_ips(config: Any) -> set[str]:
+    target_ips: set[str] = set()
+
+    def append_ip(raw_value: Any) -> None:
+        text = _normalize_string(raw_value)
+        if not text:
+            return
+        for ip in text.replace(",", " ").split():
+            normalized_ip = ip.strip()
+            if normalized_ip:
+                target_ips.add(normalized_ip)
+
+    def collect_from_host(host: Any) -> None:
+        if not isinstance(host, dict):
+            return
+        for key in CONFIG_TARGET_IP_KEYS:
+            append_ip(host.get(key))
+
+    if not isinstance(config, dict):
+        return target_ips
+
+    scope = config.get("scope") if isinstance(config.get("scope"), dict) else {}
+    nodes = scope.get("nodes") if isinstance(scope.get("nodes"), list) else []
+    for node in nodes:
+        collect_from_host(node)
+
+    target_hosts = config.get("target_hosts") if isinstance(config.get("target_hosts"), list) else []
+    for host in target_hosts:
+        collect_from_host(host)
+
+    for context in _extract_config_contexts(config):
+        append_ip(context.get("proxy_ip"))
+
+    return target_ips
+
+
+def _record_matches_proxy_target(record: Any, params: dict[str, Any]) -> bool:
+    bk_host_id = _normalize_int(params.get("bk_host_id"), "bk_host_id")
+    proxy_ip = _normalize_string(params.get("proxy_ip"))
+    if bk_host_id is None and not proxy_ip:
+        return True
+
+    config = getattr(record, "config", None)
+    if bk_host_id is not None and bk_host_id in _extract_config_target_host_ids(config):
+        return True
+    return bool(proxy_ip and proxy_ip in _extract_config_target_ips(config))
+
+
+def _filter_records_by_proxy_target(records: list[Any], params: dict[str, Any]) -> list[Any]:
+    if _normalize_int(params.get("bk_host_id"), "bk_host_id") is None and not _normalize_string(params.get("proxy_ip")):
+        return records
+    return [record for record in records if _record_matches_proxy_target(record, params)]
+
+
 def _compact_related_config_item(item: dict[str, Any], relation: str) -> dict[str, Any]:
     result: dict[str, Any] = {
         "source_type": item.get("source_type"),
@@ -764,7 +832,10 @@ def _build_proxy_related_configs(
     for record in filtered_custom_records:
         item = _serialize_custom_report_subscription(record, bk_tenant_id)
         target_host_ids = _extract_config_target_host_ids(record.config)
-        matched_target = proxy_host_id is not None and proxy_host_id in target_host_ids
+        target_ips = _extract_config_target_ips(record.config)
+        matched_target = (proxy_host_id is not None and proxy_host_id in target_host_ids) or bool(
+            proxy_ips & target_ips
+        )
         _append_related_config(
             related["custom_report"],
             item,
@@ -775,7 +846,10 @@ def _build_proxy_related_configs(
     for record in _build_log_subscription_queryset({"bk_biz_id": bk_biz_id}, bk_tenant_id):
         item = _serialize_log_subscription(record)
         target_host_ids = _extract_config_target_host_ids(record.config)
-        matched_target = proxy_host_id is not None and proxy_host_id in target_host_ids
+        target_ips = _extract_config_target_ips(record.config)
+        matched_target = (proxy_host_id is not None and proxy_host_id in target_host_ids) or bool(
+            proxy_ips & target_ips
+        )
         _append_related_config(
             related["log_subscription"],
             item,
@@ -790,7 +864,10 @@ def _build_proxy_related_configs(
     for record in apm_queryset:
         item = _serialize_apm_subscription(record)
         target_host_ids = _extract_config_target_host_ids(record.config)
-        matched_target = proxy_host_id is not None and proxy_host_id in target_host_ids
+        target_ips = _extract_config_target_ips(record.config)
+        matched_target = (proxy_host_id is not None and proxy_host_id in target_host_ids) or bool(
+            proxy_ips & target_ips
+        )
         relation = "platform" if item.get("is_platform") else "target_host" if matched_target else "biz"
         _append_related_config(
             related["apm_subscription"],
@@ -946,6 +1023,9 @@ def _build_ping_server_queryset(params: dict[str, Any], bk_tenant_id: str | None
     ip = _normalize_string(params.get("ip"))
     if ip:
         queryset = queryset.filter(ip=ip)
+    proxy_ip = _normalize_string(params.get("proxy_ip"))
+    if proxy_ip:
+        queryset = queryset.filter(ip=proxy_ip)
 
     bk_biz_id = _normalize_int(params.get("bk_biz_id"), "bk_biz_id")
     proxy_host_ids, proxy_cloud_ids, warnings = _extract_proxy_filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
@@ -1254,6 +1334,7 @@ def list_proxy_delivery_overview(params: dict[str, Any]) -> dict[str, Any]:
         "bk_cloud_id": "可选，云区域 ID",
         "plugin_name": "可选，插件名",
         "ip": "可选，代理 IP 精确匹配",
+        "proxy_ip": "可选，Proxy IP 精确匹配；等价于 ip，便于从 Proxy 关联跳转",
         "bk_host_id": "可选，主机 ID",
         "subscription_id": "可选，NodeMan 订阅 ID",
         "page": "可选，默认 1",
@@ -1318,6 +1399,8 @@ def get_ping_server_config_detail(params: dict[str, Any]) -> dict[str, Any]:
         "bk_biz_id": "可选，业务 ID",
         "bk_data_id": "可选，DataID 精确匹配",
         "protocol": "可选，协议过滤，支持 json / prometheus",
+        "proxy_ip": "可选，按配置目标中的 Proxy IP 过滤",
+        "bk_host_id": "可选，按配置目标中的 bk_host_id 过滤",
         "subscription_id": "可选，NodeMan 订阅 ID",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
@@ -1335,6 +1418,7 @@ def list_custom_report_subscriptions(params: dict[str, Any]) -> dict[str, Any]:
     page, page_size = normalize_pagination(params)
     records = list(_build_custom_report_queryset(params))
     filtered_records, warnings = _filter_custom_report_records_by_tenant(records, bk_tenant_id)
+    filtered_records = _filter_records_by_proxy_target(filtered_records, params)
     filtered_items = _filter_custom_report_items_by_protocol(
         [_serialize_custom_report_subscription(record, bk_tenant_id) for record in filtered_records],
         params,
@@ -1391,6 +1475,8 @@ def get_custom_report_subscription_detail(params: dict[str, Any]) -> dict[str, A
         "bk_biz_id": "可选，业务 ID",
         "bk_data_id": "可选，日志 DataID；通过 config steps[].params.context.log_data_id 后过滤",
         "log_name": "可选，日志名称模糊匹配",
+        "proxy_ip": "可选，按配置目标中的 Proxy IP 过滤",
+        "bk_host_id": "可选，按配置目标中的 bk_host_id 过滤",
         "subscription_id": "可选，NodeMan 订阅 ID",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
@@ -1403,6 +1489,7 @@ def list_log_subscriptions(params: dict[str, Any]) -> dict[str, Any]:
     bk_data_id = _normalize_int(params.get("bk_data_id"), "bk_data_id")
     records = list(_build_log_subscription_queryset(params, bk_tenant_id))
     filtered_records = _filter_log_subscription_records_by_data_id(records, bk_data_id)
+    filtered_records = _filter_records_by_proxy_target(filtered_records, params)
     page_items, total = _paginate_items(
         [_serialize_log_subscription(record) for record in filtered_records],
         page=page,
@@ -1456,6 +1543,8 @@ def get_log_subscription_detail(params: dict[str, Any]) -> dict[str, Any]:
         "app_name": "可选，应用名精确匹配",
         "subscription_id": "可选，NodeMan 订阅 ID",
         "subscription_type": "可选，all / platform / application",
+        "proxy_ip": "可选，按配置目标中的 Proxy IP 过滤",
+        "bk_host_id": "可选，按配置目标中的 bk_host_id 过滤",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
     },
@@ -1465,8 +1554,16 @@ def list_apm_subscriptions(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_page_list_bk_tenant_id(params)
     page, page_size = normalize_pagination(params)
     queryset = _build_apm_queryset(params, bk_tenant_id)
-    records, total = paginate_queryset(queryset, page=page, page_size=page_size)
-    items = [_serialize_apm_subscription(record) for record in records]
+    if _normalize_int(params.get("bk_host_id"), "bk_host_id") is not None or _normalize_string(params.get("proxy_ip")):
+        records = _filter_records_by_proxy_target(list(queryset), params)
+        items, total = _paginate_items(
+            [_serialize_apm_subscription(record) for record in records],
+            page=page,
+            page_size=page_size,
+        )
+    else:
+        records, total = paginate_queryset(queryset, page=page, page_size=page_size)
+        items = [_serialize_apm_subscription(record) for record in records]
     return build_response(
         operation="config_delivery.apm_subscription_list",
         func_name=FUNC_CONFIG_DELIVERY_APM_SUBSCRIPTION_LIST,
