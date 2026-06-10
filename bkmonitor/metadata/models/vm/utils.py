@@ -613,8 +613,7 @@ def access_v2_bkdata_vm(
     access_vm_record = AccessVMRecord.objects.filter(
         bk_tenant_id=bk_tenant_id,
         result_table_id=table_id,
-        bk_base_data_id=data_id,
-    ).first()
+    ).last()
     if access_vm_record:
         logger.info("table_id: %s has already been created,now try to create fed vm data link", table_id)
 
