@@ -10,8 +10,10 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import logging
+from typing import TYPE_CHECKING, Any
 
+from core.drf_resource import api
 from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
 from metadata.models.data_link import utils as data_link_utils
 from metadata.models.record_rule.constants import RECORD_RULE_V4_BKMONITOR_NAMESPACE
@@ -19,6 +21,8 @@ from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
 if TYPE_CHECKING:
     from metadata.models.record_rule.v4.models import RecordRuleV4, RecordRuleV4Spec
+
+logger = logging.getLogger("metadata")
 
 
 class RecordRuleV4OutputResources:
@@ -38,11 +42,12 @@ class RecordRuleV4OutputResources:
 
         result_table_created = cls.ensure_result_table(rule)
         cls.ensure_result_table_options(rule)
-        cls.ensure_result_table_config(rule)
+        # VMStorageBinding 依赖 VM 集群名，必须先确定 dst_vm_storage_name 再下发链路配置。
         vm_storage_name = cls.ensure_vm_record(rule)
         if rule.dst_vm_storage_name != vm_storage_name:
             rule.dst_vm_storage_name = vm_storage_name
             rule.save(update_fields=["dst_vm_storage_name", "updated_at"])
+        cls.ensure_result_table_config(rule)
         return result_table_created
 
     @staticmethod
@@ -119,12 +124,26 @@ class RecordRuleV4OutputResources:
 
     @staticmethod
     def ensure_result_table_config(rule: RecordRuleV4) -> None:
-        """创建输出 ResultTableConfig，供 bkbase Flow output 引用。"""
+        """创建输出 ResultTableConfig + VMStorageBindingConfig 并下发到 bkbase。
+
+        本地 ResultTableConfig 维护 ``table_id <-> bkbase_table_id`` 映射；
+        VMStorageBindingConfig 把输出 RT 绑定到 VM 存储。两者一起下发后，bkbase
+        侧才会注册独立 ResultTable / VmStorageBinding 资源，DataLink 详情页的
+        ``component_config`` / ``status`` 也才会有值。Flow 仍单独下发，互不替代。
+
+        recording rule 输出走 VM 存储，schema 固定，这里不显式下发字段；字段随
+        Flow 的 RecordingRuleNode metric_name 在 bkbase 侧补齐。下发成功后把本地
+        ``status`` 置为 ``Pending``，表示已提交、等待 bkbase 调度完成。
+        """
 
         from metadata import models as metadata_models
+        from metadata.models.data_link.constants import DataLinkResourceStatus
+
+        if not rule.dst_vm_storage_name:
+            raise ValueError("record rule dst_vm_storage_name is empty")
 
         result_table_config_name = RecordRuleV4OutputResources.compose_result_table_config_name(rule.table_id)
-        metadata_models.ResultTableConfig.objects.update_or_create(
+        result_table_config, _ = metadata_models.ResultTableConfig.objects.update_or_create(
             bk_tenant_id=rule.bk_tenant_id,
             namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE,
             name=result_table_config_name,
@@ -135,6 +154,34 @@ class RecordRuleV4OutputResources:
                 "bk_biz_id": rule.bk_biz_id,
             },
         )
+        # binding 与 RT 同名，绑定输出 RT 到 group 的目标 VM 存储。
+        vm_storage_binding, _ = metadata_models.VMStorageBindingConfig.objects.update_or_create(
+            bk_tenant_id=rule.bk_tenant_id,
+            namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE,
+            name=result_table_config_name,
+            defaults={
+                "table_id": rule.table_id,
+                "bkbase_result_table_name": result_table_config_name,
+                "vm_cluster_name": rule.dst_vm_storage_name,
+                "data_link_name": result_table_config_name,
+                "bk_biz_id": rule.bk_biz_id,
+            },
+        )
+
+        configs: list[dict[str, Any]] = [result_table_config.compose_config(), vm_storage_binding.compose_config()]
+        response = api.bkdata.apply_data_link(  # pyright: ignore[reportCallIssue]
+            bk_tenant_id=rule.bk_tenant_id, config=configs
+        )
+        logger.info(
+            "RecordRuleV4 ensure_result_table_config: rule_id->[%s], name->[%s], response->[%s]",
+            rule.pk,
+            result_table_config.name,
+            response,
+        )
+        for config_instance in (result_table_config, vm_storage_binding):
+            if config_instance.status != DataLinkResourceStatus.PENDING.value:
+                config_instance.status = DataLinkResourceStatus.PENDING.value
+                config_instance.save(update_fields=["status", "last_modify_time"])
 
     @staticmethod
     def ensure_vm_record(rule: RecordRuleV4) -> str:
