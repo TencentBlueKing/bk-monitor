@@ -167,6 +167,7 @@ class TransferEtlHandler(EtlHandler):
             sort_fields=sort_fields,
             target_fields=target_fields,
             total_shards_per_node=total_shards_per_node,
+            labels=labels,
         )
 
         if not view_roles:
