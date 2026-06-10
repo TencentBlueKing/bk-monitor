@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, nextTick, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { type BkUiSettings, type TableSort, type TdBaseTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import { Exception, Pagination } from 'bkui-vue';
@@ -166,15 +166,15 @@ export default defineComponent({
     columnResizeChange: (context: ColumnResizeContext) => context && typeof context.columnsWidth === 'object',
   },
   setup(props, { emit }) {
-    const tableRef = useTemplateRef<InstanceType<typeof PrimaryTable>>('tableRef');
+    const wrapperRef = useTemplateRef<HTMLElement>('wrapperRef');
     /** 表格单元格渲染逻辑 */
     const { tableCellRender, renderContext } = useTableCell({
       rowKeyField: props.rowKey,
       customCellRenderMap: props.customCellRenderMap,
       cellEllipsisClass: COMMON_TABLE_ELLIPSIS_CLASS_NAME,
     });
-    /** 表格功能单元格内容溢出弹出 popover 功能 */
-    const { initListeners: initEllipsisListeners } = useTableEllipsis(tableRef, {
+    /** 表格功能单元格内容溢出弹出 popover 功能（绑定到包裹层，避免表格重建时事件委托丢失） */
+    const { initListeners: initEllipsisListeners } = useTableEllipsis(wrapperRef, {
       trigger: {
         selector: `.${COMMON_TABLE_ELLIPSIS_CLASS_NAME}`,
       },
@@ -343,10 +343,9 @@ export default defineComponent({
       }
     );
 
+    /** 初始化表格省略号事件监听器（绑定到包裹层，表格重建时无需重新初始化） */
     onMounted(() => {
-      setTimeout(() => {
-        initEllipsisListeners();
-      }, 300);
+      nextTick(() => initEllipsisListeners());
     });
 
     return {
@@ -370,42 +369,48 @@ export default defineComponent({
   render() {
     return (
       <div class={`common-table-wrapper ${this.autoFillSpace ? 'fill-remaining-space' : ''}`}>
-        <PrimaryTable
-          key={this.refreshKey}
-          ref='tableRef'
-          class={`common-table ${this.tableSkeletonConfig?.tableClass}`}
-          v-slots={{
-            empty: this.tableEmptyRender,
-          }}
-          activeRowKeys={this.activeRowKeys}
-          activeRowType='single'
-          bkUiSettings={this.tableSettings}
-          columns={this.tableColumns}
-          data={this.data}
-          disableDataPage={true}
-          firstFullRow={this.firstFullRow}
-          headerAffixedTop={this.headerAffixedTop}
-          horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
-          hover={true}
-          lastFullRow={this.data?.length ? this.tableLastFullRowRender : null}
-          maxHeight={this.maxHeight}
-          needCustomScroll={false}
-          reserveSelectedRowOnPaginate={false}
-          resizable={true}
-          rowClassName={this.rowClassName}
-          rowKey={this.rowKey}
-          scroll={this.scroll}
-          selectedRowKeys={this.selectedRowKeys}
-          showSortColumnBgColor={true}
-          size={this.tableSize}
-          sort={this.tableSort}
-          tableLayout='fixed'
-          onActiveChange={this.handleActiveChange}
-          onColumnResizeChange={this.handleColumnResizeChange}
-          onDisplayColumnsChange={this.handleDisplayColFieldsChange}
-          onSelectChange={this.handleSelectChange}
-          onSortChange={this.handleSortChange}
-        />
+        {/* 事件委托包裹层：避免 PrimaryTable 销毁重建时事件委托丢失 */}
+        <div
+          ref='wrapperRef'
+          class='common-table-event-root'
+        >
+          <PrimaryTable
+            key={this.refreshKey}
+            ref='tableRef'
+            class={`common-table ${this.tableSkeletonConfig?.tableClass}`}
+            v-slots={{
+              empty: this.tableEmptyRender,
+            }}
+            activeRowKeys={this.activeRowKeys}
+            activeRowType='single'
+            bkUiSettings={this.tableSettings}
+            columns={this.tableColumns}
+            data={this.data}
+            disableDataPage={true}
+            firstFullRow={this.firstFullRow}
+            headerAffixedTop={this.headerAffixedTop}
+            horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
+            hover={true}
+            lastFullRow={this.data?.length ? this.tableLastFullRowRender : null}
+            maxHeight={this.maxHeight}
+            needCustomScroll={false}
+            reserveSelectedRowOnPaginate={false}
+            resizable={true}
+            rowClassName={this.rowClassName}
+            rowKey={this.rowKey}
+            scroll={this.scroll}
+            selectedRowKeys={this.selectedRowKeys}
+            showSortColumnBgColor={true}
+            size={this.tableSize}
+            sort={this.tableSort}
+            tableLayout='fixed'
+            onActiveChange={this.handleActiveChange}
+            onColumnResizeChange={this.handleColumnResizeChange}
+            onDisplayColumnsChange={this.handleDisplayColFieldsChange}
+            onSelectChange={this.handleSelectChange}
+            onSortChange={this.handleSortChange}
+          />
+        </div>
         <TableSkeleton class={`common-table-skeleton ${this.tableSkeletonConfig?.skeletonClass}`} />
 
         {this.showPagination ? (
