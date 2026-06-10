@@ -30,7 +30,6 @@ from kernel_api.rpc.functions.admin.common import (
     serialize_value,
 )
 from kernel_api.rpc.functions.admin.uptime_check import (
-    _build_subscription_detail_payload,
     _load_subscription_infos,
     _load_subscription_status_detail,
     _sanitize_subscription_detail_value,
@@ -55,6 +54,15 @@ FUNC_CONFIG_DELIVERY_BATCH_STATUS = "admin.config_delivery.batch_status"
 
 SUMMARY_SAMPLE_SIZE = 3
 APM_SUBSCRIPTION_TYPES = {"all", "platform", "application"}
+NODE_MAN_DETAIL_SENSITIVE_KEYS = {
+    "password",
+    "passwd",
+    "token",
+    "secret",
+    "authorization",
+    "auth_config",
+    "headers",
+}
 
 
 def _normalize_int(value: Any, field_name: str, *, required: bool = False) -> int | None:
@@ -109,6 +117,41 @@ def _setting_value(key: str, default: Any = None) -> Any:
 def _summarize_list(value: Any) -> dict[str, Any]:
     values = value if isinstance(value, list) else []
     return {"count": len(values), "samples": values[:SUMMARY_SAMPLE_SIZE]}
+
+
+def _is_node_man_detail_sensitive_key(key: Any) -> bool:
+    normalized_key = str(key).strip().lower().replace("-", "_")
+    if normalized_key in NODE_MAN_DETAIL_SENSITIVE_KEYS:
+        return True
+    return any(token in normalized_key for token in ("password", "passwd", "token", "secret", "authorization"))
+
+
+def _sanitize_full_node_man_detail_value(value: Any, *, key: Any = None) -> Any:
+    if key is not None and _is_node_man_detail_sensitive_key(key):
+        return "***"
+
+    if isinstance(value, dict):
+        return {
+            item_key: _sanitize_full_node_man_detail_value(item_value, key=item_key)
+            for item_key, item_value in value.items()
+        }
+
+    if isinstance(value, list):
+        return [_sanitize_full_node_man_detail_value(item) for item in value]
+
+    return serialize_value(value)
+
+
+def _build_full_node_man_subscription_detail_payload(
+    *, info: dict[str, Any] | None, relation: dict[str, Any], status_detail: Any
+) -> dict[str, Any]:
+    payload = _summarize_subscription(info, relation)
+    payload["relation"] = _sanitize_full_node_man_detail_value(relation)
+    payload["config_detail"] = _sanitize_full_node_man_detail_value(info) if info else None
+    payload["status_detail"] = (
+        _sanitize_full_node_man_detail_value(status_detail) if status_detail is not None else None
+    )
+    return payload
 
 
 def _extract_data_ids(value: Any) -> list[int]:
@@ -1457,7 +1500,7 @@ def get_apm_subscription_detail(params: dict[str, Any]) -> dict[str, Any]:
 @KernelRPCRegistry.register(
     FUNC_CONFIG_DELIVERY_SUBSCRIPTION_DETAIL,
     summary="Admin 实时查询配置下发订阅详情",
-    description="只读懒加载单个 NodeMan 订阅状态和订阅配置 JSON。返回前会遮罩敏感字段，并对超长列表采样。",
+    description="只读懒加载单个 NodeMan 订阅状态和订阅配置 JSON。返回前会遮罩敏感字段，不截断实例状态列表。",
     params_schema={
         "bk_tenant_id": "可选，租户 ID",
         "source_type": "可选，ping_server / custom_report / log_subscription / apm_subscription",
@@ -1477,7 +1520,7 @@ def get_subscription_detail(params: dict[str, Any]) -> dict[str, Any]:
         bk_tenant_id=bk_tenant_id,
         subscription_id=subscription_id,
     )
-    subscription = _build_subscription_detail_payload(
+    subscription = _build_full_node_man_subscription_detail_payload(
         info=info_map.get(subscription_id),
         relation=relation,
         status_detail=status_detail,
@@ -1514,7 +1557,7 @@ def get_batch_status(params: dict[str, Any]) -> dict[str, Any]:
         items.append(
             {
                 "subscription_id": subscription_id,
-                "status_detail": _sanitize_subscription_detail_value(status_detail),
+                "status_detail": _sanitize_full_node_man_detail_value(status_detail),
                 "success": status_detail is not None and not status_warnings,
                 "warnings": status_warnings,
             }
