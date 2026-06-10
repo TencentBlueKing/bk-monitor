@@ -24,7 +24,6 @@ from dataclasses import asdict
 from apps.log_clustering.constants import LATEST_PUBLISH_STATUS
 from apps.log_clustering.handlers.aiops.aiops_model.data_cls import AiopsReleaseCls
 from apps.log_clustering.handlers.aiops.config import get_online_clustering_config
-from apps.utils.log import logger
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
 from apps.log_clustering.exceptions import ClusteringClosedException, ModelReleaseNotFoundException
@@ -36,11 +35,6 @@ class BaseAiopsHandler:
         if not FeatureToggleObject.switch(BKDATA_CLUSTERING_TOGGLE):
             raise ClusteringClosedException()
         self.conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
-
-    @staticmethod
-    def _safe_request_dict(request_dict: dict) -> dict:
-        sensitive_keys = {"auth_info", "bk_app_secret", "app_secret", "access_token", "refresh_token", "token"}
-        return {key: "***" if str(key).lower() in sensitive_keys else value for key, value in request_dict.items()}
 
     def _set_username(
         self,
@@ -65,7 +59,6 @@ class BaseAiopsHandler:
         if no_request is not None:
             request_dict["no_request"] = no_request
 
-        logger.info("bkdata request params: %s", self._safe_request_dict(request_dict))
         return request_dict
 
     def _set_bkdata_request_params(self, request_data_cls, bk_biz_id: int = None, bk_username: str = ""):
