@@ -251,6 +251,13 @@ Constraint:
 - Vue2 template refs inside `v-for` are not reliable for focusing the current edited tag; use a component root ref plus `data-fuzzy-edit-index` selector, then `focus()` and `select()` after `nextTick()`.
 - Browser validation on `http://appdev.woa.com:8001`: select `log` field + `包含`, create two tags, relation row stays inline, double-click second tag focuses `.fuzzy-match-tag-edit[data-fuzzy-edit-index="1"]`.
 
+## 2026-06-05 manage-collection basic-info 空条件防御
+
+- 问题：采集项详情 `/manage/log-collection/collection-item/manage/:collectorId` 在部分采集配置下 `collectorData.params.conditions.separator_filters` 不存在，`basic-info.vue` 的 `isNotWinAndHaveFilter` 直接读取 `.length` 导致页面崩溃。
+- 修复：`params` 默认 `{}`；`conditions` 默认补齐 `{ type: 'none', separator_filters: [] }`；`isNotWinAndHaveFilter` 基于补齐后的数组判断；同时 `winlog_event_id/winlog_level` 长度读取改为可选链。
+- 验证：覆盖缺失 params/conditions/separator_filters 的静态 JS 场景；`npm run build` 通过。
+
+Knowledge update: updated.
 
 ## 2026-06-04 检索结果原始模式首行 hover 操作浮层防裁剪
 
