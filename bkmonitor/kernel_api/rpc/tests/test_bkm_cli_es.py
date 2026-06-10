@@ -32,8 +32,10 @@ class FakeESError(Exception):
 class _FakeIndices:
     def __init__(self, mapping):
         self._mapping = mapping
+        self.last_fields = None
 
     def get_field_mapping(self, index, fields, params):
+        self.last_fields = fields
         return self._mapping
 
 
@@ -112,7 +114,8 @@ MISSING = es.MISSING_PLACEHOLDER
 def test_es_ops_registered():
     assert BkmCliOpRegistry.resolve("es-diagnose").func_name == "bkm_cli.es_diagnose"
     assert BkmCliOpRegistry.resolve("list-es-capabilities").func_name == "bkm_cli.list_es_capabilities"
-    # 8 个白名单 operation
+    assert BkmCliOpRegistry.resolve("list-es-clusters").func_name == "bkm_cli.list_es_clusters"
+    # 8 个白名单 operation（list-es-clusters 是独立 op，不进 es_diagnose 的 ALLOWED_OPERATIONS）
     assert len(es.ALLOWED_OPERATIONS) == 8
     assert {c["operation"] for c in es.ES_CAPABILITIES} == set(es.ALLOWED_OPERATIONS)
 
@@ -137,6 +140,9 @@ def test_terms_agg_probe_forces_size_zero_and_breakdown_aggs():
     assert body["aggs"]["probe"]["terms"]["field"] == "namespace"
     assert body["aggs"]["field_exists"]["filter"]["exists"]["field"] == "namespace"
     assert "by_index" in body["aggs"]
+    # probe 用专属放宽超时（须 < CLI 30s 抓取超时，让服务端 ES_QUERY_TIMEOUT 先于 CLI abort 触发）
+    assert body["timeout"] == es.PROBE_SEARCH_TIMEOUT
+    assert client.last_search["params"]["request_timeout"] == es.PROBE_REQUEST_TIMEOUT
 
 
 def test_load_es_cluster_rejects_non_es_cluster_type(monkeypatch):
@@ -152,6 +158,91 @@ def test_load_es_cluster_rejects_non_es_cluster_type(monkeypatch):
     with pytest.raises(CustomException) as exc:
         es._load_es_cluster(10)
     assert exc.value.data["error_code"] == "OPERATION_NOT_ALLOWED"
+
+
+# ---------------- #2 list-es-clusters（fleet 发现，仅元数据、不探活）----------------
+
+
+class _FakeClusterQS:
+    def __init__(self, rows):
+        self._rows = rows
+
+    def filter(self, **kwargs):  # name_contains__icontains 二次过滤
+        sub = kwargs.get("cluster_name__icontains")
+        rows = [r for r in self._rows if sub.lower() in r["cluster_name"].lower()] if sub else self._rows
+        return _FakeClusterQS(rows)
+
+    def order_by(self, *a):
+        return self
+
+    def count(self):
+        return len(self._rows)
+
+    def values(self, *fields):
+        return [{f: r.get(f) for f in fields} for r in self._rows]
+
+
+def _es_row(cid, name, version="7.10.2", display=""):
+    return {
+        "cluster_id": cid,
+        "cluster_name": name,
+        "display_name": display,
+        "cluster_type": "elasticsearch",
+        "version": version,
+    }
+
+
+def _patch_cluster_filter(monkeypatch, es_rows):
+    from metadata.models import ClusterInfo
+
+    captured = {}
+
+    def fake_filter(**kwargs):
+        captured["cluster_type"] = kwargs.get("cluster_type")
+        return _FakeClusterQS(es_rows)
+
+    monkeypatch.setattr(ClusterInfo.objects, "filter", fake_filter)
+    return captured
+
+
+def test_list_es_clusters_filters_to_es_type(monkeypatch):
+    from metadata.models import ClusterInfo
+
+    captured = _patch_cluster_filter(monkeypatch, [_es_row(1, "es_a"), _es_row(2, "es_b", version=None)])
+    out = es.list_es_clusters({})
+    assert captured["cluster_type"] == ClusterInfo.TYPE_ES  # 只查 ES 类型（非 ES 永不进结果）
+    assert out["count"] == 2
+    assert {it["cluster_id"] for it in out["items"]} == {1, 2}
+
+
+def test_list_es_clusters_returns_only_safe_fields(monkeypatch):
+    _patch_cluster_filter(monkeypatch, [_es_row(1, "es_a")])
+    item = es.list_es_clusters({})["items"][0]
+    assert set(item.keys()) == {"cluster_id", "cluster_name", "display_name", "cluster_type", "version"}
+    # 凭据/host/port 等敏感字段绝不出现（.values 白名单是唯一泄露面，负向断言守住）
+    for forbidden in ("domain_name", "port", "username", "password", "schema", "ssl_certificate"):
+        assert forbidden not in item
+
+
+def test_list_es_clusters_null_version_surfaced(monkeypatch):
+    _patch_cluster_filter(monkeypatch, [_es_row(2, "es_b", version=None)])
+    assert es.list_es_clusters({})["items"][0]["version"] is None  # 如实回 null、不抛错不填假值
+
+
+def test_list_es_clusters_truncation_note(monkeypatch):
+    rows = [_es_row(i, f"es_{i}") for i in range(es.CLUSTER_LIST_MAX_ROWS + 5)]
+    _patch_cluster_filter(monkeypatch, rows)
+    out = es.list_es_clusters({})
+    assert out["truncated"] is True
+    assert out["returned"] == es.CLUSTER_LIST_MAX_ROWS
+    assert out["count"] == es.CLUSTER_LIST_MAX_ROWS + 5
+    assert "截断" in out["summary"]
+
+
+def test_list_es_clusters_name_contains_filter(monkeypatch):
+    _patch_cluster_filter(monkeypatch, [_es_row(1, "bklog_es"), _es_row(2, "metric_es")])
+    out = es.list_es_clusters({"name_contains": "bklog"})
+    assert {it["cluster_id"] for it in out["items"]} == {1}
 
 
 # ---------------- #6 可聚合类型 allowlist ----------------
@@ -203,6 +294,105 @@ def test_field_mapping_surfaces_multifield_keyword_subfield():
     assert by_path["namespace.keyword"]["aggregatable"] is True
 
 
+# ---------------- #3 field_mapping list 模式（field 省略=自发现可聚合字段）----------------
+
+
+def test_field_mapping_list_mode_sorts_aggregatable_first():
+    mapping = {
+        "idx-1": {
+            "mappings": {
+                "namespace": {
+                    "full_name": "namespace",
+                    "mapping": {"namespace": {"type": "text", "fields": {"keyword": {"type": "keyword"}}}},
+                },
+                "ts": {"full_name": "ts", "mapping": {"ts": {"type": "date"}}},
+                "geo": {"full_name": "geo", "mapping": {"geo": {"type": "geo_point"}}},
+            }
+        }
+    }
+    result = es._field_mapping(FakeESClient(mapping=mapping), 10, {"index_pattern": "idx-*"})
+    assert result["field"] is None
+    paths = [it["field_path"] for it in result["items"]]
+    aggs = [it["field_path"] for it in result["items"] if it["aggregatable"]]
+    non_aggs = [it["field_path"] for it in result["items"] if not it["aggregatable"]]
+    assert paths == aggs + non_aggs  # 可聚合段整体在前
+    assert set(aggs) == {"namespace.keyword", "ts"}
+    assert set(non_aggs) == {"namespace", "geo"}
+    assert "namespace.keyword" in paths  # multi-field 子字段在 list 模式也 surface
+    assert result["meta"]["clean_aggregatable_count"] == 2
+    assert result["meta"]["conflicted_count"] == 0  # 单索引、无跨索引分歧
+    assert result["meta"]["total_field_paths"] == 4
+    assert set(result["items"][0].keys()) == {
+        "field_path",
+        "type",
+        "types",
+        "aggregatable",
+        "conflicted",
+        "indices",
+        "aggregatable_indices",
+    }
+    assert "2 个全索引一致可聚合" in result["summary"]
+
+
+def test_field_mapping_list_mode_conflicting_field_not_clean_aggregatable():
+    # 真实问题：跨索引同名字段 type 不一致（idx-new=keyword 可聚合 / idx-old=text 不可聚合）。
+    # 必须标 conflicted、aggregatable 保守取 false——绝不把"第一个索引可聚合"误报成整 pattern 可直接 probe。
+    mapping = {
+        "idx-new": {"mappings": {"ns": {"full_name": "ns", "mapping": {"ns": {"type": "keyword"}}}}},
+        "idx-old": {"mappings": {"ns": {"full_name": "ns", "mapping": {"ns": {"type": "text"}}}}},
+    }
+    result = es._field_mapping(FakeESClient(mapping=mapping), 10, {"index_pattern": "idx-*"})
+    ns = next(it for it in result["items"] if it["field_path"] == "ns")
+    assert ns["conflicted"] is True
+    assert ns["aggregatable"] is False  # 保守：非全体一致可聚合
+    assert ns["type"] is None and set(ns["types"]) == {"keyword", "text"}
+    assert ns["indices"] == 2
+    assert ns["aggregatable_indices"] == 1
+    assert result["meta"]["conflicted_count"] == 1
+    assert result["meta"]["clean_aggregatable_count"] == 0
+    assert "conflicted" in result["summary"]
+
+
+def test_field_mapping_list_mode_truncates_and_flags():
+    leaves = {
+        f"f{i}": {"full_name": f"f{i}", "mapping": {f"f{i}": {"type": "keyword"}}}
+        for i in range(es.FIELD_LIST_MAX + 30)
+    }
+    result = es._field_mapping(FakeESClient(mapping={"idx-1": {"mappings": leaves}}), 10, {"index_pattern": "idx-*"})
+    assert len(result["items"]) == es.FIELD_LIST_MAX
+    assert result["meta"]["truncated"] is True
+    assert result["meta"]["total_field_paths"] == es.FIELD_LIST_MAX + 30
+    assert "截断至前" in result["summary"]
+
+
+def test_field_mapping_list_mode_empty_pattern_raises_clean():
+    # 通配符匹配空集 → 200 空响应（非 404）：明确告知没有可枚举字段
+    with pytest.raises(CustomException) as exc:
+        es._field_mapping(FakeESClient(mapping={}), 10, {"index_pattern": "nope-*"})
+    assert "未枚举到任何字段" in str(exc.value)
+
+
+def test_field_mapping_passes_star_in_list_mode_and_field_in_single():
+    # 接线：list 模式拉 fields="*"（枚举全字段），单字段模式只拉该字段——区分两条路径的关键入参
+    client = FakeESClient(
+        mapping={"idx-1": {"mappings": {"f": {"full_name": "f", "mapping": {"f": {"type": "keyword"}}}}}}
+    )
+    es._field_mapping(client, 10, {"index_pattern": "idx-*"})
+    assert client.indices.last_fields == "*"
+    es._field_mapping(client, 10, {"index_pattern": "idx-*", "field": "f"})
+    assert client.indices.last_fields == "f"
+
+
+def test_field_mapping_list_mode_es5_6_typed_shape():
+    # ES5/6 typed: mappings[<doc_type>][<field>]，list 模式须照样枚举到字段（复用 _field_blocks 的两级下钻）
+    mapping = {
+        "idx-1": {"mappings": {"_doc": {"host": {"full_name": "host", "mapping": {"host": {"type": "keyword"}}}}}}
+    }
+    result = es._field_mapping(FakeESClient(mapping=mapping), 10, {"index_pattern": "idx-*"})
+    assert "host" in [it["field_path"] for it in result["items"]]
+    assert result["meta"]["clean_aggregatable_count"] == 1
+
+
 # ---------------- #6 错误分类（duck-type status_code）----------------
 
 
@@ -244,6 +434,30 @@ def test_es_query_error_404_is_index_not_found_not_upstream():
     assert exc.value.data["error_code"] == "INDEX_NOT_FOUND"
     # message 必须带 ES error.type/reason（分类标签只取主因，真相以 message 为准）
     assert "index_not_found_exception" in str(exc.value) or "no such index" in str(exc.value)
+
+
+def test_es_query_error_timeout_is_query_timeout_with_narrowing_actions():
+    # 传输层 ReadTimeout：ES5/6/7 客户端一律 ConnectionTimeout，status_code == 字符串 "TIMEOUT"；
+    # 必须落 ES_QUERY_TIMEOUT，next_actions 引导缩到单个具体物理索引，绝非"原样重试同一宽 pattern"。
+    err = FakeESError("TIMEOUT", error="read timed out")
+    with pytest.raises(CustomException) as exc:
+        es._es_query_error("terms_agg_probe", err)
+    assert exc.value.data["error_code"] == "ES_QUERY_TIMEOUT"
+    actions = " ".join(exc.value.data["next_actions"])
+    assert "cat_indices" in actions  # 引导先列具体物理索引名
+    assert "具体" in actions and "重试" in actions
+
+
+def test_es_query_error_timeout_by_classname_fallback():
+    # 即使某封装把 status_code 改写，类名含 "Timeout" 也兜住判为超时（不误落 ES_UPSTREAM_ERROR）
+    class ConnectionTimeout(Exception):
+        status_code = None
+        error = "timeout"
+        info = None
+
+    with pytest.raises(CustomException) as exc:
+        es._es_query_error("terms_agg_probe", ConnectionTimeout())
+    assert exc.value.data["error_code"] == "ES_QUERY_TIMEOUT"
 
 
 # ---------------- #2/#4/#5 terms_agg_probe verdict 链 ----------------

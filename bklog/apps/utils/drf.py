@@ -215,10 +215,46 @@ class GeneralSerializer(ModelSerializer):
 
 
 class DataPageNumberPagination(PageNumberPagination):
+    # 注意：不要设置类级 page_size 默认值。该分页类是 generic.ModelViewSet 的全局默认分页类，
+    # 历史行为是「未显式传 page/pagesize 时不分页、返回完整 list」。一旦设置 page_size，
+    # 会让所有继承 ModelViewSet 的列表接口强制分页（返回 {"total","list"}），破坏大量既有接口。
+    # 需要分页时由调用方传 page/pagesize（支持 query 或 POST body，见 _get_param）。
     PAGE_SIZE = 10
     page_query_param = "page"
     page_size_query_param = "pagesize"
     max_page_size = 1000
+
+    def _get_param(self, request, key, default=None):
+        """Read pagination params from URL query string first, then POST body.
+
+        Standard DRF paginator only reads request.query_params; this extension
+        also looks into request.data so that POST endpoints can carry page /
+        pagesize in the JSON body.
+        """
+        if key in request.query_params:
+            return request.query_params.get(key)
+        data = getattr(request, "data", None)
+        if isinstance(data, dict) and key in data:
+            return data.get(key)
+        return default
+
+    def get_page_size(self, request):
+        if self.page_size_query_param:
+            raw = self._get_param(request, self.page_size_query_param)
+            if raw is not None:
+                try:
+                    size = int(raw)
+                    if size > 0:
+                        return min(size, self.max_page_size)
+                except (TypeError, ValueError):
+                    pass
+        return self.page_size
+
+    def get_page_number(self, request, paginator):
+        page_number = self._get_param(request, self.page_query_param, 1)
+        if page_number in self.last_page_strings:
+            page_number = paginator.num_pages
+        return page_number
 
     def get_paginated_response(self, data):
         return Response({"total": self.page.paginator.count, "list": data})

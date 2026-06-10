@@ -145,7 +145,12 @@ class FavoriteViewSet(APIViewSet):
         }
         """
         data = self.params_valid(FavoriteListSerializer)
-        return Response(FavoriteHandler(space_uid=data.get("space_uid")).list_favorites(order_type=data["order_type"]))
+        return Response(
+            FavoriteHandler(space_uid=data.get("space_uid")).list_favorites(
+                order_type=data["order_type"],
+                source_type=data.get("source_type"),
+            )
+        )
 
     @list_route(methods=["GET"])
     def list_by_group(self, request, *args, **kwargs):
@@ -200,7 +205,10 @@ class FavoriteViewSet(APIViewSet):
         """
         data = self.params_valid(FavoriteListSerializer)
         return Response(
-            FavoriteHandler(space_uid=data.get("space_uid")).list_group_favorites(order_type=data["order_type"])
+            FavoriteHandler(space_uid=data.get("space_uid")).list_group_favorites(
+                order_type=data["order_type"],
+                source_type=data.get("source_type"),
+            )
         )
 
     def create(self, request, *args, **kwargs):
@@ -288,6 +296,10 @@ class FavoriteViewSet(APIViewSet):
             index_set_ids=data["index_set_ids"],
             index_set_type=data["index_set_type"],
             favorite_type=data["favorite_type"],
+            source_type=data.get("source_type"),
+            scene_id=data.get("scene_id"),
+            table_id_conditions=data.get("table_id_conditions"),
+            scene_filter_values=data.get("scene_filter_values"),
         )
         return Response(favorite_search)
 
@@ -372,6 +384,10 @@ class FavoriteViewSet(APIViewSet):
             index_set_id=data.get("index_set_id"),
             index_set_ids=data["index_set_ids"],
             index_set_type=data["index_set_type"],
+            source_type=data.get("source_type"),
+            scene_id=data.get("scene_id"),
+            table_id_conditions=data.get("table_id_conditions"),
+            scene_filter_values=data.get("scene_filter_values"),
         )
         return Response(favorite_search)
 
@@ -596,11 +612,12 @@ class FavoriteGroupViewSet(APIViewSet):
 
     def list(self, request, *args, **kwargs):
         """
-        @api {get} /search/favorite_group/?space_uid=$space_uid 01_检索收藏组-列表
-        @apiDescription 用户收藏组列表
+        @api {get} /search/favorite_group/?space_uid=$space_uid&source_type=$source_type 01_检索收藏组-列表
+        @apiDescription 用户收藏组列表（按 source_type 与普通检索/场景化检索隔离）
         @apiName favorite_group
         @apiGroup 21_Favorite
         @apiParam {String} space_uid 空间唯一标识
+        @apiParam {String} [source_type=index_set] 收藏来源类型：index_set(默认) | scene
         @apiSuccessExample {json} 成功返回：
         {
             "message": "",
@@ -615,29 +632,34 @@ class FavoriteGroupViewSet(APIViewSet):
                     "is_deleted": false,
                     "deleted_at": null,
                     "deleted_by": null,
-                    "name": "private",
+                    "name": "个人收藏",
                     "group_type": "private",
-                    "space_uid": "bkcc__2"
+                    "space_uid": "bkcc__2",
+                    "source_type": "index_set"
                 }
             ],
             "result": true
         }
         """
         data = self.params_valid(FavoriteGroupListSerializer)
-        return Response(FavoriteGroupHandler(space_uid=data.get("space_uid")).list())
+        return Response(
+            FavoriteGroupHandler(space_uid=data.get("space_uid")).list(source_type=data["source_type"])
+        )
 
     def create(self, request, *args, **kwargs):
         """
         @api {post} /search/favorite_group/ 02_检索收藏组-创建
-        @apiDescription 创建公开收藏组
+        @apiDescription 创建公开收藏组（按 source_type 与普通检索/场景化检索隔离）
         @apiName create_favorite_group
         @apiGroup 21_Favorite
         @apiParam {String} space_uid 空间唯一标识
         @apiParam {String} name 收藏组名
+        @apiParam {String} [source_type=index_set] 收藏来源类型：index_set(默认) | scene
         @apiParamExample {json} 请求参数
         {
             "space_uid": "bkcc__2",
-            "name": "收藏组名"
+            "name": "收藏组名",
+            "source_type": "scene"
         }
         @apiSuccessExample {json} 成功返回：
         {
@@ -652,21 +674,24 @@ class FavoriteGroupViewSet(APIViewSet):
                     "is_deleted": false,
                     "deleted_at": null,
                     "deleted_by": null,
-                    "name": "private",
-                    "group_type": "private",
-                    "space_uid": "bkcc__2"
+                    "name": "收藏组名",
+                    "group_type": "public",
+                    "space_uid": "bkcc__2",
+                    "source_type": "scene"
                 },
             "result": true
         }
         """
         data = self.params_valid(CreateFavoriteGroupSerializer)
-        favorite_search = FavoriteGroupHandler(space_uid=data["space_uid"]).create_or_update(name=data["name"])
+        favorite_search = FavoriteGroupHandler(space_uid=data["space_uid"]).create_or_update(
+            name=data["name"], source_type=data["source_type"]
+        )
         return Response(favorite_search)
 
     def update(self, request, *args, **kwargs):
         """
         @api {PUT} /search/favorite_group/$group_id/ 02_检索收藏组-修改
-        @apiDescription 修改收藏组名
+        @apiDescription 修改收藏组名（source_type 不可变，按 group_id 定位）
         @apiName create_favorite_group
         @apiGroup 21_Favorite
         @apiParam {String} name 收藏组名
@@ -687,9 +712,10 @@ class FavoriteGroupViewSet(APIViewSet):
                     "is_deleted": false,
                     "deleted_at": null,
                     "deleted_by": null,
-                    "name": "private",
-                    "group_type": "private",
-                    "space_uid": "bkcc__2"
+                    "name": "收藏组名",
+                    "group_type": "public",
+                    "space_uid": "bkcc__2",
+                    "source_type": "scene"
                 },
             "result": true
         }

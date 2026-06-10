@@ -1194,6 +1194,108 @@ def get_data_id_to_cluster_name(bk_tenant_id: str, bk_data_ids: list[int]) -> di
     return {data_source.bk_data_id: cluster_id_to_names[data_source.mq_cluster_id] for data_source in data_sources}
 
 
+def update_migrate_data_id_routes(
+    data_id_to_kafka_cluster_name: dict[int, str], dry_run: bool = False
+) -> dict[int, dict[str, Any]]:
+    """更新迁移的上报dataid的双写路由
+
+    查询该dataid是否存在迁移的双写路由，如果不存在，则不用更新，如果存在，则更新该dataid的双写路由
+
+    Args:
+        data_id_to_kafka_cluster_name: 数据ID到迁移kafka集群名称的映射
+        dry_run: 是否为试运行，开启后只计算变更不实际调用gse更新接口
+
+    Returns:
+        dict[int, dict[str, Any]]: 成功匹配到迁移路由的dataid变更前后的route配置，结构为
+            {data_id: {"before": 变更前route配置, "after": 变更后route配置}}
+    """
+
+    # 获取迁移的kafka集群
+    migrate_kafka_clusters = {
+        c.cluster_name: c
+        for c in ClusterInfo.objects.filter(cluster_type=ClusterInfo.TYPE_KAFKA, cluster_name__startswith="migrate_")
+    }
+
+    # 记录每个dataid变更前后的route配置
+    route_changes: dict[int, dict[str, Any]] = {}
+
+    for data_id, kafka_cluster_name in data_id_to_kafka_cluster_name.items():
+        # 先检查迁移kafka集群是否存在，不存在则跳过
+        cluster_name = f"migrate_{kafka_cluster_name}"
+        cluster = migrate_kafka_clusters.get(cluster_name)
+        if cluster is None:
+            raise ValueError(f"kafka cluster({cluster_name}) not found")
+
+        data_source = DataSource.objects.filter(bk_data_id=data_id).first()
+        if data_source is None:
+            print(f"data_id({data_id}) migrate failed, data source not found")
+            continue
+
+        # 查询是否存在gse路由配置
+        try:
+            exist_gse_router_config = api.gse.query_route(
+                condition={"plat_name": config.DEFAULT_GSE_API_PLAT_NAME, "channel_id": data_id},
+                operation={"operator_name": settings.COMMON_USERNAME},
+            )
+        except BKAPIError as e:
+            print(f"data_id({data_id}) migrate failed, query gse router failed, error:({e})")
+            continue
+
+        # 如果gse路由配置为空，则跳过
+        if not exist_gse_router_config:
+            print(f"data_id({data_id}) migrate failed, gse router config is empty")
+            continue
+
+        # 获取存量gse路由配置并检查
+        exist_route_config = exist_gse_router_config[0]["route"]
+        if not exist_route_config:
+            print(f"data_id({data_id}) migrate failed, gse router config is empty")
+            continue
+
+        # 查询该dataid是否存在迁移的双写路由，不存在则不用更新
+        migrate_route_name = f"migrate_kafka_data_id_{data_id}"
+        migrate_route_index = next(
+            (
+                index
+                for index, route_config in enumerate(exist_route_config)
+                if route_config["name"] == migrate_route_name
+            ),
+            None,
+        )
+        if migrate_route_index is None:
+            print(f"data_id({data_id}) skip update, migrate gse route not found")
+            continue
+
+        # 更新已存在的迁移双写路由，保留原topic_name，仅更新指向的迁移kafka集群
+        new_route_config = deepcopy(exist_route_config)
+        new_route_config[migrate_route_index]["stream_to"]["stream_to_id"] = cluster.gse_stream_to_id
+
+        # 记录变更前后的route配置，无论是否dry_run都返回
+        route_changes[data_id] = {
+            "before": deepcopy(exist_route_config),
+            "after": new_route_config,
+        }
+
+        # 试运行模式下只计算变更，不实际更新gse路由
+        if dry_run:
+            print(f"data_id({data_id}) dry run, skip update gse router")
+            continue
+
+        # 更新gse路由配置
+        params = {
+            "condition": {"channel_id": data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
+            "operation": {"operator_name": data_source.creator},
+            "specification": {"route": new_route_config},
+        }
+        try:
+            api.gse.update_route(**params)
+        except BKAPIError as e:
+            print(f"data_id({data_id}) migrate failed, update gse router failed, error:({e})")
+            continue
+
+    return route_changes
+
+
 def add_new_migrate_data_id_routes(data_id_infos: dict[int, dict[str, Any]]):
     """为迁移的上报dataid添加双写路由
 

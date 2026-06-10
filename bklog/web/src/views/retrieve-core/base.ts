@@ -90,7 +90,7 @@ export default class extends EventEmitter<RetrieveEvent> {
 
   logRowsContainerId: string;
 
-  RGBA_LIST: string[];
+  RGBA_LIST: string[][];
 
   isSearching = false;
 

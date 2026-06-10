@@ -458,7 +458,6 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ES_INDEX_ROTATION_STEP", slz.IntegerField(label="ES索引轮转并发个数", default=50)),
         ("ES_STORAGE_OFFSET_HOURS", slz.IntegerField(label="ES采集项整体时间偏移量", default=8)),
         ("METADATA_REQUEST_ES_TIMEOUT_SECONDS", slz.IntegerField(label="Metadata轮转任务请求ES超时时间", default=10)),
-        ("BCS_DISCOVER_BCS_CLUSTER_INTERVAL", slz.IntegerField(label="BCS集群自动发现任务周期", default=5)),
         ("HOME_PAGE_ALARM_GRAPH_BIZ_LIMIT", slz.IntegerField(label="首页告警图业务数量限制", default=5)),
         ("HOME_PAGE_ALARM_GRAPH_LIMIT", slz.IntegerField(label="首页告警图图表数量限制", default=10)),
         ("INITIALIZED_TENANT_LIST", slz.ListField(label="已经初始化的租户列表", default=["system"])),
@@ -467,6 +466,18 @@ ADVANCED_OPTIONS = OrderedDict(
         ("RUM_ACCESS_URL", slz.CharField(label="RUM接收端URL", default="", allow_blank=True)),
         ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[0])),
         ("EXCLUDE_WORKER_TASKS", slz.ListField(label="排除特定的worker任务(需要重启alarm-beat生效)", default=[])),
+        (
+            "BCS_DISCOVER_BCS_CLUSTER_BIZ_BLACK_LIST",
+            slz.ListField(label="BCS集群自动发现任务黑名单业务ID列表", default=[]),
+        ),
+        (
+            "BCS_DISCOVER_BCS_CLUSTER_BIZ_WHITE_LIST",
+            slz.ListField(label="BCS集群自动发现任务白名单业务ID列表", default=[]),
+        ),
+        (
+            "ALARM_CACHE_REFRESH_BIZ_CONCURRENT",
+            slz.IntegerField(label="告警缓存刷新任务的业务并发度", default=3),
+        ),
     ]
 )
 

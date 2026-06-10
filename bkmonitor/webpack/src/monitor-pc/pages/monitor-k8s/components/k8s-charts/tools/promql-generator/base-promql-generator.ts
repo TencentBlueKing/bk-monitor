@@ -52,27 +52,28 @@ export abstract class K8sBasePromqlGenerator {
     let content = `bcs_cluster_id="${context.bcs_cluster_id}"`;
     const namespace = context.resourceMap.get(K8sTableColumnKeysEnum.NAMESPACE) || '';
     if (onlyNameSpace) {
-      content += `,namespace=~"^(${namespace})$"`;
+      content += `,namespace=~"^(${K8sBasePromqlGenerator.escapeRegExpValues(namespace)})$"`;
       return content;
     }
-    if (namespace.length > 2) {
-      content += `,namespace=~"^(${namespace})$"`;
+    // 仅当 namespace 非空时追加过滤；不能用 length>2，否则 qa/ci/a 等短 namespace 会被漏过滤导致查询范围扩大
+    if (namespace) {
+      content += `,namespace=~"^(${K8sBasePromqlGenerator.escapeRegExpValues(namespace)})$"`;
     }
     const podName = usePod ? 'pod' : 'pod_name';
     switch (context.groupByField) {
       case K8sTableColumnKeysEnum.CONTAINER:
-        content += `,${podName}=~"^(${context.resourceMap.get(K8sTableColumnKeysEnum.POD)})$",container_name=~"^(${context.resourceMap.get(K8sTableColumnKeysEnum.CONTAINER)})$"`;
+        content += `,${podName}=~"^(${K8sBasePromqlGenerator.escapeRegExpValues(context.resourceMap.get(K8sTableColumnKeysEnum.POD))})$",container_name=~"^(${K8sBasePromqlGenerator.escapeRegExpValues(context.resourceMap.get(K8sTableColumnKeysEnum.CONTAINER))})$"`;
         break;
       case K8sTableColumnKeysEnum.POD:
-        content += `,${podName}=~"^(${context.resourceMap.get(K8sTableColumnKeysEnum.POD)})$",${needExcludePod ? 'container_name!="POD"' : ''}`;
+        content += `,${podName}=~"^(${K8sBasePromqlGenerator.escapeRegExpValues(context.resourceMap.get(K8sTableColumnKeysEnum.POD))})$",${needExcludePod ? 'container_name!="POD"' : ''}`;
         break;
       case K8sTableColumnKeysEnum.WORKLOAD:
-        content += `,workload_kind=~"^(${context.resourceMap.get(K8sTableColumnKeysEnum.WORKLOAD_KIND)})$",workload_name=~"^(${context.resourceMap.get(K8sTableColumnKeysEnum.WORKLOAD)})$"`;
+        content += `,workload_kind=~"^(${K8sBasePromqlGenerator.escapeRegExpValues(context.resourceMap.get(K8sTableColumnKeysEnum.WORKLOAD_KIND))})$",workload_name=~"^(${K8sBasePromqlGenerator.escapeRegExpValues(context.resourceMap.get(K8sTableColumnKeysEnum.WORKLOAD))})$"`;
         break;
       case K8sTableColumnKeysEnum.INGRESS:
       case K8sTableColumnKeysEnum.SERVICE:
       case K8sTableColumnKeysEnum.NODE:
-        content += `,${context.groupByField}=~"^(${context.resourceMap.get(context.groupByField)})$"`;
+        content += `,${context.groupByField}=~"^(${K8sBasePromqlGenerator.escapeRegExpValues(context.resourceMap.get(context.groupByField))})$"`;
         break;
       default:
         content += '';
@@ -136,6 +137,24 @@ export abstract class K8sBasePromqlGenerator {
             $method by (pod_name, namespace) (
               kube_pod_container_resource_requests_memory_bytes{${K8sBasePromqlGenerator.createCommonPromqlContent(context, true)}} $time_shift
             )))`;
+  }
+
+  /**
+   * @static 静态方法
+   * @method escapeRegExpValues 转义 PromQL 正则匹配值
+   * @description 资源值以 =~"^(...)$" 形式拼入 PromQL，合法 K8s 资源名可能包含 . 等正则元字符，
+   * 不转义会导致误匹配。多个资源名以 | 连接（K8s 名称不含 |），按 | 切分后逐个转义再拼回。
+   * 不转义 -（正则中无特殊含义），保持常见带连字符资源名的输出整洁。
+   * 注意：输出用于双引号字符串字面量内，PromQL 字符串遵循 Go 转义规则，单写 \. 不是
+   * 合法转义序列（解析报 unknown escape sequence），正则转义引入的反斜杠须再成对转义为 \\.
+   * @param {string} value 以 | 连接的资源值
+   * @returns {string} 转义后的资源值
+   */
+  static escapeRegExpValues(value: string | undefined): string {
+    return (value || '')
+      .split('|')
+      .map(item => item.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\/g, '\\\\'))
+      .join('|');
   }
 
   /**

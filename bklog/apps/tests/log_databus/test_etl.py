@@ -732,10 +732,70 @@ class TestEtl(TestCase):
             "es_doc_values" not in result["params"]["time_option"], "time_option必须设置且不可设置doc_values"
         )
 
+        # IaaS 兼容: index_set 应为最终注册 RT id（库名.表名 → 下划线），
+        # 直接对比 build_result_table_id 的派生值，避免依赖被 mock 覆盖的 params["table_id"]。
+        from apps.log_databus.handlers.collector.base import CollectorHandler
+
+        expected_index_set = CollectorHandler.build_result_table_id(
+            collector_config.bk_biz_id, TABLE_ID
+        ).replace(".", "_")
+        self.assertEqual(
+            result["params"]["default_storage_config"]["index_set"],
+            expected_index_set,
+        )
+        self.assertIn("need_add_time", result["params"]["option"])
+        self.assertTrue(result["params"]["option"]["need_add_time"])
+        self.assertIn("time_field", result["params"]["option"])
+        self.assertEqual(result["params"]["option"]["time_field"]["name"], "dtEventTimeStamp")
+
         etl_config = etl_storage.parse_result_table_config(result["params"])
         self.assertIsInstance(etl_config["etl_params"]["es_unique_field_list"], list)
         self.assertEqual(etl_config["etl_params"]["separator_node_action"], "")
         return True
+
+    @patch("apps.api.TransferApi.create_result_table", lambda _: {"table_id": TABLE_ID})
+    @patch("apps.api.TransferApi.modify_result_table", lambda _: {"table_id": TABLE_ID})
+    @patch("apps.api.TransferApi.get_result_table", lambda _: {"table_id": TABLE_ID})
+    @patch("apps.api.TransferApi.get_cluster_info", lambda _: [CLUSTER_INFO])
+    @FakeRedis("apps.utils.cache.cache")
+    @patch("apps.log_databus.handlers.etl.EtlHandler._update_or_create_index_set")
+    @patch("apps.log_databus.tasks.collector.modify_result_table.delay", return_value=None)
+    def test_rt_option_from_index_set(self, mock_modify_delay, mock_index_set):
+        """time_field / need_add_time 应从 index_set 动态获取"""
+        from unittest.mock import MagicMock
+
+        collector_config = CollectorConfig.objects.create(**COLLECTOR_CONFIG)
+        collector_config.index_set_id = 999
+        collector_config.save()
+        mock_index_set.return_value = LOG_INDEX_DATA
+
+        fake_index_set = MagicMock()
+        fake_index_set.time_field = "custom_time"
+        fake_index_set.time_field_type = "long"
+        fake_index_set.time_field_unit = "second"
+
+        with patch(
+            "apps.log_search.models.LogIndexSet.objects.filter",
+            return_value=MagicMock(first=MagicMock(return_value=fake_index_set)),
+        ):
+            etl_storage = EtlStorage.get_instance(ETL_CONFIG)
+            result = etl_storage.update_or_create_result_table(
+                collector_config,
+                table_id=TABLE_ID,
+                storage_cluster_id=STORAGE_CLUSTER_ID,
+                retention=RETENTION_TIME,
+                allocation_min_days=ALLOCATION_MIN_DAYS,
+                storage_replies=1,
+                fields=FIELDS,
+                etl_params=ETL_PARAMS,
+                hot_warm_config=HOT_WARM_CONFIG,
+            )
+
+        tf = result["params"]["option"]["time_field"]
+        self.assertEqual(tf["name"], "custom_time")
+        self.assertEqual(tf["type"], "long")
+        self.assertEqual(tf["unit"], "second")
+        self.assertTrue(result["params"]["option"]["need_add_time"])
 
     @patch("apps.api.TransferApi.create_result_table", lambda _: {"table_id": TABLE_ID})
     @patch("apps.api.TransferApi.modify_result_table", lambda _: {"table_id": TABLE_ID})

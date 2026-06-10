@@ -208,6 +208,99 @@ class TestMergeResolverHydrate:
         assert "merge_status" not in issues[0]
 
 
+class TestMergeStatusConflictHint:
+    """终态主 Issue 持有活跃 member 时，merge_status 暴露 status_conflict + active_member_count。
+
+    合并/拆分与状态解耦后，活跃 member 可被并入已结案（resolved/archived）主 Issue，主状态不级联，
+    于是出现「历史 Issue 下仍有活跃关联问题」。该提示让前端避免用户误判异常已结束。
+    需 mock Step 2 的 IssueDocument.search（取 member ES 状态）；不 mock 时 ES 失败 fail-open，
+    回落到 Step 1 默认值（status_conflict=False / active_member_count=0）。
+    """
+
+    @staticmethod
+    def _ctx(main_to_members):
+        ctx = MergeResolverContext(bk_biz_id=2)
+        ctx._loaded = True
+        ctx._main_to_members = main_to_members
+        ctx._member_to_main = {m["member_issue_id"]: main for main, members in main_to_members.items() for m in members}
+        return ctx
+
+    @staticmethod
+    def _patch_member_docs(monkeypatch, status_by_id):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
+        from bkmonitor.documents.issue import IssueDocument
+
+        hits = [
+            SimpleNamespace(
+                meta=SimpleNamespace(id=mid),
+                status=st,
+                first_alert_time=None,
+                last_alert_time=None,
+                impact_scope=None,
+            )
+            for mid, st in status_by_id.items()
+        ]
+        search_mock = MagicMock()
+        search_mock.filter.return_value.source.return_value.params.return_value.execute.return_value.hits = hits
+        monkeypatch.setattr(IssueDocument, "search", classmethod(lambda cls, **kw: search_mock))
+
+    def test_conflict_when_terminal_main_holds_active_member(self, monkeypatch):
+        from constants.issue import IssueStatus
+
+        ctx = self._ctx({"a1": [{"member_issue_id": "b1"}, {"member_issue_id": "b2"}]})
+        self._patch_member_docs(monkeypatch, {"b1": IssueStatus.UNRESOLVED, "b2": IssueStatus.RESOLVED})
+
+        issues = [{"id": "a1", "status": IssueStatus.RESOLVED}]
+        IssueMergeResolver.hydrate_aggregations(issues, ctx)
+
+        ms = issues[0]["merge_status"]
+        assert ms["role"] == "main"
+        assert ms["active_member_count"] == 1  # 仅 b1 活跃；b2 已解决不计入
+        assert ms["status_conflict"] is True
+
+    def test_no_conflict_when_main_active(self, monkeypatch):
+        from constants.issue import IssueStatus
+
+        ctx = self._ctx({"a1": [{"member_issue_id": "b1"}]})
+        self._patch_member_docs(monkeypatch, {"b1": IssueStatus.UNRESOLVED})
+
+        issues = [{"id": "a1", "status": IssueStatus.UNRESOLVED}]
+        IssueMergeResolver.hydrate_aggregations(issues, ctx)
+
+        ms = issues[0]["merge_status"]
+        assert ms["active_member_count"] == 1
+        assert ms["status_conflict"] is False  # 主非终态，活跃 member 属正常合并，不算冲突
+
+    def test_no_conflict_when_terminal_main_all_members_inactive(self, monkeypatch):
+        from constants.issue import IssueStatus
+
+        ctx = self._ctx({"a1": [{"member_issue_id": "b1"}, {"member_issue_id": "b2"}]})
+        self._patch_member_docs(monkeypatch, {"b1": IssueStatus.RESOLVED, "b2": IssueStatus.ARCHIVED})
+
+        issues = [{"id": "a1", "status": IssueStatus.ARCHIVED}]
+        IssueMergeResolver.hydrate_aggregations(issues, ctx)
+
+        ms = issues[0]["merge_status"]
+        assert ms["active_member_count"] == 0
+        assert ms["status_conflict"] is False  # 主终态但 member 已随主结案，无冲突
+
+    def test_conflict_fields_default_when_es_fails(self):
+        from constants.issue import IssueStatus
+
+        # 不 mock IssueDocument.search → Step 2 ES 查询失败 fail-open，保留 Step 1 默认值
+        ctx = self._ctx({"a1": [{"member_issue_id": "b1"}]})
+
+        issues = [{"id": "a1", "status": IssueStatus.RESOLVED}]
+        IssueMergeResolver.hydrate_aggregations(issues, ctx)
+
+        ms = issues[0]["merge_status"]
+        assert ms["role"] == "main"
+        assert ms["status_conflict"] is False
+        assert ms["active_member_count"] == 0
+
+
 class TestExpandAndFilter:
     """expand_to_full_ids / filter_out_members / resolve_display_id 行为。"""
 
@@ -1021,11 +1114,11 @@ class TestMergeReasonsOptional:
         assert s.validated_data["reasons"] == []
 
 
-class TestMergeAllowsInactiveMember:
-    """放开 member 状态门槛：非活跃（已解决 / 已归档）Issue 可并入活跃主；main 仍必须活跃。
+class TestMergeDecoupledFromStatus:
+    """合并与 Issue 状态完全解耦：main 与 member 处于任意状态（含已解决 / 已归档）都可参与合并。
 
     直接驱动 ``MergeResource.perform_request``，mock 掉 ES 查询 + 关系表 SQL + 事务，
-    断言「member 非活跃不再被拦」且「main 非活跃仍被拦」。
+    断言「member 非活跃可并入」且「main 非活跃也可作为合并目标」。
     """
 
     MAIN_ID = "1716000000abcdef01"
@@ -1049,12 +1142,12 @@ class TestMergeAllowsInactiveMember:
 
         from kernel_api.views.v4 import issue as issue_mod
 
-        # 校验 1：ES 存在性 + status 查询
+        # 校验 1：ES 存在性查询
         search_mock = MagicMock()
         search_mock.filter.return_value.source.return_value.params.return_value.execute.return_value.hits = hits
         monkeypatch.setattr(issue_mod.IssueDocument, "search", classmethod(lambda cls, **kw: search_mock))
 
-        # 校验 3/4/5 关系查询全部"无冲突"，bulk_create 捕获写入行
+        # 校验 2/3/4 关系查询全部"无冲突"，bulk_create 捕获写入行
         manager = MagicMock()
         manager.select_for_update.return_value.filter.return_value.values.return_value.first.return_value = None
         manager.filter.return_value.values_list.return_value.distinct.return_value = []
@@ -1104,19 +1197,25 @@ class TestMergeAllowsInactiveMember:
         assert rows[0].member_issue_id == self.MEMBER_ID
         assert rows[0].main_issue_id == self.MAIN_ID
 
-    def test_inactive_main_still_blocked(self, monkeypatch):
-        from bkmonitor.issue_merge import MergeMainStatusForbiddenError
+    @pytest.mark.parametrize("main_status_attr", ["RESOLVED", "ARCHIVED"])
+    def test_inactive_main_now_allowed(self, monkeypatch, main_status_attr):
+        """主非活跃（已解决 / 已归档）也可作为合并目标：状态门槛已彻底移除，合并/拆分与状态解耦。"""
         from constants.issue import IssueStatus
         from kernel_api.views.v4.issue import MergeResource
 
         hits = [
-            self._Hit(self.MAIN_ID, IssueStatus.RESOLVED),
+            self._Hit(self.MAIN_ID, getattr(IssueStatus, main_status_attr)),
             self._Hit(self.MEMBER_ID, IssueStatus.UNRESOLVED),
         ]
-        self._patch_io(monkeypatch, hits)
+        captured = self._patch_io(monkeypatch, hits)
 
-        with pytest.raises(MergeMainStatusForbiddenError):
-            MergeResource().perform_request(self._data())
+        result = MergeResource().perform_request(self._data())
+
+        assert result["status"] == "ok"
+        rows = captured["rows"]
+        assert len(rows) == 1
+        assert rows[0].main_issue_id == self.MAIN_ID
+        assert rows[0].member_issue_id == self.MEMBER_ID
 
 
 class TestListIssueHistoryExcludesActiveMembers:
