@@ -276,3 +276,70 @@ class SceneFieldsConfigHandler:
                 defaults={"config_id": tpl.id},
             )
         return cls.build_user_fields_config_response(user_obj, tpl, username, source_app_code)
+
+
+class UserSceneCustomConfigHandler:
+    """场景化检索 - 用户 UI 偏好（7 字段 JSON）CRUD，与模板系统完全解耦。
+
+    对标 ``apps.log_search.handlers.index_set.UserIndexSetConfigHandler``：
+    存储载体是 ``UserSceneCustomConfig.scene_config``，前端按 camelCase 的完整 JSON
+    （``fieldsWidth`` / ``displayFields`` / ``filterSetting`` / ``filterAddition`` /
+    ``fixedFilterAddition`` / ``sortList`` / ``contextDisplayFields``）一次性 upsert，
+    后端不解析内层结构。
+    """
+
+    @classmethod
+    def get(
+        cls,
+        bk_biz_id: int,
+        username: str,
+        scene_id: str,
+        scope: str = SearchScopeEnum.DEFAULT.value,
+    ) -> dict:
+        source_app_code = get_request_app_code()
+        obj = UserSceneCustomConfig.objects.filter(
+            bk_biz_id=bk_biz_id,
+            username=username,
+            scene_id=scene_id,
+            scope=scope,
+            source_app_code=source_app_code,
+        ).first()
+        return obj.scene_config if obj else {}
+
+    @classmethod
+    def update_or_create(
+        cls,
+        bk_biz_id: int,
+        username: str,
+        scene_id: str,
+        scope: str,
+        scene_config: dict,
+    ) -> dict:
+        source_app_code = get_request_app_code()
+        obj, _ = UserSceneCustomConfig.objects.update_or_create(
+            bk_biz_id=bk_biz_id,
+            username=username,
+            scene_id=scene_id,
+            scope=scope,
+            source_app_code=source_app_code,
+            defaults={"scene_config": scene_config or {}},
+        )
+        return obj.scene_config or {}
+
+    @classmethod
+    def delete(
+        cls,
+        bk_biz_id: int,
+        username: str,
+        scene_id: str,
+        scope: str = SearchScopeEnum.DEFAULT.value,
+    ) -> dict:
+        source_app_code = get_request_app_code()
+        deleted, _ = UserSceneCustomConfig.objects.filter(
+            bk_biz_id=bk_biz_id,
+            username=username,
+            scene_id=scene_id,
+            scope=scope,
+            source_app_code=source_app_code,
+        ).delete()
+        return {"deleted": bool(deleted)}
