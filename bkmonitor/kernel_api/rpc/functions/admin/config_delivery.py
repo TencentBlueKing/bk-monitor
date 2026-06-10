@@ -995,6 +995,15 @@ def _serialize_custom_report_subscription(
     }
 
 
+def _filter_custom_report_items_by_protocol(
+    items: list[dict[str, Any]], params: dict[str, Any]
+) -> list[dict[str, Any]]:
+    protocol = str(params.get("protocol") or "").strip().lower()
+    if not protocol:
+        return items
+    return [item for item in items if str(item.get("protocol") or "").strip().lower() == protocol]
+
+
 def _extract_context_from_config(config: Any) -> dict[str, Any]:
     contexts = _extract_config_contexts(config)
     return contexts[0] if contexts else {}
@@ -1248,9 +1257,7 @@ def get_ping_server_config_detail(params: dict[str, Any]) -> dict[str, Any]:
     if not record:
         raise CustomException(message=f"未找到 PingServer 订阅配置: subscription_id={subscription_id}")
     item = _with_config_detail(_serialize_ping_server_config(record), record.config)
-    item["ping_targets"] = _paginate_ping_targets(
-        record.config, page=ping_target_page, page_size=ping_target_page_size
-    )
+    item["ping_targets"] = _paginate_ping_targets(record.config, page=ping_target_page, page_size=ping_target_page_size)
     return build_response(
         operation="config_delivery.ping_server_detail",
         func_name=FUNC_CONFIG_DELIVERY_PING_SERVER_DETAIL,
@@ -1267,19 +1274,30 @@ def get_ping_server_config_detail(params: dict[str, Any]) -> dict[str, Any]:
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "bk_biz_id": "可选，业务 ID",
         "bk_data_id": "可选，DataID 精确匹配",
+        "protocol": "可选，协议过滤，支持 json / prometheus",
         "subscription_id": "可选，NodeMan 订阅 ID",
         "page": "可选，默认 1",
         "page_size": "可选，默认 20，最大 100",
     },
-    example_params={"bk_tenant_id": "system", "bk_data_id": 50010, "page": 1, "page_size": 20},
+    example_params={
+        "bk_tenant_id": "system",
+        "bk_data_id": 50010,
+        "protocol": "json",
+        "page": 1,
+        "page_size": 20,
+    },
 )
 def list_custom_report_subscriptions(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_page_list_bk_tenant_id(params)
     page, page_size = normalize_pagination(params)
     records = list(_build_custom_report_queryset(params))
     filtered_records, warnings = _filter_custom_report_records_by_tenant(records, bk_tenant_id)
-    page_records, total = _paginate_items(
+    filtered_items = _filter_custom_report_items_by_protocol(
         [_serialize_custom_report_subscription(record, bk_tenant_id) for record in filtered_records],
+        params,
+    )
+    page_records, total = _paginate_items(
+        filtered_items,
         page=page,
         page_size=page_size,
     )
