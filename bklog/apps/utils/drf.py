@@ -215,8 +215,11 @@ class GeneralSerializer(ModelSerializer):
 
 
 class DataPageNumberPagination(PageNumberPagination):
+    # 注意：不要设置类级 page_size 默认值。该分页类是 generic.ModelViewSet 的全局默认分页类，
+    # 历史行为是「未显式传 page/pagesize 时不分页、返回完整 list」。一旦设置 page_size，
+    # 会让所有继承 ModelViewSet 的列表接口强制分页（返回 {"total","list"}），破坏大量既有接口。
+    # 需要分页时由调用方传 page/pagesize（支持 query 或 POST body，见 _get_param）。
     PAGE_SIZE = 10
-    page_size = 10
     page_query_param = "page"
     page_size_query_param = "pagesize"
     max_page_size = 1000
