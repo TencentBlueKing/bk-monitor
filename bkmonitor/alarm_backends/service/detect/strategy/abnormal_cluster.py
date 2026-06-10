@@ -111,6 +111,7 @@ class AbnormalCluster(SDKPreDetectMixin, BasicAlgorithmsCollection):
                         self.PREDICT_FUNC,
                         **clsuter_timed_data,
                         predict_args=predict_args,
+                        bk_tenant_id=item.bk_tenant_id,
                     )
                     # 将future对象和对应的cluster_dimensions关联起来
                     task_dimensions_map[future] = cluster_dimensions
