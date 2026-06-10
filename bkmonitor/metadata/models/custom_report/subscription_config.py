@@ -381,7 +381,13 @@ class CustomReportSubscription(models.Model):
         )
 
     @classmethod
-    def refresh_collector_custom_conf(cls, bk_tenant_id: str, bk_biz_id: int | None = None, op_type: str = "add"):
+    def refresh_collector_custom_conf(
+        cls,
+        bk_tenant_id: str,
+        bk_biz_id: int | None = None,
+        op_type: str = "add",
+        deploy_targets: tuple[str, ...] | list[str] | str = ("node_man", "k8s"),
+    ):
         """
         指定业务ID更新，或者更新全量业务
 
@@ -398,7 +404,18 @@ class CustomReportSubscription(models.Model):
             按业务ID将上面的任务下发到机器上，通过节点管理的订阅接口，其中0业务为直连云区域，下发所有data_id配置
             bk-collector: 单个data_id对应创建单个订阅
         """
-        logger.info("refresh custom report config to proxy on bk_biz_id(%s)", bk_biz_id)
+        if isinstance(deploy_targets, str):
+            deploy_targets = (deploy_targets,)
+        deploy_targets = tuple(dict.fromkeys(deploy_targets))
+        invalid_deploy_targets = sorted(set(deploy_targets) - {"node_man", "k8s"})
+        if invalid_deploy_targets:
+            raise ValueError(f"unsupported custom report deploy targets: {invalid_deploy_targets}")
+
+        logger.info(
+            "refresh custom report config to proxy on bk_biz_id(%s), deploy_targets(%s)",
+            bk_biz_id,
+            deploy_targets,
+        )
 
         # 获取业务的自定义事件/指标配置
         biz_id_to_data_id_config: dict[int, list[tuple[dict, str]]] = defaultdict(list)
@@ -423,7 +440,10 @@ class CustomReportSubscription(models.Model):
         # 增加默认业务
         bk_biz_ids.add(0)
 
-        for bk_biz_id in bk_biz_ids:
+        for bk_biz_id in sorted(
+            bk_biz_ids,
+            key=lambda current_bk_biz_id: (current_bk_biz_id == 0, current_bk_biz_id),
+        ):
             # 0业务下发全部配置，其他业务下发指定业务配置
             if bk_biz_id == 0:
                 data_id_configs: list[tuple[dict[str, Any], str]] = list(
@@ -431,25 +451,27 @@ class CustomReportSubscription(models.Model):
                 )
             else:
                 data_id_configs = biz_id_to_data_id_config.get(bk_biz_id, [])
-            try:
-                # 1. 下发配置（走节点管理下发至主机）
-                cls._refresh_collect_custom_config_by_biz(
-                    bk_tenant_id=bk_tenant_id if bk_biz_id != 0 else DEFAULT_TENANT_ID,
-                    bk_biz_id=bk_biz_id,
-                    op_type=op_type,
-                    data_id_configs=data_id_configs,
-                )
-            except Exception as e:
-                logger.exception(f"refresh custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}")
+            if "node_man" in deploy_targets:
+                try:
+                    # 1. 下发配置（走节点管理下发至主机）
+                    cls._refresh_collect_custom_config_by_biz(
+                        bk_tenant_id=bk_tenant_id if bk_biz_id != 0 else DEFAULT_TENANT_ID,
+                        bk_biz_id=bk_biz_id,
+                        op_type=op_type,
+                        data_id_configs=data_id_configs,
+                    )
+                except Exception as e:
+                    logger.exception(f"refresh custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}")
 
-            try:
-                # 2. 下发配置（走 K8S 下发至集群）
-                cls._refresh_k8s_custom_config_by_biz(
-                    bk_biz_id=bk_biz_id,
-                    data_id_configs=data_id_configs,
-                )
-            except Exception as e:
-                logger.exception(f"refresh k8s custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}")
+            if "k8s" in deploy_targets:
+                try:
+                    # 2. 下发配置（走 K8S 下发至集群）
+                    cls._refresh_k8s_custom_config_by_biz(
+                        bk_biz_id=bk_biz_id,
+                        data_id_configs=data_id_configs,
+                    )
+                except Exception as e:
+                    logger.exception(f"refresh k8s custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}")
 
     @classmethod
     def create_or_update_config(cls, bk_tenant_id: str, bk_biz_id: int, subscription_params, bk_data_id=0):
