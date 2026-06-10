@@ -318,10 +318,17 @@ class TestUserCustomConfigSerializersAntiSpoof(TestCase):
 
 
 def _bare_scene_handler():
-    """构造一个不走 __init__ 的 SceneUnifyQueryHandler 裸实例，仅用于校验逻辑单测。"""
+    """构造一个不走 __init__ 的 SceneUnifyQueryHandler 裸实例，仅用于校验逻辑单测。
+
+    场景检索鉴权构造 INDICES 资源时依赖 self.space_uid / self.bk_biz_id 注入
+    _bk_iam_path_，这里预置一个业务空间，保证资源属性可被确定性生成。
+    """
     from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 
-    return SceneUnifyQueryHandler.__new__(SceneUnifyQueryHandler)
+    handler = SceneUnifyQueryHandler.__new__(SceneUnifyQueryHandler)
+    handler.space_uid = "bkcc__2"
+    handler.bk_biz_id = 2
+    return handler
 
 
 class TestMapResultTablesToIndexSets(TestCase):
@@ -449,6 +456,33 @@ class TestVerifyResultTableSearchPermission(TestCase):
             handler.verify_result_table_search_permission(["2_bklog.a"])
             # 第二次命中缓存，IAM 只被调用一次
             m_perm_cls.return_value.batch_is_allowed.assert_called_once()
+
+    def test_resources_carry_bk_iam_path_attribute(self):
+        """回归：空间级 SEARCH_LOG 策略含 indices._bk_iam_path_ 条件，
+
+        每个 INDICES 资源必须显式携带 _bk_iam_path_，否则 IAM SDK 本地
+        策略求值（含 expr.render 的 debug 日志）会 KeyError 整批 500。
+        """
+        from apps.iam.handlers.actions import ActionEnum
+
+        handler = _bare_scene_handler()
+        with patch(
+            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
+            "_map_result_tables_to_index_sets",
+            return_value=[123, 456],
+        ), patch("apps.iam.handlers.permission.Permission") as m_perm_cls:
+            m_perm_cls.return_value.batch_is_allowed.return_value = {
+                "123": {ActionEnum.SEARCH_LOG.id: True},
+                "456": {ActionEnum.SEARCH_LOG.id: True},
+            }
+            handler.verify_result_table_search_permission(["2_bklog.a", "2_bklog.b"])
+            # 取实际传给 IAM 的 resources，逐个断言带 _bk_iam_path_
+            _actions, resources = m_perm_cls.return_value.batch_is_allowed.call_args[0]
+            self.assertEqual(len(resources), 2)
+            for resource_group in resources:
+                resource = resource_group[0]
+                self.assertIn("_bk_iam_path_", resource.attribute)
+                self.assertEqual(resource.attribute["_bk_iam_path_"], "/space,2/")
 
 
 # =========================================================================
