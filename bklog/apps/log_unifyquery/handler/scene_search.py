@@ -399,9 +399,24 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         from apps.iam.exceptions import PermissionDeniedError
         from apps.iam.handlers.permission import Permission
 
+        # 必须显式带上空间/业务属性：场景检索命中的索引集都属于同一个 space_uid，
+        # 而用户的 SEARCH_LOG 策略通常是空间级下发（条件里含 indices._bk_iam_path_）。
+        # IAM SDK 本地求值（含 expr.render 的 debug 日志）会遍历该字段，
+        # 资源缺 _bk_iam_path_ 时直接 KeyError 整批 500。不传 attribute 会退化成
+        # 按 index_set_id 反查 LogIndexSet 补路径，一旦查不到就返回空 attribute 触发崩溃。
+        def _build_indices_attribute() -> dict:
+            attribute = {"space_uid": self.space_uid}
+            if self.bk_biz_id:
+                attribute["bk_biz_id"] = self.bk_biz_id
+            return attribute
+
         perm = Permission()
         resources = [
-            [ResourceEnum.INDICES.create_simple_instance(instance_id=str(index_set_id))]
+            [
+                ResourceEnum.INDICES.create_simple_instance(
+                    instance_id=str(index_set_id), attribute=_build_indices_attribute()
+                )
+            ]
             for index_set_id in index_set_ids
         ]
         permission_result = perm.batch_is_allowed([ActionEnum.SEARCH_LOG], resources)
@@ -412,7 +427,9 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         ]
         if denied:
             denied_resources = [
-                ResourceEnum.INDICES.create_simple_instance(instance_id=str(index_set_id))
+                ResourceEnum.INDICES.create_simple_instance(
+                    instance_id=str(index_set_id), attribute=_build_indices_attribute()
+                )
                 for index_set_id in denied
             ]
             apply_data, apply_url = perm.get_apply_data([ActionEnum.SEARCH_LOG], denied_resources)
