@@ -137,15 +137,22 @@ export interface RumTableItem {
   span_result_table_id: string;
 }
 
-/** 支持前端排序的指标字段（对应 RumAppRow 中的 key） */
-export type SortableMetricKey = 'apiFailRate' | 'jsErrorRate' | 'lcpP75';
+/** 排序指标字段枚举（单一数据源，类型与常量均由此推导） */
+const SortableMetric = {
+  lcpP75: 'lcpP75',
+  jsErrorRate: 'jsErrorRate',
+  apiFailRate: 'apiFailRate',
+} as const;
 
-/** 排序字段常量，与 SortableMetricKey 联动保持一致 */
-export const SORTABLE_METRIC_KEYS: readonly SortableMetricKey[] = ['lcpP75', 'jsErrorRate', 'apiFailRate'];
+/** 由 SortableMetric 自动推导的联合类型 */
+export type SortableMetricKey = (typeof SortableMetric)[keyof typeof SortableMetric];
+
+/** 排序字段常量数组，与 SortableMetric 联动 */
+export const SORTABLE_METRIC_KEYS = Object.values(SortableMetric) as readonly SortableMetricKey[];
 
 /** 排序列的标题 i18n key 映射 */
 export const METRIC_COLUMN_TITLES: Record<SortableMetricKey, string> = {
-  lcpP75: 'LCP P75',
-  jsErrorRate: 'JS 错误率',
-  apiFailRate: 'API 失败率',
+  [SortableMetric.lcpP75]: 'LCP P75',
+  [SortableMetric.jsErrorRate]: 'JS 错误率',
+  [SortableMetric.apiFailRate]: 'API 失败率',
 };
