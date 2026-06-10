@@ -610,3 +610,46 @@ class TestInitSceneDesensitize(TestCase):
             handler._init_scene_desensitize(["2_bklog.a"])
             # 第二次命中幂等，不再查询 DB
             m_field.objects.filter.assert_called_once()
+
+
+# =========================================================================
+# 7. 查询原语层后置鉴权（单一卡点）
+#    ts/raw、ts、ts/reference、scroll 出数后自动按命中结果表校验 SEARCH_LOG
+# =========================================================================
+
+
+@override_settings(IGNORE_IAM_PERMISSION=False)
+class TestQueryPrimitivesPostAuth(TestCase):
+    """覆盖 query_ts / query_ts_reference / query_ts_raw / query_ts_raw_with_scroll
+    四个原语：super() 取数后必须触发 verify_result_table_search_permission。"""
+
+    def _assert_primitive_verifies(self, method_name, parent_attr):
+        handler = _bare_scene_handler()
+        response = {"series": [], "list": [], "result_table_id": ["2_bklog.a", "2_bklog.b"]}
+        with patch(
+            f"apps.log_unifyquery.handler.base.UnifyQueryHandler.{parent_attr}",
+            return_value=response,
+        ), patch.object(handler, "verify_result_table_search_permission") as m_verify:
+            result = getattr(handler, method_name)({"foo": 1})
+            m_verify.assert_called_once_with(["2_bklog.a", "2_bklog.b"])
+            self.assertIs(result, response)
+
+    def test_query_ts_triggers_verify(self):
+        self._assert_primitive_verifies("query_ts", "query_ts")
+
+    def test_query_ts_reference_triggers_verify(self):
+        self._assert_primitive_verifies("query_ts_reference", "query_ts_reference")
+
+    def test_query_ts_raw_triggers_verify(self):
+        self._assert_primitive_verifies("query_ts_raw", "query_ts_raw")
+
+    def test_query_ts_raw_with_scroll_triggers_verify(self):
+        self._assert_primitive_verifies("query_ts_raw_with_scroll", "query_ts_raw_with_scroll")
+
+    def test_no_result_table_id_skips_iam(self):
+        """响应不含 result_table_id（如 ts_reference 失败兜底）时不应触发 IAM、不抛异常。"""
+        handler = _bare_scene_handler()
+        with patch("apps.iam.handlers.permission.Permission") as m_perm:
+            handler._verify_scene_permission({"series": []})
+            m_perm.assert_not_called()
+        self.assertTrue(handler._rt_perm_verified)
