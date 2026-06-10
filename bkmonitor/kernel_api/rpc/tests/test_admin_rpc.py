@@ -214,14 +214,23 @@ def test_config_delivery_ping_server_serializer_marks_disabled_flags(monkeypatch
         bk_host_id=2001,
         plugin_name="bkmonitorproxy",
         config={
+            "type": "PLUGIN",
             "status": "STOP",
+            "config": {
+                "plugin_name": "bkmonitorproxy",
+                "config_templates": [{"name": "bkmonitorproxy_ping.conf", "version": "latest"}],
+            },
             "scope": {"nodes": [{"bk_host_id": 2001}]},
-            "steps": [
-                {
-                    "config": {"plugin_name": "bkmonitorproxy"},
-                    "params": {"context": {"ip_to_items": {2001: [{"target_ip": "10.0.0.1"}]}}},
+            "params": {
+                "context": {
+                    "ip_to_items": {
+                        2001: [
+                            {"target_biz_id": 11, "target_ip": "10.0.0.1", "target_cloud_id": 0},
+                            {"target_biz_id": 12, "target_ip": "10.0.0.2", "target_cloud_id": 0},
+                        ]
+                    }
                 }
-            ],
+            },
         },
     )
 
@@ -232,8 +241,30 @@ def test_config_delivery_ping_server_serializer_marks_disabled_flags(monkeypatch
     assert item["global_ping_disabled"] is True
     assert item["direct_area_disabled"] is True
     assert item["collect_disabled"] is True
-    assert item["target_count"] == 1
+    assert item["target"]["node_count"] == 1
+    assert item["target_count"] == 2
+    assert item["target"]["ping_target_count"] == 2
+    assert item["ping_target_summary"]["source_host_count"] == 1
+    assert item["expected_status"] == "STOP"
     assert item["config_summary"]["plugin_names"] == ["bkmonitorproxy"]
+    assert item["config_summary"]["template_names"] == ["bkmonitorproxy_ping.conf"]
+
+    first_page = admin_config_delivery._paginate_ping_targets(subscription.config, page=1, page_size=1)
+    assert first_page["total"] == 2
+    assert first_page["source_host_count"] == 1
+    assert first_page["items"] == [
+        {
+            "index": 1,
+            "source_host_id": "2001",
+            "target_biz_id": 11,
+            "target_ip": "10.0.0.1",
+            "target_cloud_id": 0,
+        }
+    ]
+
+    second_page = admin_config_delivery._paginate_ping_targets(subscription.config, page=2, page_size=1)
+    assert second_page["items"][0]["index"] == 2
+    assert second_page["items"][0]["target_ip"] == "10.0.0.2"
 
 
 def test_config_delivery_custom_report_serializer_keeps_default_tenant():
