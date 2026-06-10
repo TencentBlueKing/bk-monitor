@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import copy
+from typing import Any
 
 from django.conf import settings
 from django.core.cache import cache
@@ -487,6 +488,11 @@ class ListApplicationAsyncResource(AsyncColumnsListResource):
         "js_error_rate": JsErrorRateInstance,
         "api_fail_rate": ApiFailRateInstance,
     }
+    METRIC_UNIT = {
+        "lcp_p75": "s",
+        "js_error_rate": "%",
+        "api_fail_rate": "%",
+    }
 
     SyncResource = ListApplicationResource
 
@@ -533,6 +539,20 @@ class ListApplicationAsyncResource(AsyncColumnsListResource):
             metric_map[application_id] = app_metric
         return metric_map
 
+    @classmethod
+    def get_async_column_item(cls, data, column, **kwargs):
+        column_dict: dict[str, float] = super().get_async_column_item(data, column, **kwargs)
+        metric_dict: dict[str, dict[str, Any]] = {}
+        for metric_name, metric_value in column_dict.items():
+            if metric_name == "lcp_p75":
+                metric_value = round(metric_value / 1000, 1)
+            metric_dict[metric_name] = {
+                "id": metric_name,
+                "value": metric_value,
+                "unit": cls.METRIC_UNIT.get(metric_name, ""),
+            }
+        return metric_dict
+
     def build_res(self, validate_data, app_mapping, metric_data):
         """
         获取返回数据
@@ -554,10 +574,7 @@ class ListApplicationAsyncResource(AsyncColumnsListResource):
                     {
                         "application_id": application_id,
                         "app_name": app_mapping[application_id][0].app_name,
-                        **{
-                            k: {"id": k, "value": v, "unit": "ms"}
-                            for k, v in self.get_async_column_item(app_metric, validate_data["column"]).items()
-                        },
+                        **self.get_async_column_item(app_metric, validate_data["column"]),
                     }
                 )
 
