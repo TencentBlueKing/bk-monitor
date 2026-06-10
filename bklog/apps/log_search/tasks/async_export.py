@@ -487,7 +487,9 @@ class AsyncExportUtils:
 
     def _quick_export(self, search_handler):
         multi_result = search_handler.multi_get_slice_data(
-            pre_file_name=self.file_name, export_file_type=self.export_file_type
+            pre_file_name=self.file_name,
+            export_file_type=self.export_file_type,
+            async_task_id=self.async_task_id,
         )
         for idx, result in multi_result.items():
             if isinstance(result, Exception):
@@ -784,7 +786,9 @@ class UnionAsyncExportUtils:
     def _quick_export(self, search_handler):
         pre_file_name = f"{self.file_name}_{search_handler.index_set_id}"
         multi_result = search_handler.multi_get_slice_data(
-            pre_file_name=pre_file_name, export_file_type=self.export_file_type
+            pre_file_name=pre_file_name,
+            export_file_type=self.export_file_type,
+            async_task_id=self.async_task_id,
         )
         for idx, result in multi_result.items():
             if isinstance(result, Exception):
