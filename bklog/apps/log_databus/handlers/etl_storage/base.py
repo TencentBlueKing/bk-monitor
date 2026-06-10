@@ -53,10 +53,14 @@ from apps.log_databus.handlers.collector_scenario.utils import build_es_option_t
 from apps.log_databus.models import CollectorConfig, CollectorPlugin
 from apps.log_databus.utils.es_config import get_es_config, is_version_less_than
 from apps.log_search.constants import (
+    DEFAULT_TIME_FIELD,
     FieldBuiltInEnum,
     FieldDataTypeEnum,
     FieldDateFormatEnum,
+    TimeFieldTypeEnum,
+    TimeFieldUnitEnum,
 )
+from apps.log_search.models import Scenario
 from apps.utils import is_match_variate, md5_sum
 from apps.utils.codecs import unicode_str_decode
 from apps.utils.db import array_group
@@ -153,7 +157,9 @@ class EtlStorage:
                 continue
             field_name = field.get("alias_name") or field["field_name"]
             if cls._is_v4_reserved_field(field_name):
-                raise ValidationError(_("字段名与V4清洗保留字段冲突，请更换字段名") + f"：{field_name}")
+                raise ValidationError(
+                    _("字段名与V4清洗保留字段冲突，请更换字段名") + f"：{field_name}"
+                )
 
     @staticmethod
     def _get_path_regexp(etl_params: dict, built_in_config: dict) -> str:
@@ -322,6 +328,46 @@ class EtlStorage:
                 "now_if_parse_failed": True,
             }
 
+    @staticmethod
+    def _has_user_time_field(built_in_config: dict) -> bool:
+        """
+        用户是否自定义了时间字段
+        有real_path说明时间来源于bk_separator_object（用户指定字段）而非json_data（采集器默认上报）
+        """
+        time_field = built_in_config.get("time_field") or {}
+        return "real_path" in time_field.get("option", {})
+
+    @staticmethod
+    def _build_utctime_fallback() -> dict:
+        """
+        用户自定义时间字段解析失败时的兜底配置
+        回退到采集器（GSE）上报的utctime（UTC时间），全部失败再使用当前时间
+        """
+        return {
+            "fallback_fields": [
+                {
+                    "field": "utctime",
+                    "time_format": {"format": "%Y-%m-%d %H:%M:%S", "zone": 0},
+                }
+            ],
+            "now_if_parse_failed": True,
+        }
+
+    def _build_utctime_extract_v4(self, built_in_config: dict) -> list:
+        """
+        仅当用户自定义时间字段时，从json_data提取utctime为输出字段，供time_fallback引用
+        默认时间字段路径直接取json_data.utctime，无需额外声明
+        """
+        if not self._has_user_time_field(built_in_config):
+            return []
+        return [
+            {
+                "input_id": "json_data",
+                "output_id": "utctime",
+                "operator": {"type": "get", "key_index": [{"type": "key", "value": "utctime"}]},
+            }
+        ]
+
     def _build_built_in_fields_v4(self, built_in_config: dict, storage_cluster_type=STORAGE_CLUSTER_TYPE) -> list:
         """
         构建V4版本的内置字段规则
@@ -381,7 +427,7 @@ class EtlStorage:
             is_nanos = time_fmt.get("es_format", "epoch_millis") == "strict_date_optional_time_nanos"
 
             # 判断是否为用户指定的时间字段：有real_path说明时间来源于bk_separator_object而非json_data
-            has_user_time_field = "real_path" in time_field.get("option", {})
+            has_user_time_field = self._has_user_time_field(built_in_config)
 
             # 读取用户配置的时区偏移
             user_time_zone = time_field.get("option", {}).get("time_zone")
@@ -523,6 +569,9 @@ class EtlStorage:
                 storage_cluster_type=storage_cluster_type,
             )
 
+            # 用户自定义时间字段：解析失败按序回退到采集器上报的utctime，全部失败再由now_if_parse_failed收口
+            time_fallback = self._build_utctime_fallback()
+
             field_index = user_time_field.get("field_index")
             if self.separator_key_is_index and field_index is not None:
                 key_index = str(field_index - 1)
@@ -540,6 +589,7 @@ class EtlStorage:
                     "input_type": None,
                     "fixed_value": None,
                     "default_value": None,
+                    "time_fallback": time_fallback,
                 },
             }
 
@@ -563,6 +613,7 @@ class EtlStorage:
                     "input_type": None,
                     "fixed_value": None,
                     "default_value": None,
+                    "time_fallback": time_fallback,
                 },
             }
 
@@ -601,6 +652,9 @@ class EtlStorage:
             # 纳秒级时间解析的输出应为strict_date_optional_time_nanos格式字符串，与ES mapping保持一致
             nanos_v4_time_parsing["to"] = "strict_date_optional_time_nanos"
 
+            # 用户自定义时间字段（纳秒级）解析失败时，同样按序回退到采集器utctime
+            time_fallback = self._build_utctime_fallback()
+
             field_index = nanos_time_field.get("field_index")
             if self.separator_key_is_index and field_index is not None:
                 key_index = str(field_index - 1)
@@ -620,6 +674,7 @@ class EtlStorage:
                     "fixed_value": None,
                     "is_time_field": None,
                     "default_value": None,
+                    "time_fallback": time_fallback,
                 },
             }
 
@@ -1051,6 +1106,7 @@ class EtlStorage:
         sort_fields: list = None,
         target_fields: list = None,
         total_shards_per_node: int = None,
+        labels: dict = None,
         storage_cluster_type=STORAGE_CLUSTER_TYPE,
     ):
         """
@@ -1136,6 +1192,7 @@ class EtlStorage:
             "is_time_field_only": True,
             "bk_biz_id": instance.get_bk_biz_id(),
             "label": instance.category_id,
+            "labels": labels or {},
             "option": {},
             "field_list": [],
             "warm_phase_days": 0,
@@ -1200,6 +1257,29 @@ class EtlStorage:
         self.add_metadata_path_configs(etl_path_regexp, result_table_config)
 
         params.update(result_table_config)
+
+        # IaaS 兼容：创建/修改 RT 时传入与 router 一致的 index_set 和查询选项
+        params["default_storage_config"]["index_set"] = params["table_id"].replace(".", "_")
+
+        index_set_obj = None
+        if hasattr(instance, "index_set_id") and instance.index_set_id:
+            from apps.log_search.models import LogIndexSet
+
+            index_set_obj = LogIndexSet.objects.filter(index_set_id=instance.index_set_id).first()
+
+        tf_name = (index_set_obj.time_field if index_set_obj and index_set_obj.time_field else DEFAULT_TIME_FIELD)
+        tf_type = (
+            index_set_obj.time_field_type
+            if index_set_obj and index_set_obj.time_field_type
+            else TimeFieldTypeEnum.DATE.value
+        )
+        tf_unit = (
+            index_set_obj.time_field_unit
+            if index_set_obj and index_set_obj.time_field_unit
+            else TimeFieldUnitEnum.MILLISECOND.value
+        )
+        params["option"]["need_add_time"] = instance.collector_scenario_id != Scenario.ES
+        params["option"]["time_field"] = {"name": tf_name, "type": tf_type, "unit": tf_unit}
 
         # 字段mapping优化
         for field in params["field_list"]:
@@ -1331,9 +1411,7 @@ class EtlStorage:
         if result_table_storage:
             collector_config["storage_cluster_id"] = result_table_storage["cluster_config"]["cluster_id"]
             collector_config["storage_cluster_name"] = result_table_storage["cluster_config"].get("cluster_name", "")
-            collector_config["storage_display_name"] = (
-                result_table_storage["cluster_config"].get("display_name") or collector_config["storage_cluster_name"]
-            )
+            collector_config["storage_display_name"] = result_table_storage["cluster_config"].get("display_name", "")
             collector_config["retention"] = result_table_storage["storage_config"].get("retention")
             collector_config["allocation_min_days"] = result_table_storage["storage_config"].get("warm_phase_days")
 

@@ -112,6 +112,7 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.datasource.detail",
         "admin.space.list",
         "admin.space.detail",
+        "admin.space.es_usage",
         "admin.result_table.list",
         "admin.result_table.detail",
         "admin.result_table.field_list",

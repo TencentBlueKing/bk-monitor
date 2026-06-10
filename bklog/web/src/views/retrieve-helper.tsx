@@ -228,10 +228,12 @@ class RetrieveHelper extends RetrieveBase {
     const formatRegStr = !regExpMark;
     this.markInstance.highlight(
       (keywords ?? []).map((keyword, index) => {
+        const colorPair = this.RGBA_LIST[index % this.RGBA_LIST.length];
         return {
           text: keyword,
           className: `highlight-${index}`,
-          backgroundColor: this.RGBA_LIST[index % this.RGBA_LIST.length],
+          backgroundColor: colorPair[0],
+          color: colorPair[1],
           textReg: this.getRegExp(keyword, caseSensitive ? '' : 'i', accuracy === 'exactly', formatRegStr),
         };
       }),
@@ -374,6 +376,16 @@ class RetrieveHelper extends RetrieveBase {
   setSearchBarHeight(height: number) {
     this.searchBarHeight = height;
     this.runEvent(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, height);
+  }
+
+  /**
+   * 设置场景筛选面板高度
+   * 场景模式下用于计算吸顶状态
+   * @param height
+   */
+  setSceneFilterPanelHeight(height: number) {
+    this.sceneFilterPanelHeight = height;
+    this.runEvent(RetrieveEvent.SCENE_FILTER_PANEL_HEIGHT_CHANGE, height);
   }
 
   setStorage(key: string, value: any) {

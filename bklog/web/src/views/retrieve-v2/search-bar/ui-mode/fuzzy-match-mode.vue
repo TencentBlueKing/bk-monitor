@@ -1,18 +1,9 @@
 <script setup lang="ts">
 /**
- * 模糊匹配组件（封闭式）
- * props:
- *   - value: 当前实际下发查询
- *   - type: 'es' | 'doris'
- * emits:
- *   - input: 向父组件返回实际下发查询
- *
- * 用户输入 1234 时：
- *   精确  => 1234
- *   前缀  => 1234*
- *   后缀  => *1234
- *   包含  => *1234*
- *   自定义 => 用户原文（如 user_*_error）
+ * 模糊匹配组件（封闭匹配逻辑）
+ * - value 接收/输出实际下发查询数组
+ * - 组件内部维护匹配模式、标签输入、批量输入、标签编辑/删除
+ * - relation 仅用于恢复旧版多个标签的 AND / OR 关系设置
  */
 import { computed, nextTick, ref, watch } from 'vue';
 import useLocale from '@/hooks/use-locale';
@@ -23,6 +14,10 @@ type EngineType = 'es' | 'doris';
 
 const props = defineProps({
   value: {
+    type: [Array, String],
+    default: () => [],
+  },
+  operator: {
     type: String,
     default: '',
   },
@@ -30,13 +25,22 @@ const props = defineProps({
     type: String,
     default: 'es',
   },
+  relation: {
+    type: String,
+    default: 'OR',
+  },
 });
 
-const emit = defineEmits(['input']);
+const emit = defineEmits(['input', 'relation-change', 'batch-show-change', 'wildcard-change']);
 const { t } = useLocale();
 
 const activeMode = ref<Mode>('exact');
-const keyword = ref('');
+const keywordList = ref<string[]>([]);
+const inputValue = ref('');
+const editIndex = ref<number | null>(null);
+const editValue = ref('');
+const refRoot = ref<HTMLElement | null>(null);
+const refTagInput = ref<HTMLInputElement | null>(null);
 let isEmitting = false;
 
 const modeButtons: Array<{ id: Mode; label: string; sample: string }> = [
@@ -48,9 +52,67 @@ const modeButtons: Array<{ id: Mode; label: string; sample: string }> = [
 ];
 
 const engineType = computed<EngineType>(() => (String(props.type).toLowerCase() === 'doris' ? 'doris' : 'es'));
+const currentRelation = computed({
+  get() {
+    return ['AND', 'OR'].includes(String(props.relation).toUpperCase()) ? String(props.relation).toUpperCase() : 'OR';
+  },
+  set(value: string) {
+    emit('relation-change', value);
+  },
+});
+
+const normalizeValues = (value: string | string[]) => {
+  if (Array.isArray(value)) {
+    return value.filter(item => item !== undefined && item !== null).map(item => String(item));
+  }
+  const text = String(value ?? '');
+  return text ? [text] : [];
+};
+
+const isAsteriskEscaped = (text: string, index: number) => {
+  let slashCount = 0;
+  for (let i = index - 1; i >= 0 && text[i] === '\\'; i--) {
+    slashCount++;
+  }
+  return slashCount % 2 === 1;
+};
+
+const startsWithUnescapedAsterisk = (text: string) => text.startsWith('*') && !isAsteriskEscaped(text, 0);
+const endsWithUnescapedAsterisk = (text: string) => text.endsWith('*') && !isAsteriskEscaped(text, text.length - 1);
+const hasUnescapedWildcard = (text: string) => {
+  for (let i = 0; i < text.length; i++) {
+    if ((text[i] === '*' || text[i] === '?') && !isAsteriskEscaped(text, i)) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const escapeEdgeAsterisks = (text: string) => {
+  if (!text) {
+    return '';
+  }
+
+  const chars = text.split('');
+  const escapeIndexSet = new Set<number>();
+  for (let i = 0; i < chars.length && chars[i] === '*'; i++) {
+    escapeIndexSet.add(i);
+  }
+  for (let i = chars.length - 1; i >= 0 && chars[i] === '*'; i--) {
+    if (!isAsteriskEscaped(text, i)) {
+      escapeIndexSet.add(i);
+    }
+  }
+
+  return chars.map((char, index) => escapeIndexSet.has(index) ? '\\' + char : char).join('');
+};
+
+const normalizeKeyword = (value: string) => escapeEdgeAsterisks(String(value ?? '').trim());
+const isExactOperator = (operator: string) => ['contains match phrase', 'not contains match phrase'].includes(operator);
+const isWildcardOperator = (operator: string) => ['=~', '!=~', '&=~', '&!=~'].includes(operator);
 
 const computeQuery = (mode: Mode, text: string) => {
-  const value = String(text ?? '');
+  const value = normalizeKeyword(text);
   if (!value) {
     return '';
   }
@@ -69,62 +131,62 @@ const computeQuery = (mode: Mode, text: string) => {
   }
 };
 
-const inferModeAndKeyword = (query: string): { mode: Mode; keyword: string } => {
-  const text = String(query ?? '');
-  if (!text) {
-    return { mode: 'exact', keyword: '' };
+const isSimpleText = (text: string) => !hasUnescapedWildcard(text);
+
+const inferModeAndKeywords = (value: string | string[], operator = props.operator): { mode: Mode; keywords: string[] } => {
+  const values = normalizeValues(value);
+  if (isExactOperator(operator)) {
+    return { mode: 'exact', keywords: values };
+  }
+  if (!values.length) {
+    return { mode: 'exact', keywords: [] };
   }
 
-  const startsWithWildcard = text.startsWith('*');
-  const endsWithWildcard = text.endsWith('*');
-
-  if (startsWithWildcard && endsWithWildcard && text.length >= 2) {
-    const inner = text.slice(1, -1);
-    if (!inner.includes('*') && !inner.includes('?')) {
-      return { mode: 'contains', keyword: inner };
-    }
+  const containsKeywords = values.map(item => startsWithUnescapedAsterisk(item) && endsWithUnescapedAsterisk(item) && item.length >= 2 ? item.slice(1, -1) : null);
+  if (containsKeywords.every(item => item !== null && isSimpleText(item))) {
+    return { mode: 'contains', keywords: containsKeywords as string[] };
   }
 
-  if (startsWithWildcard && !endsWithWildcard) {
-    const inner = text.slice(1);
-    if (!inner.includes('*') && !inner.includes('?')) {
-      return { mode: 'suffix', keyword: inner };
-    }
+  const suffixKeywords = values.map(item => startsWithUnescapedAsterisk(item) && !endsWithUnescapedAsterisk(item) ? item.slice(1) : null);
+  if (suffixKeywords.every(item => item !== null && isSimpleText(item))) {
+    return { mode: 'suffix', keywords: suffixKeywords as string[] };
   }
 
-  if (!startsWithWildcard && endsWithWildcard) {
-    const inner = text.slice(0, -1);
-    if (!inner.includes('*') && !inner.includes('?')) {
-      return { mode: 'prefix', keyword: inner };
-    }
+  const prefixKeywords = values.map(item => !startsWithUnescapedAsterisk(item) && endsWithUnescapedAsterisk(item) ? item.slice(0, -1) : null);
+  if (prefixKeywords.every(item => item !== null && isSimpleText(item))) {
+    return { mode: 'prefix', keywords: prefixKeywords as string[] };
   }
 
-  if (text.includes('*') || text.includes('?')) {
-    return { mode: 'custom', keyword: text };
+  if (values.some(item => hasUnescapedWildcard(item))) {
+    return { mode: 'custom', keywords: values };
   }
 
-  return { mode: 'exact', keyword: text };
+  if (isWildcardOperator(operator)) {
+    return { mode: 'custom', keywords: values };
+  }
+
+  return { mode: 'exact', keywords: values };
 };
 
-const syncFromValue = (value: string) => {
-  const result = inferModeAndKeyword(value);
+const syncFromValue = (value: string | string[], operator = props.operator) => {
+  const result = inferModeAndKeywords(value, operator);
   activeMode.value = result.mode;
-  keyword.value = result.keyword;
+  keywordList.value = [...result.keywords];
 };
 
 watch(
-  () => props.value,
-  (value) => {
+  () => [props.value, props.operator],
+  ([value, operator]) => {
     if (isEmitting) {
       return;
     }
-
-    syncFromValue(value);
+    syncFromValue(value as string | string[], operator as string);
   },
-  { immediate: true },
+  { immediate: true, deep: true },
 );
 
-const actualQuery = computed(() => computeQuery(activeMode.value, keyword.value));
+const actualQueryList = computed(() => keywordList.value.map(item => computeQuery(activeMode.value, item)).filter(Boolean));
+const actualQueryText = computed(() => actualQueryList.value.length ? actualQueryList.value.join(` ${currentRelation.value} `) : '');
 
 const inputPlaceholder = computed(() => {
   if (activeMode.value === 'custom') {
@@ -132,17 +194,16 @@ const inputPlaceholder = computed(() => {
   }
 
   if (activeMode.value === 'exact') {
-    return t('请输入关键词');
+    return t('请输入关键词，Enter 生成标签');
   }
 
-  return t('只输入关键词即可，无需自己写 *');
+  return t('只输入关键词即可，无需自己写 *，Enter 生成标签');
 });
 
 const engineDescription = computed(() => {
   if (engineType.value === 'doris') {
     return t('Doris 引擎下，可携带符号 / 空格，且无视分词。');
   }
-
   return t('ES 引擎下，关键词必须是一个完整的词，中间不能包含符号或空格。');
 });
 
@@ -173,7 +234,8 @@ const tooltipContent = computed(() => [
 
 const emitValue = () => {
   isEmitting = true;
-  emit('input', actualQuery.value);
+  emit('wildcard-change', activeMode.value !== 'exact');
+  emit('input', [...actualQueryList.value]);
   nextTick(() => {
     isEmitting = false;
   });
@@ -184,41 +246,135 @@ const handleModeClick = (mode: Mode) => {
   emitValue();
 };
 
-const handleInput = (value: string) => {
-  keyword.value = String(value ?? '');
+const appendKeyword = (value: string) => {
+  const text = normalizeKeyword(value);
+  if (!text) {
+    return;
+  }
+  if (!keywordList.value.includes(text)) {
+    keywordList.value.push(text);
+  }
+};
+
+const handleInputEnter = (event: KeyboardEvent) => {
+  if ((event as any).isComposing) {
+    return;
+  }
+  event.preventDefault();
+  appendKeyword(inputValue.value);
+  inputValue.value = '';
+  emitValue();
+};
+
+const handleInputBlur = () => {
+  if (!inputValue.value.trim()) {
+    return;
+  }
+  appendKeyword(inputValue.value);
+  inputValue.value = '';
+  emitValue();
+};
+
+const handleDeleteTag = (index: number) => {
+  keywordList.value.splice(index, 1);
+  emitValue();
+};
+
+const handleEditTagDBClick = (index: number) => {
+  editIndex.value = index;
+  editValue.value = keywordList.value[index] ?? '';
+  nextTick(() => {
+    const editInput = refRoot.value?.querySelector<HTMLInputElement>(`[data-fuzzy-edit-index="${index}"]`);
+    editInput?.focus();
+    editInput?.select();
+  });
+};
+
+const commitEditTag = () => {
+  if (editIndex.value === null) {
+    return;
+  }
+  const text = normalizeKeyword(editValue.value);
+  if (text) {
+    keywordList.value.splice(editIndex.value, 1, text);
+  } else {
+    keywordList.value.splice(editIndex.value, 1);
+  }
+  editIndex.value = null;
+  editValue.value = '';
+  emitValue();
+};
+
+const handleEditEnter = (event: KeyboardEvent) => {
+  if ((event as any).isComposing) {
+    return;
+  }
+  event.preventDefault();
+  commitEditTag();
+};
+
+const handleInputDelete = (event: KeyboardEvent) => {
+  if (inputValue.value || !keywordList.value.length) {
+    return;
+  }
+  event.preventDefault();
+  keywordList.value.splice(-1, 1);
   emitValue();
 };
 
 const handleClear = () => {
-  keyword.value = '';
+  keywordList.value = [];
+  inputValue.value = '';
+  editIndex.value = null;
+  editValue.value = '';
   emitValue();
 };
 
 const handleBatchInputChange = (selectData: string[]) => {
-  const values = Array.isArray(selectData) ? selectData.filter(item => item !== undefined && item !== null).map(item => String(item)) : [];
+  const values = Array.isArray(selectData)
+    ? selectData.filter(item => item !== undefined && item !== null).map(item => String(item).trim()).filter(Boolean)
+    : [];
   if (!values.length) {
     return;
   }
-
-  keyword.value = values.join('\n');
+  values.forEach(appendKeyword);
   emitValue();
+};
+
+const handleBatchShowChange = (value: boolean) => {
+  emit('batch-show-change', value);
+};
+
+const focusInput = (event?: MouseEvent) => {
+  const target = event?.target as HTMLElement | null;
+  if (target?.closest('.fuzzy-match-tag, .fuzzy-match-tag-edit, .fuzzy-match-tag-del')) {
+    return;
+  }
+  refTagInput.value?.focus();
 };
 
 defineExpose({
   computeQuery,
-  inferModeAndKeyword,
+  inferModeAndKeywords,
+  escapeEdgeAsterisks,
 });
 </script>
 
 <template>
-  <div class="fuzzy-match-mode">
+  <div
+    ref="refRoot"
+    class="fuzzy-match-mode"
+  >
     <div class="fuzzy-match-header">
       <span class="fuzzy-match-actions">
         <span class="fuzzy-match-label">{{ t('检索内容') }}</span>
-        <BatchInput @value-change="handleBatchInputChange" />
+        <BatchInput
+          @value-change="handleBatchInputChange"
+          @show-change="handleBatchShowChange"
+        />
         <bk-button
           text
-          :disabled="!keyword.length"
+          :disabled="keywordList.length === 0 && !inputValue.length"
           class="fuzzy-match-clear-btn"
           @click="handleClear"
         >
@@ -254,19 +410,72 @@ defineExpose({
       </button>
     </div>
 
-    <bk-input
-      class="fuzzy-match-textarea"
-      type="textarea"
-      :value="keyword"
-      :placeholder="inputPlaceholder"
-      :rows="3"
-      @input="handleInput"
-    />
+    <div
+      class="fuzzy-match-tag-input"
+      @click="focusInput"
+    >
+      <span
+        v-for="(item, index) in keywordList"
+        :key="`${item}-${index}`"
+        class="fuzzy-match-tag"
+      >
+        <template v-if="editIndex === index">
+          <input
+            v-model="editValue"
+            class="fuzzy-match-tag-edit"
+            :data-fuzzy-edit-index="index"
+            @blur="commitEditTag"
+            @click.stop
+            @dblclick.stop
+            @mousedown.stop
+            @keydown.enter="handleEditEnter"
+          >
+        </template>
+        <template v-else>
+          <span
+            class="fuzzy-match-tag-text"
+            :title="item"
+            @dblclick.stop="handleEditTagDBClick(index)"
+          >{{ item }}</span>
+          <span
+            class="fuzzy-match-tag-del bk-icon icon-close"
+            @click.stop="handleDeleteTag(index)"
+          />
+        </template>
+      </span>
+      <input
+        ref="refTagInput"
+        v-model="inputValue"
+        class="fuzzy-match-input"
+        :placeholder="keywordList.length ? '' : inputPlaceholder"
+        @blur="handleInputBlur"
+        @keydown.enter="handleInputEnter"
+        @keydown.delete="handleInputDelete"
+      >
+    </div>
+
+    <div
+      v-show="keywordList.length > 1"
+      class="fuzzy-match-relation"
+    >
+      <span class="fuzzy-match-relation-label">{{ t('组间关系') }}</span>
+      <bk-radio-group v-model="currentRelation">
+        <bk-radio
+          style="margin-right: 12px"
+          value="AND"
+        >
+          AND
+        </bk-radio>
+        <bk-radio value="OR">
+          OR
+        </bk-radio>
+      </bk-radio-group>
+    </div>
 
     <div class="fuzzy-match-preview-card">
       <div class="fuzzy-match-preview">
         <span class="preview-label">{{ t('实际下发查询') }}：</span>
-        <span class="preview-value">{{ actualQuery || t('(空)') }}</span>
+        <span class="preview-value">{{ actualQueryText || t('(空)') }}</span>
       </div>
       <div
         v-if="activeMode === 'custom'"
@@ -395,21 +604,103 @@ defineExpose({
   color: #c4c6cc;
 }
 
-.fuzzy-match-textarea {
+.fuzzy-match-tag-input {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 6px;
   width: 100%;
+  min-height: 72px;
+  max-height: 160px;
+  padding: 6px;
   margin-bottom: 12px;
+  overflow: auto;
+  cursor: text;
+  background: #fff;
+  border: 1px solid #c4c6cc;
+  border-radius: 2px;
 
-  :deep(.bk-textarea-wrapper) {
-    min-height: 70px;
+  &:focus-within {
+    border-color: #3a84ff;
+  }
+}
+
+.fuzzy-match-tag {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  height: 24px;
+  padding: 0 6px;
+  line-height: 22px;
+  color: #63656e;
+  background: #f0f1f5;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
+}
+
+.fuzzy-match-tag-text {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.fuzzy-match-tag-del {
+  margin-left: 4px;
+  font-size: 14px;
+  color: #979ba5;
+  cursor: pointer;
+
+  &:hover {
+    color: #ea3636;
+  }
+}
+
+.fuzzy-match-tag-edit,
+.fuzzy-match-input {
+  min-width: 120px;
+  height: 22px;
+  padding: 0;
+  font-size: 12px;
+  color: #313238;
+  background: transparent;
+  border: 0;
+  outline: 0;
+}
+
+.fuzzy-match-input {
+  flex: 1;
+}
+
+.fuzzy-match-relation {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #63656e;
+  white-space: nowrap;
+
+  :deep(.bk-radio-group) {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    align-items: center;
   }
 
-  :deep(textarea) {
-    min-height: 70px;
-    font-family: Menlo, Monaco, Consolas, Courier, monospace;
-    font-size: 12px;
-    line-height: 22px;
-    resize: vertical;
+  :deep(.bk-form-radio) {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
   }
+}
+
+.fuzzy-match-relation-label {
+  flex: 0 0 auto;
+  margin-right: 16px;
+  font-weight: 600;
+  color: #4d4f56;
+  white-space: nowrap;
 }
 
 .fuzzy-match-preview-card {

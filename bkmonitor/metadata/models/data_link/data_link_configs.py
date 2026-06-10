@@ -551,6 +551,33 @@ class DataBusConfig(DataLinkResourceConfigBase):
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
 
+    def apply_consumer_group(self, consumer_group: str | None) -> None:
+        """应用显式 consumer group；已有值优先，空入参不触发更新。"""
+        if not consumer_group:
+            return
+
+        if self.consumer_group:
+            if self.consumer_group != consumer_group:
+                logger.warning(
+                    "databus config consumer_group already exists, "
+                    "name->[%s],namespace->[%s],existing->[%s],input->[%s],keep existing",
+                    self.name,
+                    self.namespace,
+                    self.consumer_group,
+                    consumer_group,
+                )
+            return
+
+        logger.info(
+            "apply_consumer_group: databus config consumer_group update, name->[%s],namespace->[%s],existing->[%s],input->[%s]",
+            self.name,
+            self.namespace,
+            self.consumer_group,
+            consumer_group,
+        )
+        self.consumer_group = consumer_group
+        self.save(update_fields=["consumer_group", "last_modify_time"])
+
     def compose_config(
         self,
         sinks: list,

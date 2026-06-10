@@ -156,4 +156,59 @@ def get_metrics() -> list:
                 # sum(rate(node_network_transmit_packets_total{device!~"lo|veth.*"}[1m])) by (node)
             ],
         ),
+        # GPU 分类追加在列表末尾：表格默认排序列取第一个可见指标列，避免无 GPU 集群默认排序无数据
+        Category(
+            id="GPU",
+            name="GPU",
+            children=[
+                Metric(
+                    id="node_gpu_usage_ratio",
+                    name=_lazy("GPU使用率"),
+                    unit="percent",
+                    unsupported_resource=[],
+                    show_chart=True,
+                ),
+                # avg by (node)(gpu_core_utilization_percentage)
+                Metric(
+                    id="node_gpu_mem_usage_ratio",
+                    name=_lazy("GPU显存使用率"),
+                    unit="percent",
+                    unsupported_resource=[],
+                    show_chart=True,
+                ),
+                # sum by (node)(gpu_mem_usage) / sum by (node)(gpu_mem_each_card) * 100
+                Metric(
+                    id="node_gpu_mem_used",
+                    name=_lazy("GPU显存使用量"),
+                    unit="mbytes",  # 原始数据为MiB
+                    unsupported_resource=[],
+                    show_chart=True,
+                ),
+                # sum by (node)(gpu_mem_usage)
+                Metric(
+                    id="node_gpu_power_usage",
+                    name=_lazy("GPU功耗"),
+                    unit="watt",
+                    unsupported_resource=[],
+                    show_chart=True,
+                ),
+                # sum by (node)(gpu_power_usage)
+                Metric(
+                    id="node_gpu_temperature",
+                    name=_lazy("GPU温度"),
+                    unit="celsius",
+                    unsupported_resource=[],
+                    show_chart=True,
+                ),
+                # max by (node)(gpu_temprature)  注意: gpu_temprature 为 exporter 原始拼写
+                Metric(
+                    id="node_gpu_anomaly_count",
+                    name=_lazy("GPU异常数"),
+                    unit="none",
+                    unsupported_resource=[],
+                    show_chart=True,
+                ),
+                # ECC错误增量(counter_type="aggregate") + 掉卡数(gpu_count 对 1d 基线的下降)，详见 meta.py
+            ],
+        ),
     ]

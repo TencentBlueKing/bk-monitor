@@ -46,6 +46,18 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    display: {
+      type: Array,
+      default: () => [],
+    },
+    total: {
+      type: Array,
+      default: () => [],
+    },
+    isConfigLoading: {
+      type: Boolean,
+      default: false,
+    },
   },
   setup(props, { emit, expose }) {
     const { t } = useLocale();

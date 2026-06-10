@@ -107,15 +107,14 @@ export default defineComponent({
         return;
       }
 
-      // 回填选中的元数据字段（去掉 'host.' 前缀）
+      // 回填选中的元数据字段（兼容带或不带 'host.' 前缀的 key）
       const selectedFields: string[] = [];
       props.metadata.forEach((item: IMetaItem) => {
-        if (item.key?.startsWith('host.')) {
-          const field = item.key.slice(5); // 去掉 'host.' 前缀
-          // 检查该字段是否在 groupList 中
-          if (groupList.value.some(groupItem => groupItem.field === field)) {
-            selectedFields.push(field);
-          }
+        // 兼容两种格式：带 "host." 前缀和不带前缀
+        const field = item.key.startsWith('host.') ? item.key.slice(5) : item.key;
+        // 检查该字段是否在 groupList 中
+        if (groupList.value.some(groupItem => groupItem.field === field)) {
+          selectedFields.push(field);
         }
       });
       selectValue.value = selectedFields;
@@ -123,12 +122,9 @@ export default defineComponent({
       // 回填自定义标签（不在 groupList 中的 metadata 项）
       extraLabelList.value = props.metadata
         .filter((metadataItem: IMetaItem) => {
-          // 如果不是以 'host.' 开头，是自定义标签
-          if (!metadataItem.key.startsWith('host.')) {
-            return true;
-          }
-          // 如果以 'host.' 开头，但不在 groupList 中，也是自定义标签
-          const field = metadataItem.key.slice(5);
+          // 兼容两种格式：带 "host." 前缀和不带前缀
+          const field = metadataItem.key.startsWith('host.') ? metadataItem.key.slice(5) : metadataItem.key;
+          // 如果不在 groupList 中，是自定义标签
           const isInGroupList = groupList.value.some(groupItem => groupItem.field === field);
           return !isInGroupList;
         })
@@ -183,8 +179,8 @@ export default defineComponent({
         ...groupList.value
           .filter((item: IGroupItem) => selectValue.value.includes(item.field))
           .map((item: IGroupItem) => ({
-            key: `host.${item.field}`,
-            value: item.name,
+            key: item.field,
+            value: item.key,
           })),
         // 自定义标签
         ...extraLabelList.value
@@ -255,8 +251,8 @@ export default defineComponent({
       const result = groupList.value.reduce((accumulator: IMetaItem[], item) => {
         if (selectValue.value.includes(item.field)) {
           accumulator.push({
-            key: `host.${item.field}`,
-            value: item.name,
+            key: item.field,
+            value: item.key,
           });
         }
         return accumulator;

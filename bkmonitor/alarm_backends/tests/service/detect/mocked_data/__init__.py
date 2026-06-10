@@ -17,7 +17,7 @@ from alarm_backends.service.detect import DataPoint
 from bkmonitor.data_source import BkMonitorTimeSeriesDataSource
 from bkmonitor.data_source.unify_query.query import UnifyQuery
 
-Strategy = namedtuple("Strategy", ["id", "scenario"])
+Strategy = namedtuple("Strategy", ["id", "scenario", "bk_tenant_id"], defaults=["system"])
 
 
 pytestmark = pytest.mark.django_db(databases="__all__")
@@ -35,6 +35,7 @@ class Item:
         self.query_configs = query_configs
         self.query = query
         self.name = name
+        self.bk_tenant_id = self.strategy.bk_tenant_id
 
 
 item_config = {
