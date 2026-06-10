@@ -252,6 +252,7 @@ export default defineComponent({
 
     let tippyInstances: Instance[] = [];
     let collectStatusTimer: ReturnType<typeof setTimeout> | null = null;
+    let isUnmounted = false;
     const searchKey = ref('');
     const IFilterValues = ref<IFilterValues>({
       created_by: [],
@@ -1206,6 +1207,8 @@ export default defineComponent({
       destroyTippyInstances();
       // 清除状态轮询定时器
       stopCollectStatusTimer();
+      // 标记组件已卸载
+      isUnmounted = true;
       // 移除窗口大小变化监听
       window.removeEventListener('resize', handleWindowResize);
       document.removeEventListener('mousedown', handleDocumentMouseDown, true);
@@ -1278,7 +1281,7 @@ export default defineComponent({
           },
         })
         .then(res => {
-          if (!res.result) {
+          if (isUnmounted || !res.result) {
             stopCollectStatusTimer();
             return;
           }

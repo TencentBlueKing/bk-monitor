@@ -12,6 +12,7 @@ import logging
 from collections.abc import Iterable
 
 from bkmonitor.models.issue import IssueMergeRelation
+from constants.issue import IssueStatus
 
 logger = logging.getLogger("fta_action.issue")
 
@@ -130,18 +131,26 @@ class IssueMergeResolver:
         """主 Issue 行注入 ``merge_status`` 字段 + 聚合数据字段；原地修改 issues。
 
         Step 1（注入关系摘要）：
-        - role='main'：拼装 active_members 摘要列表
+        - role='main'：拼装 active_members 摘要列表 + 初始化状态冲突字段（status_conflict / active_member_count）
         - role='member'：拼装 main_issue_id（供前端跳转主 Issue）
         - 普通 Issue：不动
 
-        Step 2（聚合数据字段）—— 仅对 role='main' 的 Issue：
+        Step 2（聚合数据字段 + 状态冲突）—— 仅对 role='main' 的 Issue：
         - ``alert_count`` += Σ members.alert_count
         - ``first_alert_time`` = min(self, Σ members.first_alert_time)
         - ``last_alert_time``  = max(self, Σ members.last_alert_time)
         - ``impact_scope`` = self ∪ Σ members.impact_scope（按 dimension 维度 union，instance_list 按 dict 内容去重）
+        - ``merge_status.active_member_count`` = Issue 状态仍活跃（pending_review/unresolved）的 member 数；
+          注意区别于 ``active_members``（关系层 active 的全部成员列表，与成员 Issue 状态无关）。
+        - ``merge_status.status_conflict`` = 主 Issue 处于终态（已解决/已归档）但仍持有活跃 member。
+          合并/拆分与状态解耦后，活跃 member 可被并入终态主（不级联其状态），此标记让前端提示
+          「该历史 Issue 下仍有关联活跃问题」，避免用户误判异常已结束。
 
         聚合后的 first/last_alert_time 会被 ``IssueQueryHandler.add_alert_trend`` 用于
         计算告警查询时间窗，保证 member 在主 Issue 自身时间窗外的告警也能进入聚合统计。
+
+        状态冲突字段依赖 Step 2 的 member ES 查询；该查询 fail-open，失败时保留 Step 1 的
+        默认值（status_conflict=False / active_member_count=0），即"无法判定则不误报"。
         """
         if context.degraded:
             return
@@ -158,6 +167,9 @@ class IssueMergeResolver:
                     "role": "main",
                     "main_issue_id": None,
                     "active_members": members,
+                    # 状态冲突提示：默认无冲突，Step 2 拿到 member ES 状态后回填真实值（fail-open 时保留默认）
+                    "status_conflict": False,
+                    "active_member_count": 0,
                 }
                 main_issue_ids.append(issue_id)
             else:
@@ -187,7 +199,7 @@ class IssueMergeResolver:
             hits = (
                 IssueDocument.search(all_indices=True)
                 .filter("terms", _id=all_member_ids)
-                .source(["alert_count", "impact_scope", "first_alert_time", "last_alert_time"])
+                .source(["status", "alert_count", "impact_scope", "first_alert_time", "last_alert_time"])
                 .params(size=len(all_member_ids))
                 .execute()
                 .hits
@@ -209,10 +221,16 @@ class IssueMergeResolver:
             members = context.members_of(main_id)
             if not members:
                 continue
+            active_member_count = 0
             for m in members:
                 member_doc = member_doc_map.get(m["member_issue_id"])
                 if member_doc is None:
                     continue
+                # 统计 Issue 状态仍活跃的 member：终态主 Issue 下若存在活跃 member，说明合并/解耦后
+                # 该历史 Issue 仍挂着未结束的关联问题（status_conflict）。注意按 member 的 ES 状态判定，
+                # 而非关系层——主 resolve 级联同步成 resolved 的 member 不计入。
+                if getattr(member_doc, "status", None) in IssueStatus.ACTIVE_STATUSES:
+                    active_member_count += 1
                 # alert_count 不在此处累加：add_alert_trend 走 AlertDocument 按 display_id 折叠
                 # 后会直接覆盖式写回 issue["alert_count"]（resources.py 内 fill_result.alert_count_map），
                 # 此处累加属于死代码。仅保留 first/last_alert_time + impact_scope 聚合，
@@ -236,6 +254,15 @@ class IssueMergeResolver:
                 if not isinstance(m_scope, dict):
                     continue
                 cls._union_impact_scope(issue, m_scope)
+
+            # 回填状态冲突提示：主 Issue 处于终态（已解决/已归档）但仍持有活跃 member 时置 True。
+            # merge_status 必为 Step 1 注入的 main 行（members 非空 → 此处可达），保险起见判空。
+            merge_status = issue.get("merge_status")
+            if merge_status is not None:
+                merge_status["active_member_count"] = active_member_count
+                merge_status["status_conflict"] = (
+                    issue.get("status") in (IssueStatus.RESOLVED, IssueStatus.ARCHIVED) and active_member_count > 0
+                )
 
     # 计算 instance 去重键时忽略的字段集——这些字段是 enrich 阶段动态注入，主 / member
     # 在 hydrate 调用时 enrich 状态不同（主已 enrich vs member 未 enrich），不能进入去重键

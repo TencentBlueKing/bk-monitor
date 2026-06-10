@@ -686,7 +686,7 @@ export default class RedefineTabContent extends tsc<Props> {
                 }
                 return (
                   <div class='interface-column'>
-                    {row.isImport && <div class='import-sign-bar' />}
+                    {(row.isImport || row.isNew) && <div class='new-sign-bar' />}
                     {/* 编辑态：类型可选且可自定义创建 */}
                     <bk-select
                       clearable={false}
@@ -746,11 +746,13 @@ export default class RedefineTabContent extends tsc<Props> {
                       },
                     ]
                   : [];
+                if (isCalleeServerDisabled) {
+                  return <span style='color: #c4c6cc;'>{this.$t('被调无需选择')}</span>;
+                }
                 return (
                   <div class='interface-column'>
                     <ValueTagSelector
                       style='width: 100%'
-                      disabled={isCalleeServerDisabled}
                       v-bk-tooltips={{
                         content: this.$t('「被调」类型无需填写「被调服务」'),
                         disabled: !isCalleeServerDisabled,
@@ -763,6 +765,7 @@ export default class RedefineTabContent extends tsc<Props> {
                         isEnableOptions: true,
                       }}
                       value={value}
+                      tippy-mode
                       getValueFn={this.getValueCallback(row.kind, item.prop)}
                       onChange={data => this.handleValueTagSelectorChange(data, item.prop, row.id)}
                     />
@@ -888,11 +891,10 @@ export default class RedefineTabContent extends tsc<Props> {
                 if (this.currentEditRowId !== row.id && !this.isBatchEdit) {
                   return (
                     <div class='interface-column-readonly'>
-                      <div
-                        class='value-content'
-                        v-bk-overflow-tips
-                      >
-                        {row[item.prop].map(item => (item === '0' ? this.$tc('全局生效') : item)).join(',')}
+                      <div class='tag-list-content'>
+                        {row[item.prop].map(item => (
+                          <bk-tag key={item}>{item === '0' ? this.$tc('全局生效') : item}</bk-tag>
+                        ))}
                       </div>
                     </div>
                   );
@@ -910,6 +912,7 @@ export default class RedefineTabContent extends tsc<Props> {
                       showEmpty={!item.loading && !item.options.length}
                       value={row[item.prop]}
                       multiple
+                      display-tag
                       searchable
                       onChange={v => this.handleValueChange(v, item.prop, row.id)}
                     >

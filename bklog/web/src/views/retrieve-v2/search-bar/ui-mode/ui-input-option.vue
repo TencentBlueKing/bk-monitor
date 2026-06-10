@@ -292,10 +292,24 @@ const activeOperator = computed(
 );
 
 const FUZZY_MATCH_OPERATOR_LIST = ['contains match phrase', 'not contains match phrase', '=~', '!=~'];
+const FUZZY_NEGATIVE_OPERATOR_LIST = ['not contains match phrase', '!=~'];
 
 const isFuzzyMatchAvailable = computed(() => {
   return ['text', 'string'].includes(activeFieldItem.value.field_type)
     && FUZZY_MATCH_OPERATOR_LIST.includes(condition.value.operator);
+});
+
+const getFuzzyOperator = (isWildcard: boolean) => {
+  const isNegative = FUZZY_NEGATIVE_OPERATOR_LIST.includes(condition.value.operator);
+  if (isNegative) {
+    return isWildcard ? '!=~' : 'not contains match phrase';
+  }
+
+  return isWildcard ? '=~' : 'contains match phrase';
+};
+
+const fuzzyMatchOperator = computed(() => {
+  return getFuzzyOperator(Boolean(condition.value.isInclude));
 });
 
 const fuzzyMatchEngine = computed(() => {
@@ -309,12 +323,20 @@ const fuzzyMatchEngine = computed(() => {
 
 const fuzzyMatchValue = computed({
   get() {
-    return condition.value.value?.[0] ?? '';
+    return Array.isArray(condition.value.value) ? condition.value.value : [];
   },
-  set(value: string) {
-    condition.value.value = [String(value ?? '')];
+  set(value: string[]) {
+    condition.value.value = Array.isArray(value) ? [...value] : [];
   },
 });
+
+const handleFuzzyRelationChange = (relation: string) => {
+  condition.value.relation = relation;
+};
+
+const handleFuzzyWildcardChange = (isWildcard: boolean) => {
+  condition.value.isInclude = isWildcard;
+};
 
 const scrollActiveItemIntoView = () => {
   if (activeIndex.value >= 0) {
@@ -1126,6 +1148,12 @@ const handleUiValueOptionClick = (option) => {
   if (condition.value.operator !== option.operator) {
     condition.value.operator = option.operator;
   }
+  if (['contains match phrase', 'not contains match phrase'].includes(option.operator)) {
+    condition.value.isInclude = false;
+  }
+  if (['=~', '!=~'].includes(option.operator)) {
+    condition.value.isInclude = true;
+  }
   operatorInstance.hide();
   afterOperatorValueEnter();
 };
@@ -1500,7 +1528,12 @@ defineExpose({
             <template v-if="isFuzzyMatchAvailable">
               <FuzzyMatchMode
                 v-model="fuzzyMatchValue"
+                :operator="fuzzyMatchOperator"
+                :relation="condition.relation"
                 :type="fuzzyMatchEngine"
+                @batch-show-change="handleBatchShowChange"
+                @relation-change="handleFuzzyRelationChange"
+                @wildcard-change="handleFuzzyWildcardChange"
               />
             </template>
             <template v-else-if="activeFieldItem.field_name === '*'">
@@ -1615,7 +1648,7 @@ defineExpose({
             {{ $t('仅支持输入数值类型') }}
           </div>
           <div
-            v-show="condition.value.length > 1 && activeFieldItem.field_type === 'text'"
+            v-show="!isFuzzyMatchAvailable && condition.value.length > 1 && activeFieldItem.field_type === 'text'"
             class="ui-value-row"
           >
             <div class="ui-value-label">

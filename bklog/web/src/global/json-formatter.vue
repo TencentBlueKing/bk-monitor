@@ -391,7 +391,8 @@
     }
 
     mark {
-      border-radius: 2px;
+      border-radius: 4px;
+      padding: 1px 2px;
     }
 
     .btn-more-action {
@@ -434,7 +435,7 @@
           font-weight: 500;
           color: #16171a;
           background-color: #ebeef5;
-          border-radius: 2px;
+          border-radius: 4px;
         }
 
         &::after {

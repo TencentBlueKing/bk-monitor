@@ -30,7 +30,11 @@ from metadata.models import (
 from metadata.models.influxdb_cluster import InfluxDBProxyStorage
 from metadata.models.bcs.resource import BCSClusterInfo
 from metadata.models.storage import ClusterInfo, StorageClusterRecord, ESStorage
-from metadata.task.bcs import discover_bcs_clusters, update_bcs_cluster_cloud_id_config
+from metadata.task.bcs import (
+    discover_bcs_clusters,
+    is_discover_managed_cluster,
+    update_bcs_cluster_cloud_id_config,
+)
 from metadata.models.result_table import ResultTable
 from metadata.tests.common_utils import consul_client
 from constants.common import DEFAULT_TENANT_ID
@@ -279,6 +283,66 @@ def test_discover_bcs_clusters(
         BCSClusterInfo.CLUSTER_STATUS_RUNNING,
         BCSClusterInfo.CLUSTER_RAW_STATUS_RUNNING,
     ]
+
+
+def test_discover_bcs_clusters_skip_biz_black_list(
+    monkeypatch,
+    monkeypatch_cluster_management_fetch_clusters,
+    monkeypatch_k8s_node_list_by_cluster,
+    monkeypatch_cmdb_get_info_by_ip,
+):
+    """测试黑名单业务下的新集群不会被 discover 任务自动接入。"""
+    monkeypatch.setattr(settings, "BCS_CLUSTER_SOURCE", "cluster-manager")
+    monkeypatch.setattr(settings, "BCS_API_GATEWAY_TOKEN", "token")
+    monkeypatch.setattr(settings, "BCS_DISCOVER_BCS_CLUSTER_BIZ_BLACK_LIST", ["2"])
+    monkeypatch.setattr(FetchK8sClusterListResource, "cache_type", None)
+
+    BCSClusterInfo.objects.filter(cluster_id="BCS-K8S-00000").delete()
+
+    discover_bcs_clusters()
+
+    assert not BCSClusterInfo.objects.filter(cluster_id="BCS-K8S-00000").exists()
+
+
+def test_discover_bcs_clusters_biz_black_list_prevent_delete(
+    monkeypatch,
+    monkeypatch_cluster_management_fetch_clusters,
+    monkeypatch_k8s_node_list_by_cluster,
+    monkeypatch_cmdb_get_info_by_ip,
+    add_bcs_cluster_info,
+):
+    """测试黑名单业务下的既有集群不会被 discover 删除链标记为 deleted。"""
+    monkeypatch.setattr(settings, "BCS_CLUSTER_SOURCE", "cluster-manager")
+    monkeypatch.setattr(settings, "BCS_API_GATEWAY_TOKEN", "token")
+    monkeypatch.setattr(settings, "BCS_DISCOVER_BCS_CLUSTER_BIZ_BLACK_LIST", [2])
+    monkeypatch.setattr(FetchK8sClusterListResource, "cache_type", None)
+
+    discover_bcs_clusters()
+
+    cluster_info_model = BCSClusterInfo.objects.get(cluster_id="BCS-K8S-00001")
+    assert cluster_info_model.status in [
+        BCSClusterInfo.CLUSTER_STATUS_RUNNING,
+        BCSClusterInfo.CLUSTER_RAW_STATUS_RUNNING,
+    ]
+
+
+def test_is_discover_managed_cluster_white_list_exempts_threshold(monkeypatch):
+    """测试白名单业务豁免起始集群阈值：后缀不大于阈值的集群仍被接管。"""
+    monkeypatch.setattr(settings, "BCS_DISCOVER_BCS_CLUSTER_BIZ_BLACK_LIST", [])
+    monkeypatch.setattr(settings, "BCS_DISCOVER_BCS_CLUSTER_BIZ_WHITE_LIST", ["2"])
+
+    # 阈值后缀为 5，集群后缀为 1（不大于阈值）：非白名单业务不接管
+    assert is_discover_managed_cluster("BCS-K8S-00001", start_cluster_id_suffix=5, bk_biz_id=3) is False
+    # 业务命中白名单：豁免阈值，接管
+    assert is_discover_managed_cluster("BCS-K8S-00001", start_cluster_id_suffix=5, bk_biz_id=2) is True
+
+
+def test_is_discover_managed_cluster_black_list_overrides_white_list(monkeypatch):
+    """测试黑名单优先级高于白名单：业务同时命中黑白名单时不接管。"""
+    monkeypatch.setattr(settings, "BCS_DISCOVER_BCS_CLUSTER_BIZ_BLACK_LIST", [2])
+    monkeypatch.setattr(settings, "BCS_DISCOVER_BCS_CLUSTER_BIZ_WHITE_LIST", [2])
+
+    assert is_discover_managed_cluster("BCS-K8S-00001", start_cluster_id_suffix=5, bk_biz_id=2) is False
 
 
 BCS_CLUSTER_ID = "BCS-K8S-00000"
