@@ -20,6 +20,7 @@ from apps.log_search.serializers import (
 )
 from apps.log_search.views.scene_search_views import (
     SceneSearchViewSet,
+    _SceneFeatureTogglePermission,
     _SceneViewBusinessPermission,
 )
 
@@ -126,26 +127,85 @@ class TestSceneViewBusinessPermissionResolution(TestCase):
 
 
 class TestSceneSearchViewSetGetPermissions(TestCase):
-    """SceneSearchViewSet.get_permissions 不再返回空列表，必须挂上业务级校验。"""
+    """SceneSearchViewSet.get_permissions 必须同时挂上灰度开关与业务级校验。"""
 
-    def test_get_permissions_returns_scene_view_business_permission(self):
+    def test_get_permissions_returns_toggle_then_business_permission(self):
         from apps.iam.handlers.actions import ActionEnum
 
         vs = SceneSearchViewSet(**{"format_kwarg": None})
         perms = vs.get_permissions()
-        self.assertEqual(len(perms), 1)
-        self.assertIsInstance(perms[0], _SceneViewBusinessPermission)
+        self.assertEqual(len(perms), 2)
+        # 开关在前，先拦截
+        self.assertIsInstance(perms[0], _SceneFeatureTogglePermission)
+        self.assertIsInstance(perms[1], _SceneViewBusinessPermission)
         # action 必须是 VIEW_BUSINESS，不能引入新 ActionEnum
-        self.assertEqual(perms[0].actions, [ActionEnum.VIEW_BUSINESS])
+        self.assertEqual(perms[1].actions, [ActionEnum.VIEW_BUSINESS])
 
     def test_get_permissions_applies_to_all_actions(self):
-        """不同 action 都应返回同一权限实例类型（短期统一收敛策略）。"""
+        """不同 action 都应返回灰度开关 + 业务级两层权限（短期统一收敛策略）。"""
         for action_name in ("scenes", "search", "scene_async_export", "create_config"):
             vs = SceneSearchViewSet(**{"format_kwarg": None})
             vs.action = action_name
             perms = vs.get_permissions()
-            self.assertEqual(len(perms), 1, action_name)
-            self.assertIsInstance(perms[0], _SceneViewBusinessPermission, action_name)
+            self.assertEqual(len(perms), 2, action_name)
+            self.assertIsInstance(perms[0], _SceneFeatureTogglePermission, action_name)
+            self.assertIsInstance(perms[1], _SceneViewBusinessPermission, action_name)
+
+
+# =========================================================================
+# 2b. _SceneFeatureTogglePermission 灰度开关后端拦截
+# =========================================================================
+
+
+class TestSceneFeatureTogglePermission(TestCase):
+    """覆盖 SCENE_SEARCH 灰度开关后端拦截：开关关闭拒绝、白名单业务放行。"""
+
+    def test_toggle_off_for_biz_raises_permission_denied(self):
+        from rest_framework.exceptions import PermissionDenied
+
+        req = _drf_request("post", "/x/", data={"bk_biz_id": 2})
+        perm = _SceneFeatureTogglePermission()
+        with patch(
+            "apps.log_search.views.scene_search_views.FeatureToggleObject.switch",
+            return_value=False,
+        ) as m_switch:
+            with self.assertRaises(PermissionDenied):
+                perm.has_permission(req, view=None)
+            m_switch.assert_called_once_with("scene_search", 2)
+
+    def test_toggle_on_for_whitelisted_biz_passes(self):
+        req = _drf_request("post", "/x/", data={"bk_biz_id": 2})
+        perm = _SceneFeatureTogglePermission()
+        with patch(
+            "apps.log_search.views.scene_search_views.FeatureToggleObject.switch",
+            return_value=True,
+        ) as m_switch:
+            self.assertTrue(perm.has_permission(req, view=None))
+            m_switch.assert_called_once_with("scene_search", 2)
+
+    def test_toggle_resolves_biz_from_space_uid(self):
+        """只传 space_uid 时按反查的 bk_biz_id 校验开关。"""
+        req = _drf_request("post", "/x/", data={"space_uid": SPACE_UID})
+        perm = _SceneFeatureTogglePermission()
+        with patch(
+            "apps.log_search.views.scene_search_views.space_uid_to_bk_biz_id",
+            return_value=2,
+        ), patch(
+            "apps.log_search.views.scene_search_views.FeatureToggleObject.switch",
+            return_value=True,
+        ) as m_switch:
+            self.assertTrue(perm.has_permission(req, view=None))
+            m_switch.assert_called_once_with("scene_search", 2)
+
+    def test_no_biz_id_does_not_block(self):
+        """解析不到业务 ID 时不在开关层拦截，交由后续业务级权限处理。"""
+        req = _drf_request("post", "/x/", data={})
+        perm = _SceneFeatureTogglePermission()
+        with patch(
+            "apps.log_search.views.scene_search_views.FeatureToggleObject.switch"
+        ) as m_switch:
+            self.assertTrue(perm.has_permission(req, view=None))
+            m_switch.assert_not_called()
 
 
 # =========================================================================
@@ -389,3 +449,130 @@ class TestVerifyResultTableSearchPermission(TestCase):
             handler.verify_result_table_search_permission(["2_bklog.a"])
             # 第二次命中缓存，IAM 只被调用一次
             m_perm_cls.return_value.batch_is_allowed.assert_called_once()
+
+
+# =========================================================================
+# 6. SceneUnifyQueryHandler._init_scene_desensitize
+#    场景化检索按命中索引集懒加载并应用脱敏（ts/raw 返回后）
+# =========================================================================
+
+
+def _desensitize_field_obj(field_name, rule_id=1, operator="mask_shield", sort_index=0):
+    """构造一个 DesensitizeFieldConfig 风格的轻量对象。"""
+    from unittest.mock import Mock
+
+    obj = Mock()
+    obj.field_name = field_name
+    obj.rule_id = rule_id
+    obj.operator = operator
+    obj.params = {}
+    obj.match_pattern = ""
+    obj.sort_index = sort_index
+    return obj
+
+
+class TestInitSceneDesensitize(TestCase):
+    """覆盖 _init_scene_desensitize 的跳过 / 加载合并 / 幂等路径。"""
+
+    def _handler(self, is_desensitize=True):
+        handler = _bare_scene_handler()
+        handler.is_desensitize = is_desensitize
+        handler._desensitize_initialized = False
+        handler.field_configs = []
+        handler.text_fields = []
+        handler.text_fields_field_configs = []
+        return handler
+
+    def test_skip_when_not_desensitize(self):
+        handler = self._handler(is_desensitize=False)
+        with patch(
+            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
+            "_map_result_tables_to_index_sets"
+        ) as m_map:
+            handler._init_scene_desensitize(["2_bklog.a"])
+            m_map.assert_not_called()
+        self.assertTrue(handler._desensitize_initialized)
+        self.assertEqual(handler.field_configs, [])
+
+    def test_skip_when_empty_result_table_ids(self):
+        handler = self._handler()
+        with patch(
+            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
+            "_map_result_tables_to_index_sets"
+        ) as m_map:
+            handler._init_scene_desensitize([])
+            m_map.assert_not_called()
+        self.assertTrue(handler._desensitize_initialized)
+
+    def test_skip_when_no_index_set_mapped(self):
+        handler = self._handler()
+        with patch(
+            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
+            "_map_result_tables_to_index_sets",
+            return_value=[],
+        ), patch("apps.log_desensitize.models.DesensitizeFieldConfig") as m_field:
+            handler._init_scene_desensitize(["2_bklog.a"])
+            m_field.objects.filter.assert_not_called()
+        self.assertTrue(handler._desensitize_initialized)
+
+    def test_load_and_merge_configs_across_index_sets(self):
+        handler = self._handler()
+        cfg = type("C", (), {"text_fields": ["log"]})()
+        field_objs = [
+            _desensitize_field_obj("password"),
+            _desensitize_field_obj("log"),  # 命中 text_fields -> text_fields_field_configs
+        ]
+        with patch(
+            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
+            "_map_result_tables_to_index_sets",
+            return_value=[123, 456],
+        ), patch("apps.log_desensitize.models.DesensitizeConfig") as m_cfg, patch(
+            "apps.log_desensitize.models.DesensitizeFieldConfig"
+        ) as m_field:
+            m_cfg.objects.filter.return_value = [cfg]
+            m_field.objects.filter.return_value = field_objs
+            handler._init_scene_desensitize(["2_bklog.a", "2_bklog.b"])
+
+        self.assertEqual(handler.text_fields, ["log"])
+        self.assertEqual([c["field_name"] for c in handler.field_configs], ["password"])
+        self.assertEqual(
+            [c["field_name"] for c in handler.text_fields_field_configs], ["log"]
+        )
+        self.assertTrue(handler._desensitize_initialized)
+
+    def test_dedupe_identical_rules(self):
+        handler = self._handler()
+        cfg = type("C", (), {"text_fields": []})()
+        # 两个索引集返回完全相同的规则，应被去重为 1 条
+        field_objs = [
+            _desensitize_field_obj("password", rule_id=1, sort_index=0),
+            _desensitize_field_obj("password", rule_id=1, sort_index=0),
+        ]
+        with patch(
+            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
+            "_map_result_tables_to_index_sets",
+            return_value=[123, 456],
+        ), patch("apps.log_desensitize.models.DesensitizeConfig") as m_cfg, patch(
+            "apps.log_desensitize.models.DesensitizeFieldConfig"
+        ) as m_field:
+            m_cfg.objects.filter.return_value = [cfg]
+            m_field.objects.filter.return_value = field_objs
+            handler._init_scene_desensitize(["2_bklog.a", "2_bklog.b"])
+        self.assertEqual(len(handler.field_configs), 1)
+
+    def test_idempotent_second_call_skips_db(self):
+        handler = self._handler()
+        cfg = type("C", (), {"text_fields": []})()
+        with patch(
+            "apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler."
+            "_map_result_tables_to_index_sets",
+            return_value=[123],
+        ), patch("apps.log_desensitize.models.DesensitizeConfig") as m_cfg, patch(
+            "apps.log_desensitize.models.DesensitizeFieldConfig"
+        ) as m_field:
+            m_cfg.objects.filter.return_value = [cfg]
+            m_field.objects.filter.return_value = [_desensitize_field_obj("password")]
+            handler._init_scene_desensitize(["2_bklog.a"])
+            handler._init_scene_desensitize(["2_bklog.a"])
+            # 第二次命中幂等，不再查询 DB
+            m_field.objects.filter.assert_called_once()

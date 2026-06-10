@@ -102,7 +102,7 @@ from bkm_ipchooser.constants import CommonEnum
 from bkm_space.api import AbstractSpaceApi
 from bkm_space.define import Space as SpaceDefine
 from bkm_space.define import SpaceTypeEnum
-from bkm_space.utils import space_uid_to_bk_biz_id
+from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
 
 
 class GlobalConfig(models.Model):
@@ -1281,8 +1281,12 @@ class IndexSetTag(models.Model):
             else:
                 excluded_tag_ids |= matched
 
+        # 必须按 bk_biz_id 解析出的完整 space_uid 精确匹配；
+        # 旧实现 space_uid__endswith=str(bk_biz_id) 会串业务
+        # （如 bk_biz_id=2 会命中 bkcc__12 / bkcc__102），放大维度值数据范围泄漏。
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
         index_sets = LogIndexSet.objects.filter(
-            space_uid__endswith=str(bk_biz_id),
+            space_uid=space_uid,
             is_active=True,
         ).values_list("tag_ids", flat=True)
 

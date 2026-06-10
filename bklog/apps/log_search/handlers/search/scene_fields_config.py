@@ -38,6 +38,41 @@ class SceneFieldsConfigHandler:
                 self.data = SceneFieldsConfig.objects.get(pk=config_id)
             except SceneFieldsConfig.DoesNotExist:
                 raise SceneFieldsConfigNotExistException()
+            self._validate_ownership()
+
+    def _validate_ownership(self):
+        """校验请求方对该模板的归属权，避免凭 config_id 枚举越权读取/删除/应用他业务模板。
+
+        retrieve_config / delete_config / apply_config 仅传 config_id，没有 bk_biz_id
+        参数可供权限类在 view 层判断，因此这里基于取到的对象自身做兜底校验：
+        - source_app_code 必须与模板一致（跨 SaaS 应用隔离）；
+        - 若调用方显式传入了 bk_biz_id / scene_id，则必须与模板一致；
+        - 始终对模板所属业务做 VIEW_BUSINESS 鉴权（无权限抛带申请链接的异常）。
+        归属类校验失败统一抛 SceneFieldsConfigNotExistException，不暴露存在性。
+        （scope 默认值会与历史数据不一致，故不在此强校验，业务+场景+应用三元组已足以隔离。）
+        """
+        if self.source_app_code and self.data.source_app_code != self.source_app_code:
+            raise SceneFieldsConfigNotExistException()
+        if self.bk_biz_id is not None and self.data.bk_biz_id != self.bk_biz_id:
+            raise SceneFieldsConfigNotExistException()
+        if self.scene_id is not None and self.data.scene_id != self.scene_id:
+            raise SceneFieldsConfigNotExistException()
+        self._verify_business_permission(self.data.bk_biz_id)
+
+    @staticmethod
+    def _verify_business_permission(bk_biz_id):
+        from django.conf import settings
+
+        if settings.IGNORE_IAM_PERMISSION or not bk_biz_id:
+            return
+        from apps.iam import ActionEnum, ResourceEnum
+        from apps.iam.handlers.permission import Permission
+
+        Permission().is_allowed(
+            action=ActionEnum.VIEW_BUSINESS,
+            resources=[ResourceEnum.BUSINESS.create_instance(bk_biz_id)],
+            raise_exception=True,
+        )
 
     # ------------------------------------------------------------------
     # Read
