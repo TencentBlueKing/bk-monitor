@@ -230,12 +230,6 @@ class GetApplicationInfoByAppNameResource(ApiAuthResource):
             self.handle_apdex_config(instance, data)
             self.handle_qps_config(instance, data)
             self.handle_datasource_config(instance, data)
-
-            # TODO: 接入 IAM 权限判断后删除硬编码
-            data["permission"] = {
-                "manage_rum_application": True,
-                "view_rum_application": True,
-            }
             return data
 
     def perform_request(self, validated_request_data):
@@ -463,10 +457,6 @@ class ListApplicationResource(PageListResource):
             return first, app.get("app_name", "")
 
         data = sorted(self.ApplicationSerializer(applications, many=True).data, key=sort_rule)
-
-        # TODO: 接入 IAM 权限判断
-        for item in data:
-            item["permission"] = {"manage_rum_application": True, "view_rum_application": True}
 
         # 不分页
         validate_data["page_size"] = len(data)

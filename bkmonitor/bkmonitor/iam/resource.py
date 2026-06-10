@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -10,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import abc
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _lazy
@@ -33,7 +32,7 @@ class ResourceMeta(metaclass=abc.ABCMeta):
     id: str = ""
     name: str = ""
     selection_mode: str = ""
-    related_instance_selections: List = ""
+    related_instance_selections: list = ""
 
     @classmethod
     def to_json(cls):
@@ -133,7 +132,7 @@ class ApmApplication(ResourceMeta):
 
     @classmethod
     @lru_cache_with_ttl(maxsize=128, ttl=60 * 60, decision_to_drop_func=lambda v: v is None)
-    def _get_app_simple_info_by_id_or_none(cls, application_id: str) -> Optional[Dict[str, Any]]:
+    def _get_app_simple_info_by_id_or_none(cls, application_id: str) -> dict[str, Any] | None:
         """获取应用概要信息，不存在则返回 None。
         应用概要信息不会修改，此处给 60 min 的内存缓存，以提高整体鉴权性能。
         :param application_id: 应用 ID
@@ -150,7 +149,7 @@ class ApmApplication(ResourceMeta):
     @classmethod
     def create_simple_instance(cls, instance_id: str, attribute=None) -> Resource:
         resource = super().create_simple_instance(instance_id, attribute)
-        app_simple_info: Optional[Dict[str, Any]] = cls._get_app_simple_info_by_id_or_none(instance_id)
+        app_simple_info: dict[str, Any] | None = cls._get_app_simple_info_by_id_or_none(instance_id)
         if app_simple_info is None:
             return resource
 
@@ -190,6 +189,60 @@ class GrafanaDashboard(ResourceMeta):
         return resource
 
 
+class RumApplication(ResourceMeta):
+    system_id = settings.BK_IAM_SYSTEM_ID
+    id = "rum_application"
+    name = _lazy("RUM应用")
+    selection_mode = "instance"
+    related_instance_selections = [{"system_id": system_id, "id": "rum_application_list_v2"}]
+
+    @classmethod
+    def create_instance_by_info(cls, item: dict) -> Resource:
+        instance_id = item["application_id"]
+        bk_biz_id = str(item["bk_biz_id"])
+        resource = super().create_simple_instance(
+            instance_id=instance_id,
+            attribute={
+                "id": instance_id,
+                "name": item["app_name"],
+                "bk_biz_id": bk_biz_id,
+                "_bk_iam_path_": f"/{Business.id},{bk_biz_id}/",
+            },
+        )
+        return resource
+
+    @classmethod
+    @lru_cache_with_ttl(maxsize=128, ttl=60 * 60, decision_to_drop_func=lambda v: v is None)
+    def _get_app_simple_info_by_id_or_none(cls, application_id: str) -> dict[str, Any] | None:
+        """获取应用概要信息，不存在则返回 None。
+        应用概要信息不会修改，此处给 60 min 的内存缓存，以提高整体鉴权性能。
+        :param application_id: 应用 ID
+        :return:
+        """
+        from rum_web.models.application import Application
+
+        return (
+            Application.objects.filter(application_id=application_id)
+            .values("application_id", "app_name", "bk_biz_id")
+            .first()
+        )
+
+    @classmethod
+    def create_simple_instance(cls, instance_id: str, attribute=None) -> Resource:
+        resource = super().create_simple_instance(instance_id, attribute)
+        app_simple_info: dict[str, Any] | None = cls._get_app_simple_info_by_id_or_none(instance_id)
+        if app_simple_info is None:
+            return resource
+
+        resource.attribute = {
+            "id": str(instance_id),
+            "name": app_simple_info["app_name"],
+            "bk_biz_id": str(app_simple_info["bk_biz_id"]),
+            "_bk_iam_path_": "/{},{}/".format(Business.id, app_simple_info["bk_biz_id"]),
+        }
+        return resource
+
+
 class ResourceEnum:
     """
     资源类型枚举
@@ -198,6 +251,7 @@ class ResourceEnum:
     BUSINESS = Business
     APM_APPLICATION = ApmApplication
     GRAFANA_DASHBOARD = GrafanaDashboard
+    RUM_APPLICATION = RumApplication
 
 
 _all_resources = {resource.id: resource for resource in ResourceEnum.__dict__.values() if hasattr(resource, "id")}
