@@ -732,10 +732,16 @@ class TestEtl(TestCase):
             "es_doc_values" not in result["params"]["time_option"], "time_option必须设置且不可设置doc_values"
         )
 
-        # IaaS 兼容: index_set 与 router 选项
+        # IaaS 兼容: index_set 应为最终注册 RT id（库名.表名 → 下划线），
+        # 直接对比 build_result_table_id 的派生值，避免依赖被 mock 覆盖的 params["table_id"]。
+        from apps.log_databus.handlers.collector.base import CollectorHandler
+
+        expected_index_set = CollectorHandler.build_result_table_id(
+            collector_config.bk_biz_id, TABLE_ID
+        ).replace(".", "_")
         self.assertEqual(
             result["params"]["default_storage_config"]["index_set"],
-            result["params"]["table_id"].replace(".", "_"),
+            expected_index_set,
         )
         self.assertIn("need_add_time", result["params"]["option"])
         self.assertTrue(result["params"]["option"]["need_add_time"])
