@@ -45,6 +45,7 @@ export type DashboardMode = 'chart' | 'list';
 
 export interface IK8sTargetList {
   bcs_cluster_id: string;
+  cacheId: string;
   namespace: string;
   pod?: string;
   resource_type: 'pod' | 'workload';
