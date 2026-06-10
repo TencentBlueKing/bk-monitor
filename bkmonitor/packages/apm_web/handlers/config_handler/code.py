@@ -77,7 +77,7 @@ class CodeRemarkHandler:
         service_name: str,
         kind: str,
     ) -> dict[str, str]:
-        """按内置、全局、服务级优先级构造返回码备注。"""
+        """按从高到低的优先级（服务级 > 全局 > 内置）构造返回码备注。"""
         service_config: dict[str, str] = {
             **cls.TRPC_DEFAULT_CODE_REMARK,
             **{f"err_{code}": remark for code, remark in cls.TRPC_DEFAULT_CODE_REMARK.items()},
