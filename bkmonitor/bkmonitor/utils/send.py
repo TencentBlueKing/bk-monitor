@@ -138,7 +138,12 @@ class BaseSender:
         content_template = notice_template_class(content_template_path)
         self.encoding = None if self.notice_way in self.NoEncoding else self.Utf8Encoding
         self.context["encoding"] = self.encoding
-        self.title = title_template.render(context_dict)
+        try:
+            self.title = title_template.render(context_dict)
+        except Exception as e:
+            # 标题渲染失败（如模板渲染收窄误伤）不应阻断整条通知发送，回退为空标题。
+            logger.exception("failed to render notice title, fallback to empty title: %s", e)
+            self.title = ""
         try:
             self.content = content_template.render(context_dict)
         except Exception as e:
