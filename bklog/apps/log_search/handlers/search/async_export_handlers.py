@@ -22,7 +22,6 @@ the project delivered to anyone in the future.
 import copy
 import json
 from concurrent.futures import ThreadPoolExecutor
-from urllib.parse import urljoin
 
 import arrow
 from django.conf import settings
@@ -257,7 +256,7 @@ class AsyncExportHandlers:
                 "bk_biz_id": export_task_history["bk_biz_id"],
             }
         )
-        return urljoin(settings.BK_BKLOG_HOST, f"api/v1/search/index_set/async_export/download_file/?{query_params}")
+        return f"{settings.SITE_URL.rstrip('/')}/api/v1/search/index_set/async_export/download_file/?{query_params}"
 
     @classmethod
     def judge_download_able(cls, status):
