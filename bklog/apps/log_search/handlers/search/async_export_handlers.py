@@ -115,7 +115,9 @@ class AsyncExportHandlers:
                 "end_time": self.search_dict["end_time"],
                 "export_type": ExportType.ASYNC,
                 "export_total_count": self.get_export_total_count(
-                    request_size=self.search_handler.size, is_quick_export=is_quick_export
+                    request_size=self.search_handler.size,
+                    is_quick_export=is_quick_export,
+                    max_async_count=self.search_handler.index_set.max_async_count,
                 ),
                 "created_by": self.request_user,
             }
@@ -270,12 +272,10 @@ class AsyncExportHandlers:
         return True
 
     @staticmethod
-    def get_export_total_count(request_size, is_quick_export: bool = False):
-        export_limit = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
-        try:
-            request_size = int(request_size or export_limit)
-        except (TypeError, ValueError):
-            request_size = export_limit
+    def get_export_total_count(request_size, is_quick_export: bool = False, max_async_count: int = 0):
+        default_export_limit = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
+        export_limit = max(max_async_count or 0, default_export_limit)
+        request_size = request_size or export_limit
         return min(request_size, export_limit)
 
     @classmethod
