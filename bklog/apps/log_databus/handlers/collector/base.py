@@ -102,6 +102,7 @@ from apps.log_search.constants import (
     LogAccessTypeEnum,
 )
 from apps.log_search.handlers.biz import BizHandler
+from apps.log_search.handlers.index_group import IndexGroupHandler
 from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.models import (
     IndexSetTag,
@@ -119,6 +120,7 @@ from apps.utils.local import get_local_param, get_request_username, get_request_
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import format_user_time_zone
+from bkm_space.utils import bk_biz_id_to_space_uid
 
 COLLECTOR_RE = re.compile(r".*\d{6,8}$")
 
@@ -543,6 +545,7 @@ class CollectorHandler:
         sort_fields=None,
         target_fields=None,
         parent_index_set_ids=None,
+        parent_index_set_names=None,
         is_platform_index=None,
         platform_index_visibility=None,
         platform_index_filter=None,
@@ -577,6 +580,12 @@ class CollectorHandler:
         if _collector_config_name != self.data.collector_config_name and self.data.index_set_id:
             index_set_name = _("[采集项]") + self.data.collector_config_name
             LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).update(index_set_name=index_set_name)
+
+        if parent_index_set_ids is None and parent_index_set_names is not None:
+            parent_index_set_ids = CollectorHandler.get_or_create_parent_index_set_ids_by_parent_index_set_names(
+                parent_index_set_names,
+                bk_biz_id=self.data.get_bk_biz_id(),
+            )
 
         # 更新归属索引集
         if self.data.index_set_id:
@@ -1417,6 +1426,7 @@ class CollectorHandler:
         target_fields=None,
         collector_scenario_id=CollectorScenarioEnum.CUSTOM.value,
         parent_index_set_ids=None,
+        parent_index_set_names=None,
         is_platform_index=None,
         platform_index_visibility=None,
         platform_index_filter=None,
@@ -1492,6 +1502,13 @@ class CollectorHandler:
 
             # 创建索引集，并添加到归属索引集中
             index_set = self.data.create_index_set()
+
+            if not parent_index_set_ids and parent_index_set_names:
+                parent_index_set_ids = CollectorHandler.get_or_create_parent_index_set_ids_by_parent_index_set_names(
+                    parent_index_set_names,
+                    bk_biz_id=bk_biz_id
+                )
+
             if parent_index_set_ids:
                 IndexSetHandler(index_set.index_set_id).add_to_parent_index_sets(parent_index_set_ids)
 
@@ -1775,3 +1792,25 @@ class CollectorHandler:
         if is_pattern_rt:
             return f"{result_table_id}__pattern"
         return result_table_id
+
+    @staticmethod
+    def get_or_create_parent_index_set_ids_by_parent_index_set_names(
+        parent_index_set_names,
+        bk_biz_id: int = None,
+        space_uid: str = None
+    ) -> list:
+        if parent_index_set_names is None:
+            return None
+
+        if not parent_index_set_names:
+            return []
+
+        if not space_uid:
+            if bk_biz_id is None:
+                return None
+            space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+
+        return IndexGroupHandler.get_or_create_index_group_ids_by_index_group_names(
+            space_uid=space_uid,
+            index_set_names=parent_index_set_names,
+        )

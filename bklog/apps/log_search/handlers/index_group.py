@@ -169,3 +169,35 @@ class IndexGroupHandler(APIModel):
             index_set_id=self.data.index_set_id, result_table_id__in=child_index_set_ids
         ).delete()
         BaseIndexSetHandler.sync_router(self.data)
+
+    @staticmethod
+    @transaction.atomic
+    def get_or_create_index_group_ids_by_index_group_names(space_uid: str, index_groups_names: list[str]) -> list[int]:
+        cleaned_index_group_names = [index_group_name.strip() for index_group_name in index_groups_names if index_group_name and index_group_name.strip()]
+
+        if not cleaned_index_group_names:
+            return []
+
+        existing_index_group_name_to_index_group_obj_map = {
+            index_group_obj.index_set_name: index_group_obj
+            for index_group_obj in LogIndexSet.objects.filter(
+                is_group=True,
+                space_uid=space_uid,
+                is_deleted=False,
+                scenario_id=Scenario.LOG,
+                index_set_name__in=cleaned_index_group_names,
+            )
+        }
+
+        index_group_ids = []
+
+        for index_group_name in cleaned_index_group_names:
+            index_group_obj = existing_index_group_name_to_index_group_obj_map.get(index_group_name)
+            if index_group_obj is None:
+                index_group_obj = IndexGroupHandler.create_index_group(
+                    {"space_uid": space_uid, "index_set_name": index_group_name}
+                )
+                existing_index_group_name_to_index_group_obj_map[index_group_name] = index_group_obj
+            index_group_ids.append(index_group_obj.index_set_id)
+
+        return index_group_ids

@@ -457,7 +457,12 @@ class CollectorCreateSerializer(serializers.Serializer):
         label=_("环境"), default=Environment.LINUX, choices=[Environment.LINUX, Environment.WINDOWS]
     )
     params = PluginParamSerializer()
-    parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=list)
+    parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=None)
+    parent_index_set_names = serializers.ListField(
+        label=_("归属索引集名称列表"),
+        child=serializers.CharField(max_length=128),
+        default=None
+    )
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -476,6 +481,9 @@ class CollectorCreateSerializer(serializers.Serializer):
             for field in ["syslog_protocol", "syslog_port"]:
                 if field not in attrs["params"]:
                     raise ValidationError(_("{} 该字段为必填项").format(field))
+
+        if attrs.get("parent_index_set_ids") is not None and attrs.get("parent_index_set_names") is not None:
+            raise ValidationError(_("parent_index_set_ids 与 parent_index_set_names 二选一传入"))
 
         return attrs
 
@@ -501,7 +509,20 @@ class CreateContainerCollectorSerializer(serializers.Serializer):
     yaml_config_enabled = serializers.BooleanField(label=_("是否使用yaml配置模式"), default=False)
     yaml_config = serializers.CharField(label=_("yaml配置内容"), default="", allow_blank=True)
     platform_username = serializers.CharField(label=_("平台用户"), required=False)
-    parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=list)
+    parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=None)
+    parent_index_set_names = serializers.ListField(
+        label=_("归属索引集名称列表"),
+        child=serializers.CharField(max_length=128),
+        default=None
+    )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        if attrs.get("parent_index_set_ids") is not None and attrs.get("parent_index_set_names") is not None:
+            raise ValidationError(_("parent_index_set_ids 与 parent_index_set_names 二选一传入"))
+
+        return attrs
 
     def validate_yaml_config(self, value):
         try:
@@ -532,7 +553,20 @@ class CollectorUpdateSerializer(serializers.Serializer):
         label=_("环境"), required=False, choices=[Environment.LINUX, Environment.WINDOWS]
     )
     params = PluginParamSerializer()
-    parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=list)
+    parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=None)
+    parent_index_set_names = serializers.ListField(
+        label=_("归属索引集名称列表"),
+        child=serializers.CharField(max_length=128),
+        default=None
+    )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        if attrs.get("parent_index_set_ids") is not None and attrs.get("parent_index_set_names") is not None:
+            raise ValidationError(_("parent_index_set_ids 与 parent_index_set_names 二选一传入"))
+
+        return attrs
 
 
 class UpdateContainerCollectorSerializer(serializers.Serializer):
@@ -550,7 +584,20 @@ class UpdateContainerCollectorSerializer(serializers.Serializer):
     extra_labels = serializers.ListSerializer(label=_("额外标签"), required=False, child=LabelsSerializer())
     yaml_config_enabled = serializers.BooleanField(label=_("是否使用yaml配置模式"), default=False)
     yaml_config = serializers.CharField(label=_("yaml配置内容"), default="", allow_blank=True)
-    parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=list)
+    parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=None)
+    parent_index_set_names = serializers.ListField(
+        label=_("归属索引集名称列表"),
+        child=serializers.CharField(max_length=128),
+        default=None
+    )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        if attrs.get("parent_index_set_ids") is not None and attrs.get("parent_index_set_names") is not None:
+            raise ValidationError(_("parent_index_set_ids 与 parent_index_set_names 二选一传入"))
+
+        return attrs
 
     def validate_yaml_config(self, value):
         try:
@@ -1567,7 +1614,12 @@ class CustomCollectorBaseSerializer(CollectorETLParamsFieldSerializer):
         label=_("备注说明"), max_length=64, required=False, allow_null=True, allow_blank=True
     )
     is_display = serializers.BooleanField(label=_("是否展示"), default=True, required=False)
-    parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=list)
+    parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=None)
+    parent_index_set_names = serializers.ListField(
+        label=_("归属索引集名称列表"),
+        child=serializers.CharField(max_length=128),
+        default=None
+    )
 
     def validate(self, attrs: dict) -> dict:
         # 先进行校验
@@ -1591,6 +1643,10 @@ class CustomCollectorBaseSerializer(CollectorETLParamsFieldSerializer):
                 if "allocation_min_days" not in keys:
                     raise serializers.ValidationError(gettext("冷热数据生效时间不能为空"))
             attrs["storage_cluster_type"] = storage_cluster_type
+
+        if attrs.get("parent_index_set_ids") is not None and attrs.get("parent_index_set_names") is not None:
+            raise ValidationError(_("parent_index_set_ids 与 parent_index_set_names 二选一传入"))
+
         return attrs
 
 
@@ -1656,6 +1712,20 @@ class FastContainerCollectorCreateSerializer(CollectorETLParamsFieldSerializer, 
         label=_("ES副本数量"), required=False, default=settings.ES_REPLICAS, min_value=0
     )
     es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, default=settings.ES_SHARDS, min_value=1)
+    parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=None)
+    parent_index_set_names = serializers.ListField(
+        label=_("归属索引集名称列表"),
+        child=serializers.CharField(max_length=128),
+        default=None
+    )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        if attrs.get("parent_index_set_ids") is not None and attrs.get("parent_index_set_names") is not None:
+            raise ValidationError(_("parent_index_set_ids 与 parent_index_set_names 二选一传入"))
+
+        return attrs
 
     def validate_yaml_config(self, value):
         try:
@@ -1701,6 +1771,12 @@ class FastCollectorCreateSerializer(CollectorETLParamsFieldSerializer, PlatformI
         label=_("ES副本数量"), required=False, default=settings.ES_REPLICAS, min_value=0
     )
     es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, default=settings.ES_SHARDS, min_value=1)
+    parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=None)
+    parent_index_set_names = serializers.ListField(
+        label=_("归属索引集名称列表"),
+        child=serializers.CharField(max_length=128),
+        default=None
+    )
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -1745,6 +1821,10 @@ class FastCollectorCreateSerializer(CollectorETLParamsFieldSerializer, PlatformI
             attrs["fields"] = fields
         else:
             attrs["fields"] = []
+
+        if attrs.get("parent_index_set_ids") is not None and attrs.get("parent_index_set_names") is not None:
+            raise ValidationError(_("parent_index_set_ids 与 parent_index_set_names 二选一传入"))
+
         return attrs
 
 
@@ -1767,6 +1847,20 @@ class FastContainerCollectorUpdateSerializer(CollectorETLParamsFieldSerializer, 
     storage_replies = serializers.IntegerField(label=_("ES副本数量"), required=False, min_value=0)
     es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, min_value=1)
     alias_settings = AliasSettingSerializer(many=True, required=False)
+    parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=None)
+    parent_index_set_names = serializers.ListField(
+        label=_("归属索引集名称列表"),
+        child=serializers.CharField(max_length=128),
+        default=None
+    )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        if attrs.get("parent_index_set_ids") is not None and attrs.get("parent_index_set_names") is not None:
+            raise ValidationError(_("parent_index_set_ids 与 parent_index_set_names 二选一传入"))
+
+        return attrs
 
     def validate_yaml_config(self, value):
         try:
@@ -1795,6 +1889,12 @@ class FastCollectorUpdateSerializer(CollectorETLParamsFieldSerializer, PlatformI
     storage_replies = serializers.IntegerField(label=_("ES副本数量"), required=False, min_value=0)
     es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, min_value=1)
     alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
+    parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=None)
+    parent_index_set_names = serializers.ListField(
+        label=_("归属索引集名称列表"),
+        child=serializers.CharField(max_length=128),
+        default=None
+    )
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -1829,6 +1929,10 @@ class FastCollectorUpdateSerializer(CollectorETLParamsFieldSerializer, PlatformI
             attrs["fields"] = fields
         else:
             attrs["fields"] = []
+
+        if attrs.get("parent_index_set_ids") is not None and attrs.get("parent_index_set_names") is not None:
+            raise ValidationError(_("parent_index_set_ids 与 parent_index_set_names 二选一传入"))
+
         return attrs
 
 

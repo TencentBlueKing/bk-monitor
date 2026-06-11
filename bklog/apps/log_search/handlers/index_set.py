@@ -38,6 +38,7 @@ from apps.exceptions import CreateOrUpdateLogRouterException
 from apps.feature_toggle.handlers.toggle import feature_switch
 from apps.iam import Permission, ResourceEnum
 from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
+from apps.log_databus.handlers.collector.base import CollectorHandler
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import CollectorConfig
 from apps.log_desensitize.constants import (
@@ -1688,6 +1689,7 @@ class BaseIndexSetHandler:
         sort_fields=None,
         bcs_cluster_id=None,
         parent_index_set_ids=None,
+        parent_index_set_names=None,
         is_platform_index=None,
         platform_index_visibility=None,
         platform_index_filter=None,
@@ -1714,6 +1716,7 @@ class BaseIndexSetHandler:
         self.is_editable = is_editable
         self.bcs_cluster_id = bcs_cluster_id
         self.parent_index_set_ids = parent_index_set_ids
+        self.parent_index_set_names = parent_index_set_names
 
         # time_field
         self.time_field, self.time_field_type, self.time_field_unit = self.init_time_field(
@@ -1851,6 +1854,12 @@ class BaseIndexSetHandler:
                 time_field=index.get("time_field") or self.time_field,
                 time_field_type=index.get("time_field_type") or self.time_field_type,
                 time_field_unit=index.get("time_field_unit") or self.time_field_unit,
+            )
+
+        if not self.parent_index_set_ids and self.parent_index_set_names:
+            self.parent_index_set_ids = CollectorHandler.get_or_create_parent_index_set_ids_by_parent_index_set_names(
+                self.parent_index_set_names,
+                space_uid=self.space_uid
             )
 
         # 将索引集添加到归属索引集(索引组)中
@@ -2183,6 +2192,12 @@ class BaseIndexSetHandler:
                 storage_cluster_id=_storage_cluster_id,
                 time_field_type=index.get("time_field_type") or self.time_field_type,
                 time_field_unit=index.get("time_field_unit") or self.time_field_unit,
+            )
+
+        if self.parent_index_set_ids is None and self.parent_index_set_names is not None:
+            self.parent_index_set_ids = CollectorHandler.get_or_create_parent_index_set_ids_by_parent_index_set_names(
+                self.parent_index_set_names,
+                bk_biz_id=index["bk_biz_id"],
             )
 
         # 更新归属索引集
