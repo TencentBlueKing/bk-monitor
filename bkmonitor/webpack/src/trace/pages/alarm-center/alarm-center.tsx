@@ -105,6 +105,7 @@ import { useIssuesMergeActions } from './alarm-issues/hooks/use-issues-merge-act
 import IssuesDetailSideSlider from './alarm-issues/issues-detail/issues-detail-sideslider';
 import IssuesMergeSplitSideslider from './alarm-issues/issues-merge-split/issues-merge-split-sideslider';
 import IssuesTable from './alarm-issues/issues-table/issues-table';
+import IssuesTapd from './alarm-issues/issues-tapd/issues-tapd';
 import IssuesToolbar from './alarm-issues/issues-toolbar/issues-toolbar';
 import {
   exportIssues,
@@ -837,6 +838,14 @@ export default defineComponent({
       detailId.value = target.id;
     };
 
+    /** issues Tapd展示 */
+    const issuesTapdShow = shallowRef(true);
+    const handleIssuesTapdShowChange = (show: boolean) => {
+      issuesTapdShow.value = show;
+    };
+
+    /** */
+
     /**
      * @method autoShowAlertDialog 自动打开告警确认 | 告警屏蔽 dialog
      * @description 当移动端的 告警通知 中点击 告警确认 | 告警屏蔽，进入页面时，需要自动打开 告警确认 | 告警屏蔽 dialog
@@ -1196,6 +1205,8 @@ export default defineComponent({
       handleMergeSplitShowChange,
       addSplitHighlight,
       highlightedRowIds,
+      issuesTapdShow,
+      handleIssuesTapdShowChange,
     };
   },
   render() {
@@ -1491,6 +1502,11 @@ export default defineComponent({
                   this.addSplitHighlight(memberIssueId);
                 }}
                 onUpdate:show={this.handleMergeSplitShowChange}
+              />,
+              <IssuesTapd
+                key='issues-tapd'
+                show={this.issuesTapdShow}
+                onUpdate:show={this.handleIssuesTapdShowChange}
               />,
             ]
           ) : (
