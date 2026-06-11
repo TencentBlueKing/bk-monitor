@@ -406,7 +406,10 @@ def result_table_id_to_bk_biz_id(result_table_id: str | list | tuple) -> int:
 
     bk_biz_id = result_table_id.split("_", 1)[0]
     if not bk_biz_id.isdigit():
-        raise ValueError(f"failed to get bk_biz_id from result_table_id `{result_table_id}`")
+        # 无法从裸结果表名（如 BCS 表 bcs_k8s_27135_xxx_std）解析出业务 ID 时，
+        # 回退为 0，交由 Space.get_tenant_id 兜底到默认租户，避免对外部传入的
+        # 裸表名抛 ValueError 导致 get_result_table 等接口 500。
+        return 0
     return int(bk_biz_id)
 
 
