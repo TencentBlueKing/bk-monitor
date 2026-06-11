@@ -26,6 +26,10 @@ from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api, resource
 from metadata import models as metadata_models
 from rum.constants import DATABASE_CONNECTION_NAME, RUM_ELASTICSEARCH_CLUSTER_ID, RUM_KAFKA_CLUSTER_ID
+from constants.rum import (
+    RumDataSourceConfig,
+    RUM_RESULT_TABLE_OPTION,
+)
 
 
 class RumDataSourceConfigBase(models.Model):
@@ -162,6 +166,7 @@ class RumDataSourceConfigBase(models.Model):
         if not option:
             # 关闭
             obj.stop(bk_biz_id, app_name)
+            return
 
 
 class MetricDataSource(RumDataSourceConfigBase):
@@ -344,11 +349,11 @@ class RumDataSource(RumDataSourceConfigBase):
                     "number_of_replicas": option.get("es_number_of_replicas", settings.RUM_APP_DEFAULT_ES_REPLICAS),
                 },
             },
-            "field_list": [],
+            "field_list": RumDataSourceConfig.RUM_FIELD_LIST,
             "is_time_field_only": True,
             "bk_biz_id": self.bk_biz_id,
             "label": "application_check",
-            "option": {},
+            "option": RUM_RESULT_TABLE_OPTION,
             "time_option": {
                 "es_type": "date",
                 "es_format": "epoch_millis",
