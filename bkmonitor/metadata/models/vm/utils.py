@@ -613,8 +613,7 @@ def access_v2_bkdata_vm(
     access_vm_record = AccessVMRecord.objects.filter(
         bk_tenant_id=bk_tenant_id,
         result_table_id=table_id,
-        bk_base_data_id=data_id,
-    ).first()
+    ).last()
     if access_vm_record:
         logger.info("table_id: %s has already been created,now try to create fed vm data link", table_id)
 
@@ -867,30 +866,30 @@ def create_bkbase_data_link(
             vm_result_table_id,
         )
 
-        # 查询AccessVMRecord记录，这里为了兼容可能存在的多条记录脏数据，默认取最新一条
-        vm_record = AccessVMRecord.objects.filter(
+    # 查询AccessVMRecord记录，这里为了兼容可能存在的多条记录脏数据，默认取最新一条
+    vm_record = AccessVMRecord.objects.filter(
+        bk_tenant_id=data_source.bk_tenant_id,
+        result_table_id=monitor_table_id,
+    ).last()
+
+    # 更新AccessVMRecord记录
+    if vm_record:
+        # NOTE: v3->v4迁移场景中存在双dataid的问题，这里默认先不更新bk_base_data_id，暂时还保留原有信息
+        vm_record.bk_base_data_name = bkbase_data_name
+        vm_record.vm_result_table_id = vm_result_table_id
+        vm_record.bcs_cluster_id = bcs_cluster_id
+        vm_record.vm_cluster_id = storage_cluster_id
+        vm_record.save()
+    else:
+        AccessVMRecord.objects.create(
             bk_tenant_id=data_source.bk_tenant_id,
             result_table_id=monitor_table_id,
-        ).last()
-
-        # 更新AccessVMRecord记录
-        if vm_record:
-            # NOTE: v3->v4迁移场景中存在双dataid的问题，这里默认先不更新bk_base_data_id，暂时还保留原有信息
-            vm_record.bk_base_data_name = bkbase_data_name
-            vm_record.vm_result_table_id = vm_result_table_id
-            vm_record.bcs_cluster_id = bcs_cluster_id
-            vm_record.vm_cluster_id = storage_cluster_id
-            vm_record.save()
-        else:
-            AccessVMRecord.objects.create(
-                bk_tenant_id=data_source.bk_tenant_id,
-                result_table_id=monitor_table_id,
-                bk_base_data_id=data_source.bk_data_id,
-                bk_base_data_name=bkbase_data_name,
-                vm_cluster_id=storage_cluster_id,
-                vm_result_table_id=vm_result_table_id,
-                bcs_cluster_id=bcs_cluster_id,
-            )
+            bk_base_data_id=data_source.bk_data_id,
+            bk_base_data_name=bkbase_data_name,
+            vm_cluster_id=storage_cluster_id,
+            vm_result_table_id=vm_result_table_id,
+            bcs_cluster_id=bcs_cluster_id,
+        )
 
     logger.info(
         "create_bkbase_data_link:access bkbase success,data_id->[%s],storage_cluster_name->[%s],data_link_strategy->["

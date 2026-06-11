@@ -43,6 +43,14 @@ export interface IFavoriteItem {
   favorite_type?: string;
   updated_by?: string;
   created_at?: string;
+  /** 收藏来源类型：场景化收藏为 scene，索引集收藏为 index_set */
+  source_type?: 'scene' | 'index_set';
+  /** 场景化收藏的场景 ID（如 k8s/host/bk_paas/apm） */
+  scene_id?: string;
+  /** 场景化收藏的 table_id 条件（二维数组） */
+  table_id_conditions?: Array<Array<{ field_name: string; value: any[]; op: string }>>;
+  /** 场景化收藏的 free_input 类型的过滤值 */
+  scene_filter_values?: Array<{ field: string; operator: string; value: any[] }>;
   [key: string]: any;
 }
 

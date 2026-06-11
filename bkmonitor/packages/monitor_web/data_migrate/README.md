@@ -12,6 +12,7 @@
 - `replace_tenant_id_in_directory`
 - `restore_disabled_models_in_directory`
 - `sanitize_cluster_info_in_directory`
+- `stop_biz_subscription_tasks`
 
 代码导出位置见 [__init__.py](/Users/unique0lai/Documents/Codes/bk-monitor/bk-monitor/worktrees/data-migrate/bkmonitor/bkmonitor/data_migrate/__init__.py)。
 
@@ -26,6 +27,7 @@
 - `python manage.py data_migrate replace-tenant-id ...`
 - `python manage.py data_migrate restore-disabled-models ...`
 - `python manage.py data_migrate sanitize-cluster-info ...`
+- `python manage.py data_migrate stop-biz-subscription-tasks ...`
 
 ## 使用方式
 
@@ -212,6 +214,23 @@ python manage.py data_migrate restore-disabled-models \
 - 恢复依据来自 `recovery_records/` 目录中的按“批次 / 业务 / 模型”拆分记录
 - 恢复成功后，会在对应的 `disable-models` 记录上补 `restored_at`
 - 同时会追加一条 `restore_disable_models` 执行历史
+
+### 停用业务下订阅任务
+
+```bash
+python manage.py data_migrate stop-biz-subscription-tasks \
+  --bk-tenant-id tencent \
+  --bk-biz-ids 2 3 \
+  --operator admin
+```
+
+说明：
+
+- 会找出业务下拨测任务对应的节点管理订阅，关闭巡检并执行 `STOP`
+- 会找出业务下插件采集配置对应的节点管理订阅，关闭巡检并执行 `STOP`
+- 会额外找出业务下 k8s 采集配置并停用，k8s 采集不依赖节点管理订阅
+- 支持 `--dry-run` 只输出待处理对象，不执行停用
+- 每个任务独立执行并输出结果；单个失败不会中断其他任务
 
 ## 导出目录结构
 

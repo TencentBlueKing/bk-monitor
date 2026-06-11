@@ -29,7 +29,8 @@ import { computed, defineComponent, ref, watch } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
-import RetrieveHelper from '../../retrieve-helper';
+import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import CollectHead from './components/collect-head/collect-head';
 import CollectList from './components/collect-list/collect-list';
 import CollectTab from './components/collect-tab/collect-tab';
@@ -188,6 +189,14 @@ export default defineComponent({
       },
       { immediate: true },
     );
+
+    // 监听收藏列表刷新事件（切换检索模式时触发）
+    const { addEvent } = useRetrieveEvent();
+    addEvent(RetrieveEvent.FAVORITE_LIST_REFRESH, () => {
+      activeFavorite.value = null;
+      searchValue.value = '';
+      getFavoriteList();
+    });
 
     return () => (
       <div class='collect-main-box'>

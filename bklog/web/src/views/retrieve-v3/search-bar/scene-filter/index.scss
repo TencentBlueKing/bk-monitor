@@ -1,0 +1,111 @@
+.scene-filter-root {
+  display: contents;
+}
+
+.scene-filter-panel-section {
+  margin: 0 8px;
+  padding: 12px;
+  background: #fff;
+  border-radius: 4px;
+}
+
+// 搜索框吸顶区块
+.scene-search-sticky {
+  position: sticky;
+  top: 52px;
+  z-index: 4;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  margin: 0 8px;
+  padding: 0 12px;
+  border-radius: 4px;
+
+  .is-sticky-top & {
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+
+    .fix-search-bar {
+      width: calc(100vw - var(--left-collection-width) - 12px);
+    }
+
+    .query-hint-bar {
+      right: 7px;
+    }
+  }
+
+  .v3-search-bar-root {
+    margin: 0;
+  }
+
+  .fix-search-bar {
+    width: calc(100vw - var(--left-collection-width) - 44px);
+  }
+
+  // ---- 条件变更提示条 ----
+  .query-hint-bar {
+    position: absolute;
+    right: 12px;
+    bottom: -32px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 12px;
+    height: 32px;
+    border: 1px solid #F9D090;
+    border-radius: 8px;
+    white-space: nowrap;
+    z-index: 3;
+    color: #DF8D4F;
+    background: linear-gradient(90deg, rgba(255, 247, 224, 0.96) 0%, rgba(255, 255, 255, 0.92) 100%);
+    box-shadow: 0px 0px 12px 0px #1919291F;
+
+    .query-hint-icon {
+      font-size: 14px;
+      color: #ff9c01;
+      flex-shrink: 0;
+    }
+
+    .query-hint-text {
+      font-size: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+    }
+  }
+
+  // slide-hint transition
+  .slide-hint-enter-active {
+    transition: transform 0.3s ease, opacity 0.3s ease;
+  }
+
+  .slide-hint-leave-active {
+    transition: opacity 0.15s ease;
+  }
+
+  .slide-hint-enter {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  .slide-hint-enter-to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  .slide-hint-leave-to {
+    opacity: 0;
+  }
+}
+
+.scene-search-sticky-spacer {
+  margin: 0 8px;
+  height: 12px;
+  background-color: #fff;
+  opacity: 1;
+}
+
+.is-sticky-top .scene-search-sticky-spacer {
+  opacity: 0;
+}

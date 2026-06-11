@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, nextTick } from 'vue';
+import { computed, defineComponent, ref, nextTick, watch, onBeforeUnmount } from 'vue';
 
 import useElementEvent from '@/hooks/use-element-event';
 import useLocale from '@/hooks/use-locale';
@@ -321,7 +321,13 @@ export default defineComponent({
     const handleRequestResponse = (resp?: any) => {
       const content = resp?.choices[0]?.delta?.content ?? '{}';
       try {
-        const contentObj: AiQueryContent = JSON.parse(content);
+        // 兼容 AI 响应内容被 markdown 代码块包裹的情况（如 ```json\n{...}\n```）
+        let jsonStr = content.trim();
+        const codeBlockMatch = jsonStr.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?\s*```$/i);
+        if (codeBlockMatch) {
+          jsonStr = codeBlockMatch[1].trim();
+        }
+        const contentObj: AiQueryContent = JSON.parse(jsonStr);
         const {
           end_time: endTime,
           start_time: startTime,
@@ -347,12 +353,18 @@ export default defineComponent({
           aiQueryResult.value.queryString = queryString;
         }
 
-        if (needReplace) {
+        if (needReplace && parseResult !== 'FAILED') {
           store.commit('updateIndexItemParams', queryParams);
           store.commit('updateStorage', { [BK_LOG_STORAGE.SEARCH_TYPE]: 1 });
 
           const { start_time, end_time } = queryParams as any;
-          setRouteParamsByKeywordAndAddition({ start_time, end_time }).then(() => {
+          setRouteParamsByKeywordAndAddition({ start_time, end_time }).then(async () => {
+            // 场景化检索模式下条件为空时跳过
+            if (store.getters.isSceneMode && store.getters.isSceneFilterEmpty) return;
+            // 检索条件有变更时先加载字段信息
+            if (store.state.indexItem.isSceneFilterChanged) {
+              await store.dispatch('requestIndexSetFieldInfo');
+            }
             RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
             store.dispatch('requestIndexSetQuery');
           });
@@ -424,23 +436,50 @@ export default defineComponent({
      * 处理 filterList 变化
      * @param newFilterList 新的 filterList
      */
-    const handleFilterChange = (newFilterList: string[]) => {
+    const handleFilterChange = async (newFilterList: string[]) => {
       // 更新 store 中的 filterList
       store.state.aiMode.filterList = newFilterList;
-      // 触发查询
-      store.dispatch('requestIndexSetQuery');
+      // 场景化检索模式下条件为空时跳过检索请求
+      if (!(store.getters.isSceneMode && store.getters.isSceneFilterEmpty)) {
+        // 检索条件有变更时先加载字段信息
+        if (store.state.indexItem.isSceneFilterChanged) {
+          await store.dispatch('requestIndexSetFieldInfo');
+        }
+        // 触发查询
+        store.dispatch('requestIndexSetQuery');
+      }
       // 更新 URL 参数
       setRouteParamsByKeywordAndAddition();
     };
 
     const handleCloseAiParsedText = () => {
-      console.log('handleCloseAiParsedText');
       aiQueryResult.value.queryString = '';
       aiQueryResult.value.parseResult = undefined;
       aiQueryResult.value.explain = undefined;
       aiQueryResult.value.startTime = undefined;
       aiQueryResult.value.endTime = undefined;
     };
+
+    /** 清理 AI 相关状态 */
+    const clearAiState = () => {
+      store.commit('updateAiMode', {
+        active: false,
+        filterList: [],
+      });
+      handleCloseAiParsedText();
+      searchMode.value = 'normal';
+    };
+
+    // 切换场景时，清理 AI 相关状态
+    watch(() => store.state.indexItem.scene_active, (newVal, oldVal) => {
+      if (newVal !== oldVal) {
+        clearAiState();
+      }
+    });
+
+    onBeforeUnmount(() => {
+      clearAiState();
+    });
 
     /**
      * 切换到普通模式

@@ -28,6 +28,7 @@ from kernel_api.rpc.functions.admin.api_auth_token import (
 from kernel_api.rpc.functions.admin import apm as admin_apm
 from kernel_api.rpc.functions.admin import bcs_cluster as admin_bcs_cluster
 from kernel_api.rpc.functions.admin import cluster_info as admin_cluster_info
+from kernel_api.rpc.functions.admin import config_delivery as admin_config_delivery
 from kernel_api.rpc.functions.admin import custom_report as admin_custom_report
 from kernel_api.rpc.functions.admin.bcs_cluster import _serialize_bcs_cluster
 from kernel_api.rpc.functions.admin.cluster_info import (
@@ -81,6 +82,7 @@ class _FakeQuerySet:
     def __init__(self, items):
         self.items = list(items)
         self.filters = []
+        self.excludes = []
         self.ordering = []
 
     def filter(self, **kwargs):
@@ -88,6 +90,7 @@ class _FakeQuerySet:
         return self
 
     def exclude(self, **kwargs):
+        self.excludes.append(kwargs)
         return self
 
     def order_by(self, *fields):
@@ -161,6 +164,18 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.uptime_check.task_list",
         "admin.uptime_check.task_detail",
         "admin.uptime_check.subscription_detail",
+        "admin.config_delivery.runtime_settings",
+        "admin.config_delivery.proxy_list",
+        "admin.config_delivery.ping_server_list",
+        "admin.config_delivery.ping_server_detail",
+        "admin.config_delivery.custom_report_list",
+        "admin.config_delivery.custom_report_detail",
+        "admin.config_delivery.log_subscription_list",
+        "admin.config_delivery.log_subscription_detail",
+        "admin.config_delivery.apm_subscription_list",
+        "admin.config_delivery.apm_subscription_detail",
+        "admin.config_delivery.subscription_detail",
+        "admin.config_delivery.batch_status",
         "admin.render_image_task.list",
         "admin.render_image_task.detail",
     } <= func_names
@@ -173,6 +188,10 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
     assert space_detail is not None
     assert "SpaceVMInfo" in space_detail["description"]
 
+    space_list = KernelRPCRegistry.get_function_detail("admin.space.list")
+    assert space_list is not None
+    assert "bk_biz_id" in space_list["params_schema"]
+
     custom_report_list = KernelRPCRegistry.get_function_detail("admin.custom_report.list")
     assert custom_report_list is not None
     assert "bk_data_ids" in custom_report_list["params_schema"]
@@ -180,6 +199,254 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
     apm_application_list = KernelRPCRegistry.get_function_detail("admin.apm.application_list")
     assert apm_application_list is not None
     assert "application_ids" in apm_application_list["params_schema"]
+
+    config_delivery_batch_status = KernelRPCRegistry.get_function_detail("admin.config_delivery.batch_status")
+    assert config_delivery_batch_status is not None
+    assert "subscription_ids" in config_delivery_batch_status["params_schema"]
+
+    config_delivery_proxy_list = KernelRPCRegistry.get_function_detail("admin.config_delivery.proxy_list")
+    assert config_delivery_proxy_list is not None
+    assert "bk_biz_id" in config_delivery_proxy_list["params_schema"]
+
+
+def test_config_delivery_ping_server_serializer_marks_disabled_flags(monkeypatch):
+    monkeypatch.setattr(admin_config_delivery.settings, "ENABLE_PING_ALARM", False, raising=False)
+    monkeypatch.setattr(admin_config_delivery.settings, "ENABLE_DIRECT_AREA_PING_COLLECT", False, raising=False)
+    subscription = SimpleNamespace(
+        subscription_id=1001,
+        bk_tenant_id="system",
+        bk_cloud_id=0,
+        ip="127.0.0.1",
+        bk_host_id=2001,
+        plugin_name="bkmonitorproxy",
+        config={
+            "type": "PLUGIN",
+            "status": "STOP",
+            "config": {
+                "plugin_name": "bkmonitorproxy",
+                "config_templates": [{"name": "bkmonitorproxy_ping.conf", "version": "latest"}],
+            },
+            "scope": {"nodes": [{"bk_host_id": 2001}]},
+            "params": {
+                "context": {
+                    "ip_to_items": {
+                        2001: [
+                            {"target_biz_id": 11, "target_ip": "10.0.0.1", "target_cloud_id": 0},
+                            {"target_biz_id": 12, "target_ip": "10.0.0.2", "target_cloud_id": 0},
+                        ]
+                    }
+                }
+            },
+        },
+    )
+
+    item = admin_config_delivery._serialize_ping_server_config(subscription)
+
+    assert item["direct_area"] is True
+    assert item["special_area"] is False
+    assert item["global_ping_disabled"] is True
+    assert item["direct_area_disabled"] is True
+    assert item["collect_disabled"] is True
+    assert item["target"]["node_count"] == 1
+    assert item["target_count"] == 2
+    assert item["target"]["ping_target_count"] == 2
+    assert item["ping_target_summary"]["source_host_count"] == 1
+    assert item["expected_status"] == "STOP"
+    assert item["config_summary"]["plugin_names"] == ["bkmonitorproxy"]
+    assert item["config_summary"]["template_names"] == ["bkmonitorproxy_ping.conf"]
+
+    first_page = admin_config_delivery._paginate_ping_targets(subscription.config, page=1, page_size=1)
+    assert first_page["total"] == 2
+    assert first_page["source_host_count"] == 1
+    assert first_page["items"] == [
+        {
+            "index": 1,
+            "source_host_id": "2001",
+            "target_biz_id": 11,
+            "target_ip": "10.0.0.1",
+            "target_cloud_id": 0,
+        }
+    ]
+
+    second_page = admin_config_delivery._paginate_ping_targets(subscription.config, page=2, page_size=1)
+    assert second_page["items"][0]["index"] == 2
+    assert second_page["items"][0]["target_ip"] == "10.0.0.2"
+
+
+def test_config_delivery_custom_report_serializer_keeps_default_tenant():
+    subscription = SimpleNamespace(
+        subscription_id=1002,
+        bk_biz_id=0,
+        bk_data_id=5001,
+        config={
+            "scope": {"nodes": [{"bk_host_id": 1}, {"bk_host_id": 2}]},
+            "steps": [
+                {
+                    "config": {"plugin_name": "bk-collector"},
+                    "params": {"context": {"bk_data_id": 5001, "password": "secret"}},
+                }
+            ],
+        },
+    )
+
+    item = admin_config_delivery._serialize_custom_report_subscription(subscription)
+    detail = admin_config_delivery._with_config_detail(item, subscription.config)
+
+    assert item["bk_tenant_id"] == "system"
+    assert item["data_id_consistent"] is True
+    assert item["target"]["node_count"] == 2
+    assert detail["config_detail"]["steps"][0]["params"]["context"]["password"] == "***"
+
+
+def test_config_delivery_log_subscription_serializer_extracts_log_context():
+    subscription = SimpleNamespace(
+        subscription_id=1005,
+        bk_tenant_id="system",
+        bk_biz_id=2,
+        log_name="checkout-log",
+        config={
+            "scope": {"nodes": [{"bk_host_id": 1}, {"bk_host_id": 2}]},
+            "steps": [
+                {
+                    "config": {
+                        "plugin_name": "bk-collector",
+                        "config_templates": [{"name": "bk-collector-application.conf"}],
+                    },
+                    "params": {
+                        "context": {
+                            "bk_app_name": "checkout-log",
+                            "log_data_id": 50020,
+                            "bk_data_token": "secret-token",
+                            "qps_config": {"qps": 1024},
+                        }
+                    },
+                }
+            ],
+        },
+    )
+
+    item = admin_config_delivery._serialize_log_subscription(subscription)
+    detail = admin_config_delivery._with_config_detail(item, subscription.config)
+
+    assert item["source_type"] == "log_subscription"
+    assert item["log_data_id"] == 50020
+    assert item["bk_data_id"] == 50020
+    assert item["qps"] == 1024
+    assert item["has_token"] is True
+    assert item["target_count"] == 2
+    assert detail["config_detail"]["steps"][0]["params"]["context"]["bk_data_token"] == "***"
+
+
+def test_config_delivery_apm_subscription_type_serializer():
+    platform_subscription = SimpleNamespace(
+        subscription_id=1003,
+        bk_tenant_id="system",
+        bk_biz_id=0,
+        app_name="",
+        config={"steps": [{"config": {"plugin_name": "bk-collector"}}]},
+    )
+    application_subscription = SimpleNamespace(
+        subscription_id=1004,
+        bk_tenant_id="system",
+        bk_biz_id=2,
+        app_name="checkout",
+        config={"steps": [{"config": {"plugin_name": "bk-collector"}}]},
+    )
+
+    platform_item = admin_config_delivery._serialize_apm_subscription(platform_subscription)
+    application_item = admin_config_delivery._serialize_apm_subscription(application_subscription)
+
+    assert platform_item["subscription_type"] == "platform"
+    assert platform_item["is_platform"] is True
+    assert application_item["subscription_type"] == "application"
+    assert application_item["is_platform"] is False
+
+
+def test_config_delivery_apm_queryset_accepts_empty_app_name(monkeypatch):
+    queryset = _FakeQuerySet([])
+    monkeypatch.setattr(
+        admin_config_delivery,
+        "_apm_subscription_model",
+        lambda: SimpleNamespace(objects=SimpleNamespace(all=lambda: queryset)),
+    )
+
+    admin_config_delivery._build_apm_subscription_queryset({"app_name": ""}, "system")
+
+    assert {"bk_tenant_id": "system"} in queryset.filters
+    assert {"app_name": ""} in queryset.filters
+
+
+def test_config_delivery_proxy_related_configs_collects_four_config_types(monkeypatch):
+    ping_subscription = SimpleNamespace(
+        subscription_id=1001,
+        bk_tenant_id="system",
+        bk_cloud_id=30000901,
+        ip="10.0.0.15",
+        bk_host_id=70001,
+        plugin_name="bk-collector",
+        config={"scope": {"nodes": [{"bk_host_id": 70001}]}, "steps": [{"config": {"plugin_name": "bk-collector"}}]},
+    )
+    custom_subscription = SimpleNamespace(
+        subscription_id=1002,
+        bk_biz_id=19078,
+        bk_data_id=5001,
+        config={"scope": {"nodes": [{"bk_host_id": 70001}]}, "steps": [{"config": {"plugin_name": "bk-collector"}}]},
+    )
+    log_subscription = SimpleNamespace(
+        subscription_id=1003,
+        bk_tenant_id="system",
+        bk_biz_id=19078,
+        log_name="proxy-log",
+        config={
+            "scope": {"nodes": [{"bk_host_id": 70001}]},
+            "steps": [{"config": {"plugin_name": "bk-collector"}, "params": {"context": {"log_data_id": 5002}}}],
+        },
+    )
+    apm_subscription = SimpleNamespace(
+        subscription_id=1004,
+        bk_tenant_id="system",
+        bk_biz_id=19078,
+        app_name="checkout",
+        config={"scope": {"nodes": [{"bk_host_id": 70001}]}, "steps": [{"config": {"plugin_name": "bk-collector"}}]},
+    )
+
+    monkeypatch.setattr(
+        admin_config_delivery.PingServerSubscriptionConfig,
+        "objects",
+        SimpleNamespace(all=lambda: _FakeQuerySet([ping_subscription])),
+    )
+    monkeypatch.setattr(
+        admin_config_delivery.CustomReportSubscription,
+        "objects",
+        SimpleNamespace(all=lambda: _FakeQuerySet([custom_subscription])),
+    )
+    monkeypatch.setattr(
+        admin_config_delivery.LogSubscriptionConfig,
+        "objects",
+        SimpleNamespace(all=lambda: _FakeQuerySet([log_subscription])),
+    )
+    monkeypatch.setattr(
+        admin_config_delivery,
+        "_apm_subscription_model",
+        lambda: SimpleNamespace(
+            objects=SimpleNamespace(filter=lambda *args, **kwargs: _FakeQuerySet([apm_subscription]))
+        ),
+    )
+    monkeypatch.setattr(admin_config_delivery, "_custom_report_biz_matches_tenant", lambda bk_biz_id, tenant_id: True)
+
+    related, warnings = admin_config_delivery._build_proxy_related_configs(
+        bk_tenant_id="system",
+        bk_biz_id=19078,
+        proxy={"bk_cloud_id": 30000901, "inner_ip": "10.0.0.15", "bk_biz_id": 19078},
+        proxy_host_id=70001,
+    )
+
+    assert warnings == []
+    assert related["ping_server"]["subscription_ids"] == [1001]
+    assert related["custom_report"]["subscription_ids"] == [1002]
+    assert related["log_subscription"]["subscription_ids"] == [1003]
+    assert related["apm_subscription"]["subscription_ids"] == [1004]
+    assert related["custom_report"]["items"][0]["relation"] == "target_host"
 
 
 def test_apm_application_list_filters_by_application_ids(monkeypatch):
@@ -317,6 +584,23 @@ def test_space_es_usage_prefix_uses_biz_id_or_space_pk():
 
     assert admin_space._build_space_es_usage_prefix(cmdb_space) == "2_"
     assert admin_space._build_space_es_usage_prefix(custom_space) == "space_4779_"
+
+
+def test_space_list_filters_by_mapped_bk_biz_id():
+    positive_queryset = _FakeQuerySet([])
+    admin_space._apply_space_bk_biz_id_filter(positive_queryset, "2")
+
+    assert positive_queryset.filters == [{"space_type_id": "bkcc", "space_id": "2"}]
+    assert positive_queryset.excludes == []
+
+    negative_queryset = _FakeQuerySet([])
+    admin_space._apply_space_bk_biz_id_filter(negative_queryset, -4779)
+
+    assert negative_queryset.filters == [{"id": 4779}]
+    assert negative_queryset.excludes == [{"space_type_id": "bkcc"}]
+
+    with pytest.raises(CustomException, match="bk_biz_id 必须是整数"):
+        admin_space._apply_space_bk_biz_id_filter(_FakeQuerySet([]), "demo")
 
 
 def test_space_es_usage_builds_exact_table_index_patterns():
@@ -1934,6 +2218,20 @@ def test_cluster_info_list_supports_lightweight_include():
     assert "associated_counts" in detail["params_schema"]["include"]
 
 
+def test_cluster_info_list_filters_by_cluster_id():
+    queryset = _FakeQuerySet([])
+
+    with patch.object(admin_cluster_info.models.ClusterInfo.objects, "all", return_value=queryset):
+        result_queryset = admin_cluster_info._build_cluster_info_queryset(
+            {"bk_tenant_id": "system", "cluster_id": "12"},
+            "system",
+        )
+
+    assert result_queryset is queryset
+    assert {"bk_tenant_id": "system"} in queryset.filters
+    assert {"cluster_id": 12} in queryset.filters
+
+
 def test_bcs_cluster_detail_function_registered():
     detail = KernelRPCRegistry.get_function_detail("admin.bcs_cluster.detail")
     assert detail is not None
@@ -2202,6 +2500,7 @@ def test_query_route_functions_registered():
 def test_cluster_info_list_params_schema():
     detail = KernelRPCRegistry.get_function_detail("admin.cluster_info.list")
     assert detail is not None
+    assert "cluster_id" in detail["params_schema"]
     assert "ordering" in detail["params_schema"]
 
 

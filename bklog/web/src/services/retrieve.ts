@@ -436,6 +436,139 @@ const updateFieldsAlias = {
   url: '/search/index_set/:index_set_id/alias_settings/',
   method: 'post',
 };
+
+/** 获取场景化检索配置列表 */
+const getSceneConfigs = {
+  url: '/search/scene/scenes/',
+  method: 'get',
+};
+
+/** 场景化检索 - 维度值预览 */
+const getSceneDimensionValues = {
+  url: '/search/scene/dimension_values/',
+  method: 'post',
+};
+
+/** 场景化检索 - 字段列表 */
+const getSceneFields = {
+  url: '/search/scene/fields/',
+  method: 'post',
+};
+
+/** 场景化检索 - 趋势图 */
+const getSceneDateHistogram = {
+  url: '/search/scene/aggs/date_histogram/',
+  method: 'post',
+};
+
+/** 场景化检索 - 多字段 terms 聚合（选项卡） */
+const getSceneAggsTerms = {
+  url: '/search/scene/aggs/terms/',
+  method: 'post',
+};
+
+/** 场景化检索 - 字段 TopK 计数 */
+const getSceneFieldFetchTopList = {
+  url: '/search/scene/field/fetch_topk_list/',
+  method: 'post',
+};
+
+/** 场景化检索 - 字段值列表（CSV 下载） */
+const getSceneFieldFetchValueList = {
+  url: '/search/scene/field/fetch_value_list/',
+  method: 'post',
+};
+
+/** 场景化检索 - 字段统计信息 */
+const getSceneFieldStatisticsInfo = {
+  url: '/search/scene/field/statistics/info/',
+  method: 'post',
+};
+
+/** 场景化检索 - 字段统计总条数 */
+const getSceneFieldStatisticsTotal = {
+  url: '/search/scene/field/statistics/total/',
+  method: 'post',
+};
+
+/** 场景化检索 - 字段统计图表 */
+const getSceneFieldStatisticsGraph = {
+  url: '/search/scene/field/statistics/graph/',
+  method: 'post',
+};
+
+/** 场景化检索 - 检索历史 */
+const getSceneSearchHistory = {
+  url: '/search/scene/history/',
+  method: 'post',
+};
+
+/** 场景化检索 - 导出历史 */
+const getSceneExportHistory = {
+  url: '/search/scene/export/history/',
+  method: 'post',
+};
+
+/** 场景化检索 - 取样下载 */
+const getSceneExport = {
+  url: '/search/scene/export/sample/',
+  method: 'post',
+};
+
+/** 场景化检索 - 全文下载 */
+const getSceneAsyncExport = {
+  url: '/search/scene/export/async/',
+  method: 'post',
+};
+
+/** 场景化检索 - 快速下载 */
+const getSceneQuickExport = {
+  url: '/search/scene/export/quick/',
+  method: 'post',
+};
+
+/** 场景化检索 - 字段展示配置 读取 */
+const getSceneUserCustomConfig = {
+  url: '/search/scene/user_custom_config/',
+  method: 'get',
+};
+
+/** 场景化检索 - 字段展示配置 保存 */
+const sceneFieldsConfig = {
+  url: '/search/scene/user_custom_config/',
+  method: 'post',
+};
+
+/** 场景化检索 - 字段模板列表 */
+const sceneListConfig = {
+  url: '/search/scene/list_config/',
+  method: 'post',
+};
+
+/** 场景化检索 - 创建字段模板 */
+const sceneCreateConfig = {
+  url: '/search/scene/create_config/',
+  method: 'post',
+};
+
+/** 场景化检索 - 更新字段模板 */
+const sceneUpdateConfig = {
+  url: '/search/scene/update_config/',
+  method: 'post',
+};
+
+/** 场景化检索 - 删除字段模板 */
+const sceneDeleteConfig = {
+  url: '/search/scene/delete_config/',
+  method: 'post',
+};
+
+/** 场景化检索 - 应用字段模板 */
+const sceneApplyFieldsConfig = {
+  url: '/search/scene/config/',
+  method: 'post',
+};
+
 export {
   getIndexSetList,
   getLogTableHead,
@@ -490,4 +623,26 @@ export {
   getIndexSetDataByDataId,
   updateFieldsAlias,
   getGrepResultTotal,
+  getSceneConfigs,
+  getSceneDimensionValues,
+  getSceneFields,
+  getSceneDateHistogram,
+  getSceneAggsTerms,
+  getSceneFieldFetchTopList,
+  getSceneFieldFetchValueList,
+  getSceneFieldStatisticsInfo,
+  getSceneFieldStatisticsTotal,
+  getSceneFieldStatisticsGraph,
+  getSceneExport,
+  getSceneAsyncExport,
+  getSceneQuickExport,
+  getSceneSearchHistory,
+  getSceneExportHistory,
+  getSceneUserCustomConfig,
+  sceneFieldsConfig,
+  sceneListConfig,
+  sceneCreateConfig,
+  sceneUpdateConfig,
+  sceneDeleteConfig,
+  sceneApplyFieldsConfig,
 };

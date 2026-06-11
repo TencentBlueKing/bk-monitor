@@ -578,6 +578,24 @@ class TestDataSource:
 
         assert data_source.switch_unify_query(100147) is True
 
+    def test_log_search_time_series_switch_unify_query_by_clustered(self, monkeypatch):
+        query_config = {
+            "result_table_id": "2_bklog.nginx_access_error_1",
+            "index_set_id": 1,
+            "agg_method": "COUNT",
+            "agg_dimension": [],
+            "agg_condition": [],
+            "query_string": "__dist_05",
+        }
+        monkeypatch.setattr(LogSearchTimeSeriesDataSource, "LOG_UNIFY_QUERY_WHITE_BIZ_LIST", None)
+        monkeypatch.setattr(settings, "LOG_UNIFY_QUERY_WHITE_BIZ_LIST_ENV", [])
+
+        data_source = LogSearchTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=100147)
+
+        assert data_source._get_unify_query_table_suffix() == "_clustered"
+        assert data_source.switch_unify_query(100147) is True
+        assert data_source._get_unify_query_table() == "bklog_index_set_1_clustered"
+
     def test_log_search_log_query_data(self, mock_es_query_search):
         query_config = {
             "extend_fields": {

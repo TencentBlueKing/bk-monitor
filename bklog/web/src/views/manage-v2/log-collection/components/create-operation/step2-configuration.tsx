@@ -530,18 +530,20 @@ export default defineComponent({
         match_annotations: match_annotations || [],
       });
 
-      // 确定容器和命名空间的排除操作符
+      // 确定容器的排除操作符
       const containerExclude = container_name_exclude ? '!=' : '=';
-      const namespacesExclude = namespaces_exclude?.length ? '!=' : '=';
       const containerNameList = getContainerNameList(container_name || container_name_exclude);
 
+      // 处理命名空间：优先使用 namespaces，如果为空则使用 namespaces_exclude
+      const effectiveNamespaces = namespaces?.length ? namespaces : namespaces_exclude;
+      const namespacesExclude = namespaces_exclude?.length ? '!=' : '=';
       // 处理命名空间字符串（如果是 '*' 则返回空字符串）
-      const namespaceStr = namespaces.length === 1 && namespaces[0] === '*' ? '' : namespaces.join(',');
+      const namespaceStr = effectiveNamespaces?.length === 1 && effectiveNamespaces[0] === '*' ? '' : effectiveNamespaces?.join(',') || '';
 
       // 构建范围选择显示配置
       const noQuestParams = {
         scopeSelectShow: {
-          namespace: !namespaces.length,
+          namespace: !effectiveNamespaces?.length,
           label: !labelSelector.length,
           load: !(Boolean(workload_type) || Boolean(workload_name)),
           containerName: !containerNameList.length,
@@ -554,6 +556,8 @@ export default defineComponent({
 
       return {
         ...configItem,
+        // 使用 effectiveNamespaces 覆盖 namespaces
+        namespaces: effectiveNamespaces || [],
         noQuestParams,
         containerNameList,
         label_selector: {

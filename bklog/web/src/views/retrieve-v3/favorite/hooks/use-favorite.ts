@@ -31,10 +31,13 @@ import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { debounce } from 'lodash-es';
 import { useRoute, useRouter } from 'vue-router/composables';
 
+import { parseTableIdConditions } from '../../../../store/helper';
 import { copyMessage } from '../../../../common/util';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../../../../store/store.type';
+import { getDefaultRetrieveParams, IndexItem } from '../../../../store/default-values';
 import RetrieveHelper from '../../../retrieve-helper';
 import { handleApiError, showMessage } from '../utils';
+import { getAllSceneFieldOpKeys } from '../../search-bar/scene-filter/scene-config';
 import $http from '@/api';
 
 import type { IFavoriteItem, IGroupItem, SearchMode } from '../types';
@@ -62,6 +65,9 @@ export const useFavorite = () => {
   const indexSetId = computed(() => `${store.getters.indexId}`);
   const favoriteList = computed(() => store.state.favoriteList || []);
   const indexSetList = computed(() => store.state.retrieve.flatIndexSetList ?? []);
+  const isSceneMode = computed(() => store.getters.isSceneMode);
+  const sceneActive = computed(() => store.state.indexItem?.scene_active);
+  const sceneConfigs = computed(() => store.getters['retrieve/sceneConfigList']);
 
   /**
    * 过滤收藏列表数据
@@ -69,7 +75,7 @@ export const useFavorite = () => {
   const filteredFavoriteList = computed(() => {
     let data = favoriteList.value ?? [];
 
-    if (isShowCurrentIndexList.value) {
+    if (isShowCurrentIndexList.value && !isSceneMode.value) {
       data = data.map(({ group_id, group_name, group_type, favorites }) => ({
         group_id,
         group_name,
@@ -174,6 +180,7 @@ export const useFavorite = () => {
       store.getters.retrieveParams;
     const pid = item.pid;
 
+    // 公共路由参数
     const routeParams = {
       addition,
       start_time,
@@ -186,18 +193,33 @@ export const useFavorite = () => {
       bk_biz_id: store.state.bkBizId,
       search_mode,
       sort_list,
-      ids,
-      isUnionIndex,
-      unionList,
       clusterParams,
       pid,
     };
 
-    const params = isUnionIndex
+    // 场景化模式追加参数
+    if (isSceneMode.value) {
+      Object.assign(routeParams, {
+        retrieve_type: 'scene',
+        scene_active: store.state.indexItem.scene_active,
+        scene_filter_values: store.state.indexItem.scene_filter_values,
+      });
+    } else {
+      // 索引集模式追加参数
+      Object.assign(routeParams, { retrieve_type: 'normal', ids, isUnionIndex, unionList });
+    }
+
+    const params = isSceneMode.value || isUnionIndex
       ? { ...route.params, indexId: undefined }
       : { ...route.params, indexId: ids?.[0] ? `${ids?.[0]}` : route.params?.indexId };
 
     const query = { ...route.query };
+
+    // 先清除所有场景相关 URL 参数，避免切换模式时残留旧参数
+    delete query.scene_active;
+    for (const key of getAllSceneFieldOpKeys(sceneConfigs.value)) {
+      delete query[key];
+    }
 
     // 使用 URL 解析器
     // const { RetrieveUrlResolver } = require('@/store/url-resolver');
@@ -231,23 +253,44 @@ export const useFavorite = () => {
     const cloneValue = structuredClone(item);
     activeFavorite.value = structuredClone(item);
 
-    const isUnionIndex = cloneValue.index_set_ids?.length > 0;
     const keyword = cloneValue.params?.keyword || '';
     const addition = cloneValue.params?.addition ?? [];
     const search_mode = getSearchMode(cloneValue);
+    const isSceneSource = cloneValue.source_type === 'scene';
+
+    // 场景化模式下解析 table_id_conditions
+    let restoredSceneActive: string | undefined;
+    let restoredFilterValues: any;
+    if (isSceneSource) {
+      const parsed = parseTableIdConditions(cloneValue.table_id_conditions, cloneValue.scene_filter_values);
+      restoredSceneActive = parsed.scene_active;
+      restoredFilterValues = parsed.scene_filter_values;
+    }
+
+    const isUnionIndex = isSceneSource ? false : cloneValue.index_set_ids?.length > 0;
 
     // 重置状态
-    store.commit('resetIndexsetItemParams');
-    store.commit('updateState', { indexId: cloneValue.index_set_id, pid: cloneValue.pid ?? [] });
+    if (isSceneSource) {
+      // 场景化收藏：重置检索参数，但保留索引集相关状态
+      // （切回常规检索时仍需 ids/items/isUnionIndex/unionIndexList 等）
+      store.commit('updateIndexItem', {
+        ...getDefaultRetrieveParams(),
+        chart_params: structuredClone(IndexItem.chart_params),
+      });
+    } else {
+      store.commit('resetIndexsetItemParams');
+      store.commit('updateState', { indexId: cloneValue.index_set_id, pid: cloneValue.pid ?? [] });
+    }
     store.commit('updateIsSetDefaultTableColumn', false);
     store.commit('updateStorage', {
-      [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: item.index_set_type,
+      [BK_LOG_STORAGE.INDEX_SET_ACTIVE_TAB]: isSceneSource ? 'single' : item.index_set_type,
       [BK_LOG_STORAGE.SEARCH_TYPE]: ['ui', 'sql'].indexOf(search_mode ?? 'ui'),
     });
 
     // 处理 IP 选择器
     const ip_chooser = { ...(cloneValue.params?.ip_chooser ?? {}) };
-    if (isUnionIndex) {
+    // 索引集模式下处理联合索引
+    if (!isSceneSource && isUnionIndex) {
       store.commit(
         'updateUnionIndexList',
         cloneValue.index_set_ids.map(newItem => String(newItem)),
@@ -262,17 +305,31 @@ export const useFavorite = () => {
       });
     }
 
-    const ids = isUnionIndex ? cloneValue.index_set_ids : [cloneValue.index_set_id];
-    store.commit('updateIndexItem', {
+    // 更新索引集项（场景化与索引集模式的差异参数）
+    const indexItemUpdate: Record<string, any> = {
       keyword,
       addition,
       ip_chooser,
-      index_set_id: cloneValue.index_set_id,
-      ids,
-      items: ids.map(id => indexSetList.value.find(newItem => newItem.index_set_id === `${id}`)),
-      isUnionIndex,
       search_mode,
-    });
+    };
+
+    if (isSceneSource) {
+      Object.assign(indexItemUpdate, {
+        retrieve_type: 'scene',
+        scene_active: restoredSceneActive || cloneValue.scene_id,
+        scene_filter_values: restoredFilterValues,
+      });
+    } else {
+      const ids = isUnionIndex ? cloneValue.index_set_ids : [cloneValue.index_set_id];
+      Object.assign(indexItemUpdate, {
+        index_set_id: cloneValue.index_set_id,
+        ids,
+        items: ids.map(id => indexSetList.value.find(newItem => newItem.index_set_id === `${id}`)),
+        isUnionIndex,
+      });
+    }
+
+    store.commit('updateIndexItem', indexItemUpdate);
 
     setRouteParams(item);
     store.commit('updateChartParams', {
@@ -328,8 +385,9 @@ export const useFavorite = () => {
   ): Promise<void> => {
     try {
       const { group_id, group_new_name } = groupData;
+      const sourceType = store.getters.isSceneMode ? 'scene' : 'index_set';
       const params = { group_id };
-      const data = { name: group_new_name, space_uid: spaceUid };
+      const data = { name: group_new_name, space_uid: spaceUid, source_type: sourceType };
       const requestStr = isCreate ? 'createGroup' : 'updateGroupName';
 
       await $http.request(`favorite/${requestStr}`, { params, data }).then(res => {
@@ -344,20 +402,39 @@ export const useFavorite = () => {
   /** 获取当前的跳转链接 */
   const handleNewLink = (item: IFavoriteItem, type: string) => {
     // const { RetrieveUrlResolver } = require('@/store/url-resolver');
-    const params = { indexId: item.index_set_id };
-    const resolver = new RetrieveUrlResolver({
+    const isSceneSource = item.source_type === 'scene';
+    const routePathParams = isSceneSource
+      ? { indexId: undefined }
+      : { indexId: item.index_set_id };
+
+    // 公共路由参数
+    const routeParams: Record<string, any> = {
       ...item.params,
       addition: item.params.addition,
       search_mode: item.search_mode,
       spaceUid: item.space_uid,
-      unionList: item.index_set_ids.map((newItem: string) => String(newItem)),
-      isUnionIndex: item.index_set_type === 'union',
       pid: item.pid ?? [],
-    });
+    };
+
+    // 场景化/索引集模式差异参数
+    if (isSceneSource) {
+      Object.assign(routeParams, {
+        retrieve_type: 'scene',
+        scene_active: item.scene_id,
+        scene_filter_values: parseTableIdConditions(item.table_id_conditions, item.scene_filter_values).scene_filter_values,
+      });
+    } else {
+      Object.assign(routeParams, {
+        unionList: item.index_set_ids.map((newItem: string) => String(newItem)),
+        isUnionIndex: item.index_set_type === 'union',
+      });
+    }
+
+    const resolver = new RetrieveUrlResolver(routeParams);
 
     const routeData = {
       name: 'retrieve',
-      params,
+      params: routePathParams,
       query: resolver.resolveParamsToUrl(),
     } as any;
 
@@ -407,6 +484,10 @@ export const useFavorite = () => {
       index_set_type,
       index_set_ids,
       space_uid,
+      source_type,
+      scene_id,
+      table_id_conditions,
+      scene_filter_values: itemSceneFilterValues,
     } = item;
     const { host_scopes, addition, keyword, search_fields } = params;
     const data = {
@@ -419,14 +500,28 @@ export const useFavorite = () => {
       keyword,
       search_fields,
       is_enable_display_fields,
-      index_set_id,
-      index_set_type,
       space_uid,
     };
-    if (isMultiIndex) {
+
+    if (source_type === 'scene') {
+      // 场景化收藏克隆
       Object.assign(data, {
-        index_set_ids,
+        source_type: 'scene',
+        scene_id,
+        table_id_conditions,
+        scene_filter_values: itemSceneFilterValues,
       });
+    } else {
+      // 索引集收藏克隆（原有逻辑）
+      Object.assign(data, {
+        index_set_id,
+        index_set_type,
+      });
+      if (isMultiIndex) {
+        Object.assign(data, {
+          index_set_ids,
+        });
+      }
     }
     $http
       .request('favorite/createFavorite', { data })
@@ -454,9 +549,11 @@ export const useFavorite = () => {
   /** 获取组列表 */
   const requestGroupList = async (spaceUid: number, callback?: (res: any) => void) => {
     try {
+      const sourceType = store.getters.isSceneMode ? 'scene' : 'index_set';
       const res = await $http.request('favorite/getGroupList', {
         query: {
           space_uid: spaceUid,
+          source_type: sourceType,
         },
       });
       callback?.(res || {});
@@ -484,6 +581,10 @@ export const useFavorite = () => {
       index_set_ids,
       index_set_type,
       is_enable_display_fields,
+      source_type,
+      scene_id,
+      table_id_conditions,
+      scene_filter_values: itemSceneFilterValues,
     } = item;
     const { ip_chooser, addition, keyword, search_fields } = params;
     const searchParams =
@@ -500,11 +601,21 @@ export const useFavorite = () => {
       addition,
       keyword,
       search_fields,
-      index_set_type,
       is_enable_display_fields,
     };
 
-    Object.assign(data, index_set_type === 'union' ? { index_set_ids } : { index_set_id });
+    if (source_type === 'scene') {
+      // 场景化收藏更新
+      Object.assign(data, {
+        source_type: 'scene',
+        scene_id,
+        table_id_conditions,
+        scene_filter_values: itemSceneFilterValues,
+      });
+    } else {
+      // 索引集收藏更新（原有逻辑）
+      Object.assign(data, { index_set_type }, index_set_type === 'union' ? { index_set_ids } : { index_set_id });
+    }
 
     try {
       const res = await $http.request('favorite/updateFavorite', {
@@ -536,6 +647,8 @@ export const useFavorite = () => {
     indexSetId,
     favoriteList,
     indexSetList,
+    isSceneMode,
+    sceneActive,
     filteredFavoriteList,
     originFavoriteList,
     chartFavoriteList,

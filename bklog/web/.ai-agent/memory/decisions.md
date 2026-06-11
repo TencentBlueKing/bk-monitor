@@ -148,9 +148,126 @@ Constraint:
 - “检索内容”、`BatchInput`、`清空`、右侧“匹配模式 ?”统一迁移到 `fuzzy-match-mode.vue` 内部实现；批量输入结果由组件内合并为换行文本并按当前模式输出最终 value。
 - 父组件仍只允许 `<FuzzyMatchMode v-model="fuzzyMatchValue" :type="fuzzyMatchEngine" />` 调用形态。
 
+
+## 2026-06-03 上下文日志改为独立路由打开
+
+- 点击日志结果行操作中的“上下文”时，不再打开全屏 Dialog，而是通过 retrieve-context-log 路由新开浏览器 tab。
+- 上下文路由路径：/retrieve/context-log，页面组件：src/views/retrieve-v3/search-result/original-log/context-log/page.tsx。
+- 参数通过 URL payload 承载，payload 使用 base64Encode(JSON.stringify(...))，避免新 tab 依赖原 tab 的内存态或 sessionStorage。
+- ContextLog 组件支持 mode=dialog/page 两种渲染模式；page 模式直接渲染内容，不渲染 bk-dialog，ESC 不关闭，右上角由关闭语义改为“返回”。
+- 返回时使用 payload 中的 backRoute 回到日志检索首页，并保留跳转来源的 route params/query。
+- 新 tab 独立页面会根据 payload 的 indexSetId 与 retrieveParams 初始化必要 store 状态并请求字段信息，保证上下文内容可直接路由打开。
+
+## 2026-06-03 上下文新 Tab 路由副作用收敛
+
+- 背景：日志检索 v2 点击“上下文”从弹窗改为新浏览器 Tab 路由打开后，需要避免 URL 过长、敏感日志内容进入地址栏、旧弹窗残留 watcher、字段初始化竞态等副作用。
+- 决策：上下文路由 URL payload 只携带白名单定位字段，不再 fallback 携带整行日志；保留 `dtEventTimeStamp`、`__id__`、`index`、`__result_table`、`__index_set_id__`、`gseIndex`、`iterationIndex`、`_time/time`、`bk_host_id/serverIp/cloudId/path` 以及配置的 `context_fields/time_field`。
+- 决策：移除 `log-result.vue` 中旧的 `ContextLog` 弹窗实例、`isShowContextLog` 状态和 import，避免无效全局 keyup listener / watcher 常驻；实时日志弹窗保留。
+- 决策：`context-route.ts` 使用 `encodeURIComponent(base64(JSON))` / `decodeURIComponent` 做 URI-safe payload；移除 sessionStorage token 备用逻辑，保持“URL 直接打开”单链路。
+- 决策：`context-log/page.tsx` 使用 `ready` gate，完成 index item / field info 初始化后再渲染 `ContextLog`，避免子组件 immediate watcher 早于字段初始化发起上下文请求；初始化失败也通过 `finally` 解除 loading。
+- 决策：禁止对 store 中的 `context_fields` 原数组执行 `push(timeField)`，统一使用去重后的新数组，避免多次点击导致配置数组被污染。
+
+## 2026-06-03 retrieve context route bugfix
+
+- 问题：点击日志结果“上下文”新开 Tab 后进入检索首页，而不是上下文独立页面。
+- 根因：Vue Router 按顺序匹配，`/retrieve/context-log` 注册在 `/retrieve/:indexId?` 后面，导致 `context-log` 被当作 `indexId` 命中 `retrieve` 路由。
+- 修复：将 `retrieve-context-log` 路由移动到 `/retrieve/:indexId?` 之前，并保留注释说明顺序约束。
+- 验证：使用项目当前 `vue-router` 在 Node 中执行 `router.match('/retrieve/context-log?payload=abc&spaceUid=s&bizId=1')`，断言命中 `retrieve-context-log`；执行 `npm run build` 通过。
+
+## 2026-06-03 Retrieve context-log page route rendering fix
+
+- Context log independent route `/retrieve/context-log` must not rely on the old dialog `isShow` timing only.
+- In `src/views/retrieve-v3/search-result/original-log/context-log/index.tsx`, page mode sets internal `isShow` to true, but the content request watcher must also react to `isShow.value`; otherwise first render can skip `getContentLog` and never retry.
+- Added `loadContextLog()` with `nextTick`, deep watch on `[isShow.value, indexSetId, logParams]`, an `onMounted` trigger, and `contextLoadKey` dedupe.
+- Verified on `http://appdev.woa.com:8001/#/retrieve/context-log?...`: route opens, updated chunk loads, `getContentLog` is triggered, upper context area renders 100 rows (-50..49), and no longer shows empty state.
+
+
+## 2026-06-04 ContextLog page resize layout height fix
+
+- ContextLog independent route page must not use `height: 100vh` inside the app shell because `.manage-content` / `.log-search-container` already provides the available viewport height after global headers.
+- Use `height: 100%`, `display: flex`, `min-height: 0`, and `overflow: hidden` on `.log-context-page-main`, and ensure nested flex containers also set `min-height: 0`.
+- Verified in browser at `http://appdev.woa.com:8001/#/retrieve/context-log?...`: expanded state main 778px + aside 250px = container 1028px; collapsed state aside 42px and expandable back to 249px. This avoids main+aside overflow and keeps bk-resize-layout collapse/expand usable.
+
+## 2026-06-04 Context Log Headless Layout Adjustment
+- Context log route opened from log result defaults `hl=1`.
+- `hl=1` hides only `HeadNav`; `NoticeComponent` remains rendered.
+- `.log-search-container.is-headless` height is `calc(100% - var(--notice-component-height))`, so context route no longer subtracts the 52px header height when the header is hidden.
+
+## 2026-06-04 上下文新开 Tab 路由参数收敛
+
+- 新开上下文路由 payload 收敛为最小必要参数：`indexSetId`、`logParams`、`retrieveParams.start_time/end_time/format`、`backRoute`。
+- 删除 URL payload 中非必要字段：`rowIndex`、`targetFields`、完整 `retrieveParams`（如 keyword/addition/search_mode/begin/size 等）。
+- `logParams` 只保留 `dtEventTimeStamp` 与索引集上下文配置字段 `context_fields + time_field`，不再携带固定 `baseFields` 白名单和整行日志，降低 URL 过长与敏感日志泄露风险。
+- 独立上下文页继续在 ready 后加载 `ContextLog`，右侧结果使用默认参数兜底，不再依赖 payload 的 rowIndex/targetFields。
+\n- 2026-06-04：retrieve-v2 上下文新 tab 路由点击入口需显式解析 indexSetId，优先使用 row.__index_set_id__/row.index_set_id，其次 store.getters.indexId，最后 route.params.indexId；避免参数收敛后遗漏方法导致 handleClickTools 运行时异常。\n
+## 2026-06-04 ContextLog page initial loading state
+
+- ContextLog 独立路由 page 模式首帧必须优先展示 loading，不能在 `requestFields -> requestContentLog` 之间短暂渲染“暂无数据”。
+- 在 `context-log/index.tsx` 中增加 `hasLoadedOnce`，page 模式初始化 `logLoading=true`，`loadContextLog` 开始时立即进入 loading，只有首轮上下文请求完成后才允许空态展示。
+- 空态条件应为 `hasLoadedOnce && !logLoading && logList.length === 0`。
+## 2026-06-03 编辑采集项稳定性排查
+
+- 场景：`manage-v2/log-collection` 编辑采集项在生产偶现页面卡死/Chrome Error 5，接口数据量小，重点排查前端状态与副作用链路。
+- 结论：编辑页多数操作在新标签页打开，不能依赖列表页通过 Vuex `collect.curCollect` 传入的内存态；各步骤应以路由 `collectorId` + `collect/details` 为权威数据源，并在详情返回后同步 `collect.curCollect`。
+- 稳定性规则：
+  1. 编辑页 Step3/Step4 进入时如存在 route collectorId，应主动拉详情并落地 store，避免新标签页 store 为空导致后续逻辑读取空对象。
+  2. 轮询、延迟 tippy 初始化、异步详情请求必须在组件卸载时取消或通过 `isUnmounted/isDestroyed` 守卫，禁止卸载后继续落地 UI。
+  3. `field-list` 这类会动态初始化 tippy 的组件必须集中调度 timer，重复触发前先清理旧 timer，避免实例和延迟任务堆积。
+  4. 编辑页路由 query 应避免重复字段，减少异常导航状态。
+- 已落地：`create-operation/index.tsx` 轮询卸载保护；`step3-clean.tsx` 详情请求卸载保护；`step4-storage.tsx` 详情回填同步 store 并 fallback formData；`field-list.tsx` tippy 初始化 timer 清理；`useCollectList.ts` 清理重复 `query.collectorId`。
+## 2026-06-04 检索结果行操作改为 hover 浮层
+
+- 文件：`src/views/retrieve-v2/search-result-panel/log-result/log-rows.tsx`、`log-rows.scss`、`log-row-attributes.ts`。
+- 决策：移除日志检索结果右侧固定操作列，不再把操作列计入表格宽度、列宽分配、横向滚动 sticky/fixed right 占位或阴影计算。
+- 实现：每行渲染 `bklog-row-hover-operator`，默认 `width: 0` 不参与表格 scrollWidth；hover/focus/AI active 时通过 sticky right + absolute content 从当前行右侧滑出，操作层 z-index 高于行内容，并在横向滚动时吸附可视区域最右侧。
+- 约束：保留 `OperatorTools` 原操作能力和点击回调；Monitor Trace 环境仍不显示行操作。
+
+## 2026-06-04 Retrieve V2 Row Hover Operator Style Refinement
+
+- Scope: `src/views/retrieve-v2/search-result-panel/log-result/log-rows.scss`, `src/views/retrieve-v2/components/result-cell-element/operator-tools.vue`.
+- Decision: row hover operator overlay should not use a fixed container width; it uses `width: max-content` and sizes by visible action count.
+- Operator item sizing: each action is `20px x 20px`, with `gap: 2px` between actions.
+- Overlay card: lightweight border/background/shadow is kept on the hover overlay, but previous 30px item sizing, 8px gap, and 40px action container height were removed.
+- Tooltip UX: all operator tooltips use `delay: 500` to avoid immediate tooltip noise while moving across row actions.
+- Verification: static assertions, `git diff --check`, `eslint operator-tools.vue --quiet`, and `npm run build` passed.
+
+## 2026-06-04 Retrieve v2 row hover operator z-index fix
+
+- Context: after removing the fixed right operation column, row actions are shown as `.bklog-row-hover-operator` on row hover.
+- Issue: the hover operator was translated upward with `transform: translate(0, -32px)`, causing it to enter the sticky `.bklog-row-container.row-header` area and be covered by the header.
+- Decision: keep the operator anchored inside the current row by using `transform: translateX(0)` on hover, and raise the hovered row/operator z-index above the sticky header (`row z-index: 120`, operator z-index: 130).
+- Constraint: do not move row operators into the header layer; operators must stay aligned to the current row top/right padding and remain sticky to the visible right edge during horizontal scroll.
+
+## 2026-06-04 Retrieve v2 row hover operator overlay clipping fix
+
+- Context: `src/views/retrieve-v2/search-result-panel/log-result/log-rows.tsx` row hover action overlay must keep product-designed `transform: translate(0, -32px)`.
+- Problem: rendering `.bklog-row-hover-operator` inside each row caused the first row overlay to enter sticky header area and be clipped by `.bklog-row-box { overflow: hidden; }`; changing/removing transform is not acceptable.
+- Decision: render a single `.bklog-row-hover-operator` as a direct child of `.bklog-result-container`, position it absolutely from the hovered row's bounding rect, and keep `transform: translate(0, -32px)` in the overlay visible state. This escapes `.bklog-row-box` clipping while preserving the designed upward animation.
+- Verification: browser test on `http://appdev.woa.com:8001` confirmed operator is direct child of `.bklog-result-container`, `handle-content` is visible (`76x28`, opacity 1), overlaps sticky header but has `z-index: 200` vs header `z-index: 2`, and is not clipped by row-box.
 ## 2026-06-04 Fuzzy Match tag relation/focus fixes
 
 - Scope: `src/views/retrieve-v2/search-bar/ui-mode/fuzzy-match-mode.vue`.
 - Keep fuzzy match relation row (`组间关系`, `AND`, `OR`) on one line with nowrap flex styles.
 - Vue2 template refs inside `v-for` are not reliable for focusing the current edited tag; use a component root ref plus `data-fuzzy-edit-index` selector, then `focus()` and `select()` after `nextTick()`.
 - Browser validation on `http://appdev.woa.com:8001`: select `log` field + `包含`, create two tags, relation row stays inline, double-click second tag focuses `.fuzzy-match-tag-edit[data-fuzzy-edit-index="1"]`.
+
+## 2026-06-05 manage-collection basic-info 空条件防御
+
+- 问题：采集项详情 `/manage/log-collection/collection-item/manage/:collectorId` 在部分采集配置下 `collectorData.params.conditions.separator_filters` 不存在，`basic-info.vue` 的 `isNotWinAndHaveFilter` 直接读取 `.length` 导致页面崩溃。
+- 修复：`params` 默认 `{}`；`conditions` 默认补齐 `{ type: 'none', separator_filters: [] }`；`isNotWinAndHaveFilter` 基于补齐后的数组判断；同时 `winlog_event_id/winlog_level` 长度读取改为可选链。
+- 验证：覆盖缺失 params/conditions/separator_filters 的静态 JS 场景；`npm run build` 通过。
+
+Knowledge update: updated.
+
+## 2026-06-04 检索结果原始模式首行 hover 操作浮层防裁剪
+
+- 场景：`retrieve-v2` 日志检索结果切换到“原始”模式后，第一行 hover 操作浮层仍需保持产品设计的 `transform: translate(0, -32px)`，但不能被顶部工具栏/结果容器上边界裁剪。
+- 根因：原始模式没有 table sticky row header，第一行 row 紧贴 `.bklog-result-container` 顶部；浮层 anchor top 使用 `rowTop + 4` 后再上移 32px，最终视觉 top 变成负数，受到 `.bklog-result-container { overflow: hidden }` 裁剪。
+- 决策：不改动 `transform: translate(0, -32px)`；改为在 `updateHoverOperatorPosition` 中对 anchor top 做下限保护：`Math.max(rowTop, operatorTranslateY + rowPaddingTop)`，确保上移后视觉 top 不小于容器内 4px。
+- 验证：浏览器访问 `http://appdev.woa.com:8001`，切换“原始”，hover 第一行；测得 `.bklog-row-hover-operator` transform 为 `matrix(1,0,0,1,0,-32)`、opacity=1、z-index=200、top/bottom=416/444，操作浮层完整可见未被裁剪。
+
+## 2026-06-04 Hover operator first-row clipping fix
+
+- Context: retrieve-v2 `log-rows.tsx` hover row operator in original display mode must keep product motion `translate(0, -32px)` but must not be clipped by the result container and must not cover row text/click/selection area.
+- Decision: render `.bklog-row-hover-operator` as `position: fixed` and compute viewport-based `top/right` from the hovered row. Do not clamp anchor downward. This keeps the final visual operator above the first row while escaping `.bklog-result-container { overflow: hidden }`.
+- Verification: browser E2E on `http://appdev.woa.com:8001` original mode, first row hover. Measured operator visible, transform matrix y=-32, operator rect top/bottom `384/412`, first row rect top/bottom `412/442`, root top `411`; no overlap with row text and no clipping.

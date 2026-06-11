@@ -169,6 +169,8 @@ export default defineComponent({
     const typeKey = ref('visible');
     const showBuiltIn = ref(false);
     let tippyInstances: Instance[] = [];
+    let menuInitTimer: ReturnType<typeof setTimeout> | null = null;
+    let isDestroyed = false;
     const formData = ref({ tableList: [] as FieldItem[] });
     // 获取全局数据
     const globalsData = computed(() => store.getters['globals/globalsData']);
@@ -417,6 +419,9 @@ export default defineComponent({
      * @returns
      */
     const initMenuPop = () => {
+      if (isDestroyed) {
+        return;
+      }
       // 销毁旧实例，避免重复绑定
       destroyTippyInstances();
 
@@ -470,6 +475,17 @@ export default defineComponent({
       // tippy 返回单个或数组，这里统一转为数组
       tippyInstances = Array.isArray(instances) ? instances : [instances];
     };
+
+    const scheduleInitMenuPop = (delay = 0) => {
+      if (menuInitTimer) {
+        clearTimeout(menuInitTimer);
+        menuInitTimer = null;
+      }
+      menuInitTimer = setTimeout(() => {
+        menuInitTimer = null;
+        initMenuPop();
+      }, delay);
+    };
     /** 销毁所有tippy */
     const destroyTippyInstances = () => {
       // biome-ignore lint/complexity/noForEach: 需要遍历数组并执行销毁操作，forEach 更简洁
@@ -483,19 +499,22 @@ export default defineComponent({
     };
     onMounted(() => {
       nextTick(() => {
-        initMenuPop();
+        scheduleInitMenuPop();
       });
     });
     onBeforeUnmount(() => {
+      isDestroyed = true;
+      if (menuInitTimer) {
+        clearTimeout(menuInitTimer);
+        menuInitTimer = null;
+      }
       destroyTippyInstances();
     });
     watch(
       () => props.loading,
       (val: boolean) => {
         if (!val) {
-          setTimeout(() => {
-            initMenuPop();
-          }, 1000);
+          scheduleInitMenuPop(1000);
         }
       },
     );
@@ -1108,9 +1127,7 @@ export default defineComponent({
               value={row.field_type}
               on-change={value => {
                 if (value === 'string') {
-                  setTimeout(() => {
-                    initMenuPop();
-                  }, 1000);
+                  scheduleInitMenuPop(1000);
                 }
                 const newList = updateList(props.data, row, item => ({
                   ...item,

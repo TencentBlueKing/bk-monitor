@@ -375,22 +375,8 @@ export default defineComponent({
       pagination.value.count = pagination.value.childCount;
     };
 
-    const refreshTable = () => {
-      // loading中，或者没有开启数据指纹功能，或当前页面初始化或者切换索引集时不允许起请求
-      if (tableLoading.value || !props.clusterSwitch || !props.isClusterActive) {
-        return;
-      }
-      const {
-        start_time,
-        end_time,
-        size,
-        keyword = '*',
-        ip_chooser,
-        host_scopes,
-        interval,
-        timezone,
-      } = retrieveParams.value;
-      const addition = retrieveParams.value.addition.reduce((list, item) => {
+    const getClusterSearchAddition = () => {
+      return (retrieveParams.value.addition ?? []).reduce((list: any[], item) => {
         if (!item.disabled) {
           list.push({
             field: item.field,
@@ -403,6 +389,74 @@ export default defineComponent({
         }
         return list;
       }, []);
+    };
+
+    const getClusterSearchData = (overrides: Record<string, any> = {}) => {
+      const {
+        start_time,
+        end_time,
+        size,
+        keyword = '*',
+        ip_chooser,
+        host_scopes,
+        interval,
+        timezone,
+      } = retrieveParams.value;
+
+      return {
+        bk_biz_id: store.state.bkBizId,
+        addition: getClusterSearchAddition(),
+        size,
+        keyword,
+        ip_chooser,
+        host_scopes,
+        interval,
+        timezone,
+        start_time,
+        end_time,
+        ...props.requestData,
+        ...overrides,
+      };
+    };
+
+    const getPatternOriginLog = async (row: LogPattern) => {
+      const signature = row.signature?.toString();
+      if (!signature) {
+        return '';
+      }
+      const addition = [
+        ...getClusterSearchAddition(),
+        {
+          field: `__dist_${props.requestData?.pattern_level}`,
+          operator: 'is',
+          value: signature,
+        },
+      ];
+      const res = (await $http.request(
+        '/logClustering/clusterSearch',
+        {
+          params: {
+            index_set_id: props.indexId,
+          },
+          data: getClusterSearchData({
+            addition,
+            size: 1,
+            include_origin_log: true,
+            show_new_pattern: false,
+            filter_not_clustering: false,
+          }),
+        },
+        { catchIsShowMessage: false },
+      )) as IResponseData<LogPattern[]>;
+
+      return res.data?.[0]?.origin_log ?? '';
+    };
+
+    const refreshTable = () => {
+      // loading中，或者没有开启数据指纹功能，或当前页面初始化或者切换索引集时不允许起请求
+      if (tableLoading.value || !props.clusterSwitch || !props.isClusterActive) {
+        return;
+      }
       tableList.value = [];
       tableLoading.value = true;
       pagination.value.current = 1;
@@ -414,19 +468,7 @@ export default defineComponent({
             params: {
               index_set_id: props.indexId,
             },
-            data: {
-              bk_biz_id: store.state.bkBizId,
-              addition,
-              size,
-              keyword,
-              ip_chooser,
-              host_scopes,
-              interval,
-              timezone,
-              start_time,
-              end_time,
-              ...props.requestData,
-            },
+            data: getClusterSearchData(),
           },
           { cancelWhenRouteChange: false },
         ) as Promise<IResponseData<LogPattern[]>>
@@ -722,6 +764,7 @@ export default defineComponent({
                 groupListState={groupListState.value}
                 pagination={pagination.value}
                 indexId={props.indexId}
+                getPatternOriginLog={getPatternOriginLog}
                 on-open-cluster-config={() => emit('open-cluster-config')}
                 on-group-state-change={handleGroupStateChange}
               />,

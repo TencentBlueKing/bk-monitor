@@ -169,6 +169,16 @@ def _parse_int(value: Any) -> int | None:
         return None
 
 
+def _parse_optional_int_param(params: dict[str, Any], field: str) -> int | None:
+    value = params.get(field)
+    if value in (None, ""):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError) as error:
+        raise CustomException(message=f"{field} 必须是整数") from error
+
+
 def _get_nested(data: dict[str, Any] | None, path: list[str]) -> Any:
     current: Any = data
     for key in path:
@@ -584,6 +594,9 @@ def _get_storage_model_for_cluster_type(cluster_type: str) -> type[Any] | None:
 def _build_cluster_info_queryset(params: dict[str, Any], bk_tenant_id: str | None):
     queryset = filter_by_bk_tenant_id(models.ClusterInfo.objects.all(), bk_tenant_id)
 
+    cluster_id = _parse_optional_int_param(params, "cluster_id")
+    if cluster_id is not None:
+        queryset = queryset.filter(cluster_id=cluster_id)
     if params.get("cluster_type") not in (None, ""):
         queryset = queryset.filter(cluster_type=str(params["cluster_type"]).strip())
     if params.get("cluster_name"):
@@ -656,6 +669,7 @@ def _enrich_clusters_with_storage_count(clusters: list[models.ClusterInfo], bk_t
     description="只读查询 ClusterInfo，支持受控过滤、白名单排序和分页；敏感字段以布尔标记代替。",
     params_schema={
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
+        "cluster_id": "可选，ClusterInfo.cluster_id 精确匹配",
         "cluster_type": "可选，集群类型精确匹配",
         "cluster_name": "可选，集群名称包含匹配",
         "is_default_cluster": "可选，是否默认集群",

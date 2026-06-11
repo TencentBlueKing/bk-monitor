@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -20,7 +19,7 @@ from Crypto.Random import new
 from django.conf import settings
 
 
-class RSACipher(object):
+class RSACipher:
     def __init__(self, pri_key=None):
         self.pub_key = None
         self.pri_key = None
@@ -65,7 +64,7 @@ class RSACipher(object):
         return decrypt_result
 
 
-class AESCipher(object):
+class AESCipher:
     def __init__(self, key, iv=None):
         self.bs = 16
         self.iv = iv
@@ -111,6 +110,27 @@ class AESCipher(object):
         return int(math.ceil(((length + 1) // 16 * 16 + 16) / 3.0)) * 4
 
 
+def get_bk_data_token_aes_key() -> str:
+    """获取上报 token 加密/校验所使用的 AES 密钥。
+
+    密钥优先级（从高到低）：
+        1. ``CUSTOM_REPORT_AES_KEY``：环境变量指定的自定义上报密钥；
+        2. ``SPECIFY_AES_KEY``：动态全局配置指定的密钥；
+        3. ``AES_X_KEY_FIELD`` 指向的配置项（默认为 ``SECRET_KEY``）。
+
+    Returns:
+        str: 实际使用的 AES 密钥。
+    """
+    # 需要判断是否有指定密钥，如有，优先级最高
+    if settings.CUSTOM_REPORT_AES_KEY:
+        return settings.CUSTOM_REPORT_AES_KEY
+
+    x_key = getattr(settings, settings.AES_X_KEY_FIELD)
+    if settings.SPECIFY_AES_KEY != "":
+        x_key = settings.SPECIFY_AES_KEY
+    return x_key
+
+
 def transform_data_id_to_token(metric_data_id=-1, trace_data_id=-1, log_data_id=-1, bk_biz_id=-1, app_name=""):
     """
     将dataid 加密为bk.data.token
@@ -128,10 +148,7 @@ def transform_data_id_to_token(metric_data_id=-1, trace_data_id=-1, log_data_id=
             ]
         ]
     )
-    # 需要判断是否有指定密钥，如有，优先级最高
-    x_key = getattr(settings, settings.AES_X_KEY_FIELD)
-    if settings.SPECIFY_AES_KEY != "":
-        x_key = settings.SPECIFY_AES_KEY
+    x_key = get_bk_data_token_aes_key()
     return AESCipher(x_key, settings.BK_DATA_AES_IV).encrypt(bk_data_token_raw).decode("utf-8")
 
 
@@ -157,8 +174,5 @@ def transform_data_id_to_v1_token(
             ]
         ]
     )
-    # 需要判断是否有指定密钥，如有，优先级最高
-    x_key = getattr(settings, settings.AES_X_KEY_FIELD)
-    if settings.SPECIFY_AES_KEY != "":
-        x_key = settings.SPECIFY_AES_KEY
+    x_key = get_bk_data_token_aes_key()
     return AESCipher(x_key, settings.BK_DATA_AES_IV).encrypt(bk_data_token_raw).decode("utf-8")

@@ -2134,6 +2134,10 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
         if self.LOG_UNIFY_QUERY_ALL_BIZ_ID in white_list or str(self.LOG_UNIFY_QUERY_ALL_BIZ_ID) in white_list:
             return True
 
+        # 日志聚类场景，使用 unify-query 查询。
+        if self._get_unify_query_table_suffix() == "_clustered":
+            return True
+
         # 白名单机制，只要业务在白名单中，就使用 unify-query 查询。
         if bk_biz_id in white_list or str(bk_biz_id) in white_list:
             return True
@@ -2143,11 +2147,7 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
     def _get_datasource(cls) -> str:
         return "bklog"
 
-    def _get_unify_query_table(self) -> str:
-        """获取 unify-query 查询表名
-        存在 __dist 聚类字段时，查询表名后缀为 _clustered，参考：
-        https://github.com/TencentBlueKing/bk-monitor/blob/master/bklog/apps/log_esquery/serializers.py#L114-L125
-        """
+    def _get_unify_query_table_suffix(self) -> str:
         suffix: str = ""
         for cond in self._get_conditions().get("field_list", []):
             field_name: str = cond.get("field_name", "")
@@ -2157,6 +2157,14 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
 
         if "__dist_05" in (self.query_string or ""):
             suffix = "_clustered"
+        return suffix
+
+    def _get_unify_query_table(self) -> str:
+        """获取 unify-query 查询表名
+        存在 __dist 聚类字段时，查询表名后缀为 _clustered，参考：
+        https://github.com/TencentBlueKing/bk-monitor/blob/master/bklog/apps/log_esquery/serializers.py#L114-L125
+        """
+        suffix: str = self._get_unify_query_table_suffix()
         return f"bklog_index_set_{self.index_set_id}{suffix}"
 
     @classmethod

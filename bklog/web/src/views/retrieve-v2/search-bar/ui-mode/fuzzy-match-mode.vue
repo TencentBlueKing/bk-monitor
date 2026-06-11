@@ -17,6 +17,10 @@ const props = defineProps({
     type: [Array, String],
     default: () => [],
   },
+  operator: {
+    type: String,
+    default: '',
+  },
   type: {
     type: String,
     default: 'es',
@@ -27,7 +31,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['input', 'relation-change', 'batch-show-change']);
+const emit = defineEmits(['input', 'relation-change', 'batch-show-change', 'wildcard-change']);
 const { t } = useLocale();
 
 const activeMode = ref<Mode>('exact');
@@ -65,8 +69,50 @@ const normalizeValues = (value: string | string[]) => {
   return text ? [text] : [];
 };
 
+const isAsteriskEscaped = (text: string, index: number) => {
+  let slashCount = 0;
+  for (let i = index - 1; i >= 0 && text[i] === '\\'; i--) {
+    slashCount++;
+  }
+  return slashCount % 2 === 1;
+};
+
+const startsWithUnescapedAsterisk = (text: string) => text.startsWith('*') && !isAsteriskEscaped(text, 0);
+const endsWithUnescapedAsterisk = (text: string) => text.endsWith('*') && !isAsteriskEscaped(text, text.length - 1);
+const hasUnescapedWildcard = (text: string) => {
+  for (let i = 0; i < text.length; i++) {
+    if ((text[i] === '*' || text[i] === '?') && !isAsteriskEscaped(text, i)) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const escapeEdgeAsterisks = (text: string) => {
+  if (!text) {
+    return '';
+  }
+
+  const chars = text.split('');
+  const escapeIndexSet = new Set<number>();
+  for (let i = 0; i < chars.length && chars[i] === '*'; i++) {
+    escapeIndexSet.add(i);
+  }
+  for (let i = chars.length - 1; i >= 0 && chars[i] === '*'; i--) {
+    if (!isAsteriskEscaped(text, i)) {
+      escapeIndexSet.add(i);
+    }
+  }
+
+  return chars.map((char, index) => escapeIndexSet.has(index) ? '\\' + char : char).join('');
+};
+
+const normalizeKeyword = (value: string) => escapeEdgeAsterisks(String(value ?? '').trim());
+const isExactOperator = (operator: string) => ['contains match phrase', 'not contains match phrase'].includes(operator);
+const isWildcardOperator = (operator: string) => ['=~', '!=~', '&=~', '&!=~'].includes(operator);
+
 const computeQuery = (mode: Mode, text: string) => {
-  const value = String(text ?? '');
+  const value = normalizeKeyword(text);
   if (!value) {
     return '';
   }
@@ -85,49 +131,56 @@ const computeQuery = (mode: Mode, text: string) => {
   }
 };
 
-const isSimpleText = (text: string) => !text.includes('*') && !text.includes('?');
+const isSimpleText = (text: string) => !hasUnescapedWildcard(text);
 
-const inferModeAndKeywords = (value: string | string[]): { mode: Mode; keywords: string[] } => {
+const inferModeAndKeywords = (value: string | string[], operator = props.operator): { mode: Mode; keywords: string[] } => {
   const values = normalizeValues(value);
+  if (isExactOperator(operator)) {
+    return { mode: 'exact', keywords: values };
+  }
   if (!values.length) {
     return { mode: 'exact', keywords: [] };
   }
 
-  const containsKeywords = values.map(item => item.startsWith('*') && item.endsWith('*') && item.length >= 2 ? item.slice(1, -1) : null);
+  const containsKeywords = values.map(item => startsWithUnescapedAsterisk(item) && endsWithUnescapedAsterisk(item) && item.length >= 2 ? item.slice(1, -1) : null);
   if (containsKeywords.every(item => item !== null && isSimpleText(item))) {
     return { mode: 'contains', keywords: containsKeywords as string[] };
   }
 
-  const suffixKeywords = values.map(item => item.startsWith('*') && !item.endsWith('*') ? item.slice(1) : null);
+  const suffixKeywords = values.map(item => startsWithUnescapedAsterisk(item) && !endsWithUnescapedAsterisk(item) ? item.slice(1) : null);
   if (suffixKeywords.every(item => item !== null && isSimpleText(item))) {
     return { mode: 'suffix', keywords: suffixKeywords as string[] };
   }
 
-  const prefixKeywords = values.map(item => !item.startsWith('*') && item.endsWith('*') ? item.slice(0, -1) : null);
+  const prefixKeywords = values.map(item => !startsWithUnescapedAsterisk(item) && endsWithUnescapedAsterisk(item) ? item.slice(0, -1) : null);
   if (prefixKeywords.every(item => item !== null && isSimpleText(item))) {
     return { mode: 'prefix', keywords: prefixKeywords as string[] };
   }
 
-  if (values.some(item => item.includes('*') || item.includes('?'))) {
+  if (values.some(item => hasUnescapedWildcard(item))) {
+    return { mode: 'custom', keywords: values };
+  }
+
+  if (isWildcardOperator(operator)) {
     return { mode: 'custom', keywords: values };
   }
 
   return { mode: 'exact', keywords: values };
 };
 
-const syncFromValue = (value: string | string[]) => {
-  const result = inferModeAndKeywords(value);
+const syncFromValue = (value: string | string[], operator = props.operator) => {
+  const result = inferModeAndKeywords(value, operator);
   activeMode.value = result.mode;
   keywordList.value = [...result.keywords];
 };
 
 watch(
-  () => props.value,
-  (value) => {
+  () => [props.value, props.operator],
+  ([value, operator]) => {
     if (isEmitting) {
       return;
     }
-    syncFromValue(value as string | string[]);
+    syncFromValue(value as string | string[], operator as string);
   },
   { immediate: true, deep: true },
 );
@@ -181,6 +234,7 @@ const tooltipContent = computed(() => [
 
 const emitValue = () => {
   isEmitting = true;
+  emit('wildcard-change', activeMode.value !== 'exact');
   emit('input', [...actualQueryList.value]);
   nextTick(() => {
     isEmitting = false;
@@ -193,7 +247,7 @@ const handleModeClick = (mode: Mode) => {
 };
 
 const appendKeyword = (value: string) => {
-  const text = String(value ?? '').trim();
+  const text = normalizeKeyword(value);
   if (!text) {
     return;
   }
@@ -240,7 +294,7 @@ const commitEditTag = () => {
   if (editIndex.value === null) {
     return;
   }
-  const text = editValue.value.trim();
+  const text = normalizeKeyword(editValue.value);
   if (text) {
     keywordList.value.splice(editIndex.value, 1, text);
   } else {
@@ -257,6 +311,15 @@ const handleEditEnter = (event: KeyboardEvent) => {
   }
   event.preventDefault();
   commitEditTag();
+};
+
+const handleInputDelete = (event: KeyboardEvent) => {
+  if (inputValue.value || !keywordList.value.length) {
+    return;
+  }
+  event.preventDefault();
+  keywordList.value.splice(-1, 1);
+  emitValue();
 };
 
 const handleClear = () => {
@@ -293,6 +356,7 @@ const focusInput = (event?: MouseEvent) => {
 defineExpose({
   computeQuery,
   inferModeAndKeywords,
+  escapeEdgeAsterisks,
 });
 </script>
 
@@ -386,6 +450,7 @@ defineExpose({
         :placeholder="keywordList.length ? '' : inputPlaceholder"
         @blur="handleInputBlur"
         @keydown.enter="handleInputEnter"
+        @keydown.delete="handleInputDelete"
       >
     </div>
 
