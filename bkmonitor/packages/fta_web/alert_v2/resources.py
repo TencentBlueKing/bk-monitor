@@ -29,7 +29,7 @@ from bkmonitor.utils.alert_drilling import (
     merge_dimensions_into_conditions,
 )
 from bkmonitor.utils.thread_backend import ThreadPool
-from constants.alert import APMTargetType, EventTargetType, K8STargetType, K8S_RESOURCE_TYPE
+from constants.alert import APMTargetType, EventTargetType, K8S_RESOURCE_TYPE, K8S_RESOURCE_TYPE_SCENARIO_MAP, K8STargetType
 from constants.apm import ApmAlertHelper
 from constants.data_source import DataTypeLabel, DataSourceLabel
 from core.drf_resource import Resource, resource, api
@@ -561,6 +561,8 @@ class AlertK8sScenarioListResource(Resource):
 
     根据告警ID获取告警关联的容器观测场景列表
     不同类型的K8S资源支持不同的观测场景
+
+    TODO crayon: 待废弃
     """
 
     # K8S目标类型与观测场景的映射关系
@@ -614,6 +616,8 @@ class AlertK8sMetricListResource(Resource):
 
     根据容器观测场景获取对应场景配置的指标列表
     用于前端展示特定场景下可用的监控指标
+
+    TODO crayon: 待废弃
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -671,7 +675,11 @@ class AlertK8sTargetResource(Resource):
         # 根据告警ID获取告警文档对象
         alert: AlertDocument = AlertDocument.get(alert_id)
         target: BaseTarget = get_target_instance(alert)
-        return target.list_related_k8s_targets()
+        result: dict[str, Any] = target.list_related_k8s_targets()
+        scenario_list: list[str] = K8S_RESOURCE_TYPE_SCENARIO_MAP.get(result.get("resource_type", ""), [])
+        for item in result.get("target_list", []):
+            item["scenario_list"] = list(scenario_list)
+        return result
 
 
 class AlertHostTargetResource(Resource):

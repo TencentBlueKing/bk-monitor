@@ -63,6 +63,8 @@ import PortStatusChart from '../plugins/port-status-chart/port-status-chart';
 import ProfilingGraph from '../plugins/profiling-graph/profiling-graph';
 import RatioRingChart from '../plugins/ratio-ring-chart/ratio-ring-chart';
 import RelatedLogChart from '../plugins/related-log-chart/related-log-chart';
+import ApmMonitorK8s from '../plugins/apm-monitor-k8s';
+
 // import RelationGraph from '../plugins/relation-graph/relation-graph';
 import ResourceChart from '../plugins/resource-chart/resource-chart';
 import StatusListChart from '../plugins/status-list-chart/status-list-chart';
@@ -487,6 +489,8 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
         );
       case 'log-retrieve':
         return <monitor-retrieve />;
+      case 'container':
+        return <ApmMonitorK8s />
       case 'exception-guide':
         return (
           <ExceptionGuide

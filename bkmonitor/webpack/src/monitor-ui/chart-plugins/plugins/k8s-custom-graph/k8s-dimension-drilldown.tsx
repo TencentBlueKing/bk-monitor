@@ -76,6 +76,7 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
   @Prop({ type: Boolean, default: true }) enableTip: boolean;
 
   @InjectReactive('groupInstance') readonly groupInstance!: K8sGroupDimension;
+  @InjectReactive({ from: 'isApmMonitor', default: false }) isApmMonitor!: boolean;
 
   @Ref('menu')
   menuRef: any;

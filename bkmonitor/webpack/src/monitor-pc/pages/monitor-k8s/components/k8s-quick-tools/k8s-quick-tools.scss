@@ -60,6 +60,11 @@
         background-position: center;
         background-size: 20px 20px;
       }
+
+      .apm-disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+      }
     }
 
     &.drill-down-tool {
