@@ -450,16 +450,17 @@ export default () => {
           RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type, false);
 
           resolveAdditionKeyword().then(async () => {
-            if (store.state.indexItem.retrieve_type === RetrieveType.Scene) {
-              // 场景化检索：请求场景配置，从URL获取筛选参数
-              const sceneCleared = await requestSceneConfigs();
-              if (!sceneCleared && store.getters.isSceneFilterEmpty) {
-                RetrieveHelper.setSearchingValue(false);
-                return;
+            if (isFeatureToggleOn('scene_search', [String(store.state.bkBizId), String(store.state.spaceUid)])) {
+              if (store.state.indexItem.retrieve_type === RetrieveType.Scene) {
+                // 场景化检索：请求场景配置，从URL获取筛选参数
+                const sceneCleared = await requestSceneConfigs();
+                if (!sceneCleared && store.getters.isSceneFilterEmpty) {
+                  RetrieveHelper.setSearchingValue(false);
+                  return;
+                }
+              } else {
+                requestSceneConfigs();
               }
-            } else {
-              // 非场景化检索：请求场景配置但不阻塞后续流程
-              requestSceneConfigs();
             }
 
             store
