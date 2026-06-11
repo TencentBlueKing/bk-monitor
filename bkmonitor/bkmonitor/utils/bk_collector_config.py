@@ -140,6 +140,13 @@ class BkCollectorClusterConfig:
             return None
 
         content = config_maps.items[0].data.get(BkCollectorComp.CONFIG_MAP_PLATFORM_TPL_NAME)
+        if not content:
+            logger.info(
+                f"[BkCollectorClusterConfig] platform config template not found: cluster({cluster_id}), "
+                f"template({BkCollectorComp.CONFIG_MAP_PLATFORM_TPL_NAME})"
+            )
+            return None
+
         try:
             return base64.b64decode(content).decode()
         except Exception as e:  # pylint: disable=broad-except
@@ -158,14 +165,21 @@ class BkCollectorClusterConfig:
         if config_maps is None or len(config_maps.items) == 0:
             return None
 
-        content = b""
+        content = ""
         for item in config_maps.items:
             if not item.data:
                 continue
 
-            content = item.data.get(sub_config_tpl_name)
+            content = item.data.get(sub_config_tpl_name, "")
             if content:
                 break
+
+        if not content:
+            logger.info(
+                f"[BkCollectorClusterConfig] sub config template not found: cluster({cluster_id}), "
+                f"template({sub_config_tpl_name})"
+            )
+            return None
 
         try:
             return base64.b64decode(content).decode()
