@@ -190,21 +190,36 @@ def _refresh_custom_report(
             "config_type": CUSTOM_REPORT,
             "deploy_targets": ["node_man"],
         }
-        if dry_run:
-            record.update({"action": "dry_run", "result": None, "message": "would refresh custom report config"})
-            report["details"][CUSTOM_REPORT].append(record)
-            continue
-
         try:
-            CustomReportSubscription.refresh_collector_custom_conf(
+            refresh_result = CustomReportSubscription.refresh_collector_custom_conf(
                 bk_tenant_id=bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 deploy_targets=("node_man",),
+                dry_run=dry_run,
             )
         except Exception as error:  # noqa: BLE001 - keep processing other businesses.
-            record.update({"action": "refresh", "result": False, "message": str(error)})
+            record.update(
+                {
+                    "action": "dry_run" if dry_run else "refresh",
+                    "result": False,
+                    "message": str(error),
+                }
+            )
         else:
-            record.update({"action": "refresh", "result": True, "message": "success"})
+            failed_count = (refresh_result or {}).get("summary", {}).get("failed_count", 0)
+            if dry_run:
+                record.update({"action": "dry_run", "result": None, "message": "would refresh custom report config"})
+            elif failed_count:
+                record.update(
+                    {
+                        "action": "refresh",
+                        "result": False,
+                        "message": f"failed targets: {failed_count}",
+                    }
+                )
+            else:
+                record.update({"action": "refresh", "result": True, "message": "success"})
+            record["refresh_result"] = refresh_result
         report["details"][CUSTOM_REPORT].append(record)
 
 

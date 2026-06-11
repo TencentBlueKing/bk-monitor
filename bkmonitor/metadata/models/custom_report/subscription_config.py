@@ -338,19 +338,33 @@ class CustomReportSubscription(models.Model):
         bk_biz_id: int,
         op_type: str,
         data_id_configs: list[tuple[dict[str, Any], str]],
+        dry_run: bool = False,
     ):
         """
         刷新指定业务ID的collector自定义上报配置
         """
+        result = {
+            "action": "dry_run" if dry_run else "refresh",
+            "result": None if dry_run else True,
+            "message": "would refresh custom report config to node_man" if dry_run else "success",
+            "proxy_host_ids": [],
+            "proxy_hosts": [],
+            "proxy_count": 0,
+        }
         # 1. 获取业务下所有proxy
         proxy_host_ids: list[int] = []
+        proxy_hosts: list[dict[str, Any]] = []
         if bk_biz_id == 0:
             proxy_ips = settings.CUSTOM_REPORT_DEFAULT_PROXY_IP
             hosts = api.cmdb.get_host_without_biz(bk_tenant_id=bk_tenant_id, ips=proxy_ips)["hosts"]
-            proxy_host_ids = [host["bk_host_id"] for host in hosts if host["bk_cloud_id"] == 0]
+            for host in hosts:
+                if cls._get_host_value(host, "bk_cloud_id") != 0:
+                    continue
+                proxy_host_ids.append(cls._get_host_value(host, "bk_host_id"))
+                proxy_hosts.append(cls._serialize_proxy_host(host, bk_biz_id=0))
         else:
             proxies = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
-            proxy_biz_ids = {proxy["bk_biz_id"] for proxy in proxies}
+            proxy_biz_ids = sorted({proxy["bk_biz_id"] for proxy in proxies})
             for proxy_biz_id in proxy_biz_ids:
                 current_proxy_hosts = api.cmdb.get_host_by_ip(
                     bk_tenant_id=bk_tenant_id,
@@ -364,12 +378,29 @@ class CustomReportSubscription(models.Model):
                     ],
                     bk_biz_id=proxy_biz_id,
                 )
-                proxy_host_ids.extend([host["bk_host_id"] for host in current_proxy_hosts])
+                proxy_host_ids.extend([cls._get_host_value(host, "bk_host_id") for host in current_proxy_hosts])
+                proxy_hosts.extend(
+                    cls._serialize_proxy_host(host, bk_biz_id=proxy_biz_id) for host in current_proxy_hosts
+                )
+
+        proxy_host_ids = [host_id for host_id in dict.fromkeys(proxy_host_ids) if host_id]
+        proxy_hosts = list({host["bk_host_id"]: host for host in proxy_hosts if host.get("bk_host_id")}.values())
+        result.update(
+            {
+                "proxy_host_ids": proxy_host_ids,
+                "proxy_hosts": proxy_hosts,
+                "proxy_count": len(proxy_host_ids),
+            }
+        )
 
         # 如果proxy_host_ids为空，则不进行下发
         if not proxy_host_ids:
             logger.warning(f"refresh custom report config to proxy on bk_biz_id({bk_biz_id}) error, No proxy found")
-            return
+            result.update({"action": "skip", "result": True, "message": "no proxy found"})
+            return result
+
+        if dry_run:
+            return result
 
         # 2. 下发配置
         cls.create_subscription(
@@ -379,6 +410,25 @@ class CustomReportSubscription(models.Model):
             bk_host_ids=proxy_host_ids,
             op_type=op_type,
         )
+        return result
+
+    @staticmethod
+    def _get_host_value(host, key: str):
+        if isinstance(host, dict):
+            return host.get(key)
+        return getattr(host, key, None)
+
+    @classmethod
+    def _serialize_proxy_host(cls, host, bk_biz_id: int) -> dict[str, Any]:
+        return {
+            "bk_host_id": cls._get_host_value(host, "bk_host_id"),
+            "bk_biz_id": bk_biz_id,
+            "bk_cloud_id": cls._get_host_value(host, "bk_cloud_id"),
+            "ip": cls._get_host_value(host, "bk_host_innerip")
+            or cls._get_host_value(host, "inner_ip")
+            or cls._get_host_value(host, "bk_host_innerip_v6")
+            or cls._get_host_value(host, "inner_ipv6"),
+        }
 
     @classmethod
     def refresh_collector_custom_conf(
@@ -387,6 +437,7 @@ class CustomReportSubscription(models.Model):
         bk_biz_id: int | None = None,
         op_type: str = "add",
         deploy_targets: tuple[str, ...] | list[str] | str = ("node_man", "k8s"),
+        dry_run: bool = False,
     ):
         """
         指定业务ID更新，或者更新全量业务
@@ -412,10 +463,21 @@ class CustomReportSubscription(models.Model):
             raise ValueError(f"unsupported custom report deploy targets: {invalid_deploy_targets}")
 
         logger.info(
-            "refresh custom report config to proxy on bk_biz_id(%s), deploy_targets(%s)",
+            "refresh custom report config to proxy on bk_biz_id(%s), deploy_targets(%s), dry_run(%s)",
             bk_biz_id,
             deploy_targets,
+            dry_run,
         )
+
+        report = {
+            "dry_run": dry_run,
+            "bk_tenant_id": bk_tenant_id,
+            "bk_biz_id": bk_biz_id,
+            "op_type": op_type,
+            "deploy_targets": list(deploy_targets),
+            "details": [],
+            "summary": {},
+        }
 
         # 获取业务的自定义事件/指标配置
         biz_id_to_data_id_config: dict[int, list[tuple[dict, str]]] = defaultdict(list)
@@ -451,27 +513,79 @@ class CustomReportSubscription(models.Model):
                 )
             else:
                 data_id_configs = biz_id_to_data_id_config.get(bk_biz_id, [])
+            detail = {
+                "bk_tenant_id": bk_tenant_id if bk_biz_id != 0 else DEFAULT_TENANT_ID,
+                "bk_biz_id": bk_biz_id,
+                **cls._summarize_data_id_configs(data_id_configs),
+                "targets": {},
+            }
             if "node_man" in deploy_targets:
                 try:
                     # 1. 下发配置（走节点管理下发至主机）
-                    cls._refresh_collect_custom_config_by_biz(
+                    target_record = cls._refresh_collect_custom_config_by_biz(
                         bk_tenant_id=bk_tenant_id if bk_biz_id != 0 else DEFAULT_TENANT_ID,
                         bk_biz_id=bk_biz_id,
                         op_type=op_type,
                         data_id_configs=data_id_configs,
+                        dry_run=dry_run,
                     )
                 except Exception as e:
+                    target_record = {"action": "dry_run" if dry_run else "refresh", "result": False, "message": str(e)}
                     logger.exception(f"refresh custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}")
+                detail["targets"]["node_man"] = target_record
 
             if "k8s" in deploy_targets:
-                try:
-                    # 2. 下发配置（走 K8S 下发至集群）
-                    cls._refresh_k8s_custom_config_by_biz(
-                        bk_biz_id=bk_biz_id,
-                        data_id_configs=data_id_configs,
-                    )
-                except Exception as e:
-                    logger.exception(f"refresh k8s custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}")
+                target_record = {
+                    "action": "dry_run" if dry_run else "refresh",
+                    "result": None if dry_run else True,
+                    "message": "would refresh custom report config to k8s" if dry_run else "success",
+                }
+                if not dry_run:
+                    try:
+                        # 2. 下发配置（走 K8S 下发至集群）
+                        cls._refresh_k8s_custom_config_by_biz(
+                            bk_biz_id=bk_biz_id,
+                            data_id_configs=data_id_configs,
+                        )
+                    except Exception as e:
+                        target_record.update({"result": False, "message": str(e)})
+                        logger.exception(
+                            f"refresh k8s custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}"
+                        )
+                detail["targets"]["k8s"] = target_record
+            report["details"].append(detail)
+
+        report["summary"] = cls._build_refresh_collector_custom_conf_summary(report["details"], dry_run=dry_run)
+        return report
+
+    @staticmethod
+    def _summarize_data_id_configs(data_id_configs: list[tuple[dict[str, Any], str]]) -> dict[str, Any]:
+        data_ids = [config_context.get("bk_data_id") for config_context, _protocol in data_id_configs]
+        protocols = sorted({protocol for _config_context, protocol in data_id_configs})
+        return {
+            "data_id_count": len(data_id_configs),
+            "data_ids": data_ids,
+            "protocols": protocols,
+        }
+
+    @staticmethod
+    def _build_refresh_collector_custom_conf_summary(details: list[dict[str, Any]], *, dry_run: bool) -> dict[str, int]:
+        target_records = [target_record for detail in details for target_record in detail["targets"].values()]
+        return {
+            "matched_biz_count": len(details),
+            "data_id_count": sum(detail["data_id_count"] for detail in details),
+            "target_count": len(target_records),
+            "planned_count": sum(1 for target_record in target_records if target_record["action"] == "dry_run")
+            if dry_run
+            else 0,
+            "succeeded_count": sum(
+                1
+                for target_record in target_records
+                if target_record["action"] == "refresh" and target_record["result"] is True
+            ),
+            "skipped_count": sum(1 for target_record in target_records if target_record["action"] == "skip"),
+            "failed_count": sum(1 for target_record in target_records if target_record["result"] is False),
+        }
 
     @classmethod
     def create_or_update_config(cls, bk_tenant_id: str, bk_biz_id: int, subscription_params, bk_data_id=0):

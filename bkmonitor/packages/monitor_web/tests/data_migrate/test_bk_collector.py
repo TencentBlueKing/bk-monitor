@@ -107,6 +107,16 @@ def test_refresh_biz_bk_collector_configs_refreshes_custom_report_with_node_man_
 
     def fake_refresh_custom_report(**kwargs):
         custom_report_calls.append(kwargs)
+        return {
+            "summary": {"failed_count": 0},
+            "details": [
+                {
+                    "bk_biz_id": 2,
+                    "data_ids": [2001],
+                    "targets": {"node_man": {"action": "refresh", "result": True, "message": "success"}},
+                }
+            ],
+        }
 
     def fake_refresh_log(log_group):
         log_calls.append(log_group.log_group_id)
@@ -129,17 +139,35 @@ def test_refresh_biz_bk_collector_configs_refreshes_custom_report_with_node_man_
         dry_run=False,
     )
 
-    assert custom_report_calls == [{"bk_tenant_id": "system", "bk_biz_id": 2, "deploy_targets": ("node_man",)}]
+    assert custom_report_calls == [
+        {"bk_tenant_id": "system", "bk_biz_id": 2, "deploy_targets": ("node_man",), "dry_run": False}
+    ]
+    custom_report_detail = result["details"][bk_collector.CUSTOM_REPORT][0]
+    assert custom_report_detail["refresh_result"]["details"][0]["data_ids"] == [2001]
     assert log_calls == [1, 2]
     assert result["summary"]["total"]["failed_count"] == 1
     assert result["details"][bk_collector.LOG][1]["message"] == "log refresh failed"
 
 
 def test_refresh_biz_bk_collector_configs_dry_run_and_local_context_restore(monkeypatch):
+    custom_report_calls = []
+
+    def fake_refresh_custom_report(**kwargs):
+        custom_report_calls.append(kwargs)
+        return {
+            "dry_run": True,
+            "summary": {"failed_count": 0},
+            "details": [
+                {
+                    "bk_biz_id": 2,
+                    "data_ids": [2001],
+                    "targets": {"node_man": {"action": "dry_run", "result": None}},
+                }
+            ],
+        }
+
     monkeypatch.setattr(
-        bk_collector.CustomReportSubscription,
-        "refresh_collector_custom_conf",
-        lambda **kwargs: (_ for _ in ()).throw(AssertionError("dry-run should not refresh custom report")),
+        bk_collector.CustomReportSubscription, "refresh_collector_custom_conf", fake_refresh_custom_report
     )
 
     local.username = "origin"
@@ -153,6 +181,10 @@ def test_refresh_biz_bk_collector_configs_dry_run_and_local_context_restore(monk
     )
 
     assert result["details"][bk_collector.CUSTOM_REPORT][0]["action"] == "dry_run"
+    assert custom_report_calls == [
+        {"bk_tenant_id": "system", "bk_biz_id": 2, "deploy_targets": ("node_man",), "dry_run": True}
+    ]
+    assert result["details"][bk_collector.CUSTOM_REPORT][0]["refresh_result"]["details"][0]["data_ids"] == [2001]
     assert result["summary"][bk_collector.CUSTOM_REPORT]["planned_count"] == 1
     assert local.username == "origin"
     assert local.bk_tenant_id == "origin_tenant"
@@ -178,7 +210,19 @@ def test_custom_report_refresh_deploy_targets_keep_default_and_allow_node_man_on
     monkeypatch.setattr(
         CustomReportSubscription,
         "_refresh_collect_custom_config_by_biz",
-        classmethod(lambda cls, **kwargs: node_man_calls.append(kwargs)),
+        classmethod(
+            lambda cls, **kwargs: node_man_calls.append(kwargs)
+            or {
+                "action": "dry_run" if kwargs.get("dry_run") else "refresh",
+                "result": None if kwargs.get("dry_run") else True,
+                "message": "success",
+                "proxy_host_ids": [101],
+                "proxy_hosts": [
+                    {"bk_host_id": 101, "bk_biz_id": kwargs["bk_biz_id"], "bk_cloud_id": 1, "ip": "1.1.1.1"}
+                ],
+                "proxy_count": 1,
+            }
+        ),
     )
     monkeypatch.setattr(
         CustomReportSubscription,
@@ -186,14 +230,25 @@ def test_custom_report_refresh_deploy_targets_keep_default_and_allow_node_man_on
         classmethod(lambda cls, **kwargs: k8s_calls.append(kwargs)),
     )
 
-    CustomReportSubscription.refresh_collector_custom_conf(bk_tenant_id="system", bk_biz_id=2)
+    result = CustomReportSubscription.refresh_collector_custom_conf(bk_tenant_id="system", bk_biz_id=2)
 
     assert [call["bk_biz_id"] for call in node_man_calls] == [2, 0]
     assert [call["bk_biz_id"] for call in k8s_calls] == [2, 0]
+    assert result["summary"] == {
+        "matched_biz_count": 2,
+        "data_id_count": 2,
+        "target_count": 4,
+        "planned_count": 0,
+        "succeeded_count": 4,
+        "skipped_count": 0,
+        "failed_count": 0,
+    }
+    assert result["details"][0]["data_ids"] == [2001]
+    assert result["details"][0]["targets"]["node_man"]["proxy_host_ids"] == [101]
 
     node_man_calls.clear()
     k8s_calls.clear()
-    CustomReportSubscription.refresh_collector_custom_conf(
+    result = CustomReportSubscription.refresh_collector_custom_conf(
         bk_tenant_id="system",
         bk_biz_id=2,
         deploy_targets=("node_man",),
@@ -201,3 +256,62 @@ def test_custom_report_refresh_deploy_targets_keep_default_and_allow_node_man_on
 
     assert [call["bk_biz_id"] for call in node_man_calls] == [2, 0]
     assert k8s_calls == []
+    assert result["summary"]["target_count"] == 2
+
+    node_man_calls.clear()
+    result = CustomReportSubscription.refresh_collector_custom_conf(
+        bk_tenant_id="system",
+        bk_biz_id=2,
+        deploy_targets=("node_man",),
+        dry_run=True,
+    )
+
+    assert [call["bk_biz_id"] for call in node_man_calls] == [2, 0]
+    assert all(call["dry_run"] is True for call in node_man_calls)
+    assert result["dry_run"] is True
+    assert result["summary"]["planned_count"] == 2
+    assert result["details"][0]["targets"]["node_man"]["action"] == "dry_run"
+
+
+def test_refresh_collect_custom_config_by_biz_dry_run_returns_proxy_hosts(monkeypatch):
+    from metadata.models.custom_report import subscription_config
+    from metadata.models.custom_report.subscription_config import CustomReportSubscription
+
+    monkeypatch.setattr(
+        subscription_config.api.node_man,
+        "get_proxies_by_biz",
+        lambda **kwargs: [
+            {"bk_biz_id": 200, "inner_ip": "10.0.0.1", "bk_cloud_id": 1},
+            {"bk_biz_id": 200, "inner_ip": "10.0.0.2", "bk_cloud_id": 1},
+        ],
+    )
+    monkeypatch.setattr(
+        subscription_config.api.cmdb,
+        "get_host_by_ip",
+        lambda **kwargs: [
+            {"bk_host_id": 101, "bk_cloud_id": 1, "bk_host_innerip": "10.0.0.1"},
+            {"bk_host_id": 102, "bk_cloud_id": 1, "bk_host_innerip": "10.0.0.2"},
+        ],
+    )
+    monkeypatch.setattr(
+        CustomReportSubscription,
+        "create_subscription",
+        classmethod(
+            lambda cls, **kwargs: (_ for _ in ()).throw(AssertionError("dry-run should not create subscription"))
+        ),
+    )
+
+    result = CustomReportSubscription._refresh_collect_custom_config_by_biz(
+        bk_tenant_id="system",
+        bk_biz_id=2,
+        op_type="add",
+        data_id_configs=[({"bk_data_id": 2001}, "json")],
+        dry_run=True,
+    )
+
+    assert result["action"] == "dry_run"
+    assert result["proxy_host_ids"] == [101, 102]
+    assert result["proxy_hosts"] == [
+        {"bk_host_id": 101, "bk_biz_id": 200, "bk_cloud_id": 1, "ip": "10.0.0.1"},
+        {"bk_host_id": 102, "bk_biz_id": 200, "bk_cloud_id": 1, "ip": "10.0.0.2"},
+    ]
