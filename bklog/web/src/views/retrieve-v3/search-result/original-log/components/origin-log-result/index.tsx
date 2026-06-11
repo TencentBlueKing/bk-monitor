@@ -152,7 +152,16 @@ export default defineComponent({
       axiosInstance(params)
         .then((resp: any) => {
           if (resp.data && !resp.message) {
-            readBlobRespToJson(resp.data).then(({ data, result }) => {
+            readBlobRespToJson(resp.data).then(({ code, data, result, permission }) => {
+              if (code === '9900403') {
+                store.commit('updateState', {
+                  authDialogData: {
+                    apply_url: data.apply_url,
+                    apply_data: permission,
+                  },
+                });
+                return;
+              }
               if (result) {
                 begin += size;
                 total = (data.total?.toNumber?.() ?? Number(data.total)) || 0;

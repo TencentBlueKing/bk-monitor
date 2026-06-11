@@ -1488,7 +1488,7 @@ const store = new Vuex.Store({
       return axiosInstance(params)
         .then((resp) => {
           if (resp.data && !resp.message) {
-            return readBlobRespToJson(resp.data).then(({ code, data, result, message }) => {
+            return readBlobRespToJson(resp.data).then(({ code, data, result, message, permission }) => {
               const rsolvedData = data;
               if (result) {
                 const indexSetQueryResult = state.indexSetQueryResult;
@@ -1525,6 +1525,15 @@ const store = new Vuex.Store({
                   length: logList.length,
                   size,
                 };
+              }
+
+              if (code === '9900403') {
+                commit('updateState', {
+                  authDialogData: {
+                    apply_url: data.apply_url,
+                    apply_data: permission,
+                  },
+                });
               }
 
               commit('updateIndexSetQueryResult', {
