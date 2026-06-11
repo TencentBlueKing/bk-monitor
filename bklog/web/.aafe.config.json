@@ -11,6 +11,7 @@
       "convention",
       "decision",
       "experience",
+      "project-architecture",
       "learning"
     ],
     "dedupe": true,
@@ -75,6 +76,14 @@
     "enabled": true,
     "sessionStart": ".cursor/hooks/aafe-session-start",
     "failClosed": false
+  },
+  "skills": {
+    "downloadable": true,
+    "purpose": "github-agent-skills-distribution",
+    "manifestUrl": "https://raw.githubusercontent.com/xintaoLi/aafe-agent-runtime/main/skills/manifest.json",
+    "defaultTarget": "$SIBOOT_WORKSPACE_PATH/skills",
+    "installCommand": "aafe skills install <skill-name> --github",
+    "boundary": "Use only for Agent SKILLS download. Use init/update/analyze/doctor for project .ai-agent runtime."
   },
   "gates": [
     "ddd_gate",

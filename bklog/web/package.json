@@ -113,7 +113,7 @@
     "webpack-sources": "3.2.3"
   },
   "devDependencies": {
-    "@aafe/agent-runtime": "^0.1.4",
+    "@aafe/agent-runtime": "^0.1.6",
     "@biomejs/biome": "^2.1.4",
     "@blueking/bkui-lint": "0.0.3",
     "@commitlint/cli": "19.2.1",
