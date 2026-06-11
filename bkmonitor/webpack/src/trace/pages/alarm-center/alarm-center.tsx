@@ -839,7 +839,7 @@ export default defineComponent({
     };
 
     /** issues Tapd展示 */
-    const issuesTapdShow = shallowRef(true);
+    const issuesTapdShow = shallowRef(false);
     const handleIssuesTapdShowChange = (show: boolean) => {
       issuesTapdShow.value = show;
     };
