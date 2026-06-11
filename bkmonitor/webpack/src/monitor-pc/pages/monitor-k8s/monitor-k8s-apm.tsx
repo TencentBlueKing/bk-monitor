@@ -47,6 +47,7 @@ import {
   type ITableCommonParams,
   EDimensionKey,
   K8sNewTabEnum,
+  K8sTableColumnKeysEnum,
   SceneEnum,
 } from './typings/k8s-new';
 
@@ -58,7 +59,7 @@ import './monitor-k8s-apm.scss';
 
 const HIDE_METRICS_KEY = 'monitor_k8s_hide_metrics';
 
-const CACHE_APM_SEARCH_QUERY = 'cacheApmSearchQuery';
+const CACHE_APM_SEARCH_QUERY = 'APM_K8S';
 
 /** 网络场景默认隐藏的指标 */
 const networkDefaultHideMetrics = [
@@ -151,6 +152,9 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   targetListToggle = false;
   selectTarget = '';
 
+  isUserManualSwitch = false;
+  cacheData: Record<string, { target: string }> = {};
+
   get isChart() {
     return this.activeTab === K8sNewTabEnum.CHART;
   }
@@ -224,8 +228,21 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
 
   get selectTargetText() {
     if (!this.selectTarget) return this.$t('请选择');
-    const { bcs_cluster_id: clusterId = '', namespace = '', workload = '', pod = '' } = JSON.parse(this.selectTarget);
+    const { bcs_cluster_id: clusterId = '', namespace = '', workload = '', pod = '' } = this.selectTargetItem || {};
     return `${workload || pod}（集群:${clusterId}）, namespace:${namespace}`;
+  }
+
+  // 选中的目标项
+  get selectTargetItem() {
+    return this.targetList.find(item => item.cacheId === this.selectTarget) || this.targetList[0];
+  }
+
+  get appName() {
+    return this.viewOptions?.filters?.app_name || '';
+  }
+
+  get serviceName() {
+    return this.viewOptions?.filters?.service_name || '';
   }
 
   setGroupFilters(groupId: K8sTableColumnResourceKey, config?: { single: boolean }) {
@@ -295,29 +312,28 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   async created() {
     this.groupInstance = K8sGroupDimension.createInstance(SceneEnum.Performance, this.isApmMonitor);
     const apmK8sParams = this.customRouteQuery?.apmK8sParams ? JSON.parse(this.customRouteQuery?.apmK8sParams) : {};
+    await this.getApmK8sData().catch(() => {});
     /** URL没有参数且存在缓存查询条件，使用缓存查询条件 */
     if (!Object.keys(apmK8sParams).length) {
-      const res = await listServiceK8sTargets({
-        app_name: this.viewOptions?.filters?.app_name || '',
-        service_name: this.viewOptions?.filters?.service_name || '',
-      }).catch(() => {});
-      if (res.target_list?.length) {
-        this.targetList = res.target_list;
-        this.cluster = res.target_list[0]?.bcs_cluster_id || '';
+      // 从接口获取缓存的数据
+      const cacheRes = await this.handleGetUserConfig<Record<string, { target: string }>>(
+        `${CACHE_APM_SEARCH_QUERY}_${this.bizId}_${this.appName}`
+      ).catch(() => {});
+      this.cacheData = cacheRes ? cacheRes : {};
+      if (cacheRes?.[this.serviceName]) {
+        this.getRouteParams(cacheRes[this.serviceName]);
+      } else {
+        this.getRouteParams({
+          ...this.selectTargetItem,
+          target: this.selectTargetItem.cacheId,
+        });
       }
-      const cacheData = await this.handleGetUserConfig<string>(
-        `${CACHE_APM_SEARCH_QUERY}_${this.bizId}_${this.cluster}`
-      );
-      const data = JSON.parse(cacheData);
-      data && this.getRouteParams(data);
     } else {
-      if (apmK8sParams) {
-        this.getRouteParams(apmK8sParams);
-      }
-      this.getApmK8sData();
+      this.getRouteParams(apmK8sParams.selectTarget);
     }
     this.getScenarioMetricList();
     this.getHideMetrics();
+    this.setRouteParams();
   }
 
   mounted() {
@@ -338,11 +354,16 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   }
 
   beforeDestroy() {
-    // 离开时缓存当前查询条件，方便下次进入时使用
-    this.handleSetUserConfig(
-      `${CACHE_APM_SEARCH_QUERY}_${this.bizId}_${this.cluster}`,
-      JSON.stringify(this.customRouteQuery?.apmK8sParams)
-    );
+    // 用户手动切换过负载才需要缓存
+    if (this.isUserManualSwitch && this.appName) {
+      const setData = {
+        ...this.cacheData,
+        [this.serviceName]: {
+          target: this.selectTarget,
+        },
+      };
+      this.handleSetUserConfig(`${CACHE_APM_SEARCH_QUERY}_${this.bizId}_${this.appName}`, JSON.stringify(setData));
+    }
   }
 
   destroyed() {
@@ -355,12 +376,6 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
       pre[cur] = [];
       return pre;
     }, {});
-    if (this.selectTarget) {
-      const { namespace = '', workload = '', pod = '' } = JSON.parse(this.selectTarget);
-      const resourceValue = this.apmResourceType === 'pod' ? pod : workload;
-      this.filterBy[EDimensionKey.namespace] = namespace ? [namespace] : [];
-      this.filterBy[EDimensionKey[this.apmResourceType]] = resourceValue ? [resourceValue] : [];
-    }
   }
 
   /** 重新实例化 GroupBy */
@@ -385,14 +400,16 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
 
   async getApmK8sData() {
     const res = await listServiceK8sTargets({
-      app_name: this.viewOptions?.filters?.app_name || '',
-      service_name: this.viewOptions?.filters?.service_name || '',
+      app_name: this.appName,
+      service_name: this.serviceName,
     }).catch(() => {});
     if (res.target_list?.length) {
-      this.targetList = res.target_list;
+      this.targetList = res.target_list.map(item => ({
+        ...item,
+        cacheId: `${item.bcs_cluster_id}-${item.namespace}-${item.pod || item.workload}`,
+      }));
       this.cluster = res.target_list[0]?.bcs_cluster_id || '';
     }
-    this.setRouteParams();
     return;
   }
 
@@ -500,9 +517,8 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   }
 
   // 切换apm容器targetList
-  handleTargetListChange(value: string, oldValue: string) {
-    if (!oldValue) return;
-    const selectedTarget = JSON.parse(value);
+  handleTargetListChange(value: string, oldValue?: string) {
+    // if (!oldValue || !Object.keys(this.selectTargetItem).length) return;
     this.selectTarget = value;
     const {
       resource_type: resourceType = '',
@@ -510,7 +526,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
       workload = '',
       pod = '',
       bcs_cluster_id: cluster = '',
-    } = selectedTarget;
+    } = this.selectTargetItem;
     this.filterBy = {
       [EDimensionKey.namespace]: [namespace],
       [EDimensionKey.workload]: workload ? [workload] : undefined,
@@ -518,39 +534,38 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
     };
     this.cluster = cluster;
     this.apmResourceType = resourceType;
+    this.groupInstance.initGroupFilter();
+    if (resourceType === 'pod') {
+      this.groupInstance.addGroupFilter(K8sTableColumnKeysEnum.POD, { single: true });
+    } else if (resourceType === 'workload') {
+      this.groupInstance.addGroupFilter(K8sTableColumnKeysEnum.WORKLOAD, { single: true });
+      this.groupInstance.addGroupFilter(K8sTableColumnKeysEnum.POD);
+    }
+    this.isUserManualSwitch = !!oldValue;
   }
 
   handleTargetListToggle(toggle: boolean) {
     this.targetListToggle = toggle;
   }
 
+  // apm容器首版：只需要缓存targetList选中的那一项，暂时不需要过滤条件和聚合维度等其他参数
   getRouteParams(query: Record<string, string | string[]> = {}) {
-    const {
-      filterBy,
-      groupBy,
-      cluster = '',
-      scene = SceneEnum.Performance,
-      activeTab = K8sNewTabEnum.LIST,
-      selectTarget = '',
-    } = query;
-    this.cluster = cluster as string;
-    this.scene = scene as SceneEnum;
+    const { target = '' } = query;
+    const res = this.targetList.find(item => item.cacheId === target) || '';
+    if (!target || !res) {
+      this.selectTarget = this.targetList[0].cacheId;
+    } else {
+      this.selectTarget = res.cacheId;
+    }
     this.initGroupBy();
     this.initFilterBy();
-    this.activeTab = activeTab as K8sNewTabEnum;
-    this.groupInstance.setGroupFilters(tryURLDecodeParse(groupBy as string, []));
-    this.filterBy = { ...this.filterBy, ...tryURLDecodeParse(filterBy as string, {}) };
-    this.selectTarget = selectTarget as string;
-    this.apmResourceType = (selectTarget && JSON.parse(selectTarget as string).resource_type) || '';
   }
 
   setRouteParams(otherQuery = {}) {
     const apmK8sParams = {
-      cluster: this.cluster,
-      selectTarget: this.selectTarget,
-      filterBy: JSON.stringify(this.filterBy),
-      groupBy: JSON.stringify(this.groupInstance.groupFilters),
-      activeTab: this.activeTab,
+      selectTarget: {
+        target: this.selectTarget,
+      },
       ...otherQuery,
     };
     this.handleApmK8sNewEventChange('apmK8sNewCustomRouteQueryChange', apmK8sParams);
@@ -609,8 +624,8 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
         </div>
         {this.targetList.map(target => (
           <bk-option
-            id={JSON.stringify(target)}
-            key={JSON.stringify(target)}
+            id={target.cacheId}
+            key={target.cacheId}
             name={`${target.workload || target.pod}（集群:${target.bcs_cluster_id}）, namespace:${target.namespace}`}
           />
         ))}

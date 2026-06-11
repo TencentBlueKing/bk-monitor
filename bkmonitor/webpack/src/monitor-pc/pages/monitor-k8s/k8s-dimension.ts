@@ -595,21 +595,29 @@ export class ApmK8sPerformanceGroupDimension extends K8sGroupDimension {
   readonly dimensions = [
     K8sTableColumnKeysEnum.CLUSTER,
     K8sTableColumnKeysEnum.NAMESPACE,
+    K8sTableColumnKeysEnum.WORKLOAD,
     K8sTableColumnKeysEnum.POD,
+    K8sTableColumnKeysEnum.CONTAINER,
   ];
   readonly groupByDimensions = [
     K8sTableColumnKeysEnum.NAMESPACE,
+    K8sTableColumnKeysEnum.WORKLOAD,
     K8sTableColumnKeysEnum.POD,
+    K8sTableColumnKeysEnum.CONTAINER,
   ];
   readonly groupByDimensionsMap = {
     [K8sTableColumnKeysEnum.NAMESPACE]: [K8sTableColumnKeysEnum.NAMESPACE],
+    [K8sTableColumnKeysEnum.WORKLOAD]: [K8sTableColumnKeysEnum.NAMESPACE, K8sTableColumnKeysEnum.WORKLOAD],
     [K8sTableColumnKeysEnum.POD]: [
       K8sTableColumnKeysEnum.NAMESPACE,
+      K8sTableColumnKeysEnum.WORKLOAD,
       K8sTableColumnKeysEnum.POD,
     ],
     [K8sTableColumnKeysEnum.CONTAINER]: [
       K8sTableColumnKeysEnum.NAMESPACE,
+      K8sTableColumnKeysEnum.WORKLOAD,
       K8sTableColumnKeysEnum.POD,
+      K8sTableColumnKeysEnum.CONTAINER,
     ],
   };
   constructor() {

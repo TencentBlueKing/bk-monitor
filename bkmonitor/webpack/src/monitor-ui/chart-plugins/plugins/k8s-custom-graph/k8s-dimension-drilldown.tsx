@@ -130,10 +130,6 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
   /** 下钻 */
   @Emit('handleDrillDown')
   handleDrillDownChange(val: string) {
-    // apm容器下钻只有pod
-    if (this.isApmMonitor && val !== 'pod') {
-      return;
-    }
     const id = this.drillDownId;
     this.popoverInstance?.hide();
     this.drillDownId = null;
@@ -171,7 +167,7 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
             {this.drillDownList.map(item => (
               <li
                 key={item}
-                class={['menu-item', { disabled: this.isApmMonitor && !['pod'].includes(item) }]}
+                class='menu-item'
                 onClick={() => this.handleDrillDownChange(item)}
               >
                 {item}
