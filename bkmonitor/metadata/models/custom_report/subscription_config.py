@@ -354,7 +354,7 @@ class CustomReportSubscription(models.Model):
             if is_bk_saas_space(space_uid):
                 return
 
-            proxies = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
+            proxies = api.node_man.get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
             proxy_biz_ids = {proxy["bk_biz_id"] for proxy in proxies}
             for proxy_biz_id in proxy_biz_ids:
                 current_proxy_hosts = api.cmdb.get_host_by_ip(
