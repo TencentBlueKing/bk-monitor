@@ -830,8 +830,7 @@ class GetNoDataStrategyInfoResource(Resource):
         if not app.metric_result_table_id:
             return None
 
-        # TODO: promql 中 bk_rum_count 指标名待对齐 RUM metric 数据源的实际字段定义
-        promql = f'sum(sum_over_time({{__name__="custom:{app.metric_result_table_id}:bk_rum_count"}}[1m])) or vector(0)'
+        promql = f'sum(sum_over_time({{__name__="custom:{app.metric_result_table_id}:browser_web_vital_duration_bucket"}}[1m])) or vector(0)'
         strategy_name = f"BKRUM-{_('无数据告警')}-{app.app_name}"
 
         config = {
