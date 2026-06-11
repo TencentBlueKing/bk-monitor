@@ -281,6 +281,9 @@ class ReleaseAppConfigResource(Resource):
             scope_type=RumAppConfig.APPLICATION_LEVEL,
             scope_key="",
             refresh_configs=configs,
+            refresh_categories=[
+                config["config_type"].split(":", 1)[0] for config in configs if "config_type" in config
+            ],
         )
 
         from rum.task.tasks import refresh_rum_application_config
