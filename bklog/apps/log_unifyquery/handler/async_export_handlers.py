@@ -429,7 +429,9 @@ class UnifyQueryUnionAsyncExportHandlers:
                 "end_time": self.search_dict["end_time"],
                 "export_type": ExportType.ASYNC,
                 "export_total_count": UnifyQueryAsyncExportHandlers.get_export_total_count(
-                    request_size=self.search_dict.get("size"), is_quick_export=is_quick_export
+                    request_size=self.search_dict.get("size"),
+                    is_quick_export=is_quick_export,
+                    max_async_count=self.unify_query_handler.index_info_list[0]["index_set_obj"].max_async_count,
                 ),
                 "created_by": self.request_user,
             }
