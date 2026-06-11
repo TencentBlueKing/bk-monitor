@@ -86,23 +86,31 @@ class DataAccessHandler(BaseAiopsHandler):
 
     def sync_bkdata_etl(self, collector_config_id):
         clustering_config = ClusteringConfig.objects.get(collector_config_id=collector_config_id)
+        self._use_biz_config(clustering_config.bk_biz_id)
         bk_data_id = clustering_config.bkdata_data_id
         result = self.create_or_update_bkdata_etl(
-            collector_config_id, bk_data_id, clustering_config.bkdata_etl_processing_id
+            collector_config_id,
+            bk_data_id,
+            clustering_config.bkdata_etl_processing_id,
+            bk_biz_id=clustering_config.bk_biz_id,
         )
         if not clustering_config.bkdata_etl_processing_id:
             clustering_config.bkdata_etl_processing_id = result["processing_id"]
             clustering_config.bkdata_etl_result_table_id = result["result_table_id"]
             clustering_config.save()
             # 新建rt后需要启动清洗任务，并且从尾部开始消费
-            self.start_bkdata_clean(result["result_table_id"], from_tail=True)
+            self.start_bkdata_clean(result["result_table_id"], bk_biz_id=clustering_config.bk_biz_id, from_tail=True)
         else:
             # 更新rt之后需要重启清洗任务
-            self.stop_bkdata_clean(clustering_config.bkdata_etl_result_table_id)
-            self.start_bkdata_clean(clustering_config.bkdata_etl_result_table_id)
+            self.stop_bkdata_clean(clustering_config.bkdata_etl_result_table_id, bk_biz_id=clustering_config.bk_biz_id)
+            self.start_bkdata_clean(clustering_config.bkdata_etl_result_table_id, bk_biz_id=clustering_config.bk_biz_id)
 
-    def create_or_update_bkdata_etl(self, collector_config_id, bk_data_id=None, bkdata_etl_processing_id=None):
+    def create_or_update_bkdata_etl(
+        self, collector_config_id, bk_data_id=None, bkdata_etl_processing_id=None, bk_biz_id: int = None
+    ):
         collector_config = CollectorConfig.objects.get(collector_config_id=collector_config_id)
+        config_bk_biz_id = bk_biz_id if bk_biz_id is not None else collector_config.bk_biz_id
+        self._use_biz_config(config_bk_biz_id)
 
         bk_data_id = bk_data_id or collector_config.bk_data_id
 
@@ -156,33 +164,35 @@ class DataAccessHandler(BaseAiopsHandler):
                 fields_names.add(field_name)
 
         if bk_data_id == collector_config.bk_data_id:
-            bk_biz_id = self.validate_bk_biz_id(collector_config.bk_biz_id)
+            request_bk_biz_id = self.validate_bk_biz_id(collector_config.bk_biz_id)
         else:
             # 旧版聚类链路，清洗走公共业务
-            bk_biz_id = self.conf.get("bk_biz_id")
+            request_bk_biz_id = self.conf.get("bk_biz_id")
 
-        params = {
-            "raw_data_id": bk_data_id,
-            "result_table_name": result_table_name,
-            "result_table_name_alias": collector_config.collector_config_name_en,
-            "clean_config_name": collector_config.collector_config_name,
-            "description": collector_config.description or collector_config.collector_config_name,
-            "bk_biz_id": bk_biz_id,
-            "fields": [
-                {
-                    "field_name": field.get("alias_name") if field.get("alias_name") else field.get("field_name"),
-                    "field_type": BKDATA_ES_TYPE_MAP.get(field.get("option").get("es_type"), "string"),
-                    "field_alias": field.get("description") if field.get("description") else field.get("field_name"),
-                    "is_dimension": field.get("tag", "dimension") == "dimension",
-                    "field_index": index,
-                }
-                for index, field in enumerate(dedupe_fields_config, 1)
-            ],
-            "json_config": json.dumps(bkdata_json_config),
-            "bk_username": self.conf.get("bk_username"),
-            "operator": self.conf.get("bk_username"),
-            "no_request": True,
-        }
+        params = self._set_bkdata_request_params(
+            {
+                "raw_data_id": bk_data_id,
+                "result_table_name": result_table_name,
+                "result_table_name_alias": collector_config.collector_config_name_en,
+                "clean_config_name": collector_config.collector_config_name,
+                "description": collector_config.description or collector_config.collector_config_name,
+                "bk_biz_id": request_bk_biz_id,
+                "fields": [
+                    {
+                        "field_name": field.get("alias_name") if field.get("alias_name") else field.get("field_name"),
+                        "field_type": BKDATA_ES_TYPE_MAP.get(field.get("option").get("es_type"), "string"),
+                        "field_alias": field.get("description")
+                        if field.get("description")
+                        else field.get("field_name"),
+                        "is_dimension": field.get("tag", "dimension") == "dimension",
+                        "field_index": index,
+                    }
+                    for index, field in enumerate(dedupe_fields_config, 1)
+                ],
+                "json_config": json.dumps(bkdata_json_config),
+            },
+            bk_biz_id=request_bk_biz_id,
+        )
 
         if bkdata_etl_processing_id:
             params.update({"processing_id": bkdata_etl_processing_id})
@@ -191,46 +201,43 @@ class DataAccessHandler(BaseAiopsHandler):
 
         return BkDataDatabusApi.databus_cleans_post(params)
 
-    def stop_bkdata_clean(self, bkdata_result_table_id):
+    def stop_bkdata_clean(self, bkdata_result_table_id, bk_biz_id: int = None):
         return BkDataDatabusApi.delete_tasks(
-            params={
-                "result_table_id": bkdata_result_table_id,
-                "bk_username": self.conf.get("bk_username"),
-                "operator": self.conf.get("bk_username"),
-                "no_request": True,
-            }
+            params=self._set_bkdata_request_params({"result_table_id": bkdata_result_table_id}, bk_biz_id=bk_biz_id)
         )
 
-    def start_bkdata_clean(self, bkdata_result_table_id, from_tail=False):
-        params = {
-            "result_table_id": bkdata_result_table_id,
-            "storages": ["kafka"],
-            "bk_username": self.conf.get("bk_username"),
-            "operator": self.conf.get("bk_username"),
-            "no_request": True,
-        }
+    def start_bkdata_clean(self, bkdata_result_table_id, bk_biz_id: int = None, from_tail=False):
+        params = self._set_bkdata_request_params(
+            {"result_table_id": bkdata_result_table_id, "storages": ["kafka"]}, bk_biz_id=bk_biz_id
+        )
         if from_tail:
             params["consume_position"] = "tail"
         return BkDataDatabusApi.post_tasks(params=params)
 
     def add_cluster_group(self, result_table_id, bk_biz_id):
         self.conf = get_online_clustering_config(bk_biz_id)
-        storage_config = BkDataMetaApi.result_tables.storages({"result_table_id": result_table_id})
+        storage_config = BkDataMetaApi.result_tables.storages(
+            self._set_bkdata_request_params({"result_table_id": result_table_id}, bk_biz_id=bk_biz_id)
+        )
         cluster_resource_groups = BkDataResourceCenterApi.cluster_query_digest(
-            params={
-                "resource_type": "storage",
-                "service_type": "es",
-                "cluster_name": storage_config["es"]["storage_cluster"]["cluster_name"],
-                "bk_biz_id": bk_biz_id,
-            }
+            params=self._set_bkdata_request_params(
+                {
+                    "resource_type": "storage",
+                    "service_type": "es",
+                    "cluster_name": storage_config["es"]["storage_cluster"]["cluster_name"],
+                },
+                bk_biz_id=bk_biz_id,
+            )
         )
         cluster_resource_group, *_ = cluster_resource_groups
         BkDataAuthApi.add_cluster_group(
-            params={
-                "project_id": self.conf.get("project_id"),
-                "cluster_group_id": cluster_resource_group["resource_group_id"],
-                "bk_biz_id": bk_biz_id,
-            }
+            params=self._set_bkdata_request_params(
+                {
+                    "project_id": self.conf.get("project_id"),
+                    "cluster_group_id": cluster_resource_group["resource_group_id"],
+                },
+                bk_biz_id=bk_biz_id,
+            )
         )
 
         return storage_config["es"]["storage_cluster"]["cluster_name"]

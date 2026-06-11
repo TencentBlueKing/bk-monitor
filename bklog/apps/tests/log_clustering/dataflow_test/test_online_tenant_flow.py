@@ -13,7 +13,7 @@ class TestOnlineTenantFlow(SimpleTestCase):
         switch_patcher = patch("apps.log_clustering.handlers.aiops.base.FeatureToggleObject.switch", return_value=True)
         toggle_patcher = patch(
             "apps.log_clustering.handlers.aiops.base.FeatureToggleObject.toggle",
-            return_value=Mock(feature_config={"project_id": 1, "bk_biz_id": 2}),
+            return_value=Mock(feature_config={"project_id": 1, "bk_biz_id": 2, "bk_username": "system_admin"}),
         )
         self.addCleanup(switch_patcher.stop)
         self.addCleanup(toggle_patcher.stop)
@@ -27,8 +27,27 @@ class TestOnlineTenantFlow(SimpleTestCase):
         DataFlowHandler().operator_flow(flow_id=11, action=ActionEnum.START, bk_biz_id=2)
 
         action.assert_called_once()
-        self.assertEqual(action.call_args.args[0]["bk_biz_id"], 2)
+        request_params = action.call_args.args[0]
+        self.assertEqual(request_params["bk_biz_id"], 2)
+        self.assertEqual(request_params["bk_username"], "system_admin")
+        self.assertEqual(request_params["operator"], "system_admin")
+        self.assertTrue(request_params["no_request"])
         self.assertNotIn("bk_tenant_id", action.call_args.kwargs)
+
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.BkDataDatabusApi.post_tasks")
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.BkDataMetaApi.result_tables.retrieve")
+    def test_check_and_start_clean_task_passes_business_params(self, mock_retrieve, mock_post_tasks):
+        mock_retrieve.return_value = {"processing_type": "clean"}
+
+        DataFlowHandler().check_and_start_clean_task("2_bklog_clean", bk_biz_id=2)
+
+        retrieve_params = mock_retrieve.call_args.args[0]
+        post_params = mock_post_tasks.call_args.args[0]
+        for params in [retrieve_params, post_params]:
+            self.assertEqual(params["bk_biz_id"], 2)
+            self.assertEqual(params["bk_username"], "system_admin")
+            self.assertEqual(params["operator"], "system_admin")
+            self.assertTrue(params["no_request"])
 
     @patch.object(DataFlowHandler, "_render_template", return_value="[]")
     @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.ClusteringConfig.get_by_index_set_id")
@@ -41,6 +60,7 @@ class TestOnlineTenantFlow(SimpleTestCase):
             "project_id": 1001,
             "bk_biz_id": 2001,
             "model_id": "tenant_model",
+            "bk_username": "tenant_admin",
             "tspider_cluster": "tenant_ts",
             "pattern_storage_cluster": "tenant_pattern",
         }
@@ -58,6 +78,10 @@ class TestOnlineTenantFlow(SimpleTestCase):
         request_params = mock_create_flow.call_args.args[0]
         render_obj = mock_render.call_args.kwargs["render_obj"]["log_count_aggregation"]
         self.assertEqual(request_params["project_id"], 1001)
+        self.assertEqual(request_params["bk_biz_id"], 2)
+        self.assertEqual(request_params["bk_username"], "tenant_admin")
+        self.assertEqual(request_params["operator"], "tenant_admin")
+        self.assertTrue(request_params["no_request"])
         self.assertEqual(render_obj["pattern"]["storage"], "tenant_pattern")
         self.assertEqual(render_obj["tspider_storage"]["cluster"], "tenant_ts")
         self.assertEqual(result["flow_id"], 91)
