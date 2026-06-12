@@ -526,6 +526,7 @@ class RecordRuleV4(BaseModelWithTime):
         # 任何关键 condition 失败都优先展示 failed，避免被 pending/running 掩盖。
         if any(
             self.get_condition(condition_type).get("status") == CONDITION_FALSE
+            and self.get_condition(condition_type).get("generation") == self.generation
             for condition_type in [
                 CONDITION_RECONCILED,
                 CONDITION_RESOLVED,
@@ -563,6 +564,10 @@ class RecordRuleV4(BaseModelWithTime):
 
         self.current_spec = spec
         self.generation = spec.generation
+        self.set_condition(CONDITION_RESOLVED, CONDITION_UNKNOWN, "Pending", "waiting for resolve")
+        self.set_condition(CONDITION_FLOW_READY, CONDITION_UNKNOWN, "Pending", "waiting for flow preparation")
+        self.set_condition(CONDITION_RECONCILED, CONDITION_UNKNOWN, "Pending", "waiting for apply")
+        self.set_condition(CONDITION_FLOW_HEALTHY, CONDITION_UNKNOWN, "Pending", "waiting for observation")
         self.sync_phase()
         self.save(
             update_fields=[

@@ -262,7 +262,7 @@ def build_record(
     return record
 
 
-def create_rule(
+def declare_rule(
     *,
     records: list[dict] | None = None,
     name: str = RULE_NAME,
@@ -271,11 +271,10 @@ def create_rule(
     interval: str = "1min",
     labels: list[dict] | None = None,
     auto_refresh: bool = True,
-    apply_immediately: bool = True,
 ) -> RecordRuleV4:
     records = [build_record()] if records is None else records
     group_labels = labels or []
-    return RecordRuleV4Operator.create(
+    return RecordRuleV4Operator.declare(
         bk_tenant_id=TENANT_ID,
         space_type=SPACE_TYPE,
         space_id=SPACE_ID,
@@ -295,8 +294,32 @@ def create_rule(
         auto_refresh=auto_refresh,
         source="pytest",
         operator="tester",
-        apply_immediately=apply_immediately,
     )
+
+
+def create_rule(
+    *,
+    records: list[dict] | None = None,
+    name: str = RULE_NAME,
+    description: str = "",
+    data_label: str = "",
+    interval: str = "1min",
+    labels: list[dict] | None = None,
+    auto_refresh: bool = True,
+    apply_immediately: bool = True,
+) -> RecordRuleV4:
+    rule = declare_rule(
+        records=records,
+        name=name,
+        description=description,
+        data_label=data_label,
+        interval=interval,
+        labels=labels,
+        auto_refresh=auto_refresh,
+    )
+    RecordRuleV4Operator(rule, source="pytest", operator="tester").execute_declaration(auto_apply=apply_immediately)
+    rule.refresh_from_db()
+    return rule
 
 
 def get_recording_rule_node(flow_config: dict) -> dict:
@@ -327,6 +350,24 @@ def get_applied_flow(rule: RecordRuleV4):
 def has_unapplied_resolved(rule: RecordRuleV4) -> bool:
     latest_resolved = get_latest_resolved(rule)
     return bool(latest_resolved and latest_resolved.pk != rule.applied_resolved_id)
+
+
+def test_declare_only_writes_spec_without_external_side_effects(v4_base_data, external_api):
+    rule = declare_rule(description="record rule output", data_label="rr_cpu")
+
+    rule.refresh_from_db()
+    assert rule.current_spec is not None
+    assert rule.current_spec.records.count() == 1
+    assert rule.current_spec.latest_resolved_id is None
+    assert rule.applied_resolved_id is None
+    assert rule.status == RecordRuleV4Status.PENDING.value
+    assert not models.ResultTable.objects.filter(table_id=rule.table_id, bk_tenant_id=TENANT_ID).exists()
+    assert rule.get_latest_flow() is None
+    external_api.check_query_ts.assert_not_called()
+    external_api.check_promql.assert_not_called()
+    external_api.apply_data_link.assert_not_called()
+    external_api.space_redis.push_space_table_ids.assert_not_called()
+    external_api.space_redis.push_table_id_detail.assert_not_called()
 
 
 def test_create_group_with_two_records_applies_single_flow(v4_base_data, external_api):
@@ -530,9 +571,8 @@ def test_update_raw_config_alone_does_not_create_spec(v4_base_data, external_api
     current_generation = rule.generation
     external_api.check_query_ts.reset_mock()
 
-    updated = RecordRuleV4Operator(rule, source="manual", operator="admin").update_spec(
+    updated = RecordRuleV4Operator(rule, source="manual", operator="admin").update_declaration(
         raw_config={"records": [], "from": "ui_snapshot"},
-        apply_immediately=False,
     )
 
     updated.refresh_from_db()
@@ -541,7 +581,26 @@ def test_update_raw_config_alone_does_not_create_spec(v4_base_data, external_api
     external_api.check_query_ts.assert_not_called()
 
 
-def test_update_metadata_refreshes_result_table_without_new_spec_or_flow(v4_base_data, external_api):
+def test_update_declaration_with_same_records_does_not_create_spec(v4_base_data, external_api):
+    rule = create_rule(apply_immediately=False)
+    current_spec_id = rule.current_spec_id
+    current_generation = rule.generation
+    external_api.check_query_ts.reset_mock()
+
+    updated = RecordRuleV4Operator(rule, source="manual", operator="admin").update_declaration(
+        records=[build_record()],
+        interval="1min",
+        labels=[],
+    )
+
+    updated.refresh_from_db()
+    assert updated.current_spec_id == current_spec_id
+    assert updated.generation == current_generation
+    assert updated.specs.count() == 1
+    external_api.check_query_ts.assert_not_called()
+
+
+def test_update_metadata_waits_for_execute_to_refresh_result_table(v4_base_data, external_api):
     rule = create_rule(apply_immediately=False)
     current_spec_id = rule.current_spec_id
     current_resolved_id = get_latest_resolved(rule).pk
@@ -550,10 +609,10 @@ def test_update_metadata_refreshes_result_table_without_new_spec_or_flow(v4_base
     external_api.apply_data_link.reset_mock()
     external_api.space_redis.push_table_id_detail.reset_mock()
 
-    updated = RecordRuleV4Operator(rule, source="manual", operator="admin").update_spec(
+    operator = RecordRuleV4Operator(rule, source="manual", operator="admin")
+    updated = operator.update_declaration(
         description="更新输出表展示信息",
         data_label="rr_cpu",
-        apply_immediately=True,
     )
 
     updated.refresh_from_db()
@@ -563,9 +622,16 @@ def test_update_metadata_refreshes_result_table_without_new_spec_or_flow(v4_base
     assert get_latest_flow(updated).pk == current_flow_id
     assert updated.description == "更新输出表展示信息"
     assert updated.data_label == "rr_cpu"
+    assert output_table.data_label == ""
+    external_api.check_query_ts.assert_not_called()
+    external_api.apply_data_link.assert_not_called()
+    external_api.space_redis.push_table_id_detail.assert_not_called()
+
+    operator.execute_declaration(auto_apply=False)
+    updated.refresh_from_db()
+    output_table.refresh_from_db()
     assert output_table.table_name_zh == RULE_NAME
     assert output_table.data_label == "rr_cpu"
-    external_api.check_query_ts.assert_not_called()
     external_api.apply_data_link.assert_not_called()
     external_api.space_redis.push_table_id_detail.assert_called_once_with(
         table_id_list=[updated.table_id],
@@ -573,6 +639,30 @@ def test_update_metadata_refreshes_result_table_without_new_spec_or_flow(v4_base
         bk_tenant_id=TENANT_ID,
     )
     assert updated.events.filter(event_type="user.metadata_changed").exists()
+
+
+def test_new_generation_does_not_inherit_previous_failed_condition(v4_base_data, external_api):
+    rule = create_rule()
+    external_api.check_query_ts.side_effect = RuntimeError("unify-query unavailable")
+
+    resolved = RecordRuleV4Operator(rule, source="scheduler").refresh_resolved()
+
+    rule.refresh_from_db()
+    assert resolved is None
+    assert rule.status == RecordRuleV4Status.FAILED.value
+    assert rule.get_condition(CONDITION_RESOLVED)["status"] == CONDITION_FALSE
+
+    external_api.check_query_ts.side_effect = None
+    updated = RecordRuleV4Operator(rule, source="manual", operator="admin").update_declaration(
+        records=[build_record(metric_name="cpu_usage_v2")],
+        raw_config={"records": [build_record(metric_name="cpu_usage_v2")]},
+    )
+
+    updated.refresh_from_db()
+    assert updated.generation == 2
+    assert updated.status == RecordRuleV4Status.PENDING.value
+    assert updated.get_condition(CONDITION_RESOLVED)["generation"] == 2
+    assert updated.get_condition(CONDITION_RESOLVED)["status"] == "Unknown"
 
 
 def test_create_allows_duplicate_name_with_random_output_names(v4_base_data, external_api):
@@ -891,13 +981,13 @@ def test_structured_query_config_uses_default_check_time_range(v4_base_data, ext
     assert int(kwargs["end_time"]) - int(kwargs["start_time"]) == 3600
 
 
-def test_manual_refresh_only_prepares_latest_resolved(v4_base_data, external_api):
+def test_refresh_resolved_only_updates_latest_resolved(v4_base_data, external_api):
     rule = create_rule()
     applied_resolved_id = rule.applied_resolved_id
     external_api.apply_data_link.reset_mock()
     external_api.check_query_ts.return_value = build_check_result(metricql=CHANGED_METRICQL)
 
-    resolved = RecordRuleV4Operator(rule, source="manual", operator="admin").manual_refresh()
+    resolved = RecordRuleV4Operator(rule, source="manual", operator="admin").refresh_resolved()
 
     rule.refresh_from_db()
     assert resolved is not None
@@ -916,11 +1006,12 @@ def test_update_group_interval_and_labels_prepares_single_flow(v4_base_data, ext
     previous_flow_name = rule.flow_name
     external_api.apply_data_link.reset_mock()
 
-    RecordRuleV4Operator(rule, source="manual", operator="admin").update_spec(
+    operator = RecordRuleV4Operator(rule, source="manual", operator="admin")
+    operator.update_declaration(
         interval="5min",
         labels=[{"env": "prod"}],
-        apply_immediately=False,
     )
+    operator.execute_declaration(auto_apply=False)
 
     rule.refresh_from_db()
     assert rule.current_spec_id != previous_spec_id
@@ -941,7 +1032,7 @@ def test_resolved_unchanged_does_not_prepare_new_flow(v4_base_data, external_api
     latest_flow_id = get_latest_flow(rule).pk
     external_api.apply_data_link.reset_mock()
 
-    resolved = RecordRuleV4Operator(rule, source="scheduler").manual_refresh()
+    resolved = RecordRuleV4Operator(rule, source="scheduler").refresh_resolved()
 
     rule.refresh_from_db()
     assert resolved.pk == latest_resolved_id
@@ -950,13 +1041,13 @@ def test_resolved_unchanged_does_not_prepare_new_flow(v4_base_data, external_api
     external_api.apply_data_link.assert_not_called()
 
 
-def test_manual_refresh_skips_when_operation_lock_is_held(v4_base_data, external_api):
+def test_refresh_resolved_skips_when_operation_lock_is_held(v4_base_data, external_api):
     rule = create_rule()
     token = rule.acquire_operation_lock(owner="scheduler", reason="reconcile", ttl_seconds=60)
     assert token
     external_api.check_query_ts.reset_mock()
 
-    resolved = RecordRuleV4Operator(rule, source="manual", operator="admin").manual_refresh()
+    resolved = RecordRuleV4Operator(rule, source="manual", operator="admin").refresh_resolved()
 
     assert resolved is None
     external_api.check_query_ts.assert_not_called()
@@ -966,7 +1057,7 @@ def test_manual_refresh_skips_when_operation_lock_is_held(v4_base_data, external
         status=EVENT_STATUS_SKIPPED,
         reason=EVENT_REASON_OPERATION_LOCKED,
     )
-    assert event.detail["operation"] == "manual_refresh"
+    assert event.detail["operation"] == "refresh_resolved"
     assert event.detail["owner"] == "scheduler"
     assert event.detail["reason"] == "reconcile"
     rule.release_operation_lock(token)
@@ -1011,9 +1102,9 @@ def test_stop_updates_runtime_status_without_new_spec_resolved_or_flow(v4_base_d
     external_api.check_query_ts.reset_mock()
     external_api.apply_data_link.reset_mock()
 
-    RecordRuleV4Operator(rule, source="manual", operator="admin").update_spec(
-        desired_status=RecordRuleV4DesiredStatus.STOPPED.value
-    )
+    operator = RecordRuleV4Operator(rule, source="manual", operator="admin")
+    operator.update_declaration(desired_status=RecordRuleV4DesiredStatus.STOPPED.value)
+    operator.execute_declaration(auto_apply=True)
 
     rule.refresh_from_db()
     flow = get_applied_flow(rule)
@@ -1041,9 +1132,10 @@ def test_stop_without_applied_flow_records_apply_failure(v4_base_data, external_
     get_applied_flow(rule).delete()
     external_api.apply_data_link.reset_mock()
 
-    updated = RecordRuleV4Operator(rule, source="manual", operator="admin").update_spec(
-        desired_status=RecordRuleV4DesiredStatus.STOPPED.value
-    )
+    operator = RecordRuleV4Operator(rule, source="manual", operator="admin")
+    updated = operator.update_declaration(desired_status=RecordRuleV4DesiredStatus.STOPPED.value)
+    operator.execute_declaration(auto_apply=True)
+    updated.refresh_from_db()
 
     updated.refresh_from_db()
     assert updated.desired_status == RecordRuleV4DesiredStatus.STOPPED.value
@@ -1058,7 +1150,9 @@ def test_delete_removes_applied_flow(v4_base_data, external_api):
     rule = create_rule()
     applied_flow_name = get_applied_flow(rule).flow_name
 
-    RecordRuleV4Operator(rule, source="manual", operator="admin").delete()
+    operator = RecordRuleV4Operator(rule, source="manual", operator="admin")
+    operator.delete_declaration()
+    operator.execute_declaration(auto_apply=True)
 
     rule.refresh_from_db()
     assert rule.desired_status == RecordRuleV4DesiredStatus.DELETED.value
@@ -1113,7 +1207,7 @@ def test_apply_failure_keeps_unapplied_resolved_and_records_action_error(v4_base
     flow = get_latest_flow(rule)
     external_api.apply_data_link.side_effect = RuntimeError("bkbase unavailable")
 
-    ok = RecordRuleV4Operator(rule, source="manual", operator="admin").apply()
+    ok = RecordRuleV4Operator(rule, source="manual", operator="admin").execute_declaration(auto_apply=True)
 
     rule.refresh_from_db()
     assert ok is False
@@ -1130,14 +1224,13 @@ def test_apply_failure_keeps_unapplied_resolved_and_records_action_error(v4_base
     }
 
 
-def test_apply_skips_stale_flow_before_calling_bkbase(v4_base_data, external_api):
+def test_declaration_change_makes_previous_flow_stale_without_external_side_effects(v4_base_data, external_api):
     rule = create_rule(apply_immediately=False)
     stale_flow = get_latest_flow(rule)
     external_api.space_redis.reset_mock()
-    RecordRuleV4Operator(rule, source="manual", operator="admin").update_spec(
+    RecordRuleV4Operator(rule, source="manual", operator="admin").update_declaration(
         records=[build_record(metric_name="cpu_usage_v2")],
         raw_config={"records": [build_record(metric_name="cpu_usage_v2")]},
-        apply_immediately=False,
     )
     external_api.apply_data_link.reset_mock()
 
@@ -1145,11 +1238,7 @@ def test_apply_skips_stale_flow_before_calling_bkbase(v4_base_data, external_api
 
     assert is_current is False
     external_api.space_redis.push_space_table_ids.assert_not_called()
-    external_api.space_redis.push_table_id_detail.assert_called_once_with(
-        table_id_list=[rule.table_id],
-        is_publish=True,
-        bk_tenant_id=TENANT_ID,
-    )
+    external_api.space_redis.push_table_id_detail.assert_not_called()
     external_api.apply_data_link.assert_not_called()
 
 
@@ -1159,7 +1248,7 @@ def test_resolve_failure_keeps_last_applied_flow(v4_base_data, external_api):
     latest_resolved_id = rule.current_spec.latest_resolved_id
     external_api.check_query_ts.side_effect = RuntimeError("unify-query unavailable")
 
-    resolved = RecordRuleV4Operator(rule, source="scheduler").manual_refresh()
+    resolved = RecordRuleV4Operator(rule, source="scheduler").refresh_resolved()
 
     rule.refresh_from_db()
     assert resolved is None
