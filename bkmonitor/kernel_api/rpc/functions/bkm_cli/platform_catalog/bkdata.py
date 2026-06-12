@@ -140,7 +140,11 @@ def register() -> None:
                 example_params={"result_table_id": "2_demo_table"},
                 required_params=["result_table_id"],
                 audit_tags=["readonly", "bkdata"],
-                notes="storages 字段揭示该表可查的存储引擎，可作为 query_data 的 prefer_storage 取值参考",
+                notes=(
+                    "storages 字段揭示该表可查的存储引擎，可作为 query_data 的 prefer_storage 取值参考。"
+                    "返回空对象 {} 表示结果表不存在/未接入（bk-base meta 既有契约），不是链路或权限故障；"
+                    "结果表存在性判定以本接口为准"
+                ),
             ),
             OperationSpec(
                 id="query_data",
@@ -174,7 +178,10 @@ def register() -> None:
                 audit_tags=["readonly", "bkdata"],
                 notes=(
                     "dtEventTime=事件时间 / localTime=入库时间，二者对比可判定数据延迟补录 vs 真断流；"
-                    "先用 get_result_table 确认表存在与可查存储"
+                    "先用 get_result_table 确认表存在与可查存储。"
+                    "注意：错误 1532018（结果表没有配置存储）对不存在的表与仅 pulsar 等不可查存储的表"
+                    "是同一文案，不能据此判定表存在性；返回的 totalRecords 是本次查询的结果行数，"
+                    "不代表该表落库量"
                 ),
             ),
         ],
