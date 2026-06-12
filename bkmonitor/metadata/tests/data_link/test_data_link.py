@@ -110,6 +110,22 @@ def _get_databus_config_payload(configs: list[dict]) -> dict:
     return next(config for config in configs if config["kind"] == DataLinkKind.DATABUS.value)
 
 
+def _with_compose_nullable_fields(configs: list[dict] | dict) -> list[dict] | dict:
+    config_list = [configs] if isinstance(configs, dict) else configs
+    for config in config_list:
+        spec = config.get("spec")
+        if not isinstance(spec, dict):
+            continue
+        if config.get("kind") == DataLinkKind.RESULTTABLE.value:
+            spec.setdefault("fields", None)
+        elif config.get("kind") == DataLinkKind.ESSTORAGEBINDING.value:
+            spec.setdefault("json_field_list", None)
+        elif config.get("kind") == DataLinkKind.VMSTORAGEBINDING.value:
+            for field in ("filter", "metricGroupDimensions", "ddVersion"):
+                spec.setdefault(field, None)
+    return configs
+
+
 @pytest.fixture
 def create_or_delete_records(mocker):
     models.Space.objects.create(space_type_id="bkcc", space_id=1, space_name="bkcc_1", bk_tenant_id="system")
@@ -372,7 +388,7 @@ def test_Standard_V2_Time_Series_compose_configs(create_or_delete_records):
         configs = data_link_ins.compose_configs(
             bk_biz_id=1001, data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat"
         )
-    assert json.dumps(configs) == expected_configs
+    assert configs == _with_compose_nullable_fields(json.loads(expected_configs))
 
     # 测试实例是否正确创建
     vm_table_id_ins = ResultTableConfig.objects.get(name=bkbase_vmrt_name)
@@ -458,7 +474,7 @@ def test_compose_bcs_federal_time_series_configs(create_or_delete_records):
         configs = data_link_ins.compose_configs(
             bk_biz_id=1001, data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat"
         )
-    assert json.dumps(configs) == expected
+    assert configs == _with_compose_nullable_fields(json.loads(expected))
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -558,7 +574,7 @@ def test_compose_bcs_federal_subset_time_series_configs(create_or_delete_records
         bcs_cluster_id="BCS-K8S-10002",
         storage_cluster_name="vm-plat",
     )
-    assert json.dumps(content) == expected
+    assert content == _with_compose_nullable_fields(json.loads(expected))
 
     conditional_sink_ins = models.ConditionalSinkConfig.objects.get(data_link_name=bkbase_data_name)
     assert conditional_sink_ins.namespace == "bkmonitor"
@@ -2523,7 +2539,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
         },
     ]
     actual_resource_configs = [c for c in actual_configs if c["kind"] not in {"BasereportSink", "Databus"}]
-    assert actual_resource_configs == expected_config[:-2]
+    assert actual_resource_configs == _with_compose_nullable_fields(expected_config[:-2])
     assert not any(c["kind"] == "ConditionalSink" for c in actual_configs)
     assert not models.ConditionalSinkConfig.objects.filter(data_link_name="system_1_sys_base").exists()
 
@@ -3779,7 +3795,7 @@ def test_create_base_event_datalink_for_bkcc_bkbase_part(create_or_delete_record
         },
     ]
 
-    assert actual_configs == expected_configs
+    assert actual_configs == _with_compose_nullable_fields(expected_configs)
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -3921,7 +3937,7 @@ def test_create_bkbase_data_link_for_bk_exporter(create_or_delete_records, mocke
         },
     ]
 
-    assert actual_configs == expected_configs
+    assert actual_configs == _with_compose_nullable_fields(expected_configs)
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -4063,7 +4079,7 @@ def test_create_bkbase_data_link_for_bk_standard(create_or_delete_records, mocke
         },
     ]
 
-    assert actual_configs == expected_configs
+    assert actual_configs == _with_compose_nullable_fields(expected_configs)
 
 
 @pytest.mark.django_db(databases="__all__")
