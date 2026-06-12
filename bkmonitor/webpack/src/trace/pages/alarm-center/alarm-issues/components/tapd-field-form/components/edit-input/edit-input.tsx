@@ -1,5 +1,3 @@
-import { type PropType, defineComponent } from 'vue';
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -25,21 +23,24 @@ import { type PropType, defineComponent } from 'vue';
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import UserSelector from 'trace/components/user-selector/user-selector';
+import { defineComponent } from 'vue';
+
+import { Input } from 'bkui-vue';
 
 export default defineComponent({
-  name: 'EditPinyinUserChooser',
+  name: 'EditInput',
   props: {
-    /**
-     * 选中的用户ID列表
-     */
     modelValue: {
-      type: [Array, String] as PropType<string | string[]>,
-      default: () => [],
+      type: String,
+      default: '',
+    },
+    placeholder: {
+      type: String,
+      default: '',
     },
   },
   emits: {
-    'update:modelValue': (value: string[]) => Array.isArray(value),
+    'update:modelValue': (_val: string) => typeof _val === 'string',
   },
   setup(_props, { emit }) {
     const handleInput = val => {
@@ -51,9 +52,10 @@ export default defineComponent({
   },
   render() {
     return (
-      <div class='field-form-edit-pinyin-user-chooser'>
-        <UserSelector
+      <div class='field-form-edit-input'>
+        <Input
           modelValue={this.modelValue}
+          placeholder={this.placeholder}
           onUpdate:modelValue={this.handleInput}
         />
       </div>

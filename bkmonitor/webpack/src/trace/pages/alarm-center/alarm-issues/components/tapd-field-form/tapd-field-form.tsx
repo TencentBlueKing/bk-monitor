@@ -24,16 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, shallowRef, watchEffect } from 'vue';
+import { type PropType, defineComponent, shallowReactive } from 'vue';
 
 import { Button } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import EditPinyinUserChooser from './edit-components/edit-pinyinuserchooser/edit-pinyinuserchooser';
-import EditText from './edit-components/edit-text/edit-text';
-import EditTextarea from './edit-components/edit-textarea/edit-textarea';
+import EditDateInput from './components/edit-date-input/edit-date-input';
+import EditInput from './components/edit-input/edit-input';
+import EditRichEdit from './components/edit-rich-edit/edit-rich-edit';
+import EditSelect from './components/edit-select/edit-select';
+import EditUserChooser from './components/edit-user-chooser/edit-user-chooser';
 import { mockFields } from './mock';
-import { type IField, EditType } from './typing';
+import { type IField, EditType, FULL_FIELD_TYPES } from './typing';
 
 import './tapd-field-form.scss';
 
@@ -51,25 +53,14 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
-    const fieldValue = shallowRef({});
+    /** 按字段列表初始化表单值，后续由 handleChangeValue 响应式更新 */
 
-    watchEffect(() => {
-      const obj = {};
-      for (const field of props.fields) {
-        if (field.editabled_type === EditType.text) {
-          obj[field.system_name] = fieldValue.value?.[field.system_name] || '';
-        }
-      }
-      fieldValue.value = obj;
-    });
+    const fieldValue = shallowReactive<Record<string, unknown>>(
+      Object.fromEntries(props.fields.map(f => [f.field_id, props.value?.[f.field_id] || '']))
+    );
 
-    const handleChangeValue = (key, value) => {
-      const obj = {
-        ...fieldValue.value,
-        [key]: value,
-      };
-      console.log(obj);
-      fieldValue.value = obj;
+    const handleChangeValue = (key: string, value: unknown) => {
+      fieldValue[key] = value;
     };
 
     return {
@@ -80,15 +71,15 @@ export default defineComponent({
   },
   render() {
     const formItem = (field: IField, content: () => JSX.Element) => {
-      const isHalf = field.span === 'half';
-      const key = field.system_name;
+      const isHalf = !FULL_FIELD_TYPES.includes(field.field_type);
+      const key = field.field_id;
       return (
         <div
           key={key}
           class={['form-item', { 'form-item--half': isHalf }]}
         >
-          <div class={['form-item-title', { required: !!field.required }]}>
-            <span>{field?.fieldName || key}</span>
+          <div class={['form-item-title', { required: !!field.is_required }]}>
+            <span>{field.field_name}</span>
           </div>
           {content()}
         </div>
@@ -108,29 +99,45 @@ export default defineComponent({
         </span>
         <div class='form-grid'>
           {this.fields.map(field => {
-            const value = this.fieldValue?.[field.system_name];
-            if (field.editabled_type === EditType.text) {
+            const value = (this.fieldValue?.[field.field_id] as string) || '';
+            if (field.field_type === EditType.input) {
               return formItem(field, () => (
-                <EditText
+                <EditInput
                   modelValue={value}
-                  placeholder={field?.placeholder || ''}
-                  onUpdate:modelValue={val => this.handleChangeValue(field.system_name, val)}
+                  onUpdate:modelValue={val => this.handleChangeValue(field.field_id, val)}
                 />
               ));
             }
-            if (field.editabled_type === EditType.textarea) {
+            if (field.field_type === EditType.richEdit) {
               return formItem(field, () => (
-                <EditTextarea
+                <EditRichEdit
                   modelValue={value}
-                  onUpdate:modelValue={val => this.handleChangeValue(field.system_name, val)}
+                  onUpdate:modelValue={val => this.handleChangeValue(field.field_id, val)}
                 />
               ));
             }
-            if (field.editabled_type === EditType.pinyinUserChooser) {
+            if (field.field_type === EditType.userChooser) {
               return formItem(field, () => (
-                <EditPinyinUserChooser
+                <EditUserChooser
                   modelValue={value}
-                  onUpdate:modelValue={val => this.handleChangeValue(field.system_name, val)}
+                  onUpdate:modelValue={val => this.handleChangeValue(field.field_id, val)}
+                />
+              ));
+            }
+            if (field.field_type === EditType.select) {
+              return formItem(field, () => (
+                <EditSelect
+                  modelValue={value}
+                  options={[]}
+                  onUpdate:modelValue={val => this.handleChangeValue(field.field_id, val)}
+                />
+              ));
+            }
+            if (field.field_type === EditType.dateInput) {
+              return formItem(field, () => (
+                <EditDateInput
+                  modelValue={value}
+                  onUpdate:modelValue={val => this.handleChangeValue(field.field_id, val)}
                 />
               ));
             }

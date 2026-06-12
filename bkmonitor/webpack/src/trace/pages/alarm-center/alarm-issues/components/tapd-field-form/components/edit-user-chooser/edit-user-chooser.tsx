@@ -1,3 +1,5 @@
+import { type PropType, defineComponent } from 'vue';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,23 +25,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
+import UserSelector from 'trace/components/user-selector/user-selector';
 
-import MarkdownEditor from 'trace/components/markdown-editor/editor';
 export default defineComponent({
-  name: 'EditTextarea',
+  name: 'EditUserChooser',
   props: {
+    /**
+     * 选中的用户ID列表
+     */
     modelValue: {
-      type: String,
-      default: '',
+      type: [Array, String] as PropType<string | string[]>,
+      default: () => [],
     },
   },
   emits: {
-    'update:modelValue': (_val: string) => typeof _val === 'string',
+    'update:modelValue': (value: string[]) => Array.isArray(value),
   },
   setup(_props, { emit }) {
     const handleInput = val => {
-      console.log(val);
       emit('update:modelValue', val);
     };
     return {
@@ -48,12 +51,10 @@ export default defineComponent({
   },
   render() {
     return (
-      <div class='field-form-edit-textarea'>
-        <MarkdownEditor
-          height='280px'
-          initialEditType={'wysiwyg'}
-          value={this.modelValue}
-          onInput={this.handleInput}
+      <div class='field-form-edit-user-chooser'>
+        <UserSelector
+          modelValue={this.modelValue}
+          onUpdate:modelValue={this.handleInput}
         />
       </div>
     );
