@@ -68,6 +68,11 @@ class RecordRuleV4Operator:
     Operator 只负责流程编排和操作锁，不直接拼 Flow 配置，也不直接解释
     unify-query 响应。具体解析与部署细节分别交给 Resolver 和
     RecordRuleV4Runner。
+
+    入口语义分两层：
+    * declare / update_declaration 只落声明数据，没有外部副作用；
+    * execute_declaration / reconcile 是执行链路，会先 ensure output，再
+      resolve 和 prepare flow，最后按 auto_apply 决定是否 apply Flow。
     """
 
     def __init__(self, rule: RecordRuleV4, source: str = "system", operator: str = "") -> None:
@@ -385,7 +390,12 @@ class RecordRuleV4Operator:
         return self.resolver.resolve_current(force=force)
 
     def execute_declaration(self, auto_apply: bool | None = True) -> bool:
-        """执行当前声明：准备输出资源、resolve、准备 Flow，并按需 apply/delete。"""
+        """执行当前声明：准备输出资源、resolve、准备 Flow，并按需 apply/delete。
+
+        auto_apply 只控制 Flow 的 apply/delete，不阻止 output 资源准备。
+        ensure_group_output 本身会创建并下发输出 RT / VM binding，这是 Flow
+        能被解析和下发前必须满足的前置资源。
+        """
 
         result = self.run_with_operation_lock(
             "execute_declaration",
@@ -395,7 +405,11 @@ class RecordRuleV4Operator:
         return result.succeeded and (not result.apply_attempted or result.apply_succeeded)
 
     def reconcile(self, auto_apply: bool | None = None) -> bool:
-        """后台调谐入口，复用声明执行链路，默认尊重 rule.auto_refresh。"""
+        """后台调谐入口，复用声明执行链路，默认尊重 rule.auto_refresh。
+
+        与 execute_declaration 一样，reconcile 会执行 output 准备；差异只在
+        auto_apply 默认值：None 表示是否 apply Flow 由 rule.auto_refresh 决定。
+        """
 
         result = self.run_with_operation_lock(
             "reconcile",
@@ -412,6 +426,8 @@ class RecordRuleV4Operator:
     ) -> RecordRuleV4DeclarationExecutionResult:
         result = RecordRuleV4DeclarationExecutionResult()
         self.reload_rule()
+        # should_apply 只代表是否把当前目标 Flow 应用到 bkbase；output 准备
+        # 是执行链路的一部分，不受这个布尔值影响。
         should_apply = self.rule.auto_refresh if auto_apply is None else bool(auto_apply)
 
         if self.rule.desired_status == RecordRuleV4DesiredStatus.DELETED.value:
@@ -421,6 +437,8 @@ class RecordRuleV4Operator:
             return result
 
         try:
+            # prepare_output_resources 会确保输出侧 ResultTable / VM binding 已
+            # 在 bkbase 注册；后续 Flow 的 output 字段依赖这些资源。
             self.prepare_output_resources()
         except Exception as err:  # pylint: disable=broad-except
             self.record_prepare_failure(
@@ -466,6 +484,8 @@ class RecordRuleV4Operator:
 
         self.reload_rule()
         if not should_apply:
+            # 到这里说明 output、resolved、flow 快照都已准备好，但调用方希望
+            # 先停在“可下发”状态，等待后续 execute_declaration(auto_apply=True)。
             return result
 
         if self.has_unapplied_resolved():
@@ -483,7 +503,11 @@ class RecordRuleV4Operator:
         return result
 
     def prepare_output_resources(self) -> None:
-        """准备 output RT / VM binding / metric fields，并刷新必要的 Redis 路由。"""
+        """准备 output RT / VM binding / metric fields，并刷新必要的 Redis 路由。
+
+        这里的 ensure_group_output 会下发 output 侧 bkbase 资源；metric fields
+        仍只维护本地 metadata，供查询路由和导出查看使用。
+        """
 
         from metadata import models as metadata_models
 

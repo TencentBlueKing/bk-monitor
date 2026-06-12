@@ -30,6 +30,10 @@ class RecordRuleV4OutputResources:
 
     ResultTable / AccessVMRecord 是 group 级资源，应该在 RecordRuleV4 创建
     后立刻准备好；指标字段随着 spec 创建和变更按 metric_name 追加维护。
+
+    output 资源和 Flow 是两类 bkbase 资源：output 必须先注册 ResultTable /
+    VmStorageBinding，Flow 才能引用目标 VMRT。因此 ensure_group_output 保持
+    “创建本地配置并 apply output”的语义，Flow apply 仍由 Runner 单独负责。
     """
 
     @classmethod
@@ -37,12 +41,14 @@ class RecordRuleV4OutputResources:
         """创建 group 输出 RT、ResultTableConfig、RT option 及对应 VM 写入映射。
 
         返回值表示输出 ResultTable 是否首次创建，用于调用方决定是否刷新
-        space -> table_id 路由。
+        space -> table_id 路由。注意：该方法会调用 bkbase apply_data_link
+        下发 output 资源，但不会创建或下发 Flow。
         """
 
         result_table_created = cls.ensure_result_table(rule)
         cls.ensure_result_table_options(rule)
-        # VMStorageBinding 依赖 VM 集群名，必须先确定 dst_vm_storage_name 再下发链路配置。
+        # VMStorageBinding 依赖 VM 集群名，必须先确定 dst_vm_storage_name 再
+        # 下发链路配置，否则 output 资源会引用一个空存储名。
         vm_storage_name = cls.ensure_vm_record(rule)
         if rule.dst_vm_storage_name != vm_storage_name:
             rule.dst_vm_storage_name = vm_storage_name
@@ -155,6 +161,8 @@ class RecordRuleV4OutputResources:
             },
         )
         # binding 与 RT 同名，绑定输出 RT 到 group 的目标 VM 存储。
+        # Flow 中 RecordingRuleNode.output 引用的是 rule.dst_vm_table_id，
+        # 这里的绑定负责让该 VMRT 在 bkbase 侧可写入。
         vm_storage_binding, _ = metadata_models.VMStorageBindingConfig.objects.update_or_create(
             bk_tenant_id=rule.bk_tenant_id,
             namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE,
@@ -169,6 +177,8 @@ class RecordRuleV4OutputResources:
         )
 
         configs: list[dict[str, Any]] = [result_table_config.compose_config(), vm_storage_binding.compose_config()]
+        # output 资源先于 Flow 独立 apply；调用方即使 auto_apply=False，也会
+        # 走到这里完成前置资源注册，只是不继续 apply Flow。
         response = api.bkdata.apply_data_link(  # pyright: ignore[reportCallIssue]
             bk_tenant_id=rule.bk_tenant_id, config=configs
         )

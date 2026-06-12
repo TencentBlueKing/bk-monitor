@@ -10,6 +10,12 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
+# RecordRuleV4 模块内 AsCode 结构转换。
+#
+# 本文件刻意只做配置形态转换：Prometheus 风格 YAML <-> Operator 声明数据。
+# 这里不访问数据库、不调用 unify-query，也不创建 output/Flow，方便后续
+# bkmonitor/as_code 接入时把解析和执行解耦。
+
 import copy
 import re
 from collections.abc import Iterable, Mapping
@@ -105,7 +111,11 @@ class RecordRuleV4AsCodeExportEntry:
 
 
 def parse_config(config: dict, *, source_path: str = "") -> list[RecordRuleV4DeclarationData]:
-    """解析一个 RecordRuleV4 AsCode 文件内容，返回后续 operator 可直接声明的数据。"""
+    """解析一个 RecordRuleV4 AsCode 文件内容，返回后续 operator 可直接声明的数据。
+
+    source_path 只用于错误定位，调用方可以传入 AsCode 文件路径；解析结果本身
+    不携带业务上下文，业务 / 租户 / 空间信息由外层导入入口补齐。
+    """
 
     if not isinstance(config, dict):
         raise ValueError(_format_error(source_path, "config must be dict"))
@@ -120,7 +130,11 @@ def parse_config(config: dict, *, source_path: str = "") -> list[RecordRuleV4Dec
 
 
 def parse_group(group: dict, *, source_path: str = "", group_index: int = 0) -> RecordRuleV4DeclarationData:
-    """解析单个 Prometheus recording rule group + bkmonitor 扩展配置。"""
+    """解析单个 Prometheus recording rule group + bkmonitor 扩展配置。
+
+    返回的 raw_config 是规范化后的 group 快照，后续导出会优先回放它，
+    以尽量保留用户导入时看到的 Prometheus 风格结构。
+    """
 
     group_path = _join_path(source_path, f"groups[{group_index}]")
     if not isinstance(group, dict):
@@ -220,7 +234,11 @@ def parse_rule(rule: dict, *, source_path: str = "") -> tuple[RecordRuleV4Record
 
 
 def parse_query(query: Any, *, source_path: str = "") -> tuple[dict[str, Any], RecordRuleV4AsCodeQuery]:
-    """把策略 AsCode 风格的简化 query_configs 转成 resolver 已支持的 structured query input。"""
+    """把策略 AsCode 风格的简化 query_configs 转成 resolver 已支持的 structured query input。
+
+    AsCode 侧暴露 metric/method/where/functions 等短字段；resolver 仍消费
+    monitor 查询接口已有的 query_configs 结构，因此这里是唯一的字段展开层。
+    """
 
     if not isinstance(query, dict):
         raise ValueError(_format_error(source_path, "query must be dict"))
@@ -298,6 +316,8 @@ def parse_query_config(
     where = parse_where(query_config.get("where") or "", source_path=_join_path(source_path, "where"))
     functions = parse_functions(query_config.get("functions") or [], source_path=_join_path(source_path, "functions"))
 
+    # structured_config 是执行真值源，字段名保持 resolver / unify-query 已支持的结构。
+    # raw_query_config 是导出回放形态，尽量保持 AsCode 侧的短字段。
     structured_config: dict[str, Any] = {
         "data_source_label": data_source,
         "data_type_label": data_type,
@@ -339,7 +359,12 @@ def parse_query_config(
 
 
 def dump_rule(rule: RecordRuleV4) -> dict[str, Any]:
-    """导出单个 rule 对应的 group 配置，优先复用 spec.raw_config 中的原始表达形态。"""
+    """导出单个 rule 对应的 group 配置，优先复用 spec.raw_config 中的原始表达形态。
+
+    raw_config 只影响导出展示，不参与当前声明是否变更的判断；运行时状态
+    始终以主表 metadata 和 current_spec 为准，因此这里会覆盖 name/labels 等
+    可能被后续 update_declaration 修改过的字段。
+    """
 
     spec = rule.current_spec
     if spec and isinstance(spec.raw_config, dict) and spec.raw_config.get("rules"):

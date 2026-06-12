@@ -352,6 +352,16 @@ def has_unapplied_resolved(rule: RecordRuleV4) -> bool:
     return bool(latest_resolved and latest_resolved.pk != rule.applied_resolved_id)
 
 
+def assert_output_apply_only(external_api) -> None:
+    """execute/reconcile 的 auto_apply=False 只跳过 Flow apply，不跳过 output apply。"""
+
+    assert external_api.apply_data_link.call_count == 1
+    assert [item["kind"] for item in external_api.apply_data_link.call_args.kwargs["config"]] == [
+        "ResultTable",
+        "VmStorageBinding",
+    ]
+
+
 def test_declare_only_writes_spec_without_external_side_effects(v4_base_data, external_api):
     rule = declare_rule(description="record rule output", data_label="rr_cpu")
 
@@ -433,7 +443,13 @@ def test_create_group_with_two_records_applies_single_flow(v4_base_data, externa
     }
 
     assert external_api.check_query_ts.call_count == 2
-    external_api.apply_data_link.assert_called_once()
+    # 执行链路先确保 output 资源，再下发 Flow；两次 apply_data_link 不应混在同一个 payload 里。
+    assert external_api.apply_data_link.call_count == 2
+    assert [item["kind"] for item in external_api.apply_data_link.call_args_list[0].kwargs["config"]] == [
+        "ResultTable",
+        "VmStorageBinding",
+    ]
+    assert [item["kind"] for item in external_api.apply_data_link.call_args_list[1].kwargs["config"]] == ["Flow"]
     first_resolved_record = resolved.get_records()[0]
     assert first_resolved_record.labels == [{"scenario": "pytest"}]
     assert first_resolved_record.src_result_table_configs == [
@@ -632,7 +648,7 @@ def test_update_metadata_waits_for_execute_to_refresh_result_table(v4_base_data,
     output_table.refresh_from_db()
     assert output_table.table_name_zh == RULE_NAME
     assert output_table.data_label == "rr_cpu"
-    external_api.apply_data_link.assert_not_called()
+    assert_output_apply_only(external_api)
     external_api.space_redis.push_table_id_detail.assert_called_once_with(
         table_id_list=[updated.table_id],
         is_publish=True,
@@ -722,7 +738,7 @@ def test_create_prepares_output_metadata_before_apply(v4_base_data, external_api
         is_publish=True,
         bk_tenant_id=TENANT_ID,
     )
-    external_api.apply_data_link.assert_not_called()
+    assert_output_apply_only(external_api)
 
 
 def test_resolve_vm_result_table_configs_falls_back_to_access_record(v4_base_data):
@@ -1023,7 +1039,7 @@ def test_update_group_interval_and_labels_prepares_single_flow(v4_base_data, ext
     assert rule.flow_name == previous_flow_name
     assert get_latest_flow(rule).flow_name == previous_flow_name
     assert has_unapplied_resolved(rule) is True
-    external_api.apply_data_link.assert_not_called()
+    assert_output_apply_only(external_api)
 
 
 def test_resolved_unchanged_does_not_prepare_new_flow(v4_base_data, external_api):
@@ -1075,7 +1091,7 @@ def test_reconcile_does_not_apply_when_auto_refresh_is_disabled(v4_base_data, ex
     assert has_unapplied_resolved(rule) is True
     assert rule.applied_resolved_id != rule.current_spec.latest_resolved_id
     assert rule.status == RecordRuleV4Status.OUTDATED.value
-    external_api.apply_data_link.assert_not_called()
+    assert_output_apply_only(external_api)
 
 
 def test_reconcile_applies_changed_resolved_when_auto_refresh_is_enabled(v4_base_data, external_api):
@@ -1090,7 +1106,13 @@ def test_reconcile_applies_changed_resolved_when_auto_refresh_is_enabled(v4_base
     assert has_unapplied_resolved(rule) is False
     assert rule.applied_resolved_id == rule.current_spec.latest_resolved_id
     assert get_latest_resolved(rule).records.get().metricql == CHANGED_METRICQL
-    external_api.apply_data_link.assert_called_once()
+    # 后台 reconcile 自动应用时同样保持 output -> Flow 的下发顺序。
+    assert external_api.apply_data_link.call_count == 2
+    assert [item["kind"] for item in external_api.apply_data_link.call_args_list[0].kwargs["config"]] == [
+        "ResultTable",
+        "VmStorageBinding",
+    ]
+    assert [item["kind"] for item in external_api.apply_data_link.call_args_list[1].kwargs["config"]] == ["Flow"]
 
 
 def test_stop_updates_runtime_status_without_new_spec_resolved_or_flow(v4_base_data, external_api):
@@ -1118,7 +1140,13 @@ def test_stop_updates_runtime_status_without_new_spec_resolved_or_flow(v4_base_d
     assert flow.flow_config["spec"]["desired_status"] == RecordRuleV4DesiredStatus.STOPPED.value
     assert rule.status == RecordRuleV4Status.STOPPED.value
     external_api.check_query_ts.assert_not_called()
-    external_api.apply_data_link.assert_called_once()
+    # 运行态变更不生成新 spec/resolved/flow，但执行入口仍会先 ensure output。
+    assert external_api.apply_data_link.call_count == 2
+    assert [item["kind"] for item in external_api.apply_data_link.call_args_list[0].kwargs["config"]] == [
+        "ResultTable",
+        "VmStorageBinding",
+    ]
+    assert [item["kind"] for item in external_api.apply_data_link.call_args_list[1].kwargs["config"]] == ["Flow"]
     assert rule.events.filter(event_type=EVENT_TYPE_APPLY_STARTED, flow=flow).exists()
     assert rule.events.filter(event_type=EVENT_TYPE_APPLY_SUCCEEDED, flow=flow).exists()
     action_started = list(rule.events.filter(event_type=EVENT_TYPE_FLOW_ACTION_STARTED, flow=flow))
@@ -1143,7 +1171,7 @@ def test_stop_without_applied_flow_records_apply_failure(v4_base_data, external_
     assert updated.status == RecordRuleV4Status.FAILED.value
     assert updated.get_condition(CONDITION_RECONCILED)["reason"] == "FlowMissing"
     assert updated.events.filter(event_type="apply.failed", reason="FlowMissing").exists()
-    external_api.apply_data_link.assert_not_called()
+    assert_output_apply_only(external_api)
 
 
 def test_delete_removes_applied_flow(v4_base_data, external_api):
@@ -1205,7 +1233,7 @@ def test_refresh_record_rule_v4_keeps_unfinished_deletes_due(v4_base_data, exter
 def test_apply_failure_keeps_unapplied_resolved_and_records_action_error(v4_base_data, external_api):
     rule = create_rule(apply_immediately=False)
     flow = get_latest_flow(rule)
-    external_api.apply_data_link.side_effect = RuntimeError("bkbase unavailable")
+    external_api.apply_data_link.side_effect = [{"status": "ok"}, RuntimeError("bkbase unavailable")]
 
     ok = RecordRuleV4Operator(rule, source="manual", operator="admin").execute_declaration(auto_apply=True)
 
@@ -1294,7 +1322,7 @@ def test_resolve_fails_when_check_data_is_invalid(v4_base_data, external_api, ch
     assert rule.get_latest_flow() is None
     assert rule.get_condition(CONDITION_RESOLVED)["status"] == CONDITION_FALSE
     assert error_text in rule.get_condition(CONDITION_RESOLVED)["message"]
-    external_api.apply_data_link.assert_not_called()
+    assert_output_apply_only(external_api)
 
 
 def test_resolve_fails_when_source_result_table_config_missing(v4_base_data, external_api):
@@ -1311,7 +1339,7 @@ def test_resolve_fails_when_source_result_table_config_missing(v4_base_data, ext
     assert rule.get_latest_flow() is None
     assert rule.get_condition(CONDITION_RESOLVED)["status"] == CONDITION_FALSE
     assert "ResultTableConfig" in rule.get_condition(CONDITION_RESOLVED)["message"]
-    external_api.apply_data_link.assert_not_called()
+    assert_output_apply_only(external_api)
 
 
 def test_resolve_fails_when_source_vm_cluster_missing(v4_base_data, external_api):
@@ -1330,7 +1358,7 @@ def test_resolve_fails_when_source_vm_cluster_missing(v4_base_data, external_api
     assert rule.current_spec.latest_resolved_id is None
     assert rule.get_condition(CONDITION_RESOLVED)["status"] == CONDITION_FALSE
     assert "ClusterInfo" in rule.get_condition(CONDITION_RESOLVED)["message"]
-    external_api.apply_data_link.assert_not_called()
+    assert_output_apply_only(external_api)
 
 
 def test_self_referenced_precalculated_vm_table_is_excluded_from_source(v4_base_data, external_api):
