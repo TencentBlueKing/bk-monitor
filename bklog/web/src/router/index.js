@@ -179,7 +179,7 @@ export default (spaceId, bkBizId, externalMenu) => {
     if (
       window.IS_EXTERNAL &&
       JSON.parse(window.IS_EXTERNAL) &&
-      !['retrieve', 'retrieve-context-log', 'client-log-search', 'extract-home', 'extract-create', 'extract-clone'].includes(
+      !['retrieve', 'client-log-search', 'extract-home', 'extract-create', 'extract-clone'].includes(
         to.name
       )
     ) {

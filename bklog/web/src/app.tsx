@@ -53,18 +53,14 @@ export default defineComponent({
     const refNoticeComponent: Ref<any | null> = ref(null);
     const welcomePageData = ref(null);
 
-    const isAsIframe = computed(() => route.query.from === 'monitor');
-    const isHeadless = computed(() => route.query.hl === '1');
-    const showAlert = computed(() => store.state.showAlert);
-
-    const rootClass = computed(() => ({
-      'clear-min-height': ['retrieve', 'retrieve-context-log'].includes(String(route.name || '')),
-      'is-headless': isHeadless.value,
-    }));
+    const rootClass = computed(() => ({ 'clear-min-height': route.name === 'retrieve' }));
 
     const noticeComponentStyle = computed(() => ({
       '--notice-component-height': `${noticeComponentHeight.value}px`,
     }));
+
+    const isAsIframe = computed(() => route.query.from === 'monitor');
+    const showAlert = computed(() => store.state.showAlert);
 
     const isShowGlobalDialog = computed(() => store.state.isShowGlobalDialog);
     const globalActiveLabel = computed(() => store.state.globalActiveLabel);
@@ -73,7 +69,6 @@ export default defineComponent({
     const appBodyClassName = computed(() => [
       'log-search-container',
       isAsIframe.value && 'as-iframe',
-      isHeadless.value && 'is-headless',
       { 'is-show-notice': showAlert.value },
     ]);
 
@@ -145,7 +140,7 @@ export default defineComponent({
      * 渲染头部组件
      */
     const renderHeadComponent = () => {
-      if (!isAsIframe.value && !isHeadless.value && route.path !== '/') {
+      if (!isAsIframe.value && route.path !== '/') {
         return (
           <HeadNav
             welcome-data={welcomePageData.value}
