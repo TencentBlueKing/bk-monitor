@@ -64,6 +64,10 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
+    initialEditType: {
+      type: String as PropType<'markdown' | 'wysiwyg'>,
+      default: 'markdown',
+    },
   },
   emits: ['input', 'load', 'change', 'focus', 'blur'],
   setup(props, { emit }) {
@@ -126,7 +130,7 @@ export default defineComponent({
         el: editorRef.value,
         language: 'zh-cn',
         initialValue: props.value,
-        initialEditType: 'markdown',
+        initialEditType: props.initialEditType,
         height: props.height,
         previewStyle: props.previewStyle,
         hideModeSwitch: true,
