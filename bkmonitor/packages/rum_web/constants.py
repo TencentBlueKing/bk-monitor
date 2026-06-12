@@ -131,7 +131,7 @@ class Status:
 RUM_APPLICATION_DEFAULT_METRIC = {
     "lcp_p75": 0.0,
     "js_error_rate": 0.0,
-    "api_fail_rate": 0,
+    "api_fail_rate": 0.0,
 }
 
 # RUM 应用列表页, 应用相关指标 key -> BKMONITOR_{PLATFORM}_{ENVIRONMENT}_RUM_APPLICATION_METRIC_{bk_biz_id}_{application_id}

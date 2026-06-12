@@ -20,6 +20,7 @@ from django.utils.translation import gettext as _
 from bkmonitor.utils.common_utils import get_local_ip
 from bkmonitor.utils.custom_report_tools import custom_report_tool
 from bkmonitor.utils.time_tools import strftime_local
+from bkmonitor.utils.tenant import set_local_tenant_id
 from common.log import logger
 from rum_web.models.application import Application
 
@@ -124,3 +125,20 @@ def application_create_check():
             app.sync_datasource()
         except Exception as e:
             logger.exception(f"[RumCreateCheck] sync app({app.application_id}) failed: {e}")
+
+
+@shared_task(ignore_result=True)
+def refresh_application():
+    logger.info("[REFRESH_APPLICATION] task start")
+
+    for application in Application.objects.filter(is_enabled=True):
+        set_local_tenant_id(application.bk_tenant_id)
+        try:
+            # 刷新数据状态
+            application.set_data_status()
+        except Exception as e:  # noqa
+            logger.warning(
+                f"[REFRESH_APPLICATION] refresh data failed: {application.bk_biz_id}{application.app_name}, error: {e}"
+            )
+
+    logger.info("[REFRESH_APPLICATION] task finished")

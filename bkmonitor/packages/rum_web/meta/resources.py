@@ -24,7 +24,8 @@ from bkmonitor.utils import group_by
 from common.log import logger
 from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE, EventSeverity
 from constants.common import DEFAULT_TENANT_ID
-from constants.data_source import ApplicationsResultTableLabel, DataSourceLabel, DataTypeLabel
+from constants.data_source import ApplicationsResultTableLabel
+from constants.rum import TelemetryDataType
 from core.drf_resource import Resource, api, resource
 from monitor.models import ApplicationConfig
 from monitor_web.constants import AlgorithmType
@@ -42,7 +43,7 @@ from rum_web.constants import (
     RUM_WEB_CLIENT_CHOICES,
 )
 from rum_web.handlers.service_handler import ServiceHandler
-from rum_web.handlers.backend_handler import telemetry_handler_registry
+from rum_web.handlers.backend_data_handler import telemetry_handler_registry
 from rum_web.models.application import Application, RumAppConfig
 from rum_web.metric_handler import (
     LcpP75Instance,
@@ -691,7 +692,7 @@ class GetStorageInfoResource(Resource):
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
-        return telemetry_handler_registry("rum", app=app).storage_info()
+        return telemetry_handler_registry(TelemetryDataType.TRACE.value, app=app).storage_info()
 
 
 class GetIndicesInfoResource(Resource):
@@ -711,7 +712,7 @@ class GetIndicesInfoResource(Resource):
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
-        return telemetry_handler_registry("rum", app=app).indices_info()
+        return telemetry_handler_registry(TelemetryDataType.TRACE.value, app=app).indices_info()
 
 
 class GetDataSamplingResource(Resource):
@@ -732,7 +733,9 @@ class GetDataSamplingResource(Resource):
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
-        return telemetry_handler_registry("rum", app=app).data_sampling(size=validated_request_data["size"])
+        return telemetry_handler_registry(TelemetryDataType.TRACE.value, app=app).data_sampling(
+            size=validated_request_data["size"]
+        )
 
 
 class StorageFieldInfoResource(Resource):
@@ -752,7 +755,7 @@ class StorageFieldInfoResource(Resource):
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
-        return telemetry_handler_registry("rum", app=app).storage_field_info()
+        return telemetry_handler_registry(TelemetryDataType.TRACE.value, app=app).storage_field_info()
 
 
 class GetDataViewConfigResource(Resource):
@@ -772,7 +775,7 @@ class GetDataViewConfigResource(Resource):
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
-        return telemetry_handler_registry("rum", app=app).get_data_view_config()
+        return telemetry_handler_registry(TelemetryDataType.TRACE.value, app=app).get_data_view_config()
 
 
 class GetNoDataStrategyInfoResource(Resource):
@@ -830,13 +833,14 @@ class GetNoDataStrategyInfoResource(Resource):
         if not app.metric_result_table_id:
             return None
 
-        promql = f'sum(sum_over_time({{__name__="custom:{app.metric_result_table_id}:browser_web_vital_duration_bucket"}}[1m])) or vector(0)'
-        strategy_name = f"BKRUM-{_('无数据告警')}-{app.app_name}"
+        register_config = telemetry_handler_registry(
+            TelemetryDataType.TRACE.value, app=app
+        ).get_no_data_strategy_config()
 
         config = {
             "bk_biz_id": app.bk_biz_id,
             "is_enabled": False,
-            "name": strategy_name,
+            "name": register_config["name"],
             "labels": ["BKRUM"],
             "scenario": ApplicationsResultTableLabel.application_check,
             "detects": [
@@ -850,7 +854,7 @@ class GetNoDataStrategyInfoResource(Resource):
             ],
             "items": [
                 {
-                    "name": strategy_name,
+                    "name": register_config["name"],
                     "no_data_config": {
                         "is_enabled": False,
                         "continuous": DEFAULT_NO_DATA_PERIOD,
@@ -864,15 +868,7 @@ class GetNoDataStrategyInfoResource(Resource):
                             "unit_prefix": "",
                         }
                     ],
-                    "query_configs": [
-                        {
-                            "data_source_label": DataSourceLabel.PROMETHEUS,
-                            "data_type_label": DataTypeLabel.TIME_SERIES,
-                            "promql": promql,
-                            "agg_interval": 60,
-                            "alias": "a",
-                        }
-                    ],
+                    "query_configs": register_config["query_configs"],
                     "target": [],
                 }
             ],
