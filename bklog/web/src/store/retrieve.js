@@ -162,6 +162,32 @@ export default {
         state.sceneConfigs.data = payload.data ?? [];
       }
     },
+    /**
+     * 清理检索页运行态大对象。
+     * 检索页切到管理页后不再需要索引集树、场景配置和字段配置缓存，
+     * 若继续常驻 Vuex，会保留大量响应式对象，导致多次路由切换后 heap 无法及时回落。
+     */
+    resetRuntimeState(state) {
+      state.indexSetList = [];
+      state.flatIndexSetList = [];
+      state.isIndexSetLoading = false;
+      state.isTrendDataLoading = false;
+      state.isTotalCountLoaded = false;
+      state.trendDataCount = 0;
+      state.catchFieldCustomConfig = {
+        fieldsWidth: {},
+        displayFields: [],
+        filterSetting: [],
+        filterAddition: [],
+        fixedFilterAddition: false,
+        sortList: [],
+        contextDisplayFields: [],
+      };
+      state.sceneConfigs = {
+        is_loading: false,
+        data: [],
+      };
+    },
   },
   actions: {
     /** 请求场景化检索配置列表 */

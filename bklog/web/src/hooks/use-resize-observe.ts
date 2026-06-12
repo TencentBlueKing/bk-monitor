@@ -94,11 +94,12 @@ export default (
   const stopObserve = () => {
     const cellElement = getTarget() as HTMLElement;
     isStoped.value = true;
+    debounceCallback.cancel();
 
     if (isElement(cellElement)) {
       resizeObserver?.unobserve(cellElement);
-      resizeObserver?.disconnect();
     }
+    resizeObserver?.disconnect();
   };
 
   const destoyResizeObserve = () => {

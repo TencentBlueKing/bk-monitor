@@ -47,6 +47,11 @@ class RequestPool {
       this.cancelStore.delete(key);
     }
   }
+
+  cancelAll() {
+    this.cancelStore.forEach(cancel => cancel?.());
+    this.cancelStore.clear();
+  }
 }
 
 export default new RequestPool();

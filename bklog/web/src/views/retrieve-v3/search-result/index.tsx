@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, type ComputedRef, defineComponent } from "vue";
+import { computed, type ComputedRef, defineComponent, onBeforeUnmount } from "vue";
 
 import { debounce } from "lodash-es";
 import { useRoute, useRouter } from "vue-router/composables";
@@ -72,13 +72,19 @@ export default defineComponent({
       () => route.query.tab ?? "origin"
     ) as ComputedRef<string>;
 
+    let trendSearchTimer: ReturnType<typeof setTimeout> | null = null;
+
     const handleTabChange = (tab: string, triggerTrend = false) => {
       debounceUpdateTabValue(tab);
 
       if (triggerTrend) {
         store.dispatch("requestIndexSetQuery");
-        setTimeout(() => {
+        if (trendSearchTimer) {
+          clearTimeout(trendSearchTimer);
+        }
+        trendSearchTimer = setTimeout(() => {
           RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+          trendSearchTimer = null;
         }, 300);
       }
     };
@@ -91,6 +97,14 @@ export default defineComponent({
 
     const { addEvent } = useRetrieveEvent();
     addEvent(RetrieveEvent.FAVORITE_ACTIVE_CHANGE, handleFavoriteChange);
+
+    onBeforeUnmount(() => {
+      debounceUpdateTabValue.cancel();
+      if (trendSearchTimer) {
+        clearTimeout(trendSearchTimer);
+        trendSearchTimer = null;
+      }
+    });
 
     const renderTabContent = () => {
       if (activeTab.value === RouteQueryTab.GRAPH_ANALYSIS
