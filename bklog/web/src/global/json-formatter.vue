@@ -213,12 +213,17 @@
   };
 
   const getDateFieldValue = (field, content, formatDate) => {
-    if (formatDate && ['date_nanos', 'date'].includes(field.field_type)) {
-      const timezone = store.state.indexItem.timezone;
-      return RetrieveHelper.formatTimeZoneValue(content, field.field_type, timezone);
+    if (content === null || content === undefined || content === '' || content === '--') {
+      return '--';
     }
 
-    return content !== null && content !== undefined && content !== '' ? content : '--';
+    if (formatDate && ['date_nanos', 'date'].includes(field.field_type)) {
+      const timezone = store.state.indexItem.timezone;
+      const formatValue = RetrieveHelper.formatTimeZoneValue(content, field.field_type, timezone);
+      return formatValue === 'Invalid Date' ? content : formatValue;
+    }
+
+    return content;
   };
 
   const getFieldValue = field => {
@@ -314,7 +319,7 @@
   };
 
   watch(
-    () => [props.limitRow, props.jsonValue, props.fields, isLimitExpandText.value],
+    () => [props.limitRow, props.jsonValue, props.fields, isLimitExpandText.value, isFormatDateField.value],
     () => {
       showAllText.value = false;
       hasScrollY.value = false;
