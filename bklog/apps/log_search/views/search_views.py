@@ -925,6 +925,8 @@ class SearchViewSet(APIViewSet):
         @apiParam {Int} pagesize 页面大小
         @apiParam {Bool} show_all 是否展示所有历史
         @apiParam {Int} bk_biz_id 业务id
+        @apiParam {Int} [start_time] 导出创建开始时间（毫秒时间戳）
+        @apiParam {Int} [end_time] 导出创建结束时间（毫秒时间戳）
         @apiSuccess {Int} total 返回大小
         @apiSuccess {list} list 返回结果列表
         @apiSuccess {Int} list.id 导出历史任务id
@@ -975,7 +977,11 @@ class SearchViewSet(APIViewSet):
         """
         data = self.params_valid(GetExportHistorySerializer)
         return AsyncExportHandlers(index_set_id=int(index_set_id), bk_biz_id=data["bk_biz_id"]).get_export_history(
-            request=request, view=self, show_all=data["show_all"]
+            request=request,
+            view=self,
+            show_all=data["show_all"],
+            start_time=data.get("start_time"),
+            end_time=data.get("end_time"),
         )
 
     @detail_route(methods=["GET"], url_path="fields")
@@ -1749,6 +1755,8 @@ class SearchViewSet(APIViewSet):
         @apiParam {Int} pagesize 页面大小
         @apiParam {Bool} show_all 是否展示所有历史
         @apiParam {String} index_set_ids 索引集ID  "146,147"
+        @apiParam {Int} [start_time] 导出创建开始时间（毫秒时间戳）
+        @apiParam {Int} [end_time] 导出创建结束时间（毫秒时间戳）
         @apiSuccess {Int} total 返回大小
         @apiSuccess {list} list 返回结果列表
         @apiSuccess {Int} list.id 导出历史任务id
@@ -1825,7 +1833,12 @@ class SearchViewSet(APIViewSet):
         data = self.params_valid(UnionSearchGetExportHistorySerializer)
         index_set_ids = sorted([int(index_set_id) for index_set_id in data["index_set_ids"].split(",")])
         return AsyncExportHandlers(index_set_ids=index_set_ids, bk_biz_id=data["bk_biz_id"]).get_export_history(
-            request=request, view=self, show_all=data["show_all"], is_union_search=True
+            request=request,
+            view=self,
+            show_all=data["show_all"],
+            is_union_search=True,
+            start_time=data.get("start_time"),
+            end_time=data.get("end_time"),
         )
 
     @list_route(methods=["GET"], url_path="async_export/download_file")

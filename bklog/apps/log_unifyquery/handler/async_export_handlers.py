@@ -175,7 +175,15 @@ class UnifyQueryAsyncExportHandlers:
         )
         return search_url
 
-    def get_export_history(self, request, view, show_all=False, is_union_search=False):
+    def get_export_history(
+        self,
+        request,
+        view,
+        show_all=False,
+        is_union_search=False,
+        start_time=None,
+        end_time=None,
+    ):
         # 这里当show_all为true的时候则给前端返回当前业务全部导出历史
         source_app_code = get_request_app_code()
         external_username = get_request_external_username()
@@ -192,6 +200,10 @@ class UnifyQueryAsyncExportHandlers:
             query_set = query_set.filter(index_set_type=IndexSetType.SINGLE.value)
             if not show_all:
                 query_set = query_set.filter(index_set_id=self.index_set_id)
+        if start_time is not None:
+            query_set = query_set.filter(created_at__gte=arrow.get(start_time / 1000).datetime)
+        if end_time is not None:
+            query_set = query_set.filter(created_at__lte=arrow.get(end_time / 1000).datetime)
         pg = DataPageNumberPagination()
         page_export_task_history = pg.paginate_queryset(
             queryset=query_set.order_by("-created_at", "created_by"), request=request, view=view
