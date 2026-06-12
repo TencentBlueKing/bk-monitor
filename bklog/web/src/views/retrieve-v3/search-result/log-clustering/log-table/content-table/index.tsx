@@ -626,13 +626,13 @@ export default defineComponent({
             </td>
           )}
           {isFlattenMode.value
-            && row.data?.group.map(item => (
-              <td>
-                <div class='dynamic-column' v-bk-overflow-tips>
-                  {item}
-                </div>
-              </td>
-            ))}
+          && props.requestData.group_by.map((_: any, index: number) => (
+            <td>
+              <div class='dynamic-column' v-bk-overflow-tips>
+                {row.data?.group?.[index] || '--'}
+              </div>
+            </td>
+          ))}
           <td>
             <div
               class={[

@@ -90,7 +90,7 @@ export default defineComponent({
     const increaseIsSubmit = ref(false);
 
     const bkBizId = computed(() => store.state.bkBizId);
-    const indexItemBizId = computed(() => store.state.indexItem.items[0]?.bk_biz_id ?? bkBizId.value);
+    const indexItemBizId = computed(() => String(store.state.indexItem.items[0]?.bk_biz_id ?? bkBizId.value));
 
     watch(alarmIsSubmit, () => {
       props.strategySubmitStatus?.(alarmIsSubmit.value);
