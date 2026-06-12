@@ -64,25 +64,6 @@
       }
     }
   }
-
-  &.is-headless {
-    height: calc(100% - var(--notice-component-height));
-
-    &.is-show-notice {
-      height: calc(100% - var(--notice-component-height));
-
-      .sub-nav-container {
-        top: var(--notice-component-height);
-      }
-
-      .masking-dialog {
-        .bk-dialog {
-          /* stylelint-disable-next-line declaration-no-important */
-          top: var(--notice-component-height) !important;
-        }
-      }
-    }
-  }
 }
 
 /*无权限时 v-cursor 样式*/

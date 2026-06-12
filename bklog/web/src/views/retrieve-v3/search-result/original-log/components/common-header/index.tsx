@@ -41,13 +41,8 @@ export default defineComponent({
       type: Object,
       default: () => ({}),
     },
-    mode: {
-      type: String,
-      default: 'dialog',
-    },
   },
-  emits: ['back'],
-  setup(props, { emit }) {
+  setup(props) {
     const { t } = useLocale();
 
     const getTargetFieldsStr = computed(() => props.targetFields.reduce((acc, cur) => {
@@ -93,16 +88,6 @@ export default defineComponent({
               </div>
             ))}
           </div>
-        )}
-        {props.mode === 'page' && (
-          <bk-button
-            text
-            class='context-back-btn'
-            on-click={() => emit('back')}
-          >
-            <log-icon type='angle-left' common />
-            <span>{t('返回')}</span>
-          </bk-button>
         )}
       </div>
     );
