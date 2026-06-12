@@ -127,7 +127,7 @@ def test_compose_vm_result_table_config(create_or_delete_records):
     expect_config = (
         '{"kind":"ResultTable","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
         '"namespace":"bkmonitor","labels":{"bk_biz_id":"111"}},"spec":{'
-        '"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":2,'
+        '"fields":null,"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":2,'
         '"dataType":"metric","description":"bkm_1001_bkmonitor_time_series_50010","maintainers":['
         '"admin"]}}'
     )
@@ -143,7 +143,7 @@ def test_compose_vm_result_table_config(create_or_delete_records):
     expect_config = (
         '{"kind":"ResultTable","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
         '"namespace":"bkmonitor","tenant":"system","labels":{"bk_biz_id":"111"}},'
-        '"spec":{"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":111,"dataType":"metric",'
+        '"spec":{"fields":null,"alias":"bkm_1001_bkmonitor_time_series_50010","bizId":111,"dataType":"metric",'
         '"description":"bkm_1001_bkmonitor_time_series_50010","maintainers":["admin"]}}'
     )
 
@@ -179,11 +179,15 @@ def test_compose_vm_storage_binding_config(create_or_delete_records):
         '{"kind":"VmStorageBinding","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
         '"namespace":"bkmonitor","labels":{"bk_biz_id":"111"}},"spec":{"data":{"kind":"ResultTable",'
         '"name":"bkm_1001_bkmonitor_time_series_50010","namespace":"bkmonitor"},"maintainers":['
-        '"admin"],"storage":{"kind":"VmStorage","name":"vm-plat","namespace":"bkmonitor"}}}'
+        '"admin"],"filter":null,"metricGroupDimensions":null,"ddVersion":null,'
+        '"storage":{"kind":"VmStorage","name":"vm-plat","namespace":"bkmonitor"}}}'
     )
 
     content = vm_storage_ins.compose_config()
     assert json.dumps(content) == expect_config
+    assert content["spec"]["filter"] is None
+    assert content["spec"]["metricGroupDimensions"] is None
+    assert content["spec"]["ddVersion"] is None
 
     # 多租户模式
     settings.ENABLE_MULTI_TENANT_MODE = True
@@ -192,12 +196,25 @@ def test_compose_vm_storage_binding_config(create_or_delete_records):
         '{"kind":"VmStorageBinding","metadata":{"name":"bkm_1001_bkmonitor_time_series_50010",'
         '"tenant":"system","namespace":"bkmonitor","labels":{"bk_biz_id":"111"}},"spec":{"data":{'
         '"kind":"ResultTable","name":"bkm_1001_bkmonitor_time_series_50010","tenant":"system",'
-        '"namespace":"bkmonitor"},"maintainers":["admin"],"storage":{"kind":"VmStorage",'
+        '"namespace":"bkmonitor"},"maintainers":["admin"],"filter":null,'
+        '"metricGroupDimensions":null,"ddVersion":null,"storage":{"kind":"VmStorage",'
         '"name":"vm-plat","tenant":"system","namespace":"bkmonitor"}}}'
     )
 
     content = vm_storage_ins.compose_config()
     assert json.dumps(content) == expect_config
+
+    content = vm_storage_ins.compose_config(
+        whitelist={"metrics": ["cpu_usage"], "tags": ["bk_target_ip"]},
+        metric_group_dimensions=[{"key": "service_name", "default_value": "unknown_service"}],
+    )
+    assert content["spec"]["filter"] == {
+        "kind": "Whitelist",
+        "metrics": ["cpu_usage"],
+        "tags": ["bk_target_ip"],
+    }
+    assert content["spec"]["metricGroupDimensions"] == ["service_name|unknown_service"]
+    assert content["spec"]["ddVersion"] == "v2"
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -431,6 +448,7 @@ def test_compose_es_storage_binding_config(create_or_delete_records):
             "maintainers": ["admin"],
             "storage": {"kind": "ElasticSearch", "name": "es_default", "namespace": "bkmonitor"},
             "unique_field_list": ["event", "target", "dimensions", "event_name", "time"],
+            "json_field_list": None,
             "write_alias": {"TimeBased": {"format": "write_%Y%m%d_base_system_1_event", "timezone": 0}},
         },
     }
@@ -440,6 +458,22 @@ def test_compose_es_storage_binding_config(create_or_delete_records):
         unique_field_list=["event", "target", "dimensions", "event_name", "time"],
     )
     assert actual_result == expected_config
+
+    actual_result = es_storage_ins.compose_config(
+        storage_cluster_name="es_default",
+        write_alias_format="write_%Y%m%d_base_system_1_event",
+        unique_field_list=["event", "target", "dimensions", "event_name", "time"],
+        json_field_list=[],
+    )
+    assert actual_result["spec"]["json_field_list"] == []
+
+    actual_result = es_storage_ins.compose_config(
+        storage_cluster_name="es_default",
+        write_alias_format="write_%Y%m%d_base_system_1_event",
+        unique_field_list=["event", "target", "dimensions", "event_name", "time"],
+        json_field_list=["dimensions"],
+    )
+    assert actual_result["spec"]["json_field_list"] == ["dimensions"]
 
     # 多租户模式
     settings.ENABLE_MULTI_TENANT_MODE = True
@@ -456,6 +490,7 @@ def test_compose_es_storage_binding_config(create_or_delete_records):
             "maintainers": ["admin"],
             "storage": {"kind": "ElasticSearch", "tenant": "system", "name": "es_default", "namespace": "bkmonitor"},
             "unique_field_list": ["event", "target", "dimensions", "event_name", "time"],
+            "json_field_list": None,
             "write_alias": {"TimeBased": {"format": "write_%Y%m%d_base_system_1_event", "timezone": 0}},
         },
     }

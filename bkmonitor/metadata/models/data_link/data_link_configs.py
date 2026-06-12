@@ -267,9 +267,7 @@ class ResultTableConfig(DataLinkResourceConfigBase):
                     "labels": {"bk_biz_id": "{{bk_biz_id}}"}
                 },
                 "spec": {
-                    {% if fields %}
                     "fields": {{fields}},
-                    {% endif %}
                     "alias": "{{name}}",
                     "bizId": {{monitor_biz_id}},
                     "dataType": "{{data_type}}",
@@ -293,7 +291,7 @@ class ResultTableConfig(DataLinkResourceConfigBase):
             "monitor_biz_id": self.datalink_biz_ids.data_biz_id,  # 接入者的业务ID
             "data_type": self.data_type,
             "maintainers": json.dumps(maintainer),
-            "fields": json.dumps(fields, ensure_ascii=False) if fields else None,
+            "fields": json.dumps(fields, ensure_ascii=False) if fields else "null",
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
@@ -375,9 +373,7 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
                         }
                     },
                     "unique_field_list": {{unique_field_list}},
-                    {% if json_field_list %}
                     "json_field_list": {{json_field_list}},
-                    {% endif %}
                     "maintainers": {{maintainers}}
                 }
             }
@@ -393,7 +389,7 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
             "write_alias_format": write_alias_format,
             "timezone": self.timezone,
             "maintainers": json.dumps(maintainer),
-            "json_field_list": json.dumps(json_field_list) if json_field_list else None,
+            "json_field_list": json.dumps(json_field_list) if json_field_list is not None else "null",
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
@@ -460,9 +456,9 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
                         "namespace": "{{namespace}}"
                     },
                     "maintainers": {{maintainers}},
-                    {% if whitelist_config %}
                     "filter": {{whitelist_config}},
-                    {% endif %}
+                    "metricGroupDimensions": {{metric_group_dimensions}},
+                    "ddVersion": {{dd_version}},
                     "storage": {
                         "kind": "VmStorage",
                         "name": "{{vm_name}}",
@@ -471,12 +467,6 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
                         {% endif %}
                         "namespace": "{{namespace}}"
                     }
-                    {% if metric_group_dimensions %},
-                    "metricGroupDimensions": {{metric_group_dimensions}}
-                    {% endif %}
-                    {% if dd_version %},
-                    "ddVersion": "{{dd_version}}"
-                    {% endif %}
                 }
             }
             """
@@ -516,11 +506,11 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
             "rt_name": rt_name if rt_name is not None else self.name,
             "vm_name": self.vm_cluster_name,
             "maintainers": json.dumps(maintainer),
-            "whitelist_config": whitelist_config,
+            "whitelist_config": whitelist_config or "null",
             "metric_group_dimensions": json.dumps(metric_group_dimensions_list)
             if metric_group_dimensions_list
-            else None,
-            "dd_version": dd_version,
+            else "null",
+            "dd_version": json.dumps(dd_version) if dd_version else "null",
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
