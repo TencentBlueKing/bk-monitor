@@ -335,8 +335,6 @@ class MetricDataSource(ApmDataSourceConfigBase):
         "option": {"inject_local_time": True},
     }
 
-    METRIC_NAME = "bk_apm_duration"
-
     time_series_group_id = models.IntegerField("时序分组ID", default=0)
     data_label = models.CharField("数据标签", max_length=128, default="")
     bk_data_virtual_metric_config = JsonField("数据平台虚拟指标配置", null=True)
@@ -395,22 +393,6 @@ class MetricDataSource(ApmDataSourceConfigBase):
             )
 
         group_info = resource.metadata.create_time_series_group(params)
-        resource.metadata.modify_time_series_group(
-            {
-                "bk_tenant_id": bk_tenant_id,
-                "time_series_group_id": group_info["time_series_group_id"],
-                "field_list": [
-                    {
-                        "field_name": self.METRIC_NAME,
-                        "field_type": "float",
-                        "tag": "metric",
-                        "description": f"{self.app_name}",
-                        "unit": "ns",
-                    }
-                ],
-                "operator": global_user,
-            }
-        )
         self.time_series_group_id = group_info["time_series_group_id"]
         self.result_table_id = group_info["table_id"]
         self.data_label = group_info["data_label"]
