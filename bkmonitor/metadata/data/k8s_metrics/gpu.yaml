@@ -1,0 +1,160 @@
+- description: 容器实际使用的算力
+  field_name: container_gpu_utilization
+  unit: percent
+  tag_list:
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: gpu_name}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: result_table_id}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: container_name}
+  - {description: '', field_name: exported_node}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_namespace/bk_monitor_name}
+  - {description: '', field_name: target}
+  - {description: '', field_name: gpu}
+  - {description: '', field_name: node}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: bk_monitor_namespace}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: job}
+- description: 容器实际使用的显存
+  field_name: container_gpu_memory_total
+  unit: mbytes
+  tag_list:
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: bk_monitor_namespace/bk_monitor_name}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_namespace}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: job}
+  - {description: '', field_name: gpu_name}
+  - {description: '', field_name: target}
+  - {description: '', field_name: gpu_memory}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: result_table_id}
+  - {description: '', field_name: exported_node}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: service}
+  - {description: '', field_name: node}
+  - {description: '', field_name: container_name}
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: endpoint}
+- description: 容器实际使用的算力占申请算力的百分比
+  field_name: container_core_utilization_percentage
+  unit: percent
+  tag_list:
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: bk_monitor_namespace}
+  - {description: '', field_name: gpu_name}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bk_monitor_namespace/bk_monitor_name}
+  - {description: '', field_name: container_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: job}
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: service}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: exported_node}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: node}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: result_table_id}
+  - {description: '', field_name: bk_endpoint_url}
+- description: 容器实际使用的显存占申请显存的百分比
+  field_name: container_mem_utilization_percentage
+  unit: percent
+  tag_list:
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_monitor_namespace}
+  - {description: '', field_name: job}
+  - {description: '', field_name: result_table_id}
+  - {description: '', field_name: container_name}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: gpu_name}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: exported_node}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: bk_monitor_namespace/bk_monitor_name}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: node}
+  - {description: '', field_name: service}
+  - {description: '', field_name: target}
+- description: 容器申请的显存
+  field_name: container_request_gpu_memory
+  unit: mbytes
+  tag_list:
+  - {description: '', field_name: job}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: exported_node}
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: pod_name}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: target}
+  - {description: '', field_name: bk_monitor_namespace/bk_monitor_name}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: container_name}
+  - {description: '', field_name: bk_monitor_namespace}
+  - {description: '', field_name: gpu_name}
+  - {description: '', field_name: result_table_id}
+  - {description: '', field_name: req_of_gpu_memory}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: node}
+  - {description: '', field_name: service}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: bk_monitor_name}
+- description: 容器申请的算力
+  field_name: container_request_gpu_utilization
+  unit: percent
+  tag_list:
+  - {description: '', field_name: bk_endpoint_index}
+  - {description: '', field_name: req_of_gpu}
+  - {description: '', field_name: bk_monitor_name}
+  - {description: '', field_name: exported_node}
+  - {description: '', field_name: gpu_name}
+  - {description: '', field_name: bcs_cluster_id}
+  - {description: '', field_name: service}
+  - {description: '', field_name: result_table_id}
+  - {description: '', field_name: job}
+  - {description: '', field_name: bk_endpoint_url}
+  - {description: '', field_name: endpoint}
+  - {description: '', field_name: instance}
+  - {description: '', field_name: bk_monitor_namespace}
+  - {description: '', field_name: target}
+  - {description: '', field_name: container_name}
+  - {description: '', field_name: pod}
+  - {description: '', field_name: node}
+  - {description: '', field_name: exported_namespace}
+  - {description: '', field_name: monitor_type}
+  - {description: '', field_name: namespace}
+  - {description: '', field_name: bk_monitor_namespace/bk_monitor_name}
+  - {description: '', field_name: bk_biz_id}
+  - {description: '', field_name: pod_name}

@@ -618,10 +618,12 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
                     <div class='interface-column-readonly'>
                       {isFirstColumn && <div class='rect-bar' />}
                       {isFirstColumn && (
-                        <span
-                          class='icon-monitor icon-web'
-                          v-bk-tooltips={{ content: this.$tc('全局生效规则') }}
-                        />
+                        <div class='global-sign-wrapper'>
+                          <span
+                            class='icon-monitor icon-web'
+                            v-bk-tooltips={{ content: this.$tc('全局生效规则') }}
+                          />
+                        </div>
                       )}
                       <div
                         class='value-content'
@@ -657,7 +659,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
                   : [];
                 return (
                   <div class='interface-column'>
-                    {row.isImport && isFirstColumn && <div class='import-sign-bar' />}
+                    {(row.isImport || row.isNew) && isFirstColumn && <div class='new-sign-bar' />}
                     <ValueTagSelector
                       style='width: 100%'
                       multiple={false}
@@ -668,6 +670,7 @@ export default class CodeRedefineSlider extends tsc<CodeRedefineSliderProps, Cod
                         isEnableOptions: true,
                       }}
                       value={value}
+                      tippy-mode
                       getValueFn={this.getValueCallback(item.options)}
                       onChange={data => this.handleValueTagSelectorChange(data as string, item.prop, $index)}
                     />

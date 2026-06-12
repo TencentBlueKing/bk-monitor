@@ -1,0 +1,229 @@
+.monitor-k8s-new {
+  width: 100%;
+  height: 100%;
+  
+  .chart-row {
+    background-color: #fff;
+  }
+
+  .ml-36 {
+    margin-left: 36px;
+  }
+
+  .mr-8 {
+    margin-right: 8px;
+  }
+
+  .ml-18 {
+    margin-left: 18px;
+  }
+
+  .monitor-k8s-new-header {
+    position: relative;
+    display: flex;
+
+    .cluster-skeleton {
+      width: 320px;
+      min-height: 48px;
+    }
+
+    .filter-header-wrap {
+      position: relative;
+      display: flex;
+      width: calc(100% - 321px);
+      min-height: 48px;
+      overflow: hidden;
+      background: #fff;
+      border-bottom: 1px solid #dcdee5;
+
+      .filter-by-wrap {
+        display: flex;
+        align-items: center;
+        min-height: 48px;
+
+        .filter-by-title {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+          min-height: 48px;
+          padding: 0 24px;
+          color: #313238;
+          white-space: nowrap;
+          background: #ebeef5;
+        }
+
+        .filter-by-content {
+          min-width: 400px;
+          min-height: 48px;
+          background: #fff;
+        }
+
+        &.__filter-by__ {
+          flex: 1;
+          max-width: calc(100% - 350px);
+
+          .filter-by-title {
+            padding: 0 12px;
+            border-right: 1px solid #dcdee5;
+          }
+
+          .filter-by-content {
+            flex: 1;
+          }
+        }
+
+        &.__group-by__ {
+          flex: 1;
+          width: 450px;
+          max-width: 450px;
+        }
+      }
+    }
+
+    .monitor-k8s-btn {
+      flex-shrink: 0;
+      padding-right: 18px;
+      line-height: 50px;
+      border-bottom: 1px solid #dcdee5;
+
+      .monitor-k8s-btn-text {
+        font-size: 12px;
+      }
+
+      .icon-monitor {
+        margin-left: 6px;
+        font-size: 12px;
+      }
+    }
+  }
+
+  .target-list-select {
+    width: 321px;
+    min-height: 50px;
+    line-height: 48px;
+    background: #f5f7fa;
+    border: 1px solid #dcdee5;
+    border-top: none;
+    border-left: none;
+
+    &.is-unselected::before {
+      left: 24px;
+    }
+
+    .icon-angle-down {
+      top: 13px;
+    }
+
+    .bk-select-name {
+      height: 46px;
+      padding: 0 36px 0 24px;
+      font-size: 14px;
+      color: #313238;
+    }
+  }
+
+  .target-list-trigger {
+    display: flex;
+    justify-content: space-between;
+    width: 320px;
+    min-height: 48px;
+    padding: 0 10px 0 16px;
+    font-size: 13px;
+    line-height: 48px;
+    color: #313238;
+
+    .target-list-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .icon-mc-arrow-down {
+      font-size: 10px;
+      transition: transform 0.1s;
+
+      &.expand {
+        transform: rotateZ(-180deg);
+      }
+    }
+  }
+
+  .monitor-k8s-new-content {
+    display: flex;
+    background-color: #f5f7fa;
+
+    .content-right {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      min-width: 0;
+      margin: 16px 16px 0;
+
+      .content-tab-wrap {
+        .bk-tab.k8s-new-tab {
+          height: 100%;
+
+          .bk-tab-label-item {
+            min-width: 120px;
+            color: #4d4f56;
+            background-color: #eaebf0;
+            border-radius: 4px 4px 0 0;
+
+            & + .bk-tab-label-item {
+              margin-left: 8px;
+            }
+
+            &.active {
+              color: #3a84ff;
+              background-color: #fff;
+            }
+          }
+
+          .bk-tab-add-custom {
+            background-color: transparent;
+            border: none;
+          }
+
+          .bk-tab-section {
+            height: 0;
+            padding: 0;
+          }
+
+          .bk-tab-label-list-has-bar::after {
+            display: none;
+          }
+
+          .bk-tab-header,
+          .bk-tab-label-list,
+          .bk-tab-label-item,
+          .bk-tab-header-setting,
+          .bk-tab-add-custom {
+            height: 42px !important;
+            line-height: 42px !important;
+          }
+
+          .k8s-tab-panel {
+            line-height: 22px;
+
+            .icon-monitor {
+              margin-right: 6px;
+
+              &.icon-mc-list {
+                font-size: 12px;
+              }
+            }
+          }
+        }
+      }
+
+      .content-main-wrap {
+        flex: 1;
+        width: 100%;
+        min-height: 0;
+        overflow-y: auto;
+        background-clip: content-box;
+      }
+    }
+  }
+}

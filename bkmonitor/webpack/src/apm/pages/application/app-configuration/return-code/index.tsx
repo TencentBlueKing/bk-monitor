@@ -190,7 +190,6 @@ export default class ReturnCode extends tsc<ReturnCodeProps> {
               {this.$t('新增')}
             </bk-button>
           </span>
-
           {!this.isBatchEdit ? (
             <bk-button on-click={this.handleBatchEdit}>
               <i class='icon-monitor icon-mc-wholesale-editor' />
@@ -218,32 +217,33 @@ export default class ReturnCode extends tsc<ReturnCodeProps> {
               </bk-button>
             </div>
           )}
+          <div class='explore-btns'>
+            <input
+              ref='fileRef'
+              class='hidden-file-input'
+              accept='application/json'
+              type='file'
+              onChange={this.fileChange}
+            />
+            <bk-button
+              class='btn'
+              theme='primary'
+              text
+              onClick={this.handleImport}
+            >
+              {this.$t('导入')}
+            </bk-button>
+            <bk-button
+              class='btn'
+              theme='primary'
+              text
+              onClick={this.handleExport}
+            >
+              {this.$t('导出')}
+            </bk-button>
+          </div>
         </div>
-        <div class='explore-btns'>
-          <input
-            ref='fileRef'
-            class='hidden-file-input'
-            accept='application/json'
-            type='file'
-            onChange={this.fileChange}
-          />
-          <bk-button
-            class='btn'
-            theme='primary'
-            text
-            onClick={this.handleImport}
-          >
-            {this.$t('导入')}
-          </bk-button>
-          <bk-button
-            class='btn'
-            theme='primary'
-            text
-            onClick={this.handleExport}
-          >
-            {this.$t('导出')}
-          </bk-button>
-        </div>
+
         <Component
           ref='tabContentRef'
           isBatchEdit={this.isBatchEdit}

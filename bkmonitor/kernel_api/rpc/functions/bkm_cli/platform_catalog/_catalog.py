@@ -34,6 +34,10 @@ VALID_INVOKE_STYLES = ("kwargs", "positional_dict")
 VALID_CACHE_BYPASS_METHODS = ("refresh", "cacheless")
 
 
+class ParamsGuardRejected(ValueError):
+    """params_guard 拒绝本次调用：属策略拦截（映射 unsafe_action_blocked），不是 provider 故障。"""
+
+
 @dataclass
 class OperationSpec:
     """一个具体的 api.<domain>.<resource> 能力描述。
@@ -48,6 +52,13 @@ class OperationSpec:
     - ``"refresh"``：调 ``handler.request.refresh(...)``，刷新并回写缓存
     - ``"cacheless"``：调 ``handler.request.cacheless(...)``，不读不写缓存
     - ``None``：handler 不支持缓存绕过；``force_refresh`` 视为 noop，meta 中带 warning
+
+    params_guard 是 invoke 前置参数防线：在 handler 调用前接收 invoke params，
+    返回（可归一化的）params 放行，或抛 ``ParamsGuardRejected`` 拒绝（映射
+    unsafe_action_blocked）。guard 必须 total：除 ``ParamsGuardRejected`` 外不得抛
+    其它异常，对任意类型入参都要能给出放行/拒绝判定。注意：guard 返回值同时用于
+    handler 调用与 response_postprocess 的 fields 提取——带 response_postprocess 的
+    op 其 guard 必须透传 ``fields``，否则 postprocess 会静默回落 default_fields。
     """
 
     id: str
@@ -60,6 +71,7 @@ class OperationSpec:
     default_fields: list[str] = field(default_factory=list)
     allowed_fields: list[str] = field(default_factory=list)
     response_postprocess: Callable[[Any, list[str] | None], Any] | None = None
+    params_guard: Callable[[dict[str, Any]], dict[str, Any]] | None = None
     audit_tags: list[str] = field(default_factory=list)
     required_params: list[str] = field(default_factory=list)
     notes: str = ""
@@ -81,6 +93,8 @@ class OperationSpec:
             raise ValueError("handler must be callable")
         if getattr(self.handler, "__name__", "") == "<lambda>":
             raise ValueError("handler must not be a lambda; use api.<domain>.<resource> reference")
+        if self.params_guard is not None and not callable(self.params_guard):
+            raise ValueError("params_guard must be callable or None")
         if self.invoke_style not in VALID_INVOKE_STYLES:
             raise ValueError(f"invalid invoke_style: {self.invoke_style}; must be one of {VALID_INVOKE_STYLES}")
         if self.cache_bypass_method is not None and self.cache_bypass_method not in VALID_CACHE_BYPASS_METHODS:

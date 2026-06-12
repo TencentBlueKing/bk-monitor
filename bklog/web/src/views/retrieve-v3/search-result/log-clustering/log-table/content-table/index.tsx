@@ -107,6 +107,10 @@ export default defineComponent({
       type: String,
       require: true,
     },
+    getPatternOriginLog: {
+      type: Function as PropType<(_row: LogPattern) => Promise<string>>,
+      default: null,
+    },
 
     widthList: {
       type: Object,
@@ -639,6 +643,7 @@ export default defineComponent({
                 indexId={props.indexId}
                 rowData={row.data}
                 clusteringConfigData={clusteringConfigData.value}
+                getPatternOriginLog={props.getPatternOriginLog}
                 on-event-click={isLink => handleMenuClick(row.data, isLink)}
                 on-open-cluster-config={() => emit('open-cluster-config')}
                 on-mark-click={(markIndex: number, markText: string) => handleMarkClick(markIndex, markText, row)}

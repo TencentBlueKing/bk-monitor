@@ -377,30 +377,34 @@
         return this.params.winlog_name?.join(',') || '';
       },
       isHaveEventValue() {
-        return this.params.winlog_event_id.length || this.params.winlog_level.length;
+        return (this.params.winlog_event_id?.length || 0) || (this.params.winlog_level?.length || 0);
       },
       isContainer() {
         return this.collectorData.environment === 'container';
       },
       // 自定义上报基本信息
       isCustomReport() {
-        return this.$route.name === 'custom-report-detail' || this.$route.query.typeKey === 'custom_report';
+        return this.$route.name === 'custom-report-detail' || this.collectorData.log_access_type === 'custom_report';
       },
       isWinEventLog() {
         return this.collectorData.collector_scenario_id === 'wineventlog';
       },
       isNotWinAndHaveFilter() {
         if (this.isWinEventLog || this.params.type === 'none') return false;
-        return this.conditions && !!this.conditions?.separator_filters.length;
+        return !!this.conditions.separator_filters.length;
       },
       isMatchType() {
         return this.conditions.type === 'match';
       },
       params() {
-        return this.collectorData.params;
+        return this.collectorData.params || {};
       },
       conditions() {
-        return this.collectorData.params.conditions;
+        return {
+          type: 'none',
+          separator_filters: [],
+          ...(this.params.conditions || {}),
+        };
       },
       filterGroup() {
         const filters = this.conditions?.separator_filters;
@@ -497,7 +501,7 @@
             spaceUid: this.$store.state.spaceUid,
             backRoute,
             type: 'basicInfo',
-            typeKey: this.$route.query.typeKey,
+            typeKey: this.collectorData.log_access_type,
           },
         });
       },

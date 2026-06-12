@@ -140,6 +140,13 @@ class BkCollectorClusterConfig:
             return None
 
         content = config_maps.items[0].data.get(BkCollectorComp.CONFIG_MAP_PLATFORM_TPL_NAME)
+        if not content:
+            logger.info(
+                f"[BkCollectorClusterConfig] platform config template not found: cluster({cluster_id}), "
+                f"template({BkCollectorComp.CONFIG_MAP_PLATFORM_TPL_NAME})"
+            )
+            return None
+
         try:
             return base64.b64decode(content).decode()
         except Exception as e:  # pylint: disable=broad-except
@@ -158,14 +165,21 @@ class BkCollectorClusterConfig:
         if config_maps is None or len(config_maps.items) == 0:
             return None
 
-        content = b""
+        content = ""
         for item in config_maps.items:
             if not item.data:
                 continue
 
-            content = item.data.get(sub_config_tpl_name)
+            content = item.data.get(sub_config_tpl_name, "")
             if content:
                 break
+
+        if not content:
+            logger.info(
+                f"[BkCollectorClusterConfig] sub config template not found: cluster({cluster_id}), "
+                f"template({sub_config_tpl_name})"
+            )
+            return None
 
         try:
             return base64.b64decode(content).decode()
@@ -447,3 +461,117 @@ class BkCollectorClusterConfig:
                     body=secret,
                 )
                 logger.info(f"[clean dup secrets] cluster_id {cluster_id} update secret {need_update_sec_file}")
+
+    @classmethod
+    def clean_dup_secrets_in_multi_protocol(
+        cls, cluster_id: str, protocols, config_id_to_protocol: dict, namespace: str | None = None
+    ):
+        """
+        按 config_id 当前所属协议，清理该 config_id 在其他协议 Secret 下的旧子配置。
+        注意：只清理 config_id_to_protocol 传入的 config_id，不会清理协议 Secret 下其他 config_id 的配置文件。
+        """
+        protocols = set(protocols or [])
+        config_id_to_protocol = dict(config_id_to_protocol or {})
+        if not protocols or not config_id_to_protocol:
+            return
+
+        if namespace is None:
+            namespace = BkCollectorClusterConfig.bk_collector_namespace(cluster_id)
+
+        bcs_client = BcsKubeClient(cluster_id)
+        for protocol in protocols:
+            secret_config = BkCollectorComp.get_secrets_config_map_by_protocol(cluster_id, protocol)
+            if not secret_config:
+                logger.info(
+                    f"[clean dup secrets in multi protocol] cluster_id({cluster_id}) "
+                    f"protocol({protocol}) has no secret config, skip"
+                )
+                continue
+
+            removable_sub_config_files = {
+                secret_config["secret_data_key_tpl"].format(config_id)
+                for config_id, current_protocol in config_id_to_protocol.items()
+                if current_protocol != protocol
+            }
+            if not removable_sub_config_files:
+                logger.info(
+                    f"[clean dup secrets in multi protocol] cluster_id({cluster_id}) "
+                    f"protocol({protocol}) has no configs need clean"
+                )
+                continue
+
+            secret_label_selector = f"{BkCollectorComp.SECRET_COMMON_LABELS},{secret_config.get('secret_extra_label')}"
+            try:
+                exists_secrets_obj = bcs_client.client_request(
+                    bcs_client.core_api.list_namespaced_secret,
+                    namespace=namespace,
+                    label_selector=secret_label_selector,
+                )
+            except Exception as e:
+                logger.warning(
+                    f"[clean dup secrets in multi protocol] failed to list secrets in namespace {namespace}: {e}"
+                )
+                continue
+
+            if not exists_secrets_obj or not exists_secrets_obj.items:
+                logger.info(
+                    f"[clean dup secrets in multi protocol] cluster_id({cluster_id}) "
+                    f"protocol({protocol}) has no secrets"
+                )
+                continue
+
+            need_update_secrets = {}
+            for secret in exists_secrets_obj.items:
+                if not secret.data or not isinstance(secret.data, dict):
+                    continue
+
+                removed_sub_config_files = removable_sub_config_files & set(secret.data.keys())
+                if not removed_sub_config_files:
+                    continue
+
+                for sub_config_file in removed_sub_config_files:
+                    del secret.data[sub_config_file]
+                need_update_secrets[secret.metadata.name] = secret
+                logger.info(
+                    f"[clean dup secrets in multi protocol] cluster_id({cluster_id}) "
+                    f"protocol({protocol}) secret({secret.metadata.name}) "
+                    f"remove {len(removed_sub_config_files)} dup configs"
+                )
+
+            logger.info(
+                f"[clean dup secrets in multi protocol] cluster_id({cluster_id}) protocol({protocol}) "
+                f"update {len(need_update_secrets)} secrets"
+            )
+            if len(need_update_secrets) > 10:
+                logger.error(
+                    f"[clean dup secrets in multi protocol] cluster_id({cluster_id}) "
+                    f"protocol({protocol}) update {len(need_update_secrets)} secrets more than 10. do nothing"
+                )
+                return
+
+            for secret_name, secret in need_update_secrets.items():
+                if not secret.data:
+                    logger.info(
+                        f"[clean dup secrets in multi protocol] cluster_id({cluster_id}) "
+                        f"delete secret({secret_name}) start"
+                    )
+                    bcs_client.client_request(
+                        bcs_client.core_api.delete_namespaced_secret,
+                        name=secret.metadata.name,
+                        namespace=namespace,
+                        body=secret,
+                    )
+                    logger.info(
+                        f"[clean dup secrets in multi protocol] cluster_id({cluster_id}) "
+                        f"delete secret({secret_name}) ok"
+                    )
+                else:
+                    bcs_client.client_request(
+                        bcs_client.core_api.replace_namespaced_secret,
+                        name=secret.metadata.name,
+                        namespace=namespace,
+                        body=secret,
+                    )
+                    logger.info(
+                        f"[clean dup secrets in multi protocol] cluster_id({cluster_id}) update secret({secret_name})"
+                    )

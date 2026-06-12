@@ -12,6 +12,7 @@
 - `replace_tenant_id_in_directory`
 - `restore_disabled_models_in_directory`
 - `sanitize_cluster_info_in_directory`
+- `stop_biz_subscription_tasks`
 
 代码导出位置见 [__init__.py](/Users/unique0lai/Documents/Codes/bk-monitor/bk-monitor/worktrees/data-migrate/bkmonitor/bkmonitor/data_migrate/__init__.py)。
 
@@ -21,10 +22,12 @@
 - `python manage.py data_migrate export ...`
 - `python manage.py data_migrate import ...`
 - `python manage.py data_migrate enable-closed-strategies ...`
+- `python manage.py data_migrate update-migrate-data-id-routes ...`
 - `python manage.py data_migrate disable-models ...`
 - `python manage.py data_migrate replace-tenant-id ...`
 - `python manage.py data_migrate restore-disabled-models ...`
 - `python manage.py data_migrate sanitize-cluster-info ...`
+- `python manage.py data_migrate stop-biz-subscription-tasks ...`
 
 ## 使用方式
 
@@ -82,6 +85,20 @@ python manage.py data_migrate enable-closed-strategies \
 - 只处理其中 `bkmonitor.strategymodel` 对应的策略 ID
 - 仅重新开启当前仍处于关闭状态的策略，并输出每个业务的处理统计
 - `--bk-biz-ids` 仅支持正整数业务 ID
+
+### 更新单个迁移双写路由
+
+```bash
+python manage.py data_migrate update-migrate-data-id-routes \
+  --bk-data-id 123 \
+  --kafka-cluster-name kafka_cluster
+```
+
+说明：
+
+- 当前仅支持单个数据 ID
+- 会查找名称为 `migrate_kafka_data_id_<bk_data_id>` 的既有迁移双写路由
+- `--kafka-cluster-name` 传迁移前 Kafka 集群名称，命令内部会更新到对应的 `migrate_<kafka_cluster_name>` 集群
 
 ### 恢复自增游标
 
@@ -197,6 +214,23 @@ python manage.py data_migrate restore-disabled-models \
 - 恢复依据来自 `recovery_records/` 目录中的按“批次 / 业务 / 模型”拆分记录
 - 恢复成功后，会在对应的 `disable-models` 记录上补 `restored_at`
 - 同时会追加一条 `restore_disable_models` 执行历史
+
+### 停用业务下订阅任务
+
+```bash
+python manage.py data_migrate stop-biz-subscription-tasks \
+  --bk-tenant-id tencent \
+  --bk-biz-ids 2 3 \
+  --operator admin
+```
+
+说明：
+
+- 会找出业务下拨测任务对应的节点管理订阅，关闭巡检并执行 `STOP`
+- 会找出业务下插件采集配置对应的节点管理订阅，关闭巡检并执行 `STOP`
+- 会额外找出业务下 k8s 采集配置并停用，k8s 采集不依赖节点管理订阅
+- 支持 `--dry-run` 只输出待处理对象，不执行停用
+- 每个任务独立执行并输出结果；单个失败不会中断其他任务
 
 ## 导出目录结构
 

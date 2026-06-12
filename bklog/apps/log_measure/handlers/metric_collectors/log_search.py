@@ -32,6 +32,7 @@ from apps.log_measure.constants import TIME_RANGE
 from apps.log_measure.utils.metric import MetricUtils
 from apps.log_search.constants import InnerTag
 from apps.log_search.models import (
+    TAG_TYPE_INNER,
     AsyncTask,
     Favorite,
     IndexSetTag,
@@ -223,7 +224,7 @@ class IndexSetMetricCollector(object):
     @register_metric("index_set", description=_("索引集"), data_name="metric", time_filter=TimeFilterEnum.MINUTE5)
     def index_set():
         # 无数据标签id需要从DB取一下名为NO_DATA的tag_id, 防止各个环境的tag_id不一致
-        no_data_tag_id = str(IndexSetTag.get_tag_id(InnerTag.NO_DATA.value))
+        no_data_tag_id = str(IndexSetTag.get_tag_id(InnerTag.NO_DATA.value, tag_type=TAG_TYPE_INNER))
         metrics = []
         # 多维度聚合
         aggregation = defaultdict(int)

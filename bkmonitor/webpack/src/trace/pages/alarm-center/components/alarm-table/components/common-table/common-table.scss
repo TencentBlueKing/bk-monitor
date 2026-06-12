@@ -9,18 +9,21 @@
   // 最小高度应为骨架屏高度避免出现空白
   // min-height: 370px;
 
-  .common-table {
-    @include tableCommonTheme.table-theme;
-
-    .common-table-ellipsis {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+  // 事件委托包裹层：不影响布局，仅作为事件监听容器
+  .common-table-event-root {
+    display: contents; // 使该元素不产生影响布局的盒模型
   }
 
   // 在根元素容器高度仍有剩余的情况下，表格是否自适应填满根元素容器的剩余空间
   &.fill-remaining-space {
+    .common-table-event-root {
+      display: flex;
+      flex-grow: 1;
+      flex-basis: auto;
+      flex-direction: column;
+      min-height: 0;
+    }
+
     .common-table {
       display: flex;
       flex-grow: 1;
@@ -39,6 +42,16 @@
           }
         }
       }
+    }
+  }
+
+  .common-table {
+    @include tableCommonTheme.table-theme;
+
+    .common-table-ellipsis {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   }
 

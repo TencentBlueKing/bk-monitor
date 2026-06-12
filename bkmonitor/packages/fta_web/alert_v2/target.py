@@ -41,7 +41,7 @@ from bkmonitor.utils.alert_drilling import (
     get_log_clustering_info,
     get_log_clustering_time_range,
 )
-from constants.alert import K8S_RESOURCE_TYPE, K8STargetType, APMTargetType, EventTargetType
+from constants.alert import APMTargetType, EventTargetType, K8S_RESOURCE_TYPE, K8STargetType
 from constants.data_source import DataSourceLabel
 
 
@@ -350,7 +350,8 @@ class DefaultTarget(BaseTarget):
 
         index_set_id: str
         clustering_type, clustering_index_set_id = get_log_clustering_info(self._alert.strategy or {})
-        if clustering_type and clustering_index_set_id:
+        is_clustering: bool = bool(clustering_type and clustering_index_set_id)
+        if is_clustering:
             index_set_id = clustering_index_set_id
         else:
             if query_config.get("data_source_label") != DataSourceLabel.BK_LOG_SEARCH:
@@ -369,7 +370,7 @@ class DefaultTarget(BaseTarget):
 
         extra_filter_dict: dict[str, list[str]] = {}
         exclude_fields: set[str] | None = None
-        if clustering_type and clustering_index_set_id:
+        if is_clustering:
             time_range: tuple[int, int] | None = get_log_clustering_time_range(self._alert, clustering_type)
             if time_range:
                 start_time, end_time = time_range
@@ -382,8 +383,9 @@ class DefaultTarget(BaseTarget):
             dimensions=get_alert_dimensions(self._alert),
             exclude_fields=exclude_fields,
             extra_filter_dict=extra_filter_dict,
+            is_merge2keyword=not is_clustering,
         )
-        if clustering_type and clustering_index_set_id:
+        if is_clustering:
             # 聚类告警依赖 addition 过滤，keyword 置空可让前端保持 UI 过滤模式。
             log_search_condition["keyword"] = ""
 

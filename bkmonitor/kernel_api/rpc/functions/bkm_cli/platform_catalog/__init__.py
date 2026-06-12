@@ -6,10 +6,10 @@ You may obtain a copy of the License at http://opensource.org/licenses/MIT
 
 平台 API 能力 catalog 聚合入口。
 
-Phase 0：catalog 空载，仅暴露 PlatformSourceCatalog 数据结构与 _lint 工具。
-Phase 1+：在此 import 各 domain 子模块（cmdb / metadata / gse / ...）触发注册。
+Phase 1：已注册 domain —— bkdata（bk-base 只读查询）。
+后续 domain（cmdb / metadata / gse / ...）在此 import 子模块触发注册。
 """
 
-from . import _catalog, _lint  # noqa: F401
+from . import _catalog, _lint, bkdata  # noqa: F401
 
-__all__ = ["_catalog", "_lint"]
+__all__ = ["_catalog", "_lint", "bkdata"]

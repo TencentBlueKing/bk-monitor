@@ -138,7 +138,14 @@ class BaseSender:
         content_template = notice_template_class(content_template_path)
         self.encoding = None if self.notice_way in self.NoEncoding else self.Utf8Encoding
         self.context["encoding"] = self.encoding
-        self.title = title_template.render(context_dict)
+        try:
+            self.title = title_template.render(context_dict)
+        except Exception as e:
+            # 标题渲染失败（如模板渲染收窄误伤）不应阻断整条通知发送。
+            # 下游 CMSI 的 title/heading 为非空 CharField，空标题同样会被拒绝，
+            # 因此回退到系统通知标题，并以固定文案兜底保证非空。
+            logger.exception("failed to render notice title, fallback to default title: %s", e)
+            self.title = context_dict.get("notice_title") or _("蓝鲸监控")
         try:
             self.content = content_template.render(context_dict)
         except Exception as e:

@@ -32,6 +32,7 @@ import { debounce, throttle } from 'throttle-debounce';
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import { type ICommonParams, EDimensionKey } from '../../typings/k8s-new';
 import KvTag from './big-kv-tag';
+
 import {
   type IFilterByItem,
   type IGroupOptionsItem,
@@ -39,6 +40,8 @@ import {
   type IValueItem,
   FilterByOptions,
 } from './utils';
+
+import type { IK8sTargetList } from 'monitor-pc/pages/monitor-k8s/typings/book-mark';
 
 import './filter-by-condition.scss';
 
@@ -53,6 +56,8 @@ type TFilterByDict = Record<EDimensionKey | string, string[]>;
 @Component
 export default class FilterByCondition extends tsc<IProps> {
   @InjectReactive('refleshImmediate') refreshImmediate;
+  @InjectReactive({ from: 'isApmMonitor', default: false }) isApmMonitor!: boolean;
+  @InjectReactive({ from: 'apmResourceType', default: '' }) apmResourceType!: '' | IK8sTargetList['resource_type'];
 
   @Prop({ type: [Array, Object], default: () => [] }) filterBy: IFilterByItem[] | TFilterByDict;
   @Prop({ type: Object, default: () => ({}) }) commonParams: ICommonParams;
@@ -109,9 +114,27 @@ export default class FilterByCondition extends tsc<IProps> {
   handleValueOptionsScrollThrottle = _v => {};
 
   get hasAdd() {
-    const ids = this.allOptions.map(item => item.id);
+    const ids = this.allOptions.reduce((acc, item) => {
+      if (!this.hiddenDimensions.includes(item.id)) {
+        acc.push(item.id);
+      }
+      return acc;
+    }, []);
     const tags = new Set(this.tagList.map(item => item.id));
     return !ids.every(id => tags.has(id));
+  }
+
+  // apm内的容器需要隐藏的过滤条件
+  get hiddenDimensions() {
+    if (this.isApmMonitor) {
+      const res = [EDimensionKey.namespace, EDimensionKey.workload];
+      // 父组件targetList选中含pod时，需要隐藏pod维度
+      if (this.apmResourceType && this.apmResourceType === 'pod') {
+        res.push(EDimensionKey.pod);
+      }
+      return res;
+    }
+    return [];
   }
 
   get isSelectedWorkload() {
@@ -122,6 +145,14 @@ export default class FilterByCondition extends tsc<IProps> {
     return (
       !this.valueOptions.some(item => item.id === this.searchValue) && this.searchValue && !this.isSelectedWorkload
     );
+  }
+
+  @Watch('apmResourceType')
+  handleResourceTypeChange() {
+    if (!this.filterByOptions?.dimensionData) return;
+    this.allOptions = this.getGroupList(this.filterByOptions.dimensionData);
+    this.filterByToTags();
+    this.setGroupOptions();
   }
 
   @Watch('refreshImmediate')
@@ -198,6 +229,13 @@ export default class FilterByCondition extends tsc<IProps> {
       this.filterByToTags();
       this.overflowCountRender();
     }
+    if (this.isApmMonitor && this.filterByOptions) {
+      const filterDict = {};
+      for (const item of filterBy) {
+        filterDict[item.key] = item.value;
+      }
+      this.filterByOptions.setCommonParams({ filter_dict: filterDict });
+    }
   }
 
   /**
@@ -210,6 +248,15 @@ export default class FilterByCondition extends tsc<IProps> {
         key: item.id,
         value: item.values.map(v => v.id),
       });
+    }
+    if (this.isApmMonitor) {
+      for (const dim of this.hiddenDimensions) {
+        if (filterBy.some(item => item.key === dim)) continue;
+        const sourceItem = this.localFilterBy.find(item => item.key === dim);
+        if (sourceItem?.value?.length) {
+          filterBy.push({ key: dim, value: [...sourceItem.value] });
+        }
+      }
     }
     this.localFilterBy = JSON.parse(JSON.stringify(filterBy));
     if (JSON.stringify(this.oldLocalFilterBy) !== JSON.stringify(this.localFilterBy)) {
@@ -232,6 +279,7 @@ export default class FilterByCondition extends tsc<IProps> {
     const tagList = [];
     for (const item of this.localFilterBy) {
       if (item.value.length) {
+        if (this.hiddenDimensions.includes(item.key)) continue;
         tagList.push({
           id: item.key,
           name: item.key || '--',
@@ -255,6 +303,7 @@ export default class FilterByCondition extends tsc<IProps> {
   getGroupList(list) {
     const result = [];
     for (const item of list) {
+      if (this.hiddenDimensions.includes(item.id)) continue;
       const obj = {
         id: item.id,
         name: item.name,
@@ -692,6 +741,7 @@ export default class FilterByCondition extends tsc<IProps> {
     }
     const groupOptions = [];
     for (const item of this.allOptions) {
+      if (this.hiddenDimensions.includes(item.id)) continue;
       if (!groupsSet.has(item.id) || updateActiveId === item.id) {
         groupOptions.push({
           ...item,
@@ -1071,7 +1121,6 @@ export default class FilterByCondition extends tsc<IProps> {
                 <span class='value-item-checked'>
                   {item.checked && <span class='icon-monitor icon-mc-check-small' />}
                 </span>
-                
               </div>
             )),
           ]
