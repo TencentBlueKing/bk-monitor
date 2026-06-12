@@ -22,6 +22,7 @@
 
       .cancel-auth-btn {
         color: #3a84ff;
+        cursor: pointer;
       }
     }
   }
@@ -30,11 +31,49 @@
     height: calc(100vh - 52px);
     background-color: #f5f7fa;
 
-    .create-tapd-form-header {
-      height: 142px;
-      padding: 24px 40px 0;
-      background-color: #fff;
-      box-shadow: 0 2px 4px 0 #1919290d;
+    .create-tapd-content {
+      padding: 18px 40px;
+
+      .sync-tapd-status {
+        padding: 16px 24px;
+        background-color: #fff;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px 0 #1919290d;
+
+        .sync-tapd-status-title {
+          font-size: 14px;
+          font-weight: 700;
+          color: #313238;
+        }
+
+        .sync-tapd-status-tips {
+          padding-left: 22px;
+          margin-top: 8px;
+
+          .tip-item {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+            margin-top: 4px;
+            font-size: 12px;
+            line-height: 20px;
+            color: #4d4f56;
+
+            .tip-dot {
+              flex-shrink: 0;
+              width: 4px;
+              height: 4px;
+              margin-top: 8px;
+              background-color: #63656e;
+              border-radius: 50%;
+            }
+
+            .tip-text {
+              flex: 1;
+            }
+          }
+        }
+      }
     }
 
     .create-tapd-footer {

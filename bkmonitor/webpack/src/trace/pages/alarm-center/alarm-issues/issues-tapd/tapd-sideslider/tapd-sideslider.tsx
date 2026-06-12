@@ -23,9 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef } from 'vue';
+import { computed, defineComponent, onMounted, shallowRef, useTemplateRef } from 'vue';
 
-import { Button, Sideslider } from 'bkui-vue';
+import { Button, Checkbox, Sideslider } from 'bkui-vue';
+
+import TapdBasicForm from './components/tapd-basic-form';
+import useUserConfig from '@/hooks/useUserConfig';
+
+import type { CreateTapdDefaultSetting, CreateTapdIssueRequest, TapdWorkspaceItem } from '../../typing/tapd';
 
 import './tapd-sideslider.scss';
 
@@ -34,26 +39,129 @@ export default defineComponent({
   props: {
     show: {
       type: Boolean,
-      required: true,
+      default: false,
+    },
+    bizId: {
+      type: [Number, String],
+      default: '2',
     },
   },
   emits: ['update:show'],
-  setup(_, { emit }) {
+  setup(props, { emit }) {
+    /** 已关联 TAPD 项目数量 */
     const count = shallowRef(1);
 
+    /** 基础表单组件 ref，用于调用表单校验方法 */
+    const basicFormRef = useTemplateRef<InstanceType<typeof TapdBasicForm>>('basicForm');
+    /** 项目列表 */
+    const workspaceList = shallowRef<TapdWorkspaceItem[]>([]);
+    /** 用户设置的 TAPD 创建单据默认值 */
+    const createTapdDefaultValue = shallowRef<CreateTapdDefaultSetting>({
+      workspace_id: null,
+      tapd_type: '',
+    });
+    /** 表单数据 */
+    const formData = shallowRef<Pick<CreateTapdIssueRequest, 'sync_status' | 'tapd_type' | 'workspace_id'>>({
+      workspace_id: null,
+      tapd_type: 'story',
+      sync_status: false,
+    });
+    /** 当前激活的 tab */
+    const tabActive = shallowRef('add');
+
+    /** 用户配置 key */
+    const CREATE_TAPD_DETAIL_SETTING = computed(() => {
+      return `${props.bizId}_CREATE_TAPD_DETAIL_SETTING`;
+    });
+
+    /** 用户配置 hook */
+    const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
+    /**
+     * 获取 TAPD 创建单据默认值
+     */
+    const getTapdDefaultValue = () => {
+      if (!props.bizId) return;
+      handleGetUserConfig<CreateTapdDefaultSetting>(CREATE_TAPD_DETAIL_SETTING.value).then(res => {
+        if (res) {
+          createTapdDefaultValue.value = res;
+          formData.value = {
+            workspace_id: res.workspace_id,
+            tapd_type: res.tapd_type || 'story',
+            sync_status: false,
+          };
+        } else {
+          createTapdDefaultValue.value = {
+            workspace_id: null,
+            tapd_type: '',
+          };
+          formData.value = {
+            workspace_id: null,
+            tapd_type: 'story',
+            sync_status: false,
+          };
+        }
+      });
+    };
+
+    /**
+     * 处理 Sideslider 显示状态变化
+     * @param isShow 是否显示
+     */
     const handleShowChange = (isShow: boolean) => {
       emit('update:show', isShow);
     };
 
+    /**
+     * 处理 tab 切换
+     * @param value tab 值
+     */
+    const handleTabChange = (value: string) => {
+      tabActive.value = value;
+    };
+
+    /**
+     * 处理设置/取消默认值
+     * @param type 字段类型
+     */
+    const handleSetDefaultValue = type => {
+      createTapdDefaultValue.value = {
+        ...createTapdDefaultValue.value,
+        // 如果当前选中值和默认值一致说明需要取消默认值，否则设置为当前选中值
+        [type]: createTapdDefaultValue.value[type] === formData.value[type] ? null : formData.value[type],
+      };
+      // 取消默认
+      handleSetUserConfig(JSON.stringify(createTapdDefaultValue.value));
+    };
+
+    /**
+     * 处理确认创建
+     */
+    const handleConfirm = () => {
+      basicFormRef.value?.validate().then(() => {
+        console.log('success');
+      });
+    };
+
+    onMounted(() => {
+      getTapdDefaultValue();
+    });
+
     return {
       count,
+      formData,
+      tabActive,
+      workspaceList,
+      createTapdDefaultValue,
       handleShowChange,
+      handleTabChange,
+      handleSetDefaultValue,
+      handleConfirm,
     };
   },
   render() {
     return (
       <Sideslider
-        width='80%'
+        width='800px'
         extCls='create-tapd-sides-slider'
         v-slots={{
           header: () => (
@@ -64,22 +172,56 @@ export default defineComponent({
                 <span class='tips-text'>
                   {this.$t('已授权 TAPD 项目列表 · 已关联 {count} 个项目', { count: this.count })},
                 </span>
-                <Button
-                  class='cancel-auth-btn'
-                  text
-                >
-                  {this.$t('解除授权')}
-                </Button>
+                <span class='cancel-auth-btn'>{this.$t('解除授权')}</span>
               </div>
             </div>
           ),
           default: () => (
             <div class='create-tapd-side-slider-content'>
-              <div class='create-tapd-form-header' />
-
+              <TapdBasicForm
+                ref='basicForm'
+                v-model={this.formData}
+                defaultValue={this.createTapdDefaultValue}
+                tabActive={this.tabActive}
+                workspaceList={this.workspaceList}
+                onSetDefaultValue={this.handleSetDefaultValue}
+                onTabChange={this.handleTabChange}
+              />
+              <div class='create-tapd-content'>
+                <div class='sync-tapd-status'>
+                  <Checkbox v-model={this.formData.sync_status}>
+                    <span class='sync-tapd-status-title'>{this.$t('同步单据状态')}</span>
+                  </Checkbox>
+                  <div class='sync-tapd-status-tips'>
+                    <div class='tip-item'>
+                      <span class='tip-dot' />
+                      <span class='tip-text'>
+                        <i18n-t keypath='开启后，当本单据在外部平台进入「已完成」类状态{0}时，本 Issue 将自动流转为「已解决」。'>
+                          <span style='color: #21A380'>（如 TAPD「已关闭 / 已解决」、GitHub closed）</span>
+                        </i18n-t>
+                      </span>
+                    </div>
+                    <div class='tip-item'>
+                      <span class='tip-dot' />
+                      <span class='tip-text'>{this.$t('未勾选，则仅保留关联，不因单据关闭而自动关 Issue。')}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div class='create-tapd-footer'>
-                <Button theme='primary'>{this.$t('确认创建')}</Button>
-                <Button>{this.$t('取消')}</Button>
+                <Button
+                  theme='primary'
+                  onClick={this.handleConfirm}
+                >
+                  {this.$t('确认创建')}
+                </Button>
+                <Button
+                  onClick={() => {
+                    this.handleShowChange(false);
+                  }}
+                >
+                  {this.$t('取消')}
+                </Button>
               </div>
             </div>
           ),
