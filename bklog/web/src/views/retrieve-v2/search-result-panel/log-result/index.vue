@@ -120,7 +120,6 @@ import ExportLog from '../../result-comp/export-log.vue';
 // #code const ExportLog = () => null;
 // #endif
 import MatchMode from '@/global/match-mode';
-import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import BkLogPopover from '../../../../components/bklog-popover/index';
 import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
@@ -129,8 +128,6 @@ import FieldsSetting from '../../result-comp/update/fields-setting';
 import bklogTagChoice from '../../search-bar/components/bklog-tag-choice';
 import TableLog from './log-result.vue';
 
-let logResultResizeObserver;
-let logResultResizeObserverFn;
 
 export default {
   components: {
@@ -181,6 +178,9 @@ export default {
           this.showFieldsSetting = true;
         },
       },
+      logResultResizeObserver: null,
+      logResultResizeObserverFn: null,
+      highlightTriggerHandler: null,
     };
   },
   computed: {
@@ -245,13 +245,13 @@ export default {
     this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
     RetrieveHelper.setMarkInstance();
 
-    const { addEvent } = useRetrieveEvent();
-    addEvent(RetrieveEvent.HILIGHT_TRIGGER, ({ event, value }) => {
+    this.highlightTriggerHandler = ({ event, value }) => {
       if (event === 'mark' && !this.highlightValue.includes(value)) {
         this.highlightValue.push(value);
         RetrieveHelper.highLightKeywords(this.highlightValue.filter(w => w.length > 0));
       }
-    });
+    };
+    RetrieveHelper.on(RetrieveEvent.HILIGHT_TRIGGER, this.highlightTriggerHandler);
 
     if (document.body.offsetHeight < 900) {
       this.$refs.refFieldsSettingPopper?.setProps({
@@ -260,15 +260,22 @@ export default {
       });
     }
 
-    logResultResizeObserverFn = debounce(this.calcHighlightWidth, 100);
-    logResultResizeObserver = new ResizeObserver(logResultResizeObserverFn);
-    logResultResizeObserver.observe(this.$el);
+    this.logResultResizeObserverFn = debounce(this.calcHighlightWidth, 100);
+    this.logResultResizeObserver = new ResizeObserver(this.logResultResizeObserverFn);
+    this.logResultResizeObserver.observe(this.$el);
   },
   unmounted() {
-    logResultResizeObserver?.unobserve(this.$el);
-    logResultResizeObserver?.disconnect();
-    logResultResizeObserver = null;
-    logResultResizeObserverFn = null;
+    if (this.highlightTriggerHandler) {
+      RetrieveHelper.off(RetrieveEvent.HILIGHT_TRIGGER, this.highlightTriggerHandler);
+      this.highlightTriggerHandler = null;
+    }
+    this.logResultResizeObserverFn?.cancel?.();
+    this.logResultResizeObserver?.unobserve(this.$el);
+    this.logResultResizeObserver?.disconnect();
+    this.logResultResizeObserver = null;
+    this.logResultResizeObserverFn = null;
+    this.$refs.refFieldsSettingPopper?.hide?.();
+    RetrieveHelper.destroyMarkInstance();
   },
   methods: {
     calcHighlightWidth() {

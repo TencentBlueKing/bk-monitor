@@ -139,7 +139,10 @@ export default class PopInstanceUtil {
   }
 
   uninstallInstance = () => {
+    this.delayShowInstance?.cancel?.();
+    this.cancelHide();
     this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
     if (this.tippyInstance) {
       this.tippyInstance?.hide();
       this.tippyInstance?.unmount();
