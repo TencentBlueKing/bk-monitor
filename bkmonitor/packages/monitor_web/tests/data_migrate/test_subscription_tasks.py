@@ -17,6 +17,7 @@ def _task(task_id, bk_biz_id=2, status="running"):
 
 def _collect_config(config_id, *, subscription_id, collect_type=PluginType.SCRIPT, last_operation=OperationType.START):
     return SimpleNamespace(
+        pk=config_id,
         id=config_id,
         bk_biz_id=2,
         name=f"collect-{config_id}",
@@ -157,3 +158,52 @@ def test_stop_biz_subscription_tasks_skips_stopped_k8s_collect(monkeypatch):
         "skipped_count": 1,
         "failed_count": 0,
     }
+
+
+def test_stop_biz_subscription_tasks_skips_negative_biz_ids_without_query(monkeypatch):
+    monkeypatch.setattr(
+        subscription_tasks,
+        "_list_uptime_tasks",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("negative biz should not query uptime tasks")),
+    )
+    monkeypatch.setattr(
+        subscription_tasks,
+        "_list_collect_configs",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("negative biz should not query collect configs")),
+    )
+
+    result = subscription_tasks.stop_biz_subscription_tasks(
+        bk_tenant_id="system", bk_biz_ids=[-4759], operator="admin", dry_run=False
+    )
+
+    assert result["skipped_biz_ids"] == [{"bk_biz_id": -4759, "reason": subscription_tasks.NEGATIVE_BIZ_SKIP_REASON}]
+    assert result["summary"]["total"] == {
+        "matched_count": 0,
+        "planned_count": 0,
+        "stopped_count": 0,
+        "skipped_count": 0,
+        "failed_count": 0,
+    }
+
+
+def test_stop_biz_subscription_tasks_filters_negative_biz_ids(monkeypatch):
+    seen_biz_ids = []
+
+    def fake_list_uptime_tasks(**kwargs):
+        seen_biz_ids.append(("uptime", kwargs["bk_biz_ids"]))
+        return []
+
+    def fake_list_collect_configs(**kwargs):
+        seen_biz_ids.append(("collect", kwargs["bk_biz_ids"]))
+        return []
+
+    monkeypatch.setattr(subscription_tasks, "_list_uptime_tasks", fake_list_uptime_tasks)
+    monkeypatch.setattr(subscription_tasks, "_list_collect_configs", fake_list_collect_configs)
+    monkeypatch.setattr(subscription_tasks, "_get_plugin_type_map", lambda **kwargs: {})
+
+    result = subscription_tasks.stop_biz_subscription_tasks(
+        bk_tenant_id="system", bk_biz_ids=[-4759, 2], operator="admin", dry_run=True
+    )
+
+    assert seen_biz_ids == [("uptime", [2]), ("collect", [2])]
+    assert result["skipped_biz_ids"] == [{"bk_biz_id": -4759, "reason": subscription_tasks.NEGATIVE_BIZ_SKIP_REASON}]

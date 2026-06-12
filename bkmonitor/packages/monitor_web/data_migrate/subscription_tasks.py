@@ -22,6 +22,7 @@ UPTIME_CHECK = "uptime_check"
 PLUGIN_COLLECT = "plugin_collect"
 K8S_COLLECT = "k8s_collect"
 TASK_CATEGORIES = (UPTIME_CHECK, PLUGIN_COLLECT, K8S_COLLECT)
+NEGATIVE_BIZ_SKIP_REASON = "negative biz id has no subscription-backed collect tasks"
 
 
 def stop_biz_subscription_tasks(
@@ -37,15 +38,23 @@ def stop_biz_subscription_tasks(
     The scope includes uptime-check tasks and plugin collect configs with NodeMan subscriptions.
     K8S collect configs are also stopped even though they are not backed by NodeMan subscriptions.
     """
+    skipped_biz_ids = [
+        {"bk_biz_id": bk_biz_id, "reason": NEGATIVE_BIZ_SKIP_REASON} for bk_biz_id in bk_biz_ids if bk_biz_id < 0
+    ]
+    target_bk_biz_ids = [bk_biz_id for bk_biz_id in bk_biz_ids if bk_biz_id >= 0]
     report = _init_report(
         bk_tenant_id=bk_tenant_id,
         bk_biz_ids=bk_biz_ids,
         operator=operator,
         dry_run=dry_run,
+        skipped_biz_ids=skipped_biz_ids,
     )
+    if not target_bk_biz_ids:
+        report["summary"] = _build_summary(report["details"], dry_run=dry_run)
+        return report
 
     with _local_operator_context(bk_tenant_id=bk_tenant_id, operator=operator):
-        for task, subscription_ids in _list_uptime_tasks(bk_tenant_id=bk_tenant_id, bk_biz_ids=bk_biz_ids):
+        for task, subscription_ids in _list_uptime_tasks(bk_tenant_id=bk_tenant_id, bk_biz_ids=target_bk_biz_ids):
             record = {
                 "bk_biz_id": task.bk_biz_id,
                 "task_id": task.id,
@@ -56,7 +65,7 @@ def stop_biz_subscription_tasks(
             _stop_uptime_task(record, task, bk_tenant_id=bk_tenant_id, operator=operator, dry_run=dry_run)
             report["details"][UPTIME_CHECK].append(record)
 
-        collect_configs = _list_collect_configs(bk_tenant_id=bk_tenant_id, bk_biz_ids=bk_biz_ids)
+        collect_configs = _list_collect_configs(bk_tenant_id=bk_tenant_id, bk_biz_ids=target_bk_biz_ids)
         plugin_type_map = _get_plugin_type_map(bk_tenant_id=bk_tenant_id, collect_configs=collect_configs)
         for collect_config in collect_configs:
             plugin_type = plugin_type_map.get(collect_config.plugin_id, "")
@@ -213,12 +222,20 @@ def _build_summary(details: dict[str, list[dict[str, Any]]], *, dry_run: bool) -
     return summary
 
 
-def _init_report(*, bk_tenant_id: str, bk_biz_ids: list[int], operator: str, dry_run: bool) -> dict[str, Any]:
+def _init_report(
+    *,
+    bk_tenant_id: str,
+    bk_biz_ids: list[int],
+    operator: str,
+    dry_run: bool,
+    skipped_biz_ids: list[dict[str, Any]],
+) -> dict[str, Any]:
     return {
         "dry_run": dry_run,
         "bk_tenant_id": bk_tenant_id,
         "bk_biz_ids": bk_biz_ids,
         "operator": operator,
+        "skipped_biz_ids": skipped_biz_ids,
         "details": {category: [] for category in TASK_CATEGORIES},
         "summary": {},
     }
