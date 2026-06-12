@@ -27,6 +27,7 @@ import { computed, defineComponent, onMounted, shallowRef, useTemplateRef } from
 
 import { Button, Checkbox, Sideslider } from 'bkui-vue';
 
+import TapdFieldForm from '../../components/tapd-field-form/tapd-field-form';
 import TapdBasicForm from './components/tapd-basic-form';
 import useUserConfig from '@/hooks/useUserConfig';
 
@@ -187,6 +188,7 @@ export default defineComponent({
                 onSetDefaultValue={this.handleSetDefaultValue}
                 onTabChange={this.handleTabChange}
               />
+              <TapdFieldForm style='margin: 13px 40px' />
               <div class='create-tapd-content'>
                 <div class='sync-tapd-status'>
                   <Checkbox v-model={this.formData.sync_status}>
