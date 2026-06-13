@@ -76,7 +76,6 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ISSUE_LLM_TITLE_MODEL", slz.CharField(label="Issue LLM 标题生成模型", default="hy3-preview")),
         # 业务级限流阈值（次/分钟），<=0 表示不限流
         ("ISSUE_LLM_TITLE_RATE_LIMIT_PER_MINUTE", slz.IntegerField(label="Issue LLM 标题生成限流", default=100)),
-        ("BK_INCIDENT_BUILTIN_CONFIG", slz.DictField(label="故障分析内置通知配置", default={})),
         ("BK_DATA_PROJECT_ID", slz.IntegerField(label="监控在计算平台使用的公共项目ID", default=1)),
         ("BK_DATA_BK_BIZ_ID", slz.IntegerField(label="监控在计算平台使用的公共业务ID", default=2)),
         (
