@@ -47,6 +47,7 @@ interface IEvent {
 
 interface IThresholdSelect {
   autoAdd?: boolean;
+  defaultThreshold?: number;
   label?: string;
   methodList?: IItem[];
   readonly?: boolean;
@@ -70,6 +71,8 @@ export default class ThresholdSelect extends tsc<IThresholdSelect, IEvent> {
   })
   readonly conditionList: IItem[];
   @Prop({ type: String, default: window.i18n.tc('（当前值）') }) label: string;
+  /** 新增条件时的默认阈值（日志关键字指标为 1，其余为 0） */
+  @Prop({ type: Number, default: 0 }) readonly defaultThreshold: number;
 
   /** 下拉数据 */
   showSelectMenu = false;
@@ -156,7 +159,7 @@ export default class ThresholdSelect extends tsc<IThresholdSelect, IEvent> {
   handleAdd() {
     this.localValue.push({
       method: 'gte',
-      value: 0,
+      value: this.defaultThreshold,
       condition: 'and',
     });
     this.emitLocalChange();
