@@ -145,6 +145,14 @@ class RecordRuleV4Operator:
         latest_resolved = self.rule.get_latest_resolved()
         return bool(latest_resolved and latest_resolved.pk != self.rule.applied_resolved_id)
 
+    @staticmethod
+    def validate_initial_desired_status(desired_status: str) -> None:
+        """声明创建只允许运行/停止；删除必须通过 delete_declaration 声明。"""
+
+        allowed_statuses = {RecordRuleV4DesiredStatus.RUNNING.value, RecordRuleV4DesiredStatus.STOPPED.value}
+        if desired_status not in allowed_statuses:
+            raise ValueError(f"unsupported desired_status: {desired_status}")
+
     def run_with_operation_lock(self, reason: str, callback: Callable[[], T], locked_result: T) -> T:
         """围绕关键下发 / 刷新操作加轻量操作锁，避免后台与手动操作竞态。"""
 
@@ -188,7 +196,7 @@ class RecordRuleV4Operator:
         """
 
         RecordRuleV4.validate_interval(interval)
-        RecordRuleV4.validate_desired_status(desired_status)
+        cls.validate_initial_desired_status(desired_status)
         group_labels = normalize_labels(labels)
         name = str(name or "")
         description = str(description or "")
@@ -389,31 +397,40 @@ class RecordRuleV4Operator:
     def _refresh_resolved_unlocked(self, force: bool = False) -> RecordRuleV4Resolved | None:
         return self.resolver.resolve_current(force=force)
 
-    def execute_declaration(self, auto_apply: bool | None = True) -> bool:
+    def execute_declaration(self, auto_apply: bool | None = True, force_output_apply: bool = False) -> bool:
         """执行当前声明：准备输出资源、resolve、准备 Flow，并按需 apply/delete。
 
         auto_apply 只控制 Flow 的 apply/delete，不阻止 output 资源准备。
-        ensure_group_output 本身会创建并下发输出 RT / VM binding，这是 Flow
-        能被解析和下发前必须满足的前置资源。
+        ensure_group_output 本身保持“必要时下发输出 RT / VM binding”的语义；
+        force_output_apply=True 用于管理员显式重试 output 下发。
         """
 
         result = self.run_with_operation_lock(
             "execute_declaration",
-            lambda: self._execute_declaration_unlocked(auto_apply=auto_apply, force_apply=True),
+            lambda: self._execute_declaration_unlocked(
+                auto_apply=auto_apply,
+                force_apply=True,
+                force_output_apply=force_output_apply,
+            ),
             RecordRuleV4DeclarationExecutionResult(succeeded=False),
         )
-        return result.succeeded and (not result.apply_attempted or result.apply_succeeded)
+        return result.succeeded
 
     def reconcile(self, auto_apply: bool | None = None) -> bool:
         """后台调谐入口，复用声明执行链路，默认尊重 rule.auto_refresh。
 
-        与 execute_declaration 一样，reconcile 会执行 output 准备；差异只在
-        auto_apply 默认值：None 表示是否 apply Flow 由 rule.auto_refresh 决定。
+        与 execute_declaration 一样，reconcile 会执行 output 准备；本地 output
+        配置已存在时不会重复 apply。auto_apply=None 表示是否 apply Flow 由
+        rule.auto_refresh 决定。
         """
 
         result = self.run_with_operation_lock(
             "reconcile",
-            lambda: self._execute_declaration_unlocked(auto_apply=auto_apply, force_apply=False),
+            lambda: self._execute_declaration_unlocked(
+                auto_apply=auto_apply,
+                force_apply=False,
+                force_output_apply=False,
+            ),
             RecordRuleV4DeclarationExecutionResult(succeeded=False),
         )
         return result.changed or (result.apply_attempted and result.apply_succeeded)
@@ -423,6 +440,7 @@ class RecordRuleV4Operator:
         *,
         auto_apply: bool | None,
         force_apply: bool,
+        force_output_apply: bool = False,
     ) -> RecordRuleV4DeclarationExecutionResult:
         result = RecordRuleV4DeclarationExecutionResult()
         self.reload_rule()
@@ -437,9 +455,9 @@ class RecordRuleV4Operator:
             return result
 
         try:
-            # prepare_output_resources 会确保输出侧 ResultTable / VM binding 已
-            # 在 bkbase 注册；后续 Flow 的 output 字段依赖这些资源。
-            self.prepare_output_resources()
+            # prepare_output_resources 会确保输出侧 ResultTable / VM binding 的
+            # 本地配置存在，并在首次缺失或强制重试时 apply output。
+            self.prepare_output_resources(force_output_apply=force_output_apply)
         except Exception as err:  # pylint: disable=broad-except
             self.record_prepare_failure(
                 condition_type=CONDITION_RECONCILED,
@@ -502,11 +520,12 @@ class RecordRuleV4Operator:
             result.succeeded = result.apply_succeeded
         return result
 
-    def prepare_output_resources(self) -> None:
+    def prepare_output_resources(self, force_output_apply: bool = False) -> None:
         """准备 output RT / VM binding / metric fields，并刷新必要的 Redis 路由。
 
-        这里的 ensure_group_output 会下发 output 侧 bkbase 资源；metric fields
-        仍只维护本地 metadata，供查询路由和导出查看使用。
+        这里的 ensure_group_output 会在必要时下发 output 侧 bkbase 资源；本地
+        配置已存在时跳过重复 apply。metric fields 仍只维护本地 metadata，
+        供查询路由和导出查看使用。
         """
 
         from metadata import models as metadata_models
@@ -517,7 +536,10 @@ class RecordRuleV4Operator:
             bk_tenant_id=self.rule.bk_tenant_id,
         ).first()
         previous_data_label = output_table.data_label if output_table else ""
-        output_created = RecordRuleV4OutputResources.ensure_group_output(self.rule)
+        output_created = RecordRuleV4OutputResources.ensure_group_output(
+            self.rule,
+            force_apply=force_output_apply,
+        )
         self.reload_rule()
         metric_fields_created = RecordRuleV4OutputResources.ensure_spec_metric_fields(self.rule, current_spec)
         output_detail_changed = bool(self.rule.data_label and previous_data_label != self.rule.data_label)

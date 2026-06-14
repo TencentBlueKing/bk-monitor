@@ -153,7 +153,8 @@ def parse_group(group: dict, *, source_path: str = "", group_index: int = 0) -> 
     description = str(bkmonitor.get("description") or "")
     data_label = str(bkmonitor.get("data_label") or "")
     desired_status = str(bkmonitor.get("desired_status") or RecordRuleV4DesiredStatus.RUNNING.value)
-    if desired_status not in {item.value for item in RecordRuleV4DesiredStatus}:
+    allowed_desired_statuses = {RecordRuleV4DesiredStatus.RUNNING.value, RecordRuleV4DesiredStatus.STOPPED.value}
+    if desired_status not in allowed_desired_statuses:
         raise ValueError(_format_error(group_path, f"unsupported desired_status: {desired_status}"))
     auto_refresh = bool(bkmonitor.get("auto_refresh", True))
 
@@ -618,7 +619,7 @@ def _reject_forbidden_fields(value: Any, *, source_path: str = "") -> None:
 
 
 def _reject_unsupported_fields(value: Mapping[str, Any], *, allowed_fields: set[str], source_path: str = "") -> None:
-    unknown_fields = sorted(set(map(str, value.keys())) - allowed_fields - UNSUPPORTED_PROMETHEUS_FIELDS)
+    unknown_fields = sorted(set(map(str, value.keys())) - allowed_fields)
     if unknown_fields:
         raise ValueError(_format_error(source_path, f"unsupported fields: {', '.join(unknown_fields)}"))
 

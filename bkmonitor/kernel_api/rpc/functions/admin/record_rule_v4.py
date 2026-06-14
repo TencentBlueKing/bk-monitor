@@ -514,17 +514,26 @@ def manual_refresh_record_rule_v4(params: dict[str, Any]) -> dict[str, Any]:
 @KernelRPCRegistry.register(
     FUNC_RECORD_RULE_V4_APPLY,
     summary="Admin 执行 RecordRule V4 当前声明",
-    description="调用 RecordRuleV4Operator.execute_declaration(auto_apply=True)，完成输出资源、解析、Flow 准备和下发。",
-    params_schema={"bk_tenant_id": "可选，租户 ID", "id": "必填，规则组 ID", "operator": "可选，操作人"},
-    example_params={"bk_tenant_id": "system", "id": 1, "operator": "admin"},
+    description=(
+        "调用 RecordRuleV4Operator.execute_declaration(auto_apply=True)，完成输出资源、解析、Flow 准备和下发；"
+        "force_output_apply=true 时强制重试 output 下发。"
+    ),
+    params_schema={
+        "bk_tenant_id": "可选，租户 ID",
+        "id": "必填，规则组 ID",
+        "operator": "可选，操作人",
+        "force_output_apply": "可选，是否强制重试 output 资源下发，默认 false",
+    },
+    example_params={"bk_tenant_id": "system", "id": 1, "operator": "admin", "force_output_apply": False},
 )
 def apply_record_rule_v4(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_bk_tenant_id(params)
     rule = _get_rule_or_raise(params, bk_tenant_id)
     before = _serialize_rule(rule)
+    force_output_apply = bool(normalize_optional_bool(params.get("force_output_apply"), "force_output_apply"))
     ok = RecordRuleV4Operator(
         rule, source="manual", operator=_normalize_text(params.get("operator"), "operator") or "admin"
-    ).execute_declaration(auto_apply=True)
+    ).execute_declaration(auto_apply=True, force_output_apply=force_output_apply)
     return _build_action_response(
         operation=OPERATION_RECORD_RULE_V4_APPLY,
         func_name=FUNC_RECORD_RULE_V4_APPLY,
@@ -533,7 +542,7 @@ def apply_record_rule_v4(params: dict[str, Any]) -> dict[str, Any]:
         before=before,
         action="execute_declaration",
         succeeded=ok,
-        result={"ok": ok},
+        result={"ok": ok, "force_output_apply": force_output_apply},
     )
 
 

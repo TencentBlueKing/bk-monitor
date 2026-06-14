@@ -17,6 +17,7 @@ from django.utils.timezone import now
 from api.unify_query.default import CheckQueryTsByPromqlResource, CheckQueryTsResource
 from bkmonitor.utils.tenant import DatalinkBizIds
 from metadata import models
+from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.record_rule.constants import (
     RECORD_RULE_V4_BKBASE_NAMESPACE,
     RECORD_RULE_V4_DELETED_RETENTION_DAYS,
@@ -353,13 +354,45 @@ def has_unapplied_resolved(rule: RecordRuleV4) -> bool:
 
 
 def assert_output_apply_only(external_api) -> None:
-    """execute/reconcile 的 auto_apply=False 只跳过 Flow apply，不跳过 output apply。"""
+    """只下发 output 资源，不下发 Flow。"""
 
     assert external_api.apply_data_link.call_count == 1
     assert [item["kind"] for item in external_api.apply_data_link.call_args.kwargs["config"]] == [
         "ResultTable",
         "VmStorageBinding",
     ]
+
+
+def assert_flow_apply_only(external_api) -> None:
+    """只下发 Flow，说明 output 本地配置已存在且被跳过。"""
+
+    assert external_api.apply_data_link.call_count == 1
+    assert [item["kind"] for item in external_api.apply_data_link.call_args.kwargs["config"]] == ["Flow"]
+
+
+def assert_output_then_flow(external_api) -> None:
+    """先独立下发 output，再独立下发 Flow。"""
+
+    assert external_api.apply_data_link.call_count == 2
+    assert [item["kind"] for item in external_api.apply_data_link.call_args_list[0].kwargs["config"]] == [
+        "ResultTable",
+        "VmStorageBinding",
+    ]
+    assert [item["kind"] for item in external_api.apply_data_link.call_args_list[1].kwargs["config"]] == ["Flow"]
+
+
+def set_output_status(rule: RecordRuleV4, status: str) -> None:
+    config_name = RecordRuleV4OutputResources.compose_result_table_config_name(rule.table_id)
+    models.ResultTableConfig.objects.filter(
+        bk_tenant_id=TENANT_ID,
+        namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE,
+        name=config_name,
+    ).update(status=status)
+    models.VMStorageBindingConfig.objects.filter(
+        bk_tenant_id=TENANT_ID,
+        namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE,
+        name=config_name,
+    ).update(status=status)
 
 
 def test_declare_only_writes_spec_without_external_side_effects(v4_base_data, external_api):
@@ -444,12 +477,7 @@ def test_create_group_with_two_records_applies_single_flow(v4_base_data, externa
 
     assert external_api.check_query_ts.call_count == 2
     # 执行链路先确保 output 资源，再下发 Flow；两次 apply_data_link 不应混在同一个 payload 里。
-    assert external_api.apply_data_link.call_count == 2
-    assert [item["kind"] for item in external_api.apply_data_link.call_args_list[0].kwargs["config"]] == [
-        "ResultTable",
-        "VmStorageBinding",
-    ]
-    assert [item["kind"] for item in external_api.apply_data_link.call_args_list[1].kwargs["config"]] == ["Flow"]
+    assert_output_then_flow(external_api)
     first_resolved_record = resolved.get_records()[0]
     assert first_resolved_record.labels == [{"scenario": "pytest"}]
     assert first_resolved_record.src_result_table_configs == [
@@ -562,6 +590,23 @@ def test_create_rejects_empty_records(v4_base_data, external_api):
     external_api.apply_data_link.assert_not_called()
 
 
+def test_declare_rejects_deleted_initial_desired_status(v4_base_data, external_api):
+    with pytest.raises(ValueError, match="unsupported desired_status: deleted"):
+        RecordRuleV4Operator.declare(
+            bk_tenant_id=TENANT_ID,
+            space_type=SPACE_TYPE,
+            space_id=SPACE_ID,
+            name=RULE_NAME,
+            records=[build_record()],
+            desired_status=RecordRuleV4DesiredStatus.DELETED.value,
+            source="pytest",
+            operator="tester",
+        )
+
+    assert RecordRuleV4.objects.count() == 0
+    external_api.apply_data_link.assert_not_called()
+
+
 def test_group_interval_and_labels_merge_into_resolved_and_flow(v4_base_data, external_api):
     record = build_record(labels=[{"scenario": "record"}, {"owner": "record"}])
 
@@ -648,7 +693,7 @@ def test_update_metadata_waits_for_execute_to_refresh_result_table(v4_base_data,
     output_table.refresh_from_db()
     assert output_table.table_name_zh == RULE_NAME
     assert output_table.data_label == "rr_cpu"
-    assert_output_apply_only(external_api)
+    external_api.apply_data_link.assert_not_called()
     external_api.space_redis.push_table_id_detail.assert_called_once_with(
         table_id_list=[updated.table_id],
         is_publish=True,
@@ -738,6 +783,82 @@ def test_create_prepares_output_metadata_before_apply(v4_base_data, external_api
         is_publish=True,
         bk_tenant_id=TENANT_ID,
     )
+    assert_output_apply_only(external_api)
+
+
+def test_reconcile_skips_output_apply_when_pending_and_configs_exist(v4_base_data, external_api):
+    rule = create_rule()
+    external_api.apply_data_link.reset_mock()
+
+    changed = RecordRuleV4Operator(rule, source="scheduler").reconcile()
+
+    assert changed is False
+    external_api.apply_data_link.assert_not_called()
+
+
+def test_reconcile_skips_output_apply_when_ok_configs_exist_and_only_applies_changed_flow(v4_base_data, external_api):
+    rule = create_rule(auto_refresh=True)
+    set_output_status(rule, DataLinkResourceStatus.OK.value)
+    external_api.apply_data_link.reset_mock()
+    external_api.check_query_ts.return_value = build_check_result(metricql=CHANGED_METRICQL)
+
+    changed = RecordRuleV4Operator(rule, source="scheduler").reconcile()
+
+    rule.refresh_from_db()
+    assert changed is True
+    assert has_unapplied_resolved(rule) is False
+    assert_flow_apply_only(external_api)
+
+
+def test_reconcile_retries_output_apply_when_failed_and_configs_exist(v4_base_data, external_api):
+    rule = create_rule()
+    set_output_status(rule, DataLinkResourceStatus.FAILED.value)
+    external_api.apply_data_link.reset_mock()
+
+    RecordRuleV4Operator(rule, source="scheduler").reconcile()
+
+    # FAILED 说明上一次 output 下发失败，后台调谐应自动重试，而非永久跳过。
+    assert_output_apply_only(external_api)
+    config_name = RecordRuleV4OutputResources.compose_result_table_config_name(rule.table_id)
+    for config_model in (models.ResultTableConfig, models.VMStorageBindingConfig):
+        config_instance = config_model.objects.get(
+            bk_tenant_id=TENANT_ID,
+            namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE,
+            name=config_name,
+        )
+        assert config_instance.status == DataLinkResourceStatus.PENDING.value
+
+
+def test_execute_skips_output_apply_when_configs_exist_even_if_local_fields_drift(v4_base_data, external_api):
+    rule = create_rule(apply_immediately=False)
+    config_name = RecordRuleV4OutputResources.compose_result_table_config_name(rule.table_id)
+    models.VMStorageBindingConfig.objects.filter(
+        bk_tenant_id=TENANT_ID,
+        namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE,
+        name=config_name,
+    ).update(vm_cluster_name="old-storage")
+    external_api.apply_data_link.reset_mock()
+
+    RecordRuleV4Operator(rule, source="manual", operator="admin").execute_declaration(auto_apply=False)
+
+    binding = models.VMStorageBindingConfig.objects.get(
+        bk_tenant_id=TENANT_ID,
+        namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE,
+        name=config_name,
+    )
+    assert binding.vm_cluster_name == "monitor-opsystem"
+    external_api.apply_data_link.assert_not_called()
+
+
+def test_execute_can_force_retry_output_apply(v4_base_data, external_api):
+    rule = create_rule(apply_immediately=False)
+    external_api.apply_data_link.reset_mock()
+
+    RecordRuleV4Operator(rule, source="manual", operator="admin").execute_declaration(
+        auto_apply=False,
+        force_output_apply=True,
+    )
+
     assert_output_apply_only(external_api)
 
 
@@ -1039,7 +1160,7 @@ def test_update_group_interval_and_labels_prepares_single_flow(v4_base_data, ext
     assert rule.flow_name == previous_flow_name
     assert get_latest_flow(rule).flow_name == previous_flow_name
     assert has_unapplied_resolved(rule) is True
-    assert_output_apply_only(external_api)
+    external_api.apply_data_link.assert_not_called()
 
 
 def test_resolved_unchanged_does_not_prepare_new_flow(v4_base_data, external_api):
@@ -1091,7 +1212,7 @@ def test_reconcile_does_not_apply_when_auto_refresh_is_disabled(v4_base_data, ex
     assert has_unapplied_resolved(rule) is True
     assert rule.applied_resolved_id != rule.current_spec.latest_resolved_id
     assert rule.status == RecordRuleV4Status.OUTDATED.value
-    assert_output_apply_only(external_api)
+    external_api.apply_data_link.assert_not_called()
 
 
 def test_reconcile_applies_changed_resolved_when_auto_refresh_is_enabled(v4_base_data, external_api):
@@ -1106,13 +1227,7 @@ def test_reconcile_applies_changed_resolved_when_auto_refresh_is_enabled(v4_base
     assert has_unapplied_resolved(rule) is False
     assert rule.applied_resolved_id == rule.current_spec.latest_resolved_id
     assert get_latest_resolved(rule).records.get().metricql == CHANGED_METRICQL
-    # 后台 reconcile 自动应用时同样保持 output -> Flow 的下发顺序。
-    assert external_api.apply_data_link.call_count == 2
-    assert [item["kind"] for item in external_api.apply_data_link.call_args_list[0].kwargs["config"]] == [
-        "ResultTable",
-        "VmStorageBinding",
-    ]
-    assert [item["kind"] for item in external_api.apply_data_link.call_args_list[1].kwargs["config"]] == ["Flow"]
+    assert_flow_apply_only(external_api)
 
 
 def test_stop_updates_runtime_status_without_new_spec_resolved_or_flow(v4_base_data, external_api):
@@ -1140,13 +1255,7 @@ def test_stop_updates_runtime_status_without_new_spec_resolved_or_flow(v4_base_d
     assert flow.flow_config["spec"]["desired_status"] == RecordRuleV4DesiredStatus.STOPPED.value
     assert rule.status == RecordRuleV4Status.STOPPED.value
     external_api.check_query_ts.assert_not_called()
-    # 运行态变更不生成新 spec/resolved/flow，但执行入口仍会先 ensure output。
-    assert external_api.apply_data_link.call_count == 2
-    assert [item["kind"] for item in external_api.apply_data_link.call_args_list[0].kwargs["config"]] == [
-        "ResultTable",
-        "VmStorageBinding",
-    ]
-    assert [item["kind"] for item in external_api.apply_data_link.call_args_list[1].kwargs["config"]] == ["Flow"]
+    assert_flow_apply_only(external_api)
     assert rule.events.filter(event_type=EVENT_TYPE_APPLY_STARTED, flow=flow).exists()
     assert rule.events.filter(event_type=EVENT_TYPE_APPLY_SUCCEEDED, flow=flow).exists()
     action_started = list(rule.events.filter(event_type=EVENT_TYPE_FLOW_ACTION_STARTED, flow=flow))
@@ -1171,7 +1280,7 @@ def test_stop_without_applied_flow_records_apply_failure(v4_base_data, external_
     assert updated.status == RecordRuleV4Status.FAILED.value
     assert updated.get_condition(CONDITION_RECONCILED)["reason"] == "FlowMissing"
     assert updated.events.filter(event_type="apply.failed", reason="FlowMissing").exists()
-    assert_output_apply_only(external_api)
+    external_api.apply_data_link.assert_not_called()
 
 
 def test_delete_removes_applied_flow(v4_base_data, external_api):
@@ -1230,10 +1339,22 @@ def test_refresh_record_rule_v4_keeps_unfinished_deletes_due(v4_base_data, exter
     assert kwargs["name"] == pending_deleted_flow_name
 
 
+def test_refresh_record_rule_v4_calls_reconcile_with_default_auto_apply(v4_base_data, external_api, mocker):
+    rule = create_rule(auto_refresh=False)
+    rule.last_check_time = None
+    rule.save(update_fields=["last_check_time", "updated_at"])
+    reconcile = mocker.patch("metadata.task.record_rule_v4.RecordRuleV4Operator.reconcile", return_value=False)
+
+    refresh_record_rule_v4()
+
+    reconcile.assert_called_once_with()
+
+
 def test_apply_failure_keeps_unapplied_resolved_and_records_action_error(v4_base_data, external_api):
     rule = create_rule(apply_immediately=False)
     flow = get_latest_flow(rule)
-    external_api.apply_data_link.side_effect = [{"status": "ok"}, RuntimeError("bkbase unavailable")]
+    external_api.apply_data_link.reset_mock()
+    external_api.apply_data_link.side_effect = RuntimeError("bkbase unavailable")
 
     ok = RecordRuleV4Operator(rule, source="manual", operator="admin").execute_declaration(auto_apply=True)
 

@@ -147,6 +147,21 @@ def test_parse_rejects_unsupported_prometheus_fields(field_name):
         parse_config(config)
 
 
+def test_parse_rejects_deleted_desired_status():
+    config = {
+        "groups": [
+            {
+                "name": "rr_resource_group",
+                "bkmonitor": {"desired_status": "deleted"},
+                "rules": [{"record": "cpu_usage_avg", "expr": "up"}],
+            }
+        ]
+    }
+
+    with pytest.raises(ValueError, match="unsupported desired_status: deleted"):
+        parse_config(config)
+
+
 def test_dump_rule_prefers_raw_config_and_refreshes_metadata():
     raw_config = {
         "name": "old_name",
