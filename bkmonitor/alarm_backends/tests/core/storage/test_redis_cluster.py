@@ -12,9 +12,11 @@ from unittest import mock
 
 import pytest
 
+from alarm_backends.core.storage import redis_cluster
 from alarm_backends.core.storage.redis_cluster import (
     PipelineProxy,
     PipelineResultMismatch,
+    RedisProxy,
 )
 
 
@@ -84,3 +86,102 @@ class TestPipelineProxyExecute:
 
         assert result == ["x", "y"]
         assert proxy.command_stack == []
+
+
+class _Node:
+    """最小 CacheNode 替身；execute 行为由 fail/partial 控制。"""
+
+    def __init__(self, nid):
+        self.id = nid
+        self.fail = False
+        self.partial = False
+
+
+class _FakeNativePipeline:
+    """模拟 redis-py 原生 pipeline：execute() 后自重置 buffer（成功或失败均重置）。"""
+
+    def __init__(self, node):
+        self.node = node
+        self.buffer = []
+
+    def get(self, key):
+        self.buffer.append(key)
+        return self
+
+    def execute(self):
+        buf = self.buffer
+        self.buffer = []
+        if self.node.fail:
+            raise ConnectionError("server closed connection")
+        out = [f"val:{k}" for k in buf]
+        if self.node.partial and out:
+            out = out[:-1]  # 少返回一个，模拟部分响应
+        return out
+
+    def reset(self):
+        self.buffer = []
+
+
+class _FakeClient:
+    def __init__(self, node):
+        self.node = node
+
+    def pipeline(self, *args, **kwargs):
+        return _FakeNativePipeline(self.node)
+
+
+class _Key(str):
+    """携带 strategy_id 的 str 子类，供 PipelineProxy 路由提取（复刻 key.py 的 SimilarStr）。"""
+
+    strategy_id = 0
+
+
+def _key(alert_id, strategy_id=101):
+    k = _Key(f"snap:{strategy_id}:{alert_id}")
+    k.strategy_id = strategy_id
+    return k
+
+
+class TestPipelineProxyCascade:
+    """端到端：经真实 RedisProxy（缓存单例代理）+ PipelineProxy，验证一次失败不串扰下一批。"""
+
+    @pytest.fixture
+    def node(self, mocker):
+        _node = _Node("node-A")
+        mocker.patch.object(redis_cluster, "get_node_by_strategy_id", return_value=_node)
+        mocker.patch.object(RedisProxy, "get_client", side_effect=lambda n: _FakeClient(n))
+        return _node
+
+    def test_node_failure_does_not_poison_next_batch(self, node):
+        proxy = RedisProxy("service")
+
+        # 批1：节点宕，execute 抛错；RedisProxy 缓存该 PipelineProxy 供后续复用
+        node.fail = True
+        pipe = proxy.pipeline()
+        pipe.get(_key(1))
+        pipe.get(_key(2))
+        with pytest.raises(ConnectionError):
+            pipe.execute()
+        assert pipe.command_stack == []  # 异常后已清栈
+
+        # 批2：节点恢复，复用同一缓存代理。修复前此处会因脏命令栈返回 4 条 → 消费端 keys[index] 越界
+        node.fail = False
+        pipe2 = proxy.pipeline()
+        assert pipe2 is pipe  # 确为缓存复用的同一单例
+        pipe2.get(_key(3))
+        pipe2.get(_key(4))
+        result = pipe2.execute()
+
+        assert len(result) == 2
+        assert result == ["val:snap:101:3", "val:snap:101:4"]
+
+    def test_partial_node_response_raises_mismatch(self, node):
+        node.partial = True  # 某节点少返回一个响应
+        proxy = RedisProxy("service")
+        pipe = proxy.pipeline()
+        pipe.get(_key(1))
+        pipe.get(_key(2))
+
+        with pytest.raises(PipelineResultMismatch):
+            pipe.execute()
+        assert pipe.command_stack == []
