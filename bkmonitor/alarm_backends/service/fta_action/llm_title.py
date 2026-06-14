@@ -87,13 +87,17 @@ class _SafeDict(dict):
         return "{" + key + "}"
 
 
-def validate_biz_template(template: str) -> None:
+def validate_biz_template(template) -> None:
     """业务模板配置校验（手工配置 GlobalConfig 前调用）。
 
     必需占位符缺失抛 ValueError，错误在配置时暴露而不是运行时。
     可选占位符（如 {examples}）缺失合法：渲染时缺省追加，见 render_user_prompt。
+    一切非法配置（含非字符串，如误配成 dict）统一抛 ValueError——调用方 resolve_template
+    只 catch ValueError 后 fallback，故类型错误必须收敛为 ValueError，不能漏成 AttributeError。
     """
-    if not template or not template.strip():
+    if not isinstance(template, str):
+        raise ValueError(f"template must be str, got {type(template).__name__}")
+    if not template.strip():
         raise ValueError("template is empty")
     fields = {fn for _, fn, _, _ in Formatter().parse(template) if fn}
     missing = REQUIRED_PLACEHOLDERS - fields

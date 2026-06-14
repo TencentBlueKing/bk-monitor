@@ -77,6 +77,13 @@ class TestValidateBizTemplate:
     def test_valid_template_passes(self):
         llm_title.validate_biz_template("任务说明 {log}")
 
+    def test_non_str_rejected_as_value_error(self):
+        # 误配成旧结构 {alert_type: 模板} 这种 dict，必须抛 ValueError（非 AttributeError），
+        # 否则 resolve_template 只 catch ValueError 会漏，任务崩溃。
+        for bad in ({"default": "x {log}"}, ["x"], 123, None):
+            with pytest.raises(ValueError):
+                llm_title.validate_biz_template(bad)
+
 
 class TestResolveTemplate:
     def test_builtin_when_no_biz_template(self, monkeypatch):
@@ -91,6 +98,11 @@ class TestResolveTemplate:
     def test_invalid_biz_template_falls_back_builtin(self, monkeypatch):
         """业务模板缺必需占位符时跳过该层，不阻塞生成。"""
         monkeypatch.setattr(settings, "ISSUE_LLM_TITLE_BIZ_TEMPLATES", {"2": "缺日志占位"}, raising=False)
+        assert llm_title.resolve_template(2) == llm_title.ADAPTIVE_TEMPLATE
+
+    def test_dict_biz_template_falls_back_not_crash(self, monkeypatch):
+        """误配成旧的嵌套 dict 结构时 resolve_template 不崩溃，安全 fallback 内置（P2 回归）。"""
+        monkeypatch.setattr(settings, "ISSUE_LLM_TITLE_BIZ_TEMPLATES", {"2": {"default": "x {log}"}}, raising=False)
         assert llm_title.resolve_template(2) == llm_title.ADAPTIVE_TEMPLATE
 
 

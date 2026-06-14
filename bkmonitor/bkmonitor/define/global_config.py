@@ -63,8 +63,9 @@ ADVANCED_OPTIONS = OrderedDict(
         ("AIOPS_INCIDENT_BIZ_WHITE_LIST", slz.ListField(label="开启根因故障定位的业务白名单", default=[])),
         # Issue LLM 标题生成：白名单为空 = 功能关闭（注意与 AIOPS 白名单"空=全开"语义不同），-1 表示全量
         ("ISSUE_LLM_TITLE_BIZ_WHITE_LIST", slz.ListField(label="Issue LLM 标题生成业务白名单", default=[])),
-        # 业务级 prompt 模板：{bk_biz_id: {alert_type 或 "default": 模板文本}}，配置前用
-        # alarm_backends.service.fta_action.llm_title.validate_biz_template 校验必需占位符
+        # 业务级 prompt 模板：{bk_biz_id: 模板文本}（一业务一模板字符串，自适应模板已覆盖日志行/事件两形态）。
+        # 模板须含 {log} 占位符；配置前用 alarm_backends.service.fta_action.llm_title.validate_biz_template 校验。
+        # 非字符串值（如误配成 dict）会被运行时校验拒绝并 fallback 内置模板，不影响任务。
         ("ISSUE_LLM_TITLE_BIZ_TEMPLATES", slz.DictField(label="Issue LLM 标题业务级模板", default={})),
         # shadow 模式：只生成+打日志+打点，不写 Issue name；灰度第一阶段人工抽检质量后关闭
         ("ISSUE_LLM_TITLE_SHADOW", slz.BooleanField(label="Issue LLM 标题 shadow 模式", default=True)),
