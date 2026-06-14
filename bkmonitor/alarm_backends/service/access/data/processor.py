@@ -1457,10 +1457,12 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
                     if not consumer:
                         try:
                             consumer = KafkaConsumer(bootstrap_servers=bootstrap_server)
+                            # 创建后立刻登记: topics 探测及后续任何异常路径都会在收尾的 close 循环里被关闭,
+                            # 避免"创建成功但探测失败(NBA/其它)"的 consumer 漏关
+                            consumers[bootstrap_server] = consumer
                             consumer.topics()
                         except NoBrokersAvailable:
                             continue
-                        consumers[bootstrap_server] = consumer
 
                     topic = storage_info["storage_config"]["topic"]
                     partitions.extend(

@@ -229,3 +229,39 @@ class TestAccessDataProcess:
         p.run_leader(once=True)
 
         fake_consumer.close.assert_called_once()
+
+    def test_leader_closes_consumer_when_topics_probe_fails(self, mock_time, mocker):
+        # 缺口回归: consumer 创建成功但 topics() 探测抛 NoBrokersAvailable, 仍须被收尾 close(不漏关)
+        from kafka.errors import NoBrokersAvailable
+
+        service = mock.MagicMock()
+        p = AccessRealTimeDataProcess(service)
+        p.ip = "127.0.0.1"
+        p.cache.delete("real-time-handler-leader")
+
+        cluster = mock.MagicMock()
+        cluster.name = "default"
+        cluster.match.return_value = True
+        mocker.patch("alarm_backends.service.access.data.processor.get_cluster", return_value=cluster)
+        mocker.patch.object(AccessRealTimeDataProcess, "get_all_hosts", return_value=["127.0.0.1"])
+        mocker.patch(
+            "alarm_backends.service.access.data.processor.StrategyCacheManager.get_real_time_data_strategy_ids",
+            return_value={"rt1": {2: [1]}},
+        )
+        mocker.patch(
+            "alarm_backends.service.access.data.processor.ResultTableCacheManager.get_result_table_by_id",
+            return_value={
+                "storage_info": {
+                    "cluster_config": {"domain_name": "kfk", "port": 9092},
+                    "storage_config": {"topic": "topic1"},
+                },
+                "fields": [],
+            },
+        )
+        bad_consumer = mock.MagicMock()
+        bad_consumer.topics.side_effect = NoBrokersAvailable()
+        mocker.patch("alarm_backends.service.access.data.processor.KafkaConsumer", return_value=bad_consumer)
+
+        p.run_leader(once=True)
+
+        bad_consumer.close.assert_called_once()
