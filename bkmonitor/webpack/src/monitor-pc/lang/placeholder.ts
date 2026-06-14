@@ -379,6 +379,7 @@ export default {
   '我要评论...': 'I want to comment...',
   请选择负责人: 'Please select the person in charge',
   请选择聚合维度: 'Please select aggregation dimension',
+  不选则按策略整体聚合: 'Aggregate by strategy as a whole if left empty',
 
   '自定义拆分依据，例如：同一蓝盾发布后集中出现':
     'Custom split criteria, e.g. Same BlueShift release after a consolidated appearance',
