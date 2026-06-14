@@ -988,7 +988,7 @@ def generate_issue_llm_title(issue_id: str, bk_biz_id, default_name: str, alert_
     llm_failed = False
     try:
         data = api.aidev.chat_completion(
-            model=getattr(settings, "ISSUE_LLM_TITLE_MODEL", "") or "hunyuan-turbo",
+            model=getattr(settings, "ISSUE_LLM_TITLE_MODEL", "") or "hy3-preview",
             messages=[
                 {"role": "system", "content": llm_title.SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},

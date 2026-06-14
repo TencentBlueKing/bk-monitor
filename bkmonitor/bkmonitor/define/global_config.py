@@ -69,7 +69,8 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ISSUE_LLM_TITLE_BIZ_TEMPLATES", slz.DictField(label="Issue LLM 标题业务级模板", default={})),
         # shadow 模式：只生成+打日志+打点，不写 Issue name；灰度第一阶段人工抽检质量后关闭
         ("ISSUE_LLM_TITLE_SHADOW", slz.BooleanField(label="Issue LLM 标题 shadow 模式", default=True)),
-        ("ISSUE_LLM_TITLE_MODEL", slz.CharField(label="Issue LLM 标题生成模型", default="hunyuan-turbo")),
+        # 默认 hy3-preview：经 trpc/C++/etcd 真实日志样本实测（6/6 零幻觉）；改模型走 GlobalConfig 覆盖
+        ("ISSUE_LLM_TITLE_MODEL", slz.CharField(label="Issue LLM 标题生成模型", default="hy3-preview")),
         # 业务级限流阈值（次/分钟），<=0 表示不限流
         ("ISSUE_LLM_TITLE_RATE_LIMIT_PER_MINUTE", slz.IntegerField(label="Issue LLM 标题生成限流", default=30)),
         ("BK_INCIDENT_BUILTIN_CONFIG", slz.DictField(label="故障分析内置通知配置", default={})),
