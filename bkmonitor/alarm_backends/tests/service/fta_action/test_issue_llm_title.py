@@ -113,6 +113,14 @@ class TestSetBizTemplate:
         # 范例常量本身必须能过校验，否则误导使用者
         llm_title.validate_biz_template(llm_title.EXAMPLE_BIZ_TEMPLATE)
 
+    def test_example_constant_separates_examples_block(self):
+        # examples 块不带尾换行：模板必须在 {examples} 后留换行，否则末条示例黏上"关联日志"
+        rendered = llm_title.render_user_prompt(
+            llm_title.EXAMPLE_BIZ_TEMPLATE, log="LOG", examples_block="参考示例：\n- 标题A"
+        )
+        assert "标题A关联日志" not in rendered
+        assert "\n关联日志（截断）" in rendered
+
     def test_merge_keeps_other_biz(self, monkeypatch):
         monkeypatch.setattr(settings, "ISSUE_LLM_TITLE_BIZ_TEMPLATES", {"2": "旧 {log}"}, raising=False)
         result = llm_title.set_biz_template(3, "新模板 {log}")
