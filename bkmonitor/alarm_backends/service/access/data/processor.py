@@ -1457,9 +1457,19 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
                     if not consumer:
                         try:
                             consumer = KafkaConsumer(bootstrap_servers=bootstrap_server)
-                            consumer.topics()
                         except NoBrokersAvailable:
                             continue
+                        # 仅当构造成功 + 探测通过才登记进 consumers; 探测失败的 consumer 立刻 close 且不登记:
+                        # 既不漏关, 也避免被同轮后续相同 bootstrap_server 的 rt_id 复用(复用会跳过探测,
+                        # 进而 partitions_for_topic 产生指向坏 broker 的 [0] 兜底分配或刷异常日志)
+                        try:
+                            consumer.topics()
+                        except NoBrokersAvailable:
+                            consumer.close()
+                            continue
+                        except Exception:
+                            consumer.close()
+                            raise
                         consumers[bootstrap_server] = consumer
 
                     topic = storage_info["storage_config"]["topic"]
@@ -1475,7 +1485,10 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
                 except Exception as e:
                     logger.exception(e)
                     logger.error(f"get real time result_table({rt_id}) info error")
-            map(lambda c: c.close(), consumers)
+            # 关闭发现阶段创建的 KafkaConsumer(原 map() 惰性从不执行, 且 consumers 是 dict、迭代得 key 字符串;
+            # 不显式 close 会在长期运行的 leader 进程里累积未释放的 Kafka client 资源)
+            for consumer in consumers.values():
+                consumer.close()
 
             # 使用哈希算法分配topic到机器上
             hosts = self.get_all_hosts()
