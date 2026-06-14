@@ -1733,6 +1733,20 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
     def _stop(self, *args, **kwargs):
         self._stop_signal = True
 
+    def _guard_daemon(self, func, wait=10):
+        """守护线程安全网: 循环体内未捕获异常(如 redis 连接/超时故障)会终止 InheritParentThread
+        且父进程不会重启它, 导致实时接入的 leader 选举/消费管理静默停摆。这里捕获异常并按间隔
+        重启循环, 直到收到停止信号(func 正常返回即停止信号或 once, 直接退出)。
+        """
+        while not self._stop_signal:
+            try:
+                func()
+                return
+            except Exception as e:
+                logger.exception(e)
+                logger.error("real_time daemon %s crashed, restart after %ss", getattr(func, "__name__", func), wait)
+                time.sleep(wait)
+
     def process(self, once=False):
         if once:
             self.run_leader(once=True)
@@ -1742,8 +1756,10 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
         else:
             signal.signal(signal.SIGTERM, self._stop)
             signal.signal(signal.SIGINT, self._stop)
-            leader = InheritParentThread(target=self.run_leader)
-            consumer_manager = InheritParentThread(target=self.run_consumer_manager)
+            # leader / consumer_manager 的循环体直接读写 redis, 连接加固后 redis 故障会抛异常,
+            # 用安全网包裹避免异常逃出杀死线程(线程不会被父进程重启)。
+            leader = InheritParentThread(target=lambda: self._guard_daemon(self.run_leader))
+            consumer_manager = InheritParentThread(target=lambda: self._guard_daemon(self.run_consumer_manager))
             poller = InheritParentThread(target=self.run_poller)
             handler = InheritParentThread(target=self.run_handler)
             leader.start()

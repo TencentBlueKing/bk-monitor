@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from redis.exceptions import RedisError
 
 from alarm_backends.core.cluster import get_cluster
-from alarm_backends.core.storage.redis import CACHE_BACKEND_CONF_MAP, Cache
+from alarm_backends.core.storage.redis import CACHE_BACKEND_CONF_MAP, Cache, gen_resilient_socket_conf
 from bkmonitor.models import CacheNode, CacheRouter
 
 
@@ -44,7 +44,11 @@ class RedisNode:
 
     def gen_connection_conf(self, cache_backend):
         conf = self.connection_kwargs.copy()
-        conf["db"] = CACHE_BACKEND_CONF_MAP.get(cache_backend, {}).get("db", 0)
+        backend_conf = CACHE_BACKEND_CONF_MAP.get(cache_backend, {})
+        conf["db"] = backend_conf.get("db", 0)
+        # 注入连接韧性参数: 分片节点历史上无任何 socket 超时, 主切换时读操作无限挂起。
+        # socket_timeout 沿用后端配置(若有), 由 floor 守住"必须大于阻塞命令 server 超时"的红线。
+        conf.update(gen_resilient_socket_conf(backend_conf.get("socket_timeout")))
         return conf
 
     def instance(self, cache_backend):

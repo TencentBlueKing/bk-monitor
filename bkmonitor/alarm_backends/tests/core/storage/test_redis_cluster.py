@@ -13,9 +13,11 @@ from unittest import mock
 import pytest
 
 from alarm_backends.core.storage import redis_cluster
+from alarm_backends.core.storage.redis import REDIS_SOCKET_TIMEOUT_FLOOR
 from alarm_backends.core.storage.redis_cluster import (
     PipelineProxy,
     PipelineResultMismatch,
+    RedisNode,
     RedisProxy,
 )
 
@@ -185,3 +187,20 @@ class TestPipelineProxyCascade:
         with pytest.raises(PipelineResultMismatch):
             pipe.execute()
         assert pipe.command_stack == []
+
+
+class TestRedisNodeConnectionConf:
+    """分片节点连接构造: 历史上 gen_connection_conf 只取 db, 无任何 socket 超时(主切换时读无限挂起)。"""
+
+    def test_gen_connection_conf_injects_resilient_params(self):
+        node = RedisNode("127.0.0.1", 6379, password="x")
+        conf = node.gen_connection_conf("queue")
+
+        # 修复后: 分片节点必须带有界 connect/read 超时 + keepalive
+        assert conf["socket_timeout"] >= REDIS_SOCKET_TIMEOUT_FLOOR
+        assert conf["socket_connect_timeout"] < conf["socket_timeout"]
+        assert conf["socket_keepalive"] is True
+        # 原有连接字段保持不变
+        assert conf["host"] == "127.0.0.1"
+        assert conf["port"] == 6379
+        assert "db" in conf

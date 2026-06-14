@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,12 +7,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import time
 from collections import namedtuple
 
-import mock
+from unittest import mock
 import pytest
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from alarm_backends.service.access import AccessRealTimeDataProcess
 
@@ -35,7 +36,7 @@ def mock_kafka_consumer(mocker):
 
 class FakeKafkaConsumer(mock.MagicMock):
     def __init__(self, *args, **kwargs):
-        super(FakeKafkaConsumer, self).__init__()
+        super().__init__()
         self.topics = set()
         self.subscribe_call_count = 0
         self.subscription_call_count = 0
@@ -49,7 +50,7 @@ class FakeKafkaConsumer(mock.MagicMock):
         self.topics = set(topics)
 
 
-class TestAccessDataProcess(object):
+class TestAccessDataProcess:
     def test_leader(self, mock_time):
         service = mock.MagicMock()
         p = AccessRealTimeDataProcess(service)
@@ -195,3 +196,44 @@ class TestAccessDataProcess(object):
             )
         )
         p.run_handler(once=True)
+
+
+class TestGuardDaemon:
+    """守护线程安全网: redis 故障(连接加固后会抛 TimeoutError/ConnectionError)不得杀死线程, 应重启循环。"""
+
+    def test_restarts_until_func_returns(self, mock_time):
+        # 崩溃 2 次后第 3 次正常返回(模拟收到停止信号后 func 自行结束), 期间循环被重启而非线程死亡
+        service = mock.MagicMock()
+        p = AccessRealTimeDataProcess(service)
+        calls = {"n": 0}
+
+        def flaky():
+            calls["n"] += 1
+            if calls["n"] < 3:
+                raise RedisTimeoutError("redis read timeout")
+
+        p._guard_daemon(flaky, wait=0)
+        assert calls["n"] == 3
+
+    def test_returns_immediately_when_already_stopped(self, mock_time):
+        service = mock.MagicMock()
+        p = AccessRealTimeDataProcess(service)
+        p._stop_signal = True
+        called = []
+
+        p._guard_daemon(lambda: called.append(1), wait=0)
+        assert called == []
+
+    def test_crash_then_stop_breaks_loop(self, mock_time):
+        # 崩溃同时置停止信号 -> 不应无限重启, 下一轮检查到 _stop_signal 即退出
+        service = mock.MagicMock()
+        p = AccessRealTimeDataProcess(service)
+        calls = {"n": 0}
+
+        def crash_then_stop():
+            calls["n"] += 1
+            p._stop_signal = True
+            raise RedisTimeoutError("redis read timeout")
+
+        p._guard_daemon(crash_then_stop, wait=0)
+        assert calls["n"] == 1
