@@ -14,6 +14,7 @@ from collections import namedtuple
 
 from unittest import mock
 import pytest
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from alarm_backends.service.access import AccessRealTimeDataProcess
 
@@ -270,3 +271,83 @@ class TestAccessDataProcess:
         assert len(created) == 2  # 失败 consumer 未被复用 -> 两个 rt 各自新建
         for c in created:
             c.close.assert_called_once()
+
+
+class TestGuardDaemon:
+    """守护线程安全网: redis 故障(连接加固后会抛 TimeoutError/ConnectionError)不得杀死线程, 应重启循环。"""
+
+    def test_restarts_until_func_returns(self, mock_time):
+        # 崩溃 2 次后第 3 次正常返回(模拟收到停止信号后 func 自行结束), 期间循环被重启而非线程死亡
+        service = mock.MagicMock()
+        p = AccessRealTimeDataProcess(service)
+        calls = {"n": 0}
+
+        def flaky():
+            calls["n"] += 1
+            if calls["n"] < 3:
+                raise RedisTimeoutError("redis read timeout")
+
+        p._guard_daemon(flaky, wait=0)
+        assert calls["n"] == 3
+
+    def test_returns_immediately_when_already_stopped(self, mock_time):
+        service = mock.MagicMock()
+        p = AccessRealTimeDataProcess(service)
+        p._stop_signal = True
+        called = []
+
+        p._guard_daemon(lambda: called.append(1), wait=0)
+        assert called == []
+
+    def test_crash_then_stop_breaks_loop(self, mock_time):
+        # 崩溃同时置停止信号 -> 不应无限重启, 下一轮检查到 _stop_signal 即退出
+        service = mock.MagicMock()
+        p = AccessRealTimeDataProcess(service)
+        calls = {"n": 0}
+
+        def crash_then_stop():
+            calls["n"] += 1
+            p._stop_signal = True
+            raise RedisTimeoutError("redis read timeout")
+
+        p._guard_daemon(crash_then_stop, wait=0)
+        assert calls["n"] == 1
+
+    def test_consumer_manager_releases_lock_on_exception(self, mock_time, mocker):
+        # 持锁期间 KafkaConsumer 构造抛错, consumers_lock 必须被释放:
+        # 否则 _guard_daemon 重启 run_consumer_manager 会因非可重入锁自死锁, run_poller 也被堵死。
+        service = mock.MagicMock()
+        p = AccessRealTimeDataProcess(service)
+        p.ip = "127.0.0.1"
+        p.cache.hset(p.topic_cache_key, p.ip, json.dumps({"kafka-x:9092|topic1": ""}))
+        mocker.patch(
+            "alarm_backends.service.access.data.processor.KafkaConsumer",
+            side_effect=RuntimeError("kafka boom"),
+        )
+
+        with pytest.raises(RuntimeError):
+            p.run_consumer_manager(once=True)
+
+        acquired = p.consumers_lock.acquire(blocking=False)
+        assert acquired is True  # 锁已释放, 下次进入/poller 不会被堵
+        p.consumers_lock.release()
+
+    def test_consumer_manager_closes_consumers_on_stop(self, mock_time):
+        # 停机分支必须真正 close 每个 consumer(原 map() 惰性从不执行)并把 self.consumers 复位为 dict
+        service = mock.MagicMock()
+        p = AccessRealTimeDataProcess(service)
+        p.ip = "127.0.0.1"
+        c1 = FakeKafkaConsumer()
+        c1.topics = {"t1"}
+        c2 = FakeKafkaConsumer()
+        c2.topics = {"t2"}
+        p.consumers = {"kafka1.svc:9092": c1, "kafka2.svc:9092": c2}
+        # topics 与现有 consumer 订阅一致 => 不进入 create/update/delete 分支, 直接走停机清理
+        p.cache.hset(p.topic_cache_key, p.ip, json.dumps({"kafka1.svc:9092|t1": "", "kafka2.svc:9092|t2": ""}))
+        p._stop_signal = True
+
+        p.run_consumer_manager(once=True)
+
+        c1.close.assert_called_once()
+        c2.close.assert_called_once()
+        assert p.consumers == {}  # 复位为 dict, 而非 list
