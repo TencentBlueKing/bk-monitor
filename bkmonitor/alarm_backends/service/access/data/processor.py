@@ -1680,8 +1680,11 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
                 if self._stop_signal:
                     logger.info("real_time consumer_manager get stop signal")
                     with self.consumers_lock:
-                        map(lambda c: c.close(), self.consumers.values())
-                        self.consumers = []
+                        # 显式 close 每个 consumer(原 map() 惰性从不执行, 停机时 Kafka client 资源未释放),
+                        # 并把 self.consumers 复位为 dict(原误设为 list, 会与 run_poller 的 .values() 抢跑抛 AttributeError)
+                        for consumer in self.consumers.values():
+                            consumer.close()
+                        self.consumers = {}
                 break
 
             time.sleep(15)

@@ -256,3 +256,23 @@ class TestGuardDaemon:
         acquired = p.consumers_lock.acquire(blocking=False)
         assert acquired is True  # 锁已释放, 下次进入/poller 不会被堵
         p.consumers_lock.release()
+
+    def test_consumer_manager_closes_consumers_on_stop(self, mock_time):
+        # 停机分支必须真正 close 每个 consumer(原 map() 惰性从不执行)并把 self.consumers 复位为 dict
+        service = mock.MagicMock()
+        p = AccessRealTimeDataProcess(service)
+        p.ip = "127.0.0.1"
+        c1 = FakeKafkaConsumer()
+        c1.topics = {"t1"}
+        c2 = FakeKafkaConsumer()
+        c2.topics = {"t2"}
+        p.consumers = {"kafka1.svc:9092": c1, "kafka2.svc:9092": c2}
+        # topics 与现有 consumer 订阅一致 => 不进入 create/update/delete 分支, 直接走停机清理
+        p.cache.hset(p.topic_cache_key, p.ip, json.dumps({"kafka1.svc:9092|t1": "", "kafka2.svc:9092|t2": ""}))
+        p._stop_signal = True
+
+        p.run_consumer_manager(once=True)
+
+        c1.close.assert_called_once()
+        c2.close.assert_called_once()
+        assert p.consumers == {}  # 复位为 dict, 而非 list
