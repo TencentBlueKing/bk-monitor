@@ -15,7 +15,11 @@ from .create_action import (  # noqa
     create_actions,
     create_interval_actions,
 )
-from .issue_tasks import sync_issue_alert_stats  # noqa
+from .issue_tasks import (  # noqa
+    generate_issue_llm_title,
+    refresh_issue_llm_title_examples,
+    sync_issue_alert_stats,
+)
 from .noise_reduce import (  # noqa
     NoiseReduceExecuteProcessor,
     NoiseReduceRecordProcessor,

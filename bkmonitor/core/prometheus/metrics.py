@@ -420,6 +420,30 @@ ISSUE_LEGACY_FALLBACK_HIT = Counter(
     labelnames=("bk_biz_id",),
 )
 
+ISSUE_LLM_TITLE_TOTAL = Counter(
+    name="bkmonitor_issue_llm_title_total",
+    documentation="Issue LLM 标题生成结果计数",
+    # result 取值：
+    #   - ok / shadow_ok：生成并写入 / shadow 模式生成未写入
+    #   - empty_log：关联日志为空（非日志类告警或取数失败），不适用
+    #   - ratelimited：业务级限流丢弃
+    #   - timeout：soft_time_limit 触发（取日志或调 LLM 阶段）
+    #   - llm_error：LLM 调用 / Issue 读写失败
+    #   - invalid_output：输出校验不过（多行/禁项/空）
+    #   - name_changed：CAS 失败（用户已改名），放弃写入
+    #   - name_duplicated：业务内标题撞名，保留默认名
+    # examples_source 取值 strategy|biz|static：自动 few-shot 是否生效及其层级；
+    # auto 桶（strategy/biz）违例率劣化是 few-shot 漂移信号，回退 = 停周期任务等缓存过期
+    labelnames=("bk_biz_id", "result", "examples_source"),
+)
+
+ISSUE_LLM_TITLE_STEP_SECONDS = Histogram(
+    name="bkmonitor_issue_llm_title_step_seconds",
+    documentation="Issue LLM 标题生成分步耗时。step=fetch_log（关联日志取数，长尾在日志平台查询侧）| llm_call",
+    labelnames=("step",),
+    buckets=(0.1, 0.5, 1, 2, 5, 10, 20, 30, 60, INF),
+)
+
 # composite
 COMPOSITE_PROCESS_TIME = Histogram(
     name="bkmonitor_composite_process_time",
