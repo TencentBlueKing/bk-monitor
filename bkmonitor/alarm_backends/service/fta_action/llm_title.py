@@ -187,9 +187,9 @@ def acquire_rate_limit_token(bk_biz_id) -> bool:
     INCR+EXPIRE 走 pipeline 原子执行，避免进程崩溃留下无 TTL 的残留 key。
     """
     try:
-        limit = int(getattr(settings, "ISSUE_LLM_TITLE_RATE_LIMIT_PER_MINUTE", 30))
+        limit = int(getattr(settings, "ISSUE_LLM_TITLE_RATE_LIMIT_PER_MINUTE", 100))
     except (TypeError, ValueError):
-        limit = 30
+        limit = 100
     if limit <= 0:
         return True
     minute = int(time.time()) // 60

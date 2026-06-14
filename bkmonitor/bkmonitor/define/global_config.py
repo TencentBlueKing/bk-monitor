@@ -67,12 +67,13 @@ ADVANCED_OPTIONS = OrderedDict(
         # 模板须含 {log} 占位符；配置前用 alarm_backends.service.fta_action.llm_title.validate_biz_template 校验。
         # 非字符串值（如误配成 dict）会被运行时校验拒绝并 fallback 内置模板，不影响任务。
         ("ISSUE_LLM_TITLE_BIZ_TEMPLATES", slz.DictField(label="Issue LLM 标题业务级模板", default={})),
-        # shadow 模式：只生成+打日志+打点，不写 Issue name；灰度第一阶段人工抽检质量后关闭
-        ("ISSUE_LLM_TITLE_SHADOW", slz.BooleanField(label="Issue LLM 标题 shadow 模式", default=True)),
+        # shadow 模式：只生成+打日志+打点，不写 Issue name。默认关闭（开白名单即直接改名）；
+        # 需先抽检质量的环境可手工开启 True 观察一段时间再关。
+        ("ISSUE_LLM_TITLE_SHADOW", slz.BooleanField(label="Issue LLM 标题 shadow 模式", default=False)),
         # 默认 hy3-preview：经 trpc/C++/etcd 真实日志样本实测（6/6 零幻觉）；改模型走 GlobalConfig 覆盖
         ("ISSUE_LLM_TITLE_MODEL", slz.CharField(label="Issue LLM 标题生成模型", default="hy3-preview")),
         # 业务级限流阈值（次/分钟），<=0 表示不限流
-        ("ISSUE_LLM_TITLE_RATE_LIMIT_PER_MINUTE", slz.IntegerField(label="Issue LLM 标题生成限流", default=30)),
+        ("ISSUE_LLM_TITLE_RATE_LIMIT_PER_MINUTE", slz.IntegerField(label="Issue LLM 标题生成限流", default=100)),
         ("BK_INCIDENT_BUILTIN_CONFIG", slz.DictField(label="故障分析内置通知配置", default={})),
         ("BK_DATA_PROJECT_ID", slz.IntegerField(label="监控在计算平台使用的公共项目ID", default=1)),
         ("BK_DATA_BK_BIZ_ID", slz.IntegerField(label="监控在计算平台使用的公共业务ID", default=2)),

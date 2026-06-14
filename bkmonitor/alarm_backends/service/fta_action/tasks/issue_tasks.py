@@ -1018,8 +1018,8 @@ def generate_issue_llm_title(issue_id: str, bk_biz_id, default_name: str, alert_
     if default_name.startswith("[回归]"):
         title = f"[回归] {title}"[: llm_title.TITLE_MAX_LEN]
 
-    if getattr(settings, "ISSUE_LLM_TITLE_SHADOW", True):
-        # shadow 模式：只生成+打日志+打点，不写 name。灰度第一阶段人工抽检质量后再放开。
+    if getattr(settings, "ISSUE_LLM_TITLE_SHADOW", False):
+        # shadow 模式：只生成+打日志+打点，不写 name。默认关闭，需先抽检质量的环境手工开启。
         logger.info("[issue][llm_title] shadow, issue(%s) default(%s) generated(%s)", issue_id, default_name, title)
         _finish("shadow_ok")
         return
