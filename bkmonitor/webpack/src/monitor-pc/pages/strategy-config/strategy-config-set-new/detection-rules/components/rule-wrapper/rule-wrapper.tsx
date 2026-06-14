@@ -199,6 +199,7 @@ export default class RuleWrapper extends tsc<RuleWrapperProps, RuleWrapperEvent>
           <Threshold
             ref='ruleRef'
             data={this.data}
+            metricData={this.metricData}
             otherSelectRuleData={this.otherSelectRuleData}
             readonly={this.readonly}
             unit={this.unit}
