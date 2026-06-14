@@ -414,3 +414,55 @@ class TestRefreshExamplesGate:
         monkeypatch.setattr(IssueActivityDocument, "search", classmethod(fake_search))
         it.refresh_issue_llm_title_examples()
         assert marker == [1]
+
+
+class TestChatCompletionResourceContract:
+    """api.aidev.ChatCompletionResource 的 endpoint/凭据契约（防回退到 403 的 appspace 旧路径）。
+
+    背景：get_llm(BLUEKING) 走 /appspace/gateway/llm/v1（平台自身 app bkmonitorv3，对目标模型 403）；
+    本 Resource 必须走 /openapi/aidev/gateway/llm/v1 + AIDEV_AGENT 凭据——该 URL 经 django shell 实测
+    可用，且与 bkte 后台 env BK_AIDEV_AGENT_LLM_GW_ENDPOINT 一致。本测试固化此契约。
+    """
+
+    def _cls(self):
+        from api.aidev.default import ChatCompletionResource
+
+        return ChatCompletionResource
+
+    def test_endpoint_is_openapi_not_appspace(self):
+        cls = self._cls()
+        assert cls.action == "/openapi/aidev/gateway/llm/v1/chat/completions"
+        assert "appspace" not in cls.action  # 防误改回 403 的旧路径
+
+    def test_openai_format_contract(self):
+        cls = self._cls()
+        assert cls.IS_STANDARD_FORMAT is False  # OpenAI 响应非蓝鲸 {result,code,data} 信封，整体透传
+        assert cls.INSERT_BK_USERNAME_TO_REQUEST_DATA is False  # 不向 OpenAI messages 注入 bk_username
+        assert cls.method == "POST"
+
+    def test_headers_use_aidev_agent_credentials(self, monkeypatch):
+        from api.aidev.default import AidevAPIGWResource, ChatCompletionResource
+
+        monkeypatch.setattr(settings, "AIDEV_AGENT_APP_CODE", "aidev-bkmonitor", raising=False)
+        monkeypatch.setattr(settings, "AIDEV_AGENT_APP_SECRET", "secret-x", raising=False)
+        # 父类返回平台自身 app 的 header，子类应覆盖成 AIDEV_AGENT 凭据
+        monkeypatch.setattr(
+            AidevAPIGWResource,
+            "get_headers",
+            lambda self: {"x-bkapi-authorization": json.dumps({"bk_app_code": "bkmonitorv3", "bk_app_secret": "old"})},
+        )
+        headers = ChatCompletionResource.__new__(ChatCompletionResource).get_headers()
+        auth = json.loads(headers["x-bkapi-authorization"])
+        assert auth["bk_app_code"] == "aidev-bkmonitor"  # 用 agent 凭据，不是平台自身（后者 403）
+        assert auth["bk_app_secret"] == "secret-x"
+
+    def test_headers_fallback_when_no_agent_credentials(self, monkeypatch):
+        from api.aidev.default import AidevAPIGWResource, ChatCompletionResource
+
+        monkeypatch.setattr(settings, "AIDEV_AGENT_APP_CODE", "", raising=False)
+        monkeypatch.setattr(settings, "AIDEV_AGENT_APP_SECRET", "", raising=False)
+        base = {"x-bkapi-authorization": json.dumps({"bk_app_code": "plat", "bk_app_secret": "p"})}
+        monkeypatch.setattr(AidevAPIGWResource, "get_headers", lambda self: dict(base))
+        headers = ChatCompletionResource.__new__(ChatCompletionResource).get_headers()
+        # 未配 agent 凭据时不覆盖，沿用父类（不报错）
+        assert json.loads(headers["x-bkapi-authorization"])["bk_app_code"] == "plat"
