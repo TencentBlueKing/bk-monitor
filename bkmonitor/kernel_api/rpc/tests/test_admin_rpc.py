@@ -178,6 +178,7 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.config_delivery.batch_status",
         "admin.render_image_task.list",
         "admin.render_image_task.detail",
+        "admin.token.resolve",
     } <= func_names
 
     detail = KernelRPCRegistry.get_function_detail("admin.result_table.detail")
@@ -2509,3 +2510,496 @@ def test_bcs_cluster_list_params_schema():
     assert detail is not None
     assert "bk_data_id" in detail["params_schema"]
     assert "status" in detail["params_schema"]
+
+
+# ----- admin.token.resolve -----
+
+from kernel_api.rpc.functions.admin import token as admin_token  # noqa: E402
+
+
+class _TokenFirstQuerySet:
+    """简单 stub：只支持 filter().filter().order_by().first()，按 token 精确匹配。"""
+
+    def __init__(self, items):
+        self._items = list(items)
+
+    def filter(self, *args, **kwargs):
+        items = self._items
+        for key, value in kwargs.items():
+            if key.endswith("__in"):
+                field = key[: -len("__in")]
+                expected = set(value)
+                items = [item for item in items if getattr(item, field, None) in expected]
+                continue
+            items = [item for item in items if getattr(item, key, None) == value]
+        # Q 对象用于 LogGroup 的 token / bk_data_token 兜底分支
+        if args:
+            from django.db.models import Q
+
+            def matches(item, query):
+                connector = getattr(query, "connector", "AND")
+                results = []
+                for child in query.children:
+                    if isinstance(child, Q):
+                        results.append(matches(item, child))
+                    else:
+                        field, expected = child
+                        results.append(getattr(item, field, None) == expected)
+                return any(results) if connector == "OR" else all(results)
+
+            for query in args:
+                if isinstance(query, Q):
+                    items = [item for item in items if matches(item, query)]
+        return _TokenFirstQuerySet(items)
+
+    def order_by(self, *fields):
+        return self
+
+    def first(self):
+        return self._items[0] if self._items else None
+
+
+def _stub_apm_application(token: str = "apm-token"):
+    return SimpleNamespace(
+        id=1,
+        app_name="checkout",
+        app_alias="结算服务",
+        bk_tenant_id="system",
+        bk_biz_id=2,
+        token=token,
+        update_time=datetime(2026, 5, 28, 10, 0, 0),
+    )
+
+
+def _stub_time_series_group(token: str = "metric-token"):
+    return SimpleNamespace(
+        time_series_group_id=1573194,
+        time_series_group_name="bkop-k8smetricdataid",
+        bk_tenant_id="system",
+        bk_biz_id=2,
+        bk_data_id=1573194,
+        table_id="2_bkop_k8s_metric.__default__",
+        is_enable=True,
+        is_delete=False,
+        token=token,
+        last_modify_time=datetime(2026, 5, 28, 10, 0, 0),
+    )
+
+
+def _stub_event_group(token: str = "event-token"):
+    return SimpleNamespace(
+        event_group_id=2001,
+        event_group_name="custom_event_checkout",
+        bk_tenant_id="system",
+        bk_biz_id=2,
+        bk_data_id=50070,
+        table_id="2_bkmonitor_event.checkout",
+        is_enable=True,
+        is_delete=False,
+        token=token,
+        last_modify_time=datetime(2026, 5, 28, 10, 0, 0),
+        STORAGE_FIELD_LIST=[],
+    )
+
+
+def _stub_log_group(token: str = "log-token", *, bk_data_token: str | None = None):
+    return SimpleNamespace(
+        log_group_id=3001,
+        log_group_name="apm_log_checkout",
+        bk_tenant_id="system",
+        bk_biz_id=2,
+        bk_data_id=50020,
+        table_id="3_bklog.demo",
+        is_enable=True,
+        is_delete=False,
+        token=token,
+        bk_data_token=bk_data_token,
+        last_modify_time=datetime(2026, 5, 28, 10, 0, 0),
+    )
+
+
+def _patch_token_models(
+    monkeypatch,
+    *,
+    apm_apps=(),
+    ts_groups=(),
+    event_groups=(),
+    log_groups=(),
+    log_datasource=None,
+    apm_metric_datasources=(),
+    apm_trace_datasources=(),
+    apm_log_datasources=(),
+    apm_profile_datasources=(),
+):
+    monkeypatch.setattr(
+        admin_token.apm_models,
+        "ApmApplication",
+        SimpleNamespace(objects=_TokenFirstQuerySet(apm_apps)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        admin_token.apm_models,
+        "MetricDataSource",
+        SimpleNamespace(objects=_TokenFirstQuerySet(apm_metric_datasources)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        admin_token.apm_models,
+        "TraceDataSource",
+        SimpleNamespace(objects=_TokenFirstQuerySet(apm_trace_datasources)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        admin_token.apm_models,
+        "LogDataSource",
+        SimpleNamespace(objects=_TokenFirstQuerySet(apm_log_datasources)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        admin_token.apm_models,
+        "ProfileDataSource",
+        SimpleNamespace(objects=_TokenFirstQuerySet(apm_profile_datasources)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        admin_token.metadata_models,
+        "TimeSeriesGroup",
+        SimpleNamespace(objects=_TokenFirstQuerySet(ts_groups)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        admin_token.metadata_models,
+        "EventGroup",
+        SimpleNamespace(objects=_TokenFirstQuerySet(event_groups)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        admin_token.metadata_models,
+        "LogGroup",
+        SimpleNamespace(objects=_TokenFirstQuerySet(log_groups)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        admin_token.metadata_models,
+        "DataSource",
+        SimpleNamespace(objects=_TokenFirstQuerySet([log_datasource] if log_datasource else [])),
+        raising=False,
+    )
+    # 跳过 datasource / service count 的内部查询，避免触达真实数据库
+    monkeypatch.setattr(
+        admin_token,
+        "_load_apm_datasource_maps",
+        lambda apps: {datasource_type: {} for datasource_type in admin_apm.DATASOURCE_TYPES},
+    )
+    monkeypatch.setattr(admin_token, "_load_service_count_map", lambda apps: {})
+
+
+def test_admin_token_resolve_function_registered():
+    detail = KernelRPCRegistry.get_function_detail("admin.token.resolve")
+    assert detail is not None
+    assert "token" in detail["params_schema"]
+    assert detail["params_schema"]["bk_tenant_id"]
+
+
+def test_admin_token_resolve_returns_unmatched_for_blank_token():
+    result = admin_token.resolve_token({"bk_tenant_id": "system", "token": ""})
+
+    assert result["meta"]["safety_level"] == "read"
+    assert result["data"]["matched"] is False
+    assert result["data"]["kind"] is None
+    assert result["data"]["apm_application"] is None
+    assert result["data"]["custom_report"] is None
+    assert "token 为空" in result["data"]["warnings"]
+
+
+def test_admin_token_resolve_hits_apm_application(monkeypatch):
+    apm_app = _stub_apm_application(token="bkapm_1_a1b2c3d4e5f6")
+    _patch_token_models(monkeypatch, apm_apps=[apm_app])
+
+    result = admin_token.resolve_token(
+        {"bk_tenant_id": "system", "token": "bkapm_1_a1b2c3d4e5f6"}
+    )
+
+    assert result["data"]["matched"] is True
+    assert result["data"]["kind"] == "apm"
+    assert result["data"]["apm_application"]["application_id"] == 1
+    assert result["data"]["apm_application"]["app_token"] == "bkapm_1_a1b2c3d4e5f6"
+    assert result["data"]["custom_report"] is None
+
+
+def test_admin_token_resolve_hits_time_series_group(monkeypatch):
+    ts_group = _stub_time_series_group(token="bkmetric_1573194_a1b2c3d4e5f6")
+    _patch_token_models(monkeypatch, ts_groups=[ts_group])
+
+    result = admin_token.resolve_token(
+        {"bk_tenant_id": "system", "token": "bkmetric_1573194_a1b2c3d4e5f6"}
+    )
+
+    assert result["data"]["matched"] is True
+    assert result["data"]["kind"] == "custom_metric"
+    assert result["data"]["custom_report"]["report_type"] == "custom_metric"
+    assert result["data"]["custom_report"]["group_id"] == 1573194
+    assert result["data"]["custom_report"]["token"] == "bkmetric_1573194_a1b2c3d4e5f6"
+    assert result["data"]["apm_application"] is None
+
+
+def test_admin_token_resolve_hits_event_group(monkeypatch):
+    event_group = _stub_event_group(token="bkevent_2001_e5f6a1b2c3d4")
+    _patch_token_models(monkeypatch, event_groups=[event_group])
+
+    result = admin_token.resolve_token(
+        {"bk_tenant_id": "system", "token": "bkevent_2001_e5f6a1b2c3d4"}
+    )
+
+    assert result["data"]["matched"] is True
+    assert result["data"]["kind"] == "custom_event"
+    assert result["data"]["custom_report"]["report_type"] == "custom_event"
+    assert result["data"]["custom_report"]["group_id"] == 2001
+
+
+def test_admin_token_resolve_falls_back_to_log_group_legacy_field(monkeypatch):
+    # 老数据：token 写到了已废弃的 bk_data_token 字段
+    log_group = _stub_log_group(token="", bk_data_token="bklog_3001_legacy")
+    _patch_token_models(monkeypatch, log_groups=[log_group])
+
+    result = admin_token.resolve_token(
+        {"bk_tenant_id": "system", "token": "bklog_3001_legacy"}
+    )
+
+    assert result["data"]["matched"] is True
+    assert result["data"]["kind"] == "custom_log"
+    assert result["data"]["custom_report"]["report_type"] == "custom_log"
+    assert result["data"]["custom_report"]["token"] == "bklog_3001_legacy"
+
+
+def test_admin_token_resolve_returns_unmatched_when_nothing_found(monkeypatch):
+    _patch_token_models(monkeypatch)
+
+    result = admin_token.resolve_token(
+        {"bk_tenant_id": "system", "token": "definitely-missing"}
+    )
+
+    assert result["data"]["matched"] is False
+    assert result["data"]["kind"] is None
+    assert result["data"]["token"] == "definitely-missing"
+    assert result["data"]["apm_application"] is None
+    assert result["data"]["custom_report"] is None
+
+
+# ----- AES 反向解析 fallback -----
+
+
+def _build_v0_apm_token(metric_data_id, trace_data_id, log_data_id, bk_biz_id, app_name):
+    from bkmonitor.utils.cipher import transform_data_id_to_token
+
+    return transform_data_id_to_token(
+        metric_data_id=metric_data_id,
+        trace_data_id=trace_data_id,
+        log_data_id=log_data_id,
+        bk_biz_id=bk_biz_id,
+        app_name=app_name,
+    )
+
+
+def _build_v1_apm_token(metric_data_id, trace_data_id, log_data_id, profile_data_id, bk_biz_id, app_name):
+    from bkmonitor.utils.cipher import transform_data_id_to_v1_token
+
+    return transform_data_id_to_v1_token(
+        metric_data_id=metric_data_id,
+        trace_data_id=trace_data_id,
+        log_data_id=log_data_id,
+        profile_data_id=profile_data_id,
+        bk_biz_id=bk_biz_id,
+        app_name=app_name,
+    )
+
+
+def test_parse_apm_token_returns_none_for_garbage():
+    assert admin_token.parse_apm_token("not-a-token") is None
+    assert admin_token.parse_apm_token("") is None
+
+
+def test_parse_apm_token_handles_v0_token():
+    token = _build_v0_apm_token(
+        metric_data_id=1001,
+        trace_data_id=1002,
+        log_data_id=1003,
+        bk_biz_id=42,
+        app_name="checkout",
+    )
+
+    parsed = admin_token.parse_apm_token(token)
+
+    assert parsed is not None
+    assert parsed.version == "v0"
+    assert parsed.metric_data_id == 1001
+    assert parsed.trace_data_id == 1002
+    assert parsed.log_data_id == 1003
+    assert parsed.profile_data_id == -1
+    assert parsed.bk_biz_id == 42
+    assert parsed.app_name == "checkout"
+
+
+def test_parse_apm_token_handles_v1_token():
+    token = _build_v1_apm_token(
+        metric_data_id=2001,
+        trace_data_id=2002,
+        log_data_id=2003,
+        profile_data_id=2004,
+        bk_biz_id=88,
+        app_name="payment",
+    )
+
+    parsed = admin_token.parse_apm_token(token)
+
+    assert parsed is not None
+    assert parsed.version == "v1"
+    assert parsed.metric_data_id == 2001
+    assert parsed.profile_data_id == 2004
+    assert parsed.bk_biz_id == 88
+    assert parsed.app_name == "payment"
+
+
+def test_admin_token_resolve_aes_fallback_finds_app_by_biz_and_name(monkeypatch):
+    apm_app = _stub_apm_application(token="bkapm_db_token")
+    apm_app.bk_biz_id = 42
+    apm_app.app_name = "checkout"
+    token = _build_v1_apm_token(
+        metric_data_id=50010,
+        trace_data_id=56020,
+        log_data_id=50020,
+        profile_data_id=57020,
+        bk_biz_id=42,
+        app_name="checkout",
+    )
+    # DB 字段精确匹配 miss（apm_app.token != AES token），需要走解密 fallback
+    _patch_token_models(monkeypatch, apm_apps=[apm_app])
+
+    result = admin_token.resolve_token({"bk_tenant_id": "system", "token": token})
+
+    assert result["data"]["matched"] is True
+    assert result["data"]["kind"] == "apm"
+    assert result["data"]["apm_application"]["application_id"] == 1
+    assert result["data"]["apm_application"]["app_name"] == "checkout"
+    assert result["data"]["custom_report"] is None
+    assert "AES 反向解析" in result["data"]["warnings"][0]
+
+
+def test_admin_token_resolve_aes_fallback_finds_app_via_data_id_when_app_name_renamed(monkeypatch):
+    """app_name 在 token 加密之后被重命名 → biz+name miss，但 data_id 仍能反查回应用。
+
+    场景前提：token 里含 trace_data_id（v1 完整 APM token），所以走 APM 分支；
+    然后 (bk_biz_id, app_name) 精确匹配落空，靠 TraceDataSource.bk_data_id 回查应用。
+    """
+    apm_app = _stub_apm_application(token="bkapm_db_token")
+    apm_app.bk_biz_id = 42
+    apm_app.app_name = "checkout-renamed"  # 与 token 中编码的 app_name 不同
+    trace_ds = SimpleNamespace(bk_data_id=56020, bk_biz_id=42, app_name="checkout-renamed")
+    token = _build_v1_apm_token(
+        metric_data_id=50010,
+        trace_data_id=56020,
+        log_data_id=-1,
+        profile_data_id=-1,
+        bk_biz_id=42,
+        app_name="checkout",  # 旧 app_name
+    )
+
+    _patch_token_models(
+        monkeypatch,
+        apm_apps=[apm_app],
+        apm_trace_datasources=[trace_ds],
+    )
+
+    result = admin_token.resolve_token({"bk_tenant_id": "system", "token": token})
+
+    assert result["data"]["matched"] is True
+    assert result["data"]["kind"] == "apm"
+    assert result["data"]["apm_application"]["app_name"] == "checkout-renamed"
+
+
+def test_admin_token_resolve_aes_fallback_returns_unmatched_when_decryptable_but_no_app(monkeypatch):
+    """解密成功但应用已被删除，返回 unmatched 而非 500。"""
+    token = _build_v1_apm_token(
+        metric_data_id=99991,
+        trace_data_id=99992,
+        log_data_id=99993,
+        profile_data_id=99994,
+        bk_biz_id=999,
+        app_name="ghost",
+    )
+    _patch_token_models(monkeypatch)  # 数据库里啥都没有
+
+    result = admin_token.resolve_token({"bk_tenant_id": "system", "token": token})
+
+    assert result["data"]["matched"] is False
+    assert result["data"]["kind"] is None
+    assert result["data"]["apm_application"] is None
+    assert result["data"]["custom_report"] is None
+
+
+def test_admin_token_resolve_aes_fallback_metric_only_routes_to_time_series_group(monkeypatch):
+    """解密后仅含 metric_data_id（无 trace 无 log）→ 自定义指标。"""
+    ts_group = _stub_time_series_group(token="dummy-db-token")
+    ts_group.bk_data_id = 1573194
+    token = _build_v0_apm_token(
+        metric_data_id=1573194,
+        trace_data_id=-1,
+        log_data_id=-1,
+        bk_biz_id=2,
+        app_name="bkop-k8smetricdataid",
+    )
+    _patch_token_models(monkeypatch, ts_groups=[ts_group])
+
+    result = admin_token.resolve_token({"bk_tenant_id": "system", "token": token})
+
+    assert result["data"]["matched"] is True
+    assert result["data"]["kind"] == "custom_metric"
+    assert result["data"]["custom_report"]["group_id"] == 1573194
+    assert result["data"]["apm_application"] is None
+    assert "AES 反向解析" in result["data"]["warnings"][0]
+
+
+def test_admin_token_resolve_aes_fallback_log_only_routes_to_log_group(monkeypatch):
+    """解密后仅含 log_data_id（无 trace 无 metric）→ 自定义日志。"""
+    log_group = _stub_log_group(token="dummy-db-token")
+    log_group.bk_data_id = 50020
+    token = _build_v0_apm_token(
+        metric_data_id=-1,
+        trace_data_id=-1,
+        log_data_id=50020,
+        bk_biz_id=2,
+        app_name="apm_log_checkout",
+    )
+    _patch_token_models(monkeypatch, log_groups=[log_group])
+
+    result = admin_token.resolve_token({"bk_tenant_id": "system", "token": token})
+
+    assert result["data"]["matched"] is True
+    assert result["data"]["kind"] == "custom_log"
+    assert result["data"]["custom_report"]["report_type"] == "custom_log"
+    assert result["data"]["apm_application"] is None
+    assert "AES 反向解析" in result["data"]["warnings"][0]
+
+
+def test_admin_token_resolve_aes_fallback_metric_and_log_combo_returns_unmatched(monkeypatch):
+    """解密后 metric+log 同时存在但无 trace → 不属于任何明确分类，返回 unmatched。"""
+    ts_group = _stub_time_series_group()
+    ts_group.bk_data_id = 1573194
+    log_group = _stub_log_group()
+    log_group.bk_data_id = 50020
+    token = _build_v0_apm_token(
+        metric_data_id=1573194,
+        trace_data_id=-1,
+        log_data_id=50020,
+        bk_biz_id=2,
+        app_name="ambiguous",
+    )
+    _patch_token_models(monkeypatch, ts_groups=[ts_group], log_groups=[log_group])
+
+    result = admin_token.resolve_token({"bk_tenant_id": "system", "token": token})
+
+    assert result["data"]["matched"] is False
+    assert result["data"]["kind"] is None
+    assert result["data"]["apm_application"] is None
+    assert result["data"]["custom_report"] is None
+

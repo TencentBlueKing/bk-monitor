@@ -28,6 +28,7 @@ from . import (
     space,
     storage,
     tenant,
+    token,
     uptime_check,
     vm_short_link,
 )
@@ -52,6 +53,7 @@ __all__ = [
     "space",
     "storage",
     "tenant",
+    "token",
     "uptime_check",
     "vm_short_link",
 ]
