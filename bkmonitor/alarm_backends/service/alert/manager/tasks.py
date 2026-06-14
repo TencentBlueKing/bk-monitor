@@ -11,8 +11,11 @@ specific language governing permissions and limitations under the License.
 import logging
 import time
 
+from elasticsearch.exceptions import TransportError
 from elasticsearch.helpers import BulkIndexError
+from elasticsearch.helpers.errors import ScanError
 from elasticsearch_dsl import Q
+from redis.exceptions import RedisError
 
 from alarm_backends.constants import CONST_ONE_DAY, CONST_ONE_HOUR
 from alarm_backends.core.alert.alert import Alert, AlertCache, AlertKey
@@ -33,6 +36,12 @@ BATCH_SIZE = 200
 DEFAULT_CHECK_INTERVAL = 60
 # ES 深分页每页大小
 SCAN_PAGE_SIZE = 5000
+
+# 瞬态基础设施异常: 命中这些异常时, 本批告警未被 finalize, 会由下一周期重跑(expires=120 + 周期维护),
+# 不应按硬失败计入处理成功率, 否则一次节点抖动 / ES 瞬态会被批级放大成整批失败、压垮成功率指标。
+# 覆盖 Redis 连接 / 超时 / 响应 / pipeline 结果错位(RedisError 基类, 含 PipelineResultMismatch)
+# 与 ES 传输(含 429 / 500 / scroll context 超限)及 scan 部分分片错误。
+TRANSIENT_RETRY_EXCEPTIONS = (RedisError, TransportError, ScanError)
 
 
 def _search_after_hits(search, page_size: int):
@@ -268,8 +277,16 @@ def handle_alerts(alert_keys: list[AlertKey]):
     # 1. 周期维护未恢复的告警， 按 total=200 分批跑
     # 2. 产生新告警时，由alert.builder 立刻执行一次周期任务管理， total 较小。
     # 因此会存在耗时跟随total值的变化抖动。所以这里算单条告警的处理平均耗时才能体现出实际情况
-    metrics.ALERT_MANAGE_TIME.labels(status=metrics.StatusEnum.from_exc(exc), exception=exc).observe(cost / total)
-    metrics.ALERT_MANAGE_COUNT.labels(status=metrics.StatusEnum.from_exc(exc), exception=exc).inc(total)
+    if exc is not None and isinstance(exc, TRANSIENT_RETRY_EXCEPTIONS):
+        # 瞬态基础设施错误: 本批未 finalize、将下周期重跑，计入 deferred 而非 failed，
+        # 避免把一次节点抖动 / ES 瞬态放大成整批失败、压垮处理成功率指标。
+        metrics.ALERT_MANAGE_TIME.labels(status=metrics.StatusEnum.DEFERRED, exception=exc).observe(cost / total)
+        metrics.ALERT_MANAGE_DEFERRED_COUNT.labels(exception=exc).inc(total)
+    else:
+        # 成功，或非瞬态(逻辑类)异常: 保留原有 success / failed 计数与可见性。
+        status = metrics.StatusEnum.from_exc(exc)
+        metrics.ALERT_MANAGE_TIME.labels(status=status, exception=exc).observe(cost / total)
+        metrics.ALERT_MANAGE_COUNT.labels(status=status, exception=exc).inc(total)
     metrics.report_all()
 
 
