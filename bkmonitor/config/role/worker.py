@@ -550,6 +550,15 @@ QOS_ALERT_WINDOW = 60
 # （metric 由 ISSUE_ACTIVE_COUNT_KEY 5min Redis cache 驱动，存在 ≤5min 滞后）。
 ISSUE_MAX_ACTIVE_PER_STRATEGY = 500
 
+# Issue LLM 标题生成动态配置的静态占位（值与 bkmonitor/define/global_config.py 的 serializer default 对齐）。
+# 必须保留：DynamicSettings.__getattr__ 读 DB 前先 getattr 静态 settings（dynamic_settings.py L74），
+# 缺占位会抛 AttributeError 短路掉 DB 查询，导致 GlobalConfig 页面改的值被静默忽略、功能无法开启。
+ISSUE_LLM_TITLE_BIZ_WHITE_LIST = []
+ISSUE_LLM_TITLE_BIZ_TEMPLATES = {}
+ISSUE_LLM_TITLE_SHADOW = False
+ISSUE_LLM_TITLE_MODEL = "hy3-preview"
+ISSUE_LLM_TITLE_RATE_LIMIT_PER_MINUTE = 100
+
 # 第三方事件接入白名单
 BIZ_WHITE_LIST_FOR_3RD_EVENT = []
 
