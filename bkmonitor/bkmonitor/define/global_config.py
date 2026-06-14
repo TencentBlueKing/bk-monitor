@@ -64,7 +64,9 @@ ADVANCED_OPTIONS = OrderedDict(
         # Issue LLM 标题生成：白名单为空 = 功能关闭（注意与 AIOPS 白名单"空=全开"语义不同），-1 表示全量
         ("ISSUE_LLM_TITLE_BIZ_WHITE_LIST", slz.ListField(label="Issue LLM 标题生成业务白名单", default=[])),
         # 业务级 prompt 模板：{bk_biz_id: 模板文本}（一业务一模板字符串，自适应模板已覆盖日志行/事件两形态）。
-        # 模板须含 {log} 占位符；配置前用 alarm_backends.service.fta_action.llm_title.validate_biz_template 校验。
+        # 模板须含 {log} 占位符。配置走 django shell 辅助函数（自带校验+安全合并，别直接改这个共用 dict
+        # 否则会抹掉其他业务模板）：alarm_backends.service.fta_action.llm_title.set_biz_template(biz_id, 模板)；
+        # 范例常量 EXAMPLE_BIZ_TEMPLATE，配置前可用 preview_biz_template(biz_id) 预览实际 prompt。
         # 非字符串值（如误配成 dict）会被运行时校验拒绝并 fallback 内置模板，不影响任务。
         ("ISSUE_LLM_TITLE_BIZ_TEMPLATES", slz.DictField(label="Issue LLM 标题业务级模板", default={})),
         # shadow 模式：只生成+打日志+打点，不写 Issue name。默认关闭（开白名单即直接改名）；

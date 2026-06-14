@@ -106,6 +106,36 @@ class TestResolveTemplate:
         assert llm_title.resolve_template(2) == llm_title.ADAPTIVE_TEMPLATE
 
 
+class TestSetBizTemplate:
+    """django shell 快速配置辅助。重点保证合并不抹掉其他业务（直接赋值的 footgun）。"""
+
+    def test_example_constant_is_valid(self):
+        # 范例常量本身必须能过校验，否则误导使用者
+        llm_title.validate_biz_template(llm_title.EXAMPLE_BIZ_TEMPLATE)
+
+    def test_merge_keeps_other_biz(self, monkeypatch):
+        monkeypatch.setattr(settings, "ISSUE_LLM_TITLE_BIZ_TEMPLATES", {"2": "旧 {log}"}, raising=False)
+        result = llm_title.set_biz_template(3, "新模板 {log}")
+        assert result == {"2": "旧 {log}", "3": "新模板 {log}"}
+        assert settings.ISSUE_LLM_TITLE_BIZ_TEMPLATES["2"] == "旧 {log}"  # 未被抹掉
+
+    def test_delete_removes_only_target(self, monkeypatch):
+        monkeypatch.setattr(settings, "ISSUE_LLM_TITLE_BIZ_TEMPLATES", {"2": "a {log}", "3": "b {log}"}, raising=False)
+        result = llm_title.set_biz_template(3)  # 不传模板 = 删除
+        assert result == {"2": "a {log}"}
+
+    def test_invalid_template_rejected_before_write(self, monkeypatch):
+        monkeypatch.setattr(settings, "ISSUE_LLM_TITLE_BIZ_TEMPLATES", {"2": "a {log}"}, raising=False)
+        with pytest.raises(ValueError):
+            llm_title.set_biz_template(3, "缺日志占位")  # 缺 {log}
+        assert settings.ISSUE_LLM_TITLE_BIZ_TEMPLATES == {"2": "a {log}"}  # 写入前就拒绝，无副作用
+
+    def test_preview_uses_effective_template(self, monkeypatch):
+        monkeypatch.setattr(settings, "ISSUE_LLM_TITLE_BIZ_TEMPLATES", {"2": "业务模板 头部\n{log}"}, raising=False)
+        out = llm_title.preview_biz_template(2, sample_log="样例日志行")
+        assert "业务模板 头部" in out and "样例日志行" in out
+
+
 class TestValidateTitle:
     def test_normal(self):
         assert (

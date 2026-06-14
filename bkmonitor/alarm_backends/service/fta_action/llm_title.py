@@ -215,3 +215,66 @@ def is_llm_title_enabled_for_biz(bk_biz_id) -> bool:
     if not normalized:
         return False
     return -1 in normalized or int(bk_biz_id) in normalized
+
+
+# ====================== django shell 运维辅助 ====================== #
+# 业务级模板是低频手工配置、无管理页面，故提供以下 shell 辅助；线上业务逻辑不依赖它们。
+
+# 可直接复制改用的业务模板范例（须含 {log}；其余占位符可选）。
+EXAMPLE_BIZ_TEMPLATE = (
+    "任务：为告警生成 issue 标题，标题描述关联日志反映的具体问题。\n"
+    "规则：只输出标题本身，单行，不超过 60 个字符；中文为主，服务名/接口/错误名/错误码保留英文原文、"
+    "数字逐字摘抄不改不补；拿不准的错误码宁可省略不编造。\n"
+    "禁止出现：md5/签名、IP、traceID、时间戳、堆栈行原文。\n"
+    "{examples}"
+    "关联日志（截断）：\n"
+    "{log}\n"
+)
+
+
+def set_biz_template(bk_biz_id, template: str | None = None) -> dict:
+    """django shell 快速配置/删除业务级标题模板（校验 + 安全合并 + 持久化 + 失效缓存）。
+
+    一业务一模板字符串，须含 {log}。不传 template（或传空）= 删除该业务模板，退回内置自适应模板。
+    必须用本函数而非直接赋值：ISSUE_LLM_TITLE_BIZ_TEMPLATES 是所有业务共用的一个 dict，
+    直接 `settings.X = {biz: tpl}` 会整体覆盖、抹掉其他业务的模板。本函数做"读-合并-写"。
+    通过 settings 赋值写入：触发 DynamicSettings.__setattr__，写 GlobalConfig DB 的同时清本进程
+    locmem/redis 两层缓存（比直接改 DB 少 180s 缓存滞后）；其他 worker 进程缓存 180s 内自然过期。
+
+    用法（目标环境 django shell 直接贴；可用范例 EXAMPLE_BIZ_TEMPLATE）：
+        from alarm_backends.service.fta_action.llm_title import set_biz_template, EXAMPLE_BIZ_TEMPLATE
+        set_biz_template(2, EXAMPLE_BIZ_TEMPLATE)              # 配置/更新（2 换成目标业务 id）
+        set_biz_template(2)                                    # 删除该业务模板
+    可用占位符：{log}(必需) {examples} {strategy_name} {description} {app} {namespace} {severity} {dimensions}
+    返回写入后的完整模板字典（便于核对）。模板不合格（缺 {log} 等）抛 ValueError，配置阶段即暴露。
+    """
+    key = str(bk_biz_id)
+    templates = dict(getattr(settings, "ISSUE_LLM_TITLE_BIZ_TEMPLATES", {}) or {})
+    if template:
+        validate_biz_template(template)
+        templates[key] = template
+    else:
+        templates.pop(key, None)
+    settings.ISSUE_LLM_TITLE_BIZ_TEMPLATES = templates
+    return templates
+
+
+def preview_biz_template(bk_biz_id, sample_log: str = "") -> str:
+    """django shell 预览：用当前对该业务生效的模板（业务级 or 内置自适应）渲染出实际 user prompt。
+
+    配置前后对照看 LLM 实际收到什么；不调 LLM、不写任何数据。返回渲染后的 prompt 文本。
+    """
+    template = resolve_template(bk_biz_id)
+    sample_log = sample_log or (
+        "ERROR rpc.go:99 /demo.Pay/Charge code:503 msg:DownstreamTimeout caller:shop callee:pay"
+    )
+    return render_user_prompt(
+        template,
+        log=sample_log,
+        strategy_name="(示例策略名)",
+        description="(示例异常描述)",
+        app="",
+        namespace="",
+        severity="",
+        dimensions="{}",
+    )
