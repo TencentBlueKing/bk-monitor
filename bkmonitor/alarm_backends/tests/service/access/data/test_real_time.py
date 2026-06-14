@@ -49,6 +49,35 @@ class FakeKafkaConsumer(mock.MagicMock):
         self.topics = set(topics)
 
 
+def _patch_leader_env(p, mocker, strategies, **kafka_consumer_kwargs):
+    """为 run_leader 用例装配公共 mock:当选 leader + 集群匹配 + 单 host + 策略 + 结果表(同一 bootstrap_server)。
+
+    KafkaConsumer 的行为由 kafka_consumer_kwargs 指定(return_value 或 side_effect)。
+    """
+    p.ip = "127.0.0.1"
+    p.cache.delete("real-time-handler-leader")  # 确保本进程当选 leader
+    cluster = mock.MagicMock()
+    cluster.name = "default"
+    cluster.match.return_value = True
+    mocker.patch("alarm_backends.service.access.data.processor.get_cluster", return_value=cluster)
+    mocker.patch.object(AccessRealTimeDataProcess, "get_all_hosts", return_value=["127.0.0.1"])
+    mocker.patch(
+        "alarm_backends.service.access.data.processor.StrategyCacheManager.get_real_time_data_strategy_ids",
+        return_value=strategies,
+    )
+    mocker.patch(
+        "alarm_backends.service.access.data.processor.ResultTableCacheManager.get_result_table_by_id",
+        return_value={
+            "storage_info": {
+                "cluster_config": {"domain_name": "kfk", "port": 9092},
+                "storage_config": {"topic": "topic1"},
+            },
+            "fields": [],
+        },
+    )
+    mocker.patch("alarm_backends.service.access.data.processor.KafkaConsumer", **kafka_consumer_kwargs)
+
+
 class TestAccessDataProcess:
     def test_leader(self, mock_time):
         service = mock.MagicMock()
@@ -198,70 +227,46 @@ class TestAccessDataProcess:
 
     def test_leader_closes_discovery_consumers(self, mock_time, mocker):
         # run_leader 发现阶段创建的 KafkaConsumer 必须被显式 close(原 map() 惰性从不执行 -> 资源累积)
-        service = mock.MagicMock()
-        p = AccessRealTimeDataProcess(service)
-        p.ip = "127.0.0.1"
-        p.cache.delete("real-time-handler-leader")  # 确保本进程当选 leader
-
-        cluster = mock.MagicMock()
-        cluster.name = "default"
-        cluster.match.return_value = True
-        mocker.patch("alarm_backends.service.access.data.processor.get_cluster", return_value=cluster)
-        mocker.patch.object(AccessRealTimeDataProcess, "get_all_hosts", return_value=["127.0.0.1"])
-        mocker.patch(
-            "alarm_backends.service.access.data.processor.StrategyCacheManager.get_real_time_data_strategy_ids",
-            return_value={"rt1": {2: [1]}},
-        )
-        mocker.patch(
-            "alarm_backends.service.access.data.processor.ResultTableCacheManager.get_result_table_by_id",
-            return_value={
-                "storage_info": {
-                    "cluster_config": {"domain_name": "kfk", "port": 9092},
-                    "storage_config": {"topic": "topic1"},
-                },
-                "fields": [],
-            },
-        )
+        p = AccessRealTimeDataProcess(mock.MagicMock())
         fake_consumer = mock.MagicMock()
         fake_consumer.partitions_for_topic.return_value = {0}
-        mocker.patch("alarm_backends.service.access.data.processor.KafkaConsumer", return_value=fake_consumer)
+        _patch_leader_env(p, mocker, {"rt1": {2: [1]}}, return_value=fake_consumer)
 
         p.run_leader(once=True)
 
         fake_consumer.close.assert_called_once()
 
     def test_leader_closes_consumer_when_topics_probe_fails(self, mock_time, mocker):
-        # 缺口回归: consumer 创建成功但 topics() 探测抛 NoBrokersAvailable, 仍须被收尾 close(不漏关)
+        # 缺口回归: consumer 创建成功但 topics() 探测抛 NoBrokersAvailable, 仍须被 close(不漏关)
         from kafka.errors import NoBrokersAvailable
 
-        service = mock.MagicMock()
-        p = AccessRealTimeDataProcess(service)
-        p.ip = "127.0.0.1"
-        p.cache.delete("real-time-handler-leader")
-
-        cluster = mock.MagicMock()
-        cluster.name = "default"
-        cluster.match.return_value = True
-        mocker.patch("alarm_backends.service.access.data.processor.get_cluster", return_value=cluster)
-        mocker.patch.object(AccessRealTimeDataProcess, "get_all_hosts", return_value=["127.0.0.1"])
-        mocker.patch(
-            "alarm_backends.service.access.data.processor.StrategyCacheManager.get_real_time_data_strategy_ids",
-            return_value={"rt1": {2: [1]}},
-        )
-        mocker.patch(
-            "alarm_backends.service.access.data.processor.ResultTableCacheManager.get_result_table_by_id",
-            return_value={
-                "storage_info": {
-                    "cluster_config": {"domain_name": "kfk", "port": 9092},
-                    "storage_config": {"topic": "topic1"},
-                },
-                "fields": [],
-            },
-        )
+        p = AccessRealTimeDataProcess(mock.MagicMock())
         bad_consumer = mock.MagicMock()
         bad_consumer.topics.side_effect = NoBrokersAvailable()
-        mocker.patch("alarm_backends.service.access.data.processor.KafkaConsumer", return_value=bad_consumer)
+        _patch_leader_env(p, mocker, {"rt1": {2: [1]}}, return_value=bad_consumer)
 
         p.run_leader(once=True)
 
         bad_consumer.close.assert_called_once()
+
+    def test_leader_does_not_reuse_consumer_after_probe_failure(self, mock_time, mocker):
+        # 同一轮内同 bootstrap_server 的两个 rt: 探测失败的 consumer 不得被后续 rt 复用,
+        # 应各自新建并各自 close(否则会跳过探测, partitions_for_topic 产生坏分配/异常)
+        from kafka.errors import NoBrokersAvailable
+
+        p = AccessRealTimeDataProcess(mock.MagicMock())
+        created = []
+
+        def make_consumer(*args, **kwargs):
+            c = mock.MagicMock()
+            c.topics.side_effect = NoBrokersAvailable()
+            created.append(c)
+            return c
+
+        _patch_leader_env(p, mocker, {"rt1": {2: [1]}, "rt2": {2: [2]}}, side_effect=make_consumer)
+
+        p.run_leader(once=True)
+
+        assert len(created) == 2  # 失败 consumer 未被复用 -> 两个 rt 各自新建
+        for c in created:
+            c.close.assert_called_once()

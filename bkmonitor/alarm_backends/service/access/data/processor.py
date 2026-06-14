@@ -1457,12 +1457,20 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
                     if not consumer:
                         try:
                             consumer = KafkaConsumer(bootstrap_servers=bootstrap_server)
-                            # 创建后立刻登记: topics 探测及后续任何异常路径都会在收尾的 close 循环里被关闭,
-                            # 避免"创建成功但探测失败(NBA/其它)"的 consumer 漏关
-                            consumers[bootstrap_server] = consumer
-                            consumer.topics()
                         except NoBrokersAvailable:
                             continue
+                        # 仅当构造成功 + 探测通过才登记进 consumers; 探测失败的 consumer 立刻 close 且不登记:
+                        # 既不漏关, 也避免被同轮后续相同 bootstrap_server 的 rt_id 复用(复用会跳过探测,
+                        # 进而 partitions_for_topic 产生指向坏 broker 的 [0] 兜底分配或刷异常日志)
+                        try:
+                            consumer.topics()
+                        except NoBrokersAvailable:
+                            consumer.close()
+                            continue
+                        except Exception:
+                            consumer.close()
+                            raise
+                        consumers[bootstrap_server] = consumer
 
                     topic = storage_info["storage_config"]["topic"]
                     partitions.extend(
