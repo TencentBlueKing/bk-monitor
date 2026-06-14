@@ -1588,18 +1588,22 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
 
     def run_poller(self, once=False):
         while True:
-            self.consumers_lock.acquire()
             has_record = False
-            for consumer in self.consumers.values():
-                data = consumer.poll(500, max_records=5000)
-                if not data:
-                    continue
+            pending = []
+            # 持锁仅遍历 self.consumers 做 poll(poll 自带 500ms 上限); 入队是可阻塞操作(队列满会 block),
+            # 移到锁外执行, 避免持锁期间被队列堵死, 进而堵死 consumer_manager(与临界区异常泄漏同类风险)
+            with self.consumers_lock:
+                for consumer in self.consumers.values():
+                    data = consumer.poll(500, max_records=5000)
+                    if not data:
+                        continue
 
-                has_record = True
-                for records in data.values():
-                    logger.info(f"real_time poller poll {consumer.config['bootstrap_servers']}: {len(records)}")
-                    self.queue.put((consumer.config["bootstrap_servers"], records))
-            self.consumers_lock.release()
+                    has_record = True
+                    for records in data.values():
+                        logger.info(f"real_time poller poll {consumer.config['bootstrap_servers']}: {len(records)}")
+                        pending.append((consumer.config["bootstrap_servers"], records))
+            for item in pending:
+                self.queue.put(item)
 
             if once or self._stop_signal:
                 logger.info("real_time poller get stop signal")
@@ -1648,34 +1652,36 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
                 logger.info(f"real_time consumer_manager delete {'|'.join(delete_bootstrap_servers)}")
 
             if any([update_bootstrap_servers, create_bootstrap_servers, delete_bootstrap_servers]):
-                self.consumers_lock.acquire()
-                new_consumers = {}
+                # 临界区用 with 持锁: KafkaConsumer/subscribe/close 抛错时锁必被释放,
+                # 否则守护线程重启会因锁未释放而自死锁(非可重入), poller 也被一起堵死
+                with self.consumers_lock:
+                    new_consumers = {}
 
-                for bootstrap_servers in create_bootstrap_servers:
-                    new_consumers[bootstrap_servers] = KafkaConsumer(
-                        bootstrap_servers=bootstrap_servers,
-                        group_id=f"{settings.APP_CODE}.real_time_access",
-                    )
-                    new_consumers[bootstrap_servers].subscribe(topics=list(bootstrap_servers_topics[bootstrap_servers]))
+                    for bootstrap_servers in create_bootstrap_servers:
+                        new_consumers[bootstrap_servers] = KafkaConsumer(
+                            bootstrap_servers=bootstrap_servers,
+                            group_id=f"{settings.APP_CODE}.real_time_access",
+                        )
+                        new_consumers[bootstrap_servers].subscribe(
+                            topics=list(bootstrap_servers_topics[bootstrap_servers])
+                        )
 
-                for bootstrap_servers, consumer in self.consumers.items():
-                    if bootstrap_servers in delete_bootstrap_servers:
-                        consumer.close()
-                        continue
+                    for bootstrap_servers, consumer in self.consumers.items():
+                        if bootstrap_servers in delete_bootstrap_servers:
+                            consumer.close()
+                            continue
 
-                    if bootstrap_servers in update_bootstrap_servers:
-                        consumer.subscribe(topics=list(bootstrap_servers_topics[bootstrap_servers]))
-                    new_consumers[bootstrap_servers] = consumer
-                self.consumers = new_consumers
-                self.consumers_lock.release()
+                        if bootstrap_servers in update_bootstrap_servers:
+                            consumer.subscribe(topics=list(bootstrap_servers_topics[bootstrap_servers]))
+                        new_consumers[bootstrap_servers] = consumer
+                    self.consumers = new_consumers
 
             if once or self._stop_signal:
                 if self._stop_signal:
                     logger.info("real_time consumer_manager get stop signal")
-                    self.consumers_lock.acquire()
-                    map(lambda c: c.close(), self.consumers.values())
-                    self.consumers = []
-                    self.consumers_lock.release()
+                    with self.consumers_lock:
+                        map(lambda c: c.close(), self.consumers.values())
+                        self.consumers = []
                 break
 
             time.sleep(15)

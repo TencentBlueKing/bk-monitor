@@ -237,3 +237,22 @@ class TestGuardDaemon:
 
         p._guard_daemon(crash_then_stop, wait=0)
         assert calls["n"] == 1
+
+    def test_consumer_manager_releases_lock_on_exception(self, mock_time, mocker):
+        # 持锁期间 KafkaConsumer 构造抛错, consumers_lock 必须被释放:
+        # 否则 _guard_daemon 重启 run_consumer_manager 会因非可重入锁自死锁, run_poller 也被堵死。
+        service = mock.MagicMock()
+        p = AccessRealTimeDataProcess(service)
+        p.ip = "127.0.0.1"
+        p.cache.hset(p.topic_cache_key, p.ip, json.dumps({"kafka-x:9092|topic1": ""}))
+        mocker.patch(
+            "alarm_backends.service.access.data.processor.KafkaConsumer",
+            side_effect=RuntimeError("kafka boom"),
+        )
+
+        with pytest.raises(RuntimeError):
+            p.run_consumer_manager(once=True)
+
+        acquired = p.consumers_lock.acquire(blocking=False)
+        assert acquired is True  # 锁已释放, 下次进入/poller 不会被堵
+        p.consumers_lock.release()
