@@ -288,7 +288,11 @@ class RecordRuleV4Runner:
         )
 
     def apply_flow(self, flow_config: dict[str, Any]) -> Any:
-        """调用 bkbase v4 apply 接口创建或更新 Flow。"""
+        """调用 bkbase v4 apply 接口创建或更新 Flow。
+
+        这里只提交 Flow payload；output ResultTable / VmStorageBinding 已在
+        Operator.prepare_output_resources 阶段由 RecordRuleV4OutputResources 下发。
+        """
 
         response = api.bkdata.apply_data_link(bk_tenant_id=self.rule.bk_tenant_id, config=[flow_config])
         self.rule.last_refresh_time = now()
