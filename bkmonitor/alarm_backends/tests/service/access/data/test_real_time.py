@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,11 +7,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 import time
 from collections import namedtuple
 
-import mock
+from unittest import mock
 import pytest
 
 from alarm_backends.service.access import AccessRealTimeDataProcess
@@ -35,7 +35,7 @@ def mock_kafka_consumer(mocker):
 
 class FakeKafkaConsumer(mock.MagicMock):
     def __init__(self, *args, **kwargs):
-        super(FakeKafkaConsumer, self).__init__()
+        super().__init__()
         self.topics = set()
         self.subscribe_call_count = 0
         self.subscription_call_count = 0
@@ -49,7 +49,7 @@ class FakeKafkaConsumer(mock.MagicMock):
         self.topics = set(topics)
 
 
-class TestAccessDataProcess(object):
+class TestAccessDataProcess:
     def test_leader(self, mock_time):
         service = mock.MagicMock()
         p = AccessRealTimeDataProcess(service)
@@ -195,3 +195,37 @@ class TestAccessDataProcess(object):
             )
         )
         p.run_handler(once=True)
+
+    def test_leader_closes_discovery_consumers(self, mock_time, mocker):
+        # run_leader 发现阶段创建的 KafkaConsumer 必须被显式 close(原 map() 惰性从不执行 -> 资源累积)
+        service = mock.MagicMock()
+        p = AccessRealTimeDataProcess(service)
+        p.ip = "127.0.0.1"
+        p.cache.delete("real-time-handler-leader")  # 确保本进程当选 leader
+
+        cluster = mock.MagicMock()
+        cluster.name = "default"
+        cluster.match.return_value = True
+        mocker.patch("alarm_backends.service.access.data.processor.get_cluster", return_value=cluster)
+        mocker.patch.object(AccessRealTimeDataProcess, "get_all_hosts", return_value=["127.0.0.1"])
+        mocker.patch(
+            "alarm_backends.service.access.data.processor.StrategyCacheManager.get_real_time_data_strategy_ids",
+            return_value={"rt1": {2: [1]}},
+        )
+        mocker.patch(
+            "alarm_backends.service.access.data.processor.ResultTableCacheManager.get_result_table_by_id",
+            return_value={
+                "storage_info": {
+                    "cluster_config": {"domain_name": "kfk", "port": 9092},
+                    "storage_config": {"topic": "topic1"},
+                },
+                "fields": [],
+            },
+        )
+        fake_consumer = mock.MagicMock()
+        fake_consumer.partitions_for_topic.return_value = {0}
+        mocker.patch("alarm_backends.service.access.data.processor.KafkaConsumer", return_value=fake_consumer)
+
+        p.run_leader(once=True)
+
+        fake_consumer.close.assert_called_once()

@@ -1475,7 +1475,10 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
                 except Exception as e:
                     logger.exception(e)
                     logger.error(f"get real time result_table({rt_id}) info error")
-            map(lambda c: c.close(), consumers)
+            # 关闭发现阶段创建的 KafkaConsumer(原 map() 惰性从不执行, 且 consumers 是 dict、迭代得 key 字符串;
+            # 不显式 close 会在长期运行的 leader 进程里累积未释放的 Kafka client 资源)
+            for consumer in consumers.values():
+                consumer.close()
 
             # 使用哈希算法分配topic到机器上
             hosts = self.get_all_hosts()
