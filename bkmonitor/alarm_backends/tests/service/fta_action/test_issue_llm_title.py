@@ -83,8 +83,8 @@ class TestResolveTemplate:
     def test_builtin_fallback_chain(self, monkeypatch):
         monkeypatch.setattr(settings, "ISSUE_LLM_TITLE_BIZ_TEMPLATES", {}, raising=False)
         assert (
-            llm_title.resolve_template(2, llm_title.ALERT_TYPE_NEW_CLASS)
-            == (llm_title.BUILTIN_TEMPLATES[llm_title.ALERT_TYPE_NEW_CLASS])
+            llm_title.resolve_template(2, llm_title.ALERT_TYPE_LOG_LINE)
+            == (llm_title.BUILTIN_TEMPLATES[llm_title.ALERT_TYPE_LOG_LINE])
         )
         # 未知 alert_type 退内置 default
         assert (
@@ -95,21 +95,61 @@ class TestResolveTemplate:
         monkeypatch.setattr(
             settings,
             "ISSUE_LLM_TITLE_BIZ_TEMPLATES",
-            {"2": {"new_class": "业务模板 {log}", "default": "业务默认 {log}"}},
+            {"2": {"log_line": "业务模板 {log}", "default": "业务默认 {log}"}},
             raising=False,
         )
-        assert llm_title.resolve_template(2, llm_title.ALERT_TYPE_NEW_CLASS) == "业务模板 {log}"
+        assert llm_title.resolve_template(2, llm_title.ALERT_TYPE_LOG_LINE) == "业务模板 {log}"
         assert llm_title.resolve_template(2, "unknown_type") == "业务默认 {log}"
 
     def test_invalid_biz_template_falls_back_builtin(self, monkeypatch):
         """业务模板缺必需占位符时跳过该层，不阻塞生成。"""
-        monkeypatch.setattr(
-            settings, "ISSUE_LLM_TITLE_BIZ_TEMPLATES", {"2": {"new_class": "缺日志占位"}}, raising=False
-        )
+        monkeypatch.setattr(settings, "ISSUE_LLM_TITLE_BIZ_TEMPLATES", {"2": {"log_line": "缺日志占位"}}, raising=False)
         assert (
-            llm_title.resolve_template(2, llm_title.ALERT_TYPE_NEW_CLASS)
-            == (llm_title.BUILTIN_TEMPLATES[llm_title.ALERT_TYPE_NEW_CLASS])
+            llm_title.resolve_template(2, llm_title.ALERT_TYPE_LOG_LINE)
+            == (llm_title.BUILTIN_TEMPLATES[llm_title.ALERT_TYPE_LOG_LINE])
         )
+
+
+class TestGetAlertType:
+    """分桶维度 = 关联日志形态：聚类/关键字→log_line，事件型→event，其余→default。"""
+
+    def _strategy(self, labels=None, dsl=None, dtl=None):
+        s = {"labels": labels or []}
+        if dsl is not None:
+            s["items"] = [{"query_configs": [{"data_source_label": dsl, "data_type_label": dtl}]}]
+        return s
+
+    def test_clustering_count_label_is_log_line(self):
+        # 生产中聚类告警均为 Count label（含新类/突增），统一归 log_line
+        s = self._strategy(labels=["LogClustering/Count/32418"])
+        assert llm_title.get_alert_type(s) == llm_title.ALERT_TYPE_LOG_LINE
+
+    def test_clustering_newclass_label_is_log_line(self):
+        s = self._strategy(labels=["LogClustering/NewClass/32418"])
+        assert llm_title.get_alert_type(s) == llm_title.ALERT_TYPE_LOG_LINE
+
+    def test_bk_log_search_log_is_log_line(self):
+        s = self._strategy(dsl="bk_log_search", dtl="log")
+        assert llm_title.get_alert_type(s) == llm_title.ALERT_TYPE_LOG_LINE
+
+    def test_custom_event_is_event(self):
+        s = self._strategy(dsl="custom", dtl="event")
+        assert llm_title.get_alert_type(s) == llm_title.ALERT_TYPE_EVENT
+
+    def test_bk_fta_event_is_event(self):
+        s = self._strategy(dsl="bk_fta", dtl="event")
+        assert llm_title.get_alert_type(s) == llm_title.ALERT_TYPE_EVENT
+
+    def test_bk_monitor_log_is_event(self):
+        # collector 日志关键字取的是 event.content 纯文本，归 event 桶
+        s = self._strategy(dsl="bk_monitor", dtl="log")
+        assert llm_title.get_alert_type(s) == llm_title.ALERT_TYPE_EVENT
+
+    def test_unknown_source_is_default(self):
+        assert llm_title.get_alert_type(self._strategy(dsl="bk_monitor", dtl="time_series")) == (
+            llm_title.ALERT_TYPE_DEFAULT
+        )
+        assert llm_title.get_alert_type({}) == llm_title.ALERT_TYPE_DEFAULT
 
 
 class TestValidateTitle:
