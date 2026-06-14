@@ -61,6 +61,16 @@ ADVANCED_OPTIONS = OrderedDict(
         # === BKDATA & AIOPS 相关配置 开始 ===
         ("AIOPS_BIZ_WHITE_LIST", slz.ListField(label="开启智能异常算法的业务白名单", default=[])),
         ("AIOPS_INCIDENT_BIZ_WHITE_LIST", slz.ListField(label="开启根因故障定位的业务白名单", default=[])),
+        # Issue LLM 标题生成：白名单为空 = 功能关闭（注意与 AIOPS 白名单"空=全开"语义不同），-1 表示全量
+        ("ISSUE_LLM_TITLE_BIZ_WHITE_LIST", slz.ListField(label="Issue LLM 标题生成业务白名单", default=[])),
+        # 业务级 prompt 模板：{bk_biz_id: {alert_type 或 "default": 模板文本}}，配置前用
+        # alarm_backends.service.fta_action.llm_title.validate_biz_template 校验必需占位符
+        ("ISSUE_LLM_TITLE_BIZ_TEMPLATES", slz.DictField(label="Issue LLM 标题业务级模板", default={})),
+        # shadow 模式：只生成+打日志+打点，不写 Issue name；灰度第一阶段人工抽检质量后关闭
+        ("ISSUE_LLM_TITLE_SHADOW", slz.BooleanField(label="Issue LLM 标题 shadow 模式", default=True)),
+        ("ISSUE_LLM_TITLE_MODEL", slz.CharField(label="Issue LLM 标题生成模型", default="hunyuan-turbo")),
+        # 业务级限流阈值（次/分钟），<=0 表示不限流
+        ("ISSUE_LLM_TITLE_RATE_LIMIT_PER_MINUTE", slz.IntegerField(label="Issue LLM 标题生成限流", default=30)),
         ("BK_INCIDENT_BUILTIN_CONFIG", slz.DictField(label="故障分析内置通知配置", default={})),
         ("BK_DATA_PROJECT_ID", slz.IntegerField(label="监控在计算平台使用的公共项目ID", default=1)),
         ("BK_DATA_BK_BIZ_ID", slz.IntegerField(label="监控在计算平台使用的公共业务ID", default=2)),

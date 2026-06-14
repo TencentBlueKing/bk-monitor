@@ -229,6 +229,8 @@ ACTION_TASK_CRONTAB = [
     ("bkmonitor.documents.tasks.rollover_indices", "*/24 * * * *", "global"),
     # 定期同步活跃 Issue 的告警统计（含漏关联补偿和 orphan issue 检测）
     ("alarm_backends.service.fta_action.tasks.sync_issue_alert_stats", "*/5 * * * *", "cluster"),
+    # 定期预计算 Issue LLM 标题 few-shot 示例缓存（用户改名采样）
+    ("alarm_backends.service.fta_action.tasks.refresh_issue_llm_title_examples", "0 * * * *", "cluster"),
     # 定期清理停用的ai 策略对应的flow任务(每天2点半)
     ("bkmonitor.management.commands.clean_aiflow.run_clean", "30 2 * * *", "global"),
     # aiops sdk策略历史依赖管理

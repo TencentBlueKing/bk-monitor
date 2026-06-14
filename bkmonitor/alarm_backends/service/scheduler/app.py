@@ -7,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import os
 import random
 
@@ -18,6 +19,7 @@ from billiard import cpu_count
 from celery import Celery, Task
 from celery.schedules import maybe_schedule
 from celery.signals import beat_init, setup_logging
+from kombu import Exchange, Queue
 from django.conf import settings
 from django.db import close_old_connections
 
@@ -35,7 +37,7 @@ try:
 except Exception as e:
     import sys
 
-    print("django setup failed: {}".format(e))
+    print(f"django setup failed: {e}")
     sys.exit(-1)
 
 
@@ -116,16 +118,25 @@ def rabbitmq_conf():
         task_default_exchange = "monitor"
         task_default_queue = "monitor"
         task_default_routing_key = "monitor"
-        broker_url = "amqp://{}:{}@{}:{}/{}".format(
-            six.moves.urllib.parse.quote(settings.RABBITMQ_USER),
-            six.moves.urllib.parse.quote(settings.RABBITMQ_PASS),
-            settings.RABBITMQ_HOST,
-            settings.RABBITMQ_PORT,
-            settings.RABBITMQ_VHOST,
-        )
+        # 显式声明队列：仅 celery_llm_task 需要 broker 端参数——TTL 自蒸发 + 长度上限，
+        # 兜底"无消费者静默积压"（LLM 标题生成是体验增强，10 分钟未消费即无价值）。
+        # 注意：RabbitMQ 队列参数必须首次声明就带上，已存在队列改参数会 PRECONDITION_FAILED。
+        # 设置 task_queues 后裸 worker（不带 -Q）只消费此列表，故显式补回默认队列；
+        # 生产全部 worker 均通过 -Q 指定消费队列，行为不受影响。
+        # 其余既有队列名仍由 task_create_missing_queues（默认 True）按需自动创建。
+        task_queues = [
+            Queue("monitor", Exchange("monitor"), routing_key="monitor"),
+            Queue(
+                "celery_llm_task",
+                Exchange("monitor"),
+                routing_key="celery_llm_task",
+                queue_arguments={"x-message-ttl": 600000, "x-max-length": 1000},
+            ),
+        ]
+        broker_url = f"amqp://{six.moves.urllib.parse.quote(settings.RABBITMQ_USER)}:{six.moves.urllib.parse.quote(settings.RABBITMQ_PASS)}@{settings.RABBITMQ_HOST}:{settings.RABBITMQ_PORT}/{settings.RABBITMQ_VHOST}"
         if not get_cluster().is_default():
             broker_transport_options = {
-                "queue_name_prefix": "{}-".format(get_cluster().name),
+                "queue_name_prefix": f"{get_cluster().name}-",
             }
 
         beat_max_loop_interval = 60
@@ -133,12 +144,7 @@ def rabbitmq_conf():
 
         if settings.CACHE_BACKEND_TYPE == "SentinelRedisCache":
             result_backend = ";".join(
-                "sentinel://:{}@{}:{}/{}".format(
-                    six.moves.urllib.parse.quote(settings.REDIS_PASSWD),
-                    h,
-                    redis_port,
-                    redis_db,
-                )
+                f"sentinel://:{six.moves.urllib.parse.quote(settings.REDIS_PASSWD)}@{h}:{redis_port}/{redis_db}"
                 for h in redis_host.split(";")
                 if h
             )
@@ -162,13 +168,10 @@ def rabbitmq_conf():
             if getattr(settings, "REDIS_SENTINEL_PASS", ""):
                 redbeat_redis_options["sentinel_kwargs"] = {"password": settings.REDIS_SENTINEL_PASS}
         else:
-            result_backend = "redis://:{}@{}:{}/{}".format(
-                six.moves.urllib.parse.quote(redis_password),
-                redis_host,
-                redis_port,
-                redis_db,
+            result_backend = (
+                f"redis://:{six.moves.urllib.parse.quote(redis_password)}@{redis_host}:{redis_port}/{redis_db}"
             )
-            redbeat_redis_url = "redis://:{}@{}:{}/0".format(redis_password, redis_host, redis_port)
+            redbeat_redis_url = f"redis://:{redis_password}@{redis_host}:{redis_port}/0"
 
     return RabbitmqConf
 
@@ -195,7 +198,7 @@ TASK_ROOT_MODULES = [
 DISCOVER_DIRS = []
 for MODULE in TASK_ROOT_MODULES:
     for m in package_contents(MODULE):
-        file_name = "{}.{}".format(MODULE, m)
+        file_name = f"{MODULE}.{m}"
         if os.path.isdir(os.path.join(settings.BASE_DIR, file_name.replace(".", os.sep))):
             DISCOVER_DIRS.append(file_name)
 
@@ -227,20 +230,20 @@ class PeriodicTask(Task):
     compat = True
 
     def __init__(self):
-        if not hasattr(self, 'run_every'):
-            raise NotImplementedError('Periodic tasks must have a run_every attribute')
+        if not hasattr(self, "run_every"):
+            raise NotImplementedError("Periodic tasks must have a run_every attribute")
         self.run_every = maybe_schedule(self.run_every, self.relative)
-        super(PeriodicTask, self).__init__()
+        super().__init__()
 
     @classmethod
     def on_bound(cls, _app):
         _app.conf.beat_schedule[cls.name] = {
-            'task': cls.name,
-            'schedule': cls.run_every,
-            'args': (),
-            'kwargs': {},
-            'options': cls.options or {},
-            'relative': cls.relative,
+            "task": cls.name,
+            "schedule": cls.run_every,
+            "args": (),
+            "kwargs": {},
+            "options": cls.options or {},
+            "relative": cls.relative,
         }
 
 

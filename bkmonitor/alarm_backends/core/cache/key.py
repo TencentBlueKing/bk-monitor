@@ -1080,3 +1080,36 @@ ISSUE_LEGACY_MIGRATION_DONE_KEY = register_key_with_config(
         "backend": "service",
     }
 )
+
+ISSUE_LLM_EXAMPLES_STRATEGY_KEY = register_key_with_config(
+    {
+        "label": "[issue]LLM 标题 few-shot 示例缓存（strategy 级）",
+        "key_type": "string",
+        # 周期任务 refresh_issue_llm_title_examples 预计算写入（用户改名采样），
+        # 标题生成读路径纯 GET、miss 不回查 ES。
+        # TTL 取刷新周期（1h）的 24 倍：周期任务挂掉缓存自然过期，读路径自动退静态示例。
+        "key_tpl": "issue.llm_title.examples.strategy.{strategy_id}",
+        "ttl": CONST_ONE_DAY,
+        "backend": "service",
+    }
+)
+
+ISSUE_LLM_EXAMPLES_BIZ_KEY = register_key_with_config(
+    {
+        "label": "[issue]LLM 标题 few-shot 示例缓存（biz 级）",
+        "key_type": "string",
+        "key_tpl": "issue.llm_title.examples.biz.{bk_biz_id}",
+        "ttl": CONST_ONE_DAY,
+        "backend": "service",
+    }
+)
+
+ISSUE_LLM_TITLE_RATE_LIMIT_KEY = register_key_with_config(
+    {
+        "label": "[issue]LLM 标题生成业务级固定窗口限流计数器",
+        "key_type": "string",
+        "key_tpl": "issue.llm_title.ratelimit.{bk_biz_id}.{minute}",
+        "ttl": 2 * CONST_MINUTES,
+        "backend": "service",
+    }
+)
