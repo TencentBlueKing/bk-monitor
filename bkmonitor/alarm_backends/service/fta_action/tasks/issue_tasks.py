@@ -958,9 +958,7 @@ def generate_issue_llm_title(issue_id: str, bk_biz_id, default_name: str, alert_
         _finish("ratelimited")
         return
 
-    strategy = alert.strategy or {}
-    alert_type = llm_title.get_alert_type(strategy)
-    template = llm_title.resolve_template(bk_biz_id, alert_type)
+    template = llm_title.resolve_template(bk_biz_id)
     examples_block, examples_source = llm_title.resolve_examples(alert.strategy_id, bk_biz_id)
 
     dimensions = {}
