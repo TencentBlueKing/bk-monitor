@@ -105,7 +105,12 @@ class ConditionOperator {
       this.containOperatorList.includes(this.item.operator)
       && (['text', 'string'].includes(this.item.field_type) || /^and$/i.test(this.operatorRelationVlaue))
     ) {
-      if (!this.isWildcardMatch && ['contains match phrase', 'not contains match phrase'].includes(this.item.operator)) {
+      const relation = String(this.operatorRelationVlaue).toUpperCase();
+      const valueList = Array.isArray(this.item.value) ? this.item.value : [this.item.value];
+      const shouldKeepOriginOperator = !this.isWildcardMatch
+        && ['contains match phrase', 'not contains match phrase'].includes(this.item.operator)
+        && (relation !== 'AND' || valueList.length <= 1);
+      if (shouldKeepOriginOperator) {
         return this.item.operator;
       }
 
