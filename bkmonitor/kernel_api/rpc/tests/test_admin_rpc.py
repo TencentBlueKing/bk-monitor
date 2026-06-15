@@ -38,6 +38,7 @@ from kernel_api.rpc.functions.admin.bcs_cluster import _serialize_bcs_cluster
 from kernel_api.rpc.functions.admin.cluster_info import (
     _build_es_cluster_overview,
     _build_es_analysis_storage_index,
+    _build_es_analysis_storage_queryset,
     _parse_es_analysis_index_base,
     _parse_es_analysis_owner,
     _serialize_es_analysis_index_row,
@@ -2370,6 +2371,71 @@ def _fake_es_analysis_storage(table_id):
         index_set=None,
         need_create_index=True,
     )
+
+
+def test_es_analysis_storage_queryset_includes_historical_cluster_records(monkeypatch):
+    class FakeValuesList:
+        distinct_called = False
+
+        def distinct(self):
+            self.distinct_called = True
+            return self
+
+    class FakeRecordQuerySet:
+        def __init__(self, values_list):
+            self.values_list_result = values_list
+            self.values_list_args = None
+            self.values_list_kwargs = None
+
+        def values_list(self, *args, **kwargs):
+            self.values_list_args = args
+            self.values_list_kwargs = kwargs
+            return self.values_list_result
+
+    class FakeEsQuerySet:
+        def __init__(self):
+            self.filter_calls = []
+            self.ordering = None
+
+        def filter(self, *args, **kwargs):
+            self.filter_calls.append((args, kwargs))
+            return self
+
+        def order_by(self, *fields):
+            self.ordering = fields
+            return self
+
+    record_filter_calls = []
+    values_list = FakeValuesList()
+    record_queryset = FakeRecordQuerySet(values_list)
+    es_filter_calls = []
+    es_queryset = FakeEsQuerySet()
+
+    monkeypatch.setattr(
+        admin_cluster_info.models.StorageClusterRecord.objects,
+        "filter",
+        lambda **kwargs: record_filter_calls.append(kwargs) or record_queryset,
+    )
+    monkeypatch.setattr(
+        admin_cluster_info.models.ESStorage.objects,
+        "filter",
+        lambda *args, **kwargs: es_filter_calls.append((args, kwargs)) or es_queryset,
+    )
+
+    queryset = _build_es_analysis_storage_queryset("system", 9)
+
+    assert queryset is es_queryset
+    assert record_filter_calls == [{"bk_tenant_id": "system", "cluster_id": 9, "is_deleted": False}]
+    assert record_queryset.values_list_args == ("table_id",)
+    assert record_queryset.values_list_kwargs == {"flat": True}
+    assert values_list.distinct_called is True
+    assert es_filter_calls == [((), {"bk_tenant_id": "system"})]
+    assert len(es_queryset.filter_calls) == 2
+    history_query = es_queryset.filter_calls[1][0][0]
+    assert history_query.connector == "OR"
+    assert ("storage_cluster_id", 9) in history_query.children
+    assert ("table_id__in", values_list) in history_query.children
+    assert es_queryset.ordering == ("table_id",)
 
 
 def test_es_analysis_index_base_parses_v1_and_v2_physical_index_names():

@@ -448,6 +448,25 @@ def _build_es_analysis_storage_index(
     return storage_by_base, ambiguous_bases
 
 
+def _build_es_analysis_storage_queryset(bk_tenant_id: str, cluster_id: int):
+    physical_storage_query = Q(origin_table_id__isnull=True) | Q(origin_table_id="")
+    historical_table_ids = (
+        models.StorageClusterRecord.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            cluster_id=cluster_id,
+            is_deleted=False,
+        )
+        .values_list("table_id", flat=True)
+        .distinct()
+    )
+    return (
+        models.ESStorage.objects.filter(bk_tenant_id=bk_tenant_id)
+        .filter(physical_storage_query)
+        .filter(Q(storage_cluster_id=cluster_id) | Q(table_id__in=historical_table_ids))
+        .order_by("table_id")
+    )
+
+
 def _serialize_es_analysis_index_row(
     row: dict[str, Any], storage_by_base: dict[str, dict[str, Any]], ambiguous_bases: set[str]
 ) -> dict[str, Any]:
@@ -529,11 +548,7 @@ def _build_es_storage_analysis(
             "ES 索引列表不可用，无法计算存储占用明细",
         )
 
-    es_storages = list(
-        models.ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, storage_cluster_id=cluster.cluster_id)
-        .filter(Q(origin_table_id__isnull=True) | Q(origin_table_id=""))
-        .order_by("table_id")
-    )
+    es_storages = list(_build_es_analysis_storage_queryset(bk_tenant_id, cluster.cluster_id))
     result_table_map = {
         result_table.table_id: result_table
         for result_table in models.ResultTable.objects.filter(
