@@ -11,16 +11,20 @@ specific language governing permissions and limitations under the License.
 import logging
 import time
 
+from elasticsearch.exceptions import ConnectionError as ESConnectionError
 from elasticsearch.exceptions import TransportError
 from elasticsearch.helpers import BulkIndexError
 from elasticsearch.helpers.errors import ScanError
 from elasticsearch_dsl import Q
-from redis.exceptions import RedisError
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import ReadOnlyError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from alarm_backends.constants import CONST_ONE_DAY, CONST_ONE_HOUR
 from alarm_backends.core.alert.alert import Alert, AlertCache, AlertKey
 from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.cluster import get_cluster_bk_biz_ids
+from alarm_backends.core.storage.redis_cluster import PipelineResultMismatch
 from alarm_backends.service.alert.manager.processor import AlertManager
 from alarm_backends.service.scheduler.app import app
 from bkmonitor.documents import AlertDocument, AlertLog
@@ -37,11 +41,30 @@ DEFAULT_CHECK_INTERVAL = 60
 # ES 深分页每页大小
 SCAN_PAGE_SIZE = 5000
 
-# 瞬态基础设施异常: 命中这些异常时, 本批告警未被 finalize, 会由下一周期重跑(expires=120 + 周期维护),
-# 不应按硬失败计入处理成功率, 否则一次节点抖动 / ES 瞬态会被批级放大成整批失败、压垮成功率指标。
-# 覆盖 Redis 连接 / 超时 / 响应 / pipeline 结果错位(RedisError 基类, 含 PipelineResultMismatch)
-# 与 ES 传输(含 429 / 500 / scroll context 超限)及 scan 部分分片错误。
-TRANSIENT_RETRY_EXCEPTIONS = (RedisError, TransportError, ScanError)
+# 瞬态基础设施异常(计 deferred 而非 failed): 仅纳入"本批未 finalize、下一周期重跑可自愈"的类型，
+# 其余一律计 failed。收口原则——基于已知可恢复类型显式纳入，不用基类宽松匹配：否则会把代码 / 数据 /
+# 配置类错误(不会靠重跑恢复)漂白成 deferred，从成功率口径里抹掉真实故障。新可恢复类型经确认后再扩。
+# Redis: 连接(含 BusyLoadingError 子类) / 超时 / 主从切换只读(ReadOnlyError) / pipeline 结果错位；
+#   不含 ResponseError / DataError / NoScriptError 等命令·数据·脚本错(不会自愈)。
+REDIS_RETRY_EXCEPTIONS = (RedisConnectionError, RedisTimeoutError, ReadOnlyError, PipelineResultMismatch)
+
+
+def is_transient_retry_exc(exc: Exception) -> bool:
+    """异常是否为"下一周期重跑可自愈"的瞬态基础设施错误：是则计 deferred，否则计 failed。"""
+    if isinstance(exc, REDIS_RETRY_EXCEPTIONS):
+        return True
+    if isinstance(exc, ScanError):
+        # scan / scroll 部分分片失败，重跑可恢复
+        return True
+    if isinstance(exc, ESConnectionError):
+        # ES 连接类(ConnectionTimeout 为其子类)无 HTTP 状态码，视为瞬态
+        return True
+    if isinstance(exc, TransportError):
+        # ES 其余传输错误：仅 429(限流) / 5xx(服务端) 视为瞬态；4xx(查询 / 权限 / 版本冲突)多为代码或
+        # 配置问题，仍计 failed。status_code 取自 es-py<8；es8 起无此属性 → 落入 failed(安全方向)。
+        code = getattr(exc, "status_code", None)
+        return isinstance(code, int) and (code == 429 or 500 <= code <= 599)
+    return False
 
 
 def _search_after_hits(search, page_size: int):
@@ -277,7 +300,7 @@ def handle_alerts(alert_keys: list[AlertKey]):
     # 1. 周期维护未恢复的告警， 按 total=200 分批跑
     # 2. 产生新告警时，由alert.builder 立刻执行一次周期任务管理， total 较小。
     # 因此会存在耗时跟随total值的变化抖动。所以这里算单条告警的处理平均耗时才能体现出实际情况
-    if exc is not None and isinstance(exc, TRANSIENT_RETRY_EXCEPTIONS):
+    if exc is not None and is_transient_retry_exc(exc):
         # 瞬态基础设施错误: 本批未 finalize、将下周期重跑，计入 deferred 而非 failed，
         # 避免把一次节点抖动 / ES 瞬态放大成整批失败、压垮处理成功率指标。
         metrics.ALERT_MANAGE_TIME.labels(status=metrics.StatusEnum.DEFERRED, exception=exc).observe(cost / total)
