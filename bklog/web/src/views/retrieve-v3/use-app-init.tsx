@@ -771,13 +771,14 @@ export default () => {
     RequestPool.cancelAll();
     RetrieveHelper.destroy();
     // 清理掉当前查询结果，避免下次进入空白展示，同时释放检索页大对象引用。
-    store.commit('updateIndexSetQueryResult', {
+    store.commit('resetIndexSetQueryResult', {
       origin_log_list: [],
       list: [],
       is_error: false,
       exception_msg: '',
     });
-    store.commit('updateIndexFieldInfo', {
+    store.commit('updateSqlQueryFieldList', []);
+    store.commit('resetIndexFieldInfo', {
       fields: [],
       is_loading: false,
     });
