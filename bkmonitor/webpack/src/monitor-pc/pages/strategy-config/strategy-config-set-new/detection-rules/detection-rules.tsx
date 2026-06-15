@@ -33,6 +33,7 @@ import MonitorSelect from '../../../../components/monitor-select/monitor-select.
 import { THRESHOLD_METHOD_LIST } from '../../../../constant/constant';
 import AbnormalCluster from '../../../../static/images/svg/abnormal-cluster.svg';
 import IntelligentDetect from '../../../../static/images/svg/intelligent-detect.svg';
+import NewSeries from '../../../../static/images/svg/new-series.svg';
 import PartialNodes from '../../../../static/images/svg/partial-nodes.svg';
 import RingRatio from '../../../../static/images/svg/ring-ratio.svg';
 import Threshold from '../../../../static/images/svg/threshold.svg';
@@ -145,6 +146,17 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
       type: 'ai',
       name: window.i18n.tc('离群检测'),
       icon: AbnormalCluster,
+      data: undefined,
+      tip: '算法说明待产品补充',
+      modelData: undefined,
+      disabled: false,
+      disabledTip: '',
+    },
+    {
+      id: DetectionRuleTypeEnum.NewSeries,
+      type: 'ai',
+      name: window.i18n.tc('新维度值检测'),
+      icon: NewSeries,
       data: undefined,
       tip: '算法说明待产品补充',
       modelData: undefined,
@@ -448,8 +460,10 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
   /**
    * @description: 算法规则数据变化
    */
-  handleRuleDataChange(val: IDetectionTypeRuleData, item: IDetectionTypeItem) {
+  handleRuleDataChange(val: IDetectionTypeRuleData, index: number) {
+    const item = this.addType[index];
     item.data = val;
+    this.addType.splice(index, 1, item);
     this.emitLocalValue();
   }
 
@@ -574,7 +588,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
                 select-rule-data={this.localValue}
                 unit={this.unitDisplay}
                 onChartTypeChange={this.handleAiopsChartTypeChange}
-                onDataChange={val => this.handleRuleDataChange(val, item)}
+                onDataChange={val => this.handleRuleDataChange(val, index)}
                 onDelete={() => this.handleDeleteRule(index)}
                 onInitVM={val => this.ruleWrapVMInit(val, index)}
                 onModelChange={data => this.handleModelChange(data, item)}
