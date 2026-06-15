@@ -1297,3 +1297,96 @@ class AlertIssueEnrichResource(Resource):
             }
             for iid in issue_ids
         }
+
+
+class ListTapdWorkspaceResource(Resource):
+    """获取已授权的tapd项目列表"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        workspace_id = serializers.IntegerField(label="项目ID", required=False)
+        created = serializers.CharField(label="创建时间", required=False, help_text="格式：YYYY-MM-DD，支持范围查询")
+        limit = serializers.IntegerField(label="返回数量限制", min_value=1, max_value=200, default=30, required=False)
+        page = serializers.IntegerField(label="页码", min_value=1, default=1, required=False)
+        order = serializers.CharField(
+            label="排序规则",
+            required=False,
+            default="created desc",
+            help_text="格式：字段名 ASC或DESC，如：created desc",
+        )
+        fields = serializers.CharField(label="获取字段", required=False, help_text="多个字段以逗号分隔，如：id,created")
+
+    def perform_request(self, validated_request_data):
+        # 第一步：获取已授权的workspace列表
+        params = {
+            "workspace_id": validated_request_data.get("workspace_id"),
+            "created": validated_request_data.get("created"),
+            "limit": validated_request_data.get("limit"),
+            "page": validated_request_data.get("page"),
+            "order": validated_request_data.get("order", "created desc"),
+            "fields": validated_request_data.get("fields"),
+        }
+        params = {k: v for k, v in params.items() if v is not None}
+        tapd_workspace_result = api.tapd.get_granted_workspaces(**params)
+        workspaces = tapd_workspace_result.get("list", [])
+
+        if not workspaces:
+            return []
+
+        # 第二步：并发获取每个workspace的详细信息
+        def _get_workspace_info(workspace_item, index):
+            """获取单个workspace的详细信息"""
+            workspace_data = workspace_item.get("OpenOrganizationApp", {})
+            workspace_id = workspace_data.get("workspace_id", "")
+            try:
+                workspace_id = int(workspace_id)
+                workspace_info = api.tapd.get_workspace_info(workspace_id=workspace_id)["Workspace"]
+                return {
+                    "index": index,  # 记录原始位置
+                    "workspace_id": workspace_info["id"],
+                    "workspace_name": workspace_info["name"],
+                    "pretty_name": workspace_info["pretty_name"],
+                    "created": workspace_info["created"],
+                    "creator": workspace_info["creator"],
+                    "description": workspace_info["description"],
+                    "status": workspace_info["status"],
+                    "category": workspace_info["category"],
+                }
+            except Exception as e:
+                logger.warning("获取TAPD workspace信息失败, workspace_id=%s: %s", workspace_id, e)
+                return {
+                    "index": index,  # 记录原始位置
+                    "workspace_id": str(workspace_id),
+                    "workspace_name": f"{workspace_id}",
+                    "pretty_name": "",
+                    "created": workspace_data.get("created", ""),
+                    "creator": "",
+                    "description": "",
+                    "status": "",
+                    "category": "",
+                }
+
+        # 使用线程池并发调用，最大并发数限制为10
+        max_workers = min(10, len(workspaces))
+        tapd_workspace_info = []
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # 提交所有任务，记录每个workspace的原始索引
+            future_to_index = {}
+            for i, workspace in enumerate(workspaces):
+                future = executor.submit(_get_workspace_info, workspace, i)
+                future_to_index[future] = i
+
+            for future in as_completed(future_to_index):
+                result = future.result()
+                if result:
+                    tapd_workspace_info.append(result)
+
+        # 第三步：按照原始顺序排序，保持与第一步查询结果一致的排序
+        tapd_workspace_info.sort(key=lambda x: x["index"])
+
+        # 移除临时索引字段
+        for item in tapd_workspace_info:
+            item.pop("index", None)
+
+        return tapd_workspace_info

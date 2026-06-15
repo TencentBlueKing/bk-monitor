@@ -56,10 +56,77 @@ from monitor_web.incident.metrics.resources import IncidentMetricsSearchResource
 from monitor_web.incident.serializers import IncidentSearchSerializer
 from .utils import bk_data_robot_link_list_search
 
+
 class IncidentBaseResource(Resource):
     """
     故障相关资源基类
     """
+
+    BKFARA_NOTICE_SOURCE = "bkfara"
+    REMOTE_INCIDENT_UPDATE_FIELDS = {
+        "incident_id",
+        "bk_biz_id",
+        "incident_name",
+        "incident_reason",
+        "level",
+        "status",
+        "assignees",
+        "handlers",
+        "labels",
+        "feedback",
+        "end_time",
+    }
+
+    @classmethod
+    def get_incident_extra_info(cls, incident: IncidentDocument) -> dict:
+        extra_info = getattr(incident, "extra_info", None) or {}
+        return extra_info.to_dict() if hasattr(extra_info, "to_dict") else extra_info
+
+    @classmethod
+    def is_bkfara_incident(cls, incident: IncidentDocument) -> bool:
+        return cls.get_incident_extra_info(incident).get("notice_source") == cls.BKFARA_NOTICE_SOURCE
+
+    @classmethod
+    def get_remote_incident_api(cls, incident: IncidentDocument):
+        return api.bk_incident if cls.is_bkfara_incident(incident) else api.bkdata
+
+    @classmethod
+    def get_incident_document(cls, incident_doc_id: str) -> IncidentDocument:
+        return IncidentDocument.get(incident_doc_id, fetch_remote=False)
+
+    @classmethod
+    def get_remote_incident_detail(cls, incident: IncidentDocument) -> dict:
+        return cls.get_remote_incident_api(incident).get_incident_detail(incident_id=incident.incident_id)
+
+    @classmethod
+    def get_remote_incident_update_params(cls, incident_info: dict, updates: dict = None) -> dict:
+        updates = updates or {}
+        params = {
+            field_name: incident_info[field_name]
+            for field_name in cls.REMOTE_INCIDENT_UPDATE_FIELDS
+            if field_name in incident_info
+        }
+        params.update(
+            {
+                field_name: updates[field_name]
+                for field_name in cls.REMOTE_INCIDENT_UPDATE_FIELDS
+                if field_name in updates
+            }
+        )
+        return params
+
+    @classmethod
+    def get_remote_analysis_results(cls, incident: IncidentDocument, bk_biz_id: int = None) -> dict:
+        incident_id = int(incident.incident_id)
+        if cls.is_bkfara_incident(incident):
+            return api.bk_incident.get_incident_diagnosis(incident_id=incident_id, bk_biz_id=bk_biz_id)
+        return api.bkdata.get_incident_analysis_results(incident_id=incident_id)
+
+    @classmethod
+    def normalize_incident_status(cls, status: str) -> str:
+        if isinstance(status, str) and status.lower() in IncidentStatus.get_enum_value_list():
+            return status.lower()
+        return status
 
     @classmethod
     def get_snapshot_alerts(cls, snapshot: IncidentSnapshot, **kwargs) -> list[dict]:
@@ -227,6 +294,9 @@ class IncidentBaseResource(Resource):
         """
         incident_document = IncidentDocument.get(incident_info["id"], fetch_remote=False)
         for incident_key, incident_value in incident_info.items():
+            if incident_key == "status":
+                incident_value = self.normalize_incident_status(incident_value)
+                incident_info[incident_key] = incident_value
             if (
                 hasattr(incident_document, incident_key)
                 and (getattr(incident_document, incident_key) or incident_key in ("incident_reason", "assignees"))
@@ -393,15 +463,13 @@ class IncidentListResource(IncidentBaseResource):
         result["enabled_spaces"] = []
 
         if bk_biz_ids:
-            general_config_data = GetConfigResource().request(**{
-                "config_type":"general_config",
-                "bk_biz_id_list":bk_biz_ids,
-                "bk_biz_id":bk_biz_ids[0]
-            })
-            for item in general_config_data.get("objects",[]):
-                if item.get("content",{}).get("enabled",False):
+            general_config_data = GetConfigResource().request(
+                **{"config_type": "general_config", "bk_biz_id_list": bk_biz_ids, "bk_biz_id": bk_biz_ids[0]}
+            )
+            for item in general_config_data.get("objects", []):
+                if item.get("content", {}).get("enabled", False):
                     result["enabled_spaces"].append(item.get("scope_value"))
-        result["wx_cs_link"] = bk_data_robot_link_list_search(settings.BK_DATA_ROBOT_LINK_LIST,"icon-kefu")
+        result["wx_cs_link"] = bk_data_robot_link_list_search(settings.BK_DATA_ROBOT_LINK_LIST, "icon-kefu")
         return result
 
 
@@ -1278,9 +1346,14 @@ class EditIncidentResource(IncidentBaseResource):
     def perform_request(self, validated_request_data: dict) -> dict:
         incident_id = validated_request_data["incident_id"]
 
-        incident_info = api.bkdata.get_incident_detail(incident_id=incident_id)
-        incident_info.update(validated_request_data)
-        updated_incident = api.bkdata.update_incident_detail(**incident_info)
+        incident = self.get_incident_document(str(validated_request_data["id"]))
+        incident_api = self.get_remote_incident_api(incident)
+        incident_info = incident_api.get_incident_detail(incident_id=incident_id)
+        remote_incident_info = self.get_remote_incident_update_params(incident_info, validated_request_data)
+        updated_incident = incident_api.update_incident_detail(**remote_incident_info)
+
+        incident_info.update(remote_incident_info)
+        incident_info["id"] = validated_request_data["id"]
 
         self.update_incident_document(
             incident_info,
@@ -1308,14 +1381,19 @@ class FeedbackIncidentRootResource(IncidentBaseResource):
         incident_id = validated_request_data["incident_id"]
         is_cancel = validated_request_data["is_cancel"]
 
-        incident_info = api.bkdata.get_incident_detail(incident_id=incident_id)
+        incident = self.get_incident_document(str(validated_request_data["id"]))
+        incident_api = self.get_remote_incident_api(incident)
+        incident_info = incident_api.get_incident_detail(incident_id=incident_id)
         incident_info["id"] = validated_request_data["id"]
 
+        feedback = incident_info.get("feedback") if isinstance(incident_info.get("feedback"), dict) else {}
         if not is_cancel:
-            incident_info["feedback"].update(validated_request_data["feedback"])
+            feedback.update(validated_request_data["feedback"])
         else:
-            incident_info["feedback"] = {}
-        updated_incident = api.bkdata.update_incident_detail(**incident_info)
+            feedback = {}
+        incident_info["feedback"] = feedback
+        remote_incident_info = self.get_remote_incident_update_params(incident_info)
+        updated_incident = incident_api.update_incident_detail(**remote_incident_info)
         update_time = arrow.get(updated_incident["updated_at"]).replace(tzinfo=timezone.get_current_timezone().zone)
         self.update_incident_document(incident_info, update_time)
         if is_cancel:
@@ -1532,9 +1610,8 @@ class IncidentResultsResource(IncidentBaseResource):
             "status": None,
         }
 
-        # 去除前面的时间戳
-        incident_id = str(validated_request_data["id"])[10:]
-        raw_results = api.bkdata.get_incident_analysis_results(incident_id=int(incident_id))
+        incident = self.get_incident_document(str(validated_request_data["id"]))
+        raw_results = self.get_remote_analysis_results(incident, bk_biz_id=validated_request_data["bk_biz_id"])
 
         if "incident_diagnosis" in raw_results and isinstance(raw_results["incident_diagnosis"], dict):
             diagnosis_result = {"status": None, "enabled": None, "sub_panels": {}}
@@ -1594,9 +1671,9 @@ class IncidentDiagnosisResource(IncidentBaseResource):
     def perform_request(self, validated_request_data: dict) -> dict:
         panel = validated_request_data.get("panel", "incident_diagnosis")
         sub_panel = validated_request_data.get("sub_panel")
-        incident_id = str(validated_request_data["id"])[10:]
+        incident = self.get_incident_document(str(validated_request_data["id"]))
         bk_biz_ids = validated_request_data["bk_biz_ids"]
-        raw_results = api.bkdata.get_incident_analysis_results(incident_id=int(incident_id))
+        raw_results = self.get_remote_analysis_results(incident, bk_biz_id=bk_biz_ids[0] if bk_biz_ids else None)
         raw_content = raw_results.get(panel, {}).get("sub_panels", {}).get(sub_panel, {}).get("content")
         # 设置默认返回
         display_panel = sub_panel
@@ -1718,6 +1795,7 @@ class IncidentDateHistogramResultResource(Resource):
             return data
         return datas[0]
 
+
 class GetConfigResource(Resource):
     def perform_request(self, validated_request_data):
         return api.bk_incident.get_config(validated_request_data)
@@ -1727,12 +1805,13 @@ class FetchGlobalVariablesResource(Resource):
     def perform_request(self, validated_request_data):
         return api.bk_incident.fetch_global_variables(validated_request_data)
 
+
 class CreateListConfigResource(Resource):
     def perform_request(self, validated_request_data):
         return api.bk_incident.create_list_config(validated_request_data)
 
 
-class GetIncidentDocIdResource (Resource):
+class GetIncidentDocIdResource(Resource):
     class RequestSerializer(serializers.Serializer):
         incident_id = serializers.CharField(required=True, label="故障ID")
 

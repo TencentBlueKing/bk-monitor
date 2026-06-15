@@ -581,6 +581,30 @@ export default defineComponent({
     };
 
     /**
+     * 渲染名称变更（用户手动改名 / 系统按关联日志生成可读标题）
+     */
+    const renderNameChangeActivity = (item: IssueActivityItem, showLine = true) => {
+      const nameNode = activeNodeMap[IssueActiveNodeTypeEnum.NAME_CHANGE];
+      return renderActivityItem({
+        icon: <i class='icon-monitor icon-bianji' />,
+        title: (
+          <div class='title-row'>
+            <span
+              class='action'
+              v-overflow-tips={{
+                placement: 'top',
+              }}
+            >
+              {nameNode.alias}：{item.to_value}
+            </span>
+            {renderActivityItemTime(item)}
+          </div>
+        ),
+        showLine,
+      });
+    };
+
+    /**
      * 渲染首次出现
      */
     const renderFirstActivity = (item: IssueActivityItem, showLine = true) => {
@@ -623,6 +647,8 @@ export default defineComponent({
           return renderDispatchActivity(item, showLine);
         case IssueActiveNodeTypeEnum.PRIORITY_CHANGE:
           return renderPriorityActivity(item, showLine);
+        case IssueActiveNodeTypeEnum.NAME_CHANGE:
+          return renderNameChangeActivity(item, showLine);
         case IssueActiveNodeTypeEnum.CREATE:
           return renderFirstActivity(item, showLine);
         // case IssueActiveNodeTypeEnum.SPLIT_FROM:

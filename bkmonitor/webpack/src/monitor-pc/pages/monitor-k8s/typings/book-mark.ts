@@ -220,6 +220,8 @@ export class BookMarkModel implements IBookMark {
   selectorPanel?: PanelModel;
   // 是否展示页签图表统计数据
   show_panel_count = false;
+  // 类型
+  type: string;
   // 变量设置
   variables?: IVariableModel[] = [];
   constructor(public bookmark: IBookMark) {

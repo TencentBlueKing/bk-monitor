@@ -46,18 +46,6 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-    display: {
-      type: Array,
-      default: () => [],
-    },
-    total: {
-      type: Array,
-      default: () => [],
-    },
-    isConfigLoading: {
-      type: Boolean,
-      default: false,
-    },
   },
   setup(props, { emit, expose }) {
     const { t } = useLocale();
@@ -404,17 +392,15 @@ export default defineComponent({
                 {t('代码')}
               </div>
             </div>
-            {!props.isRealTime && (
-              <div
-                class='setting-main'
-                on-click={handleOpenFieldsConfig}
-              >
-                <span
-                  style='font-size: 16px'
-                  class='icon bklog-icon bklog-set-icon'
-                ></span>
-              </div>
-            )}
+            <div
+              class='setting-main'
+              on-click={handleOpenFieldsConfig}
+            >
+              <span
+                style='font-size: 16px'
+                class='icon bklog-icon bklog-set-icon'
+              ></span>
+            </div>
           </div>
         </div>
         <FieldsConfig

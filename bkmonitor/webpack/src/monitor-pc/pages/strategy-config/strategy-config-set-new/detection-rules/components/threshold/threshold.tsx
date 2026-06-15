@@ -27,7 +27,7 @@ import { Component, Emit, InjectReactive, Prop, Ref } from 'vue-property-decorat
 import { Component as tsc } from 'vue-tsx-support';
 
 import { THRESHOLD_METHOD_LIST } from '../../../../../../constant/constant';
-import { type IDetectionTypeRuleData, DetectionRuleTypeEnum } from '../../../typings';
+import { type IDetectionTypeRuleData, type MetricDetail, DetectionRuleTypeEnum } from '../../../typings';
 import ThresholdSelect, { type IItem } from './threshold-select';
 
 import './threshold.scss';
@@ -39,6 +39,7 @@ interface ThresholdEvents {
 interface ThresholdProps {
   data?: IDetectionTypeRuleData;
   methodList?: IItem[];
+  metricData?: MetricDetail[];
   otherSelectRuleData?: IDetectionTypeRuleData[];
   readonly?: boolean;
   unit?: string;
@@ -54,6 +55,8 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
   @Prop({ type: Array, default: () => [...THRESHOLD_METHOD_LIST] }) methodList: IItem[];
   /** 单位 */
   @Prop({ type: String, default: '' }) unit: string;
+  /** 指标数据：用于判定是否日志关键字，以决定静态阈值默认值 */
+  @Prop({ type: Array, default: () => [] }) metricData: MetricDetail[];
 
   @InjectReactive('yAxisNeedUnit') needShowUnit;
 
@@ -103,6 +106,11 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
     return list;
   }
 
+  /** 日志关键字指标的静态阈值默认值为 1（出现即告），其余为 0 */
+  get defaultThreshold(): number {
+    return this.metricData?.[0]?.data_type_label === 'log' ? 1 : 0;
+  }
+
   created() {
     if (this.data) {
       this.localData = this.data;
@@ -114,6 +122,7 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
   /** 初始化数据 */
   initData() {
     this.localData.level = this.levelList.find(item => !item.disabled).id;
+    this.localData.config = [[{ method: 'gte', threshold: this.defaultThreshold }]];
     this.emitLocalData();
   }
 
@@ -192,6 +201,7 @@ export default class Threshold extends tsc<ThresholdProps, ThresholdEvents> {
             required
           >
             <ThresholdSelect
+              default-threshold={this.defaultThreshold}
               method-list={this.methodList}
               readonly={this.readonly}
               unit={this.needShowUnit ? this.unit : ''}

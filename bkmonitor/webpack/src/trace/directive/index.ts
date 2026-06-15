@@ -32,6 +32,7 @@ import { directive } from 'vue-tippy';
 import authority from './authority';
 import overflowTips from './overflow-tips';
 import watermark from './watermark';
+import { BkXssFilterDirective } from '@blueking/xss-filter';
 
 const directives: Record<string, any> = {
   // 指令对象
@@ -45,6 +46,7 @@ const directives: Record<string, any> = {
 
 export default {
   install(app: App) {
+    app.use(BkXssFilterDirective);
     for (const [key, directive] of Object.entries(directives)) {
       app.directive(key, directive);
     }

@@ -229,6 +229,8 @@ ACTION_TASK_CRONTAB = [
     ("bkmonitor.documents.tasks.rollover_indices", "*/24 * * * *", "global"),
     # 定期同步活跃 Issue 的告警统计（含漏关联补偿和 orphan issue 检测）
     ("alarm_backends.service.fta_action.tasks.sync_issue_alert_stats", "*/5 * * * *", "cluster"),
+    # 定期预计算 Issue LLM 标题 few-shot 示例缓存（用户改名采样）
+    ("alarm_backends.service.fta_action.tasks.refresh_issue_llm_title_examples", "0 * * * *", "cluster"),
     # 定期清理停用的ai 策略对应的flow任务(每天2点半)
     ("bkmonitor.management.commands.clean_aiflow.run_clean", "30 2 * * *", "global"),
     # aiops sdk策略历史依赖管理
@@ -547,6 +549,15 @@ QOS_ALERT_WINDOW = 60
 # 运维通过 `bkmonitor_issue_fingerprint_blocked{reason=high_cardinality}` 速率告警发现高基数策略
 # （metric 由 ISSUE_ACTIVE_COUNT_KEY 5min Redis cache 驱动，存在 ≤5min 滞后）。
 ISSUE_MAX_ACTIVE_PER_STRATEGY = 500
+
+# Issue LLM 标题生成动态配置的静态占位（值与 bkmonitor/define/global_config.py 的 serializer default 对齐）。
+# 必须保留：DynamicSettings.__getattr__ 读 DB 前先 getattr 静态 settings（dynamic_settings.py L74），
+# 缺占位会抛 AttributeError 短路掉 DB 查询，导致 GlobalConfig 页面改的值被静默忽略、功能无法开启。
+ISSUE_LLM_TITLE_BIZ_WHITE_LIST = []
+ISSUE_LLM_TITLE_BIZ_TEMPLATES = {}
+ISSUE_LLM_TITLE_SHADOW = False
+ISSUE_LLM_TITLE_MODEL = "hy3-preview"
+ISSUE_LLM_TITLE_RATE_LIMIT_PER_MINUTE = 100
 
 # 第三方事件接入白名单
 BIZ_WHITE_LIST_FOR_3RD_EVENT = []
