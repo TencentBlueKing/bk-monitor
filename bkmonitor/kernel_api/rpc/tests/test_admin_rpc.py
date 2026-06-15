@@ -18,8 +18,10 @@ from types import SimpleNamespace
 from unittest.mock import Mock, call, patch
 
 import pytest
+from django.utils.translation import gettext_lazy
 
 from core.drf_resource.exceptions import CustomException
+from kernel_api.resource.kernel_rpc import KernelRPCResource
 from kernel_api.rpc.functions.admin.api_auth_token import (
     _normalize_biz_ids,
     _normalize_namespaces,
@@ -42,6 +44,7 @@ from kernel_api.rpc.functions.admin.cluster_info import (
     _serialize_cluster_info,
     _serialize_cluster_space_vm_info,
 )
+from kernel_api.rpc.functions.admin.common import build_response
 from kernel_api.rpc.functions.admin.datasource import _serialize_datasource
 from kernel_api.rpc.functions.admin import datalink as admin_datalink
 from kernel_api.rpc.functions.admin.datalink import (
@@ -335,6 +338,109 @@ def test_collect_config_summary_keeps_version_and_subscription_context(monkeypat
     assert deployment_detail["config_id"] == 202
     assert deployment_detail["params"]["collector"]["period"] == 60
     assert deployment_detail["plugin_info"]["config_version"] == 1
+
+
+def test_collect_config_summary_uses_injected_plugin_context(monkeypatch):
+    plugin = CollectorPluginMeta(
+        bk_tenant_id="system",
+        plugin_id="bkprocessbeat",
+        plugin_type=PluginType.PROCESS,
+        bk_biz_id=0,
+        label="host_process",
+    )
+    current_config_definition = CollectorPluginConfig(collector_json={}, config_json=[], is_support_remote=False)
+    latest_config_definition = CollectorPluginConfig(collector_json={}, config_json=[], is_support_remote=False)
+    current_info = CollectorPluginInfo(plugin_display_name="进程采集", metric_json=[])
+    latest_info = CollectorPluginInfo(plugin_display_name="进程采集", metric_json=[])
+    current_version = PluginVersionHistory(
+        bk_tenant_id="system",
+        plugin_id="bkprocessbeat",
+        stage=PluginVersionHistory.Stage.RELEASE,
+        config=current_config_definition,
+        info=current_info,
+        config_version=1,
+        info_version=1,
+        is_packaged=True,
+    )
+    latest_version = PluginVersionHistory(
+        bk_tenant_id="system",
+        plugin_id="bkprocessbeat",
+        stage=PluginVersionHistory.Stage.RELEASE,
+        config=latest_config_definition,
+        info=latest_info,
+        config_version=2,
+        info_version=1,
+        is_packaged=True,
+    )
+    deployment = DeploymentConfigVersion(
+        plugin_version=current_version,
+        subscription_id=82002,
+        target_node_type="INSTANCE",
+        params={"collector": {"period": 60}},
+        target_nodes=[{"ip": "127.0.0.1", "bk_cloud_id": 0}],
+    )
+    collect_config = CollectConfigMeta(
+        id=203,
+        bk_tenant_id="system",
+        bk_biz_id=2,
+        name="业务进程存活",
+        collect_type=PluginType.PROCESS,
+        plugin_id="bkprocessbeat",
+        target_object_type="HOST",
+        deployment_config=deployment,
+        cache_data={"error_instance_count": 0, "total_instance_count": 3},
+        last_operation="START",
+        operation_result="SUCCESS",
+        label="host_process",
+    )
+
+    monkeypatch.setattr(
+        admin_collect_config,
+        "_get_plugin_for_config",
+        Mock(side_effect=AssertionError("plugin should be provided by page context")),
+    )
+    monkeypatch.setattr(
+        admin_collect_config,
+        "_latest_plugin_version",
+        Mock(side_effect=AssertionError("latest version should be provided by page context")),
+    )
+
+    summary = admin_collect_config._serialize_collect_config_summary(
+        collect_config,
+        plugin=plugin,
+        latest_version=latest_version,
+        upgrade_version=latest_version,
+    )
+
+    assert summary["latest_config_version"] == 2
+    assert summary["latest_info_version"] == 1
+    assert summary["need_upgrade"] is True
+
+
+def test_admin_rpc_response_keeps_collect_config_detail_json_safe():
+    result = build_response(
+        operation="collect_config.detail",
+        func_name=admin_collect_config.FUNC_COLLECT_CONFIG_DETAIL,
+        bk_tenant_id="system",
+        data={
+            "config": {
+                "label_info": gettext_lazy("其他"),
+                "params": {"raw": b"log keyword"},
+            }
+        },
+    )
+
+    serializer = KernelRPCResource.ResponseSerializer(
+        data={
+            "func_name": admin_collect_config.FUNC_COLLECT_CONFIG_DETAIL,
+            "protocol": "call",
+            "result": result,
+        }
+    )
+
+    serializer.is_valid(raise_exception=True)
+    assert result["data"]["config"]["label_info"] == "其他"
+    assert result["data"]["config"]["params"]["raw"] == "log keyword"
 
 
 def test_config_delivery_ping_server_serializer_marks_disabled_flags(monkeypatch):

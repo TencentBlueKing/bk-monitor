@@ -14,12 +14,15 @@ import copy
 from collections import defaultdict
 from typing import Any
 
+from django.db.models import Case, Count, Exists, IntegerField, OuterRef, Q, Subquery, Value, When
+
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
     PAGE_LIST_TENANT_SCHEMA,
     build_response,
     filter_by_bk_tenant_id,
+    filter_by_tenant_resource_pairs,
     get_bk_tenant_id,
     get_page_list_bk_tenant_id,
     normalize_optional_bool,
@@ -86,6 +89,10 @@ def _select_current_version(versions: list[PluginVersionHistory]) -> PluginVersi
     if not candidates:
         return None
     return sorted(candidates, key=_version_sort_key)[-1]
+
+
+def _plugin_key(instance: Any) -> tuple[str | None, str]:
+    return getattr(instance, "bk_tenant_id", None), str(getattr(instance, "plugin_id", ""))
 
 
 def _serialize_logo(value: Any) -> str:
@@ -350,77 +357,74 @@ def _serialize_plugin_summary(
     }
 
 
-def _load_versions_by_plugin(bk_tenant_id: str | None, plugin_ids: list[str]) -> dict[str, list[PluginVersionHistory]]:
-    if not plugin_ids:
+def _load_versions_by_plugin_key(
+    plugin_pairs: set[tuple[str | None, str]],
+) -> dict[tuple[str | None, str], list[PluginVersionHistory]]:
+    if not plugin_pairs:
         return {}
-    queryset = PluginVersionHistory.objects.select_related("config", "info").filter(plugin_id__in=plugin_ids)
-    if bk_tenant_id:
-        queryset = queryset.filter(bk_tenant_id=bk_tenant_id)
-    versions: dict[str, list[PluginVersionHistory]] = defaultdict(list)
-    for version in queryset.order_by("plugin_id", "config_version", "info_version", "id"):
-        versions[version.plugin_id].append(version)
+    queryset = filter_by_tenant_resource_pairs(
+        PluginVersionHistory.objects.select_related("config", "info"),
+        "plugin_id",
+        plugin_pairs,
+    )
+    versions: dict[tuple[str | None, str], list[PluginVersionHistory]] = defaultdict(list)
+    for version in queryset.order_by("bk_tenant_id", "plugin_id", "config_version", "info_version", "id"):
+        versions[_plugin_key(version)].append(version)
     return versions
 
 
-def _collect_config_counts(bk_tenant_id: str | None, plugin_ids: list[str]) -> dict[str, int]:
-    if not plugin_ids:
+def _collect_config_counts(plugin_pairs: set[tuple[str | None, str]]) -> dict[tuple[str | None, str], int]:
+    if not plugin_pairs:
         return {}
-    queryset = CollectConfigMeta.objects.filter(plugin_id__in=plugin_ids)
-    if bk_tenant_id:
-        queryset = queryset.filter(bk_tenant_id=bk_tenant_id)
-    counts: dict[str, int] = defaultdict(int)
-    for item in queryset.values("plugin_id"):
-        counts[str(item["plugin_id"])] += 1
+    queryset = filter_by_tenant_resource_pairs(CollectConfigMeta.objects.all(), "plugin_id", plugin_pairs)
+    counts: dict[tuple[str | None, str], int] = {}
+    for item in queryset.values("bk_tenant_id", "plugin_id").annotate(total=Count("id")).order_by():
+        counts[(item["bk_tenant_id"], str(item["plugin_id"]))] = int(item["total"])
     return counts
 
 
-def _release_version_counts(versions_by_plugin: dict[str, list[PluginVersionHistory]]) -> dict[str, int]:
+def _release_version_counts(
+    versions_by_plugin: dict[tuple[str | None, str], list[PluginVersionHistory]],
+) -> dict[tuple[str | None, str], int]:
     return {
         plugin_id: len([version for version in versions if version.stage == PluginVersionHistory.Stage.RELEASE])
         for plugin_id, versions in versions_by_plugin.items()
     }
 
 
-def _filter_summary(item: dict[str, Any], params: dict[str, Any]) -> bool:
-    search = _normalize_string(params.get("search"))
-    if search:
-        haystack = f"{item['plugin_id']} {item['plugin_display_name']}".lower()
-        if search.lower() not in haystack:
-            return False
+def _current_version_queryset() -> Any:
+    return (
+        PluginVersionHistory.objects.filter(
+            bk_tenant_id=OuterRef("bk_tenant_id"),
+            plugin_id=OuterRef("plugin_id"),
+        )
+        .annotate(
+            release_order=Case(
+                When(stage=PluginVersionHistory.Stage.RELEASE, then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            )
+        )
+        .order_by("-release_order", "-config_version", "-info_version", "-id")
+    )
 
-    plugin_id = _normalize_string(params.get("plugin_id"))
-    if plugin_id and plugin_id.lower() not in str(item["plugin_id"]).lower():
-        return False
 
-    plugin_type = _normalize_string(params.get("plugin_type"))
-    if plugin_type and item["plugin_type"] != plugin_type:
-        return False
+def _annotate_current_version_fields(queryset: Any) -> Any:
+    current_version_queryset = _current_version_queryset()
+    return queryset.annotate(
+        current_config_version=Subquery(current_version_queryset.values("config_version")[:1]),
+        current_stage=Subquery(current_version_queryset.values("stage")[:1]),
+        current_plugin_display_name=Subquery(current_version_queryset.values("info__plugin_display_name")[:1]),
+        current_is_support_remote=Subquery(current_version_queryset.values("config__is_support_remote")[:1]),
+    )
 
-    stage = _normalize_string(params.get("stage"))
-    if stage and item["stage"] != stage:
-        return False
 
-    label = _normalize_string(params.get("label"))
-    if label and label.lower() not in str(item.get("label") or "").lower():
-        return False
-
-    is_official = normalize_optional_bool(params.get("is_official"), "is_official")
-    if is_official is not None and item["is_official"] != is_official:
-        return False
-
-    is_internal = normalize_optional_bool(params.get("is_internal"), "is_internal")
-    if is_internal is not None and item["is_internal"] != is_internal:
-        return False
-
-    has_collect_config = normalize_optional_bool(params.get("has_collect_config"), "has_collect_config")
-    if has_collect_config is not None and (item["related_conf_count"] > 0) != has_collect_config:
-        return False
-
-    is_support_remote = normalize_optional_bool(params.get("is_support_remote"), "is_support_remote")
-    if is_support_remote is not None and item["is_support_remote"] != is_support_remote:
-        return False
-
-    return True
+def _annotate_has_collect_config(queryset: Any) -> Any:
+    collect_config_queryset = CollectConfigMeta.objects.filter(
+        bk_tenant_id=OuterRef("bk_tenant_id"),
+        plugin_id=OuterRef("plugin_id"),
+    )
+    return queryset.annotate(has_collect_config_flag=Exists(collect_config_queryset))
 
 
 def _paginate_items(items: list[dict[str, Any]], *, page: int, page_size: int) -> tuple[list[dict[str, Any]], int]:
@@ -493,25 +497,54 @@ def list_collect_plugins(params: dict[str, Any]) -> dict[str, Any]:
     label = _normalize_string(params.get("label"))
     if label:
         queryset = queryset.filter(label__icontains=label)
+    is_internal = normalize_optional_bool(params.get("is_internal"), "is_internal")
+    if is_internal is not None:
+        queryset = queryset.filter(is_internal=is_internal)
 
-    plugins = list(queryset.order_by(ordering, "plugin_id"))
-    plugin_ids = [plugin.plugin_id for plugin in plugins]
-    versions_by_plugin = _load_versions_by_plugin(bk_tenant_id, plugin_ids)
-    collect_config_counts = _collect_config_counts(bk_tenant_id, plugin_ids)
+    search = _normalize_string(params.get("search"))
+    stage = _normalize_string(params.get("stage"))
+    is_official = normalize_optional_bool(params.get("is_official"), "is_official")
+    is_support_remote = normalize_optional_bool(params.get("is_support_remote"), "is_support_remote")
+    needs_current_version_fields = bool(search or stage or is_official is not None or is_support_remote is not None)
+    if needs_current_version_fields:
+        queryset = _annotate_current_version_fields(queryset)
+    if search:
+        queryset = queryset.filter(Q(plugin_id__icontains=search) | Q(current_plugin_display_name__icontains=search))
+    if stage:
+        queryset = queryset.filter(current_stage=stage)
+    if is_official is True:
+        queryset = queryset.filter(plugin_id__startswith="bkplugin_", current_config_version__isnull=False)
+    elif is_official is False:
+        queryset = queryset.exclude(plugin_id__startswith="bkplugin_", current_config_version__isnull=False)
+    if is_support_remote is True:
+        queryset = queryset.filter(current_is_support_remote=True)
+    elif is_support_remote is False:
+        queryset = queryset.filter(Q(current_is_support_remote=False) | Q(current_config_version__isnull=True))
+
+    has_collect_config = normalize_optional_bool(params.get("has_collect_config"), "has_collect_config")
+    if has_collect_config is not None:
+        queryset = _annotate_has_collect_config(queryset).filter(has_collect_config_flag=has_collect_config)
+
+    total = queryset.count()
+    type_count = {
+        str(item["plugin_type"]): int(item["total"])
+        for item in queryset.order_by().values("plugin_type").annotate(total=Count("id"))
+    }
+
+    offset = (page - 1) * page_size
+    page_plugins = list(queryset.order_by(ordering, "plugin_id")[offset : offset + page_size])
+    plugin_pairs = {_plugin_key(plugin) for plugin in page_plugins}
+    versions_by_plugin = _load_versions_by_plugin_key(plugin_pairs)
+    collect_config_counts = _collect_config_counts(plugin_pairs)
     release_counts = _release_version_counts(versions_by_plugin)
 
-    items: list[dict[str, Any]] = []
-    for plugin in plugins:
-        current_version = _select_current_version(versions_by_plugin.get(plugin.plugin_id, []))
-        item = _serialize_plugin_summary(plugin, current_version, collect_config_counts.get(plugin.plugin_id, 0))
-        item["release_version_count"] = release_counts.get(plugin.plugin_id, 0)
-        if _filter_summary(item, params):
-            items.append(item)
-
-    page_items, total = _paginate_items(items, page=page, page_size=page_size)
-    type_count: dict[str, int] = defaultdict(int)
-    for item in items:
-        type_count[str(item["plugin_type"])] += 1
+    page_items: list[dict[str, Any]] = []
+    for plugin in page_plugins:
+        key = _plugin_key(plugin)
+        current_version = _select_current_version(versions_by_plugin.get(key, []))
+        item = _serialize_plugin_summary(plugin, current_version, collect_config_counts.get(key, 0))
+        item["release_version_count"] = release_counts.get(key, 0)
+        page_items.append(item)
 
     return build_response(
         operation="collect_plugin.list",
