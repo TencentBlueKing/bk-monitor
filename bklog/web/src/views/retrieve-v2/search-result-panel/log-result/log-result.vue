@@ -184,9 +184,9 @@ export default {
         //   });
         // } else
         if (Array.isArray(contextFields) && contextFields.length) {
-          // 传参配置指定字段
-          contextFields.push(timeField);
-          contextFields.forEach((field) => {
+          // 传参配置指定字段。不要直接 push 到 store 配置数组，否则每次打开上下文/实时日志都会污染全局配置并持续增长。
+          const targetContextFields = Array.from(new Set([...contextFields, timeField].filter(Boolean)));
+          targetContextFields.forEach((field) => {
             if (field === "bk_host_id") {
               if (row[field]) dialogNewParams[field] = row[field];
             } else {
@@ -210,10 +210,15 @@ export default {
     // 关闭实时日志或上下文弹窗后的回调
     hideDialog() {
       this.logDialog.type = "";
+      this.logDialog.data = {};
+      this.logDialog.indexSetId = 0;
       this.targetFields = [];
       this.isShowContextLog = false;
       this.isShowRealTimeLog = false;
     },
+  },
+  beforeUnmount() {
+    this.hideDialog();
   },
 };
 </script>

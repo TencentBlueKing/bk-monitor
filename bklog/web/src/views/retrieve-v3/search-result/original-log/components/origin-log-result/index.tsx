@@ -100,6 +100,9 @@ export default defineComponent({
     let begin = 0;
     const size = 50;
     let total = 0;
+    let isUnmounted = false;
+    let requestSeq = 0;
+    let scrollIntoViewTimer: ReturnType<typeof setTimeout> | null = null;
 
     const isMonitorApm = window.__IS_MONITOR_APM__;
 
@@ -114,6 +117,7 @@ export default defineComponent({
     );
 
     const requestLogList = (isManualSearch = true) => {
+      const currentRequestSeq = ++requestSeq;
       listLoading.value = true;
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
       const searchUrl = store.getters.isSceneMode
@@ -142,8 +146,14 @@ export default defineComponent({
       }
       axiosInstance(params)
         .then((resp: any) => {
+          if (isUnmounted || currentRequestSeq !== requestSeq) {
+            return;
+          }
           if (resp.data && !resp.message) {
             readBlobRespToJson(resp.data).then(({ code, data, result, permission }) => {
+              if (isUnmounted || currentRequestSeq !== requestSeq) {
+                return;
+              }
               if (code === '9900403') {
                 store.commit('updateState', {
                   authDialogData: {
@@ -167,7 +177,9 @@ export default defineComponent({
           }
         })
         .finally(() => {
-          listLoading.value = false;
+          if (!isUnmounted && currentRequestSeq === requestSeq) {
+            listLoading.value = false;
+          }
         });
     };
 
@@ -344,9 +356,9 @@ export default defineComponent({
         dtEventTimeStamp: rowInfo.dtEventTimeStamp,
       });
       if (Array.isArray(contextFields) && contextFields.length) {
-        // 传参配置指定字段
-        contextFields.push(timeField);
-        contextFields.forEach((field) => {
+        // 传参配置指定字段。不要直接 push 到 store 配置数组，否则每次点击行都会污染全局配置并持续增长。
+        const targetContextFields = Array.from(new Set([...contextFields, timeField].filter(Boolean)));
+        targetContextFields.forEach((field) => {
           if (field === 'bk_host_id') {
             if (rowInfo[field]) {
               dialogNewParams[field] = rowInfo[field];
@@ -409,6 +421,14 @@ export default defineComponent({
     });
 
     onBeforeUnmount(() => {
+      isUnmounted = true;
+      requestSeq += 1;
+      handleScrollContent.cancel();
+      if (scrollIntoViewTimer) {
+        clearTimeout(scrollIntoViewTimer);
+        scrollIntoViewTimer = null;
+      }
+      logList.value = [];
       removeSegmentLightStyle();
     });
 
@@ -454,9 +474,18 @@ export default defineComponent({
         total = outerLogResult.total;
         logList.value = outerLogResult.list.slice();
         begin = logList.value.length;
-        setTimeout(() => {
+        if (scrollIntoViewTimer) {
+          clearTimeout(scrollIntoViewTimer);
+        }
+        scrollIntoViewTimer = setTimeout(() => {
+          if (isUnmounted) {
+            return;
+          }
           // 自动定位到选中行
-          const isChoosedRow = Array.from(tableRef.value.querySelectorAll('.is-choosed'))[0];
+          const isChoosedRow = Array.from(tableRef.value?.querySelectorAll('.is-choosed') ?? [])[0] as HTMLElement;
+          if (!isChoosedRow) {
+            return;
+          }
           const positionInfo = isChoosedRow.getBoundingClientRect();
           if (positionInfo.top > window.innerHeight - 70) {
             isChoosedRow.scrollIntoView();

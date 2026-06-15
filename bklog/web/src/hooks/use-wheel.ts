@@ -28,17 +28,19 @@ import { onMounted, onBeforeUnmount } from 'vue';
 import { getTargetElement } from './hooks-helper';
 
 export default ({ target, callback, options = { passive: true } }: { target: any; callback: (e: WheelEvent) => void; options?: AddEventListenerOptions }) => {
+  let targetElement: HTMLElement | null = null;
+
   const throttleCallback = (e: WheelEvent) => {
     callback?.(e);
   };
 
   onMounted(() => {
-    const targetElement = getTargetElement(target);
+    targetElement = getTargetElement(target) as HTMLElement;
     targetElement?.addEventListener('wheel', throttleCallback, options);
   });
 
   onBeforeUnmount(() => {
-    const targetElement = getTargetElement(target);
     targetElement?.removeEventListener('wheel', throttleCallback, options);
+    targetElement = null;
   });
 };

@@ -31,6 +31,7 @@ import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import useStore from '@/hooks/use-store';
 import { getDefaultRetrieveParams, updateURLArgs as updateUrlArgs } from '@/store/default-values';
 import { BK_LOG_STORAGE, type RouteParams, SEARCH_MODE_DIC } from '@/store/store.type';
+import RequestPool from '@/store/request-pool';
 import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import { useRoute, useRouter } from 'vue-router/composables';
@@ -767,14 +768,22 @@ export default () => {
   });
 
   onUnmounted(() => {
+    RequestPool.cancelAll();
     RetrieveHelper.destroy();
-    // 清理掉当前查询结果，避免下次进入空白展示
-    store.commit('updateIndexSetQueryResult', {
+    // 清理掉当前查询结果，避免下次进入空白展示，同时释放检索页大对象引用。
+    store.commit('resetIndexSetQueryResult', {
       origin_log_list: [],
       list: [],
       is_error: false,
       exception_msg: '',
     });
+    store.commit('updateSqlQueryFieldList', []);
+    store.commit('resetIndexFieldInfo', {
+      fields: [],
+      is_loading: false,
+    });
+    store.commit('retrieve/updateIndexSetList', []);
+    store.commit('retrieve/resetRuntimeState');
   });
 
   return {

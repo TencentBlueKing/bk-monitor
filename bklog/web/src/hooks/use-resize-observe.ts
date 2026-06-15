@@ -57,13 +57,17 @@ export default (
   };
 
   let resizeObserver: ResizeObserver;
+  let observedElement: HTMLElement | null = null;
   const isStoped = ref(true);
 
   const observeElement = () => {
     if (isStoped.value) {
       isStoped.value = false;
       const cellElement = getTarget() as HTMLElement;
-      resizeObserver?.observe(cellElement);
+      if (isElement(cellElement)) {
+        observedElement = cellElement;
+        resizeObserver?.observe(cellElement);
+      }
     }
   };
 
@@ -92,13 +96,14 @@ export default (
   };
 
   const stopObserve = () => {
-    const cellElement = getTarget() as HTMLElement;
     isStoped.value = true;
+    debounceCallback.cancel();
 
-    if (isElement(cellElement)) {
-      resizeObserver?.unobserve(cellElement);
-      resizeObserver?.disconnect();
+    if (isElement(observedElement)) {
+      resizeObserver?.unobserve(observedElement);
     }
+    observedElement = null;
+    resizeObserver?.disconnect();
   };
 
   const destoyResizeObserve = () => {
