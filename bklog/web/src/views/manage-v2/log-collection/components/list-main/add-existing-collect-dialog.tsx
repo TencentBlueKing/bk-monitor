@@ -235,10 +235,7 @@ export default defineComponent({
           <span class='popover-title'>{t('添加已有采集项')}</span>
           <i
             class='bk-icon icon-close popover-close'
-            onClick={(e: MouseEvent) => {
-              e.stopPropagation();
-              handleCancel();
-            }}
+            onClick={handleCancel}
           />
         </div>
         <div class='popover-body'>
