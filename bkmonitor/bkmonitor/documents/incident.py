@@ -207,14 +207,16 @@ class IncidentDocument(IncidentBaseDocument):
         if fetch_remote:
             try:
                 incident_id = cls.parse_incident_id_by_id(id)
-                incident_info = api.bkdata.get_incident_detail(incident_id=incident_id)
+                extra_info = incident_document_info.get("extra_info") or {}
+                incident_api = api.bk_incident if extra_info.get("notice_source") == "bkfara" else api.bkdata
+                incident_info = incident_api.get_incident_detail(incident_id=incident_id)
                 if isinstance(incident_info["dimensions"], str):
                     incident_info["dimensions"] = json.loads(incident_info["dimensions"])
                 if isinstance(incident_info["feedback"], str):
                     incident_info["feedback"] = json.loads(incident_info["feedback"])
                 incident_document_info.update(incident_info)
             except Exception as e:
-                logger.error(f"Can not get incident info from bkbase api: {str(e)}")
+                logger.error(f"Can not get incident info from remote api: {str(e)}")
 
         return cls(**incident_document_info)
 

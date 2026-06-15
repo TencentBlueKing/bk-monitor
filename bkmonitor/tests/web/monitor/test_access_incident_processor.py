@@ -137,6 +137,7 @@ class TestAccessIncidentProcessor(SimpleTestCase):
         self.assertNotIn("status", mock_api.bk_incident.update_incident_detail.call_args.kwargs)
         self.assertNotIn("bk_biz_id", mock_api.bk_incident.update_incident_detail.call_args.kwargs)
         mock_api.bkdata.update_incident_detail.assert_not_called()
+        self.assertEqual(mock_record_create.call_args.kwargs["incident_document"].extra_info["notice_source"], "bkfara")
         self.assertFalse(mock_record_create.call_args.kwargs["should_send_notice"])
 
     @patch("alarm_backends.service.access.incident.processor.api")
@@ -243,3 +244,4 @@ class TestAccessIncidentProcessor(SimpleTestCase):
         self.assertEqual(status_sync_call.kwargs["end_time"], 1710000060)
         self.assertNotIn("status", status_sync_call.kwargs)
         self.assertNotIn("bkmonitor_received_time", status_sync_call.kwargs)
+        self.assertEqual(incident_document.extra_info["notice_source"], "bkfara")
