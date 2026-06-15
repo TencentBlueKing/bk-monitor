@@ -123,6 +123,12 @@ class IncidentBaseResource(Resource):
         return api.bkdata.get_incident_analysis_results(incident_id=incident_id)
 
     @classmethod
+    def normalize_incident_status(cls, status: str) -> str:
+        if isinstance(status, str) and status.lower() in IncidentStatus.get_enum_value_list():
+            return status.lower()
+        return status
+
+    @classmethod
     def get_snapshot_alerts(cls, snapshot: IncidentSnapshot, **kwargs) -> list[dict]:
         alert_ids = snapshot.get_related_alert_ids()
         if "bk_biz_ids" not in kwargs:
@@ -288,6 +294,9 @@ class IncidentBaseResource(Resource):
         """
         incident_document = IncidentDocument.get(incident_info["id"], fetch_remote=False)
         for incident_key, incident_value in incident_info.items():
+            if incident_key == "status":
+                incident_value = self.normalize_incident_status(incident_value)
+                incident_info[incident_key] = incident_value
             if (
                 hasattr(incident_document, incident_key)
                 and (getattr(incident_document, incident_key) or incident_key in ("incident_reason", "assignees"))
