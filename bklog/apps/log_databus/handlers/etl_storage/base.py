@@ -234,6 +234,8 @@ class EtlStorage:
             "float": "double",
             "double": "double",
             "object": "dict",
+            "nested": "nested",
+            "flattened": "dict",
             "bool": "boolean",
             "boolean": "boolean",
             "keyword": "string",
