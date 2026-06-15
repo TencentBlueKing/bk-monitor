@@ -14,12 +14,15 @@ from django.conf import settings
 from rest_framework import serializers
 
 from core.drf_resource import APIResource
+from core.errors.api import BKAPIError
 
 
 class TapdAPIResource(APIResource):
     base_url = settings.TAPD_API_BASE_URL
     # 模块名
     module_name = "tapd"
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+    IS_STANDARD_FORMAT = False
 
     def get_headers(self):
         credentials = f"{settings.TAPD_APP_ID}:{settings.TAPD_APP_SECRET}"
@@ -27,6 +30,19 @@ class TapdAPIResource(APIResource):
         headers = {"Authorization": f"Basic {encoded_str}"}
 
         return headers
+
+    def render_response_data(self, validated_request_data, response_data):
+        status = response_data.get("status") if isinstance(response_data, dict) else None
+        if str(status) != "1":
+            error_data = {
+                "code": status,
+                "message": response_data.get("info", "") if isinstance(response_data, dict) else response_data,
+                "data": response_data.get("data") if isinstance(response_data, dict) else response_data,
+            }
+            self.report_api_failure_metric(error_code=status, exception_type=BKAPIError.__name__)
+            raise BKAPIError(system_name=self.module_name, url=self.action, result=error_data)
+
+        return response_data.get("data")
 
 
 class GetGrantedWorkspacesResource(TapdAPIResource):
