@@ -483,6 +483,16 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   handleGoToK8sPage() {
     const targetRoute = this.$router.resolve({
       path: '/k8s-new',
+      query: {
+        sceneId: this.scene,
+        filterBy: JSON.stringify(this.filterBy),
+        groupBy: JSON.stringify(this.groupFilters),
+        activeTab: this.activeTab,
+        cluster: this.cluster,
+        refreshInterval: String(this.refreshInterval),
+        from: this.timeRange[0],
+        to: this.timeRange[1],
+      }
     });
     window.open(`${location.origin}${location.pathname}${location.search}${targetRoute.href}`, '_blank');
   }
@@ -529,8 +539,8 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
     } = this.selectTargetItem;
     this.filterBy = {
       [EDimensionKey.namespace]: [namespace],
-      [EDimensionKey.workload]: workload ? [workload] : undefined,
-      [EDimensionKey.pod]: pod ? [pod] : undefined,
+      ...(workload ? { [EDimensionKey.workload]: [workload] } : {}),
+      ...(pod ? { [EDimensionKey.pod]: [pod] } : {}),
     };
     this.cluster = cluster;
     this.apmResourceType = resourceType;
