@@ -115,7 +115,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   // 集群
   cluster = '';
   // 当前 tab
-  activeTab = K8sNewTabEnum.LIST;
+  activeTab = K8sNewTabEnum.CHART;
   filterBy: Record<string, string[]> = {};
   // Group By 选择器的值
   @ProvideReactive('groupInstance')
