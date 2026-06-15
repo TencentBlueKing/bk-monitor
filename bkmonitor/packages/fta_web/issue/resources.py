@@ -1336,8 +1336,10 @@ class ListTapdWorkspaceResource(Resource):
         # 第二步：并发获取每个workspace的详细信息
         def _get_workspace_info(workspace_item, index):
             """获取单个workspace的详细信息"""
+            workspace_data = workspace_item.get("OpenOrganizationApp", {})
+            workspace_id = workspace_data.get("workspace_id", "")
             try:
-                workspace_id = int(workspace_item["OpenOrganizationApp"]["workspace_id"])
+                workspace_id = int(workspace_id)
                 workspace_info = api.tapd.get_workspace_info(workspace_id=workspace_id)["Workspace"]
                 return {
                     "index": index,  # 记录原始位置
@@ -1357,7 +1359,7 @@ class ListTapdWorkspaceResource(Resource):
                     "workspace_id": str(workspace_id),
                     "workspace_name": f"{workspace_id}",
                     "pretty_name": "",
-                    "created": workspace_item["OpenOrganizationApp"].get("created", ""),
+                    "created": workspace_data.get("created", ""),
                     "creator": "",
                     "description": "",
                     "status": "",
