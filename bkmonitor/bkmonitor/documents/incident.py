@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
+import time
 import uuid
 
 from django_elasticsearch_dsl.registries import registry
@@ -199,7 +200,19 @@ class IncidentDocument(IncidentBaseDocument):
             ts = cls.parse_timestamp_by_id(id)
         except Exception:
             raise ValueError(f"invalid uuid: {id}")
-        hits = cls.search(start_time=ts, end_time=ts).filter("term", id=id).execute().hits
+        # ts 反解自 id 前 10 位 = create_time，但 doc 实际索引日期由状态决定：ABNORMAL 故障被
+        # rollover 定时任务（每 24 分钟）reindex 到当前索引（旧索引中删除），RESOLVED/CLOSED 停在
+        # 结束那天的索引。因此查询上界须延伸到 now，否则只搜 create_time 当天会漏掉所有已被 reindex
+        # 的活跃故障，误抛 IncidentNotFoundError。reindex 为逐条原样复制，瞬态新旧索引双副本通常
+        # 内容相同；仅当 reindex 后、旧副本被 delete_by_query 清理前又有写更新落到当前索引时才有
+        # 新旧之分，此时 -update_time 排序取较新那份、不会命中旧副本。
+        hits = (
+            cls.search(start_time=ts, end_time=int(time.time()))
+            .filter("term", id=id)
+            .sort("-update_time")
+            .execute()
+            .hits
+        )
         if not hits:
             raise IncidentNotFoundError({"id": id})
 
