@@ -1586,7 +1586,7 @@ export default defineComponent({
                           {/* 由于视图早于数据先加载好会导致样式错乱，故 loading 完再加载视图 */}
                           {!isTabPanelLoading.value && (
                             <div class='host-tab-container'>
-                              <K8sContainer />
+                              <K8sContainer sceneData={sceneData.value} />
                             </div>
                           )}
                         </Loading>
