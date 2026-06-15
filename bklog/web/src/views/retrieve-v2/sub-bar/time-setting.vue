@@ -46,12 +46,19 @@ const timezone = computed(() => {
   return timezone;
 });
 
-const handleTimezoneChange = (timezone) => {
+const handleTimezoneChange = async (timezone) => {
   store.commit('updateIndexItemParams', { timezone });
   updateTimezone(timezone);
-  store.dispatch('requestIndexSetQuery');
-  RetrieveHelper.fire(RetrieveEvent.SEARCH_TIME_ZONE_CHANGE, timezone);
   setRouteParams();
+  // 场景化检索模式下条件为空时跳过检索请求
+  if (!(store.getters.isSceneMode && store.getters.isSceneFilterEmpty)) {
+    // 检索条件有变更时先加载字段信息
+    if (store.state.indexItem.isSceneFilterChanged) {
+      await store.dispatch('requestIndexSetFieldInfo');
+    }
+    store.dispatch('requestIndexSetQuery');
+    RetrieveHelper.fire(RetrieveEvent.SEARCH_TIME_ZONE_CHANGE, timezone);
+  }
 };
 
 // 日期变化
@@ -59,9 +66,12 @@ const handleTimeRangeChange = async (val) => {
   store.commit('updateIsSetDefaultTableColumn', false);
   const result = handleTransformToTimestamp(val, formatValue.value);
   store.commit('updateIndexItemParams', { start_time: result[0], end_time: result[1], datePickerValue: val });
-  await store.dispatch('requestIndexSetFieldInfo');
-  store.dispatch('requestIndexSetQuery');
   setRouteParams();
+  // 场景化检索模式下条件为空时跳过检索请求
+  if (!(store.getters.isSceneMode && store.getters.isSceneFilterEmpty)) {
+    await store.dispatch('requestIndexSetFieldInfo');
+    store.dispatch('requestIndexSetQuery');
+  }
   RetrieveHelper.fire(RetrieveEvent.SEARCH_TIME_CHANGE, val);
 };
 

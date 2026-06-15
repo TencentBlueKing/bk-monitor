@@ -41,6 +41,7 @@
 | bcs_cluster_id | string | 集群ID                                                                               |
 | namespace      | string | 命名空间（可选，当告警维度中存在namespace时才有此字段）                                                   |
 | workload       | string | 工作负载（可选，格式：kind:name，如：Deployment:nginx，当告警维度中存在workload_kind和workload_name时才有此字段） |
+| scenario_list  | list   | 当前目标支持的容器观测场景列表                                                                      |
 
 **资源类型特定字段（根据resource_type不同，会额外包含对应的资源字段）：**
 
@@ -67,7 +68,8 @@
                 "bcs_cluster_id": "BCS-K8S-00000",
                 "namespace": "default",
                 "workload": "Deployment:nginx-deployment",
-                "pod": "nginx-deployment-7d64c8f5d9-abc12"
+                "pod": "nginx-deployment-7d64c8f5d9-abc12",
+                "scenario_list": ["performance", "network"]
             }
         ]
     }
@@ -87,7 +89,8 @@
             {
                 "bcs_cluster_id": "BCS-K8S-00000",
                 "namespace": "default",
-                "workload": "Deployment:nginx-deployment"
+                "workload": "Deployment:nginx-deployment",
+                "scenario_list": ["performance", "network"]
             }
         ]
     }
@@ -106,7 +109,8 @@
         "target_list": [
             {
                 "bcs_cluster_id": "BCS-K8S-00000",
-                "node": "node-192-168-1-10"
+                "node": "node-192-168-1-10",
+                "scenario_list": ["capacity"]
             }
         ]
     }
@@ -126,7 +130,8 @@
             {
                 "bcs_cluster_id": "BCS-K8S-00000",
                 "namespace": "default",
-                "service": "nginx-service"
+                "service": "nginx-service",
+                "scenario_list": ["network"]
             }
         ]
     }

@@ -890,15 +890,18 @@ class GetStrategyListV2Resource(Resource):
         按策略标签统计策略数量
         """
 
-        # 按策略标签进行聚合统计
-        count_records = (
-            StrategyLabel.objects.filter(strategy_id__in=strategy_ids)
-            .values("label_name")
-            .annotate(total=Count("strategy_id", distinct=True))
-            .order_by("label_name")
-        )
+        # 按策略标签统计去重策略数。
+        # 不在 SQL 侧 GROUP BY/ORDER BY label_name：该写法会让优化器选 label_name 打头的索引
+        # 全扫整表（成本与表大小相关、与 strategy_ids 数解耦），strategy_id 的覆盖索引被弃用。
+        # 改为按 strategy_id 走覆盖索引 seek 取 (strategy_id, label_name) 对，在内存按 label
+        # 去重统计（命中行数与 strategy_ids 规模相关、量级可忽略），与原 COUNT(DISTINCT) 等价。
+        label_to_strategies: dict[str, set[int]] = defaultdict(set)
+        for strategy_id, label_name in StrategyLabel.objects.filter(strategy_id__in=strategy_ids).values_list(
+            "strategy_id", "label_name"
+        ):
+            label_to_strategies[label_name].add(strategy_id)
 
-        label_counts = {record["label_name"]: record["total"] for record in count_records}
+        label_counts = {label_name: len(strategy_set) for label_name, strategy_set in label_to_strategies.items()}
 
         # 查询业务下所有的策略标签
         labels = (

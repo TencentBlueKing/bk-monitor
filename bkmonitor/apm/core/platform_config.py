@@ -28,6 +28,7 @@ from apm.models import BcsClusterDefaultApplicationRelation
 from apm.models.subscription_config import SubscriptionConfig
 from bkmonitor.utils.bcs import BcsKubeClient
 from bkmonitor.utils.bk_collector_config import BkCollectorConfig, BkCollectorClusterConfig
+from bkmonitor.utils.cipher import get_bk_data_token_aes_key
 from bkmonitor.utils.common_utils import count_md5
 from constants.apm import SpanKindKey
 from constants.bk_collector import BkCollectorComp
@@ -276,10 +277,7 @@ class PlatformConfig(BkCollectorConfig):
 
     @classmethod
     def get_token_checker_config(cls, bcs_cluster_id=None):
-        # 需要判断是否有指定密钥，如有，优先级最高
-        x_key = getattr(settings, settings.AES_X_KEY_FIELD)
-        if settings.SPECIFY_AES_KEY != "":
-            x_key = settings.SPECIFY_AES_KEY
+        x_key = get_bk_data_token_aes_key()
 
         token_checker_config = {
             "name": "token_checker/aes256",

@@ -26,6 +26,7 @@
 
 import { defineComponent, ref, PropType } from 'vue';
 import useLocale from '@/hooks/use-locale';
+import { bkMessage } from 'bk-magic-vue';
 import tippy from 'tippy.js';
 import RegexMatchDialog from './regex-match';
 import { copyMessage } from '@/common/util';
@@ -51,12 +52,17 @@ export default defineComponent({
       type: Object as PropType<ClusteringConfigData | null>,
       default: null,
     },
+    getPatternOriginLog: {
+      type: Function as PropType<(_row: LogPattern) => Promise<string>>,
+      default: null,
+    },
   },
   setup(props, { slots, emit }) {
     const { t } = useLocale();
     const eventTippyRef = ref<HTMLElement>();
 
     const isShowRuleDialog = ref(false);
+    const regexSampleStr = ref('');
     let popoverInstance: any = null;
     let intersectionObserver: any = null;
 
@@ -70,7 +76,6 @@ export default defineComponent({
         const markIndex = Number(target.getAttribute('index'));
         // 当 placeholder_analysis_supported 为 false 时，不展开右侧弹框分析，但继续处理行弹窗
         emit('mark-click', markIndex, target.textContent ?? '');
-     
 
         return;
       }
@@ -90,8 +95,26 @@ export default defineComponent({
       popoverInstance.show(500);
     };
 
-    const handleShowRegexDialog = () => {
+    const handleShowRegexDialog = async () => {
       destroyPopover();
+      regexSampleStr.value = props.rowData.origin_log || '';
+      try {
+        if (props.getPatternOriginLog) {
+          regexSampleStr.value = await props.getPatternOriginLog(props.rowData);
+        }
+        if (!regexSampleStr.value) {
+          bkMessage({
+            theme: 'warning',
+            message: t('未获取到日志样例'),
+          });
+        }
+      } catch (err) {
+        console.warn(err);
+        bkMessage({
+          theme: 'warning',
+          message: t('日志样例获取失败'),
+        });
+      }
       isShowRuleDialog.value = true;
     };
 
@@ -184,7 +207,7 @@ export default defineComponent({
         {slots.default?.()}
         {popoverSlot()}
         <RegexMatchDialog
-          sampleStr={props.rowData.origin_log}
+          sampleStr={regexSampleStr.value}
           indexId={props.indexId}
           value={isShowRuleDialog.value}
           on-change={value => (isShowRuleDialog.value = value)}

@@ -378,6 +378,16 @@ class RetrieveHelper extends RetrieveBase {
     this.runEvent(RetrieveEvent.SEARCHBAR_HEIGHT_CHANGE, height);
   }
 
+  /**
+   * 设置场景筛选面板高度
+   * 场景模式下用于计算吸顶状态
+   * @param height
+   */
+  setSceneFilterPanelHeight(height: number) {
+    this.sceneFilterPanelHeight = height;
+    this.runEvent(RetrieveEvent.SCENE_FILTER_PANEL_HEIGHT_CHANGE, height);
+  }
+
   setStorage(key: string, value: any) {
     localStorage.setItem(key, value);
   }

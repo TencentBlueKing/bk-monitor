@@ -41,7 +41,7 @@ from bkmonitor.utils.alert_drilling import (
     get_log_clustering_info,
     get_log_clustering_time_range,
 )
-from constants.alert import K8S_RESOURCE_TYPE, K8STargetType, APMTargetType, EventTargetType
+from constants.alert import APMTargetType, EventTargetType, K8S_RESOURCE_TYPE, K8STargetType
 from constants.data_source import DataSourceLabel
 
 

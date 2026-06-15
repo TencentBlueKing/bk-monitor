@@ -197,11 +197,15 @@ export default defineComponent({
     const ruleData = computed(() => getGroupNameRules(props.list));
     /** 是否展示失效 */
     const isFailFavorite = item => {
-      return item.index_set_type === 'single' ? !item.is_active : !item.is_actives.every(Boolean);
+      if (item.source_type === 'scene') return false;
+      return item.index_set_type === 'single' ? !item.is_active : !item.is_actives?.every(Boolean);
     };
 
     /** 是否是多索引集 */
-    const isMultiIndex = item => item.index_set_type === 'union';
+    const isMultiIndex = item => {
+      if (item.source_type === 'scene') return false;
+      return item.index_set_type === 'union';
+    };
 
     /** 展开所有 */
     const handleCollapse = () => {

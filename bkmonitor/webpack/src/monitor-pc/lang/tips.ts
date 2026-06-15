@@ -488,7 +488,6 @@ export default {
   归档成功: 'Archive successfully',
   恢复成功: 'Restore successfully',
   重新打开成功: 'Reopen successfully',
-  请选择Issue聚合维度: 'Please select Issue aggregation dimension',
   请选择Issue聚合生效告警级别: 'Please select effective alert level for Issue aggregation',
   '请先选择 Issue': 'Please select Issue first',
   '请至少选择 2 个 Issue': 'Please select at least 2 Issues',

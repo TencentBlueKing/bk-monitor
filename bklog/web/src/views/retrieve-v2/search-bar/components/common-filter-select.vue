@@ -7,7 +7,7 @@ import useStore from '@/hooks/use-store';
 
 import useFieldEgges from '@/hooks/use-field-egges';
 import { BK_LOG_STORAGE } from '@/store/store.type';
-import RetrieveHelper from '@/views/retrieve-helper';
+import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import { useRoute } from 'vue-router/composables';
 import { getCommonFilterAddition, getCommonFilterFieldsList, setStorageCommonFilterAddition } from '../../../../store/helper';
 import { operatorMapping, translateKeys } from '../utils/const-values';
@@ -96,7 +96,7 @@ const handleInputVlaueChange = (value, item, index) => {
   });
 };
 
-const handleChange = () => {
+const handleChange = async () => {
   commonFilterAddition.value.forEach((item) => {
     if (!isShowConditonValueSetting(item.operator)) {
       item.value = [];
@@ -109,10 +109,25 @@ const handleChange = () => {
 
   // 兼容旧版本 graphAnalysis
   if (route.query.tab !== 'graphAnalysis' && route.query.tab !== 'graph_analysis') {
-    store.dispatch('requestIndexSetQuery');
-  }
+    // 场景化检索模式下条件为空时跳过检索请求
+    if (store.getters.isSceneMode && store.getters.isSceneFilterEmpty) return;
 
-  RetrieveHelper.searchValueChange('filter', commonFilterAddition.value);
+    // 检索条件有变更时先加载字段信息
+    if (store.state.indexItem.isSceneFilterChanged) {
+      const resp = await store.dispatch('requestIndexSetFieldInfo');
+      if (resp?.data?.fields?.length) {
+        store.dispatch('requestIndexSetQuery');
+        RetrieveHelper.searchValueChange('filter', commonFilterAddition.value);
+      } else {
+        RetrieveHelper.fire(RetrieveEvent.SCENE_FIELD_EMPTY);
+      }
+    } else {
+      store.dispatch('requestIndexSetQuery');
+      RetrieveHelper.searchValueChange('filter', commonFilterAddition.value);
+    }
+  } else {
+    RetrieveHelper.searchValueChange('filter', commonFilterAddition.value);
+  }
 };
 
 const focusIndex = ref(null);

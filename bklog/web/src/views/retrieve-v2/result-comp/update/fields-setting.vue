@@ -294,6 +294,9 @@
         // 当前索引集的显示字段ID
         return this.$store.state.retrieve.filedSettingConfigID;
       },
+      isSceneMode() {
+        return this.$store.getters.isSceneMode;
+      },
       currentClickConfigData() {
         // 当前选中的配置
         return this.configTabPanels.find(item => item.id === this.currentClickConfigID) || this.configTabPanels?.[0];
@@ -405,17 +408,19 @@
       },
       /** 更新config */
       async submitFieldsSet(configID) {
-        await this.$http
-          .request('retrieve/postFieldsConfig', {
-            data: {
+        const requestName = this.isSceneMode ? 'retrieve/sceneApplyFieldsConfig' : 'retrieve/postFieldsConfig';
+        const data = this.isSceneMode
+          ? { config_id: configID }
+          : {
               index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
               index_set_ids: this.unionIndexList,
               index_set_type: this.isUnionSearch ? 'union' : 'single',
               display_fields: this.shadowVisible,
               sort_list: this.cachedSortFields,
               config_id: configID,
-            },
-          })
+            };
+        await this.$http
+          .request(requestName, { data })
           .catch(e => {
             console.warn(e);
           });
@@ -529,21 +534,29 @@
       },
       /** 更新配置 */
       async handleUpdateConfig(updateItem, isCreate = false, successMsg) {
-        const requestStr = isCreate ? 'create' : 'update';
-        const data = {
+        const requestName = this.isSceneMode
+          ? `retrieve/scene${isCreate ? 'Create' : 'Update'}Config`
+          : `retrieve/${isCreate ? 'create' : 'update'}FieldsConfig`;
+        const baseData = {
           name: updateItem.editStr,
           sort_list: updateItem.sort_list,
           display_fields: updateItem.display_fields,
-          config_id: undefined,
-          index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
-          index_set_ids: this.unionIndexList,
-          index_set_type: this.isUnionSearch ? 'union' : 'single',
+          ...(!isCreate && { config_id: updateItem.id }),
         };
-        if (!isCreate) data.config_id = updateItem.id;
+        const data = this.isSceneMode
+          ? {
+              ...baseData,
+              bk_biz_id: this.$store.state.bkBizId,
+              scene_id: this.$store.state.indexItem.scene_active,
+            }
+          : {
+              ...baseData,
+              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+              index_set_ids: this.unionIndexList,
+              index_set_type: this.isUnionSearch ? 'union' : 'single',
+            };
         try {
-          await this.$http.request(`retrieve/${requestStr}FieldsConfig`, {
-            data,
-          });
+          await this.$http.request(requestName, { data });
           if (this.activeFieldTab === 'sort') {
             if (this.isSortFieldChanged) {
               this.$store.dispatch('requestIndexSetQuery', { formChartChange: false }).then(() => {
@@ -565,14 +578,16 @@
       /** 删除配置 */
       async handleDeleteConfig(configID) {
         try {
-          await this.$http.request('retrieve/deleteFieldsConfig', {
-            data: {
-              config_id: configID,
-              index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
-              index_set_ids: this.unionIndexList,
-              index_set_type: this.isUnionSearch ? 'union' : 'single',
-            },
-          });
+          const requestName = this.isSceneMode ? 'retrieve/sceneDeleteConfig' : 'retrieve/deleteFieldsConfig';
+          const data = this.isSceneMode
+            ? { config_id: configID }
+            : {
+                config_id: configID,
+                index_set_id: window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId,
+                index_set_ids: this.unionIndexList,
+                index_set_type: this.isUnionSearch ? 'union' : 'single',
+              };
+          await this.$http.request(requestName, { data });
         } catch (error) {
         } finally {
           this.initRequestConfigListShow();
@@ -626,19 +641,25 @@
       async getFiledConfigList() {
         this.isLoading = true;
         try {
-          const res = await this.$http.request('retrieve/getFieldsListConfig', {
-            data: {
-              ...(this.isUnionSearch
-                ? { index_set_ids: this.unionIndexList }
-                : {
-                    index_set_id: window.__IS_MONITOR_COMPONENT__
-                      ? this.$route.query.indexId
-                      : this.$route.params.indexId,
-                  }),
-              scope: 'default',
-              index_set_type: this.isUnionSearch ? 'union' : 'single',
-            },
-          });
+          const requestName = this.isSceneMode ? 'retrieve/sceneListConfig' : 'retrieve/getFieldsListConfig';
+          const data = this.isSceneMode
+            ? {
+                bk_biz_id: this.$store.state.bkBizId,
+                scene_id: this.$store.state.indexItem.scene_active,
+                scope: 'default',
+              }
+            : {
+                ...(this.isUnionSearch
+                  ? { index_set_ids: this.unionIndexList }
+                  : {
+                      index_set_id: window.__IS_MONITOR_COMPONENT__
+                        ? this.$route.query.indexId
+                        : this.$route.params.indexId,
+                    }),
+                scope: 'default',
+                index_set_type: this.isUnionSearch ? 'union' : 'single',
+              };
+          const res = await this.$http.request(requestName, { data });
           this.configTabPanels = res.data.map(item => ({
             ...item,
             isShowEdit: false,

@@ -1,8 +1,10 @@
-# BKLog Web Skills（索引）
+# BKLog Web Project Skills（索引）
 
 ## 必读（任务开始前）
 
-`bklog-architecture/SKILL.md` → 项目地图 + 模块映射
+`.ai-agent/project-skills/aafe-self-update/SKILL.md` → 项目知识自更新协议（新增/更新模块后同步知识文件）
+
+`.ai-agent/project-skills/bklog-architecture/SKILL.md` → 项目地图 + 模块映射
 
 ## 按需读取
 

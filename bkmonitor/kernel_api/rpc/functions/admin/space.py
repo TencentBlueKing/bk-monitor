@@ -549,9 +549,31 @@ def _apply_space_search(queryset, raw_search: Any, raw_search_mode: Any):
     return queryset.filter(Q(space_id__icontains=search) | Q(space_name__icontains=search))
 
 
+def _normalize_space_bk_biz_id(value: Any) -> int | None:
+    if value in (None, ""):
+        return None
+
+    try:
+        return int(value)
+    except (TypeError, ValueError) as error:
+        raise CustomException(message="bk_biz_id 必须是整数") from error
+
+
+def _apply_space_bk_biz_id_filter(queryset, raw_bk_biz_id: Any):
+    bk_biz_id = _normalize_space_bk_biz_id(raw_bk_biz_id)
+    if bk_biz_id is None:
+        return queryset
+
+    if bk_biz_id < 0:
+        return queryset.filter(id=abs(bk_biz_id)).exclude(space_type_id=SpaceTypes.BKCC.value)
+
+    return queryset.filter(space_type_id=SpaceTypes.BKCC.value, space_id=str(bk_biz_id))
+
+
 def _build_space_queryset(params: dict[str, Any], bk_tenant_id: str | None):
     queryset = filter_by_bk_tenant_id(models.Space.objects.all(), bk_tenant_id)
     queryset = _apply_space_search(queryset, params.get("search"), params.get("search_mode"))
+    queryset = _apply_space_bk_biz_id_filter(queryset, params.get("bk_biz_id"))
 
     if params.get("space_uid"):
         space_type_id, space_id = _split_space_uid(params["space_uid"])
@@ -581,6 +603,7 @@ def _build_space_queryset(params: dict[str, Any], bk_tenant_id: str | None):
         "search": "可选，统一搜索；匹配 space_uid / space_id / space_name，包含单个 __ 时按 space_uid 拆分",
         "search_mode": "可选，搜索模式 fuzzy / exact，默认 fuzzy",
         "space_uid": "可选，空间 UID，格式为 <space_type_id>__<space_id>",
+        "bk_biz_id": "可选，精确匹配查询侧业务 ID 映射；bkcc 为正业务 ID，非 bkcc 为负 Space.id",
         "space_type_id": "可选，空间类型精确匹配",
         "space_id": "可选，空间 ID 模糊匹配",
         "space_name": "可选，空间名称模糊匹配",
@@ -591,7 +614,7 @@ def _build_space_queryset(params: dict[str, Any], bk_tenant_id: str | None):
         "page_size": "可选，默认 20，最大 100",
         "ordering": f"可选，白名单字段: {', '.join(sorted(ORDERING_FIELDS))}",
     },
-    example_params={"bk_tenant_id": "system", "search": "bkcc__2", "page": 1, "page_size": 20},
+    example_params={"bk_tenant_id": "system", "search": "bkcc__2", "bk_biz_id": 2, "page": 1, "page_size": 20},
 )
 def list_spaces(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_page_list_bk_tenant_id(params)

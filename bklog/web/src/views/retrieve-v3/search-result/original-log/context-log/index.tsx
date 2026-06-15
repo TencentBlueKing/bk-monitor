@@ -25,7 +25,6 @@
  */
 
 import { defineComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { useRouter } from 'vue-router/composables';
 
 import { getFlatObjValues } from '@/common/util';
 import FieldsConfig from '@/components/common/fields-config.vue';
@@ -75,18 +74,9 @@ export default defineComponent({
       type: Number,
       default: 0,
     },
-    mode: {
-      type: String,
-      default: 'dialog',
-    },
-    backRoute: {
-      type: Object,
-      default: () => ({}),
-    },
   },
   setup(props, { emit }) {
     const store = useStore();
-    const router = useRouter();
     const { t } = useLocale();
 
     const logViewRef = ref();
@@ -94,8 +84,7 @@ export default defineComponent({
     const logResultRef = ref();
     const contextLog = ref();
     const isShow = ref(false);
-    const logLoading = ref(props.mode === 'page'); // 展示的字段名
-    const hasLoadedOnce = ref(false);
+    const logLoading = ref(false); // 展示的字段名
     const logList = ref<any[]>([]);
     const reverseLogList = ref<any[]>([]);
     const zero = ref(true);
@@ -125,13 +114,10 @@ export default defineComponent({
     let filterCheckTimer: ReturnType<typeof setTimeout>;
     let handleScroll = () => {};
     let displayFieldNames: string[] = [];
-    const totalFieldNames = ref<string[]>([]);
-    const isConfigLoading = ref(false);
     let contextLogRequestSeq = 0;
 
     const contentLogRequestId = 'retrieve_getContentLog_contextLog';
-    const isPageMode = () => props.mode === 'page';
-    const isContextLogVisible = () => (isPageMode() ? isShow.value : isShow.value && props.isShow);
+    const isContextLogVisible = () => isShow.value && props.isShow;
     const isCurrentContextLogRequest = (requestSeq: number) => isContextLogVisible() && requestSeq === contextLogRequestSeq;
 
     const clearContextLogTimers = () => {
@@ -148,22 +134,19 @@ export default defineComponent({
       clearContextLogTimers();
       contextLog.value?.removeEventListener('scroll', handleScroll);
       logLoading.value = false;
-      hasLoadedOnce.value = false;
       $http.cancel(contentLogRequestId);
     };
 
     watch(
-      () => [props.isShow, props.mode],
+      () => props.isShow,
       () => {
-        isShow.value = isPageMode() ? true : props.isShow;
+        isShow.value = props.isShow;
         if (isShow.value) {
           contextLogRequestSeq += 1;
           initLogResultTimer = setTimeout(() => {
-            nextTick(() => {
-              if (isContextLogVisible()) {
-                logResultRef.value?.init();
-              }
-            });
+            if (isContextLogVisible()) {
+              logResultRef.value?.init();
+            }
           });
           return;
         }
@@ -175,51 +158,17 @@ export default defineComponent({
       },
     );
 
-    let contextLoadKey = '';
-    const getContextLoadKey = () => JSON.stringify({
-      visible: isContextLogVisible(),
-      indexSetId: props.indexSetId,
-      logParams: props.logParams || {},
-    });
-
-    const loadContextLog = async (force = false) => {
-      await nextTick();
-
-      if (!isContextLogVisible() || !props.indexSetId || !props.logParams || !Object.keys(props.logParams).length) {
-        return;
-      }
-
-      const nextLoadKey = getContextLoadKey();
-      if (!force && contextLoadKey === nextLoadKey) {
-        return;
-      }
-      contextLoadKey = nextLoadKey;
-
-      const requestSeq = contextLogRequestSeq;
-      hasLoadedOnce.value = false;
-      logLoading.value = true;
-      localParams.value = {};
-      deepClone(props.logParams);
-
-      try {
-        await requestFields();
-        await requestContentLog();
-      } finally {
-        if (isCurrentContextLogRequest(requestSeq)) {
-          hasLoadedOnce.value = true;
-          logLoading.value = false;
-        }
-      }
-    };
-
     watch(
-      () => [isShow.value, props.indexSetId, props.logParams],
-      () => {
-        void loadContextLog();
+      () => [props.indexSetId, props.logParams],
+      async () => {
+        if (isContextLogVisible() && props.indexSetId && props.logParams && Object.keys(props.logParams).length) {
+          localParams.value = {};
+          deepClone(props.logParams);
+          await requestContentLog();
+        }
       },
       {
         immediate: true,
-        deep: true,
       },
     );
 
@@ -241,7 +190,6 @@ export default defineComponent({
 
     const initLogValues = () => {
       logLoading.value = false;
-      hasLoadedOnce.value = false;
       logList.value = [];
       rawList = [];
       reverseLogList.value = [];
@@ -281,34 +229,23 @@ export default defineComponent({
     };
 
     const handleKeyup = (event: any) => {
-      if (!isPageMode() && event.keyCode === 27 && isContextLogVisible()) {
+      if (event.keyCode === 27 && isContextLogVisible()) {
         cleanupContextLogEffects();
         handleAfterLeave();
       }
     };
 
     const deepClone = (obj, prefix = '') => {
-      if (!obj || typeof obj !== 'object') {
-        return;
-      }
-
       for (const key in obj) {
-        const value = obj[key];
-        if (value === undefined || value === null) {
-          continue;
-        }
-
         const prefixKey = prefix ? `${prefix}.${key}` : key;
-        if (typeof value === 'object') {
-          if (value?._isBigNumber) {
-            localParams.value[prefixKey] = value.toString();
-          } else if (Array.isArray(value)) {
-            localParams.value[prefixKey] = value.join(',');
+        if (typeof obj[key] === 'object') {
+          if (obj[key]?._isBigNumber) {
+            localParams.value[prefixKey] = obj[key].toString();
           } else {
-            deepClone(value, prefixKey);
+            deepClone(obj[key], prefixKey);
           }
         } else {
-          localParams.value[prefixKey] = String(value)
+          localParams.value[prefixKey] = String(obj[key])
             .replace(/<mark>/g, '')
             .replace(/<\/mark>/g, '');
         }
@@ -351,36 +288,6 @@ export default defineComponent({
       }
 
       return ['log'];
-    };
-
-    const requestFields = async () => {
-      if (!props.indexSetId) {
-        return false;
-      }
-
-      try {
-        isConfigLoading.value = true;
-        const res = await $http.request('retrieve/getLogTableHead', {
-          params: {
-            index_set_id: props.indexSetId,
-          },
-          query: {
-            scope: 'search_context',
-            start_time: props.retrieveParams?.start_time,
-            end_time: props.retrieveParams?.end_time,
-            is_realtime: 'True',
-          },
-        });
-        const { getFieldNames, getFieldName } = useFieldNameHook({ store });
-        displayFieldNames = (res.data?.display_fields || []).map(item => getFieldName(item));
-        totalFieldNames.value = getFieldNames(res.data?.fields || []);
-        return true;
-      } catch (err) {
-        console.warn(err);
-        return false;
-      } finally {
-        isConfigLoading.value = false;
-      }
     };
 
     const requestContentLog = async (direction?: string) => {
@@ -463,7 +370,6 @@ export default defineComponent({
         }
       } finally {
         if (isCurrentContextLogRequest(requestSeq)) {
-          hasLoadedOnce.value = true;
           logLoading.value = false;
           if (highlightList.value.length) {
             highlightTimer = setTimeout(() => {
@@ -627,9 +533,8 @@ export default defineComponent({
     onMounted(() => {
       document.addEventListener('keyup', handleKeyup);
       nextTick(() => {
-        (document.querySelector('.dialog-log-markdown') as HTMLElement)?.focus?.();
+        (document.querySelector('.dialog-log-markdown') as HTMLElement).focus();
       });
-      void loadContextLog();
     });
 
     onBeforeUnmount(() => {
@@ -637,122 +542,97 @@ export default defineComponent({
       document.removeEventListener('keyup', handleKeyup);
     });
 
-    const handleBack = () => {
-      cleanupContextLogEffects();
-      const backRoute: any = props.backRoute || {};
-      router.push({
-        name: backRoute.name || 'retrieve',
-        params: backRoute.params || {},
-        query: backRoute.query || {},
-      });
-    };
-
-    const renderMainContent = () => (
-      <bk-resize-layout
-        style='height: 100%'
-        border={false}
-        initial-divide={initialDivide.value}
-        min={42}
-        placement='bottom'
+    return () => (
+      <bk-dialog
+        ext-cls='log-context-dialog-main'
+        draggable={false}
+        esc-close={false}
+        mask-close={false}
+        render-directives='if'
+        show-footer={false}
+        value={isShow.value}
+        fullscreen
+        on-after-leave={handleAfterLeave}
       >
-        <div
-          class='context-log-wrapper'
-          slot='main'
+        <bk-resize-layout
+          style='height: 100%'
+          border={false}
+          initial-divide={initialDivide.value}
+          min={42}
+          placement='bottom'
         >
-          <CommonHeader
-            paramsInfo={localParams.value}
-            targetFields={props.targetFields}
-            mode={props.mode}
-            on-back={handleBack}
-          />
-          <div class='context-main'>
-            <div class='data-filter-wraper'>
-              <DataFilter
-                ref={dataFilterRef}
-                display={displayFieldNames}
-                total={totalFieldNames.value}
-                is-config-loading={isConfigLoading.value}
-                on-fields-config-update={handleConfirmFieldsConfig}
-                on-fix-current-row={handleFixCurrentRow}
-                on-handle-filter={handleFilter}
-              />
-            </div>
-            <div
-              ref={contextLog}
-              class='dialog-log-markdown'
-              v-bkloading={{
-                isLoading: logLoading.value && !isFilterEmpty.value,
-                opacity: 0.6,
-              }}
-            >
-              {logList.value.length > 0 ? (
-                isFilterEmpty.value ? (
+          <div
+            class='context-log-wrapper'
+            slot='main'
+          >
+            <CommonHeader
+              paramsInfo={localParams.value}
+              targetFields={props.targetFields}
+            />
+            <div class='context-main'>
+              <div class='data-filter-wraper'>
+                <DataFilter
+                  ref={dataFilterRef}
+                  on-fields-config-update={handleConfirmFieldsConfig}
+                  on-fix-current-row={handleFixCurrentRow}
+                  on-handle-filter={handleFilter}
+                />
+              </div>
+              <div
+                ref={contextLog}
+                class='dialog-log-markdown'
+                v-bkloading={{
+                  isLoading: logLoading.value && !isFilterEmpty.value,
+                  opacity: 0.6,
+                }}
+              >
+                {logList.value.length > 0 ? (
+                  isFilterEmpty.value ? (
+                    <bk-exception
+                      style='margin-top: 80px'
+                      scene='part'
+                      type='search-empty'
+                    >
+                      <span>{t('搜索结果为空')}</span>
+                    </bk-exception>
+                  ) : (
+                    <LogView
+                      ref={logViewRef}
+                      filter-key={activeFilterKey.value}
+                      filter-type={filterType.value}
+                      ignore-case={ignoreCase.value}
+                      interval={interval.value}
+                      light-list={highlightList.value}
+                      log-list={logList.value}
+                      reverse-log-list={reverseLogList.value}
+                      show-type={showType.value}
+                    />
+                  )
+                ) : !logLoading.value ? (
                   <bk-exception
                     style='margin-top: 80px'
                     scene='part'
-                    type='search-empty'
+                    type='empty'
                   >
-                    <span>{t('搜索结果为空')}</span>
+                    <span>{t('暂无数据')}</span>
                   </bk-exception>
-                ) : (
-                  <LogView
-                    ref={logViewRef}
-                    filter-key={activeFilterKey.value}
-                    filter-type={filterType.value}
-                    ignore-case={ignoreCase.value}
-                    interval={interval.value}
-                    light-list={highlightList.value}
-                    log-list={logList.value}
-                    reverse-log-list={reverseLogList.value}
-                    show-type={showType.value}
-                  />
-                )
-              ) : hasLoadedOnce.value && !logLoading.value ? (
-                <bk-exception
-                  style='margin-top: 80px'
-                  scene='part'
-                  type='empty'
-                >
-                  <span>{t('暂无数据')}</span>
-                </bk-exception>
-              ) : null}
+                ) : null}
+              </div>
             </div>
           </div>
-        </div>
-        {isShow.value && (
-          <LogResult
-            ref={logResultRef}
-            slot='aside'
-            indexSetId={props.indexSetId}
-            logIndex={props.rowIndex}
-            retrieveParams={props.retrieveParams}
-            on-choose-row={handleChooseRow}
-            on-toggle-collapse={handleToggleCollapse}
-          />
-        )}
-      </bk-resize-layout>
+          {isShow.value && (
+            <LogResult
+              ref={logResultRef}
+              slot='aside'
+              indexSetId={props.indexSetId}
+              logIndex={props.rowIndex}
+              retrieveParams={props.retrieveParams}
+              on-choose-row={handleChooseRow}
+              on-toggle-collapse={handleToggleCollapse}
+            />
+          )}
+        </bk-resize-layout>
+      </bk-dialog>
     );
-
-    return () => {
-      if (isPageMode()) {
-        return <div class='log-context-page-main'>{renderMainContent()}</div>;
-      }
-
-      return (
-        <bk-dialog
-          ext-cls='log-context-dialog-main'
-          draggable={false}
-          esc-close={false}
-          mask-close={false}
-          render-directives='if'
-          show-footer={false}
-          value={isShow.value}
-          fullscreen
-          on-after-leave={handleAfterLeave}
-        >
-          {renderMainContent()}
-        </bk-dialog>
-      );
-    };
   },
 });

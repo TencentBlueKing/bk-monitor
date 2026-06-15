@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 from json import JSONDecodeError
 
@@ -35,6 +35,41 @@ class AidevAPIGWResource(APIResource):
         )
         headers["x-bkapi-authorization"] = json.dumps(authorization)
 
+        return headers
+
+
+class ChatCompletionResource(AidevAPIGWResource):
+    """
+    AIDEV LLM 网关 OpenAI 兼容对话接口（非流式）。
+    后台场景使用（issue LLM 标题生成等）。凭据优先用 AIDEV_AGENT_APP_CODE：
+    平台自身 app 对模型可能无调用权限，aidev agent 应用按部署开通。
+    """
+
+    action = "/openapi/aidev/gateway/llm/v1/chat/completions"
+    method = "POST"
+    TIMEOUT = 30
+    # OpenAI 响应格式，非蓝鲸标准 {result, code, data} 信封，整体透传
+    IS_STANDARD_FORMAT = False
+    # 禁止向 OpenAI 请求体注入 bk_username，避免污染 messages 协议
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+
+    class RequestSerializer(serializers.Serializer):
+        model = serializers.CharField(label="模型", required=True)
+        messages = serializers.ListField(label="消息列表", child=serializers.DictField(), required=True)
+        temperature = serializers.FloatField(label="温度", required=False, default=0.1)
+        max_tokens = serializers.IntegerField(label="输出 token 上限", required=False)
+
+    def get_headers(self):
+        headers = super().get_headers()
+        if settings.AIDEV_AGENT_APP_CODE and settings.AIDEV_AGENT_APP_SECRET:
+            authorization = json.loads(headers["x-bkapi-authorization"])
+            authorization.update(
+                {
+                    "bk_app_code": settings.AIDEV_AGENT_APP_CODE,
+                    "bk_app_secret": settings.AIDEV_AGENT_APP_SECRET,
+                }
+            )
+            headers["x-bkapi-authorization"] = json.dumps(authorization)
         return headers
 
 
@@ -86,7 +121,7 @@ class CreateKnowledgebaseQueryResource(OnlyKnowledgebaseQueryResource):
             for line in response.iter_lines():
                 if not line:
                     continue
-                result = line.decode('utf-8') + '\n\n'
+                result = line.decode("utf-8") + "\n\n"
                 try:
                     res_data = json.loads(result.split("data: ", 1)[-1])
                     if res_data.get("reject"):
@@ -106,7 +141,9 @@ class CreateKnowledgebaseQueryResource(OnlyKnowledgebaseQueryResource):
 
         def add_guide(res_data):
             link_tmp = """<a href="{doc_link}" target="_blank">【BK助手】</a>"""
-            res_data["content"] = "\n如果以上回答不能解决您的问题，您可以尝试换个问法或点击立即联系" + link_tmp.format(doc_link=self._get_wx_link())
+            res_data["content"] = "\n如果以上回答不能解决您的问题，您可以尝试换个问法或点击立即联系" + link_tmp.format(
+                doc_link=self._get_wx_link()
+            )
             res_data["event"] = "text"
             return "data: " + json.dumps(res_data) + "\n\n"
 

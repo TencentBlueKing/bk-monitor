@@ -1,0 +1,19 @@
+paths:
+  /app/k8s_resource/list_resource_candidates/:
+    post:
+      operationId: list_k8s_resource_candidates
+      description: 容器资源过滤候选值检索（级联过滤）
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/k8s_resource/list_resource_candidates/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: null

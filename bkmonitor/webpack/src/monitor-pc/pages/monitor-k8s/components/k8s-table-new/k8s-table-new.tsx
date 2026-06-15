@@ -182,6 +182,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   @InjectReactive('refreshInterval') readonly refreshInterval!: number;
   // 是否立即刷新 - monitor-k8s-new 传入
   @InjectReactive('refreshImmediate') readonly refreshImmediate!: string;
+  @InjectReactive({ from: 'isApmMonitor', default: false }) isApmMonitor!: boolean;
 
   tableLoading = {
     /** table 骨架屏 loading */

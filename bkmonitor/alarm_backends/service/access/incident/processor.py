@@ -86,6 +86,14 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
     def get_incident_api(cls, sync_info: dict):
         return api.bk_incident if cls.is_bkfara_notice(sync_info) else api.bkdata
 
+    @classmethod
+    def mark_incident_source(cls, sync_info: dict, incident_document: IncidentDocument) -> None:
+        if not cls.is_bkfara_notice(sync_info):
+            return
+        if not incident_document.extra_info:
+            incident_document.extra_info = {}
+        incident_document.extra_info["notice_source"] = cls.BKFARA_NOTICE_SOURCE
+
     def update_remote_incident_detail(
         self,
         sync_info: dict,
@@ -114,7 +122,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         elif sync_info["sync_type"] == IncidentSyncType.UPDATE.value:
             self.update_incident(sync_info)
 
-    def merge_info_to_incident(self, merge_info:dict):
+    def merge_info_to_incident(self, merge_info: dict):
         """处理merge_info中的内容，生成merge_info中的origin_incident_doc_id和target_incident_doc_id"""
         if not merge_info or not isinstance(merge_info, dict):
             return merge_info
@@ -130,8 +138,8 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             # IncidentDocument的id格式为: {create_time}{incident_id}
             origin_incident_doc_id = f"{origin_created_at}{origin_incident_id}" if origin_created_at else None
             target_incident_doc_id = f"{target_created_at}{target_incident_id}" if target_created_at else None
-            merge_info["origin_incident_doc_id"]=origin_incident_doc_id
-            merge_info["target_incident_doc_id"]=target_incident_doc_id
+            merge_info["origin_incident_doc_id"] = origin_incident_doc_id
+            merge_info["target_incident_doc_id"] = target_incident_doc_id
 
         except Exception as e:
             logger.error(f"[MERGE]Access incident error: {e}", exc_info=True)
@@ -164,7 +172,11 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             incident_info["incident_id"] = sync_info["incident_id"]
             merge_info = incident_info.pop("merge_info", None)
 
-            if incident_info.get("status") == IncidentStatus.MERGED.value  and isinstance(merge_info, dict) and merge_info:
+            if (
+                incident_info.get("status") == IncidentStatus.MERGED.value
+                and isinstance(merge_info, dict)
+                and merge_info
+            ):
                 # 处理merge_info中的内容，生成merge_info中的origin_incident_doc_id和target_incident_doc_id
                 if not incident_info.get("extra_info"):
                     incident_info["extra_info"] = {}
@@ -172,6 +184,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 incident_info["extra_info"]["merge_info"] = self.merge_info_to_incident(merge_info)
 
             incident_document = IncidentDocument(**incident_info)
+            self.mark_incident_source(sync_info, incident_document)
 
             if sync_info["fpp_snapshot_id"] == "fpp:None":
                 snapshot_info = {
@@ -222,8 +235,6 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             if not incident_document.extra_info:
                 incident_document.extra_info = {}
             incident_document.extra_info["version_id"] = version_id
-            if self.is_bkfara_notice(sync_info):
-                incident_document.extra_info["notice_source"] = self.BKFARA_NOTICE_SOURCE
 
             self.update_remote_incident_detail(
                 sync_info,
@@ -316,6 +327,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             incident_document = IncidentDocument.get(
                 f"{incident_info['create_time']}{incident_info['incident_id']}", fetch_remote=False
             )
+            self.mark_incident_source(sync_info, incident_document)
             if "fpp_snapshot_id" in sync_info and sync_info["fpp_snapshot_id"] != "fpp:None":
                 snapshot_info = self.get_incident_api(sync_info).get_incident_snapshot(
                     snapshot_id=sync_info["fpp_snapshot_id"]
@@ -403,8 +415,6 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 if not incident_document.extra_info:
                     incident_document.extra_info = {}
                 incident_document.extra_info["version_id"] = version_id
-                if self.is_bkfara_notice(sync_info):
-                    incident_document.extra_info["notice_source"] = self.BKFARA_NOTICE_SOURCE
 
                 self.update_remote_incident_detail(sync_info, incident_document)
 

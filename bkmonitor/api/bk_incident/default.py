@@ -181,6 +181,19 @@ class GetIncidentDiagnosisResource(IncidentBaseResource):
         incident_id = serializers.IntegerField(label="故障ID", required=True)
 
 
+class GetIncidentDetailResource(IncidentBaseResource):
+    """获取 incident_manager 故障详情。"""
+
+    action = "/incident/incident/get_incident_detail/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        incident_id = serializers.IntegerField(label="故障ID", required=True)
+
+    def perform_request(self, validated_request_data):
+        return APIResource.perform_request(self, validated_request_data)
+
+
 class UpdateIncidentDetailResource(IncidentBaseResource):
     """更新 incident_manager 故障详情。"""
 

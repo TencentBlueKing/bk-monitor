@@ -31,20 +31,9 @@ const ShareLink = () => import(/* webpackChunkName: 'share-link' */ '@/views/sha
 const DataIdUrl = () => import(/* webpackChunkName: 'data-id-url' */ '@/views/data-id-url/index.tsx');
 const TemplateManage = () => import('@/views/retrieve-v3/search-result/template-manage/index.tsx');
 const ClientLogSearch = () => import(/* webpackChunkName: 'clientLogSearch' */ '@/views/client-log-search/index.tsx');
-const ContextLogPage = () => import(/* webpackChunkName: 'context-log-page' */ '@/views/retrieve-v3/search-result/original-log/context-log/page.tsx');
 
 // 检索模块路由配置生成函数
 const getRetrieveRoutes = () => [
-  // 日志上下文独立页面：必须放在 /retrieve/:indexId? 前面，避免 context-log 被动态参数 indexId 吃掉
-  {
-    path: '/retrieve/context-log',
-    name: 'retrieve-context-log',
-    component: ContextLogPage,
-    meta: {
-      title: '上下文',
-      navId: 'retrieve-context-log',
-    },
-  },
   // 检索主页面
   {
     path: '/retrieve/:indexId?',

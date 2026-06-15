@@ -149,11 +149,9 @@ class DataFlowHandler(BaseAiopsHandler):
         @param action 操作flow
         """
         cluster_group = self.conf.get("aiops_default_cluster_group", cluster_group)
-        start_request = OperatorFlowCls(flow_id=flow_id, consuming_mode=consuming_mode, cluster_group=cluster_group)
-        request_dict = self._set_username(start_request)
         bk_biz_id = bk_biz_id if bk_biz_id is not None else self.conf.get("bk_biz_id")
-        if bk_biz_id is not None:
-            request_dict["bk_biz_id"] = bk_biz_id
+        start_request = OperatorFlowCls(flow_id=flow_id, consuming_mode=consuming_mode, cluster_group=cluster_group)
+        request_dict = self._set_bkdata_request_params(start_request, bk_biz_id=bk_biz_id)
         return ActionHandler.get_action_handler(action_num=action)(request_dict)
 
     @classmethod
@@ -186,19 +184,22 @@ class DataFlowHandler(BaseAiopsHandler):
         log_index_set_all_fields = LogIndexSet.objects.get(index_set_id=clustering_config.index_set_id).get_fields()
         return {field["field_name"]: field["field_name"] for field in log_index_set_all_fields["fields"]}
 
-    def check_and_start_clean_task(self, result_table_id):
+    def check_and_start_clean_task(self, result_table_id, bk_biz_id: int = None):
         """
         检查并启动清洗任务
         """
-        result_table = BkDataMetaApi.result_tables.retrieve(self._set_username({"result_table_id": result_table_id}))
+        result_table = BkDataMetaApi.result_tables.retrieve(
+            self._set_bkdata_request_params({"result_table_id": result_table_id}, bk_biz_id=bk_biz_id)
+        )
         if result_table["processing_type"] == "clean":
             logger.info(f"check_and_start_clean_task: result_table_id -> {result_table_id}")
             result = BkDataDatabusApi.post_tasks(
-                self._set_username(
+                self._set_bkdata_request_params(
                     {
                         "result_table_id": result_table_id,
                         "storages": ["kafka"],
-                    }
+                    },
+                    bk_biz_id=bk_biz_id,
                 )
             )
             logger.info(f"check_and_start_clean_task: result_table_id -> {result_table_id}, result -> {result}")
@@ -663,12 +664,7 @@ class DataFlowHandler(BaseAiopsHandler):
         @return:
         """
         return BkDataDataFlowApi.get_latest_deploy_data(
-            params={
-                "flow_id": flow_id,
-                "bk_username": self.conf.get("bk_username"),
-                "no_request": True,
-                "bk_biz_id": bk_biz_id,
-            },
+            params=self._set_bkdata_request_params({"flow_id": flow_id}, bk_biz_id=bk_biz_id),
             data_api_retry_cls=DataApiRetryClass.create_retry_obj(
                 fail_check_functions=[check_result_is_true], stop_max_attempt_number=MAX_FAILED_REQUEST_RETRY
             ),
@@ -681,12 +677,7 @@ class DataFlowHandler(BaseAiopsHandler):
         @return:
         """
         return BkDataDataFlowApi.get_dataflow(
-            params={
-                "flow_id": flow_id,
-                "bk_username": self.conf.get("bk_username"),
-                "no_request": True,
-                "bk_biz_id": bk_biz_id,
-            },
+            params=self._set_bkdata_request_params({"flow_id": flow_id}, bk_biz_id=bk_biz_id),
             data_api_retry_cls=DataApiRetryClass.create_retry_obj(
                 fail_check_functions=[check_result_is_true], stop_max_attempt_number=MAX_FAILED_REQUEST_RETRY
             ),
@@ -699,11 +690,7 @@ class DataFlowHandler(BaseAiopsHandler):
         @return:
         """
         return BkDataAIOPSApi.serving_data_processing_id_config(
-            params={
-                "data_processing_id": result_table_id,
-                "bk_username": self.conf.get("bk_username"),
-                "bk_biz_id": bk_biz_id,
-            },
+            params=self._set_bkdata_request_params({"data_processing_id": result_table_id}, bk_biz_id=bk_biz_id),
         )
 
     def get_model_available_storage_cluster(self):
@@ -755,8 +742,7 @@ class DataFlowHandler(BaseAiopsHandler):
             filter_id=model_instance_id,
             execute_config=execute_config,
         )
-        request_dict = self._set_username(update_model_instance_request)
-        request_dict["bk_biz_id"] = bk_biz_id
+        request_dict = self._set_bkdata_request_params(update_model_instance_request, bk_biz_id=bk_biz_id)
         return BkDataAIOPSApi.update_execute_config(request_dict)
 
     def update_filter_rules(self, index_set_id):
@@ -877,7 +863,7 @@ class DataFlowHandler(BaseAiopsHandler):
         @return:
         """
         return BkDataDataFlowApi.get_flow_graph(
-            self._set_username(request_data_cls={"flow_id": flow_id, "bk_biz_id": bk_biz_id})
+            self._set_bkdata_request_params(request_data_cls={"flow_id": flow_id}, bk_biz_id=bk_biz_id)
         )
 
     def update_flow_nodes(self, config, flow_id, node_id, bk_biz_id):
@@ -889,8 +875,8 @@ class DataFlowHandler(BaseAiopsHandler):
         @return:
         """
         return BkDataDataFlowApi.patch_flow_nodes(
-            self._set_username(
-                request_data_cls={"flow_id": flow_id, "node_id": node_id, "bk_biz_id": bk_biz_id, **config}
+            self._set_bkdata_request_params(
+                request_data_cls={"flow_id": flow_id, "node_id": node_id, **config}, bk_biz_id=bk_biz_id
             )
         )
 
@@ -1370,7 +1356,9 @@ class DataFlowHandler(BaseAiopsHandler):
                 aiops_stage="serving_stream_ci",
                 online_task_id=clustering_config.online_task_id,
             )
-            request_dict = self._set_username(update_online_task_request)
+            request_dict = self._set_bkdata_request_params(
+                update_online_task_request, bk_biz_id=clustering_config.bk_biz_id
+            )
 
         elif operator == OperatorOnlineTaskEnum.CREATE:
             create_online_task_request = CreateOnlineTaskCls(
@@ -1379,10 +1367,11 @@ class DataFlowHandler(BaseAiopsHandler):
                 trigger={"auto_trigger_type": "stream_event"},
                 aiops_stage="serving_stream_ci",
             )
-            request_dict = self._set_username(create_online_task_request)
+            request_dict = self._set_bkdata_request_params(
+                create_online_task_request, bk_biz_id=clustering_config.bk_biz_id
+            )
         else:
             raise Exception(f"invalid online task operator: {operator}, only support create or update")
-        request_dict["bk_biz_id"] = clustering_config.bk_biz_id
         return request_dict
 
     def create_online_task(self, index_set_id: int):
@@ -1776,7 +1765,9 @@ class DataFlowHandler(BaseAiopsHandler):
         self.conf = get_online_clustering_config(clustering_config.bk_biz_id)
 
         # 检查清洗任务是否已经正常启动，若未启动，则启动之
-        self.check_and_start_clean_task(clustering_config.bkdata_etl_result_table_id)
+        self.check_and_start_clean_task(
+            clustering_config.bkdata_etl_result_table_id, bk_biz_id=clustering_config.bk_biz_id
+        )
 
         all_fields_dict = self.get_fields_dict(clustering_config=clustering_config)
         predict_flow_dict = asdict(
@@ -1802,8 +1793,9 @@ class DataFlowHandler(BaseAiopsHandler):
             flow_name=f"{settings.ENVIRONMENT}_{clustering_config.bk_biz_id}_{clustering_config.index_set_id}_online_flow",
             project_id=self.conf.get("project_id"),
         )
-        request_dict = self._set_username(create_predict_flow_request)
-        request_dict.update({"bk_biz_id": clustering_config.bk_biz_id})
+        request_dict = self._set_bkdata_request_params(
+            create_predict_flow_request, bk_biz_id=clustering_config.bk_biz_id
+        )
         result = BkDataDataFlowApi.create_flow(request_dict)
         clustering_config.predict_flow = predict_flow_dict
         clustering_config.predict_flow_id = result["flow_id"]
@@ -1952,8 +1944,9 @@ class DataFlowHandler(BaseAiopsHandler):
             flow_name=f"{settings.ENVIRONMENT}_{clustering_config.bk_biz_id}_{clustering_config.index_set_id}_agg_flow",
             project_id=self.conf.get("project_id"),
         )
-        request_dict = self._set_username(create_log_count_aggregation_flow_request)
-        request_dict.update({"bk_biz_id": clustering_config.bk_biz_id})
+        request_dict = self._set_bkdata_request_params(
+            create_log_count_aggregation_flow_request, bk_biz_id=clustering_config.bk_biz_id
+        )
         result = BkDataDataFlowApi.create_flow(request_dict)
 
         clustering_config.log_count_aggregation_flow = log_count_aggregation_flow_dict
