@@ -23,18 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type Ref, computed, defineComponent, inject, provide, ref } from 'vue';
-
+import { type PropType, type Ref, computed, defineComponent, inject, provide, ref } from 'vue';
 import PanelK8s from '../../../pages/alarm-center/common-detail/components/panel-k8s';
 import { handleTransformToTimestampMs } from '@/components/time-range/utils';
 import { useAppStore } from '@/store/modules/app';
 import { useTraceExploreStore } from '@/store/modules/explore';
-
+import type { BookMarkModel } from '../../../plugins/typings';
+import { PanelModel } from 'monitor-ui/chart-plugins/typings';
+import ExceptionGuide from '../../../plugins/charts/exception-guide/exception-guide';
 import type { DateValue } from '@blueking/date-picker';
+
+import './index.scss';
 
 export default defineComponent({
   name: 'K8sContainer',
-  setup() {
+  props: {
+    sceneData: { type: Object as PropType<BookMarkModel>, required: true },
+  },
+  setup(props) {
     const serviceName = inject<Ref<string>>('serviceName');
     const appName = inject<Ref<string>>('appName');
     const spanId = inject<Ref<string>>('spanId', ref(''));
@@ -42,6 +48,13 @@ export default defineComponent({
     const traceStore = useTraceExploreStore();
     const timeRange = computed(() => handleTransformToTimestampMs(traceStore.timeRange as DateValue));
     const bizId = computed(() => useAppStore().bizId || 0);
+    const isExceptionGuide = computed(
+      () =>
+        props.sceneData?.overview_panels?.length === 1 && props.sceneData?.overview_panels[0].type === 'exception-guide'
+    );
+    const singleChartPanel = computed(() =>
+      isExceptionGuide ? new PanelModel(props.sceneData?.overview_panels[0]) : ({} as PanelModel)
+    );
 
     // 注入span详情中需要的全部参数对象
     const traceSpanInfo = computed(() => ({
@@ -54,6 +67,10 @@ export default defineComponent({
 
     provide('traceSpanInfo', traceSpanInfo);
 
-    return () => <PanelK8s />;
+    return () => (
+      <div class='new-k8s-container-wrap'>
+        {isExceptionGuide.value ? <ExceptionGuide panel={singleChartPanel.value} /> : <PanelK8s />}
+      </div>
+    );
   },
 });
