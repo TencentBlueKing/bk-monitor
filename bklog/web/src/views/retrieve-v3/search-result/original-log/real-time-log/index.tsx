@@ -29,8 +29,11 @@ import { defineComponent, ref, watch, nextTick, onMounted, onBeforeUnmount } fro
 import { messageSuccess } from '@/common/bkmagic';
 import { getFlatObjValues } from '@/common/util';
 import LogView from '@/components/log-view/index.vue';
+import useFieldNameHook from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
+import useStore from '@/hooks/use-store';
 
+import { getDefaultDisplayFields } from '../components/data-filter/fields-config/default-display-fields';
 import CommonHeader from '../components/common-header';
 import DataFilter from '../components/data-filter';
 import LogResult from '../components/origin-log-result';
@@ -74,6 +77,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useLocale();
+    const store = useStore();
 
     const logViewRef = ref();
     const dataFilterRef = ref();
@@ -83,6 +87,9 @@ export default defineComponent({
     const logLoading = ref(false);
     const logList = ref<any[]>([]);
     const reverseLogList = ref<any[]>([]);
+    let rawList: any[] = [];
+    let reverseRawList: any[] = [];
+
     const zero = ref(true);
     const prevBegin = ref(0);
     const nextBegin = ref(0);
@@ -111,6 +118,7 @@ export default defineComponent({
     let isPolling = false;
     let isInit = true;
     let isScrollBottom = true;
+    let displayFieldNames: string[] = [];
 
     watch(
       () => props.isShow,
@@ -158,6 +166,8 @@ export default defineComponent({
       logLoading.value = false;
       logList.value = [];
       reverseLogList.value = [];
+      rawList = [];
+      reverseRawList = [];
       nextBegin.value = 0;
       prevBegin.value = 0;
       zero.value = true;
@@ -207,6 +217,45 @@ export default defineComponent({
         rowShowParams.value = newObject;
       }
       localParams.value = parseObj;
+    };
+
+    const getShowFieldNames = () => displayFieldNames.length
+      ? displayFieldNames
+      : getDefaultDisplayFields(store, store.state.retrieve.catchFieldCustomConfig?.contextDisplayFields);
+
+    const normalizeDisplayValue = (value: any) => {
+      if (value === null || value === undefined) {
+        return ' ';
+      }
+      if (typeof value === 'object') {
+        try {
+          return JSON.stringify(value);
+        } catch (e) {
+          return String(value);
+        }
+      }
+      return value;
+    };
+
+    const getDisplayFieldValue = (row: Record<string, any>, flatRow: Record<string, any>, field: string) => {
+      const { changeFieldName } = useFieldNameHook({ store });
+      const realField = changeFieldName(field);
+      return normalizeDisplayValue(flatRow[realField] ?? row[realField] ?? row[field] ?? flatRow[field]);
+    };
+
+    const handleFormatList = (list: any[], displayFields: string[]) => {
+      const formatList: any[] = [];
+      list.forEach((item) => {
+        const displayObj = {};
+        const { newObject } = getFlatObjValues(item);
+        displayFields.forEach((field) => {
+          Object.assign(displayObj, {
+            [field]: getDisplayFieldValue(item, newObject, field),
+          });
+        });
+        formatList.push(displayObj);
+      });
+      return formatList;
     };
 
     const easeScroll = (to = 0, duration = 300, target: any) => {
@@ -261,19 +310,19 @@ export default defineComponent({
             // 超过最大长度时剔除部分日志
             if (logList.value.length > maxLength) {
               logList.value.splice(0, shiftLength);
+              rawList.splice(0, shiftLength);
               contextLog.value.scrollTo({ top: 0 });
             }
 
-            const logArr: any[] = [];
-            list.forEach((item) => {
-              const { log } = item;
-              logArr.push({ log });
-            });
+            const logArr = handleFormatList(list, getShowFieldNames());
             deepClone(list[list.length - 1]);
             if (isInit) {
+              reverseRawList = list.slice(0, -1);
+              rawList = list.slice(-1);
               reverseLogList.value = logArr.slice(0, -1);
               logList.value = logArr.slice(-1);
             } else {
+              rawList.push(...list);
               logList.value.splice(logList.value.length, 0, ...logArr);
             }
             if (isScrollBottom) {
@@ -432,6 +481,7 @@ export default defineComponent({
             slot='main'
           >
             <CommonHeader
+              title={t('实时日志')}
               paramsInfo={localParams.value}
               targetFields={props.targetFields}
             />
@@ -441,6 +491,11 @@ export default defineComponent({
                   ref={dataFilterRef}
                   isRealTime
                   on-copy={handleCopy}
+                  on-fields-config-update={(list: string[]) => {
+                    displayFieldNames = list;
+                    logList.value = handleFormatList(rawList, list);
+                    reverseLogList.value = handleFormatList(reverseRawList, list);
+                  }}
                   on-fix-current-row={handleFixCurrentRow}
                   on-handle-filter={handleFilter}
                   on-toggle-poll={handleTogglePoll}
