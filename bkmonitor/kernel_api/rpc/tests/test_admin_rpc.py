@@ -28,6 +28,8 @@ from kernel_api.rpc.functions.admin.api_auth_token import (
 from kernel_api.rpc.functions.admin import apm as admin_apm
 from kernel_api.rpc.functions.admin import bcs_cluster as admin_bcs_cluster
 from kernel_api.rpc.functions.admin import cluster_info as admin_cluster_info
+from kernel_api.rpc.functions.admin import collect_config as admin_collect_config
+from kernel_api.rpc.functions.admin import collect_plugin as admin_collect_plugin
 from kernel_api.rpc.functions.admin import config_delivery as admin_config_delivery
 from kernel_api.rpc.functions.admin import custom_report as admin_custom_report
 from kernel_api.rpc.functions.admin.bcs_cluster import _serialize_bcs_cluster
@@ -72,6 +74,14 @@ from kernel_api.rpc.functions.admin.storage import (
 )
 from kernel_api.rpc.functions.admin.uptime_check import _build_subscription_detail_payload, _summarize_subscription
 from kernel_api.rpc.registry import KernelRPCRegistry
+from monitor_web.models.collecting import CollectConfigMeta, DeploymentConfigVersion
+from monitor_web.models.plugin import (
+    CollectorPluginConfig,
+    CollectorPluginInfo,
+    CollectorPluginMeta,
+    PluginVersionHistory,
+)
+from monitor_web.plugin.constant import PluginType
 
 
 def _doris_storage_manager():
@@ -176,6 +186,16 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.config_delivery.apm_subscription_detail",
         "admin.config_delivery.subscription_detail",
         "admin.config_delivery.batch_status",
+        "admin.collect_plugin.list",
+        "admin.collect_plugin.detail",
+        "admin.collect_plugin.version_list",
+        "admin.collect_plugin.version_detail",
+        "admin.collect_config.list",
+        "admin.collect_config.detail",
+        "admin.collect_config.version_list",
+        "admin.collect_config.version_detail",
+        "admin.collect_config.target_status",
+        "admin.collect_config.subscription_detail",
         "admin.render_image_task.list",
         "admin.render_image_task.detail",
         "admin.token.resolve",
@@ -209,6 +229,113 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
     assert config_delivery_proxy_list is not None
     assert "bk_biz_id" in config_delivery_proxy_list["params_schema"]
 
+    collect_plugin_detail = KernelRPCRegistry.get_function_detail("admin.collect_plugin.detail")
+    assert collect_plugin_detail is not None
+    assert "plugin_id" in collect_plugin_detail["params_schema"]
+
+    collect_config_target_status = KernelRPCRegistry.get_function_detail("admin.collect_config.target_status")
+    assert collect_config_target_status is not None
+    assert "diff" in collect_config_target_status["params_schema"]
+
+    collect_config_version_detail = KernelRPCRegistry.get_function_detail("admin.collect_config.version_detail")
+    assert collect_config_version_detail is not None
+    assert "deployment_id" in collect_config_version_detail["params_schema"]
+
+
+def test_collect_plugin_version_detail_marks_process_special_design():
+    plugin = CollectorPluginMeta(
+        bk_tenant_id="system",
+        plugin_id="bkprocessbeat",
+        plugin_type=PluginType.PROCESS,
+        bk_biz_id=0,
+        tag="主机",
+        label="host_process",
+    )
+    config = CollectorPluginConfig(
+        collector_json={"linux": {"file_id": "bkmonitorbeat"}},
+        config_json=[{"key": "match_pattern", "default": "gunicorn.*app"}],
+        is_support_remote=False,
+    )
+    info = CollectorPluginInfo(
+        plugin_display_name="进程采集",
+        metric_json=[{"table_name": "process.perf", "fields": [{"name": "cpu_usage", "monitor_type": "metric"}]}],
+    )
+    version = PluginVersionHistory(
+        bk_tenant_id="system",
+        plugin_id="bkprocessbeat",
+        stage=PluginVersionHistory.Stage.RELEASE,
+        config=config,
+        info=info,
+        config_version=1,
+        info_version=1,
+        is_packaged=True,
+    )
+
+    detail = admin_collect_plugin._serialize_version_detail(version, plugin)
+
+    assert detail["plugin_display_name"] == "进程采集"
+    assert detail["special_design"]["kind"] == "process"
+    assert detail["metric_json"][0]["table_id"] == "process.process.perf"
+
+
+def test_collect_config_summary_keeps_version_and_subscription_context(monkeypatch):
+    plugin = CollectorPluginMeta(
+        bk_tenant_id="system",
+        plugin_id="bkprocessbeat",
+        plugin_type=PluginType.PROCESS,
+        bk_biz_id=0,
+        label="host_process",
+    )
+    config_definition = CollectorPluginConfig(collector_json={}, config_json=[], is_support_remote=False)
+    info = CollectorPluginInfo(plugin_display_name="进程采集", metric_json=[])
+    version = PluginVersionHistory(
+        bk_tenant_id="system",
+        plugin_id="bkprocessbeat",
+        stage=PluginVersionHistory.Stage.RELEASE,
+        config=config_definition,
+        info=info,
+        config_version=1,
+        info_version=1,
+        is_packaged=True,
+    )
+    deployment = DeploymentConfigVersion(
+        plugin_version=version,
+        subscription_id=82002,
+        target_node_type="INSTANCE",
+        params={"collector": {"period": 60}},
+        target_nodes=[{"ip": "127.0.0.1", "bk_cloud_id": 0}],
+    )
+    collect_config = CollectConfigMeta(
+        id=202,
+        bk_tenant_id="system",
+        bk_biz_id=2,
+        name="业务进程存活",
+        collect_type=PluginType.PROCESS,
+        plugin_id="bkprocessbeat",
+        target_object_type="HOST",
+        deployment_config=deployment,
+        cache_data={"error_instance_count": 1, "total_instance_count": 3},
+        last_operation="START",
+        operation_result="SUCCESS",
+        label="host_process",
+    )
+
+    monkeypatch.setattr(admin_collect_config, "_get_plugin_for_config", lambda _config: plugin)
+    monkeypatch.setattr(admin_collect_config, "_latest_plugin_version", lambda _plugin: version)
+
+    summary = admin_collect_config._serialize_collect_config_summary(collect_config)
+    detail = admin_collect_config._serialize_collect_config_detail(collect_config)
+    deployment_detail = admin_collect_config._serialize_deployment_version_detail(collect_config, deployment)
+
+    assert summary["subscription_id"] == 82002
+    assert summary["config_version"] == 1
+    assert summary["task_status"] == "WARNING"
+    assert detail["subscription_summary"]["scope_summary"]["nodes_count"] == 1
+    assert detail["plugin_info"]["special_design"]["kind"] == "process"
+    assert deployment_detail["config_id"] == 202
+    assert deployment_detail["params"]["collector"]["period"] == 60
+    assert deployment_detail["plugin_info"]["config_version"] == 1
+
 
 def test_config_delivery_ping_server_serializer_marks_disabled_flags(monkeypatch):
     monkeypatch.setattr(admin_config_delivery.settings, "ENABLE_PING_ALARM", False, raising=False)
@@ -232,8 +359,8 @@ def test_config_delivery_ping_server_serializer_marks_disabled_flags(monkeypatch
                 "context": {
                     "ip_to_items": {
                         2001: [
-                            {"target_biz_id": 11, "target_ip": "10.0.0.1", "target_cloud_id": 0},
-                            {"target_biz_id": 12, "target_ip": "10.0.0.2", "target_cloud_id": 0},
+                            {"target_biz_id": 11, "target_ip": "127.0.0.1", "target_cloud_id": 0},
+                            {"target_biz_id": 12, "target_ip": "127.0.0.1", "target_cloud_id": 0},
                         ]
                     }
                 }
@@ -264,14 +391,14 @@ def test_config_delivery_ping_server_serializer_marks_disabled_flags(monkeypatch
             "index": 1,
             "source_host_id": "2001",
             "target_biz_id": 11,
-            "target_ip": "10.0.0.1",
+            "target_ip": "127.0.0.1",
             "target_cloud_id": 0,
         }
     ]
 
     second_page = admin_config_delivery._paginate_ping_targets(subscription.config, page=2, page_size=1)
     assert second_page["items"][0]["index"] == 2
-    assert second_page["items"][0]["target_ip"] == "10.0.0.2"
+    assert second_page["items"][0]["target_ip"] == "127.0.0.1"
 
 
 def test_config_delivery_custom_report_serializer_keeps_default_tenant():
@@ -382,7 +509,7 @@ def test_config_delivery_proxy_related_configs_collects_four_config_types(monkey
         subscription_id=1001,
         bk_tenant_id="system",
         bk_cloud_id=30000901,
-        ip="10.0.0.15",
+        ip="127.0.0.1",
         bk_host_id=70001,
         plugin_name="bk-collector",
         config={"scope": {"nodes": [{"bk_host_id": 70001}]}, "steps": [{"config": {"plugin_name": "bk-collector"}}]},
@@ -438,7 +565,7 @@ def test_config_delivery_proxy_related_configs_collects_four_config_types(monkey
     related, warnings = admin_config_delivery._build_proxy_related_configs(
         bk_tenant_id="system",
         bk_biz_id=19078,
-        proxy={"bk_cloud_id": 30000901, "inner_ip": "10.0.0.15", "bk_biz_id": 19078},
+        proxy={"bk_cloud_id": 30000901, "inner_ip": "127.0.0.1", "bk_biz_id": 19078},
         proxy_host_id=70001,
     )
 
@@ -2716,9 +2843,7 @@ def test_admin_token_resolve_hits_apm_application(monkeypatch):
     apm_app = _stub_apm_application(token="bkapm_1_a1b2c3d4e5f6")
     _patch_token_models(monkeypatch, apm_apps=[apm_app])
 
-    result = admin_token.resolve_token(
-        {"bk_tenant_id": "system", "token": "bkapm_1_a1b2c3d4e5f6"}
-    )
+    result = admin_token.resolve_token({"bk_tenant_id": "system", "token": "bkapm_1_a1b2c3d4e5f6"})
 
     assert result["data"]["matched"] is True
     assert result["data"]["kind"] == "apm"
@@ -2731,9 +2856,7 @@ def test_admin_token_resolve_hits_time_series_group(monkeypatch):
     ts_group = _stub_time_series_group(token="bkmetric_1573194_a1b2c3d4e5f6")
     _patch_token_models(monkeypatch, ts_groups=[ts_group])
 
-    result = admin_token.resolve_token(
-        {"bk_tenant_id": "system", "token": "bkmetric_1573194_a1b2c3d4e5f6"}
-    )
+    result = admin_token.resolve_token({"bk_tenant_id": "system", "token": "bkmetric_1573194_a1b2c3d4e5f6"})
 
     assert result["data"]["matched"] is True
     assert result["data"]["kind"] == "custom_metric"
@@ -2747,9 +2870,7 @@ def test_admin_token_resolve_hits_event_group(monkeypatch):
     event_group = _stub_event_group(token="bkevent_2001_e5f6a1b2c3d4")
     _patch_token_models(monkeypatch, event_groups=[event_group])
 
-    result = admin_token.resolve_token(
-        {"bk_tenant_id": "system", "token": "bkevent_2001_e5f6a1b2c3d4"}
-    )
+    result = admin_token.resolve_token({"bk_tenant_id": "system", "token": "bkevent_2001_e5f6a1b2c3d4"})
 
     assert result["data"]["matched"] is True
     assert result["data"]["kind"] == "custom_event"
@@ -2762,9 +2883,7 @@ def test_admin_token_resolve_falls_back_to_log_group_legacy_field(monkeypatch):
     log_group = _stub_log_group(token="", bk_data_token="bklog_3001_legacy")
     _patch_token_models(monkeypatch, log_groups=[log_group])
 
-    result = admin_token.resolve_token(
-        {"bk_tenant_id": "system", "token": "bklog_3001_legacy"}
-    )
+    result = admin_token.resolve_token({"bk_tenant_id": "system", "token": "bklog_3001_legacy"})
 
     assert result["data"]["matched"] is True
     assert result["data"]["kind"] == "custom_log"
@@ -2775,9 +2894,7 @@ def test_admin_token_resolve_falls_back_to_log_group_legacy_field(monkeypatch):
 def test_admin_token_resolve_returns_unmatched_when_nothing_found(monkeypatch):
     _patch_token_models(monkeypatch)
 
-    result = admin_token.resolve_token(
-        {"bk_tenant_id": "system", "token": "definitely-missing"}
-    )
+    result = admin_token.resolve_token({"bk_tenant_id": "system", "token": "definitely-missing"})
 
     assert result["data"]["matched"] is False
     assert result["data"]["kind"] is None
@@ -3002,4 +3119,3 @@ def test_admin_token_resolve_aes_fallback_metric_and_log_combo_returns_unmatched
     assert result["data"]["kind"] is None
     assert result["data"]["apm_application"] is None
     assert result["data"]["custom_report"] is None
-

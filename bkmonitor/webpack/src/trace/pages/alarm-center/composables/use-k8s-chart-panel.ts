@@ -85,7 +85,7 @@ export const useK8sChartPanel = (options: UseK8sChartPanelOptions = {}) => {
   const filterBy = computed(() =>
     Object.fromEntries(
       Object.entries(get(currentTarget) ?? {})
-        .filter(([k, v]) => v && k !== 'bcs_cluster_id')
+        .filter(([k, v]) => v && !['bcs_cluster_id', 'scenario_list', 'display_name', 'resource_type'].includes(k))
         .map(([k, v]) => [k, [v]])
     )
   );

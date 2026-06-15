@@ -34,6 +34,7 @@ import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
 import $http from '@/api';
+import { getDefaultDisplayFields } from '../components/data-filter/fields-config/default-display-fields';
 import CommonHeader from '../components/common-header';
 import DataFilter from '../components/data-filter';
 import LogResult from '../components/origin-log-result';
@@ -253,41 +254,32 @@ export default defineComponent({
     };
 
     /**
-     * 获取显示的字段名
-     * 优先展示displayFieldNames，如果没有则展示log字段，如果没有则展示text类型字段，如果没有则展示页面可见字段
-     * @returns 获取显示的字段名
+     * 获取上下文显示字段。
+     * 只从字段列表中选择：用户配置 -> log -> 第一个 text 字段 -> 第一个字段。
      */
-    const getShowFieldNames = () => {
-      if (displayFieldNames.length) {
-        return displayFieldNames;
+    const getShowFieldNames = () => displayFieldNames.length
+      ? displayFieldNames
+      : getDefaultDisplayFields(store, store.state.retrieve.catchFieldCustomConfig?.contextDisplayFields);
+
+    const normalizeDisplayValue = (value: any) => {
+      if (value === null || value === undefined) {
+        return ' ';
       }
-
-      const allFields = store.getters.filteredFieldList;
-      let textField = undefined;
-      let logField = undefined;
-      for (const field of allFields) {
-        if (field.field_name === 'log') {
-          logField = field.field_name;
-          break;
-        }
-
-        if (field.field_type === 'text') {
-          textField = field.field_name;
+      if (typeof value === 'object') {
+        try {
+          return JSON.stringify(value);
+        } catch (e) {
+          return String(value);
         }
       }
+      return value;
+    };
 
-      const showFieldName = logField ?? textField;
-
-      if (showFieldName) {
-        return [showFieldName];
-      }
-
-      const pageVisibleFields = store.getters.visibleFields.map(item => item.field_name);
-      if (pageVisibleFields.length) {
-        return pageVisibleFields;
-      }
-
-      return ['log'];
+    const getDisplayFieldValue = (row: Record<string, any>, flatRow: Record<string, any>, field: string) => {
+      const { changeFieldName } = useFieldNameHook({ store });
+      const realField = changeFieldName(field);
+      const value = flatRow[realField] ?? row[realField] ?? row[field] ?? flatRow[field];
+      return normalizeDisplayValue(value);
     };
 
     const requestContentLog = async (direction?: string) => {
@@ -397,10 +389,9 @@ export default defineComponent({
       list.forEach((listItem) => {
         const displayObj = {};
         const { newObject } = getFlatObjValues(listItem);
-        const { changeFieldName } = useFieldNameHook({ store });
         displayFieldNames.forEach((field) => {
           Object.assign(displayObj, {
-            [field]: newObject[changeFieldName(field)],
+            [field]: getDisplayFieldValue(listItem, newObject, field),
           });
         });
         filterDisplayList.push(displayObj);

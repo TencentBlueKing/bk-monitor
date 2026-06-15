@@ -100,7 +100,7 @@ class TestAlertDocumentMget(TestCase):
         now_ts = 1779100000
 
         mock_now.return_value = now_ts
-        mock_search.return_value.filter.return_value.params.return_value.scan.return_value = []
+        mock_search.return_value.filter.return_value.sort.return_value.params.return_value.execute.return_value = []
 
         list(AlertDocument.mget(ids))
 
@@ -120,8 +120,76 @@ class TestAlertDocumentMget(TestCase):
         ids = ["bad-id", "1776330921000001"]
         now_ts = 1779100000
         mock_now.return_value = now_ts
-        mock_search.return_value.filter.return_value.params.return_value.scan.return_value = []
+        mock_search.return_value.filter.return_value.sort.return_value.params.return_value.execute.return_value = []
 
         AlertDocument.mget(ids)
 
         mock_search.assert_called_once_with(start_time=1776330921, end_time=now_ts)
+
+    @mock.patch("bkmonitor.documents.alert.time.time")
+    @mock.patch.object(AlertDocument, "search")
+    def test_mget_uses_plain_search_not_scroll(self, mock_search, mock_now):
+        """mget 走普通 search(execute) 替代 scroll(scan)，避免 scroll context 积压；按 hit.to_dict() 构造 doc。"""
+        mock_now.return_value = 1779100000
+        hit = mock.MagicMock()
+        hit.to_dict.return_value = {"id": "1776330921000001"}
+        params_chain = mock_search.return_value.filter.return_value.sort.return_value.params.return_value
+        params_chain.execute.return_value = [hit]
+
+        docs = AlertDocument.mget(["1776330921000001"])
+
+        self.assertEqual(len(docs), 1)
+        self.assertEqual(docs[0].id, "1776330921000001")
+        params_chain.execute.assert_called_once()  # 一次 execute 取完该批
+        params_chain.scan.assert_not_called()  # 不再用 scroll(scan)
+
+    @mock.patch.object(AlertDocument, "MGET_BATCH_SIZE", 2)
+    @mock.patch("bkmonitor.documents.alert.time.time")
+    @mock.patch.object(AlertDocument, "search")
+    def test_mget_sorts_by_timestamp_then_uses_per_batch_start_time(self, mock_search, mock_now):
+        """超过单批容量时：先按 begin_time 排序再分批，每批用本批最小 begin_time 作索引下界，
+        而非全量最老时间——避免离散 id 让每个分批都展开到最老窗口；上界恒为 now。"""
+        now_ts = 1779999999
+        mock_now.return_value = now_ts
+        mock_search.return_value.filter.return_value.sort.return_value.params.return_value.execute.return_value = []
+
+        # 乱序输入：newest / oldest / middle
+        a_new = "17790000000000001"  # begin = 1779000000
+        b_old = "17763309210000002"  # begin = 1776330921
+        c_mid = "17779000000000003"  # begin = 1777900000
+
+        AlertDocument.mget([a_new, b_old, c_mid])
+
+        # 排序后分两批：[b_old, c_mid] / [a_new]
+        start_times = [kw["start_time"] for _, kw in mock_search.call_args_list]
+        end_times = [kw["end_time"] for _, kw in mock_search.call_args_list]
+        self.assertEqual(start_times, [1776330921, 1779000000])  # 各批本批最小，非全量最老
+        self.assertEqual(end_times, [now_ts, now_ts])  # 上界恒为 now
+
+        # 每批 terms 命中按排序后的 id 分组
+        filter_kwargs = [c.kwargs for c in mock_search.return_value.filter.call_args_list]
+        self.assertEqual(filter_kwargs, [{"id": [b_old, c_mid]}, {"id": [a_new]}])
+
+    @mock.patch("bkmonitor.documents.alert.time.time")
+    @mock.patch.object(AlertDocument, "search")
+    def test_mget_dedupes_same_id_keeping_latest(self, mock_search, mock_now):
+        """reindex 期间同一 alert 在新旧索引各一份，terms 命中两条同 _id；按 -update_time 排序后
+        保首条（最新写副本），按 _id 去重为一条，丢弃旧副本。"""
+        mock_now.return_value = 1779100000
+
+        # ES 已按 -update_time 降序：最新副本（RESOLVED）在前，旧副本（ABNORMAL）在后
+        newer = mock.MagicMock()
+        newer.meta.id = "1776330921000001"
+        newer.to_dict.return_value = {"id": "1776330921000001", "update_time": 200, "status": "RESOLVED"}
+        older = mock.MagicMock()
+        older.meta.id = "1776330921000001"
+        older.to_dict.return_value = {"id": "1776330921000001", "update_time": 100, "status": "ABNORMAL"}
+
+        chain = mock_search.return_value.filter.return_value.sort.return_value.params.return_value
+        chain.execute.return_value = [newer, older]
+
+        docs = AlertDocument.mget(["1776330921000001"])
+
+        self.assertEqual(len(docs), 1)  # 两条同 _id 去重为一条
+        self.assertEqual(docs[0].status, "RESOLVED")  # 保留 update_time 较大的最新副本
+        mock_search.return_value.filter.return_value.sort.assert_called_once_with("-update_time")
