@@ -42,6 +42,10 @@ def test_incident_resources_route_remote_api_by_notice_source():
     assert "return api.bk_incident if cls.is_bkfara_incident(incident) else api.bkdata" in resource_source
     assert "api.bk_incident.get_incident_diagnosis" in resource_source
     assert "api.bkdata.get_incident_analysis_results" in resource_source
+    assert "def normalize_incident_status" in resource_source
+    assert "status.lower() in IncidentStatus.get_enum_value_list()" in resource_source
+    assert "incident_value = self.normalize_incident_status(incident_value)" in resource_source
+    assert "incident_info[incident_key] = incident_value" in resource_source
 
     resource_start = source.index("class IncidentResultsResource")
     resource_end = source.index("class IncidentDateHistogramResource", resource_start)
