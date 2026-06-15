@@ -146,6 +146,28 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
 
         return merge_info
 
+    def normalize_incident_status(self, status: str):
+        """兼容上游使用大写状态值的故障事件。"""
+        if isinstance(status, str) and status.lower() in IncidentStatus.get_enum_value_list():
+            return status.lower()
+        return status
+
+    def normalize_incident_status_updates(self, update_attributes: dict) -> None:
+        status_update = update_attributes.get("status") if isinstance(update_attributes, dict) else None
+        if not isinstance(status_update, dict):
+            return
+
+        status_update["from"] = self.normalize_incident_status(status_update.get("from"))
+        status_update["to"] = self.normalize_incident_status(status_update.get("to"))
+
+    def set_incident_merge_info(self, incident_document: IncidentDocument, merge_info: dict) -> None:
+        if not merge_info or not isinstance(merge_info, dict):
+            return
+
+        if not incident_document.extra_info:
+            incident_document.extra_info = {}
+        incident_document.extra_info["merge_info"] = self.merge_info_to_incident(merge_info)
+
     def create_incident(self, sync_info: dict) -> None:
         """根据同步信息，从AIOPS接口获取故障详情，并创建到监控的ES中.
 
@@ -170,6 +192,7 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             should_send_notice = incident_info.pop("send_notice", None)
             notice_config = incident_info.pop("notice_config", None)
             incident_info["incident_id"] = sync_info["incident_id"]
+            incident_info["status"] = self.normalize_incident_status(incident_info.get("status"))
             merge_info = incident_info.pop("merge_info", None)
 
             if (
@@ -323,11 +346,16 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             should_send_notice = incident_info.pop("send_notice", None)
             notice_config = incident_info.pop("notice_config", None)
             incident_info["incident_id"] = sync_info["incident_id"]
+            incident_info["status"] = self.normalize_incident_status(incident_info.get("status"))
+            self.normalize_incident_status_updates(sync_info.get("update_attributes", {}))
             merge_info = incident_info.get("merge_info", None) or {}
             incident_document = IncidentDocument.get(
                 f"{incident_info['create_time']}{incident_info['incident_id']}", fetch_remote=False
             )
             self.mark_incident_source(sync_info, incident_document)
+            status_update = sync_info.get("update_attributes", {}).get("status", {})
+            if status_update.get("to") == IncidentStatus.MERGED.value:
+                self.set_incident_merge_info(incident_document, merge_info)
             if "fpp_snapshot_id" in sync_info and sync_info["fpp_snapshot_id"] != "fpp:None":
                 snapshot_info = self.get_incident_api(sync_info).get_incident_snapshot(
                     snapshot_id=sync_info["fpp_snapshot_id"]

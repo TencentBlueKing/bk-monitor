@@ -245,3 +245,57 @@ class TestAccessIncidentProcessor(SimpleTestCase):
         self.assertNotIn("status", status_sync_call.kwargs)
         self.assertNotIn("bkmonitor_received_time", status_sync_call.kwargs)
         self.assertEqual(incident_document.extra_info["notice_source"], "bkfara")
+
+    @patch("alarm_backends.service.access.incident.processor.api")
+    @patch("alarm_backends.service.access.incident.processor.IncidentSnapshot")
+    @patch("alarm_backends.service.access.incident.processor.IncidentSnapshotDocument", _FakeSnapshotDocument)
+    @patch("alarm_backends.service.access.incident.processor.IncidentOperationManager.record_update_incident")
+    def test_update_bkfara_merge_persists_merge_info_for_existing_incident(
+        self, mock_record_update, mock_snapshot_model, mock_api
+    ):
+        mock_snapshot_model.side_effect = lambda payload: SimpleNamespace(alert_entity_mapping={})
+        mock_api.bk_incident.update_incident_detail = Mock()
+        incident_document = _FakeIncidentDocument(
+            incident_id=1001,
+            incident_name="故障A",
+            incident_reason="root cause",
+            status="abnormal",
+            level="ERROR",
+            labels=[],
+            assignees=[],
+            handlers=[],
+            bk_biz_id=132,
+            create_time=1710000000,
+            snapshot=None,
+        )
+        sync_info = self._base_sync_info()
+        sync_info["notice_source"] = "bkfara"
+        sync_info["update_attributes"] = {"status": {"from": "ABNORMAL", "to": "MERGED"}}
+        sync_info["incident_info"]["status"] = "MERGED"
+        sync_info["incident_info"]["merge_info"] = {
+            "origin_incident_id": 1001,
+            "origin_incident_name": "故障A",
+            "origin_created_at": 1710000000,
+            "target_incident_id": 1002,
+            "target_incident_name": "故障B",
+            "target_created_at": 1710000100,
+        }
+
+        with (
+            patch(
+                "alarm_backends.service.access.incident.processor.IncidentDocument.get",
+                return_value=incident_document,
+            ),
+            patch(
+                "alarm_backends.service.access.incident.processor.IncidentDocument.bulk_create",
+                return_value=None,
+            ),
+        ):
+            self.processor.update_incident(sync_info)
+
+        self.assertEqual(incident_document.status, "merged")
+        self.assertEqual(incident_document.extra_info["notice_source"], "bkfara")
+        self.assertEqual(incident_document.extra_info["merge_info"]["origin_incident_doc_id"], "17100000001001")
+        self.assertEqual(incident_document.extra_info["merge_info"]["target_incident_doc_id"], "17100001001002")
+        self.assertEqual(mock_record_update.call_args.kwargs["from_value"], "abnormal")
+        self.assertEqual(mock_record_update.call_args.kwargs["to_value"], "merged")
