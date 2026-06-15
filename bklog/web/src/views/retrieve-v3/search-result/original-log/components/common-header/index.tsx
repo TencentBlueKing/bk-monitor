@@ -33,6 +33,10 @@ import './index.scss';
 export default defineComponent({
   name: 'CommonHeader',
   props: {
+    title: {
+      type: String,
+      default: '上下文',
+    },
     targetFields: {
       type: Array,
       default: () => [],
@@ -53,7 +57,7 @@ export default defineComponent({
 
     return () => (
       <div class='common-header-main'>
-        <span class='dialog-title'>{t('上下文')}</span>
+        <span class='dialog-title'>{t(props.title)}</span>
         {!props.targetFields.length ? (
           <div class='subtitle-list-main title-overflow'>
             <div class='subtitle-main'>

@@ -392,17 +392,15 @@ export default defineComponent({
                 {t('代码')}
               </div>
             </div>
-            {!props.isRealTime && (
-              <div
-                class='setting-main'
-                on-click={handleOpenFieldsConfig}
-              >
-                <span
-                  style='font-size: 16px'
-                  class='icon bklog-icon bklog-set-icon'
-                ></span>
-              </div>
-            )}
+            <div
+              class='setting-main'
+              on-click={handleOpenFieldsConfig}
+            >
+              <span
+                style='font-size: 16px'
+                class='icon bklog-icon bklog-set-icon'
+              ></span>
+            </div>
           </div>
         </div>
         <FieldsConfig
