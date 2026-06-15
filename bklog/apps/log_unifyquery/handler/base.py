@@ -1262,6 +1262,7 @@ class UnifyQueryHandler:
             time_field,
             start_time=self.start_time,
             end_time=self.end_time,
+            bk_biz_id=self.bk_biz_id,
         )
         field_result, display_fields = mapping_handlers.get_all_fields_by_index_id(
             scope=scope, is_union_search=is_union_search
