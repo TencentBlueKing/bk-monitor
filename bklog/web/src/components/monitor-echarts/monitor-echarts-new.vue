@@ -399,8 +399,20 @@
       }
       this.annotation.show = false;
       this.refleshIntervalInstance && window.clearInterval(this.refleshIntervalInstance);
+      this.refleshIntervalInstance = 0;
       clearTimeout(this.timer);
+      clearTimeout(this.clickTimer);
       this.timer = null;
+      this.clickTimer = null;
+      this.chartData = [];
+      this.curChartOption = null;
+      this.legend.list = [];
+      this.legend.show = false;
+      this.statusSeries = [];
+      this.textSeries = {};
+      this.annotation.list = [];
+      this.childProps = {};
+      this.chartInView = null;
     }
     destroyed() {
       this.chart && this.destroy();
@@ -962,8 +974,11 @@
       if (this.autoresize && this.chartRef) {
         removeListener(this.chartRef, this.resizeHandler);
       }
+      this.chart?.off?.('click');
       this.delegateMethod('dispose');
       this.chart = null;
+      this.chartOptionInstance = null;
+      this.hasInitChart = false;
     }
   }
 </script>

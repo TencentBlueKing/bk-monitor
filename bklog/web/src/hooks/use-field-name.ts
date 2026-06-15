@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import { storeRuntimeCacheService } from '../store/services/runtime-cache.service';
 import { BK_LOG_STORAGE, FieldInfoItem } from '../store/store.type';
 
 /**
@@ -42,10 +43,10 @@ export const getFieldNameByField = (field, store) => {
 
 export default ({ store }) => {
   const getStoreFieldNameIndex = (): Record<string, FieldInfoItem> =>
-    store.state.indexFieldInfo.fieldNameIndex ?? {};
+    storeRuntimeCacheService.getFieldNameIndex(store.state.indexId || 'default') ?? {};
 
   const getStoreQueryAliasIndex = (): Record<string, FieldInfoItem> =>
-    store.state.indexFieldInfo.queryAliasIndex ?? {};
+    storeRuntimeCacheService.getQueryAliasIndex(store.state.indexId || 'default') ?? {};
 
   const buildFieldNameIndex = (list: FieldInfoItem[]): Record<string, FieldInfoItem> => {
     const map: Record<string, FieldInfoItem> = {};

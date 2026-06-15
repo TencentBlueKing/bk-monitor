@@ -26,6 +26,7 @@
 import { defineComponent, onBeforeUnmount, onMounted, ref } from 'vue';
 
 import { readBlobRespToJson } from '@/common/util';
+import { moduleLargeDataCacheService } from '@/storage';
 import useFieldAliasRequestParams from '@/hooks/use-field-alias-request-params';
 import useStore from '@/hooks/use-store';
 import RequestPool from '@/store/request-pool';
@@ -65,6 +66,8 @@ export default defineComponent({
       has_more: true,
       is_error: false,
       exception_msg: '',
+      cache_scope: '',
+      cached_count: 0,
     });
 
     const matchMode = ref({
@@ -108,7 +111,19 @@ export default defineComponent({
       }
     };
 
+    const clearGrepCache = () => {
+      const scope = grepRequestResult.value.cache_scope;
+      if (scope) {
+        moduleLargeDataCacheService.clear(scope).catch(error => {
+          console.warn('[grep-cache] clear failed', error);
+        });
+      }
+      grepRequestResult.value.cache_scope = '';
+      grepRequestResult.value.cached_count = 0;
+    };
+
     const resetGrepRequestResult = () => {
+      clearGrepCache();
       grepRequestResult.value.has_more = true;
       grepRequestResult.value.list.splice(0, grepRequestResult.value.list.length);
       grepRequestResult.value.offset = 0;
@@ -173,8 +188,23 @@ export default defineComponent({
           if (resp.data && !resp.message) {
             return readBlobRespToJson(resp.data).then(({ data, result, message }) => {
               if (result) {
-                grepRequestResult.value.has_more = data.list.length === 100;
-                grepRequestResult.value.list.push(...data.list);
+                const list = Array.isArray(data.list) ? data.list : [];
+                grepRequestResult.value.has_more = list.length === 100;
+                const currentScope = grepRequestResult.value.cache_scope || moduleLargeDataCacheService.createScope('grep', {
+                  indexId: store.state.indexId,
+                  field: field.value,
+                  grepQuery: grepQuery.value,
+                  start_time,
+                  end_time,
+                });
+                const mergedList = grepRequestResult.value.list.concat(list);
+                grepRequestResult.value.cache_scope = currentScope;
+                grepRequestResult.value.cached_count = mergedList.length;
+                moduleLargeDataCacheService.replaceList(currentScope, mergedList, 50).catch(error => {
+                  console.warn('[grep-cache] persist failed', error);
+                });
+                grepRequestResult.value.list = mergedList;
+                data.list = undefined;
                 setTimeout(() => {
                   RetrieveHelper.highLightKeywords([searchValue.value], true);
                 });
@@ -350,7 +380,10 @@ export default defineComponent({
     });
 
     onBeforeUnmount(() => {
+      RequestPool.execCanceToken('requestIndexSetGrepQueryToken');
+      requestGrepList.cancel?.();
       resetGrepRequestResult();
+      moduleLargeDataCacheService.clearMemory(grepRequestResult.value.cache_scope);
       RetrieveHelper.destroyMarkInstance();
     });
 

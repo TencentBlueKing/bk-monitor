@@ -238,8 +238,9 @@ export default () => {
    */
   const getIndexSetList = (beforeResolveFn?: () => void) => {
     store.commit('updateIndexSetQueryResult', {
-      origin_log_list: [],
-      list: [],
+      row_keys: [],
+      row_query_key: '',
+      cached_count: 0,
       exception_msg: '',
       is_error: false,
     });
@@ -772,8 +773,9 @@ export default () => {
     RetrieveHelper.destroy();
     // 清理掉当前查询结果，避免下次进入空白展示，同时释放检索页大对象引用。
     store.commit('resetIndexSetQueryResult', {
-      origin_log_list: [],
-      list: [],
+      row_keys: [],
+      row_query_key: '',
+      cached_count: 0,
       is_error: false,
       exception_msg: '',
     });

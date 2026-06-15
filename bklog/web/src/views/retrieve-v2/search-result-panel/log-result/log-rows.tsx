@@ -41,6 +41,7 @@ import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
 import ExpandView from '../../components/result-cell-element/expand-view.vue';
 import OperatorTools from '../../components/result-cell-element/operator-tools.vue';
 import RetrieveLoader from '@/skeleton/retrieve-loader.vue';
+import { retrieveRowCacheService } from '@/storage';
 import ScrollTop from '../../components/scroll-top/index';
 import useTextAction from '../../hooks/use-text-action';
 import LogCell from './log-cell';
@@ -162,9 +163,9 @@ export default defineComponent({
     const isLoading = computed(() => indexSetQueryResult.value.is_loading || indexFieldInfo.value.is_loading);
     const kvShowFieldsList = computed(() => filteredFieldList.value?.map(f => f.field_name));
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
-    const tableDataSize = computed(() => indexSetQueryResult.value?.list?.length ?? 0);
+    const rowKeys = computed<string[]>(() => indexSetQueryResult.value?.row_keys ?? []);
+    const tableDataSize = computed(() => rowKeys.value.length || 0);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
-    const tableList = computed<any[]>(() => Object.freeze(indexSetQueryResult.value?.list ?? []));
     const gradeOption = computed(() => store.state.indexFieldInfo.custom_config?.grade_options ?? { disabled: false });
     const indexSetType = computed(() => store.state.indexItem.isUnionIndex);
     const limitRow = computed(() => store.state.storage[BK_LOG_STORAGE.RESULT_DISPLAY_LINES]);
@@ -237,18 +238,21 @@ export default defineComponent({
       store.dispatch('requestIndexSetQuery', { from: 'auto_refresh' });
     });
 
-    const setRenderList = (length?: number) => {
-      const arr: Record<string, any>[] = [];
-      const endIndex = length ?? tableDataSize.value;
-      const lastIndex = endIndex <= tableList.value.length ? endIndex : tableList.value.length;
-      for (let i = 0; i < lastIndex; i++) {
-        arr.push({
-          item: tableList.value[i],
-          [ROW_KEY]: `${tableList.value[i].dtEventTimeStamp}_${i}`,
-        });
-      }
+    const getRowCacheKey = (row, index: number) => rowKeys.value[index] ?? `${row?.dtEventTimeStamp ?? 'row'}_${index}`;
 
-      renderList = arr;
+    const setRenderList = (length?: number) => {
+      const endIndex = length ?? tableDataSize.value;
+      const lastIndex = Math.min(endIndex, rowKeys.value.length);
+      const keys = rowKeys.value.slice(0, lastIndex);
+
+      retrieveRowCacheService.getRows(keys).then((rows) => {
+        renderList = rows.map((item, index) => ({
+          item,
+          [ROW_KEY]: keys[index] ?? getRowCacheKey(item, index),
+        }));
+        localUpdateCounter.value += 1;
+        nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
+      });
     };
 
     const searchContainerHeight = ref(52);
@@ -593,7 +597,9 @@ export default defineComponent({
         sortFieldsList.unshift(LOG_SOURCE_F());
       }
 
-      setDefaultTableWidth(sortFieldsList, tableList.value);
+      retrieveRowCacheService
+        .getRows(rowKeys.value.slice(0, Math.min(rowKeys.value.length, 50)))
+        .then(rows => setDefaultTableWidth(sortFieldsList, rows));
       fullColumns.value = sortFieldsList;
     };
 
@@ -952,8 +958,12 @@ export default defineComponent({
     const afterScrollTop = () => {
       pageIndex.value = 1;
       const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
-      renderList = renderList.slice(0, maxLength);
-      localUpdateCounter.value += 1;
+      if (rowKeys.value.length) {
+        setRenderList(maxLength);
+      } else {
+        renderList = renderList.slice(0, maxLength);
+        localUpdateCounter.value += 1;
+      }
     };
 
     // 监听滚动条滚动位置
@@ -1141,7 +1151,7 @@ export default defineComponent({
 
 
     const showHeader = computed(() => {
-      return showCtxType.value === 'table' && tableList.value.length > 0;
+      return showCtxType.value === 'table' && tableDataSize.value > 0;
     });
 
     const hasResultException = computed(() => {

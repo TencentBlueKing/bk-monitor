@@ -97,6 +97,7 @@ const handleHeightChange = (height) => {
 };
 
 const operatorDictionary = computed(() => {
+  store.state.operatorDictionaryVersion;
   const defVal = {
     [getOperatorKey(FulltextOperatorKey)]: {
       label: t('包含'),
@@ -105,7 +106,7 @@ const operatorDictionary = computed(() => {
   };
   return {
     ...defVal,
-    ...store.state.operatorDictionary,
+    ...storeRuntimeCacheService.getOperatorDictionary(store.state.indexId || 'default'),
   };
 });
 

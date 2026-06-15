@@ -26,10 +26,17 @@
 import { BK_LOG_STORAGE } from "./store.type";
 import { getDefaultOp, REVERSE_OPERATOR_MAP, getOperatorRequestParam } from "@/views/retrieve-v3/search-bar/scene-filter/scene-config";
 import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
+import { storeCacheService } from '@/storage';
 
 export { isFeatureToggleOn };
 
 export const SESSION_STORAGE_KEY = 'CommonFilterAddition';
+
+const mirrorSessionStorage = (key: string, value: any) => {
+  storeCacheService.setLocalStorageMirror(`sessionStorage:${key}`, value).catch((error) => {
+    console.warn('[store-cache] mirror sessionStorage failed', key, error);
+  });
+};
 
 export type FilterAdditionStorageItem = {
   indexSetIdList: string[];
@@ -60,6 +67,7 @@ export const getStorageCommonFilterAddition = () => {
     console.error('Failed to parse common filter addition:', e);
   }
 
+  mirrorSessionStorage(SESSION_STORAGE_KEY, jsonValue);
   return jsonValue as FilterAdditionStorageItem[];
 };
 
@@ -143,6 +151,7 @@ export const setStorageCommonFilterAddition = (state, filterAddition: Record<str
     currentItem.filterAddition = filterAddition;
     currentItem.t = Date.now();
     sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(allStorage));
+    mirrorSessionStorage(SESSION_STORAGE_KEY, allStorage);
     return;
   }
 
@@ -165,6 +174,7 @@ export const setStorageCommonFilterAddition = (state, filterAddition: Record<str
   }
 
   sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(allStorage));
+  mirrorSessionStorage(SESSION_STORAGE_KEY, allStorage);
 };
 
 export const clearStorageCommonFilterAddition = state => {
@@ -178,6 +188,7 @@ export const clearStorageCommonFilterAddition = state => {
     if (index > -1) {
       allStorage.splice(index, 1);
       sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(allStorage));
+      mirrorSessionStorage(SESSION_STORAGE_KEY, allStorage);
     }
   }
 };
