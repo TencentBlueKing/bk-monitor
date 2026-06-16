@@ -217,7 +217,7 @@ class BKBaseStorageSyncFailed(BaseCollectorConfigException):
 
 class PublicESClusterNotExistException(BaseCollectorConfigException):
     ERROR_CODE = "212"
-    MESSAGE = _("不存在公共ES集群")
+    MESSAGE = _("未配置默认公共集群")
 
 
 class ESClusterAlreadyExistException(BaseCollectorConfigException):

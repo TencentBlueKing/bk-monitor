@@ -1033,9 +1033,9 @@ class AliasSettingSerializer(serializers.Serializer):
 class CollectorEtlStorageSerializer(CollectorETLParamsFieldSerializer, PlatformIndexFieldsSerializer):
     table_id = serializers.CharField(label=_("结果表ID"), required=True)
     etl_config = serializers.CharField(label=_("清洗类型"), required=True)
-    storage_cluster_id = serializers.IntegerField(label=_("集群ID"), required=True)
-    retention = serializers.IntegerField(label=_("有效时间"), required=True)
-    allocation_min_days = serializers.IntegerField(label=_("冷热数据生效时间"), required=True)
+    storage_cluster_id = serializers.IntegerField(label=_("集群ID"), required=False, default=None)
+    retention = serializers.IntegerField(label=_("有效时间"), required=False)
+    allocation_min_days = serializers.IntegerField(label=_("冷热数据生效时间"), required=False, default=0)
     storage_replies = serializers.IntegerField(
         label=_("ES副本数量"), required=False, default=settings.ES_REPLICAS, min_value=0
     )
@@ -1598,16 +1598,16 @@ class CustomCollectorBaseSerializer(CollectorETLParamsFieldSerializer):
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50)
     category_id = serializers.CharField(label=_("分类ID"), default=DEFAULT_CATEGORY_ID)
     # 清洗配置
-    etl_config = serializers.CharField(label=_("清洗类型"), required=False, default=EtlConfig.BK_LOG_TEXT)
+    etl_config = serializers.CharField(label=_("清洗类型"), required=False, default=None)
     # 存储配置
-    storage_cluster_id = serializers.IntegerField(label=_("集群ID"), required=False)
+    storage_cluster_id = serializers.IntegerField(label=_("集群ID"), required=False, default=None)
     storage_cluster_type = serializers.CharField(label=_("存储集群类型"), required=False, default=STORAGE_CLUSTER_TYPE)
-    retention = serializers.IntegerField(label=_("有效时间"), required=False)
-    allocation_min_days = serializers.IntegerField(label=_("冷热数据生效时间"), required=False)
+    retention = serializers.IntegerField(label=_("有效时间"), required=False, default=None)
+    allocation_min_days = serializers.IntegerField(label=_("冷热数据生效时间"), required=False, default=None)
     storage_replies = serializers.IntegerField(
-        label=_("ES副本数量"), required=False, default=settings.ES_REPLICAS, min_value=0
+        label=_("ES副本数量"), required=False, default=None, min_value=0
     )
-    es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, default=settings.ES_SHARDS, min_value=1)
+    es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, default=None, min_value=1)
 
     # 其他配置
     description = serializers.CharField(
@@ -1625,8 +1625,7 @@ class CustomCollectorBaseSerializer(CollectorETLParamsFieldSerializer):
         # 先进行校验
         attrs = super().validate(attrs)
         # 在传入集群ID时校验其他参数
-        keys = attrs.keys()
-        if "storage_cluster_id" in keys:
+        if attrs.get("storage_cluster_id"):
             result = TransferApi.get_cluster_info({"cluster_id": attrs["storage_cluster_id"]})
             if not result:
                 raise serializers.ValidationError(
@@ -1635,14 +1634,7 @@ class CustomCollectorBaseSerializer(CollectorETLParamsFieldSerializer):
                     )
                 )
             storage_cluster_info = result[0]
-            storage_cluster_type = storage_cluster_info.get("cluster_type") or STORAGE_CLUSTER_TYPE
-            # es 集群效验配置, doris 集群则跳过
-            if storage_cluster_type == STORAGE_CLUSTER_TYPE:
-                if "retention" not in keys:
-                    raise serializers.ValidationError(gettext("有效时间不能为空"))
-                if "allocation_min_days" not in keys:
-                    raise serializers.ValidationError(gettext("冷热数据生效时间不能为空"))
-            attrs["storage_cluster_type"] = storage_cluster_type
+            attrs["storage_cluster_type"] = storage_cluster_info.get("cluster_type") or STORAGE_CLUSTER_TYPE
 
         if attrs.get("parent_index_set_ids") is not None and attrs.get("parent_index_set_names") is not None:
             raise ValidationError(_("parent_index_set_ids 与 parent_index_set_names 二选一传入"))
@@ -1663,12 +1655,30 @@ class CustomCreateSerializer(CustomCollectorBaseSerializer, PlatformIndexFieldsS
     target_fields = serializers.ListField(label=_("目标字段"), required=False, allow_empty=True)
     ignore_exists = serializers.BooleanField(label=_("是否忽略已存在"), required=False, default=False)
 
+    # 清洗配置
+    etl_config = serializers.CharField(label=_("清洗类型"), required=False, default=EtlConfig.BK_LOG_TEXT)
+    # 存储配置
+    retention = serializers.IntegerField(label=_("有效时间"), required=False)
+    allocation_min_days = serializers.IntegerField(label=_("冷热数据生效时间"), required=False)
+    storage_replies = serializers.IntegerField(
+        label=_("ES副本数量"), required=False, default=settings.ES_REPLICAS, min_value=0
+    )
+    es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, default=settings.ES_SHARDS, min_value=1)
+
     def validate(self, attrs: dict) -> dict:
         attrs = super().validate(attrs)
         if attrs.get("space_uid", ""):
             attrs["bk_biz_id"] = space_uid_to_bk_biz_id(attrs["space_uid"])
         elif not attrs.get("bk_biz_id", ""):
             raise ValueError("bk_biz_id or space_uid not found")
+
+        # es 集群效验配置, doris 集群则跳过
+        keys = attrs.keys()
+        if attrs.get("storage_cluster_type", STORAGE_CLUSTER_TYPE) == STORAGE_CLUSTER_TYPE:
+            if "retention" not in keys:
+                raise serializers.ValidationError(gettext("有效时间不能为空"))
+            if "allocation_min_days" not in keys:
+                raise serializers.ValidationError(gettext("冷热数据生效时间不能为空"))
 
         return attrs
 
@@ -1703,7 +1713,7 @@ class FastContainerCollectorCreateSerializer(CollectorETLParamsFieldSerializer, 
     platform_username = serializers.CharField(label=_("平台用户"), required=False)
 
     etl_config = serializers.CharField(label=_("清洗类型"), required=False, default=EtlConfig.BK_LOG_TEXT)
-    storage_cluster_id = serializers.IntegerField(label=_("集群ID"), required=False)
+    storage_cluster_id = serializers.IntegerField(label=_("集群ID"), required=False, default=None)
     retention = serializers.IntegerField(
         label=_("有效时间"), required=False, default=settings.ES_PUBLIC_STORAGE_DURATION
     )
@@ -1762,7 +1772,7 @@ class FastCollectorCreateSerializer(CollectorETLParamsFieldSerializer, PlatformI
     )
     params = PluginParamSerializer()
     etl_config = serializers.CharField(label=_("清洗类型"), required=False, default=EtlConfig.BK_LOG_TEXT)
-    storage_cluster_id = serializers.IntegerField(label=_("集群ID"), required=False)
+    storage_cluster_id = serializers.IntegerField(label=_("集群ID"), required=False, default=None)
     retention = serializers.IntegerField(
         label=_("有效时间"), required=False, default=settings.ES_PUBLIC_STORAGE_DURATION
     )
@@ -1840,12 +1850,12 @@ class FastContainerCollectorUpdateSerializer(CollectorETLParamsFieldSerializer, 
     extra_labels = serializers.ListSerializer(label=_("额外标签"), required=False, child=LabelsSerializer())
     yaml_config_enabled = serializers.BooleanField(label=_("是否使用yaml配置模式"), required=False)
     yaml_config = serializers.CharField(label=_("yaml配置内容"), allow_blank=True, required=False)
-    etl_config = serializers.CharField(label=_("清洗类型"), required=False)
-    storage_cluster_id = serializers.IntegerField(label=_("集群ID"), required=False)
-    retention = serializers.IntegerField(label=_("有效时间"), required=False)
-    allocation_min_days = serializers.IntegerField(label=_("冷热数据生效时间"), required=False)
-    storage_replies = serializers.IntegerField(label=_("ES副本数量"), required=False, min_value=0)
-    es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, min_value=1)
+    etl_config = serializers.CharField(label=_("清洗类型"), required=False, default=None)
+    storage_cluster_id = serializers.IntegerField(label=_("集群ID"), required=False, default=None)
+    retention = serializers.IntegerField(label=_("有效时间"), required=False, default=None)
+    allocation_min_days = serializers.IntegerField(label=_("冷热数据生效时间"), required=False, default=None)
+    storage_replies = serializers.IntegerField(label=_("ES副本数量"), required=False, min_value=0, default=None)
+    es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, min_value=1, default=None)
     alias_settings = AliasSettingSerializer(many=True, required=False)
     parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=None)
     parent_index_set_names = serializers.ListField(
@@ -1882,12 +1892,12 @@ class FastCollectorUpdateSerializer(CollectorETLParamsFieldSerializer, PlatformI
     data_encoding = serializers.ChoiceField(
         label=_("日志字符集"), choices=EncodingsEnum.get_choices(), required=False, default=EncodingsEnum.UTF.value
     )
-    etl_config = serializers.CharField(label=_("清洗类型"), required=False)
-    storage_cluster_id = serializers.IntegerField(label=_("集群ID"), required=False)
-    retention = serializers.IntegerField(label=_("有效时间"), required=False)
-    allocation_min_days = serializers.IntegerField(label=_("冷热数据生效时间"), required=False)
-    storage_replies = serializers.IntegerField(label=_("ES副本数量"), required=False, min_value=0)
-    es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, min_value=1)
+    etl_config = serializers.CharField(label=_("清洗类型"), required=False, default=None)
+    storage_cluster_id = serializers.IntegerField(label=_("集群ID"), required=False, default=None)
+    retention = serializers.IntegerField(label=_("有效时间"), required=False, default=None)
+    allocation_min_days = serializers.IntegerField(label=_("冷热数据生效时间"), required=False, default=None)
+    storage_replies = serializers.IntegerField(label=_("ES副本数量"), required=False, min_value=0, default=None)
+    es_shards = serializers.IntegerField(label=_("ES分片数量"), required=False, min_value=1, default=None)
     alias_settings = AliasSettingSerializer(many=True, required=False, default=list)
     parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=None)
     parent_index_set_names = serializers.ListField(

@@ -60,7 +60,6 @@ from apps.log_databus.exceptions import (
     CollectorConfigNameENDuplicateException,
     CollectorResultTableIDDuplicateException,
     ContainerCollectConfigValidateYamlException,
-    PublicESClusterNotExistException,
     RuleCollectorException,
     VclusterNodeNotAllowedException,
     NodeNotAllowedException,
@@ -687,12 +686,6 @@ class K8sCollectorHandler(CollectorHandler):
         # 补充缺少的清洗配置参数
         if not params.get("fields"):
             params["fields"] = []
-        # 如果没传入集群ID, 则随机给一个公共集群
-        if not params.get("storage_cluster_id"):
-            storage_cluster_id = self.get_random_public_cluster_id(bk_biz_id=params["bk_biz_id"])
-            if not storage_cluster_id:
-                raise PublicESClusterNotExistException()
-            params["storage_cluster_id"] = storage_cluster_id
         # 如果没传入数据链路ID, 则按照优先级选取一个集群ID
         data_link_id = int(params.get("data_link_id") or 0)
         params["data_link_id"] = self.get_data_link_id(bk_biz_id=params["bk_biz_id"], data_link_id=data_link_id)

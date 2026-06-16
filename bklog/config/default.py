@@ -927,6 +927,7 @@ ES_REPLICAS = int(os.environ.get("BKAPP_ES_REPLICAS", 1))
 ES_STORAGE_DEFAULT_DURATION = int(os.environ.get("BKAPP_ES_STORAGE_DURATION", 7))
 ES_PRIVATE_STORAGE_DURATION = int(os.environ.get("BKAPP_ES_PRIVATE_STORAGE_DURATION", 365))
 ES_PUBLIC_STORAGE_DURATION = int(os.environ.get("BKAPP_ES_PUBLIC_STORAGE_DURATION", 7))
+ES_HOT_DATA_RETAIN_DAYS = int(os.environ.get("BKAPP_ES_HOT_DATA_RETAIN_DAYS", 0))
 
 # 公共集群存储容量限制
 ES_STORAGE_CAPACITY = os.environ.get("BKAPP_ES_STORAGE_CAPACITY", 0)
@@ -1409,3 +1410,7 @@ DatabaseFeatures.minimum_database_version = PatchFeatures.minimum_database_versi
 
 # 让 Django 使用 pymysql 作为 MySQLdb 的替代品
 pymysql.install_as_MySQLdb()
+
+
+# 日志平台默认公共集群 ID
+BKLOG_DEFAULT_PUBLIC_STORAGE_CLUSTER_ID = int(os.environ.get("BKAPP_BKLOG_DEFAULT_PUBLIC_STORAGE_CLUSTER_ID", 0))

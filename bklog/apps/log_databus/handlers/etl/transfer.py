@@ -69,6 +69,16 @@ class TransferEtlHandler(EtlHandler):
         etl_params = etl_params or {}
         user_fields = copy.deepcopy(fields)
 
+        if not self.data.table_id and not storage_cluster_id:
+            storage_cluster_id = CollectorHandler.get_default_public_cluster_id(
+                bk_biz_id=self.data.bk_biz_id,
+                raise_exception=True,
+            )
+            retention = settings.ES_PUBLIC_STORAGE_DURATION
+            allocation_min_days = settings.ES_HOT_DATA_RETAIN_DAYS
+            storage_replies = settings.ES_REPLICAS
+            es_shards = settings.ES_SHARDS
+
         # 存储集群信息
         cluster_info = StorageHandler(storage_cluster_id).get_cluster_info_by_id()
 

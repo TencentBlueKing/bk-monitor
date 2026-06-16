@@ -151,6 +151,7 @@ class EsConfig(FeatureToggleBase):
             "ES_REPLICAS",
             "ES_PRIVATE_STORAGE_DURATION",
             "ES_PUBLIC_STORAGE_DURATION",
+            "BKLOG_DEFAULT_PUBLIC_STORAGE_CLUSTER_ID",
         ]
         if param["feature_config"]:
             global_config = param["feature_config"].get("global_es_config", {})
