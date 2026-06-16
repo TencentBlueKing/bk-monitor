@@ -106,7 +106,6 @@ import IssuesDetailSideSlider from './alarm-issues/issues-detail/issues-detail-s
 import IssuesMergeSplitSideslider from './alarm-issues/issues-merge-split/issues-merge-split-sideslider';
 import IssuesTable from './alarm-issues/issues-table/issues-table';
 import IssuesTapd from './alarm-issues/issues-tapd/issues-tapd';
-import TapdFieldConfigDialog from './alarm-issues/issues-tapd/tapd-field-config-dialog/tapd-field-config-dialog';
 import IssuesToolbar from './alarm-issues/issues-toolbar/issues-toolbar';
 import {
   exportIssues,
@@ -1508,25 +1507,6 @@ export default defineComponent({
                 key='issues-tapd'
                 show={this.issuesTapdShow}
                 onUpdate:show={this.handleIssuesTapdShowChange}
-              />,
-              <TapdFieldConfigDialog
-                key='tapd-field-config'
-                sourceList={[
-                  { id: 'description', isCore: true, name: '描述' },
-                  { id: 'priority', name: '优先级' },
-                  { id: 'severity', name: '严重程度' },
-                  { id: 'status', name: '状态', source: 'test' },
-                  { id: 'assignee', name: '处理人', source: '修复建议' },
-                  { id: 'label', name: '标签' },
-                  { id: 'custom_field_one', name: '自定义字段一' },
-                  { id: 'custom_field_two', name: '自定义字段二' },
-                ]}
-                targetList={[
-                  { id: 'title', name: '标题', isCore: true, required: true },
-                  { id: 'description', name: '描述', required: true },
-                  { id: 'priority', name: '优先级', required: false },
-                ]}
-                show={false}
               />,
             ]
           ) : (
