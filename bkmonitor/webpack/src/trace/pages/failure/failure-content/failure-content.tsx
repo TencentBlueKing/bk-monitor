@@ -112,6 +112,8 @@ export default defineComponent({
     const activeTab = ref<string>('AlarmDetail');
     provide('activeName', active);
     const incidentResults = inject<Ref<object>>('incidentResults');
+    /** 是否用户手动切换过tab，避免接口返回数据后自动覆盖用户选择 */
+    const isTabManuallySwitched = ref(false);
     const searchValidate = ref<boolean>(true);
     const tabList = [
       {
@@ -157,6 +159,7 @@ export default defineComponent({
 
     const handleChangeActive = (activeName: string) => {
       active.value = activeName;
+      isTabManuallySwitched.value = true;
       // alertIdsObject.value = {};
     };
     const playingHandle = status => {
@@ -189,6 +192,8 @@ export default defineComponent({
     watch(
       () => showTabList.value,
       () => {
+        // 用户手动切换过tab后，不再自动覆盖
+        if (isTabManuallySwitched.value) return;
         // 故障拓扑未启用时，默认选中 FAILURE_VIEW
         active.value = isTopoEnabled.value ? FailureContentTabView.FAILURE_TOPO : FailureContentTabView.FAILURE_VIEW;
       }
