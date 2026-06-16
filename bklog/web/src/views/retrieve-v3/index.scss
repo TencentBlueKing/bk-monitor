@@ -22,6 +22,10 @@
     &.flex {
       justify-content: flex-end;
 
+      .search-result-content {
+        min-height: calc(100vh - var(--top-searchbar-height) - 150px);
+      }
+
       .field-list-sticky {
         top: var(--top-searchbar-height);
 
@@ -47,7 +51,7 @@
                     overflow: visible;
                     &.row-header {
                       position: sticky;
-                      top: calc(var(--top-searchbar-height));
+                      top: calc(var(--top-searchbar-height) + var(--scene-toolbar-height, 0px));
                       left: calc(var(--left-collection-width) + var(--left-field-setting-width) + 8px);
 
                       .right {
@@ -70,14 +74,14 @@
         .field-list-sticky {
           &.is-show {
             position: fixed;
-            top: calc(var(--top-searchbar-height) + var(--header-height));
+            top: calc(var(--top-searchbar-height) + var(--header-height) + var(--scene-toolbar-height, 0px));
             bottom: 0;
             left: calc(var(--left-collection-width) + 8px);
-            height: calc(100vh - var(--top-searchbar-height) - var(--header-height));
+            height: calc(100vh - var(--top-searchbar-height) - var(--header-height) - var(--scene-toolbar-height, 0px));
 
             .field-filter-box {
               .field-filter-container-new {
-                height: calc(100vh - var(--top-searchbar-height) - 100px);
+                height: calc(100vh - var(--top-searchbar-height) - var(--scene-toolbar-height, 0px) - 100px);
               }
             }
           }
@@ -85,11 +89,48 @@
       }
     }
   }
+
 }
 
 .is-start-text-ellipsis {
   .rtl-text {
     direction: rtl;
     // unicode-bidi: bidi-override; // 会影响DOM顺序
+  }
+}
+
+.scene-empty-tip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #fff;
+  margin: 8px;
+  padding: 40px 24px;
+  text-align: center;
+  flex: 1;
+
+  &-title {
+    color: #313238;
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 24px;
+  }
+
+  &-desc {
+    color: #313238;
+    font-size: 17px;
+    margin-bottom: 24px;
+  }
+
+  &-detail {
+    font-size: 14px;
+    // color: #c4c6cc;
+    color: #4d4f56;
+  }
+
+  .segment-span-tag {
+    margin-left: 8px;
+    color: #3a84ff;
   }
 }

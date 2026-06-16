@@ -17,6 +17,7 @@ from jinja2.sandbox import SandboxedEnvironment as Environment
 from django.conf import settings
 from django.db import models
 
+from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
 from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig, BkCollectorConfig
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.db.fields import JsonField
@@ -349,7 +350,11 @@ class CustomReportSubscription(models.Model):
             hosts = api.cmdb.get_host_without_biz(bk_tenant_id=bk_tenant_id, ips=proxy_ips)["hosts"]
             proxy_host_ids = [host["bk_host_id"] for host in hosts if host["bk_cloud_id"] == 0]
         else:
-            proxies = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
+            space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+            if is_bk_saas_space(space_uid):
+                return
+
+            proxies = api.node_man.get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
             proxy_biz_ids = {proxy["bk_biz_id"] for proxy in proxies}
             for proxy_biz_id in proxy_biz_ids:
                 current_proxy_hosts = api.cmdb.get_host_by_ip(

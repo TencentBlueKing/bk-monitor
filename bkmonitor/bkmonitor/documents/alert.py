@@ -34,6 +34,9 @@ class AlertDocument(BaseDocument):
     REINDEX_ENABLED = True
     REINDEX_QUERY = Search().filter("term", status=EventStatus.ABNORMAL).to_dict()
 
+    # mget 单批 id 上限：超过则分批普通 search（替代 scroll），避免单次 size 过大
+    MGET_BATCH_SIZE = 5000
+
     bk_tenant_id = field.Keyword()
     id = field.Keyword(required=True)
     seq_id = field.Long()
@@ -167,24 +170,52 @@ class AlertDocument(BaseDocument):
         """
         if not ids:
             return []
-        # 下界取 ids 反解 begin_time 的最小值；上界固定 now，同 get() 的理由：
-        # 覆盖 ABNORMAL（doc 被 reindex 到今天）和 RESOLVED 跨期（doc 停在结束那天）两种存储场景。
-        start_time = None
+        # 反解每个 id 的 begin_time（前 10 位）作为索引下界依据；无法反解的记 None，
+        # 稍后并入最老批次按全局下界兜底（与原实现对无法反解 id 的处理一致）。
+        parsed = []
         for id in ids:
             try:
-                ts = cls.parse_timestamp_by_id(id)
+                parsed.append((cls.parse_timestamp_by_id(id), id))
             except Exception:  # NOCC:broad-except(设计如此:)
-                continue
-            if start_time is None or ts < start_time:
-                start_time = ts
+                parsed.append((None, id))
+        ts_values = [ts for ts, _ in parsed if ts is not None]
+        global_min = min(ts_values) if ts_values else None
+        # 上界固定 now：ABNORMAL 每天 reindex 到今日、RESOLVED 停在结束那天，doc 必落在
+        # [begin_time, now]，故上界不可收窄（同 get()）。
         end_time = int(time.time())
 
-        search = cls.search(start_time=start_time, end_time=end_time).filter("terms", id=ids)
+        # 先按 begin_time 升序再分批：把时间相近的 id 聚到同一批，使每批可用"本批最小 begin_time"
+        # 作为索引下界。否则当输入 id 在原始顺序里被打散时，每个分批都可能混进很老的 id，被迫对
+        # 每一批都展开"全量最老 begin_time 到 now"的宽索引范围（分批数 × 宽范围）；排序后只有真正
+        # 含老 id 的那一批才展开宽范围，其余批各查自己的窄范围。下界取本批最小即足以覆盖本批全部
+        # doc（每个 doc 落在 [本批某 id 的 begin_time, now] ⊆ [本批最小 begin_time, now]）。
+        # 无法反解的 id 记全局下界、随之排到最老批次，用最宽窗口兜底。
+        parsed.sort(key=lambda p: p[0] if p[0] is not None else (global_min if global_min is not None else 0))
 
-        if fields:
-            search = search.source(fields=fields)
-
-        return [cls(**hit.to_dict()) for hit in search.params(size=5000).scan()]
+        # 分批普通 search 替代 scan()（scroll API），避免高并发批量 mget 在 ES 积压 scroll
+        # context（曾突破 max_open_scroll_context=500 致 alert.manager 成功率告警）。mget 是按 id
+        # 的有界查询，单批 terms 命中 ≤ 本批 id 数，一次 execute 即取完，无需 scroll 深翻页。
+        # size 取本批 id 数 2 倍：reindex 期间同一 alert 可能在新旧索引各存一份，2 倍确保两份都
+        # 取回再去重，不会因截断而漏掉较新副本。绝大多数调用单批不满，size 远小于上限、不在每个
+        # 分片多占结果堆；满批时 size = 2 × MGET_BATCH_SIZE = 10000，恰等于 ES 默认
+        # max_result_window（from=0，不越界）。
+        # 同 id 去重保最新：按 -update_time 排序，首次出现（当前写索引中的最新副本）保留，旧副本
+        # （reindex 后待 delete_by_query 清理、update_time 不大于新副本）丢弃。用 ES 排序而非比较
+        # source，故 fields 过滤掉 update_time 时仍能正确判别。_id 即 alert id（save 时写入），恒存在。
+        docs = {}
+        for i in range(0, len(parsed), cls.MGET_BATCH_SIZE):
+            batch = parsed[i : i + cls.MGET_BATCH_SIZE]
+            batch_ts = [ts for ts, _ in batch if ts is not None]
+            start_time = min(batch_ts) if batch_ts else global_min
+            chunk = [id for _, id in batch]
+            search = cls.search(start_time=start_time, end_time=end_time).filter("terms", id=chunk)
+            if fields:
+                search = search.source(fields=fields)
+            search = search.sort("-update_time")
+            for hit in search.params(size=len(chunk) * 2).execute():
+                if hit.meta.id not in docs:
+                    docs[hit.meta.id] = cls(**hit.to_dict())
+        return list(docs.values())
 
     @classmethod
     def get_by_dedupe_md5(cls, dedupe_md5, start_time=None) -> "AlertDocument":

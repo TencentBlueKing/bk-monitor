@@ -29,8 +29,8 @@ if TYPE_CHECKING:
     from metadata.models.data_source import DataSource
 
 BKBASE_RESULT_TABLE_FIELD_TYPE_MAP = {
-    # flattened 是 ES mapping 类型，BKBase V4 ResultTable 字段类型使用 object 表达。
-    "flattened": "object",
+    # flattened 是 ES mapping 类型，BKBase V4 ResultTable 字段类型使用 string 表达。
+    "flattened": "string",
 }
 
 

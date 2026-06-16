@@ -26,3 +26,11 @@
     }
   }
 }
+
+// 场景模式下二级导航栏始终吸顶
+.is-scene-mode {
+  .v3-bklog-toolbar {
+    position: sticky;
+    top: 0;
+  }
+}

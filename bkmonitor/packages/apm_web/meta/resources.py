@@ -58,6 +58,7 @@ from apm_web.db.db_utils import build_filter_params, get_service_from_params
 from apm_web.handlers.application_handler import ApplicationHandler
 from apm_web.handlers.backend_data_handler import telemetry_handler_registry
 from apm_web.handlers.component_handler import ComponentHandler
+from apm_web.handlers.config_handler.code import CodeRemarkHandler
 from apm_web.handlers.db_handler import DbComponentHandler
 from apm_web.handlers.endpoint_handler import EndpointHandler
 from apm_web.handlers.instance_handler import InstanceHandler
@@ -123,10 +124,12 @@ from bkmonitor.utils.user import (
 from common.log import logger
 from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE, EventSeverity
 from constants.apm import (
+    CallSide,
     FlowType,
     FormatType,
     OtlpKey,
     OtlpProtocol,
+    SpanKind,
     SpanStandardField,
     StandardFieldCategory,
     TailSamplingSupportMethod,
@@ -2553,6 +2556,12 @@ class QueryEndpointStatisticsResource(PageListResource):
 
 class QueryExceptionDetailEventResource(PageListResource):
     UNKNOWN = "unknown"
+    CODE_REMARK_KIND_MAPPING = {
+        SpanKind.SPAN_KIND_CLIENT: CallSide.CALLER.value,
+        SpanKind.SPAN_KIND_PRODUCER: CallSide.CALLER.value,
+        SpanKind.SPAN_KIND_SERVER: CallSide.CALLEE.value,
+        SpanKind.SPAN_KIND_CONSUMER: CallSide.CALLEE.value,
+    }
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务id")
@@ -2616,6 +2625,8 @@ class QueryExceptionDetailEventResource(PageListResource):
         }
         exception_spans: list[dict[str, Any]] = api.apm_api.query_span(query_dict)
         res: list[dict[str, Any]] = []
+        remark_configs: list[dict[str, Any]] | None = None
+        code_remark_config_cache: dict[tuple[str, str], dict[str, str]] = {}
         for span in exception_spans:
             # 返回码错误优先展示返回码消息，其他错误沿用 span status message。
             subtitle: str = (span.get(OtlpKey.STATUS) or {}).get("message", "")
@@ -2627,15 +2638,38 @@ class QueryExceptionDetailEventResource(PageListResource):
             ):
                 exception_type: str = exception_event["exception_type"]
                 exception_refer: str = exception_event["exception_refer"]
+                exception_alias: str = exception_event["exception_alias"]
                 stacktrace: list[str] = exception_event["stacktrace"].splitlines()
                 current_subtitle: str = subtitle
                 if exception_refer in SpanHandler.RPC_EXCEPTION_FIELDS:
                     current_subtitle = exception_event["exception_message"] or current_subtitle
+                    span_service_name: str = (span.get(OtlpKey.RESOURCE) or {}).get(ResourceAttributes.SERVICE_NAME, "")
+                    code_remark_kind: str | None = self.CODE_REMARK_KIND_MAPPING.get(span.get(OtlpKey.KIND))
+                    if span_service_name and code_remark_kind:
+                        # 首次备注配置为空时，去查询应用级备注配置
+                        if remark_configs is None:
+                            remark_configs = CodeRemarkHandler.get_app_remark_configs(
+                                validated_data["bk_biz_id"], validated_data["app_name"]
+                            )
+
+                        # 同一服务和调用方向复用最终生效的备注配置
+                        cache_key: tuple[str, str] = (span_service_name, code_remark_kind)
+                        if cache_key not in code_remark_config_cache:
+                            code_remark_config_cache[cache_key] = CodeRemarkHandler.build_service_code_remark_config(
+                                remark_configs,
+                                span_service_name,
+                                code_remark_kind,
+                            )
+
+                        code_remark_config: dict[str, str] = code_remark_config_cache[cache_key]
+                        remark: str = code_remark_config.get(exception_type, "")
+                        if remark:
+                            exception_alias = f"{exception_alias}（{remark}）"
                 elif exception_type != self.UNKNOWN and not current_subtitle:
                     current_subtitle = f"{exception_type}: {exception_event['exception_message']}"
                 res.append(
                     {
-                        "title": f"{span_time_strft(exception_event['timestamp'])}  {exception_event['exception_alias']}",
+                        "title": f"{span_time_strft(exception_event['timestamp'])}  {exception_alias}",
                         "subtitle": current_subtitle,
                         "content": stacktrace,
                         "timestamp": exception_event["timestamp"],

@@ -17,6 +17,7 @@ class TestAIOpsSDKDetect(TestCase):
 
         self.mocked_aiops_item = copy.deepcopy(mocked_item)
         self.mocked_aiops_item.query_configs[0]["intelligent_detect"] = {"use_sdk": True, "status": "ready"}
+        self.mocked_aiops_item.bk_tenant_id = "tenant_demo"
         self.datapoint99 = DataPoint(
             {
                 "record_id": "342a08e0f85f169a7e099c18db3708ed",
@@ -63,7 +64,7 @@ class TestAIOpsSDKDetect(TestCase):
         with mock.patch(
             "alarm_backends.service.detect.strategy.intelligent_detect.IntelligentDetect.PREDICT_FUNC",
             return_value=self.anomaly_pre_detect,
-        ):
+        ) as mock_predict:
             detect_engine = IntelligentDetect(
                 config={
                     "args": {"$alert_down": "1", "$sensitivity": 5, "$alert_upward": "1"},
@@ -72,6 +73,8 @@ class TestAIOpsSDKDetect(TestCase):
                 }
             )
             anomaly_result = detect_engine.detect_records(self.datapoint99, 1)
+            # 多租户：SDK 预测调用须透传策略实际租户，不能回落 system
+            assert mock_predict.call_args.kwargs["bk_tenant_id"] == "tenant_demo"
             assert len(anomaly_result) == 1
             assert (
                 anomaly_result[0].anomaly_message

@@ -222,6 +222,8 @@ CELERY_ACCEPT_CONTENT = ["pickle"]
 CELERY_IMPORTS = (
     "apps.log_search.tasks.bkdata",
     "apps.log_search.tasks.async_export",
+    "apps.log_search.tasks.scene_async_export",
+    "apps.log_search.tasks.unify_query_async_export",
     "apps.log_search.tasks.project",
     "apps.log_search.tasks.space",
     "apps.log_search.tasks.cmdb",
@@ -627,6 +629,8 @@ FEATURE_TOGGLE = {
     "log_manage_v2": os.environ.get("BKAPP_FEATURE_LOG_MANAGE_V2", "on"),
     # 客户端日志
     "tgpa_task": os.environ.get("BKAPP_FEATURE_TGPA_TASK", "off"),
+    # 场景化检索
+    "scene_search": os.environ.get("BKAPP_FEATURE_SCENE_SEARCH", "off"),
 }
 
 SAAS_MONITOR = "bk_monitorv3"

@@ -31,7 +31,7 @@ def refresh_record_rule_v4():
     logger.info("refresh_record_rule_v4: start refresh")
     for rule in rules.iterator():
         try:
-            changed = RecordRuleV4Operator(rule, source="scheduler").reconcile(auto_apply=rule.auto_refresh)
+            changed = RecordRuleV4Operator(rule, source="scheduler").reconcile()
             logger.info("refresh_record_rule_v4: rule_id->[%s], changed->[%s]", rule.pk, changed)
         except Exception as err:  # pylint: disable=broad-except
             logger.exception("refresh_record_rule_v4: refresh failed, rule_id->[%s], error->[%s]", rule.pk, err)

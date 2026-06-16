@@ -285,7 +285,12 @@ class TsDependPreparationProcess(BasePreparationProcess):
                         "enable_week_compare": extra_config.get("enable_week_compare", False),
                     }
                     tasks.append(
-                        executor.submit(init_depend_api_func, dependency_data=init_data, serving_config=serving_config)
+                        executor.submit(
+                            init_depend_api_func,
+                            dependency_data=init_data,
+                            serving_config=serving_config,
+                            bk_tenant_id=strategy.bk_tenant_id,
+                        )
                     )
                     init_data = []
 
@@ -299,7 +304,12 @@ class TsDependPreparationProcess(BasePreparationProcess):
                     "enable_week_compare": extra_config.get("enable_week_compare", False),
                 }
                 tasks.append(
-                    executor.submit(init_depend_api_func, dependency_data=init_data, serving_config=serving_config)
+                    executor.submit(
+                        init_depend_api_func,
+                        dependency_data=init_data,
+                        serving_config=serving_config,
+                        bk_tenant_id=strategy.bk_tenant_id,
+                    )
                 )
 
         as_completed(tasks)

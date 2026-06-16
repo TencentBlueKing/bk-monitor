@@ -45,6 +45,7 @@ import VueJsonPretty from 'vue-json-pretty';
 import { useRoute, useRouter } from 'vue-router';
 
 import DataAccess, { type SpaceInfo } from '../../components/data-access';
+import { appendQueryStringCondition } from '../../components/retrieval-filter/query-string-utils';
 import { EFieldType, EMode } from '../../components/retrieval-filter/typing';
 import { mergeWhereList } from '../../components/retrieval-filter/utils';
 import useUserConfig from '../../hooks/useUserConfig';
@@ -531,7 +532,7 @@ export default defineComponent({
           conditionResult = convertDurationArray(condition.value as string[]);
         }
         alarmStore.conditions = mergeWhereList(
-          alarmStore.conditions,
+          alarmStore.conditions.filter(item => item.key !== condition.key),
           conditionResult.map(condition => ({
             key: condition.key,
             method: condition.method,
@@ -545,8 +546,8 @@ export default defineComponent({
           }))
         );
       } else {
-        const queryString = `${alarmStore.queryString ? ' AND ' : ''}${condition.method === 'neq' ? '-' : ''}${condition.key}: ${condition.value[0]}`;
-        alarmStore.queryString = queryString;
+        const newClause = `${condition.method === 'neq' ? '-' : ''}${condition.key}: ${condition.value[0]}`;
+        alarmStore.queryString = appendQueryStringCondition(alarmStore.queryString, condition.key, newClause);
       }
     };
     /** UI条件变化 */

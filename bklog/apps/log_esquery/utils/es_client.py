@@ -49,9 +49,9 @@ def get_es_client(
     **kwargs,
 ) -> Elasticsearch:
     # 根据版本加载客户端
-    if version.startswith("5."):
+    if version and version.startswith("5."):
         es_client = Elasticsearch5
-    elif version.startswith("6."):
+    elif version and version.startswith("6."):
         es_client = Elasticsearch6
     else:
         es_client = Elasticsearch

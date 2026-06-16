@@ -140,6 +140,8 @@ export const IssueActiveNodeTypeEnum = {
   PRIORITY_CHANGE: 'priority_change',
   /** 状态变更 */
   STATUS_CHANGE: 'status_change',
+  /** 名称变更 */
+  NAME_CHANGE: 'name_change',
   /** 合并 */
   MERGED_INTO: 'merged_into',
   /** 拆分 */
@@ -326,6 +328,10 @@ export const ISSUES_ACTIVE_NODE_ICON_MAP = {
   [IssueActiveNodeTypeEnum.STATUS_CHANGE]: {
     icon: statusIcon,
     alias: window.i18n.t('状态流转'),
+  },
+  [IssueActiveNodeTypeEnum.NAME_CHANGE]: {
+    icon: '',
+    alias: window.i18n.t('名称变更'),
   },
   [IssueActiveNodeTypeEnum.MERGED_INTO]: {
     icon: mergeIcon,

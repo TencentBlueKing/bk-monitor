@@ -85,6 +85,7 @@ class PatternHandler:
         self._show_new_pattern = query.get("show_new_pattern", False)
         self._year_on_year_hour = query.get("year_on_year_hour", 0)
         self._group_by = query.get("group_by", [])
+        self._include_origin_log = query.get("include_origin_log", False)
         self._clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
         self._query = query
 
@@ -126,12 +127,18 @@ class PatternHandler:
             pattern_map = self._get_pattern_data(patterns=list({p["key"] for p in pattern_aggs}))
         elif self._clustering_config.model_output_rt:
             # 在线训练逻辑适配
+            fields = ["signature", "pattern", "origin_pattern"]
+            if self._include_origin_log:
+                fields.append("origin_log")
             pattern_map = AiopsSignatureAndPattern.objects.filter(
                 model_id=self._clustering_config.model_output_rt
-            ).values("signature", "pattern", "origin_pattern", "origin_log")
+            ).values(*fields)
         else:
+            fields = ["signature", "pattern", "origin_pattern"]
+            if self._include_origin_log:
+                fields.append("origin_log")
             pattern_map = AiopsSignatureAndPattern.objects.filter(model_id=self._clustering_config.model_id).values(
-                "signature", "pattern", "origin_pattern", "origin_log"
+                *fields
             )
         signature_map_pattern = array_hash(pattern_map, "signature", "pattern")
         signature_map_origin_pattern = array_hash(pattern_map, "signature", "origin_pattern")
@@ -174,7 +181,7 @@ class PatternHandler:
                 continue
             signature_pattern = signature_map_pattern.get(signature, "")
             signature_origin_pattern = signature_map_origin_pattern.get(signature) or signature_pattern
-            signature_origin_log = signature_map_origin_log.get(signature, "")
+            signature_origin_log = signature_map_origin_log.get(signature) or ""
             group_key = f"{signature}|{pattern.get('group', '')}"
             year_on_year_compare = year_on_year_result.get(group_key, MIN_COUNT)
 
@@ -486,10 +493,13 @@ class PatternHandler:
         start_time, end_time = generate_time_range(
             NEW_CLASS_QUERY_TIME_RANGE, self._query["start_time"], self._query["end_time"], get_local_param("time_zone")
         )
+        fields = ["signature", "pattern"]
+        if self._include_origin_log:
+            fields.append("log as origin_log")
         try:
             records = (
                 BkData(self._clustering_config.signature_pattern_rt)
-                .select("signature", "pattern", "log as origin_log")
+                .select(*fields)
                 .where("signature", "IN", patterns)
                 .time_range(
                     start_time=int(start_time.shift(days=-1).timestamp())
@@ -542,7 +552,7 @@ class PatternHandler:
             {
                 "signature": record["signature"],
                 "pattern": record["pattern"],
-                "origin_log": record["log"],
+                **({"origin_log": record.get("log", "")} if self._include_origin_log else {}),
             }
             for record in result["list"]
             if record["signature"]

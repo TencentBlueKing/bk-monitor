@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, shallowRef, toRef, watch } from 'vue';
+import { type ComputedRef, type PropType, computed, defineComponent, inject, shallowRef, toRef, watch } from 'vue';
 
 import { get } from '@vueuse/core';
 import { K8sNewTabEnum, K8sTableColumnKeysEnum } from 'monitor-pc/pages/monitor-k8s/typings/k8s-new';
@@ -35,6 +35,7 @@ import { useAlarmCenterDetailStore } from '../../../../../store/modules/alarm-ce
 import AlarmDashboardGroup from '../../../components/alarm-dashboard-group/alarm-dashboard-group';
 import { useAlertK8s } from '../../../composables/use-alert-k8s';
 import { useK8sChartPanel } from '../../../composables/use-k8s-chart-panel';
+import { useTraceSpanK8s } from '../../../composables/use-trace-span-k8s';
 import PanelEmpty from '../panel-host/components/panel-empty/panel-empty';
 import K8SCustomChart from './components/k8s-custom-chart/k8s-custom-chart';
 import K8sSceneSelector from './components/k8s-scene-selector/k8s-scene-selector';
@@ -64,11 +65,24 @@ export default defineComponent({
     alertId: String as PropType<string>,
   },
   setup(props) {
-    const { timeRange, bizId } = storeToRefs(useAlarmCenterDetailStore());
-    const { scene, currentTarget, sceneList, targetList, groupBy, loading } = useAlertK8s({
-      alertId: toRef(props, 'alertId'),
-      bizId,
-    });
+    // Trace下 Span详情中的容器监控所需参数
+    const traceSpanInfo = inject<
+      ComputedRef<{
+        appName: string;
+        bizId: number;
+        serviceName: string;
+        spanId: string;
+        timeRange: DateValue;
+      }>
+    >('traceSpanInfo');
+    const { timeRange, bizId } = traceSpanInfo?.value ? traceSpanInfo.value : storeToRefs(useAlarmCenterDetailStore());
+    // TODO: 当 span 详情时使用专用的hook，返回的内容要保持一致
+    const { scene, currentTarget, sceneList, targetList, groupBy, loading } = traceSpanInfo?.value
+      ? useTraceSpanK8s(traceSpanInfo.value)
+      : useAlertK8s({
+          alertId: toRef(props, 'alertId'),
+          bizId,
+        });
     /** 需要渲染的仪表盘面板配置数组 */
     const { dashboards, loading: k8sDashboardLoading } = useK8sChartPanel({
       scene,
@@ -108,7 +122,13 @@ export default defineComponent({
       const url = commOpenUrl('#/k8s-new/', get(bizId));
       const [startTime, endTime] = handleTransformToTimestampMs(get(timeRange) as DateValue);
       // @ts-expect-error
-      const { bcs_cluster_id: cluster, ...target } = get(currentTarget) ?? {};
+      const {
+        bcs_cluster_id: cluster,
+        scenario_list,
+        resource_type,
+        display_name,
+        ...target
+      } = get(currentTarget) ?? {};
 
       const groupByList = resolveGroupByList(get(groupBy));
       const searchParams = new URLSearchParams({
@@ -159,6 +179,7 @@ export default defineComponent({
       canLinkTok8s,
       dataZoomTimeRange,
       viewerTimeRange,
+      traceSpanInfo,
       handleToK8s,
       createSkeletonDom,
       handleDataZoomTimeRangeChange,
@@ -171,7 +192,7 @@ export default defineComponent({
           <>
             <div class='panel-k8s-white-bg-container'>
               <div class='k8s-selector-wrap'>
-                <div class='k8s-selector-label'>{this.groupBy || '--'}</div>
+                {!this.traceSpanInfo && <div class='k8s-selector-label'>{this.groupBy || '--'}</div>}
                 <div class='k8s-selector-row'>
                   <div class='k8s-selector-container'>
                     <K8sTargetSelector

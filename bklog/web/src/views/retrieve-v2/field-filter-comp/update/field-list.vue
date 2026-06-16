@@ -65,6 +65,7 @@
 
   const unionIndexList = computed(() => store.state.unionIndexList);
   const isUnionSearch = computed(() => store.state.isUnionSearch);
+  const isSceneMode = computed(() => store.getters.isSceneMode);
   const isStartTextEllipsis = computed(() => store.state.storage.textEllipsisDir === 'start');
 
   /** 字段配置管理组件所需参数 */
@@ -189,15 +190,21 @@
   const getFiledConfigList = async () => {
     isLoading.value = true;
     try {
-      const res = await $http.request('retrieve/getFieldsListConfig', {
-        data: {
-          ...(isUnionSearch.value
-            ? { index_set_ids: unionIndexList.value }
-            : { index_set_id: window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId }),
-          scope: 'default',
-          index_set_type: isUnionSearch.value ? 'union' : 'single',
-        },
-      });
+      const requestName = isSceneMode.value ? 'retrieve/sceneListConfig' : 'retrieve/getFieldsListConfig';
+      const data = isSceneMode.value
+        ? {
+            bk_biz_id: store.state.bkBizId,
+            scene_id: store.state.indexItem.scene_active,
+            scope: 'default',
+          }
+        : {
+            ...(isUnionSearch.value
+              ? { index_set_ids: unionIndexList.value }
+              : { index_set_id: window.__IS_MONITOR_COMPONENT__ ? route.query.indexId : route.params.indexId }),
+            scope: 'default',
+            index_set_type: isUnionSearch.value ? 'union' : 'single',
+          };
+      const res = await $http.request(requestName, { data });
       configList.value = res.data;
     } catch (error) {
     } finally {

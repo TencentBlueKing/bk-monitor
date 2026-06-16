@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,12 +7,23 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+from redis.exceptions import RedisError
+
 from alarm_backends.core.cluster import get_cluster
-from alarm_backends.core.storage.redis import CACHE_BACKEND_CONF_MAP, Cache
+from alarm_backends.core.storage.redis import CACHE_BACKEND_CONF_MAP, Cache, gen_resilient_socket_conf
 from bkmonitor.models import CacheNode, CacheRouter
 
 
-class RedisNode(object):
+class PipelineResultMismatch(RedisError):
+    """pipeline 各节点返回的响应数与入队命令数不一致。
+
+    通常由连接异常或节点切换后代理残留的脏命令栈引起。继承 RedisError，
+    使既有 ``except RedisError`` 的调用方也能捕获并按可重试错误处理。
+    """
+
+
+class RedisNode:
     redis_type = "RedisCache"
 
     def __init__(self, host, port, password=None):
@@ -34,7 +44,11 @@ class RedisNode(object):
 
     def gen_connection_conf(self, cache_backend):
         conf = self.connection_kwargs.copy()
-        conf["db"] = CACHE_BACKEND_CONF_MAP.get(cache_backend, {}).get("db", 0)
+        backend_conf = CACHE_BACKEND_CONF_MAP.get(cache_backend, {})
+        conf["db"] = backend_conf.get("db", 0)
+        # 注入连接韧性参数: 分片节点历史上无任何 socket 超时, 主切换时读操作无限挂起。
+        # socket_timeout 沿用后端配置(若有), 由 floor 守住"必须大于阻塞命令 server 超时"的红线。
+        conf.update(gen_resilient_socket_conf(backend_conf.get("socket_timeout")))
         return conf
 
     def instance(self, cache_backend):
@@ -59,7 +73,7 @@ class SentinelRedisNode(RedisNode):
         return f"{self.redis_type}-{self.host}:{self.port} {self.master_name}"
 
     def gen_connection_conf(self, cache_backend):
-        conf = super(SentinelRedisNode, self).gen_connection_conf(cache_backend)
+        conf = super().gen_connection_conf(cache_backend)
         if self.sentinel_password:
             conf["sentinel_password"] = self.sentinel_password
         return conf
@@ -90,7 +104,7 @@ def setup_sentinel_client(node, backend):
     return sentinel_node.instance(backend)
 
 
-class KeyRouterMixin(object):
+class KeyRouterMixin:
     def strategy_id_from_command(self, *args, **kwargs):
         key = self.key_from_command(*args, **kwargs)
         return self.strategy_id_from_key(key)
@@ -162,13 +176,31 @@ class PipelineProxy(KeyRouterMixin):
     def execute(self):
         p_result = {}
         result = []
-        for node_id, pipeline_instance in self._pipeline_pool.items():
-            p_result[node_id] = list(reversed(getattr(pipeline_instance, "execute")()))
-        for cmd in self.command_stack:
-            resp = p_result[cmd].pop() if p_result[cmd] else None
-            result.append(resp)
-        self.command_stack = []
-        return result
+        try:
+            for node_id, pipeline_instance in self._pipeline_pool.items():
+                p_result[node_id] = list(reversed(getattr(pipeline_instance, "execute")()))
+            # 每个节点返回的响应数必须与入队到该节点的命令数一致，否则按 command_stack
+            # 顺序回填会与命令错位（历史上会导致下游按下标取值越界 IndexError）
+            for node_id, responses in p_result.items():
+                expected = self.command_stack.count(node_id)
+                if len(responses) != expected:
+                    raise PipelineResultMismatch(
+                        f"pipeline result mismatch on node({node_id}): got {len(responses)}, expected {expected}"
+                    )
+            for cmd in self.command_stack:
+                resp = p_result[cmd].pop() if p_result[cmd] else None
+                result.append(resp)
+            return result
+        finally:
+            # 无论成功或异常，都清空命令栈并重置各节点 pipeline 缓冲。
+            # RedisProxy 缓存了本 PipelineProxy 单例并跨调用复用，若异常时不清理，
+            # 残留命令会污染下一次复用，使结果与请求错位。
+            self.command_stack = []
+            for pipeline_instance in self._pipeline_pool.values():
+                try:
+                    pipeline_instance.reset()
+                except Exception:
+                    pass
 
     def __getattr__(self, name):
         def handle(*args, **kwargs):

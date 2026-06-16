@@ -27,6 +27,7 @@
 import { random } from '@/components/monitor-echarts/utils';
 
 import http from '@/api';
+import { transformSceneConfigs } from '@/views/retrieve-v3/search-bar/scene-filter/scene-config';
 
 /**
  * 索引集列表初始化
@@ -83,6 +84,15 @@ export default {
       sortList: [],
     },
     activeVersion: 'v2',
+    /** 场景化检索配置列表 */
+    sceneConfigs: {
+      is_loading: false,
+      data: [],
+    },
+  },
+  getters: {
+    /** 转换后的场景配置列表 */
+    sceneConfigList: state => transformSceneConfigs(state.sceneConfigs?.data ?? []),
   },
   mutations: {
     updateActiveVersion(state, version) {
@@ -143,8 +153,66 @@ export default {
         state.catchFieldCustomConfig.filterAddition.push(...addition);
       }
     },
+    /** 更新场景化检索配置列表 */
+    updateSceneConfigs(state, payload) {
+      if (payload.is_loading !== undefined) {
+        state.sceneConfigs.is_loading = payload.is_loading;
+      }
+      if (payload.data !== undefined) {
+        state.sceneConfigs.data = payload.data ?? [];
+      }
+    },
+    /**
+     * 清理检索页运行态大对象。
+     * 检索页切到管理页后不再需要索引集树、场景配置和字段配置缓存，
+     * 若继续常驻 Vuex，会保留大量响应式对象，导致多次路由切换后 heap 无法及时回落。
+     */
+    resetRuntimeState(state) {
+      state.indexSetList = [];
+      state.flatIndexSetList = [];
+      state.isIndexSetLoading = false;
+      state.isTrendDataLoading = false;
+      state.isTotalCountLoaded = false;
+      state.trendDataCount = 0;
+      state.catchFieldCustomConfig = {
+        fieldsWidth: {},
+        displayFields: [],
+        filterSetting: [],
+        filterAddition: [],
+        fixedFilterAddition: false,
+        sortList: [],
+        contextDisplayFields: [],
+      };
+      state.sceneConfigs = {
+        is_loading: false,
+        data: [],
+      };
+    },
   },
   actions: {
+    /** 请求场景化检索配置列表 */
+    requestSceneConfigs({ commit, rootState }) {
+      commit('updateSceneConfigs', { is_loading: true });
+      return http
+        .request('retrieve/getSceneConfigs', {
+          query: {
+            bk_biz_id: rootState?.bkBizId,
+          },
+        })
+        .then((resp) => {
+          const data = resp.data ?? resp ?? [];
+          commit('updateSceneConfigs', { data });
+          return data;
+        })
+        .catch((err) => {
+          console.error('requestSceneConfigs error:', err);
+          commit('updateSceneConfigs', { data: [] });
+          return [];
+        })
+        .finally(() => {
+          commit('updateSceneConfigs', { is_loading: false });
+        });
+    },
     getIndexSetList(ctx, payload) {
       const { spaceUid, isLoading = true, is_group } = payload;
       if (isLoading) ctx.commit('updateIndexSetLoading', true);

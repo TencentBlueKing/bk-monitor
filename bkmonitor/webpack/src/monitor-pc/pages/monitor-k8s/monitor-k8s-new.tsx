@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, Mixins, Provide, ProvideReactive, Watch, Inject } from 'vue-property-decorator';
 
 import { listBcsCluster, scenarioMetricList } from 'monitor-api/modules/k8s';
 import { random, tryURLDecodeParse } from 'monitor-common/utils';

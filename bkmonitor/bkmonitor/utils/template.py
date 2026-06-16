@@ -110,8 +110,10 @@ class SafeSandboxedEnvironment(SandboxedEnvironment):
     def call(__self, __context, __obj, *args, **kwargs):
         # 形参用双下划线，沿用 jinja 约定避免与模板 kwargs 冲突。
         # 调用实参只接受数据值，不接受可调用对象。
+        # Undefined 哨兵实现了 __call__（callable 为真），但它只是缺失变量的占位符而非真实可调用对象，
+        # 模板中将未定义变量传入 gettext 等函数属于正常用法，需放行避免误伤。
         for __arg in list(args) + list(kwargs.values()):
-            if callable(__arg):
+            if callable(__arg) and not isinstance(__arg, Undefined):
                 raise SecurityError("callable arguments are not allowed in templates")
         return super().call(__context, __obj, *args, **kwargs)
 

@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
+import os
 import random
 import time
 
@@ -154,6 +155,7 @@ class IssueAggregationProcessor:
         dimension_values = {key: str(data_dimensions[key]).strip() for key in sorted(aggregate_dimensions)}
 
         issue = self._find_active_issue(fingerprint)
+        created = False
 
         if issue is None:
             # 高基数采样：触达阈值时仅 metric + warning（warn-only，不阻塞新建避免丢告警）
@@ -175,6 +177,7 @@ class IssueAggregationProcessor:
                     issue = self._create_issue(config, fingerprint, dimension_values)
                     issue._persist_and_cache(active=True)
                     self._write_create_activity_with_retry(issue, dimension_values)
+                    created = True
             finally:
                 try:
                     lock.release()
@@ -182,7 +185,35 @@ class IssueAggregationProcessor:
                     pass
 
         self._associate_alert(issue)
+        if created:
+            self._maybe_dispatch_llm_title(issue)
         return True
+
+    def _maybe_dispatch_llm_title(self, issue) -> None:
+        """新建 Issue 后派发 LLM 标题生成任务（异步，独立队列 celery_llm_task）。
+
+        两级闸门：部署级 env ENABLE_ISSUE_LLM_TITLE（由 helm chart 按 llmWorker
+        有效容量派生注入；env 不存在即消费负载不存在，不派发避免队列积压）
+        + 运行时业务白名单。任何失败静默：标题生成是体验增强，不影响主链路。
+        """
+        if not os.getenv("ENABLE_ISSUE_LLM_TITLE"):
+            return
+        try:
+            from alarm_backends.service.fta_action.llm_title import is_llm_title_enabled_for_biz
+            from alarm_backends.service.fta_action.tasks.issue_tasks import generate_issue_llm_title
+
+            if not is_llm_title_enabled_for_biz(issue.bk_biz_id):
+                return
+            generate_issue_llm_title.apply_async(
+                kwargs={
+                    "issue_id": issue.id,
+                    "bk_biz_id": issue.bk_biz_id,
+                    "default_name": issue.name,
+                    "alert_id": self.alert.id,
+                }
+            )
+        except Exception:
+            logger.warning("[issue] dispatch llm title task failed, issue(%s)", issue.id, exc_info=True)
 
     def _get_strategy_config(self) -> dict | None:
         """从策略缓存 JSON 直接读取 issue_config，无需额外 Redis 查询。"""

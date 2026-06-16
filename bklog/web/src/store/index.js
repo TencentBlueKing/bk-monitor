@@ -49,6 +49,7 @@ import Vuex from 'vuex';
 import collect from './collect.js';
 import { ConditionOperator } from './condition-operator.ts';
 
+import axios from 'axios';
 import http, { axiosInstance } from '@/api';
 import {
   BkLogGlobalStorageKey,
@@ -62,7 +63,7 @@ import {
   urlArgs,
 } from './default-values.ts';
 import globals from './globals.js';
-import { formatAdditionalFields, getCommonFilterAdditionWithValues, isAiAssistantActive, isFeatureToggleOn } from './helper.ts';
+import { buildTableIdConditions, formatAdditionalFields, getCommonFilterAdditionWithValues, isAiAssistantActive, isFeatureToggleOn, isSceneFilterValuesEmpty, isSceneRetrieve } from './helper.ts';
 import { reportRouteLog } from './modules/report-helper.ts';
 import RequestPool from './request-pool.ts';
 import retrieve from './retrieve.js';
@@ -315,6 +316,13 @@ const store = new Vuex.Store({
 
       return state.visibleFields.filter(field => !field.is_virtual_alias_field);
     },
+    /** 是否为场景化检索模式 */
+    isSceneMode: state => isSceneRetrieve(state),
+    /** 场景化检索模式下，过滤条件是否全部为空 */
+    isSceneFilterEmpty: (state) => {
+      if (!isSceneRetrieve(state)) return false;
+      return isSceneFilterValuesEmpty(state.indexItem?.scene_filter_values);
+    },
     /** 是否是联合查询 */
     isUnionSearch: state => !!state.indexItem.isUnionIndex,
     /** 联合查询索引集ID数组 */
@@ -376,7 +384,7 @@ const store = new Vuex.Store({
     },
 
     // @ts-ignore
-    retrieveParams: (state, getters) => {
+    retrieveParams: (state, getters, _, rootGetters) => {
       const {
         start_time,
         end_time,
@@ -416,7 +424,7 @@ const store = new Vuex.Store({
         local_sort_list = getters.custom_sort_list;
       }
 
-      return {
+      const baseParams = {
         start_time,
         end_time,
         format,
@@ -432,6 +440,21 @@ const store = new Vuex.Store({
         time_zone: timezone,
         ...searchParams,
       };
+
+      // 场景化检索：附加 space_uid、table_id_conditions 和 scene_filter_values
+      if (isSceneRetrieve(state)) {
+        const { table_id_conditions, scene_filter_values } = buildTableIdConditions(
+          state,
+          rootGetters['retrieve/sceneConfigList'],
+        );
+        Object.assign(baseParams, {
+          space_uid: state.spaceUid,
+          table_id_conditions,
+          scene_filter_values,
+        });
+      }
+
+      return baseParams;
     },
     /**
      * API 请求参数 addition 格式化
@@ -613,7 +636,19 @@ const store = new Vuex.Store({
     },
 
     resetIndexSetQueryResult(state, payload) {
-      Object.assign(state.indexSetQueryResult, IndexSetQueryResult, payload ?? {});
+      Object.keys(IndexSetQueryResult).forEach((key) => {
+        const value = payload && Object.prototype.hasOwnProperty.call(payload, key)
+          ? payload[key]
+          : IndexSetQueryResult[key];
+
+        if (Array.isArray(value)) {
+          set(state.indexSetQueryResult, key, [...value]);
+        } else if (value && typeof value === 'object') {
+          set(state.indexSetQueryResult, key, { ...value });
+        } else {
+          set(state.indexSetQueryResult, key, value);
+        }
+      });
     },
 
     updateIndexSetQueryResult(state, payload) {
@@ -1033,11 +1068,11 @@ const store = new Vuex.Store({
         contextAndRealtime,
         indexSetValue,
         toolMessage: {
-          webConsole: bcsWebConsole.is_active ? 'WebConsole' : bcsWebConsole?.extra?.reason,
-          realTimeLog: contextAndRealtime.is_active
+          webConsole: bcsWebConsole?.is_active ? 'WebConsole' : bcsWebConsole?.extra?.reason,
+          realTimeLog: contextAndRealtime?.is_active
             ? window.mainComponent.$t('实时日志')
             : contextAndRealtime?.extra?.reason,
-          contextLog: contextAndRealtime.is_active
+          contextLog: contextAndRealtime?.is_active
             ? window.mainComponent.$t('上下文')
             : contextAndRealtime?.extra?.reason,
         },
@@ -1240,7 +1275,7 @@ const store = new Vuex.Store({
     },
 
     /** 请求字段config信息 */
-    requestIndexSetFieldInfo({ commit, state }) {
+    requestIndexSetFieldInfo({ commit, state, getters }) {
       // @ts-ignore
       const { ids = [], start_time = '', end_time = '', isUnionIndex } = state.indexItem;
       commit('resetIndexFieldInfo');
@@ -1249,18 +1284,30 @@ const store = new Vuex.Store({
       commit('updateIndexSetFieldConfig', {});
       commit('updateVisibleFields', []);
 
+      const cancelTokenKey = 'requestIndexSetFieldInfoCancelToken';
+      RequestPool.execCanceToken(cancelTokenKey);
+      const requestCancelToken = RequestPool.getCancelToken(cancelTokenKey);
+
       if (!ids.length) {
         return;
       }
       commit('resetIndexFieldInfo', { is_loading: true });
-      const urlStr = isUnionIndex ? 'unionSearch/unionMapping' : 'retrieve/getLogTableHead';
+      const isScene = isSceneRetrieve(state);
+      const urlStr = isScene
+        ? 'retrieve/getSceneFields'
+        : isUnionIndex
+          ? 'unionSearch/unionMapping'
+          : 'retrieve/getLogTableHead';
       !isUnionIndex && commit('deleteApiError', urlStr);
       const queryData = {
         start_time,
         end_time,
         is_realtime: 'True',
       };
-      if (isUnionIndex) {
+      if (isScene) {
+        const { space_uid, table_id_conditions, scene_filter_values } = getters.retrieveParams;
+        Object.assign(queryData, { space_uid, table_id_conditions, scene_filter_values });
+      } else if (isUnionIndex) {
         Object.assign(queryData, {
           index_set_ids: ids,
         });
@@ -1271,11 +1318,12 @@ const store = new Vuex.Store({
         .request(
           urlStr,
           {
-            params: { index_set_id: ids[0] },
-            query: !isUnionIndex ? queryData : undefined,
-            data: isUnionIndex ? queryData : undefined,
+            params: isScene ? {} : { index_set_id: ids[0] },
+            query: (!isScene && !isUnionIndex) ? queryData : undefined,
+            data: (isScene || isUnionIndex) ? queryData : undefined,
           },
-          isUnionIndex ? {} : { catchIsShowMessage: false },
+          isUnionIndex
+            ? { cancelToken: requestCancelToken } : { catchIsShowMessage: false, cancelToken: requestCancelToken },
         )
         .then((res) => {
           const { default_sort_list: defaultSortListData = [], sort_list: sortListData = [] } = res.data ?? {};
@@ -1308,6 +1356,7 @@ const store = new Vuex.Store({
           return res;
         })
         .catch((err) => {
+          if (axios.isCancel(err)) return;
           !isUnionIndex && commit('updateApiError', { apiName: urlStr, errorMessage: err });
           commit('updateIndexFieldInfo', { is_loading: false });
         })
@@ -1394,10 +1443,12 @@ const store = new Vuex.Store({
       RequestPool.execCanceToken(cancelTokenKey);
       const requestCancelToken = payload.cancelToken ?? RequestPool.getCancelToken(cancelTokenKey);
 
-      // 区分联合查询和单选查询
-      const searchUrl = !state.indexItem.isUnionIndex
-        ? `/search/index_set/${state.indexId}/search/`
-        : '/search/index_set/union_search/';
+      // 区分场景化检索、联合查询和单选查询
+      const searchUrl = isSceneRetrieve(state)
+        ? '/search/scene/search/'
+        : !state.indexItem.isUnionIndex
+          ? `/search/index_set/${state.indexId}/search/`
+          : '/search/index_set/union_search/';
 
       const { start_time, end_time } = state.indexItem;
 
@@ -1449,7 +1500,7 @@ const store = new Vuex.Store({
       return axiosInstance(params)
         .then((resp) => {
           if (resp.data && !resp.message) {
-            return readBlobRespToJson(resp.data).then(({ code, data, result, message }) => {
+            return readBlobRespToJson(resp.data).then(({ code, data, result, message, permission }) => {
               const rsolvedData = data;
               if (result) {
                 const indexSetQueryResult = state.indexSetQueryResult;
@@ -1486,6 +1537,15 @@ const store = new Vuex.Store({
                   length: logList.length,
                   size,
                 };
+              }
+
+              if (code === '9900403') {
+                commit('updateState', {
+                  authDialogData: {
+                    apply_url: data.apply_url,
+                    apply_data: permission,
+                  },
+                });
               }
 
               commit('updateIndexSetQueryResult', {
@@ -1576,7 +1636,7 @@ const store = new Vuex.Store({
      * }
      * @returns
      */
-    requestIndexSetValueList({ commit, state }, payload) {
+    requestIndexSetValueList({ commit, state, getters }, payload) {
       const { start_time: startTime, end_time: endTime } = state.indexItem;
       const lastQueryTimerange = `${startTime}_${endTime}`;
 
@@ -1611,11 +1671,20 @@ const store = new Vuex.Store({
 
       if (!fields.length) return Promise.resolve(true);
 
-      const urlStr = state.indexItem.isUnionIndex ? 'unionSearch/unionTerms' : 'retrieve/getAggsTerms';
+      // 区分场景化检索、联合查询和普通查询
+      const isScene = isSceneRetrieve(state);
+      let urlStr;
+      if (isScene) {
+        urlStr = 'retrieve/getSceneAggsTerms';
+      } else if (state.indexItem.isUnionIndex) {
+        urlStr = 'unionSearch/unionTerms';
+      } else {
+        urlStr = 'retrieve/getAggsTerms';
+      }
 
-      const queryData = {
+      // 公共参数
+      const baseQueryData = {
         keyword: '*',
-        fields,
         addition: formatAdditionalFields(state, payload?.addition ?? []),
         start_time: formatDate(startTime),
         end_time: formatDate(endTime),
@@ -1623,20 +1692,29 @@ const store = new Vuex.Store({
         bk_biz_id: state.bkBizId,
       };
 
-      if (state.indexItem.isUnionIndex) {
-        Object.assign(queryData, {
-          index_set_ids: state.unionIndexList,
-        });
+      let queryData;
+      if (isScene) {
+        const { space_uid, table_id_conditions, scene_filter_values } = getters.retrieveParams;
+        queryData = {
+          ...baseQueryData,
+          space_uid,
+          table_id_conditions,
+          scene_filter_values,
+          fields,
+        };
+      } else {
+        // 普通接口参数
+        queryData = {
+          ...baseQueryData,
+          fields,
+          ...(state.indexItem.isUnionIndex && { index_set_ids: state.unionIndexList }),
+        };
       }
 
-      const params = {
-        index_set_id: state.indexId,
-      };
-
-      const body = {
-        params,
-        data: queryData,
-      };
+      // 场景化不需要 params（不传 index_set_id）
+      const body = isScene
+        ? { data: queryData }
+        : { params: { index_set_id: state.indexId }, data: queryData };
 
       return http
         .request(urlStr, body, {
@@ -1658,6 +1736,7 @@ const store = new Vuex.Store({
           query: {
             space_uid: payload?.spaceUid ?? state.spaceUid,
             order_type: payload?.sort ?? (localStorage.getItem('favoriteSortType') || 'NAME_ASC'),
+            source_type: isSceneRetrieve(state) ? 'scene' : 'index_set',
           },
         })
         .then((resp) => {
@@ -1895,14 +1974,21 @@ const store = new Vuex.Store({
       state.searchTotal = 0;
       const startTime = Math.floor(getters.retrieveParams.start_time);
       const endTime = Math.ceil(getters.retrieveParams.end_time);
+      const isScene = isSceneRetrieve(state);
+      const urlStr = isScene ? 'retrieve/getSceneFieldStatisticsTotal' : 'retrieve/fieldStatisticsTotal';
+
+      const cancelTokenKey = 'requestSearchTotalCancelToken';
+      RequestPool.execCanceToken(cancelTokenKey);
+      const requestCancelToken = RequestPool.getCancelToken(cancelTokenKey);
+
       return http
         .request(
-          'retrieve/fieldStatisticsTotal',
+          urlStr,
           {
             data: {
               ...getters.retrieveParams,
               bk_biz_id: state.bkBizId,
-              index_set_ids: state.indexItem.ids,
+              ...(isScene ? {} : { index_set_ids: state.indexItem.ids }),
               start_time: startTime,
               end_time: endTime,
               addition: formatAdditionalFields(state, [
@@ -1913,14 +1999,16 @@ const store = new Vuex.Store({
           },
           {
             catchIsShowMessage: false,
+            cancelToken: requestCancelToken,
           },
         )
         .then((res) => {
           const { data } = res;
-          if (res.result === true) state.searchTotal = data.total_count;
+          if (res.result === true) state.searchTotal = data.total_count ?? data.total;
           return res;
         })
         .catch((err) => {
+          if (axios.isCancel(err)) return;
           console.error(err);
           return Promise.reject(err);
         });
@@ -1955,22 +2043,37 @@ const store = new Vuex.Store({
         ...userConfig,
       };
       delete indexSetConfig.isUpdate;
-      const queryParams = {
-        index_set_id: state.indexId,
-        index_set_type: getters.isUnionSearch ? 'union' : 'single',
-        index_set_config: indexSetConfig,
-      };
-      if (getters.isUnionSearch) {
-        delete queryParams.index_set_id;
-        queryParams.index_set_ids = state.unionIndexList;
+
+      let requestName;
+      let queryParams;
+      if (getters.isSceneMode) {
+        // 场景化检索模式：新接口参数包含旧接口 index_set_config 中的所有字段
+        // 区别：字段从嵌套变为顶层 + 增加 bk_biz_id/scene_id 路由参数
+        requestName = 'retrieve/sceneFieldsConfig';
+        queryParams = {
+          bk_biz_id: state.bkBizId,
+          scene_id: state.indexItem.scene_active,
+          scene_config: indexSetConfig,
+        };
+      } else {
+        // 常规模式：保持原有逻辑
+        requestName = 'retrieve/updateUserFiledTableConfig';
+        queryParams = {
+          index_set_id: state.indexId,
+          index_set_type: getters.isUnionSearch ? 'union' : 'single',
+          index_set_config: indexSetConfig,
+        };
+        if (getters.isUnionSearch) {
+          delete queryParams.index_set_id;
+          queryParams.index_set_ids = state.unionIndexList;
+        }
       }
+
       return http
-        .request('retrieve/updateUserFiledTableConfig', {
-          data: queryParams,
-        })
+        .request(requestName, { data: queryParams })
         .then((res) => {
           if (res.code === 0 && !userConfig.isUpdate) {
-            const updatedUserConfig = res.data.index_set_config;
+            const updatedUserConfig = getters.isSceneMode ? res.data : res.data.index_set_config;
             commit('retrieve/updateCatchFieldCustomConfig', updatedUserConfig);
           }
           return res;

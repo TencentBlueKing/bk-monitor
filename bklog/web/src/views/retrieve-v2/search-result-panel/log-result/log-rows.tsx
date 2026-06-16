@@ -95,6 +95,7 @@ export default defineComponent({
     let savedSelection: Range = null;
     let mousedownOnRow = false;
     let hoverOperatorHideTimer: ReturnType<typeof setTimeout> = null;
+    const layoutTimers: ReturnType<typeof setTimeout>[] = [];
 
     const hoverOperatorState = reactive({
       visible: false,
@@ -225,8 +226,14 @@ export default defineComponent({
       }
     });
 
-    addEvent(RetrieveEvent.AUTO_REFRESH, () => {
+    addEvent(RetrieveEvent.AUTO_REFRESH, async () => {
       resetPageState();
+      // 场景化检索模式下条件为空时跳过
+      if (store.getters.isSceneMode && store.getters.isSceneFilterEmpty) return;
+      // 检索条件有变更时先加载字段信息
+      if (store.state.indexItem.isSceneFilterChanged) {
+        await store.dispatch('requestIndexSetFieldInfo');
+      }
       store.dispatch('requestIndexSetQuery', { from: 'auto_refresh' });
     });
 
@@ -1030,8 +1037,8 @@ export default defineComponent({
       refScrollXBar.value?.scrollLeft(0);
       computeRectSync(refResultRowBox.value);
       syncResultBoxLayout();
-      window.setTimeout(syncResultBoxLayout, 120);
-      window.setTimeout(syncResultBoxLayout, 320);
+      layoutTimers.push(window.setTimeout(syncResultBoxLayout, 120));
+      layoutTimers.push(window.setTimeout(syncResultBoxLayout, 320));
     };
 
     addEvent(
@@ -1629,6 +1636,12 @@ export default defineComponent({
       clearHoverOperatorHideTimer();
       popInstanceUtil.uninstallInstance();
       window.clearTimeout(columnWidthChangeTimer);
+      requestingTimer && clearTimeout(requestingTimer);
+      while (layoutTimers.length) {
+        clearTimeout(layoutTimers.pop());
+      }
+      hoverOperatorState.visible = false;
+      hoverOperatorState.row = null;
       renderList = Object.freeze([]);
     });
 
