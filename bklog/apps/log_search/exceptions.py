@@ -608,16 +608,6 @@ class PreCheckSortFieldException(BaseSearchException):
     MESSAGE = _("导出失败，字段({fields})不支持排序")
 
 
-class AsyncExportTaskNotFoundException(BaseException):
-    ERROR_CODE = "508"
-    MESSAGE = _("异步导出任务不存在或无权限下载")
-
-
-class AsyncExportTaskNotDownloadableException(BaseException):
-    ERROR_CODE = "509"
-    MESSAGE = _("异步导出任务暂不可下载")
-
-
 # =================================================
 # Scene Search Fields Config
 # =================================================
