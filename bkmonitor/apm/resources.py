@@ -1234,8 +1234,8 @@ class QueryEventResource(Resource):
 class QuerySerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label="业务id")
     app_name = serializers.CharField(label="应用名称", max_length=50)
-    start_time = serializers.IntegerField(required=True, label="数据开始时间")
-    end_time = serializers.IntegerField(required=True, label="数据开始时间")
+    start_time = serializers.IntegerField(required=False, allow_null=True, default=None, label="数据开始时间")
+    end_time = serializers.IntegerField(required=False, allow_null=True, default=None, label="数据开始时间")
     offset = serializers.IntegerField(required=False, label="偏移量", default=0)
     limit = serializers.IntegerField(required=False, label="每页数量", default=10)
     filters = serializers.ListSerializer(required=False, label="查询条件", child=TraceFilterSerializer())
@@ -1250,6 +1250,17 @@ class QuerySerializer(serializers.Serializer):
     sort = serializers.ListSerializer(label="排序字段", required=False, child=serializers.CharField())
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        start_time = attrs.get("start_time")
+        end_time = attrs.get("end_time")
+        has_start_time = start_time is not None
+        has_end_time = end_time is not None
+        if has_start_time != has_end_time:
+            raise ValidationError(_("start_time 和 end_time 必须同时提供"))
+        if not has_start_time and not QueryProxy.is_trace_or_span_id_query(
+            attrs.get("filters"), attrs.get("query_string")
+        ):
+            raise ValidationError(_("仅 TraceID / SpanID 精确查询允许省略时间范围"))
+
         processed_sort: list[str] = []
         for ordering in attrs.get("sort") or []:
             if not ordering:

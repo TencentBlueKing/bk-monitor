@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import abc
 import copy
+import json
 import logging
 from functools import partial
 from typing import Any
@@ -41,6 +42,7 @@ from apm_web.trace.constants import EnabledStatisticsDimension, OperatorEnum
 from apm_web.trace.serializers import (
     BaseTraceRequestSerializer,
     GetFieldsOptionValuesRequestSerializer,
+    ListLinkRequestSerializer,
     QuerySerializer,
     SpanIdInputSerializer,
     TraceFieldStatisticsGraphRequestSerializer,
@@ -52,13 +54,14 @@ from apm_web.utils import flatten_es_dict_data
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
 from constants.apm import (
+    CallSide,
     OperatorGroupRelation,
     OtlpKey,
     PreCalculateSpecificField,
     SpanStandardField,
+    TraceDataSourceConfig,
     TraceListQueryMode,
     TraceWaterFallDisplayKey,
-    CallSide,
 )
 from core.drf_resource import Resource, api, FaultTolerantResource
 from core.drf_resource.exceptions import CustomException
@@ -1008,3 +1011,163 @@ class TraceGenerateQueryStringResource(Resource):
                 f.get("options", {}).get("group_relation", OperatorGroupRelation.OR),
             )
         return generator.to_query_string()
+
+
+class ListLinkResource(Resource):
+    """
+    Links 反向关联查询资源
+    支持通过 TraceID 和 SpanID 过滤正向与反向关联，并统一返回 OpenTelemetry Link 列表
+    """
+
+    RequestSerializer = ListLinkRequestSerializer
+    QUERY_LIMIT = 1000
+    # SpanQuery._get_select_fields() 会额外补充平台内置 time 字段，这里同步纳入字段全集用于反推排除字段。
+    SPAN_QUERY_EXTRA_FIELDS: frozenset[str] = frozenset({"time"})
+    SPAN_QUERY_FIELDS: frozenset[str] = frozenset(
+        {field["field_name"] for field in TraceDataSourceConfig.TRACE_FIELD_LIST} | SPAN_QUERY_EXTRA_FIELDS
+    )
+    LINK_TRACE_ID_KEY = f"{OtlpKey.LINKS}.{OtlpKey.TRACE_ID}"
+    LINK_SPAN_ID_KEY = f"{OtlpKey.LINKS}.{OtlpKey.SPAN_ID}"
+    EQUAL_OPERATOR = OperatorEnum.EQUAL["operator"]
+
+    @classmethod
+    def build_exclude_fields(cls, kept_fields: set[str]) -> list[str]:
+        """基于 Span 顶层字段全集反推排除字段。"""
+        return sorted(cls.SPAN_QUERY_FIELDS - kept_fields)
+
+    @classmethod
+    def build_links(
+        cls,
+        reported_spans: list[dict[str, Any]],
+        reverse_source_spans: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """
+        统一处理两路查询结果，转换为同构 Link 后合并去重
+
+        :param reported_spans: 正向查询结果，读取 Span 的 links[]，字段缺失时按空列表处理
+        :param reverse_source_spans: 反向查询结果，Span 数据包含 trace_id 和 span_id，trace_state 可缺失
+        :return: OpenTelemetry Link 列表
+        """
+        links_dict: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+
+        for span in reported_spans:
+            for link in span.get(OtlpKey.LINKS) or []:
+                cls._add_link(
+                    links_dict,
+                    trace_id=link.get(OtlpKey.TRACE_ID),
+                    span_id=link.get(OtlpKey.SPAN_ID),
+                    trace_state=link.get(OtlpKey.TRACE_STATE),
+                    attributes=link.get(OtlpKey.ATTRIBUTES) or {},
+                )
+
+        for span in reverse_source_spans:
+            cls._add_link(
+                links_dict,
+                trace_id=span.get(OtlpKey.TRACE_ID),
+                span_id=span.get(OtlpKey.SPAN_ID),
+                trace_state=span.get(OtlpKey.TRACE_STATE),
+                attributes={},
+            )
+
+        return list(links_dict.values())
+
+    @classmethod
+    def _add_link(
+        cls,
+        links_dict: dict[tuple[str, str, str, str], dict[str, Any]],
+        trace_id: Any,
+        span_id: Any,
+        trace_state: Any,
+        attributes: dict[str, Any],
+    ) -> None:
+        """标准化 Link 字段并写入去重集合。"""
+        normalized_trace_id = "" if trace_id is None else str(trace_id)
+        normalized_span_id = "" if span_id is None else str(span_id)
+        normalized_trace_state = "" if trace_state is None else str(trace_state)
+        dedup_key = (
+            normalized_trace_id,
+            normalized_span_id,
+            normalized_trace_state,
+            json.dumps(attributes, sort_keys=True),
+        )
+        if dedup_key in links_dict:
+            return
+
+        links_dict[dedup_key] = {
+            OtlpKey.TRACE_ID: normalized_trace_id,
+            OtlpKey.SPAN_ID: normalized_span_id,
+            OtlpKey.TRACE_STATE: normalized_trace_state,
+            OtlpKey.ATTRIBUTES: attributes,
+        }
+
+    @classmethod
+    def _match_link(cls, link: dict[str, Any], trace_id: str | None, span_id: str | None) -> bool:
+        if trace_id and link.get(OtlpKey.TRACE_ID) != trace_id:
+            return False
+        if span_id and link.get(OtlpKey.SPAN_ID) != span_id:
+            return False
+        return True
+
+    @classmethod
+    def filter_reverse_source_spans(
+        cls,
+        reverse_source_spans: list[dict[str, Any]],
+        trace_id: str | None,
+        span_id: str | None,
+    ) -> list[dict[str, Any]]:
+        """确保反向来源 Span 中存在同一个 Link 对象命中全部请求 ID。"""
+        return [
+            span
+            for span in reverse_source_spans
+            if any(cls._match_link(link, trace_id, span_id) for link in span.get(OtlpKey.LINKS) or [])
+        ]
+
+    def perform_request(self, validated_data: dict[str, Any]) -> list[dict[str, Any]]:
+        bk_biz_id: int = validated_data["bk_biz_id"]
+        app_name: str = validated_data["app_name"]
+        trace_id: str | None = validated_data.get("trace_id")
+        span_id: str | None = validated_data.get("span_id")
+
+        # 构造正向查询 filters
+        forward_filters: list[dict[str, Any]] = []
+        if trace_id:
+            forward_filters.append({"key": OtlpKey.TRACE_ID, "operator": self.EQUAL_OPERATOR, "value": [trace_id]})
+        if span_id:
+            forward_filters.append({"key": OtlpKey.SPAN_ID, "operator": self.EQUAL_OPERATOR, "value": [span_id]})
+
+        # 构造反向查询 filters
+        reverse_filters: list[dict[str, Any]] = []
+        if trace_id:
+            reverse_filters.append(
+                {"key": self.LINK_TRACE_ID_KEY, "operator": self.EQUAL_OPERATOR, "value": [trace_id]}
+            )
+        if span_id:
+            reverse_filters.append({"key": self.LINK_SPAN_ID_KEY, "operator": self.EQUAL_OPERATOR, "value": [span_id]})
+
+        # 正向查询：提取命中 Span 的 links[]
+        forward_params = {
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
+            "filters": forward_filters,
+            "offset": 0,
+            "limit": self.QUERY_LIMIT,
+            "exclude_field": self.build_exclude_fields({OtlpKey.LINKS}),
+        }
+
+        # 反向查询：查找 links[] 命中过滤条件的来源 Span
+        reverse_params = {
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
+            "filters": reverse_filters,
+            "offset": 0,
+            "limit": self.QUERY_LIMIT,
+            "exclude_field": self.build_exclude_fields(
+                {OtlpKey.TRACE_ID, OtlpKey.SPAN_ID, OtlpKey.TRACE_STATE, OtlpKey.LINKS}
+            ),
+        }
+
+        forward_response, reverse_response = api.apm_api.query_span_list.bulk_request([forward_params, reverse_params])
+        reported_spans = forward_response.get("data") or []
+        reverse_source_spans = self.filter_reverse_source_spans(reverse_response.get("data") or [], trace_id, span_id)
+
+        return self.build_links(reported_spans, reverse_source_spans)

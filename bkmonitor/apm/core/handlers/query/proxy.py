@@ -108,21 +108,30 @@ class QueryProxy:
 
     @classmethod
     def is_trace_or_span_id_query(cls, filters: list[types.Filter], query_string: str) -> bool:
-        """判断是否是 TraceId 或 SpanId 精确查询"""
+        """判断是否是 TraceId 或 SpanId 精确查询（含 links 嵌套字段）"""
         if not filters and not query_string:
             return False
 
-        for filter_item in filters:
+        link_trace_id_key = f"{OtlpKey.LINKS}.{OtlpKey.TRACE_ID}"
+        link_span_id_key = f"{OtlpKey.LINKS}.{OtlpKey.SPAN_ID}"
+        trace_or_span_id_keys = (
+            OtlpKey.TRACE_ID,
+            OtlpKey.SPAN_ID,
+            link_trace_id_key,
+            link_span_id_key,
+        )
+
+        for filter_item in filters or []:
             if all(
                 [
-                    filter_item["key"] in (OtlpKey.TRACE_ID, OtlpKey.SPAN_ID),
+                    filter_item["key"] in trace_or_span_id_keys,
                     filter_item.get("operator") == FilterOperator.EQUAL,
                 ]
             ):
                 return True
 
         if query_string:
-            if f'{OtlpKey.TRACE_ID}: "' in query_string or f'{OtlpKey.SPAN_ID}: "' in query_string:
+            if any(f'{field}: "' in query_string for field in trace_or_span_id_keys):
                 return True
 
         return False
