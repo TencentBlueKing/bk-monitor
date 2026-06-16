@@ -28,6 +28,7 @@ from blueapps.account.models import User
 from django.conf import settings
 from django.test import TestCase, override_settings
 
+from apps.log_databus.models import CollectorConfig, DataLinkConfig
 from apps.log_search.models import LogIndexSet, LogIndexSetData
 from apps.tests.utils import FakeRedis
 
@@ -1318,3 +1319,31 @@ class TestCustomCreateIdempotent(TestCase):
             CollectorHandler().custom_create(ignore_exists=False, **self._build_params())
 
         mock_pre_check.assert_called_once()
+
+    @patch("apps.log_databus.tasks.bkdata.async_create_bkdata_data_id.delay", return_value=None)
+    @patch("apps.api.TransferApi.get_result_table", return_value={})
+    @patch("apps.api.TransferApi.get_data_id", return_value={})
+    @patch("apps.log_databus.handlers.collector.base.CollectorHandler._send_create_notify", return_value=None)
+    @patch("apps.log_databus.handlers.collector.base.CollectorHandler._authorization_collector", return_value=None)
+    @patch(
+        "apps.log_databus.handlers.collector_scenario.base.CollectorScenario.update_or_create_data_id",
+        return_value=300,
+    )
+    @patch("apps.decorators.user_operation_record.delay", return_value=None)
+    def test_custom_create_resolves_default_data_link(self, *args):
+        from apps.log_databus.handlers.collector.base import CollectorHandler
+
+        data_link = DataLinkConfig.objects.create(
+            link_group_name="public link",
+            bk_biz_id=0,
+            bk_tenant_id=settings.BK_APP_TENANT_ID,
+            kafka_cluster_id=162858,
+            transfer_cluster_id="bkte-bklog-gz-1",
+            es_cluster_ids=[3],
+            is_active=True,
+        )
+
+        result = CollectorHandler().custom_create(data_link_id=0, **self._build_params())
+
+        collector = CollectorConfig.objects.get(collector_config_id=result["collector_config_id"])
+        self.assertEqual(collector.data_link_id, data_link.data_link_id)
