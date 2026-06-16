@@ -309,7 +309,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
     }
   }
 
-  handleRenderDimensionList(node, ctx, highlightKeyword) {
+  handleRenderDimensionList(node, _, highlightKeyword) {
     const parentClass = 'bk-selector-node bk-selector-member';
     const textClass = 'text';
     const innerHtml = `${highlightKeyword(node.name)}`;
@@ -488,6 +488,7 @@ class MericDataInput extends Mixins(metricTipsContentMixin) {
                     <CycleInput
                       class='form-interval'
                       v-model={item.agg_interval}
+                      minSec={item.collect_interval}
                       needAuto={false}
                       onChange={(v: number) => this.handleAggIntervalChange(item, v)}
                     />
