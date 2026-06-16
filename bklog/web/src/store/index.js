@@ -636,7 +636,19 @@ const store = new Vuex.Store({
     },
 
     resetIndexSetQueryResult(state, payload) {
-      Object.assign(state.indexSetQueryResult, IndexSetQueryResult, payload ?? {});
+      Object.keys(IndexSetQueryResult).forEach((key) => {
+        const value = payload && Object.prototype.hasOwnProperty.call(payload, key)
+          ? payload[key]
+          : IndexSetQueryResult[key];
+
+        if (Array.isArray(value)) {
+          set(state.indexSetQueryResult, key, [...value]);
+        } else if (value && typeof value === 'object') {
+          set(state.indexSetQueryResult, key, { ...value });
+        } else {
+          set(state.indexSetQueryResult, key, value);
+        }
+      });
     },
 
     updateIndexSetQueryResult(state, payload) {

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 纯函数单元测试：EtlStorage._get_output_type
-覆盖所有 9 种类型映射 + unknown 回退。
+覆盖所有 11 种类型映射 + unknown 回退。
 """
 from unittest import TestCase
 
@@ -19,6 +19,8 @@ class TestGetOutputType(TestCase):
         ("float", "double"),
         ("double", "double"),
         ("object", "dict"),
+        ("nested", "nested"),
+        ("flattened", "dict"),
         ("bool", "boolean"),
         ("boolean", "boolean"),
     ]

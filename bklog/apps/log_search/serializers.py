@@ -572,6 +572,13 @@ class GetExportHistorySerializer(serializers.Serializer):
     pagesize = serializers.IntegerField(label=_("页面大小"))
     show_all = serializers.BooleanField(label=_("是否展示业务全量导出历史"))
     bk_biz_id = serializers.IntegerField(label=_("业务id"))
+    start_time = serializers.IntegerField(label=_("开始时间（毫秒时间戳）"), required=False, allow_null=True)
+    end_time = serializers.IntegerField(label=_("结束时间（毫秒时间戳）"), required=False, allow_null=True)
+
+
+class AsyncExportDownloadUrlSerializer(serializers.Serializer):
+    task_id = serializers.IntegerField(label=_("异步导出任务ID"))
+    bk_biz_id = serializers.IntegerField(label=_("业务id"))
 
 
 class UnionSearchGetExportHistorySerializer(serializers.Serializer):
@@ -580,6 +587,8 @@ class UnionSearchGetExportHistorySerializer(serializers.Serializer):
     show_all = serializers.BooleanField(label=_("是否展示业务全量导出历史"))
     index_set_ids = serializers.CharField(label=_("联合检索索引集ID列表"))
     bk_biz_id = serializers.IntegerField(label=_("业务id"))
+    start_time = serializers.IntegerField(label=_("开始时间（毫秒时间戳）"), required=False, allow_null=True)
+    end_time = serializers.IntegerField(label=_("结束时间（毫秒时间戳）"), required=False, allow_null=True)
 
     def validate(self, attrs):
         # 索引集ID格式校验
@@ -697,9 +706,7 @@ class CreateFavoriteSerializer(serializers.Serializer):
         choices=FavoriteSourceType.get_choices(),
         default=FavoriteSourceType.INDEX_SET.value,
     )
-    scene_id = serializers.CharField(
-        label=_("场景ID"), required=False, allow_null=True, allow_blank=True, default=None
-    )
+    scene_id = serializers.CharField(label=_("场景ID"), required=False, allow_null=True, allow_blank=True, default=None)
     table_id_conditions = serializers.ListField(
         label=_("场景路由条件"),
         required=False,
@@ -707,9 +714,7 @@ class CreateFavoriteSerializer(serializers.Serializer):
         default=list,
         child=serializers.ListField(child=serializers.DictField()),
     )
-    scene_filter_values = serializers.ListField(
-        label=_("场景维度筛选"), required=False, allow_empty=True, default=list
-    )
+    scene_filter_values = serializers.ListField(label=_("场景维度筛选"), required=False, allow_empty=True, default=list)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -767,9 +772,7 @@ class UpdateFavoriteSerializer(serializers.Serializer):
         default=None,
         allow_null=True,
     )
-    scene_id = serializers.CharField(
-        label=_("场景ID"), required=False, allow_null=True, allow_blank=True, default=None
-    )
+    scene_id = serializers.CharField(label=_("场景ID"), required=False, allow_null=True, allow_blank=True, default=None)
     table_id_conditions = serializers.ListField(
         label=_("场景路由条件"),
         required=False,

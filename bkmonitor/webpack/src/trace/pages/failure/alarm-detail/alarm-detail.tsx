@@ -264,11 +264,9 @@ export default defineComponent({
         return;
       }
       const nonEmptyCount = alertData.value.filter(f => f.alerts.length > 0).length;
+      // 多个折叠项时：表格最大高度 50vh
       if (nonEmptyCount > 1) {
-        // 多个折叠项时使用 calc
-        const staticHeight = 273;
-        const itemHeight = 162;
-        tableMaxHeight.value = `calc(100vh - ${staticHeight}px - ${(nonEmptyCount - 1) * itemHeight}px)`;
+        tableMaxHeight.value = '50vh';
       } else {
         // 单个折叠项时：通过容器底边界精确计算表格可用高度
         const tableEl = tableWrapperRef.value;
@@ -279,7 +277,7 @@ export default defineComponent({
           // containerRect.bottom 就是 .alarm-detail 的 border-box 底边
           // 但实际可用底边需要减去 padding-bottom(20px)
           const availableHeight = containerRect.bottom - 20 - tableRect.top;
-          tableMaxHeight.value = Math.max(Math.floor(availableHeight), 200);
+          tableMaxHeight.value = Math.max(Math.floor(availableHeight), 300);
         } else {
           tableMaxHeight.value = undefined;
         }

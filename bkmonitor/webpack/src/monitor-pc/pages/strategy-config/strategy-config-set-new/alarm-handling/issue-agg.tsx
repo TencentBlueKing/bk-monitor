@@ -223,7 +223,6 @@ export default class IssueAgg extends tsc<IProps, IEvents> {
       <div class='issue-agg-container'>
         <CommonItem
           title={this.$t('聚合维度')}
-          isRequired
           show-semicolon
         >
           <bk-select
@@ -232,7 +231,7 @@ export default class IssueAgg extends tsc<IProps, IEvents> {
             behavior='simplicity'
             disabled={this.readonly}
             is-tag-width-limit={false}
-            placeholder={this.$t('请选择聚合维度')}
+            placeholder={this.$t('不选则按策略整体聚合')}
             size='small'
             display-tag
             multiple

@@ -81,7 +81,10 @@ export const useTraceSpanK8s = (options: UseTraceSpanK8sOptions) => {
       service_name: serviceName,
       app_name: appName,
     });
-    targetList.value = result.target_list;
+    targetList.value = result.target_list.map(item => ({
+      ...item,
+      display_name: item[item.resource_type],
+    }));
   };
 
   /**

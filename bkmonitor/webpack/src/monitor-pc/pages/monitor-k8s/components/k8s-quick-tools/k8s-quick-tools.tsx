@@ -43,12 +43,16 @@ interface K8sQuickToolsProps {
   filterCommonParams: { [key: string]: any; filter_dict: Record<string, string[]>; scenario: SceneEnum };
   /** 激活工具栏时数据所在维度 */
   groupByField: K8sTableColumnResourceKey;
+  /** 当前选中的 tab 项 */
+  isListTab: boolean;
   /** 需要 添加/移除 到筛选项中的源数据值（非最终添加/移除的值，因为图表使用时可能会存在一些拼接逻辑还需做拆分获取最终值） */
   value: string;
 }
 
 @Component
 export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
+  /** 当前页面 tab */
+  @Prop({ type: Boolean, default: false }) isListTab: boolean;
   /** 激活工具栏时数据所在维度 */
   @Prop({ type: String }) groupByField!: K8sTableColumnResourceKey;
   /** 需要 添加/移除 到筛选项中的源数据值（非最终添加/移除的值，因为图表使用时可能会存在一些拼接逻辑还需做拆分获取最终值） */
@@ -101,7 +105,7 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
     return this.value;
   }
 
-  get apmResourceFidld() {
+  get apmResourceField() {
     return [
       K8sTableColumnKeysEnum.NAMESPACE,
       this.apmResourceType === 'workload' ? K8sTableColumnKeysEnum.WORKLOAD : K8sTableColumnKeysEnum.POD,
@@ -113,7 +117,7 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
     // 当前数据值已在筛选项中
     const filters = this.filters;
     const hasFilter = filters?.includes?.(this.filterValue);
-    const disabled = this.apmResourceFidld.includes(this.groupByField);
+    const disabled = this.apmResourceField.includes(this.groupByField);
     const elAttr = hasFilter
       ? { className: ['selected', { 'apm-disabled': this.isApmMonitor && disabled }], text: '移除该筛选项' }
       : { className: ['icon-monitor icon-a-sousuo'], text: '添加为筛选项' };
@@ -146,8 +150,86 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
    *
    */
   handleFilterChange() {
-    if (this.apmResourceFidld.includes(this.groupByField)) return;
+    if (this.apmResourceField.includes(this.groupByField)) return;
     this.onFilterChange(this.filterValue, this.groupByField, !this.filterToolConfig.hasFilter);
+  }
+
+  /**
+   * @description 获取事件场景跳转的 where 条件
+   * - 列表视图(isListTab): 保持原有逻辑，根据 groupByField 判断
+   * - 指标视图(!isListTab): 按 pod → workload → namespace 优先级从 filter_dict 中取值
+   */
+  getEventWhereConditions() {
+    const filterDict = this.filterCommonParams?.filter_dict || {};
+
+    // k8s对象列表视图保持原有逻辑
+    if (this.isListTab) {
+      if (this.groupByField === K8sTableColumnKeysEnum.WORKLOAD) {
+        return [
+          {
+            key: K8SToEventWhereKeyMap.workload_kind,
+            method: 'eq',
+            value: [this.filterValue.split(':')[0]],
+          },
+          {
+            key: K8SToEventWhereKeyMap.workload,
+            method: 'eq',
+            value: [this.filterValue.split(':')[1]],
+          },
+        ];
+      }
+      return [
+        {
+          key: K8SToEventWhereKeyMap[this.groupByField],
+          method: 'eq',
+          value: [this.filterValue],
+          condition: 'and',
+        },
+      ];
+    }
+
+    // 指标视图：按 pod → workload → namespace 优先级取值
+    const podValue = filterDict[K8sTableColumnKeysEnum.POD]?.[0];
+    if (podValue) {
+      return [
+        {
+          key: K8SToEventWhereKeyMap[K8sTableColumnKeysEnum.POD],
+          method: 'eq',
+          value: [podValue],
+          condition: 'and',
+        },
+      ];
+    }
+
+    const workloadValue = filterDict[K8sTableColumnKeysEnum.WORKLOAD]?.[0];
+    if (workloadValue) {
+      return [
+        {
+          key: K8SToEventWhereKeyMap.workload_kind,
+          method: 'eq',
+          value: [workloadValue.split(':')[0]],
+        },
+        {
+          key: K8SToEventWhereKeyMap.workload,
+          method: 'eq',
+          value: [workloadValue.split(':')[1]],
+        },
+      ];
+    }
+
+    const namespaceValue = filterDict[K8sTableColumnKeysEnum.NAMESPACE]?.[0];
+    if (namespaceValue) {
+      return [
+        {
+          key: K8SToEventWhereKeyMap[K8sTableColumnKeysEnum.NAMESPACE],
+          method: 'eq',
+          value: [namespaceValue],
+          condition: 'and',
+        },
+      ];
+    }
+
+    return [];
   }
 
   /**
@@ -170,28 +252,7 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
             data: {
               query_configs: [
                 {
-                  where:
-                    this.groupByField === K8sTableColumnKeysEnum.WORKLOAD
-                      ? [
-                          {
-                            key: K8SToEventWhereKeyMap.workload_kind,
-                            method: 'eq',
-                            value: [this.filterValue.split(':')[0]],
-                          },
-                          {
-                            key: K8SToEventWhereKeyMap.workload,
-                            method: 'eq',
-                            value: [this.filterValue.split(':')[1]],
-                          },
-                        ]
-                      : [
-                          {
-                            key: K8SToEventWhereKeyMap[this.groupByField],
-                            method: 'eq',
-                            value: [this.filterValue],
-                            condition: 'and',
-                          },
-                        ],
+                  where: this.getEventWhereConditions(),
                   query_string: '',
                 },
               ],
@@ -281,13 +342,15 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
               {SceneAliasMap[scene]}
             </li>
           ))}
-          <li
-            key='event'
-            class='menu-item'
-            onClick={() => this.handleNewK8sPage(SceneEnum.Event)}
-          >
-            {SceneAliasMap[SceneEnum.Event]}
-          </li>
+          {!(this.isListTab && this.groupByField === K8sTableColumnKeysEnum.CONTAINER) && (
+            <li
+              key='event'
+              class='menu-item'
+              onClick={() => this.handleNewK8sPage(SceneEnum.Event)}
+            >
+              {SceneAliasMap[SceneEnum.Event]}
+            </li>
+          )}
         </ul>
       </div>
     );

@@ -95,6 +95,7 @@ export default defineComponent({
     let savedSelection: Range = null;
     let mousedownOnRow = false;
     let hoverOperatorHideTimer: ReturnType<typeof setTimeout> = null;
+    const layoutTimers: ReturnType<typeof setTimeout>[] = [];
 
     const hoverOperatorState = reactive({
       visible: false,
@@ -1036,8 +1037,8 @@ export default defineComponent({
       refScrollXBar.value?.scrollLeft(0);
       computeRectSync(refResultRowBox.value);
       syncResultBoxLayout();
-      window.setTimeout(syncResultBoxLayout, 120);
-      window.setTimeout(syncResultBoxLayout, 320);
+      layoutTimers.push(window.setTimeout(syncResultBoxLayout, 120));
+      layoutTimers.push(window.setTimeout(syncResultBoxLayout, 320));
     };
 
     addEvent(
@@ -1635,6 +1636,12 @@ export default defineComponent({
       clearHoverOperatorHideTimer();
       popInstanceUtil.uninstallInstance();
       window.clearTimeout(columnWidthChangeTimer);
+      requestingTimer && clearTimeout(requestingTimer);
+      while (layoutTimers.length) {
+        clearTimeout(layoutTimers.pop());
+      }
+      hoverOperatorState.visible = false;
+      hoverOperatorState.row = null;
       renderList = Object.freeze([]);
     });
 

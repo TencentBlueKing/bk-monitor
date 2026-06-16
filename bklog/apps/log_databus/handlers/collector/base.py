@@ -1437,6 +1437,7 @@ class CollectorHandler:
         platform_index_filter=None,
         ignore_exists=False,
     ):
+        data_link_id = self.get_data_link_id(bk_biz_id=bk_biz_id, data_link_id=int(data_link_id or 0))
         collector_config_params = {
             "bk_biz_id": bk_biz_id,
             "collector_config_name": collector_config_name,
@@ -1445,7 +1446,7 @@ class CollectorHandler:
             "custom_type": custom_type,
             "category_id": category_id,
             "description": description or collector_config_name,
-            "data_link_id": int(data_link_id) if data_link_id else 0,
+            "data_link_id": data_link_id,
             "bk_app_code": bk_app_code,
             "bkdata_biz_id": bkdata_biz_id,
             "is_display": is_display,

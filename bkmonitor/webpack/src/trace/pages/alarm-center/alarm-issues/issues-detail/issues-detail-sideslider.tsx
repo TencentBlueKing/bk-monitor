@@ -29,6 +29,7 @@ import { Sideslider } from 'bkui-vue';
 import { issueDetail } from 'monitor-api/modules/issue';
 import { convertDurationArray } from 'monitor-common/utils';
 import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
+import { appendQueryStringCondition } from 'trace/components/retrieval-filter/query-string-utils';
 import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing';
 
 import IssuesImpactScopeDrawer from '../components/issues-impact-scope-drawer/issues-impact-scope-drawer';
@@ -227,7 +228,7 @@ export default defineComponent({
           conditionResult = convertDurationArray(condition.value as string[]);
         }
         conditions.value = mergeWhereList(
-          conditions.value,
+          conditions.value.filter(item => item.key !== condition.key),
           conditionResult.map(condition => ({
             key: condition.key,
             method: condition.method,
@@ -242,8 +243,8 @@ export default defineComponent({
           }))
         );
       } else {
-        const value = `${queryString.value ? ' AND ' : ''}${condition.method === 'neq' ? '-' : ''}${condition.key}: ${condition.value[0]}`;
-        queryString.value = value;
+        const newClause = `${condition.method === 'neq' ? '-' : ''}${condition.key}: ${condition.value[0]}`;
+        queryString.value = appendQueryStringCondition(queryString.value, condition.key, newClause);
       }
     };
 
