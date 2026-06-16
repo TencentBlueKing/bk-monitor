@@ -290,15 +290,16 @@ class TasksHandler:
                 logger.error(f"receive a KeyError: {e}")
 
         # 根据start_time，finish_time排序
-        component_status_list = sorted(component_status_list, key=lambda x: (x["start_time"], x["finish_time"]))
+        component_status_list = sorted(
+            component_status_list, key=lambda x: (x.get("start_time") or "", x.get("finish_time") or "")
+        )
         # 输出组件名称用户状态可视化字段
+        time_zone = get_local_param("time_zone", settings.TIME_ZONE)
         for component_status in component_status_list:
-            component_status["start_time"] = format_user_time_zone(
-                component_status["start_time"], get_local_param("time_zone", settings.TIME_ZONE)
-            )
-            component_status["finish_time"] = format_user_time_zone(
-                component_status["finish_time"], get_local_param("time_zone", settings.TIME_ZONE)
-            )
+            if component_status.get("start_time"):
+                component_status["start_time"] = format_user_time_zone(component_status["start_time"], time_zone)
+            if component_status.get("finish_time"):
+                component_status["finish_time"] = format_user_time_zone(component_status["finish_time"], time_zone)
             if component_status["name"] in [
                 constants.DownloadStatus.DOWNLOADABLE.value,
                 constants.DownloadStatus.COS_UPLOAD.value,
