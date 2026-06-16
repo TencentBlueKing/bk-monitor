@@ -1035,6 +1035,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           {this.isListTab ? (
             <K8sQuickTools
               class='table-col-tools'
+              isListTab={this.isListTab}
               filterCommonParams={this.filterCommonParams}
               groupByField={column.id}
               value={text}
