@@ -503,3 +503,25 @@ def test_read_db_model_skips_select_related_when_unset(monkeypatch):
     )
     # select_related 为空时不应调用（避免无谓 JOIN）
     assert queryset.select_related_args is None
+
+
+def test_mask_deployment_config_row_masks_file_param_content_by_key():
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    # file 型参数内容以 base64 编码的上传文件存储，键名 file_base64 非凭据名——名字层按 file_base64 键脱敏内容、
+    # 保留 filename（config_json 取不到时也覆盖）
+    item = {"params": {"plugin": {"env": {"filename": "env.sh", "file_base64": "Y29udGVudA=="}}}}
+    masked = db._mask_deployment_config_row(item, object())["params"]
+    assert masked["plugin"]["env"]["file_base64"] == db.MASKED_VALUE
+    assert masked["plugin"]["env"]["filename"] == "env.sh"
+
+
+def test_mask_deployment_config_row_masks_file_type_param_via_config_json():
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    # config_json 声明 type=file 的参数：即便内容键不叫 file_base64（这里是 blob），类型驱动也整体脱敏其值
+    config_json = [{"mode": "plugin", "name": "env", "type": "file", "default": ""}]
+    instance = SimpleNamespace(plugin_version=SimpleNamespace(config=SimpleNamespace(config_json=config_json)))
+    item = {"params": {"plugin": {"env": {"filename": "env.sh", "blob": "Y29udGVudA=="}}}}
+    masked = db._mask_deployment_config_row(item, instance)["params"]
+    assert masked["plugin"]["env"] == db.MASKED_VALUE

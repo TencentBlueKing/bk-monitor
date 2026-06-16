@@ -81,11 +81,13 @@ def _mask_global_config_row(item: dict[str, Any], instance: Any) -> dict[str, An
 # DeploymentConfigVersion.params 是 SymmetricJsonField（落库加密、读时解密），可能含采集目标的账号口令。
 # params 形如 {collector: {...}, plugin: {<作者自定义参数名>: value}}：plugin 子树的 key 是插件作者
 # 自定义的参数名，凭据可以叫任何名字（auth_token / apikey / headers ...），无法用名字穷举。
-# 主脱敏走 config_json 的 type（password/encrypt），与 SaaS 规范脱敏 password_convert 同源；
-# 下面的名字/URL 正则只作 config_json 取不到时的启发式兜底（覆盖 collector.username/password 等固定名）。
+# 主脱敏走 config_json 的 type（password/encrypt/file），与 SaaS 规范脱敏 password_convert 同源；
+# 下面的名字/URL 正则只作 config_json 取不到时的启发式兜底（覆盖 collector.username/password 等固定名，
+# 以及 file 型上传文件参数的 file_base64/file_content 内容——键名非凭据名、内容 base64 编码，按类型与键名
+# 双重覆盖其内容、保留 filename）。
 DEPLOYMENT_PARAMS_SENSITIVE_KEY_PATTERN = re.compile(
     r"PASSWORD|PASSWD|PASSPHRASE|SECRET|TOKEN|CREDENTIAL|PRIVATE|API_?KEY|ACCESS_KEY|APP_KEY|SECRET_KEY"
-    r"|USERNAME|AUTH|BEARER|COOKIE|CERT|ACCOUNT",
+    r"|USERNAME|AUTH|BEARER|COOKIE|CERT|ACCOUNT|FILE_BASE64|FILE_CONTENT",
     re.IGNORECASE,
 )
 
@@ -108,10 +110,11 @@ def _mask_sensitive_tree(value: Any) -> Any:
 
 
 def _iter_credential_param_keys(instance: Any):
-    """从插件 config_json 解析凭据参数清单 (mode, name)，凭据按 type（password/encrypt）判定。
+    """从插件 config_json 解析凭据参数清单 (mode, name)，凭据按 type（password/encrypt/file）判定。
 
     与 SaaS 侧 password_convert 同源：plugin 子树参数名由作者自定义、无法用名字穷举，必须按类型脱敏。
-    取不到 config_json（插件版本缺失等）时返回空，回落到上面的名字/URL 启发式。
+    file 型（上传文件）参数内容按类型整体脱敏其值（连同 filename）。
+    取不到 config_json（插件版本缺失等）时返回空，回落到上面的名字/URL 启发式（含 file_base64 键兜底）。
     """
     try:
         config_json = instance.plugin_version.config.config_json or []
@@ -120,7 +123,7 @@ def _iter_credential_param_keys(instance: Any):
     if not isinstance(config_json, list):
         return
     for desc in config_json:
-        if not isinstance(desc, dict) or desc.get("type") not in ("password", "encrypt"):
+        if not isinstance(desc, dict) or desc.get("type") not in ("password", "encrypt", "file"):
             continue
         # password_convert：mode 非 collector 一律归一为 plugin
         mode = "collector" if desc.get("mode") == "collector" else "plugin"
@@ -135,7 +138,7 @@ def _mask_deployment_config_row(item: dict[str, Any], instance: Any) -> dict[str
         return item
     # 第一层：名字/凭据型 URL 启发式（_mask_sensitive_tree 返回全新结构，不改 ORM 缓存的 params）
     masked = _mask_sensitive_tree(params)
-    # 第二层：按插件 config_json 的 type=password/encrypt 精确脱敏（覆盖作者自定义参数名，权威）
+    # 第二层：按插件 config_json 的 type=password/encrypt/file 精确脱敏（覆盖作者自定义参数名，权威）
     for mode, name in _iter_credential_param_keys(instance):
         sub = masked.get(mode)
         if isinstance(sub, dict) and name in sub:
@@ -318,9 +321,9 @@ ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
         # row_masker 按 config_json 脱敏需读 plugin_version.config，预取避免逐行 N+1
         select_related=["plugin_version__config"],
         row_mask_note=(
-            f"params 内凭据按插件 config_json 的 password/encrypt 类型脱敏为 {MASKED_VALUE}"
-            "（覆盖作者自定义参数名），并叠加 password/token/auth 等名字与凭据型 URL 的启发式兜底；"
-            "保留端点 URL、port、period 等非凭据取证字段"
+            f"params 内凭据按插件 config_json 的 password/encrypt/file 类型脱敏为 {MASKED_VALUE}"
+            "（file 型含上传文件内容，覆盖作者自定义参数名），并叠加 password/token/auth/file_base64 等名字"
+            "与凭据型 URL 的启发式兜底；保留端点 URL、port、period 等非凭据取证字段"
         ),
         examples=[
             {
