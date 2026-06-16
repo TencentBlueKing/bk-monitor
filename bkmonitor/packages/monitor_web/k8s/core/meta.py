@@ -985,8 +985,11 @@ class K8sClusterMeta(K8sResourceMeta):
         """
         filter_string = self.filter.filter_string()
         ecc_filter = ",".join([filter_string, 'counter_type="aggregate"'])
-        baseline = f"max by (bcs_cluster_id, node) (max_over_time(gpu_count{{{filter_string}}}[1d]))"
-        current = f"max by (bcs_cluster_id, node) (gpu_count{{{filter_string}}})"
+        # 掉卡半双源(见 K8sNodeMeta.meta_prom_with_node_gpu_anomaly_count 说明):gpu_count 走 gpu_or,
+        # max_over_time 用子查询 [1d:];ECC 半暂维持原生(dcgm ECC 默认禁用,任务 #4)。
+        gpu_count_leaf = gpu_or("gpu_count", filter_string)
+        baseline = f"max by (bcs_cluster_id, node) (max_over_time({gpu_count_leaf}[1d:]))"
+        current = f"max by (bcs_cluster_id, node) ({gpu_count_leaf})"
         return (
             "sum by (bcs_cluster_id) ("
             f"(sum by (bcs_cluster_id, node) (increase(gpu_ecc_error_count{{{ecc_filter}}}[5m])) or {baseline} * 0)"
@@ -1267,8 +1270,12 @@ class K8sNodeMeta(K8sResourceMeta):
         """
         filter_string = self.filter.filter_string()
         ecc_filter = ",".join([filter_string, 'counter_type="aggregate"'])
-        baseline = f"max by (node) (max_over_time(gpu_count{{{filter_string}}}[1d]))"
-        current = f"max by (node) (gpu_count{{{filter_string}}})"
+        # 掉卡半双源:gpu_count 走 gpu_or(dcgm 用 count(DCGM_FI_DEV_GPU_UTIL) 合成,见 gpu_compat._card_count);
+        # 因合成是复合表达式,max_over_time 用子查询 [1d:] 而非裸 [1d]。ECC 半暂维持原生(dcgm DCGM_FI_DEV_ECC_*
+        # 默认 counters CSV 注释禁用,见任务 #4);dcgm-only 集群 ECC 半为空 -> baseline*0 = 0,掉卡半仍生效。
+        gpu_count_leaf = gpu_or("gpu_count", filter_string)
+        baseline = f"max by (node) (max_over_time({gpu_count_leaf}[1d:]))"
+        current = f"max by (node) ({gpu_count_leaf})"
         return (
             f"((sum by (node) (increase(gpu_ecc_error_count{{{ecc_filter}}}[5m])) or {baseline} * 0)"
             " + "

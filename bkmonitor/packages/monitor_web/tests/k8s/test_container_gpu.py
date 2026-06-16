@@ -24,6 +24,13 @@ FILTER = 'bcs_cluster_id="BCS-K8S-00000",container_name!="POD"'
 # dcgm 支额外带 pod_name!="" 护栏(_attributed):只取已归属到 pod 的卡,排除空闲卡漏进 namespace/cluster 汇总
 ATTR_FILTER = f'{FILTER},pod_name!=""'
 
+
+def _dual(native, dcgm):
+    """gpu_or 跨 schema 互斥输出的期望同构形(与 gpu_compat.gpu_or 对齐):
+    (原生 or ((dcgm) unless on() (原生)))。unless on() 防迁移期双源同开时外层 sum 双算。"""
+    return f"({native} or (({dcgm}) unless on() ({native})))"
+
+
 # tke_gpu 容器场景的 6 个原生指标(须与前端 GPU_METRIC_SET、scenario/tke_gpu.py 三方对齐)
 CONTAINER_GPU_METRIC_IDS = [
     "container_gpu_utilization",
@@ -77,11 +84,11 @@ class TestTkeGpuDualSourcePromql(TestCase):
         # 实际用量类:整卡语义下直接取卡级遥测(算力->GPU_UTIL,显存->FB_USED);dcgm 支带 pod_name!="" 护栏
         meta = K8sPodMeta(2, "BCS-K8S-00000")
         self.assertIn(
-            f"(container_gpu_utilization{{{FILTER}}} or DCGM_FI_DEV_GPU_UTIL{{{ATTR_FILTER}}})",
+            _dual(f"container_gpu_utilization{{{FILTER}}}", f"DCGM_FI_DEV_GPU_UTIL{{{ATTR_FILTER}}}"),
             meta.meta_prom_with_container_gpu_utilization,
         )
         self.assertIn(
-            f"(container_gpu_memory_total{{{FILTER}}} or DCGM_FI_DEV_FB_USED{{{ATTR_FILTER}}})",
+            _dual(f"container_gpu_memory_total{{{FILTER}}}", f"DCGM_FI_DEV_FB_USED{{{ATTR_FILTER}}}"),
             meta.meta_prom_with_container_gpu_memory_total,
         )
 
@@ -93,11 +100,14 @@ class TestTkeGpuDualSourcePromql(TestCase):
             f" + DCGM_FI_DEV_FB_RESERVED{{{ATTR_FILTER}}})"
         )
         self.assertIn(
-            f"(container_request_gpu_memory{{{FILTER}}} or {fb_total})",
+            _dual(f"container_request_gpu_memory{{{FILTER}}}", fb_total),
             meta.meta_prom_with_container_request_gpu_memory,
         )
         self.assertIn(
-            f"(container_request_gpu_utilization{{{FILTER}}} or (DCGM_FI_DEV_GPU_UTIL{{{ATTR_FILTER}}} * 0 + 100))",
+            _dual(
+                f"container_request_gpu_utilization{{{FILTER}}}",
+                f"(DCGM_FI_DEV_GPU_UTIL{{{ATTR_FILTER}}} * 0 + 100)",
+            ),
             meta.meta_prom_with_container_request_gpu_utilization,
         )
 
@@ -110,16 +120,17 @@ class TestTkeGpuDualSourcePromql(TestCase):
             f"+ DCGM_FI_DEV_FB_RESERVED{{{ATTR_FILTER}}}) * 100)"
         )
         self.assertIn(
-            f"(container_mem_utilization_percentage{{{FILTER}}} or {ratio})",
+            _dual(f"container_mem_utilization_percentage{{{FILTER}}}", ratio),
             meta.meta_prom_with_container_mem_utilization_percentage,
         )
 
     def test_namespace_level_keeps_workload_join_free_shape(self):
         # namespace 层走自身 tpl(无 workload join),双源叶子直接落在 sum by (namespace) 内
         meta = K8sNamespaceMeta(2, "BCS-K8S-00000")
+        leaf = _dual(f"container_gpu_utilization{{{FILTER}}}", f"DCGM_FI_DEV_GPU_UTIL{{{ATTR_FILTER}}}")
         self.assertEqual(
             meta.meta_prom_with_container_gpu_utilization,
-            f"sum by (namespace) ((container_gpu_utilization{{{FILTER}}} or DCGM_FI_DEV_GPU_UTIL{{{ATTR_FILTER}}}))",
+            f"sum by (namespace) ({leaf})",
         )
 
     def test_namespace_dcgm_branch_excludes_unattributed_cards(self):

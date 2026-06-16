@@ -92,9 +92,18 @@ GPU_DCGM_EQUIV = {
 
 
 def gpu_or(metric_name, filter_string):
-    """叶子级双源合并:GPU 指标 -> (原生 or dcgm等价);非 GPU 指标原样返回。"""
+    """叶子级双源合并:GPU 指标 -> 跨 schema 互斥的 (原生 or dcgm 等价);非 GPU 指标原样返回。
+
+    迁移期一个集群可能同时跑 elastic/qGPU(原生 gpu_*/container_*)与 dcgm-exporter(DCGM_FI_*),
+    两者 label set 不同 -> 裸 `or` 不互斥 -> 外层 sum by(...) 把两支都加进去翻倍。
+    用 `unless on()`(空 label 集匹配,两支恒"匹配")做集群级互斥:本 filter 范围内只要有原生数据,
+    就整体抑制 dcgm 支,确保至多一支贡献。单源时与裸 or 等价(被抑制支本为空)。
+    DaemonSet 采集是集群级齐变,全局 on() 即可(无需按 node/pod 粒度)。
+    取舍:gpu_or 对所有指标 schema-blind(capacity 原生带 node、容器原生带 pod_name/namespace,无统一匹配 label),
+    故只能用全局 on()。代价:非原子迁移(逐节点下线 elastic)期间,只要还有一个 native 节点,dcgm-only 节点会被
+    抑制到迁移完成——transient 欠报,优于双算;真要逐节点保真需按场景把匹配 label 串进来,超出本表职责。"""
     native = f"{metric_name}{{{filter_string}}}"
     equiv = GPU_DCGM_EQUIV.get(metric_name)
     if equiv is None:
         return native
-    return f"({native} or {equiv(filter_string)})"
+    return f"({native} or (({equiv(filter_string)}) unless on() ({native})))"
