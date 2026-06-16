@@ -5,12 +5,16 @@
 
   .header-wrapper {
     display: flex;
-    display: flex;
     align-items: center;
     padding: 15px 12px;
     font-size: 14px;
     line-height: 22px;
     color: #313238;
+
+    /** 收起图标可点击手势 */
+    .icon-gongneng-shouqi {
+      cursor: pointer;
+    }
 
     .number-tag {
       display: flex;
