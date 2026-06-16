@@ -46,6 +46,7 @@ from monitor_web.grafana.utils import get_cookies_filter, is_global_k8s_event
 from monitor_web.models import CollectConfigMeta
 from monitor_web.strategies.constant import CORE_FILE_SIGNAL_LIST
 from monitor_web.strategies.default_settings.k8s_event import DEFAULT_K8S_EVENT_NAME
+from monitor_web.strategies.metric_cache.process_dimensions import get_process_extra_dimensions
 
 logger = logging.getLogger(__name__)
 
@@ -244,7 +245,11 @@ class TimeSeriesMetric(Resource):
         return metrics
 
     def perform_request(self, params):
-        metrics = self.query_metrics(params)
+        metrics = list(self.query_metrics(params))
+        # 进程采集：静态指标缓存不含用户「维度提取」(extract_pattern) 出的维度（如 process），按业务真实上报补全
+        process_extra_dimensions = get_process_extra_dimensions(
+            get_request_tenant_id(), params["bk_biz_id"], {metric.result_table_id for metric in metrics}
+        )
 
         custom_event_data_ids = set()
         data_source_dict = {}
@@ -272,6 +277,13 @@ class TimeSeriesMetric(Resource):
                     {"id": "event_name", "name": _("事件名称"), "is_dimension": True, "type": "string"}
                 )
 
+            # 进程采集等场景：合并真实上报但不在静态指标缓存里的维度（按 id 去重）
+            dimensions = list(metric.dimensions)
+            extra_dims = process_extra_dimensions.get(metric.result_table_id)
+            if extra_dims:
+                existing_ids = {d["id"] for d in dimensions}
+                dimensions += [d for d in extra_dims if d["id"] not in existing_ids]
+
             metric_config = {
                 "result_table_label": metric.result_table_label,
                 "result_table_label_name": metric.result_table_label_name,
@@ -280,7 +292,7 @@ class TimeSeriesMetric(Resource):
                 "result_table_name": metric.result_table_name,
                 "metric_field": metric.metric_field,
                 "metric_field_name": metric.metric_field_name,
-                "dimensions": metric.dimensions,
+                "dimensions": dimensions,
                 "default_dimensions": metric.default_dimensions,
                 "default_condition": metric.default_condition,
                 "readable_name": metric.readable_name or metric.get_human_readable_name(),
