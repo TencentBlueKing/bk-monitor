@@ -26,6 +26,11 @@
 import { defineComponent } from 'vue';
 
 import MarkdownEditor from 'trace/components/markdown-editor/editor';
+
+import { useValidate } from '../../hooks/use-validate';
+import { EditType } from '../../typing';
+
+import './edit-rich-edit.scss';
 export default defineComponent({
   name: 'EditRichEdit',
   props: {
@@ -33,27 +38,53 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    required: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
     'update:modelValue': (_val: string) => typeof _val === 'string',
   },
-  setup(_props, { emit }) {
+  setup(props, { emit }) {
+    const { errMsg, validate } = useValidate<string>(() => ({
+      fieldType: EditType.richEdit,
+      required: props.required,
+      value: props.modelValue,
+    }));
+
     const handleInput = val => {
       emit('update:modelValue', val);
     };
+
+    const handleBlur = () => {
+      validate();
+    };
+
+    const handleFocus = () => {
+      errMsg.value = '';
+    };
+
     return {
+      errMsg,
+      validate,
       handleInput,
+      handleBlur,
+      handleFocus,
     };
   },
   render() {
     return (
-      <div class='field-form-edit-rich-edit'>
+      <div class={['field-form-edit-rich-edit', { 'is-error': !!this.errMsg }]}>
         <MarkdownEditor
           height='280px'
           initialEditType={'wysiwyg'}
           value={this.modelValue}
+          onBlur={this.handleBlur}
+          onFocus={this.handleFocus}
           onInput={this.handleInput}
         />
+        {this.errMsg ? <span class='err-msg'>{this.errMsg}</span> : undefined}
       </div>
     );
   },

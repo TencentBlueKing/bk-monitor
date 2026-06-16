@@ -29,10 +29,15 @@ import { type PropType, computed, defineComponent } from 'vue';
 import { Select } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
+import { useValidate } from '../../hooks/use-validate';
+import { EditType } from '../../typing';
+
+import './edit-select.scss';
+
 interface IOption {
-  color: string;
-  label: string;
-  value: string;
+  color?: string;
+  id: string;
+  name: string;
 }
 
 export default defineComponent({
@@ -46,29 +51,51 @@ export default defineComponent({
       type: Array as PropType<IOption[]>,
       default: () => [],
     },
+    required: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
     'update:modelValue': (_val: string) => typeof _val === 'string',
   },
-  setup(_props, { emit }) {
+  setup(props, { emit }) {
     const { t } = useI18n();
+    const { errMsg, validate } = useValidate<string>(() => ({
+      fieldType: EditType.select,
+      required: props.required,
+      value: props.modelValue,
+    }));
     const allOptions = computed(() => {
       return [
         {
           color: '',
-          label: `-${t('空')}-`,
-          value: '',
+          name: `-${t('空')}-`,
+          id: '',
         },
-        ..._props.options,
+        ...props.options,
       ];
     });
 
     const handleInput = val => {
       emit('update:modelValue', val);
     };
+
+    const handleToggle = val => {
+      console.log(val);
+      if (val) {
+        errMsg.value = '';
+      } else {
+        validate();
+      }
+    };
+
     return {
+      errMsg,
       allOptions,
       handleInput,
+      validate,
+      handleToggle,
     };
   },
   render() {
@@ -94,33 +121,39 @@ export default defineComponent({
       );
     };
     return (
-      <div class='field-form-edit-select'>
+      <div class={['field-form-edit-select', { 'is-error': !!this.errMsg }]}>
         <Select
           popoverOptions={{
             extCls: 'field-form-edit-select-popover',
           }}
+          allowEmptyValues={['']}
+          clearable={false}
           modelValue={this.modelValue}
           multipleMode='tag'
+          onToggle={this.handleToggle}
           onUpdate:modelValue={this.handleInput}
         >
           {{
             tag: ({ selected }) =>
-              selected.map(item => {
-                const color = this.allOptions.find(opt => opt.value === item.value)?.color;
-                return tagRender(color, item.label);
-              }),
+              selected.length
+                ? selected.map(item => {
+                    const color = this.allOptions.find(opt => opt.id === item.value)?.color;
+                    return color ? tagRender(color, item.label) : item.label;
+                  })
+                : this.allOptions[0].name,
             default: () =>
               this.allOptions.map(item => (
                 <Select.Option
-                  id={item.value}
-                  key={`__${item.value}`}
-                  name={item.label}
+                  id={item.id}
+                  key={`__${item.id}`}
+                  name={item.name}
                 >
-                  {item.color ? tagRender(item.color, item.label) : item.label}
+                  {item.color ? tagRender(item.color, item.name) : item.name}
                 </Select.Option>
               )),
           }}
         </Select>
+        {this.errMsg ? <span class='err-msg'>{this.errMsg}</span> : undefined}
       </div>
     );
   },

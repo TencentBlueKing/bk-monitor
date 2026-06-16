@@ -25,76 +25,24 @@
  */
 import { defineComponent } from 'vue';
 
-import { Input } from 'bkui-vue';
-
-import { useValidate } from '../../hooks/use-validate';
-import { EditType } from '../../typing';
-
-import './edit-input.scss';
+import './tapd-field-form-loading.scss';
 
 export default defineComponent({
-  name: 'EditInput',
-  props: {
-    modelValue: {
-      type: String,
-      default: '',
-    },
-    placeholder: {
-      type: String,
-      default: '',
-    },
-    required: {
-      type: Boolean,
-      default: false,
-    },
-  },
-  emits: {
-    'update:modelValue': (_val: string) => typeof _val === 'string',
-  },
-  setup(props, { emit }) {
-    const { errMsg, validate } = useValidate<string>(() => ({
-      fieldType: EditType.input,
-      required: props.required,
-      value: props.modelValue,
-    }));
-
-    /**
-     * @description 输入
-     * @param val
-     */
-    const handleInput = val => {
-      emit('update:modelValue', val);
-    };
-
-    /** 聚焦时清除错误提示 */
-    const handleFocus = () => {
-      errMsg.value = '';
-    };
-
-    /** 失焦时触发必填校验 */
-    const handleBlur = () => {
-      validate();
-    };
-
-    return {
-      errMsg,
-      handleInput,
-      validate,
-      handleFocus,
-      handleBlur,
-    };
-  },
+  name: 'TapdFieldFormLoading',
   render() {
     return (
-      <div class={['field-form-edit-input', { 'is-error': !!this.errMsg }]}>
-        <Input
-          modelValue={this.modelValue}
-          placeholder={this.placeholder}
-          onBlur={this.handleBlur}
-          onFocus={this.handleFocus}
-          onUpdate:modelValue={this.handleInput}
-        />
-        {this.errMsg ? <span class='err-msg'>{this.errMsg}</span> : undefined}
+      <div class='tapd-field-form-component-loading'>
+        <span class='form-header mb-24'>
+          <span class='form-header-title'>{window.i18n.t('单据字段')}</span>
+        </span>
+        <div class='form-grid'>
+          {new Array(5).fill(null).map((_, index) => (
+            <div
+              key={index}
+              class={['skeleton-element', 'field-item', { 'field-item--half': index > 1 }]}
+            />
+          ))}
+        </div>
       </div>
     );
   },
