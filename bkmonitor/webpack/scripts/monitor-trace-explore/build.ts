@@ -50,13 +50,14 @@
  * 3. provideGlobalConfig({ prefix: 'apm-bk' }) — 运行时为主 app 注入前缀并设置 --bk-prefix CSS 变量。
  */
 import vueTsx from '@vitejs/plugin-vue-jsx';
-import { resolve } from 'node:path';
 import { parse as ifdefParse } from 'ifdef-loader/preprocessor';
-import type { Plugin as PostcssPlugin } from 'postcss';
-import type { Plugin as VitePlugin } from 'vite';
-import { defineConfig } from 'vite';
+import { resolve } from 'node:path';
+import { defineConfig, normalizePath } from 'vite';
 import cssInjectedByJsPlugin from 'vite-plugin-css-injected-by-js';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
+
+import type { Plugin as PostcssPlugin } from 'postcss';
+import type { Plugin as VitePlugin } from 'vite';
 
 const outputDir = resolve(__dirname, '../../monitor-trace-explore');
 
@@ -115,7 +116,7 @@ export default defineConfig({
     viteStaticCopy({
       targets: [
         {
-          src: resolve(__dirname, './package.json'),
+          src: normalizePath(resolve(__dirname, './package.json')),
           dest: outputDir,
         },
       ],
