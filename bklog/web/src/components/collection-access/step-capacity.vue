@@ -245,6 +245,7 @@
 </template>
 
 <script>
+  import { manageDraftCacheService } from '@/storage';
   import { mapGetters } from 'vuex';
 
   export default {
@@ -436,10 +437,9 @@
         // 没有修改，第一步调用了 only_update，这里需要调用 update，再进入下一步采集接入
         try {
           this.submitLoading = true;
-          await this.$http.request(
-            'collect/updateCollection',
-            JSON.parse(sessionStorage.getItem('collectionUpdateData')),
-          );
+          const updateData = JSON.parse(sessionStorage.getItem('collectionUpdateData') || 'null')
+            || await manageDraftCacheService.get('collectionUpdateData');
+          await this.$http.request('collect/updateCollection', updateData);
           this.$emit('step-change', 3);
         } catch (e) {
           console.warn(e);

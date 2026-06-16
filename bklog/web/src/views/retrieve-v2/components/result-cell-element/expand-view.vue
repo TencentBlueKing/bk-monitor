@@ -185,7 +185,7 @@
           return this.listData ?? this.data;
         }
 
-        return this.$store.state.indexSetQueryResult?.list?.[this.rowIndex] ?? this.listData ?? this.data;
+        return this.listData ?? this.data;
       },
       jsonShowData() {
         // 如果已有缓存，直接返回缓存（避免重复计算）

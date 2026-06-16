@@ -211,9 +211,6 @@ export default {
       return this.$route.params.indexId;
     },
 
-    tableList() {
-      return this.indexSetQueryResult.list ?? [];
-    },
 
     fieldAliasMap() {
       return (this.indexFieldInfo.fields ?? []).reduce(

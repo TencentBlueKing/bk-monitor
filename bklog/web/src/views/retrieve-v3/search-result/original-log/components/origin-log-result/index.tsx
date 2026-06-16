@@ -35,6 +35,7 @@ import SearchBar from '@/views/retrieve-v2/search-bar/index.vue';
 import DOMPurify from 'dompurify';
 import { cloneDeep, debounce } from 'lodash-es';
 import RetrieveHelper from '@/views/retrieve-helper';
+import { retrieveRowCacheService } from '@/storage';
 
 import RenderJsonCell from './render-json-cell';
 import { axiosInstance } from '@/api';
@@ -434,7 +435,7 @@ export default defineComponent({
 
     expose({
       // init: () => handleSearch(requestOtherparams.search_mode, false),
-      init: () => {
+      init: async () => {
         // 初始化搜索框
         const modeIndex = store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE];
         searchBarRef.value.setLocalMode(modeIndex);
@@ -472,7 +473,10 @@ export default defineComponent({
         // 设置外部数据
         const outerLogResult = store.state.indexSetQueryResult;
         total = outerLogResult.total;
-        logList.value = outerLogResult.list.slice();
+        const rowKeys = outerLogResult.row_keys ?? [];
+        logList.value = rowKeys.length
+          ? await retrieveRowCacheService.getRows(rowKeys)
+          : [];
         begin = logList.value.length;
         if (scrollIntoViewTimer) {
           clearTimeout(scrollIntoViewTimer);

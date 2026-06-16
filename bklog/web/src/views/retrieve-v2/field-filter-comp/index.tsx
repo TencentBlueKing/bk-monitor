@@ -33,6 +33,7 @@ import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
 import VueDraggable from 'vuedraggable';
 
 import EmptyStatus from '../../../components/empty-status/index.vue';
+import { storeRuntimeCacheService } from '../../../store/services/runtime-cache.service';
 import { BK_LOG_STORAGE } from '../../../store/store.type';
 import FieldItem from './field-item';
 // import FieldSelectConfig from './components/field-select-config.vue';
@@ -86,9 +87,9 @@ export default class FieldFilterComp extends tsc<object> {
     return this.objectHierarchy(this.visibleFields);
   }
   get statisticalFieldsData() {
-    // 这里避免初始化的时候数据已经更新，但视图却未更新，加入请求完毕的loading进行监听
-    // this.$store.state.indexSetQueryResult.is_loading;
-    return this.$store.state.retrieveDropdownData;
+    // 版本号用于触发视图更新，实际大对象存放在 runtime cache / IndexedDB 镜像中。
+    this.$store.state.retrieveDropdownDataVersion;
+    return storeRuntimeCacheService.getRetrieveDropdownData(this.$store.state.indexId || 'default');
   }
 
   /** 内置字段 */

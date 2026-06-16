@@ -30,6 +30,7 @@ import { getRegExp } from '@/common/util';
 import useFieldEgges from '@/hooks/use-field-egges';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+import { storeRuntimeCacheService } from '@/store/services/runtime-cache.service';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 
 import ControlOperate from './control-operate';
@@ -99,9 +100,13 @@ export default defineComponent({
     });
     const isConfirmEnable = computed(() => formData.value.op && formData.value.values.length);
     const currentFieldInfo = computed(() => filterFieldList.value[activeIndex.value]);
+    const fieldAggsItems = computed(() => {
+      store.state.fieldAggsItemsVersion;
+      return storeRuntimeCacheService.getFieldAggsItems(store.state.indexId || 'default');
+    });
 
     const activeItemMatchList = computed(() => {
-      return (store.state.indexFieldInfo.aggs_items[currentFieldInfo.value.field_name] ?? [])
+      return (fieldAggsItems.value[currentFieldInfo.value.field_name] ?? [])
         .filter(
           item => !(formData.value.values ?? []).includes(item),
         );

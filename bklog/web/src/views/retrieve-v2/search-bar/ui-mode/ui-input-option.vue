@@ -680,7 +680,7 @@ const isComposing = ref(false);
    * 获取当前选中字段的匹配列表
    */
 const activeItemMatchList = computed(() => {
-  return (store.state.indexFieldInfo.aggs_items[activeFieldItem.value.field_name] ?? []).filter(
+  return (fieldAggsItems.value[activeFieldItem.value.field_name] ?? []).filter(
     item => !(condition.value.value ?? []).includes(item),
   );
 });
@@ -690,7 +690,7 @@ const activeItemMatchList = computed(() => {
    * 判定是搜索为空还是数据为空
    */
 const conditionValueEmptyType = computed(() => {
-  if (!(store.state.indexFieldInfo.aggs_items[activeFieldItem.value.field_name] ?? []).length) {
+  if (!(fieldAggsItems.value[activeFieldItem.value.field_name] ?? []).length) {
     return 'empty';
   }
 
@@ -699,6 +699,11 @@ const conditionValueEmptyType = computed(() => {
   }
 
   return 'empty';
+});
+
+const fieldAggsItems = computed(() => {
+  store.state.fieldAggsItemsVersion;
+  return storeRuntimeCacheService.getFieldAggsItems(store.state.indexId || 'default');
 });
 
 const currentEditTagIndex: Ref<number | null> = ref(null);

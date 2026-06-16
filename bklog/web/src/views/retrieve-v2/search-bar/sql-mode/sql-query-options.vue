@@ -13,6 +13,7 @@ import { debounce } from 'lodash-es';
 
 import { getOsCommandLabel } from '@/common/util';
 import useFieldEgges from '@/hooks/use-field-egges';
+import { storeRuntimeCacheService } from '@/store/services/runtime-cache.service';
 import { FieldInfoItem } from '@/store/store.type';
 import { excludesFields } from '../utils/const.common'; // @ts-ignore
 import FavoriteList from '../components/favorite-list';
@@ -82,7 +83,14 @@ const showOption = computed(() => {
   );
 });
 
-const retrieveDropdownData = computed(() => store.state.retrieveDropdownData);
+const retrieveDropdownData = computed(() => {
+  store.state.retrieveDropdownDataVersion;
+  return storeRuntimeCacheService.getRetrieveDropdownData(store.state.indexId || 'default');
+});
+const fieldAggsItems = computed(() => {
+  store.state.fieldAggsItemsVersion;
+  return storeRuntimeCacheService.getFieldAggsItems(store.state.indexId || 'default');
+});
 const totalFields: ComputedRef<FieldInfoItem[]> = computed(() => store.state.indexFieldInfo.fields);
 
 const { isRequesting, requestFieldEgges, isValidateEgges } = useFieldEgges();
@@ -198,7 +206,7 @@ const setValueList = (fieldName: string, value: string) => {
         return;
       }
 
-      valueList.value = store.state.indexFieldInfo.aggs_items[fieldName] ?? [];
+      valueList.value = fieldAggsItems.value[fieldName] ?? [];
     });
     return;
   }
@@ -338,7 +346,7 @@ const calculateDropdown = () => {
   // 开始输入字段【nam】
   const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups?.field;
   if (inputField) {
-    const fieldIndex = store.state.indexFieldInfo.fieldNameIndex ?? buildFieldNameIndex(totalFields.value);
+    const fieldIndex = storeRuntimeCacheService.getFieldNameIndex(store.state.indexId || 'default') ?? buildFieldNameIndex(totalFields.value);
     const inputLower = inputField.toLowerCase();
     fieldList.value = originFieldList()
       .reduce((acc: { index: number; fieldName: string }[], item) => {
