@@ -462,3 +462,17 @@ def test_nodeman_guard_normalizes_ids_and_flag():
 
     out = nodeman.guard_subscription_instance_status({"subscription_id_list": ["12", 13], "show_task_detail": True})
     assert out == {"subscription_id_list": [12, 13], "show_task_detail": True}
+
+
+def test_describe_includes_required_params():
+    op = OperationSpec(
+        id="get_thing",
+        summary="s",
+        handler=_stub_handler,
+        required_params=["thing_id"],
+        audit_tags=["readonly"],
+    )
+    PlatformSourceCatalog.register_domain(id="d", summary="d", audit_tags=["readonly"], operations=[op])
+    out = query_platform_source({"mode": "describe", "domain": "d", "operation": "get_thing"})
+    assert out["status"] == "ok"
+    assert out["required_params"] == ["thing_id"]

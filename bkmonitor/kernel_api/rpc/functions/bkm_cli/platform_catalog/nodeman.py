@@ -99,6 +99,8 @@ def register() -> None:
                     "返回每个订阅下各实例的部署状态与主机信息（bk_host_id / 内网IP / status / host_statuses）。"
                     "实例 status=SUCCESS 仅表示下发/进程就绪，不代表采集数据合法——数据是否正常需另查 "
                     "采集健康指标（gather_up 的 bkm_up_code 等）。本接口不返回渲染后的采集配置内容（含端点凭据）。"
+                    "注意：subscription_id_list 是 node_man 原生批量接口，其中任一订阅在 node_man 侧异常会让"
+                    "整批返回 provider_unavailable（非部分结果）；建议逐订阅查询以隔离失效订阅。"
                 ),
             ),
         ],

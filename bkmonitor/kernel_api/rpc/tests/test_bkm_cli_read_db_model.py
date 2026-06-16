@@ -24,6 +24,11 @@ class FakeQuerySet:
         self.filter_kwargs = None
         self.order_by_args = None
         self.slice_value = None
+        self.select_related_args = None
+
+    def select_related(self, *args):
+        self.select_related_args = args
+        return self
 
     def filter(self, **kwargs):
         self.filter_kwargs = kwargs
@@ -455,3 +460,46 @@ def test_mask_deployment_config_row_config_json_unreachable_falls_back_to_heuris
     masked = db._mask_deployment_config_row(item, object())["params"]
     assert masked["collector"]["password"] == db.MASKED_VALUE
     assert masked["collector"]["period"] == 30
+
+
+def test_deployment_config_spec_declares_select_related():
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    # row_masker 按 config_json 脱敏要读 plugin_version.config，预取避免逐行 N+1
+    spec = db.ALLOWED_MODEL_SPECS["monitor_web.models.collecting.DeploymentConfigVersion"]
+    assert spec.select_related == ["plugin_version__config"]
+
+
+def test_read_db_model_applies_select_related(monkeypatch):
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    queryset = FakeQuerySet([SimpleNamespace(id=1, name="demo")])
+    FakeModel.objects = FakeManager(queryset)
+    monkeypatch.setitem(
+        db.ALLOWED_MODEL_SPECS,
+        "demo.Model",
+        db.ModelSpec(model_path="demo.Model", fields={"id", "name"}, select_related=["a__b"]),
+    )
+    monkeypatch.setattr(db, "import_string", lambda _model_path: FakeModel)
+
+    BkmCliOpCallResource().perform_request(
+        {"op_id": "read-db-model", "params": {"model": "demo.Model", "filter": {"id": 1}}}
+    )
+    assert queryset.select_related_args == ("a__b",)
+
+
+def test_read_db_model_skips_select_related_when_unset(monkeypatch):
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    queryset = FakeQuerySet([SimpleNamespace(id=1, name="demo")])
+    FakeModel.objects = FakeManager(queryset)
+    monkeypatch.setitem(
+        db.ALLOWED_MODEL_SPECS, "demo.Model", db.ModelSpec(model_path="demo.Model", fields={"id", "name"})
+    )
+    monkeypatch.setattr(db, "import_string", lambda _model_path: FakeModel)
+
+    BkmCliOpCallResource().perform_request(
+        {"op_id": "read-db-model", "params": {"model": "demo.Model", "filter": {"id": 1}}}
+    )
+    # select_related 为空时不应调用（避免无谓 JOIN）
+    assert queryset.select_related_args is None

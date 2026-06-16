@@ -49,6 +49,8 @@ class ModelSpec:
     row_masker: Callable[[dict[str, Any], Any], dict[str, Any]] | None = None
     # list-db-models 输出里 row_masking 的说明文案；缺省走 GlobalConfig 的 value 脱敏措辞。
     row_mask_note: str = ""
+    # 读取时 select_related 的 FK 链，避免 row_masker 等逐行访问关联对象造成 N+1。
+    select_related: list[str] = field(default_factory=list)
 
 
 MASKED_VALUE = "***masked***"
@@ -313,6 +315,8 @@ ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
             "plugin_version_id",
         },
         row_masker=_mask_deployment_config_row,
+        # row_masker 按 config_json 脱敏需读 plugin_version.config，预取避免逐行 N+1
+        select_related=["plugin_version__config"],
         row_mask_note=(
             f"params 内凭据按插件 config_json 的 password/encrypt 类型脱敏为 {MASKED_VALUE}"
             "（覆盖作者自定义参数名），并叠加 password/token/auth 等名字与凭据型 URL 的启发式兜底；"
@@ -337,7 +341,10 @@ def read_db_model(params: dict[str, Any]) -> dict[str, Any]:
     normalized_filter = _normalize_filter(params.get("filter") or {}, spec)
     selected_fields = _normalize_selected_fields(params.get("fields"), params.get("exclude_fields"), spec)
 
-    queryset = model_cls.objects.all().filter(**normalized_filter)
+    queryset = model_cls.objects.all()
+    if spec.select_related:
+        queryset = queryset.select_related(*spec.select_related)
+    queryset = queryset.filter(**normalized_filter)
     order_by = _normalize_order_by(params.get("order_by") or [], spec)
     if order_by:
         queryset = queryset.order_by(*order_by)
