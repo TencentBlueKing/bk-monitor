@@ -672,7 +672,7 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
-    container_gpu_utilization{{{self.filter.filter_string(exclude="workload")}}}
+    {gpu_or("container_gpu_utilization", self.filter.filter_string(exclude="workload"))}
     )))"""
         return promql
 
@@ -686,7 +686,7 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
-    container_gpu_memory_total{{{self.filter.filter_string(exclude="workload")}}}
+    {gpu_or("container_gpu_memory_total", self.filter.filter_string(exclude="workload"))}
     )))"""
         return promql
 
@@ -700,7 +700,7 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
-    container_core_utilization_percentage{{{self.filter.filter_string(exclude="workload")}}}
+    {gpu_or("container_core_utilization_percentage", self.filter.filter_string(exclude="workload"))}
     )))"""
         return promql
 
@@ -714,7 +714,7 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
-    container_mem_utilization_percentage{{{self.filter.filter_string(exclude="workload")}}}
+    {gpu_or("container_mem_utilization_percentage", self.filter.filter_string(exclude="workload"))}
     )))"""
         return promql
 
@@ -728,7 +728,7 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
-    container_request_gpu_memory{{{self.filter.filter_string(exclude="workload")}}}
+    {gpu_or("container_request_gpu_memory", self.filter.filter_string(exclude="workload"))}
     )))"""
         return promql
 
@@ -742,7 +742,7 @@ class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
-    container_request_gpu_utilization{{{self.filter.filter_string(exclude="workload")}}}
+    {gpu_or("container_request_gpu_utilization", self.filter.filter_string(exclude="workload"))}
     )))"""
         return promql
 
@@ -1477,12 +1477,11 @@ class K8sNamespaceMeta(K8sResourceMeta, NetworkWithRelation):
 
     def tpl_prom_with_nothing(self, metric_name, exclude=""):
         """按内存排序的资源查询promql"""
+        # GPU 指标叶子走双源:(原生 or dcgm 等价);非 GPU 指标原样返回(见 gpu_compat.gpu_or)
+        leaf = gpu_or(metric_name, self.filter.filter_string(exclude=exclude))
         if self.agg_interval:
-            return (
-                f"sum by (namespace) ({self.agg_method}_over_time("
-                f"{metric_name}{{{self.filter.filter_string(exclude=exclude)}}}[{self.agg_interval}:]))"
-            )
-        return f"{self.method} by (namespace) ({metric_name}{{{self.filter.filter_string(exclude=exclude)}}})"
+            return f"sum by (namespace) ({self.agg_method}_over_time({leaf}[{self.agg_interval}:]))"
+        return f"{self.method} by (namespace) ({leaf})"
 
     @property
     def meta_prom_with_container_cpu_cfs_throttled_ratio(self):
@@ -1686,7 +1685,7 @@ class K8sWorkloadMeta(K8sResourceMeta):
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
-      container_gpu_utilization{{{self.filter.filter_string(exclude="workload")}}}
+      {gpu_or("container_gpu_utilization", self.filter.filter_string(exclude="workload"))}
     )))"""
         return promql
 
@@ -1700,7 +1699,7 @@ class K8sWorkloadMeta(K8sResourceMeta):
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
-      container_gpu_memory_total{{{self.filter.filter_string(exclude="workload")}}}
+      {gpu_or("container_gpu_memory_total", self.filter.filter_string(exclude="workload"))}
     )))"""
         return promql
 
@@ -1714,7 +1713,7 @@ class K8sWorkloadMeta(K8sResourceMeta):
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
-      container_core_utilization_percentage{{{self.filter.filter_string(exclude="workload")}}}
+      {gpu_or("container_core_utilization_percentage", self.filter.filter_string(exclude="workload"))}
     )))"""
         return promql
 
@@ -1728,7 +1727,7 @@ class K8sWorkloadMeta(K8sResourceMeta):
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
-      container_mem_utilization_percentage{{{self.filter.filter_string(exclude="workload")}}}
+      {gpu_or("container_mem_utilization_percentage", self.filter.filter_string(exclude="workload"))}
     )))"""
         return promql
 
@@ -1742,7 +1741,7 @@ class K8sWorkloadMeta(K8sResourceMeta):
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
-      container_request_gpu_memory{{{self.filter.filter_string(exclude="workload")}}}
+      {gpu_or("container_request_gpu_memory", self.filter.filter_string(exclude="workload"))}
     )))"""
         return promql
 
@@ -1756,7 +1755,7 @@ class K8sWorkloadMeta(K8sResourceMeta):
     on(pod_name, namespace)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace) (
-      container_request_gpu_utilization{{{self.filter.filter_string(exclude="workload")}}}
+      {gpu_or("container_request_gpu_utilization", self.filter.filter_string(exclude="workload"))}
     )))"""
         return promql
 
@@ -1977,7 +1976,7 @@ class K8sContainerMeta(K8sResourceMeta):
     on(pod_name, namespace, container_name)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace, container_name) (
-      container_gpu_utilization{{{self.filter.filter_string(exclude="workload")}}}
+      {gpu_or("container_gpu_utilization", self.filter.filter_string(exclude="workload"))}
     )))"""
         return promql
 
@@ -1991,7 +1990,7 @@ class K8sContainerMeta(K8sResourceMeta):
     on(pod_name, namespace, container_name)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace, container_name) (
-      container_gpu_memory_total{{{self.filter.filter_string(exclude="workload")}}}
+      {gpu_or("container_gpu_memory_total", self.filter.filter_string(exclude="workload"))}
     )))"""
         return promql
 
@@ -2005,7 +2004,7 @@ class K8sContainerMeta(K8sResourceMeta):
     on(pod_name, namespace, container_name)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace, container_name) (
-      container_core_utilization_percentage{{{self.filter.filter_string(exclude="workload")}}}
+      {gpu_or("container_core_utilization_percentage", self.filter.filter_string(exclude="workload"))}
     )))"""
         return promql
 
@@ -2019,7 +2018,7 @@ class K8sContainerMeta(K8sResourceMeta):
     on(pod_name, namespace, container_name)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace, container_name) (
-      container_mem_utilization_percentage{{{self.filter.filter_string(exclude="workload")}}}
+      {gpu_or("container_mem_utilization_percentage", self.filter.filter_string(exclude="workload"))}
     )))"""
         return promql
 
@@ -2033,7 +2032,7 @@ class K8sContainerMeta(K8sResourceMeta):
     on(pod_name, namespace, container_name)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace, container_name) (
-      container_request_gpu_memory{{{self.filter.filter_string(exclude="workload")}}}
+      {gpu_or("container_request_gpu_memory", self.filter.filter_string(exclude="workload"))}
     )))"""
         return promql
 
@@ -2047,7 +2046,7 @@ class K8sContainerMeta(K8sResourceMeta):
     on(pod_name, namespace, container_name)
     group_right(workload_kind, workload_name)
     sum by (pod_name, namespace, container_name) (
-      container_request_gpu_utilization{{{self.filter.filter_string(exclude="workload")}}}
+      {gpu_or("container_request_gpu_utilization", self.filter.filter_string(exclude="workload"))}
     )))"""
         return promql
 
