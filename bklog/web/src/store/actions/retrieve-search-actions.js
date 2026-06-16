@@ -10,7 +10,7 @@ import {
   readBlobRespToJson,
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
-import { retrieveRowCacheService, storeCacheService } from '@/storage';
+import { retrieveRowCacheService, retrieveSearchWorkerIngestService, storageHealthService, storeCacheService } from '@/storage';
 
 import { formatAdditionalFields, getCommonFilterAdditionWithValues, isSceneRetrieve } from '../helper.ts';
 import { reportRouteLog } from '../modules/report-helper.ts';
@@ -18,6 +18,66 @@ import RequestPool from '../request-pool.ts';
 
 let dateFieldSortList = [];
 let currentRetrieveRowQueryKey = '';
+
+const ingestSearchResponseOnMainThread = async (blob, {
+  fieldNames,
+  isPagination,
+  rowQueryKey,
+  startSeq,
+}) => {
+  const { code, data, result, message, permission } = await readBlobRespToJson(blob);
+  const rsolvedData = data;
+  if (result) {
+    const logList = Array.isArray(rsolvedData.list) ? rsolvedData.list : [];
+    const rowKeys = isPagination
+      ? await retrieveRowCacheService.appendRows(rowQueryKey, logList, startSeq, { fieldNames })
+      : await retrieveRowCacheService.replaceRows(rowQueryKey, logList, { fieldNames });
+    delete rsolvedData.list;
+    return {
+      code,
+      data: rsolvedData,
+      length: logList.length,
+      message,
+      permission,
+      result,
+      rowKeys,
+      size: logList.length,
+      source: 'main-thread',
+    };
+  }
+
+  return {
+    code,
+    data: rsolvedData,
+    length: 0,
+    message,
+    permission,
+    result,
+    rowKeys: [],
+    size: 0,
+    source: 'main-thread',
+  };
+};
+
+const ingestSearchResponse = async (blob, options) => {
+  try {
+    const workerResult = await retrieveSearchWorkerIngestService.ingestBlob(blob, {
+      fieldNames: options.fieldNames,
+      queryKey: options.rowQueryKey,
+      startSeq: options.startSeq,
+      writeMode: options.isPagination ? 'append' : 'replace',
+    });
+    return {
+      ...workerResult,
+      source: 'worker',
+    };
+  } catch (error) {
+    console.warn('[retrieve-search] WebWorker ingest failed, fallback to main thread', error);
+    storageHealthService.notifyWorkerFallback();
+    return ingestSearchResponseOnMainThread(blob, options);
+  }
+};
+
 const getProjectionFieldNames = (state) => {
   const fields = [
     ...(state.visibleFields || []),
@@ -207,6 +267,7 @@ export function requestIndexSetQueryAction(
       : '/search/index_set/union_search/';
 
   if (!payload?.isPagination) {
+    const previousRowQueryKey = currentRetrieveRowQueryKey;
     currentRetrieveRowQueryKey = retrieveRowCacheService.createQueryKey({
       searchUrl,
       searchCount,
@@ -217,6 +278,13 @@ export function requestIndexSetQueryAction(
       keyword: state.indexItem.keyword,
       addition: state.indexItem.addition,
     });
+    if (previousRowQueryKey) {
+      storageHealthService.clearActiveQuery(previousRowQueryKey);
+      retrieveRowCacheService.releaseQuery(previousRowQueryKey);
+      retrieveRowCacheService.clearQuery(previousRowQueryKey).catch((error) => {
+        console.warn('[retrieve-search] clear previous query rows failed', error);
+      });
+    }
   }
 
   const { start_time, end_time } = state.indexItem;
@@ -262,93 +330,131 @@ export function requestIndexSetQueryAction(
     };
   }
 
+  const requestRowQueryKey = payload.isPagination
+    ? (state.indexSetQueryResult.row_query_key || currentRetrieveRowQueryKey)
+    : currentRetrieveRowQueryKey;
+  const requestStartSeq = payload.isPagination ? (state.indexSetQueryResult.cached_count || 0) : 0;
+  const requestCurrentRowKeys = payload.isPagination ? (state.indexSetQueryResult.row_keys || []) : [];
+  let isStaleSearchResponse = false;
+  const isCurrentSearchRequest = () => (payload.isPagination
+    ? requestRowQueryKey === state.indexSetQueryResult.row_query_key
+      && requestStartSeq === (state.indexSetQueryResult.cached_count || 0)
+    : requestRowQueryKey === currentRetrieveRowQueryKey);
+
   return axiosInstance(params)
-    .then((resp) => {
+    .then(async (resp) => {
       if (resp.data && !resp.message) {
-        return readBlobRespToJson(resp.data).then(async ({ code, data, result, message, permission }) => {
-          const rsolvedData = data;
-          if (result) {
-            const logList = Array.isArray(rsolvedData.list) ? rsolvedData.list : [];
-            rsolvedData.total = rsolvedData.total.toNumber();
-            const size = logList.length;
-            const projectionFieldNames = getProjectionFieldNames(state);
-            const rowQueryKey = payload.isPagination
-              ? (state.indexSetQueryResult.row_query_key || currentRetrieveRowQueryKey)
-              : currentRetrieveRowQueryKey;
-            const startSeq = payload.isPagination ? (state.indexSetQueryResult.cached_count || 0) : 0;
-            const currentRowKeys = payload.isPagination ? (state.indexSetQueryResult.row_keys || []) : [];
-            const rowKeys = payload.isPagination
-              ? await retrieveRowCacheService.appendRows(rowQueryKey, logList, startSeq, { fieldNames: projectionFieldNames })
-              : await retrieveRowCacheService.replaceRows(rowQueryKey, logList, { fieldNames: projectionFieldNames });
+        const projectionFieldNames = getProjectionFieldNames(state);
+        const rowQueryKey = requestRowQueryKey;
+        const startSeq = requestStartSeq;
+        const currentRowKeys = requestCurrentRowKeys;
+        const {
+          code,
+          data,
+          result,
+          message,
+          permission,
+          rowKeys,
+          size,
+          source,
+        } = await ingestSearchResponse(resp.data, {
+          fieldNames: projectionFieldNames,
+          isPagination: payload.isPagination,
+          rowQueryKey,
+          startSeq,
+        });
+        const rsolvedData = data;
 
-            delete rsolvedData.list;
-            rsolvedData.row_keys = Object.freeze(currentRowKeys.concat(rowKeys));
-            rsolvedData.row_query_key = rowQueryKey;
-            rsolvedData.cached_count = rsolvedData.row_keys.length;
-
-            const catchUnionBeginList = parseBigNumberList(rsolvedData?.union_configs || []);
-            state.tookTime = payload.isPagination
-              ? state.tookTime + Number(data?.took || 0)
-              : Number(data?.took || 0);
-
-            if (!payload?.isPagination) {
-              const layoutRows = await retrieveRowCacheService.getRows(rowKeys.slice(0, Math.min(rowKeys.length, 10)));
-              commit('updateIsSetDefaultTableColumn', { list: layoutRows });
-            }
-            commit('updateSqlQueryFieldList', []);
-            commit('updateIndexItem', {
-              catchUnionBeginList,
-              begin: payload.isPagination ? begin : 0,
-            });
-            commit('updateIndexSetQueryResult', rsolvedData);
-            storeCacheService.setApiCache('retrieve/search-result-meta', rowQueryKey, {
-              ...rsolvedData,
-              row_keys: rsolvedData.row_keys,
-              row_query_key: rowQueryKey,
-              cached_count: rsolvedData.cached_count,
-            }).catch((error) => {
-              console.warn('[store-cache] cache search meta failed', error);
-            });
-
-            return {
-              data,
-              message,
-              code,
-              result,
-              length: size,
-              size,
-            };
-          }
-
-          if (code === '9900403') {
-            commit('updateState', {
-              authDialogData: {
-                apply_url: data.apply_url,
-                apply_data: permission,
-              },
+        if (!isCurrentSearchRequest()) {
+          isStaleSearchResponse = true;
+          if (!payload.isPagination || rowQueryKey !== state.indexSetQueryResult.row_query_key) {
+            retrieveRowCacheService.clearQuery(rowQueryKey).catch((error) => {
+              console.warn('[retrieve-search] clear stale query rows failed', error);
             });
           }
+          return { result: false, ignored: true };
+        }
 
-          commit('updateIndexSetQueryResult', {
-            exception_msg: message,
-            is_error: !result,
-            total: 0,
+        if (result) {
+          rsolvedData.total = rsolvedData.total?.toNumber ? rsolvedData.total.toNumber() : Number(rsolvedData.total || 0);
+          rsolvedData.row_keys = Object.freeze(currentRowKeys.concat(rowKeys));
+          rsolvedData.row_query_key = rowQueryKey;
+          rsolvedData.cached_count = rsolvedData.row_keys.length;
+          rsolvedData.ingest_source = source;
+          storageHealthService.markActiveQuery(rowQueryKey);
+
+          const catchUnionBeginList = parseBigNumberList(rsolvedData?.union_configs || []);
+          state.tookTime = payload.isPagination
+            ? state.tookTime + Number(rsolvedData?.took || 0)
+            : Number(rsolvedData?.took || 0);
+
+          if (!payload?.isPagination) {
+            const layoutRows = await retrieveRowCacheService.getRows(rowKeys.slice(0, Math.min(rowKeys.length, 10)));
+            commit('updateIsSetDefaultTableColumn', { list: layoutRows });
+          }
+          commit('updateSqlQueryFieldList', []);
+          commit('updateIndexItem', {
+            catchUnionBeginList,
+            begin: payload.isPagination ? begin : 0,
+          });
+          commit('updateIndexSetQueryResult', rsolvedData);
+          storeCacheService.setApiCache('retrieve/search-result-meta', rowQueryKey, {
+            ...rsolvedData,
+            row_keys: rsolvedData.row_keys,
+            row_query_key: rowQueryKey,
+            cached_count: rsolvedData.cached_count,
+          }).catch((error) => {
+            console.warn('[store-cache] cache search meta failed', error);
+          });
+          retrieveRowCacheService.gc({
+            excludeQueryKeys: Array.from(new Set([rowQueryKey, ...storageHealthService.getActiveQueryKeys()])),
+          }).catch((error) => {
+            console.warn('[retrieve-search] gc rows failed', error);
           });
 
           return {
-            data,
+            data: rsolvedData,
             message,
             code,
             result,
-            length: 0,
-            size: 0,
+            length: size,
+            size,
           };
+        }
+
+        if (code === '9900403') {
+          commit('updateState', {
+            authDialogData: {
+              apply_url: data.apply_url,
+              apply_data: permission,
+            },
+          });
+        }
+
+        commit('updateIndexSetQueryResult', {
+          exception_msg: message,
+          is_error: !result,
+          total: 0,
         });
+
+        return {
+          data,
+          message,
+          code,
+          result,
+          length: 0,
+          size: 0,
+        };
       }
 
       return { result: false };
     })
     .catch((e) => {
+      if (!isCurrentSearchRequest()) {
+        isStaleSearchResponse = true;
+        return;
+      }
+
       state.searchTotal = 0;
       retrieveRowCacheService.clearMemory();
       commit('updateSqlQueryFieldList', []);
@@ -366,8 +472,12 @@ export function requestIndexSetQueryAction(
       }
     })
     .finally(() => {
-      commit('updateIndexSetQueryResult', { is_loading: false });
+      if (!isStaleSearchResponse && isCurrentSearchRequest()) {
+        commit('updateIndexSetQueryResult', { is_loading: false });
+      }
       cachedQueryResult = null;
+
+      if (isStaleSearchResponse) return;
 
       if (payload?.from !== 'auto_refresh') {
         const result = {

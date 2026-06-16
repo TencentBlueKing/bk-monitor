@@ -34,6 +34,7 @@ import { BK_LOG_STORAGE, type RouteParams, SEARCH_MODE_DIC } from '@/store/store
 import RequestPool from '@/store/request-pool';
 import RouteUrlResolver, { RetrieveUrlResolver } from '@/store/url-resolver';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
+import { retrieveRowCacheService, storageHealthService } from '@/storage';
 import { useRoute, useRouter } from 'vue-router/composables';
 
 import { getSceneFieldKeys, getDefaultOp, getSceneConfig, getAllSceneFieldOpKeys } from './search-bar/scene-filter/scene-config';
@@ -771,6 +772,11 @@ export default () => {
   onUnmounted(() => {
     RequestPool.cancelAll();
     RetrieveHelper.destroy();
+    const activeRowQueryKey = store.state.indexSetQueryResult.row_query_key;
+    if (activeRowQueryKey) {
+      storageHealthService.clearActiveQuery(activeRowQueryKey);
+      retrieveRowCacheService.releaseQuery(activeRowQueryKey);
+    }
     // 清理掉当前查询结果，避免下次进入空白展示，同时释放检索页大对象引用。
     store.commit('resetIndexSetQueryResult', {
       row_keys: [],

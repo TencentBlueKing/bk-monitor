@@ -67,11 +67,25 @@ export class RetrieveRowRepository {
     await db.retrieveRows.where('queryKey').equals(queryKey).delete();
   }
 
-  async gc(now = Date.now()) {
-    await db.retrieveRows.where('expireAt').below(now).delete();
+  async gc(now = Date.now(), options: { excludeQueryKeys?: string[] } = {}) {
+    const excludeQueryKeySet = new Set(options.excludeQueryKeys?.filter(Boolean) ?? []);
+    if (!excludeQueryKeySet.size) {
+      await db.retrieveRows.where('expireAt').below(now).delete();
+      return;
+    }
+
+    await db.transaction('rw', db.retrieveRows, async () => {
+      const expiredRows = await db.retrieveRows.where('expireAt').below(now).toArray();
+      const deleteKeys = expiredRows
+        .filter(row => !excludeQueryKeySet.has(row.queryKey))
+        .map(row => row.key);
+      if (deleteKeys.length) {
+        await db.retrieveRows.bulkDelete(deleteKeys);
+      }
+    });
   }
 
-  private async getEntitiesByQuery(queryKey: string, offset = 0, limit?: number) {
+  async getEntitiesByQuery(queryKey: string, offset = 0, limit?: number) {
     if (!queryKey) return [];
     const collection = db.retrieveRows.where('[queryKey+seq]').between(
       [queryKey, offset],

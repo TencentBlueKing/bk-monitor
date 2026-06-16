@@ -3,36 +3,62 @@
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  */
 import db, { type KeyValueEntity } from '../core/db';
+import { storageHealthService } from '../services/storage-health.service';
 
 const DEFAULT_TTL = 7 * 24 * 60 * 60 * 1000;
 
 export class KeyValueRepository {
   async set(key: string, value: any, ttl = DEFAULT_TTL) {
+    if (!await storageHealthService.ensureIndexedDBUsable()) return;
     const now = Date.now();
-    await db.keyValues.put({
-      key,
-      value,
-      updatedAt: now,
-      expireAt: now + ttl,
-    });
+    try {
+      await db.keyValues.put({
+        key,
+        value,
+        updatedAt: now,
+        expireAt: now + ttl,
+      });
+    } catch (error) {
+      storageHealthService.resetIndexedDBUsable();
+      console.warn('[key-value-cache] set failed', key, error);
+    }
   }
 
   async get<T = any>(key: string): Promise<T | undefined> {
-    const item = await db.keyValues.get(key);
-    if (!item) return undefined;
-    if (item.expireAt && item.expireAt < Date.now()) {
-      await db.keyValues.delete(key);
+    if (!await storageHealthService.ensureIndexedDBUsable()) return undefined;
+    try {
+      const item = await db.keyValues.get(key);
+      if (!item) return undefined;
+      if (item.expireAt && item.expireAt < Date.now()) {
+        await db.keyValues.delete(key);
+        return undefined;
+      }
+      return item.value as T;
+    } catch (error) {
+      storageHealthService.resetIndexedDBUsable();
+      console.warn('[key-value-cache] get failed', key, error);
       return undefined;
     }
-    return item.value as T;
   }
 
   async remove(key: string) {
-    await db.keyValues.delete(key);
+    if (!await storageHealthService.ensureIndexedDBUsable()) return;
+    try {
+      await db.keyValues.delete(key);
+    } catch (error) {
+      storageHealthService.resetIndexedDBUsable();
+      console.warn('[key-value-cache] remove failed', key, error);
+    }
   }
 
   async gc() {
-    await db.keyValues.where('expireAt').below(Date.now()).delete();
+    if (!await storageHealthService.ensureIndexedDBUsable()) return;
+    try {
+      await db.keyValues.where('expireAt').below(Date.now()).delete();
+    } catch (error) {
+      storageHealthService.resetIndexedDBUsable();
+      console.warn('[key-value-cache] gc failed', error);
+    }
   }
 }
 

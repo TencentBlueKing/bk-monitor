@@ -6,6 +6,8 @@ import { manageDraftCacheService } from './services/manage-draft-cache.service';
 import { moduleLargeDataCacheService } from './services/module-large-data-cache.service';
 import { retrieveRowCacheService } from './services/retrieve-row-cache.service';
 import { retrieveRowProjectionService } from './services/retrieve-row-projection.service';
+import { retrieveSearchWorkerIngestService } from './services/retrieve-search-worker-ingest.service';
+import { storageHealthService } from './services/storage-health.service';
 import { storeCacheService } from './services/store-cache.service';
 
 export default {
@@ -13,6 +15,8 @@ export default {
   moduleLargeDataCache: moduleLargeDataCacheService,
   retrieveRows: retrieveRowCacheService,
   retrieveRowProjection: retrieveRowProjectionService,
+  retrieveSearchWorkerIngest: retrieveSearchWorkerIngestService,
+  storageHealth: storageHealthService,
   storeCache: storeCacheService,
 };
 
@@ -21,5 +25,7 @@ export {
   moduleLargeDataCacheService,
   retrieveRowCacheService,
   retrieveRowProjectionService,
+  retrieveSearchWorkerIngestService,
+  storageHealthService,
   storeCacheService,
 };
