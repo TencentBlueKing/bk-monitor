@@ -730,7 +730,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
                 }}
                 class='content-main-wrap'
               >
-                {this.tabContentRender()}
+                {this.cluster && this.tabContentRender()}
               </div>
             </div>
           </div>,
