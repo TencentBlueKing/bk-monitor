@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import copy
 import itertools
+import json
 import logging
 import re
 import threading
@@ -278,6 +279,7 @@ def sync_bkbase_cluster_info(
     username = _get_attr_by_path(cluster_spec, field_mappings["username"])
     password = _get_attr_by_path(cluster_spec, field_mappings["password"])
     version = _get_attr_by_path(cluster_spec, field_mappings.get("version", ""))
+    bk_biz_id = _get_attr_by_path(cluster_spec, field_mappings.get("bk_biz_id", ""))
 
     # kafka 集群专用字段
     sasl_mechanisms = _get_attr_by_path(cluster_spec, field_mappings.get("sasl_mechanisms", ""))
@@ -299,13 +301,19 @@ def sync_bkbase_cluster_info(
 
     # 设置集群配置
     default_settings = {}
+    custom_option = ""
 
     if cluster_type == models.ClusterInfo.TYPE_VM:
         # 如果是VictoriaMetrics集群，需要获取过期时间和所属业务ID
         # 记录过期时间，单位为秒
         default_settings["retention_time"] = (cluster_spec.get("expiresMs") or DEFAULT_VM_EXPIRES_MS) // 1000
         # 记录集群所属业务ID，只有业务独立集群才会有对应字段，默认为None
-        default_settings["bk_biz_id"] = cluster_spec.get("bkBizId")
+        default_settings["bk_biz_id"] = bk_biz_id
+    elif cluster_type == models.ClusterInfo.TYPE_DORIS:
+        # 记录集群所属业务ID，只有业务独立集群才会有对应字段，默认为None
+        default_settings["bk_biz_id"] = bk_biz_id
+        if bk_biz_id is not None:
+            custom_option = json.dumps({"bk_biz_id": bk_biz_id})
     elif cluster_type == models.ClusterInfo.TYPE_KAFKA:
         # 如果是kafka集群，需要获取SASL认证信息
         if is_auth:
@@ -357,6 +365,11 @@ def sync_bkbase_cluster_info(
                     is_updated = True
                     update_fields.append(field)
 
+            if custom_option and not cluster.custom_option:
+                cluster.custom_option = custom_option
+                is_updated = True
+                update_fields.append("custom_option")
+
             # 如果集群未被标记为已注册到bkbase平台，则标记为已注册
             if not cluster.registered_to_bkbase:
                 cluster.registered_to_bkbase = True
@@ -387,6 +400,7 @@ def sync_bkbase_cluster_info(
                 username=username or "",
                 password=password or "",
                 is_default_cluster=False,
+                custom_option=custom_option,
                 default_settings=default_settings,
                 registered_system=models.ClusterInfo.BKDATA_REGISTERED_SYSTEM,
                 registered_to_bkbase=True,
