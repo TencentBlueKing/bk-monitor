@@ -1674,11 +1674,12 @@ class CustomCreateSerializer(CustomCollectorBaseSerializer, PlatformIndexFieldsS
 
         # es 集群效验配置, doris 集群则跳过
         keys = attrs.keys()
-        if attrs.get("storage_cluster_type", STORAGE_CLUSTER_TYPE) == STORAGE_CLUSTER_TYPE:
-            if "retention" not in keys:
-                raise serializers.ValidationError(gettext("有效时间不能为空"))
-            if "allocation_min_days" not in keys:
-                raise serializers.ValidationError(gettext("冷热数据生效时间不能为空"))
+        if attrs.get("storage_cluster_id"):
+            if attrs.get("storage_cluster_type", STORAGE_CLUSTER_TYPE) == STORAGE_CLUSTER_TYPE:
+                if "retention" not in keys:
+                    raise serializers.ValidationError(gettext("有效时间不能为空"))
+                if "allocation_min_days" not in keys:
+                    raise serializers.ValidationError(gettext("冷热数据生效时间不能为空"))
 
         return attrs
 

@@ -27,7 +27,7 @@ from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_clustering.tasks.flow import update_clustering_clean
-from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
+from apps.log_databus.constants import STORAGE_CLUSTER_TYPE, EtlConfig
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
@@ -78,6 +78,8 @@ class TransferEtlHandler(EtlHandler):
             allocation_min_days = settings.ES_HOT_DATA_RETAIN_DAYS
             storage_replies = settings.ES_REPLICAS
             es_shards = settings.ES_SHARDS
+            if not etl_config:
+                etl_config = EtlConfig.BK_LOG_TEXT
 
         # 存储集群信息
         cluster_info = StorageHandler(storage_cluster_id).get_cluster_info_by_id()
