@@ -47,6 +47,8 @@ class ModelSpec:
     # 签名为 (serialized_item, instance)：必须从 instance 判定敏感性，
     # 不能只看 serialized_item——否则调用方不选 key 字段即可绕过脱敏。
     row_masker: Callable[[dict[str, Any], Any], dict[str, Any]] | None = None
+    # list-db-models 输出里 row_masking 的说明文案；缺省走 GlobalConfig 的 value 脱敏措辞。
+    row_mask_note: str = ""
 
 
 MASKED_VALUE = "***masked***"
@@ -71,6 +73,72 @@ def _mask_global_config_row(item: dict[str, Any], instance: Any) -> dict[str, An
     key = str(getattr(instance, "key", "") or "")
     if GLOBAL_CONFIG_SENSITIVE_KEY_PATTERN.search(key) or _looks_like_credential(item["value"]):
         item["value"] = MASKED_VALUE
+    return item
+
+
+# DeploymentConfigVersion.params 是 SymmetricJsonField（落库加密、读时解密），可能含采集目标的账号口令。
+# params 形如 {collector: {...}, plugin: {<作者自定义参数名>: value}}：plugin 子树的 key 是插件作者
+# 自定义的参数名，凭据可以叫任何名字（auth_token / apikey / headers ...），无法用名字穷举。
+# 主脱敏走 config_json 的 type（password/encrypt），与 SaaS 规范脱敏 password_convert 同源；
+# 下面的名字/URL 正则只作 config_json 取不到时的启发式兜底（覆盖 collector.username/password 等固定名）。
+DEPLOYMENT_PARAMS_SENSITIVE_KEY_PATTERN = re.compile(
+    r"PASSWORD|PASSWD|PASSPHRASE|SECRET|TOKEN|CREDENTIAL|PRIVATE|API_?KEY|ACCESS_KEY|APP_KEY|SECRET_KEY"
+    r"|USERNAME|AUTH|BEARER|COOKIE|CERT|ACCOUNT",
+    re.IGNORECASE,
+)
+
+
+def _mask_sensitive_tree(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            k: (
+                MASKED_VALUE
+                if isinstance(k, str) and DEPLOYMENT_PARAMS_SENSITIVE_KEY_PATTERN.search(k)
+                else _mask_sensitive_tree(v)
+            )
+            for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [_mask_sensitive_tree(v) for v in value]
+    if _looks_like_credential(value):
+        return MASKED_VALUE
+    return value
+
+
+def _iter_credential_param_keys(instance: Any):
+    """从插件 config_json 解析凭据参数清单 (mode, name)，凭据按 type（password/encrypt）判定。
+
+    与 SaaS 侧 password_convert 同源：plugin 子树参数名由作者自定义、无法用名字穷举，必须按类型脱敏。
+    取不到 config_json（插件版本缺失等）时返回空，回落到上面的名字/URL 启发式。
+    """
+    try:
+        config_json = instance.plugin_version.config.config_json or []
+    except Exception:
+        return
+    if not isinstance(config_json, list):
+        return
+    for desc in config_json:
+        if not isinstance(desc, dict) or desc.get("type") not in ("password", "encrypt"):
+            continue
+        # password_convert：mode 非 collector 一律归一为 plugin
+        mode = "collector" if desc.get("mode") == "collector" else "plugin"
+        name = desc.get("name")
+        if name:
+            yield mode, name
+
+
+def _mask_deployment_config_row(item: dict[str, Any], instance: Any) -> dict[str, Any]:
+    params = item.get("params")
+    if not isinstance(params, dict):
+        return item
+    # 第一层：名字/凭据型 URL 启发式（_mask_sensitive_tree 返回全新结构，不改 ORM 缓存的 params）
+    masked = _mask_sensitive_tree(params)
+    # 第二层：按插件 config_json 的 type=password/encrypt 精确脱敏（覆盖作者自定义参数名，权威）
+    for mode, name in _iter_credential_param_keys(instance):
+        sub = masked.get(mode)
+        if isinstance(sub, dict) and name in sub:
+            sub[name] = MASKED_VALUE
+    item["params"] = masked
     return item
 
 
@@ -179,6 +247,85 @@ ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
             }
         ],
     ),
+    "monitor_web.models.collecting.CollectConfigMeta": ModelSpec(
+        model_path="monitor_web.models.collecting.CollectConfigMeta",
+        fields={
+            "id",
+            "bk_tenant_id",
+            "bk_biz_id",
+            "name",
+            "collect_type",
+            "plugin_id",
+            "target_object_type",
+            "deployment_config_id",
+            "cache_data",
+            "last_operation",
+            "operation_result",
+            "label",
+            "create_time",
+            "create_user",
+            "update_time",
+            "update_user",
+        },
+        default_fields={
+            "id",
+            "bk_biz_id",
+            "name",
+            "collect_type",
+            "plugin_id",
+            "target_object_type",
+            "deployment_config_id",
+            "last_operation",
+            "operation_result",
+        },
+        examples=[
+            {
+                "filter": {"bk_biz_id": 2},
+                "fields": ["id", "name", "collect_type", "plugin_id", "deployment_config_id", "operation_result"],
+                "limit": 20,
+            }
+        ],
+    ),
+    "monitor_web.models.collecting.DeploymentConfigVersion": ModelSpec(
+        model_path="monitor_web.models.collecting.DeploymentConfigVersion",
+        fields={
+            "id",
+            "config_meta_id",
+            "subscription_id",
+            "target_node_type",
+            "target_nodes",
+            "params",
+            "remote_collecting_host",
+            "plugin_version_id",
+            "parent_id",
+            "task_ids",
+            "create_time",
+            "create_user",
+            "update_time",
+            "update_user",
+        },
+        default_fields={
+            "id",
+            "config_meta_id",
+            "subscription_id",
+            "target_node_type",
+            "target_nodes",
+            "plugin_version_id",
+        },
+        row_masker=_mask_deployment_config_row,
+        row_mask_note=(
+            f"params 内凭据按插件 config_json 的 password/encrypt 类型脱敏为 {MASKED_VALUE}"
+            "（覆盖作者自定义参数名），并叠加 password/token/auth 等名字与凭据型 URL 的启发式兜底；"
+            "保留端点 URL、port、period 等非凭据取证字段"
+        ),
+        examples=[
+            {
+                "filter": {"config_meta_id": 1},
+                "fields": ["id", "config_meta_id", "subscription_id", "target_node_type", "target_nodes", "params"],
+                "limit": 20,
+            }
+        ],
+    ),
 }
 
 
@@ -242,7 +389,7 @@ def _serialize_model_spec(model_name: str, spec: ModelSpec) -> dict[str, Any]:
         "examples": spec.examples,
     }
     if spec.row_masker is not None:
-        serialized["row_masking"] = f"敏感行的 value 字段会被脱敏为 {MASKED_VALUE}"
+        serialized["row_masking"] = spec.row_mask_note or f"敏感行的 value 字段会被脱敏为 {MASKED_VALUE}"
     return serialized
 
 

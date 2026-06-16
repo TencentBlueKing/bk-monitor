@@ -355,3 +355,103 @@ def test_read_db_model_global_config_masks_sensitive_rows(monkeypatch):
     assert items["DEMO_PLAIN_SWITCH"]["value"] == [101, 102]
     assert items["DEMO_APP_SECRET_KEY"]["value"] == db.MASKED_VALUE
     assert items["DEMO_APP_SECRET_KEY"]["data_type"] == "Char"
+
+
+# ---------- CollectConfigMeta / DeploymentConfigVersion 白名单 + params 凭据脱敏 ----------
+
+
+def test_collecting_models_registered_in_allowlist():
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    assert "monitor_web.models.collecting.CollectConfigMeta" in db.ALLOWED_MODEL_SPECS
+    assert "monitor_web.models.collecting.DeploymentConfigVersion" in db.ALLOWED_MODEL_SPECS
+
+    dep_spec = db.ALLOWED_MODEL_SPECS["monitor_web.models.collecting.DeploymentConfigVersion"]
+    # params 字段暴露（取证需要 metrics_url），但挂 row_masker 脱敏内嵌凭据
+    assert "params" in dep_spec.fields
+    assert dep_spec.row_masker is db._mask_deployment_config_row
+    serialized = db._serialize_model_spec("monitor_web.models.collecting.DeploymentConfigVersion", dep_spec)
+    assert "params" in serialized["allowed_fields"]
+    assert "password" in serialized["row_masking"]
+
+
+def test_collect_config_meta_exposes_fk_id_not_fk_object():
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    spec = db.ALLOWED_MODEL_SPECS["monitor_web.models.collecting.CollectConfigMeta"]
+    # 暴露 FK 的 _id 列而非 FK 对象（FK 对象非 JSON 可序列化）
+    assert "deployment_config_id" in spec.fields
+    assert "deployment_config" not in spec.fields
+
+
+def test_mask_deployment_config_row_masks_credentials_keeps_endpoint():
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    item = {
+        "id": 1,
+        "params": {
+            "collector": {
+                "period": 60,
+                "metrics_url": "http://127.0.0.1:25901/actuator/prometheus",
+                "username": "svc",
+                "password": "p@ss",
+            },
+            "plugin": {"token": "abc", "items": [{"secret_key": "k"}]},
+        },
+    }
+    masked = db._mask_deployment_config_row(item, object())
+    collector = masked["params"]["collector"]
+    assert collector["metrics_url"] == "http://127.0.0.1:25901/actuator/prometheus"
+    assert collector["period"] == 60
+    assert collector["username"] == db.MASKED_VALUE
+    assert collector["password"] == db.MASKED_VALUE
+    assert masked["params"]["plugin"]["token"] == db.MASKED_VALUE
+    assert masked["params"]["plugin"]["items"][0]["secret_key"] == db.MASKED_VALUE
+
+
+def test_mask_deployment_config_row_masks_credential_url_value():
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    item = {"params": {"endpoint": "http://user:secretpass@host:9090/metrics"}}
+    masked = db._mask_deployment_config_row(item, object())
+    assert masked["params"]["endpoint"] == db.MASKED_VALUE
+
+
+def test_mask_deployment_config_row_noop_when_params_absent():
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    item = {"id": 1, "subscription_id": 5}
+    assert db._mask_deployment_config_row(dict(item), object()) == item
+
+
+def test_mask_deployment_config_row_masks_author_named_credential_via_config_json():
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    # 作者自定义的凭据参数名（my_endpoint_key 不命中名字正则），必须靠 config_json 的 type=password 脱敏
+    config_json = [
+        {"mode": "plugin", "name": "my_endpoint_key", "type": "password", "default": ""},
+        {"mode": "collector", "name": "metric_url", "type": "text", "default": ""},
+    ]
+    instance = SimpleNamespace(plugin_version=SimpleNamespace(config=SimpleNamespace(config_json=config_json)))
+    item = {
+        "params": {
+            "collector": {"metric_url": "http://127.0.0.1:9100/metrics"},
+            "plugin": {"my_endpoint_key": "s3cr3t", "log_level": "info"},
+        }
+    }
+    masked = db._mask_deployment_config_row(item, instance)["params"]
+    # 类型驱动脱敏命中作者自定义名的凭据
+    assert masked["plugin"]["my_endpoint_key"] == db.MASKED_VALUE
+    # 非凭据 plugin 参数与端点 URL 保留（取证价值不损）
+    assert masked["plugin"]["log_level"] == "info"
+    assert masked["collector"]["metric_url"] == "http://127.0.0.1:9100/metrics"
+
+
+def test_mask_deployment_config_row_config_json_unreachable_falls_back_to_heuristic():
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    # config_json 取不到（instance 无 plugin_version）时不得报错，名字启发式仍兜住 collector 固定名凭据
+    item = {"params": {"collector": {"password": "x", "period": 30}}}
+    masked = db._mask_deployment_config_row(item, object())["params"]
+    assert masked["collector"]["password"] == db.MASKED_VALUE
+    assert masked["collector"]["period"] == 30
