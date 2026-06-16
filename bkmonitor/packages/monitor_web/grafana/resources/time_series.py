@@ -245,15 +245,14 @@ class TimeSeriesMetric(Resource):
         return metrics
 
     def perform_request(self, params):
-        metrics = list(self.query_metrics(params))
-        # 进程采集：静态指标缓存不含用户「维度提取」(extract_pattern) 出的维度（如 process），按业务真实上报补全
-        process_extra_dimensions = get_process_extra_dimensions(
-            get_request_tenant_id(), params["bk_biz_id"], {metric.result_table_id for metric in metrics}
-        )
+        metrics = self.query_metrics(params)
 
         custom_event_data_ids = set()
         data_source_dict = {}
         metric_configs: list[dict] = []
+        # 进程采集：按 result_table_id 懒加载真实上报维度（仅进程表触发 metadata 查询），随循环按需补全；
+        # 不在循环前对全量指标 materialize/预查，避免大业务下被 flat_format 100 截断前的无谓开销
+        process_extra_cache: dict = {}
 
         for metric in metrics:
             if (metric.data_source_label, metric.data_type_label) not in self.DisplayDataSource:
@@ -279,10 +278,14 @@ class TimeSeriesMetric(Resource):
 
             # 进程采集等场景：合并真实上报但不在静态指标缓存里的维度（按 id 去重）
             dimensions = list(metric.dimensions)
-            extra_dims = process_extra_dimensions.get(metric.result_table_id)
-            if extra_dims:
+            rt = metric.result_table_id
+            if rt not in process_extra_cache:
+                process_extra_cache[rt] = (
+                    get_process_extra_dimensions(get_request_tenant_id(), params["bk_biz_id"], {rt}).get(rt) or []
+                )
+            if process_extra_cache[rt]:
                 existing_ids = {d["id"] for d in dimensions}
-                dimensions += [d for d in extra_dims if d["id"] not in existing_ids]
+                dimensions += [d for d in process_extra_cache[rt] if d["id"] not in existing_ids]
 
             metric_config = {
                 "result_table_label": metric.result_table_label,
