@@ -47,7 +47,7 @@ class UnifyQueryTailHandler(UnifyQueryHandler):
 
     def search(self, *args):
         base_params = copy.deepcopy(self.base_dict)
-        body: dict = {}
+        body: dict = {"bk_biz_id": self.bk_biz_id}
         target_fields = self.index_set.get("target_fields", [])
         sort_fields = self.index_set.get("sort_fields", [])
 
