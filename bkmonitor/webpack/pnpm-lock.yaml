@@ -170,8 +170,8 @@ importers:
         specifier: 0.0.12
         version: 0.0.12(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)(highlight.js@11.11.1)(typescript@5.9.3)
       '@blueking/monitor-trace-explore':
-        specifier: 0.0.21
-        version: 0.0.21(highlight.js@11.11.1)(typescript@5.9.3)
+        specifier: 0.0.22
+        version: 0.0.22(highlight.js@11.11.1)(typescript@5.9.3)
       '@blueking/search-select-v3':
         specifier: 0.0.1-beta.10
         version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.112(highlight.js@11.11.1)(vue@2.7.16))(vue@2.7.16)
@@ -1651,8 +1651,8 @@ packages:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3
 
-  '@blueking/monitor-trace-explore@0.0.21':
-    resolution: {integrity: sha512-w4wRjQvdZSmzZS2MtT6Ljn6igDdTAC4AoQbJIrFqhdCtkmyi5EF13MLPhqwx7p+xoXTFMnlkiV7ATIwer6An2Q==}
+  '@blueking/monitor-trace-explore@0.0.22':
+    resolution: {integrity: sha512-Ym+qL8TbPKgDBqF2gwqplmoWlyXFEVwS0OStpUeZVZaTB6i5nrUY6oX2sW9R2jKU/SzRKUsn9GkltJA8Bx4p+Q==}
 
   '@blueking/monitor-trace-log@2.0.25':
     resolution: {integrity: sha512-6E/I1hzqvTpSpN0FwqVSAgO/ZxIaRlExXUSfOrMFaucvPEjjm84H0iaAeacrbCiQEbmuZ1p8WoD3g2Z4CdPfaA==}
@@ -10668,7 +10668,7 @@ snapshots:
       '@blueking/bkui-library': 0.0.0-beta.6
       vue: 2.7.16
 
-  '@blueking/monitor-trace-explore@0.0.21(highlight.js@11.11.1)(typescript@5.9.3)':
+  '@blueking/monitor-trace-explore@0.0.22(highlight.js@11.11.1)(typescript@5.9.3)':
     dependencies:
       '@blueking/tdesign-ui': 0.0.1(vue@3.5.29(typescript@5.9.3))
       bkui-vue: 2.0.2-beta.68(highlight.js@11.11.1)(vue@3.5.29(typescript@5.9.3))
