@@ -3188,18 +3188,80 @@ class KafkaTailResource(Resource):
 
         kafka_config_list = api.gse.query_stream_to(**kafka_params)
 
-        # Todo: 当前只有1条kafka_addr
-        kafka_addr = None
-        for kafka_config in kafka_config_list:
-            kafka_addr_list = kafka_config.get("kafka", {}).get("storage_address", [])
+        kafka_config = None
+        kafka_addr_list = []
+        for config_item in kafka_config_list:
+            kafka = config_item.get("kafka", {})
+            kafka_addr_list = kafka.get("storage_address", [])
             if kafka_addr_list:
-                kafka_addr = kafka_addr_list[0]
+                kafka_config = kafka
                 break
-        if not (isinstance(kafka_addr, dict) and kafka_addr.get("ip") and kafka_addr.get("port")):
+        kafka_servers = [
+            f"{kafka_addr['ip']}:{kafka_addr['port']}"
+            for kafka_addr in kafka_addr_list
+            if isinstance(kafka_addr, dict) and kafka_addr.get("ip") and kafka_addr.get("port")
+        ]
+        if not (kafka_config and kafka_servers):
             return []
 
+        if kafka_config.get("sasl_username") and kafka_config.get("sasl_passwd"):
+            consumer_config = {
+                "bootstrap.servers": ",".join(kafka_servers),
+                "group.id": f"bkmonitor-{uuid.uuid4()}",
+                "session.timeout.ms": 6000,
+                "auto.offset.reset": "latest",
+                "security.protocol": kafka_config.get("security_protocol") or config.KAFKA_SASL_PROTOCOL,
+                "sasl.mechanisms": kafka_config.get("sasl_mechanisms") or config.KAFKA_SASL_MECHANISM,
+                "sasl.username": kafka_config["sasl_username"],
+                "sasl.password": kafka_config["sasl_passwd"],
+            }
+            consumer = ConfluentConsumer(consumer_config)
+            metadata = consumer.list_topics(topic)
+            partitions = metadata.topics[topic].partitions.keys()
+            topic_partitions = [ConfluentTopicPartition(topic, partition) for partition in partitions]
+            consumer.assign(topic_partitions)
+            consumer.poll(0.5)
+
+            result = []
+            errors = []
+            for tp in topic_partitions:
+                # 获取该分区最大偏移量
+                low, high = consumer.get_watermark_offsets(tp)
+                end_offset = high
+                if not end_offset:
+                    continue
+
+                # 设置消息消费偏移量
+                if end_offset >= size:
+                    consumer.seek(ConfluentTopicPartition(topic, tp.partition, end_offset - size))
+                else:
+                    consumer.seek(ConfluentTopicPartition(topic, tp.partition, 0))
+
+                while len(result) < size:
+                    messages = consumer.consume(num_messages=size - len(result), timeout=1.0)
+                    if not messages:
+                        break
+
+                    for msg in messages:
+                        if msg.error():
+                            if msg.error().code() == KafkaError._PARTITION_EOF:
+                                break
+                            errors.append(msg.error())
+                        else:
+                            try:
+                                result.append(json.loads(msg.value().decode()))
+                            except Exception:  # pylint: disable=broad-except
+                                pass
+                        if len(result) >= size or msg.offset() == end_offset - 1:
+                            break
+
+            consumer.close()
+            if not result and errors:
+                raise KafkaException(errors)
+            return result
+
         consumer_config = {
-            "bootstrap_servers": f"{kafka_addr['ip']}:{kafka_addr['port']}",
+            "bootstrap_servers": kafka_servers,
             "request_timeout_ms": 1000,
             "consumer_timeout_ms": 1000,
         }
@@ -3208,6 +3270,7 @@ class KafkaTailResource(Resource):
         consumer.poll(size)
         topic_partitions = consumer.partitions_for_topic(topic)
         if not topic_partitions:
+            consumer.close()
             raise ValueError(_("partition获取失败"))
         result = []
         for partition in topic_partitions:
@@ -3228,10 +3291,12 @@ class KafkaTailResource(Resource):
                 except Exception:  # pylint: disable=broad-except
                     pass
                 if len(result) >= size:
+                    consumer.close()
                     return result
                 if msg.offset == end_offset - 1:
                     break
 
+        consumer.close()
         return result
 
 
