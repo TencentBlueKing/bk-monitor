@@ -1069,7 +1069,7 @@ class ListLinkResource(Resource):
         normalized_trace_id = str(trace_id or "")
         normalized_span_id = str(span_id or "")
         normalized_trace_state = "" if trace_state is None else str(trace_state)
-        dedup_key = (
+        dedup_key: tuple[str, str, str, str] = (
             normalized_trace_id,
             normalized_span_id,
             normalized_trace_state,
@@ -1109,13 +1109,13 @@ class ListLinkResource(Resource):
             "offset": 0,
             "limit": 1000,
         }
-        reported_params = {**common_params, "filters": reported_filters}
-        reverse_params = {**common_params, "filters": reverse_filters}
+        reported_params: dict[str, Any] = {**common_params, "filters": reported_filters}
+        reverse_params: dict[str, Any] = {**common_params, "filters": reverse_filters}
 
         reported_response, reverse_response = api.apm_api.query_span_list.bulk_request(
             [reported_params, reverse_params]
         )
-        reported_spans = reported_response.get("data") or []
-        reverse_spans = reverse_response.get("data") or []
+        reported_spans: list[dict[str, Any]] = reported_response.get("data") or []
+        reverse_spans: list[dict[str, Any]] = reverse_response.get("data") or []
 
         return self.build_links(reported_spans, reverse_spans)

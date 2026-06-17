@@ -112,9 +112,9 @@ class QueryProxy:
         if not filters and not query_string:
             return False
 
-        link_trace_id_key = f"{OtlpKey.LINKS}.{OtlpKey.TRACE_ID}"
-        link_span_id_key = f"{OtlpKey.LINKS}.{OtlpKey.SPAN_ID}"
-        trace_or_span_id_keys = (
+        link_trace_id_key: str = f"{OtlpKey.LINKS}.{OtlpKey.TRACE_ID}"
+        link_span_id_key: str = f"{OtlpKey.LINKS}.{OtlpKey.SPAN_ID}"
+        trace_or_span_id_keys: tuple[str, str, str, str] = (
             OtlpKey.TRACE_ID,
             OtlpKey.SPAN_ID,
             link_trace_id_key,
