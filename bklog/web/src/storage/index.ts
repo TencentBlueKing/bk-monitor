@@ -7,6 +7,7 @@ import { moduleLargeDataCacheService } from './services/module-large-data-cache.
 import { retrieveRowCacheService } from './services/retrieve-row-cache.service';
 import { retrieveRowProjectionService } from './services/retrieve-row-projection.service';
 import { retrieveSearchWorkerIngestService } from './services/retrieve-search-worker-ingest.service';
+import { performanceMonitorService } from './services/performance-monitor.service';
 import { storageHealthService } from './services/storage-health.service';
 import { storeCacheService } from './services/store-cache.service';
 
@@ -16,6 +17,7 @@ export default {
   retrieveRows: retrieveRowCacheService,
   retrieveRowProjection: retrieveRowProjectionService,
   retrieveSearchWorkerIngest: retrieveSearchWorkerIngestService,
+  performanceMonitor: performanceMonitorService,
   storageHealth: storageHealthService,
   storeCache: storeCacheService,
 };
@@ -26,6 +28,7 @@ export {
   retrieveRowCacheService,
   retrieveRowProjectionService,
   retrieveSearchWorkerIngestService,
+  performanceMonitorService,
   storageHealthService,
   storeCacheService,
 };

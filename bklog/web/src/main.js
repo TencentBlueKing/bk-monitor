@@ -46,6 +46,7 @@ import methods from './plugins/methods';
 import preload, { getAllSpaceList, getExternalMenuListBySpace } from './preload';
 import getRouter from './router';
 import store from './store';
+import { performanceMonitorService } from './storage';
 
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 import './scss/theme/theme-dark.scss';
@@ -101,6 +102,7 @@ const mountedVueInstance = () => {
 
     const router = getRouter(spaceUid, bkBizId, externalMenu);
     setRouterErrorHandle(router);
+    performanceMonitorService.init(router);
 
     store
       .dispatch('requestMenuList', spaceUid)
