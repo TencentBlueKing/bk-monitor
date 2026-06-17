@@ -122,17 +122,11 @@ class QueryProxy:
         )
 
         for filter_item in filters or []:
-            if all(
-                [
-                    filter_item["key"] in trace_or_span_id_keys,
-                    filter_item.get("operator") == FilterOperator.EQUAL,
-                ]
-            ):
+            if filter_item["key"] in trace_or_span_id_keys and filter_item.get("operator") == FilterOperator.EQUAL:
                 return True
 
-        if query_string:
-            if any(f'{field}: "' in query_string for field in trace_or_span_id_keys):
-                return True
+        if query_string and any(f'{field}: "' in query_string for field in trace_or_span_id_keys):
+            return True
 
         return False
 

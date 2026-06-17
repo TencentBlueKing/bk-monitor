@@ -1250,10 +1250,8 @@ class QuerySerializer(serializers.Serializer):
     sort = serializers.ListSerializer(label="排序字段", required=False, child=serializers.CharField())
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
-        start_time = attrs.get("start_time")
-        end_time = attrs.get("end_time")
-        has_start_time = start_time is not None
-        has_end_time = end_time is not None
+        has_start_time = attrs.get("start_time") is not None
+        has_end_time = attrs.get("end_time") is not None
         if has_start_time != has_end_time:
             raise ValidationError(_("start_time 和 end_time 必须同时提供"))
         if not has_start_time and not QueryProxy.is_trace_or_span_id_query(
