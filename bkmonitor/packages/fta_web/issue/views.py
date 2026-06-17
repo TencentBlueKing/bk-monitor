@@ -30,6 +30,7 @@ class IssueViewSet(ResourceViewSet):
         "issue/merge_sources",
         "issue/alert_enrich",
         "tapd/workspace",
+        "issue/get_tapd_fields",
     ]
 
     # 允许不传业务 ID 的接口（由业务层自行限制数据范围）
@@ -128,4 +129,6 @@ class IssueViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.issue.alert_issue_enrich, endpoint="issue/alert_enrich"),
         # 获取已授权的tapd项目列表
         ResourceRoute("POST", resource.issue.list_tapd_workspace, endpoint="tapd/workspace"),
+        # 获取 TAPD 单据的字段
+        ResourceRoute("POST", resource.issue.get_tapd_fields, endpoint="issue/get_tapd_fields"),
     ]

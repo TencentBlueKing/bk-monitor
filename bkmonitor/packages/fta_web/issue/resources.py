@@ -1390,3 +1390,142 @@ class ListTapdWorkspaceResource(Resource):
             item.pop("index", None)
 
         return tapd_workspace_info
+
+
+class GetTapdFieldsResource(Resource):
+    """
+    获取 Tapd 单据字段
+    """
+
+    # 核心字段定义（固定必填、不可取消）
+    # Story 核心字段：
+    #   - name: 标题
+    #   - description: 详细描述
+    #   - owner: 处理人
+    #   - priority_label: 优先级
+    #   - iteration_id: 所属迭代
+    STORY_CORE_FIELDS: set[str] = {"name", "description", "owner", "priority_label", "iteration_id"}
+
+    # Bug 核心字段：
+    #   - title: 标题
+    #   - description: 详细描述
+    #   - current_owner: 处理人
+    #   - priority_label: 优先级
+    #   - iteration_id: 所属迭代
+    #   - te: 测试人员
+    BUG_CORE_FIELDS: set[str] = {"title", "description", "current_owner", "priority_label", "iteration_id", "te"}
+
+    # 缺陷字段ID的映射（统一返回结构）
+    BUG_FIELD_ID_MAPPING: dict[str, str] = {"title": "name", "current_owner": "owner"}
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        workspace_id = serializers.IntegerField(label="项目ID")
+        tapd_type = serializers.CharField(label="tapd单据类型")
+        template_id = serializers.IntegerField(label="模板ID", default=0)
+
+    @staticmethod
+    def _convert_options(options: dict | list) -> list[dict[str, str]]:
+        """将选项从字典格式转换为列表格式
+
+        Args:
+            options: TAPD API 返回的选项数据，可能是字典、或空列表
+
+        Returns:
+            标准化的选项列表，每个元素包含 id 和 name 字段
+
+        Examples:
+            >>> _convert_options({"urgent": "紧急", "high": "高"})
+            [{"id": "urgent", "name": "紧急"}, {"id": "high", "name": "高"}]
+        """
+        if isinstance(options, dict):
+            return [{"id": key, "name": value} for key, value in options.items()]
+        return []
+
+    def _get_core_fields(self, tapd_type: str) -> set[str]:
+        """获取指定单据类型的核心字段集合
+
+        Args:
+            tapd_type: 单据类型，'story' 或 'bug'
+
+        Returns:
+            核心字段 ID 集合
+        """
+        if tapd_type == "story":
+            return self.STORY_CORE_FIELDS
+        elif tapd_type == "bug":
+            return self.BUG_CORE_FIELDS
+        else:
+            return set()
+
+    def _map_field_id(self, field_id: str, tapd_type: str) -> str:
+        """映射字段 ID
+
+        将缺陷字段 ID 映射为统一的字段 ID
+
+        Args:
+            field_id: 原始字段 ID
+            tapd_type: 单据类型
+
+        Returns:
+            映射后的字段 ID
+        """
+        if tapd_type == "bug" and field_id in self.BUG_FIELD_ID_MAPPING:
+            return self.BUG_FIELD_ID_MAPPING[field_id]
+        return field_id
+
+    def perform_request(self, validated_request_data: dict) -> list[dict]:
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        workspace_id = validated_request_data["workspace_id"]
+        tapd_type = validated_request_data["tapd_type"]
+        template_id = validated_request_data.get("template_id", 0)
+
+        # 当前仅支持 story 和 bug 单据类型以及 template_id=0（默认模板），不支持自定义模板字段查询，后续再扩展
+        if tapd_type not in ("story", "bug"):
+            raise serializers.ValidationError(f"不支持的 TAPD 单据类型: {tapd_type}，仅支持 story 和 bug")
+        if template_id != 0:
+            raise serializers.ValidationError(
+                f"当前不支持模板自定义字段查询，请传入 template_id=0（默认模板），当前传入值: {template_id}"
+            )
+
+        # 获取 TAPD 字段信息
+        if tapd_type == "story":
+            fields_info = api.tapd.get_story_fields_info(workspace_id=workspace_id)
+        else:  # tapd_type == "bug"
+            fields_info = api.tapd.get_bug_fields_info(workspace_id=workspace_id)
+
+        if not fields_info:
+            raise serializers.ValidationError(
+                f"获取 TAPD 字段信息失败，workspace_id={workspace_id}，tapd_type={tapd_type}，"
+                f"请检查 TAPD 项目配置或联系管理员"
+            )
+
+        # 获取核心字段集合
+        core_fields = self._get_core_fields(tapd_type)
+
+        result = []
+        for field_id, detail in fields_info.items():
+            # 本期只返回核心字段，下期再完善管理字段功能
+            if field_id not in core_fields:
+                continue
+
+            mapped_field_id = self._map_field_id(field_id, tapd_type)
+            options = self._convert_options(detail["options"])
+
+            result.append(
+                {
+                    "bk_biz_id": bk_biz_id,
+                    "workspace_id": workspace_id,
+                    "tapd_type": tapd_type,
+                    "template_id": template_id,
+                    "field_id": mapped_field_id,
+                    "field_name": detail.get("label", field_id),
+                    "field_type": detail["html_type"],
+                    "options": options,
+                    "is_core_field": True,
+                    "is_selected": True,
+                    "is_required": True,
+                }
+            )
+
+        return result

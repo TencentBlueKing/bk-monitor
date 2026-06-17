@@ -368,3 +368,27 @@ class GetTasksResource(TapdAPIResource):
         fields = serializers.CharField(
             label="设置获取的字段", required=False, help_text="设置获取的字段，多个字段间以','逗号隔开"
         )
+
+
+class GetStoryFieldsInfo(TapdAPIResource):
+    """
+    获取需求所有字段信息
+    """
+
+    action = "stories/get_fields_info"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        workspace_id = serializers.IntegerField(label="项目ID")
+
+
+class GetBugFieldsInfo(TapdAPIResource):
+    """
+    获取缺陷所有字段信息
+    """
+
+    action = "bugs/get_fields_info"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        workspace_id = serializers.IntegerField(label="项目ID")
