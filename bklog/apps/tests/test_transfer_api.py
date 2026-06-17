@@ -19,6 +19,11 @@ class ParseClusterInfoTest(SimpleTestCase):
 
                 self.assertEqual(parsed_custom_option["bk_biz_id"], "")
 
+    def test_empty_custom_option_defaults_to_empty_bk_biz_id(self):
+        parsed_custom_option = self._parse_custom_option("")
+
+        self.assertEqual(parsed_custom_option, {"bk_biz_id": ""})
+
     def test_invalid_or_non_dict_custom_option_defaults_to_empty_bk_biz_id(self):
         for custom_option in ("not-json", "[]"):
             with self.subTest(custom_option=custom_option):
