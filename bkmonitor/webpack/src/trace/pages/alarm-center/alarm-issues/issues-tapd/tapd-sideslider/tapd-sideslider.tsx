@@ -30,6 +30,7 @@ import { Button, Checkbox, Sideslider } from 'bkui-vue';
 import { mockFields } from '../../components/tapd-field-form/mock';
 import TapdFieldForm from '../../components/tapd-field-form/tapd-field-form';
 import TapdFieldFormLoadingCom from '../../components/tapd-field-form/tapd-field-form-loading';
+import TapdRelation from '../tapd-relation/tapd-relation';
 import TapdBasicForm from './components/tapd-basic-form';
 import useUserConfig from '@/hooks/useUserConfig';
 
@@ -79,6 +80,8 @@ export default defineComponent({
     const tapdFieldValue = shallowRef<Record<string, unknown>>({});
     /* 单据字段表单加载中 */
     const tapdFieldFormLoading = shallowRef(false);
+    // Issue 关联指定 TAPD 单据
+    const linkTapdIds = shallowRef<string[]>([]);
 
     /** 用户配置 key */
     const CREATE_TAPD_DETAIL_SETTING = computed(() => {
@@ -185,6 +188,10 @@ export default defineComponent({
       tapdFieldValue.value = val;
     };
 
+    const handleLinkTapdIdsChange = val => {
+      linkTapdIds.value = val;
+    };
+
     onMounted(() => {
       getTapdDefaultValue();
     });
@@ -198,12 +205,14 @@ export default defineComponent({
       tapdFieldValue,
       tapdFields,
       tapdFieldFormLoading,
+      linkTapdIds,
       handleShowChange,
       handleTabChange,
       handleSetDefaultValue,
       handleConfirm,
       handleFormDataChange,
       handleFieldValueChange,
+      handleLinkTapdIdsChange,
     };
   },
   render() {
@@ -237,17 +246,28 @@ export default defineComponent({
                 onUpdate:modelValue={this.handleFormDataChange}
               />
               {(() => {
-                if (this.tapdFieldFormLoading) {
-                  return <TapdFieldFormLoadingCom style='margin: 13px 40px' />;
+                if (this.tabActive === 'add') {
+                  if (this.tapdFieldFormLoading) {
+                    return <TapdFieldFormLoadingCom style='margin: 13px 40px' />;
+                  }
+                  if (this.tapdFields.length) {
+                    return (
+                      <TapdFieldForm
+                        ref='tapdFieldForm'
+                        style='margin: 13px 40px'
+                        fields={this.tapdFields}
+                        value={this.tapdFieldValue}
+                        onChange={this.handleFieldValueChange}
+                      />
+                    );
+                  }
                 }
-                if (this.tapdFields.length) {
+                if (this.tabActive === 'link') {
                   return (
-                    <TapdFieldForm
-                      ref='tapdFieldForm'
+                    <TapdRelation
                       style='margin: 13px 40px'
-                      fields={this.tapdFields}
-                      value={this.tapdFieldValue}
-                      onChange={this.handleFieldValueChange}
+                      modelValue={this.linkTapdIds}
+                      onUpdate:modelValue={this.handleLinkTapdIdsChange}
                     />
                   );
                 }
