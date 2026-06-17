@@ -128,6 +128,29 @@ def check_and_change_bkdata_table_id(query_config, bk_biz_id):
         query_config["result_table_id"] = str(bk_biz_id) + "_" + query_config["result_table_id"].split("_", 1)[-1]
 
 
+def normalize_result_table_id(query_config):
+    """归一结果表 ID 的分隔符（冒号 -> 点号）。
+
+    结果表 ID 的合法分隔符是点号（如 db.table），data_label 是无点号的单段标识，
+    冒号在两者中都不是合法字符。导出文件可能被手工改坏，也出现过把点号串成冒号的
+    情况（如 xxx_bkapm_metric:__default__）。冒号形态会被 unify-query 按点号切分失败、
+    误判为不存在的 data_label，导致导入后查询/数据预览无数据。这里在导入时统一还原。
+
+    计算平台（bk_data）结果表另有处理（check_and_change_bkdata_table_id）；
+    Prometheus 的 promql 表达式允许包含冒号，二者均跳过。
+    """
+    if query_config.get("data_source_label") in (DataSourceLabel.BK_DATA, DataSourceLabel.PROMETHEUS):
+        return
+
+    result_table_id = query_config.get("result_table_id") or ""
+    if ":" not in result_table_id:
+        return
+
+    query_config["result_table_id"] = result_table_id.replace(":", ".")
+    # metric_id 通常被一并串坏，置空交由保存逻辑按规范重新生成
+    query_config["metric_id"] = ""
+
+
 import_handler = {
     CollectConfigMeta.CollectType.PROCESS: import_process_collect,
     CollectConfigMeta.CollectType.LOG: import_one_log_collect,
@@ -377,6 +400,8 @@ def import_strategy(bk_biz_id, import_history_instance, strategy_config_list, is
             for query_config in create_config["items"][0]["query_configs"]:
                 # 对计算平台数据源进行处理
                 check_and_change_bkdata_table_id(query_config, bk_biz_id)
+                # 归一被改坏的结果表 ID 分隔符（冒号 -> 点号），避免导入后查询无数据
+                normalize_result_table_id(query_config)
 
                 agg_condition = query_config.get("agg_condition", [])
                 for condition_msg in agg_condition:
