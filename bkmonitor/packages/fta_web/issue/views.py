@@ -128,4 +128,6 @@ class IssueViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.issue.alert_issue_enrich, endpoint="issue/alert_enrich"),
         # 获取已授权的tapd项目列表
         ResourceRoute("POST", resource.issue.list_tapd_workspace, endpoint="tapd/workspace"),
+        # 获取 TAPD 单据的字段
+        ResourceRoute("POST", resource.issue.get_tapd_fields, endpoint="issue/get_tapd_fields"),
     ]
