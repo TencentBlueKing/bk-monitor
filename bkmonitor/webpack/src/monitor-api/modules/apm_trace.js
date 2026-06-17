@@ -29,6 +29,7 @@ export const traceChats = request('GET', 'apm/trace_api/trace_query/trace_charts
 export const traceOptions = request('GET', 'apm/trace_api/trace_query/trace_options/');
 export const listTrace = request('POST', 'apm/trace_api/trace_query/list_traces/');
 export const listSpan = request('POST', 'apm/trace_api/trace_query/list_spans/');
+export const listLinks = request('POST', 'apm/trace_api/trace_query/list_links/');
 export const listStandardFilterFields = request('GET', 'apm/trace_api/trace_query/standard_fields/');
 export const listFlattenTrace = request('POST', 'apm/trace_api/trace_query/list_flatten_traces/');
 export const listFlattenSpan = request('POST', 'apm/trace_api/trace_query/list_flatten_spans/');
@@ -59,6 +60,7 @@ export default {
   traceOptions,
   listTrace,
   listSpan,
+  listLinks,
   listStandardFilterFields,
   listFlattenTrace,
   listFlattenSpan,
