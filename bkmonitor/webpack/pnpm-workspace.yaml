@@ -49,3 +49,4 @@ allowBuilds:
 
 minimumReleaseAgeExclude:
   - '@blueking/monitor-trace-explore@0.0.21'
+  - '@blueking/monitor-trace-explore@0.0.22'
