@@ -14,3 +14,10 @@ bkmonitor/uv.lock
 # IPv4-looking string added to the test file is still checked.
 bkmonitor/packages/monitor_web/tests/scene_view/bkmonitor/models/test_bcs_node.py:[0-9]*:1\.1\.1\.1$
 bkmonitor/packages/monitor_web/tests/scene_view/bkmonitor/models/test_bcs_node.py:[0-9]*:2\.2\.2\.2$
+
+# Dummy fixture IPs asserted by test_get_variable_value.py (example IPs in mocked
+# dimension/host data). Exempt only these exact IPs in this file so any new
+# IPv4-looking string added to the test file is still checked.
+bkmonitor/packages/monitor_web/tests/grafana/test_get_variable_value.py:[0-9]*:10\.0\.0\.1$
+bkmonitor/packages/monitor_web/tests/grafana/test_get_variable_value.py:[0-9]*:10\.0\.0\.2$
+bkmonitor/packages/monitor_web/tests/grafana/test_get_variable_value.py:[0-9]*:1\.1\.1\.1$
