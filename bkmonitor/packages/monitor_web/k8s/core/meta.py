@@ -26,6 +26,7 @@ from bkmonitor.models import (
 from bkmonitor.utils.time_tools import hms_string
 from core.drf_resource import api, resource
 from monitor_web.k8s.core.filters import load_resource_filter
+from monitor_web.k8s.core.gpu_compat import gpu_or
 
 
 class FilterCollection:
@@ -1065,13 +1066,11 @@ class K8sClusterMeta(K8sResourceMeta):
     def tpl_prom_with_nothing(self, metric_name, exclude="", filter_string=""):
         if not filter_string:
             filter_string = self.filter.filter_string(exclude=exclude)
+        # GPU 指标叶子走双源:(原生 or dcgm 等价);非 GPU 指标原样返回(见 gpu_compat.gpu_or)
+        leaf = gpu_or(metric_name, filter_string)
         if self.agg_interval:
-            return (
-                f"sum by (bcs_cluster_id) "
-                f"({self.agg_method}_over_time("
-                f"{metric_name}{{{filter_string}}}[{self.agg_interval}:]))"
-            )
-        return f"{self.method} by (bcs_cluster_id) ({metric_name}{{{filter_string}}})"
+            return f"sum by (bcs_cluster_id) ({self.agg_method}_over_time({leaf}[{self.agg_interval}:]))"
+        return f"{self.method} by (bcs_cluster_id) ({leaf})"
 
     def tpl_prom_with_rate(self, metric_name, exclude="", filter_string=""):
         if not filter_string:
@@ -1279,11 +1278,11 @@ class K8sNodeMeta(K8sResourceMeta):
     def tpl_prom_with_nothing(self, metric_name, exclude="", filter_string=""):
         if not filter_string:
             filter_string = self.filter.filter_string(exclude=exclude)
+        # GPU 指标叶子走双源:(原生 or dcgm 等价);非 GPU 指标原样返回(见 gpu_compat.gpu_or)
+        leaf = gpu_or(metric_name, filter_string)
         if self.agg_interval:
-            return (
-                f"sum by (node) ({self.agg_method}_over_time({metric_name}{{{filter_string}}}[{self.agg_interval}:]))"
-            )
-        return f"{self.method} by (node) ({metric_name}{{{filter_string}}})"
+            return f"sum by (node) ({self.agg_method}_over_time({leaf}[{self.agg_interval}:]))"
+        return f"{self.method} by (node) ({leaf})"
 
     def tpl_prom_with_rate(self, metric_name, exclude="", filter_string=""):
         if not filter_string:

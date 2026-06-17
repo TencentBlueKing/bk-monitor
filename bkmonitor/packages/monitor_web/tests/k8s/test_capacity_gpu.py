@@ -50,56 +50,62 @@ class TestCapacityGpuPromql(TestCase):
                 self.assertTrue(promql, f"{type(meta).__name__}.meta_prom_with_{metric_id} 返回空")
 
     def test_node_gpu_usage_ratio(self):
+        # 叶子双源:(原生 or dcgm 等价);非 dcgm 集群 dcgm 支为空,or 回退原生
         self.assertEqual(
             K8sNodeMeta(2, "BCS-K8S-00000").meta_prom_with_node_gpu_usage_ratio,
-            f"avg by (node) (gpu_core_utilization_percentage{{{FILTER}}})",
+            f"avg by (node) ((gpu_core_utilization_percentage{{{FILTER}}} or DCGM_FI_DEV_GPU_UTIL{{{FILTER}}}))",
         )
         self.assertEqual(
             K8sClusterMeta(2, "BCS-K8S-00000").meta_prom_with_node_gpu_usage_ratio,
-            f"avg by (bcs_cluster_id) (gpu_core_utilization_percentage{{{FILTER}}})",
+            f"avg by (bcs_cluster_id) ((gpu_core_utilization_percentage{{{FILTER}}} or DCGM_FI_DEV_GPU_UTIL{{{FILTER}}}))",
         )
 
     def test_node_gpu_mem_usage_ratio(self):
+        # gpu_mem_usage / gpu_mem_each_card 两个叶子都双源(dcgm 总显存=FB_USED+FREE+RESERVED)
+        fb_total = (
+            f"(DCGM_FI_DEV_FB_USED{{{FILTER}}} + DCGM_FI_DEV_FB_FREE{{{FILTER}}} + DCGM_FI_DEV_FB_RESERVED{{{FILTER}}})"
+        )
         self.assertEqual(
             K8sNodeMeta(2, "BCS-K8S-00000").meta_prom_with_node_gpu_mem_usage_ratio,
-            f"(sum by (node) (gpu_mem_usage{{{FILTER}}}) / sum by (node) (gpu_mem_each_card{{{FILTER}}})) * 100",
+            f"(sum by (node) ((gpu_mem_usage{{{FILTER}}} or DCGM_FI_DEV_FB_USED{{{FILTER}}}))"
+            f" / sum by (node) ((gpu_mem_each_card{{{FILTER}}} or {fb_total}))) * 100",
         )
         self.assertEqual(
             K8sClusterMeta(2, "BCS-K8S-00000").meta_prom_with_node_gpu_mem_usage_ratio,
-            f"(sum by (bcs_cluster_id) (gpu_mem_usage{{{FILTER}}})"
-            f" / sum by (bcs_cluster_id) (gpu_mem_each_card{{{FILTER}}})) * 100",
+            f"(sum by (bcs_cluster_id) ((gpu_mem_usage{{{FILTER}}} or DCGM_FI_DEV_FB_USED{{{FILTER}}}))"
+            f" / sum by (bcs_cluster_id) ((gpu_mem_each_card{{{FILTER}}} or {fb_total}))) * 100",
         )
 
     def test_node_gpu_mem_used(self):
         # 默认聚合方法 sum，尊重用户选择（不写死）
         self.assertEqual(
             K8sNodeMeta(2, "BCS-K8S-00000").meta_prom_with_node_gpu_mem_used,
-            f"sum by (node) (gpu_mem_usage{{{FILTER}}})",
+            f"sum by (node) ((gpu_mem_usage{{{FILTER}}} or DCGM_FI_DEV_FB_USED{{{FILTER}}}))",
         )
         self.assertEqual(
             K8sClusterMeta(2, "BCS-K8S-00000").meta_prom_with_node_gpu_mem_used,
-            f"sum by (bcs_cluster_id) (gpu_mem_usage{{{FILTER}}})",
+            f"sum by (bcs_cluster_id) ((gpu_mem_usage{{{FILTER}}} or DCGM_FI_DEV_FB_USED{{{FILTER}}}))",
         )
 
     def test_node_gpu_power_usage(self):
         self.assertEqual(
             K8sNodeMeta(2, "BCS-K8S-00000").meta_prom_with_node_gpu_power_usage,
-            f"sum by (node) (gpu_power_usage{{{FILTER}}})",
+            f"sum by (node) ((gpu_power_usage{{{FILTER}}} or DCGM_FI_DEV_POWER_USAGE{{{FILTER}}}))",
         )
         self.assertEqual(
             K8sClusterMeta(2, "BCS-K8S-00000").meta_prom_with_node_gpu_power_usage,
-            f"sum by (bcs_cluster_id) (gpu_power_usage{{{FILTER}}})",
+            f"sum by (bcs_cluster_id) ((gpu_power_usage{{{FILTER}}} or DCGM_FI_DEV_POWER_USAGE{{{FILTER}}}))",
         )
 
     def test_node_gpu_temperature(self):
         # 聚合写死 max；指标名 gpu_temprature 为 exporter 原始拼写
         self.assertEqual(
             K8sNodeMeta(2, "BCS-K8S-00000").meta_prom_with_node_gpu_temperature,
-            f"max by (node) (gpu_temprature{{{FILTER}}})",
+            f"max by (node) ((gpu_temprature{{{FILTER}}} or DCGM_FI_DEV_GPU_TEMP{{{FILTER}}}))",
         )
         self.assertEqual(
             K8sClusterMeta(2, "BCS-K8S-00000").meta_prom_with_node_gpu_temperature,
-            f"max by (bcs_cluster_id) (gpu_temprature{{{FILTER}}})",
+            f"max by (bcs_cluster_id) ((gpu_temprature{{{FILTER}}} or DCGM_FI_DEV_GPU_TEMP{{{FILTER}}}))",
         )
 
     def test_node_gpu_anomaly_count(self):
