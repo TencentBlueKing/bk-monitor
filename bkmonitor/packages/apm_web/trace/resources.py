@@ -1108,6 +1108,8 @@ class ListLinkResource(Resource):
             "app_name": app_name,
             "offset": 0,
             "limit": 1000,
+            # SpanQuery 缺省会排除 links，Links 查询必须显式保留 links 用于构建正向关联。
+            "exclude_field": [OtlpKey.ATTRIBUTES, OtlpKey.EVENTS],
         }
         reported_params: dict[str, Any] = {**common_params, "filters": reported_filters}
         reverse_params: dict[str, Any] = {**common_params, "filters": reverse_filters}
