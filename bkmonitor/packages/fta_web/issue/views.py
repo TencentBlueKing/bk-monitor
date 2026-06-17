@@ -30,6 +30,7 @@ class IssueViewSet(ResourceViewSet):
         "issue/merge_sources",
         "issue/alert_enrich",
         "tapd/workspace",
+        "issue/get_tapd_fields",
     ]
 
     # 允许不传业务 ID 的接口（由业务层自行限制数据范围）
