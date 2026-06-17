@@ -39,6 +39,7 @@ import http from './api';
 import App from './app.tsx';
 import { bus } from './common/bus';
 import './common/preload-import.ts';
+
 import { renderHeader, xssFilter } from './common/util';
 import './directives/index';
 import JsonFormatWrapper from './global/json-format-wrapper.vue';
@@ -55,6 +56,8 @@ import './static/style.css';
 import '@blueking/bk-user-selector/vue2/vue2.css';
 import { BK_LOG_STORAGE } from './store/store.type.ts';
 import { urlArgs } from './store/default-values.ts';
+
+const isHeadlessRoute = () => new URLSearchParams(window.location.hash.split('?')[1] || window.location.search).get('hl') === '1';
 
 // import { localSettings } from './local.po';
 
@@ -90,7 +93,7 @@ const mountedVueInstance = () => {
     },
   };
 
-  preload({ http, store }).then(([spaceRequest]) => {
+  preload({ http, store, isHeadless: isHeadlessRoute() }).then(([spaceRequest]) => {
     const { space, spaceUid, bkBizId } = spaceRequest.value ?? {};
 
     let externalMenu = [];
@@ -186,7 +189,9 @@ const mountedVueInstance = () => {
           mounted() {
             // 对于手动输入URL，直接刷新页面重置所有参数和状态
             window.addEventListener('hashchange', this.reset);
-            getAllSpaceList(http, store);
+            if (!isHeadlessRoute()) {
+              getAllSpaceList(http, store);
+            }
           },
           beforeUnmount() {
             window.removeEventListener('hashchange', this.reset);

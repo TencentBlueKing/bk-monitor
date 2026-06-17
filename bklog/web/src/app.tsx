@@ -24,13 +24,6 @@
  * IN THE SOFTWARE.
  */
 import { computed, defineComponent, onMounted, ref, type Ref } from 'vue';
-
-import(/* webpackChunkName: 'appload-import' */ './common/appload-import');
-import(/* webpackChunkName: 'demand-import' */ './common/demand-import');
-
-import AuthDialog from '@/components/common/auth-dialog.vue';
-import GlobalSettingDialog from '@/components/global-setting/index';
-import HeadNav from '@/global/head-navi/index';
 import NoticeComponent from '@blueking/notice-component-vue2';
 import jsCookie from 'js-cookie';
 import { useRoute } from 'vue-router/composables';
@@ -43,6 +36,19 @@ import { join } from '@/global/utils/path';
 import '@blueking/notice-component-vue2/dist/style.css';
 import './app.scss';
 
+import(/* webpackChunkName: 'appload-import' */ './common/appload-import');
+const AuthDialog = () => import(/* webpackChunkName: 'auth-dialog' */ '@/components/common/auth-dialog.vue');
+const GlobalSettingDialog = () => import(/* webpackChunkName: 'global-setting-dialog' */ '@/components/global-setting/index');
+const HeadNav = () => import(/* webpackChunkName: 'head-nav' */ '@/global/head-navi/index');
+
+const isHeadlessEntry = () => new URLSearchParams(window.location.hash.split('?')[1] || window.location.search).get('hl') === '1';
+if (isHeadlessEntry()) {
+  import(/* webpackChunkName: 'demand-import-lite' */ './common/demand-import-lite');
+} else {
+  import(/* webpackChunkName: 'demand-import' */ './common/demand-import');
+}
+
+
 export default defineComponent({
   setup() {
     const route = useRoute();
@@ -53,7 +59,11 @@ export default defineComponent({
     const refNoticeComponent: Ref<any | null> = ref(null);
     const welcomePageData = ref(null);
 
-    const rootClass = computed(() => ({ 'clear-min-height': route.name === 'retrieve' }));
+    const isHeadless = computed(() => route.query.hl === '1');
+    const rootClass = computed(() => ({
+      'clear-min-height': route.name === 'retrieve',
+      'is-headless-app': isHeadless.value,
+    }));
 
     const noticeComponentStyle = computed(() => ({
       '--notice-component-height': `${noticeComponentHeight.value}px`,
@@ -69,6 +79,7 @@ export default defineComponent({
     const appBodyClassName = computed(() => [
       'log-search-container',
       isAsIframe.value && 'as-iframe',
+      isHeadless.value && 'is-headless',
       { 'is-show-notice': showAlert.value },
     ]);
 
@@ -117,7 +128,7 @@ export default defineComponent({
      * 渲染公告组件
      */
     const renderNoticeComponent = () => {
-      if (!isAsIframe.value) {
+      if (!isAsIframe.value && !isHeadless.value) {
         return (
           <NoticeComponent
             ref='refNoticeComponent'
@@ -140,7 +151,7 @@ export default defineComponent({
      * 渲染头部组件
      */
     const renderHeadComponent = () => {
-      if (!isAsIframe.value && route.path !== '/') {
+      if (!isAsIframe.value && !isHeadless.value && route.path !== '/') {
         return (
           <HeadNav
             welcome-data={welcomePageData.value}
@@ -173,7 +184,10 @@ export default defineComponent({
      * @returns
      */
     const renderAuthDialog = () => {
-      return <AuthDialog />;
+      if (!isHeadless.value) {
+        return <AuthDialog />;
+      }
+      return null;
     };
 
     /**
@@ -187,6 +201,9 @@ export default defineComponent({
      * 渲染全局设置弹窗
      */
     const renderGlobalSettingDialog = () => {
+      if (isHeadless.value) {
+        return null;
+      }
       return (
         <GlobalSettingDialog
           active-menu={globalActiveLabel.value}

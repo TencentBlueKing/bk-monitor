@@ -90,10 +90,12 @@ export const getAllSpaceList = (http, store) => {
 export default ({
   http,
   store,
+  isHeadless = false,
 }: {
   http: { request: (..._args: any) => Promise<any> };
   store: any;
   isExternal?: boolean;
+  isHeadless?: boolean;
 }) => {
   /**
    * 根据索引ID获取空间信息
@@ -306,10 +308,12 @@ export default ({
   /**
    * 获取用户引导数据
    */
-  const getUserGuideRequest = http.request('meta/getUserGuide').then((res) => {
-    store.commit('updateState', { userGuideData: res.data });
-    return res.data;
-  });
+  const getUserGuideRequest = isHeadless
+    ? Promise.resolve(null)
+    : http.request('meta/getUserGuide').then((res) => {
+      store.commit('updateState', { userGuideData: res.data });
+      return res.data;
+    });
 
   return Promise.allSettled([spaceRequest, userInfoRequest, globalsRequest, getUserGuideRequest]);
 };
