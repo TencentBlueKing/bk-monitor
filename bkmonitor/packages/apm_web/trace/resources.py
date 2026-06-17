@@ -1085,7 +1085,7 @@ class ListLinkResource(Resource):
             OtlpKey.ATTRIBUTES: attributes,
         }
 
-    def perform_request(self, validated_data: dict[str, Any]) -> list[dict[str, Any]]:
+    def perform_request(self, validated_data: dict[str, Any]) -> dict[str, Any]:
         bk_biz_id: int = validated_data["bk_biz_id"]
         app_name: str = validated_data["app_name"]
         trace_id: str | None = validated_data.get("trace_id")
@@ -1120,4 +1120,8 @@ class ListLinkResource(Resource):
         reported_spans: list[dict[str, Any]] = reported_response.get("data") or []
         reverse_spans: list[dict[str, Any]] = reverse_response.get("data") or []
 
-        return self.build_links(reported_spans, reverse_spans)
+        return {
+            OtlpKey.TRACE_ID: trace_id,
+            OtlpKey.SPAN_ID: span_id,
+            OtlpKey.LINKS: self.build_links(reported_spans, reverse_spans),
+        }

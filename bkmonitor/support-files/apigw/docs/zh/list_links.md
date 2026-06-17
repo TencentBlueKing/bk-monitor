@@ -2,7 +2,7 @@
 
 查询 APM Span 的关联 Links，同时返回当前 Span 上报的正向 Links 和链接到当前 Trace / Span 的反向 Links。
 
-接口返回统一的 OpenTelemetry Link 列表，可用于在 Span 详情中跳转到关联的 Trace 或 Span。
+接口返回请求的过滤字段和统一的 OpenTelemetry Link 列表，可用于在 Span 详情中跳转到关联的 Trace 或 Span。
 
 ### 请求参数
 
@@ -17,7 +17,7 @@
 
 1. `trace_id` 和 `span_id` 至少提供一个。
 2. 同时提供 `trace_id` 和 `span_id` 时，两个条件使用 `AND` 关系。
-3. 接口不校验 `trace_id` 与 `span_id` 是否属于同一个 Span。过滤条件不匹配时，返回空列表。
+3. 接口不校验 `trace_id` 与 `span_id` 是否属于同一个 Span。过滤条件不匹配时，`links` 返回空列表。
 4. 接口在当前 APM 应用的数据保留范围内查询，无需传入开始时间和结束时间。
 5. 返回结果包含以下两类 Link：
    - 正向 Link：请求条件命中的 Span 自身上报的 `links`。
@@ -57,9 +57,17 @@
 | result  | bool | 请求是否成功          |
 | code    | int  | 返回的状态码          |
 | message | str  | 描述信息            |
-| data    | list | OpenTelemetry Link 列表 |
+| data    | object | Links 查询结果 |
 
-#### data 列表中的 Link 对象字段
+#### data 对象字段
+
+| 字段名     | 类型   | 描述                           |
+|---------|------|------------------------------|
+| trace_id | str/null | 请求字段中的 Trace ID，未传时返回 `null` |
+| span_id  | str/null | 请求字段中的 Span ID，未传时返回 `null`    |
+| links    | list | OpenTelemetry Link 列表        |
+
+#### data.links 列表中的 Link 对象字段
 
 | 字段名        | 类型   | 描述                                                 |
 |------------|------|----------------------------------------------------|
@@ -75,23 +83,27 @@
     "result": true,
     "code": 200,
     "message": "OK",
-    "data": [
-        {
-            "trace_id": "1a2b3c4d5e6f708192a3b4c5d6e7f809",
-            "span_id": "0123456789abcdef",
-            "trace_state": "",
-            "attributes": {
-                "relation.index": 2,
-                "relation.step": "SpanLinkDemo"
+    "data": {
+        "trace_id": "38f6df9232036f09a9baecf246967ecb",
+        "span_id": "8b1fa48d1af1f60d",
+        "links": [
+            {
+                "trace_id": "1a2b3c4d5e6f708192a3b4c5d6e7f809",
+                "span_id": "0123456789abcdef",
+                "trace_state": "",
+                "attributes": {
+                    "relation.index": 1,
+                    "relation.step": "SpanLinkDemo"
+                }
+            },
+            {
+                "trace_id": "abcdef0123456789abcdef0123456789",
+                "span_id": "fedcba9876543210",
+                "trace_state": "",
+                "attributes": {}
             }
-        },
-        {
-            "trace_id": "abcdef0123456789abcdef0123456789",
-            "span_id": "fedcba9876543210",
-            "trace_state": "vendor=value",
-            "attributes": {}
-        }
-    ]
+        ]
+    }
 }
 ```
 
@@ -102,7 +114,11 @@
     "result": true,
     "code": 200,
     "message": "OK",
-    "data": []
+    "data": {
+        "trace_id": "38f6df9232036f09a9baecf246967ecb",
+        "span_id": null,
+        "links": []
+    }
 }
 ```
 

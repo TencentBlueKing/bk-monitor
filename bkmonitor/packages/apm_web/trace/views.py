@@ -156,14 +156,7 @@ class TraceQueryViewSet(ResourceViewSet):
         ResourceRoute("POST", TraceFieldStatisticsInfoResource, "field_statistics_info"),
         ResourceRoute("POST", TraceFieldStatisticsGraphResource, "field_statistics_graph"),
         ResourceRoute("POST", TraceGenerateQueryStringResource, "generate_query_string"),
-        ResourceRoute(
-            "POST",
-            ListLinkResource,
-            endpoint="list_links",
-            decorators=[
-                user_visit_record,
-            ],
-        ),
+        ResourceRoute("POST", ListLinkResource, endpoint="list_links"),
     ]
 
     @action(methods=["POST"], detail=False, url_path="download_topk")
