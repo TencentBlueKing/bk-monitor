@@ -310,4 +310,5 @@ export default {
   静态阈值算法只能添加一次: 'Static threshold algorithm can only be added once',
   同环比算法最多添加三个级别: 'Algorithm for adding three levels at most',
   必须选择一个检测规则: 'You must select a detection rule',
+  时间不能为空且必须大于0: 'Time cannot be empty and must be greater than 0',
 };

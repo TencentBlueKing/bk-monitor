@@ -147,6 +147,7 @@ export default {
   语音拨打顺序: 'Voice Call Order',
   串行: 'Serial',
   并行: 'Parallel',
+  检测周期: 'Detection Cycle',
 
   // 专业表单 - 图表相关
   已选图表: 'Selected charts',
