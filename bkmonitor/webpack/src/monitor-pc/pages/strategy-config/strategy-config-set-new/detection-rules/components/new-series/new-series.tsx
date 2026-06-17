@@ -103,7 +103,7 @@ export default class NewDimension extends tsc<NewSeriesProps, NewSeriesEvent> {
 
   get otherSelectLevel() {
     return this.otherSelectRuleData.reduce((pre, cur) => {
-      if (cur.type === DetectionRuleTypeEnum.Threshold) pre.push(cur.level);
+      if (cur.type === DetectionRuleTypeEnum.NewSeries) pre.push(cur.level);
       return pre;
     }, []);
   }
@@ -217,6 +217,7 @@ export default class NewDimension extends tsc<NewSeriesProps, NewSeriesEvent> {
                 v-model={this.formData.date}
                 behavior='simplicity'
                 min={1}
+                precision={0}
                 readonly={this.readonly}
                 show-controls={false}
                 type='number'
