@@ -16,6 +16,13 @@ from monitor_web.k8s.scenario import get_metrics
 # setup_filter 默认注入 bcs_cluster_id 与 container_name!="POD" 两个过滤
 FILTER = 'bcs_cluster_id="BCS-K8S-00000",container_name!="POD"'
 
+
+def _dual(native, dcgm):
+    """gpu_or 跨 schema 互斥输出的期望同构形(与 gpu_compat.gpu_or 对齐):
+    (原生 or ((dcgm) unless on() (原生)))。迁移期双源同开时,unless on() 保证至多一支贡献,外层 sum 不双算。"""
+    return f"({native} or (({dcgm}) unless on() ({native})))"
+
+
 GPU_METRIC_IDS = [
     "node_gpu_usage_ratio",
     "node_gpu_mem_usage_ratio",
@@ -50,14 +57,15 @@ class TestCapacityGpuPromql(TestCase):
                 self.assertTrue(promql, f"{type(meta).__name__}.meta_prom_with_{metric_id} 返回空")
 
     def test_node_gpu_usage_ratio(self):
-        # 叶子双源:(原生 or dcgm 等价);非 dcgm 集群 dcgm 支为空,or 回退原生
+        # 叶子双源 + 跨 schema 互斥;非 dcgm 集群 dcgm 支为空,or 回退原生
+        leaf = _dual(f"gpu_core_utilization_percentage{{{FILTER}}}", f"DCGM_FI_DEV_GPU_UTIL{{{FILTER}}}")
         self.assertEqual(
             K8sNodeMeta(2, "BCS-K8S-00000").meta_prom_with_node_gpu_usage_ratio,
-            f"avg by (node) ((gpu_core_utilization_percentage{{{FILTER}}} or DCGM_FI_DEV_GPU_UTIL{{{FILTER}}}))",
+            f"avg by (node) ({leaf})",
         )
         self.assertEqual(
             K8sClusterMeta(2, "BCS-K8S-00000").meta_prom_with_node_gpu_usage_ratio,
-            f"avg by (bcs_cluster_id) ((gpu_core_utilization_percentage{{{FILTER}}} or DCGM_FI_DEV_GPU_UTIL{{{FILTER}}}))",
+            f"avg by (bcs_cluster_id) ({leaf})",
         )
 
     def test_node_gpu_mem_usage_ratio(self):
@@ -65,53 +73,61 @@ class TestCapacityGpuPromql(TestCase):
         fb_total = (
             f"(DCGM_FI_DEV_FB_USED{{{FILTER}}} + DCGM_FI_DEV_FB_FREE{{{FILTER}}} + DCGM_FI_DEV_FB_RESERVED{{{FILTER}}})"
         )
+        used = _dual(f"gpu_mem_usage{{{FILTER}}}", f"DCGM_FI_DEV_FB_USED{{{FILTER}}}")
+        total = _dual(f"gpu_mem_each_card{{{FILTER}}}", fb_total)
         self.assertEqual(
             K8sNodeMeta(2, "BCS-K8S-00000").meta_prom_with_node_gpu_mem_usage_ratio,
-            f"(sum by (node) ((gpu_mem_usage{{{FILTER}}} or DCGM_FI_DEV_FB_USED{{{FILTER}}}))"
-            f" / sum by (node) ((gpu_mem_each_card{{{FILTER}}} or {fb_total}))) * 100",
+            f"(sum by (node) ({used}) / sum by (node) ({total})) * 100",
         )
         self.assertEqual(
             K8sClusterMeta(2, "BCS-K8S-00000").meta_prom_with_node_gpu_mem_usage_ratio,
-            f"(sum by (bcs_cluster_id) ((gpu_mem_usage{{{FILTER}}} or DCGM_FI_DEV_FB_USED{{{FILTER}}}))"
-            f" / sum by (bcs_cluster_id) ((gpu_mem_each_card{{{FILTER}}} or {fb_total}))) * 100",
+            f"(sum by (bcs_cluster_id) ({used}) / sum by (bcs_cluster_id) ({total})) * 100",
         )
 
     def test_node_gpu_mem_used(self):
         # 默认聚合方法 sum，尊重用户选择（不写死）
+        leaf = _dual(f"gpu_mem_usage{{{FILTER}}}", f"DCGM_FI_DEV_FB_USED{{{FILTER}}}")
         self.assertEqual(
             K8sNodeMeta(2, "BCS-K8S-00000").meta_prom_with_node_gpu_mem_used,
-            f"sum by (node) ((gpu_mem_usage{{{FILTER}}} or DCGM_FI_DEV_FB_USED{{{FILTER}}}))",
+            f"sum by (node) ({leaf})",
         )
         self.assertEqual(
             K8sClusterMeta(2, "BCS-K8S-00000").meta_prom_with_node_gpu_mem_used,
-            f"sum by (bcs_cluster_id) ((gpu_mem_usage{{{FILTER}}} or DCGM_FI_DEV_FB_USED{{{FILTER}}}))",
+            f"sum by (bcs_cluster_id) ({leaf})",
         )
 
     def test_node_gpu_power_usage(self):
+        leaf = _dual(f"gpu_power_usage{{{FILTER}}}", f"DCGM_FI_DEV_POWER_USAGE{{{FILTER}}}")
         self.assertEqual(
             K8sNodeMeta(2, "BCS-K8S-00000").meta_prom_with_node_gpu_power_usage,
-            f"sum by (node) ((gpu_power_usage{{{FILTER}}} or DCGM_FI_DEV_POWER_USAGE{{{FILTER}}}))",
+            f"sum by (node) ({leaf})",
         )
         self.assertEqual(
             K8sClusterMeta(2, "BCS-K8S-00000").meta_prom_with_node_gpu_power_usage,
-            f"sum by (bcs_cluster_id) ((gpu_power_usage{{{FILTER}}} or DCGM_FI_DEV_POWER_USAGE{{{FILTER}}}))",
+            f"sum by (bcs_cluster_id) ({leaf})",
         )
 
     def test_node_gpu_temperature(self):
         # 聚合写死 max；指标名 gpu_temprature 为 exporter 原始拼写
+        leaf = _dual(f"gpu_temprature{{{FILTER}}}", f"DCGM_FI_DEV_GPU_TEMP{{{FILTER}}}")
         self.assertEqual(
             K8sNodeMeta(2, "BCS-K8S-00000").meta_prom_with_node_gpu_temperature,
-            f"max by (node) ((gpu_temprature{{{FILTER}}} or DCGM_FI_DEV_GPU_TEMP{{{FILTER}}}))",
+            f"max by (node) ({leaf})",
         )
         self.assertEqual(
             K8sClusterMeta(2, "BCS-K8S-00000").meta_prom_with_node_gpu_temperature,
-            f"max by (bcs_cluster_id) ((gpu_temprature{{{FILTER}}} or DCGM_FI_DEV_GPU_TEMP{{{FILTER}}}))",
+            f"max by (bcs_cluster_id) ({leaf})",
         )
 
     def test_node_gpu_anomaly_count(self):
         ecc_filter = f'{FILTER},counter_type="aggregate"'
-        node_baseline = f"max by (node) (max_over_time(gpu_count{{{FILTER}}}[1d]))"
-        node_current = f"max by (node) (gpu_count{{{FILTER}}})"
+        # 掉卡半 gpu_count 走双源(dcgm 用 count(DCGM_FI_DEV_GPU_UTIL) 合成);max_over_time 用子查询 [1d:]。
+        # ECC 半维持原生(dcgm ECC 默认禁用,任务 #4),故 ecc 选择器仍是裸 gpu_ecc_error_count。
+        count_leaf = _dual(
+            f"gpu_count{{{FILTER}}}", f"count by (bcs_cluster_id, node) (DCGM_FI_DEV_GPU_UTIL{{{FILTER}}})"
+        )
+        node_baseline = f"max by (node) (max_over_time({count_leaf}[1d:]))"
+        node_current = f"max by (node) ({count_leaf})"
         # 注意最外层括号：meta_prom_by_sort 升序会拼接 " * -1"，裸 A + B 会因运算符优先级变成 A - B
         node_promql = K8sNodeMeta(2, "BCS-K8S-00000").meta_prom_with_node_gpu_anomaly_count
         self.assertTrue(node_promql.startswith("(") and node_promql.endswith(")"))
@@ -120,8 +136,8 @@ class TestCapacityGpuPromql(TestCase):
             f"((sum by (node) (increase(gpu_ecc_error_count{{{ecc_filter}}}[5m])) or {node_baseline} * 0)"
             f" + clamp_min({node_baseline} - ({node_current} or {node_baseline} * 0), 0))",
         )
-        cluster_baseline = f"max by (bcs_cluster_id, node) (max_over_time(gpu_count{{{FILTER}}}[1d]))"
-        cluster_current = f"max by (bcs_cluster_id, node) (gpu_count{{{FILTER}}})"
+        cluster_baseline = f"max by (bcs_cluster_id, node) (max_over_time({count_leaf}[1d:]))"
+        cluster_current = f"max by (bcs_cluster_id, node) ({count_leaf})"
         self.assertEqual(
             K8sClusterMeta(2, "BCS-K8S-00000").meta_prom_with_node_gpu_anomaly_count,
             "sum by (bcs_cluster_id) ("
