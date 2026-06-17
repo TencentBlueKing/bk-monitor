@@ -46,6 +46,7 @@ from apps.log_databus.constants import (
 )
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.utils.bkdata_clean import BKDataCleanUtils
+from apps.log_search.models import Space
 from apps.utils.function import ignored
 from apps.utils.log import logger
 from apps.utils.task import high_priority_task
@@ -65,24 +66,6 @@ def create_bkdata_data_id(collector_config: CollectorConfig, platform_username: 
     if not collector_config.bk_data_id or collector_config.bkdata_data_id:
         return
 
-    try:
-        BkDataAccessApi.get_deploy_summary(
-            {"raw_data_id": collector_config.bk_data_id, "bk_biz_id": collector_config.bk_biz_id}
-        )
-        # 如果获取 data_id 没有报错，说明已经在计算平台注册过，直接赋值保存即可
-        collector_config.bkdata_data_id = collector_config.bk_data_id
-        collector_config.save(update_fields=["bkdata_data_id"])
-
-        logger.info(
-            "data_id:{data_id} was existed in bkdata, sync skipped, collector_config_id: {collector_config_id}".format(
-                data_id=collector_config.bkdata_data_id, collector_config_id=collector_config.collector_config_id
-            )
-        )
-        return
-    except ApiResultError:
-        # data_id 获取失败，说明在计算平台中没创建过，需要创建
-        pass
-
     # 检验非CC业务的空间是否关联了CC业务, 如果不关联, 则跳过同步
     bk_biz_id = collector_config.get_bk_biz_id()
     if bk_biz_id < 0:
@@ -90,19 +73,63 @@ def create_bkdata_data_id(collector_config: CollectorConfig, platform_username: 
         if related_bk_biz_id < 0:
             return
         bk_biz_id = related_bk_biz_id
+    bk_tenant_id = Space.get_tenant_id(bk_biz_id=bk_biz_id)
+
+    try:
+        BkDataAccessApi.get_deploy_summary(
+            {"raw_data_id": collector_config.bk_data_id, "bk_biz_id": bk_biz_id},
+            bk_tenant_id=bk_tenant_id,
+        )
+        # 如果获取 data_id 没有报错，说明已经在计算平台注册过，直接赋值保存即可
+        collector_config.bkdata_data_id = collector_config.bk_data_id
+        collector_config.save(update_fields=["bkdata_data_id"])
+
+        logger.info(
+            f"data_id:{collector_config.bkdata_data_id} was existed in bkdata, sync skipped, collector_config_id: {collector_config.collector_config_id}"
+        )
+        return
+    except ApiResultError as e:
+        # data_id 获取失败，说明在计算平台中没创建过，需要创建
+        logger.warning(
+            "get bkdata deploy summary failed, will try to create deploy plan, "
+            "data_id: %s, collector_config_id: %s, bk_biz_id: %s, bk_tenant_id: %s, code: %s, err: %s",
+            collector_config.bk_data_id,
+            collector_config.collector_config_id,
+            bk_biz_id,
+            bk_tenant_id,
+            getattr(e, "code", None),
+            e,
+        )
 
     # 获取采集项的维护人员maintainers, 请求bkdata的platform_username
     collector_maintainers_and_platform_username = get_collector_maintainers_and_platform_username(
-        collector_config=collector_config, bk_biz_id=bk_biz_id, platform_username=platform_username
+        collector_config=collector_config,
+        bk_biz_id=bk_biz_id,
+        bk_tenant_id=bk_tenant_id,
+        platform_username=platform_username,
     )
     maintainers = collector_maintainers_and_platform_username["maintainers"]
     platform_username = collector_maintainers_and_platform_username["platform_username"]
+    if not maintainers or not platform_username:
+        logger.error(
+            "sync data_id:%s to bkdata skipped, collector_config_id: %s, bk_biz_id: %s, "
+            "bk_tenant_id: %s, maintainers: %s, platform_username: %s",
+            collector_config.bk_data_id,
+            collector_config.collector_config_id,
+            bk_biz_id,
+            bk_tenant_id,
+            maintainers,
+            platform_username,
+        )
+        if raise_exception:
+            raise CreateBkdataDataIdException(
+                CreateBkdataDataIdException.MESSAGE.format(index_set_id=collector_config.index_set_id)
+            )
+        return
 
     if not (collector_config.collector_config_name_en or collector_config.table_id):
         logger.error(
-            "collector_config {} dont have enough raw_data_name to create deploy plan".format(
-                collector_config.collector_config_id
-            )
+            f"collector_config {collector_config.collector_config_id} dont have enough raw_data_name to create deploy plan"
         )
         return
 
@@ -138,14 +165,13 @@ def create_bkdata_data_id(collector_config: CollectorConfig, platform_username: 
                     "description": collector_config.description,
                     "preassigned_data_id": collector_config.bk_data_id,
                 },
-            }
+            },
+            bk_tenant_id=bk_tenant_id,
         )
         collector_config.bkdata_data_id = collector_config.bk_data_id
         collector_config.save(update_fields=["bkdata_data_id"])
         logger.info(
-            "sync data_id:{data_id} to bkdata success, collector_config_id: {collector_config_id}".format(
-                data_id=collector_config.bkdata_data_id, collector_config_id=collector_config.collector_config_id
-            )
+            f"sync data_id:{collector_config.bkdata_data_id} to bkdata success, collector_config_id: {collector_config.collector_config_id}"
         )
     except Exception as e:
         if raise_exception:
@@ -153,11 +179,7 @@ def create_bkdata_data_id(collector_config: CollectorConfig, platform_username: 
                 CreateBkdataDataIdException.MESSAGE.format(index_set_id=collector_config.index_set_id)
             )
         logger.error(
-            "sync data_id:{data_id} to bkdata failed, collector_config_id: {collector_config_id}, err: {error}".format(
-                data_id=collector_config.bkdata_data_id,
-                collector_config_id=collector_config.collector_config_id,
-                error=e,
-            )
+            f"sync data_id:{collector_config.bkdata_data_id} to bkdata failed, collector_config_id: {collector_config.collector_config_id}, err: {e}"
         )
 
 
@@ -173,10 +195,7 @@ def review_bkdata_data_id():
     for collector_config in collector_configs:
         if collector_config.bkdata_data_id_sync_times >= MAX_CREATE_BKDATA_DATA_ID_FAIL_COUNT:
             logger.error(
-                "{collector_config_name} Creating bkdata_data_id exceeded the maximum number of retries: {cnt}".format(
-                    collector_config_name=collector_config.collector_config_name,
-                    cnt=MAX_CREATE_BKDATA_DATA_ID_FAIL_COUNT,
-                )
+                f"{collector_config.collector_config_name} Creating bkdata_data_id exceeded the maximum number of retries: {MAX_CREATE_BKDATA_DATA_ID_FAIL_COUNT}"
             )
             continue
 
@@ -226,7 +245,7 @@ def sync_clean(bk_biz_id: int):
 
 
 def get_collector_maintainers_and_platform_username(
-    collector_config: CollectorConfig, bk_biz_id: int, platform_username: str = None
+    collector_config: CollectorConfig, bk_biz_id: int, bk_tenant_id: str = None, platform_username: str = None
 ) -> dict[str, Any]:
     """
     获取当前采集项的维护人(maintainers)
@@ -251,7 +270,7 @@ def get_collector_maintainers_and_platform_username(
         },
         "fields": ["bk_biz_maintainer"],
     }
-    app_list = CCApi.get_app_list(params)
+    app_list = CCApi.get_app_list(params, bk_tenant_id=bk_tenant_id)
     if app_list and app_list["info"]:
         for maintainer in app_list["info"][0].get("bk_biz_maintainer", "").split(","):
             if not maintainer:
@@ -265,8 +284,8 @@ def get_collector_maintainers_and_platform_username(
     if collector_config.created_by in result["maintainers"]:
         result["platform_username"] = collector_config.created_by
     # 如果指定了平台运维人员，且在业务运维人员中，则使用指定的平台运维人员, 否则使用业务运维人员中的一个
-    elif not platform_username or platform_username not in result["maintainers"]:
-        result["platform_username"] = list(result["maintainers"])[0]
+    elif result["maintainers"] and (not platform_username or platform_username not in result["maintainers"]):
+        result["platform_username"] = sorted(result["maintainers"])[0]
     else:
         result["platform_username"] = platform_username
 
