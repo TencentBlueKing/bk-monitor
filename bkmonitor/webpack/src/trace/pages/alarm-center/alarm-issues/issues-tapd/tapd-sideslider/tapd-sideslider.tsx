@@ -27,10 +27,13 @@ import { computed, defineComponent, onMounted, shallowRef, useTemplateRef } from
 
 import { Button, Checkbox, Sideslider } from 'bkui-vue';
 
+import { mockFields } from '../../components/tapd-field-form/mock';
 import TapdFieldForm from '../../components/tapd-field-form/tapd-field-form';
+import TapdFieldFormLoadingCom from '../../components/tapd-field-form/tapd-field-form-loading';
 import TapdBasicForm from './components/tapd-basic-form';
 import useUserConfig from '@/hooks/useUserConfig';
 
+import type { IField } from '../../components/tapd-field-form/typing';
 import type { CreateTapdDefaultSetting, CreateTapdIssueRequest, TapdWorkspaceItem } from '../../typing/tapd';
 
 import './tapd-sideslider.scss';
@@ -54,6 +57,7 @@ export default defineComponent({
 
     /** 基础表单组件 ref，用于调用表单校验方法 */
     const basicFormRef = useTemplateRef<InstanceType<typeof TapdBasicForm>>('basicForm');
+    const tapdFieldFormRef = useTemplateRef<InstanceType<typeof TapdFieldForm>>('tapdFieldForm');
     /** 项目列表 */
     const workspaceList = shallowRef<TapdWorkspaceItem[]>([]);
     /** 用户设置的 TAPD 创建单据默认值 */
@@ -69,6 +73,12 @@ export default defineComponent({
     });
     /** 当前激活的 tab */
     const tabActive = shallowRef('add');
+    /* 单据字段 */
+    const tapdFields = shallowRef<IField[]>([]);
+    /* 单据字段值 */
+    const tapdFieldValue = shallowRef<Record<string, unknown>>({});
+    /* 单据字段表单加载中 */
+    const tapdFieldFormLoading = shallowRef(false);
 
     /** 用户配置 key */
     const CREATE_TAPD_DETAIL_SETTING = computed(() => {
@@ -77,6 +87,24 @@ export default defineComponent({
 
     /** 用户配置 hook */
     const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
+
+    /**
+     * @description 获取tapd单据字段
+     */
+    const getTapdFields = () => {
+      tapdFieldFormLoading.value = true;
+      tapdFieldValue.value = {};
+      const params = {
+        workspace_id: formData.value.workspace_id,
+        tapd_type: formData.value.tapd_type,
+      };
+      console.log(params);
+      setTimeout(() => {
+        tapdFieldFormLoading.value = false;
+        tapdFields.value = mockFields as IField[];
+      }, 1000);
+    };
+
     /**
      * 获取 TAPD 创建单据默认值
      */
@@ -101,6 +129,7 @@ export default defineComponent({
             sync_status: false,
           };
         }
+        getTapdFields();
       });
     };
 
@@ -137,10 +166,23 @@ export default defineComponent({
     /**
      * 处理确认创建
      */
-    const handleConfirm = () => {
+    const handleConfirm = async () => {
       basicFormRef.value?.validate().then(() => {
         console.log('success');
       });
+      const tapdFieldFormValid = await tapdFieldFormRef.value?.validate().catch(() => false);
+      console.log(tapdFieldFormValid);
+    };
+
+    const handleFormDataChange = () => {
+      getTapdFields();
+    };
+
+    /**
+     * @description 单据字段值变化
+     */
+    const handleFieldValueChange = val => {
+      tapdFieldValue.value = val;
     };
 
     onMounted(() => {
@@ -153,10 +195,15 @@ export default defineComponent({
       tabActive,
       workspaceList,
       createTapdDefaultValue,
+      tapdFieldValue,
+      tapdFields,
+      tapdFieldFormLoading,
       handleShowChange,
       handleTabChange,
       handleSetDefaultValue,
       handleConfirm,
+      handleFormDataChange,
+      handleFieldValueChange,
     };
   },
   render() {
@@ -187,8 +234,25 @@ export default defineComponent({
                 workspaceList={this.workspaceList}
                 onSetDefaultValue={this.handleSetDefaultValue}
                 onTabChange={this.handleTabChange}
+                onUpdate:modelValue={this.handleFormDataChange}
               />
-              <TapdFieldForm style='margin: 13px 40px' />
+              {(() => {
+                if (this.tapdFieldFormLoading) {
+                  return <TapdFieldFormLoadingCom style='margin: 13px 40px' />;
+                }
+                if (this.tapdFields.length) {
+                  return (
+                    <TapdFieldForm
+                      ref='tapdFieldForm'
+                      style='margin: 13px 40px'
+                      fields={this.tapdFields}
+                      value={this.tapdFieldValue}
+                      onChange={this.handleFieldValueChange}
+                    />
+                  );
+                }
+                return undefined;
+              })()}
               <div class='create-tapd-content'>
                 <div class='sync-tapd-status'>
                   <Checkbox v-model={this.formData.sync_status}>

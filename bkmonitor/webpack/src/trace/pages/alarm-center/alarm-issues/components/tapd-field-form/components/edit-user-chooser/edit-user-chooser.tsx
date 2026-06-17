@@ -27,6 +27,11 @@ import { type PropType, defineComponent } from 'vue';
  */
 import UserSelector from 'trace/components/user-selector/user-selector';
 
+import { useValidate } from '../../hooks/use-validate';
+import { EditType } from '../../typing';
+
+import './edit-user-chooser.scss';
+
 export default defineComponent({
   name: 'EditUserChooser',
   props: {
@@ -37,25 +42,47 @@ export default defineComponent({
       type: [Array, String] as PropType<string | string[]>,
       default: () => [],
     },
+    required: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
     'update:modelValue': (value: string[]) => Array.isArray(value),
   },
-  setup(_props, { emit }) {
+  setup(props, { emit }) {
+    const { errMsg, validate } = useValidate<string | string[]>(() => ({
+      fieldType: EditType.userChooser,
+      required: props.required,
+      value: props.modelValue,
+    }));
     const handleInput = val => {
       emit('update:modelValue', val);
     };
+    const handleBlur = () => {
+      validate();
+    };
+    const handleFocus = () => {
+      errMsg.value = '';
+    };
     return {
+      errMsg,
+      validate,
       handleInput,
+      handleBlur,
+      handleFocus,
     };
   },
   render() {
     return (
-      <div class='field-form-edit-user-chooser'>
+      <div class={['field-form-edit-user-chooser', { 'is-error': !!this.errMsg }]}>
         <UserSelector
           modelValue={this.modelValue}
+          onBlur={this.handleBlur}
+          onFocus={this.handleFocus}
           onUpdate:modelValue={this.handleInput}
         />
+        {this.errMsg ? <span class='err-msg'>{this.errMsg}</span> : undefined}
       </div>
     );
   },

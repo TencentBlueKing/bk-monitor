@@ -35,6 +35,7 @@ export const mockFields = [
     is_required: true,
     is_core_field: true,
     is_selected: true,
+    options: [],
   },
   {
     bk_biz_id: 0,
@@ -47,6 +48,7 @@ export const mockFields = [
     is_required: true,
     is_core_field: true,
     is_selected: true,
+    options: [],
   },
   {
     bk_biz_id: 0,
@@ -59,6 +61,7 @@ export const mockFields = [
     is_required: true,
     is_core_field: true,
     is_selected: true,
+    options: [],
   },
   {
     bk_biz_id: 0,
@@ -71,18 +74,28 @@ export const mockFields = [
     is_required: true,
     is_core_field: true,
     is_selected: true,
-  },
-  {
-    bk_biz_id: 0,
-    workspace_id: '1000000',
-    tapd_type: 'bug',
-    template_id: 0,
-    field_id: 'cc',
-    field_name: '抄送人',
-    field_type: 'mix_chooser',
-    is_required: false,
-    is_core_field: false,
-    is_selected: true,
+    options: [
+      {
+        id: 'urgent',
+        name: '紧急',
+      },
+      {
+        id: 'high',
+        name: '高',
+      },
+      {
+        id: 'medium',
+        name: '中',
+      },
+      {
+        id: 'low',
+        name: '低',
+      },
+      {
+        id: 'insignificant',
+        name: '无关紧要',
+      },
+    ],
   },
   {
     bk_biz_id: 0,
@@ -92,20 +105,14 @@ export const mockFields = [
     field_id: 'iteration_id',
     field_name: '迭代',
     field_type: 'select',
-    is_required: false,
-    is_core_field: false,
-    is_selected: false,
-  },
-  {
-    bk_biz_id: 0,
-    workspace_id: '1000000',
-    tapd_type: 'bug',
-    template_id: 0,
-    field_id: 'start_time',
-    field_name: '预计开始时间',
-    field_type: 'dateinput',
-    is_required: false,
-    is_core_field: false,
-    is_selected: false,
+    is_required: true,
+    is_core_field: true,
+    is_selected: true,
+    options: [
+      {
+        id: '111111111',
+        name: '【告警中心】创建tapd单据（当前迭代）',
+      },
+    ],
   },
 ];

@@ -54,6 +54,7 @@ export interface IField {
   is_core_field: boolean; // 是否核心字段。核心字段不可取消选中、固定必填
   is_required: boolean; // 是否必填。核心字段固定为 true；可选字段由用户在「管理字段」中配置
   is_selected: boolean; // 是否选中展示在创建tapd单据表单中。核心字段固定为 true；可选字段由用户在「管理字段」中勾选
+  options?: { id: string; name: string }[];
   tapd_type: string; // 单据类型（bug / story / task）
   template_id: number; // 模板 ID，0 表示不使用模板
   workspace_id: string; // TAPD 项目 ID

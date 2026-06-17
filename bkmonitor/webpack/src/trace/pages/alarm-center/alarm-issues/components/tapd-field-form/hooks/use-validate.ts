@@ -23,44 +23,40 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
 
-import { DatePicker } from 'bkui-vue';
+import { shallowRef } from 'vue';
 
-import './edit-date-input.scss';
+import { type TEditType, EditType } from '../typing';
 
-export default defineComponent({
-  name: 'EditDateInput',
-  props: {
-    modelValue: {
-      type: String,
-      default: '',
-    },
-    placeholder: {
-      type: String,
-      default: '',
-    },
-  },
-  emits: {
-    'update:modelValue': (_val: string) => typeof _val === 'string',
-  },
-  setup(_props, { emit }) {
-    const handleInput = val => {
-      emit('update:modelValue', val);
-    };
-    return {
-      handleInput,
-    };
-  },
-  render() {
-    return (
-      <div class='field-form-edit-date-input'>
-        <DatePicker
-          appendToBody={true}
-          modelValue={this.modelValue}
-          onUpdate:modelValue={this.handleInput}
-        />
-      </div>
-    );
-  },
-});
+export const useValidate = <T>(propsFn: () => { fieldType: TEditType; required: boolean; value: T }) => {
+  const errMsg = shallowRef('');
+
+  const validate = () => {
+    const props = propsFn();
+    if (!props.required) {
+      return true;
+    }
+    if (([EditType.input, EditType.richEdit, EditType.select] as TEditType[]).includes(props.fieldType)) {
+      if (!props.value) {
+        errMsg.value = window.i18n.t('必填项不能为空');
+      } else {
+        errMsg.value = '';
+      }
+      return !errMsg.value;
+    }
+    if (([EditType.userChooser] as TEditType[]).includes(props.fieldType)) {
+      if (!(props.value as unknown[]).length) {
+        errMsg.value = window.i18n.t('必填项不能为空');
+      } else {
+        errMsg.value = '';
+      }
+      return !errMsg.value;
+    }
+    return true;
+  };
+
+  return {
+    validate,
+    errMsg,
+  };
+};
