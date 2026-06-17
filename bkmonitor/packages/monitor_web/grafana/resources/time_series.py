@@ -957,8 +957,19 @@ class GetVariableValue(Resource):
                     {"label": task_name_mapping.get(v, _("任务({})已删除").format(v)), "value": v} for v in dimensions
                 ]
             elif dimension_field == "node_id":
-                nodes = list_nodes(bk_tenant_id=bk_tenant_id, query={"node_ids": dimensions})
-                result = [{"label": node.name, "value": str(node.id)} for node in nodes]
+                # 拨测 node_id 维度值有两种上报格式：数字主键（旧版 uptimecheckbeat 上报）
+                # 与 bk_cloud_id:ip（新版 bkmonitorbeat 上报）。底座 list_nodes 的 node_ids
+                # 过滤按整数主键匹配，若把 bk_cloud_id:ip 直接传入会触发
+                # "Field 'id' expected a number" 的 ValueError，因此一次性取出业务下的拨测节点，
+                # 同时按两种格式建立 label 映射，未命中的维度值原样返回，避免整个变量查询失败。
+                # include_common=True：业务可使用公共拨测节点，公共节点维度值同样需要翻译，
+                # 否则其数字 ID / bk_cloud_id:ip 会原样展示。
+                node_label_mapping: dict[str, str] = {}
+                for node in list_nodes(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, query={"include_common": True}):
+                    node_label_mapping[str(node.id)] = node.name
+                    if node.plat_id is not None and node.ip:
+                        node_label_mapping[f"{node.plat_id}:{node.ip}"] = node.name
+                result = [{"label": node_label_mapping.get(str(v), str(v)), "value": str(v)} for v in dimensions]
 
         result = result or [{"label": v, "value": v} for v in dimensions]
 
