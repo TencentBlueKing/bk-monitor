@@ -2877,12 +2877,23 @@ class KafkaTailResource(Resource):
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data["bk_tenant_id"]
         bk_data_id = validated_request_data.get("bk_data_id")
+        size = validated_request_data["size"]
         result_table = None
 
         # 参数处理,result_table / datasource
         if bk_data_id:
             logger.info("KafkaTailResource: got bk_data_id->[%s],try to tail kafka", bk_data_id)
-            datasource = models.DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id)
+            try:
+                datasource = models.DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id)
+            except models.DataSource.DoesNotExist:
+                logger.warning(
+                    "KafkaTailResource: DataSource not found, bk_tenant_id->[%s], bk_data_id->[%s], try gse config",
+                    bk_tenant_id,
+                    bk_data_id,
+                )
+                result = self._consume_with_gse_config_by_bk_data_id(bk_data_id, size)
+                result.reverse()
+                return result
             dsrt = models.DataSourceResultTable.objects.filter(bk_data_id=bk_data_id).first()
             if dsrt:
                 result_table = models.ResultTable.objects.get(table_id=dsrt.table_id)
@@ -2894,7 +2905,6 @@ class KafkaTailResource(Resource):
                 return []
             datasource = result_table.data_source
 
-        size = validated_request_data["size"]
         mq_ins = models.ClusterInfo.objects.get(cluster_id=datasource.mq_cluster_id)
 
         # Kafka是否需要进行鉴权,如SCRAM-SHA-512协议
@@ -3141,8 +3151,14 @@ class KafkaTailResource(Resource):
         """
         从gse获取V4链路的kafka集群信息
         """
+        return self._consume_with_gse_config_by_bk_data_id(datasource.bk_data_id, size)
+
+    def _consume_with_gse_config_by_bk_data_id(self, bk_data_id, size):
+        """
+        根据bk_data_id从gse获取V4链路的kafka集群信息
+        """
         route_params = {
-            "condition": {"channel_id": datasource.bk_data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
+            "condition": {"channel_id": bk_data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
             "operation": {"operator_name": settings.COMMON_USERNAME},
         }
 
