@@ -160,8 +160,10 @@ class TestGetVariableValue:
     def test_dimensions_with_uptimecheck_node_id(self, mocker):
         """拨测 node_id 维度查询：同时兼容 数字主键 与 bk_cloud_id:ip 两种上报格式
 
-        回归用例：bk_cloud_id:ip 格式的 node_id 不应被当作整数主键过滤而抛
-        "Field 'id' expected a number" 的 ValueError，且应翻译成对应节点名称。
+        回归用例：
+        1. bk_cloud_id:ip 格式的 node_id 不应被当作整数主键过滤而抛
+           "Field 'id' expected a number" 的 ValueError，且应翻译成对应节点名称。
+        2. 公共拨测节点（is_common=True）也应被翻译，因此必须以 include_common=True 查询。
         """
         params = {
             "bk_biz_id": 2,
@@ -175,20 +177,26 @@ class TestGetVariableValue:
                 "where": [],
             },
         }
-        get_dimension_data_return = {"values": {"node_id": ["0:10.0.0.1", "10"]}}
+        # 0:10.0.0.2 命中公共节点，验证公共拨测节点维度值同样被翻译
+        get_dimension_data_return = {"values": {"node_id": ["0:10.0.0.1", "0:10.0.0.2", "10"]}}
         mocker.patch(
             "api.unify_query.default.GetDimensionDataResource.perform_request", return_value=get_dimension_data_return
         )
-        mocker.patch(
+        mock_list_nodes = mocker.patch(
             "monitor_web.grafana.resources.time_series.list_nodes",
             return_value=[
-                SimpleNamespace(id=10, name="node-A", plat_id=None, ip=None),
-                SimpleNamespace(id=20, name="node-B", plat_id=0, ip="10.0.0.1"),
+                SimpleNamespace(id=10, name="node-A", plat_id=None, ip=None, is_common=False),
+                SimpleNamespace(id=20, name="node-B", plat_id=0, ip="10.0.0.1", is_common=False),
+                # 公共拨测节点：仅在 include_common=True 时才会被 list_nodes 返回
+                SimpleNamespace(id=30, name="common-node", plat_id=0, ip="10.0.0.2", is_common=True),
             ],
         )
         data = GetVariableValue().request(params)
+        # 必须显式包含公共节点，否则公共拨测节点维度值无法翻译
+        assert mock_list_nodes.call_args.kwargs.get("query") == {"include_common": True}
         assert sorted(data, key=lambda x: x["value"]) == [
             {"label": "node-B", "value": "0:10.0.0.1"},
+            {"label": "common-node", "value": "0:10.0.0.2"},
             {"label": "node-A", "value": "10"},
         ]
 
