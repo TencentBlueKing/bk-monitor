@@ -720,13 +720,12 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
         storages = self.storage_info() or [{}]
         return all([storage.get("status") == "running" for storage in storages])
 
-    def data_sampling(self, **kwargs):
+    def data_sampling(self, size: int = 10, **kwargs):
         resp_data = []
         if self.bk_data_id:
-            resp = api.bkdata.get_data_bus_sampling_data(data_id=self.bk_data_id)
+            resp = api.metadata.kafka_tail({"bk_data_id": self.bk_data_id, "size": size})
             for log in resp:
-                log_content = json.loads(log["value"])
-                resp_data.append({"raw_log": log_content, "sampling_time": ""})
+                resp_data.append({"raw_log": log, "sampling_time": ""})
         return resp_data
 
     def get_data_view_config(self, **kwargs):
