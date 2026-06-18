@@ -27,8 +27,40 @@
 <template>
   <div class="data-storage-container">
     <section class="partial-content">
-      <div class="main-title">
-        {{ $t('基础信息') }}
+      <div class="header">
+        <div class="main-title">
+          {{ $t('基础信息') }}
+        </div>
+        <!-- 编辑按钮和创建人信息 -->
+        <div v-if="isV2Enabled" class="edit-btn-container">
+          <bk-button
+            v-cursor="{ active: !editAuth }"
+            style="min-width: 88px; color: #3a84ff"
+            class="mr10"
+            :theme="'default'"
+            @click="handleClickEdit"
+          >
+            {{ $t('编辑') }}
+          </bk-button>
+          <bk-popover placement="bottom-end">
+            <bk-button class="bklog-icon bklog-lishijilu" />
+            <template #content>
+              <div class="create-name-and-time">
+                <div v-for="item in createAndTimeData" :key="item.key">
+                  <span>{{ item.label }}</span>
+                  <span>
+                    <template v-if="item.isUserAccount">
+                      <bk-user-display-name :user-id="item.value" />
+                    </template>
+                    <template v-else>
+                      {{ item.value }}
+                    </template>
+                  </span>
+                </div>
+              </div>
+            </template>
+          </bk-popover>
+        </div>
       </div>
       <dl class="description-list">
         <div class="description-row">
@@ -191,15 +223,24 @@
 </template>
 
 <script>
-  import { formatFileSize } from '@/common/util';
+  import { formatFileSize, utcFormatDate } from '@/common/util';
   import { mapState } from 'vuex';
   import useUtils from '@/hooks/use-utils';
+  import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
 
   export default {
     props: {
       indexSetData: {
         type: Object,
         required: true,
+      },
+      editAuth: {
+        type: Boolean,
+        default: false,
+      },
+      editAuthData: {
+        type: Object,
+        default: null,
       },
     },
     data() {
@@ -224,11 +265,15 @@
           limit: 10,
           count: 0,
         },
+        createAndTimeData: [],
       };
     },
     computed: {
       ...mapState(['spaceUid', 'bkBizId']),
       ...mapState('collect', ['scenarioMap']),
+      isV2Enabled() {
+        return isFeatureToggleOn('log_manage_v2', [String(this.bkBizId), String(this.spaceUid)]);
+      },
       pagedIndexesList() {
         const start = (this.indexesPagination.current - 1) * this.indexesPagination.limit;
         const end = start + this.indexesPagination.limit;
@@ -245,10 +290,66 @@
       },
     },
     created() {
+      this.getCollectDetail();
       this.fetchIndexes();
       this.fetchRecords();
     },
     methods: {
+      getCollectDetail() {
+        try {
+          const { indexSetData } = this;
+          const createAndTimeData = [
+            {
+              key: 'updated_by',
+              label: this.$t('更新人'),
+              isUserAccount: true,
+            },
+            {
+              key: 'updated_at',
+              label: this.$t('更新时间'),
+            },
+            {
+              key: 'created_by',
+              label: this.$t('创建人'),
+              isUserAccount: true,
+            },
+            {
+              key: 'created_at',
+              label: this.$t('创建时间'),
+            },
+          ];
+          this.createAndTimeData = createAndTimeData.map(item => {
+            if (item.key === 'created_at' || item.key === 'updated_at') {
+              item.value = utcFormatDate(indexSetData[item.key], true);
+            } else {
+              item.value = indexSetData[item.key];
+            }
+            return item;
+          });
+        } catch (e) {
+          console.warn(e);
+        }
+      },
+      handleClickEdit() {
+        if (!this.editAuth && this.editAuthData) {
+          this.$store.commit('updateState', { 'authDialogData': this.editAuthData });
+          return;
+        }
+        const params = {};
+        // bkdata/es 类型使用 index_set_id 作为 collectorId
+        params.collectorId = this.indexSetData.index_set_id;
+        const backRoute = this.$route.name;
+        this.$router.push({
+          name: 'collectEdit',
+          params,
+          query: {
+            spaceUid: this.$store.state.spaceUid,
+            backRoute,
+            type: 'basicInfo',
+            typeKey: this.$route.query.typeKey,
+          },
+        });
+      },
       async fetchIndexes() {
         try {
           // 获取索引列表
@@ -414,6 +515,26 @@
 
     &.red {
       color: #ea3636;
+    }
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    border-bottom: 1px solid #dcdee5;
+    position: relative;
+
+    .main-title {
+      border-bottom: none;
+      margin-bottom: 0;
+    }
+
+    .edit-btn-container {
+      position: absolute;
+      right: 0;
+      top: -4px;
     }
   }
 </style>
