@@ -1519,10 +1519,10 @@ class ProfileDataSource(ApmDataSourceConfigBase):
         global_user = get_global_user(bk_tenant_id=bk_tenant_id)
         maintainer = global_user if not apm_maintainers else f"{global_user},{apm_maintainers}"
 
-        # 判断是否使用 V4 链路（以原始 bk_biz_id 作为判断依据）
+        # 判断是否使用 V4 链路：全局默认开启或命中业务白名单
         # GlobalConfig 前端输入的值可能为字符串，统一转 int 比较
         v4_white_list = [int(x) for x in settings.APM_PROFILE_V4_BIZ_WHITE_LIST]
-        use_v4 = bk_biz_id in v4_white_list
+        use_v4 = settings.APM_PROFILING_DEFAULT_USE_BKDATA_V4 or bk_biz_id in v4_white_list
 
         if use_v4:
             # V4 声明式链路：轮询可能长达 5 分钟，不可放入事务内
