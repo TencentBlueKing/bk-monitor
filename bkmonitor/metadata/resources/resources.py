@@ -2873,6 +2873,7 @@ class KafkaTailResource(Resource):
         bk_data_id = serializers.IntegerField(required=False, label="数据源ID")
         size = serializers.IntegerField(required=False, label="拉取条数", default=10)
         namespace = serializers.CharField(required=False, label="命名空间", default="bkmonitor")
+        use_gse_config = serializers.BooleanField(required=False, label="是否使用GSE配置", default=False)
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data["bk_tenant_id"]
@@ -2904,6 +2905,12 @@ class KafkaTailResource(Resource):
             if not result_table:
                 return []
             datasource = result_table.data_source
+
+        # 如果使用GSE配置，则直接返回
+        if validated_request_data["use_gse_config"]:
+            result = self._consume_with_gse_config_by_bk_data_id(bk_data_id, size)
+            result.reverse()
+            return result
 
         mq_ins = models.ClusterInfo.objects.get(cluster_id=datasource.mq_cluster_id)
 
@@ -3000,16 +3007,13 @@ class KafkaTailResource(Resource):
 
         for tp in topic_partitions:
             # 获取该分区最大偏移量
-            low, high = consumer.get_watermark_offsets(tp)
-            end_offset = high
-            if not end_offset:
+            low_offset, high_offset = consumer.get_watermark_offsets(tp)
+            if size <= 0 or high_offset <= low_offset:
                 continue
+            start_offset = max(low_offset, high_offset - size)
 
             # 设置消息消费偏移量
-            if end_offset >= size:
-                consumer.seek(ConfluentTopicPartition(topic, tp.partition, end_offset - size))
-            else:
-                consumer.seek(ConfluentTopicPartition(topic, tp.partition, 0))
+            consumer.seek(ConfluentTopicPartition(topic, tp.partition, start_offset))
 
             while len(result) < size:
                 messages = consumer.consume(num_messages=size - len(result), timeout=1.0)
@@ -3027,7 +3031,7 @@ class KafkaTailResource(Resource):
                             result.append(json.loads(msg.value().decode()))
                         except Exception:  # pylint: disable=broad-except
                             pass
-                    if msg.offset() == end_offset - 1:
+                    if msg.offset() >= high_offset - 1:
                         break
 
         consumer.close()
@@ -3126,15 +3130,14 @@ class KafkaTailResource(Resource):
         for partition in topic_partitions:
             # 获取该分区最大偏移量
             tp = TopicPartition(topic=datasource.mq_config.topic, partition=partition)
-            end_offset = consumer.end_offsets([tp])[tp]
-            if not end_offset:
+            low_offset = consumer.beginning_offsets([tp])[tp]
+            high_offset = consumer.end_offsets([tp])[tp]
+            if size <= 0 or high_offset <= low_offset:
                 continue
+            start_offset = max(low_offset, high_offset - size)
 
             # 设置消息消费偏移量
-            if end_offset >= size:
-                consumer.seek(tp, end_offset - size)
-            else:
-                consumer.seek_to_beginning()
+            consumer.seek(tp, start_offset)
             for msg in consumer:
                 try:
                     result.append(json.loads(msg.value.decode()))
@@ -3142,7 +3145,7 @@ class KafkaTailResource(Resource):
                     pass
                 if len(result) >= size:
                     return result
-                if msg.offset == end_offset - 1:
+                if msg.offset >= high_offset - 1:
                     break
 
         return result
@@ -3226,16 +3229,13 @@ class KafkaTailResource(Resource):
             errors = []
             for tp in topic_partitions:
                 # 获取该分区最大偏移量
-                low, high = consumer.get_watermark_offsets(tp)
-                end_offset = high
-                if not end_offset:
+                low_offset, high_offset = consumer.get_watermark_offsets(tp)
+                if size <= 0 or high_offset <= low_offset:
                     continue
+                start_offset = max(low_offset, high_offset - size)
 
                 # 设置消息消费偏移量
-                if end_offset >= size:
-                    consumer.seek(ConfluentTopicPartition(topic, tp.partition, end_offset - size))
-                else:
-                    consumer.seek(ConfluentTopicPartition(topic, tp.partition, 0))
+                consumer.seek(ConfluentTopicPartition(topic, tp.partition, start_offset))
 
                 while len(result) < size:
                     messages = consumer.consume(num_messages=size - len(result), timeout=1.0)
@@ -3252,7 +3252,7 @@ class KafkaTailResource(Resource):
                                 result.append(json.loads(msg.value().decode()))
                             except Exception:  # pylint: disable=broad-except
                                 pass
-                        if len(result) >= size or msg.offset() == end_offset - 1:
+                        if len(result) >= size or msg.offset() >= high_offset - 1:
                             break
 
             consumer.close()
@@ -3276,15 +3276,14 @@ class KafkaTailResource(Resource):
         for partition in topic_partitions:
             # 获取该分区最大偏移量
             tp = TopicPartition(topic=topic, partition=partition)
-            end_offset = consumer.end_offsets([tp])[tp]
-            if not end_offset:
+            low_offset = consumer.beginning_offsets([tp])[tp]
+            high_offset = consumer.end_offsets([tp])[tp]
+            if size <= 0 or high_offset <= low_offset:
                 continue
+            start_offset = max(low_offset, high_offset - size)
 
             # 设置消息消费偏移量
-            if end_offset >= size:
-                consumer.seek(tp, end_offset - size)
-            else:
-                consumer.seek_to_beginning()
+            consumer.seek(tp, start_offset)
             for msg in consumer:
                 try:
                     result.append(json.loads(msg.value.decode()))
@@ -3293,7 +3292,7 @@ class KafkaTailResource(Resource):
                 if len(result) >= size:
                     consumer.close()
                     return result
-                if msg.offset == end_offset - 1:
+                if msg.offset >= high_offset - 1:
                     break
 
         consumer.close()
