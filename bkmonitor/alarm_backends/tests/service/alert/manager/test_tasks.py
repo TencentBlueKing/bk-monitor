@@ -10,9 +10,11 @@ specific language governing permissions and limitations under the License.
 
 from unittest import mock
 
+from django.db.utils import OperationalError as DjangoOperationalError
 from django.test import TestCase
 from elasticsearch.exceptions import ConnectionTimeout, RequestError, TransportError
 from elasticsearch.helpers.errors import ScanError
+from kombu.exceptions import OperationalError as KombuOperationalError
 from redis.exceptions import BusyLoadingError
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import DataError, ReadOnlyError, ResponseError
@@ -111,6 +113,10 @@ class TestHandleAlertsMetrics(TestCase):
     def test_es_connection_timeout_deferred(self):
         self._assert_deferred(ConnectionTimeout("TIMEOUT", "connection timed out"), "ConnectionTimeout")
 
+    def test_kombu_broker_operational_error_deferred(self):
+        # Celery broker(RabbitMQ/AMQP)建连/通道超时等可恢复连接错误，本批 finalize 前抛出，重跑可自愈
+        self._assert_deferred(KombuOperationalError("timed out"), "OperationalError")
+
     # ---- 非瞬态(代码 / 数据 / 配置) → failed，不得漂白 ----
     def test_redis_response_error_failed(self):
         # WRONGTYPE / 错误命令等服务端响应错，不会靠重跑自愈
@@ -128,6 +134,11 @@ class TestHandleAlertsMetrics(TestCase):
 
     def test_logic_error_failed(self):
         self._assert_failed(IndexError("list index out of range"), "IndexError")
+
+    def test_django_db_operational_error_failed(self):
+        # 与 kombu broker 同名(都叫 OperationalError)，但 DB(MySQL)操作错按类型匹配不归 broker 瞬态，
+        # 仍计 failed、不被漂白；锁定按异常类型(而非类名字符串)区分的语义。
+        self._assert_failed(DjangoOperationalError("(2006, 'MySQL server has gone away')"), "OperationalError")
 
     def test_empty_alert_keys_short_circuits(self):
         s0 = self._success()

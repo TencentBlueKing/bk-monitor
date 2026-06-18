@@ -16,6 +16,7 @@ from elasticsearch.exceptions import TransportError
 from elasticsearch.helpers import BulkIndexError
 from elasticsearch.helpers.errors import ScanError
 from elasticsearch_dsl import Q
+from kombu.exceptions import OperationalError as KombuOperationalError
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import ReadOnlyError
 from redis.exceptions import TimeoutError as RedisTimeoutError
@@ -46,12 +47,22 @@ SCAN_PAGE_SIZE = 5000
 # 配置类错误(不会靠重跑恢复)漂白成 deferred，从成功率口径里抹掉真实故障。新可恢复类型经确认后再扩。
 # Redis: 连接(含 BusyLoadingError 子类) / 超时 / 主从切换只读(ReadOnlyError) / pipeline 结果错位；
 #   不含 ResponseError / DataError / NoScriptError 等命令·数据·脚本错(不会自愈)。
+# Broker(Celery/kombu): RabbitMQ/AMQP 可恢复连接错误(kombu.exceptions.OperationalError，见下分支)；
+#   不含同名的 django.db.utils.OperationalError(DB 逻辑错，按类型区分仍计 failed)。
 REDIS_RETRY_EXCEPTIONS = (RedisConnectionError, RedisTimeoutError, ReadOnlyError, PipelineResultMismatch)
 
 
 def is_transient_retry_exc(exc: Exception) -> bool:
     """异常是否为"下一周期重跑可自愈"的瞬态基础设施错误：是则计 deferred，否则计 failed。"""
     if isinstance(exc, REDIS_RETRY_EXCEPTIONS):
+        return True
+    if isinstance(exc, KombuOperationalError):
+        # Celery broker(RabbitMQ/AMQP)可恢复连接错误：publish 任务(create_actions.delay 等)时新建 broker
+        # 连接偶发建连/通道超时、连接重置。动作派发在 check_all 阶段、即告警状态/快照/ES 持久化之前，本批
+        # 未 finalize 即抛出，下一周期重跑可自愈，与 Redis/ES 连接类同属瞬态基础设施错误(此前的瞬态分类
+        # 只覆盖了 Redis/ES 两个存储后端，漏了 broker 这一发布链路依赖)。kombu.exceptions.OperationalError
+        # 语义即 recoverable connection error；按类型匹配可与同名的 django.db.utils.OperationalError
+        # (DB 逻辑错、不会靠重跑自愈)区分，后者仍计 failed。
         return True
     if isinstance(exc, ScanError):
         # scan / scroll 部分分片失败，重跑可恢复
