@@ -47,31 +47,33 @@ class TestHandleAlertsMetrics(TestCase):
     def _deferred(exception):
         return metrics.ALERT_MANAGE_DEFERRED_COUNT.labels(exception=exception)._value.get()
 
-    def _run(self, keys, side_effect=None):
+    def _run(self, keys, side_effect=None, finalized=False):
         # 隔离 DB/Redis：mock 替换 AlertManager，仅驱动 process 的成功 / 异常分支；
         # mock report_all 避免其 push 后 clear_data 把待断言的计数清零。
+        # finalized 模拟 AlertManager.alerts_finalized(save_alerts 是否已完成)，供 handle_alerts 分阶段归类。
         with mock.patch.object(tasks, "AlertManager") as MockManager:
             with mock.patch.object(tasks.metrics, "report_all"):
                 manager = MockManager.return_value
+                manager.alerts_finalized = finalized
                 if side_effect is not None:
                     manager.process.side_effect = side_effect
                 else:
                     manager.process.return_value = None
                 tasks.handle_alerts(alert_keys=keys)
 
-    def _assert_deferred(self, exc, exc_name, n=3):
+    def _assert_deferred(self, exc, exc_name, n=3, finalized=False):
         """异常 exc 应计入 deferred(n 条)，不计 failed。"""
         keys = self._keys(n)
         d0, f0 = self._deferred(exc_name), self._failed(exc_name)
-        self._run(keys, side_effect=exc)
+        self._run(keys, side_effect=exc, finalized=finalized)
         self.assertEqual(self._deferred(exc_name) - d0, n, f"{exc_name} 应计 deferred")
         self.assertEqual(self._failed(exc_name) - f0, 0, f"{exc_name} 不应计 failed")
 
-    def _assert_failed(self, exc, exc_name, n=3):
+    def _assert_failed(self, exc, exc_name, n=3, finalized=False):
         """异常 exc 应计入 failed(n 条)，不被漂白成 deferred。"""
         keys = self._keys(n)
         f0, d0 = self._failed(exc_name), self._deferred(exc_name)
-        self._run(keys, side_effect=exc)
+        self._run(keys, side_effect=exc, finalized=finalized)
         self.assertEqual(self._failed(exc_name) - f0, n, f"{exc_name} 应计 failed")
         self.assertEqual(self._deferred(exc_name) - d0, 0, f"{exc_name} 不应漂白成 deferred")
 
@@ -113,11 +115,16 @@ class TestHandleAlertsMetrics(TestCase):
     def test_es_connection_timeout_deferred(self):
         self._assert_deferred(ConnectionTimeout("TIMEOUT", "connection timed out"), "ConnectionTimeout")
 
-    def test_kombu_broker_operational_error_deferred(self):
-        # Celery broker(RabbitMQ/AMQP)建连/通道超时等可恢复连接错误，本批 finalize 前抛出，重跑可自愈
-        self._assert_deferred(KombuOperationalError("timed out"), "OperationalError")
+    def test_kombu_broker_error_before_finalize_deferred(self):
+        # broker 建连/通道超时发生在 finalize 前(check_all 的 create_actions.delay)，本批未落库，重跑可自愈
+        self._assert_deferred(KombuOperationalError("timed out"), "OperationalError", finalized=False)
 
     # ---- 非瞬态(代码 / 数据 / 配置) → failed，不得漂白 ----
+    def test_kombu_broker_error_after_finalize_failed(self):
+        # 同一 broker 异常若发生在 finalize 后(send_signal)，告警状态已落库、终态不会被下周期重发 signal，
+        # 属实际丢 signal 的失败，必须计 failed、不得漂白成 deferred。
+        self._assert_failed(KombuOperationalError("timed out"), "OperationalError", finalized=True)
+
     def test_redis_response_error_failed(self):
         # WRONGTYPE / 错误命令等服务端响应错，不会靠重跑自愈
         self._assert_failed(
