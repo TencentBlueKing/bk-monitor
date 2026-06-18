@@ -142,12 +142,13 @@
       handleBack() {
         if (this.$route.meta.backName) {
           const {
-            query: { backRoute },
+            query: { backRoute,indexSetId },
           } = this.$route;
           this.$router.push({
             name: !!backRoute ? backRoute : this.$route.meta.backName,
             query: {
               spaceUid: this.$store.state.spaceUid,
+              indexSetId,
             },
           });
         }
