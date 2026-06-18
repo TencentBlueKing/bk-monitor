@@ -51,6 +51,8 @@ class ModelSpec:
     row_mask_note: str = ""
     # 读取时 select_related 的 FK 链，避免 row_masker 等逐行访问关联对象造成 N+1。
     select_related: list[str] = field(default_factory=list)
+    # list-db-models 输出里的模型级提示：用途与选型边界（与 row_mask_note 区分，后者只讲脱敏）。
+    note: str = ""
 
 
 MASKED_VALUE = "***masked***"
@@ -222,10 +224,89 @@ ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
         model_path="bkmonitor.models.metric_list_cache.MetricListCache",
         fields={"bk_biz_id", "result_table_id", "metric_field", "metric_field_name", "dimensions", "bk_tenant_id"},
         default_fields={"bk_biz_id", "result_table_id", "metric_field", "metric_field_name", "bk_tenant_id"},
+        note=(
+            "指标选择器缓存，非元数据事实：主机基础性能等指标按规范名（如 system.cpu_summary）挂在 "
+            "bk_biz_id=0，不索引按业务的 VM 结果表，不能据此判定 DataSource/结果表是否存在（查存在性用 "
+            "DataSource/ResultTable 模型）。判 web_cache 层时须按目标业务 bk_biz_id 过滤本表，缓存行可能不在 bk_biz_id=0。"
+        ),
         examples=[
             {
                 "filter": {"bk_biz_id": 2, "metric_field": "cpu_usage"},
                 "fields": ["bk_biz_id", "result_table_id", "metric_field", "metric_field_name"],
+                "limit": 20,
+            }
+        ],
+    ),
+    "metadata.models.data_source.DataSource": ModelSpec(
+        model_path="metadata.models.data_source.DataSource",
+        # 确认某 data_name/dataid 是否已申请、归属哪个租户、走哪条链路(etl_config)的权威来源。
+        # token 是上报校验密钥，故意不纳入白名单(不可读、不可过滤)。
+        fields={
+            "bk_data_id",
+            "data_name",
+            "bk_tenant_id",
+            "etl_config",
+            "source_label",
+            "type_label",
+            "is_enable",
+            "is_custom_source",
+            "is_platform_data_id",
+            "space_type_id",
+            "space_uid",
+            "created_from",
+            "transfer_cluster_id",
+            "creator",
+            "create_time",
+            "last_modify_time",
+        },
+        default_fields={"bk_data_id", "data_name", "bk_tenant_id", "etl_config", "is_enable", "space_uid"},
+        note=(
+            "确认 dataid/链路 是否存在与归属的权威来源；多租户内置链路 data_name 形如 "
+            "{bk_tenant_id}_{bk_biz_id}_sys_base(主机基础性能)等。token 等密钥字段不可读。"
+        ),
+        examples=[
+            {
+                "filter": {"data_name__endswith": "_sys_base"},
+                "fields": ["bk_data_id", "data_name", "bk_tenant_id", "etl_config", "is_enable"],
+                "limit": 20,
+            }
+        ],
+    ),
+    "metadata.models.result_table.ResultTable": ModelSpec(
+        model_path="metadata.models.result_table.ResultTable",
+        fields={
+            "table_id",
+            "bk_tenant_id",
+            "table_name_zh",
+            "bk_biz_id",
+            "bk_biz_id_alias",
+            "default_storage",
+            "data_label",
+            "label",
+            "is_enable",
+            "is_deleted",
+            "is_builtin",
+            "creator",
+            "create_time",
+            "last_modify_time",
+        },
+        default_fields={
+            "table_id",
+            "bk_tenant_id",
+            "bk_biz_id",
+            "default_storage",
+            "data_label",
+            "is_enable",
+            "is_builtin",
+        },
+        note=(
+            "确认结果表是否存在、存储类型(default_storage)、data_label、是否内置；"
+            "常与 DataSource 配套核对一个 dataid 的落地结果表。"
+        ),
+        examples=[
+            {
+                "filter": {"table_id__endswith": ".cpu_summary"},
+                "fields": ["table_id", "bk_tenant_id", "bk_biz_id", "default_storage", "data_label"],
                 "limit": 20,
             }
         ],
@@ -398,6 +479,8 @@ def _serialize_model_spec(model_name: str, spec: ModelSpec) -> dict[str, Any]:
         "max_limit": MAX_LIMIT,
         "examples": spec.examples,
     }
+    if spec.note:
+        serialized["note"] = spec.note
     if spec.row_masker is not None:
         serialized["row_masking"] = spec.row_mask_note or f"敏感行的 value 字段会被脱敏为 {MASKED_VALUE}"
     return serialized
