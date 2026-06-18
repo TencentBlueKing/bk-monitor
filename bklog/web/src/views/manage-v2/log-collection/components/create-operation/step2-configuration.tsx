@@ -1250,6 +1250,21 @@ export default defineComponent({
     };
 
     /**
+     * 清除段日志相关的字段
+     * 当日志类型不是段日志时，需要清除这些字段以避免数据污染
+     * @param params - 参数对象
+     * @param isSectionLog - 是否为段日志类型
+     * @returns 清理后的参数对象
+     */
+    const clearSectionLogFields = (params: Record<string, any>, isSectionLog: boolean): Record<string, any> => {
+      if (isSectionLog) {
+        return params;
+      }
+      const { multiline_pattern, multiline_max_lines, multiline_timeout, ...cleanedParams } = params;
+      return cleanedParams;
+    };
+
+    /**
      * 处理主机采集的请求数据
      * @param requestData
      * @param extraLabels
@@ -1257,6 +1272,7 @@ export default defineComponent({
      */
     const handleHostLogRequestData = (requestData, extraLabels, dataEncoding) => {
       const { params } = requestData;
+      requestData.params = clearSectionLogFields(params, logType.value === 'section');
       requestData.params.extra_labels = isEmptyExtraLabels(extraLabels) ? [] : extraLabels;
       requestData.params.exclude_files = formatExcludeFiles(params.exclude_files);
       requestData.data_encoding = dataEncoding;
@@ -1284,8 +1300,10 @@ export default defineComponent({
       const { params, ...rect } = requestData;
       // const { data_encoding, params, target_object_type, target_node_type, target_nodes, ...rect } = requestData;
       const newConfig = (configs || []).map(item => {
-        const { data_encoding, container, params, collector_type, namespaces, label_selector, annotation_selector,
+        const { data_encoding, container, params: itemParams, collector_type, namespaces, label_selector, annotation_selector,
           noQuestParams, containerNameList } = item;
+
+        const cleanedParams = clearSectionLogFields(itemParams, logType.value === 'section');
 
         // 根据排除操作符决定使用 container_name 还是 container_name_exclude
         const containerKey = noQuestParams?.containerExclude === '!=' ? 'container_name_exclude' : 'container_name';
@@ -1303,9 +1321,9 @@ export default defineComponent({
             [containerKey]: containerNameValue,
           },
           params: {
-            ...params,
-            exclude_files: formatExcludeFiles(params.exclude_files),
-            paths: extractPaths(params),
+            ...cleanedParams,
+            exclude_files: formatExcludeFiles(cleanedParams.exclude_files),
+            paths: extractPaths(cleanedParams),
           },
           collector_type,
           [namespacesKey]: namespacesValue,
