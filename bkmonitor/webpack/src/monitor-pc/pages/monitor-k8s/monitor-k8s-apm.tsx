@@ -27,7 +27,6 @@ import { Component, Inject, InjectReactive, Mixins, Provide, ProvideReactive, Wa
 
 import { listServiceK8sTargets } from 'monitor-api/modules/apm_container';
 import { scenarioMetricList } from 'monitor-api/modules/k8s';
-import { random, tryURLDecodeParse } from 'monitor-common/utils';
 
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
@@ -492,7 +491,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
         refreshInterval: String(this.refreshInterval),
         from: this.timeRange[0],
         to: this.timeRange[1],
-      }
+      },
     });
     window.open(`${location.origin}${location.pathname}${location.search}${targetRoute.href}`, '_blank');
   }
