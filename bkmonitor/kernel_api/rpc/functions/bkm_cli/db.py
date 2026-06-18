@@ -263,6 +263,8 @@ ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
         note=(
             "确认 dataid/链路 是否存在与归属的权威来源；多租户内置链路 data_name 形如 "
             "{bk_tenant_id}_{bk_biz_id}_sys_base(主机基础性能)等。token 等密钥字段不可读。"
+            "解读前先用 env-info op 确认环境 regime：多租户与否决定结果表是否带租户前缀、"
+            "基础采集 dataid 是否按业务申请。"
         ),
         examples=[
             {
@@ -302,6 +304,7 @@ ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
         note=(
             "确认结果表是否存在、存储类型(default_storage)、data_label、是否内置；"
             "常与 DataSource 配套核对一个 dataid 的落地结果表。"
+            "table_id 是否带租户前缀取决于多租户开关,解读前先用 env-info op 确认 regime。"
         ),
         examples=[
             {
