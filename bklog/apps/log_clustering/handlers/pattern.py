@@ -210,21 +210,15 @@ class PatternHandler:
                 if signature_origin_pattern
                 else None
             )
-            remark_candidates = [
+            for candidate in [
                 exact_signature_remark_obj,
                 exact_origin_pattern_remark_obj,
                 fallback_signature_remark_obj,
                 fallback_origin_pattern_remark_obj,
-            ]
-            for candidate in remark_candidates:
-                if candidate and candidate["remark"]:
+            ]:
+                if candidate and (candidate["remark"] or candidate["owners"]):
                     remark_obj = candidate
                     break
-            if not remark_obj:
-                for candidate in remark_candidates:
-                    if candidate and candidate["owners"]:
-                        remark_obj = candidate
-                        break
 
             if remark_obj:
                 remark = remark_obj["remark"]
