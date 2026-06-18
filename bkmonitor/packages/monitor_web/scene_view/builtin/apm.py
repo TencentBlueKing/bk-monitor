@@ -855,8 +855,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             app_name=params.get("app_name", ""),
             service_name=params.get("service_name", ""),
         )
-        service_config_url: str = "{bk_monitor_url}/?bizId={bk_biz_id}#/apm{service_config_link}".format(
-            bk_monitor_url=settings.BK_MONITOR_HOST,
+        service_config_url: str = "?bizId={bk_biz_id}#/apm{service_config_link}".format(
             bk_biz_id=params.get("bk_biz_id"),
             service_config_link=service_config_link,
         )
@@ -982,6 +981,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 "trace_id": params.get("apm_trace_id"),
                 "app_name": params.get("apm_app_name"),
                 "service_name": params.get("apm_service_name"),
+                "bk_biz_id": params.get("bk_biz_id"),
                 "only_simple_info": params.get("only_simple_info") or False,
                 "start_time": params.get("start_time"),
                 "end_time": params.get("end_time"),
@@ -990,6 +990,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         converted_params = {
             "app_name": params.get("apm_app_name"),
             "service_name": params.get("apm_service_name"),
+            "bk_biz_id": params.get("bk_biz_id"),
             "only_simple_info": params.get("only_simple_info") or False,
             "view_switches": params.get("view_switches", {}),
         }
