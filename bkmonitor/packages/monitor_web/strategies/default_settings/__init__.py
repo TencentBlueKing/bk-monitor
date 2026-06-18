@@ -19,10 +19,20 @@ DEFAULTS = {
             "version": "v1",
             "module_path": "monitor_web.strategies.default_settings.os.v1",
         },
-        {
-            "version": "v2",
-            "module_path": "monitor_web.strategies.default_settings.os.v2",
-        },
+        # v2 仅承载多租户系统事件内置策略，单租户下为空列表。
+        # 仅在多租户模式注册：否则单租户环境会把空 v2 标记为已接入（基础 loader 先写
+        # DefaultStrategyBizAccessModel 再 load_strategies），后续切换到多租户时该版本会被
+        # 幂等跳过，导致系统事件策略永远不会补建。
+        *(
+            [
+                {
+                    "version": "v2",
+                    "module_path": "monitor_web.strategies.default_settings.os.v2",
+                }
+            ]
+            if settings.ENABLE_MULTI_TENANT_MODE
+            else []
+        ),
     ],
     "DEFAULT_GSE_PROCESS_EVENT_STRATEGIES_LIST": [
         {
