@@ -262,6 +262,28 @@ def test_allowlist_excludes_deprecated_and_low_value_models():
     assert not present, f"Deprecated/low-value models still in allowlist: {present}"
 
 
+def test_datasource_and_resulttable_in_allowlist_with_token_excluded():
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    ds = db.ALLOWED_MODEL_SPECS["metadata.models.data_source.DataSource"]
+    assert {"bk_data_id", "data_name", "bk_tenant_id", "etl_config", "is_enable"} <= ds.fields
+    # token 是上报校验密钥，不可读、不可过滤
+    assert "token" not in ds.fields
+    assert "token" not in db._safe_fields(ds)
+    assert ds.note
+
+    rt = db.ALLOWED_MODEL_SPECS["metadata.models.result_table.ResultTable"]
+    assert {"table_id", "bk_biz_id", "default_storage", "data_label", "is_builtin"} <= rt.fields
+
+
+def test_list_db_models_surfaces_model_note():
+    result = BkmCliOpCallResource().perform_request({"op_id": "list-db-models", "params": {}})
+
+    items = {item["model"]: item for item in result["result"]["items"]}
+    assert items["metadata.models.data_source.DataSource"]["note"]
+    assert "token" not in items["metadata.models.data_source.DataSource"]["allowed_fields"]
+
+
 # ---------- GlobalConfig (row-level masking) ----------
 
 
