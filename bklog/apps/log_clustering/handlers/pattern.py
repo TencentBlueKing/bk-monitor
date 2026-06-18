@@ -122,6 +122,7 @@ class PatternHandler:
         pattern_aggs = result.get("pattern_aggs", [])
         year_on_year_result = result.get("year_on_year_result", {})
         new_class = result.get("new_class", set())
+        new_class_visible_keys = self._build_new_class_visible_keys(new_class)
         # 同步的pattern保存信息
         if self._clustering_config.signature_pattern_rt:
             pattern_map = self._get_pattern_data(patterns=list({p["key"] for p in pattern_aggs}))
@@ -191,11 +192,6 @@ class PatternHandler:
 
             group_hash = ClusteringRemark.convert_groups_to_groups_hash(group_dict)
 
-            # 用于标识新类的key，包含 签名 + 所有分组字段值的元组
-            new_class_group_key = tuple(
-                [signature] + [str(group_dict.get(field, "")) for field in self._clustering_config.group_fields]
-            )
-
             # 黑名单业务严格匹配 group_hash；其余业务兼容空维度备注降级展示。
             remark_obj = None
             exact_signature_remark_obj = signature_map_remark.get((signature, group_hash))
@@ -242,7 +238,12 @@ class PatternHandler:
                     "count": count,
                     "signature": signature,
                     "percentage": self.percentage(count, sum_count),
-                    "is_new_class": new_class_group_key in new_class or (signature,) in new_class,
+                    "is_new_class": self._is_new_class(
+                        signature=signature,
+                        group_dict=group_dict,
+                        new_class=new_class,
+                        new_class_visible_keys=new_class_visible_keys,
+                    ),
                     "year_on_year_count": year_on_year_compare,
                     "year_on_year_percentage": self._year_on_year_calculate_percentage(count, year_on_year_compare),
                     "group": group,
@@ -254,6 +255,43 @@ class PatternHandler:
             result = map_if(result, if_func=lambda x: x["is_new_class"])
         result = self._get_remark_and_owner(result)
         return result
+
+    def _build_new_class_visible_keys(self, new_class: set[tuple]) -> set[tuple]:
+        group_fields = self._clustering_config.group_fields or []
+        visible_group_fields = [field for field in group_fields if field in self._group_by]
+        if len(visible_group_fields) == len(group_fields):
+            return set()
+
+        visible_group_field_indexes = [group_fields.index(field) + 1 for field in visible_group_fields]
+        visible_keys = set()
+        for new_class_item in new_class:
+            if not new_class_item or len(new_class_item) == 1:
+                continue
+            visible_keys.add(
+                tuple(
+                    [new_class_item[0]]
+                    + [
+                        str(new_class_item[index]) if index < len(new_class_item) else ""
+                        for index in visible_group_field_indexes
+                    ]
+                )
+            )
+        return visible_keys
+
+    def _is_new_class(
+        self, signature: str, group_dict: dict, new_class: set[tuple], new_class_visible_keys: set[tuple]
+    ) -> bool:
+        group_fields = self._clustering_config.group_fields or []
+        exact_key = tuple([signature] + [str(group_dict.get(field, "")) for field in group_fields])
+        if exact_key in new_class or (signature,) in new_class:
+            return True
+
+        visible_group_fields = [field for field in group_fields if field in self._group_by]
+        if len(visible_group_fields) == len(group_fields):
+            return False
+
+        visible_key = tuple([signature] + [str(group_dict.get(field, "")) for field in visible_group_fields])
+        return visible_key in new_class_visible_keys
 
     @cached_property
     def _allow_remark_group_fallback(self) -> bool:
