@@ -347,6 +347,7 @@
             backRoute,
             type: 'basicInfo',
             typeKey: this.$route.query.typeKey,
+            indexSetId: this.$route.query.indexSetId,
           },
         });
       },
