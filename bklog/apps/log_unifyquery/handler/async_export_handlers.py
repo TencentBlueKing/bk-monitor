@@ -36,6 +36,8 @@ from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import (
     ASYNC_COUNT_SIZE,
     MAX_GET_ATTENTION_SIZE,
+    MAX_ASYNC_COUNT,
+    MAX_QUICK_EXPORT_ASYNC_COUNT,
     ExportStatus,
     ExportType,
     IndexSetType,
@@ -121,6 +123,11 @@ class UnifyQueryAsyncExportHandlers:
                 "start_time": self.search_dict["start_time"],
                 "end_time": self.search_dict["end_time"],
                 "export_type": ExportType.ASYNC,
+                "export_total_count": self.get_export_total_count(
+                    request_size=self.search_dict.get("size"),
+                    is_quick_export=is_quick_export,
+                    max_async_count=self.unify_query_handler.index_info_list[0]["index_set_obj"].max_async_count,
+                ),
                 "created_by": self.request_user,
             }
         )
@@ -168,7 +175,15 @@ class UnifyQueryAsyncExportHandlers:
         )
         return search_url
 
-    def get_export_history(self, request, view, show_all=False, is_union_search=False):
+    def get_export_history(
+        self,
+        request,
+        view,
+        show_all=False,
+        is_union_search=False,
+        start_time=None,
+        end_time=None,
+    ):
         # 这里当show_all为true的时候则给前端返回当前业务全部导出历史
         source_app_code = get_request_app_code()
         external_username = get_request_external_username()
@@ -185,6 +200,10 @@ class UnifyQueryAsyncExportHandlers:
             query_set = query_set.filter(index_set_type=IndexSetType.SINGLE.value)
             if not show_all:
                 query_set = query_set.filter(index_set_id=self.index_set_id)
+        if start_time is not None:
+            query_set = query_set.filter(created_at__gte=arrow.get(start_time / 1000).datetime)
+        if end_time is not None:
+            query_set = query_set.filter(created_at__lte=arrow.get(end_time / 1000).datetime)
         pg = DataPageNumberPagination()
         page_export_task_history = pg.paginate_queryset(
             queryset=query_set.order_by("-created_at", "created_by"), request=request, view=view
@@ -217,12 +236,15 @@ class UnifyQueryAsyncExportHandlers:
             "export_type": export_task_history["export_type"],
             "export_status": export_task_history["export_status"] if retry_able else ExportStatus.DATA_EXPIRED,
             "error_msg": export_task_history["failed_reason"],
-            "download_url": export_task_history["download_url"],
+            "download_url": cls.get_async_export_download_url(export_task_history),
             "export_pkg_name": export_task_history["file_name"],
             "export_pkg_size": export_task_history["file_size"],
             "export_created_at": export_task_history["created_at"],
             "export_created_by": export_task_history["created_by"],
             "export_completed_at": export_task_history["completed_at"],
+            "exported_count": export_task_history["exported_count"],
+            "export_total_count": export_task_history["export_total_count"],
+            "download_count": export_task_history["download_count"],
             "download_able": download_able,
             "retry_able": retry_able,
             "index_set_type": export_task_history["index_set_type"],
@@ -240,6 +262,19 @@ class UnifyQueryAsyncExportHandlers:
         return res
 
     @classmethod
+    def get_async_export_download_url(cls, export_task_history):
+        if not export_task_history["download_url"]:
+            return export_task_history["download_url"]
+
+        query_params = urlencode(
+            {
+                "task_id": export_task_history["id"],
+                "bk_biz_id": export_task_history["bk_biz_id"],
+            }
+        )
+        return f"{settings.SITE_URL.rstrip('/')}/api/v1/search/index_set/async_export/download_file/?{query_params}"
+
+    @classmethod
     def judge_download_able(cls, status):
         if status == ExportStatus.DOWNLOAD_EXPIRED:
             return False
@@ -250,6 +285,13 @@ class UnifyQueryAsyncExportHandlers:
         if retention and end_time:
             return arrow.now() < arrow.get(end_time, tzinfo=settings.TIME_ZONE).shift(days=retention)
         return True
+
+    @staticmethod
+    def get_export_total_count(request_size, is_quick_export: bool = False, max_async_count: int = 0):
+        default_export_limit = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
+        export_limit = max(max_async_count or 0, default_export_limit)
+        request_size = request_size or export_limit
+        return min(request_size, export_limit)
 
     @classmethod
     def get_index_set_retention(cls, index_set_ids):
@@ -397,6 +439,11 @@ class UnifyQueryUnionAsyncExportHandlers:
                 "start_time": self.search_dict["start_time"],
                 "end_time": self.search_dict["end_time"],
                 "export_type": ExportType.ASYNC,
+                "export_total_count": UnifyQueryAsyncExportHandlers.get_export_total_count(
+                    request_size=self.search_dict.get("size"),
+                    is_quick_export=is_quick_export,
+                    max_async_count=self.unify_query_handler.index_info_list[0]["index_set_obj"].max_async_count,
+                ),
                 "created_by": self.request_user,
             }
         )
