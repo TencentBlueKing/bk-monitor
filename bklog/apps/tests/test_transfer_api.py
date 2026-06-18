@@ -35,3 +35,8 @@ class ParseClusterInfoTest(SimpleTestCase):
         parsed_custom_option = self._parse_custom_option('{"bk_biz_id": "123"}')
 
         self.assertEqual(parsed_custom_option["bk_biz_id"], 123)
+
+    def test_custom_option_negative_bk_biz_id_is_converted_to_int(self):
+        parsed_custom_option = self._parse_custom_option('{"bk_biz_id": "-123"}')
+
+        self.assertEqual(parsed_custom_option["bk_biz_id"], -123)

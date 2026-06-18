@@ -100,7 +100,8 @@ def parse_cluster_info(cluster_obj):
 
     # bk_biz_id str to int
     biz_id = str(custom_option.get("bk_biz_id", ""))
-    if biz_id.isdigit():
+    normalized_biz_id = biz_id[1:] if biz_id.startswith("-") else biz_id
+    if normalized_biz_id.isdigit():
         custom_option["bk_biz_id"] = int(biz_id)
 
     if cluster_obj["auth_info"] and isinstance(cluster_obj["auth_info"], str):
