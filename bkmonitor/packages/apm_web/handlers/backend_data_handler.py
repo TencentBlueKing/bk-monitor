@@ -759,8 +759,8 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
     def _is_v4_datalink(self):
         return (self.profiling_bkdata_datalink_config.get("version") or 3) == 4
 
-    @staticmethod
-    def _format_v4_metrics_msgs_stat(resp):
+    @classmethod
+    def _format_v4_metrics_msgs_stat(cls, resp, grain="1m"):
         if not resp:
             return []
 
@@ -769,6 +769,7 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
         else:
             series = resp
 
+        interval = cls.GRAIN_MAPPING.get(grain, 0)
         timestamp_to_count = defaultdict(int)
         for serie in series:
             if not isinstance(serie, dict):
@@ -785,18 +786,18 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
                         timestamp, count = datapoint[0], datapoint[1]
                     if timestamp is None:
                         continue
-                    timestamp_to_count[int(timestamp)] += int(float(count or 0))
+                    timestamp_to_count[int(timestamp) - interval] += int(float(count or 0))
                 continue
 
             timestamp = serie.get("time") or serie.get("timestamp")
             count = serie.get("output_count") or serie.get("value") or serie.get("count") or 0
             if timestamp is not None:
-                timestamp_to_count[int(timestamp)] += int(float(count or 0))
+                timestamp_to_count[int(timestamp) - interval] += int(float(count or 0))
 
         return [
             {
                 "series": [
-                    {"output_count": count, "time": int(timestamp / 1000) if timestamp > 100000000000 else timestamp}
+                    {"output_count": count, "time": timestamp}
                     for timestamp, count in sorted(timestamp_to_count.items())
                 ]
             }
@@ -821,7 +822,7 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
                 end=end_time,
                 step=grain,
             )
-            return self._format_v4_metrics_msgs_stat(resp)
+            return self._format_v4_metrics_msgs_stat(resp, grain=grain)
 
         storages = self.storage_info()
         storage_result_table_id = None
