@@ -730,6 +730,7 @@ export default {
   给全员: 'To all',
   按发送频率: 'By sending frequency',
   '近{n}天': 'Last {n} days',
+  '最近{n}月': 'Last {n} months',
   '{0}小时': '{0} hours',
   条: 'item',
   '{0}小时前': '{0} hours ago',
@@ -1359,4 +1360,6 @@ export default {
   '根据过滤条件未匹配到索引集，请修改过滤条件': 'No index set matched the filter criteria. Please modify the filter criteria',
   '若仍无结果返回，可点击联系': 'If there are still no results, you can click to contact',
   BK助手: 'BK Assistant',
+  查看下载历史: 'View download history',
+  下载成功: 'Download successful',
 };

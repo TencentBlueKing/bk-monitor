@@ -1,0 +1,67 @@
+.task-item-wrapper {
+  width: 240px;
+  padding: 0 16px;
+  background-color: #fff;
+  border-radius: 2px;
+
+  .task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+
+    .task-id {
+      font-size: 12px;
+      font-weight: 500;
+      color: #63656e;
+    }
+
+    .task-status-area {
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+
+      .status-content {
+        display: flex;
+        align-items: center;
+
+        .status-dot {
+          display: inline-block;
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          margin-right: 6px;
+        }
+
+        &.failed {
+          .status-dot.failed-dot {
+            background: #FFEBEB;
+            border: 1px solid #EA3636;
+          }
+
+          .detail-link {
+            margin-left: 8px;
+          }
+        }
+
+        &.not-started {
+          .status-dot.pending-dot {
+            background: #F5F7FA;
+            border: 1px solid #C4C6CC;
+          }
+        }
+
+        &.downloading {
+          .progress-text {
+            color: #3a84ff;
+            font-weight: 500;
+          }
+        }
+      }
+    }
+  }
+
+  .task-progress-area {
+    width: 100%;
+  }
+}

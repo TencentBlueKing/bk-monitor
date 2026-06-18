@@ -33,17 +33,47 @@
         v-bk-tooltips="queueStatus ? $t('导出') : undefined">
         <span class="icon bklog-icon bklog-xiazai"></span>
       </div> -->
-    <div
-      :class="{ 'operation-icon': true, 'disabled-icon': !queueStatus }"
-      data-test-id="fieldForm_div_exportData"
-      @mouseenter="handleShowAlarmPopover"
+    <BklogPopover
+      ref="downloadProgressPopover"
+      trigger="hover"
+      :options="{ placement: 'bottom', arrow: true, onShow: () => displayTasks.length > 0, disabled: displayTasks.length === 0}"
+      content-class="download-progress-popover"
     >
-      <span
-        class="icon bklog-icon bklog-download"
-        style="font-size: 16px"
-      ></span>
-    </div>
+      <div
+        :class="{ 'operation-icon': true, 'disabled-icon': !queueStatus }"
+        data-test-id="fieldForm_div_exportData"
+        @click="exportLog"
+        @mouseenter="handleDownloadIconMouseEnter"
+        @mouseleave="handleDownloadIconMouseLeave"
+      >
+        <span
+          class="icon bklog-icon bklog-download"
+          style="font-size: 16px"
+        ></span>
+        <div
+          v-if="totalProgressPercent > 0"
+          class="progress-mask"
+          :style="{ '--progress': totalProgressPercent + '%' }"
+        >
+        </div>
+      </div>
+      <template #content>
+        <div
+          class="download-progress-content"
+          @mouseenter="handleContentMouseEnter"
+          @mouseleave="handleContentMouseLeave"
+        >
+          <TaskItem
+            v-for="task in displayTasks"
+            :key="task.id"
+            :item="task"
+            @view-detail="handleTaskViewDetail"
+          />
+        </div>
+      </template>
+    </BklogPopover>
 
+    <!-- 原downloadTips选项弹窗已移除，点击下载按钮直接打开下载日志弹窗
     <div v-show="false">
       <div
         ref="downloadTips"
@@ -53,11 +83,21 @@
         <span @click="downloadTable">{{ $t('下载历史') }}</span>
       </div>
     </div>
+    -->
 
     <export-history
       :index-set-list="indexSetList"
       :show-history-export="showHistoryExport"
+      :export-list="exportListData"
+      :table-loading="exportTableLoading"
+      :date-range="exportDateRange"
+      :pagination="exportPagination"
       @handle-close-dialog="handleCloseDialog"
+      @date-range-change="handleDateRangeChange"
+      @pagination-change="handlePaginationChange"
+      @loading-change="handleLoadingChange"
+      @start-polling="startStatusPolling"
+      @get-table-list="getTableList"
     />
 
     <!-- 导出弹窗提示 -->
@@ -66,13 +106,27 @@
       v-model="isShowExportDialog"
       :mask-close="false"
       :ok-text="$t('下载')"
-      :title="$t('日志下载')"
       :width="640"
       header-position="left"
       theme="primary"
       @after-leave="closeExportDialog"
       @confirm="handleClickSubmit"
     >
+      <template #header>
+        <div class="dialog-header-custom">
+          <span>{{ $t('下载日志') }}</span>
+          <span
+            class="view-history-btn"
+            @click="handleViewDownloadHistory"
+          >{{ $t('查看下载历史') }}</span>
+          <div
+            v-if="totalProgressPercent > 0"
+            class="circular-progress"
+            :style="{ '--progress': totalProgressPercent + '%' }"
+          >
+          </div>
+        </div>
+      </template>
       <div
         class="export-container"
         v-bkloading="{ isLoading: exportLoading }"
@@ -193,10 +247,22 @@
   import exportHistory from './export-history';
   import { axiosInstance } from '@/api';
   import { BK_LOG_STORAGE } from '@/store/store.type';
+  import BklogPopover from '@/components/bklog-popover';
+  import TaskItem from './TaskItem';
+  import {
+    calculateProgress,
+    adjustGrowthAfterPoll,
+    calculateProgressPercent,
+  } from '@/views/retrieve-v2/result-comp/download/downloadProgress';
+
+  // 需要轮询的状态列表
+  const POLLING_STATUS = ['download_log', 'export_package', 'export_upload', null];
 
   export default {
     components: {
       exportHistory,
+      BklogPopover,
+      TaskItem,
     },
     inheritAttrs: false,
     props: {
@@ -280,6 +346,21 @@
         ],
         modeHintMap: {},
         // queueStatus: true
+        // 导出历史相关数据
+        exportListData: [], // 导出列表数据
+        exportTableLoading: false, // 表格加载状态
+        exportPollingTimer: null, // 轮询定时器
+        exportDateRange: [], // 查询时间范围（默认最近3月）
+        exportPagination: {
+          current: 1,
+          count: 0,
+          limit: 10,
+        },
+        isComponentUnmounted: false, // 组件是否已卸载
+        progressUpdateTimer: null, // 进度更新定时器
+        baseGrowth: 20000, // 基础增长量：10秒增长20000条
+        popoverHoverTimer: null, // Popover 悬浮延迟隐藏定时器
+        pendingTaskStatus: {}, // 进行中任务状态记录 { [taskId]: status }
       };
     },
     computed: {
@@ -319,6 +400,27 @@
       isScene() {
         return this.$store.getters.isSceneMode;
       },
+      /** 所有下载中任务的总进度百分比（仅计算当前用户创建的任务） */
+      totalProgressPercent() {
+        const currentUser = this.$store.state.userMeta?.username || '';
+        let totalExported = 0;
+        let totalExportCount = 0;
+        this.exportListData.forEach(row => {
+          if (POLLING_STATUS.includes(row.export_status) && row.export_created_by === currentUser) {
+            totalExported += row.exported_count || 0;
+            totalExportCount += row.export_total_count || 0;
+          }
+        });
+        if (totalExportCount <= 0) return 0;
+        return calculateProgressPercent(totalExported, totalExportCount);
+      },
+      /** 需要显示的任务列表（下载中、未启动、失败） */
+      displayTasks() {
+        return this.exportListData.filter(row => {
+          const status = row.export_status;
+          return ['download_log', 'export_package', 'export_upload', 'failed'].includes(status) || status === null;
+        });
+      },
     },
     watch: {
       totalCount(val) {
@@ -330,32 +432,50 @@
           this.downloadType = 'quick';
         }
       },
+      routerIndexSet() {
+        // 切换业务时清空进行中任务状态记录
+        this.pendingTaskStatus = {};
+        this.initDateRange();
+        this.getTableList();
+      },
+    },
+    mounted() {
+      // 初始化时间范围为最近3月
+      this.initDateRange();
+      this.getTableList();
     },
     beforeUnmount() {
-      this.popoverInstance = null;
+      // 设置组件卸载标志位
+      this.isComponentUnmounted = true;
+      // 清除轮询定时器
+      this.stopStatusPolling();
+      // 清除进度更新定时器
+      this.stopProgressUpdate();
+      // 清除 Popover 悬浮定时器
+      clearTimeout(this.popoverHoverTimer);
     },
     methods: {
-      handleShowAlarmPopover(e) {
-        if (this.popoverInstance || !this.queueStatus) return;
-        this.popoverInstance?.hide();
-        this.popoverInstance?.destroyed();
-        this.popoverInstance = null;
-        this.popoverInstance = this.$bkPopover(e.target, {
-          content: this.$refs.downloadTips,
-          trigger: 'mouseenter',
-          placement: 'top',
-          theme: 'light',
-          offset: '0, -1',
-          interactive: true,
-          hideOnClick: false,
-          extCls: 'download-box',
-          arrow: true,
-        });
-        this.popoverInstance?.show();
-      },
+      // 原handleShowAlarmPopover方法已移除，点击下载按钮直接打开下载日志弹窗
+      // handleShowAlarmPopover(e) {
+      //   if (this.popoverInstance || !this.queueStatus) return;
+      //   this.popoverInstance?.hide();
+      //   this.popoverInstance?.destroyed();
+      //   this.popoverInstance = null;
+      //   this.popoverInstance = this.$bkPopover(e.target, {
+      //     content: this.$refs.downloadTips,
+      //     trigger: 'mouseenter',
+      //     placement: 'top',
+      //     theme: 'light',
+      //     offset: '0, -1',
+      //     interactive: true,
+      //     hideOnClick: false,
+      //     extCls: 'download-box',
+      //     arrow: true,
+      //   });
+      //   this.popoverInstance?.show();
+      // },
       exportLog() {
         if (!this.queueStatus) return;
-        this.popoverInstance.hide(0);
         // 导出数据为空
         if (!this.totalCount) {
           const infoDialog = this.$bkInfo({
@@ -368,6 +488,12 @@
           return;
         }
         this.isShowExportDialog = true;
+      },
+      handleViewDownloadHistory() {
+        // 关闭当前下载日志弹窗
+        this.isShowExportDialog = false;
+        // 打开下载历史弹窗
+        this.showHistoryExport = true;
       },
       handleClickSubmit() {
         if (this.downloadType === 'quick') {
@@ -420,6 +546,9 @@
                 ellipsisLine: 2,
                 message: this.$t('任务提交成功，下载完成将会收到邮件通知。可前往下载历史查看下载状态'),
               });
+              // 更新时间范围拉取最新数据
+              this.initDateRange();
+              this.getTableList(true);
             } else {
               this.$bkMessage({
                 theme: 'error',
@@ -520,6 +649,9 @@
                 ellipsisLine: 2,
                 message: this.$t('任务提交成功，下载完成将会收到邮件通知。可前往下载历史查看下载状态'),
               });
+              // 更新时间范围拉取最新数据
+              this.initDateRange();
+              this.getTableList(true);
             }
           })
           .catch(err => {
@@ -535,9 +667,39 @@
         this.selectFiledType = 'all';
         this.selectFiledList = [];
       },
+      /**
+       * @desc: 下载按钮 mouseenter — 有下载任务时才显示 Popover
+       */
+      handleDownloadIconMouseEnter() {
+        clearTimeout(this.popoverHoverTimer);
+        if (this.displayTasks.length > 0) {
+          this.$refs.downloadProgressPopover?.show();
+        }
+      },
+      /**
+       * @desc: 下载按钮 mouseleave — 延迟隐藏，给移动到内容区域留时间
+       */
+      handleDownloadIconMouseLeave() {
+        this.popoverHoverTimer = setTimeout(() => {
+          this.$refs.downloadProgressPopover?.hide();
+        }, 200);
+      },
+      /**
+       * @desc: 弹窗内容 mouseenter — 取消隐藏，阻止 Popover 关闭
+       */
+      handleContentMouseEnter() {
+        clearTimeout(this.popoverHoverTimer);
+      },
+      /**
+       * @desc: 弹窗内容 mouseleave — 隐藏 Popover
+       */
+      handleContentMouseLeave() {
+        this.$refs.downloadProgressPopover?.hide();
+      },
+      // 原downloadTable方法已修改，不再需要隐藏popover
       downloadTable() {
         this.showHistoryExport = true;
-        this.popoverInstance.hide(0);
+        // this.popoverInstance.hide(0);
       },
       handleCloseDialog() {
         this.showHistoryExport = false;
@@ -545,6 +707,256 @@
       getFieldName(field) {
         const { getQueryAlias } = useFieldNameHook({ store: this.$store });
         return getQueryAlias(field);
+      },
+      // ========== 导出历史相关方法 ==========
+      /**
+       * @desc: 初始化时间范围（最近3月）
+       */
+      initDateRange() {
+        const end = new Date();
+        const start = new Date();
+        start.setTime(start.getTime() - 3600 * 1000 * 24 * 90);
+        this.exportDateRange = [start, end];
+      },
+      /**
+       * @desc: 处理子组件时间范围变更事件
+       */
+      handleDateRangeChange(newDateRange) {
+        this.exportDateRange = newDateRange;
+        this.getTableList(true);
+      },
+      /**
+       * @desc: 处理子组件分页变更事件
+       */
+      handlePaginationChange({ page, limit }) {
+        if (page) {
+          this.exportPagination.current = page;
+        }
+        if (limit) {
+          this.exportPagination.limit = limit;
+          this.exportPagination.current = 1;
+        }
+        this.getTableList();
+      },
+      /**
+       * @desc: 处理子组件 loading 变更事件
+       */
+      handleLoadingChange(isLoading) {
+        this.exportTableLoading = isLoading;
+      },
+      /**
+       * @desc: 处理任务详情点击事件 - 打开历史下载弹窗
+       */
+      handleTaskViewDetail(_task) {
+        // 打开下载历史弹窗
+        this.showHistoryExport = true;
+      },
+      /**
+       * @desc: 轮询
+       */
+      startStatusPolling() {
+        this.stopStatusPolling();
+        this.exportPollingTimer = setInterval(() => {
+          this.getTableList(false, true);
+        }, 10000);
+      },
+      stopStatusPolling() {
+        if (this.exportPollingTimer) {
+          clearInterval(this.exportPollingTimer);
+          this.exportPollingTimer = null;
+        }
+      },
+      /**
+       * @desc: 检查是否需要继续轮询
+       * @returns { Boolean } 是否需要继续轮询
+       */
+      shouldContinuePolling() {
+        return this.exportListData.some(item => POLLING_STATUS.includes(item.export_status));
+      },
+      /**
+       * @desc: 初始化进行中任务的增长修正量
+       * 为每个进行中的任务设置 currentGrowth 和 progressPercent
+       */
+      initGrowthAdjustMap() {
+        this.exportListData.forEach(row => {
+          if (POLLING_STATUS.includes(row.export_status)) {
+            // 初始增长量等于基础增长量
+            row.currentGrowth = this.baseGrowth;
+            // 初始化进度百分比
+            row.progressPercent = calculateProgressPercent(
+              row.exported_count || 0,
+              row.export_total_count || 0,
+            );
+          }
+        });
+      },
+      /**
+       * @desc: 启动1秒进度更新定时器
+       */
+      startProgressUpdate() {
+        this.stopProgressUpdate();
+        this.progressUpdateTimer = setInterval(() => {
+          this.updateAllTaskProgress();
+        }, 1000);
+      },
+      /**
+       * @desc: 停止1秒进度更新定时器
+       */
+      stopProgressUpdate() {
+        if (this.progressUpdateTimer) {
+          clearInterval(this.progressUpdateTimer);
+          this.progressUpdateTimer = null;
+        }
+      },
+      /**
+       * @desc: 每秒更新所有进行中任务的进度
+       * 单次遍历更新 exported_count 和 progressPercent
+       */
+      updateAllTaskProgress() {
+        let hasActiveTask = false;
+
+        this.exportListData.forEach(row => {
+          if (POLLING_STATUS.includes(row.export_status)) {
+            hasActiveTask = true;
+            calculateProgress(row);
+          }
+        });
+
+        // 如果没有进行中的任务，停止定时器
+        if (!hasActiveTask) {
+          this.stopProgressUpdate();
+        }
+      },
+      /**
+       * @desc: 处理任务状态记录与变化检测
+       * @param { Array } data 任务列表数据
+       */
+      handleTaskStatus(data) {
+        data.forEach(item => {
+          const oldStatus = this.pendingTaskStatus[item.id];
+          const currentStatus = item.export_status;
+
+          // 成功或失败状态：检查是否有记录，有记录则提示
+          if (currentStatus === 'success' || currentStatus === 'failed') {
+            if (oldStatus !== undefined) {
+              // 下载成功时显示文件名，失败时显示错误信息
+              const message = currentStatus === 'success'
+                ? `${item.export_pkg_name || ''}${this.$t('下载成功')}`
+                : (item.eerror_msg || this.$t('下载任务异常，请查看下载历史'));
+              this.$bkMessage({
+                theme: currentStatus === 'success' ? 'success' : 'error',
+                message,
+                closeIcon: true,
+              });
+              // 从记录中移除
+              delete this.pendingTaskStatus[item.id];
+            }
+          } else if (POLLING_STATUS.includes(currentStatus)) {
+            // 进行中状态：检查是否已有记录，没有则进行记录
+            if (oldStatus === undefined) {
+              this.pendingTaskStatus[item.id] = currentStatus;
+            }
+          }
+        });
+      },
+      /**
+       * @desc: 设置导出列表数据
+       * @param { Array } data 数据
+       * @param { Boolean } isPolling 该次请求是否是轮询
+       */
+      setExportListData(data, isPolling) {
+        if (isPolling) {
+          data.forEach(item => {
+            this.exportListData.forEach(row => {
+              if (row.id === item.id) {
+                // 如果是进行中的任务，修正增长量
+                if (POLLING_STATUS.includes(item.export_status)) {
+                  adjustGrowthAfterPoll(row, item.exported_count || 0, this.baseGrowth);
+                } else {
+                  Object.assign(row, { ...item });
+                }
+              }
+            });
+          });
+        } else {
+          this.exportListData = data;
+          if (this.shouldContinuePolling()) {
+            // 初始化进行中任务的增长修正量
+            this.initGrowthAdjustMap();
+            this.startStatusPolling();
+            this.startProgressUpdate();
+          }
+        }
+      },
+      /**
+       * @desc: 获取table列表数据
+       * @param { Boolean } isReset 是否从1页开始查询
+       * @param { Boolean } isPolling 该次请求是否是轮询
+       */
+      getTableList(isReset = false, isPolling = false) {
+        isReset && (this.exportPagination.current = 1);
+        !isPolling && (this.exportTableLoading = true);
+        const { limit, current } = this.exportPagination;
+        let queryUrl;
+        let requestConfig;
+
+        // 将日期范围转换为时间戳（毫秒）
+        const startTime = this.exportDateRange[0] ? this.exportDateRange[0].getTime() : null;
+        const endTime = this.exportDateRange[1] ? this.exportDateRange[1].getTime() : null;
+
+        const params = {
+          bk_biz_id: this.bkBizId,
+          page: current,
+          pagesize: limit,
+          show_all: false,
+          start_time: startTime,
+          end_time: endTime,
+        };
+
+        if (this.isScene) {
+          queryUrl = 'retrieve/getSceneExportHistory';
+          params.space_uid = this.retrieveParams?.space_uid;
+          params.table_id_conditions = this.retrieveParams?.table_id_conditions;
+          params.scene_filter_values = this.retrieveParams?.scene_filter_values;
+          requestConfig = { data: params };
+        } else if (this.isUnionSearch) {
+          queryUrl = 'unionSearch/unionExportHistory';
+          params.index_set_id = window.__IS_MONITOR_COMPONENT__
+            ? this.$route.query.indexId : this.$route.params.indexId;
+          params.index_set_ids = this.unionIndexList;
+        } else {
+          queryUrl = 'retrieve/getExportHistoryList';
+          params.index_set_id = window.__IS_MONITOR_COMPONENT__
+            ? this.$route.query.indexId : this.$route.params.indexId;
+        }
+
+        if (!this.isScene) {
+          requestConfig = { params };
+        }
+
+        this.$http
+          .request(queryUrl, requestConfig)
+          .then(res => {
+            if (this.isComponentUnmounted) {
+              // 组件已卸载，清除定时器并直接返回
+              this.stopStatusPolling();
+              this.stopProgressUpdate();
+              return;
+            }
+            if (res.result) {
+              this.exportPagination.count = res.data.total || 0;
+              // 处理任务状态记录与变化检测
+              this.handleTaskStatus(res.data.list);
+              this.setExportListData(res.data.list, isPolling);
+            }
+            if (!this.shouldContinuePolling()) {
+              this.stopStatusPolling();
+              this.stopProgressUpdate();
+            }
+          })
+          .finally(() => {
+            this.exportTableLoading = false;
+          });
       },
     },
   };
@@ -565,6 +977,7 @@
     border-radius: 2px;
     outline: none;
     transition: boder-color 0.2s;
+    position: relative;
 
     &:hover {
       border-color: #4d4f56;
@@ -580,6 +993,16 @@
       width: 16px;
       font-size: 16px;
       color: #4d4f56;
+    }
+
+    .progress-mask {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: conic-gradient(from 0deg, rgba(0, 0, 0, 0) var(--progress, 0%), rgba(211, 215, 221, 0.45) 0);
+      transition: background 0.25s ease;
     }
   }
 
@@ -770,23 +1193,67 @@
         margin-top: 2px;
       }
     }
-  }
 
-  .download-box {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-evenly;
-    min-height: 60px;
-    padding: 4px 0;
-    font-size: 12px;
+    .dialog-header-custom {
+      display: flex;
+      align-items: center;
+      width: 100%;
 
-    span {
-      padding: 2px 6px;
-      cursor: pointer;
-
-      &:hover {
+      .view-history-btn {
+        margin-left: 16px;
+        padding-left: 12px;
+        font-size: 14px;
         color: #3a84ff;
+        cursor: pointer;
+        z-index: 10;
+        border-left: 1px solid #dcdee5;
+
+        &:hover {
+          color: #699df4;
+        }
+      }
+
+      .circular-progress {
+        width: 16px;
+        height: 16px;
+        margin-left: 8px;
+        border-radius: 50%;
+        background: conic-gradient(from 0deg, rgba(233, 237, 245, 1) var(--progress, 0%), rgba(211, 215, 221, 1) 0);
       }
     }
+  }
+
+  // 原download-box样式已移除，不再需要
+  // .download-box {
+  //   display: flex;
+  //   flex-direction: column;
+  //   justify-content: space-evenly;
+  //   min-height: 60px;
+  //   padding: 4px 0;
+  //   font-size: 12px;
+
+  //   span {
+  //     padding: 2px 6px;
+  //     cursor: pointer;
+
+  //     &:hover {
+  //       color: #3a84ff;
+  //     }
+  //   }
+  // }
+
+  // 下载进度弹窗样式
+  .download-progress-popover {
+    max-width: 320px;
+    padding: 0;
+    border-radius: 2px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  .download-progress-content {
+    padding: 16px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 24px
   }
 </style>
