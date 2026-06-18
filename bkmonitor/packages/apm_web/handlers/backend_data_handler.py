@@ -797,7 +797,7 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
             {
                 "series": [
                     {"output_count": count, "time": int(timestamp / 1000) if timestamp > 100000000000 else timestamp}
-                    for timestamp, count in timestamp_to_count.items()
+                    for timestamp, count in sorted(timestamp_to_count.items())
                 ]
             }
         ]
@@ -811,6 +811,10 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
 
             namespace = self.profiling_bkdata_datalink_config.get("namespace", "bkmonitor")
             grain = kwargs.get("time_grain", "1m")
+            interval = self.GRAIN_MAPPING.get(grain)
+            if interval:
+                start_time = time_interval_align(timestamp=start_time, interval=interval)
+                end_time = time_interval_align(timestamp=end_time, interval=interval)
             resp = api.bkdata.get_v4_metrics_msgs_stat(
                 resource={"kind": "DataId", "namespace": namespace, "name": data_id_name},
                 start=start_time,
