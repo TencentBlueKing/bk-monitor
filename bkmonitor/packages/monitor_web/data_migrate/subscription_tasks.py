@@ -76,7 +76,7 @@ def stop_biz_subscription_tasks(
 
             record = {
                 "bk_biz_id": collect_config.bk_biz_id,
-                "collect_config_id": getattr(collect_config, "pk", collect_config.id),
+                "collect_config_id": collect_config.pk,
                 "name": collect_config.name,
                 "collect_type": collect_config.collect_type,
                 "plugin_id": collect_config.plugin_id,
