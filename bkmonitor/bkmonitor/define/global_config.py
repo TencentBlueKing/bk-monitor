@@ -618,10 +618,6 @@ STANDARD_CONFIGS = OrderedDict(
             "APM_PROFILE_V4_DORIS_BINDING_CLUSTER",
             slz.CharField(label=_("APM Profile V4 DorisBinding 存储集群名称"), default="", allow_blank=True),
         ),
-        (
-            "APM_PROFILE_V4_DATABUS_PREFER_CLUSTER",
-            slz.CharField(label=_("APM Profile V4 Databus 计算集群名称"), default="", allow_blank=True),
-        ),
         ("APM_PROFILING_ENABLED_APPS", slz.DictField(label=_("APM Profiling 开启应用白名单"), default={})),
         ("APM_PROFILING_ENABLED", slz.BooleanField(label=_("APM Profiling 开启功能"), default=False)),
         ("APM_EBPF_ENABLED", slz.BooleanField(label=_("APM 前端是否开启EBPF功能"), default=False)),
