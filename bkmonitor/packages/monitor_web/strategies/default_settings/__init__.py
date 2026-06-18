@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -19,6 +18,10 @@ DEFAULTS = {
         {
             "version": "v1",
             "module_path": "monitor_web.strategies.default_settings.os.v1",
+        },
+        {
+            "version": "v2",
+            "module_path": "monitor_web.strategies.default_settings.os.v2",
         },
     ],
     "DEFAULT_GSE_PROCESS_EVENT_STRATEGIES_LIST": [
@@ -55,7 +58,7 @@ class DefaultStrategySettings:
 
     def __getattr__(self, attr):
         if attr not in self.defaults:
-            raise AttributeError("Invalid build-in strategy setting: '%s'" % attr)
+            raise AttributeError(f"Invalid build-in strategy setting: '{attr}'")
 
         try:
             # Check if present in user settings
@@ -68,7 +71,7 @@ class DefaultStrategySettings:
         if attr in self.import_strings:
             if isinstance(val, str):
                 val = import_string(val)
-            elif isinstance(val, (list, tuple)):
+            elif isinstance(val, list | tuple):
                 val = [import_string(item) for item in val]
 
         if attr in self.version_strings:
