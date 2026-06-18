@@ -327,6 +327,7 @@ class MetricDataSource(ApmDataSourceConfigBase):
     DATASOURCE_TYPE = ApmDataSourceConfigBase.METRIC_DATASOURCE
 
     DEFAULT_MEASUREMENT = "__default__"
+    DEFAULT_METRIC_GROUP_DIMENSIONS = [{"key": "scope_name", "default_value": "default"}]
 
     DATA_ID_PARAM = {
         "etl_config": "bk_standard_v2_time_series",
@@ -365,6 +366,15 @@ class MetricDataSource(ApmDataSourceConfigBase):
                 f"{cls.DATASOURCE_TYPE}_{app_name}.{cls.DEFAULT_MEASUREMENT}"
             )
 
+    def is_metric_group_dimensions_enabled(self) -> bool:
+        if settings.APM_METRIC_GROUP_DIMENSIONS_ENABLED:
+            return True
+
+        whitelist = settings.APM_METRIC_GROUP_DIMENSIONS_WHITELIST
+        biz_key = str(self.bk_biz_id)
+        app_key = f"{self.bk_biz_id}-{self.app_name}"
+        return biz_key in whitelist or app_key in whitelist
+
     def create_or_update_result_table(self, **option):
         if self.result_table_id != "":
             return
@@ -391,6 +401,9 @@ class MetricDataSource(ApmDataSourceConfigBase):
                 f"[MetricDataSource] bk_data_id: {self.bk_data_id} app_name: {self.app_name} "
                 f"use proxy_cluster_name: {datalink.influxdb_cluster_name}"
             )
+
+        if self.is_metric_group_dimensions_enabled():
+            params["metric_group_dimensions"] = self.DEFAULT_METRIC_GROUP_DIMENSIONS
 
         group_info = resource.metadata.create_time_series_group(params)
         self.time_series_group_id = group_info["time_series_group_id"]
