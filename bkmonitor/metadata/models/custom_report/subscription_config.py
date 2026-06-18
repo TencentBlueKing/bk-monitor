@@ -279,6 +279,14 @@ class CustomReportSubscription(models.Model):
         bk_biz_id: int,
         data_id_configs: list[tuple[dict[str, Any], str]],
     ):
+        result = {
+            "action": "refresh",
+            "result": True,
+            "message": "success",
+            "clusters": [],
+            "cluster_count": 0,
+            "failed_count": 0,
+        }
         cluster_mapping = BkCollectorClusterConfig.get_cluster_mapping()
         if settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
             # 补充中心化集群
@@ -292,6 +300,15 @@ class CustomReportSubscription(models.Model):
             # 按协议分组收集配置
             protocol_config_maps = {}
             config_id_to_protocol: dict[int, str] = {}
+            cluster_record = {
+                "cluster_id": cluster_id,
+                "related_bk_biz_ids": sorted(cc_bk_biz_ids, key=str),
+                "protocols": [],
+                "config_count": 0,
+                "action": "refresh",
+                "result": True,
+                "message": "success",
+            }
             try:
                 protocol_tpl = {}
                 for config_context, protocol in data_id_configs:
@@ -317,9 +334,19 @@ class CustomReportSubscription(models.Model):
                         config_content = compiled_template.render(config_context)
                         protocol_config_maps.setdefault(protocol, {})[config_id] = config_content
                         config_id_to_protocol[config_id] = protocol
-                    except Exception:  # pylint: disable=broad-except
+                    except Exception as e:  # pylint: disable=broad-except
                         # 单个失败，继续渲染模板
+                        cluster_record["result"] = False
+                        cluster_record["message"] = str(e)
                         logger.exception(f"render config({config_context})")
+
+                cluster_record["protocols"] = sorted(protocol_config_maps.keys())
+                cluster_record["config_count"] = sum(len(config_map) for config_map in protocol_config_maps.values())
+                if not protocol_config_maps:
+                    if cluster_record["result"] is not False:
+                        cluster_record.update({"action": "skip", "result": True, "message": "no rendered config"})
+                    result["clusters"].append(cluster_record)
+                    continue
 
                 # 分别按协议调用deploy_to_k8s_with_hash
                 for protocol, config_map in protocol_config_maps.items():
@@ -330,7 +357,17 @@ class CustomReportSubscription(models.Model):
                     cluster_id, protocol_config_maps.keys(), config_id_to_protocol
                 )
             except Exception as e:  # pylint: disable=broad-except
+                cluster_record.update({"result": False, "message": str(e)})
                 logger.exception(f"refresh custom report ({bk_biz_id}) config to k8s({cluster_id}) error({e})")
+            result["clusters"].append(cluster_record)
+
+        result["cluster_count"] = len(result["clusters"])
+        result["failed_count"] = sum(1 for cluster in result["clusters"] if cluster["result"] is False)
+        if result["failed_count"]:
+            result.update({"result": False, "message": f"failed clusters: {result['failed_count']}"})
+        elif not result["clusters"]:
+            result.update({"action": "skip", "result": True, "message": "no matched k8s cluster"})
+        return result
 
     @classmethod
     def _refresh_collect_custom_config_by_biz(
@@ -366,7 +403,8 @@ class CustomReportSubscription(models.Model):
         else:
             space_uid = bk_biz_id_to_space_uid(bk_biz_id)
             if is_bk_saas_space(space_uid):
-                return
+                result.update({"action": "skip", "result": True, "message": "bk saas space skipped"})
+                return result
 
             proxies = api.node_man.get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
             proxy_biz_ids = {proxy["bk_biz_id"] for proxy in proxies}
@@ -534,6 +572,12 @@ class CustomReportSubscription(models.Model):
                         data_id_configs=data_id_configs,
                         dry_run=dry_run,
                     )
+                    if target_record is None:
+                        target_record = {
+                            "action": "dry_run" if dry_run else "refresh",
+                            "result": None if dry_run else True,
+                            "message": "success",
+                        }
                 except Exception as e:
                     target_record = {"action": "dry_run" if dry_run else "refresh", "result": False, "message": str(e)}
                     logger.exception(f"refresh custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}")
@@ -548,10 +592,12 @@ class CustomReportSubscription(models.Model):
                 if not dry_run:
                     try:
                         # 2. 下发配置（走 K8S 下发至集群）
-                        cls._refresh_k8s_custom_config_by_biz(
+                        target_record = cls._refresh_k8s_custom_config_by_biz(
                             bk_biz_id=bk_biz_id,
                             data_id_configs=data_id_configs,
                         )
+                        if target_record is None:
+                            target_record = {"action": "refresh", "result": True, "message": "success"}
                     except Exception as e:
                         target_record.update({"result": False, "message": str(e)})
                         logger.exception(

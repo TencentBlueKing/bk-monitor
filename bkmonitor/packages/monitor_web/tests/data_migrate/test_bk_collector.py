@@ -315,3 +315,135 @@ def test_refresh_collect_custom_config_by_biz_dry_run_returns_proxy_hosts(monkey
         {"bk_host_id": 101, "bk_biz_id": 200, "bk_cloud_id": 1, "ip": "10.0.0.1"},
         {"bk_host_id": 102, "bk_biz_id": 200, "bk_cloud_id": 1, "ip": "10.0.0.2"},
     ]
+
+
+def test_custom_report_refresh_skips_bk_saas_space_with_structured_target(monkeypatch):
+    from metadata.models.custom_report import subscription_config
+    from metadata.models.custom_report.subscription_config import CustomReportSubscription
+
+    monkeypatch.setattr(subscription_config, "bk_biz_id_to_space_uid", lambda bk_biz_id: f"bk_saas__{bk_biz_id}")
+    monkeypatch.setattr(subscription_config, "is_bk_saas_space", lambda space_uid: True)
+    monkeypatch.setattr(
+        subscription_config.api.node_man,
+        "get_proxies_by_biz",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("bk saas space should not query node_man proxy")),
+    )
+    monkeypatch.setattr(subscription_config.api.cmdb, "get_host_without_biz", lambda **kwargs: {"hosts": []})
+    monkeypatch.setattr(
+        CustomReportSubscription,
+        "get_custom_event_config",
+        classmethod(lambda cls, **kwargs: {-42: [({"bk_data_id": 2001}, "json")]}),
+    )
+    monkeypatch.setattr(
+        CustomReportSubscription,
+        "get_custom_time_series_config",
+        classmethod(lambda cls, **kwargs: {}),
+    )
+
+    result = CustomReportSubscription.refresh_collector_custom_conf(
+        bk_tenant_id="system",
+        bk_biz_id=-42,
+        deploy_targets=("node_man",),
+        dry_run=True,
+    )
+
+    saas_target = result["details"][0]["targets"]["node_man"]
+    assert result["details"][0]["bk_biz_id"] == -42
+    assert saas_target == {
+        "action": "skip",
+        "result": True,
+        "message": "bk saas space skipped",
+        "proxy_host_ids": [],
+        "proxy_hosts": [],
+        "proxy_count": 0,
+    }
+    assert result["summary"]["skipped_count"] == 2
+    assert result["summary"]["failed_count"] == 0
+
+
+def test_custom_report_k8s_refresh_reports_deploy_failures_in_summary(monkeypatch):
+    from metadata.models.custom_report import subscription_config
+    from metadata.models.custom_report.subscription_config import CustomReportSubscription
+
+    monkeypatch.setattr(subscription_config.settings, "CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER", [], raising=False)
+    monkeypatch.setattr(
+        subscription_config.BkCollectorClusterConfig,
+        "get_cluster_mapping",
+        lambda: {"cluster-1": [2]},
+    )
+    monkeypatch.setattr(
+        subscription_config.BkCollectorClusterConfig,
+        "sub_config_tpl",
+        lambda cluster_id, tpl_name: "data_id={{ bk_data_id }}",
+    )
+    monkeypatch.setattr(
+        subscription_config.BkCollectorClusterConfig,
+        "deploy_to_k8s_with_hash",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("deploy failed")),
+    )
+    monkeypatch.setattr(
+        subscription_config.BkCollectorClusterConfig,
+        "clean_dup_secrets_in_multi_protocol",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        CustomReportSubscription,
+        "get_custom_event_config",
+        classmethod(lambda cls, **kwargs: {2: [({"bk_data_id": 2001}, "json")]}),
+    )
+    monkeypatch.setattr(
+        CustomReportSubscription,
+        "get_custom_time_series_config",
+        classmethod(lambda cls, **kwargs: {}),
+    )
+
+    result = CustomReportSubscription.refresh_collector_custom_conf(
+        bk_tenant_id="system",
+        bk_biz_id=2,
+        deploy_targets=("k8s",),
+    )
+
+    k8s_target = result["details"][0]["targets"]["k8s"]
+    assert k8s_target["result"] is False
+    assert k8s_target["failed_count"] == 1
+    assert k8s_target["clusters"][0]["message"] == "deploy failed"
+    assert result["summary"]["failed_count"] == 1
+    assert result["summary"]["skipped_count"] == 1
+
+
+def test_refresh_k8s_custom_config_by_biz_keeps_render_failure(monkeypatch):
+    from metadata.models.custom_report import subscription_config
+    from metadata.models.custom_report.subscription_config import CustomReportSubscription
+
+    class BadTemplate:
+        def render(self, context):
+            raise RuntimeError("render failed")
+
+    monkeypatch.setattr(subscription_config.settings, "CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER", [], raising=False)
+    monkeypatch.setattr(
+        subscription_config.BkCollectorClusterConfig,
+        "get_cluster_mapping",
+        lambda: {"cluster-1": [2]},
+    )
+    monkeypatch.setattr(
+        subscription_config.BkCollectorClusterConfig,
+        "sub_config_tpl",
+        lambda cluster_id, tpl_name: "tpl",
+    )
+    monkeypatch.setattr(subscription_config.jinja_env, "from_string", lambda tpl: BadTemplate())
+    monkeypatch.setattr(
+        subscription_config.BkCollectorClusterConfig,
+        "deploy_to_k8s_with_hash",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("render failure should not deploy")),
+    )
+
+    result = CustomReportSubscription._refresh_k8s_custom_config_by_biz(
+        bk_biz_id=2,
+        data_id_configs=[({"bk_data_id": 2001}, "json")],
+    )
+
+    assert result["result"] is False
+    assert result["failed_count"] == 1
+    assert result["clusters"][0]["action"] == "refresh"
+    assert result["clusters"][0]["result"] is False
+    assert result["clusters"][0]["message"] == "render failed"
