@@ -335,8 +335,6 @@ class MetricDataSource(ApmDataSourceConfigBase):
         "option": {"inject_local_time": True},
     }
 
-    METRIC_NAME = "bk_apm_duration"
-
     time_series_group_id = models.IntegerField("时序分组ID", default=0)
     data_label = models.CharField("数据标签", max_length=128, default="")
     bk_data_virtual_metric_config = JsonField("数据平台虚拟指标配置", null=True)
@@ -395,22 +393,6 @@ class MetricDataSource(ApmDataSourceConfigBase):
             )
 
         group_info = resource.metadata.create_time_series_group(params)
-        resource.metadata.modify_time_series_group(
-            {
-                "bk_tenant_id": bk_tenant_id,
-                "time_series_group_id": group_info["time_series_group_id"],
-                "field_list": [
-                    {
-                        "field_name": self.METRIC_NAME,
-                        "field_type": "float",
-                        "tag": "metric",
-                        "description": f"{self.app_name}",
-                        "unit": "ns",
-                    }
-                ],
-                "operator": global_user,
-            }
-        )
         self.time_series_group_id = group_info["time_series_group_id"]
         self.result_table_id = group_info["table_id"]
         self.data_label = group_info["data_label"]
@@ -1537,10 +1519,10 @@ class ProfileDataSource(ApmDataSourceConfigBase):
         global_user = get_global_user(bk_tenant_id=bk_tenant_id)
         maintainer = global_user if not apm_maintainers else f"{global_user},{apm_maintainers}"
 
-        # 判断是否使用 V4 链路（以 profile_bk_biz_id 作为判断依据，负数业务映射到公共业务 ID）
+        # 判断是否使用 V4 链路（以原始 bk_biz_id 作为判断依据）
         # GlobalConfig 前端输入的值可能为字符串，统一转 int 比较
         v4_white_list = [int(x) for x in settings.APM_PROFILE_V4_BIZ_WHITE_LIST]
-        use_v4 = profile_bk_biz_id in v4_white_list
+        use_v4 = bk_biz_id in v4_white_list
 
         if use_v4:
             # V4 声明式链路：轮询可能长达 5 分钟，不可放入事务内

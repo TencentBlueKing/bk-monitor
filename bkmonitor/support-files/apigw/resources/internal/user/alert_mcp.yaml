@@ -429,80 +429,10 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: true
           resourcePermissionRequired: true
-  /mcp/get_alert_k8s_scenarios/:
-    get:
-      operationId: get_alert_k8s_scenarios
-      description: Get K8S container observation scenarios for an alert. Different target types support different scenarios. Pod/Workload supports performance/network; Node supports capacity; Service supports network. Use after get_alert_info. alert_id must be obtained from list_alerts. 获取告警关联的K8S容器观测场景列表。不同目标类型支持不同场景:Pod/Workload→performance/network;Node→capacity;Service→network。在get_alert_info后使用。alert_id必须从list_alerts获取。
-      tags:
-      - alert_mcp
-      parameters:
-      - in: query
-        name: bk_biz_id
-        schema:
-          type: string
-        required: true
-        description: Business ID in BlueKing Monitor. 业务ID。
-      - in: query
-        name: alert_id
-        schema:
-          type: string
-        required: true
-        description: Alert ID. Must be obtained from list_alerts or get_alert_info. 告警ID。
-      x-bk-apigateway-resource:
-        isPublic: false
-        allowApplyPermission: false
-        matchSubpath: false
-        enableWebsocket: false
-        backend:
-          name: default
-          method: get
-          path: /api/v4/alert_v2/alert/k8s_scenario_list/
-          matchSubpath: false
-          timeout: 0
-        pluginConfigs: []
-        authConfig:
-          userVerifiedRequired: true
-          appVerifiedRequired: true
-          resourcePermissionRequired: true
-  /mcp/get_alert_k8s_metrics/:
-    get:
-      operationId: get_alert_k8s_metrics
-      description: Get K8S container metrics by observation scenario. scenario must be obtained from get_alert_k8s_scenarios. Valid scenarios are performance (CPU/memory), network (traffic/connections), capacity (node resources). 根据观测场景获取K8S容器指标列表。scenario必须从get_alert_k8s_scenarios获取。有效场景:performance(CPU/内存)、network(流量/连接)、capacity(节点资源)。
-      tags:
-      - alert_mcp
-      parameters:
-      - in: query
-        name: bk_biz_id
-        schema:
-          type: string
-        required: true
-        description: Business ID in BlueKing Monitor. 业务ID。
-      - in: query
-        name: scenario
-        schema:
-          type: string
-        required: true
-        description: 'Observation scenario. Must be obtained from get_alert_k8s_scenarios. Valid values: "performance" (CPU/memory metrics), "network" (traffic/connection metrics), "capacity" (node resource metrics). 观测场景。必须从get_alert_k8s_scenarios获取。可选值:"performance"(性能)、"network"(网络)、"capacity"(容量)。'
-      x-bk-apigateway-resource:
-        isPublic: false
-        allowApplyPermission: false
-        matchSubpath: false
-        enableWebsocket: false
-        backend:
-          name: default
-          method: get
-          path: /api/v4/alert_v2/alert/k8s_metric_list/
-          matchSubpath: false
-          timeout: 0
-        pluginConfigs: []
-        authConfig:
-          userVerifiedRequired: true
-          appVerifiedRequired: true
-          resourcePermissionRequired: true
   /mcp/get_alert_k8s_target/:
     get:
       operationId: get_alert_k8s_target
-      description: Get K8S container target objects for an alert, including resource type, target list, and cluster info. Use after get_alert_info to discover K8S resources associated with the alert. alert_id must be obtained from list_alerts. 获取告警关联的K8S容器目标对象,包括资源类型、目标列表和集群信息。在get_alert_info后使用。alert_id必须从list_alerts获取。
+      description: Get K8S container target objects for an alert, including resource type, target list, cluster info, and scenario_list for each target. Use after get_alert_info to discover K8S resources associated with the alert. alert_id must be obtained from list_alerts. 获取告警关联的K8S容器目标对象,包括资源类型、目标列表、集群信息和每个目标支持的scenario_list。在get_alert_info后使用。alert_id必须从list_alerts获取。
       tags:
       - alert_mcp
       parameters:

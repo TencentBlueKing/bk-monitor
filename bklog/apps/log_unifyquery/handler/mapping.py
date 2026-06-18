@@ -198,6 +198,7 @@ class UnifyQueryMappingHandler:
 
         fields_list: list = []
         for field in fields_result:
+            field_type = self.normalize_dt_event_timestamp_field_type(field["field_name"], field["field_type"])
             tokenize_on_chars = field.get("tokenize_on_chars", [])
             if isinstance(tokenize_on_chars, list | tuple):
                 tokenize_on_chars = "".join(tokenize_on_chars)
@@ -206,7 +207,7 @@ class UnifyQueryMappingHandler:
 
             fields_list.append(
                 {
-                    "field_type": field["field_type"],
+                    "field_type": field_type,
                     "field_name": field["field_name"],
                     "field_alias": field.get("field_alias", ""),
                     "query_alias": field.get("alias_name", ""),
@@ -216,7 +217,7 @@ class UnifyQueryMappingHandler:
                     "origin_field": field.get("origin_field", ""),
                     "es_doc_values": field.get("is_agg", False),
                     "is_analyzed": field.get("is_analyzed", False),
-                    "field_operator": OPERATORS.get(field["field_type"], []),
+                    "field_operator": OPERATORS.get(field_type, []),
                     "is_case_sensitive": field.get("is_case_sensitive", False),
                     "tokenize_on_chars": tokenize_on_chars,
                 }
@@ -224,14 +225,10 @@ class UnifyQueryMappingHandler:
         # doris需要映射字段类型，根据新的类型获取操作列表
         indices_list = self.indices.split(",")
 
-        is_doris = (
-            str(IndexSetTag.get_tag_id("Doris")) in list(self.index_set.tag_ids)
-            or DORIS_CLUSTER_TYPE in {
-                storage_cluster_type for storage_cluster_type in CollectorConfig.get_storage_cluster_type_map_by_table_ids(
-                    indices_list
-                ).values()
-            }
-        )
+        is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(self.index_set.tag_ids) or DORIS_CLUSTER_TYPE in {
+            storage_cluster_type
+            for storage_cluster_type in CollectorConfig.get_storage_cluster_type_map_by_table_ids(indices_list).values()
+        }
         if is_doris:
             for field in fields_list:
                 field["field_type"] = DorisFieldTypeEnum.get_es_field_type(field)
@@ -265,6 +262,12 @@ class UnifyQueryMappingHandler:
             field["is_built_in"] = field_name in built_in_fields or field_name.startswith("__ext.")
 
         return fields_list
+
+    @staticmethod
+    def normalize_dt_event_timestamp_field_type(field_name, field_type):
+        if field_name == "dtEventTimeStamp" and field_type != "date_nanos":
+            return "date"
+        return field_type
 
     def get_all_fields_by_index_id(self, scope=SearchScopeEnum.DEFAULT.value, is_union_search=False):
         """

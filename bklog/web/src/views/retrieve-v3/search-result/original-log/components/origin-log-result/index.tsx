@@ -78,16 +78,7 @@ export default defineComponent({
     const timeFieldType = computed(() => fieldsMap.value[timeField.value]?.field_type);
     const visibleFields = computed(() => store.getters.visibleFields);
 
-    const requestOtherparams = cloneDeep(props.retrieveParams || {});
-    if (!Array.isArray(requestOtherparams.addition)) {
-      requestOtherparams.addition = [];
-    }
-    if (!requestOtherparams.search_mode) {
-      requestOtherparams.search_mode = 'ui';
-    }
-    if (!requestOtherparams.keyword) {
-      requestOtherparams.keyword = '*';
-    }
+    const requestOtherparams = cloneDeep(props.retrieveParams);
     delete requestOtherparams.format;
 
     // 隐藏掉tippy弹出框中的非必要按钮
@@ -109,6 +100,9 @@ export default defineComponent({
     let begin = 0;
     const size = 50;
     let total = 0;
+    let isUnmounted = false;
+    let requestSeq = 0;
+    let scrollIntoViewTimer: ReturnType<typeof setTimeout> | null = null;
 
     const isMonitorApm = window.__IS_MONITOR_APM__;
 
@@ -123,6 +117,7 @@ export default defineComponent({
     );
 
     const requestLogList = (isManualSearch = true) => {
+      const currentRequestSeq = ++requestSeq;
       listLoading.value = true;
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
       const searchUrl = store.getters.isSceneMode
@@ -151,14 +146,29 @@ export default defineComponent({
       }
       axiosInstance(params)
         .then((resp: any) => {
+          if (isUnmounted || currentRequestSeq !== requestSeq) {
+            return;
+          }
           if (resp.data && !resp.message) {
-            readBlobRespToJson(resp.data).then(({ data, result }) => {
+            readBlobRespToJson(resp.data).then(({ code, data, result, permission }) => {
+              if (isUnmounted || currentRequestSeq !== requestSeq) {
+                return;
+              }
+              if (code === '9900403') {
+                store.commit('updateState', {
+                  authDialogData: {
+                    apply_url: data.apply_url,
+                    apply_data: permission,
+                  },
+                });
+                return;
+              }
               if (result) {
                 begin += size;
-                total = (data.total?.toNumber?.() ?? Number(data.total)) || 0;
-                const list = parseBigNumberList(data.list || []);
+                total = data.total.toNumber();
+                const list = parseBigNumberList(data.list);
                 logList.value.push(...list);
-                if (isManualSearch && list.length) {
+                if (isManualSearch) {
                   choosedIndex.value = -1;
                   handleChooseRow(0, list[0]);
                 }
@@ -167,7 +177,9 @@ export default defineComponent({
           }
         })
         .finally(() => {
-          listLoading.value = false;
+          if (!isUnmounted && currentRequestSeq === requestSeq) {
+            listLoading.value = false;
+          }
         });
     };
 
@@ -344,8 +356,9 @@ export default defineComponent({
         dtEventTimeStamp: rowInfo.dtEventTimeStamp,
       });
       if (Array.isArray(contextFields) && contextFields.length) {
-        // 传参配置指定字段
-        [...new Set([...contextFields, timeField].filter(Boolean))].forEach((field) => {
+        // 传参配置指定字段。不要直接 push 到 store 配置数组，否则每次点击行都会污染全局配置并持续增长。
+        const targetContextFields = Array.from(new Set([...contextFields, timeField].filter(Boolean)));
+        targetContextFields.forEach((field) => {
           if (field === 'bk_host_id') {
             if (rowInfo[field]) {
               dialogNewParams[field] = rowInfo[field];
@@ -408,31 +421,25 @@ export default defineComponent({
     });
 
     onBeforeUnmount(() => {
+      isUnmounted = true;
+      requestSeq += 1;
+      handleScrollContent.cancel();
+      if (scrollIntoViewTimer) {
+        clearTimeout(scrollIntoViewTimer);
+        scrollIntoViewTimer = null;
+      }
+      logList.value = [];
       removeSegmentLightStyle();
     });
 
     expose({
       // init: () => handleSearch(requestOtherparams.search_mode, false),
       init: () => {
-        if (!searchBarRef.value) {
-          setTimeout(() => {
-            if (searchBarRef.value) {
-              logResultRefInit();
-            }
-          });
-          return;
-        }
-        logResultRefInit();
-      },
-      reset: handleReset,
-    });
-
-    const logResultRefInit = () => {
-      // 初始化搜索框
-      const modeIndex = store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE] ?? 0;
-      searchBarRef.value.setLocalMode(modeIndex);
-      requestOtherparams.search_mode = modeIndex === 0 ? 'ui' : 'sql';
-        const addition = Array.isArray(props.retrieveParams?.addition) ? props.retrieveParams.addition : [];
+        // 初始化搜索框
+        const modeIndex = store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE];
+        searchBarRef.value.setLocalMode(modeIndex);
+        requestOtherparams.search_mode = modeIndex === 0 ? 'ui' : 'sql';
+        const addition = props.retrieveParams.addition;
         // 初始化带上常用查询设置
         if (modeIndex === 0) {
           // ui 模式
@@ -442,7 +449,7 @@ export default defineComponent({
             const addAdditionList = addition.map(item => ({
               disabled: false,
               field: item.field,
-              field_type: fieldsMap.value[item.field]?.field_type || item.field_type || 'text',
+              field_type: fieldsMap.value[item.field].field_type,
               operator: item.operator,
               value: item.value,
               relation: 'OR',
@@ -462,29 +469,31 @@ export default defineComponent({
             requestOtherparams.addition = addition;
           }
         }
-        // 设置外部数据；独立上下文页面在新 Tab 打开时 Vuex 查询结果为空，需要主动请求右侧列表。
-        const outerLogResult = store.state.indexSetQueryResult || {};
-        const outerList = Array.isArray(outerLogResult.list) ? outerLogResult.list : [];
-        if (outerList.length) {
-          total = (outerLogResult.total?.toNumber?.() ?? Number(outerLogResult.total)) || outerList.length;
-          logList.value = outerList.slice();
-          begin = logList.value.length;
-          setTimeout(() => {
-            // 自动定位到选中行
-            const isChoosedRow = Array.from(tableRef.value?.querySelectorAll?.('.is-choosed') || [])[0] as HTMLElement | undefined;
-            if (!isChoosedRow) {
-              return;
-            }
-            const positionInfo = isChoosedRow.getBoundingClientRect();
-            if (positionInfo.top > window.innerHeight - 70) {
-              isChoosedRow.scrollIntoView();
-            }
-          });
-          return;
+        // 设置外部数据
+        const outerLogResult = store.state.indexSetQueryResult;
+        total = outerLogResult.total;
+        logList.value = outerLogResult.list.slice();
+        begin = logList.value.length;
+        if (scrollIntoViewTimer) {
+          clearTimeout(scrollIntoViewTimer);
         }
-
-      requestLogList(false);
-    };
+        scrollIntoViewTimer = setTimeout(() => {
+          if (isUnmounted) {
+            return;
+          }
+          // 自动定位到选中行
+          const isChoosedRow = Array.from(tableRef.value?.querySelectorAll('.is-choosed') ?? [])[0] as HTMLElement;
+          if (!isChoosedRow) {
+            return;
+          }
+          const positionInfo = isChoosedRow.getBoundingClientRect();
+          if (positionInfo.top > window.innerHeight - 70) {
+            isChoosedRow.scrollIntoView();
+          }
+        });
+      },
+      reset: handleReset,
+    });
 
     const rowStyle = `font-family: var(--bklog-v3-row-ctx-font);
     font-size: var(--table-fount-size);
@@ -546,7 +555,7 @@ export default defineComponent({
                       <div class='index-column'>
                         <span>{index + 1}</span>
                         <div class='choosed-bgd'>
-                          <div class={['check-icon-main', { 'is-monitor-apm-icon': isMonitorApm }]}>
+                          <div class={['check-icon-main', { 'is-monitor-apm-icon':isMonitorApm }]}>
                             {
                               isMonitorApm ? (
                                 <span class='bk-icon icon-check-1'></span>

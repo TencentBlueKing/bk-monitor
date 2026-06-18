@@ -8,11 +8,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from collections.abc import Iterable
+import json
+from collections.abc import Iterable, Mapping
 from datetime import date, datetime
 from typing import Any
 
 from django.db.models import Count, Q
+from django.core.serializers.json import DjangoJSONEncoder
 
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource.exceptions import CustomException
@@ -172,6 +174,28 @@ def serialize_value(value: Any) -> Any:
     return value
 
 
+def to_json_safe(value: Any) -> Any:
+    if value is None or isinstance(value, str | int | float | bool):
+        return value
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    if isinstance(value, Mapping):
+        return {str(to_json_safe(key)): to_json_safe(item) for key, item in value.items()}
+    if isinstance(value, list | tuple):
+        return [to_json_safe(item) for item in value]
+    if isinstance(value, set | frozenset):
+        return [to_json_safe(item) for item in sorted(value, key=str)]
+
+    serialized_value = serialize_value(value)
+    if serialized_value is not value:
+        return to_json_safe(serialized_value)
+
+    try:
+        return json.loads(json.dumps(value, cls=DjangoJSONEncoder, ensure_ascii=False))
+    except TypeError:
+        return str(value)
+
+
 def serialize_model(instance: Any, fields: list[str]) -> dict[str, Any]:
     return {field: serialize_value(getattr(instance, field, None)) for field in fields}
 
@@ -191,17 +215,19 @@ def build_response(
     warnings: list[dict[str, Any]] | None = None,
     safety_level: str = SAFETY_LEVEL_READ,
 ) -> dict[str, Any]:
-    return {
-        "data": data,
-        "warnings": warnings or [],
-        "meta": {
-            "operation": operation,
-            "func_name": func_name,
-            "safety_level": safety_level,
-            "effective_bk_tenant_id": bk_tenant_id,
-            "tenant_scope": "single" if bk_tenant_id else "all",
-        },
-    }
+    return to_json_safe(
+        {
+            "data": data,
+            "warnings": warnings or [],
+            "meta": {
+                "operation": operation,
+                "func_name": func_name,
+                "safety_level": safety_level,
+                "effective_bk_tenant_id": bk_tenant_id,
+                "tenant_scope": "single" if bk_tenant_id else "all",
+            },
+        }
+    )
 
 
 def count_by_field(model_cls: Any, *, group_field: str, values: Iterable[Any], **filters: Any) -> dict[Any, int]:

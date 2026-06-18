@@ -140,6 +140,13 @@ class BkCollectorClusterConfig:
             return None
 
         content = config_maps.items[0].data.get(BkCollectorComp.CONFIG_MAP_PLATFORM_TPL_NAME)
+        if not content:
+            logger.info(
+                f"[BkCollectorClusterConfig] platform config template not found: cluster({cluster_id}), "
+                f"template({BkCollectorComp.CONFIG_MAP_PLATFORM_TPL_NAME})"
+            )
+            return None
+
         try:
             return base64.b64decode(content).decode()
         except Exception as e:  # pylint: disable=broad-except
@@ -158,14 +165,21 @@ class BkCollectorClusterConfig:
         if config_maps is None or len(config_maps.items) == 0:
             return None
 
-        content = b""
+        content = ""
         for item in config_maps.items:
             if not item.data:
                 continue
 
-            content = item.data.get(sub_config_tpl_name)
+            content = item.data.get(sub_config_tpl_name, "")
             if content:
                 break
+
+        if not content:
+            logger.info(
+                f"[BkCollectorClusterConfig] sub config template not found: cluster({cluster_id}), "
+                f"template({sub_config_tpl_name})"
+            )
+            return None
 
         try:
             return base64.b64decode(content).decode()
@@ -561,3 +575,124 @@ class BkCollectorClusterConfig:
                     logger.info(
                         f"[clean dup secrets in multi protocol] cluster_id({cluster_id}) update secret({secret_name})"
                     )
+
+    @classmethod
+    def clean_sub_configs(
+        cls,
+        cluster_id: str,
+        protocol: str,
+        config_ids: list[int] | set[int],
+        namespace: str | None = None,
+        dry_run=True,
+    ) -> list[dict]:
+        """
+        清理指定协议 Secret 中的子配置。
+
+        Args:
+            cluster_id: 集群 ID
+            protocol: 协议，json/prometheus/log
+            config_ids: 配置 ID 列表，一般为 bk_data_id
+            namespace: 命名空间，为空时使用 bk-collector 默认命名空间
+            dry_run: 是否只预览，不实际删除
+
+        Returns:
+            清理计划列表
+        """
+        config_ids = {int(config_id) for config_id in config_ids if config_id is not None}
+        if not config_ids:
+            logger.info(f"[clean sub configs] cluster_id({cluster_id}) protocol({protocol}) config ids is empty, skip")
+            return []
+
+        secret_config = BkCollectorComp.get_secrets_config_map_by_protocol(cluster_id, protocol)
+        if not secret_config:
+            logger.info(
+                f"[clean sub configs] cluster_id({cluster_id}) protocol({protocol}) "
+                "has no secret config, please check if your config has been initialized"
+            )
+            return []
+
+        if namespace is None:
+            namespace = BkCollectorClusterConfig.bk_collector_namespace(cluster_id)
+
+        removable_sub_config_files = {
+            secret_config["secret_data_key_tpl"].format(config_id): config_id for config_id in config_ids
+        }
+        secret_label_selector = f"{BkCollectorComp.SECRET_COMMON_LABELS},{secret_config.get('secret_extra_label')}"
+
+        bcs_client = BcsKubeClient(cluster_id)
+        try:
+            exists_secrets_obj = bcs_client.client_request(
+                bcs_client.core_api.list_namespaced_secret,
+                namespace=namespace,
+                label_selector=secret_label_selector,
+            )
+        except Exception as e:
+            logger.warning(
+                f"[clean sub configs] failed to list secrets: cluster_id({cluster_id}), namespace({namespace}), "
+                f"protocol({protocol}), error({e})"
+            )
+            return []
+
+        if not exists_secrets_obj or not exists_secrets_obj.items:
+            logger.info(f"[clean sub configs] cluster_id({cluster_id}) protocol({protocol}) has no secrets")
+            return []
+
+        clean_plans = []
+        for secret in exists_secrets_obj.items:
+            if not secret.data or not isinstance(secret.data, dict):
+                continue
+
+            removed_sub_config_files = set(removable_sub_config_files.keys()) & set(secret.data.keys())
+            if not removed_sub_config_files:
+                continue
+
+            clean_plans.append(
+                {
+                    "cluster_id": cluster_id,
+                    "namespace": namespace,
+                    "protocol": protocol,
+                    "secret_name": secret.metadata.name,
+                    "config_ids": sorted(removable_sub_config_files[file] for file in removed_sub_config_files),
+                    "sub_config_files": sorted(removed_sub_config_files),
+                    "delete_secret": len(secret.data) == len(removed_sub_config_files),
+                }
+            )
+
+            if dry_run:
+                logger.info(
+                    f"[clean sub configs][dry-run] cluster_id({cluster_id}) protocol({protocol}) "
+                    f"secret({secret.metadata.name}) will remove configs({sorted(removed_sub_config_files)})"
+                )
+                continue
+
+            for sub_config_file in removed_sub_config_files:
+                del secret.data[sub_config_file]
+
+            if not secret.data:
+                logger.info(
+                    f"[clean sub configs] cluster_id({cluster_id}) protocol({protocol}) "
+                    f"delete secret({secret.metadata.name}) start"
+                )
+                bcs_client.client_request(
+                    bcs_client.core_api.delete_namespaced_secret,
+                    name=secret.metadata.name,
+                    namespace=namespace,
+                    body=secret,
+                )
+                logger.info(
+                    f"[clean sub configs] cluster_id({cluster_id}) protocol({protocol}) "
+                    f"delete secret({secret.metadata.name}) ok"
+                )
+            else:
+                bcs_client.client_request(
+                    bcs_client.core_api.replace_namespaced_secret,
+                    name=secret.metadata.name,
+                    namespace=namespace,
+                    body=secret,
+                )
+                logger.info(
+                    f"[clean sub configs] cluster_id({cluster_id}) protocol({protocol}) "
+                    f"update secret({secret.metadata.name})"
+                )
+
+        return clean_plans

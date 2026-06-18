@@ -17,8 +17,10 @@ from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext as _
 from opentelemetry import trace
+from opentelemetry.trace import INVALID_SPAN, get_current_span
 from opentelemetry.trace.status import Status, StatusCode
 
+from bkmonitor.trace.utils import MAX_PARAMS_SIZE, jsonify
 from bkmonitor.utils.request import get_request, get_request_tenant_id, get_request_username
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.mcp import (
@@ -163,6 +165,19 @@ class Resource(six.with_metaclass(abc.ABCMeta, object)):
             return validated_request_data
         """
         raise NotImplementedError
+
+    @staticmethod
+    def record_request_data_to_span(attribute, request_data):
+        """
+        将请求参数记录到当前 span 中
+        """
+        try:
+            span = get_current_span()
+            if span == INVALID_SPAN:
+                return
+            span.set_attribute(attribute, jsonify(request_data)[:MAX_PARAMS_SIZE])
+        except Exception as err:  # pylint: disable=broad-except
+            logger.exception(f"Resource: Failed to record request data to span, error: {err}")
 
     def validate_request_data(self, request_data):
         """

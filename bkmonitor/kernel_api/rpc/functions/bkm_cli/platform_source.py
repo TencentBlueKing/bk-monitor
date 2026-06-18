@@ -19,7 +19,7 @@ from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
 
 from . import platform_catalog  # noqa: F401 (triggers catalog package load)
-from .platform_catalog._catalog import OperationSpec, PlatformSourceCatalog
+from .platform_catalog._catalog import OperationSpec, ParamsGuardRejected, PlatformSourceCatalog
 
 logger = logging.getLogger(__name__)
 
@@ -172,6 +172,7 @@ def _describe(domain_id: str, operation_id: str) -> dict[str, Any]:
         "kind": "schema",
         "domain": domain.id,
         "operation": op.id,
+        "required_params": list(op.required_params),
         "params_schema": op.params_schema_override or _reflect_schema(op),
         "example_params": op.example_params,
         "default_fields": op.default_fields,
@@ -207,6 +208,14 @@ def _invoke(domain_id: str, operation_id: str, params: dict[str, Any], *, force_
 
     invoke_params = dict(params or {})
     invoke_warnings: list[str] = []
+
+    # 参数防线先于一切执行路径（含 cache_bypass 分支）：策略拦截走 unsafe_action_blocked，
+    # 不得落进下方 try 的 provider_unavailable（那是 provider 故障语义）。
+    if op.params_guard is not None:
+        try:
+            invoke_params = op.params_guard(invoke_params)
+        except ParamsGuardRejected as e:
+            return _error(code="unsafe_action_blocked", message=str(e))
 
     # cache_bypass：bk-monitor CacheResource 把 self.request 包成 using_cache wrapper（见
     # bkmonitor/utils/cache.py:217-220），wrapper 同时挂 .refresh / .cacheless 两个方法。

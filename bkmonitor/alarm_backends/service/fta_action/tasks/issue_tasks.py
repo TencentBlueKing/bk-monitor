@@ -8,20 +8,23 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 import logging
 import re
 import time
 from collections import defaultdict
 from typing import Any
 
+from django.conf import settings
+
 from alarm_backends.core.cache.cmdb import BusinessManager, SetManager
 from alarm_backends.service.scheduler.app import app
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
-from bkmonitor.documents.issue import IssueDocument
+from bkmonitor.documents.issue import IssueDocument, IssueNameDuplicatedError
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
-from constants.issue import IssueStatus
+from constants.issue import IssueActivityType, IssueStatus
 
 logger = logging.getLogger("fta_action.issue")
 
@@ -848,3 +851,296 @@ def _iter_alert_hit_batches(base_search, sort_fields=None):
         search_after = getattr(hits[-1].meta, "sort", None)
         if not search_after:
             break
+
+
+# -------------------- Issue LLM 标题生成 -------------------- #
+
+
+def _collect_example_groups(latest_by_issue: dict[str, str], issue_hits) -> tuple[dict, dict]:
+    """few-shot 样本筛选（纯函数，便于单测）。
+
+    规则：改名未被改回（issue 当前 name == 最新改名值）；过输出校验同款禁项清洗；
+    同 strategy / biz 内按标题去重。返回 (by_strategy, by_biz)。
+    """
+    from alarm_backends.service.fta_action import llm_title
+
+    by_strategy: dict[str, list[str]] = defaultdict(list)
+    by_biz: dict[str, list[str]] = defaultdict(list)
+    for hit in issue_hits:
+        issue_id = hit.meta.id
+        renamed = latest_by_issue.get(issue_id)
+        current_name = getattr(hit, "name", None)
+        if not renamed or current_name != renamed:
+            continue  # 已被改回/再次修改，放弃该样本
+        # 入缓存前清洗：与输出校验同一套禁项规则，不可信输入不进示例区
+        cleaned = llm_title.validate_title(renamed)
+        if not cleaned:
+            continue
+        strategy_id = str(getattr(hit, "strategy_id", "") or "")
+        biz_id = str(getattr(hit, "bk_biz_id", "") or "")
+        if strategy_id and cleaned not in by_strategy[strategy_id]:
+            by_strategy[strategy_id].append(cleaned)
+        if biz_id and cleaned not in by_biz[biz_id]:
+            by_biz[biz_id].append(cleaned)
+    return by_strategy, by_biz
+
+
+@app.task(ignore_result=True, queue="celery_llm_task", soft_time_limit=60, time_limit=90)
+def generate_issue_llm_title(issue_id: str, bk_biz_id, default_name: str, alert_id: str):
+    """对日志相关告警触发的新建 Issue，用 LLM 总结关联日志生成可读标题。
+
+    失败语义：任何环节失败/超时/校验不过 = 静默保留默认名，不重试不入队。
+    标题是体验增强非关键数据；指标按 result label 区分原因。
+    独立队列 celery_llm_task 消费（与通知/周期任务隔离），队列带 TTL 自蒸发兜底。
+    time_limit 硬兜底是必需的：取关联日志的下游实现存在 except BaseException 重试，
+    可能吞掉 soft_time_limit 信号导致软限失效。
+    """
+    from alarm_backends.service.fta_action import llm_title
+    from bkmonitor.utils.event_related_info import get_alert_relation_info
+    from celery.exceptions import SoftTimeLimitExceeded
+    from core.drf_resource import api
+    from core.prometheus import metrics
+
+    examples_source = "static"
+
+    def _finish(result: str):
+        metrics.ISSUE_LLM_TITLE_TOTAL.labels(
+            bk_biz_id=str(bk_biz_id), result=result, examples_source=examples_source
+        ).inc()
+        metrics.report_all()
+
+    try:
+        alert = AlertDocument.get(alert_id)
+    except Exception:
+        logger.warning(
+            "[issue][llm_title] get alert failed, keep default name, issue(%s) alert(%s)", issue_id, alert_id
+        )
+        _finish("llm_error")
+        return
+
+    # 关联日志取数：非日志类告警返回空串，天然完成"是否适用"过滤。
+    # 耗时与 LLM 分开打点（observe 先于 _finish 的 report_all，避免样本滞后到下个任务）：
+    # 长尾在日志平台查询侧，阈值分别设。
+    fetch_start = time.time()
+    relation_info = ""
+    fetch_failed = False
+    timed_out = False
+    try:
+        relation_info = get_alert_relation_info(alert, length_limit=False) or ""
+    except SoftTimeLimitExceeded:
+        timed_out = True
+    except Exception:
+        fetch_failed = True
+    metrics.ISSUE_LLM_TITLE_STEP_SECONDS.labels(step="fetch_log").observe(time.time() - fetch_start)
+    if timed_out:
+        logger.warning("[issue][llm_title] soft time limit hit on fetch, issue(%s)", issue_id)
+        _finish("timeout")
+        return
+    if fetch_failed:
+        logger.warning("[issue][llm_title] fetch relation info failed, issue(%s) alert(%s)", issue_id, alert_id)
+        _finish("empty_log")
+        return
+
+    # 关联日志可能是 JSON 字符串（含 log 字段）也可能是原始文本；
+    # 合法 JSON 标量/数组（如纯数字日志行）不带 .get，必须先判 dict
+    log_content = relation_info
+    try:
+        parsed = json.loads(relation_info)
+        if isinstance(parsed, dict):
+            log_content = parsed.get("log", relation_info)
+    except (TypeError, ValueError):
+        pass
+    if not isinstance(log_content, str) or not log_content.strip():
+        _finish("empty_log")
+        return
+
+    if not llm_title.acquire_rate_limit_token(bk_biz_id):
+        _finish("ratelimited")
+        return
+
+    template = llm_title.resolve_template(bk_biz_id)
+    examples_block, examples_source = llm_title.resolve_examples(alert.strategy_id, bk_biz_id)
+
+    dimensions = {}
+    try:
+        dimensions = dict(alert.origin_alarm["data"]["dimensions"])
+    except Exception:
+        pass
+    try:
+        description = alert.event.description
+    except Exception:
+        description = ""
+
+    prompt = llm_title.render_user_prompt(
+        template,
+        log=log_content,
+        examples_block=examples_block,
+        strategy_name=alert.alert_name or "",
+        description=description or "",
+        app=dimensions.get("app", ""),
+        namespace=dimensions.get("namespace", ""),
+        severity=dimensions.get("severity_text", ""),
+        dimensions=json.dumps(dimensions, ensure_ascii=False),
+    )
+
+    llm_start = time.time()
+    raw_title = ""
+    llm_failed = False
+    try:
+        data = api.aidev.chat_completion(
+            model=getattr(settings, "ISSUE_LLM_TITLE_MODEL", "") or "hy3-preview",
+            messages=[
+                {"role": "system", "content": llm_title.SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.1,
+        )
+        raw_title = data["choices"][0]["message"]["content"]
+    except SoftTimeLimitExceeded:
+        timed_out = True
+    except Exception:
+        logger.warning("[issue][llm_title] llm call failed, keep default name, issue(%s)", issue_id, exc_info=True)
+        llm_failed = True
+    metrics.ISSUE_LLM_TITLE_STEP_SECONDS.labels(step="llm_call").observe(time.time() - llm_start)
+    if timed_out:
+        logger.warning("[issue][llm_title] soft time limit hit on llm call, issue(%s)", issue_id)
+        _finish("timeout")
+        return
+    if llm_failed:
+        _finish("llm_error")
+        return
+
+    title = llm_title.validate_title(raw_title)
+    if not title:
+        _finish("invalid_output")
+        return
+    # 回归前缀由代码层拼接，不交给 LLM 处理
+    if default_name.startswith("[回归]"):
+        title = f"[回归] {title}"[: llm_title.TITLE_MAX_LEN]
+
+    if getattr(settings, "ISSUE_LLM_TITLE_SHADOW", False):
+        # shadow 模式：只生成+打日志+打点，不写 name。默认关闭，需先抽检质量的环境手工开启。
+        logger.info("[issue][llm_title] shadow, issue(%s) default(%s) generated(%s)", issue_id, default_name, title)
+        _finish("shadow_ok")
+        return
+
+    try:
+        issue = IssueDocument.get_issue_or_raise(issue_id, bk_biz_id=safe_int(bk_biz_id))
+    except Exception:
+        logger.warning("[issue][llm_title] get issue failed, issue(%s)", issue_id)
+        _finish("llm_error")
+        return
+    # CAS：当前 name 已不是创建时的默认名（用户已改名/其他写入），放弃写入。
+    # 注意这是 search-read + write（ES NRT，refresh 约 1s），存在极窄的误判窗口，
+    # best-effort 语义下可接受：误覆盖可由用户再次改名修正，活动日志留痕可审计
+    if issue.name != default_name:
+        _finish("name_changed")
+        return
+    try:
+        issue.rename(title, operator="system")
+    except IssueNameDuplicatedError:
+        # LLM 标题业务内撞名（同类问题不同 issue），保留默认名保证可区分
+        _finish("name_duplicated")
+        return
+    except Exception:
+        logger.warning("[issue][llm_title] rename failed, issue(%s)", issue_id, exc_info=True)
+        _finish("llm_error")
+        return
+    logger.info("[issue][llm_title] renamed, issue(%s) -> %s", issue_id, title)
+    _finish("ok")
+
+
+@app.task(ignore_result=True, queue="celery_action_cron")
+def refresh_issue_llm_title_examples():
+    """周期预计算 LLM 标题 few-shot 示例缓存（用户改名采样）。
+
+    扫描近 30 天 NAME_CHANGE 活动中 operator 非 system 的改名，筛选后按
+    strategy / biz 两级聚合写 Redis。读路径（resolve_examples）纯 GET 不回查。
+    任务挂掉缓存 24h 自然过期，读路径自动退静态示例，失败模式无害。
+    """
+    # 功能未对任何业务开启时直接跳过：few-shot 缓存无消费者，预计算纯属浪费。
+    # 同时保证"功能不开启 = 周期任务零 ES/Redis 副作用"，对现有能力完全无影响。
+    if not (getattr(settings, "ISSUE_LLM_TITLE_BIZ_WHITE_LIST", None) or []):
+        return
+
+    from alarm_backends.core.cache.key import (
+        ISSUE_LLM_EXAMPLES_BIZ_KEY,
+        ISSUE_LLM_EXAMPLES_STRATEGY_KEY,
+    )
+    from alarm_backends.service.fta_action import llm_title
+    from bkmonitor.documents.issue import IssueActivityDocument
+
+    now = int(time.time())
+    scan_start = now - 30 * 24 * 3600
+    # 单轮扫描上限：防活动量异常时任务超时（few-shot 只需要最近少量样本）
+    max_scan = 2000
+
+    # 同 issue 多次改名只取最新一次（按 create_time 降序扫，首见即最新）
+    # search 构建与 execute 一并纳入 try：周期任务任一环节失败均静默（不阻塞调度）
+    latest_by_issue: dict[str, str] = {}
+    scanned = 0
+    try:
+        search = (
+            IssueActivityDocument.search(all_indices=True)
+            .filter("term", activity_type=IssueActivityType.NAME_CHANGE)
+            .filter("range", create_time={"gte": scan_start})
+            .exclude("term", operator="system")
+            .sort("-create_time")
+        )
+        for hit in search[:max_scan].execute().hits:
+            scanned += 1
+            issue_id = getattr(hit, "issue_id", None)
+            to_value = getattr(hit, "to_value", None)
+            operator = getattr(hit, "operator", "") or ""
+            if not issue_id or not to_value or not operator:
+                continue
+            if issue_id not in latest_by_issue:
+                latest_by_issue[issue_id] = to_value
+    except Exception:
+        logger.warning("[issue][llm_title] examples refresh: scan activities failed", exc_info=True)
+        return
+
+    if not latest_by_issue:
+        logger.info("[issue][llm_title] examples refresh: no user rename samples, scanned=%d", scanned)
+        return
+
+    # 反查 issue 现状：确认改名未被改回 + 取 strategy_id / bk_biz_id
+    issue_ids = list(latest_by_issue.keys())
+    try:
+        issues = (
+            IssueDocument.search(all_indices=True)
+            .filter("ids", values=issue_ids)
+            .params(size=len(issue_ids))
+            .execute()
+            .hits
+        )
+    except Exception:
+        logger.warning("[issue][llm_title] examples refresh: fetch issues failed", exc_info=True)
+        return
+
+    by_strategy, by_biz = _collect_example_groups(latest_by_issue, issues)
+
+    written = 0
+    for key_def, grouped, param in (
+        (ISSUE_LLM_EXAMPLES_STRATEGY_KEY, by_strategy, "strategy_id"),
+        (ISSUE_LLM_EXAMPLES_BIZ_KEY, by_biz, "bk_biz_id"),
+    ):
+        for group_id, titles in grouped.items():
+            try:
+                key_def.client.set(
+                    key_def.get_key(**{param: group_id}),
+                    json.dumps(titles[: llm_title.MAX_AUTO_EXAMPLES], ensure_ascii=False),
+                    ex=key_def.ttl,
+                )
+                written += 1
+            except Exception:
+                logger.warning("[issue][llm_title] examples refresh: write cache failed, %s(%s)", param, group_id)
+
+    logger.info(
+        "[issue][llm_title] examples refresh: done, scanned=%d samples=%d strategy_keys=%d biz_keys=%d written=%d",
+        scanned,
+        len(latest_by_issue),
+        len(by_strategy),
+        len(by_biz),
+        written,
+    )

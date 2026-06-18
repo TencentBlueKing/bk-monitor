@@ -278,7 +278,7 @@ export default (
       document?.removeEventListener('input', handleFulltextInput);
     }
 
-    document.removeEventListener('mousedown', handleWrapperClickCapture);
+    document.removeEventListener('mousedown', handleWrapperClickCapture, { capture: true });
     document?.removeEventListener('keydown', handleKeydown);
     resizeObserver?.disconnect();
     resizeObserver = null;

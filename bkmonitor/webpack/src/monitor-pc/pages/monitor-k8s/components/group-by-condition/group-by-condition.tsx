@@ -159,7 +159,7 @@ export default class GroupByCondition extends tsc<GroupByConditionProps, GroupBy
               >
                 <div class='group-by-option-item'>
                   <span class='item-label'>{opt}</span>
-                  <span class='item-count'>{this.dimensionTotal?.[opt] || 0}</span>
+                  {/* 这里获取的总数是bug，暂时先隐藏<span class='item-count'>{this.dimensionTotal?.[opt] || 0}</span> */}
                 </div>
               </bk-option>
             ))}

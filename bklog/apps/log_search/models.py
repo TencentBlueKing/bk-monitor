@@ -619,7 +619,12 @@ class LogIndexSet(SoftDeleteModel):
 
             index_set["scenario_name"] = scenarios.get(index_set["scenario_id"])
             index_set["bk_biz_id"] = space_uid_to_bk_biz_id(index_set["space_uid"])
-            index_set["tags"] = [tags_data_dic.get(tag_id, []) for tag_id in index_set["tag_ids"]]
+            # 排除场景化检索路由标签（tag_type=scene），仅后端使用，不暴露给前端
+            index_set["tags"] = [
+                tag
+                for tag_id in index_set["tag_ids"]
+                if (tag := tags_data_dic.get(tag_id)) and tag.get("tag_type") != TAG_TYPE_SCENE
+            ]
 
             index_set["is_favorite"] = index_set["index_set_id"] in mark_index_set_ids
             index_set["no_data_check_time"] = no_data_check_time
@@ -1330,6 +1335,9 @@ class AsyncTask(OperateRecordModel):
     file_name = models.CharField(_("文件名"), max_length=256, null=True, blank=True)
     file_size = models.FloatField(_("文件大小"), null=True, blank=True)
     download_url = models.TextField(_("下载地址"), null=True, blank=True)
+    exported_count = models.IntegerField(_("已导出数量"), default=0)
+    export_total_count = models.IntegerField(_("目标导出数量"), default=0)
+    download_count = models.IntegerField(_("下载次数"), default=0)
     is_clean = models.BooleanField(_("是否被清理"), default=False)
     export_status = models.CharField(_("导出状态"), max_length=128, null=True, blank=True)
     start_time = models.CharField(_("导出选择请求时间"), max_length=64, null=True, blank=True)

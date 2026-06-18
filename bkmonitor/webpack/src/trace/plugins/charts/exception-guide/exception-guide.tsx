@@ -103,7 +103,10 @@ export default defineComponent({
         <Exception type={this.guideInfo.type}>
           <span>{this.guideInfo.title}</span>
           <div class='text-wrap'>
-            <pre class='text-row'>{this.guideInfo.subTitle}</pre>
+            <pre
+              class='text-row'
+              v-bk-xss-html={this.guideInfo.subTitle}
+            />
             {this.guideInfo.link && (
               <Button
                 theme='primary'

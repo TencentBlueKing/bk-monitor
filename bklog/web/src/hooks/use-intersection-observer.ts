@@ -36,6 +36,7 @@ export default (
 ) => {
   let observer: IntersectionObserver | null = null;
   const destroyObserver = () => {
+    debounceCallback.cancel();
     if (observer) {
       observer.disconnect();
       observer = null;

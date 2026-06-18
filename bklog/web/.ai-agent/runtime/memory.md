@@ -20,6 +20,7 @@ Memory categories:
 - convention: naming, layout, testing and review standards
 - decision: ADR-like durable decisions and tradeoffs
 - experience: successful solution ideas for repeated problems after three failed/insufficient attempts
+- project-architecture: generated index of routes, components, modules and design docs for quick AI locating
 - learning: general project-specific lessons
 
 Experience sedimentation rule:

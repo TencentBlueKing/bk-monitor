@@ -33,6 +33,15 @@ from monitor_web.tasks import migrate_all_panels_task
 logger = logging.getLogger(__name__)
 
 
+def get_grafana_username(request=None):
+    """保持与 bk_dataview ProxyBaseView.get_username 的 Grafana 用户名规则一致。"""
+    if request and getattr(request, "external_user", None):
+        return f"external_{request.external_user}"
+    if request:
+        return request.user.username
+    return "admin"
+
+
 class GetDashboardList(Resource):
     """
     查询仪表盘列表
@@ -45,9 +54,10 @@ class GetDashboardList(Resource):
 
     def perform_request(self, params):
         org_id = get_or_create_org(params["bk_biz_id"])["id"]
+        request = get_request(peaceful=True)
 
         try:
-            username = get_request().user.username
+            username = get_grafana_username(request)
             if params["is_report"]:
                 username = "admin"
         except Exception:
@@ -62,6 +72,12 @@ class GetDashboardList(Resource):
             dashboards = result["data"]
         else:
             raise GetFolderOrDashboardError(**result)
+
+        if request and getattr(request, "external_user", None):
+            _, _, dashboard_permissions = DashboardPermission.has_permission(
+                request, None, params["bk_biz_id"], force_check=True
+            )
+            dashboards = [dashboard for dashboard in dashboards if dashboard["uid"] in dashboard_permissions]
 
         return [
             {
@@ -229,7 +245,7 @@ class StarDashboard(Resource):
 
     def perform_request(self, params):
         org_id = get_or_create_org(params["bk_biz_id"])["id"]
-        username = get_request().user.username
+        username = get_grafana_username(get_request())
         result = api.grafana.star_dashboard(org_id=org_id, id=params["dashboard_id"], username=username)
         return result
 
@@ -245,7 +261,7 @@ class UnstarDashboard(Resource):
 
     def perform_request(self, params):
         org_id = get_or_create_org(params["bk_biz_id"])["id"]
-        username = get_request().user.username
+        username = get_grafana_username(get_request())
         result = api.grafana.unstar_dashboard(org_id=org_id, id=params["dashboard_id"], username=username)
         return result
 

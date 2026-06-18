@@ -636,7 +636,19 @@ const store = new Vuex.Store({
     },
 
     resetIndexSetQueryResult(state, payload) {
-      Object.assign(state.indexSetQueryResult, IndexSetQueryResult, payload ?? {});
+      Object.keys(IndexSetQueryResult).forEach((key) => {
+        const value = payload && Object.prototype.hasOwnProperty.call(payload, key)
+          ? payload[key]
+          : IndexSetQueryResult[key];
+
+        if (Array.isArray(value)) {
+          set(state.indexSetQueryResult, key, [...value]);
+        } else if (value && typeof value === 'object') {
+          set(state.indexSetQueryResult, key, { ...value });
+        } else {
+          set(state.indexSetQueryResult, key, value);
+        }
+      });
     },
 
     updateIndexSetQueryResult(state, payload) {
@@ -1488,7 +1500,7 @@ const store = new Vuex.Store({
       return axiosInstance(params)
         .then((resp) => {
           if (resp.data && !resp.message) {
-            return readBlobRespToJson(resp.data).then(({ code, data, result, message }) => {
+            return readBlobRespToJson(resp.data).then(({ code, data, result, message, permission }) => {
               const rsolvedData = data;
               if (result) {
                 const indexSetQueryResult = state.indexSetQueryResult;
@@ -1525,6 +1537,15 @@ const store = new Vuex.Store({
                   length: logList.length,
                   size,
                 };
+              }
+
+              if (code === '9900403') {
+                commit('updateState', {
+                  authDialogData: {
+                    apply_url: data.apply_url,
+                    apply_data: permission,
+                  },
+                });
               }
 
               commit('updateIndexSetQueryResult', {

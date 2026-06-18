@@ -23,6 +23,7 @@
 - `python manage.py data_migrate apply-sequences ...`
 - `python manage.py data_migrate export ...`
 - `python manage.py data_migrate import ...`
+- `python manage.py data_migrate rebuild ...`
 - `python manage.py data_migrate enable-closed-strategies ...`
 - `python manage.py data_migrate update-migrate-data-id-routes ...`
 - `python manage.py data_migrate disable-models ...`
@@ -76,6 +77,24 @@ python manage.py data_migrate import \
 - `--disable-atomic`
   - 是否按单个文件事务导入
 
+### 数据重建
+
+```bash
+python manage.py data_migrate rebuild \
+  --bk-tenant-id tencent \
+  --metric-kafka-cluster-name metric-kafka-public-1 \
+  --log-kafka-cluster-name log-kafka-public-1 \
+  --log-es-cluster-name log-es-public-1 \
+  --event-es-cluster-name event-es-public-1 \
+  --bk-biz-ids 2 3
+```
+
+说明：
+
+- `--bk-biz-ids` 支持正数和负数业务 ID，不支持 `0`
+- 正数业务会完整执行仪表盘、日志/APM 路由、内置系统数据、拨测、采集插件、K8S 和自定义上报重建
+- 负数业务会跳过内置系统数据、拨测和采集插件重建，只执行仪表盘、日志/APM 路由、K8S 和自定义上报重建
+
 ### 开启导入阶段关闭的策略
 
 ```bash
@@ -88,7 +107,20 @@ python manage.py data_migrate enable-closed-strategies \
 - 从业务维度的 `ApplicationConfig` 中读取 `data_migrate_closed_records`
 - 只处理其中 `bkmonitor.strategymodel` 对应的策略 ID
 - 仅重新开启当前仍处于关闭状态的策略，并输出每个业务的处理统计
-- `--bk-biz-ids` 仅支持正整数业务 ID
+- `--bk-biz-ids` 支持正数和负数业务 ID，不支持 `0`
+
+### 查询自定义上报迁移 Data ID
+
+```bash
+python manage.py data_migrate find-custom-report-data-ids \
+  --bk-tenant-id tencent \
+  --bk-biz-ids 2 3
+```
+
+说明：
+
+- 覆盖页面创建的自定义指标/事件、K8S 内置指标、APM 和日志自定义上报
+- `--bk-biz-ids` 支持正数和负数业务 ID，不支持 `0`
 
 ### 更新单个迁移双写路由
 
@@ -233,6 +265,7 @@ python manage.py data_migrate stop-biz-subscription-tasks \
 - 会找出业务下拨测任务对应的节点管理订阅，关闭巡检并执行 `STOP`
 - 会找出业务下插件采集配置对应的节点管理订阅，关闭巡检并执行 `STOP`
 - 会额外找出业务下 k8s 采集配置并停用，k8s 采集不依赖节点管理订阅
+- 负数业务 ID 会直接跳过，并在返回结果的 `skipped_biz_ids` 中说明原因
 - 支持 `--dry-run` 只输出待处理对象，不执行停用
 - 每个任务独立执行并输出结果；单个失败不会中断其他任务
 

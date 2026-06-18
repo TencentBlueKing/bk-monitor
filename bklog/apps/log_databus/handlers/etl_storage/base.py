@@ -157,9 +157,7 @@ class EtlStorage:
                 continue
             field_name = field.get("alias_name") or field["field_name"]
             if cls._is_v4_reserved_field(field_name):
-                raise ValidationError(
-                    _("字段名与V4清洗保留字段冲突，请更换字段名") + f"：{field_name}"
-                )
+                raise ValidationError(_("字段名与V4清洗保留字段冲突，请更换字段名") + f"：{field_name}")
 
     @staticmethod
     def _get_path_regexp(etl_params: dict, built_in_config: dict) -> str:
@@ -234,6 +232,8 @@ class EtlStorage:
             "float": "double",
             "double": "double",
             "object": "dict",
+            "nested": "nested",
+            "flattened": "dict",
             "bool": "boolean",
             "boolean": "boolean",
             "keyword": "string",
@@ -1258,6 +1258,19 @@ class EtlStorage:
 
         params.update(result_table_config)
 
+        # 用户清洗字段可能与内置 scenario 字段同名（如 Windows 事件采集的 winEventProviderName），
+        # field_list 重复会导致下发 metadata 时 table_id+field_name 唯一键冲突，modify_result_table 整体失败。
+        # built_in 字段在 field_list 中位于用户字段之前，按出现顺序去重即可保证内置定义优先生效。
+        seen_field_names = set()
+        deduped_field_list = []
+        for rt_field in params["field_list"]:
+            field_name = rt_field.get("field_name")
+            if field_name in seen_field_names:
+                continue
+            seen_field_names.add(field_name)
+            deduped_field_list.append(rt_field)
+        params["field_list"] = deduped_field_list
+
         # IaaS 兼容：创建/修改 RT 时传入与 router 一致的 index_set 和查询选项
         params["default_storage_config"]["index_set"] = params["table_id"].replace(".", "_")
 
@@ -1267,7 +1280,7 @@ class EtlStorage:
 
             index_set_obj = LogIndexSet.objects.filter(index_set_id=instance.index_set_id).first()
 
-        tf_name = (index_set_obj.time_field if index_set_obj and index_set_obj.time_field else DEFAULT_TIME_FIELD)
+        tf_name = index_set_obj.time_field if index_set_obj and index_set_obj.time_field else DEFAULT_TIME_FIELD
         tf_type = (
             index_set_obj.time_field_type
             if index_set_obj and index_set_obj.time_field_type

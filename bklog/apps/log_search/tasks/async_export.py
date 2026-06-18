@@ -369,7 +369,7 @@ class AsyncExportUtils:
         """
         处理时间值并返回转换后的 datetime 对象
         """
-        if isinstance(time_value, (int, float)):
+        if isinstance(time_value, int | float):
             return arrow.get(time_value).to(tz=tz_info).datetime
         else:
             return arrow.get(time_value).replace(tzinfo=tz_info).datetime
@@ -409,7 +409,7 @@ class AsyncExportUtils:
             with open(file_path, "a+", encoding="utf-8") as f:
                 result_list = search_handler._deal_query_result(result_dict=result).get("origin_log_list")
                 for item in result_list:
-                    f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
+                    f.write(f"{ujson.dumps(item, ensure_ascii=False)}\n")
                 if search_handler.scenario_id == Scenario.ES:
                     generate_result = search_handler.scroll_result(result)
                 else:
@@ -588,7 +588,7 @@ class AsyncExportUtils:
         for res in result:
             origin_result_list = res.get("origin_log_list")
             for item in origin_result_list:
-                f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
+                f.write(f"{ujson.dumps(item, ensure_ascii=False)}\n")
 
 
 class UnionAsyncExportUtils:
@@ -641,7 +641,7 @@ class UnionAsyncExportUtils:
         """
         处理时间值并返回转换后的 datetime 对象
         """
-        if isinstance(time_value, (int, float)):
+        if isinstance(time_value, int | float):
             return arrow.get(time_value).to(tz=tz_info).datetime
         else:
             return arrow.get(time_value).replace(tzinfo=tz_info).datetime
@@ -682,7 +682,7 @@ class UnionAsyncExportUtils:
             with open(file_path, "a+", encoding="utf-8") as f:
                 result_list = search_handler._deal_query_result(result_dict=result).get("origin_log_list")
                 for item in result_list:
-                    f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
+                    f.write(f"{ujson.dumps(item, ensure_ascii=False)}\n")
                 if search_handler.scenario_id == Scenario.ES:
                     generate_result = search_handler.scroll_result(result)
                 else:
@@ -897,4 +897,4 @@ class UnionAsyncExportUtils:
         for res in result:
             origin_result_list = res.get("origin_log_list")
             for item in origin_result_list:
-                f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
+                f.write(f"{ujson.dumps(item, ensure_ascii=False)}\n")

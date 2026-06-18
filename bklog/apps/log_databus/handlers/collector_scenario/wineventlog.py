@@ -273,8 +273,9 @@ class WinEventLogScenario(CollectorScenario):
                     "field_type": "string",
                     "tag": "dimension",
                     "alias_name": "provider_name",
-                    "description": "来源名称",
+                    "description": _("来源名称"),
                     "option": build_es_option_type("keyword", es_version),
+                    "flat_field": True,
                 },
                 {
                     "field_name": "winEventTask",
@@ -391,7 +392,6 @@ class WinEventLogScenario(CollectorScenario):
                     "alias_name": "cloudid",
                     "description": _("云区域ID"),
                     "option": build_es_option_type("integer", es_version),
-                    "flat_field": True,
                 },
                 {
                     "field_name": "serverIp",
@@ -400,7 +400,6 @@ class WinEventLogScenario(CollectorScenario):
                     "alias_name": "ip",
                     "description": "ip",
                     "option": build_es_option_type("keyword", es_version),
-                    "flat_field": True,
                 },
                 {
                     "field_name": "gseIndex",
@@ -409,7 +408,6 @@ class WinEventLogScenario(CollectorScenario):
                     "alias_name": "gseindex",
                     "description": _("gse索引"),
                     "option": build_es_option_type("long", es_version),
-                    "flat_field": True,
                 },
             ],
             "time_field": {

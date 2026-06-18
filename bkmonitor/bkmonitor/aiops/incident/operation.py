@@ -152,10 +152,6 @@ class IncidentOperationManager:
         """
         try:
             notice_config = kwargs.get("notice_config")
-            # 获取配置的通知接收人（字典格式：{bk_biz_id: [ids]}）
-            builtin_config = getattr(settings, "BK_INCIDENT_BUILTIN_CONFIG", {})
-            builtin_chat_ids_dict = builtin_config.get("builtin_chat_ids", {})
-            builtin_user_ids_dict = builtin_config.get("builtin_user_ids", {})
 
             # 优先使用传入的 incident_document，避免 ES 索引延迟导致查询失败
             # 这对于 CREATE 事件尤为重要，因为文档刚写入 ES 时可能还未被索引
@@ -174,96 +170,24 @@ class IncidentOperationManager:
                     incident_document, notice_config=notice_config
                 )
 
-            # 事件内 notice_config 优先；只有事件没配时才 fallback 到内置配置
-            if configured_targets:
+            if not configured_targets:
                 logger.info(
-                    "[IncidentNotice][Routing] incident_id=%s operation=%s use event notice_config targets=%s",
-                    incident_id,
-                    operation_type.value,
-                    [(item["notice_way"], len(item["receivers"])) for item in configured_targets],
-                )
-                all_results = IncidentNoticeHelper.send_incident_notice(
-                    incident=incident_document,
-                    chat_ids=[],
-                    user_ids=[],
-                    title=None,
-                    operation_type=operation_type,
-                    **kwargs,
-                )
-                logger.info(
-                    "[IncidentNotice][Result] incident_id=%s operation=%s channels=%s",
-                    incident_id,
-                    operation_type.value,
-                    list(all_results.keys()) if all_results else [],
-                )
-                if all_results:
-                    all_receivers = []
-                    for notice_way, results in all_results.items():
-                        for receiver, res in results.items():
-                            if res.get("result"):
-                                all_receivers.append(f"{notice_way}:{receiver}")
-
-                    if all_receivers:
-                        cls._record_notice_without_trigger(
-                            incident_id=incident_id,
-                            operate_time=int(time.time()),
-                            receivers=all_receivers,
-                        )
-                        logger.info(
-                            f"Sent incident notice for incident {incident_id} (operation: {operation_type.value}) "
-                            f"to {len(all_receivers)} receiver(s) via {len(all_results)} channel(s)"
-                        )
-                return
-
-            if not builtin_chat_ids_dict and not builtin_user_ids_dict:
-                logger.info(
-                    "Skip incident notice for incident_id=%s operation=%s because "
-                    "BK_INCIDENT_BUILTIN_CONFIG has no receivers configured",
+                    "Skip incident notice for incident_id=%s operation=%s because event notice_config has no receivers",
                     incident_id,
                     operation_type.value,
                 )
                 return
-
-            # 根据故障的业务ID从字典中获取对应的接收人
-            # 注意：配置中的 key 是字符串，需要转换类型
-            bk_biz_id = str(incident_document.bk_biz_id)
-            chat_ids = builtin_chat_ids_dict.get(bk_biz_id, [])
-            user_ids = builtin_user_ids_dict.get(bk_biz_id, [])
-            # 接收人，使用内置的admin接收人，管理员组
-            admin_ids = builtin_chat_ids_dict.get("admin", [])
-            if admin_ids:
-                chat_ids.extend(admin_ids)
 
             logger.info(
-                "[IncidentNotice][Routing] incident_id=%s operation=%s raw_bk_biz_id=%r resolved_bk_biz_id=%s "
-                "chat_count=%s user_count=%s chat_keys_sample=%s user_keys_sample=%s",
+                "[IncidentNotice][Routing] incident_id=%s operation=%s use event notice_config targets=%s",
                 incident_id,
                 operation_type.value,
-                incident_document.bk_biz_id,
-                bk_biz_id,
-                len(chat_ids),
-                len(user_ids),
-                sorted(list(builtin_chat_ids_dict.keys()))[:10],
-                sorted(list(builtin_user_ids_dict.keys()))[:10],
+                [(item["notice_way"], len(item["receivers"])) for item in configured_targets],
             )
-
-            if not chat_ids and not user_ids:
-                logger.info(
-                    "Skip incident notice for incident_id=%s operation=%s due to empty receivers. "
-                    "bk_biz_id=%s builtin_chat_keys=%s builtin_user_keys=%s",
-                    incident_id,
-                    operation_type.value,
-                    bk_biz_id,
-                    sorted(list(builtin_chat_ids_dict.keys()))[:20],
-                    sorted(list(builtin_user_ids_dict.keys()))[:20],
-                )
-                return
-
-            # 发送通知（支持多种方式）
             all_results = IncidentNoticeHelper.send_incident_notice(
                 incident=incident_document,
-                chat_ids=chat_ids,
-                user_ids=user_ids,
+                chat_ids=[],
+                user_ids=[],
                 title=None,
                 operation_type=operation_type,
                 **kwargs,

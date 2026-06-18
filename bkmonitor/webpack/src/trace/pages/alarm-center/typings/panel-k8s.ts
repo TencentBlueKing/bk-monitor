@@ -66,7 +66,10 @@ export interface AlertK8SSeriesItem extends SeriesItem {
   name?: string;
 }
 
-export type AlertK8sTargetItem = Partial<Record<K8sTableColumnKeysEnum, string>>;
+export type AlertK8sTargetItem = Partial<Record<K8sTableColumnKeysEnum, string>> & {
+  resource_type?: K8sTableColumnKeysEnum;
+  scenario_list: SceneEnum[];
+};
 
 export interface AlertK8sTargetResult {
   resource_type: K8sTableColumnKeysEnum;

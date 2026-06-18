@@ -26,6 +26,7 @@
 
 import { K8sTableColumnKeysEnum, SceneEnum } from '../../../../typings/k8s-new';
 import { K8sBasePromqlGenerator } from './base-promql-generator';
+import { gpuOr } from './gpu-dcgm-compat';
 
 import type { K8sBasePromqlGeneratorContext } from '../../typing';
 
@@ -63,7 +64,7 @@ export class K8sGpuPromqlGenerator extends K8sBasePromqlGenerator {
         ) * 0 + 1)
         * on(pod_name, namespace) group_right(workload_kind, workload_name)
         sum by (pod_name, namespace) (
-          ${metric}{${K8sBasePromqlGenerator.createCommonPromqlContent(context, true)}} $time_shift
+          ${gpuOr(metric, K8sBasePromqlGenerator.createCommonPromqlContent(context, true), ' $time_shift')}
         )
       )`;
     }
@@ -73,6 +74,6 @@ export class K8sGpuPromqlGenerator extends K8sBasePromqlGenerator {
       context.groupByField === K8sTableColumnKeysEnum.POD
         ? '$method by(pod_name)'
         : K8sBasePromqlGenerator.createCommonPromqlMethod(context);
-    return `${method} (${metric}{${K8sBasePromqlGenerator.createCommonPromqlContent(context)}} $time_shift)`;
+    return `${method} (${gpuOr(metric, K8sBasePromqlGenerator.createCommonPromqlContent(context), ' $time_shift')})`;
   }
 }

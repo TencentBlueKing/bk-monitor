@@ -52,6 +52,7 @@ const GLOBAL_SCROLL_SELECTOR = '.retrieve-v2-index.scroll-y';
 
 class RetrieveHelper extends RetrieveBase {
   scrollEventAdded = false;
+  scrollTarget: Element | null = null;
   mousedownEvent = null;
   aiAssitantHelper: typeof AiAssitantHelper;
 
@@ -544,9 +545,14 @@ class RetrieveHelper extends RetrieveBase {
   }
 
   destroy() {
-    this.events.clear();
-    document.querySelector(this.globalScrollSelector)?.removeEventListener('scroll', this.handleScroll);
+    this.clearEvents();
+    // 销毁阶段滚动容器可能已从 document 移除，不能再依赖 querySelector。
+    // 必须使用注册时保存的 DOM 引用，否则监听器闭包会继续持有已卸载页面 DOM。
+    this.scrollTarget?.removeEventListener('scroll', this.handleScroll);
+    this.scrollTarget = null;
     this.scrollEventAdded = false;
+    this.mousedownEvent = null;
+    this.destroyMarkInstance();
   }
 
   /**
@@ -556,7 +562,11 @@ class RetrieveHelper extends RetrieveBase {
     if (!this.scrollEventAdded) {
       const target = document.querySelector(this.globalScrollSelector);
       if (target) {
-        target.addEventListener('scroll', e => this.handleScroll(e));
+        // 必须使用稳定函数引用注册，并保存真实 DOM 引用，destroy 时才能精确移除。
+        // 之前使用 e => this.handleScroll(e) 注册，却用 this.handleScroll 移除；
+        // 且销毁时重新 querySelector 可能查不到已卸载节点，都会导致滚动容器和页面 DOM 被闭包保留。
+        target.addEventListener('scroll', this.handleScroll);
+        this.scrollTarget = target;
         this.scrollEventAdded = true;
       }
     }
