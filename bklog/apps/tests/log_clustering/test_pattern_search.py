@@ -362,7 +362,7 @@ class TestPatternSearch(TestCase):
 
     @patch("apps.log_clustering.handlers.pattern.FeatureToggleObject.toggle")
     @patch.object(PatternHandler, "_multi_query")
-    def test_pattern_search_fallbacks_when_exact_group_remark_is_empty(self, mock_multi_query, mock_toggle):
+    def test_pattern_search_uses_exact_group_owner_when_remark_is_empty(self, mock_multi_query, mock_toggle):
         ClusteringConfig.objects.filter(index_set_id=INDEX_SET_ID).update(model_id="model_1", group_fields=["module"])
         AiopsSignatureAndPattern.objects.create(
             model_id="model_1",
@@ -399,10 +399,10 @@ class TestPatternSearch(TestCase):
         query["owner_config"] = "all"
         result = PatternHandler(INDEX_SET_ID, query).pattern_search()
 
-        self.assertEqual(result[0]["remark"], ["default fallback remark"])
-        self.assertEqual(result[0]["owners"], ["admin"])
-        self.assertEqual(result[0]["strategy_id"], 1)
-        self.assertTrue(result[0]["strategy_enabled"])
+        self.assertEqual(result[0]["remark"], [])
+        self.assertEqual(result[0]["owners"], ["owner-only"])
+        self.assertEqual(result[0]["strategy_id"], 0)
+        self.assertFalse(result[0]["strategy_enabled"])
 
     @patch("apps.log_clustering.handlers.pattern.FeatureToggleObject.toggle")
     @patch.object(PatternHandler, "_multi_query")

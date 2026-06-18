@@ -212,7 +212,7 @@ class PatternHandler:
                 fallback_signature_remark_obj,
                 fallback_origin_pattern_remark_obj,
             ]:
-                if candidate and candidate["remark"]:
+                if candidate and (candidate["remark"] or candidate["owners"]):
                     remark_obj = candidate
                     break
 
