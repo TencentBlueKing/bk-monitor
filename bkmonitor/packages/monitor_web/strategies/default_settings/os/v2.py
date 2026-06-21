@@ -23,6 +23,12 @@ from common.context_processors import Platform
 # result_table_id 由 os_loader 运行时按业务实地注入。
 #
 # 单独作为新版本而非并入 v1：使已接入 v1 的存量业务也能增量补齐这些事件策略；单租户下本版本为空。
+#
+# agg_dimension（聚合维度）必须显式声明：custom event 走 access/data 聚合检测（COUNT），
+# 检测按 agg_dimension 做 group by。若留空会把整个业务的同类事件合并成一条，丢失主机归属、
+# 拓扑目标定位与按维度的恢复判定。维度取自系统事件表的 dimension_list：所有事件按主机
+# （bk_target_ip/bk_target_cloud_id）聚合，磁盘只读/Corefile 再叠加各自的实例维度以区分
+# 同主机的不同只读盘 / 不同 corefile 信号。
 DEFAULT_OS_STRATEGIES = []
 
 if settings.ENABLE_MULTI_TENANT_MODE:
@@ -34,6 +40,7 @@ if settings.ENABLE_MULTI_TENANT_MODE:
                 "data_source_label": "custom",
                 "result_table_label": "os",
                 "metric_field": "AgentLost",
+                "agg_dimension": ["bk_target_ip", "bk_target_cloud_id"],
                 # GSE 2.0版本默认触发次数为3，如果为1.0版本则需在saas部署时配置 GSE_VERSION_1 环境变量
                 "trigger_count": 1 if "GSE_VERSION_1" in os.environ else 3,
                 "trigger_check_window": 10,
@@ -46,6 +53,7 @@ if settings.ENABLE_MULTI_TENANT_MODE:
                 "data_source_label": "custom",
                 "result_table_label": "os",
                 "metric_field": "DiskReadonly",
+                "agg_dimension": ["bk_target_ip", "bk_target_cloud_id", "position", "type", "fs"],
                 "trigger_count": 1,
                 "trigger_check_window": 20,
                 "recovery_check_window": 20,
@@ -57,6 +65,7 @@ if settings.ENABLE_MULTI_TENANT_MODE:
                 "data_source_label": "custom",
                 "result_table_label": "os",
                 "metric_field": "CoreFile",
+                "agg_dimension": ["bk_target_ip", "bk_target_cloud_id", "executable_path", "executable", "signal"],
                 "trigger_count": 1,
                 "trigger_check_window": 5,
                 "recovery_check_window": 5,
@@ -68,6 +77,8 @@ if settings.ENABLE_MULTI_TENANT_MODE:
                 "data_source_label": "custom",
                 "result_table_label": "os",
                 "metric_field": "OOM",
+                # process 在旧链路是展示补充、不参与去重，故按主机聚合即可（process 仍随事件维度展示）
+                "agg_dimension": ["bk_target_ip", "bk_target_cloud_id"],
                 "trigger_count": 1,
                 "trigger_check_window": 5,
                 "recovery_check_window": 5,
@@ -83,8 +94,10 @@ if settings.ENABLE_MULTI_TENANT_MODE:
                 "data_source_label": "custom",
                 "result_table_label": "os",
                 "metric_field": "PingUnreachable",
+                "agg_dimension": ["bk_target_ip", "bk_target_cloud_id"],
                 "trigger_count": 3,
                 "trigger_check_window": 5,
                 "recovery_check_window": 5,
+                "recovery_status_setter": "close",
             }
         )

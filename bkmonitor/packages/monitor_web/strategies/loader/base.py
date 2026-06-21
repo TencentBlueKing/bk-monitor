@@ -54,8 +54,8 @@ class DefaultAlarmStrategyLoaderBase(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def load_strategies(self, strategies: list) -> None:
-        """加载默认配置 ."""
+    def load_strategies(self, strategies: list) -> list:
+        """加载默认配置，返回实际创建的策略配置列表 ."""
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -112,6 +112,18 @@ class DefaultAlarmStrategyLoaderBase(metaclass=abc.ABCMeta):
             if version in versions_of_access:
                 continue
             try:
+                strategies = getattr(module, self.STRATEGY_ATTR_NAME)
+                created_strategies = self.load_strategies(strategies)
+            except Exception as exc_info:
+                logger.error("create default %s strategy failed: %s", self.LOADER_TYPE, exc_info)
+                # 加载异常时不登记接入记录，下次运行重试
+                continue
+            # 仅在实际创建出策略后才登记接入记录：避免指标尚未就绪时产出 0 条策略却被标记为已接入，
+            # 后续因幂等跳过而永久漏建（多租户系统事件依赖的 custom 指标可能异步晚于业务激活就绪）。
+            # 本身无需创建任何策略的空版本（strategies 为空）也登记，避免每次运行反复重试。
+            if strategies and not created_strategies:
+                continue
+            try:
                 DefaultStrategyBizAccessModel.objects.get_or_create(
                     bk_biz_id=self.bk_biz_id,
                     access_type=self.LOADER_TYPE,
@@ -120,8 +132,3 @@ class DefaultAlarmStrategyLoaderBase(metaclass=abc.ABCMeta):
                 )
             except IntegrityError:
                 pass
-            try:
-                strategies = getattr(module, self.STRATEGY_ATTR_NAME)
-                self.load_strategies(strategies)
-            except Exception as exc_info:
-                logger.error("create default %s strategy failed: %s", self.LOADER_TYPE, exc_info)

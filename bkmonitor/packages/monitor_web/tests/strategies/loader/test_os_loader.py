@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -157,3 +156,19 @@ class TestOsDefaultAlarmStrategyLoader:
         assert models[0].bk_biz_id == 2
         assert models[0].version == "v1"
         assert models[0].access_type == "os"
+
+    def test_run__metrics_not_ready_skip_access(self):
+        """指标未就绪时 load 产出 0 条策略，不应误写接入记录，保证后续指标就绪后仍可补建。
+
+        覆盖多租户系统事件场景：custom 指标可能异步晚于业务激活就绪，
+        若先标记接入会因幂等跳过而永久漏建。
+        """
+        bk_biz_id = 2
+        OsDefaultAlarmStrategyLoader.CACHE = set()
+        os_loader = OsDefaultAlarmStrategyLoader(bk_biz_id)
+        os_loader.run()
+
+        # 无匹配指标 -> 未创建任何策略
+        assert StrategyModel.objects.all().count() == 0
+        # 关键：未创建策略时不登记接入记录，下次指标就绪后仍可补建
+        assert DefaultStrategyBizAccessModel.objects.all().count() == 0
