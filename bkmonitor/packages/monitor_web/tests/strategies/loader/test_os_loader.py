@@ -245,3 +245,75 @@ class TestOsDefaultAlarmStrategyLoader:
         assert query_config["custom_event_name"] == "OOM"
         assert query_config["agg_method"] == "COUNT"
         assert query_config["agg_dimension"] == ["bk_target_ip", "bk_target_cloud_id"]
+
+    def test_run__atomic_rollback_on_partial_failure(self, add_metric_list_cache):
+        """单版本加载中途 save 失败时，已创建策略与接入记录整体回滚，且不写 CACHE。
+
+        锁住 base.run() 的 transaction.atomic 修复：save_strategy_v2 非幂等、逐条创建，
+        部分成功后失败若不回滚，会残留半套策略，下次重试撞已存在策略而永久失败。
+        django_db（savepoint 模式）下嵌套 atomic 抛异常回滚到 savepoint，故可验证。
+        """
+        from unittest import mock
+
+        from bkmonitor.models.metric_list_cache import MetricListCache
+        from core.drf_resource import resource
+
+        bk_biz_id = 2
+        OsDefaultAlarmStrategyLoader.CACHE = set()
+
+        # 追加第 2 条可匹配 v1 的时序指标（system.io util），确保 load_strategies 会走到第 2 次 save
+        MetricListCache.objects.create(
+            bk_biz_id=0,
+            category_display="物理机",
+            collect_config="",
+            collect_config_ids="",
+            collect_interval=1,
+            data_source_label="bk_monitor",
+            data_target="host_target",
+            data_type_label="time_series",
+            default_condition=[],
+            default_dimensions=["bk_target_ip", "bk_target_cloud_id"],
+            description="磁盘IO使用率",
+            dimensions=[{"id": "bk_target_ip", "is_dimension": True, "name": "目标IP", "type": "string"}],
+            extend_fields={},
+            metric_field="util",
+            metric_field_name="磁盘IO使用率",
+            plugin_type="",
+            related_id="system",
+            related_name="system",
+            result_table_id="system.io",
+            result_table_label="os",
+            result_table_label_name="操作系统",
+            result_table_name="磁盘IO",
+            unit="percent",
+            unit_conversion=1.0,
+            use_frequency=6,
+        )
+
+        loader = OsDefaultAlarmStrategyLoader(bk_biz_id)
+
+        # patch 前捕获原始实现：第 1 条真实创建（使回滚有可回滚对象），第 2 条抛普通异常
+        # （RuntimeError 而非 IntegrityError，避免污染 savepoint 外层事务）
+        real_save = resource.strategies.save_strategy_v2
+        call_state = {"n": 0}
+
+        def save_side_effect(**kwargs):
+            call_state["n"] += 1
+            if call_state["n"] == 1:
+                return real_save(**kwargs)
+            raise RuntimeError("boom")
+
+        with mock.patch(
+            "core.drf_resource.resource.strategies.save_strategy_v2",
+            side_effect=save_side_effect,
+        ):
+            loader.run()
+
+        # 走到了第 2 次 save 并触发失败
+        assert call_state["n"] == 2
+        # 第 2 条失败 -> 整个 v1 事务回滚，第 1 条已创建的策略也被回滚
+        assert StrategyModel.objects.all().count() == 0
+        # 失败版本不登记接入记录
+        assert DefaultStrategyBizAccessModel.objects.all().count() == 0
+        # 不写 CACHE，保证同进程下一次可干净重试
+        assert bk_biz_id not in OsDefaultAlarmStrategyLoader.CACHE

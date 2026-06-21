@@ -29,6 +29,14 @@ from common.context_processors import Platform
 # 拓扑目标定位与按维度的恢复判定。维度取自系统事件表的 dimension_list：所有事件按主机
 # （bk_target_ip/bk_target_cloud_id）聚合，磁盘只读/Corefile 再叠加各自的实例维度以区分
 # 同主机的不同只读盘 / 不同 corefile 信号。
+#
+# 覆盖范围：仅 V4 gse_system_event 表实际产出的 5 类事件
+# （AgentLost / DiskReadonly / CoreFile / OOM / PingUnreachable）。
+# v1 中的 os_restart（主机重启）、proc_port（进程端口）不在此列——它们本就不是 gse 系统事件，
+# 而是时序指标（system.env.uptime / system.proc_port.proc_exists）经 EVENT_DETECT_LIST/
+# EVENT_QUERY_CONFIG_MAP 改写成事件检测的；多租户对齐依赖每业务的时序主机指标链路，属另一条数据链
+# scope，需单独立项，不能当 custom event 塞进 v2。DiskFull 在 v1/v2 均未内置，为历史一致行为，
+# 非本次引入的缺口。
 DEFAULT_OS_STRATEGIES = []
 
 if settings.ENABLE_MULTI_TENANT_MODE:
@@ -77,7 +85,7 @@ if settings.ENABLE_MULTI_TENANT_MODE:
                 "data_source_label": "custom",
                 "result_table_label": "os",
                 "metric_field": "OOM",
-                # process 在旧链路是展示补充、不参与去重，故按主机聚合即可（process 仍随事件维度展示）
+                # OOM 在旧链路 process 属补充字段、不参与去重；这里按主机聚合，process 不参与聚合、不保证出现在告警维度
                 "agg_dimension": ["bk_target_ip", "bk_target_cloud_id"],
                 "trigger_count": 1,
                 "trigger_check_window": 5,
