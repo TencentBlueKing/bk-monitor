@@ -237,8 +237,10 @@ class OsDefaultAlarmStrategyLoader(DefaultAlarmStrategyLoaderBase):
                 item["algorithms"][0]["unit_prefix"] = default_config.get("unit_prefix", "")
 
             # 多租户系统事件（custom 源）：补 custom_event_name，使检测按事件名过滤
-            # （缺失则退化为整表扫描、任意事件都触发误告警）。CustomEventDataSource 出 COUNT
-            # 聚合，故按「周期内事件数 >= 1 即异常」配阈值。注：检测语义待 review / 联调确认。
+            # （缺失则退化为整表扫描、任意事件都触发误告警）。
+            # 检测语义已确认：CustomEventDataSource.init_by_query_config 硬编码 metric=COUNT，
+            # 并以 custom_event_name 过滤 event_name，故实际查询为「周期内该事件计数」，按 >= 1 即异常配阈值。
+            # 这里写 query_config["agg_method"]="COUNT" 主要是策略配置表达保持一致，真正的 COUNT 由数据源实现驱动。
             if is_custom_event:
                 query_config = item["query_configs"][0]
                 query_config["custom_event_name"] = custom_event_name

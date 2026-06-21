@@ -172,3 +172,76 @@ class TestOsDefaultAlarmStrategyLoader:
         assert StrategyModel.objects.all().count() == 0
         # 关键：未创建策略时不登记接入记录，下次指标就绪后仍可补建
         assert DefaultStrategyBizAccessModel.objects.all().count() == 0
+        # 关键：未创建策略时也不写内存 CACHE，保证同进程内指标就绪后仍可重试（Blocking：避免缓存提前挡住重试）
+        assert bk_biz_id not in OsDefaultAlarmStrategyLoader.CACHE
+
+    def test_load_strategies__multi_tenant_custom_event(self):
+        """多租户 custom event 系统事件主链路。
+
+        覆盖最关键的新逻辑：
+        - 多租户下按 bk_biz_id 过滤查询 custom event 指标；
+        - 按 custom_event_name 建索引并匹配策略（而非 metric_field/__INDEX__）；
+        - 生成的 metric_id 带 .OOM 而非退化成整表 __INDEX__；
+        - 最终 query_config 落到 agg_method=COUNT + 主机维度 agg_dimension。
+        """
+        import importlib
+        from unittest import mock
+
+        from django.test import override_settings
+
+        from monitor_web.strategies.default_settings.os import v2 as os_v2
+
+        bk_biz_id = 2
+
+        # 构造一个 V4 分业务系统事件指标（custom 源、event 类型）
+        metric = mock.Mock()
+        metric.data_source_label = "custom"
+        metric.data_type_label = "event"
+        metric.result_table_id = "base_tenant_2_event"
+        metric.metric_field = "OOM"
+        metric.metric_field_name = "OOM异常告警"
+        metric.extend_fields = {"custom_event_name": "OOM"}
+        metric.default_condition = []
+        metric.default_dimensions = []
+        metric.collect_interval = 1
+        metric.unit = ""
+
+        # loader 在单租户下实例化，避免触发多租户租户映射查询；load 时再切多租户走 custom event 分支
+        loader = OsDefaultAlarmStrategyLoader(bk_biz_id)
+
+        captured = []
+
+        with override_settings(ENABLE_MULTI_TENANT_MODE=True):
+            importlib.reload(os_v2)
+            oom_strategy = next(s for s in os_v2.DEFAULT_OS_STRATEGIES if s["metric_field"] == "OOM")
+            with (
+                mock.patch(
+                    "monitor_web.strategies.loader.os_loader.MetricListCache.objects.filter",
+                    side_effect=[[], [metric]],
+                ) as filter_mock,
+                mock.patch(
+                    "monitor_web.strategies.loader.os_loader.resource.strategies.save_strategy_v2",
+                    side_effect=lambda **kwargs: captured.append(kwargs),
+                ),
+                mock.patch.object(OsDefaultAlarmStrategyLoader, "get_notice_group", return_value=[1]),
+            ):
+                result = loader.load_strategies([oom_strategy])
+
+        # 还原全局模块，避免 reload 污染其它用例
+        importlib.reload(os_v2)
+
+        assert len(result) == 1
+        # 多租户 custom event 查询带 bk_biz_id 过滤（第 2 次 filter 为 custom event 查询）
+        custom_call = filter_mock.call_args_list[1]
+        assert custom_call.kwargs["bk_biz_id"] == bk_biz_id
+        assert custom_call.kwargs["data_source_label"] == "custom"
+        assert custom_call.kwargs["data_type_label"] == "event"
+
+        query_config = captured[0]["items"][0]["query_configs"][0]
+        # metric_id 带 custom_event_name(.OOM)，未退化为整表 __INDEX__
+        assert query_config["metric_id"].endswith(".OOM")
+        assert "__INDEX__" not in query_config["metric_id"]
+        # custom event 检测语义：按事件名过滤 + COUNT 聚合 + 主机维度 group by
+        assert query_config["custom_event_name"] == "OOM"
+        assert query_config["agg_method"] == "COUNT"
+        assert query_config["agg_dimension"] == ["bk_target_ip", "bk_target_cloud_id"]
