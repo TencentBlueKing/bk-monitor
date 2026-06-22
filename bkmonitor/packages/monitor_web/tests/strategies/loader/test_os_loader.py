@@ -217,7 +217,8 @@ class TestOsDefaultAlarmStrategyLoader:
             with (
                 mock.patch(
                     "monitor_web.strategies.loader.os_loader.MetricListCache.objects.filter",
-                    side_effect=[[], [metric]],
+                    # 多租户 3 次查询：related_id=system 时序 / custom event / process.port 时序
+                    side_effect=[[], [metric], []],
                 ) as filter_mock,
                 mock.patch(
                     "monitor_web.strategies.loader.os_loader.resource.strategies.save_strategy_v2",
@@ -317,3 +318,77 @@ class TestOsDefaultAlarmStrategyLoader:
         assert DefaultStrategyBizAccessModel.objects.all().count() == 0
         # 不写 CACHE，保证同进程下一次可干净重试
         assert bk_biz_id not in OsDefaultAlarmStrategyLoader.CACHE
+
+    def test_load_strategies__multi_tenant_os_restart_and_proc_port(self):
+        """多租户主机重启/进程端口走时序链路（非 custom event）。
+
+        - 主机重启 system.env.uptime：套 OsRestart 检测算法，保留真实时序 metric_id（非 bk_monitor.os_restart）；
+        - 进程端口 process.port.alive：降级版普通 Threshold(alive < 1)，不套 ProcPort（多租户无相关维度）。
+        """
+        import importlib
+        from unittest import mock
+
+        from django.test import override_settings
+
+        from monitor_web.strategies.default_settings.os import v2 as os_v2
+
+        bk_biz_id = 2
+
+        def _ts_metric(result_table_id, metric_field, metric_field_name, unit):
+            m = mock.Mock()
+            m.data_source_label = "bk_monitor"
+            m.data_type_label = "time_series"
+            m.result_table_id = result_table_id
+            m.metric_field = metric_field
+            m.metric_field_name = metric_field_name
+            m.extend_fields = {}
+            m.default_condition = []
+            m.default_dimensions = []
+            m.collect_interval = 1
+            m.unit = unit
+            return m
+
+        uptime_metric = _ts_metric("system.env", "uptime", "系统启动时间", "s")
+        alive_metric = _ts_metric("process.port", "alive", "端口存活", "none")
+
+        loader = OsDefaultAlarmStrategyLoader(bk_biz_id)
+        captured = []
+
+        with override_settings(ENABLE_MULTI_TENANT_MODE=True):
+            importlib.reload(os_v2)
+            os_restart_cfg = next(s for s in os_v2.DEFAULT_OS_STRATEGIES if s["metric_field"] == "uptime")
+            proc_port_cfg = next(s for s in os_v2.DEFAULT_OS_STRATEGIES if s["metric_field"] == "alive")
+            with (
+                mock.patch(
+                    "monitor_web.strategies.loader.os_loader.MetricListCache.objects.filter",
+                    # 多租户 3 次查询：related_id=system(含 system.env) / custom event / process.port
+                    side_effect=[[uptime_metric], [], [alive_metric]],
+                ),
+                mock.patch(
+                    "monitor_web.strategies.loader.os_loader.resource.strategies.save_strategy_v2",
+                    side_effect=lambda **kwargs: captured.append(kwargs),
+                ),
+                mock.patch.object(OsDefaultAlarmStrategyLoader, "get_notice_group", return_value=[1]),
+            ):
+                result = loader.load_strategies([os_restart_cfg, proc_port_cfg])
+
+        importlib.reload(os_v2)
+
+        assert len(result) == 2
+        by_rt = {c["items"][0]["query_configs"][0]["result_table_id"]: c for c in captured}
+
+        # 主机重启：OsRestart 检测算法 + 真实时序 metric_id（未重定向到 bk_monitor.os_restart）
+        os_qc = by_rt["system.env"]["items"][0]["query_configs"][0]
+        assert os_qc["metric_field"] == "uptime"
+        assert os_qc["metric_id"] == "bk_monitor.system.env.uptime"
+        assert os_qc["agg_method"] == "MAX"
+        assert os_qc["data_type_label"] == "time_series"
+        assert by_rt["system.env"]["items"][0]["algorithms"][0]["type"] == "OsRestart"
+
+        # 进程端口：降级版 Threshold(alive < 1)，未套 ProcPort
+        pp_qc = by_rt["process.port"]["items"][0]["query_configs"][0]
+        assert pp_qc["metric_field"] == "alive"
+        assert pp_qc["agg_method"] == "MAX"
+        pp_algo = by_rt["process.port"]["items"][0]["algorithms"][0]
+        assert pp_algo["type"] == "Threshold"
+        assert pp_algo["config"] == [[{"threshold": 1, "method": "lt"}]]

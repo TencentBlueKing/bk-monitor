@@ -25,7 +25,7 @@ def test_get_k8s_strategies():
 
 
 def test_os_v2_multi_tenant_system_event_strategies():
-    """多租户下 OS v2 承载系统事件 custom event 策略，校验聚合维度与恢复语义最终形态。"""
+    """多租户下 OS v2 内置策略：5 类 custom event 系统事件 + 主机重启/进程端口时序事件，校验最终形态。"""
     import importlib
 
     from django.test import override_settings
@@ -40,9 +40,10 @@ def test_os_v2_multi_tenant_system_event_strategies():
             # 4 个离散事件必然内置（PingUnreachable 受 Platform.te 控制，不强制断言其存在）
             assert {"AgentLost", "DiskReadonly", "CoreFile", "OOM"} <= set(strategies)
 
-            for strategy in os_v2.DEFAULT_OS_STRATEGIES:
-                # 多租户系统事件走 custom 事件链路
-                assert strategy["data_source_label"] == "custom"
+            # custom event 系统事件：走 custom 事件链路、按主机聚合、统一 close 恢复语义
+            event_strategies = [s for s in os_v2.DEFAULT_OS_STRATEGIES if s["data_source_label"] == "custom"]
+            assert event_strategies, "多租户下应至少内置一类 custom event 系统事件"
+            for strategy in event_strategies:
                 assert strategy["data_type_label"] == "event"
                 # 必须按主机聚合，避免全业务聚合丢失主机归属
                 assert strategy["agg_dimension"][:2] == ["bk_target_ip", "bk_target_cloud_id"]
@@ -64,6 +65,24 @@ def test_os_v2_multi_tenant_system_event_strategies():
                 "executable",
                 "signal",
             ]
+
+            # 主机重启：时序 system.env.uptime + OsRestart 检测算法（event_detect 标记），与单租户等价
+            os_restart = strategies["uptime"]
+            assert os_restart["data_source_label"] == "bk_monitor"
+            assert os_restart["data_type_label"] == "time_series"
+            assert os_restart["result_table_id"] == "system.env"
+            assert os_restart["event_detect"] == "os_restart"
+            assert os_restart["agg_dimension"] == ["bk_target_ip", "bk_target_cloud_id"]
+            assert os_restart["recovery_status_setter"] == "close"
+
+            # 进程端口：降级版时序 process.port.alive 存活阈值（无 event_detect，走普通 Threshold）
+            proc_port = strategies["alive"]
+            assert proc_port["data_source_label"] == "bk_monitor"
+            assert proc_port["data_type_label"] == "time_series"
+            assert proc_port["result_table_id"] == "process.port"
+            assert "event_detect" not in proc_port
+            assert proc_port["threshold"] == 1
+            assert proc_port["method"] == "lt"
     finally:
         # 还原为当前部署模式下的定义，避免污染其他用例
         importlib.reload(os_v2)
