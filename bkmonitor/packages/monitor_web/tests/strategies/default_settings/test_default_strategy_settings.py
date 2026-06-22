@@ -67,38 +67,3 @@ def test_os_v2_multi_tenant_system_event_strategies():
     finally:
         # 还原为当前部署模式下的定义，避免污染其他用例
         importlib.reload(os_v2)
-
-
-def test_os_v3_multi_tenant_host_ts_strategies():
-    """多租户下 OS v3 承载主机重启/进程端口时序策略（与 custom event 拆版本，避免部分创建漏建）。"""
-    import importlib
-
-    from django.test import override_settings
-
-    from monitor_web.strategies.default_settings.os import v3 as os_v3
-
-    try:
-        with override_settings(ENABLE_MULTI_TENANT_MODE=True):
-            importlib.reload(os_v3)
-            strategies = {s["metric_field"]: s for s in os_v3.DEFAULT_OS_STRATEGIES}
-            # v3 全为主机时序指标（bk_monitor 源），不含 custom event
-            assert {"uptime", "alive"} == set(strategies)
-            for strategy in os_v3.DEFAULT_OS_STRATEGIES:
-                assert strategy["data_source_label"] == "bk_monitor"
-                assert strategy["data_type_label"] == "time_series"
-
-            # 主机重启：system.env.uptime + OsRestart 检测算法（event_detect 标记），与单租户等价
-            os_restart = strategies["uptime"]
-            assert os_restart["result_table_id"] == "system.env"
-            assert os_restart["event_detect"] == "os_restart"
-            assert os_restart["agg_dimension"] == ["bk_target_ip", "bk_target_cloud_id"]
-            assert os_restart["recovery_status_setter"] == "close"
-
-            # 进程端口：降级版 process.port.alive 存活阈值（无 event_detect，走普通 Threshold）
-            proc_port = strategies["alive"]
-            assert proc_port["result_table_id"] == "process.port"
-            assert "event_detect" not in proc_port
-            assert proc_port["threshold"] == 1
-            assert proc_port["method"] == "lt"
-    finally:
-        importlib.reload(os_v3)

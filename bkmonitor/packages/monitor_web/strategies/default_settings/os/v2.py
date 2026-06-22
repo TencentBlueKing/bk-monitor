@@ -32,9 +32,10 @@ from common.context_processors import Platform
 #
 # 覆盖范围：仅 V4 gse_system_event 表实际产出的 5 类事件
 # （AgentLost / DiskReadonly / CoreFile / OOM / PingUnreachable），custom 源。
-# 主机重启 os_restart、进程端口 proc_port 不在此列——它们不是 gse 系统事件，而是主机时序指标，
-# 依赖独立就绪的主机时序缓存，单列在 os/v3.py：与 custom event 混在同一版本会因「部分创建即登记接入」
-# 导致主机时序就绪后被幂等跳过、永久漏建（详见 v3.py 注释）。
+# 主机重启 os_restart、进程端口 proc_port 不在此列——它们不是 gse 系统事件，而是底层 system.env /
+# system.proc_port 时序指标（CMDB 内置进程采集），由 BaseAlarmMetricCacheManager 在多租户内置为
+# bk_monitor 源伪事件、经 os/v1 命中创建（见 metric_list_cache.BaseAlarmMetricCacheManager 与
+# os_loader 注释），不走 custom 链路、也无需单列版本。
 # DiskFull 在 v1/v2 均未内置，为历史一致行为，非本次引入的缺口。
 DEFAULT_OS_STRATEGIES = []
 

@@ -217,8 +217,8 @@ class TestOsDefaultAlarmStrategyLoader:
             with (
                 mock.patch(
                     "monitor_web.strategies.loader.os_loader.MetricListCache.objects.filter",
-                    # 多租户 3 次查询：related_id=system 时序 / custom event / process.port 时序
-                    side_effect=[[], [metric], []],
+                    # 多租户 3 次查询：related_id=system 时序 / bk_monitor 源事件 / custom event
+                    side_effect=[[], [], [metric]],
                 ) as filter_mock,
                 mock.patch(
                     "monitor_web.strategies.loader.os_loader.resource.strategies.save_strategy_v2",
@@ -232,8 +232,8 @@ class TestOsDefaultAlarmStrategyLoader:
         importlib.reload(os_v2)
 
         assert len(result) == 1
-        # 多租户 custom event 查询带 bk_biz_id 过滤（第 2 次 filter 为 custom event 查询）
-        custom_call = filter_mock.call_args_list[1]
+        # 多租户 custom event 查询带 bk_biz_id 过滤（第 3 次 filter 为 custom event 查询）
+        custom_call = filter_mock.call_args_list[2]
         assert custom_call.kwargs["bk_biz_id"] == bk_biz_id
         assert custom_call.kwargs["data_source_label"] == "custom"
         assert custom_call.kwargs["data_type_label"] == "event"
@@ -319,50 +319,52 @@ class TestOsDefaultAlarmStrategyLoader:
         # 不写 CACHE，保证同进程下一次可干净重试
         assert bk_biz_id not in OsDefaultAlarmStrategyLoader.CACHE
 
-    def test_load_strategies__multi_tenant_os_restart_and_proc_port(self):
-        """多租户主机重启/进程端口走时序链路（非 custom event）。
+    def test_load_strategies__multi_tenant_builtin_proc_port_and_os_restart(self):
+        """多租户主机重启/进程端口：由 BaseAlarmMetricCacheManager 内置为 bk_monitor 源伪事件、
+        经 os/v1 命中创建，与单租户走完全一致的 EVENT_QUERY_CONFIG_MAP 重定向 + 检测算法。
 
-        - 主机重启 system.env.uptime：套 OsRestart 检测算法，保留真实时序 metric_id（非 bk_monitor.os_restart）；
-        - 进程端口 process.port.alive：降级版普通 Threshold(alive < 1)，不套 ProcPort（多租户无相关维度）。
+        - 主机重启 os_restart -> 重定向 system.env.uptime + OsRestart 算法，metric_id 保留 bk_monitor.os_restart；
+        - 进程端口 proc_port -> 重定向 system.proc_port.proc_exists（CMDB 内置进程采集，富维度）+ ProcPort 算法。
+        两条均走 bk_monitor 源（第 2 次 filter），与 custom 链路无关（custom 查询返回空仍能创建）。
         """
-        import importlib
         from unittest import mock
 
         from django.test import override_settings
 
-        from monitor_web.strategies.default_settings.os import v3 as os_v3
-
         bk_biz_id = 2
 
-        def _ts_metric(result_table_id, metric_field, metric_field_name, unit):
+        def _event_metric(metric_field, metric_field_name):
             m = mock.Mock()
             m.data_source_label = "bk_monitor"
-            m.data_type_label = "time_series"
-            m.result_table_id = result_table_id
+            m.data_type_label = "event"
+            # BaseAlarmMetricCacheManager 内置项 result_table_id 为 system.event；get_metric_id 对
+            # bk_monitor event 仅按 metric_field 归一（忽略 result_table_id）。
+            m.result_table_id = "system.event"
             m.metric_field = metric_field
             m.metric_field_name = metric_field_name
             m.extend_fields = {}
             m.default_condition = []
             m.default_dimensions = []
             m.collect_interval = 1
-            m.unit = unit
+            m.unit = ""
             return m
 
-        uptime_metric = _ts_metric("system.env", "uptime", "系统启动时间", "s")
-        alive_metric = _ts_metric("process.port", "alive", "端口存活", "none")
+        os_restart_metric = _event_metric("os_restart", "主机重启")
+        proc_port_metric = _event_metric("proc_port", "进程端口")
+
+        os_restart_cfg = next(s for s in v1.DEFAULT_OS_STRATEGIES if s["metric_field"] == "os_restart")
+        proc_port_cfg = next(s for s in v1.DEFAULT_OS_STRATEGIES if s["metric_field"] == "proc_port")
 
         loader = OsDefaultAlarmStrategyLoader(bk_biz_id)
         captured = []
 
         with override_settings(ENABLE_MULTI_TENANT_MODE=True):
-            importlib.reload(os_v3)
-            os_restart_cfg = next(s for s in os_v3.DEFAULT_OS_STRATEGIES if s["metric_field"] == "uptime")
-            proc_port_cfg = next(s for s in os_v3.DEFAULT_OS_STRATEGIES if s["metric_field"] == "alive")
             with (
                 mock.patch(
                     "monitor_web.strategies.loader.os_loader.MetricListCache.objects.filter",
-                    # 多租户 3 次查询：related_id=system(含 system.env) / custom event / process.port
-                    side_effect=[[uptime_metric], [], [alive_metric]],
+                    # 多租户 3 次查询：related_id=system 时序 / bk_monitor 源事件 / custom event
+                    # 内置 proc_port/os_restart 由第 2 次（bk_monitor event）命中；custom 返回空
+                    side_effect=[[], [os_restart_metric, proc_port_metric], []],
                 ),
                 mock.patch(
                     "monitor_web.strategies.loader.os_loader.resource.strategies.save_strategy_v2",
@@ -372,23 +374,23 @@ class TestOsDefaultAlarmStrategyLoader:
             ):
                 result = loader.load_strategies([os_restart_cfg, proc_port_cfg])
 
-        importlib.reload(os_v3)
-
         assert len(result) == 2
-        by_rt = {c["items"][0]["query_configs"][0]["result_table_id"]: c for c in captured}
+        # EVENT_QUERY_CONFIG_MAP 重定向后 query_config 的 metric_field：os_restart->uptime / proc_port->proc_exists
+        by_field = {c["items"][0]["query_configs"][0]["metric_field"]: c for c in captured}
 
-        # 主机重启：OsRestart 检测算法 + 真实时序 metric_id（未重定向到 bk_monitor.os_restart）
-        os_qc = by_rt["system.env"]["items"][0]["query_configs"][0]
-        assert os_qc["metric_field"] == "uptime"
-        assert os_qc["metric_id"] == "bk_monitor.system.env.uptime"
-        assert os_qc["agg_method"] == "MAX"
+        # 主机重启：重定向到 system.env.uptime + OsRestart 算法，metric_id 保留 bk_monitor.os_restart
+        # （alarm_backends 据此补 "a <= 3600" 表达式）
+        os_qc = by_field["uptime"]["items"][0]["query_configs"][0]
+        assert os_qc["result_table_id"] == "system.env"
+        assert os_qc["metric_id"] == "bk_monitor.os_restart"
         assert os_qc["data_type_label"] == "time_series"
-        assert by_rt["system.env"]["items"][0]["algorithms"][0]["type"] == "OsRestart"
+        assert by_field["uptime"]["items"][0]["algorithms"][0]["type"] == "OsRestart"
 
-        # 进程端口：降级版 Threshold(alive < 1)，未套 ProcPort
-        pp_qc = by_rt["process.port"]["items"][0]["query_configs"][0]
-        assert pp_qc["metric_field"] == "alive"
-        assert pp_qc["agg_method"] == "MAX"
-        pp_algo = by_rt["process.port"]["items"][0]["algorithms"][0]
-        assert pp_algo["type"] == "Threshold"
-        assert pp_algo["config"] == [[{"threshold": 1, "method": "lt"}]]
+        # 进程端口：重定向到 CMDB 内置进程采集 system.proc_port.proc_exists + ProcPort 算法，富维度齐全
+        pp_qc = by_field["proc_exists"]["items"][0]["query_configs"][0]
+        assert pp_qc["result_table_id"] == "system.proc_port"
+        assert pp_qc["metric_id"] == "bk_monitor.proc_port"
+        assert pp_qc["data_type_label"] == "time_series"
+        assert "nonlisten" in pp_qc["agg_dimension"]
+        assert "not_accurate_listen" in pp_qc["agg_dimension"]
+        assert by_field["proc_exists"]["items"][0]["algorithms"][0]["type"] == "ProcPort"

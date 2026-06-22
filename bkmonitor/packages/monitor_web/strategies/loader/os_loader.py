@@ -78,34 +78,26 @@ class OsDefaultAlarmStrategyLoader(DefaultAlarmStrategyLoaderBase):
                 related_id="system",
             )
         )
+        # bk_monitor 源系统事件（两模式共用此查询）：
+        # 单租户为全局内置（system.event 全量事件）；多租户下 BaseAlarmMetricCacheManager 仅内置
+        # proc_port/os_restart 两个伪事件（底层 system.proc_port/system.env 时序在多租户同样产出），
+        # gse 系统事件改走下方 custom 链路，故此查询在多租户只会命中 proc_port/os_restart。
+        metrics.extend(
+            MetricListCache.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                result_table_label__in=["os", "host_process"],
+                data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
+                data_type_label=DataTypeLabel.EVENT,
+            )
+        )
         if settings.ENABLE_MULTI_TENANT_MODE:
-            # 多租户：系统事件走 V4 分业务链路（custom 源，每个业务独立结果表 base_{tenant}_{biz}_event）
+            # 多租户：gse 系统事件走 V4 分业务链路（custom 源，每个业务独立结果表 base_{tenant}_{biz}_event）
             metrics.extend(
                 MetricListCache.objects.filter(
                     bk_tenant_id=self.bk_tenant_id,
                     bk_biz_id=self.bk_biz_id,
                     result_table_label__in=["os", "host_process"],
                     data_source_label=DataSourceLabel.CUSTOM,
-                    data_type_label=DataTypeLabel.EVENT,
-                )
-            )
-            # 主机重启/进程端口走时序：system.env(uptime) 已由上面 related_id="system" 查询覆盖；
-            # process.port(alive) 的 related_id 为 "process"，不在上面范围，单独补一条。
-            metrics.extend(
-                MetricListCache.objects.filter(
-                    bk_tenant_id=self.bk_tenant_id,
-                    result_table_id="process.port",
-                    data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
-                    data_type_label=DataTypeLabel.TIME_SERIES,
-                )
-            )
-        else:
-            # 单租户：系统事件为全局内置（bk_monitor 源，全局 system.event）
-            metrics.extend(
-                MetricListCache.objects.filter(
-                    bk_tenant_id=self.bk_tenant_id,
-                    result_table_label__in=["os", "host_process"],
-                    data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
                     data_type_label=DataTypeLabel.EVENT,
                 )
             )
@@ -238,8 +230,8 @@ class OsDefaultAlarmStrategyLoader(DefaultAlarmStrategyLoaderBase):
             }
 
             item = strategy_config["items"][0]
-            # 非事件性策略配置阈值（event_detect 类时序事件由下方检测算法处理，本身无 threshold 字段）
-            if metric.data_type_label != DataTypeLabel.EVENT and "threshold" in default_config:
+            # 非事件性策略配置阈值
+            if metric.data_type_label != DataTypeLabel.EVENT:
                 item["algorithms"][0]["config"].append(
                     [{"threshold": default_config["threshold"], "method": default_config["method"]}]
                 )
@@ -259,19 +251,14 @@ class OsDefaultAlarmStrategyLoader(DefaultAlarmStrategyLoaderBase):
                 item["algorithms"][0]["type"] = "Threshold"
 
             # 主机重启、进程端口、PING不可达 实际上是时序性指标，需套用对应检测算法。
-            # 单租户命中 system.event 事件指标（metric.metric_field ∈ EVENT_DETECT_LIST），需经
-            # EVENT_QUERY_CONFIG_MAP 把查询重定向到底层时序表；多租户直接以底层时序表/字段命中，
-            # 由 default_config["event_detect"] 标记算法、无需重定向（保留真实时序 metric_id）。
-            # 注意：主机重启须保留真实 metric_id "bk_monitor.system.env.uptime"——alarm_backends 的
-            # handle_special_query_config 据此映射为 OS_RESTART_METRIC_ID 并补 "a <= 3600" 表达式，
-            # OsRestart 算法依赖该改写（见 alarm_backends/core/cache/strategy.py）。
-            event_detect_key = default_config.get("event_detect")
-            if not event_detect_key and metric.metric_field in EVENT_DETECT_LIST:
-                event_detect_key = metric.metric_field
-            if event_detect_key in EVENT_DETECT_LIST:
-                event_detect_config = EVENT_DETECT_LIST[event_detect_key]
-                if metric.metric_field in EVENT_DETECT_LIST:
-                    item["query_configs"][0].update(EVENT_QUERY_CONFIG_MAP.get(metric.metric_field, {}))
+            # 命中的事件指标（metric.metric_field ∈ EVENT_DETECT_LIST）经 EVENT_QUERY_CONFIG_MAP 把查询
+            # 重定向到底层时序表；主机重启保留 metric_id "bk_monitor.os_restart"——alarm_backends 的
+            # handle_special_query_config 据此补 "a <= 3600" 表达式，OsRestart 算法依赖该改写
+            # （见 alarm_backends/core/cache/strategy.py）。多租户下命中的是 BaseAlarmMetricCacheManager
+            # 内置的 proc_port/os_restart，走同一条重定向路径，与单租户一致。
+            if metric.metric_field in EVENT_DETECT_LIST:
+                event_detect_config = EVENT_DETECT_LIST[metric.metric_field]
+                item["query_configs"][0].update(EVENT_QUERY_CONFIG_MAP.get(metric.metric_field, {}))
                 item["query_configs"][0]["data_type_label"] = DataTypeLabel.TIME_SERIES
                 item["algorithms"][0]["type"] = event_detect_config[0]["type"]
                 item["algorithms"][0]["config"] = event_detect_config[0]["config"]
