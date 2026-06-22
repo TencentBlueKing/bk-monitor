@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, defineComponent, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -37,7 +37,6 @@ import V3Searchbar from './search-bar';
 import V3SearchResult from './search-result';
 import V3Toolbar from './toolbar';
 import useAppInit from './use-app-init';
-import AiAssitant from '@/global/ai-assitant/index';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 
 import './global-en.scss';
@@ -45,12 +44,26 @@ import './index.scss';
 import './media.scss';
 import './segment-pop.scss';
 
+const AiAssitant = defineAsyncComponent(() =>
+  import(/* webpackChunkName: 'retrieve-ai-assistant' */ '@/global/ai-assitant/index'),
+);
+
 export default defineComponent({
   name: 'RetrieveV3',
   setup() {
     const store = useStore();
     const { t } = useLocale();
     const aiAssitantRef = RetrieveHelper.aiAssitantHelper.getAiAssitantInstance();
+    const shouldMountAiAssitant = ref(false);
+
+    RetrieveHelper.aiAssitantHelper.setAiAssitantMountLoader(async () => {
+      shouldMountAiAssitant.value = true;
+      await nextTick();
+    });
+
+    onBeforeUnmount(() => {
+      RetrieveHelper.aiAssitantHelper.setAiAssitantMountLoader(undefined);
+    });
 
     const {
       isSearchContextStickyTop,
@@ -79,11 +92,15 @@ export default defineComponent({
     // 切换检索模式或场景时，重置字段列表获取状态
     watch(
       () => store.state.indexItem.retrieve_type,
-      () => { isFieldListFetched.value = false; },
+      () => {
+        isFieldListFetched.value = false;
+      },
     );
     watch(
       () => store.state.indexItem.scene_active,
-      () => { isFieldListFetched.value = false; },
+      () => {
+        isFieldListFetched.value = false;
+      },
     );
 
     // 字段列表已请求完成但返回为空
@@ -104,7 +121,7 @@ export default defineComponent({
      * @returns
      */
     const renderAiAssitant = () => {
-      if (!store.state.features.isAiAssistantActive) {
+      if (!store.state.features.isAiAssistantActive || !shouldMountAiAssitant.value) {
         return null;
       }
 

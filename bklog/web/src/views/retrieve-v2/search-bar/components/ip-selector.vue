@@ -1,10 +1,12 @@
 <!-- eslint-disable perfectionist/sort-imports -->
 <script setup>
-import { computed, watch, ref } from 'vue';
+import { computed, defineAsyncComponent, watch, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-import LogIpSelector from '@/components/log-ip-selector/log-ip-selector';
+const LogIpSelector = defineAsyncComponent(() =>
+  import(/* webpackChunkName: 'log-ip-selector' */ '@/components/log-ip-selector/log-ip-selector'),
+);
 // #endif
 // #if MONITOR_APP === 'apm' || MONITOR_APP === 'trace'
 // #code const LogIpSelector = () => null;

@@ -29,65 +29,26 @@
       :content-type="contentType"
       :handle-click-tools="handleClickTools"
     ></LogRows>
-    <RealTimeLog
-      :is-show="isShowRealTimeLog"
-      :log-params="logDialog.data"
-      :retrieve-params="retrieveParams"
-      :target-fields="targetFields"
-      :indexSetId="logDialog.indexSetId"
-      :row-index="currentIndex"
-      @close-dialog="hideDialog"
-    />
-    <ContextLog
-      :is-show="isShowContextLog"
-      :log-params="logDialog.data"
-      :retrieve-params="retrieveParams"
-      :target-fields="targetFields"
-      :indexSetId="logDialog.indexSetId"
-      :row-index="currentIndex"
-      @close-dialog="hideDialog"
-    />
     <!-- <AiAssitant ref="refAiAssitant" @close="handleAiClose"></AiAssitant> -->
   </div>
 </template>
 
 <script>
-import { parseTableRowData } from "@/common/util";
-import RetrieveLoader from "@/skeleton/retrieve-loader";
-
-import ContextLog from "@/views/retrieve-v3/search-result/original-log/context-log/index.tsx";
-import RealTimeLog from "@/views/retrieve-v3/search-result/original-log/real-time-log";
-import LogRows from "./log-rows.tsx";
-import RetrieveHelper from "@/views/retrieve-helper";
+import LogRows from './log-rows.tsx';
+import RetrieveHelper from '@/views/retrieve-helper';
 export default {
   components: {
-    RetrieveLoader,
-    ContextLog,
-    RealTimeLog,
     LogRows,
   },
   props: {
     contentType: {
       type: String,
-      default: "table",
+      default: 'table',
     },
     retrieveParams: {
       type: Object,
       default: () => ({}),
     },
-  },
-  data() {
-    return {
-      targetFields: [],
-      isShowRealTimeLog: false,
-      isShowContextLog: false,
-      logDialog: {
-        type: "",
-        data: {},
-        indexSetId: 0,
-      },
-      currentIndex: 0,
-    };
   },
   computed: {
     isExternal() {
@@ -98,16 +59,32 @@ export default {
     // handleAiClose() {
     //   this.$el.querySelector(".ai-active")?.classList.remove("ai-active");
     // },
-    // 打开实时日志或上下文弹窗
-    openLogDialog(row, type, indexSetId) {
-      this.logDialog.data = row;
-      this.logDialog.type = type;
-      this.logDialog.indexSetId = indexSetId;
-      if (type === "realTimeLog") {
-        this.isShowRealTimeLog = true;
-      } else {
-        this.isShowContextLog = true;
-      }
+    openRelatedLogTab(type, index) {
+      const retrieveParams = this.$store.getters.retrieveParams || {};
+      const routeQuery = {
+        ...this.$route.query,
+        indexId: this.$store.getters.indexId || this.$route.params.indexId,
+        bizId: this.$store.getters.bkBizId,
+        spaceUid: this.$store.getters.spaceUid,
+        rowIndex: Math.max(0, index - 1),
+        begin: retrieveParams.begin ?? 0,
+        size: retrieveParams.size ?? 50,
+        start_time: retrieveParams.start_time,
+        end_time: retrieveParams.end_time,
+        keyword: retrieveParams.keyword,
+        search_mode: retrieveParams.search_mode,
+        addition: JSON.stringify(retrieveParams.addition || []),
+        sort_list: JSON.stringify(retrieveParams.sort_list || []),
+        ip_chooser: JSON.stringify(retrieveParams.ip_chooser || {}),
+        host_scopes: JSON.stringify(retrieveParams.host_scopes || {}),
+        interval: retrieveParams.interval,
+        time_zone: retrieveParams.time_zone,
+      };
+      const route = this.$router.resolve({
+        name: type === 'realTimeLog' ? 'retrieve-real-time-tab' : 'retrieve-context-tab',
+        query: routeQuery,
+      });
+      window.open(route.href, '_blank', 'noopener,noreferrer');
     },
     openWebConsole(row) {
       // (('cluster', 'container_id'),
@@ -136,7 +113,7 @@ export default {
       }
       if (!queryData.cluster_id || !queryData.container_id) return;
       this.$http
-        .request("retrieve/getWebConsoleUrl", {
+        .request('retrieve/getWebConsoleUrl', {
           params: {
             index_set_id: this.$route.params.indexId,
           },
@@ -164,61 +141,11 @@ export default {
           RetrieveHelper.aiAssitantHelper.setCiteText(row);
           return;
         }
-      if (["realTimeLog", "contextLog"].includes(event)) {
-        this.currentIndex = index - 1;
-        const contextFields = config.contextAndRealtime.extra?.context_fields;
-        const timeField = this.$store.state.indexFieldInfo.time_field;
-        const dialogNewParams = {};
-        const { targetFields = [], sortFields = [] } = config.indexSetValue;
-
-        // const fieldParamsKey = [...new Set([...targetFields, ...sortFields])];
-        this.targetFields = targetFields ?? [];
-
-        Object.assign(dialogNewParams, {
-          dtEventTimeStamp: row.dtEventTimeStamp,
-        });
-        // 非日志采集的情况下判断是否设置过字段设置 设置了的话传已设置过的参数
-        // if (config.indexSetValue.scenarioID !== 'log' && fieldParamsKey.length) {
-        //   fieldParamsKey.forEach(field => {
-        //     dialogNewParams[field] = parseTableRowData(row, field, '', this.$store.state.isFormatDate, '');
-        //   });
-        // } else
-        if (Array.isArray(contextFields) && contextFields.length) {
-          // 传参配置指定字段。不要直接 push 到 store 配置数组，否则每次打开上下文/实时日志都会污染全局配置并持续增长。
-          const targetContextFields = Array.from(new Set([...contextFields, timeField].filter(Boolean)));
-          targetContextFields.forEach((field) => {
-            if (field === "bk_host_id") {
-              if (row[field]) dialogNewParams[field] = row[field];
-            } else {
-              dialogNewParams[field] = parseTableRowData(
-                row,
-                field,
-                "",
-                this.$store.state.isFormatDate,
-                ""
-              );
-            }
-          });
-        } else {
-          Object.assign(dialogNewParams, row);
-        }
-        this.openLogDialog(dialogNewParams, event, row.__index_set_id__);
-      } else if (event === "webConsole") this.openWebConsole(row);
-      else if (event === "logSource")
-        this.$store.dispatch("changeShowUnionSource");
+      if (['realTimeLog', 'contextLog'].includes(event)) {
+        this.openRelatedLogTab(event, index);
+      } else if (event === 'webConsole') this.openWebConsole(row);
+      else if (event === 'logSource') this.$store.dispatch('changeShowUnionSource');
     },
-    // 关闭实时日志或上下文弹窗后的回调
-    hideDialog() {
-      this.logDialog.type = "";
-      this.logDialog.data = {};
-      this.logDialog.indexSetId = 0;
-      this.targetFields = [];
-      this.isShowContextLog = false;
-      this.isShowRealTimeLog = false;
-    },
-  },
-  beforeUnmount() {
-    this.hideDialog();
   },
 };
 </script>
