@@ -14,6 +14,7 @@ import logging
 import threading
 from typing import Any
 from collections.abc import Callable
+from urllib.parse import urljoin
 
 from django.conf import settings
 from django.core.cache import caches
@@ -855,9 +856,12 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             app_name=params.get("app_name", ""),
             service_name=params.get("service_name", ""),
         )
-        service_config_url: str = "?bizId={bk_biz_id}#/apm{service_config_link}".format(
-            bk_biz_id=params.get("bk_biz_id"),
-            service_config_link=service_config_link,
+        service_config_url: str = urljoin(
+            settings.BK_MONITOR_HOST,
+            "?bizId={bk_biz_id}#/apm{service_config_link}".format(
+                bk_biz_id=params.get("bk_biz_id"),
+                service_config_link=service_config_link,
+            ),
         )
 
         return {
