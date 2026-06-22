@@ -109,6 +109,68 @@ def test_rebuild_positive_biz_keeps_full_steps(monkeypatch):
     ]
 
 
+def test_rebuild_passes_apm_cluster_names_when_provided(monkeypatch):
+    received = {}
+
+    monkeypatch.setattr(data_migrate_command, "rebuild_dashboard", lambda bk_biz_id: None)
+    monkeypatch.setattr(
+        data_migrate_command,
+        "rebuild_bklog_data_source_route",
+        lambda **kwargs: received.setdefault("bklog", kwargs),
+    )
+    monkeypatch.setattr(data_migrate_command, "rebuild_system_data", lambda **kwargs: None)
+    monkeypatch.setattr(data_migrate_command, "rebuild_uptime_check", lambda **kwargs: None)
+    monkeypatch.setattr(data_migrate_command, "rebuild_collect_plugins", lambda **kwargs: None)
+    monkeypatch.setattr(data_migrate_command, "rebuild_k8s_data", lambda **kwargs: None)
+    monkeypatch.setattr(
+        data_migrate_command,
+        "rebuild_custom_report",
+        lambda **kwargs: received.setdefault("custom_report", kwargs),
+    )
+
+    options = {
+        **_rebuild_options([2]),
+        "apm_kafka_cluster_name": "apm-kafka-public-1",
+        "apm_es_cluster_name": "apm-es-public-1",
+    }
+    data_migrate_command.Command()._handle_rebuild(options)
+
+    assert received["bklog"]["apm_kafka_cluster_name"] == "apm-kafka-public-1"
+    assert received["bklog"]["apm_es_cluster_name"] == "apm-es-public-1"
+    assert received["custom_report"]["apm_kafka_cluster_name"] == "apm-kafka-public-1"
+
+
+def test_rebuild_treats_blank_apm_cluster_names_as_default(monkeypatch):
+    received = {}
+
+    monkeypatch.setattr(data_migrate_command, "rebuild_dashboard", lambda bk_biz_id: None)
+    monkeypatch.setattr(
+        data_migrate_command,
+        "rebuild_bklog_data_source_route",
+        lambda **kwargs: received.setdefault("bklog", kwargs),
+    )
+    monkeypatch.setattr(data_migrate_command, "rebuild_system_data", lambda **kwargs: None)
+    monkeypatch.setattr(data_migrate_command, "rebuild_uptime_check", lambda **kwargs: None)
+    monkeypatch.setattr(data_migrate_command, "rebuild_collect_plugins", lambda **kwargs: None)
+    monkeypatch.setattr(data_migrate_command, "rebuild_k8s_data", lambda **kwargs: None)
+    monkeypatch.setattr(
+        data_migrate_command,
+        "rebuild_custom_report",
+        lambda **kwargs: received.setdefault("custom_report", kwargs),
+    )
+
+    options = {
+        **_rebuild_options([2]),
+        "apm_kafka_cluster_name": " ",
+        "apm_es_cluster_name": "",
+    }
+    data_migrate_command.Command()._handle_rebuild(options)
+
+    assert received["bklog"]["apm_kafka_cluster_name"] is None
+    assert received["bklog"]["apm_es_cluster_name"] is None
+    assert received["custom_report"]["apm_kafka_cluster_name"] is None
+
+
 def test_find_custom_report_data_ids_accepts_negative_biz_ids(monkeypatch):
     received = {}
 
