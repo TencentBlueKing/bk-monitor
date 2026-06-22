@@ -135,6 +135,11 @@ class DefaultAlarmStrategyLoaderBase(metaclass=abc.ABCMeta):
                 logger.error("create default %s strategy failed: %s", self.LOADER_TYPE, exc_info)
                 # 加载/登记异常时不登记接入记录、不写 CACHE，下次运行整体重试
                 pending_retry = True
+                # 本版本 atomic 已回滚：load_strategies 内可能已创建并缓存了通知组（notice_group_cache
+                # 是 loader 实例级、跨版本存活），但其 DB 行随回滚消失。若不清缓存，同一 run() 的后续版本会
+                # 复用已失效的通知组 id，建出的策略 notice.user_groups 指向不存在的组（JSON 列表、非外键，
+                # 不报错而静默指向空组）导致告警发不出。清空后让后续版本重新解析（命中已提交的或重建被回滚的）。
+                self.notice_group_cache = {}
                 continue
 
         # 仅当本轮所有待处理版本都已成功登记（无待重试）时，才将该业务标记为本进程已处理；

@@ -319,6 +319,31 @@ class TestOsDefaultAlarmStrategyLoader:
         # 不写 CACHE，保证同进程下一次可干净重试
         assert bk_biz_id not in OsDefaultAlarmStrategyLoader.CACHE
 
+    def test_run__notice_cache_cleared_on_version_rollback(self):
+        """版本 atomic 回滚后必须清空 notice_group_cache。
+
+        notice_group_cache 是 loader 实例级、跨版本循环存活；按版本 atomic 回滚会把该版本内新建的通知组
+        DB 行一并回滚，但 Python 缓存仍留着其 id。若不清缓存，同一 run() 的后续版本会复用这个已失效的组
+        id，建出的策略 notice.user_groups 静默指向不存在的组、告警发不出。
+        """
+        from unittest import mock
+
+        bk_biz_id = 2
+        OsDefaultAlarmStrategyLoader.CACHE = set()
+        loader = OsDefaultAlarmStrategyLoader(bk_biz_id)
+
+        # 模拟某版本 load_strategies 先创建并缓存了通知组，随后抛错（触发 atomic 回滚）
+        def _cache_then_boom(strategies):
+            loader.notice_group_cache["business"] = 999
+            raise RuntimeError("boom")
+
+        with mock.patch.object(loader, "load_strategies", side_effect=_cache_then_boom):
+            loader.run()
+
+        # 回滚后缓存被清空（否则后续版本会复用失效 id 999）；该业务不写 CACHE，可干净重试
+        assert loader.notice_group_cache == {}
+        assert bk_biz_id not in OsDefaultAlarmStrategyLoader.CACHE
+
     def test_load_strategies__multi_tenant_builtin_proc_port_and_os_restart(self):
         """多租户主机重启/进程端口：策略由 v3（多租户专用、bk_monitor 源伪事件）声明，
         BaseAlarmMetricCacheManager 内置目录项，os_loader 经 EVENT_QUERY_CONFIG_MAP 重定向到底层
