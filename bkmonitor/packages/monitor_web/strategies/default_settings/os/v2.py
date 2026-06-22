@@ -30,13 +30,11 @@ from common.context_processors import Platform
 # （bk_target_ip/bk_target_cloud_id）聚合，磁盘只读/Corefile 再叠加各自的实例维度以区分
 # 同主机的不同只读盘 / 不同 corefile 信号。
 #
-# 覆盖范围：
-# 1) V4 gse_system_event 表的 5 类事件（AgentLost / DiskReadonly / CoreFile / OOM / PingUnreachable），custom 源；
-# 2) 主机重启 os_restart、进程端口 proc_port——它们不是 gse 系统事件，而是时序指标，多租户走 V4 主机时序链路：
-#    主机重启 = system.env.uptime（OsRestart 算法，与单租户等价）；
-#    进程端口 = process.port.alive（"进程采集"模型，仅"端口存活"阈值降级版）。process.port 不携带
-#    nonlisten/not_accurate_listen/bind_ip 维度，无法复现单租户 ProcPort 的"端口不监听/监听IP不符"判定。
-# os_loader 用 default_config["event_detect"] 标记时序事件检测算法（见 os_loader.load_strategies）。
+# 覆盖范围：仅 V4 gse_system_event 表实际产出的 5 类事件
+# （AgentLost / DiskReadonly / CoreFile / OOM / PingUnreachable），custom 源。
+# 主机重启 os_restart、进程端口 proc_port 不在此列——它们不是 gse 系统事件，而是主机时序指标，
+# 依赖独立就绪的主机时序缓存，单列在 os/v3.py：与 custom event 混在同一版本会因「部分创建即登记接入」
+# 导致主机时序就绪后被幂等跳过、永久漏建（详见 v3.py 注释）。
 # DiskFull 在 v1/v2 均未内置，为历史一致行为，非本次引入的缺口。
 DEFAULT_OS_STRATEGIES = []
 
@@ -92,52 +90,6 @@ if settings.ENABLE_MULTI_TENANT_MODE:
                 "trigger_check_window": 5,
                 "recovery_check_window": 5,
                 "recovery_status_setter": "close",
-            },
-        ]
-    )
-    # 主机重启 / 进程端口：多租户走 V4 主机时序链路（非 gse 系统事件、非 custom event）。
-    DEFAULT_OS_STRATEGIES.extend(
-        [
-            {
-                "name": _lazy("主机重启"),
-                "data_type_label": "time_series",
-                "data_source_label": "bk_monitor",
-                "result_table_label": "os",
-                "result_table_id": "system.env",
-                "metric_field": "uptime",
-                # 时序事件检测：套用 OsRestart 算法（基于 uptime 回落判定重启），与单租户 os_restart 等价。
-                "event_detect": "os_restart",
-                "agg_dimension": ["bk_target_ip", "bk_target_cloud_id"],
-                "agg_method": "MAX",
-                "agg_interval": 60,
-                "trigger_count": 1,
-                "trigger_check_window": 5,
-                "recovery_check_window": 5,
-                "recovery_status_setter": "close",
-            },
-            {
-                "name": _lazy("进程端口"),
-                "data_type_label": "time_series",
-                "data_source_label": "bk_monitor",
-                "result_table_label": "host_process",
-                "result_table_id": "process.port",
-                "metric_field": "alive",
-                # 降级版：process.port（进程采集模型）不携带 nonlisten/not_accurate_listen/bind_ip 维度，
-                # 无法复现单租户 ProcPort 的"端口不监听/监听IP不符"判定，仅做"端口存活"阈值（alive < 1 即异常）。
-                "threshold": 1,
-                "method": "lt",
-                "agg_dimension": [
-                    "bk_target_ip",
-                    "bk_target_cloud_id",
-                    "process_name",
-                    "listen_address",
-                    "listen_port",
-                ],
-                "agg_method": "MAX",
-                "agg_interval": 60,
-                "trigger_count": 1,
-                "trigger_check_window": 5,
-                "recovery_check_window": 5,
             },
         ]
     )

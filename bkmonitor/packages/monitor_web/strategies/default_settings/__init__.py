@@ -19,16 +19,20 @@ DEFAULTS = {
             "version": "v1",
             "module_path": "monitor_web.strategies.default_settings.os.v1",
         },
-        # v2 仅承载多租户系统事件内置策略，单租户下为空列表。
-        # 仅在多租户模式注册：否则单租户环境下空 v2 会被基础 loader 当作“无需创建的空版本”
-        # 直接登记 DefaultStrategyBizAccessModel，后续切换到多租户时该版本因幂等跳过，
-        # 导致系统事件策略永远不会补建。
+        # v2=多租户系统事件(custom)，v3=多租户主机重启/进程端口(主机时序)。两者拆版本是因为依赖的缓存
+        # 独立就绪，混版本会因「部分创建即登记接入」导致慢就绪的一方永久漏建（详见 os/v3.py 注释）。
+        # 仅在多租户模式注册：否则单租户下空版本会被基础 loader 当作“无需创建的空版本”直接登记
+        # DefaultStrategyBizAccessModel，后续切换到多租户时该版本因幂等跳过、永远不会补建。
         *(
             [
                 {
                     "version": "v2",
                     "module_path": "monitor_web.strategies.default_settings.os.v2",
-                }
+                },
+                {
+                    "version": "v3",
+                    "module_path": "monitor_web.strategies.default_settings.os.v3",
+                },
             ]
             if settings.ENABLE_MULTI_TENANT_MODE
             else []

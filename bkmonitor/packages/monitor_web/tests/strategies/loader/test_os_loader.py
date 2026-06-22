@@ -330,7 +330,7 @@ class TestOsDefaultAlarmStrategyLoader:
 
         from django.test import override_settings
 
-        from monitor_web.strategies.default_settings.os import v2 as os_v2
+        from monitor_web.strategies.default_settings.os import v3 as os_v3
 
         bk_biz_id = 2
 
@@ -355,9 +355,9 @@ class TestOsDefaultAlarmStrategyLoader:
         captured = []
 
         with override_settings(ENABLE_MULTI_TENANT_MODE=True):
-            importlib.reload(os_v2)
-            os_restart_cfg = next(s for s in os_v2.DEFAULT_OS_STRATEGIES if s["metric_field"] == "uptime")
-            proc_port_cfg = next(s for s in os_v2.DEFAULT_OS_STRATEGIES if s["metric_field"] == "alive")
+            importlib.reload(os_v3)
+            os_restart_cfg = next(s for s in os_v3.DEFAULT_OS_STRATEGIES if s["metric_field"] == "uptime")
+            proc_port_cfg = next(s for s in os_v3.DEFAULT_OS_STRATEGIES if s["metric_field"] == "alive")
             with (
                 mock.patch(
                     "monitor_web.strategies.loader.os_loader.MetricListCache.objects.filter",
@@ -372,7 +372,7 @@ class TestOsDefaultAlarmStrategyLoader:
             ):
                 result = loader.load_strategies([os_restart_cfg, proc_port_cfg])
 
-        importlib.reload(os_v2)
+        importlib.reload(os_v3)
 
         assert len(result) == 2
         by_rt = {c["items"][0]["query_configs"][0]["result_table_id"]: c for c in captured}
