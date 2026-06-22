@@ -37,8 +37,6 @@ from apps.decorators import user_operation_record
 from apps.exceptions import CreateOrUpdateLogRouterException
 from apps.feature_toggle.handlers.toggle import feature_switch
 from apps.iam import Permission, ResourceEnum
-from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
-from apps.log_databus.handlers.collector.base import CollectorHandler
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import CollectorConfig
 from apps.log_desensitize.constants import (
@@ -1851,6 +1849,7 @@ class BaseIndexSetHandler:
             )
 
         if not self.parent_index_set_ids and self.parent_index_set_names:
+            from apps.log_databus.handlers.collector.base import CollectorHandler
             self.parent_index_set_ids = CollectorHandler.get_or_create_parent_index_set_ids_by_parent_index_set_names(
                 self.parent_index_set_names,
                 space_uid=self.space_uid
@@ -2189,6 +2188,7 @@ class BaseIndexSetHandler:
             )
 
         if self.parent_index_set_ids is None and self.parent_index_set_names is not None:
+            from apps.log_databus.handlers.collector.base import CollectorHandler
             self.parent_index_set_ids = CollectorHandler.get_or_create_parent_index_set_ids_by_parent_index_set_names(
                 self.parent_index_set_names,
                 bk_biz_id=index["bk_biz_id"],
