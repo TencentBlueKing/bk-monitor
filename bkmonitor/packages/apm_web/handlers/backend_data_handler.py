@@ -720,13 +720,12 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
         storages = self.storage_info() or [{}]
         return all([storage.get("status") == "running" for storage in storages])
 
-    def data_sampling(self, **kwargs):
+    def data_sampling(self, size: int = 10, **kwargs):
         resp_data = []
         if self.bk_data_id:
-            resp = api.bkdata.get_data_bus_sampling_data(data_id=self.bk_data_id)
+            resp = api.metadata.kafka_tail({"bk_data_id": self.bk_data_id, "size": size})
             for log in resp:
-                log_content = json.loads(log["value"])
-                resp_data.append({"raw_log": log_content, "sampling_time": ""})
+                resp_data.append({"raw_log": log, "sampling_time": ""})
         return resp_data
 
     def get_data_view_config(self, **kwargs):
@@ -760,10 +759,70 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
     def _is_v4_datalink(self):
         return (self.profiling_bkdata_datalink_config.get("version") or 3) == 4
 
-    def _get_data_view(self, start_time: int, end_time: int, **kwargs):
-        # V4链路暂无对应的output_count接口，直接返回空避免V3接口权限报错
-        if self._is_v4_datalink():
+    @classmethod
+    def _format_v4_metrics_msgs_stat(cls, resp, grain="1m"):
+        if not resp:
             return []
+
+        if isinstance(resp, dict):
+            series = resp.get("result") or resp.get("series") or resp.get("data") or resp.get("results") or []
+        else:
+            series = resp
+
+        interval = cls.GRAIN_MAPPING.get(grain, 0)
+        timestamp_to_count = defaultdict(int)
+        for serie in series:
+            if not isinstance(serie, dict):
+                continue
+            datapoints = serie.get("values") or serie.get("datapoints") or serie.get("series") or []
+            if datapoints:
+                for datapoint in datapoints:
+                    if isinstance(datapoint, dict):
+                        timestamp = datapoint.get("time") or datapoint.get("timestamp")
+                        count = datapoint.get("output_count") or datapoint.get("value") or datapoint.get("count") or 0
+                    else:
+                        if len(datapoint) < 2:
+                            continue
+                        timestamp, count = datapoint[0], datapoint[1]
+                    if timestamp is None:
+                        continue
+                    timestamp_to_count[int(timestamp) - interval] += int(float(count or 0))
+                continue
+
+            timestamp = serie.get("time") or serie.get("timestamp")
+            count = serie.get("output_count") or serie.get("value") or serie.get("count") or 0
+            if timestamp is not None:
+                timestamp_to_count[int(timestamp) - interval] += int(float(count or 0))
+
+        return [
+            {
+                "series": [
+                    {"output_count": count, "time": timestamp}
+                    for timestamp, count in sorted(timestamp_to_count.items())
+                ]
+            }
+        ]
+
+    def _get_data_view(self, start_time: int, end_time: int, **kwargs):
+        if self._is_v4_datalink():
+            v4_resource_names = self.profiling_bkdata_datalink_config.get("v4_resource_names") or {}
+            data_id_name = v4_resource_names.get("data_id_name")
+            if not data_id_name:
+                return []
+
+            namespace = self.profiling_bkdata_datalink_config.get("namespace", "bkmonitor")
+            grain = kwargs.get("time_grain", "1m")
+            interval = self.GRAIN_MAPPING.get(grain)
+            if interval:
+                start_time = time_interval_align(timestamp=start_time, interval=interval)
+                end_time = time_interval_align(timestamp=end_time, interval=interval)
+            resp = api.bkdata.get_v4_metrics_msgs_stat(
+                resource={"kind": "DataId", "namespace": namespace, "name": data_id_name},
+                start=start_time,
+                end=end_time,
+                step=grain,
+            )
+            return self._format_v4_metrics_msgs_stat(resp, grain=grain)
 
         storages = self.storage_info()
         storage_result_table_id = None

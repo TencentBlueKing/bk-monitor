@@ -358,6 +358,11 @@ class GetMetricListResource(Resource):
     def get_metric_list(cls, metrics: QuerySet, params):
         """
         指标数据
+
+        已弃用：本 v1 接口（路由 endpoint `get_metric_list`）已由 GetMetricListV2Resource
+        （路由 endpoint `v2/get_metric_list`）取代，SaaS 前端已全部改用 v2，此处仅为旧版/外部调用方
+        向后兼容保留。因此不在此补全进程采集「维度提取」(extract_pattern) 的动态维度（如 process）——
+        该类维度由 v2 经 get_process_extra_dimensions 动态补齐；若本接口将来仍需展示，按同样方式接入即可。
         """
         metric_list = []
 

@@ -13,6 +13,8 @@
 - `restore_disabled_models_in_directory`
 - `sanitize_cluster_info_in_directory`
 - `stop_biz_subscription_tasks`
+- `install_biz_bk_collector`
+- `refresh_biz_bk_collector_proxy_configs`
 
 代码导出位置见 [__init__.py](/Users/unique0lai/Documents/Codes/bk-monitor/bk-monitor/worktrees/data-migrate/bkmonitor/bkmonitor/data_migrate/__init__.py)。
 
@@ -29,6 +31,8 @@
 - `python manage.py data_migrate restore-disabled-models ...`
 - `python manage.py data_migrate sanitize-cluster-info ...`
 - `python manage.py data_migrate stop-biz-subscription-tasks ...`
+- `python manage.py data_migrate install-biz-bk-collector ...`
+- `python manage.py data_migrate refresh-biz-bk-collector-configs ...`
 
 ## 使用方式
 
@@ -264,6 +268,39 @@ python manage.py data_migrate stop-biz-subscription-tasks \
 - 负数业务 ID 会直接跳过，并在返回结果的 `skipped_biz_ids` 中说明原因
 - 支持 `--dry-run` 只输出待处理对象，不执行停用
 - 每个任务独立执行并输出结果；单个失败不会中断其他任务
+
+### 安装业务 Proxy 上的 bk-collector
+
+```bash
+python manage.py data_migrate install-biz-bk-collector \
+  --bk-tenant-id tencent \
+  --bk-biz-ids 2 3 \
+  --operator admin
+```
+
+说明：
+
+- 会找出业务下正在使用的 proxy 主机，并安装或升级节点管理中可用的 latest 版本 `bk-collector`
+- 已经是 latest 的主机会跳过
+- 支持 `--dry-run` 只输出待安装主机，不执行安装
+- 每个业务独立执行并输出结果；单个失败不会中断其他业务
+
+### 刷新业务 Proxy 上的 bk-collector 配置
+
+```bash
+python manage.py data_migrate refresh-biz-bk-collector-configs \
+  --bk-tenant-id tencent \
+  --bk-biz-ids 2 3 \
+  --config-types apm_application custom_report log \
+  --operator admin
+```
+
+说明：
+
+- `--config-types` 可选值为 `apm_application`、`custom_report`、`log`
+- 不传 `--config-types` 时默认执行全部类型
+- `custom_report` 只触发 NodeMan proxy 下发，不触发 K8s 配置下发
+- 支持 `--dry-run` 只输出待刷新对象，不执行配置下发
 
 ## 导出目录结构
 

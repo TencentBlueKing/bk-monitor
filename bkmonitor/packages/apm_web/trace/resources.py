@@ -41,6 +41,7 @@ from apm_web.trace.constants import EnabledStatisticsDimension, OperatorEnum
 from apm_web.trace.serializers import (
     BaseTraceRequestSerializer,
     GetFieldsOptionValuesRequestSerializer,
+    ListLinkRequestSerializer,
     QuerySerializer,
     SpanIdInputSerializer,
     TraceFieldStatisticsGraphRequestSerializer,
@@ -50,15 +51,16 @@ from apm_web.trace.serializers import (
 )
 from apm_web.utils import flatten_es_dict_data
 from bkmonitor.utils.cache import CacheType, using_cache
+from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
 from constants.apm import (
+    CallSide,
     OperatorGroupRelation,
     OtlpKey,
     PreCalculateSpecificField,
     SpanStandardField,
     TraceListQueryMode,
     TraceWaterFallDisplayKey,
-    CallSide,
 )
 from core.drf_resource import Resource, api, FaultTolerantResource
 from core.drf_resource.exceptions import CustomException
@@ -1008,3 +1010,118 @@ class TraceGenerateQueryStringResource(Resource):
                 f.get("options", {}).get("group_relation", OperatorGroupRelation.OR),
             )
         return generator.to_query_string()
+
+
+class ListLinkResource(Resource):
+    """
+    Links 反向关联查询资源
+    支持通过 TraceID 和 SpanID 过滤正向与反向关联，并统一返回 OpenTelemetry Link 列表
+    """
+
+    RequestSerializer = ListLinkRequestSerializer
+
+    @classmethod
+    def build_links(
+        cls,
+        reported_spans: list[dict[str, Any]],
+        reverse_spans: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """
+        统一处理两路查询结果，转换为同构 Link 后合并去重
+
+        :param reported_spans: 正向查询结果，读取 Span 的 links[]，字段缺失时按空列表处理
+        :param reverse_spans: 反向查询结果，Span 数据包含 trace_id 和 span_id，trace_state 可缺失
+        :return: OpenTelemetry Link 列表
+        """
+        links_dict: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+
+        for span in reported_spans:
+            for link in span.get(OtlpKey.LINKS) or []:
+                cls._add_link(
+                    links_dict,
+                    trace_id=link.get(OtlpKey.TRACE_ID),
+                    span_id=link.get(OtlpKey.SPAN_ID),
+                    trace_state=link.get(OtlpKey.TRACE_STATE),
+                    attributes=link.get(OtlpKey.ATTRIBUTES) or {},
+                )
+
+        for span in reverse_spans:
+            cls._add_link(
+                links_dict,
+                trace_id=span.get(OtlpKey.TRACE_ID),
+                span_id=span.get(OtlpKey.SPAN_ID),
+                trace_state=span.get(OtlpKey.TRACE_STATE),
+                attributes={},
+            )
+
+        return list(links_dict.values())
+
+    @classmethod
+    def _add_link(
+        cls,
+        links_dict: dict[tuple[str, str, str, str], dict[str, Any]],
+        trace_id: Any,
+        span_id: Any,
+        trace_state: Any,
+        attributes: dict[str, Any],
+    ) -> None:
+        """标准化 Link 字段并写入去重集合。"""
+        normalized_trace_id = str(trace_id or "")
+        normalized_span_id = str(span_id or "")
+        normalized_trace_state = "" if trace_state is None else str(trace_state)
+        dedup_key: tuple[str, str, str, str] = (
+            normalized_trace_id,
+            normalized_span_id,
+            normalized_trace_state,
+            count_md5(attributes),
+        )
+        if dedup_key in links_dict:
+            return
+
+        links_dict[dedup_key] = {
+            OtlpKey.TRACE_ID: normalized_trace_id,
+            OtlpKey.SPAN_ID: normalized_span_id,
+            OtlpKey.TRACE_STATE: normalized_trace_state,
+            OtlpKey.ATTRIBUTES: attributes,
+        }
+
+    def perform_request(self, validated_data: dict[str, Any]) -> dict[str, Any]:
+        bk_biz_id: int = validated_data["bk_biz_id"]
+        app_name: str = validated_data["app_name"]
+        trace_id: str | None = validated_data.get("trace_id")
+        span_id: str | None = validated_data.get("span_id")
+
+        reported_filters: list[dict[str, Any]] = []
+        reverse_filters: list[dict[str, Any]] = []
+        for value, reported_key, reverse_key in (
+            (trace_id, OtlpKey.TRACE_ID, f"{OtlpKey.LINKS}.{OtlpKey.TRACE_ID}"),
+            (span_id, OtlpKey.SPAN_ID, f"{OtlpKey.LINKS}.{OtlpKey.SPAN_ID}"),
+        ):
+            if not value:
+                continue
+
+            reported_filters.append({"key": reported_key, "operator": OperatorEnum.EQUAL["operator"], "value": [value]})
+            reverse_filters.append({"key": reverse_key, "operator": OperatorEnum.EQUAL["operator"], "value": [value]})
+
+        common_params: dict[str, Any] = {
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
+            "offset": 0,
+            "limit": 1000,
+            # SpanQuery 缺省会排除 links，Links 查询必须显式保留 links 用于构建正向关联。
+            "exclude_field": [OtlpKey.ATTRIBUTES, OtlpKey.EVENTS],
+        }
+        reported_params: dict[str, Any] = {**common_params, "filters": reported_filters}
+        reverse_params: dict[str, Any] = {**common_params, "filters": reverse_filters}
+
+        reported_response, reverse_response = api.apm_api.query_span_list.bulk_request(
+            [reported_params, reverse_params]
+        )
+        reported_spans: list[dict[str, Any]] = reported_response.get("data") or []
+        reverse_spans: list[dict[str, Any]] = reverse_response.get("data") or []
+
+        return {
+            OtlpKey.TRACE_ID: trace_id,
+            OtlpKey.SPAN_ID: span_id,
+            OtlpKey.LINKS: self.build_links(reported_spans, reverse_spans),
+        }

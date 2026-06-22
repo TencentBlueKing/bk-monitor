@@ -2873,16 +2873,28 @@ class KafkaTailResource(Resource):
         bk_data_id = serializers.IntegerField(required=False, label="数据源ID")
         size = serializers.IntegerField(required=False, label="拉取条数", default=10)
         namespace = serializers.CharField(required=False, label="命名空间", default="bkmonitor")
+        use_gse_config = serializers.BooleanField(required=False, label="是否使用GSE配置", default=False)
 
     def perform_request(self, validated_request_data):
         bk_tenant_id = validated_request_data["bk_tenant_id"]
         bk_data_id = validated_request_data.get("bk_data_id")
+        size = validated_request_data["size"]
         result_table = None
 
         # 参数处理,result_table / datasource
         if bk_data_id:
             logger.info("KafkaTailResource: got bk_data_id->[%s],try to tail kafka", bk_data_id)
-            datasource = models.DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id)
+            try:
+                datasource = models.DataSource.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=bk_data_id)
+            except models.DataSource.DoesNotExist:
+                logger.warning(
+                    "KafkaTailResource: DataSource not found, bk_tenant_id->[%s], bk_data_id->[%s], try gse config",
+                    bk_tenant_id,
+                    bk_data_id,
+                )
+                result = self._consume_with_gse_config_by_bk_data_id(bk_data_id, size)
+                result.reverse()
+                return result
             dsrt = models.DataSourceResultTable.objects.filter(bk_data_id=bk_data_id).first()
             if dsrt:
                 result_table = models.ResultTable.objects.get(table_id=dsrt.table_id)
@@ -2894,7 +2906,12 @@ class KafkaTailResource(Resource):
                 return []
             datasource = result_table.data_source
 
-        size = validated_request_data["size"]
+        # 如果使用GSE配置，则直接返回
+        if validated_request_data["use_gse_config"]:
+            result = self._consume_with_gse_config_by_bk_data_id(bk_data_id, size)
+            result.reverse()
+            return result
+
         mq_ins = models.ClusterInfo.objects.get(cluster_id=datasource.mq_cluster_id)
 
         # Kafka是否需要进行鉴权,如SCRAM-SHA-512协议
@@ -2990,16 +3007,13 @@ class KafkaTailResource(Resource):
 
         for tp in topic_partitions:
             # 获取该分区最大偏移量
-            low, high = consumer.get_watermark_offsets(tp)
-            end_offset = high
-            if not end_offset:
+            low_offset, high_offset = consumer.get_watermark_offsets(tp)
+            if size <= 0 or high_offset <= low_offset:
                 continue
+            start_offset = max(low_offset, high_offset - size)
 
             # 设置消息消费偏移量
-            if end_offset >= size:
-                consumer.seek(ConfluentTopicPartition(topic, tp.partition, end_offset - size))
-            else:
-                consumer.seek(ConfluentTopicPartition(topic, tp.partition, 0))
+            consumer.seek(ConfluentTopicPartition(topic, tp.partition, start_offset))
 
             while len(result) < size:
                 messages = consumer.consume(num_messages=size - len(result), timeout=1.0)
@@ -3017,7 +3031,7 @@ class KafkaTailResource(Resource):
                             result.append(json.loads(msg.value().decode()))
                         except Exception:  # pylint: disable=broad-except
                             pass
-                    if msg.offset() == end_offset - 1:
+                    if msg.offset() >= high_offset - 1:
                         break
 
         consumer.close()
@@ -3116,15 +3130,14 @@ class KafkaTailResource(Resource):
         for partition in topic_partitions:
             # 获取该分区最大偏移量
             tp = TopicPartition(topic=datasource.mq_config.topic, partition=partition)
-            end_offset = consumer.end_offsets([tp])[tp]
-            if not end_offset:
+            low_offset = consumer.beginning_offsets([tp])[tp]
+            high_offset = consumer.end_offsets([tp])[tp]
+            if size <= 0 or high_offset <= low_offset:
                 continue
+            start_offset = max(low_offset, high_offset - size)
 
             # 设置消息消费偏移量
-            if end_offset >= size:
-                consumer.seek(tp, end_offset - size)
-            else:
-                consumer.seek_to_beginning()
+            consumer.seek(tp, start_offset)
             for msg in consumer:
                 try:
                     result.append(json.loads(msg.value.decode()))
@@ -3132,7 +3145,7 @@ class KafkaTailResource(Resource):
                     pass
                 if len(result) >= size:
                     return result
-                if msg.offset == end_offset - 1:
+                if msg.offset >= high_offset - 1:
                     break
 
         return result
@@ -3141,8 +3154,14 @@ class KafkaTailResource(Resource):
         """
         从gse获取V4链路的kafka集群信息
         """
+        return self._consume_with_gse_config_by_bk_data_id(datasource.bk_data_id, size)
+
+    def _consume_with_gse_config_by_bk_data_id(self, bk_data_id, size):
+        """
+        根据bk_data_id从gse获取V4链路的kafka集群信息
+        """
         route_params = {
-            "condition": {"channel_id": datasource.bk_data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
+            "condition": {"channel_id": bk_data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
             "operation": {"operator_name": settings.COMMON_USERNAME},
         }
 
@@ -3172,18 +3191,77 @@ class KafkaTailResource(Resource):
 
         kafka_config_list = api.gse.query_stream_to(**kafka_params)
 
-        # Todo: 当前只有1条kafka_addr
-        kafka_addr = None
-        for kafka_config in kafka_config_list:
-            kafka_addr_list = kafka_config.get("kafka", {}).get("storage_address", [])
+        kafka_config = None
+        kafka_addr_list = []
+        for config_item in kafka_config_list:
+            kafka = config_item.get("kafka", {})
+            kafka_addr_list = kafka.get("storage_address", [])
             if kafka_addr_list:
-                kafka_addr = kafka_addr_list[0]
+                kafka_config = kafka
                 break
-        if not (isinstance(kafka_addr, dict) and kafka_addr.get("ip") and kafka_addr.get("port")):
+        kafka_servers = [
+            f"{kafka_addr['ip']}:{kafka_addr['port']}"
+            for kafka_addr in kafka_addr_list
+            if isinstance(kafka_addr, dict) and kafka_addr.get("ip") and kafka_addr.get("port")
+        ]
+        if not (kafka_config and kafka_servers):
             return []
 
+        if kafka_config.get("sasl_username") and kafka_config.get("sasl_passwd"):
+            consumer_config = {
+                "bootstrap.servers": ",".join(kafka_servers),
+                "group.id": f"bkmonitor-{uuid.uuid4()}",
+                "session.timeout.ms": 6000,
+                "auto.offset.reset": "latest",
+                "security.protocol": kafka_config.get("security_protocol") or config.KAFKA_SASL_PROTOCOL,
+                "sasl.mechanisms": kafka_config.get("sasl_mechanisms") or config.KAFKA_SASL_MECHANISM,
+                "sasl.username": kafka_config["sasl_username"],
+                "sasl.password": kafka_config["sasl_passwd"],
+            }
+            consumer = ConfluentConsumer(consumer_config)
+            metadata = consumer.list_topics(topic)
+            partitions = metadata.topics[topic].partitions.keys()
+            topic_partitions = [ConfluentTopicPartition(topic, partition) for partition in partitions]
+            consumer.assign(topic_partitions)
+            consumer.poll(0.5)
+
+            result = []
+            errors = []
+            for tp in topic_partitions:
+                # 获取该分区最大偏移量
+                low_offset, high_offset = consumer.get_watermark_offsets(tp)
+                if size <= 0 or high_offset <= low_offset:
+                    continue
+                start_offset = max(low_offset, high_offset - size)
+
+                # 设置消息消费偏移量
+                consumer.seek(ConfluentTopicPartition(topic, tp.partition, start_offset))
+
+                while len(result) < size:
+                    messages = consumer.consume(num_messages=size - len(result), timeout=1.0)
+                    if not messages:
+                        break
+
+                    for msg in messages:
+                        if msg.error():
+                            if msg.error().code() == KafkaError._PARTITION_EOF:
+                                break
+                            errors.append(msg.error())
+                        else:
+                            try:
+                                result.append(json.loads(msg.value().decode()))
+                            except Exception:  # pylint: disable=broad-except
+                                pass
+                        if len(result) >= size or msg.offset() >= high_offset - 1:
+                            break
+
+            consumer.close()
+            if not result and errors:
+                raise KafkaException(errors)
+            return result
+
         consumer_config = {
-            "bootstrap_servers": f"{kafka_addr['ip']}:{kafka_addr['port']}",
+            "bootstrap_servers": kafka_servers,
             "request_timeout_ms": 1000,
             "consumer_timeout_ms": 1000,
         }
@@ -3192,30 +3270,32 @@ class KafkaTailResource(Resource):
         consumer.poll(size)
         topic_partitions = consumer.partitions_for_topic(topic)
         if not topic_partitions:
+            consumer.close()
             raise ValueError(_("partition获取失败"))
         result = []
         for partition in topic_partitions:
             # 获取该分区最大偏移量
             tp = TopicPartition(topic=topic, partition=partition)
-            end_offset = consumer.end_offsets([tp])[tp]
-            if not end_offset:
+            low_offset = consumer.beginning_offsets([tp])[tp]
+            high_offset = consumer.end_offsets([tp])[tp]
+            if size <= 0 or high_offset <= low_offset:
                 continue
+            start_offset = max(low_offset, high_offset - size)
 
             # 设置消息消费偏移量
-            if end_offset >= size:
-                consumer.seek(tp, end_offset - size)
-            else:
-                consumer.seek_to_beginning()
+            consumer.seek(tp, start_offset)
             for msg in consumer:
                 try:
                     result.append(json.loads(msg.value.decode()))
                 except Exception:  # pylint: disable=broad-except
                     pass
                 if len(result) >= size:
+                    consumer.close()
                     return result
-                if msg.offset == end_offset - 1:
+                if msg.offset >= high_offset - 1:
                     break
 
+        consumer.close()
         return result
 
 
