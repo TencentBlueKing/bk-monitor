@@ -615,7 +615,9 @@ export default defineComponent({
         },
         index_set_name: collector_config_name,
         extra_labels:
-          detailData.extra_labels.length === 0 ? [{ key: '', value: '', operator: '=' }] : detailData.extra_labels,
+          detailData.extra_labels?.length
+            ? detailData.extra_labels
+            : [{ key: '', value: '', operator: '=' }],
       };
       /**
        * 克隆的时候数据处理
