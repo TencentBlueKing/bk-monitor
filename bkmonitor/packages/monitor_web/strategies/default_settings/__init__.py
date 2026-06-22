@@ -19,17 +19,23 @@ DEFAULTS = {
             "version": "v1",
             "module_path": "monitor_web.strategies.default_settings.os.v1",
         },
-        # v2=多租户系统事件（custom 源）：gse 系统事件 AgentLost/DiskReadonly/CoreFile/OOM/PingUnreachable
-        # 走 V4 分业务链路（base_{tenant}_{biz}_event）。主机重启/进程端口不在此版本——它们底层是
-        # system.env / system.proc_port 时序，由 BaseAlarmMetricCacheManager 在多租户内置为 bk_monitor 源
-        # 伪事件，经 os/v1（未做租户隔离、本就声明了这两条 bk_monitor 事件策略）命中创建，无需单列版本。
-        # 仅在多租户模式注册 v2：否则单租户下空版本会被基础 loader 当作“无需创建的空版本”直接登记
-        # DefaultStrategyBizAccessModel，后续切换到多租户时该版本因幂等跳过、永远不会补建。
+        # 仅在多租户模式注册以下版本（单租户下为空版本，会被基础 loader 当作“无需创建的空版本”直接
+        # 登记 DefaultStrategyBizAccessModel，后续切到多租户时因幂等跳过、永不补建）：
+        # - v2=多租户系统事件（custom 源）：gse 系统事件 AgentLost/DiskReadonly/CoreFile/OOM/PingUnreachable
+        #   走 V4 分业务链路（base_{tenant}_{biz}_event）；
+        # - v3=多租户主机重启/进程端口（bk_monitor 源伪事件）：底层 system.env / system.proc_port 时序，
+        #   由 BaseAlarmMetricCacheManager 在多租户内置目录项，经 os_loader 重定向 + 检测算法命中创建。
+        # 单列 v3 而非并入 v1：v1 把这两条圈在单租户块内、多租户不声明；且 v1 在多租户已因时序策略
+        # 被登记接入，若移进 v1 会令存量业务幂等跳过、永不补建（详见 os/v3.py 注释）。
         *(
             [
                 {
                     "version": "v2",
                     "module_path": "monitor_web.strategies.default_settings.os.v2",
+                },
+                {
+                    "version": "v3",
+                    "module_path": "monitor_web.strategies.default_settings.os.v3",
                 },
             ]
             if settings.ENABLE_MULTI_TENANT_MODE

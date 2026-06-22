@@ -320,16 +320,20 @@ class TestOsDefaultAlarmStrategyLoader:
         assert bk_biz_id not in OsDefaultAlarmStrategyLoader.CACHE
 
     def test_load_strategies__multi_tenant_builtin_proc_port_and_os_restart(self):
-        """多租户主机重启/进程端口：由 BaseAlarmMetricCacheManager 内置为 bk_monitor 源伪事件、
-        经 os/v1 命中创建，与单租户走完全一致的 EVENT_QUERY_CONFIG_MAP 重定向 + 检测算法。
+        """多租户主机重启/进程端口：策略由 v3（多租户专用、bk_monitor 源伪事件）声明，
+        BaseAlarmMetricCacheManager 内置目录项，os_loader 经 EVENT_QUERY_CONFIG_MAP 重定向到底层
+        时序表 + ProcPort/OsRestart 算法，与单租户一致。
 
         - 主机重启 os_restart -> 重定向 system.env.uptime + OsRestart 算法，metric_id 保留 bk_monitor.os_restart；
         - 进程端口 proc_port -> 重定向 system.proc_port.proc_exists（CMDB 内置进程采集，富维度）+ ProcPort 算法。
-        两条均走 bk_monitor 源（第 2 次 filter），与 custom 链路无关（custom 查询返回空仍能创建）。
+        关键：策略配置取自真实多租户导入态的 os.v3（reload 后），而非单租户态的 v1——后者多租户不声明这两条。
         """
+        import importlib
         from unittest import mock
 
         from django.test import override_settings
+
+        from monitor_web.strategies.default_settings.os import v3 as os_v3
 
         bk_biz_id = 2
 
@@ -352,27 +356,31 @@ class TestOsDefaultAlarmStrategyLoader:
         os_restart_metric = _event_metric("os_restart", "主机重启")
         proc_port_metric = _event_metric("proc_port", "进程端口")
 
-        os_restart_cfg = next(s for s in v1.DEFAULT_OS_STRATEGIES if s["metric_field"] == "os_restart")
-        proc_port_cfg = next(s for s in v1.DEFAULT_OS_STRATEGIES if s["metric_field"] == "proc_port")
-
         loader = OsDefaultAlarmStrategyLoader(bk_biz_id)
         captured = []
 
-        with override_settings(ENABLE_MULTI_TENANT_MODE=True):
-            with (
-                mock.patch(
-                    "monitor_web.strategies.loader.os_loader.MetricListCache.objects.filter",
-                    # 多租户 3 次查询：related_id=system 时序 / bk_monitor 源事件 / custom event
-                    # 内置 proc_port/os_restart 由第 2 次（bk_monitor event）命中；custom 返回空
-                    side_effect=[[], [os_restart_metric, proc_port_metric], []],
-                ),
-                mock.patch(
-                    "monitor_web.strategies.loader.os_loader.resource.strategies.save_strategy_v2",
-                    side_effect=lambda **kwargs: captured.append(kwargs),
-                ),
-                mock.patch.object(OsDefaultAlarmStrategyLoader, "get_notice_group", return_value=[1]),
-            ):
-                result = loader.load_strategies([os_restart_cfg, proc_port_cfg])
+        try:
+            with override_settings(ENABLE_MULTI_TENANT_MODE=True):
+                importlib.reload(os_v3)
+                # 真实多租户导入态下，v3 才声明 os_restart/proc_port（v1 在多租户不声明）
+                os_restart_cfg = next(s for s in os_v3.DEFAULT_OS_STRATEGIES if s["metric_field"] == "os_restart")
+                proc_port_cfg = next(s for s in os_v3.DEFAULT_OS_STRATEGIES if s["metric_field"] == "proc_port")
+                with (
+                    mock.patch(
+                        "monitor_web.strategies.loader.os_loader.MetricListCache.objects.filter",
+                        # 多租户 3 次查询：related_id=system 时序 / bk_monitor 源事件 / custom event
+                        # 内置 proc_port/os_restart 由第 2 次（bk_monitor event）命中；custom 返回空
+                        side_effect=[[], [os_restart_metric, proc_port_metric], []],
+                    ),
+                    mock.patch(
+                        "monitor_web.strategies.loader.os_loader.resource.strategies.save_strategy_v2",
+                        side_effect=lambda **kwargs: captured.append(kwargs),
+                    ),
+                    mock.patch.object(OsDefaultAlarmStrategyLoader, "get_notice_group", return_value=[1]),
+                ):
+                    result = loader.load_strategies([os_restart_cfg, proc_port_cfg])
+        finally:
+            importlib.reload(os_v3)
 
         assert len(result) == 2
         # EVENT_QUERY_CONFIG_MAP 重定向后 query_config 的 metric_field：os_restart->uptime / proc_port->proc_exists
