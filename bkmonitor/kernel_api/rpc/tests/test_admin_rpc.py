@@ -3020,7 +3020,7 @@ def test_admin_token_resolve_hits_apm_application(monkeypatch):
     assert result["data"]["matched"] is True
     assert result["data"]["kind"] == "apm"
     assert result["data"]["apm_application"]["application_id"] == 1
-    assert result["data"]["apm_application"]["app_token"] == "bkapm_1_a1b2c3d4e5f6"
+    assert result["data"]["apm_application"]["apm_token"] == "bkapm_1_a1b2c3d4e5f6"
     assert result["data"]["custom_report"] is None
 
 

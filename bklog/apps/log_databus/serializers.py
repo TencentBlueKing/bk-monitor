@@ -1993,12 +1993,14 @@ class LogCollectorSerializer(serializers.Serializer):
         value = serializers.ListField(required=True)
 
     parent_index_set_id = serializers.IntegerField(label=_("归属索引集ID"), default=None, allow_null=True)
+    exclude_parent_index_set_id = serializers.IntegerField(label=_("排除归属索引集ID"), default=None, allow_null=True)
     space_uid = SpaceUIDField(label=_("空间唯一标识"))
     page = serializers.IntegerField(label=_("分页"), min_value=1)
     pagesize = serializers.IntegerField(label=_("分页大小"), min_value=1)
     conditions = ConditionSerializer(label=_("过滤规则"), many=True, required=False)
     keyword = serializers.CharField(label=_("搜索关键字"), required=False, allow_blank=True, allow_null=True)
     exclude_not_completed = serializers.BooleanField(label=_("排除未完成的采集项"), default=False)
+    exclude_not_data = serializers.BooleanField(label=_("排除无数据的采集项"), default=False)
 
 
 class GetCollectorFieldEnumsSerializer(serializers.Serializer):

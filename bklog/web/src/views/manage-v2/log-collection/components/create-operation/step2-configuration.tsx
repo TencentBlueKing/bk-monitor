@@ -492,6 +492,11 @@ export default defineComponent({
       // 过滤出自定义的日志种类（不在预定义列表中的）
       otherSpeciesList.value = winlog_name.filter(item => LOG_SPECIES_LIST.findIndex(i => i.id === item) === -1);
 
+      // 从 winlog_name 中筛选出属于预定义列表的项，正确回填 selectLogSpeciesList
+      selectLogSpeciesList.value = winlog_name.filter(item =>
+        LOG_SPECIES_LIST.some(species => species.id === item)
+      );
+
       // 如果没有自定义种类，从选择列表中移除 'Other' 选项
       if (otherSpeciesList.value.length === 0) {
         selectLogSpeciesList.value = selectLogSpeciesList.value.filter(item => item !== 'Other');

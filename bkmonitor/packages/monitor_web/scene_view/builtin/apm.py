@@ -14,6 +14,7 @@ import logging
 import threading
 from typing import Any
 from collections.abc import Callable
+from urllib.parse import urljoin
 
 from django.conf import settings
 from django.core.cache import caches
@@ -855,10 +856,12 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             app_name=params.get("app_name", ""),
             service_name=params.get("service_name", ""),
         )
-        service_config_url: str = "{bk_monitor_url}/?bizId={bk_biz_id}#/apm{service_config_link}".format(
-            bk_monitor_url=settings.BK_MONITOR_HOST,
-            bk_biz_id=params.get("bk_biz_id"),
-            service_config_link=service_config_link,
+        service_config_url: str = urljoin(
+            settings.BK_MONITOR_HOST,
+            "?bizId={bk_biz_id}#/apm{service_config_link}".format(
+                bk_biz_id=params.get("bk_biz_id"),
+                service_config_link=service_config_link,
+            ),
         )
 
         return {
@@ -877,7 +880,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                             "data": {
                                 "type": "empty",
                                 "title": _("暂未发现关联 Pod"),
-                                "link": {"target": "self", "value": _("关联容器负载"), "url": service_config_link},
+                                "link": {
+                                    "target": "blank",
+                                    "value": _("关联容器负载"),
+                                    "url": service_config_url,
+                                },
                                 "subTitle": _(
                                     "如何关联容器信息:\n"
                                     "1. APM 支持与 BCS 打通，你可以通过以下方式简单配置，：\n"
@@ -982,6 +989,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 "trace_id": params.get("apm_trace_id"),
                 "app_name": params.get("apm_app_name"),
                 "service_name": params.get("apm_service_name"),
+                "bk_biz_id": params.get("bk_biz_id"),
                 "only_simple_info": params.get("only_simple_info") or False,
                 "start_time": params.get("start_time"),
                 "end_time": params.get("end_time"),
@@ -990,6 +998,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         converted_params = {
             "app_name": params.get("apm_app_name"),
             "service_name": params.get("apm_service_name"),
+            "bk_biz_id": params.get("bk_biz_id"),
             "only_simple_info": params.get("only_simple_info") or False,
             "view_switches": params.get("view_switches", {}),
         }

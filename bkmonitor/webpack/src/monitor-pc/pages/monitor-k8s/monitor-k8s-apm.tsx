@@ -227,8 +227,13 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
 
   get selectTargetText() {
     if (!this.selectTarget) return this.$t('请选择');
-    const { bcs_cluster_id: clusterId = '', namespace = '', workload = '', pod = '' } = this.selectTargetItem || {};
-    return `${workload || pod}（集群:${clusterId}）, namespace:${namespace}`;
+    const { namespace = '', workload = '', pod = '' } = this.selectTargetItem || {};
+    return `[${namespace}] ${workload || pod}`;
+  }
+
+  get selectTargetTextTooltip() {
+    const { bcs_cluster_id: clusterId = '' } = this.selectTargetItem || {};
+    return `${this.selectTargetText}（集群: ${clusterId}）`;
   }
 
   // 选中的目标项
@@ -631,9 +636,9 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
         >
           <span
             class='target-list-name'
-            v-bk-overflow-tips
+            v-bk-overflow-tips={{ content: this.selectTargetTextTooltip }}
           >
-            {this.$t('workload')}: {this.selectTargetText}
+            {this.selectTargetText}
           </span>
           <span class={`icon-monitor icon-mc-arrow-down ${this.targetListToggle ? 'expand' : ''}`} />
         </div>
@@ -641,7 +646,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
           <bk-option
             id={target.cacheId}
             key={target.cacheId}
-            name={`${target.workload || target.pod}（集群:${target.bcs_cluster_id}）, namespace:${target.namespace}`}
+            name={`[${target.namespace}] ${target.workload || target.pod}（集群: ${target.bcs_cluster_id}）`}
           />
         ))}
       </bk-select>
