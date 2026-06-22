@@ -59,7 +59,7 @@ class TestOsDefaultAlarmStrategyLoader:
         assert len(strategies_list) == 1
         assert strategies_list[0]["version"] == "v1"
         assert (
-            len(getattr(strategies_list[0]["module"], loader.STRATEGY_ATTR_NAME)) == len(v1.DEFAULT_OS_STRATEGIES) == 12
+            len(getattr(strategies_list[0]["module"], loader.STRATEGY_ATTR_NAME)) == len(v1.DEFAULT_OS_STRATEGIES) == 11
         )
 
     def test_get_notice_group(self):

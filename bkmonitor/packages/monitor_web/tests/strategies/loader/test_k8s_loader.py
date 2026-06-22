@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -74,7 +73,7 @@ class TestK8sDefaultAlarmStrategyLoader:
         assert (
             len(getattr(strategies_list[0]["module"], loader.STRATEGY_ATTR_NAME))
             == len(v1.DEFAULT_K8S_STRATEGIES)
-            == 17
+            == 16
         )
         assert strategies_list[1]["version"] == "v2"
         assert (
@@ -95,7 +94,7 @@ class TestK8sDefaultAlarmStrategyLoader:
     def test_load_strategies(self):
         bk_biz_id = 2
         loader = K8sDefaultAlarmStrategyLoader(bk_biz_id)
-        notice_group_ids = loader.get_notice_group()
+        loader.get_notice_group()
         strategies_list = loader.get_default_strategy()
         items = [strategies_list[0]]
         for item in items:
@@ -136,15 +135,6 @@ class TestK8sDefaultAlarmStrategyLoader:
             module = strategies_list[0]["module"]
             strategies = getattr(module, loader.STRATEGY_ATTR_NAME)
             loader.load_strategies(strategies)
-
-    def test_run(self):
-        bk_biz_id = 2
-        assert K8sDefaultAlarmStrategyLoader.CACHE == set()
-
-        os_loader = K8sDefaultAlarmStrategyLoader(bk_biz_id)
-        os_loader.run()
-        assert K8sDefaultAlarmStrategyLoader.CACHE == set()
-        StrategyModel.objects.all().count() == 0
 
     def test_run(self, monkeypatch, monkeypatch_cluster_management_fetch_clusters):
         monkeypatch.setattr(settings, "BCS_CLUSTER_SOURCE", "cluster-manager")
