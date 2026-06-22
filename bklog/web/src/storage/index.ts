@@ -10,6 +10,7 @@ import { retrieveSearchWorkerIngestService } from './services/retrieve-search-wo
 import { performanceMonitorService } from './services/performance-monitor.service';
 import { storageHealthService } from './services/storage-health.service';
 import { storeCacheService } from './services/store-cache.service';
+import { workerManagerService } from './services/worker-manager.service';
 
 export default {
   manageDraftCache: manageDraftCacheService,
@@ -20,6 +21,7 @@ export default {
   performanceMonitor: performanceMonitorService,
   storageHealth: storageHealthService,
   storeCache: storeCacheService,
+  workerManager: workerManagerService,
 };
 
 export {
@@ -31,4 +33,5 @@ export {
   performanceMonitorService,
   storageHealthService,
   storeCacheService,
+  workerManagerService,
 };

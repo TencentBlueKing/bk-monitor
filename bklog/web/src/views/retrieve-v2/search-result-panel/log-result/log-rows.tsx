@@ -39,6 +39,7 @@ import PopInstanceUtil from '@/global/pop-instance-util';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
 import ExpandView from '../../components/result-cell-element/expand-view.vue';
+import FullRowViewer from './full-row-viewer.vue';
 import OperatorTools from '../../components/result-cell-element/operator-tools.vue';
 import RetrieveLoader from '@/skeleton/retrieve-loader.vue';
 import { retrieveRowCacheService } from '@/storage';
@@ -104,6 +105,12 @@ export default defineComponent({
       rowIndex: -1,
       top: 0,
       right: 12,
+    });
+    const fullRowViewerState = reactive({
+      visible: false,
+      row: null,
+      rowKey: '',
+      instanceKey: 0,
     });
 
     const popInstanceUtil = new PopInstanceUtil({
@@ -245,7 +252,7 @@ export default defineComponent({
       const lastIndex = Math.min(endIndex, rowKeys.value.length);
       const keys = rowKeys.value.slice(0, lastIndex);
 
-      retrieveRowCacheService.getRows(keys).then((rows) => {
+      retrieveRowCacheService.getRenderRows(keys).then((rows) => {
         renderList = rows.map((item, index) => ({
           item,
           [ROW_KEY]: keys[index] ?? getRowCacheKey(item, index),
@@ -672,6 +679,7 @@ export default defineComponent({
             kv-show-fields-list={kvShowFieldsList.value}
             list-data={row}
             row-index={realRowIndex}
+            row-key={row?.[ROW_KEY]}
             onValue-click={(type, content, isLink, field, depth, isNestedField) => {
               return handleIconClick(type, content, field, row, isLink, depth, isNestedField);
             }}
@@ -1333,6 +1341,14 @@ export default defineComponent({
                 handleRowAIClcik(event, hoverOperatorState.row, hoverOperatorState.rowIndex);
                 return;
               }
+              if (type === 'fullRow') {
+                fullRowViewerState.row = hoverOperatorState.row;
+                fullRowViewerState.rowKey = hoverOperatorState.row?.[ROW_KEY] || rowKeys.value[hoverOperatorState.rowIndex] || '';
+                fullRowViewerState.instanceKey += 1;
+                fullRowViewerState.visible = true;
+                hoverOperatorState.visible = false;
+                return;
+              }
               props.handleClickTools(
                 type,
                 hoverOperatorState.row,
@@ -1652,6 +1668,9 @@ export default defineComponent({
       }
       hoverOperatorState.visible = false;
       hoverOperatorState.row = null;
+      fullRowViewerState.visible = false;
+      fullRowViewerState.row = null;
+      fullRowViewerState.rowKey = '';
       renderList = Object.freeze([]);
     });
 
@@ -1675,6 +1694,7 @@ export default defineComponent({
       isRequesting,
       exceptionMsg,
       localUpdateCounter,
+      fullRowViewerState,
     };
   },
   render() {
@@ -1699,6 +1719,19 @@ export default defineComponent({
         {this.renderLoader()}
         {this.renderScrollTop()}
         {this.renderDelineatePopContent()}
+        <FullRowViewer
+          key={this.fullRowViewerState.instanceKey}
+          visible={this.fullRowViewerState.visible}
+          rowData={this.fullRowViewerState.row}
+          rowKey={this.fullRowViewerState.rowKey}
+          onUpdate:visible={(value) => {
+            this.fullRowViewerState.visible = value;
+            if (!value) {
+              this.fullRowViewerState.row = null;
+              this.fullRowViewerState.rowKey = '';
+            }
+          }}
+        />
         <div class='resize-guide-line' />
       </div>
     );

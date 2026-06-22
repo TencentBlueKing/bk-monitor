@@ -9,6 +9,7 @@ import {
   performanceRecordRepository,
   type PerformanceRecordEntity,
 } from '../repositories/performance-record.repository';
+import { workerManagerService } from './worker-manager.service';
 
 const STORAGE_KEY = '__BKLOG_PERFORMANCE_MONITOR_ENABLED__';
 const SESSION_KEY = '__BKLOG_PERFORMANCE_MONITOR_SESSION_ID__';
@@ -217,6 +218,23 @@ class PerformanceMonitorService {
   private readonly instanceId = `instance:${Date.now()}:${Math.random().toString(16).slice(2)}`;
 
   init(router?: VueRouter) {
+    workerManagerService.register({
+      description: '本地性能分析采集 Work：内存、路由、资源、API、window.open、跨 Tab 状态采集与导出',
+      getRuntimeStatus: () => ({
+        enabled: this.enabled,
+        state: this.enabled ? 'running' : 'disabled',
+        supported: true,
+        sessionId: this.sessionId,
+        tabId: this.tabId,
+        pendingRecords: this.pendingRecords.length,
+        fallbackRecords: this.memoryFallbackRecords.length,
+        exportState: this.exportState,
+      }),
+      id: 'performance-monitor',
+      kind: 'runtime-monitor',
+      name: 'BKLog Performance Monitor',
+    });
+    workerManagerService.installGlobalApi();
     this.installGlobalApi();
     if (router) this.bindRouter(router);
     if (this.readEnabledFlag()) {
@@ -242,6 +260,7 @@ class PerformanceMonitorService {
 
   enable(options: { reason?: string; sampleInterval?: number } = {}) {
     if (this.enabled) return this.status();
+    workerManagerService.update('performance-monitor', { state: 'running' });
     this.ensureUniqueTabId();
     this.sessionId = this.ensureSharedSessionId();
     this.enabled = true;
@@ -261,6 +280,7 @@ class PerformanceMonitorService {
 
   disable() {
     if (!this.enabled) return this.status();
+    workerManagerService.update('performance-monitor', { state: 'disabled' });
     this.record('monitor-stop', {});
     this.enabled = false;
     this.writeEnabledFlag(false);
@@ -294,6 +314,7 @@ class PerformanceMonitorService {
       api: this.getApiSnapshot(),
       windowOpen: this.getWindowOpenSnapshot(),
       tabAggregate: this.getTabAggregateSnapshot(),
+      workers: workerManagerService.list(),
       exportState: this.exportState,
     };
   }
@@ -663,8 +684,16 @@ class PerformanceMonitorService {
       mark: (name: string, data?: any) => this.mark(name, data),
       export: (options?: PerformanceExportOptions) => this.export(options),
       clear: (options?: { sessionId?: string }) => this.clear(options),
+      worker: () => workerManagerService.ping('retrieve-search-ingest'),
+      workerStatus: () => workerManagerService.get('retrieve-search-ingest'),
+      workers: () => workerManagerService.list(),
+      work: () => workerManagerService.list(),
       help: () => ({
         enable: `${WINDOW_API_NAME}.enable({ sampleInterval: 1000 })`,
+        worker: `${WINDOW_API_NAME}.worker() // ping 检索结果解析 WebWorker，检查 worker chunk 是否可加载`,
+        workerStatus: `${WINDOW_API_NAME}.workerStatus() // 查看检索解析 WebWorker 状态`,
+        workers: 'window.__BKLOG_WORKERS__.list() // 统一查看当前分支内所有 Work / Worker 状态',
+        workerNote: '`window.workers` 不是浏览器标准 API；BKLog 统一 Work 管理请使用 `window.__BKLOG_WORKERS__`。',
         disable: `${WINDOW_API_NAME}.disable()`,
         status: `${WINDOW_API_NAME}.status()`,
         sample: `${WINDOW_API_NAME}.sample('manual')`,
@@ -736,6 +765,7 @@ class PerformanceMonitorService {
       windowOpen: this.getWindowOpenSnapshot(),
       tabs: this.getActiveTabsSnapshot(),
       tabAggregate: this.getTabAggregateSnapshot(),
+      workers: workerManagerService.list(),
     });
   }
 

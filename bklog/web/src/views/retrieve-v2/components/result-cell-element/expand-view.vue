@@ -96,6 +96,7 @@
   import { TABLE_LOG_FIELDS_SORT_REGULAR, copyMessage } from '@/common/util';
   import { getFieldNameByField } from '@/hooks/use-field-name';
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
+  import { retrieveRowCacheService } from '@/storage';
   import { perfMeasure } from '@/utils/performance-monitor';
 
   import KvList from '../../result-comp/kv-list.vue';
@@ -121,6 +122,10 @@
       },
       rowIndex: {
         type: Number,
+      },
+      rowKey: {
+        type: String,
+        default: '',
       },
     },
     data() {
@@ -248,7 +253,19 @@
       },
     },
     methods: {
-      handleCopy() {
+      async handleCopy() {
+        try {
+          if (this.rowKey) {
+            const [originRow] = await retrieveRowCacheService.getRows([this.rowKey]);
+            if (originRow) {
+              copyMessage(JSON.stringify(originRow));
+              return;
+            }
+          }
+        } catch (error) {
+          console.warn('[expand-view] copy origin row from IndexedDB failed, fallback to current row', error);
+        }
+
         copyMessage(JSON.stringify(this.jsonShowData));
       },
       handleSearch() {

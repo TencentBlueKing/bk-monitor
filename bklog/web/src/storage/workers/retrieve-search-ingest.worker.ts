@@ -8,11 +8,11 @@ import { retrieveRowRepository } from '../repositories/retrieve-row.repository';
 
 interface IngestMessage {
   id: string;
-  buffer: ArrayBuffer;
+  buffer?: ArrayBuffer;
   fieldNames?: string[];
-  queryKey: string;
+  queryKey?: string;
   startSeq?: number;
-  type: 'ingest-search-response';
+  type: 'ingest-search-response' | 'ping';
   writeMode?: 'append' | 'replace';
 }
 
@@ -51,25 +51,48 @@ const postFailure = (id: string, error: any) => {
 
 self.onmessage = async (event: MessageEvent<IngestMessage>) => {
   const message = event.data;
+  if (message?.type === 'ping') {
+    self.postMessage({
+      id: message.id,
+      ok: true,
+      type: 'pong',
+      workerLocation: self.location?.href,
+    });
+    return;
+  }
+
   if (message?.type !== 'ingest-search-response') return;
 
   try {
+    if (!message.buffer || !message.queryKey) {
+      throw new Error('Invalid WebWorker ingest message: missing buffer or queryKey');
+    }
     const text = new TextDecoder().decode(message.buffer);
     const response = JSONBigNumber.parse(text);
     const data = response?.data;
 
     if (response?.result && data) {
-      const rows = Array.isArray(data.list) ? data.list : [];
+      if (!Array.isArray(data.list) || !Array.isArray(data.origin_log_list)) {
+        throw new Error('Invalid search response: list and origin_log_list are required');
+      }
+      if (data.list.length !== data.origin_log_list.length) {
+        throw new Error(`Invalid search response: list length ${data.list.length} !== origin_log_list length ${data.origin_log_list.length}`);
+      }
+      const renderRows = data.list;
+      const rows = data.origin_log_list;
       const rowKeys = message.writeMode === 'append'
         ? await retrieveRowRepository.appendRows(message.queryKey, rows, message.startSeq || 0, {
           fieldNames: message.fieldNames || [],
+          renderRows,
         })
         : await retrieveRowRepository.replaceRows(message.queryKey, rows, message.startSeq || 0, {
           fieldNames: message.fieldNames || [],
+          renderRows,
         });
 
       const meta = { ...data };
       delete meta.list;
+      delete meta.origin_log_list;
 
       postSuccess(message.id, {
         response: {

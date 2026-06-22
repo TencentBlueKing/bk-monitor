@@ -9,6 +9,7 @@ export interface RetrieveRowEntity {
   queryKey: string;
   seq: number;
   row: Record<string, any>;
+  renderOverlay?: any;
   projection?: any;
   bytes?: number;
   createdAt: number;

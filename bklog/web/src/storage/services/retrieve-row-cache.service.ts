@@ -13,6 +13,7 @@ interface MemoryEntry<T = any> {
 
 interface WriteOptions {
   fieldNames?: string[];
+  renderRows?: Record<string, any>[];
 }
 
 export class RetrieveRowCacheService {
@@ -75,6 +76,22 @@ export class RetrieveRowCacheService {
 
   getMemoryRows(keys: string[]) {
     return keys.map(key => this.rowMemory.get(key)?.value).filter(Boolean);
+  }
+
+  async getRenderRows(keys: string[]) {
+    if (!keys.length) return [];
+    try {
+      if (await storageHealthService.ensureIndexedDBUsable()) {
+        const renderRows = await retrieveRowRepository.getRenderRowsByKeys(keys);
+        return renderRows.filter(Boolean);
+      }
+    } catch (error) {
+      storageHealthService.resetIndexedDBUsable();
+      storageHealthService.notifyIndexedDBFallback();
+      console.warn('[retrieve-row-cache] get render rows failed', error);
+    }
+
+    return this.getRows(keys);
   }
 
   async getRows(keys: string[]) {

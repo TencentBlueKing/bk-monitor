@@ -28,20 +28,31 @@ const ingestSearchResponseOnMainThread = async (blob, {
   const { code, data, result, message, permission } = await readBlobRespToJson(blob);
   const rsolvedData = data;
   if (result) {
-    const logList = Array.isArray(rsolvedData.list) ? rsolvedData.list : [];
+    const renderList = rsolvedData.list;
+    const originLogList = rsolvedData.origin_log_list;
+
+    if (!Array.isArray(renderList) || !Array.isArray(originLogList)) {
+      throw new Error('Invalid search response: list and origin_log_list are required');
+    }
+
+    if (renderList.length !== originLogList.length) {
+      throw new Error('Invalid search response: list length ' + renderList.length + ' !== origin_log_list length ' + originLogList.length);
+    }
+
     const rowKeys = isPagination
-      ? await retrieveRowCacheService.appendRows(rowQueryKey, logList, startSeq, { fieldNames })
-      : await retrieveRowCacheService.replaceRows(rowQueryKey, logList, { fieldNames });
+      ? await retrieveRowCacheService.appendRows(rowQueryKey, originLogList, startSeq, { fieldNames, renderRows: renderList })
+      : await retrieveRowCacheService.replaceRows(rowQueryKey, originLogList, { fieldNames, renderRows: renderList });
     delete rsolvedData.list;
+    delete rsolvedData.origin_log_list;
     return {
       code,
       data: rsolvedData,
-      length: logList.length,
+      length: originLogList.length,
       message,
       permission,
       result,
       rowKeys,
-      size: logList.length,
+      size: originLogList.length,
       source: 'main-thread',
     };
   }

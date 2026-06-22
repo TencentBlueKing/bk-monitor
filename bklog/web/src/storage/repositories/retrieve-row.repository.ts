@@ -11,11 +11,21 @@ const DEFAULT_BATCH_BYTES = 8 * 1024 * 1024;
 
 const nextIdle = () => new Promise(resolve => setTimeout(resolve, 0));
 
+interface RenderOverlayField {
+  renderValue: any;
+}
+
+interface RetrieveRowRenderOverlay {
+  fields: Record<string, RenderOverlayField>;
+  hasHighlight: boolean;
+}
+
 interface WriteRowsOptions {
   ttl?: number;
   fieldNames?: string[];
   batchRows?: number;
   batchBytes?: number;
+  renderRows?: Record<string, any>[];
 }
 
 export class RetrieveRowRepository {
@@ -47,6 +57,12 @@ export class RetrieveRowRepository {
     if (!keys.length) return [];
     const rows = await db.retrieveRows.bulkGet(keys);
     return rows.map(item => item?.projection);
+  }
+
+  async getRenderRowsByKeys(keys: string[]) {
+    if (!keys.length) return [];
+    const entities = await db.retrieveRows.bulkGet(keys);
+    return entities.map(entity => this.applyRenderOverlay(entity));
   }
 
   async getRowsByQuery(queryKey: string, offset = 0, limit?: number) {
@@ -125,11 +141,13 @@ export class RetrieveRowRepository {
     for (let index = 0; index < rows.length; index++) {
       const seq = startSeq + index;
       const storageValue = retrieveRowProjectionService.createStorageValue(rows[index], queryKey, seq, options.fieldNames ?? []);
+      const renderOverlay = this.createRenderOverlay(storageValue.row, options.renderRows?.[index]);
       const entity: RetrieveRowEntity = {
         key: `${queryKey}:${seq}`,
         queryKey,
         seq,
         row: storageValue.row,
+        renderOverlay,
         projection: storageValue.projection,
         bytes: storageValue.bytes,
         createdAt: now,
@@ -146,6 +164,31 @@ export class RetrieveRowRepository {
 
     await flush();
     return keys;
+  }
+
+  private createRenderOverlay(rawRow: Record<string, any>, renderRow?: Record<string, any>): RetrieveRowRenderOverlay | undefined {
+    if (!rawRow || !renderRow || Object.prototype.toString.call(renderRow) !== '[object Object]') return undefined;
+
+    const fields: Record<string, RenderOverlayField> = {};
+    Object.keys(renderRow).forEach((fieldName) => {
+      const renderValue = renderRow[fieldName];
+      if (renderValue === rawRow[fieldName]) return;
+      if (typeof renderValue !== 'string' || !/<\/?mark>/i.test(renderValue)) return;
+      fields[fieldName] = { renderValue };
+    });
+
+    return Object.keys(fields).length ? { fields, hasHighlight: true } : undefined;
+  }
+
+  private applyRenderOverlay(entity?: RetrieveRowEntity) {
+    if (!entity?.row) return undefined;
+    const overlay = entity.renderOverlay;
+    if (!overlay?.fields || !Object.keys(overlay.fields).length) return entity.row;
+
+    return Object.keys(overlay.fields).reduce((row, fieldName) => {
+      row[fieldName] = overlay.fields[fieldName].renderValue;
+      return row;
+    }, { ...entity.row });
   }
 }
 
