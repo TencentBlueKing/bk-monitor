@@ -578,25 +578,25 @@ class MetricBackendHandler(TelemetryBackendHandler):
                 step=grain,
             )
             return self.format_v4_metrics_msgs_stat(resp, grain=grain)
-
-        storages = self.storage_info()
-        storage_result_table_id = None
-        for storage in storages:
-            if storage["storage_type"] == "vm":
-                storage_result_table_id = storage["result_table_id"]
-                break
-        resp = (
-            api.bkdata.get_storage_metrics_data_count(
-                data_set_ids=[storage_result_table_id],
-                storages=["vm"],
-                start_time=start_time,
-                end_time=end_time,
-                **kwargs,
+        else:
+            storages = self.storage_info()
+            storage_result_table_id = None
+            for storage in storages:
+                if storage["storage_type"] == "vm":
+                    storage_result_table_id = storage["result_table_id"]
+                    break
+            resp = (
+                api.bkdata.get_storage_metrics_data_count(
+                    data_set_ids=[storage_result_table_id],
+                    storages=["vm"],
+                    start_time=start_time,
+                    end_time=end_time,
+                    **kwargs,
+                )
+                if storage_result_table_id
+                else []
             )
-            if storage_result_table_id
-            else []
-        )
-        return resp
+            return resp
 
     def get_data_count(self, start_time: int, end_time: int, **kwargs):
         resp = self._get_data_view(start_time, end_time, **kwargs)
