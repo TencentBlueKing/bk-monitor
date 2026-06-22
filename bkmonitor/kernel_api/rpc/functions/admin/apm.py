@@ -413,7 +413,7 @@ def get_apm_application_detail(params: dict[str, Any]) -> dict[str, Any]:
     datasource_maps = _load_apm_datasource_maps([application])
     service_count_map = _load_service_count_map([application])
     application_summary = _serialize_application_summary(application, datasource_maps, service_count_map)
-    application_summary.update({"description": application.description, "app_token": application.get_bk_data_token()})
+    application_summary.update({"description": application.description, "apm_token": application.get_bk_data_token()})
 
     apm_datasources = [
         datasource_maps[datasource_type].get(_app_key(application)) for datasource_type in DATASOURCE_TYPES
