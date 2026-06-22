@@ -880,7 +880,11 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                             "data": {
                                 "type": "empty",
                                 "title": _("暂未发现关联 Pod"),
-                                "link": {"target": "self", "value": _("关联容器负载"), "url": service_config_link},
+                                "link": {
+                                    "target": "blank",
+                                    "value": _("关联容器负载"),
+                                    "url": service_config_url,
+                                },
                                 "subTitle": _(
                                     "如何关联容器信息:\n"
                                     "1. APM 支持与 BCS 打通，你可以通过以下方式简单配置，：\n"
