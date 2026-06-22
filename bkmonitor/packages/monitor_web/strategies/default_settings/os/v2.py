@@ -95,6 +95,10 @@ if settings.ENABLE_MULTI_TENANT_MODE:
         ]
     )
     if not Platform.te:
+        # 检测语义差异（有意为之）：单租户 PING 走 pingserver.base.loss_percent 时序 + PingUnreachable
+        # 算法（按丢包率判定）；多租户作为 V4 系统事件，与上面 4 个事件一致走 custom 计数阈值（事件
+        # 计数 >= 1 即异常，见 os_loader is_custom_event 分支）。两者数据源不同、判定口径不同，但都表达
+        # “PING 不可达”。
         DEFAULT_OS_STRATEGIES.append(
             {
                 "name": _lazy("PING不可达告警"),
