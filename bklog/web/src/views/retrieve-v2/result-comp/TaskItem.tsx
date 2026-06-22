@@ -94,13 +94,12 @@ export default defineComponent({
           <div class="status-content failed">
             <span class="status-dot failed-dot"></span>
             <span class="status-text">{t('失败')}</span>
-            <bk-link 
-              theme="primary" 
+            <span
               class="detail-link" 
               onClick={handleViewDetail}
             >
               {t('查看详情')}
-            </bk-link>
+            </span>
           </div>
         );
       }

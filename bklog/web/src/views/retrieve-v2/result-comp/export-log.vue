@@ -35,33 +35,37 @@
       </div> -->
     <BklogPopover
       ref="downloadProgressPopover"
-      trigger="hover"
-      :options="{ placement: 'bottom', arrow: true, onShow: () => displayTasks.length > 0, disabled: displayTasks.length === 0}"
+      :key="displayTasks.length >= 1 ? 'popover-active' : 'popover-inactive'"
+      :trigger="displayTasks.length >= 1 ? 'hover' : 'manual'"
+      :options="{ placement: 'bottom', arrow: true }"
       content-class="download-progress-popover"
     >
-      <div
-        :class="{ 'operation-icon': true, 'disabled-icon': !queueStatus }"
-        data-test-id="fieldForm_div_exportData"
-        @click="exportLog"
-        @mouseenter="handleDownloadIconMouseEnter"
-        @mouseleave="handleDownloadIconMouseLeave"
+      <bk-badge
+        :visible="failedTaskCount > 0"
+        :val="failedTaskCount"
+        theme="danger"
+        position="top-right"
       >
-        <span
-          class="icon bklog-icon bklog-download"
-          style="font-size: 16px"
-        ></span>
         <div
-          v-if="totalProgressPercent > 0"
-          class="progress-mask"
-          :style="{ '--progress': totalProgressPercent + '%' }"
+          :class="{ 'operation-icon': true, 'disabled-icon': !queueStatus }"
+          data-test-id="fieldForm_div_exportData"
+          @click="exportLog"
         >
+          <span
+            class="icon bklog-icon bklog-download"
+            style="font-size: 16px"
+          ></span>
+          <div
+            v-if="totalProgressPercent > 0"
+            class="progress-mask"
+            :style="{ '--progress': totalProgressPercent + '%' }"
+          >
+          </div>
         </div>
-      </div>
+      </bk-badge>
       <template #content>
         <div
           class="download-progress-content"
-          @mouseenter="handleContentMouseEnter"
-          @mouseleave="handleContentMouseLeave"
         >
           <TaskItem
             v-for="task in displayTasks"
@@ -124,6 +128,13 @@
             class="circular-progress"
             :style="{ '--progress': totalProgressPercent + '%' }"
           >
+          </div>
+          <div
+            v-if="failedTaskCount > 0"
+            class="failed-task-tip"
+          >
+            <span class="failed-task-count">{{ failedTaskCount }}</span>
+            <span class="failed-task-text">{{ $t('存在下载失败') }}</span>
           </div>
         </div>
       </template>
@@ -361,6 +372,8 @@
         baseGrowth: 20000, // 基础增长量：10秒增长20000条
         popoverHoverTimer: null, // Popover 悬浮延迟隐藏定时器
         pendingTaskStatus: {}, // 进行中任务状态记录 { [taskId]: status }
+        failedTaskIds: [],
+        failedTaskTimer: null, // 失败任务定时器
       };
     },
     computed: {
@@ -414,12 +427,22 @@
         if (totalExportCount <= 0) return 0;
         return calculateProgressPercent(totalExported, totalExportCount);
       },
-      /** 需要显示的任务列表（下载中、未启动、失败） */
+      /** 需要显示的任务列表（下载中、未启动、失败）- 只显示当前用户的任务 */
       displayTasks() {
+        const currentUser = this.$store.state.userMeta?.username || '';
         return this.exportListData.filter(row => {
+          // 只显示当前用户的任务
+          if (row.export_created_by !== currentUser) return false;
           const status = row.export_status;
-          return ['download_log', 'export_package', 'export_upload', 'failed'].includes(status) || status === null;
+          if (status === 'failed') {
+            return this.failedTaskIds.includes(row.id);
+          }
+          return ['download_log', 'export_package', 'export_upload'].includes(status) || status === null;
         });
+      },
+      /** 失败任务数量 */
+      failedTaskCount() {
+        return this.failedTaskIds.length;
       },
     },
     watch: {
@@ -435,6 +458,9 @@
       routerIndexSet() {
         // 切换业务时清空进行中任务状态记录
         this.pendingTaskStatus = {};
+        // 清空失败任务定时器和记录
+        this.clearFailedTaskTimer();
+        this.failedTaskIds = [];
         this.initDateRange();
         this.getTableList();
       },
@@ -453,6 +479,8 @@
       this.stopProgressUpdate();
       // 清除 Popover 悬浮定时器
       clearTimeout(this.popoverHoverTimer);
+      // 清除失败任务定时器
+      this.clearFailedTaskTimer();
     },
     methods: {
       // 原handleShowAlarmPopover方法已移除，点击下载按钮直接打开下载日志弹窗
@@ -666,35 +694,9 @@
       closeExportDialog() {
         this.selectFiledType = 'all';
         this.selectFiledList = [];
-      },
-      /**
-       * @desc: 下载按钮 mouseenter — 有下载任务时才显示 Popover
-       */
-      handleDownloadIconMouseEnter() {
-        clearTimeout(this.popoverHoverTimer);
-        if (this.displayTasks.length > 0) {
-          this.$refs.downloadProgressPopover?.show();
-        }
-      },
-      /**
-       * @desc: 下载按钮 mouseleave — 延迟隐藏，给移动到内容区域留时间
-       */
-      handleDownloadIconMouseLeave() {
-        this.popoverHoverTimer = setTimeout(() => {
-          this.$refs.downloadProgressPopover?.hide();
-        }, 200);
-      },
-      /**
-       * @desc: 弹窗内容 mouseenter — 取消隐藏，阻止 Popover 关闭
-       */
-      handleContentMouseEnter() {
-        clearTimeout(this.popoverHoverTimer);
-      },
-      /**
-       * @desc: 弹窗内容 mouseleave — 隐藏 Popover
-       */
-      handleContentMouseLeave() {
-        this.$refs.downloadProgressPopover?.hide();
+        // 清空失败任务定时器和记录
+        this.clearFailedTaskTimer();
+        this.failedTaskIds = [];
       },
       // 原downloadTable方法已修改，不再需要隐藏popover
       downloadTable() {
@@ -750,6 +752,9 @@
       handleTaskViewDetail(_task) {
         // 打开下载历史弹窗
         this.showHistoryExport = true;
+        // 清空失败任务定时器和记录
+        this.clearFailedTaskTimer();
+        this.failedTaskIds = [];
       },
       /**
        * @desc: 轮询
@@ -809,6 +814,15 @@
         }
       },
       /**
+       * @desc: 清除失败任务定时器
+       */
+      clearFailedTaskTimer() {
+        if (this.failedTaskTimer) {
+          clearTimeout(this.failedTaskTimer);
+          this.failedTaskTimer = null;
+        }
+      },
+      /**
        * @desc: 每秒更新所有进行中任务的进度
        * 单次遍历更新 exported_count 和 progressPercent
        */
@@ -832,7 +846,11 @@
        * @param { Array } data 任务列表数据
        */
       handleTaskStatus(data) {
+        const currentUser = this.$store.state.userMeta?.username || '';
         data.forEach(item => {
+          // 只处理当前用户的任务
+          if (item.export_created_by !== currentUser) return;
+
           const oldStatus = this.pendingTaskStatus[item.id];
           const currentStatus = item.export_status;
 
@@ -850,6 +868,19 @@
               });
               // 从记录中移除
               delete this.pendingTaskStatus[item.id];
+
+              // 处理失败任务记录
+              if (currentStatus === 'failed') {
+                // 进行中任务失败时，记录到 failedTaskIds
+                if (!this.failedTaskIds.includes(item.id)) {
+                  this.failedTaskIds.push(item.id);
+                }
+                // 清除之前的定时器，重新设置20分钟定时器
+                this.clearFailedTaskTimer();
+                this.failedTaskTimer = setTimeout(() => {
+                  this.failedTaskIds = [];
+                }, 20 * 60 * 1000);
+              }
             }
           } else if (POLLING_STATUS.includes(currentStatus)) {
             // 进行中状态：检查是否已有记录，没有则进行记录
@@ -1210,6 +1241,27 @@
 
         &:hover {
           color: #699df4;
+        }
+      }
+
+      .failed-task-tip {
+        display: flex;
+        align-items: center;
+        margin-left: 8px;
+        font-size: 14px;
+        color: #EA3636;
+
+        .failed-task-count {
+          width: 20px;
+          height: 20px;
+          background-color: #EA3636;
+          border-radius: 50%;
+          color: #fff;
+          margin-right: 4px;
+        }
+
+        .failed-task-text {
+          font-weight: 400;
         }
       }
 
