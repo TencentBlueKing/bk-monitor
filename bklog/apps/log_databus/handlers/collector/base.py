@@ -1887,7 +1887,7 @@ class CollectorHandler:
 
         return IndexGroupHandler.get_or_create_index_group_ids_by_index_group_names(
             space_uid=space_uid,
-            index_set_names=parent_index_set_names,
+            index_groups_names=parent_index_set_names,
         )
 
     @classmethod
