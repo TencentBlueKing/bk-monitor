@@ -1337,6 +1337,7 @@ class TestCustomCreateIdempotent(TestCase):
         "apps.log_databus.handlers.collector_scenario.base.CollectorScenario.update_or_create_data_id",
         return_value=300,
     )
+    @patch("apps.log_search.handlers.index_set.sync_index_set_archive.delay", return_value=None)
     @patch("apps.log_search.tasks.mapping.sync_single_index_set_mapping_snapshot.delay", return_value=None)
     @patch("apps.decorators.user_operation_record.delay", return_value=None)
     def test_custom_create_resolves_default_data_link(self, *args):
