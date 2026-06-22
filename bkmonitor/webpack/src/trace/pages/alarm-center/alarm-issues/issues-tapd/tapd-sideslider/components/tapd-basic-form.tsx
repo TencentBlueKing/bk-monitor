@@ -193,7 +193,7 @@ export default defineComponent({
           {this.tabList.map((item, index) => [
             <div
               key={item.value}
-              class={['tab-item', { active: this.tabActive === item.value, disabled: item.value === 'link' }]}
+              class={['tab-item', { active: this.tabActive === item.value }]}
               onClick={() => this.handleTabChange(item.value)}
             >
               <i class={['icon-monitor', item.icon]} />

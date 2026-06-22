@@ -59,6 +59,7 @@ export default defineComponent({
     /** 基础表单组件 ref，用于调用表单校验方法 */
     const basicFormRef = useTemplateRef<InstanceType<typeof TapdBasicForm>>('basicForm');
     const tapdFieldFormRef = useTemplateRef<InstanceType<typeof TapdFieldForm>>('tapdFieldForm');
+    const tapdRelationRef = useTemplateRef<InstanceType<typeof TapdRelation>>('tapdRelation');
     /** 项目列表 */
     const workspaceList = shallowRef<TapdWorkspaceItem[]>([]);
     /** 用户设置的 TAPD 创建单据默认值 */
@@ -173,8 +174,13 @@ export default defineComponent({
       basicFormRef.value?.validate().then(() => {
         console.log('success');
       });
-      const tapdFieldFormValid = await tapdFieldFormRef.value?.validate().catch(() => false);
-      console.log(tapdFieldFormValid);
+      if (tabActive.value === 'link') {
+        const linkTapdIdsValid = await tapdRelationRef.value?.validate().catch(() => false);
+        console.log(linkTapdIdsValid);
+      } else {
+        const tapdFieldFormValid = await tapdFieldFormRef.value?.validate().catch(() => false);
+        console.log(tapdFieldFormValid);
+      }
     };
 
     const handleFormDataChange = () => {
@@ -265,6 +271,7 @@ export default defineComponent({
                 if (this.tabActive === 'link') {
                   return (
                     <TapdRelation
+                      ref='tapdRelation'
                       style='margin: 13px 40px'
                       modelValue={this.linkTapdIds}
                       onUpdate:modelValue={this.handleLinkTapdIdsChange}

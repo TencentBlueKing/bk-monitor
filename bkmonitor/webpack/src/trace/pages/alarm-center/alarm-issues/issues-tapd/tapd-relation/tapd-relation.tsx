@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, defineComponent, shallowRef } from 'vue';
 
 import { Select } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
@@ -59,16 +59,38 @@ export default defineComponent({
   emits: {
     'update:modelValue': (_val: string[]) => true,
   },
-  setup(_props, { emit }) {
+  setup(props, { emit }) {
     const { t } = useI18n();
+
+    const errMsg = shallowRef('');
+
+    const validate = async () => {
+      if (!props.modelValue.length) {
+        errMsg.value = t('请选择单据');
+      } else {
+        errMsg.value = '';
+      }
+      return !errMsg.value;
+    };
 
     const handleChange = (val: string[]) => {
       emit('update:modelValue', val);
     };
 
+    const handleToggle = val => {
+      if (val) {
+        errMsg.value = '';
+      } else {
+        validate();
+      }
+    };
+
     return {
+      errMsg,
       t,
       handleChange,
+      validate,
+      handleToggle,
     };
   },
   render() {
@@ -82,29 +104,33 @@ export default defineComponent({
             <div class={['form-item-title', 'required']}>
               <span>{this.t('选择已有单据')}</span>
             </div>
-            <Select
-              popoverOptions={{
-                extCls: 'tapd-sideslider-relation-compoent-popover',
-              }}
-              modelValue={this.modelValue}
-              multiple={true}
-              filterable
-              onUpdate:modelValue={this.handleChange}
-            >
-              {this.tapdList.map(item => (
-                <Select.Option
-                  id={item.tapd_id}
-                  key={item.tapd_id}
-                  name={item.tapd_title}
-                >
-                  <span class='tapd-select-item'>
-                    <span class='tapd-id'>{item.tapd_id}</span>
-                    <span class='tapd-title'>{item.tapd_title}</span>
-                    <span class='tapd-status'>backlog</span>
-                  </span>
-                </Select.Option>
-              ))}
-            </Select>
+            <div class={['form-item-content', { 'is-error': this.errMsg }]}>
+              <Select
+                popoverOptions={{
+                  extCls: 'tapd-sideslider-relation-compoent-popover',
+                }}
+                modelValue={this.modelValue}
+                multiple={true}
+                filterable
+                onToggle={this.handleToggle}
+                onUpdate:modelValue={this.handleChange}
+              >
+                {this.tapdList.map(item => (
+                  <Select.Option
+                    id={item.tapd_id}
+                    key={item.tapd_id}
+                    name={item.tapd_title}
+                  >
+                    <span class='tapd-select-item'>
+                      <span class='tapd-id'>{item.tapd_id}</span>
+                      <span class='tapd-title'>{item.tapd_title}</span>
+                      <span class='tapd-status'>backlog</span>
+                    </span>
+                  </Select.Option>
+                ))}
+              </Select>
+              {this.errMsg ? <span class='err-msg'>{this.errMsg}</span> : undefined}
+            </div>
           </div>
         </div>
       </div>

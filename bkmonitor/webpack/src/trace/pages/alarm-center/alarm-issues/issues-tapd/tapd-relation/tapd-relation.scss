@@ -1,3 +1,4 @@
+/* stylelint-disable selector-class-pattern */
 .tapd-sideslider-relation-compoent {
   padding: 16px 24px;
   background: #fff;
@@ -48,6 +49,27 @@
             content: '*';
           }
         }
+      }
+    }
+
+    .form-item-content {
+      position: relative;
+
+      &.is-error {
+        .bk-select .bk-select-trigger .bk-input--default {
+          border-color: #ea3636;
+          transition: all 0.15s;
+        }
+      }
+
+      .err-msg {
+        position: absolute;
+        bottom: -18px;
+        left: 0;
+        display: inline-block;
+        font-size: 12px;
+        line-height: 12px;
+        color: #ea3636;
       }
     }
   }
