@@ -216,6 +216,9 @@ class EntityMeta(BaseModel):
             from bkm_space.utils import bk_biz_id_to_space_uid
 
             biz_namespace = bk_biz_id_to_space_uid(bk_biz_id)
+            if not biz_namespace:
+                raise ValueError(f"bk_biz_id={bk_biz_id} cannot resolve to a valid space uid")
+
             resource_defs = cls.query_with_fallback(
                 model_class=ResourceDefinition,
                 biz_namespace=biz_namespace,

@@ -340,6 +340,19 @@ class TestCustomRelationStatusInheritance:
         assert spec["from_resource"] == "updated_source"
         assert spec["to_resource"] == "updated_target"
 
+
+class TestAutoQueryGraphDefinitions:
+    def test_rejects_empty_space_uid_before_fallback(self, monkeypatch):
+        from bkm_space import utils as space_utils
+
+        from metadata.models.entity_relation import EntityMeta
+
+        monkeypatch.setattr(space_utils, "bk_biz_id_to_space_uid", lambda bk_biz_id: "")
+
+        with pytest.raises(ValueError, match=r"cannot resolve to a valid space uid"):
+            EntityMeta.auto_query_graph_definitions(-42)
+
+
 class TestConvertToVerticesAndRelations:
 
     def _make_resource_defs(self, data):
