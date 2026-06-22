@@ -43,15 +43,15 @@ SCENARIO_ID_BKDATA = "bkdata"
 OVERRIDE_MIDDLEWARE = "apps.tests.middlewares.OverrideMiddleware"
 
 CLUSTER_INFO = [
-    {"cluster_config": {"cluster_id": 1, "cluster_name": "", "display_name": "", "port": 123, "domain_name": ""}}
+    {"cluster_config": {"cluster_id": 1, "cluster_name": "", "display_name": "", "port": 123, "domain_name": "", "version": "7.x"}}
 ]
 CLUSTER_INFO_WITH_AUTH = [
     {
-        "cluster_config": {"cluster_id": 1, "cluster_name": "", "display_name": ""},
+        "cluster_config": {"cluster_id": 1, "cluster_name": "", "display_name": "", "version": "7.x"},
         "auth_info": {"username": "", "password": ""},
+        "cluster_type": "elasticsearch",
     }
 ]
-
 CLUSTER_INFOS = {"2_bklog.test3333": {"cluster_config": {"cluster_id": 1, "cluster_name": ""}}}
 
 MAPPING_LIST = [
@@ -1323,8 +1323,16 @@ class TestCustomCreateIdempotent(TestCase):
     @patch("apps.log_databus.tasks.bkdata.async_create_bkdata_data_id.delay", return_value=None)
     @patch("apps.api.TransferApi.get_result_table", return_value={})
     @patch("apps.api.TransferApi.get_data_id", return_value={})
+    @patch("apps.api.TransferApi.create_result_table", return_value={"table_id": "test_table_id"})
+    @patch("apps.api.TransferApi.get_cluster_info", return_value=CLUSTER_INFO_WITH_AUTH)
+    @patch("apps.utils.thread.MultiExecuteFunc.append", return_value="")
+    @patch("apps.utils.thread.MultiExecuteFunc.run", return_value={})
     @patch("apps.log_databus.handlers.collector.base.CollectorHandler._send_create_notify", return_value=None)
     @patch("apps.log_databus.handlers.collector.base.CollectorHandler._authorization_collector", return_value=None)
+    @patch(
+        "apps.log_databus.handlers.collector.base.CollectorHandler.get_default_public_cluster_id",
+        return_value=STORAGE_CLUSTER_ID,
+    )
     @patch(
         "apps.log_databus.handlers.collector_scenario.base.CollectorScenario.update_or_create_data_id",
         return_value=300,
