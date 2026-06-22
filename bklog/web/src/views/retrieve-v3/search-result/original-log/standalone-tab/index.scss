@@ -1,0 +1,60 @@
+.standalone-related-log-page {
+  height: 100%;
+  background: #f5f7fa;
+
+  .standalone-related-log-title {
+    height: 40px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    font-weight: 600;
+    color: #313238;
+    background: #fff;
+    border-bottom: 1px solid #dcdee5;
+  }
+
+  .standalone-related-log-loading {
+    height: calc(100% - 40px);
+  }
+
+  .standalone-related-log-resize {
+    height: calc(100% - 40px);
+  }
+
+  .standalone-related-log-content {
+    height: 100%;
+    padding: 12px;
+    overflow: hidden;
+  }
+
+  .common-header-main {
+    height: 42px;
+    background: #fff;
+    border: 1px solid #dcdee5;
+    border-bottom: 0;
+  }
+
+  .standalone-related-log-main {
+    height: calc(100% - 42px);
+    padding: 12px;
+    background: #fff;
+    border: 1px solid #dcdee5;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .data-filter-wraper {
+    flex: 0 0 auto;
+  }
+
+  .standalone-related-log-scroller {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    margin-top: 12px;
+    border: 1px solid #dcdee5;
+    background: #fff;
+    outline: none;
+  }
+}
