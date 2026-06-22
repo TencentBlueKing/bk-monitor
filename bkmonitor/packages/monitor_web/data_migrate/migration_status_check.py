@@ -262,13 +262,17 @@ def check_plugin_collect(context: CheckContext) -> dict[str, Any]:
 
     collect_configs = list(
         CollectConfigMeta.objects.filter(bk_tenant_id=context.bk_tenant_id, bk_biz_id=context.bk_biz_id)
-        .select_related("deployment_config")
+        .select_related(
+            "deployment_config",
+            "deployment_config__plugin_version",
+        )
         .order_by("id")
         .iterator()
     )
-    plugin_type_map = dict(
-        CollectorPluginMeta.objects.filter(bk_tenant_id=context.bk_tenant_id).values_list("plugin_id", "plugin_type")
-    )
+    plugin_ids = sorted({config.plugin_id for config in collect_configs})
+    plugins = list(CollectorPluginMeta.objects.filter(bk_tenant_id=context.bk_tenant_id, plugin_id__in=plugin_ids))
+    plugin_map = {plugin.plugin_id: plugin for plugin in plugins}
+    plugin_type_map = {plugin.plugin_id: plugin.plugin_type for plugin in plugins}
     configs = _run_concurrently(
         collect_configs,
         lambda config: _build_collect_config_record(
@@ -277,6 +281,7 @@ def check_plugin_collect(context: CheckContext) -> dict[str, Any]:
             get_collect_installer,
             CollectTargetStatusTopoResource,
             plugin_type_map,
+            plugin_map,
         ),
         DEFAULT_ITEM_CHECK_WORKERS,
     )
@@ -397,7 +402,9 @@ def _build_collect_config_record(
     get_collect_installer_func,
     collect_target_status_topo_resource,
     plugin_type_map: dict[str, str],
+    plugin_map: dict[str, Any],
 ) -> dict[str, Any]:
+    _bind_collect_config_plugin(config, plugin_map)
     status_records = _get_collect_status_records(context, config, get_collect_installer_func)
     targets = _build_collect_targets(status_records)
     no_data_info = _safe_value(
@@ -415,7 +422,7 @@ def _build_collect_config_record(
         "last_operation": config.last_operation,
         "operation_result": config.operation_result,
         "deploy_status": _build_collect_deploy_status(config, status_records),
-        "data_status": _build_collect_data_status(targets, no_data_info),
+        "data_status": _build_collect_data_status(context, config, targets, no_data_info),
     }
 
 
@@ -650,6 +657,19 @@ def _extract_record_value(record: dict[str, Any]) -> Any:
         if key in record:
             return record[key]
     return None
+
+
+def _to_number(value: Any) -> float | int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int | float):
+        return value
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _check_k8s_cluster_connectivity(cluster) -> dict[str, Any]:
@@ -1186,7 +1206,12 @@ def _build_collect_deploy_status(config, status_records: list[dict[str, Any]]) -
     }
 
 
-def _build_collect_data_status(targets: list[dict[str, Any]], no_data_info: dict[str, bool]) -> dict[str, Any]:
+def _build_collect_data_status(
+    context: CheckContext,
+    config,
+    targets: list[dict[str, Any]],
+    no_data_info: dict[str, bool],
+) -> dict[str, Any]:
     no_data_samples = []
     no_data_count = 0
     for target in targets:
@@ -1195,9 +1220,11 @@ def _build_collect_data_status(targets: list[dict[str, Any]], no_data_info: dict
             no_data_count += 1
             if len(no_data_samples) < 20:
                 no_data_samples.append(target)
+    transfer_count_status = {}
     if not targets:
-        has_data = None
-        message = "no targets"
+        transfer_count_status = _query_collect_transfer_count_status(context, config)
+        has_data = transfer_count_status.get("has_data")
+        message = transfer_count_status.get("message", "")
     elif no_data_info:
         has_data = no_data_count < len(targets)
         message = ""
@@ -1209,8 +1236,69 @@ def _build_collect_data_status(targets: list[dict[str, Any]], no_data_info: dict
         "checked_instance_count": len(targets),
         "no_data_instance_count": no_data_count,
         "no_data_instance_samples": no_data_samples,
+        "transfer_count_status": transfer_count_status,
         "message": message,
     }
+
+
+def _query_collect_transfer_count_status(context: CheckContext, config) -> dict[str, Any]:
+    status = {
+        "method": "datalink.transfer_count_series",
+        "interval_option": "minute",
+        "has_data": None,
+        "latest_time": None,
+        "value": None,
+        "message": "",
+    }
+
+    try:
+        series = _query_collect_transfer_count_series(context, config)
+    except Exception as error:  # noqa: BLE001
+        status["message"] = str(error)
+        return status
+
+    datapoints = _extract_transfer_count_datapoints(series)
+    latest_datapoint = next((datapoint for datapoint in reversed(datapoints) if datapoint[0] is not None), None)
+    status["has_data"] = any((datapoint[0] or 0) > 0 for datapoint in datapoints)
+    if latest_datapoint:
+        status["latest_time"] = latest_datapoint[1]
+        status["value"] = latest_datapoint[0]
+    status["series_count"] = len(series)
+    status["datapoint_count"] = len(datapoints)
+    return status
+
+
+def _query_collect_transfer_count_series(context: CheckContext, config) -> list[dict[str, Any]]:
+    from core.drf_resource import resource
+
+    return _call_with_local_tenant(
+        context.bk_tenant_id,
+        lambda: resource.datalink.transfer_count_series(
+            bk_biz_id=context.bk_biz_id,
+            collect_config_id=config.id,
+            start_time=context.start_time,
+            end_time=context.end_time,
+            interval_option="minute",
+        ),
+    )
+
+
+def _extract_transfer_count_datapoints(series: list[dict[str, Any]]) -> list[tuple[float | int | None, int | None]]:
+    datapoints = []
+    for item in series or []:
+        for datapoint in item.get("datapoints") or []:
+            if not isinstance(datapoint, list | tuple) or len(datapoint) < 2:
+                continue
+            datapoints.append((_to_number(datapoint[0]), datapoint[1]))
+    return datapoints
+
+
+def _bind_collect_config_plugin(config, plugin_map: dict[str, Any]) -> None:
+    plugin = plugin_map.get(getattr(config, "plugin_id", ""))
+    deployment_config = getattr(config, "deployment_config", None)
+    plugin_version = getattr(deployment_config, "plugin_version", None) if deployment_config else None
+    if plugin and plugin_version:
+        plugin_version.plugin = plugin
 
 
 def _target_key(target: dict[str, Any]) -> str:
