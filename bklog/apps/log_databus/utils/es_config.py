@@ -22,7 +22,6 @@ from django.conf import settings
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKLOG_ES_CONFIG
-from apps.log_databus.exceptions import PublicESClusterQueryException
 
 
 def get_es_config(bk_biz_id):
