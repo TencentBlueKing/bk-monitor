@@ -16,13 +16,11 @@ from datetime import UTC, datetime
 
 import pytz
 from django.conf import settings
-from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.utils.time_tools import time_interval_align
 from constants.apm import TelemetryDataType
-from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import (
     DATA_LINK_V4_VERSION_NAME,
     DataSourceLabel,
@@ -142,6 +140,50 @@ class TelemetryBackendHandler:
             template["targets"] = [target]
             templates.append(template)
         return templates
+
+    @classmethod
+    def format_v4_metrics_msgs_stat(cls, resp, grain="1m"):
+        if not resp:
+            return []
+
+        if isinstance(resp, dict):
+            series = resp.get("result") or resp.get("series") or resp.get("data") or resp.get("results") or []
+        else:
+            series = resp
+
+        interval = cls.GRAIN_MAPPING.get(grain, 0)
+        timestamp_to_count = defaultdict(int)
+        for serie in series:
+            if not isinstance(serie, dict):
+                continue
+            datapoints = serie.get("values") or serie.get("datapoints") or serie.get("series") or []
+            if datapoints:
+                for datapoint in datapoints:
+                    if isinstance(datapoint, dict):
+                        timestamp = datapoint.get("time") or datapoint.get("timestamp")
+                        count = datapoint.get("output_count") or datapoint.get("value") or datapoint.get("count") or 0
+                    else:
+                        if len(datapoint) < 2:
+                            continue
+                        timestamp, count = datapoint[0], datapoint[1]
+                    if timestamp is None:
+                        continue
+                    timestamp_to_count[int(timestamp) - interval] += int(float(count or 0))
+                continue
+
+            timestamp = serie.get("time") or serie.get("timestamp")
+            count = serie.get("output_count") or serie.get("value") or serie.get("count") or 0
+            if timestamp is not None:
+                timestamp_to_count[int(timestamp) - interval] += int(float(count or 0))
+
+        return [
+            {
+                "series": [
+                    {"output_count": count, "time": timestamp}
+                    for timestamp, count in sorted(timestamp_to_count.items())
+                ]
+            }
+        ]
 
 
 """
@@ -520,74 +562,40 @@ class MetricBackendHandler(TelemetryBackendHandler):
     def _get_data_view(self, start_time: int, end_time: int, **kwargs):
         if self.datalink_version == DATA_LINK_V4_VERSION_NAME:
             namespace = self.data_status_config.get("namespace", "bkmonitor-vm")
-            metric_biz_id = self.data_status_config.get("metric_biz_id")
-            if not metric_biz_id:
+            data_id_name = str(self.bk_data_id) if self.bk_data_id else ""
+            if not data_id_name:
                 return []
-
-            if not self.bk_vm_result_table_id:
-                return []
-
-            # 多租户适配
-            tenant_prefix = "" if self.app.bk_tenant_id == DEFAULT_TENANT_ID else f"{self.app.bk_tenant_id}-"
-
-            # v3迁移到v4链路的规则
-            component_id_prefix = f"{namespace}_{self.bk_vm_result_table_id}-"
-
-            # 监控自建v4链路规则
-            databus_name = "_".join(self.bk_vm_result_table_id.split("_")[1:])
-            v4_component_id_prefix = f"bkmonitor-{databus_name}-"
 
             grain = kwargs.get("time_grain", "1m")
-
-            # 时间对齐
-            start_time = time_interval_align(timestamp=start_time, interval=self.GRAIN_MAPPING[grain])
-            end_time = time_interval_align(timestamp=end_time, interval=self.GRAIN_MAPPING[grain])
-
-            request_params = dict(
-                # 数据存储在运营租户下
-                bk_tenant_id=DEFAULT_TENANT_ID,
-                promql=f'sum(increase(bkmonitor:record_count{{component_id=~"^{tenant_prefix}({component_id_prefix}|{v4_component_id_prefix})"}}[{grain}]))',
+            interval = self.GRAIN_MAPPING.get(grain)
+            if interval:
+                start_time = time_interval_align(timestamp=start_time, interval=interval)
+                end_time = time_interval_align(timestamp=end_time, interval=interval)
+            resp = api.bkdata.get_v4_metrics_msgs_stat(
+                resource={"kind": "DataId", "namespace": namespace, "name": data_id_name},
                 start=start_time,
                 end=end_time,
                 step=grain,
-                bk_biz_ids=[metric_biz_id],
-                timezone=timezone.get_current_timezone_name(),
             )
+            return self.format_v4_metrics_msgs_stat(resp, grain=grain)
 
-            series = api.unify_query.query_data_by_promql(**request_params)["series"]
-
-            # 讲同一个timestamp的count相加
-            timestamp_to_count = defaultdict(int)
-            for serie in series:
-                for datapoint in serie["values"]:
-                    timestamp_to_count[datapoint[0]] += datapoint[1]
-
-            resp = [
-                {
-                    "series": [
-                        {"output_count": count, "time": int(timestamp / 1000)}
-                        for timestamp, count in timestamp_to_count.items()
-                    ]
-                }
-            ]
-        else:
-            storages = self.storage_info()
-            storage_result_table_id = None
-            for storage in storages:
-                if storage["storage_type"] == "vm":
-                    storage_result_table_id = storage["result_table_id"]
-                    break
-            resp = (
-                api.bkdata.get_storage_metrics_data_count(
-                    data_set_ids=[storage_result_table_id],
-                    storages=["vm"],
-                    start_time=start_time,
-                    end_time=end_time,
-                    **kwargs,
-                )
-                if storage_result_table_id
-                else []
+        storages = self.storage_info()
+        storage_result_table_id = None
+        for storage in storages:
+            if storage["storage_type"] == "vm":
+                storage_result_table_id = storage["result_table_id"]
+                break
+        resp = (
+            api.bkdata.get_storage_metrics_data_count(
+                data_set_ids=[storage_result_table_id],
+                storages=["vm"],
+                start_time=start_time,
+                end_time=end_time,
+                **kwargs,
             )
+            if storage_result_table_id
+            else []
+        )
         return resp
 
     def get_data_count(self, start_time: int, end_time: int, **kwargs):
@@ -759,50 +767,6 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
     def _is_v4_datalink(self):
         return (self.profiling_bkdata_datalink_config.get("version") or 3) == 4
 
-    @classmethod
-    def _format_v4_metrics_msgs_stat(cls, resp, grain="1m"):
-        if not resp:
-            return []
-
-        if isinstance(resp, dict):
-            series = resp.get("result") or resp.get("series") or resp.get("data") or resp.get("results") or []
-        else:
-            series = resp
-
-        interval = cls.GRAIN_MAPPING.get(grain, 0)
-        timestamp_to_count = defaultdict(int)
-        for serie in series:
-            if not isinstance(serie, dict):
-                continue
-            datapoints = serie.get("values") or serie.get("datapoints") or serie.get("series") or []
-            if datapoints:
-                for datapoint in datapoints:
-                    if isinstance(datapoint, dict):
-                        timestamp = datapoint.get("time") or datapoint.get("timestamp")
-                        count = datapoint.get("output_count") or datapoint.get("value") or datapoint.get("count") or 0
-                    else:
-                        if len(datapoint) < 2:
-                            continue
-                        timestamp, count = datapoint[0], datapoint[1]
-                    if timestamp is None:
-                        continue
-                    timestamp_to_count[int(timestamp) - interval] += int(float(count or 0))
-                continue
-
-            timestamp = serie.get("time") or serie.get("timestamp")
-            count = serie.get("output_count") or serie.get("value") or serie.get("count") or 0
-            if timestamp is not None:
-                timestamp_to_count[int(timestamp) - interval] += int(float(count or 0))
-
-        return [
-            {
-                "series": [
-                    {"output_count": count, "time": timestamp}
-                    for timestamp, count in sorted(timestamp_to_count.items())
-                ]
-            }
-        ]
-
     def _get_data_view(self, start_time: int, end_time: int, **kwargs):
         if self._is_v4_datalink():
             v4_resource_names = self.profiling_bkdata_datalink_config.get("v4_resource_names") or {}
@@ -822,7 +786,7 @@ class ProfilingBackendHandler(TelemetryBackendHandler):
                 end=end_time,
                 step=grain,
             )
-            return self._format_v4_metrics_msgs_stat(resp, grain=grain)
+            return self.format_v4_metrics_msgs_stat(resp, grain=grain)
 
         storages = self.storage_info()
         storage_result_table_id = None
