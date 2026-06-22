@@ -151,7 +151,7 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
    *
    */
   handleFilterChange() {
-    if (this.apmResourceField.includes(this.groupByField)) return;
+    if (this.isApmMonitor && this.apmResourceField.includes(this.groupByField)) return;
     this.onFilterChange(this.filterValue, this.groupByField, !this.filterToolConfig.hasFilter);
   }
 
