@@ -427,3 +427,70 @@ class TestOsDefaultAlarmStrategyLoader:
         assert "nonlisten" in pp_qc["agg_dimension"]
         assert "not_accurate_listen" in pp_qc["agg_dimension"]
         assert by_field["proc_exists"]["items"][0]["algorithms"][0]["type"] == "ProcPort"
+
+    def test_load_strategies__ping_gated_by_enable_ping_alarm(self):
+        """PING 不可达是否内置由全局开关 ENABLE_PING_ALARM(运行时)决定，而非部署平台。
+
+        开关开启 -> 指标就绪即创建；关闭 -> 即便指标就绪也跳过（避免悬空策略；access 层亦按此开关
+        门控 ping 事件处理）。
+        """
+        from unittest import mock
+
+        from django.test import override_settings
+
+        bk_biz_id = 2
+
+        ping_cfg = {
+            "name": "PING不可达告警",
+            "data_type_label": "event",
+            "data_source_label": "custom",
+            "result_table_label": "os",
+            "metric_field": "PingUnreachable",
+            "agg_dimension": ["bk_target_ip", "bk_target_cloud_id"],
+            "trigger_count": 3,
+            "trigger_check_window": 5,
+            "recovery_check_window": 5,
+            "recovery_status_setter": "close",
+        }
+
+        ping_metric = mock.Mock()
+        ping_metric.data_source_label = "custom"
+        ping_metric.data_type_label = "event"
+        ping_metric.result_table_id = "base_tenant_2_event"
+        ping_metric.metric_field = "PingUnreachable"
+        ping_metric.metric_field_name = "PING不可达告警"
+        ping_metric.extend_fields = {"custom_event_name": "PingUnreachable"}
+        ping_metric.default_condition = []
+        ping_metric.default_dimensions = []
+        ping_metric.collect_interval = 1
+        ping_metric.unit = ""
+
+        loader = OsDefaultAlarmStrategyLoader(bk_biz_id)
+
+        def _run(enable_ping):
+            captured = []
+            with override_settings(ENABLE_MULTI_TENANT_MODE=True, ENABLE_PING_ALARM=enable_ping):
+                with (
+                    mock.patch(
+                        "monitor_web.strategies.loader.os_loader.MetricListCache.objects.filter",
+                        # related_id=system 时序 / bk_monitor 源事件 / custom event(ping 在此)
+                        side_effect=[[], [], [ping_metric]],
+                    ),
+                    mock.patch(
+                        "monitor_web.strategies.loader.os_loader.resource.strategies.save_strategy_v2",
+                        side_effect=lambda **kwargs: captured.append(kwargs),
+                    ),
+                    mock.patch.object(OsDefaultAlarmStrategyLoader, "get_notice_group", return_value=[1]),
+                ):
+                    result = loader.load_strategies([ping_cfg])
+            return result, captured
+
+        # 开关开启：指标就绪 -> 建出 ping 策略
+        result_on, captured_on = _run(True)
+        assert len(result_on) == 1
+        assert len(captured_on) == 1
+
+        # 开关关闭：即便指标就绪也跳过、不创建
+        result_off, captured_off = _run(False)
+        assert result_off == []
+        assert captured_off == []

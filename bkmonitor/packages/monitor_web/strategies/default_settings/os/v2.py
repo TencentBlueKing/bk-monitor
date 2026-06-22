@@ -13,8 +13,6 @@ import os
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _lazy
 
-from common.context_processors import Platform
-
 # v2 版本：多租户系统事件内置策略。
 #
 # 多租户模式下系统事件走 V4 分业务链路（custom 源，每个 cmdb 业务独立结果表 base_{tenant}_{biz}_event），
@@ -94,22 +92,22 @@ if settings.ENABLE_MULTI_TENANT_MODE:
             },
         ]
     )
-    if not Platform.te:
-        # 检测语义差异（有意为之）：单租户 PING 走 pingserver.base.loss_percent 时序 + PingUnreachable
-        # 算法（按丢包率判定）；多租户作为 V4 系统事件，与上面 4 个事件一致走 custom 计数阈值（事件
-        # 计数 >= 1 即异常，见 os_loader is_custom_event 分支）。两者数据源不同、判定口径不同，但都表达
-        # “PING 不可达”。
-        DEFAULT_OS_STRATEGIES.append(
-            {
-                "name": _lazy("PING不可达告警"),
-                "data_type_label": "event",
-                "data_source_label": "custom",
-                "result_table_label": "os",
-                "metric_field": "PingUnreachable",
-                "agg_dimension": ["bk_target_ip", "bk_target_cloud_id"],
-                "trigger_count": 3,
-                "trigger_check_window": 5,
-                "recovery_check_window": 5,
-                "recovery_status_setter": "close",
-            }
-        )
+    # PING 不可达：是否内置由全局 ping 开关 ENABLE_PING_ALARM 决定（而非部署平台）。该开关是动态设置、
+    # 需运行时读，故不在此模块级门控，改由 os_loader 加载时按 settings.ENABLE_PING_ALARM 跳过（access 层
+    # 同样按此开关门控 ping 事件处理，见 alarm_backends access processor）。检测语义差异（有意为之）：
+    # 单租户 PING 走 pingserver.base.loss_percent 时序 + PingUnreachable 算法（按丢包率）；多租户作为 V4
+    # 系统事件，与上面 4 个事件一致走 custom 计数阈值（事件计数 >= 1 即异常，见 os_loader is_custom_event 分支）。
+    DEFAULT_OS_STRATEGIES.append(
+        {
+            "name": _lazy("PING不可达告警"),
+            "data_type_label": "event",
+            "data_source_label": "custom",
+            "result_table_label": "os",
+            "metric_field": "PingUnreachable",
+            "agg_dimension": ["bk_target_ip", "bk_target_cloud_id"],
+            "trigger_count": 3,
+            "trigger_check_window": 5,
+            "recovery_check_window": 5,
+            "recovery_status_setter": "close",
+        }
+    )

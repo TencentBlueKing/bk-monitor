@@ -37,8 +37,9 @@ def test_os_v2_multi_tenant_system_event_strategies():
             importlib.reload(os_v2)
             strategies = {s["metric_field"]: s for s in os_v2.DEFAULT_OS_STRATEGIES}
 
-            # 4 个离散事件必然内置（PingUnreachable 受 Platform.te 控制，不强制断言其存在）
-            assert {"AgentLost", "DiskReadonly", "CoreFile", "OOM"} <= set(strategies)
+            # 5 类系统事件均无条件声明在模块里（PingUnreachable 不再按部署平台门控）；
+            # PingUnreachable 是否真创建由 os_loader 按 ENABLE_PING_ALARM 运行时决定（见 test_os_loader）。
+            assert {"AgentLost", "DiskReadonly", "CoreFile", "OOM", "PingUnreachable"} == set(strategies)
 
             # v2 仅承载 custom event 系统事件：走 custom 事件链路、按主机聚合、统一 close 恢复语义
             for strategy in os_v2.DEFAULT_OS_STRATEGIES:

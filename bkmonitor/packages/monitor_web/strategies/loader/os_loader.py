@@ -121,6 +121,15 @@ class OsDefaultAlarmStrategyLoader(DefaultAlarmStrategyLoaderBase):
 
         strategy_config_list = []
         for default_config in strategies:
+            # PING 不可达：仅在全局 ping 告警开关开启时内置（ENABLE_PING_ALARM，运行时判定，不在策略模块
+            # import 期固化）。该项仅在 worker role 静态定义、loader 跑在 monitor_web 角色，故用 getattr 兜底，
+            # 默认 True（与全局默认一致）；运行时告警触发另由 alarm_backends access 层按同一开关硬门控，此处
+            # 跳过只是避免建出永不触发的悬空策略。覆盖单租户 ping-gse 与多租户 PingUnreachable 两种命名。
+            if default_config["metric_field"] in ("PingUnreachable", "ping-gse") and not getattr(
+                settings, "ENABLE_PING_ALARM", True
+            ):
+                continue
+
             is_custom_event = (default_config["data_source_label"], default_config["data_type_label"]) == (
                 DataSourceLabel.CUSTOM,
                 DataTypeLabel.EVENT,
