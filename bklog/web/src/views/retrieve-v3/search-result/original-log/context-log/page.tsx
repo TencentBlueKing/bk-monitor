@@ -1,6 +1,7 @@
 import { defineComponent, onBeforeUnmount, onMounted } from 'vue';
 
 import RelatedLogLayout from '../standalone-tab/related-log-layout';
+import RelatedLogLoading from '../standalone-tab/related-log-loading';
 import { useContextRelatedLog } from '../standalone-tab/hooks/use-context-related-log';
 import { useStandaloneRelatedPage } from '../standalone-tab/hooks/use-standalone-related-page';
 
@@ -30,7 +31,15 @@ export default defineComponent({
       <div class='standalone-related-log-page'>
         <div class='standalone-related-log-title'>{page.t('上下文')}</div>
         {page.loading.value ? (
-          <div class='standalone-related-log-loading' v-bkloading={{ isLoading: true }} />
+          <RelatedLogLoading
+            title={page.t('上下文')}
+            text={page.loadingText.value}
+            steps={[
+              page.t('解析 URL 中的检索参数'),
+              page.t('重放检索请求并定位原始日志行'),
+              page.t('加载字段配置和上下文日志'),
+            ]}
+          />
         ) : page.error.value ? (
           page.renderError()
         ) : (

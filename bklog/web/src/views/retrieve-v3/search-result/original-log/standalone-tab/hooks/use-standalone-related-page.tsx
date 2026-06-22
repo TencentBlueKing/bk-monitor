@@ -38,6 +38,7 @@ export const useStandaloneRelatedPage = () => {
   const { t } = useLocale();
 
   const loading = ref(true);
+  const loadingText = ref(t('正在初始化页面'));
   const error = ref('');
   const result = ref<StandaloneSearchResult | null>(null);
   const targetFields = ref<string[]>([]);
@@ -49,6 +50,7 @@ export const useStandaloneRelatedPage = () => {
   const retrieveParams = computed(() => result.value?.retrieveParams || {});
 
   const initStoreState = async (searchResult: StandaloneSearchResult) => {
+    loadingText.value = t('正在加载字段配置');
     const { payload, data } = searchResult;
     const { originList, renderList } = normalizeSearchList(data);
     const total = data?.total?.toNumber?.() ?? data?.total ?? originList.length;
@@ -82,14 +84,17 @@ export const useStandaloneRelatedPage = () => {
 
   const init = async () => {
     loading.value = true;
+    loadingText.value = t('正在解析页面参数');
     error.value = '';
     pageReady.value = false;
     try {
+      loadingText.value = t('正在重放检索请求');
       const searchResult = await runStandaloneRelatedSearch(route.query as Record<string, any>);
       result.value = searchResult;
       targetRow.value = searchResult.rowData;
       targetFields.value = parseArray(route.query.targetFields);
       await initStoreState(searchResult);
+      loadingText.value = t('正在渲染日志内容');
       pageReady.value = true;
     } catch (e) {
       error.value = e?.message || String(e);
@@ -111,6 +116,7 @@ export const useStandaloneRelatedPage = () => {
     router,
     store,
     loading,
+    loadingText,
     error,
     result,
     pageReady,

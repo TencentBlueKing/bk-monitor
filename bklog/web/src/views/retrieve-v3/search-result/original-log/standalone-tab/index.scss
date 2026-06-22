@@ -3,9 +3,9 @@
   background: #f5f7fa;
 
   .standalone-related-log-title {
-    height: 40px;
     display: flex;
     align-items: center;
+    height: 40px;
     padding: 0 16px;
     font-weight: 600;
     color: #313238;
@@ -15,6 +15,91 @@
 
   .standalone-related-log-loading {
     height: calc(100% - 40px);
+  }
+
+  .standalone-related-log-loading-panel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: calc(100% - 40px);
+    padding: 24px;
+  }
+
+  .standalone-related-log-loading-card {
+    width: 420px;
+    padding: 28px 32px;
+    text-align: center;
+    background: #fff;
+    border: 1px solid #dcdee5;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px 0 #19192914;
+  }
+
+  .standalone-related-log-loading-spinner {
+    width: 32px;
+    height: 32px;
+    margin: 0 auto 16px;
+    border: 3px solid #e1ecff;
+    border-top-color: #3a84ff;
+    border-radius: 50%;
+    animation: standalone-related-log-loading-spin .9s linear infinite;
+  }
+
+  .standalone-related-log-loading-title {
+    margin-bottom: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 24px;
+    color: #313238;
+  }
+
+  .standalone-related-log-loading-text {
+    height: 20px;
+    margin-bottom: 16px;
+    overflow: hidden;
+    font-size: 13px;
+    line-height: 20px;
+    color: #63656e;
+  }
+
+  .standalone-related-log-loading-text-fade-enter-active,
+  .standalone-related-log-loading-text-fade-leave-active {
+    transition: opacity .18s ease, transform .18s ease;
+  }
+
+  .standalone-related-log-loading-text-fade-enter,
+  .standalone-related-log-loading-text-fade-leave-to {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  .standalone-related-log-loading-steps {
+    padding: 12px 16px;
+    text-align: left;
+    background: #f5f7fa;
+    border-radius: 4px;
+  }
+
+  .standalone-related-log-loading-step {
+    display: flex;
+    align-items: center;
+    min-height: 24px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #63656e;
+  }
+
+  .standalone-related-log-loading-step-index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    font-size: 10px;
+    color: #3a84ff;
+    background: #e1ecff;
+    border-radius: 50%;
   }
 
   .standalone-related-log-resize {
@@ -35,13 +120,13 @@
   }
 
   .standalone-related-log-main {
+    display: flex;
+    flex-direction: column;
     height: calc(100% - 42px);
+    min-height: 0;
     padding: 12px;
     background: #fff;
     border: 1px solid #dcdee5;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
   }
 
   .data-filter-wraper {
@@ -51,10 +136,16 @@
   .standalone-related-log-scroller {
     flex: 1;
     min-height: 0;
-    overflow: auto;
     margin-top: 12px;
-    border: 1px solid #dcdee5;
+    overflow: auto;
     background: #fff;
+    border: 1px solid #dcdee5;
     outline: none;
+  }
+}
+
+@keyframes standalone-related-log-loading-spin {
+  to {
+    transform: rotate(360deg);
   }
 }

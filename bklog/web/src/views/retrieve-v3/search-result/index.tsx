@@ -24,41 +24,44 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, type ComputedRef, defineComponent, onBeforeUnmount } from "vue";
+import { computed, defineAsyncComponent, type ComputedRef, defineComponent, onBeforeUnmount } from 'vue';
 
-import { debounce } from "lodash-es";
-import { useRoute, useRouter } from "vue-router/composables";
+import { debounce } from 'lodash-es';
+import { useRoute, useRouter } from 'vue-router/composables';
+
+import SearchResultPanel from '../../retrieve-v2/search-result-panel/index.vue';
+import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+import { RouteQueryTab } from '../index.type';
+import useStore from '@/hooks/use-store';
+import useRetrieveEvent from '@/hooks/use-retrieve-event';
+
+import './index.scss';
 
 // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-import GraphAnalysis from "../../retrieve-v2/search-result-panel/graph-analysis";
+const GraphAnalysis = defineAsyncComponent(() =>
+  import(/* webpackChunkName: 'retrieve-graph-analysis' */ '../../retrieve-v2/search-result-panel/graph-analysis'),
+);
+const SearchResultTab = defineAsyncComponent(() =>
+  import(/* webpackChunkName: 'retrieve-result-tab' */ '../../retrieve-v2/search-result-tab/index.vue'),
+);
 // #else
 // #code const GraphAnalysis = () => null
-// #endif
-import SearchResultPanel from "../../retrieve-v2/search-result-panel/index.vue";
-// #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-import SearchResultTab from "../../retrieve-v2/search-result-tab/index.vue";
-// #else
 // #code const SearchResultTab = () => null;
-
 // #endif
-import RetrieveHelper, { RetrieveEvent } from "../../retrieve-helper";
-import Grep from "../grep";
-import { RouteQueryTab } from "../index.type";
-import useStore from "@/hooks/use-store";
-import LogClustering from "./log-clustering";
-import useRetrieveEvent from "@/hooks/use-retrieve-event";
-
-import "./index.scss";
+const Grep = defineAsyncComponent(() => import(/* webpackChunkName: 'retrieve-grep' */ '../grep'));
+const LogClustering = defineAsyncComponent(() =>
+  import(/* webpackChunkName: 'retrieve-log-clustering' */ './log-clustering'),
+);
 
 export default defineComponent({
-  name: "V3ResultContainer",
+  name: 'V3ResultContainer',
   setup() {
     const router = useRouter();
     const route = useRoute();
     const store = useStore();
 
     const debounceUpdateTabValue = debounce((value) => {
-      const isClustering = value === "clustering";
+      const isClustering = value === 'clustering';
       router.replace({
         params: { ...(route.params ?? {}) },
         query: {
@@ -69,7 +72,7 @@ export default defineComponent({
       });
     }, 60);
     const activeTab = computed(
-      () => route.query.tab ?? "origin"
+      () => route.query.tab ?? 'origin'
     ) as ComputedRef<string>;
 
     let trendSearchTimer: ReturnType<typeof setTimeout> | null = null;
@@ -78,7 +81,7 @@ export default defineComponent({
       debounceUpdateTabValue(tab);
 
       if (triggerTrend) {
-        store.dispatch("requestIndexSetQuery");
+        store.dispatch('requestIndexSetQuery');
         if (trendSearchTimer) {
           clearTimeout(trendSearchTimer);
         }
@@ -91,7 +94,7 @@ export default defineComponent({
 
     const handleFavoriteChange = (item) => {
       debounceUpdateTabValue(
-        item.favorite_type === "chart" ? "graph_analysis" : "origin"
+        item.favorite_type === 'chart' ? 'graph_analysis' : 'origin'
       );
     };
 
@@ -129,7 +132,7 @@ export default defineComponent({
     };
 
     return () => (
-      <div class="v3-bklog-body">
+      <div class='v3-bklog-body'>
         <SearchResultTab
           value={activeTab.value}
           on-input={handleTabChange}

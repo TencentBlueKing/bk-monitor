@@ -23,8 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, ref, type Ref } from 'vue';
-import NoticeComponent from '@blueking/notice-component-vue2';
+import { computed, defineAsyncComponent, defineComponent, onMounted, ref, type Ref } from 'vue';
 import jsCookie from 'js-cookie';
 import { useRoute } from 'vue-router/composables';
 
@@ -33,10 +32,15 @@ import useLocale from './hooks/use-locale';
 import useStore from './hooks/use-store';
 import { join } from '@/global/utils/path';
 
-import '@blueking/notice-component-vue2/dist/style.css';
 import './app.scss';
 
 import(/* webpackChunkName: 'appload-import' */ './common/appload-import');
+const NoticeComponent = defineAsyncComponent(() =>
+  Promise.all([
+    import(/* webpackChunkName: 'notice-component' */ '@blueking/notice-component-vue2'),
+    import(/* webpackChunkName: 'notice-component' */ '@blueking/notice-component-vue2/dist/style.css'),
+  ]).then(([component]) => (component as any).default ?? component),
+);
 const AuthDialog = () => import(/* webpackChunkName: 'auth-dialog' */ '@/components/common/auth-dialog.vue');
 const GlobalSettingDialog = () => import(/* webpackChunkName: 'global-setting-dialog' */ '@/components/global-setting/index');
 const HeadNav = () => import(/* webpackChunkName: 'head-nav' */ '@/global/head-navi/index');
@@ -47,7 +51,6 @@ if (isHeadlessEntry()) {
 } else {
   import(/* webpackChunkName: 'demand-import' */ './common/demand-import');
 }
-
 
 export default defineComponent({
   setup() {
