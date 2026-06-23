@@ -590,8 +590,8 @@ APM_TRACE_DIAGRAM_CONFIG = {}
 APM_DORIS_STORAGE_CONFIG = {}
 # APM profile v4接入配置
 APM_PROFILE_V4_BIZ_WHITE_LIST = []
+APM_PROFILING_DEFAULT_USE_BKDATA_V4 = False
 APM_PROFILE_V4_DORIS_BINDING_CLUSTER = ""
-APM_PROFILE_V4_DATABUS_PREFER_CLUSTER = ""
 # {2:["foo", "bar"], 3:["baz"]}
 APM_PROFILING_ENABLED_APPS = {}
 # dis/enable profiling for all apps
@@ -1792,6 +1792,9 @@ APM_SERVICE_CACHE_APPLICATIONS = []
 
 # 企业微信模块化（layouts）消息通知灰度业务列表
 WECOM_LAYOUTS_BIZ_LIST = []
+
+# 是否默认开启 APM 指标维度分组接入
+APM_METRIC_GROUP_DIMENSIONS_ENABLED = False
 
 # 允许 APM 配置指标分组维度的白名单，格式：["2"](整业务) 或 ["2-app_name"](单应用)
 APM_METRIC_GROUP_DIMENSIONS_WHITELIST = []

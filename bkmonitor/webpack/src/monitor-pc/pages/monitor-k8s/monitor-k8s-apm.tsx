@@ -27,7 +27,6 @@ import { Component, Inject, InjectReactive, Mixins, Provide, ProvideReactive, Wa
 
 import { listServiceK8sTargets } from 'monitor-api/modules/apm_container';
 import { scenarioMetricList } from 'monitor-api/modules/k8s';
-import { random, tryURLDecodeParse } from 'monitor-common/utils';
 
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
@@ -228,8 +227,13 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
 
   get selectTargetText() {
     if (!this.selectTarget) return this.$t('请选择');
-    const { bcs_cluster_id: clusterId = '', namespace = '', workload = '', pod = '' } = this.selectTargetItem || {};
-    return `${workload || pod}（集群:${clusterId}）, namespace:${namespace}`;
+    const { namespace = '', workload = '', pod = '' } = this.selectTargetItem || {};
+    return `[${namespace}] ${workload || pod}`;
+  }
+
+  get selectTargetTextTooltip() {
+    const { bcs_cluster_id: clusterId = '' } = this.selectTargetItem || {};
+    return `${this.selectTargetText}（集群: ${clusterId}）`;
   }
 
   // 选中的目标项
@@ -293,19 +297,25 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   @Provide('onFilterChange')
   filterByChange(id: string, dimensionId: string, isSelect: boolean) {
     // this.showCancelDrill = false;
-    if (!this.filterBy[dimensionId]) this.filterBy[dimensionId] = [];
+    if (!this.filterBy[dimensionId]) {
+      this.$set(this.filterBy, dimensionId, []);
+    }
     if (isSelect) {
       if (!this.groupInstance.hasGroupFilter(dimensionId as K8sTableColumnResourceKey)) {
         this.groupByChange(dimensionId, true);
       }
       /** workload维度只能选择一项 */
       if (dimensionId === EDimensionKey.workload) {
-        this.filterBy[dimensionId] = [id];
+        this.$set(this.filterBy, dimensionId, [id]);
       } else if (!this.filterBy[dimensionId].includes(id)) {
         this.filterBy[dimensionId].push(id);
       }
     } else {
-      this.filterBy[dimensionId] = this.filterBy[dimensionId].filter(item => item !== id);
+      this.$set(
+        this.filterBy,
+        dimensionId,
+        this.filterBy[dimensionId].filter(item => item !== id)
+      );
     }
   }
 
@@ -492,7 +502,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
         refreshInterval: String(this.refreshInterval),
         from: this.timeRange[0],
         to: this.timeRange[1],
-      }
+      },
     });
     window.open(`${location.origin}${location.pathname}${location.search}${targetRoute.href}`, '_blank');
   }
@@ -626,9 +636,9 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
         >
           <span
             class='target-list-name'
-            v-bk-overflow-tips
+            v-bk-overflow-tips={{ content: this.selectTargetTextTooltip }}
           >
-            {this.$t('workload')}: {this.selectTargetText}
+            {this.selectTargetText}
           </span>
           <span class={`icon-monitor icon-mc-arrow-down ${this.targetListToggle ? 'expand' : ''}`} />
         </div>
@@ -636,7 +646,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
           <bk-option
             id={target.cacheId}
             key={target.cacheId}
-            name={`${target.workload || target.pod}（集群:${target.bcs_cluster_id}）, namespace:${target.namespace}`}
+            name={`[${target.namespace}] ${target.workload || target.pod}（集群: ${target.bcs_cluster_id}）`}
           />
         ))}
       </bk-select>
@@ -730,7 +740,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
                 }}
                 class='content-main-wrap'
               >
-                {this.tabContentRender()}
+                {this.cluster && this.tabContentRender()}
               </div>
             </div>
           </div>,

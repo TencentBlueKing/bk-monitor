@@ -18,8 +18,10 @@ from types import SimpleNamespace
 from unittest.mock import Mock, call, patch
 
 import pytest
+from django.utils.translation import gettext_lazy
 
 from core.drf_resource.exceptions import CustomException
+from kernel_api.resource.kernel_rpc import KernelRPCResource
 from kernel_api.rpc.functions.admin.api_auth_token import (
     _normalize_biz_ids,
     _normalize_namespaces,
@@ -36,12 +38,14 @@ from kernel_api.rpc.functions.admin.bcs_cluster import _serialize_bcs_cluster
 from kernel_api.rpc.functions.admin.cluster_info import (
     _build_es_cluster_overview,
     _build_es_analysis_storage_index,
+    _build_es_analysis_storage_queryset,
     _parse_es_analysis_index_base,
     _parse_es_analysis_owner,
     _serialize_es_analysis_index_row,
     _serialize_cluster_info,
     _serialize_cluster_space_vm_info,
 )
+from kernel_api.rpc.functions.admin.common import build_response
 from kernel_api.rpc.functions.admin.datasource import _serialize_datasource
 from kernel_api.rpc.functions.admin import datalink as admin_datalink
 from kernel_api.rpc.functions.admin.datalink import (
@@ -335,6 +339,109 @@ def test_collect_config_summary_keeps_version_and_subscription_context(monkeypat
     assert deployment_detail["config_id"] == 202
     assert deployment_detail["params"]["collector"]["period"] == 60
     assert deployment_detail["plugin_info"]["config_version"] == 1
+
+
+def test_collect_config_summary_uses_injected_plugin_context(monkeypatch):
+    plugin = CollectorPluginMeta(
+        bk_tenant_id="system",
+        plugin_id="bkprocessbeat",
+        plugin_type=PluginType.PROCESS,
+        bk_biz_id=0,
+        label="host_process",
+    )
+    current_config_definition = CollectorPluginConfig(collector_json={}, config_json=[], is_support_remote=False)
+    latest_config_definition = CollectorPluginConfig(collector_json={}, config_json=[], is_support_remote=False)
+    current_info = CollectorPluginInfo(plugin_display_name="进程采集", metric_json=[])
+    latest_info = CollectorPluginInfo(plugin_display_name="进程采集", metric_json=[])
+    current_version = PluginVersionHistory(
+        bk_tenant_id="system",
+        plugin_id="bkprocessbeat",
+        stage=PluginVersionHistory.Stage.RELEASE,
+        config=current_config_definition,
+        info=current_info,
+        config_version=1,
+        info_version=1,
+        is_packaged=True,
+    )
+    latest_version = PluginVersionHistory(
+        bk_tenant_id="system",
+        plugin_id="bkprocessbeat",
+        stage=PluginVersionHistory.Stage.RELEASE,
+        config=latest_config_definition,
+        info=latest_info,
+        config_version=2,
+        info_version=1,
+        is_packaged=True,
+    )
+    deployment = DeploymentConfigVersion(
+        plugin_version=current_version,
+        subscription_id=82002,
+        target_node_type="INSTANCE",
+        params={"collector": {"period": 60}},
+        target_nodes=[{"ip": "127.0.0.1", "bk_cloud_id": 0}],
+    )
+    collect_config = CollectConfigMeta(
+        id=203,
+        bk_tenant_id="system",
+        bk_biz_id=2,
+        name="业务进程存活",
+        collect_type=PluginType.PROCESS,
+        plugin_id="bkprocessbeat",
+        target_object_type="HOST",
+        deployment_config=deployment,
+        cache_data={"error_instance_count": 0, "total_instance_count": 3},
+        last_operation="START",
+        operation_result="SUCCESS",
+        label="host_process",
+    )
+
+    monkeypatch.setattr(
+        admin_collect_config,
+        "_get_plugin_for_config",
+        Mock(side_effect=AssertionError("plugin should be provided by page context")),
+    )
+    monkeypatch.setattr(
+        admin_collect_config,
+        "_latest_plugin_version",
+        Mock(side_effect=AssertionError("latest version should be provided by page context")),
+    )
+
+    summary = admin_collect_config._serialize_collect_config_summary(
+        collect_config,
+        plugin=plugin,
+        latest_version=latest_version,
+        upgrade_version=latest_version,
+    )
+
+    assert summary["latest_config_version"] == 2
+    assert summary["latest_info_version"] == 1
+    assert summary["need_upgrade"] is True
+
+
+def test_admin_rpc_response_keeps_collect_config_detail_json_safe():
+    result = build_response(
+        operation="collect_config.detail",
+        func_name=admin_collect_config.FUNC_COLLECT_CONFIG_DETAIL,
+        bk_tenant_id="system",
+        data={
+            "config": {
+                "label_info": gettext_lazy("其他"),
+                "params": {"raw": b"log keyword"},
+            }
+        },
+    )
+
+    serializer = KernelRPCResource.ResponseSerializer(
+        data={
+            "func_name": admin_collect_config.FUNC_COLLECT_CONFIG_DETAIL,
+            "protocol": "call",
+            "result": result,
+        }
+    )
+
+    serializer.is_valid(raise_exception=True)
+    assert result["data"]["config"]["label_info"] == "其他"
+    assert result["data"]["config"]["params"]["raw"] == "log keyword"
 
 
 def test_config_delivery_ping_server_serializer_marks_disabled_flags(monkeypatch):
@@ -2266,6 +2373,71 @@ def _fake_es_analysis_storage(table_id):
     )
 
 
+def test_es_analysis_storage_queryset_includes_historical_cluster_records(monkeypatch):
+    class FakeValuesList:
+        distinct_called = False
+
+        def distinct(self):
+            self.distinct_called = True
+            return self
+
+    class FakeRecordQuerySet:
+        def __init__(self, values_list):
+            self.values_list_result = values_list
+            self.values_list_args = None
+            self.values_list_kwargs = None
+
+        def values_list(self, *args, **kwargs):
+            self.values_list_args = args
+            self.values_list_kwargs = kwargs
+            return self.values_list_result
+
+    class FakeEsQuerySet:
+        def __init__(self):
+            self.filter_calls = []
+            self.ordering = None
+
+        def filter(self, *args, **kwargs):
+            self.filter_calls.append((args, kwargs))
+            return self
+
+        def order_by(self, *fields):
+            self.ordering = fields
+            return self
+
+    record_filter_calls = []
+    values_list = FakeValuesList()
+    record_queryset = FakeRecordQuerySet(values_list)
+    es_filter_calls = []
+    es_queryset = FakeEsQuerySet()
+
+    monkeypatch.setattr(
+        admin_cluster_info.models.StorageClusterRecord.objects,
+        "filter",
+        lambda **kwargs: record_filter_calls.append(kwargs) or record_queryset,
+    )
+    monkeypatch.setattr(
+        admin_cluster_info.models.ESStorage.objects,
+        "filter",
+        lambda *args, **kwargs: es_filter_calls.append((args, kwargs)) or es_queryset,
+    )
+
+    queryset = _build_es_analysis_storage_queryset("system", 9)
+
+    assert queryset is es_queryset
+    assert record_filter_calls == [{"bk_tenant_id": "system", "cluster_id": 9, "is_deleted": False}]
+    assert record_queryset.values_list_args == ("table_id",)
+    assert record_queryset.values_list_kwargs == {"flat": True}
+    assert values_list.distinct_called is True
+    assert es_filter_calls == [((), {"bk_tenant_id": "system"})]
+    assert len(es_queryset.filter_calls) == 2
+    history_query = es_queryset.filter_calls[1][0][0]
+    assert history_query.connector == "OR"
+    assert ("storage_cluster_id", 9) in history_query.children
+    assert ("table_id__in", values_list) in history_query.children
+    assert es_queryset.ordering == ("table_id",)
+
+
 def test_es_analysis_index_base_parses_v1_and_v2_physical_index_names():
     assert _parse_es_analysis_index_base("v2_2_bklog_demo_2026060612_0") == "2_bklog_demo"
     assert _parse_es_analysis_index_base("2_bklog_demo_2026060612_0") == "2_bklog_demo"
@@ -2848,7 +3020,7 @@ def test_admin_token_resolve_hits_apm_application(monkeypatch):
     assert result["data"]["matched"] is True
     assert result["data"]["kind"] == "apm"
     assert result["data"]["apm_application"]["application_id"] == 1
-    assert result["data"]["apm_application"]["app_token"] == "bkapm_1_a1b2c3d4e5f6"
+    assert result["data"]["apm_application"]["apm_token"] == "bkapm_1_a1b2c3d4e5f6"
     assert result["data"]["custom_report"] is None
 
 

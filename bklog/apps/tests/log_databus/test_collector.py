@@ -22,6 +22,7 @@ the project delivered to anyone in the future.
 import copy
 from unittest.mock import patch
 
+from django.conf import settings
 from django.test import TestCase, override_settings
 
 from apps.log_databus.constants import LogPluginInfo, TargetNodeTypeEnum, WorkLoadType
@@ -29,6 +30,7 @@ from apps.log_databus.exceptions import CollectorConfigNotExistException
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector import HostCollectorHandler
 from apps.log_databus.handlers.collector import K8sCollectorHandler
+from apps.log_databus.models import CollectorConfig, DataLinkConfig
 from apps.log_search.models import Space
 from bkm_space.define import SpaceTypeEnum
 
@@ -1472,6 +1474,46 @@ class TestCollector(TestCase):
             params={"bk_biz_id": params["bk_biz_id"], "collector_config_name_en": "1"}
         )
         self.assertEqual(result["allowed"], True)
+
+    @patch(
+        "apps.api.TransferApi.get_data_id",
+        get_data_id,
+    )
+    @patch(
+        "apps.api.TransferApi.get_result_table",
+        lambda x: {"result_table_id": TABLE_ID} if x["table_id"] == TABLE_ID else {},
+    )
+    @patch("apps.api.TransferApi.create_data_id", lambda _: {"bk_data_id": BK_DATA_ID})
+    @patch("apps.api.TransferApi.create_result_table", lambda _: {"table_id": TABLE_ID})
+    @patch("apps.api.NodeApi.create_subscription", lambda _: {"subscription_id": SUBSCRIPTION_ID})
+    @patch("apps.api.NodeApi.subscription_statistic", subscription_statistic)
+    @patch("apps.api.NodeApi.run_subscription_task", lambda _: {"task_id": TASK_ID})
+    @patch("apps.api.NodeApi.switch_subscription", lambda _: {})
+    @patch("apps.api.NodeApi.check_subscription_task_ready", lambda _: True)
+    @patch("apps.api.TransferApi.modify_data_id", lambda _: {"bk_data_id": BK_DATA_ID})
+    @patch("apps.api.CCApi.search_module", CCModuleTest())
+    @patch("apps.api.CCApi.list_biz_hosts", CCBizHostsTest())
+    @patch("apps.decorators.user_operation_record.delay", return_value=None)
+    @patch("apps.log_databus.tasks.bkdata.async_create_bkdata_data_id.delay", return_value=None)
+    @override_settings(CACHES={"default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}})
+    def test_only_create_resolves_default_data_link(self, *args, **kwargs):
+        data_link = DataLinkConfig.objects.create(
+            link_group_name="public link",
+            bk_biz_id=0,
+            bk_tenant_id=settings.BK_APP_TENANT_ID,
+            kafka_cluster_id=162858,
+            transfer_cluster_id="bkte-bklog-gz-1",
+            es_cluster_ids=[3],
+            is_active=True,
+        )
+        params = custom_params_valid(serializer=CollectorCreateSerializer, params=copy.deepcopy(PARAMS))
+        params["params"]["conditions"]["type"] = "separator"
+        params["data_link_id"] = 0
+
+        result = HostCollectorHandler().only_create_or_update_model(params)
+
+        collector = CollectorConfig.objects.get(collector_config_id=result["collector_config_id"])
+        self.assertEqual(collector.data_link_id, data_link.data_link_id)
 
     @patch("apps.api.BcsApi.list_cluster_by_project_id", lambda _, bk_tenant_id: PROJECT_CLUSTER_LIST)
     @patch("apps.api.BcsApi.list_project", lambda _: PROJECTS)

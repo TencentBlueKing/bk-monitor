@@ -137,6 +137,10 @@
     initJumpRouteList(setItem?.scenario_id);
   };
 
+  const openRouteWindow = href => {
+    window.open(href, '_blank', 'noopener');
+  };
+
   const handleMenuClick = val => {
     // 不属于新开页面的操作
     if (['index', 'extract', 'clustering'].includes(val)) {
@@ -149,10 +153,10 @@
     const isCustom = currentKey === 'custom';
     const isIndexGroupType = currentKey === 'indexGroup';
 
-    const routeName =
-      val === 'logMasking'
-        ? maskingConfigRoute.value[maskingRouteKey.value]
-        : routeNameList.value[currentKey];
+    let routeName = routeNameList.value[currentKey];
+    if (val === 'logMasking') {
+      routeName = maskingConfigRoute.value[maskingRouteKey.value];
+    }
 
     const params = {};
     const query = {
@@ -177,9 +181,10 @@
       query.type = 'masking';
     }
 
+
     const { href } = router.resolve({ name: routeName, params, query });
     refTrigger.value?.click?.();
-    window.open(href, '_blank');
+    openRouteWindow(href);
   };
 
   const handlePopShow = val => {

@@ -60,11 +60,12 @@ class RecordRule(BaseModelWithTime):
     @classmethod
     def transform_bk_sql_and_metrics(cls, rule_config: str) -> dict[str, Any]:
         """转换原始规则配置到计算平台语句"""
-        rule_dict = yaml.safe_load(rule_config)
+        rule_dict = yaml.safe_load(rule_config) or {}
         rules = rule_dict.get("rules", [])
         # 如果规则为空，则直接返回
         if not rules:
             return {}
+        src_vm_table_ids = cls.extract_src_vm_table_ids(rule_dict)
         # 获取所有的record
         all_rule_record = [rule["record"] for rule in rules]
         # 如果没有设置interval，则使用默认值
@@ -94,7 +95,38 @@ class RecordRule(BaseModelWithTime):
                 sql["label"] = label
             bksql_list.append(sql)
             metrics.update(sql_and_metrics["metrics"])
-        return {"bksql": bksql_list, "metrics": metrics, "rule_metrics": rule_metrics}
+        result = {"bksql": bksql_list, "metrics": metrics, "rule_metrics": rule_metrics}
+        if src_vm_table_ids:
+            result["src_vm_table_ids"] = src_vm_table_ids
+        return result
+
+    @classmethod
+    def extract_src_vm_table_ids(cls, rule_dict: dict[str, Any]) -> list[str]:
+        """从规则配置中提取显式源 VMRT，未配置时返回空列表。"""
+
+        configured = rule_dict.get("src_vm_table_ids")
+        source = rule_dict.get("source") or {}
+        if configured in (None, ""):
+            if isinstance(source, dict):
+                configured = source.get("vm_result_table_ids") or source.get("src_vm_table_ids")
+            else:
+                configured = source
+
+        if configured in (None, ""):
+            return []
+        if isinstance(configured, str):
+            configured = [configured]
+        if not isinstance(configured, list):
+            raise ValueError("src_vm_table_ids must be list")
+
+        result = []
+        for table_id in configured:
+            table_id = str(table_id).strip()
+            if table_id and table_id not in result:
+                result.append(table_id)
+        if not result:
+            raise ValueError("src_vm_table_ids must not be empty")
+        return result
 
     @classmethod
     def get_src_table_ids(cls, space_type: str, space_id: str, metrics: list | set) -> list:

@@ -12,6 +12,121 @@
     </script>
   </head>
   <body>
+    <style>
+      .bklog-bootstrap-loading {
+        position: fixed;
+        inset: 0;
+        z-index: 999999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 1280px;
+        background: #f5f7fa;
+        color: #63656e;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+        opacity: 1;
+        transition: opacity 360ms ease, transform 360ms ease;
+        will-change: opacity, transform;
+      }
+      .bklog-bootstrap-loading.is-leaving {
+        pointer-events: none;
+        opacity: 0;
+        transform: scale(0.985);
+      }
+      .bklog-bootstrap-loading__card {
+        width: 360px;
+        padding: 28px 32px;
+        text-align: center;
+        background: #fff;
+        border: 1px solid #dcdee5;
+        border-radius: 4px;
+        box-shadow: 0 2px 8px 0 rgba(25, 25, 41, 0.08);
+        animation: bklog-bootstrap-loading-card-in 320ms ease both;
+      }
+      .bklog-bootstrap-loading__spinner {
+        width: 28px;
+        height: 28px;
+        margin: 0 auto 16px;
+        border: 3px solid #e1ecff;
+        border-top-color: #3a84ff;
+        border-radius: 50%;
+        animation: bklog-bootstrap-loading-spin 0.9s linear infinite;
+      }
+      .bklog-bootstrap-loading__title {
+        margin-bottom: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #313238;
+      }
+      .bklog-bootstrap-loading__desc {
+        position: relative;
+        height: 20px;
+        overflow: hidden;
+        font-size: 12px;
+        line-height: 20px;
+        color: #979ba5;
+      }
+      .bklog-bootstrap-loading__desc-item {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        transform: translateY(6px);
+        animation: bklog-bootstrap-loading-text-switch 9s ease-in-out infinite;
+      }
+      .bklog-bootstrap-loading__desc-item:nth-child(2) {
+        animation-delay: 3s;
+      }
+      .bklog-bootstrap-loading__desc-item:nth-child(3) {
+        animation-delay: 6s;
+      }
+      .bklog-bootstrap-app-enter {
+        animation: bklog-bootstrap-app-in 260ms ease both;
+      }
+      @keyframes bklog-bootstrap-loading-spin {
+        to { transform: rotate(360deg); }
+      }
+      @keyframes bklog-bootstrap-loading-card-in {
+        from { opacity: 0; transform: translateY(8px) scale(0.98); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      @keyframes bklog-bootstrap-loading-text-switch {
+        0%, 8% { opacity: 0; transform: translateY(6px); }
+        14%, 30% { opacity: 1; transform: translateY(0); }
+        38%, 100% { opacity: 0; transform: translateY(-6px); }
+      }
+      @keyframes bklog-bootstrap-app-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .bklog-bootstrap-loading,
+        .bklog-bootstrap-loading__card,
+        .bklog-bootstrap-loading__desc-item,
+        .bklog-bootstrap-app-enter {
+          animation: none;
+          transition: none;
+        }
+        .bklog-bootstrap-loading__desc-item:first-child {
+          opacity: 1;
+          transform: none;
+        }
+      }
+    </style>
+    <div
+      class="bklog-bootstrap-loading"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="bklog-bootstrap-loading__card">
+        <div class="bklog-bootstrap-loading__spinner"></div>
+        <div class="bklog-bootstrap-loading__title">日志平台加载中</div>
+        <div class="bklog-bootstrap-loading__desc">
+          <span class="bklog-bootstrap-loading__desc-item">正在初始化应用资源，请稍候...</span>
+          <span class="bklog-bootstrap-loading__desc-item">正在加载页面组件和运行时配置...</span>
+          <span class="bklog-bootstrap-loading__desc-item">正在准备日志检索上下文...</span>
+        </div>
+      </div>
+    </div>
     <div id="app"></div>
   </body>
 </html>

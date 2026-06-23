@@ -15,19 +15,19 @@
 
       &.is-show {
         top: 0;
-        transform: translateX(-8px);
         height: calc(100vh - var(--offset-search-bar) - var(--header-height) - 100px);
+        transform: translateX(-8px);
       }
 
       &.is-close {
         top: var(--offset-search-bar);
-        transform: translateX(-8px);
         z-index: 4;
         flex: 0 0 24px;
         width: 24px;
         height: 32px;
         margin-right: -24px;
         overflow: hidden;
+        transform: translateX(-8px);
       }
     }
 
@@ -39,6 +39,106 @@
 
     .search-result-content {
       position: relative;
+
+      @keyframes bklog-skeleton-shimmer {
+        100% {
+          transform: translateX(100%);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .trend-chart-reserved,
+        .trend-chart-skeleton-title-line,
+        .trend-chart-skeleton-meta-line,
+        .trend-chart-skeleton-bar {
+          transition: none;
+
+          &::after {
+            animation: none;
+          }
+        }
+      }
+
+      .trend-chart-reserved {
+        position: relative;
+        width: 100%;
+        overflow: hidden;
+        background: #fff;
+        transition: height .2s ease;
+
+        &.is-fold {
+          height: 40px;
+        }
+
+        &.is-loading {
+          padding-left: 16px;
+        }
+      }
+
+      .trend-chart-skeleton {
+        height: 100%;
+        padding: 0 16px 10px 0;
+        color: #c4c6cc;
+        background: #fff;
+      }
+
+      .trend-chart-skeleton-title {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        height: 36px;
+      }
+
+      .trend-chart-skeleton-caret {
+        width: 0;
+        height: 0;
+        border-top: 4px solid transparent;
+        border-bottom: 4px solid transparent;
+        border-left: 5px solid #c4c6cc;
+        transform: rotate(90deg);
+      }
+
+      .trend-chart-skeleton-title-line,
+      .trend-chart-skeleton-meta-line,
+      .trend-chart-skeleton-bar {
+        position: relative;
+        overflow: hidden;
+        background: #f0f1f5;
+        border-radius: 2px;
+
+        &::after {
+          position: absolute;
+          inset: 0;
+          content: '';
+          background: linear-gradient(90deg, transparent, rgb(255 255 255 / 75%), transparent);
+          transform: translateX(-100%);
+          animation: bklog-skeleton-shimmer 1.4s infinite;
+        }
+      }
+
+      .trend-chart-skeleton-title-line {
+        width: 120px;
+        height: 16px;
+      }
+
+      .trend-chart-skeleton-meta-line {
+        width: 220px;
+        height: 14px;
+      }
+
+      .trend-chart-skeleton-body {
+        display: flex;
+        gap: 8px;
+        align-items: flex-end;
+        height: calc(100% - 42px);
+        padding: 8px 12px 0 6px;
+      }
+
+      .trend-chart-skeleton-bar {
+        flex: 1;
+        min-width: 8px;
+        max-height: 96px;
+      }
 
       .monitor-echarts-container {
         padding-left: 16px;

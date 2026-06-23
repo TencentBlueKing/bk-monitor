@@ -315,7 +315,8 @@
       position: relative;
 
       &:hover,
-      &.ai-active {
+      &.ai-active,
+      &.is-hover-operator-active {
         background-color: #F5F7FA;
 
         .bklog-row-ai {

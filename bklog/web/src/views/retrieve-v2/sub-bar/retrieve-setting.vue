@@ -114,6 +114,10 @@
     initJumpRouteList(setItem?.scenario_id);
   };
 
+  const openRouteWindow = href => {
+    window.open(href, '_blank', 'noopener');
+  };
+
   const handleMenuClick = val => {
     // 不属于新开页面的操作
     if (['index', 'extract', 'clustering'].includes(val)) {
@@ -125,10 +129,10 @@
       collectorId: indexSetItem.value?.collector_config_id,
     };
     // 判断当前是否是脱敏配置 分别跳不同的路由
-    const routeName =
-      val === 'logMasking'
-        ? maskingConfigRoute.value[maskingRouteKey.value]
-        : routeNameList.value[detailJumpRouteKey.value];
+    let routeName = routeNameList.value[detailJumpRouteKey.value];
+    if (val === 'logMasking') {
+      routeName = maskingConfigRoute.value[maskingRouteKey.value];
+    }
     // 不同的路由跳转 传参不同
     const { href } = router.resolve({
       name: routeName,
@@ -139,7 +143,7 @@
       },
     });
     refTrigger.value?.click?.();
-    window.open(href, '_blank');
+    openRouteWindow(href);
   };
 
   const handlePopShow = val => {

@@ -121,14 +121,13 @@ export default defineComponent({
       if (!get(canLinkTok8s)) return;
       const url = commOpenUrl('#/k8s-new/', get(bizId));
       const [startTime, endTime] = handleTransformToTimestampMs(get(timeRange) as DateValue);
-      // @ts-expect-error
       const {
         bcs_cluster_id: cluster,
         scenario_list,
         resource_type,
         display_name,
         ...target
-      } = get(currentTarget) ?? {};
+      } = (get(currentTarget) ?? {}) as any;
 
       const groupByList = resolveGroupByList(get(groupBy));
       const searchParams = new URLSearchParams({

@@ -1458,6 +1458,90 @@ class DataLink(models.Model):
         ]
         return configs
 
+    def _compose_time_series_field_whitelist(self, table_id: str) -> dict[Literal["metrics", "tags"], list[str]] | None:
+        """组装采集插件时序结果表的指标/维度白名单。
+
+        仅当结果表显式关闭字段黑名单（``enable_field_black_list == "false"`` 即启用白名单模式）时
+        才返回白名单，否则返回 ``None`` 表示不下发白名单。
+
+        白名单来源说明：
+            - ``metrics``：取 ``ResultTableField`` 中的指标字段，并叠加 ``TimeSeriesMetric`` 中的活跃指标。
+              在 ``TimeSeriesMetric`` 中已不活跃 / 被禁用的指标不会放行；未被 ``TimeSeriesMetric``
+              记录的 RT 指标维持原行为（仍放行）。
+            - ``tags``：取 ``ResultTableField`` 中的维度字段，并用活跃指标的 ``tag_list`` 补全。
+              因为 ``TimeSeriesGroup`` 通过 ``field_list`` 创建指标时，维度只记录在
+              ``TimeSeriesMetric.tag_list`` 中，并不会同步写入 ``ResultTableField``，仅依赖 RT 会丢维度。
+
+        Args:
+            table_id: 监控侧结果表 ID。
+
+        Returns:
+            白名单字典 ``{"metrics": [...], "tags": [...]}``；非白名单模式时返回 ``None``。
+        """
+        from metadata.models import ResultTableField, ResultTableOption, TimeSeriesGroup, TimeSeriesMetric
+
+        option = ResultTableOption.objects.filter(
+            table_id=table_id, bk_tenant_id=self.bk_tenant_id, name=ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST
+        ).first()
+        if not (option and option.value == "false"):
+            return None
+
+        # 先汇总 TimeSeriesMetric 的活跃状态与维度信息。
+        # 注意：TimeSeriesGroup 是软删除模型，需过滤 is_delete=False，避免拿到历史软删记录把
+        # 已退场 group 的指标/维度误带入（同一 table_id 不会存在多个活跃 group，取一条即可）。
+        active_metric_names: set[str] = set()
+        inactive_metric_names: set[str] = set()
+        active_metric_tags: set[str] = set()
+        ts_group = TimeSeriesGroup.objects.filter(
+            table_id=table_id, bk_tenant_id=self.bk_tenant_id, is_delete=False
+        ).first()
+        if ts_group:
+            ts_metrics = TimeSeriesMetric.objects.filter(group_id=ts_group.time_series_group_id).values_list(
+                "field_name", "is_active", "scope_id", "tag_list"
+            )
+            for field_name, is_active, scope_id, tag_list in ts_metrics:
+                # 活跃指标：is_active=True 且未落在被手动禁用的分组（scope_id=DISABLE_SCOPE_ID）。
+                if is_active and scope_id != TimeSeriesMetric.DISABLE_SCOPE_ID:
+                    active_metric_names.add(field_name)
+                    active_metric_tags.update(tag_list or [])
+                else:
+                    inactive_metric_names.add(field_name)
+            # 同名指标可能同时存在活跃与不活跃记录（多分组），只要任一分组活跃即视为活跃。
+            inactive_metric_names -= active_metric_names
+
+        result_table_fields = ResultTableField.objects.filter(
+            table_id=table_id, bk_tenant_id=self.bk_tenant_id, is_disabled=False
+        )
+        metrics, tags = [], []
+        # 去重集合：保证幂等且保留列表的稳定追加顺序。
+        metric_set: set[str] = set()
+        tag_set: set[str] = set()
+        for field in result_table_fields:
+            if field.tag == ResultTableField.FIELD_TAG_METRIC:
+                # 在 TimeSeriesMetric 中明确为不活跃/禁用的指标不放行到白名单。
+                # 未被 TimeSeriesMetric 记录的指标维持原行为（仍然放行）。
+                if field.field_name in inactive_metric_names:
+                    continue
+                if field.field_name not in metric_set:
+                    metric_set.add(field.field_name)
+                    metrics.append(field.field_name)
+            elif field.tag == ResultTableField.FIELD_TAG_DIMENSION:
+                if field.field_name not in tag_set:
+                    tag_set.add(field.field_name)
+                    tags.append(field.field_name)
+
+        # 直接补全 TimeSeriesMetric 中的活跃指标及其维度（排序保证输出稳定）。
+        for metric in sorted(active_metric_names):
+            if metric not in metric_set:
+                metric_set.add(metric)
+                metrics.append(metric)
+        for tag in sorted(active_metric_tags):
+            if tag not in tag_set:
+                tag_set.add(tag)
+                tags.append(tag)
+
+        return {"metrics": metrics, "tags": tags}
+
     def compose_bk_plugin_time_series_config(
         self,
         bk_biz_id: int,
@@ -1477,27 +1561,11 @@ class DataLink(models.Model):
         注意：``vm_cluster_name`` 放在 defaults 中，允许复用既有 binding 时同步更新 VM 集群名称；
         ``DataBusConfig`` 仍按 ``data_id_name`` 作为稳定查询条件命中既有记录。
         """
-        from metadata.models import ResultTableField, ResultTableOption
-
         bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name, self.data_link_strategy)
         bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
 
         # 白名单配置
-        whitelist: dict[Literal["metrics", "tags"], list[str]] | None = None
-        option = ResultTableOption.objects.filter(
-            table_id=table_id, bk_tenant_id=self.bk_tenant_id, name=ResultTableOption.OPTION_ENABLE_FIELD_BLACK_LIST
-        ).first()
-        if option and option.value == "false":
-            result_table_fields = ResultTableField.objects.filter(
-                table_id=table_id, bk_tenant_id=self.bk_tenant_id, is_disabled=False
-            )
-            metrics, tags = [], []
-            for field in result_table_fields:
-                if field.tag == ResultTableField.FIELD_TAG_METRIC:
-                    metrics.append(field.field_name)
-                elif field.tag == ResultTableField.FIELD_TAG_DIMENSION:
-                    tags.append(field.field_name)
-            whitelist = {"metrics": metrics, "tags": tags}
+        whitelist = self._compose_time_series_field_whitelist(table_id)
 
         # 解析 compose 所需的 name：优先复用既有组件的 name（若同 kind 恰好只有
         # 一条可 claim），否则回退到新生成的 bkbase_vmrt_name 作为新建名称。

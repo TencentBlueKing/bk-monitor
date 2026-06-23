@@ -42,6 +42,40 @@ rules:
     assert mocker_data["promql"] == data["bksql"][0]["sql"]
 
 
+def test_transform_bk_sql_and_metrics_with_fixed_vmrt_source(mocker):
+    rule_config = """
+---
+interval: 5m
+name: skill_rating_service_metrics_v2
+source:
+  vm_result_table_ids:
+    - 100147_vm_5016678_bkmonitor_time_series_560447
+    - 100147_bkm_5016678_bkmonitor_time_series_580733
+    - 100147_vm_5016678_bkmonitor_time_series_560447
+rules:
+- expr: |
+    round(sum(increase(rpc_server_metric_count{callee_name=~".*skill_rating"}[5m])))
+  record: service:error_count_v2:sum
+    """  # noqa
+    mocker_data = {
+        "promql": 'round(sum(increase(rpc_server_metric_count{callee_name=~".*skill_rating"}[5m])))',
+        "metrics": {"rpc_server_metric_count"},
+    }
+    mocker.patch("metadata.models.record_rule.rules.utils.refine_bk_sql_and_metrics", return_value=mocker_data)
+    mocker.patch(
+        "metadata.models.record_rule.rules.utils.transform_record_to_metric_name",
+        return_value="service_error_count_v2_sum",
+    )
+
+    data = RecordRule.transform_bk_sql_and_metrics(rule_config)
+
+    assert data["src_vm_table_ids"] == [
+        "100147_vm_5016678_bkmonitor_time_series_560447",
+        "100147_bkm_5016678_bkmonitor_time_series_580733",
+    ]
+    assert data["metrics"] == {"rpc_server_metric_count"}
+
+
 def test_get_src_table_ids(create_and_delete_record, mocker):
     mocker.patch("metadata.models.record_rule.rules.get_space_table_id_data_id", return_value={TABLE_ID: 1})
     vm_rts = RecordRule.get_src_table_ids(space_type=SPACE_TYPE, space_id=SPACE_ID, metrics=[TABLE_FIELD_NAME])
