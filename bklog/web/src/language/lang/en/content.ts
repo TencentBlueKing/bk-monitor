@@ -730,6 +730,7 @@ export default {
   给全员: 'To all',
   按发送频率: 'By sending frequency',
   '近{n}天': 'Last {n} days',
+  '最近{n}月': 'Last {n} months',
   '{0}小时': '{0} hours',
   条: 'item',
   '{0}小时前': '{0} hours ago',
@@ -1365,4 +1366,6 @@ export default {
   '点击添加到 {0}': 'Click to add to {0}',
   当前索引集: 'Current index set',
   已选采集项不能为空: 'Selected collection items cannot be empty',
+  查看下载历史: 'View download history',
+  下载成功: 'Download successful',
 };

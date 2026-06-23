@@ -48,6 +48,8 @@ export default {
   昨天: 'Yesterday',
   前天: 'The day before yesterday',
   本周: 'This week',
+  本月: 'This month',
+  上月: 'Last month',
   展开: 'Expand',
   收起: 'Collapse',
   业务: 'Business',
