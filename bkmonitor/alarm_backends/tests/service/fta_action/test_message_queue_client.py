@@ -130,3 +130,25 @@ class KafkaClientSendTest(SimpleTestCase):
             with patch(PRODUCER_PATH, side_effect=factory):
                 KafKaClient(dsn).send("hello")
             self.assertEqual(flush_calls[-1], expected, f"value={value!r}")
+
+    def test_respects_delivery_timeout_alias(self):
+        # delivery.timeout.ms 是 message.timeout.ms 的 librdkafka 别名：
+        # 调用方用别名指定时，不应再注入 message.timeout.ms 默认值（会冲突/静默覆盖），
+        # 且 flush 应按别名的生效值推导
+        seen_conf = {}
+        flush_calls = []
+
+        def factory(conf):
+            seen_conf.clear()
+            seen_conf.update(conf)
+            producer = MagicMock()
+            producer.produce.side_effect = lambda topic, value, on_delivery=None: None
+            producer.flush.side_effect = lambda timeout=None: (flush_calls.append(timeout), 0)[1]
+            return producer
+
+        dsn = {"bootstrap.servers": "localhost:9092", "topic": "t", "delivery.timeout.ms": 10000}
+        with patch(PRODUCER_PATH, side_effect=factory):
+            KafKaClient(dsn).send("hello")
+        self.assertNotIn("message.timeout.ms", seen_conf)  # 未注入默认值，避免与别名冲突
+        self.assertEqual(seen_conf.get("delivery.timeout.ms"), 10000)  # 保留调用方设置
+        self.assertEqual(flush_calls[-1], 11)  # flush 按别名值 10000 推导(+1s)

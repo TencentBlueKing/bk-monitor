@@ -29,6 +29,11 @@ class KafKaClient:
     KafKa客户端
     """
 
+    # message.timeout.ms 与其 librdkafka 别名 delivery.timeout.ms 等价（同一投递时限）。
+    # 仅当二者都未显式配置时才注入默认值，否则会额外注入冲突值、静默覆盖调用方的设置。
+    DELIVERY_TIMEOUT_KEYS = ("message.timeout.ms", "delivery.timeout.ms")
+    DEFAULT_DELIVERY_TIMEOUT_MS = 3000
+
     def __init__(self, conf: Any):
         """
         支持两种输入：
@@ -60,18 +65,23 @@ class KafKaClient:
 
         # 限定单条消息的投递时限，避免 broker 不可达时阻塞到 librdkafka
         # 默认的 message.timeout.ms(=5min)，从而拖垮 fta_action 执行队列。
-        # 调用方已在配置中显式指定时，尊重其取值。
-        producer_conf.setdefault("message.timeout.ms", 3000)
-        # flush 的等待窗口由最终生效的 message.timeout.ms 推导（再加 1s 余量等待投递回调），
-        # 而不是写死常量：否则当调用方把 message.timeout.ms 调大时，flush 会早于投递时限返回，
-        # 把本可在时限内成功的投递误判为失败。
-        # message.timeout.ms 是毫秒整数（librdkafka 也接受 int/str/float 配置形式，统一转为字符串），
-        # 这里兼容这几种形式；0 在 librdkafka 语义里是“无限”，与有界发送矛盾，退回默认值。
+        # 调用方通过 message.timeout.ms 或其别名 delivery.timeout.ms 显式指定时，尊重其取值，
+        # 不再额外注入默认值（否则会与别名冲突、静默覆盖调用方的投递时限）。
+        configured = [producer_conf[k] for k in self.DELIVERY_TIMEOUT_KEYS if k in producer_conf]
+        if configured:
+            raw_timeout = configured[-1]
+        else:
+            producer_conf["message.timeout.ms"] = self.DEFAULT_DELIVERY_TIMEOUT_MS
+            raw_timeout = self.DEFAULT_DELIVERY_TIMEOUT_MS
+        # flush 的等待窗口由生效的投递时限推导（再加 1s 余量等待投递回调），而不是写死常量：
+        # 否则当调用方调大投递时限时，flush 会早于其返回，把本可在时限内成功的投递误判为失败。
+        # 兼容 int/str/float 配置形式（librdkafka 统一转为字符串）；
+        # 0 在 librdkafka 语义里是“无限”，与有界发送矛盾，退回默认值。
         try:
-            timeout_ms = int(float(producer_conf["message.timeout.ms"]))
+            timeout_ms = int(float(raw_timeout))
         except (TypeError, ValueError):
-            timeout_ms = 3000
-        self.flush_timeout = (timeout_ms or 3000) / 1000 + 1
+            timeout_ms = self.DEFAULT_DELIVERY_TIMEOUT_MS
+        self.flush_timeout = (timeout_ms or self.DEFAULT_DELIVERY_TIMEOUT_MS) / 1000 + 1
         self.client = Producer(producer_conf)
 
     def send(self, message: str):
