@@ -37,11 +37,9 @@ from apps.api import (
     BkDataMetaApi,
     TransferApi,
 )
-from apps.api.base import DataApiRetryClass, check_result_is_true
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
     DEFAULT_NEW_CLS_HOURS,
-    MAX_FAILED_REQUEST_RETRY,
     NOT_NEED_EDIT_NODES,
     PatternEnum,
     StorageTypeEnum,
@@ -663,9 +661,6 @@ class DataFlowHandler(BaseAiopsHandler):
         """
         return BkDataDataFlowApi.get_latest_deploy_data(
             params=self._set_bkdata_request_params({"flow_id": flow_id}, bk_biz_id=bk_biz_id),
-            data_api_retry_cls=DataApiRetryClass.create_retry_obj(
-                fail_check_functions=[check_result_is_true], stop_max_attempt_number=MAX_FAILED_REQUEST_RETRY
-            ),
         )
 
     def get_dataflow_info(self, flow_id, bk_biz_id):
@@ -676,9 +671,6 @@ class DataFlowHandler(BaseAiopsHandler):
         """
         return BkDataDataFlowApi.get_dataflow(
             params=self._set_bkdata_request_params({"flow_id": flow_id}, bk_biz_id=bk_biz_id),
-            data_api_retry_cls=DataApiRetryClass.create_retry_obj(
-                fail_check_functions=[check_result_is_true], stop_max_attempt_number=MAX_FAILED_REQUEST_RETRY
-            ),
         )
 
     def get_serving_data_processing_id_config(self, result_table_id, bk_biz_id):
