@@ -554,7 +554,7 @@ class ListApplicationAsyncResource(AsyncColumnsListResource):
             if metric_name == "lcp_p75":
                 metric_value = round(metric_value / 1000, 1)
             elif metric_name in {"js_error_rate", "api_fail_rate"}:
-                metric_value = metric_value * 100
+                metric_value = round(metric_value * 100, 1)
             metric_dict[metric_name] = {
                 "id": metric_name,
                 "value": metric_value,
