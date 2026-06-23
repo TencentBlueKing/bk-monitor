@@ -55,6 +55,10 @@ export default defineComponent({
       type: Array<any>,
       default: () => [],
     },
+    templateSpaceUid: {
+      type: String,
+      default: '',
+    },
   },
   setup(props, { emit, expose }) {
     const { t } = useLocale();
@@ -75,6 +79,7 @@ export default defineComponent({
 
     const isCustomize = computed(() => ruleType.value === 'customize');
     const spaceUid = computed(() => store.state.spaceUid);
+    const templateSpaceUid = computed(() => props.templateSpaceUid || spaceUid.value);
     const currentTemplate = computed(() => {
       if (!templateRuleId.value) {
         return {} as any;
@@ -174,7 +179,7 @@ export default defineComponent({
     const initTemplateList = async () => {
       const res = (await $http.request('logClustering/ruleTemplate', {
         params: {
-          space_uid: spaceUid.value,
+          space_uid: templateSpaceUid.value,
         },
       })) as IResponseData<RuleTemplate[]>;
       templateList.value = res.data.map((item, index) => ({

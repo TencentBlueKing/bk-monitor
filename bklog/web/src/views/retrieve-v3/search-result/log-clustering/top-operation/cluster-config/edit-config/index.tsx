@@ -346,6 +346,7 @@ export default defineComponent({
                 style='margin-bottom: 8px'
                 defaultValue={defaultData.value}
                 ruleList={ruleList.value}
+                templateSpaceUid={indexSetItem.value?.space_uid}
                 on-rule-list-change={handleRuleListChange}
                 on-rule-type-change={rule => {
                   currentRuleType.value = rule;
