@@ -1359,10 +1359,4 @@ export default {
   '根据过滤条件未匹配到索引集，请修改过滤条件': 'No index set matched the filter criteria. Please modify the filter criteria',
   '若仍无结果返回，可点击联系': 'If there are still no results, you can click to contact',
   BK助手: 'BK Assistant',
-  '搜索 采集项': 'Search collection item',
-  可选采集项: 'Optional collection items',
-  已选采集项: 'Selected collection items',
-  '点击添加到 {0}': 'Click to add to {0}',
-  当前索引集: 'Current index set',
-  已选采集项不能为空: 'Selected collection items cannot be empty',
 };
