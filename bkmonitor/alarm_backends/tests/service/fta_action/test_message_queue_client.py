@@ -107,3 +107,26 @@ class KafkaClientSendTest(SimpleTestCase):
         with patch(PRODUCER_PATH, side_effect=factory):
             KafKaClient(dsn).send("hello")
         self.assertEqual(flush_calls[-1], 11)
+
+    def test_flush_timeout_tolerates_config_value_forms(self):
+        # confluent_kafka 接受 int/str/float 形式的配置值；推导需兼容这几种，
+        # 且 message.timeout.ms=0(librdkafka 语义的“无限”)退回默认，避免 flush 退化为 1s
+        flush_calls = []
+
+        def factory(conf):
+            producer = MagicMock()
+            producer.produce.side_effect = lambda topic, value, on_delivery=None: None
+            producer.flush.side_effect = lambda timeout=None: (flush_calls.append(timeout), 0)[1]
+            return producer
+
+        cases = [
+            ("8000", 9),  # 字符串
+            (8000.0, 9),  # 浮点
+            ("8000.0", 9),  # 浮点字符串（int("8000.0") 会抛错，需 int(float()) 兜底）
+            (0, 4),  # 无限 -> 退回默认 3000ms
+        ]
+        for value, expected in cases:
+            dsn = {"bootstrap.servers": "localhost:9092", "topic": "t", "message.timeout.ms": value}
+            with patch(PRODUCER_PATH, side_effect=factory):
+                KafKaClient(dsn).send("hello")
+            self.assertEqual(flush_calls[-1], expected, f"value={value!r}")

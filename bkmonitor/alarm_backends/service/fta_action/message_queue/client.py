@@ -65,7 +65,13 @@ class KafKaClient:
         # flush 的等待窗口由最终生效的 message.timeout.ms 推导（再加 1s 余量等待投递回调），
         # 而不是写死常量：否则当调用方把 message.timeout.ms 调大时，flush 会早于投递时限返回，
         # 把本可在时限内成功的投递误判为失败。
-        self.flush_timeout = int(producer_conf["message.timeout.ms"]) / 1000 + 1
+        # message.timeout.ms 是毫秒整数（librdkafka 也接受 int/str/float 配置形式，统一转为字符串），
+        # 这里兼容这几种形式；0 在 librdkafka 语义里是“无限”，与有界发送矛盾，退回默认值。
+        try:
+            timeout_ms = int(float(producer_conf["message.timeout.ms"]))
+        except (TypeError, ValueError):
+            timeout_ms = 3000
+        self.flush_timeout = (timeout_ms or 3000) / 1000 + 1
         self.client = Producer(producer_conf)
 
     def send(self, message: str):
