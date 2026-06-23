@@ -110,6 +110,97 @@ class TestOnlineTenantFlow(SimpleTestCase):
         self.assertEqual(render_obj["tspider_storage"]["cluster"], "tenant_ts")
         self.assertEqual(result["flow_id"], 91)
 
+    def test_create_predict_flow_raises_when_clustered_route_sync_fails(self):
+        clustering_config = Mock(
+            bk_biz_id=2,
+            index_set_id=30,
+            bkdata_etl_result_table_id="2_bklog_clean",
+            model_id="model_id",
+            clustering_fields="log",
+            save=Mock(),
+        )
+        predict_flow = {
+            "clustering_predict": {"result_table_id": "2_bklog_30_clustering_output"},
+            "format_signature": {"result_table_id": "2_bklog_30_clustered"},
+        }
+
+        with (
+            patch(
+                "apps.log_clustering.handlers.dataflow.dataflow_handler.ClusteringConfig.get_by_index_set_id"
+            ) as get_config,
+            patch(
+                "apps.log_clustering.handlers.dataflow.dataflow_handler.get_online_clustering_config"
+            ) as get_online_config,
+            patch.object(DataFlowHandler, "check_and_start_clean_task"),
+            patch.object(DataFlowHandler, "get_fields_dict", return_value={"log": "log"}),
+            patch.object(DataFlowHandler, "get_latest_released_id", return_value=1),
+            patch.object(DataFlowHandler, "_init_predict_flow", return_value=object()),
+            patch("apps.log_clustering.handlers.dataflow.dataflow_handler.asdict", return_value=predict_flow),
+            patch.object(DataFlowHandler, "_render_template", return_value="[]"),
+            patch.object(DataFlowHandler, "_set_bkdata_request_params", return_value={"project_id": 1001}),
+            patch(
+                "apps.log_clustering.handlers.dataflow.dataflow_handler.BkDataDataFlowApi.create_flow",
+                return_value={"flow_id": 91},
+            ),
+            patch.object(
+                DataFlowHandler,
+                "sync_clustered_route",
+                side_effect=RuntimeError("router sync failed"),
+            ) as sync_route,
+            patch.object(DataFlowHandler, "create_online_task") as create_online_task,
+        ):
+            get_config.return_value = clustering_config
+            get_online_config.return_value = {"project_id": 1001, "bk_username": "tenant_admin"}
+
+            with self.assertRaisesRegex(RuntimeError, "router sync failed"):
+                DataFlowHandler().create_predict_flow(30)
+
+        sync_route.assert_called_once_with(index_set_id=30, raise_exception=True)
+        create_online_task.assert_not_called()
+
+    def test_update_predict_flow_raises_when_clustered_route_sync_fails(self):
+        clustering_config = Mock(
+            bk_biz_id=2,
+            index_set_id=30,
+            bkdata_etl_result_table_id="2_bklog_clean",
+            model_id="model_id",
+            clustering_fields="log",
+            predict_flow_id=91,
+            save=Mock(),
+        )
+        predict_flow = {
+            "clustering_predict": {"result_table_id": "2_bklog_30_clustering_output"},
+            "format_signature": {"result_table_id": "2_bklog_30_clustered"},
+        }
+
+        with (
+            patch(
+                "apps.log_clustering.handlers.dataflow.dataflow_handler.ClusteringConfig.get_by_index_set_id"
+            ) as get_config,
+            patch(
+                "apps.log_clustering.handlers.dataflow.dataflow_handler.get_online_clustering_config"
+            ) as get_online_config,
+            patch.object(DataFlowHandler, "get_fields_dict", return_value={"log": "log"}),
+            patch.object(DataFlowHandler, "get_latest_released_id", return_value=1),
+            patch.object(DataFlowHandler, "get_flow_graph", return_value={"nodes": []}),
+            patch.object(DataFlowHandler, "_init_predict_flow", return_value=object()),
+            patch("apps.log_clustering.handlers.dataflow.dataflow_handler.asdict", return_value=predict_flow),
+            patch.object(DataFlowHandler, "_render_template", return_value="[]"),
+            patch.object(DataFlowHandler, "deal_predict_flow"),
+            patch.object(
+                DataFlowHandler,
+                "sync_clustered_route",
+                side_effect=RuntimeError("router sync failed"),
+            ) as sync_route,
+        ):
+            get_config.return_value = clustering_config
+            get_online_config.return_value = {"project_id": 1001, "bk_username": "tenant_admin"}
+
+            with self.assertRaisesRegex(RuntimeError, "router sync failed"):
+                DataFlowHandler().update_predict_flow(30)
+
+        sync_route.assert_called_once_with(index_set_id=30, raise_exception=True)
+
     @patch("apps.log_clustering.tasks.flow.cache.get", return_value=None)
     @patch("apps.log_clustering.tasks.flow.DataFlowHandler.operator_flow")
     @patch("apps.log_clustering.tasks.flow.ClusteringConfig.get_by_index_set_id")

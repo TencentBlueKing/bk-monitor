@@ -111,7 +111,7 @@ from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import DEFAULT_TIME_FIELD, TimeFieldUnitEnum, TimeFieldTypeEnum
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
-from apps.log_search.models import LogIndexSet, Scenario
+from apps.log_search.models import LogIndexSet, Scenario, Space
 from apps.log_search.views.aggs_views import AggsViewAdapter
 from apps.log_trace.serializers import DateHistogramSerializer
 from apps.utils.drf import custom_params_valid
@@ -1741,8 +1741,9 @@ class DataFlowHandler(BaseAiopsHandler):
             route_params = cls._build_clustered_doris_route_params(index_set, clustering_config)
         else:
             route_params = cls._build_clustered_es_route_params(index_set, clustering_config)
+        bk_tenant_id = Space.get_tenant_id(space_uid=index_set.space_uid)
         try:
-            TransferApi.create_or_update_log_router(route_params)
+            TransferApi.create_or_update_log_router(route_params, bk_tenant_id=bk_tenant_id)
             return True
         except Exception as error:
             logger.exception("sync clustered route for index set(%s) failed: %s", index_set_id, error)
@@ -1794,7 +1795,7 @@ class DataFlowHandler(BaseAiopsHandler):
         clustering_config.clustered_rt = predict_flow_dict["format_signature"]["result_table_id"]
         clustering_config.save()
         # 创建聚类结果表路由信息
-        self.sync_clustered_route(index_set_id=index_set_id)
+        self.sync_clustered_route(index_set_id=index_set_id, raise_exception=True)
 
         # 添加一步更新 update_model_instance
         data_processing_id_config = self.get_serving_data_processing_id_config(
@@ -1853,7 +1854,7 @@ class DataFlowHandler(BaseAiopsHandler):
         clustering_config.predict_flow = predict_flow_dict
         clustering_config.model_output_rt = predict_flow_dict["clustering_predict"]["result_table_id"]
         clustering_config.save()
-        self.sync_clustered_route(index_set_id=index_set_id)
+        self.sync_clustered_route(index_set_id=index_set_id, raise_exception=True)
         logger.info(f"update predict flow success: flow_id -> {clustering_config.predict_flow_id}")
 
     def _init_log_count_aggregation_flow(

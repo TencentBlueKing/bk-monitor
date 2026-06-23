@@ -14,7 +14,7 @@ from apps.log_clustering.handlers.dataflow.data_cls import (
 )
 from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
 from apps.log_clustering.models import ClusteringConfig
-from apps.log_search.models import LogIndexSet
+from apps.log_search.models import LogIndexSet, Space
 
 ALL_FIELDS_DICT = {
     "time": "time",
@@ -454,6 +454,33 @@ class TestPatternSearch(TestCase):
         self.assertEqual(route_params["index_set"], "2_bklog_31_clustered")
         self.assertEqual(route_params["table_id"], "bklog_index_set_31_2_bklog_31_clustered.__default__")
         self.assertEqual(route_params["query_alias_settings"], LOG_INDEX_SET_CREATE_PARAMS["query_alias_settings"])
+
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.create_or_update_log_router")
+    def test_sync_clustered_route_passes_space_tenant(self, mock_create_or_update_log_router):
+        Space.objects.create(
+            space_uid="bkcc__2",
+            bk_biz_id=2,
+            space_type_id="bkcc",
+            space_type_name="业务",
+            space_id="2",
+            space_name="test biz",
+            bk_tenant_id="tencent",
+        )
+        LogIndexSet.objects.create(**{**LOG_INDEX_SET_CREATE_PARAMS, "index_set_id": 32})
+        ClusteringConfig.objects.create(
+            **{
+                **CLUSTERINGCONFIG_CREATE_PARAMS,
+                "index_set_id": 32,
+                "storage_type": StorageTypeEnum.ELASTICSEARCH.value,
+                "clustered_rt": "2_bklog_32_clustered",
+            }
+        )
+
+        result = DataFlowHandler.sync_clustered_route(index_set_id=32, raise_exception=True)
+
+        self.assertTrue(result)
+        mock_create_or_update_log_router.assert_called_once()
+        self.assertEqual(mock_create_or_update_log_router.call_args.kwargs["bk_tenant_id"], "tencent")
 
     @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.create_or_update_log_router")
     def test_sync_clustered_route_returns_false_when_index_set_missing(self, mock_create_or_update_log_router):
