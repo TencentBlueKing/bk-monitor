@@ -547,3 +547,57 @@ def test_mask_deployment_config_row_masks_file_type_param_via_config_json():
     item = {"params": {"plugin": {"env": {"filename": "env.sh", "blob": "Y29udGVudA=="}}}}
     masked = db._mask_deployment_config_row(item, instance)["params"]
     assert masked["plugin"]["env"] == db.MASKED_VALUE
+
+
+# ── P4: _serialize_instance 逐字段 json-safe 归一 ─────────────────────────────
+
+
+def test_serialize_instance_datetime_field_becomes_json_safe_string():
+    """含 datetime 字段的行：_serialize_instance 输出可被 json.dumps，datetime 变为字符串。"""
+    import json as _json
+    from datetime import datetime
+    from decimal import Decimal
+
+    from kernel_api.rpc.functions.bkm_cli.db import _serialize_instance
+
+    instance = SimpleNamespace(
+        id=7,
+        name="alpha",
+        create_at=datetime(2026, 6, 23, 10, 30, 0),
+        ratio=Decimal("3.14"),
+    )
+    out = _serialize_instance(instance, {"id", "name", "create_at", "ratio"})
+
+    # 整行可被 json.dumps（无 default=），证明所有字段已 JSON-safe
+    _json.dumps(out)
+    assert out["id"] == 7
+    assert out["name"] == "alpha"
+    assert isinstance(out["create_at"], str)
+    assert out["create_at"].startswith("2026-06-23")
+    # Decimal 经 json.dumps(default=str) 后是字符串
+    assert isinstance(out["ratio"], str)
+    assert out["ratio"] == "3.14"
+
+
+def test_serialize_instance_bad_field_degrades_and_keeps_row():
+    """单个不可序列化字段降级为 <unserializable: 类名>，绝不崩掉整行。"""
+    import json as _json
+
+    from kernel_api.rpc.functions.bkm_cli.db import _serialize_instance
+
+    class _NotSerializable:
+        # default=str 会回退到 repr/str，仍可序列化；这里用一个连 str() 都抛错的对象，
+        # 强制走 except 分支，验证降级占位。
+        def __repr__(self):
+            raise RuntimeError("boom-repr")
+
+        def __str__(self):
+            raise RuntimeError("boom-str")
+
+    instance = SimpleNamespace(ok="fine", bad=_NotSerializable())
+    out = _serialize_instance(instance, {"ok", "bad"})
+
+    # 整行仍可 json.dumps，坏字段被占位，好字段保留
+    _json.dumps(out)
+    assert out["ok"] == "fine"
+    assert out["bad"] == "<unserializable: _NotSerializable>"
