@@ -58,10 +58,14 @@ class KafKaClient:
         else:
             raise ValueError(f"unsupported kafka config type: {conf}")
 
-        # 限定单条消息的投递时限，避免 broker 不可达时 flush 阻塞到 librdkafka
+        # 限定单条消息的投递时限，避免 broker 不可达时阻塞到 librdkafka
         # 默认的 message.timeout.ms(=5min)，从而拖垮 fta_action 执行队列。
         # 调用方已在配置中显式指定时，尊重其取值。
         producer_conf.setdefault("message.timeout.ms", 3000)
+        # flush 的等待窗口由最终生效的 message.timeout.ms 推导（再加 1s 余量等待投递回调），
+        # 而不是写死常量：否则当调用方把 message.timeout.ms 调大时，flush 会早于投递时限返回，
+        # 把本可在时限内成功的投递误判为失败。
+        self.flush_timeout = int(producer_conf["message.timeout.ms"]) / 1000 + 1
         self.client = Producer(producer_conf)
 
     def send(self, message: str):
@@ -86,7 +90,7 @@ class KafKaClient:
                 on_delivery=_on_delivery,
             )
             # 有界等待投递完成；返回值为仍未投递的消息数
-            remaining = self.client.flush(timeout=5)
+            remaining = self.client.flush(timeout=self.flush_timeout)
             if remaining > 0:
                 raise RuntimeError(f"kafka flush timeout, {remaining} message(s) not delivered to topic {self.topic}")
             if delivery_error:

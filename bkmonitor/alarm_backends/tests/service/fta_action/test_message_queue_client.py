@@ -80,3 +80,30 @@ class KafkaClientSendTest(SimpleTestCase):
         with patch(PRODUCER_PATH, side_effect=_fake_producer_factory(captured_conf=captured)):
             KafKaClient(dsn)
         self.assertEqual(captured.get("message.timeout.ms"), 10000)
+
+    def test_flush_timeout_follows_message_timeout(self):
+        # flush 等待窗口随生效的 message.timeout.ms 推导(+1s 余量)，不写死，
+        # 否则调大 message.timeout.ms 时 flush 会提前截断、把成功投递误判为失败
+        flush_calls = []
+
+        def factory(conf):
+            producer = MagicMock()
+            producer.produce.side_effect = lambda topic, value, on_delivery=None: None
+
+            def flush(timeout=None):
+                flush_calls.append(timeout)
+                return 0
+
+            producer.flush.side_effect = flush
+            return producer
+
+        # 默认 3000ms -> flush 4s
+        with patch(PRODUCER_PATH, side_effect=factory):
+            KafKaClient(DSN).send("hello")
+        self.assertEqual(flush_calls[-1], 4)
+
+        # 显式 10000ms -> flush 11s（不会停在 5s 截断 6-10s 的成功投递）
+        dsn = {"bootstrap.servers": "localhost:9092", "topic": "t", "message.timeout.ms": 10000}
+        with patch(PRODUCER_PATH, side_effect=factory):
+            KafKaClient(dsn).send("hello")
+        self.assertEqual(flush_calls[-1], 11)
