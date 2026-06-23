@@ -1512,6 +1512,20 @@ MCP_MAX_TIME_SPAN_SECONDS = 86400  # MCP 查询跨度限制
 # 避免: 数据量爆炸 / LLM 上下文超限 / 下游 doris 查询超时
 APM_PROFILING_MCP_MAX_TIME_SPAN_SECONDS = 30 * 60
 
+# ===== 运营数据(operation) MCP 环境相关配置 =====
+# 以下标识因部署环境而异（内部业务 ID / bkdata 结果表 / 集群域名等），不在开源代码中硬编码。
+# 这里只给默认空值；实际取值在 Global Settings(全局配置, 见 bkmonitor/define/global_config.py 的 ADVANCED_OPTIONS)
+# 中动态配置并在运行时覆盖到 settings；未配置时对应运营指标返回 null（不影响其他指标）。
+OPERATION_MCP_ENV = ""  # 当前环境标识（如 bkte / bkop / sg），用于隐藏本环境不存在的指标
+OPERATION_MCP_FRONTEND_EVENT_TABLE = ""  # 前端埋点事件 bkdata 结果表（月活/活跃业务/活跃部门）
+OPERATION_MCP_FRONTEND_EVENT_TARGET = ""  # 前端埋点事件 target 取值
+OPERATION_MCP_LOG_QUERY_API_PROMQL = ""  # 日志查询量(API) PromQL（指标名内含业务 ID）
+OPERATION_MCP_DORIS_STORAGE_PROMQL: dict = {}  # doris 存储量 PromQL，形如 {"bkte": "<promql>", "sg": "<promql>"}
+# 平台统计指标(bkm_statistics 等)上报所在的业务 ID（PromQL 取数须用该业务查询，按环境在全局配置设置）
+OPERATION_MCP_PLATFORM_BIZ_ID = 0
+# 按指标族覆盖统计业务 ID（不同族可能落在不同业务），形如 {"default": <业务ID>, "logbeat": <业务ID>}
+OPERATION_MCP_STAT_BIZ_IDS: dict = {}
+
 # 场景-Agent映射配置,用于实现Agent路由
 AIDEV_SCENE_AGENT_CODE_MAPPING = {}
 

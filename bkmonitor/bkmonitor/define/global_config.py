@@ -492,6 +492,32 @@ ADVANCED_OPTIONS = OrderedDict(
             "ALARM_CACHE_REFRESH_BIZ_CONCURRENT",
             slz.IntegerField(label="告警缓存刷新任务的业务并发度", default=3),
         ),
+        # === 运营数据(operation) MCP 环境相关配置 ===
+        ("OPERATION_MCP_ENV", slz.CharField(label="运营MCP当前环境标识(bkte/bkop/sg)", default="")),
+        (
+            "OPERATION_MCP_FRONTEND_EVENT_TABLE",
+            slz.CharField(label="运营MCP前端埋点事件bkdata结果表", default=""),
+        ),
+        (
+            "OPERATION_MCP_FRONTEND_EVENT_TARGET",
+            slz.CharField(label="运营MCP前端埋点事件target取值", default=""),
+        ),
+        (
+            "OPERATION_MCP_LOG_QUERY_API_PROMQL",
+            slz.CharField(label="运营MCP日志查询量(API)PromQL", default=""),
+        ),
+        (
+            "OPERATION_MCP_DORIS_STORAGE_PROMQL",
+            slz.JSONField(label="运营MCP doris存储量PromQL(按环境, 形如{bkte:.., sg:..})", default={}),
+        ),
+        (
+            "OPERATION_MCP_PLATFORM_BIZ_ID",
+            slz.IntegerField(label="运营MCP平台统计指标所在业务ID", default=0),
+        ),
+        (
+            "OPERATION_MCP_STAT_BIZ_IDS",
+            slz.JSONField(label="运营MCP按指标族的统计业务ID(形如{default:id,logbeat:id})", default={}),
+        ),
     ]
 )
 
