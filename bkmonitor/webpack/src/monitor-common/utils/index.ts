@@ -360,16 +360,32 @@ export function formatPercent(value, precision = 2, sigFigCnt = 2, readablePreci
  */
 export function tryURLDecodeParse<T>(str: string, defaultValue: T) {
   let result: T;
+  // 尝试 1: 直接解析（未编码）
   try {
     result = JSON.parse(str);
+    return result || defaultValue;
   } catch {
-    try {
-      result = JSON.parse(decodeURIComponent(str));
-    } catch {
-      result = defaultValue;
-    }
+    // fall through
   }
-  return result || defaultValue;
+  // 尝试 2: 单次 decode
+  try {
+    result = JSON.parse(decodeURIComponent(str));
+    return result || defaultValue;
+  } catch {
+    // fall through
+  }
+  // 尝试 3: 二次 decode（修复微信/企业微信分享链接二次编码问题）
+  try {
+    const once = decodeURIComponent(str);
+    const twice = decodeURIComponent(once);
+    if (twice !== once) {
+      result = JSON.parse(twice);
+      return result || defaultValue;
+    }
+  } catch {
+    // fall through
+  }
+  return defaultValue;
 }
 
 export * from './colorHelpers';
