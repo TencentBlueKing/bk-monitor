@@ -186,6 +186,22 @@ class TransferApiTenantGetterTest(TestCase):
         self.assertEqual(tenant_id, "tenant-space-1")
         mock_get_tenant_id.assert_called_once_with(bk_biz_id=-1)
 
+    @patch("apps.log_search.models.Space.get_tenant_id", return_value="tenant-bkcc-18996")
+    def test_create_or_update_log_router_getter_uses_space_params(self, mock_get_tenant_id):
+        tenant_id = TransferApi.create_or_update_log_router.bk_tenant_id({"space_type": "bkcc", "space_id": "18996"})
+
+        self.assertEqual(tenant_id, "tenant-bkcc-18996")
+        mock_get_tenant_id.assert_called_once_with(space_uid="bkcc__18996")
+
+    @patch("apps.log_search.models.Space.get_tenant_id", return_value="tenant-bkcc-18996")
+    def test_bulk_create_or_update_log_router_getter_uses_space_params(self, mock_get_tenant_id):
+        tenant_id = TransferApi.bulk_create_or_update_log_router.bk_tenant_id(
+            {"space_type": "bkcc", "space_id": "18996", "table_info": [{"table_id": "x"}]}
+        )
+
+        self.assertEqual(tenant_id, "tenant-bkcc-18996")
+        mock_get_tenant_id.assert_called_once_with(space_uid="bkcc__18996")
+
 
 class CollectorResourceCallTest(ClearRequestLocalMixin, TestCase):
     def setUp(self):

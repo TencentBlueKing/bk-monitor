@@ -111,7 +111,7 @@ from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import DEFAULT_TIME_FIELD, TimeFieldUnitEnum, TimeFieldTypeEnum
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
-from apps.log_search.models import LogIndexSet, Scenario, Space
+from apps.log_search.models import LogIndexSet, Scenario
 from apps.log_search.views.aggs_views import AggsViewAdapter
 from apps.log_trace.serializers import DateHistogramSerializer
 from apps.utils.drf import custom_params_valid
@@ -1741,9 +1741,8 @@ class DataFlowHandler(BaseAiopsHandler):
             route_params = cls._build_clustered_doris_route_params(index_set, clustering_config)
         else:
             route_params = cls._build_clustered_es_route_params(index_set, clustering_config)
-        bk_tenant_id = Space.get_tenant_id(space_uid=index_set.space_uid)
         try:
-            TransferApi.create_or_update_log_router(route_params, bk_tenant_id=bk_tenant_id)
+            TransferApi.create_or_update_log_router(route_params)
             return True
         except Exception as error:
             logger.exception("sync clustered route for index set(%s) failed: %s", index_set_id, error)
