@@ -721,9 +721,11 @@
         }
       },
       handleSelectTemplate(value) {
-        this.templateRule = value;
-        const selectTemplateStr = this.templateList.find(item => item.id === value).predefined_varibles;
-        this.rulesList = this.base64ToRuleArr(selectTemplateStr);
+        const matchedTemplate = this.templateList.find(item => item.id === value);
+        this.templateRule = matchedTemplate?.id || 0;
+        this.rulesList = matchedTemplate?.predefined_varibles
+          ? this.base64ToRuleArr(matchedTemplate.predefined_varibles)
+          : [];
         this.$emit('show-table-loading');
       },
       handleEditTemplateName(index) {
@@ -783,9 +785,13 @@
       },
       handleClickTemplateBtn(val) {
         this.ruleType = val;
-        const btnShowID = this.initTemplateID === 0 ? this.templateList[0].id : this.initTemplateID;
-        this.templateRule = val === 'customize' ? 0 : btnShowID;
-        if (val !== 'customize') this.handleSelectTemplate(btnShowID);
+        if (val === 'customize') {
+          this.templateRule = 0;
+          return;
+        }
+        const matchedTemplate = this.templateList.find(item => item.id === this.initTemplateID);
+        this.templateRule = matchedTemplate?.id || 0;
+        this.handleSelectTemplate(this.templateRule);
       },
       initTemplateSelect(v) {
         this.templateRule = v.regex_template_id;
