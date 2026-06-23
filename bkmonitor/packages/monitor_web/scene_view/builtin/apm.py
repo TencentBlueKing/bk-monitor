@@ -542,7 +542,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
     ) -> dict[str, Any]:
         from apm_web.container.resources import ListServiceK8sTargetsResource
 
-        # 新版容器页由前端 PanelK8s 负责拉取目标与图表，此处只决定是否返回容器面板入口。
         if not app_name or not service_name:
             return cls._get_non_container_view_config(builtin_view, params)
 
@@ -551,6 +550,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             "app_name": app_name,
             "service_name": service_name,
         }
+        # Span 详情容器监控需透传 span_id，用于查询并优先展示关联的 Pod
         if params.get("span_id"):
             request_params["span_id"] = params["span_id"]
 
