@@ -222,7 +222,7 @@ def _serialize_apm_application_with_token(application: Any) -> dict[str, Any]:
     datasource_maps = _load_apm_datasource_maps([application])
     service_count_map = _load_service_count_map([application])
     summary = _serialize_application_summary(application, datasource_maps, service_count_map)
-    summary["app_token"] = getattr(application, "token", None) or None
+    summary["apm_token"] = getattr(application, "token", None) or None
     return summary
 
 

@@ -27,6 +27,10 @@ const props = defineProps({
     required: true,
     default: () => [],
   },
+  popupAppendToBody: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(['input', 'change', 'height-change', 'popup-change', 'text-to-query']);
@@ -224,9 +228,29 @@ const {
     hideOnClick: true,
     placement: 'top',
     delay: [0, 300],
-    // appendTo: document.body,
-    appendTo: window.__IS_MONITOR_TRACE__ ? document.body : undefined,
-    zIndex: window.__IS_MONITOR_TRACE__ ? 9999 : undefined,
+    appendTo: props.popupAppendToBody || window.__IS_MONITOR_TRACE__ ? document.body : undefined,
+    zIndex: props.popupAppendToBody || window.__IS_MONITOR_TRACE__ ? 99999 : undefined,
+    popperOptions: props.popupAppendToBody
+      ? {
+        strategy: 'fixed',
+        modifiers: [
+          {
+            name: 'preventOverflow',
+            options: {
+              boundary: document.body,
+              padding: 8,
+            },
+          },
+          {
+            name: 'flip',
+            options: {
+              boundary: document.body,
+              padding: 8,
+            },
+          },
+        ],
+      }
+      : undefined,
     onHide: () => {
       refPopInstance.value?.beforeHideFn?.();
     },

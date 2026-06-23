@@ -42,12 +42,15 @@ from monitor_web.data_migrate import (
     export_auto_increment_to_directory,
     export_biz_data_to_directory,
     import_biz_data_from_directory,
+    install_biz_bk_collector,
     replace_cluster_id_in_directory,
     replace_tenant_id_in_directory,
+    refresh_biz_bk_collector_proxy_configs,
     restore_disabled_models_in_directory,
     sanitize_cluster_info_in_directory,
     upload_export_directory_to_storage,
 )
+from monitor_web.data_migrate.bk_collector import CONFIG_TYPES as BK_COLLECTOR_CONFIG_TYPES
 from monitor_web.data_migrate.handler.model_disable import MODEL_DISABLE_HANDLERS
 
 FIXED_CLOSE_MODEL_LABELS: tuple[str, ...] = tuple(MODEL_DISABLE_HANDLERS.keys())
@@ -112,7 +115,13 @@ class Command(BaseCommand):
             "    python manage.py data_migrate restore-disabled-models --directory /tmp/bkmonitor-data-migrate-20260307120000\n"
             "\n"
             "  停用业务下拨测、插件采集和 k8s 采集任务:\n"
-            "    python manage.py data_migrate stop-biz-subscription-tasks --bk-tenant-id tencent --bk-biz-ids 18901 --operator admin"
+            "    python manage.py data_migrate stop-biz-subscription-tasks --bk-tenant-id tencent --bk-biz-ids 18901 --operator admin\n"
+            "\n"
+            "  为业务下 proxy 安装 bk-collector:\n"
+            "    python manage.py data_migrate install-biz-bk-collector --bk-tenant-id tencent --bk-biz-ids 18901 --operator admin\n"
+            "\n"
+            "  触发业务下 proxy 的 bk-collector 配置下发:\n"
+            "    python manage.py data_migrate refresh-biz-bk-collector-configs --bk-tenant-id tencent --bk-biz-ids 18901 --config-types apm_application custom_report log"
         )
         parser.add_argument(
             "action",
@@ -131,6 +140,8 @@ class Command(BaseCommand):
                 "disable-models",
                 "restore-disabled-models",
                 "stop-biz-subscription-tasks",
+                "install-biz-bk-collector",
+                "refresh-biz-bk-collector-configs",
             ],
             help="执行导出、导入、恢复游标或 handler 处理",
         )
@@ -210,12 +221,18 @@ class Command(BaseCommand):
         parser.add_argument(
             "--operator",
             default="system",
-            help="操作人；仅 stop-biz-subscription-tasks 动作需要",
+            help="操作人；仅 stop-biz-subscription-tasks、install-biz-bk-collector、refresh-biz-bk-collector-configs 动作需要",
         )
         parser.add_argument(
             "--dry-run",
             action="store_true",
-            help="仅预览不执行停用；仅 stop-biz-subscription-tasks 动作需要",
+            help="仅预览不执行；仅 stop-biz-subscription-tasks、install-biz-bk-collector、refresh-biz-bk-collector-configs 动作需要",
+        )
+        parser.add_argument(
+            "--config-types",
+            nargs="+",
+            choices=BK_COLLECTOR_CONFIG_TYPES,
+            help="需要刷新的 bk-collector 配置类型；仅 refresh-biz-bk-collector-configs 动作需要",
         )
 
     def handle(self, *args, **options):
@@ -235,6 +252,8 @@ class Command(BaseCommand):
             "disable-models": self._handle_disable_models,
             "restore-disabled-models": self._handle_restore_disabled_models,
             "stop-biz-subscription-tasks": self._handle_stop_biz_subscription_tasks,
+            "install-biz-bk-collector": self._handle_install_biz_bk_collector,
+            "refresh-biz-bk-collector-configs": self._handle_refresh_biz_bk_collector_configs,
         }
         handlers[action](options)
 
@@ -497,6 +516,54 @@ class Command(BaseCommand):
             )
         else:
             self.stdout.write(self.style.SUCCESS("stop biz subscription tasks completed"))
+
+    def _handle_install_biz_bk_collector(self, options) -> None:
+        bk_tenant_id = self._load_bk_tenant_id(options.get("bk_tenant_id"), action_name="install-biz-bk-collector")
+        bk_biz_ids = self._load_positive_biz_ids(options.get("bk_biz_ids"), action_name="install-biz-bk-collector")
+        operator = self._load_operator(options.get("operator"), action_name="install-biz-bk-collector")
+        result = install_biz_bk_collector(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_ids=bk_biz_ids,
+            operator=operator,
+            dry_run=options.get("dry_run", False),
+        )
+        self._write_report_result(
+            result,
+            success_message="install biz bk-collector completed",
+            warning_message="install biz bk-collector completed with failures",
+        )
+
+    def _handle_refresh_biz_bk_collector_configs(self, options) -> None:
+        bk_tenant_id = self._load_bk_tenant_id(
+            options.get("bk_tenant_id"), action_name="refresh-biz-bk-collector-configs"
+        )
+        bk_biz_ids = self._load_positive_biz_ids(
+            options.get("bk_biz_ids"), action_name="refresh-biz-bk-collector-configs"
+        )
+        operator = self._load_operator(options.get("operator"), action_name="refresh-biz-bk-collector-configs")
+        try:
+            result = refresh_biz_bk_collector_proxy_configs(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_ids=bk_biz_ids,
+                config_types=options.get("config_types"),
+                operator=operator,
+                dry_run=options.get("dry_run", False),
+            )
+        except ValueError as error:
+            raise CommandError(str(error)) from error
+        self._write_report_result(
+            result,
+            success_message="refresh biz bk-collector configs completed",
+            warning_message="refresh biz bk-collector configs completed with failures",
+        )
+
+    def _write_report_result(self, result: dict[str, Any], *, success_message: str, warning_message: str) -> None:
+        self.stdout.write(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        failed_count = result["summary"]["total"]["failed_count"]
+        if failed_count:
+            self.stdout.write(self.style.WARNING(f"{warning_message}: {failed_count}"))
+        else:
+            self.stdout.write(self.style.SUCCESS(success_message))
 
     def _import_from_directory(self, directory: Path, options) -> None:
         """从已解压目录执行数据导入。"""

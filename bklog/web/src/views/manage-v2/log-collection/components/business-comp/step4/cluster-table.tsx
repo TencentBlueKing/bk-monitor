@@ -147,7 +147,7 @@ export default defineComponent({
     const columns = computed(() => {
       const baseColumns = [
         {
-          title: t('采集名'),
+          title: t('集群名'),
           colKey: 'storage_display_name',
           cell: (h, { row }: { row: IClusterItem }) => (
             <bk-radio checked={isSelected(row)}>

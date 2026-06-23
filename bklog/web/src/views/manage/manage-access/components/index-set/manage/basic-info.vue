@@ -289,12 +289,35 @@
         return map;
       },
     },
-    created() {
+    mounted() {
       this.getCollectDetail();
-      this.fetchIndexes();
-      this.fetchRecords();
+      this.deferFetchTables();
+    },
+    beforeDestroy() {
+      if (this.deferFetchTimer) {
+        if (window.cancelIdleCallback) {
+          window.cancelIdleCallback(this.deferFetchTimer);
+        } else {
+          window.clearTimeout(this.deferFetchTimer);
+        }
+        this.deferFetchTimer = null;
+      }
     },
     methods: {
+      deferFetchTables() {
+        const fetchTables = () => {
+          if (this._isDestroyed || this._isBeingDestroyed) {
+            return;
+          }
+          this.fetchIndexes();
+          this.fetchRecords();
+        };
+        if (window.requestIdleCallback) {
+          this.deferFetchTimer = window.requestIdleCallback(fetchTables, { timeout: 1500 });
+        } else {
+          this.deferFetchTimer = window.setTimeout(fetchTables, 300);
+        }
+      },
       getCollectDetail() {
         try {
           const { indexSetData } = this;

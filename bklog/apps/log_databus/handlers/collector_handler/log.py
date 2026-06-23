@@ -9,9 +9,22 @@ from apps.api import TransferApi, BkDataMetaApi
 from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.storage import StorageHandler
-from apps.log_search.constants import CollectorScenarioEnum, IndexSetDataType, LogAccessTypeEnum, CollectStatusEnum
+from apps.log_search.constants import (
+    CollectorScenarioEnum,
+    CollectStatusEnum,
+    IndexSetDataType,
+    InnerTag,
+    LogAccessTypeEnum,
+)
 from apps.log_search.handlers.index_set import IndexSetHandler
-from apps.log_search.models import LogIndexSet, LogIndexSetData, AccessSourceConfig, Scenario
+from apps.log_search.models import (
+    AccessSourceConfig,
+    IndexSetTag,
+    LogIndexSet,
+    LogIndexSetData,
+    Scenario,
+    TAG_TYPE_INNER,
+)
 from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
 from apps.utils.local import get_local_param
 from apps.utils.thread import MultiExecuteFunc
@@ -98,6 +111,25 @@ class LogCollectorHandler:
         for item in result:
             collector_status_mappings[item["collector_id"]] = item
         return collector_status_mappings
+
+    @staticmethod
+    def filter_no_data(data: list[dict]) -> list[dict]:
+        """过滤已被无数据巡检打标的索引集/采集项。"""
+        no_data_tag_id = str(IndexSetTag.get_tag_id(InnerTag.NO_DATA.value, tag_type=TAG_TYPE_INNER))
+        return [
+            item
+            for item in data
+            if no_data_tag_id not in {str(tag.get("tag_id")) for tag in item.get("tags", []) if tag}
+        ]
+
+    @staticmethod
+    def get_child_index_set_ids(parent_index_set_id: int) -> list:
+        return list(
+            LogIndexSetData.objects.filter(
+                index_set_id=parent_index_set_id,
+                type=IndexSetDataType.INDEX_SET.value,
+            ).values_list("result_table_id", flat=True)
+        )
 
     @staticmethod
     def fill_parent_index_sets_info(data):
@@ -192,6 +224,7 @@ class LogCollectorHandler:
         status_list: list = None,
         log_access_type_list: list = None,
         exclude_not_completed: bool = False,
+        exclude_parent_index_set_id: int = None,
     ) -> list[dict]:
         """
          获取采集项信息
@@ -207,6 +240,7 @@ class LogCollectorHandler:
         :param status_list: 采集状态
         :param log_access_type_list: 日志接入类型
         :param exclude_not_completed: 是否排除未完成的采集项
+        :param exclude_parent_index_set_id: 排除指定归属索引集下的采集项
         """
         if scenario_id_list and Scenario.LOG not in scenario_id_list:
             # 非日志采集查询，直接返回
@@ -223,9 +257,7 @@ class LogCollectorHandler:
 
         # 先查询索引组下的索引集，再查询索引集对应的采集项
         if parent_index_set_id:
-            index_set_id_list = LogIndexSetData.objects.filter(
-                index_set_id=parent_index_set_id, type=IndexSetDataType.INDEX_SET.value
-            ).values_list("result_table_id", flat=True)
+            index_set_id_list = self.get_child_index_set_ids(parent_index_set_id)
             if not index_set_id_list:
                 return []
             collector_config_list = (
@@ -239,6 +271,15 @@ class LogCollectorHandler:
             if not collector_config_list:
                 return []
             qs = qs.filter(collector_config_id__in=collector_config_list)
+
+        if exclude_parent_index_set_id:
+            exclude_index_set_id_list = self.get_child_index_set_ids(exclude_parent_index_set_id)
+            if exclude_index_set_id_list:
+                exclude_collector_config_list = LogIndexSet.objects.filter(
+                    index_set_id__in=exclude_index_set_id_list,
+                    collector_config_id__isnull=False,
+                ).values_list("collector_config_id", flat=True)
+                qs = qs.exclude(collector_config_id__in=exclude_collector_config_list)
 
         if collector_config_name_list:
             query = Q()
@@ -306,6 +347,7 @@ class LogCollectorHandler:
         updated_by_list: list = None,
         storage_display_name_list: list = None,
         log_access_type_list: list = None,
+        exclude_parent_index_set_id: int = None,
     ) -> list[dict]:
         """
          获取索引集内容
@@ -318,6 +360,7 @@ class LogCollectorHandler:
         :param updated_by_list: 创建者
         :param storage_display_name_list: 集群名
         :param log_access_type_list: 日志接入类型
+        :param exclude_parent_index_set_id: 排除指定归属索引集下的索引集
         """
         _scenario_id_list = []
         for log_access_type in log_access_type_list:
@@ -331,12 +374,15 @@ class LogCollectorHandler:
             scenario_id=Scenario.LOG
         )
         if parent_index_set_id:
-            index_set_id_list = LogIndexSetData.objects.filter(
-                index_set_id=parent_index_set_id, type=IndexSetDataType.INDEX_SET.value
-            ).values_list("result_table_id", flat=True)
+            index_set_id_list = self.get_child_index_set_ids(parent_index_set_id)
             if not index_set_id_list:
                 return []
             log_index_sets = log_index_sets.filter(index_set_id__in=index_set_id_list)
+
+        if exclude_parent_index_set_id:
+            exclude_index_set_id_list = self.get_child_index_set_ids(exclude_parent_index_set_id)
+            if exclude_index_set_id_list:
+                log_index_sets = log_index_sets.exclude(index_set_id__in=exclude_index_set_id_list)
 
         if scenario_id_list:
             log_index_sets = log_index_sets.filter(scenario_id__in=scenario_id_list)
@@ -494,6 +540,7 @@ class LogCollectorHandler:
             status_list=status_list,
             log_access_type_list=log_access_type_list,
             exclude_not_completed=data.get("exclude_not_completed", False),
+            exclude_parent_index_set_id=data.get("exclude_parent_index_set_id"),
         )
 
         lists_to_check = [
@@ -515,11 +562,14 @@ class LogCollectorHandler:
                 updated_by_list=updated_by_list,
                 storage_display_name_list=storage_display_name_list,
                 log_access_type_list=log_access_type_list,
+                exclude_parent_index_set_id=data.get("exclude_parent_index_set_id"),
             )
 
         combined_data = collector_configs + log_index_sets
         self.fill_parent_index_sets_info(combined_data)
         combined_data = self.fetch_log_collector_data(combined_data)
+        if data.get("exclude_not_data", False):
+            combined_data = self.filter_no_data(combined_data)
         combined_data.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
         # 按标签过滤
         if tag_id_list:

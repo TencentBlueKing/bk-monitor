@@ -54,11 +54,16 @@ class ApplicationConfig(BkCollectorConfig):
 
     def __init__(self, application):
         self._application: ApmApplication = application
+        self.application_id = application.id
+        self.bk_biz_id = application.bk_biz_id
+        self.bk_tenant_id = application.bk_tenant_id
+        self.app_name = application.app_name
+        self.application_config = self.get_application_config()
 
     def refresh(self):
         """[旧] 下发应用配置（通过节点管理）"""
-        bk_tenant_id = self._application.bk_tenant_id
-        bk_biz_id = self._application.bk_biz_id
+        bk_tenant_id = self.bk_tenant_id
+        bk_biz_id = self.bk_biz_id
 
         # 1. 获取应用配置上下文
         application_config = self.get_application_config()
@@ -89,12 +94,19 @@ class ApplicationConfig(BkCollectorConfig):
             return
 
         # 按业务ID分组，因为不同业务可能需要部署到不同的集群
-        biz_applications = {}
+        biz_application_configs = {}
         for application in applications:
-            bk_biz_id = application.bk_biz_id
-            biz_applications.setdefault(bk_biz_id, []).append(application)
-        need_deploy_all_biz_ids = [int(i) for i in biz_applications.keys()]
-        need_deploy_all_biz_ids += [str(i) for i in biz_applications.keys()]
+            try:
+                bk_biz_id = application.bk_biz_id
+                biz_application_configs.setdefault(bk_biz_id, []).append(ApplicationConfig(application))
+            except Exception as e:  # pylint: disable=broad-except
+                logger.exception(f"generate config for application({application.app_name}) error, {e}")
+
+        if not biz_application_configs:
+            return
+
+        need_deploy_all_biz_ids = [int(i) for i in biz_application_configs.keys()]
+        need_deploy_all_biz_ids += [str(i) for i in biz_application_configs.keys()]
 
         cluster_mapping: dict = BkCollectorClusterConfig.get_cluster_mapping()
         cluster_mapping = {k: v for k, v in cluster_mapping.items() if set(need_deploy_all_biz_ids) & set(v)}
@@ -117,7 +129,7 @@ class ApplicationConfig(BkCollectorConfig):
                     # 收集该集群需要部署的所有配置
                     cluster_config_map = {}
                     compiled_template = jinja_env.from_string(application_tpl)
-                    for bk_biz_id, biz_application_list in biz_applications.items():
+                    for bk_biz_id, biz_application_config_list in biz_application_configs.items():
                         need_deploy_bk_biz_ids = {
                             str(bk_biz_id),
                             int(bk_biz_id),
@@ -127,15 +139,18 @@ class ApplicationConfig(BkCollectorConfig):
                             continue
 
                         # 为该业务下的所有应用生成配置
-                        for application in biz_application_list:
+                        for app_config_obj in biz_application_config_list:
                             try:
-                                application_config_context = cls(application).get_application_config(cluster_id)
+                                application_config_context = {
+                                    **app_config_obj.application_config,
+                                    **app_config_obj.get_cluster_application_config(cluster_id),
+                                }
                                 application_config = compiled_template.render(application_config_context)
-                                cluster_config_map[application.id] = application_config
+                                cluster_config_map[app_config_obj.application_id] = application_config
                             except Exception as e:  # pylint: disable=broad-except
                                 # 单个失败，继续渲染模板
                                 s.record_exception(exception=e)
-                                logger.exception(f"generate config for application({application.app_name})")
+                                logger.exception(f"generate config for application({app_config_obj.app_name})")
 
                     # 批量下发该集群的所有配置
                     if cluster_config_map:
@@ -146,7 +161,11 @@ class ApplicationConfig(BkCollectorConfig):
                     s.record_exception(exception=e)
                     logger.exception(f"batch refresh apm application config to k8s({cluster_id})")
 
-    def get_application_config(self, bcs_cluster_id: str | None = None):
+    def get_cluster_application_config(self, bcs_cluster_id: str | None = None):
+        """获取集群应用配置"""
+        return {"resource_filter_config_metrics": self.get_resource_filter_config_metrics(bcs_cluster_id)}
+
+    def get_application_config(self):
         """获取应用配置上下文"""
         config = {
             "bk_biz_id": self._application.bk_biz_id,
@@ -156,7 +175,7 @@ class ApplicationConfig(BkCollectorConfig):
         config["bk_data_token"] = self._application.get_bk_data_token()
         config["resource_filter_config"] = self.get_resource_filter_config()
         config["resource_filter_config_logs"] = self.get_resource_filter_config_logs()
-        config["resource_filter_config_metrics"] = self.get_resource_filter_config_metrics(bcs_cluster_id)
+        config["resource_filter_config_metrics"] = self.get_resource_filter_config_metrics()
 
         apdex_config = self.get_apdex_config(ApdexConfig.APP_LEVEL)
         sampler_config = self.get_random_sampler_config(ApdexConfig.APP_LEVEL)

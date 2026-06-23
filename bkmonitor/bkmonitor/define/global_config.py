@@ -611,12 +611,12 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_DORIS_STORAGE_CONFIG", slz.DictField(label=_("APM Doris 存储配置"), default={})),
         ("APM_PROFILE_V4_BIZ_WHITE_LIST", slz.ListField(label=_("APM Profile V4 链路业务白名单"), default=[])),
         (
-            "APM_PROFILE_V4_DORIS_BINDING_CLUSTER",
-            slz.CharField(label=_("APM Profile V4 DorisBinding 存储集群名称"), default="", allow_blank=True),
+            "APM_PROFILING_DEFAULT_USE_BKDATA_V4",
+            slz.BooleanField(label=_("APM Profiling 默认使用 BKData V4 链路"), default=False),
         ),
         (
-            "APM_PROFILE_V4_DATABUS_PREFER_CLUSTER",
-            slz.CharField(label=_("APM Profile V4 Databus 计算集群名称"), default="", allow_blank=True),
+            "APM_PROFILE_V4_DORIS_BINDING_CLUSTER",
+            slz.CharField(label=_("APM Profile V4 DorisBinding 存储集群名称"), default="", allow_blank=True),
         ),
         ("APM_PROFILING_ENABLED_APPS", slz.DictField(label=_("APM Profiling 开启应用白名单"), default={})),
         ("APM_PROFILING_ENABLED", slz.BooleanField(label=_("APM Profiling 开启功能"), default=False)),
@@ -745,6 +745,11 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_SERVICE_CACHE_APPLICATIONS", slz.ListField(label=_("APM 按服务缓存指标的灰度应用列表"), default=[])),
         # 企业微信模块化（layouts）消息通知灰度业务列表
         ("WECOM_LAYOUTS_BIZ_LIST", slz.ListField(label=_("企业微信模块化消息通知灰度业务列表"), default=[])),
+        # 是否默认开启 APM 指标维度分组接入
+        (
+            "APM_METRIC_GROUP_DIMENSIONS_ENABLED",
+            slz.BooleanField(label=_("是否默认开启 APM 指标维度分组接入"), default=False),
+        ),
         # metric_group_dimensions 分组配置白名单，格式：["业务ID-应用名1", "业务ID-应用名2"]
         (
             "APM_METRIC_GROUP_DIMENSIONS_WHITELIST",

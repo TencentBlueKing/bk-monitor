@@ -32,8 +32,33 @@ const DataIdUrl = () => import(/* webpackChunkName: 'data-id-url' */ '@/views/da
 const TemplateManage = () => import('@/views/retrieve-v3/search-result/template-manage/index.tsx');
 const ClientLogSearch = () => import(/* webpackChunkName: 'clientLogSearch' */ '@/views/client-log-search/index.tsx');
 
+const StandaloneContextLogPage = () => import(
+  /* webpackChunkName: 'retrieve-context-log-tab' */ '@/views/retrieve-v3/search-result/original-log/context-log/page.tsx'
+);
+const StandaloneRealTimeLogPage = () => import(
+  /* webpackChunkName: 'retrieve-real-time-log-tab' */ '@/views/retrieve-v3/search-result/original-log/real-time-log/page.tsx'
+);
+
 // 检索模块路由配置生成函数
 const getRetrieveRoutes = () => [
+  {
+    path: '/retrieve/context-tab',
+    name: 'retrieve-context-tab',
+    component: StandaloneContextLogPage,
+    meta: {
+      title: '上下文',
+      navId: 'retrieve',
+    },
+  },
+  {
+    path: '/retrieve/real-time-tab',
+    name: 'retrieve-real-time-tab',
+    component: StandaloneRealTimeLogPage,
+    meta: {
+      title: '实时日志',
+      navId: 'retrieve',
+    },
+  },
   // 检索主页面
   {
     path: '/retrieve/:indexId?',

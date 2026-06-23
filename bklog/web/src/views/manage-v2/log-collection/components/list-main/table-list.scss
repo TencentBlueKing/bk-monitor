@@ -41,7 +41,10 @@
     align-items: center;
 
     .tool-btns {
+      display: flex;
       flex: 1;
+      gap: 8px;
+      align-items: center;
     }
 
     .tool-search-select {
