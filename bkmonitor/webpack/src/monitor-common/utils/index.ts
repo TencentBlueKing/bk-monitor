@@ -353,6 +353,26 @@ export function formatPercent(value, precision = 2, sigFigCnt = 2, readablePreci
 }
 
 /**
+ * 递归 decodeURIComponent，处理二次编码场景（如企业微信分享导致 URL 被多次 encode）
+ * @param str 需要解码的字符串
+ * @param maxDepth 最大解码次数，默认 3
+ * @returns 完全解码后的字符串
+ */
+export function recursiveDecodeURIComponent(str: string, maxDepth = 3): string {
+  let decoded = str;
+  for (let i = 0; i < maxDepth; i++) {
+    try {
+      const next = decodeURIComponent(decoded);
+      if (next === decoded) break; // 已完全解码
+      decoded = next;
+    } catch {
+      break;
+    }
+  }
+  return decoded;
+}
+
+/**
  * URL解码并转化
  * @param str 需要解析的字符串
  * @param defaultValue 默认值
@@ -361,13 +381,9 @@ export function formatPercent(value, precision = 2, sigFigCnt = 2, readablePreci
 export function tryURLDecodeParse<T>(str: string, defaultValue: T) {
   let result: T;
   try {
-    result = JSON.parse(str);
+    result = JSON.parse(recursiveDecodeURIComponent(str));
   } catch {
-    try {
-      result = JSON.parse(decodeURIComponent(str));
-    } catch {
-      result = defaultValue;
-    }
+    result = defaultValue;
   }
   return result || defaultValue;
 }

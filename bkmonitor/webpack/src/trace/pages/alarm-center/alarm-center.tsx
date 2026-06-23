@@ -35,7 +35,13 @@ import {
   watch,
 } from 'vue';
 
-import { commonPageSizeSet, convertDurationArray, copyText, tryURLDecodeParse } from 'monitor-common/utils';
+import {
+  commonPageSizeSet,
+  convertDurationArray,
+  copyText,
+  recursiveDecodeURIComponent,
+  tryURLDecodeParse,
+} from 'monitor-common/utils';
 import FavoriteBox, {
   type IFavorite,
   type IFavoriteGroup,
@@ -679,7 +685,7 @@ export default defineComponent({
         }
         alarmStore.timezone = (timezone as string) || getDefaultTimezone();
         alarmStore.refreshInterval = Number(refreshInterval) || -1;
-        alarmStore.queryString = (queryString as string) || '';
+        alarmStore.queryString = recursiveDecodeURIComponent((queryString as string) || '');
         alarmStore.conditions = tryURLDecodeParse(conditions as string, []);
         alarmStore.residentCondition = tryURLDecodeParse(residentCondition as string, []);
         /** 兼容事件中心的condition */
