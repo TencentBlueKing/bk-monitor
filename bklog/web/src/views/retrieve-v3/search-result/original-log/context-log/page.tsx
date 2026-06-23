@@ -29,10 +29,9 @@ export default defineComponent({
 
     return () => (
       <div class='standalone-related-log-page'>
-        {/* <div class='standalone-related-log-title'>{page.t('上下文')}</div> */}
         {page.loading.value ? (
           <RelatedLogLoading
-            title={page.t('上下文')}
+            title='Loading...'
             text={page.loadingText.value}
             steps={[
               'Resolve URL',
