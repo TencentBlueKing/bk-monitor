@@ -132,7 +132,7 @@
 
       .trend-chart-skeleton-body {
         display: flex;
-        gap: 8px;
+        gap: 4px;
         align-items: flex-end;
         height: calc(100% - 42px);
         padding: 8px 12px 0 6px;
@@ -140,7 +140,7 @@
 
       .trend-chart-skeleton-bar {
         flex: 1;
-        min-width: 8px;
+        min-width: 4px;
         max-height: 96px;
       }
 

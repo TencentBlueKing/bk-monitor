@@ -288,7 +288,7 @@ const rightContentStyle = computed(() => {
               class="trend-chart-skeleton-body"
             >
               <span
-                v-for="index in 18"
+                v-for="index in 36"
                 :key="index"
                 class="trend-chart-skeleton-bar"
                 :style="{ height: `${24 + ((index * 17) % 78)}px` }"

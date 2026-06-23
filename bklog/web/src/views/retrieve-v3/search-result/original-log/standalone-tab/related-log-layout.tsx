@@ -64,8 +64,23 @@ export default defineComponent({
       });
     });
 
+    const noop = () => {};
+
     return () => {
       const vm = props.viewModel;
+      const handleChooseRow = vm.chooseRow || noop;
+      const handleToggleCollapse = vm.toggleCollapse || noop;
+      const dataFilterListeners: Record<string, (..._args: any[]) => void> = {
+        'fields-config-update': vm.handleFieldsConfigUpdate,
+        'fix-current-row': vm.scrollToCurrentRow,
+        'handle-filter': vm.handleFilter,
+      };
+
+      if (props.isRealTime) {
+        dataFilterListeners.copy = vm.handleCopy || noop;
+        dataFilterListeners['toggle-poll'] = vm.togglePoll || noop;
+      }
+
       return (
         <bk-resize-layout
           class='standalone-related-log-resize'
@@ -89,11 +104,7 @@ export default defineComponent({
                 <DataFilter
                   ref={vm.dataFilterRef}
                   isRealTime={props.isRealTime}
-                  on-copy={vm.handleCopy}
-                  on-fields-config-update={vm.handleFieldsConfigUpdate}
-                  on-fix-current-row={vm.scrollToCurrentRow}
-                  on-handle-filter={vm.handleFilter}
-                  on-toggle-poll={vm.togglePoll}
+                  on={dataFilterListeners}
                 />
               </div>
               <div
@@ -155,8 +166,8 @@ export default defineComponent({
             indexSetId={vm.indexSetId?.value || 0}
             logIndex={vm.rowIndex?.value || 0}
             retrieveParams={vm.retrieveParams?.value || {}}
-            on-choose-row={vm.chooseRow}
-            on-toggle-collapse={vm.toggleCollapse}
+            on-choose-row={handleChooseRow}
+            on-toggle-collapse={handleToggleCollapse}
           />
         </bk-resize-layout>
       );
