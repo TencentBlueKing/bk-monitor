@@ -25,7 +25,6 @@ import re
 from typing import Any
 
 from django.conf import settings
-from django.core.cache import cache
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext_lazy as _
 
@@ -34,7 +33,6 @@ from apps.exceptions import ApiResultError, ValidationError
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_databus.constants import (
     BKDATA_ES_TYPE_MAP,
-    CACHE_KEY_CLUSTER_INFO,
     DORIS_CLUSTER_TYPE,
     FIELD_TEMPLATE,
     PARSE_FAILURE_FIELD,
@@ -61,7 +59,7 @@ from apps.log_search.constants import (
     TimeFieldUnitEnum,
 )
 from apps.log_search.models import Scenario
-from apps.utils import is_match_variate, md5_sum
+from apps.utils import is_match_variate
 from apps.utils.codecs import unicode_str_decode
 from apps.utils.db import array_group
 
@@ -1320,9 +1318,6 @@ class EtlStorage:
 
             modify_result_table.delay(params)
 
-            md5_key = md5_sum(CACHE_KEY_CLUSTER_INFO.format(table_id))
-            cache.delete(md5_key)
-
         if not instance.table_id:
             instance.table_id = table_id
             instance.save()
@@ -1859,8 +1854,5 @@ class EtlStorage:
             from apps.log_databus.tasks.collector import modify_result_table
 
             modify_result_table.delay(params)
-
-            md5_key = md5_sum(CACHE_KEY_CLUSTER_INFO.format(table_id))
-            cache.delete(md5_key)
 
         return {"table_id": table_id, "params": params}
