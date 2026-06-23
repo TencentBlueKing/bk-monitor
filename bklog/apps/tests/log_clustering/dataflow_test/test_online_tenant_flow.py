@@ -34,6 +34,30 @@ class TestOnlineTenantFlow(SimpleTestCase):
         self.assertTrue(request_params["no_request"])
         self.assertNotIn("bk_tenant_id", action.call_args.kwargs)
 
+    @patch("retrying.time.sleep", return_value=None)
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.ActionHandler.get_action_handler")
+    def test_operator_flow_does_not_retry_failed_action(self, mock_get_action, mock_sleep):
+        action = mock_get_action.return_value
+        action.side_effect = RuntimeError("start failed")
+
+        with self.assertRaises(RuntimeError):
+            DataFlowHandler().operator_flow(flow_id=11, action=ActionEnum.START, bk_biz_id=2)
+
+        action.assert_called_once()
+        mock_sleep.assert_not_called()
+
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.BkDataDataFlowApi.get_dataflow")
+    def test_get_dataflow_info_does_not_retry_failed_result(self, mock_get_dataflow):
+        DataFlowHandler().get_dataflow_info(flow_id=11, bk_biz_id=2)
+
+        self.assertNotIn("data_api_retry_cls", mock_get_dataflow.call_args.kwargs)
+
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.BkDataDataFlowApi.get_latest_deploy_data")
+    def test_get_latest_deploy_data_does_not_retry_failed_result(self, mock_get_latest_deploy_data):
+        DataFlowHandler().get_latest_deploy_data(flow_id=11, bk_biz_id=2)
+
+        self.assertNotIn("data_api_retry_cls", mock_get_latest_deploy_data.call_args.kwargs)
+
     @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.BkDataDatabusApi.post_tasks")
     @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.BkDataMetaApi.result_tables.retrieve")
     def test_check_and_start_clean_task_passes_business_params(self, mock_retrieve, mock_post_tasks):
