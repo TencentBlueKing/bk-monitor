@@ -204,7 +204,8 @@
             position: absolute;
             top: 12px;
             right: 12px;
-            display: none;
+            display: inline-block;
+            visibility: hidden;
             color: #c4c6cc;
             cursor: pointer;
 
@@ -230,7 +231,7 @@
             background-color: #f0f1f5;
 
             .toggle-display {
-              display: inline-block;
+              visibility: visible;
             }
           }
         }
