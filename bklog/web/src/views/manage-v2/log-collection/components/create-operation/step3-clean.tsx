@@ -401,6 +401,10 @@ export default defineComponent({
           if (cleaningMode.value === 'bk_log_delimiter') {
             delimiter.value = etl_params.separator;
           }
+          // 根据 original_text_tokenize_on_chars 判断是否为自定义分词
+          originParticipleState.value = etl_params.original_text_tokenize_on_chars
+            ? 'custom'
+            : 'default';
           cacheTemplateData.value = deepClone(formData.value);
           return;
         }
