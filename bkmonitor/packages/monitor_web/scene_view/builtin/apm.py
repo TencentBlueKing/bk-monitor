@@ -329,16 +329,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
 
                 view_config = cls._replace_variable(view_config, "${app_name}", app_name)
             elif builtin_view == f"{cls.APM_TRACE_PREFIX}-container":
-                return cls.get_container_view(
-                    params,
-                    bk_biz_id,
-                    app_name,
-                    service_name,
-                    view,
-                    view_config,
-                    builtin_view,
-                    display_with_sidebar=False,
-                )
+                return cls.get_container_view_v2(params, bk_biz_id, app_name, service_name, view_config, builtin_view)
             return view_config
 
         # APM观测场景处
@@ -540,42 +531,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         return view_config
 
     @classmethod
-    def get_container_view(
-        cls,
-        params,
-        bk_biz_id,
-        app_name,
-        service_name,
-        view,
-        view_config,
-        builtin_view,
-        display_with_sidebar=True,
-    ):
-        # display_with_sidebar: 是否页面配置展示为侧边栏(在观测场景处显示为侧边栏，在主机场景处显示为顶部栏下拉框)
-        # 获取观测场景或 span 检索处关联容器的图表配置
-        start_time = params.get("start_time")
-        end_time = params.get("end_time")
-        if not start_time or not end_time:
-            raise ValueError("没有传递 start_time, end_time")
-
-        if app_name and service_name:
-            from apm_web.container.resources import ListServicePodsResource
-
-            response = ListServicePodsResource()(
-                bk_biz_id=bk_biz_id,
-                app_name=app_name,
-                service_name=service_name,
-                start_time=start_time,
-                end_time=end_time,
-            )
-
-            if response:
-                # 实际有 Pod 数据才返回
-                return cls._add_config_from_container(app_name, service_name, view, view_config, display_with_sidebar)
-
-        return cls._get_non_container_view_config(builtin_view, params)
-
-    @classmethod
     def get_container_view_v2(
         cls,
         params: dict[str, Any],
@@ -584,12 +539,22 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         service_name: str,
         view_config: dict[str, Any],
         builtin_view: str,
-    ):
+    ) -> dict[str, Any]:
         from apm_web.container.resources import ListServiceK8sTargetsResource
 
-        target_list: list[dict[str, Any]] = ListServiceK8sTargetsResource()(
-            bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name
-        ).get("target_list", [])
+        # 新版容器页由前端 PanelK8s 负责拉取目标与图表，此处只决定是否返回容器面板入口。
+        if not app_name or not service_name:
+            return cls._get_non_container_view_config(builtin_view, params)
+
+        request_params: dict[str, Any] = {
+            "bk_biz_id": bk_biz_id,
+            "app_name": app_name,
+            "service_name": service_name,
+        }
+        if params.get("span_id"):
+            request_params["span_id"] = params["span_id"]
+
+        target_list: list[dict[str, Any]] = ListServiceK8sTargetsResource()(**request_params).get("target_list", [])
         if not target_list:
             return cls._get_non_container_view_config(builtin_view, params)
         return view_config
@@ -684,68 +649,6 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 target_data["group_by_limit"][field].extend(value)
 
         cls._walk_target_data(view_config, _callback)
-
-    @classmethod
-    def _add_config_from_container(cls, app_name, service_name, view, view_config, display_with_sidebar):
-        """获取容器 Pod 图表配置"""
-        from monitor_web.scene_view.builtin.kubernetes import KubernetesBuiltinProcessor
-
-        if not KubernetesBuiltinProcessor.builtin_views:
-            KubernetesBuiltinProcessor.load_builtin_views()
-
-        # 因为 kubernetes 场景不需要 type 字段(在接口处已处理) 这里查询 type 为空的数据
-        pod_view = SceneViewModel.objects.filter(
-            bk_biz_id=view.bk_biz_id,
-            scene_id="kubernetes",
-            name="pod",
-            type="",
-        )
-        if pod_view.exists():
-            pod_view = pod_view.first()
-        else:
-            create_default_views(bk_biz_id=view.bk_biz_id, scene_id="kubernetes", view_type="", existed_views=pod_view)
-            pod_view = pod_view.first()
-
-        pod_view_config = json.loads(json.dumps(KubernetesBuiltinProcessor.builtin_views["kubernetes-pod"]))
-        pod_view = KubernetesBuiltinProcessor.get_pod_view_config(pod_view, pod_view_config, view_position="APM")
-
-        # 调整配置
-        pod_view["id"], pod_view["name"] = view_config["id"], view_config["name"]
-        pod_view["options"] = view_config["options"]
-        pod_view["variables"] = view_config["variables"]
-        if "panels" in pod_view:
-            pod_view["overview_panels"] = pod_view["panels"]
-            del pod_view["panels"]
-
-        if display_with_sidebar:
-            pod_view["options"]["selector_panel"]["targets"][0]["data"].update(
-                {
-                    "app_name": app_name,
-                    "service_name": service_name,
-                }
-            )
-        else:
-            pod_view["variables"][0]["targets"][0]["data"].update(
-                {
-                    "app_name": app_name,
-                    "service_name": service_name,
-                }
-            )
-            # 将图表的维度全部改为显示在下方 而不是右边
-            for i in pod_view.get("overview_panels", []):
-                for j in i.get("panels", []):
-                    j.update({"options": {"legend": {"placement": "bottom", "displayMode": "list"}}})
-
-        # 不展示事件页面 和 图表为空列表的分类
-        o_views = []
-        for i in pod_view["overview_panels"]:
-            if i["id"] == "bk_monitor.time_series.k8s.events":
-                continue
-            if not i["panels"]:
-                continue
-            o_views.append(i)
-        pod_view["overview_panels"] = o_views
-        return pod_view
 
     @classmethod
     def _add_config_from_host(cls, view, view_config):
