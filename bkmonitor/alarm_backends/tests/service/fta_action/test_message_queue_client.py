@@ -55,6 +55,17 @@ class KafkaClientSendTest(SimpleTestCase):
             with self.assertRaises(RuntimeError):
                 KafKaClient(DSN).send("hello")
 
+    def test_send_propagates_produce_exception(self):
+        # produce 本身同步抛错（如本地队列满 BufferError）也应向上传递为失败
+        def factory(conf):
+            producer = _fake_producer_factory()(conf)
+            producer.produce.side_effect = BufferError("Local: Queue full")
+            return producer
+
+        with patch(PRODUCER_PATH, side_effect=factory):
+            with self.assertRaises(BufferError):
+                KafKaClient(DSN).send("hello")
+
     def test_message_timeout_default_applied(self):
         # 默认注入有界 message.timeout.ms，避免 broker 故障时无界阻塞
         captured = {}
