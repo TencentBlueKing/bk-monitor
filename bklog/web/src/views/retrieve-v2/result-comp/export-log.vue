@@ -389,6 +389,8 @@
         totalFields: state => state.indexFieldInfo.fields ?? [],
         visibleFields: state => state.visibleFields ?? [],
         showFieldAlias: state => state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
+        retrieveType: state => state.indexItem?.retrieve_type,
+        isLoading: state => state.indexSetQueryResult?.is_loading,
       }),
       ...mapGetters({
         bkBizId: 'bkBizId',
@@ -456,13 +458,18 @@
         }
       },
       routerIndexSet() {
-        // 切换业务时清空进行中任务状态记录
-        this.pendingTaskStatus = {};
-        // 清空失败任务定时器和记录
-        this.clearFailedTaskTimer();
-        this.failedTaskIds = [];
-        this.initDateRange();
-        this.getTableList();
+        // 切换业务时重置组件状态
+        this.resetComponentState();
+      },
+      retrieveType(newVal, oldVal) {
+        if (oldVal === 'scene' && newVal !== 'scene') {
+          this.resetComponentState();
+        }
+      },
+      isLoading(newVal, oldVal) {
+        if (this.isScene && oldVal === true && newVal === false) {
+          this.resetComponentState();
+        }
       },
     },
     mounted() {
@@ -502,6 +509,19 @@
       //   });
       //   this.popoverInstance?.show();
       // },
+      /**
+       * 重置组件状态：清空进行中任务记录、失败任务定时器和记录，重新初始化数据
+       */
+      resetComponentState() {
+        // 清空进行中任务状态记录
+        this.pendingTaskStatus = {};
+        // 清空失败任务定时器和记录
+        this.clearFailedTaskTimer();
+        this.failedTaskIds = [];
+        // 重新初始化数据
+        this.initDateRange();
+        this.getTableList();
+      },
       exportLog() {
         if (!this.queueStatus) return;
         // 导出数据为空
@@ -1249,11 +1269,13 @@
         align-items: center;
         margin-left: 8px;
         font-size: 14px;
-        color: #EA3636;
 
         .failed-task-count {
           width: 20px;
           height: 20px;
+          text-align: center;
+          line-height: 20px;
+          font-size: 12px;
           background-color: #EA3636;
           border-radius: 50%;
           color: #fff;
@@ -1262,6 +1284,7 @@
 
         .failed-task-text {
           font-weight: 400;
+          color: #EA3636;
         }
       }
 
