@@ -26,8 +26,8 @@ class Command(BaseCommand):
     help = "迁移日志聚类 Flow ID，并在预测 Flow 迁移时更新模型配置、创建在线 CI、重启 Flow"
 
     flow_id_fields = (
-        "after_treat_flow_id",
         "pre_treat_flow_id",
+        "after_treat_flow_id",
         "predict_flow_id",
         "log_count_aggregation_flow_id",
     )
