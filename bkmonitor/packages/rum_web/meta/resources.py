@@ -523,15 +523,21 @@ class ListApplicationAsyncResource(AsyncColumnsListResource):
         return miss_application, cache_metric_data
 
     @classmethod
-    def get_metric_data(cls, metric_name: str, applications: list) -> dict:
+    def get_metric_data(
+        cls, metric_name: str, applications: list, start_time: int | None = None, end_time: int | None = None
+    ) -> dict:
         """
         获取应用指标数据
         :param metric_name: 指标名称
         :param applications: 应用列表
-        :return:
+        :param start_time: 开始时间戳（秒），可选
+        :param end_time: 结束时间戳（秒），可选
+        :return: 应用 ID 到指标数据的映射字典
         """
 
-        metric_data = APPLICATION_LIST(applications, metric_handler_cls=[cls.METRIC_MAP.get(metric_name)])
+        metric_data = APPLICATION_LIST(
+            applications, metric_handler_cls=[cls.METRIC_MAP.get(metric_name)], start_time=start_time, end_time=end_time
+        )
 
         metric_map = {}
         for app in applications:
@@ -547,6 +553,8 @@ class ListApplicationAsyncResource(AsyncColumnsListResource):
         for metric_name, metric_value in column_dict.items():
             if metric_name == "lcp_p75":
                 metric_value = round(metric_value / 1000, 1)
+            elif metric_name in {"js_error_rate", "api_fail_rate"}:
+                metric_value = metric_value * 100
             metric_dict[metric_name] = {
                 "id": metric_name,
                 "value": metric_value,
@@ -612,7 +620,12 @@ class ListApplicationAsyncResource(AsyncColumnsListResource):
 
         # 缓存中缺少部分应用时，补全数据
         if miss_application:
-            metric_data = self.get_metric_data(metric_name=validate_data["column"], applications=miss_application)
+            metric_data = self.get_metric_data(
+                metric_name=validate_data["column"],
+                applications=miss_application,
+                start_time=validate_data["start_time"],
+                end_time=validate_data["end_time"],
+            )
             cache_metric_data.update(metric_data)
 
         res = self.build_res(

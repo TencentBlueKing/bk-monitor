@@ -21,7 +21,8 @@ from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from bkmonitor.utils.time_tools import get_datetime_range
-from core.drf_resource import resource
+from bkm_space.utils import bk_biz_id_to_space_uid
+from core.drf_resource import resource, api
 
 logger = logging.getLogger("rum")
 
@@ -372,26 +373,65 @@ class JsErrorRateInstance(MetricHandler):
 
     metric_id = "js_error_rate"
     aggs_method = "SUM"
-    metric_field = "bk_rum_js_error_count"
+    metric_field = "attributes.view.url"
     query_type = "instance"
-    datasource_query = True
+    default_functions = [{"method": "cardinality"}]
+
+    def _unify_query_params(self):
+        """获取 GraphUnifyQuery 接口查询参数"""
+
+        return {
+            "space_uid": bk_biz_id_to_space_uid(self._get_app_attr("bk_biz_id")),
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "step": "1m",
+            "instant": True,
+            "metric_merge": "a",
+            "query_list": [
+                {
+                    "data_source": "bklog",
+                    "table_id": self._get_app_attr("span_result_table_id"),
+                    "field_name": "attributes.view.url",
+                    "reference_name": "a",
+                    "query_string": "",
+                    "conditions": {"field_list": [], "condition_list": []},
+                    "function": self.default_functions,
+                }
+            ],
+        }
+
+    def query_by_unify_query(self, params):
+        logger.info(f"[UnifyQuery - QueryReference] queryParams: \n----\n{json.dumps(params)}\n----")
+        return api.unify_query.query_reference(params)
 
     def query_instance(self):
         """JS 错误率需要同时查询错误数和总访问数"""
         # 查询 JS 错误数
-        error_params = self._datasource_query_params(instant=True)
-        error_params["metrics"] = [{"field": "bk_rum_js_error_count", "method": "SUM", "alias": "a"}]
-        error_result = self.calculation.instance_cal(self.query_by_datasource(error_params))
+        error_params = self._unify_query_params()
+        error_params["query_list"][0]["conditions"] = {
+            "field_list": [
+                {"field_name": "attributes.span_type", "op": "eq", "value": ["error"]},
+                {"field_name": "attributes.error_type", "op": "eq", "value": ["js"]},
+            ],
+            "condition_list": ["and"],
+        }
+        error_result = self.query_by_unify_query(error_params)["series"][0]["values"][0][1]
 
         # 查询总页面访问数
-        total_params = self._datasource_query_params(instant=True)
-        total_params["metrics"] = [{"field": "bk_rum_page_view_count", "method": "SUM", "alias": "a"}]
-        total_result = self.calculation.instance_cal(self.query_by_datasource(total_params))
+        total_params = self._unify_query_params()
+        total_params["query_list"][0]["conditions"] = {
+            "field_list": [
+                {"field_name": "span_name", "op": "eq", "value": ["browser.web_vital"]},
+                {"field_name": "attributes.span_subtype", "op": "eq", "value": ["lcp"]},
+            ],
+            "condition_list": ["and"],
+        }
+        total_result = self.query_by_unify_query(total_params)["series"][0]["values"][0][1]
 
         if not total_result or total_result == 0:
             return 0
 
-        return round(error_result / total_result, 4) if error_result else 0
+        return round(error_result / total_result, 3) if error_result else 0
 
 
 class ApiFailRateInstance(MetricHandler):
@@ -402,26 +442,66 @@ class ApiFailRateInstance(MetricHandler):
 
     metric_id = "api_fail_rate"
     aggs_method = "SUM"
-    metric_field = "bk_rum_api_fail_count"
+    metric_field = "span_name"
     query_type = "instance"
-    datasource_query = True
+    default_functions = [{"method": "count"}]
+
+    def _unify_query_params(self):
+        """获取 GraphUnifyQuery 接口查询参数"""
+
+        return {
+            "space_uid": bk_biz_id_to_space_uid(self._get_app_attr("bk_biz_id")),
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "step": "1m",
+            "instant": True,
+            "metric_merge": "a",
+            "query_list": [
+                {
+                    "data_source": "bklog",
+                    "table_id": self._get_app_attr("span_result_table_id"),
+                    "field_name": "attributes.view.url",
+                    "reference_name": "a",
+                    "query_string": "",
+                    "conditions": {"field_list": [], "condition_list": []},
+                    "function": self.default_functions,
+                }
+            ],
+        }
+
+    def query_by_unify_query(self, params):
+        logger.info(f"[UnifyQuery - QueryReference] queryParams: \n----\n{json.dumps(params)}\n----")
+        return api.unify_query.query_reference(params)
 
     def query_instance(self):
-        """API 失败率需要同时查询失败数和总请求数"""
-        # 查询 API 失败数
-        fail_params = self._datasource_query_params(instant=True)
-        fail_params["metrics"] = [{"field": "bk_rum_api_fail_count", "method": "SUM", "alias": "a"}]
-        fail_result = self.calculation.instance_cal(self.query_by_datasource(fail_params))
+        """JS 错误率需要同时查询错误数和总访问数"""
+        # 查询 JS 错误数
+        error_params = self._unify_query_params()
+        error_params["query_list"][0]["conditions"] = {
+            "field_list": [
+                {"field_name": "span_name", "op": "eq", "value": ["browser.resource"]},
+                {"field_name": "attributes.span_subtype", "op": "eq", "value": ["xhr", "fetch"]},
+                {"field_name": "status.code", "op": "eq", "value": ["2"]},
+            ],
+            "condition_list": ["and", "and"],
+        }
+        error_result = self.query_by_unify_query(error_params)["series"][0]["values"][0][1]
 
-        # 查询 API 总请求数
-        total_params = self._datasource_query_params(instant=True)
-        total_params["metrics"] = [{"field": "bk_rum_api_total_count", "method": "SUM", "alias": "a"}]
-        total_result = self.calculation.instance_cal(self.query_by_datasource(total_params))
+        # 查询总页面访问数
+        total_params = self._unify_query_params()
+        total_params["query_list"][0]["conditions"] = {
+            "field_list": [
+                {"field_name": "span_name", "op": "eq", "value": ["browser.resource"]},
+                {"field_name": "attributes.span_subtype", "op": "eq", "value": ["xhr", "fetch"]},
+            ],
+            "condition_list": ["and"],
+        }
+        total_result = self.query_by_unify_query(total_params)["series"][0]["values"][0][1]
 
         if not total_result or total_result == 0:
             return 0
 
-        return round(fail_result / total_result, 4) if fail_result else 0
+        return round(error_result / total_result, 3) if error_result else 0
 
 
 @using_cache(CacheType.RUM(60 * 15))

@@ -15,4 +15,4 @@ from rum_web.models import Application
 class ApplicationCacheSerializer(serializers.ModelSerializer):
     class Meta:
         model = Application
-        fields = ["application_id", "bk_biz_id", "app_name", "metric_result_table_id"]
+        fields = ["application_id", "bk_biz_id", "app_name", "metric_result_table_id", "span_result_table_id"]
