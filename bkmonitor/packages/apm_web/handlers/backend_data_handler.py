@@ -571,12 +571,21 @@ class MetricBackendHandler(TelemetryBackendHandler):
             if interval:
                 start_time = time_interval_align(timestamp=start_time, interval=interval)
                 end_time = time_interval_align(timestamp=end_time, interval=interval)
-            resp = api.bkdata.get_v4_metrics_msgs_stat(
-                resource={"kind": "DataId", "namespace": namespace, "name": data_id_name},
-                start=start_time,
-                end=end_time,
-                step=grain,
-            )
+            try:
+                resp = api.bkdata.get_v4_metrics_msgs_stat(
+                    resource={"kind": "DataId", "namespace": namespace, "name": data_id_name},
+                    start=start_time,
+                    end=end_time,
+                    step=grain,
+                )
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning(
+                    "get metric v4 metrics msgs stat failed, app_name=%s, data_id_name=%s, error=%s",
+                    self.app.app_name,
+                    data_id_name,
+                    e,
+                )
+                return []
             return self.format_v4_metrics_msgs_stat(resp, grain=grain)
         else:
             storages = self.storage_info()
