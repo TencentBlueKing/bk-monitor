@@ -25,7 +25,12 @@
 -->
 
 <template>
-  <bk-navigation class="bk-log-navigation" :theme-color="navThemeColor" head-height="0" header-title=""
+  <router-view
+    v-if="isHeadless"
+    class="manage-content manage-content-headless"
+    :key="refreshKey"
+  ></router-view>
+  <bk-navigation v-else class="bk-log-navigation" :theme-color="navThemeColor" head-height="0" header-title=""
     navigation-type="left-right" :default-open="false" @toggle="handleToggle">
     <template #menu>
       <bk-navigation-menu :default-active="activeManageNav.id" :item-default-bg-color="navThemeColor">
@@ -61,19 +66,19 @@
 
 <script>
   import SubNav from '@/components/nav/manage-nav';
-import { mapGetters, mapState } from 'vuex';
+import { mapState } from 'vuex';
 import { isFeatureToggleOn } from '@/store/helper';
 
   export default {
     name: 'ManageIndex',
+    components: {
+      SubNav,
+    },
     props: {
       showSubNav: {
         type: Boolean,
         default: true,
       },
-    },
-    components: {
-      SubNav,
     },
     data() {
       return {
@@ -85,10 +90,13 @@ import { isFeatureToggleOn } from '@/store/helper';
 
     computed: {
       ...mapState(['topMenu', 'spaceUid', 'bkBizId', 'isExternal', 'globals']),
-      ...mapGetters({
-        authPageInfo: 'globals/authContainerInfo',
-      }),
+      authPageInfo() {
+        return this.isHeadless ? null : this.$store.getters['globals/authContainerInfo'];
+      },
       manageNavList() {
+        if (this.isHeadless) {
+          return [];
+        }
         return this.topMenu.find(item => item.id === 'manage')?.children || [];
       },
       menuList() {
@@ -100,8 +108,14 @@ import { isFeatureToggleOn } from '@/store/helper';
         return list ?? [];
       },
       activeManageNav() {
+        if (this.isHeadless) {
+          return {};
+        }
         const childList = this.menuList.map(m => m.children).flat(2);
         return childList.find(t => t.id === this.$route.meta.navId) ?? {};
+      },
+      isHeadless() {
+        return this.$route.query.hl === '1';
       }
     },
     watch: {
@@ -139,10 +153,29 @@ import { isFeatureToggleOn } from '@/store/helper';
               bizId: this.bkBizId,
             },
           }).then(() => {
-            this.refreshKey = `${this.$router.name}_${this.$route.query.spaceUid}`
+            this.refreshKey = `${this.$router.name}_${this.$route.query.spaceUid}`;
           });
         }
       },
+    },
+    mounted() {
+      const bkBizId = this.$store.state.bkBizId;
+      const spaceUid = this.$store.state.spaceUid;
+
+      this.$router.replace({
+        query: {
+          bizId: bkBizId,
+          spaceUid: spaceUid,
+          ...this.$route.query,
+        },
+      }).then(() => {
+        this.refreshKey = `${this.$router.name}_${this.$route.query.spaceUid}`;
+      });
+      if (!this.isHeadless) {
+        setTimeout(() => {
+          this.handleToggle();
+        }, 10);
+      }
     },
     methods: {
       getMenuIcon(item) {
@@ -165,7 +198,7 @@ import { isFeatureToggleOn } from '@/store/helper';
       // 获取当前路由的最外层路径，用于切换业务时跳转到菜单栏目录项
       getTopLevelRoute() {
         const currentPath = this.$route.path;
-        const match = currentPath.match(/^\/manage\/([^\/]+)/);  // 匹配 /manage/xxx 的模式
+        const match = currentPath.match(/^\/manage\/([^/]+)/);  // 匹配 /manage/xxx 的模式
 
         if (match) return match[1]; // 返回紧跟 /manage 的路径段
 
@@ -245,23 +278,6 @@ import { isFeatureToggleOn } from '@/store/helper';
           });
         }
       },
-    },
-    mounted() {
-      const bkBizId = this.$store.state.bkBizId;
-      const spaceUid = this.$store.state.spaceUid;
-
-      this.$router.replace({
-        query: {
-          bizId: bkBizId,
-          spaceUid: spaceUid,
-          ...this.$route.query,
-        },
-      }).then(() => {
-        this.refreshKey = `${this.$router.name}_${this.$route.query.spaceUid}`
-      });
-      setTimeout(() => {
-        this.handleToggle();
-      }, 10)
     },
   };
 </script>

@@ -3,11 +3,11 @@
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  */
 import http from '@/api';
-import { MENU_LISTS } from '@/global/head-navi/complete-menu.ts';
 import { storeCacheService } from '@/storage';
 
 import { formatTimeZoneString } from '@/global/utils/time';
 import { isSceneRetrieve } from '../helper.ts';
+import { mergeMenuWithDefaultConfig } from '../menu-config.ts';
 
 const cacheApi = (name, scope, data, meta = {}) => {
   storeCacheService.setApiCache(name, scope || 'default', data, meta).catch((error) => {
@@ -94,13 +94,7 @@ export function requestMenuListAction({ commit }, spaceUid) {
       const rawMenu = res.data || [];
       const menuList = replaceMenuId(rawMenu);
 
-      menuList.forEach((child) => {
-        child.id = routeMap[child.id] || child.id;
-        const menu = MENU_LISTS.find(menuItem => menuItem.id === child.id);
-        if (menu) {
-          deepUpdateMenu(menu, child);
-        }
-      });
+      mergeMenuWithDefaultConfig(menuList, routeMap, deepUpdateMenu);
 
       commit('updateState', { topMenu: menuList });
       commit('updateState', { menuProject: rawMenu });

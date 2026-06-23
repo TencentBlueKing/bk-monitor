@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+from types import SimpleNamespace
 
 import pytest
 from django.conf import settings
@@ -155,6 +156,49 @@ class TestGetVariableValue:
         data = GetVariableValue().request(params)
         data.sort(key=lambda x: x["value"])
         assert data == [{"label": "pod1", "value": "pod1"}, {"label": "pod2", "value": "pod2"}]
+
+    def test_dimensions_with_uptimecheck_node_id(self, mocker):
+        """拨测 node_id 维度查询：同时兼容 数字主键 与 bk_cloud_id:ip 两种上报格式
+
+        回归用例：
+        1. bk_cloud_id:ip 格式的 node_id 不应被当作整数主键过滤而抛
+           "Field 'id' expected a number" 的 ValueError，且应翻译成对应节点名称。
+        2. 公共拨测节点（is_common=True）也应被翻译，因此必须以 include_common=True 查询。
+        """
+        params = {
+            "bk_biz_id": 2,
+            "type": "dimension",
+            "params": {
+                "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
+                "data_type_label": DataTypeLabel.TIME_SERIES,
+                "field": "node_id",
+                "metric_field": "available",
+                "result_table_id": "uptimecheck.udp",
+                "where": [],
+            },
+        }
+        # 0:10.0.0.2 命中公共节点，验证公共拨测节点维度值同样被翻译
+        get_dimension_data_return = {"values": {"node_id": ["0:10.0.0.1", "0:10.0.0.2", "10"]}}
+        mocker.patch(
+            "api.unify_query.default.GetDimensionDataResource.perform_request", return_value=get_dimension_data_return
+        )
+        mock_list_nodes = mocker.patch(
+            "monitor_web.grafana.resources.time_series.list_nodes",
+            return_value=[
+                SimpleNamespace(id=10, name="node-A", plat_id=None, ip=None, is_common=False),
+                SimpleNamespace(id=20, name="node-B", plat_id=0, ip="10.0.0.1", is_common=False),
+                # 公共拨测节点：仅在 include_common=True 时才会被 list_nodes 返回
+                SimpleNamespace(id=30, name="common-node", plat_id=0, ip="10.0.0.2", is_common=True),
+            ],
+        )
+        data = GetVariableValue().request(params)
+        # 必须显式包含公共节点，否则公共拨测节点维度值无法翻译
+        assert mock_list_nodes.call_args.kwargs.get("query") == {"include_common": True}
+        assert sorted(data, key=lambda x: x["value"]) == [
+            {"label": "node-B", "value": "0:10.0.0.1"},
+            {"label": "common-node", "value": "0:10.0.0.2"},
+            {"label": "node-A", "value": "10"},
+        ]
 
     def test_dimensions_with_custom_event(self, mocker):
         """自定义事件，维度查询"""
@@ -478,8 +522,8 @@ class TestGetVariableValue:
         )
         actual = GetVariableValue().request(params)
         expect = [
-            {'label': 'BCS-K8S-00000(蓝鲸社区版7.0)', 'value': 'BCS-K8S-00000'},
-            {'label': 'BCS-K8S-00001', 'value': 'BCS-K8S-00001'},
+            {"label": "BCS-K8S-00000(蓝鲸社区版7.0)", "value": "BCS-K8S-00000"},
+            {"label": "BCS-K8S-00001", "value": "BCS-K8S-00001"},
         ]
         assert actual == expect
 
@@ -494,7 +538,7 @@ class TestGetVariableValue:
             "bk_biz_id": "2",
         }
         actual = GetVariableValue().request(params)
-        expect = [{'label': 'bk_host_name-a', 'value': '10.0.0.1'}, {'label': 'bk_host_name-b', 'value': '10.0.0.2'}]
+        expect = [{"label": "bk_host_name-a", "value": "10.0.0.1"}, {"label": "bk_host_name-b", "value": "10.0.0.2"}]
         assert actual == expect
 
     def test_scenario_kubernetes_type_is_cluster(
@@ -514,8 +558,8 @@ class TestGetVariableValue:
         }
         actual = GetVariableValue().request(params)
         expect = [
-            {'label': 'BCS-K8S-00000(蓝鲸社区版7.0)', 'value': 'BCS-K8S-00000'},
-            {'label': 'BCS-K8S-00001(蓝鲸社区版7.0)', 'value': 'BCS-K8S-00001'},
+            {"label": "BCS-K8S-00000(蓝鲸社区版7.0)", "value": "BCS-K8S-00000"},
+            {"label": "BCS-K8S-00001(蓝鲸社区版7.0)", "value": "BCS-K8S-00001"},
         ]
         assert actual == expect
 
@@ -530,8 +574,8 @@ class TestGetVariableValue:
         }
         actual = GetVariableValue().request(params)
         expect = [
-            {'label': 'BCS-K8S-00000(蓝鲸社区版7.0)', 'value': 'BCS-K8S-00000'},
-            {'label': 'BCS-K8S-00002(蓝鲸社区版7.0)', 'value': 'BCS-K8S-00002'},
+            {"label": "BCS-K8S-00000(蓝鲸社区版7.0)", "value": "BCS-K8S-00000"},
+            {"label": "BCS-K8S-00002(蓝鲸社区版7.0)", "value": "BCS-K8S-00002"},
         ]
         assert actual == expect
 
@@ -553,7 +597,7 @@ class TestGetVariableValue:
             "bk_biz_id": "2",
         }
         actual = GetVariableValue().request(params)
-        expect = [{'label': 'bcs-system', 'value': 'bcs-system'}]
+        expect = [{"label": "bcs-system", "value": "bcs-system"}]
         assert actual == expect
 
         params = {
@@ -567,7 +611,7 @@ class TestGetVariableValue:
             "bk_biz_id": "-3",
         }
         actual = GetVariableValue().request(params)
-        expect = [{'label': 'namespace_a', 'value': 'namespace_a'}]
+        expect = [{"label": "namespace_a", "value": "namespace_a"}]
         assert actual == expect
 
     def test_scenario_kubernetes_type_is_pod(
@@ -589,8 +633,8 @@ class TestGetVariableValue:
         }
         actual = GetVariableValue().request(params)
         expect = [
-            {'label': 'api-gateway-0', 'value': 'api-gateway-0'},
-            {'label': 'api-gateway-1', 'value': 'api-gateway-1'},
+            {"label": "api-gateway-0", "value": "api-gateway-0"},
+            {"label": "api-gateway-1", "value": "api-gateway-1"},
         ]
         assert actual == expect
 
@@ -605,7 +649,7 @@ class TestGetVariableValue:
             "bk_biz_id": "-3",
         }
         actual = GetVariableValue().request(params)
-        expect = [{'label': 'api-gateway-2', 'value': 'api-gateway-2'}]
+        expect = [{"label": "api-gateway-2", "value": "api-gateway-2"}]
         assert actual == expect
 
     def test_scenario_kubernetes_type_is_container(
@@ -629,7 +673,7 @@ class TestGetVariableValue:
             "bk_biz_id": "2",
         }
         actual = GetVariableValue().request(params)
-        expect = [{'label': 'etcd', 'value': 'etcd'}]
+        expect = [{"label": "etcd", "value": "etcd"}]
         assert actual == expect
 
         params = {
@@ -645,7 +689,7 @@ class TestGetVariableValue:
             "bk_biz_id": "-3",
         }
         actual = GetVariableValue().request(params)
-        expect = [{'label': 'etcd', 'value': 'etcd'}]
+        expect = [{"label": "etcd", "value": "etcd"}]
         assert actual == expect
 
     def test_scenario_kubernetes_type_is_node(
@@ -668,7 +712,7 @@ class TestGetVariableValue:
             "bk_biz_id": "2",
         }
         actual = GetVariableValue().request(params)
-        expect = [{'label': 'master-1-1-1-1', 'value': '1.1.1.1'}]
+        expect = [{"label": "master-1-1-1-1", "value": "1.1.1.1"}]
         assert actual == expect
 
         params = {
@@ -708,9 +752,9 @@ class TestGetVariableValue:
         }
         actual = GetVariableValue().request(params)
         expect = [
-            {'label': 'api-gateway', 'value': 'api-gateway'},
-            {'label': 'api-gateway-etcd', 'value': 'api-gateway-etcd'},
-            {'label': 'elasticsearch-data', 'value': 'elasticsearch-data'},
+            {"label": "api-gateway", "value": "api-gateway"},
+            {"label": "api-gateway-etcd", "value": "api-gateway-etcd"},
+            {"label": "elasticsearch-data", "value": "elasticsearch-data"},
         ]
         assert actual == expect
 
@@ -727,5 +771,5 @@ class TestGetVariableValue:
             "bk_biz_id": "-3",
         }
         actual = GetVariableValue().request(params)
-        expect = [{'label': 'elasticsearch-data', 'value': 'elasticsearch-data'}]
+        expect = [{"label": "elasticsearch-data", "value": "elasticsearch-data"}]
         assert actual == expect

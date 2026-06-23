@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { BK_LOG_STORAGE } from "./store.type";
-import { getDefaultOp, REVERSE_OPERATOR_MAP, getOperatorRequestParam } from "@/views/retrieve-v3/search-bar/scene-filter/scene-config";
+import { BK_LOG_STORAGE } from './store.type';
+import { getDefaultOp, REVERSE_OPERATOR_MAP, getOperatorRequestParam } from '@/store/scene-filter-config';
 import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
 import { storeCacheService } from '@/storage';
 

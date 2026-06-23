@@ -101,6 +101,7 @@ export default defineComponent({
 
     const hoverOperatorState = reactive({
       visible: false,
+      interacting: false,
       row: null,
       rowIndex: -1,
       top: 0,
@@ -1276,8 +1277,21 @@ export default defineComponent({
     const scheduleHideHoverOperator = () => {
       clearHoverOperatorHideTimer();
       hoverOperatorHideTimer = setTimeout(() => {
+        if (hoverOperatorState.interacting) {
+          return;
+        }
         hoverOperatorState.visible = false;
       }, 80);
+    };
+
+    const activateHoverOperator = () => {
+      hoverOperatorState.interacting = true;
+      clearHoverOperatorHideTimer();
+    };
+
+    const deactivateHoverOperator = () => {
+      hoverOperatorState.interacting = false;
+      scheduleHideHoverOperator();
     };
 
     const updateHoverOperatorPosition = (rowEl: HTMLElement) => {
@@ -1306,6 +1320,7 @@ export default defineComponent({
 
     const handleRowMouseenter = (event: MouseEvent, row, rowIndex: number) => {
       clearHoverOperatorHideTimer();
+      hoverOperatorState.interacting = false;
       hoverOperatorState.row = row;
       hoverOperatorState.rowIndex = rowIndex;
       hoverOperatorState.visible = !window?.__IS_MONITOR_TRACE__;
@@ -1331,8 +1346,10 @@ export default defineComponent({
             top: `${hoverOperatorState.top}px`,
             right: `${hoverOperatorState.right}px`,
           }}
-          onMouseenter={clearHoverOperatorHideTimer}
-          onMouseleave={scheduleHideHoverOperator}
+          onFocusin={activateHoverOperator}
+          onFocusout={deactivateHoverOperator}
+          onMouseenter={activateHoverOperator}
+          onMouseleave={deactivateHoverOperator}
         >
           {/** @ts-expect-error */}
           <OperatorTools
@@ -1475,7 +1492,13 @@ export default defineComponent({
         return [
           <RowRender
             key={row[ROW_KEY]}
-            class={['bklog-row-container', logLevel ?? 'normal']}
+            class={[
+              'bklog-row-container',
+              logLevel ?? 'normal',
+              {
+                'is-hover-operator-active': hoverOperatorState.visible && hoverOperatorState.rowIndex === rowIndex,
+              },
+            ]}
             row-index={rowIndex}
             on-row-mousedown={handleRowMousedown}
             on-row-mouseenter={e => handleRowMouseenter(e, row.item, rowIndex)}

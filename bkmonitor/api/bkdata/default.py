@@ -1498,6 +1498,26 @@ class GetV4DataStorageInfo(DataAccessAPIResource):
         databus_name = serializers.CharField(required=True, label="Databus资源名称")
 
 
+class GetV4MetricsMsgsStat(DataAccessAPIResource):
+    """
+    获取V4链路DataId消息统计
+    """
+
+    action = "/v4/metrics/stats/msgs_stat/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        resource = serializers.DictField(required=True, label="资源信息")
+        start = serializers.IntegerField(required=False, label="开始时间")
+        end = serializers.IntegerField(required=False, label="结束时间")
+        step = serializers.CharField(required=False, label="时间粒度")
+
+    def full_request_data(self, validated_request_data):
+        validated_request_data = super().full_request_data(validated_request_data)
+        validated_request_data["resource"] = json.dumps(validated_request_data["resource"])
+        return validated_request_data
+
+
 class GetBkbaseRawDataWithDataId(UseSaaSAuthInfoMixin, DataAccessAPIResource):
     """
     获取计算平台对应的data_id的raw_data信息，适用于获取V3链路迁移至V4链路后的data_name

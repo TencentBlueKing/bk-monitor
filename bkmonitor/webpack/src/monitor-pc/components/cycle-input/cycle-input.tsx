@@ -116,7 +116,13 @@ export default class CycleInput extends tsc<IProps, IEvent> {
     let sec = timeToSec({ value: this.localValue, unit: this.unit });
     if (sec < this.minSec) {
       sec = this.minSec;
-      this.localValue = sec;
+      if (this.minSec <= 60) {
+        this.unit = 's';
+        this.localValue = sec;
+      } else {
+        this.unit = 'm';
+        this.localValue = sec / 60;
+      }
     }
     return sec;
   }

@@ -198,6 +198,7 @@ const handleIndexSetSelected = async (payload) => {
     }
 
     RetrieveHelper.setIndexsetId(payload.ids, payload.isUnionIndex ? 'union' : 'single', false);
+    RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_PENDING);
     store.commit('updateUnionIndexList', payload.isUnionIndex ? payload.ids ?? [] : []);
     store.commit('updateIndexItem', { ...payload, ...indexSetDefaultCondition });
 

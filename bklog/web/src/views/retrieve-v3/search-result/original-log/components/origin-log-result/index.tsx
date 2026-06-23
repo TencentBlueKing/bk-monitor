@@ -528,6 +528,7 @@ export default defineComponent({
             showFavorites={false}
             showQuerySetting={false}
             usageType='local'
+            popupAppendToBody
             on-mode-change={handleSearch}
             on-search={handleSearch}
           />

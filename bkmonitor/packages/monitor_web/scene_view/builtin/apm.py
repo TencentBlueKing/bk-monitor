@@ -14,6 +14,7 @@ import logging
 import threading
 from typing import Any
 from collections.abc import Callable
+from urllib.parse import urljoin
 
 from django.conf import settings
 from django.core.cache import caches
@@ -855,10 +856,12 @@ class ApmBuiltinProcessor(BuiltinProcessor):
             app_name=params.get("app_name", ""),
             service_name=params.get("service_name", ""),
         )
-        service_config_url: str = "{bk_monitor_url}/?bizId={bk_biz_id}#/apm{service_config_link}".format(
-            bk_monitor_url=settings.BK_MONITOR_HOST,
-            bk_biz_id=params.get("bk_biz_id"),
-            service_config_link=service_config_link,
+        service_config_url: str = urljoin(
+            settings.BK_MONITOR_HOST,
+            "?bizId={bk_biz_id}#/apm{service_config_link}".format(
+                bk_biz_id=params.get("bk_biz_id"),
+                service_config_link=service_config_link,
+            ),
         )
 
         return {
@@ -877,10 +880,16 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                             "data": {
                                 "type": "empty",
                                 "title": _("暂未发现关联 Pod"),
-                                "link": {"target": "self", "value": _("关联容器负载"), "url": service_config_link},
+                                "link": {
+                                    "target": "blank",
+                                    "value": _("关联容器负载"),
+                                    "url": service_config_url,
+                                },
                                 "subTitle": _(
                                     "如何关联容器信息:\n"
-                                    "1. APM 支持与 BCS 打通，你可以通过以下方式简单配置，：\n"
+                                    f"1. 快捷配置：前往 <a href='{service_config_url}' target='_blank'>服务配置</a>，"
+                                    "在「事件关联 -> 容器事件」手动关联具体 Workload，即可实现在 APM 查看服务所关联容器负载的监控、事件数据。\n\n"
+                                    "2. APM 支持与 BCS 打通，你可以通过以下方式简单配置：\n"
                                     "- 方式 1（推荐 🌟）：将上报域名切换为集群内域名（bkm-collector.bkmonitor-operator），"
                                     "端口、上报路径与之前一致，即可自动获取关联。\n"
                                     "- 方式 2：在服务代码补充以下全部集群信息字段到 Span Resource，也可以进行关联：\n"
@@ -888,9 +897,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                                     "   - k8s.pod.name（Pod 名称）\n"
                                     "   - k8s.namespace.name（Pod 所在命名空间）\n"
                                     f"- 详见 <a href='{settings.APM_ACCESS_URL}' target='_blank'>应用性能监控（APM）数据接入指南</a>，"
-                                    "每个语言的接入文档中均有「如何自动发现容器信息」指引。\n\n"
-                                    f"2. 快捷配置：前往 <a href='{service_config_url}' target='_blank'>服务配置</a>，"
-                                    "在「事件关联 -> 容器事件」手动关联具体 Workload，即可实现在 APM 查看服务所关联容器负载的监控、事件数据。\n"
+                                    "每个语言的接入文档中均有「如何自动发现容器信息」指引。\n"
                                 ),
                             }
                         }
@@ -982,6 +989,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
                 "trace_id": params.get("apm_trace_id"),
                 "app_name": params.get("apm_app_name"),
                 "service_name": params.get("apm_service_name"),
+                "bk_biz_id": params.get("bk_biz_id"),
                 "only_simple_info": params.get("only_simple_info") or False,
                 "start_time": params.get("start_time"),
                 "end_time": params.get("end_time"),
@@ -990,6 +998,7 @@ class ApmBuiltinProcessor(BuiltinProcessor):
         converted_params = {
             "app_name": params.get("apm_app_name"),
             "service_name": params.get("apm_service_name"),
+            "bk_biz_id": params.get("bk_biz_id"),
             "only_simple_info": params.get("only_simple_info") or False,
             "view_switches": params.get("view_switches", {}),
         }

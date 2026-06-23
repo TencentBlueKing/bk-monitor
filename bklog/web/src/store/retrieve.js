@@ -24,17 +24,26 @@
  * IN THE SOFTWARE.
  */
 
-import { random } from '@/components/monitor-echarts/utils';
 
 import http from '@/api';
-import { transformSceneConfigs } from '@/views/retrieve-v3/search-bar/scene-filter/scene-config';
+import { transformSceneConfigs } from '@/store/scene-filter-config';
+
+const random = (length = 10) => {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return result;
+};
+
 
 /**
  * 索引集列表初始化
  * @param {*} indexSetList 索引集列表
  * @param {*} pid 父节点id
  */
-const resolveIndexItemAttr = (indexSetList = [], parent_node = null) => {
+const resolveIndexItemAttr = (indexSetList = [], parentNode = null) => {
   const s1 = [];
   const s2 = [];
   indexSetList?.forEach(item => {
@@ -43,9 +52,9 @@ const resolveIndexItemAttr = (indexSetList = [], parent_node = null) => {
       index_set_id: `${item.index_set_id}`,
       indexName: item.index_set_name,
       lightenName: ` (${item.indices.map(item => item.result_table_id).join(';')})`,
-      unique_id: `${parent_node?.index_set_id ?? '#'}_${item.index_set_id}`,
-      is_child_node: parent_node !== null,
-      parent_node,
+      unique_id: `${parentNode?.index_set_id ?? '#'}_${item.index_set_id}`,
+      is_child_node: parentNode !== null,
+      parent_node: parentNode,
     });
 
     // 这里只有两层，数据结构固定为 parent_id#child_id

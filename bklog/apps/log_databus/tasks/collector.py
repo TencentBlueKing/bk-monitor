@@ -29,6 +29,7 @@ import pytz
 from blueapps.contrib.celery_tools.periodic import periodic_task
 from celery.schedules import crontab
 from django.conf import settings
+from django.core.cache import cache
 from django.utils.translation import gettext as _
 from django.db import transaction
 
@@ -37,6 +38,7 @@ from apps.api.modules.bkdata_databus import BkDataDatabusApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import FEATURE_BKDATA_DATAID
 from apps.log_databus.constants import (
+    CACHE_KEY_CLUSTER_INFO,
     REGISTERED_SYSTEM_DEFAULT,
     RETRY_TIMES,
     STORAGE_CLUSTER_TYPE,
@@ -57,6 +59,7 @@ from apps.log_measure.handlers.elastic import ElasticHandle
 from apps.log_search.constants import CustomTypeEnum
 from apps.log_search.models import LogIndexSet
 from apps.utils.bcs import Bcs
+from apps.utils import md5_sum
 from apps.utils.log import logger
 from apps.utils.task import high_priority_task
 
@@ -519,6 +522,17 @@ def modify_result_table(params):
     except Exception as e:  # pylint: disable=broad-except
         logger.exception(
             "[modify_result_table] executed failed, table_id->%s, reason: %s",
+            params["table_id"],
+            e,
+        )
+        return
+
+    try:
+        md5_key = md5_sum(CACHE_KEY_CLUSTER_INFO.format(params["table_id"]))
+        cache.delete(md5_key)
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(
+            "[modify_result_table] delete cluster info cache failed, table_id->%s, reason: %s",
             params["table_id"],
             e,
         )

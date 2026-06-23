@@ -106,27 +106,33 @@ class TestOsDefaultAlarmStrategyLoader:
             loader.load_strategies(strategies)
 
     def test_run(self, add_metric_list_cache):
+        from unittest import mock
+
         bk_biz_id = 2
         assert GseDefaultAlarmStrategyLoader.CACHE == set()
         GseDefaultAlarmStrategyLoader.CACHE = set()
 
-        os_loader_1 = GseDefaultAlarmStrategyLoader(bk_biz_id)
-        os_loader_1.run()
-        assert GseDefaultAlarmStrategyLoader.CACHE == {2}
-        models = DefaultStrategyBizAccessModel.objects.all()
-        assert len(models) == 1
-        assert models[0].bk_biz_id == 2
-        assert models[0].version == "v1"
-        assert models[0].access_type == "gse"
+        # get_notice_group 默认走 get_or_create_plugin_manager_group，会发起外部 HTTPS 请求；离线单测里
+        # 打桩为固定通知组，使 load_strategies 真正走到策略创建。base.run() 改为「创建成功才登记接入并
+        # 写 CACHE」后，若不打桩，网络异常会令 load_strategies 抛错 → pending_retry → CACHE 不写、断言失败。
+        with mock.patch.object(GseDefaultAlarmStrategyLoader, "get_notice_group", return_value=[1]):
+            os_loader_1 = GseDefaultAlarmStrategyLoader(bk_biz_id)
+            os_loader_1.run()
+            assert GseDefaultAlarmStrategyLoader.CACHE == {2}
+            models = DefaultStrategyBizAccessModel.objects.all()
+            assert len(models) == 1
+            assert models[0].bk_biz_id == 2
+            assert models[0].version == "v1"
+            assert models[0].access_type == "gse"
 
-        os_loader_2 = GseDefaultAlarmStrategyLoader(bk_biz_id)
-        os_loader_2.run()
-        assert GseDefaultAlarmStrategyLoader.CACHE == {2}
-        models = DefaultStrategyBizAccessModel.objects.all()
-        assert len(models) == 1
-        assert models[0].bk_biz_id == 2
-        assert models[0].version == "v1"
-        assert models[0].access_type == "gse"
+            os_loader_2 = GseDefaultAlarmStrategyLoader(bk_biz_id)
+            os_loader_2.run()
+            assert GseDefaultAlarmStrategyLoader.CACHE == {2}
+            models = DefaultStrategyBizAccessModel.objects.all()
+            assert len(models) == 1
+            assert models[0].bk_biz_id == 2
+            assert models[0].version == "v1"
+            assert models[0].access_type == "gse"
 
     def test_run__have_strategy(self, add_strategy_model):
         bk_biz_id = 2

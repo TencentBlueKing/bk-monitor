@@ -47,6 +47,12 @@ class ModelSpec:
     # 签名为 (serialized_item, instance)：必须从 instance 判定敏感性，
     # 不能只看 serialized_item——否则调用方不选 key 字段即可绕过脱敏。
     row_masker: Callable[[dict[str, Any], Any], dict[str, Any]] | None = None
+    # list-db-models 输出里 row_masking 的说明文案；缺省走 GlobalConfig 的 value 脱敏措辞。
+    row_mask_note: str = ""
+    # 读取时 select_related 的 FK 链，避免 row_masker 等逐行访问关联对象造成 N+1。
+    select_related: list[str] = field(default_factory=list)
+    # list-db-models 输出里的模型级提示：用途与选型边界（与 row_mask_note 区分，后者只讲脱敏）。
+    note: str = ""
 
 
 MASKED_VALUE = "***masked***"
@@ -71,6 +77,75 @@ def _mask_global_config_row(item: dict[str, Any], instance: Any) -> dict[str, An
     key = str(getattr(instance, "key", "") or "")
     if GLOBAL_CONFIG_SENSITIVE_KEY_PATTERN.search(key) or _looks_like_credential(item["value"]):
         item["value"] = MASKED_VALUE
+    return item
+
+
+# DeploymentConfigVersion.params 是 SymmetricJsonField（落库加密、读时解密），可能含采集目标的账号口令。
+# params 形如 {collector: {...}, plugin: {<作者自定义参数名>: value}}：plugin 子树的 key 是插件作者
+# 自定义的参数名，凭据可以叫任何名字（auth_token / apikey / headers ...），无法用名字穷举。
+# 主脱敏走 config_json 的 type（password/encrypt/file），与 SaaS 规范脱敏 password_convert 同源；
+# 下面的名字/URL 正则只作 config_json 取不到时的启发式兜底（覆盖 collector.username/password 等固定名，
+# 以及 file 型上传文件参数的 file_base64/file_content 内容——键名非凭据名、内容 base64 编码，按类型与键名
+# 双重覆盖其内容、保留 filename）。
+DEPLOYMENT_PARAMS_SENSITIVE_KEY_PATTERN = re.compile(
+    r"PASSWORD|PASSWD|PASSPHRASE|SECRET|TOKEN|CREDENTIAL|PRIVATE|API_?KEY|ACCESS_KEY|APP_KEY|SECRET_KEY"
+    r"|USERNAME|AUTH|BEARER|COOKIE|CERT|ACCOUNT|FILE_BASE64|FILE_CONTENT",
+    re.IGNORECASE,
+)
+
+
+def _mask_sensitive_tree(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            k: (
+                MASKED_VALUE
+                if isinstance(k, str) and DEPLOYMENT_PARAMS_SENSITIVE_KEY_PATTERN.search(k)
+                else _mask_sensitive_tree(v)
+            )
+            for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [_mask_sensitive_tree(v) for v in value]
+    if _looks_like_credential(value):
+        return MASKED_VALUE
+    return value
+
+
+def _iter_credential_param_keys(instance: Any):
+    """从插件 config_json 解析凭据参数清单 (mode, name)，凭据按 type（password/encrypt/file）判定。
+
+    与 SaaS 侧 password_convert 同源：plugin 子树参数名由作者自定义、无法用名字穷举，必须按类型脱敏。
+    file 型（上传文件）参数内容按类型整体脱敏其值（连同 filename）。
+    取不到 config_json（插件版本缺失等）时返回空，回落到上面的名字/URL 启发式（含 file_base64 键兜底）。
+    """
+    try:
+        config_json = instance.plugin_version.config.config_json or []
+    except Exception:
+        return
+    if not isinstance(config_json, list):
+        return
+    for desc in config_json:
+        if not isinstance(desc, dict) or desc.get("type") not in ("password", "encrypt", "file"):
+            continue
+        # password_convert：mode 非 collector 一律归一为 plugin
+        mode = "collector" if desc.get("mode") == "collector" else "plugin"
+        name = desc.get("name")
+        if name:
+            yield mode, name
+
+
+def _mask_deployment_config_row(item: dict[str, Any], instance: Any) -> dict[str, Any]:
+    params = item.get("params")
+    if not isinstance(params, dict):
+        return item
+    # 第一层：名字/凭据型 URL 启发式（_mask_sensitive_tree 返回全新结构，不改 ORM 缓存的 params）
+    masked = _mask_sensitive_tree(params)
+    # 第二层：按插件 config_json 的 type=password/encrypt/file 精确脱敏（覆盖作者自定义参数名，权威）
+    for mode, name in _iter_credential_param_keys(instance):
+        sub = masked.get(mode)
+        if isinstance(sub, dict) and name in sub:
+            sub[name] = MASKED_VALUE
+    item["params"] = masked
     return item
 
 
@@ -149,10 +224,92 @@ ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
         model_path="bkmonitor.models.metric_list_cache.MetricListCache",
         fields={"bk_biz_id", "result_table_id", "metric_field", "metric_field_name", "dimensions", "bk_tenant_id"},
         default_fields={"bk_biz_id", "result_table_id", "metric_field", "metric_field_name", "bk_tenant_id"},
+        note=(
+            "指标选择器缓存，非元数据事实：主机基础性能等指标按规范名（如 system.cpu_summary）挂在 "
+            "bk_biz_id=0，不索引按业务的 VM 结果表，不能据此判定 DataSource/结果表是否存在（查存在性用 "
+            "DataSource/ResultTable 模型）。判 web_cache 层时须按目标业务 bk_biz_id 过滤本表，缓存行可能不在 bk_biz_id=0。"
+        ),
         examples=[
             {
                 "filter": {"bk_biz_id": 2, "metric_field": "cpu_usage"},
                 "fields": ["bk_biz_id", "result_table_id", "metric_field", "metric_field_name"],
+                "limit": 20,
+            }
+        ],
+    ),
+    "metadata.models.data_source.DataSource": ModelSpec(
+        model_path="metadata.models.data_source.DataSource",
+        # 确认某 data_name/dataid 是否已申请、归属哪个租户、走哪条链路(etl_config)的权威来源。
+        # token 是上报校验密钥，故意不纳入白名单(不可读、不可过滤)。
+        fields={
+            "bk_data_id",
+            "data_name",
+            "bk_tenant_id",
+            "etl_config",
+            "source_label",
+            "type_label",
+            "is_enable",
+            "is_custom_source",
+            "is_platform_data_id",
+            "space_type_id",
+            "space_uid",
+            "created_from",
+            "transfer_cluster_id",
+            "creator",
+            "create_time",
+            "last_modify_time",
+        },
+        default_fields={"bk_data_id", "data_name", "bk_tenant_id", "etl_config", "is_enable", "space_uid"},
+        note=(
+            "确认 dataid/链路 是否存在与归属的权威来源；多租户内置链路 data_name 形如 "
+            "{bk_tenant_id}_{bk_biz_id}_sys_base(主机基础性能)等。token 等密钥字段不可读。"
+            "解读前先用 env-info op 确认环境 regime：多租户与否决定结果表是否带租户前缀、"
+            "基础采集 dataid 是否按业务申请。"
+        ),
+        examples=[
+            {
+                "filter": {"data_name__endswith": "_sys_base"},
+                "fields": ["bk_data_id", "data_name", "bk_tenant_id", "etl_config", "is_enable"],
+                "limit": 20,
+            }
+        ],
+    ),
+    "metadata.models.result_table.ResultTable": ModelSpec(
+        model_path="metadata.models.result_table.ResultTable",
+        fields={
+            "table_id",
+            "bk_tenant_id",
+            "table_name_zh",
+            "bk_biz_id",
+            "bk_biz_id_alias",
+            "default_storage",
+            "data_label",
+            "label",
+            "is_enable",
+            "is_deleted",
+            "is_builtin",
+            "creator",
+            "create_time",
+            "last_modify_time",
+        },
+        default_fields={
+            "table_id",
+            "bk_tenant_id",
+            "bk_biz_id",
+            "default_storage",
+            "data_label",
+            "is_enable",
+            "is_builtin",
+        },
+        note=(
+            "确认结果表是否存在、存储类型(default_storage)、data_label、是否内置；"
+            "常与 DataSource 配套核对一个 dataid 的落地结果表。"
+            "table_id 是否带租户前缀取决于多租户开关,解读前先用 env-info op 确认 regime。"
+        ),
+        examples=[
+            {
+                "filter": {"table_id__endswith": ".cpu_summary"},
+                "fields": ["table_id", "bk_tenant_id", "bk_biz_id", "default_storage", "data_label"],
                 "limit": 20,
             }
         ],
@@ -179,6 +336,87 @@ ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
             }
         ],
     ),
+    "monitor_web.models.collecting.CollectConfigMeta": ModelSpec(
+        model_path="monitor_web.models.collecting.CollectConfigMeta",
+        fields={
+            "id",
+            "bk_tenant_id",
+            "bk_biz_id",
+            "name",
+            "collect_type",
+            "plugin_id",
+            "target_object_type",
+            "deployment_config_id",
+            "cache_data",
+            "last_operation",
+            "operation_result",
+            "label",
+            "create_time",
+            "create_user",
+            "update_time",
+            "update_user",
+        },
+        default_fields={
+            "id",
+            "bk_biz_id",
+            "name",
+            "collect_type",
+            "plugin_id",
+            "target_object_type",
+            "deployment_config_id",
+            "last_operation",
+            "operation_result",
+        },
+        examples=[
+            {
+                "filter": {"bk_biz_id": 2},
+                "fields": ["id", "name", "collect_type", "plugin_id", "deployment_config_id", "operation_result"],
+                "limit": 20,
+            }
+        ],
+    ),
+    "monitor_web.models.collecting.DeploymentConfigVersion": ModelSpec(
+        model_path="monitor_web.models.collecting.DeploymentConfigVersion",
+        fields={
+            "id",
+            "config_meta_id",
+            "subscription_id",
+            "target_node_type",
+            "target_nodes",
+            "params",
+            "remote_collecting_host",
+            "plugin_version_id",
+            "parent_id",
+            "task_ids",
+            "create_time",
+            "create_user",
+            "update_time",
+            "update_user",
+        },
+        default_fields={
+            "id",
+            "config_meta_id",
+            "subscription_id",
+            "target_node_type",
+            "target_nodes",
+            "plugin_version_id",
+        },
+        row_masker=_mask_deployment_config_row,
+        # row_masker 按 config_json 脱敏需读 plugin_version.config，预取避免逐行 N+1
+        select_related=["plugin_version__config"],
+        row_mask_note=(
+            f"params 内凭据按插件 config_json 的 password/encrypt/file 类型脱敏为 {MASKED_VALUE}"
+            "（file 型含上传文件内容，覆盖作者自定义参数名），并叠加 password/token/auth/file_base64 等名字"
+            "与凭据型 URL 的启发式兜底；保留端点 URL、port、period 等非凭据取证字段"
+        ),
+        examples=[
+            {
+                "filter": {"config_meta_id": 1},
+                "fields": ["id", "config_meta_id", "subscription_id", "target_node_type", "target_nodes", "params"],
+                "limit": 20,
+            }
+        ],
+    ),
 }
 
 
@@ -190,7 +428,10 @@ def read_db_model(params: dict[str, Any]) -> dict[str, Any]:
     normalized_filter = _normalize_filter(params.get("filter") or {}, spec)
     selected_fields = _normalize_selected_fields(params.get("fields"), params.get("exclude_fields"), spec)
 
-    queryset = model_cls.objects.all().filter(**normalized_filter)
+    queryset = model_cls.objects.all()
+    if spec.select_related:
+        queryset = queryset.select_related(*spec.select_related)
+    queryset = queryset.filter(**normalized_filter)
     order_by = _normalize_order_by(params.get("order_by") or [], spec)
     if order_by:
         queryset = queryset.order_by(*order_by)
@@ -241,8 +482,10 @@ def _serialize_model_spec(model_name: str, spec: ModelSpec) -> dict[str, Any]:
         "max_limit": MAX_LIMIT,
         "examples": spec.examples,
     }
+    if spec.note:
+        serialized["note"] = spec.note
     if spec.row_masker is not None:
-        serialized["row_masking"] = f"敏感行的 value 字段会被脱敏为 {MASKED_VALUE}"
+        serialized["row_masking"] = spec.row_mask_note or f"敏感行的 value 字段会被脱敏为 {MASKED_VALUE}"
     return serialized
 
 

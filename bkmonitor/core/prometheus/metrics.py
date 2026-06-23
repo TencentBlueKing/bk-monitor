@@ -88,6 +88,7 @@ class StatusEnum:
 
     SUCCESS = "success"
     FAILED = "failed"
+    DEFERRED = "deferred"
 
     @classmethod
     def from_exc(cls, expr):
@@ -284,6 +285,12 @@ ALERT_MANAGE_COUNT = Counter(
     name="bkmonitor_alert_manage_count",
     documentation="alert(manager) 模块处理告警量",
     labelnames=("status", "exception"),
+)
+
+ALERT_MANAGE_DEFERRED_COUNT = Counter(
+    name="bkmonitor_alert_manage_deferred_count",
+    documentation="alert(manager) 模块因瞬态基础设施错误延后重试的告警量(本批未 finalize, 下周期重跑, 不计入处理成功率)",
+    labelnames=("exception",),
 )
 
 ALERT_PROCESS_PULL_EVENT_COUNT = Counter(
