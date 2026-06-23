@@ -62,7 +62,7 @@ def scene_async_export(
         async_task.save()
 
         try:
-            export_util.export_package()
+            export_util.export_package(async_task_id=async_task.id)
         except Exception as e:
             _set_failed(async_task, f"export package error: {e}")
             raise

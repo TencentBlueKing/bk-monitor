@@ -24,7 +24,6 @@ import datetime
 import json
 import os
 import tarfile
-from urllib.parse import urljoin
 
 import arrow
 import pytz
@@ -36,7 +35,6 @@ from django.conf import settings
 from django.db.models import F
 from django.utils import timezone, translation
 from django.utils.crypto import get_random_string
-from django.utils.http import urlencode
 from django.utils.translation import gettext as _
 
 from apps.constants import RemoteStorageType
@@ -288,11 +286,6 @@ def set_failed_status(async_task: AsyncTask, reason):
     logger.error(async_task.failed_reason)
     async_task.save(update_fields=["failed_reason", "export_status"])
     return async_task
-
-
-def get_async_export_download_url(async_task: AsyncTask):
-    query_params = urlencode({"task_id": async_task.id, "bk_biz_id": async_task.bk_biz_id})
-    return urljoin(settings.BK_BKLOG_HOST, f"api/v1/search/index_set/async_export/download_file/?{query_params}")
 
 
 @app.task(ignore_result=True, queue="async_export")
@@ -551,7 +544,7 @@ class AsyncExportUtils:
                 "size": async_task.file_size,
                 "request_param": json.dumps(async_task.request_param),
                 "search_url": search_url_path,
-                "download_url": get_async_export_download_url(async_task),
+                "download_url": async_task.download_url,
             },
             language=language,
         )
@@ -871,7 +864,7 @@ class UnionAsyncExportUtils:
                 "size": async_task.file_size,
                 "request_param": json.dumps(async_task.request_param),
                 "search_url": search_url_path,
-                "download_url": get_async_export_download_url(async_task),
+                "download_url": async_task.download_url,
             },
             language=language,
         )

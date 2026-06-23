@@ -232,7 +232,7 @@ class AsyncExportHandlers:
             "export_type": export_task_history["export_type"],
             "export_status": export_task_history["export_status"] if retry_able else ExportStatus.DATA_EXPIRED,
             "error_msg": export_task_history["failed_reason"],
-            "download_url": cls.get_async_export_download_url(export_task_history),
+            "download_url": export_task_history["download_url"],
             "export_pkg_name": export_task_history["file_name"],
             "export_pkg_size": export_task_history["file_size"],
             "export_created_at": export_task_history["created_at"],
@@ -256,19 +256,6 @@ class AsyncExportHandlers:
             )
 
         return res
-
-    @classmethod
-    def get_async_export_download_url(cls, export_task_history):
-        if not export_task_history["download_url"]:
-            return export_task_history["download_url"]
-
-        query_params = urlencode(
-            {
-                "task_id": export_task_history["id"],
-                "bk_biz_id": export_task_history["bk_biz_id"],
-            }
-        )
-        return f"{settings.SITE_URL.rstrip('/')}/api/v1/search/index_set/async_export/download_file/?{query_params}"
 
     @classmethod
     def judge_download_able(cls, status):
