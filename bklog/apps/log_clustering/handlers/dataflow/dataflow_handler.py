@@ -29,7 +29,6 @@ from django.conf import settings
 from django.utils.translation import gettext as _
 from jinja2 import FileSystemLoader
 from jinja2.sandbox import SandboxedEnvironment as Environment
-from retrying import retry
 
 from apps.api import (
     BkDataAIOPSApi,
@@ -132,7 +131,6 @@ class DataFlowHandler(BaseAiopsHandler):
         request_dict = self._set_username(export_request)
         return BkDataDataFlowApi.export_flow(request_dict)
 
-    @retry(stop_max_attempt_number=3, wait_random_min=3 * 60 * 1000, wait_random_max=10 * 60 * 1000)
     def operator_flow(
         self,
         flow_id: int,
