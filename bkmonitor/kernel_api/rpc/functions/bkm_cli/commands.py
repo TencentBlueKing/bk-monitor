@@ -80,12 +80,12 @@ def _get_effective_setting(params: dict[str, Any]) -> dict[str, Any]:
     """读取某动态配置的「四源生效值」回显，定位三源不一致。
 
     动机：read-db-model 只能给出 GlobalConfig 的 DB 行；当 DB 无行时，真正生效的值
-    由 DynamicSettings 回退到 settings 静态默认（config/default.py）决定——read-db-model
-    给不出这个回退后的生效值。本命令一次性回显四个来源，让 agent 一眼看穿不一致：
+    由 DynamicSettings 回退到 settings 层默认值决定——read-db-model 给不出这个回退后的
+    生效值。本命令一次性回显四个来源，让 agent 一眼看穿不一致：
 
       - effective_value   : getattr(settings, name)，经 DynamicSettings 解析的最终生效值
       - db_value          : GlobalConfig 表里该 key 的 DB 值（无行为 null）
-      - static_default    : config/default.py 的静态默认（未经 DB 覆盖的 wrapped 原值）
+      - settings_default  : settings 层解析值（config + env/role 覆盖后、DB 覆盖前；不必等于字面 config/default.py）
       - serializer_default: global_config 注册表里该项 serializer 的 default
 
     典型事故（COMPATIBLE_ALARM_FORMAT）：config/default.py=True、serializer 默认=False、
@@ -126,13 +126,14 @@ def _get_effective_setting(params: dict[str, Any]) -> dict[str, Any]:
     db_row_present = db_conf is not None
     db_value = _mask(db_conf.value) if db_row_present else None
 
-    # static_default：config/default.py 的静态默认（未经 DB 覆盖的 wrapped 原值）。
-    # settings._wrapped 在启用 USE_DYNAMIC_SETTINGS 时是 DynamicSettings 实例，
-    # 其 ._wrapped 才是原始 settings（config/default.py 的值，DB 覆盖发生在 DynamicSettings.__getattr__）。
-    # 未启用动态配置时无 DynamicSettings 包装层，拿不到「未经 DB 覆盖」的干净原值，标 unavailable。
-    static_default = _read_static_default(settings, name)
-    if static_default is not _UNAVAILABLE:
-        static_default = _mask(static_default)
+    # settings_default：Django settings 层解析值（config/default.py + 环境/角色 config 覆盖后、
+    # DynamicSettings DB 覆盖前）。settings._wrapped 在启用 USE_DYNAMIC_SETTINGS 时是 DynamicSettings
+    # 实例，其 ._wrapped 才是原始 settings（DB 覆盖发生在 DynamicSettings.__getattr__）。
+    # 注意：这是部署生效的 settings 层值，不必等于字面 config/default.py——部署常按环境覆盖
+    # （如某环境把 COMPATIBLE_ALARM_FORMAT 覆盖为 False）。未启用动态配置时无包装层、拿不到该层原值，标 unavailable。
+    settings_default = _read_settings_default(settings, name)
+    if settings_default is not _UNAVAILABLE:
+        settings_default = _mask(settings_default)
 
     # serializer_default：global_config 注册表（ADVANCED_OPTIONS / STANDARD_CONFIGS）里该项 serializer 的 default。
     serializer_default = _read_serializer_default(global_config, name)
@@ -144,7 +145,7 @@ def _get_effective_setting(params: dict[str, Any]) -> dict[str, Any]:
         "effective_value": effective_value,
         "db_row_present": db_row_present,
         "db_value": db_value,
-        "static_default": static_default,
+        "settings_default": settings_default,
         "serializer_default": serializer_default,
         "resolved_source": "db_row" if db_row_present else "settings_default",
         "masked": is_credential,
@@ -169,11 +170,12 @@ _MASKED_VALUE = "***masked***"
 _UNAVAILABLE = "unavailable"
 
 
-def _read_static_default(settings: Any, name: str) -> Any:
-    """读取未经 DB 覆盖的静态默认（config/default.py 原值）。
+def _read_settings_default(settings: Any, name: str) -> Any:
+    """读取 Django settings 层值（config + 环境/角色 config 覆盖后、DB 覆盖前）。
 
     启用 USE_DYNAMIC_SETTINGS 时 settings._wrapped 是 DynamicSettings 包装层，
     其 ._wrapped 才是原始 settings；直接 getattr(原始 settings, name) 不走 DB 覆盖。
+    注意：这是部署生效的 settings 层值，不必等于字面 config/default.py（部署常按环境覆盖）。
     未启用动态配置或拿不到包装层时返回 _UNAVAILABLE（哨兵），不瞎构造。
     """
     try:
@@ -187,7 +189,7 @@ def _read_static_default(settings: Any, name: str) -> Any:
         if raw_settings is not None and hasattr(raw_settings, name):
             return getattr(raw_settings, name)
     # 未启用动态配置（settings._wrapped 不是 DynamicSettings）时，
-    # 无法区分「DB 覆盖后」与「静态默认」，故标 unavailable 而非返回可能已被覆盖的值。
+    # 无法区分「DB 覆盖后」与「settings 层值」，故标 unavailable 而非返回可能已被覆盖的值。
     return _UNAVAILABLE
 
 

@@ -94,7 +94,7 @@ def _patch_effective_setting_env(mocker, *, name, effective, db_conf, allowed_na
     import rest_framework.fields as drf_fields
 
     # settings：用 SimpleNamespace 整体替换 django.conf.settings；
-    # effective_value 走 getattr(settings, name)；_wrapped 不是 DynamicSettings → static_default 标 unavailable。
+    # effective_value 走 getattr(settings, name)；_wrapped 不是 DynamicSettings → settings_default 标 unavailable。
     fake_settings = SimpleNamespace(**{name: effective, "_wrapped": object()})
     mocker.patch("django.conf.settings", fake_settings)
 
@@ -135,7 +135,7 @@ def test_get_effective_setting_returns_all_four_sources(mocker):
         "effective_value",
         "db_row_present",
         "db_value",
-        "static_default",
+        "settings_default",
         "serializer_default",
         "resolved_source",
     }
