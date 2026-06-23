@@ -136,6 +136,12 @@ enum RetrieveEvent {
   TREND_GRAPH_SEARCH = 'trend-graph-search',
 
   /**
+   * 趋势图进入即时加载占位态。
+   * 用于索引集 / 空间切换时，在字段列表请求返回前同步给出 UI 反馈。
+   */
+  TREND_GRAPH_PENDING = 'trend-graph-pending',
+
+  /**
    * 趋势图清空（仅清空数据）
    */
   TREND_GRAPH_CLEAR = 'trend-graph-clear',

@@ -6,7 +6,7 @@ import { getCommonFilterAdditionWithValues } from '@/store/helper';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import { throttle } from 'lodash-es';
 
-import RetrieveHelper from '../../retrieve-helper';
+import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import NoIndexSet from '../result-comp/no-index-set';
 import LogResult from './log-result/index';
 
@@ -49,6 +49,11 @@ const retrieveParams = computed(() => store.getters.retrieveParams);
 const requestAddition = computed(() => store.getters.requestAddition);
 const isNoIndexSet = computed(() => !store.state.retrieve.flatIndexSetList.length);
 const isOriginShow = computed(() => props.activeTab === 'origin');
+const trendContextKey = computed(() => [
+  store.state.spaceUid,
+  store.state.indexId,
+  ...(store.state.indexItem.ids ?? []),
+].join('|'));
 const pageLoading = computed(
   () => isFilterLoading.value || isSearchRersultLoading.value || store.state.retrieve.isIndexSetLoading,
 );
@@ -60,9 +65,21 @@ const DEFAULT_TREND_CHART_EXPANDED_HEIGHT = 170;
 const DEFAULT_TREND_CHART_FOLDED_HEIGHT = 40;
 const heightNum = ref(isTrendChartShow.value ? DEFAULT_TREND_CHART_EXPANDED_HEIGHT : DEFAULT_TREND_CHART_FOLDED_HEIGHT);
 const shouldRenderTrendChart = ref(false);
+const isTrendChartPending = ref(!shouldRenderTrendChart.value);
 const TREND_CHART_MIN_DELAY = 5000;
 let renderTrendChartDelayTimer = null;
 let renderTrendChartIdleTimer = null;
+
+const setTrendChartPending = () => {
+  if (!isOriginShow.value) {
+    return;
+  }
+
+  isTrendChartPending.value = true;
+  store.commit('retrieve/updateTrendDataLoading', true);
+  heightNum.value = isTrendChartShow.value ? Math.max(heightNum.value, DEFAULT_TREND_CHART_EXPANDED_HEIGHT) : DEFAULT_TREND_CHART_FOLDED_HEIGHT;
+  RetrieveHelper.setTrendGraphHeight(heightNum.value);
+};
 
 const clearRenderTrendChartTimer = () => {
   if (renderTrendChartDelayTimer) {
@@ -112,6 +129,14 @@ watch(isOriginShow, (value) => {
   }
 });
 
+watch(trendContextKey, (value, oldValue) => {
+  if (oldValue !== undefined && value !== oldValue) {
+    setTrendChartPending();
+  }
+});
+
+RetrieveHelper.on(RetrieveEvent.TREND_GRAPH_PENDING, setTrendChartPending);
+
 onMounted(() => {
   RetrieveHelper.setTrendGraphHeight(heightNum.value);
   scheduleRenderTrendChart();
@@ -119,6 +144,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   clearRenderTrendChartTimer();
+  RetrieveHelper.off(RetrieveEvent.TREND_GRAPH_PENDING, setTrendChartPending);
 });
 
 const fieldFilterWidth = computed(() => store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].width);
@@ -143,6 +169,9 @@ const changeTotalCount = (count) => {
 };
 const changeQueueRes = (status) => {
   queueStatus.value = status;
+};
+const handleTrendReady = () => {
+  isTrendChartPending.value = false;
 };
 
 const handleToggleChange = (isShow, height) => {
@@ -233,7 +262,7 @@ const rightContentStyle = computed(() => {
           :class="[
             'trend-chart-reserved',
             RetrieveHelper.randomTrendGraphClassName,
-            { 'is-fold': !isTrendChartShow, 'is-loading': !shouldRenderTrendChart },
+            { 'is-fold': !isTrendChartShow, 'is-loading': isTrendChartPending || !shouldRenderTrendChart },
           ]"
           :style="{ height: `${heightNum}px` }"
         >
@@ -242,9 +271,10 @@ const rightContentStyle = computed(() => {
             @change-queue-res="changeQueueRes"
             @change-total-count="changeTotalCount"
             @toggle-change="handleToggleChange"
+            @trend-ready="handleTrendReady"
           />
           <div
-            v-else
+            v-if="isTrendChartPending || !shouldRenderTrendChart"
             class="trend-chart-skeleton"
             aria-hidden="true"
           >
@@ -258,7 +288,7 @@ const rightContentStyle = computed(() => {
               class="trend-chart-skeleton-body"
             >
               <span
-                v-for="index in 18"
+                v-for="index in 36"
                 :key="index"
                 class="trend-chart-skeleton-bar"
                 :style="{ height: `${24 + ((index * 17) % 78)}px` }"
