@@ -199,7 +199,7 @@ class NewSeries(BasicAlgorithmsCollection):
 
             # over-limit 安全失败：本批去重维度数超过追踪上限 → 不写 seen、不报、上报指标，让用户调大 max_series/降基数。
             if len(latest) > eff_max_series:
-                metrics.NEW_SERIES_PROCESS_COUNT.labels(strategy_id=str(strategy_id), type="over_limit").inc()
+                metrics.NEW_SERIES_PROCESS_COUNT.labels(strategy_id=metrics.TOTAL_TAG, type="over_limit").inc()
                 logger.warning(
                     "[detect][new_series] strategy(%s) item(%s) batch series(%s) exceed max_series(%s), safe-fail",
                     strategy_id,
@@ -231,7 +231,7 @@ class NewSeries(BasicAlgorithmsCollection):
                 client.zadd(seen_key, {fp: max(latest[fp], seen_before.get(fp, 0)) for fp in chunk})
             # 紧跟 zadd 立即续期，最小化"已写 seen 但无 TTL"的窗口(M5)。
             client.expire(seen_key, soft_ttl)
-            metrics.NEW_SERIES_PROCESS_COUNT.labels(strategy_id=str(strategy_id), type="seen_write").inc(len(fps))
+            metrics.NEW_SERIES_PROCESS_COUNT.labels(strategy_id=metrics.TOTAL_TAG, type="seen_write").inc(len(fps))
 
             # 4) learn_start：仅在 seen 首写成功之后 setnx，避免"learn_start 写成功而 seen 为空"的半成品态。
             learn_start = client.get(learn_key)
@@ -248,7 +248,7 @@ class NewSeries(BasicAlgorithmsCollection):
 
             return {"seen_before": seen_before, "learn_start": learn_start}
         except Exception as e:  # noqa  失败安全分支：不冒泡到 detect 主流程，不误报，由 metric 暴露。
-            metrics.NEW_SERIES_PROCESS_COUNT.labels(strategy_id=str(strategy_id), type="failure").inc()
+            metrics.NEW_SERIES_PROCESS_COUNT.labels(strategy_id=metrics.TOTAL_TAG, type="failure").inc()
             logger.exception(
                 "[detect][new_series] strategy(%s) item(%s) pre_detect failed, safe-fail this batch: %s",
                 strategy_id,
@@ -257,7 +257,7 @@ class NewSeries(BasicAlgorithmsCollection):
             )
             return None
         finally:
-            metrics.NEW_SERIES_PROCESS_TIME.labels(strategy_id=str(strategy_id)).observe(time.time() - start)
+            metrics.NEW_SERIES_PROCESS_TIME.labels(strategy_id=metrics.TOTAL_TAG).observe(time.time() - start)
 
     def _safety_trim(self, client, seen_key, strategy_id, max_series):
         try:
@@ -270,6 +270,6 @@ class NewSeries(BasicAlgorithmsCollection):
                 step = min(CHUNK_SIZE, excess - removed)
                 client.zremrangebyrank(seen_key, 0, step - 1)
                 removed += step
-            metrics.NEW_SERIES_PROCESS_COUNT.labels(strategy_id=str(strategy_id), type="trim").inc(removed)
+            metrics.NEW_SERIES_PROCESS_COUNT.labels(strategy_id=metrics.TOTAL_TAG, type="trim").inc(removed)
         except Exception as e:  # noqa  安全阀失败不影响检测正确性(判定靠时间戳，不靠淘汰)。
             logger.warning("[detect][new_series] strategy(%s) safety trim failed: %s", strategy_id, e)
