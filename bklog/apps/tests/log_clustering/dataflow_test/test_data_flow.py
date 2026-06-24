@@ -456,6 +456,27 @@ class TestPatternSearch(TestCase):
         self.assertEqual(route_params["query_alias_settings"], LOG_INDEX_SET_CREATE_PARAMS["query_alias_settings"])
 
     @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.create_or_update_log_router")
+    def test_sync_clustered_route_uses_transfer_api_tenant_getter(self, mock_create_or_update_log_router):
+        LogIndexSet.objects.create(**{**LOG_INDEX_SET_CREATE_PARAMS, "index_set_id": 32})
+        ClusteringConfig.objects.create(
+            **{
+                **CLUSTERINGCONFIG_CREATE_PARAMS,
+                "index_set_id": 32,
+                "storage_type": StorageTypeEnum.ELASTICSEARCH.value,
+                "clustered_rt": "2_bklog_32_clustered",
+            }
+        )
+
+        result = DataFlowHandler.sync_clustered_route(index_set_id=32, raise_exception=True)
+
+        self.assertTrue(result)
+        mock_create_or_update_log_router.assert_called_once()
+        route_params = mock_create_or_update_log_router.call_args.args[0]
+        self.assertEqual(route_params["space_type"], "bkcc")
+        self.assertEqual(route_params["space_id"], "2")
+        self.assertEqual(mock_create_or_update_log_router.call_args.kwargs, {})
+
+    @patch("apps.log_clustering.handlers.dataflow.dataflow_handler.TransferApi.create_or_update_log_router")
     def test_sync_clustered_route_returns_false_when_index_set_missing(self, mock_create_or_update_log_router):
         ClusteringConfig.objects.create(
             **{
