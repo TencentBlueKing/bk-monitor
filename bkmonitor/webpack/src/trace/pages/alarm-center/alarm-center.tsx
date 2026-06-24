@@ -664,6 +664,9 @@ export default defineComponent({
         detailBizId: queryDetailBizId,
         favorite_id: favoriteId,
         showResidentBtn: queryShowResidentBtn,
+        tapdAuth: queryTapdAuth,
+        tapdBizId: queryTapdBizId,
+        tapdIssueId: queryTapdIssueId,
         /** 最后一次操作的快速过滤条件分类数据 */
         lastQuickFilterCategoryData,
         /** issue 相关参数 */
@@ -720,6 +723,11 @@ export default defineComponent({
         detailId.value = (queryDetailId as string) || '';
         detailBizId.value = queryDetailBizId ? Number(queryDetailBizId) : null;
         issueFirstAlarmTime.value = (queryIssueFirstAlarmTime as string) || '';
+        if (JSON.parse((queryTapdAuth as string) || 'false')) {
+          issuesTapdShow.value = true;
+          tapdBizId.value = Number(queryTapdBizId) || null;
+          tapdIssueId.value = (queryTapdIssueId as string) || '';
+        }
         alarmStore.initAlarmService();
       } catch (error) {
         console.log('route query:', error);
@@ -840,9 +848,12 @@ export default defineComponent({
     };
 
     /** issues Tapd展示 */
+    const tapdBizId = shallowRef<number | string>(null);
+    const tapdIssueId = shallowRef('');
     const issuesTapdShow = shallowRef(false);
-    const handleIssuesTapdShowChange = (show: boolean) => {
+    const handleIssuesTapdShowChange = (show: boolean, bizId: number | string = '') => {
       issuesTapdShow.value = show;
+      tapdBizId.value = bizId;
     };
 
     /** */
@@ -1207,6 +1218,8 @@ export default defineComponent({
       addSplitHighlight,
       highlightedRowIds,
       issuesTapdShow,
+      tapdBizId,
+      tapdIssueId,
       handleIssuesTapdShowChange,
     };
   },
@@ -1486,6 +1499,7 @@ export default defineComponent({
                 issueId={this.detailId}
                 show={this.alarmDetailShow}
                 showStepBtn={this.data.length > 1}
+                onCreateTapd={this.handleIssuesTapdShowChange}
                 onNext={this.handleIssueNextDetail}
                 onPrevious={this.handleIssuePreviousDetail}
                 onUpdate:show={this.handleDetailShowChange}
@@ -1506,6 +1520,8 @@ export default defineComponent({
               />,
               <IssuesTapd
                 key='issues-tapd'
+                bizId={this.tapdBizId}
+                issuesId={this.tapdIssueId}
                 show={this.issuesTapdShow}
                 onUpdate:show={this.handleIssuesTapdShowChange}
               />,

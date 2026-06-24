@@ -56,11 +56,11 @@ export default defineComponent({
       default: null,
     },
   },
-  emits: ['update:modelValue', 'tabChange', 'setDefaultValue'],
+  emits: ['update:modelValue', 'tabChange', 'setDefaultValue', 'addWorkspace'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const formRef = useTemplateRef<InstanceType<typeof Form>>('form');
-
+    const workspaceSelectRef = useTemplateRef<InstanceType<typeof Select>>('workspaceSelect');
     const rules = {
       workspace_id: [{ required: true, message: t('项目必填'), trigger: 'select' }],
       tapd_type: [{ required: true, message: t('单据类型必填'), trigger: 'select' }],
@@ -93,6 +93,11 @@ export default defineComponent({
       emit('setDefaultValue', type);
     };
 
+    const handleAddWorkspace = () => {
+      workspaceSelectRef.value?.hidePopover();
+      emit('addWorkspace');
+    };
+
     const validate = async () => {
       return formRef.value?.validate();
     };
@@ -105,6 +110,7 @@ export default defineComponent({
       handleTapdTypeChange,
       handleTabChange,
       handleSetDefaultValue,
+      handleAddWorkspace,
     };
   },
   render() {
@@ -142,17 +148,35 @@ export default defineComponent({
             property='workspace_id'
           >
             <Select
+              ref='workspaceSelect'
               clearable={false}
               modelValue={this.modelValue.workspace_id}
+              filterable
               onChange={this.handleWorkspaceChange}
             >
-              {this.workspaceList.map(item => (
-                <Select.Option
-                  id={item.workspace_id}
-                  key={item.workspace_id}
-                  name={item.workspace_name}
-                />
-              ))}
+              {{
+                default: () =>
+                  this.workspaceList.map(item => (
+                    <Select.Option
+                      id={item.workspace_id}
+                      key={item.workspace_id}
+                      name={item.workspace_name}
+                    />
+                  )),
+                extension: () => (
+                  <div
+                    style='display: flex;align-items: center;justify-content: center;width: 100%;gap: 9px;cursor: pointer;'
+                    class='add-workspace'
+                    onClick={this.handleAddWorkspace}
+                  >
+                    <i
+                      style='font-size: 16px; color: #979BA5'
+                      class='icon-monitor icon-jia'
+                    />
+                    <span style='color: #4D4F56'>{this.$t('关联更多项目')}</span>
+                  </div>
+                ),
+              }}
             </Select>
           </Form.FormItem>
           <Form.FormItem

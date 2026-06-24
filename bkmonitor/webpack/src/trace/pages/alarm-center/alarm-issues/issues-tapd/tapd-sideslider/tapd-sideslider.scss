@@ -29,6 +29,7 @@
 
   .create-tapd-side-slider-content {
     height: calc(100vh - 52px);
+    overflow-y: auto;
     background-color: #f5f7fa;
 
     .create-tapd-content {
@@ -36,6 +37,7 @@
 
       .sync-tapd-status {
         padding: 16px 24px;
+        margin: 13px 0 48px;
         background-color: #fff;
         border-radius: 4px;
         box-shadow: 0 2px 4px 0 #1919290d;
