@@ -2344,6 +2344,9 @@ class UpdatePartialStrategyV2Resource(Resource):
         """更新检测算法。"""
         for item in strategy.items:
             item.algorithms = [Algorithm(strategy.id, item.id, **data) for data in algorithms]
+        # NewSeries 保存层硬校验(防 partial_update 旁路绕过 Strategy.Serializer.validate)：落库前校验合并结果
+        Strategy.Serializer.validate_new_series(strategy.to_dict())
+        for item in strategy.items:
             item.save_algorithms()
 
         return None, [], []

@@ -1934,7 +1934,52 @@ class Strategy(AbstractConfig):
             is_builtin_name = name.startswith("集成内置") or name.startswith("Datalink BuiltIn")
             if attrs.get("source") != DATALINK_SOURCE and is_builtin_name:
                 raise ValidationError(detail="Name starts with 'Datalink BuiltIn' and '集成内置' is forbidden")
+            self.validate_new_series(attrs)
             return attrs
+
+        @staticmethod
+        def validate_new_series(attrs):
+            """
+            新维度值检测(NewSeries)保存层硬校验：
+            - NewSeries 单次性算法，独占告警级别(不能与其它算法同 level)；
+            - 仅支持单 query_config 与时序数据；
+            - 检测周期(detect_range)不能小于数据聚合周期(agg_interval)。
+            """
+            new_series_type = AlgorithmModel.AlgorithmChoices.NewSeries
+            for item in attrs.get("items") or []:
+                algorithms = item.get("algorithms") or []
+                ns_algorithms = [algorithm for algorithm in algorithms if algorithm.get("type") == new_series_type]
+                if not ns_algorithms:
+                    continue
+
+                query_configs = item.get("query_configs") or []
+                if len(query_configs) != 1:
+                    raise ValidationError(detail=_("新维度值检测算法仅支持单个查询配置"))
+
+                query_config = query_configs[0]
+                if query_config.get("data_type_label") != DataTypeLabel.TIME_SERIES:
+                    raise ValidationError(detail=_("新维度值检测算法仅支持时序数据"))
+
+                # 独占 level：同 level 不能再有其它算法
+                ns_levels = {algorithm.get("level") for algorithm in ns_algorithms}
+                for algorithm in algorithms:
+                    if algorithm.get("type") != new_series_type and algorithm.get("level") in ns_levels:
+                        raise ValidationError(detail=_("新维度值检测算法不能与其它算法配置在同一告警级别"))
+
+                agg_interval = query_config.get("agg_interval")
+                for algorithm in ns_algorithms:
+                    config = algorithm.get("config") or {}
+                    detect_range = config.get("detect_range")
+                    # 下界硬校验：拦截 degenerate 值(否则运行期会永久漏报/冷启动失效误报风暴)
+                    if detect_range is None or int(detect_range) < 1:
+                        raise ValidationError(detail=_("新维度值检测的检测周期必须大于 0"))
+                    # detect_range >= agg_interval
+                    if agg_interval and int(detect_range) < int(agg_interval):
+                        raise ValidationError(detail=_("新维度值检测的检测周期不能小于数据聚合周期"))
+                    if int(config.get("max_series", 100000)) < 1:
+                        raise ValidationError(detail=_("新维度值检测的最大序列数必须大于 0"))
+                    if int(config.get("effective_delay", 86400)) < 1:
+                        raise ValidationError(detail=_("新维度值检测的生效延迟必须大于 0"))
 
     def __init__(
         self,

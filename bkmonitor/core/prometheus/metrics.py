@@ -218,6 +218,19 @@ DETECT_PROCESS_DATA_COUNT = Counter(
     labelnames=("strategy_id", "type"),
 )
 
+# 新维度值检测(NewSeries)自监控：失败安全分支会静默不报，故指标是能力闭环的一部分。
+NEW_SERIES_PROCESS_TIME = Histogram(
+    name="bkmonitor_new_series_pre_detect_time",
+    documentation="NewSeries pre_detect(读旧态+写新态)耗时",
+    labelnames=("strategy_id",),
+)
+
+NEW_SERIES_PROCESS_COUNT = Counter(
+    name="bkmonitor_new_series_process_count",
+    documentation="NewSeries 处理计数(type: seen_write/trim/over_limit/failure)",
+    labelnames=("strategy_id", "type"),
+)
+
 # trigger
 TRIGGER_PROCESS_TIME = Histogram(
     name="bkmonitor_trigger_process_time",
