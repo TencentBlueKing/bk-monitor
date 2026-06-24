@@ -58,6 +58,54 @@ def patch_duty_arranges(monkeypatch, users=None):
     monkeypatch.setattr(as_code_resources.DutyArrange.objects, "filter", filter_duty_arranges)
 
 
+class FakeActionQuerySet:
+    def values_list(self, *fields):
+        assert fields == ("name", "id")
+        return [("auto-heal", 3), ("callback", 5)]
+
+
+def test_build_action_ids_by_config_ids_only_queries_referenced_actions(monkeypatch):
+    captured_kwargs = {}
+
+    def filter_actions(**kwargs):
+        captured_kwargs.update(kwargs)
+        return FakeActionQuerySet()
+
+    monkeypatch.setattr(as_code_resources.ActionConfig.objects, "filter", filter_actions)
+
+    result = as_code_resources.ExportConfigResource._build_action_ids_by_config_ids(2, [3, 5, 5])
+
+    assert result == {"auto-heal": 3, "callback": 5}
+    assert captured_kwargs == {"bk_biz_id__in": [2, 0], "id__in": {3, 5}}
+
+
+def test_collect_referenced_action_config_ids():
+    strategy_action_ids = as_code_resources.ExportConfigResource._get_strategy_action_config_ids(
+        [
+            {"actions": [{"config_id": 3}, {"config_id": 5}, {"config_id": 0}, {}]},
+            {"actions": None},
+        ]
+    )
+    assign_action_ids = as_code_resources.ExportConfigResource._get_assign_rule_action_config_ids(
+        [
+            {
+                "rules": [
+                    {
+                        "actions": [
+                            {"action_type": "notice", "action_id": 1},
+                            {"action_type": "execute", "action_id": 7},
+                            {"action_type": "execute", "action_id": 8},
+                        ]
+                    }
+                ]
+            }
+        ]
+    )
+
+    assert strategy_action_ids == {3, 5}
+    assert assign_action_ids == {7, 8}
+
+
 def test_build_notice_group_export_configs(monkeypatch):
     user_group = make_user_group()
     patch_duty_arranges(monkeypatch)
