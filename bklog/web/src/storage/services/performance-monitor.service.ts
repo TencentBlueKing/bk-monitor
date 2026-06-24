@@ -186,6 +186,25 @@ const sanitizeForExport = (value: any, options: ExportSanitizeOptions, depth = 0
   }, {} as Record<string, any>);
 };
 
+
+const serializeLongTaskAttribution = (attribution: any) => {
+  if (!attribution) return [];
+  try {
+    return Array.from(attribution).map((item: any) => ({
+      name: item.name,
+      entryType: item.entryType,
+      startTime: item.startTime,
+      duration: item.duration,
+      containerType: item.containerType,
+      containerSrc: item.containerSrc,
+      containerId: item.containerId,
+      containerName: item.containerName,
+    }));
+  } catch {
+    return [];
+  }
+};
+
 const pickEvery = <T>(list: T[], maxPoints: number) => {
   if (list.length <= maxPoints) return list;
   const step = Math.ceil(list.length / maxPoints);
@@ -1150,7 +1169,7 @@ class PerformanceMonitorService {
               name: entry.name,
               duration: entry.duration,
               startTime: entry.startTime,
-              attribution: entry.attribution,
+              attribution: serializeLongTaskAttribution(entry.attribution),
             });
           });
         });

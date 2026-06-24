@@ -50,16 +50,6 @@
         </span>
       </span>
       <span
-        class="handle-card"
-        v-bk-tooltips="{ allowHtml: false, content: $t('全量'), delay: 500 }"
-      >
-        <span
-          class="full-row-action"
-          @click.stop="handleCheckClick('fullRow', true)"
-          @mouseup.stop
-        >{{ $t('全') }}</span>
-      </span>
-      <span
         v-if="isActiveWebConsole && !isMonitorApm"
         class="handle-card"
         v-bk-tooltips="{ allowHtml: true, content: '#webConsole-html', delay: 500 }"
@@ -338,21 +328,6 @@
         font-size: 16px;
         line-height: 20px;
         cursor: pointer;
-      }
-
-      .full-row-action {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 18px;
-        height: 18px;
-        font-size: 12px;
-        font-weight: 600;
-        line-height: 18px;
-        color: #63656e;
-        cursor: pointer;
-        border: 1px solid #c4c6cc;
-        border-radius: 2px;
       }
 
       &.ai-assistant {

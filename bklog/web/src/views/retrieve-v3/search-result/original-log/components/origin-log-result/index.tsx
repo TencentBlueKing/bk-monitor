@@ -474,9 +474,12 @@ export default defineComponent({
         const outerLogResult = store.state.indexSetQueryResult;
         total = outerLogResult.total;
         const rowKeys = outerLogResult.row_keys ?? [];
-        logList.value = rowKeys.length
-          ? await retrieveRowCacheService.getRows(rowKeys)
-          : [];
+        if (rowKeys.length) {
+          const cachedRows = await retrieveRowCacheService.getRows(rowKeys);
+          logList.value = cachedRows.length === rowKeys.length ? cachedRows : (outerLogResult.list ?? []).slice();
+        } else {
+          logList.value = (outerLogResult.list ?? []).slice();
+        }
         begin = logList.value.length;
         if (scrollIntoViewTimer) {
           clearTimeout(scrollIntoViewTimer);

@@ -5,6 +5,7 @@
 import JSONBigNumber from 'json-bignumber';
 
 import { retrieveRowRepository } from '../repositories/retrieve-row.repository';
+import { createRetrieveRowRenderMeta } from '../utils/retrieve-render-meta';
 
 interface IngestMessage {
   id: string;
@@ -80,14 +81,17 @@ self.onmessage = async (event: MessageEvent<IngestMessage>) => {
       }
       const renderRows = data.list;
       const rows = data.origin_log_list;
+      const renderMetas = rows.map((row: Record<string, any>, index: number) => createRetrieveRowRenderMeta(row, renderRows[index]));
       const rowKeys = message.writeMode === 'append'
         ? await retrieveRowRepository.appendRows(message.queryKey, rows, message.startSeq || 0, {
           fieldNames: message.fieldNames || [],
           renderRows,
+          renderMetas,
         })
         : await retrieveRowRepository.replaceRows(message.queryKey, rows, message.startSeq || 0, {
           fieldNames: message.fieldNames || [],
           renderRows,
+          renderMetas,
         });
 
       const meta = { ...data };

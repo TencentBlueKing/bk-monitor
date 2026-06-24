@@ -28,6 +28,7 @@ import { computed, defineComponent, h, nextTick, onBeforeUnmount, reactive, ref,
 import { getRowFieldValue, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR, xssFilter } from '@/common/util';
 // import { perfStart, perfEnd } from '@/utils/performance-monitor';
 import JsonFormatter from '@/global/json-formatter.vue';
+import type { RetrieveRowRenderMeta } from '@/storage/utils/retrieve-render-meta';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
@@ -39,10 +40,10 @@ import PopInstanceUtil from '@/global/pop-instance-util';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
 import ExpandView from '../../components/result-cell-element/expand-view.vue';
-import FullRowViewer from './full-row-viewer.vue';
 import OperatorTools from '../../components/result-cell-element/operator-tools.vue';
 import RetrieveLoader from '@/skeleton/retrieve-loader.vue';
 import { retrieveRowCacheService } from '@/storage';
+import FullRowViewer from './full-row-viewer.vue';
 import ScrollTop from '../../components/scroll-top/index';
 import useTextAction from '../../hooks/use-text-action';
 import LogCell from './log-cell';
@@ -107,12 +108,6 @@ export default defineComponent({
       top: 0,
       right: 12,
     });
-    const fullRowViewerState = reactive({
-      visible: false,
-      row: null,
-      rowKey: '',
-      instanceKey: 0,
-    });
 
     const popInstanceUtil = new PopInstanceUtil({
       refContent: () => refSegmentContent.value,
@@ -159,6 +154,11 @@ export default defineComponent({
     const localUpdateCounter = ref(0);
     const hasMoreList = ref(true);
     let renderList = Object.freeze([]);
+    const fullRowViewerState = reactive({
+      visible: false,
+      rowKey: '',
+      rowData: null as Record<string, any> | null,
+    });
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const filteredFieldList = computed(() => store.getters.filteredFieldList);
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
@@ -172,8 +172,9 @@ export default defineComponent({
     const kvShowFieldsList = computed(() => filteredFieldList.value?.map(f => f.field_name));
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
     const rowKeys = computed<string[]>(() => indexSetQueryResult.value?.row_keys ?? []);
-    const tableDataSize = computed(() => rowKeys.value.length || 0);
+    const tableDataSize = computed(() => rowKeys.value.length || (indexSetQueryResult.value?.list?.length ?? 0));
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
+    const tableList = computed<any[]>(() => Object.freeze(indexSetQueryResult.value?.list ?? []));
     const gradeOption = computed(() => store.state.indexFieldInfo.custom_config?.grade_options ?? { disabled: false });
     const indexSetType = computed(() => store.state.indexItem.isUnionIndex);
     const limitRow = computed(() => store.state.storage[BK_LOG_STORAGE.RESULT_DISPLAY_LINES]);
@@ -250,23 +251,82 @@ export default defineComponent({
 
     const setRenderList = (length?: number) => {
       const endIndex = length ?? tableDataSize.value;
-      const lastIndex = Math.min(endIndex, rowKeys.value.length);
-      const keys = rowKeys.value.slice(0, lastIndex);
 
-      retrieveRowCacheService.getRenderRows(keys).then((rows) => {
-        renderList = rows.map((item, index) => ({
-          item,
-          [ROW_KEY]: keys[index] ?? getRowCacheKey(item, index),
-        }));
-        localUpdateCounter.value += 1;
-        nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
-      });
+      if (rowKeys.value.length) {
+        const lastIndex = Math.min(endIndex, rowKeys.value.length);
+        const keys = rowKeys.value.slice(0, lastIndex);
+
+        retrieveRowCacheService.getRenderEntries(keys).then((entries) => {
+          renderList = entries.filter(Boolean).map((entry, index) => ({
+            item: entry.row,
+            renderMeta: entry.renderMeta as RetrieveRowRenderMeta | undefined,
+            [ROW_KEY]: keys[index] ?? getRowCacheKey(entry.row, index),
+          }));
+          localUpdateCounter.value += 1;
+          nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
+        });
+        return;
+      }
+
+      const arr: Record<string, any>[] = [];
+      const lastIndex = Math.min(endIndex, tableList.value.length);
+      for (let i = 0; i < lastIndex; i++) {
+        arr.push({
+          item: tableList.value[i],
+          renderMeta: undefined as RetrieveRowRenderMeta | undefined,
+          [ROW_KEY]: `${tableList.value[i]?.dtEventTimeStamp ?? 'row'}_${i}`,
+        });
+      }
+
+      renderList = arr;
     };
 
     const searchContainerHeight = ref(52);
     const resultContainerId = ref(RetrieveHelper.logRowsContainerId);
     const resultContainerIdSelector = `#${resultContainerId.value}`;
 
+
+    const getRowRenderMeta = (row?: Record<string, any>) => (row as any)?.__component_render_meta__ as RetrieveRowRenderMeta | undefined;
+
+    const shouldShowFullRowAction = (row: Record<string, any>) => {
+      const meta = getRowRenderMeta(row);
+      return !!meta?.hasTruncatedField;
+    };
+
+    const openFullRowViewer = async (row: Record<string, any>, rowIndex: number) => {
+      const rowKey = (row as any)?.[ROW_KEY] || rowKeys.value[rowIndex] || '';
+      fullRowViewerState.rowKey = rowKey;
+      fullRowViewerState.rowData = row;
+      fullRowViewerState.visible = true;
+
+      if (!rowKey) return;
+      try {
+        const [originRow] = await retrieveRowCacheService.getRows([rowKey]);
+        if (originRow && fullRowViewerState.rowKey === rowKey) {
+          fullRowViewerState.rowData = originRow;
+        }
+      } catch (error) {
+        console.warn('[log-rows] preload full row failed', error);
+      }
+    };
+
+    const renderFullRowAction = (row: Record<string, any>, rowIndex: number) => {
+      if (!shouldShowFullRowAction(row)) return null;
+      return (
+        <button
+          class='bklog-full-row-action'
+          type='button'
+          aria-label={$t('全量')}
+          onClick={(event: MouseEvent) => {
+            event.stopPropagation();
+            event.preventDefault();
+            openFullRowViewer(row, rowIndex);
+          }}
+        >
+          {$t('全量')}
+        </button>
+      );
+    };
 
     const originalColumns = computed(() => {
       return [
@@ -309,6 +369,7 @@ export default defineComponent({
                 fields={visibleFields.value}
                 jsonValue={row}
                 limitRow={limitRow.value}
+                renderMeta={getRowRenderMeta(row)}
                 onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink)}
               />
             );
@@ -334,6 +395,7 @@ export default defineComponent({
               fields={field}
               jsonValue={getRowFieldValue(row, field)}
               limitRow={limitRow.value}
+              renderMeta={getRowRenderMeta(row)}
               onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink, { row, field })}
             />
           );
@@ -605,9 +667,13 @@ export default defineComponent({
         sortFieldsList.unshift(LOG_SOURCE_F());
       }
 
-      retrieveRowCacheService
-        .getRows(rowKeys.value.slice(0, Math.min(rowKeys.value.length, 50)))
-        .then(rows => setDefaultTableWidth(sortFieldsList, rows));
+      if (rowKeys.value.length) {
+        retrieveRowCacheService
+          .getRows(rowKeys.value.slice(0, Math.min(rowKeys.value.length, 50)))
+          .then(rows => setDefaultTableWidth(sortFieldsList, rows));
+      } else {
+        setDefaultTableWidth(sortFieldsList, tableList.value);
+      }
       fullColumns.value = sortFieldsList;
     };
 
@@ -680,7 +746,6 @@ export default defineComponent({
             kv-show-fields-list={kvShowFieldsList.value}
             list-data={row}
             row-index={realRowIndex}
-            row-key={row?.[ROW_KEY]}
             onValue-click={(type, content, isLink, field, depth, isNestedField) => {
               return handleIconClick(type, content, field, row, isLink, depth, isNestedField);
             }}
@@ -1351,32 +1416,27 @@ export default defineComponent({
           onMouseenter={activateHoverOperator}
           onMouseleave={deactivateHoverOperator}
         >
-          {/** @ts-expect-error */}
-          <OperatorTools
-            handle-click={(type, event) => {
-              if (type === 'ai') {
-                handleRowAIClcik(event, hoverOperatorState.row, hoverOperatorState.rowIndex);
-                return;
-              }
-              if (type === 'fullRow') {
-                fullRowViewerState.row = hoverOperatorState.row;
-                fullRowViewerState.rowKey = hoverOperatorState.row?.[ROW_KEY] || rowKeys.value[hoverOperatorState.rowIndex] || '';
-                fullRowViewerState.instanceKey += 1;
-                fullRowViewerState.visible = true;
-                hoverOperatorState.visible = false;
-                return;
-              }
-              props.handleClickTools(
-                type,
-                hoverOperatorState.row,
-                indexSetOperatorConfig.value,
-                ensureTableRowConfig(hoverOperatorState.row, hoverOperatorState.rowIndex).value[ROW_INDEX] + 1,
-              );
-            }}
-            index={hoverOperatorState.row[ROW_INDEX]}
-            operator-config={indexSetOperatorConfig.value}
-            row-data={hoverOperatorState.row}
-          />
+          <div class='bklog-row-hover-operator-content'>
+            {/** @ts-expect-error */}
+            <OperatorTools
+              handle-click={(type, event) => {
+                if (type === 'ai') {
+                  handleRowAIClcik(event, hoverOperatorState.row, hoverOperatorState.rowIndex);
+                  return;
+                }
+                props.handleClickTools(
+                  type,
+                  hoverOperatorState.row,
+                  indexSetOperatorConfig.value,
+                  ensureTableRowConfig(hoverOperatorState.row, hoverOperatorState.rowIndex).value[ROW_INDEX] + 1,
+                );
+              }}
+              index={hoverOperatorState.row[ROW_INDEX]}
+              operator-config={indexSetOperatorConfig.value}
+              row-data={hoverOperatorState.row}
+            />
+            {renderFullRowAction(hoverOperatorState.row, hoverOperatorState.rowIndex)}
+          </div>
         </div>
       );
     };
@@ -1451,7 +1511,8 @@ export default defineComponent({
       const target = e.target as HTMLElement;
       const expandCell = target.closest('.bklog-row-observe')?.querySelector('.expand-view-wrapper');
 
-      if (target.classList.contains('valid-text') || expandCell?.contains(target)) {
+      const interactiveTarget = target.closest('a, button, input, textarea, [role="button"], .bk-link-text');
+      if (interactiveTarget || expandCell?.contains(target)) {
         RetrieveHelper.setMousedownEvent(null);
         return;
       }
@@ -1487,7 +1548,10 @@ export default defineComponent({
       }
 
       return renderList.map((row, rowIndex) => {
-        const logLevel = gradeOption.value.disabled ? '' : RetrieveHelper.getLogLevel(row.item, gradeOption.value);
+        const renderRow = row.item as Record<string, any>;
+        renderRow[ROW_KEY] = row[ROW_KEY];
+        renderRow.__component_render_meta__ = row.renderMeta;
+        const logLevel = gradeOption.value.disabled ? '' : RetrieveHelper.getLogLevel(renderRow, gradeOption.value);
 
         return [
           <RowRender
@@ -1501,11 +1565,11 @@ export default defineComponent({
             ]}
             row-index={rowIndex}
             on-row-mousedown={handleRowMousedown}
-            on-row-mouseenter={e => handleRowMouseenter(e, row.item, rowIndex)}
+            on-row-mouseenter={e => handleRowMouseenter(e, renderRow, rowIndex)}
             on-row-mouseleave={handleRowMouseleave}
-            on-row-mouseup={e => handleRowMouseup(e, row.item, rowIndex)}
+            on-row-mouseup={e => handleRowMouseup(e, renderRow, rowIndex)}
           >
-            {renderRowCells(row.item, rowIndex)}
+            {renderRowCells(renderRow, rowIndex)}
           </RowRender>,
         ];
       });
@@ -1677,6 +1741,17 @@ export default defineComponent({
       );
     };
 
+    const renderFullRowViewer = () => (
+      <FullRowViewer
+        visible={fullRowViewerState.visible}
+        rowKey={fullRowViewerState.rowKey}
+        rowData={fullRowViewerState.rowData}
+        onUpdate:visible={(value: boolean) => {
+          fullRowViewerState.visible = value;
+        }}
+      />
+    );
+
     const renderDelineatePopContent = () => {
       return <div style='display: none;'>{useSegmentPop.createSegmentContent(refSegmentContent)}</div>;
     };
@@ -1691,9 +1766,6 @@ export default defineComponent({
       }
       hoverOperatorState.visible = false;
       hoverOperatorState.row = null;
-      fullRowViewerState.visible = false;
-      fullRowViewerState.row = null;
-      fullRowViewerState.rowKey = '';
       renderList = Object.freeze([]);
     });
 
@@ -1708,6 +1780,7 @@ export default defineComponent({
       renderLoader,
       renderHeadVNode,
       renderHoverOperatorOverlay,
+      renderFullRowViewer,
       renderFirstPageSkeleton,
       getExceptionRender,
       tableDataSize,
@@ -1717,7 +1790,6 @@ export default defineComponent({
       isRequesting,
       exceptionMsg,
       localUpdateCounter,
-      fullRowViewerState,
     };
   },
   render() {
@@ -1742,19 +1814,7 @@ export default defineComponent({
         {this.renderLoader()}
         {this.renderScrollTop()}
         {this.renderDelineatePopContent()}
-        <FullRowViewer
-          key={this.fullRowViewerState.instanceKey}
-          visible={this.fullRowViewerState.visible}
-          rowData={this.fullRowViewerState.row}
-          rowKey={this.fullRowViewerState.rowKey}
-          onUpdate:visible={(value) => {
-            this.fullRowViewerState.visible = value;
-            if (!value) {
-              this.fullRowViewerState.row = null;
-              this.fullRowViewerState.rowKey = '';
-            }
-          }}
-        />
+        {this.renderFullRowViewer()}
         <div class='resize-guide-line' />
       </div>
     );

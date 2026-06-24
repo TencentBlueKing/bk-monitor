@@ -76,6 +76,10 @@
       type: [Array, Object],
       default: () => [],
     },
+    renderMeta: {
+      type: Object,
+      default: null,
+    },
 
     limitRow: {
       type: [Number, String, null],
@@ -286,7 +290,10 @@
     return fieldList.value.map((f: any) => ({
       name: f.field_name,
       type: f.field_type,
-      formatter: getFieldFormatter(f, isFormatDateField.value && !!f.__is_virtual_root__),
+      formatter: {
+        ...getFieldFormatter(f, isFormatDateField.value && !!f.__is_virtual_root__),
+        precomputedSegments: props.renderMeta?.fieldSegments,
+      },
       __is_virtual_root__: !!f.__is_virtual_root__,
     }));
   });
@@ -314,7 +321,7 @@
   };
 
   watch(
-    () => [props.limitRow, props.jsonValue, props.fields, isLimitExpandText.value],
+    () => [props.limitRow, props.jsonValue, props.fields, props.renderMeta, isLimitExpandText.value],
     () => {
       showAllText.value = false;
       hasScrollY.value = false;

@@ -155,7 +155,8 @@ const isInputLoading = computed(() => {
 });
 
 const isSearching = computed(() => {
-  return store.state.indexSetQueryResult.is_loading;
+  const queryResult = store.state.indexSetQueryResult;
+  return queryResult.is_loading && !queryResult.is_pagination_loading;
 });
 
 const btnIconName = computed(() => {

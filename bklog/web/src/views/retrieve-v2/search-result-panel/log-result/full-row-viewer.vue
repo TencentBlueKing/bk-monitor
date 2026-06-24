@@ -69,10 +69,16 @@
       </div>
       <div
         ref="scrollContainer"
-        class="full-row-content"
+        :class="['full-row-content', { 'is-webgl': usePixiRenderer }]"
         @scroll="handleScroll"
       >
+        <canvas
+          v-show="usePixiRenderer"
+          ref="pixiCanvas"
+          class="full-row-pixi-canvas"
+        ></canvas>
         <div
+          v-if="!usePixiRenderer"
           class="virtual-spacer"
           :style="{ height: `${totalHeight}px` }"
         >
@@ -85,7 +91,7 @@
           ></pre>
         </div>
         <div
-          v-if="!renderChunks.length"
+          v-if="!usePixiRenderer && !renderChunks.length"
           class="empty-content"
         >
           {{ searchValue ? $t('未匹配到内容') : $t('暂无内容') }}
@@ -97,6 +103,7 @@
 
 <script>
   import { retrieveRowCacheService } from '@/storage';
+  import { buildPixiApp, destroyPixiApp } from './pixi-renderer';
 
   const CHUNK_SIZE = 8000;
   const CHUNK_HEIGHT = 132;
@@ -142,11 +149,17 @@
         loading: false,
         loadError: '',
         loadSeq: 0,
+        pixiApp: null,
+        pixiContainer: null,
+        pixiError: '',
       };
     },
     computed: {
       displayRow() {
         return this.originRow || this.rowData;
+      },
+      usePixiRenderer() {
+        return this.localVisible && this.contentText.length > CHUNK_SIZE && !this.pixiError;
       },
       contentText() {
         if (!this.displayRow) return '';
@@ -225,13 +238,21 @@
       mode() {
         this.activeMatchIndex = this.matches.length ? 0 : -1;
         this.resetScroll();
+        this.schedulePixiRender();
       },
       rowData() {
         this.resetSearchState();
         this.resetScroll();
+        this.schedulePixiRender();
       },
       rowKey() {
         if (this.localVisible) this.loadOriginRow();
+      },
+      contentText() {
+        this.schedulePixiRender();
+      },
+      searchValue() {
+        this.schedulePixiRender();
       },
       matches(matches) {
         if (!matches.length) {
@@ -252,6 +273,7 @@
         this.searchTimer = null;
       }
       this.loadSeq += 1;
+      this.destroyPixi();
     },
     methods: {
       resetViewer() {
@@ -259,6 +281,8 @@
         this.originRow = null;
         this.loadError = '';
         this.loading = false;
+        this.pixiError = '';
+        this.destroyPixi();
         this.resetSearchState();
         this.resetScroll();
       },
@@ -301,6 +325,41 @@
       },
       handleScroll(event) {
         this.scrollTop = event.target.scrollTop;
+      },
+      schedulePixiRender() {
+        this.$nextTick(() => {
+          if (this.usePixiRenderer) {
+            this.renderPixi();
+          } else {
+            this.destroyPixi();
+          }
+        });
+      },
+      async renderPixi() {
+        const canvas = this.$refs.pixiCanvas;
+        if (!canvas || !this.contentText) return;
+        try {
+          this.destroyPixi();
+          const rows = this.chunks.map(text => ({ text, isMark: false }));
+          const result = await buildPixiApp(canvas, {
+            rows,
+            highlightKeywords: this.searchValue ? [this.searchValue] : [],
+          });
+          this.pixiApp = result.app;
+          this.pixiContainer = result.container;
+          this.pixiError = '';
+        } catch (error) {
+          this.pixiError = error?.message || String(error);
+          console.warn('[FullRowViewer] Pixi render failed, fallback to DOM renderer', error);
+          this.destroyPixi();
+        }
+      },
+      destroyPixi() {
+        if (this.pixiApp) {
+          destroyPixiApp(this.pixiApp);
+          this.pixiApp = null;
+          this.pixiContainer = null;
+        }
       },
       handleSearchInput() {
         if (this.searchTimer) clearTimeout(this.searchTimer);
@@ -463,6 +522,16 @@
     background: #f5f7fa;
     border: 1px solid #dcdee5;
     border-radius: 2px;
+
+    &.is-webgl {
+      overflow: auto;
+    }
+
+    .full-row-pixi-canvas {
+      display: block;
+      width: 100%;
+      min-height: 100%;
+    }
   }
 
   .virtual-spacer {

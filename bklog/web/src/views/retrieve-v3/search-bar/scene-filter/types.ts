@@ -24,4 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-export * from '@/store/scene-filter-types';
+export { SceneType } from '@/store/scene-filter-types';
+export type {
+  FilterFieldConfig,
+  FilterFieldValue,
+  FilterValues,
+  SceneConfig,
+  SceneConfigItem,
+  SceneDimensionItem,
+  SceneDimensionValuesRequest,
+  SceneDimensionValuesResponse,
+  SceneDisplayFields,
+} from '@/store/scene-filter-types';

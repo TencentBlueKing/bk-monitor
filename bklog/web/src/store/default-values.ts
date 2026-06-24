@@ -214,6 +214,7 @@ export const DEFAULT_DATETIME_PARAMS = getDefaultDatePickerValue();
 
 export const IndexSetQueryResult = {
   is_loading: false,
+  is_pagination_loading: false,
   exception_msg: '',
   is_error: false,
   search_count: 0,
@@ -221,6 +222,10 @@ export const IndexSetQueryResult = {
   _shards: {},
   total: 0,
   took: 0,
+  // list is intentionally kept for standalone related-log pages and non-cache flows.
+  // Main retrieve results are stored in IndexedDB and referenced by row_keys.
+  list: [],
+  origin_log_list: [],
   row_keys: [],
   row_query_key: '',
   cached_count: 0,

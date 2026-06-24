@@ -11,6 +11,7 @@ import {
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { retrieveRowCacheService, retrieveSearchWorkerIngestService, storageHealthService, storeCacheService } from '@/storage';
+import { createRetrieveRowRenderMeta } from '@/storage/utils/retrieve-render-meta';
 
 import { formatAdditionalFields, getCommonFilterAdditionWithValues, isSceneRetrieve } from '../helper.ts';
 import { reportRouteLog } from '../modules/report-helper.ts';
@@ -39,9 +40,10 @@ const ingestSearchResponseOnMainThread = async (blob, {
       throw new Error('Invalid search response: list length ' + renderList.length + ' !== origin_log_list length ' + originLogList.length);
     }
 
+    const renderMetas = originLogList.map((row, index) => createRetrieveRowRenderMeta(row, renderList[index]));
     const rowKeys = isPagination
-      ? await retrieveRowCacheService.appendRows(rowQueryKey, originLogList, startSeq, { fieldNames, renderRows: renderList })
-      : await retrieveRowCacheService.replaceRows(rowQueryKey, originLogList, { fieldNames, renderRows: renderList });
+      ? await retrieveRowCacheService.appendRows(rowQueryKey, originLogList, startSeq, { fieldNames, renderRows: renderList, renderMetas })
+      : await retrieveRowCacheService.replaceRows(rowQueryKey, originLogList, { fieldNames, renderRows: renderList, renderMetas });
     delete rsolvedData.list;
     delete rsolvedData.origin_log_list;
     return {
@@ -263,6 +265,7 @@ export function requestIndexSetQueryAction(
   const searchCount = payload.searchCount ?? state.indexSetQueryResult.search_count + 1;
   commit(payload.isPagination ? 'updateIndexSetQueryResult' : 'resetIndexSetQueryResult', {
     is_loading: true,
+    is_pagination_loading: !!payload?.isPagination,
     search_count: searchCount,
   });
 
@@ -479,12 +482,16 @@ export function requestIndexSetQueryAction(
 
       if (e.code === 'ERR_CANCELED') {
         cachedQueryResult.is_loading = false;
+        cachedQueryResult.is_pagination_loading = false;
         commit('updateIndexSetQueryResult', cachedQueryResult);
       }
     })
     .finally(() => {
       if (!isStaleSearchResponse && isCurrentSearchRequest()) {
-        commit('updateIndexSetQueryResult', { is_loading: false });
+        commit('updateIndexSetQueryResult', {
+          is_loading: false,
+          is_pagination_loading: false,
+        });
       }
       cachedQueryResult = null;
 

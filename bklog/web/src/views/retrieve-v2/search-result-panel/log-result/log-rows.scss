@@ -581,3 +581,31 @@
     }
   }
 }
+
+.bklog-full-row-action {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  height: 20px;
+  padding: 0 6px;
+  margin-left: 2px;
+  font-size: 12px;
+  line-height: 18px;
+  color: #3a84ff;
+  cursor: pointer;
+  background: #fff;
+  border: 1px solid #a3c5fd;
+  border-radius: 2px;
+
+  &:hover,
+  &:focus-visible {
+    color: #1768ef;
+    background: #edf4ff;
+    outline: none;
+  }
+}
+
+.bklog-row-hover-operator-content {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+}

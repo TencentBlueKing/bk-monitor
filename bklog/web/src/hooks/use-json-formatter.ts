@@ -47,9 +47,17 @@ export type FormatterConfig = {
   onSegmentClick: (_args: any) => void;
   onSegmentRenderUpdate?: () => void;
   options?: Record<string, any>;
+  precomputedSegments?: PrecomputedSegments;
 };
 
 export type SegmentAppendText = { text: string; onClick?: (..._args) => void; attributes?: Record<string, string> };
+export type PrecomputedSegments = Record<string, Array<{
+  text: string;
+  isMark?: boolean;
+  isCursorText?: boolean;
+  isBlobWord?: boolean;
+  isNotParticiple?: boolean;
+}>>;
 export default class UseJsonFormatter {
   editor: JsonView;
   config: FormatterConfig;
@@ -190,6 +198,12 @@ export default class UseJsonFormatter {
   }
 
   getSplitList(field: any, content: any) {
+    const fieldName = typeof field === 'string' ? field : field?.field_name;
+    const precomputedSegments = fieldName ? this.config.precomputedSegments?.[fieldName] : undefined;
+    if (Array.isArray(precomputedSegments)) {
+      return precomputedSegments;
+    }
+
     /** 检索高亮分词字符串 */
     const markRegStr = '<mark>(.*?)</mark>';
     const value = this.escapeString(`${content}`);

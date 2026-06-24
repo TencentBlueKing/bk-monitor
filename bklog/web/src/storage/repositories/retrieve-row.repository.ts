@@ -4,6 +4,7 @@
  */
 import db, { type RetrieveRowEntity } from '../core/db';
 import { retrieveRowProjectionService, type RetrieveRowProjection } from '../services/retrieve-row-projection.service';
+import { createRetrieveRowRenderMeta, type RetrieveRowRenderMeta } from '../utils/retrieve-render-meta';
 
 const DEFAULT_TTL = 30 * 60 * 1000;
 const DEFAULT_BATCH_ROWS = 5;
@@ -26,6 +27,7 @@ interface WriteRowsOptions {
   batchRows?: number;
   batchBytes?: number;
   renderRows?: Record<string, any>[];
+  renderMetas?: RetrieveRowRenderMeta[];
 }
 
 export class RetrieveRowRepository {
@@ -63,6 +65,12 @@ export class RetrieveRowRepository {
     if (!keys.length) return [];
     const entities = await db.retrieveRows.bulkGet(keys);
     return entities.map(entity => this.applyRenderOverlay(entity));
+  }
+
+  async getRenderMetasByKeys(keys: string[]) {
+    if (!keys.length) return [];
+    const entities = await db.retrieveRows.bulkGet(keys);
+    return entities.map(entity => entity?.renderMeta);
   }
 
   async getRowsByQuery(queryKey: string, offset = 0, limit?: number) {
@@ -148,6 +156,7 @@ export class RetrieveRowRepository {
         seq,
         row: storageValue.row,
         renderOverlay,
+        renderMeta: options.renderMetas?.[index] || createRetrieveRowRenderMeta(storageValue.row, options.renderRows?.[index]),
         projection: storageValue.projection,
         bytes: storageValue.bytes,
         createdAt: now,
@@ -180,7 +189,7 @@ export class RetrieveRowRepository {
     return Object.keys(fields).length ? { fields, hasHighlight: true } : undefined;
   }
 
-  private applyRenderOverlay(entity?: RetrieveRowEntity) {
+  applyRenderOverlay(entity?: RetrieveRowEntity) {
     if (!entity?.row) return undefined;
     const overlay = entity.renderOverlay;
     if (!overlay?.fields || !Object.keys(overlay.fields).length) return entity.row;

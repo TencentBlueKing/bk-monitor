@@ -11,6 +11,7 @@ export interface RetrieveRowEntity {
   row: Record<string, any>;
   renderOverlay?: any;
   projection?: any;
+  renderMeta?: any;
   bytes?: number;
   createdAt: number;
   expireAt: number;
@@ -53,23 +54,9 @@ class BkLogStorageDB extends Dexie {
   constructor() {
     super('bklog-web-storage');
 
+    // IndexedDB is first introduced in this version. Keep only the final schema;
+    // there is no released legacy IndexedDB cache to migrate.
     this.version(1).stores({
-      retrieveRows: 'key, queryKey, seq, expireAt',
-    });
-
-    this.version(2).stores({
-      retrieveRows: 'key, queryKey, seq, expireAt',
-      keyValues: 'key, expireAt, updatedAt',
-      apiCaches: 'key, expireAt, updatedAt',
-    });
-
-    this.version(3).stores({
-      retrieveRows: 'key, queryKey, [queryKey+seq], seq, expireAt',
-      keyValues: 'key, expireAt, updatedAt',
-      apiCaches: 'key, expireAt, updatedAt',
-    });
-
-    this.version(4).stores({
       retrieveRows: 'key, queryKey, [queryKey+seq], seq, expireAt',
       keyValues: 'key, expireAt, updatedAt',
       apiCaches: 'key, expireAt, updatedAt',

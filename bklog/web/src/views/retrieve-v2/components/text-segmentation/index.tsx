@@ -68,6 +68,10 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    precomputedSegments: {
+      type: Array,
+      default: undefined,
+    },
   },
   emits: ['menu-click'],
   setup(props, { emit }) {
@@ -103,6 +107,7 @@ export default defineComponent({
         content: props.content,
         field: props.field,
         data: props.data,
+        precomputedSegments: props.precomputedSegments as WordListItem[],
       },
     });
 
@@ -234,7 +239,7 @@ export default defineComponent({
     );
 
     watch(
-      () => props.content,
+      () => [props.content, props.precomputedSegments],
       () => {
         textSegmentInstance = new UseTextSegmentation({
           onSegmentClick: handleMenuClick,
@@ -242,6 +247,7 @@ export default defineComponent({
             content: props.content,
             field: props.field,
             data: props.data,
+            precomputedSegments: props.precomputedSegments as WordListItem[],
           },
         });
         setWordList();

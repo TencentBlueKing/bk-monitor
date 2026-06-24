@@ -3,6 +3,7 @@
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  */
 import { retrieveRowRepository } from '../repositories/retrieve-row.repository';
+import { createRetrieveRowRenderMeta, type RetrieveRowRenderMeta } from '../utils/retrieve-render-meta';
 import { estimateValueBytes, retrieveRowProjectionService, type RetrieveRowProjection } from './retrieve-row-projection.service';
 import { storageHealthService } from './storage-health.service';
 
@@ -11,13 +12,18 @@ interface MemoryEntry<T = any> {
   bytes: number;
 }
 
+interface RenderMemoryEntry extends MemoryEntry<Record<string, any>> {
+  renderMeta?: RetrieveRowRenderMeta;
+}
+
 interface WriteOptions {
   fieldNames?: string[];
   renderRows?: Record<string, any>[];
+  renderMetas?: RetrieveRowRenderMeta[];
 }
 
 export class RetrieveRowCacheService {
-  private rowMemory = new Map<string, MemoryEntry<Record<string, any>>>();
+  private rowMemory = new Map<string, RenderMemoryEntry>();
   private projectionMemory = new Map<string, MemoryEntry<RetrieveRowProjection>>();
   private volatileRows = new Map<string, Record<string, any>>();
   private volatileProjections = new Map<string, RetrieveRowProjection>();
@@ -45,7 +51,7 @@ export class RetrieveRowCacheService {
     const keys = this.createRowKeys(queryKey, rows.length, 0);
     try {
       await retrieveRowRepository.replaceRows(queryKey, rows, 0, options);
-      this.rememberRows(keys, rows, options.fieldNames);
+      this.rememberRows(keys, rows, options.fieldNames, false, options.renderMetas);
       retrieveRowRepository.gc().catch((error) => {
         console.warn('[retrieve-row-cache] gc failed', error);
       });
@@ -54,7 +60,7 @@ export class RetrieveRowCacheService {
       storageHealthService.resetIndexedDBUsable();
       storageHealthService.notifyIndexedDBFallback();
       console.warn('[retrieve-row-cache] replace rows failed, fallback to volatile memory', error);
-      this.rememberRows(keys, rows, options.fieldNames, true);
+      this.rememberRows(keys, rows, options.fieldNames, true, options.renderMetas);
       return keys;
     }
   }
@@ -63,13 +69,13 @@ export class RetrieveRowCacheService {
     const keys = this.createRowKeys(queryKey, rows.length, startSeq);
     try {
       await retrieveRowRepository.appendRows(queryKey, rows, startSeq, options);
-      this.rememberRows(keys, rows, options.fieldNames);
+      this.rememberRows(keys, rows, options.fieldNames, false, options.renderMetas);
       return keys;
     } catch (error) {
       storageHealthService.resetIndexedDBUsable();
       storageHealthService.notifyIndexedDBFallback();
       console.warn('[retrieve-row-cache] append rows failed, fallback to volatile memory', error);
-      this.rememberRows(keys, rows, options.fieldNames, true);
+      this.rememberRows(keys, rows, options.fieldNames, true, options.renderMetas);
       return keys;
     }
   }
@@ -79,19 +85,55 @@ export class RetrieveRowCacheService {
   }
 
   async getRenderRows(keys: string[]) {
+    const entries = await this.getRenderEntries(keys);
+    return entries.map(entry => entry?.row).filter(Boolean);
+  }
+
+  async getRenderEntries(keys: string[]) {
     if (!keys.length) return [];
     try {
       if (await storageHealthService.ensureIndexedDBUsable()) {
-        const renderRows = await retrieveRowRepository.getRenderRowsByKeys(keys);
-        return renderRows.filter(Boolean);
+        const entities = await retrieveRowRepository.getEntitiesByKeys(keys);
+        return entities.map((entity, index) => {
+          if (!entity) return undefined;
+          const renderRow = retrieveRowRepository.applyRenderOverlay(entity);
+          if (entity.row) {
+            this.setRowMemory(keys[index], entity.row, entity.renderMeta);
+          }
+          return renderRow ? { row: renderRow, renderMeta: entity.renderMeta } : undefined;
+        });
       }
     } catch (error) {
       storageHealthService.resetIndexedDBUsable();
       storageHealthService.notifyIndexedDBFallback();
-      console.warn('[retrieve-row-cache] get render rows failed', error);
+      console.warn('[retrieve-row-cache] get render entries failed', error);
     }
 
-    return this.getRows(keys);
+    return keys.map((key) => {
+      const row = this.volatileRows.get(key) || this.rowMemory.get(key)?.value;
+      if (!row) return undefined;
+      const renderMeta = this.rowMemory.get(key)?.renderMeta || createRetrieveRowRenderMeta(row);
+      return { row, renderMeta };
+    });
+  }
+
+  async getRenderMetas(keys: string[]) {
+    if (!keys.length) return [];
+    try {
+      if (await storageHealthService.ensureIndexedDBUsable()) {
+        return retrieveRowRepository.getRenderMetasByKeys(keys);
+      }
+    } catch (error) {
+      storageHealthService.resetIndexedDBUsable();
+      storageHealthService.notifyIndexedDBFallback();
+      console.warn('[retrieve-row-cache] get render metas failed', error);
+    }
+
+    return keys.map(key => {
+      const memoryEntry = this.rowMemory.get(key);
+      const row = this.volatileRows.get(key) || memoryEntry?.value;
+      return memoryEntry?.renderMeta || (row ? createRetrieveRowRenderMeta(row) : undefined);
+    });
   }
 
   async getRows(keys: string[]) {
@@ -242,7 +284,7 @@ export class RetrieveRowCacheService {
       .slice(offset, typeof limit === 'number' ? offset + limit : undefined);
   }
 
-  private rememberRows(keys: string[], rows: Record<string, any>[], fieldNames: string[] = [], forceVolatile = false) {
+  private rememberRows(keys: string[], rows: Record<string, any>[], fieldNames: string[] = [], forceVolatile = false, renderMetas?: RetrieveRowRenderMeta[]) {
     keys.forEach((key, index) => {
       const [queryKey, seqText] = this.resolveKey(key);
       const seq = Number(seqText);
@@ -254,7 +296,7 @@ export class RetrieveRowCacheService {
         if (storageValue?.projection) this.volatileProjections.set(key, storageValue.projection);
         return;
       }
-      this.setRowMemory(key, rows[index]);
+      this.setRowMemory(key, rows[index], renderMetas?.[index]);
       if (storageValue?.projection) {
         this.setProjectionMemory(key, storageValue.projection);
       }
@@ -283,12 +325,12 @@ export class RetrieveRowCacheService {
     return entry.value;
   }
 
-  private setRowMemory(key: string, row: Record<string, any>) {
+  private setRowMemory(key: string, row: Record<string, any>, renderMeta?: RetrieveRowRenderMeta) {
     const bytes = estimateValueBytes(row);
     if (bytes > this.maxRowMemoryBytes / 2) return;
     const old = this.rowMemory.get(key);
     if (old) this.rowMemoryBytes -= old.bytes;
-    this.rowMemory.set(key, { value: row, bytes });
+    this.rowMemory.set(key, { value: row, bytes, renderMeta });
     this.rowMemoryBytes += bytes;
     this.pruneMemory(this.rowMemory, 'row');
   }
