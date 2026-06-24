@@ -1794,7 +1794,7 @@ class DataFlowHandler(BaseAiopsHandler):
         clustering_config.clustered_rt = predict_flow_dict["format_signature"]["result_table_id"]
         clustering_config.save()
         # 创建聚类结果表路由信息
-        self.sync_clustered_route(index_set_id=index_set_id)
+        self.sync_clustered_route(index_set_id=index_set_id, raise_exception=True)
 
         # 添加一步更新 update_model_instance
         data_processing_id_config = self.get_serving_data_processing_id_config(
@@ -1853,7 +1853,7 @@ class DataFlowHandler(BaseAiopsHandler):
         clustering_config.predict_flow = predict_flow_dict
         clustering_config.model_output_rt = predict_flow_dict["clustering_predict"]["result_table_id"]
         clustering_config.save()
-        self.sync_clustered_route(index_set_id=index_set_id)
+        self.sync_clustered_route(index_set_id=index_set_id, raise_exception=True)
         logger.info(f"update predict flow success: flow_id -> {clustering_config.predict_flow_id}")
 
     def _init_log_count_aggregation_flow(
