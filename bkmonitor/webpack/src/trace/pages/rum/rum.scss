@@ -238,4 +238,13 @@ $rum-filter-icon-svg: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/s
     padding: 0;
     font-size: 12px;
   }
+
+  .rum-table-header-title,
+  .rum-table-content-cell {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
