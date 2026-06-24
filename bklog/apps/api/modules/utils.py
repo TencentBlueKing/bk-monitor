@@ -457,3 +457,23 @@ def space_to_tenant_getter(key: Callable[[dict], str] | str = "space_uid") -> Ca
         return Space.get_tenant_id(space_uid=space_uid)
 
     return tenant_getter
+
+
+def space_type_id_to_tenant_getter(
+    space_type_key: str = "space_type",
+    space_id_key: str = "space_id",
+) -> Callable[[dict], str]:
+    """
+    通过空间类型和空间ID获取租户ID
+    :param space_type_key: 获取空间类型的参数 key
+    :param space_id_key: 获取空间 ID 的参数 key
+    :return: 获取租户 ID 的函数
+    """
+    from apps.log_search.models import Space
+
+    def tenant_getter(params):
+        if space_type_key not in params or space_id_key not in params:
+            raise ValueError(f"failed to get tenant id from params, keys `{space_type_key}`/`{space_id_key}` not found")
+        return Space.get_tenant_id(space_uid=f"{params[space_type_key]}__{params[space_id_key]}")
+
+    return tenant_getter
