@@ -416,7 +416,7 @@ class UnionAsyncExportHandlers:
                 "start_time": self.search_dict["start_time"],
                 "end_time": self.search_dict["end_time"],
                 "export_type": ExportType.ASYNC,
-                "export_total_count": AsyncExportHandlers.get_export_total_count(
+                "export_total_count": self.get_union_export_total_count(
                     request_size=self.search_dict.get("size"), is_quick_export=is_quick_export
                 ),
                 "created_by": self.request_user,
@@ -437,6 +437,16 @@ class UnionAsyncExportHandlers:
             external_user_email=get_request_external_user_email(),
         )
         return async_task.id, self.search_dict.get("size", 30)
+
+    def get_union_export_total_count(self, request_size, is_quick_export: bool = False):
+        # 联合导出会按索引集分别执行导出，进度总数需要使用各索引集有效上限之和。
+        default_export_limit = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
+        union_export_limit = sum(
+            max(index_set.max_async_count or 0, default_export_limit)
+            for index_set in self.union_search_handler.index_sets
+        )
+        request_size = request_size or union_export_limit
+        return min(request_size, union_export_limit)
 
     def _pre_check_fields(self, search_handler: SearchHandler):
         fields = search_handler.fields()

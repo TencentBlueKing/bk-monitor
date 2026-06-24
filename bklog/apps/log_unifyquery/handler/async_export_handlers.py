@@ -426,10 +426,9 @@ class UnifyQueryUnionAsyncExportHandlers:
                 "start_time": self.search_dict["start_time"],
                 "end_time": self.search_dict["end_time"],
                 "export_type": ExportType.ASYNC,
-                "export_total_count": UnifyQueryAsyncExportHandlers.get_export_total_count(
+                "export_total_count": self.get_union_export_total_count(
                     request_size=self.search_dict.get("size"),
                     is_quick_export=is_quick_export,
-                    max_async_count=self.unify_query_handler.index_info_list[0]["index_set_obj"].max_async_count,
                 ),
                 "created_by": self.request_user,
             }
@@ -451,6 +450,22 @@ class UnifyQueryUnionAsyncExportHandlers:
             external_user_email=get_request_external_user_email(),
         )
         return async_task.id, self.search_dict.get("size", 30)
+
+    def get_union_export_total_count(self, request_size, is_quick_export: bool = False):
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH_EXPORT, self.bk_biz_id):
+            return UnifyQueryAsyncExportHandlers.get_export_total_count(
+                request_size=request_size,
+                is_quick_export=is_quick_export,
+                max_async_count=self.unify_query_handler.index_info_list[0]["index_set_obj"].max_async_count,
+            )
+        # 联合导出旧路径会按索引集分别执行导出，进度总数需要使用各索引集有效上限之和。
+        default_export_limit = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
+        union_export_limit = sum(
+            max(index_info["index_set_obj"].max_async_count or 0, default_export_limit)
+            for index_info in self.unify_query_handler.index_info_list
+        )
+        request_size = request_size or union_export_limit
+        return min(request_size, union_export_limit)
 
     @staticmethod
     def _pre_check_fields(search_handler: SearchHandler):
