@@ -37,6 +37,23 @@ import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
 import chartOption, { getSeriesData } from './trend-chart-options';
 import { formatTimeStampZone } from '@/global/utils/time';
 
+// Worker 类型定义
+interface ChartWorkerPayload {
+  aggs: any;
+  fieldName?: string;
+  gradeOptions: any[];
+  retrieveParams: any;
+  runningInterval: string;
+  timezone: string;
+  isInit?: boolean;
+}
+
+interface ChartWorkerResult {
+  series: any[];
+  xLabelMap: Record<number, string>;
+  totalCount: number;
+}
+
 export type TrandChartOption = {
   target: Ref<HTMLDivElement | null>;
   handleChartDataZoom?: (_val: any) => void;
@@ -69,6 +86,67 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   const isGradeMatchValue = computed(() => {
     return store.state.indexFieldInfo.custom_config?.grade_options?.valueType === 'value';
   });
+
+  // ======= Worker 相关 =======
+  let chartWorker: Worker | null = null;
+  let useWorker = false; // 是否使用 Worker
+
+  const initWorker = () => {
+    if (typeof Worker === 'undefined' || useWorker) {
+      return;
+    }
+
+    try {
+      chartWorker = new Worker(new URL('./trend-chart-worker.ts', import.meta.url), { type: 'module' });
+      useWorker = true;
+    } catch (e) {
+      console.warn('Worker 初始化失败，降级到主线程处理:', e);
+      useWorker = false;
+    }
+  };
+
+  const processChartDataWithWorker = (
+    aggs: any,
+    fieldName: string | undefined,
+    gradeOptions: any[],
+    retrieveParams: any,
+    runningInterval: string,
+    timezone: string,
+    isInit: boolean,
+  ): Promise<ChartWorkerResult> => {
+    return new Promise((resolve, reject) => {
+      if (!chartWorker || !useWorker) {
+        reject(new Error('Worker not available'));
+        return;
+      }
+
+      const timeout = setTimeout(() => {
+        reject(new Error('Worker timeout'));
+      }, 5000);
+
+      const handler = (event: MessageEvent) => {
+        clearTimeout(timeout);
+        chartWorker?.removeEventListener('message', handler);
+
+        if (event.data.success) {
+          resolve(event.data.data);
+        } else {
+          reject(new Error(event.data.error));
+        }
+      };
+
+      chartWorker.addEventListener('message', handler);
+      chartWorker.postMessage({
+        aggs,
+        fieldName,
+        gradeOptions,
+        retrieveParams,
+        runningInterval,
+        timezone,
+        isInit,
+      } as ChartWorkerPayload);
+    });
+  };
 
   let runningInterval = '1m';
   const delegateMethod = (name: string, ...args) => {
@@ -246,12 +324,16 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     if (val === false) {
       const intervalMs = getIntervalValue(runningInterval) * 1000;
       if (options.series && Array.isArray(options.series)) {
+        let hasData = false;
         for (const series of options.series) {
-          if (series.data && Array.isArray(series.data)) {
+          if (series.data && Array.isArray(series.data) && series.data.length > 0) {
+            hasData = true;
             series.data = padDataToLength(series.data, 15, intervalMs);
           }
         }
-        updateChart();
+        if (hasData) {
+          updateChart();
+        }
       }
     }
   });
@@ -384,6 +466,14 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     }
 
     return setDefaultData(eggs, isInit);
+  };
+
+  // 渐进式更新的方法
+  const appendChartData = (eggs, fieldName?) => {
+    if (fieldName) {
+      return setGroupData(eggs?.group_by_histogram ?? {}, fieldName, false);
+    }
+    return setDefaultData(eggs, false);
   };
 
   const clearChartData = () => {
@@ -602,6 +692,9 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
 
       addListener(target.value, handleCanvasResize);
     }
+
+    // 初始化 Worker
+    initWorker();
   });
 
   onBeforeUnmount(() => {
@@ -610,16 +703,25 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
       target.value.removeEventListener('dblclick', handleDblClick);
     }
 
+    // 销毁 Worker
+    if (chartWorker) {
+      chartWorker.terminate();
+      chartWorker = null;
+    }
+
     cachedOptions = null;
   });
 
   return {
     initChartData,
     setChartData,
+    appendChartData,
     clearChartData,
     backToPreChart,
     canGoBack,
     cacheChartOptions,
     restoreChartOptions,
+    processChartDataWithWorker,
+    initWorker,
   };
 };
