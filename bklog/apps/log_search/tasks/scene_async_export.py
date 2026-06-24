@@ -59,7 +59,7 @@ def scene_async_export(
             raise BaseException(f"Can not find scene async_task: id={async_task_id}")
 
         async_task.export_status = ExportStatus.DOWNLOAD_LOG
-        async_task.save()
+        async_task.save(update_fields=["export_status"])
 
         try:
             export_util.export_package(async_task_id=async_task.id)
@@ -70,7 +70,7 @@ def scene_async_export(
         async_task.export_status = ExportStatus.EXPORT_PACKAGE
         async_task.file_name = tar_file_name
         async_task.file_size = export_util.get_file_size()
-        async_task.save()
+        async_task.save(update_fields=["export_status", "file_name", "file_size"])
 
         try:
             export_util.export_upload()
@@ -79,7 +79,7 @@ def scene_async_export(
             raise
 
         async_task.export_status = ExportStatus.EXPORT_UPLOAD
-        async_task.save()
+        async_task.save(update_fields=["export_status"])
 
         try:
             url = export_util.generate_download_url(url_path=url_path)
@@ -88,6 +88,7 @@ def scene_async_export(
             raise
 
         async_task.download_url = url
+        async_task.save(update_fields=["download_url"])
 
         try:
             export_util.send_msg(
@@ -112,7 +113,7 @@ def scene_async_export(
     async_task.result = True
     async_task.export_status = ExportStatus.SUCCESS
     async_task.completed_at = timezone.now()
-    async_task.save()
+    async_task.save(update_fields=["result", "export_status", "completed_at"])
 
     export_util.clean_package()
 
@@ -125,4 +126,4 @@ def _set_failed(async_task: AsyncTask, reason: str):
     async_task.failed_reason = reason
     async_task.export_status = ExportStatus.FAILED
     logger.error(reason)
-    async_task.save()
+    async_task.save(update_fields=["failed_reason", "export_status"])
