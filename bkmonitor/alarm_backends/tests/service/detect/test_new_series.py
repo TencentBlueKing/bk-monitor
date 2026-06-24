@@ -165,6 +165,34 @@ class TestNewSeries:
         assert int(seen_score(item, "dimN")) == 100000000 + 120
         assert int(seen_score(item, "dimO")) == 100000000
 
+    def test_batch_exact_duplicate_record_id_reports_once(self):
+        # 同维度+同时间戳的重复点(record_id 相同,access 批内去重看不见)是两个独立 DataPoint 对象。
+        # fire map 按 id(dp) 建键 -> 各占一格、首个照报(1 次)；若按 record_id 建键会互相覆盖成 0 次。
+        item = make_item()
+        seed_learned(item)
+        detector = NewSeries(config=default_config())
+        dup1 = make_dp("dimX", 100000000, item)
+        dup2 = make_dp("dimX", 100000000, item)
+        assert dup1.record_id == dup2.record_id  # 同 record_id
+        assert id(dup1) != id(dup2)  # 但是不同对象
+        detector.pre_detect([dup1, dup2])
+        fired = sum(1 for dp in (dup1, dup2) if len(detector.detect(dp)) == 1)
+        assert fired == 1
+
+    def test_extra_context_is_pure_and_idempotent(self):
+        # extra_context 必须纯读无副作用：框架命中后会再次调用它渲染消息，
+        # 同一数据点连调两次结果必须一致(否则第二次会把 is_new_series 翻成 False)。
+        item = make_item()
+        seed_learned(item)
+        detector = NewSeries(config=default_config())
+        dp = make_dp("dimP", 100000000, item)
+        detector.pre_detect([dp])
+        ctx = {"data_point": dp}
+        first = detector.extra_context(ctx)["is_new_series"]
+        second = detector.extra_context(ctx)["is_new_series"]
+        assert first is True
+        assert second is True  # 幂等：第二次(消息渲染)不被首次副作用打穿
+
     def test_c2_late_data_no_backward_overwrite(self):
         # 跨批：先写当前 ts=1000000，再来一批迟到/补数 ts=900000(更旧) -> last_seen 不回退(取 max)
         item = make_item()
