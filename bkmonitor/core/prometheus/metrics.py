@@ -223,6 +223,9 @@ NEW_SERIES_PROCESS_TIME = Histogram(
     name="bkmonitor_new_series_pre_detect_time",
     documentation="NewSeries pre_detect(读旧态+写新态)耗时",
     labelnames=("strategy_id",),
+    # 显式桶覆盖到 60s(整次 strategy detect 锁顶): 包装类默认桶顶=30s, 超 30s 全塌进 +Inf,
+    # p95/p99 会饱和、分不清 31s 与 59s(恰是锁危险区)。低端保留亚秒分辨率(现实最坏 ~7s)。
+    buckets=(0.1, 0.5, 1.0, 2.5, 5.0, 7.5, 10.0, 15.0, 20.0, 30.0, 45.0, 60.0, INF),
 )
 
 NEW_SERIES_PROCESS_COUNT = Counter(
