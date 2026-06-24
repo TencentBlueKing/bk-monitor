@@ -149,6 +149,22 @@ class TestNewSeries:
         detector.pre_detect([dp_new, dp_old])  # 顺序故意先新后旧
         assert int(seen_score(item, "dimF")) == 100000000 + 300
 
+    def test_batch_internal_same_fingerprint_reports_once(self):
+        # 积压/补数：同一指纹在一批出现多个时间戳，_seen_before 是批前快照会让其全部命中 is_new，
+        # 应批内去重只报一次；不同指纹各自照报。
+        item = make_item()
+        seed_learned(item)
+        detector = NewSeries(config=default_config())
+        same = [make_dp("dimN", 100000000 + i * 60, item) for i in range(3)]
+        other = make_dp("dimO", 100000000, item)
+        detector.pre_detect(same + [other])
+        fired_same = sum(1 for dp in same if len(detector.detect(dp)) == 1)
+        assert fired_same == 1  # 同指纹 3 个时间点只报 1 次
+        assert len(detector.detect(other)) == 1  # 不同指纹照报
+        # 两个指纹都已灌库(去重不影响写入)
+        assert int(seen_score(item, "dimN")) == 100000000 + 120
+        assert int(seen_score(item, "dimO")) == 100000000
+
     def test_c2_late_data_no_backward_overwrite(self):
         # 跨批：先写当前 ts=1000000，再来一批迟到/补数 ts=900000(更旧) -> last_seen 不回退(取 max)
         item = make_item()

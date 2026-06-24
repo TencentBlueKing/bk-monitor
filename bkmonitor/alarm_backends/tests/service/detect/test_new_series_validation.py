@@ -86,3 +86,19 @@ def test_reject_effective_delay_zero():
     ns = {"type": "NewSeries", "level": 1, "config": {"detect_range": 86400, "effective_delay": 0}}
     with pytest.raises(ValidationError):
         validate(_attrs([ns], [_qc()]))
+
+
+def test_reject_cross_item_same_level():
+    # item A 的 NewSeries 与 item B 的其它算法落在同一 level(独占须 strategy 维) -> 拒绝
+    # (否则 get_trigger_configs 会把该 level 的 trigger_count 强制为 1，静默波及 item B 的算法)
+    item_a = {"algorithms": [NS], "query_configs": [_qc()]}
+    item_b = {"algorithms": [dict(THRESHOLD, level=1)], "query_configs": [_qc()]}
+    with pytest.raises(ValidationError):
+        validate({"items": [item_a, item_b]})
+
+
+def test_allow_cross_item_different_level():
+    # item A 的 NewSeries(level=1) 与 item B 的其它算法(level=2) 不同 level -> 允许
+    item_a = {"algorithms": [NS], "query_configs": [_qc()]}
+    item_b = {"algorithms": [dict(THRESHOLD, level=2)], "query_configs": [_qc()]}
+    validate({"items": [item_a, item_b]})

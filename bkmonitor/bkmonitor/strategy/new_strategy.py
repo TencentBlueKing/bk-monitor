@@ -1941,12 +1941,33 @@ class Strategy(AbstractConfig):
         def validate_new_series(attrs):
             """
             新维度值检测(NewSeries)保存层硬校验：
-            - NewSeries 单次性算法，独占告警级别(不能与其它算法同 level)；
+            - NewSeries 单次性算法，独占告警级别(策略维度内该 level 不能再有其它算法)；
             - 仅支持单 query_config 与时序数据；
             - 检测周期(detect_range)不能小于数据聚合周期(agg_interval)。
             """
             new_series_type = AlgorithmModel.AlgorithmChoices.NewSeries
-            for item in attrs.get("items") or []:
+            items = attrs.get("items") or []
+
+            # 独占 level 必须按 strategy 维判定：触发配置(trigger_count/check_window)按 level 在全策略共享
+            # (get_trigger_configs 对含 NewSeries 的 level 强制 count=1)，跨 item 同 level 冲突会让该强制
+            # 波及其它 item 的同级算法，静默改写其触发语义。故先收集全策略 NewSeries 占用的 level。
+            ns_levels = {
+                algorithm.get("level")
+                for item in items
+                for algorithm in item.get("algorithms") or []
+                if algorithm.get("type") == new_series_type
+            }
+            if not ns_levels:
+                return
+
+            # 策略内任何 item 的非 NewSeries 算法都不得落在 NewSeries 占用的 level。
+            for item in items:
+                for algorithm in item.get("algorithms") or []:
+                    if algorithm.get("type") != new_series_type and algorithm.get("level") in ns_levels:
+                        raise ValidationError(detail=_("新维度值检测算法不能与其它算法配置在同一告警级别"))
+
+            # 以下为含 NewSeries 的 item 的逐项校验(单 qc / 仅时序 / 配置下界)。
+            for item in items:
                 algorithms = item.get("algorithms") or []
                 ns_algorithms = [algorithm for algorithm in algorithms if algorithm.get("type") == new_series_type]
                 if not ns_algorithms:
@@ -1959,12 +1980,6 @@ class Strategy(AbstractConfig):
                 query_config = query_configs[0]
                 if query_config.get("data_type_label") != DataTypeLabel.TIME_SERIES:
                     raise ValidationError(detail=_("新维度值检测算法仅支持时序数据"))
-
-                # 独占 level：同 level 不能再有其它算法
-                ns_levels = {algorithm.get("level") for algorithm in ns_algorithms}
-                for algorithm in algorithms:
-                    if algorithm.get("type") != new_series_type and algorithm.get("level") in ns_levels:
-                        raise ValidationError(detail=_("新维度值检测算法不能与其它算法配置在同一告警级别"))
 
                 agg_interval = query_config.get("agg_interval")
                 for algorithm in ns_algorithms:

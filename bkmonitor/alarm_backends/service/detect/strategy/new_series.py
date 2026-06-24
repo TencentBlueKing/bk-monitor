@@ -57,6 +57,8 @@ class NewSeries(BasicAlgorithmsCollection):
         # 安全分支默认值(若 pre_detect 未跑或失败，extra_context 不报而非崩)
         self._seen_before = None
         self._warmup = False
+        # 本批已判新的指纹集合(批内去重：同一指纹一批只报一次，见 extra_context)。
+        self._batch_flagged = set()
         super().__init__(config, unit, extra_config)
         self.detect_range = int(self.validated_config["detect_range"])
         self.effective_delay = int(self.validated_config.get("effective_delay", 86400))
@@ -120,10 +122,16 @@ class NewSeries(BasicAlgorithmsCollection):
             # pre_detect 失败/未跑：保守不报(漏报优于误报风暴)，并由 metric 暴露。
             return {"is_new_series": False, "detect_range_display": self._range_display()}
         data_point = context["data_point"]
-        last_seen = self._seen_before.get(self._fingerprint(data_point))
+        fingerprint = self._fingerprint(data_point)
+        last_seen = self._seen_before.get(fingerprint)
         is_new = (last_seen is None) or (int(data_point.timestamp) - last_seen > self.detect_range)
+        # 批内去重：积压/补数时同一指纹可能在一批里出现多个时间点，_seen_before 是批前快照、
+        # 这些点会全部命中 is_new。新维度"出现"应只报一次，故同一指纹仅放行首个符合点。
+        fire = (not self._warmup) and is_new and (fingerprint not in self._batch_flagged)
+        if fire:
+            self._batch_flagged.add(fingerprint)
         return {
-            "is_new_series": (not self._warmup) and is_new,
+            "is_new_series": fire,
             "detect_range_display": self._range_display(),
         }
 
@@ -131,6 +139,8 @@ class NewSeries(BasicAlgorithmsCollection):
     # 批前预处理：读旧态 + 写新态(item 级共享，多 level 只做一次)
     # ------------------------------------------------------------------ #
     def pre_detect(self, data_points):
+        # 每批开始重置批内去重集合(检测器实例可能跨批复用)。
+        self._batch_flagged = set()
         item = data_points[0].item
         sig = self._dimension_signature(item)
         token = self._batch_token(data_points)

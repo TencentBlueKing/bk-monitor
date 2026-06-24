@@ -320,7 +320,8 @@ class Strategy:
         is_aiops_algorithm = False
         # 含 NewSeries 算法的 level：NewSeries 单次性(新维度首现即产 1 个异常点，下周期即非异常)，
         # trigger_count>1 永远凑不满 -> 永不告警，故对这些 level 强制 trigger_count=1。
-        # 保存层已保证 NewSeries 独占 level，故强制 count=1 不会误伤同级其它算法。
+        # 触发配置按 level 在全策略共享，故保存层按 strategy 维保证 NewSeries 独占该 level
+        # (跨 item 同 level 冲突也会被拒)，强制 count=1 不会误伤其它 item 的同级算法。
         new_series_levels = set()
         items = strategy.get("items", [])
         if items:
