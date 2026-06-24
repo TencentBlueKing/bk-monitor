@@ -188,8 +188,8 @@ export default defineComponent({
           <div class='top-wrap'>
             <span class='step-index'>{stepInfo.index}</span>
             <span class='step-title'>{stepInfo.title}</span>
-            <span class='split-line' />
-            {descRender()}
+            {descRender ? <span class='split-line' /> : undefined}
+            {descRender?.()}
           </div>
           <div class='bottom-wrap'>{contentRender()}</div>
         </div>
@@ -248,14 +248,15 @@ export default defineComponent({
         2: {
           index: 2,
           title: this.t('接入指引'),
-          descRender: () => (
-            <Button
-              theme='primary'
-              text
-            >
-              {this.t('查看文档')}
-            </Button>
-          ),
+          // descRender: () => (
+          //   <Button
+          //     theme='primary'
+          //     text
+          //   >
+          //     {this.t('查看文档')}
+          //   </Button>
+          // ),
+          descRender: null,
           contentRender: () => <Viewer value={this.protocol === 'OT' ? OT_MD : AEGIS_MD} />,
         },
       };
