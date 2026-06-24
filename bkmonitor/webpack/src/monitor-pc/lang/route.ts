@@ -145,6 +145,7 @@ export default {
   'route-新增轮值': 'Add Rotation',
   'route-故障': 'Incident',
   'route-查询模板': 'Query Template',
+  'route-主机监控 New': 'Host Monitor New',
 
   // 功能页面标题
 
