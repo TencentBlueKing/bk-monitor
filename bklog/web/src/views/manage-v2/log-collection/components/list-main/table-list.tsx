@@ -49,7 +49,6 @@ import { useCollectList } from '../../hook/useCollectList';
 import TagMore from '../common-comp/tag-more';
 import type { IListItemData } from '../../type';
 import StopTypeDialog from './stop-type-dialog';
-import AddExistingCollectDialog from './add-existing-collect-dialog';
 import TableComponent from '../common-comp/table-component';
 import ClusterFilter from '@/views/retrieve-v2/search-result-panel/log-clustering/components/finger-tools/cluster-filter.tsx';
 import '@/views/retrieve-v2/search-result-panel/log-clustering/components/finger-tools/cluster-filter.scss';
@@ -263,7 +262,7 @@ export default defineComponent({
     // 过滤条件
     const conditions = ref<IFilterCondition[]>([]);
     // 表格过滤值（用于设置默认选中状态）
-    const filterValue = ref<Record<string, string |(string | number)[]>>({
+    const filterValue = ref<Record<string, string | (string | number)[]>>({
       log_access_type: '',
       collector_scenario_id: '',
       storage_display_name: '',
@@ -480,7 +479,7 @@ export default defineComponent({
 
     const buildParentIndexSets = (ids: Array<number | string>) => {
       const indexSetMap = new Map((props.indexGroupList || []).map(item => [String(item.index_set_id), item]));
-      return ids.map((id) => {
+      return ids.map(id => {
         const matched = indexSetMap.get(String(id));
         return {
           index_set_id: id,
@@ -511,7 +510,7 @@ export default defineComponent({
         },
       };
 
-      tableList.value = tableList.value.map((item) => {
+      tableList.value = tableList.value.map(item => {
         if (getRowUniqueId(item) !== rowId) {
           return item;
         }
@@ -599,9 +598,7 @@ export default defineComponent({
     };
 
     const isSameIndexSetIds = (sourceIds: Array<number | string>, targetIds: Array<number | string>) => {
-      return sourceIds.map(String).sort()
-        .join(',') === targetIds.map(String).sort()
-        .join(',');
+      return sourceIds.map(String).sort().join(',') === targetIds.map(String).sort().join(',');
     };
 
     const handleParentIndexSetSubmit = async (row: ITableRowData) => {
@@ -668,7 +665,7 @@ export default defineComponent({
     };
 
     const waitIndexSetSelectPopoverClosed = () => {
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             window.setTimeout(resolve, 80);
@@ -1234,7 +1231,7 @@ export default defineComponent({
             index_set_ids: indexSetIds,
           },
         })
-        .then((res) => {
+        .then(res => {
           const usageMap = new Map<number | string, IStorageUsageItem>();
           // 构建使用量映射表，提高查找效率
           for (const item of res.data || []) {
@@ -1244,7 +1241,7 @@ export default defineComponent({
           }
 
           // 更新表格数据
-          tableList.value = tableList.value.map((item) => {
+          tableList.value = tableList.value.map(item => {
             const usageInfo = usageMap.get(Number(item.index_set_id));
             if (usageInfo) {
               const { index_set_id: _id, ...rest } = usageInfo;
@@ -1256,7 +1253,7 @@ export default defineComponent({
             return item;
           });
         })
-        .catch((error) => {
+        .catch(error => {
           console.log('获取存储用量失败:', error);
         });
     };
@@ -1283,13 +1280,13 @@ export default defineComponent({
             collector_config_id_list: collectorConfigIdList,
           },
         })
-        .then((res) => {
+        .then(res => {
           if (isUnmounted || !res.result) {
             stopCollectStatusTimer();
             return;
           }
           const isHasRunning = res.data.filter(item => item.status === 'running').length > 0;
-          tableList.value = tableList.value.map((item) => {
+          tableList.value = tableList.value.map(item => {
             const info = res.data.find(val => val.collector_id === item.collector_config_id);
             const { status_name, status } = info || {};
             return {
@@ -1351,14 +1348,14 @@ export default defineComponent({
             data: params,
           },
           {
-            cancelToken: new CancelToken((c) => {
+            cancelToken: new CancelToken(c => {
               listInterfaceCancel.value = c;
               isCancelToken.value = true;
             }),
           },
         );
         listLoading.value = false;
-        tableList.value = ((res.data?.list || []) as ITableRowData[]).map((item) => {
+        tableList.value = ((res.data?.list || []) as ITableRowData[]).map(item => {
           const localParentIndexSet = getLocalParentIndexSet(item);
           if (!localParentIndexSet) {
             return item;
@@ -1401,7 +1398,7 @@ export default defineComponent({
         if (userIds.size > 0) {
           tenantManager
             .batchGetUserDisplayInfo(Array.from(userIds))
-            .then((userMap) => {
+            .then(userMap => {
               // 更新用户信息映射（创建新 Map 以确保响应式更新）
               const newMap = new Map(userDisplayNameMap.value);
               for (const [userId, userInfo] of userMap.entries()) {
@@ -1411,7 +1408,7 @@ export default defineComponent({
               }
               userDisplayNameMap.value = newMap;
             })
-            .catch((error) => {
+            .catch(error => {
               console.log('批量获取用户信息失败:', error);
             });
         }
@@ -1524,7 +1521,7 @@ export default defineComponent({
         .request(requestConfig.api, {
           params: requestConfig.params,
         })
-        .then((res) => {
+        .then(res => {
           if (res.result) {
             showMessage(t('删除成功'));
             reloadList();
@@ -1558,7 +1555,7 @@ export default defineComponent({
               collector_config_id: row.collector_config_id,
             },
           })
-          .then((res) => {
+          .then(res => {
             if (res.result) {
               reloadList();
             }
@@ -1595,14 +1592,14 @@ export default defineComponent({
               collector_config_id: row.collector_config_id,
             },
           })
-          .then((res) => {
+          .then(res => {
             if (res.data?.check_record_id) {
               isShowDetection.value = true;
               const checkRecordId = res.data.check_record_id;
               handleCollectorCheck(checkRecordId);
             }
           })
-          .catch((error) => {
+          .catch(error => {
             console.log('一键检测失败:', error);
           });
         return;
@@ -1808,24 +1805,6 @@ export default defineComponent({
             >
               {t('采集项')}
             </bk-button>
-            <AddExistingCollectDialog
-              indexSetId={(props.indexSet as IListItemData)?.index_set_id ?? ''}
-              spaceUid={spaceUid.value}
-              on-confirm={() => {
-                reloadList();
-                emit('refresh-index-group');
-              }}
-            >
-              <bk-button
-                outline={true}
-                theme='primary'
-                v-cursor={{ active: isAllowedCreate }}
-                disabled={!collectProject.value || isLoading.value || isAllowedCreate === null}
-                v-show={(props.indexSet as IListItemData)?.index_set_id !== 'all'}
-              >
-                {t('添加已有采集项')}
-              </bk-button>
-            </AddExistingCollectDialog>
           </div>
           <bk-input
             class='tool-search-select'

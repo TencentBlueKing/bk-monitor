@@ -84,6 +84,9 @@ class Command(BaseCommand):
             "  导入后按业务执行重建脚本:\n"
             "    python manage.py data_migrate rebuild --bk-tenant-id tencent --bk-biz-ids 18901\n"
             "\n"
+            "  导入后按业务执行重建脚本，并单独指定 APM Kafka / ES:\n"
+            "    python manage.py data_migrate rebuild --bk-tenant-id tencent --bk-biz-ids 18901 --apm-kafka-cluster-name apm-kafka-public-1 --apm-es-cluster-name apm-es-public-1\n"
+            "\n"
             "  查询业务下需要添加双写路由的数据 ID:\n"
             "    python manage.py data_migrate find-custom-report-data-ids --bk-tenant-id tencent --bk-biz-ids 18901\n"
             "\n"
@@ -210,6 +213,17 @@ class Command(BaseCommand):
             help="事件 ES 集群名称；仅 rebuild 动作需要",
         )
         parser.add_argument(
+            "--apm-kafka-cluster-name",
+            help=(
+                "APM Kafka 集群名称；仅 rebuild 动作需要。"
+                "为空时保持原有逻辑：APM trace/log 使用日志 Kafka，APM metric 使用指标 Kafka"
+            ),
+        )
+        parser.add_argument(
+            "--apm-es-cluster-name",
+            help="APM trace/log ES 集群名称；仅 rebuild 动作需要。为空时保持原有逻辑：使用日志 ES",
+        )
+        parser.add_argument(
             "--data-id-infos",
             help="数据 ID 信息 JSON 或 JSON 文件路径；仅 add-migrate-data-id-routes 动作需要",
         )
@@ -328,6 +342,8 @@ class Command(BaseCommand):
         log_kafka_cluster_name = options["log_kafka_cluster_name"]
         log_es_cluster_name = options["log_es_cluster_name"]
         event_es_cluster_name = options["event_es_cluster_name"]
+        apm_kafka_cluster_name = self._load_optional_cluster_name(options.get("apm_kafka_cluster_name"))
+        apm_es_cluster_name = self._load_optional_cluster_name(options.get("apm_es_cluster_name"))
 
         self.stdout.write(
             self.style.SUCCESS(
@@ -336,7 +352,9 @@ class Command(BaseCommand):
                 f"metric_kafka_cluster_name={metric_kafka_cluster_name}, "
                 f"log_kafka_cluster_name={log_kafka_cluster_name}, "
                 f"log_es_cluster_name={log_es_cluster_name}, "
-                f"event_es_cluster_name={event_es_cluster_name}"
+                f"event_es_cluster_name={event_es_cluster_name}, "
+                f"apm_kafka_cluster_name={apm_kafka_cluster_name}, "
+                f"apm_es_cluster_name={apm_es_cluster_name}"
             )
         )
 
@@ -352,6 +370,8 @@ class Command(BaseCommand):
                 bk_biz_id=bk_biz_id,
                 kafka_cluster_name=log_kafka_cluster_name,
                 es_cluster_name=log_es_cluster_name,
+                apm_kafka_cluster_name=apm_kafka_cluster_name,
+                apm_es_cluster_name=apm_es_cluster_name,
             )
             self.stdout.write(self.style.SUCCESS(f"rebuild bklog data source route completed: bk_biz_id={bk_biz_id}"))
             if is_negative_biz:
@@ -407,6 +427,7 @@ class Command(BaseCommand):
                 metric_kafka_cluster_name=metric_kafka_cluster_name,
                 event_kafka_cluster_name=log_kafka_cluster_name,
                 es_cluster_name=event_es_cluster_name,
+                apm_kafka_cluster_name=apm_kafka_cluster_name,
             )
             self.stdout.write(self.style.SUCCESS(f"rebuild custom report completed: bk_biz_id={bk_biz_id}"))
             self.stdout.write(self.style.SUCCESS(f"rebuild completed: bk_biz_id={bk_biz_id}"))
@@ -747,6 +768,11 @@ class Command(BaseCommand):
         if not kafka_cluster_name:
             raise CommandError(f"{action_name} 动作必须提供 --kafka-cluster-name")
         return kafka_cluster_name
+
+    def _load_optional_cluster_name(self, raw_cluster_name: str | None) -> str | None:
+        """规范化可选集群名称，空值表示沿用旧逻辑。"""
+        cluster_name = str(raw_cluster_name or "").strip()
+        return cluster_name or None
 
     def _load_operator(self, raw_operator: str | None, action_name: str) -> str:
         """校验操作人参数。"""
