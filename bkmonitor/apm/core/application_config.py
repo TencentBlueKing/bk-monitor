@@ -66,15 +66,8 @@ class ApmConfigCache:
         ProbeConfig,
     )
     DATASOURCE_MODELS = (MetricDataSource, LogDataSource, TraceDataSource, ProfileDataSource)
-    QUERY_CHUNK_SIZE = 500
 
-    def __init__(self, applications: list[ApmApplication]):
-        self.applications = list(applications)
-        self.app_keys = {(application.bk_biz_id, application.app_name) for application in self.applications}
-        self.biz_app_names = defaultdict(set)
-        for bk_biz_id, app_name in self.app_keys:
-            self.biz_app_names[bk_biz_id].add(app_name)
-
+    def __init__(self):
         self.datasources = defaultdict(dict)
         self.configs_by_level = defaultdict(lambda: defaultdict(list))
         self.configs_by_key = defaultdict(lambda: defaultdict(list))
@@ -93,30 +86,14 @@ class ApmConfigCache:
         self.load_app_configs()
         self.load_instance_discovers()
 
-    @classmethod
-    def chunks(cls, values):
-        values = list(values)
-        for index in range(0, len(values), cls.QUERY_CHUNK_SIZE):
-            yield values[index : index + cls.QUERY_CHUNK_SIZE]
-
-    def query_by_apps(self, model):
-        for bk_biz_id, app_names in self.biz_app_names.items():
-            for app_name_chunk in self.chunks(app_names):
-                yield from model.objects.filter(bk_biz_id=bk_biz_id, app_name__in=app_name_chunk)
-
-    def query_app_config_by_apps(self, model):
-        for bk_biz_id, app_names in self.biz_app_names.items():
-            for app_name_chunk in self.chunks(app_names):
-                yield from model.objects.filter(bk_biz_id=bk_biz_id, app_name__in=app_name_chunk).order_by("id")
-
     def load_datasources(self):
         for model in self.DATASOURCE_MODELS:
-            for datasource in self.query_by_apps(model):
+            for datasource in model.objects.all():
                 self.datasources[model][(datasource.bk_biz_id, datasource.app_name)] = datasource
 
     def load_app_configs(self):
         for model in self.APP_CONFIG_MODELS:
-            for config in self.query_app_config_by_apps(model):
+            for config in model.objects.all().order_by("id"):
                 level_key = (config.bk_biz_id, config.app_name, config.config_level)
                 config_key = (config.bk_biz_id, config.app_name, config.config_level, config.config_key)
                 self.configs_by_level[model][level_key].append(config)
@@ -134,9 +111,11 @@ class ApmConfigCache:
                     self.custom_service_configs[(config.bk_biz_id, config.app_name)].append(config)
 
     def load_instance_discovers(self):
-        for discover in self.query_by_apps(ApmInstanceDiscover):
-            self.instance_discovers[(discover.bk_biz_id, discover.app_name)].append(discover)
-        self.global_instance_discovers = list(ApmInstanceDiscover.objects.filter(bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID))
+        for discover in ApmInstanceDiscover.objects.all():
+            if discover.bk_biz_id == GLOBAL_CONFIG_BK_BIZ_ID:
+                self.global_instance_discovers.append(discover)
+            else:
+                self.instance_discovers[(discover.bk_biz_id, discover.app_name)].append(discover)
 
     def get_datasource(self, model, bk_biz_id, app_name):
         return self.datasources[model].get((bk_biz_id, app_name))
@@ -213,7 +192,7 @@ class ApplicationConfig(BkCollectorConfig):
         if not applications:
             return
 
-        config_cache = ApmConfigCache(applications)
+        config_cache = ApmConfigCache()
 
         # 按业务ID分组，因为不同业务可能需要部署到不同的集群
         biz_application_configs = {}
