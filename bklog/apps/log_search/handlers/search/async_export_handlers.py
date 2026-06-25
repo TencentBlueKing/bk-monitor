@@ -36,6 +36,7 @@ from apps.log_search.constants import (
     MAX_GET_ATTENTION_SIZE,
     MAX_ASYNC_COUNT,
     MAX_QUICK_EXPORT_ASYNC_COUNT,
+    MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT,
     ExportStatus,
     ExportType,
     IndexSetType,
@@ -271,7 +272,9 @@ class AsyncExportHandlers:
 
     @staticmethod
     def get_export_total_count(request_size, is_quick_export: bool = False, max_async_count: int = 0):
-        default_export_limit = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
+        default_export_limit = (
+            MAX_QUICK_EXPORT_ASYNC_COUNT * MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT if is_quick_export else MAX_ASYNC_COUNT
+        )
         export_limit = max(max_async_count or 0, default_export_limit)
         request_size = request_size or export_limit
         return min(request_size, export_limit)
@@ -440,7 +443,9 @@ class UnionAsyncExportHandlers:
 
     def get_union_export_total_count(self, request_size, is_quick_export: bool = False):
         # 联合导出会按索引集分别执行导出，进度总数需要使用各索引集有效上限之和。
-        default_export_limit = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
+        default_export_limit = (
+            MAX_QUICK_EXPORT_ASYNC_COUNT * MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT if is_quick_export else MAX_ASYNC_COUNT
+        )
         union_export_limit = sum(
             max(index_set.max_async_count or 0, default_export_limit)
             for index_set in self.union_search_handler.index_sets
