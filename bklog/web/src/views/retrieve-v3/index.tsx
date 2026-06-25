@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, defineComponent, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -37,7 +37,6 @@ import V3Searchbar from './search-bar';
 import V3SearchResult from './search-result';
 import V3Toolbar from './toolbar';
 import useAppInit from './use-app-init';
-import AiAssitant from '@/global/ai-assitant/index';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 
 import './global-en.scss';
@@ -45,12 +44,91 @@ import './index.scss';
 import './media.scss';
 import './segment-pop.scss';
 
+let aiAssitantModulePromise: Promise<any> | null = null;
+
+const loadAiAssitantModule = () => {
+  if (!aiAssitantModulePromise) {
+    aiAssitantModulePromise = import(/* webpackChunkName: 'retrieve-ai-assistant' */ '@/global/ai-assitant/index');
+  }
+
+  return aiAssitantModulePromise;
+};
+
+const AiAssitant = defineAsyncComponent(loadAiAssitantModule);
+
+const scheduleIdleTask = (callback: () => void, timeout = 4000) => {
+  if (typeof window === 'undefined') {
+    return undefined;
+  }
+
+  if ('requestIdleCallback' in window) {
+    return window.requestIdleCallback(callback, { timeout });
+  }
+
+  return window.setTimeout(callback, Math.min(timeout, 2000));
+};
+
+const cancelIdleTask = (taskId?: number) => {
+  if (typeof taskId !== 'number' || typeof window === 'undefined') {
+    return;
+  }
+
+  if ('cancelIdleCallback' in window) {
+    window.cancelIdleCallback(taskId);
+    return;
+  }
+
+  window.clearTimeout(taskId);
+};
+
 export default defineComponent({
   name: 'RetrieveV3',
   setup() {
     const store = useStore();
     const { t } = useLocale();
     const aiAssitantRef = RetrieveHelper.aiAssitantHelper.getAiAssitantInstance();
+    const shouldMountAiAssitant = ref(false);
+    let aiPreloadIdleTask: number | undefined;
+    let aiPreloadDelayTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const preloadAiAssitant = () => {
+      if (!store.state.features.isAiAssistantActive) {
+        return;
+      }
+
+      loadAiAssitantModule().catch((error) => {
+        console.warn('[RetrieveV3] preload ai assistant failed', error);
+        aiAssitantModulePromise = null;
+      });
+    };
+
+    const scheduleAiAssitantPreload = () => {
+      if (!store.state.features.isAiAssistantActive || aiPreloadDelayTimer || aiPreloadIdleTask) {
+        return;
+      }
+
+      aiPreloadDelayTimer = window.setTimeout(() => {
+        aiPreloadDelayTimer = undefined;
+        aiPreloadIdleTask = scheduleIdleTask(() => {
+          aiPreloadIdleTask = undefined;
+          preloadAiAssitant();
+        }, 5000);
+      }, 3000);
+    };
+
+    RetrieveHelper.aiAssitantHelper.setAiAssitantMountLoader(async () => {
+      await loadAiAssitantModule();
+      shouldMountAiAssitant.value = true;
+      await nextTick();
+    });
+
+    onBeforeUnmount(() => {
+      RetrieveHelper.aiAssitantHelper.setAiAssitantMountLoader(undefined);
+      cancelIdleTask(aiPreloadIdleTask);
+      if (aiPreloadDelayTimer) {
+        window.clearTimeout(aiPreloadDelayTimer);
+      }
+    });
 
     const {
       isSearchContextStickyTop,
@@ -79,11 +157,25 @@ export default defineComponent({
     // 切换检索模式或场景时，重置字段列表获取状态
     watch(
       () => store.state.indexItem.retrieve_type,
-      () => { isFieldListFetched.value = false; },
+      () => {
+        isFieldListFetched.value = false;
+      },
     );
     watch(
       () => store.state.indexItem.scene_active,
-      () => { isFieldListFetched.value = false; },
+      () => {
+        isFieldListFetched.value = false;
+      },
+    );
+
+    watch(
+      () => [store.state.features.isAiAssistantActive, isPreApiLoaded.value],
+      ([isAiAssistantActive, isLoaded]) => {
+        if (isAiAssistantActive && isLoaded) {
+          scheduleAiAssitantPreload();
+        }
+      },
+      { immediate: true },
     );
 
     // 字段列表已请求完成但返回为空
@@ -104,7 +196,7 @@ export default defineComponent({
      * @returns
      */
     const renderAiAssitant = () => {
-      if (!store.state.features.isAiAssistantActive) {
+      if (!store.state.features.isAiAssistantActive || !shouldMountAiAssitant.value) {
         return null;
       }
 

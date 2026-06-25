@@ -64,6 +64,7 @@ import { safeParseJsonValueForWhere } from '../trace-explore/utils';
 import { TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY } from './constants';
 // import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
 import DashboardPanel from './dashboard-panel/dashboard-panel';
+import K8sContainer from './k8s-container';
 import { formatSpanLinks } from './utils/format-span-links';
 import DecodeDialog from '@/components/decode-dialog/decode-dialog';
 
@@ -1585,13 +1586,7 @@ export default defineComponent({
                           {/* 由于视图早于数据先加载好会导致样式错乱，故 loading 完再加载视图 */}
                           {!isTabPanelLoading.value && (
                             <div class='host-tab-container'>
-                              <DashboardPanel
-                                groupTitle={'Groups'}
-                                isSingleChart={isSingleChart.value}
-                                podName={originalData.value?.resource?.['k8s.pod.name']}
-                                sceneData={sceneData.value}
-                                sceneId={'container'}
-                              />
+                              <K8sContainer sceneData={sceneData.value} />
                             </div>
                           )}
                         </Loading>

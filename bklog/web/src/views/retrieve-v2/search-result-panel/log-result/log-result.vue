@@ -29,54 +29,26 @@
       :content-type="contentType"
       :handle-click-tools="handleClickTools"
     ></LogRows>
-    <RealTimeLog
-      :is-show="isShowRealTimeLog"
-      :log-params="logDialog.data"
-      :retrieve-params="retrieveParams"
-      :target-fields="targetFields"
-      :indexSetId="logDialog.indexSetId"
-      :row-index="currentIndex"
-      @close-dialog="hideDialog"
-    />
     <!-- <AiAssitant ref="refAiAssitant" @close="handleAiClose"></AiAssitant> -->
   </div>
 </template>
 
 <script>
-import { parseTableRowData } from "@/common/util";
-import { encodeContextRoutePayload } from "@/views/retrieve-v3/search-result/original-log/context-log/context-route";
-import RetrieveLoader from "@/skeleton/retrieve-loader";
-
-import RealTimeLog from "@/views/retrieve-v3/search-result/original-log/real-time-log";
-import LogRows from "./log-rows.tsx";
-import RetrieveHelper from "@/views/retrieve-helper";
+import LogRows from './log-rows.tsx';
+import RetrieveHelper from '@/views/retrieve-helper';
 export default {
   components: {
-    RetrieveLoader,
-    RealTimeLog,
     LogRows,
   },
   props: {
     contentType: {
       type: String,
-      default: "table",
+      default: 'table',
     },
     retrieveParams: {
       type: Object,
       default: () => ({}),
     },
-  },
-  data() {
-    return {
-      targetFields: [],
-      isShowRealTimeLog: false,
-      logDialog: {
-        type: "",
-        data: {},
-        indexSetId: 0,
-      },
-      currentIndex: 0,
-    };
   },
   computed: {
     isExternal() {
@@ -87,103 +59,32 @@ export default {
     // handleAiClose() {
     //   this.$el.querySelector(".ai-active")?.classList.remove("ai-active");
     // },
-    // 打开实时日志弹窗
-    openLogDialog(row, type, indexSetId) {
-      this.logDialog.data = row;
-      this.logDialog.type = type;
-      this.logDialog.indexSetId = indexSetId;
-      if (type === "realTimeLog") {
-        this.isShowRealTimeLog = true;
-      }
-    },
-    getContextRouteLogParams(row, contextFields = [], timeField = '') {
-      const safeParams = {
-        dtEventTimeStamp: parseTableRowData(
-          row,
-          'dtEventTimeStamp',
-          '',
-          this.$store.state.isFormatDate,
-          ''
-        ),
+    openRelatedLogTab(type, index) {
+      const retrieveParams = this.$store.getters.retrieveParams || {};
+      const routeQuery = {
+        ...this.$route.query,
+        indexId: this.$store.getters.indexId || this.$route.params.indexId,
+        bizId: this.$store.getters.bkBizId,
+        spaceUid: this.$store.getters.spaceUid,
+        rowIndex: Math.max(0, index - 1),
+        begin: retrieveParams.begin ?? 0,
+        size: retrieveParams.size ?? 50,
+        start_time: retrieveParams.start_time,
+        end_time: retrieveParams.end_time,
+        keyword: retrieveParams.keyword,
+        search_mode: retrieveParams.search_mode,
+        addition: JSON.stringify(retrieveParams.addition || []),
+        sort_list: JSON.stringify(retrieveParams.sort_list || []),
+        ip_chooser: JSON.stringify(retrieveParams.ip_chooser || {}),
+        host_scopes: JSON.stringify(retrieveParams.host_scopes || {}),
+        interval: retrieveParams.interval,
+        time_zone: retrieveParams.time_zone,
       };
-      const fields = [
-        ...(Array.isArray(contextFields) ? contextFields : []),
-        timeField,
-      ].filter(Boolean);
-      [...new Set(fields)].forEach((field) => {
-        const value = field === 'bk_host_id' ? row[field] : parseTableRowData(
-          row,
-          field,
-          '',
-          this.$store.state.isFormatDate,
-          ''
-        );
-        if (value !== undefined && value !== null && value !== '') {
-          safeParams[field] = value;
-        }
-      });
-      return safeParams;
-    },
-    getContextRouteRetrieveParams() {
-      const {
-        start_time: startTime,
-        end_time: endTime,
-        format,
-      } = this.retrieveParams || {};
-      return {
-        start_time: startTime,
-        end_time: endTime,
-        format,
-      };
-    },
-    getIndexSetIdByRow(row = {}) {
-      const rowIndexSetId = row.__index_set_id__ ?? row.index_set_id;
-      if (rowIndexSetId !== undefined && rowIndexSetId !== null && rowIndexSetId !== '') {
-        return Number(rowIndexSetId);
-      }
-
-      // 场景化检索模式下，row.__index_set_id__ 可能不存在，
-      // 需要通过 row.__result_table 在 flatIndexSetList 的 indices 中查找匹配的 result_table_id，取其 index_set_id
-      if (this.$store.getters.isSceneMode && row.__result_table) {
-        const flatIndexSetList = this.$store.state.retrieve.flatIndexSetList;
-        for (const indexSet of flatIndexSetList) {
-          const matchedIndex = (indexSet.indices || []).find(
-            index => index.result_table_id === row.__result_table
-          );
-          if (matchedIndex) {
-            return matchedIndex.index_set_id;
-          }
-        }
-      }
-
-      const storeIndexId = this.$store.getters.indexId;
-      if (storeIndexId !== undefined && storeIndexId !== null && storeIndexId !== '') {
-        return Number(storeIndexId);
-      }
-
-      return Number(this.$route.params.indexId || 0);
-    },
-    openContextLogPage(row, indexSetId) {
-      const payload = encodeContextRoutePayload({
-        indexSetId,
-        logParams: row,
-        retrieveParams: this.getContextRouteRetrieveParams(),
-        backRoute: {
-          name: 'retrieve',
-          params: { ...this.$route.params },
-          query: { ...this.$route.query },
-        },
-      });
       const route = this.$router.resolve({
-        name: 'retrieve-context-log',
-        query: {
-          payload,
-          spaceUid: this.$store.getters.spaceUid,
-          bizId: this.$store.getters.bkBizId,
-          hl: '1',
-        },
+        name: type === 'realTimeLog' ? 'retrieve-real-time-tab' : 'retrieve-context-tab',
+        query: routeQuery,
       });
-      window.open(route.href, '_blank');
+      window.open(route.href, '_blank', 'noopener,noreferrer');
     },
     openWebConsole(row) {
       // (('cluster', 'container_id'),
@@ -212,7 +113,7 @@ export default {
       }
       if (!queryData.cluster_id || !queryData.container_id) return;
       this.$http
-        .request("retrieve/getWebConsoleUrl", {
+        .request('retrieve/getWebConsoleUrl', {
           params: {
             index_set_id: this.$route.params.indexId,
           },
@@ -240,58 +141,10 @@ export default {
           RetrieveHelper.aiAssitantHelper.setCiteText(row);
           return;
         }
-      if (["realTimeLog", "contextLog"].includes(event)) {
-        this.currentIndex = index - 1;
-        const contextFields = config.contextAndRealtime.extra?.context_fields;
-        const timeField = this.$store.state.indexFieldInfo.time_field;
-        const dialogNewParams = {};
-        const { targetFields = [], sortFields = [] } = config.indexSetValue;
-
-        // const fieldParamsKey = [...new Set([...targetFields, ...sortFields])];
-        this.targetFields = targetFields ?? [];
-
-        Object.assign(dialogNewParams, {
-          dtEventTimeStamp: row.dtEventTimeStamp,
-        });
-        // 非日志采集的情况下判断是否设置过字段设置 设置了的话传已设置过的参数
-        // if (config.indexSetValue.scenarioID !== 'log' && fieldParamsKey.length) {
-        //   fieldParamsKey.forEach(field => {
-        //     dialogNewParams[field] = parseTableRowData(row, field, '', this.$store.state.isFormatDate, '');
-        //   });
-        // } else
-        if (Array.isArray(contextFields) && contextFields.length) {
-          // 传参配置指定字段，避免 push 修改 store 中的 context_fields 配置
-          [...new Set([...contextFields, timeField].filter(Boolean))].forEach((field) => {
-            if (field === "bk_host_id") {
-              if (row[field]) dialogNewParams[field] = row[field];
-            } else {
-              dialogNewParams[field] = parseTableRowData(
-                row,
-                field,
-                "",
-                this.$store.state.isFormatDate,
-                ""
-              );
-            }
-          });
-        } else {
-          Object.assign(dialogNewParams, row);
-        }
-        const indexSetId = this.getIndexSetIdByRow(row);
-        if (event === "contextLog") {
-          this.openContextLogPage(this.getContextRouteLogParams(row, contextFields, timeField), indexSetId);
-        } else {
-          this.openLogDialog(dialogNewParams, event, indexSetId);
-        }
-      } else if (event === "webConsole") this.openWebConsole(row);
-      else if (event === "logSource")
-        this.$store.dispatch("changeShowUnionSource");
-    },
-    // 关闭实时日志或上下文弹窗后的回调
-    hideDialog() {
-      this.logDialog.type = "";
-      this.targetFields = [];
-      this.isShowRealTimeLog = false;
+      if (['realTimeLog', 'contextLog'].includes(event)) {
+        this.openRelatedLogTab(event, index);
+      } else if (event === 'webConsole') this.openWebConsole(row);
+      else if (event === 'logSource') this.$store.dispatch('changeShowUnionSource');
     },
   },
 };

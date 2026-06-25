@@ -590,8 +590,8 @@ APM_TRACE_DIAGRAM_CONFIG = {}
 APM_DORIS_STORAGE_CONFIG = {}
 # APM profile v4接入配置
 APM_PROFILE_V4_BIZ_WHITE_LIST = []
+APM_PROFILING_DEFAULT_USE_BKDATA_V4 = False
 APM_PROFILE_V4_DORIS_BINDING_CLUSTER = ""
-APM_PROFILE_V4_DATABUS_PREFER_CLUSTER = ""
 # {2:["foo", "bar"], 3:["baz"]}
 APM_PROFILING_ENABLED_APPS = {}
 # dis/enable profiling for all apps
@@ -1250,6 +1250,12 @@ BKCHAT_MANAGE_URL = os.getenv("BKAPP_BKCHAT_MANAGE_URL", "")
 # aidev的apigw地址
 AIDEV_API_BASE_URL = os.getenv("BKAPP_AIDEV_API_BASE_URL", "")
 
+# TAPD API 基础URL
+TAPD_API_BASE_URL = os.getenv("BKAPP_TAPD_API_BASE_URL", os.getenv("TAPD_API_BASE_URL", ""))
+# 对于 TAPD API 有权限的应用ID和密钥
+TAPD_APP_ID = os.getenv("BKAPP_TAPD_APP_ID", os.getenv("TAPD_APP_ID", ""))
+TAPD_APP_SECRET = os.getenv("BKAPP_TAPD_APP_SECRET", os.getenv("TAPD_APP_SECRET", ""))
+
 BK_NODEMAN_HOST = AGENT_SETUP_URL = os.getenv("BK_NODEMAN_SITE_URL") or os.getenv(
     "BKAPP_NODEMAN_OUTER_HOST", get_service_url("bk_nodeman", bk_paas_host=BK_PAAS_HOST)
 )
@@ -1452,6 +1458,9 @@ BKCRYPTO = {
     },
 }
 
+# 自定义上报/APM使用的密钥
+CUSTOM_REPORT_AES_KEY = os.getenv("CUSTOM_REPORT_AES_KEY", "")
+
 # 特别的AES加密配置信息(全局配置)
 SPECIFY_AES_KEY = ""
 BK_CRYPTO_KEY = os.getenv("BKAPP_BK_CRYPTO_KEY", "")
@@ -1502,6 +1511,20 @@ MCP_MAX_TIME_SPAN_SECONDS = 86400  # MCP 查询跨度限制
 # APM Profiling 数据密度高(秒级采样, 单服务每分钟可达数 MB), 单独收紧 MCP 查询跨度上限
 # 避免: 数据量爆炸 / LLM 上下文超限 / 下游 doris 查询超时
 APM_PROFILING_MCP_MAX_TIME_SPAN_SECONDS = 30 * 60
+
+# ===== 运营数据(operation) MCP 环境相关配置 =====
+# 以下标识因部署环境而异（内部业务 ID / bkdata 结果表 / 集群域名等），不在开源代码中硬编码。
+# 这里只给默认空值；实际取值在 Global Settings(全局配置, 见 bkmonitor/define/global_config.py 的 ADVANCED_OPTIONS)
+# 中动态配置并在运行时覆盖到 settings；未配置时对应运营指标返回 null（不影响其他指标）。
+OPERATION_MCP_ENV = ""  # 当前环境标识（如 bkte / bkop / sg），用于隐藏本环境不存在的指标
+OPERATION_MCP_FRONTEND_EVENT_TABLE = ""  # 前端埋点事件 bkdata 结果表（月活/活跃业务/活跃部门）
+OPERATION_MCP_FRONTEND_EVENT_TARGET = ""  # 前端埋点事件 target 取值
+OPERATION_MCP_LOG_QUERY_API_PROMQL = ""  # 日志查询量(API) PromQL（指标名内含业务 ID）
+OPERATION_MCP_DORIS_STORAGE_PROMQL: dict = {}  # doris 存储量 PromQL，形如 {"bkte": "<promql>", "sg": "<promql>"}
+# 平台统计指标(bkm_statistics 等)上报所在的业务 ID（PromQL 取数须用该业务查询，按环境在全局配置设置）
+OPERATION_MCP_PLATFORM_BIZ_ID = 0
+# 按指标族覆盖统计业务 ID（不同族可能落在不同业务），形如 {"default": <业务ID>, "logbeat": <业务ID>}
+OPERATION_MCP_STAT_BIZ_IDS: dict = {}
 
 # 场景-Agent映射配置,用于实现Agent路由
 AIDEV_SCENE_AGENT_CODE_MAPPING = {}
@@ -1783,6 +1806,9 @@ APM_SERVICE_CACHE_APPLICATIONS = []
 
 # 企业微信模块化（layouts）消息通知灰度业务列表
 WECOM_LAYOUTS_BIZ_LIST = []
+
+# 是否默认开启 APM 指标维度分组接入
+APM_METRIC_GROUP_DIMENSIONS_ENABLED = False
 
 # 允许 APM 配置指标分组维度的白名单，格式：["2"](整业务) 或 ["2-app_name"](单应用)
 APM_METRIC_GROUP_DIMENSIONS_WHITELIST = []

@@ -43,6 +43,15 @@ export type BookMarkMode = 'auto' | 'custom';
 // dashboard 仪表盘模式  list: 列表模式 chart: 视图模式
 export type DashboardMode = 'chart' | 'list';
 
+export interface IK8sTargetList {
+  bcs_cluster_id: string;
+  cacheId: string;
+  namespace: string;
+  pod?: string;
+  resource_type: 'pod' | 'workload';
+  workload?: string;
+}
+
 // 页签配置
 export interface IBookMark {
   // 页签id
@@ -211,6 +220,8 @@ export class BookMarkModel implements IBookMark {
   selectorPanel?: PanelModel;
   // 是否展示页签图表统计数据
   show_panel_count = false;
+  // 类型
+  type: string;
   // 变量设置
   variables?: IVariableModel[] = [];
   constructor(public bookmark: IBookMark) {

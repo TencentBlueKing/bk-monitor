@@ -350,17 +350,11 @@ export default class AlarmHandlingList extends tsc<IProps, IEvents> {
       const issueAggLevelsValidate = this.localValue.some(item =>
         item.activeTab === actionType.issueAgg ? !item.issueConfig?.alert_levels?.length : false
       );
-      const issueAggDimensionsValidate = this.localValue.some(item =>
-        item.activeTab === actionType.issueAgg ? !item.issueConfig?.aggregate_dimensions?.length : false
-      );
       if (validate) {
         this.errMsg = window.i18n.tc('输入告警场景');
         reject();
       } else if (!configValidate) {
         this.errMsg = window.i18n.tc('选择处理套餐');
-        reject();
-      } else if (issueAggDimensionsValidate) {
-        this.errMsg = window.i18n.tc('请选择Issue聚合维度');
         reject();
       } else if (issueAggLevelsValidate) {
         this.errMsg = window.i18n.tc('请选择Issue聚合生效告警级别');

@@ -11,13 +11,21 @@ specific language governing permissions and limitations under the License.
 import logging
 import time
 
+from elasticsearch.exceptions import ConnectionError as ESConnectionError
+from elasticsearch.exceptions import TransportError
 from elasticsearch.helpers import BulkIndexError
+from elasticsearch.helpers.errors import ScanError
 from elasticsearch_dsl import Q
+from kombu.exceptions import OperationalError as KombuOperationalError
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import ReadOnlyError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from alarm_backends.constants import CONST_ONE_DAY, CONST_ONE_HOUR
 from alarm_backends.core.alert.alert import Alert, AlertCache, AlertKey
 from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.cluster import get_cluster_bk_biz_ids
+from alarm_backends.core.storage.redis_cluster import PipelineResultMismatch
 from alarm_backends.service.alert.manager.processor import AlertManager
 from alarm_backends.service.scheduler.app import app
 from bkmonitor.documents import AlertDocument, AlertLog
@@ -33,6 +41,49 @@ BATCH_SIZE = 200
 DEFAULT_CHECK_INTERVAL = 60
 # ES 深分页每页大小
 SCAN_PAGE_SIZE = 5000
+
+# 瞬态基础设施异常(计 deferred 而非 failed): 仅纳入"本批未 finalize、下一周期重跑可自愈"的类型，
+# 其余一律计 failed。收口原则——基于已知可恢复类型显式纳入，不用基类宽松匹配：否则会把代码 / 数据 /
+# 配置类错误(不会靠重跑恢复)漂白成 deferred，从成功率口径里抹掉真实故障。新可恢复类型经确认后再扩。
+# Redis: 连接(含 BusyLoadingError 子类) / 超时 / 主从切换只读(ReadOnlyError) / pipeline 结果错位；
+#   不含 ResponseError / DataError / NoScriptError 等命令·数据·脚本错(不会自愈)。
+# Broker(Celery/kombu): RabbitMQ/AMQP 可恢复连接错误(kombu.exceptions.OperationalError)仅在 finalize 前
+#   (save_alerts 之前的 .delay)计 deferred；finalize 后(send_signal)抛出会丢 signal、终态不重发,仍计 failed
+#   (见下 is_transient_retry_exc 分支)。同名的 django.db.utils.OperationalError(DB 逻辑错)任何阶段都计 failed。
+REDIS_RETRY_EXCEPTIONS = (RedisConnectionError, RedisTimeoutError, ReadOnlyError, PipelineResultMismatch)
+
+
+def is_transient_retry_exc(exc: Exception, finalized: bool = False) -> bool:
+    """异常是否为"下一周期重跑可自愈"的瞬态基础设施错误：是则计 deferred，否则计 failed。
+
+    finalized: 本批告警状态是否已落库(save_alerts 完成)。仅影响 broker 异常的判定：finalize 后抛出的
+    broker 异常会丢 signal、终态不会被下周期重发,不可靠自愈,不计 deferred。
+    """
+    if isinstance(exc, REDIS_RETRY_EXCEPTIONS):
+        return True
+    if isinstance(exc, KombuOperationalError):
+        # Celery broker(RabbitMQ/AMQP)可恢复连接错误(kombu.exceptions.OperationalError 语义即 recoverable
+        # connection error)：publish 任务(.delay)时新建 broker 连接偶发建连/通道超时、连接重置。是否可靠
+        # 自愈取决于发生阶段:
+        #   - finalize 前(check_all 的 create_actions.delay,在告警状态/ES 持久化之前):本批未落库,下一
+        #     周期 check_abnormal_alert 重跑重发,可自愈 → deferred。
+        #   - finalize 后(send_signal 的 check_action_and_composite.delay,在 save_alerts 之后):告警状态
+        #     (含 recovered/closed)已落库,终态不会被下周期重新捞起重发 signal → 是实际丢 signal 的失败,
+        #     仍计 failed,不能从成功率口径抹掉。
+        # 按类型匹配可与同名的 django.db.utils.OperationalError(DB 逻辑错)区分,后者任何阶段都计 failed。
+        return not finalized
+    if isinstance(exc, ScanError):
+        # scan / scroll 部分分片失败，重跑可恢复
+        return True
+    if isinstance(exc, ESConnectionError):
+        # ES 连接类(ConnectionTimeout 为其子类)无 HTTP 状态码，视为瞬态
+        return True
+    if isinstance(exc, TransportError):
+        # ES 其余传输错误：仅 429(限流) / 5xx(服务端) 视为瞬态；4xx(查询 / 权限 / 版本冲突)多为代码或
+        # 配置问题，仍计 failed。status_code 取自 es-py<8；es8 起无此属性 → 落入 failed(安全方向)。
+        code = getattr(exc, "status_code", None)
+        return isinstance(code, int) and (code == 429 or 500 <= code <= 599)
+    return False
 
 
 def _search_after_hits(search, page_size: int):
@@ -268,8 +319,16 @@ def handle_alerts(alert_keys: list[AlertKey]):
     # 1. 周期维护未恢复的告警， 按 total=200 分批跑
     # 2. 产生新告警时，由alert.builder 立刻执行一次周期任务管理， total 较小。
     # 因此会存在耗时跟随total值的变化抖动。所以这里算单条告警的处理平均耗时才能体现出实际情况
-    metrics.ALERT_MANAGE_TIME.labels(status=metrics.StatusEnum.from_exc(exc), exception=exc).observe(cost / total)
-    metrics.ALERT_MANAGE_COUNT.labels(status=metrics.StatusEnum.from_exc(exc), exception=exc).inc(total)
+    if exc is not None and is_transient_retry_exc(exc, finalized=getattr(manager, "alerts_finalized", False)):
+        # 瞬态基础设施错误且本批可下周期重跑自愈: 计入 deferred 而非 failed，避免把一次节点抖动 / ES 瞬态 /
+        # finalize 前的 broker 建连抖动放大成整批失败、压垮处理成功率指标。
+        metrics.ALERT_MANAGE_TIME.labels(status=metrics.StatusEnum.DEFERRED, exception=exc).observe(cost / total)
+        metrics.ALERT_MANAGE_DEFERRED_COUNT.labels(exception=exc).inc(total)
+    else:
+        # 成功，或非瞬态(逻辑类)异常: 保留原有 success / failed 计数与可见性。
+        status = metrics.StatusEnum.from_exc(exc)
+        metrics.ALERT_MANAGE_TIME.labels(status=status, exception=exc).observe(cost / total)
+        metrics.ALERT_MANAGE_COUNT.labels(status=status, exception=exc).inc(total)
     metrics.report_all()
 
 

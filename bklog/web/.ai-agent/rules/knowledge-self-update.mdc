@@ -1,0 +1,36 @@
+---
+description: Project knowledge self-update rule. When code changes alter modules, routes, APIs, hooks, reusable UI patterns, or stable constraints, update .ai-agent project knowledge in the same task.
+alwaysApply: true
+---
+
+# Knowledge Self Update Rule
+
+.ai-agent is the single source of project AI knowledge. Keep it current.
+
+## Must Update Knowledge When
+
+- adding/removing/moving a module, route, page, component, hook, store module, service, or util;
+- changing an API/service contract, route/query contract, event contract, store data flow, or shared hook signature;
+- introducing a reusable UI/UX interaction pattern;
+- fixing a bug that creates a stable future constraint;
+- discovering stale project map entries while editing code.
+
+## Where To Update
+
+Use .ai-agent/project-skills/aafe-self-update/SKILL.md as the routing table.
+Common targets:
+
+- architecture/module map -> .ai-agent/project-skills/bklog-architecture/SKILL.md
+- components -> .ai-agent/project-skills/bklog-components/SKILL.md
+- APIs/services -> .ai-agent/project-skills/bklog-api-services/SKILL.md
+- hooks -> .ai-agent/project-skills/bklog-hooks/SKILL.md
+- coding conventions -> .ai-agent/project-skills/bklog-coding-patterns/SKILL.md
+- stable UI/performance constraints -> .ai-agent/rules/*.mdc
+- reusable decisions/lessons -> .ai-agent/memory/*.md
+
+## Constraints
+
+- Do not recreate or reference the legacy shared AI directory.
+- Do not duplicate project knowledge in .cursor or .codebuddy; those files only point to .ai-agent.
+- Keep knowledge updates concise: navigation hints, contracts, boundaries, and change impact only.
+- If no knowledge update is needed, state why in the final response.

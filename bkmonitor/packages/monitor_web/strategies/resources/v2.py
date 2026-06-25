@@ -86,6 +86,7 @@ from monitor_web.strategies.constant import (
     DEFAULT_TRIGGER_CONFIG_MAP,
     GLOBAL_TRIGGER_CONFIG,
 )
+from monitor_web.strategies.metric_cache.process_dimensions import get_process_extra_dimensions
 from monitor_web.strategies.serializers import handle_target
 from monitor_web.tasks import update_metric_list_by_biz
 from common.decorators import db_safe_wrapper
@@ -890,15 +891,18 @@ class GetStrategyListV2Resource(Resource):
         按策略标签统计策略数量
         """
 
-        # 按策略标签进行聚合统计
-        count_records = (
-            StrategyLabel.objects.filter(strategy_id__in=strategy_ids)
-            .values("label_name")
-            .annotate(total=Count("strategy_id", distinct=True))
-            .order_by("label_name")
-        )
+        # 按策略标签统计去重策略数。
+        # 不在 SQL 侧 GROUP BY/ORDER BY label_name：该写法会让优化器选 label_name 打头的索引
+        # 全扫整表（成本与表大小相关、与 strategy_ids 数解耦），strategy_id 的覆盖索引被弃用。
+        # 改为按 strategy_id 走覆盖索引 seek 取 (strategy_id, label_name) 对，在内存按 label
+        # 去重统计（命中行数与 strategy_ids 规模相关、量级可忽略），与原 COUNT(DISTINCT) 等价。
+        label_to_strategies: dict[str, set[int]] = defaultdict(set)
+        for strategy_id, label_name in StrategyLabel.objects.filter(strategy_id__in=strategy_ids).values_list(
+            "strategy_id", "label_name"
+        ):
+            label_to_strategies[label_name].add(strategy_id)
 
-        label_counts = {record["label_name"]: record["total"] for record in count_records}
+        label_counts = {label_name: len(strategy_set) for label_name, strategy_set in label_to_strategies.items()}
 
         # 查询业务下所有的策略标签
         labels = (
@@ -1837,6 +1841,11 @@ class GetMetricListV2Resource(Resource):
         指标数据
         """
         metric_list: list[dict] = []
+        metrics = list(metrics)
+        # 进程采集：静态指标缓存不含用户「维度提取」(extract_pattern) 出的维度（如 process），按业务真实上报补全
+        process_extra_dimensions = get_process_extra_dimensions(
+            bk_biz_id_to_bk_tenant_id(bk_biz_id), bk_biz_id, {metric.result_table_id for metric in metrics}
+        )
         for metric in metrics:
             metric: MetricListCache
 
@@ -1856,13 +1865,20 @@ class GetMetricListV2Resource(Resource):
                         d for d in default_dimensions if d not in ["bk_target_ip", "bk_target_cloud_id"]
                     ]
 
+            # 进程采集等场景：合并真实上报但不在静态指标缓存里的维度（按 id 去重）
+            dimensions = list(metric.dimensions)
+            extra_dims = process_extra_dimensions.get(metric.result_table_id)
+            if extra_dims:
+                existing_ids = {d["id"] for d in dimensions}
+                dimensions += [d for d in extra_dims if d["id"] not in existing_ids]
+
             data = {
                 "id": metric.id,
                 "name": metric.metric_field_name,
                 "bk_biz_id": metric.bk_biz_id,
                 "data_source_label": metric.data_source_label,
                 "data_type_label": metric.data_type_label,
-                "dimensions": sorted(metric.dimensions, key=lambda x: x["name"]),
+                "dimensions": sorted(dimensions, key=lambda x: x["name"]),
                 "collect_interval": metric.collect_interval,
                 "unit": metric.unit,
                 "metric_field": metric.metric_field,

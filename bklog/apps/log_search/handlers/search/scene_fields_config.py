@@ -161,7 +161,7 @@ class SceneFieldsConfigHandler:
         if not created and user_obj.config_id != self.data.id:
             user_obj.config_id = self.data.id
             user_obj.save(update_fields=["config_id", "updated_at"])
-        return self.build_user_fields_config_response(user_obj, self.data, username, self.source_app_code)
+        return self.build_applied_template_response(user_obj, self.data, username, self.source_app_code)
 
     # ------------------------------------------------------------------
     # Helpers
@@ -226,14 +226,14 @@ class SceneFieldsConfigHandler:
         return user_obj, tpl
 
     @classmethod
-    def build_user_fields_config_response(
+    def build_applied_template_response(
         cls,
         user_obj: UserSceneFieldsConfig | None,
         tpl: SceneFieldsConfig,
         username: str,
         source_app_code: str,
     ) -> dict:
-        """组装 fields_config / fields.user_fields_config 的统一响应结构。"""
+        """组装"当前应用模板"视图（apply 返回 + list_config 表头使用）。"""
         return {
             "id": user_obj.id if user_obj else None,
             "config_id": tpl.id,
@@ -248,34 +248,6 @@ class SceneFieldsConfigHandler:
             "created_at": tpl.created_at,
             "updated_at": tpl.updated_at,
         }
-
-    @classmethod
-    def upsert_user_applied_template(
-        cls,
-        bk_biz_id: int,
-        username: str,
-        scene_id: str,
-        scope: str,
-        display_fields: list,
-        sort_list: list,
-    ) -> dict:
-        """写入当前用户指针所指向的模板内容；无指针时懒绑定默认模板后写入。"""
-        source_app_code = get_request_app_code()
-        user_obj, tpl = cls.get_user_applied_config(bk_biz_id, username, scene_id, scope)
-        tpl.display_fields = display_fields
-        tpl.sort_list = sort_list
-        tpl.updated_by = get_request_external_username() or get_request_username()
-        tpl.save(update_fields=["display_fields", "sort_list", "updated_by", "updated_at"])
-        if not user_obj:
-            user_obj, _ = UserSceneFieldsConfig.objects.update_or_create(
-                bk_biz_id=bk_biz_id,
-                username=username,
-                scene_id=scene_id,
-                scope=scope,
-                source_app_code=source_app_code,
-                defaults={"config_id": tpl.id},
-            )
-        return cls.build_user_fields_config_response(user_obj, tpl, username, source_app_code)
 
 
 class UserSceneCustomConfigHandler:

@@ -15,6 +15,8 @@ from . import (
     bcs_cluster,
     cluster_info,
     config_delivery,
+    collect_config,
+    collect_plugin,
     custom_report,
     datalink,
     datasource,
@@ -29,6 +31,7 @@ from . import (
     space,
     storage,
     tenant,
+    token,
     uptime_check,
     vm_short_link,
 )
@@ -40,6 +43,8 @@ __all__ = [
     "bcs_cluster",
     "cluster_info",
     "config_delivery",
+    "collect_config",
+    "collect_plugin",
     "custom_report",
     "datalink",
     "datasource",
@@ -54,6 +59,7 @@ __all__ = [
     "space",
     "storage",
     "tenant",
+    "token",
     "uptime_check",
     "vm_short_link",
 ]

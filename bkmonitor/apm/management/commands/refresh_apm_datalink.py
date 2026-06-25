@@ -66,11 +66,15 @@ class Command(BaseCommand):
                 self.stderr.write(f"MetricDataSource 不存在: bk_biz_id={bk_biz_id}, app_name={app_name}")
                 return
 
-            # 检查白名单（支持业务级灰度：业务ID 整业务通过，业务ID-应用名 单应用通过）
+            # 检查全局开关和白名单（支持业务级灰度：业务ID 整业务通过，业务ID-应用名 单应用通过）
             whitelist = settings.APM_METRIC_GROUP_DIMENSIONS_WHITELIST
             biz_key = str(bk_biz_id)
             app_key = f"{bk_biz_id}-{app_name}"
-            if biz_key not in whitelist and app_key not in whitelist:
+            if (
+                not settings.APM_METRIC_GROUP_DIMENSIONS_ENABLED
+                and biz_key not in whitelist
+                and app_key not in whitelist
+            ):
                 self.stderr.write(
                     f"应用 {app_key} 不在 APM_METRIC_GROUP_DIMENSIONS_WHITELIST 白名单中，当前白名单: {whitelist}"
                 )

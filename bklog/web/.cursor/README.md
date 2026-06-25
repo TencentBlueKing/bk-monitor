@@ -2,18 +2,23 @@
 
 本目录为 Cursor IDE 的 AI 配置入口。
 
-# AAFE Architecture Runtime for Cursor
+## Single AI Runtime Entry
 
-Use .ai-agent as the project architecture runtime. Route requests through runtime/router.yaml, execute pipeline steps, enforce gates, and run refactor critique before finalizing code.
+Use `.ai-agent` as the single project AI runtime and knowledge root.
 
+- AAFE runtime: `../.ai-agent/runtime/`
+- AAFE pipelines: `../.ai-agent/pipelines/`
+- AAFE memory: `../.ai-agent/memory/`
+- BKLog project map: `../.ai-agent/project.md`
+- BKLog project skills: `../.ai-agent/project-skills/`
+- BKLog project rules: `../.ai-agent/rules/`
+- Self-update protocol: `../.ai-agent/project-skills/aafe-self-update/SKILL.md`
 
-## 本项目相关配置来源
+Do not reference the removed legacy shared AI directory.
 
-- `skills/ENTRY.md` - Skills 入口，指向公共配置
-- `rules/ENTRY.md` - Rules 入口，指向公共配置
+## Cursor Specific Files
 
-公共配置详见 [../.ai-shared/README.md](../.ai-shared/README.md)
-
-## Cursor 特定配置
-
-如需添加 Cursor 独有的配置，可在本目录下直接创建文件。
+- `rules/ENTRY.md` - Cursor rule entry pointing to `.ai-agent`
+- `skills/ENTRY.md` - Cursor skill entry pointing to `.ai-agent`
+- `rules/aafe-architecture-runtime.mdc` - AAFE Runtime always-on rule
+- `hooks/aafe-session-start` - session-start context hook

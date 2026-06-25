@@ -409,6 +409,18 @@ export class QueryStringEditor {
   }
 }
 
+/**
+ * 追加 queryString 条件前先移除同名字段已有条件
+ */
+export function appendQueryStringCondition(queryString: string, fieldKey: string, newClause: string) {
+  const base = removeQueryStringConditionsByField(queryString, fieldKey);
+  const clause = newClause.trim();
+  if (!clause) {
+    return base;
+  }
+  return base ? `${base} AND ${clause}` : clause;
+}
+
 export function getQueryStringMethods(fieldType: EFieldType) {
   if ([EFieldType.integer, EFieldType.long].includes(fieldType)) {
     return [...QUERY_STRING_METHODS];
@@ -513,6 +525,30 @@ export function parseQueryString(query: string): IStrItem[] {
     }
   }
   return tokens;
+}
+
+/**
+ * 移除 queryString 中指定字段的条件（含 eq / neq）
+ */
+export function removeQueryStringConditionsByField(queryString: string, fieldKey: string) {
+  const trimmed = queryString?.trim() || '';
+  if (!trimmed || !fieldKey) {
+    return trimmed;
+  }
+
+  const escapedKey = escapeRegExp(fieldKey);
+  const clausePattern = new RegExp(`(?:^|\\s+AND\\s+)-?${escapedKey}\\s*:\\s*(?:"[^"]*"|\\S+)`, 'gi');
+
+  return trimmed
+    .replace(clausePattern, '')
+    .replace(/^\s+AND\s+/i, '')
+    .replace(/\s+AND\s+$/i, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function escapeRegExp(str: string) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 // 获取光标全局字符偏移量

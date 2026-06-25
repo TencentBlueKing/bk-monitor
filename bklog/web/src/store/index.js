@@ -40,7 +40,7 @@ import {
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { builtInInitHiddenList } from '@/const/index.js';
-import { MENU_LISTS } from '@/global/head-navi/complete-menu.ts';
+import { mergeMenuWithDefaultConfig } from './menu-config.ts';
 import DOMPurify from 'dompurify';
 import * as pinyin from 'tiny-pinyin';
 import * as patcher56L from 'tiny-pinyin/dist/patchers/56l.js';
@@ -636,7 +636,19 @@ const store = new Vuex.Store({
     },
 
     resetIndexSetQueryResult(state, payload) {
-      Object.assign(state.indexSetQueryResult, IndexSetQueryResult, payload ?? {});
+      Object.keys(IndexSetQueryResult).forEach((key) => {
+        const value = payload && Object.prototype.hasOwnProperty.call(payload, key)
+          ? payload[key]
+          : IndexSetQueryResult[key];
+
+        if (Array.isArray(value)) {
+          set(state.indexSetQueryResult, key, [...value]);
+        } else if (value && typeof value === 'object') {
+          set(state.indexSetQueryResult, key, { ...value });
+        } else {
+          set(state.indexSetQueryResult, key, value);
+        }
+      });
     },
 
     updateIndexSetQueryResult(state, payload) {
@@ -1177,13 +1189,7 @@ const store = new Vuex.Store({
         .then((res) => {
           const menuList = replaceMenuId(res.data || []);
 
-          menuList.forEach((child) => {
-            child.id = routeMap[child.id] || child.id;
-            const menu = MENU_LISTS.find(menuItem => menuItem.id === child.id);
-            if (menu) {
-              deepUpdateMenu(menu, child);
-            }
-          });
+          mergeMenuWithDefaultConfig(menuList, routeMap, deepUpdateMenu);
 
           commit('updateState', { topMenu: menuList });
           commit('updateState', { menuProject: res.data || [] });
@@ -1488,7 +1494,7 @@ const store = new Vuex.Store({
       return axiosInstance(params)
         .then((resp) => {
           if (resp.data && !resp.message) {
-            return readBlobRespToJson(resp.data).then(({ code, data, result, message }) => {
+            return readBlobRespToJson(resp.data).then(({ code, data, result, message, permission }) => {
               const rsolvedData = data;
               if (result) {
                 const indexSetQueryResult = state.indexSetQueryResult;
@@ -1525,6 +1531,15 @@ const store = new Vuex.Store({
                   length: logList.length,
                   size,
                 };
+              }
+
+              if (code === '9900403') {
+                commit('updateState', {
+                  authDialogData: {
+                    apply_url: data.apply_url,
+                    apply_data: permission,
+                  },
+                });
               }
 
               commit('updateIndexSetQueryResult', {

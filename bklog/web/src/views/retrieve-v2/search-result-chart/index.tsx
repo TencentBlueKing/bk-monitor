@@ -45,7 +45,7 @@ import './index.scss';
 
 export default defineComponent({
   name: 'SearchResultChart',
-  emits: ['toggle-change'],
+  emits: ['toggle-change', 'trend-ready'],
   setup(_props, { emit }) {
     const store = useStore();
     const route = useRoute();
@@ -209,6 +209,10 @@ export default defineComponent({
       return (86_400 * 1000) / 2; // 超过48小时, 每12小时1段
     };
 
+    const markTrendReady = () => {
+      emit('trend-ready');
+    };
+
     // 趋势图数据请求主函数
     const getSeriesData = async (startTimeStamp, endTimeStamp) => {
       finishPolling.value = false;
@@ -232,12 +236,16 @@ export default defineComponent({
           try {
             const res = await fetchTrendChartData(urlStr, indexId, queryData);
             setChartData(res?.data?.aggs, queryData.group_field, currentIsInit);
+            if (currentIsInit) {
+              markTrendReady();
+            }
 
             if (!res?.result || requestInterval === 0) {
               break;
             }
           } catch {
             setChartData(null, null, true); // 清空图表数据
+            markTrendReady();
             break;
           }
           result = gen.next();
@@ -360,7 +368,10 @@ export default defineComponent({
     // 加载趋势图数据
     const loadTrendData = () => {
       // 场景化检索模式下，过滤条件为空时不加载趋势图
-      if (store.getters.isSceneMode && store.getters.isSceneFilterEmpty) return;
+      if (store.getters.isSceneMode && store.getters.isSceneFilterEmpty) {
+        markTrendReady();
+        return;
+      }
 
       cacheChartOptions();
       store.commit('retrieve/updateTrendDataLoading', true); // 开始加载前，打开loading
@@ -380,6 +391,7 @@ export default defineComponent({
         if (!store.state.indexItem.ids?.length) {
           isStart.value = false;
           store.commit('retrieve/updateTrendDataLoading', false);
+          markTrendReady();
           return;
         }
 
@@ -391,6 +403,7 @@ export default defineComponent({
           if (store.state.searchTotal === 0 || res.result === false) {
             isStart.value = false;
             store.commit('retrieve/updateTrendDataLoading', false);
+            markTrendReady();
             return;
           }
           // 3. 有数据才请求趋势图
@@ -398,6 +411,7 @@ export default defineComponent({
         } catch (e) {
           console.error(e);
           store.commit('retrieve/updateTrendDataLoading', false);
+          markTrendReady();
         }
       });
     };

@@ -97,3 +97,49 @@ def test_create_record_rule(create_or_delete_records, mocker):
 
     vm_record = models.AccessVMRecord.objects.get(result_table_id=table_id)
     assert vm_record.vm_result_table_id == "2_vm_cc_2_unify_query_tsdb_test_new_prom_node"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_create_record_rule_uses_fixed_vmrt_source(create_or_delete_records, mocker):
+    fixed_rule_config = """
+---
+source:
+  vm_result_table_ids:
+    - 100147_vm_5016678_bkmonitor_time_series_560447
+    - 100147_bkm_5016678_bkmonitor_time_series_580733
+interval: 5m
+name: skill_rating_service_metrics_v2
+rules:
+- expr: |
+    round(sum(increase(rpc_server_metric_count{callee_name=~".*skill_rating"}[5m])))
+  record: service:error_count_v2:sum
+    """  # noqa
+    get_src_table_ids = mocker.patch("metadata.models.record_rule.service.RecordRule.get_src_table_ids")
+    mocker.patch("django.conf.settings.DEFAULT_BKDATA_BIZ_ID", 2)
+    mocker.patch(
+        "metadata.models.record_rule.rules.utils.refine_bk_sql_and_metrics",
+        return_value={
+            "promql": 'round(sum(increase(rpc_server_metric_count{callee_name=~".*skill_rating"}[5m])))',
+            "metrics": {"rpc_server_metric_count"},
+        },
+    )
+    mocker.patch(
+        "metadata.models.record_rule.rules.utils.transform_record_to_metric_name",
+        return_value="service_error_count_v2_sum",
+    )
+    service = RecordRuleService(
+        space_type=space_type,
+        space_id=space_id,
+        record_name=record_name,
+        rule_config=fixed_rule_config,
+        count_freq=30,
+    )
+
+    service.create_record_rule()
+
+    get_src_table_ids.assert_not_called()
+    rule_ins = RecordRule.objects.get(table_id=table_id)
+    assert rule_ins.src_vm_table_ids == [
+        "100147_vm_5016678_bkmonitor_time_series_560447",
+        "100147_bkm_5016678_bkmonitor_time_series_580733",
+    ]

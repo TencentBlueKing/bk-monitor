@@ -56,13 +56,13 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
   const appStore = useAppStore();
   /** 数据间隔 */
   const interval = computed(
-    () => alarmDetail.value.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60
+    () => alarmDetail.value?.extra_info?.strategy?.items?.[0]?.query_configs?.[0]?.agg_interval || 60
   );
   /** 时间范围(毫秒级时间戳格式) */
   const timeRange = computed<DateValue>(() => {
     const { startTime, endTime } = createAutoTimeRange(
-      alarmDetail.value.begin_time,
-      alarmDetail.value.end_time,
+      alarmDetail.value?.begin_time || 0,
+      alarmDetail.value?.end_time || 0,
       interval.value
     );
     return handleTransformToTimestampMs([startTime, endTime]);

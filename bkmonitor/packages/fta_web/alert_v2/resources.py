@@ -29,7 +29,13 @@ from bkmonitor.utils.alert_drilling import (
     merge_dimensions_into_conditions,
 )
 from bkmonitor.utils.thread_backend import ThreadPool
-from constants.alert import APMTargetType, EventTargetType, K8STargetType, K8S_RESOURCE_TYPE
+from constants.alert import (
+    APMTargetType,
+    EventTargetType,
+    K8S_RESOURCE_TYPE,
+    K8S_RESOURCE_TYPE_SCENARIO_MAP,
+    K8STargetType,
+)
 from constants.apm import ApmAlertHelper
 from constants.data_source import DataTypeLabel, DataSourceLabel
 from core.drf_resource import Resource, resource, api
@@ -555,93 +561,6 @@ class AlertEventTagDetailResource(AlertEventBaseResource):
         return event_tag_detail_resource_cls().request(query_params)
 
 
-class AlertK8sScenarioListResource(Resource):
-    """
-    K8S容器场景列表资源类
-
-    根据告警ID获取告警关联的容器观测场景列表
-    不同类型的K8S资源支持不同的观测场景
-    """
-
-    # K8S目标类型与观测场景的映射关系
-    K8sTargetScenarioMap = {
-        K8STargetType.POD: ["performance", "network"],  # Pod支持性能和网络场景
-        K8STargetType.WORKLOAD: ["performance", "network"],  # 工作负载支持性能和网络场景
-        K8STargetType.NODE: ["capacity"],  # 节点支持容量场景
-        K8STargetType.SERVICE: ["network"],  # 服务支持网络场景
-    }
-
-    class RequestSerializer(serializers.Serializer):
-        """请求参数序列化器"""
-
-        alert_id = serializers.CharField(label="告警 id", help_text="要查询的告警ID")
-
-    def perform_request(self, validated_request_data):
-        """
-        执行K8S场景列表查询请求
-
-        根据告警的目标类型返回对应支持的观测场景列表
-
-        Args:
-            validated_request_data: 验证后的请求参数
-
-        Returns:
-            list: 支持的观测场景列表
-
-        Raises:
-            list: 当目标类型不支持时返回空列表
-        """
-        alert_id: str = validated_request_data["alert_id"]
-        # 根据告警ID获取告警文档对象
-        alert: AlertDocument = AlertDocument.get(alert_id)
-        target_type: str = alert.event.target_type
-
-        # 检查是否为支持的K8S目标类型
-        if target_type in [K8STargetType.POD, K8STargetType.WORKLOAD, K8STargetType.NODE, K8STargetType.SERVICE]:
-            return self.K8sTargetScenarioMap[target_type]
-
-        # 检查是否为 APM 目标类型
-        if target_type == APMTargetType.SERVICE:
-            return self.K8sTargetScenarioMap[K8STargetType.WORKLOAD]
-
-        # 目前不支持的类型返回空列表
-        return []
-
-
-class AlertK8sMetricListResource(Resource):
-    """
-    K8S容器指标列表资源类
-
-    根据容器观测场景获取对应场景配置的指标列表
-    用于前端展示特定场景下可用的监控指标
-    """
-
-    class RequestSerializer(serializers.Serializer):
-        """请求参数序列化器"""
-
-        bk_biz_id = serializers.IntegerField(label="业务ID", help_text="业务ID")
-        scenario = serializers.CharField(
-            label="场景", help_text="观测场景名称，如：performance（性能）、network（网络）、capacity（容量）"
-        )
-
-    def perform_request(self, validated_request_data):
-        """
-        执行K8S指标列表查询请求
-
-        调用K8S资源的场景指标列表接口获取指定场景的指标配置
-
-        Args:
-            validated_request_data: 验证后的请求参数
-
-        Returns:
-            list: 指定场景下的指标列表
-        """
-        # 调用K8S资源模块的场景指标列表接口
-        return resource.k8s.scenario_metric_list(
-            bk_biz_id=validated_request_data["bk_biz_id"], scenario=validated_request_data["scenario"]
-        )
-
-
 class AlertK8sTargetResource(Resource):
     """
     K8S容器目标对象资源类
@@ -671,7 +590,11 @@ class AlertK8sTargetResource(Resource):
         # 根据告警ID获取告警文档对象
         alert: AlertDocument = AlertDocument.get(alert_id)
         target: BaseTarget = get_target_instance(alert)
-        return target.list_related_k8s_targets()
+        result: dict[str, Any] = target.list_related_k8s_targets()
+        scenario_list: list[str] = K8S_RESOURCE_TYPE_SCENARIO_MAP.get(result.get("resource_type", ""), [])
+        for item in result.get("target_list", []):
+            item["scenario_list"] = list(scenario_list)
+        return result
 
 
 class AlertHostTargetResource(Resource):

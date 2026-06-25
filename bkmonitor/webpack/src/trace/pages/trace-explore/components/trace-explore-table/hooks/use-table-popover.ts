@@ -30,7 +30,7 @@ import { get } from '@vueuse/core';
 import { type TippyContent, type TippyOptions, useTippy } from 'vue-tippy';
 
 import { ENABLED_TABLE_DESCRIPTION_HEADER_CLASS_NAME, ENABLED_TABLE_ELLIPSIS_CELL_CLASS_NAME } from '../constants';
-import { isEllipsisActiveSingleLine, isEllipsisActiveLine } from '../utils/dom-helper';
+import { isEllipsisActiveLine, isEllipsisActiveSingleLine } from '../utils/dom-helper';
 
 import type { PrimaryTable } from '@blueking/tdesign-ui';
 
@@ -54,18 +54,27 @@ export interface UseTablePopoverOptions {
     selector: ICSSSelector;
   };
 }
+
+/** 事件委托根节点类型（支持组件实例或原生 DOM） */
+type DelegationRoot = MaybeRef<HTMLElement> | MaybeRef<InstanceType<typeof PrimaryTable>>;
+
 type ICSSSelector = string;
 type PopoverContent = HTMLElement | JSX.Element | number | string;
 
 type PopoverTriggerEventType = 'click' | 'mouseenter';
 
-export const useTablePopover = (
-  delegationRoot: MaybeRef<InstanceType<typeof PrimaryTable>>,
-  options: UseTablePopoverOptions
-) => {
+export const useTablePopover = (delegationRoot: DelegationRoot, options: UseTablePopoverOptions) => {
   let popoverInstance = null;
   let mouseenterDebouncedTimer = null;
   let popoverDelayTimer = null;
+
+  /** 统一获取事件委托根 DOM（兼容组件实例和原生 DOM） */
+  const getRootDom = () => {
+    // biome-ignore lint/suspicious/noExplicitAny: 需要兼容组件实例和原生 DOM
+    const root = get(delegationRoot) as any;
+    // 如果是组件实例，返回 $el；否则直接返回 DOM
+    return root?.$el || root;
+  };
 
   onBeforeUnmount(() => {
     handlePopoverHide();
@@ -77,7 +86,10 @@ export const useTablePopover = (
    *
    */
   const initListeners = () => {
-    const rootDom = get(delegationRoot)?.$el;
+    // 先销毁之前的事件委托监听器，避免重复绑定导致内存泄漏
+    destroyDelegationListeners();
+
+    const rootDom = getRootDom();
     if (!rootDom) {
       console.trace(
         `Event delegation initialization failed because the 'delegationRoot' was not found. Please verify the element selector or ensure proper DOM loading timing.`
@@ -100,7 +112,7 @@ export const useTablePopover = (
    *
    */
   const destroyDelegationListeners = () => {
-    const rootDom = get(delegationRoot)?.$el;
+    const rootDom = getRootDom();
     if (!rootDom) return;
     switch (options.trigger.eventType) {
       case 'click':
@@ -124,9 +136,9 @@ export const useTablePopover = (
       mouseenterDebouncedTimer = null;
     }
     // 兼容微前端环境下，e.target 在异步任务中会被置空的场景
-    const _target = e.target as HTMLElement;
+    const target = e.target as HTMLElement;
     const handleFn = () => {
-      const targetDom: HTMLElement = _target?.closest?.(options.trigger.selector);
+      const targetDom: HTMLElement = target?.closest?.(options.trigger.selector);
       if (!targetDom) return;
 
       const { content, popoverTarget } = options.getContentOptions(targetDom, e) || {};
@@ -221,7 +233,7 @@ export const useTablePopover = (
  *
  */
 export const useTableEllipsis = (
-  delegationRoot: MaybeRef<InstanceType<typeof PrimaryTable>>,
+  delegationRoot: DelegationRoot,
   options?: Omit<UseTablePopoverOptions, 'getContentOptions'>
 ) =>
   useTablePopover(delegationRoot, {
@@ -241,7 +253,7 @@ export const useTableEllipsis = (
  *
  */
 export const useTableHeaderDescription = (
-  delegationRoot: MaybeRef<InstanceType<typeof PrimaryTable>>,
+  delegationRoot: DelegationRoot,
   options?: Omit<UseTablePopoverOptions, 'getContentOptions'>
 ) =>
   useTablePopover(delegationRoot, {

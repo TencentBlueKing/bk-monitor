@@ -1,111 +1,58 @@
-/*
- * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
- *
- * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
- *
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
- */
+import { defineComponent, onBeforeUnmount, onMounted } from 'vue';
 
-import { computed, defineComponent, onMounted, ref } from "vue";
-import { useRoute } from "vue-router/composables";
+import RelatedLogLayout from '../standalone-tab/related-log-layout';
+import RelatedLogLoading from '../standalone-tab/related-log-loading';
+import { useContextRelatedLog } from '../standalone-tab/hooks/use-context-related-log';
+import { useStandaloneRelatedPage } from '../standalone-tab/hooks/use-standalone-related-page';
 
-import useLocale from "@/hooks/use-locale";
-import useStore from "@/hooks/use-store";
-
-import ContextLog from "./index";
-import {
-  decodeContextRoutePayload,
-  type IContextRetrieveParams,
-} from "./context-route";
+import '../standalone-tab/index.scss';
 
 export default defineComponent({
-  name: "ContextLogPage",
+  name: 'StandaloneContextLogPage',
   setup() {
-    const route = useRoute();
-    const store = useStore();
-    const { t } = useLocale();
-    const ready = ref(false);
-
-    const payload = computed(() =>
-      decodeContextRoutePayload(String(route.query.payload ?? "")),
-    );
-    const normalizedPayload = computed(() => {
-      const currentPayload = payload.value;
-      if (!currentPayload) {
-        return null;
-      }
-
-      const retrieveParams: IContextRetrieveParams = {
-        start_time: currentPayload.retrieveParams?.start_time,
-        end_time: currentPayload.retrieveParams?.end_time,
-        format: currentPayload.retrieveParams?.format,
-      };
-
-      return {
-        ...currentPayload,
-        retrieveParams,
-        logParams: currentPayload.logParams || {},
-        backRoute: currentPayload.backRoute || {},
-      };
+    const page = useStandaloneRelatedPage();
+    const viewModel = useContextRelatedLog({
+      indexSetId: page.indexSetId,
+      targetRow: page.targetRow,
+      targetFields: page.targetFields,
     });
 
-    onMounted(async () => {
-      if (!normalizedPayload.value) {
-        ready.value = true;
-        return;
+    const init = async () => {
+      await page.init();
+      if (page.pageReady.value) {
+        await viewModel.init();
       }
-
-      const indexSetId = Number(normalizedPayload.value.indexSetId) || 0;
-      if (!indexSetId) {
-        ready.value = true;
-        return;
-      }
-
-      try {
-        store.commit("updateIndexItemParams", {
-          ids: [indexSetId],
-          start_time: normalizedPayload.value.retrieveParams?.start_time,
-          end_time: normalizedPayload.value.retrieveParams?.end_time,
-          format: normalizedPayload.value.retrieveParams?.format,
-        });
-
-        if (!store.state.indexFieldInfo.fields?.length) {
-          await store.dispatch("requestIndexSetFieldInfo");
-        }
-      } finally {
-        ready.value = true;
-      }
-    });
-
-    return () => {
-      if (!normalizedPayload.value) {
-        return (
-          <bk-exception style="margin-top: 120px" scene="part" type="empty">
-            <span>{t("暂无数据")}</span>
-          </bk-exception>
-        );
-      }
-
-      if (!ready.value) {
-        return (
-          <div
-            style="height: 100vh"
-            v-bkloading={{ isLoading: true, opacity: 0.4 }}
-          />
-        );
-      }
-
-      return (
-        <ContextLog
-          mode="page"
-          isShow
-          indexSetId={Number(normalizedPayload.value.indexSetId) || 0}
-          logParams={normalizedPayload.value.logParams}
-          retrieveParams={normalizedPayload.value.retrieveParams || {}}
-          backRoute={normalizedPayload.value.backRoute}
-        />
-      );
     };
+
+    onMounted(init);
+    onBeforeUnmount(() => viewModel.dispose());
+
+    return () => (
+      <div class='standalone-related-log-page'>
+        {page.loading.value ? (
+          <RelatedLogLoading
+            title='Loading...'
+            text={page.loadingText.value}
+            steps={[
+              'Resolve URL',
+              'Run search',
+              'Load context',
+            ]}
+          />
+        ) : page.error.value ? (
+          page.renderError()
+        ) : (
+          <RelatedLogLayout
+            title={page.t('上下文')}
+            viewModel={{
+              ...viewModel,
+              indexSetId: page.indexSetId,
+              rowIndex: page.rowIndex,
+              retrieveParams: page.retrieveParams,
+            }}
+          />
+        )}
+      </div>
+    );
   },
 });

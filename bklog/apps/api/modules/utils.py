@@ -406,7 +406,10 @@ def result_table_id_to_bk_biz_id(result_table_id: str | list | tuple) -> int:
 
     bk_biz_id = result_table_id.split("_", 1)[0]
     if not bk_biz_id.isdigit():
-        raise ValueError(f"failed to get bk_biz_id from result_table_id `{result_table_id}`")
+        # 无法从裸结果表名（如 BCS 表 bcs_k8s_27135_xxx_std）解析出业务 ID 时，
+        # 回退为 0，交由 Space.get_tenant_id 兜底到默认租户，避免对外部传入的
+        # 裸表名抛 ValueError 导致 get_result_table 等接口 500。
+        return 0
     return int(bk_biz_id)
 
 
@@ -452,5 +455,25 @@ def space_to_tenant_getter(key: Callable[[dict], str] | str = "space_uid") -> Ca
             space_uid = params[key]
 
         return Space.get_tenant_id(space_uid=space_uid)
+
+    return tenant_getter
+
+
+def space_type_id_to_tenant_getter(
+    space_type_key: str = "space_type",
+    space_id_key: str = "space_id",
+) -> Callable[[dict], str]:
+    """
+    通过空间类型和空间ID获取租户ID
+    :param space_type_key: 获取空间类型的参数 key
+    :param space_id_key: 获取空间 ID 的参数 key
+    :return: 获取租户 ID 的函数
+    """
+    from apps.log_search.models import Space
+
+    def tenant_getter(params):
+        if space_type_key not in params or space_id_key not in params:
+            raise ValueError(f"failed to get tenant id from params, keys `{space_type_key}`/`{space_id_key}` not found")
+        return Space.get_tenant_id(space_uid=f"{params[space_type_key]}__{params[space_id_key]}")
 
     return tenant_getter

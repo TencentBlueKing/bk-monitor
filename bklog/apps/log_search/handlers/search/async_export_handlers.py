@@ -313,7 +313,6 @@ class AsyncExportHandlers:
 
     @staticmethod
     def get_doris_index_set_id_to_expire_days_map(result_table_id_to_index_set_id_map):
-
         if not result_table_id_to_index_set_id_map:
             return {}
 

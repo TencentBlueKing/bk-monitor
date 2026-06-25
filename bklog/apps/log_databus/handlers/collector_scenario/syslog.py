@@ -175,8 +175,9 @@ class SysLogScenario(CollectorScenario):
                     "field_type": "float" if storage_cluster_type == STORAGE_CLUSTER_TYPE else "long",
                     "tag": "dimension",
                     "alias_name": "iterationindex",
-                    "description": "迭代ID",
+                    "description": _("迭代ID"),
                     "option": build_es_option_type("integer", es_version),
+                    "flat_field": True,
                 },
                 {
                     "field_name": "cloudId",

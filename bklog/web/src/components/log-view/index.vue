@@ -244,6 +244,17 @@ export default {
         this.handleMatch(item) && Object.values(this.interval).some(Boolean)
       );
     },
+    normalizeValue(val) {
+      if (val === null || val === undefined) return " ";
+      if (typeof val === "object") {
+        try {
+          return JSON.stringify(val);
+        } catch (e) {
+          return String(val);
+        }
+      }
+      return String(val);
+    },
     escapeString(item) {
       const map = {
         "&amp;": "&",
@@ -256,12 +267,10 @@ export default {
         Object.entries(item).map(([key, val]) => {
           return [
             [key],
-            typeof val !== "string"
-              ? String(val ?? " ")
-              : val.replace(
-                  RegExp(`(${Object.keys(map).join("|")})`, "g"),
-                  (match) => map[match]
-                ),
+            this.normalizeValue(val).replace(
+              RegExp(`(${Object.keys(map).join("|")})`, "g"),
+              (match) => map[match]
+            ),
           ];
         })
       );

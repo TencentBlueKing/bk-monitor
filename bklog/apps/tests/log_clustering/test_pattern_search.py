@@ -212,6 +212,83 @@ class TestPatternSearch(TestCase):
 
         self.assertEqual(result[0]["origin_log"], "large raw log sample")
 
+    @patch.object(PatternHandler, "_multi_query")
+    def test_pattern_search_marks_signature_new_when_un_grouped_and_any_configured_group_is_new(self, mock_multi_query):
+        ClusteringConfig.objects.filter(index_set_id=INDEX_SET_ID).update(
+            model_id="model_1", group_fields=["service_name", "func"]
+        )
+        AiopsSignatureAndPattern.objects.create(
+            model_id="model_1",
+            signature="e4b60ecf",
+            pattern="fallback pattern",
+        )
+        mock_multi_query.return_value = {
+            "pattern_aggs": [{"key": "e4b60ecf", "doc_count": 34, "group": ""}],
+            "year_on_year_result": {},
+            "new_class": {("e4b60ecf", "gamesvr", "AddCultivationExp")},
+        }
+
+        query = copy.deepcopy(PARAMS)
+        query["group_by"] = []
+        query["owner_config"] = "all"
+        result = PatternHandler(INDEX_SET_ID, query).pattern_search()
+
+        self.assertTrue(result[0]["is_new_class"])
+
+    @patch.object(PatternHandler, "_multi_query")
+    def test_pattern_search_keeps_exact_new_class_match_when_all_group_fields_visible(self, mock_multi_query):
+        ClusteringConfig.objects.filter(index_set_id=INDEX_SET_ID).update(
+            model_id="model_1", group_fields=["service_name", "func"]
+        )
+        AiopsSignatureAndPattern.objects.create(
+            model_id="model_1",
+            signature="e4b60ecf",
+            pattern="fallback pattern",
+        )
+        mock_multi_query.return_value = {
+            "pattern_aggs": [
+                {"key": "e4b60ecf", "doc_count": 34, "group": "gamesvr|AddCultivationExp"},
+                {"key": "e4b60ecf", "doc_count": 21, "group": "gamesvr|OtherFunc"},
+            ],
+            "year_on_year_result": {},
+            "new_class": {("e4b60ecf", "gamesvr", "AddCultivationExp")},
+        }
+
+        query = copy.deepcopy(PARAMS)
+        query["group_by"] = ["service_name", "func"]
+        query["owner_config"] = "all"
+        result = PatternHandler(INDEX_SET_ID, query).pattern_search()
+
+        self.assertTrue(result[0]["is_new_class"])
+        self.assertFalse(result[1]["is_new_class"])
+
+    @patch.object(PatternHandler, "_multi_query")
+    def test_pattern_search_marks_visible_group_new_when_hidden_sub_group_is_new(self, mock_multi_query):
+        ClusteringConfig.objects.filter(index_set_id=INDEX_SET_ID).update(
+            model_id="model_1", group_fields=["service_name", "func"]
+        )
+        AiopsSignatureAndPattern.objects.create(
+            model_id="model_1",
+            signature="e4b60ecf",
+            pattern="fallback pattern",
+        )
+        mock_multi_query.return_value = {
+            "pattern_aggs": [
+                {"key": "e4b60ecf", "doc_count": 34, "group": "gamesvr"},
+                {"key": "e4b60ecf", "doc_count": 21, "group": "relaysvr"},
+            ],
+            "year_on_year_result": {},
+            "new_class": {("e4b60ecf", "gamesvr", "AddCultivationExp")},
+        }
+
+        query = copy.deepcopy(PARAMS)
+        query["group_by"] = ["service_name"]
+        query["owner_config"] = "all"
+        result = PatternHandler(INDEX_SET_ID, query).pattern_search()
+
+        self.assertTrue(result[0]["is_new_class"])
+        self.assertFalse(result[1]["is_new_class"])
+
     @patch("apps.log_clustering.handlers.pattern.generate_time_range")
     @patch("apps.utils.bkdata.BkDataQueryApi.query")
     def test_get_pattern_data_for_bkbase_link_omits_origin_log_by_default(self, mock_query, mock_generate_time_range):
@@ -285,7 +362,7 @@ class TestPatternSearch(TestCase):
 
     @patch("apps.log_clustering.handlers.pattern.FeatureToggleObject.toggle")
     @patch.object(PatternHandler, "_multi_query")
-    def test_pattern_search_fallbacks_when_exact_group_remark_is_empty(self, mock_multi_query, mock_toggle):
+    def test_pattern_search_uses_exact_group_owner_when_remark_is_empty(self, mock_multi_query, mock_toggle):
         ClusteringConfig.objects.filter(index_set_id=INDEX_SET_ID).update(model_id="model_1", group_fields=["module"])
         AiopsSignatureAndPattern.objects.create(
             model_id="model_1",
@@ -322,10 +399,10 @@ class TestPatternSearch(TestCase):
         query["owner_config"] = "all"
         result = PatternHandler(INDEX_SET_ID, query).pattern_search()
 
-        self.assertEqual(result[0]["remark"], ["default fallback remark"])
-        self.assertEqual(result[0]["owners"], ["admin"])
-        self.assertEqual(result[0]["strategy_id"], 1)
-        self.assertTrue(result[0]["strategy_enabled"])
+        self.assertEqual(result[0]["remark"], [])
+        self.assertEqual(result[0]["owners"], ["owner-only"])
+        self.assertEqual(result[0]["strategy_id"], 0)
+        self.assertFalse(result[0]["strategy_enabled"])
 
     @patch("apps.log_clustering.handlers.pattern.FeatureToggleObject.toggle")
     @patch.object(PatternHandler, "_multi_query")

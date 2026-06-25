@@ -91,7 +91,7 @@ export const DimensionSceneMap = Object.entries(sceneDimensionMap).reduce(
  * @description K8S GroupFilter 基类
  */
 export abstract class K8sGroupDimension {
-  static createInstance(scene: SceneEnum) {
+  static createInstance(scene: SceneEnum, isApmMonitor = false) {
     switch (scene) {
       case SceneEnum.Network:
         return new K8sNetworkGroupDimension();
@@ -100,7 +100,7 @@ export abstract class K8sGroupDimension {
       case SceneEnum.GPU:
         return new K8sGpuGroupDimension();
       default:
-        return new K8sPerformanceGroupDimension();
+        return isApmMonitor ? new ApmK8sPerformanceGroupDimension() : new K8sPerformanceGroupDimension();
     }
   }
 
@@ -129,6 +129,7 @@ export abstract class K8sGroupDimension {
     this.defaultGroupFilter = groupFilters;
     this.setGroupFilters([...groupFilters]);
   }
+  
 
   /**
    * @description 添加 groupFilters
@@ -582,6 +583,50 @@ export class K8sPerformanceGroupDimension extends K8sGroupDimension {
     super(fixedGroupFilters, defaultGroupFilters);
   }
 }
+
+/**
+ * @description APM 性能 类型 GroupFilter 实现类
+ * */
+export class ApmK8sPerformanceGroupDimension extends K8sGroupDimension {
+  readonly defaultSortContainer = {
+    prop: K8sTableColumnKeysEnum.CPU_USAGE as K8sTableColumnChartKey,
+    orderBy: 'desc' as K8sSortType,
+  };
+  readonly dimensions = [
+    K8sTableColumnKeysEnum.CLUSTER,
+    K8sTableColumnKeysEnum.NAMESPACE,
+    K8sTableColumnKeysEnum.WORKLOAD,
+    K8sTableColumnKeysEnum.POD,
+    K8sTableColumnKeysEnum.CONTAINER,
+  ];
+  readonly groupByDimensions = [
+    K8sTableColumnKeysEnum.NAMESPACE,
+    K8sTableColumnKeysEnum.WORKLOAD,
+    K8sTableColumnKeysEnum.POD,
+    K8sTableColumnKeysEnum.CONTAINER,
+  ];
+  readonly groupByDimensionsMap = {
+    [K8sTableColumnKeysEnum.NAMESPACE]: [K8sTableColumnKeysEnum.NAMESPACE],
+    [K8sTableColumnKeysEnum.WORKLOAD]: [K8sTableColumnKeysEnum.NAMESPACE, K8sTableColumnKeysEnum.WORKLOAD],
+    [K8sTableColumnKeysEnum.POD]: [
+      K8sTableColumnKeysEnum.NAMESPACE,
+      K8sTableColumnKeysEnum.WORKLOAD,
+      K8sTableColumnKeysEnum.POD,
+    ],
+    [K8sTableColumnKeysEnum.CONTAINER]: [
+      K8sTableColumnKeysEnum.NAMESPACE,
+      K8sTableColumnKeysEnum.WORKLOAD,
+      K8sTableColumnKeysEnum.POD,
+      K8sTableColumnKeysEnum.CONTAINER,
+    ],
+  };
+  constructor() {
+    const fixedGroupFilters = [K8sTableColumnKeysEnum.NAMESPACE] as K8sTableColumnResourceKey[];
+    const defaultGroupFilters = [...fixedGroupFilters] as K8sTableColumnResourceKey[];
+    super(fixedGroupFilters, defaultGroupFilters);
+  }
+}
+
 
 /**
  * @description GPU 类型 GroupFilter 实现类

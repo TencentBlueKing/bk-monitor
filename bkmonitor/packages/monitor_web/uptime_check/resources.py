@@ -17,7 +17,6 @@ from decimal import Decimal
 from typing import Any, cast
 
 import arrow
-from bk_monitor_base.infras.threading.local import get_request_username
 from bk_monitor_base.uptime_check import (
     BEAT_STATUS,
     TASK_MIN_PERIOD,
@@ -53,7 +52,7 @@ from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.utils.common_utils import host_key, logger, safe_int
 from bkmonitor.utils.country import ISP_LIST
 from bkmonitor.utils.ip import exploded_ip, is_v4, is_v6
-from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.request import get_request_tenant_id, get_request_username
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool
 from bkmonitor.utils.time_tools import (
     get_timestamp_range_by_biz_date,

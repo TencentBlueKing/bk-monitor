@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,11 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import json
 import logging
 import os
 import random
+import socket
 import sys
 import time
 import uuid
@@ -23,7 +22,6 @@ from django.conf import settings
 from kombu.utils.url import parse_url
 from redis.exceptions import ConnectionError
 from redis.sentinel import Sentinel
-from six.moves import map, range
 
 from bkmonitor.utils.cache import InstanceCache
 
@@ -40,7 +38,7 @@ redis中的db分配[7，8，9，10]，共4个db
 """
 
 
-class CacheBackendType(object):
+class CacheBackendType:
     CELERY = "celery"
     SERVICE = "service"
     QUEUE = "queue"
@@ -55,6 +53,55 @@ CACHE_BACKEND_CONF_MAP = {
     CacheBackendType.CACHE: settings.REDIS_CACHE_CONF,
     CacheBackendType.LOG: settings.REDIS_LOG_CONF,
 }
+
+
+# Redis 连接韧性参数
+# 背景: 分片节点客户端历史上未设置任何 socket 超时, 主切换或节点饱和时读操作会无限挂起,
+#   占住 worker 并级联拖垮发往健康节点的处理。这里统一注入有界 connect/read 超时与 TCP keepalive,
+#   把"无限挂死"降级为"有界失败 + 下次命令自动重连"。
+# 红线: socket_timeout 必须严格大于代码中最长的阻塞命令 server 端超时(BRPOP 最长 5s, 见
+#   alarm_backends/service/detect|trigger 的 handler), 否则空闲阻塞读会在 server 返回前被 socket
+#   超时打断, 误抛 TimeoutError 并触发无谓重连。下方以 floor 强制保证。
+MAX_BLOCKING_SERVER_TIMEOUT = 5
+REDIS_SOCKET_TIMEOUT_FLOOR = MAX_BLOCKING_SERVER_TIMEOUT + 3
+
+
+def build_tcp_keepalive_options():
+    """仅纳入当前平台存在的 TCP keepalive 常量。
+
+    macOS 等平台缺少 socket.TCP_KEEPIDLE, 模块/实例构造时直接引用会抛 AttributeError,
+    故用 getattr 守卫, 缺失的常量跳过(生产为 Linux, 三个常量齐备)。
+    """
+    desired = {
+        "TCP_KEEPIDLE": int(getattr(settings, "REDIS_TCP_KEEPIDLE", 30)),
+        "TCP_KEEPINTVL": int(getattr(settings, "REDIS_TCP_KEEPINTVL", 10)),
+        "TCP_KEEPCNT": int(getattr(settings, "REDIS_TCP_KEEPCNT", 3)),
+    }
+    options = {}
+    for name, value in desired.items():
+        const = getattr(socket, name, None)
+        if const is not None:
+            options[const] = value
+    return options
+
+
+def gen_resilient_socket_conf(socket_timeout=None):
+    """生成连接韧性参数(有界 connect/read 超时 + TCP keepalive)。
+
+    socket_timeout: 期望读超时(通常取自后端配置); 强制不低于 REDIS_SOCKET_TIMEOUT_FLOOR,
+        以守住"必须大于最长阻塞命令 server 超时"的红线。
+    """
+    read_timeout = max(int(socket_timeout or 0), REDIS_SOCKET_TIMEOUT_FLOOR)
+    conf = {
+        "socket_timeout": read_timeout,
+        "socket_connect_timeout": int(getattr(settings, "REDIS_SOCKET_CONNECT_TIMEOUT", 3)),
+        "socket_keepalive": bool(getattr(settings, "REDIS_SOCKET_KEEPALIVE", True)),
+    }
+    if conf["socket_keepalive"]:
+        options = build_tcp_keepalive_options()
+        if options:
+            conf["socket_keepalive_options"] = options
+    return conf
 
 
 def cache_conf_with_router(router_id):
@@ -95,7 +142,7 @@ def cache_conf_with_router(router_id):
     return parts
 
 
-class BaseRedisCache(object):
+class BaseRedisCache:
     def __init__(self, redis_class=None):
         self.redis_class = redis_class or redis.Redis
         self._instance = None
@@ -117,7 +164,7 @@ class BaseRedisCache(object):
         :return:
         """
         # 构建实例属性名称，以避免直接属性访问的不透明度
-        _instance = "_%s_instance" % backend
+        _instance = f"_{backend}_instance"
 
         # 检查是否已经为给定的后端创建了实例,如果创建了直接返回，所以这是一个单例模式
         # 相当于它变成了一个全局的redis工具类
@@ -137,7 +184,7 @@ class BaseRedisCache(object):
                 if config is not None:
                     setattr(cls, _instance, Cache.__new__(Cache, backend, config))
                 else:
-                    raise Exception("unknown redis backend %s" % backend)
+                    raise Exception(f"unknown redis backend {backend}")
 
         return getattr(cls, _instance)
 
@@ -231,7 +278,7 @@ class RedisCache(BaseRedisCache):
         if decode_responses:
             # 插入默认参数
             self.redis_conf.update({"decode_responses": True, "encoding": "utf-8"})
-        super(RedisCache, self).__init__(redis_class)
+        super().__init__(redis_class)
 
     def create_instance(self):
         client = self.redis_class(**self.redis_conf)
@@ -259,11 +306,12 @@ class SentinelRedisCache(BaseRedisCache):
         # 插入默认参数
         if decode_responses:
             self.redis_conf.update({"decode_responses": True, "encoding": "utf-8"})
-        super(SentinelRedisCache, self).__init__(redis_class)
+        super().__init__(redis_class)
 
     def create_instance(self):
+        # sentinel 发现连接使用短 connect 超时, 保证发现快速失败; 不喂入长读超时(否则发现会被拖慢)
         sentinel_kwargs = {
-            "socket_connect_timeout": self.socket_timeout,
+            "socket_connect_timeout": int(getattr(settings, "REDIS_SOCKET_CONNECT_TIMEOUT", 3)),
         }
         if self.SENTINEL_PASS:
             sentinel_kwargs["password"] = self.SENTINEL_PASS
@@ -279,6 +327,9 @@ class SentinelRedisCache(BaseRedisCache):
 
         redis_instance_config = self.redis_conf
         redis_instance_config["password"] = getattr(settings, "REDIS_PASSWD", "")
+        # master/slave 数据连接注入有界读超时 + keepalive。历史上 socket_timeout 在 __init__ 被 pop
+        #   后仅用于 sentinel 发现, 未回填数据连接, 导致主从读操作无 socket 超时, 节点切换时无限挂起。
+        redis_instance_config.update(gen_resilient_socket_conf(self.socket_timeout))
 
         master = redis_sentinel.master_for(self.master_name, redis_class=self.redis_class, **redis_instance_config)
         slave = redis_sentinel.slave_for(self.master_name, redis_class=self.redis_class, **redis_instance_config)

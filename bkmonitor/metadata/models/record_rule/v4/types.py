@@ -48,7 +48,7 @@ class CheckQueryPromQLInput(TypedDict, total=False):
 
 
 class RecordRuleV4RecordInput(TypedDict):
-    """Operator.create/update_spec 接收的单条预计算 record。
+    """Operator.declare/update_declaration 接收的单条预计算 record。
 
     必填字段由模型层继续校验：input_type、input_config、metric_name。
     record_key 仅用于显式维持记录身份；隐藏 key 的模式会按 input_config / metric_name 继承。

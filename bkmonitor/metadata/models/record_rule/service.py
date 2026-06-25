@@ -50,7 +50,9 @@ class RecordRuleService:
     def create_record_rule(self):
         """创建预计算规则"""
         bksql_metrics = RecordRule.transform_bk_sql_and_metrics(self.rule_config)
-        src_rts = RecordRule.get_src_table_ids(self.space_type, self.space_id, bksql_metrics["metrics"])
+        src_rts = bksql_metrics.get("src_vm_table_ids") or RecordRule.get_src_table_ids(
+            self.space_type, self.space_id, bksql_metrics["metrics"]
+        )
         if not src_rts:
             logger.error("no valid table id found for record_name: %s", self.record_name)
             return

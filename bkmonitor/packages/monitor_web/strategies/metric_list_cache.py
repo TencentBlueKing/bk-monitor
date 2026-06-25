@@ -1446,18 +1446,10 @@ class BaseAlarmMetricCacheManager(BaseMetricCacheManager):
             yield metric
 
     def get_tables(self):
-        # 多租户模式下暂时不内置系统事件
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            return
-
         yield {}
 
     def get_metrics_by_table(self, table):
         result_table_label = "os"
-        metric_list = BaseAlarm.objects.filter(is_enable=True)
-        if Platform.te:
-            # te平台不展示ping不可达告警， 同时也不内置
-            metric_list = metric_list.exclude(title="ping-gse")
         base_dict = {
             "bk_biz_id": 0,
             "result_table_id": SYSTEM_EVENT_RT_TABLE_ID,
@@ -1473,20 +1465,32 @@ class BaseAlarmMetricCacheManager(BaseMetricCacheManager):
             "collect_config_ids": [],
         }
 
-        for metric in metric_list:
-            metric_dict = copy.deepcopy(base_dict)
-            metric_dict["metric_field"] = metric.title
-            metric_dict["metric_field_name"] = metric.description
+        # 多租户下 gse 系统事件（AgentLost/DiskReadonly/CoreFile/OOM/PingUnreachable）及 gse 进程托管
+        # 事件已改由 V4 custom 分业务链路内置（CustomEventCacheManager + os/v2，结果表
+        # base_{tenant}_{biz}_event）；此处在多租户仅保留下方 extend_metrics 的 proc_port/os_restart
+        # 两个伪事件——它们的底层时序表 system.proc_port / system.env 在多租户同样产出，仍按
+        # bk_monitor 源 event 内置为目录项，供 os/v3（多租户专用）/ os/v1（单租户）命中、
+        # 经 os_loader 的 EVENT_QUERY_CONFIG_MAP 重定向到底层时序表后创建。
+        if not settings.ENABLE_MULTI_TENANT_MODE:
+            metric_list = BaseAlarm.objects.filter(is_enable=True)
+            if Platform.te:
+                # te平台不展示ping不可达告警， 同时也不内置
+                metric_list = metric_list.exclude(title="ping-gse")
+            for metric in metric_list:
+                metric_dict = copy.deepcopy(base_dict)
+                metric_dict["metric_field"] = metric.title
+                metric_dict["metric_field_name"] = metric.description
 
-            dimensions = metric.dimensions
-            # 调整oom维度，后续系统事件直接使用json文件记录
-            if metric.title == "oom-gse":
-                dimensions = ["oom_memcg", "task_memcg", "task", "constraint", "process", "message"]
+                dimensions = metric.dimensions
+                # 调整oom维度，后续系统事件直接使用json文件记录
+                if metric.title == "oom-gse":
+                    dimensions = ["oom_memcg", "task_memcg", "task", "constraint", "process", "message"]
 
-            metric_dict["dimensions"] = [{"id": dimension, "name": dimension} for dimension in dimensions]
-            yield metric_dict
+                metric_dict["dimensions"] = [{"id": dimension, "name": dimension} for dimension in dimensions]
+                yield metric_dict
 
-        # 增加额外的系统事件指标
+        # 增加额外的系统事件指标（proc_port/os_restart：底层为 system.proc_port/system.env 时序表，
+        # 单租户与多租户都内置；os_loader 经 EVENT_QUERY_CONFIG_MAP 把查询重定向到底层时序表并套检测算法）
         extend_metrics = [
             # deprecated
             # {
@@ -1513,17 +1517,17 @@ class BaseAlarmMetricCacheManager(BaseMetricCacheManager):
             metric_dict.update(metric)
             yield metric_dict
 
-        # gse进程托管事件指标
-        for metric in self.add_gse_process_event_metrics(result_table_label):
-            yield metric
+        # gse进程托管事件指标（多租户暂走 custom 链路，不在此内置）
+        if not settings.ENABLE_MULTI_TENANT_MODE:
+            for metric in self.add_gse_process_event_metrics(result_table_label):
+                yield metric
 
     @classmethod
     def get_available_biz_ids(cls, bk_tenant_id: str) -> list[int]:
         """获取系统事件相关的业务ID列表"""
-        # 多租户模式下暂时不内置系统事件
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            return []
-        # 系统事件只在业务ID为0的情况下处理
+        # 系统事件只在业务ID为0的情况下处理。多租户同样内置：仅 proc_port/os_restart 两个伪事件走
+        # bk_monitor 源（底层 system.proc_port/system.env 时序在多租户同样产出），其余 gse 系统事件
+        # 改由 custom 链路内置（见 get_metrics_by_table）。
         return [0]
 
 

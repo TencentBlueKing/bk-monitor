@@ -697,9 +697,7 @@ class CreateFavoriteSerializer(serializers.Serializer):
         choices=FavoriteSourceType.get_choices(),
         default=FavoriteSourceType.INDEX_SET.value,
     )
-    scene_id = serializers.CharField(
-        label=_("场景ID"), required=False, allow_null=True, allow_blank=True, default=None
-    )
+    scene_id = serializers.CharField(label=_("场景ID"), required=False, allow_null=True, allow_blank=True, default=None)
     table_id_conditions = serializers.ListField(
         label=_("场景路由条件"),
         required=False,
@@ -707,9 +705,7 @@ class CreateFavoriteSerializer(serializers.Serializer):
         default=list,
         child=serializers.ListField(child=serializers.DictField()),
     )
-    scene_filter_values = serializers.ListField(
-        label=_("场景维度筛选"), required=False, allow_empty=True, default=list
-    )
+    scene_filter_values = serializers.ListField(label=_("场景维度筛选"), required=False, allow_empty=True, default=list)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -767,9 +763,7 @@ class UpdateFavoriteSerializer(serializers.Serializer):
         default=None,
         allow_null=True,
     )
-    scene_id = serializers.CharField(
-        label=_("场景ID"), required=False, allow_null=True, allow_blank=True, default=None
-    )
+    scene_id = serializers.CharField(label=_("场景ID"), required=False, allow_null=True, allow_blank=True, default=None)
     table_id_conditions = serializers.ListField(
         label=_("场景路由条件"),
         required=False,
