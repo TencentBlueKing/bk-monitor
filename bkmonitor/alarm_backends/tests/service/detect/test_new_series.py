@@ -139,6 +139,39 @@ class TestNewSeries:
         assert int(seen_score(item, "dimD")) == 100000000
         assert int(seen_score(item, "dimE")) == 100000000
 
+    def test_effective_delay_equals_detect_range(self):
+        # NewSeries 不设独立宽限期：detector 忽略存档 effective_delay,运行宽限恒 = detect_range(小/大输入都一样)。
+        d1 = NewSeries(config=default_config(detect_range=86400, effective_delay=3600))
+        assert d1.effective_delay == 86400
+        d2 = NewSeries(config=default_config(detect_range=3600, effective_delay=604800))
+        assert d2.effective_delay == 3600
+
+    def _set_learn_start(self, item, seconds_ago):
+        sig = signature(item)
+        learn_key = key.NEW_SERIES_LEARN_START_KEY.get_key(
+            strategy_id=item.strategy.id, item_id=item.id, dimension_signature=sig
+        )
+        key.NEW_SERIES_LEARN_START_KEY.client.set(learn_key, int(time.time()) - seconds_ago)
+
+    def test_rewarmup_when_history_shorter_than_detect_range(self):
+        # P1(由 P0 免费交付): effective_delay=detect_range 时,历史(now-learn_start) < detect_range
+        # 仍处宽限 -> 不告警。等价"调大 detect_range 后自动补差额重学",无需操作 learn_start。
+        item = make_item()
+        self._set_learn_start(item, 5400)  # 历史仅 1.5h
+        detector = NewSeries(config=default_config(detect_range=10800, effective_delay=10800))  # 检测窗 3h
+        dp = make_dp("dimNew", int(time.time()), item)
+        detector.pre_detect([dp])
+        assert len(detector.detect(dp)) == 0  # 未学满,补差额中 -> 不报
+
+    def test_no_rewarmup_when_history_covers_detect_range(self):
+        # 历史 5h >= detect_range 3h -> 已学满 -> 正常告警(不会因 detect_range 较大而过度抑制)
+        item = make_item()
+        self._set_learn_start(item, 18000)  # 历史 5h
+        detector = NewSeries(config=default_config(detect_range=10800, effective_delay=10800))
+        dp = make_dp("dimNew2", int(time.time()), item)
+        detector.pre_detect([dp])
+        assert len(detector.detect(dp)) == 1  # 已学满,首现新维度 -> 告警
+
     def test_fp4_in_memory_max_ts(self):
         item = make_item()
         seed_learned(item)

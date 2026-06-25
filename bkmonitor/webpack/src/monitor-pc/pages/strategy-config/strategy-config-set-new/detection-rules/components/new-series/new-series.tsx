@@ -63,13 +63,16 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
 
   get localData(): IDetectionTypeRuleData {
     const unit = this.unitList.find(item => item.id === this.formData.unit);
+    const detectRange = unit.seconds * this.formData.date;
     return {
       type: DetectionRuleTypeEnum.NewSeries,
       level: this.formData.level,
       config: {
-        effective_delay: 86400,
+        // 生效延迟(冷启动宽限)跟随检测窗口：宽限须盖住 detect_range,否则首轮存量维度学不全会误报。
+        // 不再写死 86400(原值对 <1天 窗白等、对 >1天 窗欠学误报)。
+        effective_delay: detectRange,
         max_series: 100000,
-        detect_range: unit.seconds * this.formData.date,
+        detect_range: detectRange,
       },
     };
   }

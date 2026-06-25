@@ -102,3 +102,21 @@ def test_allow_cross_item_different_level():
     item_a = {"algorithms": [NS], "query_configs": [_qc()]}
     item_b = {"algorithms": [dict(THRESHOLD, level=2)], "query_configs": [_qc()]}
     validate({"items": [item_a, item_b]})
+
+
+def test_effective_delay_always_equals_detect_range():
+    # NewSeries 不设独立宽限期：effective_delay 一律归一化为 detect_range(缺省/更小/更大输入都被覆盖)。
+    from bkmonitor.strategy.serializers import NewSeriesSerializer
+
+    # 缺省 -> detect_range
+    s = NewSeriesSerializer(data={"detect_range": 3600})
+    s.is_valid(raise_exception=True)
+    assert s.validated_data["effective_delay"] == 3600
+    # 显式更小 -> detect_range
+    s = NewSeriesSerializer(data={"detect_range": 86400, "effective_delay": 3600})
+    s.is_valid(raise_exception=True)
+    assert s.validated_data["effective_delay"] == 86400
+    # 显式更大(扩展宽限不支持) -> detect_range
+    s = NewSeriesSerializer(data={"detect_range": 3600, "effective_delay": 604800})
+    s.is_valid(raise_exception=True)
+    assert s.validated_data["effective_delay"] == 3600

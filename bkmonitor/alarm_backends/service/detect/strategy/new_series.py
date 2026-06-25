@@ -61,7 +61,10 @@ class NewSeries(BasicAlgorithmsCollection):
         self._fire_by_dp = {}
         super().__init__(config, unit, extra_config)
         self.detect_range = int(self.validated_config["detect_range"])
-        self.effective_delay = int(self.validated_config.get("effective_delay", 86400))
+        # 宽限期恒等于检测窗口(detect_range)：NewSeries 不设独立宽限期,忽略存档 effective_delay,使新老策略
+        # 运行口径一致。seen-set 留存全部(无按时间淘汰),历史深度 = now-learn_start,故宽限达 detect_range
+        # 即"已学满一个检测窗口";调大 detect_range 会让 warmup 自动重新进入(补差额),无需改 learn_start。
+        self.effective_delay = self.detect_range
         self.max_series = int(self.validated_config.get("max_series", 100000))
 
     def gen_expr(self):
