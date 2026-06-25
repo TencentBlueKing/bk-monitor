@@ -65,6 +65,8 @@ import useHeaderRender from './use-render-header';
 
 import './log-rows.scss';
 
+const FullRowViewerComponent = FullRowViewer as any;
+
 type RowConfig = {
   expand?: boolean;
   isIntersect?: boolean;
@@ -98,7 +100,7 @@ export default defineComponent({
     let savedSelection: Range = null;
     let mousedownOnRow = false;
     let hoverOperatorHideTimer: ReturnType<typeof setTimeout> = null;
-    const layoutTimers: ReturnType<typeof setTimeout>[] = [];
+    const layoutTimers: number[] = [];
 
     const hoverOperatorState = reactive({
       visible: false,
@@ -158,6 +160,7 @@ export default defineComponent({
       visible: false,
       rowKey: '',
       rowData: null as Record<string, any> | null,
+      truncatedFields: [] as string[],
     });
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const filteredFieldList = computed(() => store.getters.filteredFieldList);
@@ -293,21 +296,21 @@ export default defineComponent({
       return !!meta?.hasTruncatedField;
     };
 
-    const openFullRowViewer = async (row: Record<string, any>, rowIndex: number) => {
+    const openFullRowViewer = (row: Record<string, any>, rowIndex: number) => {
       const rowKey = (row as any)?.[ROW_KEY] || rowKeys.value[rowIndex] || '';
+      const meta = getRowRenderMeta(row);
       fullRowViewerState.rowKey = rowKey;
       fullRowViewerState.rowData = row;
-      fullRowViewerState.visible = true;
-
-      if (!rowKey) return;
-      try {
-        const [originRow] = await retrieveRowCacheService.getRows([rowKey]);
-        if (originRow && fullRowViewerState.rowKey === rowKey) {
-          fullRowViewerState.rowData = originRow;
-        }
-      } catch (error) {
-        console.warn('[log-rows] preload full row failed', error);
+      fullRowViewerState.truncatedFields = meta?.truncatedFields ?? [];
+      if (fullRowViewerState.visible) {
+        fullRowViewerState.visible = false;
+        nextTick(() => {
+          fullRowViewerState.visible = true;
+        });
+        return;
       }
+
+      fullRowViewerState.visible = true;
     };
 
     const renderFullRowAction = (row: Record<string, any>, rowIndex: number) => {
@@ -832,23 +835,35 @@ export default defineComponent({
       computeRect(refResultRowBox.value);
     };
 
+    let visibleFieldsLayoutToken = 0;
+    const refreshVisibleFieldsColumnLayout = async () => {
+      const layoutToken = ++visibleFieldsLayoutToken;
+      if (!visibleFields.value.length) {
+        setFullColumns();
+        triggerColumnLayoutReflow();
+        handleResultBoxResize();
+        return;
+      }
+
+      const layoutRows = rowKeys.value.length
+        ? await retrieveRowCacheService.getRows(rowKeys.value.slice(0, Math.min(rowKeys.value.length, 10)))
+        : tableList.value;
+      if (layoutToken !== visibleFieldsLayoutToken) {
+        return;
+      }
+
+      setDefaultTableWidth(visibleFields.value, layoutRows, userSettingConfig.value.fieldsWidth);
+      triggerColumnLayoutReflow();
+      handleResultBoxResize();
+    };
+    addEvent(RetrieveEvent.VISIBLE_FIELD_COLUMN_LAYOUT_CHANGE, refreshVisibleFieldsColumnLayout);
+
     watch(
       () => [props.contentType],
       () => {
         showCtxType.value = props.contentType;
         pageIndex.value = 1;
         setRenderList(50);
-        handleResultBoxResize();
-      },
-    );
-
-    watch(
-      () => [visibleFields.value.length],
-      () => {
-        if (!visibleFields.value.length) {
-          setFullColumns();
-        }
-
         handleResultBoxResize();
       },
     );
@@ -1742,10 +1757,12 @@ export default defineComponent({
     };
 
     const renderFullRowViewer = () => (
-      <FullRowViewer
+      <FullRowViewerComponent
         visible={fullRowViewerState.visible}
         rowKey={fullRowViewerState.rowKey}
         rowData={fullRowViewerState.rowData}
+        fields={visibleFields.value.length ? visibleFields.value : fullColumns.value}
+        truncatedFields={fullRowViewerState.truncatedFields}
         onUpdate:visible={(value: boolean) => {
           fullRowViewerState.visible = value;
         }}
@@ -1769,52 +1786,28 @@ export default defineComponent({
       renderList = Object.freeze([]);
     });
 
-    return {
-      refRootElement,
-      refResultRowBox,
-      isTableLoading,
-      renderDelineatePopContent,
-      renderRowVNode,
-      renderScrollTop,
-      renderScrollXBar,
-      renderLoader,
-      renderHeadVNode,
-      renderHoverOperatorOverlay,
-      renderFullRowViewer,
-      renderFirstPageSkeleton,
-      getExceptionRender,
-      tableDataSize,
-      resultContainerId,
-      hasScrollX,
-      showHeader,
-      isRequesting,
-      exceptionMsg,
-      localUpdateCounter,
-    };
-  },
-  render() {
-    return (
+    return () => (
       <div
-        ref='refRootElement'
+        ref={refRootElement}
         class='bklog-result-container'
       >
-        {this.renderHeadVNode()}
+        {renderHeadVNode()}
         <div
-          id={this.resultContainerId}
-          ref='refResultRowBox'
+          id={resultContainerId.value}
+          ref={refResultRowBox}
           class='bklog-row-box'
-          data-local-update-counter={this.localUpdateCounter}
+          data-local-update-counter={localUpdateCounter.value}
         >
-          {this.renderRowVNode()}
+          {renderRowVNode()}
         </div>
-        {this.renderHoverOperatorOverlay()}
-        {this.renderFirstPageSkeleton()}
-        {this.getExceptionRender()}
-        {this.renderScrollXBar()}
-        {this.renderLoader()}
-        {this.renderScrollTop()}
-        {this.renderDelineatePopContent()}
-        {this.renderFullRowViewer()}
+        {renderHoverOperatorOverlay()}
+        {renderFirstPageSkeleton()}
+        {getExceptionRender()}
+        {renderScrollXBar()}
+        {renderLoader()}
+        {renderScrollTop()}
+        {renderDelineatePopContent()}
+        {renderFullRowViewer()}
         <div class='resize-guide-line' />
       </div>
     );

@@ -130,9 +130,16 @@ export default defineComponent({
       e.stopPropagation();
       e.preventDefault();
       e.stopImmediatePropagation();
+      RetrieveHelper.jsonFormatter.setIsExpandNodeClick(true);
       showAll.value = !showAll.value;
 
       renderMoreItems?.();
+    };
+
+    const handleMorePointerEvent = (e: MouseEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      e.stopImmediatePropagation();
     };
 
     const handleTextSegmentClick = (e: MouseEvent) => {
@@ -264,6 +271,8 @@ export default defineComponent({
           <span
             class={['btn-more-action', 'word-text', 'is-show']}
             onClick={handleClickMore}
+            onMousedown={handleMorePointerEvent}
+            onMouseup={handleMorePointerEvent}
           >
             {btnText.value}
           </span>

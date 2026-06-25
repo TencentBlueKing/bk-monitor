@@ -166,6 +166,9 @@
 
   let mousedownItem = null;
   const handleMouseDown = e => {
+    e.stopPropagation();
+    e.preventDefault();
+    e.stopImmediatePropagation();
     mousedownItem = e.target;
   };
 
@@ -174,6 +177,7 @@
     e.preventDefault();
     e.stopImmediatePropagation();
     if (mousedownItem === e.target) {
+      RetrieveHelper.jsonFormatter.setIsExpandNodeClick(true);
       showAllText.value = !showAllText.value;
       scheduleSetIsOverflowY();
     }

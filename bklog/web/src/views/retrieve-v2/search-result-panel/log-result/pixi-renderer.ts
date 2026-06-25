@@ -33,10 +33,59 @@ export interface PixiRowRenderOptions {
 
 const CHAR_WIDTH = 8.5;
 const LINE_HEIGHT = 22;
-const MARK_COLOR = '#FF9C01'; // orange – same as full-row-search-mark.active
-const NORMAL_BG = '#F5F7FA';
 const TEXT_COLOR = '#313238';
-const MARK_BG = '#FFF3B8';
+const MAX_SAFE_CANVAS_HEIGHT = 32000;
+const MAX_HIGHLIGHT_MATCHES = 2000;
+
+type PixiDisplayRow = {
+  isMark: boolean;
+  start: number;
+  text: string;
+};
+
+const splitTextForPixi = (text: string, startIndex: number, maxCharsPerLine: number, isMark: boolean): PixiDisplayRow[] => {
+  const output: PixiDisplayRow[] = [];
+  let lineStart = 0;
+
+  while (lineStart <= text.length) {
+    const newlineIndex = text.indexOf('\n', lineStart);
+    const lineEnd = newlineIndex === -1 ? text.length : newlineIndex;
+
+    if (lineEnd === lineStart) {
+      output.push({ text: '', start: startIndex + lineStart, isMark });
+    } else {
+      for (let partStart = lineStart; partStart < lineEnd; partStart += maxCharsPerLine) {
+        output.push({
+          text: text.slice(partStart, Math.min(partStart + maxCharsPerLine, lineEnd)),
+          start: startIndex + partStart,
+          isMark,
+        });
+      }
+    }
+
+    if (newlineIndex === -1) break;
+    lineStart = newlineIndex + 1;
+    if (lineStart === text.length) {
+      output.push({ text: '', start: startIndex + lineStart, isMark });
+      break;
+    }
+  }
+
+  return output;
+};
+
+const fillRect = (PIXI: any, color: number, x: number, y: number, width: number, height: number) => {
+  const rect = new PIXI.Graphics();
+  if (typeof rect.rect === 'function' && typeof rect.fill === 'function') {
+    rect.rect(x, y, width, height).fill({ color, alpha: 1 });
+  } else {
+    rect.beginFill(color, 1);
+    rect.drawRect(x, y, width, height);
+    rect.endFill();
+  }
+
+  return rect;
+};
 
 /** Build PIXI app synchronously – caller ensures PIXI is loaded */
 export async function buildPixiApp(canvas: HTMLCanvasElement, options: PixiRowRenderOptions) {
@@ -48,40 +97,53 @@ export async function buildPixiApp(canvas: HTMLCanvasElement, options: PixiRowRe
     lineHeight = LINE_HEIGHT,
     charWidth = CHAR_WIDTH,
   } = options;
+  const width = Math.floor(canvas.parentElement?.clientWidth || canvas.offsetWidth || 960);
+  const maxCharsPerLine = Math.max(40, Math.floor((width - 24) / charWidth));
+  const fullText = rows.map(r => r.text).join('');
+  const displayRows: PixiDisplayRow[] = [];
+  let globalIdx = 0;
+
+  for (const row of rows) {
+    displayRows.push(...splitTextForPixi(row.text, globalIdx, maxCharsPerLine, row.isMark));
+    globalIdx += row.text.length;
+  }
+  const contentHeight = displayRows.length * lineHeight + 16;
+  if (contentHeight > MAX_SAFE_CANVAS_HEIGHT) {
+    throw new Error(`Pixi canvas height ${contentHeight}px exceeds safe limit`);
+  }
+  const height = Math.max(480, contentHeight);
+  const resolution = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
 
   const app = new PIXI.Application();
   await app.init({
+    canvas,
     view: canvas,
-    width: canvas.offsetWidth || canvas.parentElement?.clientWidth || 960,
-    height: Math.max(480, rows.length * lineHeight + 16),
+    width,
+    height,
     backgroundColor: 0xf5f7fa,
     antialias: true,
-    resolution: window.devicePixelRatio || 1,
+    resolution,
     autoDensity: true,
   });
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+  if (app.renderer) {
+    app.renderer.roundPixels = true;
+  }
 
   const container = new PIXI.Container();
   app.stage.addChild(container);
 
   // Build lowercase kw list for fast scan
   const kwsLC = highlightKeywords.map(k => k.toLowerCase());
-
-  const fullText = rows.map(r => r.text).join('');
   const matches: Array<{ start: number; end: number }> = [];
-  let globalIdx = 0;
-  for (const row of rows) {
-    const start = globalIdx;
-    const end = globalIdx + row.text.length;
-    globalIdx = end;
-
-    if (kwsLC.length === 0) continue;
-    const txtLC = row.text.toLowerCase();
-    for (const kw of kwsLC) {
-      let pos = 0;
-      while ((pos = txtLC.indexOf(kw, pos)) !== -1) {
-        matches.push({ start: start + pos, end: start + pos + kw.length });
-        pos += kw.length;
-      }
+  const fullTextLC = fullText.toLowerCase();
+  for (const kw of kwsLC) {
+    if (!kw) continue;
+    let pos = 0;
+    while (matches.length < MAX_HIGHLIGHT_MATCHES && (pos = fullTextLC.indexOf(kw, pos)) !== -1) {
+      matches.push({ start: pos, end: pos + kw.length });
+      pos += kw.length;
     }
   }
 
@@ -89,9 +151,14 @@ export async function buildPixiApp(canvas: HTMLCanvasElement, options: PixiRowRe
   const GUTTER_X = 12;
   const GUTTER_Y = 8;
   let yCursor = GUTTER_Y;
-  globalIdx = 0;
+  const style = new PIXI.TextStyle({
+    fontSize,
+    fontFamily: 'Menlo, Monaco, Consolas, "Courier New", monospace',
+    fill: TEXT_COLOR,
+    wordWrap: false,
+  });
 
-  for (const row of rows) {
+  for (const row of displayRows) {
     const lineLenPx = row.text.length * charWidth;
     if (yCursor + lineHeight > app.screen.height) {
       // Auto-grow viewport
@@ -99,43 +166,32 @@ export async function buildPixiApp(canvas: HTMLCanvasElement, options: PixiRowRe
     }
 
     if (row.isMark) {
-      const bg = new PIXI.Graphics();
-      bg.beginFill(0xfff3b8, 1);
-      bg.drawRect(GUTTER_X - 2, yCursor - 1, lineLenPx + 4, lineHeight + 2);
-      bg.endFill();
+      const bg = fillRect(PIXI, 0xfff3b8, GUTTER_X - 2, yCursor - 1, lineLenPx + 4, lineHeight + 2);
       container.addChild(bg);
     }
 
     // Highlight individual matches overlapping this line
-    const lineStart = globalIdx;
-    const lineEnd = globalIdx + row.text.length;
+    const lineStart = row.start;
+    const lineEnd = row.start + row.text.length;
     const lineMatches = matches.filter(m => m.start < lineEnd && m.end > lineStart);
     for (const m of lineMatches) {
       const hlStart = Math.max(0, m.start - lineStart);
       const hlEnd = Math.min(row.text.length, m.end - lineStart);
-      const hlBg = new PIXI.Graphics();
-      hlBg.beginFill(0xff9c01, 1);
-      hlBg.drawRect(
+      const hlBg = fillRect(
+        PIXI,
+        0xff9c01,
         GUTTER_X + hlStart * charWidth,
         yCursor,
         (hlEnd - hlStart) * charWidth,
         lineHeight,
       );
-      hlBg.endFill();
       container.addChild(hlBg);
     }
 
-    const style = new PIXI.TextStyle({
-      fontSize,
-      fontFamily: "'Menlo','Monaco','Consolas',monospace",
-      fill: TEXT_COLOR,
-      wordWrap: false,
-    });
     const pixiTxt = new PIXI.Text({ text: row.text, style });
     pixiTxt.position.set(GUTTER_X, yCursor);
     container.addChild(pixiTxt);
 
-    globalIdx = lineEnd;
     yCursor += lineHeight;
   }
 

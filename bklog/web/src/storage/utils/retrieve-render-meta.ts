@@ -17,9 +17,11 @@ export interface RetrieveRowRenderMeta {
   fieldSegments: Record<string, RetrieveTextSegment[]>;
 }
 
+// 暂时改为1kb测试，后续改为32kb
 export const LARGE_FIELD_TEXT_LENGTH = 32 * 1024;
 const SEGMENT_MAX_TOKENS = 500;
 const SEGMENT_CHUNK_SIZE = 200;
+const LARGE_FIELD_PREVIEW_SUFFIX = '...';
 
 export const stripMark = (value: string) => String(value).replace(/<mark>/gi, '').replace(/<\/mark>/gi, '');
 
@@ -43,6 +45,20 @@ const estimateTextBytes = (text: string): number => {
     }
   }
   return text.length * 3;
+};
+
+const truncateTextByBytes = (text: string, maxBytes: number): string => {
+  let bytes = 0;
+  let output = '';
+
+  for (const char of text) {
+    const charBytes = estimateTextBytes(char);
+    if (bytes + charBytes > maxBytes) break;
+    bytes += charBytes;
+    output += char;
+  }
+
+  return `${output}${LARGE_FIELD_PREVIEW_SUFFIX}`;
 };
 
 /**
@@ -121,16 +137,14 @@ export const createRetrieveRowRenderMeta = (
     const plainRenderText = stripMark(renderText);
     const rawBytes = estimateTextBytes(rawText);
     const exceedsLargeFieldLimit = rawBytes > LARGE_FIELD_TEXT_LENGTH;
-    const hasLengthDrop = rawText.length > plainRenderText.length;
-    const hasEllipsisSuffix = /(?:…|\.\.\.)\s*$/.test(plainRenderText);
-    const isContentChanged = rawText !== plainRenderText;
-
-    if (exceedsLargeFieldLimit && isContentChanged && (hasLengthDrop || hasEllipsisSuffix)) {
+    if (exceedsLargeFieldLimit) {
       truncatedFields.push(fieldName);
     }
 
     // Store the pre-tokenized render value for every field that may be rendered.
-    fieldSegments[fieldName] = splitRenderText(value);
+    fieldSegments[fieldName] = splitRenderText(
+      exceedsLargeFieldLimit ? truncateTextByBytes(plainRenderText, LARGE_FIELD_TEXT_LENGTH) : value,
+    );
   });
 
   return {

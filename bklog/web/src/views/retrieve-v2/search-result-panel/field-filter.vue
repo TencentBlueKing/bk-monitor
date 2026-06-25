@@ -4,6 +4,7 @@
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import { BK_LOG_STORAGE } from '@/store/store.type';
+  import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 
   import FieldFilterComp from '../field-filter-comp';
   const store = useStore();
@@ -74,6 +75,7 @@
     await nextTick();
     store.commit('resetVisibleFields', { displayFieldNames, version: 'v2' });
     store.commit('updateIsSetDefaultTableColumn', false);
+    RetrieveHelper.fire(RetrieveEvent.VISIBLE_FIELD_COLUMN_LAYOUT_CHANGE);
   };
   const handleCloseFilterTitle = isTextClick => {
     if (isTextClick && props.value) return;

@@ -821,6 +821,16 @@ export const random = (n = 8, str = 'abcdefghijklmnopqrstuvwxyz0123456789') => {
  */
 export const copyMessage = (val, alertMsg = undefined) => {
   try {
+
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      window.mainComponent.messageSuccess(
+        alertMsg ? (alertMsg ?? window.mainComponent.$t('复制失败')) : window.mainComponent.$t('复制成功'),
+      );
+
+      return;
+    }
+
     const input = document.createElement('input');
     input.setAttribute('value', val);
     document.body.appendChild(input);

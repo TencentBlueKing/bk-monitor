@@ -79,19 +79,15 @@
         ></canvas>
         <div
           v-if="!usePixiRenderer"
-          class="virtual-spacer"
-          :style="{ height: `${totalHeight}px` }"
+          class="full-row-dom-content"
         >
           <pre
-            v-for="item in renderChunks"
-            :key="item.index"
-            class="content-chunk"
-            :style="{ transform: `translateY(${item.top}px)` }"
-            v-html="item.html"
+            class="content-text"
+            v-html="contentHtml"
           ></pre>
         </div>
         <div
-          v-if="!usePixiRenderer && !renderChunks.length"
+          v-if="!usePixiRenderer && !contentText"
           class="empty-content"
         >
           {{ searchValue ? $t('未匹配到内容') : $t('暂无内容') }}
@@ -104,10 +100,10 @@
 <script>
   import { retrieveRowCacheService } from '@/storage';
   import { buildPixiApp, destroyPixiApp } from './pixi-renderer';
+  import { copyMessage } from '@/common/util';
 
   const CHUNK_SIZE = 8000;
-  const CHUNK_HEIGHT = 132;
-  const OVERSCAN = 4;
+  const MAX_SEARCH_MATCHES = 2000;
 
   const escapeHtml = value => String(value)
     .replace(/&/g, '&amp;')
@@ -115,6 +111,75 @@
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+
+  const stripMarkTags = value => String(value)
+    .replace(/<mark>/gi, '')
+    .replace(/<\/mark>/gi, '');
+
+  const stripMarkFromCopyValue = (value) => {
+    if (typeof value === 'string') return stripMarkTags(value);
+    if (Array.isArray(value)) return value.map(item => stripMarkFromCopyValue(item));
+    if (value && Object.prototype.toString.call(value) === '[object Object]') {
+      return Object.keys(value).reduce((output, key) => {
+        output[key] = stripMarkFromCopyValue(value[key]);
+        return output;
+      }, {});
+    }
+
+    return value;
+  };
+
+  const parseMarkedText = (value) => {
+    const source = String(value ?? '');
+    const markRanges = [];
+    let plainText = '';
+    let cursor = 0;
+    const markReg = /<mark>([\s\S]*?)<\/mark>/gi;
+    let match = markReg.exec(source);
+
+    while (match) {
+      plainText += source.slice(cursor, match.index);
+      const start = plainText.length;
+      plainText += match[1];
+      markRanges.push({ start, end: plainText.length });
+      cursor = match.index + match[0].length;
+      match = markReg.exec(source);
+    }
+
+    plainText += source.slice(cursor);
+    return { plainText, markRanges };
+  };
+
+  const tryParseJsonString = (value) => {
+    if (typeof value !== 'string') return value;
+    const text = value.trim();
+    if (!/^(\{|\[)/.test(text)) return value;
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      try {
+        return JSON.parse(stripMarkTags(text));
+      } catch {
+        return value;
+      }
+    }
+  };
+
+  const normalizeJsonValue = (value, depth = 0) => {
+    if (depth > 3) return value;
+    const parsedValue = tryParseJsonString(value);
+    if (parsedValue !== value) return normalizeJsonValue(parsedValue, depth + 1);
+    if (Array.isArray(value)) return value.map(item => normalizeJsonValue(item, depth + 1));
+    if (value && Object.prototype.toString.call(value) === '[object Object]') {
+      return Object.keys(value).reduce((output, key) => {
+        output[key] = normalizeJsonValue(value[key], depth + 1);
+        return output;
+      }, {});
+    }
+
+    return value;
+  };
 
   const formatBytes = bytes => {
     if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
@@ -128,12 +193,27 @@
     return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
   };
 
+  const stringifyContentValue = (value, pretty = false) => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'bigint') return value.toString();
+    try {
+      return JSON.stringify(value, (_key, val) => (typeof val === 'bigint' ? val.toString() : val), pretty ? 2 : 0);
+    } catch {
+      return String(value);
+    }
+  };
+
+  const getFieldName = field => (typeof field === 'string' ? field : field?.field_name);
+
   export default {
     name: 'FullRowViewer',
     props: {
       visible: { type: Boolean, default: false },
       rowData: { type: Object, default: null },
       rowKey: { type: String, default: '' },
+      fields: { type: Array, default: () => [] },
+      truncatedFields: { type: Array, default: () => [] },
     },
     emits: ['update:visible'],
     data() {
@@ -141,6 +221,7 @@
         localVisible: this.visible,
         mode: 'json',
         searchValue: '',
+        searchKeyword: '',
         scrollTop: 0,
         searchTimer: null,
         searchVersion: 0,
@@ -152,28 +233,60 @@
         pixiApp: null,
         pixiContainer: null,
         pixiError: '',
+        resizeObserver: null,
+        resizeTimer: null,
       };
     },
     computed: {
       displayRow() {
+        if (this.originRow) return this.originRow;
+        if (this.rowKey && this.loading) return null;
         return this.originRow || this.rowData;
       },
+      copyRow() {
+        return this.originRow || (!this.rowKey ? this.rowData : null);
+      },
+      orderedFieldNames() {
+        const fieldNames = this.fields.map(getFieldName).filter(Boolean);
+        if (!this.displayRow) return fieldNames;
+
+        const rowFieldNames = Object.keys(this.displayRow);
+        const orderedFields = fieldNames.filter(fieldName => Object.prototype.hasOwnProperty.call(this.displayRow, fieldName));
+        const orderedFieldSet = new Set(orderedFields);
+        const extraFields = rowFieldNames.filter(fieldName => !orderedFieldSet.has(fieldName));
+        return [...orderedFields, ...extraFields];
+      },
+      displayRowData() {
+        if (!this.displayRow) return null;
+        return this.buildOrderedRow(this.displayRow, this.mode === 'json');
+      },
+      copyRowData() {
+        if (!this.copyRow) return null;
+        return stripMarkFromCopyValue(this.buildOrderedRow(this.copyRow, false));
+      },
+      copyText() {
+        if (!this.copyRowData) return '';
+        return stringifyContentValue(this.copyRowData, this.mode === 'json');
+      },
+      renderTextInfo() {
+        return parseMarkedText(this.contentText);
+      },
+      visibleContentText() {
+        return this.renderTextInfo.plainText;
+      },
+      markRanges() {
+        return this.renderTextInfo.markRanges;
+      },
       usePixiRenderer() {
-        return this.localVisible && this.contentText.length > CHUNK_SIZE && !this.pixiError;
+        return this.localVisible && this.visibleContentText.length > CHUNK_SIZE && !this.pixiError;
       },
       contentText() {
-        if (!this.displayRow) return '';
-        try {
-          return this.mode === 'json'
-            ? JSON.stringify(this.displayRow, null, 2)
-            : JSON.stringify(this.displayRow);
-        } catch {
-          return String(this.displayRow);
-        }
+        if (!this.displayRowData) return '';
+        return stringifyContentValue(this.displayRowData, this.mode === 'json');
       },
       chunks() {
         const list = [];
-        const text = this.contentText;
+        const text = this.visibleContentText;
         for (let start = 0; start < text.length; start += CHUNK_SIZE) {
           list.push(text.slice(start, start + CHUNK_SIZE));
         }
@@ -182,18 +295,15 @@
       visibleIndexes() {
         return this.chunks.map((_, index) => index);
       },
-      totalHeight() {
-        return Math.max(1, this.visibleIndexes.length) * CHUNK_HEIGHT;
-      },
       matches() {
         this.searchVersion;
-        const keyword = this.searchValue;
-        if (!keyword || !this.contentText) return [];
+        const keyword = this.searchKeyword;
+        if (!keyword || !this.visibleContentText) return [];
         const matches = [];
-        const lowerText = this.contentText.toLowerCase();
+        const lowerText = this.visibleContentText.toLowerCase();
         const lowerKeyword = keyword.toLowerCase();
         let offset = 0;
-        while (offset <= lowerText.length) {
+        while (offset <= lowerText.length && matches.length < MAX_SEARCH_MATCHES) {
           const index = lowerText.indexOf(lowerKeyword, offset);
           if (index < 0) break;
           matches.push({ start: index, end: index + keyword.length });
@@ -201,35 +311,70 @@
         }
         return matches;
       },
+      searchMatchLimited() {
+        const keyword = this.searchKeyword;
+        if (!keyword || this.matches.length < MAX_SEARCH_MATCHES) return false;
+        const lastMatch = this.matches[this.matches.length - 1];
+        if (!lastMatch) return false;
+        return this.visibleContentText.toLowerCase().indexOf(keyword.toLowerCase(), lastMatch.end) >= 0;
+      },
       activeMatch() {
         if (this.activeMatchIndex < 0 || this.activeMatchIndex >= this.matches.length) return null;
         return this.matches[this.activeMatchIndex];
       },
       matchText() {
-        return this.matches.length ? `${this.activeMatchIndex + 1}/${this.matches.length}` : '0/0';
+        return this.matches.length
+          ? `${this.activeMatchIndex + 1}/${this.matches.length}${this.searchMatchLimited ? '+' : ''}`
+          : '0/0';
       },
-      renderChunks() {
-        const container = this.$refs.scrollContainer;
-        const clientHeight = container?.clientHeight ?? 520;
-        const start = Math.max(0, Math.floor(this.scrollTop / CHUNK_HEIGHT) - OVERSCAN);
-        const end = Math.min(
-          this.visibleIndexes.length,
-          Math.ceil((this.scrollTop + clientHeight) / CHUNK_HEIGHT) + OVERSCAN,
-        );
-        return this.visibleIndexes.slice(start, end).map((chunkIndex, offset) => ({
-          index: chunkIndex,
-          top: (start + offset) * CHUNK_HEIGHT,
-          html: this.getChunkHtml(chunkIndex),
-        }));
+      contentHtml() {
+        const text = this.visibleContentText;
+        if (!text) return '';
+        const ranges = [
+          ...this.markRanges.map(range => ({ ...range, type: 'origin' })),
+          ...this.matches.map((range, index) => ({ ...range, type: index === this.activeMatchIndex ? 'active-search' : 'search' })),
+        ];
+        if (!ranges.length) return escapeHtml(text);
+
+        const points = new Set([0, text.length]);
+        ranges.forEach((range) => {
+          points.add(Math.max(0, Math.min(text.length, range.start)));
+          points.add(Math.max(0, Math.min(text.length, range.end)));
+        });
+
+        const sortedPoints = Array.from(points).sort((a, b) => a - b);
+        let html = '';
+        for (let index = 0; index < sortedPoints.length - 1; index++) {
+          const start = sortedPoints[index];
+          const end = sortedPoints[index + 1];
+          if (start === end) continue;
+          const classes = [];
+          if (this.markRanges.some(range => range.start < end && range.end > start)) {
+            classes.push('full-row-origin-mark');
+          }
+          const searchMatchIndex = this.matches.findIndex(range => range.start < end && range.end > start);
+          if (searchMatchIndex >= 0) {
+            classes.push('full-row-search-mark');
+            if (searchMatchIndex === this.activeMatchIndex) classes.push('active');
+          }
+
+          const escapedText = escapeHtml(text.slice(start, end));
+          html += classes.length ? `<mark class="${classes.join(' ')}">${escapedText}</mark>` : escapedText;
+        }
+
+        return html;
       },
       displaySize() {
-        return formatBytes(new Blob([this.contentText]).size);
+        return formatBytes(new Blob([this.visibleContentText]).size);
       },
     },
     watch: {
       visible(value) {
         this.localVisible = value;
-        if (value) this.loadOriginRow();
+        if (value) {
+          this.loadOriginRow();
+          this.observeContentResize();
+        }
       },
       localVisible(value) {
         this.$emit('update:visible', value);
@@ -245,13 +390,15 @@
         this.resetScroll();
         this.schedulePixiRender();
       },
+      truncatedFields() {
+        this.resetSearchState();
+        this.resetScroll();
+        this.schedulePixiRender();
+      },
       rowKey() {
         if (this.localVisible) this.loadOriginRow();
       },
-      contentText() {
-        this.schedulePixiRender();
-      },
-      searchValue() {
+      visibleContentText() {
         this.schedulePixiRender();
       },
       matches(matches) {
@@ -266,18 +413,34 @@
     },
     mounted() {
       if (this.visible) this.loadOriginRow();
+      this.observeContentResize();
     },
     beforeDestroy() {
       if (this.searchTimer) {
         clearTimeout(this.searchTimer);
         this.searchTimer = null;
       }
+      if (this.resizeTimer) {
+        clearTimeout(this.resizeTimer);
+        this.resizeTimer = null;
+      }
+      this.resizeObserver?.disconnect?.();
+      this.resizeObserver = null;
       this.loadSeq += 1;
       this.destroyPixi();
     },
     methods: {
+      buildOrderedRow(row, normalizeJson = false) {
+        const fieldNames = this.orderedFieldNames.length ? this.orderedFieldNames : Object.keys(row ?? {});
+        return fieldNames.reduce((output, fieldName) => {
+          const value = row?.[fieldName];
+          output[fieldName] = normalizeJson ? normalizeJsonValue(value) : value;
+          return output;
+        }, {});
+      },
       resetViewer() {
         this.searchValue = '';
+        this.searchKeyword = '';
         this.originRow = null;
         this.loadError = '';
         this.loading = false;
@@ -289,6 +452,20 @@
       resetSearchState() {
         this.activeMatchIndex = -1;
         this.searchVersion += 1;
+      },
+      observeContentResize() {
+        if (typeof ResizeObserver === 'undefined') return;
+        this.$nextTick(() => {
+          const target = this.$refs.scrollContainer;
+          if (!target || this.resizeObserver) return;
+          this.resizeObserver = new ResizeObserver(() => {
+            if (this.resizeTimer) clearTimeout(this.resizeTimer);
+            this.resizeTimer = setTimeout(() => {
+              if (this.usePixiRenderer) this.schedulePixiRender();
+            }, 120);
+          });
+          this.resizeObserver.observe(target);
+        });
       },
       resetScroll() {
         this.scrollTop = 0;
@@ -323,6 +500,18 @@
           }
         }
       },
+      async getOriginCopyRow() {
+        if (this.originRow) return this.originRow;
+        if (!this.rowKey) return this.rowData;
+
+        const [originRow] = await retrieveRowCacheService.getRows([this.rowKey]);
+        if (originRow) {
+          this.originRow = originRow;
+          return originRow;
+        }
+
+        return null;
+      },
       handleScroll(event) {
         this.scrollTop = event.target.scrollTop;
       },
@@ -343,7 +532,7 @@
           const rows = this.chunks.map(text => ({ text, isMark: false }));
           const result = await buildPixiApp(canvas, {
             rows,
-            highlightKeywords: this.searchValue ? [this.searchValue] : [],
+            highlightKeywords: this.searchKeyword ? [this.searchKeyword] : [],
           });
           this.pixiApp = result.app;
           this.pixiContainer = result.container;
@@ -364,9 +553,11 @@
       handleSearchInput() {
         if (this.searchTimer) clearTimeout(this.searchTimer);
         this.searchTimer = setTimeout(() => {
+          this.searchKeyword = this.searchValue;
           this.searchVersion += 1;
           this.activeMatchIndex = this.matches.length ? 0 : -1;
           this.scrollToActiveMatch();
+          this.schedulePixiRender();
         }, 160);
       },
       goPrevMatch() {
@@ -382,44 +573,28 @@
       scrollToActiveMatch() {
         const match = this.activeMatch;
         if (!match) return;
-        const chunkIndex = Math.floor(match.start / CHUNK_SIZE);
         this.$nextTick(() => {
           if (this.$refs.scrollContainer) {
-            this.$refs.scrollContainer.scrollTop = Math.max(0, chunkIndex * CHUNK_HEIGHT - CHUNK_HEIGHT);
+            const container = this.$refs.scrollContainer;
+            const scrollableHeight = Math.max(0, container.scrollHeight - container.clientHeight);
+            const matchRatio = this.visibleContentText.length ? match.start / this.visibleContentText.length : 0;
+            container.scrollTop = Math.max(0, scrollableHeight * matchRatio - 40);
           }
         });
       },
-      getChunkHtml(chunkIndex) {
-        const chunk = this.chunks[chunkIndex] ?? '';
-        if (!this.searchValue || !this.matches.length) return escapeHtml(chunk);
-        const chunkStart = chunkIndex * CHUNK_SIZE;
-        const chunkEnd = chunkStart + chunk.length;
-        const active = this.activeMatch;
-        const relatedMatches = this.matches.filter(match => match.start < chunkEnd && match.end > chunkStart);
-        if (!relatedMatches.length) return escapeHtml(chunk);
-        let html = '';
-        let cursor = 0;
-        relatedMatches.forEach((match) => {
-          const start = Math.max(0, match.start - chunkStart);
-          const end = Math.min(chunk.length, match.end - chunkStart);
-          if (start > cursor) html += escapeHtml(chunk.slice(cursor, start));
-          const isActive = active && active.start === match.start;
-          html += `<mark class="full-row-search-mark${isActive ? ' active' : ''}">${escapeHtml(chunk.slice(start, end))}</mark>`;
-          cursor = end;
-        });
-        if (cursor < chunk.length) html += escapeHtml(chunk.slice(cursor));
-        return html;
-      },
       handleClose() {
+        if (!this.localVisible) return;
         this.localVisible = false;
       },
       async copyContent() {
-        try {
-          await navigator.clipboard.writeText(this.contentText);
-          this.$bkMessage?.({ theme: 'success', message: this.$t('复制成功') });
-        } catch {
-          this.$bkMessage?.({ theme: 'error', message: this.$t('复制失败') });
+        const originRow = await this.getOriginCopyRow();
+        if (!originRow) {
+          this.$bkMessage?.({ theme: 'warning', message: this.$t('正在读取全量数据...') });
+          return;
         }
+
+        const copyData = stripMarkFromCopyValue(this.buildOrderedRow(originRow, false));
+        copyMessage(stringifyContentValue(copyData, this.mode === 'json'), this.$t('复制成功'));
       },
     },
   };
@@ -456,11 +631,10 @@
     cursor: pointer;
     background: #fff;
     border: 0;
-    border-right: 1px solid #dcdee5;
 
-    &:last-child {
-      border-right: 0;
-    }
+    // &:last-child {
+    //   border-right: 0;
+    // }
 
     &.active {
       color: #fff;
@@ -529,24 +703,20 @@
 
     .full-row-pixi-canvas {
       display: block;
-      width: 100%;
+      max-width: none;
       min-height: 100%;
     }
   }
 
-  .virtual-spacer {
-    position: relative;
+  .full-row-dom-content {
     min-width: 100%;
   }
 
-  .content-chunk {
-    position: absolute;
+  .content-text {
     box-sizing: border-box;
     width: 100%;
-    height: 132px;
     padding: 8px 12px;
     margin: 0;
-    overflow: hidden;
     white-space: pre-wrap;
     word-break: break-all;
   }
@@ -559,10 +729,17 @@
     transform: translate(-50%, -50%);
   }
 
-  ::v-deep .full-row-search-mark {
+  ::v-deep .full-row-origin-mark {
     padding: 0 1px;
     color: inherit;
     background: #fff3b8;
+    border-radius: 2px;
+  }
+
+  ::v-deep .full-row-search-mark {
+    padding: 0 1px;
+    color: inherit;
+    background: #ffe8cc;
     border-radius: 2px;
 
     &.active {

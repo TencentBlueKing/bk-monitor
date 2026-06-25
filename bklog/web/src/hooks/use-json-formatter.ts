@@ -50,7 +50,13 @@ export type FormatterConfig = {
   precomputedSegments?: PrecomputedSegments;
 };
 
-export type SegmentAppendText = { text: string; onClick?: (..._args) => void; attributes?: Record<string, string> };
+export type SegmentAppendText = {
+  text: string;
+  onClick?: (..._args) => void;
+  onMouseDown?: (..._args) => void;
+  onMouseUp?: (..._args) => void;
+  attributes?: Record<string, string>;
+};
 export type PrecomputedSegments = Record<string, Array<{
   text: string;
   isMark?: boolean;
@@ -326,6 +332,12 @@ export default class UseJsonFormatter {
           appendElement.textContent = appendText.text;
           if (appendText.onClick) {
             appendElement.addEventListener('click', appendText.onClick);
+          }
+          if (appendText.onMouseDown) {
+            appendElement.addEventListener('mousedown', appendText.onMouseDown);
+          }
+          if (appendText.onMouseUp) {
+            appendElement.addEventListener('mouseup', appendText.onMouseUp);
           }
 
           for (const key of Object.keys(appendText.attributes ?? {})) {
