@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
+
 import logging
 from collections import Counter
 from collections.abc import Callable
@@ -15,8 +17,14 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 import json
 
-from rest_framework import serializers
+from django.conf import settings
+from django.http import HttpResponseRedirect
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework import serializers, exceptions
+from rest_framework.decorators import api_view
 
+from api.tapd.default import GetWorkspaceInfoResource, UserOauthTokenResource
+from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.documents.issue import (
     IssueActivityDocument,
     IssueDocument,
@@ -26,17 +34,29 @@ from bkmonitor.documents.issue import (
 from bkmonitor.issue_merge import IssueFrozenError, IssueMergeResolver
 from bkmonitor.models.issue import IssueMergeRelation, IssueTapdRelation
 from bkmonitor.utils.request import get_request_username
+from bkmonitor.issue_merge import IssueFrozenError
+from bkmonitor.models import IssueMergeRelation, TapdWorkspaceBinding
+from bkmonitor.utils.cipher import AESCipher
+from bkmonitor.utils.request import get_request_username, get_request
 from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.user import set_local_username
+from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
 from constants.issue import IssuePriority, IssueStatus, IssueActivityType
 from core.drf_resource import Resource, api, resource
 from core.errors.api import BKAPIError
+from core.errors.common import HTTP404Error
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.utils import slice_time_interval
 from fta_web.issue.handlers.issue import (
     IssueQueryHandler,
 )
 from fta_web.issue.serializers import IssueSearchSerializer
-
+from fta_web.issue.utils.tapd import (
+    save_tapd_token,
+    verify_signed_state,
+    generate_install_url,
+    try_bind_importable,
+)
 
 logger = logging.getLogger("root")
 
@@ -1842,3 +1862,323 @@ class CreateTapdResource(Resource):
         tapd_info["activities"] = self._record_activity(issue_id=issue_id, bk_biz_id=bk_biz_id, tapd_info=tapd_info)
 
         return tapd_info
+
+
+class ListUserTapdWorkspaceResource(Resource):
+    """查询当前用户有权限的 TAPD 项目列表（冷启动去关联用）
+
+    端点：POST /fta/issue/tapd/user_workspace/
+    Body: { bk_biz_id, redirect_uri_real, redirect_uri_verify }
+    数据源：TAPD 用户态 API（Bearer Token，从 Redis 解密获取）。
+
+    TODO: 当前 TAPD 用户态 API 尚未提供文档（T-01），用户态列表返回空。
+          app 已授权列表（get_granted_workspaces）作为降级源。
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="蓝鲸业务ID")
+        redirect_uri_real = serializers.CharField(label="含#的真实前端地址", max_length=512)
+        redirect_uri_verify = serializers.CharField(label="不含#的校验地址", max_length=512)
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        redirect_uri_real = validated_request_data.get("redirect_uri_real", "")
+        redirect_uri_verify = validated_request_data.get("redirect_uri_verify", "")
+
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        tenant_id = space_uid_to_bk_tenant_id(space_uid)
+        username = get_request_username()
+
+        # 查本地 binding（用于四态标记的【本地存在】侧）
+        local_bindings = {
+            str(b["tapd_workspace_id"]): b
+            for b in TapdWorkspaceBinding.objects.filter(bk_tenant_id=tenant_id, space_uid=space_uid).values(
+                "tapd_workspace_id", "tapd_workspace_name", "create_user"
+            )
+        }
+
+        # TODO(T-01): 接入 TAPD 用户态 API 获取用户可见项目列表。
+        #   Dependency: TAPD 需开放「获取用户可见项目」接口。
+        #   接入后将 local_bindings 与远程列表交叉 → 返回四态标记。
+
+        # 降级：用 app 级 get_granted_workspaces 作为数据源（仅返回 app 已授权项目）
+        try:
+            granted = api.tapd.get_granted_workspaces(bk_biz_id=bk_biz_id)
+        except Exception as e:
+            logger.warning("GetGrantedWorkspaces failed for B-01 fallback: %s", e)
+            granted = []
+
+        items = []
+        any_unbound_or_stale = False
+        for ws in granted:
+            ws_id = str(ws.get("id") or ws.get("workspace_id", ""))
+            if not ws_id:
+                continue
+            in_local = ws_id in local_bindings
+            in_granted = True
+
+            if in_local and in_granted:
+                status = "bound"
+            elif in_local and not in_granted:
+                status = "stale"
+                any_unbound_or_stale = True
+            elif not in_local and in_granted:
+                status = "importable"
+                # 静默尝试创建本地 binding
+                if try_bind_importable(ws_id, bk_biz_id, tenant_id, username):
+                    status = "bound"
+            else:
+                status = "unbound"
+                any_unbound_or_stale = True
+
+            items.append({"workspace_id": ws_id, "workspace_name": ws.get("name") or ws_id, "is_bound": status})
+
+        # install_url 仅在存在 unbound 或 stale 时按需构建（涉及签名生成，避免无用开销）
+        install_url = ""
+        if any_unbound_or_stale:
+            request = get_request()
+            # 补全为绝对 URL：TAPD OAuth 要求 redirect_uri 必须是绝对 URI
+            if redirect_uri_verify and not redirect_uri_verify.startswith("http") and request:
+                redirect_uri_verify = request.build_absolute_uri("/").rstrip("/") + redirect_uri_verify
+
+            # 构建应用安装回调地址（绝对 URL）
+            backend_callback = request.build_absolute_uri("/fta/issue/tapd/app_install_callback/")
+
+            install_url = generate_install_url(
+                bk_biz_id=bk_biz_id,
+                bk_tenant_id=tenant_id,
+                space_uid=space_uid,
+                initiator=username,
+                redirect_uri_real=redirect_uri_real,
+                redirect_uri_verify=redirect_uri_verify,
+                backend_callback=backend_callback,
+            )
+
+        return {
+            "total": len(items),
+            "items": items,
+            "has_more": False,
+            "install_url": install_url,
+            "method": "GET",
+        }
+
+
+class UnbindTapdWorkspaceResource(Resource):
+    """解除 TAPD 项目与当前业务的关联
+
+    仅删除本地 TapdWorkspaceBinding，不在 TAPD 侧撤回应用授权。
+    端点：POST /fta/issue/tapd/workspace/unbind/
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="蓝鲸业务ID", required=True)
+        workspace_id = serializers.CharField(label="TAPD项目ID", required=True)
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        workspace_id: str = validated_request_data["workspace_id"]
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        tenant_id = space_uid_to_bk_tenant_id(space_uid)
+
+        binding_qs = TapdWorkspaceBinding.objects.filter(
+            bk_tenant_id=tenant_id,
+            space_uid=space_uid,
+            tapd_workspace_id=workspace_id,
+        )
+        if not binding_qs.exists():
+            raise HTTP404Error(
+                message=f"TAPD 项目 {workspace_id} 未与当前业务关联",
+            )
+
+        # 删除 binding（不存在时 delete() 返回 (0, {})）
+        deleted_count, _ = binding_qs.delete()
+        logger.info(
+            "UnbindTapdWorkspace: delete binding biz=%s ws=%s tenant=%s count=%s",
+            bk_biz_id,
+            workspace_id,
+            tenant_id,
+            deleted_count,
+        )
+
+        return {"success": True}
+
+
+# TODO: 错误重定向路径是临时写法，后续需要根据实际情况修改
+_ALARM_CENTER_PATH = "#/trace/alarm-center"
+
+
+def _build_error_url(request, biz_id: int | str = "") -> str:
+    base = request.build_absolute_uri("/")
+    return f"{base}?bizId={biz_id}{_ALARM_CENTER_PATH}"
+
+
+@api_view(["GET"])
+@csrf_exempt
+def tapd_app_install_callback(request):
+    """TAPD `open_app_install` 回调 — 应用态授权。
+
+    Query params: code, resource, signed_state
+    1. 解析 signed_state → 验签、验过期
+    2. 提取 workspace_id → 调 app 级 Basic Auth 获取 name
+    3. upsert TapdWorkspaceBinding（create_user = initiator）
+    4. 302 重定向前端 success
+    """
+    signed_state = request.query_params.get("signed_state", "")
+    if not signed_state:
+        return HttpResponseRedirect(_build_error_url(request))
+
+    # 1) 解析并验签 signed_state
+    try:
+        payload = verify_signed_state(signed_state)
+    except exceptions.ValidationError as e:
+        logger.warning("signed_state verification failed: %s", e.detail)
+        return HttpResponseRedirect(_build_error_url(request))
+
+    bk_biz_id = payload["bk_biz_id"]
+    tenant_id = payload["bk_tenant_id"]
+    space_uid = payload["space_uid"]
+    initiator = payload["initiator"]
+    redirect_uri_real = payload["redirect_uri_real"]
+    error_url = _build_error_url(request, bk_biz_id)
+
+    # 安全性由 verify_signed_state 保证：HMAC 签名 + 过期时间校验
+    # 解码 resource JSON 获取 workspace_id
+    resource_json = request.query_params.get("resource", "{}")
+    try:
+        resource = json.loads(resource_json) if resource_json else {}
+    except Exception:
+        logger.warning("invalid resource JSON: %s", resource_json)
+        return HttpResponseRedirect(error_url)
+
+    workspace_id = str(resource.get("workspace_id", ""))
+    if not workspace_id:
+        logger.warning("missing workspace_id")
+        return HttpResponseRedirect(error_url)
+
+    # 2) 获取项目信息（app 级 Basic Auth）
+    try:
+        info = GetWorkspaceInfoResource().request(workspace_id=int(workspace_id))
+        ws = info.get("Workspace", {})
+        ws_name = ws.get("name") or ws.get("pretty_name") or str(workspace_id)
+    except BKAPIError:
+        logger.exception("get_workspace_info failed: ws=%s", workspace_id)
+        return HttpResponseRedirect(error_url)
+    except Exception:
+        logger.exception("get_workspace_info unexpected error: ws=%s", workspace_id)
+        return HttpResponseRedirect(error_url)
+
+    # 3) upsert binding（set_local_username 确保 AbstractRecordModel.save() 审计字段正确）
+    set_local_username(initiator)
+    TapdWorkspaceBinding.objects.update_or_create(
+        bk_tenant_id=tenant_id,
+        space_uid=space_uid,
+        tapd_workspace_id=workspace_id,
+        defaults={
+            "bk_biz_id": bk_biz_id,
+            "tapd_workspace_name": ws_name,
+            "create_user": initiator,
+            "update_user": initiator,
+        },
+    )
+    logger.info(
+        "TapdWorkspaceBinding upserted: tenant=%s space=%s ws=%s name=%s initiator=%s",
+        tenant_id,
+        space_uid,
+        workspace_id,
+        ws_name,
+        initiator,
+    )
+
+    return HttpResponseRedirect(redirect_uri_real)
+
+
+@api_view(["GET"])
+@csrf_exempt
+def tapd_user_oauth_callback(request):
+    """TAPD 用户态 OAuth 回调。
+
+    Query params: code, state, resource（可选）
+    1. state 格式 {nonce}:{bk_biz_id}，从 Session 中取出比对并删除（防重放）
+    2. 用 code 换取 access_token（UserOauthTokenResource），redirect_uri 取 Session 中的 backend_callback
+    3. 加密 token → 存入 Redis（TTL = expires_in），key = tapd_uat:{tenant}:{user}
+    4. 302 重定向前端 redirect_uri_real
+    """
+    code = request.query_params.get("code", "")
+    state = request.query_params.get("state", "")
+
+    if not code or not state:
+        return HttpResponseRedirect(_build_error_url(request))
+
+    # 1) 解析 state，从 Session 中比对
+    try:
+        nonce, bk_biz_id = state.split(":", 1)
+        bk_biz_id = int(bk_biz_id)
+    except (ValueError, AttributeError):
+        logger.warning("invalid state format: %s", state)
+        return HttpResponseRedirect(_build_error_url(request))
+
+    error_url = _build_error_url(request, bk_biz_id)
+    session_key = f"tapd_oauth_state_{bk_biz_id}"
+    session_data = request.session.get(session_key)
+    if not session_data:
+        logger.warning("session state not found for bk_biz_id=%s", bk_biz_id)
+        return HttpResponseRedirect(error_url)
+
+    # 校验 nonce + 过期时间，成功后立即删除（防重放）
+    if session_data.get("nonce") != nonce:
+        del request.session[session_key]
+        logger.warning("state nonce mismatch")
+        return HttpResponseRedirect(error_url)
+
+    if int(time.time()) > session_data.get("exp", 0):
+        del request.session[session_key]
+        logger.warning("state expired for bk_biz_id=%s", bk_biz_id)
+        return HttpResponseRedirect(error_url)
+
+    del request.session[session_key]
+
+    username = session_data.get("username", "")
+    if not username:
+        logger.warning("missing username in session data")
+        return HttpResponseRedirect(error_url)
+
+    tenant_id = session_data["bk_tenant_id"]
+
+    # 2) code 换 token（Basic Auth，client_id:client_secret）
+    # redirect_uri 必须和 authorize 时传给 TAPD 的一致（即 backend_callback）
+    backend_callback = session_data.get("backend_callback", "")
+    if not backend_callback:
+        logger.warning("missing backend_callback in session data")
+        return HttpResponseRedirect(error_url)
+
+    try:
+        token_resp = UserOauthTokenResource().request(
+            code=code,
+            redirect_uri=backend_callback,
+        )
+    except BKAPIError:
+        logger.exception("exchange token failed")
+        return HttpResponseRedirect(error_url)
+    except Exception:
+        logger.exception("exchange token unexpected error")
+        return HttpResponseRedirect(error_url)
+
+    access_token = token_resp.get("access_token", "")
+    expires_in = token_resp.get("expires_in", 7200)
+    if not access_token:
+        logger.warning("empty access_token from TAPD")
+        return HttpResponseRedirect(error_url)
+
+    # 3) 存 Redis（AESCipher 加密），key 按 (tenant, username)
+    save_tapd_token(
+        tenant_id=tenant_id,
+        username=username,
+        token_data=token_resp,
+        expires_in=expires_in,
+        state=state,
+        cipher=AESCipher(settings.SECRET_KEY),
+    )
+
+    # 4) 302 重定向到 redirect_uri_real（含 # 的前端地址）
+    redirect_uri_real = session_data.get("redirect_uri_real", "")
+    return HttpResponseRedirect(redirect_uri_real)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from django.conf import settings
 from django.utils.translation import gettext as _
 
 GLOBAL_BIZ_ID = 0
@@ -726,3 +726,29 @@ CONDITIONS_REQ = [
     {"key": "tags.tnm_attr_id", "method": "neq", "value": EXCLUDE_IDS, "condition": "and"},
     {"key": "alert_name", "method": "neq", "value": ["Ping告警", "上报超时告警", "服务器系统时间偏移告警"]},
 ]
+
+
+class TapdOauthEndpoint:
+    """TAPD OAuth 端点（完整地址，基于 TAPD_OAUTH_BASE_URL）"""
+
+    _AUTHORIZE_PATH = "/oauth"
+    _OPEN_APP_INSTALL_PATH = "/open_app_install"
+
+    @staticmethod
+    def _base():
+        base_url = getattr(settings, "TAPD_OAUTH_BASE_URL", "").rstrip("/")
+        if not base_url:
+            raise ValueError(
+                "TAPD_OAUTH_BASE_URL 未配置，请在环境变量中设置 BKAPP_TAPD_OAUTH_BASE_URL 或 TAPD_OAUTH_BASE_URL"
+            )
+        return base_url
+
+    @classmethod
+    def authorize(cls):
+        """用户态授权完整地址"""
+        return f"{cls._base()}{cls._AUTHORIZE_PATH}"
+
+    @classmethod
+    def open_app_install(cls):
+        """应用态授权完整地址"""
+        return f"{cls._base()}{cls._OPEN_APP_INSTALL_PATH}"
