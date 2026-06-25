@@ -58,8 +58,10 @@ def no_data_check():
     logger.info("[no_data_check]  end check index set no data")
 
 
-def index_set_no_data_check(index_set_id, bk_biz_id):
-    current_time = arrow.now()
+def _index_set_has_data(index_set_id, bk_biz_id, current_time):
+    """
+    检查单个索引集近一天是否有数据，异常按无数据处理，保持原有 no_data_check 行为。
+    """
     params = {
         "bk_biz_id": bk_biz_id,
         "index_set_ids": [index_set_id],
@@ -68,12 +70,36 @@ def index_set_no_data_check(index_set_id, bk_biz_id):
     }
     try:
         total_count = UnifyQueryFieldHandler(params).get_total_count()
-        if not total_count:
-            LogIndexSet.set_tag(index_set_id, InnerTag.NO_DATA.value)
-            logger.warning(f"[no data check] index_set_id => [{index_set_id}] no have data")
-            return
+        return bool(total_count)
     except Exception as e:  # pylint: disable=broad-except
-        LogIndexSet.set_tag(index_set_id, InnerTag.NO_DATA.value)
         logger.warning(f"[no data check] index_set_id => [{index_set_id}] check failed: {e}")
+        return False
+
+
+def index_set_no_data_check(index_set_id, bk_biz_id):
+    current_time = arrow.now()
+    index_set = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+
+    if index_set and index_set.is_group:
+        # 索引组只有在所有子索引集都无数据时，才标记为无数据。
+        child_index_set_ids = index_set.get_child_index_set_ids()
+        for child_index_set_id in child_index_set_ids:
+            # 任一子索引集有数据，说明该索引组仍可检索到数据，需要清理无数据标签。
+            if _index_set_has_data(child_index_set_id, bk_biz_id, current_time):
+                LogIndexSet.delete_tag_by_name(index_set_id, InnerTag.NO_DATA.value)
+                return
+
+        LogIndexSet.set_tag(index_set_id, InnerTag.NO_DATA.value)
+        logger.warning(
+            f"[no data check] index_set_id => [{index_set_id}] and child index sets => "
+            f"[{child_index_set_ids}] no have data"
+        )
         return
+
+    # 普通索引集保持原有判定逻辑：自身近一天无数据则打无数据标签。
+    if not _index_set_has_data(index_set_id, bk_biz_id, current_time):
+        LogIndexSet.set_tag(index_set_id, InnerTag.NO_DATA.value)
+        logger.warning(f"[no data check] index_set_id => [{index_set_id}] no have data")
+        return
+
     LogIndexSet.delete_tag_by_name(index_set_id, InnerTag.NO_DATA.value)
