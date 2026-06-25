@@ -29,7 +29,6 @@ from blueapps.conf.default_settings import *  # noqa
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
-
 from config.log import get_logging_config_dict
 
 # 使用k8s部署模式

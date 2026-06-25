@@ -2278,6 +2278,15 @@ class SearchHandler:
             # 将导出字段和检索日志有的字段取交集
             support_fields_list = [i["field_name"] for i in self.fields()["fields"]]
             self.export_fields = list(set(self.export_fields).intersection(set(support_fields_list)))
+        hits_wrapper = result_dict.get("hits", {})
+        if not isinstance(hits_wrapper, dict):
+            hits_wrapper = {}
+        hits_total = hits_wrapper.get("total", 0)
+        if isinstance(hits_total, dict):
+            hits_total = hits_total.get("value", 0)
+        raw_hits = hits_wrapper.get("hits", [])
+        if not isinstance(raw_hits, list):
+            raw_hits = []
         result: dict = {
             "aggregations": result_dict.get("aggregations", {}),
         }
@@ -2287,13 +2296,13 @@ class SearchHandler:
         log_list: list = []
         agg_result: dict = {}
         origin_log_list: list = []
-        if not result_dict.get("hits", {}).get("total"):
+        if not hits_total:
             result.update(
                 {"total": 0, "took": 0, "list": log_list, "aggs": agg_result, "origin_log_list": origin_log_list}
             )
             return result
         # hit data
-        for hit in result_dict["hits"]["hits"]:
+        for hit in raw_hits:
             log = hit["_source"]
             # 脱敏处理
             if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
@@ -2345,8 +2354,8 @@ class SearchHandler:
 
         result.update(
             {
-                "total": result_dict["hits"]["total"],
-                "took": result_dict["took"],
+                "total": hits_total,
+                "took": result_dict.get("took", 0),
                 "list": log_list,
                 "origin_log_list": origin_log_list,
             }
