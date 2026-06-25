@@ -358,6 +358,13 @@ export default class HostTree extends tsc<IProps, IEvents> {
     this.tabActiveChange();
   }
 
+  mounted() {
+    // 获取目标 IP 地址
+    const targetIp = this.viewOptions.filters.bk_target_ip || '';
+    // 初始化搜索关键字
+    this.searchKeyword = targetIp;
+  }
+
   /** 获取topo tree数据 */
   getHostTreeData() {
     if (!this.apiData) return;
@@ -501,6 +508,14 @@ export default class HostTree extends tsc<IProps, IEvents> {
     const data = res ? [res.id] : [];
     this.$nextTick(() => {
       if (this.bigTreeRef) {
+        // 如果存在搜索关键字，则使用该关键字进行过滤
+        if (this.searchKeyword) {
+          this.bigTreeRef.filter({ keyword: this.searchKeyword });
+          // 如果没有匹配的节点，则清空搜索关键字
+          if (!data.length) {
+            this.searchKeyword = '';
+          }
+        }
         this.bigTreeRef.setSelected(data[0]);
         this.bigTreeRef.setExpanded(data);
       }
