@@ -348,6 +348,33 @@ class TestCollectExampleGroups:
         assert by_b == {"2": ["同标题"]}
 
 
+class TestRelationInfoHasContent:
+    """relation_info_has_content：dict 形态关联信息是否含可总结的实质内容。"""
+
+    def test_link_only_is_empty(self):
+        # 源日志过期只剩跳转链接 → 无内容
+        assert llm_title.relation_info_has_content({"bklog_link": "https://x"}) is False
+
+    def test_all_meta_keys_is_empty(self):
+        assert (
+            llm_title.relation_info_has_content(
+                {"bklog_link": "u", "group_by": ["a"], "owners": "o", "remark_text": "r"}
+            )
+            is False
+        )
+
+    def test_pattern_is_content(self):
+        # 聚类 pattern 是实质内容
+        assert llm_title.relation_info_has_content({"pattern": "ErrX(1)", "bklog_link": "u"}) is True
+
+    def test_log_body_is_content(self):
+        assert llm_title.relation_info_has_content({"log": "ERROR x failed", "bklog_link": "u"}) is True
+
+    def test_empty_values_not_content(self):
+        # 内容字段存在但为空 → 仍视为无内容
+        assert llm_title.relation_info_has_content({"log": "", "pattern": None, "bklog_link": "u"}) is False
+
+
 class TestGenerateIssueLlmTitleBranches:
     """任务体关键分支：shadow / CAS / 限流 / 无效输出。重依赖全 mock，不触 ES/网关。"""
 
@@ -435,6 +462,22 @@ class TestGenerateIssueLlmTitleBranches:
         self.fake_issue.name = "[回归] 默认名"
         self.it.generate_issue_llm_title("issue1", 2, "[回归] 默认名", "17000000001")
         assert self.renames and self.renames[0][0].startswith("[回归] ")
+
+    def test_link_only_relation_no_llm_no_write(self):
+        # 关联信息只剩 bklog_link（源日志已过期）→ 判 empty_log，既不调 LLM 也不改名
+        self.monkeypatch.setattr(settings, "ISSUE_LLM_TITLE_SHADOW", False, raising=False)
+        self.monkeypatch.setattr(
+            "bkmonitor.utils.event_related_info.get_alert_relation_info",
+            lambda alert, length_limit=False: '{"bklog_link": "https://bklog.example/#/retrieve/1?x=1"}',
+        )
+        calls = []
+        from core.drf_resource import api as drf_api
+
+        self.monkeypatch.setattr(
+            drf_api, "aidev", types.SimpleNamespace(chat_completion=lambda **kw: calls.append(1)), raising=False
+        )
+        self._run()
+        assert calls == [] and self.renames == []
 
 
 class TestRefreshExamplesGate:

@@ -105,6 +105,22 @@ def validate_biz_template(template) -> None:
         raise ValueError(f"template missing required placeholders: {sorted(missing)}")
 
 
+# get_alert_relation_info 的聚类分支（get_clustering_log）给 record 附加的纯元数据键，
+# 非可供总结的日志正文。源日志已过期 / 取数为空时，record 会退化成只剩这些键
+# （典型只剩 bklog_link 一个跳转链接），此时据 URL 参数生成的标题没有信息量。
+RELATION_INFO_META_KEYS = frozenset({"bklog_link", "group_by", "owners", "remark_text", "remark_user", "remark_time"})
+
+
+def relation_info_has_content(parsed: dict) -> bool:
+    """dict 形态的关联信息是否含可供 LLM 总结的实质内容（日志正文 / 聚类 pattern 等）。
+
+    剔除纯元数据键后若无任何非空字段，视为无内容——典型场景：源日志已过期，
+    关联信息只剩 bklog_link。返回 False 时调用方应按"不适用"处理（保留默认名），
+    而不是把链接壳子喂给 LLM 据 URL 编造泛化标题。
+    """
+    return any(value for key, value in parsed.items() if key not in RELATION_INFO_META_KEYS)
+
+
 def resolve_template(bk_biz_id) -> str:
     """业务模板 > 内置自适应模板。业务层模板非法时记日志并跳过，不阻塞生成。
 

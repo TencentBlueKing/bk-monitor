@@ -947,6 +947,11 @@ def generate_issue_llm_title(issue_id: str, bk_biz_id, default_name: str, alert_
     try:
         parsed = json.loads(relation_info)
         if isinstance(parsed, dict):
+            # 关联信息无实质内容（如源日志已过期，record 只剩 bklog_link 等纯元数据）：
+            # 不据跳转链接 URL 编造泛化标题，按不适用处理保留默认名。
+            if not llm_title.relation_info_has_content(parsed):
+                _finish("empty_log")
+                return
             log_content = parsed.get("log", relation_info)
     except (TypeError, ValueError):
         pass
