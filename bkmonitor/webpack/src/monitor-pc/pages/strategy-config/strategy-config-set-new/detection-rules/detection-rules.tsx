@@ -33,6 +33,7 @@ import MonitorSelect from '../../../../components/monitor-select/monitor-select.
 import { THRESHOLD_METHOD_LIST } from '../../../../constant/constant';
 import AbnormalCluster from '../../../../static/images/svg/abnormal-cluster.svg';
 import IntelligentDetect from '../../../../static/images/svg/intelligent-detect.svg';
+import NewSeries from '../../../../static/images/svg/new-series.svg';
 import PartialNodes from '../../../../static/images/svg/partial-nodes.svg';
 import RingRatio from '../../../../static/images/svg/ring-ratio.svg';
 import Threshold from '../../../../static/images/svg/threshold.svg';
@@ -145,6 +146,17 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
       type: 'ai',
       name: window.i18n.tc('离群检测'),
       icon: AbnormalCluster,
+      data: undefined,
+      tip: '算法说明待产品补充',
+      modelData: undefined,
+      disabled: false,
+      disabledTip: '',
+    },
+    {
+      id: DetectionRuleTypeEnum.NewSeries,
+      type: 'ai',
+      name: window.i18n.tc('新维度值检测'),
+      icon: NewSeries,
       data: undefined,
       tip: '算法说明待产品补充',
       modelData: undefined,
@@ -312,10 +324,27 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
 
       // 智能算法规则
       if (item.type === 'ai') {
-        const hasOne = this.addType.find(set => set.type === 'ai');
-        if (hasOne) {
-          item.disabled = true;
-          item.disabledTip = this.$tc('暂不支持设置两个智能算法');
+        if (item.id === DetectionRuleTypeEnum.NewSeries) {
+          // 新维度值检测按告警级别区分（致命/预警/提醒），支持多个级别各配一条（组件内 levelList
+          // 按已用级别去重），不计入“单个智能算法”限制；但与计算平台类智能算法互斥，且最多三个级别。
+          const newSeriesCount = this.addType.filter(set => set.id === DetectionRuleTypeEnum.NewSeries).length;
+          const hasRealAiops = this.addType.find(
+            set => set.type === 'ai' && set.id !== DetectionRuleTypeEnum.NewSeries
+          );
+          if (hasRealAiops) {
+            item.disabled = true;
+            item.disabledTip = this.$tc('暂不支持设置两个智能算法');
+          } else if (newSeriesCount >= 3) {
+            item.disabled = true;
+            item.disabledTip = this.$tc('新维度值检测最多支持三个告警级别');
+          }
+        } else {
+          // 计算平台类智能算法：单个限制，且与任意已选智能算法（含新维度值检测）互斥。
+          const hasOne = this.addType.find(set => set.type === 'ai');
+          if (hasOne) {
+            item.disabled = true;
+            item.disabledTip = this.$tc('暂不支持设置两个智能算法');
+          }
         }
       }
 
@@ -448,8 +477,10 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
   /**
    * @description: 算法规则数据变化
    */
-  handleRuleDataChange(val: IDetectionTypeRuleData, item: IDetectionTypeItem) {
+  handleRuleDataChange(val: IDetectionTypeRuleData, index: number) {
+    const item = this.addType[index];
     item.data = val;
+    this.addType.splice(index, 1, item);
     this.emitLocalValue();
   }
 
@@ -574,7 +605,7 @@ export default class DetectionRules extends tsc<IDetectionRules, IEvent> {
                 select-rule-data={this.localValue}
                 unit={this.unitDisplay}
                 onChartTypeChange={this.handleAiopsChartTypeChange}
-                onDataChange={val => this.handleRuleDataChange(val, item)}
+                onDataChange={val => this.handleRuleDataChange(val, index)}
                 onDelete={() => this.handleDeleteRule(index)}
                 onInitVM={val => this.ruleWrapVMInit(val, index)}
                 onModelChange={data => this.handleModelChange(data, item)}
