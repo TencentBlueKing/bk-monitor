@@ -406,7 +406,7 @@ export default class TimeSeriesOutlier extends LineChart {
                 splitNumber: this.height < 120 ? 2 : 4,
                 minInterval: 1,
                 scale: this.height < 120 ? false : canScale,
-                max: v => Math.max(v.max, +maxThreshold),
+                max: v => Math.max(v.max + (Math.abs(v.max - v.min) || Math.abs(v.max) || 1) * 0.1, +maxThreshold),
                 min: v => Math.min(v.min, +minThreshold),
               },
               xAxis: {
