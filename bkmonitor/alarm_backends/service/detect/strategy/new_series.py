@@ -61,11 +61,10 @@ class NewSeries(BasicAlgorithmsCollection):
         self._fire_by_dp = {}
         super().__init__(config, unit, extra_config)
         self.detect_range = int(self.validated_config["detect_range"])
-        # 运行时不变量保护：宽限期(effective_delay)不得短于检测窗口(detect_range)。否则首轮(或调大
-        # detect_range 后)存量维度学不全 → 误报。缺省/显式小值一律夹紧到 >= detect_range。
-        # 注：seen-set 留存全部(无按时间淘汰),历史深度 = now-learn_start,故宽限达到 detect_range
-        # 即代表"已学满一个检测窗口";调大 detect_range 会让本式自动重新进入宽限(补差额),无需改 learn_start。
-        self.effective_delay = max(int(self.validated_config.get("effective_delay") or 0), self.detect_range)
+        # 宽限期恒等于检测窗口(detect_range)：NewSeries 不设独立宽限期,忽略存档 effective_delay,使新老策略
+        # 运行口径一致。seen-set 留存全部(无按时间淘汰),历史深度 = now-learn_start,故宽限达 detect_range
+        # 即"已学满一个检测窗口";调大 detect_range 会让 warmup 自动重新进入(补差额),无需改 learn_start。
+        self.effective_delay = self.detect_range
         self.max_series = int(self.validated_config.get("max_series", 100000))
 
     def gen_expr(self):
@@ -192,9 +191,6 @@ class NewSeries(BasicAlgorithmsCollection):
         ns_configs = self._item_new_series_configs(item)
         eff_detect_range = max([self.detect_range] + [int(c.get("detect_range", 0) or 0) for c in ns_configs])
         eff_max_series = max([self.max_series] + [int(c.get("max_series", 0) or 0) for c in ns_configs])
-        # soft_ttl 必须 >= 最长宽限期(effective_delay),否则 learn_start/seen-set 会在宽限结束前过期重置 →
-        # 长宽限策略长期"重学不告警"。self.effective_delay 已夹紧 >= detect_range,叠加各 level 原始配置取最大。
-        eff_effective_delay = max([self.effective_delay] + [int(c.get("effective_delay", 0) or 0) for c in ns_configs])
         try:
             # 1) 内存按指纹聚合本批最大时间戳(Redis<6.2 无 ZADD GT，不能靠 Redis 取 max)。
             latest = {}
@@ -229,7 +225,7 @@ class NewSeries(BasicAlgorithmsCollection):
                     if score is not None:
                         seen_before[fp] = int(float(score))
 
-            soft_ttl = max(eff_detect_range * 2, eff_effective_delay, _MIN_SOFT_TTL)
+            soft_ttl = max(eff_detect_range * 2, _MIN_SOFT_TTL)
 
             # 3) 写新态：分块 zadd，score=max(本批最大ts, 旧态)。跨批取 max(等价 ZADD GT)，
             #    防止迟到/补数的更旧时间戳把 last_seen 倒退(Redis<6.2 无 ZADD GT，故内存取 max)。
