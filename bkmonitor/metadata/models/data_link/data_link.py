@@ -499,6 +499,7 @@ class DataLink(models.Model):
         bk_biz_id: int,
         data_source: "DataSource",
         table_id: str,
+        consumer_group: str | None = None,
     ) -> list[dict[str, Any]]:
         if not graph_binding_ins.surrealdb_cluster_name:
             raise ValueError("compose_graph_relation_surrealdb_configs: surrealdb cluster name is empty")
@@ -564,6 +565,7 @@ class DataLink(models.Model):
                     "sink_names": [f"{DataLinkKind.SURREALDBBINDING.value}:{surrealdb_binding_name}"],
                 },
             )
+            graph_databus_ins.apply_consumer_group(consumer_group)
 
         return [
             rt_surreal_ins.compose_config(),
@@ -578,6 +580,7 @@ class DataLink(models.Model):
         table_id: str,
         storage_cluster_name: str = "",
         write_mode: str | None = None,
+        consumer_group: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         生成图关系时序链路配置。
@@ -758,6 +761,7 @@ class DataLink(models.Model):
                         ],
                     },
                 )
+                data_bus_ins.apply_consumer_group(consumer_group)
             configs.extend(
                 [
                     vm_table_id_ins.compose_config(),
@@ -773,6 +777,7 @@ class DataLink(models.Model):
                     bk_biz_id=bk_biz_id,
                     data_source=data_source,
                     table_id=table_id,
+                    consumer_group=consumer_group,
                 )
             )
         if cleanup_graph_binding and cleanup_write_mode:
@@ -2095,6 +2100,7 @@ class DataLink(models.Model):
                 bkbase_rt_record=bkbase_rt_record,
                 storage_type=storage_type,
                 should_update_bkbase_rt_storage_type=should_update_bkbase_rt_storage_type,
+                consumer_group=consumer_group,
             )
 
         # 把 compose（含内部 update_or_create）和 leftover 校验放进同一个外层事务：
@@ -2213,6 +2219,7 @@ class DataLink(models.Model):
         bkbase_rt_record: "BkBaseResultTable",
         storage_type: str,
         should_update_bkbase_rt_storage_type: bool,
+        consumer_group: str | None = None,
     ) -> None:
         """
         Apply graph relation links atomically with local compose-side metadata.
@@ -2226,7 +2233,10 @@ class DataLink(models.Model):
                 try:
                     self._defer_graph_binding_update_after_apply = True
                     configs: list[dict[str, Any]] = self.compose_configs(
-                        *args, existing_context=existing_context, **kwargs
+                        *args,
+                        existing_context=existing_context,
+                        consumer_group=consumer_group,
+                        **kwargs,
                     )
                     if existing_context is not None:
                         self._check_leftover_or_raise(existing_context)

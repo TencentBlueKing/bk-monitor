@@ -6400,6 +6400,58 @@ def test_surrealdb_cluster_config_uses_cluster_version():
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_graph_relation_compose_configs_accepts_consumer_group(create_or_delete_records, mocker):
+    datalink, ds, rt = _prepare_bk_standard_v2_datalink()
+    datalink.data_link_strategy = DataLink.GRAPH_RELATION_TIME_SERIES
+    datalink.save(update_fields=["data_link_strategy"])
+
+    models.ClusterInfo.objects.create(
+        cluster_name="surreal-consumer-group",
+        cluster_type=models.ClusterInfo.TYPE_SURREALDB,
+        domain_name="consumer-group.surrealdb",
+        port=8000,
+        description="",
+        cluster_id=300201,
+        is_default_cluster=True,
+        version="2.x",
+        bk_tenant_id=datalink.bk_tenant_id,
+    )
+    mocker.patch(
+        "metadata.models.data_link.data_link.EntityMeta.auto_query_graph_definitions",
+        return_value=([{"name": "pod", "id_fields": ["pod_name"]}], []),
+    )
+    mocker.patch("metadata.models.data_link.data_link.SurrealDBStorage.create_table")
+
+    configs = datalink.compose_configs(
+        bk_biz_id=1001,
+        data_source=ds,
+        table_id=rt.table_id,
+        storage_cluster_name="vm-plat",
+        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
+        consumer_group="graph_consumer_group",
+    )
+
+    graph_binding = GraphRelationBindingConfig.objects.get(name=datalink.data_link_name)
+    vm_databus_payload = next(
+        config for config in configs if config["metadata"]["name"] == graph_binding.vm_databus_component_name
+    )
+    graph_databus_payload = next(
+        config for config in configs if config["metadata"]["name"] == graph_binding.graph_databus_component_name
+    )
+
+    assert vm_databus_payload["spec"]["consumerGroup"] == "graph_consumer_group"
+    assert graph_databus_payload["spec"]["consumerGroup"] == "graph_consumer_group"
+    assert (
+        DataBusConfig.objects.get(name=graph_binding.vm_databus_component_name).consumer_group
+        == "graph_consumer_group"
+    )
+    assert (
+        GraphDataBusConfig.objects.get(name=graph_binding.graph_databus_component_name).consumer_group
+        == "graph_consumer_group"
+    )
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_graph_databus_proxy_manager_filters_graph_records():
     DataBusConfig.objects.create(
         name="2_bkcc_built_in_time_series",
@@ -6772,7 +6824,7 @@ def test_graph_relation_apply_uses_metadata_transaction_and_merges_existing_conf
     composed_configs = [{"kind": DataLinkKind.RESULTTABLE.value, "metadata": {"name": "graph_rt"}, "spec": {}}]
     merged_configs = [{"kind": DataLinkKind.RESULTTABLE.value, "metadata": {"name": "graph_rt"}, "spec": {"merged": True}}]
     mock_atomic = mocker.patch("metadata.models.data_link.data_link.transaction.atomic")
-    mocker.patch.object(datalink, "compose_configs", return_value=composed_configs)
+    mock_compose = mocker.patch.object(datalink, "compose_configs", return_value=composed_configs)
     mock_merge = mocker.patch.object(datalink, "merge_existing_component_configs", return_value=merged_configs)
     mock_apply = mocker.patch.object(datalink, "apply_data_link_with_retry", return_value={"status": "success"})
 
@@ -6783,9 +6835,11 @@ def test_graph_relation_apply_uses_metadata_transaction_and_merges_existing_conf
         bkbase_rt_record=mocker.Mock(),
         storage_type=models.ClusterInfo.TYPE_SURREALDB,
         should_update_bkbase_rt_storage_type=False,
+        consumer_group="graph_consumer_group",
     )
 
     mock_atomic.assert_called_once_with(using=DATABASE_CONNECTION_NAME)
+    mock_compose.assert_called_once_with(existing_context=None, consumer_group="graph_consumer_group")
     mock_merge.assert_called_once_with(composed_configs)
     mock_apply.assert_called_once_with(merged_configs)
 
