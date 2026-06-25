@@ -28,6 +28,7 @@ from typing import TypeAlias, cast
 
 from django.db import transaction
 
+from bkmonitor.utils.tenant import get_tenant_default_biz_id
 from metadata.models import (
     AccessVMRecord,
     BkBaseResultTable,
@@ -276,8 +277,10 @@ def rebuild_simple_databus_relation(
 
     if result_table.default_storage in [ClusterInfo.TYPE_VM, ClusterInfo.TYPE_INFLUXDB]:
         target_bk_biz_id = result_table.get_target_bk_biz_id()
+        if target_bk_biz_id == 0:
+            target_bk_biz_id = get_tenant_default_biz_id(bk_tenant_id=result_table.bk_tenant_id)
     else:
-        target_bk_biz_id = 0
+        target_bk_biz_id = result_table.bk_biz_id
 
     # Step 5: 解析 DataBus.sink_names；只接受直接写入 VM / ES / Doris 的存储绑定。
     sink_instances: list[SimpleStorageBindingConfig] = []
@@ -1043,3 +1046,191 @@ def rebuild_bkbase_v4_datalink_relation(bk_tenant_id: str, namespace: str, dry_r
     if dry_run:
         return dry_run_results
     return None
+
+
+# simple rebuild 会回填业务 ID 的组件模型；DataIdConfig 不在 simple rebuild 的归属处理范围内，故此处不修复。
+SIMPLE_REBUILD_BK_BIZ_ID_MODELS: tuple[type[DataLinkResourceConfigBase], ...] = (
+    DataBusConfig,
+    ResultTableConfig,
+    VMStorageBindingConfig,
+    ESStorageBindingConfig,
+    DorisStorageBindingConfig,
+)
+
+
+def _resolve_simple_rebuild_target_bk_biz_id(bk_tenant_id: str, table_id: str) -> int | None:
+    """解析 simple rebuild 链路组件应归属的目标业务 ID。
+
+    分两类存储场景处理：
+        - VM / InfluxDB 指标链路：沿用 get_target_bk_biz_id，必要时从自定义时序/事件 group 反查业务字段。
+        - log / event 等其余链路：直接复用结果表自身的 bk_biz_id。
+
+    Args:
+        bk_tenant_id: 租户 ID。
+        table_id: 链路关联的监控结果表 ID。
+
+    Returns:
+        解析到的目标业务 ID；当结果表不存在时返回 None，由调用方据此跳过。
+    """
+    try:
+        result_table = ResultTable.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
+    except ResultTable.DoesNotExist:
+        return None
+
+    if result_table.default_storage in [ClusterInfo.TYPE_VM, ClusterInfo.TYPE_INFLUXDB]:
+        target_bk_biz_id = result_table.get_target_bk_biz_id()
+        if target_bk_biz_id == 0:
+            target_bk_biz_id = get_tenant_default_biz_id(bk_tenant_id=result_table.bk_tenant_id)
+        return target_bk_biz_id
+
+    # log / event 等非指标链路直接使用结果表自身的业务 ID
+    return result_table.bk_biz_id
+
+
+def backfill_simple_rebuild_relation_bk_biz_id(
+    bk_tenant_id: str, namespace: str, dry_run: bool = True
+) -> list[dict[str, object]]:
+    """检查并补全 rebuild_simple_databus_relation 历史重建链路下组件的业务 ID。
+
+    背景：
+        早期 rebuild_simple_databus_relation 未处理 bk_biz_id，导致以 "rebuilt__" 前缀重建的链路下，
+        DataBus / StorageBinding / ResultTable 组件的 bk_biz_id 残留为 0。本脚本用于离线巡检并修复。
+
+    处理逻辑：
+        以 "rebuilt__" 前缀的 DataLink 为单位，按链路关联的唯一 table_id 重新解析目标业务 ID
+        （口径与 rebuild_simple_databus_relation 完全一致），并回填到 bk_biz_id 不一致的组件。
+        多结果表 / 无结果表的 DataLink 不属于 simple rebuild 场景，直接跳过避免误改。
+
+    调用方式：
+        from metadata.models.data_link.relation import backfill_simple_rebuild_relation_bk_biz_id
+        # 先 dry_run 巡检
+        backfill_simple_rebuild_relation_bk_biz_id(bk_tenant_id="system", namespace="bkmonitor", dry_run=True)
+        # 确认无误后执行写库
+        backfill_simple_rebuild_relation_bk_biz_id(bk_tenant_id="system", namespace="bkmonitor", dry_run=False)
+
+    Args:
+        bk_tenant_id: 租户 ID，例如 "system"。
+        namespace: 命名空间，例如 "bkmonitor"。
+        dry_run: 若为 True，仅统计并返回待更新组件信息，不写入数据库。
+
+    Returns:
+        待更新（dry_run=True）或已更新（dry_run=False）的链路组件信息列表，
+        每个元素描述一条 DataLink 及其下需要修正 bk_biz_id 的组件。
+    """
+    data_links = DataLink.objects.filter(
+        bk_tenant_id=bk_tenant_id,
+        namespace=namespace,
+        data_link_name__startswith=REBUILT_DATA_LINK_NAME_PREFIX,
+    )
+    total = data_links.count()
+    logger.info(
+        "backfill_simple_rebuild_relation_bk_biz_id: found %d rebuilt DataLink(s) for "
+        "bk_tenant_id->[%s] namespace->[%s] dry_run->[%s]",
+        total,
+        bk_tenant_id,
+        namespace,
+        dry_run,
+    )
+
+    results: list[dict[str, object]] = []
+    updated_link_count, skipped_link_count, updated_component_count = 0, 0, 0
+    for data_link in data_links:
+        # 简单链路只关联一张结果表；多表或无表说明不是 simple rebuild 场景，跳过避免误判。
+        if len(data_link.table_ids) != 1:
+            logger.info(
+                "backfill_simple_rebuild_relation_bk_biz_id: data_link->[%s] table_ids->[%s] is not single-table, skip",
+                data_link.data_link_name,
+                data_link.table_ids,
+            )
+            skipped_link_count += 1
+            continue
+
+        table_id = data_link.table_ids[0]
+        target_bk_biz_id = _resolve_simple_rebuild_target_bk_biz_id(bk_tenant_id, table_id)
+        if target_bk_biz_id is None:
+            logger.warning(
+                "backfill_simple_rebuild_relation_bk_biz_id: data_link->[%s] ResultTable with table_id->[%s] "
+                "not found, skip",
+                data_link.data_link_name,
+                table_id,
+            )
+            skipped_link_count += 1
+            continue
+
+        # 防御：解析出的目标业务 ID 仍为 0 时无法修复（0->0 无意义），跳过避免误判与无效写入。
+        if not target_bk_biz_id:
+            logger.info(
+                "backfill_simple_rebuild_relation_bk_biz_id: data_link->[%s] table_id->[%s] resolved "
+                "target_bk_biz_id is 0, skip",
+                data_link.data_link_name,
+                table_id,
+            )
+            skipped_link_count += 1
+            continue
+
+        # 防御：只修复历史残留为 0 的组件配置，已有非 0 业务 ID 的组件保持原值不动。
+        # 先固化明细便于 dry_run review 与执行后审计。
+        link_components: list[dict[str, object]] = []
+        mismatched_by_model: list[tuple[type[DataLinkResourceConfigBase], list[int]]] = []
+        for model in SIMPLE_REBUILD_BK_BIZ_ID_MODELS:
+            zero_biz_components = list(
+                model.objects.filter(
+                    bk_tenant_id=bk_tenant_id,
+                    namespace=namespace,
+                    data_link_name=data_link.data_link_name,
+                    bk_biz_id=0,
+                )
+            )
+            if not zero_biz_components:
+                continue
+            mismatched_by_model.append((model, [component.id for component in zero_biz_components]))
+            link_components.extend(
+                {
+                    "kind": component.kind,
+                    "name": component.name,
+                    "old_bk_biz_id": component.bk_biz_id,
+                }
+                for component in zero_biz_components
+            )
+
+        if not link_components:
+            continue
+
+        if dry_run:
+            # dry_run 仅巡检，逐条打印将被更新的链路与组件，便于人工确认影响范围。
+            for component in link_components:
+                logger.info(
+                    "backfill_simple_rebuild_relation_bk_biz_id[dry_run]: data_link->[%s] component kind->[%s] "
+                    "name->[%s] bk_biz_id will be updated [%s]->[%s]",
+                    data_link.data_link_name,
+                    component["kind"],
+                    component["name"],
+                    component["old_bk_biz_id"],
+                    target_bk_biz_id,
+                )
+        else:
+            with transaction.atomic():
+                for model, component_ids in mismatched_by_model:
+                    model.objects.filter(id__in=component_ids).update(bk_biz_id=target_bk_biz_id)
+
+        updated_link_count += 1
+        updated_component_count += len(link_components)
+        results.append(
+            {
+                "data_link_name": data_link.data_link_name,
+                "table_id": table_id,
+                "target_bk_biz_id": target_bk_biz_id,
+                "components": link_components,
+            }
+        )
+
+    logger.info(
+        "backfill_simple_rebuild_relation_bk_biz_id: finished. total->[%d], updated_link->[%d], "
+        "skipped_link->[%d], updated_component->[%d], dry_run->[%s]",
+        total,
+        updated_link_count,
+        skipped_link_count,
+        updated_component_count,
+        dry_run,
+    )
+    return results

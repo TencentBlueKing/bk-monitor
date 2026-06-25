@@ -527,6 +527,7 @@ def _access_bkdata_vm(
     data_id: int,
     allow_access_v2_data_link: bool | None = False,
     force_update: bool = False,
+    consumer_group: str | None = None,
 ):
     """接入计算平台 VM 任务
     NOTE: 根据环境变量判断是否启用新版vm链路
@@ -542,6 +543,7 @@ def _access_bkdata_vm(
             table_id=table_id,
             data_id=data_id,
             force_update=force_update,
+            consumer_group=consumer_group,
         )
     else:
         logger.info("_access_bkdata_vm: start to access bkdata vm, table_id->%s, data_id->%s", table_id, data_id)
@@ -556,6 +558,7 @@ def access_bkdata_vm(
     data_id: int,
     allow_access_v2_data_link: bool = False,
     force_update: bool = False,
+    consumer_group: str | None = None,
 ):
     """接入计算平台 VM 任务"""
     logger.info("bk_biz_id: %s, table_id: %s, data_id: %s start access bkdata vm", bk_biz_id, table_id, data_id)
@@ -567,6 +570,7 @@ def access_bkdata_vm(
             data_id=data_id,
             allow_access_v2_data_link=allow_access_v2_data_link,
             force_update=force_update,
+            consumer_group=consumer_group,
         )
     except RetryError as e:
         logger.error(

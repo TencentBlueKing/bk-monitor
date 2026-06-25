@@ -28,12 +28,16 @@ from django.conf import settings
 from django.utils.http import urlencode
 from rest_framework.reverse import reverse
 
+from apps.api import TransferApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH_EXPORT
+from apps.log_databus.constants import DORIS_CLUSTER_TYPE, DORIS_DEFAULT_EXPIRE_DAYS
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import (
     ASYNC_COUNT_SIZE,
     MAX_GET_ATTENTION_SIZE,
+    MAX_ASYNC_COUNT,
+    MAX_QUICK_EXPORT_ASYNC_COUNT,
     ExportStatus,
     ExportType,
     IndexSetType,
@@ -119,6 +123,11 @@ class UnifyQueryAsyncExportHandlers:
                 "start_time": self.search_dict["start_time"],
                 "end_time": self.search_dict["end_time"],
                 "export_type": ExportType.ASYNC,
+                "export_total_count": self.get_export_total_count(
+                    request_size=self.search_dict.get("size"),
+                    is_quick_export=is_quick_export,
+                    max_async_count=self.unify_query_handler.index_info_list[0]["index_set_obj"].max_async_count,
+                ),
                 "created_by": self.request_user,
             }
         )
@@ -166,7 +175,15 @@ class UnifyQueryAsyncExportHandlers:
         )
         return search_url
 
-    def get_export_history(self, request, view, show_all=False, is_union_search=False):
+    def get_export_history(
+        self,
+        request,
+        view,
+        show_all=False,
+        is_union_search=False,
+        start_time=None,
+        end_time=None,
+    ):
         # 这里当show_all为true的时候则给前端返回当前业务全部导出历史
         source_app_code = get_request_app_code()
         external_username = get_request_external_username()
@@ -183,6 +200,10 @@ class UnifyQueryAsyncExportHandlers:
             query_set = query_set.filter(index_set_type=IndexSetType.SINGLE.value)
             if not show_all:
                 query_set = query_set.filter(index_set_id=self.index_set_id)
+        if start_time is not None:
+            query_set = query_set.filter(created_at__gte=arrow.get(start_time / 1000).datetime)
+        if end_time is not None:
+            query_set = query_set.filter(created_at__lte=arrow.get(end_time / 1000).datetime)
         pg = DataPageNumberPagination()
         page_export_task_history = pg.paginate_queryset(
             queryset=query_set.order_by("-created_at", "created_by"), request=request, view=view
@@ -215,12 +236,15 @@ class UnifyQueryAsyncExportHandlers:
             "export_type": export_task_history["export_type"],
             "export_status": export_task_history["export_status"] if retry_able else ExportStatus.DATA_EXPIRED,
             "error_msg": export_task_history["failed_reason"],
-            "download_url": export_task_history["download_url"],
+            "download_url": cls.get_async_export_download_url(export_task_history),
             "export_pkg_name": export_task_history["file_name"],
             "export_pkg_size": export_task_history["file_size"],
             "export_created_at": export_task_history["created_at"],
             "export_created_by": export_task_history["created_by"],
             "export_completed_at": export_task_history["completed_at"],
+            "exported_count": export_task_history["exported_count"],
+            "export_total_count": export_task_history["export_total_count"],
+            "download_count": export_task_history["download_count"],
             "download_able": download_able,
             "retry_able": retry_able,
             "index_set_type": export_task_history["index_set_type"],
@@ -238,6 +262,19 @@ class UnifyQueryAsyncExportHandlers:
         return res
 
     @classmethod
+    def get_async_export_download_url(cls, export_task_history):
+        if not export_task_history["download_url"]:
+            return export_task_history["download_url"]
+
+        query_params = urlencode(
+            {
+                "task_id": export_task_history["id"],
+                "bk_biz_id": export_task_history["bk_biz_id"],
+            }
+        )
+        return f"{settings.SITE_URL.rstrip('/')}/api/v1/search/index_set/async_export/download_file/?{query_params}"
+
+    @classmethod
     def judge_download_able(cls, status):
         if status == ExportStatus.DOWNLOAD_EXPIRED:
             return False
@@ -249,25 +286,56 @@ class UnifyQueryAsyncExportHandlers:
             return arrow.now() < arrow.get(end_time, tzinfo=settings.TIME_ZONE).shift(days=retention)
         return True
 
-    @classmethod
-    def get_index_set_retention(cls, index_set_ids):
-        index_set_id_dict = cls.get_data_id(index_set_ids)
-        data_id_retention_dict = cls.get_retention(list(index_set_id_dict.keys()))
-        return {index_set_id_dict.get(data_id): retention for data_id, retention in data_id_retention_dict.items()}
+    @staticmethod
+    def get_export_total_count(request_size, is_quick_export: bool = False, max_async_count: int = 0):
+        default_export_limit = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
+        export_limit = max(max_async_count or 0, default_export_limit)
+        request_size = request_size or export_limit
+        return min(request_size, export_limit)
 
     @classmethod
-    def get_data_id(cls, index_set_ids: list):
-        log_index_sets = LogIndexSet.objects.filter(index_set_id__in=index_set_ids)
-        log_index_set_dict = {
-            log_index_set.collector_config_id: log_index_set.index_set_id
-            for log_index_set in log_index_sets
-            if log_index_set.collector_config_id
+    def get_index_set_retention(cls, index_set_ids):
+        data_id_to_index_set_id_map, result_table_id_to_index_set_id_map = (
+            cls.get_data_id_to_index_set_id_map_and_result_table_id_to_index_set_id_map(index_set_ids)
+        )
+        data_id_to_retention_map = cls.get_retention(list(data_id_to_index_set_id_map.keys()))
+        es_retention_map = {
+            data_id_to_index_set_id_map.get(data_id): retention
+            for data_id, retention in data_id_to_retention_map.items()
         }
-        collector_configs = CollectorConfig.objects.filter(collector_config_id__in=log_index_set_dict.keys())
-        return {
-            collector_config.bk_data_id: log_index_set_dict.get(collector_config.collector_config_id)
-            for collector_config in collector_configs
+
+        doris_expire_days_map = cls.get_doris_index_set_id_to_expire_days_map(result_table_id_to_index_set_id_map)
+
+        return es_retention_map | doris_expire_days_map
+
+    @staticmethod
+    def get_data_id_to_index_set_id_map_and_result_table_id_to_index_set_id_map(index_set_ids: list):
+        index_set_objs = LogIndexSet.objects.filter(index_set_id__in=index_set_ids)
+
+        collector_config_id_to_index_set_id_map = {
+            index_set_obj.collector_config_id: index_set_obj.index_set_id
+            for index_set_obj in index_set_objs
+            if index_set_obj.collector_config_id
         }
+
+        collector_config_objs = CollectorConfig.objects.filter(
+            collector_config_id__in=collector_config_id_to_index_set_id_map.keys()
+        )
+
+        if not collector_config_objs:
+            return {}, {}
+
+        data_id_to_index_set_id_map = {}
+        result_table_id_to_index_set_id_map = {}
+
+        for collector_config_obj in collector_config_objs:
+            current_index_set_id = collector_config_id_to_index_set_id_map.get(collector_config_obj.collector_config_id)
+            if collector_config_obj.storage_cluster_type == DORIS_CLUSTER_TYPE:
+                result_table_id_to_index_set_id_map[collector_config_obj.table_id] = current_index_set_id
+            else:
+                data_id_to_index_set_id_map[collector_config_obj.bk_data_id] = current_index_set_id
+
+        return data_id_to_index_set_id_map, result_table_id_to_index_set_id_map
 
     @classmethod
     def get_retention(cls, data_ids):
@@ -288,6 +356,26 @@ class UnifyQueryAsyncExportHandlers:
                 shipper, *_ = result_table["shipper_list"]
                 result[val["bk_data_id"]] = shipper["storage_config"]["retention"]
         return result
+
+    @staticmethod
+    def get_doris_index_set_id_to_expire_days_map(result_table_id_to_index_set_id_map):
+        if not result_table_id_to_index_set_id_map:
+            return {}
+
+        doris_result_table_list = ",".join(result_table_id_to_index_set_id_map.keys())
+
+        result = TransferApi.get_result_table_storage(
+            {"result_table_list": doris_result_table_list, "storage_type": DORIS_CLUSTER_TYPE}
+        )
+
+        index_set_id_to_expire_days_map = {}
+
+        for result_table_id, storage_cluster_info in result.items():
+            expire_days = storage_cluster_info.get("storage_config", {}).get("expire_days", DORIS_DEFAULT_EXPIRE_DAYS)
+            current_index_set_id = result_table_id_to_index_set_id_map[result_table_id]
+            index_set_id_to_expire_days_map[current_index_set_id] = expire_days
+
+        return index_set_id_to_expire_days_map
 
 
 class UnifyQueryUnionAsyncExportHandlers:
@@ -351,6 +439,11 @@ class UnifyQueryUnionAsyncExportHandlers:
                 "start_time": self.search_dict["start_time"],
                 "end_time": self.search_dict["end_time"],
                 "export_type": ExportType.ASYNC,
+                "export_total_count": UnifyQueryAsyncExportHandlers.get_export_total_count(
+                    request_size=self.search_dict.get("size"),
+                    is_quick_export=is_quick_export,
+                    max_async_count=self.unify_query_handler.index_info_list[0]["index_set_obj"].max_async_count,
+                ),
                 "created_by": self.request_user,
             }
         )

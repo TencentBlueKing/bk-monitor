@@ -60,10 +60,9 @@ class TestRequestSerializer:
         ser = self._make_serializer({"bk_tenant_id": "system", "component_name": "bklog-bklog_301_xxx"})
         assert ser.is_valid(), ser.errors
 
-    def test_missing_tenant_fails(self):
+    def test_missing_tenant_keeps_tenant_field_default_behavior(self):
         ser = self._make_serializer({"bk_data_id": "123"})
-        assert not ser.is_valid()
-        assert "bk_tenant_id" in ser.errors
+        assert ser.is_valid(), ser.errors
 
 
 # ============================================================
@@ -617,7 +616,12 @@ class TestBuildV4DatabusBlock:
 
 def test_placeholder_block_all_null():
     out = QueryDataLinkMetadataResource()._build_placeholder_block()
-    assert out == {"collect_config_id": None}
+    assert out == {
+        "collect_config_id": None,
+        "kafka_shipper_cluster_name": None,
+        "kafka_shipper_host": None,
+        "kafka_shipper_topic_name": None,
+    }
 
 
 def test_runtime_error_fields_all_null():
@@ -652,7 +656,7 @@ class TestResolveByComponentName:
             "DataBusConfig",
             "ConditionalSinkConfig",
         ):
-            getattr(m_models, cfg_cls_name).objects.filter.return_value.first.return_value = None
+            getattr(m_models, cfg_cls_name).objects.filter.return_value = []
         r = QueryDataLinkMetadataResource()
         out = r._resolve_by_component_name("system", "bklog-bklog_301_xxx")
         assert out == []
@@ -669,21 +673,23 @@ class TestResolveByComponentName:
     def test_datalink_first_hit(self, m_models):
         """Step 1 直查 DataLink 命中, 不扫 *Config."""
         link = mock.MagicMock()
+        link.bk_tenant_id = "tenant-real"
         link.bk_data_id = 100004
         link.table_ids = ["100_bklog.fake_table"]
-        m_models.DataLink.objects.filter.return_value.first.return_value = link
+        m_models.DataLink.objects.filter.return_value = [link]
         r = QueryDataLinkMetadataResource()
         out = r._resolve_by_component_name("system", "bklog-fake_bklog_link_1")
-        assert out == [(100004, "100_bklog.fake_table")]
+        assert len(out) == 1
+        assert out[0].bk_tenant_id == link.bk_tenant_id
+        assert out[0].bk_data_id == 100004
+        assert out[0].table_id == "100_bklog.fake_table"
 
     @mock.patch("metadata.resources.bkdata_link.models")
     def test_fallback_to_config(self, m_models):
         """Step 1 未命中 → fallback 扫 *Config; 再回 DataLink 查."""
-        # 先返回 None (DataLink 未命中第一轮); 然后 ConditionalSinkConfig 命中 → 拿到 data_link_name → 再查 DataLink 命中
-        m_models.DataLink.objects.filter.return_value.first.side_effect = [
-            None,
-            mock.MagicMock(bk_data_id=200, table_ids=["foo.bar"]),
-        ]
+        # 先 DataLink 未命中; 然后 ConditionalSinkConfig 命中 → 拿到 data_link_name → 再查 DataLink 命中
+        link = mock.MagicMock(bk_tenant_id="tenant-real", bk_data_id=200, table_ids=["foo.bar"])
+        m_models.DataLink.objects.filter.side_effect = [[], [link]]
         # 让前几个 *Config 都返回 None, ConditionalSinkConfig 命中
         for cfg_cls_name in (
             "DataIdConfig",
@@ -693,20 +699,24 @@ class TestResolveByComponentName:
             "DorisStorageBindingConfig",
             "DataBusConfig",
         ):
-            getattr(m_models, cfg_cls_name).objects.filter.return_value.first.return_value = None
+            getattr(m_models, cfg_cls_name).objects.filter.return_value = []
         cfg = mock.MagicMock()
+        cfg.bk_tenant_id = "tenant-real"
         cfg.data_link_name = "fed_router_xxx"
-        m_models.ConditionalSinkConfig.objects.filter.return_value.first.return_value = cfg
+        m_models.ConditionalSinkConfig.objects.filter.return_value = [cfg]
 
         r = QueryDataLinkMetadataResource()
         out = r._resolve_by_component_name("system", "bkmonitor-fed_router_xxx_router")
-        # 命中后返回展开的 (data_id, table_id) 列表
-        assert out == [(200, "foo.bar")]
+        # 命中后返回展开的真实租户目标列表
+        assert len(out) == 1
+        assert out[0].bk_tenant_id == cfg.bk_tenant_id
+        assert out[0].bk_data_id == 200
+        assert out[0].table_id == "foo.bar"
 
     @mock.patch("metadata.resources.bkdata_link.models")
     def test_no_namespace_prefix_tries_both(self, m_models):
         """``foo`` (无 ns 前缀) → 跨 bkmonitor / bklog 都试."""
-        m_models.DataLink.objects.filter.return_value.first.return_value = None
+        m_models.DataLink.objects.filter.return_value = []
         for cfg_cls_name in (
             "DataIdConfig",
             "ResultTableConfig",
@@ -716,7 +726,7 @@ class TestResolveByComponentName:
             "DataBusConfig",
             "ConditionalSinkConfig",
         ):
-            getattr(m_models, cfg_cls_name).objects.filter.return_value.first.return_value = None
+            getattr(m_models, cfg_cls_name).objects.filter.return_value = []
         r = QueryDataLinkMetadataResource()
         r._resolve_by_component_name("system", "no_prefix_name")
         # 应该至少调用 DataLink 2 次 (bkmonitor + bklog)
@@ -825,31 +835,38 @@ class TestFetchBkbaseMetadata:
         r = self._make_resource()
         assert r._fetch_bkbase_metadata(None, None) is None
 
-    @mock.patch("metadata.resources.bkdata_link.api")
-    def test_with_bk_base_data_id(self, m_api):
-        m_api.bkdata.get_data_link_metadata.return_value = {"branches": [{"kafka_host": "h"}]}
+    @mock.patch("metadata.resources.bkdata_link.api.bkdata.get_data_link_metadata")
+    def test_with_bk_base_data_id(self, m_get_data_link_metadata):
+        m_get_data_link_metadata.return_value = {"branches": [{"kafka_host": "h"}]}
         r = self._make_resource()
         result = r._fetch_bkbase_metadata(100003, None)
         assert result == {"branches": [{"kafka_host": "h"}]}
-        m_api.bkdata.get_data_link_metadata.assert_called_with(bk_data_id=100003)
+        m_get_data_link_metadata.assert_called_with(bk_data_id=100003)
 
-    @mock.patch("metadata.resources.bkdata_link.api")
-    def test_with_vm_rt_name_when_no_data_id(self, m_api):
-        m_api.bkdata.get_data_link_metadata.return_value = {"branches": []}
+    @mock.patch("metadata.resources.bkdata_link.api.bkdata.get_data_link_metadata")
+    def test_with_real_tenant_id(self, m_get_data_link_metadata):
+        m_get_data_link_metadata.return_value = {"branches": []}
+        r = self._make_resource()
+        r._fetch_bkbase_metadata(100003, None, bk_tenant_id="tenant-real")
+        m_get_data_link_metadata.assert_called_with(bk_data_id=100003, bk_tenant_id="tenant-real")
+
+    @mock.patch("metadata.resources.bkdata_link.api.bkdata.get_data_link_metadata")
+    def test_with_vm_rt_name_when_no_data_id(self, m_get_data_link_metadata):
+        m_get_data_link_metadata.return_value = {"branches": []}
         r = self._make_resource()
         r._fetch_bkbase_metadata(None, "2_bkm_xxx")
-        m_api.bkdata.get_data_link_metadata.assert_called_with(vm_result_table_id="2_bkm_xxx")
+        m_get_data_link_metadata.assert_called_with(vm_result_table_id="2_bkm_xxx")
 
-    @mock.patch("metadata.resources.bkdata_link.api")
-    def test_with_monitor_data_id_when_no_vm_or_bk_base(self, m_api):
-        m_api.bkdata.get_data_link_metadata.return_value = {"branches": []}
+    @mock.patch("metadata.resources.bkdata_link.api.bkdata.get_data_link_metadata")
+    def test_with_monitor_data_id_when_no_vm_or_bk_base(self, m_get_data_link_metadata):
+        m_get_data_link_metadata.return_value = {"branches": []}
         r = self._make_resource()
         r._fetch_bkbase_metadata(None, None, 560447)
-        m_api.bkdata.get_data_link_metadata.assert_called_with(bk_data_id=560447)
+        m_get_data_link_metadata.assert_called_with(bk_data_id=560447)
 
-    @mock.patch("metadata.resources.bkdata_link.api")
-    def test_api_failure_returns_error(self, m_api):
-        m_api.bkdata.get_data_link_metadata.side_effect = RuntimeError("502 Bad Gateway")
+    @mock.patch("metadata.resources.bkdata_link.api.bkdata.get_data_link_metadata")
+    def test_api_failure_returns_error(self, m_get_data_link_metadata):
+        m_get_data_link_metadata.side_effect = RuntimeError("502 Bad Gateway")
         r = self._make_resource()
         result = r._fetch_bkbase_metadata(100, None)
         assert isinstance(result, dict)
@@ -1089,6 +1106,7 @@ class TestEnrichWithRuntimeIntegration:
         r = self._make_resource()
         row = {
             "datalink_version": "v3",
+            "bk_tenant_id": "tenant-real",
             "data_id": 560447,
             "bk_base_data_id": None,
             "vm_rt_name": None,
@@ -1097,7 +1115,7 @@ class TestEnrichWithRuntimeIntegration:
             "bkbase_components": [],
         }
         r._enrich_with_runtime([row], {"databus_configs": {}, "es_storages": {}})
-        m_fetch.assert_called_once_with(None, None, 560447)
+        m_fetch.assert_called_once_with(None, None, 560447, "tenant-real")
         assert row["kafka_shipper_host"] == "shipper.example.com"
 
     @mock.patch.object(QueryDataLinkMetadataResource, "_fetch_bkbase_metadata")
@@ -1107,6 +1125,7 @@ class TestEnrichWithRuntimeIntegration:
         r = self._make_resource()
         row = {
             "datalink_version": "v4",
+            "bk_tenant_id": "tenant-real",
             "bk_base_data_id": 100,
             "vm_rt_name": "2_bkm_x",
             "result_table_id": "2_bkmonitor.x",
@@ -1123,6 +1142,7 @@ class TestEnrichWithRuntimeIntegration:
         r = self._make_resource()
         row = {
             "datalink_version": "v4",
+            "bk_tenant_id": "tenant-real",
             "bk_base_data_id": None,
             "vm_rt_name": None,
             "es_cluster_id": 27,
@@ -1140,6 +1160,7 @@ class TestEnrichWithRuntimeIntegration:
         r = self._make_resource()
         row = {
             "datalink_version": "v4",
+            "bk_tenant_id": "tenant-real",
             "bk_base_data_id": 100,
             "es_cluster_id": None,
             "result_table_id": "x.y",

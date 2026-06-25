@@ -24,14 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, onMounted, computed } from 'vue';
+import { defineComponent, ref, onMounted, computed, onBeforeUnmount } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { useRoute } from 'vue-router/composables';
 import { useOperation } from '../../hook/useOperation';
+import { useCollectList } from '../../hook/useCollectList';
 import { showMessage, visibleScopeSelectList } from '../../utils';
-import { deepClone } from '@/common/util';
+import { deepClone, deepEqual } from '@/common/util';
 import FieldList from '../business-comp/step3/field-list';
 import ReportLogSlider from '../business-comp/step3/report-log-slider';
 import InfoTips from '../common-comp/info-tips';
@@ -41,7 +42,7 @@ import { useSpaceSelector } from '../../../hooks/use-space-selector';
 import * as authorityMap from '@/common/authority-map';
 import $http from '@/api';
 
-import type { ISelectItem } from '../../type';
+import type { ISelectItem, ISubmitOptions } from '../../type';
 
 import './step3-clean.scss';
 
@@ -85,16 +86,22 @@ export default defineComponent({
 
   emits: ['next', 'prev', 'cancel', 'change-submit'],
 
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     const store = useStore();
     const { t } = useLocale();
     const route = useRoute();
     const defaultRegex = '(?P<request_ip>[d.]+)[^[]+[(?P<request_time>[^]]+)]';
     const { cardRender } = useOperation();
+    const { goListPage } = useCollectList();
     const showReportLogSlider = ref(false);
     const jsonText = ref({});
     const fieldListRef = ref();
     const grokModeEnabled = ref(true);
+    let isUnmounted = false;
+    /**
+     * 初始表单数据快照，用于对比是否有变更
+     */
+    const initialFormData = ref(null);
 
     const templateDialogVisible = ref(false);
     const templateName = ref('');
@@ -251,6 +258,20 @@ export default defineComponent({
 
     const isClean = computed(() => cleaningMode.value !== 'bk_log_text');
 
+    /**
+     * 保存初始表单数据快照
+     */
+    const saveInitialFormData = () => {
+      initialFormData.value = structuredClone(formData.value);
+    };
+
+    /**
+     * 判断配置是否有变更
+     */
+    const hasConfigChanged = () => {
+      return !deepEqual(formData.value, initialFormData.value);
+    };
+
     const isEditCleanItem = computed(() => route.name === 'clean-edit' || route.name === 'v2-clean-edit');
 
     // 用于追踪 separator_regexp 的变化，确保响应式更新
@@ -328,7 +349,9 @@ export default defineComponent({
           }
         })
         .finally(() => {
-          basicLoading.value = false;
+          if (!isUnmounted) {
+            basicLoading.value = false;
+          }
         });
     };
     /**
@@ -390,6 +413,10 @@ export default defineComponent({
     };
 
     // 新建、编辑采集项时获取更新详情
+    onBeforeUnmount(() => {
+      isUnmounted = true;
+    });
+
     const setDetail = id => {
       /**
        * 初始化导入的配置
@@ -401,6 +428,8 @@ export default defineComponent({
         ...props.configData,
         etl_fields: eltField,
       };
+      // 保存初始表单数据快照
+      saveInitialFormData();
       if (!id) {
         return;
       }
@@ -410,6 +439,9 @@ export default defineComponent({
           params: { collector_config_id: id },
         })
         .then(async res => {
+          if (isUnmounted || !res.data) {
+            return;
+          }
           if (res.data) {
             // 克隆时不覆盖curCollect，避免把第一步创建的新采集项ID覆盖为旧ID
             if (!props.isClone) {
@@ -420,6 +452,7 @@ export default defineComponent({
             if (props.isEdit || props.isClone || props.isCleanField) {
               getDataLog('init');
               await getCleanStash(id);
+              saveInitialFormData();
             }
           }
         })
@@ -466,6 +499,24 @@ export default defineComponent({
 
       return value && value !== ' ' ? isNaN(value) : true;
     };
+
+    /** int 类型最大值 */
+    const MAX_INT_VALUE = 2_147_483_647;
+
+    /** 根据清洗结果 value 推断字段类型 */
+    const detectFieldType = (value: unknown): string => {
+      if (typeof value === 'number') {
+        if (Number.isInteger(value)) {
+          return value > MAX_INT_VALUE ? 'long' : 'int';
+        }
+        return 'double';
+      }
+      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        return 'object';
+      }
+      return 'string';
+    };
+
     /**
      * 清洗模式 - 清洗/调试按钮
      */
@@ -489,6 +540,8 @@ export default defineComponent({
       const urlParams = {};
       isDebugLoading.value = !isRefresh;
       isValueRefresh.value = isRefresh;
+      // 缓存当前已有字段，用于再次清洗时合并保留旧配置
+      const existingFields = structuredClone(formData.value.etl_fields || []);
       /**
        * 非刷新场景下才清空表格数据
        */
@@ -514,37 +567,127 @@ export default defineComponent({
             item.verdict = judgeNumber(item);
           }
           const fields = formData.value.etl_fields;
-          const list = dataFields.reduce((arr, item, index) => {
-            const field = { 
-              ...structuredClone(rowTemplate.value),
-              ...item,
-              // 如果接口未返回 field_index，则使用数组索引作为唯一标识
-              field_index: item.field_index ?? index + 1,
-            };
-            arr.push(field);
-            return arr;
-          }, []);
+
+          /**
+           * 创建新字段对象，应用 detectFieldType 推断类型
+           */
+          const createNewField = (item, index) => ({
+            ...structuredClone(rowTemplate.value),
+            ...item,
+            field_type: detectFieldType(item.value),
+            field_index: item.field_index ?? index + 1,
+          });
+
           /**
            * 当只刷新值的时候，只更新对应字段的值
            */
           if (isRefresh) {
+            const valueMap = dataFields.reduce((map, item, index) => {
+              const key = cleaningMode.value === 'bk_log_delimiter'
+                ? (item.field_index ?? index + 1)
+                : item.field_name;
+              map[key] = item.value;
+              return map;
+            }, {});
             formData.value.etl_fields = fields.map(item => {
-              let info = {};
-              info = list.find(ele => ele.field_name === item.field_name);
-              if (cleaningMode.value === 'bk_log_delimiter') {
-                info = list.find(ele => ele.field_index === item.field_index);
-              }
+              if (item.is_built_in) return item;
+              const key = cleaningMode.value === 'bk_log_delimiter'
+                ? item.field_index
+                : item.field_name;
               return {
                 ...item,
-                value: info.value,
+                value: valueMap[key] ?? '',
               };
             });
             return;
           }
-          /**
-           * 当点击调试/清洗按钮的，更新字段表格里的所有内容
-           */
-          formData.value.etl_fields = list;
+
+          // 判断是否为首次清洗（无提取方式 || 提取方式变化 || 无已有字段配置）
+          const isFirstClean = !formData.value.etl_config
+            || formData.value.etl_config !== cleaningMode.value
+            || !existingFields.length;
+
+          if (isFirstClean) {
+            // 首次清洗：对每个字段应用 detectFieldType 推断类型
+            const list = dataFields.reduce((arr, item, index) => {
+              arr.push(createNewField(item, index));
+              return arr;
+            }, []);
+            formData.value.etl_fields = list;
+            formData.value.etl_config = cleaningMode.value;
+            return;
+          }
+
+          // 再次清洗：根据清洗模式合并已有字段配置
+          const etlConfig = cleaningMode.value;
+
+          if (etlConfig === 'bk_log_json' || etlConfig === 'bk_log_regexp') {
+            // JSON/正则模式：按 field_name 匹配，保留旧字段配置
+            const list = dataFields.reduce((arr, item, index) => {
+              const existingField = existingFields.find(
+                field => !field.is_built_in && field.field_name === item.field_name,
+              );
+              if (existingField) {
+                // 已有字段：保留旧配置，仅覆盖接口返回的值
+                arr.push({
+                  ...existingField,
+                  ...item,
+                  field_type: existingField.field_type,
+                  field_index: item.field_index ?? index + 1,
+                });
+              } else {
+                // 新增字段：应用类型推断
+                arr.push(createNewField(item, index));
+              }
+              return arr;
+            }, []);
+
+            // JSON 模式下：已标记 is_delete 的字段需追加回列表
+            if (etlConfig === 'bk_log_json') {
+              const deletedFields = existingFields.filter(
+                field => field.is_delete && !dataFields.find(item => item.field_name === field.field_name),
+              );
+              list.push(...deletedFields);
+            }
+
+            formData.value.etl_fields = list;
+            formData.value.etl_config = cleaningMode.value;
+          } else if (etlConfig === 'bk_log_delimiter') {
+            // 分隔符模式：按 field_index 匹配已有字段，保留旧配置
+            const nonDeletedFields = existingFields.filter(
+              item => item.field_name && !item.is_delete,
+            );
+            const deletedFields = existingFields.filter(item => item.is_delete);
+            const list = [...deletedFields];
+
+            if (nonDeletedFields.length) {
+              nonDeletedFields.forEach((item, idx) => {
+                const child = dataFields[idx];
+                if (child) {
+                  // 已有字段：保留旧配置，仅更新 value
+                  list.push({
+                    ...item,
+                    value: child.value,
+                  });
+                } else {
+                  list.push({ ...item, value: '' });
+                }
+              });
+              // 处理 dataFields 中超出已有字段范围的新增字段
+              if (dataFields.length > nonDeletedFields.length) {
+                dataFields.slice(nonDeletedFields.length).forEach((item, idx) => {
+                  list.push(createNewField(item, nonDeletedFields.length + idx));
+                });
+              }
+            } else {
+              dataFields.forEach((item, index) => {
+                list.push(createNewField(item, index));
+              });
+            }
+
+            formData.value.etl_fields = list;
+            formData.value.etl_config = cleaningMode.value;
+          }
         })
         .catch(err => {
           console.log(err);
@@ -790,7 +933,9 @@ export default defineComponent({
     /** 选择清洗模式 */
     const handleChangeCleaningMode = (mode: string) => {
       cleaningMode.value = mode.value;
-      formData.value.etl_config = cleaningMode.value;
+      if (cleaningMode.value !== 'bk_log_json') {
+        formData.value.etl_params.retain_extra_json = false;
+      }
     };
 
     // 对时间格式做校验逻辑
@@ -1035,7 +1180,9 @@ export default defineComponent({
               on-change={(val: boolean) => {
                 const type = val ? 'bk_log_json' : 'bk_log_text';
                 cleaningMode.value = type;
-                formData.value.etl_config = type;
+                if (!val) {
+                  formData.value.etl_params.retain_extra_json = false;
+                }
               }}
             />
           </div>
@@ -1189,6 +1336,25 @@ export default defineComponent({
             <bk-radio value={false}>{t('丢弃')}</bk-radio>
           </bk-radio-group>
         </div>
+        {cleaningMode.value === 'bk_log_json' && (
+          <div class='label-form-box'>
+            <span class='label-title no-require'>{t('JSON 字段动态新增')}</span>
+            <div class='form-box mt-5'>
+              <bk-switcher
+                size='large'
+                theme='primary'
+                value={formData.value.etl_params.retain_extra_json}
+                on-change={(val: boolean) => {
+                  formData.value.etl_params.retain_extra_json = val;
+                }}
+              />
+              <InfoTips
+                class='ml-12'
+                tips={t('在日志采集中，若您的日志中产生新的JSON字段，我们会自动采集并合入 __ext_json 字段中，您可以通过 __ext_json.xxx 检索该数据')}
+              />
+            </div>
+          </div>
+        )}
         <div class='label-form-box'>
           <span class='label-title no-require'>{t('路径元数据')}</span>
           <div class='form-box mt-5'>
@@ -1408,8 +1574,14 @@ export default defineComponent({
     };
     /**
      * 保存按钮
+     * @param options 保存选项配置
+     * @param options.action 操作类型: 'next'(默认) | 'back' | 'saveOnly'
+     * @param options.callback 保存完成后的回调函数
      */
-    const handleSubmit = async () => {
+    const handleSubmitSave = async ({
+      action = 'next',
+      callback,
+    }: ISubmitOptions = {}) => {
       handleSubmitValidate(() => {
         const { etl_params, etl_fields } = formData.value;
         // 为 metadata_fields 每项补充 metadata_type（对齐旧版）
@@ -1475,18 +1647,37 @@ export default defineComponent({
           .then(res => {
             loading.value = false;
             if (res?.result) {
-              const data = isNeedCreate ? { ...formData.value, ...curCollect.value } : formData.value;
-              emit('next', data);
-              if (props.isCleanField) {
-                emit('change-submit', true);
+              if (action === 'saveOnly') {
+                // 只保存，不跳转
+                showMessage(t('保存成功'));
+                callback?.(true);
+              } else if (action === 'back') {
+                showMessage(t('保存成功'));
+                // 保存成功后跳转到列表页
+                goListPage();
+              } else {
+                const data = isNeedCreate ? { ...formData.value, ...curCollect.value } : formData.value;
+                emit('next', data);
+                if (props.isCleanField) {
+                  emit('change-submit', true);
+                }
               }
+            } else {
+              callback?.(false);
             }
           })
           .catch(() => {
             loading.value = false;
+            callback?.(false);
           });
       });
     };
+
+    expose({
+      hasConfigChanged,
+      handleSubmitSave,
+    });
+
     return () => (
       <div
         class='operation-step3-clean'
@@ -1516,9 +1707,20 @@ export default defineComponent({
               class='width-88 mr-8'
               theme='primary'
               loading={loading.value}
-              on-click={handleSubmit}
+              on-click={() => handleSubmitSave()}
             >
               {props.isCleanField ? t('保存') : t('下一步')}
+            </bk-button>
+          )}
+          {/* 提交按钮：编辑模式且非清洗列表编辑且非模板编辑且显示"下一步"时显示 */}
+          {isUpdate.value && !props.isCleanField && !props.isTempField && !props.isCleanField && (
+            <bk-button
+              class='width-88 mr-8'
+              theme='primary'
+              loading={loading.value}
+              on-click={() => handleSubmitSave({ action: 'back' })}
+            >
+              {t('提交')}
             </bk-button>
           )}
 

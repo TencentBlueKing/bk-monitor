@@ -13,6 +13,7 @@ import PopInstanceUtil from '@/global/pop-instance-util';
 import useFieldEgges from '@/hooks/use-field-egges';
 import { BK_LOG_STORAGE, FieldInfoItem } from '@/store/store.type';
 import BatchInput from '../../components/batch-input';
+import FuzzyMatchMode from './fuzzy-match-mode.vue';
 import { translateKeys } from '../utils/const-values';
 import { FulltextOperator, excludesFields, getFieldConditonItem, getInputQueryDefaultItem, withoutValueConditionList } from '../utils/const.common';
 const INPUT_MIN_WIDTH = 12;
@@ -290,6 +291,53 @@ const activeOperator = computed(
   },
 );
 
+const FUZZY_MATCH_OPERATOR_LIST = ['contains match phrase', 'not contains match phrase', '=~', '!=~'];
+const FUZZY_NEGATIVE_OPERATOR_LIST = ['not contains match phrase', '!=~'];
+
+const isFuzzyMatchAvailable = computed(() => {
+  return ['text', 'string'].includes(activeFieldItem.value.field_type)
+    && FUZZY_MATCH_OPERATOR_LIST.includes(condition.value.operator);
+});
+
+const getFuzzyOperator = (isWildcard: boolean) => {
+  const isNegative = FUZZY_NEGATIVE_OPERATOR_LIST.includes(condition.value.operator);
+  if (isNegative) {
+    return isWildcard ? '!=~' : 'not contains match phrase';
+  }
+
+  return isWildcard ? '=~' : 'contains match phrase';
+};
+
+const fuzzyMatchOperator = computed(() => {
+  return getFuzzyOperator(Boolean(condition.value.isInclude));
+});
+
+const fuzzyMatchEngine = computed(() => {
+  const indexSetIds = store.getters.isUnionSearch
+    ? store.getters.unionIndexList
+    : [store.getters.indexId];
+  const selectedIndexSetList = store.state.retrieve.flatIndexSetList.filter(item => indexSetIds.includes(String(item.index_set_id)) || indexSetIds.includes(item.index_set_id));
+
+  return selectedIndexSetList.length && selectedIndexSetList.every(item => item.support_doris) ? 'doris' : 'es';
+});
+
+const fuzzyMatchValue = computed({
+  get() {
+    return Array.isArray(condition.value.value) ? condition.value.value : [];
+  },
+  set(value: string[]) {
+    condition.value.value = Array.isArray(value) ? [...value] : [];
+  },
+});
+
+const handleFuzzyRelationChange = (relation: string) => {
+  condition.value.relation = relation;
+};
+
+const handleFuzzyWildcardChange = (isWildcard: boolean) => {
+  condition.value.isInclude = isWildcard;
+};
+
 const scrollActiveItemIntoView = () => {
   if (activeIndex.value >= 0) {
     const target = refSearchResultList.value?.querySelector(`[data-tab-index="${activeIndex.value}"]`);
@@ -416,7 +464,7 @@ const setDefaultActiveIndex = () => {
   if (searchValue.value.length > 0) {
     newValue = null;
   }
-  
+
   activeIndex.value = newValue;
 };
 
@@ -842,9 +890,8 @@ const handleTagItemClick = (value, index) => {
  */
 const setActiveObjectIndex = (objIndex, matchList, isIncrease = true) => {
   const maxIndex = matchList.length - 1;
-  const oldValue = objIndex.value;
   let newValue: number;
-  
+
   if (objIndex.value === null) {
     objIndex.value = -1;
   }
@@ -1056,6 +1103,12 @@ const handleKeydownClick = (e) => {
     return;
   }
 
+  const targetElement = e.target as HTMLElement;
+  const isFuzzyMatchInput = !!targetElement?.closest?.('.fuzzy-match-mode');
+  if (isFuzzyMatchInput && !((e.ctrlKey || e.metaKey) && e.keyCode === 13) && e.keyCode !== 27) {
+    return;
+  }
+
   // key arrow-up
   if (e.keyCode === 38) {
     stopEventPreventDefault(e);
@@ -1094,6 +1147,12 @@ const handleKeydownClick = (e) => {
 const handleUiValueOptionClick = (option) => {
   if (condition.value.operator !== option.operator) {
     condition.value.operator = option.operator;
+  }
+  if (['contains match phrase', 'not contains match phrase'].includes(option.operator)) {
+    condition.value.isInclude = false;
+  }
+  if (['=~', '!=~'].includes(option.operator)) {
+    condition.value.isInclude = true;
   }
   operatorInstance.hide();
   afterOperatorValueEnter();
@@ -1280,13 +1339,17 @@ onBeforeUnmount(() => {
 });
 
 defineExpose({
+  isFuzzyMatchAvailable,
   beforeShowndFn,
   afterHideFn,
   beforeHideFn,
 });
 </script>
 <template>
-  <div class="ui-query-options" @click.stop="handlePanelClick">
+  <div
+    :class="['ui-query-options', { 'is-fuzzy-match': isFuzzyMatchAvailable }]"
+    @click.stop="handlePanelClick"
+  >
     <div class="ui-query-option-content">
       <div class="field-list">
         <div class="ui-search-input">
@@ -1440,7 +1503,10 @@ defineExpose({
             v-if="isShowConditonValueSetting"
             class="ui-value-row"
           >
-            <div class="ui-value-label">
+            <div
+              v-if="!isFuzzyMatchAvailable"
+              class="ui-value-label"
+            >
               <span>
                 {{ $t('检索内容') }}
                 <BatchInput
@@ -1457,11 +1523,20 @@ defineExpose({
                   {{ $t('清空') }}
                 </bk-button>
               </span>
-              <span v-show="['text', 'string'].includes(activeFieldItem.field_type)">
-                <bk-checkbox v-model="condition.isInclude">{{ $t('使用通配符') }}</bk-checkbox>
-              </span>
+              <span />
             </div>
-            <template v-if="activeFieldItem.field_name === '*'">
+            <template v-if="isFuzzyMatchAvailable">
+              <FuzzyMatchMode
+                v-model="fuzzyMatchValue"
+                :operator="fuzzyMatchOperator"
+                :relation="condition.relation"
+                :type="fuzzyMatchEngine"
+                @batch-show-change="handleBatchShowChange"
+                @relation-change="handleFuzzyRelationChange"
+                @wildcard-change="handleFuzzyWildcardChange"
+              />
+            </template>
+            <template v-else-if="activeFieldItem.field_name === '*'">
               <bk-input
                 ref="refFullTexarea"
                 v-model="condition.value[0]"
@@ -1573,7 +1648,7 @@ defineExpose({
             {{ $t('仅支持输入数值类型') }}
           </div>
           <div
-            v-show="condition.value.length > 1 && activeFieldItem.field_type === 'text'"
+            v-show="!isFuzzyMatchAvailable && condition.value.length > 1 && activeFieldItem.field_type === 'text'"
             class="ui-value-row"
           >
             <div class="ui-value-label">

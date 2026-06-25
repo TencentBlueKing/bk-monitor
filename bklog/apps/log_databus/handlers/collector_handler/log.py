@@ -457,6 +457,7 @@ class LogCollectorHandler:
         status_list = []
         storage_display_name_list = []
         log_access_type_list = []
+        tag_id_list = []
         for item in conditions:
             if item["key"] == "scenario_id":
                 scenario_id_list = item["value"]
@@ -476,6 +477,8 @@ class LogCollectorHandler:
                 storage_display_name_list = item["value"]
             elif item["key"] == "log_access_type":
                 log_access_type_list = item["value"]
+            elif item["key"] == "tags":
+                tag_id_list = [int(v) for v in item["value"]]
 
         # 获取采集项信息
         collector_configs = self.get_collector_config_info(
@@ -518,6 +521,11 @@ class LogCollectorHandler:
         self.fill_parent_index_sets_info(combined_data)
         combined_data = self.fetch_log_collector_data(combined_data)
         combined_data.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
+        # 按标签过滤
+        if tag_id_list:
+            combined_data = [
+                item for item in combined_data if any(tag.get("tag_id") in tag_id_list for tag in item.get("tags", []))
+            ]
         # 分页
         paginator = Paginator(combined_data, data["pagesize"])
         page_obj = paginator.get_page(data["page"])

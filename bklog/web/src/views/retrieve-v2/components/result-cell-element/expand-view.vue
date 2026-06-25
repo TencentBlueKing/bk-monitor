@@ -185,7 +185,7 @@
           return this.listData ?? this.data;
         }
 
-        return this.$store.state.indexSetQueryResult?.origin_log_list?.[this.rowIndex] ?? this.listData ?? this.data;
+        return this.$store.state.indexSetQueryResult?.list?.[this.rowIndex] ?? this.listData ?? this.data;
       },
       jsonShowData() {
         // 如果已有缓存，直接返回缓存（避免重复计算）
@@ -242,8 +242,8 @@
           fieldCount: this.kvListData.length,
         });
 
-        // 缓存结果，使用 Object.freeze 创建非响应式副本
-        this.jsonShowDataCache = Object.freeze(JSON.parse(JSON.stringify(result)));
+        // 缓存结果，使用 Object.freeze 创建非响应式副本；避免 JSON.stringify/parse 复制大对象
+        this.jsonShowDataCache = Object.freeze(result);
         return this.jsonShowDataCache;
       },
     },

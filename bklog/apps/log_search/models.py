@@ -54,6 +54,7 @@ from apps.log_search.constants import (
     EtlConfigEnum,
     FavoriteGroupType,
     FavoriteListOrderType,
+    FavoriteSourceType,
     FavoriteType,
     FavoriteVisibleType,
     FieldBuiltInEnum,
@@ -101,7 +102,7 @@ from bkm_ipchooser.constants import CommonEnum
 from bkm_space.api import AbstractSpaceApi
 from bkm_space.define import Space as SpaceDefine
 from bkm_space.define import SpaceTypeEnum
-from bkm_space.utils import space_uid_to_bk_biz_id
+from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
 
 
 class GlobalConfig(models.Model):
@@ -618,7 +619,12 @@ class LogIndexSet(SoftDeleteModel):
 
             index_set["scenario_name"] = scenarios.get(index_set["scenario_id"])
             index_set["bk_biz_id"] = space_uid_to_bk_biz_id(index_set["space_uid"])
-            index_set["tags"] = [tags_data_dic.get(tag_id, []) for tag_id in index_set["tag_ids"]]
+            # 排除场景化检索路由标签（tag_type=scene），仅后端使用，不暴露给前端
+            index_set["tags"] = [
+                tag
+                for tag_id in index_set["tag_ids"]
+                if (tag := tags_data_dic.get(tag_id)) and tag.get("tag_type") != TAG_TYPE_SCENE
+            ]
 
             index_set["is_favorite"] = index_set["index_set_id"] in mark_index_set_ids
             index_set["no_data_check_time"] = no_data_check_time
@@ -661,7 +667,7 @@ class LogIndexSet(SoftDeleteModel):
     @atomic
     def set_tag(cls, index_set_id, *names):
         index_set = cls.objects.select_for_update().get(index_set_id=index_set_id)
-        add_tag_ids = [str(IndexSetTag.get_tag_id(name)) for name in names]
+        add_tag_ids = [str(IndexSetTag.get_tag_id(name, tag_type=TAG_TYPE_INNER)) for name in names]
         tag_ids = set(index_set.tag_ids)
         for add_tag_id in add_tag_ids:
             tag_ids.add(add_tag_id)
@@ -670,7 +676,7 @@ class LogIndexSet(SoftDeleteModel):
 
     @classmethod
     def delete_tag_by_name(cls, index_set_id, tag_name):
-        delete_tag_id = IndexSetTag.get_tag_id(tag_name)
+        delete_tag_id = IndexSetTag.get_tag_id(tag_name, tag_type=TAG_TYPE_INNER)
         cls.delete_tag(index_set_id, delete_tag_id)
 
     @classmethod
@@ -893,6 +899,20 @@ class Favorite(OperateRecordModel):
     favorite_type = models.CharField(
         _("收藏类型"), max_length=32, choices=FavoriteType.get_choices(), default=FavoriteType.SEARCH.value
     )
+    # 收藏来源类型：index_set / scene；用于区分索引集检索与场景化检索的收藏，老数据默认 index_set。
+    source_type = models.CharField(
+        _("收藏来源类型"),
+        max_length=16,
+        choices=FavoriteSourceType.get_choices(),
+        default=FavoriteSourceType.INDEX_SET.value,
+        db_index=True,
+    )
+    # 场景化收藏专属：场景标识（如 k8s / host / bk_paas），与 /search/scene/scenes/ 的 id 对齐。
+    scene_id = models.CharField(_("场景ID"), max_length=64, null=True, blank=True, default=None, db_index=True)
+    # 场景化收藏专属：数据范围路由，与 /search/scene/search 的 table_id_conditions 同结构。
+    table_id_conditions = models.JSONField(_("场景路由条件"), null=True, blank=True, default=None)
+    # 场景化收藏专属：场景维度筛选值（可空），与前端 scene_filter_values 同结构。
+    scene_filter_values = models.JSONField(_("场景维度筛选"), null=True, blank=True, default=None)
 
     class Meta:
         verbose_name = _("检索收藏")
@@ -907,8 +927,12 @@ class Favorite(OperateRecordModel):
         username: str,
         order_type: str = FavoriteListOrderType.NAME_ASC.value,
         public_group_ids: list = None,
+        source_type: str = None,
     ):
-        """获取用户所有能看到的收藏"""
+        """获取用户所有能看到的收藏
+
+        :param source_type: 可选过滤；不传则全返，传 "scene" 仅场景化、"index_set" 仅索引集。
+        """
         source_app_code = get_request_app_code()
         favorites = []
         public_query = Q(space_uid=space_uid, visible_type=FavoriteVisibleType.PUBLIC.value)
@@ -923,6 +947,8 @@ class Favorite(OperateRecordModel):
             | public_query
         )
         qs = qs.filter(source_app_code=source_app_code)
+        if source_type:
+            qs = qs.filter(source_type=source_type)
         if order_type == FavoriteListOrderType.NAME_ASC.value:
             qs = qs.order_by("name")
         elif order_type == FavoriteListOrderType.NAME_DESC.value:
@@ -930,8 +956,11 @@ class Favorite(OperateRecordModel):
         else:
             qs = qs.order_by("-updated_at")
 
+        # scene 收藏不挂 index_set，避免查询 LogIndexSet 与处理 is_active 字段
         index_set_id_list = list()
         for obj in qs.all():
+            if (obj.source_type or FavoriteSourceType.INDEX_SET.value) == FavoriteSourceType.SCENE.value:
+                continue
             obj_index_set_type = obj.index_set_type or IndexSetType.SINGLE.value
             if obj_index_set_type == IndexSetType.SINGLE.value:
                 index_set_id_list.append(obj.index_set_id)
@@ -947,6 +976,10 @@ class Favorite(OperateRecordModel):
         }
         for fi in qs.all():
             fi_dict = model_to_dict(fi)
+            if (fi.source_type or FavoriteSourceType.INDEX_SET.value) == FavoriteSourceType.SCENE.value:
+                # 场景化收藏：跳过索引集回显，保留 scene_id / table_id_conditions / scene_filter_values
+                favorites.append(fi_dict)
+                continue
             index_set_type = fi.index_set_type or IndexSetType.SINGLE.value
             if index_set_type == IndexSetType.SINGLE.value:
                 if active_index_set_id_dict.get(fi.index_set_id):
@@ -967,8 +1000,6 @@ class Favorite(OperateRecordModel):
                         index_set_names.append(INDEX_SET_NOT_EXISTED)
                 fi_dict["is_actives"] = is_actives
                 fi_dict["index_set_names"] = index_set_names
-            fi_dict["created_at"] = fi_dict["created_at"]
-            fi_dict["updated_at"] = fi_dict["updated_at"]
             favorites.append(fi_dict)
 
         return favorites
@@ -992,60 +1023,83 @@ class FavoriteGroup(OperateRecordModel):
     source_app_code = models.CharField(
         verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True
     )
+    source_type = models.CharField(
+        _("收藏来源类型"),
+        max_length=16,
+        choices=FavoriteSourceType.get_choices(),
+        default=FavoriteSourceType.INDEX_SET.value,
+        db_index=True,
+    )
 
     class Meta:
         verbose_name = _("检索收藏组")
         verbose_name_plural = _("34_搜索-检索收藏组")
         ordering = ("-updated_at",)
-        unique_together = [("name", "space_uid", "created_by", "source_app_code")]
+        unique_together = [("name", "space_uid", "created_by", "source_app_code", "source_type")]
 
     @classmethod
-    def get_or_create_private_group(cls, space_uid: str, username: str) -> "FavoriteGroup":
+    def get_or_create_private_group(
+        cls, space_uid: str, username: str, source_type: str = FavoriteSourceType.INDEX_SET.value
+    ) -> "FavoriteGroup":
         source_app_code = get_request_app_code()
         obj, __ = cls.objects.get_or_create(
             group_type=FavoriteGroupType.PRIVATE.value,
             space_uid=space_uid,
             created_by=username,
             source_app_code=source_app_code,
-            defaults={"name": FavoriteGroupType.get_choice_label(str(FavoriteGroupType.PRIVATE.value))},
+            source_type=source_type,
+            defaults={"name": _("个人收藏")},
         )
         return obj
 
     @classmethod
-    def get_or_create_ungrouped_group(cls, space_uid: str) -> "FavoriteGroup":
+    def get_or_create_ungrouped_group(
+        cls, space_uid: str, source_type: str = FavoriteSourceType.INDEX_SET.value
+    ) -> "FavoriteGroup":
         source_app_code = get_request_app_code()
         obj, __ = cls.objects.get_or_create(
             group_type=FavoriteGroupType.UNGROUPED.value,
             space_uid=space_uid,
             source_app_code=source_app_code,
-            defaults={"name": FavoriteGroupType.get_choice_label(str(FavoriteGroupType.UNGROUPED.value))},
+            source_type=source_type,
+            defaults={"name": _("未分组")},
         )
         return obj
 
     @classmethod
-    def get_public_group(cls, space_uid: str) -> list["FavoriteGroup"]:
+    def get_public_group(
+        cls, space_uid: str, source_type: str = FavoriteSourceType.INDEX_SET.value
+    ) -> list["FavoriteGroup"]:
         source_app_code = get_request_app_code()
         return list(
             cls.objects.filter(
-                group_type=FavoriteGroupType.PUBLIC.value, space_uid=space_uid, source_app_code=source_app_code
+                group_type=FavoriteGroupType.PUBLIC.value,
+                space_uid=space_uid,
+                source_app_code=source_app_code,
+                source_type=source_type,
             )
             .order_by("created_at")
             .all()
         )
 
     @classmethod
-    def get_user_groups(cls, space_uid: str, username: str) -> list[dict[str, Any]]:
+    def get_user_groups(
+        cls, space_uid: str, username: str, source_type: str = FavoriteSourceType.INDEX_SET.value
+    ) -> list[dict[str, Any]]:
         """获取用户所有能看到的组"""
         groups = list()
         source_app_code = get_request_app_code()
-        # 个人组，使用get_or_create是为了减少同步
-        private_group = cls.get_or_create_private_group(space_uid=space_uid, username=username)
-        # 未归类组，使用get_or_create是为了减少同步
-        ungrouped_group = cls.get_or_create_ungrouped_group(space_uid=space_uid)
-        # 公共组
+        # Lazy create private/ungrouped per source_type, so scene 与 index_set 各有一套
+        private_group = cls.get_or_create_private_group(
+            space_uid=space_uid, username=username, source_type=source_type
+        )
+        ungrouped_group = cls.get_or_create_ungrouped_group(space_uid=space_uid, source_type=source_type)
         public_groups = (
             cls.objects.filter(
-                group_type=FavoriteGroupType.PUBLIC.value, space_uid=space_uid, source_app_code=source_app_code
+                group_type=FavoriteGroupType.PUBLIC.value,
+                space_uid=space_uid,
+                source_app_code=source_app_code,
+                source_type=source_type,
             )
             .order_by("created_at")
             .all()
@@ -1123,31 +1177,148 @@ class IndexSetUserFavorite(models.Model):
         return cls.objects.filter(username=username).values_list("index_set_id", flat=True)
 
 
+TAG_TYPE_USER = "user"
+TAG_TYPE_INNER = "inner"
+TAG_TYPE_SCENE = "scene"
+TAG_TYPE_CHOICES = (
+    (TAG_TYPE_USER, _("用户自定义")),
+    (TAG_TYPE_INNER, _("系统内置")),
+    (TAG_TYPE_SCENE, _("场景维度")),
+)
+
+
 class IndexSetTag(models.Model):
     tag_id = models.AutoField(_("标签id"), primary_key=True)
-    name = models.CharField(_("标签名称"), max_length=255, unique=True)
+    name = models.CharField(_("标签名称"), max_length=255, db_index=True)
+    value = models.CharField(_("标签值"), max_length=255, default="", blank=True)
     color = models.CharField(_("配色"), max_length=255, choices=TagColor.get_choices(), default=TagColor.GREEN.value)
+    tag_type = models.CharField(
+        _("标签类型"), max_length=16, choices=TAG_TYPE_CHOICES, default=TAG_TYPE_USER, db_index=True,
+    )
 
     class Meta:
         verbose_name = _("标签表")
         verbose_name_plural = _("标签表")
+        unique_together = (("name", "value", "tag_type"),)
 
     @classmethod
-    def get_tag_id(cls, name: str) -> int:
-        tag, created = cls.objects.get_or_create(name=name)
+    def get_tag_id(cls, name: str, value: str = "", tag_type: str = TAG_TYPE_USER) -> int:
+        tag, _created = cls.objects.get_or_create(name=name, value=value, tag_type=tag_type)
         return tag.tag_id
 
     @classmethod
     def batch_get_tags(cls, tag_ids: set):
-        tags = cls.objects.filter(tag_id__in=tag_ids).values("name", "color", "tag_id")
+        tags = cls.objects.filter(tag_id__in=tag_ids).values("name", "value", "color", "tag_id", "tag_type")
         return {
             str(tag["tag_id"]): {
                 "name": InnerTag.get_choice_label(tag["name"]),
+                "value": tag["value"],
                 "color": tag["color"],
                 "tag_id": tag["tag_id"],
+                "tag_type": tag["tag_type"],
             }
             for tag in tags
         }
+
+    @classmethod
+    def _normalize_dimension_filters(cls, filters) -> list:
+        """Accept list-of-dict (preferred) or legacy dict; always return normalized filter list."""
+        if not filters:
+            return []
+        if isinstance(filters, dict):
+            normalized = []
+            for f_key, f_values in filters.items():
+                if isinstance(f_values, str):
+                    f_values = [f_values]
+                normalized.append({"field_name": f_key, "value": list(f_values), "op": "eq"})
+            return normalized
+        return list(filters)
+
+    @classmethod
+    def _match_filter_tag_ids(cls, field_name: str, values: list, op: str) -> set:
+        import re
+
+        matched = set()
+        if op in ("eq", "ne"):
+            for v in values:
+                try:
+                    f_tag = cls.objects.get(name=field_name, value=v, tag_type=TAG_TYPE_SCENE)
+                    matched.add(str(f_tag.tag_id))
+                except cls.DoesNotExist:
+                    pass
+        elif op in ("req", "nreq"):
+            for v in values:
+                try:
+                    pattern = re.compile(v)
+                except re.error:
+                    continue
+                for f_tag in cls.objects.filter(name=field_name, tag_type=TAG_TYPE_SCENE).exclude(value=""):
+                    if pattern.search(f_tag.value):
+                        matched.add(str(f_tag.tag_id))
+        return matched
+
+    @classmethod
+    def get_dimension_values(cls, bk_biz_id: int, scene: str, dimension_key: str, filters=None) -> list:
+        """
+        Query distinct dimension values for *dimension_key* across index sets
+        that belong to *bk_biz_id* and match *scene* + optional cascading *filters*.
+
+        filters: list[dict] with field_name, value (list), op (eq/ne/req/nreq);
+        legacy dict {key: value|[values]} is auto-converted to op=eq.
+        """
+        scene_tag_id = cls.get_tag_id(name="scene", value=scene, tag_type=TAG_TYPE_SCENE)
+        required_groups = [{str(scene_tag_id)}]
+        excluded_tag_ids = set()
+
+        for f in cls._normalize_dimension_filters(filters):
+            field_name = f.get("field_name")
+            if not field_name:
+                continue
+            values = f.get("value") or []
+            if isinstance(values, str):
+                values = [values]
+            op = f.get("op") or "eq"
+            matched = cls._match_filter_tag_ids(field_name, values, op)
+            if op in ("eq", "req") and not matched:
+                return []
+            if op in ("eq", "req"):
+                required_groups.append(matched)
+            else:
+                excluded_tag_ids |= matched
+
+        # 必须按 bk_biz_id 解析出的完整 space_uid 精确匹配；
+        # 旧实现 space_uid__endswith=str(bk_biz_id) 会串业务
+        # （如 bk_biz_id=2 会命中 bkcc__12 / bkcc__102），放大维度值数据范围泄漏。
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        index_sets = LogIndexSet.objects.filter(
+            space_uid=space_uid,
+            is_active=True,
+        ).values_list("tag_ids", flat=True)
+
+        candidate_tag_ids = set()
+        for raw_tag_ids in index_sets:
+            if not raw_tag_ids:
+                continue
+            id_set = {str(t) for t in raw_tag_ids if t}
+            if not all(group & id_set for group in required_groups):
+                continue
+            if excluded_tag_ids & id_set:
+                continue
+            candidate_tag_ids.update(id_set)
+
+        if not candidate_tag_ids:
+            return []
+
+        return list(
+            cls.objects.filter(
+                tag_id__in=[int(i) for i in candidate_tag_ids],
+                name=dimension_key,
+                tag_type=TAG_TYPE_SCENE,
+            )
+            .exclude(value="")
+            .values_list("value", flat=True)
+            .distinct()
+        )
 
 
 class AsyncTask(OperateRecordModel):
@@ -1164,6 +1335,9 @@ class AsyncTask(OperateRecordModel):
     file_name = models.CharField(_("文件名"), max_length=256, null=True, blank=True)
     file_size = models.FloatField(_("文件大小"), null=True, blank=True)
     download_url = models.TextField(_("下载地址"), null=True, blank=True)
+    exported_count = models.IntegerField(_("已导出数量"), default=0)
+    export_total_count = models.IntegerField(_("目标导出数量"), default=0)
+    download_count = models.IntegerField(_("下载次数"), default=0)
     is_clean = models.BooleanField(_("是否被清理"), default=False)
     export_status = models.CharField(_("导出状态"), max_length=128, null=True, blank=True)
     start_time = models.CharField(_("导出选择请求时间"), max_length=64, null=True, blank=True)
@@ -1616,3 +1790,130 @@ class IndexSetCustomConfig(models.Model):
     @classmethod
     def get_index_set_hash(cls, index_set_id: list | int):
         return hashlib.md5(str(index_set_id).encode("utf-8")).hexdigest()
+
+
+class SceneFieldsConfig(models.Model):
+    """场景化检索：业务+场景维度下的命名字段展示模板（对标 IndexSetFieldsConfig 模板表）。"""
+
+    name = models.CharField(_("配置名称"), max_length=255)
+    bk_biz_id = models.IntegerField(_("业务ID"), db_index=True)
+    scene_id = models.CharField(_("场景ID"), max_length=64, db_index=True)
+    scope = models.CharField(_("范围"), max_length=16, default=SearchScopeEnum.DEFAULT.value, db_index=True)
+    source_app_code = models.CharField(
+        verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True
+    )
+    display_fields = JsonField(_("字段配置"), default=list)
+    sort_list = JsonField(_("排序规则"), null=True, default=None)
+    created_at = models.DateTimeField(_("创建时间"), auto_now_add=True)
+    created_by = models.CharField(_("创建者"), max_length=64, default="", blank=True)
+    updated_at = models.DateTimeField(_("更新时间"), auto_now=True)
+    updated_by = models.CharField(_("更新者"), max_length=64, default="", blank=True)
+
+    class Meta:
+        verbose_name = _("场景化检索-字段配置模板")
+        verbose_name_plural = _("场景化检索-字段配置模板")
+        unique_together = (("bk_biz_id", "scene_id", "name", "scope", "source_app_code"),)
+
+    @classmethod
+    @atomic
+    def delete_config(cls, config_id: int, source_app_code: str = None):
+        """删除模板：默认模板禁删；引用该模板的用户记录回指到同 (biz, scene, scope) 下的默认模板。"""
+        from apps.log_search.exceptions import SceneDefaultConfigNotAllowedDelete
+
+        if source_app_code is None:
+            source_app_code = get_request_app_code()
+        obj = cls.objects.get(pk=config_id)
+        if obj.name == DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME:
+            raise SceneDefaultConfigNotAllowedDelete()
+        default_config = cls.objects.get(
+            bk_biz_id=obj.bk_biz_id,
+            scene_id=obj.scene_id,
+            name=DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
+            scope=obj.scope,
+            source_app_code=source_app_code,
+        )
+        UserSceneFieldsConfig.objects.filter(config_id=config_id).update(config_id=default_config.id)
+        cls.objects.filter(id=config_id).delete()
+
+
+class UserSceneFieldsConfig(models.Model):
+    """场景化检索：用户在 (业务, 场景, 范围, 来源) 下当前应用的字段模板指针。"""
+
+    bk_biz_id = models.IntegerField(_("业务ID"), db_index=True)
+    username = models.CharField(_("用户名"), max_length=64, db_index=True)
+    scene_id = models.CharField(_("场景ID"), max_length=64, db_index=True)
+    scope = models.CharField(
+        _("检索范围"),
+        max_length=16,
+        default=SearchScopeEnum.DEFAULT.value,
+    )
+    source_app_code = models.CharField(
+        verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True
+    )
+    config_id = models.IntegerField(_("场景字段配置ID"), db_index=True)
+    created_at = models.DateTimeField(_("创建时间"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("更新时间"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("场景化检索-用户字段展示配置")
+        verbose_name_plural = _("场景化检索-用户字段展示配置")
+        unique_together = [("bk_biz_id", "username", "scene_id", "scope", "source_app_code")]
+
+    @classmethod
+    @atomic
+    def get_config(
+        cls,
+        bk_biz_id: int,
+        username: str,
+        scene_id: str,
+        scope: str = SearchScopeEnum.DEFAULT.value,
+    ):
+        """读取用户当前应用的场景字段模板；用户未指针则回退默认模板（懒创建发生在调用方）。"""
+        source_app_code = get_request_app_code()
+        try:
+            obj = cls.objects.get(
+                bk_biz_id=bk_biz_id,
+                username=username,
+                scene_id=scene_id,
+                scope=scope,
+                source_app_code=source_app_code,
+            )
+        except cls.DoesNotExist:
+            return SceneFieldsConfig.objects.filter(
+                bk_biz_id=bk_biz_id,
+                scene_id=scene_id,
+                name=DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
+                scope=scope,
+                source_app_code=source_app_code,
+            ).first()
+        try:
+            return SceneFieldsConfig.objects.get(pk=obj.config_id)
+        except SceneFieldsConfig.DoesNotExist:
+            return None
+
+
+class UserSceneCustomConfig(models.Model):
+    """场景化检索：用户在 (业务, 场景, 范围, 来源) 下的 UI 偏好（display/sort/filter/列宽 等），与模板系统解耦。
+
+    对标 `UserIndexSetCustomConfig.index_set_config`；7 字段 camelCase 直接由前端持久化为完整 JSON。
+    """
+
+    bk_biz_id = models.IntegerField(_("业务ID"), db_index=True)
+    username = models.CharField(_("用户名"), max_length=64, db_index=True)
+    scene_id = models.CharField(_("场景ID"), max_length=64, db_index=True)
+    scope = models.CharField(
+        _("检索范围"),
+        max_length=16,
+        default=SearchScopeEnum.DEFAULT.value,
+    )
+    source_app_code = models.CharField(
+        verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True
+    )
+    scene_config = models.JSONField(_("场景用户配置"), default=dict)
+    created_at = models.DateTimeField(_("创建时间"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("更新时间"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("场景化检索-用户UI偏好")
+        verbose_name_plural = _("场景化检索-用户UI偏好")
+        unique_together = [("bk_biz_id", "username", "scene_id", "scope", "source_app_code")]

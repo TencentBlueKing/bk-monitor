@@ -473,6 +473,9 @@ UNIFY_QUERY_ROUTING_RULES = []
 # bk-monitor-worker api 地址
 BMW_API_URL = os.getenv("BMW_API_URL", "http://bk-monitor-bk-monitor-worker-web-service:10211")
 
+# 告警缓存刷新任务的业务并发度
+ALARM_CACHE_REFRESH_BIZ_CONCURRENT = 3
+
 # bkmonitorbeat 升级支持新版节点ID(bk_cloud_id:ip)的版本
 BKMONITORBEAT_SUPPORT_NEW_NODE_ID_VERSION = "1.13.95"
 
@@ -1267,6 +1270,12 @@ BKCHAT_MANAGE_URL = os.getenv("BKAPP_BKCHAT_MANAGE_URL", "")
 # aidev的apigw地址
 AIDEV_API_BASE_URL = os.getenv("BKAPP_AIDEV_API_BASE_URL", "")
 
+# TAPD API 基础URL
+TAPD_API_BASE_URL = os.getenv("BKAPP_TAPD_API_BASE_URL", os.getenv("TAPD_API_BASE_URL", ""))
+# 对于 TAPD API 有权限的应用ID和密钥
+TAPD_APP_ID = os.getenv("BKAPP_TAPD_APP_ID", os.getenv("TAPD_APP_ID", ""))
+TAPD_APP_SECRET = os.getenv("BKAPP_TAPD_APP_SECRET", os.getenv("TAPD_APP_SECRET", ""))
+
 BK_NODEMAN_HOST = AGENT_SETUP_URL = os.getenv("BK_NODEMAN_SITE_URL") or os.getenv(
     "BKAPP_NODEMAN_OUTER_HOST", get_service_url("bk_nodeman", bk_paas_host=BK_PAAS_HOST)
 )
@@ -1316,8 +1325,6 @@ BK_INCIDENT_APIGW_URL = os.getenv("BKAPP_INCIDENT_APIGW_URL", "")
 ENABLE_BK_INCIDENT_PLUGIN = os.getenv("ENABLE_BK_INCIDENT_PLUGIN", "false").lower() == "true"
 # 是否打开故障通知
 ENABLE_BK_INCIDENT_NOTICE = os.getenv("ENABLE_BK_INCIDENT_NOTICE", "false").lower() == "true"
-# 内置故障通知配置(动态变量)
-BK_INCIDENT_BUILTIN_CONFIG = {}
 
 # IAM
 BK_IAM_SYSTEM_ID = "bk_monitorv3"
@@ -1471,6 +1478,9 @@ BKCRYPTO = {
     },
 }
 
+# 自定义上报/APM使用的密钥
+CUSTOM_REPORT_AES_KEY = os.getenv("CUSTOM_REPORT_AES_KEY", "")
+
 # 特别的AES加密配置信息(全局配置)
 SPECIFY_AES_KEY = ""
 BK_CRYPTO_KEY = os.getenv("BKAPP_BK_CRYPTO_KEY", "")
@@ -1607,8 +1617,8 @@ ENABLE_V2_VM_DATA_LINK = os.getenv("ENABLE_V2_VM_DATA_LINK", "true").lower() == 
 ENABLE_PLUGIN_ACCESS_V4_DATA_LINK = os.getenv("ENABLE_PLUGIN_ACCESS_V4_DATA_LINK", "true").lower() == "true"
 # 是否让拨测默认接入独立 BKData 链路，默认开启
 ENABLE_UPTIMECHECK_BKDATA = os.getenv("ENABLE_UPTIMECHECK_BKDATA", "true").lower() == "true"
-# APM Tracing 是否启用 BKBase 数据链路（创建新 APM 应用时走 BKBase 而非 Transfer）
-ENABLE_TRACING_BKDATA = os.getenv("ENABLE_TRACING_BKDATA", "false").lower() == "true"
+# APM Tracing 是否启用 BKBase 数据链路（仅对新创建的 APM 应用生效，存量应用不自动切换）
+ENABLE_NEW_APM_APP_BKDATA_TRACING = os.getenv("ENABLE_NEW_APM_APP_BKDATA_TRACING", "false").lower() == "true"
 # 是否启用influxdb，默认关闭
 ENABLE_INFLUXDB_STORAGE = os.getenv("BKAPP_ENABLE_INFLUXDB_STORAGE", "false").lower() == "true"
 # 是否开启空间内置数据链路初始化
@@ -1621,7 +1631,13 @@ DEFAULT_VM_DATA_LINK_NAMESPACE = "bkmonitor"
 # 仅声明在此集合中的 data_link_strategy，在 apply_data_link 时才会构造
 # ExistingComponentContext 并做 claim / leftover 检查；未声明的 strategy 维持旧行为。
 # 取值范围与 metadata.models.data_link.data_link.DataLink.*_STRATEGY 常量一致。
-DATA_LINK_COMPONENT_REUSE_STRATEGIES: set[str] = {"bk_standard_v2_time_series"}
+DATA_LINK_COMPONENT_REUSE_STRATEGIES: set[str] = {
+    "bk_standard_v2_time_series",
+    "bk_standard_v2_event",
+    "bk_log",
+    "bk_exporter_time_series",
+    "bk_standard_time_series",
+}
 
 # Kafka采样接口重试次数
 KAFKA_TAIL_API_RETRY_TIMES = 3
@@ -1653,13 +1669,22 @@ ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST = []
 # 使用RT中的路由过滤别名的结果表列表
 SPECIAL_RT_ROUTE_ALIAS_RESULT_TABLE_LIST = []
 
-# BCS集群自动发现任务周期
-BCS_DISCOVER_BCS_CLUSTER_INTERVAL = 5
 # BCS集群自动发现任务的起始集群ID（严格大于，不包含该ID本身）。
-# 取值示例: "BCS-K8S-10000" 表示仅接管后缀 > 10000 的集群的新增与删除；
-# 阈值以下（含阈值）的集群不会被本任务新增，也不会被标记为删除，但已存在集群的状态/业务/项目仍会正常更新。
+# 取值示例: "BCS-K8S-10000" 表示仅接管后缀 > 10000 的集群的变更；
 # 留空表示禁用阈值过滤，全部集群均由本任务接管（保持历史行为）。
 BCS_DISCOVER_START_CLUSTER_ID = os.getenv("BCS_DISCOVER_START_CLUSTER_ID", "")
+
+# BCS集群自动发现任务黑名单业务ID列表
+BCS_DISCOVER_BCS_CLUSTER_BIZ_BLACK_LIST = []
+
+# BCS集群自动发现任务白名单业务ID列表（作为 BCS_DISCOVER_START_CLUSTER_ID 阈值的例外：
+# 命中白名单的业务，即使集群ID后缀不大于阈值也会被接管；为空表示无例外）
+BCS_DISCOVER_BCS_CLUSTER_BIZ_WHITE_LIST = []
+
+# 是否禁用BCS集群内置公共dataid资源刷新
+DISABLE_BCS_CLUSTER_REFRESH_COMMON_RESOURCE = (
+    os.getenv("DISABLE_BCS_CLUSTER_REFRESH_COMMON_RESOURCE", "false").lower() == "true"
+)
 
 # BKCC 业务同步任务的起始业务 ID（严格大于，不包含该 ID 本身）。
 # 取值示例: "1000" 表示仅接管 bk_biz_id > 1000 的 CMDB 业务的新增、删除及 V4 内置链路检查；
@@ -1769,7 +1794,7 @@ APM_UNIFY_QUERY_BLACK_BIZ_LIST = []
 # 事件 UnifyQuery 查询业务黑名单
 EVENT_UNIFY_QUERY_BLACK_BIZ_LIST = []
 
-# 日志 UnifyQuery 查询业务白名单（环境变量，逗号分隔业务 ID，优先级高于 DB 配置）
+# 日志 UnifyQuery 查询业务白名单（环境变量，逗号分隔业务 ID，-1 表示全量灰度，优先级高于 DB 配置）
 _log_uq_white_biz_env = os.getenv("LOG_UNIFY_QUERY_WHITE_BIZ_LIST", "")
 LOG_UNIFY_QUERY_WHITE_BIZ_LIST_ENV = (
     [int(biz_id.strip()) for biz_id in _log_uq_white_biz_env.split(",") if biz_id.strip()]

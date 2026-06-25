@@ -29,7 +29,7 @@
     <template v-if="!isUnionSearch">
       <span
         class="handle-card"
-        v-bk-tooltips="{ allowHtml: true, content: '#realTimeLog-html' }"
+        v-bk-tooltips="{ allowHtml: true, content: '#realTimeLog-html', delay: 500 }"
       >
         <span
           :class="`icon bklog-icon bklog-shishirizhi ${!isActiveLog && 'is-disable'}`"
@@ -40,7 +40,7 @@
       </span>
       <span
         class="handle-card"
-        v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html' }"
+        v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html', delay: 500 }"
       >
         <span
           :class="`icon bklog-icon bklog-shangxiawen ${!isActiveLog && 'is-disable'}`"
@@ -52,7 +52,7 @@
       <span
         v-if="isActiveWebConsole && !isMonitorApm"
         class="handle-card"
-        v-bk-tooltips="{ allowHtml: true, content: '#webConsole-html' }"
+        v-bk-tooltips="{ allowHtml: true, content: '#webConsole-html', delay: 500 }"
       >
         <span
           :class="`icon bklog-icon bklog-consola ${!isCanClickWebConsole && 'is-disable'}`"
@@ -97,7 +97,7 @@
     <template v-else>
       <span
         class="handle-card"
-        v-bk-tooltips="{ allowHtml: true, content: $t('上下文') }"
+        v-bk-tooltips="{ allowHtml: true, content: $t('上下文'), delay: 500 }"
       >
         <span
           :class="`icon bklog-icon bklog-shangxiawen ${!isActiveLog && 'is-disable'}` "
@@ -110,7 +110,7 @@
     <template v-if="isAiAssistanceActive">
       <span
         class="handle-card ai-assistant bklog-row-ai"
-        v-bk-tooltips="{ allowHtml: false, content: $t('AI助手') }"
+        v-bk-tooltips="{ allowHtml: false, content: $t('AI助手'), delay: 500 }"
         @click.stop="e => handleCheckClick('ai', true, e)"
         @mouseup.stop
       >
@@ -124,7 +124,7 @@
       >
         <span
           class="icon bklog-icon bklog-tracing"
-          v-bk-tooltips="{ allowHtml: false, content: $t('关联Trace检索') }"
+          v-bk-tooltips="{ allowHtml: false, content: $t('关联Trace检索'), delay: 500 }"
           @click.stop="handleCheckClick('trace_id', true)"
           @mouseup.stop
         >
@@ -303,25 +303,30 @@
 
 <style lang="scss" scoped>
   .handle-content {
-    position: absolute;
-    right: 0;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    width: 84px;
-    overflow: hidden;
+    position: relative;
+    display: inline-flex;
+    gap: 2px;
+    align-items: center;
+    justify-content: flex-start;
+    width: max-content;
+    overflow: visible;
 
     .handle-card {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 18px;
+      width: 20px;
+      min-width: 20px;
       height: 20px;
-      margin-left: 10px;
-      font-size: 18px;
+      margin-left: 0;
+      font-size: 16px;
+      line-height: 20px;
       color: #8b92a5;
 
-      .bklog-icon {
+      .bklog-icon,
+      .icon {
+        font-size: 16px;
+        line-height: 20px;
         cursor: pointer;
       }
 
@@ -343,7 +348,7 @@
   }
 
   .fix-content {
-    width: auto;
+    width: max-content;
     background-color: #f5f7fa;
   }
 

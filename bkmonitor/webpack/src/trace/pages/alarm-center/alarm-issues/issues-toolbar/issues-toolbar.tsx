@@ -40,10 +40,20 @@ const ISSUES_DOCS_ID = 'issues_docs';
 export default defineComponent({
   name: 'IssuesToolbar',
   props: {
-    /** 选中行的 issues Id 数组*/
-    issuesIds: {
-      type: Array as PropType<string[]>,
-      default: () => [],
+    /** 是否有选中行（控制批量操作/导出按钮的 disabled） */
+    hasSelection: {
+      type: Boolean,
+      default: false,
+    },
+    /** 合并按钮是否禁用 */
+    mergeDisabled: {
+      type: Boolean,
+      default: true,
+    },
+    /** 合并按钮禁用时的 tooltip 提示 */
+    mergeDisabledTip: {
+      type: String,
+      default: '',
     },
     /** 批量操作回调，返回 false 表示操作失败被拦截（如校验失败），此时不关闭 dropdown */
     batchAction: {
@@ -52,6 +62,10 @@ export default defineComponent({
     /** 导出异步回调，返回 Promise 以便内部自动管理 loading 状态 */
     onExport: {
       type: Function as PropType<() => Promise<void>>,
+    },
+    /** 合并按钮点击回调 */
+    onMerge: {
+      type: Function as PropType<() => void>,
     },
   },
   setup(props) {
@@ -62,9 +76,6 @@ export default defineComponent({
 
     /** 导出按钮 loading 状态 */
     const exportLoading = shallowRef(false);
-
-    /** 是否有选中行 */
-    const hasSelection = computed(() => props.issuesIds.length > 0);
 
     const { handleGotoLink, hasExtraDocLink } = useDocumentLink();
 
@@ -113,13 +124,20 @@ export default defineComponent({
       }
     };
 
+    /**
+     * @description 处理合并按钮点击
+     */
+    const handleMerge = () => {
+      props.onMerge?.();
+    };
+
     return {
       dropdownShow,
       exportLoading,
-      hasSelection,
       batchActions,
       handleBatchAction,
       handleExport,
+      handleMerge,
       handleGotoLink,
       hasExtraDocLink,
     };
@@ -129,51 +147,68 @@ export default defineComponent({
       <div class='issues-toolbar'>
         {/* 顶部工具栏 */}
         <div class='issues-toolbar-bar'>
-          <BkDropdown
-            isShow={this.dropdownShow}
-            trigger='click'
-            onHide={() => {
-              this.dropdownShow = false;
-            }}
-            onShow={() => {
-              this.dropdownShow = true;
-            }}
-          >
-            {{
-              default: () => (
-                <BkButton
-                  class='issues-toolbar-batch-btn'
-                  disabled={!this.hasSelection}
-                  theme='primary'
-                >
-                  <div class='issues-toolbar-batch-btn-wrap'>
-                    <span class='issues-toolbar-batch-btn-text'>{this.$t('批量操作')}</span>
-                    <i class={['icon-monitor icon-arrow-down toolbar-btn-icon', { 'is-active': this.dropdownShow }]} />
-                  </div>
-                </BkButton>
-              ),
-              content: () => (
-                <BkDropdownMenu>
-                  {this.batchActions.map(action => (
-                    <BkDropdownItem
-                      key={action.id}
-                      onClick={() => this.handleBatchAction(action.id)}
-                    >
-                      {action.label}
-                    </BkDropdownItem>
-                  ))}
-                </BkDropdownMenu>
-              ),
-            }}
-          </BkDropdown>
-          <BkButton
-            class='issues-toolbar-export-btn'
-            disabled={!this.hasSelection}
-            loading={this.exportLoading}
-            onClick={this.handleExport}
-          >
-            <span class='toolbar-btn-text'>{this.$t('导出')}</span>
-          </BkButton>
+          <span v-tippy={!this.hasSelection ? { content: this.$t('请先选择 Issue') } : undefined}>
+            <BkDropdown
+              isShow={this.dropdownShow}
+              trigger='click'
+              onHide={() => {
+                this.dropdownShow = false;
+              }}
+              onShow={() => {
+                this.dropdownShow = true;
+              }}
+            >
+              {{
+                default: () => (
+                  <BkButton
+                    class='issues-toolbar-batch-btn'
+                    disabled={!this.hasSelection}
+                    theme='primary'
+                  >
+                    <div class='issues-toolbar-batch-btn-wrap'>
+                      <span class='issues-toolbar-batch-btn-text'>{this.$t('批量操作')}</span>
+                      <i
+                        class={['icon-monitor icon-arrow-down toolbar-btn-icon', { 'is-active': this.dropdownShow }]}
+                      />
+                    </div>
+                  </BkButton>
+                ),
+                content: () => (
+                  <BkDropdownMenu>
+                    {this.batchActions.map(action => (
+                      <BkDropdownItem
+                        key={action.id}
+                        onClick={() => this.handleBatchAction(action.id)}
+                      >
+                        {action.label}
+                      </BkDropdownItem>
+                    ))}
+                  </BkDropdownMenu>
+                ),
+              }}
+            </BkDropdown>
+          </span>
+          <span v-tippy={this.mergeDisabled ? { content: this.mergeDisabledTip } : undefined}>
+            <BkButton
+              class='issues-toolbar-merge-btn'
+              disabled={this.mergeDisabled}
+              outline={true}
+              theme='primary'
+              onClick={this.handleMerge}
+            >
+              <span class='toolbar-btn-text'>{this.$t('合并')}</span>
+            </BkButton>
+          </span>
+          <span v-tippy={!this.hasSelection ? { content: this.$t('请先选择 Issue') } : undefined}>
+            <BkButton
+              class='issues-toolbar-export-btn'
+              disabled={!this.hasSelection}
+              loading={this.exportLoading}
+              onClick={this.handleExport}
+            >
+              <span class='toolbar-btn-text'>{this.$t('导出')}</span>
+            </BkButton>
+          </span>
           {this.hasExtraDocLink(ISSUES_DOCS_ID) && (
             <BkButton
               size='small'

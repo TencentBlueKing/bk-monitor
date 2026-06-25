@@ -30,11 +30,14 @@ import {
   archiveIssue,
   assignIssue,
   exportIssue,
+  listMergeSources,
   listRecentAssignees,
+  mergeIssue,
   renameIssue,
   reopenIssue,
   resolveIssue,
   restoreIssue,
+  splitIssue,
   updateIssuePriority,
 } from 'monitor-api/modules/issue';
 import { downFile } from 'trace/utils/utils';
@@ -45,11 +48,17 @@ import type {
   ExportIssuesParams,
   FollowUpIssuesParams,
   IssuesBatchOperationResponse,
+  ListMergeSourcesParams,
+  ListMergeSourcesResponse,
   ListRecentAssigneesParams,
   ListRecentAssigneesResponse,
+  MergeIssueParams,
+  MergeIssueResponseData,
   RenameIssueParams,
   RenameIssueSucceededItem,
   ResolveIssuesParams,
+  SplitIssueParams,
+  SplitIssueResponseData,
   UpdatePriorityParams,
 } from '../typing';
 
@@ -231,4 +240,43 @@ export const showOperationResult = (res: IssuesBatchOperationResponse, successMe
     return true;
   }
   return false;
+};
+
+/**
+ * @description 合并 Issues，将选中的成员 Issue 并入主 Issue
+ * @param {MergeIssueParams} params - 合并请求参数（bk_biz_id / main_issue_id / members / reasons）
+ * @param {RequestOptions} options - 请求配置选项
+ * @returns {Promise<MergeIssueResponseData>} 合并结果
+ */
+export const mergeIssues = async (
+  params: MergeIssueParams,
+  options?: RequestOptions
+): Promise<MergeIssueResponseData> => {
+  return mergeIssue(params, options);
+};
+
+/**
+ * @description 拆分 Issue，将成员 Issue 从主 Issue 中拆出
+ * @param {SplitIssueParams} params - 拆分请求参数（bk_biz_id / member_issue_id / reasons）
+ * @param {RequestOptions} options - 请求配置选项
+ * @returns {Promise<SplitIssueResponseData>} 拆分结果
+ */
+export const splitIssues = async (
+  params: SplitIssueParams,
+  options?: RequestOptions
+): Promise<SplitIssueResponseData> => {
+  return splitIssue(params, options);
+};
+
+/**
+ * @description 查询合并来源列表，获取主 Issue 的活跃成员和拆分历史
+ * @param {ListMergeSourcesParams} params - 查询请求参数（bk_biz_id / main_issue_id）
+ * @param {RequestOptions} options - 请求配置选项
+ * @returns {Promise<ListMergeSourcesResponse>} 合并来源详情
+ */
+export const fetchMergeSources = async (
+  params: ListMergeSourcesParams,
+  options?: RequestOptions
+): Promise<ListMergeSourcesResponse> => {
+  return listMergeSources(params, options);
 };

@@ -62,3 +62,13 @@
     @extend %custom-table-ellipsis;
   }
 }
+
+.tippy-box[data-theme~='alarm-center-popover'] {
+  .alarm-name-popover-container.alarm-name-popover-container-merged {
+    .alarm-name-popover-item {
+      .alarm-name-popover-item-label {
+        width: 89px;
+      }
+    }
+  }
+}

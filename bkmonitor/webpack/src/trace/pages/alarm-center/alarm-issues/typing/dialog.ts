@@ -25,10 +25,9 @@
  */
 
 import type { IssuesBatchActionEnum } from '../constant';
-import type { IssueActiveNodeType, IssuePriorityType, IssuesBatchActionType } from './constants';
+import type { IssuePriorityType, IssuesBatchActionType } from './constants';
+import type { IssueActivityItem } from './detail';
 import type { IssueItem } from './table';
-
-// ===================== 请求参数类型 =====================
 
 /** 指派负责人请求参数 */
 export interface AssignIssuesParams {
@@ -37,6 +36,8 @@ export interface AssignIssuesParams {
   /** 跨业务批量操作 Issue 标识列表 */
   issues: IssueIdentifier[];
 }
+
+// ===================== 请求参数类型 =====================
 
 /** 指派负责人 - 成功条目 */
 export interface AssignSucceededItem extends IssueOperationSucceededBase {
@@ -50,26 +51,6 @@ export interface FollowUpIssuesParams {
   content: string;
   /** 跨业务批量操作 Issue 标识列表 */
   issues: IssueIdentifier[];
-}
-
-/** Issue 活动记录条目 */
-export interface IssueActivityItem {
-  /** 活动记录 ID */
-  activity_id: string;
-  /** 活动类型 */
-  activity_type: IssueActiveNodeType;
-  /** 业务 ID */
-  bk_biz_id: number;
-  /** 评论内容（仅 comment 类型有值） */
-  content: null | string;
-  /** 变更前的值（仅 *_change 类型有值） */
-  from_value: null | string;
-  /** 操作人 */
-  operator: string;
-  /** 活动时间（Unix 秒级时间戳） */
-  time: number;
-  /** 变更后的值（仅 *_change 类型有值） */
-  to_value: null | string;
 }
 
 /** Issue 标识符（跨业务批量操作请求中的单条 issue 结构） */
@@ -104,8 +85,6 @@ export interface IssueOperationSucceededBase {
   update_time: IssueItem['update_time'];
 }
 
-// ===================== 响应结构类型 =====================
-
 /** Issues 批量操作响应 */
 export interface IssuesBatchOperationResponse<U extends IssuesBatchActionType = IssuesBatchActionType> {
   /** 失败的条目列表，含失败原因 */
@@ -113,6 +92,8 @@ export interface IssuesBatchOperationResponse<U extends IssuesBatchActionType = 
   /** 成功处理的条目列表 */
   succeeded: IssueSucceededItemByActionMap[U][];
 }
+
+// ===================== 响应结构类型 =====================
 
 /** ISSUES 各操作 dialog 组件所需的非公共私有参数(打开时需要回填显示的属性) */
 export type IssuesOperationDialogParams = IssuesPriorityDialogParams;

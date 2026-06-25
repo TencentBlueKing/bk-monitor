@@ -11,6 +11,7 @@ from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 
 from monitor_web.data_migrate.constants import DATA_MIGRATE_CLOSED_RECORDS_APPLICATION_CONFIG_KEY, DEFAULT_ENCODING
 from monitor_web.data_migrate.handler.runner import get_close_records_by_biz_from_directory
+from monitor_web.data_migrate.plugin_strategy_result_table import repair_plugin_strategy_result_table_id
 from monitor_web.data_migrate.utils import import_model_from_file, read_json_file
 
 
@@ -167,4 +168,5 @@ def import_biz_data_from_directory(
         directory_path=target_directory,
         bk_biz_ids=target_bk_biz_ids,
     )
+    repair_plugin_strategy_result_table_id(bk_biz_id=target_bk_biz_ids, dry_run=False)
     return imported_objects

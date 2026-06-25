@@ -34,6 +34,7 @@ from bkmonitor.models import StrategyModel
 from bkmonitor.models.base import Shield
 from bkmonitor.models.home import HomeAlarmGraphConfig
 from bkmonitor.utils.request import get_request, get_request_tenant_id
+from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.views import serializers
 from core.drf_resource import Resource, api
 from core.errors.api import BKAPIError
@@ -63,6 +64,31 @@ class GetFunctionShortcutResource(Resource):
         limit = serializers.IntegerField(label="限制", default=10)
 
     @classmethod
+    def _build_app_services_map(cls, apps: dict[int, "Application"]) -> dict[int, set[str]]:
+        """并发获取每个应用的当前服务集合，返回 {application_id: {topo_key, ...}}。
+
+        各应用的服务查询相互独立（`ServiceHandler.list_services` 内部含 APM topo / profiling
+        远程调用），原先按应用串行累积，应用数较多时墙钟时间线性放大。这里改为并发拉取，
+        墙钟时间由「串行求和」降为「最慢单次」。成功路径与串行实现产出完全一致。
+
+        使用 `map_ignore_exception`：单个应用查询失败时跳过该应用（不纳入结果），下游
+        按「该应用服务视为不存在、对应记录被过滤」处理；相较原串行实现会因个别应用异常
+        导致整个首页快捷入口 500，这里更稳健（其余应用不受影响）。
+        """
+        if not apps:
+            return {}
+
+        def _collect(app: "Application") -> tuple[int, set[str]]:
+            services = ServiceHandler.list_services(app)
+            return app.application_id, {service["topo_key"] for service in services}
+
+        pool = ThreadPool(min(len(apps), 10))
+        results = pool.map_ignore_exception(_collect, list(apps.values()))
+        pool.close()
+        pool.join()
+        return dict(results)
+
+    @classmethod
     def get_recent_shortcuts(cls, username: str, functions: list[str], limit: int = 10):
         """
         获取最近访问的快捷方式
@@ -84,13 +110,16 @@ class GetFunctionShortcutResource(Resource):
             name = str(cls.function_name_map.get(function, function))
 
             if function == "dashboard":
-                # 查询仪表盘信息
-                dashboard_uids = {access_record["dashboard_uid"] for access_record in access_records}
-                dashboards = Dashboard.objects.filter(uid__in=dashboard_uids)
+                # 先从访问记录的业务ID解析出 Grafana Org（Org.name 即业务ID字符串），
+                # 以便查询 dashboard 时带上 org_id，命中 (org_id, uid) 联合索引，避免仅按 uid 过滤造成全表扫描
+                biz_ids = {str(access_record["bk_biz_id"]) for access_record in access_records}
+                org_ids_to_biz_id = {org.id: org.name for org in Org.objects.filter(name__in=biz_ids)}
 
-                # 获取业务ID与 Grafana Org 的映射
-                org_ids = {dashboard.org_id for dashboard in dashboards}
-                org_ids_to_biz_id = {org.id: org.name for org in Org.objects.filter(id__in=org_ids)}
+                # 查询仪表盘信息：只取展示所需字段，避免加载大字段 dashboard.data
+                dashboard_uids = {access_record["dashboard_uid"] for access_record in access_records}
+                dashboards = Dashboard.objects.filter(org_id__in=org_ids_to_biz_id.keys(), uid__in=dashboard_uids).only(
+                    "id", "uid", "title", "org_id", "folder_id"
+                )
 
                 # 确定已存在的仪表盘
                 exists_dashboards: dict[tuple[str, str], Dashboard] = {
@@ -119,7 +148,7 @@ class GetFunctionShortcutResource(Resource):
 
                 # 获取并补充文件夹信息
                 folder_ids = {item["folder_id"] for item in items if item["folder_id"]}
-                folders = Dashboard.objects.filter(id__in=folder_ids, is_folder=True)
+                folders = Dashboard.objects.filter(id__in=folder_ids, is_folder=True).only("id", "title")
                 folder_id_to_name = {folder.id: folder.title for folder in folders}
                 for item in items:
                     item["folder_title"] = folder_id_to_name.get(item["folder_id"], "General")
@@ -127,11 +156,8 @@ class GetFunctionShortcutResource(Resource):
                 app_ids = {access_record["application_id"] for access_record in access_records}
                 apps = {app.application_id: app for app in Application.objects.filter(application_id__in=app_ids)}
 
-                # 获取服务信息
-                app_services: dict[int, set[str]] = {}
-                for app in apps.values():
-                    services = ServiceHandler.list_services(app)
-                    app_services[app.application_id] = {service["topo_key"] for service in services}
+                # 获取服务信息（各应用相互独立，并发拉取以消除逐应用串行的 N+1）
+                app_services = cls._build_app_services_map(apps)
 
                 for access_record in access_records:
                     # 判断应用是否存在
@@ -139,8 +165,8 @@ class GetFunctionShortcutResource(Resource):
                         continue
                     app = apps[access_record["application_id"]]
 
-                    # 判断服务是否存在
-                    if access_record["service_name"] not in app_services[access_record["application_id"]]:
+                    # 判断服务是否存在（应用查询失败时已被跳过，缺省视为无服务）
+                    if access_record["service_name"] not in app_services.get(access_record["application_id"], set()):
                         continue
 
                     items.append(
@@ -216,9 +242,11 @@ class GetFunctionShortcutResource(Resource):
                 if not user:
                     continue
 
-                # 获取收藏的仪表盘
+                # 获取收藏的仪表盘：只取展示所需字段，避免加载大字段 dashboard.data
                 starred_dashboard_ids = Star.objects.filter(user_id=user.id).values_list("dashboard_id", flat=True)
-                dashboards = Dashboard.objects.filter(id__in=starred_dashboard_ids)
+                dashboards = Dashboard.objects.filter(id__in=starred_dashboard_ids).only(
+                    "id", "org_id", "uid", "title", "slug"
+                )
 
                 # 获取业务ID与 Grafana Org 的映射
                 org_id_to_biz_id: dict[int, int] = {
@@ -276,22 +304,22 @@ class GetFunctionShortcutResource(Resource):
                     )
                 }
 
-                # 获取当前服务，去除过期服务
-                app_services: dict[int, set[str]] = {}
-                for app in apps.values():
-                    services = ServiceHandler.list_services(app)
-                    app_services[app.application_id] = {service["topo_key"] for service in services}
+                # 获取当前服务，去除过期服务（各应用相互独立，并发拉取以消除逐应用串行的 N+1）
+                app_services = cls._build_app_services_map(apps)
 
                 for apm_config in apm_configs:
                     # 判断应用是否存在
                     app_id = int(apm_config.level_key)
                     if app_id not in apps:
                         continue
+                    # 取本条配置对应的应用（此前误用上一循环残留的 app，恒为最后一个应用，
+                    # 导致收藏项的 bk_biz_id/app_name/application_id/app_alias 错位）
+                    app = apps[app_id]
 
                     # 获取服务名称
                     service_names = apm_config.config_value
                     for service_name in service_names:
-                        if service_name not in app_services[app_id]:
+                        if service_name not in app_services.get(app_id, set()):
                             continue
 
                         items.append(
@@ -377,7 +405,8 @@ class GetFunctionShortcutResource(Resource):
 
         for record in result:
             for item in record["items"]:
-                item["bk_biz_name"] = biz_id_name_map[item["bk_biz_id"]]
+                # 业务空间可能取不到详情（已删除/无权限），缺省置空名而非下标抛 KeyError 拖垮整个首页入口
+                item["bk_biz_name"] = biz_id_name_map.get(item["bk_biz_id"], "")
 
         return result
 

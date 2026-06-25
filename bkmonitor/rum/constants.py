@@ -18,3 +18,12 @@ DATABASE_CONNECTION_NAME = getattr(settings, "METADATA_DEFAULT_DATABASE_NAME", "
 RUM_KAFKA_CLUSTER_ID = getattr(settings, "RUM_KAFKA_CLUSTER_ID", None)
 # ES 集群 ID，创建 RumDataSource 结果表时作为默认存储集群
 RUM_ELASTICSEARCH_CLUSTER_ID = getattr(settings, "RUM_ELASTICSEARCH_CLUSTER_ID", None)
+
+
+class ApdexConfigKey:
+    """
+    Apdex 配置键
+    """
+
+    APDEX_VIEW_LOAD = "apdex_view_load"
+    APDEX_API_REQUEST = "apdex_api_request"

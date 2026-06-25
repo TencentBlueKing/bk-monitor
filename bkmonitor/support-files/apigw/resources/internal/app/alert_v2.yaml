@@ -89,42 +89,6 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: "query alert v2 event tag detail"
-  /app/alert_v2/alert/k8s_scenario_list/:
-    get:
-      operationId: alert_v2_alert_k8s_scenario_list
-      description: 【告警V2】K8S场景列表查询
-      x-bk-apigateway-resource:
-        isPublic: false
-        allowApplyPermission: true
-        matchSubpath: false
-        backend:
-          name: default
-          method: get
-          path: /api/v4/alert_v2/alert/k8s_scenario_list/
-          matchSubpath: false
-        authConfig:
-          appVerifiedRequired: true
-          userVerifiedRequired: false
-          resourcePermissionRequired: true
-        descriptionEn: "query alert v2 k8s scenario list"
-  /app/alert_v2/alert/k8s_metric_list/:
-    get:
-      operationId: alert_v2_alert_k8s_metric_list
-      description: 【告警V2】K8S指标列表查询
-      x-bk-apigateway-resource:
-        isPublic: false
-        allowApplyPermission: true
-        matchSubpath: false
-        backend:
-          name: default
-          method: get
-          path: /api/v4/alert_v2/alert/k8s_metric_list/
-          matchSubpath: false
-        authConfig:
-          appVerifiedRequired: true
-          userVerifiedRequired: false
-          resourcePermissionRequired: true
-        descriptionEn: "query alert v2 k8s metric list"
   /app/alert_v2/alert/k8s_target/:
     get:
       operationId: alert_v2_alert_k8s_target

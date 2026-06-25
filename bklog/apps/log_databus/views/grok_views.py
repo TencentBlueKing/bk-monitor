@@ -45,6 +45,7 @@ class GrokViewSet(ModelViewSet):
     queryset = GrokInfo.objects.all()
     lookup_field = "id"
     lookup_url_kwarg = "grok_info_id"
+    filter_fields_exclude = ["sample_result"]
 
     def get_permissions(self):
         return [ViewBusinessPermission()]

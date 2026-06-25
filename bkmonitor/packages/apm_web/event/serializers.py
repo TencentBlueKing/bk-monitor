@@ -24,69 +24,15 @@ from monitor_web.data_explorer.event import serializers as event_serializers
 from monitor_web.data_explorer.event.constants import (
     DEFAULT_EVENT_ORIGIN,
     EVENT_ORIGIN_MAPPING,
-    CicdEventName,
     EventCategory,
-    EventDomain,
 )
 from monitor_web.data_explorer.event.utils import (
+    DOMAIN_CONF_HANDLER_MAP,
+    default_cond_handler,
+    get_cluster_table_map,
     get_data_labels_map,
     get_q_from_query_config,
-    get_cluster_table_map,
 )
-
-
-def cicd_cond_handler(cond: dict[str, Any]) -> Q:
-    return Q(
-        **{
-            "pipelineId": cond.get("pipeline_id"),
-            "projectId": cond.get("project_id"),
-            "event_name": CicdEventName.PIPELINE_STATUS_INFO.value,
-        }
-    )
-
-
-def default_cond_handler(cond: dict[str, Any]) -> Q:
-    return Q(**cond)
-
-
-def k8s_cond_handler(cond: dict[str, Any]) -> Q:
-    kind: str | None = cond.get("kind")
-    name: str | None = cond.get("name")
-    namespace: str | None = cond.get("namespace")
-    bcs_cluster_id: str | None = cond.get("bcs_cluster_id")
-    if not (bcs_cluster_id and namespace and kind and name):
-        return default_cond_handler(cond)
-
-    q: Q = Q(**cond)
-    kind_pod_reg_map: dict[str, Any] = {
-        "Job": f"{name}-[a-z0-9]{{5,10}}",
-        "Deployment": f"{name}(-[a-z0-9]{{5,10}}){{1,2}}",
-        "DaemonSet": f"{name}-[a-z0-9]{{5}}",
-        "StatefulSet": f"{name}-[0-9]+",
-    }
-    base_cond: dict[str, str] = {"bcs_cluster_id": bcs_cluster_id, "namespace": namespace}
-    for workload_kind, pod_name_reg in kind_pod_reg_map.items():
-        # 为什么采取模糊匹配？因为有类似 xxxDeployment 的 CRD 存在。
-        if kind not in workload_kind:
-            continue
-
-        # Workload 事件（例如 Deployment 滚服），实际会触发管控对象（ReplicaSet、Pod）的变更，产生对应级别的 k8s 事件，
-        # 即错误事件可能发生在 Workload 所管理的更基础的 k8s 对象，例如 Pod 重启失败、拉取镜像异常等，此处需要一并关联展示。
-        q |= Q(**base_cond, kind="Pod", name__req=pod_name_reg)
-        if kind in "Deployment":
-            q |= Q(**base_cond, kind="HorizontalPodAutoscaler", name=name) | Q(
-                **base_cond, kind="ReplicaSet", name__req=f"{name}-[a-z0-9]{{5,10}}"
-            )
-
-        # 至多匹配一次
-        break
-    return q
-
-
-DOMAIN_CONF_HANDLER_MAP: dict[str, Callable[[dict[str, Any]], Q]] = {
-    EventDomain.CICD.value: cicd_cond_handler,
-    EventDomain.K8S.value: k8s_cond_handler,
-}
 
 
 def filter_by_relation(

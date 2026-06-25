@@ -630,7 +630,7 @@ export interface IUserName {
   name: string;
 }
 
-export type OverflowPopType = 'demo_log' | 'log_pattern' | 'trace_pattern';
+export type OverflowPopType = 'demo_log' | 'log_pattern' | 'trace_field' | 'trace_pattern';
 
 interface IncidentRoot {
   rca_trace_info: {

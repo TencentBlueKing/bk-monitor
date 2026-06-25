@@ -57,6 +57,28 @@
           font-size: 12px;
         }
       }
+
+      .issues-merge-badge {
+        display: inline-flex;
+        flex-shrink: 0;
+        gap: 2px;
+        align-items: center;
+        height: 18px;
+        padding: 0 2px 0 4px;
+        font-size: 11px;
+        color: #3a84ff;
+        cursor: pointer;
+        background: #e1ecff;
+        border-radius: 4px;
+
+        .icon-a-ziIssue {
+          font-size: 11px;
+        }
+
+        .issues-merge-badge-count {
+          font-weight: 700;
+        }
+      }
     }
 
     .issues-name-description {
@@ -261,6 +283,10 @@
   }
 
   // ===================== 结束状态行样式（通过 rowClassName 添加 is-ended） =====================
+  .is-split-highlighted {
+    background-color: #ebfaf0;
+  }
+
   .is-ended {
     /** 结束状态 ISSUE 透明度 */
     $ended-opacity-icon: 0.2; // ICON / 趋势图 / 等级 → 20%
@@ -285,7 +311,8 @@
 
     // 其他文字信息 → 40%
     .issues-name-col .issues-name-title,
-    .issues-name-col .issues-name-description {
+    .issues-name-col .issues-name-description,
+    .issues-name-col .issues-merge-badge {
       opacity: $ended-opacity-text;
     }
 

@@ -510,6 +510,7 @@ class SDKPreDetectMixin:
         predict_result = self.PREDICT_FUNC(
             data=[{"value": data_point.value, "timestamp": data_point.timestamp * 1000}],
             dimensions=self.generate_dimensions(data_point),
+            bk_tenant_id=data_point.item.bk_tenant_id,
             **self.generate_sdk_predict_params(),
         )
         dimension_fields = getattr(data_point, "dimension_fields", None) or list(data_point.dimensions.keys())
@@ -610,6 +611,7 @@ class SDKPreDetectMixin:
                         self.PREDICT_FUNC,
                         **predict_input,
                         interval=int(data_points[0].item.query_configs[0]["agg_interval"]),
+                        bk_tenant_id=item.bk_tenant_id,
                         **self.generate_sdk_predict_params(),
                     )
                 )

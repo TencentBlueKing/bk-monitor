@@ -160,6 +160,7 @@ export default {
     'The current space does not support this function. If you need to use it, please contact the administrator',
   '当前空间未开启故障诊断功能, 请联系': 'The current space does not support this function. please contact',
   BK助手: 'BK Assistant',
+  'BK 助手': 'BK Assistant',
   当前告警关联故障: 'Current alarm associated fault',
   当前告警无关联故障: 'The current alarm has no associated faults',
   当前无异常事件: 'Currently no abnormal events',
@@ -182,8 +183,10 @@ export default {
   对比的TraceID相同: 'The compared TraceID is the same',
   '打开后，除了采集启用的指标还会采集未来新增的指标。':
     'After opening, in addition to collecting enabled indicators, future new indicators will also be collected.',
-  '因为当前是旧的存储模式，开启采集新增指标后会切换成新的存储模式，旧的历史数据会丢失，请确认是否继续。':
-    'Because the current storage mode is old, after enabling the collection of new indicators, it will switch to the new storage mode, and the old historical data will be lost. Please confirm whether to continue.',
+  '开启自动发现，已有数据不会丢失，但可能会导致维度爆炸问题，请确认维度数据':
+    'After opening automatic discovery, existing data will not be lost, but it may cause dimension explosion problems, please confirm the dimension data',
+  '关闭自动发现，将以手动维护的指标和维度为准，其他数据将被丢弃':
+    'After closing automatic discovery, the indicators and dimensions maintained manually will be used as the standard, and other data will be discarded',
   '添加新的屏蔽范围将会覆盖之前的屏蔽内容，确定覆盖？':
     'Adding a new blocking range will overwrite the previous blocked content, are you sure to proceed?',
   '批量粘贴请使用;进行分隔': 'Please use bulk pasting; Separate',
@@ -387,6 +390,11 @@ export default {
   调试数据范围取当前时间窗口前1000条数据:
     'The debugging data range takes the previous 1000 entries from the current time window',
   只有数值类型的字段可作为监控指标: 'Only fields of numeric type can be used as monitoring indicators',
+  '尚未开放自主接入，请联系管理员': 'Self-service access is not yet open, please contact the administrator',
+  '当前选择，包含 {0} 个空间未开启故障分析功能，':
+    'The currently selected {0} spaces have not enabled the fault analysis function,',
+  查看相关接入指引: 'View related access guidelines',
+  打开故障功能: 'open fault function',
 
   // 查询模板
   无法删除: 'Cannot delete',
@@ -480,6 +488,22 @@ export default {
   归档成功: 'Archive successfully',
   恢复成功: 'Restore successfully',
   重新打开成功: 'Reopen successfully',
-  请选择Issue聚合维度: 'Please select Issue aggregation dimension',
   请选择Issue聚合生效告警级别: 'Please select effective alert level for Issue aggregation',
+  '请先选择 Issue': 'Please select Issue first',
+  '请至少选择 2 个 Issue': 'Please select at least 2 Issues',
+  '主 Issue 不支持再并入其他主 Issue': 'The main Issue does not support being merged into other main Issues',
+  '合并了 {n} 个 Issue，点击查看合并明细': 'Merged {n} Issues, click to view merge details',
+  拆分: 'Split',
+
+  '选择或填写拆分依据后，再确认拆分为新 Issue。':
+    'After selecting or filling in the split basis, confirm the split as a new Issue.',
+  合并后保留: 'After merging, retain',
+  合并后隐藏: 'After merging, hide',
+  '由执行合并的用户指定，合并后会沉淀到主 Issue 的合并来源种，便于后续复盘。':
+    'Specified by the user who performs the merge, and will be retained as the merge source in the main Issue.',
+  '只能继续作为主 Issue，不支持再合并入其他 Issue；':
+    'Only continue as the main Issue, and cannot be merged into other Issues.',
+  '事件数、影响范围会并入主 Issue；': 'Event count and impact scope will be merged into the main Issue.',
+  '默认保留第 1 条选中的 Issue 作为主 Issue，也可以在下方表单切换；':
+    'By default, the first selected Issue is retained as the main Issue, and can be switched in the form below.',
 };

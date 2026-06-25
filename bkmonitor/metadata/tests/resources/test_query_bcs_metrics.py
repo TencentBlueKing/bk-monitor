@@ -183,3 +183,47 @@ def test_query_bcs_metric_with_dimensions(mocker, create_and_delete_records):
 
     metrics = QueryBCSMetricsResource().request(params)
     assert len(metrics) == 1
+
+
+def test_query_bcs_metric_without_dimensions_e2e_prefetch(mocker, create_and_delete_records):
+    """端到端：无维度场景走真实批量预取路径（不 mock get_metric_info_list_with_label），
+    校验 QueryBCSMetricsResource 经预取接线后仍返回正确指标。覆盖 resources.py 新增的预取逻辑。"""
+    group = models.TimeSeriesGroup.objects.get(bk_data_id=DEFAULT_ID, table_id="test.demo")
+    # 真实落库：1 个指标 + 对应字段（指标列 + 维度列）
+    models.TimeSeriesMetric.objects.create(
+        group_id=group.time_series_group_id, table_id="test.demo", field_name="k8s_metric_x", tag_list=["pod_name"]
+    )
+    models.ResultTableField.objects.create(
+        table_id="test.demo",
+        bk_tenant_id=group.bk_tenant_id,
+        field_name="k8s_metric_x",
+        field_type="double",
+        unit="",
+        tag="metric",
+        description="x desc",
+        is_config_by_user=True,
+    )
+    models.ResultTableField.objects.create(
+        table_id="test.demo",
+        bk_tenant_id=group.bk_tenant_id,
+        field_name="pod_name",
+        field_type="string",
+        unit="",
+        tag="dimension",
+        description="pod",
+        is_config_by_user=True,
+    )
+    mocker.patch("metadata.resources.resources.get_built_in_k8s_metrics", return_value=[])
+    mocker.patch(
+        "metadata.resources.resources.get_bcs_dataids",
+        return_value=([DEFAULT_ID], {"built_in_metric_data_id_list": [], DEFAULT_ID: DEFAULT_BCS_CLUSTER_ID}),
+    )
+
+    # 关键：不 mock get_metric_info_list_with_label，实际触发批量预取分支
+    metrics = QueryBCSMetricsResource().request({"bk_biz_ids": [DEFAULT_ID], "cluster_ids": [DEFAULT_BCS_CLUSTER_ID]})
+
+    field_names = {m["field_name"] for m in metrics}
+    assert "k8s_metric_x" in field_names
+    target = next(m for m in metrics if m["field_name"] == "k8s_metric_x")
+    assert DEFAULT_BCS_CLUSTER_ID in target["cluster_ids"]
+    assert "pod_name" in {d["field_name"] for d in target["dimensions"]}

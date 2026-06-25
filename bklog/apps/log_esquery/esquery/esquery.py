@@ -402,3 +402,215 @@ class EsQuery(object):
             f"output: {start_time.timestamp()} {end_time.timestamp()}"
         )
         return start_time, end_time
+
+    # ---- Scene-based search methods (table_id_conditions routing) ----
+
+    @staticmethod
+    def _build_scene_query_base(
+        space_uid: str,
+        table_id_conditions: List[List[Dict]],
+        query_string: str = "*",
+        start_time: str = "",
+        end_time: str = "",
+        addition: List = None,
+        ip_chooser: Dict = None,
+        filter_list: List = None,
+    ) -> Dict[str, Any]:
+        """Build the shared unify-query request skeleton for scene search."""
+        conditions = {"field_list": [], "condition_list": []}
+
+        if addition:
+            for item in addition:
+                field = item.get("key") or item.get("field", "")
+                operator = item.get("method") or item.get("operator", "")
+                value = item.get("value", "")
+                if field and operator:
+                    conditions["field_list"].append({
+                        "field_name": field,
+                        "value": value if isinstance(value, list) else [value],
+                        "op": operator,
+                    })
+
+        return {
+            "space_uid": space_uid,
+            "query_list": [
+                {
+                    "data_source": "bklog",
+                    "table_id": "",
+                    "table_id_conditions": table_id_conditions,
+                    "query_string": query_string,
+                    "time_field": "dtEventTimeStamp",
+                    "conditions": conditions,
+                    "reference_name": "a",
+                }
+            ],
+            "metric_merge": "a",
+            "start_time": start_time,
+            "end_time": end_time,
+        }
+
+    @staticmethod
+    def scene_search(
+        space_uid: str,
+        table_id_conditions: List[List[Dict]],
+        query_string: str = "*",
+        start_time: str = "",
+        end_time: str = "",
+        limit: int = 50,
+        offset: int = 0,
+        sort_list: List = None,
+        addition: List = None,
+        ip_chooser: Dict = None,
+        filter_list: List = None,
+        aggs: Dict = None,
+        highlight: Dict = None,
+    ) -> Dict[str, Any]:
+        """Scene-based raw log search."""
+        from apps.api import UnifyQueryApi
+
+        query_body = EsQuery._build_scene_query_base(
+            space_uid, table_id_conditions, query_string,
+            start_time, end_time, addition, ip_chooser, filter_list,
+        )
+
+        sort_list = sort_list or [["dtEventTimeStamp", "desc"]]
+        query_body["order_by"] = sort_list
+        query_body["query_list"][0]["field_name"] = "*"
+        query_body["query_list"][0]["limit"] = limit
+        query_body["query_list"][0]["from"] = offset
+
+        if highlight:
+            query_body["highlight"] = highlight
+
+        logger.info("[scene_search] space_uid=%s, conditions=%s", space_uid, json.dumps(table_id_conditions))
+        return UnifyQueryApi.query_ts_raw(query_body)
+
+    @staticmethod
+    def scene_fields(
+        space_uid: str,
+        table_id_conditions: List[List[Dict]],
+        start_time: str = "",
+        end_time: str = "",
+        scope: str = "default",
+    ) -> Dict[str, Any]:
+        """Scene-based field mapping list via unify-query field_map endpoint."""
+        from apps.api import UnifyQueryApi
+
+        query_body = {
+            "space_uid": space_uid,
+            "data_source": "bklog",
+            "table_id": "",
+            "table_id_conditions": table_id_conditions,
+            "start_time": start_time,
+            "end_time": end_time,
+        }
+
+        logger.info("[scene_fields] space_uid=%s, conditions=%s", space_uid, json.dumps(table_id_conditions))
+        field_data = UnifyQueryApi.query_field_map(query_body)
+
+        field_list = []
+        for field_name, field_info in field_data.get("fields", {}).items():
+            field_list.append({
+                "field_name": field_name,
+                "field_type": field_info.get("type", "object"),
+                "is_analyzed": field_info.get("type") == "text",
+                "es_doc_values": field_info.get("type") != "text",
+                "description": field_info.get("description", ""),
+                "field_alias": field_info.get("alias", ""),
+                "is_display": True,
+                "is_editable": True,
+            })
+
+        return {
+            "fields": field_list,
+            "display_fields": ["dtEventTimeStamp", "log"],
+            "time_field": "dtEventTimeStamp",
+            "time_field_type": "date",
+            "time_field_unit": "millisecond",
+        }
+
+    @staticmethod
+    def scene_date_histogram(
+        space_uid: str,
+        table_id_conditions: List[List[Dict]],
+        query_string: str = "*",
+        start_time: str = "",
+        end_time: str = "",
+        interval: str = "auto",
+        addition: List = None,
+        ip_chooser: Dict = None,
+        filter_list: List = None,
+    ) -> Dict[str, Any]:
+        """Scene-based date histogram for trend chart."""
+        from apps.api import UnifyQueryApi
+
+        query_body = EsQuery._build_scene_query_base(
+            space_uid, table_id_conditions, query_string,
+            start_time, end_time, addition, ip_chooser, filter_list,
+        )
+
+        query_body["query_list"][0]["field_name"] = "dtEventTimeStamp"
+        query_body["query_list"][0]["function"] = [{"method": "count"}]
+        query_body["query_list"][0]["time_aggregation"] = {
+            "function": "count_over_time",
+            "window": interval if interval != "auto" else "1m",
+        }
+        query_body["step"] = interval if interval != "auto" else "1m"
+
+        logger.info("[scene_date_histogram] space_uid=%s", space_uid)
+        return UnifyQueryApi.query_ts(query_body)
+
+    @staticmethod
+    def scene_agg_field(
+        space_uid: str,
+        table_id_conditions: List[List[Dict]],
+        query_string: str = "*",
+        start_time: str = "",
+        end_time: str = "",
+        agg_field: str = "",
+        addition: List = None,
+        ip_chooser: Dict = None,
+        filter_list: List = None,
+    ) -> Dict[str, Any]:
+        """Scene-based field aggregation statistics."""
+        from apps.api import UnifyQueryApi
+
+        query_body = EsQuery._build_scene_query_base(
+            space_uid, table_id_conditions, query_string,
+            start_time, end_time, addition, ip_chooser, filter_list,
+        )
+
+        query_body["query_list"][0]["field_name"] = agg_field
+        query_body["query_list"][0]["function"] = [
+            {"method": "count", "dimensions": [agg_field]},
+        ]
+
+        logger.info("[scene_agg_field] space_uid=%s, field=%s", space_uid, agg_field)
+        return UnifyQueryApi.query_ts_reference(query_body)
+
+    @staticmethod
+    def scene_total(
+        space_uid: str,
+        table_id_conditions: List[List[Dict]],
+        query_string: str = "*",
+        start_time: str = "",
+        end_time: str = "",
+        addition: List = None,
+        ip_chooser: Dict = None,
+        filter_list: List = None,
+    ) -> Dict[str, Any]:
+        """Scene-based total count of matching logs."""
+        from apps.api import UnifyQueryApi
+
+        query_body = EsQuery._build_scene_query_base(
+            space_uid, table_id_conditions, query_string,
+            start_time, end_time, addition, ip_chooser, filter_list,
+        )
+
+        query_body["query_list"][0]["field_name"] = "dtEventTimeStamp"
+        query_body["query_list"][0]["limit"] = 1
+        query_body["query_list"][0]["from"] = 0
+
+        logger.info("[scene_total] space_uid=%s", space_uid)
+        result = UnifyQueryApi.query_ts_raw(query_body)
+        return {"total": result.get("total", 0)}

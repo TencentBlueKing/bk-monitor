@@ -1,0 +1,60 @@
+.merge-strategy-tips {
+  display: flex;
+  padding: 6px 9px;
+  background-color: #fff3e0;
+  border: 1px solid #ffcc80;
+  border-radius: 4px;
+
+  .merge-strategy-icon {
+    display: flex;
+    flex-shrink: 0;
+    align-items: flex-start;
+    margin-right: 12px;
+
+    .icon-hint {
+      font-size: 16px;
+      color: #ff9c01;
+    }
+  }
+
+  .merge-strategy-content {
+    flex: 1;
+  }
+
+  .merge-strategy-title {
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 20px;
+    color: #4d4f56;
+  }
+
+  .merge-strategy-list {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  .merge-strategy-item {
+    position: relative;
+    padding-left: 12px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #4d4f56;
+
+    .item-name {
+      font-weight: 600;
+      color: #4d4f56;
+    }
+
+    &::before {
+      position: absolute;
+      top: 8px;
+      left: 0;
+      width: 4px;
+      height: 4px;
+      content: '';
+      background-color: #4d4f56;
+      border-radius: 50%;
+    }
+  }
+}

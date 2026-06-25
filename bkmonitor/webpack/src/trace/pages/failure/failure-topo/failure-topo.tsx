@@ -55,8 +55,8 @@ import { feedbackIncidentRoot, incidentTopology } from 'monitor-api/modules/inci
 import { deepClone, random } from 'monitor-common/utils/utils.js';
 import { debounce } from 'throttle-debounce';
 import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
 
+import DataAccess, { type SpaceInfo } from '../../../components/data-access';
 import ExceptionComp from '../../../components/exception';
 import { incidentAlarmDetailInject } from '../composables/use-alarm-detail';
 import ResourceGraph from '../resource-graph/resource-graph';
@@ -80,7 +80,7 @@ import {
   typeToLinkHandle,
 } from './utils';
 
-import type { IEdge, IEntity, IncidentDetailData, ITopoData, ITopoNode } from './types';
+import type { IEdge, IEntity, IncidentDetailData, IncidentResults, ITopoData, ITopoNode } from './types';
 
 import './failure-topo.scss';
 
@@ -103,8 +103,19 @@ export default defineComponent({
   },
   emits: ['toDetail', 'playing', 'toDetailTab', 'changeSelectNode', 'refresh', 'closeCollapse'],
   setup(props, { emit }) {
-    const router = useRouter();
     const bkzIds = inject<Ref<string[]>>('bkzIds');
+
+    /** 根据 bkzIds 构建空间列表 */
+    const dataAccessSpaceList = computed<SpaceInfo[]>(() => {
+      const bizId = bkzIds?.value?.[0];
+      if (!bizId) return [];
+      // 获取业务名称
+      const bizName = incidentDetailData.value?.current_snapshot?.bk_biz_ids?.find(
+        ({ bk_biz_id }) => String(bk_biz_id) === String(bizId)
+      )?.bk_biz_name;
+      return [{ bk_biz_id: Number(bizId), space_name: bizName || String(bizId), space_id: Number(bizId) }];
+    });
+
     /** 缓存resize render后执行的回调函数，主要用于点击播放之前收起右侧资源图时的回调 */
     const resizeCacheCallback = ref(null);
     const detailInfo = ref({});
@@ -171,9 +182,28 @@ export default defineComponent({
     // 左侧画布数据获取检测
     const errorData = ref({
       isError: false,
+      isNoData: false,
       msg: '',
     });
-    const isNoData = ref(false);
+    const incidentResults = inject<Ref<IncidentResults>>('incidentResults');
+    const topoStatus = computed(() => {
+      if (incidentResults.value.incident_topology) {
+        if (
+          incidentResults.value.incident_topology.enabled &&
+          incidentResults.value.incident_topology.status === 'finished'
+        ) {
+          return 'normal';
+        }
+        if (
+          incidentResults.value.incident_topology.enabled &&
+          incidentResults.value.incident_topology.status === 'canceled'
+        ) {
+          return 'nodata';
+        }
+        return 'empty';
+      }
+      return null;
+    });
     // 展示资源从属相关信息
     const showViewResource = ref<boolean>(true);
     const feedbackCauseShow = ref<boolean>(false);
@@ -1217,7 +1247,7 @@ export default defineComponent({
           complete.combos = latest.combos;
           formatResponseData(complete);
           const { combos = [], edges = [], nodes = [], sub_combos = [] } = complete || {};
-          isNoData.value = combos.length === 0;
+          errorData.value.isNoData = combos.length === 0;
           errorData.value.isError = false;
           ElkjsUtils.setSubCombosMap(ElkjsUtils.getSubComboCountMap(nodes));
           const resolvedCombos = [...combos, ...ElkjsUtils.resolveSumbCombos(sub_combos)];
@@ -1261,7 +1291,7 @@ export default defineComponent({
         .catch(err => {
           errorData.value.isError = true;
           errorData.value.msg = err.data?.error_details ? err.data.error_details.overview : err.message;
-          isNoData.value = false;
+          errorData.value.isNoData = false;
         })
         .finally(() => {
           if (!graph) {
@@ -1274,7 +1304,7 @@ export default defineComponent({
             }, refreshTime.value);
           }
         });
-      if (isAutoRefresh) return;
+      if (isAutoRefresh || !renderData) return;
       topoRawData = renderData as ITopoData;
       const rootNode = topoRawData.nodes.find(node => node.entity.is_root);
       if (!resourceNodeId.value && rootNode) {
@@ -1411,9 +1441,6 @@ export default defineComponent({
         edge.toFront();
       });
     };
-    onMounted(() => {
-      getGraphData().then(initGraph);
-    });
 
     /** 初始化图表相关 */
     const initGraph = async () => {
@@ -1851,6 +1878,20 @@ export default defineComponent({
         addListener(graphRef.value as HTMLElement, onResize);
       });
     };
+
+    onMounted(() => {
+      if (topoStatus.value === 'normal') {
+        getGraphData().then(initGraph);
+      }
+    });
+
+    watch(
+      () => topoStatus.value,
+      val => {
+        val === 'normal' && getGraphData().then(initGraph);
+      }
+    );
+
     onUnmounted(() => {
       edgeInterval.forEach(interval => {
         clearInterval(interval.timer);
@@ -2810,13 +2851,16 @@ export default defineComponent({
       tooltipsType,
       detailType,
       errorData,
-      isNoData,
       nodeEntityName,
       detailInfo,
       getTopoWidth,
       curLinkedEdges,
       refreshTime,
       showViewResource,
+      topoStatus,
+      bkzIds,
+      dataAccessSpaceList,
+      incidentDetailData,
       handleToDetail,
       handleHideToolTips,
       handleRootToSpan,
@@ -2851,149 +2895,167 @@ export default defineComponent({
       <div
         id='failure-topo'
         ref='wrapRef'
-        class={['failure-topo', this.isPlay && 'failure-topo-play']}
+        class={[
+          'failure-topo',
+          this.isPlay && 'failure-topo-play',
+          this.topoStatus === 'empty' && 'failure-topo-empty',
+        ]}
       >
-        <TopoTools
-          ref='topoTools'
-          v-model:showResource={this.showResourceGraph}
-          v-model:showService={this.showServiceOverview}
-          timelinePlayPosition={this.timelinePosition}
-          topoRawDataList={this.topoRawDataCache.diff}
-          onChangeRefleshTime={this.handleChangeRefleshTime}
-          onPlay={this.handleResetPlay}
-          onShowService={this.handleViewServiceFromTop}
-          onTimelineChange={this.handleTimelineChange}
-          onUpdate:AggregationConfig={this.handleUpdateAggregateConfig}
-        />
-        <Loading
-          class='failure-topo-loading'
-          color='#292A2B'
-          loading={this.loading}
-        >
-          <div
-            ref='topoGraphRef'
-            class='topo-graph-wrapper'
-          >
-            <div
-              style={{ width: this.getTopoWidth }}
-              class='topo-graph-wrapper-padding'
+        {this.topoStatus === null ? null : this.topoStatus === 'empty' && this.dataAccessSpaceList?.length ? (
+          <DataAccess
+            showEnableButton={false}
+            spaceList={this.dataAccessSpaceList}
+            wxCsLink={this.incidentDetailData.wx_cs_link}
+            isDarkTheme
+          />
+        ) : (
+          <>
+            <TopoTools
+              ref='topoTools'
+              v-model:showResource={this.showResourceGraph}
+              v-model:showService={this.showServiceOverview}
+              timelinePlayPosition={this.timelinePosition}
+              topoRawDataList={this.topoRawDataCache.diff}
+              onChangeRefleshTime={this.handleChangeRefleshTime}
+              onPlay={this.handleResetPlay}
+              onShowService={this.handleViewServiceFromTop}
+              onTimelineChange={this.handleTimelineChange}
+              onUpdate:AggregationConfig={this.handleUpdateAggregateConfig}
+            />
+            <Loading
+              class='failure-topo-loading'
+              color='#292A2B'
+              loading={this.loading}
             >
-              {this.errorData.isError || this.isNoData ? (
-                <ExceptionComp
-                  errorMsg={this.errorData.msg}
-                  imgHeight={100}
-                  isDarkTheme={true}
-                  isError={this.errorData.isError}
-                  title={this.errorData.isError ? this.t('查询异常') : this.t('暂无数据')}
-                />
-              ) : (
-                <>
-                  <div
-                    id='topo-graph'
-                    ref='graphRef'
-                    class='topo-graph'
-                  />
-                  <div class='failure-topo-graph-zoom'>
-                    <Popover
-                      extCls='failure-topo-graph-legend-popover'
-                      v-slots={{
-                        content: <LegendPopoverContent />,
-                        default: (
-                          <div
-                            class={['failure-topo-graph-legend', this.showLegend && 'failure-topo-graph-legend-active']}
-                            v-bk-tooltips={{
-                              content: this.t('显示图例'),
-                              disabled: this.showLegend,
-                              boundary: this.wrapRef,
-                            }}
-                            onClick={this.handleShowLegend}
-                          >
-                            <i class='icon-monitor icon-legend' />
-                          </div>
-                        ),
-                      }}
-                      always={true}
-                      arrow={false}
-                      boundary='body'
-                      disabled={!this.showLegend}
-                      isShow={this.showLegend}
-                      offset={{ crossAxis: 90, mainAxis: 10 }}
-                      placement='top'
-                      renderType='auto'
-                      theme='dark common-table'
-                      trigger='manual'
-                      zIndex={100}
+              <div
+                ref='topoGraphRef'
+                class='topo-graph-wrapper'
+              >
+                <div
+                  style={{ width: this.getTopoWidth }}
+                  class='topo-graph-wrapper-padding'
+                >
+                  {this.errorData.isError || this.errorData.isNoData ? (
+                    <ExceptionComp
+                      errorMsg={this.errorData.msg}
+                      imgHeight={100}
+                      isDarkTheme={true}
+                      isError={this.errorData.isError}
+                      title={this.errorData.isError ? this.t('查询异常') : this.t('暂无数据')}
                     />
-                    <span class='failure-topo-graph-line' />
-                    <div class='failure-topo-graph-zoom-slider'>
+                  ) : (
+                    <>
                       <div
-                        class={['failure-topo-graph-setting', { disabled: this.isPlay }]}
-                        onClick={this.handleUpdateZoom.bind(this, -2)}
-                      >
-                        <i class='icon-monitor icon-minus-line' />
-                      </div>
-                      <Slider
-                        class='slider'
-                        v-model={this.zoomValue}
-                        disable={this.isPlay}
-                        maxValue={20}
-                        minValue={2}
-                        onChange={this.handleZoomChange}
-                        onUpdate:modelValue={this.handleZoomChange}
+                        id='topo-graph'
+                        ref='graphRef'
+                        class='topo-graph'
                       />
-                      <div
-                        class={['failure-topo-graph-setting', { disabled: this.isPlay }]}
-                        onClick={this.handleUpdateZoom.bind(this, 2)}
-                      >
-                        <i class='icon-monitor icon-plus-line' />
+                      <div class='failure-topo-graph-zoom'>
+                        <Popover
+                          extCls='failure-topo-graph-legend-popover'
+                          v-slots={{
+                            content: <LegendPopoverContent />,
+                            default: (
+                              <div
+                                class={[
+                                  'failure-topo-graph-legend',
+                                  this.showLegend && 'failure-topo-graph-legend-active',
+                                ]}
+                                v-bk-tooltips={{
+                                  content: this.t('显示图例'),
+                                  disabled: this.showLegend,
+                                  boundary: this.wrapRef,
+                                }}
+                                onClick={this.handleShowLegend}
+                              >
+                                <i class='icon-monitor icon-legend' />
+                              </div>
+                            ),
+                          }}
+                          always={true}
+                          arrow={false}
+                          boundary='body'
+                          disabled={!this.showLegend}
+                          isShow={this.showLegend}
+                          offset={{ crossAxis: 90, mainAxis: 10 }}
+                          placement='top'
+                          renderType='auto'
+                          theme='dark common-table'
+                          trigger='manual'
+                          zIndex={100}
+                        />
+                        <span class='failure-topo-graph-line' />
+                        <div class='failure-topo-graph-zoom-slider'>
+                          <div
+                            class={['failure-topo-graph-setting', { disabled: this.isPlay }]}
+                            onClick={this.handleUpdateZoom.bind(this, -2)}
+                          >
+                            <i class='icon-monitor icon-minus-line' />
+                          </div>
+                          <Slider
+                            class='slider'
+                            v-model={this.zoomValue}
+                            disable={this.isPlay}
+                            maxValue={20}
+                            minValue={2}
+                            onChange={this.handleZoomChange}
+                            onUpdate:modelValue={this.handleZoomChange}
+                          />
+                          <div
+                            class={['failure-topo-graph-setting', { disabled: this.isPlay }]}
+                            onClick={this.handleUpdateZoom.bind(this, 2)}
+                          >
+                            <i class='icon-monitor icon-plus-line' />
+                          </div>
+                        </div>
+                        <span class='failure-topo-graph-line' />
+                        <div
+                          class={['failure-topo-graph-proportion', { disabled: this.isPlay }]}
+                          v-bk-tooltips={{ content: this.t('重置比例'), boundary: this.wrapRef, zIndex: 999999 }}
+                          onClick={this.handleResetZoom}
+                        >
+                          <i class='icon-monitor icon-mc-restoration-ratio' />
+                        </div>
                       </div>
-                    </div>
-                    <span class='failure-topo-graph-line' />
-                    <div
-                      class={['failure-topo-graph-proportion', { disabled: this.isPlay }]}
-                      v-bk-tooltips={{ content: this.t('重置比例'), boundary: this.wrapRef, zIndex: 999999 }}
-                      onClick={this.handleResetZoom}
-                    >
-                      <i class='icon-monitor icon-mc-restoration-ratio' />
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-            {this.showResourceGraph && !this.isPlay && (
-              <ResourceGraph
-                ref='resourceGraphRef'
-                entityId={this.nodeEntityId}
-                entityName={this.nodeEntityName}
-                modelData={this.topoRawDataCache.complete}
-                resourceNodeId={this.resourceNodeId}
-                onCollapseResource={this.handleCollapseChange}
-                onHideToolTips={this.handleHideToolTips}
-                onViewService={this.handleViewServiceFromResource}
-              />
-            )}
-            {this.showServiceOverview && !this.isPlay && (
-              <FailureTopoDetail
-                edge={this.edgeDetail}
-                isClickEdgeItem={this.isClickEdgeItem}
-                linkedEdges={this.curLinkedEdges}
-                model={this.nodeDetail}
-                refreshTime={this.refreshTime}
-                showServiceOverview={this.showServiceOverview}
-                showViewResource={this.showViewResource}
-                type={this.detailType}
-                onClearHighlightEdge={this.setHighlightEdge.bind(this)}
-                onCollapseService={this.handleCollapseChange}
-                onFeedBack={this.handleFeedBack}
-                onHighlightEdge={this.handleHighlightEdge}
-                onToDetail={this.handleToDetail}
-                onToDetailSlider={this.handleToDetailSlider}
-                onToDetailTab={this.handleToDetailTab}
-                onToTracePage={this.goToTracePage}
-              />
-            )}
-          </div>
-        </Loading>
+                    </>
+                  )}
+                </div>
+                {this.showResourceGraph && !this.isPlay && (
+                  <ResourceGraph
+                    ref='resourceGraphRef'
+                    entityId={this.nodeEntityId}
+                    entityName={this.nodeEntityName}
+                    modelData={this.topoRawDataCache.complete}
+                    resourceNodeId={this.resourceNodeId}
+                    onCollapseResource={this.handleCollapseChange}
+                    onHideToolTips={this.handleHideToolTips}
+                    onViewService={this.handleViewServiceFromResource}
+                  />
+                )}
+                {this.showServiceOverview && !this.isPlay && (
+                  <FailureTopoDetail
+                    edge={this.edgeDetail}
+                    isClickEdgeItem={this.isClickEdgeItem}
+                    linkedEdges={this.curLinkedEdges}
+                    model={this.nodeDetail}
+                    refreshTime={this.refreshTime}
+                    showServiceOverview={this.showServiceOverview}
+                    showViewResource={this.showViewResource}
+                    type={this.detailType}
+                    onClearHighlightEdge={this.setHighlightEdge.bind(this)}
+                    onCollapseService={this.handleCollapseChange}
+                    onFeedBack={this.handleFeedBack}
+                    onHighlightEdge={this.handleHighlightEdge}
+                    onToDetail={this.handleToDetail}
+                    onToDetailSlider={this.handleToDetailSlider}
+                    onToDetailTab={this.handleToDetailTab}
+                    onToTracePage={this.goToTracePage}
+                  />
+                )}
+              </div>
+            </Loading>
+          </>
+        )}
         <FeedbackCauseDialog
           data={this.feedbackModel}
           visible={this.feedbackCauseShow}

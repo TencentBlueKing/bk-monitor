@@ -1485,6 +1485,19 @@ class GetRawDataStoragesInfo(DataAccessAPIResource):
         return validated_request_data
 
 
+class GetV4DataStorageInfo(DataAccessAPIResource):
+    """
+    获取V4链路存储信息
+    """
+
+    action = "/v4/databus/data_storage/{namespace}/task/{databus_name}/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        namespace = serializers.CharField(required=True, label="命名空间")
+        databus_name = serializers.CharField(required=True, label="Databus资源名称")
+
+
 class GetBkbaseRawDataWithDataId(UseSaaSAuthInfoMixin, DataAccessAPIResource):
     """
     获取计算平台对应的data_id的raw_data信息，适用于获取V3链路迁移至V4链路后的data_name

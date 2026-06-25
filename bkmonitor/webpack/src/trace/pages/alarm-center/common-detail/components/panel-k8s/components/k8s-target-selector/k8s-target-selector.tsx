@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent } from 'vue';
+import { type ComputedRef, type PropType, computed, defineComponent, inject } from 'vue';
 
 import { Select } from 'bkui-vue';
 
@@ -57,6 +57,8 @@ export default defineComponent({
     change: (selectedTarget: AlertK8sTargetItem) => selectedTarget,
   },
   setup(props, { emit }) {
+    const traceSpanInfo = inject<ComputedRef<any>>('traceSpanInfo');
+    const displayKey = computed(() => (traceSpanInfo?.value ? 'display_name' : props.groupBy));
     /** 一次遍历构建选择器列表与映射对象 */
     const targetSelectorData = computed(() =>
       (props.targetList ?? []).reduce<{
@@ -106,6 +108,7 @@ export default defineComponent({
     };
 
     return {
+      displayKey,
       targetSelectorData,
       currentTargetUniqueId,
       handleSelected,
@@ -115,7 +118,7 @@ export default defineComponent({
     return (
       <div class='k8s-target-selector'>
         <Select
-          displayKey={this.groupBy}
+          displayKey={this.displayKey}
           filterable={false}
           idKey={TARGET_UNIQUE_ID_KEY}
           list={this.targetSelectorData.targetListWithUniqueId}
@@ -127,7 +130,7 @@ export default defineComponent({
             trigger: () => (
               <div class='k8s-target-selector-trigger-container'>
                 <div class='trigger-main'>
-                  <span class='selected-text'>{this.currentTarget?.[this.groupBy] ?? '--'}</span>
+                  <span class='selected-text'>{this.currentTarget?.[this.displayKey] ?? '--'}</span>
                 </div>
                 <div class='trigger-suffix'>
                   <i class='icon-monitor icon-arrow-down' />

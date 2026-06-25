@@ -364,10 +364,10 @@ export default defineComponent({
     };
 
     /**
-     * 渲染 Issue 拆分（二期功能）
+     * 渲染 Issue 拆分
      */
     // const renderSplitActivity = (item: IssueActivityItem) => {
-    //   const splitNode = activeNodeMap[IssueActiveNodeTypeEnum.SPLIT];
+    //   const splitNode = activeNodeMap[IssueActiveNodeTypeEnum.SPLIT_FROM];
     //   return renderActivityItem({
     //     icon: (
     //       <img
@@ -386,12 +386,12 @@ export default defineComponent({
     //         >
     //           {splitNode.alias}
     //         </span>
-    //         {renderActivityItemTime(item.time)}
+    //         {renderActivityItemTime(item)}
     //       </div>
     //     ),
     //     content: (
     //       <div class='split-content'>
-    //         <div class='desc'>{t('拆分为 {0} 个 Issue:', [2])}</div>
+    //         <div class='desc'>{t('拆分为 {0} 个 Issue：', [2])}</div>
     //         <ul class='issue-list'>
     //           <li class='issue-item'>
     //             <span class='link'>异常登录日志告警</span>
@@ -406,10 +406,10 @@ export default defineComponent({
     // };
 
     /**
-     * 渲染 Issue 合并（二期功能）
+     * 渲染 Issue 合并
      */
     // const renderMergeActivity = (item: IssueActivityItem) => {
-    //   const mergeNode = activeNodeMap[IssueActiveNodeTypeEnum.MERGE];
+    //   const mergeNode = activeNodeMap[IssueActiveNodeTypeEnum.MERGED_INTO];
     //   return renderActivityItem({
     //     icon: (
     //       <img
@@ -428,12 +428,12 @@ export default defineComponent({
     //         >
     //           {mergeNode.alias}
     //         </span>
-    //         {renderActivityItemTime(item.time)}
+    //         {renderActivityItemTime(item)}
     //       </div>
     //     ),
     //     content: (
     //       <div class='merge-content'>
-    //         <span class='desc'>{t('合并进 Issue:')}</span>
+    //         <span class='desc'>{t('合并进 Issue：')}</span>
     //         <span class='link'>异常登录日志告警</span>
     //       </div>
     //     ),
@@ -536,7 +536,7 @@ export default defineComponent({
               }}
             >
               {dispatchNode.alias}：
-              {item.to_value.split(',').map((user: string, index: number) => (
+              {(item.to_value || '').split(',').map((user: string, index: number) => (
                 <span key={user.trim()}>
                   {index > 0 && ', '}
                   <bk-user-display-name user-id={user.trim()} />
@@ -572,6 +572,30 @@ export default defineComponent({
               }}
             >
               {priorityNode.alias}：{ISSUES_PRIORITY_MAP[item.to_value]?.alias}
+            </span>
+            {renderActivityItemTime(item)}
+          </div>
+        ),
+        showLine,
+      });
+    };
+
+    /**
+     * 渲染名称变更（用户手动改名 / 系统按关联日志生成可读标题）
+     */
+    const renderNameChangeActivity = (item: IssueActivityItem, showLine = true) => {
+      const nameNode = activeNodeMap[IssueActiveNodeTypeEnum.NAME_CHANGE];
+      return renderActivityItem({
+        icon: <i class='icon-monitor icon-bianji' />,
+        title: (
+          <div class='title-row'>
+            <span
+              class='action'
+              v-overflow-tips={{
+                placement: 'top',
+              }}
+            >
+              {nameNode.alias}：{item.to_value}
             </span>
             {renderActivityItemTime(item)}
           </div>
@@ -623,12 +647,13 @@ export default defineComponent({
           return renderDispatchActivity(item, showLine);
         case IssueActiveNodeTypeEnum.PRIORITY_CHANGE:
           return renderPriorityActivity(item, showLine);
+        case IssueActiveNodeTypeEnum.NAME_CHANGE:
+          return renderNameChangeActivity(item, showLine);
         case IssueActiveNodeTypeEnum.CREATE:
           return renderFirstActivity(item, showLine);
-        // // TODO: 合并和拆分是二期功能
-        // case IssueActiveNodeTypeEnum.SPLIT:
+        // case IssueActiveNodeTypeEnum.SPLIT_FROM:
         //   return renderSplitActivity(item);
-        // case IssueActiveNodeTypeEnum.MERGE:
+        // case IssueActiveNodeTypeEnum.MERGED_INTO:
         //   return renderMergeActivity(item);
         default:
           return null;

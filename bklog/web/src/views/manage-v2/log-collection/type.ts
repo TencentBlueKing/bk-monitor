@@ -413,3 +413,14 @@ export interface IEsIndexAdaptRequest {
     time_field_type: TimeFieldType;
   };
 }
+
+/**
+ * 保存选项配置类型
+ */
+export interface ISubmitOptions {
+  /** 操作类型: 'next'(默认) | 'back' | 'saveOnly' */
+  action?: 'next' | 'back' | 'saveOnly';
+  /** 保存完成后的回调函数 */
+  // eslint-disable-next-line no-unused-vars
+  callback?: (success: boolean) => void;
+}

@@ -8,9 +8,31 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import re
+
 from monitor_web.k8s.core.errors import K8sResourceNotFound, MultiWorkloadError
 
 filter_options = {}
+
+# PromQL(RE2) 正则元字符，用于 =~ 匹配前转义资源名。
+# 不含 -：其在正则中无特殊含义，转义反而让常见带连字符的资源名输出变脏。
+_PROMQL_REGEX_METACHAR = re.compile(r"([\\.^$|?*+()\[\]{}])")
+
+
+def escape_promql_regex(value: str) -> str:
+    """转义 PromQL 正则匹配值中的特殊字符。
+
+    资源值会以 =~"^(...)$" 形式拼入 PromQL，合法 K8s 资源名可包含 . 等正则元字符，
+    不转义会导致误匹配（如 app.v2 会匹配到 appXv2）。
+
+    注意：输出用于双引号字符串字面量内。PromQL 字符串遵循 Go 转义规则，
+    单写 \\. 不是合法转义序列（解析报 unknown escape sequence），
+    因此正则转义引入的反斜杠还须再转义一层，最终文本形如 \\\\.（字符串解码回正则后即 \\.）。
+    """
+    # 第一层：正则转义（元字符前加 \）
+    escaped = _PROMQL_REGEX_METACHAR.sub(r"\\\1", value)
+    # 第二层：字符串字面量转义（反斜杠成对），否则 PromQL 解析失败
+    return escaped.replace("\\", "\\\\")
 
 
 def register_filter(filter_cls):
@@ -50,7 +72,7 @@ class ResourceFilter:
             return self.fuzzy_filter_string()
         if len(self.value) == 1:
             return f'{self.filter_field}="{self.value[0]}"'
-        value_regex = "|".join(self.value)
+        value_regex = "|".join(escape_promql_regex(value) for value in self.value)
         return f'{self.filter_field}=~"^({value_regex})$"'
 
     def fuzzy_filter_string(self) -> str:

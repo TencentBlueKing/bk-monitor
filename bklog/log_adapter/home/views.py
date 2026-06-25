@@ -353,6 +353,12 @@ def dispatch_external_proxy(request):
             external_user_allowed_action_id_list = ExternalPermission.get_authorizer_permission(
                 space_uid=space_uid, authorizer=external_user
             ).get(space_uid, [])
+            # 拥有客户端日志权限的用户，自动拥有客户端日志索引集的日志检索权限
+            if (
+                ExternalPermissionActionEnum.CLIENT_LOG.value in external_user_allowed_action_id_list
+                and ExternalPermissionActionEnum.LOG_SEARCH.value not in external_user_allowed_action_id_list
+            ):
+                external_user_allowed_action_id_list.append(ExternalPermissionActionEnum.LOG_SEARCH.value)
             # 判断接口是否在管理范围内
             if not external_user_allowed_action_id_list:
                 return JsonResponse(

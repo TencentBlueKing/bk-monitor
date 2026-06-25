@@ -107,7 +107,7 @@ export default defineComponent({
      * 如果名称有变化则调用API重命名，否则取消编辑
      */
     const handleNameBlur = () => {
-      if (editName.value === props.detail.name) {
+      if (editName.value === props.detail.name || !editName.value.trim()) {
         isEdit.value = false;
         return;
       }

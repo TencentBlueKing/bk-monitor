@@ -2085,6 +2085,7 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
 
     WILDCARD_PATTERN: str = "*"
     QUERY_SPECIAL_REGEX = re.compile(r"[+\-=&|><!(){}\[\]^\"~*?:/]|AND|OR|TO|NOT")
+    LOG_UNIFY_QUERY_ALL_BIZ_ID: int = -1
 
     # 用于灰度对账的临时白名单列表（类成员变量），对账完成后会清空此列表以恢复正常逻辑。
     LOG_UNIFY_QUERY_WHITE_BIZ_LIST: list[int] | None = None
@@ -2123,13 +2124,21 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
             return query_string
         return f"{self.WILDCARD_PATTERN}{query_string}{self.WILDCARD_PATTERN}"
 
-    def switch_unify_query(self, bk_biz_id: int):
+    def switch_unify_query(self, bk_biz_id: int) -> bool:
         # 如果数据源在 UnifyQueryDataSources 列表中，则使用 unify-query 查询
         if (self.data_source_label, self.data_type_label) in UnifyQueryDataSources:
             return True
 
-        # 白名单机制，只要业务在白名单中，就使用 unify-query 查询。
         white_list: list[str | int] = self._fetch_white_list()
+        # 全量灰度：如果 -1 在白名单中，全部使用 unify-query 查询。
+        if self.LOG_UNIFY_QUERY_ALL_BIZ_ID in white_list or str(self.LOG_UNIFY_QUERY_ALL_BIZ_ID) in white_list:
+            return True
+
+        # 日志聚类场景，使用 unify-query 查询。
+        if self._get_unify_query_table_suffix() == "_clustered":
+            return True
+
+        # 白名单机制，只要业务在白名单中，就使用 unify-query 查询。
         if bk_biz_id in white_list or str(bk_biz_id) in white_list:
             return True
         return False
@@ -2138,11 +2147,7 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
     def _get_datasource(cls) -> str:
         return "bklog"
 
-    def _get_unify_query_table(self) -> str:
-        """获取 unify-query 查询表名
-        存在 __dist 聚类字段时，查询表名后缀为 _clustered，参考：
-        https://github.com/TencentBlueKing/bk-monitor/blob/master/bklog/apps/log_esquery/serializers.py#L114-L125
-        """
+    def _get_unify_query_table_suffix(self) -> str:
         suffix: str = ""
         for cond in self._get_conditions().get("field_list", []):
             field_name: str = cond.get("field_name", "")
@@ -2152,6 +2157,14 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
 
         if "__dist_05" in (self.query_string or ""):
             suffix = "_clustered"
+        return suffix
+
+    def _get_unify_query_table(self) -> str:
+        """获取 unify-query 查询表名
+        存在 __dist 聚类字段时，查询表名后缀为 _clustered，参考：
+        https://github.com/TencentBlueKing/bk-monitor/blob/master/bklog/apps/log_esquery/serializers.py#L114-L125
+        """
+        suffix: str = self._get_unify_query_table_suffix()
         return f"bklog_index_set_{self.index_set_id}{suffix}"
 
     @classmethod
@@ -2195,9 +2208,30 @@ class LogSearchTimeSeriesDataSource(BaseBkMonitorLogDataSource):
         return records
 
     def process_unify_query_log(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        processed_records: list[dict[str, Any]] = []
         for record in records:
-            record.pop("_meta", None)
-        return records
+            processed_record: dict[str, Any] = {}
+            for field, value in record.items():
+                if field == "_meta":
+                    # 排除无需返回的字段。
+                    continue
+
+                if self.OBJECT_FIELD_SEPERATOR not in field:
+                    # 不包含分隔符，设置 kv 并提前返回。
+                    processed_record[field] = value
+                    continue
+
+                current: dict[str, Any] = processed_record
+                field_parts: list[str] = field.split(self.OBJECT_FIELD_SEPERATOR)
+                for field_part in field_parts[:-1]:
+                    if field_part not in current:
+                        current[field_part] = {}
+                    current = current[field_part]
+                current[field_parts[-1]] = value
+
+            processed_records.append(processed_record)
+
+        return processed_records
 
     def is_dimensions_field(self, field: str) -> bool:
         """日志检索维度都是完整的，不需要补全"""

@@ -250,8 +250,8 @@ export default class AppList extends tsc<undefined> {
     try {
       const queryString = item.url.split('?')[1];
       const params = new URLSearchParams(queryString);
-      // 获取 filter-app_name 的值
-      const appName = params.get('filter-app_name');
+      // 获取 app_name 的值
+      const appName = params.get('app_name');
       const app = this.appList.find(app => app.app_name === appName);
       // 新版首页最近使用埋点
       addAccessRecord({

@@ -47,7 +47,7 @@ import {
 
 import BaseInfo from '../business-comp/step2/base-info';
 
-import type { IFormData, IValueItem, IContainerConfigItem } from '../../type'; // 基础信息组件
+import type { IFormData, IValueItem, IContainerConfigItem, ISubmitOptions } from '../../type'; // 基础信息组件
 import DeviceMetadata from '../business-comp/step2/device-metadata'; // 设备元数据组件
 import EventFilter from '../business-comp/step2/event-filter'; // 事件过滤器组件
 import LogFilter from '../business-comp/step2/log-filter'; // 日志过滤器组件
@@ -113,11 +113,11 @@ export default defineComponent({
 
   emits: ['next', 'prev', 'cancel', 'detail'],
 
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     const { t } = useLocale();
     const store = useStore();
     const route = useRoute();
-    const { bkBizId } = useCollectList();
+    const { bkBizId, goListPage } = useCollectList();
     const { cardRender } = useOperation();
     const baseInfoRef = ref();
     const showMultilineRegDialog = ref(false);
@@ -134,6 +134,13 @@ export default defineComponent({
      * 是否修改了内容
      */
     const isConfigChange = ref(false);
+
+    /**
+     * 判断配置是否有变更
+     */
+    const hasConfigChanged = () => {
+      return isConfigChange.value;
+    };
 
     const baseConditions = {
       type: 'none',
@@ -523,18 +530,20 @@ export default defineComponent({
         match_annotations: match_annotations || [],
       });
 
-      // 确定容器和命名空间的排除操作符
+      // 确定容器的排除操作符
       const containerExclude = container_name_exclude ? '!=' : '=';
-      const namespacesExclude = namespaces_exclude?.length ? '!=' : '=';
       const containerNameList = getContainerNameList(container_name || container_name_exclude);
 
+      // 处理命名空间：优先使用 namespaces，如果为空则使用 namespaces_exclude
+      const effectiveNamespaces = namespaces?.length ? namespaces : namespaces_exclude;
+      const namespacesExclude = namespaces_exclude?.length ? '!=' : '=';
       // 处理命名空间字符串（如果是 '*' 则返回空字符串）
-      const namespaceStr = namespaces.length === 1 && namespaces[0] === '*' ? '' : namespaces.join(',');
+      const namespaceStr = effectiveNamespaces?.length === 1 && effectiveNamespaces[0] === '*' ? '' : effectiveNamespaces?.join(',') || '';
 
       // 构建范围选择显示配置
       const noQuestParams = {
         scopeSelectShow: {
-          namespace: !namespaces.length,
+          namespace: !effectiveNamespaces?.length,
           label: !labelSelector.length,
           load: !(Boolean(workload_type) || Boolean(workload_name)),
           containerName: !containerNameList.length,
@@ -547,6 +556,8 @@ export default defineComponent({
 
       return {
         ...configItem,
+        // 使用 effectiveNamespaces 覆盖 namespaces
+        namespaces: effectiveNamespaces || [],
         noQuestParams,
         containerNameList,
         label_selector: {
@@ -845,6 +856,15 @@ export default defineComponent({
               on-selected={val => {
                 isConfigChange.value = true;
                 formData.value.bcs_cluster_id = val;
+                // 容器采集场景切换集群时清空 namespaces
+                if (props.scenarioId === 'container_file' || props.scenarioId === 'container_stdout') {
+                  if (formData.value.configs) {
+                    formData.value.configs = formData.value.configs.map(conf => ({
+                      ...conf,
+                      namespaces: [],
+                    }));
+                  }
+                }
               }}
             >
               {clusterList.value.map(item => (
@@ -1306,8 +1326,14 @@ export default defineComponent({
     };
     /**
      * 新增/修改配置
+     * @param options 保存选项配置
+     * @param options.action 操作类型: 'next'(默认) | 'back' | 'saveOnly'
+     * @param options.callback 保存完成后的回调函数
      */
-    const setCollection = () => {
+    const setCollection = ({
+      action = 'next',
+      callback,
+    }: ISubmitOptions = {}) => {
       loadingSave.value = true;
       const {
         params,
@@ -1392,10 +1418,19 @@ export default defineComponent({
           };
           store.commit(`collect/${isUpdate.value ? 'updateCurCollect' : 'setCurCollect'}`, newConfig);
           res.result && showMessage(t('保存成功'));
-          emit('next', newConfig);
+          // 根据 action 参数决定执行不同操作
+          if (action === 'saveOnly') {
+            // 只保存，不跳转
+            callback?.(true);
+          } else if (action === 'back') {
+            goListPage();
+          } else {
+            emit('next', newConfig);
+          }
         })
         .catch(err => {
           console.log('保存采集配置出错:', err);
+          callback?.(false);
         })
         .finally(() => {
           loadingSave.value = false;
@@ -1403,8 +1438,14 @@ export default defineComponent({
     };
     /**
      * 保存配置
+     * @param options 保存选项配置
+     * @param options.action 操作类型: 'next'(默认) | 'back' | 'saveOnly'
+     * @param options.callback 保存完成后的回调函数
      */
-    const handleSubmitSave = () => {
+    const handleSubmitSave = ({
+      action = 'next',
+      callback,
+    }: ISubmitOptions = {}) => {
       if (!showClusterListKeys.includes(props.scenarioId)) {
         isTargetNodesEmpty.value = formData.value.target_nodes.length === 0;
       }
@@ -1451,21 +1492,36 @@ export default defineComponent({
            * 判断用户是否有修改行为，如果没有则直接跳转到下一步
            */
           if (!isConfigChange.value) {
-            emit('next', formData.value);
+            if (action === 'saveOnly') {
+              // 只保存，不跳转
+              callback?.(true);
+              return;
+            } if (action === 'back') {
+              goListPage();
+            } else {
+              emit('next', formData.value);
+            }
             return;
           }
           if (props.scenarioId === 'winevent') {
-            setCollection();
+            setCollection({ action, callback });
             return;
           }
           if (!isTargetNodesEmpty.value && isErr && isLogFilterErr && !isSegmentError.value && isConfigError && isMetadataValid) {
-            setCollection();
+            setCollection({ action, callback });
           }
         })
         .catch(() => {
           loadingSave.value = false;
+          callback?.(false);
         });
     };
+
+    expose({
+      hasConfigChanged,
+      handleSubmitSave,
+    });
+
     return () => (
       <div
         class='operation-step2-configuration'
@@ -1516,10 +1572,20 @@ export default defineComponent({
             class='width-88 mr-8'
             loading={loadingSave.value}
             theme='primary'
-            on-click={handleSubmitSave}
+            on-click={() => handleSubmitSave()}
           >
             {t('下一步')}
           </bk-button>
+          {isUpdate.value && (
+            <bk-button
+              class='width-88 mr-8'
+              loading={loadingSave.value}
+              theme='primary'
+              on-click={() => handleSubmitSave({ action: 'back' })}
+            >
+              {t('提交')}
+            </bk-button>
+          )}
           <bk-button
             on-click={() => {
               emit('cancel');

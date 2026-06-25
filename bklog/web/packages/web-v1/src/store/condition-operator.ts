@@ -105,12 +105,16 @@ class ConditionOperator {
       this.containOperatorList.includes(this.item.operator)
       && (['text', 'string'].includes(this.item.field_type) || /^and$/i.test(this.operatorRelationVlaue))
     ) {
+      if (!this.isWildcardMatch && ['contains match phrase', 'not contains match phrase'].includes(this.item.operator)) {
+        return this.item.operator;
+      }
+
       let value = '';
       // 首先判断是且还是或 如果是且则先加一个and
       value = this.operatorRelationVlaue === 'AND' ? 'and ' : '';
 
       // 然后判断是包含还是不包含操作符
-      value += this.item.operator === 'contains match phrase' ? 'is ' : 'is not ';
+      value += this.containsStrList.includes(this.item.operator) ? 'is ' : 'is not ';
 
       // 最后判断是否有开打开通配符
       value += this.isWildcardMatch ? 'match' : '';

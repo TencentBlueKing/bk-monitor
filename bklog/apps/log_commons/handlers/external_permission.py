@@ -16,6 +16,7 @@ class ExternalPermissionHandler:
         self.bk_biz_id_dict = {}
         self.authorizer_dict = {}
         self.log_extract_is_allowed_dict = {}
+        self.client_log_is_allowed_dict = {}
         self.log_search_manage_permission_info = {}
 
     def list(self, space_uid: str = "", view_type: str = ViewTypeEnum.USER.value):
@@ -36,7 +37,10 @@ class ExternalPermissionHandler:
         index_set_ids_map = defaultdict(set)
 
         for permission in permission_qs_list:
-            if permission.action_id == ExternalPermissionActionEnum.LOG_EXTRACT.value:
+            if permission.action_id in (
+                ExternalPermissionActionEnum.LOG_EXTRACT.value,
+                ExternalPermissionActionEnum.CLIENT_LOG.value,
+            ):
                 continue
             index_set_ids_map[permission.space_uid].update(permission.resources)
 
@@ -153,6 +157,10 @@ class ExternalPermissionHandler:
                     if not permission_info or not permission_info.get(ActionEnum.SEARCH_LOG.id, False):
                         status = TokenStatusEnum.INVALID.value
                         break
+            elif obj.action_id == ExternalPermissionActionEnum.CLIENT_LOG.value:
+                # 客户端日志权限维度是业务，校验授权人是否有客户端日志相关权限
+                if not self.does_the_authorizer_have_client_log_permission(authorizer, obj.space_uid):
+                    status = TokenStatusEnum.INVALID.value
         else:
             status = TokenStatusEnum.INVALID.value
 
@@ -180,6 +188,27 @@ class ExternalPermissionHandler:
                 bk_biz_id=bk_biz_id, action=ActionEnum.MANAGE_EXTRACT_CONFIG, raise_exception=False
             )
             self.log_extract_is_allowed_dict[(authorizer, space_uid)] = is_allowed
+
+        return is_allowed
+
+    def does_the_authorizer_have_client_log_permission(self, authorizer, space_uid):
+        """
+        授权者是否拥有该 bk_biz_id 下的客户端日志权限（需同时拥有创建任务和下载文件的权限）
+        """
+
+        is_allowed = self.client_log_is_allowed_dict.get((authorizer, space_uid))
+
+        if is_allowed is None:
+            temp_bk_biz_id = self.get_bk_biz_id(space_uid)
+            # is_allowed_by_biz 里针对 bk_biz_id 的判断, 当非 BKCC 的时候需要传入 space_uid
+            bk_biz_id = temp_bk_biz_id if temp_bk_biz_id > 0 else space_uid
+            permission = Permission(username=authorizer)
+            is_allowed = permission.is_allowed_by_biz(
+                bk_biz_id=bk_biz_id, action=ActionEnum.CREATE_CLIENT_LOG_TASK, raise_exception=False
+            ) and permission.is_allowed_by_biz(
+                bk_biz_id=bk_biz_id, action=ActionEnum.DOWNLOAD_CLIENT_LOG, raise_exception=False
+            )
+            self.client_log_is_allowed_dict[(authorizer, space_uid)] = is_allowed
 
         return is_allowed
 

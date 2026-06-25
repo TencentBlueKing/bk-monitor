@@ -24,6 +24,7 @@ import datetime
 import json
 import os
 import tarfile
+from urllib.parse import urljoin
 
 import arrow
 import pytz
@@ -32,8 +33,10 @@ from blueapps.contrib.celery_tools.periodic import periodic_task
 from blueapps.core.celery.celery import app
 from celery.schedules import crontab
 from django.conf import settings
+from django.db.models import F
 from django.utils import timezone, translation
 from django.utils.crypto import get_random_string
+from django.utils.http import urlencode
 from django.utils.translation import gettext as _
 
 from apps.constants import RemoteStorageType
@@ -103,6 +106,7 @@ def async_export(
         sorted_fields=sorted_fields,
         file_name=file_name,
         tar_file_name=tar_file_name,
+        async_task_id=async_task_id,
         is_external=is_external,
         is_quick_export=is_quick_export,
         export_file_type=export_file_type,
@@ -114,6 +118,7 @@ def async_export(
             raise BaseException(f"Can not find this: id: {async_task_id} record")
 
         async_task.export_status = ExportStatus.DOWNLOAD_LOG
+        async_task.save(update_fields=["export_status"])
         try:
             async_export_util.export_package()
         except Exception as e:  # pylint: disable=broad-except
@@ -123,6 +128,7 @@ def async_export(
         async_task.export_status = ExportStatus.EXPORT_PACKAGE
         async_task.file_name = tar_file_name
         async_task.file_size = async_export_util.get_file_size()
+        async_task.save(update_fields=["export_status", "file_name", "file_size"])
         try:
             async_export_util.export_upload()
         except Exception as e:  # pylint: disable=broad-except
@@ -130,6 +136,7 @@ def async_export(
             raise
 
         async_task.export_status = ExportStatus.EXPORT_UPLOAD
+        async_task.save(update_fields=["export_status"])
         try:
             url = async_export_util.generate_download_url(url_path=url_path)
         except Exception as e:  # pylint: disable=broad-except
@@ -137,6 +144,7 @@ def async_export(
             raise
 
         async_task.download_url = url
+        async_task.save(update_fields=["download_url"])
 
         try:
             async_export_util.send_msg(
@@ -163,7 +171,7 @@ def async_export(
     async_task.result = True
     async_task.export_status = ExportStatus.SUCCESS
     async_task.completed_at = timezone.now()
-    async_task.save()
+    async_task.save(update_fields=["result", "export_status", "completed_at"])
 
     async_export_util.clean_package()
     # 过$ASYNC_EXPORT_EXPIRED将对应状态置为ExportStatus.EXPIRED
@@ -206,6 +214,7 @@ def union_async_export(
         sort_fields_mappings=sort_fields_mappings,
         file_name=file_name,
         tar_file_name=tar_file_name,
+        async_task_id=async_task_id,
         is_external=is_external,
         is_quick_export=is_quick_export,
         export_file_type=export_file_type,
@@ -217,6 +226,7 @@ def union_async_export(
             raise BaseException(f"Can not find this: id: {async_task_id} record")
 
         async_task.export_status = ExportStatus.DOWNLOAD_LOG
+        async_task.save(update_fields=["export_status"])
         try:
             async_export_util.export_package()
         except Exception as e:  # pylint: disable=broad-except
@@ -225,6 +235,7 @@ def union_async_export(
         async_task.export_status = ExportStatus.EXPORT_PACKAGE
         async_task.file_name = tar_file_name
         async_task.file_size = async_export_util.get_file_size()
+        async_task.save(update_fields=["export_status", "file_name", "file_size"])
         try:
             async_export_util.export_upload()
         except Exception as e:  # pylint: disable=broad-except
@@ -232,6 +243,7 @@ def union_async_export(
             raise
 
         async_task.export_status = ExportStatus.EXPORT_UPLOAD
+        async_task.save(update_fields=["export_status"])
         try:
             url = async_export_util.generate_download_url(url_path=url_path)
         except Exception as e:  # pylint: disable=broad-except
@@ -239,6 +251,7 @@ def union_async_export(
             raise
 
         async_task.download_url = url
+        async_task.save(update_fields=["download_url"])
         try:
             async_export_util.send_msg(
                 index_set_ids=union_search_handler.index_set_ids,
@@ -259,10 +272,11 @@ def union_async_export(
             name=ASYNC_EXPORT_EMAIL_ERR_TEMPLATE,
             title_model=MsgModel.ABNORMAL,
         )
+        return
     async_task.result = True
     async_task.export_status = ExportStatus.SUCCESS
     async_task.completed_at = timezone.now()
-    async_task.save()
+    async_task.save(update_fields=["result", "export_status", "completed_at"])
     async_export_util.clean_package()
     # 过$ASYNC_EXPORT_EXPIRED将对应状态置为ExportStatus.EXPIRED
     set_expired_status.apply_async(args=[async_task.id], countdown=ASYNC_EXPORT_EXPIRED)
@@ -272,15 +286,20 @@ def set_failed_status(async_task: AsyncTask, reason):
     async_task.failed_reason = reason
     async_task.export_status = ExportStatus.FAILED
     logger.error(async_task.failed_reason)
-    async_task.save()
+    async_task.save(update_fields=["failed_reason", "export_status"])
     return async_task
+
+
+def get_async_export_download_url(async_task: AsyncTask):
+    query_params = urlencode({"task_id": async_task.id, "bk_biz_id": async_task.bk_biz_id})
+    return urljoin(settings.BK_BKLOG_HOST, f"api/v1/search/index_set/async_export/download_file/?{query_params}")
 
 
 @app.task(ignore_result=True, queue="async_export")
 def set_expired_status(async_task_id):
     async_task = AsyncTask.objects.get(id=async_task_id)
     async_task.export_status = ExportStatus.DOWNLOAD_EXPIRED
-    async_task.save()
+    async_task.save(update_fields=["export_status"])
 
 
 @periodic_task(run_every=crontab(minute="10", hour="3"))
@@ -330,6 +349,7 @@ class AsyncExportUtils:
         sorted_fields: list,
         file_name: str,
         tar_file_name: str,
+        async_task_id: int = None,
         is_external: bool = False,
         is_quick_export: bool = False,
         export_file_type: str = "txt",
@@ -346,6 +366,7 @@ class AsyncExportUtils:
         self.sorted_fields = sorted_fields
         self.file_name = file_name
         self.tar_file_name = tar_file_name
+        self.async_task_id = async_task_id
         self.is_external = is_external
         self.is_quick_export = is_quick_export
         self.export_file_type = export_file_type
@@ -369,7 +390,7 @@ class AsyncExportUtils:
         """
         处理时间值并返回转换后的 datetime 对象
         """
-        if isinstance(time_value, (int, float)):
+        if isinstance(time_value, int | float):
             return arrow.get(time_value).to(tz=tz_info).datetime
         else:
             return arrow.get(time_value).replace(tzinfo=tz_info).datetime
@@ -409,7 +430,11 @@ class AsyncExportUtils:
             with open(file_path, "a+", encoding="utf-8") as f:
                 result_list = search_handler._deal_query_result(result_dict=result).get("origin_log_list")
                 for item in result_list:
-                    f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
+                    f.write(f"{ujson.dumps(item, ensure_ascii=False)}\n")
+                if self.async_task_id:
+                    AsyncTask.objects.filter(id=self.async_task_id).update(
+                        exported_count=F("exported_count") + len(result_list)
+                    )
                 if search_handler.scenario_id == Scenario.ES:
                     generate_result = search_handler.scroll_result(result)
                 else:
@@ -462,7 +487,9 @@ class AsyncExportUtils:
 
     def _quick_export(self, search_handler):
         multi_result = search_handler.multi_get_slice_data(
-            pre_file_name=self.file_name, export_file_type=self.export_file_type
+            pre_file_name=self.file_name,
+            export_file_type=self.export_file_type,
+            async_task_id=self.async_task_id,
         )
         for idx, result in multi_result.items():
             if isinstance(result, Exception):
@@ -524,7 +551,7 @@ class AsyncExportUtils:
                 "size": async_task.file_size,
                 "request_param": json.dumps(async_task.request_param),
                 "search_url": search_url_path,
-                "download_url": async_task.download_url,
+                "download_url": get_async_export_download_url(async_task),
             },
             language=language,
         )
@@ -580,15 +607,18 @@ class AsyncExportUtils:
 
         return NotifyType.get_instance(notify_type=notify_type)()
 
-    @classmethod
-    def write_file(cls, f, result):
+    def write_file(self, f, result):
         """
         将对应数据写到文件中
         """
         for res in result:
             origin_result_list = res.get("origin_log_list")
             for item in origin_result_list:
-                f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
+                f.write(f"{ujson.dumps(item, ensure_ascii=False)}\n")
+            if self.async_task_id:
+                AsyncTask.objects.filter(id=self.async_task_id).update(
+                    exported_count=F("exported_count") + len(origin_result_list)
+                )
 
 
 class UnionAsyncExportUtils:
@@ -602,6 +632,7 @@ class UnionAsyncExportUtils:
         sort_fields_mappings: dict,
         file_name: str,
         tar_file_name: str,
+        async_task_id: int = None,
         is_external: bool = False,
         is_quick_export: bool = False,
         export_file_type: str = "txt",
@@ -618,6 +649,7 @@ class UnionAsyncExportUtils:
         self.sort_fields_mappings = sort_fields_mappings
         self.file_name = file_name
         self.tar_file_name = tar_file_name
+        self.async_task_id = async_task_id
         self.is_external = is_external
         self.is_quick_export = is_quick_export
         self.export_file_type = export_file_type
@@ -641,7 +673,7 @@ class UnionAsyncExportUtils:
         """
         处理时间值并返回转换后的 datetime 对象
         """
-        if isinstance(time_value, (int, float)):
+        if isinstance(time_value, int | float):
             return arrow.get(time_value).to(tz=tz_info).datetime
         else:
             return arrow.get(time_value).replace(tzinfo=tz_info).datetime
@@ -682,7 +714,11 @@ class UnionAsyncExportUtils:
             with open(file_path, "a+", encoding="utf-8") as f:
                 result_list = search_handler._deal_query_result(result_dict=result).get("origin_log_list")
                 for item in result_list:
-                    f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
+                    f.write(f"{ujson.dumps(item, ensure_ascii=False)}\n")
+                if self.async_task_id:
+                    AsyncTask.objects.filter(id=self.async_task_id).update(
+                        exported_count=F("exported_count") + len(result_list)
+                    )
                 if search_handler.scenario_id == Scenario.ES:
                     generate_result = search_handler.scroll_result(result)
                 else:
@@ -750,7 +786,9 @@ class UnionAsyncExportUtils:
     def _quick_export(self, search_handler):
         pre_file_name = f"{self.file_name}_{search_handler.index_set_id}"
         multi_result = search_handler.multi_get_slice_data(
-            pre_file_name=pre_file_name, export_file_type=self.export_file_type
+            pre_file_name=pre_file_name,
+            export_file_type=self.export_file_type,
+            async_task_id=self.async_task_id,
         )
         for idx, result in multi_result.items():
             if isinstance(result, Exception):
@@ -833,7 +871,7 @@ class UnionAsyncExportUtils:
                 "size": async_task.file_size,
                 "request_param": json.dumps(async_task.request_param),
                 "search_url": search_url_path,
-                "download_url": async_task.download_url,
+                "download_url": get_async_export_download_url(async_task),
             },
             language=language,
         )
@@ -889,12 +927,15 @@ class UnionAsyncExportUtils:
 
         return NotifyType.get_instance(notify_type=notify_type)()
 
-    @classmethod
-    def write_file(cls, f, result):
+    def write_file(self, f, result):
         """
         将对应数据写到文件中
         """
         for res in result:
             origin_result_list = res.get("origin_log_list")
             for item in origin_result_list:
-                f.write("%s\n" % ujson.dumps(item, ensure_ascii=False))
+                f.write(f"{ujson.dumps(item, ensure_ascii=False)}\n")
+            if self.async_task_id:
+                AsyncTask.objects.filter(id=self.async_task_id).update(
+                    exported_count=F("exported_count") + len(origin_result_list)
+                )

@@ -267,9 +267,7 @@ class ResultTableConfig(DataLinkResourceConfigBase):
                     "labels": {"bk_biz_id": "{{bk_biz_id}}"}
                 },
                 "spec": {
-                    {% if fields %}
                     "fields": {{fields}},
-                    {% endif %}
                     "alias": "{{name}}",
                     "bizId": {{monitor_biz_id}},
                     "dataType": "{{data_type}}",
@@ -293,7 +291,7 @@ class ResultTableConfig(DataLinkResourceConfigBase):
             "monitor_biz_id": self.datalink_biz_ids.data_biz_id,  # 接入者的业务ID
             "data_type": self.data_type,
             "maintainers": json.dumps(maintainer),
-            "fields": json.dumps(fields, ensure_ascii=False) if fields else None,
+            "fields": json.dumps(fields, ensure_ascii=False) if fields else "null",
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
@@ -375,9 +373,7 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
                         }
                     },
                     "unique_field_list": {{unique_field_list}},
-                    {% if json_field_list %}
                     "json_field_list": {{json_field_list}},
-                    {% endif %}
                     "maintainers": {{maintainers}}
                 }
             }
@@ -393,7 +389,7 @@ class ESStorageBindingConfig(DataLinkResourceConfigBase):
             "write_alias_format": write_alias_format,
             "timezone": self.timezone,
             "maintainers": json.dumps(maintainer),
-            "json_field_list": json.dumps(json_field_list) if json_field_list else None,
+            "json_field_list": json.dumps(json_field_list) if json_field_list is not None else "null",
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
@@ -460,9 +456,9 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
                         "namespace": "{{namespace}}"
                     },
                     "maintainers": {{maintainers}},
-                    {% if whitelist_config %}
                     "filter": {{whitelist_config}},
-                    {% endif %}
+                    "metricGroupDimensions": {{metric_group_dimensions}},
+                    "ddVersion": {{dd_version}},
                     "storage": {
                         "kind": "VmStorage",
                         "name": "{{vm_name}}",
@@ -471,12 +467,6 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
                         {% endif %}
                         "namespace": "{{namespace}}"
                     }
-                    {% if metric_group_dimensions %},
-                    "metricGroupDimensions": {{metric_group_dimensions}}
-                    {% endif %}
-                    {% if dd_version %},
-                    "ddVersion": "{{dd_version}}"
-                    {% endif %}
                 }
             }
             """
@@ -516,11 +506,11 @@ class VMStorageBindingConfig(DataLinkResourceConfigBase):
             "rt_name": rt_name if rt_name is not None else self.name,
             "vm_name": self.vm_cluster_name,
             "maintainers": json.dumps(maintainer),
-            "whitelist_config": whitelist_config,
+            "whitelist_config": whitelist_config or "null",
             "metric_group_dimensions": json.dumps(metric_group_dimensions_list)
             if metric_group_dimensions_list
-            else None,
-            "dd_version": dd_version,
+            else "null",
+            "dd_version": json.dumps(dd_version) if dd_version else "null",
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
@@ -544,11 +534,39 @@ class DataBusConfig(DataLinkResourceConfigBase):
     data_id_name = models.CharField(verbose_name="关联消费数据源名称", max_length=64)
     bk_data_id = models.IntegerField(verbose_name="数据源ID", default=0)
     sink_names = models.JSONField(verbose_name="处理配置列表", default=list, help_text="格式为kind:name，便于检索")
+    consumer_group = models.CharField(verbose_name="Consumer Group", max_length=255, default="", blank=True)
 
     class Meta:
         verbose_name = "清洗任务配置"
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
+
+    def apply_consumer_group(self, consumer_group: str | None) -> None:
+        """应用显式 consumer group；已有值优先，空入参不触发更新。"""
+        if not consumer_group:
+            return
+
+        if self.consumer_group:
+            if self.consumer_group != consumer_group:
+                logger.warning(
+                    "databus config consumer_group already exists, "
+                    "name->[%s],namespace->[%s],existing->[%s],input->[%s],keep existing",
+                    self.name,
+                    self.namespace,
+                    self.consumer_group,
+                    consumer_group,
+                )
+            return
+
+        logger.info(
+            "apply_consumer_group: databus config consumer_group update, name->[%s],namespace->[%s],existing->[%s],input->[%s]",
+            self.name,
+            self.namespace,
+            self.consumer_group,
+            consumer_group,
+        )
+        self.consumer_group = consumer_group
+        self.save(update_fields=["consumer_group", "last_modify_time"])
 
     def compose_config(
         self,
@@ -581,6 +599,9 @@ class DataBusConfig(DataLinkResourceConfigBase):
             },
             "spec": {
                 "maintainers": {{maintainers}},
+                {% if consumer_group %}
+                "consumerGroup": {{consumer_group}},
+                {% endif %}
                 "sinks": {{sinks}},
                 "sources": [
                     {
@@ -615,6 +636,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "data_id_name": self.data_id_name,
             "transform": json.dumps(transform),
             "maintainers": json.dumps(maintainer),
+            "consumer_group": json.dumps(self.consumer_group) if self.consumer_group else None,
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
@@ -644,6 +666,9 @@ class DataBusConfig(DataLinkResourceConfigBase):
             },
             "spec": {
                 "maintainers": {{maintainers}},
+                {% if consumer_group %}
+                "consumerGroup": {{consumer_group}},
+                {% endif %}
                 "sinks": {{sinks}},
                 "sources": [
                     {
@@ -677,6 +702,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "sinks": json.dumps(sinks),
             "rules": json.dumps(rules),
             "data_id_name": self.data_id_name,
+            "consumer_group": json.dumps(self.consumer_group) if self.consumer_group else None,
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
@@ -708,6 +734,9 @@ class DataBusConfig(DataLinkResourceConfigBase):
                 },
                 "spec": {
                     "maintainers": {{maintainers}},
+                    {% if consumer_group %}
+                    "consumerGroup": {{consumer_group}},
+                    {% endif %}
                     "sinks": [{
                         "kind": "ElasticSearchBinding",
                         "name": "{{name}}",
@@ -737,6 +766,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "namespace": self.namespace,
             "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 数据实际归属的业务ID
             "maintainers": json.dumps(maintainer),
+            "consumer_group": json.dumps(self.consumer_group) if self.consumer_group else None,
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
@@ -818,11 +848,19 @@ class BasereportSinkConfig(DataLinkResourceConfigBase):
         verbose_name_plural = verbose_name
         unique_together = (("bk_tenant_id", "namespace", "name"),)
 
-    def compose_config(self, vmrt_prefix: str, include_cmdb: bool = False) -> dict[str, Any]:
+    def compose_config(
+        self,
+        vmrt_prefix: str,
+        include_cmdb: bool = False,
+        metric_type_to_vm_storage_binding_name: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
         """组装基础采集处理配置。"""
         mappings: list[dict[str, Any]] = []
-        for usage in constants.BASEREPORT_USAGES:
-            vmrt_name = f"{vmrt_prefix}_{usage}" if vmrt_prefix else usage
+        if metric_type_to_vm_storage_binding_name is None:
+            metric_type_to_vm_storage_binding_name = {
+                usage: f"{vmrt_prefix}_{usage}" if vmrt_prefix else usage for usage in constants.BASEREPORT_USAGES
+            }
+        for metric_type, vmrt_name in metric_type_to_vm_storage_binding_name.items():
             sink_config = {
                 "kind": DataLinkKind.VMSTORAGEBINDING.value,
                 "name": vmrt_name,
@@ -832,7 +870,7 @@ class BasereportSinkConfig(DataLinkResourceConfigBase):
                 sink_config["tenant"] = self.bk_tenant_id
             mappings.append(
                 {
-                    "metric_type": usage,
+                    "metric_type": metric_type,
                     "sinks": [sink_config],
                 }
             )
@@ -844,7 +882,7 @@ class BasereportSinkConfig(DataLinkResourceConfigBase):
                 }
                 if settings.ENABLE_MULTI_TENANT_MODE:
                     cmdb_sink_config["tenant"] = self.bk_tenant_id
-                mappings.append({"metric_type": f"{usage}_cmdb", "sinks": [cmdb_sink_config]})
+                mappings.append({"metric_type": f"{metric_type}_cmdb", "sinks": [cmdb_sink_config]})
 
         metadata = {
             "name": self.name,

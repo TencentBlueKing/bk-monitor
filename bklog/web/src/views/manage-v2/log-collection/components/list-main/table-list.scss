@@ -327,6 +327,28 @@
 }
 
 .v2-log-collection-table-main {
+  .cluster-select-filter {
+    border: none;
+    box-shadow: none;
+    outline: none;
+    background: transparent;
+    line-height: normal;
+
+    &.is-focus {
+      border: none;
+      box-shadow: none;
+    }
+
+    .filter-box .bk-icon.icon-funnel{
+      margin-left: 8px;
+      color: #acadb7;
+
+      &.is-active {
+        color: #3a84ff;
+      }
+    }
+  }
+
   .index-set-inline-display {
     display: flex;
     align-items: center;

@@ -505,6 +505,97 @@ class TestDataSource:
             "end_time": 654,
         }
 
+    def test_log_search_time_series_process_unify_query_log(self):
+        query_config = {
+            "result_table_id": "2_bklog.nginx_access_error_1",
+            "index_set_id": 1,
+            "agg_method": "COUNT",
+            "agg_dimension": [],
+            "agg_condition": [],
+        }
+        data_source = LogSearchTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=1)
+
+        records = [
+            {
+                "_meta": {"__index": "v2_2_bklog_nginx_access_error"},
+                "message": "hello",
+                "attributes.service.name": "demo",
+                "attributes.http.status_code": 200,
+                "labels.env": "prod",
+                "events": [{"name": "exception"}],
+            }
+        ]
+
+        assert data_source.process_unify_query_log(records) == [
+            {
+                "message": "hello",
+                "attributes": {
+                    "service": {"name": "demo"},
+                    "http": {"status_code": 200},
+                },
+                "labels": {"env": "prod"},
+                "events": [{"name": "exception"}],
+            }
+        ]
+
+    @pytest.mark.parametrize(
+        ("white_list", "bk_biz_id", "expected"),
+        [
+            ([-1], 100147, True),
+            (["-1"], 100147, True),
+            ([2], 2, True),
+            (["2"], 2, True),
+            ([2], 100147, False),
+        ],
+    )
+    def test_log_search_time_series_switch_unify_query_by_env_white_list(
+        self, monkeypatch, white_list, bk_biz_id, expected
+    ):
+        query_config = {
+            "result_table_id": "2_bklog.nginx_access_error_1",
+            "index_set_id": 1,
+            "agg_method": "COUNT",
+            "agg_dimension": [],
+            "agg_condition": [],
+        }
+        data_source = LogSearchTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=bk_biz_id)
+        monkeypatch.setattr(LogSearchTimeSeriesDataSource, "LOG_UNIFY_QUERY_WHITE_BIZ_LIST", None)
+        monkeypatch.setattr(settings, "LOG_UNIFY_QUERY_WHITE_BIZ_LIST_ENV", white_list)
+
+        assert data_source.switch_unify_query(bk_biz_id) is expected
+
+    def test_log_search_time_series_switch_unify_query_by_reconcile_white_list(self, monkeypatch):
+        query_config = {
+            "result_table_id": "2_bklog.nginx_access_error_1",
+            "index_set_id": 1,
+            "agg_method": "COUNT",
+            "agg_dimension": [],
+            "agg_condition": [],
+        }
+        data_source = LogSearchTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=100147)
+        monkeypatch.setattr(LogSearchTimeSeriesDataSource, "LOG_UNIFY_QUERY_WHITE_BIZ_LIST", [-1])
+        monkeypatch.setattr(settings, "LOG_UNIFY_QUERY_WHITE_BIZ_LIST_ENV", [])
+
+        assert data_source.switch_unify_query(100147) is True
+
+    def test_log_search_time_series_switch_unify_query_by_clustered(self, monkeypatch):
+        query_config = {
+            "result_table_id": "2_bklog.nginx_access_error_1",
+            "index_set_id": 1,
+            "agg_method": "COUNT",
+            "agg_dimension": [],
+            "agg_condition": [],
+            "query_string": "__dist_05",
+        }
+        monkeypatch.setattr(LogSearchTimeSeriesDataSource, "LOG_UNIFY_QUERY_WHITE_BIZ_LIST", None)
+        monkeypatch.setattr(settings, "LOG_UNIFY_QUERY_WHITE_BIZ_LIST_ENV", [])
+
+        data_source = LogSearchTimeSeriesDataSource.init_by_query_config(query_config, bk_biz_id=100147)
+
+        assert data_source._get_unify_query_table_suffix() == "_clustered"
+        assert data_source.switch_unify_query(100147) is True
+        assert data_source._get_unify_query_table() == "bklog_index_set_1_clustered"
+
     def test_log_search_log_query_data(self, mock_es_query_search):
         query_config = {
             "extend_fields": {

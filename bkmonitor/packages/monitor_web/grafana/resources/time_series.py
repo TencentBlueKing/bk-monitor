@@ -105,6 +105,7 @@ def query_data(params):
 
     data_source = data_source_class(
         bk_biz_id=params["bk_biz_id"],
+        bk_tenant_id=get_request_tenant_id(),
         table=params["result_table_id"],
         data_label=params.get("data_label", ""),
         metrics=metrics,
@@ -762,6 +763,7 @@ class GetVariableValue(Resource):
         data_source_class = load_data_source(data_source_label, data_type_label)
         data_source = data_source_class(
             bk_biz_id=bk_biz_id,
+            bk_tenant_id=get_request_tenant_id(),
             table=params["result_table_id"],
             data_label=params.get("data_label", ""),
             metrics=[{"field": params["metric_field"], "method": "COUNT"}],

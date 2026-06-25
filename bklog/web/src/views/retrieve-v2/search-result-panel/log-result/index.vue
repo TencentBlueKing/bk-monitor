@@ -300,9 +300,11 @@ export default {
     },
     handleTagRender(item, index) {
       const colors = RetrieveHelper.RGBA_LIST;
+      const colorPair = colors[index % colors.length];
       return {
         style: {
-          backgroundColor: colors[index % colors.length],
+          backgroundColor: colorPair[0],
+          color: colorPair[1],
         },
       };
     },

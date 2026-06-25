@@ -25,7 +25,7 @@
  */
 /** biome-ignore-all lint/correctness/noUnusedVariables: <explanation> */
 
-import { Component, Inject, Prop, ProvideReactive, Ref } from 'vue-property-decorator';
+import { Component, Inject, InjectReactive, Prop, ProvideReactive, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import K8sDimensionDrillDown from 'monitor-ui/chart-plugins/plugins/k8s-custom-graph/k8s-dimension-drilldown';
@@ -70,6 +70,8 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
     item: K8sTableGroupByEvent,
     showCancelDrill?: boolean
   ) => void;
+  @InjectReactive({ from: 'isApmMonitor', default: false }) isApmMonitor!: boolean;
+  @InjectReactive({ from: 'apmResourceType', default: '' }) apmResourceType!: string;
 
   /** popover 实例 */
   popoverInstance = null;
@@ -99,13 +101,21 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
     return this.value;
   }
 
+  get apmResourceFidld() {
+    return [
+      K8sTableColumnKeysEnum.NAMESPACE,
+      this.apmResourceType === 'workload' ? K8sTableColumnKeysEnum.WORKLOAD : K8sTableColumnKeysEnum.POD,
+    ];
+  }
+
   /** 添加/移除 筛选项工具icon配置 */
   get filterToolConfig() {
     // 当前数据值已在筛选项中
     const filters = this.filters;
     const hasFilter = filters?.includes?.(this.filterValue);
+    const disabled = this.apmResourceFidld.includes(this.groupByField);
     const elAttr = hasFilter
-      ? { className: ['selected'], text: '移除该筛选项' }
+      ? { className: ['selected', { 'apm-disabled': this.isApmMonitor && disabled }], text: '移除该筛选项' }
       : { className: ['icon-monitor icon-a-sousuo'], text: '添加为筛选项' };
     return {
       hasFilter: hasFilter,
@@ -136,6 +146,7 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
    *
    */
   handleFilterChange() {
+    if (this.apmResourceFidld.includes(this.groupByField)) return;
     this.onFilterChange(this.filterValue, this.groupByField, !this.filterToolConfig.hasFilter);
   }
 
@@ -204,9 +215,16 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
   }
 
   gotoK8sPageByQuery(query: Record<string, any>) {
-    const targetRoute = this.$router.resolve({
+    let targetRoute = this.$router.resolve({
       query,
     });
+    // apm服务内的容器跳转
+    if (this.isApmMonitor) {
+      targetRoute = this.$router.resolve({
+        path: '/k8s-new',
+        query,
+      });
+    }
     this.handlePopoverHide();
     window.open(`${location.origin}${location.pathname}${location.search}${targetRoute.href}`, '_blank');
   }

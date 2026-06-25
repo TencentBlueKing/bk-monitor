@@ -29,12 +29,15 @@ import { defineComponent, ref, computed, onMounted } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import { useRoute } from 'vue-router/composables';
 import useStore from '@/hooks/use-store';
+import { deepEqual } from '@/common/util';
 
 import { useOperation } from '../../hook/useOperation';
 import BaseInfo from '../business-comp/step2/base-info';
 import DragTag from '../common-comp/drag-tag';
 import InfoTips from '../common-comp/info-tips';
 import $http from '@/api';
+import { showMessage } from '../../utils';
+import type { ISubmitOptions } from '../../type';
 
 import './step2-custom-report.scss';
 
@@ -47,15 +50,33 @@ export default defineComponent({
     },
   },
 
-  emits: ['next', 'prev', 'cancel'],
+  emits: ['next', 'prev', 'cancel', 'detail'],
 
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     const { t } = useLocale();
     const store = useStore();
     const route = useRoute();
     const { cardRender } = useOperation();
     const baseInfoRef = ref();
     const loading = ref(false);
+    const submitLoading = ref(false);
+    const bkBizId = computed(() => store.state.bkBizId);
+    /**
+     * 初始表单数据快照，用于对比是否有变更
+     */
+    const initialFormData = ref(null);
+    /**
+     * 保存初始表单数据快照
+     */
+    const saveInitialFormData = () => {
+      initialFormData.value = structuredClone(configData.value);
+    };
+    /**
+     * 判断配置是否有变更
+     */
+    const hasConfigChanged = () => {
+      return !deepEqual(configData.value, initialFormData.value);
+    };
     const configData = ref({
       collector_config_name_en: '',
       custom_type: 'log',
@@ -135,6 +156,9 @@ export default defineComponent({
           index_set_id: index_set_id || '',
         };
         store.commit('collect/setCurCollect', res.data);
+        // 保存初始表单数据快照
+        saveInitialFormData();
+        emit('detail', configData.value);
         // 编辑模式下初始化字段选择列表
         if (index_set_id) {
           initTargetFieldSelectList(index_set_id);
@@ -246,6 +270,90 @@ export default defineComponent({
       </div>
     );
 
+    /**
+     * 保存按钮
+     * @param options 保存选项配置
+     * @param options.action 操作类型: 'next'(默认) | 'back' | 'saveOnly'
+     * @param options.callback 保存完成后的回调函数
+     */
+    const handleSubmitSave = async ({
+      action = 'saveOnly',
+      callback,
+    }: ISubmitOptions = {}) => {
+      // 表单校验
+      try {
+        await baseInfoRef.value?.validate();
+      } catch {
+        return;
+      }
+
+      submitLoading.value = true;
+
+      const {
+        collector_config_name,
+        collector_config_name_en,
+        index_set_name,
+        bk_data_id,
+        custom_type,
+        retention,
+        allocation_min_days,
+        storage_replies,
+        category_id,
+        description,
+        storage_cluster_id,
+        es_shards,
+        parent_index_set_ids,
+        storage_cluster_type,
+      } = configData.value as { [key: string]: unknown };
+
+      const submitData = {
+        bk_data_id,
+        custom_type,
+        storage_cluster_id,
+        retention: Number(retention),
+        allocation_min_days: Number(allocation_min_days),
+        storage_replies: Number(storage_replies),
+        category_id,
+        description,
+        es_shards: Number(es_shards),
+        parent_index_set_ids,
+        collector_config_name_en,
+        collector_config_name: collector_config_name || index_set_name,
+        bk_biz_id: Number(bkBizId.value),
+        target_fields: configData.value.target_fields || [],
+        sort_fields: configData.value.sort_fields || [],
+      };
+
+      // 根据 storage_cluster_type 判断是否需要移除字段
+      if (storage_cluster_type === 'doris') {
+        delete submitData.es_shards;
+        delete submitData.storage_replies;
+        delete submitData.allocation_min_days;
+      }
+
+      $http
+        .request('custom/setCustom', {
+          params: {
+            collector_config_id: collectorId.value,
+          },
+          data: submitData,
+        })
+        .then((res) => {
+          if (res.result) {
+            showMessage(t('保存成功'));
+            callback?.(true);
+            if (action === 'saveOnly') {
+              // 只保存，不跳转
+              return;
+            }
+            emit('cancel');
+          }
+        })
+        .finally(() => {
+          submitLoading.value = false;
+        });
+    };
+
     const cardConfig = computed(() => {
       const cards = [
         {
@@ -264,6 +372,12 @@ export default defineComponent({
       }
       return cards;
     });
+
+    expose({
+      hasConfigChanged,
+      handleSubmitSave,
+    });
+
     return () => (
       <div
         class='operation-step2-custom-report'
@@ -284,6 +398,7 @@ export default defineComponent({
           <bk-button
             class='width-88 mr-8'
             theme='primary'
+            loading={submitLoading.value}
             on-click={() => {
               baseInfoRef.value
                 .validate()
@@ -298,6 +413,18 @@ export default defineComponent({
           >
             {t('下一步')}
           </bk-button>
+          {props.isEdit && (
+            <bk-button
+              class='width-88 mr-8'
+              theme='primary'
+              loading={submitLoading.value}
+              on-click={() => {
+                handleSubmitSave({ action: 'back' });
+              }}
+            >
+              {t('提交')}
+            </bk-button>
+          )}
           <bk-button
             on-click={() => {
               emit('cancel');

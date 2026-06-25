@@ -116,7 +116,9 @@ export default defineComponent({
     const requestLogList = (isManualSearch = true) => {
       listLoading.value = true;
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
-      const searchUrl = `/search/index_set/${props.indexSetId}/search/`;
+      const searchUrl = store.getters.isSceneMode
+        ? '/search/scene/search/'
+        : `/search/index_set/${props.indexSetId}/search/`;
       // size = props.logIndex > 50 ? props.logIndex + 20 : 50;
       const requestData = {
         ...requestOtherparams,
@@ -141,7 +143,16 @@ export default defineComponent({
       axiosInstance(params)
         .then((resp: any) => {
           if (resp.data && !resp.message) {
-            readBlobRespToJson(resp.data).then(({ data, result }) => {
+            readBlobRespToJson(resp.data).then(({ code, data, result, permission }) => {
+              if (code === '9900403') {
+                store.commit('updateState', {
+                  authDialogData: {
+                    apply_url: data.apply_url,
+                    apply_data: permission,
+                  },
+                });
+                return;
+              }
               if (result) {
                 begin += size;
                 total = data.total.toNumber();

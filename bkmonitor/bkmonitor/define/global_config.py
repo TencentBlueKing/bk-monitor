@@ -61,7 +61,21 @@ ADVANCED_OPTIONS = OrderedDict(
         # === BKDATA & AIOPS 相关配置 开始 ===
         ("AIOPS_BIZ_WHITE_LIST", slz.ListField(label="开启智能异常算法的业务白名单", default=[])),
         ("AIOPS_INCIDENT_BIZ_WHITE_LIST", slz.ListField(label="开启根因故障定位的业务白名单", default=[])),
-        ("BK_INCIDENT_BUILTIN_CONFIG", slz.DictField(label="故障分析内置通知配置", default={})),
+        # Issue LLM 标题生成：白名单为空 = 功能关闭（注意与 AIOPS 白名单"空=全开"语义不同），-1 表示全量
+        ("ISSUE_LLM_TITLE_BIZ_WHITE_LIST", slz.ListField(label="Issue LLM 标题生成业务白名单", default=[])),
+        # 业务级 prompt 模板：{bk_biz_id: 模板文本}（一业务一模板字符串，自适应模板已覆盖日志行/事件两形态）。
+        # 模板须含 {log} 占位符。配置走 django shell 辅助函数（自带校验+安全合并，别直接改这个共用 dict
+        # 否则会抹掉其他业务模板）：alarm_backends.service.fta_action.llm_title.set_biz_template(biz_id, 模板)；
+        # 范例常量 EXAMPLE_BIZ_TEMPLATE，配置前可用 preview_biz_template(biz_id) 预览实际 prompt。
+        # 非字符串值（如误配成 dict）会被运行时校验拒绝并 fallback 内置模板，不影响任务。
+        ("ISSUE_LLM_TITLE_BIZ_TEMPLATES", slz.DictField(label="Issue LLM 标题业务级模板", default={})),
+        # shadow 模式：只生成+打日志+打点，不写 Issue name。默认关闭（开白名单即直接改名）；
+        # 需先抽检质量的环境可手工开启 True 观察一段时间再关。
+        ("ISSUE_LLM_TITLE_SHADOW", slz.BooleanField(label="Issue LLM 标题 shadow 模式", default=False)),
+        # 默认 hy3-preview：经 trpc/C++/etcd 真实日志样本实测（6/6 零幻觉）；改模型走 GlobalConfig 覆盖
+        ("ISSUE_LLM_TITLE_MODEL", slz.CharField(label="Issue LLM 标题生成模型", default="hy3-preview")),
+        # 业务级限流阈值（次/分钟），<=0 表示不限流
+        ("ISSUE_LLM_TITLE_RATE_LIMIT_PER_MINUTE", slz.IntegerField(label="Issue LLM 标题生成限流", default=100)),
         ("BK_DATA_PROJECT_ID", slz.IntegerField(label="监控在计算平台使用的公共项目ID", default=1)),
         ("BK_DATA_BK_BIZ_ID", slz.IntegerField(label="监控在计算平台使用的公共业务ID", default=2)),
         (
@@ -458,7 +472,6 @@ ADVANCED_OPTIONS = OrderedDict(
         ("ES_INDEX_ROTATION_STEP", slz.IntegerField(label="ES索引轮转并发个数", default=50)),
         ("ES_STORAGE_OFFSET_HOURS", slz.IntegerField(label="ES采集项整体时间偏移量", default=8)),
         ("METADATA_REQUEST_ES_TIMEOUT_SECONDS", slz.IntegerField(label="Metadata轮转任务请求ES超时时间", default=10)),
-        ("BCS_DISCOVER_BCS_CLUSTER_INTERVAL", slz.IntegerField(label="BCS集群自动发现任务周期", default=5)),
         ("HOME_PAGE_ALARM_GRAPH_BIZ_LIMIT", slz.IntegerField(label="首页告警图业务数量限制", default=5)),
         ("HOME_PAGE_ALARM_GRAPH_LIMIT", slz.IntegerField(label="首页告警图图表数量限制", default=10)),
         ("INITIALIZED_TENANT_LIST", slz.ListField(label="已经初始化的租户列表", default=["system"])),
@@ -474,6 +487,18 @@ ADVANCED_OPTIONS = OrderedDict(
         ("RUM_APP_DEFAULT_ES_SHARDS", slz.IntegerField(label="RUM应用默认索引分片数", default=3)),
         ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[0])),
         ("EXCLUDE_WORKER_TASKS", slz.ListField(label="排除特定的worker任务(需要重启alarm-beat生效)", default=[])),
+        (
+            "BCS_DISCOVER_BCS_CLUSTER_BIZ_BLACK_LIST",
+            slz.ListField(label="BCS集群自动发现任务黑名单业务ID列表", default=[]),
+        ),
+        (
+            "BCS_DISCOVER_BCS_CLUSTER_BIZ_WHITE_LIST",
+            slz.ListField(label="BCS集群自动发现任务白名单业务ID列表", default=[]),
+        ),
+        (
+            "ALARM_CACHE_REFRESH_BIZ_CONCURRENT",
+            slz.IntegerField(label="告警缓存刷新任务的业务并发度", default=3),
+        ),
     ]
 )
 

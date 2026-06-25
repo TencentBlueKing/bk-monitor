@@ -221,7 +221,7 @@ export default defineComponent({
           ...nullItem,
           bk_biz_id: hasDataBizId,
           id: hasDataBizId,
-          name: t('-我有告警的空间-'),
+          name: props.needIncidentOption ? t('-我有故障的空间-') : t('-我有告警的空间-'),
         } as any);
       }
       if (props.needAuthorityOption) {
@@ -499,6 +499,14 @@ export default defineComponent({
         }
       }
       localSpaceList.value.push(...otherSpaces);
+      // 将无权限空间 ID（noAuth && !hasData）同步到 appStore，供其他组件使用
+      const noAuthIds: number[] = [];
+      for (const item of localSpaceList.value) {
+        if (!!item.noAuth && !item.hasData) {
+          noAuthIds.push(item.id as number);
+        }
+      }
+      appStore.noAuthBizIds = noAuthIds;
       localValue.value = [];
       handleWatchValue(props.value);
       setPaginationData(true);

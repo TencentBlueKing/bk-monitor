@@ -465,7 +465,10 @@ class IssueDetailResource(Resource):
             result["redirected_from"] = redirected_from
 
         # 填充 anomaly_message（查询最新告警的 description）
-        self._fill_anomaly_message(issue, result)
+        # 合并视图：主 Issue 取「自身 + 全部 active member」范围内的最新告警，口径与
+        # 告警列表 / 趋势保持一致（未合并时 expand_to_full_ids 透传为 [display_id]）。
+        anomaly_issue_ids = IssueMergeResolver.expand_to_full_ids([display_id], ctx)
+        self._fill_anomaly_message(issue, result, issue_ids=anomaly_issue_ids)
 
         # 注入 split_info（独立 Issue 拿到拆分溯源信息）：
         # 仅当 issue 不是 active member 重定向得到的（redirected_from is None）
@@ -534,10 +537,15 @@ class IssueDetailResource(Resource):
         }
 
     @staticmethod
-    def _fill_anomaly_message(issue: "IssueDocument", result: dict) -> None:
-        """查询最新告警的 description 作为 anomaly_message"""
+    def _fill_anomaly_message(issue: "IssueDocument", result: dict, issue_ids: list[str] | None = None) -> None:
+        """查询最新告警的 description 作为 anomaly_message。
+
+        ``issue_ids``：参与查询的 Issue id 集合，合并视图下为主 Issue 自身 + 全部 active
+        member（由 caller 经 expand_to_full_ids 展开）；为空时退回 ``[issue.id]``。
+        """
         from bkmonitor.documents.alert import AlertDocument
 
+        query_issue_ids = issue_ids or [issue.id]
         try:
             # 优先使用 first_alert_time 限定索引范围；
             # 兜底使用 create_time 时提前 7 天，因为 issue.create_time 晚于实际告警时间
@@ -550,7 +558,7 @@ class IssueDetailResource(Resource):
             search = (
                 AlertDocument.search(start_time=start_time, end_time=end_time)
                 .filter("term", **{"event.bk_biz_id": issue.bk_biz_id})
-                .filter("term", issue_id=issue.id)
+                .filter("terms", issue_id=query_issue_ids)
                 .sort({"create_time": {"order": "desc"}})
                 .params(size=1)
                 .source(["event.description"])

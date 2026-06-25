@@ -76,6 +76,7 @@ export interface IFieldConfig {
   filterChecked?: boolean; // 是否展示在筛选面板
   filterDisable?: boolean; // 是否禁用操作
   fuzzySearch?: boolean; // 是否支持模糊搜索
+  headerPreIcon?: string; // 表头前置图标
   id: string; // 字段
   multiple?: boolean; // 多选（select类型有效，如 集群和模块 字段）
   name: TranslateResult; // 字段中文名称
@@ -96,6 +97,7 @@ export interface IGroupItem {
 export interface IHostData {
   hosts: any[];
 }
+
 export interface IHostDetailParams {
   cloudId: string;
   ip: string;
@@ -110,7 +112,6 @@ export interface IHostGroup {
   title: string;
   type?: string;
 }
-
 export interface IHostInfo {
   copy?: boolean;
   id: string;
@@ -153,12 +154,12 @@ export interface IPanelStatistics {
   menmoryData: number;
   unresolveData: number;
 }
+
 export interface IQueryOption {
   compare: ICompareOption;
   tools: IToolsOption;
   type?: ICompareChangeType;
 }
-
 export interface ISearchItem {
   id: string;
   value: FieldValue;
@@ -192,13 +193,13 @@ export interface ITableOptions {
   panelKey?: string;
   stickyValue?: object;
 }
+
 export interface ITableRow {
   [prop: string]: any;
   mark: boolean; // 是否有置顶标记
   rowId: string; // 当前行ID
   selection: boolean; // 当前行是否check
 }
-
 export interface ITag {
   conditions?: IOption[];
   count: number;
@@ -210,10 +211,17 @@ export interface ITag {
   originValue: FieldValue;
   value: any;
 }
+
 export interface IToolsOption {
   refreshInterval: number | string[];
   searchValue?: any;
   timeRange: TimeRangeType;
+}
+/** 拓扑树节点 */
+export interface ITopoTreeNode {
+  children?: ITopoTreeNode[];
+  id: any;
+  name: any;
 }
 
 export interface IUserConfig {

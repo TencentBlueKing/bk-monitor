@@ -33,7 +33,7 @@ import { useTippy } from 'vue-tippy';
 import QsSelectorOptions from './qs-selector-options';
 import { QueryStringEditor } from './query-string-utils';
 import { EQueryStringTokenType, QS_SELECTOR_EMITS, QS_SELECTOR_PROPS } from './typing';
-import { isElementVisibleAndUnobstructed, onClickOutside } from './utils';
+import { isElementVisibleAndUnobstructed } from './utils';
 
 import './qs-selector.scss';
 
@@ -55,14 +55,14 @@ export default defineComponent({
     const queryStringEditor = shallowRef<QueryStringEditor>(null);
     const inputValue = shallowRef('');
     // const fieldsMap = shallowRef<Map<string, IFilterField>>(new Map());
-    let onClickOutsideFn = () => {};
+    // const onClickOutsideFn = () => {};
     let cleanup = () => {};
 
     const { t } = useI18n();
 
     init();
     onBeforeUnmount(() => {
-      onClickOutsideFn?.();
+      // onClickOutsideFn?.();
       destroyPopoverInstance();
     });
 
@@ -139,7 +139,7 @@ export default defineComponent({
         appendTo: document.body,
         zIndex: props.zIndex,
         maxWidth: props.qsSelectorOptionsWidth || 1600,
-        offset: [0, 5],
+        offset: ({ placement }) => [0, placement.startsWith('top') ? elRef.value.clientHeight + 5 : 5],
         interactive: true,
         onHidden: () => {
           destroyPopoverInstance();
@@ -148,34 +148,7 @@ export default defineComponent({
       });
       popoverInstance.value?.show();
       showSelector.value = true;
-      setTimeout(() => {
-        onClickOutsideFn = onClickOutside(
-          [elRef.value, document.querySelector('.retrieval-filter__qs-selector-component__popover')],
-          () => {
-            destroyPopoverInstance();
-          },
-          { once: true }
-        );
-      }, 50);
-
-      // popoverInstance.value = $bkPopover({
-      //   target: event.target as any,
-      //   content: selectRef.value,
-      //   trigger: 'click',
-      //   placement: 'bottom-start',
-      //   theme: 'light common-monitor padding-0',
-      //   arrow: true,
-      //   boundary: 'window',
-      //   zIndex: 998,
-      //   padding: 0,
-      //   onHide: () => {
-      //     destroyPopoverInstance();
-      //   },
-      // });
-      // popoverInstance.value.install();
       // setTimeout(() => {
-      //   popoverInstance.value?.vm?.show();
-      //   showSelector.value = true;
       //   onClickOutsideFn = onClickOutside(
       //     [elRef.value, document.querySelector('.retrieval-filter__qs-selector-component__popover')],
       //     () => {
@@ -183,7 +156,7 @@ export default defineComponent({
       //     },
       //     { once: true }
       //   );
-      // }, 200);
+      // }, 50);
     }
 
     function destroyPopoverInstance() {
@@ -191,7 +164,7 @@ export default defineComponent({
       popoverInstance.value?.destroy();
       popoverInstance.value = null;
       showSelector.value = false;
-      onClickOutsideFn?.();
+      // onClickOutsideFn?.();
       queryStringEditor.value?.setIsPopup?.(false);
     }
     function handlePopUp(type, field) {

@@ -64,6 +64,9 @@ export default class extends EventEmitter<RetrieveEvent> {
   // 趋势图高度
   trendGraphHeight: number;
 
+  // 场景筛选面板高度
+  sceneFilterPanelHeight: number;
+
   // 索引集id列表
   indexSetIdList: string[];
 
@@ -87,7 +90,7 @@ export default class extends EventEmitter<RetrieveEvent> {
 
   logRowsContainerId: string;
 
-  RGBA_LIST: string[];
+  RGBA_LIST: string[][];
 
   isSearching = false;
 

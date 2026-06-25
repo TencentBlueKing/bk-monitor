@@ -233,7 +233,7 @@ export default class LogRelationList extends tsc<IProp> {
         {this.logRelationList.map((item, index) => (
           <div
             key={item.key}
-            class={['list-edit-item', { 'mt-8': index !== 0 }]}
+            class={['list-edit-item', { 'mt-24': index !== 0 }]}
           >
             <div class='list-edit-item-content'>
               <bk-form-item>

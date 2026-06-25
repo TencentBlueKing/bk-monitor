@@ -26,7 +26,7 @@ from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
-from apps.api.modules.utils import add_esb_info_before_request, biz_to_tenant_getter
+from apps.api.modules.utils import add_esb_info_before_request, biz_to_tenant_getter, result_table_to_tenant_getter
 from config.domains import MONITOR_APIGATEWAY_ROOT, MONITOR_APIGATEWAY_ROOT_NEW
 from apps.api.constants import CACHE_TIME_FIVE_MINUTES
 
@@ -200,6 +200,7 @@ class _TransferApi:
             module=self.MODULE,
             description=_("查询一个结果表的信息"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=result_table_to_tenant_getter("table_id"),
             cache_time=CACHE_TIME_FIVE_MINUTES,
         )
         self.get_result_table_storage = DataAPI(
@@ -209,7 +210,7 @@ class _TransferApi:
             description=_("查询一个结果表的存储信息"),
             before_request=add_esb_info_before_request,
             after_request=get_result_table_storage_after,
-            bk_tenant_id=biz_to_tenant_getter(lambda p: str(p["result_table_list"]).split(",", 1)[0].split("_", 1)[0]),
+            bk_tenant_id=result_table_to_tenant_getter("result_table_list"),
         )
         self.get_cluster_info = DataAPI(
             method="GET",
@@ -298,7 +299,7 @@ class _TransferApi:
             module=self.MODULE,
             description=_("创建结果表快照配置"),
             before_request=add_esb_info_before_request,
-            bk_tenant_id=biz_to_tenant_getter(lambda p: p["table_id"].split("_", 1)[0]),
+            bk_tenant_id=result_table_to_tenant_getter("table_id"),
         )
         self.modify_result_table_snapshot = DataAPI(
             method="POST",
@@ -306,7 +307,7 @@ class _TransferApi:
             module=self.MODULE,
             description=_("修改结果表快照配置"),
             before_request=add_esb_info_before_request,
-            bk_tenant_id=biz_to_tenant_getter(lambda p: p["table_id"].split("_", 1)[0]),
+            bk_tenant_id=result_table_to_tenant_getter("table_id"),
         )
         self.delete_result_table_snapshot = DataAPI(
             method="POST",
@@ -314,7 +315,7 @@ class _TransferApi:
             module=self.MODULE,
             description=_("删除结果表快照配置"),
             before_request=add_esb_info_before_request,
-            bk_tenant_id=biz_to_tenant_getter(lambda p: p["table_id"].split("_", 1)[0]),
+            bk_tenant_id=result_table_to_tenant_getter("table_id"),
         )
         self.list_result_table_snapshot = DataAPI(
             method="POST",
@@ -336,6 +337,7 @@ class _TransferApi:
             module=self.MODULE,
             description=_("获取结果表快照状态"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=result_table_to_tenant_getter("table_ids"),
         )
         self.restore_result_table_snapshot = DataAPI(
             method="POST",
@@ -343,7 +345,7 @@ class _TransferApi:
             module=self.MODULE,
             description=_("快照回溯"),
             before_request=add_esb_info_before_request,
-            bk_tenant_id=biz_to_tenant_getter(lambda p: p["table_id"].split("_", 1)[0]),
+            bk_tenant_id=result_table_to_tenant_getter("table_id"),
         )
         self.modify_restore_result_table_snapshot = DataAPI(
             method="POST",

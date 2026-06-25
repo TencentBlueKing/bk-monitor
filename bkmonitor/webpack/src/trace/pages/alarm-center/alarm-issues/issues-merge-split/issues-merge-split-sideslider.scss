@@ -1,0 +1,27 @@
+.issues-merge-split-sideslider {
+  .header-title {
+    font-size: 16px;
+    color: #313238;
+  }
+
+  .header-desc {
+    font-size: 14px;
+    color: #979ba5;
+  }
+
+  .split-slider-header {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+
+    .divider {
+      width: 1px;
+      height: 12px;
+      background-color: #dcdee5;
+    }
+  }
+
+  .bk-sideslider-content {
+    background-color: #fff;
+  }
+}

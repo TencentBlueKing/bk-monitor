@@ -43,6 +43,8 @@ export interface UseIssuesHandlersOptions {
   priorityChangeEmit: (id: string, priority: IssuePriorityType) => void;
   /** 显示 Issue 详情回调 */
   showDetailEmit: (item: IssueItem) => void;
+  /** 拆分按钮点击回调 */
+  splitClickEmit: (row: IssueItem) => void;
 }
 
 export type UseIssuesHandlersReturnType = ReturnType<typeof useIssuesHandlers>;
@@ -59,6 +61,7 @@ export const useIssuesHandlers = ({
   actionEmit,
   priorityChangeEmit,
   impactScopeClickEmit,
+  splitClickEmit,
 }: UseIssuesHandlersOptions) => {
   /**
    * @description 点击 Issue 名称展示详情抽屉
@@ -123,11 +126,20 @@ export const useIssuesHandlers = ({
     clickPopoverTools.showPopover(e, menuDom, `${row.id}-priority`, { arrow: false, offset: [0, 4] });
   };
 
+  /**
+   * @description 点击拆分按钮，将事件向上传递
+   * @param {IssueItem} row - 当前 Issue 行数据
+   */
+  const handleSplitClick = (row: IssueItem) => {
+    splitClickEmit(row);
+  };
+
   return {
     handleShowDetail,
     handleAssignClick,
     handleAction,
     handlePriorityClick,
     handleImpactScopeClick,
+    handleSplitClick,
   } as const;
 };

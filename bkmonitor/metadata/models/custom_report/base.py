@@ -67,6 +67,8 @@ class CustomGroupBase(models.Model):
     last_modify_time = models.DateTimeField("最后更新时间", auto_now=True)
     # 是否需要每个指标组单个结果表处理
     is_split_measurement = models.BooleanField("是否需要单个指标单表存储", default=False)
+    # 是否需要下发 collector 配置
+    is_need_deploy_collector_config = models.BooleanField("是否需要下发 collector 配置", default=True)
 
     DEFAULT_DATASOURCE_OPTIONS = [{"name": "flat_batch_key", "value": "data"}]
 
@@ -152,6 +154,7 @@ class CustomGroupBase(models.Model):
         operator: str,
         is_split_measurement: bool,
         bk_tenant_id: str,
+        is_need_deploy_collector_config: bool = True,
         max_rate: int = -1,
         **filter_kwargs,
     ) -> tuple[str, Self]:
@@ -175,6 +178,7 @@ class CustomGroupBase(models.Model):
             table_id=table_id,
             bk_tenant_id=bk_tenant_id,
             is_split_measurement=is_split_measurement,
+            is_need_deploy_collector_config=is_need_deploy_collector_config,
             max_rate=max_rate,
             **filter_kwargs,
         )
@@ -201,6 +205,7 @@ class CustomGroupBase(models.Model):
         table_id: str | None = None,
         is_builtin=False,
         is_split_measurement=False,
+        is_need_deploy_collector_config: bool = True,
         default_storage_config=None,
         additional_options: dict | None = None,
         data_label: str | None = None,
@@ -218,6 +223,7 @@ class CustomGroupBase(models.Model):
         :param table_id: 需要制定的table_id，否则通过默认规则创建得到
         :param is_builtin: 是否为内置指标
         :param is_split_measurement: 是否需要单指标单表存储，主要针对容器大量指标的情况适配
+        :param is_need_deploy_collector_config: 是否需要下发 collector 配置
         :param default_storage_config: 默认存储的配置
         :param additional_options: 附带创建的 ResultTableOption
         :param data_label: 数据标签
@@ -257,6 +263,7 @@ class CustomGroupBase(models.Model):
             label=label,
             operator=operator,
             is_split_measurement=is_split_measurement,
+            is_need_deploy_collector_config=is_need_deploy_collector_config,
             bk_tenant_id=bk_tenant_id,
             **filter_kwargs,
         )

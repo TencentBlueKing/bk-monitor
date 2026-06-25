@@ -35,6 +35,18 @@ import type {
 
 export type MetricMap = Partial<Record<RumAsyncMetricKey, RumApplicationAsyncItem[]>>;
 
+/** 时间单位 → 毫秒换算系数 */
+const UNIT_TO_MS: Record<string, number> = {
+  ns: 0.000001,
+  μs: 0.001,
+  us: 0.001,
+  ms: 1,
+  s: 1000,
+  m: 60000,
+  h: 3600000,
+  d: 86400000,
+};
+
 const EMPTY_METRIC: RumAppMetricView = {
   display: '--',
   tier: 'empty',
@@ -42,7 +54,7 @@ const EMPTY_METRIC: RumAppMetricView = {
 };
 
 const getMetricItem = (metrics: MetricMap, key: RumAsyncMetricKey, applicationId: number) =>
-  metrics[key]?.find(item => item.application_id === applicationId)?.[key];
+  metrics[key]?.find(item => `${item.application_id}` === `${applicationId}`)?.[key];
 
 const getLcpTier = (value: number): MetricTier => {
   if (value <= 2500) return 'good';
@@ -56,16 +68,21 @@ const getRateTier = (value: number, warnValue: number, badValue: number): Metric
   return 'bad';
 };
 
+/**
+ * 构建指标视图，时间单位自动转换为 ms 基准值用于排序/比较
+ */
 const buildMetricView = (
   value: null | number | undefined,
   unit: string,
   getTier: (value: number) => MetricTier
 ): RumAppMetricView => {
   if (value == null || Number.isNaN(value)) return EMPTY_METRIC;
+  /** 时间单位需转为 ms 基准值，非时间单位（如 %）直接使用原始值 */
+  const normalizedValue = unit in UNIT_TO_MS ? value * UNIT_TO_MS[unit] : value;
   return {
-    value,
-    tier: getTier(value),
-    display: unit === 'ms' ? `${value}ms` : `${value}%`,
+    value: normalizedValue,
+    tier: getTier(normalizedValue),
+    display: `${value}${unit}`,
   };
 };
 
@@ -100,8 +117,10 @@ export const buildRumAppRows = (applications: RumTableItem[], metrics: MetricMap
       metricResultTableId: app.metric_result_table_id,
       isCreateFinished: app.is_create_finished,
       permission: app.permission,
-      lcpP75: buildMetricView(lcpMetric?.value, 'ms', getLcpTier),
-      jsErrorRate: buildMetricView(jsErrorMetric?.value, '%', value => getRateTier(value, 0.5, 2)),
-      apiFailRate: buildMetricView(apiFailMetric?.value, '%', value => getRateTier(value, 1, 3)),
+      lcpP75: buildMetricView(lcpMetric?.value, lcpMetric?.unit || 'ms', getLcpTier),
+      jsErrorRate: buildMetricView(jsErrorMetric?.value, jsErrorMetric?.unit || '%', value =>
+        getRateTier(value, 0.5, 2)
+      ),
+      apiFailRate: buildMetricView(apiFailMetric?.value, apiFailMetric?.unit || '%', value => getRateTier(value, 1, 3)),
     };
   });

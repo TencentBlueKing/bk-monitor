@@ -500,6 +500,22 @@ class K8sResourceMeta:
     def add_filter(self, filter_obj):
         self.filter.add(filter_obj)
 
+    def pod_requests_with_sidecar_expr(self, filter_string):
+        """容器 request 求和口径（含原生 sidecar），用于对齐调度器装箱口径。
+
+        = 常规容器 request  or  运行中的 restartable-init(sidecar) request。
+        sidecar 用 kube_pod_init_container_status_running == 1 近似识别：普通 init 跑完即停、
+        running 置 0；只有常驻 sidecar 持续 running。不依赖 KSM / k8s 版本，也不从 pod spec
+        精确判定（准确性与成本权衡）。用 or 取并集，保证无 sidecar 的 pod 不被丢弃。
+        注意：仅在 node / cluster 维度精确，workload / namespace 维度 init 指标可能缺相应标签。
+        """
+        running_sidecar = (
+            f"kube_pod_init_container_resource_requests{{{filter_string}}}"
+            " * on(namespace,pod,container) group_left() "
+            f"(kube_pod_init_container_status_running{{{self.bcs_cluster_id_filter}}} == 1)"
+        )
+        return f"(kube_pod_container_resource_requests{{{filter_string}}} or ({running_sidecar}))"
+
 
 class K8sPodMeta(K8sResourceMeta, NetworkWithRelation):
     resource_field = "pod_name"
@@ -790,7 +806,7 @@ class K8sClusterMeta(K8sResourceMeta):
         if self.agg_method:
             return (
                 "sum by (bcs_cluster_id)(sum by (bcs_cluster_id,pod) "
-                f"({self.agg_method}_over_time(kube_pod_container_resource_requests{{{filter_string}}}[1m:]))"
+                f"({self.agg_method}_over_time({self.pod_requests_with_sidecar_expr(filter_string)}[1m:]))"
                 " / "
                 f"on (pod) group_left() count (count by (pod)"
                 f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}})) by (pod))'
@@ -799,7 +815,7 @@ class K8sClusterMeta(K8sResourceMeta):
             )
         return (
             "sum by (bcs_cluster_id)(sum by (bcs_cluster_id,pod) "
-            f"(kube_pod_container_resource_requests{{{filter_string}}})"
+            f"({self.pod_requests_with_sidecar_expr(filter_string)})"
             " / "
             f"on (pod) group_left() count (count by (pod)"
             f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}})) by (pod))'
@@ -846,7 +862,7 @@ class K8sClusterMeta(K8sResourceMeta):
         if self.agg_method:
             return (
                 "sum by (bcs_cluster_id)(sum by (bcs_cluster_id,pod) "
-                f"({self.agg_method}_over_time(kube_pod_container_resource_requests{{{filter_string}}}[1m:]))"
+                f"({self.agg_method}_over_time({self.pod_requests_with_sidecar_expr(filter_string)}[1m:]))"
                 " / "
                 f"on (pod) group_left() count (count by (pod)"
                 f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}})) by (pod))'
@@ -855,7 +871,7 @@ class K8sClusterMeta(K8sResourceMeta):
             )
         return (
             "sum by (bcs_cluster_id)(sum by (bcs_cluster_id,pod) "
-            f"(kube_pod_container_resource_requests{{{filter_string}}})"
+            f"({self.pod_requests_with_sidecar_expr(filter_string)})"
             " / "
             f"on (pod) group_left() count (count by (pod)"
             f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}})) by (pod))'
@@ -922,6 +938,61 @@ class K8sClusterMeta(K8sResourceMeta):
         filter_string = self.filter.filter_string()
         filter_string = ",".join([filter_string] + ['device!~"lo|veth.*"'])
         return self.tpl_prom_with_rate("node_network_transmit_packets_total", filter_string=filter_string)
+
+    # 容量场景 GPU（数据源为 TKE elastic-gpu-exporter 的卡级 gpu_* 指标，labels: node/card）
+    @property
+    def meta_prom_with_node_gpu_usage_ratio(self):
+        """GPU使用率：卡级算力使用率按集群求均值；聚合方法写死 avg"""
+        self.set_agg_method("avg")
+        self.agg_interval = ""
+        return self.tpl_prom_with_nothing("gpu_core_utilization_percentage")
+
+    @property
+    def meta_prom_with_node_gpu_mem_usage_ratio(self):
+        """GPU显存使用率 = sum(已用显存)/sum(单卡总显存) * 100，加权口径；聚合方法写死 sum"""
+        self.set_agg_method("sum")
+        self.agg_interval = ""
+        return (
+            f"({self.tpl_prom_with_nothing('gpu_mem_usage')} / {self.tpl_prom_with_nothing('gpu_mem_each_card')}) * 100"
+        )
+
+    @property
+    def meta_prom_with_node_gpu_mem_used(self):
+        """GPU显存使用量（原始数据为MiB）"""
+        return self.tpl_prom_with_nothing("gpu_mem_usage")
+
+    @property
+    def meta_prom_with_node_gpu_power_usage(self):
+        """GPU功耗（单位W）"""
+        return self.tpl_prom_with_nothing("gpu_power_usage")
+
+    @property
+    def meta_prom_with_node_gpu_temperature(self):
+        """GPU温度：取集群内最高卡温；聚合方法写死 max。注意：指标名 gpu_temprature 为 exporter 原始拼写，不要改成 temperature"""
+        self.set_agg_method("max")
+        self.agg_interval = ""
+        return self.tpl_prom_with_nothing("gpu_temprature")
+
+    @property
+    def meta_prom_with_node_gpu_anomaly_count(self):
+        """GPU异常数 = ECC错误增量(counter_type="aggregate" 终身累计，单调) + 掉卡数(gpu_count 对 1d 基线的下降)
+
+        掉卡按 (bcs_cluster_id, node) 粒度求差后再 sum，避免集群级 max 折叠节点导致掉卡被掩盖；
+        以 1d 内出现过 gpu_count 的节点为基准并用 or 兜底：exporter 静默的 GPU 节点按全卡掉卡计入(可观测性丢失即异常)；
+        合法摘卡/节点缩容在基线滚动过期(1d)前会被计为掉卡，属已知取舍。
+        ECC 窗口后端写死 5m(此处无 $interval 可用)，前端图表用 $interval，大 interval 下两端会有差异(同既有 rate[1m] 惯例)。
+        """
+        filter_string = self.filter.filter_string()
+        ecc_filter = ",".join([filter_string, 'counter_type="aggregate"'])
+        baseline = f"max by (bcs_cluster_id, node) (max_over_time(gpu_count{{{filter_string}}}[1d]))"
+        current = f"max by (bcs_cluster_id, node) (gpu_count{{{filter_string}}})"
+        return (
+            "sum by (bcs_cluster_id) ("
+            f"(sum by (bcs_cluster_id, node) (increase(gpu_ecc_error_count{{{ecc_filter}}}[5m])) or {baseline} * 0)"
+            " + "
+            f"clamp_min({baseline} - ({current} or {baseline} * 0), 0)"
+            ")"
+        )
 
     # TKE GPU
     @property
@@ -1034,7 +1105,7 @@ class K8sNodeMeta(K8sResourceMeta):
         if self.agg_method:
             return (
                 "sum by (node)(sum by (node,pod) "
-                f"({self.agg_method}_over_time(kube_pod_container_resource_requests{{{filter_string}}}[1m:]))"
+                f"({self.agg_method}_over_time({self.pod_requests_with_sidecar_expr(filter_string)}[1m:]))"
                 " / "
                 f"on (pod) group_left() count (count by (pod)"
                 f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}})) by (pod))'
@@ -1043,7 +1114,7 @@ class K8sNodeMeta(K8sResourceMeta):
             )
         return (
             "sum by (node)(sum by (node,pod) "
-            f"(kube_pod_container_resource_requests{{{filter_string}}})"
+            f"({self.pod_requests_with_sidecar_expr(filter_string)})"
             " / "
             f"on (pod) group_left() count (count by (pod)"
             f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}})) by (pod))'
@@ -1091,7 +1162,7 @@ class K8sNodeMeta(K8sResourceMeta):
         if self.agg_method:
             return (
                 "sum by (node)(sum by (node,pod) "
-                f"({self.agg_method}_over_time(kube_pod_container_resource_requests{{{filter_string}}}[1m:]))"
+                f"({self.agg_method}_over_time({self.pod_requests_with_sidecar_expr(filter_string)}[1m:]))"
                 " / "
                 f"on (pod) group_left() count (count by (pod)"
                 f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}})) by (pod))'
@@ -1100,7 +1171,7 @@ class K8sNodeMeta(K8sResourceMeta):
             )
         return (
             "sum by (node)(sum by (node,pod) "
-            f"(kube_pod_container_resource_requests{{{filter_string}}})"
+            f"({self.pod_requests_with_sidecar_expr(filter_string)})"
             " / "
             f"on (pod) group_left() count (count by (pod)"
             f'(kube_pod_status_phase{{{self.bcs_cluster_id_filter},phase!="Evicted"}})) by (pod))'
@@ -1151,6 +1222,59 @@ class K8sNodeMeta(K8sResourceMeta):
         filter_string = self.filter.filter_string()
         filter_string = ",".join([filter_string] + ['device!~"lo|veth.*"'])
         return self.tpl_prom_with_rate("node_network_transmit_packets_total", filter_string=filter_string)
+
+    # 容量场景 GPU（数据源为 TKE elastic-gpu-exporter 的卡级 gpu_* 指标，labels: node/card）
+    @property
+    def meta_prom_with_node_gpu_usage_ratio(self):
+        """GPU使用率：卡级算力使用率按节点求均值；聚合方法写死 avg"""
+        self.set_agg_method("avg")
+        self.agg_interval = ""
+        return self.tpl_prom_with_nothing("gpu_core_utilization_percentage")
+
+    @property
+    def meta_prom_with_node_gpu_mem_usage_ratio(self):
+        """GPU显存使用率 = sum(已用显存)/sum(单卡总显存) * 100，加权口径；聚合方法写死 sum"""
+        self.set_agg_method("sum")
+        self.agg_interval = ""
+        return (
+            f"({self.tpl_prom_with_nothing('gpu_mem_usage')} / {self.tpl_prom_with_nothing('gpu_mem_each_card')}) * 100"
+        )
+
+    @property
+    def meta_prom_with_node_gpu_mem_used(self):
+        """GPU显存使用量（原始数据为MiB）"""
+        return self.tpl_prom_with_nothing("gpu_mem_usage")
+
+    @property
+    def meta_prom_with_node_gpu_power_usage(self):
+        """GPU功耗（单位W）"""
+        return self.tpl_prom_with_nothing("gpu_power_usage")
+
+    @property
+    def meta_prom_with_node_gpu_temperature(self):
+        """GPU温度：取节点内最高卡温；聚合方法写死 max。注意：指标名 gpu_temprature 为 exporter 原始拼写，不要改成 temperature"""
+        self.set_agg_method("max")
+        self.agg_interval = ""
+        return self.tpl_prom_with_nothing("gpu_temprature")
+
+    @property
+    def meta_prom_with_node_gpu_anomaly_count(self):
+        """GPU异常数 = ECC错误增量(counter_type="aggregate" 终身累计，单调) + 掉卡数(gpu_count 对 1d 基线的下降)
+
+        以 1d 内出现过 gpu_count 的节点为基准并用 or 兜底：exporter 静默的 GPU 节点按全卡掉卡计入(可观测性丢失即异常)；
+        合法摘卡/节点缩容在基线滚动过期(1d)前会被计为掉卡，属已知取舍。
+        ECC 窗口后端写死 5m(此处无 $interval 可用)，前端图表用 $interval，大 interval 下两端会有差异(同既有 rate[1m] 惯例)。
+        最外层括号不可省：meta_prom_by_sort 升序会拼接 " * -1"，裸 A + B 会因运算符优先级变成 A - B。
+        """
+        filter_string = self.filter.filter_string()
+        ecc_filter = ",".join([filter_string, 'counter_type="aggregate"'])
+        baseline = f"max by (node) (max_over_time(gpu_count{{{filter_string}}}[1d]))"
+        current = f"max by (node) (gpu_count{{{filter_string}}})"
+        return (
+            f"((sum by (node) (increase(gpu_ecc_error_count{{{ecc_filter}}}[5m])) or {baseline} * 0)"
+            " + "
+            f"clamp_min({baseline} - ({current} or {baseline} * 0), 0))"
+        )
 
     def tpl_prom_with_nothing(self, metric_name, exclude="", filter_string=""):
         if not filter_string:

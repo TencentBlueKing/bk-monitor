@@ -57,6 +57,12 @@ const drillListMap = {
   [SceneEnum.Capacity]: {
     node: [],
   },
+  [SceneEnum.GPU]: {
+    namespace: ['workload', 'pod', 'container'],
+    workload: ['pod', 'container'],
+    pod: ['container'],
+    container: [],
+  },
 };
 @Component
 export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProps, K8sDimensionDrillDownEvents> {
@@ -70,6 +76,7 @@ export default class K8sDimensionDrillDown extends tsc<K8sDimensionDrillDownProp
   @Prop({ type: Boolean, default: true }) enableTip: boolean;
 
   @InjectReactive('groupInstance') readonly groupInstance!: K8sGroupDimension;
+  @InjectReactive({ from: 'isApmMonitor', default: false }) isApmMonitor!: boolean;
 
   @Ref('menu')
   menuRef: any;

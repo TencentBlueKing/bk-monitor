@@ -648,6 +648,44 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 "page_size": self.page_size,
             }
         )
+        # 合并/拆分独立映射层：按 issue_id 过滤告警时把主 Issue 展开为 [main, ...members]
+        self._expand_merged_issue_conditions()
+
+    def _expand_merged_issue_conditions(self):
+        """合并/拆分独立映射层：把 issue_id 过滤条件展开为 [main, ...active members]。
+
+        合并不改写 alert.issue_id（被并入 Issue 的告警物理上仍指向自身），主 Issue
+        要在告警列表 / 趋势 / 维度统计里聚合展示被并入 Issue 的告警，必须在「按
+        issue_id 反查 alert」时把查询值扩展为主 + 全部 active member。语义与
+        IssueQueryHandler.add_alert_trend 一致。
+
+        在 __init__ 内对 self.conditions 原地改写，可一处覆盖所有经 AlertQueryHandler
+        的查询路径（search / date_histogram / TopN）。
+
+        biz 维度用已解析的 self.authorized_bizs 而非原始 self.bk_biz_ids：全业务查询传
+        bk_biz_ids=[-1] 时 BaseBizQueryHandler 已把它解析为用户实际授权的业务集
+        （authorized_bizs），用它查合并关系才命中；直接用 [-1] 查 IssueMergeRelation 无结果，
+        会让全业务列表 / TopN / histogram 的 issue_id 过滤漏掉 active members。
+
+        fail-open：关系层异常或无合并关系时保持原条件，体感等同「无合并」。
+        """
+        conditions = self.conditions or []
+        issue_conditions = [c for c in conditions if c.get("origin_key") == "issue_id" and c.get("value")]
+        biz_ids = self.authorized_bizs
+        if not issue_conditions or not biz_ids:
+            return
+        try:
+            from bkmonitor.issue_merge import IssueMergeResolver, MergeResolverContext
+
+            ctx = MergeResolverContext(biz_ids)
+            ctx.load()
+            if ctx.degraded:
+                return
+            for condition in issue_conditions:
+                values = condition["value"] if isinstance(condition["value"], list) else [condition["value"]]
+                condition["value"] = IssueMergeResolver.expand_to_full_ids(values, ctx)
+        except Exception:
+            logger.warning("[issue-merge] expand issue_id conditions failed (fail-open)", exc_info=True)
 
     def get_search_object(
         self,
@@ -1059,6 +1097,9 @@ class AlertQueryHandler(BaseBizQueryHandler):
 
     def add_filter(self, search_object, start_time: int = None, end_time: int = None):
         # 条件过滤
+        # 该方法当前无调用方（保留为历史）。若被复用：此处直接用 self.bk_biz_ids 做 terms 过滤，
+        #    bk_biz_ids 含 -1（"全部授权业务"哨兵）时会查空——改用 self.get_biz_filter_ids()
+        #    （已解析 -1），告警可见性请走 add_biz_condition。勿照此模板复制。
         if self.bk_biz_ids:
             search_object = search_object.filter("terms", **{"event.bk_biz_id": self.bk_biz_ids})
 

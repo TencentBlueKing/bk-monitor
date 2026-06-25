@@ -31,11 +31,18 @@ class K8STargetType:
     WORKLOAD = "K8S-WORKLOAD"
 
 
-K8S_RESOURCE_TYPE = {
+K8S_RESOURCE_TYPE: dict[str, str] = {
     K8STargetType.POD: "pod",
     K8STargetType.NODE: "node",
     K8STargetType.SERVICE: "service",
     K8STargetType.WORKLOAD: "workload",
+}
+
+K8S_RESOURCE_TYPE_SCENARIO_MAP: dict[str, list[str]] = {
+    K8S_RESOURCE_TYPE[K8STargetType.POD]: ["performance", "network"],
+    K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD]: ["performance", "network"],
+    K8S_RESOURCE_TYPE[K8STargetType.NODE]: ["capacity"],
+    K8S_RESOURCE_TYPE[K8STargetType.SERVICE]: ["network"],
 }
 
 

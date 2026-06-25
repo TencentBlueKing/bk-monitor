@@ -1085,20 +1085,53 @@ class CustomEventCacheManager(BaseMetricCacheManager):
         )
         event_group_ids = [
             custom_event.bk_event_group_id
-            for custom_event in CustomEventGroup.objects.filter(type="custom_event").only("bk_event_group_id")
+            for custom_event in CustomEventGroup.objects.filter(
+                bk_tenant_id=self.bk_tenant_id, type="custom_event"
+            ).only("bk_event_group_id")
+        ]
+        # 平台级（is_platform=True）自定义事件分组的缓存行统一挂到 bk_biz_id=0，
+        # 复用 bk_biz_id__in=[0, bk_biz_id] 的平台数据可见性通道，保证全业务可见
+        platform_groups = dict(
+            CustomEventGroup.objects.filter(
+                bk_tenant_id=self.bk_tenant_id, type="custom_event", is_platform=True
+            ).values_list("bk_event_group_id", "bk_data_id")
+        )
+        # 平台级分组仅由 bk_biz_id=0 的缓存任务产出：归属业务任务从当前业务查询结果中整体剔除
+        # （主循环与 k8s 集群事件名称匹配均不再产出），避免在归属业务下产生重复缓存行
+        custom_event_result = [
+            result
+            for result in custom_event_result
+            if result["event_group_id"] not in platform_groups or result["bk_biz_id"] == 0
         ]
         # 增加自定义事件筛选，不在监控创建的策略配置时不展示
         for result in custom_event_result:
             if result["event_group_id"] in event_group_ids:
+                yield result
+        if self.bk_biz_id == 0 and platform_groups:
+            # 平台级分组的 EventGroup 挂在归属业务下（metadata 侧无平台标志），按 bk_data_id 补拉，
+            # 缓存行业务改写为 0 后单独产出，不并入 custom_event_result；
+            # EventGroup 本身挂 0 的存量平台分组已在上面产出，此处跳过去重。
+            # 注意：platform_groups 为空时不能发起补拉，空 bk_data_ids 会被 metadata 视为不过滤
+            platform_event_result = api.metadata.query_event_group.request.refresh(
+                bk_tenant_id=self.bk_tenant_id, bk_data_ids=list(platform_groups.values())
+            )
+            for result in platform_event_result:
+                if result["event_group_id"] not in platform_groups or result["bk_biz_id"] == 0:
+                    continue
+                result["bk_biz_id"] = 0
                 yield result
         if self.bk_biz_id < 0:
             space_uid = bk_biz_id_to_space_uid(self.bk_biz_id)
             if space_uid.startswith(SpaceTypeEnum.BKCI.value):
                 space = SpaceApi.get_related_space(space_uid, SpaceTypeEnum.BKCC.value)
                 if space:
-                    custom_event_result += api.metadata.query_event_group.request.refresh(
+                    related_event_result = api.metadata.query_event_group.request.refresh(
                         bk_tenant_id=self.bk_tenant_id, bk_biz_id=space.bk_biz_id
                     )
+                    # 关联业务的平台级分组同样剔除，避免经下方 k8s 名称匹配以负业务身份重复产出
+                    custom_event_result += [
+                        result for result in related_event_result if result["event_group_id"] not in platform_groups
+                    ]
         # 3.k8s 事件
         # 1. 先拿业务下的集群列表
         # 区分 custom_event 和 k8s_event (来自metadata的设计)

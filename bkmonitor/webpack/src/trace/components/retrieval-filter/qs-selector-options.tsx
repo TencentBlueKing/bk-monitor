@@ -367,38 +367,45 @@ export default defineComponent({
             class='options-wrap'
             onScroll={this.handleScroll}
           >
-            {this.loading
-              ? new Array(3).fill(null).map((_item, index) => (
-                  <div
-                    key={index}
-                    class='option-item skeleton-item'
-                  >
-                    <div class='skeleton-element h-16' />
-                  </div>
-                ))
-              : this.localOptions.slice(0, 300).map((item, index) => (
-                  <div
-                    key={item.id}
-                    class={['option-item main-item', { 'cursor-active': index === this.cursorIndex }]}
-                    tabindex={0}
-                    onClick={e => {
-                      e.stopPropagation();
-                      this.handleSelect(item.id);
+            {this.loading ? (
+              new Array(3).fill(null).map((_item, index) => (
+                <div
+                  key={index}
+                  class='option-item skeleton-item'
+                >
+                  <div class='skeleton-element h-16' />
+                </div>
+              ))
+            ) : this.localOptions.length ? (
+              this.localOptions.slice(0, 300).map((item, index) => (
+                <div
+                  key={item.id}
+                  class={['option-item main-item', { 'cursor-active': index === this.cursorIndex }]}
+                  tabindex={0}
+                  onClick={e => {
+                    e.stopPropagation();
+                    this.handleSelect(item.id);
+                  }}
+                >
+                  <span
+                    style={{
+                      backgroundColor: queryStringColorMap[this.type]?.background || '#E6F2F1',
+                      color: queryStringColorMap[this.type]?.color || '#02776E',
                     }}
+                    class='option-item-icon'
                   >
-                    <span
-                      style={{
-                        backgroundColor: queryStringColorMap[this.type]?.background || '#E6F2F1',
-                        color: queryStringColorMap[this.type]?.color || '#02776E',
-                      }}
-                      class='option-item-icon'
-                    >
-                      <span class={['icon-monitor', queryStringColorMap[this.type]?.icon || '']} />
-                    </span>
-                    <span class='option-item-name'>{optionName(item)}</span>
-                    {this.getSubtitle(item.id)}
-                  </div>
-                ))}
+                    <span class={['icon-monitor', queryStringColorMap[this.type]?.icon || '']} />
+                  </span>
+                  <span class='option-item-name'>{optionName(item)}</span>
+                  {this.getSubtitle(item.id)}
+                </div>
+              ))
+            ) : (
+              <EmptyStatus
+                showOperation={false}
+                type={this.search ? 'search-empty' : 'empty'}
+              />
+            )}
             {this.scrollLoading && (
               <div class='option-item  scroll-loading'>
                 <img

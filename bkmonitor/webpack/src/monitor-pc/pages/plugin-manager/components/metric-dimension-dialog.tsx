@@ -112,7 +112,9 @@ export default class MetricDimensionDialog extends tsc<IProps> {
   transFromAll = random(8);
   /** 自动采集新增指标是否开启 */
   isAutoCollect = false;
-  /** 是否隐藏切换自动采集功能时的提示 */
+  /** 自动采集新增指标初始值（用于判断是否需要弹提示） */
+  initialAutoCollect = false;
+  /** 是否隐藏切换自动采集功能时的提示（后端返回） */
   isHiddenTip = true;
 
   /* 分组名称列表 */
@@ -259,6 +261,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
       this.localMetricData = detailData.metric_json;
       this.localPluginType = detailData.plugin_type;
       this.isAutoCollect = detailData.enable_field_blacklist;
+      this.initialAutoCollect = this.isAutoCollect;
       this.isHiddenTip = detailData.is_split_measurement;
       this.localMetricData = this.localMetricData.map(group => ({
         ...group,
@@ -294,6 +297,7 @@ export default class MetricDimensionDialog extends tsc<IProps> {
         info_version: this.pluginData.info_version,
       };
       this.isAutoCollect = this.pluginData.enable_field_blacklist;
+      this.initialAutoCollect = this.isAutoCollect;
       this.isHiddenTip = this.pluginData.is_split_measurement;
       this.localPluginType = this.pluginType;
     }
@@ -1056,20 +1060,37 @@ export default class MetricDimensionDialog extends tsc<IProps> {
   }
 
   handleAutoCollectChange(val) {
-    // 打开状态且需要展示提示时
-    if (val && !this.isHiddenTip) {
+    // 后端标记隐藏或值与初始值相同时不弹提示
+    if (this.isHiddenTip || val === this.initialAutoCollect) {
+      return;
+    }
+
+    if (val) {
+      // 开启时的提示
       this.$bkInfo({
         type: 'warning',
         extCls: 'auto-collect-info',
-        title: this.$t('此操作存在危险'),
-        subTitle: this.$t(
-          '因为当前是旧的存储模式，开启采集新增指标后会切换成新的存储模式，旧的历史数据会丢失，请确认是否继续。'
-        ),
+        title: this.$t('此操作存在风险'),
+        subTitle: this.$t('开启自动发现，已有数据不会丢失，但可能会导致维度爆炸问题，请确认维度数据'),
         confirmFn: () => {
-          this.isHiddenTip = true;
+          // 确认开启
         },
         cancelFn: () => {
           this.isAutoCollect = false;
+        },
+      });
+    } else {
+      // 关闭时的提示
+      this.$bkInfo({
+        type: 'warning',
+        extCls: 'auto-collect-info',
+        title: this.$t('此操作存在风险'),
+        subTitle: this.$t('关闭自动发现，将以手动维护的指标和维度为准，其他数据将被丢弃'),
+        confirmFn: () => {
+          // 确认关闭
+        },
+        cancelFn: () => {
+          this.isAutoCollect = true;
         },
       });
     }

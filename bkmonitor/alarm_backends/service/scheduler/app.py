@@ -19,6 +19,7 @@ from billiard import cpu_count
 from celery import Celery, Task
 from celery.schedules import maybe_schedule
 from celery.signals import beat_init, setup_logging
+from kombu import Exchange, Queue
 from django.conf import settings
 from django.db import close_old_connections
 
@@ -117,6 +118,21 @@ def rabbitmq_conf():
         task_default_exchange = "monitor"
         task_default_queue = "monitor"
         task_default_routing_key = "monitor"
+        # 显式声明队列：仅 celery_llm_task 需要 broker 端参数——TTL 自蒸发 + 长度上限，
+        # 兜底"无消费者静默积压"（LLM 标题生成是体验增强，10 分钟未消费即无价值）。
+        # 注意：RabbitMQ 队列参数必须首次声明就带上，已存在队列改参数会 PRECONDITION_FAILED。
+        # 设置 task_queues 后裸 worker（不带 -Q）只消费此列表，故显式补回默认队列；
+        # 生产全部 worker 均通过 -Q 指定消费队列，行为不受影响。
+        # 其余既有队列名仍由 task_create_missing_queues（默认 True）按需自动创建。
+        task_queues = [
+            Queue("monitor", Exchange("monitor"), routing_key="monitor"),
+            Queue(
+                "celery_llm_task",
+                Exchange("monitor"),
+                routing_key="celery_llm_task",
+                queue_arguments={"x-message-ttl": 600000, "x-max-length": 1000},
+            ),
+        ]
         broker_url = f"amqp://{six.moves.urllib.parse.quote(settings.RABBITMQ_USER)}:{six.moves.urllib.parse.quote(settings.RABBITMQ_PASS)}@{settings.RABBITMQ_HOST}:{settings.RABBITMQ_PORT}/{settings.RABBITMQ_VHOST}"
         if not get_cluster().is_default():
             broker_transport_options = {

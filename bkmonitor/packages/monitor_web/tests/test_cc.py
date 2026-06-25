@@ -262,6 +262,8 @@ class TestGetAgentStatus:
             HOSTS[2].bk_host_id: AGENT_STATUS.NOT_EXIST,
         }
         assert get_agent_status.call_count == 1
+        # 数据状态查询切换为 instant，仅取窗口聚合的单点
+        assert mock_unify_query__query_data.call_args_list[0].kwargs.get("instant") is True
 
     @mock.patch(
         "core.drf_resource.api.gse.list_agent_state",
@@ -338,3 +340,56 @@ class TestGetHostPerformanceData:
         assert result[HOSTS[0].bk_host_id]["cpu_load"] == 42.5
         # io_util 配置了 ratio=100，最终结果应放大
         assert result[HOSTS[0].bk_host_id]["io_util"] == 4250.0
+
+
+class TestGetProcessStatus:
+    """
+    测试 resource.cc.get_process_status
+    验证切换到 instant 查询后进程状态判定逻辑（proc_exists 在窗口内的聚合值）。
+
+    临界语义说明：instant 查询返回的是窗口聚合后的单点（AVG over window），
+    只要进程在窗口内存在过（聚合值 > 0）即判定为 ON。相比改造前「区间序列、最后一个点生效」，
+    对窗口内瞬时存在/抖动的进程判定更宽松（更不易漏判为 OFF），是本次改造的预期行为变化。
+    """
+
+    def test_instant_query_and_status_mapping(self, mocker):
+        """
+        校验 query_data 以 instant=True 触发；聚合值 > 0 判 ON、= 0 判 OFF、为 None 的记录跳过。
+        """
+        query_data = mocker.patch(
+            "bkmonitor.data_source.UnifyQuery.query_data",
+            return_value=[
+                # 窗口内部分时间存在（聚合值介于 0~1）仍判定为 ON —— instant 化后的临界语义
+                {
+                    "_result_": 0.33,
+                    "bk_host_id": str(HOSTS[0].bk_host_id),
+                    "bk_target_ip": HOSTS[0].bk_host_innerip,
+                    "bk_target_cloud_id": str(HOSTS[0].bk_cloud_id),
+                    "display_name": "consul",
+                },
+                # 聚合值为 0 → OFF
+                {
+                    "_result_": 0,
+                    "bk_host_id": str(HOSTS[1].bk_host_id),
+                    "bk_target_ip": HOSTS[1].bk_host_innerip,
+                    "bk_target_cloud_id": str(HOSTS[1].bk_cloud_id),
+                    "display_name": "redis",
+                },
+                # _result_ 为 None → 跳过，不产生状态
+                {
+                    "_result_": None,
+                    "bk_host_id": str(HOSTS[1].bk_host_id),
+                    "bk_target_ip": HOSTS[1].bk_host_innerip,
+                    "bk_target_cloud_id": str(HOSTS[1].bk_cloud_id),
+                    "display_name": "nginx",
+                },
+            ],
+        )
+
+        result = resource.cc.get_process_status(2, HOSTS[0:2])
+
+        assert query_data.call_args_list[0].kwargs.get("instant") is True
+        assert result[HOSTS[0].bk_host_id]["consul"] == AGENT_STATUS.ON
+        assert result[HOSTS[1].bk_host_id]["redis"] == AGENT_STATUS.OFF
+        # _result_ 为 None 的记录被跳过，不写入任何状态
+        assert "nginx" not in result.get(HOSTS[1].bk_host_id, {})

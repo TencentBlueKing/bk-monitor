@@ -40,18 +40,38 @@ class RumAppConfig(models.Model):
         index_together = [["bk_biz_id", "app_name"]]
 
     @classmethod
-    def refresh_config(cls, bk_biz_id, app_name, scope_type, scope_key, refresh_configs, need_delete_config=True):
+    def refresh_config(
+        cls,
+        bk_biz_id,
+        app_name,
+        scope_type,
+        scope_key,
+        refresh_configs,
+        need_delete_config=True,
+        refresh_categories=None,
+    ):
         """
         refresh_configs 格式: [{"config_type": "apdex:lcp", "config_value": 2500}, ...]
+        delete_categories 用于限制删除范围，仅清理本次刷新涉及的大类配置。
         """
         create_objs = []
         exist_ids = []
+        delete_categories = set(refresh_categories or [])
         if need_delete_config:
-            exist_ids = list(
-                cls.objects.filter(
-                    bk_biz_id=bk_biz_id, app_name=app_name, scope_type=scope_type, scope_key=scope_key
-                ).values_list("id", flat=True)
-            )
+            exist_config_qs = cls.objects.filter(
+                bk_biz_id=bk_biz_id,
+                app_name=app_name,
+                scope_type=scope_type,
+                scope_key=scope_key,
+            ).values("id", "config_type")
+            if delete_categories:
+                exist_ids = [
+                    config["id"]
+                    for config in exist_config_qs
+                    if config["config_type"].split(":", 1)[0] in delete_categories
+                ]
+            else:
+                exist_ids = [config["id"] for config in exist_config_qs]
 
         for config in refresh_configs:
             unique_params = {

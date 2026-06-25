@@ -436,17 +436,24 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
         flex: 1;
         overflow: hidden;
 
-        .quick-jump {
+        .quick-jump-container {
           display: flex;
+          gap: 12px;
           align-items: center;
           justify-content: center;
           margin-left: auto;
 
-          .icon-monitor {
-            margin-left: 4px;
-            font-size: 12px;
-            line-height: 15px;
-            transform: scale(0.85);
+          .quick-jump {
+            &:hover {
+              background-color: transparent !important;
+            }
+
+            .icon-monitor {
+              margin-left: 4px;
+              font-size: 12px;
+              line-height: 15px;
+              transform: scale(0.85);
+            }
           }
         }
       }

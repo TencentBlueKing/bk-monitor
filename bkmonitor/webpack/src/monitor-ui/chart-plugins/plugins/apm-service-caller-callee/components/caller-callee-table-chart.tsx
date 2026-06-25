@@ -57,8 +57,11 @@ import './caller-callee-table-chart.scss';
 interface ICallerCalleeTableChartEvent {
   onCloseChartPoint?: () => void;
   onCloseTag?: (val: IFilterCondition) => void;
-  onDrill?: (val: IFilterCondition[]) => void;
+  onDrill?: (
+    val: IFilterCondition[] | { filter: IFilterCondition[]; perspective_group_by: string[]; perspective_type: string }
+  ) => void;
   onHandleDetail?: (val: IDataItem) => void;
+  onPerspectiveChange?: (val: { perspective_group_by: string[]; perspective_type: string }) => void;
 }
 interface ICallerCalleeTableChartProps {
   activeKey: string;
@@ -119,10 +122,14 @@ class CallerCalleeTableChart extends CommonSimpleChart {
   handleRoute(val) {
     if (val?.callOptions) {
       const callOptions = JSON.parse(val.callOptions);
-      if (callOptions?.perspective_group_by) {
-        this.dimensionList.map(item => (item.active = callOptions.perspective_group_by.includes(item.value)));
+      if (callOptions?.perspective_group_by?.length) {
+        this.dimensionList.forEach(item => {
+          item.active = callOptions.perspective_group_by.includes(item.value);
+        });
       }
-      callOptions?.perspective_type && this.changeTab(callOptions.perspective_type);
+      if (callOptions?.perspective_type && callOptions.perspective_type !== this.activeTabKey) {
+        this.changeTab(callOptions.perspective_type, true);
+      }
     }
   }
 
@@ -157,6 +164,28 @@ class CallerCalleeTableChart extends CommonSimpleChart {
 
   created() {
     this.handlePanelChange();
+    this.applyPerspectiveFromCallOptions();
+  }
+  applyPerspectiveFromCallOptions() {
+    const { perspective_type, perspective_group_by } = this.callOptions || {};
+    if (perspective_type && perspective_type !== 'single') {
+      this.activeTabKey = perspective_type;
+    }
+    if (perspective_group_by?.length) {
+      this.dimensionList.forEach(item => {
+        item.active = perspective_group_by.includes(item.value);
+      });
+    }
+  }
+  getPerspectivePayload() {
+    return {
+      perspective_type: this.activeTabKey,
+      perspective_group_by: this.dimensionList.filter(item => item.active).map(item => item.value),
+    };
+  }
+  @Emit('perspectiveChange')
+  emitPerspectiveChange() {
+    return this.getPerspectivePayload();
   }
   @Watch('callOptions', { deep: true })
   onCallOptionsChanges(val) {
@@ -377,12 +406,14 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     this.totalListData = [];
   }
 
-  changeTab(id: string) {
+  changeTab(id: string, fromRoute = false) {
     this.activeTabKey = id;
     const activeList = this.dimensionList.filter(item => item.active).map(item => item.value);
-    this.handleSelectDimension(this.isSingleView ? activeList.slice(0, 1) : activeList);
-    this.handleClearData();
-    this.getPanelData();
+    this.handleSelectDimension(this.isSingleView ? activeList.slice(0, 1) : activeList, false, fromRoute);
+    if (fromRoute) {
+      this.handleClearData();
+      this.getPanelData();
+    }
   }
   handleDataFormat(keyList: string, data: string, field: string[]) {
     this[data] = [...(this[keyList][field[0]] || [])];
@@ -462,14 +493,19 @@ class CallerCalleeTableChart extends CommonSimpleChart {
     this.drillWhere = filter;
     if (this.activeTabKey === 'multiple') {
       const activeList = this.dimensionList.filter(item => item.active).map(item => item.value);
-      activeList.push(option.value);
+      if (!activeList.includes(option.value)) {
+        activeList.push(option.value);
+      }
       this.handleSelectDimension(activeList, true);
     } else {
       this.handleSelectDimension([option.value], true);
     }
-    this.$emit('drill', filter);
+    this.$emit('drill', {
+      filter,
+      ...this.getPerspectivePayload(),
+    });
   }
-  handleSelectDimension(selectedList: string[], isDrill = false) {
+  handleSelectDimension(selectedList: string[], isDrill = false, skipPerspectiveEmit = false) {
     const tableColumn = [];
     this.dimensionList = this.dimensionList.map(item => {
       const active = selectedList.includes(item.value);
@@ -487,6 +523,9 @@ class CallerCalleeTableChart extends CommonSimpleChart {
 
     this.tableColumn = tableColumn;
     this.handleClearData();
+    if (!isDrill && !skipPerspectiveEmit) {
+      this.emitPerspectiveChange();
+    }
     !isDrill && this.getPageList();
   }
   renderDimensionList() {

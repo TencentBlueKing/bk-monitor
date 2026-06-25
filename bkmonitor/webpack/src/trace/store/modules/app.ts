@@ -34,6 +34,8 @@ export interface IAppState {
   csrfCookieName: string;
   extraDocLinkMap: Record<string, IDocLinkData>;
   navId: string;
+  /** 无权限的空间 bizId 列表（noAuth && !hasData） */
+  noAuthBizIds: number[];
   siteUrl: string;
   spaceTimezone: string;
   userName: string;
@@ -55,6 +57,7 @@ export const useAppStore = defineStore('app', {
     bkUrl: window.bk_url,
     extraDocLinkMap: {},
     spaceTimezone: getSpaceTimezone(),
+    noAuthBizIds: [],
   }),
   getters: {
     bizItem: (state: IAppState) => {

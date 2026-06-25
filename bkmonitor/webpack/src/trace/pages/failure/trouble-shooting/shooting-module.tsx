@@ -94,7 +94,7 @@ const renderLogJSONTips = (log: any, isChild = false, isArray = false) => {
         <div
           key={key}
           style={{ marginLeft: isChild ? '8px' : '28px' }}
-          class='log-popover-content_item'
+          class='overflow-popover-content_item'
         >
           {/* 属性名 */}
           <span class='item-label'>"{key}":</span>
@@ -187,29 +187,52 @@ export function createShootingModule(
 ) {
   /**
    * 通用的Popover渲染函数
-   * 用于统一处理各种类型的文本溢出提示框
+   * 用于统一处理各种类型的文本溢出提示框（多行溢出检测：scrollHeight > clientHeight）
    * @param content - 要显示的内容
    * @param index - 当前项的索引（用于控制显示状态）
    * @param popoverType - Popover类型标识
-   * @param renderContent - 自定义内容渲染函数
-   * @returns Popover组件的JSX
+   * @param options.config - 可选配置项
+   * @param options.config.renderContent - 自定义弹窗内容渲染函数
+   * @param options.config.renderDefault - 自定义触发元素渲染函数，接收 onMouseenter 回调用于溢出检测
+   * @param options.config.contentCls - 弹窗内容区自定义 class（用于样式隔离）
    */
   const renderCommonPopover = (
     content: string,
     index: number,
     popoverType: OverflowPopType,
-    renderContent?: (content: string) => JSX.Element
+    {
+      contentCls = 'overflow-popover-content__text',
+      renderContent,
+      renderDefault,
+    }: {
+      contentCls?: string;
+      renderContent?: (content: string) => JSX.Element;
+      renderDefault?: (onMouseenter: (e: MouseEvent) => void) => JSX.Element;
+    } = {}
   ) => {
-    // 判断当前Popover是否应该显示
+    const popoverKey = `${popoverType}_${index}`;
     const isVisible =
       options.popoverState.currentPopover?.type === popoverType && options.popoverState.currentPopover?.index === index;
+
+    // 统一的鼠标进入处理：多行溢出检测 + 设置当前 Popover
+    const handleMouseEnter = (e: MouseEvent) => {
+      const el = e.currentTarget as HTMLElement;
+      const overflow = el.scrollHeight > el.clientHeight;
+      options.popoverState.overflowMap[popoverKey] = overflow;
+      if (overflow) {
+        options.popoverState.currentPopover = { type: popoverType, index };
+      }
+    };
+
+    // disabled 逻辑：无内容时禁用（溢出控制由 isShow 通过 handleMouseEnter 间接实现）
+    const disabled = !content;
 
     return (
       <Popover
         key={`${index}-${popoverType}`}
         width={560}
-        extCls='log-content-tips_popover'
-        disabled={!content}
+        extCls='overflow-popover'
+        disabled={disabled}
         isShow={isVisible}
         placement='right-start'
         popoverDelay={[500, 0]}
@@ -219,24 +242,26 @@ export function createShootingModule(
       >
         {{
           content: () => (
-            <div class='log-popover-content'>
-              {/* 复制按钮 */}
+            <div class='overflow-popover-content'>
               <i
                 class={['icon-monitor', 'copy-icon', 'icon-mc-copy']}
                 onClick={() => handleCopy(content, $t)}
               />
-              <div class='log-popover-content__text'>{renderContent ? renderContent(content) : content}</div>
+              <div class={contentCls}>{renderContent ? renderContent(content) : content}</div>
             </div>
           ),
-          default: () => (
-            <div
-              class={`log-tips__default log-tips__${popoverType}`}
-              data-index={index}
-              onMouseenter={e => options.handleMouseEnter(e, index, popoverType)}
-            >
-              {content}
-            </div>
-          ),
+          default: () =>
+            renderDefault ? (
+              renderDefault(handleMouseEnter)
+            ) : (
+              <div
+                class={`overflow-popover-trigger overflow-popover-trigger--${popoverType}`}
+                data-index={index}
+                onMouseenter={handleMouseEnter}
+              >
+                {content}
+              </div>
+            ),
         }}
       </Popover>
     );
@@ -260,18 +285,16 @@ export function createShootingModule(
     contentType: 'json' | 'text' = 'text'
   ) => {
     // 内容渲染函数，根据类型选择不同的渲染方式
-    const renderContent = (content: string) => {
+    const renderContent = (c: string) => {
       if (contentType === 'json') {
         try {
-          // 尝试解析JSON并格式化显示
-          const jsonData = JSON.parse(content);
-          return <div class='log-popover-content_json'>{renderLogJSONTips(jsonData)}</div>;
+          const jsonData = JSON.parse(c);
+          return <div class='overflow-popover-content_json'>{renderLogJSONTips(jsonData)}</div>;
         } catch {
-          // 解析失败时回退到普通文本显示
-          return <div class='log-popover-content_json'>{content}</div>;
+          return <div class='overflow-popover-content_json'>{c}</div>;
         }
       }
-      return <div class='log-pattern'>{content}</div>;
+      return <div class='overflow-popover-pattern'>{c}</div>;
     };
 
     return (
@@ -279,7 +302,7 @@ export function createShootingModule(
         <div class='log-content-title'>
           <span>{title}</span>
         </div>
-        {renderCommonPopover(content, index, popoverType, renderContent)}
+        {renderCommonPopover(content, index, popoverType, { renderContent })}
       </div>
     );
   };
@@ -389,7 +412,7 @@ export function createShootingModule(
   const eventTitle = (item: IEventsAnalysis, subContent = null) => {
     // 判断是否为子级标题
     const isChild = !!subContent;
-    const config = EVENTS_TYPE_MAP[item.type as keyof typeof EVENTS_TYPE_MAP];
+    const config = EVENTS_TYPE_MAP[item.type as keyof typeof EVENTS_TYPE_MAP] ?? EVENTS_TYPE_MAP['default'];
 
     const renderTitleInfo = () => {
       // 父级Collapse title
@@ -446,12 +469,15 @@ export function createShootingModule(
     return (
       <span class='event-title'>
         {/* 渲染标题icon（仅父级显示）*/}
-        {!isChild && (
-          <span
-            style={{ backgroundImage: `url(${base64Svg[config.iconType]})` }}
-            class='event-icon'
-          />
-        )}
+        {!isChild &&
+          (config.iconType ? (
+            <span
+              style={{ backgroundImage: `url(${base64Svg[config.iconType]})` }}
+              class='event-icon'
+            />
+          ) : (
+            <i class='icon-monitor icon-shijianjiansuo event-icon' />
+          ))}
         {/* 渲染标题内容 */}
         {renderTitleInfo()}
       </span>
@@ -600,7 +626,7 @@ export function createShootingModule(
   );
 
   // Trace分析子Collapse内容
-  const traceChildContent = (item: ITraceAnalysis) => {
+  const traceChildContent = (item: ITraceAnalysis, itemIndex: number) => {
     // 字段点击跳转处理函数
     const handleFieldClick = (key: string, value: Record<string, any>) => {
       const url = generateUrl(key, value, item, options);
@@ -610,19 +636,35 @@ export function createShootingModule(
     };
     return (
       <span class='table-content'>
-        {Object.entries(TRACE_FIELD_CONFIG).map(([key, value]) => {
+        {Object.entries(TRACE_FIELD_CONFIG).map(([key, value], fieldIndex) => {
+          const content = String(item[key] ?? '');
+          const traceFieldIndex = itemIndex * 100 + fieldIndex;
           return (
             <span
               key={key}
               class='table-content-item'
             >
               <span class='item-label'>{value.label}</span>
-              <span
-                class={['item-value', { 'item-value-link': value.url }]}
-                onClick={value.url ? () => handleFieldClick(key, value) : undefined}
-              >
-                {item[key]}
-              </span>
+              {key === 'demo_log' ? (
+                renderCommonPopover(content, traceFieldIndex, 'trace_field', {
+                  contentCls: 'overflow-popover-content__trace-field',
+                  renderDefault: onMouseenter => (
+                    <span
+                      class='item-value'
+                      onMouseenter={onMouseenter}
+                    >
+                      {item[key]}
+                    </span>
+                  ),
+                })
+              ) : (
+                <span
+                  class={['item-value', { 'item-value-link': value.url }]}
+                  onClick={value.url ? () => handleFieldClick(key, value) : undefined}
+                >
+                  {item[key]}
+                </span>
+              )}
             </span>
           );
         })}
@@ -641,7 +683,7 @@ export function createShootingModule(
             <span>{$t('示例 span：')}</span>
           </div>
           {/* Trace详情表格 */}
-          {traceChildContent(item)}
+          {traceChildContent(item, index)}
         </div>
       </div>
     );

@@ -195,7 +195,7 @@ export default defineComponent({
           </Progress>
         );
       }
-      const info = statusList[status];
+      const info = statusList[status.toLowerCase()];
       return (
         <i
           style={{ color: info?.color }}

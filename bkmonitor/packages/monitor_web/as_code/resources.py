@@ -17,6 +17,7 @@ import tempfile
 import zipfile
 from collections import defaultdict
 from collections.abc import Iterable
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin
@@ -36,7 +37,6 @@ from bkmonitor.action.serializers import (
     ActionConfigDetailSlz,
     AssignRuleSlz,
     DutyRuleDetailSlz,
-    UserGroupDetailSlz,
 )
 from bkmonitor.action.utils import get_assign_rule_related_resource_dict
 from bkmonitor.as_code.parse import import_code_config
@@ -52,6 +52,7 @@ from bkmonitor.models import (
     ActionPlugin,
     AlertAssignGroup,
     AlertAssignRule,
+    DutyArrange,
     DutyRule,
     DutyRuleRelation,
     StrategyActionConfigRelation,
@@ -61,11 +62,11 @@ from bkmonitor.models.as_code import AsCodeImportTask
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.serializers import BkBizIdSerializer
 from bkmonitor.views import serializers
+from constants.action import NoticeChannel
 from constants.strategy import DATALINK_SOURCE
 from core.drf_resource import Resource, api
 from core.drf_resource.tasks import step
 from monitor_web.commons.report.resources import send_frontend_report_event
-from monitor_web.grafana.utils import get_org_id
 
 logger = logging.getLogger("monitor_web")
 
@@ -257,9 +258,22 @@ class ExportConfigResource(Resource):
             user_groups = user_groups.filter(app=app)
 
         # 配置生成
-        user_group_configs = []
-        for user_group in user_groups:
-            user_group_configs.append(UserGroupDetailSlz(user_group).data)
+        user_group_configs = cls.build_notice_group_export_configs(
+            user_groups.only(
+                "id",
+                "name",
+                "bk_biz_id",
+                "desc",
+                "path",
+                "channels",
+                "mention_list",
+                "mention_type",
+                "action_notice",
+                "alert_notice",
+                "need_duty",
+                "duty_rules",
+            )
+        )
 
         # 查询关联告警组相关的轮值规则
         duty_rules_ids = {}
@@ -270,6 +284,89 @@ class ExportConfigResource(Resource):
         # 转换为AsCode配置
         parser = NoticeGroupConfigParser(bk_biz_id=bk_biz_id, duty_rules=duty_rules_ids)
         yield from cls.transform_configs(parser, user_group_configs, with_id, lock_filename)
+
+    @classmethod
+    def build_notice_group_export_configs(cls, user_groups: Iterable[UserGroup]) -> list[dict[str, Any]]:
+        """
+        构造 AsCode 告警组导出配置。
+
+        UserGroupDetailSlz 面向详情页，会额外查询排班、策略数、分派规则数并翻译用户展示名。
+        导出 YAML 只依赖告警组基础字段、通知配置和非轮值场景的用户列表，这里按导出所需字段批量读取。
+        批量构造时仍需保留详情序列化器里与 YAML 输出相关的历史兼容逻辑，避免优化查询后改变导出内容。
+        """
+        user_groups = list(user_groups)
+        user_group_ids = [user_group.id for user_group in user_groups]
+        duty_arranges_mapping: dict[int, list[dict[str, Any]]] = defaultdict(list)
+        if user_group_ids:
+            duty_arranges = DutyArrange.objects.filter(user_group_id__in=user_group_ids).only(
+                "id", "user_group_id", "users", "order"
+            )
+            for duty_arrange in duty_arranges.order_by("order"):
+                # 非轮值导出只读取 duty_arranges[0].users；这里保留旧序列化器的成员去重行为。
+                duty_arranges_mapping[duty_arrange.user_group_id].append(
+                    {"users": cls._dedupe_notice_users(duty_arrange.users)}
+                )
+
+        user_group_configs = []
+        for user_group in user_groups:
+            channels = user_group.channels or NoticeChannel.DEFAULT_CHANNELS
+            # 详情序列化器会把 mention_list 翻译成展示结构并按 type/id 去重；
+            # AsCode 导出只需要 type/id，因此这里只复刻去重，不触发额外用户信息查询。
+            mention_list = cls._dedupe_notice_users(user_group.mention_list)
+            if user_group.mention_type == 0 and not mention_list and NoticeChannel.WX_BOT in channels:
+                mention_list = [{"type": "group", "id": "all"}]
+
+            user_group_configs.append(
+                {
+                    "id": user_group.id,
+                    "name": user_group.name,
+                    "bk_biz_id": user_group.bk_biz_id,
+                    "desc": user_group.desc or "",
+                    "path": user_group.path or "",
+                    "channels": channels,
+                    "mention_list": mention_list,
+                    "action_notice": cls._build_notice_export_configs(user_group.action_notice),
+                    "alert_notice": cls._build_notice_export_configs(user_group.alert_notice),
+                    "need_duty": user_group.need_duty,
+                    "duty_arranges": duty_arranges_mapping.get(user_group.id, []),
+                    "duty_rules": user_group.duty_rules or [],
+                }
+            )
+        return user_group_configs
+
+    @staticmethod
+    def _build_notice_export_configs(notices: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+        """
+        构造通知配置导出数据，并复刻 BaseNotifyConfigSerializer.to_representation 的老数据兼容逻辑。
+
+        历史 DB 数据可能只有 type/chatid，没有 notice_ways；旧详情序列化路径会在导出前补齐 notice_ways。
+        这里直接读取模型 JSON 字段，所以需要显式转换，尤其要保留 WX_BOT receivers 来自 chatid 的行为。
+        """
+        # translate_notice_ways 会原地修改 notify_config；deepcopy 避免导出过程污染模型实例上的原始 JSON。
+        notices = deepcopy(notices or [])
+        for notice in notices:
+            for notify_config in notice.get("notify_config") or []:
+                # DRF 字段在旧路径中会提供默认值。批量导出绕过序列化器后，需要先补齐默认结构，
+                # 否则极老数据缺少 type 时会在后续 unparse 中触发 KeyError。
+                notify_config.setdefault("type", [])
+                notify_config.setdefault("notice_ways", [])
+                UserGroup.translate_notice_ways(notify_config)
+        return notices
+
+    @staticmethod
+    def _dedupe_notice_users(users: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+        """
+        按旧详情序列化器的 type--id 规则对成员去重，保留原有顺序。
+        """
+        deduped_users = []
+        seen_user_ids = set()
+        for user in users or []:
+            user_type_id = f"{user['type']}--{user['id']}"
+            if user_type_id in seen_user_ids:
+                continue
+            seen_user_ids.add(user_type_id)
+            deduped_users.append(user)
+        return deduped_users
 
     @classmethod
     def export_duties(
@@ -341,6 +438,8 @@ class ExportConfigResource(Resource):
         """
         导出grafana仪表盘配置
         """
+        from monitor_web.grafana.utils import get_org_id
+
         if dashboard_uids is not None and not dashboard_uids:
             return
 

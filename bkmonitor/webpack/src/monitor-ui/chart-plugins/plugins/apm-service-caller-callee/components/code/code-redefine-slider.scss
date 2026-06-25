@@ -135,7 +135,7 @@
         align-items: center;
         overflow: visible;
 
-        .import-sign-bar {
+        .new-sign-bar {
           position: absolute;
           top: -62px;
           left: -10px;
@@ -167,11 +167,24 @@
           background-color: #3a84ff;
         }
 
-        .icon-web {
+        .global-sign-wrapper {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 18px;
+          height: 18px;
           margin-right: 4px;
-          font-size: 14px;
-          color: #3a84ff;
           cursor: pointer;
+          border-radius: 2px;
+
+          &:hover {
+            background: #e5e7eb;
+          }
+
+          .icon-web {
+            font-size: 14px;
+            color: #231815;
+          }
         }
 
         .value-content {
@@ -259,7 +272,7 @@
 
       .operate-btns {
         display: flex;
-        gap: 6px;
+        gap: 16px;
       }
 
       .global-config-main {

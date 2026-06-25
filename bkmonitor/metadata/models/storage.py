@@ -11,13 +11,16 @@ specific language governing permissions and limitations under the License.
 import abc
 import base64
 import datetime
+import ipaddress
 import json
 import logging
 import random
 import re
 import string
+import tempfile
 import time
 import traceback
+from contextlib import ExitStack
 from typing import TYPE_CHECKING, Any, Self
 
 import arrow
@@ -115,6 +118,16 @@ class ClusterInfo(models.Model):
     TYPE_VM = "victoria_metrics"
     TYPE_DORIS = "doris"
 
+    DEFAULT_CHECK_TIMEOUT = 5
+    CHECK_STATUS_AVAILABLE = "available"
+    CHECK_STATUS_UNAVAILABLE = "unavailable"
+    CHECK_STATUS_UNSUPPORTED = "unsupported"
+    CHECK_ERROR_CONNECTION_FAILED = "CONNECTION_FAILED"
+    CHECK_ERROR_CLUSTER_UNHEALTHY = "CLUSTER_UNHEALTHY"
+    CHECK_ERROR_HTTP_UNHEALTHY = "HTTP_UNHEALTHY"
+    CHECK_ERROR_INVALID_CONFIG = "INVALID_CONFIG"
+    CHECK_ERROR_UNSUPPORTED_CLUSTER_TYPE = "UNSUPPORTED_CLUSTER_TYPE"
+
     CLUSTER_TYPE_CHOICES = (
         (TYPE_INFLUXDB, "influxDB"),
         (TYPE_KAFKA, "kafka"),
@@ -206,6 +219,318 @@ class ClusterInfo(models.Model):
             data[f.name] = value
 
         return data
+
+    def health_check(self, timeout: int | None = None) -> dict[str, Any]:
+        """探测集群连接和可用状态，返回统一结构。"""
+
+        if timeout is None:
+            timeout = self.DEFAULT_CHECK_TIMEOUT
+        checker_name = {
+            self.TYPE_DORIS: "_check_doris_cluster",
+            self.TYPE_ES: "_check_es_cluster",
+            self.TYPE_KAFKA: "_check_kafka_cluster",
+            self.TYPE_VM: "_check_vm_cluster",
+        }.get(self.cluster_type)
+
+        if not checker_name:
+            return self._build_cluster_check_result(
+                status=self.CHECK_STATUS_UNSUPPORTED,
+                is_connected=False,
+                is_available=False,
+                error=self._build_cluster_check_error(
+                    code=self.CHECK_ERROR_UNSUPPORTED_CLUSTER_TYPE,
+                    message=f"暂不支持探测集群类型: {self.cluster_type}",
+                    details={"cluster_type": self.cluster_type},
+                ),
+            )
+
+        try:
+            if not isinstance(timeout, int) or isinstance(timeout, bool) or timeout <= 0:
+                raise ValueError("timeout 必须是大于 0 的整数")
+            return getattr(self, checker_name)(timeout=timeout)
+        except ValueError as error:
+            return self._build_cluster_check_result(
+                status=self.CHECK_STATUS_UNAVAILABLE,
+                is_connected=False,
+                is_available=False,
+                error=self._build_cluster_check_error(
+                    code=self.CHECK_ERROR_INVALID_CONFIG,
+                    message="集群探测配置不完整或不合法",
+                    details=self._format_check_exception(error),
+                ),
+            )
+        except Exception as error:  # pylint: disable=broad-except
+            logger.exception(
+                "ClusterInfo.health_check failed, cluster_id->[%s], cluster_type->[%s]",
+                self.cluster_id,
+                self.cluster_type,
+            )
+            return self._build_cluster_check_result(
+                status=self.CHECK_STATUS_UNAVAILABLE,
+                is_connected=False,
+                is_available=False,
+                error=self._build_cluster_check_error(
+                    code=self.CHECK_ERROR_CONNECTION_FAILED,
+                    message="集群连接失败",
+                    details=self._format_check_exception(error),
+                ),
+            )
+
+    def _build_cluster_check_result(
+        self,
+        status: str,
+        is_connected: bool,
+        is_available: bool,
+        error: dict[str, Any] | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """统一集群探测返回格式。"""
+
+        return {
+            "cluster_id": self.cluster_id,
+            "cluster_name": self.cluster_name,
+            "cluster_type": self.cluster_type,
+            "status": status,
+            "is_connected": is_connected,
+            "is_available": is_available,
+            "error": error,
+            "details": details or {},
+        }
+
+    @staticmethod
+    def _build_cluster_check_error(code: str, message: str, details: dict[str, Any] | None = None) -> dict[str, Any]:
+        return {"code": code, "message": message, "details": details or {}}
+
+    @staticmethod
+    def _format_check_exception(error: Exception) -> dict[str, str]:
+        return {"type": error.__class__.__name__, "message": str(error)}
+
+    def _validate_check_endpoint(self) -> None:
+        if not self.domain_name:
+            raise ValueError("domain_name 不能为空")
+        if not self.port:
+            raise ValueError("port 不能为空")
+
+    @staticmethod
+    def _write_check_temp_file(stack: ExitStack, content: str) -> str:
+        temp_file = stack.enter_context(tempfile.NamedTemporaryFile(mode="w+", delete=True))
+        temp_file.write(content)
+        temp_file.flush()
+        return temp_file.name
+
+    @staticmethod
+    def _get_kafka_admin_client_class():
+        from confluent_kafka.admin import AdminClient
+
+        return AdminClient
+
+    def _normalize_kafka_bootstrap_host(self, host: str) -> str:
+        if host.startswith("["):
+            match = re.fullmatch(r"\[(?P<address>[^\]]+)\](?::(?P<port>\d+))?", host)
+            if not match:
+                raise ValueError(f"Kafka bootstrap host 非法: {host}")
+
+            address = ipaddress.ip_address(match.group("address"))
+            port = int(match.group("port") or self.port)
+            if address.version == 6:
+                return f"[{address.compressed}]:{port}"
+            return f"{address.compressed}:{port}"
+
+        if host.count(":") == 1:
+            return host
+
+        if host.count(":") > 1:
+            address_part, port_part = host.rsplit(":", 1)
+            if port_part.isdigit():
+                try:
+                    address = ipaddress.ip_address(address_part)
+                except ValueError:
+                    pass
+                else:
+                    if address.version == 6:
+                        return f"[{address.compressed}]:{int(port_part)}"
+                    return f"{address.compressed}:{int(port_part)}"
+
+            address = ipaddress.ip_address(host)
+            if address.version == 6:
+                return f"[{address.compressed}]:{self.port}"
+            return f"{address.compressed}:{self.port}"
+
+        return f"{host}:{self.port}"
+
+    def _compose_kafka_bootstrap_servers(self) -> str:
+        self._validate_check_endpoint()
+        bootstrap_servers = []
+        for host in str(self.domain_name).split(","):
+            host = host.strip()
+            if not host:
+                continue
+            bootstrap_servers.append(self._normalize_kafka_bootstrap_host(host))
+
+        if not bootstrap_servers:
+            raise ValueError("Kafka bootstrap servers 为空")
+
+        return ",".join(bootstrap_servers)
+
+    def _build_kafka_admin_config(self, timeout: int, stack: ExitStack) -> dict[str, Any]:
+        bootstrap_servers = self._compose_kafka_bootstrap_servers()
+        conf: dict[str, Any] = {
+            "bootstrap.servers": bootstrap_servers,
+            "socket.timeout.ms": timeout * 1000,
+            "request.timeout.ms": timeout * 1000,
+            "metadata.request.timeout.ms": timeout * 1000,
+        }
+
+        has_ssl = bool(
+            self.is_ssl_verify or self.ssl_certificate_authorities or self.ssl_certificate or self.ssl_certificate_key
+        )
+        has_sasl = bool(self.username and self.password)
+        if self.is_auth and not has_sasl:
+            raise ValueError("Kafka 开启鉴权但缺少 username/password")
+
+        if self.security_protocol:
+            security_protocol = self.security_protocol
+        elif has_ssl and has_sasl:
+            security_protocol = "SASL_SSL"
+        elif has_ssl:
+            security_protocol = "SSL"
+        elif has_sasl:
+            security_protocol = config.KAFKA_SASL_PROTOCOL
+        else:
+            security_protocol = "PLAINTEXT"
+        conf["security.protocol"] = security_protocol
+
+        if has_sasl:
+            conf["sasl.mechanisms"] = self.sasl_mechanisms or config.KAFKA_SASL_MECHANISM
+            conf["sasl.username"] = self.username
+            conf["sasl.password"] = self.password
+
+        if self.ssl_insecure_skip_verify:
+            conf["enable.ssl.certificate.verification"] = False
+        if self.ssl_certificate_authorities:
+            conf["ssl.ca.location"] = self._write_check_temp_file(stack, self.ssl_certificate_authorities)
+        if self.ssl_certificate:
+            conf["ssl.certificate.location"] = self._write_check_temp_file(stack, self.ssl_certificate)
+        if self.ssl_certificate_key:
+            conf["ssl.key.location"] = self._write_check_temp_file(stack, self.ssl_certificate_key)
+
+        return conf
+
+    def _check_kafka_cluster(self, timeout: int) -> dict[str, Any]:
+        with ExitStack() as stack:
+            conf = self._build_kafka_admin_config(timeout=timeout, stack=stack)
+            metadata = self._get_kafka_admin_client_class()(conf).list_topics(timeout=timeout)
+
+        return self._build_cluster_check_result(
+            status=self.CHECK_STATUS_AVAILABLE,
+            is_connected=True,
+            is_available=True,
+            details={
+                "bootstrap_servers": conf["bootstrap.servers"],
+                "broker_count": len(metadata.brokers or {}),
+                "topic_count": len(metadata.topics or {}),
+                "security_protocol": conf.get("security.protocol"),
+                "sasl_mechanisms": conf.get("sasl.mechanisms"),
+                "auth_enabled": bool(self.is_auth or self.username),
+            },
+        )
+
+    def _check_es_cluster(self, timeout: int) -> dict[str, Any]:
+        client = es_tools.get_client(bk_tenant_id=self.bk_tenant_id, cluster_id=self.cluster_id)
+        try:
+            health = client.cluster.health(request_timeout=timeout)
+        except TypeError:
+            health = client.cluster.health()
+
+        health_status = (health or {}).get("status")
+        details = {
+            "health_status": health_status,
+            "number_of_nodes": (health or {}).get("number_of_nodes"),
+            "active_shards": (health or {}).get("active_shards"),
+            "unassigned_shards": (health or {}).get("unassigned_shards"),
+        }
+        if health_status == "red":
+            return self._build_cluster_check_result(
+                status=self.CHECK_STATUS_UNAVAILABLE,
+                is_connected=True,
+                is_available=False,
+                error=self._build_cluster_check_error(
+                    code=self.CHECK_ERROR_CLUSTER_UNHEALTHY,
+                    message="Elasticsearch 集群健康状态为 red",
+                    details=details,
+                ),
+                details=details,
+            )
+
+        return self._build_cluster_check_result(
+            status=self.CHECK_STATUS_AVAILABLE,
+            is_connected=True,
+            is_available=True,
+            details=details,
+        )
+
+    def _check_vm_cluster(self, timeout: int) -> dict[str, Any]:
+        self._validate_check_endpoint()
+        schema = self.schema if self.schema in ("http", "https") else "http"
+        url = f"{schema}://{self.domain_name}:{self.port}/health"
+        with ExitStack() as stack:
+            verify: bool | str = True
+            if schema == "https":
+                if self.ssl_insecure_skip_verify:
+                    verify = False
+                elif self.ssl_certificate_authorities:
+                    verify = self._write_check_temp_file(stack, self.ssl_certificate_authorities)
+
+            response = requests.get(url, timeout=timeout, verify=verify)
+
+        details = {"url": url, "status_code": response.status_code}
+        if response.status_code >= 400:
+            details["response"] = response.text[:200]
+            return self._build_cluster_check_result(
+                status=self.CHECK_STATUS_UNAVAILABLE,
+                is_connected=True,
+                is_available=False,
+                error=self._build_cluster_check_error(
+                    code=self.CHECK_ERROR_HTTP_UNHEALTHY,
+                    message="VictoriaMetrics health 接口返回异常状态码",
+                    details=details,
+                ),
+                details=details,
+            )
+
+        return self._build_cluster_check_result(
+            status=self.CHECK_STATUS_AVAILABLE,
+            is_connected=True,
+            is_available=True,
+            details=details,
+        )
+
+    def _check_doris_cluster(self, timeout: int) -> dict[str, Any]:
+        self._validate_check_endpoint()
+        connection = pymysql.connect(
+            host=self.domain_name,
+            port=int(self.port),
+            user=self.username or "",
+            password=self.password or "",
+            charset="utf8mb4",
+            cursorclass=pymysql.cursors.DictCursor,
+            connect_timeout=timeout,
+            read_timeout=timeout,
+            write_timeout=timeout,
+        )
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                row = cursor.fetchone()
+        finally:
+            connection.close()
+
+        return self._build_cluster_check_result(
+            status=self.CHECK_STATUS_AVAILABLE,
+            is_connected=True,
+            is_available=True,
+            details={"query": "SELECT 1", "response": row},
+        )
 
     @classmethod
     def refresh_consul_storage_config(cls):

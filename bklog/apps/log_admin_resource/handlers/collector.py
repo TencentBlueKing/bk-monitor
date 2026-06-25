@@ -41,19 +41,21 @@ def list_collectors(params):
     if params.get("table_id"):
         qs = qs.filter(table_id__icontains=params["table_id"])
 
+    if params.get("storage_cluster_id") not in (None, ""):
+        storage_cluster_id = int(params["storage_cluster_id"])
+        qs = qs.filter(collector_config_id__in=_get_collector_config_ids_by_storage_cluster(qs, storage_cluster_id))
+    if params.get("log_access_type") not in (None, ""):
+        qs = qs.filter(
+            collector_config_id__in=_get_collector_config_ids_by_log_access_type(qs, params["log_access_type"])
+        )
+
     ordering = params.get("ordering") or params.get("order_by") or "-updated_at"
     qs = _apply_ordering(qs, ordering)
 
-    summaries = [serialize_collector(collector) for collector in qs]
-    if params.get("storage_cluster_id") not in (None, ""):
-        storage_cluster_id = int(params["storage_cluster_id"])
-        summaries = [item for item in summaries if item["storage_cluster_id"] == storage_cluster_id]
-    if params.get("log_access_type") not in (None, ""):
-        summaries = [item for item in summaries if item["log_access_type"] == params["log_access_type"]]
-
-    total = len(summaries)
+    total = qs.count()
     start = (page - 1) * page_size
-    return {"items": summaries[start : start + page_size], "page": page, "page_size": page_size, "total": total}
+    collectors = list(qs[start : start + page_size])
+    return {"items": serialize_collectors(collectors), "page": page, "page_size": page_size, "total": total}
 
 
 def get_collector_detail(params):
@@ -136,13 +138,35 @@ def mask_sensitive(value):
 
 
 def serialize_collector(collector):
-    primary_index_set, primary_index_data = _get_primary_index_set(collector.collector_config_id)
-    container_config = _get_container_config(collector.collector_config_id)
+    return serialize_collectors([collector])[0]
+
+
+def serialize_collectors(collectors):
+    collectors = list(collectors)
+    collector_config_ids = [collector.collector_config_id for collector in collectors]
+    primary_index_set_map = _get_primary_index_set_map(collector_config_ids)
+    primary_index_data_map = _get_primary_index_data_map(primary_index_set_map.values())
+    container_config_map = _get_container_config_map(collector_config_ids)
+
+    return [
+        _serialize_collector_with_relations(
+            collector=collector,
+            primary_index_set=primary_index_set_map.get(collector.collector_config_id),
+            primary_index_data=(
+                primary_index_data_map.get(primary_index_set_map[collector.collector_config_id].index_set_id)
+                if collector.collector_config_id in primary_index_set_map
+                else None
+            ),
+            container_config=container_config_map.get(collector.collector_config_id),
+        )
+        for collector in collectors
+    ]
+
+
+def _serialize_collector_with_relations(collector, primary_index_set, primary_index_data, container_config):
     container_collector_type = container_config.collector_type if container_config else ""
-    log_access_type = LogAccessTypeEnum.get_log_access_type(
-        scenario_id="",
-        collector_scenario_id=collector.collector_scenario_id,
-        environment=collector.environment or "",
+    log_access_type = _get_log_access_type(
+        collector=collector,
         container_collector_type=container_collector_type,
     )
     storage_cluster_id = None
@@ -177,19 +201,96 @@ def serialize_collector(collector):
 
 
 def _get_primary_index_set(collector_config_id):
-    index_set = (
-        LogIndexSet.objects.filter(collector_config_id=collector_config_id)
-        .order_by("-updated_at", "-index_set_id")
-        .first()
-    )
+    index_set = _get_primary_index_set_map([collector_config_id]).get(collector_config_id)
     if not index_set:
         return None, None
-    index_data = (
-        LogIndexSetData.objects.filter(index_set_id=index_set.index_set_id, type=IndexSetDataType.RESULT_TABLE.value)
-        .order_by("-index_id")
-        .first()
-    )
+    index_data = _get_primary_index_data_map([index_set]).get(index_set.index_set_id)
     return index_set, index_data
+
+
+def _get_primary_index_set_map(collector_config_ids):
+    result = {}
+    if not collector_config_ids:
+        return result
+    index_sets = LogIndexSet.objects.filter(collector_config_id__in=collector_config_ids).order_by(
+        "collector_config_id", "-updated_at", "-index_set_id"
+    )
+    for index_set in index_sets:
+        if index_set.collector_config_id not in result:
+            result[index_set.collector_config_id] = index_set
+    return result
+
+
+def _get_primary_index_data_map(index_sets):
+    result = {}
+    index_set_ids = [index_set.index_set_id for index_set in index_sets]
+    if not index_set_ids:
+        return result
+    index_data_list = LogIndexSetData.objects.filter(
+        index_set_id__in=index_set_ids, type=IndexSetDataType.RESULT_TABLE.value
+    ).order_by("index_set_id", "-index_id")
+    for index_data in index_data_list:
+        if index_data.index_set_id not in result:
+            result[index_data.index_set_id] = index_data
+    return result
+
+
+def _get_container_config_map(collector_config_ids):
+    result = {}
+    if not collector_config_ids:
+        return result
+    container_configs = ContainerCollectorConfig.objects.filter(collector_config_id__in=collector_config_ids).order_by(
+        "collector_config_id", "-updated_at", "-id"
+    )
+    for container_config in container_configs:
+        if container_config.collector_config_id not in result:
+            result[container_config.collector_config_id] = container_config
+    return result
+
+
+def _get_collector_config_ids_by_storage_cluster(qs, storage_cluster_id):
+    collector_config_ids = list(qs.values_list("collector_config_id", flat=True))
+    primary_index_set_map = _get_primary_index_set_map(collector_config_ids)
+    primary_index_data_map = _get_primary_index_data_map(primary_index_set_map.values())
+    matched_collector_config_ids = []
+
+    for collector_config_id in collector_config_ids:
+        primary_index_set = primary_index_set_map.get(collector_config_id)
+        if not primary_index_set:
+            continue
+        current_storage_cluster_id = primary_index_set.storage_cluster_id
+        if current_storage_cluster_id is None:
+            primary_index_data = primary_index_data_map.get(primary_index_set.index_set_id)
+            if primary_index_data:
+                current_storage_cluster_id = primary_index_data.storage_cluster_id
+        if current_storage_cluster_id == storage_cluster_id:
+            matched_collector_config_ids.append(collector_config_id)
+
+    return matched_collector_config_ids
+
+
+def _get_collector_config_ids_by_log_access_type(qs, log_access_type):
+    collectors = list(qs.only("collector_config_id", "collector_scenario_id", "environment"))
+    collector_config_ids = [collector.collector_config_id for collector in collectors]
+    container_config_map = _get_container_config_map(collector_config_ids)
+    matched_collector_config_ids = []
+
+    for collector in collectors:
+        container_config = container_config_map.get(collector.collector_config_id)
+        container_collector_type = container_config.collector_type if container_config else ""
+        if _get_log_access_type(collector, container_collector_type) == log_access_type:
+            matched_collector_config_ids.append(collector.collector_config_id)
+
+    return matched_collector_config_ids
+
+
+def _get_log_access_type(collector, container_collector_type):
+    return LogAccessTypeEnum.get_log_access_type(
+        scenario_id="",
+        collector_scenario_id=collector.collector_scenario_id,
+        environment=collector.environment or "",
+        container_collector_type=container_collector_type,
+    )
 
 
 def _get_index_set_relations(primary_index_set, primary_index_data, bkdata_clean):

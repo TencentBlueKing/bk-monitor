@@ -62,11 +62,42 @@ def get_discover_start_cluster_id_suffix() -> int | None:
     return start_cluster_id_suffix
 
 
-def is_discover_managed_cluster(cluster_id: str, start_cluster_id_suffix: int | None) -> bool:
+def is_discover_biz_blacklisted(bk_biz_id: int | str | None) -> bool:
+    """判断业务是否在 BCS 集群自动发现黑名单内。"""
+    if bk_biz_id is None:
+        return False
+
+    blacklisted_biz_ids = {str(biz_id).strip() for biz_id in settings.BCS_DISCOVER_BCS_CLUSTER_BIZ_BLACK_LIST}
+    return str(bk_biz_id).strip() in blacklisted_biz_ids
+
+
+def is_discover_biz_whitelisted(bk_biz_id: int | str | None) -> bool:
+    """判断业务是否在 BCS 集群自动发现白名单内。
+
+    白名单是起始集群阈值（``BCS_DISCOVER_START_CLUSTER_ID``）的例外：命中白名单的业务，
+    即使集群 ID 后缀不大于阈值，也会被 discover 任务接管。白名单为空表示无例外。
+
+    Args:
+        bk_biz_id: 集群所属业务 ID。
+
+    Returns:
+        True 表示业务命中白名单（豁免阈值过滤）；False 表示未命中。
+    """
+    if bk_biz_id is None:
+        return False
+
+    whitelisted_biz_ids = {str(biz_id).strip() for biz_id in settings.BCS_DISCOVER_BCS_CLUSTER_BIZ_WHITE_LIST}
+    return str(bk_biz_id).strip() in whitelisted_biz_ids
+
+
+def is_discover_managed_cluster(cluster_id: str, start_cluster_id_suffix: int | None, bk_biz_id: int | str) -> bool:
     """
     判断当前集群是否由 discover 任务接管新增和删除。
 
-    规则：
+    规则（按顺序短路）：
+    - ``bk_biz_id`` 命中 ``BCS_DISCOVER_BCS_CLUSTER_BIZ_BLACK_LIST``：不接管（黑名单优先级最高）；
+    - ``bk_biz_id`` 命中 ``BCS_DISCOVER_BCS_CLUSTER_BIZ_WHITE_LIST``：接管（作为起始集群阈值的例外，
+      即使 ``cluster_id`` 后缀不大于阈值也接管）；
     - 未配置 ``BCS_DISCOVER_START_CLUSTER_ID``（``start_cluster_id_suffix`` 为 ``None``）：全部接管，保持历史行为；
     - 已配置：仅当 ``cluster_id`` 的数字后缀**严格大于**该阈值时才接管，阈值本身不接管；
     - ``cluster_id`` 无法解析出数字后缀：保守地视为不接管，避免异常数据被误纳入删除链。
@@ -74,10 +105,18 @@ def is_discover_managed_cluster(cluster_id: str, start_cluster_id_suffix: int | 
     Args:
         cluster_id: BCS 集群 ID，形如 ``BCS-K8S-00001``。
         start_cluster_id_suffix: ``BCS_DISCOVER_START_CLUSTER_ID`` 的数字后缀，``None`` 表示阈值未生效。
+        bk_biz_id: 集群所属业务 ID，用于应用业务黑/白名单过滤。
 
     Returns:
         True 表示该集群由 discover 任务接管；False 表示不接管。
     """
+    if is_discover_biz_blacklisted(bk_biz_id):
+        return False
+
+    # 白名单作为起始集群阈值的例外：命中即接管，绕过 cluster_id 后缀阈值过滤。
+    if is_discover_biz_whitelisted(bk_biz_id):
+        return True
+
     if start_cluster_id_suffix is None:
         return True
 
@@ -117,13 +156,28 @@ def refresh_bcs_monitor_info():
     # 对 bcs_clusters 进行排序，确保 fed_cluster_id_list 中的集群优先
     bcs_clusters = sorted(bcs_clusters, key=lambda x: x.cluster_id not in fed_cluster_id_list)
 
+    # discover 任务起始集群 ID 阈值，用于与 discover_bcs_clusters 的接管范围保持一致
+    start_cluster_id_suffix = get_discover_start_cluster_id_suffix()
+
     # 拉取所有cluster，遍历刷新monitorinfo信息
     for cluster in bcs_clusters:
+        # 跳过不由 discover 接管的集群（黑名单业务、白名单外且集群后缀不大于阈值等），
+        # 避免刷新本任务范围外集群的监控信息。
+        if not is_discover_managed_cluster(cluster.cluster_id, start_cluster_id_suffix, bk_biz_id=cluster.bk_biz_id):
+            logger.info(
+                "refresh_bcs_monitor_info: cluster_id:%s,bk_biz_id:%s is not managed by discover filters, skip refresh",
+                cluster.cluster_id,
+                cluster.bk_biz_id,
+            )
+            continue
+
         try:
             is_fed_cluster = cluster.cluster_id in fed_cluster_id_list
             # 刷新集群内置公共dataid resource
-            cluster.refresh_common_resource(is_fed_cluster=is_fed_cluster)
-            logger.debug(f"refresh bcs common resource in cluster:{cluster.cluster_id} done")
+            # NOTE: 没有必要每次都刷新dataid，可以交给discover_bcs_clusters任务刷新
+            if not settings.DISABLE_BCS_CLUSTER_REFRESH_COMMON_RESOURCE:
+                cluster.refresh_common_resource(is_fed_cluster=is_fed_cluster)
+                logger.info(f"refresh bcs common resource in cluster:{cluster.cluster_id} done")
 
             # 查找新的monitor info并记录到数据库，删除已不存在的
             ServiceMonitorInfo.refresh_resource(cluster.cluster_id, cluster.CustomMetricDataID)
@@ -299,13 +353,21 @@ def discover_bcs_clusters():
             cluster_raw_status = bcs_cluster["status"]
             all_discovered_cluster_ids.add(cluster_id)
             is_fed_cluster = cluster_id in fed_cluster_id_list
-            is_managed_cluster = is_discover_managed_cluster(cluster_id, start_cluster_id_suffix)
+            is_managed_cluster = is_discover_managed_cluster(cluster_id, start_cluster_id_suffix, bk_biz_id=bk_biz_id)
             if is_managed_cluster:
                 managed_discovered_cluster_ids.add(cluster_id)
 
             # todo 同一个集群在切换业务时不能重复接入
             cluster = BCSClusterInfo.objects.filter(cluster_id=cluster_id).first()
             if cluster:
+                if not is_managed_cluster:
+                    logger.info(
+                        "discover_bcs_clusters: cluster_id:%s,bk_biz_id:%s is not managed by discover filters, skip update",
+                        cluster_id,
+                        bk_biz_id,
+                    )
+                    continue
+
                 # 更新集群信息，兼容集群迁移场景
                 # 场景1:集群迁移业务，项目ID不变，只会变业务ID
                 # 场景2:集群迁移项目，项目ID和业务ID都可能变化
@@ -379,9 +441,13 @@ def discover_bcs_clusters():
 
             if not is_managed_cluster:
                 logger.info(
-                    "discover_bcs_clusters: cluster_id:%s is not managed by start cluster id(%s), skip register",
+                    "discover_bcs_clusters: cluster_id:%s,bk_biz_id:%s is not managed by discover filters, "
+                    "start_cluster_id:%s,biz_black_list:%s,biz_white_list:%s, skip register",
                     cluster_id,
+                    bk_biz_id,
                     settings.BCS_DISCOVER_START_CLUSTER_ID,
+                    settings.BCS_DISCOVER_BCS_CLUSTER_BIZ_BLACK_LIST,
+                    settings.BCS_DISCOVER_BCS_CLUSTER_BIZ_WHITE_LIST,
                 )
                 continue
 
@@ -429,8 +495,8 @@ def discover_bcs_clusters():
         protected_cluster_ids = managed_discovered_cluster_ids | set(settings.ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST)
         managed_existing_cluster_ids = [
             cluster_id
-            for cluster_id in BCSClusterInfo.objects.values_list("cluster_id", flat=True)
-            if is_discover_managed_cluster(cluster_id, start_cluster_id_suffix)
+            for cluster_id, bk_biz_id in BCSClusterInfo.objects.values_list("cluster_id", "bk_biz_id")
+            if is_discover_managed_cluster(cluster_id, start_cluster_id_suffix, bk_biz_id=bk_biz_id)
         ]
 
         if managed_existing_cluster_ids:

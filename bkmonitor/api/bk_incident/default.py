@@ -26,8 +26,8 @@ class IncidentBaseResource(APIResource, metaclass=abc.ABCMeta):
             return settings.BK_INCIDENT_APIGW_URL
         return f"{settings.BK_COMPONENT_API_URL}/api/incident-manager/prod/"
 
-    def convert_bk_biz_id_list_to_scope_id_list(self,params,bk_biz_id_list):
-        return [params.get('scope_type','bkcc')+"_"+str(bk_biz_id) for bk_biz_id in bk_biz_id_list]
+    def convert_bk_biz_id_list_to_scope_id_list(self, params, bk_biz_id_list):
+        return [params.get("scope_type", "bkcc") + "_" + str(bk_biz_id) for bk_biz_id in bk_biz_id_list]
 
     def convert_bk_biz_id_to_scope_value(self, params):
         """
@@ -54,22 +54,26 @@ class IncidentBaseResource(APIResource, metaclass=abc.ABCMeta):
 
         return params
 
-    def convert_scope_id_list(self,params):
+    def convert_scope_id_list(self, params):
         bk_biz_id_list = params.pop("bk_biz_id_list", [])
 
         if bk_biz_id_list:
-            params["scope_id_list"]= self.convert_bk_biz_id_list_to_scope_id_list(params,bk_biz_id_list)
+            params["scope_id_list"] = self.convert_bk_biz_id_list_to_scope_id_list(params, bk_biz_id_list)
 
         bk_biz_id_config = params.pop("bk_biz_id_config", {})
 
         if bk_biz_id_config:
-            if bk_biz_id_config.get("scope_id_list_open",[]):
-                bk_biz_id_config["scope_id_list_open"] = self.convert_bk_biz_id_list_to_scope_id_list(params,bk_biz_id_config.get("scope_id_list_open",[]))
+            if bk_biz_id_config.get("scope_id_list_open", []):
+                bk_biz_id_config["scope_id_list_open"] = self.convert_bk_biz_id_list_to_scope_id_list(
+                    params, bk_biz_id_config.get("scope_id_list_open", [])
+                )
 
-            if bk_biz_id_config.get("scope_id_list_close",[]):
-                bk_biz_id_config["scope_id_list_close"] = self.convert_bk_biz_id_list_to_scope_id_list(params,bk_biz_id_config.get("scope_id_list_close",[]))
+            if bk_biz_id_config.get("scope_id_list_close", []):
+                bk_biz_id_config["scope_id_list_close"] = self.convert_bk_biz_id_list_to_scope_id_list(
+                    params, bk_biz_id_config.get("scope_id_list_close", [])
+                )
 
-        params["scope_id_config"]=bk_biz_id_config
+        params["scope_id_config"] = bk_biz_id_config
 
         return params
 
@@ -159,29 +163,97 @@ class GetTaskStatusResource(IncidentBaseResource):
         scope_value = serializers.CharField(label="空间ID", required=False)
         bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
 
+
+class GetIncidentDiagnosisResource(IncidentBaseResource):
+    """
+    获取故障诊断面板数据(incident_diagnosis.sub_panels)
+
+    替代旧的 api.bkdata.get_incident_analysis_results，由 incident_manager 聚合动态编排结果后返回。
+    """
+
+    action = "/incident/incident_analysis/get_incident_diagnosis/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        scope_type = serializers.CharField(label="空间类型", required=False, default="bkcc")
+        scope_value = serializers.CharField(label="空间ID", required=False)
+        bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
+        incident_id = serializers.IntegerField(label="故障ID", required=True)
+
+
+class GetIncidentDetailResource(IncidentBaseResource):
+    """获取 incident_manager 故障详情。"""
+
+    action = "/incident/incident/get_incident_detail/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        incident_id = serializers.IntegerField(label="故障ID", required=True)
+
+    def perform_request(self, validated_request_data):
+        return APIResource.perform_request(self, validated_request_data)
+
+
+class UpdateIncidentDetailResource(IncidentBaseResource):
+    """更新 incident_manager 故障详情。"""
+
+    action = "/incident/bkmonitor_api/update_incident_detail/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        incident_id = serializers.IntegerField(label="故障ID", required=True)
+        bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
+        incident_name = serializers.CharField(label="故障名称", required=False)
+        incident_reason = serializers.CharField(label="故障原因", required=False, allow_null=True, allow_blank=True)
+        level = serializers.CharField(label="故障级别", required=False)
+        status = serializers.CharField(label="故障状态", required=False)
+        assignees = serializers.ListField(label="故障负责人", required=False)
+        handlers = serializers.ListField(label="故障处理人", required=False)
+        labels = serializers.ListField(label="故障标签", required=False)
+        feedback = serializers.DictField(label="故障反馈内容", required=False)
+        end_time = serializers.IntegerField(label="故障结束时间", required=False, allow_null=True)
+        bkmonitor_received_time = serializers.IntegerField(label="监控接收故障事件时间", required=False)
+
+    def perform_request(self, validated_request_data):
+        return APIResource.perform_request(self, validated_request_data)
+
+
+class GetIncidentSnapshotResource(IncidentBaseResource):
+    """获取 incident_manager 故障快照。"""
+
+    action = "/incident/bkmonitor_api/get_incident_snapshot/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        snapshot_id = serializers.CharField(label="快照ID", required=True)
+
+    def perform_request(self, validated_request_data):
+        return APIResource.perform_request(self, validated_request_data)
+
+
 class GetConfigResource(IncidentBaseResource):
     action = "/incident/incident_config/list_configs/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
-        config_type = serializers.CharField(label="配置类型",default='data_source')
+        config_type = serializers.CharField(label="配置类型", default="data_source")
         scope_type = serializers.CharField(label="空间类型", required=False, default="bkcc")
         scope_value = serializers.CharField(label="空间ID", required=False)
         bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
         bk_biz_id_list = serializers.ListField(label="业务ID列表", required=False)
+
 
 class CreateListConfigResource(IncidentBaseResource):
     action = "/incident/incident_config/create_list_config/"
     method = "POST"
 
     class RequestSerializer(serializers.Serializer):
-        config_type = serializers.CharField(label="配置类型",required=True)
+        config_type = serializers.CharField(label="配置类型", required=True)
         scope_type = serializers.CharField(label="空间类型", required=False, default="bkcc")
         scope_value = serializers.CharField(label="空间ID", required=False)
         bk_biz_id = serializers.IntegerField(label="业务ID", required=False)
         content_list = serializers.ListField(label="配置内容", required=False)
         bk_biz_id_config = serializers.JSONField(label="scope_id配置", required=False)
-
 
 
 class FetchGlobalVariablesResource(IncidentBaseResource):

@@ -179,7 +179,11 @@ def refresh_all_log_config():
     """
     interval = 30
 
-    to_be_refreshed = list(models.LogGroup.objects.filter(is_enable=True).values_list("log_group_id", flat=True))
+    to_be_refreshed = list(
+        models.LogGroup.objects.filter(is_enable=True, is_need_deploy_collector_config=True).values_list(
+            "log_group_id", flat=True
+        )
+    )
     slug = datetime.datetime.now().minute % interval
     for index, log_group_id in enumerate(to_be_refreshed):
         if index % interval == slug:
@@ -192,8 +196,8 @@ def refresh_all_log_config_to_k8s():
     """
     刷新所有自定义日志的 K8s 配置（获取全部数据进行批量调度）
     """
-    # 获取所有启用的日志组
-    log_groups = list(models.LogGroup.objects.filter(is_enable=True))
+    # 获取所有启用且需要下发 collector 配置的日志组
+    log_groups = list(models.LogGroup.objects.filter(is_enable=True, is_need_deploy_collector_config=True))
     if not log_groups:
         return
 
@@ -213,7 +217,9 @@ def refresh_custom_log_config(log_group_id=None):
     if not log_group_id:
         return
 
-    log_group = models.LogGroup.objects.filter(is_enable=True, log_group_id=log_group_id).first()
+    log_group = models.LogGroup.objects.filter(
+        is_enable=True, is_need_deploy_collector_config=True, log_group_id=log_group_id
+    ).first()
     if log_group is None:
         return
 

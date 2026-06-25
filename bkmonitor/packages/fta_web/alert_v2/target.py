@@ -41,7 +41,7 @@ from bkmonitor.utils.alert_drilling import (
     get_log_clustering_info,
     get_log_clustering_time_range,
 )
-from constants.alert import K8S_RESOURCE_TYPE, K8STargetType, APMTargetType, EventTargetType
+from constants.alert import APMTargetType, EventTargetType, K8S_RESOURCE_TYPE, K8STargetType
 from constants.data_source import DataSourceLabel
 
 
@@ -350,7 +350,8 @@ class DefaultTarget(BaseTarget):
 
         index_set_id: str
         clustering_type, clustering_index_set_id = get_log_clustering_info(self._alert.strategy or {})
-        if clustering_type and clustering_index_set_id:
+        is_clustering: bool = bool(clustering_type and clustering_index_set_id)
+        if is_clustering:
             index_set_id = clustering_index_set_id
         else:
             if query_config.get("data_source_label") != DataSourceLabel.BK_LOG_SEARCH:
@@ -369,7 +370,7 @@ class DefaultTarget(BaseTarget):
 
         extra_filter_dict: dict[str, list[str]] = {}
         exclude_fields: set[str] | None = None
-        if clustering_type and clustering_index_set_id:
+        if is_clustering:
             time_range: tuple[int, int] | None = get_log_clustering_time_range(self._alert, clustering_type)
             if time_range:
                 start_time, end_time = time_range
@@ -382,8 +383,9 @@ class DefaultTarget(BaseTarget):
             dimensions=get_alert_dimensions(self._alert),
             exclude_fields=exclude_fields,
             extra_filter_dict=extra_filter_dict,
+            is_merge2keyword=not is_clustering,
         )
-        if clustering_type and clustering_index_set_id:
+        if is_clustering:
             # 聚类告警依赖 addition 过滤，keyword 置空可让前端保持 UI 过滤模式。
             log_search_condition["keyword"] = ""
 
@@ -589,6 +591,13 @@ class HostTarget(DefaultTarget):
     def _get_k8s_resource_type(self) -> str:
         return K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD]
 
+    # Source.name（小写）-> 标准 K8S workload kind（大写）的映射
+    _SOURCE_TYPE_TO_K8S_KIND: dict[str, str] = {
+        SourceK8sDeployment.name: "Deployment",
+        SourceK8sDaemonSet.name: "DaemonSet",
+        SourceK8sStatefulSet.name: "StatefulSet",
+    }
+
     def _list_related_k8s_targets(self) -> list[dict[str, Any]]:
         if not self._alert.event.ip:
             return []
@@ -616,8 +625,9 @@ class HostTarget(DefaultTarget):
                 info: dict[str, Any] = node.source_info.to_source_info()
                 bcs_cluster_id: str = info.get("bcs_cluster_id", "")
                 namespace: str = info.get("namespace", "")
-                workload_kind: str = node.source_type
-                workload_name: str = info.get(workload_kind, "")
+                source_type: str = node.source_type
+                workload_name: str = info.get(source_type, "")
+                workload_kind: str = self._SOURCE_TYPE_TO_K8S_KIND.get(source_type, "")
                 if not all([bcs_cluster_id, namespace, workload_kind, workload_name]):
                     continue
 

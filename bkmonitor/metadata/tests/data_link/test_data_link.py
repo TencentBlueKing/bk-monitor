@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -38,6 +39,10 @@ from metadata.models.data_link.constants import (
     BASEREPORT_USAGES,
     DataLinkKind,
     DataLinkResourceStatus,
+    SYSTEM_PROC_PERF_BASEREPORT_METRIC_TYPE,
+    SYSTEM_PROC_PERF_DATABUS_FORMAT,
+    SYSTEM_PROC_PORT_BASEREPORT_METRIC_TYPE,
+    SYSTEM_PROC_PORT_DATABUS_FORMAT,
 )
 from metadata.models.data_link.data_link_configs import (
     DataBusConfig,
@@ -82,6 +87,43 @@ def _create_simple_rebuild_result_table(
         creator="system",
         last_modify_user="system",
     )
+
+
+def _apply_standard_v2_data_link(data_link_ins: DataLink, data_source: models.DataSource, table_id: str, **kwargs):
+    with (
+        patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2),
+        patch.object(DataLink, "get_existing_component_config", return_value=None),
+        patch.object(DataLink, "apply_data_link_with_retry", return_value={"status": "success"}) as mock_apply,
+    ):
+        data_link_ins.apply_data_link(
+            bk_biz_id=1001,
+            data_source=data_source,
+            table_id=table_id,
+            storage_cluster_name="vm-plat",
+            **kwargs,
+        )
+
+    return mock_apply.call_args.args[0]
+
+
+def _get_databus_config_payload(configs: list[dict]) -> dict:
+    return next(config for config in configs if config["kind"] == DataLinkKind.DATABUS.value)
+
+
+def _with_compose_nullable_fields(configs: list[dict] | dict) -> list[dict] | dict:
+    config_list = [configs] if isinstance(configs, dict) else configs
+    for config in config_list:
+        spec = config.get("spec")
+        if not isinstance(spec, dict):
+            continue
+        if config.get("kind") == DataLinkKind.RESULTTABLE.value:
+            spec.setdefault("fields", None)
+        elif config.get("kind") == DataLinkKind.ESSTORAGEBINDING.value:
+            spec.setdefault("json_field_list", None)
+        elif config.get("kind") == DataLinkKind.VMSTORAGEBINDING.value:
+            for field in ("filter", "metricGroupDimensions", "ddVersion"):
+                spec.setdefault(field, None)
+    return configs
 
 
 @pytest.fixture
@@ -294,6 +336,9 @@ def create_or_delete_records(mocker):
     models.AccessVMRecord.objects.filter(
         result_table_id__in=["system_1_system_proc.perf", "system_1_system_proc.port"]
     ).delete()
+    models.KafkaTopicInfo.objects.filter(
+        bk_data_id__in=[50010, 50011, 50012, 60010, 60011, 70010, 80010, 90010, 90011]
+    ).delete()
     models.DataLink.objects.filter(data_link_name__in=["base_1_system_proc_perf", "base_1_system_proc_port"]).delete()
 
 
@@ -343,7 +388,7 @@ def test_Standard_V2_Time_Series_compose_configs(create_or_delete_records):
         configs = data_link_ins.compose_configs(
             bk_biz_id=1001, data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat"
         )
-    assert json.dumps(configs) == expected_configs
+    assert configs == _with_compose_nullable_fields(json.loads(expected_configs))
 
     # 测试实例是否正确创建
     vm_table_id_ins = ResultTableConfig.objects.get(name=bkbase_vmrt_name)
@@ -429,7 +474,7 @@ def test_compose_bcs_federal_time_series_configs(create_or_delete_records):
         configs = data_link_ins.compose_configs(
             bk_biz_id=1001, data_source=ds, table_id=rt.table_id, storage_cluster_name="vm-plat"
         )
-    assert json.dumps(configs) == expected
+    assert configs == _with_compose_nullable_fields(json.loads(expected))
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -529,7 +574,7 @@ def test_compose_bcs_federal_subset_time_series_configs(create_or_delete_records
         bcs_cluster_id="BCS-K8S-10002",
         storage_cluster_name="vm-plat",
     )
-    assert json.dumps(content) == expected
+    assert content == _with_compose_nullable_fields(json.loads(expected))
 
     conditional_sink_ins = models.ConditionalSinkConfig.objects.get(data_link_name=bkbase_data_name)
     assert conditional_sink_ins.namespace == "bkmonitor"
@@ -607,6 +652,113 @@ def test_Standard_V2_Time_Series_apply_data_link(create_or_delete_records):
     )
 
 
+@pytest.mark.django_db(databases="__all__")
+def test_compose_transfer_consumer_group_uses_transfer_prefix_and_topic(create_or_delete_records, mocker):
+    ds = models.DataSource.objects.get(bk_data_id=50010)
+    models.KafkaTopicInfo.objects.update_or_create(
+        bk_data_id=ds.bk_data_id,
+        defaults={"topic": "0bkmonitor_50010", "partition": 1},
+    )
+
+    assert utils.compose_transfer_consumer_group(ds) == "bkmonitorv3_transfer0bkmonitor_50010"
+
+    mocker.patch.object(settings, "TRANSFER_CONSUMER_GROUP_ID", "custom_transfer_")
+    assert utils.compose_transfer_consumer_group(ds) == "custom_transfer_0bkmonitor_50010"
+
+
+def test_compose_transfer_consumer_group_raises_when_topic_empty():
+    data_source = SimpleNamespace(bk_data_id=50010, mq_config=SimpleNamespace(topic=""))
+
+    with pytest.raises(ValueError, match=r"data_source\(50010\) mq topic is empty"):
+        utils.compose_transfer_consumer_group(data_source)
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_apply_data_link_writes_consumer_group_when_local_empty(create_or_delete_records):
+    ds = models.DataSource.objects.get(bk_data_id=50010)
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
+    bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id)
+    data_link_ins = DataLink.objects.create(
+        data_link_name=bkbase_data_name,
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
+    )
+
+    configs = _apply_standard_v2_data_link(
+        data_link_ins,
+        ds,
+        rt.table_id,
+        consumer_group="bkmonitorv3_transfer0bkmonitor_50010",
+    )
+
+    databus_payload = _get_databus_config_payload(configs)
+    assert databus_payload["spec"]["consumerGroup"] == "bkmonitorv3_transfer0bkmonitor_50010"
+    assert DataBusConfig.objects.get(name=bkbase_vmrt_name).consumer_group == "bkmonitorv3_transfer0bkmonitor_50010"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_apply_data_link_keeps_existing_consumer_group(create_or_delete_records, caplog):
+    ds = models.DataSource.objects.get(bk_data_id=50010)
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
+    bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id)
+    data_link_ins = DataLink.objects.create(
+        data_link_name=bkbase_data_name,
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
+    )
+
+    _apply_standard_v2_data_link(data_link_ins, ds, rt.table_id, consumer_group="consumer_group_old")
+    caplog.set_level("WARNING", logger="metadata")
+    configs = _apply_standard_v2_data_link(data_link_ins, ds, rt.table_id, consumer_group="consumer_group_new")
+
+    databus_payload = _get_databus_config_payload(configs)
+    databus_config = DataBusConfig.objects.get(name=bkbase_vmrt_name)
+    assert databus_payload["spec"]["consumerGroup"] == "consumer_group_old"
+    assert databus_config.consumer_group == "consumer_group_old"
+    assert "keep existing" in caplog.text
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_apply_data_link_empty_consumer_group_does_not_update_existing(create_or_delete_records):
+    ds = models.DataSource.objects.get(bk_data_id=50010)
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
+    bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id)
+    data_link_ins = DataLink.objects.create(
+        data_link_name=bkbase_data_name,
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
+    )
+
+    _apply_standard_v2_data_link(data_link_ins, ds, rt.table_id, consumer_group="consumer_group_old")
+    configs = _apply_standard_v2_data_link(data_link_ins, ds, rt.table_id, consumer_group="")
+
+    databus_payload = _get_databus_config_payload(configs)
+    assert databus_payload["spec"]["consumerGroup"] == "consumer_group_old"
+    assert DataBusConfig.objects.get(name=bkbase_vmrt_name).consumer_group == "consumer_group_old"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_apply_data_link_empty_consumer_group_does_not_render_when_local_empty(create_or_delete_records):
+    ds = models.DataSource.objects.get(bk_data_id=50010)
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
+    bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id)
+    data_link_ins = DataLink.objects.create(
+        data_link_name=bkbase_data_name,
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
+    )
+
+    configs = _apply_standard_v2_data_link(data_link_ins, ds, rt.table_id, consumer_group="")
+
+    databus_payload = _get_databus_config_payload(configs)
+    assert "consumerGroup" not in databus_payload["spec"]
+    assert DataBusConfig.objects.get(name=bkbase_vmrt_name).consumer_group == ""
+
+
 def test_merge_component_config_merges_config_fields_and_drops_runtime_fields():
     existing_config = {
         "kind": DataLinkKind.RESULTTABLE.value,
@@ -647,6 +799,34 @@ def test_merge_component_config_merges_config_fields_and_drops_runtime_fields():
     assert merged_config["spec"]["alias"] == "new_alias"
     # 当前 merge 只做顶层补缺，不递归补齐已存在 dict 的子字段。
     assert merged_config["spec"]["storage_config"] == {"override": "new"}
+
+
+def test_merge_component_config_blocks_immutable_result_table_biz_id_change():
+    existing_config = {
+        "kind": DataLinkKind.RESULTTABLE.value,
+        "metadata": {
+            "name": "result_table",
+            "namespace": "bkmonitor",
+        },
+        "spec": {
+            "alias": "result_table",
+            "bizId": 1,
+        },
+    }
+    config = {
+        "kind": DataLinkKind.RESULTTABLE.value,
+        "metadata": {
+            "name": "result_table",
+            "namespace": "bkmonitor",
+        },
+        "spec": {
+            "alias": "result_table",
+            "bizId": 2,
+        },
+    }
+
+    with pytest.raises(ValueError, match=r"spec\.bizId"):
+        DataLink.merge_component_config(existing_config, config)
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -721,6 +901,56 @@ def test_apply_data_link_merges_existing_component_config_before_apply(create_or
     assert result_table_config["spec"]["alias"] == bkbase_vmrt_name
     assert result_table_config["spec"]["bizId"] == 2
     assert result_table_config["spec"]["custom_config"] == {"keep": True}
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_apply_data_link_blocks_result_table_biz_id_change_before_apply(create_or_delete_records, mocker):
+    ds = models.DataSource.objects.get(bk_data_id=50010)
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
+    bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
+    bkbase_vmrt_name = utils.compose_bkdata_table_id(rt.table_id)
+
+    data_link_ins, _ = DataLink.objects.get_or_create(
+        data_link_name=bkbase_data_name,
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
+    )
+
+    def _get_data_link(bk_tenant_id, kind, namespace, name):
+        if kind == DataLinkKind.get_choice_value(DataLinkKind.RESULTTABLE.value) and name == bkbase_vmrt_name:
+            return {
+                "kind": DataLinkKind.RESULTTABLE.value,
+                "metadata": {
+                    "name": name,
+                    "namespace": namespace,
+                },
+                "spec": {
+                    "alias": name,
+                    "bizId": 1,
+                },
+            }
+        raise BKAPIError(
+            system_name="bkdata",
+            url="/v4/namespaces/{namespace}/{kind}/{name}/",
+            result={"message": f"resource {name} of kind {kind} not found"},
+        )
+
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+    with (
+        patch("metadata.models.data_link.data_link.api.bkdata.get_data_link", side_effect=_get_data_link),
+        patch.object(
+            DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
+        ) as mock_apply_with_retry,
+    ):
+        with pytest.raises(ValueError, match=r"spec\.bizId"):
+            data_link_ins.apply_data_link(
+                bk_biz_id=1001,
+                data_source=ds,
+                table_id=rt.table_id,
+                storage_cluster_name="vm-plat",
+            )
+
+    mock_apply_with_retry.assert_not_called()
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -972,9 +1202,11 @@ def test_create_bkbase_data_link_uses_configured_bkbase_result_table_datalink(cr
             data_source=ds,
             monitor_table_id=rt.table_id,
             storage_cluster_name="vm-plat",
+            consumer_group="vm_consumer_group",
         )
 
     assert mock_apply_data_link.call_args.args[0].data_link_name == configured_data_link_name
+    assert mock_apply_data_link.call_args.kwargs["consumer_group"] == "vm_consumer_group"
     assert mock_sync_metadata.call_args.args[0].data_link_name == configured_data_link_name
     assert not DataLink.objects.filter(data_link_name=generated_data_link_name).exists()
 
@@ -2307,7 +2539,7 @@ def test_create_basereport_datalink_for_bkcc_bkbase_v4_part(create_or_delete_rec
         },
     ]
     actual_resource_configs = [c for c in actual_configs if c["kind"] not in {"BasereportSink", "Databus"}]
-    assert actual_resource_configs == expected_config[:-2]
+    assert actual_resource_configs == _with_compose_nullable_fields(expected_config[:-2])
     assert not any(c["kind"] == "ConditionalSink" for c in actual_configs)
     assert not models.ConditionalSinkConfig.objects.filter(data_link_name="system_1_sys_base").exists()
 
@@ -3301,6 +3533,54 @@ def test_get_bkbase_components_config_extracts_result_table_id_case_insensitive(
     assert extra_config["bkbase_table_id"] == "2_bkm_space_42_bkapm_metric_bkapp_ai_adb84"
 
 
+def test_get_bkbase_components_config_extracts_databus_consumer_group():
+    """同步 Databus 时，应反填 BKBase spec.consumerGroup。"""
+    config = {
+        "kind": "Databus",
+        "metadata": {"name": "l_1575783", "namespace": "bkmonitor", "labels": {"bk_biz_id": "7"}},
+        "spec": {
+            "sinks": [{"kind": "ElasticSearchBinding", "name": "l_1575783"}],
+            "sources": [{"kind": "DataId", "name": "l_1575783"}],
+            "consumerGroup": "bkmonitorv3_transfer0bkmonitor_15757830",
+        },
+        "status": {"phase": "Ok"},
+    }
+
+    base_config, extra_config = _get_bkbase_components_config(
+        bk_tenant_id="default",
+        kind=DataLinkKind.DATABUS.value,
+        namespace="bkmonitor",
+        config=config,
+    )
+
+    assert base_config["name"] == "l_1575783"
+    assert extra_config["data_id_name"] == "l_1575783"
+    assert extra_config["sink_names"] == ["ElasticSearchBinding:l_1575783"]
+    assert extra_config["consumer_group"] == "bkmonitorv3_transfer0bkmonitor_15757830"
+
+
+def test_get_bkbase_components_config_defaults_databus_consumer_group():
+    """同步 Databus 时，缺省 consumerGroup 应落为空字符串。"""
+    config = {
+        "kind": "Databus",
+        "metadata": {"name": "l_1575784", "namespace": "bkmonitor", "labels": {"bk_biz_id": "7"}},
+        "spec": {
+            "sinks": [{"kind": "ElasticSearchBinding", "name": "l_1575784"}],
+            "sources": [{"kind": "DataId", "name": "l_1575784"}],
+        },
+        "status": {"phase": "Ok"},
+    }
+
+    _, extra_config = _get_bkbase_components_config(
+        bk_tenant_id="default",
+        kind=DataLinkKind.DATABUS.value,
+        namespace="bkmonitor",
+        config=config,
+    )
+
+    assert extra_config["consumer_group"] == ""
+
+
 def test_get_bkbase_components_config_supports_basereport_sink():
     """BKBase 组件反向同步时，应只持久化 BasereportSink 实际关联的 VMStorageBinding。"""
     config = {
@@ -3515,7 +3795,7 @@ def test_create_base_event_datalink_for_bkcc_bkbase_part(create_or_delete_record
         },
     ]
 
-    assert actual_configs == expected_configs
+    assert actual_configs == _with_compose_nullable_fields(expected_configs)
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -3657,7 +3937,7 @@ def test_create_bkbase_data_link_for_bk_exporter(create_or_delete_records, mocke
         },
     ]
 
-    assert actual_configs == expected_configs
+    assert actual_configs == _with_compose_nullable_fields(expected_configs)
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -3799,7 +4079,7 @@ def test_create_bkbase_data_link_for_bk_standard(create_or_delete_records, mocke
         },
     ]
 
-    assert actual_configs == expected_configs
+    assert actual_configs == _with_compose_nullable_fields(expected_configs)
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -3836,6 +4116,8 @@ def test_create_system_proc_datalink_for_bkcc(create_or_delete_records, mocker):
     assert result_table.table_name_zh == perf_data_name
     assert result_table.is_custom_table is False
     assert result_table.default_storage == models.ClusterInfo.TYPE_VM
+    perf_cmdb_table_id = f"{perf_table_id}_cmdb"
+    assert not models.ResultTable.objects.filter(table_id=perf_cmdb_table_id).exists()
 
     # 验证数据源
     data_source = models.DataSource.objects.get(data_name=perf_data_name, bk_tenant_id=bk_tenant_id)
@@ -3845,6 +4127,9 @@ def test_create_system_proc_datalink_for_bkcc(create_or_delete_records, mocker):
     # 验证数据源结果表关联
     dsrt = models.DataSourceResultTable.objects.get(bk_data_id=data_source.bk_data_id, table_id=perf_table_id)
     assert dsrt.bk_tenant_id == bk_tenant_id
+    assert not models.DataSourceResultTable.objects.filter(
+        bk_data_id=data_source.bk_data_id, table_id=perf_cmdb_table_id
+    ).exists()
 
     # 验证 AccessVMRecord
     vm_record = models.AccessVMRecord.objects.get(result_table_id=perf_table_id)
@@ -3852,6 +4137,7 @@ def test_create_system_proc_datalink_for_bkcc(create_or_delete_records, mocker):
     assert vm_record.bk_base_data_id == data_source.bk_data_id
     assert vm_record.bk_base_data_name == perf_data_name
     assert vm_record.vm_result_table_id == "1_base_1_system_proc_perf"
+    assert not models.AccessVMRecord.objects.filter(result_table_id=perf_cmdb_table_id).exists()
 
     # 验证结果表字段
     perf_fields = SYSTEM_PROC_DATA_LINK_CONFIGS["perf"]["fields"]
@@ -3868,6 +4154,62 @@ def test_create_system_proc_datalink_for_bkcc(create_or_delete_records, mocker):
     assert data_link_ins.bk_tenant_id == bk_tenant_id
     assert data_link_ins.data_link_strategy == DataLink.SYSTEM_PROC_PERF
     assert data_link_ins.namespace == "bkmonitor"
+    assert data_link_ins.table_ids == [perf_table_id]
+    perf_configs = data_link_ins.compose_configs(
+        data_source=data_source,
+        table_id=perf_table_id,
+        storage_cluster_name="vm-default",
+        bk_biz_id=1,
+    )
+    assert any(c["kind"] == "ResultTable" and c["metadata"]["name"] == f"{perf_data_name}_cmdb" for c in perf_configs)
+    assert any(
+        c["kind"] == "VmStorageBinding" and c["metadata"]["name"] == f"{perf_data_name}_cmdb" for c in perf_configs
+    )
+    perf_basereport_sink_config = models.BasereportSinkConfig.objects.get(name=perf_data_name)
+    assert perf_basereport_sink_config.vm_storage_binding_names == [perf_data_name, f"{perf_data_name}_cmdb"]
+    assert perf_basereport_sink_config.result_table_ids == [perf_table_id, perf_cmdb_table_id]
+    perf_basereport_sink = next(
+        c for c in perf_configs if c["kind"] == "BasereportSink" and c["metadata"]["name"] == perf_data_name
+    )
+    assert perf_basereport_sink["metadata"] == {
+        "labels": {"bk_biz_id": "1"},
+        "name": perf_data_name,
+        "namespace": "bkmonitor",
+        "tenant": bk_tenant_id,
+    }
+    assert perf_basereport_sink["spec"]["mappings"] == [
+        {
+            "metric_type": SYSTEM_PROC_PERF_BASEREPORT_METRIC_TYPE,
+            "sinks": [
+                {
+                    "kind": "VmStorageBinding",
+                    "name": perf_data_name,
+                    "namespace": "bkmonitor",
+                    "tenant": bk_tenant_id,
+                }
+            ],
+        },
+        {
+            "metric_type": f"{SYSTEM_PROC_PERF_BASEREPORT_METRIC_TYPE}_cmdb",
+            "sinks": [
+                {
+                    "kind": "VmStorageBinding",
+                    "name": f"{perf_data_name}_cmdb",
+                    "namespace": "bkmonitor",
+                    "tenant": bk_tenant_id,
+                }
+            ],
+        },
+    ]
+    perf_databus_config = models.DataBusConfig.objects.get(name=perf_data_name)
+    assert perf_databus_config.sink_names == [f"BasereportSink:{perf_data_name}"]
+    perf_databus = next(c for c in perf_configs if c["kind"] == "Databus" and c["metadata"]["name"] == perf_data_name)
+    assert perf_databus["spec"]["sinks"] == [
+        {"kind": "BasereportSink", "name": perf_data_name, "namespace": "bkmonitor", "tenant": bk_tenant_id}
+    ]
+    assert perf_databus["spec"]["transforms"] == [
+        {"format": SYSTEM_PROC_PERF_DATABUS_FORMAT, "kind": "PreDefinedLogic", "name": "log_to_metric"}
+    ]
 
     # 测试 port 链路
     port_table_id = f"{bk_tenant_id}_1_system_proc.port"
@@ -3881,6 +4223,8 @@ def test_create_system_proc_datalink_for_bkcc(create_or_delete_records, mocker):
     assert result_table.table_name_zh == port_data_name
     assert result_table.is_custom_table is False
     assert result_table.default_storage == models.ClusterInfo.TYPE_VM
+    port_cmdb_table_id = f"{port_table_id}_cmdb"
+    assert not models.ResultTable.objects.filter(table_id=port_cmdb_table_id).exists()
 
     # 验证数据源
     data_source = models.DataSource.objects.get(data_name=port_data_name, bk_tenant_id=bk_tenant_id)
@@ -3890,6 +4234,9 @@ def test_create_system_proc_datalink_for_bkcc(create_or_delete_records, mocker):
     # 验证数据源结果表关联
     dsrt = models.DataSourceResultTable.objects.get(bk_data_id=data_source.bk_data_id, table_id=port_table_id)
     assert dsrt.bk_tenant_id == bk_tenant_id
+    assert not models.DataSourceResultTable.objects.filter(
+        bk_data_id=data_source.bk_data_id, table_id=port_cmdb_table_id
+    ).exists()
 
     # 验证 AccessVMRecord
     vm_record = models.AccessVMRecord.objects.get(result_table_id=port_table_id)
@@ -3897,6 +4244,7 @@ def test_create_system_proc_datalink_for_bkcc(create_or_delete_records, mocker):
     assert vm_record.bk_base_data_id == data_source.bk_data_id
     assert vm_record.bk_base_data_name == port_data_name
     assert vm_record.vm_result_table_id == "1_base_1_system_proc_port"
+    assert not models.AccessVMRecord.objects.filter(result_table_id=port_cmdb_table_id).exists()
 
     # 验证结果表字段
     port_fields = SYSTEM_PROC_DATA_LINK_CONFIGS["port"]["fields"]
@@ -3913,6 +4261,62 @@ def test_create_system_proc_datalink_for_bkcc(create_or_delete_records, mocker):
     assert data_link_ins.bk_tenant_id == bk_tenant_id
     assert data_link_ins.data_link_strategy == DataLink.SYSTEM_PROC_PORT
     assert data_link_ins.namespace == "bkmonitor"
+    assert data_link_ins.table_ids == [port_table_id]
+    port_configs = data_link_ins.compose_configs(
+        data_source=data_source,
+        table_id=port_table_id,
+        storage_cluster_name="vm-default",
+        bk_biz_id=1,
+    )
+    assert any(c["kind"] == "ResultTable" and c["metadata"]["name"] == f"{port_data_name}_cmdb" for c in port_configs)
+    assert any(
+        c["kind"] == "VmStorageBinding" and c["metadata"]["name"] == f"{port_data_name}_cmdb" for c in port_configs
+    )
+    port_basereport_sink_config = models.BasereportSinkConfig.objects.get(name=port_data_name)
+    assert port_basereport_sink_config.vm_storage_binding_names == [port_data_name, f"{port_data_name}_cmdb"]
+    assert port_basereport_sink_config.result_table_ids == [port_table_id, port_cmdb_table_id]
+    port_basereport_sink = next(
+        c for c in port_configs if c["kind"] == "BasereportSink" and c["metadata"]["name"] == port_data_name
+    )
+    assert port_basereport_sink["metadata"] == {
+        "labels": {"bk_biz_id": "1"},
+        "name": port_data_name,
+        "namespace": "bkmonitor",
+        "tenant": bk_tenant_id,
+    }
+    assert port_basereport_sink["spec"]["mappings"] == [
+        {
+            "metric_type": SYSTEM_PROC_PORT_BASEREPORT_METRIC_TYPE,
+            "sinks": [
+                {
+                    "kind": "VmStorageBinding",
+                    "name": port_data_name,
+                    "namespace": "bkmonitor",
+                    "tenant": bk_tenant_id,
+                }
+            ],
+        },
+        {
+            "metric_type": f"{SYSTEM_PROC_PORT_BASEREPORT_METRIC_TYPE}_cmdb",
+            "sinks": [
+                {
+                    "kind": "VmStorageBinding",
+                    "name": f"{port_data_name}_cmdb",
+                    "namespace": "bkmonitor",
+                    "tenant": bk_tenant_id,
+                }
+            ],
+        },
+    ]
+    port_databus_config = models.DataBusConfig.objects.get(name=port_data_name)
+    assert port_databus_config.sink_names == [f"BasereportSink:{port_data_name}"]
+    port_databus = next(c for c in port_configs if c["kind"] == "Databus" and c["metadata"]["name"] == port_data_name)
+    assert port_databus["spec"]["sinks"] == [
+        {"kind": "BasereportSink", "name": port_data_name, "namespace": "bkmonitor", "tenant": bk_tenant_id}
+    ]
+    assert port_databus["spec"]["transforms"] == [
+        {"format": SYSTEM_PROC_PORT_DATABUS_FORMAT, "kind": "PreDefinedLogic", "name": "log_to_metric"}
+    ]
 
 
 # ============================================================

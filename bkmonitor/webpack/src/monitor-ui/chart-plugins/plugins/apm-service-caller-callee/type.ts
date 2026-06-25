@@ -53,6 +53,24 @@ export type CallOptions = {
   // 对比 还是 group by
   tool_mode: EGroupCompareType;
 };
+export interface CodeRedefineItem {
+  callee_method: string;
+  callee_server: string;
+  callee_service: string;
+  id: string;
+  is_global: boolean;
+  isAbleSave?: boolean;
+  isImport?: boolean;
+  isNew?: boolean;
+  isSaving?: boolean;
+  kind: string;
+  service_names?: string[];
+  code_type_rules: {
+    exception: string;
+    success: string;
+    timeout: string;
+  };
+}
 export type DimensionItem = {
   active: boolean;
   text: string;
@@ -72,6 +90,7 @@ export interface IDataItem {
   [key: string]: any;
   dimensions?: Record<string, any>;
 }
+
 export type IDimensionChartOpt = {
   dimensionTime?: IDataItem;
   drillFilterData?: IDataItem[];
@@ -87,7 +106,6 @@ export interface IFilterCondition {
   method: string;
   value: string[];
 }
-
 export type IFilterData = {
   callee: IColumn[];
   caller: IColumn[];
@@ -101,6 +119,7 @@ export interface IFilterType {
   group_by_filter: IDataItem[];
   time_shift: IDataItem[];
 }
+
 export interface IListItem {
   label?: string;
   text?: string;
@@ -111,7 +130,6 @@ export type IPointTime = {
   endTime?: number;
   startTime?: number;
 };
-
 export interface IServiceConfig {
   checked?: boolean;
   label: string;
@@ -122,28 +140,10 @@ export interface IServiceConfig {
   value_type: number;
   values: string[];
 }
+
 export interface ITabItem {
   icon?: string;
   id: string;
   label: string;
   handle?: () => void;
-}
-
-export interface CodeRedefineItem {
-  id: string;
-  isNew?: boolean;
-  isImport?: boolean;
-  isSaving?: boolean;
-  isAbleSave?: boolean;
-  kind: string;
-  is_global: boolean;
-  callee_server: string;
-  callee_service: string;
-  callee_method: string;
-  service_names?: string[];
-  code_type_rules: {
-    success: string;
-    exception: string;
-    timeout: string;
-  };
 }

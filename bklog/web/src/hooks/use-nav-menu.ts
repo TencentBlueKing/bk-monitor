@@ -30,6 +30,7 @@ import * as authorityMap from '@/common/authority-map';
 import useRoute from '@/hooks/use-route';
 import useRouter from '@/hooks/use-router';
 import useStore from '@/hooks/use-store';
+import { getExternalDefaultRoute, routeNameToExternalMenu } from '@/router/helper';
 import reportLogStore from '@/store/modules/report-log';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 
@@ -96,6 +97,8 @@ export function useNavMenu(options: {
         list.push('retrieve');
       } else if (permission === 'log_extract') {
         list.push('manage');
+      } else if (permission === 'client_log') {
+        list.push('client-log-search');
       }
     }
     store.commit('updateState', { externalMenu: list });
@@ -105,15 +108,16 @@ export function useNavMenu(options: {
     if (isExternal.value) {
       updateExternalMenuBySpace(newSpaceUid);
     }
-    if (isExternal.value && route.name === 'retrieve' && !externalMenu.value.includes('retrieve')) {
-      router.push({ name: 'extract-home' });
-    } else if (
-      isExternal.value &&
-      ['extract-home', 'extract-create', 'extract-clone'].includes(route.name as string) &&
-      !externalMenu.value.includes('manage')
-    ) {
-      router.push({ name: 'retrieve' });
-    } else if (route.name !== 'retrieve' && !isFirstLoad.value) {
+    // 外部版：当前路由在新业务不可用时，重定向到第一个可用路由
+    if (isExternal.value) {
+      const currentMenu = routeNameToExternalMenu(route.name as string);
+      if (currentMenu !== null && !externalMenu.value.includes(currentMenu)) {
+        const targetRoute = getExternalDefaultRoute(externalMenu.value);
+        router.push({ name: targetRoute === 'manage' ? 'extract-home' : targetRoute });
+        return;
+      }
+    }
+    if (route.name !== 'retrieve' && !isFirstLoad.value) {
       const { name, meta, params, query } = route as any;
       const routingHop = meta.needBack && !isFirstLoad.value ? meta.backName : name ? name : 'retrieve';
       const newQuery = {

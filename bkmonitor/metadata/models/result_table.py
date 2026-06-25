@@ -31,6 +31,7 @@ from metadata import config
 from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.constants import BULK_CREATE_BATCH_SIZE, DataIdCreatedFromSystem
 from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_MONITOR, DataLinkResourceStatus
+from metadata.models.data_link.utils import compose_transfer_consumer_group
 from metadata.utils.basic import getitems
 
 from .common import BaseModel, Label, OptionBase
@@ -612,16 +613,22 @@ class ResultTable(models.Model):
                 and datasource.etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS
             )
 
-            # 如果是插件清洗类型，并且单独开启插件V4链路，则使用V4链路
-            is_plugin_v4_datalink = options.get(
+            # 如果存在指标组维度配置或开启插件V4链路，则强制将数据链路更新为V4链路
+            consumer_group = None
+            if ResultTableOption.OPTION_METRIC_GROUP_DIMENSIONS in options or options.get(
                 ResultTableOption.OPTION_ENABLE_PLUGIN_V4_DATA_LINK, False
-            ) and datasource.etl_config in [EtlConfigs.BK_EXPORTER.value, EtlConfigs.BK_STANDARD.value]
-            if is_plugin_v4_datalink and not is_v4_datalink_etl_config:
+            ):
                 is_v4_datalink_etl_config = True
 
-            if (is_v4_datalink_etl_config and settings.ENABLE_V2_VM_DATA_LINK) or not settings.ENABLE_INFLUXDB_STORAGE:
-                # 插件类型额外判定,如果数据源是GSE创建的，则需要注册到BKBASE
-                if is_plugin_v4_datalink and datasource.created_from == DataIdCreatedFromSystem.BKGSE.value:
+            if not settings.ENABLE_INFLUXDB_STORAGE or (settings.ENABLE_V2_VM_DATA_LINK and is_v4_datalink_etl_config):
+                # 如果datasource是gse创建的，则需要注册到BKBASE并且设置consumer_group
+                if datasource.created_from == DataIdCreatedFromSystem.BKGSE.value and is_v4_datalink_etl_config:
+                    logger.info(
+                        "apply_datalink: datasource created_from is BKGSE, register to bkbase, bk_data_id->[%s], table_id->[%s]",
+                        datasource.bk_data_id,
+                        self.table_id,
+                    )
+                    consumer_group = compose_transfer_consumer_group(datasource)
                     datasource.register_to_bkbase(bk_biz_id=target_bk_biz_id, namespace=BKBASE_NAMESPACE_BK_MONITOR)
 
                 # NOTE: 使用 on_commit 确保事务提交后再执行异步任务，避免事务未提交但异步任务先执行的情况
@@ -639,6 +646,7 @@ class ResultTable(models.Model):
                                 bk_data_id,
                                 is_v4_datalink_etl_config,
                                 force_update=force_update,
+                                consumer_group=consumer_group,
                             ),
                             using=config.DATABASE_CONNECTION_NAME,
                         )
@@ -652,6 +660,7 @@ class ResultTable(models.Model):
                         bk_data_id,
                         is_v4_datalink_etl_config,
                         force_update=force_update,
+                        consumer_group=consumer_group,
                     )
         elif self.default_storage in [ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS]:
             # 日志 V4 数据链路
@@ -1401,7 +1410,7 @@ class ResultTable(models.Model):
             ):
                 force_update_datalink = True
 
-            # 检查指标组维度配置是否发生变化
+            # 检查指标组维度配置是否发生变化或指标组维度配置不为空但没有迁移到V4链路
             metric_group_dimensions_option = ResultTableOption.objects.filter(
                 table_id=self.table_id,
                 bk_tenant_id=self.bk_tenant_id,
@@ -1413,7 +1422,10 @@ class ResultTable(models.Model):
             new_metric_group_dimensions_option_value = (
                 option.get(ResultTableOption.OPTION_METRIC_GROUP_DIMENSIONS) or []
             )
-            if existing_metric_group_dimensions_option_value != new_metric_group_dimensions_option_value:
+            if existing_metric_group_dimensions_option_value != new_metric_group_dimensions_option_value or (
+                new_metric_group_dimensions_option_value
+                and self.data_source.created_from == DataIdCreatedFromSystem.BKGSE.value
+            ):
                 force_update_datalink = True
 
             # 目前rt的option存在清洗和查询两类option，清洗的option需要清理，查询的option需要保留。

@@ -302,7 +302,10 @@ export type CommonFilterParams = {
 
 export type FilterTableResponse<T> = {
   data: T[];
+  enabled_spaces?: number[];
+  greyed_spaces?: number[];
   total: number;
+  wx_cs_link?: string;
 };
 
 /**
@@ -317,6 +320,12 @@ export type IncidentTableItem = {
   create_time: number;
   duration: string;
   end_time: number;
+  extra_info: {
+    merge_info?: {
+      origin_incident_doc_id: string;
+      target_incident_doc_id: string;
+    };
+  };
   handlers: string[];
   id: string;
   incident_id: number;

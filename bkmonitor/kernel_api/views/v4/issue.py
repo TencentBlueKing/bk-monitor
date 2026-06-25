@@ -29,7 +29,6 @@ from bkmonitor.issue_merge import (
     MergeConflictError,
     MergeCrossBizForbiddenError,
     MergeIssuesNotFoundError,
-    MergeMainStatusForbiddenError,
     MergeMemberIsAnotherMainError,
     MergeTargetIsMemberError,
     SplitNotFoundError,
@@ -287,15 +286,16 @@ class EditFollowUpResource(Resource):
 class MergeResource(Resource):
     """合并 Issue：把多个 Issue 收敛到一个主 Issue（api role 端执行，cache 真生效）。
 
+    合并/拆分只建立或解除合并关系，与 Issue 状态完全解耦：main 与 member 处于任意状态
+    （含已解决/已归档）都可参与合并。合并后 member 被冻结 + 列表隐藏，自身 status 不再权威，
+    由主状态变更级联（_cascade_follow_status）与拆分重置接管，仅把其影响范围/告警追加到主
+    聚合，不改变告警路由。
+
     校验顺序（按"轻量 → 重"组织）：
-    1. ES 存在性 + 跨业务一致（同次 ES 查询同时拉 bk_biz_id 与 status）
-    2. status 白名单：仅 main 当前 ES status 必须 ∈ ACTIVE_STATUSES。
-       member 不限状态——非活跃（已解决/已归档）Issue 也可并入活跃主：合并后 member 被冻结，
-       自身 status 不再权威，由主状态变更级联（_cascade_follow_status）与拆分重置接管。
-       合并对非活跃 member 仅追加其影响范围/告警到主聚合，不改变告警路由。
-    3. 防链式（main 端）：main 自身不能是别行 active 关系的 member
-    4. 防链式（member 端）：members 自身不能是别行 active 关系的 main
-    5. 任一 member 不能已在 active 关系（不可重复合并）
+    1. ES 存在性 + 跨业务一致
+    2. 防链式（main 端）：main 自身不能是别行 active 关系的 member
+    3. 防链式（member 端）：members 自身不能是别行 active 关系的 main
+    4. 任一 member 不能已在 active 关系（不可重复合并）
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -323,12 +323,12 @@ class MergeResource(Resource):
         if not members:
             raise serializers.ValidationError("members 去重后为空")
 
-        # 校验 1: ES 存在性 + 跨业务一致；同次 source 出 status 字段供校验 2 复用（零额外查询）
+        # 校验 1: ES 存在性 + 跨业务一致
         all_ids = [main_id, *members]
         biz_hits = (
             IssueDocument.search(all_indices=True)
             .filter("terms", _id=all_ids)
-            .source(["bk_biz_id", "status"])
+            .source(["bk_biz_id"])
             .params(size=len(all_ids))
             .execute()
             .hits
@@ -342,16 +342,12 @@ class MergeResource(Resource):
         if not biz_set or len(biz_set) > 1 or str(bk_biz_id) not in biz_set:
             raise MergeCrossBizForbiddenError()
 
-        # 校验 2: status 白名单（仅约束 main）
-        # member 刻意不校验状态：非活跃 Issue 也允许并入活跃主（详见类 docstring）。
-        status_map = {hit.meta.id: getattr(hit, "status", None) for hit in biz_hits}
-        main_status = status_map.get(main_id)
-        if main_status not in IssueStatus.ACTIVE_STATUSES:
-            raise MergeMainStatusForbiddenError(main_id, main_status or "UNKNOWN")
+        # 状态不再校验：合并/拆分与 Issue 状态解耦，main 处于任意状态（含已解决/已归档）都可作为
+        # 合并目标（详见类 docstring）。member 同样不限状态。
 
-        # SQL 关系校验 3/4/5 + 写入放进同一事务，对关系行加锁（select_for_update）重查：
-        # 表无 DB UNIQUE 约束，唯一性靠应用层 SELECT。并发 merge 同一 member 时，两侧校验 5
-        # 都可能查不到 active 关系而各写一行，破坏"一 member 至多一个 active main"。校验 5 的
+        # SQL 关系校验 2/3/4 + 写入放进同一事务，对关系行加锁（select_for_update）重查：
+        # 表无 DB UNIQUE 约束，唯一性靠应用层 SELECT。并发 merge 同一 member 时，两侧校验 4
+        # 都可能查不到 active 关系而各写一行，破坏"一 member 至多一个 active main"。校验 4 的
         # select_for_update 利用 (member_issue_id, status) 索引间隙锁，阻断并发事务在该区间插入，
         # 把竞态窗口收窄到提交前。极端残留（隔离级别/边界）仍由 list_conflicts + repair
         # resolve_conflicts 周期对账兜底（彻底方案是 DB 层 active member 唯一约束，更重，未做）。
@@ -362,7 +358,7 @@ class MergeResource(Resource):
         # 触发 "select_for_update cannot be used outside of a transaction"。用 router.db_for_write
         # 取真实写库（同时兼容 default==backend 的单库部署），保证锁与事务落在同一连接。
         with transaction.atomic(using=router.db_for_write(IssueMergeRelation)):
-            # 校验 3: 主 issue 自身是某行活跃 member（防链式 - main 端）
+            # 校验 2: 主 issue 自身是某行活跃 member（防链式 - main 端）
             target_as_member = (
                 IssueMergeRelation.objects.select_for_update()
                 .filter(
@@ -375,7 +371,7 @@ class MergeResource(Resource):
             if target_as_member:
                 raise MergeTargetIsMemberError(main_id, target_as_member["main_issue_id"])
 
-            # 校验 4: members 自身是别的 active 关系的 main（防链式 - member 端，与校验 3 对称）
+            # 校验 3: members 自身是别的 active 关系的 main（防链式 - member 端，与校验 2 对称）
             chain_members = list(
                 IssueMergeRelation.objects.filter(
                     main_issue_id__in=members,
@@ -387,7 +383,7 @@ class MergeResource(Resource):
             if chain_members:
                 raise MergeMemberIsAnotherMainError(chain_members)
 
-            # 校验 5: 任一 member 已在 active 关系（不可重复合并）——加锁重查，间隙锁阻断并发重复插入
+            # 校验 4: 任一 member 已在 active 关系（不可重复合并）——加锁重查，间隙锁阻断并发重复插入
             existing = (
                 IssueMergeRelation.objects.select_for_update()
                 .filter(

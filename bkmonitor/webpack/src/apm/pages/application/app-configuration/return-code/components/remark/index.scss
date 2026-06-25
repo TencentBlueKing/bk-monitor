@@ -33,7 +33,7 @@
       width: 100%;
       overflow: visible;
 
-      .import-sign-bar {
+      .new-sign-bar {
         position: absolute;
         top: -12px;
         left: -10px;
@@ -82,6 +82,11 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+
+      .tag-list-content {
+        flex: 1;
+        padding: 4px 0;
       }
     }
 
@@ -136,7 +141,7 @@
 
     .operate-btns {
       display: flex;
-      gap: 6px;
+      gap: 16px;
     }
 
     .global-config-main {

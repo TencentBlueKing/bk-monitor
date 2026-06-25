@@ -12,7 +12,7 @@ import hashlib
 import json
 import logging
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 from jinja2.sandbox import SandboxedEnvironment as Environment
@@ -25,9 +25,12 @@ from metadata.models.data_link.constants import MATCH_DATA_NAME_PATTERN
 
 logger = logging.getLogger("metadata")
 
+if TYPE_CHECKING:
+    from metadata.models.data_source import DataSource
+
 BKBASE_RESULT_TABLE_FIELD_TYPE_MAP = {
-    # flattened 是 ES mapping 类型，BKBase V4 ResultTable 字段类型使用 object 表达。
-    "flattened": "object",
+    # flattened 是 ES mapping 类型，BKBase V4 ResultTable 字段类型使用 string 表达。
+    "flattened": "string",
 }
 
 
@@ -154,6 +157,18 @@ def compose_bkdata_data_id_name(data_name: str, strategy: str | None = None) -> 
         data_id_name = "fed_" + data_id_name
 
     return data_id_name
+
+
+def compose_transfer_consumer_group(data_source: "DataSource") -> str:
+    """按 transfer 规则生成消费组：配置前缀 + 数据源 Kafka topic。"""
+    topic = data_source.mq_config.topic
+    if not topic:
+        logger.warning(
+            "compose_transfer_consumer_group: data_source->[%s] mq topic is empty, not generate consumer group",
+            data_source.bk_data_id,
+        )
+        return ""
+    return f"{settings.TRANSFER_CONSUMER_GROUP_ID}{topic}"
 
 
 def get_bkbase_raw_data_id_name(data_source, table_id):

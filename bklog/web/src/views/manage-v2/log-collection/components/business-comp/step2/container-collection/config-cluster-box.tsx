@@ -34,7 +34,6 @@ import InfoTips from '../../../common-comp/info-tips';
 import ConfigLogSetEditItem from './config-log-set-edit-item';
 import ConfigViewDialog from './config-view-dialog';
 import WorkloadSelection from './workload-selection';
-import $http from '@/api';
 import type { IContainerConfigItem, IClusterItem } from '../../../../type';
 import './config-cluster-box.scss';
 
@@ -107,6 +106,16 @@ export default defineComponent({
       type: Array as PropType<IClusterItem[]>,
       default: () => [],
     },
+    /** 命名空间选择列表 */
+    nameSpacesSelectList: {
+      type: Array as PropType<ISelectItem[]>,
+      default: () => [],
+    },
+    /** 是否正在请求命名空间接口 */
+    nameSpaceRequest: {
+      type: Boolean,
+      default: false,
+    },
   },
 
   emits: ['change'],
@@ -131,19 +140,13 @@ export default defineComponent({
       content: t('请先选择集群'),
       placement: 'top' as const,
     });
-    /** 是否正在请求集群列表 */
-    const isRequestCluster = ref(false);
     /** 集群列表 */
-    const clusterList = ref<IClusterItem[]>([]);
-    /** 是否正在请求命名空间接口 */
-    const nameSpaceRequest = ref(false);
+    const clusterList = computed(() => props.clusterList);
     /** 操作符选择列表 */
     const operatorSelectList = ref<ISelectItem[]>([
       { id: '=', name: '=' },
       { id: '!=', name: '!=' },
     ]);
-    /** 命名空间选择列表 */
-    const nameSpacesSelectList = ref<ISelectItem[]>([]);
     /** 配置范围名称映射 */
     const scopeNameList = ref<Record<ScopeType, string>>({
       namespace: t('按命名空间选择'),
@@ -309,79 +312,6 @@ export default defineComponent({
     });
 
     /**
-     * 获取 BCS 集群列表
-     * 防止重复请求，使用 isRequestCluster 标志位
-     */
-    const getBcsClusterList = async (): Promise<void> => {
-      if (isRequestCluster.value) {
-        return;
-      }
-      isRequestCluster.value = true;
-      const query = { bk_biz_id: bkBizId.value };
-      try {
-        const res = await $http.request('container/getBcsList', { query });
-        if (res.code === 0) {
-          clusterList.value = res.data || [];
-        }
-      } catch (err) {
-        console.error('获取 BCS 集群列表失败:', err);
-      } finally {
-        isRequestCluster.value = false;
-      }
-    };
-
-    /**
-     * 判断当前所选集群是否为共享集群
-     * @returns 是否为共享集群
-     */
-    const getIsSharedCluster = (): boolean => {
-      return clusterList.value?.find(cluster => cluster.id === props.bcsClusterId)?.is_shared ?? false;
-    };
-
-    /**
-     * 获取命名空间列表
-     * @param clusterID - 集群 ID
-     * @param isFirstUpdateSelect - 是否为首次更新选择（用于详情页数据回显）
-     */
-    const getNameSpaceList = async (clusterID: string, isFirstUpdateSelect = false): Promise<void> => {
-      // 参数校验和防重复请求
-      if (!clusterID || props.isUpdate || nameSpaceRequest.value) {
-        return;
-      }
-
-      const query = { bcs_cluster_id: clusterID, bk_biz_id: bkBizId.value };
-      nameSpaceRequest.value = true;
-
-      try {
-        const res = (await $http.request('container/getNameSpace', { query })) as { code: number; data: ISelectItem[] };
-
-        if (isFirstUpdateSelect) {
-          // 首次切换集群时，合并现有命名空间和接口返回的命名空间，用于详情页数据回显
-          const config = props.config as IContainerConfigItem;
-          const namespaceList: string[] = [...(config.namespaces || [])];
-          const resIDList = (res.data || []).map((item: ISelectItem) => item.id);
-          const setList = new Set([...namespaceList, ...resIDList]);
-          setList.delete('*'); // 移除通配符，后续会重新添加
-
-          const allList = [...setList].map(item => ({ id: item, name: item }));
-          nameSpacesSelectList.value = [...allList];
-        } else {
-          nameSpacesSelectList.value = res.data || [];
-        }
-
-        // 如果不是共享集群，添加"所有"选项
-        if (!getIsSharedCluster()) {
-          nameSpacesSelectList.value.unshift({ name: t('所有'), id: '*' });
-        }
-      } catch (err) {
-        console.log('获取命名空间列表失败:', err);
-        nameSpacesSelectList.value = [];
-      } finally {
-        nameSpaceRequest.value = false;
-      }
-    };
-
-    /**
      * 获取命名空间的字符串表示
      * 如果只有一个 '*' 选项，返回空字符串
      * @param namespaces - 命名空间数组
@@ -472,12 +402,12 @@ export default defineComponent({
       const config = props.config as IContainerConfigItem;
       const operate = config.noQuestParams?.namespacesExclude;
 
-      if (!nameSpacesSelectList.value.length) {
+      if (!props.nameSpacesSelectList.length) {
         return [];
       }
 
       // 排除模式下不显示"所有"选项
-      if (operate === '!=' && nameSpacesSelectList.value.some(item => item.id === '*')) {
+      if (operate === '!=' && props.nameSpacesSelectList.some(item => item.id === '*')) {
         // 如果当前选择的是"所有"，需要重置为空
         const namespaces = config.namespaces || [];
         if (namespaces.length === 1 && namespaces[0] === '*') {
@@ -485,9 +415,9 @@ export default defineComponent({
           newConfigs.namespaces = [];
           // 注意：这里不触发 emit，因为只是获取列表，不改变配置
         }
-        return nameSpacesSelectList.value.slice(1);
+        return props.nameSpacesSelectList.slice(1);
       }
-      return nameSpacesSelectList.value;
+      return props.nameSpacesSelectList;
     };
 
     /**
@@ -510,40 +440,20 @@ export default defineComponent({
     };
 
     // ==================== Watch 监听 ====================
-    /**
-     * 监听集群 ID 变化
-     * 当集群 ID 变化时，重新获取命名空间列表，并初始化 Tippy
-     */
     watch(
       () => props.bcsClusterId,
-      (newVal: string) => {
-        if (newVal) {
-          getNameSpaceList(newVal, true);
-          // 非节点模式下，等待 DOM 更新后初始化 Tippy
-          if (!props.isNode) {
-            nextTick(() => {
-              if (isShowAddScopeButton.value && rootRef.value) {
-                initActionPop();
-              }
-            });
-          }
+      (newVal) => {
+        if (newVal && !props.isNode) {
+          nextTick(() => {
+            if (isShowAddScopeButton.value && rootRef.value) {
+              initActionPop();
+            }
+          });
         }
       },
     );
 
-    /**
-     * 监听场景 ID 变化
-     * 当场景 ID 不是 'container_stdout' 时，获取 BCS 集群列表
-     */
-    watch(
-      () => props.scenarioId,
-      (val: string) => {
-        if (val && val !== 'container_stdout') {
-          getBcsClusterList();
-        }
-      },
-      { immediate: true },
-    );
+
 
     /**
      * 监听节点模式变化
@@ -708,7 +618,7 @@ export default defineComponent({
             <bk-select
               class='operate-select'
               clearable={false}
-              disabled={props.isNode || !props.bcsClusterId || nameSpaceRequest.value}
+              disabled={props.isNode || !props.bcsClusterId || props.nameSpaceRequest}
               placeholder=' '
               popoverWidth={100}
               value={config.noQuestParams.namespacesExclude}
@@ -732,12 +642,12 @@ export default defineComponent({
             </bk-select>
             <bk-select
               class='space-select'
-              disabled={props.isNode || !props.bcsClusterId || nameSpaceRequest.value}
+              disabled={props.isNode || !props.bcsClusterId || props.nameSpaceRequest}
               value={config.namespaces}
               displayTag
               multiple
               searchable
-              loading={nameSpaceRequest.value}
+              loading={props.nameSpaceRequest}
               on-selected={option => {
                 config.namespaces = option;
                 handleNameSpaceSelect(option);

@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
+import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -41,6 +43,35 @@ class ModelSpec:
     sensitive_fields: set[str] = field(default_factory=set)
     default_fields: set[str] = field(default_factory=set)
     examples: list[dict[str, Any]] = field(default_factory=list)
+    # 行级脱敏钩子：敏感性按行内容（而非固定字段）判定的模型使用，如 GlobalConfig 按 key 名脱敏 value。
+    # 签名为 (serialized_item, instance)：必须从 instance 判定敏感性，
+    # 不能只看 serialized_item——否则调用方不选 key 字段即可绕过脱敏。
+    row_masker: Callable[[dict[str, Any], Any], dict[str, Any]] | None = None
+
+
+MASKED_VALUE = "***masked***"
+# GlobalConfig 的敏感性按行（key 名）而非按字段：凭据/密钥/DSN/账号 等配置的 value 不允许透出。
+# 注意精确边界：不要用裸 KEY/URL/HOST（会误伤 KEYWORD、APM_*_URL、*_HOST 等公开地址配置）。
+GLOBAL_CONFIG_SENSITIVE_KEY_PATTERN = re.compile(
+    r"SECRET|TOKEN|PASSWORD|PASSWD|PRIVATE|CREDENTIAL|WEBHOOK"
+    r"|API_KEY|ACCESS_KEY|APP_KEY|AES|RSA|DSN|BROKER|ACCOUNT|SALT|CIPHER",
+    re.IGNORECASE,
+)
+# value 形态兜底：denylist 漏键时，凭据型 URL（scheme://user:pass@host）一律脱敏，低误伤。
+_CREDENTIAL_URL_PATTERN = re.compile(r"://[^/\s:@]+:[^/\s@]+@")
+
+
+def _looks_like_credential(value: Any) -> bool:
+    return isinstance(value, str) and bool(_CREDENTIAL_URL_PATTERN.search(value))
+
+
+def _mask_global_config_row(item: dict[str, Any], instance: Any) -> dict[str, Any]:
+    if "value" not in item:
+        return item
+    key = str(getattr(instance, "key", "") or "")
+    if GLOBAL_CONFIG_SENSITIVE_KEY_PATTERN.search(key) or _looks_like_credential(item["value"]):
+        item["value"] = MASKED_VALUE
+    return item
 
 
 ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
@@ -126,6 +157,28 @@ ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
             }
         ],
     ),
+    "bkmonitor.models.config.GlobalConfig": ModelSpec(
+        model_path="bkmonitor.models.config.GlobalConfig",
+        fields={
+            "key",
+            "value",
+            "data_type",
+            "description",
+            "is_advanced",
+            "is_internal",
+            "create_at",
+            "update_at",
+        },
+        default_fields={"key", "value", "data_type", "is_advanced", "is_internal", "update_at"},
+        row_masker=_mask_global_config_row,
+        examples=[
+            {
+                "filter": {"key": "DOUBLE_CHECK_SUM_STRATEGY_IDS"},
+                "fields": ["key", "value", "data_type", "update_at"],
+                "limit": 20,
+            }
+        ],
+    ),
 }
 
 
@@ -143,12 +196,19 @@ def read_db_model(params: dict[str, Any]) -> dict[str, Any]:
         queryset = queryset.order_by(*order_by)
 
     rows = list(queryset[:limit])
+    items = []
+    for row in rows:
+        item = _serialize_instance(row, selected_fields)
+        if spec.row_masker is not None:
+            # 传入 ORM 实例而非序列化后的 dict：敏感性判定不受 selected_fields 影响
+            item = spec.row_masker(item, row)
+        items.append(item)
     return {
         "model": model_name,
         "count": len(rows),
         "limit": limit,
         "fields": sorted(selected_fields),
-        "items": [_serialize_instance(row, selected_fields) for row in rows],
+        "items": items,
     }
 
 
@@ -171,7 +231,7 @@ def _default_fields(spec: ModelSpec) -> set[str]:
 
 def _serialize_model_spec(model_name: str, spec: ModelSpec) -> dict[str, Any]:
     safe_fields = sorted(_safe_fields(spec))
-    return {
+    serialized = {
         "model": model_name,
         "allowed_fields": safe_fields,
         "allowed_filter_fields": safe_fields,
@@ -181,6 +241,9 @@ def _serialize_model_spec(model_name: str, spec: ModelSpec) -> dict[str, Any]:
         "max_limit": MAX_LIMIT,
         "examples": spec.examples,
     }
+    if spec.row_masker is not None:
+        serialized["row_masking"] = f"敏感行的 value 字段会被脱敏为 {MASKED_VALUE}"
+    return serialized
 
 
 def _get_model_spec(model_name: str) -> ModelSpec:

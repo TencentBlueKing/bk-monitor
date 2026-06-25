@@ -526,3 +526,24 @@ class TestUnifyQueryHandler(TestCase):
         for number, expected in test_cases:
             reference_name = UnifyQueryHandler.generate_reference_name(number)
             self.assertEqual(reference_name, expected)
+
+    @patch.object(UnifyQueryHandler, "init_base_dict", return_value={})
+    def test_fields_passes_bk_biz_id_to_mapping_handler(self, mock_init_base_dict):
+        LogIndexSet.objects.create(**CREATE_SET_PARAMS)
+        LogIndexSetData.objects.create(**CREATE_SET_DATA_PARAMS)
+        search_data = {**FIELD_DATA, "is_union_search": True}
+        query_handler = UnifyQueryHandler(search_data)
+
+        with patch("apps.log_unifyquery.handler.base.UnifyQueryMappingHandler") as mock_mapping_handler:
+            mapping_handler = mock_mapping_handler.return_value
+            mapping_handler.get_all_fields_by_index_id.return_value = ([], [])
+            mapping_handler.get_default_sort_list.return_value = []
+            mock_mapping_handler.analyze_fields.return_value = {
+                "context_search_usable": False,
+                "usable_reason": "",
+                "context_fields": [],
+            }
+
+            query_handler.fields()
+
+        self.assertEqual(mock_mapping_handler.call_args.kwargs["bk_biz_id"], search_data["bk_biz_id"])

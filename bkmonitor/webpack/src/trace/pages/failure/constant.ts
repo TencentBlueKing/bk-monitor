@@ -199,6 +199,11 @@ export const STATUS_LIST = {
 };
 
 export const EVENTS_TYPE_MAP = {
+  default: {
+    iconType: '',
+    keypath: '（共 {0} 个{1}，展示 {2} 如下）',
+    keypath2: '（共 {0} 个{1}）',
+  },
   k8s_warning_events: {
     iconType: 'bcs',
     keypath: '（共 {0} 个{1}，展示 {2} 如下）',

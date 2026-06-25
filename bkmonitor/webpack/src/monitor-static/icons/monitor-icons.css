@@ -1,9 +1,12 @@
+/* stylelint-disable selector-class-pattern */
+
+/* stylelint-disable font-family-no-missing-generic-family-keyword */
 @font-face {
   font-family: icon-monitor; /* Project id 1185924 */
   src:
-    url('monitor-icons.woff2?t=1778748117388') format('woff2'),
-    url('monitor-icons.woff?t=1778748117388') format('woff'),
-    url('monitor-icons.ttf?t=1778748117388') format('truetype');
+    url('monitor-icons.woff2?t=1779421589930') format('woff2'),
+    url('monitor-icons.woff?t=1779421589930') format('woff'),
+    url('monitor-icons.ttf?t=1779421589930') format('truetype');
 }
 
 .icon-monitor {
@@ -12,6 +15,10 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-a-ziIssue::before {
+  content: '\e866';
 }
 
 .icon-Opentelemetry::before {

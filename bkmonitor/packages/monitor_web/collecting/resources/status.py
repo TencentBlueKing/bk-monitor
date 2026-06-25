@@ -137,6 +137,7 @@ class CollectTargetStatusTopoResource(Resource):
 
             data_source = BkMonitorLogDataSource(
                 table=group_info.table_id,
+                bk_tenant_id=collect_config.bk_tenant_id,
                 group_by=group_by,
                 metrics=[{"field": "_index", "method": "COUNT"}],
                 filter_dict=filter_dict,
@@ -165,9 +166,7 @@ class CollectTargetStatusTopoResource(Resource):
 
                 metric_json = [table for table in metric_json if table["table_name"] == "perf"]
             else:
-                db_name = "{plugin_type}_{plugin_id}".format(
-                    plugin_type=collect_config.plugin.plugin_type, plugin_id=collect_config.plugin.plugin_id
-                )
+                db_name = f"{collect_config.plugin.plugin_type}_{collect_config.plugin.plugin_id}"
                 latest_info_version = cls.fetch_latest_version_by_config(collect_config)
                 metric_json = latest_info_version.info.metric_json
             result_tables = [ResultTable.new_result_table(table) for table in metric_json]

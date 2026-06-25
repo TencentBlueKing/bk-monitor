@@ -44,3 +44,4 @@ from .utils import *  # noqa
 from .ai_repo import *  # noqa
 from .alert_v2 import *  # noqa
 from .issue import *  # noqa
+from .k8s_resource import *  # noqa

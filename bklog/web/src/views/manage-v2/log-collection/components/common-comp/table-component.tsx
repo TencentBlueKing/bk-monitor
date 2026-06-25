@@ -91,7 +91,7 @@ export default defineComponent({
       default: 'empty',
     },
     filterValue: {
-      type: Object as PropType<Record<string, string>>,
+      type: Object as PropType<Record<string, string | (string | number)[]>>,
       default: () => {},
     },
     skeletonConfig: {
@@ -154,7 +154,10 @@ export default defineComponent({
      * 是否有过滤内容
      */
     const hasValidIFilterConditions = computed(() => {
-      return Object.values(props.filterValue || {}).some(value => value !== '');
+      return Object.values(props.filterValue || {}).some(value => {
+        if (Array.isArray(value)) return value.length > 0;
+        return value !== '';
+      });
     });
     // 默认显示的列（disabled: true 的列）
     const defaultVisibleColumns = computed(() => {
@@ -168,9 +171,9 @@ export default defineComponent({
      */
     const filteredColumnKeys = computed(() => {
       return Object.keys(props.filterValue || {}).filter((key: string) => {
-        if (props.filterValue[key] !== '') {
-          return key;
-        }
+        const value = props.filterValue[key];
+        if (Array.isArray(value)) return value.length > 0;
+        return value !== '';
       });
     });
     // 根据可见列过滤后的列配置
@@ -398,7 +401,7 @@ export default defineComponent({
      * 处理表格过滤变化
      * @param filters - 过滤对象
      */
-    const handleFilterChange = (filters: Record<string, string>) => {
+    const handleFilterChange = (filters: Record<string, string | (string | number)[]>) => {
       emit('filter-change', filters);
     };
 

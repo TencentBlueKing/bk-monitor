@@ -69,6 +69,14 @@
           }
         }
       }
+
+      .tree-skeleton {
+        .tree-skeleton-item {
+          & + .tree-skeleton-item {
+            margin-top: 12px;
+          }
+        }
+      }
     }
   }
 

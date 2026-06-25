@@ -723,7 +723,13 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
         **kwargs,
     ):
         super().__init__(**kwargs)
+        # bk_biz_ids：原始请求入参，可能含 -1（"全部授权业务"哨兵）。
+        # 禁止直接用于 ES/DB 按业务过滤（terms / __in）——不存在 bk_biz_id=-1 的数据会查空。
+        #    简单过滤取值用 get_biz_filter_ids()（已解析 -1）；告警可见性用 add_biz_condition。
+        #    仅可用于"是否带业务范围"的意图判断（if self.bk_biz_ids / if not self.bk_biz_ids）。
         self.bk_biz_ids = bk_biz_ids
+        # authorized_bizs：解析后、按权限收敛的具体业务集（-1 已展开）。
+        # unauthorized_bizs：请求了但当前用户无权限的业务（配合负责人条件做有限可见）。
         self.authorized_bizs = self.bk_biz_ids
         self.unauthorized_bizs = []
         self.username = username
@@ -749,6 +755,30 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
 
     def build_es_terms_query(self, field: str, values: list):
         return build_es_terms_query(field, values, chunk_size=self.ES_TERMS_QUERY_MAX_SIZE)
+
+    def get_biz_filter_ids(self) -> list[int] | None:
+        """返回用于「按业务过滤」的已解析业务 ID 列表（-1 哨兵已展开为实际授权业务集）。
+
+        用途：临时的简单按业务过滤（ES ``terms`` / ORM ``__in``）取值，替代直接使用
+        ``self.bk_biz_ids``——后者可能含 -1（"全部授权业务"哨兵），ES/DB 中不存在
+        bk_biz_id=-1 的数据，直接过滤会查空（历史上 #10206、合并告警聚合等多次踩坑）。
+
+        语义（与现网既有惯用法一致，迁移零行为变更）：
+        - 请求未带业务范围（bk_biz_ids 为空）→ 返回 None，调用方据此走兜底分支
+          （等价 ``if not self.bk_biz_ids``）。
+        - 含 -1 → 用 authorized_bizs（已解析的实际授权业务集）。
+        - 不含 -1 → 用请求业务集（权限交由上游 / 各自 add_biz_condition 把关）。
+        - 末尾剔除残留 -1（无 request 上下文时 parse_biz_item 可能原样返回带 -1 的入参）。
+
+        注意：不替代 ``add_biz_condition``：告警/Issue 的完整可见性是三路模型
+        （authorized ∪ unauthorized+负责人 ∪ 无业务→我的），ES 可见性过滤仍走它。
+        注意：大集合 + ES ``terms``：authorized_bizs 在 admin 下可能超过上限(65536)，
+        ES 侧请用 ``build_es_terms_query`` 分块，勿直接塞进 ``.filter("terms", ...)``。
+        """
+        if not self.bk_biz_ids:
+            return None
+        biz_ids = self.authorized_bizs if -1 in self.bk_biz_ids else self.bk_biz_ids
+        return [b for b in (biz_ids or []) if b != -1]
 
 
 class QueryBuilder(ElasticsearchQueryBuilder):

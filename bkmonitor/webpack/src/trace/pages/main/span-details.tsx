@@ -64,6 +64,7 @@ import { safeParseJsonValueForWhere } from '../trace-explore/utils';
 import { TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY } from './constants';
 // import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
 import DashboardPanel from './dashboard-panel/dashboard-panel';
+import K8sContainer from './k8s-container';
 import { formatSpanLinks } from './utils/format-span-links';
 import DecodeDialog from '@/components/decode-dialog/decode-dialog';
 
@@ -1008,7 +1009,7 @@ export default defineComponent({
           return spanDetailQueryStore.queryData?.bk_host_id ? t('主机监控') : '';
         case 'Log':
           return spanDetailQueryStore.queryData?.indexId || spanDetailQueryStore.queryData.unionList
-            ? t('日志检索')
+            ? t('更多日志')
             : '';
         case 'Profiling':
           return spanId.value ? t('Profiling检索') : '';
@@ -1177,6 +1178,15 @@ export default defineComponent({
       }
     };
 
+    // 跳转服务下的关联配置
+    const handleConfigQuickJump = () => {
+      const url = location.href.replace(
+        location.hash,
+        `#/apm/service-config?app_name=${appName.value}&service_name=${props.spanDetails.service_name}`
+      );
+      window.open(url, '_blank');
+    };
+
     /** 是否显示空数据提示 */
     const showEmptyGuide = () => {
       if (activeTab.value === 'Event') {
@@ -1323,16 +1333,32 @@ export default defineComponent({
                       setting: () => {
                         return (
                           exploreButtonName.value && (
-                            <Button
-                              class='quick-jump'
-                              size='small'
-                              theme='primary'
-                              outline
-                              onClick={handleQuickJump}
-                            >
-                              {exploreButtonName.value}
-                              <i class='icon-monitor icon-fenxiang' />
-                            </Button>
+                            <div class='quick-jump-container'>
+                              {activeTab.value === 'Log' && (
+                                <Button
+                                  class='quick-jump'
+                                  size='small'
+                                  theme='primary'
+                                  outline
+                                  text
+                                  onClick={handleConfigQuickJump}
+                                >
+                                  {t('关联配置')}
+                                  <i class='icon-monitor icon-fenxiang' />
+                                </Button>
+                              )}
+                              <Button
+                                class='quick-jump'
+                                size='small'
+                                theme='primary'
+                                outline
+                                text
+                                onClick={handleQuickJump}
+                              >
+                                {exploreButtonName.value}
+                                <i class='icon-monitor icon-fenxiang' />
+                              </Button>
+                            </div>
                           )
                         );
                       },
@@ -1560,13 +1586,7 @@ export default defineComponent({
                           {/* 由于视图早于数据先加载好会导致样式错乱，故 loading 完再加载视图 */}
                           {!isTabPanelLoading.value && (
                             <div class='host-tab-container'>
-                              <DashboardPanel
-                                groupTitle={'Groups'}
-                                isSingleChart={isSingleChart.value}
-                                podName={originalData.value?.resource?.['k8s.pod.name']}
-                                sceneData={sceneData.value}
-                                sceneId={'container'}
-                              />
+                              <K8sContainer sceneData={sceneData.value} />
                             </div>
                           )}
                         </Loading>

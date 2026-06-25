@@ -77,6 +77,11 @@ export default defineComponent({
       type: String,
       required: true,
     },
+    /** 拆分后需高亮的行 ID 集合 */
+    highlightedRowIds: {
+      type: Set as PropType<Set<string>>,
+      default: () => new Set(),
+    },
     /** 表头吸顶 */
     headerAffixedTop: {
       type: Object as PropType<{ container: string }>,
@@ -116,6 +121,8 @@ export default defineComponent({
     priorityChange: (id: string, priority: IssuePriorityType) => typeof id === 'string' && !!priority,
     /** 影响范围点击 */
     impactScopeClick: (event: ImpactScopeEvent) => !!event,
+    /** 拆分按钮点击 */
+    splitClick: (row: IssueItem) => !!row,
     /** 清除检索过滤 */
     clearFilter: () => true,
     /** 列宽拖拽变化回调 */
@@ -138,15 +145,22 @@ export default defineComponent({
       },
     });
 
-    const { handleShowDetail, handleAssignClick, handleAction, handlePriorityClick, handleImpactScopeClick } =
-      useIssuesHandlers({
-        clickPopoverTools,
-        showDetailEmit: item => emit('showDetail', item),
-        assignClickEmit: (id, data) => emit('assignClick', id, data),
-        actionEmit: (type, id) => emit('action', type, id),
-        priorityChangeEmit: (id, priority) => emit('priorityChange', id, priority),
-        impactScopeClickEmit: event => emit('impactScopeClick', event),
-      });
+    const {
+      handleShowDetail,
+      handleAssignClick,
+      handleAction,
+      handlePriorityClick,
+      handleImpactScopeClick,
+      handleSplitClick,
+    } = useIssuesHandlers({
+      clickPopoverTools,
+      showDetailEmit: item => emit('showDetail', item),
+      assignClickEmit: (id, data) => emit('assignClick', id, data),
+      actionEmit: (type, id) => emit('action', type, id),
+      priorityChangeEmit: (id, priority) => emit('priorityChange', id, priority),
+      impactScopeClickEmit: event => emit('impactScopeClick', event),
+      splitClickEmit: row => emit('splitClick', row),
+    });
 
     /** Issues 列渲染器 */
     const { transformColumns } = useIssuesColumnsRenderer({
@@ -157,8 +171,9 @@ export default defineComponent({
       handleAssignClick,
       handleAction,
       handlePriorityClick,
-      handleNameChange: (row, name) => props.nameChange(row.id, name),
       handleImpactScopeClick,
+      handleSplitClick,
+      handleNameChange: (row, name) => props.nameChange(row.id, name),
     });
 
     /** 转换后的列配置 */
@@ -192,8 +207,11 @@ export default defineComponent({
             ) as unknown as SlotReturnValue
           }
           rowClassName={({ row }) => {
-            const status = (row as IssueItem).status;
-            return ENDED_STATUS_SET.has(status) ? 'is-ended' : '';
+            const item = row as IssueItem;
+            const classes: string[] = [];
+            if (ENDED_STATUS_SET.has(item.status)) classes.push('is-ended');
+            if (this.highlightedRowIds.has(item.id)) classes.push('is-split-highlighted');
+            return classes.join(' ');
           }}
           autoFillSpace={!this.data?.length}
           columns={this.transformedColumns}

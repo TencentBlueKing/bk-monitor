@@ -208,4 +208,18 @@ export default {
   这个告警我有经验: 'I have experience with this alarm',
   '次/秒': 'times/second',
   已归档: 'Archived',
+
+  // Issue 拆分合并
+  '误合并，根因不同': 'Merged incorrectly, root cause different',
+  影响范围不同: 'Affected scope different',
+  '责任 Owner 不同': 'Owner different',
+  修复方案不同: 'Fixing solution different',
+  后续复盘需要独立跟踪: 'Needs to be tracked independently for follow-up',
+  '异常类型 / 日志模块相近': 'Similarity of abnormal type / log module',
+  'message 高度相似': 'message highly similar',
+  堆栈顶帧一致: 'Stack top frame consistent',
+  服务或链路维度相关: 'Service or linkage dimension related',
+  时间窗口接近: 'Time window close to each other',
+  日志聚类一致: 'Log clustering consistent',
+  人工确认同根因: 'Manual confirmation same root cause',
 };

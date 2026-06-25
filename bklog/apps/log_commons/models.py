@@ -213,6 +213,19 @@ class ExternalPermission(OperateRecordModel):
                     if not v.get(ActionEnum.SEARCH_LOG.id, False):
                         status = TokenStatusEnum.INVALID.value
                         break
+            elif self.action_id == ExternalPermissionActionEnum.CLIENT_LOG.value:
+                # 客户端日志权限维度是业务，校验授权人是否有创建客户端日志任务和下载文件的权限
+                bk_biz_id = self.bk_biz_id if self.bk_biz_id > 0 else self.space_uid
+                permission = Permission(username=authorizer)
+                if not (
+                    permission.is_allowed_by_biz(
+                        bk_biz_id=bk_biz_id, action=ActionEnum.CREATE_CLIENT_LOG_TASK, raise_exception=False
+                    )
+                    and permission.is_allowed_by_biz(
+                        bk_biz_id=bk_biz_id, action=ActionEnum.DOWNLOAD_CLIENT_LOG, raise_exception=False
+                    )
+                ):
+                    status = TokenStatusEnum.INVALID.value
         return status
 
     @classmethod
@@ -474,6 +487,8 @@ class ExternalPermission(OperateRecordModel):
             return cls._get_log_search_resource(space_uid=space_uid)
         if action_id == ExternalPermissionActionEnum.LOG_EXTRACT.value:
             return cls._get_log_extract_resource(space_uid=space_uid)
+        if action_id == ExternalPermissionActionEnum.CLIENT_LOG.value:
+            return cls._get_client_log_resource(space_uid=space_uid)
         return []
 
     @classmethod
@@ -496,6 +511,36 @@ class ExternalPermission(OperateRecordModel):
                 "text": index_set.index_set_name,
             }
             for index_set in qs.iterator()
+        ]
+
+    @classmethod
+    def _get_client_log_resource(cls, space_uid: str) -> builtins.list[dict[str, Any]]:
+        """获取客户端日志资源列表（索引集维度），每个业务只有一个客户端日志索引集"""
+        from apps.log_databus.models import CollectorConfig
+        from apps.tgpa.constants import TGPA_TASK_COLLECTOR_CONFIG_NAME_EN
+
+        from bkm_space.utils import space_uid_to_bk_biz_id
+
+        if space_uid:
+            bk_biz_id = space_uid_to_bk_biz_id(space_uid)
+            collector_configs = CollectorConfig.objects.filter(
+                bk_biz_id=bk_biz_id, collector_config_name_en=TGPA_TASK_COLLECTOR_CONFIG_NAME_EN
+            )
+        else:
+            space_uid_list = ExternalPermission.objects.all().values_list("space_uid", flat=True).distinct()
+            bk_biz_ids = [space_uid_to_bk_biz_id(uid) for uid in space_uid_list]
+            collector_configs = CollectorConfig.objects.filter(
+                bk_biz_id__in=bk_biz_ids, collector_config_name_en=TGPA_TASK_COLLECTOR_CONFIG_NAME_EN
+            )
+
+        return [
+            {
+                "id": config.index_set_id,
+                "uid": config.index_set_id,
+                "text": config.collector_config_name,
+            }
+            for config in collector_configs
+            if config.index_set_id
         ]
 
     @classmethod
@@ -577,6 +622,16 @@ class ExternalPermission(OperateRecordModel):
         )
         for obj in objs:
             result["resources"].extend(obj.resources)
+        # 客户端日志检索也使用 search/terms 接口，当校验 log_search 权限时，额外合并 client_log 的资源
+        if action_id == ExternalPermissionActionEnum.LOG_SEARCH.value:
+            client_log_objs = ExternalPermission.objects.filter(
+                action_id=ExternalPermissionActionEnum.CLIENT_LOG.value,
+                authorized_user=authorized_user,
+                space_uid=space_uid,
+                expire_time__gt=timezone.now(),
+            )
+            for obj in client_log_objs:
+                result["resources"].extend(obj.resources)
         return result
 
 

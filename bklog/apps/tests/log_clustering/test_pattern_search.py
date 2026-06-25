@@ -1,6 +1,7 @@
 import copy
 from unittest.mock import patch
 
+import arrow
 from django.test import TestCase
 
 from apps.feature_toggle.handlers.toggle import Toggle
@@ -169,6 +170,82 @@ class TestPatternSearch(TestCase):
                 {"name": "NUMBER", "index": 1},
             ],
         )
+
+    @patch.object(PatternHandler, "_multi_query")
+    def test_pattern_search_hides_origin_log_by_default(self, mock_multi_query):
+        ClusteringConfig.objects.filter(index_set_id=INDEX_SET_ID).update(model_id="model_1")
+        AiopsSignatureAndPattern.objects.create(
+            model_id="model_1",
+            signature="e4b60ecf",
+            pattern="fallback pattern",
+            origin_log="large raw log sample",
+        )
+        mock_multi_query.return_value = {
+            "pattern_aggs": [{"key": "e4b60ecf", "doc_count": 34, "group": ""}],
+            "year_on_year_result": {},
+            "new_class": set(),
+        }
+
+        result = PatternHandler(INDEX_SET_ID, copy.deepcopy(PARAMS)).pattern_search()
+
+        self.assertEqual(result[0]["pattern"], "fallback pattern")
+        self.assertEqual(result[0]["origin_log"], "")
+
+    @patch.object(PatternHandler, "_multi_query")
+    def test_pattern_search_returns_origin_log_when_requested(self, mock_multi_query):
+        ClusteringConfig.objects.filter(index_set_id=INDEX_SET_ID).update(model_id="model_1")
+        AiopsSignatureAndPattern.objects.create(
+            model_id="model_1",
+            signature="e4b60ecf",
+            pattern="fallback pattern",
+            origin_log="large raw log sample",
+        )
+        mock_multi_query.return_value = {
+            "pattern_aggs": [{"key": "e4b60ecf", "doc_count": 34, "group": ""}],
+            "year_on_year_result": {},
+            "new_class": set(),
+        }
+        query = copy.deepcopy(PARAMS)
+        query["include_origin_log"] = True
+
+        result = PatternHandler(INDEX_SET_ID, query).pattern_search()
+
+        self.assertEqual(result[0]["origin_log"], "large raw log sample")
+
+    @patch("apps.log_clustering.handlers.pattern.generate_time_range")
+    @patch("apps.utils.bkdata.BkDataQueryApi.query")
+    def test_get_pattern_data_for_bkbase_link_omits_origin_log_by_default(self, mock_query, mock_generate_time_range):
+        ClusteringConfig.objects.filter(index_set_id=INDEX_SET_ID).update(signature_pattern_rt="bklog_pattern_rt")
+        mock_query.return_value = {"list": [{"signature": "e4b60ecf", "pattern": "fallback pattern"}]}
+        mock_generate_time_range.return_value = (arrow.get(1720088492), arrow.get(1720693292))
+        query = copy.deepcopy(PARAMS)
+        query["time_range"] = "1h"
+
+        result = PatternHandler(INDEX_SET_ID, query)._get_pattern_data(["e4b60ecf"])
+
+        sql = mock_query.call_args.args[0]["sql"]
+        self.assertEqual(result[0].get("origin_log"), None)
+        self.assertNotIn("log as origin_log", sql)
+
+    @patch("apps.log_clustering.handlers.pattern.generate_time_range")
+    @patch("apps.utils.bkdata.BkDataQueryApi.query")
+    def test_get_pattern_data_for_bkbase_link_selects_origin_log_when_requested(
+        self, mock_query, mock_generate_time_range
+    ):
+        ClusteringConfig.objects.filter(index_set_id=INDEX_SET_ID).update(signature_pattern_rt="bklog_pattern_rt")
+        mock_query.return_value = {
+            "list": [{"signature": "e4b60ecf", "pattern": "fallback pattern", "origin_log": "large raw log sample"}]
+        }
+        mock_generate_time_range.return_value = (arrow.get(1720088492), arrow.get(1720693292))
+        query = copy.deepcopy(PARAMS)
+        query["time_range"] = "1h"
+        query["include_origin_log"] = True
+
+        result = PatternHandler(INDEX_SET_ID, query)._get_pattern_data(["e4b60ecf"])
+
+        sql = mock_query.call_args.args[0]["sql"]
+        self.assertEqual(result[0]["origin_log"], "large raw log sample")
+        self.assertIn("log as origin_log", sql)
 
     @patch("apps.log_clustering.handlers.pattern.FeatureToggleObject.toggle")
     @patch.object(PatternHandler, "_multi_query")

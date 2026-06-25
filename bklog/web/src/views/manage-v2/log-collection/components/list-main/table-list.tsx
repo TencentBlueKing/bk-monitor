@@ -50,6 +50,8 @@ import TagMore from '../common-comp/tag-more';
 import type { IListItemData } from '../../type';
 import StopTypeDialog from './stop-type-dialog';
 import TableComponent from '../common-comp/table-component';
+import ClusterFilter from '@/views/retrieve-v2/search-result-panel/log-clustering/components/finger-tools/cluster-filter.tsx';
+import '@/views/retrieve-v2/search-result-panel/log-clustering/components/finger-tools/cluster-filter.scss';
 import './table-list.scss';
 
 const CancelToken = axios.CancelToken;
@@ -101,7 +103,7 @@ interface IMenuItem {
  */
 interface IFilterCondition {
   key: string;
-  value: string[];
+  value: (string | number)[];
 }
 
 /**
@@ -228,6 +230,10 @@ export default defineComponent({
     const userDisplayNameMap = ref<Map<string, string>>(new Map());
     // 全量标签列表（用于标签管理）
     const selectLabelList = ref<Array<{ tag_id: number; name: string; color: string; is_built_in?: boolean }>>([]);
+    // 标签过滤下拉选项列表
+    const filterLabelList = ref<Array<{ id: number; name: string }>>([]);
+    // 标签过滤当前选中项
+    const tagSelect = ref<(string | number)[]>(['all']);
     const editingIndexSetRowId = ref<number | string>('');
     const updatingIndexSetRowId = ref<number | string>('');
     const editingIndexSetDraftIds = ref<Record<string, Array<number | string>>>({});
@@ -246,6 +252,7 @@ export default defineComponent({
 
     let tippyInstances: Instance[] = [];
     let collectStatusTimer: ReturnType<typeof setTimeout> | null = null;
+    let isUnmounted = false;
     const searchKey = ref('');
     const IFilterValues = ref<IFilterValues>({
       created_by: [],
@@ -255,13 +262,14 @@ export default defineComponent({
     // 过滤条件
     const conditions = ref<IFilterCondition[]>([]);
     // 表格过滤值（用于设置默认选中状态）
-    const filterValue = ref<Record<string, string>>({
+    const filterValue = ref<Record<string, string | (string | number)[]>>({
       log_access_type: '',
       collector_scenario_id: '',
       storage_display_name: '',
       status: '',
       created_by: '',
       updated_by: '',
+      tags: [],
     });
 
     const pagination = ref({
@@ -886,7 +894,22 @@ export default defineComponent({
         width: 100,
       },
       {
-        title: t('标签'),
+        title: (h) => {
+          const isActive = filterValue.value.tags.length > 0;
+          return (
+            <ClusterFilter
+              title={t('标签')}
+              searchable
+              popoverMinWidth={200}
+              select={tagSelect.value}
+              selectList={filterLabelList.value}
+              toggle={() => handleToggleTagSelect()}
+              isActive={isActive}
+              on-selected={(v: string[]) => handleTagSelectChange(v)}
+              on-submit={(v: string[]) => handleTagSubmit(v)}
+            />
+          );
+        },
         colKey: 'tags',
         showTips: false,
         cell: (h, { row }: { row: ITableRowData }) => (
@@ -1040,7 +1063,9 @@ export default defineComponent({
           status: '',
           created_by: '',
           updated_by: '',
+          tags: [],
         };
+        tagSelect.value = ['all'];
         searchKey.value = '';
         reloadList();
       },
@@ -1107,12 +1132,60 @@ export default defineComponent({
     const fetchLabelList = () => {
       $http.request('unionSearch/unionLabelList').then(res => {
         selectLabelList.value = res.data || [];
+        // 构建过滤列表："全部"选项 + 非内置标签
+        const notBuiltInList = (res.data || [])
+          .filter(item => !item.is_built_in)
+          .map(item => ({
+            id: item.tag_id,
+            name: item.name,
+          }));
+        filterLabelList.value = [{ id: 'all', name: t('全部') }, ...notBuiltInList];
       });
     };
 
     /** 更新行数据中的标签 */
     const handleUpdateTags = (row: ITableRowData, newTags: Array<{ name: string;[key: string]: unknown }>) => {
       row.tags = newTags;
+    };
+
+    /** 标签过滤 - 处理选中项变化 */
+    const handleTagSelectChange = (v: (string | number)[]) => {
+      if (!v.length) {
+        tagSelect.value = ['all'];
+        return;
+      }
+      const lastSelect = v[v.length - 1];
+      if (lastSelect === 'all') {
+        tagSelect.value = [lastSelect];
+      } else {
+        tagSelect.value = v.filter(item => !(item === 'all'));
+      }
+    };
+
+    /** 标签过滤 - 处理提交（确定按钮） */
+    const handleTagSubmit = (v: (string | number)[]) => {
+      const tags = !v.includes('all') ? (v as number[]) : [];
+      filterValue.value = { ...filterValue.value, tags };
+
+      // 重建 conditions，保留非 tags 的过滤条件
+      const newConditions: IFilterCondition[] = [];
+      for (const condition of conditions.value) {
+        if (condition.key !== 'tags') {
+          newConditions.push(condition);
+        }
+      }
+      if (tags.length > 0) {
+        newConditions.push({ key: 'tags', value: tags });
+      }
+
+      conditions.value = newConditions;
+      reloadList();
+    };
+
+    /** 标签过滤 - 处理下拉框展开/关闭时重置选中项 */
+    const handleToggleTagSelect = () => {
+      const currentTags = filterValue.value.tags;
+      tagSelect.value = Array.isArray(currentTags) && currentTags.length > 0 ? [...currentTags] : ['all'];
     };
 
     onMounted(() => {
@@ -1134,6 +1207,8 @@ export default defineComponent({
       destroyTippyInstances();
       // 清除状态轮询定时器
       stopCollectStatusTimer();
+      // 标记组件已卸载
+      isUnmounted = true;
       // 移除窗口大小变化监听
       window.removeEventListener('resize', handleWindowResize);
       document.removeEventListener('mousedown', handleDocumentMouseDown, true);
@@ -1206,7 +1281,7 @@ export default defineComponent({
           },
         })
         .then(res => {
-          if (!res.result) {
+          if (isUnmounted || !res.result) {
             stopCollectStatusTimer();
             return;
           }
@@ -1589,18 +1664,26 @@ export default defineComponent({
      * 处理表格过滤变化
      * @param filters - 过滤对象
      */
-    const handleFilterChange = (filters: Record<string, string>) => {
+    const handleFilterChange = (filters: Record<string, string | string[]>) => {
       // 同步更新 filterValue
       filterValue.value = { ...filterValue.value, ...filters };
 
       // 创建新的搜索条件数组
       const newConditions: IFilterCondition[] = [];
 
+      // 保留 tags 条件（由 ClusterFilter 管理）
+      const tagsFilter = filterValue.value.tags;
+      if (Array.isArray(tagsFilter) && tagsFilter.length > 0) {
+        newConditions.push({ key: 'tags', value: tagsFilter });
+      }
+
       for (const key of Object.keys(filters || {})) {
-        if (filters[key]) {
+        const value = filters[key];
+        if (key === 'tags') continue; // tags 由 ClusterFilter 单独管理
+        if (value) {
           newConditions.push({
             key,
-            value: [filters[key]],
+            value: [value as string],
           });
         }
       }
@@ -1693,6 +1776,8 @@ export default defineComponent({
     const handleEmptyOperation = (type: string) => {
       if (type === 'clear-filter') {
         conditions.value = [];
+        filterValue.value.tags = [];
+        tagSelect.value = ['all'];
       }
       searchKey.value = '';
       reloadList();

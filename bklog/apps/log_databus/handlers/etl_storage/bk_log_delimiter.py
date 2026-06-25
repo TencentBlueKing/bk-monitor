@@ -209,6 +209,9 @@ class BkLogDelimiterEtlStorage(EtlStorage):
             }
         )
 
+        # 1.1. 用户自定义时间字段时，提取utctime供时间解析失败兜底使用
+        rules.extend(self._build_utctime_extract_v4(built_in_config))
+
         # 2. 提取内置字段（从json_data提取内置字段）
         built_in_rules = self._build_built_in_fields_v4(built_in_config, storage_cluster_type)
         rules.extend(built_in_rules)

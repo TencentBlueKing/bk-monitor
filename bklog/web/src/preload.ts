@@ -41,6 +41,8 @@ export const getExternalMenuListBySpace = (space) => {
       list.push('retrieve');
     } else if (permission === 'log_extract') {
       list.push('manage');
+    } else if (permission === 'client_log') {
+      list.push('client-log-search');
     }
   }
   return list;

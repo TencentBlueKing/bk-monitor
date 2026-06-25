@@ -165,8 +165,14 @@ export default defineComponent({
     function jumpToHome() {
       store.commit('updateState', { isShowGlobalDialog: false });
       if ((window as any).IS_EXTERNAL) {
+        const externalMenu = store.state.externalMenu as string[] || [];
+        // 外部版优先跳转管理，无管理权限再考虑检索或客户端日志检索
+        let defaultRoute = 'manage';
+        if (externalMenu.includes('manage')) defaultRoute = 'manage';
+        else if (externalMenu.includes('retrieve')) defaultRoute = 'retrieve';
+        else if (externalMenu.includes('client-log-search')) defaultRoute = 'client-log-search';
         router.push({
-          name: 'manage',
+          name: defaultRoute,
           query: {
             spaceUid: store.state.spaceUid,
             bizId: bkBizId.value,

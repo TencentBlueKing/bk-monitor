@@ -294,6 +294,14 @@ export default {
   当前空间下暂无故障: 'There is no fault in the current space',
   '{count} 空间未开启故障分析功能，请联系 {link}':
     '{count} space does not have fault analysis function enabled, please contact {link}',
+  '以下是所选 {count} 个空间的接入情况': 'This is the access situation of the selected {count} spaces',
+  空间未开启故障分析功能: 'Fault analysis function is not enabled in this space',
+  '当前所选 {count} 个空间未开启故障分析功能':
+    'The fault analysis function is not enabled in the selected {count} spaces',
+  一键开启: 'One-click enable',
+  接入指引: 'Access Guide',
+  '请参考下表接入数据，如有疑问请联系 {link}':
+    'Please refer to the following table to access data, if you have any questions, please contact {link}',
   '你当前有 {0} 个空间权限，暂无您负责的故障':
     'You currently have {0} space permissions, and there are no faults that you are responsible for.',
   '你当前有 {count} 个空间权限，暂未开启灰度, 请联系 {link}':
@@ -552,4 +560,7 @@ export default {
   '确认删除该应用？': 'Confirm to delete the application?',
   '确认启用该应用？': 'Confirm to enable the application?',
   评论发送失败: 'Comment sending failed',
+
+  '已拆分为独立 Issue': 'Split into independent Issue',
+  issue合并成功: 'Issue merged successfully',
 };

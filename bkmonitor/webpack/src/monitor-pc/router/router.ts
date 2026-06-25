@@ -27,6 +27,7 @@
 
 import Vue from 'vue';
 
+import { getBizRouteHref, isValidBizId } from 'monitor-common/utils';
 import { LOCAL_BIZ_STORE_KEY } from 'monitor-common/utils/constant';
 import { getUrlParam, random } from 'monitor-common/utils/utils';
 import VueRouter, { type Route, type RouteConfig } from 'vue-router';
@@ -134,12 +135,15 @@ router.beforeEach(async (to, from, next) => {
   // 无业务页面跳转处理
   if (hasEmailSubscriptions(from)) {
     const bizId = getUrlParam('bizId')?.replace(/\//gim, '');
-    if (hasEmailSubscriptions(to) || (bizId !== null && +bizId > -1)) {
+    if (hasEmailSubscriptions(to) || isValidBizId(bizId)) {
       next();
     } else {
-      const { origin, pathname } = location;
-      const bizId = localStorage.getItem(LOCAL_BIZ_STORE_KEY) || -1;
-      location.href = `${origin}${pathname}?bizId=${bizId}#${to.fullPath}`;
+      const localBizId = localStorage.getItem(LOCAL_BIZ_STORE_KEY);
+      if (isValidBizId(localBizId)) {
+        location.href = getBizRouteHref(to.fullPath, localBizId);
+        return;
+      }
+      next();
       return;
     }
   }

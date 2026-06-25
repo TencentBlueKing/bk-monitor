@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, set } from 'vue';
+import { computed, ref, set, watch } from 'vue';
 
 import {
   getOperatorKey,
@@ -199,6 +199,9 @@ const {
   onShowFn: () => {
     setIsDocumentMousedown(true);
     refPopInstance.value?.beforeShowndFn?.();
+
+    syncPopupWidth();
+
     emit('popup-change', { isShow: true });
   },
   onHiddenFn: () => {
@@ -243,6 +246,21 @@ const closeTippyInstance = () => {
   hideTippyInstance();
 };
 
+const syncPopupWidth = () => {
+  const fuzzyFlag = refPopInstance.value?.isFuzzyMatchAvailable;
+  const isFuzzyMatch = typeof fuzzyFlag === 'object' && fuzzyFlag !== null ? fuzzyFlag.value : !!fuzzyFlag;
+  getTippyUtil()?.setProps?.({ maxWidth: isFuzzyMatch ? 1000 : 800 });
+};
+
+watch(
+  () => refPopInstance.value?.isFuzzyMatchAvailable?.value,
+  () => {
+    if (isInstanceShown()) {
+      syncPopupWidth();
+      repositionTippyInstance();
+    }
+  },
+);
 
 /**
  * 执行点击弹出操作项方法

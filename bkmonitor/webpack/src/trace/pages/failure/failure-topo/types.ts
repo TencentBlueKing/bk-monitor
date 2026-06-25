@@ -131,6 +131,12 @@ export interface IncidentDetailData {
   end_time: number;
   id: string;
   incident_id: string;
+  wx_cs_link?: string;
+}
+
+export interface IncidentResults {
+  [key: string]: any;
+  incident_topology: { enabled: boolean; status: string };
 }
 
 export interface IPosition {

@@ -57,7 +57,7 @@ KIND_EXTRA_FIELDS = {
     "VmStorageBinding": ["vm_cluster_name", "bkbase_result_table_name", "table_id"],
     "ElasticSearchBinding": ["es_cluster_name", "table_id", "bkbase_result_table_name", "timezone"],
     "DorisBinding": ["table_id", "bkbase_result_table_name", "doris_cluster_name"],
-    "Databus": ["data_id_name", "bk_data_id", "sink_names"],
+    "Databus": ["data_id_name", "bk_data_id", "sink_names", "consumer_group"],
     "ConditionalSink": [],
     "BasereportSink": ["vm_storage_binding_names", "result_table_ids"],
 }

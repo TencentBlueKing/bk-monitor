@@ -196,7 +196,7 @@
       }
 
       .content-body {
-        padding: 12px;
+        padding: 8px;
         font-size: 12px;
         line-height: 20px;
         background-color: #f5f7fa;
@@ -289,10 +289,10 @@
     }
 
     .comment-actions {
-      display: none;
       position: absolute;
       right: 6px;
       bottom: 6px;
+      display: none;
       gap: 4px;
 
       .action-btn {

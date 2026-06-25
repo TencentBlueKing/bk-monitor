@@ -12,6 +12,7 @@ import json
 from unittest.mock import patch
 
 import pytest
+from django.conf import settings
 
 from metadata import models
 from metadata.models.constants import DataIdCreatedFromSystem
@@ -142,6 +143,7 @@ def log_v4_datalink_records(mocker):
     models.DataLink.objects.filter(bk_tenant_id=bk_tenant_id, namespace="bklog").delete()
     models.BkBaseResultTable.objects.filter(bk_tenant_id=bk_tenant_id).delete()
     models.DataSource.objects.filter(bk_data_id=ds.bk_data_id).delete()
+    models.KafkaTopicInfo.objects.filter(bk_data_id=ds.bk_data_id).delete()
     models.ClusterInfo.objects.filter(cluster_id__in=[es_cluster.cluster_id, doris_cluster.cluster_id]).delete()
     models.Space.objects.filter(space_id="4281349").delete()
 
@@ -202,6 +204,29 @@ def test_apply_log_datalink_falls_back_when_default_storage_missing(log_v4_datal
         apply_log_datalink(bk_tenant_id=ctx["bk_tenant_id"], table_id=ctx["table_id"])
 
     assert mocked_sync.call_args.kwargs["storage_cluster_id"] == ctx["doris_cluster"].cluster_id
+
+
+def test_apply_log_datalink_passes_consumer_group_for_gse_source(log_v4_datalink_records):
+    ctx = log_v4_datalink_records
+    ds = ctx["ds"]
+    ds.created_from = DataIdCreatedFromSystem.BKGSE.value
+    ds.save(update_fields=["created_from"])
+    models.KafkaTopicInfo.objects.update_or_create(
+        bk_data_id=ds.bk_data_id,
+        defaults={"topic": "0bkmonitor_510010", "partition": 1},
+    )
+
+    with (
+        patch.object(models.DataSource, "register_to_bkbase", return_value=None),
+        patch.object(models.DataSource, "delete_consul_config", return_value=None),
+        patch.object(DataLink, "apply_data_link", return_value=None) as mocked_apply,
+        patch.object(DataLink, "sync_metadata"),
+    ):
+        apply_log_datalink(bk_tenant_id=ctx["bk_tenant_id"], table_id=ctx["table_id"])
+
+    assert mocked_apply.call_args.kwargs["consumer_group"] == (
+        f"{settings.TRANSFER_CONSUMER_GROUP_ID}0bkmonitor_510010"
+    )
 
 
 @pytest.fixture
@@ -273,6 +298,7 @@ def event_group_v4_records():
     models.DataLink.objects.filter(bk_tenant_id=bk_tenant_id, namespace="bklog").delete()
     models.BkBaseResultTable.objects.filter(bk_tenant_id=bk_tenant_id).delete()
     models.DataSource.objects.filter(bk_data_id=ds.bk_data_id).delete()
+    models.KafkaTopicInfo.objects.filter(bk_data_id=ds.bk_data_id).delete()
     models.ClusterInfo.objects.filter(cluster_id=es_cluster.cluster_id).delete()
 
 
@@ -289,3 +315,26 @@ def test_apply_event_group_datalink_invokes_sync_metadata(event_group_v4_records
     mocked_sync.assert_called_once()
     assert mocked_sync.call_args.kwargs["storage_cluster_id"] == ctx["es_cluster"].cluster_id
     assert mocked_sync.call_args.kwargs["table_id"] == ctx["table_id"]
+
+
+def test_apply_event_group_datalink_passes_consumer_group_for_gse_source(event_group_v4_records):
+    ctx = event_group_v4_records
+    ds = ctx["ds"]
+    ds.created_from = DataIdCreatedFromSystem.BKGSE.value
+    ds.save(update_fields=["created_from"])
+    models.KafkaTopicInfo.objects.update_or_create(
+        bk_data_id=ds.bk_data_id,
+        defaults={"topic": "0bkmonitor_510020", "partition": 1},
+    )
+
+    with (
+        patch.object(models.DataSource, "register_to_bkbase", return_value=None),
+        patch.object(models.DataSource, "delete_consul_config", return_value=None),
+        patch.object(DataLink, "apply_data_link", return_value=None) as mocked_apply,
+        patch.object(DataLink, "sync_metadata"),
+    ):
+        apply_event_group_datalink(bk_tenant_id=ctx["bk_tenant_id"], table_id=ctx["table_id"])
+
+    assert mocked_apply.call_args.kwargs["consumer_group"] == (
+        f"{settings.TRANSFER_CONSUMER_GROUP_ID}0bkmonitor_510020"
+    )

@@ -50,9 +50,9 @@
                 </div>
                 <BookmarkPop
                 v-if="!isMonitorComponent"
-                :sql="item.query_string"
+                :sql="(item.params.search_mode || item.search_mode) === 'sql' ? item.query_string : ''"
                 :addition="item.params.addition"
-                searchMode='sql'
+                :searchMode="item.params.search_mode || item.search_mode || 'sql'"
                 active-favorite="history"
                 @instanceShow="instanceShow"
                 ></BookmarkPop>
@@ -100,6 +100,9 @@
       isUnionSearch() {
         return this.$store.getters.isUnionSearch;
       },
+      isSceneMode() {
+        return this.$store.getters.isSceneMode;
+      },
       unionIndexList() {
         return this.$store.getters.unionIndexList;
       },
@@ -108,6 +111,9 @@
       },
       indexId() {
         return this.indexItem.ids[0];
+      },
+      retrieveParams() {
+        return this.$store.getters.retrieveParams;
       },
       filterHistoryRecords() {
         if (!this.searchInput?.trim()) return this.historyRecords;
@@ -169,24 +175,35 @@
       },
       handleClickHistory(item) {
         const { params } = item;
-        const { keyword, addition, ip_chooser, search_mode = item.search_mode  } = params;
-        this.$emit('change', { keyword, addition, ip_chooser, search_mode });
+        const { keyword, addition, ip_chooser, search_mode = item.search_mode, scene_filter_values, table_id_conditions } = params;
+        this.$emit('change', { keyword, addition, ip_chooser, search_mode, scene_filter_values, table_id_conditions });
         this.popoverInstance.hide();
       },
       requestSearchHistory() {
         this.historyLoading = true;
-        const queryUrl = this.isUnionSearch ? 'unionSearch/unionSearchHistory' : 'retrieve/getSearchHistory';
-        const params = this.isUnionSearch
-          ? {
-              index_set_ids: this.unionIndexList,
-            }
-          : {
-              index_set_id: this.indexId,
-            };
+        let queryUrl;
+        let params;
+        let requestConfig = {};
+        if (this.isSceneMode) {
+          queryUrl = 'retrieve/getSceneSearchHistory';
+          const { space_uid, table_id_conditions, scene_filter_values } = this.retrieveParams;
+          params = { space_uid, table_id_conditions, scene_filter_values };
+          requestConfig = { data: params };
+        } else if (this.isUnionSearch) {
+          queryUrl = 'unionSearch/unionSearchHistory';
+          params = {
+            index_set_ids: this.unionIndexList,
+          };
+          requestConfig = { params };
+        } else {
+          queryUrl = 'retrieve/getSearchHistory';
+          params = {
+            index_set_id: this.indexId,
+          };
+          requestConfig = { params };
+        }
         this.$http
-          .request(queryUrl, {
-            params,
-          })
+          .request(queryUrl, requestConfig)
           .then(res => {
             this.historyRecords = res.data
               .filter(item => item.query_string !== '*')

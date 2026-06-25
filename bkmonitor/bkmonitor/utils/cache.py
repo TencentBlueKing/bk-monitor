@@ -197,6 +197,33 @@ class UsingCache:
         # 执行真实函数
         return task_definition(*args, **kwargs)
 
+    def get_cached(self, task_definition, args, kwargs):
+        """
+        【仅探测模式】
+        只查缓存、不执行函数：命中返回缓存值，未命中（或 development 关闭缓存）返回 None。
+        与 _cached 的读路径使用相同的 key 与开关语义。
+        """
+        if settings.ENVIRONMENT == "development":
+            return None
+        cache_key = self._cache_key(task_definition, args, kwargs)
+        if not cache_key:
+            return None
+        return self.get_value(cache_key, default=None)
+
+    def set_cached(self, task_definition, args, kwargs, value):
+        """
+        【仅回写模式】
+        把外部计算好的结果按与 _refresh 相同的 key、写入条件与超时回写缓存，不执行函数。
+        供「探缓存未命中后批量计算」的调用方回填单 key 缓存使用。
+        """
+        if settings.ENVIRONMENT == "development":
+            return
+        cache_key = self._cache_key(task_definition, args, kwargs)
+        if not cache_key:
+            return
+        if self.is_cache_func(value):
+            self.set_value(cache_key, value, self.using_cache_type.timeout)
+
     def __call__(self, task_definition):
         @functools.wraps(task_definition)
         def cached_wrapper(*args, **kwargs):

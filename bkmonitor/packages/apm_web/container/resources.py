@@ -16,7 +16,7 @@ from apm_web.container.helpers import ContainerHelper
 from apm_web.strategy.dispatch import EntitySet
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.request import get_request
-from constants.alert import K8S_RESOURCE_TYPE, K8STargetType
+from constants.alert import K8S_RESOURCE_TYPE, K8S_RESOURCE_TYPE_SCENARIO_MAP, K8STargetType
 from constants.apm import OtlpKey
 from core.drf_resource import CacheResource, Resource, api, resource
 from monitor_web.collecting.constant import CollectStatus
@@ -246,7 +246,7 @@ class ListServiceK8sTargetsResource(Resource):
         service_name: str = validated_data["service_name"]
 
         workloads: list[dict[str, Any]] = EntitySet.get_service_workloads(bk_biz_id, app_name, service_name)
-        targets: list[dict[str, str]] = [
+        targets: list[dict[str, Any]] = [
             {
                 "resource_type": K8S_RESOURCE_TYPE[K8STargetType.WORKLOAD],
                 "workload": f"{w['kind']}:{w['name']}",
@@ -254,10 +254,13 @@ class ListServiceK8sTargetsResource(Resource):
                 "namespace": w["namespace"],
             }
             for w in workloads
+            if w["kind"] != "ReplicaSet"
         ]
 
-        def _construct_response(_targets: list[dict[str, str]]) -> dict[str, Any]:
-            # 返回结构和 AlertK8sTargetResource 保持一致。
+        def _construct_response(_targets: list[dict[str, Any]]) -> dict[str, Any]:
+            # target_list 元素结构和 AlertK8sTargetResource 保持一致。
+            for target in _targets:
+                target["scenario_list"] = list(K8S_RESOURCE_TYPE_SCENARIO_MAP.get(target.get("resource_type", ""), []))
             return {"target_list": _targets}
 
         if not validated_data.get("span_id"):
@@ -267,7 +270,7 @@ class ListServiceK8sTargetsResource(Resource):
             bk_biz_id=bk_biz_id, app_name=app_name, span_id=validated_data["span_id"]
         )
         if not span_detail:
-            return {"target_list": targets}
+            return _construct_response(targets)
 
         resource_info: dict[str, Any] = span_detail.get(OtlpKey.RESOURCE, {})
         bcs_cluster_id: str = resource_info.get("k8s.bcs.cluster.id") or ""

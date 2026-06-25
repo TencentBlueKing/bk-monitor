@@ -485,7 +485,7 @@ def list_record_rule_v4_events(params: dict[str, Any]) -> dict[str, Any]:
 @KernelRPCRegistry.register(
     FUNC_RECORD_RULE_V4_MANUAL_REFRESH,
     summary="Admin 手动刷新 RecordRule V4 解析结果",
-    description="调用 RecordRuleV4Operator.manual_refresh，只刷新解析并准备目标 Flow，不自动下发。",
+    description="调用 RecordRuleV4Operator.refresh_resolved，只刷新解析结果，不准备 Flow、不自动下发。",
     params_schema={"bk_tenant_id": "可选，租户 ID", "id": "必填，规则组 ID", "operator": "可选，操作人"},
     example_params={"bk_tenant_id": "system", "id": 1, "operator": "admin"},
 )
@@ -495,7 +495,7 @@ def manual_refresh_record_rule_v4(params: dict[str, Any]) -> dict[str, Any]:
     before = _serialize_rule(rule)
     resolved = RecordRuleV4Operator(
         rule, source="manual", operator=_normalize_text(params.get("operator"), "operator") or "admin"
-    ).manual_refresh()
+    ).refresh_resolved()
     rule.refresh_from_db()
     latest = _latest_event(rule)
     succeeded = bool(latest and latest.status not in {"failed", "skipped"})
@@ -513,34 +513,43 @@ def manual_refresh_record_rule_v4(params: dict[str, Any]) -> dict[str, Any]:
 
 @KernelRPCRegistry.register(
     FUNC_RECORD_RULE_V4_APPLY,
-    summary="Admin 下发 RecordRule V4 latest Flow",
-    description="调用 RecordRuleV4Operator.apply，下发 latest Flow；若规则已声明删除，则补偿删除已生效 Flow。",
-    params_schema={"bk_tenant_id": "可选，租户 ID", "id": "必填，规则组 ID", "operator": "可选，操作人"},
-    example_params={"bk_tenant_id": "system", "id": 1, "operator": "admin"},
+    summary="Admin 执行 RecordRule V4 当前声明",
+    description=(
+        "调用 RecordRuleV4Operator.execute_declaration(auto_apply=True)，完成输出资源、解析、Flow 准备和下发；"
+        "force_output_apply=true 时强制重试 output 下发。"
+    ),
+    params_schema={
+        "bk_tenant_id": "可选，租户 ID",
+        "id": "必填，规则组 ID",
+        "operator": "可选，操作人",
+        "force_output_apply": "可选，是否强制重试 output 资源下发，默认 false",
+    },
+    example_params={"bk_tenant_id": "system", "id": 1, "operator": "admin", "force_output_apply": False},
 )
 def apply_record_rule_v4(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_bk_tenant_id(params)
     rule = _get_rule_or_raise(params, bk_tenant_id)
     before = _serialize_rule(rule)
+    force_output_apply = bool(normalize_optional_bool(params.get("force_output_apply"), "force_output_apply"))
     ok = RecordRuleV4Operator(
         rule, source="manual", operator=_normalize_text(params.get("operator"), "operator") or "admin"
-    ).apply()
+    ).execute_declaration(auto_apply=True, force_output_apply=force_output_apply)
     return _build_action_response(
         operation=OPERATION_RECORD_RULE_V4_APPLY,
         func_name=FUNC_RECORD_RULE_V4_APPLY,
         bk_tenant_id=bk_tenant_id,
         rule=rule,
         before=before,
-        action="apply",
+        action="execute_declaration",
         succeeded=ok,
-        result={"ok": ok},
+        result={"ok": ok, "force_output_apply": force_output_apply},
     )
 
 
 @KernelRPCRegistry.register(
     FUNC_RECORD_RULE_V4_SET_DESIRED_STATUS,
     summary="Admin 设置 RecordRule V4 运行期望状态",
-    description="只允许 running / stopped，调用 update_spec(desired_status=...)，不会生成新的 spec/resolved。",
+    description="只允许 running / stopped，先 update_declaration(desired_status=...)，再 execute_declaration(auto_apply=True)。",
     params_schema={
         "bk_tenant_id": "可选，租户 ID",
         "id": "必填，规则组 ID",
@@ -554,9 +563,11 @@ def set_record_rule_v4_desired_status(params: dict[str, Any]) -> dict[str, Any]:
     rule = _get_rule_or_raise(params, bk_tenant_id)
     desired_status = _normalize_desired_status(params.get("desired_status"))
     before = _serialize_rule(rule)
-    RecordRuleV4Operator(
+    operator = RecordRuleV4Operator(
         rule, source="manual", operator=_normalize_text(params.get("operator"), "operator") or "admin"
-    ).update_spec(desired_status=desired_status)
+    )
+    operator.update_declaration(desired_status=desired_status)
+    operator.execute_declaration(auto_apply=True)
     rule.refresh_from_db()
     succeeded = rule.desired_status == desired_status and rule.applied_desired_status == desired_status
     return _build_action_response(

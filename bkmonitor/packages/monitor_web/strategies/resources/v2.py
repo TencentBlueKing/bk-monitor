@@ -890,15 +890,18 @@ class GetStrategyListV2Resource(Resource):
         按策略标签统计策略数量
         """
 
-        # 按策略标签进行聚合统计
-        count_records = (
-            StrategyLabel.objects.filter(strategy_id__in=strategy_ids)
-            .values("label_name")
-            .annotate(total=Count("strategy_id", distinct=True))
-            .order_by("label_name")
-        )
+        # 按策略标签统计去重策略数。
+        # 不在 SQL 侧 GROUP BY/ORDER BY label_name：该写法会让优化器选 label_name 打头的索引
+        # 全扫整表（成本与表大小相关、与 strategy_ids 数解耦），strategy_id 的覆盖索引被弃用。
+        # 改为按 strategy_id 走覆盖索引 seek 取 (strategy_id, label_name) 对，在内存按 label
+        # 去重统计（命中行数与 strategy_ids 规模相关、量级可忽略），与原 COUNT(DISTINCT) 等价。
+        label_to_strategies: dict[str, set[int]] = defaultdict(set)
+        for strategy_id, label_name in StrategyLabel.objects.filter(strategy_id__in=strategy_ids).values_list(
+            "strategy_id", "label_name"
+        ):
+            label_to_strategies[label_name].add(strategy_id)
 
-        label_counts = {record["label_name"]: record["total"] for record in count_records}
+        label_counts = {label_name: len(strategy_set) for label_name, strategy_set in label_to_strategies.items()}
 
         # 查询业务下所有的策略标签
         labels = (
@@ -2636,6 +2639,30 @@ class GetTargetDetailWithCache(CacheResource):
     backend_cache_type = CacheType.CC_CACHE_ALWAYS
     cache_user_related = False
 
+    # 目标字段 -> 节点类型/实例类型 映射（类级常量，供逐策略与批量两条路径共用）
+    TARGET_TYPE_MAP = {
+        TargetFieldType.host_target_ip: TargetNodeType.INSTANCE,
+        TargetFieldType.host_ip: TargetNodeType.INSTANCE,
+        TargetFieldType.host_topo: TargetNodeType.TOPO,
+        TargetFieldType.service_topo: TargetNodeType.TOPO,
+        TargetFieldType.service_service_template: TargetNodeType.SERVICE_TEMPLATE,
+        TargetFieldType.service_set_template: TargetNodeType.SET_TEMPLATE,
+        TargetFieldType.host_service_template: TargetNodeType.SERVICE_TEMPLATE,
+        TargetFieldType.host_set_template: TargetNodeType.SET_TEMPLATE,
+        TargetFieldType.dynamic_group: TargetNodeType.DYNAMIC_GROUP,
+    }
+    OBJ_TYPE_MAP = {
+        TargetFieldType.host_target_ip: TargetObjectType.HOST,
+        TargetFieldType.host_ip: TargetObjectType.HOST,
+        TargetFieldType.host_topo: TargetObjectType.HOST,
+        TargetFieldType.service_topo: TargetObjectType.SERVICE,
+        TargetFieldType.service_service_template: TargetObjectType.SERVICE,
+        TargetFieldType.service_set_template: TargetObjectType.SERVICE,
+        TargetFieldType.host_service_template: TargetObjectType.HOST,
+        TargetFieldType.host_set_template: TargetObjectType.HOST,
+        TargetFieldType.dynamic_group: TargetObjectType.HOST,
+    }
+
     class RequestSerializer(serializers.Serializer):
         strategy_id = serializers.IntegerField(required=True, label="策略ID")
 
@@ -2695,28 +2722,8 @@ class GetTargetDetailWithCache(CacheResource):
         target理论上支持多个列表以或关系存在，列表内部亦存在多个对象以且关系存在，
         由于目前产品形态只支持单对象的展示，因此若存在多对象，只取第一个对象返回给前端
         """
-        target_type_map = {
-            TargetFieldType.host_target_ip: TargetNodeType.INSTANCE,
-            TargetFieldType.host_ip: TargetNodeType.INSTANCE,
-            TargetFieldType.host_topo: TargetNodeType.TOPO,
-            TargetFieldType.service_topo: TargetNodeType.TOPO,
-            TargetFieldType.service_service_template: TargetNodeType.SERVICE_TEMPLATE,
-            TargetFieldType.service_set_template: TargetNodeType.SET_TEMPLATE,
-            TargetFieldType.host_service_template: TargetNodeType.SERVICE_TEMPLATE,
-            TargetFieldType.host_set_template: TargetNodeType.SET_TEMPLATE,
-            TargetFieldType.dynamic_group: TargetNodeType.DYNAMIC_GROUP,
-        }
-        obj_type_map = {
-            TargetFieldType.host_target_ip: TargetObjectType.HOST,
-            TargetFieldType.host_ip: TargetObjectType.HOST,
-            TargetFieldType.host_topo: TargetObjectType.HOST,
-            TargetFieldType.service_topo: TargetObjectType.SERVICE,
-            TargetFieldType.service_service_template: TargetObjectType.SERVICE,
-            TargetFieldType.service_set_template: TargetObjectType.SERVICE,
-            TargetFieldType.host_service_template: TargetObjectType.HOST,
-            TargetFieldType.host_set_template: TargetObjectType.HOST,
-            TargetFieldType.dynamic_group: TargetObjectType.HOST,
-        }
+        target_type_map = cls.TARGET_TYPE_MAP
+        obj_type_map = cls.OBJ_TYPE_MAP
         info_func_map = {
             TargetFieldType.host_target_ip: resource.commons.get_host_instance_by_ip,
             TargetFieldType.host_ip: resource.commons.get_host_instance_by_ip,
@@ -2836,10 +2843,79 @@ class GetTargetDetail(Resource):
     获取监控目标详情
     """
 
+    # 支持跨策略批量解析的目标字段：这两类目标的 resolver（get_host_instance_by_node /
+    # get_service_instance_by_node）每次调用都会拉取整业务的主机/Agent状态/拓扑树，
+    # 与 node_list 长度基本无关，逐策略调用会把业务级取数重复 N 遍
+    BATCH_NODE_FIELDS = (TargetFieldType.host_topo, TargetFieldType.service_topo)
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         strategy_ids = serializers.ListField(required=True, label="策略ID列表", child=serializers.IntegerField())
         refresh = serializers.BooleanField(required=False, default=False, label="是否刷新缓存")
+
+    @classmethod
+    def batch_get_node_target_details(cls, bk_biz_id: int, items) -> dict:
+        """
+        node 类目标（host_topo/service_topo）跨策略合并为一次 resolver 调用。
+
+        把同类型目标的 node_list 直接拼接（不去重）成一次调用：resolver 按节点逐个处理
+        且保持顺序，结果按偏移切回各策略，因此与逐策略调用结果一致；
+        业务级取数（整业务主机/Agent状态/拓扑树）则由每策略一次降为每类型一次。
+
+        :return: {strategy_id: 与 GetTargetDetailWithCache.get_target_detail 同构的结果}
+        """
+        # 目标字段 -> (strategy_id, 节点列表) 分组
+        node_groups = {field: [] for field in cls.BATCH_NODE_FIELDS}
+        for item in items:
+            target = item.target
+            # 与 get_target_detail 相同的目标格式预检，不符合的留给逐策略路径
+            if not target or not target[0]:
+                continue
+            target = target[0][0]
+            field = target.get("field")
+            if field not in cls.BATCH_NODE_FIELDS or not target.get("value"):
+                continue
+
+            # resolver 会原地修改节点字典（补 node_path/all_host 等并 pop module_ids），
+            # 深拷贝以隔离各策略结果、避免污染 ORM 对象上的原始 target
+            nodes = deepcopy(target["value"])
+            for node in nodes:
+                if "bk_biz_id" not in node:
+                    node.update(bk_biz_id=bk_biz_id)
+            node_groups[field].append((item.strategy_id, nodes))
+
+        info_func_map = {
+            TargetFieldType.host_topo: resource.commons.get_host_instance_by_node,
+            TargetFieldType.service_topo: resource.commons.get_service_instance_by_node,
+        }
+
+        results = {}
+        for field, entries in node_groups.items():
+            if not entries:
+                continue
+
+            merged_nodes = [node for _, nodes in entries for node in nodes]
+            target_details = info_func_map[field]({"bk_biz_id": bk_biz_id, "node_list": merged_nodes})
+
+            # resolver 逐节点处理且保持顺序，按偏移切回各策略
+            offset = 0
+            for strategy_id, nodes in entries:
+                target_detail = target_details[offset : offset + len(nodes)]
+                offset += len(nodes)
+
+                # 与 get_target_detail 相同的实例数统计口径
+                instances = set()
+                for node in target_detail:
+                    instances.update(node.get("all_host", []))
+
+                results[strategy_id] = {
+                    "node_type": GetTargetDetailWithCache.TARGET_TYPE_MAP[field],
+                    "node_count": len(nodes),
+                    "instance_type": GetTargetDetailWithCache.OBJ_TYPE_MAP[field],
+                    "instance_count": len(instances),
+                    "target_detail": target_detail,
+                }
+        return results
 
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
@@ -2847,18 +2923,36 @@ class GetTargetDetail(Resource):
             "id", "scenario"
         )
         strategy_ids = [strategy.id for strategy in strategies]
-        items = ItemModel.objects.filter(strategy_id__in=strategy_ids)
+        items = list(ItemModel.objects.filter(strategy_id__in=strategy_ids))
 
         get_target_detail_with_cache = GetTargetDetailWithCache()
         # 提前设置策略与监控目标映射，避免频繁查询数据库
         get_target_detail_with_cache.set_mapping({item.strategy_id: (bk_biz_id, item.target) for item in items})
 
-        empty_strategy_ids = []
         result = {}
+
+        # 先探策略级缓存：命中直接用；refresh 时全部视为未命中（之后批量重算并回写）
+        miss_items = []
         for item in items:
-            # 使用instance.request()方式调用，而非instance()方式。
-            # instance()方式执行时会重新实例化，导致先前执行的set_mapping失效
-            if params["refresh"]:
+            info = None
+            if not params["refresh"]:
+                info = get_target_detail_with_cache.get_cached({"strategy_id": item.strategy_id})
+            if info:
+                result[item.strategy_id] = info
+            else:
+                miss_items.append(item)
+
+        # node 类目标的未命中跨策略合并为一次 resolver 调用，结果按 request() 的缓存语义回写
+        batched_infos = self.batch_get_node_target_details(bk_biz_id, miss_items)
+
+        empty_strategy_ids = []
+        for item in miss_items:
+            if item.strategy_id in batched_infos:
+                info = batched_infos[item.strategy_id]
+                get_target_detail_with_cache.set_cached(info, {"strategy_id": item.strategy_id})
+            elif params["refresh"]:
+                # 使用instance.request()方式调用，而非instance()方式。
+                # instance()方式执行时会重新实例化，导致先前执行的set_mapping失效
                 info = get_target_detail_with_cache.request.refresh({"strategy_id": item.strategy_id})
             else:
                 info = get_target_detail_with_cache.request({"strategy_id": item.strategy_id})

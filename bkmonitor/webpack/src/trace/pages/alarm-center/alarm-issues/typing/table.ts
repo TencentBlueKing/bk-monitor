@@ -26,6 +26,7 @@
 
 import type { ImpactScopeResourceKeyType, IssuePriorityType, IssueStatusType } from './constants';
 import type { IssueIdentifier } from './dialog';
+import type { MergeStatus } from './issues-merge-split';
 
 /** 聚合配置 */
 export interface AggregateConfig {
@@ -115,6 +116,8 @@ export interface IssueItem extends Record<string, unknown> {
   labels: string[];
   /** 最近关联告警时间（秒级时间戳） */
   last_alert_time: number;
+  /** 合并状态 */
+  merge_status?: MergeStatus;
   /** Issue 名称（回归问题带 [回归] 前缀） */
   name: string;
   /** 优先级 */

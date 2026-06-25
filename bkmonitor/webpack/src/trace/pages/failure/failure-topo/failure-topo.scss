@@ -3,7 +3,6 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: #2c2d30;
 
   .failure-topo-graph-zoom {
     position: absolute;
@@ -192,8 +191,11 @@
   }
 }
 
-.failure-topo-play {
+.failure-topo-empty {
+  background: #1D2024;
+}
 
+.failure-topo-play {
   .aggregation-select,
   .topo-tools-list {
     pointer-events: none;
@@ -215,4 +217,3 @@
   border-radius: 2px !important;
   box-shadow: 0 2px 6px 0 #00000080 !important;
 }
-

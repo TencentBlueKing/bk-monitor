@@ -36,7 +36,7 @@ export default defineComponent({
       default: 0,
     },
   },
-  emits: ['row-click', 'row-visible', 'row-mousedown', 'row-mouseup'],
+  emits: ['row-click', 'row-visible', 'row-mousedown', 'row-mouseup', 'row-mouseenter', 'row-mouseleave'],
   setup(props, { slots, emit }) {
     const refRootContainer: Ref<HTMLElement> = ref();
     const refRowNodeRoot: Ref<HTMLElement> = ref();
@@ -65,6 +65,14 @@ export default defineComponent({
       emit('row-mouseup', e);
     };
 
+    const handleRowMouseenter = (e: MouseEvent) => {
+      emit('row-mouseenter', e);
+    };
+
+    const handleRowMouseleave = (e: MouseEvent) => {
+      emit('row-mouseleave', e);
+    };
+
     const renderRowVNode = () => {
       return (
         <div
@@ -72,6 +80,8 @@ export default defineComponent({
           data-row-index={props.rowIndex}
           on-click={handleRowClick}
           on-mousedown={handleRowMousedown}
+          on-mouseenter={handleRowMouseenter}
+          on-mouseleave={handleRowMouseleave}
           on-mouseup={handleRowMouseup}
         >
           <div

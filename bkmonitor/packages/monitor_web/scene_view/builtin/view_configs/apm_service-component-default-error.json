@@ -132,6 +132,7 @@
               "span_name": "$endpoint"
             },
             "exception_type": "$exception_type",
+            "exception_refer": "$exception_refer",
             "component_instance_id": "$bk_instance_id"
           },
           "dataType": "table",
@@ -168,6 +169,7 @@
             "app_name": "${app_name}",
             "bk_biz_id": "${bk_biz_id}",
             "exception_type": "$exception_type",
+            "exception_refer": "$exception_refer",
             "filter_params": {
               "resource.service.name": "$service_name",
               "span_name": "$endpoint"
@@ -202,6 +204,7 @@
               "span_name": "$endpoint"
             },
             "exception_type": "$exception_type",
+            "exception_refer": "$exception_refer",
             "component_instance_id": "$bk_instance_id"
           },
           "dataType": "list",
@@ -251,7 +254,8 @@
           "fields": {
             "endpoint": "endpoint",
             "app_name": "app_name",
-            "exception_type": "exception_type"
+            "exception_type": "exception_type",
+            "exception_refer": "exception_refer"
           }
         }
       ]

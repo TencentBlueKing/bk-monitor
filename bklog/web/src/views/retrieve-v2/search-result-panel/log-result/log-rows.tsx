@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, h, nextTick, onBeforeUnmount, ref, watch, type Ref } from 'vue';
+import { computed, defineComponent, h, nextTick, onBeforeUnmount, reactive, ref, watch, type Ref } from 'vue';
 
 import { getRowFieldValue, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR, xssFilter } from '@/common/util';
 // import { perfStart, perfEnd } from '@/utils/performance-monitor';
@@ -49,7 +49,6 @@ import {
   LOG_SOURCE_F,
   ROW_EXPAND,
   ROW_F_ORIGIN_CTX,
-  ROW_F_ORIGIN_OPT,
   ROW_F_ORIGIN_TIME,
   ROW_INDEX,
   ROW_KEY,
@@ -95,6 +94,15 @@ export default defineComponent({
 
     let savedSelection: Range = null;
     let mousedownOnRow = false;
+    let hoverOperatorHideTimer: ReturnType<typeof setTimeout> = null;
+
+    const hoverOperatorState = reactive({
+      visible: false,
+      row: null,
+      rowIndex: -1,
+      top: 0,
+      right: 12,
+    });
 
     const popInstanceUtil = new PopInstanceUtil({
       refContent: () => refSegmentContent.value,
@@ -217,8 +225,14 @@ export default defineComponent({
       }
     });
 
-    addEvent(RetrieveEvent.AUTO_REFRESH, () => {
+    addEvent(RetrieveEvent.AUTO_REFRESH, async () => {
       resetPageState();
+      // 场景化检索模式下条件为空时跳过
+      if (store.getters.isSceneMode && store.getters.isSceneFilterEmpty) return;
+      // 检索条件有变更时先加载字段信息
+      if (store.state.indexItem.isSceneFilterChanged) {
+        await store.dispatch('requestIndexSetFieldInfo');
+      }
       store.dispatch('requestIndexSetQuery', { from: 'auto_refresh' });
     });
 
@@ -240,12 +254,6 @@ export default defineComponent({
     const resultContainerId = ref(RetrieveHelper.logRowsContainerId);
     const resultContainerIdSelector = `#${resultContainerId.value}`;
 
-    const operatorToolsWidth = computed(() => {
-      const w = indexSetOperatorConfig.value?.bcsWebConsole?.is_active ? 84 : 58;
-      const traceWidth = store.state.indexSetFieldConfig?.apm_relation?.is_active ? 26 : 0;
-      const aiWidth = store.getters.isAiAssistantActive ? 26 : 0;
-      return w + traceWidth + aiWidth;
-    });
 
     const originalColumns = computed(() => {
       return [
@@ -363,7 +371,7 @@ export default defineComponent({
       const rowIndexColumnWidth = tableShowRowIndex.value ? 50 : 0;
       const sourceColumnWidth = isShowSourceField.value && indexSetType.value ? 230 : 0;
 
-      return expandColumnWidth + rowIndexColumnWidth + sourceColumnWidth + operatorToolsWidth.value;
+      return expandColumnWidth + rowIndexColumnWidth + sourceColumnWidth;
     };
 
     const getFieldsAvailableWidth = () => offsetWidth.value - getFixedColumnsWidth() - TABLE_WIDTH_SAFE_GAP;
@@ -418,7 +426,7 @@ export default defineComponent({
       if (showCtxType.value === 'table') {
         const columnList: Record<string, any>[] = [];
         const columns = visibleFields.value.length > 0 ? visibleFields.value : fullColumns.value;
-        let maxColWidth = operatorToolsWidth.value + 40;
+        let maxColWidth = 40;
         let logField: Record<string, any> | null = null;
 
         // 性能优化：当字段数量很大时，使用 for 循环比 forEach 性能更好
@@ -528,44 +536,6 @@ export default defineComponent({
 
       props.handleClickTools('ai', row, indexSetOperatorConfig.value, displayRowIndex);
     };
-
-    const rightColumns = computed(() => {
-      if (window?.__IS_MONITOR_TRACE__) {
-        return [];
-      }
-      return [
-        {
-          field: ROW_F_ORIGIN_OPT,
-          key: ROW_F_ORIGIN_OPT,
-          title: $t('操作'),
-          width: operatorToolsWidth.value,
-          fixed: 'right',
-          resize: false,
-          renderBodyCell: ({ row, rowIndex }) => {
-            return (
-              // @ts-expect-error
-              <OperatorTools
-                handle-click={(type, event) => {
-                  if (type === 'ai') {
-                    handleRowAIClcik(event, row, rowIndex);
-                    return;
-                  }
-                  props.handleClickTools(
-                    type,
-                    row,
-                    indexSetOperatorConfig.value,
-                    ensureTableRowConfig(row, rowIndex).value[ROW_INDEX] + 1,
-                  );
-                }}
-                index={row[ROW_INDEX]}
-                operator-config={indexSetOperatorConfig.value}
-                row-data={row}
-              />
-            );
-          },
-        },
-      ];
-    });
 
     // 替换原有的handleIconClick
     const handleIconClick = (type, content, field, row, isLink, depth, isNestedField) => {
@@ -760,7 +730,7 @@ export default defineComponent({
 
 
     watch(
-      () => [tableShowRowIndex.value, isShowSourceField.value, indexSetType.value, operatorToolsWidth.value],
+      () => [tableShowRowIndex.value, isShowSourceField.value, indexSetType.value],
       () => {
         computeRect();
       },
@@ -1034,12 +1004,6 @@ export default defineComponent({
         if (refTableHead.value) {
           refTableHead.value.style.setProperty('width', `${scrollWidth.value}px`);
           refTableHead.value.style.transform = `translateX(-${scrollXOffsetLeft}px)`;
-          const fixedRight = refTableHead.value?.querySelector(
-            '.bklog-list-row .bklog-row-cell.header-cell.right',
-          ) as HTMLElement;
-          if (fixedRight) {
-            fixedRight.style.transform = `translateX(${scrollXOffsetLeft}px)`;
-          }
         }
       }
     };
@@ -1174,20 +1138,6 @@ export default defineComponent({
       },
     });
 
-    const operatorFixRightWidth = computed(() => {
-      const operatorWidth = operatorToolsWidth.value;
-      const diff = scrollWidth.value - scrollXOffsetLeft - offsetWidth.value;
-
-      return operatorWidth + (diff > 0 ? diff : 0);
-    });
-
-    watch(
-      () => [operatorFixRightWidth.value, offsetWidth.value, scrollWidth.value],
-      () => {
-        setRowboxTransform();
-      },
-      { immediate: true },
-    );
 
     const showHeader = computed(() => {
       return showCtxType.value === 'table' && tableList.value.length > 0;
@@ -1292,10 +1242,100 @@ export default defineComponent({
     };
 
     const allColumns = computed(() => {
-      return [...leftColumns.value, ...getFieldColumns.value, ...rightColumns.value].filter(
+      return [...leftColumns.value, ...getFieldColumns.value].filter(
         item => !(item as any).disabled,
       );
     });
+
+    const clearHoverOperatorHideTimer = () => {
+      if (hoverOperatorHideTimer) {
+        clearTimeout(hoverOperatorHideTimer);
+        hoverOperatorHideTimer = null;
+      }
+    };
+
+    const scheduleHideHoverOperator = () => {
+      clearHoverOperatorHideTimer();
+      hoverOperatorHideTimer = setTimeout(() => {
+        hoverOperatorState.visible = false;
+      }, 80);
+    };
+
+    const updateHoverOperatorPosition = (rowEl: HTMLElement) => {
+      const rootEl = refRootElement.value;
+      if (!rootEl || !rowEl) {
+        return;
+      }
+
+      const rootRect = rootEl.getBoundingClientRect();
+      const rowRect = rowEl.getBoundingClientRect();
+      const rowPaddingTop = 4;
+      const rowPaddingRight = 12;
+
+      /**
+       * Keep the product motion translate(0, -32px) unchanged.
+       * Render the operator as a fixed overlay so it can move above the first row without being clipped by
+       * .bklog-result-container overflow hidden. Do not clamp the anchor downward: that would make the
+       * floating actions cover the row text and steal text click/selection interactions.
+       */
+      hoverOperatorState.top = rowRect.top + rowPaddingTop;
+      hoverOperatorState.right = Math.max(
+        rowPaddingRight,
+        window.innerWidth - Math.min(rootRect.right, window.innerWidth) + rowPaddingRight,
+      );
+    };
+
+    const handleRowMouseenter = (event: MouseEvent, row, rowIndex: number) => {
+      clearHoverOperatorHideTimer();
+      hoverOperatorState.row = row;
+      hoverOperatorState.rowIndex = rowIndex;
+      hoverOperatorState.visible = !window?.__IS_MONITOR_TRACE__;
+      updateHoverOperatorPosition(event.currentTarget as HTMLElement);
+    };
+
+    const handleRowMouseleave = () => {
+      scheduleHideHoverOperator();
+    };
+
+    const renderHoverOperatorOverlay = () => {
+      if (!hoverOperatorState.row || window?.__IS_MONITOR_TRACE__) {
+        return null;
+      }
+
+      return (
+        <div
+          class={{
+            'bklog-row-hover-operator': true,
+            'is-show': hoverOperatorState.visible,
+          }}
+          style={{
+            top: `${hoverOperatorState.top}px`,
+            right: `${hoverOperatorState.right}px`,
+          }}
+          onMouseenter={clearHoverOperatorHideTimer}
+          onMouseleave={scheduleHideHoverOperator}
+        >
+          {/** @ts-expect-error */}
+          <OperatorTools
+            handle-click={(type, event) => {
+              if (type === 'ai') {
+                handleRowAIClcik(event, hoverOperatorState.row, hoverOperatorState.rowIndex);
+                return;
+              }
+              props.handleClickTools(
+                type,
+                hoverOperatorState.row,
+                indexSetOperatorConfig.value,
+                ensureTableRowConfig(hoverOperatorState.row, hoverOperatorState.rowIndex).value[ROW_INDEX] + 1,
+              );
+            }}
+            index={hoverOperatorState.row[ROW_INDEX]}
+            operator-config={indexSetOperatorConfig.value}
+            row-data={hoverOperatorState.row}
+          />
+        </div>
+      );
+    };
 
     const renderRowCells = (row, rowIndex) => {
       const { expand } = ensureTableRowConfig(row, rowIndex).value;
@@ -1411,6 +1451,8 @@ export default defineComponent({
             class={['bklog-row-container', logLevel ?? 'normal']}
             row-index={rowIndex}
             on-row-mousedown={handleRowMousedown}
+            on-row-mouseenter={e => handleRowMouseenter(e, row.item, rowIndex)}
+            on-row-mouseleave={handleRowMouseleave}
             on-row-mouseup={e => handleRowMouseup(e, row.item, rowIndex)}
           >
             {renderRowCells(row.item, rowIndex)}
@@ -1517,16 +1559,6 @@ export default defineComponent({
       );
     };
 
-    const renderFixRightShadow = () => {
-      if (window?.__IS_MONITOR_TRACE__) {
-        return null;
-      }
-      if (tableDataSize.value > 0 && showCtxType.value === 'table') {
-        return <div class='fixed-right-shadown' />;
-      }
-
-      return null;
-    };
 
     const isTableLoading = computed(() => {
       return (
@@ -1600,6 +1632,7 @@ export default defineComponent({
     };
 
     onBeforeUnmount(() => {
+      clearHoverOperatorHideTimer();
       popInstanceUtil.uninstallInstance();
       window.clearTimeout(columnWidthChangeTimer);
       renderList = Object.freeze([]);
@@ -1611,11 +1644,11 @@ export default defineComponent({
       isTableLoading,
       renderDelineatePopContent,
       renderRowVNode,
-      renderFixRightShadow,
       renderScrollTop,
       renderScrollXBar,
       renderLoader,
       renderHeadVNode,
+      renderHoverOperatorOverlay,
       renderFirstPageSkeleton,
       getExceptionRender,
       tableDataSize,
@@ -1642,9 +1675,9 @@ export default defineComponent({
         >
           {this.renderRowVNode()}
         </div>
+        {this.renderHoverOperatorOverlay()}
         {this.renderFirstPageSkeleton()}
         {this.getExceptionRender()}
-        {this.renderFixRightShadow()}
         {this.renderScrollXBar()}
         {this.renderLoader()}
         {this.renderScrollTop()}

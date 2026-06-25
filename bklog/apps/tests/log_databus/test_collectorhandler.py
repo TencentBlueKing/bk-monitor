@@ -305,6 +305,7 @@ class TestCollectorHandler(TestCase):
         self.assertIsNone(res.get("retention"))
         self.assertEqual(res.get("collector_config_id"), collector_config_id)
         self.assertEqual(res.get("collector_scenario_id"), "row")
+        self.assertEqual(res.get("log_access_type"), "linux")
 
     @patch("apps.api.CCApi.list_biz_hosts", CCBizHostsFilterTest())
     def test_filter_illegal_ips(self, *args, **kwargs):

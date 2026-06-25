@@ -92,7 +92,7 @@ class TGPAReportHandler:
         构建ES DSL查询条件
 
         :param bk_biz_id: 业务ID
-        :param keyword: 搜索关键词
+        :param keyword: 搜索关键词，匹配 openid / file_name 前缀
         :param file_name_list: 文件名列表，精确匹配
         :param openid: openid，精确匹配
         :param start_time: 开始时间，默认为七天前
@@ -101,9 +101,7 @@ class TGPAReportHandler:
         must_conditions = [{"term": {"cc_id": bk_biz_id}}]
 
         if keyword:
-            should_conditions = [
-                {"wildcard": {field: {"value": f"*{keyword}*"}}} for field in TGPA_REPORT_FILTER_FIELDS
-            ]
+            should_conditions = [{"prefix": {field: keyword}} for field in TGPA_REPORT_FILTER_FIELDS]
             must_conditions.append({"bool": {"should": should_conditions, "minimum_should_match": 1}})
         if file_name_list:
             must_conditions.append({"terms": {"file_name": file_name_list}})

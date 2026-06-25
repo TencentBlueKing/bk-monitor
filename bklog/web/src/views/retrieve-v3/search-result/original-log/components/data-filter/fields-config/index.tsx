@@ -31,6 +31,8 @@ import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import VueDraggable from 'vuedraggable';
 
+import { getDefaultDisplayFields } from './default-display-fields';
+
 import './index.scss';
 
 export default defineComponent({
@@ -48,10 +50,9 @@ export default defineComponent({
     const confirmLoading = ref(false);
 
     const totalFiels = computed(() => store.state.indexFieldInfo.fields);
-    const totalFieldNames = computed(() => totalFiels.value.map(item => item.field_name));
-    const restFieldNames = computed(() => totalFieldNames.value.filter((field) => {
-      return !displayFieldNames.value.includes(field);
-    }),
+    const restFieldNames = computed(() => totalFiels.value
+      .map(item => item.field_name)
+      .filter(field => !displayFieldNames.value.includes(field)),
     );
     const disabledRemove = computed(() => displayFieldNames.value.length <= 1);
 
@@ -62,42 +63,10 @@ export default defineComponent({
       'ghost-class': 'sortable-ghost-class',
     };
 
-    /**
-     * 获取默认展示字段
-     * 优先展示 contextDisplayFields，如果没有则展示 log 字段，如果没有则展示一个 text 类型字段，如果没有则展示页面可见字段
-     */
-    const getDefaultDisplayFields = (contextDisplayFields?: string[]): string[] => {
-      const fields = contextDisplayFields?.filter(f => totalFieldNames.value.includes(f));
-      if (fields?.length > 0) {
-        return fields;
-      }
-
-      const allFields = store.getters.filteredFieldList;
-      let textField = undefined;
-      let logField = undefined;
-      for (const field of allFields) {
-        if (field.field_name === 'log') {
-          logField = field.field_name;
-          break;
-        }
-        if (field.field_type === 'text' && textField === undefined) {
-          textField = field.field_name;
-        }
-      }
-
-      const showFieldName = logField ?? textField;
-      if (showFieldName) {
-        return [showFieldName];
-      }
-
-      const pageVisibleFields = store.getters.visibleFields.map(item => item.field_name);
-      return pageVisibleFields.length ? pageVisibleFields : ['log'];
-    };
-
     watch(
       () => store.state.retrieve.catchFieldCustomConfig,
       (config) => {
-        displayFieldNames.value = getDefaultDisplayFields(config.contextDisplayFields);
+        displayFieldNames.value = getDefaultDisplayFields(store, config.contextDisplayFields);
         cachedDisplayFieldNames = [...displayFieldNames.value];
 
         setTimeout(() => {

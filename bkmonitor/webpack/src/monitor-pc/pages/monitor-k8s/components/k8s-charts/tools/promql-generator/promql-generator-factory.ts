@@ -26,6 +26,7 @@
 
 import { SceneEnum } from '../../../../typings/k8s-new';
 import { K8sCapacityPromqlGenerator } from './capacity-promql-generator';
+import { K8sGpuPromqlGenerator } from './gpu-promql-generator';
 import { K8sNetworkPromqlGenerator } from './network-promql-generator';
 import { K8sPerformancePromqlGenerator } from './performance-promql-generator';
 
@@ -55,7 +56,7 @@ export class K8sPromqlGeneratorFactory {
   }
   /**
    * @method createGeneratorInstance 创建生成器实例
-   * @description 创建场景 promql 语句生成器实例，目前只支持 性能 | 网络 | 容量 三个场景
+   * @description 创建场景 promql 语句生成器实例，目前支持 性能 | 网络 | 容量 | GPU 场景
    * @param scene SceneEnum 场景枚举
    * @returns K8sBasePromqlGenerator 生成器实例
    */
@@ -66,7 +67,7 @@ export class K8sPromqlGeneratorFactory {
       case SceneEnum.Capacity:
         return new K8sCapacityPromqlGenerator();
       case SceneEnum.GPU:
-        return new K8sPerformancePromqlGenerator();
+        return new K8sGpuPromqlGenerator();
       default:
         return new K8sPerformancePromqlGenerator();
     }
@@ -74,7 +75,7 @@ export class K8sPromqlGeneratorFactory {
 
   /**
    * @method getGeneratorInstance 获取生成器实例
-   * @description 获取场景 promql 语句生成器实例，目前只支持 性能 | 网络 | 容量 三个场景
+   * @description 获取场景 promql 语句生成器实例，目前支持 性能 | 网络 | 容量 | GPU 场景
    * @param scene SceneEnum 场景枚举
    * @returns K8sBasePromqlGenerator 生成器实例
    */

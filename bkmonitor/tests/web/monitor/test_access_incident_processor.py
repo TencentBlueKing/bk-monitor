@@ -107,6 +107,57 @@ class TestAccessIncidentProcessor(SimpleTestCase):
         self.assertFalse(mock_record_create.call_args.kwargs["should_send_notice"])
         self.assertIn("notice_config", mock_record_create.call_args.kwargs)
 
+    @patch("alarm_backends.service.access.incident.processor.time.time", return_value=1710000099)
+    @patch("alarm_backends.service.access.incident.processor.api")
+    @patch("alarm_backends.service.access.incident.processor.IncidentSnapshot")
+    @patch("alarm_backends.service.access.incident.processor.IncidentSnapshotDocument", _FakeSnapshotDocument)
+    @patch("alarm_backends.service.access.incident.processor.IncidentDocument", _FakeIncidentDocument)
+    @patch("alarm_backends.service.access.incident.processor.IncidentOperationManager.record_create_incident")
+    def test_create_incident_routes_bkfara_notice_to_bk_incident(
+        self, mock_record_create, mock_snapshot_model, mock_api, mock_time
+    ):
+        mock_snapshot_model.side_effect = lambda payload: SimpleNamespace(alert_entity_mapping={})
+        mock_api.bkdata.update_incident_detail = Mock()
+        mock_api.bk_incident.update_incident_detail = Mock()
+        sync_info = self._base_sync_info()
+        sync_info["notice_source"] = "bkfara"
+
+        self.processor.create_incident(sync_info)
+
+        mock_api.bk_incident.update_incident_detail.assert_called_once()
+        self.assertEqual(mock_api.bk_incident.update_incident_detail.call_args.kwargs["assignees"], [])
+        self.assertEqual(mock_api.bk_incident.update_incident_detail.call_args.kwargs["handlers"], [])
+        self.assertEqual(mock_api.bk_incident.update_incident_detail.call_args.kwargs["labels"], [])
+        self.assertEqual(
+            mock_api.bk_incident.update_incident_detail.call_args.kwargs["bkmonitor_received_time"], 1710000099
+        )
+        self.assertNotIn("incident_name", mock_api.bk_incident.update_incident_detail.call_args.kwargs)
+        self.assertNotIn("incident_reason", mock_api.bk_incident.update_incident_detail.call_args.kwargs)
+        self.assertNotIn("level", mock_api.bk_incident.update_incident_detail.call_args.kwargs)
+        self.assertNotIn("status", mock_api.bk_incident.update_incident_detail.call_args.kwargs)
+        self.assertNotIn("bk_biz_id", mock_api.bk_incident.update_incident_detail.call_args.kwargs)
+        mock_api.bkdata.update_incident_detail.assert_not_called()
+        self.assertEqual(mock_record_create.call_args.kwargs["incident_document"].extra_info["notice_source"], "bkfara")
+        self.assertFalse(mock_record_create.call_args.kwargs["should_send_notice"])
+
+    @patch("alarm_backends.service.access.incident.processor.api")
+    @patch("alarm_backends.service.access.incident.processor.IncidentSnapshot")
+    @patch("alarm_backends.service.access.incident.processor.IncidentSnapshotDocument", _FakeSnapshotDocument)
+    @patch("alarm_backends.service.access.incident.processor.IncidentDocument", _FakeIncidentDocument)
+    @patch("alarm_backends.service.access.incident.processor.IncidentOperationManager.record_create_incident")
+    def test_create_incident_without_notice_source_keeps_bkdata_route(
+        self, mock_record_create, mock_snapshot_model, mock_api
+    ):
+        mock_snapshot_model.side_effect = lambda payload: SimpleNamespace(alert_entity_mapping={})
+        mock_api.bkdata.update_incident_detail = Mock()
+        mock_api.bk_incident.update_incident_detail = Mock()
+
+        self.processor.create_incident(self._base_sync_info())
+
+        mock_api.bkdata.update_incident_detail.assert_called_once()
+        mock_api.bk_incident.update_incident_detail.assert_not_called()
+        self.assertFalse(mock_record_create.call_args.kwargs["should_send_notice"])
+
     @patch("alarm_backends.service.access.incident.processor.api")
     @patch("alarm_backends.service.access.incident.processor.IncidentSnapshot")
     @patch("alarm_backends.service.access.incident.processor.IncidentSnapshotDocument", _FakeSnapshotDocument)
@@ -145,3 +196,52 @@ class TestAccessIncidentProcessor(SimpleTestCase):
 
         self.assertFalse(mock_record_update.call_args.kwargs["should_send_notice"])
         self.assertIn("notice_config", mock_record_update.call_args.kwargs)
+
+    @patch("alarm_backends.service.access.incident.processor.time.time", return_value=1710000099)
+    @patch("alarm_backends.service.access.incident.processor.api")
+    @patch("alarm_backends.service.access.incident.processor.IncidentSnapshot")
+    @patch("alarm_backends.service.access.incident.processor.IncidentSnapshotDocument", _FakeSnapshotDocument)
+    @patch("alarm_backends.service.access.incident.processor.IncidentOperationManager.record_update_incident")
+    def test_update_bkfara_status_syncs_new_status_without_received_time(
+        self, mock_record_update, mock_snapshot_model, mock_api, mock_time
+    ):
+        mock_snapshot_model.side_effect = lambda payload: SimpleNamespace(alert_entity_mapping={})
+        mock_api.bk_incident.update_incident_detail = Mock()
+        incident_document = _FakeIncidentDocument(
+            incident_id=1001,
+            incident_name="故障A",
+            incident_reason="root cause",
+            status="abnormal",
+            level="ERROR",
+            labels=[],
+            assignees=[],
+            handlers=[],
+            bk_biz_id=132,
+            create_time=1710000000,
+            snapshot=None,
+        )
+        sync_info = self._base_sync_info()
+        sync_info["notice_source"] = "bkfara"
+        sync_info["update_attributes"] = {"status": {"from": "abnormal", "to": "recovered"}}
+        sync_info["incident_info"]["status"] = "recovered"
+
+        with (
+            patch(
+                "alarm_backends.service.access.incident.processor.IncidentDocument.get",
+                return_value=incident_document,
+            ),
+            patch(
+                "alarm_backends.service.access.incident.processor.IncidentDocument.bulk_create",
+                return_value=None,
+            ),
+        ):
+            self.processor.update_incident(sync_info)
+
+        status_sync_call = mock_api.bk_incident.update_incident_detail.call_args_list[-1]
+        self.assertEqual(status_sync_call.kwargs["assignees"], [])
+        self.assertEqual(status_sync_call.kwargs["handlers"], [])
+        self.assertEqual(status_sync_call.kwargs["labels"], [])
+        self.assertEqual(status_sync_call.kwargs["end_time"], 1710000060)
+        self.assertNotIn("status", status_sync_call.kwargs)
+        self.assertNotIn("bkmonitor_received_time", status_sync_call.kwargs)
+        self.assertEqual(incident_document.extra_info["notice_source"], "bkfara")

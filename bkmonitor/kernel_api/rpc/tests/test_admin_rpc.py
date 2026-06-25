@@ -27,9 +27,18 @@ from kernel_api.rpc.functions.admin.api_auth_token import (
 )
 from kernel_api.rpc.functions.admin import apm as admin_apm
 from kernel_api.rpc.functions.admin import bcs_cluster as admin_bcs_cluster
+from kernel_api.rpc.functions.admin import cluster_info as admin_cluster_info
+from kernel_api.rpc.functions.admin import collect_config as admin_collect_config
+from kernel_api.rpc.functions.admin import collect_plugin as admin_collect_plugin
+from kernel_api.rpc.functions.admin import config_delivery as admin_config_delivery
+from kernel_api.rpc.functions.admin import custom_report as admin_custom_report
 from kernel_api.rpc.functions.admin.bcs_cluster import _serialize_bcs_cluster
 from kernel_api.rpc.functions.admin.cluster_info import (
     _build_es_cluster_overview,
+    _build_es_analysis_storage_index,
+    _parse_es_analysis_index_base,
+    _parse_es_analysis_owner,
+    _serialize_es_analysis_index_row,
     _serialize_cluster_info,
     _serialize_cluster_space_vm_info,
 )
@@ -65,6 +74,14 @@ from kernel_api.rpc.functions.admin.storage import (
 )
 from kernel_api.rpc.functions.admin.uptime_check import _build_subscription_detail_payload, _summarize_subscription
 from kernel_api.rpc.registry import KernelRPCRegistry
+from monitor_web.models.collecting import CollectConfigMeta, DeploymentConfigVersion
+from monitor_web.models.plugin import (
+    CollectorPluginConfig,
+    CollectorPluginInfo,
+    CollectorPluginMeta,
+    PluginVersionHistory,
+)
+from monitor_web.plugin.constant import PluginType
 
 
 def _doris_storage_manager():
@@ -75,6 +92,7 @@ class _FakeQuerySet:
     def __init__(self, items):
         self.items = list(items)
         self.filters = []
+        self.excludes = []
         self.ordering = []
 
     def filter(self, **kwargs):
@@ -82,6 +100,7 @@ class _FakeQuerySet:
         return self
 
     def exclude(self, **kwargs):
+        self.excludes.append(kwargs)
         return self
 
     def order_by(self, *fields):
@@ -103,6 +122,7 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.datasource.detail",
         "admin.space.list",
         "admin.space.detail",
+        "admin.space.es_usage",
         "admin.result_table.list",
         "admin.result_table.detail",
         "admin.result_table.field_list",
@@ -110,6 +130,9 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.cluster_info.list",
         "admin.cluster_info.detail",
         "admin.cluster_info.space_vm_info_list",
+        "admin.cluster_info.es_overview",
+        "admin.cluster_info.es_storage_analysis",
+        "admin.cluster_info.health_check",
         "admin.bcs_cluster.list",
         "admin.bcs_cluster.detail",
         "admin.bcs_cluster.data_id_list",
@@ -138,6 +161,7 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.bkbase_result_table.detail",
         "admin.custom_report.list",
         "admin.custom_report.detail",
+        "admin.custom_report.scope_list",
         "admin.custom_report.metric_list",
         "admin.custom_report.refresh_metrics",
         "admin.api_auth_token.list",
@@ -150,8 +174,31 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
         "admin.uptime_check.task_list",
         "admin.uptime_check.task_detail",
         "admin.uptime_check.subscription_detail",
+        "admin.config_delivery.runtime_settings",
+        "admin.config_delivery.proxy_list",
+        "admin.config_delivery.ping_server_list",
+        "admin.config_delivery.ping_server_detail",
+        "admin.config_delivery.custom_report_list",
+        "admin.config_delivery.custom_report_detail",
+        "admin.config_delivery.log_subscription_list",
+        "admin.config_delivery.log_subscription_detail",
+        "admin.config_delivery.apm_subscription_list",
+        "admin.config_delivery.apm_subscription_detail",
+        "admin.config_delivery.subscription_detail",
+        "admin.config_delivery.batch_status",
+        "admin.collect_plugin.list",
+        "admin.collect_plugin.detail",
+        "admin.collect_plugin.version_list",
+        "admin.collect_plugin.version_detail",
+        "admin.collect_config.list",
+        "admin.collect_config.detail",
+        "admin.collect_config.version_list",
+        "admin.collect_config.version_detail",
+        "admin.collect_config.target_status",
+        "admin.collect_config.subscription_detail",
         "admin.render_image_task.list",
         "admin.render_image_task.detail",
+        "admin.token.resolve",
     } <= func_names
 
     detail = KernelRPCRegistry.get_function_detail("admin.result_table.detail")
@@ -162,6 +209,10 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
     assert space_detail is not None
     assert "SpaceVMInfo" in space_detail["description"]
 
+    space_list = KernelRPCRegistry.get_function_detail("admin.space.list")
+    assert space_list is not None
+    assert "bk_biz_id" in space_list["params_schema"]
+
     custom_report_list = KernelRPCRegistry.get_function_detail("admin.custom_report.list")
     assert custom_report_list is not None
     assert "bk_data_ids" in custom_report_list["params_schema"]
@@ -169,6 +220,361 @@ def test_admin_rpc_functions_registered_by_builtin_loader():
     apm_application_list = KernelRPCRegistry.get_function_detail("admin.apm.application_list")
     assert apm_application_list is not None
     assert "application_ids" in apm_application_list["params_schema"]
+
+    config_delivery_batch_status = KernelRPCRegistry.get_function_detail("admin.config_delivery.batch_status")
+    assert config_delivery_batch_status is not None
+    assert "subscription_ids" in config_delivery_batch_status["params_schema"]
+
+    config_delivery_proxy_list = KernelRPCRegistry.get_function_detail("admin.config_delivery.proxy_list")
+    assert config_delivery_proxy_list is not None
+    assert "bk_biz_id" in config_delivery_proxy_list["params_schema"]
+
+    collect_plugin_detail = KernelRPCRegistry.get_function_detail("admin.collect_plugin.detail")
+    assert collect_plugin_detail is not None
+    assert "plugin_id" in collect_plugin_detail["params_schema"]
+
+    collect_config_target_status = KernelRPCRegistry.get_function_detail("admin.collect_config.target_status")
+    assert collect_config_target_status is not None
+    assert "diff" in collect_config_target_status["params_schema"]
+
+    collect_config_version_detail = KernelRPCRegistry.get_function_detail("admin.collect_config.version_detail")
+    assert collect_config_version_detail is not None
+    assert "deployment_id" in collect_config_version_detail["params_schema"]
+
+
+def test_collect_plugin_version_detail_marks_process_special_design():
+    plugin = CollectorPluginMeta(
+        bk_tenant_id="system",
+        plugin_id="bkprocessbeat",
+        plugin_type=PluginType.PROCESS,
+        bk_biz_id=0,
+        tag="主机",
+        label="host_process",
+    )
+    config = CollectorPluginConfig(
+        collector_json={"linux": {"file_id": "bkmonitorbeat"}},
+        config_json=[{"key": "match_pattern", "default": "gunicorn.*app"}],
+        is_support_remote=False,
+    )
+    info = CollectorPluginInfo(
+        plugin_display_name="进程采集",
+        metric_json=[{"table_name": "process.perf", "fields": [{"name": "cpu_usage", "monitor_type": "metric"}]}],
+    )
+    version = PluginVersionHistory(
+        bk_tenant_id="system",
+        plugin_id="bkprocessbeat",
+        stage=PluginVersionHistory.Stage.RELEASE,
+        config=config,
+        info=info,
+        config_version=1,
+        info_version=1,
+        is_packaged=True,
+    )
+
+    detail = admin_collect_plugin._serialize_version_detail(version, plugin)
+
+    assert detail["plugin_display_name"] == "进程采集"
+    assert detail["special_design"]["kind"] == "process"
+    assert detail["metric_json"][0]["table_id"] == "process.process.perf"
+
+
+def test_collect_config_summary_keeps_version_and_subscription_context(monkeypatch):
+    plugin = CollectorPluginMeta(
+        bk_tenant_id="system",
+        plugin_id="bkprocessbeat",
+        plugin_type=PluginType.PROCESS,
+        bk_biz_id=0,
+        label="host_process",
+    )
+    config_definition = CollectorPluginConfig(collector_json={}, config_json=[], is_support_remote=False)
+    info = CollectorPluginInfo(plugin_display_name="进程采集", metric_json=[])
+    version = PluginVersionHistory(
+        bk_tenant_id="system",
+        plugin_id="bkprocessbeat",
+        stage=PluginVersionHistory.Stage.RELEASE,
+        config=config_definition,
+        info=info,
+        config_version=1,
+        info_version=1,
+        is_packaged=True,
+    )
+    deployment = DeploymentConfigVersion(
+        plugin_version=version,
+        subscription_id=82002,
+        target_node_type="INSTANCE",
+        params={"collector": {"period": 60}},
+        target_nodes=[{"ip": "127.0.0.1", "bk_cloud_id": 0}],
+    )
+    collect_config = CollectConfigMeta(
+        id=202,
+        bk_tenant_id="system",
+        bk_biz_id=2,
+        name="业务进程存活",
+        collect_type=PluginType.PROCESS,
+        plugin_id="bkprocessbeat",
+        target_object_type="HOST",
+        deployment_config=deployment,
+        cache_data={"error_instance_count": 1, "total_instance_count": 3},
+        last_operation="START",
+        operation_result="SUCCESS",
+        label="host_process",
+    )
+
+    monkeypatch.setattr(admin_collect_config, "_get_plugin_for_config", lambda _config: plugin)
+    monkeypatch.setattr(admin_collect_config, "_latest_plugin_version", lambda _plugin: version)
+
+    summary = admin_collect_config._serialize_collect_config_summary(collect_config)
+    detail = admin_collect_config._serialize_collect_config_detail(collect_config)
+    deployment_detail = admin_collect_config._serialize_deployment_version_detail(collect_config, deployment)
+
+    assert summary["subscription_id"] == 82002
+    assert summary["config_version"] == 1
+    assert summary["task_status"] == "WARNING"
+    assert detail["subscription_summary"]["scope_summary"]["nodes_count"] == 1
+    assert detail["plugin_info"]["special_design"]["kind"] == "process"
+    assert deployment_detail["config_id"] == 202
+    assert deployment_detail["params"]["collector"]["period"] == 60
+    assert deployment_detail["plugin_info"]["config_version"] == 1
+
+
+def test_config_delivery_ping_server_serializer_marks_disabled_flags(monkeypatch):
+    monkeypatch.setattr(admin_config_delivery.settings, "ENABLE_PING_ALARM", False, raising=False)
+    monkeypatch.setattr(admin_config_delivery.settings, "ENABLE_DIRECT_AREA_PING_COLLECT", False, raising=False)
+    subscription = SimpleNamespace(
+        subscription_id=1001,
+        bk_tenant_id="system",
+        bk_cloud_id=0,
+        ip="127.0.0.1",
+        bk_host_id=2001,
+        plugin_name="bkmonitorproxy",
+        config={
+            "type": "PLUGIN",
+            "status": "STOP",
+            "config": {
+                "plugin_name": "bkmonitorproxy",
+                "config_templates": [{"name": "bkmonitorproxy_ping.conf", "version": "latest"}],
+            },
+            "scope": {"nodes": [{"bk_host_id": 2001}]},
+            "params": {
+                "context": {
+                    "ip_to_items": {
+                        2001: [
+                            {"target_biz_id": 11, "target_ip": "127.0.0.1", "target_cloud_id": 0},
+                            {"target_biz_id": 12, "target_ip": "127.0.0.1", "target_cloud_id": 0},
+                        ]
+                    }
+                }
+            },
+        },
+    )
+
+    item = admin_config_delivery._serialize_ping_server_config(subscription)
+
+    assert item["direct_area"] is True
+    assert item["special_area"] is False
+    assert item["global_ping_disabled"] is True
+    assert item["direct_area_disabled"] is True
+    assert item["collect_disabled"] is True
+    assert item["target"]["node_count"] == 1
+    assert item["target_count"] == 2
+    assert item["target"]["ping_target_count"] == 2
+    assert item["ping_target_summary"]["source_host_count"] == 1
+    assert item["expected_status"] == "STOP"
+    assert item["config_summary"]["plugin_names"] == ["bkmonitorproxy"]
+    assert item["config_summary"]["template_names"] == ["bkmonitorproxy_ping.conf"]
+
+    first_page = admin_config_delivery._paginate_ping_targets(subscription.config, page=1, page_size=1)
+    assert first_page["total"] == 2
+    assert first_page["source_host_count"] == 1
+    assert first_page["items"] == [
+        {
+            "index": 1,
+            "source_host_id": "2001",
+            "target_biz_id": 11,
+            "target_ip": "127.0.0.1",
+            "target_cloud_id": 0,
+        }
+    ]
+
+    second_page = admin_config_delivery._paginate_ping_targets(subscription.config, page=2, page_size=1)
+    assert second_page["items"][0]["index"] == 2
+    assert second_page["items"][0]["target_ip"] == "127.0.0.1"
+
+
+def test_config_delivery_custom_report_serializer_keeps_default_tenant():
+    subscription = SimpleNamespace(
+        subscription_id=1002,
+        bk_biz_id=0,
+        bk_data_id=5001,
+        config={
+            "scope": {"nodes": [{"bk_host_id": 1}, {"bk_host_id": 2}]},
+            "steps": [
+                {
+                    "config": {"plugin_name": "bk-collector"},
+                    "params": {"context": {"bk_data_id": 5001, "password": "secret"}},
+                }
+            ],
+        },
+    )
+
+    item = admin_config_delivery._serialize_custom_report_subscription(subscription)
+    detail = admin_config_delivery._with_config_detail(item, subscription.config)
+
+    assert item["bk_tenant_id"] == "system"
+    assert item["data_id_consistent"] is True
+    assert item["target"]["node_count"] == 2
+    assert detail["config_detail"]["steps"][0]["params"]["context"]["password"] == "***"
+
+
+def test_config_delivery_log_subscription_serializer_extracts_log_context():
+    subscription = SimpleNamespace(
+        subscription_id=1005,
+        bk_tenant_id="system",
+        bk_biz_id=2,
+        log_name="checkout-log",
+        config={
+            "scope": {"nodes": [{"bk_host_id": 1}, {"bk_host_id": 2}]},
+            "steps": [
+                {
+                    "config": {
+                        "plugin_name": "bk-collector",
+                        "config_templates": [{"name": "bk-collector-application.conf"}],
+                    },
+                    "params": {
+                        "context": {
+                            "bk_app_name": "checkout-log",
+                            "log_data_id": 50020,
+                            "bk_data_token": "secret-token",
+                            "qps_config": {"qps": 1024},
+                        }
+                    },
+                }
+            ],
+        },
+    )
+
+    item = admin_config_delivery._serialize_log_subscription(subscription)
+    detail = admin_config_delivery._with_config_detail(item, subscription.config)
+
+    assert item["source_type"] == "log_subscription"
+    assert item["log_data_id"] == 50020
+    assert item["bk_data_id"] == 50020
+    assert item["qps"] == 1024
+    assert item["has_token"] is True
+    assert item["target_count"] == 2
+    assert detail["config_detail"]["steps"][0]["params"]["context"]["bk_data_token"] == "***"
+
+
+def test_config_delivery_apm_subscription_type_serializer():
+    platform_subscription = SimpleNamespace(
+        subscription_id=1003,
+        bk_tenant_id="system",
+        bk_biz_id=0,
+        app_name="",
+        config={"steps": [{"config": {"plugin_name": "bk-collector"}}]},
+    )
+    application_subscription = SimpleNamespace(
+        subscription_id=1004,
+        bk_tenant_id="system",
+        bk_biz_id=2,
+        app_name="checkout",
+        config={"steps": [{"config": {"plugin_name": "bk-collector"}}]},
+    )
+
+    platform_item = admin_config_delivery._serialize_apm_subscription(platform_subscription)
+    application_item = admin_config_delivery._serialize_apm_subscription(application_subscription)
+
+    assert platform_item["subscription_type"] == "platform"
+    assert platform_item["is_platform"] is True
+    assert application_item["subscription_type"] == "application"
+    assert application_item["is_platform"] is False
+
+
+def test_config_delivery_apm_queryset_accepts_empty_app_name(monkeypatch):
+    queryset = _FakeQuerySet([])
+    monkeypatch.setattr(
+        admin_config_delivery,
+        "_apm_subscription_model",
+        lambda: SimpleNamespace(objects=SimpleNamespace(all=lambda: queryset)),
+    )
+
+    admin_config_delivery._build_apm_subscription_queryset({"app_name": ""}, "system")
+
+    assert {"bk_tenant_id": "system"} in queryset.filters
+    assert {"app_name": ""} in queryset.filters
+
+
+def test_config_delivery_proxy_related_configs_collects_four_config_types(monkeypatch):
+    ping_subscription = SimpleNamespace(
+        subscription_id=1001,
+        bk_tenant_id="system",
+        bk_cloud_id=30000901,
+        ip="127.0.0.1",
+        bk_host_id=70001,
+        plugin_name="bk-collector",
+        config={"scope": {"nodes": [{"bk_host_id": 70001}]}, "steps": [{"config": {"plugin_name": "bk-collector"}}]},
+    )
+    custom_subscription = SimpleNamespace(
+        subscription_id=1002,
+        bk_biz_id=19078,
+        bk_data_id=5001,
+        config={"scope": {"nodes": [{"bk_host_id": 70001}]}, "steps": [{"config": {"plugin_name": "bk-collector"}}]},
+    )
+    log_subscription = SimpleNamespace(
+        subscription_id=1003,
+        bk_tenant_id="system",
+        bk_biz_id=19078,
+        log_name="proxy-log",
+        config={
+            "scope": {"nodes": [{"bk_host_id": 70001}]},
+            "steps": [{"config": {"plugin_name": "bk-collector"}, "params": {"context": {"log_data_id": 5002}}}],
+        },
+    )
+    apm_subscription = SimpleNamespace(
+        subscription_id=1004,
+        bk_tenant_id="system",
+        bk_biz_id=19078,
+        app_name="checkout",
+        config={"scope": {"nodes": [{"bk_host_id": 70001}]}, "steps": [{"config": {"plugin_name": "bk-collector"}}]},
+    )
+
+    monkeypatch.setattr(
+        admin_config_delivery.PingServerSubscriptionConfig,
+        "objects",
+        SimpleNamespace(all=lambda: _FakeQuerySet([ping_subscription])),
+    )
+    monkeypatch.setattr(
+        admin_config_delivery.CustomReportSubscription,
+        "objects",
+        SimpleNamespace(all=lambda: _FakeQuerySet([custom_subscription])),
+    )
+    monkeypatch.setattr(
+        admin_config_delivery.LogSubscriptionConfig,
+        "objects",
+        SimpleNamespace(all=lambda: _FakeQuerySet([log_subscription])),
+    )
+    monkeypatch.setattr(
+        admin_config_delivery,
+        "_apm_subscription_model",
+        lambda: SimpleNamespace(
+            objects=SimpleNamespace(filter=lambda *args, **kwargs: _FakeQuerySet([apm_subscription]))
+        ),
+    )
+    monkeypatch.setattr(admin_config_delivery, "_custom_report_biz_matches_tenant", lambda bk_biz_id, tenant_id: True)
+
+    related, warnings = admin_config_delivery._build_proxy_related_configs(
+        bk_tenant_id="system",
+        bk_biz_id=19078,
+        proxy={"bk_cloud_id": 30000901, "inner_ip": "127.0.0.1", "bk_biz_id": 19078},
+        proxy_host_id=70001,
+    )
+
+    assert warnings == []
+    assert related["ping_server"]["subscription_ids"] == [1001]
+    assert related["custom_report"]["subscription_ids"] == [1002]
+    assert related["log_subscription"]["subscription_ids"] == [1003]
+    assert related["apm_subscription"]["subscription_ids"] == [1004]
+    assert related["custom_report"]["items"][0]["relation"] == "target_host"
 
 
 def test_apm_application_list_filters_by_application_ids(monkeypatch):
@@ -288,6 +694,137 @@ def test_space_vm_info_serializer_includes_vm_cluster_or_null():
 
     missing_cluster_item = admin_space._serialize_space_vm_info(space_vm_info, {})
     assert missing_cluster_item["vm_cluster"] is None
+
+
+def test_space_es_usage_function_registered():
+    detail = KernelRPCRegistry.get_function_detail("admin.space.es_usage")
+
+    assert detail is not None
+    assert detail["func_name"] == "admin.space.es_usage"
+    assert "inspect" in detail["description"]
+    assert "实体表" in detail["description"]
+    assert "space_uid" in detail["params_schema"]
+
+
+def test_space_es_usage_prefix_uses_biz_id_or_space_pk():
+    cmdb_space = SimpleNamespace(space_type_id="bkcc", space_id="2", pk=20)
+    custom_space = SimpleNamespace(space_type_id="bkci", space_id="demo-project", pk=4779)
+
+    assert admin_space._build_space_es_usage_prefix(cmdb_space) == "2_"
+    assert admin_space._build_space_es_usage_prefix(custom_space) == "space_4779_"
+
+
+def test_space_list_filters_by_mapped_bk_biz_id():
+    positive_queryset = _FakeQuerySet([])
+    admin_space._apply_space_bk_biz_id_filter(positive_queryset, "2")
+
+    assert positive_queryset.filters == [{"space_type_id": "bkcc", "space_id": "2"}]
+    assert positive_queryset.excludes == []
+
+    negative_queryset = _FakeQuerySet([])
+    admin_space._apply_space_bk_biz_id_filter(negative_queryset, -4779)
+
+    assert negative_queryset.filters == [{"id": 4779}]
+    assert negative_queryset.excludes == [{"space_type_id": "bkcc"}]
+
+    with pytest.raises(CustomException, match="bk_biz_id 必须是整数"):
+        admin_space._apply_space_bk_biz_id_filter(_FakeQuerySet([]), "demo")
+
+
+def test_space_es_usage_builds_exact_table_index_patterns():
+    patterns = admin_space._build_es_usage_index_patterns(["2_bklog.demo", "space_4779_bklog.demo"])
+
+    assert patterns == [
+        "v2_2_bklog_demo_*",
+        "2_bklog_demo_*",
+        "v2_space_4779_bklog_demo_*",
+        "space_4779_bklog_demo_*",
+    ]
+
+
+def test_space_es_usage_cluster_aggregates_physical_storage_rows():
+    warnings = []
+    cluster = SimpleNamespace(
+        cluster_id=9,
+        cluster_name="es-main",
+        display_name="主 ES 集群",
+        cluster_type="elasticsearch",
+    )
+    storages = [_fake_es_analysis_storage("2_bklog.demo"), _fake_es_analysis_storage("2_bklog.legacy")]
+    index_rows = [
+        {
+            "index": "v2_2_bklog_demo_2026060612_0",
+            "health": "green",
+            "status": "open",
+            "docs.count": "10",
+            "store.size": "1024",
+            "pri": "2",
+            "rep": "1",
+        },
+        {
+            "index": "2_bklog_legacy_2026060612_0",
+            "health": "yellow",
+            "status": "open",
+            "docs.count": "5",
+            "store.size": "512",
+            "pri": "1",
+            "rep": "0",
+        },
+    ]
+
+    payload = admin_space._build_space_es_usage_cluster(
+        cluster=cluster,
+        es_storages=storages,
+        result_table_map={},
+        index_rows=index_rows,
+        current_table_ids={"2_bklog.demo"},
+        historical_table_ids={"2_bklog.legacy"},
+        historical_cluster_ids_by_table={"2_bklog.legacy": {9}},
+        warnings=warnings,
+    )
+
+    storages_by_table = {storage["table_id"]: storage for storage in payload["storages"]}
+    assert warnings == []
+    assert "role" not in payload
+    assert payload["summary"]["storage_count"] == 2
+    assert payload["summary"]["index_count"] == 2
+    assert payload["summary"]["docs_count"] == 15
+    assert payload["summary"]["store_size_bytes"] == 1536
+    assert payload["summary"]["shards"] == 5
+    assert payload["summary"]["health_counts"] == {"green": 1, "yellow": 1}
+    assert storages_by_table["2_bklog.demo"]["role"] == "current"
+    assert storages_by_table["2_bklog.demo"]["summary"]["index_count"] == 1
+    assert storages_by_table["2_bklog.legacy"]["role"] == "historical"
+    assert storages_by_table["2_bklog.legacy"]["historical_cluster_ids"] == [9]
+
+
+def test_space_es_usage_query_skips_failed_chunks_without_fallback(monkeypatch):
+    calls = []
+
+    class FakeCat:
+        def indices(self, **kwargs):
+            calls.append(kwargs)
+            raise RuntimeError("es unavailable")
+
+    monkeypatch.setattr(
+        admin_space.es_tools,
+        "get_client",
+        lambda bk_tenant_id, cluster_id: SimpleNamespace(cat=FakeCat()),
+    )
+    warnings = []
+
+    rows = admin_space._query_es_usage_index_rows(
+        bk_tenant_id="system",
+        cluster_id=9,
+        table_ids=["2_bklog.demo"],
+        timeout=30,
+        warnings=warnings,
+    )
+
+    assert rows == []
+    assert warnings[0]["code"] == "SPACE_ES_USAGE_INDEX_QUERY_FAILED"
+    assert calls[0]["index"] == "v2_2_bklog_demo_*,2_bklog_demo_*"
+    assert calls[0]["index"] != "*"
 
 
 def test_cluster_space_vm_info_serializer_includes_space_summary_or_null():
@@ -623,6 +1160,28 @@ def test_datalink_component_list_accepts_cluster_config_kind():
     assert response["data"]["items"][0]["status"] == ""
     assert response["data"]["items"][0]["data_link_name"] is None
     assert response["data"]["items"][0]["bk_biz_id"] == 0
+
+
+def test_datalink_databus_serializer_includes_consumer_group():
+    databus = SimpleNamespace(
+        name="l_1575783",
+        namespace="bklog",
+        create_time=None,
+        last_modify_time=None,
+        status="Ok",
+        data_link_name="l_1575783",
+        bk_biz_id=7,
+        bk_tenant_id="default",
+        data_id_name="l_1575783",
+        bk_data_id=1575783,
+        sink_names=["ElasticSearchBinding:l_1575783"],
+        consumer_group="bkmonitorv3_transfer0bkmonitor_15757830",
+    )
+
+    item = admin_datalink._serialize_component(databus, "Databus")
+
+    assert item["kind"] == "Databus"
+    assert item["consumer_group"] == "bkmonitorv3_transfer0bkmonitor_15757830"
 
 
 def test_datalink_component_detail_accepts_cluster_config_kind_with_component_config():
@@ -1640,11 +2199,165 @@ def test_cluster_info_space_vm_info_list_function_registered():
     assert "search" in detail["params_schema"]
 
 
+def test_cluster_info_health_check_function_registered():
+    detail = KernelRPCRegistry.get_function_detail("admin.cluster_info.health_check")
+    assert detail is not None
+    assert detail["func_name"] == "admin.cluster_info.health_check"
+    assert "timeout" in detail["params_schema"]
+
+
+def test_cluster_info_es_storage_analysis_function_registered():
+    detail = KernelRPCRegistry.get_function_detail("admin.cluster_info.es_storage_analysis")
+    assert detail is not None
+    assert detail["func_name"] == "admin.cluster_info.es_storage_analysis"
+    assert "inspect" in detail["description"]
+    assert "cluster_id" in detail["params_schema"]
+
+
+def test_cluster_info_health_check_uses_model_health_check():
+    health_result = {
+        "cluster_id": 1,
+        "cluster_name": "kafka-default",
+        "cluster_type": "kafka",
+        "status": "available",
+        "is_connected": True,
+        "is_available": True,
+        "error": None,
+        "details": {"broker_count": 2},
+    }
+    cluster = SimpleNamespace(
+        cluster_id=1,
+        cluster_type="kafka",
+        health_check=Mock(return_value=health_result),
+    )
+
+    with patch.object(admin_cluster_info.models.ClusterInfo.objects, "get", return_value=cluster) as cluster_get:
+        result = admin_cluster_info.check_cluster_info_health(
+            {"bk_tenant_id": "system", "cluster_id": "1", "timeout": "3"}
+        )
+
+    cluster_get.assert_called_once_with(bk_tenant_id="system", cluster_id=1)
+    cluster.health_check.assert_called_once_with(timeout=3)
+    assert result["data"] == health_result
+    assert result["meta"]["safety_level"] == "inspect"
+
+
+def test_cluster_info_health_check_rejects_es_cluster():
+    cluster = SimpleNamespace(cluster_id=1, cluster_type="elasticsearch")
+
+    with patch.object(admin_cluster_info.models.ClusterInfo.objects, "get", return_value=cluster):
+        with pytest.raises(CustomException, match="admin.cluster_info.es_overview"):
+            admin_cluster_info.check_cluster_info_health({"bk_tenant_id": "system", "cluster_id": 1})
+
+
+def _fake_es_analysis_storage(table_id):
+    return SimpleNamespace(
+        table_id=table_id,
+        bk_tenant_id="system",
+        storage_cluster_id=1,
+        source_type="log",
+        retention=30,
+        slice_size=500,
+        slice_gap=120,
+        date_format="%Y%m%d%H",
+        time_zone=0,
+        index_set=None,
+        need_create_index=True,
+    )
+
+
+def test_es_analysis_index_base_parses_v1_and_v2_physical_index_names():
+    assert _parse_es_analysis_index_base("v2_2_bklog_demo_2026060612_0") == "2_bklog_demo"
+    assert _parse_es_analysis_index_base("2_bklog_demo_2026060612_0") == "2_bklog_demo"
+    assert _parse_es_analysis_index_base(".security-7") is None
+
+
+def test_es_analysis_owner_parses_biz_and_space_prefixes():
+    assert _parse_es_analysis_owner("2_bklog.demo") == {"owner_type": "biz", "bk_biz_id": 2}
+    assert _parse_es_analysis_owner("space_125_bklog.csu250409__default__json") == {
+        "owner_type": "space",
+        "bk_biz_id": -125,
+    }
+    assert _parse_es_analysis_owner("space_demo.bklog.demo") == {
+        "owner_type": "space",
+        "bk_biz_id": None,
+    }
+    assert _parse_es_analysis_owner(None) == {"owner_type": "unknown", "bk_biz_id": None}
+
+
+def test_es_analysis_index_row_matches_physical_es_storage_and_counts_shards():
+    warnings = []
+    storage_by_base, ambiguous_bases = _build_es_analysis_storage_index(
+        [_fake_es_analysis_storage("2_bklog.demo")], {}, warnings
+    )
+
+    item = _serialize_es_analysis_index_row(
+        {
+            "index": "v2_2_bklog_demo_2026060612_0",
+            "health": "green",
+            "status": "open",
+            "docs.count": "10",
+            "store.size": "1024",
+            "pri": "2",
+            "rep": "1",
+        },
+        storage_by_base,
+        ambiguous_bases,
+    )
+
+    assert warnings == []
+    assert item["base_index"] == "2_bklog_demo"
+    assert item["store_bytes"] == 1024
+    assert item["docs_count"] == 10
+    assert item["primary_shards"] == 2
+    assert item["replica_shards"] == 2
+    assert item["shards"] == 4
+    assert item["match_status"] == "matched"
+    assert item["match_reason"] == "base_index"
+    assert item["matched_table_id"] == "2_bklog.demo"
+    assert item["owner_type"] == "biz"
+    assert item["bk_biz_id"] == 2
+
+
+def test_es_analysis_ambiguous_base_index_goes_to_other_with_warning():
+    warnings = []
+    storage_by_base, ambiguous_bases = _build_es_analysis_storage_index(
+        [_fake_es_analysis_storage("2.a_b"), _fake_es_analysis_storage("2_a.b")], {}, warnings
+    )
+
+    item = _serialize_es_analysis_index_row(
+        {"index": "2_a_b_2026060612_0", "store.size": "2048"},
+        storage_by_base,
+        ambiguous_bases,
+    )
+
+    assert storage_by_base == {}
+    assert "2_a_b" in ambiguous_bases
+    assert warnings[0]["code"] == "ES_STORAGE_BASE_INDEX_CONFLICT"
+    assert item["match_status"] == "other"
+    assert item["match_reason"] == "ambiguous_base_index"
+    assert item["matched_table_id"] is None
+
+
 def test_cluster_info_list_supports_lightweight_include():
     detail = KernelRPCRegistry.get_function_detail("admin.cluster_info.list")
     assert detail is not None
     assert "include" in detail["params_schema"]
     assert "associated_counts" in detail["params_schema"]["include"]
+
+
+def test_cluster_info_list_filters_by_cluster_id():
+    queryset = _FakeQuerySet([])
+
+    with patch.object(admin_cluster_info.models.ClusterInfo.objects, "all", return_value=queryset):
+        result_queryset = admin_cluster_info._build_cluster_info_queryset(
+            {"bk_tenant_id": "system", "cluster_id": "12"},
+            "system",
+        )
+
+    assert result_queryset is queryset
+    assert {"bk_tenant_id": "system"} in queryset.filters
+    assert {"cluster_id": 12} in queryset.filters
 
 
 def test_bcs_cluster_detail_function_registered():
@@ -1704,6 +2417,81 @@ def test_custom_report_refresh_metrics_function_registered():
     assert detail["func_name"] == "admin.custom_report.refresh_metrics"
     assert "write" in detail["description"]
     assert "expired_time" in detail["params_schema"]
+
+
+def test_custom_report_scope_and_metric_list_functions_registered():
+    scope_list = KernelRPCRegistry.get_function_detail("admin.custom_report.scope_list")
+    assert scope_list is not None
+    assert scope_list["func_name"] == "admin.custom_report.scope_list"
+    assert "scope_name" in scope_list["params_schema"]
+    assert "create_from" in scope_list["params_schema"]
+
+    metric_list = KernelRPCRegistry.get_function_detail("admin.custom_report.metric_list")
+    assert metric_list is not None
+    assert "scope_id" in metric_list["params_schema"]
+    assert "field_scope" in metric_list["params_schema"]
+
+
+def test_custom_report_scope_serializer_returns_scope_metadata():
+    scope = SimpleNamespace(
+        id=2,
+        group_id=1001,
+        scope_name="checkout-api||production",
+        dimension_config={"service_name": {"alias": "服务", "common": True, "hidden": False}},
+        auto_rules=["checkout_*"],
+        create_from="data",
+        last_modify_time=datetime(2026, 4, 26, 10, 40, 0),
+    )
+
+    item = admin_custom_report._serialize_time_series_scope(scope, {2: 3})
+
+    assert item == {
+        "scope_id": 2,
+        "group_id": 1001,
+        "scope_name": "checkout-api||production",
+        "dimension_config": {"service_name": {"alias": "服务", "common": True, "hidden": False}},
+        "auto_rules": ["checkout_*"],
+        "metric_count": 3,
+        "create_from": "data",
+        "last_modify_time": "2026-04-26 10:40:00",
+    }
+
+
+def test_custom_report_metric_serializer_returns_scope_and_field_config():
+    scope = SimpleNamespace(id=2, scope_name="checkout-api||production")
+    metric = SimpleNamespace(
+        field_id=7001,
+        field_name="http_request_total",
+        table_id="2_bkmonitor_time_series.__default__",
+        scope_id=2,
+        field_scope="checkout-api||production",
+        tag_list=["service_name", "scope_name", "target"],
+        field_config={
+            "alias": "HTTP 请求数",
+            "unit": "none",
+            "hidden": False,
+            "aggregate_method": "sum",
+            "function": "sum",
+            "interval": 60,
+            "disabled": False,
+        },
+        is_active=True,
+        create_time=datetime(2026, 4, 26, 10, 0, 0),
+        last_modify_time=datetime(2026, 4, 26, 10, 30, 0),
+    )
+
+    item = admin_custom_report._serialize_time_series_metric(metric, {2: scope})
+
+    assert item["field_id"] == 7001
+    assert item["field_name"] == "http_request_total"
+    assert item["scope"] == {"id": 2, "name": "checkout-api||production"}
+    assert item["field_scope"] == "checkout-api||production"
+    assert item["tag_list"] == ["service_name", "scope_name", "target"]
+    assert item["field_config"]["alias"] == "HTTP 请求数"
+    assert item["description"] == "HTTP 请求数"
+    assert item["unit"] == "none"
+    assert item["create_time"] == "2026-04-26 10:00:00"
+    assert item["update_time"] == "2026-04-26 10:30:00"
 
 
 def test_es_storage_functions_registered():
@@ -1840,6 +2628,7 @@ def test_query_route_functions_registered():
 def test_cluster_info_list_params_schema():
     detail = KernelRPCRegistry.get_function_detail("admin.cluster_info.list")
     assert detail is not None
+    assert "cluster_id" in detail["params_schema"]
     assert "ordering" in detail["params_schema"]
 
 
@@ -1848,3 +2637,485 @@ def test_bcs_cluster_list_params_schema():
     assert detail is not None
     assert "bk_data_id" in detail["params_schema"]
     assert "status" in detail["params_schema"]
+
+
+# ----- admin.token.resolve -----
+
+from kernel_api.rpc.functions.admin import token as admin_token  # noqa: E402
+
+
+class _TokenFirstQuerySet:
+    """简单 stub：只支持 filter().filter().order_by().first()，按 token 精确匹配。"""
+
+    def __init__(self, items):
+        self._items = list(items)
+
+    def filter(self, *args, **kwargs):
+        items = self._items
+        for key, value in kwargs.items():
+            if key.endswith("__in"):
+                field = key[: -len("__in")]
+                expected = set(value)
+                items = [item for item in items if getattr(item, field, None) in expected]
+                continue
+            items = [item for item in items if getattr(item, key, None) == value]
+        # Q 对象用于 LogGroup 的 token / bk_data_token 兜底分支
+        if args:
+            from django.db.models import Q
+
+            def matches(item, query):
+                connector = getattr(query, "connector", "AND")
+                results = []
+                for child in query.children:
+                    if isinstance(child, Q):
+                        results.append(matches(item, child))
+                    else:
+                        field, expected = child
+                        results.append(getattr(item, field, None) == expected)
+                return any(results) if connector == "OR" else all(results)
+
+            for query in args:
+                if isinstance(query, Q):
+                    items = [item for item in items if matches(item, query)]
+        return _TokenFirstQuerySet(items)
+
+    def order_by(self, *fields):
+        return self
+
+    def first(self):
+        return self._items[0] if self._items else None
+
+
+def _stub_apm_application(token: str = "apm-token"):
+    return SimpleNamespace(
+        id=1,
+        app_name="checkout",
+        app_alias="结算服务",
+        bk_tenant_id="system",
+        bk_biz_id=2,
+        token=token,
+        update_time=datetime(2026, 5, 28, 10, 0, 0),
+    )
+
+
+def _stub_time_series_group(token: str = "metric-token"):
+    return SimpleNamespace(
+        time_series_group_id=1573194,
+        time_series_group_name="bkop-k8smetricdataid",
+        bk_tenant_id="system",
+        bk_biz_id=2,
+        bk_data_id=1573194,
+        table_id="2_bkop_k8s_metric.__default__",
+        is_enable=True,
+        is_delete=False,
+        token=token,
+        last_modify_time=datetime(2026, 5, 28, 10, 0, 0),
+    )
+
+
+def _stub_event_group(token: str = "event-token"):
+    return SimpleNamespace(
+        event_group_id=2001,
+        event_group_name="custom_event_checkout",
+        bk_tenant_id="system",
+        bk_biz_id=2,
+        bk_data_id=50070,
+        table_id="2_bkmonitor_event.checkout",
+        is_enable=True,
+        is_delete=False,
+        token=token,
+        last_modify_time=datetime(2026, 5, 28, 10, 0, 0),
+        STORAGE_FIELD_LIST=[],
+    )
+
+
+def _stub_log_group(token: str = "log-token", *, bk_data_token: str | None = None):
+    return SimpleNamespace(
+        log_group_id=3001,
+        log_group_name="apm_log_checkout",
+        bk_tenant_id="system",
+        bk_biz_id=2,
+        bk_data_id=50020,
+        table_id="3_bklog.demo",
+        is_enable=True,
+        is_delete=False,
+        token=token,
+        bk_data_token=bk_data_token,
+        last_modify_time=datetime(2026, 5, 28, 10, 0, 0),
+    )
+
+
+def _patch_token_models(
+    monkeypatch,
+    *,
+    apm_apps=(),
+    ts_groups=(),
+    event_groups=(),
+    log_groups=(),
+    log_datasource=None,
+    apm_metric_datasources=(),
+    apm_trace_datasources=(),
+    apm_log_datasources=(),
+    apm_profile_datasources=(),
+):
+    monkeypatch.setattr(
+        admin_token.apm_models,
+        "ApmApplication",
+        SimpleNamespace(objects=_TokenFirstQuerySet(apm_apps)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        admin_token.apm_models,
+        "MetricDataSource",
+        SimpleNamespace(objects=_TokenFirstQuerySet(apm_metric_datasources)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        admin_token.apm_models,
+        "TraceDataSource",
+        SimpleNamespace(objects=_TokenFirstQuerySet(apm_trace_datasources)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        admin_token.apm_models,
+        "LogDataSource",
+        SimpleNamespace(objects=_TokenFirstQuerySet(apm_log_datasources)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        admin_token.apm_models,
+        "ProfileDataSource",
+        SimpleNamespace(objects=_TokenFirstQuerySet(apm_profile_datasources)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        admin_token.metadata_models,
+        "TimeSeriesGroup",
+        SimpleNamespace(objects=_TokenFirstQuerySet(ts_groups)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        admin_token.metadata_models,
+        "EventGroup",
+        SimpleNamespace(objects=_TokenFirstQuerySet(event_groups)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        admin_token.metadata_models,
+        "LogGroup",
+        SimpleNamespace(objects=_TokenFirstQuerySet(log_groups)),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        admin_token.metadata_models,
+        "DataSource",
+        SimpleNamespace(objects=_TokenFirstQuerySet([log_datasource] if log_datasource else [])),
+        raising=False,
+    )
+    # 跳过 datasource / service count 的内部查询，避免触达真实数据库
+    monkeypatch.setattr(
+        admin_token,
+        "_load_apm_datasource_maps",
+        lambda apps: {datasource_type: {} for datasource_type in admin_apm.DATASOURCE_TYPES},
+    )
+    monkeypatch.setattr(admin_token, "_load_service_count_map", lambda apps: {})
+
+
+def test_admin_token_resolve_function_registered():
+    detail = KernelRPCRegistry.get_function_detail("admin.token.resolve")
+    assert detail is not None
+    assert "token" in detail["params_schema"]
+    assert detail["params_schema"]["bk_tenant_id"]
+
+
+def test_admin_token_resolve_returns_unmatched_for_blank_token():
+    result = admin_token.resolve_token({"bk_tenant_id": "system", "token": ""})
+
+    assert result["meta"]["safety_level"] == "read"
+    assert result["data"]["matched"] is False
+    assert result["data"]["kind"] is None
+    assert result["data"]["apm_application"] is None
+    assert result["data"]["custom_report"] is None
+    assert "token 为空" in result["data"]["warnings"]
+
+
+def test_admin_token_resolve_hits_apm_application(monkeypatch):
+    apm_app = _stub_apm_application(token="bkapm_1_a1b2c3d4e5f6")
+    _patch_token_models(monkeypatch, apm_apps=[apm_app])
+
+    result = admin_token.resolve_token({"bk_tenant_id": "system", "token": "bkapm_1_a1b2c3d4e5f6"})
+
+    assert result["data"]["matched"] is True
+    assert result["data"]["kind"] == "apm"
+    assert result["data"]["apm_application"]["application_id"] == 1
+    assert result["data"]["apm_application"]["app_token"] == "bkapm_1_a1b2c3d4e5f6"
+    assert result["data"]["custom_report"] is None
+
+
+def test_admin_token_resolve_hits_time_series_group(monkeypatch):
+    ts_group = _stub_time_series_group(token="bkmetric_1573194_a1b2c3d4e5f6")
+    _patch_token_models(monkeypatch, ts_groups=[ts_group])
+
+    result = admin_token.resolve_token({"bk_tenant_id": "system", "token": "bkmetric_1573194_a1b2c3d4e5f6"})
+
+    assert result["data"]["matched"] is True
+    assert result["data"]["kind"] == "custom_metric"
+    assert result["data"]["custom_report"]["report_type"] == "custom_metric"
+    assert result["data"]["custom_report"]["group_id"] == 1573194
+    assert result["data"]["custom_report"]["token"] == "bkmetric_1573194_a1b2c3d4e5f6"
+    assert result["data"]["apm_application"] is None
+
+
+def test_admin_token_resolve_hits_event_group(monkeypatch):
+    event_group = _stub_event_group(token="bkevent_2001_e5f6a1b2c3d4")
+    _patch_token_models(monkeypatch, event_groups=[event_group])
+
+    result = admin_token.resolve_token({"bk_tenant_id": "system", "token": "bkevent_2001_e5f6a1b2c3d4"})
+
+    assert result["data"]["matched"] is True
+    assert result["data"]["kind"] == "custom_event"
+    assert result["data"]["custom_report"]["report_type"] == "custom_event"
+    assert result["data"]["custom_report"]["group_id"] == 2001
+
+
+def test_admin_token_resolve_falls_back_to_log_group_legacy_field(monkeypatch):
+    # 老数据：token 写到了已废弃的 bk_data_token 字段
+    log_group = _stub_log_group(token="", bk_data_token="bklog_3001_legacy")
+    _patch_token_models(monkeypatch, log_groups=[log_group])
+
+    result = admin_token.resolve_token({"bk_tenant_id": "system", "token": "bklog_3001_legacy"})
+
+    assert result["data"]["matched"] is True
+    assert result["data"]["kind"] == "custom_log"
+    assert result["data"]["custom_report"]["report_type"] == "custom_log"
+    assert result["data"]["custom_report"]["token"] == "bklog_3001_legacy"
+
+
+def test_admin_token_resolve_returns_unmatched_when_nothing_found(monkeypatch):
+    _patch_token_models(monkeypatch)
+
+    result = admin_token.resolve_token({"bk_tenant_id": "system", "token": "definitely-missing"})
+
+    assert result["data"]["matched"] is False
+    assert result["data"]["kind"] is None
+    assert result["data"]["token"] == "definitely-missing"
+    assert result["data"]["apm_application"] is None
+    assert result["data"]["custom_report"] is None
+
+
+# ----- AES 反向解析 fallback -----
+
+
+def _build_v0_apm_token(metric_data_id, trace_data_id, log_data_id, bk_biz_id, app_name):
+    from bkmonitor.utils.cipher import transform_data_id_to_token
+
+    return transform_data_id_to_token(
+        metric_data_id=metric_data_id,
+        trace_data_id=trace_data_id,
+        log_data_id=log_data_id,
+        bk_biz_id=bk_biz_id,
+        app_name=app_name,
+    )
+
+
+def _build_v1_apm_token(metric_data_id, trace_data_id, log_data_id, profile_data_id, bk_biz_id, app_name):
+    from bkmonitor.utils.cipher import transform_data_id_to_v1_token
+
+    return transform_data_id_to_v1_token(
+        metric_data_id=metric_data_id,
+        trace_data_id=trace_data_id,
+        log_data_id=log_data_id,
+        profile_data_id=profile_data_id,
+        bk_biz_id=bk_biz_id,
+        app_name=app_name,
+    )
+
+
+def test_parse_apm_token_returns_none_for_garbage():
+    assert admin_token.parse_apm_token("not-a-token") is None
+    assert admin_token.parse_apm_token("") is None
+
+
+def test_parse_apm_token_handles_v0_token():
+    token = _build_v0_apm_token(
+        metric_data_id=1001,
+        trace_data_id=1002,
+        log_data_id=1003,
+        bk_biz_id=42,
+        app_name="checkout",
+    )
+
+    parsed = admin_token.parse_apm_token(token)
+
+    assert parsed is not None
+    assert parsed.version == "v0"
+    assert parsed.metric_data_id == 1001
+    assert parsed.trace_data_id == 1002
+    assert parsed.log_data_id == 1003
+    assert parsed.profile_data_id == -1
+    assert parsed.bk_biz_id == 42
+    assert parsed.app_name == "checkout"
+
+
+def test_parse_apm_token_handles_v1_token():
+    token = _build_v1_apm_token(
+        metric_data_id=2001,
+        trace_data_id=2002,
+        log_data_id=2003,
+        profile_data_id=2004,
+        bk_biz_id=88,
+        app_name="payment",
+    )
+
+    parsed = admin_token.parse_apm_token(token)
+
+    assert parsed is not None
+    assert parsed.version == "v1"
+    assert parsed.metric_data_id == 2001
+    assert parsed.profile_data_id == 2004
+    assert parsed.bk_biz_id == 88
+    assert parsed.app_name == "payment"
+
+
+def test_admin_token_resolve_aes_fallback_finds_app_by_biz_and_name(monkeypatch):
+    apm_app = _stub_apm_application(token="bkapm_db_token")
+    apm_app.bk_biz_id = 42
+    apm_app.app_name = "checkout"
+    token = _build_v1_apm_token(
+        metric_data_id=50010,
+        trace_data_id=56020,
+        log_data_id=50020,
+        profile_data_id=57020,
+        bk_biz_id=42,
+        app_name="checkout",
+    )
+    # DB 字段精确匹配 miss（apm_app.token != AES token），需要走解密 fallback
+    _patch_token_models(monkeypatch, apm_apps=[apm_app])
+
+    result = admin_token.resolve_token({"bk_tenant_id": "system", "token": token})
+
+    assert result["data"]["matched"] is True
+    assert result["data"]["kind"] == "apm"
+    assert result["data"]["apm_application"]["application_id"] == 1
+    assert result["data"]["apm_application"]["app_name"] == "checkout"
+    assert result["data"]["custom_report"] is None
+    assert "AES 反向解析" in result["data"]["warnings"][0]
+
+
+def test_admin_token_resolve_aes_fallback_finds_app_via_data_id_when_app_name_renamed(monkeypatch):
+    """app_name 在 token 加密之后被重命名 → biz+name miss，但 data_id 仍能反查回应用。
+
+    场景前提：token 里含 trace_data_id（v1 完整 APM token），所以走 APM 分支；
+    然后 (bk_biz_id, app_name) 精确匹配落空，靠 TraceDataSource.bk_data_id 回查应用。
+    """
+    apm_app = _stub_apm_application(token="bkapm_db_token")
+    apm_app.bk_biz_id = 42
+    apm_app.app_name = "checkout-renamed"  # 与 token 中编码的 app_name 不同
+    trace_ds = SimpleNamespace(bk_data_id=56020, bk_biz_id=42, app_name="checkout-renamed")
+    token = _build_v1_apm_token(
+        metric_data_id=50010,
+        trace_data_id=56020,
+        log_data_id=-1,
+        profile_data_id=-1,
+        bk_biz_id=42,
+        app_name="checkout",  # 旧 app_name
+    )
+
+    _patch_token_models(
+        monkeypatch,
+        apm_apps=[apm_app],
+        apm_trace_datasources=[trace_ds],
+    )
+
+    result = admin_token.resolve_token({"bk_tenant_id": "system", "token": token})
+
+    assert result["data"]["matched"] is True
+    assert result["data"]["kind"] == "apm"
+    assert result["data"]["apm_application"]["app_name"] == "checkout-renamed"
+
+
+def test_admin_token_resolve_aes_fallback_returns_unmatched_when_decryptable_but_no_app(monkeypatch):
+    """解密成功但应用已被删除，返回 unmatched 而非 500。"""
+    token = _build_v1_apm_token(
+        metric_data_id=99991,
+        trace_data_id=99992,
+        log_data_id=99993,
+        profile_data_id=99994,
+        bk_biz_id=999,
+        app_name="ghost",
+    )
+    _patch_token_models(monkeypatch)  # 数据库里啥都没有
+
+    result = admin_token.resolve_token({"bk_tenant_id": "system", "token": token})
+
+    assert result["data"]["matched"] is False
+    assert result["data"]["kind"] is None
+    assert result["data"]["apm_application"] is None
+    assert result["data"]["custom_report"] is None
+
+
+def test_admin_token_resolve_aes_fallback_metric_only_routes_to_time_series_group(monkeypatch):
+    """解密后仅含 metric_data_id（无 trace 无 log）→ 自定义指标。"""
+    ts_group = _stub_time_series_group(token="dummy-db-token")
+    ts_group.bk_data_id = 1573194
+    token = _build_v0_apm_token(
+        metric_data_id=1573194,
+        trace_data_id=-1,
+        log_data_id=-1,
+        bk_biz_id=2,
+        app_name="bkop-k8smetricdataid",
+    )
+    _patch_token_models(monkeypatch, ts_groups=[ts_group])
+
+    result = admin_token.resolve_token({"bk_tenant_id": "system", "token": token})
+
+    assert result["data"]["matched"] is True
+    assert result["data"]["kind"] == "custom_metric"
+    assert result["data"]["custom_report"]["group_id"] == 1573194
+    assert result["data"]["apm_application"] is None
+    assert "AES 反向解析" in result["data"]["warnings"][0]
+
+
+def test_admin_token_resolve_aes_fallback_log_only_routes_to_log_group(monkeypatch):
+    """解密后仅含 log_data_id（无 trace 无 metric）→ 自定义日志。"""
+    log_group = _stub_log_group(token="dummy-db-token")
+    log_group.bk_data_id = 50020
+    token = _build_v0_apm_token(
+        metric_data_id=-1,
+        trace_data_id=-1,
+        log_data_id=50020,
+        bk_biz_id=2,
+        app_name="apm_log_checkout",
+    )
+    _patch_token_models(monkeypatch, log_groups=[log_group])
+
+    result = admin_token.resolve_token({"bk_tenant_id": "system", "token": token})
+
+    assert result["data"]["matched"] is True
+    assert result["data"]["kind"] == "custom_log"
+    assert result["data"]["custom_report"]["report_type"] == "custom_log"
+    assert result["data"]["apm_application"] is None
+    assert "AES 反向解析" in result["data"]["warnings"][0]
+
+
+def test_admin_token_resolve_aes_fallback_metric_and_log_combo_returns_unmatched(monkeypatch):
+    """解密后 metric+log 同时存在但无 trace → 不属于任何明确分类，返回 unmatched。"""
+    ts_group = _stub_time_series_group()
+    ts_group.bk_data_id = 1573194
+    log_group = _stub_log_group()
+    log_group.bk_data_id = 50020
+    token = _build_v0_apm_token(
+        metric_data_id=1573194,
+        trace_data_id=-1,
+        log_data_id=50020,
+        bk_biz_id=2,
+        app_name="ambiguous",
+    )
+    _patch_token_models(monkeypatch, ts_groups=[ts_group], log_groups=[log_group])
+
+    result = admin_token.resolve_token({"bk_tenant_id": "system", "token": token})
+
+    assert result["data"]["matched"] is False
+    assert result["data"]["kind"] is None
+    assert result["data"]["apm_application"] is None
+    assert result["data"]["custom_report"] is None

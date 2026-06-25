@@ -51,6 +51,7 @@ from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.metric_group import PreCalculateHelper
 from apm_web.handlers.service_handler import ServiceHandler
+from apm_web.handlers.span_handler import SpanHandler
 from apm_web.icon import get_icon
 from apm_web.metric.constants import ErrorMetricCategory, StatisticsMetric, ProcessorHookType
 from apm_web.metric.handler import call_analysis, statistics, top_n
@@ -1432,7 +1433,6 @@ class InstanceListResource(Resource):
 
 class ErrorListResource(ServiceAndComponentCompatibleResource):
     app_name = ""
-    UNKNOWN_EXCEPTION_TYPE = "unknown"
 
     need_dynamic_sort_column = True
     need_overview = True
@@ -1553,24 +1553,17 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
                 return ""
             return value
 
-    def list_error_event_spans(self, data):
-        bk_biz_id = data["bk_biz_id"]
-        app_name = data["app_name"]
+    def list_error_event_spans(self, data: dict[str, Any]) -> list[dict[str, Any]]:
+        bk_biz_id: int = data["bk_biz_id"]
+        app_name: str = data["app_name"]
 
-        query_params = {
+        query_params: dict[str, Any] = {
             "bk_biz_id": data["bk_biz_id"],
             "app_name": data["app_name"],
             "filter_params": [{"key": "status.code", "op": "=", "value": ["2"]}],
             "start_time": data["start_time"],
             "end_time": data["end_time"],
-            "fields": [
-                "resource.service.name",
-                "span_name",
-                "trace_id",
-                "events.attributes.exception.type",
-                "events.name",
-                "time",
-            ],
+            "fields": SpanHandler.ERROR_SPAN_FIELDS,
         }
 
         # 分类可以通过两种方式进行查询
@@ -1610,28 +1603,25 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
     def format_time(self, time_int):
         return datetime.datetime.fromtimestamp(int(time_int) // 1000).strftime("%Y-%m-%d %H:%M:%S")
 
-    def compare_time(self, times: list):
+    def compare_time(self, times: list[int]) -> tuple[int, int]:
         times.sort()
-        # 将毫秒时间戳转换为秒级时间戳
-        return int(times[0]) // 1000, int(times[-1]) // 1000
+        # 将微秒时间戳转换为秒级时间戳
+        return int(times[0]) // 1000000, int(times[-1]) // 1000000
 
-    def has_events(self, events):
-        for event in events:
-            if event["name"] == "exception":
-                return True
-        return False
-
-    def combine_errors(self, bk_biz_id, service_mappings, trace_ids, service, endpoint, errors, exception_type):
-        times = set()
-
-        has_exception = False
-        for error in errors:
-            times.add(error["time"])
-            if not has_exception:
-                has_exception = self.has_events(error.get("events", []))
+    def combine_errors(
+        self,
+        bk_biz_id: int,
+        service_mappings: dict[str, dict[str, Any]],
+        service: str,
+        endpoint: str,
+        exception_type: str,
+        exception_alias: str,
+        exception_refer: str,
+        errors: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        errors = sorted(errors, key=lambda error: (error["has_stack"], error["timestamp"]), reverse=True)
+        times: set[int] = {error["timestamp"] for error in errors}
         first_time, last_time = self.compare_time(list(times))
-
-        trace_id = trace_ids[-1]
 
         return {
             "bk_biz_id": bk_biz_id,
@@ -1639,64 +1629,72 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
             "last_time": last_time,
             "endpoint": endpoint,
             "message": {
-                "title": f"{endpoint}: {exception_type}",
+                "title": f"{endpoint}: {exception_alias}",
                 "subtitle": "",
-                "is_stack": _lazy("有Stack") if has_exception else _lazy("没有Stack"),
+                "is_stack": _lazy("有Stack") if errors[0]["has_stack"] else _lazy("没有Stack"),
             },
             "category": service_mappings.get(service, {}).get("extra_data", {}).get("category"),
             "error_count": len(errors),
             "service": service,
-            "trace_id": trace_id,
+            "trace_id": errors[0]["trace_id"],
             "app_name": self.app_name,
             "operations": {"operate": _lazy("调用链")},
             "exception_type": exception_type,
+            "exception_alias": exception_alias,
+            "exception_refer": exception_refer,
         }
 
-    def handle_error_map(self, error_map, key, service, endpoint, span, exception_type):
-        if key in error_map:
-            error_map[key]["trace_ids"].append(span["trace_id"])
-            error_map[key]["errors"].append(span)
-        else:
-            error_map[key] = {
+    def update_error_map(
+        self,
+        error_map: dict[tuple[str, str, str, str], dict[str, Any]],
+        key: tuple[str, str, str, str],
+        service: str,
+        endpoint: str,
+        trace_id: str,
+        exception_event: dict[str, Any],
+    ) -> None:
+        error: dict[str, Any] = {**exception_event, "trace_id": trace_id}
+        error_map.setdefault(
+            key,
+            {
                 "service": service,
                 "endpoint": endpoint,
-                "exception_type": exception_type,
-                "errors": [span],
-                "trace_ids": [span["trace_id"]],
-            }
+                "exception_type": exception_event["exception_type"],
+                "exception_alias": exception_event["exception_alias"],
+                "exception_refer": exception_event["exception_refer"],
+                "errors": [],
+            },
+        )["errors"].append(error)
 
-    def parse_errors(self, bk_biz_id, error_spans):
+    def parse_errors(self, bk_biz_id: int, error_spans: list[dict[str, Any]]) -> list[dict[str, Any]]:
         # 获取service
-        service_mappings = {i["topo_key"]: i for i in ServiceHandler.list_nodes(bk_biz_id, self.app_name)}
+        service_mappings: dict[str, dict[str, Any]] = {
+            item["topo_key"]: item for item in ServiceHandler.list_nodes(bk_biz_id, self.app_name)
+        }
 
-        error_map = {}
+        error_map: dict[tuple[str, str, str, str], dict[str, Any]] = {}
 
         for span in error_spans:
-            service = span[OtlpKey.RESOURCE].get(ResourceAttributes.SERVICE_NAME)
+            service: str | None = span[OtlpKey.RESOURCE].get(ResourceAttributes.SERVICE_NAME)
             if not service:
                 continue
 
-            endpoint = span[OtlpKey.SPAN_NAME]
-
-            if span.get("events"):
-                for event in span["events"]:
-                    exception_type = event.get(OtlpKey.ATTRIBUTES, {}).get(
-                        SpanAttributes.EXCEPTION_TYPE, self.UNKNOWN_EXCEPTION_TYPE
-                    )
-                    key = (service, endpoint, exception_type)
-
-                    self.handle_error_map(error_map, key, service, endpoint, span, exception_type)
-            else:
-                exception_type = self.UNKNOWN_EXCEPTION_TYPE
-                key = (service, endpoint, exception_type)
-                self.handle_error_map(error_map, key, service, endpoint, span, exception_type)
+            endpoint: str = span[OtlpKey.SPAN_NAME]
+            for exception_event in SpanHandler.get_matched_exception_events(span, include_unknown=True):
+                key: tuple[str, str, str, str] = (
+                    service,
+                    endpoint,
+                    exception_event["exception_type"],
+                    exception_event["exception_refer"],
+                )
+                self.update_error_map(error_map, key, service, endpoint, span["trace_id"], exception_event)
 
         return [
             self.combine_errors(bk_biz_id, service_mappings, **service_error_map)
             for service_error_map in error_map.values()
         ]
 
-    def has_stack_filter(self, data, validated_data):
+    def has_stack_filter(self, data: list[dict[str, Any]], validated_data: dict[str, Any]) -> list[dict[str, Any]]:
         """
         过滤是否有堆栈
         同时兼容两种的过滤方式:
@@ -1707,12 +1705,7 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
         filter_from_status = validated_data.get("status") == "has_stack"
 
         if filter_from_filter_dict or filter_from_status:
-            res = []
-            for item in data:
-                if True if item["message"]["is_stack"] == _lazy("有Stack") else False:
-                    res.append(item)
-
-            return res
+            return [item for item in data if item["message"]["is_stack"] == _lazy("有Stack")]
 
         return data
 
@@ -1740,28 +1733,29 @@ class ErrorListResource(ServiceAndComponentCompatibleResource):
         paginated_data["filter"] = self.get_status_filter()
         return paginated_data
 
-    def get_pagination_data(self, origin_data, params, column_type=None):
-        items = super().get_pagination_data(origin_data, params, column_type)
+    def get_pagination_data(
+        self, origin_data: list[dict[str, Any]], params: dict[str, Any], column_type: str | None = None
+    ) -> dict[str, Any]:
+        items: dict[str, Any] = super().get_pagination_data(origin_data, params, column_type)
         # url 拼接
         for item in items["data"]:
             filters: list[dict[str, Any]] = [
                 {
                     "key": OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME),
                     "operator": "equal",
-                    "value": [item.get("service_name")],
+                    "value": [item["service_name"]],
                 },
-                {"key": OtlpKey.SPAN_NAME, "operator": "equal", "value": [item.get("endpoint")]},
+                {"key": OtlpKey.SPAN_NAME, "operator": "equal", "value": [item["endpoint"]]},
                 {"key": OtlpKey.STATUS_CODE, "operator": "equal", "value": [2]},
             ]
 
-            if item.get("exception_type") != self.UNKNOWN_EXCEPTION_TYPE:
-                filters.append(
-                    {
-                        "key": f"events.{OtlpKey.get_attributes_key(SpanAttributes.EXCEPTION_TYPE)}",
-                        "operator": "equal",
-                        "value": [item.get("exception_type")],
-                    }
+            filters.extend(
+                SpanHandler.build_exception_params(
+                    item["exception_type"],
+                    item["exception_refer"],
+                    operator_key="operator",
                 )
+            )
 
             for i in item["operations"]:
                 i["url"] = i["url"] + "&where=" + json.dumps(filters)

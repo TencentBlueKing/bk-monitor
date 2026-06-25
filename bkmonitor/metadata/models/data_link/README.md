@@ -169,8 +169,8 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 | `BCS_FEDERAL_SUBSET_TIME_SERIES` | 联邦子集群时序 | `compose_bcs_federal_subset_time_series_configs` | `ResultTableConfig` + `VMStorageBindingConfig` + `ConditionalSinkConfig` + `DataBusConfig` | `VM` |
 | `BASEREPORT_TIME_SERIES_V1` | 主机基础采集时序 | `compose_basereport_time_series_configs` | `ResultTableConfig` + `VMStorageBindingConfig` + `BasereportSinkConfig` + `ConditionalSinkConfig` + `DataBusConfig` | `VM` |
 | `BASE_EVENT_V1` | 基础事件 | `compose_base_event_configs` | `ResultTableConfig` + `ESStorageBindingConfig` + `DataBusConfig` | `ES` |
-| `SYSTEM_PROC_PERF` | 系统进程性能 | `compose_system_proc_configs` | `ResultTableConfig` + `VMStorageBindingConfig` + `DataBusConfig` | `VM` |
-| `SYSTEM_PROC_PORT` | 系统进程端口 | `compose_system_proc_configs` | `ResultTableConfig` + `VMStorageBindingConfig` + `DataBusConfig` | `VM` |
+| `SYSTEM_PROC_PERF` | 系统进程性能 | `compose_system_proc_configs` | `ResultTableConfig` + `VMStorageBindingConfig` + `BasereportSinkConfig` + `DataBusConfig` | `VM` |
+| `SYSTEM_PROC_PORT` | 系统进程端口 | `compose_system_proc_configs` | `ResultTableConfig` + `VMStorageBindingConfig` + `BasereportSinkConfig` + `DataBusConfig` | `VM` |
 | `BK_LOG` | 日志链路 | `compose_log_configs` | `ResultTableConfig` + `ESStorageBindingConfig` + `DorisStorageBindingConfig` + `DataBusConfig` | `ES` |
 | `BK_STANDARD_V2_EVENT` | 标准自定义事件 | `compose_custom_event_configs` | `ResultTableConfig` + `ESStorageBindingConfig` + `DataBusConfig` | `ES` |
 

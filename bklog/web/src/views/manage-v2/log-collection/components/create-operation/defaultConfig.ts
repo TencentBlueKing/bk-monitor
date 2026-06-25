@@ -139,7 +139,8 @@ export const HOST_COLLECTION_CONFIG = {
 export const initContainerConfig = (type = 'container_log_config') => {
   return {
     // bcs_cluster_id: 'BCS-K8S-15854',
-    bcs_cluster_id: 'BCS-K8S-90000',
+    // bcs_cluster_id: 'BCS-K8S-90000',
+    bcs_cluster_id: '',
     add_pod_label: false,
     add_pod_annotation: false,
     extra_labels: [

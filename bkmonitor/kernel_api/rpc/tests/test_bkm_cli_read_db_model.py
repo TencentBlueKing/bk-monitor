@@ -255,3 +255,103 @@ def test_allowlist_excludes_deprecated_and_low_value_models():
     }
     present = removed & set(ALLOWED_MODEL_SPECS.keys())
     assert not present, f"Deprecated/low-value models still in allowlist: {present}"
+
+
+# ---------- GlobalConfig (row-level masking) ----------
+
+
+def test_global_config_in_allowlist_with_row_masker():
+    from kernel_api.rpc.functions.bkm_cli.db import ALLOWED_MODEL_SPECS
+
+    spec = ALLOWED_MODEL_SPECS["bkmonitor.models.config.GlobalConfig"]
+
+    assert {"key", "value", "data_type", "is_advanced", "is_internal", "update_at"} <= spec.fields
+    assert spec.row_masker is not None
+
+
+def test_list_db_models_marks_global_config_row_masking():
+    result = BkmCliOpCallResource().perform_request({"op_id": "list-db-models", "params": {}})
+
+    items = {item["model"]: item for item in result["result"]["items"]}
+    global_config = items["bkmonitor.models.config.GlobalConfig"]
+
+    assert "row_masking" in global_config
+    assert "value" in global_config["allowed_fields"]
+
+
+def test_mask_global_config_row_patterns():
+    from kernel_api.rpc.functions.bkm_cli.db import MASKED_VALUE, _mask_global_config_row
+
+    def mask(key, item):
+        return _mask_global_config_row(item, SimpleNamespace(key=key))
+
+    # 命名敏感的键脱敏
+    assert mask("DEMO_TOKEN", {"value": "v"})["value"] == MASKED_VALUE
+    assert mask("demo_app_secret", {"value": "v"})["value"] == MASKED_VALUE
+    assert mask("WXWORK_BOT_WEBHOOK_URL", {"value": "v"})["value"] == MASKED_VALUE
+    # MAJOR 回归：原正则漏掉的真实敏感键
+    assert mask("SPECIFY_AES_KEY", {"value": "v"})["value"] == MASKED_VALUE
+    assert mask("MESSAGE_QUEUE_DSN", {"value": "v"})["value"] == MASKED_VALUE
+    assert mask("WECOM_APP_ACCOUNT", {"value": "v"})["value"] == MASKED_VALUE
+    assert mask("BK_DATA_KAFKA_BROKER_URL", {"value": "v"})["value"] == MASKED_VALUE
+    assert mask("RSA_PRIVATE_KEY", {"value": "v"})["value"] == MASKED_VALUE
+    # 非敏感键放行
+    assert mask("DOUBLE_CHECK_SUM_STRATEGY_IDS", {"value": [1, 2]})["value"] == [1, 2]
+    # 不误伤：含 KEY/URL 子串但实为公开配置
+    assert mask("AIDEV_AGENT_AI_GENERATING_KEYWORD", {"value": "x"})["value"] == "x"
+    assert mask("APM_ACCESS_URL", {"value": "http://a.b/c"})["value"] == "http://a.b/c"
+    # value 形态兜底：denylist 漏键但 value 是凭据型 URL
+    assert mask("SOME_PLAIN_NAME", {"value": "redis://user:pw@h:6379/0"})["value"] == MASKED_VALUE
+    # value 字段未被选中时不报错、不新增字段
+    assert mask("ANY_SECRET", {"key": "ANY_SECRET"}) == {"key": "ANY_SECRET"}
+
+
+def test_read_db_model_global_config_masks_even_without_key_field(monkeypatch):
+    """BLOCKER 回归：只选 value 不选 key 时，仍按 instance.key 判定脱敏，不可绕过。"""
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    queryset = FakeQuerySet([SimpleNamespace(key="DEMO_APP_SECRET_KEY", value="should-not-leak", data_type="Char")])
+    FakeModel.objects = FakeManager(queryset)
+    monkeypatch.setattr(db, "import_string", lambda _model_path: FakeModel)
+
+    result = BkmCliOpCallResource().perform_request(
+        {
+            "op_id": "read-db-model",
+            "params": {
+                "model": "bkmonitor.models.config.GlobalConfig",
+                "filter": {"key": "DEMO_APP_SECRET_KEY"},
+                "fields": ["value"],
+            },
+        }
+    )
+
+    assert result["result"]["items"] == [{"value": db.MASKED_VALUE}]
+
+
+def test_read_db_model_global_config_masks_sensitive_rows(monkeypatch):
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    queryset = FakeQuerySet(
+        [
+            SimpleNamespace(key="DEMO_PLAIN_SWITCH", value=[101, 102], data_type="List"),
+            SimpleNamespace(key="DEMO_APP_SECRET_KEY", value="should-not-leak", data_type="Char"),
+        ]
+    )
+    FakeModel.objects = FakeManager(queryset)
+    monkeypatch.setattr(db, "import_string", lambda _model_path: FakeModel)
+
+    result = BkmCliOpCallResource().perform_request(
+        {
+            "op_id": "read-db-model",
+            "params": {
+                "model": "bkmonitor.models.config.GlobalConfig",
+                "filter": {"key__in": ["DEMO_PLAIN_SWITCH", "DEMO_APP_SECRET_KEY"]},
+                "fields": ["key", "value", "data_type"],
+            },
+        }
+    )
+
+    items = {item["key"]: item for item in result["result"]["items"]}
+    assert items["DEMO_PLAIN_SWITCH"]["value"] == [101, 102]
+    assert items["DEMO_APP_SECRET_KEY"]["value"] == db.MASKED_VALUE
+    assert items["DEMO_APP_SECRET_KEY"]["data_type"] == "Char"

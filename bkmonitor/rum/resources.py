@@ -281,11 +281,14 @@ class ReleaseAppConfigResource(Resource):
             scope_type=RumAppConfig.APPLICATION_LEVEL,
             scope_key="",
             refresh_configs=configs,
+            refresh_categories=[
+                config["config_type"].split(":", 1)[0] for config in configs if "config_type" in config
+            ],
         )
 
-        # TODO(Phase 3): 配置下发到 K8s
-        # from rum.task.tasks import refresh_rum_application_config
-        # refresh_rum_application_config.delay(bk_biz_id, app_name)
+        from rum.task.tasks import refresh_rum_application_config
+
+        refresh_rum_application_config.delay(bk_biz_id, app_name)
 
 
 class DeleteAppConfigResource(Resource):
@@ -311,6 +314,6 @@ class DeleteAppConfigResource(Resource):
             delete_configs=configs,
         )
 
-        # TODO(Phase 3): 配置下发到 K8s
-        # from rum.task.tasks import refresh_rum_application_config
-        # refresh_rum_application_config.delay(bk_biz_id, app_name)
+        from rum.task.tasks import refresh_rum_application_config
+
+        refresh_rum_application_config.delay(bk_biz_id, app_name)

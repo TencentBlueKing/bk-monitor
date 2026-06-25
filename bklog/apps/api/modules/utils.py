@@ -20,6 +20,7 @@ the project delivered to anyone in the future.
 """
 
 import json
+import re
 import sys
 from collections.abc import Callable
 
@@ -377,6 +378,59 @@ def biz_to_tenant_getter(key: Callable[[dict], str] | str = "bk_biz_id") -> Call
                 raise ValueError(f"failed to get tenant id from params, key `{key}` not found")
             bk_biz_id = params[key]
         return Space.get_tenant_id(bk_biz_id=bk_biz_id)
+
+    return tenant_getter
+
+
+def result_table_id_to_bk_biz_id(result_table_id: str | list | tuple) -> int:
+    """
+    通过结果表 ID 获取业务 ID。
+
+    结果表 ID 有两种日志平台格式:
+    - BKCC: 19078_bklog.xxx -> 19078
+    - 非 BKCC 空间: space_1_bklog.xxx -> -1
+    """
+    if isinstance(result_table_id, list | tuple):
+        if not result_table_id:
+            raise ValueError("failed to get bk_biz_id from empty result_table_id list")
+        result_table_id = result_table_id[0]
+
+    result_table_id = str(result_table_id).split(",", 1)[0].strip()
+    if not result_table_id:
+        raise ValueError("failed to get bk_biz_id from empty result_table_id")
+
+    space_prefix = getattr(settings, "TABLE_SPACE_PREFIX", "space")
+    space_match = re.match(rf"^{re.escape(space_prefix)}_(\d+)_", result_table_id)
+    if space_match:
+        return -int(space_match.group(1))
+
+    bk_biz_id = result_table_id.split("_", 1)[0]
+    if not bk_biz_id.isdigit():
+        # 无法从裸结果表名（如 BCS 表 bcs_k8s_27135_xxx_std）解析出业务 ID 时，
+        # 回退为 0，交由 Space.get_tenant_id 兜底到默认租户，避免对外部传入的
+        # 裸表名抛 ValueError 导致 get_result_table 等接口 500。
+        return 0
+    return int(bk_biz_id)
+
+
+def result_table_to_tenant_getter(
+    key: Callable[[dict], str | list | tuple] | str = "table_id",
+) -> Callable[[dict], str]:
+    """
+    通过结果表 ID 获取租户 ID。
+    :param key: 获取结果表 ID 的函数或参数 key
+    :return: 获取租户 ID 的函数
+    """
+    from apps.log_search.models import Space
+
+    def tenant_getter(params):
+        if callable(key):
+            result_table_id = key(params)
+        else:
+            if key not in params:
+                raise ValueError(f"failed to get tenant id from params, key `{key}` not found")
+            result_table_id = params[key]
+        return Space.get_tenant_id(bk_biz_id=result_table_id_to_bk_biz_id(result_table_id))
 
     return tenant_getter
 

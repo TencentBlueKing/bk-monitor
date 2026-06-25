@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 from alarm_backends.core.cache.base import CacheManager
 from core.drf_resource import api
 from core.errors.api import BKAPIError
-from metadata.models import TimeSeriesGroup
 
 
 class CustomTSGroupCacheManager(CacheManager):
@@ -34,6 +33,8 @@ class CustomTSGroupCacheManager(CacheManager):
         protocol = cls.cache.get(cls.format_key(bk_data_id))
         if not protocol:
             try:
+                from metadata.models import TimeSeriesGroup
+
                 ts_group = TimeSeriesGroup.objects.get(bk_data_id=bk_data_id)
             except TimeSeriesGroup.DoesNotExist:
                 return None
@@ -45,9 +46,12 @@ class CustomTSGroupCacheManager(CacheManager):
                     empty_if_not_found=True,
                 )
 
-                # 如果自定义时序表不存在，则返回json
+                # 如果自定义时序表不存在
                 if not ts_info:
-                    protocol = "json"
+                    if ts_group.is_cmdb_relation_builtin():
+                        protocol = "prometheus"
+                    else:
+                        protocol = "json"
                 else:
                     protocol = ts_info["protocol"]
                 cls.set(bk_data_id, protocol)
