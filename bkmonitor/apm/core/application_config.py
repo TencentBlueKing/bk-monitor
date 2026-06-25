@@ -187,12 +187,12 @@ class ApplicationConfig(BkCollectorConfig):
             logger.exception("auto deploy bk-collector application config error")
 
     @classmethod
-    def refresh_k8s(cls, applications: list[ApmApplication]) -> None:
+    def refresh_k8s(cls, applications: list[ApmApplication], need_config_cache=False) -> None:
         """批量刷新多个应用的 k8s 配置"""
         if not applications:
             return
 
-        config_cache = ApmConfigCache()
+        config_cache = ApmConfigCache() if need_config_cache else None
 
         # 按业务ID分组，因为不同业务可能需要部署到不同的集群
         biz_application_configs = {}
