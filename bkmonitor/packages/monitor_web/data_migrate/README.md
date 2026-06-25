@@ -16,6 +16,7 @@
 - `install_biz_bk_collector`
 - `stop_biz_bk_collector`
 - `refresh_biz_bk_collector_proxy_configs`
+- `check_biz_bk_collector_proxy_config_delivery`
 
 代码导出位置见 [__init__.py](/Users/unique0lai/Documents/Codes/bk-monitor/bk-monitor/worktrees/data-migrate/bkmonitor/bkmonitor/data_migrate/__init__.py)。
 
@@ -286,6 +287,8 @@ python manage.py data_migrate install-biz-bk-collector \
 - 已经是 latest 的主机会跳过
 - 支持 `--dry-run` 只输出待安装主机，不执行安装
 - 实际执行时每条成功明细会在 `operate_result` 中透传节点管理返回结果
+- 会根据 `operate_result.job_id` 轮询节点管理任务详情，并在 `job_status` 中输出成功、失败或超时状态
+- 可通过 `--job-wait-timeout` 和 `--job-poll-interval` 控制等待超时和轮询间隔
 - 每个业务独立执行并输出结果；单个失败不会中断其他业务
 
 ### 停止业务 Proxy 上的 bk-collector
@@ -303,6 +306,8 @@ python manage.py data_migrate stop-biz-bk-collector \
 - 未安装 `bk-collector` 的主机会跳过
 - 支持 `--dry-run` 只输出待停止主机，不执行停止
 - 实际执行时每条成功明细会在 `operate_result` 中透传节点管理返回结果
+- 会根据 `operate_result.job_id` 轮询节点管理任务详情，并在 `job_status` 中输出成功、失败或超时状态
+- 可通过 `--job-wait-timeout` 和 `--job-poll-interval` 控制等待超时和轮询间隔
 - 每个业务独立执行并输出结果；单个失败不会中断其他业务
 
 ### 刷新业务 Proxy 上的 bk-collector 配置
@@ -321,6 +326,32 @@ python manage.py data_migrate refresh-biz-bk-collector-configs \
 - 不传 `--config-types` 时默认执行全部类型
 - `custom_report` 只触发 NodeMan proxy 下发，不触发 K8s 配置下发
 - 支持 `--dry-run` 只输出待刷新对象，不执行配置下发
+- 非 dry-run 默认会串联配置下发检查，并在返回结果的 `delivery_check` 中输出每台 proxy 的渲染下发状态
+- 串联检查默认会包含默认业务配置，和 `custom_report` 的刷新范围保持一致
+- 可通过 `--delivery-wait-timeout` 和 `--delivery-poll-interval` 控制配置下发检查的等待超时和轮询间隔
+- 如只需要触发刷新、不等待下发结果，可使用 `--skip-delivery-check`
+
+### 检查业务 Proxy 上的 bk-collector 配置下发
+
+```python
+from monitor_web.data_migrate import check_biz_bk_collector_proxy_config_delivery
+
+result = check_biz_bk_collector_proxy_config_delivery(
+    bk_tenant_id="tencent",
+    bk_biz_ids=[2, 3],
+    config_types=["apm_application", "custom_report", "log"],
+    wait_timeout=600,
+    poll_interval=5,
+)
+```
+
+说明：
+
+- 会查询匹配业务下的 bk-collector proxy 配置订阅，并拉取节点管理任务详情
+- 成功标准是每台 proxy 的 `render_and_push_config` 子步骤为 `SUCCESS`
+- 订阅任务总状态失败、后续重载进程失败，不会影响配置渲染下发成功的判定
+- 返回结果顶层 `result` 表示是否全部 proxy 配置都成功完成渲染下发
+- 不传 `wait_timeout` 时只做一次检查；传入正数时会轮询直到成功、失败或超时
 
 ## 导出目录结构
 

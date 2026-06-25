@@ -51,7 +51,13 @@ from monitor_web.data_migrate import (
     stop_biz_bk_collector,
     upload_export_directory_to_storage,
 )
-from monitor_web.data_migrate.bk_collector import CONFIG_TYPES as BK_COLLECTOR_CONFIG_TYPES
+from monitor_web.data_migrate.bk_collector import (
+    CONFIG_TYPES as BK_COLLECTOR_CONFIG_TYPES,
+    DEFAULT_CONFIG_DELIVERY_POLL_INTERVAL,
+    DEFAULT_CONFIG_DELIVERY_WAIT_TIMEOUT,
+    DEFAULT_PLUGIN_JOB_POLL_INTERVAL,
+    DEFAULT_PLUGIN_JOB_WAIT_TIMEOUT,
+)
 from monitor_web.data_migrate.handler.model_disable import MODEL_DISABLE_HANDLERS
 
 FIXED_CLOSE_MODEL_LABELS: tuple[str, ...] = tuple(MODEL_DISABLE_HANDLERS.keys())
@@ -254,10 +260,39 @@ class Command(BaseCommand):
             ),
         )
         parser.add_argument(
+            "--job-wait-timeout",
+            type=int,
+            default=DEFAULT_PLUGIN_JOB_WAIT_TIMEOUT,
+            help="等待节点管理插件任务完成的超时时间，单位秒；仅 install-biz-bk-collector、stop-biz-bk-collector 动作需要",
+        )
+        parser.add_argument(
+            "--job-poll-interval",
+            type=int,
+            default=DEFAULT_PLUGIN_JOB_POLL_INTERVAL,
+            help="轮询节点管理插件任务状态的间隔，单位秒；仅 install-biz-bk-collector、stop-biz-bk-collector 动作需要",
+        )
+        parser.add_argument(
             "--config-types",
             nargs="+",
             choices=BK_COLLECTOR_CONFIG_TYPES,
             help="需要刷新的 bk-collector 配置类型；仅 refresh-biz-bk-collector-configs 动作需要",
+        )
+        parser.add_argument(
+            "--skip-delivery-check",
+            action="store_true",
+            help="刷新 bk-collector proxy 配置后跳过节点管理配置下发状态检查；仅 refresh-biz-bk-collector-configs 动作需要",
+        )
+        parser.add_argument(
+            "--delivery-wait-timeout",
+            type=int,
+            default=DEFAULT_CONFIG_DELIVERY_WAIT_TIMEOUT,
+            help="等待 bk-collector proxy 配置渲染下发完成的超时时间，单位秒；仅 refresh-biz-bk-collector-configs 动作需要",
+        )
+        parser.add_argument(
+            "--delivery-poll-interval",
+            type=int,
+            default=DEFAULT_CONFIG_DELIVERY_POLL_INTERVAL,
+            help="轮询 bk-collector proxy 配置渲染下发状态的间隔，单位秒；仅 refresh-biz-bk-collector-configs 动作需要",
         )
 
     def handle(self, *args, **options):
@@ -559,6 +594,8 @@ class Command(BaseCommand):
             bk_biz_ids=bk_biz_ids,
             operator=operator,
             dry_run=options.get("dry_run", False),
+            job_wait_timeout=options.get("job_wait_timeout", DEFAULT_PLUGIN_JOB_WAIT_TIMEOUT),
+            job_poll_interval=options.get("job_poll_interval", DEFAULT_PLUGIN_JOB_POLL_INTERVAL),
         )
         self._write_report_result(
             result,
@@ -575,6 +612,8 @@ class Command(BaseCommand):
             bk_biz_ids=bk_biz_ids,
             operator=operator,
             dry_run=options.get("dry_run", False),
+            job_wait_timeout=options.get("job_wait_timeout", DEFAULT_PLUGIN_JOB_WAIT_TIMEOUT),
+            job_poll_interval=options.get("job_poll_interval", DEFAULT_PLUGIN_JOB_POLL_INTERVAL),
         )
         self._write_report_result(
             result,
@@ -597,6 +636,9 @@ class Command(BaseCommand):
                 config_types=options.get("config_types"),
                 operator=operator,
                 dry_run=options.get("dry_run", False),
+                check_delivery=not options.get("skip_delivery_check", False),
+                delivery_wait_timeout=options.get("delivery_wait_timeout", DEFAULT_CONFIG_DELIVERY_WAIT_TIMEOUT),
+                delivery_poll_interval=options.get("delivery_poll_interval", DEFAULT_CONFIG_DELIVERY_POLL_INTERVAL),
             )
         except ValueError as error:
             raise CommandError(str(error)) from error
@@ -608,9 +650,23 @@ class Command(BaseCommand):
 
     def _write_report_result(self, result: dict[str, Any], *, success_message: str, warning_message: str) -> None:
         self.stdout.write(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
-        failed_count = result["summary"]["total"]["failed_count"]
-        if failed_count:
+        total_summary = result["summary"]["total"]
+        failed_count = total_summary["failed_count"]
+        timeout_count = total_summary.get("timeout_count", 0)
+        pending_count = total_summary.get("pending_count", 0)
+        delivery_check = result.get("delivery_check") or {}
+        delivery_failed = bool(delivery_check) and delivery_check.get("result") is False
+        delivery_timed_out = delivery_check.get("timed_out") is True
+        if timeout_count:
+            self.stdout.write(self.style.WARNING(f"{warning_message} with timeout jobs: {timeout_count}"))
+        elif delivery_timed_out:
+            self.stdout.write(self.style.WARNING(f"{warning_message} with delivery check timeout"))
+        elif failed_count:
             self.stdout.write(self.style.WARNING(f"{warning_message}: {failed_count}"))
+        elif delivery_failed:
+            self.stdout.write(self.style.WARNING(f"{warning_message} with delivery check failures"))
+        elif pending_count:
+            self.stdout.write(self.style.WARNING(f"{success_message} with pending jobs: {pending_count}"))
         else:
             self.stdout.write(self.style.SUCCESS(success_message))
 

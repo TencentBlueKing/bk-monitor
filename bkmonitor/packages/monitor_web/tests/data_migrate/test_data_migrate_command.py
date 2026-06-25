@@ -284,6 +284,8 @@ def test_stop_biz_bk_collector_handler_passes_arguments(monkeypatch):
             "bk_biz_ids": [2],
             "operator": "admin",
             "dry_run": True,
+            "job_wait_timeout": 30,
+            "job_poll_interval": 2,
         }
     )
 
@@ -292,4 +294,55 @@ def test_stop_biz_bk_collector_handler_passes_arguments(monkeypatch):
         "bk_biz_ids": [2],
         "operator": "admin",
         "dry_run": True,
+        "job_wait_timeout": 30,
+        "job_poll_interval": 2,
+    }
+
+
+def test_refresh_biz_bk_collector_configs_handler_passes_delivery_check_arguments(monkeypatch):
+    received = {}
+
+    def fake_refresh_biz_bk_collector_proxy_configs(**kwargs):
+        received.update(kwargs)
+        return {
+            "summary": {
+                "total": {
+                    "matched_count": 1,
+                    "planned_count": 0,
+                    "succeeded_count": 1,
+                    "skipped_count": 0,
+                    "failed_count": 0,
+                }
+            },
+            "delivery_check": {"result": True, "timed_out": False},
+        }
+
+    monkeypatch.setattr(
+        data_migrate_command,
+        "refresh_biz_bk_collector_proxy_configs",
+        fake_refresh_biz_bk_collector_proxy_configs,
+    )
+
+    data_migrate_command.Command()._handle_refresh_biz_bk_collector_configs(
+        {
+            "bk_tenant_id": "tencent",
+            "bk_biz_ids": [2],
+            "config_types": ["custom_report"],
+            "operator": "admin",
+            "dry_run": False,
+            "skip_delivery_check": False,
+            "delivery_wait_timeout": 30,
+            "delivery_poll_interval": 2,
+        }
+    )
+
+    assert received == {
+        "bk_tenant_id": "tencent",
+        "bk_biz_ids": [2],
+        "config_types": ["custom_report"],
+        "operator": "admin",
+        "dry_run": False,
+        "check_delivery": True,
+        "delivery_wait_timeout": 30,
+        "delivery_poll_interval": 2,
     }

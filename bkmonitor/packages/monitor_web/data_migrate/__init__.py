@@ -12,6 +12,7 @@ from monitor_web.data_migrate.data_import import import_biz_data_from_directory
 from monitor_web.data_migrate.sequences import apply_auto_increment_from_directory, export_auto_increment_to_directory
 from monitor_web.data_migrate.subscription_tasks import stop_biz_subscription_tasks
 from monitor_web.data_migrate.bk_collector import (
+    check_biz_bk_collector_proxy_config_delivery,
     install_biz_bk_collector,
     refresh_biz_bk_collector_proxy_configs,
     stop_biz_bk_collector,
@@ -19,6 +20,7 @@ from monitor_web.data_migrate.bk_collector import (
 
 __all__ = [
     "apply_auto_increment_from_directory",
+    "check_biz_bk_collector_proxy_config_delivery",
     "disable_models_in_directory",
     "export_auto_increment_to_directory",
     "export_biz_data_to_directory",
