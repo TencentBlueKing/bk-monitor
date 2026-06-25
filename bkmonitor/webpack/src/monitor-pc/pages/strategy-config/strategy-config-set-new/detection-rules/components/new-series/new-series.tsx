@@ -42,7 +42,7 @@ interface NewSeriesProps {
 }
 
 @Component
-export default class NewDimension extends tsc<NewSeriesProps, NewSeriesEvent> {
+export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
   @Prop({ type: Object }) data: IDetectionTypeRuleData;
   @Prop({ type: Boolean, default: false }) readonly: boolean;
   /** 其他已选择的算法数据 */
@@ -83,6 +83,20 @@ export default class NewDimension extends tsc<NewSeriesProps, NewSeriesEvent> {
     );
   }
 
+  /** 维度名拼接，用于检测说明文案 */
+  get dimensionNames(): string {
+    return this.dimensionList
+      .map(item => item.name)
+      .filter(Boolean)
+      .join('、');
+  }
+
+  /** 检测周期文案（数值 + 单位名），用于检测说明文案 */
+  get windowText(): string {
+    const unit = this.unitList.find(item => item.id === this.formData.unit);
+    return `${this.formData.date}${unit?.name ?? ''}`;
+  }
+
   rules = {
     level: [{ required: true, message: this.$t('必填项'), trigger: 'change' }],
     date: [
@@ -98,6 +112,7 @@ export default class NewDimension extends tsc<NewSeriesProps, NewSeriesEvent> {
     return [
       { id: 'd', name: this.$t('天'), seconds: 86400 },
       { id: 'h', name: this.$t('小时'), seconds: 3600 },
+      { id: 'm', name: this.$t('分钟'), seconds: 60 },
     ];
   }
 
@@ -123,11 +138,15 @@ export default class NewDimension extends tsc<NewSeriesProps, NewSeriesEvent> {
 
   created() {
     if (this.data) {
-      const unit = this.unitList.find(unit => this.data.config.detect_range >= unit.seconds);
-
+      const detectRange = Number(this.data.config?.detect_range) || 0;
+      // 选能整除 detect_range 的最大单位；取不到时（detect_range 小于最小单位 / 非整除，多见于 AsCode 导入）
+      // 兜底到最小单位，date 至少为 1，确保编辑与只读详情渲染都不抛错（原实现 find 返回 undefined 会崩溃）。
+      const unit =
+        this.unitList.find(item => detectRange >= item.seconds && detectRange % item.seconds === 0) ??
+        this.unitList[this.unitList.length - 1];
       this.formData = {
         level: this.data.level,
-        date: this.data.config.detect_range / unit.seconds,
+        date: Math.max(1, Math.round(detectRange / unit.seconds)),
         unit: unit.id,
       };
     } else {
@@ -137,7 +156,9 @@ export default class NewDimension extends tsc<NewSeriesProps, NewSeriesEvent> {
 
   /** 初始化数据 */
   initData() {
-    this.formData.level = this.levelList.find(item => !item.disabled).id;
+    // 防御：正常情况下添加入口已限制最多三条（各占一级），这里兜底避免 find 返回 undefined 时崩溃。
+    const firstEnabled = this.levelList.find(item => !item.disabled);
+    this.formData.level = firstEnabled ? firstEnabled.id : 1;
     this.emitLocalData();
   }
 
@@ -152,11 +173,6 @@ export default class NewDimension extends tsc<NewSeriesProps, NewSeriesEvent> {
 
   checkDate(value) {
     return value && value > 0;
-  }
-
-  handleThresholdSelectChange(val) {
-    this.localData.config = val;
-    this.emitLocalData();
   }
 
   @Emit('dataChange')
@@ -242,7 +258,8 @@ export default class NewDimension extends tsc<NewSeriesProps, NewSeriesEvent> {
             <bk-alert
               class='dimension-alert'
               title={this.$t(
-                '每次检测任务出现新的维度值 xxx、yyy 时，都会倒推 xx 天前是否出现过相同维度值，如果没有则告警，出现过则不告警。'
+                '每次检测任务出现新的维度值 {dimensions} 时，都会倒推过去 {window} 内是否出现过相同维度值，如果没有则告警，出现过则不告警。',
+                { dimensions: this.dimensionNames || this.$t('维度组合'), window: this.windowText }
               )}
               type='info'
             />

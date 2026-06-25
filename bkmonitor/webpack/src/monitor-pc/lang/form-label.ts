@@ -454,6 +454,7 @@ export default {
   周: 'Week',
   年: 'Year',
   天: 'Day',
+  维度组合: 'Dimension combinations',
   昨天: 'Yesterday',
   一: 'One',
   二: 'Two',
