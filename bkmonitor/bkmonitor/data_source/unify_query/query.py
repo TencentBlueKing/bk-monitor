@@ -367,7 +367,10 @@ class UnifyQuery:
         params = {
             "query_list": query_list,
             "metric_merge": add_expression_functions(expression, self.functions),
-            "order_by": order_by or ["-time"],
+            # 使用 unify-query 虚拟时间字段 "_time"，会按 query_list 中的 time_field 替换为真实时间字段。
+            # 背景：但在 bkdata / bklog 等以 dtEventTimeStamp 为时间字段的索引上，
+            # 硬编码为 time 要么被 uq 静默丢弃（降级为不排序），要么命中 keyword 导致查询报错。
+            "order_by": order_by or ["-_time"],
             "step": f"{step}s",
             "space_uid": self.space_uid,
             "bk_tenant_id": self.bk_tenant_id,
