@@ -24,6 +24,7 @@ from elasticsearch_dsl.response import Response
 
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.issue import IssueDocument
+from bkmonitor.models.issue import IssueTapdRelation
 from bkmonitor.utils.time_tools import hms_string
 from constants.issue import ImpactScopeDimension, IssuePriority, IssueStatus
 from fta_web.alert.handlers.base import BaseBizQueryHandler, BaseQueryTransformer, QueryField
@@ -610,6 +611,25 @@ class IssueQueryHandler(BaseBizQueryHandler):
                     info = split_info_map.get(issue.get("id"))
                     if info:
                         issue["split_info"] = info
+
+        # TAPD 关联数注入：批量查询页内 Issue 的 TAPD 关联数量
+        # fail-open：查询失败时 tapd_count 默认为 0，不阻塞列表
+        if issues:
+            from django.db.models import Count
+
+            page_issue_ids = [i["id"] for i in issues if i.get("id")]
+            try:
+                tapd_count_map = dict(
+                    IssueTapdRelation.objects.filter(issue_id__in=page_issue_ids)
+                    .values("issue_id")
+                    .annotate(cnt=Count("id"))
+                    .values_list("issue_id", "cnt")
+                )
+            except Exception:
+                logger.warning("Failed to query tapd_count for issue list, fail-open", exc_info=True)
+                tapd_count_map = {}
+            for issue in issues:
+                issue["tapd_count"] = tapd_count_map.get(issue.get("id"), 0)
 
         # 批量查询关联告警趋势（add_alert_trend 内部会读 self._merge_ctx 做 expand）
         self.add_alert_trend(issues)

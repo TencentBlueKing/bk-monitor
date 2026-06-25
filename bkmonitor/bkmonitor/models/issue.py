@@ -217,3 +217,40 @@ def refresh_strategy_cache_on_issue_config_change(sender, instance, **kwargs):
         StrategyCacheManager.cache.set(cache_key, json.dumps(strategy_dict), StrategyCacheManager.CACHE_TIMEOUT)
     except Exception:
         pass
+
+
+class IssueTapdRelation(AbstractRecordModel):
+    """
+    Issue 与 TAPD 单据关联关系
+    """
+
+    bk_biz_id = models.IntegerField(verbose_name="业务 ID")
+    issue_id = models.CharField(max_length=64, verbose_name="Issue ID")
+    workspace_id = models.IntegerField(verbose_name="TAPD 项目 ID")
+    tapd_id = models.IntegerField(verbose_name="TAPD 单据 ID")
+    tapd_type = models.CharField(
+        max_length=16,
+        verbose_name="TAPD 单据类型",
+        choices=[
+            ("story", "需求"),
+            ("bug", "缺陷"),
+        ],
+    )
+    tapd_title = models.CharField(max_length=255, verbose_name="TAPD 单据标题", default="")
+    link_mode = models.CharField(
+        max_length=16,
+        verbose_name="关联模式",
+        choices=[
+            ("create", "新建单据"),
+            ("link", "关联已有"),
+        ],
+        default="create",
+    )
+    sync_status = models.BooleanField(default=False, verbose_name="是否同步单据状态")
+
+    class Meta:
+        db_table = "bkmonitor_issue_tapd_relation"
+        verbose_name = "Issue TAPD 关联关系"
+        constraints = [
+            models.UniqueConstraint(fields=["bk_biz_id", "issue_id", "workspace_id", "tapd_id"], name="uniq_issue_tapd")
+        ]
