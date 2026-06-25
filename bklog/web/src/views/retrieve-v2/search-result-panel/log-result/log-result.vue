@@ -61,16 +61,18 @@ export default {
     // },
     openRelatedLogTab(type, index) {
       const retrieveParams = this.$store.getters.retrieveParams || {};
+      const { start_time: searchStartTime, end_time: searchEndTime } = this.$store.state.indexItem || {};
+      const size = Math.ceil(index / 50) * 50;
       const routeQuery = {
         ...this.$route.query,
         indexId: this.$store.getters.indexId || this.$route.params.indexId,
         bizId: this.$store.getters.bkBizId,
         spaceUid: this.$store.getters.spaceUid,
         rowIndex: Math.max(0, index - 1),
-        begin: retrieveParams.begin ?? 0,
-        size: retrieveParams.size ?? 50,
-        start_time: retrieveParams.start_time,
-        end_time: retrieveParams.end_time,
+        begin: 0,
+        size,
+        start_time: searchStartTime ?? retrieveParams.start_time,
+        end_time: searchEndTime ?? retrieveParams.end_time,
         keyword: retrieveParams.keyword,
         search_mode: retrieveParams.search_mode,
         addition: JSON.stringify(retrieveParams.addition || []),
@@ -80,6 +82,7 @@ export default {
         interval: retrieveParams.interval,
         time_zone: retrieveParams.time_zone,
       };
+
       const route = this.$router.resolve({
         name: type === 'realTimeLog' ? 'retrieve-real-time-tab' : 'retrieve-context-tab',
         query: routeQuery,

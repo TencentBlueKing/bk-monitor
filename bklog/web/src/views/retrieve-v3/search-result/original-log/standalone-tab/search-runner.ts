@@ -36,7 +36,7 @@ export const buildStandaloneSearchPayload = (routeQuery: Record<string, any>): S
   const begin = toNumber(routeQuery.begin, 0);
   const startTime = toNumber(routeQuery.start_time, 0);
   const endTime = toNumber(routeQuery.end_time, 0);
-  const bkBizId = toNumber(routeQuery.bizId || routeQuery.bk_biz_id, 0);
+  const bkBizId = routeQuery.bizId || routeQuery.bk_biz_id;
 
   const query: Record<string, any> = {
     bk_biz_id: bkBizId,
