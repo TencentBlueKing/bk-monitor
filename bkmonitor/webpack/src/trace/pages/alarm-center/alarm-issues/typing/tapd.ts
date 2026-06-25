@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import type { TapdType } from './constants';
+import type { TapdType, TAPDWorkspaceBoundType } from './constants';
 
 export interface CreateTapdDefaultSetting {
   tapd_type?: '' | TapdType;
@@ -33,6 +33,7 @@ export interface CreateTapdDefaultSetting {
 
 /**
  * 创建 TAPD 单据响应 data
+ * POST /fta/issue/issue/create_tapd/
  */
 export interface CreateTapdIssueData {
   /** 该 Issue 全部活动日志，按发生时间降序排列（最新在前） */
@@ -43,6 +44,10 @@ export interface CreateTapdIssueData {
   description: string;
   /** Issue ID */
   issue_id: string;
+  /** 迭代 ID */
+  iteration_id: string;
+  /** TAPD 单据标题 */
+  name: string;
   /** TAPD 单据处理人 */
   owner: string;
   /** TAPD 单据优先级 */
@@ -51,8 +56,10 @@ export interface CreateTapdIssueData {
   sync_status: boolean;
   /** 创建的 TAPD 单据 ID */
   tapd_id: string;
-  /** TAPD 单据标题 */
-  title: string;
+  /** TAPD 单据类型 */
+  tapd_type: TapdType;
+  /** 测试人员，bug 单据才返回这个字段 */
+  te?: string;
   /** TAPD 项目 ID */
   workspace_id: number;
 }
@@ -64,57 +71,26 @@ export interface CreateTapdIssueData {
 export interface CreateTapdIssueRequest {
   /** 业务 ID */
   bk_biz_id: number;
-  /** 抄送人，支持多成员（如：aaa;bbb;） */
-  cc?: string;
   /** 详细描述 */
   description: string;
-  /** 预估工时 */
-  effort?: string;
   /** 目标 Issue ID */
   issue_id: string;
   /** 迭代 ID */
-  iteration_id?: string;
-  /** 标签，多个以英文竖线分隔 */
-  label?: string;
-  /** 模块字段，适用于 story 和 bug 类型 */
-  module?: string;
+  iteration_id: string;
+  /** 单据标题 */
+  name: string;
   /** 单据处理人，支持多成员（如：aaa;bbb;） */
   owner: string;
-  /** 优先级 */
-  priority_label?: 'High' | 'Low' | 'Middle' | 'Nice To Have';
-  /** 严重程度字段，仅适用于 bug 类型 */
-  severity?: '一般' | '严重' | '建议' | '提示' | '致命';
-  /** 来源字段，适用于 story 和 bug 类型 */
-  source?: string;
+  /** 优先级，可选值: High（高）、Middle（中）、Low（低）、Nice To Have（无关紧要） */
+  priority_label: 'High' | 'Low' | 'Middle' | 'Nice To Have';
   /** 是否同步单据状态 */
   sync_status: boolean;
-  /** TAPD 单据类型 */
+  /** TAPD 单据类型，可选值：story（需求）、bug（缺陷） */
   tapd_type: TapdType;
-  /** 单据标题 */
-  title: string;
+  /** 测试人员，创建 bug 时必填 */
+  te?: string;
   /** TAPD 项目 ID */
-  workspace_id: string;
-}
-
-/**
- * 获取已授权的 TAPD 项目列表请求参数
- * POST /fta/issue/tapd/workspace/
- */
-export interface GetTapdWorkspaceListRequest {
-  /** 业务 ID，用于业务权限校验 */
-  bk_biz_id: number;
-  /** 创建时间，格式：YYYY-MM-DD，支持时间查询 */
-  created?: string;
-  /** 设置获取的字段，多个字段以逗号分隔 */
-  fields?: string;
-  /** 返回数量限制，默认 30，范围 1-200 */
-  limit?: number;
-  /** 排序规则，格式：字段名 ASC 或 DESC，默认 "created desc" */
-  order?: string;
-  /** 页码，默认 1 */
-  page?: number;
-  /** 项目 ID，精确匹配 */
-  workspace_id?: string;
+  workspace_id: number | string;
 }
 
 /**
@@ -143,20 +119,7 @@ export interface IssueActivityItem {
  * TAPD 项目信息
  */
 export interface TapdWorkspaceItem {
-  /** 项目分类 */
-  category: string;
-  /** 项目创建时间 */
-  created: string;
-  /** 项目创建者，多个用英文分号分隔 */
-  creator: string;
-  /** 项目描述 */
-  description: string;
-  /** 项目英文昵称 */
-  pretty_name: string;
-  /** 项目状态: normal 正常，closed 关闭，suspend 挂起 */
-  status: string;
-  /** TAPD 项目 ID */
+  is_bound: TAPDWorkspaceBoundType;
   workspace_id: string;
-  /** 项目名称 */
   workspace_name: string;
 }

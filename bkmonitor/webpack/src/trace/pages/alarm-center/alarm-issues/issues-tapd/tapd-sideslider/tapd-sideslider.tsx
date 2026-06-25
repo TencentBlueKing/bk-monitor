@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, shallowRef, useTemplateRef } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { Button, Checkbox, Sideslider } from 'bkui-vue';
 
@@ -48,20 +48,21 @@ export default defineComponent({
     },
     bizId: {
       type: [Number, String],
-      default: '2',
+      default: '',
+    },
+    workspaceList: {
+      type: Array as PropType<TapdWorkspaceItem[]>,
+      default: () => [],
     },
   },
-  emits: ['update:show'],
+  emits: ['update:show', 'addWorkspace'],
   setup(props, { emit }) {
     /** 已关联 TAPD 项目数量 */
     const count = shallowRef(1);
-
     /** 基础表单组件 ref，用于调用表单校验方法 */
     const basicFormRef = useTemplateRef<InstanceType<typeof TapdBasicForm>>('basicForm');
     const tapdFieldFormRef = useTemplateRef<InstanceType<typeof TapdFieldForm>>('tapdFieldForm');
     const tapdRelationRef = useTemplateRef<InstanceType<typeof TapdRelation>>('tapdRelation');
-    /** 项目列表 */
-    const workspaceList = shallowRef<TapdWorkspaceItem[]>([]);
     /** 用户设置的 TAPD 创建单据默认值 */
     const createTapdDefaultValue = shallowRef<CreateTapdDefaultSetting>({
       workspace_id: null,
@@ -69,10 +70,11 @@ export default defineComponent({
     });
     /** 表单数据 */
     const formData = shallowRef<Pick<CreateTapdIssueRequest, 'sync_status' | 'tapd_type' | 'workspace_id'>>({
-      workspace_id: null,
+      workspace_id: '',
       tapd_type: 'story',
       sync_status: false,
     });
+    const filterWorkspaceList = computed(() => props.workspaceList.filter(item => item.is_bound === 'bound'));
     /** 当前激活的 tab */
     const tabActive = shallowRef('add');
     /* 单据字段 */
@@ -117,8 +119,9 @@ export default defineComponent({
       handleGetUserConfig<CreateTapdDefaultSetting>(CREATE_TAPD_DETAIL_SETTING.value).then(res => {
         if (res) {
           createTapdDefaultValue.value = res;
+          const targetWorkspace = filterWorkspaceList.value.find(item => item.workspace_id === res.workspace_id);
           formData.value = {
-            workspace_id: res.workspace_id,
+            workspace_id: targetWorkspace ? res.workspace_id : filterWorkspaceList.value[0].workspace_id,
             tapd_type: res.tapd_type || 'story',
             sync_status: false,
           };
@@ -128,7 +131,7 @@ export default defineComponent({
             tapd_type: '',
           };
           formData.value = {
-            workspace_id: null,
+            workspace_id: filterWorkspaceList.value[0].workspace_id,
             tapd_type: 'story',
             sync_status: false,
           };
@@ -136,6 +139,13 @@ export default defineComponent({
         getTapdFields();
       });
     };
+
+    watch(
+      () => props.show,
+      show => {
+        if (show) getTapdDefaultValue();
+      }
+    );
 
     /**
      * 处理 Sideslider 显示状态变化
@@ -145,11 +155,16 @@ export default defineComponent({
       emit('update:show', isShow);
     };
 
+    const handleAddWorkspace = () => {
+      emit('addWorkspace');
+    };
+
     /**
      * 处理 tab 切换
      * @param value tab 值
      */
     const handleTabChange = (value: string) => {
+      if (value !== 'add') return;
       tabActive.value = value;
     };
 
@@ -198,16 +213,12 @@ export default defineComponent({
       linkTapdIds.value = val;
     };
 
-    onMounted(() => {
-      getTapdDefaultValue();
-    });
-
     return {
       count,
       formData,
       tabActive,
-      workspaceList,
       createTapdDefaultValue,
+      filterWorkspaceList,
       tapdFieldValue,
       tapdFields,
       tapdFieldFormLoading,
@@ -218,6 +229,7 @@ export default defineComponent({
       handleConfirm,
       handleFormDataChange,
       handleFieldValueChange,
+      handleAddWorkspace,
       handleLinkTapdIdsChange,
     };
   },
@@ -246,7 +258,8 @@ export default defineComponent({
                 v-model={this.formData}
                 defaultValue={this.createTapdDefaultValue}
                 tabActive={this.tabActive}
-                workspaceList={this.workspaceList}
+                workspaceList={this.filterWorkspaceList}
+                onAddWorkspace={this.handleAddWorkspace}
                 onSetDefaultValue={this.handleSetDefaultValue}
                 onTabChange={this.handleTabChange}
                 onUpdate:modelValue={this.handleFormDataChange}
@@ -281,6 +294,22 @@ export default defineComponent({
                 return undefined;
               })()}
               <div class='create-tapd-content'>
+                {(() => {
+                  if (this.tapdFieldFormLoading) {
+                    return <TapdFieldFormLoadingCom />;
+                  }
+                  if (this.tapdFields.length) {
+                    return (
+                      <TapdFieldForm
+                        ref='tapdFieldForm'
+                        fields={this.tapdFields}
+                        value={this.tapdFieldValue}
+                        onChange={this.handleFieldValueChange}
+                      />
+                    );
+                  }
+                  return undefined;
+                })()}
                 <div class='sync-tapd-status'>
                   <Checkbox v-model={this.formData.sync_status}>
                     <span class='sync-tapd-status-title'>{this.$t('同步单据状态')}</span>
