@@ -56,27 +56,35 @@ export default defineComponent({
       client_type: 'web',
     });
 
-    const appNameErr = shallowRef('');
-    const rules = shallowRef({
+    // form组件异步校验无效，加一层判断
+    const isCheckAppDuplicate = shallowRef(false);
+
+    const rules = {
       app_name: [
+        {
+          required: true,
+          message: t('应用名称不能为空'),
+          trigger: 'blur',
+        },
         {
           validator: val => !/(\ud83c[\udf00-\udfff])|(\ud83d[\udc00-\ude4f\ude80-\udeff])|[\u2600-\u2B55]/g.test(val),
           message: t('不能输入emoji表情'),
-          trigger: 'change',
+          trigger: 'blur',
         },
         {
-          validator: () => !appNameErr.value,
-          message: () => appNameErr.value,
+          validator: checkAppDuplicate,
+          message: t('应用名称已存在'),
+          trigger: 'blur',
         },
       ],
       app_alias: [
         {
-          validator: val => !!val?.trim(),
+          required: true,
           message: t('应用别名不能为空'),
           trigger: 'blur',
         },
       ],
-    });
+    };
     const submitLoading = shallowRef(false);
 
     /** 侧栏关闭时重置表单数据与错误状态 */
@@ -88,7 +96,7 @@ export default defineComponent({
           formData.app_alias = '';
           formData.app_name = '';
           formData.description = '';
-          appNameErr.value = '';
+          isCheckAppDuplicate.value = false;
         }
       }
     );
@@ -103,47 +111,31 @@ export default defineComponent({
      * @returns 是否重复（true=已存在）
      */
     async function checkAppDuplicate(appName: string) {
-      try {
-        const res: { exists?: boolean } = await checkDuplicateAppName({ app_name: appName });
-        return !!res.exists;
-      } catch {
-        return false;
-      }
-    }
-
-    /**
-     * 应用名称输入框失焦时校验重名
-     */
-    async function handleAppNameBlur() {
-      if (!formData.app_name.trim()) return;
-      const isDuplicate = await checkAppDuplicate(formData.app_name);
-      appNameErr.value = isDuplicate ? t('应用名称已存在') : '';
-      /** 失焦后触发表单校验以显示错误提示 */
-      formRef.value?.validate('app_name').catch(() => {});
+      return new Promise((resolve, reject) => {
+        checkDuplicateAppName({ app_name: appName })
+          .then(res => {
+            if (res.exists) {
+              isCheckAppDuplicate.value = false;
+              reject(t('应用名称已存在'));
+            } else {
+              isCheckAppDuplicate.value = true;
+              resolve(true);
+            }
+          })
+          .catch(err => {
+            reject(JSON.stringify(err));
+            isCheckAppDuplicate.value = false;
+          });
+      });
     }
 
     /** 提交创建应用：校验重名 → 表单验证 → 调用创建接口 → 触发成功回调 */
     const handleSubmit = async () => {
       if (submitLoading.value) return; // 防重复点击
-      submitLoading.value = true;
-      appNameErr.value = '';
+
       const valid = await formRef.value?.validate().catch(() => false);
 
-      let isDuplicate = false;
-      if (valid) {
-        isDuplicate = await checkAppDuplicate(formData.app_name).catch(() => true);
-        if (isDuplicate) {
-          appNameErr.value = t('应用名称已存在');
-        } else {
-          appNameErr.value = '';
-        }
-      }
-      if (isDuplicate) {
-        await formRef.value?.validate().catch(() => false);
-        submitLoading.value = false;
-        return;
-      }
-      if (valid) {
+      if (valid && isCheckAppDuplicate.value) {
         const params = {
           app_name: formData.app_name,
           app_alias: formData.app_alias,
@@ -165,12 +157,10 @@ export default defineComponent({
       formRef,
       formData,
       rules,
-      appNameErr,
       submitLoading,
       t,
       handleShowChange,
       handleSubmit,
-      handleAppNameBlur,
     };
   },
   render() {
@@ -202,10 +192,6 @@ export default defineComponent({
               <Input
                 v-model={this.formData.app_name}
                 placeholder={`www.example.com（${this.t('作为唯一标识，创建后不可修改')}）`}
-                onBlur={this.handleAppNameBlur}
-                onFocus={() => {
-                  this.appNameErr = '';
-                }}
               />
             </Form.FormItem>
             <Form.FormItem
