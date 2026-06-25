@@ -818,7 +818,11 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
             )
 
     # 3. 根据链路套餐（类型）获取该链路需要的组件资源种类
-    components = models.DataLink.STRATEGY_RELATED_COMPONENTS.get(data_link_strategy) or []
+    if hasattr(data_link_ins, "get_related_component_classes"):
+        components = data_link_ins.get_related_component_classes()
+    else:
+        components = models.DataLink.STRATEGY_RELATED_COMPONENTS.get(data_link_strategy) or []
+    components = [component for component in components if component is not models.GraphRelationBindingConfig]
     all_components_ok = True
 
     # 4. 遍历链路关联的所有类型资源；

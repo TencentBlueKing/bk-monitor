@@ -41,6 +41,7 @@ from metadata.models import (
 from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.data_link.constants import DataLinkKind, DataLinkResourceStatus
 from metadata.models.data_link.data_link import DataLink
+from metadata.models.data_link import utils
 from metadata.models.data_link.data_link_configs import (
     BasereportSinkConfig,
     ConditionalSinkConfig,
@@ -49,7 +50,9 @@ from metadata.models.data_link.data_link_configs import (
     DataLinkResourceConfigBase,
     DorisStorageBindingConfig,
     ESStorageBindingConfig,
+    GraphRelationBindingConfig,
     ResultTableConfig,
+    SurrealDBBindingConfig,
     VMStorageBindingConfig,
 )
 
@@ -66,6 +69,7 @@ SINK_KIND_TO_MODEL: dict[str, type[DataLinkResourceConfigBase]] = {
     DataLinkKind.VMSTORAGEBINDING.value: VMStorageBindingConfig,
     DataLinkKind.ESSTORAGEBINDING.value: ESStorageBindingConfig,
     DataLinkKind.DORISBINDING.value: DorisStorageBindingConfig,
+    DataLinkKind.SURREALDBBINDING.value: SurrealDBBindingConfig,
     DataLinkKind.CONDITIONALSINK.value: ConditionalSinkConfig,
     DataLinkKind.BASEREPORTSINK.value: BasereportSinkConfig,
 }
@@ -75,6 +79,7 @@ STORAGE_BINDING_MODELS = (
     VMStorageBindingConfig,
     ESStorageBindingConfig,
     DorisStorageBindingConfig,
+    SurrealDBBindingConfig,
 )
 
 SIMPLE_STORAGE_BINDING_MODELS: dict[str, type[SimpleStorageBindingConfig]] = {
@@ -83,8 +88,203 @@ SIMPLE_STORAGE_BINDING_MODELS: dict[str, type[SimpleStorageBindingConfig]] = {
     DataLinkKind.DORISBINDING.value: DorisStorageBindingConfig,
 }
 
+# Graph dual-write creates separate VM and SurrealDB Databus rows. During rebuild we need to fold sibling rows
+# back into one DataLink so GraphRelationBindingConfig can keep the unified write_mode.
+def _parse_sink_names(sink_names: Sequence[str], databus_name: str) -> dict[str, list[str]] | None:
+    sink_map: dict[str, list[str]] = {}
+    for entry in sink_names:
+        if ":" not in entry:
+            logger.warning(
+                "rebuild_databus_relation: databus->[%s] has invalid sink_names entry->[%s], skip",
+                databus_name,
+                entry,
+            )
+            return None
+        kind, name = entry.split(":", 1)
+        sink_map.setdefault(kind, []).append(name)
+    return sink_map
+
+
+def _load_sink_instances(
+    databus: DataBusConfig,
+    sink_map: dict[str, list[str]],
+) -> list[DataLinkResourceConfigBase] | None:
+    sink_instances: list[DataLinkResourceConfigBase] = []
+    for kind, names in sink_map.items():
+        model = SINK_KIND_TO_MODEL.get(kind)
+        if model is None:
+            logger.warning(
+                "rebuild_databus_relation: databus->[%s] has unknown sink kind->[%s], skip",
+                databus.name,
+                kind,
+            )
+            return None
+        queryset = model.objects.filter(
+            bk_tenant_id=databus.bk_tenant_id,
+            namespace=databus.namespace,
+            name__in=names,
+        )
+        instances_by_name = {instance.name: instance for instance in queryset}
+        missing = [name for name in names if name not in instances_by_name]
+        if missing:
+            logger.warning(
+                "rebuild_databus_relation: databus->[%s] sink component kind->[%s] name->[%s] not found in DB, skip",
+                databus.name,
+                kind,
+                ", ".join(missing),
+            )
+            return None
+        sink_instances.extend(instances_by_name[name] for name in names)
+    return sink_instances
+
+
+def _merge_graph_dual_write_sibling_databus(
+    databus: DataBusConfig,
+    sink_instances: list[DataLinkResourceConfigBase],
+    resolved_bk_data_id: int | None = None,
+) -> tuple[list[DataBusConfig], list[DataLinkResourceConfigBase]]:
+    def graph_result_table_group_key(rt_name: str) -> str:
+        if rt_name.endswith("_graph"):
+            rt_name = rt_name[: -len("_graph")]
+        return f"graph-rt-group:{rt_name}"
+
+    def graph_storage_keys(instances: list[DataLinkResourceConfigBase]) -> set[str]:
+        keys: set[str] = set()
+        storage_bindings = [
+            instance
+            for instance in instances
+            if isinstance(instance, (VMStorageBindingConfig, SurrealDBBindingConfig))
+        ]
+        rt_names = [instance.bkbase_result_table_name for instance in storage_bindings if instance.bkbase_result_table_name]
+        rt_table_id_map = {
+            rt.name: rt.table_id
+            for rt in ResultTableConfig.objects.filter(
+                bk_tenant_id=databus.bk_tenant_id,
+                namespace=databus.namespace,
+                name__in=rt_names,
+            )
+        }
+        fallback_bk_data_id = resolved_bk_data_id or databus.bk_data_id
+        data_source_result_table_ids = list(
+            DataSourceResultTable.objects.filter(
+                bk_data_id=fallback_bk_data_id,
+                bk_tenant_id=databus.bk_tenant_id,
+            )
+            .order_by()
+            .values_list("table_id", flat=True)
+            .distinct()
+        )
+        data_source_result_table_id = (
+            data_source_result_table_ids[0] if len(data_source_result_table_ids) == 1 else ""
+        )
+        for instance in storage_bindings:
+            table_id = (
+                instance.table_id
+                or rt_table_id_map.get(instance.bkbase_result_table_name, "")
+                or data_source_result_table_id
+            )
+            if table_id:
+                keys.add(f"table:{table_id}")
+            if instance.bkbase_result_table_name:
+                keys.add(f"rt:{instance.bkbase_result_table_name}")
+                keys.add(graph_result_table_group_key(instance.bkbase_result_table_name))
+        return keys
+
+    current_has_vm = any(isinstance(instance, VMStorageBindingConfig) for instance in sink_instances)
+    current_has_surrealdb = any(isinstance(instance, SurrealDBBindingConfig) for instance in sink_instances)
+    if current_has_vm and current_has_surrealdb:
+        return [databus], sink_instances
+    if not (current_has_vm or current_has_surrealdb):
+        return [databus], sink_instances
+
+    current_keys = graph_storage_keys(sink_instances)
+    if not current_keys:
+        return [databus], sink_instances
+
+    candidate_bk_data_ids = [databus.bk_data_id]
+    if resolved_bk_data_id and resolved_bk_data_id not in candidate_bk_data_ids:
+        candidate_bk_data_ids.append(resolved_bk_data_id)
+    candidate_databuses = DataBusConfig.objects.filter(
+        bk_tenant_id=databus.bk_tenant_id,
+        namespace=databus.namespace,
+        bk_data_id__in=candidate_bk_data_ids,
+        data_id_name=databus.data_id_name,
+        data_link_name="",
+    ).exclude(id=databus.id)
+    for candidate in candidate_databuses:
+        candidate_sink_map = _parse_sink_names(candidate.sink_names, candidate.name)
+        if candidate_sink_map is None:
+            continue
+        candidate_sinks = _load_sink_instances(candidate, candidate_sink_map)
+        if candidate_sinks is None:
+            continue
+        combined_sinks = [*sink_instances, *candidate_sinks]
+        has_vm = any(isinstance(instance, VMStorageBindingConfig) for instance in combined_sinks)
+        has_surrealdb = any(isinstance(instance, SurrealDBBindingConfig) for instance in combined_sinks)
+        if not (has_vm and has_surrealdb):
+            continue
+        if current_keys & graph_storage_keys(candidate_sinks):
+            return [databus, candidate], combined_sinks
+
+    return [databus], sink_instances
+
+
 # 重建链路名称前缀，便于与正常创建的链路区分，支持回溯和回滚
 REBUILT_DATA_LINK_NAME_PREFIX = "rebuilt__"
+
+
+def _compose_rebuilt_graph_binding_name(data_link_name: str) -> str:
+    """Keep rebuilt GraphRelationBindingConfig.name within its 64-char DB limit."""
+    return utils.compose_bkdata_table_id(data_link_name)
+
+
+def _compose_rebuilt_graph_data_link_name(databus: DataBusConfig) -> str:
+    raw_name = f"{REBUILT_DATA_LINK_NAME_PREFIX}{databus.bk_tenant_id}__{databus.namespace}__{databus.name}"
+    return f"{REBUILT_DATA_LINK_NAME_PREFIX}{utils.compose_bkdata_table_id(raw_name)}"
+
+
+def _find_databus_name_for_sink(
+    databus_instances: list[DataBusConfig],
+    sink_kind: str,
+    sink_name: str,
+) -> str:
+    if not sink_name:
+        return ""
+    target_sink = f"{sink_kind}:{sink_name}"
+    for databus in databus_instances:
+        if target_sink in (databus.sink_names or []):
+            return databus.name
+    return sink_name
+
+
+def _get_single_data_source_table_id(databus: DataBusConfig, data_source) -> str:
+    table_ids = list(
+        DataSourceResultTable.objects.filter(
+            bk_tenant_id=databus.bk_tenant_id,
+            bk_data_id=data_source.bk_data_id,
+        ).values_list("table_id", flat=True)
+    )
+    table_ids = list(dict.fromkeys(table_id for table_id in table_ids if table_id))
+    return table_ids[0] if len(table_ids) == 1 else ""
+
+
+def _resolve_rebuild_result_table_id(
+    binding_instance: DataLinkResourceConfigBase,
+    rt_instance: ResultTableConfig,
+    vmrt_to_table_id: dict[str, str],
+    databus: DataBusConfig,
+    data_source,
+) -> str:
+    table_id = getattr(binding_instance, "table_id", "") or rt_instance.table_id
+    if table_id:
+        return table_id
+    if isinstance(binding_instance, SurrealDBBindingConfig):
+        return _get_single_data_source_table_id(databus, data_source)
+    if isinstance(binding_instance, VMStorageBindingConfig):
+        return vmrt_to_table_id.get(rt_instance.bkbase_table_id, "") or _get_single_data_source_table_id(
+            databus, data_source
+        )
+    return vmrt_to_table_id.get(rt_instance.bkbase_table_id, "")
 
 # etl_config → data_link_strategy 映射
 ETL_CONFIG_TO_STRATEGY = {
@@ -502,6 +702,35 @@ def _is_vm_only_simple_sink_names(sink_names: Sequence[str]) -> bool:
     return True
 
 
+def _is_graph_relation_rebuild(
+    databus: DataBusConfig,
+    sink_map: dict[str, list[str]],
+    rt_instances: Sequence[ResultTableConfig],
+) -> bool:
+    if DataLinkKind.SURREALDBBINDING.value in sink_map:
+        return True
+    if DataLinkKind.VMSTORAGEBINDING.value not in sink_map:
+        return False
+
+    bkbase_rt_names = [rt.name for rt in rt_instances if rt.name]
+    if not bkbase_rt_names:
+        return False
+    existing_datalink_names = list(
+        BkBaseResultTable.objects.filter(
+            bk_tenant_id=databus.bk_tenant_id,
+            bkbase_rt_name__in=bkbase_rt_names,
+        ).values_list("data_link_name", flat=True)
+    )
+    if not existing_datalink_names:
+        return False
+
+    return DataLink.objects.filter(
+        bk_tenant_id=databus.bk_tenant_id,
+        data_link_name__in=existing_datalink_names,
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+    ).exists()
+
+
 def _build_simple_bkbase_result_table(
     data_link_name: str,
     databus: DataBusConfig,
@@ -703,45 +932,22 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
             return None
 
     # Step 2: 解析 sink_names → {kind: [name, ...]}，格式为 "kind:name"
-    sink_map: dict[str, list[str]] = {}
-    for entry in databus.sink_names:
-        if ":" not in entry:
-            logger.warning(
-                "rebuild_databus_relation: databus->[%s] has invalid sink_names entry->[%s], skip",
-                databus_name,
-                entry,
-            )
-            return None
-        kind, name = entry.split(":", 1)
-        sink_map.setdefault(kind, []).append(name)
+    sink_map = _parse_sink_names(databus.sink_names, databus_name)
+    if sink_map is None:
+        return None
 
     # Step 3: 查询各 sink 组件实例（批量查询，避免 N+1）
-    sink_instances: list[DataLinkResourceConfigBase] = []
-    for kind, names in sink_map.items():
-        model = SINK_KIND_TO_MODEL.get(kind)
-        if model is None:
-            logger.warning(
-                "rebuild_databus_relation: databus->[%s] has unknown sink kind->[%s], skip",
-                databus_name,
-                kind,
-            )
-            return None
-        queryset = model.objects.filter(
-            bk_tenant_id=databus.bk_tenant_id,
-            namespace=databus.namespace,
-            name__in=names,
-        )
-        instances_by_name = {instance.name: instance for instance in queryset}
-        missing = [name for name in names if name not in instances_by_name]
-        if missing:
-            logger.warning(
-                "rebuild_databus_relation: databus->[%s] sink component kind->[%s] name->[%s] not found in DB, skip",
-                databus_name,
-                kind,
-                ", ".join(missing),
-            )
-            return None
-        sink_instances.extend(instances_by_name[name] for name in names)
+    sink_instances = _load_sink_instances(databus, sink_map)
+    if sink_instances is None:
+        return None
+    databus_instances, sink_instances = _merge_graph_dual_write_sibling_databus(
+        databus,
+        sink_instances,
+        resolved_bk_data_id=resolved_bk_data_id,
+    )
+    sink_map = {}
+    for instance in sink_instances:
+        sink_map.setdefault(instance.kind, []).append(instance.name)
 
     # BasereportSink 是二级路由组件，需要继续从已记录的 VMStorageBinding 名称展开下游绑定。
     basereport_sink_instances = [instance for instance in sink_instances if isinstance(instance, BasereportSinkConfig)]
@@ -822,7 +1028,14 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
     }
     result_table_name_to_table_id = {}
     for rt_instance in rt_instances:
-        rt_instance.table_id = vmrt_to_table_id.get(rt_instance.bkbase_table_id, "")
+        binding_instance = rt_name_map[rt_instance.name]
+        rt_instance.table_id = _resolve_rebuild_result_table_id(
+            binding_instance=binding_instance,
+            rt_instance=rt_instance,
+            vmrt_to_table_id=vmrt_to_table_id,
+            databus=databus,
+            data_source=data_source,
+        )
         if not rt_instance.table_id:
             logger.warning(
                 "rebuild_databus_relation: databus->[%s] ResultTableConfig name->[%s] has empty table_id, skip",
@@ -864,6 +1077,8 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
     has_doris = DataLinkKind.DORISBINDING.value in sink_map
     if has_es and has_doris:
         strategy = DataLink.BK_LOG
+    elif _is_graph_relation_rebuild(databus, sink_map, rt_instances):
+        strategy = DataLink.GRAPH_RELATION_TIME_SERIES
     else:
         strategy = ETL_CONFIG_TO_STRATEGY.get(data_source.etl_config)
         if strategy is None:
@@ -874,8 +1089,11 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
             )
             return None
 
-    # Step 8: data_link_name 使用 "rebuilt__" 前缀 + 租户/命名空间/DataBus name，确保跨租户唯一
-    data_link_name = f"{REBUILT_DATA_LINK_NAME_PREFIX}{databus.bk_tenant_id}__{databus.namespace}__{databus_name}"
+    # Step 8: graph rebuild 使用短 data_link_name，避免写入 64 字符的组件外键时超长。
+    if strategy == DataLink.GRAPH_RELATION_TIME_SERIES:
+        data_link_name = _compose_rebuilt_graph_data_link_name(databus)
+    else:
+        data_link_name = f"{REBUILT_DATA_LINK_NAME_PREFIX}{databus.bk_tenant_id}__{databus.namespace}__{databus_name}"
 
     # Step 9: 收集 table_ids（来自 ResultTableConfig.table_id，过滤空值）
     table_ids = [rt.table_id for rt in rt_instances if rt.table_id]
@@ -890,7 +1108,7 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
             "sinks": [{"kind": i.kind, "name": i.name, "table_id": getattr(i, "table_id", "")} for i in sink_instances],
             "result_tables": [{"name": rt.name, "table_id": rt.table_id} for rt in rt_instances],
             "components": _serialize_datalink_components(
-                [data_id_config, *rt_instances, *sink_instances, databus],
+                [data_id_config, *rt_instances, *sink_instances, *databus_instances],
             ),
         }
 
@@ -909,10 +1127,11 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
             },
         )
 
-        # 更新 DataBusConfig 自身
-        databus.data_link_name = data_link_name
-        databus.bk_data_id = resolved_bk_data_id
-        databus.save(update_fields=["data_link_name", "bk_data_id"])
+        # 更新 DataBusConfig 自身；graph dual-write rebuild 会同时认领 VM/SurrealDB 两条 sibling Databus。
+        for databus_instance in databus_instances:
+            databus_instance.data_link_name = data_link_name
+            databus_instance.bk_data_id = resolved_bk_data_id
+            databus_instance.save(update_fields=["data_link_name", "bk_data_id"])
 
         # 批量更新 sink 组件（按 model 类型分组，减少 DB 操作次数）
         for instance in sink_instances:
@@ -923,6 +1142,48 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
         for rt in rt_instances:
             rt.data_link_name = data_link_name
         ResultTableConfig.objects.bulk_update(rt_instances, ["data_link_name", "table_id"])
+
+        if strategy == DataLink.GRAPH_RELATION_TIME_SERIES:
+            vm_binding = next((i for i in sink_instances if isinstance(i, VMStorageBindingConfig)), None)
+            surrealdb_binding = next((i for i in sink_instances if isinstance(i, SurrealDBBindingConfig)), None)
+            graph_binding_name = _compose_rebuilt_graph_binding_name(data_link_name)
+            write_mode = GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB
+            if vm_binding and not surrealdb_binding:
+                write_mode = GraphRelationBindingConfig.WRITE_MODE_VM
+            elif surrealdb_binding and not vm_binding:
+                write_mode = GraphRelationBindingConfig.WRITE_MODE_SURREALDB
+
+            GraphRelationBindingConfig.objects.update_or_create(
+                bk_tenant_id=databus.bk_tenant_id,
+                namespace=databus.namespace,
+                name=graph_binding_name,
+                defaults={
+                    "data_link_name": data_link_name,
+                    "bk_biz_id": databus.bk_biz_id,
+                    "status": databus.status,
+                    "write_mode": write_mode,
+                    "vm_cluster_name": getattr(vm_binding, "vm_cluster_name", ""),
+                    "surrealdb_cluster_name": getattr(surrealdb_binding, "surrealdb_cluster_name", ""),
+                    "table_id": table_ids[0] if table_ids else "",
+                    "bkbase_result_table_name": getattr(vm_binding, "bkbase_result_table_name", ""),
+                    "graph_result_table_name": getattr(surrealdb_binding, "bkbase_result_table_name", ""),
+                    "vm_storage_binding_name": getattr(vm_binding, "name", ""),
+                    "vm_databus_name": _find_databus_name_for_sink(
+                        databus_instances,
+                        DataLinkKind.VMSTORAGEBINDING.value,
+                        getattr(vm_binding, "name", ""),
+                    ),
+                    "surrealdb_binding_name": getattr(surrealdb_binding, "name", ""),
+                    "graph_databus_name": _find_databus_name_for_sink(
+                        databus_instances,
+                        DataLinkKind.SURREALDBBINDING.value,
+                        getattr(surrealdb_binding, "name", ""),
+                    ),
+                    "table_type": getattr(surrealdb_binding, "table_type", "temporary"),
+                    "vertices": getattr(surrealdb_binding, "vertices", []),
+                    "relations": getattr(surrealdb_binding, "relations", []),
+                },
+            )
 
     logger.info(
         "rebuild_databus_relation: databus->[%s] relation rebuilt successfully, "
@@ -979,6 +1240,11 @@ def _bulk_update_data_link_name(instances: Sequence[DataLinkResourceConfigBase])
                 cast(list[DorisStorageBindingConfig], group),
                 ["data_link_name", "table_id", "bk_biz_id"],
             )
+        elif model_cls is SurrealDBBindingConfig:
+            SurrealDBBindingConfig.objects.bulk_update(
+                cast(list[SurrealDBBindingConfig], group),
+                ["data_link_name", "table_id"],
+            )
         elif model_cls is BasereportSinkConfig:
             BasereportSinkConfig.objects.bulk_update(
                 cast(list[BasereportSinkConfig], group),
@@ -1026,12 +1292,26 @@ def rebuild_bkbase_v4_datalink_relation(bk_tenant_id: str, namespace: str, dry_r
 
     success, skipped = 0, 0
     dry_run_results: list[dict] = []
+    dry_run_seen_databuses: set[tuple[str, str, str]] = set()
     for databus in databuses:
+        databus_key = (databus.bk_tenant_id, databus.namespace, databus.name)
+        if dry_run and databus_key in dry_run_seen_databuses:
+            skipped += 1
+            continue
         result = rebuild_databus_relation(databus, dry_run=dry_run)
         if result is not None:
             success += 1
             if dry_run and isinstance(result, dict):
                 dry_run_results.append(result)
+                for component in result.get("components", []):
+                    if component.get("kind") == DataLinkKind.DATABUS.value:
+                        dry_run_seen_databuses.add(
+                            (
+                                component.get("bk_tenant_id", ""),
+                                component.get("namespace", ""),
+                                component.get("name", ""),
+                            )
+                        )
         else:
             skipped += 1
 

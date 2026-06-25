@@ -14,8 +14,15 @@ from unittest.mock import patch
 import pytest
 
 from metadata import models
+from metadata.models.data_link.constants import DataLinkKind
+from metadata.models.data_link.data_link_configs import SurrealDBBindingConfig
 from metadata.resources import ListBkBaseRtInfoByBizIdResource
-from metadata.task.bkbase import sync_all_bkbase_cluster_info, sync_bkbase_cluster_info, sync_bkbase_rt_meta_info_all
+from metadata.task.bkbase import (
+    _sync_bkbase_v4_datalink_components,
+    sync_all_bkbase_cluster_info,
+    sync_bkbase_cluster_info,
+    sync_bkbase_rt_meta_info_all,
+)
 from metadata.task.constants import BKBASE_V4_KIND_STORAGE_CONFIGS
 from metadata.task.tasks import sync_bkbase_v4_metadata
 from metadata.tests.common_utils import consul_client
@@ -327,6 +334,52 @@ def test_sync_bkbase_v4_metadata_for_log(create_or_delete_records, mocker):
         assert es_storage.storage_cluster_id == es_cluster2.cluster_id
         assert mq_config.partition == 6
         assert mq_config.topic == "bkm_test_log_topic"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_sync_bkbase_v4_components_updates_empty_surrealdb_definitions(mocker):
+    SurrealDBBindingConfig.objects.create(
+        name="graph_rt",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        data_link_name="graph_link",
+        bk_biz_id=1001,
+        surrealdb_cluster_name="surreal-default",
+        bkbase_result_table_name="graph_rt",
+        table_type="normal",
+        vertices=[{"name": "pod", "id_fields": ["pod_name"]}],
+        relations=[{"name": "pod_node", "from": "pod", "to": "node"}],
+    )
+    mocker.patch(
+        "metadata.task.bkbase.api.bkdata.list_data_link",
+        return_value=[
+            {
+                "metadata": {
+                    "name": "graph_rt",
+                    "labels": {"bk_biz_id": "1001"},
+                    "annotations": {},
+                },
+                "spec": {
+                    "storage": {"name": "surreal-default"},
+                    "data": {"name": "graph_rt"},
+                    "table_type": "normal",
+                    "vertices": [],
+                    "relations": [],
+                },
+                "status": {"phase": "OK"},
+            }
+        ],
+    )
+
+    _sync_bkbase_v4_datalink_components(
+        bk_tenant_id="system",
+        namespace="bkmonitor",
+        kind=DataLinkKind.SURREALDBBINDING.value,
+    )
+
+    binding = SurrealDBBindingConfig.objects.get(name="graph_rt")
+    assert binding.vertices == []
+    assert binding.relations == []
 
 
 @pytest.mark.django_db(databases="__all__")
