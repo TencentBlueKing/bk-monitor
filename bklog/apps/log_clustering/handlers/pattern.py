@@ -78,6 +78,10 @@ from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import generate_time_range, generate_time_range_shift
 
 
+NEW_CLASS_SIGNATURE_CHUNK_SIZE = 900
+NEW_CLASS_SIGNATURE_QUERY_MAX_WORKERS = 3
+
+
 class PatternHandler:
     def __init__(self, index_set_id, query):
         self._index_set_id = index_set_id
@@ -332,29 +336,26 @@ class PatternHandler:
             for new_class_tuple in new_class_query_result
             if new_class_tuple and len(new_class_tuple) > 0
         ]
+        new_class_signature_list = list(set(new_class_signature_list))
 
         if not new_class_signature_list:
             return {"pattern_aggs": [], "year_on_year_result": {}, "new_class": set()}
 
-        # 添加新类日志数据指纹 ID 列表作为条件查询的参数
-        new_class_signature_query_condition = {
-            "field": self.pattern_aggs_field,
-            "operator": "is one of",
-            "value": list(set(new_class_signature_list)),
-            "condition": "and",
-        }
-
-        copy_query = copy.deepcopy(self._query)
-        copy_query.setdefault("addition", []).append(new_class_signature_query_condition)
+        chunked_queries = [
+            self._build_new_class_query(signature_chunk)
+            for signature_chunk in self._chunk_values(new_class_signature_list, NEW_CLASS_SIGNATURE_CHUNK_SIZE)
+        ]
 
         multi_execute_func = MultiExecuteFunc()
         multi_execute_func.append(
             "pattern_aggs",
-            lambda p: self._get_pattern_aggs_result(p["index_set_id"], p["query"]),
-            {"index_set_id": self._index_set_id, "query": copy_query},
+            lambda p: self._get_new_class_pattern_aggs_result(p["queries"]),
+            {"queries": copy.deepcopy(chunked_queries)},
         )
         multi_execute_func.append(
-            "year_on_year_result", lambda p: self._get_year_on_year_aggs_result(p["query"]), {"query": copy_query}
+            "year_on_year_result",
+            lambda p: self._get_new_class_year_on_year_result(p["queries"]),
+            {"queries": copy.deepcopy(chunked_queries)},
         )
 
         multi_result = multi_execute_func.run()
@@ -362,6 +363,91 @@ class PatternHandler:
         multi_result["new_class"] = new_class_query_result
 
         return multi_result
+
+    def _build_new_class_query(self, signatures):
+        new_class_signature_query_condition = {
+            "field": self.pattern_aggs_field,
+            "operator": "is one of",
+            "value": signatures,
+            "condition": "and",
+        }
+
+        copy_query = copy.deepcopy(self._query)
+        copy_query.setdefault("addition", []).append(new_class_signature_query_condition)
+        return copy_query
+
+    def _get_new_class_pattern_aggs_result(self, queries):
+        if len(queries) == 1:
+            return self._get_pattern_aggs_result(self._index_set_id, queries[0])
+
+        task_keys = []
+        multi_execute_func = MultiExecuteFunc(max_workers=min(len(queries), NEW_CLASS_SIGNATURE_QUERY_MAX_WORKERS))
+
+        for index, query in enumerate(queries):
+            task_key = f"pattern_aggs_{index}"
+            task_keys.append(task_key)
+            multi_execute_func.append(
+                task_key,
+                lambda p: self._get_pattern_aggs_result(p["index_set_id"], p["query"]),
+                {"index_set_id": self._index_set_id, "query": query},
+            )
+
+        multi_result = multi_execute_func.run()
+        return self._merge_pattern_aggs_results(
+            [multi_result.get(task_key, []) for task_key in task_keys], self._query.get("size", 10000)
+        )
+
+    def _get_new_class_year_on_year_result(self, queries):
+        if self._year_on_year_hour == MIN_COUNT:
+            return {}
+
+        if len(queries) == 1:
+            return self._get_year_on_year_aggs_result(queries[0])
+
+        task_keys = []
+        multi_execute_func = MultiExecuteFunc(max_workers=min(len(queries), NEW_CLASS_SIGNATURE_QUERY_MAX_WORKERS))
+
+        for index, query in enumerate(queries):
+            task_key = f"year_on_year_result_{index}"
+            task_keys.append(task_key)
+            multi_execute_func.append(
+                task_key,
+                lambda p: self._get_year_on_year_aggs_result(p["query"]),
+                {"query": query},
+            )
+
+        multi_result = multi_execute_func.run()
+        return self._merge_year_on_year_results([multi_result.get(task_key, {}) for task_key in task_keys])
+
+    @staticmethod
+    def _chunk_values(values, chunk_size):
+        for index in range(0, len(values), chunk_size):
+            yield values[index : index + chunk_size]
+
+    @staticmethod
+    def _merge_pattern_aggs_results(pattern_aggs_results, size):
+        merged_pattern_aggs = {}
+
+        for pattern_aggs in pattern_aggs_results:
+            for pattern in pattern_aggs or []:
+                merge_key = (pattern.get("key", ""), pattern.get("group", ""))
+                if merge_key not in merged_pattern_aggs:
+                    merged_pattern_aggs[merge_key] = {**pattern, "doc_count": 0}
+                merged_pattern_aggs[merge_key]["doc_count"] += pattern.get("doc_count", MIN_COUNT)
+
+        result = list(merged_pattern_aggs.values())
+        result.sort(key=lambda pattern: pattern.get("doc_count", MIN_COUNT), reverse=True)
+        return result[:size]
+
+    @staticmethod
+    def _merge_year_on_year_results(year_on_year_results):
+        merged_year_on_year = {}
+
+        for year_on_year_result in year_on_year_results:
+            for key, count in (year_on_year_result or {}).items():
+                merged_year_on_year[key] = merged_year_on_year.get(key, MIN_COUNT) + count
+
+        return merged_year_on_year
 
     def _multi_query(self):
         multi_execute_func = MultiExecuteFunc()
