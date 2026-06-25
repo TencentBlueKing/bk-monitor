@@ -21,7 +21,7 @@ from alarm_backends.core.cache.cmdb import BusinessManager, SetManager
 from alarm_backends.service.scheduler.app import app
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
-from bkmonitor.documents.issue import IssueDocument, IssueNameDuplicatedError
+from bkmonitor.documents.issue import IssueDocument
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.issue import IssueActivityType, IssueStatus
@@ -1042,11 +1042,9 @@ def generate_issue_llm_title(issue_id: str, bk_biz_id, default_name: str, alert_
         _finish("name_changed")
         return
     try:
-        issue.rename(title, operator="system")
-    except IssueNameDuplicatedError:
-        # LLM 标题业务内撞名（同类问题不同 issue），保留默认名保证可区分
-        _finish("name_duplicated")
-        return
+        # enforce_unique=False：同类错误天然生成相同标题，允许重名（实例靠 issue 维度区分），
+        # 不被给用户改名用的唯一性约束卡回默认名。详见 IssueDocument.rename。
+        issue.rename(title, operator="system", enforce_unique=False)
     except Exception:
         logger.warning("[issue][llm_title] rename failed, issue(%s)", issue_id, exc_info=True)
         _finish("llm_error")
