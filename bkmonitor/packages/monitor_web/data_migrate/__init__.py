@@ -14,6 +14,7 @@ from monitor_web.data_migrate.subscription_tasks import stop_biz_subscription_ta
 from monitor_web.data_migrate.bk_collector import (
     install_biz_bk_collector,
     refresh_biz_bk_collector_proxy_configs,
+    stop_biz_bk_collector,
 )
 
 __all__ = [
@@ -30,6 +31,7 @@ __all__ = [
     "restore_disabled_models_in_directory",
     "refresh_biz_bk_collector_proxy_configs",
     "sanitize_cluster_info_in_directory",
+    "stop_biz_bk_collector",
     "stop_biz_subscription_tasks",
     "upload_export_directory_to_storage",
 ]

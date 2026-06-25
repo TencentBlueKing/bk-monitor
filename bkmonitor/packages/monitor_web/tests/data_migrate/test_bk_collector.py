@@ -61,7 +61,7 @@ def test_install_biz_bk_collector_skips_latest_and_installs_outdated_hosts(monke
     monkeypatch.setattr(
         bk_collector.api.node_man,
         "plugin_operate",
-        lambda **kwargs: calls.append(kwargs),
+        lambda **kwargs: calls.append(kwargs) or {"job_id": 123},
     )
 
     result = bk_collector.install_biz_bk_collector(
@@ -70,8 +70,76 @@ def test_install_biz_bk_collector_skips_latest_and_installs_outdated_hosts(monke
 
     assert calls[0]["bk_host_id"] == [102, 103]
     assert calls[0]["plugin_params"] == {"name": "bk-collector", "version": "1.2.3"}
-    assert result["details"][bk_collector.INSTALL][0]["skipped_host_ids"] == [101]
+    assert calls[0]["job_type"] == "MAIN_INSTALL_PLUGIN"
+    install_detail = result["details"][bk_collector.INSTALL][0]
+    assert install_detail["skipped_host_ids"] == [101]
+    assert install_detail["operate_result"] == {"job_id": 123}
     assert result["summary"][bk_collector.INSTALL]["succeeded_count"] == 1
+
+
+def test_stop_biz_bk_collector_dry_run_only_stops_installed_hosts(monkeypatch):
+    monkeypatch.setattr(
+        bk_collector.BkCollectorConfig,
+        "get_target_host_ids_by_biz_id",
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101, 102, 103]),
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "plugin_search",
+        lambda **kwargs: {
+            "list": [
+                {"bk_host_id": 101, "plugin_status": [{"name": "bk-collector", "version": "1.2.3"}]},
+                {"bk_host_id": 102, "plugin_status": [{"name": "bkmonitorbeat", "version": "1.0.0"}]},
+            ]
+        },
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "plugin_operate",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("dry-run should not stop plugin")),
+    )
+
+    result = bk_collector.stop_biz_bk_collector(bk_tenant_id="system", bk_biz_ids=[2], operator="admin", dry_run=True)
+
+    stop_detail = result["details"][bk_collector.STOP][0]
+    assert stop_detail["stop_host_ids"] == [101]
+    assert stop_detail["skipped_host_ids"] == [102, 103]
+    assert result["summary"][bk_collector.STOP]["planned_count"] == 1
+
+
+def test_stop_biz_bk_collector_calls_main_stop_plugin(monkeypatch):
+    calls = []
+
+    monkeypatch.setattr(
+        bk_collector.BkCollectorConfig,
+        "get_target_host_ids_by_biz_id",
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101]),
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "plugin_search",
+        lambda **kwargs: {
+            "list": [{"bk_host_id": 101, "plugin_status": [{"name": "bk-collector", "version": "1.2.3"}]}]
+        },
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "plugin_operate",
+        lambda **kwargs: calls.append(kwargs) or {"job_id": 456},
+    )
+
+    result = bk_collector.stop_biz_bk_collector(bk_tenant_id="system", bk_biz_ids=[2], operator="admin", dry_run=False)
+
+    assert calls == [
+        {
+            "bk_tenant_id": "system",
+            "plugin_params": {"name": "bk-collector"},
+            "job_type": "MAIN_STOP_PLUGIN",
+            "bk_host_id": [101],
+        }
+    ]
+    assert result["details"][bk_collector.STOP][0]["operate_result"] == {"job_id": 456}
+    assert result["summary"][bk_collector.STOP]["succeeded_count"] == 1
 
 
 def test_refresh_biz_bk_collector_configs_refreshes_apm_application(monkeypatch):
@@ -218,7 +286,7 @@ def test_custom_report_refresh_deploy_targets_keep_default_and_allow_node_man_on
                 "message": "success",
                 "proxy_host_ids": [101],
                 "proxy_hosts": [
-                    {"bk_host_id": 101, "bk_biz_id": kwargs["bk_biz_id"], "bk_cloud_id": 1, "ip": "1.1.1.1"}
+                    {"bk_host_id": 101, "bk_biz_id": kwargs["bk_biz_id"], "bk_cloud_id": 1, "ip": "127.0.0.1"}
                 ],
                 "proxy_count": 1,
             }
@@ -281,16 +349,16 @@ def test_refresh_collect_custom_config_by_biz_dry_run_returns_proxy_hosts(monkey
         subscription_config.api.node_man,
         "get_proxies_by_biz",
         lambda **kwargs: [
-            {"bk_biz_id": 200, "inner_ip": "10.0.0.1", "bk_cloud_id": 1},
-            {"bk_biz_id": 200, "inner_ip": "10.0.0.2", "bk_cloud_id": 1},
+            {"bk_biz_id": 200, "inner_ip": "127.0.0.1", "bk_cloud_id": 1},
+            {"bk_biz_id": 200, "inner_ip": "127.0.0.2", "bk_cloud_id": 1},
         ],
     )
     monkeypatch.setattr(
         subscription_config.api.cmdb,
         "get_host_by_ip",
         lambda **kwargs: [
-            {"bk_host_id": 101, "bk_cloud_id": 1, "bk_host_innerip": "10.0.0.1"},
-            {"bk_host_id": 102, "bk_cloud_id": 1, "bk_host_innerip": "10.0.0.2"},
+            {"bk_host_id": 101, "bk_cloud_id": 1, "bk_host_innerip": "127.0.0.1"},
+            {"bk_host_id": 102, "bk_cloud_id": 1, "bk_host_innerip": "127.0.0.2"},
         ],
     )
     monkeypatch.setattr(
@@ -312,8 +380,8 @@ def test_refresh_collect_custom_config_by_biz_dry_run_returns_proxy_hosts(monkey
     assert result["action"] == "dry_run"
     assert result["proxy_host_ids"] == [101, 102]
     assert result["proxy_hosts"] == [
-        {"bk_host_id": 101, "bk_biz_id": 200, "bk_cloud_id": 1, "ip": "10.0.0.1"},
-        {"bk_host_id": 102, "bk_biz_id": 200, "bk_cloud_id": 1, "ip": "10.0.0.2"},
+        {"bk_host_id": 101, "bk_biz_id": 200, "bk_cloud_id": 1, "ip": "127.0.0.1"},
+        {"bk_host_id": 102, "bk_biz_id": 200, "bk_cloud_id": 1, "ip": "127.0.0.2"},
     ]
 
 

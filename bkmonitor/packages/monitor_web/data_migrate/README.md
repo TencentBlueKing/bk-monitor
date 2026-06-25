@@ -14,6 +14,7 @@
 - `sanitize_cluster_info_in_directory`
 - `stop_biz_subscription_tasks`
 - `install_biz_bk_collector`
+- `stop_biz_bk_collector`
 - `refresh_biz_bk_collector_proxy_configs`
 
 代码导出位置见 [__init__.py](/Users/unique0lai/Documents/Codes/bk-monitor/bk-monitor/worktrees/data-migrate/bkmonitor/bkmonitor/data_migrate/__init__.py)。
@@ -32,6 +33,7 @@
 - `python manage.py data_migrate sanitize-cluster-info ...`
 - `python manage.py data_migrate stop-biz-subscription-tasks ...`
 - `python manage.py data_migrate install-biz-bk-collector ...`
+- `python manage.py data_migrate stop-biz-bk-collector ...`
 - `python manage.py data_migrate refresh-biz-bk-collector-configs ...`
 
 ## 使用方式
@@ -283,6 +285,24 @@ python manage.py data_migrate install-biz-bk-collector \
 - 会找出业务下正在使用的 proxy 主机，并安装或升级节点管理中可用的 latest 版本 `bk-collector`
 - 已经是 latest 的主机会跳过
 - 支持 `--dry-run` 只输出待安装主机，不执行安装
+- 实际执行时每条成功明细会在 `operate_result` 中透传节点管理返回结果
+- 每个业务独立执行并输出结果；单个失败不会中断其他业务
+
+### 停止业务 Proxy 上的 bk-collector
+
+```bash
+python manage.py data_migrate stop-biz-bk-collector \
+  --bk-tenant-id tencent \
+  --bk-biz-ids 2 3 \
+  --operator admin
+```
+
+说明：
+
+- 会找出业务下正在使用的 proxy 主机，并停止已安装的 `bk-collector`
+- 未安装 `bk-collector` 的主机会跳过
+- 支持 `--dry-run` 只输出待停止主机，不执行停止
+- 实际执行时每条成功明细会在 `operate_result` 中透传节点管理返回结果
 - 每个业务独立执行并输出结果；单个失败不会中断其他业务
 
 ### 刷新业务 Proxy 上的 bk-collector 配置

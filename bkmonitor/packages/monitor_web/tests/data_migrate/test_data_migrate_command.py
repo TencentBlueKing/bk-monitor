@@ -257,3 +257,39 @@ def test_stop_biz_subscription_tasks_handler_passes_negative_biz_ids(monkeypatch
         "operator": "admin",
         "dry_run": False,
     }
+
+
+def test_stop_biz_bk_collector_handler_passes_arguments(monkeypatch):
+    received = {}
+
+    def fake_stop_biz_bk_collector(**kwargs):
+        received.update(kwargs)
+        return {
+            "summary": {
+                "total": {
+                    "matched_count": 1,
+                    "planned_count": 0,
+                    "succeeded_count": 1,
+                    "skipped_count": 0,
+                    "failed_count": 0,
+                }
+            }
+        }
+
+    monkeypatch.setattr(data_migrate_command, "stop_biz_bk_collector", fake_stop_biz_bk_collector)
+
+    data_migrate_command.Command()._handle_stop_biz_bk_collector(
+        {
+            "bk_tenant_id": "tencent",
+            "bk_biz_ids": [2],
+            "operator": "admin",
+            "dry_run": True,
+        }
+    )
+
+    assert received == {
+        "bk_tenant_id": "tencent",
+        "bk_biz_ids": [2],
+        "operator": "admin",
+        "dry_run": True,
+    }

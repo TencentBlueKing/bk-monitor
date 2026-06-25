@@ -48,6 +48,7 @@ from monitor_web.data_migrate import (
     refresh_biz_bk_collector_proxy_configs,
     restore_disabled_models_in_directory,
     sanitize_cluster_info_in_directory,
+    stop_biz_bk_collector,
     upload_export_directory_to_storage,
 )
 from monitor_web.data_migrate.bk_collector import CONFIG_TYPES as BK_COLLECTOR_CONFIG_TYPES
@@ -123,6 +124,9 @@ class Command(BaseCommand):
             "  为业务下 proxy 安装 bk-collector:\n"
             "    python manage.py data_migrate install-biz-bk-collector --bk-tenant-id tencent --bk-biz-ids 18901 --operator admin\n"
             "\n"
+            "  停止业务下 proxy 上的 bk-collector:\n"
+            "    python manage.py data_migrate stop-biz-bk-collector --bk-tenant-id tencent --bk-biz-ids 18901 --operator admin\n"
+            "\n"
             "  触发业务下 proxy 的 bk-collector 配置下发:\n"
             "    python manage.py data_migrate refresh-biz-bk-collector-configs --bk-tenant-id tencent --bk-biz-ids 18901 --config-types apm_application custom_report log"
         )
@@ -144,6 +148,7 @@ class Command(BaseCommand):
                 "restore-disabled-models",
                 "stop-biz-subscription-tasks",
                 "install-biz-bk-collector",
+                "stop-biz-bk-collector",
                 "refresh-biz-bk-collector-configs",
             ],
             help="执行导出、导入、恢复游标或 handler 处理",
@@ -235,12 +240,18 @@ class Command(BaseCommand):
         parser.add_argument(
             "--operator",
             default="system",
-            help="操作人；仅 stop-biz-subscription-tasks、install-biz-bk-collector、refresh-biz-bk-collector-configs 动作需要",
+            help=(
+                "操作人；仅 stop-biz-subscription-tasks、install-biz-bk-collector、"
+                "stop-biz-bk-collector、refresh-biz-bk-collector-configs 动作需要"
+            ),
         )
         parser.add_argument(
             "--dry-run",
             action="store_true",
-            help="仅预览不执行；仅 stop-biz-subscription-tasks、install-biz-bk-collector、refresh-biz-bk-collector-configs 动作需要",
+            help=(
+                "仅预览不执行；仅 stop-biz-subscription-tasks、install-biz-bk-collector、"
+                "stop-biz-bk-collector、refresh-biz-bk-collector-configs 动作需要"
+            ),
         )
         parser.add_argument(
             "--config-types",
@@ -267,6 +278,7 @@ class Command(BaseCommand):
             "restore-disabled-models": self._handle_restore_disabled_models,
             "stop-biz-subscription-tasks": self._handle_stop_biz_subscription_tasks,
             "install-biz-bk-collector": self._handle_install_biz_bk_collector,
+            "stop-biz-bk-collector": self._handle_stop_biz_bk_collector,
             "refresh-biz-bk-collector-configs": self._handle_refresh_biz_bk_collector_configs,
         }
         handlers[action](options)
@@ -552,6 +564,22 @@ class Command(BaseCommand):
             result,
             success_message="install biz bk-collector completed",
             warning_message="install biz bk-collector completed with failures",
+        )
+
+    def _handle_stop_biz_bk_collector(self, options) -> None:
+        bk_tenant_id = self._load_bk_tenant_id(options.get("bk_tenant_id"), action_name="stop-biz-bk-collector")
+        bk_biz_ids = self._load_positive_biz_ids(options.get("bk_biz_ids"), action_name="stop-biz-bk-collector")
+        operator = self._load_operator(options.get("operator"), action_name="stop-biz-bk-collector")
+        result = stop_biz_bk_collector(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_ids=bk_biz_ids,
+            operator=operator,
+            dry_run=options.get("dry_run", False),
+        )
+        self._write_report_result(
+            result,
+            success_message="stop biz bk-collector completed",
+            warning_message="stop biz bk-collector completed with failures",
         )
 
     def _handle_refresh_biz_bk_collector_configs(self, options) -> None:
