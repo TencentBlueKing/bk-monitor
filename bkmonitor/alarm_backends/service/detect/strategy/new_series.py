@@ -61,7 +61,11 @@ class NewSeries(BasicAlgorithmsCollection):
         self._fire_by_dp = {}
         super().__init__(config, unit, extra_config)
         self.detect_range = int(self.validated_config["detect_range"])
-        self.effective_delay = int(self.validated_config.get("effective_delay", 86400))
+        # 运行时不变量保护：宽限期(effective_delay)不得短于检测窗口(detect_range)。否则首轮(或调大
+        # detect_range 后)存量维度学不全 → 误报。缺省/显式小值一律夹紧到 >= detect_range。
+        # 注：seen-set 留存全部(无按时间淘汰),历史深度 = now-learn_start,故宽限达到 detect_range
+        # 即代表"已学满一个检测窗口";调大 detect_range 会让本式自动重新进入宽限(补差额),无需改 learn_start。
+        self.effective_delay = max(int(self.validated_config.get("effective_delay") or 0), self.detect_range)
         self.max_series = int(self.validated_config.get("max_series", 100000))
 
     def gen_expr(self):

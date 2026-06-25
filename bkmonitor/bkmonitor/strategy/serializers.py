@@ -134,9 +134,16 @@ class NewSeriesSerializer(serializers.Serializer):
     新序列算法serializer
     """
 
-    effective_delay = serializers.IntegerField(label="生效延迟", required=False, default=86400)
+    # 生效延迟(冷启动宽限)缺省时取 detect_range：宽限期(学多久)必须盖住检测窗口(回看多久),
+    # 否则首轮存量维度学不全 → 误报。不写静态默认,缺省在 validate 里按 detect_range 兜底。
+    effective_delay = serializers.IntegerField(label="生效延迟", required=False)
     max_series = serializers.IntegerField(label="最大序列数", required=False, default=100000)
     detect_range = serializers.IntegerField(label="检测范围", required=True)
+
+    def validate(self, attrs):
+        if attrs.get("effective_delay") is None:
+            attrs["effective_delay"] = attrs["detect_range"]
+        return attrs
 
 
 class AIServiceControlMixin(serializers.Serializer):

@@ -102,3 +102,21 @@ def test_allow_cross_item_different_level():
     item_a = {"algorithms": [NS], "query_configs": [_qc()]}
     item_b = {"algorithms": [dict(THRESHOLD, level=2)], "query_configs": [_qc()]}
     validate({"items": [item_a, item_b]})
+
+
+def test_effective_delay_defaults_to_detect_range():
+    # P0: effective_delay 缺省时取 detect_range(宽限期须盖住检测窗口,否则首轮存量维度学不全误报)
+    from bkmonitor.strategy.serializers import NewSeriesSerializer
+
+    s = NewSeriesSerializer(data={"detect_range": 3600})
+    s.is_valid(raise_exception=True)
+    assert s.validated_data["effective_delay"] == 3600
+
+
+def test_effective_delay_explicit_value_kept():
+    # 显式传入 effective_delay 时保留(不被默认覆盖)
+    from bkmonitor.strategy.serializers import NewSeriesSerializer
+
+    s = NewSeriesSerializer(data={"detect_range": 3600, "effective_delay": 7200})
+    s.is_valid(raise_exception=True)
+    assert s.validated_data["effective_delay"] == 7200
