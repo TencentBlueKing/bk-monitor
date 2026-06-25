@@ -1,3 +1,6 @@
+import pytest
+from django.core.management.base import CommandError
+
 from monitor_web.management.commands import data_migrate as data_migrate_command
 
 
@@ -331,6 +334,7 @@ def test_refresh_biz_bk_collector_configs_handler_passes_delivery_check_argument
             "operator": "admin",
             "dry_run": False,
             "skip_delivery_check": False,
+            "include_details": False,
             "delivery_wait_timeout": 30,
             "delivery_poll_interval": 2,
         }
@@ -345,4 +349,73 @@ def test_refresh_biz_bk_collector_configs_handler_passes_delivery_check_argument
         "check_delivery": True,
         "delivery_wait_timeout": 30,
         "delivery_poll_interval": 2,
+        "include_details": False,
     }
+
+
+def test_bk_collector_report_result_raises_command_error_on_job_timeout():
+    result = {
+        "summary": {
+            "total": {
+                "matched_count": 1,
+                "planned_count": 0,
+                "succeeded_count": 0,
+                "pending_count": 0,
+                "timeout_count": 1,
+                "skipped_count": 0,
+                "failed_count": 1,
+            }
+        }
+    }
+
+    with pytest.raises(CommandError, match="timeout jobs"):
+        data_migrate_command.Command()._write_report_result(
+            result,
+            success_message="stop biz bk-collector completed",
+            warning_message="stop biz bk-collector completed with failures",
+        )
+
+
+def test_bk_collector_report_result_raises_command_error_on_delivery_timeout():
+    result = {
+        "summary": {
+            "total": {
+                "matched_count": 1,
+                "planned_count": 0,
+                "succeeded_count": 1,
+                "pending_count": 0,
+                "skipped_count": 0,
+                "failed_count": 0,
+            }
+        },
+        "delivery_check": {"result": False, "timed_out": True},
+    }
+
+    with pytest.raises(CommandError, match="delivery check timeout"):
+        data_migrate_command.Command()._write_report_result(
+            result,
+            success_message="refresh biz bk-collector configs completed",
+            warning_message="refresh biz bk-collector configs completed with failures",
+        )
+
+
+def test_bk_collector_report_result_raises_command_error_on_failed_result():
+    result = {
+        "summary": {
+            "total": {
+                "matched_count": 1,
+                "planned_count": 0,
+                "succeeded_count": 0,
+                "pending_count": 0,
+                "skipped_count": 0,
+                "failed_count": 1,
+            }
+        }
+    }
+
+    with pytest.raises(CommandError, match="completed with failures: 1"):
+        data_migrate_command.Command()._write_report_result(
+            result,
+            success_message="install biz bk-collector completed",
+            warning_message="install biz bk-collector completed with failures",
+        )

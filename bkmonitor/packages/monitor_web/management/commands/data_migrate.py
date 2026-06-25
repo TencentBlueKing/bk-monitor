@@ -283,6 +283,11 @@ class Command(BaseCommand):
             help="刷新 bk-collector proxy 配置后跳过节点管理配置下发状态检查；仅 refresh-biz-bk-collector-configs 动作需要",
         )
         parser.add_argument(
+            "--include-details",
+            action="store_true",
+            help="刷新 bk-collector proxy 配置时输出完整 details；仅 refresh-biz-bk-collector-configs 动作需要",
+        )
+        parser.add_argument(
             "--delivery-wait-timeout",
             type=int,
             default=DEFAULT_CONFIG_DELIVERY_WAIT_TIMEOUT,
@@ -639,6 +644,7 @@ class Command(BaseCommand):
                 check_delivery=not options.get("skip_delivery_check", False),
                 delivery_wait_timeout=options.get("delivery_wait_timeout", DEFAULT_CONFIG_DELIVERY_WAIT_TIMEOUT),
                 delivery_poll_interval=options.get("delivery_poll_interval", DEFAULT_CONFIG_DELIVERY_POLL_INTERVAL),
+                include_details=options.get("include_details", False),
             )
         except ValueError as error:
             raise CommandError(str(error)) from error
@@ -657,18 +663,23 @@ class Command(BaseCommand):
         delivery_check = result.get("delivery_check") or {}
         delivery_failed = bool(delivery_check) and delivery_check.get("result") is False
         delivery_timed_out = delivery_check.get("timed_out") is True
+        command_error_message = ""
         if timeout_count:
-            self.stdout.write(self.style.WARNING(f"{warning_message} with timeout jobs: {timeout_count}"))
+            command_error_message = f"{warning_message} with timeout jobs: {timeout_count}"
         elif delivery_timed_out:
-            self.stdout.write(self.style.WARNING(f"{warning_message} with delivery check timeout"))
+            command_error_message = f"{warning_message} with delivery check timeout"
         elif failed_count:
-            self.stdout.write(self.style.WARNING(f"{warning_message}: {failed_count}"))
+            command_error_message = f"{warning_message}: {failed_count}"
         elif delivery_failed:
-            self.stdout.write(self.style.WARNING(f"{warning_message} with delivery check failures"))
+            command_error_message = f"{warning_message} with delivery check failures"
         elif pending_count:
-            self.stdout.write(self.style.WARNING(f"{success_message} with pending jobs: {pending_count}"))
+            command_error_message = f"{success_message} with pending jobs: {pending_count}"
         else:
             self.stdout.write(self.style.SUCCESS(success_message))
+            return
+
+        self.stdout.write(self.style.WARNING(command_error_message))
+        raise CommandError(command_error_message)
 
     def _import_from_directory(self, directory: Path, options) -> None:
         """从已解压目录执行数据导入。"""

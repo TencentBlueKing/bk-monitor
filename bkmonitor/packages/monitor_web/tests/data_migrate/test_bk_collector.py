@@ -117,6 +117,41 @@ def test_install_biz_bk_collector_skips_latest_and_installs_outdated_hosts(monke
     assert result["summary"][bk_collector.INSTALL]["succeeded_count"] == 1
 
 
+def test_install_biz_bk_collector_reports_failed_hosts_in_failure_summary(monkeypatch):
+    monkeypatch.setattr(bk_collector, "_find_latest_plugin_version", lambda **kwargs: "1.2.3")
+    monkeypatch.setattr(
+        bk_collector.BkCollectorConfig,
+        "get_target_host_ids_by_biz_id",
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101]),
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "plugin_search",
+        lambda **kwargs: {"list": [{"bk_host_id": 101, "plugin_status": []}]},
+    )
+    monkeypatch.setattr(bk_collector.api.node_man, "plugin_operate", lambda **kwargs: {"job_id": 123})
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "job_detail",
+        lambda **kwargs: _plugin_job_detail(job_id=kwargs["id"], status="FAILED", instance_status="FAILED"),
+    )
+
+    result = bk_collector.install_biz_bk_collector(
+        bk_tenant_id="system", bk_biz_ids=[2], operator="admin", dry_run=False
+    )
+
+    failure_summary = result["failure_summary"]
+    assert failure_summary["record_count"] == 1
+    assert failure_summary["host_count"] == 1
+    failure_record = failure_summary["records"][0]
+    assert failure_record["bk_biz_id"] == 2
+    assert failure_record["operation_host_ids"] == [101]
+    assert failure_record["job_id"] == 123
+    assert failure_record["job_status"] == "FAILED"
+    assert failure_record["hosts"][0]["bk_host_id"] == 101
+    assert failure_record["hosts"][0]["status"] == "FAILED"
+
+
 def test_stop_biz_bk_collector_dry_run_only_stops_installed_hosts(monkeypatch):
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
@@ -267,6 +302,12 @@ def test_stop_biz_bk_collector_reports_running_job_as_timeout(monkeypatch):
     assert result["summary"][bk_collector.STOP]["failed_count"] == 1
     assert result["summary"][bk_collector.STOP]["pending_count"] == 0
     assert result["summary"][bk_collector.STOP]["succeeded_count"] == 0
+    failure_summary = result["failure_summary"]
+    assert failure_summary["record_count"] == 1
+    assert failure_summary["host_count"] == 1
+    assert failure_summary["records"][0]["timed_out"] is True
+    assert failure_summary["records"][0]["operation_host_ids"] == [101]
+    assert failure_summary["records"][0]["hosts"][0]["status"] == "RUNNING"
 
 
 def _proxy_config_delivery_task(render_status="SUCCESS", instance_status="FAILED"):
@@ -455,6 +496,87 @@ def test_refresh_biz_bk_collector_configs_checks_delivery_after_refresh(monkeypa
     ]
     assert result["delivery_check"]["result"] is True
     assert result["result"] is True
+    assert "details" not in result
+
+
+def test_refresh_biz_bk_collector_configs_drops_delivery_check_details_by_default(monkeypatch):
+    monkeypatch.setattr(
+        bk_collector.CustomReportSubscription,
+        "refresh_collector_custom_conf",
+        lambda **kwargs: {"summary": {"failed_count": 0}, "details": []},
+    )
+    monkeypatch.setattr(
+        bk_collector,
+        "check_biz_bk_collector_proxy_config_delivery",
+        lambda **kwargs: {
+            "result": True,
+            "summary": {"total": {"failed_count": 0}},
+            "message": "success",
+            "details": {bk_collector.CUSTOM_REPORT: [{"subscription_id": 1001}]},
+        },
+    )
+
+    result = bk_collector.refresh_biz_bk_collector_proxy_configs(
+        bk_tenant_id="system",
+        bk_biz_ids=[2],
+        config_types=[bk_collector.CUSTOM_REPORT],
+    )
+
+    assert "details" not in result
+    assert "details" not in result["delivery_check"]
+
+
+def test_refresh_biz_bk_collector_configs_keeps_failure_summary_without_details(monkeypatch):
+    monkeypatch.setattr(
+        bk_collector.CustomReportSubscription,
+        "refresh_collector_custom_conf",
+        lambda **kwargs: {"summary": {"failed_count": 0}, "details": []},
+    )
+    monkeypatch.setattr(
+        bk_collector,
+        "_list_proxy_config_delivery_subscriptions",
+        lambda **kwargs: [
+            {
+                "config_type": bk_collector.CUSTOM_REPORT,
+                "bk_tenant_id": "system",
+                "bk_biz_id": 2,
+                "subscription_id": 1001,
+                "bk_data_id": 2001,
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "batch_task_result",
+        lambda **kwargs: [_proxy_config_delivery_task(render_status="FAILED", instance_status="FAILED")],
+    )
+
+    result = bk_collector.refresh_biz_bk_collector_proxy_configs(
+        bk_tenant_id="system",
+        bk_biz_ids=[2],
+        config_types=[bk_collector.CUSTOM_REPORT],
+    )
+
+    assert result["result"] is False
+    assert "details" not in result
+    assert "details" not in result["delivery_check"]
+    failure_summary = result["delivery_check"]["failure_summary"]
+    assert failure_summary["subscription_count"] == 1
+    assert failure_summary["proxy_count"] == 1
+    subscription = failure_summary["subscriptions"][0]
+    assert subscription["subscription_id"] == 1001
+    assert subscription["bk_data_id"] == 2001
+    assert subscription["hosts"] == [
+        {
+            "instance_id": "host|instance|host|101",
+            "bk_host_id": 101,
+            "bk_cloud_id": 1,
+            "ip": "127.0.0.1",
+            "status": "FAILED",
+            "message": "render_and_push_config failed",
+            "render_step_statuses": ["FAILED"],
+        }
+    ]
 
 
 def test_refresh_biz_bk_collector_configs_refreshes_apm_application(monkeypatch):
@@ -477,6 +599,7 @@ def test_refresh_biz_bk_collector_configs_refreshes_apm_application(monkeypatch)
         operator="admin",
         dry_run=False,
         check_delivery=False,
+        include_details=True,
     )
 
     assert application_calls == [(2, "demo")]
@@ -522,6 +645,7 @@ def test_refresh_biz_bk_collector_configs_refreshes_custom_report_with_node_man_
         operator="admin",
         dry_run=False,
         check_delivery=False,
+        include_details=True,
     )
 
     assert custom_report_calls == [
@@ -564,6 +688,7 @@ def test_refresh_biz_bk_collector_configs_dry_run_and_local_context_restore(monk
         operator="admin",
         dry_run=True,
         check_delivery=False,
+        include_details=True,
     )
 
     assert result["details"][bk_collector.CUSTOM_REPORT][0]["action"] == "dry_run"

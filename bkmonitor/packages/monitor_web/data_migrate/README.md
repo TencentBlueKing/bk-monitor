@@ -288,7 +288,8 @@ python manage.py data_migrate install-biz-bk-collector \
 - 支持 `--dry-run` 只输出待安装主机，不执行安装
 - 实际执行时每条成功明细会在 `operate_result` 中透传节点管理返回结果
 - 会根据 `operate_result.job_id` 轮询节点管理任务详情，并在 `job_status` 中输出成功、失败或超时状态
-- 可通过 `--job-wait-timeout` 和 `--job-poll-interval` 控制等待超时和轮询间隔
+- 如果安装失败或超时，可在 `failure_summary` 中查看异常业务、任务和主机
+- 可通过 `--job-wait-timeout` 和 `--job-poll-interval` 控制等待超时和轮询间隔，默认等待 90 秒
 - 每个业务独立执行并输出结果；单个失败不会中断其他业务
 
 ### 停止业务 Proxy 上的 bk-collector
@@ -307,7 +308,8 @@ python manage.py data_migrate stop-biz-bk-collector \
 - 支持 `--dry-run` 只输出待停止主机，不执行停止
 - 实际执行时每条成功明细会在 `operate_result` 中透传节点管理返回结果
 - 会根据 `operate_result.job_id` 轮询节点管理任务详情，并在 `job_status` 中输出成功、失败或超时状态
-- 可通过 `--job-wait-timeout` 和 `--job-poll-interval` 控制等待超时和轮询间隔
+- 如果停用失败或超时，可在 `failure_summary` 中查看异常业务、任务和主机
+- 可通过 `--job-wait-timeout` 和 `--job-poll-interval` 控制等待超时和轮询间隔，默认等待 90 秒
 - 每个业务独立执行并输出结果；单个失败不会中断其他业务
 
 ### 刷新业务 Proxy 上的 bk-collector 配置
@@ -326,9 +328,11 @@ python manage.py data_migrate refresh-biz-bk-collector-configs \
 - 不传 `--config-types` 时默认执行全部类型
 - `custom_report` 只触发 NodeMan proxy 下发，不触发 K8s 配置下发
 - 支持 `--dry-run` 只输出待刷新对象，不执行配置下发
-- 非 dry-run 默认会串联配置下发检查，并在返回结果的 `delivery_check` 中输出每台 proxy 的渲染下发状态
+- 非 dry-run 默认会串联配置下发检查，并在返回结果的 `delivery_check.summary` 中输出配置渲染下发汇总
+- 如果存在下发失败、pending、unknown 或超时，可在 `delivery_check.failure_summary` 中查看异常订阅和异常主机
+- 默认不会输出完整 `details`，避免命令输出过长；需要排查明细时可使用 `--include-details`
 - 串联检查默认会包含默认业务配置，和 `custom_report` 的刷新范围保持一致
-- 可通过 `--delivery-wait-timeout` 和 `--delivery-poll-interval` 控制配置下发检查的等待超时和轮询间隔
+- 可通过 `--delivery-wait-timeout` 和 `--delivery-poll-interval` 控制配置下发检查的等待超时和轮询间隔，默认等待 90 秒
 - 如只需要触发刷新、不等待下发结果，可使用 `--skip-delivery-check`
 
 ### 检查业务 Proxy 上的 bk-collector 配置下发
@@ -340,8 +344,8 @@ result = check_biz_bk_collector_proxy_config_delivery(
     bk_tenant_id="tencent",
     bk_biz_ids=[2, 3],
     config_types=["apm_application", "custom_report", "log"],
-    wait_timeout=600,
-    poll_interval=5,
+    wait_timeout=90,
+    poll_interval=10,
 )
 ```
 

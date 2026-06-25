@@ -168,6 +168,7 @@ def refresh_biz_bk_collector_proxy_configs(
     delivery_wait_timeout: int = DEFAULT_CONFIG_DELIVERY_WAIT_TIMEOUT,
     delivery_poll_interval: int = DEFAULT_CONFIG_DELIVERY_POLL_INTERVAL,
     include_default_biz: bool = True,
+    include_details: bool = False,
 ) -> dict[str, Any]:
     """Refresh bk-collector proxy configs for selected config families."""
     _set_nodeman_api()
@@ -175,7 +176,7 @@ def refresh_biz_bk_collector_proxy_configs(
     logger.info(
         "refresh_biz_bk_collector_proxy_configs: start bk_tenant_id=%s bk_biz_ids=%s config_types=%s "
         "operator=%s dry_run=%s check_delivery=%s delivery_wait_timeout=%s delivery_poll_interval=%s "
-        "include_default_biz=%s",
+        "include_default_biz=%s include_details=%s",
         bk_tenant_id,
         bk_biz_ids,
         selected_config_types,
@@ -185,6 +186,7 @@ def refresh_biz_bk_collector_proxy_configs(
         delivery_wait_timeout,
         delivery_poll_interval,
         include_default_biz,
+        include_details,
     )
     report = _init_report(
         bk_tenant_id=bk_tenant_id,
@@ -244,6 +246,8 @@ def refresh_biz_bk_collector_proxy_configs(
         report["summary"],
         report["message"],
     )
+    if not include_details:
+        _drop_report_details(report)
     return report
 
 
@@ -375,6 +379,7 @@ def _check_biz_bk_collector_proxy_config_delivery_once(
             )
 
     report["summary"] = _build_config_delivery_summary(report["details"])
+    report["failure_summary"] = _build_config_delivery_failure_summary(report["details"])
     total_summary = report["summary"]["total"]
     report["result"] = (
         total_summary["failed_count"] == 0
@@ -402,6 +407,13 @@ def _check_biz_bk_collector_proxy_config_delivery_once(
 def _is_proxy_config_delivery_terminal(report: dict[str, Any]) -> bool:
     total_summary = report["summary"]["total"]
     return total_summary["subscription_count"] == 0 or total_summary["failed_count"] > 0 or report["result"] is True
+
+
+def _drop_report_details(report: dict[str, Any]) -> None:
+    report.pop("details", None)
+    delivery_check = report.get("delivery_check")
+    if isinstance(delivery_check, dict):
+        delivery_check.pop("details", None)
 
 
 def _list_proxy_config_delivery_subscriptions(
@@ -864,6 +876,7 @@ def _operate_biz_bk_collector_plugin(
             report["details"][category].append(record)
 
     report["summary"] = _build_summary(report["details"], dry_run=dry_run)
+    report["failure_summary"] = _build_plugin_operation_failure_summary(report["details"])
     logger.info(
         "operate_biz_bk_collector_plugin: completed category=%s bk_tenant_id=%s bk_biz_ids=%s summary=%s",
         category,
@@ -906,7 +919,75 @@ def _build_biz_bk_collector_operation_error_report(
             }
         )
     report["summary"] = _build_summary(report["details"], dry_run=dry_run)
+    report["failure_summary"] = _build_plugin_operation_failure_summary(report["details"])
     return report
+
+
+def _build_plugin_operation_failure_summary(details: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
+    records = []
+    abnormal_host_count = 0
+
+    for category, category_records in details.items():
+        for record in category_records:
+            if record.get("action") in {"skip", "dry_run"} or record.get("result") is True:
+                continue
+
+            job_status = record.get("job_status") or {}
+            abnormal_hosts = [
+                _serialize_plugin_abnormal_instance(instance)
+                for instance in job_status.get("instances", [])
+                if instance.get("status") != PLUGIN_JOB_SUCCESS_STATUS
+            ]
+            abnormal_host_count += len(abnormal_hosts)
+
+            failure_record = {
+                "category": category,
+                "bk_biz_id": record.get("bk_biz_id"),
+                "action": record.get("action"),
+                "message": record.get("message"),
+                "target_host_ids": record.get("target_host_ids", []),
+                "operation_host_ids": _get_plugin_operation_host_ids(record),
+                "skipped_host_ids": record.get("skipped_host_ids", []),
+            }
+            if job_status:
+                failure_record.update(
+                    {
+                        "job_id": job_status.get("job_id"),
+                        "job_status": job_status.get("status"),
+                        "timed_out": job_status.get("timed_out"),
+                        "poll_attempts": job_status.get("poll_attempts"),
+                    }
+                )
+            if abnormal_hosts:
+                failure_record["hosts"] = abnormal_hosts
+            records.append(failure_record)
+
+    return {
+        "record_count": len(records),
+        "host_count": abnormal_host_count,
+        "records": records,
+    }
+
+
+def _get_plugin_operation_host_ids(record: dict[str, Any]) -> list[int]:
+    for host_key in ["deploy_host_ids", "stop_host_ids"]:
+        if host_key in record:
+            return record[host_key]
+    return []
+
+
+def _serialize_plugin_abnormal_instance(instance: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "instance_id": instance.get("instance_id"),
+        "bk_host_id": instance.get("bk_host_id"),
+        "bk_biz_id": instance.get("bk_biz_id"),
+        "bk_cloud_id": instance.get("bk_cloud_id"),
+        "ip": instance.get("ip"),
+        "status": instance.get("status"),
+        "status_display": instance.get("status_display"),
+        "op_type": instance.get("op_type"),
+        "step": instance.get("step"),
+    }
 
 
 def _get_plugin_operate_job_status(
@@ -1471,6 +1552,62 @@ def _build_config_delivery_summary(details: dict[str, list[dict[str, Any]]]) -> 
         ]
     }
     return summary
+
+
+def _build_config_delivery_failure_summary(details: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
+    subscriptions = []
+    abnormal_proxy_count = 0
+
+    for config_type, records in details.items():
+        for record in records:
+            abnormal_instances = [
+                _serialize_config_delivery_abnormal_instance(instance)
+                for instance in record.get("instances", [])
+                if instance.get("result") is not True
+            ]
+            if record.get("result") is True and not abnormal_instances:
+                continue
+
+            abnormal_proxy_count += len(abnormal_instances)
+            subscription = {
+                "config_type": config_type,
+                "bk_tenant_id": record.get("bk_tenant_id"),
+                "bk_biz_id": record.get("bk_biz_id"),
+                "subscription_id": record.get("subscription_id"),
+                "status": record.get("status"),
+                "message": record.get("message"),
+                "proxy_count": record.get("proxy_count", 0),
+                "failed_count": record.get("failed_count", 0),
+                "pending_count": record.get("pending_count", 0),
+                "unknown_count": record.get("unknown_count", 0),
+            }
+            for optional_key in ["name", "bk_data_id"]:
+                if optional_key in record:
+                    subscription[optional_key] = record[optional_key]
+            if abnormal_instances:
+                subscription["hosts"] = abnormal_instances
+            subscriptions.append(subscription)
+
+    return {
+        "subscription_count": len(subscriptions),
+        "proxy_count": abnormal_proxy_count,
+        "subscriptions": subscriptions,
+    }
+
+
+def _serialize_config_delivery_abnormal_instance(instance: dict[str, Any]) -> dict[str, Any]:
+    render_step_statuses = [
+        step.get("status") for step in instance.get("render_steps", []) if step.get("status") is not None
+    ]
+    return {
+        "instance_id": instance.get("instance_id"),
+        "bk_host_id": instance.get("bk_host_id"),
+        "bk_cloud_id": instance.get("bk_cloud_id"),
+        "ip": instance.get("ip"),
+        "status": instance.get("status"),
+        "message": instance.get("message"),
+        "render_step_statuses": render_step_statuses,
+    }
 
 
 def _init_report(
