@@ -339,3 +339,262 @@ class TestCustomRelationStatusInheritance:
         spec = instance.get_spec()
         assert spec["from_resource"] == "updated_source"
         assert spec["to_resource"] == "updated_target"
+
+
+class TestAutoQueryGraphDefinitions:
+    def test_rejects_empty_space_uid_before_fallback(self, monkeypatch):
+        from bkm_space import utils as space_utils
+
+        from metadata.models.entity_relation import EntityMeta
+
+        monkeypatch.setattr(space_utils, "bk_biz_id_to_space_uid", lambda bk_biz_id: "")
+
+        with pytest.raises(ValueError, match=r"cannot resolve to a valid space uid"):
+            EntityMeta.auto_query_graph_definitions(-42)
+
+
+class TestConvertToVerticesAndRelations:
+
+    def _make_resource_defs(self, data):
+        from metadata.models.entity_relation import ResourceDefinition
+
+        return ResourceDefinition(
+            namespace=data.get("namespace", "__all__"),
+            name=data["name"], fields=data.get("fields", []),
+            labels=data.get("labels", {}), generation=1, creator="test", updater="test",
+        )
+
+    def _make_relation_defs(self, data):
+        from metadata.models.entity_relation import RelationDefinition
+
+        return RelationDefinition(
+            namespace=data.get("namespace", "__all__"), name=data["name"],
+            from_resource=data["from_resource"], to_resource=data["to_resource"],
+            category=data.get("category", "static"),
+            is_directional=data.get("is_directional", False),
+            is_belongs_to=data.get("is_belongs_to", False),
+            labels=data.get("labels", {}), generation=1, creator="test", updater="test",
+        )
+
+    def _make_required_resource_defs(self, *names):
+        return [
+            self._make_resource_defs({"name": name, "fields": [{"name": f"{name}_id", "required": True}]})
+            for name in names
+        ]
+
+    def test_full_conversion_uses_bmw_relation_name(self):
+        from metadata.models.entity_relation import convert_to_vertices_and_relations
+
+        resource_defs = [
+            self._make_resource_defs({
+                "name": "pod",
+                "fields": [{"namespace": "k8s", "name": "pod_name", "required": True}],
+            }),
+            self._make_resource_defs({
+                "name": "node",
+                "fields": [{"namespace": "k8s", "name": "node_ip", "required": True}],
+            }),
+        ]
+        relation_defs = [self._make_relation_defs({
+            "name": "pod_node", "from_resource": "pod", "to_resource": "node",
+            "labels": {"metric_name": "pod_node_custom_metric"},
+        })]
+
+        vertices, relations = convert_to_vertices_and_relations(resource_defs, relation_defs)
+
+        assert vertices == [
+            {"name": "pod", "id_fields": ["pod_name"], "delimiter": "_"},
+            {"name": "node", "id_fields": ["node_ip"], "delimiter": "_"},
+        ]
+        assert relations == [{
+            "name": "pod_node", "from": "pod", "to": "node",
+            "metric": "node_with_pod_relation", "delimiter": "_",
+        }]
+
+    def test_metric_falls_back_to_bidirectional_bmw_relation_name(self):
+        from metadata.models.entity_relation import convert_to_vertices_and_relations
+
+        _, relations = convert_to_vertices_and_relations(
+            self._make_required_resource_defs("service", "pod"),
+            [
+                self._make_relation_defs({
+                    "name": "svc_pod", "from_resource": "service", "to_resource": "pod", "labels": {},
+                }),
+            ],
+        )
+        assert relations[0]["metric"] == "pod_with_service_relation"
+
+    def test_metric_falls_back_to_directional_bmw_relation_name(self):
+        from metadata.models.entity_relation import convert_to_vertices_and_relations
+
+        _, relations = convert_to_vertices_and_relations(
+            self._make_required_resource_defs("pod", "node"),
+            [
+                self._make_relation_defs(
+                    {
+                        "name": "pod_node",
+                        "from_resource": "pod",
+                        "to_resource": "node",
+                        "is_directional": True,
+                        "labels": {},
+                    }
+                ),
+            ],
+        )
+        assert relations[0]["metric"] == "pod_to_node_flow"
+
+    def test_metric_falls_back_when_relation_labels_are_not_dict(self):
+        from metadata.models.entity_relation import convert_to_vertices_and_relations
+
+        _, relations = convert_to_vertices_and_relations(
+            self._make_required_resource_defs("service", "pod"),
+            [
+                self._make_relation_defs({
+                    "name": "svc_pod",
+                    "from_resource": "service",
+                    "to_resource": "pod",
+                    "labels": ["metric_name"],
+                }),
+            ],
+        )
+
+        assert relations[0]["metric"] == "pod_with_service_relation"
+
+    def test_dedup_keeps_first_occurrence(self):
+        from metadata.models.entity_relation import convert_to_vertices_and_relations
+
+        resource_defs = [
+            self._make_resource_defs({"name": "pod", "fields": [{"name": "a", "required": True}]}),
+            self._make_resource_defs({"name": "pod", "fields": [{"name": "b"}]}),
+        ]
+        vertices, _ = convert_to_vertices_and_relations(resource_defs, [])
+        assert len(vertices) == 1 and vertices[0]["id_fields"] == ["a"]
+
+    def test_id_fields_use_required_fields_only(self):
+        from metadata.models.entity_relation import convert_to_vertices_and_relations
+
+        resource_defs = [
+            self._make_resource_defs({
+                "name": "host",
+                "fields": [
+                    {"name": "bk_host_id", "required": True},
+                    {"name": "version", "required": False},
+                    {"name": "env_name"},
+                ],
+            }),
+        ]
+
+        vertices, _ = convert_to_vertices_and_relations(resource_defs, [])
+
+        assert vertices[0]["id_fields"] == ["bk_host_id"]
+
+    def test_rejects_resource_without_required_fields(self):
+        from metadata.models.entity_relation import convert_to_vertices_and_relations
+
+        resource_defs = [
+            self._make_resource_defs({
+                "name": "host",
+                "fields": [{"name": "bk_host_id"}, {"name": "version", "required": False}],
+            }),
+        ]
+
+        with pytest.raises(ValueError, match=r"ResourceDefinition\[host\].*required field"):
+            convert_to_vertices_and_relations(resource_defs, [])
+
+    def test_rejects_resource_field_with_invalid_schema(self):
+        from metadata.models.entity_relation import convert_to_vertices_and_relations
+
+        invalid_cases = [
+            ([{"name": "host", "fields": {"name": "bk_host_id", "required": True}}], r"fields must be a list"),
+            ([{"name": "host", "fields": ["bk_host_id"]}], r"fields\[0\] must be an object"),
+            ([{"name": "host", "fields": [{"name": " ", "required": True}]}], r"name must be a non-empty string"),
+            ([{"name": "host", "fields": [{"name": "bk_host_id", "required": "yes"}]}], r"required must be a boolean"),
+        ]
+
+        for resource_data, message in invalid_cases:
+            with pytest.raises(ValueError, match=message):
+                convert_to_vertices_and_relations([self._make_resource_defs(data) for data in resource_data], [])
+
+    def test_rejects_relation_with_unknown_resource_endpoint(self):
+        from metadata.models.entity_relation import convert_to_vertices_and_relations
+
+        with pytest.raises(
+            ValueError,
+            match=r"RelationDefinition\[pod_node\].to_resource.*ResourceDefinition\[node\]",
+        ):
+            convert_to_vertices_and_relations(
+                self._make_required_resource_defs("pod"),
+                [
+                    self._make_relation_defs({
+                        "name": "pod_node",
+                        "from_resource": "pod",
+                        "to_resource": "node",
+                    }),
+                ],
+            )
+
+    def test_rejects_duplicate_relation_semantics(self):
+        from metadata.models.entity_relation import convert_to_vertices_and_relations
+
+        with pytest.raises(ValueError, match=r"RelationDefinition\[pod_node_copy\].*RelationDefinition\[pod_node\]"):
+            convert_to_vertices_and_relations(
+                self._make_required_resource_defs("pod", "node"),
+                [
+                    self._make_relation_defs({
+                        "name": "pod_node",
+                        "from_resource": "pod",
+                        "to_resource": "node",
+                    }),
+                    self._make_relation_defs({
+                        "name": "pod_node_copy",
+                        "from_resource": "pod",
+                        "to_resource": "node",
+                    }),
+                ],
+            )
+
+    def test_rejects_reversed_bidirectional_relation_semantics(self):
+        from metadata.models.entity_relation import convert_to_vertices_and_relations
+
+        with pytest.raises(
+            ValueError,
+            match=r"RelationDefinition\[node_pod\].*RelationDefinition\[pod_node\]",
+        ):
+            convert_to_vertices_and_relations(
+                self._make_required_resource_defs("pod", "node"),
+                [
+                    self._make_relation_defs({
+                        "name": "pod_node",
+                        "from_resource": "pod",
+                        "to_resource": "node",
+                    }),
+                    self._make_relation_defs({
+                        "name": "node_pod",
+                        "from_resource": "node",
+                        "to_resource": "pod",
+                    }),
+                ],
+            )
+
+    def test_allows_reversed_directional_relation_semantics(self):
+        from metadata.models.entity_relation import convert_to_vertices_and_relations
+
+        _, relations = convert_to_vertices_and_relations(
+            self._make_required_resource_defs("pod", "node"),
+            [
+                self._make_relation_defs({
+                    "name": "pod_node",
+                    "from_resource": "pod",
+                    "to_resource": "node",
+                    "is_directional": True,
+                }),
+                self._make_relation_defs({
+                    "name": "node_pod",
+                    "from_resource": "node",
+                    "to_resource": "pod",
+                    "is_directional": True,
+                }),
+            ],
+        )
+
+        assert [relation["metric"] for relation in relations] == ["pod_to_node_flow", "node_to_pod_flow"]
