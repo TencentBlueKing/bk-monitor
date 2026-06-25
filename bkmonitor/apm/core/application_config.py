@@ -31,11 +31,15 @@ from apm.models import (
     ApmMetricDimension,
     CustomServiceConfig,
     LicenseConfig,
+    LogDataSource,
+    MetricDataSource,
     NormalTypeValueConfig,
     ProbeConfig,
+    ProfileDataSource,
     QpsConfig,
     SamplerConfig,
     SubscriptionConfig,
+    TraceDataSource,
 )
 from bkmonitor.utils.bk_collector_config import BkCollectorConfig, BkCollectorClusterConfig
 from bkmonitor.utils.common_utils import count_md5
@@ -49,11 +53,106 @@ tracer = trace.get_tracer(__name__)
 jinja_env = Environment()
 
 
+class ApmConfigCache:
+    """APM 配置批量预加载缓存，仅在单次 refresh_k8s 过程中使用。"""
+
+    APP_CONFIG_MODELS = (
+        ApdexConfig,
+        SamplerConfig,
+        CustomServiceConfig,
+        NormalTypeValueConfig,
+        QpsConfig,
+        LicenseConfig,
+        ProbeConfig,
+    )
+    DATASOURCE_MODELS = (MetricDataSource, LogDataSource, TraceDataSource, ProfileDataSource)
+
+    def __init__(self):
+        self.datasources = defaultdict(dict)
+        self.configs_by_level = defaultdict(lambda: defaultdict(list))
+        self.configs_by_key = defaultdict(lambda: defaultdict(list))
+        self.normal_type_values = {}
+        self.qps_configs = {}
+        self.license_configs = {}
+        self.probe_configs = {}
+        self.custom_service_configs = defaultdict(list)
+        self.instance_discovers = defaultdict(list)
+        self.global_instance_discovers = []
+
+        self.load()
+
+    def load(self):
+        self.load_datasources()
+        self.load_app_configs()
+        self.load_instance_discovers()
+
+    def load_datasources(self):
+        for model in self.DATASOURCE_MODELS:
+            for datasource in model.objects.all():
+                self.datasources[model][(datasource.bk_biz_id, datasource.app_name)] = datasource
+
+    def load_app_configs(self):
+        for model in self.APP_CONFIG_MODELS:
+            for config in model.objects.all().order_by("id"):
+                level_key = (config.bk_biz_id, config.app_name, config.config_level)
+                config_key = (config.bk_biz_id, config.app_name, config.config_level, config.config_key)
+                self.configs_by_level[model][level_key].append(config)
+                self.configs_by_key[model][config_key].append(config)
+
+                if model is NormalTypeValueConfig:
+                    self.normal_type_values.setdefault((*config_key, config.type), config.value)
+                elif model is QpsConfig:
+                    self.qps_configs.setdefault(config_key, config.qps)
+                elif model is LicenseConfig:
+                    self.license_configs.setdefault(config_key, config.to_config_json())
+                elif model is ProbeConfig:
+                    self.probe_configs.setdefault(config_key, config)
+                elif model is CustomServiceConfig:
+                    self.custom_service_configs[(config.bk_biz_id, config.app_name)].append(config)
+
+    def load_instance_discovers(self):
+        for discover in ApmInstanceDiscover.objects.all():
+            if discover.bk_biz_id == GLOBAL_CONFIG_BK_BIZ_ID:
+                self.global_instance_discovers.append(discover)
+            else:
+                self.instance_discovers[(discover.bk_biz_id, discover.app_name)].append(discover)
+
+    def get_datasource(self, model, bk_biz_id, app_name):
+        return self.datasources[model].get((bk_biz_id, app_name))
+
+    def get_app_configs(self, model, bk_biz_id, app_name, config_level):
+        return self.configs_by_level[model].get((bk_biz_id, app_name, config_level), [])
+
+    def get_normal_type_value(self, bk_biz_id, app_name, config_type, config_level=None, config_key=None):
+        config_level = config_level or NormalTypeValueConfig.APP_LEVEL
+        config_key = config_key or app_name
+        return self.normal_type_values.get((bk_biz_id, app_name, config_level, config_key, config_type))
+
+    def get_qps(self, bk_biz_id, app_name):
+        return self.qps_configs.get((bk_biz_id, app_name, QpsConfig.APP_LEVEL, app_name))
+
+    def get_license_config(self, bk_biz_id, app_name):
+        return self.license_configs.get((bk_biz_id, app_name, LicenseConfig.APP_LEVEL, app_name))
+
+    def get_probe_config(self, bk_biz_id, app_name):
+        return self.probe_configs.get((bk_biz_id, app_name, ProbeConfig.APP_LEVEL, app_name))
+
+    def get_custom_service_configs(self, bk_biz_id, app_name):
+        return self.custom_service_configs.get((bk_biz_id, app_name), [])
+
+    def get_instance_discovers(self, bk_biz_id, app_name, fallback_global=False):
+        discovers = self.instance_discovers.get((bk_biz_id, app_name), [])
+        if not discovers and fallback_global:
+            return self.global_instance_discovers
+        return discovers
+
+
 class ApplicationConfig(BkCollectorConfig):
     PLUGIN_APPLICATION_CONFIG_TEMPLATE_NAME = "bk-collector-application.conf"
 
-    def __init__(self, application):
+    def __init__(self, application, config_cache: ApmConfigCache | None = None):
         self._application: ApmApplication = application
+        self.config_cache = config_cache
         self.application_id = application.id
         self.bk_biz_id = application.bk_biz_id
         self.bk_tenant_id = application.bk_tenant_id
@@ -93,12 +192,17 @@ class ApplicationConfig(BkCollectorConfig):
         if not applications:
             return
 
+        config_cache = ApmConfigCache()
+
         # 按业务ID分组，因为不同业务可能需要部署到不同的集群
         biz_application_configs = {}
         for application in applications:
+            if not application.token:
+                logger.warning(f"skip application({application.app_name}) without token")
+                continue
             try:
                 bk_biz_id = application.bk_biz_id
-                biz_application_configs.setdefault(bk_biz_id, []).append(ApplicationConfig(application))
+                biz_application_configs.setdefault(bk_biz_id, []).append(ApplicationConfig(application, config_cache))
             except Exception as e:  # pylint: disable=broad-except
                 logger.exception(f"generate config for application({application.app_name}) error, {e}")
 
@@ -170,9 +274,9 @@ class ApplicationConfig(BkCollectorConfig):
         config = {
             "bk_biz_id": self._application.bk_biz_id,
             "bk_app_name": self._application.app_name,
+            "bk_data_token": self._application.token,
         }
         config.update(self.get_bk_data_id_config())
-        config["bk_data_token"] = self._application.get_bk_data_token()
         config["resource_filter_config"] = self.get_resource_filter_config()
         config["resource_filter_config_logs"] = self.get_resource_filter_config_logs()
         config["resource_filter_config_metrics"] = self.get_resource_filter_config_metrics()
@@ -263,7 +367,10 @@ class ApplicationConfig(BkCollectorConfig):
 
     def get_metrics_filter_config(self) -> dict:
         params = {"bk_biz_id": self._application.bk_biz_id, "app_name": self._application.app_name}
-        json_value = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.CODE_RELABEL_CONFIG)
+        if self.config_cache:
+            json_value = self.config_cache.get_normal_type_value(**params, config_type=ConfigTypes.CODE_RELABEL_CONFIG)
+        else:
+            json_value = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.CODE_RELABEL_CONFIG)
 
         if not json_value:
             return {}
@@ -280,26 +387,44 @@ class ApplicationConfig(BkCollectorConfig):
 
     def get_bk_data_id_config(self):
         data_ids = {}
-        metric_data_source = self._application.metric_datasource
+        if self.config_cache:
+            metric_data_source = self.config_cache.get_datasource(
+                MetricDataSource, self._application.bk_biz_id, self._application.app_name
+            )
+            log_data_source = self.config_cache.get_datasource(
+                LogDataSource, self._application.bk_biz_id, self._application.app_name
+            )
+            trace_data_source = self.config_cache.get_datasource(
+                TraceDataSource, self._application.bk_biz_id, self._application.app_name
+            )
+            profile_data_source = self.config_cache.get_datasource(
+                ProfileDataSource, self._application.bk_biz_id, self._application.app_name
+            )
+        else:
+            metric_data_source = self._application.metric_datasource
+            log_data_source = self._application.log_datasource
+            trace_data_source = self._application.trace_datasource
+            profile_data_source = self._application.profile_datasource
+
         if self._application.is_enabled_metric and metric_data_source:
             data_ids["metric_data_id"] = metric_data_source.bk_data_id
 
-        log_data_source = self._application.log_datasource
         if self._application.is_enabled_log and log_data_source:
             data_ids["log_data_id"] = log_data_source.bk_data_id
 
-        trace_data_source = self._application.trace_datasource
         if self._application.is_enabled_trace and trace_data_source:
             data_ids["trace_data_id"] = trace_data_source.bk_data_id
 
-        profile_data_source = self._application.profile_datasource
         if self._application.is_enabled_profiling and profile_data_source:
             data_ids["profile_data_id"] = profile_data_source.bk_data_id
 
         return data_ids
 
     def get_qps_config(self):
-        qps = QpsConfig.get_application_qps(self._application.bk_biz_id, app_name=self._application.app_name)
+        if self.config_cache:
+            qps = self.config_cache.get_qps(self._application.bk_biz_id, app_name=self._application.app_name)
+        else:
+            qps = QpsConfig.get_application_qps(self._application.bk_biz_id, app_name=self._application.app_name)
         if not qps:
             return None
 
@@ -308,10 +433,24 @@ class ApplicationConfig(BkCollectorConfig):
     def get_queue_config(self):
         params = {"bk_biz_id": self._application.bk_biz_id, "app_name": self._application.app_name}
 
-        log_size = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.QUEUE_LOGS_BATCH_SIZE)
-        metric_size = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.QUEUE_METRIC_BATCH_SIZE)
-        trace_size = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.QUEUE_TRACES_BATCH_SIZE)
-        profile_size = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.QUEUE_PROFILES_BATCH_SIZE)
+        if self.config_cache:
+            log_size = self.config_cache.get_normal_type_value(**params, config_type=ConfigTypes.QUEUE_LOGS_BATCH_SIZE)
+            metric_size = self.config_cache.get_normal_type_value(
+                **params, config_type=ConfigTypes.QUEUE_METRIC_BATCH_SIZE
+            )
+            trace_size = self.config_cache.get_normal_type_value(
+                **params, config_type=ConfigTypes.QUEUE_TRACES_BATCH_SIZE
+            )
+            profile_size = self.config_cache.get_normal_type_value(
+                **params, config_type=ConfigTypes.QUEUE_PROFILES_BATCH_SIZE
+            )
+        else:
+            log_size = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.QUEUE_LOGS_BATCH_SIZE)
+            metric_size = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.QUEUE_METRIC_BATCH_SIZE)
+            trace_size = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.QUEUE_TRACES_BATCH_SIZE)
+            profile_size = NormalTypeValueConfig.get_app_value(
+                **params, config_type=ConfigTypes.QUEUE_PROFILES_BATCH_SIZE
+            )
 
         res = {}
         if log_size:
@@ -327,9 +466,14 @@ class ApplicationConfig(BkCollectorConfig):
 
     def get_custom_service_config(self):
         res = []
-        query = CustomServiceConfig.objects.filter(
-            bk_biz_id=self._application.bk_biz_id, app_name=self._application.app_name
-        )
+        if self.config_cache:
+            query = self.config_cache.get_custom_service_configs(
+                self._application.bk_biz_id, self._application.app_name
+            )
+        else:
+            query = CustomServiceConfig.objects.filter(
+                bk_biz_id=self._application.bk_biz_id, app_name=self._application.app_name
+            )
         for item in query:
             config = CustomServiceConfig.DISCOVER_KEYS[item.type]
 
@@ -372,6 +516,13 @@ class ApplicationConfig(BkCollectorConfig):
 
     def get_instance_name_config(self):
         """获取应用实例名配置"""
+        if self.config_cache:
+            return [
+                {"discover_key": discover.discover_key, "rank": discover.rank}
+                for discover in self.config_cache.get_instance_discovers(
+                    self._application.bk_biz_id, self._application.app_name
+                )
+            ]
         return list(
             ApmInstanceDiscover.objects.filter(
                 bk_biz_id=self._application.bk_biz_id, app_name=self._application.app_name
@@ -402,16 +553,24 @@ class ApplicationConfig(BkCollectorConfig):
         """获取bk.instance.id是由哪几个字段组成"""
         from apm.models.config import ApmInstanceDiscover
 
-        instance_id_assemble_keys = [
-            q.discover_key
-            for q in ApmInstanceDiscover.objects.filter(
-                bk_biz_id=self._application.bk_biz_id, app_name=self._application.app_name
-            )
-        ]
-        if not instance_id_assemble_keys:
+        if self.config_cache:
             instance_id_assemble_keys = [
-                q.discover_key for q in ApmInstanceDiscover.objects.filter(bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID)
+                q.discover_key
+                for q in self.config_cache.get_instance_discovers(
+                    self._application.bk_biz_id, self._application.app_name, fallback_global=True
+                )
             ]
+        else:
+            instance_id_assemble_keys = [
+                q.discover_key
+                for q in ApmInstanceDiscover.objects.filter(
+                    bk_biz_id=self._application.bk_biz_id, app_name=self._application.app_name
+                )
+            ]
+            if not instance_id_assemble_keys:
+                instance_id_assemble_keys = [
+                    q.discover_key for q in ApmInstanceDiscover.objects.filter(bk_biz_id=GLOBAL_CONFIG_BK_BIZ_ID)
+                ]
         return {
             "name": "resource_filter/instance_id",
             "assemble": [{"destination": "bk.instance.id", "separator": ":", "keys": instance_id_assemble_keys}],
@@ -477,14 +636,24 @@ class ApplicationConfig(BkCollectorConfig):
         return configs
 
     def get_apdex_config(self, config_level):
-        rules = ApdexConfig.configs(self._application.bk_biz_id, self._application.app_name, config_level)
+        if self.config_cache:
+            rules = self.config_cache.get_app_configs(
+                ApdexConfig, self._application.bk_biz_id, self._application.app_name, config_level
+            )
+        else:
+            rules = ApdexConfig.configs(self._application.bk_biz_id, self._application.app_name, config_level)
         apdex_config = defaultdict(lambda: {"name": "apdex_calculator/standard", "type": "standard", "rules": []})
         for config in rules:
             apdex_config[config.config_key]["rules"].append(config.to_config_json())
         return apdex_config
 
     def get_random_sampler_config(self, config_level):
-        configs = SamplerConfig.configs(self._application.bk_biz_id, self._application.app_name, config_level)
+        if self.config_cache:
+            configs = self.config_cache.get_app_configs(
+                SamplerConfig, self._application.bk_biz_id, self._application.app_name, config_level
+            )
+        else:
+            configs = SamplerConfig.configs(self._application.bk_biz_id, self._application.app_name, config_level)
         sampler_config = {}
         for config in configs:
             sampler_config[config.config_key] = config.to_config_json()
@@ -505,9 +674,14 @@ class ApplicationConfig(BkCollectorConfig):
         }
 
     def get_license_config(self):
-        license_config = LicenseConfig.get_application_license_config(
-            bk_biz_id=self._application.bk_biz_id, app_name=self._application.app_name
-        )
+        if self.config_cache:
+            license_config = self.config_cache.get_license_config(
+                bk_biz_id=self._application.bk_biz_id, app_name=self._application.app_name
+            )
+        else:
+            license_config = LicenseConfig.get_application_license_config(
+                bk_biz_id=self._application.bk_biz_id, app_name=self._application.app_name
+            )
         if not license_config:
             return {}
 
@@ -522,7 +696,10 @@ class ApplicationConfig(BkCollectorConfig):
         """
 
         params = {"bk_biz_id": self._application.bk_biz_id, "app_name": self._application.app_name}
-        json_value = NormalTypeValueConfig.get_app_value(**params, config_type=config_type)
+        if self.config_cache:
+            json_value = self.config_cache.get_normal_type_value(**params, config_type=config_type)
+        else:
+            json_value = NormalTypeValueConfig.get_app_value(**params, config_type=config_type)
 
         if not json_value:
             return {}
@@ -540,7 +717,12 @@ class ApplicationConfig(BkCollectorConfig):
         :return:
         """
 
-        config = ProbeConfig.get_config(bk_biz_id=self._application.bk_biz_id, app_name=self._application.app_name)
+        if self.config_cache:
+            config = self.config_cache.get_probe_config(
+                bk_biz_id=self._application.bk_biz_id, app_name=self._application.app_name
+            )
+        else:
+            config = ProbeConfig.get_config(bk_biz_id=self._application.bk_biz_id, app_name=self._application.app_name)
         if not config:
             return {}, {}
 
@@ -655,23 +837,43 @@ class ApplicationConfig(BkCollectorConfig):
                 logger.exception(f"create apm application config subscription error{e}, params:{subscription_params}")
 
     def get_all_service_configs(self):
-        all_service_configs = (
-            NormalTypeValueConfig.service_configs(self._application.bk_biz_id, self._application.app_name)
-            .filter(config_key=ConfigTypes.ALL_SERVICE_CONFIG, type=ConfigTypes.ALL_SERVICE_CONFIG)
-            .first()
-        )
+        if self.config_cache:
+            all_service_configs = self.config_cache.get_normal_type_value(
+                self._application.bk_biz_id,
+                self._application.app_name,
+                ConfigTypes.ALL_SERVICE_CONFIG,
+                config_level=NormalTypeValueConfig.SERVICE_LEVEL,
+                config_key=ConfigTypes.ALL_SERVICE_CONFIG,
+            )
+        else:
+            all_service_configs = (
+                NormalTypeValueConfig.service_configs(self._application.bk_biz_id, self._application.app_name)
+                .filter(config_key=ConfigTypes.ALL_SERVICE_CONFIG, type=ConfigTypes.ALL_SERVICE_CONFIG)
+                .first()
+            )
+            all_service_configs = all_service_configs.value if all_service_configs else None
         if all_service_configs:
-            return json.loads(all_service_configs.value)
+            return json.loads(all_service_configs)
         return {}
 
     def get_all_instance_configs(self):
-        all_instance_configs = (
-            NormalTypeValueConfig.instance_configs(self._application.bk_biz_id, self._application.app_name)
-            .filter(config_key=ConfigTypes.ALL_INSTANCE_CONFIG, type=ConfigTypes.ALL_INSTANCE_CONFIG)
-            .first()
-        )
+        if self.config_cache:
+            all_instance_configs = self.config_cache.get_normal_type_value(
+                self._application.bk_biz_id,
+                self._application.app_name,
+                ConfigTypes.ALL_INSTANCE_CONFIG,
+                config_level=NormalTypeValueConfig.INSTANCE_LEVEL,
+                config_key=ConfigTypes.ALL_INSTANCE_CONFIG,
+            )
+        else:
+            all_instance_configs = (
+                NormalTypeValueConfig.instance_configs(self._application.bk_biz_id, self._application.app_name)
+                .filter(config_key=ConfigTypes.ALL_INSTANCE_CONFIG, type=ConfigTypes.ALL_INSTANCE_CONFIG)
+                .first()
+            )
+            all_instance_configs = all_instance_configs.value if all_instance_configs else None
         if all_instance_configs:
-            return json.loads(all_instance_configs.value)
+            return json.loads(all_instance_configs)
         return {}
 
     @classmethod
