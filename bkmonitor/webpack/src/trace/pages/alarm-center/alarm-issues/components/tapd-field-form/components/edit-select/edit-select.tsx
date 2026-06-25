@@ -82,7 +82,6 @@ export default defineComponent({
     };
 
     const handleToggle = val => {
-      console.log(val);
       if (val) {
         errMsg.value = '';
       } else {

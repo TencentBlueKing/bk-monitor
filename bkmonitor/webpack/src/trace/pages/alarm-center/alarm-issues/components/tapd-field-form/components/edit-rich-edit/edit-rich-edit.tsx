@@ -78,6 +78,7 @@ export default defineComponent({
       <div class={['field-form-edit-rich-edit', { 'is-error': !!this.errMsg }]}>
         <MarkdownEditor
           height='280px'
+          autofocus={false}
           initialEditType={'wysiwyg'}
           value={this.modelValue}
           onBlur={this.handleBlur}

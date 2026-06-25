@@ -30,6 +30,7 @@ import { Button, Checkbox, Sideslider } from 'bkui-vue';
 import { mockFields } from '../../components/tapd-field-form/mock';
 import TapdFieldForm from '../../components/tapd-field-form/tapd-field-form';
 import TapdFieldFormLoadingCom from '../../components/tapd-field-form/tapd-field-form-loading';
+import TapdRelation from '../tapd-relation/tapd-relation';
 import TapdBasicForm from './components/tapd-basic-form';
 import useUserConfig from '@/hooks/useUserConfig';
 
@@ -61,6 +62,7 @@ export default defineComponent({
     /** 基础表单组件 ref，用于调用表单校验方法 */
     const basicFormRef = useTemplateRef<InstanceType<typeof TapdBasicForm>>('basicForm');
     const tapdFieldFormRef = useTemplateRef<InstanceType<typeof TapdFieldForm>>('tapdFieldForm');
+    const tapdRelationRef = useTemplateRef<InstanceType<typeof TapdRelation>>('tapdRelation');
     /** 用户设置的 TAPD 创建单据默认值 */
     const createTapdDefaultValue = shallowRef<CreateTapdDefaultSetting>({
       workspace_id: null,
@@ -81,6 +83,8 @@ export default defineComponent({
     const tapdFieldValue = shallowRef<Record<string, unknown>>({});
     /* 单据字段表单加载中 */
     const tapdFieldFormLoading = shallowRef(false);
+    // Issue 关联指定 TAPD 单据
+    const linkTapdIds = shallowRef<string[]>([]);
 
     /** 用户配置 key */
     const CREATE_TAPD_DETAIL_SETTING = computed(() => {
@@ -185,8 +189,13 @@ export default defineComponent({
       basicFormRef.value?.validate().then(() => {
         console.log('success');
       });
-      const tapdFieldFormValid = await tapdFieldFormRef.value?.validate().catch(() => false);
-      console.log(tapdFieldFormValid);
+      if (tabActive.value === 'link') {
+        const linkTapdIdsValid = await tapdRelationRef.value?.validate().catch(() => false);
+        console.log(linkTapdIdsValid);
+      } else {
+        const tapdFieldFormValid = await tapdFieldFormRef.value?.validate().catch(() => false);
+        console.log(tapdFieldFormValid);
+      }
     };
 
     const handleFormDataChange = () => {
@@ -199,6 +208,11 @@ export default defineComponent({
     const handleFieldValueChange = val => {
       tapdFieldValue.value = val;
     };
+
+    const handleLinkTapdIdsChange = val => {
+      linkTapdIds.value = val;
+    };
+
     return {
       count,
       formData,
@@ -208,6 +222,7 @@ export default defineComponent({
       tapdFieldValue,
       tapdFields,
       tapdFieldFormLoading,
+      linkTapdIds,
       handleShowChange,
       handleTabChange,
       handleSetDefaultValue,
@@ -215,6 +230,7 @@ export default defineComponent({
       handleFormDataChange,
       handleFieldValueChange,
       handleAddWorkspace,
+      handleLinkTapdIdsChange,
     };
   },
   render() {
@@ -248,6 +264,35 @@ export default defineComponent({
                 onTabChange={this.handleTabChange}
                 onUpdate:modelValue={this.handleFormDataChange}
               />
+              {(() => {
+                if (this.tabActive === 'add') {
+                  if (this.tapdFieldFormLoading) {
+                    return <TapdFieldFormLoadingCom style='margin: 13px 40px' />;
+                  }
+                  if (this.tapdFields.length) {
+                    return (
+                      <TapdFieldForm
+                        ref='tapdFieldForm'
+                        style='margin: 13px 40px'
+                        fields={this.tapdFields}
+                        value={this.tapdFieldValue}
+                        onChange={this.handleFieldValueChange}
+                      />
+                    );
+                  }
+                }
+                if (this.tabActive === 'link') {
+                  return (
+                    <TapdRelation
+                      ref='tapdRelation'
+                      style='margin: 13px 40px'
+                      modelValue={this.linkTapdIds}
+                      onUpdate:modelValue={this.handleLinkTapdIdsChange}
+                    />
+                  );
+                }
+                return undefined;
+              })()}
               <div class='create-tapd-content'>
                 {(() => {
                   if (this.tapdFieldFormLoading) {
