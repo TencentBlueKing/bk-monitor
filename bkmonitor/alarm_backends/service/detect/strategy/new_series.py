@@ -192,6 +192,9 @@ class NewSeries(BasicAlgorithmsCollection):
         ns_configs = self._item_new_series_configs(item)
         eff_detect_range = max([self.detect_range] + [int(c.get("detect_range", 0) or 0) for c in ns_configs])
         eff_max_series = max([self.max_series] + [int(c.get("max_series", 0) or 0) for c in ns_configs])
+        # soft_ttl 必须 >= 最长宽限期(effective_delay),否则 learn_start/seen-set 会在宽限结束前过期重置 →
+        # 长宽限策略长期"重学不告警"。self.effective_delay 已夹紧 >= detect_range,叠加各 level 原始配置取最大。
+        eff_effective_delay = max([self.effective_delay] + [int(c.get("effective_delay", 0) or 0) for c in ns_configs])
         try:
             # 1) 内存按指纹聚合本批最大时间戳(Redis<6.2 无 ZADD GT，不能靠 Redis 取 max)。
             latest = {}
@@ -226,7 +229,7 @@ class NewSeries(BasicAlgorithmsCollection):
                     if score is not None:
                         seen_before[fp] = int(float(score))
 
-            soft_ttl = max(eff_detect_range * 2, _MIN_SOFT_TTL)
+            soft_ttl = max(eff_detect_range * 2, eff_effective_delay, _MIN_SOFT_TTL)
 
             # 3) 写新态：分块 zadd，score=max(本批最大ts, 旧态)。跨批取 max(等价 ZADD GT)，
             #    防止迟到/补数的更旧时间戳把 last_seen 倒退(Redis<6.2 无 ZADD GT，故内存取 max)。

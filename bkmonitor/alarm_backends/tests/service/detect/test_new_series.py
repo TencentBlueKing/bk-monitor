@@ -147,6 +147,24 @@ class TestNewSeries:
         d2 = NewSeries(config=default_config(detect_range=3600, effective_delay=86400))
         assert d2.effective_delay == 86400
 
+    def test_soft_ttl_covers_long_effective_delay(self):
+        # P1: 显式 effective_delay > 2*detect_range 时,写侧 soft_ttl 须 >= effective_delay,
+        # 否则 learn_start/seen-set 在宽限结束前过期重置 -> 长宽限策略永久"重学不告警"+seen 提前丢。
+        item = make_item()
+        detector = NewSeries(config=default_config(detect_range=3600, effective_delay=604800))  # 1h 窗 / 7d 宽限
+        dp = make_dp("dimTTL", int(time.time()), item)
+        detector.pre_detect([dp])
+        sig = signature(item)
+        seen_key = key.NEW_SERIES_SEEN_KEY.get_key(
+            strategy_id=item.strategy.id, item_id=item.id, dimension_signature=sig
+        )
+        learn_key = key.NEW_SERIES_LEARN_START_KEY.get_key(
+            strategy_id=item.strategy.id, item_id=item.id, dimension_signature=sig
+        )
+        # 两 key 的 TTL 都须覆盖整个 7d 宽限期(原实现只 max(detect_range*2,1d)=1d,会提前过期)
+        assert key.NEW_SERIES_SEEN_KEY.client.ttl(seen_key) >= 604800 - 60
+        assert key.NEW_SERIES_LEARN_START_KEY.client.ttl(learn_key) >= 604800 - 60
+
     def _set_learn_start(self, item, seconds_ago):
         sig = signature(item)
         learn_key = key.NEW_SERIES_LEARN_START_KEY.get_key(

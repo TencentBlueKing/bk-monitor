@@ -126,10 +126,12 @@ class CleanResult:
                     continue
 
                 ns_configs = [(algorithm.get("config") or {}) for algorithm in ns_algorithms]
-                # max_series / detect_range 取各 NewSeries 算法配置的最大值(最宽松)，与 detector 写侧口径一致
+                # max_series / detect_range / effective_delay 取各 NewSeries 算法配置的最大值(最宽松)，与 detector 写侧口径一致
                 max_series = max(int(c.get("max_series", 100000)) for c in ns_configs)
                 max_detect_range = max(int(c.get("detect_range", 0) or 0) for c in ns_configs)
-                soft_ttl = max(max_detect_range * 2, 86400)
+                # soft_ttl 须 >= 最长宽限期(effective_delay)，否则长宽限策略的 seen-set 会在宽限结束前被补的软 TTL 过期
+                max_effective_delay = max(int(c.get("effective_delay", 0) or 0) for c in ns_configs)
+                soft_ttl = max(max_detect_range * 2, max_effective_delay, 86400)
 
                 # seen key 含维度签名(配置层 agg_dimension 的稳定 md5)，与 detector 口径一致
                 query_configs = item.get("query_configs") or []

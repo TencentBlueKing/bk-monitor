@@ -114,9 +114,18 @@ def test_effective_delay_defaults_to_detect_range():
 
 
 def test_effective_delay_explicit_value_kept():
-    # 显式传入 effective_delay 时保留(不被默认覆盖)
+    # 显式传入 effective_delay (>= detect_range) 时保留(不被默认覆盖)
     from bkmonitor.strategy.serializers import NewSeriesSerializer
 
     s = NewSeriesSerializer(data={"detect_range": 3600, "effective_delay": 7200})
     s.is_valid(raise_exception=True)
     assert s.validated_data["effective_delay"] == 7200
+
+
+def test_effective_delay_below_detect_range_normalized_up():
+    # P2: 显式 effective_delay < detect_range -> 落库归一化到 detect_range(存档值=运行值,消除"显示小值/实跑detect_range")
+    from bkmonitor.strategy.serializers import NewSeriesSerializer
+
+    s = NewSeriesSerializer(data={"detect_range": 86400, "effective_delay": 3600})
+    s.is_valid(raise_exception=True)
+    assert s.validated_data["effective_delay"] == 86400
