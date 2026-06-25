@@ -171,7 +171,7 @@ def refresh_apm_config_to_k8s():
         return
 
     try:
-        ApplicationConfig.refresh_k8s(applications)
+        ApplicationConfig.refresh_k8s(applications, need_config_cache=True)
         logger.info(f"[refresh_apm_config_to_k8s]: batch publish k8s config for {len(applications)} applications")
     except Exception as e:  # pylint: disable=broad-except
         logger.exception(f"[RefreshApmApplicationK8sConfigFailed] Err => {str(e)}; Applications => {applications}")
