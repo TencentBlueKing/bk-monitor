@@ -26,13 +26,13 @@
 
 export { SceneType } from '@/store/scene-filter-types';
 export type {
-  FilterFieldConfig,
-  FilterFieldValue,
-  FilterValues,
-  SceneConfig,
-  SceneConfigItem,
   SceneDimensionItem,
+  SceneConfigItem,
   SceneDimensionValuesRequest,
   SceneDimensionValuesResponse,
+  FilterFieldConfig,
+  FilterFieldValue,
   SceneDisplayFields,
+  SceneConfig,
+  FilterValues,
 } from '@/store/scene-filter-types';
