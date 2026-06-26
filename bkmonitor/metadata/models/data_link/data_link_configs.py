@@ -635,6 +635,25 @@ class GraphRelationBindingConfig(DataLinkResourceConfigBase):
     def graph_databus_component_name(self) -> str:
         return self.graph_databus_name or self.graph_result_table_name
 
+    def get_expected_component_names(self, component_cls: type[DataLinkResourceConfigBase]) -> list[str]:
+        names: list[str] = []
+        should_write_vm = self.write_mode_includes_vm(self.write_mode)
+        should_write_surrealdb = self.write_mode_includes_surrealdb(self.write_mode)
+        if component_cls is ResultTableConfig:
+            if should_write_vm:
+                names.append(self.bkbase_result_table_name)
+            if should_write_surrealdb:
+                names.append(self.graph_result_table_name)
+        elif component_cls is VMStorageBindingConfig and should_write_vm:
+            names.append(self.vm_binding_component_name)
+        elif component_cls is DataBusConfig and should_write_vm:
+            names.append(self.vm_databus_component_name)
+        elif component_cls is SurrealDBBindingConfig and should_write_surrealdb:
+            names.append(self.surrealdb_binding_component_name)
+        elif component_cls is GraphDataBusConfig and should_write_surrealdb:
+            names.append(self.graph_databus_component_name)
+        return list(dict.fromkeys(name for name in names if name))
+
     @classmethod
     def write_mode_includes_vm(cls, write_mode: str | None) -> bool:
         normalized_write_mode = cls.normalize_write_mode(write_mode)

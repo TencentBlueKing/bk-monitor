@@ -831,6 +831,13 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
             data_link_name=data_link_name,
         ).first()
     all_components_ok = True
+    if data_link_strategy == models.DataLink.GRAPH_RELATION_TIME_SERIES and not graph_binding:
+        logger.warning(
+            "_refresh_data_link_status: data_link_name->[%s],component kind->[%s] has no instance, skip",
+            data_link_name,
+            models.GraphRelationBindingConfig.kind,
+        )
+        all_components_ok = False
 
     # 4. 遍历链路关联的所有类型资源；
     # 历史写法按 ``name=bkbase_rt_name`` 查，默认 RT/Binding/DataBus 三者同名。组件复用之后三者可能
@@ -840,15 +847,25 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
         component_queryset = component.objects.filter(
             bk_tenant_id=bk_tenant_id, namespace=namespace, data_link_name=data_link_name
         )
-        if graph_binding and component is models.DataBusConfig:
-            component_queryset = component_queryset.filter(name=graph_binding.vm_databus_component_name)
-        elif graph_binding and component is models.GraphDataBusConfig:
-            component_queryset = component_queryset.filter(name=graph_binding.graph_databus_component_name)
+        expected_component_names = graph_binding.get_expected_component_names(component) if graph_binding else []
+        if expected_component_names:
+            component_queryset = component_queryset.filter(name__in=expected_component_names)
 
-        component_instances = list(
-            component_queryset
-        )
-        if not component_instances:
+        component_instances = list(component_queryset)
+        if expected_component_names:
+            existing_component_names = {component_ins.name for component_ins in component_instances}
+            for expected_component_name in expected_component_names:
+                if expected_component_name in existing_component_names:
+                    continue
+                logger.warning(
+                    "_refresh_data_link_status: data_link_name->[%s],component kind->[%s],"
+                    "name->[%s] has no instance, skip",
+                    data_link_name,
+                    component.kind,
+                    expected_component_name,
+                )
+                all_components_ok = False
+        elif not component_instances:
             logger.warning(
                 "_refresh_data_link_status: data_link_name->[%s],component kind->[%s] has no instance, skip",
                 data_link_name,

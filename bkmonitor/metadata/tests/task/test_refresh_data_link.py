@@ -291,7 +291,12 @@ def test_refresh_graph_link_status_skips_local_binding(mocker):
     assert models.GraphRelationBindingConfig.objects.get(pk=graph_binding.pk).status == "creating"
 
 
-def _create_graph_link_with_missing_vm_databus():
+def _create_graph_status_link(
+    *,
+    create_vm_databus: bool = False,
+    create_graph_result_table: bool = True,
+    create_graph_binding: bool = True,
+):
     data_link_name = "bkm_graph_databus_status_link"
     vm_databus_name = "graph_status_missing_vm_databus"
     graph_databus_name = "graph_status_graph_databus"
@@ -320,13 +325,14 @@ def _create_graph_link_with_missing_vm_databus():
         name="graph_status_vm_rt",
         bk_biz_id=1001,
     )
-    models.ResultTableConfig.objects.create(
-        namespace="bkmonitor",
-        status="creating",
-        data_link_name=data_link_name,
-        name="graph_status_graph_rt",
-        bk_biz_id=1001,
-    )
+    if create_graph_result_table:
+        models.ResultTableConfig.objects.create(
+            namespace="bkmonitor",
+            status="creating",
+            data_link_name=data_link_name,
+            name="graph_status_graph_rt",
+            bk_biz_id=1001,
+        )
     models.VMStorageBindingConfig.objects.create(
         namespace="bkmonitor",
         name="graph_status_vm_binding",
@@ -344,6 +350,14 @@ def _create_graph_link_with_missing_vm_databus():
         data_link_name=data_link_name,
         bk_biz_id=1001,
     )
+    if create_vm_databus:
+        models.DataBusConfig.objects.create(
+            namespace="bkmonitor",
+            name=vm_databus_name,
+            data_link_name=data_link_name,
+            status="creating",
+            bk_biz_id=1001,
+        )
     models.GraphDataBusConfig.objects.create(
         namespace="bkmonitor",
         name=graph_databus_name,
@@ -354,27 +368,28 @@ def _create_graph_link_with_missing_vm_databus():
         bk_data_id=90002,
         sink_names=["SurrealDBBinding:graph_status_surreal_binding"],
     )
-    models.GraphRelationBindingConfig.objects.create(
-        namespace="bkmonitor",
-        name="graph_status_binding_config",
-        data_link_name=data_link_name,
-        bkbase_result_table_name="graph_status_vm_rt",
-        graph_result_table_name="graph_status_graph_rt",
-        vm_storage_binding_name="graph_status_vm_binding",
-        vm_databus_name=vm_databus_name,
-        surrealdb_binding_name="graph_status_surreal_binding",
-        graph_databus_name=graph_databus_name,
-        write_mode=models.GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
-        status="creating",
-        bk_biz_id=1001,
-    )
+    if create_graph_binding:
+        models.GraphRelationBindingConfig.objects.create(
+            namespace="bkmonitor",
+            name="graph_status_binding_config",
+            data_link_name=data_link_name,
+            bkbase_result_table_name="graph_status_vm_rt",
+            graph_result_table_name="graph_status_graph_rt",
+            vm_storage_binding_name="graph_status_vm_binding",
+            vm_databus_name=vm_databus_name,
+            surrealdb_binding_name="graph_status_surreal_binding",
+            graph_databus_name=graph_databus_name,
+            write_mode=models.GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
+            status="creating",
+            bk_biz_id=1001,
+        )
     assert models.DataBusConfig.objects.filter(name=graph_databus_name).exists()
     return data_link_name, vm_databus_name, graph_databus_name
 
 
 @pytest.mark.django_db(databases="__all__")
 def test_refresh_graph_link_status_does_not_count_graph_databus_as_vm(mocker):
-    data_link_name, vm_databus_name, graph_databus_name = _create_graph_link_with_missing_vm_databus()
+    data_link_name, vm_databus_name, graph_databus_name = _create_graph_status_link()
 
     status_mock = mocker.patch("metadata.task.tasks.get_data_link_component_status", return_value="Ok")
     _refresh_data_link_status(models.BkBaseResultTable.objects.get(data_link_name=data_link_name))
@@ -390,8 +405,41 @@ def test_refresh_graph_link_status_does_not_count_graph_databus_as_vm(mocker):
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_refresh_graph_link_status_requires_each_result_table(mocker):
+    data_link_name, _, _ = _create_graph_status_link(
+        create_vm_databus=True,
+        create_graph_result_table=False,
+    )
+
+    status_mock = mocker.patch("metadata.task.tasks.get_data_link_component_status", return_value="Ok")
+    _refresh_data_link_status(models.BkBaseResultTable.objects.get(data_link_name=data_link_name))
+
+    queried_result_table_names = [
+        call.kwargs["component_name"]
+        for call in status_mock.call_args_list
+        if call.kwargs["kind"] == models.ResultTableConfig.kind
+    ]
+    assert "graph_status_vm_rt" in queried_result_table_names
+    assert "graph_status_graph_rt" not in queried_result_table_names
+    assert models.BkBaseResultTable.objects.get(data_link_name=data_link_name).status == "Pending"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_refresh_graph_link_status_requires_graph_binding(mocker):
+    data_link_name, _, _ = _create_graph_status_link(
+        create_vm_databus=True,
+        create_graph_binding=False,
+    )
+
+    mocker.patch("metadata.task.tasks.get_data_link_component_status", return_value="Ok")
+    _refresh_data_link_status(models.BkBaseResultTable.objects.get(data_link_name=data_link_name))
+
+    assert models.BkBaseResultTable.objects.get(data_link_name=data_link_name).status == "Pending"
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_get_bkdata_status_does_not_count_graph_databus_as_vm(mocker):
-    data_link_name, vm_databus_name, graph_databus_name = _create_graph_link_with_missing_vm_databus()
+    data_link_name, vm_databus_name, graph_databus_name = _create_graph_status_link()
     mocker.patch(
         "metadata.models.data_link.service.get_data_link_component_config",
         return_value={"status": {"phase": "OK"}},
@@ -414,3 +462,43 @@ def test_get_bkdata_status_does_not_count_graph_databus_as_vm(mocker):
     ]
     assert len(graph_databus_statuses) == 1
     assert graph_databus_statuses[0].exists
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_get_bkdata_status_requires_each_graph_result_table(mocker):
+    data_link_name, _, _ = _create_graph_status_link(
+        create_vm_databus=True,
+        create_graph_result_table=False,
+    )
+    mocker.patch(
+        "metadata.models.data_link.service.get_data_link_component_config",
+        return_value={"status": {"phase": "OK"}},
+    )
+
+    bkdata_status = get_bkdata_status("system", data_link_name)
+
+    assert not bkdata_status.finished
+    assert "Name:graph_status_graph_rt配置不存在" in bkdata_status.message
+    missing_graph_rt_status = next(
+        status
+        for status in bkdata_status.component_statuses
+        if status.kind == models.ResultTableConfig.kind and status.name == "graph_status_graph_rt"
+    )
+    assert not missing_graph_rt_status.exists
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_get_bkdata_status_requires_graph_binding(mocker):
+    data_link_name, _, _ = _create_graph_status_link(
+        create_vm_databus=True,
+        create_graph_binding=False,
+    )
+    mocker.patch(
+        "metadata.models.data_link.service.get_data_link_component_config",
+        return_value={"status": {"phase": "OK"}},
+    )
+
+    bkdata_status = get_bkdata_status("system", data_link_name)
+
+    assert not bkdata_status.finished
+    assert models.GraphRelationBindingConfig.kind in bkdata_status.message

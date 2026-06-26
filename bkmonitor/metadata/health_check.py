@@ -43,7 +43,7 @@ from metadata.models.data_link.constants import (
     DataLinkResourceStatus,
 )
 from metadata.models.data_link.data_link import DataLink
-from metadata.models.data_link.data_link_configs import DataBusConfig, GraphDataBusConfig, GraphRelationBindingConfig
+from metadata.models.data_link.data_link_configs import GraphRelationBindingConfig
 from metadata.models.data_link.service import get_data_id_v2
 from metadata.models.data_link.utils import compose_bkdata_data_id_name
 from metadata.models.space.constants import (
@@ -213,17 +213,13 @@ class BkDataStatus(BaseModel):
     finished: bool = Field(description="是否检查完成", default=False)
 
 
-def _get_graph_component_name_filter(
+def _get_graph_component_name_filters(
     component_cls: type,
     graph_binding: GraphRelationBindingConfig | None,
-) -> str | None:
+) -> list[str]:
     if not graph_binding:
-        return None
-    if component_cls is DataBusConfig:
-        return graph_binding.vm_databus_component_name
-    if component_cls is GraphDataBusConfig:
-        return graph_binding.graph_databus_component_name
-    return None
+        return []
+    return graph_binding.get_expected_component_names(component_cls)
 
 
 def get_bkdata_status(bk_tenant_id: str, data_link_name: str, with_detail: bool = False) -> BkDataStatus:
@@ -256,24 +252,33 @@ def get_bkdata_status(bk_tenant_id: str, data_link_name: str, with_detail: bool 
             namespace=datalink.namespace,
             data_link_name=data_link_name,
         ).first()
+        if not graph_binding:
+            component_status = DataLinkComponentStatus(name=data_link_name, kind=GraphRelationBindingConfig.kind)
+            datalink_status.component_statuses.append(component_status)
+            datalink_status.message += (
+                f"数据链路组件 Kind:{GraphRelationBindingConfig.kind} Name:{data_link_name}配置不存在\n"
+            )
+            status_ok = False
 
     for component_cls in datalink.get_related_component_classes():
         if component_cls is GraphRelationBindingConfig:
             continue
         components = component_cls.objects.filter(data_link_name=data_link_name, bk_tenant_id=bk_tenant_id)
-        expected_component_name = _get_graph_component_name_filter(component_cls, graph_binding)
-        if expected_component_name:
-            components = components.filter(name=expected_component_name)
+        expected_component_names = _get_graph_component_name_filters(component_cls, graph_binding)
+        if expected_component_names:
+            components = components.filter(name__in=expected_component_names)
 
         component_list = list(components)
-        if expected_component_name and not component_list:
+        existing_component_names = {component.name for component in component_list}
+        for expected_component_name in expected_component_names:
+            if expected_component_name in existing_component_names:
+                continue
             component_status = DataLinkComponentStatus(name=expected_component_name, kind=component_cls.kind)
             datalink_status.component_statuses.append(component_status)
             datalink_status.message += (
                 f"数据链路组件 Kind:{component_cls.kind} Name:{expected_component_name}配置不存在\n"
             )
             status_ok = False
-            continue
 
         for component in component_list:
             component_status = DataLinkComponentStatus(name=component.name, kind=component.kind)
