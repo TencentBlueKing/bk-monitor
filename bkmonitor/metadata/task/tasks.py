@@ -823,6 +823,13 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
     else:
         components = models.DataLink.STRATEGY_RELATED_COMPONENTS.get(data_link_strategy) or []
     components = [component for component in components if component is not models.GraphRelationBindingConfig]
+    graph_binding = None
+    if data_link_strategy == models.DataLink.GRAPH_RELATION_TIME_SERIES:
+        graph_binding = models.GraphRelationBindingConfig.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            namespace=namespace,
+            data_link_name=data_link_name,
+        ).first()
     all_components_ok = True
 
     # 4. 遍历链路关联的所有类型资源；
@@ -830,8 +837,16 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
     # 各自复用 legacy name、互不相同，此处改为按 (bk_tenant_id, namespace, data_link_name) 过滤该 kind
     # 下属于本链路的所有实例并逐条刷新。非复用链路同样兼容：三者同名时按 data_link_name 过滤一样命中。
     for component in components:
+        component_queryset = component.objects.filter(
+            bk_tenant_id=bk_tenant_id, namespace=namespace, data_link_name=data_link_name
+        )
+        if graph_binding and component is models.DataBusConfig:
+            component_queryset = component_queryset.filter(name=graph_binding.vm_databus_component_name)
+        elif graph_binding and component is models.GraphDataBusConfig:
+            component_queryset = component_queryset.filter(name=graph_binding.graph_databus_component_name)
+
         component_instances = list(
-            component.objects.filter(bk_tenant_id=bk_tenant_id, namespace=namespace, data_link_name=data_link_name)
+            component_queryset
         )
         if not component_instances:
             logger.warning(
