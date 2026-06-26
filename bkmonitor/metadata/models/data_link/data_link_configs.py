@@ -832,6 +832,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
     bk_data_id = models.IntegerField(verbose_name="数据源ID", default=0)
     sink_names = models.JSONField(verbose_name="处理配置列表", default=list, help_text="格式为kind:name，便于检索")
     consumer_group = models.CharField(verbose_name="Consumer Group", max_length=255, default="", blank=True)
+    data_link_strategy = models.CharField(verbose_name="数据链路策略标记", max_length=64, default="", blank=True)
 
     class Meta:
         verbose_name = "清洗任务配置"
@@ -892,7 +893,12 @@ class DataBusConfig(DataLinkResourceConfigBase):
                 "tenant": "{{ tenant }}",
                 {% endif %}
                 "namespace": "{{namespace}}",
-                "labels": {"bk_biz_id": "{{bk_biz_id}}"}
+                "labels": {
+                    "bk_biz_id": "{{bk_biz_id}}"
+                    {% if data_link_strategy %},
+                    "bkm_data_link_strategy": "{{data_link_strategy}}"
+                    {% endif %}
+                }
             },
             "spec": {
                 "maintainers": {{maintainers}},
@@ -934,6 +940,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "transform": json.dumps(transform),
             "maintainers": json.dumps(maintainer),
             "consumer_group": json.dumps(self.consumer_group) if self.consumer_group else None,
+            "data_link_strategy": self.data_link_strategy,
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
@@ -959,7 +966,12 @@ class DataBusConfig(DataLinkResourceConfigBase):
                 "tenant": "{{ tenant }}",
                 {% endif %}
                 "namespace": "{{namespace}}",
-                "labels": {"bk_biz_id": "{{bk_biz_id}}"}
+                "labels": {
+                    "bk_biz_id": "{{bk_biz_id}}"
+                    {% if data_link_strategy %},
+                    "bkm_data_link_strategy": "{{data_link_strategy}}"
+                    {% endif %}
+                }
             },
             "spec": {
                 "maintainers": {{maintainers}},
@@ -1000,6 +1012,7 @@ class DataBusConfig(DataLinkResourceConfigBase):
             "rules": json.dumps(rules),
             "data_id_name": self.data_id_name,
             "consumer_group": json.dumps(self.consumer_group) if self.consumer_group else None,
+            "data_link_strategy": self.data_link_strategy,
         }
 
         # 现阶段仅在多租户模式下添加tenant字段
@@ -1484,7 +1497,12 @@ class GraphDataBusConfig(DataBusConfig):
                 "tenant": "{{ tenant }}",
                 {% endif %}
                 "namespace": "{{namespace}}",
-                "labels": {"bk_biz_id": "{{bk_biz_id}}"}
+                "labels": {
+                    "bk_biz_id": "{{bk_biz_id}}"
+                    {% if data_link_strategy %},
+                    "bkm_data_link_strategy": "{{data_link_strategy}}"
+                    {% endif %}
+                }
             },
             "spec": {
                 "maintainers": {{maintainers}},
@@ -1516,6 +1534,7 @@ class GraphDataBusConfig(DataBusConfig):
             "data_id_name": self.data_id_name,
             "maintainers": json.dumps(maintainer),
             "consumer_group": json.dumps(self.consumer_group) if self.consumer_group else None,
+            "data_link_strategy": self.data_link_strategy,
         }
 
         if settings.ENABLE_MULTI_TENANT_MODE:

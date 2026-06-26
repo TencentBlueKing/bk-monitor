@@ -593,6 +593,7 @@ def _get_bkbase_components_config(
             extra_config["data_id_name"] = spec["sources"][0]["name"]
             extra_config["sink_names"] = sink_names
             extra_config["consumer_group"] = spec.get("consumerGroup", "")
+            extra_config["data_link_strategy"] = labels.get("bkm_data_link_strategy", "")
         case DataLinkKind.BASEREPORTSINK.value:
             vm_storage_binding_names = []
             for mapping in spec.get("mappings", []):

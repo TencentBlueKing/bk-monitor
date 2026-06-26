@@ -3663,6 +3663,94 @@ def test_rebuild_bkbase_v4_datalink_relation_recognizes_vm_only_graph_dry_run():
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_rebuild_bkbase_v4_datalink_relation_recognizes_vm_only_graph_marker_without_bkbase_rt():
+    table_id = "1001_bkmonitor_time_series_60211.__default__"
+    data_id_name = "graph_vm_only_marker_data"
+    bkbase_vmrt_id = "1001_graph_vm_only_marker_rt"
+    models.DataSource.objects.create(
+        bk_data_id=60211,
+        data_name=data_id_name,
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config="bk_standard_v2_time_series",
+        is_custom_source=False,
+        bk_tenant_id="system",
+    )
+    models.DataSourceResultTable.objects.create(
+        bk_data_id=60211,
+        table_id=table_id,
+        bk_tenant_id="system",
+    )
+    models.DataIdConfig.objects.create(
+        name=data_id_name,
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1001,
+        bk_data_id=60211,
+    )
+    models.ClusterInfo.objects.create(
+        cluster_name="vm-marker",
+        cluster_type=models.ClusterInfo.TYPE_VM,
+        domain_name="marker.vm",
+        port=9090,
+        description="",
+        cluster_id=300101,
+        is_default_cluster=True,
+        version="2.x",
+        bk_tenant_id="system",
+    )
+    models.ResultTableConfig.objects.create(
+        name="graph_vm_only_marker_rt",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1001,
+        bkbase_table_id=bkbase_vmrt_id,
+    )
+    models.VMStorageBindingConfig.objects.create(
+        name="graph_vm_only_marker_binding",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1001,
+        bkbase_result_table_name="graph_vm_only_marker_rt",
+        vm_cluster_name="vm-marker",
+        table_id="",
+    )
+    models.DataBusConfig.objects.create(
+        name="graph_vm_only_marker_databus",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1001,
+        data_id_name=data_id_name,
+        bk_data_id=60211,
+        sink_names=[f"{DataLinkKind.VMSTORAGEBINDING.value}:graph_vm_only_marker_binding"],
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+    )
+
+    rebuild_bkbase_v4_datalink_relation(bk_tenant_id="system", namespace="bkmonitor", dry_run=False)
+
+    data_link = DataLink.objects.get()
+    assert data_link.data_link_strategy == DataLink.GRAPH_RELATION_TIME_SERIES
+    assert data_link.bk_data_id == 60211
+    assert data_link.table_ids == [table_id]
+    graph_binding = GraphRelationBindingConfig.objects.get(data_link_name=data_link.data_link_name)
+    assert graph_binding.write_mode == GraphRelationBindingConfig.WRITE_MODE_VM
+    assert graph_binding.vm_storage_binding_name == "graph_vm_only_marker_binding"
+    assert graph_binding.vm_databus_name == "graph_vm_only_marker_databus"
+    assert graph_binding.bkbase_result_table_name == "graph_vm_only_marker_rt"
+    assert graph_binding.graph_result_table_name == ""
+    assert DataBusConfig.objects.get(name="graph_vm_only_marker_databus").data_link_strategy == (
+        DataLink.GRAPH_RELATION_TIME_SERIES
+    )
+    bkbase_rt = BkBaseResultTable.objects.get(data_link_name=data_link.data_link_name)
+    assert bkbase_rt.bkbase_data_name == data_id_name
+    assert bkbase_rt.monitor_table_id == table_id
+    assert bkbase_rt.storage_type == models.ClusterInfo.TYPE_VM
+    assert bkbase_rt.storage_cluster_id == 300101
+    assert bkbase_rt.bkbase_rt_name == "graph_vm_only_marker_rt"
+    assert bkbase_rt.bkbase_table_id == bkbase_vmrt_id
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_rebuild_graph_relation_binding_uses_short_name_for_long_databus():
     table_id = "1001_bkmonitor_time_series_60202.__default__"
     data_id_name = "graph_long_databus_data"
@@ -3742,6 +3830,17 @@ def test_rebuild_graph_relation_merges_siblings_without_prefilled_table_id():
         bk_data_id=60204,
     )
     models.ClusterInfo.objects.create(
+        cluster_name="vm-default",
+        cluster_type=models.ClusterInfo.TYPE_VM,
+        domain_name="default.vm",
+        port=9090,
+        description="",
+        cluster_id=300000,
+        is_default_cluster=True,
+        version="2.x",
+        bk_tenant_id="system",
+    )
+    models.ClusterInfo.objects.create(
         cluster_name="surreal-default",
         cluster_type=models.ClusterInfo.TYPE_SURREALDB,
         domain_name="default.surrealdb",
@@ -3808,6 +3907,13 @@ def test_rebuild_graph_relation_merges_siblings_without_prefilled_table_id():
     assert graph_binding.surrealdb_binding_name == "graph_surreal_binding"
     assert graph_binding.graph_databus_name == "graph_surreal_databus"
     assert graph_binding.table_id == table_id
+    bkbase_rt = BkBaseResultTable.objects.get(data_link_name=graph_binding.data_link_name)
+    assert bkbase_rt.bkbase_data_name == data_id_name
+    assert bkbase_rt.monitor_table_id == table_id
+    assert bkbase_rt.storage_type == models.ClusterInfo.TYPE_VM
+    assert bkbase_rt.storage_cluster_id == 300000
+    assert bkbase_rt.bkbase_rt_name == "graph_vm_rt"
+    assert bkbase_rt.bkbase_table_id == "bkbase_graph_rt"
     surrealdb_storage = models.SurrealDBStorage.objects.get(table_id=table_id, bk_tenant_id="system")
     assert surrealdb_storage.storage_cluster_id == 300001
     assert surrealdb_storage.table_type == "normal"
@@ -3819,6 +3925,115 @@ def test_rebuild_graph_relation_merges_siblings_without_prefilled_table_id():
         cluster_id=300001,
     )
     assert storage_record.is_current is True
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_rebuild_graph_relation_fallback_stores_monitor_data_id_on_sibling_databuses():
+    monitor_data_id = 60212
+    bkbase_data_id = 70212
+    table_id = "1001_bkmonitor_time_series_60212.__default__"
+    vm_bkbase_table_id = "1001_graph_fallback_rt"
+    data_id_name = "graph_fallback_data"
+    models.DataSource.objects.create(
+        bk_data_id=monitor_data_id,
+        data_name=data_id_name,
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config="bk_standard_v2_time_series",
+        is_custom_source=False,
+        bk_tenant_id="system",
+    )
+    models.DataSourceResultTable.objects.create(
+        bk_data_id=monitor_data_id,
+        table_id=table_id,
+        bk_tenant_id="system",
+    )
+    models.AccessVMRecord.objects.create(
+        result_table_id=table_id,
+        bk_base_data_id=bkbase_data_id,
+        bk_base_data_name=data_id_name,
+        vm_result_table_id=vm_bkbase_table_id,
+        vm_cluster_id=300111,
+        storage_cluster_id=300111,
+        bk_tenant_id="system",
+    )
+    models.DataIdConfig.objects.create(
+        name=data_id_name,
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1001,
+        bk_data_id=bkbase_data_id,
+    )
+    models.ClusterInfo.objects.create(
+        cluster_name="surreal-fallback",
+        cluster_type=models.ClusterInfo.TYPE_SURREALDB,
+        domain_name="fallback.surrealdb",
+        port=8000,
+        description="",
+        cluster_id=300112,
+        is_default_cluster=True,
+        version="2.x",
+        bk_tenant_id="system",
+    )
+    models.ResultTableConfig.objects.create(
+        name="graph_fallback_rt",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1001,
+        bkbase_table_id=vm_bkbase_table_id,
+    )
+    models.ResultTableConfig.objects.create(
+        name="graph_fallback_rt_graph",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1001,
+        bkbase_table_id="1001_graph_fallback_rt_graph",
+    )
+    models.VMStorageBindingConfig.objects.create(
+        name="graph_fallback_vm_binding",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1001,
+        bkbase_result_table_name="graph_fallback_rt",
+        vm_cluster_name="vm-fallback",
+    )
+    models.SurrealDBBindingConfig.objects.create(
+        name="graph_fallback_surreal_binding",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1001,
+        bkbase_result_table_name="graph_fallback_rt_graph",
+        surrealdb_cluster_name="surreal-fallback",
+    )
+    for databus_name, sink_kind, sink_name in (
+        ("graph_fallback_vm_databus", DataLinkKind.VMSTORAGEBINDING.value, "graph_fallback_vm_binding"),
+        (
+            "graph_fallback_surreal_databus",
+            DataLinkKind.SURREALDBBINDING.value,
+            "graph_fallback_surreal_binding",
+        ),
+    ):
+        models.DataBusConfig.objects.create(
+            name=databus_name,
+            namespace="bkmonitor",
+            bk_tenant_id="system",
+            bk_biz_id=1001,
+            data_id_name=data_id_name,
+            bk_data_id=bkbase_data_id,
+            sink_names=[f"{sink_kind}:{sink_name}"],
+        )
+
+    rebuild_bkbase_v4_datalink_relation(bk_tenant_id="system", namespace="bkmonitor", dry_run=False)
+
+    graph_binding = GraphRelationBindingConfig.objects.get()
+    assert graph_binding.write_mode == GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB
+    assert DataLink.objects.get().bk_data_id == monitor_data_id
+    assert set(
+        DataBusConfig.objects.filter(data_link_name=graph_binding.data_link_name).values_list("bk_data_id", flat=True)
+    ) == {monitor_data_id}
+    bkbase_rt = BkBaseResultTable.objects.get(data_link_name=graph_binding.data_link_name)
+    assert bkbase_rt.monitor_table_id == table_id
+    assert bkbase_rt.storage_cluster_id == 300111
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -3910,7 +4125,14 @@ def test_get_bkbase_components_config_extracts_databus_consumer_group():
     """同步 Databus 时，应反填 BKBase spec.consumerGroup。"""
     config = {
         "kind": "Databus",
-        "metadata": {"name": "l_1575783", "namespace": "bkmonitor", "labels": {"bk_biz_id": "7"}},
+        "metadata": {
+            "name": "l_1575783",
+            "namespace": "bkmonitor",
+            "labels": {
+                "bk_biz_id": "7",
+                "bkm_data_link_strategy": DataLink.GRAPH_RELATION_TIME_SERIES,
+            },
+        },
         "spec": {
             "sinks": [{"kind": "ElasticSearchBinding", "name": "l_1575783"}],
             "sources": [{"kind": "DataId", "name": "l_1575783"}],
@@ -3930,6 +4152,7 @@ def test_get_bkbase_components_config_extracts_databus_consumer_group():
     assert extra_config["data_id_name"] == "l_1575783"
     assert extra_config["sink_names"] == ["ElasticSearchBinding:l_1575783"]
     assert extra_config["consumer_group"] == "bkmonitorv3_transfer0bkmonitor_15757830"
+    assert extra_config["data_link_strategy"] == DataLink.GRAPH_RELATION_TIME_SERIES
 
 
 def test_get_bkbase_components_config_defaults_databus_consumer_group():
@@ -3952,6 +4175,7 @@ def test_get_bkbase_components_config_defaults_databus_consumer_group():
     )
 
     assert extra_config["consumer_group"] == ""
+    assert extra_config["data_link_strategy"] == ""
 
 
 def test_should_update_bkbase_component_field_only_allows_empty_graph_definitions():
@@ -6471,12 +6695,28 @@ def test_graph_relation_compose_configs_accepts_consumer_group(create_or_delete_
     assert vm_databus_payload["spec"]["consumerGroup"] == "graph_consumer_group"
     assert graph_databus_payload["spec"]["consumerGroup"] == "graph_consumer_group"
     assert (
+        vm_databus_payload["metadata"]["labels"]["bkm_data_link_strategy"]
+        == DataLink.GRAPH_RELATION_TIME_SERIES
+    )
+    assert (
+        graph_databus_payload["metadata"]["labels"]["bkm_data_link_strategy"]
+        == DataLink.GRAPH_RELATION_TIME_SERIES
+    )
+    assert (
         DataBusConfig.objects.get(name=graph_binding.vm_databus_component_name).consumer_group
         == "graph_consumer_group"
     )
     assert (
+        DataBusConfig.objects.get(name=graph_binding.vm_databus_component_name).data_link_strategy
+        == DataLink.GRAPH_RELATION_TIME_SERIES
+    )
+    assert (
         GraphDataBusConfig.objects.get(name=graph_binding.graph_databus_component_name).consumer_group
         == "graph_consumer_group"
+    )
+    assert (
+        GraphDataBusConfig.objects.get(name=graph_binding.graph_databus_component_name).data_link_strategy
+        == DataLink.GRAPH_RELATION_TIME_SERIES
     )
 
 

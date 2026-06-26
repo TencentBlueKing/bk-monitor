@@ -738,6 +738,8 @@ def _is_graph_relation_rebuild(
     sink_map: dict[str, list[str]],
     rt_instances: Sequence[ResultTableConfig],
 ) -> bool:
+    if databus.data_link_strategy == DataLink.GRAPH_RELATION_TIME_SERIES:
+        return True
     if DataLinkKind.SURREALDBBINDING.value in sink_map:
         return True
     if DataLinkKind.VMSTORAGEBINDING.value not in sink_map:
@@ -760,6 +762,80 @@ def _is_graph_relation_rebuild(
         data_link_name__in=existing_datalink_names,
         data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
     ).exists()
+
+
+def _find_rebuild_result_table(
+    rt_instances: Sequence[ResultTableConfig],
+    binding: VMStorageBindingConfig | SurrealDBBindingConfig | None,
+) -> ResultTableConfig | None:
+    if not binding or not binding.bkbase_result_table_name:
+        return None
+    return next((rt for rt in rt_instances if rt.name == binding.bkbase_result_table_name), None)
+
+
+def _get_graph_vm_storage_cluster_id(
+    binding: VMStorageBindingConfig,
+    table_id: str,
+    bkbase_table_id: str,
+) -> int | None:
+    record = AccessVMRecord.objects.filter(
+        bk_tenant_id=binding.bk_tenant_id,
+        result_table_id=table_id,
+        vm_result_table_id=bkbase_table_id,
+    ).first()
+    if record:
+        return record.vm_cluster_id or record.storage_cluster_id
+
+    cluster = ClusterInfo.objects.filter(
+        bk_tenant_id=binding.bk_tenant_id,
+        cluster_type=ClusterInfo.TYPE_VM,
+        cluster_name=binding.vm_cluster_name,
+    ).first()
+    return cluster.cluster_id if cluster else None
+
+
+def _get_graph_surrealdb_storage_cluster_id(binding: SurrealDBBindingConfig) -> int | None:
+    cluster = ClusterInfo.objects.filter(
+        bk_tenant_id=binding.bk_tenant_id,
+        cluster_type=ClusterInfo.TYPE_SURREALDB,
+        cluster_name=binding.surrealdb_cluster_name,
+    ).first()
+    return cluster.cluster_id if cluster else None
+
+
+def _build_graph_bkbase_result_table(
+    data_link_name: str,
+    databus: DataBusConfig,
+    rt_instances: Sequence[ResultTableConfig],
+    vm_binding: VMStorageBindingConfig | None,
+    surrealdb_binding: SurrealDBBindingConfig | None,
+) -> dict[str, object] | None:
+    binding: VMStorageBindingConfig | SurrealDBBindingConfig | None = vm_binding or surrealdb_binding
+    rt = _find_rebuild_result_table(rt_instances, binding)
+    if not binding or not rt:
+        return None
+
+    table_id = binding.table_id or rt.table_id
+    if not table_id:
+        return None
+
+    storage_type = ClusterInfo.TYPE_VM if vm_binding else ClusterInfo.TYPE_SURREALDB
+    storage_cluster_id = (
+        _get_graph_vm_storage_cluster_id(vm_binding, table_id, rt.bkbase_table_id)
+        if vm_binding
+        else _get_graph_surrealdb_storage_cluster_id(cast(SurrealDBBindingConfig, binding))
+    )
+    return {
+        "bk_tenant_id": databus.bk_tenant_id,
+        "data_link_name": data_link_name,
+        "bkbase_data_name": databus.data_id_name,
+        "storage_type": storage_type,
+        "monitor_table_id": table_id,
+        "storage_cluster_id": storage_cluster_id,
+        "status": DataLinkResourceStatus.OK.value,
+        "bkbase_table_id": rt.bkbase_table_id or f"{rt.datalink_biz_ids.data_biz_id}_{rt.name}",
+        "bkbase_rt_name": rt.name,
+    }
 
 
 def _build_simple_bkbase_result_table(
@@ -1128,6 +1204,23 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
 
     # Step 9: 收集 table_ids（来自 ResultTableConfig.table_id，过滤空值）
     table_ids = [rt.table_id for rt in rt_instances if rt.table_id]
+    graph_bkbase_result_table = None
+    if strategy == DataLink.GRAPH_RELATION_TIME_SERIES:
+        graph_vm_binding = next((i for i in sink_instances if isinstance(i, VMStorageBindingConfig)), None)
+        graph_surrealdb_binding = next((i for i in sink_instances if isinstance(i, SurrealDBBindingConfig)), None)
+        graph_bkbase_result_table = _build_graph_bkbase_result_table(
+            data_link_name=data_link_name,
+            databus=databus,
+            rt_instances=rt_instances,
+            vm_binding=graph_vm_binding,
+            surrealdb_binding=graph_surrealdb_binding,
+        )
+        if graph_bkbase_result_table is None:
+            logger.warning(
+                "rebuild_databus_relation: databus->[%s] cannot build graph BkBaseResultTable, skip",
+                databus_name,
+            )
+            return None
 
     # dry_run 模式：返回关联信息 dict，不写入数据库
     if dry_run:
@@ -1141,6 +1234,7 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
             "components": _serialize_datalink_components(
                 [data_id_config, *rt_instances, *sink_instances, *databus_instances],
             ),
+            **({"bkbase_result_table": graph_bkbase_result_table} if graph_bkbase_result_table else {}),
         }
 
     # Step 10-11: 在事务中批量更新组件 data_link_name 并创建/更新 DataLink 记录
@@ -1161,8 +1255,9 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
         # 更新 DataBusConfig 自身；graph dual-write rebuild 会同时认领 VM/SurrealDB 两条 sibling Databus。
         for databus_instance in databus_instances:
             databus_instance.data_link_name = data_link_name
-            databus_instance.bk_data_id = resolved_bk_data_id
-            databus_instance.save(update_fields=["data_link_name", "bk_data_id"])
+            databus_instance.bk_data_id = data_source.bk_data_id
+            databus_instance.data_link_strategy = strategy if strategy == DataLink.GRAPH_RELATION_TIME_SERIES else ""
+            databus_instance.save(update_fields=["data_link_name", "bk_data_id", "data_link_strategy"])
 
         # 批量更新 sink 组件（按 model 类型分组，减少 DB 操作次数）
         for instance in sink_instances:
@@ -1214,6 +1309,15 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
                     "table_type": getattr(surrealdb_binding, "table_type", "temporary"),
                     "vertices": getattr(surrealdb_binding, "vertices", []),
                     "relations": getattr(surrealdb_binding, "relations", []),
+                },
+            )
+            BkBaseResultTable.objects.update_or_create(
+                bk_tenant_id=databus.bk_tenant_id,
+                data_link_name=data_link_name,
+                defaults={
+                    key: value
+                    for key, value in graph_bkbase_result_table.items()
+                    if key not in {"bk_tenant_id", "data_link_name"}
                 },
             )
 

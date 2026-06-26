@@ -569,6 +569,7 @@ class DataLink(models.Model):
                     "data_id_name": utils.compose_bkdata_data_id_name(data_source.data_name),
                     "bk_data_id": data_source.bk_data_id,
                     "sink_names": [f"{DataLinkKind.SURREALDBBINDING.value}:{surrealdb_binding_name}"],
+                    "data_link_strategy": self.data_link_strategy,
                 },
             )
             graph_databus_ins.apply_consumer_group(consumer_group)
@@ -765,6 +766,7 @@ class DataLink(models.Model):
                         "sink_names": [
                             f"{DataLinkKind.VMSTORAGEBINDING.value}:{graph_binding_ins.vm_binding_component_name}"
                         ],
+                        "data_link_strategy": self.data_link_strategy,
                     },
                 )
                 data_bus_ins.apply_consumer_group(consumer_group)
