@@ -121,6 +121,35 @@ class GetWorkspaceInfoResource(TapdAPIResource):
         workspace_id = serializers.IntegerField(label="项目ID")
 
 
+class GetUserWorkspaceInfoResource(GetWorkspaceInfoResource):
+    """根据项目ID获取项目信息（用户级，Bearer Token）
+
+    与应用级同 endpoint、同参数，仅认证方式不同（Bearer 替代 Basic）。
+    access_token 由调用方传入（从 Redis 解密获取，见 get_tapd_token）。
+    """
+
+    class RequestSerializer(GetWorkspaceInfoResource.RequestSerializer):
+        access_token = serializers.CharField(label="用户态访问令牌", required=True)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.access_token = ""
+
+    def get_headers(self):
+        return {"Authorization": f"Bearer {self.access_token}"}
+
+    def perform_request(self, validated_request_data):
+        access_token = validated_request_data.pop("access_token", "")
+        if not access_token:
+            raise BKAPIError(
+                system_name=self.module_name,
+                url=self.action,
+                result={"message": "access_token is required for user-level workspace info"},
+            )
+        self.access_token = access_token
+        return super().perform_request(validated_request_data)
+
+
 class AddStoryResource(TapdAPIResource):
     """
     新建tapd需求单据
