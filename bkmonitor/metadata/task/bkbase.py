@@ -582,11 +582,18 @@ def _get_bkbase_components_config(
         case DataLinkKind.DORISBINDING.value:
             extra_config["doris_cluster_name"] = spec["storage"]["name"]
             extra_config["bkbase_result_table_name"] = spec["data"]["name"]
+        case DataLinkKind.SURREALDBBINDING.value:
+            extra_config["surrealdb_cluster_name"] = spec["storage"]["name"]
+            extra_config["bkbase_result_table_name"] = spec["data"]["name"]
+            extra_config["table_type"] = spec.get("table_type", "temporary")
+            extra_config["vertices"] = spec.get("vertices", [])
+            extra_config["relations"] = spec.get("relations", [])
         case DataLinkKind.DATABUS.value:
             sink_names = [f"{sink['kind']}:{sink['name']}" for sink in spec["sinks"]]
             extra_config["data_id_name"] = spec["sources"][0]["name"]
             extra_config["sink_names"] = sink_names
             extra_config["consumer_group"] = spec.get("consumerGroup", "")
+            extra_config["data_link_strategy"] = labels.get("bkm_data_link_strategy", "")
         case DataLinkKind.BASEREPORTSINK.value:
             vm_storage_binding_names = []
             for mapping in spec.get("mappings", []):
@@ -639,8 +646,10 @@ def _sync_bkbase_v4_datalink_components(bk_tenant_id: str, namespace: str, kind:
             exists_component = exists_components[base_config["name"]]
             is_updated = False
             for field, value in extra_config.items():
-                # 如果值不为空且与现有值不同，则更新
-                if value and getattr(exists_component, field) != value:
+                if (
+                    _should_update_bkbase_component_field(kind, field, value)
+                    and getattr(exists_component, field) != value
+                ):
                     setattr(exists_component, field, value)
                     is_updated = True
                     update_fields.add(field)
@@ -666,6 +675,14 @@ def _sync_bkbase_v4_datalink_components(bk_tenant_id: str, namespace: str, kind:
     )
 
 
+def _should_update_bkbase_component_field(kind: str, field: str, value: Any) -> bool:
+    if value:
+        return True
+    if kind == DataLinkKind.DATABUS.value and field == "data_link_strategy" and value == "":
+        return True
+    return kind == DataLinkKind.SURREALDBBINDING.value and field in {"vertices", "relations"} and value == []
+
+
 @share_lock(ttl=3600, identify="metadata_sync_bkbase_v4_datalink_components")
 def sync_bkbase_v4_datalink_components():
     """定时同步 V4 链路组件配置"""
@@ -682,6 +699,7 @@ def sync_bkbase_v4_datalink_components():
         DataLinkKind.VMSTORAGEBINDING.value,
         DataLinkKind.ESSTORAGEBINDING.value,
         DataLinkKind.DORISBINDING.value,
+        DataLinkKind.SURREALDBBINDING.value,
         DataLinkKind.DATABUS.value,
         DataLinkKind.DATAID.value,
         DataLinkKind.RESULTTABLE.value,
