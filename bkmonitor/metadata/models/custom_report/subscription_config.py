@@ -21,7 +21,7 @@ from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
 from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig, BkCollectorConfig
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.db.fields import JsonField
-from bkmonitor.utils.new_env import is_biz_id_in_new_env_scope, is_biz_id_need_managed
+from bkmonitor.utils.new_env import is_biz_id_need_managed
 from constants.bk_collector import BkCollectorComp
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
@@ -483,8 +483,6 @@ class CustomReportSubscription(models.Model):
         op_type: str = "add",
         deploy_targets: tuple[str, ...] | list[str] | str = ("node_man", "k8s"),
         dry_run: bool = False,
-        node_man_biz_black_list: list[int | str] | None = None,
-        filter_k8s_new_env_scope: bool = False,
     ):
         """
         指定业务ID更新，或者更新全量业务
@@ -553,23 +551,6 @@ class CustomReportSubscription(models.Model):
             bk_biz_ids,
             key=lambda current_bk_biz_id: (current_bk_biz_id == 0, current_bk_biz_id),
         ):
-            # 业务 0 承载全局聚合配置，不受新环境黑白名单和阈值约束。
-            refresh_node_man = "node_man" in deploy_targets and not (
-                bk_biz_id != 0 and bk_biz_id in (node_man_biz_black_list or [])
-            )
-            refresh_k8s = "k8s" in deploy_targets and (
-                bk_biz_id == 0
-                or not filter_k8s_new_env_scope
-                or is_biz_id_in_new_env_scope(
-                    bk_biz_id,
-                    start_biz_id=settings.NEW_ENV_START_BIZ_ID,
-                    biz_black_list=settings.NEW_ENV_BIZ_BLACK_LIST,
-                    biz_white_list=settings.NEW_ENV_BIZ_WHITE_LIST,
-                )
-            )
-            if not refresh_node_man and not refresh_k8s:
-                continue
-
             # 0业务下发全部配置，其他业务下发指定业务配置
             if bk_biz_id == 0:
                 data_id_configs: list[tuple[dict[str, Any], str]] = list(
@@ -583,7 +564,17 @@ class CustomReportSubscription(models.Model):
                 **cls._summarize_data_id_configs(data_id_configs),
                 "targets": {},
             }
-            if refresh_node_man:
+            if "node_man" in deploy_targets:
+                # 业务黑名单
+                if bk_biz_id in settings.NEW_ENV_BIZ_BLACK_LIST:
+                    target_record = {
+                        "action": "dry_run" if dry_run else "refresh",
+                        "result": None if dry_run else True,
+                        "message": "skip refresh custom report config to node_man because business is in black list",
+                    }
+                    detail["targets"]["node_man"] = target_record
+                    continue
+
                 try:
                     # 1. 下发配置（走节点管理下发至主机）
                     target_record = cls._refresh_collect_custom_config_by_biz(
@@ -604,7 +595,17 @@ class CustomReportSubscription(models.Model):
                     logger.exception(f"refresh custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}")
                 detail["targets"]["node_man"] = target_record
 
-            if refresh_k8s:
+            if "k8s" in deploy_targets:
+                # 业务黑白名单
+                if bk_biz_id != 0 and not is_biz_id_need_managed(bk_biz_id):
+                    target_record = {
+                        "action": "dry_run" if dry_run else "refresh",
+                        "result": None if dry_run else True,
+                        "message": "skip refresh custom report config to k8s because business is not managed",
+                    }
+                    detail["targets"]["k8s"] = target_record
+                    continue
+
                 target_record = {
                     "action": "dry_run" if dry_run else "refresh",
                     "result": None if dry_run else True,
