@@ -38,6 +38,7 @@ from monitor_web.data_migrate.data_rebuilder import (
 from monitor_web.data_migrate.subscription_tasks import stop_biz_subscription_tasks
 from monitor_web.data_migrate import (
     apply_auto_increment_from_directory,
+    disable_biz_bk_collector_subscription_auto_inspection,
     disable_models_in_directory,
     export_auto_increment_to_directory,
     export_biz_data_to_directory,
@@ -130,6 +131,9 @@ class Command(BaseCommand):
             "  为业务下 proxy 安装 bk-collector:\n"
             "    python manage.py data_migrate install-biz-bk-collector --bk-tenant-id tencent --bk-biz-ids 18901 --operator admin\n"
             "\n"
+            "  禁用业务下 bk-collector 相关订阅自动巡检并加入新环境业务黑名单:\n"
+            "    python manage.py data_migrate disable-biz-bk-collector-subscription-checks --bk-tenant-id system --bk-biz-ids 18901 --operator admin\n"
+            "\n"
             "  停止业务下 proxy 上的 bk-collector:\n"
             "    python manage.py data_migrate stop-biz-bk-collector --bk-tenant-id tencent --bk-biz-ids 18901 --operator admin\n"
             "\n"
@@ -154,6 +158,7 @@ class Command(BaseCommand):
                 "restore-disabled-models",
                 "stop-biz-subscription-tasks",
                 "install-biz-bk-collector",
+                "disable-biz-bk-collector-subscription-checks",
                 "stop-biz-bk-collector",
                 "refresh-biz-bk-collector-configs",
             ],
@@ -248,7 +253,8 @@ class Command(BaseCommand):
             default="system",
             help=(
                 "操作人；仅 stop-biz-subscription-tasks、install-biz-bk-collector、"
-                "stop-biz-bk-collector、refresh-biz-bk-collector-configs 动作需要"
+                "disable-biz-bk-collector-subscription-checks、stop-biz-bk-collector、"
+                "refresh-biz-bk-collector-configs 动作需要"
             ),
         )
         parser.add_argument(
@@ -256,7 +262,8 @@ class Command(BaseCommand):
             action="store_true",
             help=(
                 "仅预览不执行；仅 stop-biz-subscription-tasks、install-biz-bk-collector、"
-                "stop-biz-bk-collector、refresh-biz-bk-collector-configs 动作需要"
+                "disable-biz-bk-collector-subscription-checks、stop-biz-bk-collector、"
+                "refresh-biz-bk-collector-configs 动作需要"
             ),
         )
         parser.add_argument(
@@ -318,6 +325,7 @@ class Command(BaseCommand):
             "restore-disabled-models": self._handle_restore_disabled_models,
             "stop-biz-subscription-tasks": self._handle_stop_biz_subscription_tasks,
             "install-biz-bk-collector": self._handle_install_biz_bk_collector,
+            "disable-biz-bk-collector-subscription-checks": (self._handle_disable_biz_bk_collector_subscription_checks),
             "stop-biz-bk-collector": self._handle_stop_biz_bk_collector,
             "refresh-biz-bk-collector-configs": self._handle_refresh_biz_bk_collector_configs,
         }
@@ -606,6 +614,23 @@ class Command(BaseCommand):
             result,
             success_message="install biz bk-collector completed",
             warning_message="install biz bk-collector completed with failures",
+        )
+
+    def _handle_disable_biz_bk_collector_subscription_checks(self, options) -> None:
+        action_name = "disable-biz-bk-collector-subscription-checks"
+        bk_tenant_id = self._load_bk_tenant_id(options.get("bk_tenant_id"), action_name=action_name)
+        bk_biz_ids = self._load_positive_biz_ids(options.get("bk_biz_ids"), action_name=action_name)
+        operator = self._load_operator(options.get("operator"), action_name=action_name)
+        result = disable_biz_bk_collector_subscription_auto_inspection(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_ids=bk_biz_ids,
+            operator=operator,
+            dry_run=options.get("dry_run", False),
+        )
+        self._write_report_result(
+            result,
+            success_message="disable biz bk-collector subscription checks completed",
+            warning_message="disable biz bk-collector subscription checks completed with failures",
         )
 
     def _handle_stop_biz_bk_collector(self, options) -> None:

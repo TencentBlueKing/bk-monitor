@@ -22,6 +22,7 @@ from django.utils import timezone
 
 from alarm_backends.core.lock.service_lock import share_lock
 from bkmonitor.models import QueryConfigModel
+from bkmonitor.utils.new_env import is_biz_id_in_new_env_scope
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.time_tools import datetime_str_to_datetime
 from bkmonitor.utils.version import compare_versions, get_max_version
@@ -154,8 +155,16 @@ def refresh_custom_report_2_node_man(bk_biz_id=None):
 
         for bk_tenant_id in bk_tenant_ids:
             try:
+                refresh_kwargs = {}
+                if bk_biz_id is None:
+                    refresh_kwargs = {
+                        "node_man_biz_black_list": settings.NEW_ENV_BIZ_BLACK_LIST,
+                        "filter_k8s_new_env_scope": True,
+                    }
                 models.CustomReportSubscription.refresh_collector_custom_conf(
-                    bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id
+                    bk_tenant_id=bk_tenant_id,
+                    bk_biz_id=bk_biz_id,
+                    **refresh_kwargs,
                 )
             except Exception as e:
                 logger.exception(
@@ -179,16 +188,17 @@ def refresh_all_log_config():
     """
     interval = 30
 
-    to_be_refreshed = list(
-        models.LogGroup.objects.filter(is_enable=True, is_need_deploy_collector_config=True).values_list(
-            "log_group_id", flat=True
-        )
-    )
+    log_groups = [
+        log_group
+        for log_group in models.LogGroup.objects.filter(is_enable=True, is_need_deploy_collector_config=True)
+        # 业务 0 是公共配置入口，不能被迁移黑名单跳过。
+        if log_group.bk_biz_id == 0 or log_group.bk_biz_id not in settings.NEW_ENV_BIZ_BLACK_LIST
+    ]
     slug = datetime.datetime.now().minute % interval
-    for index, log_group_id in enumerate(to_be_refreshed):
+    for index, log_group in enumerate(log_groups):
         if index % interval == slug:
-            logger.info(f"[refresh_custom_log_config]: publish log_group_id [{log_group_id}]")
-            refresh_custom_log_config(log_group_id)
+            logger.info(f"[refresh_custom_log_config]: publish log_group_id [{log_group.log_group_id}]")
+            refresh_custom_log_config(log_group.log_group_id)
 
 
 @share_lock()
@@ -197,7 +207,16 @@ def refresh_all_log_config_to_k8s():
     刷新所有自定义日志的 K8s 配置（获取全部数据进行批量调度）
     """
     # 获取所有启用且需要下发 collector 配置的日志组
-    log_groups = list(models.LogGroup.objects.filter(is_enable=True, is_need_deploy_collector_config=True))
+    log_groups = [
+        log_group
+        for log_group in models.LogGroup.objects.filter(is_enable=True, is_need_deploy_collector_config=True)
+        if is_biz_id_in_new_env_scope(
+            log_group.bk_biz_id,
+            start_biz_id=settings.NEW_ENV_START_BIZ_ID,
+            biz_black_list=settings.NEW_ENV_BIZ_BLACK_LIST,
+            biz_white_list=settings.NEW_ENV_BIZ_WHITE_LIST,
+        )
+    ]
     if not log_groups:
         return
 

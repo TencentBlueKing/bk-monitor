@@ -65,7 +65,7 @@ def is_sync_bkcc_space_managed_biz(bk_biz_id: str, start_biz_id: int | None) -> 
     判断当前业务是否由 sync_bkcc_space 接管新增、删除及 V4 内置链路检查。
 
     规则：
-    - 未配置 ``SYNC_BKCC_SPACE_START_BIZ_ID``（``start_biz_id`` 为 ``None``）：全部接管，保持历史行为；
+    - 未配置 ``NEW_ENV_START_BIZ_ID``（``start_biz_id`` 为 ``None``）：全部接管，保持历史行为；
     - 已配置：仅当 ``bk_biz_id`` **严格大于**阈值时才接管，阈值以下（含阈值）的业务交由其它任务/链路管理；
     - ``bk_biz_id`` 无法解析为整数：保守地视为不接管，避免异常数据被误纳入删除链。
 
@@ -163,16 +163,14 @@ def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False, create
     biz_id_name_dict = {str(b.bk_biz_id): b for b in biz_list}
 
     # 只有业务 ID 大于阈值的业务才会被接管新增、删除及 V4 内置链路检查；阈值以下业务交由其它任务/链路管理
-    start_biz_id = settings.SYNC_BKCC_SPACE_START_BIZ_ID
+    start_biz_id = settings.NEW_ENV_START_BIZ_ID
     if start_biz_id in ("", None):
         start_biz_id = None
     else:
         try:
             start_biz_id = int(start_biz_id)
         except (TypeError, ValueError):
-            logger.warning(
-                "sync_bkcc_space: invalid SYNC_BKCC_SPACE_START_BIZ_ID(%s), disable threshold filter", start_biz_id
-            )
+            logger.warning("sync_bkcc_space: invalid NEW_ENV_START_BIZ_ID(%s), disable threshold filter", start_biz_id)
             start_biz_id = None
 
     managed_biz_ids = {biz_id for biz_id in biz_id_name_dict if is_sync_bkcc_space_managed_biz(biz_id, start_biz_id)}

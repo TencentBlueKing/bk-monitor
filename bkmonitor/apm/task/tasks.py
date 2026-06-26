@@ -41,6 +41,7 @@ from apm.models import (
     QpsConfig,
 )
 from apm.utils.report_event import EventReportHelper
+from bkmonitor.utils.new_env import is_biz_id_in_new_env_scope
 from bkmonitor.utils.tenant import set_local_tenant_id
 from constants.apm import TelemetryDataType
 from constants.common import DEFAULT_TENANT_ID
@@ -152,7 +153,12 @@ def datasource_discover_cron():
 def refresh_apm_config():
     # 30分钟刷新一次
     interval = 30
-    to_be_refreshed = list(ApmApplication.objects.filter(is_enabled=True).values_list("bk_biz_id", "app_name"))
+    to_be_refreshed = [
+        application
+        for application in ApmApplication.objects.filter(is_enabled=True).values_list("bk_biz_id", "app_name")
+        # 业务 0 是公共配置入口，不能被迁移黑名单跳过。
+        if application[0] == 0 or application[0] not in settings.NEW_ENV_BIZ_BLACK_LIST
+    ]
     slug = datetime.datetime.now().minute % interval
     for index, application in enumerate(to_be_refreshed):
         bk_biz_id, app_name = application
@@ -166,7 +172,16 @@ def refresh_apm_config_to_k8s():
     刷新所有 APM 应用的 K8s 配置（获取全部数据进行批量调度）
     """
     # 获取所有启用的应用
-    applications = list(ApmApplication.objects.filter(is_enabled=True))
+    applications = [
+        application
+        for application in ApmApplication.objects.filter(is_enabled=True)
+        if is_biz_id_in_new_env_scope(
+            application.bk_biz_id,
+            start_biz_id=settings.NEW_ENV_START_BIZ_ID,
+            biz_black_list=settings.NEW_ENV_BIZ_BLACK_LIST,
+            biz_white_list=settings.NEW_ENV_BIZ_WHITE_LIST,
+        )
+    ]
     if not applications:
         return
 

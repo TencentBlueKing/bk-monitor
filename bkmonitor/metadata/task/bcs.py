@@ -49,14 +49,14 @@ def get_bcs_cluster_id_suffix(cluster_id: str) -> int | None:
 
 def get_discover_start_cluster_id_suffix() -> int | None:
     """获取 discover 任务起始集群 ID 的数字后缀。"""
-    start_cluster_id = settings.BCS_DISCOVER_START_CLUSTER_ID
+    start_cluster_id = settings.NEW_ENV_START_CLUSTER_ID
     if not start_cluster_id:
         return None
 
     start_cluster_id_suffix = get_bcs_cluster_id_suffix(start_cluster_id)
     if start_cluster_id_suffix is None:
         logger.warning(
-            "discover_bcs_clusters: invalid BCS_DISCOVER_START_CLUSTER_ID(%s), disable threshold filter",
+            "discover_bcs_clusters: invalid NEW_ENV_START_CLUSTER_ID(%s), disable threshold filter",
             start_cluster_id,
         )
     return start_cluster_id_suffix
@@ -67,14 +67,14 @@ def is_discover_biz_blacklisted(bk_biz_id: int | str | None) -> bool:
     if bk_biz_id is None:
         return False
 
-    blacklisted_biz_ids = {str(biz_id).strip() for biz_id in settings.BCS_DISCOVER_BCS_CLUSTER_BIZ_BLACK_LIST}
+    blacklisted_biz_ids = {str(biz_id).strip() for biz_id in settings.NEW_ENV_CLUSTER_BLACK_LIST}
     return str(bk_biz_id).strip() in blacklisted_biz_ids
 
 
 def is_discover_biz_whitelisted(bk_biz_id: int | str | None) -> bool:
     """判断业务是否在 BCS 集群自动发现白名单内。
 
-    白名单是起始集群阈值（``BCS_DISCOVER_START_CLUSTER_ID``）的例外：命中白名单的业务，
+    白名单是起始集群阈值（``NEW_ENV_START_CLUSTER_ID``）的例外：命中白名单的业务，
     即使集群 ID 后缀不大于阈值，也会被 discover 任务接管。白名单为空表示无例外。
 
     Args:
@@ -86,7 +86,7 @@ def is_discover_biz_whitelisted(bk_biz_id: int | str | None) -> bool:
     if bk_biz_id is None:
         return False
 
-    whitelisted_biz_ids = {str(biz_id).strip() for biz_id in settings.BCS_DISCOVER_BCS_CLUSTER_BIZ_WHITE_LIST}
+    whitelisted_biz_ids = {str(biz_id).strip() for biz_id in settings.NEW_ENV_CLUSTER_WHITE_LIST}
     return str(bk_biz_id).strip() in whitelisted_biz_ids
 
 
@@ -95,16 +95,16 @@ def is_discover_managed_cluster(cluster_id: str, start_cluster_id_suffix: int | 
     判断当前集群是否由 discover 任务接管新增和删除。
 
     规则（按顺序短路）：
-    - ``bk_biz_id`` 命中 ``BCS_DISCOVER_BCS_CLUSTER_BIZ_BLACK_LIST``：不接管（黑名单优先级最高）；
-    - ``bk_biz_id`` 命中 ``BCS_DISCOVER_BCS_CLUSTER_BIZ_WHITE_LIST``：接管（作为起始集群阈值的例外，
+    - ``bk_biz_id`` 命中 ``NEW_ENV_CLUSTER_BLACK_LIST``：不接管（黑名单优先级最高）；
+    - ``bk_biz_id`` 命中 ``NEW_ENV_CLUSTER_WHITE_LIST``：接管（作为起始集群阈值的例外，
       即使 ``cluster_id`` 后缀不大于阈值也接管）；
-    - 未配置 ``BCS_DISCOVER_START_CLUSTER_ID``（``start_cluster_id_suffix`` 为 ``None``）：全部接管，保持历史行为；
+    - 未配置 ``NEW_ENV_START_CLUSTER_ID``（``start_cluster_id_suffix`` 为 ``None``）：全部接管，保持历史行为；
     - 已配置：仅当 ``cluster_id`` 的数字后缀**严格大于**该阈值时才接管，阈值本身不接管；
     - ``cluster_id`` 无法解析出数字后缀：保守地视为不接管，避免异常数据被误纳入删除链。
 
     Args:
         cluster_id: BCS 集群 ID，形如 ``BCS-K8S-00001``。
-        start_cluster_id_suffix: ``BCS_DISCOVER_START_CLUSTER_ID`` 的数字后缀，``None`` 表示阈值未生效。
+        start_cluster_id_suffix: ``NEW_ENV_START_CLUSTER_ID`` 的数字后缀，``None`` 表示阈值未生效。
         bk_biz_id: 集群所属业务 ID，用于应用业务黑/白名单过滤。
 
     Returns:
@@ -445,9 +445,9 @@ def discover_bcs_clusters():
                     "start_cluster_id:%s,biz_black_list:%s,biz_white_list:%s, skip register",
                     cluster_id,
                     bk_biz_id,
-                    settings.BCS_DISCOVER_START_CLUSTER_ID,
-                    settings.BCS_DISCOVER_BCS_CLUSTER_BIZ_BLACK_LIST,
-                    settings.BCS_DISCOVER_BCS_CLUSTER_BIZ_WHITE_LIST,
+                    settings.NEW_ENV_START_CLUSTER_ID,
+                    settings.NEW_ENV_CLUSTER_BLACK_LIST,
+                    settings.NEW_ENV_CLUSTER_WHITE_LIST,
                 )
                 continue
 

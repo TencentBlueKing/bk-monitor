@@ -88,6 +88,10 @@ def refresh_ping_conf(plugin_name: str):
             continue
 
         for h in all_hosts:
+            # 业务 0 承载公共配置，不受新环境业务黑名单约束。
+            if h.bk_biz_id != 0 and h.bk_biz_id in settings.NEW_ENV_BIZ_BLACK_LIST:
+                continue
+
             ip = h.bk_host_innerip_v6 if is_ipv6_biz(h.bk_biz_id) else h.bk_host_innerip
             # 跳过忽略监控的主机和已经处理过的主机
             if h.ignore_monitoring or not ip or h.bk_host_id in exists_host_ids:
