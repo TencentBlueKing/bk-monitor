@@ -29,7 +29,7 @@ from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
 from apps.utils.local import get_local_param
 from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import format_user_time_zone
-from bkm_space.define import Space, SpaceTypeEnum
+from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import space_uid_to_bk_biz_id
 
 
@@ -42,13 +42,12 @@ class LogCollectorHandler:
         self.related_bk_biz_ids = None
         self.bk_biz_id_to_space_detail_map = None
 
-        if self.space_uid:
-            self.space_type_id, _ = SpaceApi.parse_space_uid(self.space_uid)
-            if self.space_type_id == SpaceTypeEnum.BKCC.value:
-                self.related_space_uids = IndexSetHandler.get_all_related_space_uids(self.space_uid)
-                self.related_bk_biz_ids = [space_uid_to_bk_biz_id(space_uid) for space_uid in self.related_space_uids]
-                space_objs = SpaceApi.batch_get_space_detail(set(self.related_space_uids))
-                self.bk_biz_id_to_space_detail_map = {v.bk_biz_id: v.to_dict() for k, v in space_objs.items()}
+        self.space_type_id, _ = SpaceApi.parse_space_uid(self.space_uid)
+        if self.space_type_id == SpaceTypeEnum.BKCC.value:
+            self.related_space_uids = IndexSetHandler.get_all_related_space_uids(self.space_uid)
+            self.related_bk_biz_ids = [space_uid_to_bk_biz_id(space_uid) for space_uid in self.related_space_uids]
+            space_objs = SpaceApi.batch_get_space_detail(set(self.related_space_uids))
+            self.bk_biz_id_to_space_detail_map = {v.bk_biz_id: v.to_dict() for _, v in space_objs.items()}
 
     def fetch_log_collector_data(self, result: list[dict], include_related_spaces: bool = False):
         result_list = []
