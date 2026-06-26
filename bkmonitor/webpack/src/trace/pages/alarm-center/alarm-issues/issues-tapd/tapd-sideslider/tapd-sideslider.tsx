@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ * Copyright (C) 2017-2025 THL A29 Limited, a Tencent company.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -23,19 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, shallowRef, useTemplateRef, watch } from 'vue';
+import { type PropType, defineComponent, toRef } from 'vue';
 
 import { Button, Checkbox, Sideslider } from 'bkui-vue';
 
-import { mockFields } from '../../components/tapd-field-form/mock';
 import TapdFieldForm from '../../components/tapd-field-form/tapd-field-form';
 import TapdFieldFormLoadingCom from '../../components/tapd-field-form/tapd-field-form-loading';
+import { useTapdSideslider } from '../composables/use-tapd-sideslider';
 import TapdRelation from '../tapd-relation/tapd-relation';
 import TapdBasicForm from './components/tapd-basic-form';
-import useUserConfig from '@/hooks/useUserConfig';
 
-import type { IField } from '../../components/tapd-field-form/typing';
-import type { CreateTapdDefaultSetting, CreateTapdIssueRequest, TapdWorkspaceItem } from '../../typing/tapd';
+import type { TapdWorkspaceItem } from '../typing';
 
 import './tapd-sideslider.scss';
 
@@ -57,161 +55,30 @@ export default defineComponent({
   },
   emits: ['update:show', 'addWorkspace'],
   setup(props, { emit }) {
-    /** 已关联 TAPD 项目数量 */
-    const count = shallowRef(1);
-    /** 基础表单组件 ref，用于调用表单校验方法 */
-    const basicFormRef = useTemplateRef<InstanceType<typeof TapdBasicForm>>('basicForm');
-    const tapdFieldFormRef = useTemplateRef<InstanceType<typeof TapdFieldForm>>('tapdFieldForm');
-    const tapdRelationRef = useTemplateRef<InstanceType<typeof TapdRelation>>('tapdRelation');
-    /** 用户设置的 TAPD 创建单据默认值 */
-    const createTapdDefaultValue = shallowRef<CreateTapdDefaultSetting>({
-      workspace_id: null,
-      tapd_type: '',
-    });
-    /** 表单数据 */
-    const formData = shallowRef<Pick<CreateTapdIssueRequest, 'sync_status' | 'tapd_type' | 'workspace_id'>>({
-      workspace_id: '',
-      tapd_type: 'story',
-      sync_status: false,
-    });
-    const filterWorkspaceList = computed(() => props.workspaceList.filter(item => item.is_bound === 'bound'));
-    /** 当前激活的 tab */
-    const tabActive = shallowRef('add');
-    /* 单据字段 */
-    const tapdFields = shallowRef<IField[]>([]);
-    /* 单据字段值 */
-    const tapdFieldValue = shallowRef<Record<string, unknown>>({});
-    /* 单据字段表单加载中 */
-    const tapdFieldFormLoading = shallowRef(false);
-    // Issue 关联指定 TAPD 单据
-    const linkTapdIds = shallowRef<string[]>([]);
+    const showRef = toRef(props, 'show');
+    const bizIdRef = toRef(props, 'bizId');
+    const workspaceListRef = toRef(props, 'workspaceList');
 
-    /** 用户配置 key */
-    const CREATE_TAPD_DETAIL_SETTING = computed(() => {
-      return `${props.bizId}_CREATE_TAPD_DETAIL_SETTING`;
-    });
+    const {
+      count,
+      formData,
+      tabActive,
+      createTapdDefaultValue,
+      filterWorkspaceList,
+      tapdFieldValue,
+      tapdFields,
+      tapdFieldFormLoading,
+      linkTapdIds,
+      handleTabChange,
+      handleSetDefaultValue,
+      handleConfirm,
+      handleFormDataChange,
+      handleFieldValueChange,
+      handleLinkTapdIdsChange,
+    } = useTapdSideslider({ show: showRef, bizId: bizIdRef, workspaceList: workspaceListRef });
 
-    /** 用户配置 hook */
-    const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
-
-    /**
-     * @description 获取tapd单据字段
-     */
-    const getTapdFields = () => {
-      tapdFieldFormLoading.value = true;
-      tapdFieldValue.value = {};
-      const params = {
-        workspace_id: formData.value.workspace_id,
-        tapd_type: formData.value.tapd_type,
-      };
-      console.log(params);
-      setTimeout(() => {
-        tapdFieldFormLoading.value = false;
-        tapdFields.value = mockFields as IField[];
-      }, 1000);
-    };
-
-    /**
-     * 获取 TAPD 创建单据默认值
-     */
-    const getTapdDefaultValue = () => {
-      if (!props.bizId) return;
-      handleGetUserConfig<CreateTapdDefaultSetting>(CREATE_TAPD_DETAIL_SETTING.value).then(res => {
-        if (res) {
-          createTapdDefaultValue.value = res;
-          const targetWorkspace = filterWorkspaceList.value.find(item => item.workspace_id === res.workspace_id);
-          formData.value = {
-            workspace_id: targetWorkspace ? res.workspace_id : filterWorkspaceList.value[0].workspace_id,
-            tapd_type: res.tapd_type || 'story',
-            sync_status: false,
-          };
-        } else {
-          createTapdDefaultValue.value = {
-            workspace_id: null,
-            tapd_type: '',
-          };
-          formData.value = {
-            workspace_id: filterWorkspaceList.value[0].workspace_id,
-            tapd_type: 'story',
-            sync_status: false,
-          };
-        }
-        getTapdFields();
-      });
-    };
-
-    watch(
-      () => props.show,
-      show => {
-        if (show) getTapdDefaultValue();
-      }
-    );
-
-    /**
-     * 处理 Sideslider 显示状态变化
-     * @param isShow 是否显示
-     */
-    const handleShowChange = (isShow: boolean) => {
-      emit('update:show', isShow);
-    };
-
-    const handleAddWorkspace = () => {
-      emit('addWorkspace');
-    };
-
-    /**
-     * 处理 tab 切换
-     * @param value tab 值
-     */
-    const handleTabChange = (value: string) => {
-      if (value !== 'add') return;
-      tabActive.value = value;
-    };
-
-    /**
-     * 处理设置/取消默认值
-     * @param type 字段类型
-     */
-    const handleSetDefaultValue = type => {
-      createTapdDefaultValue.value = {
-        ...createTapdDefaultValue.value,
-        // 如果当前选中值和默认值一致说明需要取消默认值，否则设置为当前选中值
-        [type]: createTapdDefaultValue.value[type] === formData.value[type] ? null : formData.value[type],
-      };
-      // 取消默认
-      handleSetUserConfig(JSON.stringify(createTapdDefaultValue.value));
-    };
-
-    /**
-     * 处理确认创建
-     */
-    const handleConfirm = async () => {
-      basicFormRef.value?.validate().then(() => {
-        console.log('success');
-      });
-      if (tabActive.value === 'link') {
-        const linkTapdIdsValid = await tapdRelationRef.value?.validate().catch(() => false);
-        console.log(linkTapdIdsValid);
-      } else {
-        const tapdFieldFormValid = await tapdFieldFormRef.value?.validate().catch(() => false);
-        console.log(tapdFieldFormValid);
-      }
-    };
-
-    const handleFormDataChange = () => {
-      getTapdFields();
-    };
-
-    /**
-     * @description 单据字段值变化
-     */
-    const handleFieldValueChange = val => {
-      tapdFieldValue.value = val;
-    };
-
-    const handleLinkTapdIdsChange = val => {
-      linkTapdIds.value = val;
-    };
+    const handleShowChange = (isShow: boolean) => emit('update:show', isShow);
+    const handleAddWorkspace = () => emit('addWorkspace');
 
     return {
       count,
@@ -229,8 +96,8 @@ export default defineComponent({
       handleConfirm,
       handleFormDataChange,
       handleFieldValueChange,
-      handleAddWorkspace,
       handleLinkTapdIdsChange,
+      handleAddWorkspace,
     };
   },
   render() {
@@ -337,13 +204,7 @@ export default defineComponent({
                 >
                   {this.$t('确认创建')}
                 </Button>
-                <Button
-                  onClick={() => {
-                    this.handleShowChange(false);
-                  }}
-                >
-                  {this.$t('取消')}
-                </Button>
+                <Button onClick={() => this.handleShowChange(false)}>{this.$t('取消')}</Button>
               </div>
             </div>
           ),

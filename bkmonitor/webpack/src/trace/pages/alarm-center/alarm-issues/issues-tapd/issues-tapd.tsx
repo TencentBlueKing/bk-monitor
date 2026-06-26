@@ -23,16 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef, watch } from 'vue';
+import { defineComponent, toRef } from 'vue';
 
-import { request } from 'monitor-api/base';
-
+import { useTapdAuth } from './composables/use-tapd-auth';
 import TapdAuthDialog from './tapd-auth-dialog/tapd-auth-dialog';
 import TapdSideslider from './tapd-sideslider/tapd-sideslider';
-
-import type { TapdWorkspaceItem } from '../typing/tapd';
-
-const getUserWorkspace = request('GET', '/fta/issue/tapd/user_workspace/');
 
 export default defineComponent({
   name: 'IssuesTapd',
@@ -52,72 +47,19 @@ export default defineComponent({
   },
   emits: ['update:show'],
   setup(props, { emit }) {
-    const authDialogShow = shallowRef(false);
-    const createTapdSliderShow = shallowRef(false);
-    /** 项目列表 */
-    const workspaceList = shallowRef<TapdWorkspaceItem[]>([]);
-    /** 项目关联链接 */
-    const installUrl = shallowRef('');
-    const loading = shallowRef(false);
+    const showRef = toRef(props, 'show');
+    const bizIdRef = toRef(props, 'bizId');
 
-    const getAuth = async () => {
-      workspaceList.value = [];
-      installUrl.value = '';
-      try {
-        loading.value = true;
-        const data = await getUserWorkspace({ bk_biz_id: props.bizId });
-        workspaceList.value = data.items || [];
-        installUrl.value = data.install_url;
-      } catch (err) {
-        const { code, data } = err as { code: number; data?: { auth_url: string } };
-        if (code === 403) {
-          window.location.href = data.auth_url;
-        }
-      }
-      /** 如果有已关联的项目,展示创建单据侧栏，否则展示授权弹窗 */
-      if (workspaceList.value.find(item => item.is_bound === 'bound')) {
-        createTapdSliderShow.value = true;
-        authDialogShow.value = false;
-      } else {
-        createTapdSliderShow.value = false;
-        authDialogShow.value = true;
-      }
-      loading.value = false;
-    };
+    const { loading, authDialogShow, createTapdSliderShow, workspaceList, handleWorkspaceSelect, handleAddWorkspace } =
+      useTapdAuth({ show: showRef, bizId: bizIdRef });
 
-    watch(
-      () => props.show,
-      show => {
-        if (show) {
-          getAuth();
-        } else {
-          createTapdSliderShow.value = false;
-          authDialogShow.value = false;
-        }
-      }
-    );
+    const handleShowChange = (val: boolean) => emit('update:show', val);
 
-    const handleWorkspaceSelect = (item: TapdWorkspaceItem) => {
-      if (item.is_bound !== 'bound') {
-        window.location.href = installUrl.value.replace('{workspace_id}', item.workspace_id);
-        return;
-      }
-    };
-
-    const handleAddWorkspace = () => {
-      authDialogShow.value = true;
-    };
-
-    const handleShowChange = (show: boolean) => {
-      emit('update:show', show);
-    };
-
-    const handleAuthDialogShowChange = (show: boolean) => {
-      /** 如果侧栏是打开的，只需要关闭授权弹窗 */
+    const handleAuthDialogShowChange = (val: boolean) => {
       if (createTapdSliderShow.value) {
-        authDialogShow.value = show;
+        authDialogShow.value = val;
       } else {
-        emit('update:show', show);
+        emit('update:show', val);
       }
     };
 

@@ -31,7 +31,7 @@ import { useI18n } from 'vue-i18n';
 
 import EmptyStatus, { type EmptyStatusOperationType } from '@/components/empty-status/empty-status';
 
-import type { TapdWorkspaceItem } from '../../typing/tapd';
+import type { TapdWorkspaceItem } from '../typing';
 
 import './tapd-auth-dialog.scss';
 
