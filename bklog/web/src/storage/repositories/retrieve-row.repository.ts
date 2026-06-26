@@ -12,6 +12,73 @@ const DEFAULT_BATCH_BYTES = 8 * 1024 * 1024;
 
 const nextIdle = () => new Promise(resolve => setTimeout(resolve, 0));
 
+const hasMark = (value: any) => typeof value === 'string' && /<\/?mark>/i.test(value);
+
+const isPlainObject = (value: any) => Object.prototype.toString.call(value) === '[object Object]';
+
+const collectMarkedFields = (value: any, prefix = '', output: Record<string, any> = {}) => {
+  if (hasMark(value) && prefix) {
+    output[prefix] = value;
+    return output;
+  }
+
+  if (!isPlainObject(value)) return output;
+
+  Object.keys(value).forEach((key) => {
+    if (key === '__highlight') return;
+    const fieldName = prefix ? `${prefix}.${key}` : key;
+    collectMarkedFields(value[key], fieldName, output);
+  });
+
+  return output;
+};
+
+const collectHighlightFields = (rawRow: Record<string, any> = {}) => {
+  const output: Record<string, any> = {};
+  const highlight = rawRow.__highlight;
+  if (!isPlainObject(highlight)) return output;
+
+  Object.keys(highlight).forEach((fieldName) => {
+    const value = Array.isArray(highlight[fieldName])
+      ? highlight[fieldName][0]
+      : highlight[fieldName];
+    if (hasMark(value)) {
+      output[fieldName] = value;
+    }
+  });
+
+  return output;
+};
+
+const setOverlayValue = (row: Record<string, any>, fieldName: string, value: any) => {
+  if (!fieldName.includes('.') || Object.prototype.hasOwnProperty.call(row, fieldName)) {
+    row[fieldName] = value;
+    return row;
+  }
+
+  const path = fieldName.split('.');
+  const rootKey = path[0];
+  if (!isPlainObject(row[rootKey])) {
+    row[fieldName] = value;
+    return row;
+  }
+
+  row[rootKey] = { ...row[rootKey] };
+  let current = row[rootKey];
+  for (let index = 1; index < path.length - 1; index++) {
+    const key = path[index];
+    if (!isPlainObject(current[key])) {
+      current[path.slice(index).join('.')] = value;
+      return row;
+    }
+    current[key] = { ...current[key] };
+    current = current[key];
+  }
+
+  current[path[path.length - 1]] = value;
+  return row;
+};
+
 interface RenderOverlayField {
   renderValue: any;
 }
@@ -176,13 +243,16 @@ export class RetrieveRowRepository {
   }
 
   private createRenderOverlay(rawRow: Record<string, any>, renderRow?: Record<string, any>): RetrieveRowRenderOverlay | undefined {
-    if (!rawRow || !renderRow || Object.prototype.toString.call(renderRow) !== '[object Object]') return undefined;
-
+    if (!rawRow || (!renderRow && !rawRow.__highlight)) return undefined;
     const fields: Record<string, RenderOverlayField> = {};
-    Object.keys(renderRow).forEach((fieldName) => {
-      const renderValue = renderRow[fieldName];
-      if (renderValue === rawRow[fieldName]) return;
-      if (typeof renderValue !== 'string' || !/<\/?mark>/i.test(renderValue)) return;
+
+    const markedFields = {
+      ...collectMarkedFields(renderRow),
+      ...collectHighlightFields(rawRow),
+    };
+    Object.keys(markedFields).forEach((fieldName) => {
+      const renderValue = markedFields[fieldName];
+      if (!hasMark(renderValue)) return;
       fields[fieldName] = { renderValue };
     });
 
@@ -194,10 +264,10 @@ export class RetrieveRowRepository {
     const overlay = entity.renderOverlay;
     if (!overlay?.fields || !Object.keys(overlay.fields).length) return entity.row;
 
-    return Object.keys(overlay.fields).reduce((row, fieldName) => {
-      row[fieldName] = overlay.fields[fieldName].renderValue;
-      return row;
-    }, { ...entity.row });
+    return Object.keys(overlay.fields).reduce(
+      (row, fieldName) => setOverlayValue(row, fieldName, overlay.fields[fieldName].renderValue),
+      { ...entity.row },
+    );
   }
 }
 

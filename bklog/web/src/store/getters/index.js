@@ -10,8 +10,11 @@ import {
   buildOriginAddition,
   buildRequestAddition,
   buildRetrieveParams,
+  resolveFieldAliasMap,
+  resolveFieldTree,
   resolveFilteredFieldList,
   resolveGetterVisibleFields,
+  resolveRawFieldList,
 } from '../services/retrieve-query.service.js';
 
 const getters = {
@@ -74,6 +77,9 @@ const getters = {
     storeIsShowClusterStep: state => state.storeIsShowClusterStep,
     isAiAssistantActive: state => state.features.isAiAssistantActive,
     filteredFieldList: state => resolveFilteredFieldList(state),
+    rawFieldList: state => resolveRawFieldList(state),
+    fieldTree: state => resolveFieldTree(state),
+    fieldAliasMap: state => resolveFieldAliasMap(state),
 
 };
 

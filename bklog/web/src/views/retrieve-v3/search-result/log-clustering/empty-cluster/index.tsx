@@ -50,7 +50,7 @@ export default defineComponent({
 
     const collectorConfigId = computed(() => store.state.indexSetFieldConfig.clean_config.extra?.collector_config_id);
     const indexSetItem = computed(() => store.state.indexItem);
-    const isHaveAnalyzed = computed(() => (store.state.indexFieldInfo.fields || []).some(item => item.is_analyzed));
+    const isHaveAnalyzed = computed(() => store.getters.rawFieldList.some(item => item.is_analyzed));
     const exhibitText = computed(() =>
       collectorConfigId.value ? t('当前无可用字段，请前往日志清洗进行设置') : t('当前索引集不支持日志聚类设置'),
     );

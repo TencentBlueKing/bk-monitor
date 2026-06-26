@@ -91,7 +91,7 @@ const fieldAggsItems = computed(() => {
   store.state.fieldAggsItemsVersion;
   return storeRuntimeCacheService.getFieldAggsItems(store.state.indexId || 'default');
 });
-const totalFields: ComputedRef<FieldInfoItem[]> = computed(() => store.state.indexFieldInfo.fields);
+const totalFields: ComputedRef<FieldInfoItem[]> = computed(() => store.getters.filteredFieldList);
 
 const { isRequesting, requestFieldEgges, isValidateEgges } = useFieldEgges();
 
@@ -346,7 +346,9 @@ const calculateDropdown = () => {
   // 开始输入字段【nam】
   const inputField = /^\s*(?<field>[\w.]+)$/.exec(lastFragment)?.groups?.field;
   if (inputField) {
-    const fieldIndex = storeRuntimeCacheService.getFieldNameIndex(store.state.indexId || 'default') ?? buildFieldNameIndex(totalFields.value);
+    const fieldScope = store.state.indexFieldInfo.field_scope || store.state.indexId || 'default';
+    const cachedFieldIndex = storeRuntimeCacheService.getFieldNameIndex(fieldScope);
+    const fieldIndex = Object.keys(cachedFieldIndex).length ? cachedFieldIndex : buildFieldNameIndex(totalFields.value);
     const inputLower = inputField.toLowerCase();
     fieldList.value = originFieldList()
       .reduce((acc: { index: number; fieldName: string }[], item) => {

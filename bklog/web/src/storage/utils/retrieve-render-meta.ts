@@ -61,6 +61,65 @@ const truncateTextByBytes = (text: string, maxBytes: number): string => {
   return `${output}${LARGE_FIELD_PREVIEW_SUFFIX}`;
 };
 
+const hasMark = (value: any) => typeof value === 'string' && /<\/?mark>/i.test(value);
+
+const isPlainObject = (value: any) => Object.prototype.toString.call(value) === '[object Object]';
+
+const getValueByPath = (row: Record<string, any> | undefined, path: string) => {
+  if (!row || typeof path !== 'string') return undefined;
+  if (Object.prototype.hasOwnProperty.call(row, path)) return row[path];
+
+  const parts = path.split('.');
+  let current: any = row;
+  for (let index = 0; index < parts.length; index++) {
+    const part = parts[index];
+    if (current === null || current === undefined) return undefined;
+    if (!Object.prototype.hasOwnProperty.call(current, part)) {
+      const validKey = parts.slice(index).join('.');
+      return Object.prototype.hasOwnProperty.call(current, validKey)
+        ? current[validKey]
+        : undefined;
+    }
+    current = current[part];
+  }
+
+  return current;
+};
+
+const collectMarkedFields = (value: any, prefix = '', output: Record<string, any> = {}) => {
+  if (hasMark(value) && prefix) {
+    output[prefix] = value;
+    return output;
+  }
+
+  if (!isPlainObject(value)) return output;
+
+  Object.keys(value).forEach((key) => {
+    if (key === '__highlight') return;
+    const fieldName = prefix ? `${prefix}.${key}` : key;
+    collectMarkedFields(value[key], fieldName, output);
+  });
+
+  return output;
+};
+
+const collectHighlightFields = (rawRow: Record<string, any> = {}) => {
+  const output: Record<string, any> = {};
+  const highlight = rawRow.__highlight;
+  if (!isPlainObject(highlight)) return output;
+
+  Object.keys(highlight).forEach((fieldName) => {
+    const value = Array.isArray(highlight[fieldName])
+      ? highlight[fieldName][0]
+      : highlight[fieldName];
+    if (hasMark(value)) {
+      output[fieldName] = value;
+    }
+  });
+
+  return output;
+};
+
 /**
  * Pre-split text once after the API response is available.
  * Rendering code can consume these segments directly and avoid LuceneSegment.split on hot paths.
@@ -120,18 +179,23 @@ export const createRetrieveRowRenderMeta = (
   const truncatedFields: string[] = [];
   const fieldSegments: Record<string, RetrieveTextSegment[]> = {};
   const sourceRow = renderRow || rawRow;
+  const markedFields = {
+    ...collectMarkedFields(sourceRow),
+    ...collectHighlightFields(rawRow),
+  };
   const fieldNames = new Set([
     ...Object.keys(rawRow ?? {}),
     ...Object.keys(sourceRow ?? {}),
+    ...Object.keys(markedFields),
   ]);
 
   fieldNames.forEach((fieldName) => {
-    const value = Object.prototype.hasOwnProperty.call(sourceRow, fieldName)
-      ? sourceRow[fieldName]
-      : rawRow?.[fieldName];
+    const value = Object.prototype.hasOwnProperty.call(markedFields, fieldName)
+      ? markedFields[fieldName]
+      : getValueByPath(sourceRow, fieldName) ?? getValueByPath(rawRow, fieldName);
     if (value === null || value === undefined) return;
 
-    const rawValue = rawRow?.[fieldName];
+    const rawValue = getValueByPath(rawRow, fieldName);
     const rawText = stringifyValue(rawValue);
     const renderText = stringifyValue(value);
     const plainRenderText = stripMark(renderText);

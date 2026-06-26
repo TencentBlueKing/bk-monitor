@@ -42,7 +42,7 @@ import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
 import ExpandView from '../../components/result-cell-element/expand-view.vue';
 import OperatorTools from '../../components/result-cell-element/operator-tools.vue';
 import RetrieveLoader from '@/skeleton/retrieve-loader.vue';
-import { retrieveRowCacheService } from '@/storage';
+import { retrieveFieldCacheService, retrieveRowCacheService } from '@/storage';
 import FullRowViewer from './full-row-viewer.vue';
 import ScrollTop from '../../components/scroll-top/index';
 import useTextAction from '../../hooks/use-text-action';
@@ -174,6 +174,7 @@ export default defineComponent({
     const isLoading = computed(() => indexSetQueryResult.value.is_loading || indexFieldInfo.value.is_loading);
     const kvShowFieldsList = computed(() => filteredFieldList.value?.map(f => f.field_name));
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
+    const fieldScope = computed(() => indexFieldInfo.value.field_scope || store.state.indexId || 'default');
     const rowKeys = computed<string[]>(() => indexSetQueryResult.value?.row_keys ?? []);
     const tableDataSize = computed(() => rowKeys.value.length || (indexSetQueryResult.value?.list?.length ?? 0));
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
@@ -181,6 +182,10 @@ export default defineComponent({
     const gradeOption = computed(() => store.state.indexFieldInfo.custom_config?.grade_options ?? { disabled: false });
     const indexSetType = computed(() => store.state.indexItem.isUnionIndex);
     const limitRow = computed(() => store.state.storage[BK_LOG_STORAGE.RESULT_DISPLAY_LINES]);
+
+    const bumpFieldWidthVersion = () => {
+      store.commit('updateState', { fieldWidthVersion: store.state.fieldWidthVersion + 1 });
+    };
 
     const exceptionMsg = computed(() => {
       if (/^cancel$/gi.test(indexSetQueryResult.value?.exception_msg)) {
@@ -639,6 +644,20 @@ export default defineComponent({
     };
 
     const { renderHead } = useHeaderRender();
+    const getFallbackRenderFields = (fields: Record<string, any>[] = []) => {
+      const renderableFields = fields.filter(field =>
+        field?.field_name
+        && field.field_type !== '__virtual__'
+        && !field.is_virtual_obj_node,
+      );
+      const preferredFields = ['log', 'body']
+        .map(fieldName => renderableFields.find(field => field.field_name === fieldName))
+        .filter(Boolean);
+
+      return preferredFields.length
+        ? preferredFields
+        : renderableFields.slice(0, 4);
+    };
     // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const setFullColumns = () => {
       /** 清空所有字段后所展示的默认字段  顺序: 时间字段，log字段，索引字段 */
@@ -665,7 +684,10 @@ export default defineComponent({
         const sortB = b.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
         return sortA.localeCompare(sortB);
       });
-      const sortFieldsList = [...dataFields, ...logFields, ...sortIndexSetFieldsList];
+      let sortFieldsList = [...dataFields, ...logFields, ...sortIndexSetFieldsList];
+      if (!sortFieldsList.length) {
+        sortFieldsList = getFallbackRenderFields(filteredFields);
+      }
       if (isUnionSearch.value && indexSetOperatorConfig.value?.isShowSourceField) {
         sortFieldsList.unshift(LOG_SOURCE_F());
       }
@@ -673,9 +695,15 @@ export default defineComponent({
       if (rowKeys.value.length) {
         retrieveRowCacheService
           .getRows(rowKeys.value.slice(0, Math.min(rowKeys.value.length, 50)))
-          .then(rows => setDefaultTableWidth(sortFieldsList, rows));
+          .then((rows) => {
+            const widthSnapshot = setDefaultTableWidth(sortFieldsList, rows, retrieveFieldCacheService.getUserWidthConfig(fieldScope.value));
+            retrieveFieldCacheService.setComputedWidths(fieldScope.value, sortFieldsList);
+            if (Object.keys(widthSnapshot).length) bumpFieldWidthVersion();
+          });
       } else {
-        setDefaultTableWidth(sortFieldsList, tableList.value);
+        const widthSnapshot = setDefaultTableWidth(sortFieldsList, tableList.value, retrieveFieldCacheService.getUserWidthConfig(fieldScope.value));
+        retrieveFieldCacheService.setComputedWidths(fieldScope.value, sortFieldsList);
+        if (Object.keys(widthSnapshot).length) bumpFieldWidthVersion();
       }
       fullColumns.value = sortFieldsList;
     };
@@ -852,11 +880,31 @@ export default defineComponent({
         return;
       }
 
-      setDefaultTableWidth(visibleFields.value, layoutRows, userSettingConfig.value.fieldsWidth);
+      const fieldsWidthConfig = {
+        ...retrieveFieldCacheService.getUserWidthConfig(fieldScope.value),
+        ...(userSettingConfig.value.fieldsWidth ?? {}),
+      };
+      const widthSnapshot = setDefaultTableWidth(visibleFields.value, layoutRows, fieldsWidthConfig);
+      retrieveFieldCacheService.setComputedWidths(fieldScope.value, visibleFields.value);
+      if (Object.keys(widthSnapshot).length) bumpFieldWidthVersion();
       triggerColumnLayoutReflow();
       handleResultBoxResize();
     };
     addEvent(RetrieveEvent.VISIBLE_FIELD_COLUMN_LAYOUT_CHANGE, refreshVisibleFieldsColumnLayout);
+
+    watch(
+      () => [
+        indexFieldInfo.value.field_meta_version,
+        filteredFieldList.value.length,
+        visibleFields.value.length,
+        showCtxType.value,
+      ],
+      ([, filteredLength, visibleLength, currentShowCtxType]) => {
+        if (currentShowCtxType === 'table' && filteredLength > 0 && visibleLength === 0) {
+          refreshVisibleFieldsColumnLayout();
+        }
+      },
+    );
 
     watch(
       () => [props.contentType],
@@ -934,42 +982,55 @@ export default defineComponent({
       markColumnWidthChanging();
 
       const width = w > 40 ? w : 40;
-      const longFiels = visibleFields.value.filter(
+      const currentFields = visibleFields.value.length ? visibleFields.value : fullColumns.value;
+      const field = currentFields.find(item => item.field_name === col.field);
+      if (!field) return;
+
+      const longFiels = currentFields.filter(
         item => item.width >= 800 || item.field_name === 'log' || item.field_type === 'text',
       );
       const logField = longFiels.find(item => item.field_name === 'log');
       const targetField = longFiels.length
         ? longFiels
-        : visibleFields.value.filter(item => item.field_name !== col.field);
+        : currentFields.filter(item => item.field_name !== col.field);
 
       if (width < col.width && targetField.length) {
+        const widthDiff = col.width - width;
         if (logField) {
-          logField.width += width;
+          logField.width += widthDiff;
         } else {
-          const avgWidth = (col.width - width) / targetField.length;
+          const avgWidth = widthDiff / targetField.length;
           for (const field of targetField) {
             field.width += avgWidth;
           }
         }
       }
 
-      const sourceObj = visibleFields.value.reduce((acc, curField) => {
+      const sourceObj = currentFields.reduce((acc, curField) => {
         acc[curField.field_name] = curField.width;
         return acc;
       }, {});
       const { fieldsWidth } = userSettingConfig.value;
-      const newFieldsWidthObj = Object.assign(fieldsWidth, sourceObj, {
+      const newFieldsWidthObj = {
+        ...fieldsWidth,
+        ...sourceObj,
         [col.field]: Math.ceil(width),
-      });
+      };
 
-      const field = visibleFields.value.find(item => item.field_name === col.field);
       field.width = width;
 
       store.dispatch('userFieldConfigChange', {
         fieldsWidth: newFieldsWidthObj,
       });
+      retrieveFieldCacheService.setUserWidths(fieldScope.value, newFieldsWidthObj);
+      bumpFieldWidthVersion();
 
-      store.commit('updateVisibleFields', visibleFields.value);
+      if (visibleFields.value.length) {
+        store.commit('updateVisibleFields', visibleFields.value);
+      } else {
+        fullColumns.value = [...currentFields];
+      }
+      triggerColumnLayoutReflow();
       preserveHorizontalScrollAfterColumnResize(prevScrollLeft);
     };
 
@@ -1342,9 +1403,10 @@ export default defineComponent({
     };
 
     const allColumns = computed(() => {
-      return [...leftColumns.value, ...getFieldColumns.value].filter(
+      const columns = [...leftColumns.value, ...getFieldColumns.value].filter(
         item => !(item as any).disabled,
       );
+      return columns;
     });
 
     const clearHoverOperatorHideTimer = () => {

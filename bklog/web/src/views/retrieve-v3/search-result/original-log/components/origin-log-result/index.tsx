@@ -69,7 +69,7 @@ export default defineComponent({
     const listLoading = ref(false);
     const isCollapsed = ref(false);
 
-    const fieldsMap = computed(() => (store.state.indexFieldInfo.fields || []).reduce((dataMap, item) => {
+    const fieldsMap = computed(() => store.getters.rawFieldList.reduce((dataMap, item) => {
       dataMap[item.field_name] = item;
       return dataMap;
     }, {}),

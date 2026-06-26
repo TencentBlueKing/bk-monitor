@@ -291,15 +291,18 @@
 
   const rootList = computed(() => {
     formatCounter.value++;
-    return fieldList.value.map((f: any) => ({
-      name: f.field_name,
-      type: f.field_type,
-      formatter: {
-        ...getFieldFormatter(f, isFormatDateField.value && !!f.__is_virtual_root__),
-        precomputedSegments: props.renderMeta?.fieldSegments,
-      },
-      __is_virtual_root__: !!f.__is_virtual_root__,
-    }));
+    return fieldList.value.map((f: any) => {
+      const shouldFormatDate = isFormatDateField.value && !!f.__is_virtual_root__;
+      return {
+        name: f.field_name,
+        type: f.field_type,
+        formatter: {
+          ...getFieldFormatter(f, shouldFormatDate),
+          precomputedSegments: shouldFormatDate ? undefined : props.renderMeta?.fieldSegments,
+        },
+        __is_virtual_root__: !!f.__is_virtual_root__,
+      };
+    });
   });
 
   const depth = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]);

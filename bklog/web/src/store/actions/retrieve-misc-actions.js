@@ -8,7 +8,7 @@ import { set } from 'vue';
 import http from '@/api';
 import { formatDate } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
-import { storeCacheService } from '@/storage';
+import { retrieveFieldCacheService, storeCacheService } from '@/storage';
 
 import { formatAdditionalFields, getCommonFilterAdditionWithValues, isSceneRetrieve } from '../helper.ts';
 import RequestPool from '../request-pool.ts';
@@ -33,16 +33,19 @@ export function requestIndexSetValueListAction({ commit, state, getters }, paylo
     state.fieldAggsItemsVersion += 1;
   }
 
+  const fieldScope = state.indexFieldInfo.field_scope || state.indexId || 'default';
+  const payloadFields = Array.isArray(payload?.fields) ? payload.fields : [];
+  const rawFieldList = retrieveFieldCacheService.getFieldList(fieldScope, false);
   if (payload.force) {
     const emptyAggsItems = {};
-    (payload?.fields ?? []).forEach((field) => {
+    (payloadFields.length ? payloadFields : rawFieldList).forEach((field) => {
       emptyAggsItems[field.field_name] = [];
     });
     storeRuntimeCacheService.patchFieldAggsItems(state.indexId || 'default', emptyAggsItems);
     state.fieldAggsItemsVersion += 1;
   }
 
-  const isDefaultQuery = !(payload?.fields?.length ?? false);
+  const isDefaultQuery = !payloadFields.length;
   const filterBuildIn = field => (isDefaultQuery ? !field.is_built_in : true);
 
   const cachedAggsItems = storeRuntimeCacheService.getFieldAggsItems(state.indexId || 'default');
@@ -52,7 +55,7 @@ export function requestIndexSetValueListAction({ commit, state, getters }, paylo
     && ['keyword'].includes(field.field_type)
     && !/^__dist_/.test(field.field_name);
 
-  const fields = (payload?.fields?.length ? payload.fields : state.indexFieldInfo.fields)
+  const fields = (payloadFields.length ? payloadFields : rawFieldList)
     .filter(filterFn)
     .map(field => field.field_name);
 
@@ -210,6 +213,13 @@ export function userFieldConfigChangeAction({ state, getters, commit }, userConf
         const updatedUserConfig = getters.isSceneMode ? res.data : res.data.index_set_config;
         commit('retrieve/updateCatchFieldCustomConfig', updatedUserConfig);
         cacheApi(requestName, `${state.indexId || state.indexItem.scene_active}:field-config`, updatedUserConfig || {});
+        if (Object.prototype.hasOwnProperty.call(updatedUserConfig ?? {}, 'fieldsWidth')) {
+          retrieveFieldCacheService.setUserWidths(
+            state.indexFieldInfo.field_scope || state.indexId || 'default',
+            updatedUserConfig.fieldsWidth ?? {},
+          );
+          commit('updateState', { fieldWidthVersion: state.fieldWidthVersion + 1 });
+        }
       }
       return res;
     })

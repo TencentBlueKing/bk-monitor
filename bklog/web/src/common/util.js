@@ -1349,6 +1349,7 @@ export const utcFormatDate = (val, formatTimezone = false) => {
 // 首次加载设置表格默认宽度自适应
 export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthObj = null, staticWidth = 50) => {
   try {
+    const widthSnapshot = Object.create(null);
     if (tableData.length && visibleFields.length) {
       visibleFields.forEach((field) => {
         const targetList = [field];
@@ -1366,6 +1367,7 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
 
           set(item, 'width', width);
           set(item, 'minWidth', minWidth);
+          widthSnapshot[item.field_name] = Object.assign({}, { computedWidth: width, minWidth });
         });
       });
 
@@ -1374,10 +1376,10 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
       // Extra width is distributed at render time based on the current result container.
     }
 
-    return true;
+    return { ...widthSnapshot };
   } catch (error) {
     console.error(error);
-    return false;
+    return Object.create(null);
   }
 };
 

@@ -5,13 +5,17 @@
 import axios from 'axios';
 
 import http, { axiosInstance } from '@/api';
-import {
-  parseBigNumberList,
-  readBlobRespToJson,
-} from '@/common/util';
+import { parseBigNumberList, readBlobRespToJson } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
-import { retrieveRowCacheService, retrieveSearchWorkerIngestService, storageHealthService, storeCacheService } from '@/storage';
+import {
+  retrieveFieldCacheService,
+  retrieveRowCacheService,
+  retrieveSearchWorkerIngestService,
+  storageHealthService,
+  storeCacheService,
+} from '@/storage';
 import { createRetrieveRowRenderMeta } from '@/storage/utils/retrieve-render-meta';
+import { normalizeRetrieveFields } from '@/storage/utils/retrieve-field-meta';
 
 import { formatAdditionalFields, getCommonFilterAdditionWithValues, isSceneRetrieve } from '../helper.ts';
 import { reportRouteLog } from '../modules/report-helper.ts';
@@ -20,12 +24,7 @@ import RequestPool from '../request-pool.ts';
 let dateFieldSortList = [];
 let currentRetrieveRowQueryKey = '';
 
-const ingestSearchResponseOnMainThread = async (blob, {
-  fieldNames,
-  isPagination,
-  rowQueryKey,
-  startSeq,
-}) => {
+const ingestSearchResponseOnMainThread = async (blob, { fieldNames, isPagination, rowQueryKey, startSeq }) => {
   const { code, data, result, message, permission } = await readBlobRespToJson(blob);
   const rsolvedData = data;
   if (result) {
@@ -37,13 +36,26 @@ const ingestSearchResponseOnMainThread = async (blob, {
     }
 
     if (renderList.length !== originLogList.length) {
-      throw new Error('Invalid search response: list length ' + renderList.length + ' !== origin_log_list length ' + originLogList.length);
+      throw new Error(
+        'Invalid search response: list length ' +
+          renderList.length +
+          ' !== origin_log_list length ' +
+          originLogList.length,
+      );
     }
 
     const renderMetas = originLogList.map((row, index) => createRetrieveRowRenderMeta(row, renderList[index]));
     const rowKeys = isPagination
-      ? await retrieveRowCacheService.appendRows(rowQueryKey, originLogList, startSeq, { fieldNames, renderRows: renderList, renderMetas })
-      : await retrieveRowCacheService.replaceRows(rowQueryKey, originLogList, { fieldNames, renderRows: renderList, renderMetas });
+      ? await retrieveRowCacheService.appendRows(rowQueryKey, originLogList, startSeq, {
+          fieldNames,
+          renderRows: renderList,
+          renderMetas,
+        })
+      : await retrieveRowCacheService.replaceRows(rowQueryKey, originLogList, {
+          fieldNames,
+          renderRows: renderList,
+          renderMetas,
+        });
     delete rsolvedData.list;
     delete rsolvedData.origin_log_list;
     return {
@@ -91,16 +103,24 @@ const ingestSearchResponse = async (blob, options) => {
   }
 };
 
-const getProjectionFieldNames = (state) => {
+const getProjectionFieldNames = state => {
+  const fieldScope = state.indexFieldInfo.field_scope || state.indexId || 'default';
+  const cachedFields = retrieveFieldCacheService.getFieldList(fieldScope, false);
   const fields = [
     ...(state.visibleFields || []),
-    ...(state.indexFieldInfo?.fields || []).filter(field => field?.is_time_field || field?.field_name === state.indexFieldInfo?.time_field),
+    ...cachedFields.filter(field => field?.is_time_field || field?.field_name === state.indexFieldInfo?.time_field),
   ];
 
-  return Array.from(new Set(fields.flatMap((field) => {
-    if (!field) return [];
-    return [field.field_name, field.alias_mapping_field?.field_name, ...(field.source_field_names || [])];
-  }).filter(Boolean)));
+  return Array.from(
+    new Set(
+      fields
+        .flatMap(field => {
+          if (!field) return [];
+          return [field.field_name, field.alias_mapping_field?.field_name, ...(field.source_field_names || [])];
+        })
+        .filter(Boolean),
+    ),
+  );
 };
 
 export function requestIndexSetFieldInfoAction({ commit, state, getters }) {
@@ -140,6 +160,21 @@ export function requestIndexSetFieldInfoAction({ commit, state, getters }) {
       index_set_ids: ids,
     });
   }
+  const fieldScope = JSON.stringify({
+    urlStr,
+    ids,
+    isScene,
+    isUnionIndex: !!isUnionIndex,
+    start_time,
+    end_time,
+    scene: isScene
+      ? {
+          space_uid: queryData.space_uid,
+          table_id_conditions: queryData.table_id_conditions,
+          scene_filter_values: queryData.scene_filter_values,
+        }
+      : undefined,
+  });
 
   dateFieldSortList = undefined;
   return http
@@ -147,20 +182,27 @@ export function requestIndexSetFieldInfoAction({ commit, state, getters }) {
       urlStr,
       {
         params: isScene ? {} : { index_set_id: ids[0] },
-        query: (!isScene && !isUnionIndex) ? queryData : undefined,
-        data: (isScene || isUnionIndex) ? queryData : undefined,
+        query: !isScene && !isUnionIndex ? queryData : undefined,
+        data: isScene || isUnionIndex ? queryData : undefined,
       },
       isUnionIndex
-        ? { cancelToken: requestCancelToken } : { catchIsShowMessage: false, cancelToken: requestCancelToken },
+        ? { cancelToken: requestCancelToken }
+        : { catchIsShowMessage: false, cancelToken: requestCancelToken },
     )
-    .then((res) => {
+    .then(res => {
+      const normalizedFields = normalizeRetrieveFields(res.data ?? {});
+      if (res.data) {
+        res.data.fields = normalizedFields;
+      }
       const { default_sort_list: defaultSortListData = [], sort_list: sortListData = [] } = res.data ?? {};
-      const defaultSortList = (
-        ((defaultSortListData?.length ?? 0) > 0 ? defaultSortListData : sortListData) ?? []
-      ).map(([fieldName]) => [fieldName, undefined]);
+      const defaultSortList = (((defaultSortListData?.length ?? 0) > 0 ? defaultSortListData : sortListData) ?? []).map(
+        ([fieldName]) => [fieldName, undefined],
+      );
 
-      res.data.fields.forEach((field) => {
+      normalizedFields.forEach(field => {
+        if (!field || typeof field !== 'object') return;
         Object.assign(field, {
+          filterVisible: field.filterVisible ?? true,
           has_repeat_alias_field: false,
           alias_mapping_field: null,
           is_virtual_alias_field: false,
@@ -170,6 +212,7 @@ export function requestIndexSetFieldInfoAction({ commit, state, getters }) {
       commit(
         'updateIndexFieldInfo',
         Object.assign({}, res.data ?? {}, {
+          field_scope: fieldScope,
           default_sort_list: defaultSortList,
         }),
       );
@@ -181,12 +224,14 @@ export function requestIndexSetFieldInfoAction({ commit, state, getters }) {
       commit('resetVisibleFields');
       commit('resetIndexSetOperatorConfig');
       commit('updateIsSetDefaultTableColumn');
-      storeCacheService.setApiCache(urlStr, `${ids.join(',')}:${start_time}:${end_time}`, res.data || {}).catch((error) => {
-        console.warn('[store-cache] cache field info failed', error);
-      });
+      storeCacheService
+        .setApiCache(urlStr, `${ids.join(',')}:${start_time}:${end_time}`, res.data || {})
+        .catch(error => {
+          console.warn('[store-cache] cache field info failed', error);
+        });
       return res;
     })
-    .catch((err) => {
+    .catch(err => {
       if (axios.isCancel(err)) return;
       !isUnionIndex && commit('updateApiError', { apiName: urlStr, errorMessage: err });
       commit('updateIndexFieldInfo', { is_loading: false });
@@ -227,8 +272,8 @@ export function requestIndexSetQueryAction(
   }
 
   if (
-    (!state.indexItem.isUnionIndex && !state.indexId)
-    || (state.indexItem.isUnionIndex && !state.indexItem.ids.length)
+    (!state.indexItem.isUnionIndex && !state.indexId) ||
+    (state.indexItem.isUnionIndex && !state.indexItem.ids.length)
   ) {
     state.searchTotal = 0;
     commit('updateSqlQueryFieldList', []);
@@ -295,7 +340,7 @@ export function requestIndexSetQueryAction(
     if (previousRowQueryKey) {
       storageHealthService.clearActiveQuery(previousRowQueryKey);
       retrieveRowCacheService.releaseQuery(previousRowQueryKey);
-      retrieveRowCacheService.clearQuery(previousRowQueryKey).catch((error) => {
+      retrieveRowCacheService.clearQuery(previousRowQueryKey).catch(error => {
         console.warn('[retrieve-search] clear previous query rows failed', error);
       });
     }
@@ -318,16 +363,19 @@ export function requestIndexSetQueryAction(
     index_set_id: item,
   }));
 
-  const queryBegin = payload.isPagination ? (begin += size) : 0;
+  if (payload.isPagination) {
+    begin += size;
+  }
+  const queryBegin = payload.isPagination ? begin : 0;
   const queryData = Object.assign(
     baseData,
     !state.indexItem.isUnionIndex
       ? {
-        begin: queryBegin,
-      }
+          begin: queryBegin,
+        }
       : {
-        union_configs: unionConfigs,
-      },
+          union_configs: unionConfigs,
+        },
   );
   const params = {
     method: 'post',
@@ -345,44 +393,39 @@ export function requestIndexSetQueryAction(
   }
 
   const requestRowQueryKey = payload.isPagination
-    ? (state.indexSetQueryResult.row_query_key || currentRetrieveRowQueryKey)
+    ? state.indexSetQueryResult.row_query_key || currentRetrieveRowQueryKey
     : currentRetrieveRowQueryKey;
-  const requestStartSeq = payload.isPagination ? (state.indexSetQueryResult.cached_count || 0) : 0;
-  const requestCurrentRowKeys = payload.isPagination ? (state.indexSetQueryResult.row_keys || []) : [];
+  const requestStartSeq = payload.isPagination ? state.indexSetQueryResult.cached_count || 0 : 0;
+  const requestCurrentRowKeys = payload.isPagination ? state.indexSetQueryResult.row_keys || [] : [];
   let isStaleSearchResponse = false;
-  const isCurrentSearchRequest = () => (payload.isPagination
-    ? requestRowQueryKey === state.indexSetQueryResult.row_query_key
-      && requestStartSeq === (state.indexSetQueryResult.cached_count || 0)
-    : requestRowQueryKey === currentRetrieveRowQueryKey);
+  const isCurrentSearchRequest = () =>
+    payload.isPagination
+      ? requestRowQueryKey === state.indexSetQueryResult.row_query_key &&
+        requestStartSeq === (state.indexSetQueryResult.cached_count || 0)
+      : requestRowQueryKey === currentRetrieveRowQueryKey;
 
   return axiosInstance(params)
-    .then(async (resp) => {
+    .then(async resp => {
       if (resp.data && !resp.message) {
         const projectionFieldNames = getProjectionFieldNames(state);
         const rowQueryKey = requestRowQueryKey;
         const startSeq = requestStartSeq;
         const currentRowKeys = requestCurrentRowKeys;
-        const {
-          code,
-          data,
-          result,
-          message,
-          permission,
-          rowKeys,
-          size,
-          source,
-        } = await ingestSearchResponse(resp.data, {
-          fieldNames: projectionFieldNames,
-          isPagination: payload.isPagination,
-          rowQueryKey,
-          startSeq,
-        });
+        const { code, data, result, message, permission, rowKeys, size, source } = await ingestSearchResponse(
+          resp.data,
+          {
+            fieldNames: projectionFieldNames,
+            isPagination: payload.isPagination,
+            rowQueryKey,
+            startSeq,
+          },
+        );
         const rsolvedData = data;
 
         if (!isCurrentSearchRequest()) {
           isStaleSearchResponse = true;
           if (!payload.isPagination || rowQueryKey !== state.indexSetQueryResult.row_query_key) {
-            retrieveRowCacheService.clearQuery(rowQueryKey).catch((error) => {
+            retrieveRowCacheService.clearQuery(rowQueryKey).catch(error => {
               console.warn('[retrieve-search] clear stale query rows failed', error);
             });
           }
@@ -390,7 +433,9 @@ export function requestIndexSetQueryAction(
         }
 
         if (result) {
-          rsolvedData.total = rsolvedData.total?.toNumber ? rsolvedData.total.toNumber() : Number(rsolvedData.total || 0);
+          rsolvedData.total = rsolvedData.total?.toNumber
+            ? rsolvedData.total.toNumber()
+            : Number(rsolvedData.total || 0);
           rsolvedData.row_keys = Object.freeze(currentRowKeys.concat(rowKeys));
           rsolvedData.row_query_key = rowQueryKey;
           rsolvedData.cached_count = rsolvedData.row_keys.length;
@@ -412,19 +457,23 @@ export function requestIndexSetQueryAction(
             begin: payload.isPagination ? begin : 0,
           });
           commit('updateIndexSetQueryResult', rsolvedData);
-          storeCacheService.setApiCache('retrieve/search-result-meta', rowQueryKey, {
-            ...rsolvedData,
-            row_keys: rsolvedData.row_keys,
-            row_query_key: rowQueryKey,
-            cached_count: rsolvedData.cached_count,
-          }).catch((error) => {
-            console.warn('[store-cache] cache search meta failed', error);
-          });
-          retrieveRowCacheService.gc({
-            excludeQueryKeys: Array.from(new Set([rowQueryKey, ...storageHealthService.getActiveQueryKeys()])),
-          }).catch((error) => {
-            console.warn('[retrieve-search] gc rows failed', error);
-          });
+          storeCacheService
+            .setApiCache('retrieve/search-result-meta', rowQueryKey, {
+              ...rsolvedData,
+              row_keys: rsolvedData.row_keys,
+              row_query_key: rowQueryKey,
+              cached_count: rsolvedData.cached_count,
+            })
+            .catch(error => {
+              console.warn('[store-cache] cache search meta failed', error);
+            });
+          retrieveRowCacheService
+            .gc({
+              excludeQueryKeys: Array.from(new Set([rowQueryKey, ...storageHealthService.getActiveQueryKeys()])),
+            })
+            .catch(error => {
+              console.warn('[retrieve-search] gc rows failed', error);
+            });
 
           return {
             data: rsolvedData,
@@ -463,7 +512,7 @@ export function requestIndexSetQueryAction(
 
       return { result: false };
     })
-    .catch((e) => {
+    .catch(e => {
       if (!isCurrentSearchRequest()) {
         isStaleSearchResponse = true;
         return;

@@ -208,7 +208,7 @@
         return this.$store.state.indexItem.items[0];
       },
       totalFields() {
-        return this.$store.state.indexFieldInfo.fields;
+        return this.$store.getters.filteredFieldList;
       },
       datePickerValue() {
         const { start_time = 'now-15m', end_time = 'now' } = this.$store.state.indexItem;

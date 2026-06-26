@@ -292,7 +292,7 @@
         return this.totalFields.some(item => item.is_analyzed);
       },
       totalFields() {
-        return this.indexFieldInfo.fields || [];
+        return this.$store.getters.filteredFieldList;
       },
       clusteringConfig() {
         return this.indexSetFieldConfig.clustering_config;

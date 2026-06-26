@@ -78,9 +78,16 @@ export default class FieldFilterComp extends tsc<object> {
     const key = isScene ? 'retrieve/getSceneFields' : 'retrieve/getLogTableHead';
     return this.$store.state.apiErrorInfo[key] || '';
   }
+  get isFieldLoading() {
+    return this.$store.state.indexFieldInfo.is_loading;
+  }
+  get hasFilterVisibleFields() {
+    return this.totalFields.length > 0;
+  }
   /** 可选字段 */
   get hiddenFields() {
-    return this.totalFields.filter(item => !this.visibleFields.some(visibleItem => item === visibleItem));
+    const visibleFieldNames = new Set(this.visibleFields.map(item => item.field_name));
+    return this.totalFields.filter(item => !visibleFieldNames.has(item.field_name));
   }
   /** 显示字段 */
   get showFields() {
@@ -155,54 +162,8 @@ export default class FieldFilterComp extends tsc<object> {
   }
   /** object格式字段的层级展示 */
   objectHierarchy(arrData) {
-    const [objArr, otherArr] = arrData.reduce(
-      // biome-ignore lint/nursery/noShadow: reason
-      ([objArr, otherArr], item) => {
-        item.field_name.includes('.') ? objArr.push(item) : otherArr.push(item);
-        return [objArr, otherArr];
-      },
-      [[], []],
-    );
-    if (!objArr.length) {
-      return arrData;
-    }
-    const objectField: any[] = [];
-    for (const item of objArr) {
-      this.addToNestedStructure(objectField, item);
-    }
-    return [
-      ...objectField,
-      ...otherArr.filter((item) => {
-        return !objectField.map(field => field.field_name).includes(item.field_name);
-      }),
-    ];
-  }
-  /** 递归将数组变成tree */
-  addToNestedStructure(targetArray, originalObject) {
-    const parts = originalObject.field_name.split('.');
-    let currentLevel = targetArray;
-    let parentFieldName: null | string = null; // 用于存储父节点的名称
-    parts.forEach((part, index) => {
-      let existingPart = currentLevel.find(item => item.field_name === part);
-      if (!existingPart) {
-        existingPart = { field_name: part, filterVisible: true, field_type: 'object' };
-        if (parentFieldName !== null) {
-          existingPart.parentFieldName = parentFieldName;
-        }
-        existingPart.fullName = parentFieldName
-          ? `${parentFieldName}.${existingPart.field_name}`
-          : existingPart.field_name;
-        if (index < parts.length - 1) {
-          existingPart.children = [];
-        }
-        currentLevel.push(existingPart);
-      }
-      parentFieldName = parentFieldName ? `${parentFieldName}.${part}` : part;
-      if (index === parts.length - 1) {
-        Object.assign(existingPart, originalObject);
-      }
-      currentLevel = existingPart.children;
-    });
+    const tree = this.$store.getters.fieldTree;
+    return this.pickFieldTree(tree, arrData);
   }
   /** 递归将tree变回数组 */
   convertNestedStructureToArray(nestedArray) {
@@ -493,6 +454,29 @@ export default class FieldFilterComp extends tsc<object> {
       />
     );
   }
+  pickFieldTree(treeData, arrData) {
+    if (!treeData?.length || !arrData?.length) {
+      return [];
+    }
+
+    const allowedNames = new Set(arrData.map(item => item.field_name));
+    const visit = (node) => {
+      const children = (node.children ?? []).map(visit).filter(Boolean);
+      const fieldName = node.full_name || node.fullName || node.field_name;
+      if (!allowedNames.has(fieldName) && !children.length) {
+        return null;
+      }
+
+      const sourceField = arrData.find(item => item.field_name === fieldName);
+      return {
+        ...(sourceField ?? node),
+        filterVisible: sourceField?.filterVisible ?? node.filterVisible ?? true,
+        children: children.length ? children : undefined,
+      };
+    };
+
+    return treeData.map(visit).filter(Boolean);
+  }
   render() {
     return (
       <div class='field-filter-box'>
@@ -512,7 +496,7 @@ export default class FieldFilterComp extends tsc<object> {
           ref='fieldFilter'
           class='field-filter-container-new'
         >
-          {!this.totalFields.filter(item => item.filterVisible).length && (
+          {!this.isFieldLoading && !this.hasFilterVisibleFields && (
             <EmptyStatus
               style={{ marginTop: '20%' }}
               emptyType={this.searchKeyword ? 'search-empty' : '500'}
@@ -539,7 +523,7 @@ export default class FieldFilterComp extends tsc<object> {
               )}
             </EmptyStatus>
           )}
-          {!!this.totalFields.filter(item => item.filterVisible).length && (
+          {this.hasFilterVisibleFields && (
             <div class='fields-container is-selected'>
               <div class='title'>
                 <span>{this.$t('显示字段')}</span>

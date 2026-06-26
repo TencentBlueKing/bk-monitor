@@ -107,6 +107,8 @@ const stateTpl = {
   retrieveDropdownDataVersion: 0,
   fieldAggsItemsVersion: 0,
   operatorDictionaryVersion: 0,
+  fieldMetaVersion: 0,
+  fieldWidthVersion: 0,
   notTextTypeFields: [],
   isSetDefaultTableColumn: false,
   tookTime: 0,

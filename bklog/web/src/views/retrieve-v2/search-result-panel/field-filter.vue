@@ -31,15 +31,17 @@
   });
 
   const totalFields = computed(() => {
-    return store.getters.filteredFieldList;
+    return store.getters.filteredFieldList.map(field => ({
+      ...field,
+      minWidth: field.minWidth ?? 0,
+      filterExpand: field.filterExpand ?? false,
+      filterVisible: field.filterVisible ?? true,
+    }));
   });
 
   const fieldAliasMap = computed(() => {
     const fieldAliasMap = {};
     totalFields.value.filter(field => !field.is_virtual_alias_field).forEach(item => {
-      item.minWidth = 0;
-      item.filterExpand = false; // 字段过滤展开
-      item.filterVisible = true;
       fieldAliasMap[item.field_name] = item.query_alias || item.field_name;
     });
 

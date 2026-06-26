@@ -4,88 +4,51 @@
  */
 import { getOperatorKey } from '@/common/util';
 import { builtInInitHiddenList } from '@/const/index.js';
+import { retrieveFieldCacheService } from '@/storage';
+import {
+  buildFieldNameIndex,
+  buildQueryAliasIndex,
+  createRetrieveFieldMeta,
+} from '@/storage/utils/retrieve-field-meta';
 
 import { createFieldItem, indexSetClusteringData } from '../default-values.ts';
 
 const HIDDEN_FIELDS = new Set(builtInInitHiddenList);
 
-export const createIndexSetFieldConfig = (payload) => {
+export const createIndexSetFieldConfig = payload => {
   const output = {
     clustering_config: { ...indexSetClusteringData },
   };
-  (payload?.config ?? []).forEach((item) => {
+  (payload?.config ?? []).forEach(item => {
     output[item.name] = item;
   });
   return output;
 };
 
-export const createOperatorDictionary = (payload) => {
+export const createOperatorDictionary = payload => {
   const output = {};
-  (payload?.fields ?? []).forEach((field) => {
+  createRetrieveFieldMeta(payload).rawFields.forEach(field => {
     const { field_operator: fieldOperator = [] } = field;
-    fieldOperator.forEach((item) => {
+    fieldOperator.forEach(item => {
       output[getOperatorKey(item.operator)] = item;
     });
   });
   return output;
 };
 
-export const createNotTextTypeFields = payload => (
-  (payload?.fields ?? [])
-    .filter(field => field.field_type !== 'text')
-    .map(item => item.field_name)
-);
+export const createNotTextTypeFields = payload =>
+  createRetrieveFieldMeta(payload)
+    .rawFields.filter(field => field.field_type !== 'text')
+    .map(item => item.field_name);
 
-export const normalizeIndexFieldInfo = (payload) => {
+export const normalizeIndexFieldInfo = payload => {
   const processedData = payload ? { ...payload } : {};
-  if (!Array.isArray(processedData.fields)) {
+  if (!processedData.fields) {
     return processedData;
   }
 
-  const fields = processedData.fields.slice();
-  const fieldAliasMap = new Map();
-
-  fields.forEach((field) => {
-    const fieldAlias = field.query_alias;
-    if (!fieldAlias) return;
-
-    const existValue = fieldAliasMap.get(fieldAlias) ?? {
-      count: 0,
-      field_alias: fieldAlias,
-      resolved: false,
-      fields: [],
-      target: null,
-    };
-    existValue.count += 1;
-    existValue.fields.push(field);
-    fieldAliasMap.set(fieldAlias, existValue);
-  });
-
-  Array.from(fieldAliasMap.values()).forEach((value) => {
-    if (value.count <= 1) return;
-
-    const target = createFieldItem(value.field_alias, 'keyword', {
-      ...(value.fields[0] ?? {}),
-      field_alias: '',
-      query_alias: '',
-      field_name: value.field_alias,
-      is_virtual_alias_field: true,
-      has_repeat_alias_field: false,
-      alias_mapping_field: null,
-      source_field_names: [],
-    });
-
-    value.fields.forEach((field) => {
-      field.has_repeat_alias_field = true;
-      field.alias_mapping_field = target;
-      if (!target.source_field_names.includes(field.field_name)) {
-        target.source_field_names.push(field.field_name);
-      }
-    });
-
-    fields.push(target);
-  });
-
+  const fieldMeta = createRetrieveFieldMeta(processedData);
+  const fields = fieldMeta.aliasFieldList.slice();
   fields.sort((a, b) => {
     if (a.field_name === 'dtEventTimeStamp') return -1;
     if (b.field_name === 'dtEventTimeStamp') return 1;
@@ -98,41 +61,34 @@ export const normalizeIndexFieldInfo = (payload) => {
     return 0;
   });
 
-  const fieldNameIndex = {};
-  const queryAliasIndex = {};
-  fields.forEach((f) => {
-    fieldNameIndex[f.field_name] = f;
-    if (f.query_alias) {
-      queryAliasIndex[f.query_alias] = f;
-    }
-  });
-
   return {
     ...processedData,
     fields,
-    fieldNameIndex,
-    queryAliasIndex,
+    raw_fields: fieldMeta.rawFields,
+    raw_field_list: fieldMeta.rawFieldList,
+    alias_field_list: fields.filter(field => field.is_virtual_alias_field),
+    field_tree: fieldMeta.fieldTree,
+    fieldNameIndex: buildFieldNameIndex(fields),
+    queryAliasIndex: buildQueryAliasIndex(fields),
+    widthHints: fieldMeta.widthHints,
   };
 };
 
-export const resolveVisibleFields = ({ payload, catchDisplayFields = [], indexFieldInfo }) => {
+export const resolveVisibleFields = ({ payload, catchDisplayFields = [], defaultDisplayFields = [], fieldScope }) => {
   const isVersion2Payload = payload?.version === 'v2';
   const displayFields = catchDisplayFields.length ? catchDisplayFields : null;
-  const filterList = (isVersion2Payload ? payload.displayFieldNames : payload || displayFields)
-    ?? indexFieldInfo.display_fields
-    ?? [];
+  const filterList =
+    (isVersion2Payload ? payload.displayFieldNames : payload || displayFields) ?? defaultDisplayFields ?? [];
 
   const fieldsMap = new Map();
-  (indexFieldInfo.fields ?? []).forEach((field) => {
+  retrieveFieldCacheService.getFieldList(fieldScope, false).forEach(field => {
     const existing = fieldsMap.get(field.field_name);
     if (!existing || !field.is_virtual_alias_field) {
       fieldsMap.set(field.field_name, field);
     }
   });
 
-  return filterList
-    .map(displayName => fieldsMap.get(displayName))
-    .filter(Boolean);
+  return filterList.map(displayName => fieldsMap.get(displayName) ?? createFieldItem(displayName)).filter(Boolean);
 };
 
 export const createRetrieveDropdownData = (listData = [], notTextTypeFields = []) => {
@@ -140,8 +96,8 @@ export const createRetrieveDropdownData = (listData = [], notTextTypeFields = []
   const notTextTypeSet = new Set(notTextTypeFields);
 
   const recursiveIncreaseData = (dataItem, prefixFieldKey = '') => {
-    dataItem
-      && Object.entries(dataItem).forEach(([field, value]) => {
+    dataItem &&
+      Object.entries(dataItem).forEach(([field, value]) => {
         if (value && typeof value === 'object' && !Array.isArray(value)) {
           recursiveIncreaseData(value, `${prefixFieldKey + field}.`);
           return;
@@ -172,16 +128,14 @@ export const createRetrieveDropdownData = (listData = [], notTextTypeFields = []
       });
   };
 
-  listData.forEach(dataItem => recursiveIncreaseData(dataItem));
+  listData.forEach(dataItem => {
+    recursiveIncreaseData(dataItem);
+  });
   return output;
 };
 
 export const createIndexSetOperatorConfig = ({ indexSetFieldConfig, indexItem }) => {
-  const {
-    bkmonitor,
-    context_and_realtime: contextAndRealtime,
-    bcs_web_console: bcsWebConsole,
-  } = indexSetFieldConfig;
+  const { bkmonitor, context_and_realtime: contextAndRealtime, bcs_web_console: bcsWebConsole } = indexSetFieldConfig;
 
   let indexSetValue;
   if (!indexItem.isUnionIndex) {
@@ -205,9 +159,7 @@ export const createIndexSetOperatorConfig = ({ indexSetFieldConfig, indexItem })
       realTimeLog: contextAndRealtime?.is_active
         ? window.mainComponent.$t('实时日志')
         : contextAndRealtime?.extra?.reason,
-      contextLog: contextAndRealtime?.is_active
-        ? window.mainComponent.$t('上下文')
-        : contextAndRealtime?.extra?.reason,
+      contextLog: contextAndRealtime?.is_active ? window.mainComponent.$t('上下文') : contextAndRealtime?.extra?.reason,
     },
   };
 };

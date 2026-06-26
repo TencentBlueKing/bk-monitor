@@ -2,15 +2,15 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  */
-import { storeCacheService } from '@/storage';
+import { retrieveFieldCacheService, storeCacheService } from '@/storage';
 
 import { buildTableIdConditions, isSceneRetrieve } from '../helper.ts';
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../store.type.ts';
 
-export const resolveGetterVisibleFields = (state) => {
+export const resolveGetterVisibleFields = state => {
   if (state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
     const result = [];
-    state.visibleFields.forEach((field) => {
+    state.visibleFields.forEach(field => {
       if (!field.has_repeat_alias_field) {
         result.push(field);
       }
@@ -25,15 +25,42 @@ export const resolveGetterVisibleFields = (state) => {
   return state.visibleFields.filter(field => !field.is_virtual_alias_field);
 };
 
-export const resolveFilteredFieldList = (state) => {
-  if (state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
-    return state.indexFieldInfo.fields.filter(field => !field.has_repeat_alias_field);
-  }
+export const resolveFilteredFieldList = state => {
+  void state.fieldMetaVersion;
+  void state.indexFieldInfo.field_meta_version;
+  const fieldScope = state.indexFieldInfo.field_scope || state.indexId || 'default';
+  const sourceFields = retrieveFieldCacheService.getFieldList(
+    fieldScope,
+    state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
+  );
+  const result = state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
+    ? sourceFields.filter(field => !field.has_repeat_alias_field)
+    : sourceFields.filter(field => !field.is_virtual_alias_field);
 
-  return state.indexFieldInfo.fields.filter(field => !field.is_virtual_alias_field);
+  return result;
 };
 
-export const buildOriginAddition = (state) => {
+export const resolveRawFieldList = state => {
+  void state.fieldMetaVersion;
+  void state.indexFieldInfo.field_meta_version;
+  const fieldScope = state.indexFieldInfo.field_scope || state.indexId || 'default';
+  return retrieveFieldCacheService.getFieldList(fieldScope, false);
+};
+
+export const resolveFieldTree = state => {
+  void state.fieldMetaVersion;
+  void state.indexFieldInfo.field_meta_version;
+  const fieldScope = state.indexFieldInfo.field_scope || state.indexId || 'default';
+  return retrieveFieldCacheService.getFieldTree(fieldScope);
+};
+
+export const resolveFieldAliasMap = state =>
+  resolveRawFieldList(state).reduce((out, field) => {
+    out[field.field_name] = field.field_alias || field.field_name;
+    return out;
+  }, {});
+
+export const buildOriginAddition = state => {
   const { addition = [] } = state.indexItem;
   const filterAddition = addition
     .filter(item => item.field !== '_ip-select_')
@@ -53,9 +80,10 @@ export const buildOriginAddition = (state) => {
       return target;
     });
 
-  filterAddition.forEach((item) => {
+  filterAddition.forEach(item => {
     if (['=~', '&=~', '!=~', '&!=~'].includes(item.operator)) {
-      const field = (state.indexFieldInfo?.fields ?? []).find(f => f.field_name === item.field);
+      const fieldScope = state.indexFieldInfo.field_scope || state.indexId || 'default';
+      const field = retrieveFieldCacheService.getFieldNameIndex(fieldScope)[item.field];
       if (field?.field_type === 'text' && !(field?.is_case_sensitive ?? true)) {
         item.value = item.value.map(v => v?.toLowerCase() ?? '');
       }
@@ -82,9 +110,7 @@ export const buildRetrieveParams = (state, getters, rootGetters) => {
 
   const searchMode = SEARCH_MODE_DIC[state.storage[BK_LOG_STORAGE.SEARCH_TYPE]] ?? 'ui';
   const originAddition = getters.originAddition ?? buildOriginAddition(state);
-  const searchParams = searchMode === 'sql'
-    ? { keyword, addition: [] }
-    : { addition: originAddition, keyword: '*' };
+  const searchParams = searchMode === 'sql' ? { keyword, addition: [] } : { addition: originAddition, keyword: '*' };
 
   if (state.aiMode.active) {
     searchParams.keyword = [...state.aiMode.filterList, searchParams.keyword]
@@ -134,11 +160,9 @@ export const buildRetrieveParams = (state, getters, rootGetters) => {
     });
   }
 
-  storeCacheService.setApiCache(
-    'store/retrieve-params-snapshot',
-    state.indexId || state.spaceUid || 'default',
-    baseParams,
-  ).catch(() => {});
+  storeCacheService
+    .setApiCache('store/retrieve-params-snapshot', state.indexId || state.spaceUid || 'default', baseParams)
+    .catch(() => {});
 
   return baseParams;
 };

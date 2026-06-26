@@ -88,12 +88,13 @@ export default defineComponent({
      * 如果 log 字段不存在，则设置为第一个 field_type 为 text 的字段
      */
     const setDefaultFieldValue = () => {
-      if (field.value === '' && store.state.indexFieldInfo.fields.length > 0) {
-        const logField = store.state.indexFieldInfo.fields.find(field => field.field_name === 'log');
+      const rawFieldList = store.getters.rawFieldList;
+      if (field.value === '' && rawFieldList.length > 0) {
+        const logField = rawFieldList.find(field => field.field_name === 'log');
         if (logField) {
           field.value = logField.field_name;
         } else {
-          const textField = store.state.indexFieldInfo.fields.find(field => field.field_type === 'text');
+          const textField = rawFieldList.find(field => field.field_type === 'text');
           if (textField) {
             field.value = textField.field_name;
           }

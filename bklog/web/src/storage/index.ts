@@ -4,6 +4,7 @@
  */
 import { manageDraftCacheService } from './services/manage-draft-cache.service';
 import { moduleLargeDataCacheService } from './services/module-large-data-cache.service';
+import { retrieveFieldCacheService } from './services/retrieve-field-cache.service';
 import { retrieveRowCacheService } from './services/retrieve-row-cache.service';
 import { retrieveRowProjectionService } from './services/retrieve-row-projection.service';
 import { retrieveSearchWorkerIngestService } from './services/retrieve-search-worker-ingest.service';
@@ -15,6 +16,7 @@ import { workerManagerService } from './services/worker-manager.service';
 export default {
   manageDraftCache: manageDraftCacheService,
   moduleLargeDataCache: moduleLargeDataCacheService,
+  retrieveFields: retrieveFieldCacheService,
   retrieveRows: retrieveRowCacheService,
   retrieveRowProjection: retrieveRowProjectionService,
   retrieveSearchWorkerIngest: retrieveSearchWorkerIngestService,
@@ -27,6 +29,7 @@ export default {
 export {
   manageDraftCacheService,
   moduleLargeDataCacheService,
+  retrieveFieldCacheService,
   retrieveRowCacheService,
   retrieveRowProjectionService,
   retrieveSearchWorkerIngestService,

@@ -210,7 +210,7 @@ watch(
     nextTick(() => {
       uiQueryValue.value.forEach(
         (v) =>
-          (v.field_type = (indexFieldInfo.value.fields ?? []).find(
+          (v.field_type = store.getters.rawFieldList.find(
             (f) => f.field_name === v.field
           )?.field_type)
       );
@@ -269,7 +269,7 @@ const formatAddition = (addition) => {
   return addition.map((v) => {
     const value = {
       ...v,
-      field_type: (indexFieldInfo.value.fields ?? []).find(
+      field_type: store.getters.rawFieldList.find(
         (f) => f.field_name === v.field
       )?.field_type,
     };

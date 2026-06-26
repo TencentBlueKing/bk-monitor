@@ -26,14 +26,14 @@
 import { BK_LOG_STORAGE } from './store.type';
 import { getDefaultOp, REVERSE_OPERATOR_MAP, getOperatorRequestParam } from '@/store/scene-filter-config';
 import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
-import { storeCacheService } from '@/storage';
+import { retrieveFieldCacheService, storeCacheService } from '@/storage';
 
 export { isFeatureToggleOn };
 
 export const SESSION_STORAGE_KEY = 'CommonFilterAddition';
 
 const mirrorSessionStorage = (key: string, value: any) => {
-  storeCacheService.setLocalStorageMirror(`sessionStorage:${key}`, value).catch((error) => {
+  storeCacheService.setLocalStorageMirror(`sessionStorage:${key}`, value).catch(error => {
     console.warn('[store-cache] mirror sessionStorage failed', key, error);
   });
 };
@@ -202,8 +202,10 @@ export const clearStorageCommonFilterAddition = state => {
 export const formatAdditionalFields = (state: any, addition: Record<string, any>[]) => {
   const copyAddition = structuredClone(addition);
   if (state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
-    copyAddition.forEach((item) => {
-      const result = (state.indexFieldInfo?.fields ?? []).find(f => f.field_name === item.field);
+    const fieldScope = state.indexFieldInfo.field_scope || state.indexId || 'default';
+    const fieldNameIndex = retrieveFieldCacheService.getFieldNameIndex(fieldScope);
+    copyAddition.forEach(item => {
+      const result = fieldNameIndex[item.field];
       if (result?.query_alias) {
         item.field = result.query_alias;
       }

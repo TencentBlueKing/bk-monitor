@@ -213,10 +213,7 @@ export default {
 
 
     fieldAliasMap() {
-      return (this.indexFieldInfo.fields ?? []).reduce(
-        (out, field) => ({ ...out, [field.field_name]: field.field_alias || field.field_name }),
-        {},
-      );
+      return this.$store.getters.fieldAliasMap;
     },
     showFieldsConfigPopoverNum() {
       return this.$store.state.showFieldsConfigPopoverNum;

@@ -133,7 +133,7 @@ export default defineComponent({
     const indexedRows = ref<Record<string, any>[]>([]);
 
     const fieldList = computed(() =>
-      (store.state.indexFieldInfo.fields ?? []).filter(f => f.es_doc_values && f.field_type === 'keyword'),
+      store.getters.rawFieldList.filter(f => f.es_doc_values && f.field_type === 'keyword'),
     );
 
     const gradeOptionField = computed(() => fieldList.value.find(f => f.field_name === gradeOptionForm.value.field));

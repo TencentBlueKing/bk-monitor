@@ -5,7 +5,7 @@
 import Vue, { set } from 'vue';
 
 import { setDefaultTableWidth } from '@/common/util';
-import { moduleLargeDataCacheService, storeCacheService } from '@/storage';
+import { retrieveFieldCacheService, storeCacheService } from '@/storage';
 import * as pinyin from 'tiny-pinyin';
 import * as patcher56L from 'tiny-pinyin/dist/patchers/56l.js';
 
@@ -351,27 +351,34 @@ const mutations = {
       setDefaultTableWidth(fieldList ?? state.visibleFields, tableList, null, staticWidth);
     },
     updateIndexFieldInfo(state, payload) {
+      const hasFieldPayload = !!payload?.fields;
+      const fieldScope = payload?.field_scope || state.indexFieldInfo.field_scope || state.indexId || 'default';
+      if (hasFieldPayload) {
+        retrieveFieldCacheService.setMeta(fieldScope, payload);
+      }
       const processedData = normalizeIndexFieldInfo(payload);
       const { fieldNameIndex, queryAliasIndex, aggs_items: aggsItems, ...stateData } = processedData ?? {};
+      ['fields', 'raw_fields', 'raw_field_list', 'alias_field_list', 'field_tree', 'fieldNameIndex', 'queryAliasIndex', 'widthHints'].forEach((key) => {
+        delete stateData[key];
+      });
       if (fieldNameIndex || queryAliasIndex) {
-        storeRuntimeCacheService.setFieldIndexes(state.indexId || 'default', { fieldNameIndex, queryAliasIndex });
+        storeRuntimeCacheService.setFieldIndexes(fieldScope, { fieldNameIndex, queryAliasIndex });
       }
       if (aggsItems) {
-        storeRuntimeCacheService.setFieldAggsItems(state.indexId || 'default', aggsItems);
+        storeRuntimeCacheService.setFieldAggsItems(fieldScope, aggsItems);
         state.fieldAggsItemsVersion += 1;
       }
       Object.keys(stateData ?? {}).forEach((key) => {
         set(state.indexFieldInfo, key, stateData[key]);
       });
-      const fieldScope = state.indexId || 'default';
+      if (hasFieldPayload || payload?.field_scope) {
+        set(state.indexFieldInfo, 'field_scope', fieldScope);
+        state.fieldMetaVersion += 1;
+        set(state.indexFieldInfo, 'field_meta_version', state.fieldMetaVersion);
+      }
       storeCacheService.setApiCache('store/index-field-info', fieldScope, state.indexFieldInfo).catch((error) => {
         console.warn('[store-cache] cache index field info failed', error);
       });
-      if (Array.isArray(state.indexFieldInfo.fields)) {
-        moduleLargeDataCacheService.replaceList('fields:' + fieldScope, state.indexFieldInfo.fields, 200).catch((error) => {
-          console.warn('[store-cache] cache fields chunks failed', error);
-        });
-      }
     },
     updateIndexFieldEggsItems(state, payload) {
       const { start_time: startTime, end_time: endTime } = state.indexItem;
@@ -388,13 +395,11 @@ const mutations = {
         state.fieldAggsItemsVersion += 1;
       }
       if (fieldNameIndex || queryAliasIndex || payload === undefined) {
-        storeRuntimeCacheService.setFieldIndexes(state.indexId || 'default', {
+        storeRuntimeCacheService.setFieldIndexes(state.indexFieldInfo.field_scope || state.indexId || 'default', {
           fieldNameIndex: fieldNameIndex ?? {},
           queryAliasIndex: queryAliasIndex ?? {},
         });
       }
-      const fieldScope = state.indexId || 'default';
-      moduleLargeDataCacheService.clear('fields:' + fieldScope).catch(() => {});
       state.indexFieldInfo = Object.assign(defValue, stateData);
     },
     updateSqlQueryFieldList(state, payload) {
@@ -430,14 +435,22 @@ const mutations = {
     updateIsSetDefaultTableColumn(state, payload) {
       // 如果浏览器记录过当前索引集表格拖动过 则不需要重新计算
       if (!state.isSetDefaultTableColumn) {
-        const catchFieldsWidthObj = state.retrieve.catchFieldCustomConfig.fieldsWidth;
+        const fieldScope = state.indexFieldInfo.field_scope || state.indexId || 'default';
+        const catchFieldsWidthObj = {
+          ...retrieveFieldCacheService.getUserWidthConfig(fieldScope),
+          ...(state.retrieve.catchFieldCustomConfig.fieldsWidth ?? {}),
+        };
         const staticWidth = state.indexSetOperatorConfig?.bcsWebConsole?.is_active ? 104 : 84;
-        setDefaultTableWidth(
+        const widthSnapshot = setDefaultTableWidth(
           state.visibleFields,
           payload?.list ?? [],
           catchFieldsWidthObj,
           staticWidth + 60,
         );
+        retrieveFieldCacheService.setComputedWidths(fieldScope, state.visibleFields);
+        if (Object.keys(widthSnapshot).length) {
+          state.fieldWidthVersion += 1;
+        }
       }
       if (typeof payload === 'boolean') state.isSetDefaultTableColumn = payload;
     },
@@ -457,7 +470,8 @@ const mutations = {
       const visibleFields = resolveVisibleFields({
         payload,
         catchDisplayFields: state.retrieve.catchFieldCustomConfig.displayFields,
-        indexFieldInfo: state.indexFieldInfo,
+        defaultDisplayFields: state.indexFieldInfo.display_fields,
+        fieldScope: state.indexFieldInfo.field_scope || state.indexId || 'default',
       });
       state.visibleFields.splice(0, state.visibleFields.length, ...visibleFields);
       set(state, 'isNotVisibleFieldsShow', !visibleFields.length);

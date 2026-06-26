@@ -142,7 +142,7 @@
         return this.$store.getters.visibleFields ?? [];
       },
       totalFields() {
-        return this.$store.state.indexFieldInfo.fields ?? [];
+        return this.$store.getters.filteredFieldList;
       },
       // 性能优化：使用 Set 缓存 kvShowFieldsList，提升查找性能
       kvShowFieldsSet() {
