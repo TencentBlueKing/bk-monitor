@@ -113,7 +113,7 @@ class TestTapdOauthContract(unittest.TestCase):
         source = _read("bkmonitor/packages/fta_web/issue/resources.py")
         self.assertIn('validated_request_data.get("error_url") or success_url', source)
 
-    def test_user_oauth_state_is_session_bound(self):
+    def test_user_oauth_state_is_signed_and_session_free(self):
         utils_module = _parse("bkmonitor/packages/fta_web/issue/utils/tapd.py")
         generate_auth_url = _function(utils_module, "generate_auth_url")
         callback = _function(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "tapd_user_oauth_callback")
@@ -122,11 +122,11 @@ class TestTapdOauthContract(unittest.TestCase):
         )
         callback_source = ast.get_source_segment(_read("bkmonitor/packages/fta_web/issue/resources.py"), callback)
 
-        self.assertIn("request.session", utils_source)
-        self.assertIn("tapd_oauth_state_", utils_source)
-        self.assertNotIn("generate_signed_state(payload)", utils_source)
-        self.assertIn("request.session.get(session_key)", callback_source)
-        self.assertNotIn("verify_signed_state(state", callback_source)
+        self.assertIn("generate_signed_state(payload)", utils_source)
+        self.assertIn("secrets.token_urlsafe", utils_source)
+        self.assertNotIn("request.session", utils_source)
+        self.assertIn("verify_signed_state", _call_names(callback))
+        self.assertNotIn("request.session.get", callback_source)
         self.assertIn("redirect_uri=backend_callback.rstrip", callback_source)
 
     def test_app_install_callback_still_uses_signed_state(self):

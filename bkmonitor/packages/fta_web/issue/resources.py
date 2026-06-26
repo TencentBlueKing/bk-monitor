@@ -2154,7 +2154,6 @@ class ListUserTapdWorkspaceResource(Resource):
             success_url=success_url,
             error_url=error_url,
             backend_callback=oauth_callback,
-            request=req,
         )
         exc = CustomException(
             message="TAPD 用户态授权未生效",
@@ -2443,8 +2442,8 @@ def tapd_app_install_callback(request):
 def tapd_user_oauth_callback(request):
     """TAPD 用户态 OAuth 回调。
 
-    Query params: code, state
-    1. state 格式 {nonce}:{bk_biz_id}，从 Session 中取出比对并删除（防重放）
+    Query params: code, state（signed_state）
+    1. state 为自包含 signed_state → 验签、验过期（不依赖 session）
     2. 用 code 换取 access_token（UserOauthTokenResource），redirect_uri 取 payload 中的 backend_callback
     3. 加密 token → 存入 Redis（TTL = expires_in），key = tapd_uat:{tenant}:{user}
     4. 302 重定向前端 success_url
@@ -2456,41 +2455,18 @@ def tapd_user_oauth_callback(request):
         # 缺少必要参数，回退到根路径
         return HttpResponseRedirect(request.build_absolute_uri("/"))
 
-    # 1) 解析 state，从 Session 中比对
+    # 1) 解析并验签 signed_state（自包含 payload，不依赖 session）
     try:
-        nonce, bk_biz_id = state.rsplit(":", 1)
-        bk_biz_id = int(bk_biz_id)
-    except (ValueError, AttributeError):
-        logger.warning("invalid user oauth state format: %s", state)
+        payload = verify_signed_state(state)
+    except exceptions.ValidationError as e:
+        logger.warning("signed_state verification failed: %s", e.detail)
         return HttpResponseRedirect(request.build_absolute_uri("/"))
 
-    session_key = f"tapd_oauth_state_{bk_biz_id}"
-    session_data = request.session.get(session_key)
-    if not session_data:
-        logger.warning("session state not found for bk_biz_id=%s", bk_biz_id)
-        return HttpResponseRedirect(request.build_absolute_uri("/"))
-
-    success_url = session_data.get("success_url", "")
-    error_url = session_data.get("error_url") or success_url or request.build_absolute_uri("/")
-
-    def _delete_state():
-        if session_key in request.session:
-            del request.session[session_key]
-            request.session.modified = True
-
-    if session_data.get("nonce") != nonce:
-        _delete_state()
-        logger.warning("state nonce mismatch, bk_biz_id=%s", bk_biz_id)
-        return HttpResponseRedirect(error_url)
-
-    if int(time.time()) > session_data.get("exp", 0):
-        _delete_state()
-        logger.warning("state expired for bk_biz_id=%s", bk_biz_id)
-        return HttpResponseRedirect(error_url)
-
-    _delete_state()
-    tenant_id = session_data["bk_tenant_id"]
-    username = session_data.get("username", "")
+    bk_biz_id = payload["bk_biz_id"]
+    tenant_id = payload["bk_tenant_id"]
+    username = payload["initiator"]
+    success_url = payload.get("success_url", "")
+    error_url = payload.get("error_url") or success_url or request.build_absolute_uri("/")
 
     # 校验失败统一处理：记日志 + 重定向到 error_url
     def _fail(log_msg, *args):
@@ -2499,11 +2475,11 @@ def tapd_user_oauth_callback(request):
 
     # 2) 校验 username + backend_callback
     if not username:
-        return _fail("missing username in session data, bk_biz_id=%s", bk_biz_id)
+        return _fail("missing initiator in signed_state payload, bk_biz_id=%s", bk_biz_id)
 
-    backend_callback = session_data.get("backend_callback", "")
+    backend_callback = payload.get("backend_callback", "")
     if not backend_callback:
-        return _fail("missing backend_callback in session data, bk_biz_id=%s", bk_biz_id)
+        return _fail("missing backend_callback in signed_state payload, bk_biz_id=%s", bk_biz_id)
 
     # 3) code 换 token（Basic Auth，client_id:client_secret）
     # redirect_uri 必须和 authorize 时传给 TAPD 的一致（即 backend_callback）

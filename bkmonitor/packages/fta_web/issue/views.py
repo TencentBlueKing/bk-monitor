@@ -130,7 +130,6 @@ class IssueViewSet(ResourceViewSet):
                 success_url=success_url,
                 error_url=error_url,
                 backend_callback=backend_callback,
-                request=request,
             )
             # 使用 CustomException（非 DRF PermissionDenied）以保证
             # MonitorJSONRenderer 能输出 {"result":false, "code":403, "data":{"auth_url":...}}
