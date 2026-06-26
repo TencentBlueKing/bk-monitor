@@ -482,8 +482,6 @@ class CustomReportSubscription(models.Model):
         op_type: str = "add",
         deploy_targets: tuple[str, ...] | list[str] | str = ("node_man", "k8s"),
         dry_run: bool = False,
-        node_man_biz_black_list: list[int | str] | None = None,
-        filter_k8s_new_env_scope: bool = True,
     ):
         """
         指定业务ID更新，或者更新全量业务
@@ -508,17 +506,11 @@ class CustomReportSubscription(models.Model):
         if invalid_deploy_targets:
             raise ValueError(f"unsupported custom report deploy targets: {invalid_deploy_targets}")
 
-        if node_man_biz_black_list is None:
-            node_man_biz_black_list = settings.NEW_ENV_BIZ_BLACK_LIST
-
         logger.info(
-            "refresh custom report config to proxy on bk_biz_id(%s), deploy_targets(%s), dry_run(%s), "
-            "node_man_biz_black_list(%s), filter_k8s_new_env_scope(%s)",
+            "refresh custom report config to proxy on bk_biz_id(%s), deploy_targets(%s), dry_run(%s)",
             bk_biz_id,
             deploy_targets,
             dry_run,
-            node_man_biz_black_list,
-            filter_k8s_new_env_scope,
         )
 
         report = {
@@ -607,7 +599,7 @@ class CustomReportSubscription(models.Model):
 
             if "k8s" in deploy_targets:
                 # 业务黑白名单
-                if filter_k8s_new_env_scope and bk_biz_id != 0 and not is_biz_id_need_managed(bk_biz_id):
+                if bk_biz_id != 0 and not is_biz_id_need_managed(bk_biz_id):
                     target_record = {
                         "action": "skip",
                         "result": True,
