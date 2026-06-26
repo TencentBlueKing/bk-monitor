@@ -47,7 +47,7 @@ import type { MetricTier, RumApplicationAsyncItem, RumAppRow, RumTableItem, Sort
 import type { IRumAppConfig } from './typings/rum-app-config';
 import type { FilterValue } from '@blueking/tdesign-ui';
 import type { BkUiSettings } from '@blueking/tdesign-ui';
-import type { GetMenuListFunc, ICommonItem, ISearchValue } from 'bkui-vue/lib/search-select/utils';
+import type { ISearchValue } from 'bkui-vue/lib/search-select/utils';
 
 import './rum.scss';
 
@@ -107,15 +107,6 @@ const criteriaToSearchValues = (
   return result;
 };
 
-const criteriaToFilterValue = (criteria: RumFilterCriteria): FilterValue => {
-  const fv: FilterValue = {};
-  for (const key of TABLE_FILTER_KEYS) {
-    const vals = criteria[key];
-    if (vals?.length) fv[key] = vals;
-  }
-  return fv;
-};
-
 const rowMatchesCriteria = (row: RumAppRow, c: RumFilterCriteria): boolean => {
   const keys = Object.keys(c) as RumCriteriaKey[];
   for (const key of keys) {
@@ -170,30 +161,15 @@ export default defineComponent({
     };
 
     const searchSelectDataSource = computed(() =>
-      SEARCH_DIMENSION_KEYS.map(id => ({
-        id,
-        name: searchLabel(id),
-        async: true,
-      }))
+      SEARCH_DIMENSION_KEYS.map(id => {
+        const names = uniqSorted(tableData.value.map(r => String(r[id as keyof RumAppRow])).filter(Boolean));
+        return {
+          id,
+          name: searchLabel(id),
+          children: names.map(n => ({ id: n, name: n })),
+        };
+      })
     );
-
-    const getMenuList: GetMenuListFunc = async (item, keyword) => {
-      const kw = keyword.trim().toLowerCase();
-      const list = searchSelectDataSource.value;
-      if (!item?.id) {
-        return list
-          .filter(d => !kw || d.name.toLowerCase().includes(kw) || String(d.id).toLowerCase().includes(kw))
-          .map(d => ({ ...d }));
-      }
-      const rowKey = item.id as keyof RumAppRow;
-      const names = uniqSorted(tableData.value.map(r => String(r[rowKey])).filter(Boolean));
-      const children: ICommonItem[] = names
-        .filter(n => !kw || n.toLowerCase().includes(kw))
-        .map(n => ({ id: n, name: n }));
-      const meta = list.find(d => d.id === item.id);
-      if (!meta) return [];
-      return children;
-    };
 
     const tableData = computed(() => {
       return buildRumAppRows(appListResource.value, appAsyncResource.value);
@@ -649,7 +625,6 @@ export default defineComponent({
                 <SearchSelect
                   class='rum-search-select'
                   data={searchSelectDataSource.value}
-                  getMenuList={getMenuList}
                   modelValue={criteriaToSearchValues(rumCriteria.value, searchLabel)}
                   placeholder={t('搜索 应用名称、展示名称、应用状态')}
                   clearable
@@ -663,7 +638,6 @@ export default defineComponent({
                 columns={columns.value}
                 // data={tablePageData.value.rows as unknown as Record<string, unknown>[]}
                 data={filteredTableData.value as unknown as Record<string, unknown>[]}
-                filterValue={criteriaToFilterValue(rumCriteria.value)}
                 loading={loading.value}
                 // pagination={tablePageData.value.pagination}
                 rowKey='id'
