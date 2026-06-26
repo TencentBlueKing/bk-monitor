@@ -11,8 +11,8 @@
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
  * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
- * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+ * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
  *
  * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
  * the Software.
@@ -24,12 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef, toRef, watch } from 'vue';
 
 import { Select } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import type { ITapdListItem } from '../typing';
+import { useTapdSelect } from '../composables/use-tapd-select';
+import { TapdStatusMap } from '../typing';
 
 import './tapd-relation.scss';
 
@@ -40,20 +41,20 @@ export default defineComponent({
       type: Array as PropType<string[]>,
       default: () => [],
     },
-    tapdList: {
-      type: Array as PropType<ITapdListItem[]>,
-      default: () => [
-        {
-          tapd_id: '111',
-          tapd_type: 'story',
-          tapd_title: '需求1',
-        },
-        {
-          tapd_id: '222',
-          tapd_type: 'story',
-          tapd_title: '需求2',
-        },
-      ],
+    /** 业务 ID */
+    bizId: {
+      type: [Number, String],
+      default: '',
+    },
+    /** TAPD 工作空间 ID */
+    workspaceId: {
+      type: [Number, String],
+      default: '',
+    },
+    /** TAPD 单据类型 */
+    tapdType: {
+      type: String,
+      default: 'story',
     },
   },
   emits: {
@@ -61,8 +62,30 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
-
     const errMsg = shallowRef('');
+
+    const bizIdRef = toRef(props, 'bizId');
+    const workspaceIdRef = toRef(props, 'workspaceId');
+    const tapdTypeRef = toRef(props, 'tapdType');
+
+    const { list, loading, scrollLoading, fetchData, handleSearch, handleScrollEnd } = useTapdSelect({
+      bizId: bizIdRef,
+      workspaceId: workspaceIdRef,
+      tapdType: tapdTypeRef,
+    });
+
+    /** 当查询参数变化时重新加载列表 */
+    watch(
+      () => [props.workspaceId, props.tapdType],
+      () => {
+        if (props.workspaceId && props.tapdType) {
+          fetchData();
+        }
+      }
+    );
+
+    /** Select 是否处于加载态（首次或滚动加载） */
+    const selectLoading = computed(() => loading.value || scrollLoading.value);
 
     const validate = async () => {
       if (!props.modelValue.length) {
@@ -77,9 +100,13 @@ export default defineComponent({
       emit('update:modelValue', val);
     };
 
-    const handleToggle = val => {
+    const handleToggle = (val: boolean) => {
       if (val) {
         errMsg.value = '';
+        /** 打开下拉时触发首加载数据 */
+        if (!list.value.length) {
+          fetchData();
+        }
       } else {
         validate();
       }
@@ -88,9 +115,14 @@ export default defineComponent({
     return {
       errMsg,
       t,
+      list,
+      selectLoading,
+      scrollLoading,
       handleChange,
-      validate,
+      handleSearch,
+      handleScrollEnd,
       handleToggle,
+      validate,
     };
   },
   render() {
@@ -109,22 +141,34 @@ export default defineComponent({
                 popoverOptions={{
                   extCls: 'tapd-sideslider-relation-compoent-popover',
                 }}
+                loading={this.selectLoading}
                 modelValue={this.modelValue}
                 multiple={true}
+                scrollLoading={this.scrollLoading}
                 filterable
+                onScroll-end={this.handleScrollEnd}
+                onSearch-change={this.handleSearch}
                 onToggle={this.handleToggle}
                 onUpdate:modelValue={this.handleChange}
               >
-                {this.tapdList.map(item => (
+                {this.list.map(item => (
                   <Select.Option
-                    id={item.tapd_id}
-                    key={item.tapd_id}
-                    name={item.tapd_title}
+                    id={item.id}
+                    key={item.id}
+                    name={item.name}
                   >
                     <span class='tapd-select-item'>
-                      <span class='tapd-id'>{item.tapd_id}</span>
-                      <span class='tapd-title'>{item.tapd_title}</span>
-                      <span class='tapd-status'>backlog</span>
+                      <span class='tapd-id'>#{item.id}</span>
+                      <span class='tapd-title'>{item.name}</span>
+                      <span
+                        style={{
+                          borderColor: TapdStatusMap[item.status].color,
+                          color: TapdStatusMap[item.status].color,
+                        }}
+                        class='tapd-status'
+                      >
+                        {TapdStatusMap[item.status].text}
+                      </span>
                     </span>
                   </Select.Option>
                 ))}

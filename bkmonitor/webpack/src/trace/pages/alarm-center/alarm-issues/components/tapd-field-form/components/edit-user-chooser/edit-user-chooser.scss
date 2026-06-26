@@ -17,4 +17,8 @@
     line-height: 12px;
     color: #ea3636;
   }
+
+  .bk-user-selector .tags-container.focused {
+    z-index: 2;
+  }
 }

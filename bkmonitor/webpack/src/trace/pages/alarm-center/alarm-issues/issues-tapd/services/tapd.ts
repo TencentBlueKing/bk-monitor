@@ -28,3 +28,5 @@ import { request } from 'monitor-api/base';
 
 /** 获取用户 TAPD 工作空间列表 */
 export const getUserWorkspace = request('GET', '/fta/issue/tapd/user_workspace/');
+
+export const searchTapdItems = request('POST', '/fta/issue/issue/search_tapd_items/');
