@@ -43,6 +43,7 @@ from metadata.models.data_link.constants import (
     BASEREPORT_SOURCE_SYSTEM,
     BASEREPORT_USAGES,
     BKBASE_NAMESPACE_BK_MONITOR,
+    DataLinkKind,
     DataLinkResourceStatus,
 )
 from metadata.models.data_link.data_link import DataLink
@@ -77,6 +78,25 @@ def refresh_custom_log_report_config(log_group_id=None):
     from metadata.task.custom_report import refresh_custom_log_config
 
     refresh_custom_log_config(log_group_id=log_group_id)
+
+
+@app.task(name="metadata.sync_graph_definition_to_bkbase", ignore_result=True, queue="celery_metadata_task_worker")
+def sync_graph_definition_to_bkbase(
+    namespace: str,
+    kind: str = "",
+    name: str = "",
+    generation: int | None = None,
+    action: str = "apply",
+):
+    from metadata.task.sync_cmdb_relation import sync_graph_definition_to_bkbase as sync_graph_definition
+
+    sync_graph_definition(
+        namespace=namespace,
+        kind=kind,
+        name=name,
+        generation=generation,
+        action=action,
+    )
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
@@ -838,6 +858,7 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
             models.GraphRelationBindingConfig.kind,
         )
         all_components_ok = False
+    refreshed_component_keys: set[tuple[str, str, str]] = set()
 
     # 4. 遍历链路关联的所有类型资源；
     # 历史写法按 ``name=bkbase_rt_name`` 查，默认 RT/Binding/DataBus 三者同名。组件复用之后三者可能
@@ -877,12 +898,33 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
         for component_ins in component_instances:
             try:
                 with transaction.atomic():
-                    component_status = get_data_link_component_status(
-                        bk_tenant_id=bk_tenant_id,
-                        kind=component_ins.kind,
-                        namespace=component_ins.namespace,
-                        component_name=component_ins.name,
-                    )
+                    component_key = (component_ins.kind, component_ins.namespace, component_ins.name)
+                    if component_key in refreshed_component_keys:
+                        continue
+                    refreshed_component_keys.add(component_key)
+
+                    if component_ins.kind == DataLinkKind.GRAPHRELATIONBINDING.value:
+                        component_status = component_ins.component_status
+                        if (
+                            component_ins.status == DataLinkResourceStatus.FAILED.value
+                            and component_status == DataLinkResourceStatus.OK.value
+                        ):
+                            all_components_ok = False
+                            logger.info(
+                                "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s] "
+                                "keep failed status before graph reapply succeeds",
+                                data_link_name,
+                                component_ins.name,
+                                component_ins.kind,
+                            )
+                            continue
+                    else:
+                        component_status = get_data_link_component_status(
+                            bk_tenant_id=bk_tenant_id,
+                            kind=component_ins.kind,
+                            namespace=component_ins.namespace,
+                            component_name=component_ins.name,
+                        )
                     logger.info(
                         "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s],status->[%s]",
                         data_link_name,
@@ -892,6 +934,7 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
                     )
                     if component_status != DataLinkResourceStatus.OK.value:
                         all_components_ok = False
+                    # 和DB中数据不一致时，才进行更新操作
                     if component_ins.status != component_status:
                         component_ins.status = component_status
                         component_ins.save()
@@ -932,7 +975,7 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
         report_metadata_data_link_status_info(
             data_link_name=data_link_name,
             biz_id=data_id_config.bk_biz_id,
-            kind=data_id_config.kind,
+            kind=DataLinkKind.RESULTTABLE.value,
             status=bkbase_rt_record.status,
         )
 
@@ -1329,7 +1372,7 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
                         bk_biz_id,
                         task,
                     )
-                    for component_class in DataLink.STRATEGY_RELATED_COMPONENTS[datalink_ins.data_link_strategy]:
+                    for component_class in datalink_ins.get_related_component_classes():
                         component_class.objects.filter(data_link_name=data_name).update(namespace=namespace)
                     task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
 

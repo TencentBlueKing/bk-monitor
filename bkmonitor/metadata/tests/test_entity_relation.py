@@ -386,18 +386,11 @@ class TestConvertToVerticesAndRelations:
         from metadata.models.entity_relation import convert_to_vertices_and_relations
 
         resource_defs = [
-            self._make_resource_defs({
-                "name": "pod",
-                "fields": [{"namespace": "k8s", "name": "pod_name", "required": True}],
-            }),
-            self._make_resource_defs({
-                "name": "node",
-                "fields": [{"namespace": "k8s", "name": "node_ip", "required": True}],
-            }),
+            self._make_resource_defs({"name": "pod", "fields": [{"namespace": "k8s", "name": "pod_name", "required": True}]}),
+            self._make_resource_defs({"name": "node", "fields": [{"namespace": "k8s", "name": "node_ip", "required": True}]}),
         ]
         relation_defs = [self._make_relation_defs({
             "name": "pod_node", "from_resource": "pod", "to_resource": "node",
-            "labels": {"metric_name": "pod_node_custom_metric"},
         })]
 
         vertices, relations = convert_to_vertices_and_relations(resource_defs, relation_defs)
@@ -411,7 +404,7 @@ class TestConvertToVerticesAndRelations:
             "metric": "node_with_pod_relation", "delimiter": "_",
         }]
 
-    def test_metric_falls_back_to_bidirectional_bmw_relation_name(self):
+    def test_metric_uses_bidirectional_bmw_relation_name(self):
         from metadata.models.entity_relation import convert_to_vertices_and_relations
 
         _, relations = convert_to_vertices_and_relations(
@@ -424,24 +417,60 @@ class TestConvertToVerticesAndRelations:
         )
         assert relations[0]["metric"] == "pod_with_service_relation"
 
-    def test_metric_falls_back_to_directional_bmw_relation_name(self):
+    def test_metric_ignores_label_metric_name(self):
         from metadata.models.entity_relation import convert_to_vertices_and_relations
 
         _, relations = convert_to_vertices_and_relations(
-            self._make_required_resource_defs("pod", "node"),
+            self._make_required_resource_defs("service", "pod"),
             [
                 self._make_relation_defs(
                     {
-                        "name": "pod_node",
-                        "from_resource": "pod",
-                        "to_resource": "node",
-                        "is_directional": True,
-                        "labels": {},
+                        "name": "svc_pod",
+                        "from_resource": "service",
+                        "to_resource": "pod",
+                        "labels": {"metric_name": "custom_service_pod_relation"},
                     }
                 ),
             ],
         )
-        assert relations[0]["metric"] == "pod_to_node_flow"
+        assert relations[0]["metric"] == "pod_with_service_relation"
+
+    def test_metric_ignores_spaced_label_metric_name(self):
+        from metadata.models.entity_relation import convert_to_vertices_and_relations
+
+        _, relations = convert_to_vertices_and_relations(
+            self._make_required_resource_defs("service", "pod"),
+            [
+                self._make_relation_defs(
+                    {
+                        "name": "svc_pod",
+                        "from_resource": "service",
+                        "to_resource": "pod",
+                        "labels": {"metric_name": " custom_service_pod_relation "},
+                    }
+                ),
+            ],
+        )
+        assert relations[0]["metric"] == "pod_with_service_relation"
+
+    @pytest.mark.parametrize("metric_name", ["", "   ", 1, True])
+    def test_metric_ignores_invalid_label_metric_name(self, metric_name):
+        from metadata.models.entity_relation import convert_to_vertices_and_relations
+
+        _, relations = convert_to_vertices_and_relations(
+            self._make_required_resource_defs("service", "pod"),
+            [
+                self._make_relation_defs(
+                    {
+                        "name": "svc_pod",
+                        "from_resource": "service",
+                        "to_resource": "pod",
+                        "labels": {"metric_name": metric_name},
+                    }
+                ),
+            ],
+        )
+        assert relations[0]["metric"] == "pod_with_service_relation"
 
     def test_metric_falls_back_when_relation_labels_are_not_dict(self):
         from metadata.models.entity_relation import convert_to_vertices_and_relations
@@ -459,6 +488,25 @@ class TestConvertToVerticesAndRelations:
         )
 
         assert relations[0]["metric"] == "pod_with_service_relation"
+
+    def test_metric_uses_directional_bmw_relation_name(self):
+        from metadata.models.entity_relation import convert_to_vertices_and_relations
+
+        _, relations = convert_to_vertices_and_relations(
+            self._make_required_resource_defs("pod", "node"),
+            [
+                self._make_relation_defs(
+                    {
+                        "name": "pod_node",
+                        "from_resource": "pod",
+                        "to_resource": "node",
+                        "is_directional": True,
+                        "labels": {},
+                    }
+                ),
+            ],
+        )
+        assert relations[0]["metric"] == "pod_to_node_flow"
 
     def test_dedup_keeps_first_occurrence(self):
         from metadata.models.entity_relation import convert_to_vertices_and_relations

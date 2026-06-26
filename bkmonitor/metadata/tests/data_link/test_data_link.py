@@ -56,6 +56,7 @@ from metadata.models.data_link.data_link_configs import (
     VMStorageBindingConfig,
 )
 from metadata.models.data_link.relation import (
+    _merge_graph_dual_write_sibling_databus,
     _resolve_rebuild_result_table_id,
     rebuild_bkbase_v4_datalink_relation,
     rebuild_databus_relation,
@@ -3519,6 +3520,8 @@ def test_rebuild_bkbase_v4_datalink_relation_falls_back_to_general_relation():
 def test_rebuild_bkbase_v4_datalink_relation_deduplicates_graph_dual_write_dry_run():
     table_id = "1001_bkmonitor_time_series_60200.__default__"
     data_id_name = "graph_dual_data"
+    bkbase_rt_name = "graph_dual_rt"
+    graph_bkbase_rt_name = "graph_dual_rt_graph"
     models.DataSource.objects.create(
         bk_data_id=60200,
         data_name=data_id_name,
@@ -3526,6 +3529,16 @@ def test_rebuild_bkbase_v4_datalink_relation_deduplicates_graph_dual_write_dry_r
         mq_config_id=1,
         etl_config="bk_standard_v2_time_series",
         is_custom_source=False,
+        bk_tenant_id="system",
+    )
+    models.DataSourceResultTable.objects.create(bk_data_id=60200, table_id=table_id, bk_tenant_id="system")
+    models.AccessVMRecord.objects.create(
+        result_table_id=table_id,
+        bk_base_data_id=60200,
+        bk_base_data_name=data_id_name,
+        vm_result_table_id=f"1001_{bkbase_rt_name}",
+        vm_cluster_id=1,
+        storage_cluster_id=1,
         bk_tenant_id="system",
     )
     models.DataIdConfig.objects.create(
@@ -3536,23 +3549,25 @@ def test_rebuild_bkbase_v4_datalink_relation_deduplicates_graph_dual_write_dry_r
         bk_data_id=60200,
     )
     models.ResultTableConfig.objects.create(
-        name="bkm_graph_dual_rt",
+        name=bkbase_rt_name,
         namespace="bkmonitor",
         bk_tenant_id="system",
         bk_biz_id=1001,
+        bkbase_table_id=f"1001_{bkbase_rt_name}",
     )
     models.ResultTableConfig.objects.create(
-        name="bkm_graph_dual_rt_graph",
+        name=graph_bkbase_rt_name,
         namespace="bkmonitor",
         bk_tenant_id="system",
         bk_biz_id=1001,
+        bkbase_table_id=f"1001_{graph_bkbase_rt_name}",
     )
     models.VMStorageBindingConfig.objects.create(
         name="graph_vm_binding",
         namespace="bkmonitor",
         bk_tenant_id="system",
         bk_biz_id=1001,
-        bkbase_result_table_name="bkm_graph_dual_rt",
+        bkbase_result_table_name=bkbase_rt_name,
         vm_cluster_name="vm-default",
         table_id="",
     )
@@ -3561,7 +3576,7 @@ def test_rebuild_bkbase_v4_datalink_relation_deduplicates_graph_dual_write_dry_r
         namespace="bkmonitor",
         bk_tenant_id="system",
         bk_biz_id=1001,
-        bkbase_result_table_name="bkm_graph_dual_rt_graph",
+        bkbase_result_table_name=graph_bkbase_rt_name,
         surrealdb_cluster_name="surreal-default",
         table_id="",
     )
@@ -3588,6 +3603,15 @@ def test_rebuild_bkbase_v4_datalink_relation_deduplicates_graph_dual_write_dry_r
 
     assert len(results) == 1
     assert results[0]["strategy"] == DataLink.GRAPH_RELATION_TIME_SERIES
+    assert results[0]["table_ids"] == [table_id]
+    assert {
+        (sink["kind"], sink["name"], sink["table_id"])
+        for sink in results[0]["sinks"]
+        if sink["kind"] in {DataLinkKind.VMSTORAGEBINDING.value, DataLinkKind.SURREALDBBINDING.value}
+    } == {
+        (DataLinkKind.VMSTORAGEBINDING.value, "graph_vm_binding", table_id),
+        (DataLinkKind.SURREALDBBINDING.value, "graph_surreal_binding", table_id),
+    }
     databus_component_names = {
         component["name"]
         for component in results[0]["components"]
@@ -3597,7 +3621,69 @@ def test_rebuild_bkbase_v4_datalink_relation_deduplicates_graph_dual_write_dry_r
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_rebuild_bkbase_v4_datalink_relation_recognizes_vm_only_graph_dry_run():
+def test_rebuild_databus_relation_falls_back_to_unique_dsrt_for_surrealdb_table_id():
+    table_id = "1001_bkmonitor_time_series_60204.__default__"
+    data_id_name = "graph_surreal_fallback_data"
+    graph_bkbase_rt_name = "graph_surreal_fallback_rt_graph"
+    models.DataSource.objects.create(
+        bk_data_id=60204,
+        data_name=data_id_name,
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config="bk_standard_v2_time_series",
+        is_custom_source=False,
+        bk_tenant_id="system",
+    )
+    models.DataSourceResultTable.objects.create(bk_data_id=60204, table_id=table_id, bk_tenant_id="system")
+    models.DataIdConfig.objects.create(
+        name=data_id_name,
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1001,
+        bk_data_id=60204,
+    )
+    models.ResultTableConfig.objects.create(
+        name=graph_bkbase_rt_name,
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1001,
+        bkbase_table_id=f"1001_{graph_bkbase_rt_name}",
+    )
+    models.SurrealDBBindingConfig.objects.create(
+        name="graph_surreal_fallback_binding",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1001,
+        bkbase_result_table_name=graph_bkbase_rt_name,
+        surrealdb_cluster_name="surreal-default",
+    )
+    databus = models.DataBusConfig.objects.create(
+        name="graph_surreal_fallback_databus",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1001,
+        data_id_name=data_id_name,
+        bk_data_id=60204,
+        sink_names=[f"{DataLinkKind.SURREALDBBINDING.value}:graph_surreal_fallback_binding"],
+    )
+
+    relation = rebuild_databus_relation(databus, dry_run=True)
+
+    assert relation is not None
+    assert relation["strategy"] == DataLink.GRAPH_RELATION_TIME_SERIES
+    assert relation["table_ids"] == [table_id]
+    assert relation["sinks"] == [
+        {
+            "kind": DataLinkKind.SURREALDBBINDING.value,
+            "name": "graph_surreal_fallback_binding",
+            "table_id": table_id,
+        }
+    ]
+    assert relation["result_tables"] == [{"name": graph_bkbase_rt_name, "table_id": table_id}]
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_rebuild_bkbase_v4_datalink_relation_recognizes_vm_only_graph_link_dry_run():
     table_id = "1001_bkmonitor_time_series_60201.__default__"
     data_id_name = "graph_vm_only_data"
     original_data_link_name = "graph_vm_only_link"
@@ -3637,6 +3723,16 @@ def test_rebuild_bkbase_v4_datalink_relation_recognizes_vm_only_graph_dry_run():
         bkbase_result_table_name="graph_vm_only_rt",
         vm_cluster_name="vm-default",
         table_id=table_id,
+    )
+    models.GraphRelationBindingConfig.objects.create(
+        name="graph_vm_only_relation_binding",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1001,
+        table_id=table_id,
+        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM,
+        vertices=[{"name": "pod", "id_fields": ["pod_name"]}],
+        relations=[{"name": "pod_node", "from": "pod", "to": "node"}],
     )
     BkBaseResultTable.objects.create(
         bk_tenant_id="system",
@@ -3753,8 +3849,7 @@ def test_rebuild_bkbase_v4_datalink_relation_recognizes_vm_only_graph_marker_wit
 @pytest.mark.django_db(databases="__all__")
 def test_rebuild_graph_relation_binding_uses_short_name_for_long_databus():
     table_id = "1001_bkmonitor_time_series_60202.__default__"
-    data_id_name = "graph_long_databus_data"
-    long_databus_name = "graph_" + "x" * 70
+    data_id_name = "graph_vm_only_rebuild_data"
     models.DataSource.objects.create(
         bk_data_id=60202,
         data_name=data_id_name,
@@ -3762,6 +3857,11 @@ def test_rebuild_graph_relation_binding_uses_short_name_for_long_databus():
         mq_config_id=1,
         etl_config="bk_standard_v2_time_series",
         is_custom_source=False,
+        bk_tenant_id="system",
+    )
+    models.DataSourceResultTable.objects.create(
+        bk_data_id=60202,
+        table_id=table_id,
         bk_tenant_id="system",
     )
     models.DataIdConfig.objects.create(
@@ -3772,36 +3872,55 @@ def test_rebuild_graph_relation_binding_uses_short_name_for_long_databus():
         bk_data_id=60202,
     )
     models.ResultTableConfig.objects.create(
-        name="graph_long_rt",
+        name="graph_vm_only_rebuild_rt",
         namespace="bkmonitor",
         bk_tenant_id="system",
         bk_biz_id=1001,
     )
-    models.SurrealDBBindingConfig.objects.create(
-        name="graph_long_surreal_binding",
+    models.VMStorageBindingConfig.objects.create(
+        name="graph_vm_only_rebuild_binding",
         namespace="bkmonitor",
         bk_tenant_id="system",
         bk_biz_id=1001,
-        bkbase_result_table_name="graph_long_rt",
-        surrealdb_cluster_name="surreal-default",
+        bkbase_result_table_name="graph_vm_only_rebuild_rt",
+        vm_cluster_name="vm-default",
+    )
+    models.GraphRelationBindingConfig.objects.create(
+        name="graph_vm_only_rebuild_relation_binding",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1001,
+        surrealdb_cluster_name="surreal-non-default",
         table_id=table_id,
+        table_type="normal",
+        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM,
+        vertices=[{"name": "pod", "id_fields": ["pod_name"]}],
+        relations=[{"name": "pod_node", "from": "pod", "to": "node"}],
     )
-    models.DataBusConfig.objects.create(
-        name=long_databus_name,
+    databus = models.DataBusConfig.objects.create(
+        name="graph_vm_only_rebuild_databus",
         namespace="bkmonitor",
         bk_tenant_id="system",
         bk_biz_id=1001,
         data_id_name=data_id_name,
         bk_data_id=60202,
-        sink_names=[f"{DataLinkKind.SURREALDBBINDING.value}:graph_long_surreal_binding"],
+        sink_names=[f"{DataLinkKind.VMSTORAGEBINDING.value}:graph_vm_only_rebuild_binding"],
     )
 
-    rebuild_bkbase_v4_datalink_relation(bk_tenant_id="system", namespace="bkmonitor", dry_run=False)
+    data_link = rebuild_databus_relation(databus, dry_run=False)
 
-    graph_binding = GraphRelationBindingConfig.objects.get(data_link_name__startswith="rebuilt__")
+    assert data_link is not None
+    assert data_link.data_link_strategy == DataLink.GRAPH_RELATION_TIME_SERIES
+    graph_binding = GraphRelationBindingConfig.objects.get(data_link_name=data_link.data_link_name)
     assert len(graph_binding.name) <= 64
     assert len(graph_binding.data_link_name) <= 64
     assert graph_binding.name != graph_binding.data_link_name
+    assert graph_binding.write_mode == GraphRelationBindingConfig.WRITE_MODE_VM
+    assert graph_binding.vm_cluster_name == "vm-default"
+    assert graph_binding.surrealdb_cluster_name == "surreal-non-default"
+    assert graph_binding.table_type == "normal"
+    assert graph_binding.vertices == [{"name": "pod", "id_fields": ["pod_name"]}]
+    assert graph_binding.relations == [{"name": "pod_node", "from": "pod", "to": "node"}]
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -3891,10 +4010,21 @@ def test_rebuild_graph_relation_merges_siblings_without_prefilled_table_id():
             bk_data_id=0,
             sink_names=[f"{sink_kind}:{sink_name}"],
         )
+    orphan_graph_binding = GraphRelationBindingConfig.objects.create(
+        name="orphan_graph_binding",
+        data_link_name="",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1001,
+        table_id=table_id,
+        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
+    )
 
     rebuild_bkbase_v4_datalink_relation(bk_tenant_id="system", namespace="bkmonitor", dry_run=False)
 
     graph_binding = GraphRelationBindingConfig.objects.get()
+    assert graph_binding.pk == orphan_graph_binding.pk
+    assert graph_binding.name == "orphan_graph_binding"
     assert graph_binding.write_mode == GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB
     assert DataLink.objects.filter(data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES).count() == 1
     assert set(
@@ -4037,60 +4167,87 @@ def test_rebuild_graph_relation_fallback_stores_monitor_data_id_on_sibling_datab
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_rebuild_surrealdb_graph_relation_resolves_table_id_from_data_source_result_table():
-    table_id = "1001_bkmonitor_time_series_60203.__default__"
-    data_id_name = "graph_surreal_only_data"
-    models.DataSource.objects.create(
-        bk_data_id=60203,
-        data_name=data_id_name,
-        mq_cluster_id=1,
-        mq_config_id=1,
-        etl_config="bk_standard_v2_time_series",
-        is_custom_source=False,
-        bk_tenant_id="system",
-    )
-    models.DataSourceResultTable.objects.create(
-        bk_data_id=60203,
-        table_id=table_id,
-        bk_tenant_id="system",
-    )
-    models.DataIdConfig.objects.create(
-        name=data_id_name,
+def test_merge_graph_sibling_databus_does_not_normalize_vm_graph_suffix():
+    databus = DataBusConfig.objects.create(
+        name="vm_databus",
         namespace="bkmonitor",
         bk_tenant_id="system",
         bk_biz_id=1001,
+        data_id_name="data",
         bk_data_id=60203,
+        sink_names=[f"{DataLinkKind.VMSTORAGEBINDING.value}:legitimate_graph_vm_binding"],
     )
-    models.ResultTableConfig.objects.create(
-        name="graph_surreal_only_rt",
+    vm_binding = VMStorageBindingConfig.objects.create(
+        name="legitimate_graph_vm_binding",
         namespace="bkmonitor",
         bk_tenant_id="system",
         bk_biz_id=1001,
+        bkbase_result_table_name="legitimate_graph",
     )
-    models.SurrealDBBindingConfig.objects.create(
-        name="graph_surreal_only_binding",
+    DataBusConfig.objects.create(
+        name="surreal_databus",
         namespace="bkmonitor",
         bk_tenant_id="system",
         bk_biz_id=1001,
-        bkbase_result_table_name="graph_surreal_only_rt",
-        surrealdb_cluster_name="surreal-default",
-    )
-    models.DataBusConfig.objects.create(
-        name="graph_surreal_only_databus",
-        namespace="bkmonitor",
-        bk_tenant_id="system",
-        bk_biz_id=1001,
-        data_id_name=data_id_name,
+        data_id_name="data",
         bk_data_id=60203,
-        sink_names=[f"{DataLinkKind.SURREALDBBINDING.value}:graph_surreal_only_binding"],
+        sink_names=[f"{DataLinkKind.SURREALDBBINDING.value}:unrelated_surreal_binding"],
+    )
+    SurrealDBBindingConfig.objects.create(
+        name="unrelated_surreal_binding",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1001,
+        bkbase_result_table_name="legitimate",
     )
 
-    results = rebuild_bkbase_v4_datalink_relation(bk_tenant_id="system", namespace="bkmonitor", dry_run=True)
+    databuses, sink_instances = _merge_graph_dual_write_sibling_databus(databus, [vm_binding])
 
-    assert len(results) == 1
-    assert results[0]["strategy"] == DataLink.GRAPH_RELATION_TIME_SERIES
-    assert results[0]["table_ids"] == [table_id]
-    assert results[0]["result_tables"] == [{"name": "graph_surreal_only_rt", "table_id": table_id}]
+    assert databuses == [databus]
+    assert sink_instances == [vm_binding]
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_merge_graph_sibling_databus_keeps_table_and_result_table_keys_separate():
+    databus = DataBusConfig.objects.create(
+        name="vm_databus_table_key",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1001,
+        data_id_name="data",
+        bk_data_id=60205,
+        sink_names=[f"{DataLinkKind.VMSTORAGEBINDING.value}:vm_binding_table_key"],
+    )
+    vm_binding = VMStorageBindingConfig.objects.create(
+        name="vm_binding_table_key",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1001,
+        table_id="collision_key",
+        bkbase_result_table_name="vm_rt",
+    )
+    DataBusConfig.objects.create(
+        name="surreal_databus_result_key",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1001,
+        data_id_name="data",
+        bk_data_id=60205,
+        sink_names=[f"{DataLinkKind.SURREALDBBINDING.value}:surreal_binding_result_key"],
+    )
+    SurrealDBBindingConfig.objects.create(
+        name="surreal_binding_result_key",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=1001,
+        table_id="other_table",
+        bkbase_result_table_name="collision_key",
+    )
+
+    databuses, sink_instances = _merge_graph_dual_write_sibling_databus(databus, [vm_binding])
+
+    assert databuses == [databus]
+    assert sink_instances == [vm_binding]
 
 
 def test_get_bkbase_components_config_extracts_result_table_id_case_insensitive():
@@ -6379,7 +6536,7 @@ def test_sync_metadata_storage_type_mismatch_skips(create_or_delete_records):
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_graph_relation_compose_allows_empty_definitions_and_keeps_table_type(create_or_delete_records, mocker):
+def test_graph_relation_compose_rejects_empty_definitions(create_or_delete_records, mocker):
     datalink, ds, rt = _prepare_bk_standard_v2_datalink()
     datalink.data_link_strategy = DataLink.GRAPH_RELATION_TIME_SERIES
     datalink.save(update_fields=["data_link_strategy"])
@@ -6778,14 +6935,6 @@ def test_delete_graph_relation_data_link_falls_back_when_binding_missing(mocker)
             bk_tenant_id=data_link.bk_tenant_id,
             bk_biz_id=2,
             status=DataLinkResourceStatus.OK.value,
-            **(
-                {
-                    "table_id": "2_bkcc_built_in_time_series.__default__",
-                    "surrealdb_cluster_name": "surreal-default",
-                }
-                if binding_class is SurrealDBBindingConfig
-                else {}
-            ),
         )
         DataBusConfig.objects.create(
             name=name,
@@ -6973,6 +7122,86 @@ def test_graph_relation_binding_delete_uses_distinct_child_component_names(mocke
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_graph_relation_transition_to_vm_keeps_vm_storage_cluster_record(create_or_delete_records, mocker):
+    table_id = "2_bkcc_built_in_time_series.__default__"
+    graph_binding = GraphRelationBindingConfig.objects.create(
+        name="graph_binding",
+        data_link_name="graph_transition_keeps_vm_record",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        bk_biz_id=2,
+        table_id=table_id,
+        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
+        bkbase_result_table_name="vm_rt",
+        graph_result_table_name="graph_rt",
+        vm_storage_binding_name="vm_binding",
+        vm_databus_name="vm_databus",
+        surrealdb_binding_name="surreal_binding",
+        graph_databus_name="graph_databus",
+    )
+    for name, model in (
+        ("graph_rt", ResultTableConfig),
+        ("surreal_binding", SurrealDBBindingConfig),
+        ("graph_databus", GraphDataBusConfig),
+    ):
+        defaults = {
+            "name": name,
+            "data_link_name": graph_binding.data_link_name,
+            "namespace": graph_binding.namespace,
+            "bk_tenant_id": graph_binding.bk_tenant_id,
+            "bk_biz_id": graph_binding.bk_biz_id,
+        }
+        if model is SurrealDBBindingConfig:
+            defaults.update(
+                {
+                    "bkbase_result_table_name": "graph_rt",
+                    "surrealdb_cluster_name": "surreal-default",
+                    "table_id": table_id,
+                }
+            )
+        elif model is GraphDataBusConfig:
+            defaults.update(
+                {
+                    "data_id_name": "data",
+                    "bk_data_id": 50003,
+                    "sink_names": [f"{DataLinkKind.SURREALDBBINDING.value}:surreal_binding"],
+                }
+            )
+        model.objects.create(**defaults)
+    models.SurrealDBStorage.objects.create(
+        table_id=table_id,
+        bk_tenant_id="system",
+        table_type="temporary",
+        vertices=[],
+        relations=[],
+        storage_cluster_id=300001,
+    )
+    models.StorageClusterRecord.objects.create(
+        table_id=table_id,
+        bk_tenant_id="system",
+        cluster_id=300001,
+        creator="test",
+    )
+    models.StorageClusterRecord.objects.create(
+        table_id=table_id,
+        bk_tenant_id="system",
+        cluster_id=100001,
+        creator="test",
+    )
+    mocker.patch("metadata.models.data_link.data_link_configs.api.bkdata.delete_data_link")
+
+    graph_binding.transition_write_mode(GraphRelationBindingConfig.WRITE_MODE_VM)
+
+    assert not models.SurrealDBStorage.objects.filter(table_id=table_id, bk_tenant_id="system").exists()
+    assert not models.StorageClusterRecord.objects.filter(
+        table_id=table_id, bk_tenant_id="system", cluster_id=300001
+    ).exists()
+    assert models.StorageClusterRecord.objects.filter(
+        table_id=table_id, bk_tenant_id="system", cluster_id=100001
+    ).exists()
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_graph_relation_apply_failure_keeps_existing_write_mode(create_or_delete_records, mocker):
     datalink, ds, rt = _prepare_bk_standard_v2_datalink()
     datalink.data_link_strategy = DataLink.GRAPH_RELATION_TIME_SERIES
@@ -7013,18 +7242,6 @@ def test_graph_relation_apply_failure_keeps_existing_write_mode(create_or_delete
     assert not hasattr(datalink, "_graph_transition_cleanup_after_apply")
     assert not hasattr(datalink, "_graph_write_mode_after_apply")
     assert not hasattr(datalink, "_graph_binding_update_after_apply")
-    assert not ResultTableConfig.objects.filter(
-        data_link_name=datalink.data_link_name,
-        name=utils.compose_bkdata_table_id(rt.table_id),
-    ).exists()
-    assert not VMStorageBindingConfig.objects.filter(
-        data_link_name=datalink.data_link_name,
-        name=utils.compose_bkdata_table_id(rt.table_id),
-    ).exists()
-    assert not DataBusConfig.objects.filter(
-        data_link_name=datalink.data_link_name,
-        name=utils.compose_bkdata_table_id(rt.table_id),
-    ).exists()
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -7097,6 +7314,48 @@ def test_graph_relation_apply_reuses_existing_short_binding_name(create_or_delet
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_graph_relation_apply_transient_write_mode_keeps_desired_mode(create_or_delete_records, mocker):
+    datalink, ds, rt = _prepare_bk_standard_v2_datalink()
+    datalink.data_link_strategy = DataLink.GRAPH_RELATION_TIME_SERIES
+    datalink.save(update_fields=["data_link_strategy"])
+    GraphRelationBindingConfig.objects.create(
+        name=datalink.data_link_name,
+        namespace=datalink.namespace,
+        bk_tenant_id=datalink.bk_tenant_id,
+        data_link_name=datalink.data_link_name,
+        bk_biz_id=1001,
+        table_id=rt.table_id,
+        vm_cluster_name="vm-plat",
+        bkbase_result_table_name=utils.compose_bkdata_table_id(rt.table_id),
+        graph_result_table_name=DataLink.compose_surrealdb_table_name(rt.table_id),
+        surrealdb_cluster_name="old-surreal",
+        table_type="normal",
+        vertices=[{"name": "pod", "id_fields": ["pod_name"]}],
+        relations=[{"name": "pod_node", "from": "pod", "to": "node"}],
+        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
+    )
+    mocker.patch.object(DataLink, "apply_data_link_with_retry", return_value={"result": True})
+    mock_transition = mocker.patch.object(GraphRelationBindingConfig, "transition_write_mode", autospec=True)
+
+    datalink.apply_data_link(
+        bk_biz_id=1001,
+        data_source=ds,
+        table_id=rt.table_id,
+        storage_cluster_name="vm-plat",
+        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM,
+        persist_graph_write_mode=False,
+    )
+
+    graph_binding = GraphRelationBindingConfig.objects.get(name=datalink.data_link_name)
+    assert graph_binding.write_mode == GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB
+    assert graph_binding.surrealdb_cluster_name == "old-surreal"
+    assert graph_binding.table_type == "normal"
+    mock_transition.assert_called_once()
+    assert mock_transition.call_args.args[1] == GraphRelationBindingConfig.WRITE_MODE_VM
+    assert not hasattr(datalink, "_graph_binding_update_after_apply")
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_graph_relation_apply_ignores_post_apply_cleanup_error(mocker):
     datalink = DataLink.objects.create(
         data_link_name="graph_cleanup_test",
@@ -7106,12 +7365,15 @@ def test_graph_relation_apply_ignores_post_apply_cleanup_error(mocker):
     )
     cleanup_binding = mocker.Mock()
     cleanup_binding.transition_write_mode.side_effect = RuntimeError("cleanup failed")
-    datalink._graph_transition_cleanup_after_apply = (
-        cleanup_binding,
-        GraphRelationBindingConfig.WRITE_MODE_VM,
-    )
 
-    mocker.patch.object(DataLink, "compose_configs", return_value=[])
+    def compose_with_cleanup_state(*args, **kwargs):
+        datalink._graph_transition_cleanup_after_apply = (
+            cleanup_binding,
+            GraphRelationBindingConfig.WRITE_MODE_VM,
+        )
+        return []
+
+    mocker.patch.object(DataLink, "compose_configs", side_effect=compose_with_cleanup_state)
     mocked_apply = mocker.patch.object(DataLink, "apply_data_link_with_retry", return_value={"status": "success"})
 
     datalink.apply_data_link(
@@ -7180,14 +7442,52 @@ def test_surrealdb_cluster_in_bkbase_v4_storage_sync_configs():
     }
 
 
+@pytest.mark.django_db(databases="__all__")
+def test_graph_relation_apply_failure_clears_deferred_transition_state(mocker):
+    datalink = DataLink.objects.create(
+        data_link_name="graph_cleanup_failed_attempt",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+    )
+    cleanup_binding = mocker.Mock()
+
+    def compose_with_cleanup_state(*args, **kwargs):
+        datalink._graph_transition_cleanup_after_apply = (
+            cleanup_binding,
+            GraphRelationBindingConfig.WRITE_MODE_VM,
+        )
+        datalink._graph_write_mode_after_apply = (123, GraphRelationBindingConfig.WRITE_MODE_SURREALDB)
+        return []
+
+    mocker.patch.object(DataLink, "compose_configs", side_effect=compose_with_cleanup_state)
+    mocker.patch.object(DataLink, "apply_data_link_with_retry", side_effect=RuntimeError("apply failed"))
+
+    with pytest.raises(RuntimeError, match="apply failed"):
+        datalink.apply_data_link(
+            table_id="1001_bkmonitor_time_series_60300.__default__",
+            write_mode=GraphRelationBindingConfig.WRITE_MODE_SURREALDB,
+        )
+
+    cleanup_binding.transition_write_mode.assert_not_called()
+    assert not hasattr(datalink, "_graph_transition_cleanup_after_apply")
+    assert not hasattr(datalink, "_graph_write_mode_after_apply")
+
+
 class TestSurrealDBBindingGraphDefinitionValidation:
     def _build_config(self, **kw):
         return SurrealDBBindingConfig(
             name="test",
             bk_biz_id=2,
-            vertices=kw.pop("vertices", []),
-            relations=kw.pop("relations", []),
+            vertices=kw.pop("vertices", [{"name": "pod", "id_fields": ["pod_name"]}]),
+            relations=kw.pop("relations", [{"name": "pod_node", "from": "pod", "to": "node"}]),
         )
+
+    def test_reject_empty_definitions(self):
+        with pytest.raises(ValueError, match="vertices 必须为非空列表"):
+            self._build_config(vertices=[])._validate_graph_definitions()
+        with pytest.raises(ValueError, match="relations 必须为非空列表"):
+            self._build_config(relations=[])._validate_graph_definitions()
 
     def test_reject_malformed_vertices(self):
         with pytest.raises(ValueError, match="vertices 必须为列表"):

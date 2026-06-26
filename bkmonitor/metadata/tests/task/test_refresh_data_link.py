@@ -12,6 +12,7 @@ import pytest
 
 from metadata import models
 from metadata.health_check import get_bkdata_status
+from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.task.tasks import _refresh_data_link_status
 
 
@@ -229,7 +230,7 @@ def test_refresh_data_link_status_falls_back_to_bk_data_id(create_or_delete_reco
 
 @pytest.mark.django_db(databases="__all__")
 def test_refresh_graph_link_status_skips_local_binding(mocker):
-    """GraphRelationBindingConfig 是本地聚合配置，不应作为 BKBase 资源查询状态。"""
+    """GraphRelationBindingConfig 参与本地状态聚合，但不应作为 BKBase 资源查询状态。"""
     data_link_name = "bkm_graph_status_link"
     models.BkBaseResultTable.objects.create(
         data_link_name=data_link_name,
@@ -502,3 +503,46 @@ def test_get_bkdata_status_requires_graph_binding(mocker):
 
     assert not bkdata_status.finished
     assert models.GraphRelationBindingConfig.kind in bkdata_status.message
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_refresh_graph_relation_binding_status_preserves_failed_until_reapply(mocker):
+    data_link_name = "bkm_graph_recover_data_link"
+    models.BkBaseResultTable.objects.create(
+        data_link_name=data_link_name,
+        bkbase_data_name=data_link_name,
+        storage_type="victoria_metrics",
+        monitor_table_id="1001_bkm_graph_recover.__default__",
+        storage_cluster_id=11,
+        status=DataLinkResourceStatus.PENDING.value,
+        bkbase_table_id="2_bkm_graph_recover",
+        bkbase_rt_name="bkm_graph_recover_rt",
+    )
+    models.DataLink.objects.create(
+        data_link_name=data_link_name,
+        namespace="bkmonitor",
+        data_link_strategy=models.DataLink.GRAPH_RELATION_TIME_SERIES,
+        table_ids=["1001_bkm_graph_recover.__default__"],
+    )
+    models.DataIdConfig.objects.create(namespace="bkmonitor", name=data_link_name, bk_biz_id=1001)
+    models.GraphRelationBindingConfig.objects.create(
+        namespace="bkmonitor",
+        name=data_link_name,
+        data_link_name=data_link_name,
+        status=DataLinkResourceStatus.FAILED.value,
+        bk_biz_id=1001,
+        write_mode=models.GraphRelationBindingConfig.WRITE_MODE_VM,
+    )
+    mocker.patch(
+        "metadata.task.tasks.get_data_link_component_status",
+        return_value=DataLinkResourceStatus.OK.value,
+    )
+    mocker.patch.object(
+        models.GraphRelationBindingConfig,
+        "_aggregate_status",
+        return_value=DataLinkResourceStatus.OK.value,
+    )
+
+    _refresh_data_link_status(models.BkBaseResultTable.objects.get(data_link_name=data_link_name))
+
+    assert models.GraphRelationBindingConfig.objects.get(data_link_name=data_link_name).status == DataLinkResourceStatus.FAILED.value

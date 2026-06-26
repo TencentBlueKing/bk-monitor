@@ -602,6 +602,7 @@ class GraphRelationBindingConfig(DataLinkResourceConfigBase):
     table_type = models.CharField(verbose_name="图表类型", max_length=32, default="temporary")
     vertices = models.JSONField(verbose_name="顶点定义", default=list)
     relations = models.JSONField(verbose_name="关系定义", default=list)
+    surrealdb_auto_restore = models.BooleanField(verbose_name="SurrealDB自动恢复写入", default=False)
 
     class Meta:
         verbose_name = "图关系绑定配置"
@@ -764,19 +765,19 @@ class GraphRelationBindingConfig(DataLinkResourceConfigBase):
         from metadata.models.storage import ClusterInfo, StorageClusterRecord, SurrealDBStorage
 
         storages = SurrealDBStorage.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
-        cluster_ids = set(storages.values_list("storage_cluster_id", flat=True))
-        cluster_ids.update(
+        storage_cluster_ids = set(storages.values_list("storage_cluster_id", flat=True))
+        storage_cluster_ids.update(
             ClusterInfo.objects.filter(
                 bk_tenant_id=self.bk_tenant_id,
                 cluster_type=ClusterInfo.TYPE_SURREALDB,
             ).values_list("cluster_id", flat=True)
         )
         storages.delete()
-        if cluster_ids:
+        if storage_cluster_ids:
             StorageClusterRecord.objects.filter(
                 table_id=self.table_id,
                 bk_tenant_id=self.bk_tenant_id,
-                cluster_id__in=cluster_ids,
+                cluster_id__in=storage_cluster_ids,
             ).delete()
 
     def transition_write_mode(self, new_write_mode: str | None) -> None:
@@ -1435,6 +1436,10 @@ class SurrealDBBindingConfig(DataLinkResourceConfigBase):
             raise ValueError(f"vertices 必须为列表类型，当前类型: {type(self.vertices).__name__}")
         if not isinstance(self.relations, list):
             raise ValueError(f"relations 必须为列表类型，当前类型: {type(self.relations).__name__}")
+        if not self.vertices:
+            raise ValueError("vertices 必须为非空列表")
+        if not self.relations:
+            raise ValueError("relations 必须为非空列表")
 
         for idx, vertex in enumerate(self.vertices):
             if not isinstance(vertex, dict):

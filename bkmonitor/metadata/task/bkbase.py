@@ -28,7 +28,7 @@ from core.prometheus import metrics
 from metadata import models
 from metadata.config import KAFKA_SASL_PROTOCOL
 from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR, DataLinkKind
-from metadata.models.data_link.data_link_configs import COMPONENT_CLASS_MAP, ClusterConfig
+from metadata.models.data_link.data_link_configs import COMPONENT_CLASS_MAP, ClusterConfig, ResultTableConfig
 from metadata.models.space.constants import SpaceStatus, SpaceTypes
 from metadata.task.constants import BKBASE_V4_KIND_STORAGE_CONFIGS
 from metadata.task.tasks import sync_bkbase_v4_metadata
@@ -565,6 +565,14 @@ def _get_bkbase_components_config(
     }
     extra_config: dict[str, Any] = {"status": status}
 
+    def _get_result_table_id(rt_name: str) -> str:
+        return (
+            ResultTableConfig.objects.filter(bk_tenant_id=bk_tenant_id, namespace=namespace, name=rt_name)
+            .values_list("table_id", flat=True)
+            .first()
+            or ""
+        )
+
     # 根据kind处理不同字段
     match kind:
         case DataLinkKind.DATAID.value:
@@ -576,6 +584,7 @@ def _get_bkbase_components_config(
         case DataLinkKind.VMSTORAGEBINDING.value:
             extra_config["vm_cluster_name"] = spec["storage"]["name"]
             extra_config["bkbase_result_table_name"] = spec["data"]["name"]
+            extra_config["table_id"] = _get_result_table_id(spec["data"]["name"])
         case DataLinkKind.ESSTORAGEBINDING.value:
             extra_config["es_cluster_name"] = spec["storage"]["name"]
             extra_config["bkbase_result_table_name"] = spec["data"]["name"]
@@ -585,6 +594,7 @@ def _get_bkbase_components_config(
         case DataLinkKind.SURREALDBBINDING.value:
             extra_config["surrealdb_cluster_name"] = spec["storage"]["name"]
             extra_config["bkbase_result_table_name"] = spec["data"]["name"]
+            extra_config["table_id"] = _get_result_table_id(spec["data"]["name"])
             extra_config["table_type"] = spec.get("table_type", "temporary")
             extra_config["vertices"] = spec.get("vertices", [])
             extra_config["relations"] = spec.get("relations", [])

@@ -40,9 +40,9 @@ from metadata.models import (
     SurrealDBStorage,
 )
 from metadata.models.constants import DataIdCreatedFromSystem
-from metadata.models.data_link.constants import DataLinkKind, DataLinkResourceStatus
-from metadata.models.data_link.data_link import DataLink
 from metadata.models.data_link import utils
+from metadata.models.data_link.constants import DataLinkKind, DataLinkResourceStatus
+from metadata.models.data_link.data_link import SURREALDB_RT_SUFFIX, DataLink
 from metadata.models.data_link.data_link_configs import (
     BasereportSinkConfig,
     ConditionalSinkConfig,
@@ -89,8 +89,7 @@ SIMPLE_STORAGE_BINDING_MODELS: dict[str, type[SimpleStorageBindingConfig]] = {
     DataLinkKind.DORISBINDING.value: DorisStorageBindingConfig,
 }
 
-# Graph dual-write creates separate VM and SurrealDB Databus rows. During rebuild we need to fold sibling rows
-# back into one DataLink so GraphRelationBindingConfig can keep the unified write_mode.
+# 双写会产生 VM/SurrealDB 两条 Databus，rebuild 时需要合并成一条 graph DataLink。
 def _parse_sink_names(sink_names: Sequence[str], databus_name: str) -> dict[str, list[str]] | None:
     sink_map: dict[str, list[str]] = {}
     for entry in sink_names:
@@ -139,18 +138,44 @@ def _load_sink_instances(
     return sink_instances
 
 
+def _normalize_graph_result_table_name(name: str, *, is_graph_result_table: bool = False) -> str:
+    if not name:
+        return ""
+    if not is_graph_result_table:
+        return name
+    suffix = f"{SURREALDB_RT_SUFFIX}.__default__"
+    if suffix in name:
+        return name.replace(suffix, ".__default__", 1)
+    if name.endswith(SURREALDB_RT_SUFFIX):
+        return name[: -len(SURREALDB_RT_SUFFIX)]
+    return name
+
+
+def _graph_storage_binding_merge_keys(
+    instance: DataLinkResourceConfigBase,
+    rt_table_id_map: dict[str, str] | None = None,
+    fallback_table_id: str = "",
+) -> set[str]:
+    keys: set[str] = set()
+    rt_name = getattr(instance, "bkbase_result_table_name", "")
+    table_id = getattr(instance, "table_id", "") or (rt_table_id_map or {}).get(rt_name, "") or fallback_table_id
+    if table_id:
+        keys.add(f"table:{table_id}")
+    normalized_name = _normalize_graph_result_table_name(
+        rt_name,
+        is_graph_result_table=isinstance(instance, SurrealDBBindingConfig),
+    )
+    if normalized_name:
+        keys.add(f"rt:{normalized_name}")
+    return keys
+
+
 def _merge_graph_dual_write_sibling_databus(
     databus: DataBusConfig,
     sink_instances: list[DataLinkResourceConfigBase],
     resolved_bk_data_id: int | None = None,
 ) -> tuple[list[DataBusConfig], list[DataLinkResourceConfigBase]]:
-    def graph_result_table_group_key(rt_name: str) -> str:
-        if rt_name.endswith("_graph"):
-            rt_name = rt_name[: -len("_graph")]
-        return f"graph-rt-group:{rt_name}"
-
     def graph_storage_keys(instances: list[DataLinkResourceConfigBase]) -> set[str]:
-        keys: set[str] = set()
         storage_bindings = [
             instance
             for instance in instances
@@ -178,18 +203,15 @@ def _merge_graph_dual_write_sibling_databus(
         data_source_result_table_id = (
             data_source_result_table_ids[0] if len(data_source_result_table_ids) == 1 else ""
         )
-        for instance in storage_bindings:
-            table_id = (
-                instance.table_id
-                or rt_table_id_map.get(instance.bkbase_result_table_name, "")
-                or data_source_result_table_id
+        return {
+            key
+            for instance in storage_bindings
+            for key in _graph_storage_binding_merge_keys(
+                instance,
+                rt_table_id_map=rt_table_id_map,
+                fallback_table_id=data_source_result_table_id,
             )
-            if table_id:
-                keys.add(f"table:{table_id}")
-            if instance.bkbase_result_table_name:
-                keys.add(f"rt:{instance.bkbase_result_table_name}")
-                keys.add(graph_result_table_group_key(instance.bkbase_result_table_name))
-        return keys
+        }
 
     current_has_vm = any(isinstance(instance, VMStorageBindingConfig) for instance in sink_instances)
     current_has_surrealdb = any(isinstance(instance, SurrealDBBindingConfig) for instance in sink_instances)
@@ -198,8 +220,8 @@ def _merge_graph_dual_write_sibling_databus(
     if not (current_has_vm or current_has_surrealdb):
         return [databus], sink_instances
 
-    current_keys = graph_storage_keys(sink_instances)
-    if not current_keys:
+    current_merge_keys = graph_storage_keys(sink_instances)
+    if not current_merge_keys:
         return [databus], sink_instances
 
     candidate_bk_data_ids = [databus.bk_data_id]
@@ -224,7 +246,8 @@ def _merge_graph_dual_write_sibling_databus(
         has_surrealdb = any(isinstance(instance, SurrealDBBindingConfig) for instance in combined_sinks)
         if not (has_vm and has_surrealdb):
             continue
-        if current_keys & graph_storage_keys(candidate_sinks):
+        candidate_merge_keys = graph_storage_keys(candidate_sinks)
+        if current_merge_keys & candidate_merge_keys:
             return [databus, candidate], combined_sinks
 
     return [databus], sink_instances
@@ -232,7 +255,6 @@ def _merge_graph_dual_write_sibling_databus(
 
 # 重建链路名称前缀，便于与正常创建的链路区分，支持回溯和回滚
 REBUILT_DATA_LINK_NAME_PREFIX = "rebuilt__"
-
 
 def _compose_rebuilt_graph_binding_name(data_link_name: str) -> str:
     """Keep rebuilt GraphRelationBindingConfig.name within its 64-char DB limit."""
@@ -1133,16 +1155,39 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
         record.vm_result_table_id: record.result_table_id
         for record in AccessVMRecord.objects.filter(vm_result_table_id__in=[rt.bkbase_table_id for rt in rt_instances])
     }
-    result_table_name_to_table_id = {}
+    data_source_result_table_ids = list(
+        DataSourceResultTable.objects.filter(
+            bk_data_id=data_source.bk_data_id,
+            bk_tenant_id=databus.bk_tenant_id,
+        )
+        .order_by()
+        .values_list("table_id", flat=True)
+        .distinct()
+    )
+    data_source_result_table_id = (
+        data_source_result_table_ids[0] if len(data_source_result_table_ids) == 1 else ""
+    )
+    result_table_name_to_table_id: dict[str, str] = {}
+    graph_base_name_to_table_id: dict[str, str] = {}
     for rt_instance in rt_instances:
         binding_instance = rt_name_map[rt_instance.name]
-        rt_instance.table_id = _resolve_rebuild_result_table_id(
-            binding_instance=binding_instance,
-            rt_instance=rt_instance,
-            vmrt_to_table_id=vmrt_to_table_id,
-            databus=databus,
-            data_source=data_source,
+        rt_instance.table_id = (
+            binding_instance.table_id
+            or rt_instance.table_id
+            or vmrt_to_table_id.get(rt_instance.bkbase_table_id, "")
+            or data_source_result_table_id
         )
+        if rt_instance.table_id:
+            graph_base_name = _normalize_graph_result_table_name(
+                rt_instance.name,
+                is_graph_result_table=isinstance(binding_instance, SurrealDBBindingConfig),
+            )
+            if graph_base_name != rt_instance.name:
+                graph_base_name_to_table_id[graph_base_name] = rt_instance.table_id
+
+    for rt_instance in rt_instances:
+        if not rt_instance.table_id:
+            rt_instance.table_id = graph_base_name_to_table_id.get(rt_instance.name, "")
         if not rt_instance.table_id:
             logger.warning(
                 "rebuild_databus_relation: databus->[%s] ResultTableConfig name->[%s] has empty table_id, skip",
@@ -1151,6 +1196,19 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
             )
             return None
         result_table_name_to_table_id[rt_instance.name] = rt_instance.table_id
+    table_ids = list(dict.fromkeys(rt.table_id for rt in rt_instances if rt.table_id))
+    graph_relation_binding = (
+        GraphRelationBindingConfig.objects.filter(
+            bk_tenant_id=databus.bk_tenant_id,
+            namespace=databus.namespace,
+            data_link_name="",
+            table_id__in=table_ids,
+        )
+        .order_by("id")
+        .first()
+        if table_ids
+        else None
+    )
 
     # 反补sink的table_id
     for sink_instance in sink_instances:
@@ -1184,7 +1242,7 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
     has_doris = DataLinkKind.DORISBINDING.value in sink_map
     if has_es and has_doris:
         strategy = DataLink.BK_LOG
-    elif _is_graph_relation_rebuild(databus, sink_map, rt_instances):
+    elif graph_relation_binding or _is_graph_relation_rebuild(databus, sink_map, rt_instances):
         strategy = DataLink.GRAPH_RELATION_TIME_SERIES
     else:
         strategy = ETL_CONFIG_TO_STRATEGY.get(data_source.etl_config)
@@ -1202,8 +1260,7 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
     else:
         data_link_name = f"{REBUILT_DATA_LINK_NAME_PREFIX}{databus.bk_tenant_id}__{databus.namespace}__{databus_name}"
 
-    # Step 9: 收集 table_ids（来自 ResultTableConfig.table_id，过滤空值）
-    table_ids = [rt.table_id for rt in rt_instances if rt.table_id]
+    # Step 9: graph rebuild 补全 BkBaseResultTable 信息，便于 dry_run 审核和实际落库。
     graph_bkbase_result_table = None
     if strategy == DataLink.GRAPH_RELATION_TIME_SERIES:
         graph_vm_binding = next((i for i in sink_instances if isinstance(i, VMStorageBindingConfig)), None)
@@ -1280,17 +1337,37 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
                 write_mode = GraphRelationBindingConfig.WRITE_MODE_SURREALDB
 
             _restore_rebuilt_surrealdb_storage(surrealdb_binding)
-            GraphRelationBindingConfig.objects.update_or_create(
+            graph_binding_lookup = {
+                "bk_tenant_id": databus.bk_tenant_id,
+                "namespace": databus.namespace,
+                "name": graph_binding_name,
+            }
+            resolved_graph_table_id = table_ids[0] if table_ids else ""
+            existing_graph_binding = GraphRelationBindingConfig.objects.filter(
                 bk_tenant_id=databus.bk_tenant_id,
                 namespace=databus.namespace,
-                name=graph_binding_name,
+                data_link_name="",
+                table_id=resolved_graph_table_id,
+            ).first()
+            if existing_graph_binding:
+                graph_binding_lookup = {"pk": existing_graph_binding.pk}
+
+            GraphRelationBindingConfig.objects.update_or_create(
+                **graph_binding_lookup,
                 defaults={
+                    "name": getattr(existing_graph_binding, "name", graph_binding_name),
                     "data_link_name": data_link_name,
+                    "namespace": databus.namespace,
+                    "bk_tenant_id": databus.bk_tenant_id,
                     "bk_biz_id": databus.bk_biz_id,
                     "status": databus.status,
                     "write_mode": write_mode,
                     "vm_cluster_name": getattr(vm_binding, "vm_cluster_name", ""),
-                    "surrealdb_cluster_name": getattr(surrealdb_binding, "surrealdb_cluster_name", ""),
+                    "surrealdb_cluster_name": getattr(
+                        surrealdb_binding,
+                        "surrealdb_cluster_name",
+                        getattr(graph_relation_binding, "surrealdb_cluster_name", ""),
+                    ),
                     "table_id": table_ids[0] if table_ids else "",
                     "bkbase_result_table_name": getattr(vm_binding, "bkbase_result_table_name", ""),
                     "graph_result_table_name": getattr(surrealdb_binding, "bkbase_result_table_name", ""),
@@ -1306,9 +1383,21 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
                         DataLinkKind.SURREALDBBINDING.value,
                         getattr(surrealdb_binding, "name", ""),
                     ),
-                    "table_type": getattr(surrealdb_binding, "table_type", "temporary"),
-                    "vertices": getattr(surrealdb_binding, "vertices", []),
-                    "relations": getattr(surrealdb_binding, "relations", []),
+                    "table_type": getattr(
+                        surrealdb_binding,
+                        "table_type",
+                        getattr(graph_relation_binding, "table_type", "temporary"),
+                    ),
+                    "vertices": getattr(
+                        surrealdb_binding,
+                        "vertices",
+                        getattr(graph_relation_binding, "vertices", []),
+                    ),
+                    "relations": getattr(
+                        surrealdb_binding,
+                        "relations",
+                        getattr(graph_relation_binding, "relations", []),
+                    ),
                 },
             )
             BkBaseResultTable.objects.update_or_create(
