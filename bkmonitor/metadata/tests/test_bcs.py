@@ -294,7 +294,7 @@ def test_discover_bcs_clusters_skip_biz_black_list(
     """测试黑名单业务下的新集群不会被 discover 任务自动接入。"""
     monkeypatch.setattr(settings, "BCS_CLUSTER_SOURCE", "cluster-manager")
     monkeypatch.setattr(settings, "BCS_API_GATEWAY_TOKEN", "token")
-    monkeypatch.setattr(settings, "BCS_DISCOVER_BCS_CLUSTER_BIZ_BLACK_LIST", ["2"])
+    monkeypatch.setattr(settings, "NEW_ENV_CLUSTER_BLACK_LIST", ["2"])
     monkeypatch.setattr(FetchK8sClusterListResource, "cache_type", None)
 
     BCSClusterInfo.objects.filter(cluster_id="BCS-K8S-00000").delete()
@@ -314,7 +314,7 @@ def test_discover_bcs_clusters_biz_black_list_prevent_delete(
     """测试黑名单业务下的既有集群不会被 discover 删除链标记为 deleted。"""
     monkeypatch.setattr(settings, "BCS_CLUSTER_SOURCE", "cluster-manager")
     monkeypatch.setattr(settings, "BCS_API_GATEWAY_TOKEN", "token")
-    monkeypatch.setattr(settings, "BCS_DISCOVER_BCS_CLUSTER_BIZ_BLACK_LIST", [2])
+    monkeypatch.setattr(settings, "NEW_ENV_CLUSTER_BLACK_LIST", [2])
     monkeypatch.setattr(FetchK8sClusterListResource, "cache_type", None)
 
     discover_bcs_clusters()
@@ -328,8 +328,8 @@ def test_discover_bcs_clusters_biz_black_list_prevent_delete(
 
 def test_is_discover_managed_cluster_white_list_exempts_threshold(monkeypatch):
     """测试白名单业务豁免起始集群阈值：后缀不大于阈值的集群仍被接管。"""
-    monkeypatch.setattr(settings, "BCS_DISCOVER_BCS_CLUSTER_BIZ_BLACK_LIST", [])
-    monkeypatch.setattr(settings, "BCS_DISCOVER_BCS_CLUSTER_BIZ_WHITE_LIST", ["2"])
+    monkeypatch.setattr(settings, "NEW_ENV_CLUSTER_BLACK_LIST", [])
+    monkeypatch.setattr(settings, "NEW_ENV_CLUSTER_WHITE_LIST", ["2"])
 
     # 阈值后缀为 5，集群后缀为 1（不大于阈值）：非白名单业务不接管
     assert is_discover_managed_cluster("BCS-K8S-00001", start_cluster_id_suffix=5, bk_biz_id=3) is False
@@ -339,8 +339,8 @@ def test_is_discover_managed_cluster_white_list_exempts_threshold(monkeypatch):
 
 def test_is_discover_managed_cluster_black_list_overrides_white_list(monkeypatch):
     """测试黑名单优先级高于白名单：业务同时命中黑白名单时不接管。"""
-    monkeypatch.setattr(settings, "BCS_DISCOVER_BCS_CLUSTER_BIZ_BLACK_LIST", [2])
-    monkeypatch.setattr(settings, "BCS_DISCOVER_BCS_CLUSTER_BIZ_WHITE_LIST", [2])
+    monkeypatch.setattr(settings, "NEW_ENV_CLUSTER_BLACK_LIST", [2])
+    monkeypatch.setattr(settings, "NEW_ENV_CLUSTER_WHITE_LIST", [2])
 
     assert is_discover_managed_cluster("BCS-K8S-00001", start_cluster_id_suffix=5, bk_biz_id=2) is False
 

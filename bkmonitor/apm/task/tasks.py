@@ -158,7 +158,7 @@ def refresh_apm_config():
         bk_biz_id, app_name = application
         if index % interval == slug:
             logger.info(f"[refresh_apm_config]: publish application [{bk_biz_id}]({app_name})")
-            refresh_apm_application_config.delay(bk_biz_id, app_name)
+            refresh_apm_application_config.delay(bk_biz_id, app_name, skip_k8s=True)
 
 
 def refresh_apm_config_to_k8s():
@@ -190,10 +190,11 @@ def refresh_apm_platform_config():
 
 
 @app.task(ignore_result=True, queue="celery_cron")
-def refresh_apm_application_config(bk_biz_id, app_name):
+def refresh_apm_application_config(bk_biz_id: int, app_name: str, skip_k8s: bool = False):
     _app = ApmApplication.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
     # 刷新k8s配置
-    ApplicationConfig.refresh_k8s([_app])
+    if not skip_k8s:
+        ApplicationConfig.refresh_k8s([_app])
     # 刷新节点管理配置
     ApplicationConfig(_app).refresh()
 
