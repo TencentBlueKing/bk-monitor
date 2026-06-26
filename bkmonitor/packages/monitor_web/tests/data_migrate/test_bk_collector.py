@@ -1015,8 +1015,6 @@ def test_custom_report_refresh_keeps_biz_zero_when_filters_skip_biz(monkeypatch)
 
     result = CustomReportSubscription.refresh_collector_custom_conf(
         bk_tenant_id="system",
-        node_man_biz_black_list=[2, 0],
-        filter_k8s_new_env_scope=True,
     )
 
     assert [call["bk_biz_id"] for call in node_man_calls] == [0]

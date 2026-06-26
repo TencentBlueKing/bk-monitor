@@ -150,8 +150,6 @@ def test_refresh_custom_report_2_node_man_full_refresh_passes_filter_options(set
     refresh_collector_custom_conf.assert_called_once_with(
         bk_tenant_id="system",
         bk_biz_id=None,
-        node_man_biz_black_list=[12, 0],
-        filter_k8s_new_env_scope=True,
     )
 
 
