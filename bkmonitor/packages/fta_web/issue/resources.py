@@ -14,6 +14,7 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 import json
+import re
 
 from rest_framework import serializers
 
@@ -1530,6 +1531,191 @@ class GetTapdFieldsResource(Resource):
             )
 
         return result
+
+
+class SearchTAPDItemsResource(Resource):
+    """查询 TAPD 平台上已有的需求（story）或缺陷（bug）单据列表
+
+    通过 tapd_type 参数指定单据类型，支持按 ID 或标题过滤，支持分页和排序。
+    """
+
+    # 字段映射：统一字段名 → TAPD 原始字段名（仅需映射的字段）
+    # 查询参数和响应字段共用：查询时 name→title，响应时 title→name
+    BUG_FIELD_MAPPING: dict[str, str] = {"name": "title", "owner": "current_owner"}
+    # 构建反向映射：TAPD 原始字段名 → 统一字段名
+    BUG_FIELD_MAPPING_REVERSE: dict[str, str] = {v: k for k, v in BUG_FIELD_MAPPING.items()}
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        workspace_id = serializers.IntegerField(label="项目ID")
+        tapd_type = serializers.ChoiceField(
+            label="单据类型",
+            choices=["story", "bug"],
+            help_text="单据类型：story(需求), bug(缺陷)",
+        )
+        id = serializers.CharField(
+            label="单据ID",
+            required=False,
+            help_text="支持多ID查询，多个以逗号分隔",
+        )
+        name = serializers.CharField(
+            label="标题",
+            required=False,
+            help_text="支持模糊匹配",
+        )
+        limit = serializers.IntegerField(
+            label="返回数量限制",
+            required=False,
+            default=30,
+            min_value=1,
+            max_value=200,
+        )
+        page = serializers.IntegerField(
+            label="页码",
+            required=False,
+            default=1,
+            min_value=1,
+        )
+        order = serializers.CharField(
+            label="排序规则",
+            required=False,
+            default="created desc",
+            help_text="格式：字段名 ASC 或 字段名 DESC，如：created desc",
+        )
+
+        def validate_order(self, value: str) -> str:
+            """验证 order 参数格式"""
+            # 支持的格式：字段名 ASC 或 字段名 DESC（不区分大小写）
+            pattern = r"^[a-zA-Z_][a-zA-Z0-9_]*\s+(ASC|DESC)$"
+            if not re.match(pattern, value.strip(), re.IGNORECASE):
+                raise serializers.ValidationError(
+                    "order 参数格式错误，应为：字段名 ASC 或 字段名 DESC，如：created desc"
+                )
+            return value.strip()
+
+        fields = serializers.CharField(
+            label="返回字段",
+            required=False,
+            default="id,name,status,created,priority_label",
+            help_text="设置返回的字段，多个字段间以逗号隔开。bk_biz_id、workspace_id、tapd_type 固定返回，无需指定。",
+        )
+
+    @classmethod
+    def _query_tapd_items(
+        cls,
+        tapd_type: str,
+        workspace_id: int,
+        limit: int,
+        page: int,
+        order: str,
+        fields: str,
+        id: str = "",
+        name: str = "",
+    ) -> list[dict]:
+        """调用 TAPD API 查询单据列表
+
+        Args:
+            tapd_type: 单据类型，story 或 bug
+            workspace_id: TAPD 项目 ID
+            id: 单据 ID，支持逗号分隔多 ID
+            name: 标题模糊匹配
+            limit: 返回数量限制
+            page: 页码
+            order: 排序规则
+            fields: 返回字段列表
+
+        Returns:
+            TAPD 数据列表
+        """
+        # 处理 fields 参数：将统一字段名映射为 TAPD 原始字段名
+        params = {}
+        if fields:
+            field_list = [f.strip() for f in fields.split(",")]
+            if tapd_type == "bug":
+                field_list = [cls.BUG_FIELD_MAPPING.get(f, f) for f in field_list]
+            params["fields"] = ",".join(field_list)
+
+        params.update(
+            {
+                "workspace_id": workspace_id,
+                "limit": limit,
+                "page": page,
+                "order": order,
+            }
+        )
+        if id:
+            params["id"] = id
+        if name:
+            params["name"] = name
+
+        if tapd_type == "bug":
+            # 查询参数字段重命名（name → title，owner → current_owner）
+            params = {cls.BUG_FIELD_MAPPING.get(k, k): v for k, v in params.items()}
+            tapd_data = api.tapd.get_bugs(**params)
+            field_mapping = cls.BUG_FIELD_MAPPING_REVERSE
+        else:
+            tapd_data = api.tapd.get_stories(**params)
+            field_mapping = {}
+
+        # 解包外层类型 key：{"Story": {...}} → {...}
+        # 响应字段重命名（bug 类型：title → name）
+        wrapper_key = tapd_type.capitalize()
+        results = []
+        for tapd in tapd_data:
+            item = tapd[wrapper_key]
+            if field_mapping:
+                item = {field_mapping.get(k, k): v for k, v in item.items()}
+            results.append(item)
+
+        # 补充 status_display_name：根据字段元数据的 options 映射状态值
+        if any(item.get("status") for item in results):
+            try:
+                if tapd_type == "bug":
+                    fields_info = api.tapd.get_bug_fields_info(workspace_id=workspace_id)
+                else:
+                    fields_info = api.tapd.get_story_fields_info(workspace_id=workspace_id)
+                status_options = (fields_info or {}).get("status", {}).get("options", {})
+                for item in results:
+                    status = item.get("status")
+                    if not status:
+                        continue
+                    item["status_display_name"] = status_options.get(status, status)
+            except Exception:
+                logger.warning(
+                    "Failed to get status options for tapd_type=%s, workspace_id=%s",
+                    tapd_type,
+                    workspace_id,
+                    exc_info=True,
+                )
+                for item in results:
+                    status = item.get("status")
+                    if status:
+                        item["status_display_name"] = status
+
+        return results
+
+    def perform_request(self, validated_request_data: dict) -> list[dict]:
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        workspace_id = validated_request_data["workspace_id"]
+        tapd_type = validated_request_data["tapd_type"]
+
+        tapd_items = self._query_tapd_items(
+            tapd_type=tapd_type,
+            workspace_id=workspace_id,
+            id=validated_request_data.get("id", ""),
+            name=validated_request_data.get("name", ""),
+            limit=validated_request_data["limit"],
+            page=validated_request_data["page"],
+            order=validated_request_data["order"],
+            fields=validated_request_data["fields"],
+        )
+
+        for item in tapd_items:
+            item["bk_biz_id"] = bk_biz_id
+            item["workspace_id"] = str(workspace_id)
+            item["tapd_type"] = tapd_type
+
+        return tapd_items
 
 
 class CreateTapdResource(Resource):

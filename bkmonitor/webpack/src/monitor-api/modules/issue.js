@@ -22,6 +22,7 @@ export const listMergeSources = request('GET', 'fta/issue/issue/merge_sources/')
 export const alertIssueEnrich = request('POST', 'fta/issue/issue/alert_enrich/');
 export const listTapdWorkspace = request('POST', 'fta/issue/tapd/workspace/');
 export const getTapdFields = request('POST', 'fta/issue/issue/get_tapd_fields/');
+export const searchTAPDItems = request('POST', 'fta/issue/issue/search_tapd_items/');
 export const createTapd = request('POST', 'fta/issue/issue/create_tapd/');
 
 
@@ -48,5 +49,6 @@ export default {
   alertIssueEnrich,
   listTapdWorkspace,
   getTapdFields,
+  searchTAPDItems,
   createTapd,
 };
