@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("metadata", "0268_graph_relation_child_component_names"),
+        ("metadata", "0270_databusconfig_data_link_strategy"),
     ]
 
     operations = [

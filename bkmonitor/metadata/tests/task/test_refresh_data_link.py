@@ -545,4 +545,11 @@ def test_refresh_graph_relation_binding_status_preserves_failed_until_reapply(mo
 
     _refresh_data_link_status(models.BkBaseResultTable.objects.get(data_link_name=data_link_name))
 
-    assert models.GraphRelationBindingConfig.objects.get(data_link_name=data_link_name).status == DataLinkResourceStatus.FAILED.value
+    assert (
+        models.GraphRelationBindingConfig.objects.get(data_link_name=data_link_name).status
+        == DataLinkResourceStatus.FAILED.value
+    )
+    assert (
+        models.BkBaseResultTable.objects.get(data_link_name=data_link_name).status
+        == DataLinkResourceStatus.PENDING.value
+    )

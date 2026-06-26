@@ -187,7 +187,7 @@ def test_sync_relation_redis_data_calls_graph_dual_write_when_feature_enabled(cr
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_sync_relation_redis_data_uses_existing_time_series_group_token(create_and_delete_records):
+def test_sync_relation_redis_data_uses_existing_time_series_group_token(create_and_delete_records, mocker):
     models.TimeSeriesGroup.objects.create(
         bk_data_id=50010,
         bk_biz_id=2,

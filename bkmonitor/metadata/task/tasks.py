@@ -844,20 +844,66 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
         components = models.DataLink.STRATEGY_RELATED_COMPONENTS.get(data_link_strategy) or []
     components = [component for component in components if component is not models.GraphRelationBindingConfig]
     graph_binding = None
+    all_components_ok = True
     if data_link_strategy == models.DataLink.GRAPH_RELATION_TIME_SERIES:
         graph_binding = models.GraphRelationBindingConfig.objects.filter(
             bk_tenant_id=bk_tenant_id,
             namespace=namespace,
             data_link_name=data_link_name,
         ).first()
-    all_components_ok = True
-    if data_link_strategy == models.DataLink.GRAPH_RELATION_TIME_SERIES and not graph_binding:
-        logger.warning(
-            "_refresh_data_link_status: data_link_name->[%s],component kind->[%s] has no instance, skip",
-            data_link_name,
-            models.GraphRelationBindingConfig.kind,
-        )
-        all_components_ok = False
+        if graph_binding:
+            try:
+                with transaction.atomic():
+                    graph_binding_status = graph_binding.component_status
+                    if (
+                        graph_binding.status == DataLinkResourceStatus.FAILED.value
+                        and graph_binding_status == DataLinkResourceStatus.OK.value
+                    ):
+                        all_components_ok = False
+                        logger.info(
+                            "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s] "
+                            "keep failed status before graph reapply succeeds",
+                            data_link_name,
+                            graph_binding.name,
+                            graph_binding.kind,
+                        )
+                    else:
+                        if graph_binding_status != DataLinkResourceStatus.OK.value:
+                            all_components_ok = False
+                        if graph_binding.status != graph_binding_status:
+                            graph_binding.status = graph_binding_status
+                            graph_binding.save()
+                            logger.info(
+                                "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s],"
+                                "status updated to->[%s]",
+                                data_link_name,
+                                graph_binding.name,
+                                graph_binding.kind,
+                                graph_binding_status,
+                            )
+                    report_metadata_data_link_status_info(
+                        data_link_name=data_link_name,
+                        biz_id=graph_binding.bk_biz_id,
+                        kind=graph_binding.kind,
+                        status=graph_binding.status,
+                    )
+            except Exception as e:  # pylint: disable=broad-except
+                logger.error(
+                    "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s] "
+                    "refresh failed,error->[%s]",
+                    data_link_name,
+                    graph_binding.name,
+                    graph_binding.kind,
+                    e,
+                )
+                all_components_ok = False
+        else:
+            logger.warning(
+                "_refresh_data_link_status: data_link_name->[%s],component kind->[%s] has no instance, skip",
+                data_link_name,
+                models.GraphRelationBindingConfig.kind,
+            )
+            all_components_ok = False
     refreshed_component_keys: set[tuple[str, str, str]] = set()
 
     # 4. 遍历链路关联的所有类型资源；
@@ -903,28 +949,12 @@ def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
                         continue
                     refreshed_component_keys.add(component_key)
 
-                    if component_ins.kind == DataLinkKind.GRAPHRELATIONBINDING.value:
-                        component_status = component_ins.component_status
-                        if (
-                            component_ins.status == DataLinkResourceStatus.FAILED.value
-                            and component_status == DataLinkResourceStatus.OK.value
-                        ):
-                            all_components_ok = False
-                            logger.info(
-                                "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s] "
-                                "keep failed status before graph reapply succeeds",
-                                data_link_name,
-                                component_ins.name,
-                                component_ins.kind,
-                            )
-                            continue
-                    else:
-                        component_status = get_data_link_component_status(
-                            bk_tenant_id=bk_tenant_id,
-                            kind=component_ins.kind,
-                            namespace=component_ins.namespace,
-                            component_name=component_ins.name,
-                        )
+                    component_status = get_data_link_component_status(
+                        bk_tenant_id=bk_tenant_id,
+                        kind=component_ins.kind,
+                        namespace=component_ins.namespace,
+                        component_name=component_ins.name,
+                    )
                     logger.info(
                         "_refresh_data_link_status: data_link_name->[%s],component->[%s],kind->[%s],status->[%s]",
                         data_link_name,
