@@ -18,7 +18,6 @@ from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from fta_web.issue.resources import ListUserTapdWorkspaceResource, UnbindTapdWorkspaceResource
 from core.drf_resource.exceptions import CustomException
-from bk_monitor_base.metadata.utils.request import get_request_username
 from fta_web.issue.utils.tapd import generate_auth_url, normalize_redirect_url
 
 
@@ -118,7 +117,8 @@ class IssueViewSet(ResourceViewSet):
             from fta_web.issue.utils.tapd import get_tapd_token
 
             bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
-            token_data = get_tapd_token(bk_tenant_id=bk_tenant_id, username=get_request_username())
+            username = request.user.username
+            token_data = get_tapd_token(bk_tenant_id=bk_tenant_id, username=username)
             if token_data and token_data.get("access_token"):
                 return True
 
@@ -126,6 +126,7 @@ class IssueViewSet(ResourceViewSet):
             auth_url = generate_auth_url(
                 int(bk_biz_id),
                 bk_tenant_id,
+                initiator=username,
                 success_url=success_url,
                 error_url=error_url,
                 backend_callback=backend_callback,

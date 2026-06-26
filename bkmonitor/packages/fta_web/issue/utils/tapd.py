@@ -24,7 +24,6 @@ from rest_framework.exceptions import ValidationError
 from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.models import TapdWorkspaceBinding
 from bkmonitor.utils.cipher import AESCipher
-from bkmonitor.utils.request import get_request_username, get_request
 from fta_web.constants import TapdOauthEndpoint
 
 logger = logging.getLogger("root")
@@ -56,11 +55,6 @@ def _get_cipher() -> AESCipher:
 def _make_token_key(tenant_id: str, username: str) -> str:
     """Redis key: tapd_uat:{tenant_id}:{username}"""
     return f"tapd_uat:{tenant_id}:{username}"
-
-
-def _make_oauth_session_key(bk_biz_id) -> str:
-    """Session key: tapd_oauth_state_{bk_biz_id}"""
-    return f"tapd_oauth_state_{bk_biz_id}"
 
 
 def _hmac_sign(data: bytes) -> str:
@@ -246,45 +240,39 @@ def generate_install_url(
 def generate_auth_url(
     bk_biz_id: int,
     bk_tenant_id: str,
+    initiator: str,
     success_url: str,
     error_url: str,
     backend_callback: str,
 ) -> str:
-    """生成 TAPD 用户态 OAuth 授权 URL，state 使用 Session 存储的 nonce。
+    """生成 TAPD 用户态 OAuth 授权 URL，state 使用自包含 signed_state（不依赖 session）。
 
     :param bk_biz_id: 蓝鲸业务 ID
-    :param issue_id: 需求 ID
     :param bk_tenant_id: 租户 ID
+    :param initiator: 发起授权的用户名（回调时存入 Redis token 的 username）
     :param success_url: 含 # 的真实前端地址，B-05 回调成功后 302 重定向目标
     :param error_url: 含 # 的前端错误页面地址，B-05 回调失败后 302 重定向目标
-    :param backend_callback: 后端 OAuth 回调地址（由调用方通过 build_absolute_uri 构建）
+    :param backend_callback: 后端 OAuth 回调地址（由调用方通过 reverse + build_absolute_uri 构建）
     """
     if not backend_callback:
         raise ValidationError("backend_callback is empty")
 
-    # state 使用随机 nonce，写入 Session 供 B-05 回调校验
-    request = get_request()
-    if not request:
-        raise ValidationError("request context is empty")
-
-    nonce = secrets.token_urlsafe(16)
-    state = f"{nonce}:{bk_biz_id}"
-    # backend_callback 统一去掉末尾斜杠，确保 authorize 和 exchange token 时完全一致
-    backend_callback = backend_callback.rstrip("/")
-    request.session[_make_oauth_session_key(bk_biz_id)] = {
-        "nonce": nonce,
+    # 生成 signed_state（自包含 HMAC 签名 payload），不再依赖 session
+    payload = {
         "bk_biz_id": bk_biz_id,
         "bk_tenant_id": bk_tenant_id,
-        "username": get_request_username(),
+        "space_uid": bk_biz_id_to_space_uid(bk_biz_id),
+        "initiator": initiator,
+        "exp": int(time.time()) + 900,  # 15min TTL
         "success_url": success_url,
         "error_url": error_url,
         "backend_callback": backend_callback,
-        "exp": int(time.time()) + 900,  # 15min TTL
     }
+    signed_state = generate_signed_state(payload)
 
-    backend_callback = quote(backend_callback, safe="")
+    backend_callback = quote(backend_callback.rstrip("/"), safe="")
     scope = quote("story#read story#write bug#read bug#write", safe="")
-    state = quote(state, safe="")
+    state = quote(signed_state, safe="")
     return (
         f"{TapdOauthEndpoint.authorize()}"
         f"?response_type=code"
