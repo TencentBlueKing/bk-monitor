@@ -752,3 +752,20 @@ class TapdOauthEndpoint:
     def open_app_install(cls):
         """应用态授权完整地址"""
         return f"{cls._base()}{cls._OPEN_APP_INSTALL_PATH}"
+
+
+class TapdWorkspaceBindStatus:
+    """TAPD 项目与本地业务的关联状态（四态）
+
+    以「用户级已授权项目」为基准全集，按「项目级应用是否授权」×「本地 binding 是否存在」二维标记：
+
+    bound      用户级✓ + 项目级✓ + 本地✓  已完成全链路绑定
+    importable 用户级✓ + 项目级✓ + 本地✗  可导入（应用已装、本地未绑）
+    stale      用户级✓ + 项目级✗ + 本地✓  已过期（应用授权失效，本地残留）
+    unbound    用户级✓ + 项目级✗ + 本地✗  未绑定（应用未装，需引导安装）
+    """
+
+    BOUND = "bound"
+    STALE = "stale"
+    IMPORTABLE = "importable"
+    UNBOUND = "unbound"

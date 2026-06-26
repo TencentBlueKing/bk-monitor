@@ -289,11 +289,14 @@ def try_bind_importable(
     bk_biz_id: int,
     bk_tenant_id: str,
     create_user: str,
+    tapd_workspace_name: str = "",
 ) -> bool:
     """尝试为 importable 状态的项目创建本地 binding。
 
     成功 → 返回 True，is_bound 最终显示为 bound
     失败 → 返回 False，is_bound 保持 importable（静默失败）
+
+    :param tapd_workspace_name: TAPD 项目名称，写入本地 binding 的 tapd_workspace_name 字段
     """
     try:
         TapdWorkspaceBinding.objects.get_or_create(
@@ -302,7 +305,7 @@ def try_bind_importable(
             tapd_workspace_id=workspace_id,
             defaults={
                 "bk_biz_id": bk_biz_id,
-                "tapd_workspace_name": "",
+                "tapd_workspace_name": tapd_workspace_name,
                 "create_user": create_user,
                 "update_user": create_user,
             },

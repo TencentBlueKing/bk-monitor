@@ -42,6 +42,7 @@ from bkmonitor.utils.user import set_local_username
 from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
 from constants.issue import IssuePriority, IssueStatus, IssueActivityType
 from core.drf_resource import Resource, api, resource
+from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
 from core.errors.common import HTTP404Error
 from fta_web.alert.handlers.alert import AlertQueryHandler
@@ -50,12 +51,16 @@ from fta_web.issue.handlers.issue import (
     IssueQueryHandler,
 )
 from fta_web.issue.serializers import IssueSearchSerializer
+from fta_web.constants import TapdWorkspaceBindStatus
 from fta_web.issue.utils.tapd import (
     save_tapd_token,
     verify_signed_state,
     generate_install_url,
     try_bind_importable,
     normalize_redirect_url,
+    get_tapd_token,
+    delete_tapd_token,
+    generate_auth_url,
 )
 
 logger = logging.getLogger("root")
@@ -1875,8 +1880,13 @@ class ListUserTapdWorkspaceResource(Resource):
     error_url: 授权失败时重定向的前端错误页面地址（含 #）。
         若未传则回退到 success_url（同一页面，前端根据 URL 参数区分成功/失败）。
 
-    TODO: 当前 TAPD 用户态 API 尚未提供文档（T-01），用户态列表返回空。
-          app 已授权列表（get_granted_workspaces）作为降级源。
+    四态判定（以用户级已授权项目为基准全集，项目级×本地为二维标记）：
+    - bound      用户级✓ + 项目级✓ + 本地✓
+    - importable 用户级✓ + 项目级✓ + 本地✗（静默尝试建 binding，成功转 bound）
+    - stale      用户级✓ + 项目级✗ + 本地✓
+    - unbound    用户级✓ + 项目级✗ + 本地✗
+
+    注：用户级无权限但本地有 binding 的项目不展示（用户已无权限，不应再操作）。
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -1907,57 +1917,81 @@ class ListUserTapdWorkspaceResource(Resource):
             )
         }
 
-        # 降级：用 app 级 get_granted_workspaces 作为数据源（仅返回 app 已授权项目）
+        # 取用户态 access_token
+        # 无 token / token 失效（422）→ raise 403 + auth_url 引导重新授权
+        token_payload = get_tapd_token(bk_tenant_id=tenant_id, username=username)
+        access_token = token_payload.get("access_token", "")
+
+        # 基准全集：用户级已授权项目（Bearer Token）
+        # 有 token：调 TAPD 用户级 API 获取已授权项目
+        # 无 token / token 失效：raise 403 + auth_url，前端统一跳转授权页
+        user_workspaces = {}  # {ws_id: ws_name}
+        if access_token:
+            try:
+                user_granted_resp = api.tapd.get_user_granted_workspaces(access_token=access_token)
+            except BKAPIError as e:
+                # 422 = access_token 无效/过期，清理失效 token，统一转 403 + auth_url 引导重新授权
+                if str(e.data.get("code", "")) == "422":
+                    logger.info("TAPD user token invalid (422), clearing token for reauth: %s", e)
+                    delete_tapd_token(tenant_id=tenant_id, username=username)
+                    self._raise_reauth_required(bk_biz_id, tenant_id, username, success_url, error_url)
+                # 其他 API 错误直接抛出
+                raise
+
+            user_granted_list = (
+                user_granted_resp.get("list", []) if isinstance(user_granted_resp, dict) else (user_granted_resp or [])
+            )
+
+            # 提取用户级 workspace_id 集合 + 名称映射
+            # 注：TAPD OpenOrganizationApp 内层不含 name 字段，name 兜底为 ws_id
+            for ws in user_granted_list:
+                ws_inner = ws.get("OpenOrganizationApp", {}) if isinstance(ws, dict) else {}
+                ws_id = str(ws_inner.get("workspace_id", ""))
+                if ws_id:
+                    user_workspaces[ws_id] = ws_inner.get("name", "") or ws_id
+
+        # 项目级已授权项目（Basic Auth，应用身份），用于区分 importable/unbound 与 bound/stale
         try:
-            granted_resp = api.tapd.get_granted_workspaces(bk_biz_id=bk_biz_id)
+            app_granted_resp = api.tapd.get_granted_workspaces(bk_biz_id=bk_biz_id)
         except Exception as e:
-            logger.warning("GetGrantedWorkspaces failed for B-01 fallback: %s", e)
-            granted_resp = {}
+            logger.warning("GetGrantedWorkspaces failed for B-01: %s", e)
+            app_granted_resp = {}
 
-        # granted_resp 结构：{list: [{OpenOrganizationApp: {workspace_id, type, created}}, ...], pager: {...}}
-        # 注意：OpenOrganizationApp 内层不含 name 字段，名称从本地 binding 取，无则用 workspace_id 兜底
-        granted_list = granted_resp.get("list", []) if isinstance(granted_resp, dict) else (granted_resp or [])
-
-        # 提取 TAPD 已授权项目 id 集合（用于判断 stale 态：本地有但 TAPD 无）
-        granted_ids = set()
-        for ws in granted_list:
+        app_granted_list = (
+            app_granted_resp.get("list", []) if isinstance(app_granted_resp, dict) else (app_granted_resp or [])
+        )
+        app_granted_ids = set()
+        for ws in app_granted_list:
             ws_inner = ws.get("OpenOrganizationApp", {}) if isinstance(ws, dict) else {}
             ws_id = str(ws_inner.get("workspace_id", ""))
             if ws_id:
-                granted_ids.add(ws_id)
+                app_granted_ids.add(ws_id)
 
         items = []
         any_unbound_or_stale = False
 
-        # 第一轮：遍历 TAPD 已授权列表 → 命中 bound / importable
-        for ws in granted_list:
-            ws_inner = ws.get("OpenOrganizationApp", {}) if isinstance(ws, dict) else {}
-            ws_id = str(ws_inner.get("workspace_id", ""))
-            if not ws_id:
-                continue
+        # 以用户级为基准全集，按 项目级×本地 二维标记四态
+        for ws_id, workspace_name in user_workspaces.items():
+            in_app = ws_id in app_granted_ids
             in_local = ws_id in local_bindings
 
-            if in_local:
-                status = "bound"
-            else:
-                status = "importable"
-                # 静默尝试创建本地 binding
-                if try_bind_importable(ws_id, bk_biz_id, tenant_id, username):
-                    status = "bound"
+            if in_app and in_local:
+                status = TapdWorkspaceBindStatus.BOUND
+            elif in_app and not in_local:
+                status = TapdWorkspaceBindStatus.IMPORTABLE
+                # 静默尝试创建本地 binding（传入 workspace_name，避免 name 落空）
+                if try_bind_importable(ws_id, bk_biz_id, tenant_id, username, tapd_workspace_name=workspace_name):
+                    status = TapdWorkspaceBindStatus.BOUND
+            elif not in_app and in_local:
+                status = TapdWorkspaceBindStatus.STALE
+                any_unbound_or_stale = True
+            else:  # not in_app and not in_local
+                status = TapdWorkspaceBindStatus.UNBOUND
+                any_unbound_or_stale = True
 
-            # TAPD API 不返回 name，优先用本地 binding 的名称，无则用 workspace_id 兜底
-            workspace_name = local_bindings.get(ws_id, {}).get("tapd_workspace_name") or ws_id
-            items.append({"workspace_id": ws_id, "workspace_name": workspace_name, "is_bound": status})
-
-        # 第二轮：遍历本地 binding 全集，找出 TAPD 未授权的 → 命中 stale
-        # （unbound 态需 T-01 用户态 API 接入后才能识别，降级模式下无法发现"两边都无"的项目）
-        for ws_id, binding in local_bindings.items():
-            if ws_id in granted_ids:
-                continue  # 已在第一轮处理（bound）
-            status = "stale"
-            any_unbound_or_stale = True
-            workspace_name = binding.get("tapd_workspace_name") or ws_id
-            items.append({"workspace_id": ws_id, "workspace_name": workspace_name, "is_bound": status})
+            # 名称优先用本地 binding（可能用户改过名），其次用户级 API 返回值
+            final_name = local_bindings.get(ws_id, {}).get("tapd_workspace_name") or workspace_name
+            items.append({"workspace_id": ws_id, "workspace_name": final_name, "is_bound": status})
 
         # install_url 仅在存在 unbound 或 stale 时按需构建（涉及签名生成，避免无用开销）
         install_url = ""
@@ -1984,6 +2018,29 @@ class ListUserTapdWorkspaceResource(Resource):
             "install_url": install_url,
             "method": "GET",
         }
+
+    @classmethod
+    def _raise_reauth_required(cls, bk_biz_id, tenant_id, username, success_url, error_url):
+        """构造 403 + auth_url 响应，引导前端跳转 TAPD 用户态授权页。
+        与 view 层 TAPDAuthPermission 同模式（views.py:126-142）。
+        """
+        req = get_request()
+        oauth_callback = req.build_absolute_uri(reverse("fta_web:tapd_user_oauth_callback"))
+        auth_url = generate_auth_url(
+            bk_biz_id=bk_biz_id,
+            bk_tenant_id=tenant_id,
+            initiator=username,
+            success_url=success_url,
+            error_url=error_url,
+            backend_callback=oauth_callback,
+        )
+        exc = CustomException(
+            message="TAPD 用户态授权未生效",
+            data={"auth_url": auth_url},
+            code=403,
+        )
+        exc.status_code = 403
+        raise exc
 
 
 class UnbindTapdWorkspaceResource(Resource):

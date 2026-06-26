@@ -47,7 +47,7 @@ class TapdAPIResource(APIResource):
 
 class GetGrantedWorkspacesResource(TapdAPIResource):
     """
-    获取已授权的项目列表
+    获取已授权的项目列表（应用级，Basic Auth）
     """
 
     action = "app_auth/get_granted_workspaces"
@@ -71,6 +71,42 @@ class GetGrantedWorkspacesResource(TapdAPIResource):
             required=False,
             help_text="设置获取的字段，多个字段间以逗号隔开。例如：fields=id,name,created",
         )
+
+
+class GetUserGrantedWorkspacesResource(GetGrantedWorkspacesResource):
+    """获取已授权的项目列表（用户级，Bearer Token）
+
+    与应用级同 endpoint、同参数，仅认证方式不同：
+    - 应用级：Basic Auth（app_id:app_secret），返回应用被授权安装的项目
+    - 用户级：Bearer Token（用户 access_token），返回用户有权限的项目（基准全集）
+
+    access_token 由调用方传入（从 Redis 解密获取，见 get_tapd_token）。
+    """
+
+    class RequestSerializer(GetGrantedWorkspacesResource.RequestSerializer):
+        access_token = serializers.CharField(label="用户态访问令牌", required=True)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.access_token = ""
+
+    def get_headers(self):
+        # 复用基类的语言头等，但覆盖 Authorization 为 Bearer
+        # 注意：TapdAPIResource.get_headers 只返回 {"Authorization": "Basic ..."}，
+        # 这里直接返回 Bearer 头即可（TAPD 不需要蓝鲸 x-bkapi-authorization）
+        return {"Authorization": f"Bearer {self.access_token}"}
+
+    def perform_request(self, validated_request_data):
+        # access_token 非实际请求参数，仅用于 header，弹出避免污染 querystring
+        access_token = validated_request_data.pop("access_token", "")
+        if not access_token:
+            raise BKAPIError(
+                system_name=self.module_name,
+                url=self.action,
+                result={"message": "access_token is required for user-level granted workspaces"},
+            )
+        self.access_token = access_token
+        return super().perform_request(validated_request_data)
 
 
 class GetWorkspaceInfoResource(TapdAPIResource):
