@@ -4084,6 +4084,11 @@ def test_rebuild_graph_relation_fallback_stores_monitor_data_id_on_sibling_datab
         table_id=table_id,
         bk_tenant_id="system",
     )
+    models.DataSourceResultTable.objects.create(
+        bk_data_id=monitor_data_id,
+        table_id="1001_bkmonitor_time_series_60212_extra.__default__",
+        bk_tenant_id="system",
+    )
     models.AccessVMRecord.objects.create(
         result_table_id=table_id,
         bk_base_data_id=bkbase_data_id,
@@ -4170,6 +4175,7 @@ def test_rebuild_graph_relation_fallback_stores_monitor_data_id_on_sibling_datab
     bkbase_rt = BkBaseResultTable.objects.get(data_link_name=graph_binding.data_link_name)
     assert bkbase_rt.monitor_table_id == table_id
     assert bkbase_rt.storage_cluster_id == 300111
+    assert SurrealDBBindingConfig.objects.get(name="graph_fallback_surreal_binding").table_id == table_id
 
 
 @pytest.mark.django_db(databases="__all__")

@@ -1182,12 +1182,17 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
                 rt_instance.name,
                 is_graph_result_table=isinstance(binding_instance, SurrealDBBindingConfig),
             )
-            if graph_base_name != rt_instance.name:
+            if graph_base_name:
                 graph_base_name_to_table_id[graph_base_name] = rt_instance.table_id
 
     for rt_instance in rt_instances:
         if not rt_instance.table_id:
-            rt_instance.table_id = graph_base_name_to_table_id.get(rt_instance.name, "")
+            binding_instance = rt_name_map[rt_instance.name]
+            graph_base_name = _normalize_graph_result_table_name(
+                rt_instance.name,
+                is_graph_result_table=isinstance(binding_instance, SurrealDBBindingConfig),
+            )
+            rt_instance.table_id = graph_base_name_to_table_id.get(graph_base_name, "")
         if not rt_instance.table_id:
             logger.warning(
                 "rebuild_databus_relation: databus->[%s] ResultTableConfig name->[%s] has empty table_id, skip",
