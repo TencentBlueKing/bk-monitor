@@ -54,21 +54,17 @@ class IndexGroupHandler(APIModel):
         获取索引组列表
         """
         current_space_uid = params["space_uid"]
-        current_space_type_id, _ = SpaceApi.parse_space_uid(current_space_uid)
-        current_space_uid_obj = SpaceApi.get_related_space(
-            space_uid=current_space_uid,
-            related_space_type=current_space_type_id
-        )
+        current_space_obj = SpaceApi.get_space_detail(space_uid=current_space_uid)
 
         related_space_uids = set()
-        bkcc_space_uid_obj = None
+        bkcc_space_obj = None
 
-        if current_space_type_id != SpaceTypeEnum.BKCC.value:
-            bkcc_space_uid_obj = SpaceApi.get_related_space(
+        if current_space_obj.space_type_id != SpaceTypeEnum.BKCC.value:
+            bkcc_space_obj = SpaceApi.get_related_space(
                 space_uid=current_space_uid,
                 related_space_type=SpaceTypeEnum.BKCC.value
             )
-            bkcc_space_uid = bkcc_space_uid_obj.space_uid
+            bkcc_space_uid = bkcc_space_obj.space_uid
             related_space_uids.add(current_space_uid)
             related_space_uids.add(bkcc_space_uid)
         else:
@@ -118,8 +114,8 @@ class IndexGroupHandler(APIModel):
             if int(child_id) in current_space_index_set_ids:
                 index_counts_dict[group_id] = index_counts_dict.get(group_id, 0) + 1
         for x in current_space_index_groups:
-            x["space_name"] = current_space_uid_obj.space_name
-            x["bk_biz_id"] = current_space_uid_obj.bk_biz_id
+            x["space_name"] = current_space_obj.space_name
+            x["bk_biz_id"] = current_space_obj.bk_biz_id
             x["index_count"] = index_counts_dict.get(x["index_set_id"], 0)
             x["is_related_space"] = False
             x["deletable"] = True  # TODO: 先给前端一个字段，后续需要判断索引组是否可以删除
@@ -129,12 +125,12 @@ class IndexGroupHandler(APIModel):
         current_space_index_groups.sort(key=lambda x: x["index_set_name"].encode("gbk", errors="ignore"))
         result.extend(current_space_index_groups)
 
-        if current_space_uid != bkcc_space_uid and bkcc_space_uid_obj:
+        if current_space_uid != bkcc_space_uid and bkcc_space_obj:
             bkcc_space_index_groups = space_uid_to_index_groups_map.get(bkcc_space_uid, [])
             bkcc_space_index_groups.sort(key=lambda x: x["index_set_name"].encode("gbk", errors="ignore"))
             result.extend([g | {
-                "space_name": bkcc_space_uid_obj.space_name,
-                "bk_biz_id": bkcc_space_uid_obj.bk_biz_id,
+                "space_name": bkcc_space_obj.space_name,
+                "bk_biz_id": bkcc_space_obj.bk_biz_id,
                 "index_count": None,
                 "is_related_space": True,
                 "deletable": False,

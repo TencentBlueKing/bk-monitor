@@ -6,7 +6,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 
 from apps.api import TransferApi, BkDataMetaApi
-from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
+from apps.log_databus.constants import CollectorSourceEnum, STORAGE_CLUSTER_TYPE
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_search.constants import (
@@ -23,12 +23,13 @@ from apps.log_search.models import (
     LogIndexSet,
     LogIndexSetData,
     Scenario,
-    TAG_TYPE_INNER,
+    SpaceApi, TAG_TYPE_INNER,
 )
 from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
 from apps.utils.local import get_local_param
 from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import format_user_time_zone
+from bkm_space.define import Space, SpaceTypeEnum
 from bkm_space.utils import space_uid_to_bk_biz_id
 
 
@@ -36,9 +37,12 @@ class LogCollectorHandler:
     def __init__(self, space_uid):
         self.space_uid = space_uid
         self.bk_biz_id = space_uid_to_bk_biz_id(self.space_uid)
+        self.space_type_id = None
+        self.related_space_uids = None
+        self.related_bk_biz_ids = None
+        self.bk_biz_id_to_space_detail_map = None
 
-    @staticmethod
-    def fetch_log_collector_data(result: list[dict]):
+    def fetch_log_collector_data(self, result: list[dict], include_related_spaces: bool = False):
         result_list = []
         scenario_choices = dict(Scenario.CHOICES)
         for item in result:
@@ -62,6 +66,22 @@ class LogCollectorHandler:
                 environment=item.get("environment", ""),
                 container_collector_type=item.get("container_collector_type", ""),
             )
+
+            related_space_info = {}
+
+            if include_related_spaces:
+                bk_biz_id = item.get("bk_biz_id")
+                space_detail = self.bk_biz_id_to_space_detail_map.get(bk_biz_id) or {}
+                space_uid = space_detail.get("space_uid")
+                space_name = space_detail.get("space_name")
+                is_related_space = bk_biz_id != self.bk_biz_id
+                related_space_info = {
+                    "bk_biz_id": bk_biz_id,
+                    "space_uid": space_uid,
+                    "space_name": space_name,
+                    "is_related_space": is_related_space,
+                }
+
             result_list.append(
                 {
                     "table_id": item.get("table_id", ""),
@@ -100,6 +120,7 @@ class LogCollectorHandler:
                     "etl_config": item.get("etl_config", ""),
                     "collect_paths": item.get("params", {}).get("paths", []),
                     "is_search": item.get("is_search", True),
+                    **related_space_info
                 }
             )
         return result_list
@@ -225,6 +246,8 @@ class LogCollectorHandler:
         log_access_type_list: list = None,
         exclude_not_completed: bool = False,
         exclude_parent_index_set_id: int = None,
+        include_related_spaces: bool = False,
+        collector_source: list = None
     ) -> list[dict]:
         """
          获取采集项信息
@@ -241,12 +264,30 @@ class LogCollectorHandler:
         :param log_access_type_list: 日志接入类型
         :param exclude_not_completed: 是否排除未完成的采集项
         :param exclude_parent_index_set_id: 排除指定归属索引集下的采集项
+        :param include_related_spaces: 是否包含关联空间中的采集项
+        :param collector_source: 采集项来源
         """
         if scenario_id_list and Scenario.LOG not in scenario_id_list:
             # 非日志采集查询，直接返回
             return []
 
-        qs = CollectorConfig.objects.filter(bk_biz_id=self.bk_biz_id)
+        if self.space_type_id == SpaceTypeEnum.BKCC.value and include_related_spaces:
+            if not collector_source:
+                query_bk_biz_ids = self.related_bk_biz_ids
+            else:
+                query_bk_biz_ids = []
+                other_bk_biz_ids = [b_b_i for b_b_i in self.related_bk_biz_ids if b_b_i != self.bk_biz_id]
+                collector_source = set(collector_source)
+
+                if CollectorSourceEnum.CURRENT_SPACE.value in collector_source:
+                    query_bk_biz_ids.append(self.bk_biz_id)
+                if CollectorSourceEnum.RELATED_SPACE.value in collector_source:
+                    query_bk_biz_ids.extend(other_bk_biz_ids)
+
+            qs = CollectorConfig.objects.filter(bk_biz_id__in=query_bk_biz_ids)
+        else:
+            qs = CollectorConfig.objects.filter(bk_biz_id=self.bk_biz_id)
+
         if exclude_not_completed:
             qs = qs.filter(table_id__isnull=False)
         if keyword:
@@ -348,6 +389,8 @@ class LogCollectorHandler:
         storage_display_name_list: list = None,
         log_access_type_list: list = None,
         exclude_parent_index_set_id: int = None,
+        include_related_spaces: bool = False,
+        collector_source: list = None
     ) -> list[dict]:
         """
          获取索引集内容
@@ -361,6 +404,8 @@ class LogCollectorHandler:
         :param storage_display_name_list: 集群名
         :param log_access_type_list: 日志接入类型
         :param exclude_parent_index_set_id: 排除指定归属索引集下的索引集
+        :param include_related_spaces: 是否包含关联空间中的采集项
+        :param collector_source: 采集项来源
         """
         _scenario_id_list = []
         for log_access_type in log_access_type_list:
@@ -370,9 +415,27 @@ class LogCollectorHandler:
         if log_access_type_list and not _scenario_id_list:
             return []
 
-        log_index_sets = LogIndexSet.objects.filter(collector_config_id__isnull=True, space_uid=self.space_uid).exclude(
+        qs = LogIndexSet.objects.filter(collector_config_id__isnull=True).exclude(
             scenario_id=Scenario.LOG
         )
+
+        if self.space_type_id == SpaceTypeEnum.BKCC.value and include_related_spaces:
+            if not collector_source:
+                query_space_uids = self.related_space_uids
+            else:
+                query_space_uids = []
+                other_space_uids = [s_u for s_u in self.related_space_uids if s_u != self.space_uid]
+                collector_source = set(collector_source)
+
+                if CollectorSourceEnum.CURRENT_SPACE.value in collector_source:
+                    query_space_uids.append(self.space_uid)
+                if CollectorSourceEnum.RELATED_SPACE.value in collector_source:
+                    query_space_uids.extend(other_space_uids)
+
+            log_index_sets = qs.filter(space_uid__in=query_space_uids)
+        else:
+            log_index_sets = qs.filter(space_uid=self.space_uid)
+
         if parent_index_set_id:
             index_set_id_list = self.get_child_index_set_ids(parent_index_set_id)
             if not index_set_id_list:
@@ -494,6 +557,7 @@ class LogCollectorHandler:
         """获取日志采集信息"""
         keyword = data.get("keyword")
         conditions = data.get("conditions", [])
+        include_related_spaces = data.get("include_related_spaces", False)
         scenario_id_list = []
         name_list = []
         bk_data_name_list = []
@@ -504,6 +568,7 @@ class LogCollectorHandler:
         storage_display_name_list = []
         log_access_type_list = []
         tag_id_list = []
+        collector_source = []
         for item in conditions:
             if item["key"] == "scenario_id":
                 scenario_id_list = item["value"]
@@ -525,6 +590,15 @@ class LogCollectorHandler:
                 log_access_type_list = item["value"]
             elif item["key"] == "tags":
                 tag_id_list = [int(v) for v in item["value"]]
+            elif item["key"] == "collector_source":
+                collector_source = item["value"]
+
+        self.space_type_id, _ = SpaceApi.parse_space_uid(self.space_uid)
+        if self.space_type_id == SpaceTypeEnum.BKCC.value:
+            self.related_space_uids = IndexSetHandler.get_all_related_space_uids(self.space_uid)
+            self.related_bk_biz_ids = [space_uid_to_bk_biz_id(space_uid) for space_uid in self.related_space_uids]
+            space_objs = SpaceApi.batch_get_space_detail(set(self.related_space_uids))
+            self.bk_biz_id_to_space_detail_map = {v.bk_biz_id: v.to_dict() for k, v in space_objs.items()}
 
         # 获取采集项信息
         collector_configs = self.get_collector_config_info(
@@ -541,6 +615,8 @@ class LogCollectorHandler:
             log_access_type_list=log_access_type_list,
             exclude_not_completed=data.get("exclude_not_completed", False),
             exclude_parent_index_set_id=data.get("exclude_parent_index_set_id"),
+            include_related_spaces=include_related_spaces,
+            collector_source=collector_source
         )
 
         lists_to_check = [
@@ -563,11 +639,16 @@ class LogCollectorHandler:
                 storage_display_name_list=storage_display_name_list,
                 log_access_type_list=log_access_type_list,
                 exclude_parent_index_set_id=data.get("exclude_parent_index_set_id"),
+                include_related_spaces=include_related_spaces,
+                collector_source=collector_source
             )
 
         combined_data = collector_configs + log_index_sets
         self.fill_parent_index_sets_info(combined_data)
-        combined_data = self.fetch_log_collector_data(combined_data)
+        combined_data = self.fetch_log_collector_data(
+            result=combined_data,
+            include_related_spaces=include_related_spaces
+        )
         if data.get("exclude_not_data", False):
             combined_data = self.filter_no_data(combined_data)
         combined_data.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
