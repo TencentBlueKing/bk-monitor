@@ -3783,6 +3783,10 @@ def test_rebuild_graph_relation_merges_siblings_without_prefilled_table_id():
 
     graph_binding = GraphRelationBindingConfig.objects.get()
     assert graph_binding.write_mode == GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB
+    assert DataLink.objects.filter(data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES).count() == 1
+    assert set(
+        DataBusConfig.objects.filter(data_link_name=graph_binding.data_link_name).values_list("name", flat=True)
+    ) == {"graph_vm_databus", "graph_surreal_databus"}
     assert graph_binding.bkbase_result_table_name == "graph_vm_rt"
     assert graph_binding.graph_result_table_name == "graph_surreal_rt"
     assert graph_binding.vm_storage_binding_name == "graph_vm_binding"

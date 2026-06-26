@@ -1463,6 +1463,9 @@ class GraphDataBusConfig(DataBusConfig):
             },
             "spec": {
                 "maintainers": {{maintainers}},
+                {% if consumer_group %}
+                "consumerGroup": {{consumer_group}},
+                {% endif %}
                 "sinks": {{sinks}},
                 "sources": [
                     {
@@ -1487,6 +1490,7 @@ class GraphDataBusConfig(DataBusConfig):
             "sinks": json.dumps(sinks),
             "data_id_name": self.data_id_name,
             "maintainers": json.dumps(maintainer),
+            "consumer_group": json.dumps(self.consumer_group) if self.consumer_group else None,
         }
 
         if settings.ENABLE_MULTI_TENANT_MODE:

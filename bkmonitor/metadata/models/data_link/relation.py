@@ -1292,10 +1292,13 @@ def rebuild_bkbase_v4_datalink_relation(bk_tenant_id: str, namespace: str, dry_r
 
     success, skipped = 0, 0
     dry_run_results: list[dict] = []
-    dry_run_seen_databuses: set[tuple[str, str, str]] = set()
+    seen_databuses: set[tuple[str, str, str]] = set()
     for databus in databuses:
         databus_key = (databus.bk_tenant_id, databus.namespace, databus.name)
-        if dry_run and databus_key in dry_run_seen_databuses:
+        if databus_key in seen_databuses:
+            skipped += 1
+            continue
+        if not dry_run and DataBusConfig.objects.filter(pk=databus.pk).exclude(data_link_name="").exists():
             skipped += 1
             continue
         result = rebuild_databus_relation(databus, dry_run=dry_run)
@@ -1305,13 +1308,21 @@ def rebuild_bkbase_v4_datalink_relation(bk_tenant_id: str, namespace: str, dry_r
                 dry_run_results.append(result)
                 for component in result.get("components", []):
                     if component.get("kind") == DataLinkKind.DATABUS.value:
-                        dry_run_seen_databuses.add(
+                        seen_databuses.add(
                             (
                                 component.get("bk_tenant_id", ""),
                                 component.get("namespace", ""),
                                 component.get("name", ""),
                             )
                         )
+            elif isinstance(result, DataLink):
+                seen_databuses.update(
+                    DataBusConfig.objects.filter(
+                        bk_tenant_id=bk_tenant_id,
+                        namespace=namespace,
+                        data_link_name=result.data_link_name,
+                    ).values_list("bk_tenant_id", "namespace", "name")
+                )
         else:
             skipped += 1
 
