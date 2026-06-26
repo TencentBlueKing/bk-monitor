@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import pytest
 
 from metadata import models
+from metadata.health_check import get_bkdata_status
 from metadata.task.tasks import _refresh_data_link_status
 
 
@@ -290,8 +291,7 @@ def test_refresh_graph_link_status_skips_local_binding(mocker):
     assert models.GraphRelationBindingConfig.objects.get(pk=graph_binding.pk).status == "creating"
 
 
-@pytest.mark.django_db(databases="__all__")
-def test_refresh_graph_link_status_does_not_count_graph_databus_as_vm(mocker):
+def _create_graph_link_with_missing_vm_databus():
     data_link_name = "bkm_graph_databus_status_link"
     vm_databus_name = "graph_status_missing_vm_databus"
     graph_databus_name = "graph_status_graph_databus"
@@ -369,6 +369,12 @@ def test_refresh_graph_link_status_does_not_count_graph_databus_as_vm(mocker):
         bk_biz_id=1001,
     )
     assert models.DataBusConfig.objects.filter(name=graph_databus_name).exists()
+    return data_link_name, vm_databus_name, graph_databus_name
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_refresh_graph_link_status_does_not_count_graph_databus_as_vm(mocker):
+    data_link_name, vm_databus_name, graph_databus_name = _create_graph_link_with_missing_vm_databus()
 
     status_mock = mocker.patch("metadata.task.tasks.get_data_link_component_status", return_value="Ok")
     _refresh_data_link_status(models.BkBaseResultTable.objects.get(data_link_name=data_link_name))
@@ -381,3 +387,30 @@ def test_refresh_graph_link_status_does_not_count_graph_databus_as_vm(mocker):
     assert vm_databus_name not in queried_databus_names
     assert queried_databus_names.count(graph_databus_name) == 1
     assert models.BkBaseResultTable.objects.get(data_link_name=data_link_name).status == "Pending"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_get_bkdata_status_does_not_count_graph_databus_as_vm(mocker):
+    data_link_name, vm_databus_name, graph_databus_name = _create_graph_link_with_missing_vm_databus()
+    mocker.patch(
+        "metadata.models.data_link.service.get_data_link_component_config",
+        return_value={"status": {"phase": "OK"}},
+    )
+
+    bkdata_status = get_bkdata_status("system", data_link_name)
+
+    assert not bkdata_status.finished
+    assert f"Name:{vm_databus_name}配置不存在" in bkdata_status.message
+    missing_vm_databus_status = next(
+        status
+        for status in bkdata_status.component_statuses
+        if status.kind == models.DataBusConfig.kind and status.name == vm_databus_name
+    )
+    assert not missing_vm_databus_status.exists
+    graph_databus_statuses = [
+        status
+        for status in bkdata_status.component_statuses
+        if status.kind == models.DataBusConfig.kind and status.name == graph_databus_name
+    ]
+    assert len(graph_databus_statuses) == 1
+    assert graph_databus_statuses[0].exists
