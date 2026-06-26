@@ -402,6 +402,34 @@ CHECK_RESULT_CACHE_KEY = register_key_with_config(
     }
 )
 
+# 新维度值检测(NewSeries)：记录某策略某 item 在某维度集合签名下，每个维度组合(指纹=record_id 前段)最近一次出现的时间戳。
+# member=维度指纹, score=该维度最近出现的数据时间戳。判定"新维度": now - score > detect_range 或 member 不存在。
+# key 含 dimension_signature(agg_dimension 列表的稳定 md5)：维度集合变更即落新 key，旧 key 不被读、不占新容量，随软 TTL 回收。
+# 注意：真实 TTL 在写入时由 detector 用 client.expire(key, detect_range*2) 续期(必须 >= detect_range)，
+# 此处注册的 ttl 仅作占位(KEY.expire() 会用注册 ttl，故 detector 不调它)。
+NEW_SERIES_SEEN_KEY = register_key_with_config(
+    {
+        "label": "[detect]新维度值检测-已见维度集合(type:SortedSet)"
+        "(score: 维度最近出现时间戳(int), member: 维度指纹(record_id 前段))",
+        "key_type": "sorted_set",
+        "key_tpl": f"{KEY_PREFIX}.detect.new_series.seen.{{strategy_id}}.{{item_id}}.{{dimension_signature}}",
+        "ttl": TTL_NOT_SET,
+        "backend": "service",
+    }
+)
+
+# 新维度值检测-学习起点：首跑(seen 首写成功后)由 detector setnx 写入 wall-clock，用于 effective_delay 冷启动宽限判定。
+# 与 seen key 同维度签名、同写入续期、一起过期(避免"seen 空而 learn_start 在"导致存量误报风暴)。
+NEW_SERIES_LEARN_START_KEY = register_key_with_config(
+    {
+        "label": "[detect]新维度值检测-学习起点时间戳(type:String)(value: 冷启动学习起点 wall-clock 秒)",
+        "key_type": "string",
+        "key_tpl": f"{KEY_PREFIX}.detect.new_series.learn_start.{{strategy_id}}.{{item_id}}.{{dimension_signature}}",
+        "ttl": TTL_NOT_SET,
+        "backend": "service",
+    }
+)
+
 NOTICE_VOICE_COLLECT_KEY = register_key_with_config(
     {
         "label": "[notice]电话单维度通知汇总",

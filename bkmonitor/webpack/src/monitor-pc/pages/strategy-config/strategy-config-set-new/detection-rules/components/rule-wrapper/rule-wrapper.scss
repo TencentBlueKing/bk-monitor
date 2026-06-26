@@ -4,15 +4,15 @@
     font-size: 14px;
     vertical-align: middle;
   }
-  
+
   .icon-danger {
     color: #ea3636;
   }
-  
+
   .icon-mind-fill {
     color: #ff9c01;
   }
-  
+
   .icon-tips {
     color: #699df4;
   }
@@ -22,35 +22,7 @@
   border: 1px solid #dcdee5;
   border-radius: 2px;
 
-  @include icon-style();
-  
-  &.valid-error {
-    border-color: #ea3636;
-
-    .header {
-      background-color: #fee;
-    }
-
-    &:hover {
-      border-color: #ea3636;
-
-      .header {
-        background-color: #fee;
-      }
-    }
-  }
-
-  &:hover {
-    border-color: #699df4;
-
-    .header {
-      background-color: #f0f5ff;
-
-      .del-btn {
-        display: block;
-      }
-    }
-  }
+  @include icon-style;
 
   .header {
     display: flex;
@@ -82,6 +54,34 @@
     }
   }
 
+  &:hover {
+    border-color: #699df4;
+
+    .header {
+      background-color: #f0f5ff;
+
+      .del-btn {
+        display: block;
+      }
+    }
+  }
+
+  &.valid-error {
+    border-color: #ea3636;
+
+    .header {
+      background-color: #fee;
+    }
+
+    &:hover {
+      border-color: #ea3636;
+
+      .header {
+        background-color: #fee;
+      }
+    }
+  }
+
   .content {
     padding: 14px 0 24px;
 
@@ -91,7 +91,7 @@
 
     .bk-form-item.is-error {
       input[type='text'] {
-        border-color: transparent transparent #ff5656;
+        border-color: transparent transparent #ff5656 !important;
       }
     }
 
@@ -120,6 +120,28 @@
 
     .select-method.is-focus {
       box-shadow: none;
+    }
+
+    .inline-input {
+      display: inline-block;
+      width: auto;
+
+      .bk-form-input {
+        height: 22px;
+      }
+    }
+
+    .input-align-center {
+      min-width: 52px;
+
+      .bk-form-input {
+        text-align: center;
+
+        &[readonly] {
+          /* stylelint-disable-next-line declaration-no-important */
+          padding: 0 !important;
+        }
+      }
     }
 
     .number-handle-input {
@@ -152,28 +174,6 @@
 
       .icon-angle-down {
         top: 0;
-      }
-    }
-
-    .inline-input {
-      display: inline-block;
-      width: auto;
-
-      .bk-form-input {
-        height: 22px;
-      }
-    }
-
-    .input-align-center {
-      min-width: 52px;
-
-      .bk-form-input {
-        text-align: center;
-
-        &[readonly] {
-          /* stylelint-disable-next-line declaration-no-important */
-          padding: 0 !important;
-        }
       }
     }
 
@@ -235,6 +235,5 @@
 }
 
 .level-select-popover {
-  @include icon-style();
+  @include icon-style;
 }
-

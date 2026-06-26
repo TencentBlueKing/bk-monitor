@@ -75,7 +75,6 @@ import { type TraceExploreApmHooks, BRIDGE_PROPS_KEY, TRACE_EXPLORE_APM_HOOKS_KE
 import { getFilterByCheckboxFilter, safeParseJsonValueForWhere, tryURLDecodeParse } from './utils';
 
 import type { ConditionChangeEvent, ExploreFieldList, IApplicationItem, ICommonParams } from './typing';
-const TRACE_EXPLORE_SHOW_FAVORITE = 'TRACE_EXPLORE_SHOW_FAVORITE';
 /** trace检索默认选择的应用 */
 const TRACE_EXPLORE_DEFAULT_APPLICATION = 'TRACE_EXPLORE_DEFAULT_APPLICATION';
 /** 应用置顶列表 */
@@ -483,7 +482,6 @@ export default defineComponent({
 
     /** 获取所有的用户相关配置（默认应用，收藏栏显隐，应用置顶列表） */
     async function getAllUserConfig() {
-      isShowFavorite.value = JSON.parse(localStorage.getItem(TRACE_EXPLORE_SHOW_FAVORITE) || 'false');
       await Promise.all([
         handleGetUserConfig<string>(TRACE_EXPLORE_DEFAULT_APPLICATION).then(res => {
           defaultApplication.value = res;
@@ -813,7 +811,6 @@ export default defineComponent({
     }
     function handleFavoriteShowChange(isShow: boolean) {
       isShowFavorite.value = isShow;
-      localStorage.setItem(TRACE_EXPLORE_SHOW_FAVORITE, JSON.stringify(isShow));
     }
 
     function handleCreateApp() {
