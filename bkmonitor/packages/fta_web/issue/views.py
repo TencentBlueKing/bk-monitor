@@ -134,4 +134,6 @@ class IssueViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.issue.get_tapd_fields, endpoint="issue/get_tapd_fields"),
         # 查询已有TAPD单据
         ResourceRoute("POST", resource.issue.search_tapd_items, endpoint="issue/search_tapd_items"),
+        # 创建TAPD单据
+        ResourceRoute("POST", resource.issue.create_tapd, endpoint="issue/create_tapd"),
     ]

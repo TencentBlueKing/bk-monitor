@@ -13,6 +13,7 @@ from collections import Counter
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
+import json
 import re
 
 from rest_framework import serializers
@@ -23,8 +24,8 @@ from bkmonitor.documents.issue import (
     IssueDocumentWriteError,
     IssueNotFoundError,
 )
-from bkmonitor.issue_merge import IssueFrozenError
-from bkmonitor.models.issue import IssueMergeRelation
+from bkmonitor.issue_merge import IssueFrozenError, IssueMergeResolver
+from bkmonitor.models.issue import IssueMergeRelation, IssueTapdRelation
 from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.issue import IssuePriority, IssueStatus, IssueActivityType
@@ -1674,10 +1675,11 @@ class SearchTAPDItemsResource(Resource):
                 else:
                     fields_info = api.tapd.get_story_fields_info(workspace_id=workspace_id)
                 status_options = (fields_info or {}).get("status", {}).get("options", {})
-                if status_options:
-                    for item in results:
-                        status = item["status"]
-                        item["status_display_name"] = status_options.get(status, status)
+                for item in results:
+                    status = item.get("status")
+                    if not status:
+                        continue
+                    item["status_display_name"] = status_options.get(status, status)
             except Exception:
                 logger.warning(
                     "Failed to get status options for tapd_type=%s, workspace_id=%s",
@@ -1686,8 +1688,9 @@ class SearchTAPDItemsResource(Resource):
                     exc_info=True,
                 )
                 for item in results:
-                    status = item["status"]
-                    item["status_display_name"] = status
+                    status = item.get("status")
+                    if status:
+                        item["status_display_name"] = status
 
         return results
 
@@ -1713,3 +1716,315 @@ class SearchTAPDItemsResource(Resource):
             item["tapd_type"] = tapd_type
 
         return tapd_items
+
+
+class CreateTapdResource(Resource):
+    """创建TAPD单据接口
+    支持两种单据类型：
+    1. story - 需求单据
+    2. bug - 缺陷单据
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        issue_id = IssueIDField(label="Issue ID")
+
+        tapd_type = serializers.ChoiceField(
+            label="TAPD单据类型",
+            choices=["story", "bug"],
+            help_text="单据类型：story(需求), bug(缺陷)",
+        )
+        workspace_id = serializers.IntegerField(label="项目ID")
+        name = serializers.CharField(label="单据标题")
+        description = serializers.CharField(label="详细描述")
+        owner = serializers.CharField(label="单据处理人", help_text="支持多成员，如：aaa;bbb;")
+        priority_label = serializers.CharField(label="优先级")
+        iteration_id = serializers.CharField(label="迭代ID")
+        te = serializers.CharField(label="测试人员", required=False)
+        sync_status = serializers.BooleanField(
+            label="同步单据状态",
+            help_text="勾选后，TAPD单据完成时自动同步状态到Issue",
+        )
+
+        def validate(self, attrs):
+            # 创建bug单据时te字段必填
+            if attrs.get("tapd_type") == "bug" and not attrs.get("te"):
+                raise serializers.ValidationError("The te field is required when tapd_type is bug")
+            if attrs.get("sync_status"):
+                raise serializers.ValidationError("sync_status is not supported until TAPD status sync is implemented")
+
+            return attrs
+
+    @staticmethod
+    def _read_activities(issue_id: str) -> list:
+        """读取当前 Issue 全部活动日志（按时间降序）
+
+        Args:
+            issue_id: Issue ID
+
+        Returns:
+            活动日志列表，每项包含 bk_biz_id、activity_id、activity_type、
+            operator、from_value、to_value、content、time 字段。
+            查询失败时返回空列表。
+        """
+        try:
+            search = (
+                IssueActivityDocument.search(all_indices=True)
+                .filter("term", issue_id=issue_id)
+                .sort("-time")
+                .extra(size=500)
+            )
+            hits = search.execute().hits
+            return [
+                {
+                    "bk_biz_id": hit.bk_biz_id,
+                    "activity_id": hit.meta.id,
+                    "activity_type": hit.activity_type,
+                    "operator": hit.operator or "",
+                    "from_value": hit.from_value,
+                    "to_value": hit.to_value,
+                    "content": hit.content,
+                    "time": int(hit.time) if hit.time else 0,
+                }
+                for hit in hits
+            ]
+        except Exception:
+            logger.exception("Failed to read activities, issue_id=%s", issue_id)
+            return []
+
+    @staticmethod
+    def _create_tapd(
+        tapd_type: str,
+        workspace_id: int,
+        name: str,
+        description: str,
+        owner: str,
+        priority_label: str,
+        iteration_id: str,
+        te: str = "",
+    ) -> dict:
+        """调用 TAPD API 创建单据并返回统一结构的单据信息
+
+        Args:
+            tapd_type: 单据类型，story 或 bug
+            workspace_id: TAPD 项目 ID
+            name: 单据标题
+            description: 详细描述
+            owner: 处理人
+            priority_label: 优先级
+            iteration_id: 迭代 ID
+            te: 测试人员（bug 类型必填）
+
+        Returns:
+            统一结构的单据信息 dict，包含 tapd_id、tapd_type、name、
+            description、owner、priority_label、iteration_id 等字段。
+            bug 类型额外包含 te 字段。
+        """
+        if tapd_type == "story":
+            params = {
+                "workspace_id": workspace_id,
+                "name": name,
+                "description": description,
+                "owner": owner,
+                "priority_label": priority_label,
+                "iteration_id": iteration_id,
+            }
+            params = {k: v for k, v in params.items() if v is not None}
+            rs = api.tapd.add_story(**params)["Story"]
+            return {
+                "tapd_id": str(rs["id"]),
+                "tapd_type": tapd_type,
+                "name": rs["name"],
+                "description": rs["description"],
+                "owner": rs["owner"],
+                "priority_label": rs["priority_label"],
+                "iteration_id": rs["iteration_id"],
+            }
+        else:
+            params = {
+                "workspace_id": workspace_id,
+                "title": name,
+                "description": description,
+                "current_owner": owner,
+                "priority_label": priority_label,
+                "iteration_id": iteration_id,
+                "te": te,
+            }
+            params = {k: v for k, v in params.items() if v is not None}
+            rs = api.tapd.add_bug(**params)["Bug"]
+            return {
+                "tapd_id": str(rs["id"]),
+                "tapd_type": tapd_type,
+                "name": rs["title"],
+                "description": rs["description"],
+                "owner": rs["current_owner"],
+                "priority_label": rs["priority_label"],
+                "iteration_id": rs["iteration_id"],
+                "te": rs["te"],
+            }
+
+    @staticmethod
+    def _save_relation(tapd_info: dict) -> None:
+        """保存 Issue 与 TAPD 单据的关联关系
+
+        如果相同 bk_biz_id + workspace_id + issue_id + tapd_id 的关联记录已存在，则修改。
+
+        Args:
+            tapd_info: TAPD 单据信息字典，必须包含以下字段：
+                - tapd_id: TAPD 单据 ID（用于关联查询）
+                - tapd_type: 单据类型（story/bug）
+                - name: 单据标题
+                - bk_biz_id: 业务 ID
+                - issue_id: Issue ID
+                - workspace_id: TAPD 项目 ID
+                - sync_status: 是否同步状态
+        """
+        tapd_id = tapd_info["tapd_id"]
+        obj, created = IssueTapdRelation.objects.update_or_create(
+            bk_biz_id=tapd_info["bk_biz_id"],
+            issue_id=tapd_info["issue_id"],
+            workspace_id=tapd_info["workspace_id"],
+            tapd_id=tapd_id,
+            defaults={
+                "tapd_type": tapd_info["tapd_type"],
+                "tapd_title": tapd_info["name"],
+                "link_mode": "create",
+                "sync_status": tapd_info["sync_status"],
+            },
+        )
+        if not created:
+            logger.info(
+                "IssueTapdRelation already exists, issue_id=%s, tapd_id=%s, skip creating",
+                tapd_info["issue_id"],
+                tapd_id,
+            )
+
+    def _record_activity(
+        self,
+        issue_id: str,
+        bk_biz_id: int,
+        tapd_info: dict,
+    ) -> list:
+        """记录 TAPD 创建活动日志并合并返回完整活动列表
+
+        写入 ES 失败时重试一次，仍失败则仅记录日志，不将失败的活动拼入返回，
+        避免返回无效的 activity_id。
+
+        Args:
+            issue_id: Issue ID
+            bk_biz_id: 业务 ID
+            tapd_info: TAPD 单据信息（序列化为 content）
+
+        Returns:
+            完整的活动日志列表（新活动在前，历史在后）
+        """
+        # 读取历史活动日志（先读后写，避免 ES 延迟）
+        existing_activities = self._read_activities(issue_id)
+
+        create_time = int(time.time())
+        create_username = get_request_username()
+        tapd_content = json.dumps(tapd_info, ensure_ascii=False)
+
+        new_activity = IssueActivityDocument(
+            issue_id=issue_id,
+            bk_biz_id=bk_biz_id,
+            activity_type=IssueActivityType.CREATE_TAPD,
+            from_value=None,
+            to_value=None,
+            operator=create_username,
+            content=tapd_content,
+            time=create_time,
+            create_time=create_time,
+        )
+
+        write_succeeded = False
+        try:
+            IssueActivityDocument.bulk_create([new_activity])
+            write_succeeded = True
+        except Exception as e:
+            logger.warning(
+                "IssueActivityDocument create_tapd activity write failed, retrying once, issue_id=%s: %s",
+                issue_id,
+                e,
+            )
+            try:
+                IssueActivityDocument.bulk_create([new_activity])
+                write_succeeded = True
+            except Exception as e2:
+                logger.error(
+                    "IssueActivityDocument create_tapd activity write retry failed, issue_id=%s: %s",
+                    issue_id,
+                    e2,
+                )
+
+        if not write_succeeded:
+            return existing_activities
+
+        new_activity_item = {
+            "bk_biz_id": new_activity.bk_biz_id,
+            "activity_id": new_activity.id,
+            "activity_type": new_activity.activity_type,
+            "operator": new_activity.operator or "",
+            "from_value": new_activity.from_value,
+            "to_value": new_activity.to_value,
+            "content": new_activity.content,
+            "time": new_activity.time,
+        }
+        return [new_activity_item] + existing_activities
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        issue_id = validated_request_data["issue_id"]
+
+        IssueDocument.get_issue_or_raise(issue_id, bk_biz_id=bk_biz_id)
+
+        # 已被合并冻结的 Issue 禁止创建 TAPD（与状态机操作一致）
+        IssueMergeResolver.assert_not_frozen(issue_id)
+
+        tapd_type = validated_request_data["tapd_type"]
+        workspace_id = validated_request_data["workspace_id"]
+        name = validated_request_data["name"]
+        description = validated_request_data["description"]
+        owner = validated_request_data["owner"]
+        sync_status = validated_request_data["sync_status"]
+        priority_label = validated_request_data["priority_label"]
+        iteration_id = validated_request_data["iteration_id"]
+        te = validated_request_data.get("te", "")
+
+        if sync_status:
+            # TODO: [issue-tapd-sync] 实现 TAPD 单据状态同步功能
+            logger.warning(
+                "sync_status=True requested but not yet implemented, issue_id=%s, tapd_type=%s",
+                issue_id,
+                tapd_type,
+            )
+
+        # Step 1: 调用 TAPD API 创建单据
+        tapd_info = self._create_tapd(
+            tapd_type=tapd_type,
+            workspace_id=workspace_id,
+            name=name,
+            description=description,
+            owner=owner,
+            priority_label=priority_label,
+            iteration_id=iteration_id,
+            te=te,
+        )
+
+        # 补充公共字段
+        tapd_info.update(
+            {
+                "bk_biz_id": bk_biz_id,
+                "issue_id": issue_id,
+                "workspace_id": workspace_id,
+                "sync_status": sync_status,
+            }
+        )
+
+        # Step 2: 保存issue与tapd单据的关联记录
+        self._save_relation(tapd_info=tapd_info)
+
+        # Step 3: 记录活动日志并返回完整活动列表
+        tapd_info["activities"] = self._record_activity(issue_id=issue_id, bk_biz_id=bk_biz_id, tapd_info=tapd_info)
+
+        return tapd_info
