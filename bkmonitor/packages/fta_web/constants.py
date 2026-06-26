@@ -732,7 +732,7 @@ class TapdOauthEndpoint:
     """TAPD OAuth 端点（完整地址，基于 TAPD_OAUTH_BASE_URL）"""
 
     _AUTHORIZE_PATH = "/oauth"
-    _OPEN_APP_INSTALL_PATH = "/open_app_install"
+    _OPEN_APP_INSTALL_PATH = "/oauth/open_app_install"
 
     @staticmethod
     def _base():

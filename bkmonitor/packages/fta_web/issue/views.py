@@ -139,7 +139,7 @@ class IssueViewSet(ResourceViewSet):
         )
         # tapd_user_workspace 需要前置校验 TAPD 用户态授权
         if self.action == "tapd/user_workspace":
-            return [self.TAPDAuthPermission(actions=[]), base_perm]
+            return [base_perm, self.TAPDAuthPermission(actions=[])]
         return [base_perm]
 
     resource_routes = [
