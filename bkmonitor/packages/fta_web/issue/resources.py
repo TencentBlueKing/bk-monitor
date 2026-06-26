@@ -1907,45 +1907,61 @@ class ListUserTapdWorkspaceResource(Resource):
             )
         }
 
-        # TODO(T-01): 接入 TAPD 用户态 API 获取用户可见项目列表。
-        #   Dependency: TAPD 需开放「获取用户可见项目」接口。
-        #   接入后将 local_bindings 与远程列表交叉 → 返回四态标记。
-
         # 降级：用 app 级 get_granted_workspaces 作为数据源（仅返回 app 已授权项目）
         try:
-            granted = api.tapd.get_granted_workspaces(bk_biz_id=bk_biz_id)
+            granted_resp = api.tapd.get_granted_workspaces(bk_biz_id=bk_biz_id)
         except Exception as e:
             logger.warning("GetGrantedWorkspaces failed for B-01 fallback: %s", e)
-            granted = []
+            granted_resp = {}
+
+        # granted_resp 结构：{list: [{OpenOrganizationApp: {workspace_id, type, created}}, ...], pager: {...}}
+        # 注意：OpenOrganizationApp 内层不含 name 字段，名称从本地 binding 取，无则用 workspace_id 兜底
+        granted_list = granted_resp.get("list", []) if isinstance(granted_resp, dict) else (granted_resp or [])
+
+        # 提取 TAPD 已授权项目 id 集合（用于判断 stale 态：本地有但 TAPD 无）
+        granted_ids = set()
+        for ws in granted_list:
+            ws_inner = ws.get("OpenOrganizationApp", {}) if isinstance(ws, dict) else {}
+            ws_id = str(ws_inner.get("workspace_id", ""))
+            if ws_id:
+                granted_ids.add(ws_id)
 
         items = []
         any_unbound_or_stale = False
-        for ws in granted:
-            ws_id = str(ws.get("id") or ws.get("workspace_id", ""))
+
+        # 第一轮：遍历 TAPD 已授权列表 → 命中 bound / importable
+        for ws in granted_list:
+            ws_inner = ws.get("OpenOrganizationApp", {}) if isinstance(ws, dict) else {}
+            ws_id = str(ws_inner.get("workspace_id", ""))
             if not ws_id:
                 continue
             in_local = ws_id in local_bindings
-            in_granted = True
 
-            if in_local and in_granted:
+            if in_local:
                 status = "bound"
-            elif in_local and not in_granted:
-                status = "stale"
-                any_unbound_or_stale = True
-            elif not in_local and in_granted:
+            else:
                 status = "importable"
                 # 静默尝试创建本地 binding
                 if try_bind_importable(ws_id, bk_biz_id, tenant_id, username):
                     status = "bound"
-            else:
-                status = "unbound"
-                any_unbound_or_stale = True
 
-            items.append({"workspace_id": ws_id, "workspace_name": ws.get("name") or ws_id, "is_bound": status})
+            # TAPD API 不返回 name，优先用本地 binding 的名称，无则用 workspace_id 兜底
+            workspace_name = local_bindings.get(ws_id, {}).get("tapd_workspace_name") or ws_id
+            items.append({"workspace_id": ws_id, "workspace_name": workspace_name, "is_bound": status})
+
+        # 第二轮：遍历本地 binding 全集，找出 TAPD 未授权的 → 命中 stale
+        # （unbound 态需 T-01 用户态 API 接入后才能识别，降级模式下无法发现"两边都无"的项目）
+        for ws_id, binding in local_bindings.items():
+            if ws_id in granted_ids:
+                continue  # 已在第一轮处理（bound）
+            status = "stale"
+            any_unbound_or_stale = True
+            workspace_name = binding.get("tapd_workspace_name") or ws_id
+            items.append({"workspace_id": ws_id, "workspace_name": workspace_name, "is_bound": status})
 
         # install_url 仅在存在 unbound 或 stale 时按需构建（涉及签名生成，避免无用开销）
         install_url = ""
-        if any_unbound_or_stale or True:
+        if any_unbound_or_stale:
             request = get_request()
 
             # 构建应用安装回调地址（绝对 URL）
@@ -2143,8 +2159,8 @@ def tapd_user_oauth_callback(request):
             code=code,
             redirect_uri=backend_callback_encoded,
         )
-    except BKAPIError:
-        logger.exception("exchange token failed")
+    except BKAPIError as e:
+        logger.exception(f"exchange token failed: {e}")
         return HttpResponseRedirect(error_url)
     except Exception as e:
         logger.exception(f"exchange token unexpected error: {e}")

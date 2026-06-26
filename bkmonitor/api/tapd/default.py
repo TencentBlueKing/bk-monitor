@@ -9,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 import base64
-from urllib.parse import urlencode
 
 from django.conf import settings
 from rest_framework import serializers
@@ -405,24 +404,16 @@ class UserOauthTokenResource(TapdAPIResource):
     action = "tokens/request_token"
     method = "POST"
 
+    def before_request(self, kwargs):
+        """把默认 JSON body 改为 form（OAuth 2.0 协议要求 token endpoint 用 form-urlencoded）。
+        requests 对 dict 形式的 data 会自动 urlencode 并设置 Content-Type，无需手动处理。"""
+        kwargs["data"] = kwargs.pop("json", None) or {}
+        return kwargs
+
     class RequestSerializer(serializers.Serializer):
         grant_type = serializers.CharField(label="授权类型", default="authorization_code")
         code = serializers.CharField(label="授权码", required=True)
         redirect_uri = serializers.CharField(label="回调地址", required=True)
-
-    def get_headers(self):
-        """覆盖 headers：使用 client_id:client_secret（设计复用 APP_ID/APP_SECRET 作为 OAuth client 凭证）。"""
-        client_id = getattr(settings, "TAPD_CLIENT_ID", None) or settings.TAPD_APP_ID
-        client_secret = getattr(settings, "TAPD_CLIENT_SECRET", None) or settings.TAPD_APP_SECRET
-        credentials = f"{client_id}:{client_secret}"
-        encoded_str = base64.b64encode(credentials.encode("utf-8")).decode("utf-8")
-        return {"Authorization": f"Basic {encoded_str}", "Content-Type": "application/x-www-form-urlencoded"}
-
-    def before_request(self, kwargs):
-        """覆盖为 form-urlencoded 格式（默认 JSON 不满足 TAPD 要求）。"""
-        json_data = kwargs.pop("json", None) or {}
-        kwargs["data"] = urlencode(json_data)
-        return kwargs
 
     class ResponseSerializer(serializers.Serializer):
         access_token = serializers.CharField(label="访问令牌")
