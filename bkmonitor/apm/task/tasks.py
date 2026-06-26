@@ -156,8 +156,7 @@ def refresh_apm_config():
     to_be_refreshed = [
         application
         for application in ApmApplication.objects.filter(is_enabled=True).values_list("bk_biz_id", "app_name")
-        # 业务 0 是公共配置入口，不能被迁移黑名单跳过。
-        if application[0] == 0 or application[0] not in settings.NEW_ENV_BIZ_BLACK_LIST
+        if application[0] not in settings.NEW_ENV_BIZ_BLACK_LIST
     ]
     slug = datetime.datetime.now().minute % interval
     for index, application in enumerate(to_be_refreshed):

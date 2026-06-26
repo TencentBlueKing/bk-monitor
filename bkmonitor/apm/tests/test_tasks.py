@@ -29,7 +29,6 @@ def test_refresh_apm_config_skips_biz_black_list(settings, mocker):
         "apm.task.tasks.ApmApplication.objects.filter",
         return_value=FakeApplicationQuerySet(
             [
-                make_app(0, "global"),
                 make_app(12, "black"),
                 make_app(10, "threshold"),
                 make_app(5, "white"),
@@ -41,7 +40,7 @@ def test_refresh_apm_config_skips_biz_black_list(settings, mocker):
 
     tasks.refresh_apm_config()
 
-    refresh_apm_application_config.assert_called_once_with(0, "global")
+    refresh_apm_application_config.assert_called_once_with(10, "threshold")
 
 
 def test_refresh_apm_config_to_k8s_filters_by_new_env_scope(settings, mocker):
@@ -50,7 +49,6 @@ def test_refresh_apm_config_to_k8s_filters_by_new_env_scope(settings, mocker):
     settings.NEW_ENV_BIZ_WHITE_LIST = [5]
 
     applications = [
-        make_app(0, "global"),
         make_app(12, "black"),
         make_app(10, "threshold"),
         make_app(5, "white"),
@@ -61,4 +59,4 @@ def test_refresh_apm_config_to_k8s_filters_by_new_env_scope(settings, mocker):
 
     tasks.refresh_apm_config_to_k8s()
 
-    refresh_k8s.assert_called_once_with([applications[0], applications[3], applications[4]], need_config_cache=True)
+    refresh_k8s.assert_called_once_with([applications[2], applications[3]], need_config_cache=True)
