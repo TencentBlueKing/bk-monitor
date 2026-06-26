@@ -721,28 +721,51 @@ class LogCollectorHandler:
                     metadata_cluster_names.add(display_name)
         return metadata_cluster_names
 
-    def get_collector_field_enums(self):
+    def get_collector_field_enums(self, include_related_spaces: bool = False):
         """
         获取采集项字段枚举值
+        :param include_related_spaces: 是否包含关联空间中的采集项
         :return: 包含创建人和更新人枚举值的字典
         """
+        self.space_type_id, _ = SpaceApi.parse_space_uid(self.space_uid)
+        if self.space_type_id == SpaceTypeEnum.BKCC.value:
+            self.related_space_uids = IndexSetHandler.get_all_related_space_uids(self.space_uid)
+            self.related_bk_biz_ids = [space_uid_to_bk_biz_id(space_uid) for space_uid in self.related_space_uids]
+
+        if self.space_type_id == SpaceTypeEnum.BKCC.value and include_related_spaces:
+            query_collector_condition = {
+                "bk_biz_id__in": self.related_bk_biz_ids
+            }
+            query_index_set_condition = {
+                "collector_config_id__isnull": True,
+                "space_uid__in": self.related_space_uids
+            }
+        else:
+            query_collector_condition = {
+                "bk_biz_id": self.bk_biz_id
+            }
+            query_index_set_condition = {
+                "collector_config_id__isnull": True,
+                "space_uid": self.space_uid
+            }
+
         # 获取采集项的创建人和更新人枚举
         collector_created_by = (
-            CollectorConfig.objects.filter(bk_biz_id=self.bk_biz_id).values_list("created_by", flat=True).distinct()
+            CollectorConfig.objects.filter(**query_collector_condition).values_list("created_by", flat=True).distinct()
         )
         collector_updated_by = (
-            CollectorConfig.objects.filter(bk_biz_id=self.bk_biz_id).values_list("updated_by", flat=True).distinct()
+            CollectorConfig.objects.filter(**query_collector_condition).values_list("updated_by", flat=True).distinct()
         )
 
         # 获取索引集的创建人和更新人枚举
         index_set_created_by = (
-            LogIndexSet.objects.filter(collector_config_id__isnull=True, space_uid=self.space_uid)
+            LogIndexSet.objects.filter(**query_index_set_condition)
             .exclude(scenario_id=Scenario.LOG)
             .values_list("created_by", flat=True)
             .distinct()
         )
         index_set_updated_by = (
-            LogIndexSet.objects.filter(collector_config_id__isnull=True, space_uid=self.space_uid)
+            LogIndexSet.objects.filter(**query_index_set_condition)
             .exclude(scenario_id=Scenario.LOG)
             .values_list("updated_by", flat=True)
             .distinct()
