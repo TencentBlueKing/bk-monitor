@@ -1676,49 +1676,38 @@ class CreateTapdResource(Resource):
             }
 
     @staticmethod
-    def _save_relation(
-        bk_biz_id: int,
-        issue_id: str,
-        workspace_id: int,
-        tapd_info: dict,
-        tapd_type: str,
-        name: str,
-        sync_status: bool,
-    ) -> None:
+    def _save_relation(tapd_info: dict) -> None:
         """保存 Issue 与 TAPD 单据的关联关系
 
-        如果相同 bk_biz_id + workspace_id + issue_id + tapd_id 的关联记录已存在，则跳过创建。
+        如果相同 bk_biz_id + workspace_id + issue_id + tapd_id 的关联记录已存在，则修改。
 
         Args:
-            bk_biz_id: 业务 ID
-            issue_id: Issue ID
-            workspace_id: TAPD 项目 ID
-            tapd_info: TAPD 单据信息（需包含 tapd_id）
-            tapd_type: 单据类型
-            name: 单据标题
-            sync_status: 是否同步状态
+            tapd_info: TAPD 单据信息字典，必须包含以下字段：
+                - tapd_id: TAPD 单据 ID（用于关联查询）
+                - tapd_type: 单据类型（story/bug）
+                - name: 单据标题
+                - bk_biz_id: 业务 ID
+                - issue_id: Issue ID
+                - workspace_id: TAPD 项目 ID
+                - sync_status: 是否同步状态
         """
         tapd_id = tapd_info["tapd_id"]
         obj, created = IssueTapdRelation.objects.update_or_create(
-            bk_biz_id=bk_biz_id,
-            issue_id=issue_id,
-            workspace_id=workspace_id,
+            bk_biz_id=tapd_info["bk_biz_id"],
+            issue_id=tapd_info["issue_id"],
+            workspace_id=tapd_info["workspace_id"],
             tapd_id=tapd_id,
             defaults={
-                "bk_biz_id": bk_biz_id,
-                "issue_id": issue_id,
-                "workspace_id": workspace_id,
-                "tapd_id": tapd_id,
-                "tapd_type": tapd_type,
-                "tapd_title": name,
+                "tapd_type": tapd_info["tapd_type"],
+                "tapd_title": tapd_info["name"],
                 "link_mode": "create",
-                "sync_status": sync_status,
+                "sync_status": tapd_info["sync_status"],
             },
         )
         if not created:
             logger.info(
                 "IssueTapdRelation already exists, issue_id=%s, tapd_id=%s, skip creating",
-                issue_id,
+                tapd_info["issue_id"],
                 tapd_id,
             )
 
@@ -1843,15 +1832,7 @@ class CreateTapdResource(Resource):
         )
 
         # Step 2: 保存issue与tapd单据的关联记录
-        self._save_relation(
-            bk_biz_id=bk_biz_id,
-            issue_id=issue_id,
-            workspace_id=workspace_id,
-            tapd_info=tapd_info,
-            tapd_type=tapd_type,
-            name=name,
-            sync_status=sync_status,
-        )
+        self._save_relation(tapd_info=tapd_info)
 
         # Step 3: 记录活动日志并返回完整活动列表
         tapd_info["activities"] = self._record_activity(issue_id=issue_id, bk_biz_id=bk_biz_id, tapd_info=tapd_info)

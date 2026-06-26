@@ -17,6 +17,7 @@ from functools import reduce
 from typing import Any
 
 from django.utils.translation import gettext_lazy as _
+from django.db.models import Count
 
 from elasticsearch_dsl import Q, Search
 from elasticsearch_dsl.aggs import Bucket
@@ -615,8 +616,6 @@ class IssueQueryHandler(BaseBizQueryHandler):
         # TAPD 关联数注入：批量查询页内 Issue 的 TAPD 关联数量
         # fail-open：查询失败时 tapd_count 默认为 0，不阻塞列表
         if issues:
-            from django.db.models import Count
-
             page_issue_ids = [i["id"] for i in issues if i.get("id")]
             try:
                 tapd_count_map = dict(
