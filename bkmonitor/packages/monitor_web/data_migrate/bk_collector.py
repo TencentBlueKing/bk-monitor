@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import re
 import time
 from collections.abc import Callable
 from contextlib import contextmanager
@@ -37,7 +36,6 @@ NEW_ENV_BIZ_BLACK_LIST_CONFIG_KEY = "NEW_ENV_BIZ_BLACK_LIST"
 NEW_ENV_BIZ_WHITE_LIST_CONFIG_KEY = "NEW_ENV_BIZ_WHITE_LIST"
 
 CONFIG_TYPES = (APM_APPLICATION, CUSTOM_REPORT, LOG)
-VERSION_PATTERN = re.compile(r"[vV]?(\d+\.){1,5}\d+$")
 SUCCEEDED_ACTIONS = {INSTALL, STOP, "refresh", DISABLE_AUTO_INSPECTION, UPDATE}
 CONFIG_DELIVERY_SUCCESS_STATUS = "SUCCESS"
 CONFIG_DELIVERY_TIMEOUT_STATUS = "TIMEOUT"
@@ -1620,20 +1618,7 @@ def _refresh_log(
 def _get_deploy_host_ids(
     *, bk_tenant_id: str, bk_host_ids: list[int], plugin_name: str, plugin_version: str
 ) -> tuple[list[int], list[int]]:
-    plugin_info_list = _list_plugin_info_by_host_ids(bk_tenant_id=bk_tenant_id, bk_host_ids=bk_host_ids)
-    returned_host_ids = {plugin_info["bk_host_id"] for plugin_info in plugin_info_list}
-    skipped_host_ids = []
-    deploy_host_ids = []
-
-    for plugin_info in plugin_info_list:
-        current_version = _get_current_plugin_version(plugin_info.get("plugin_status") or [], plugin_name)
-        if current_version == plugin_version:
-            skipped_host_ids.append(plugin_info["bk_host_id"])
-        else:
-            deploy_host_ids.append(plugin_info["bk_host_id"])
-
-    deploy_host_ids.extend([bk_host_id for bk_host_id in bk_host_ids if bk_host_id not in returned_host_ids])
-    return _unique_ints(deploy_host_ids), _unique_ints(skipped_host_ids)
+    return _unique_ints(bk_host_ids), []
 
 
 def _get_stop_host_ids(
@@ -1657,12 +1642,6 @@ def _get_stop_host_ids(
 def _list_plugin_info_by_host_ids(*, bk_tenant_id: str, bk_host_ids: list[int]) -> list[dict[str, Any]]:
     params = {"page": 1, "pagesize": len(bk_host_ids), "conditions": [], "bk_host_id": bk_host_ids}
     return api.node_man.plugin_search(bk_tenant_id=bk_tenant_id, **params).get("list", [])
-
-
-def _get_current_plugin_version(plugin_status: list[dict[str, Any]], plugin_name: str) -> str:
-    proc = next((item for item in plugin_status if item.get("name") == plugin_name), {})
-    current_plugin_version = VERSION_PATTERN.search(proc.get("version", ""))
-    return current_plugin_version.group() if current_plugin_version else ""
 
 
 def _has_plugin(plugin_status: list[dict[str, Any]], plugin_name: str) -> bool:
