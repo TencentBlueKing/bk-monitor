@@ -121,7 +121,7 @@ def test_install_biz_bk_collector_temporarily_switches_and_restores_nodeman_api(
     assert settings.BKNODEMAN_API_BASE_URL == "https://old.example.com/api/c/compapi/v2/nodeman/"
 
 
-def test_install_biz_bk_collector_skips_latest_and_installs_outdated_hosts(monkeypatch):
+def test_install_biz_bk_collector_reinstalls_all_proxy_hosts(monkeypatch):
     calls = []
 
     monkeypatch.setattr(bk_collector, "_find_latest_plugin_version", lambda **kwargs: "1.2.3")
@@ -133,12 +133,7 @@ def test_install_biz_bk_collector_skips_latest_and_installs_outdated_hosts(monke
     monkeypatch.setattr(
         bk_collector.api.node_man,
         "plugin_search",
-        lambda **kwargs: {
-            "list": [
-                {"bk_host_id": 101, "plugin_status": [{"name": "bk-collector", "version": "1.2.3"}]},
-                {"bk_host_id": 102, "plugin_status": [{"name": "bk-collector", "version": "1.0.0"}]},
-            ]
-        },
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("install should not skip hosts by current version")),
     )
     monkeypatch.setattr(
         bk_collector.api.node_man,
@@ -155,11 +150,11 @@ def test_install_biz_bk_collector_skips_latest_and_installs_outdated_hosts(monke
         bk_tenant_id="system", bk_biz_ids=[2], operator="admin", dry_run=False
     )
 
-    assert calls[0]["bk_host_id"] == [102, 103]
+    assert calls[0]["bk_host_id"] == [101, 102, 103]
     assert calls[0]["plugin_params"] == {"name": "bk-collector", "version": "1.2.3"}
     assert calls[0]["job_type"] == "MAIN_INSTALL_PLUGIN"
     install_detail = result["details"][bk_collector.INSTALL][0]
-    assert install_detail["skipped_host_ids"] == [101]
+    assert install_detail["skipped_host_ids"] == []
     assert install_detail["operate_result"] == {"job_id": 123}
     assert install_detail["job_status"]["status"] == "SUCCESS"
     assert install_detail["job_status"]["instances"][0]["status"] == "SUCCESS"
