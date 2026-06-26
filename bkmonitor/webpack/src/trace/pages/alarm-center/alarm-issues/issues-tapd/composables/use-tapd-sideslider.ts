@@ -37,6 +37,7 @@ import type { TapdWorkspaceItem } from '../typing';
 
 interface UseTapdSidesliderOptions {
   bizId: Ref<number | string>;
+  issuesId: Ref<string>;
   show: Ref<boolean>;
   workspaceList: Ref<TapdWorkspaceItem[]>;
 }

@@ -32,11 +32,12 @@ import type { TapdWorkspaceItem } from '../typing';
 
 interface UseTapdAuthOptions {
   bizId: Ref<number | string>;
+  issuesId: Ref<string>;
   show: Ref<boolean>;
 }
 
 export function useTapdAuth(options: UseTapdAuthOptions) {
-  const { show, bizId } = options;
+  const { show, bizId, issuesId } = options;
 
   const authDialogShow = shallowRef(false);
   const createTapdSliderShow = shallowRef(false);
@@ -49,9 +50,28 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
   const getAuth = async () => {
     workspaceList.value = [];
     installUrl.value = '';
+
+    const successUrlParams = new URLSearchParams({
+      tapdBizId: `${bizId.value}`,
+      tapdIssueId: `${issuesId.value}`,
+      tapdAuth: 'true',
+      alarmType: 'issues',
+    });
+
+    const errorUrlParams = new URLSearchParams({
+      detailBizId: `${bizId.value}`,
+      detailId: `${issuesId.value}`,
+      showDetail: 'true',
+      alarmType: 'issues',
+    });
+
     try {
       loading.value = true;
-      const data = await getUserWorkspace({ bk_biz_id: bizId.value });
+      const data = await getUserWorkspace({
+        bk_biz_id: bizId.value,
+        success_url: `${window.location.search}#/trace/alarm-center?${successUrlParams.toString()}`,
+        error_url: `${window.location.search}#/trace/alarm-center?${errorUrlParams.toString()}`,
+      });
       workspaceList.value = data.items || [];
       installUrl.value = data.install_url;
     } catch (err) {
