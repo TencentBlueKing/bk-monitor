@@ -21,7 +21,7 @@ from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
 from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig, BkCollectorConfig
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.db.fields import JsonField
-from bkmonitor.utils.new_env import is_biz_id_need_managed
+from bkmonitor.utils.new_env import is_biz_id_in_black_list, is_biz_id_need_managed
 from constants.bk_collector import BkCollectorComp
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
@@ -565,7 +565,7 @@ class CustomReportSubscription(models.Model):
             }
             if "node_man" in deploy_targets:
                 # 业务黑名单
-                if bk_biz_id != 0 and bk_biz_id in settings.NEW_ENV_BIZ_BLACK_LIST:
+                if is_biz_id_in_black_list(bk_biz_id):
                     target_record = {
                         "action": "skip",
                         "result": True,
@@ -753,7 +753,7 @@ class LogSubscriptionConfig(models.Model):
         bk_biz_id = log_group.bk_biz_id
 
         # 1.1 获取指定租户指定业务下的主机
-        if bk_biz_id in settings.NEW_ENV_BIZ_BLACK_LIST:
+        if is_biz_id_in_black_list(bk_biz_id):
             proxy_target_hosts = []
         else:
             proxy_target_hosts = BkCollectorConfig.get_target_host_ids_by_biz_id(bk_tenant_id, bk_biz_id)

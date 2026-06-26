@@ -43,7 +43,7 @@ from apm.models import (
 )
 from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig, BkCollectorConfig
 from bkmonitor.utils.common_utils import count_md5
-from bkmonitor.utils.new_env import is_biz_id_need_managed
+from bkmonitor.utils.new_env import is_biz_id_in_black_list, is_biz_id_need_managed
 from constants.bk_collector import BkCollectorComp
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
@@ -175,7 +175,7 @@ class ApplicationConfig(BkCollectorConfig):
         application_config = self.get_application_config()
 
         # 2.1 获取指定租户指定业务下的主机，如果业务在黑名单中, 不下发到业务的proxy下, 只下发到全局配置主机下。
-        if bk_biz_id in settings.NEW_ENV_BIZ_BLACK_LIST:
+        if is_biz_id_in_black_list(bk_biz_id):
             proxy_target_hosts = []
         else:
             proxy_target_hosts = self.get_target_host_ids_by_biz_id(bk_tenant_id, bk_biz_id)

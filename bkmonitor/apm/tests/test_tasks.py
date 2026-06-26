@@ -19,7 +19,7 @@ def make_app(bk_biz_id: int, app_name: str):
     return SimpleNamespace(bk_biz_id=bk_biz_id, app_name=app_name)
 
 
-def test_refresh_apm_config_skips_biz_black_list(settings, mocker):
+def test_refresh_apm_config_keeps_all_apps_for_delivery_layer(settings, mocker):
     settings.NEW_ENV_START_BIZ_ID = "10"
     settings.NEW_ENV_BIZ_BLACK_LIST = [12, 0]
     settings.NEW_ENV_BIZ_WHITE_LIST = [5]
@@ -40,10 +40,10 @@ def test_refresh_apm_config_skips_biz_black_list(settings, mocker):
 
     tasks.refresh_apm_config()
 
-    refresh_apm_application_config.assert_called_once_with(10, "threshold")
+    refresh_apm_application_config.assert_called_once_with(12, "black", skip_k8s=True)
 
 
-def test_refresh_apm_config_to_k8s_filters_by_new_env_scope(settings, mocker):
+def test_refresh_apm_config_to_k8s_keeps_all_apps_for_delivery_layer(settings, mocker):
     settings.NEW_ENV_START_BIZ_ID = "10"
     settings.NEW_ENV_BIZ_BLACK_LIST = [12, 0]
     settings.NEW_ENV_BIZ_WHITE_LIST = [5]
@@ -59,4 +59,4 @@ def test_refresh_apm_config_to_k8s_filters_by_new_env_scope(settings, mocker):
 
     tasks.refresh_apm_config_to_k8s()
 
-    refresh_k8s.assert_called_once_with([applications[2], applications[3]], need_config_cache=True)
+    refresh_k8s.assert_called_once_with(applications, need_config_cache=True)

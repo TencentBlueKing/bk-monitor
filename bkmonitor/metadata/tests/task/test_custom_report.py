@@ -77,7 +77,7 @@ def test_check_event_update(mocker: MockFixture, create_and_delete_record):
     assert Event.objects.count() == EventGroup.objects.filter(table_id__startswith="tb_").count()
 
 
-def test_refresh_all_log_config_skips_biz_black_list(settings, mocker):
+def test_refresh_all_log_config_keeps_all_groups_for_delivery_layer(settings, mocker):
     settings.NEW_ENV_START_BIZ_ID = "10"
     settings.NEW_ENV_BIZ_BLACK_LIST = [12, 0]
     settings.NEW_ENV_BIZ_WHITE_LIST = [5]
@@ -86,8 +86,8 @@ def test_refresh_all_log_config_skips_biz_black_list(settings, mocker):
     mocker.patch(
         "metadata.task.custom_report.models.LogGroup.objects.filter",
         return_value=[
-            SimpleNamespace(log_group_id=0, bk_biz_id=0),
             SimpleNamespace(log_group_id=1, bk_biz_id=12),
+            SimpleNamespace(log_group_id=0, bk_biz_id=0),
             SimpleNamespace(log_group_id=2, bk_biz_id=10),
             SimpleNamespace(log_group_id=3, bk_biz_id=5),
             SimpleNamespace(log_group_id=4, bk_biz_id=11),
@@ -97,10 +97,10 @@ def test_refresh_all_log_config_skips_biz_black_list(settings, mocker):
 
     custom_report.refresh_all_log_config.__wrapped__()
 
-    refresh_custom_log_config.assert_called_once_with(0)
+    refresh_custom_log_config.assert_called_once_with(1)
 
 
-def test_refresh_all_log_config_to_k8s_filters_by_new_env_scope(settings, mocker):
+def test_refresh_all_log_config_to_k8s_keeps_all_groups_for_delivery_layer(settings, mocker):
     settings.NEW_ENV_START_BIZ_ID = "10"
     settings.NEW_ENV_BIZ_BLACK_LIST = [12, 0]
     settings.NEW_ENV_BIZ_WHITE_LIST = [5]
@@ -117,7 +117,7 @@ def test_refresh_all_log_config_to_k8s_filters_by_new_env_scope(settings, mocker
 
     custom_report.refresh_all_log_config_to_k8s.__wrapped__()
 
-    refresh_k8s.assert_called_once_with([log_groups[0], log_groups[3], log_groups[4]])
+    refresh_k8s.assert_called_once_with(log_groups)
 
 
 def test_refresh_custom_report_2_node_man_full_refresh_passes_filter_options(settings, mocker):
