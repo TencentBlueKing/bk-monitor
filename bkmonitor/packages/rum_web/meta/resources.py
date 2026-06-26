@@ -459,6 +459,10 @@ class ListApplicationResource(PageListResource):
                 "span_result_table_id",
                 "metric_result_table_id",
                 "is_create_finished",
+                "create_time",
+                "update_time",
+                "create_user",
+                "update_user",
             ]
 
     def get_filter_fields(self):
