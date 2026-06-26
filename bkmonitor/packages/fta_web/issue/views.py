@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from django.urls import reverse
+
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import IAMPermission
 from bkmonitor.iam.resource import ResourceEnum
@@ -110,7 +112,7 @@ class IssueViewSet(ResourceViewSet):
                 return True  # 参数不完整，交由后续序列化器校验
 
             # 构建 OAuth 回调地址（绝对 URL）
-            backend_callback = request.build_absolute_uri("/fta/issue/tapd/oauth_callback/")
+            backend_callback = request.build_absolute_uri(reverse("fta_web:tapd_user_oauth_callback"))
 
             # 检查 Redis tapd_uat:{tenant_id}:{username} 中是否有有效 token
             from fta_web.issue.utils.tapd import get_tapd_token

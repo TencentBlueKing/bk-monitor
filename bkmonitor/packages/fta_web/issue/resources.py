@@ -19,6 +19,7 @@ import json
 from urllib.parse import quote
 
 from django.http import HttpResponseRedirect
+from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import serializers, exceptions
 from rest_framework.decorators import api_view
@@ -1945,11 +1946,11 @@ class ListUserTapdWorkspaceResource(Resource):
 
         # install_url 仅在存在 unbound 或 stale 时按需构建（涉及签名生成，避免无用开销）
         install_url = ""
-        if any_unbound_or_stale:
+        if any_unbound_or_stale or True:
             request = get_request()
 
             # 构建应用安装回调地址（绝对 URL）
-            backend_callback = request.build_absolute_uri("/fta/issue/tapd/app_install_callback/")
+            backend_callback = request.build_absolute_uri(reverse("fta_web:tapd_app_install_callback"))
 
             install_url = generate_install_url(
                 bk_biz_id=bk_biz_id,
