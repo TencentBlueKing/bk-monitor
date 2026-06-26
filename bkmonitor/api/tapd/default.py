@@ -9,12 +9,15 @@ specific language governing permissions and limitations under the License.
 """
 
 import base64
+import contextvars
 
 from django.conf import settings
 from rest_framework import serializers
 
 from core.drf_resource import APIResource
 from core.errors.api import BKAPIError
+
+tapd_access_token = contextvars.ContextVar("tapd_access_token", default="")
 
 
 class TapdAPIResource(APIResource):
@@ -24,14 +27,10 @@ class TapdAPIResource(APIResource):
     INSERT_BK_USERNAME_TO_REQUEST_DATA = False
     IS_STANDARD_FORMAT = False
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # 用户态 access_token（可选）：非空时用 Bearer Token 认证，空时用 Basic Auth
-        self.access_token = ""
-
     def get_headers(self):
-        if self.access_token:
-            return {"Authorization": f"Bearer {self.access_token}"}
+        access_token = tapd_access_token.get()
+        if access_token:
+            return {"Authorization": f"Bearer {access_token}"}
 
         credentials = f"{settings.TAPD_APP_ID}:{settings.TAPD_APP_SECRET}"
         encoded_str = base64.b64encode(credentials.encode("utf-8")).decode("utf-8")
@@ -39,10 +38,12 @@ class TapdAPIResource(APIResource):
 
     def perform_request(self, validated_request_data):
         # access_token 非实际请求参数，仅用于认证 header，弹出避免污染 querystring/body
-        access_token = validated_request_data.pop("access_token", None)
-        if access_token:
-            self.access_token = access_token
-        return super().perform_request(validated_request_data)
+        access_token = validated_request_data.pop("access_token", "")
+        token = tapd_access_token.set(access_token)
+        try:
+            return super().perform_request(validated_request_data)
+        finally:
+            tapd_access_token.reset(token)
 
     def render_response_data(self, validated_request_data, response_data):
         status = response_data.get("status") if isinstance(response_data, dict) else None

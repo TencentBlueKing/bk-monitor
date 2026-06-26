@@ -15,8 +15,6 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import re
 import time
-import time
-from urllib.parse import quote
 
 from django.http import HttpResponseRedirect
 from django.urls import reverse
@@ -35,10 +33,6 @@ from bkmonitor.issue_merge import IssueFrozenError, IssueMergeResolver
 from bkmonitor.models import TapdWorkspaceBinding
 from bkmonitor.models.issue import IssueMergeRelation, IssueTapdRelation
 from bkmonitor.utils.request import get_request_username, get_request
-from bkmonitor.models.issue import IssueTapdRelation
-from bkmonitor.utils.request import get_request_username
-from bkmonitor.models import IssueMergeRelation, TapdWorkspaceBinding
-from bkmonitor.utils.request import get_request
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
 from bkmonitor.utils.user import set_local_username

@@ -141,6 +141,23 @@ class TestTapdOauthContract(unittest.TestCase):
         self.assertLess(identity_guard_index, token_exchange_index)
         self.assertLess(identity_guard_index, save_token_index)
 
+    def test_tapd_api_access_token_is_request_scoped(self):
+        source = _read("bkmonitor/api/tapd/default.py")
+        module = _parse("bkmonitor/api/tapd/default.py")
+        tapd_api_resource = _class(module, "TapdAPIResource")
+        perform_request = _method(tapd_api_resource, "perform_request")
+        get_headers = _method(tapd_api_resource, "get_headers")
+        get_granted_serializer = _class(_class(module, "GetGrantedWorkspacesResource"), "RequestSerializer")
+        get_workspace_serializer = _class(_class(module, "GetWorkspaceInfoResource"), "RequestSerializer")
+
+        self.assertIn("contextvars.ContextVar", source)
+        self.assertNotIn("self.access_token", source)
+        self.assertIn("tapd_access_token.set", _call_names(perform_request))
+        self.assertIn("tapd_access_token.reset", _call_names(perform_request))
+        self.assertIn("tapd_access_token.get", _call_names(get_headers))
+        self.assertIsNotNone(_serializer_field(get_granted_serializer, "access_token"))
+        self.assertIsNotNone(_serializer_field(get_workspace_serializer, "access_token"))
+
     def test_app_install_callback_still_uses_signed_state(self):
         callback = _function(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "tapd_app_install_callback")
         self.assertIn("verify_signed_state", _call_names(callback))
