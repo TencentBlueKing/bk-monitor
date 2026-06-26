@@ -12,6 +12,23 @@ def _log_group(log_group_id=1, bk_biz_id=2, log_group_name="demo-log"):
     return SimpleNamespace(log_group_id=log_group_id, bk_biz_id=bk_biz_id, log_group_name=log_group_name)
 
 
+def _patch_new_env_scope_sync(monkeypatch):
+    calls = []
+
+    def fake_sync(**kwargs):
+        calls.append(kwargs)
+        return {
+            "config_key": kwargs["config_key"],
+            "bk_biz_ids": kwargs["bk_biz_ids"],
+            "action": "dry_run" if kwargs["dry_run"] else bk_collector.UPDATE,
+            "result": None if kwargs["dry_run"] else True,
+            "message": "success",
+        }
+
+    monkeypatch.setattr(bk_collector, "_sync_new_env_biz_scope_config", fake_sync)
+    return calls
+
+
 def _plugin_job_detail(job_id=123, status="SUCCESS", instance_status="SUCCESS"):
     return {
         "job_id": job_id,
@@ -70,6 +87,30 @@ def test_install_biz_bk_collector_dry_run_does_not_call_plugin_operate(monkeypat
     assert result["plugin_version"] == "1.2.3"
     assert result["details"][bk_collector.INSTALL][0]["deploy_host_ids"] == [101]
     assert result["summary"][bk_collector.INSTALL]["planned_count"] == 1
+
+
+def test_install_biz_bk_collector_temporarily_switches_and_restores_nodeman_api(settings, monkeypatch):
+    seen_base_urls = []
+
+    settings.ENABLE_MULTI_TENANT_MODE = False
+    settings.BK_COMPONENT_API_URL = "https://component.example.com"
+    settings.BKNODEMAN_API_BASE_URL = "https://old.example.com/api/c/compapi/v2/nodeman/"
+
+    def fake_find_latest_plugin_version(**kwargs):
+        seen_base_urls.append(settings.BKNODEMAN_API_BASE_URL)
+        return "1.2.3"
+
+    monkeypatch.setattr(bk_collector, "_find_latest_plugin_version", fake_find_latest_plugin_version)
+    monkeypatch.setattr(
+        bk_collector.BkCollectorConfig,
+        "get_target_host_ids_by_biz_id",
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id: []),
+    )
+
+    bk_collector.install_biz_bk_collector(bk_tenant_id="system", bk_biz_ids=[2], operator="admin", dry_run=True)
+
+    assert seen_base_urls == ["https://component.example.com/api/bk-nodeman/prod/"]
+    assert settings.BKNODEMAN_API_BASE_URL == "https://old.example.com/api/c/compapi/v2/nodeman/"
 
 
 def test_install_biz_bk_collector_skips_latest_and_installs_outdated_hosts(monkeypatch):
@@ -152,6 +193,135 @@ def test_install_biz_bk_collector_reports_failed_hosts_in_failure_summary(monkey
     assert failure_record["hosts"][0]["status"] == "FAILED"
 
 
+def test_disable_biz_bk_collector_subscription_auto_inspection_disables_subscriptions_and_blacklists(monkeypatch):
+    switch_calls = []
+    sync_calls = _patch_new_env_scope_sync(monkeypatch)
+
+    def fake_list_subscriptions(**kwargs):
+        assert kwargs["include_default_biz"] is False
+        assert kwargs["config_types"] == bk_collector.CONFIG_TYPES
+        return [
+            {
+                "config_type": bk_collector.APM_APPLICATION,
+                "bk_tenant_id": "tencent",
+                "bk_biz_id": 2,
+                "subscription_id": 1001,
+                "name": "demo-apm",
+            },
+            {
+                "config_type": bk_collector.CUSTOM_REPORT,
+                "bk_tenant_id": "tencent",
+                "bk_biz_id": 2,
+                "subscription_id": 1002,
+                "bk_data_id": 2001,
+            },
+            {
+                "config_type": bk_collector.LOG,
+                "bk_tenant_id": "tencent",
+                "bk_biz_id": 2,
+                "subscription_id": 1003,
+                "name": "demo-log",
+            },
+        ]
+
+    monkeypatch.setattr(bk_collector, "_list_proxy_config_delivery_subscriptions", fake_list_subscriptions)
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "switch_subscription",
+        lambda **kwargs: switch_calls.append(kwargs) or {"result": True},
+    )
+
+    result = bk_collector.disable_biz_bk_collector_subscription_auto_inspection(
+        bk_tenant_id="tencent",
+        bk_biz_ids=[2],
+        operator="admin",
+        dry_run=False,
+    )
+
+    assert [call["subscription_id"] for call in switch_calls] == [1001, 1002, 1003]
+    assert {call["action"] for call in switch_calls} == {"disable"}
+    assert result["details"][bk_collector.APM_APPLICATION][0]["action"] == bk_collector.DISABLE_AUTO_INSPECTION
+    assert result["details"][bk_collector.CUSTOM_REPORT][0]["switch_result"] == {"result": True}
+    assert result["summary"]["total"]["succeeded_count"] == 4
+    assert sync_calls[0]["config_key"] == bk_collector.NEW_ENV_BIZ_BLACK_LIST_CONFIG_KEY
+    assert sync_calls[0]["bk_biz_ids"] == [2]
+    assert sync_calls[0]["remove_config_keys"] == (bk_collector.NEW_ENV_BIZ_WHITE_LIST_CONFIG_KEY,)
+
+
+def test_disable_biz_bk_collector_subscription_auto_inspection_does_not_switch_nodeman_api(monkeypatch):
+    _patch_new_env_scope_sync(monkeypatch)
+    monkeypatch.setattr(
+        bk_collector,
+        "_set_nodeman_api",
+        lambda: (_ for _ in ()).throw(AssertionError("disable subscription checks should not switch nodeman api")),
+    )
+    monkeypatch.setattr(bk_collector, "_list_proxy_config_delivery_subscriptions", lambda **kwargs: [])
+
+    result = bk_collector.disable_biz_bk_collector_subscription_auto_inspection(
+        bk_tenant_id="tencent",
+        bk_biz_ids=[2],
+        operator="admin",
+        dry_run=False,
+    )
+
+    assert result["summary"][bk_collector.NEW_ENV_BLACK_LIST]["succeeded_count"] == 1
+
+
+def test_check_biz_bk_collector_proxy_config_delivery_does_not_switch_nodeman_api(monkeypatch):
+    monkeypatch.setattr(
+        bk_collector,
+        "_set_nodeman_api",
+        lambda: (_ for _ in ()).throw(AssertionError("delivery check should not switch nodeman api")),
+    )
+    monkeypatch.setattr(bk_collector, "_list_proxy_config_delivery_subscriptions", lambda **kwargs: [])
+
+    result = bk_collector.check_biz_bk_collector_proxy_config_delivery(
+        bk_tenant_id="tencent",
+        bk_biz_ids=[2],
+        config_types=[bk_collector.CUSTOM_REPORT],
+        operator="admin",
+    )
+
+    assert result["message"] == "no matched bk-collector proxy config subscription"
+
+
+def test_sync_new_env_biz_scope_config_updates_global_config_and_removes_opposite_list(monkeypatch, settings):
+    stored_configs = {
+        bk_collector.NEW_ENV_BIZ_BLACK_LIST_CONFIG_KEY: [1, "2"],
+        bk_collector.NEW_ENV_BIZ_WHITE_LIST_CONFIG_KEY: [2, 3],
+    }
+    set_calls = []
+
+    monkeypatch.setattr(
+        bk_collector.GlobalConfig,
+        "get",
+        staticmethod(lambda key, defaults=None: stored_configs.get(key, defaults)),
+    )
+    monkeypatch.setattr(
+        bk_collector.GlobalConfig,
+        "set",
+        staticmethod(lambda key, value: set_calls.append((key, value)) or stored_configs.update({key: value})),
+    )
+    settings.NEW_ENV_BIZ_BLACK_LIST = [1, 2]
+    settings.NEW_ENV_BIZ_WHITE_LIST = [2, 3]
+
+    result = bk_collector._sync_new_env_biz_scope_config(
+        config_key=bk_collector.NEW_ENV_BIZ_BLACK_LIST_CONFIG_KEY,
+        bk_biz_ids=[2, 4],
+        dry_run=False,
+        remove_config_keys=(bk_collector.NEW_ENV_BIZ_WHITE_LIST_CONFIG_KEY,),
+        empty_message="empty",
+    )
+
+    assert result["action"] == bk_collector.UPDATE
+    assert set_calls == [
+        (bk_collector.NEW_ENV_BIZ_BLACK_LIST_CONFIG_KEY, [1, 2, 4]),
+        (bk_collector.NEW_ENV_BIZ_WHITE_LIST_CONFIG_KEY, [3]),
+    ]
+    assert settings.NEW_ENV_BIZ_BLACK_LIST == [1, 2, 4]
+    assert settings.NEW_ENV_BIZ_WHITE_LIST == [3]
+
+
 def test_stop_biz_bk_collector_dry_run_only_stops_installed_hosts(monkeypatch):
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
@@ -180,6 +350,29 @@ def test_stop_biz_bk_collector_dry_run_only_stops_installed_hosts(monkeypatch):
     assert stop_detail["stop_host_ids"] == [101]
     assert stop_detail["skipped_host_ids"] == [102, 103]
     assert result["summary"][bk_collector.STOP]["planned_count"] == 1
+
+
+def test_stop_biz_bk_collector_temporarily_switches_and_restores_nodeman_api(settings, monkeypatch):
+    seen_base_urls = []
+
+    settings.ENABLE_MULTI_TENANT_MODE = False
+    settings.BK_COMPONENT_API_URL = "https://component.example.com"
+    settings.BKNODEMAN_API_BASE_URL = "https://old.example.com/api/c/compapi/v2/nodeman/"
+
+    def fake_get_target_host_ids_by_biz_id(cls, bk_tenant_id, bk_biz_id):
+        seen_base_urls.append(settings.BKNODEMAN_API_BASE_URL)
+        return []
+
+    monkeypatch.setattr(
+        bk_collector.BkCollectorConfig,
+        "get_target_host_ids_by_biz_id",
+        classmethod(fake_get_target_host_ids_by_biz_id),
+    )
+
+    bk_collector.stop_biz_bk_collector(bk_tenant_id="system", bk_biz_ids=[2], operator="admin", dry_run=True)
+
+    assert seen_base_urls == ["https://component.example.com/api/bk-nodeman/prod/"]
+    assert settings.BKNODEMAN_API_BASE_URL == "https://old.example.com/api/c/compapi/v2/nodeman/"
 
 
 def test_stop_biz_bk_collector_calls_main_stop_plugin(monkeypatch):
@@ -782,6 +975,57 @@ def test_custom_report_refresh_deploy_targets_keep_default_and_allow_node_man_on
     assert result["dry_run"] is True
     assert result["summary"]["planned_count"] == 2
     assert result["details"][0]["targets"]["node_man"]["action"] == "dry_run"
+
+
+def test_custom_report_refresh_keeps_biz_zero_when_filters_skip_biz(monkeypatch):
+    from metadata.models.custom_report import subscription_config
+    from metadata.models.custom_report.subscription_config import CustomReportSubscription
+
+    node_man_calls = []
+    k8s_calls = []
+
+    monkeypatch.setattr(subscription_config.settings, "NEW_ENV_START_BIZ_ID", "10", raising=False)
+    monkeypatch.setattr(subscription_config.settings, "NEW_ENV_BIZ_BLACK_LIST", [2, 0], raising=False)
+    monkeypatch.setattr(subscription_config.settings, "NEW_ENV_BIZ_WHITE_LIST", [], raising=False)
+    monkeypatch.setattr(
+        subscription_config.api.cmdb,
+        "get_business",
+        lambda **kwargs: [SimpleNamespace(bk_biz_id=2)],
+    )
+    monkeypatch.setattr(
+        CustomReportSubscription,
+        "get_custom_event_config",
+        classmethod(lambda cls, **kwargs: {2: [({"bk_data_id": 2001}, "json")]}),
+    )
+    monkeypatch.setattr(
+        CustomReportSubscription,
+        "get_custom_time_series_config",
+        classmethod(lambda cls, **kwargs: {}),
+    )
+    monkeypatch.setattr(
+        CustomReportSubscription,
+        "_refresh_collect_custom_config_by_biz",
+        classmethod(lambda cls, **kwargs: node_man_calls.append(kwargs)),
+    )
+    monkeypatch.setattr(
+        CustomReportSubscription,
+        "_refresh_k8s_custom_config_by_biz",
+        classmethod(lambda cls, **kwargs: k8s_calls.append(kwargs)),
+    )
+
+    result = CustomReportSubscription.refresh_collector_custom_conf(
+        bk_tenant_id="system",
+    )
+
+    assert [call["bk_biz_id"] for call in node_man_calls] == [0]
+    assert [call["bk_biz_id"] for call in k8s_calls] == [0]
+    assert [detail["bk_biz_id"] for detail in result["details"]] == [2, 0]
+    assert result["details"][0]["targets"]["node_man"]["action"] == "skip"
+    assert result["details"][0]["targets"]["k8s"]["action"] == "skip"
+    assert result["details"][1]["data_ids"] == [2001]
+    assert result["summary"]["matched_biz_count"] == 2
+    assert result["summary"]["target_count"] == 4
+    assert result["summary"]["skipped_count"] == 2
 
 
 def test_refresh_collect_custom_config_by_biz_dry_run_returns_proxy_hosts(monkeypatch):

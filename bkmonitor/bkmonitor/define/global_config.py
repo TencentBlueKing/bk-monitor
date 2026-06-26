@@ -481,12 +481,20 @@ ADVANCED_OPTIONS = OrderedDict(
         ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[0])),
         ("EXCLUDE_WORKER_TASKS", slz.ListField(label="排除特定的worker任务(需要重启alarm-beat生效)", default=[])),
         (
-            "BCS_DISCOVER_BCS_CLUSTER_BIZ_BLACK_LIST",
-            slz.ListField(label="BCS集群自动发现任务黑名单业务ID列表", default=[]),
+            "NEW_ENV_BIZ_BLACK_LIST",
+            slz.ListField(label="新环境业务黑名单业务ID列表", default=[]),
         ),
         (
-            "BCS_DISCOVER_BCS_CLUSTER_BIZ_WHITE_LIST",
-            slz.ListField(label="BCS集群自动发现任务白名单业务ID列表", default=[]),
+            "NEW_ENV_BIZ_WHITE_LIST",
+            slz.ListField(label="新环境业务白名单业务ID列表", default=[]),
+        ),
+        (
+            "NEW_ENV_CLUSTER_BLACK_LIST",
+            slz.ListField(label="新环境集群黑名单业务ID列表", default=[]),
+        ),
+        (
+            "NEW_ENV_CLUSTER_WHITE_LIST",
+            slz.ListField(label="新环境集群白名单业务ID列表", default=[]),
         ),
         (
             "ALARM_CACHE_REFRESH_BIZ_CONCURRENT",

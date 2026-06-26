@@ -13,14 +13,15 @@ from collections import defaultdict
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Literal, Union
 
-from jinja2.sandbox import SandboxedEnvironment as Environment
 from django.conf import settings
 from django.db import models
+from jinja2.sandbox import SandboxedEnvironment as Environment
 
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
 from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig, BkCollectorConfig
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.db.fields import JsonField
+from bkmonitor.utils.new_env import is_biz_id_in_black_list, is_biz_id_need_managed
 from constants.bk_collector import BkCollectorComp
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
@@ -563,47 +564,69 @@ class CustomReportSubscription(models.Model):
                 "targets": {},
             }
             if "node_man" in deploy_targets:
-                try:
-                    # 1. 下发配置（走节点管理下发至主机）
-                    target_record = cls._refresh_collect_custom_config_by_biz(
-                        bk_tenant_id=bk_tenant_id if bk_biz_id != 0 else DEFAULT_TENANT_ID,
-                        bk_biz_id=bk_biz_id,
-                        op_type=op_type,
-                        data_id_configs=data_id_configs,
-                        dry_run=dry_run,
-                    )
-                    if target_record is None:
-                        target_record = {
-                            "action": "dry_run" if dry_run else "refresh",
-                            "result": None if dry_run else True,
-                            "message": "success",
-                        }
-                except Exception as e:
-                    target_record = {"action": "dry_run" if dry_run else "refresh", "result": False, "message": str(e)}
-                    logger.exception(f"refresh custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}")
-                detail["targets"]["node_man"] = target_record
-
-            if "k8s" in deploy_targets:
-                target_record = {
-                    "action": "dry_run" if dry_run else "refresh",
-                    "result": None if dry_run else True,
-                    "message": "would refresh custom report config to k8s" if dry_run else "success",
-                }
-                if not dry_run:
+                # 业务黑名单
+                if is_biz_id_in_black_list(bk_biz_id):
+                    target_record = {
+                        "action": "skip",
+                        "result": True,
+                        "message": "skip refresh custom report config to node_man because business is in black list",
+                    }
+                    detail["targets"]["node_man"] = target_record
+                else:
                     try:
-                        # 2. 下发配置（走 K8S 下发至集群）
-                        target_record = cls._refresh_k8s_custom_config_by_biz(
+                        # 1. 下发配置（走节点管理下发至主机）
+                        target_record = cls._refresh_collect_custom_config_by_biz(
+                            bk_tenant_id=bk_tenant_id if bk_biz_id != 0 else DEFAULT_TENANT_ID,
                             bk_biz_id=bk_biz_id,
+                            op_type=op_type,
                             data_id_configs=data_id_configs,
+                            dry_run=dry_run,
                         )
                         if target_record is None:
-                            target_record = {"action": "refresh", "result": True, "message": "success"}
+                            target_record = {
+                                "action": "dry_run" if dry_run else "refresh",
+                                "result": None if dry_run else True,
+                                "message": "success",
+                            }
                     except Exception as e:
-                        target_record.update({"result": False, "message": str(e)})
-                        logger.exception(
-                            f"refresh k8s custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}"
-                        )
-                detail["targets"]["k8s"] = target_record
+                        target_record = {
+                            "action": "dry_run" if dry_run else "refresh",
+                            "result": False,
+                            "message": str(e),
+                        }
+                        logger.exception(f"refresh custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}")
+                    detail["targets"]["node_man"] = target_record
+
+            if "k8s" in deploy_targets:
+                # 业务黑白名单
+                if bk_biz_id != 0 and not is_biz_id_need_managed(bk_biz_id):
+                    target_record = {
+                        "action": "skip",
+                        "result": True,
+                        "message": "skip refresh custom report config to k8s because business is not managed",
+                    }
+                    detail["targets"]["k8s"] = target_record
+                else:
+                    target_record = {
+                        "action": "dry_run" if dry_run else "refresh",
+                        "result": None if dry_run else True,
+                        "message": "would refresh custom report config to k8s" if dry_run else "success",
+                    }
+                    if not dry_run:
+                        try:
+                            # 2. 下发配置（走 K8S 下发至集群）
+                            target_record = cls._refresh_k8s_custom_config_by_biz(
+                                bk_biz_id=bk_biz_id,
+                                data_id_configs=data_id_configs,
+                            )
+                            if target_record is None:
+                                target_record = {"action": "refresh", "result": True, "message": "success"}
+                        except Exception as e:
+                            target_record.update({"result": False, "message": str(e)})
+                            logger.exception(
+                                f"refresh k8s custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}"
+                            )
+                    detail["targets"]["k8s"] = target_record
             report["details"].append(detail)
 
         report["summary"] = cls._build_refresh_collector_custom_conf_summary(report["details"], dry_run=dry_run)
@@ -717,6 +740,10 @@ class LogSubscriptionConfig(models.Model):
     def refresh(cls, log_group: "LogGroup") -> None:
         """
         Refresh Config
+
+        业务黑白名单:
+        如果业务在黑名单中, 不下发到业务的proxy下, 只下发到全局配置主机下。
+        业务配置下发不受新环境黑白名单和阈值约束, 因为agent路径独立, 不会有影响。
         """
         if not log_group.is_need_deploy_collector_config:
             logger.info("log_group(%s) does not need deploy collector config, skip", log_group.log_group_id)
@@ -726,10 +753,15 @@ class LogSubscriptionConfig(models.Model):
         bk_biz_id = log_group.bk_biz_id
 
         # 1.1 获取指定租户指定业务下的主机
-        proxy_target_hosts = BkCollectorConfig.get_target_host_ids_by_biz_id(bk_tenant_id, bk_biz_id)
+        if is_biz_id_in_black_list(bk_biz_id):
+            proxy_target_hosts = []
+        else:
+            proxy_target_hosts = BkCollectorConfig.get_target_host_ids_by_biz_id(bk_tenant_id, bk_biz_id)
 
         # 1.2 获取默认租户下全局配置中主机配置列表
         default_target_hosts = BkCollectorConfig.get_target_host_in_default_cloud_area()
+
+        # 1.3 如果没有任何主机需要下发, 则跳过流程
         if not default_target_hosts and not proxy_target_hosts:
             logger.info("no bk-collector node, otlp is disabled")
             return
@@ -742,14 +774,25 @@ class LogSubscriptionConfig(models.Model):
             if bk_tenant_id == DEFAULT_TENANT_ID:
                 cls.deploy(bk_tenant_id, log_group, log_config, default_target_hosts + proxy_target_hosts)
             else:
-                cls.deploy(DEFAULT_TENANT_ID, log_group, log_config, default_target_hosts)
-                cls.deploy(bk_tenant_id, log_group, log_config, proxy_target_hosts)
+                # 如果默认租户下没有主机，则不下发默认租户下的配置
+                if default_target_hosts:
+                    cls.deploy(DEFAULT_TENANT_ID, log_group, log_config, default_target_hosts)
+
+                # 如果指定租户下没有主机，则不下发指定租户下的配置
+                if proxy_target_hosts:
+                    cls.deploy(bk_tenant_id, log_group, log_config, proxy_target_hosts)
         except Exception as e:  # pylint: disable=broad-except
             logger.exception(f"auto deploy bk-collector log config error ({e})")
 
     @classmethod
     def refresh_k8s(cls, log_groups: list["LogGroup"]) -> None:
-        """批量刷新多个 log_group 的 k8s 配置"""
+        """批量刷新多个 log_group 的 k8s 配置
+
+        业务黑白名单:
+        如果业务在黑名单中, 不下发该业务下的所有集群配置, 避免与新环境刷新配置冲突。
+        如果业务不在白名单或阈值外, 不下发该业务下的所有集群配置, 避免与旧环境刷新配置冲突。
+        配置的默认部署集群, 必须下发。
+        """
         log_groups = [log_group for log_group in log_groups if log_group.is_need_deploy_collector_config]
         if not log_groups:
             return
@@ -766,8 +809,29 @@ class LogSubscriptionConfig(models.Model):
             for cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
                 cluster_mapping[cluster_id] = [BkCollectorClusterConfig.GLOBAL_CONFIG_BK_BIZ_ID]
 
+        from metadata.models.bcs.cluster import BCSClusterInfo
+
+        # 获取BCS集群与业务ID的映射关系
+        bcs_cluster_to_biz_ids: dict[str, int] = {}
+        for bcs_cluster in BCSClusterInfo.objects.all().only("cluster_id", "bk_biz_id"):
+            bcs_cluster_to_biz_ids[bcs_cluster.cluster_id] = bcs_cluster.bk_biz_id
+
         # 按集群分组配置，实现批量下发
         for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
+            # 如果集群是默认部署集群, 则必须下发
+            if cluster_id not in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
+                # 如果集群不在BCS集群中，则不下发该集群的配置
+                if cluster_id not in bcs_cluster_to_biz_ids:
+                    continue
+                bk_biz_id = bcs_cluster_to_biz_ids[cluster_id]
+
+                # 如果集群对应业务不需要管理，则不下发该集群的配置
+                if not is_biz_id_need_managed(bk_biz_id):
+                    logger.info(
+                        f"log config refresh k8s: cluster({cluster_id}) corresponding business({bk_biz_id}) is not managed, skip"
+                    )
+                    continue
+
             try:
                 tpl = BkCollectorClusterConfig.sub_config_tpl(
                     cluster_id, BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME

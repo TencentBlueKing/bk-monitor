@@ -1458,8 +1458,31 @@ BKCRYPTO = {
     },
 }
 
+# 迁移专用配置
+
 # 自定义上报/APM使用的密钥
 CUSTOM_REPORT_AES_KEY = os.getenv("CUSTOM_REPORT_AES_KEY", "")
+
+# 新环境新业务的起始业务ID，如果没有配置就不是新环境。
+# 仅接管 bk_biz_id 严格大于该阈值的 CMDB 业务；阈值以下业务交由旧环境/其它链路管理。
+NEW_ENV_START_BIZ_ID = os.getenv("NEW_ENV_START_BIZ_ID", "")
+# 新环境新集群的起始集群ID，用于判断是否需要执行相关发现任务。
+# 取值示例: "BCS-K8S-10000" 表示仅接管后缀 > 10000 的集群变更。
+NEW_ENV_START_CLUSTER_ID = os.getenv("NEW_ENV_START_CLUSTER_ID", "")
+
+# 业务黑白名单，黑名单是给旧环境使用的，白名单是给新环境与起始业务ID配合使用
+NEW_ENV_BIZ_BLACK_LIST = []
+NEW_ENV_BIZ_WHITE_LIST = []
+
+# 集群黑白名单，黑名单是给旧环境使用的，白名单是给新环境与起始集群ID配合使用
+NEW_ENV_CLUSTER_BLACK_LIST = []
+NEW_ENV_CLUSTER_WHITE_LIST = []
+
+# 是否禁用BCS集群内置公共dataid资源刷新
+DISABLE_BCS_CLUSTER_REFRESH_COMMON_RESOURCE = (
+    os.getenv("DISABLE_BCS_CLUSTER_REFRESH_COMMON_RESOURCE", "false").lower() == "true"
+)
+
 
 # 特别的AES加密配置信息(全局配置)
 SPECIFY_AES_KEY = ""
@@ -1662,30 +1685,6 @@ ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST = []
 
 # 使用RT中的路由过滤别名的结果表列表
 SPECIAL_RT_ROUTE_ALIAS_RESULT_TABLE_LIST = []
-
-# BCS集群自动发现任务的起始集群ID（严格大于，不包含该ID本身）。
-# 取值示例: "BCS-K8S-10000" 表示仅接管后缀 > 10000 的集群的变更；
-# 留空表示禁用阈值过滤，全部集群均由本任务接管（保持历史行为）。
-BCS_DISCOVER_START_CLUSTER_ID = os.getenv("BCS_DISCOVER_START_CLUSTER_ID", "")
-
-# BCS集群自动发现任务黑名单业务ID列表
-BCS_DISCOVER_BCS_CLUSTER_BIZ_BLACK_LIST = []
-
-# BCS集群自动发现任务白名单业务ID列表（作为 BCS_DISCOVER_START_CLUSTER_ID 阈值的例外：
-# 命中白名单的业务，即使集群ID后缀不大于阈值也会被接管；为空表示无例外）
-BCS_DISCOVER_BCS_CLUSTER_BIZ_WHITE_LIST = []
-
-# 是否禁用BCS集群内置公共dataid资源刷新
-DISABLE_BCS_CLUSTER_REFRESH_COMMON_RESOURCE = (
-    os.getenv("DISABLE_BCS_CLUSTER_REFRESH_COMMON_RESOURCE", "false").lower() == "true"
-)
-
-# BKCC 业务同步任务的起始业务 ID（严格大于，不包含该 ID 本身）。
-# 取值示例: "1000" 表示仅接管 bk_biz_id > 1000 的 CMDB 业务的新增、删除及 V4 内置链路检查；
-# 阈值以下（含阈值）的业务不会被本任务新增，也不会因 CMDB 缺失而被删除，且不会触发 V4 内置链路检查，
-# 交由其它任务/链路管理，但冲突空间软禁用等保护性逻辑仍对全量业务生效。
-# 留空表示禁用阈值过滤，全部业务均由本任务接管（保持历史行为）。
-SYNC_BKCC_SPACE_START_BIZ_ID = os.getenv("SYNC_BKCC_SPACE_START_BIZ_ID", "")
 
 # 启用新版ES索引轮转的ES集群名单
 ENABLE_V2_ROTATION_ES_CLUSTER_IDS = []
