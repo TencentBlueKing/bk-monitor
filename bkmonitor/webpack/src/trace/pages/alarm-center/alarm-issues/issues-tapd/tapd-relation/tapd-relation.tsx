@@ -29,7 +29,7 @@ import { type PropType, defineComponent, shallowRef } from 'vue';
 import { Select } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import type { ITapdListItem } from './typing';
+import type { ITapdListItem } from '../typing';
 
 import './tapd-relation.scss';
 

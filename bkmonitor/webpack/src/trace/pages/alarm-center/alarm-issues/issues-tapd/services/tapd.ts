@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ * Copyright (C) 2017-2025 THL A29 Limited, a Tencent company.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -23,8 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export interface ITapdListItem {
-  tapd_id: string;
-  tapd_title: string;
-  tapd_type: string;
-}
+
+import { request } from 'monitor-api/base';
+
+/** 获取用户 TAPD 工作空间列表 */
+export const getUserWorkspace = request('GET', '/fta/issue/tapd/user_workspace/');
