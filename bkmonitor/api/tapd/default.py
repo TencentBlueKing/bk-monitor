@@ -121,6 +121,7 @@ class AddBugResource(TapdAPIResource):
         description = serializers.CharField(label="缺陷详细描述")
         current_owner = serializers.CharField(label="处理人", help_text="支持多成员，如：aaa;bbb;")
         priority_label = serializers.CharField(label="优先级", required=False)
+        te = serializers.CharField(label="测试人员", required=False)
         severity = serializers.CharField(label="严重程度", required=False)
         cc = serializers.CharField(label="抄送人", required=False)
         iteration_id = serializers.CharField(label="迭代ID", required=False)

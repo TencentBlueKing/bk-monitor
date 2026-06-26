@@ -131,4 +131,6 @@ class IssueViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.issue.list_tapd_workspace, endpoint="tapd/workspace"),
         # 获取 TAPD 单据的字段
         ResourceRoute("POST", resource.issue.get_tapd_fields, endpoint="issue/get_tapd_fields"),
+        # 创建TAPD单据
+        ResourceRoute("POST", resource.issue.create_tapd, endpoint="issue/create_tapd"),
     ]

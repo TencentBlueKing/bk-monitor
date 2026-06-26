@@ -1,0 +1,135 @@
+from __future__ import annotations
+
+"""
+Backend contract tests for Issue -> TAPD creation.
+
+These tests intentionally use AST/source inspection like the existing TAPD
+workspace tests, because importing the full fta_web resource graph requires the
+runtime service stack. They guard the deployable API contract that frontend
+integration depends on.
+"""
+
+import ast
+from pathlib import Path
+import unittest
+
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
+
+
+def _parse(path: str) -> ast.Module:
+    return ast.parse((REPO_ROOT / path).read_text(encoding="utf-8"))
+
+
+def _class(module: ast.Module, name: str) -> ast.ClassDef:
+    for node in module.body:
+        if isinstance(node, ast.ClassDef) and node.name == name:
+            return node
+    raise AssertionError(f"class {name} not found")
+
+
+def _method(class_node: ast.ClassDef, name: str) -> ast.FunctionDef:
+    for node in class_node.body:
+        if isinstance(node, ast.FunctionDef) and node.name == name:
+            return node
+    raise AssertionError(f"method {name} not found")
+
+
+def _call_name(node: ast.AST) -> str:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        parent = _call_name(node.value)
+        return f"{parent}.{node.attr}" if parent else node.attr
+    return ""
+
+
+def _calls(function: ast.FunctionDef) -> list[tuple[str, int]]:
+    result = []
+    for node in ast.walk(function):
+        if isinstance(node, ast.Call):
+            result.append((_call_name(node.func), node.lineno))
+    return result
+
+
+def _contains_name(node: ast.AST, name: str) -> bool:
+    for child in ast.walk(node):
+        if isinstance(child, ast.Name) and child.id == name:
+            return True
+        if isinstance(child, ast.Attribute) and child.attr == name:
+            return True
+        if isinstance(child, ast.Constant) and child.value == name:
+            return True
+    return False
+
+
+class TestCreateTapdBackendContract(unittest.TestCase):
+    def test_relation_model_and_migration_store_tapd_id_as_string(self):
+        model = _class(_parse("bkmonitor/bkmonitor/models/issue.py"), "IssueTapdRelation")
+
+        tapd_id_assign = None
+        for node in model.body:
+            if isinstance(node, ast.Assign) and any(
+                getattr(target, "id", None) == "tapd_id" for target in node.targets
+            ):
+                tapd_id_assign = node
+                break
+        self.assertIsNotNone(tapd_id_assign)
+        self.assertEqual(_call_name(tapd_id_assign.value.func), "models.CharField")
+        max_length = next(
+            keyword.value.value
+            for keyword in tapd_id_assign.value.keywords
+            if keyword.arg == "max_length" and isinstance(keyword.value, ast.Constant)
+        )
+        self.assertGreaterEqual(max_length, 64)
+
+        migration = _parse("bkmonitor/bkmonitor/migrations/0198_add_issue_tapd_relation.py")
+        tapd_id_field = None
+        for node in ast.walk(migration):
+            if (
+                isinstance(node, ast.Tuple)
+                and len(node.elts) >= 2
+                and isinstance(node.elts[0], ast.Constant)
+                and node.elts[0].value == "tapd_id"
+            ):
+                tapd_id_field = node.elts[1]
+                break
+        self.assertIsNotNone(tapd_id_field)
+        self.assertEqual(_call_name(tapd_id_field.func), "models.CharField")
+
+    def test_create_tapd_validates_issue_before_calling_external_api(self):
+        resource = _class(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "CreateTapdResource")
+        perform_request = _method(resource, "perform_request")
+        calls = _calls(perform_request)
+
+        get_issue_lines = [line for name, line in calls if name == "IssueDocument.get_issue_or_raise"]
+        create_tapd_lines = [line for name, line in calls if name == "self._create_tapd"]
+
+        self.assertTrue(get_issue_lines, "CreateTapdResource must validate issue ownership before creating TAPD")
+        self.assertTrue(create_tapd_lines)
+        self.assertLess(min(get_issue_lines), min(create_tapd_lines))
+
+    def test_create_tapd_rejects_sync_status_until_sync_is_implemented(self):
+        resource = _class(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "CreateTapdResource")
+        request_serializer = _class(resource, "RequestSerializer")
+        validate = _method(request_serializer, "validate")
+
+        has_sync_status_guard = False
+        for node in ast.walk(validate):
+            if isinstance(node, ast.If) and _contains_name(node.test, "sync_status"):
+                has_sync_status_guard = any(
+                    isinstance(child, ast.Raise) and _contains_name(child, "ValidationError")
+                    for child in ast.walk(node)
+                )
+                break
+
+        self.assertTrue(has_sync_status_guard)
+
+    def test_issue_list_tapd_count_query_is_scoped_by_biz(self):
+        source = (REPO_ROOT / "bkmonitor/packages/fta_web/issue/handlers/issue.py").read_text(encoding="utf-8")
+        self.assertIn("page_tapd_biz_ids", source)
+        self.assertIn("bk_biz_id__in=page_tapd_biz_ids", source)
+
+
+if __name__ == "__main__":
+    unittest.main()
