@@ -59,7 +59,7 @@ class BkCollectorConfig:
             if int(bk_cloud_id) in [0, -1]:
                 continue
 
-            proxy_list = api.node_man.get_proxies(bk_cloud_id=bk_cloud_id)
+            proxy_list = api.node_man.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
             for p in proxy_list:
                 if p["status"] != "RUNNING":
                     logger.warning(

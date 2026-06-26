@@ -425,6 +425,7 @@ class PlatformConfig(BkCollectorConfig):
             "nodes": [{"bk_host_id": bk_host_id} for bk_host_id in bk_host_ids],
         }
         subscription_params = {
+            "bk_tenant_id": bk_tenant_id,
             "scope": scope,
             "steps": [
                 {
