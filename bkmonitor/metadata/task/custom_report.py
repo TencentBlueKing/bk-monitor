@@ -179,16 +179,16 @@ def refresh_all_log_config():
     """
     interval = 30
 
-    to_be_refreshed = list(models.LogGroup.objects.filter(is_enable=True, is_need_deploy_collector_config=True))
-    logger.info(
-        "[refresh_custom_log_config]: matched log groups, count(%s)",
-        len(to_be_refreshed),
+    to_be_refreshed = list(
+        models.LogGroup.objects.filter(is_enable=True, is_need_deploy_collector_config=True).values_list(
+            "log_group_id", flat=True
+        )
     )
     slug = datetime.datetime.now().minute % interval
-    for index, log_group in enumerate(to_be_refreshed):
+    for index, log_group_id in enumerate(to_be_refreshed):
         if index % interval == slug:
-            logger.info(f"[refresh_custom_log_config]: publish log_group_id [{log_group.log_group_id}]")
-            refresh_custom_log_config(log_group.log_group_id)
+            logger.info(f"[refresh_custom_log_config]: publish log_group_id [{log_group_id}]")
+            refresh_custom_log_config(log_group_id)
 
 
 @share_lock()
