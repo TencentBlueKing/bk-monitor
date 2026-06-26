@@ -192,12 +192,12 @@ RUM_RESULT_TABLE_OPTION = {
 
 
 class TelemetryDataType(Enum):
-    TRACE = "trace"
+    RUM = "rum"
     METRIC = "metric"
 
     @classmethod
     def choices(cls):
         return [
             (cls.METRIC.value, _("指标")),
-            (cls.TRACE.value, _("调用链")),
+            (cls.RUM.value, _("用户体验数据")),
         ]

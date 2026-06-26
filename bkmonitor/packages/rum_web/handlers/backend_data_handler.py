@@ -131,9 +131,9 @@ telemetry_handler_registry = BackendRegistry()
 
 
 @telemetry_handler_registry.register
-class TraceBackendHandler(TelemetryBackendHandler):
+class RumBackendHandler(TelemetryBackendHandler):
     """
-    RUM Span 数据后端适配器，对齐 apm_web TraceBackendHandler。
+    RUM Span 数据后端适配器，对齐 apm_web RumBackendHandler。
     操作 span 数据源（ES），对应 Application.span_result_table_id。
     """
 
@@ -168,7 +168,7 @@ class TraceBackendHandler(TelemetryBackendHandler):
     def storage_field_info(self):
         """
         获取存储字段信息。
-        参考 apm_web TraceBackendHandler.storage_field_info()（简化版）
+        参考 apm_web RumBackendHandler.storage_field_info()（简化版）
         """
         if not self.app.span_result_table_id:
             return []
@@ -205,7 +205,7 @@ class TraceBackendHandler(TelemetryBackendHandler):
     def indices_info(self):
         """
         查询 ES 索引信息。
-        参考 apm_web TraceBackendHandler.indices_info()
+        参考 apm_web RumBackendHandler.indices_info()
         """
         if not self.app.span_result_table_id:
             return []
@@ -235,7 +235,7 @@ class TraceBackendHandler(TelemetryBackendHandler):
     def data_sampling(self, size: int = 10, **kwargs):
         """
         获取采样数据。
-        参考 apm_web TraceBackendHandler.data_sampling()
+        参考 apm_web RumBackendHandler.data_sampling()
         """
         if not self.app.span_result_table_id:
             return []
@@ -250,7 +250,7 @@ class TraceBackendHandler(TelemetryBackendHandler):
     def get_data_view_config(self, **kwargs):
         """
         获取数据视图查询配置（分钟 + 日两个面板）。
-        参考 apm_web TraceBackendHandler.get_data_view_config()
+        参考 apm_web RumBackendHandler.get_data_view_config()
         """
         metric_table = self.app.metric_result_table_id
         if not metric_table:

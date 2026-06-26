@@ -705,7 +705,7 @@ class GetStorageInfoResource(Resource):
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
-        return telemetry_handler_registry(TelemetryDataType.TRACE.value, app=app).storage_info()
+        return telemetry_handler_registry(TelemetryDataType.RUM.value, app=app).storage_info()
 
 
 class GetIndicesInfoResource(Resource):
@@ -725,7 +725,7 @@ class GetIndicesInfoResource(Resource):
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
-        return telemetry_handler_registry(TelemetryDataType.TRACE.value, app=app).indices_info()
+        return telemetry_handler_registry(TelemetryDataType.RUM.value, app=app).indices_info()
 
 
 class GetDataSamplingResource(Resource):
@@ -746,7 +746,7 @@ class GetDataSamplingResource(Resource):
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
-        return telemetry_handler_registry(TelemetryDataType.TRACE.value, app=app).data_sampling(
+        return telemetry_handler_registry(TelemetryDataType.RUM.value, app=app).data_sampling(
             size=validated_request_data["size"]
         )
 
@@ -768,7 +768,7 @@ class StorageFieldInfoResource(Resource):
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
-        return telemetry_handler_registry(TelemetryDataType.TRACE.value, app=app).storage_field_info()
+        return telemetry_handler_registry(TelemetryDataType.RUM.value, app=app).storage_field_info()
 
 
 class GetDataViewConfigResource(Resource):
@@ -788,7 +788,7 @@ class GetDataViewConfigResource(Resource):
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
-        return telemetry_handler_registry(TelemetryDataType.TRACE.value, app=app).get_data_view_config()
+        return telemetry_handler_registry(TelemetryDataType.RUM.value, app=app).get_data_view_config()
 
 
 class GetNoDataStrategyInfoResource(Resource):
@@ -846,9 +846,7 @@ class GetNoDataStrategyInfoResource(Resource):
         if not app.metric_result_table_id:
             return None
 
-        register_config = telemetry_handler_registry(
-            TelemetryDataType.TRACE.value, app=app
-        ).get_no_data_strategy_config()
+        register_config = telemetry_handler_registry(TelemetryDataType.RUM.value, app=app).get_no_data_strategy_config()
 
         config = {
             "bk_biz_id": app.bk_biz_id,

@@ -164,7 +164,7 @@ class Application(AbstractRecordModel):
             data_status = DataStatus.DISABLED
         else:
             try:
-                count = telemetry_handler_registry(TelemetryDataType.TRACE.value, app=self).get_data_count(
+                count = telemetry_handler_registry(TelemetryDataType.RUM.value, app=self).get_data_count(
                     start_time, end_time
                 )
                 if count:
