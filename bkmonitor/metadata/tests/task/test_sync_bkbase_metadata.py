@@ -440,8 +440,22 @@ def test_sync_bkbase_clusters(create_or_delete_records):
             },
         }
     ]
+    mock_surrealdb_data = [
+        {
+            "kind": "SurrealDB",
+            "metadata": {"namespace": "bkmonitor", "name": "surreal_test", "labels": {}, "annotations": {}},
+            "spec": {
+                "host": "surreal_test.test",
+                "port": 8000,
+                "user": "root",
+                "password": "root",
+                "version": "2.3.2",
+            },
+            "status": {"phase": "Ok"},
+        }
+    ]
     with patch("core.drf_resource.api.bkdata.list_data_link") as mock_api:
-        mock_api.side_effect = [mock_es_data, mock_vm_data, mock_doris_data, [], []]
+        mock_api.side_effect = [mock_es_data, mock_vm_data, mock_doris_data, mock_surrealdb_data, [], []]
         sync_all_bkbase_cluster_info()
 
         es_cluster = models.ClusterInfo.objects.get(domain_name="es.example.com")
@@ -461,6 +475,12 @@ def test_sync_bkbase_clusters(create_or_delete_records):
         assert doris_cluster.cluster_type == models.ClusterInfo.TYPE_DORIS
         assert doris_cluster.default_settings["bk_biz_id"] == 100380
         assert doris_cluster.custom_option == json.dumps({"bk_biz_id": 100380})
+
+        surrealdb_cluster = models.ClusterInfo.objects.get(domain_name="surreal_test.test")
+        assert surrealdb_cluster.username == "root"
+        assert surrealdb_cluster.password == "root"
+        assert surrealdb_cluster.cluster_type == models.ClusterInfo.TYPE_SURREALDB
+        assert surrealdb_cluster.version == "2.3.2"
 
 
 @pytest.mark.django_db(databases="__all__")

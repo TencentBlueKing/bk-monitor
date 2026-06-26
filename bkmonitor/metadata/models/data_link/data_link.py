@@ -286,13 +286,19 @@ class DataLink(models.Model):
         """Clean local SurrealDB storage metadata when graph binding anchor is already missing."""
         if not table_ids:
             return
-        from metadata.models.storage import StorageClusterRecord
+        from metadata.models.storage import ClusterInfo, StorageClusterRecord
 
         storages = SurrealDBStorage.objects.filter(
             table_id__in=table_ids,
             bk_tenant_id=self.bk_tenant_id,
         )
-        cluster_ids = list(storages.values_list("storage_cluster_id", flat=True))
+        cluster_ids = set(storages.values_list("storage_cluster_id", flat=True))
+        cluster_ids.update(
+            ClusterInfo.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                cluster_type=ClusterInfo.TYPE_SURREALDB,
+            ).values_list("cluster_id", flat=True)
+        )
         storages.delete()
         if cluster_ids:
             StorageClusterRecord.objects.filter(

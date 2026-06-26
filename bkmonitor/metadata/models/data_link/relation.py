@@ -37,6 +37,7 @@ from metadata.models import (
     DorisStorage,
     ESStorage,
     ResultTable,
+    SurrealDBStorage,
 )
 from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.data_link.constants import DataLinkKind, DataLinkResourceStatus
@@ -255,6 +256,36 @@ def _find_databus_name_for_sink(
         if target_sink in (databus.sink_names or []):
             return databus.name
     return sink_name
+
+
+def _restore_rebuilt_surrealdb_storage(surrealdb_binding: SurrealDBBindingConfig | None) -> None:
+    if not surrealdb_binding or not surrealdb_binding.table_id or not surrealdb_binding.surrealdb_cluster_name:
+        return
+
+    cluster = ClusterInfo.objects.filter(
+        bk_tenant_id=surrealdb_binding.bk_tenant_id,
+        cluster_type=ClusterInfo.TYPE_SURREALDB,
+        cluster_name=surrealdb_binding.surrealdb_cluster_name,
+    ).first()
+    if not cluster:
+        logger.warning(
+            "rebuild_databus_relation: SurrealDB cluster name->[%s] tenant->[%s] not found, "
+            "skip local SurrealDBStorage rebuild for table_id->[%s]",
+            surrealdb_binding.surrealdb_cluster_name,
+            surrealdb_binding.bk_tenant_id,
+            surrealdb_binding.table_id,
+        )
+        return
+
+    SurrealDBStorage.create_table(
+        table_id=surrealdb_binding.table_id,
+        is_sync_db=False,
+        bk_tenant_id=surrealdb_binding.bk_tenant_id,
+        table_type=surrealdb_binding.table_type,
+        vertices=surrealdb_binding.vertices,
+        relations=surrealdb_binding.relations,
+        storage_cluster_id=cluster.cluster_id,
+    )
 
 
 def _get_single_data_source_table_id(databus: DataBusConfig, data_source) -> str:
@@ -1153,6 +1184,7 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
             elif surrealdb_binding and not vm_binding:
                 write_mode = GraphRelationBindingConfig.WRITE_MODE_SURREALDB
 
+            _restore_rebuilt_surrealdb_storage(surrealdb_binding)
             GraphRelationBindingConfig.objects.update_or_create(
                 bk_tenant_id=databus.bk_tenant_id,
                 namespace=databus.namespace,

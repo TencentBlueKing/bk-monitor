@@ -742,10 +742,16 @@ class GraphRelationBindingConfig(DataLinkResourceConfigBase):
     def _delete_surrealdb_storage(self) -> None:
         if not self.table_id:
             return
-        from metadata.models.storage import StorageClusterRecord, SurrealDBStorage
+        from metadata.models.storage import ClusterInfo, StorageClusterRecord, SurrealDBStorage
 
         storages = SurrealDBStorage.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
-        cluster_ids = list(storages.values_list("storage_cluster_id", flat=True))
+        cluster_ids = set(storages.values_list("storage_cluster_id", flat=True))
+        cluster_ids.update(
+            ClusterInfo.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                cluster_type=ClusterInfo.TYPE_SURREALDB,
+            ).values_list("cluster_id", flat=True)
+        )
         storages.delete()
         if cluster_ids:
             StorageClusterRecord.objects.filter(

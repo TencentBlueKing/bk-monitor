@@ -3741,6 +3741,17 @@ def test_rebuild_graph_relation_merges_siblings_without_prefilled_table_id():
         bk_biz_id=1001,
         bk_data_id=60204,
     )
+    models.ClusterInfo.objects.create(
+        cluster_name="surreal-default",
+        cluster_type=models.ClusterInfo.TYPE_SURREALDB,
+        domain_name="default.surrealdb",
+        port=8000,
+        description="",
+        cluster_id=300001,
+        is_default_cluster=True,
+        version="2.x",
+        bk_tenant_id="system",
+    )
     for rt_name in ("graph_vm_rt", "graph_surreal_rt"):
         models.ResultTableConfig.objects.create(
             name=rt_name,
@@ -3764,6 +3775,9 @@ def test_rebuild_graph_relation_merges_siblings_without_prefilled_table_id():
         bk_biz_id=1001,
         bkbase_result_table_name="graph_surreal_rt",
         surrealdb_cluster_name="surreal-default",
+        table_type="normal",
+        vertices=[{"name": "pod", "id_fields": ["pod_name"]}],
+        relations=[{"name": "pod_node", "from": "pod", "to": "node"}],
     )
     for databus_name, sink_kind, sink_name in (
         ("graph_vm_databus", DataLinkKind.VMSTORAGEBINDING.value, "graph_vm_binding"),
@@ -3794,6 +3808,17 @@ def test_rebuild_graph_relation_merges_siblings_without_prefilled_table_id():
     assert graph_binding.surrealdb_binding_name == "graph_surreal_binding"
     assert graph_binding.graph_databus_name == "graph_surreal_databus"
     assert graph_binding.table_id == table_id
+    surrealdb_storage = models.SurrealDBStorage.objects.get(table_id=table_id, bk_tenant_id="system")
+    assert surrealdb_storage.storage_cluster_id == 300001
+    assert surrealdb_storage.table_type == "normal"
+    assert surrealdb_storage.vertices == [{"name": "pod", "id_fields": ["pod_name"]}]
+    assert surrealdb_storage.relations == [{"name": "pod_node", "from": "pod", "to": "node"}]
+    storage_record = models.StorageClusterRecord.objects.get(
+        table_id=table_id,
+        bk_tenant_id="system",
+        cluster_id=300001,
+    )
+    assert storage_record.is_current is True
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -6530,6 +6555,17 @@ def test_delete_graph_relation_data_link_falls_back_when_binding_missing(mocker)
             sink_names=[f"{sink_kind}:{name}"],
             status=DataLinkResourceStatus.OK.value,
         )
+    for cluster_id, cluster_name in ((300001, "surreal-current"), (300002, "surreal-old")):
+        models.ClusterInfo.objects.create(
+            cluster_name=cluster_name,
+            cluster_type=models.ClusterInfo.TYPE_SURREALDB,
+            domain_name=f"{cluster_name}.example.com",
+            port=8000,
+            cluster_id=cluster_id,
+            is_default_cluster=cluster_id == 300001,
+            version="2.x",
+            bk_tenant_id=data_link.bk_tenant_id,
+        )
     models.SurrealDBStorage.objects.create(
         table_id="2_bkcc_built_in_time_series.__default__",
         bk_tenant_id=data_link.bk_tenant_id,
@@ -6551,6 +6587,12 @@ def test_delete_graph_relation_data_link_falls_back_when_binding_missing(mocker)
         creator="test",
         is_current=False,
     )
+    models.StorageClusterRecord.objects.create(
+        table_id="2_bkcc_built_in_time_series.__default__",
+        bk_tenant_id=data_link.bk_tenant_id,
+        cluster_id=100111,
+        creator="test",
+    )
     mock_delete = mocker.patch("metadata.models.data_link.data_link_configs.api.bkdata.delete_data_link")
 
     data_link.delete_data_link()
@@ -6566,9 +6608,13 @@ def test_delete_graph_relation_data_link_falls_back_when_binding_missing(mocker)
         table_id="2_bkcc_built_in_time_series.__default__",
         cluster_id=300001,
     ).exists()
-    assert models.StorageClusterRecord.objects.filter(
+    assert not models.StorageClusterRecord.objects.filter(
         table_id="2_bkcc_built_in_time_series.__default__",
         cluster_id=300002,
+    ).exists()
+    assert models.StorageClusterRecord.objects.filter(
+        table_id="2_bkcc_built_in_time_series.__default__",
+        cluster_id=100111,
     ).exists()
     assert not DataLink.objects.filter(data_link_name=data_link.data_link_name).exists()
 
@@ -6628,6 +6674,17 @@ def test_graph_relation_binding_delete_uses_distinct_child_component_names(mocke
                 }
             )
         model.objects.create(**defaults)
+    for cluster_id, cluster_name in ((300001, "surreal-current"), (300002, "surreal-old")):
+        models.ClusterInfo.objects.create(
+            cluster_name=cluster_name,
+            cluster_type=models.ClusterInfo.TYPE_SURREALDB,
+            domain_name=f"{cluster_name}.example.com",
+            port=8000,
+            cluster_id=cluster_id,
+            is_default_cluster=cluster_id == 300001,
+            version="2.x",
+            bk_tenant_id="system",
+        )
     models.SurrealDBStorage.objects.create(
         table_id=table_id,
         bk_tenant_id="system",
@@ -6648,6 +6705,13 @@ def test_graph_relation_binding_delete_uses_distinct_child_component_names(mocke
         cluster_id=400001,
         creator="test",
     )
+    models.StorageClusterRecord.objects.create(
+        table_id=table_id,
+        bk_tenant_id="system",
+        cluster_id=300002,
+        creator="test",
+        is_current=False,
+    )
     mock_delete = mocker.patch("metadata.models.data_link.data_link_configs.api.bkdata.delete_data_link")
 
     graph_binding.delete_config()
@@ -6661,6 +6725,7 @@ def test_graph_relation_binding_delete_uses_distinct_child_component_names(mocke
     assert not GraphDataBusConfig.objects.filter(data_link_name=data_link_name).exists()
     assert not models.SurrealDBStorage.objects.filter(table_id=table_id).exists()
     assert not models.StorageClusterRecord.objects.filter(table_id=table_id, cluster_id=300001).exists()
+    assert not models.StorageClusterRecord.objects.filter(table_id=table_id, cluster_id=300002).exists()
     assert models.StorageClusterRecord.objects.filter(table_id=table_id, cluster_id=400001).exists()
 
 
