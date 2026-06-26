@@ -129,6 +129,18 @@ class TestTapdOauthContract(unittest.TestCase):
         self.assertNotIn("request.session.get", callback_source)
         self.assertIn("redirect_uri=backend_callback.rstrip", callback_source)
 
+    def test_user_oauth_callback_binds_token_to_current_bk_user(self):
+        callback = _function(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "tapd_user_oauth_callback")
+        callback_source = ast.get_source_segment(_read("bkmonitor/packages/fta_web/issue/resources.py"), callback)
+
+        identity_guard_index = callback_source.index("callback_username != username")
+        token_exchange_index = callback_source.index("api.tapd.user_oauth_token")
+        save_token_index = callback_source.index("save_tapd_token")
+
+        self.assertIn("callback_username = get_request_username()", callback_source)
+        self.assertLess(identity_guard_index, token_exchange_index)
+        self.assertLess(identity_guard_index, save_token_index)
+
     def test_app_install_callback_still_uses_signed_state(self):
         callback = _function(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "tapd_app_install_callback")
         self.assertIn("verify_signed_state", _call_names(callback))

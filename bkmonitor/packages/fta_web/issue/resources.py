@@ -2477,6 +2477,15 @@ def tapd_user_oauth_callback(request):
     if not username:
         return _fail("missing initiator in signed_state payload, bk_biz_id=%s", bk_biz_id)
 
+    callback_username = get_request_username()
+    if not callback_username or callback_username != username:
+        return _fail(
+            "TAPD user oauth callback user mismatch, bk_biz_id=%s, initiator=%s, callback_user=%s",
+            bk_biz_id,
+            username,
+            callback_username,
+        )
+
     backend_callback = payload.get("backend_callback", "")
     if not backend_callback:
         return _fail("missing backend_callback in signed_state payload, bk_biz_id=%s", bk_biz_id)
