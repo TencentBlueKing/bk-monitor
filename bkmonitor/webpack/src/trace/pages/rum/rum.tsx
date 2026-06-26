@@ -421,20 +421,11 @@ export default defineComponent({
         },
         {
           colKey: 'appStatus',
-          title: () => (
-            <span
-              class='rum-table-header-title'
-              v-overflow-tips={{
-                placement: 'top',
-              }}
-            >
-              {t('应用状态')}
-            </span>
-          ),
+          title: t('应用状态'),
           thClassName: 'rum-th--filter',
           width: 100,
           ellipsis: false,
-          ellipsisTitle: false,
+          ellipsisTitle: true,
           filter: {
             type: 'multiple',
             list: appStatusFilters,
@@ -491,20 +482,11 @@ export default defineComponent({
         })),
         {
           colKey: 'dataStatus',
-          title: () => (
-            <span
-              class='rum-table-header-title'
-              v-overflow-tips={{
-                placement: 'top',
-              }}
-            >
-              {t('数据状态')}
-            </span>
-          ),
+          title: t('数据状态'),
           thClassName: 'rum-th--filter',
           width: 160,
           ellipsis: false,
-          ellipsisTitle: false,
+          ellipsisTitle: true,
           filter: {
             type: 'multiple',
             list: dataStatusFilters,
