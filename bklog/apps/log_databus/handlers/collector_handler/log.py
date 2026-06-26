@@ -42,6 +42,14 @@ class LogCollectorHandler:
         self.related_bk_biz_ids = None
         self.bk_biz_id_to_space_detail_map = None
 
+        if self.space_uid:
+            self.space_type_id, _ = SpaceApi.parse_space_uid(self.space_uid)
+            if self.space_type_id == SpaceTypeEnum.BKCC.value:
+                self.related_space_uids = IndexSetHandler.get_all_related_space_uids(self.space_uid)
+                self.related_bk_biz_ids = [space_uid_to_bk_biz_id(space_uid) for space_uid in self.related_space_uids]
+                space_objs = SpaceApi.batch_get_space_detail(set(self.related_space_uids))
+                self.bk_biz_id_to_space_detail_map = {v.bk_biz_id: v.to_dict() for k, v in space_objs.items()}
+
     def fetch_log_collector_data(self, result: list[dict], include_related_spaces: bool = False):
         result_list = []
         scenario_choices = dict(Scenario.CHOICES)
@@ -593,13 +601,6 @@ class LogCollectorHandler:
             elif item["key"] == "collector_source":
                 collector_source = item["value"]
 
-        self.space_type_id, _ = SpaceApi.parse_space_uid(self.space_uid)
-        if self.space_type_id == SpaceTypeEnum.BKCC.value:
-            self.related_space_uids = IndexSetHandler.get_all_related_space_uids(self.space_uid)
-            self.related_bk_biz_ids = [space_uid_to_bk_biz_id(space_uid) for space_uid in self.related_space_uids]
-            space_objs = SpaceApi.batch_get_space_detail(set(self.related_space_uids))
-            self.bk_biz_id_to_space_detail_map = {v.bk_biz_id: v.to_dict() for k, v in space_objs.items()}
-
         # 获取采集项信息
         collector_configs = self.get_collector_config_info(
             keyword=keyword,
@@ -727,11 +728,6 @@ class LogCollectorHandler:
         :param include_related_spaces: 是否包含关联空间中的采集项
         :return: 包含创建人和更新人枚举值的字典
         """
-        self.space_type_id, _ = SpaceApi.parse_space_uid(self.space_uid)
-        if self.space_type_id == SpaceTypeEnum.BKCC.value:
-            self.related_space_uids = IndexSetHandler.get_all_related_space_uids(self.space_uid)
-            self.related_bk_biz_ids = [space_uid_to_bk_biz_id(space_uid) for space_uid in self.related_space_uids]
-
         if self.space_type_id == SpaceTypeEnum.BKCC.value and include_related_spaces:
             query_collector_condition = {
                 "bk_biz_id__in": self.related_bk_biz_ids
