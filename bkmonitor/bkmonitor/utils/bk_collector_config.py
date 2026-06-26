@@ -16,7 +16,6 @@ from django.conf import settings
 from kubernetes import client
 
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
-from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
 from bkmonitor.utils.bcs import BcsKubeClient
 from bkmonitor.utils.common_utils import safe_int, count_md5
 from constants.bk_collector import BkCollectorComp
@@ -75,8 +74,8 @@ class BkCollectorConfig:
         """
         获取指定租户指定业务下所有 Proxy 机器列表
         """
-        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
-        if is_bk_saas_space(space_uid):
+        # 非cmdb业务没有proxy
+        if bk_biz_id <= 0:
             return []
 
         try:

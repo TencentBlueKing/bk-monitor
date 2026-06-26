@@ -41,7 +41,6 @@ from apm.models import (
     QpsConfig,
 )
 from apm.utils.report_event import EventReportHelper
-from bkmonitor.utils.new_env import is_biz_id_in_new_env_scope
 from bkmonitor.utils.tenant import set_local_tenant_id
 from constants.apm import TelemetryDataType
 from constants.common import DEFAULT_TENANT_ID
@@ -153,17 +152,13 @@ def datasource_discover_cron():
 def refresh_apm_config():
     # 30分钟刷新一次
     interval = 30
-    to_be_refreshed = [
-        application
-        for application in ApmApplication.objects.filter(is_enabled=True).values_list("bk_biz_id", "app_name")
-        if application[0] not in settings.NEW_ENV_BIZ_BLACK_LIST
-    ]
+    to_be_refreshed = list(ApmApplication.objects.filter(is_enabled=True).values_list("bk_biz_id", "app_name"))
     slug = datetime.datetime.now().minute % interval
     for index, application in enumerate(to_be_refreshed):
         bk_biz_id, app_name = application
         if index % interval == slug:
             logger.info(f"[refresh_apm_config]: publish application [{bk_biz_id}]({app_name})")
-            refresh_apm_application_config.delay(bk_biz_id, app_name)
+            refresh_apm_application_config.delay(bk_biz_id, app_name, skip_k8s=True)
 
 
 def refresh_apm_config_to_k8s():
@@ -171,16 +166,7 @@ def refresh_apm_config_to_k8s():
     刷新所有 APM 应用的 K8s 配置（获取全部数据进行批量调度）
     """
     # 获取所有启用的应用
-    applications = [
-        application
-        for application in ApmApplication.objects.filter(is_enabled=True)
-        if is_biz_id_in_new_env_scope(
-            application.bk_biz_id,
-            start_biz_id=settings.NEW_ENV_START_BIZ_ID,
-            biz_black_list=settings.NEW_ENV_BIZ_BLACK_LIST,
-            biz_white_list=settings.NEW_ENV_BIZ_WHITE_LIST,
-        )
-    ]
+    applications = list(ApmApplication.objects.filter(is_enabled=True))
     if not applications:
         return
 
@@ -204,10 +190,11 @@ def refresh_apm_platform_config():
 
 
 @app.task(ignore_result=True, queue="celery_cron")
-def refresh_apm_application_config(bk_biz_id, app_name):
+def refresh_apm_application_config(bk_biz_id: int, app_name: str, skip_k8s: bool = False):
     _app = ApmApplication.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
     # 刷新k8s配置
-    ApplicationConfig.refresh_k8s([_app])
+    if not skip_k8s:
+        ApplicationConfig.refresh_k8s([_app])
     # 刷新节点管理配置
     ApplicationConfig(_app).refresh()
 
