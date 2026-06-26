@@ -4178,7 +4178,10 @@ def test_get_bkbase_components_config_defaults_databus_consumer_group():
     assert extra_config["data_link_strategy"] == ""
 
 
-def test_should_update_bkbase_component_field_only_allows_empty_graph_definitions():
+def test_should_update_bkbase_component_field_allows_selected_empty_values():
+    assert _should_update_bkbase_component_field(
+        DataLinkKind.DATABUS.value, "data_link_strategy", ""
+    ) is True
     assert _should_update_bkbase_component_field(DataLinkKind.SURREALDBBINDING.value, "vertices", []) is True
     assert _should_update_bkbase_component_field(DataLinkKind.SURREALDBBINDING.value, "relations", []) is True
     assert _should_update_bkbase_component_field(DataLinkKind.DATAID.value, "bk_data_id", 0) is False

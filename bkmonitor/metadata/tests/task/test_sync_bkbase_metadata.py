@@ -383,6 +383,47 @@ def test_sync_bkbase_v4_components_updates_empty_surrealdb_definitions(mocker):
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_sync_bkbase_v4_components_clears_empty_databus_strategy(mocker):
+    models.DataBusConfig.objects.create(
+        name="graph_databus",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        data_link_name="graph_link",
+        bk_biz_id=1001,
+        status="OK",
+        data_id_name="graph_data_id",
+        sink_names=[f"{DataLinkKind.VMSTORAGEBINDING.value}:graph_vm_binding"],
+        data_link_strategy=models.DataLink.GRAPH_RELATION_TIME_SERIES,
+    )
+    mocker.patch(
+        "metadata.task.bkbase.api.bkdata.list_data_link",
+        return_value=[
+            {
+                "metadata": {
+                    "name": "graph_databus",
+                    "labels": {"bk_biz_id": "1001"},
+                    "annotations": {},
+                },
+                "spec": {
+                    "sources": [{"kind": DataLinkKind.DATAID.value, "name": "graph_data_id"}],
+                    "sinks": [{"kind": DataLinkKind.VMSTORAGEBINDING.value, "name": "graph_vm_binding"}],
+                },
+                "status": {"phase": "OK"},
+            }
+        ],
+    )
+
+    _sync_bkbase_v4_datalink_components(
+        bk_tenant_id="system",
+        namespace="bkmonitor",
+        kind=DataLinkKind.DATABUS.value,
+    )
+
+    databus = models.DataBusConfig.objects.get(name="graph_databus")
+    assert databus.data_link_strategy == ""
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_sync_bkbase_clusters(create_or_delete_records):
     mock_es_data = [
         {

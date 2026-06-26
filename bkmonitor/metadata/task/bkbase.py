@@ -678,6 +678,8 @@ def _sync_bkbase_v4_datalink_components(bk_tenant_id: str, namespace: str, kind:
 def _should_update_bkbase_component_field(kind: str, field: str, value: Any) -> bool:
     if value:
         return True
+    if kind == DataLinkKind.DATABUS.value and field == "data_link_strategy" and value == "":
+        return True
     return kind == DataLinkKind.SURREALDBBINDING.value and field in {"vertices", "relations"} and value == []
 
 
