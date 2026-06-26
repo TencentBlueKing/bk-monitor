@@ -30,6 +30,25 @@ from fta_web.constants import TapdOauthEndpoint
 logger = logging.getLogger("root")
 
 
+def normalize_redirect_url(url: str, request=None) -> str:
+    """将前端传入的重定向 URL 补全为绝对 URL。
+
+    - 全 URL（以 http 开头）直接返回
+    - 路径自动补 / 前缀（防 build_absolute_uri 基于当前请求路径拼接）
+    - 有 request 时补域名，无 request 时仅补 / 前缀
+    """
+    if not url:
+        return url
+    if url.startswith("http"):
+        return url
+    # 路径必须以 / 开头，否则 build_absolute_uri 会基于当前请求路径拼接
+    if not url.startswith("/"):
+        url = "/" + url
+    if request:
+        url = request.build_absolute_uri(url)
+    return url
+
+
 def _get_cipher() -> AESCipher:
     return AESCipher(settings.SECRET_KEY)
 
@@ -39,10 +58,14 @@ def _make_token_key(tenant_id: str, username: str) -> str:
     return f"tapd_uat:{tenant_id}:{username}"
 
 
-def _sign_state(state: str) -> str:
-    """对 state 做 HMAC-SHA256，截断 hex 16 字符。"""
-    sig = hmac.new(settings.SECRET_KEY.encode("utf-8"), state.encode("utf-8"), hashlib.sha256).hexdigest()[:16]
-    return f"{state}.{sig}"
+def _make_oauth_session_key(bk_biz_id) -> str:
+    """Session key: tapd_oauth_state_{bk_biz_id}"""
+    return f"tapd_oauth_state_{bk_biz_id}"
+
+
+def _hmac_sign(data: bytes) -> str:
+    """HMAC-SHA256 签名，截断 hex 16 字符。"""
+    return hmac.new(settings.SECRET_KEY.encode("utf-8"), data, hashlib.sha256).hexdigest()[:16]
 
 
 def save_tapd_token(
@@ -50,20 +73,14 @@ def save_tapd_token(
     username: str,
     token_data: dict,
     expires_in: int = 7200,
-    state: str = "",
     cipher: AESCipher | None = None,
 ) -> None:
     """加密并存储 TAPD 用户态 access_token 到 Redis。
 
-    注意: state 和内嵌 access_token 的 HMAC 签名是校验之源，
-    access_token 存字段 `"access_token"`，state 也一并存入以在后续
-    /get_user_info 中完成签名比对。
-
     :param tenant_id: 蓝鲸租户 ID
-    :param username: 请求用户名（state 中的 username）
+    :param username: 请求用户名
     :param token_data: TAPD 原始 token 响应 {"access_token", "user_id", "type", ...}
     :param expires_in: 过期秒数（默认 7200）
-    :param state: B-05 回调时收到的完整 state 参数（用于签名）
     :param cipher: AESCipher 实例（可选，默认新构造）
     """
     if not tenant_id or not username:
@@ -81,7 +98,6 @@ def save_tapd_token(
         "type": token_data.get("type", ""),
         "user_id": token_data.get("user_id", ""),
         "expires_at": int(time.time()) + expires_in,
-        "signature": _sign_state(state) if state else "",
     }
 
     raw = json.dumps(payload, separators=(",", ":"), sort_keys=True)
@@ -110,6 +126,8 @@ def get_tapd_token(bk_tenant_id: str, username: str) -> dict:
         return payload
     except Exception as e:
         logger.warning("Failed to decrypt TAPD token, key=%s, error=%s", key, e)
+        # 清理脏数据，避免下次读取重复失败
+        cache.delete(key)
         return {}
 
 
@@ -129,7 +147,7 @@ def generate_signed_state(payload: dict) -> str:
     json_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
     b64_payload = base64.urlsafe_b64encode(json_bytes).rstrip(b"=").decode("ascii")
 
-    sig = hmac.new(settings.SECRET_KEY.encode("utf-8"), b64_payload.encode("ascii"), hashlib.sha256).hexdigest()[:16]
+    sig = _hmac_sign(b64_payload.encode("ascii"))
     return f"{b64_payload}.{sig}"
 
 
@@ -143,9 +161,7 @@ def verify_signed_state(signed_state: str) -> dict:
     except ValueError:
         raise ValidationError("invalid_signed_state_format")
 
-    expected = hmac.new(settings.SECRET_KEY.encode("utf-8"), b64_payload.encode("ascii"), hashlib.sha256).hexdigest()[
-        :16
-    ]
+    expected = _hmac_sign(b64_payload.encode("ascii"))
     if not hmac.compare_digest(expected, signature):
         raise ValidationError("invalid_signed_state_signature")
 
@@ -165,8 +181,8 @@ def verify_signed_state(signed_state: str) -> dict:
         "bk_biz_id",
         "initiator",
         "exp",
-        "redirect_uri_real",
-        "redirect_uri_verify",
+        "success_url",
+        "error_url",
     )
     missing = [k for k in required if k not in payload]
     if missing:
@@ -179,8 +195,8 @@ def generate_install_url(
     bk_tenant_id: str,
     space_uid: str,
     initiator: str,
-    redirect_uri_real: str,
-    redirect_uri_verify: str,
+    success_url: str,
+    error_url: str,
     backend_callback: str,
 ) -> str:
     """构建 open_app_install URL（B-01 install_url 模板）。
@@ -189,8 +205,8 @@ def generate_install_url(
     :param bk_tenant_id: 租户 ID
     :param space_uid: 空间 UID
     :param initiator: 发起授权的用户
-    :param redirect_uri_real: 含 # 的真实前端地址，回调后 302 重定向目标
-    :param redirect_uri_verify: 传给 TAPD OAuth 做 code 校验的 redirect_uri
+    :param success_url: 含 # 的真实前端地址，回调成功后 302 重定向目标
+    :param error_url: 含 # 的前端错误页面地址，回调失败后 302 重定向目标
     :param backend_callback: 后端应用安装回调地址（由调用方通过 reverse + build_absolute_uri 构建）
     """
     if not backend_callback:
@@ -205,15 +221,22 @@ def generate_install_url(
         "initiator": initiator,
         "nonce": nonce,
         "exp": int(time.time()) + 900,  # 15min TTL
-        "redirect_uri_real": redirect_uri_real,
-        "redirect_uri_verify": redirect_uri_verify,
+        "success_url": success_url,
+        "error_url": error_url,
     }
     signed_state = generate_signed_state(payload)
     # cb 内嵌 signed_state，urlencode 会自动处理特殊字符编码
     cb = f"{backend_callback.rstrip('/')}?signed_state={signed_state}"
     params = {
         "client_id": settings.TAPD_APP_ID,
-        "test": 0,
+        # test=1 测试应用（未上架），test=0 正式应用（已上架）
+        # 仅生产环境（prod）传 0，dev/stag 传 1
+        "test": 0 if settings.ENVIRONMENT == "prod" else 1,
+        # state 为 TAPD 协议必选参数，应用态回调不消费它（signed_state 已嵌在 cb 中）
+        # 传 nonce 仅满足协议要求
+        "state": nonce,
+        # show_installed=1（显示已授权项目，便于管理员查看/重新授权）
+        "show_installed": 1,
         "cb": cb,
     }
     url = TapdOauthEndpoint.open_app_install()
@@ -223,14 +246,17 @@ def generate_install_url(
 def generate_auth_url(
     bk_biz_id: int,
     bk_tenant_id: str,
-    redirect_uri_real: str,
+    success_url: str,
+    error_url: str,
     backend_callback: str,
 ) -> str:
     """生成 TAPD 用户态 OAuth 授权 URL，state 使用 Session 存储的 nonce。
 
     :param bk_biz_id: 蓝鲸业务 ID
+    :param issue_id: 需求 ID
     :param bk_tenant_id: 租户 ID
-    :param redirect_uri_real: 含 # 的真实前端地址，B-05 回调后 302 重定向目标
+    :param success_url: 含 # 的真实前端地址，B-05 回调成功后 302 重定向目标
+    :param error_url: 含 # 的前端错误页面地址，B-05 回调失败后 302 重定向目标
     :param backend_callback: 后端 OAuth 回调地址（由调用方通过 build_absolute_uri 构建）
     """
     if not backend_callback:
@@ -245,12 +271,13 @@ def generate_auth_url(
     state = f"{nonce}:{bk_biz_id}"
     # backend_callback 统一去掉末尾斜杠，确保 authorize 和 exchange token 时完全一致
     backend_callback = backend_callback.rstrip("/")
-    request.session[f"tapd_oauth_state_{bk_biz_id}"] = {
+    request.session[_make_oauth_session_key(bk_biz_id)] = {
         "nonce": nonce,
         "bk_biz_id": bk_biz_id,
         "bk_tenant_id": bk_tenant_id,
         "username": get_request_username(),
-        "redirect_uri_real": redirect_uri_real,
+        "success_url": success_url,
+        "error_url": error_url,
         "backend_callback": backend_callback,
         "exp": int(time.time()) + 900,  # 15min TTL
     }

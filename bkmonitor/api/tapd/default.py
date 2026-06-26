@@ -399,7 +399,6 @@ class GetBugFieldsInfo(TapdAPIResource):
 class UserOauthTokenResource(TapdAPIResource):
     """
     用户态 OAuth — 用 code 换取 access_token
-    接口说明：POST http://apiv2.tapd.woa.com/tokens/request_token
     认证方式：Basic Auth (client_id:client_secret)
     """
 

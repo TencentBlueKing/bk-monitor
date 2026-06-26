@@ -16,14 +16,13 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 import json
+from urllib.parse import quote
 
-from django.conf import settings
 from django.http import HttpResponseRedirect
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import serializers, exceptions
 from rest_framework.decorators import api_view
 
-from api.tapd.default import GetWorkspaceInfoResource, UserOauthTokenResource
 from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.documents.issue import (
     IssueActivityDocument,
@@ -36,7 +35,6 @@ from bkmonitor.models.issue import IssueMergeRelation, IssueTapdRelation
 from bkmonitor.utils.request import get_request_username
 from bkmonitor.issue_merge import IssueFrozenError
 from bkmonitor.models import IssueMergeRelation, TapdWorkspaceBinding
-from bkmonitor.utils.cipher import AESCipher
 from bkmonitor.utils.request import get_request_username, get_request
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.user import set_local_username
@@ -56,6 +54,8 @@ from fta_web.issue.utils.tapd import (
     verify_signed_state,
     generate_install_url,
     try_bind_importable,
+    normalize_redirect_url,
+    _make_oauth_session_key,
 )
 
 logger = logging.getLogger("root")
@@ -1868,8 +1868,12 @@ class ListUserTapdWorkspaceResource(Resource):
     """查询当前用户有权限的 TAPD 项目列表（冷启动去关联用）
 
     端点：POST /fta/issue/tapd/user_workspace/
-    Body: { bk_biz_id, redirect_uri_real, redirect_uri_verify }
+    Body: { bk_biz_id, success_url, error_url }
     数据源：TAPD 用户态 API（Bearer Token，从 Redis 解密获取）。
+
+    success_url: 成功/失败回调后 302 重定向的前端页面地址（含 #）。
+    error_url: 授权失败时重定向的前端错误页面地址（含 #）。
+        若未传则回退到 success_url（同一页面，前端根据 URL 参数区分成功/失败）。
 
     TODO: 当前 TAPD 用户态 API 尚未提供文档（T-01），用户态列表返回空。
           app 已授权列表（get_granted_workspaces）作为降级源。
@@ -1877,13 +1881,19 @@ class ListUserTapdWorkspaceResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="蓝鲸业务ID")
-        redirect_uri_real = serializers.CharField(label="含#的真实前端地址", max_length=512)
-        redirect_uri_verify = serializers.CharField(label="不含#的校验地址", max_length=512)
+        success_url = serializers.CharField(label="成功回调重定向地址（含#）", max_length=512)
+        error_url = serializers.CharField(label="失败回调重定向地址（含#）", max_length=512)
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
-        redirect_uri_real = validated_request_data.get("redirect_uri_real", "")
-        redirect_uri_verify = validated_request_data.get("redirect_uri_verify", "")
+        success_url = validated_request_data["success_url"]
+        # 未传 error_url 时回退到 success_url
+        error_url = validated_request_data["error_url"]
+
+        # URL 补全：前端可传路径或全 URL，路径自动补 / 前缀和域名
+        request = get_request()
+        success_url = normalize_redirect_url(success_url, request)
+        error_url = normalize_redirect_url(error_url, request)
 
         space_uid = bk_biz_id_to_space_uid(bk_biz_id)
         tenant_id = space_uid_to_bk_tenant_id(space_uid)
@@ -1937,9 +1947,6 @@ class ListUserTapdWorkspaceResource(Resource):
         install_url = ""
         if any_unbound_or_stale:
             request = get_request()
-            # 补全为绝对 URL：TAPD OAuth 要求 redirect_uri 必须是绝对 URI
-            if redirect_uri_verify and not redirect_uri_verify.startswith("http") and request:
-                redirect_uri_verify = request.build_absolute_uri("/").rstrip("/") + redirect_uri_verify
 
             # 构建应用安装回调地址（绝对 URL）
             backend_callback = request.build_absolute_uri("/fta/issue/tapd/app_install_callback/")
@@ -1949,8 +1956,8 @@ class ListUserTapdWorkspaceResource(Resource):
                 bk_tenant_id=tenant_id,
                 space_uid=space_uid,
                 initiator=username,
-                redirect_uri_real=redirect_uri_real,
-                redirect_uri_verify=redirect_uri_verify,
+                success_url=success_url,
+                error_url=error_url,
                 backend_callback=backend_callback,
             )
 
@@ -2003,15 +2010,6 @@ class UnbindTapdWorkspaceResource(Resource):
         return {"success": True}
 
 
-# TODO: 错误重定向路径是临时写法，后续需要根据实际情况修改
-_ALARM_CENTER_PATH = "#/trace/alarm-center"
-
-
-def _build_error_url(request, biz_id: int | str = "") -> str:
-    base = request.build_absolute_uri("/")
-    return f"{base}?bizId={biz_id}{_ALARM_CENTER_PATH}"
-
-
 @api_view(["GET"])
 @csrf_exempt
 def tapd_app_install_callback(request):
@@ -2021,25 +2019,26 @@ def tapd_app_install_callback(request):
     1. 解析 signed_state → 验签、验过期
     2. 提取 workspace_id → 调 app 级 Basic Auth 获取 name
     3. upsert TapdWorkspaceBinding（create_user = initiator）
-    4. 302 重定向前端 success
+    4. 302 重定向前端 success / 失败重定向 error_url
     """
     signed_state = request.query_params.get("signed_state", "")
     if not signed_state:
-        return HttpResponseRedirect(_build_error_url(request))
+        # signed_state 缺失时无法获取前端地址，回退到根路径
+        return HttpResponseRedirect(request.build_absolute_uri("/"))
 
     # 1) 解析并验签 signed_state
     try:
         payload = verify_signed_state(signed_state)
     except exceptions.ValidationError as e:
         logger.warning("signed_state verification failed: %s", e.detail)
-        return HttpResponseRedirect(_build_error_url(request))
+        return HttpResponseRedirect(request.build_absolute_uri("/"))
 
     bk_biz_id = payload["bk_biz_id"]
     tenant_id = payload["bk_tenant_id"]
     space_uid = payload["space_uid"]
     initiator = payload["initiator"]
-    redirect_uri_real = payload["redirect_uri_real"]
-    error_url = _build_error_url(request, bk_biz_id)
+    success_url = payload["success_url"]
+    error_url = payload["error_url"]
 
     # 安全性由 verify_signed_state 保证：HMAC 签名 + 过期时间校验
     # 解码 resource JSON 获取 workspace_id
@@ -2057,7 +2056,7 @@ def tapd_app_install_callback(request):
 
     # 2) 获取项目信息（app 级 Basic Auth）
     try:
-        info = GetWorkspaceInfoResource().request(workspace_id=int(workspace_id))
+        info = api.tapd.get_worksapce_info(workspace_id=int(workspace_id))
         ws = info.get("Workspace", {})
         ws_name = ws.get("name") or ws.get("pretty_name") or str(workspace_id)
     except BKAPIError:
@@ -2089,7 +2088,7 @@ def tapd_app_install_callback(request):
         initiator,
     )
 
-    return HttpResponseRedirect(redirect_uri_real)
+    return HttpResponseRedirect(success_url)
 
 
 @api_view(["GET"])
@@ -2101,13 +2100,14 @@ def tapd_user_oauth_callback(request):
     1. state 格式 {nonce}:{bk_biz_id}，从 Session 中取出比对并删除（防重放）
     2. 用 code 换取 access_token（UserOauthTokenResource），redirect_uri 取 Session 中的 backend_callback
     3. 加密 token → 存入 Redis（TTL = expires_in），key = tapd_uat:{tenant}:{user}
-    4. 302 重定向前端 redirect_uri_real
+    4. 302 重定向前端 success_url
     """
     code = request.query_params.get("code", "")
     state = request.query_params.get("state", "")
 
     if not code or not state:
-        return HttpResponseRedirect(_build_error_url(request))
+        # 缺少必要参数，无法定位 session，回退到根路径
+        return HttpResponseRedirect(request.build_absolute_uri("/"))
 
     # 1) 解析 state，从 Session 中比对
     try:
@@ -2115,14 +2115,16 @@ def tapd_user_oauth_callback(request):
         bk_biz_id = int(bk_biz_id)
     except (ValueError, AttributeError):
         logger.warning("invalid state format: %s", state)
-        return HttpResponseRedirect(_build_error_url(request))
+        return HttpResponseRedirect(request.build_absolute_uri("/"))
 
-    error_url = _build_error_url(request, bk_biz_id)
-    session_key = f"tapd_oauth_state_{bk_biz_id}"
+    session_key = _make_oauth_session_key(bk_biz_id)
     session_data = request.session.get(session_key)
     if not session_data:
         logger.warning("session state not found for bk_biz_id=%s", bk_biz_id)
-        return HttpResponseRedirect(error_url)
+        return HttpResponseRedirect(request.build_absolute_uri("/"))
+
+    # error_url：优先用前端传入的失败重定向地址，回退到 success_url
+    error_url = session_data.get("error_url") or session_data.get("success_url") or request.build_absolute_uri("/")
 
     # 校验 nonce + 过期时间，成功后立即删除（防重放）
     if session_data.get("nonce") != nonce:
@@ -2151,8 +2153,9 @@ def tapd_user_oauth_callback(request):
         logger.warning("missing backend_callback in session data")
         return HttpResponseRedirect(error_url)
 
+    backend_callback = quote(backend_callback, safe="")
     try:
-        token_resp = UserOauthTokenResource().request(
+        token_resp = api.tapd.user_oauth_token(
             code=code,
             redirect_uri=backend_callback,
         )
@@ -2175,10 +2178,8 @@ def tapd_user_oauth_callback(request):
         username=username,
         token_data=token_resp,
         expires_in=expires_in,
-        state=state,
-        cipher=AESCipher(settings.SECRET_KEY),
     )
 
-    # 4) 302 重定向到 redirect_uri_real（含 # 的前端地址）
-    redirect_uri_real = session_data.get("redirect_uri_real", "")
-    return HttpResponseRedirect(redirect_uri_real)
+    # 4) 302 重定向到 success_url（含 # 的前端地址）
+    success_url = session_data.get("success_url", "")
+    return HttpResponseRedirect(success_url)
