@@ -56,6 +56,7 @@ BKBASE_V4_KIND_STORAGE_CONFIGS = [
             "port": "port",
             "username": "user",
             "password": "password",
+            "bk_biz_id": "bk_biz_id",
         },
         "cluster_type": models.ClusterInfo.TYPE_DORIS,
     },

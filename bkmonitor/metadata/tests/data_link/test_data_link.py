@@ -3892,6 +3892,9 @@ def test_rebuild_graph_relation_binding_uses_short_name_for_long_databus():
         bk_biz_id=1001,
         surrealdb_cluster_name="surreal-non-default",
         table_id=table_id,
+        graph_result_table_name="graph_vm_only_rebuild_surreal_rt",
+        surrealdb_binding_name="graph_vm_only_rebuild_surreal_binding",
+        graph_databus_name="graph_vm_only_rebuild_surreal_databus",
         table_type="normal",
         write_mode=GraphRelationBindingConfig.WRITE_MODE_VM,
         vertices=[{"name": "pod", "id_fields": ["pod_name"]}],
@@ -3918,6 +3921,9 @@ def test_rebuild_graph_relation_binding_uses_short_name_for_long_databus():
     assert graph_binding.write_mode == GraphRelationBindingConfig.WRITE_MODE_VM
     assert graph_binding.vm_cluster_name == "vm-default"
     assert graph_binding.surrealdb_cluster_name == "surreal-non-default"
+    assert graph_binding.graph_result_table_name == "graph_vm_only_rebuild_surreal_rt"
+    assert graph_binding.surrealdb_binding_name == "graph_vm_only_rebuild_surreal_binding"
+    assert graph_binding.graph_databus_name == "graph_vm_only_rebuild_surreal_databus"
     assert graph_binding.table_type == "normal"
     assert graph_binding.vertices == [{"name": "pod", "id_fields": ["pod_name"]}]
     assert graph_binding.relations == [{"name": "pod_node", "from": "pod", "to": "node"}]

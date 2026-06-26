@@ -1351,6 +1351,18 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
             ).first()
             if existing_graph_binding:
                 graph_binding_lookup = {"pk": existing_graph_binding.pk}
+            fallback_graph_binding = existing_graph_binding or graph_relation_binding
+            graph_result_table_name = getattr(surrealdb_binding, "bkbase_result_table_name", "") or getattr(
+                fallback_graph_binding, "graph_result_table_name", ""
+            )
+            surrealdb_binding_name = getattr(surrealdb_binding, "name", "") or getattr(
+                fallback_graph_binding, "surrealdb_binding_name", ""
+            )
+            graph_databus_name = _find_databus_name_for_sink(
+                databus_instances,
+                DataLinkKind.SURREALDBBINDING.value,
+                getattr(surrealdb_binding, "name", ""),
+            ) or getattr(fallback_graph_binding, "graph_databus_name", "")
 
             GraphRelationBindingConfig.objects.update_or_create(
                 **graph_binding_lookup,
@@ -1366,37 +1378,33 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
                     "surrealdb_cluster_name": getattr(
                         surrealdb_binding,
                         "surrealdb_cluster_name",
-                        getattr(graph_relation_binding, "surrealdb_cluster_name", ""),
+                        getattr(fallback_graph_binding, "surrealdb_cluster_name", ""),
                     ),
                     "table_id": table_ids[0] if table_ids else "",
                     "bkbase_result_table_name": getattr(vm_binding, "bkbase_result_table_name", ""),
-                    "graph_result_table_name": getattr(surrealdb_binding, "bkbase_result_table_name", ""),
+                    "graph_result_table_name": graph_result_table_name,
                     "vm_storage_binding_name": getattr(vm_binding, "name", ""),
                     "vm_databus_name": _find_databus_name_for_sink(
                         databus_instances,
                         DataLinkKind.VMSTORAGEBINDING.value,
                         getattr(vm_binding, "name", ""),
                     ),
-                    "surrealdb_binding_name": getattr(surrealdb_binding, "name", ""),
-                    "graph_databus_name": _find_databus_name_for_sink(
-                        databus_instances,
-                        DataLinkKind.SURREALDBBINDING.value,
-                        getattr(surrealdb_binding, "name", ""),
-                    ),
+                    "surrealdb_binding_name": surrealdb_binding_name,
+                    "graph_databus_name": graph_databus_name,
                     "table_type": getattr(
                         surrealdb_binding,
                         "table_type",
-                        getattr(graph_relation_binding, "table_type", "temporary"),
+                        getattr(fallback_graph_binding, "table_type", "temporary"),
                     ),
                     "vertices": getattr(
                         surrealdb_binding,
                         "vertices",
-                        getattr(graph_relation_binding, "vertices", []),
+                        getattr(fallback_graph_binding, "vertices", []),
                     ),
                     "relations": getattr(
                         surrealdb_binding,
                         "relations",
-                        getattr(graph_relation_binding, "relations", []),
+                        getattr(fallback_graph_binding, "relations", []),
                     ),
                 },
             )
