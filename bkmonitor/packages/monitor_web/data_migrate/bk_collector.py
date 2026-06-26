@@ -192,7 +192,6 @@ def refresh_biz_bk_collector_proxy_configs(
     check_delivery: bool = True,
     delivery_wait_timeout: int = DEFAULT_CONFIG_DELIVERY_WAIT_TIMEOUT,
     delivery_poll_interval: int = DEFAULT_CONFIG_DELIVERY_POLL_INTERVAL,
-    include_default_biz: bool = True,
     include_details: bool = False,
 ) -> dict[str, Any]:
     """Refresh bk-collector proxy configs for selected config families."""
@@ -200,7 +199,7 @@ def refresh_biz_bk_collector_proxy_configs(
     logger.info(
         "refresh_biz_bk_collector_proxy_configs: start bk_tenant_id=%s bk_biz_ids=%s config_types=%s "
         "operator=%s dry_run=%s check_delivery=%s delivery_wait_timeout=%s delivery_poll_interval=%s "
-        "include_default_biz=%s include_details=%s",
+        "include_details=%s",
         bk_tenant_id,
         bk_biz_ids,
         selected_config_types,
@@ -209,7 +208,6 @@ def refresh_biz_bk_collector_proxy_configs(
         check_delivery,
         delivery_wait_timeout,
         delivery_poll_interval,
-        include_default_biz,
         include_details,
     )
     report = _init_report(
@@ -243,7 +241,6 @@ def refresh_biz_bk_collector_proxy_configs(
             bk_biz_ids=bk_biz_ids,
             config_types=selected_config_types,
             operator=operator,
-            include_default_biz=include_default_biz,
             wait_timeout=delivery_wait_timeout,
             poll_interval=delivery_poll_interval,
         )
@@ -303,7 +300,6 @@ def disable_biz_bk_collector_subscription_auto_inspection(
         bk_tenant_id=bk_tenant_id,
         bk_biz_ids=normalized_bk_biz_ids,
         config_types=CONFIG_TYPES,
-        include_default_biz=False,
     )
 
     with _local_operator_context(bk_tenant_id=bk_tenant_id, operator=operator):
@@ -335,7 +331,6 @@ def check_biz_bk_collector_proxy_config_delivery(
     bk_biz_ids: list[int],
     config_types: list[str] | tuple[str, ...] | None = None,
     operator: str = "system",
-    include_default_biz: bool = False,
     wait_timeout: int = 0,
     poll_interval: int = DEFAULT_CONFIG_DELIVERY_POLL_INTERVAL,
 ) -> dict[str, Any]:
@@ -344,12 +339,11 @@ def check_biz_bk_collector_proxy_config_delivery(
     normalized_bk_biz_ids = _unique_ints(bk_biz_ids)
     logger.info(
         "check_biz_bk_collector_proxy_config_delivery: start bk_tenant_id=%s bk_biz_ids=%s "
-        "config_types=%s operator=%s include_default_biz=%s wait_timeout=%s poll_interval=%s",
+        "config_types=%s operator=%s wait_timeout=%s poll_interval=%s",
         bk_tenant_id,
         normalized_bk_biz_ids,
         selected_config_types,
         operator,
-        include_default_biz,
         wait_timeout,
         poll_interval,
     )
@@ -365,7 +359,6 @@ def check_biz_bk_collector_proxy_config_delivery(
             bk_biz_ids=normalized_bk_biz_ids,
             config_types=selected_config_types,
             operator=operator,
-            include_default_biz=include_default_biz,
         )
         report["poll_attempts"] = poll_attempts
         report["timed_out"] = False
@@ -424,7 +417,6 @@ def _check_biz_bk_collector_proxy_config_delivery_once(
     bk_biz_ids: list[int],
     config_types: tuple[str, ...],
     operator: str,
-    include_default_biz: bool,
 ) -> dict[str, Any]:
     report = _init_report(
         bk_tenant_id=bk_tenant_id,
@@ -433,13 +425,11 @@ def _check_biz_bk_collector_proxy_config_delivery_once(
         dry_run=False,
         categories=config_types,
     )
-    report["include_default_biz"] = include_default_biz
 
     subscriptions = _list_proxy_config_delivery_subscriptions(
         bk_tenant_id=bk_tenant_id,
         bk_biz_ids=bk_biz_ids,
         config_types=config_types,
-        include_default_biz=include_default_biz,
     )
     logger.info(
         "check_biz_bk_collector_proxy_config_delivery: matched subscriptions bk_tenant_id=%s "
@@ -650,9 +640,8 @@ def _list_proxy_config_delivery_subscriptions(
     bk_tenant_id: str,
     bk_biz_ids: list[int],
     config_types: tuple[str, ...],
-    include_default_biz: bool,
 ) -> list[dict[str, Any]]:
-    query_bk_biz_ids = _unique_ints([*bk_biz_ids, 0] if include_default_biz else bk_biz_ids)
+    query_bk_biz_ids = _unique_ints(bk_biz_ids)
     subscriptions: list[dict[str, Any]] = []
 
     if APM_APPLICATION in config_types:
@@ -717,10 +706,9 @@ def _list_proxy_config_delivery_subscriptions(
     }
     logger.info(
         "list_proxy_config_delivery_subscriptions: completed bk_tenant_id=%s bk_biz_ids=%s "
-        "include_default_biz=%s subscription_count=%s subscription_counts=%s",
+        "subscription_count=%s subscription_counts=%s",
         bk_tenant_id,
         bk_biz_ids,
-        include_default_biz,
         len(subscriptions),
         subscription_counts,
     )

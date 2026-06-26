@@ -12,6 +12,14 @@ def _log_group(log_group_id=1, bk_biz_id=2, log_group_name="demo-log"):
     return SimpleNamespace(log_group_id=log_group_id, bk_biz_id=bk_biz_id, log_group_name=log_group_name)
 
 
+class FakeEmptyQuerySet(list):
+    def values(self, *fields):
+        return self
+
+    def order_by(self, *fields):
+        return self
+
+
 def _patch_new_env_scope_sync(monkeypatch):
     calls = []
 
@@ -198,7 +206,6 @@ def test_disable_biz_bk_collector_subscription_auto_inspection_disables_subscrip
     sync_calls = _patch_new_env_scope_sync(monkeypatch)
 
     def fake_list_subscriptions(**kwargs):
-        assert kwargs["include_default_biz"] is False
         assert kwargs["config_types"] == bk_collector.CONFIG_TYPES
         return [
             {
@@ -283,6 +290,28 @@ def test_check_biz_bk_collector_proxy_config_delivery_does_not_switch_nodeman_ap
     )
 
     assert result["message"] == "no matched bk-collector proxy config subscription"
+
+
+def test_list_proxy_config_delivery_subscriptions_only_queries_requested_biz(monkeypatch):
+    filter_biz_ids = []
+
+    class FakeObjects:
+        def filter(self, **kwargs):
+            filter_biz_ids.append(kwargs["bk_biz_id__in"])
+            return FakeEmptyQuerySet()
+
+    monkeypatch.setattr(bk_collector, "SubscriptionConfig", SimpleNamespace(objects=FakeObjects()))
+    monkeypatch.setattr(bk_collector, "CustomReportSubscription", SimpleNamespace(objects=FakeObjects()))
+    monkeypatch.setattr(bk_collector, "LogSubscriptionConfig", SimpleNamespace(objects=FakeObjects()))
+
+    result = bk_collector._list_proxy_config_delivery_subscriptions(
+        bk_tenant_id="tencent",
+        bk_biz_ids=[19078],
+        config_types=bk_collector.CONFIG_TYPES,
+    )
+
+    assert result == []
+    assert filter_biz_ids == [[19078], [19078], [19078]]
 
 
 def test_sync_new_env_biz_scope_config_updates_global_config_and_removes_opposite_list(monkeypatch, settings):
@@ -682,7 +711,6 @@ def test_refresh_biz_bk_collector_configs_checks_delivery_after_refresh(monkeypa
             "bk_biz_ids": [2],
             "config_types": (bk_collector.CUSTOM_REPORT,),
             "operator": "admin",
-            "include_default_biz": True,
             "wait_timeout": 30,
             "poll_interval": 2,
         }
