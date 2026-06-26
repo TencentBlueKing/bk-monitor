@@ -15,6 +15,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import re
 import time
+import time
+from urllib.parse import quote
 
 from django.http import HttpResponseRedirect
 from django.urls import reverse
@@ -33,6 +35,10 @@ from bkmonitor.issue_merge import IssueFrozenError, IssueMergeResolver
 from bkmonitor.models import TapdWorkspaceBinding
 from bkmonitor.models.issue import IssueMergeRelation, IssueTapdRelation
 from bkmonitor.utils.request import get_request_username, get_request
+from bkmonitor.models.issue import IssueTapdRelation
+from bkmonitor.utils.request import get_request_username
+from bkmonitor.models import IssueMergeRelation, TapdWorkspaceBinding
+from bkmonitor.utils.request import get_request
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
 from bkmonitor.utils.user import set_local_username
@@ -2181,13 +2187,19 @@ class ListUserTapdWorkspaceResource(Resource):
             self._raise_reauth_required(bk_biz_id, tenant_id, username, success_url, error_url)
 
         try:
-            user_granted_resp = api.tapd.get_user_granted_workspaces(access_token=access_token)
+            user_granted_resp = api.tapd.get_granted_workspaces(access_token=access_token)
         except BKAPIError as e:
             # 422 = access_token 无效/过期，清理失效 token，统一转 403 + auth_url 引导重新授权
-            error_data = e.data if isinstance(e.data, dict) else {}
-            if str(error_data.get("code", "")) == "422":
-                delete_tapd_token(tenant_id=tenant_id, username=username)
+            # 注：TAPD 返回 HTTP 422，APIResource.raise_for_status 先抛 HTTPError → BKAPIError，
+            # 此时 e.data 是 response.content 字符串（非 dict），e.message 含 "422"
+            error_code = ""
+            if isinstance(e.data, dict):
+                error_code = str(e.data.get("code", ""))
+            elif isinstance(e.data, str) and "422" in e.data:
+                error_code = "422"
+            if error_code == "422" or "422" in str(e.message):
                 logger.info("TAPD user token invalid (422), clearing token for reauth: %s", e)
+                delete_tapd_token(tenant_id=tenant_id, username=username)
                 self._raise_reauth_required(bk_biz_id, tenant_id, username, success_url, error_url)
             # 其他 API 错误直接抛出
             raise
@@ -2217,7 +2229,7 @@ class ListUserTapdWorkspaceResource(Resource):
 
         params = [{"workspace_id": int(ws_id), "access_token": access_token} for ws_id in workspace_ids]
         # ignore_exceptions=True：单个失败返回 None，不中断整体
-        raw_results = api.tapd.get_user_workspace_info.bulk_request(params, ignore_exceptions=True)
+        raw_results = api.tapd.get_workspace_info.bulk_request(params, ignore_exceptions=True)
 
         details = []
         for ws_id, raw in zip(workspace_ids, raw_results):
