@@ -182,6 +182,8 @@ class ApplicationConfig(BkCollectorConfig):
 
         # 2.2 获取默认租户下全局配置中主机配置列表，全部配置的主机一定是默认租户下的主机
         default_target_hosts = self.get_target_host_in_default_cloud_area()
+
+        # 2.3 如果没有任何主机需要下发, 则跳过流程
         if not default_target_hosts and not proxy_target_hosts:
             logger.info("no bk-collector node, otlp is disabled")
             return
@@ -190,8 +192,7 @@ class ApplicationConfig(BkCollectorConfig):
             # 3. 下发给指定租户下
             if bk_tenant_id == DEFAULT_TENANT_ID:
                 # 下发到默认租户下全局配置主机和指定租户下业务代理主机上
-                if default_target_hosts or proxy_target_hosts:
-                    self.deploy(bk_tenant_id, application_config, list(set(default_target_hosts + proxy_target_hosts)))
+                self.deploy(bk_tenant_id, application_config, list(set(default_target_hosts + proxy_target_hosts)))
             else:
                 if default_target_hosts:
                     # 下发到默认租户下全局配置主机
@@ -209,6 +210,7 @@ class ApplicationConfig(BkCollectorConfig):
         业务黑白名单:
         如果业务在黑名单中，则不下发该业务下的所有集群配置，避免与新环境刷新配置冲突。
         如果业务不在白名单或阈值外，则不下发该业务下的所有集群配置，避免与旧环境刷新配置冲突。
+        配置的默认部署集群, 必须下发。
         """
         if not applications:
             return
