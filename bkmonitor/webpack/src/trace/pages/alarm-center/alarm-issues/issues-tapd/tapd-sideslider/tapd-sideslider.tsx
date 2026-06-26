@@ -153,7 +153,10 @@ export default defineComponent({
                     <TapdRelation
                       ref='tapdRelation'
                       style='margin: 13px 40px'
+                      bizId={this.bizId}
                       modelValue={this.linkTapdIds}
+                      tapdType={this.formData.tapd_type}
+                      workspaceId={this.formData.workspace_id}
                       onUpdate:modelValue={this.handleLinkTapdIdsChange}
                     />
                   );
@@ -161,22 +164,6 @@ export default defineComponent({
                 return undefined;
               })()}
               <div class='create-tapd-content'>
-                {(() => {
-                  if (this.tapdFieldFormLoading) {
-                    return <TapdFieldFormLoadingCom />;
-                  }
-                  if (this.tapdFields.length) {
-                    return (
-                      <TapdFieldForm
-                        ref='tapdFieldForm'
-                        fields={this.tapdFields}
-                        value={this.tapdFieldValue}
-                        onChange={this.handleFieldValueChange}
-                      />
-                    );
-                  }
-                  return undefined;
-                })()}
                 <div class='sync-tapd-status'>
                   <Checkbox v-model={this.formData.sync_status}>
                     <span class='sync-tapd-status-title'>{this.$t('同步单据状态')}</span>

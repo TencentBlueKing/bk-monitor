@@ -106,7 +106,7 @@ export function useTapdSideslider(options: UseTapdSidesliderOptions) {
         createTapdDefaultValue.value = res;
         const targetWorkspace = filterWorkspaceList.value.find(item => item.workspace_id === res.workspace_id);
         formData.value = {
-          workspace_id: targetWorkspace ? res.workspace_id : filterWorkspaceList.value[0].workspace_id,
+          workspace_id: targetWorkspace ? res.workspace_id : filterWorkspaceList.value?.[0]?.workspace_id,
           tapd_type: res.tapd_type || 'story',
           sync_status: false,
         };
@@ -133,7 +133,6 @@ export function useTapdSideslider(options: UseTapdSidesliderOptions) {
    * 处理 tab 切换
    */
   const handleTabChange = (value: string) => {
-    if (value !== 'add') return;
     tabActive.value = value;
   };
 
