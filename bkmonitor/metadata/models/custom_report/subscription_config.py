@@ -25,7 +25,6 @@ from bkmonitor.utils.new_env import is_biz_id_need_managed
 from constants.bk_collector import BkCollectorComp
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
-from metadata.models.bcs.cluster import BCSClusterInfo
 from metadata.models.constants import LOG_REPORT_MAX_QPS
 from metadata.models.custom_report.log import LogGroup
 
@@ -483,6 +482,8 @@ class CustomReportSubscription(models.Model):
         op_type: str = "add",
         deploy_targets: tuple[str, ...] | list[str] | str = ("node_man", "k8s"),
         dry_run: bool = False,
+        node_man_biz_black_list: list[int | str] | None = None,
+        filter_k8s_new_env_scope: bool = True,
     ):
         """
         指定业务ID更新，或者更新全量业务
@@ -507,11 +508,17 @@ class CustomReportSubscription(models.Model):
         if invalid_deploy_targets:
             raise ValueError(f"unsupported custom report deploy targets: {invalid_deploy_targets}")
 
+        if node_man_biz_black_list is None:
+            node_man_biz_black_list = settings.NEW_ENV_BIZ_BLACK_LIST
+
         logger.info(
-            "refresh custom report config to proxy on bk_biz_id(%s), deploy_targets(%s), dry_run(%s)",
+            "refresh custom report config to proxy on bk_biz_id(%s), deploy_targets(%s), dry_run(%s), "
+            "node_man_biz_black_list(%s), filter_k8s_new_env_scope(%s)",
             bk_biz_id,
             deploy_targets,
             dry_run,
+            node_man_biz_black_list,
+            filter_k8s_new_env_scope,
         )
 
         report = {
@@ -566,66 +573,68 @@ class CustomReportSubscription(models.Model):
             }
             if "node_man" in deploy_targets:
                 # 业务黑名单
-                if bk_biz_id in settings.NEW_ENV_BIZ_BLACK_LIST:
+                if bk_biz_id != 0 and bk_biz_id in settings.NEW_ENV_BIZ_BLACK_LIST:
                     target_record = {
-                        "action": "dry_run" if dry_run else "refresh",
-                        "result": None if dry_run else True,
+                        "action": "skip",
+                        "result": True,
                         "message": "skip refresh custom report config to node_man because business is in black list",
                     }
                     detail["targets"]["node_man"] = target_record
-                    continue
-
-                try:
-                    # 1. 下发配置（走节点管理下发至主机）
-                    target_record = cls._refresh_collect_custom_config_by_biz(
-                        bk_tenant_id=bk_tenant_id if bk_biz_id != 0 else DEFAULT_TENANT_ID,
-                        bk_biz_id=bk_biz_id,
-                        op_type=op_type,
-                        data_id_configs=data_id_configs,
-                        dry_run=dry_run,
-                    )
-                    if target_record is None:
+                else:
+                    try:
+                        # 1. 下发配置（走节点管理下发至主机）
+                        target_record = cls._refresh_collect_custom_config_by_biz(
+                            bk_tenant_id=bk_tenant_id if bk_biz_id != 0 else DEFAULT_TENANT_ID,
+                            bk_biz_id=bk_biz_id,
+                            op_type=op_type,
+                            data_id_configs=data_id_configs,
+                            dry_run=dry_run,
+                        )
+                        if target_record is None:
+                            target_record = {
+                                "action": "dry_run" if dry_run else "refresh",
+                                "result": None if dry_run else True,
+                                "message": "success",
+                            }
+                    except Exception as e:
                         target_record = {
                             "action": "dry_run" if dry_run else "refresh",
-                            "result": None if dry_run else True,
-                            "message": "success",
+                            "result": False,
+                            "message": str(e),
                         }
-                except Exception as e:
-                    target_record = {"action": "dry_run" if dry_run else "refresh", "result": False, "message": str(e)}
-                    logger.exception(f"refresh custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}")
-                detail["targets"]["node_man"] = target_record
+                        logger.exception(f"refresh custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}")
+                    detail["targets"]["node_man"] = target_record
 
             if "k8s" in deploy_targets:
                 # 业务黑白名单
-                if bk_biz_id != 0 and not is_biz_id_need_managed(bk_biz_id):
+                if filter_k8s_new_env_scope and bk_biz_id != 0 and not is_biz_id_need_managed(bk_biz_id):
                     target_record = {
-                        "action": "dry_run" if dry_run else "refresh",
-                        "result": None if dry_run else True,
+                        "action": "skip",
+                        "result": True,
                         "message": "skip refresh custom report config to k8s because business is not managed",
                     }
                     detail["targets"]["k8s"] = target_record
-                    continue
-
-                target_record = {
-                    "action": "dry_run" if dry_run else "refresh",
-                    "result": None if dry_run else True,
-                    "message": "would refresh custom report config to k8s" if dry_run else "success",
-                }
-                if not dry_run:
-                    try:
-                        # 2. 下发配置（走 K8S 下发至集群）
-                        target_record = cls._refresh_k8s_custom_config_by_biz(
-                            bk_biz_id=bk_biz_id,
-                            data_id_configs=data_id_configs,
-                        )
-                        if target_record is None:
-                            target_record = {"action": "refresh", "result": True, "message": "success"}
-                    except Exception as e:
-                        target_record.update({"result": False, "message": str(e)})
-                        logger.exception(
-                            f"refresh k8s custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}"
-                        )
-                detail["targets"]["k8s"] = target_record
+                else:
+                    target_record = {
+                        "action": "dry_run" if dry_run else "refresh",
+                        "result": None if dry_run else True,
+                        "message": "would refresh custom report config to k8s" if dry_run else "success",
+                    }
+                    if not dry_run:
+                        try:
+                            # 2. 下发配置（走 K8S 下发至集群）
+                            target_record = cls._refresh_k8s_custom_config_by_biz(
+                                bk_biz_id=bk_biz_id,
+                                data_id_configs=data_id_configs,
+                            )
+                            if target_record is None:
+                                target_record = {"action": "refresh", "result": True, "message": "success"}
+                        except Exception as e:
+                            target_record.update({"result": False, "message": str(e)})
+                            logger.exception(
+                                f"refresh k8s custom report config to proxy on bk_biz_id({bk_biz_id}) error, {e}"
+                            )
+                    detail["targets"]["k8s"] = target_record
             report["details"].append(detail)
 
         report["summary"] = cls._build_refresh_collector_custom_conf_summary(report["details"], dry_run=dry_run)
@@ -807,6 +816,8 @@ class LogSubscriptionConfig(models.Model):
             # 补充中心化集群
             for cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
                 cluster_mapping[cluster_id] = [BkCollectorClusterConfig.GLOBAL_CONFIG_BK_BIZ_ID]
+
+        from metadata.models.bcs.cluster import BCSClusterInfo
 
         # 获取BCS集群与业务ID的映射关系
         bcs_cluster_to_biz_ids: dict[str, int] = {}

@@ -22,6 +22,7 @@ from django.utils import timezone
 
 from alarm_backends.core.lock.service_lock import share_lock
 from bkmonitor.models import QueryConfigModel
+from bkmonitor.utils.new_env import is_biz_id_need_managed
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.time_tools import datetime_str_to_datetime
 from bkmonitor.utils.version import compare_versions, get_max_version
@@ -179,16 +180,20 @@ def refresh_all_log_config():
     """
     interval = 30
 
-    to_be_refreshed = list(
-        models.LogGroup.objects.filter(is_enable=True, is_need_deploy_collector_config=True).values_list(
-            "log_group_id", flat=True
-        )
+    to_be_refreshed = [
+        log_group
+        for log_group in models.LogGroup.objects.filter(is_enable=True, is_need_deploy_collector_config=True)
+        if is_biz_id_need_managed(log_group.bk_biz_id)
+    ]
+    logger.info(
+        "[refresh_custom_log_config]: matched log groups after new env scope filter, count(%s)",
+        len(to_be_refreshed),
     )
     slug = datetime.datetime.now().minute % interval
-    for index, log_group_id in enumerate(to_be_refreshed):
+    for index, log_group in enumerate(to_be_refreshed):
         if index % interval == slug:
-            logger.info(f"[refresh_custom_log_config]: publish log_group_id [{log_group_id}]")
-            refresh_custom_log_config(log_group_id)
+            logger.info(f"[refresh_custom_log_config]: publish log_group_id [{log_group.log_group_id}]")
+            refresh_custom_log_config(log_group.log_group_id)
 
 
 @share_lock()
@@ -197,7 +202,11 @@ def refresh_all_log_config_to_k8s():
     刷新所有自定义日志的 K8s 配置（获取全部数据进行批量调度）
     """
     # 获取所有启用且需要下发 collector 配置的日志组
-    log_groups = list(models.LogGroup.objects.filter(is_enable=True, is_need_deploy_collector_config=True))
+    log_groups = [
+        log_group
+        for log_group in models.LogGroup.objects.filter(is_enable=True, is_need_deploy_collector_config=True)
+        if is_biz_id_need_managed(log_group.bk_biz_id)
+    ]
     if not log_groups:
         return
 

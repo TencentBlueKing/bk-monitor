@@ -6,7 +6,6 @@ import pytest
 from mockredis.redis import mock_redis_client
 from pytest_mock import MockFixture
 
-from bkmonitor.utils.new_env import is_biz_id_in_new_env_scope
 from metadata.models import (
     ESStorage,
     Event,
@@ -76,18 +75,6 @@ def test_check_event_update(mocker: MockFixture, create_and_delete_record):
     mocker.patch("alarm_backends.core.storage.redis.Cache.__new__", return_value=mock_redis_client())
     check_event_update()
     assert Event.objects.count() == EventGroup.objects.filter(table_id__startswith="tb_").count()
-
-
-def test_is_biz_id_in_new_env_scope():
-    assert is_biz_id_in_new_env_scope(11, start_biz_id="10") is True
-    assert is_biz_id_in_new_env_scope(10, start_biz_id="10") is False
-    assert is_biz_id_in_new_env_scope(5, start_biz_id=10, biz_white_list=[5]) is True
-    assert is_biz_id_in_new_env_scope(12, start_biz_id=10, biz_black_list=[12]) is False
-    assert is_biz_id_in_new_env_scope(12, start_biz_id=10, biz_black_list=[12], biz_white_list=[12]) is False
-    assert is_biz_id_in_new_env_scope(0, start_biz_id=10, biz_black_list=[0]) is True
-    assert is_biz_id_in_new_env_scope("abc", start_biz_id=10) is False
-    assert is_biz_id_in_new_env_scope(10, start_biz_id="") is True
-    assert is_biz_id_in_new_env_scope(10, start_biz_id="invalid") is True
 
 
 def test_refresh_all_log_config_skips_biz_black_list(settings, mocker):

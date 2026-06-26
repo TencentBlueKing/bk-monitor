@@ -1019,10 +1019,13 @@ def test_custom_report_refresh_keeps_biz_zero_when_filters_skip_biz(monkeypatch)
 
     assert [call["bk_biz_id"] for call in node_man_calls] == [0]
     assert [call["bk_biz_id"] for call in k8s_calls] == [0]
-    assert result["details"][0]["bk_biz_id"] == 0
-    assert result["details"][0]["data_ids"] == [2001]
-    assert result["summary"]["matched_biz_count"] == 1
-    assert result["summary"]["target_count"] == 2
+    assert [detail["bk_biz_id"] for detail in result["details"]] == [2, 0]
+    assert result["details"][0]["targets"]["node_man"]["action"] == "skip"
+    assert result["details"][0]["targets"]["k8s"]["action"] == "skip"
+    assert result["details"][1]["data_ids"] == [2001]
+    assert result["summary"]["matched_biz_count"] == 2
+    assert result["summary"]["target_count"] == 4
+    assert result["summary"]["skipped_count"] == 2
 
 
 def test_refresh_collect_custom_config_by_biz_dry_run_returns_proxy_hosts(monkeypatch):

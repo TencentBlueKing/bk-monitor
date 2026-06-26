@@ -19,6 +19,7 @@ from django.db.transaction import atomic
 
 from alarm_backends.core.lock.service_lock import share_lock
 from api.cmdb.define import Business
+from bkmonitor.utils.new_env import is_biz_id_need_managed
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.prometheus import metrics
@@ -58,26 +59,6 @@ from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
-
-
-def is_sync_bkcc_space_managed_biz(bk_biz_id: str, start_biz_id: int | None) -> bool:
-    """
-    判断当前业务是否由 sync_bkcc_space 接管新增、删除及 V4 内置链路检查。
-
-    规则：
-    - 未配置 ``NEW_ENV_START_BIZ_ID``（``start_biz_id`` 为 ``None``）：全部接管，保持历史行为；
-    - 已配置：仅当 ``bk_biz_id`` **严格大于**阈值时才接管，阈值以下（含阈值）的业务交由其它任务/链路管理；
-    - ``bk_biz_id`` 无法解析为整数：保守地视为不接管，避免异常数据被误纳入删除链。
-
-    注意：冲突空间软禁用等保护性逻辑不受该阈值影响，仍对全量业务生效。
-    """
-    if start_biz_id is None:
-        return True
-
-    try:
-        return int(bk_biz_id) > start_biz_id
-    except (TypeError, ValueError):
-        return False
 
 
 def _disable_related_bkci_spaces(bkcc_space_ids: list[str]):
@@ -163,24 +144,12 @@ def sync_bkcc_space(bk_tenant_id: str | None = None, allow_deleted=False, create
     biz_id_name_dict = {str(b.bk_biz_id): b for b in biz_list}
 
     # 只有业务 ID 大于阈值的业务才会被接管新增、删除及 V4 内置链路检查；阈值以下业务交由其它任务/链路管理
-    start_biz_id = settings.NEW_ENV_START_BIZ_ID
-    if start_biz_id in ("", None):
-        start_biz_id = None
-    else:
-        try:
-            start_biz_id = int(start_biz_id)
-        except (TypeError, ValueError):
-            logger.warning("sync_bkcc_space: invalid NEW_ENV_START_BIZ_ID(%s), disable threshold filter", start_biz_id)
-            start_biz_id = None
-
-    managed_biz_ids = {biz_id for biz_id in biz_id_name_dict if is_sync_bkcc_space_managed_biz(biz_id, start_biz_id)}
+    managed_biz_ids = {biz_id for biz_id in biz_id_name_dict if is_biz_id_need_managed(biz_id)}
     # 过滤已经创建空间的业务
     space_id_list = Space.objects.filter(space_type_id=bkcc_type_id).values_list("space_id", flat=True)
     diff = managed_biz_ids - set(space_id_list)
     diff_delete = {
-        space_id
-        for space_id in set(space_id_list) - set(biz_id_name_dict.keys())
-        if is_sync_bkcc_space_managed_biz(space_id, start_biz_id)
+        space_id for space_id in set(space_id_list) - set(biz_id_name_dict.keys()) if is_biz_id_need_managed(space_id)
     }
 
     # 针对删除的业务
