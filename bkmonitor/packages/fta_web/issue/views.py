@@ -36,8 +36,8 @@ class IssueViewSet(ResourceViewSet):
         "issue/merge_sources",
         "issue/alert_enrich",
         "tapd/workspace",
-        "tapd/user_workspace",
         "issue/get_tapd_fields",
+        "issue/search_tapd_items",
     ]
 
     # 允许不传业务 ID 的接口（由业务层自行限制数据范围）
@@ -101,7 +101,7 @@ class IssueViewSet(ResourceViewSet):
             bk_biz_id = body.get("bk_biz_id")
             success_url = body.get("success_url")
             # error_url 为可选，未传时回退到 success_url
-            error_url = body.get("error_url")
+            error_url = body.get("error_url") or success_url
 
             # URL 补全：前端可传路径或全 URL，路径自动补 / 前缀和域名
             success_url = normalize_redirect_url(success_url, request)
@@ -130,6 +130,7 @@ class IssueViewSet(ResourceViewSet):
                 success_url=success_url,
                 error_url=error_url,
                 backend_callback=backend_callback,
+                request=request,
             )
             # 使用 CustomException（非 DRF PermissionDenied）以保证
             # MonitorJSONRenderer 能输出 {"result":false, "code":403, "data":{"auth_url":...}}
@@ -201,6 +202,8 @@ class IssueViewSet(ResourceViewSet):
         ResourceRoute("POST", UnbindTapdWorkspaceResource, endpoint="tapd/workspace/unbind"),
         # 获取 TAPD 单据的字段
         ResourceRoute("POST", resource.issue.get_tapd_fields, endpoint="issue/get_tapd_fields"),
+        # 查询已有TAPD单据
+        ResourceRoute("POST", resource.issue.search_tapd_items, endpoint="issue/search_tapd_items"),
         # 创建TAPD单据
         ResourceRoute("POST", resource.issue.create_tapd, endpoint="issue/create_tapd"),
     ]

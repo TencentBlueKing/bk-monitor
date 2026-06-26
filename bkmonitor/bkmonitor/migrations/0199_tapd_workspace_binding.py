@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("bkmonitor", "0197_strategylabel_covering_index"),
+        ("bkmonitor", "0198_add_issue_tapd_relation"),
     ]
 
     operations = [

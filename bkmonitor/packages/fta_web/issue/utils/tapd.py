@@ -244,8 +244,9 @@ def generate_auth_url(
     success_url: str,
     error_url: str,
     backend_callback: str,
+    request=None,
 ) -> str:
-    """生成 TAPD 用户态 OAuth 授权 URL，state 使用自包含 signed_state（不依赖 session）。
+    """生成 TAPD 用户态 OAuth 授权 URL，state 写入当前浏览器 session。
 
     :param bk_biz_id: 蓝鲸业务 ID
     :param bk_tenant_id: 租户 ID
@@ -253,26 +254,30 @@ def generate_auth_url(
     :param success_url: 含 # 的真实前端地址，B-05 回调成功后 302 重定向目标
     :param error_url: 含 # 的前端错误页面地址，B-05 回调失败后 302 重定向目标
     :param backend_callback: 后端 OAuth 回调地址（由调用方通过 reverse + build_absolute_uri 构建）
+    :param request: 当前 Django request，用于写入 OAuth state session
     """
     if not backend_callback:
         raise ValidationError("backend_callback is empty")
+    if request is None:
+        raise ValidationError("request is required to persist TAPD OAuth state")
 
-    # 生成 signed_state（自包含 HMAC 签名 payload），不再依赖 session
-    payload = {
+    nonce = secrets.token_urlsafe(16)
+    request.session[f"tapd_oauth_state_{bk_biz_id}"] = {
+        "nonce": nonce,
         "bk_biz_id": bk_biz_id,
         "bk_tenant_id": bk_tenant_id,
         "space_uid": bk_biz_id_to_space_uid(bk_biz_id),
-        "initiator": initiator,
+        "username": initiator,
         "exp": int(time.time()) + 900,  # 15min TTL
         "success_url": success_url,
         "error_url": error_url,
         "backend_callback": backend_callback,
     }
-    signed_state = generate_signed_state(payload)
+    request.session.modified = True
 
     backend_callback = quote(backend_callback.rstrip("/"), safe="")
     scope = quote("story#read story#write bug#read bug#write", safe="")
-    state = quote(signed_state, safe="")
+    state = quote(f"{nonce}:{bk_biz_id}", safe="")
     return (
         f"{TapdOauthEndpoint.authorize()}"
         f"?response_type=code"
