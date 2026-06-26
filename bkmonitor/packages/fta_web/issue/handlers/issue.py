@@ -617,9 +617,10 @@ class IssueQueryHandler(BaseBizQueryHandler):
         # fail-open：查询失败时 tapd_count 默认为 0，不阻塞列表
         if issues:
             page_issue_ids = [i["id"] for i in issues if i.get("id")]
+            page_tapd_biz_ids = list({int(i["bk_biz_id"]) for i in issues if i.get("bk_biz_id")})
             try:
                 tapd_count_map = dict(
-                    IssueTapdRelation.objects.filter(issue_id__in=page_issue_ids)
+                    IssueTapdRelation.objects.filter(issue_id__in=page_issue_ids, bk_biz_id__in=page_tapd_biz_ids)
                     .values("issue_id")
                     .annotate(cnt=Count("id"))
                     .values_list("issue_id", "cnt")

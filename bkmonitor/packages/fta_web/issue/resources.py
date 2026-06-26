@@ -1564,6 +1564,8 @@ class CreateTapdResource(Resource):
             # 创建bug单据时te字段必填
             if attrs.get("tapd_type") == "bug" and not attrs.get("te"):
                 raise serializers.ValidationError("The te field is required when tapd_type is bug")
+            if attrs.get("sync_status"):
+                raise serializers.ValidationError("sync_status is not supported until TAPD status sync is implemented")
 
             return attrs
 
@@ -1644,7 +1646,7 @@ class CreateTapdResource(Resource):
             params = {k: v for k, v in params.items() if v is not None}
             rs = api.tapd.add_story(**params)["Story"]
             return {
-                "tapd_id": rs["id"],
+                "tapd_id": str(rs["id"]),
                 "tapd_type": tapd_type,
                 "name": rs["name"],
                 "description": rs["description"],
@@ -1665,7 +1667,7 @@ class CreateTapdResource(Resource):
             params = {k: v for k, v in params.items() if v is not None}
             rs = api.tapd.add_bug(**params)["Bug"]
             return {
-                "tapd_id": rs["id"],
+                "tapd_id": str(rs["id"]),
                 "tapd_type": tapd_type,
                 "name": rs["title"],
                 "description": rs["description"],
@@ -1787,6 +1789,8 @@ class CreateTapdResource(Resource):
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
         issue_id = validated_request_data["issue_id"]
+
+        IssueDocument.get_issue_or_raise(issue_id, bk_biz_id=bk_biz_id)
 
         # 已被合并冻结的 Issue 禁止创建 TAPD（与状态机操作一致）
         IssueMergeResolver.assert_not_frozen(issue_id)

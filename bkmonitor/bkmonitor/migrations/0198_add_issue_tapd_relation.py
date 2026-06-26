@@ -21,7 +21,7 @@ class Migration(migrations.Migration):
                 ("bk_biz_id", models.IntegerField(verbose_name="业务 ID")),
                 ("issue_id", models.CharField(max_length=64, verbose_name="Issue ID")),
                 ("workspace_id", models.IntegerField(verbose_name="TAPD 项目 ID")),
-                ("tapd_id", models.IntegerField(verbose_name="TAPD 单据 ID")),
+                ("tapd_id", models.CharField(max_length=64, verbose_name="TAPD 单据 ID")),
                 (
                     "tapd_type",
                     models.CharField(
