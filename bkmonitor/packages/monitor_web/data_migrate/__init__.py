@@ -18,6 +18,7 @@ from monitor_web.data_migrate.bk_collector import (
     refresh_biz_bk_collector_proxy_configs,
     stop_biz_bk_collector,
 )
+from monitor_web.data_migrate.system_event_strategy import migrate_system_event_strategy_config
 
 __all__ = [
     "apply_auto_increment_from_directory",
@@ -30,6 +31,7 @@ __all__ = [
     "get_close_records_from_directory",
     "import_biz_data_from_directory",
     "install_biz_bk_collector",
+    "migrate_system_event_strategy_config",
     "replace_cluster_id_in_directory",
     "replace_tenant_id_in_directory",
     "restore_disabled_models_in_directory",

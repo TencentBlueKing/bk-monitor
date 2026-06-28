@@ -51,6 +51,7 @@ from monitor_web.data_migrate import (
     sanitize_cluster_info_in_directory,
     stop_biz_bk_collector,
     upload_export_directory_to_storage,
+    migrate_system_event_strategy_config,
 )
 from monitor_web.data_migrate.bk_collector import (
     CONFIG_TYPES as BK_COLLECTOR_CONFIG_TYPES,
@@ -138,7 +139,10 @@ class Command(BaseCommand):
             "    python manage.py data_migrate stop-biz-bk-collector --bk-tenant-id tencent --bk-biz-ids 18901 --operator admin\n"
             "\n"
             "  触发业务下 proxy 的 bk-collector 配置下发:\n"
-            "    python manage.py data_migrate refresh-biz-bk-collector-configs --bk-tenant-id tencent --bk-biz-ids 18901 --config-types apm_application custom_report log"
+            "    python manage.py data_migrate refresh-biz-bk-collector-configs --bk-tenant-id tencent --bk-biz-ids 18901 --config-types apm_application custom_report log\n"
+            "\n"
+            "  迁移存量系统事件策略到多租户 custom event 链路:\n"
+            "    python manage.py data_migrate migrate-system-event-strategies --bk-biz-ids 18901 --dry-run"
         )
         parser.add_argument(
             "action",
@@ -161,6 +165,7 @@ class Command(BaseCommand):
                 "disable-biz-bk-collector-subscription-checks",
                 "stop-biz-bk-collector",
                 "refresh-biz-bk-collector-configs",
+                "migrate-system-event-strategies",
             ],
             help="执行导出、导入、恢复游标或 handler 处理",
         )
@@ -175,7 +180,8 @@ class Command(BaseCommand):
                 "rebuild 支持正数和负数业务 ID，负数业务会跳过内置系统数据、拨测和采集插件重建；"
                 "find-custom-report-data-ids 支持正数和负数业务 ID；"
                 "enable-closed-strategies 支持正数和负数业务 ID；"
-                "stop-biz-subscription-tasks 会跳过负数业务 ID"
+                "stop-biz-subscription-tasks 会跳过负数业务 ID；"
+                "migrate-system-event-strategies 不传时扫描全量策略"
             ),
         )
         parser.add_argument("--format", default="json", help="导出文件格式，默认 json；仅 export 动作需要")
@@ -263,7 +269,7 @@ class Command(BaseCommand):
             help=(
                 "仅预览不执行；仅 stop-biz-subscription-tasks、install-biz-bk-collector、"
                 "disable-biz-bk-collector-subscription-checks、stop-biz-bk-collector、"
-                "refresh-biz-bk-collector-configs 动作需要"
+                "refresh-biz-bk-collector-configs、migrate-system-event-strategies 动作需要"
             ),
         )
         parser.add_argument(
@@ -328,6 +334,7 @@ class Command(BaseCommand):
             "disable-biz-bk-collector-subscription-checks": (self._handle_disable_biz_bk_collector_subscription_checks),
             "stop-biz-bk-collector": self._handle_stop_biz_bk_collector,
             "refresh-biz-bk-collector-configs": self._handle_refresh_biz_bk_collector_configs,
+            "migrate-system-event-strategies": self._handle_migrate_system_event_strategies,
         }
         handlers[action](options)
 
@@ -678,6 +685,26 @@ class Command(BaseCommand):
             success_message="refresh biz bk-collector configs completed",
             warning_message="refresh biz bk-collector configs completed with failures",
         )
+
+    def _handle_migrate_system_event_strategies(self, options) -> None:
+        result = migrate_system_event_strategy_config(
+            bk_biz_id=options.get("bk_biz_ids"),
+            dry_run=options.get("dry_run", False),
+        )
+        self.stdout.write(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        if result["stale_count"]:
+            self.stdout.write(
+                self.style.WARNING(
+                    f"migrate system event strategies completed with stale records: {result['stale_count']}"
+                )
+            )
+        else:
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"migrate system event strategies completed: changed={result['changed_count']}, "
+                    f"applied={result['applied_count']}, skipped={result['skipped_count']}"
+                )
+            )
 
     def _write_report_result(self, result: dict[str, Any], *, success_message: str, warning_message: str) -> None:
         self.stdout.write(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
