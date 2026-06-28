@@ -68,6 +68,7 @@ CLUSTER_INFO_FIELDS = [
     "gse_stream_to_id",
     "label",
     "default_settings",
+    "custom_option",
     "creator",
     "create_time",
     "last_modify_user",
