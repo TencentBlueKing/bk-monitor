@@ -378,7 +378,7 @@ export default {
   '搜索 告警关键词': 'Search Alarm Keywords',
 
   // RUM
-  '搜索 应用名称、展示名称、应用状态': 'Search Application Name, Display Name, Application Status',
+  '搜索 应用名称、应用别名、应用状态': 'Search Application Name, Application Alias, Application Status',
   '我要评论...': 'I want to comment...',
   请选择负责人: 'Please select the person in charge',
   请选择聚合维度: 'Please select aggregation dimension',
