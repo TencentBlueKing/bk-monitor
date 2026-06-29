@@ -30,3 +30,4 @@ import { request } from 'monitor-api/base';
 export const getUserWorkspace = request('POST', '/fta/issue/tapd/user_workspace/');
 
 export const searchTapdItems = request('POST', '/fta/issue/issue/search_tapd_items/');
+

@@ -199,7 +199,7 @@ class IssueViewSet(ResourceViewSet):
         # 查询当前用户可见的 TAPD 项目列表（含 install_url）
         ResourceRoute("POST", ListUserTapdWorkspaceResource, endpoint="tapd/user_workspace"),
         # 解绑 TAPD 项目（仅删除本地 binding）
-        ResourceRoute("POST", UnbindTapdWorkspaceResource, endpoint="tapd/workspace/unbind"),
+        ResourceRoute("POST", UnbindTapdWorkspaceResource, endpoint="tapd/tapd/unbind_workspace/"),
         # 获取 TAPD 单据的字段
         ResourceRoute("POST", resource.issue.get_tapd_fields, endpoint="issue/get_tapd_fields"),
         # 查询已有TAPD单据
