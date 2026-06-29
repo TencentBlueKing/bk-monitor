@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, toRef } from 'vue';
+import { type PropType, defineComponent, toRefs } from 'vue';
 
 import { Button, Checkbox, Sideslider } from 'bkui-vue';
 
@@ -48,6 +48,10 @@ export default defineComponent({
       type: [Number, String],
       default: '',
     },
+    issuesId: {
+      type: String,
+      default: '',
+    },
     workspaceList: {
       type: Array as PropType<TapdWorkspaceItem[]>,
       default: () => [],
@@ -55,9 +59,7 @@ export default defineComponent({
   },
   emits: ['update:show', 'addWorkspace'],
   setup(props, { emit }) {
-    const showRef = toRef(props, 'show');
-    const bizIdRef = toRef(props, 'bizId');
-    const workspaceListRef = toRef(props, 'workspaceList');
+    const { show, bizId, issuesId, workspaceList } = toRefs(props);
 
     const {
       count,
@@ -75,7 +77,7 @@ export default defineComponent({
       handleFormDataChange,
       handleFieldValueChange,
       handleLinkTapdIdsChange,
-    } = useTapdSideslider({ show: showRef, bizId: bizIdRef, workspaceList: workspaceListRef });
+    } = useTapdSideslider({ show, bizId, workspaceList, issuesId });
 
     const handleShowChange = (isShow: boolean) => emit('update:show', isShow);
     const handleAddWorkspace = () => emit('addWorkspace');

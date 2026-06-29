@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, toRef } from 'vue';
+import { defineComponent, toRefs } from 'vue';
 
 import { useTapdAuth } from './composables/use-tapd-auth';
 import TapdAuthDialog from './tapd-auth-dialog/tapd-auth-dialog';
@@ -47,11 +47,10 @@ export default defineComponent({
   },
   emits: ['update:show'],
   setup(props, { emit }) {
-    const showRef = toRef(props, 'show');
-    const bizIdRef = toRef(props, 'bizId');
+    const { show, bizId, issuesId } = toRefs(props);
 
     const { loading, authDialogShow, createTapdSliderShow, workspaceList, handleWorkspaceSelect, handleAddWorkspace } =
-      useTapdAuth({ show: showRef, bizId: bizIdRef });
+      useTapdAuth({ show, bizId, issuesId });
 
     const handleShowChange = (val: boolean) => emit('update:show', val);
 
@@ -79,6 +78,7 @@ export default defineComponent({
       <div class='display: none'>
         <TapdSideslider
           bizId={this.bizId}
+          issuesId={this.issuesId}
           show={this.createTapdSliderShow}
           workspaceList={this.workspaceList}
           onAddWorkspace={this.handleAddWorkspace}

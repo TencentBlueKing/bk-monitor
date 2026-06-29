@@ -2160,7 +2160,7 @@ class ListUserTapdWorkspaceResource(Resource):
             data={"auth_url": auth_url},
             code=403,
         )
-        exc.status_code = 200
+        exc.status_code = 403
         raise exc
 
     def _fetch_user_workspace_ids(
