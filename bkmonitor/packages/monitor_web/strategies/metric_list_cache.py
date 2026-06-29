@@ -1512,6 +1512,15 @@ class BaseAlarmMetricCacheManager(BaseMetricCacheManager):
             {"metric_field": "os_restart", "metric_field_name": _("主机重启"), "dimensions": DefaultDimensions.host},
         ]
 
+        # 多租户 PING 不可达：单租户由上方 BaseAlarm(is_enable=True) 内置 ping-gse 目录项（且 te 平台排除）；
+        # 多租户改由全局开关 ENABLE_PING_ALARM 运行时单点治理（而非部署平台 Platform.te），与 os_loader
+        # 创建 PING 策略时的门控口径一致。内置 bk_monitor 源 ping-gse 伪事件目录项，供 os/v4（多租户专用）
+        # 命中、经 EVENT_QUERY_CONFIG_MAP 重定向到底层时序 pingserver.base/loss_percent + PingUnreachable 算法建出。
+        if settings.ENABLE_MULTI_TENANT_MODE and getattr(settings, "ENABLE_PING_ALARM", True):
+            extend_metrics.append(
+                {"metric_field": "ping-gse", "metric_field_name": _("PING不可达"), "dimensions": DefaultDimensions.host}
+            )
+
         for metric in extend_metrics:
             metric_dict = copy.deepcopy(base_dict)
             metric_dict.update(metric)
