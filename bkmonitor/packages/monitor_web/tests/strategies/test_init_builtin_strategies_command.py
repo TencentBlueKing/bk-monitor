@@ -95,3 +95,56 @@ def test_disabled_default_strategy_skips():
     with mock.patch("monitor_web.strategies.built_in.run_build_in", run_build_in):
         call_command(CMD)
     run_build_in.assert_not_called()
+
+
+@override_settings(ENABLE_DEFAULT_STRATEGY=True)
+def test_bad_tenant_skipped_others_continue():
+    """单个租户取管理员/设置上下文失败 -> 跳过该租户、继续其余（不漏覆盖不被单点失败拖垮）。"""
+    calls = []
+    run_build_in = mock.Mock(side_effect=lambda biz, mode="host": calls.append((biz, mode)))
+
+    def get_admin(bk_tenant_id):
+        if bk_tenant_id == "t_bad":
+            raise ValueError("no admin for tenant")
+        return "admin"
+
+    def list_spaces(bk_tenant_id):
+        return {"t_bad": [SimpleNamespace(bk_biz_id=2)], "t_ok": [SimpleNamespace(bk_biz_id=20)]}[bk_tenant_id]
+
+    with ExitStack() as stack:
+        stack.enter_context(mock.patch("monitor_web.strategies.built_in.run_build_in", run_build_in))
+        stack.enter_context(mock.patch("bkmonitor.utils.tenant.set_local_tenant_id", mock.Mock()))
+        stack.enter_context(mock.patch("bkmonitor.utils.user.set_local_username", mock.Mock()))
+        stack.enter_context(mock.patch("bkmonitor.utils.user.get_admin_username", mock.Mock(side_effect=get_admin)))
+        stack.enter_context(
+            mock.patch(
+                "core.drf_resource.api.bk_login.list_tenant", mock.Mock(return_value=[{"id": "t_bad"}, {"id": "t_ok"}])
+            )
+        )
+        stack.enter_context(mock.patch("bkm_space.api.SpaceApi.list_spaces", mock.Mock(side_effect=list_spaces)))
+        call_command(CMD)
+
+    # t_bad 取管理员失败被跳过（biz 2 不触发）；t_ok 正常处理（biz 20 host+k8s）
+    assert set(calls) == {(20, "host"), (20, "k8s")}
+
+
+@override_settings(ENABLE_DEFAULT_STRATEGY=True)
+def test_bk_tenant_id_narrows_without_listing_all_tenants():
+    """--bk-tenant-id：只处理该租户，不调用 list_tenant 枚举全部租户。"""
+    calls = []
+    run_build_in = mock.Mock(side_effect=lambda biz, mode="host": calls.append((biz, mode)))
+    list_tenant = mock.Mock(return_value=[{"id": "should-not-be-used"}])
+
+    with ExitStack() as stack:
+        stack.enter_context(mock.patch("monitor_web.strategies.built_in.run_build_in", run_build_in))
+        stack.enter_context(mock.patch("bkmonitor.utils.tenant.set_local_tenant_id", mock.Mock()))
+        stack.enter_context(mock.patch("bkmonitor.utils.user.set_local_username", mock.Mock()))
+        stack.enter_context(mock.patch("bkmonitor.utils.user.get_admin_username", mock.Mock(return_value="admin")))
+        stack.enter_context(mock.patch("core.drf_resource.api.bk_login.list_tenant", list_tenant))
+        stack.enter_context(
+            mock.patch("bkm_space.api.SpaceApi.list_spaces", mock.Mock(return_value=[SimpleNamespace(bk_biz_id=7)]))
+        )
+        call_command(CMD, bk_tenant_id="only_t", modes="host")
+
+    assert set(calls) == {(7, "host")}
+    list_tenant.assert_not_called()

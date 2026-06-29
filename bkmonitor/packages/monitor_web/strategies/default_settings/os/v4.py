@@ -24,8 +24,10 @@ from django.utils.translation import gettext_lazy as _lazy
 # 为何单列 v4、而非并入 v2/v3 或放回 v1：
 #   - v2 是 custom 源系统事件，形态不符；
 #   - v3 已随 #11148 上线、部分业务可能已登记接入，并入会因幂等跳过、永不补建（同 v3 不并入 v1 的理由）；
-#   - v1 的 ping-gse 声明在多租户仍执行，但已登记 v1 的存量业务会因幂等跳过、永不补建。
-#   故单列新版本 v4 才能对存量业务增量补建 PING。
+#   - v1 的 ping-gse 声明已同步收敛为单租户专用（os/v1.py 叠加 `not ENABLE_MULTI_TENANT_MODE` 门控）：
+#     多租户由本 v4 唯一承载，避免 v1 与 v4 对未登记 v1 的新业务各建一条、产生重复 PING；放回 v1 也会
+#     令已登记 v1 的存量业务幂等跳过、永不补建。
+#   故单列新版本 v4 才能对存量业务增量补建 PING、且不与 v1 重复。
 #
 # 是否真正建出由全局开关 ENABLE_PING_ALARM 运行时单点治理（os_loader 加载时按 settings.ENABLE_PING_ALARM
 # 跳过、access 层同门控；BaseAlarmMetricCacheManager 内置 ping-gse 目录项时亦按此开关门控），而非部署

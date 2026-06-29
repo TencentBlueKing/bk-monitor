@@ -1465,12 +1465,13 @@ class BaseAlarmMetricCacheManager(BaseMetricCacheManager):
             "collect_config_ids": [],
         }
 
-        # 多租户下 gse 系统事件（AgentLost/DiskReadonly/CoreFile/OOM/PingUnreachable）及 gse 进程托管
-        # 事件已改由 V4 custom 分业务链路内置（CustomEventCacheManager + os/v2，结果表
-        # base_{tenant}_{biz}_event）；此处在多租户仅保留下方 extend_metrics 的 proc_port/os_restart
-        # 两个伪事件——它们的底层时序表 system.proc_port / system.env 在多租户同样产出，仍按
-        # bk_monitor 源 event 内置为目录项，供 os/v3（多租户专用）/ os/v1（单租户）命中、
-        # 经 os_loader 的 EVENT_QUERY_CONFIG_MAP 重定向到底层时序表后创建。
+        # 多租户下 gse 系统事件（AgentLost/DiskReadonly/CoreFile/OOM）及 gse 进程托管事件已改由 V4 custom
+        # 分业务链路内置（CustomEventCacheManager + os/v2，结果表 base_{tenant}_{biz}_event）；此处在多租户
+        # 仅保留下方 extend_metrics 的 proc_port/os_restart（以及按 ENABLE_PING_ALARM 追加的 ping-gse）这几个
+        # bk_monitor 源伪事件——它们的底层时序表 system.proc_port / system.env / pingserver.base 在多租户同样
+        # 产出，仍按 bk_monitor 源 event 内置为目录项，供 os/v3（主机重启/进程端口，多租户专用）、os/v4
+        # （PING，多租户专用）、os/v1（单租户）命中，经 os_loader 的 EVENT_QUERY_CONFIG_MAP 重定向到底层
+        # 时序表后创建。
         if not settings.ENABLE_MULTI_TENANT_MODE:
             metric_list = BaseAlarm.objects.filter(is_enable=True)
             if Platform.te:

@@ -94,6 +94,10 @@ def test_os_v1_v3_multi_tenant_builtin_event_declaration():
             # v1 多租户不声明 os_restart/proc_port（与 gse 事件同处单租户块，被门控掉）
             assert "os_restart" not in v1_fields
             assert "proc_port" not in v1_fields
+            # 关键回归：v1 的 PING(ping-gse) 也必须在多租户被门控掉（v1.py 叠加 not ENABLE_MULTI_TENANT_MODE）。
+            # 否则 v1 与 v4 会同时命中 bk_monitor.ping-gse 目录项，对未登记 v1 的新业务各建一条、产生重复 PING。
+            # 多租户 PING 唯一来源是 os/v4。
+            assert "ping-gse" not in v1_fields
 
             # v3 多租户声明 os_restart/proc_port，且为 bk_monitor + event 伪事件（非 custom、非降级时序）
             assert {"os_restart", "proc_port"} == v3_fields

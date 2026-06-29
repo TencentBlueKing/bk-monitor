@@ -90,8 +90,8 @@ class Command(BaseCommand):
                 spaces: list[Space] = SpaceApi.list_spaces(bk_tenant_id=tenant_id)
                 tenant_to_biz_ids[tenant_id] = [space.bk_biz_id for space in spaces if space.bk_biz_id > 0]
 
-        total_ok = 0
-        total_fail = 0
+        triggered = 0
+        skipped_tenants = 0
         for bk_tenant_id, biz_ids in tenant_to_biz_ids.items():
             self.stdout.write(f"[tenant={bk_tenant_id}] 待处理业务数: {len(biz_ids)}")
             if dry_run:
@@ -99,19 +99,27 @@ class Command(BaseCommand):
                     self.stdout.write(f"  [dry-run] tenant={bk_tenant_id} biz={bk_biz_id} modes={modes}")
                 continue
 
-            # 设置租户上下文与管理员用户：下游建策略/建通知组/查指标缓存均依赖正确的租户与操作人
-            set_local_tenant_id(bk_tenant_id=bk_tenant_id)
-            set_local_username(get_admin_username(bk_tenant_id=bk_tenant_id))
+            # 设置租户上下文与管理员用户：下游建策略/建通知组/查指标缓存均依赖正确的租户与操作人。
+            # 单个租户取管理员/设置上下文失败（如停用租户、list_tenant 含 disabled）不应中断整轮——
+            # 记录并跳过该租户、继续其余，保证"不漏覆盖"不被单点失败拖垮。
+            try:
+                set_local_tenant_id(bk_tenant_id=bk_tenant_id)
+                set_local_username(get_admin_username(bk_tenant_id=bk_tenant_id))
+            except Exception:
+                skipped_tenants += 1
+                logger.exception("[init_builtin_strategies] setup failed, skip tenant=%s", bk_tenant_id)
+                self.stderr.write(f"  SKIP tenant={bk_tenant_id}（管理员/上下文设置失败）")
+                continue
 
             for bk_biz_id in biz_ids:
                 for mode in modes:
                     try:
                         run_build_in(int(bk_biz_id), mode=mode)
-                        total_ok += 1
+                        triggered += 1
                     except Exception:
-                        total_fail += 1
+                        # run_build_in 正常会内部吞掉各 loader 异常；此处兜底捕获意外异常并继续。
                         logger.exception(
-                            "[init_builtin_strategies] failed: tenant=%s biz=%s mode=%s",
+                            "[init_builtin_strategies] run_build_in failed: tenant=%s biz=%s mode=%s",
                             bk_tenant_id,
                             bk_biz_id,
                             mode,
@@ -121,4 +129,10 @@ class Command(BaseCommand):
         if dry_run:
             self.stdout.write("dry-run 结束（未实际加载）。")
         else:
-            self.stdout.write(f"完成。成功 {total_ok} 次 / 失败 {total_fail} 次（(业务 x 模式) 计数）。")
+            # 注意：run_build_in 内部已吞掉各 loader 异常并返回 None，下面是"已触发的 (业务 x 模式) 次数"，
+            # 不等于"成功补建的策略数"；指标未就绪的业务本轮产出 0 条也计入触发。实际补建结果（v2/v3/v4 是否
+            # 建出、接入记录是否登记）须按发布后验证方案查 StrategyModel / DefaultStrategyBizAccessModel 复核。
+            self.stdout.write(
+                f"完成。已触发 {triggered} 个 (业务 x 模式)；跳过租户 {skipped_tenants} 个。"
+                "实际补建结果请按验证方案查 DB 复核。"
+            )
