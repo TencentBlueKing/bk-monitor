@@ -173,7 +173,14 @@ class IndexGroupHandler(APIModel):
     @staticmethod
     @transaction.atomic
     def get_or_create_index_group_ids_by_index_group_names(space_uid: str, index_groups_names: list[str]) -> list[int]:
-        cleaned_index_group_names = [index_group_name.strip() for index_group_name in index_groups_names if index_group_name and index_group_name.strip()]
+        unique_index_group_names = set()
+        cleaned_index_group_names = []
+
+        for index_groups_name in index_groups_names:
+            stripped = index_groups_name.strip() if index_groups_name else ""
+            if stripped and stripped not in unique_index_group_names:
+                unique_index_group_names.add(stripped)
+                cleaned_index_group_names.append(stripped)
 
         if not cleaned_index_group_names:
             return []

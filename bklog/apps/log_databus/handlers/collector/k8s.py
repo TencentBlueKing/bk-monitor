@@ -305,11 +305,12 @@ class K8sCollectorHandler(CollectorHandler):
             parent_index_set_ids = data.get("parent_index_set_ids")
             parent_index_set_names = data.get("parent_index_set_names")
 
-            if parent_index_set_ids is None and parent_index_set_names is not None:
-                parent_index_set_ids = CollectorHandler.get_or_create_parent_index_set_ids_by_parent_index_set_names(
-                    parent_index_set_names,
-                    bk_biz_id=bk_biz_id,
-                )
+            parent_index_set_ids = CollectorHandler.obtain_parent_index_set_ids(
+                parent_index_set_ids,
+                parent_index_set_names,
+                bk_biz_id=bk_biz_id,
+                is_update=True,
+            )
 
             IndexSetHandler(index_set.index_set_id).update_parent_index_sets(parent_index_set_ids)
 
@@ -558,11 +559,12 @@ class K8sCollectorHandler(CollectorHandler):
             parent_index_set_ids = data.get("parent_index_set_ids")
             parent_index_set_names = data.get("parent_index_set_names")
 
-            if not parent_index_set_ids and parent_index_set_names:
-                parent_index_set_ids = CollectorHandler.get_or_create_parent_index_set_ids_by_parent_index_set_names(
-                    parent_index_set_names,
-                    bk_biz_id=bkdata_biz_id
-                )
+            parent_index_set_ids = CollectorHandler.obtain_parent_index_set_ids(
+                parent_index_set_ids,
+                parent_index_set_names,
+                bk_biz_id=data["bk_biz_id"],
+                is_update=False,
+            )
 
             if parent_index_set_ids:
                 IndexSetHandler(index_set.index_set_id).add_to_parent_index_sets(parent_index_set_ids)

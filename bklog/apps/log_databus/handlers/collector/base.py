@@ -584,14 +584,15 @@ class CollectorHandler:
             index_set_name = _("[采集项]") + self.data.collector_config_name
             LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).update(index_set_name=index_set_name)
 
-        if parent_index_set_ids is None and parent_index_set_names is not None:
-            parent_index_set_ids = CollectorHandler.get_or_create_parent_index_set_ids_by_parent_index_set_names(
-                parent_index_set_names,
-                bk_biz_id=self.data.get_bk_biz_id(),
-            )
-
         # 更新归属索引集
         if self.data.index_set_id:
+            parent_index_set_ids = CollectorHandler.obtain_parent_index_set_ids(
+                parent_index_set_ids,
+                parent_index_set_names,
+                bk_biz_id=self.data.get_bk_biz_id(),
+                is_update=True,
+            )
+
             IndexSetHandler(self.data.index_set_id).update_parent_index_sets(parent_index_set_ids)
 
         custom_config = get_custom(self.data.custom_type)
@@ -1509,11 +1510,12 @@ class CollectorHandler:
             # 创建索引集，并添加到归属索引集中
             index_set = self.data.create_index_set()
 
-            if not parent_index_set_ids and parent_index_set_names:
-                parent_index_set_ids = CollectorHandler.get_or_create_parent_index_set_ids_by_parent_index_set_names(
-                    parent_index_set_names,
-                    bk_biz_id=bk_biz_id
-                )
+            parent_index_set_ids = CollectorHandler.obtain_parent_index_set_ids(
+                parent_index_set_ids,
+                parent_index_set_names,
+                bk_biz_id=bk_biz_id,
+                is_update=False,
+            )
 
             if parent_index_set_ids:
                 IndexSetHandler(index_set.index_set_id).add_to_parent_index_sets(parent_index_set_ids)
@@ -1887,3 +1889,27 @@ class CollectorHandler:
             space_uid=space_uid,
             index_groups_names=parent_index_set_names,
         )
+
+    @staticmethod
+    def obtain_parent_index_set_ids(
+        parent_index_set_ids,
+        parent_index_set_names,
+        bk_biz_id: int = None,
+        space_uid: str = None,
+        is_update: bool = False,
+    ) -> list:
+        if not is_update:
+            if not parent_index_set_ids and parent_index_set_names:
+                return CollectorHandler.get_or_create_parent_index_set_ids_by_parent_index_set_names(
+                    parent_index_set_names,
+                    bk_biz_id=bk_biz_id,
+                    space_uid=space_uid,
+                )
+        else:
+            if parent_index_set_ids is None and parent_index_set_names is not None:
+                return CollectorHandler.get_or_create_parent_index_set_ids_by_parent_index_set_names(
+                    parent_index_set_names,
+                    bk_biz_id=bk_biz_id,
+                    space_uid=space_uid,
+                )
+        return parent_index_set_ids
