@@ -38,6 +38,7 @@ class IssueViewSet(ResourceViewSet):
         "tapd/workspace",
         "issue/get_tapd_fields",
         "issue/search_tapd_items",
+        "issue/tapd_relations",
     ]
 
     # 允许不传业务 ID 的接口（由业务层自行限制数据范围）
@@ -205,4 +206,8 @@ class IssueViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.issue.search_tapd_items, endpoint="issue/search_tapd_items"),
         # 创建TAPD单据
         ResourceRoute("POST", resource.issue.create_tapd, endpoint="issue/create_tapd"),
+        # 指定 Issue 关联指定 TAPD 单据
+        ResourceRoute("POST", resource.issue.link_issue_to_tapd, endpoint="issue/link_tapd"),
+        # 获取指定Issue关联的TAPD单据信息
+        ResourceRoute("POST", resource.issue.list_issue_tapd_relations, endpoint="issue/tapd_relations"),
     ]
