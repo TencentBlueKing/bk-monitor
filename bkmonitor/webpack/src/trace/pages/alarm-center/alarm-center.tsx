@@ -851,9 +851,10 @@ export default defineComponent({
     const tapdBizId = shallowRef<number | string>(null);
     const tapdIssueId = shallowRef('');
     const issuesTapdShow = shallowRef(false);
-    const handleIssuesTapdShowChange = (show: boolean, bizId: number | string = '') => {
+    const handleIssuesTapdShowChange = (show: boolean, issuesBizId: number | string = '', issuesId = '') => {
       issuesTapdShow.value = show;
-      tapdBizId.value = bizId;
+      tapdBizId.value = issuesBizId;
+      tapdIssueId.value = issuesId;
     };
 
     /** */
