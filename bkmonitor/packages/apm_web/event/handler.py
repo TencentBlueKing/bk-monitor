@@ -9,8 +9,8 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-from typing import Any
 from collections.abc import Callable
+from typing import Any
 
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import EventServiceRelation
@@ -40,38 +40,68 @@ class EventHandler:
         service_names: list[str],
         get_node: Callable[[int, str, str], dict[str, Any]],
     ) -> dict[str, list[dict[str, Any]]]:
+        k8s_event_table: str = EventCategory.K8S_EVENT.value
         service_relations: dict[str, list[dict[str, Any]]] = EventServiceRelation.fetch_relations(
             bk_biz_id, app_name, service_names
         )
         processed_service_relations: dict[str, list[dict[str, Any]]] = {}
         for service_name in service_names:
-            relations: list[dict[str, Any]] = service_relations.get(service_name, [])
+            relations: list[dict[str, Any]] = service_relations[service_name]
             table_relation_map: dict[str, dict[str, Any]] = {relation["table"]: relation for relation in relations}
-            k8s_event_relation: dict[str, Any] | None = table_relation_map.get(EventCategory.K8S_EVENT.value)
-            if (
-                k8s_event_relation
-                and not k8s_event_relation["options"].get("is_auto")
-                and k8s_event_relation.get("relations")
-            ):
-                # 没有配置自动发现，且手动关联了具体的 workload，直接使用手动配置的关联关系。
-                processed_service_relations[service_name] = list(table_relation_map.values())
-                continue
+            k8s_event_relation: dict[str, Any] | None = table_relation_map.get(k8s_event_table)
 
             try:
-                workloads: list[dict[str, Any]] = get_node(bk_biz_id, app_name, service_name)["platform"]["workloads"]
+                auto_workloads: list[dict[str, Any]] = get_node(bk_biz_id, app_name, service_name)["platform"][
+                    "workloads"
+                ]
             except Exception:  # pylint: disable=broad-except
-                processed_service_relations[service_name] = list(table_relation_map.values())
-                continue
+                # 拓扑节点不可用时，仅保留已手动关联的 k8s 负载
+                if k8s_event_relation:
+                    target_k8s_event_relation: dict[str, Any] = k8s_event_relation
+                    workload_groups: list[list[dict[str, Any]]] = [k8s_event_relation["relations"]]
+                else:
+                    processed_service_relations[service_name] = list(table_relation_map.values())
+                    continue
+            else:
+                # 手动关联了具体的 workload 时，按“手动关联负载 -> 拓扑自动发现负载”的顺序做只读并集
+                if k8s_event_relation and not k8s_event_relation["options"].get("is_auto"):
+                    target_k8s_event_relation = k8s_event_relation
+                    workload_groups = [k8s_event_relation["relations"], auto_workloads]
+                # 未手动关联时，保持原自动关联语义
+                else:
+                    target_k8s_event_relation = {
+                        "table": k8s_event_table,
+                        "options": {"is_auto": True},
+                        "relations": [],
+                    }
+                    workload_groups = [auto_workloads]
 
-            table_relation_map[EventCategory.K8S_EVENT.value] = {
-                "table": EventCategory.K8S_EVENT.value,
-                "options": {"is_auto": True},
-                "relations": [],
+            # Workload 去重和 ReplicaSet 对象去除
+            workloads: list[dict[str, Any]] = []
+            seen_workload_keys: set[tuple[Any, ...]] = set()
+            for workload_group in workload_groups:
+                for workload in workload_group:
+                    if workload.get("kind") == "ReplicaSet":
+                        continue
+
+                    workload_key: tuple[Any, ...] = (
+                        workload.get("bcs_cluster_id"),
+                        workload.get("namespace"),
+                        workload.get("kind"),
+                        workload.get("name"),
+                    )
+                    if workload_key in seen_workload_keys:
+                        continue
+
+                    # 拓扑返回的 updated_at 不是事件关联维度，需去除，否则会在事件查询时被当成过滤条件
+                    workload.pop("updated_at", None)
+                    seen_workload_keys.add(workload_key)
+                    workloads.append(workload)
+
+            table_relation_map[k8s_event_table] = {
+                **target_k8s_event_relation,
+                "relations": workloads,
             }
-            for workload in workloads:
-                workload.pop("updated_at", None)
-                table_relation_map[EventCategory.K8S_EVENT.value]["relations"].append(workload)
-
             processed_service_relations[service_name] = list(table_relation_map.values())
 
         return processed_service_relations
