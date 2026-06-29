@@ -15,9 +15,9 @@ from bkmonitor.iam.drf import IAMPermission
 from bkmonitor.iam.resource import ResourceEnum
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource import resource
+from core.drf_resource.exceptions import CustomException
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from fta_web.issue.resources import ListUserTapdWorkspaceResource, UnbindTapdWorkspaceResource
-from core.drf_resource.exceptions import CustomException
 from fta_web.issue.utils.tapd import generate_auth_url, normalize_redirect_url
 
 
@@ -139,7 +139,7 @@ class IssueViewSet(ResourceViewSet):
                 data={"auth_url": auth_url},
                 code=403,
             )
-            exc.status_code = 403
+            exc.status_code = 200
             raise exc
 
     def get_permissions(self):
