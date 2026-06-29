@@ -23,8 +23,9 @@ def _attrs(algorithms, query_configs):
     return {"items": [{"algorithms": algorithms, "query_configs": query_configs}]}
 
 
-def _qc(data_type_label="time_series", agg_interval=60, agg_dimension=None):
+def _qc(data_type_label="time_series", agg_interval=60, agg_dimension=None, data_source_label="bk_monitor"):
     return {
+        "data_source_label": data_source_label,
         "data_type_label": data_type_label,
         "agg_interval": agg_interval,
         "agg_dimension": agg_dimension or ["ip"],
@@ -53,8 +54,27 @@ def test_reject_multi_query_config():
 
 
 def test_reject_non_time_series():
+    # 事件链路日志(BK_MONITOR_COLLECTOR/LOG)被拒：其指纹维度按 record 类型写死、不取 agg_dimension。
     with pytest.raises(ValidationError):
-        validate(_attrs([NS], [_qc(data_type_label="log")]))
+        validate(_attrs([NS], [_qc(data_source_label="bk_monitor", data_type_label="log")]))
+
+
+def test_allow_log_search_log_passes():
+    # 合法：日志平台-日志关键字(BK_LOG_SEARCH/LOG)走 access.data、与时序同构 -> 放行
+    validate(_attrs([NS], [_qc(data_source_label="bk_log_search", data_type_label="log")]))
+
+
+def test_reject_event():
+    # 事件数据(EVENT)被拒
+    with pytest.raises(ValidationError):
+        validate(_attrs([NS], [_qc(data_source_label="bk_monitor", data_type_label="event")]))
+
+
+def test_reject_log_search_log_detect_range_lt_agg_interval():
+    # 日志关键字下，detect_range 下界校验同样生效
+    ns = {"type": "NewSeries", "level": 1, "config": {"detect_range": 30, "max_series": 100000}}
+    with pytest.raises(ValidationError):
+        validate(_attrs([ns], [_qc(data_source_label="bk_log_search", data_type_label="log", agg_interval=60)]))
 
 
 def test_reject_detect_range_lt_agg_interval():
