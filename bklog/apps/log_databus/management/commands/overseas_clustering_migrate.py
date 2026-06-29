@@ -1,3 +1,14 @@
+# 使用说明:
+#   python manage.py overseas_clustering_migrate -b 2,3
+#   python manage.py overseas_clustering_migrate --flow_id 1000,1001
+#   python manage.py overseas_clustering_migrate --all
+#   python manage.py overseas_clustering_migrate -b 2 --dry-run
+# 说明:
+#   - 每次必须且只能选择一个迁移范围: -b/--bk_biz_id、--flow_id/--flow_ids、--all。
+#   - 默认会通过海外迁移接口获取 Flow ID 映射，更新聚类配置中的 Flow ID。
+#   - 当 predict_flow 发生迁移时，会同步更新模型实例配置、创建在线 CI，并重启本次变化的 Flow。
+#   - 加 --skip-create-ci 可跳过在线 CI 创建；加 --dry-run 仅打印映射，不修改数据。
+
 from django.core.management import BaseCommand, CommandError
 from django.db import transaction
 from django.db.models import Q
