@@ -2114,11 +2114,66 @@ class LinkIssueToTapdResource(Resource):
             label="TAPD 单据列表",
             child=TapdItem(),
             min_length=1,
+            max_length=200,
         )
         sync_status = serializers.BooleanField(
             label="是否同步单据状态",
             help_text="勾选后，TAPD单据完成时自动同步状态到Issue",
         )
+
+        def validate(self, attrs):
+            if attrs.get("sync_status"):
+                raise serializers.ValidationError("sync_status is not supported until TAPD status sync is implemented")
+
+            seen_tapd_ids = set()
+            for item in attrs.get("tapd_items", []):
+                tapd_id = item["tapd_id"]
+                if tapd_id in seen_tapd_ids:
+                    raise serializers.ValidationError(f"duplicate TAPD ID: {tapd_id}")
+                seen_tapd_ids.add(tapd_id)
+            return attrs
+
+    @staticmethod
+    def _validate_workspace_binding(bk_biz_id: int, workspace_id: int) -> None:
+        """校验当前业务空间已绑定 TAPD 项目。"""
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        tenant_id = space_uid_to_bk_tenant_id(space_uid)
+        if not TapdWorkspaceBinding.objects.filter(
+            bk_tenant_id=tenant_id,
+            space_uid=space_uid,
+            tapd_workspace_id=str(workspace_id),
+        ).exists():
+            raise serializers.ValidationError(f"TAPD 项目 {workspace_id} 未与当前业务关联")
+
+    @staticmethod
+    def _validate_tapd_items(workspace_id: int, tapd_items: list[dict]) -> list[dict]:
+        """校验 TAPD 单据真实存在且归属于指定项目，并用 TAPD 返回标题覆盖前端传值。"""
+        items_by_type: dict[str, dict[str, dict]] = {}
+        for item in tapd_items:
+            items_by_type.setdefault(item["tapd_type"], {})[str(item["tapd_id"])] = item
+
+        for tapd_type, items_by_id in items_by_type.items():
+            expected_ids = list(items_by_id.keys())
+            queried_items = SearchTAPDItemsResource._query_tapd_items(
+                tapd_type=tapd_type,
+                workspace_id=workspace_id,
+                id=",".join(expected_ids),
+                limit=len(expected_ids),
+                page=1,
+                order="created desc",
+                fields="id,name",
+            )
+            queried_items_by_id = {str(item.get("id")): item for item in queried_items}
+            missing_ids = sorted(set(expected_ids) - set(queried_items_by_id.keys()))
+            if missing_ids:
+                raise serializers.ValidationError(
+                    f"TAPD 单据不存在或不属于项目 {workspace_id}: {', '.join(missing_ids)}"
+                )
+
+            for tapd_id, item in items_by_id.items():
+                item["tapd_title"] = queried_items_by_id[tapd_id].get("name") or item.get("tapd_title", "")
+
+        return tapd_items
 
     @staticmethod
     def _bulk_check_existing(
@@ -2286,18 +2341,14 @@ class LinkIssueToTapdResource(Resource):
         sync_status = validated_request_data["sync_status"]
         tapd_items = validated_request_data["tapd_items"]
 
-        if sync_status:
-            # TODO: [issue-tapd-sync] 实现 TAPD 单据状态同步功能
-            logger.warning(
-                "sync_status=True requested but not yet implemented, issue_id=%s, tapd_items=%s",
-                issue_id,
-                tapd_items,
-            )
-
         # 校验 Issue 存在且归属当前业务
         IssueDocument.get_issue_or_raise(issue_id, bk_biz_id=bk_biz_id)
         # 已被合并冻结的 Issue 禁止关联 TAPD
         IssueMergeResolver.assert_not_frozen(issue_id)
+        # 校验 TAPD 项目已绑定当前业务空间
+        self._validate_workspace_binding(bk_biz_id, workspace_id)
+        # 校验 TAPD 单据存在且归属于当前项目
+        tapd_items = self._validate_tapd_items(workspace_id, tapd_items)
 
         # 提取 tapd_id 列表用于批量查重
         tapd_ids = [item["tapd_id"] for item in tapd_items]
