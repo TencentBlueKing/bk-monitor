@@ -2330,7 +2330,7 @@ class UnbindTapdWorkspaceResource(Resource):
     """解除 TAPD 项目与当前业务的关联
 
     仅删除本地 TapdWorkspaceBinding，不在 TAPD 侧撤回应用授权。
-    端点：POST /fta/issue/tapd/workspace/unbind/
+    端点：POST /fta/issue/tapd/unbind_workspace
     """
 
     class RequestSerializer(serializers.Serializer):
