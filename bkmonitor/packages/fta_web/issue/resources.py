@@ -2398,7 +2398,8 @@ def tapd_app_install_callback(request):
     try:
         resource = json.loads(resource_json) if resource_json else {}
     except Exception:
-        logger.warning("invalid resource JSON: %s", resource_json)
+        safe_resource_json = resource_json.replace("\r", "").replace("\n", "")
+        logger.warning("invalid resource JSON: %s", safe_resource_json)
         return HttpResponseRedirect(error_url)
 
     workspace_id = str(resource.get("workspace_id", ""))
