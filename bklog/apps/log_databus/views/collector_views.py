@@ -1398,7 +1398,6 @@ class CollectorViewSet(ModelViewSet):
             return Response(data)
         for key in ["need_assessment", "assessment_config"]:
             data.pop(key, None)
-        data = CollectorHandler(collector_config_id).reset_clean_config(data)
         return Response(etl_handler.update_or_create(**data))
 
     @detail_route(methods=["GET"], url_path="get_data_link_list")
