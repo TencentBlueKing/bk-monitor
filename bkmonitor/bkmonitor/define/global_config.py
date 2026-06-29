@@ -667,6 +667,10 @@ STANDARD_CONFIGS = OrderedDict(
             slz.DictField(label=_("APM metrics维度补充功能应用白名单"), default={}),
         ),
         (
+            "APM_RESOURCE_FILTER_LOGS_ENABLED_APPS",
+            slz.DictField(label=_("APM logs维度补充功能应用白名单"), default={}),
+        ),
+        (
             "APM_BMW_DEPLOY_BIZ_ID",
             slz.IntegerField(label=_("APM BMW 模块部署集群所属的业务 ID(用来查询指标)"), default=0),
         ),

@@ -309,7 +309,10 @@ class ApplicationConfig(BkCollectorConfig):
 
     def get_cluster_application_config(self, bcs_cluster_id: str | None = None):
         """获取集群应用配置"""
-        return {"resource_filter_config_metrics": self.get_resource_filter_config_metrics(bcs_cluster_id)}
+        return {
+            "resource_filter_config_logs": self.get_resource_filter_config_logs(bcs_cluster_id),
+            "resource_filter_config_metrics": self.get_resource_filter_config_metrics(bcs_cluster_id),
+        }
 
     def get_application_config(self):
         """获取应用配置上下文"""
@@ -620,16 +623,49 @@ class ApplicationConfig(BkCollectorConfig):
         }
 
     @staticmethod
-    def get_resource_filter_config_logs():
+    def get_k8s_dimension_fill_config() -> dict:
+        return {
+            "from_record": [
+                {
+                    "source": "request.client.ip",
+                    "destination": "resource.net.host.ip",
+                }
+            ],
+            "from_cache": {"key": "resource.net.host.ip", "cache_name": "k8s_cache"},
+        }
+
+    @staticmethod
+    def is_resource_filter_enabled(
+        bcs_cluster_id: str | None,
+        bk_biz_id: int,
+        app_name: str,
+        enabled_apps: dict,
+    ) -> bool:
+        if not bcs_cluster_id or bcs_cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
+            # 中心化集群，可以接收到所有的数据，不对中心化集群做维度补充逻辑
+            return False
+
+        return bool(enabled_apps and app_name in enabled_apps.get(str(bk_biz_id), []))
+
+    def get_resource_filter_config_logs(self, bcs_cluster_id: str | None = None):
         """
         针对日志数据源 resource 字段处理逻辑
         """
-        return {
+        default_logs_config = {
             "name": "resource_filter/logs",
             "drop": {"keys": ["resource.bk.data.token", "resource.tps.tenant.id"]},
         }
 
-    def get_resource_filter_config_metrics(self, bcs_cluster_id=None):
+        if self.is_resource_filter_enabled(
+            bcs_cluster_id,
+            self._application.bk_biz_id,
+            self._application.app_name,
+            settings.APM_RESOURCE_FILTER_LOGS_ENABLED_APPS,
+        ):
+            return {**default_logs_config, **self.get_k8s_dimension_fill_config()}
+        return default_logs_config
+
+    def get_resource_filter_config_metrics(self, bcs_cluster_id: str | None = None):
         """
         维度补充配置
         """
@@ -639,25 +675,14 @@ class ApplicationConfig(BkCollectorConfig):
             "from_token": {"keys": ["app_name"]},
         }
 
-        if not bcs_cluster_id or bcs_cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
-            # 中心化集群，可以接收到所有的数据，不对中心化集群做维度补充逻辑
-            return default_metrics_config
-
-        enabled_apps = settings.APM_RESOURCE_FILTER_METRICS_ENABLED_APPS
-
         # 只有在白名单中的应用才启用该功能
-        if enabled_apps and self._application.app_name in enabled_apps.get(str(self._application.bk_biz_id), []):
-            extra_config = {
-                "from_record": [
-                    {
-                        "source": "request.client.ip",
-                        "destination": "resource.net.host.ip",
-                    }
-                ],
-                "from_cache": {"key": "resource.net.host.ip", "cache_name": "k8s_cache"},
-            }
-            extra_config.update(default_metrics_config)
-            return extra_config
+        if self.is_resource_filter_enabled(
+            bcs_cluster_id,
+            self._application.bk_biz_id,
+            self._application.app_name,
+            settings.APM_RESOURCE_FILTER_METRICS_ENABLED_APPS,
+        ):
+            return {**self.get_k8s_dimension_fill_config(), **default_metrics_config}
         return default_metrics_config
 
     def get_sub_configs(self, unique_key: str, config_level):
