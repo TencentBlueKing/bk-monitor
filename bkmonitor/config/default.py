@@ -598,6 +598,8 @@ APM_PROFILING_ENABLED_APPS = {}
 APM_PROFILING_ENABLED = False
 # APM metrics维度补充功能应用白名单 {2:["app1", "app2"], 3:["app3"]}
 APM_RESOURCE_FILTER_METRICS_ENABLED_APPS = {}
+# APM logs维度补充功能应用白名单 {2:["app1", "app2"], 3:["app3"]}
+APM_RESOURCE_FILTER_LOGS_ENABLED_APPS = {}
 APM_EBPF_ENABLED = False
 APM_TRPC_ENABLED = False
 # {2:["app1", "app2"], 3:["app_name"]}
