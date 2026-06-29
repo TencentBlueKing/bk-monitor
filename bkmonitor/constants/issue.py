@@ -56,6 +56,7 @@ class IssueActivityType:
     MERGED_INTO = "merged_into"
     SPLIT_FROM = "split_from"
     CREATE_TAPD = "create_tapd"
+    TAPD_LINK = "tapd_link"
 
     CHOICES = (
         (CREATE, _("创建")),
@@ -68,6 +69,7 @@ class IssueActivityType:
         (MERGED_INTO, _("合并进主")),
         (SPLIT_FROM, _("从主拆分")),
         (CREATE_TAPD, _("创建TAPD")),
+        (TAPD_LINK, _("关联TAPD")),
     )
 
 
