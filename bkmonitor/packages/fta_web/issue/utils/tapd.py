@@ -19,6 +19,8 @@ from urllib.parse import urlencode, quote
 
 from django.conf import settings
 from django.core.cache import cache
+from django.core.exceptions import DisallowedHost
+from django.utils.http import url_has_allowed_host_and_scheme
 from rest_framework.exceptions import ValidationError
 
 from bkm_space.utils import bk_biz_id_to_space_uid
@@ -32,19 +34,29 @@ logger = logging.getLogger("root")
 def normalize_redirect_url(url: str, request=None) -> str:
     """将前端传入的重定向 URL 补全为绝对 URL。
 
-    - 全 URL（以 http 开头）直接返回
+    - 全 URL 仅允许当前站点或 ALLOWED_HOSTS 中的域名
     - 路径自动补 / 前缀（防 build_absolute_uri 基于当前请求路径拼接）
     - 有 request 时补域名，无 request 时仅补 / 前缀
     """
     if not url:
         return url
-    if url.startswith("http"):
+
+    allowed_hosts = set(getattr(settings, "ALLOWED_HOSTS", []) or [])
+    if request:
+        allowed_hosts.add(request.get_host())
+
+    if url.startswith(("http://", "https://", "//")):
+        if not url_has_allowed_host_and_scheme(url, allowed_hosts=allowed_hosts):
+            raise DisallowedHost("unsafe TAPD redirect URL")
         return url
+
     # 路径必须以 / 开头，否则 build_absolute_uri 会基于当前请求路径拼接
     if not url.startswith("/"):
         url = "/" + url
     if request:
         url = request.build_absolute_uri(url)
+        if not url_has_allowed_host_and_scheme(url, allowed_hosts=allowed_hosts):
+            raise DisallowedHost("unsafe TAPD redirect URL")
     return url
 
 
@@ -155,15 +167,24 @@ def verify_signed_state(signed_state: str) -> dict:
     except ValueError:
         raise ValidationError("invalid_signed_state_format")
 
-    expected = _hmac_sign(b64_payload.encode("ascii"))
+    try:
+        expected = _hmac_sign(b64_payload.encode("ascii"))
+    except UnicodeEncodeError as e:
+        raise ValidationError("invalid_signed_state") from e
     if not hmac.compare_digest(expected, signature):
         raise ValidationError("invalid_signed_state_signature")
 
-    # base64url decode
-    pad = 4 - len(b64_payload) % 4
-    if pad != 4:
-        b64_payload += "=" * pad
-    payload = json.loads(base64.urlsafe_b64decode(b64_payload.encode("ascii")))
+    try:
+        # base64url decode
+        pad = 4 - len(b64_payload) % 4
+        if pad != 4:
+            b64_payload += "=" * pad
+        payload = json.loads(base64.urlsafe_b64decode(b64_payload.encode("ascii")))
+    except Exception as e:
+        raise ValidationError("invalid_signed_state") from e
+
+    if not isinstance(payload, dict):
+        raise ValidationError("invalid_signed_state")
 
     if payload.get("exp", 0) < time.time():
         raise ValidationError("signed_state_expired")

@@ -2406,9 +2406,15 @@ def tapd_app_install_callback(request):
         logger.warning("invalid resource JSON: %s", safe_resource_json)
         return HttpResponseRedirect(error_url)
 
-    workspace_id = str(resource.get("workspace_id", ""))
-    if not workspace_id:
-        logger.warning("missing workspace_id")
+    if not isinstance(resource, dict):
+        logger.warning("invalid resource JSON object")
+        return HttpResponseRedirect(error_url)
+
+    raw_workspace_id = resource.get("workspace_id", "")
+    try:
+        workspace_id = str(int(raw_workspace_id))
+    except (TypeError, ValueError):
+        logger.warning("invalid workspace_id: %s", _sanitize_for_log(raw_workspace_id))
         return HttpResponseRedirect(error_url)
 
     # 2) 获取项目信息（app 级 Basic Auth）
@@ -2508,11 +2514,11 @@ def tapd_user_oauth_callback(request):
             code=code,
             redirect_uri=backend_callback.rstrip("/"),
         )
-    except BKAPIError as e:
-        logger.exception(f"exchange token failed: {e}")
+    except BKAPIError:
+        logger.exception("exchange token failed")
         return HttpResponseRedirect(error_url)
-    except Exception as e:
-        logger.exception(f"exchange token unexpected error: {e}")
+    except Exception:
+        logger.exception("exchange token unexpected error")
         return HttpResponseRedirect(error_url)
 
     access_token = token_resp.get("access_token", "")
