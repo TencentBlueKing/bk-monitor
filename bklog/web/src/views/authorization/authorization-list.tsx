@@ -1031,6 +1031,7 @@ export default class AuthorizationList extends tsc<object> {
                               key='edit'
                               style='margin-right: 16px'
                               text
+                              disabled={row.status === 'expired' || row.status === 'invalid'}
                               onClick={() => this.showDialog(row)}
                             >
                               {this.$t('编辑')}
