@@ -35,8 +35,9 @@ class NoDataCheckTestCase(TestCase):
 
         mock_has_data.side_effect = lambda index_set_id, *args: index_set_id == child_with_data.index_set_id
 
-        index_set_no_data_check(parent.index_set_id, bk_biz_id=2)
+        has_data = index_set_no_data_check(parent.index_set_id, bk_biz_id=2)
 
+        self.assertTrue(has_data)
         mock_delete_tag.assert_called_once_with(parent.index_set_id, InnerTag.NO_DATA.value)
         mock_set_tag.assert_not_called()
 
@@ -51,8 +52,9 @@ class NoDataCheckTestCase(TestCase):
         self._add_child_index_set(parent, child_2)
         mock_has_data.return_value = False
 
-        index_set_no_data_check(parent.index_set_id, bk_biz_id=2)
+        has_data = index_set_no_data_check(parent.index_set_id, bk_biz_id=2)
 
+        self.assertFalse(has_data)
         mock_set_tag.assert_called_once_with(parent.index_set_id, InnerTag.NO_DATA.value)
         mock_delete_tag.assert_not_called()
         checked_child_ids = {args[0] for args, _kwargs in mock_has_data.call_args_list}
@@ -61,12 +63,63 @@ class NoDataCheckTestCase(TestCase):
     @patch("apps.log_search.tasks.no_data.LogIndexSet.delete_tag_by_name")
     @patch("apps.log_search.tasks.no_data.LogIndexSet.set_tag")
     @patch("apps.log_search.tasks.no_data._index_set_has_data")
+    def test_group_reuse_checked_child_result(self, mock_has_data, mock_set_tag, mock_delete_tag):
+        parent = self._create_index_set("group", is_group=True)
+        child = self._create_index_set("child")
+        self._add_child_index_set(parent, child)
+
+        has_data = index_set_no_data_check(parent.index_set_id, bk_biz_id=2, checked_results={child.index_set_id: True})
+
+        self.assertTrue(has_data)
+        mock_has_data.assert_not_called()
+        mock_delete_tag.assert_called_once_with(parent.index_set_id, InnerTag.NO_DATA.value)
+        mock_set_tag.assert_not_called()
+
+    @patch("apps.log_search.tasks.no_data.LogIndexSet.delete_tag_by_name")
+    @patch("apps.log_search.tasks.no_data.LogIndexSet.set_tag")
+    @patch("apps.log_search.tasks.no_data._index_set_has_data")
+    def test_group_reuse_checked_child_no_data_result(self, mock_has_data, mock_set_tag, mock_delete_tag):
+        parent = self._create_index_set("group", is_group=True)
+        child = self._create_index_set("child")
+        self._add_child_index_set(parent, child)
+
+        has_data = index_set_no_data_check(
+            parent.index_set_id, bk_biz_id=2, checked_results={child.index_set_id: False}
+        )
+
+        self.assertFalse(has_data)
+        mock_has_data.assert_not_called()
+        mock_set_tag.assert_called_once_with(parent.index_set_id, InnerTag.NO_DATA.value)
+        mock_delete_tag.assert_not_called()
+
+    @patch("apps.log_search.tasks.no_data.LogIndexSet.delete_tag_by_name")
+    @patch("apps.log_search.tasks.no_data.LogIndexSet.set_tag")
+    @patch("apps.log_search.tasks.no_data._index_set_has_data")
+    def test_group_cache_missing_child_result(self, mock_has_data, mock_set_tag, mock_delete_tag):
+        parent = self._create_index_set("group", is_group=True)
+        child = self._create_index_set("child")
+        self._add_child_index_set(parent, child)
+        checked_results = {}
+        mock_has_data.return_value = True
+
+        has_data = index_set_no_data_check(parent.index_set_id, bk_biz_id=2, checked_results=checked_results)
+
+        self.assertTrue(has_data)
+        self.assertEqual(checked_results, {child.index_set_id: True})
+        mock_has_data.assert_called_once()
+        mock_delete_tag.assert_called_once_with(parent.index_set_id, InnerTag.NO_DATA.value)
+        mock_set_tag.assert_not_called()
+
+    @patch("apps.log_search.tasks.no_data.LogIndexSet.delete_tag_by_name")
+    @patch("apps.log_search.tasks.no_data.LogIndexSet.set_tag")
+    @patch("apps.log_search.tasks.no_data._index_set_has_data")
     def test_index_set_set_no_data_tag_when_no_data(self, mock_has_data, mock_set_tag, mock_delete_tag):
         index_set = self._create_index_set("index_set")
         mock_has_data.return_value = False
 
-        index_set_no_data_check(index_set.index_set_id, bk_biz_id=2)
+        has_data = index_set_no_data_check(index_set.index_set_id, bk_biz_id=2)
 
+        self.assertFalse(has_data)
         mock_set_tag.assert_called_once_with(index_set.index_set_id, InnerTag.NO_DATA.value)
         mock_delete_tag.assert_not_called()
 
@@ -77,7 +130,8 @@ class NoDataCheckTestCase(TestCase):
         index_set = self._create_index_set("index_set")
         mock_has_data.return_value = True
 
-        index_set_no_data_check(index_set.index_set_id, bk_biz_id=2)
+        has_data = index_set_no_data_check(index_set.index_set_id, bk_biz_id=2)
 
+        self.assertTrue(has_data)
         mock_delete_tag.assert_called_once_with(index_set.index_set_id, InnerTag.NO_DATA.value)
         mock_set_tag.assert_not_called()
