@@ -24,7 +24,7 @@ from bkm_space.utils import space_uid_to_bk_biz_id
 @share_lock()
 def no_data_check():
     logger.info("[no_data_check] start check index set no data")
-    index_set_ids = list(
+    index_set_ids = set(
         UserIndexSetSearchHistory.objects.filter(created_at__gte=datetime.now() - timedelta(days=1)).values_list(
             "index_set_id", flat=True
         )
@@ -104,7 +104,7 @@ def index_set_no_data_check(index_set_id, bk_biz_id, checked_results=None):
         for child_index_set_id in child_index_set_ids:
             has_data = checked_results.get(child_index_set_id) if checked_results is not None else None
             if has_data is None:
-                # 索引组并发检查时，这里可能有少量重复查询；查到后写回本轮结果池供后续复用。
+                # 查到后写回本轮结果池供后续复用（索引组并发检查时，这里可能还会有少量重复查询）
                 has_data = _index_set_has_data(child_index_set_id, bk_biz_id, current_time)
                 if checked_results is not None:
                     checked_results[child_index_set_id] = has_data
