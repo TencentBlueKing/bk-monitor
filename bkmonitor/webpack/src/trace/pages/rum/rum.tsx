@@ -153,7 +153,7 @@ export default defineComponent({
     const searchLabel = (k: RumCriteriaKey) => {
       const map: Record<RumCriteriaKey, string> = {
         appName: t('应用名称'),
-        appAlias: t('展示名称'),
+        appAlias: t('应用别名'),
         appStatus: t('应用状态'),
         dataStatus: t('数据状态'),
       };
@@ -309,16 +309,7 @@ export default defineComponent({
       return [
         {
           colKey: 'appName',
-          title: () => (
-            <span
-              class='rum-table-header-title'
-              v-overflow-tips={{
-                placement: 'top',
-              }}
-            >
-              {t('应用名称')}
-            </span>
-          ),
+          title: '',
           ellipsis: false,
           ellipsisTitle: false,
           thClassName: 'rum-th--filter',
@@ -359,42 +350,42 @@ export default defineComponent({
             );
           }) as unknown as BaseTableColumn['cellRenderer'],
         },
-        {
-          colKey: 'appAlias',
-          title: () => (
-            <span
-              class='rum-table-header-title'
-              v-overflow-tips={{
-                placement: 'top',
-              }}
-            >
-              {t('展示名称')}
-            </span>
-          ),
-          thClassName: 'rum-th--filter',
-          width: 140,
-          ellipsis: false,
-          ellipsisTitle: false,
-          // filter: {
-          //   type: 'multiple',
-          //   list: appAliasFilters,
-          //   resetValue: [],
-          //   showConfirmAndReset: true,
-          // },
-          cellRenderer: (row => {
-            const r = row as RumAppRow;
-            return (
-              <span
-                class='rum-table-content-cell'
-                v-overflow-tips={{
-                  placement: 'top',
-                }}
-              >
-                {r.appAlias}
-              </span>
-            );
-          }) as unknown as BaseTableColumn['cellRenderer'],
-        },
+        // {
+        //   colKey: 'appAlias',
+        //   title: () => (
+        //     <span
+        //       class='rum-table-header-title'
+        //       v-overflow-tips={{
+        //         placement: 'top',
+        //       }}
+        //     >
+        //       {t('展示名称')}
+        //     </span>
+        //   ),
+        //   thClassName: 'rum-th--filter',
+        //   width: 140,
+        //   ellipsis: false,
+        //   ellipsisTitle: false,
+        //   // filter: {
+        //   //   type: 'multiple',
+        //   //   list: appAliasFilters,
+        //   //   resetValue: [],
+        //   //   showConfirmAndReset: true,
+        //   // },
+        //   cellRenderer: (row => {
+        //     const r = row as RumAppRow;
+        //     return (
+        //       <span
+        //         class='rum-table-content-cell'
+        //         v-overflow-tips={{
+        //           placement: 'top',
+        //         }}
+        //       >
+        //         {r.appAlias}
+        //       </span>
+        //     );
+        //   }) as unknown as BaseTableColumn['cellRenderer'],
+        // },
         {
           colKey: 'appStatus',
           title: t('应用状态'),
@@ -529,13 +520,13 @@ export default defineComponent({
 
     const tableSettings = computed<BkUiSettings>(() => ({
       fields: [
-        { label: t('应用名称'), field: 'appName' },
-        { label: t('展示名称'), field: 'appAlias' },
+        { label: t('应用名称'), field: 'appName', disabled: true },
+        // { label: t('展示名称'), field: 'appAlias' },
         { label: t('应用状态'), field: 'appStatus' },
         { label: t('描述'), field: 'description' },
-        ...SORTABLE_METRIC_KEYS.map(key => ({ label: t(METRIC_COLUMN_TITLES[key]), field: key, disabled: true })),
-        { label: t('数据状态'), field: 'dataStatus', disabled: true },
-        { label: t('操作'), field: 'operations', disabled: true },
+        ...SORTABLE_METRIC_KEYS.map(key => ({ label: t(METRIC_COLUMN_TITLES[key]), field: key })),
+        { label: t('数据状态'), field: 'dataStatus' },
+        { label: t('操作'), field: 'operations' },
       ],
       checked: ['appName', 'appAlias', 'appStatus', 'description', ...SORTABLE_METRIC_KEYS, 'dataStatus', 'operations'],
     }));
@@ -626,7 +617,7 @@ export default defineComponent({
                   class='rum-search-select'
                   data={searchSelectDataSource.value}
                   modelValue={criteriaToSearchValues(rumCriteria.value, searchLabel)}
-                  placeholder={t('搜索 应用名称、展示名称、应用状态')}
+                  placeholder={t('搜索 应用名称、应用别名、应用状态')}
                   clearable
                   onUpdate:modelValue={handleSearchSelectUpdate}
                 />

@@ -82,4 +82,5 @@ export default {
     'BlueKing monitoring native reporting protocol, low integration cost, data structure deeply optimized for RUM scenarios, suitable for new projects to quickly integrate.',
   总计: 'Total',
   '稍等几分钟后，前往{0}查看相关数据': 'Please wait for a few minutes, then go to {0} to view the related data',
+  应用名称不能为空: 'Application name is required',
 };
