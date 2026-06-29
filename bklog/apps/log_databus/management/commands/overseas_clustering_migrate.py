@@ -1,10 +1,14 @@
 # 使用说明:
 #   python manage.py overseas_clustering_migrate -b 2,3
 #   python manage.py overseas_clustering_migrate --flow_id 1000,1001
+#   python manage.py overseas_clustering_migrate --collector_config_id 100,101
+#   python manage.py overseas_clustering_migrate --index_set_id 200,201
 #   python manage.py overseas_clustering_migrate --all
 #   python manage.py overseas_clustering_migrate -b 2 --dry-run
 # 说明:
-#   - 每次必须且只能选择一个迁移范围: -b/--bk_biz_id、--flow_id/--flow_ids、--all。
+#   - 每次必须且只能选择一个迁移范围:
+#     -b/--bk_biz_id、--flow_id/--flow_ids、--collector_config_id/--collector_config_ids、
+#     --index_set_id/--index_set_ids、--all。
 #   - 默认会通过海外迁移接口获取 Flow ID 映射，更新聚类配置中的 Flow ID。
 #   - 当 predict_flow 发生迁移时，会同步更新模型实例配置、创建在线 CI，并重启本次变化的 Flow。
 #   - 加 --skip-create-ci 可跳过在线 CI 创建；加 --dry-run 仅打印映射，不修改数据。
@@ -58,6 +62,20 @@ class Command(BaseCommand):
             type=str,
             help="迁移指定 Flow ID，支持逗号分隔多个，如 1000,1001",
         )
+        scope_group.add_argument(
+            "--collector_config_id",
+            "--collector_config_ids",
+            dest="collector_config_ids",
+            type=str,
+            help="迁移指定采集项 ID，支持逗号分隔多个，如 100,101",
+        )
+        scope_group.add_argument(
+            "--index_set_id",
+            "--index_set_ids",
+            dest="index_set_ids",
+            type=str,
+            help="迁移指定索引集 ID，支持逗号分隔多个，如 200,201",
+        )
         scope_group.add_argument("--all", action="store_true", help="迁移全部聚类配置")
         parser.add_argument(
             "--skip-create-ci",
@@ -75,12 +93,18 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         bk_biz_ids = parse_str_int_list(options["bk_biz_id"])
         flow_ids = parse_str_int_list(options["flow_ids"])
+        collector_config_ids = parse_str_int_list(options["collector_config_ids"])
+        index_set_ids = parse_str_int_list(options["index_set_ids"])
         dry_run = options["dry_run"]
 
         if options["bk_biz_id"] is not None and not bk_biz_ids:
             raise CommandError("参数 -b/--bk_biz_id 不能为空")
         if options["flow_ids"] is not None and not flow_ids:
             raise CommandError("参数 --flow_id 不能为空/0")
+        if options["collector_config_ids"] is not None and not collector_config_ids:
+            raise CommandError("参数 --collector_config_id 不能为空/0")
+        if options["index_set_ids"] is not None and not index_set_ids:
+            raise CommandError("参数 --index_set_id 不能为空/0")
 
         activate_request(generate_request("admin"))
         result = OverseasMigrateApi.get_migration_mapping_info()
@@ -98,6 +122,10 @@ class Command(BaseCommand):
                 | Q(predict_flow_id__in=flow_ids)
                 | Q(log_count_aggregation_flow_id__in=flow_ids)
             )
+        elif collector_config_ids:
+            configs = configs.filter(collector_config_id__in=collector_config_ids)
+        elif index_set_ids:
+            configs = configs.filter(index_set_id__in=index_set_ids)
 
         configs = list(configs)
         if not configs:
