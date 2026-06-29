@@ -1330,10 +1330,6 @@ class TestCustomCreateIdempotent(TestCase):
     @patch("apps.log_databus.handlers.collector.base.CollectorHandler._send_create_notify", return_value=None)
     @patch("apps.log_databus.handlers.collector.base.CollectorHandler._authorization_collector", return_value=None)
     @patch(
-        "apps.log_databus.handlers.collector.base.CollectorHandler.get_default_public_cluster_id",
-        return_value=STORAGE_CLUSTER_ID,
-    )
-    @patch(
         "apps.log_databus.handlers.collector_scenario.base.CollectorScenario.update_or_create_data_id",
         return_value=300,
     )
