@@ -1,0 +1,98 @@
+.bk-sideslider.create-tapd-sides-slider {
+  .create-tapd-side-slider-header {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding-right: 40px;
+
+    .tapd-auth-text {
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+
+      .icon-mc-check-fill {
+        margin-right: 6px;
+        font-size: 16px;
+        color: #21a380;
+      }
+
+      .tips-text {
+        color: #21a380;
+      }
+
+      .cancel-auth-btn {
+        color: #3a84ff;
+        cursor: pointer;
+      }
+    }
+  }
+
+  .create-tapd-side-slider-content {
+    height: calc(100vh - 52px);
+    overflow-y: auto;
+    background-color: #f5f7fa;
+
+    .create-tapd-content {
+      padding: 18px 40px;
+
+      .sync-tapd-status {
+        padding: 16px 24px;
+        margin: 13px 0 48px;
+        background-color: #fff;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px 0 #1919290d;
+
+        .sync-tapd-status-title {
+          font-size: 14px;
+          font-weight: 700;
+          color: #313238;
+        }
+
+        .sync-tapd-status-tips {
+          padding-left: 22px;
+          margin-top: 8px;
+
+          .tip-item {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+            margin-top: 4px;
+            font-size: 12px;
+            line-height: 20px;
+            color: #4d4f56;
+
+            .tip-dot {
+              flex-shrink: 0;
+              width: 4px;
+              height: 4px;
+              margin-top: 8px;
+              background-color: #63656e;
+              border-radius: 50%;
+            }
+
+            .tip-text {
+              flex: 1;
+            }
+          }
+        }
+      }
+    }
+
+    .create-tapd-footer {
+      position: fixed;
+      bottom: 0;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      width: 100%;
+      height: 48px;
+      padding: 0 40px;
+      background: #fff;
+      border-top: 1px solid #eaebf0;
+
+      .bk-button {
+        min-width: 88px;
+      }
+    }
+  }
+}

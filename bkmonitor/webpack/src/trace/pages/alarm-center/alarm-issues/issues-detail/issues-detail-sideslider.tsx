@@ -73,7 +73,7 @@ export default defineComponent({
       default: true,
     },
   },
-  emits: ['update:show', 'next', 'previous'],
+  emits: ['update:show', 'next', 'previous', 'createTapd'],
   setup(props, { emit }) {
     const detail = shallowRef<IssueDetail>(undefined);
     const loading = shallowRef(false);
@@ -181,6 +181,11 @@ export default defineComponent({
       isFullscreen.value = value;
     };
 
+    const handleCreateTapd = () => {
+      emit('createTapd', true, props.issueBizId, props.issueId);
+      handleShowChange(false);
+    };
+
     const handleConditionChange = (val: IWhereItem[]) => {
       conditions.value = val;
     };
@@ -269,6 +274,7 @@ export default defineComponent({
       handleImmediateRefresh,
       handleRefreshChange,
       handleToggleFullscreen,
+      handleCreateTapd,
       handleConditionChange,
       handleQueryStringChange,
       handleFilterModeChange,
@@ -309,6 +315,7 @@ export default defineComponent({
               isFullscreen={this.isFullscreen}
               loading={this.loading}
               showStepBtn={this.showStepBtn}
+              onCreateTapdSliderShowChange={this.handleCreateTapd}
               onNameChange={this.handleNameChange}
               onNext={this.handleNext}
               onPrevious={this.handlePrevious}

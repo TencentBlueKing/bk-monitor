@@ -501,4 +501,8 @@ export default {
   '事件数、影响范围会并入主 Issue；': 'Event count and impact scope will be merged into the main Issue.',
   '默认保留第 1 条选中的 Issue 作为主 Issue，也可以在下方表单切换；':
     'By default, the first selected Issue is retained as the main Issue, and can be switched in the form below.',
+
+  '已授权 TAPD 项目列表 · 已关联 {count} 个项目': 'Authorized TAPD Project List · {count} Projects Associated',
+  '开启后，当本单据在外部平台进入「已完成」类状态{0}时，本 Issue 将自动流转为「已解决」。':
+    'After opening, when this document enters the "Completed" status {0} on the external platform, this issue will automatically flow to "Resolved".',
 };

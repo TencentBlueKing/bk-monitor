@@ -55,6 +55,7 @@ class IssueActivityType:
     # 合并/拆分活动：content 字段使用结构化 JSON，区分 manual 与 by_main_resolve / by_main_archive
     MERGED_INTO = "merged_into"
     SPLIT_FROM = "split_from"
+    CREATE_TAPD = "create_tapd"
 
     CHOICES = (
         (CREATE, _("创建")),
@@ -66,6 +67,7 @@ class IssueActivityType:
         (NAME_CHANGE, _("名称变更")),
         (MERGED_INTO, _("合并进主")),
         (SPLIT_FROM, _("从主拆分")),
+        (CREATE_TAPD, _("创建TAPD")),
     )
 
 

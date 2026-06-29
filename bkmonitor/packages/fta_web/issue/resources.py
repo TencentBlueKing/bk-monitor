@@ -12,32 +12,58 @@ import logging
 from collections import Counter
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import json
+import re
 import time
 
-from rest_framework import serializers
+from django.http import HttpResponseRedirect
+from django.urls import reverse
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework import serializers, exceptions
+from rest_framework.decorators import api_view
 
+from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.documents.issue import (
     IssueActivityDocument,
     IssueDocument,
     IssueDocumentWriteError,
     IssueNotFoundError,
 )
-from bkmonitor.issue_merge import IssueFrozenError
-from bkmonitor.models.issue import IssueMergeRelation
-from bkmonitor.utils.request import get_request_username
+from bkmonitor.issue_merge import IssueFrozenError, IssueMergeResolver
+from bkmonitor.models import TapdWorkspaceBinding
+from bkmonitor.models.issue import IssueMergeRelation, IssueTapdRelation
+from bkmonitor.utils.request import get_request_username, get_request
 from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
+from bkmonitor.utils.user import set_local_username
 from constants.issue import IssuePriority, IssueStatus, IssueActivityType
 from core.drf_resource import Resource, api, resource
+from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
+from core.errors.common import HTTP404Error
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.utils import slice_time_interval
 from fta_web.issue.handlers.issue import (
     IssueQueryHandler,
 )
 from fta_web.issue.serializers import IssueSearchSerializer
-
+from fta_web.constants import TapdWorkspaceBindStatus
+from fta_web.issue.utils.tapd import (
+    save_tapd_token,
+    verify_signed_state,
+    generate_install_url,
+    try_bind_importable,
+    normalize_redirect_url,
+    get_tapd_token,
+    delete_tapd_token,
+    generate_auth_url,
+)
 
 logger = logging.getLogger("root")
+
+
+def _sanitize_for_log(value) -> str:
+    return str(value).replace("\r", "").replace("\n", "")
 
 
 class IssueIDField(serializers.CharField):
@@ -176,7 +202,7 @@ class IssueTopNResultResource(Resource):
         unauthorized_bizs = serializers.ListField(child=serializers.IntegerField(), default=None)
         need_bucket_count = serializers.BooleanField(required=False, default=True, label="是否需要进行基数聚合")
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> dict:
         fields = validated_request_data.pop("fields")
         size = validated_request_data.pop("size")
 
@@ -194,7 +220,7 @@ class IssueTopNResource(Resource):
         size = serializers.IntegerField(label="获取的桶数量", default=10)
         need_time_partition = serializers.BooleanField(required=False, default=True, label="是否需要按时间分片")
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> dict:
         """
         执行 Issue TopN 查询，支持按时间分片并行查询以提升大时间跨度下的查询性能
 
@@ -415,7 +441,7 @@ class SearchIssueResource(Resource):
         trend_start_time = serializers.IntegerField(label="趋势图起始时间", required=False)
         trend_end_time = serializers.IntegerField(label="趋势图结束时间", required=False)
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> dict:
         show_aggs = validated_request_data.pop("show_aggs")
         show_dsl = validated_request_data.pop("show_dsl")
         handler = IssueQueryHandler(**validated_request_data)
@@ -431,7 +457,7 @@ class IssueDetailResource(Resource):
         id = IssueIDField(label="Issue ID")
         bk_biz_id = serializers.IntegerField(label="业务ID", required=True)
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> dict:
         """获取 Issue 元数据，告警动态数据由前端调用告警中心接口获取。
 
         合并视图：若请求的 issue_id 是 active member，自动返回主 Issue 数据 +
@@ -579,7 +605,7 @@ class IssueDetailResource(Resource):
 class IssueAlertDateHistogramResultResource(Resource):
     """查询 Issue 关联的告警趋势图（支持 group_by 分组维度）"""
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> dict:
         interval = validated_request_data.pop("interval", "auto")
         group_by = validated_request_data.pop("group_by", None)
         start_time = validated_request_data.get("start_time")
@@ -695,7 +721,7 @@ class AssignIssueResource(Resource):
         issues = serializers.ListField(label="Issue 列表", child=IssueItemSerializer(), min_length=1)
         assignee = serializers.ListField(label="负责人列表", child=serializers.CharField(min_length=1), min_length=1)
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> dict:
         assignee = validated_request_data["assignee"]
         operator = get_request_username()
 
@@ -727,7 +753,7 @@ class ResolveIssueResource(Resource):
     class RequestSerializer(serializers.Serializer):
         issues = serializers.ListField(label="Issue 列表", child=IssueItemSerializer(), min_length=1)
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> dict:
         operator = get_request_username()
 
         def _action(bk_biz_id, issue_id):
@@ -756,7 +782,7 @@ class ArchiveIssueResource(Resource):
     class RequestSerializer(serializers.Serializer):
         issues = serializers.ListField(label="Issue 列表", child=IssueItemSerializer(), min_length=1)
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> dict:
         operator = get_request_username()
 
         def _action(bk_biz_id, issue_id):
@@ -775,7 +801,7 @@ class ReopenIssueResource(Resource):
     class RequestSerializer(serializers.Serializer):
         issues = serializers.ListField(label="Issue 列表", child=IssueItemSerializer(), min_length=1)
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> dict:
         operator = get_request_username()
 
         def _action(bk_biz_id, issue_id):
@@ -794,7 +820,7 @@ class RestoreIssueResource(Resource):
     class RequestSerializer(serializers.Serializer):
         issues = serializers.ListField(label="Issue 列表", child=IssueItemSerializer(), min_length=1)
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> dict:
         operator = get_request_username()
 
         def _action(bk_biz_id, issue_id):
@@ -817,7 +843,7 @@ class UpdateIssuePriorityResource(Resource):
             choices=[IssuePriority.P0, IssuePriority.P1, IssuePriority.P2],
         )
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> dict:
         priority = validated_request_data["priority"]
         operator = get_request_username()
 
@@ -839,7 +865,7 @@ class AddIssueFollowUpResource(Resource):
         issues = serializers.ListField(label="Issue 列表", child=IssueItemSerializer(), min_length=1)
         content = serializers.CharField(label="跟进内容", min_length=1)
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> dict:
         content = validated_request_data["content"]
         operator = get_request_username()
 
@@ -863,7 +889,7 @@ class EditIssueFollowUpResource(Resource):
         activity_id = serializers.CharField(label="评论活动 ID", min_length=1)
         content = serializers.CharField(label="编辑后的内容", min_length=1)
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> dict:
         operator = get_request_username()
         return api.issue.edit_follow_up(
             bk_biz_id=validated_request_data["bk_biz_id"],
@@ -882,7 +908,7 @@ class RenameIssueResource(Resource):
         issue_id = IssueIDField(label="Issue ID")
         new_name = serializers.CharField(label="Issue 名称", min_length=1, max_length=256)
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> dict:
         operator = get_request_username()
         return api.issue.rename(
             bk_biz_id=validated_request_data["bk_biz_id"],
@@ -899,7 +925,7 @@ class ListIssueActivitiesResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         issue_id = IssueIDField(label="Issue ID")
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> dict:
         issue_id = validated_request_data["issue_id"]
         bk_biz_id = validated_request_data["bk_biz_id"]
 
@@ -938,7 +964,7 @@ class ListIssueHistoryResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         issue_id = IssueIDField(label="当前 Issue ID")
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> dict:
         issue_id = validated_request_data["issue_id"]
         bk_biz_id = validated_request_data["bk_biz_id"]
 
@@ -1003,7 +1029,7 @@ class ExportIssueResource(Resource):
         trend_start_time = serializers.IntegerField(label="趋势图起始时间", required=False)
         trend_end_time = serializers.IntegerField(label="趋势图结束时间", required=False)
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> dict:
         issues = validated_request_data["issues"]
         issue_ids = [item["issue_id"] for item in issues]
         bk_biz_ids = [item["bk_biz_id"] for item in issues]
@@ -1034,7 +1060,7 @@ class ListRecentAssigneesResource(Resource):
         )
         recent_days = serializers.IntegerField(label="最近天数", min_value=1, max_value=30, default=7)
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> dict:
         bk_biz_ids = validated_request_data.get("bk_biz_ids") or []
         recent_days = validated_request_data["recent_days"]
 
@@ -1090,7 +1116,7 @@ class MergeIssueResource(Resource):
         # 合并依据非必填：缺省/空列表均合法（与拆分依据对齐；下游 merge_reasons 默认空列表已兜底）
         reasons = serializers.ListField(label="合并依据", child=serializers.CharField(), required=False, default=list)
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> dict:
         return api.issue.merge(
             bk_biz_id=validated_request_data["bk_biz_id"],
             main_issue_id=validated_request_data["main_issue_id"],
@@ -1109,7 +1135,7 @@ class SplitIssueResource(Resource):
         # 拆分依据非必填：缺省/空列表均合法（下游 bulk_reset_for_split 与 split_info 已按空兜底）
         reasons = serializers.ListField(label="拆分依据", child=serializers.CharField(), required=False, default=list)
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> dict:
         return api.issue.split(
             bk_biz_id=validated_request_data["bk_biz_id"],
             member_issue_id=validated_request_data["member_issue_id"],
@@ -1183,7 +1209,7 @@ class ListMergeSourcesResource(Resource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         main_issue_id = IssueIDField(label="主 Issue ID")
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> dict:
         bk_biz_id = validated_request_data["bk_biz_id"]
         main_id = validated_request_data["main_issue_id"]
 
@@ -1263,7 +1289,7 @@ class AlertIssueEnrichResource(Resource):
             label="alert.issue_id 列表", child=serializers.CharField(), min_length=1, max_length=500
         )
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> dict:
         from bkmonitor.issue_merge import IssueMergeResolver, MergeResolverContext
 
         bk_biz_id = validated_request_data["bk_biz_id"]
@@ -1316,7 +1342,7 @@ class ListTapdWorkspaceResource(Resource):
         )
         fields = serializers.CharField(label="获取字段", required=False, help_text="多个字段以逗号分隔，如：id,created")
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict) -> dict:
         # 第一步：获取已授权的workspace列表
         params = {
             "workspace_id": validated_request_data.get("workspace_id"),
@@ -1390,3 +1416,1123 @@ class ListTapdWorkspaceResource(Resource):
             item.pop("index", None)
 
         return tapd_workspace_info
+
+
+class GetTapdFieldsResource(Resource):
+    """
+    获取 Tapd 单据字段
+    """
+
+    # 核心字段定义（固定必填、不可取消）
+    # Story 核心字段：
+    #   - name: 标题
+    #   - description: 详细描述
+    #   - owner: 处理人
+    #   - priority_label: 优先级
+    #   - iteration_id: 所属迭代
+    STORY_CORE_FIELDS: set[str] = {"name", "description", "owner", "priority_label", "iteration_id"}
+
+    # Bug 核心字段：
+    #   - title: 标题
+    #   - description: 详细描述
+    #   - current_owner: 处理人
+    #   - priority_label: 优先级
+    #   - iteration_id: 所属迭代
+    #   - te: 测试人员
+    BUG_CORE_FIELDS: set[str] = {"title", "description", "current_owner", "priority_label", "iteration_id", "te"}
+
+    # 缺陷字段ID的映射（统一返回结构）
+    BUG_FIELD_ID_MAPPING: dict[str, str] = {"title": "name", "current_owner": "owner"}
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        workspace_id = serializers.IntegerField(label="项目ID")
+        tapd_type = serializers.CharField(label="tapd单据类型")
+        template_id = serializers.IntegerField(label="模板ID", default=0)
+
+    @staticmethod
+    def _convert_options(options: dict | list) -> list[dict[str, str]]:
+        """将选项从字典格式转换为列表格式
+
+        Args:
+            options: TAPD API 返回的选项数据，可能是字典、或空列表
+
+        Returns:
+            标准化的选项列表，每个元素包含 id 和 name 字段
+
+        Examples:
+            >>> _convert_options({"urgent": "紧急", "high": "高"})
+            [{"id": "urgent", "name": "紧急"}, {"id": "high", "name": "高"}]
+        """
+        if isinstance(options, dict):
+            return [{"id": key, "name": value} for key, value in options.items()]
+        return []
+
+    def _get_core_fields(self, tapd_type: str) -> set[str]:
+        """获取指定单据类型的核心字段集合
+
+        Args:
+            tapd_type: 单据类型，'story' 或 'bug'
+
+        Returns:
+            核心字段 ID 集合
+        """
+        if tapd_type == "story":
+            return self.STORY_CORE_FIELDS
+        elif tapd_type == "bug":
+            return self.BUG_CORE_FIELDS
+        else:
+            return set()
+
+    def _map_field_id(self, field_id: str, tapd_type: str) -> str:
+        """映射字段 ID
+
+        将缺陷字段 ID 映射为统一的字段 ID
+
+        Args:
+            field_id: 原始字段 ID
+            tapd_type: 单据类型
+
+        Returns:
+            映射后的字段 ID
+        """
+        if tapd_type == "bug" and field_id in self.BUG_FIELD_ID_MAPPING:
+            return self.BUG_FIELD_ID_MAPPING[field_id]
+        return field_id
+
+    def perform_request(self, validated_request_data: dict) -> list[dict]:
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        workspace_id = validated_request_data["workspace_id"]
+        tapd_type = validated_request_data["tapd_type"]
+        template_id = validated_request_data.get("template_id", 0)
+
+        # 当前仅支持 story 和 bug 单据类型以及 template_id=0（默认模板），不支持自定义模板字段查询，后续再扩展
+        if tapd_type not in ("story", "bug"):
+            raise serializers.ValidationError(f"不支持的 TAPD 单据类型: {tapd_type}，仅支持 story 和 bug")
+        if template_id != 0:
+            raise serializers.ValidationError(
+                f"当前不支持模板自定义字段查询，请传入 template_id=0（默认模板），当前传入值: {template_id}"
+            )
+
+        # 获取 TAPD 字段信息
+        if tapd_type == "story":
+            fields_info = api.tapd.get_story_fields_info(workspace_id=workspace_id)
+        else:  # tapd_type == "bug"
+            fields_info = api.tapd.get_bug_fields_info(workspace_id=workspace_id)
+
+        if not fields_info:
+            raise serializers.ValidationError(
+                f"获取 TAPD 字段信息失败，workspace_id={workspace_id}，tapd_type={tapd_type}，"
+                f"请检查 TAPD 项目配置或联系管理员"
+            )
+
+        # 获取核心字段集合
+        core_fields = self._get_core_fields(tapd_type)
+
+        result = []
+        for field_id, detail in fields_info.items():
+            # 本期只返回核心字段，下期再完善管理字段功能
+            if field_id not in core_fields:
+                continue
+
+            mapped_field_id = self._map_field_id(field_id, tapd_type)
+            options = self._convert_options(detail["options"])
+
+            result.append(
+                {
+                    "bk_biz_id": bk_biz_id,
+                    "workspace_id": workspace_id,
+                    "tapd_type": tapd_type,
+                    "template_id": template_id,
+                    "field_id": mapped_field_id,
+                    "field_name": detail.get("label", field_id),
+                    "field_type": detail["html_type"],
+                    "options": options,
+                    "is_core_field": True,
+                    "is_selected": True,
+                    "is_required": True,
+                }
+            )
+
+        return result
+
+
+class SearchTAPDItemsResource(Resource):
+    """查询 TAPD 平台上已有的需求（story）或缺陷（bug）单据列表
+
+    通过 tapd_type 参数指定单据类型，支持按 ID 或标题过滤，支持分页和排序。
+    """
+
+    # 字段映射：统一字段名 → TAPD 原始字段名（仅需映射的字段）
+    # 查询参数和响应字段共用：查询时 name→title，响应时 title→name
+    BUG_FIELD_MAPPING: dict[str, str] = {"name": "title", "owner": "current_owner"}
+    # 构建反向映射：TAPD 原始字段名 → 统一字段名
+    BUG_FIELD_MAPPING_REVERSE: dict[str, str] = {v: k for k, v in BUG_FIELD_MAPPING.items()}
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        workspace_id = serializers.IntegerField(label="项目ID")
+        tapd_type = serializers.ChoiceField(
+            label="单据类型",
+            choices=["story", "bug"],
+            help_text="单据类型：story(需求), bug(缺陷)",
+        )
+        id = serializers.CharField(
+            label="单据ID",
+            required=False,
+            help_text="支持多ID查询，多个以逗号分隔",
+        )
+        name = serializers.CharField(
+            label="标题",
+            required=False,
+            help_text="支持模糊匹配",
+        )
+        limit = serializers.IntegerField(
+            label="返回数量限制",
+            required=False,
+            default=30,
+            min_value=1,
+            max_value=200,
+        )
+        page = serializers.IntegerField(
+            label="页码",
+            required=False,
+            default=1,
+            min_value=1,
+        )
+        order = serializers.CharField(
+            label="排序规则",
+            required=False,
+            default="created desc",
+            help_text="格式：字段名 ASC 或 字段名 DESC，如：created desc",
+        )
+
+        def validate_order(self, value: str) -> str:
+            """验证 order 参数格式"""
+            # 支持的格式：字段名 ASC 或 字段名 DESC（不区分大小写）
+            pattern = r"^[a-zA-Z_][a-zA-Z0-9_]*\s+(ASC|DESC)$"
+            if not re.match(pattern, value.strip(), re.IGNORECASE):
+                raise serializers.ValidationError(
+                    "order 参数格式错误，应为：字段名 ASC 或 字段名 DESC，如：created desc"
+                )
+            return value.strip()
+
+        fields = serializers.CharField(
+            label="返回字段",
+            required=False,
+            default="id,name,status,created,priority_label",
+            help_text="设置返回的字段，多个字段间以逗号隔开。bk_biz_id、workspace_id、tapd_type 固定返回，无需指定。",
+        )
+
+    @classmethod
+    def _query_tapd_items(
+        cls,
+        tapd_type: str,
+        workspace_id: int,
+        limit: int,
+        page: int,
+        order: str,
+        fields: str,
+        id: str = "",
+        name: str = "",
+    ) -> list[dict]:
+        """调用 TAPD API 查询单据列表
+
+        Args:
+            tapd_type: 单据类型，story 或 bug
+            workspace_id: TAPD 项目 ID
+            id: 单据 ID，支持逗号分隔多 ID
+            name: 标题模糊匹配
+            limit: 返回数量限制
+            page: 页码
+            order: 排序规则
+            fields: 返回字段列表
+
+        Returns:
+            TAPD 数据列表
+        """
+        # 处理 fields 参数：将统一字段名映射为 TAPD 原始字段名
+        params = {}
+        if fields:
+            field_list = [f.strip() for f in fields.split(",")]
+            if tapd_type == "bug":
+                field_list = [cls.BUG_FIELD_MAPPING.get(f, f) for f in field_list]
+            params["fields"] = ",".join(field_list)
+
+        params.update(
+            {
+                "workspace_id": workspace_id,
+                "limit": limit,
+                "page": page,
+                "order": order,
+            }
+        )
+        if id:
+            params["id"] = id
+        if name:
+            params["name"] = name
+
+        if tapd_type == "bug":
+            # 查询参数字段重命名（name → title，owner → current_owner）
+            params = {cls.BUG_FIELD_MAPPING.get(k, k): v for k, v in params.items()}
+            tapd_data = api.tapd.get_bugs(**params)
+            field_mapping = cls.BUG_FIELD_MAPPING_REVERSE
+        else:
+            tapd_data = api.tapd.get_stories(**params)
+            field_mapping = {}
+
+        # 解包外层类型 key：{"Story": {...}} → {...}
+        # 响应字段重命名（bug 类型：title → name）
+        wrapper_key = tapd_type.capitalize()
+        results = []
+        for tapd in tapd_data:
+            item = tapd[wrapper_key]
+            if field_mapping:
+                item = {field_mapping.get(k, k): v for k, v in item.items()}
+            results.append(item)
+
+        # 补充 status_display_name：根据字段元数据的 options 映射状态值
+        if any(item.get("status") for item in results):
+            try:
+                if tapd_type == "bug":
+                    fields_info = api.tapd.get_bug_fields_info(workspace_id=workspace_id)
+                else:
+                    fields_info = api.tapd.get_story_fields_info(workspace_id=workspace_id)
+                status_options = (fields_info or {}).get("status", {}).get("options", {})
+                for item in results:
+                    status = item.get("status")
+                    if not status:
+                        continue
+                    item["status_display_name"] = status_options.get(status, status)
+            except Exception:
+                logger.warning(
+                    "Failed to get status options for tapd_type=%s, workspace_id=%s",
+                    tapd_type,
+                    workspace_id,
+                    exc_info=True,
+                )
+                for item in results:
+                    status = item.get("status")
+                    if status:
+                        item["status_display_name"] = status
+
+        return results
+
+    def perform_request(self, validated_request_data: dict) -> list[dict]:
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        workspace_id = validated_request_data["workspace_id"]
+        tapd_type = validated_request_data["tapd_type"]
+
+        tapd_items = self._query_tapd_items(
+            tapd_type=tapd_type,
+            workspace_id=workspace_id,
+            id=validated_request_data.get("id", ""),
+            name=validated_request_data.get("name", ""),
+            limit=validated_request_data["limit"],
+            page=validated_request_data["page"],
+            order=validated_request_data["order"],
+            fields=validated_request_data["fields"],
+        )
+
+        for item in tapd_items:
+            item["bk_biz_id"] = bk_biz_id
+            item["workspace_id"] = str(workspace_id)
+            item["tapd_type"] = tapd_type
+
+        return tapd_items
+
+
+class CreateTapdResource(Resource):
+    """创建TAPD单据接口
+    支持两种单据类型：
+    1. story - 需求单据
+    2. bug - 缺陷单据
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        issue_id = IssueIDField(label="Issue ID")
+
+        tapd_type = serializers.ChoiceField(
+            label="TAPD单据类型",
+            choices=["story", "bug"],
+            help_text="单据类型：story(需求), bug(缺陷)",
+        )
+        workspace_id = serializers.IntegerField(label="项目ID")
+        name = serializers.CharField(label="单据标题")
+        description = serializers.CharField(label="详细描述")
+        owner = serializers.CharField(label="单据处理人", help_text="支持多成员，如：aaa;bbb;")
+        priority_label = serializers.CharField(label="优先级")
+        iteration_id = serializers.CharField(label="迭代ID")
+        te = serializers.CharField(label="测试人员", required=False)
+        sync_status = serializers.BooleanField(
+            label="同步单据状态",
+            help_text="勾选后，TAPD单据完成时自动同步状态到Issue",
+        )
+
+        def validate(self, attrs):
+            # 创建bug单据时te字段必填
+            if attrs.get("tapd_type") == "bug" and not attrs.get("te"):
+                raise serializers.ValidationError("The te field is required when tapd_type is bug")
+            if attrs.get("sync_status"):
+                raise serializers.ValidationError("sync_status is not supported until TAPD status sync is implemented")
+
+            return attrs
+
+    @staticmethod
+    def _read_activities(issue_id: str) -> list:
+        """读取当前 Issue 全部活动日志（按时间降序）
+
+        Args:
+            issue_id: Issue ID
+
+        Returns:
+            活动日志列表，每项包含 bk_biz_id、activity_id、activity_type、
+            operator、from_value、to_value、content、time 字段。
+            查询失败时返回空列表。
+        """
+        try:
+            search = (
+                IssueActivityDocument.search(all_indices=True)
+                .filter("term", issue_id=issue_id)
+                .sort("-time")
+                .extra(size=500)
+            )
+            hits = search.execute().hits
+            return [
+                {
+                    "bk_biz_id": hit.bk_biz_id,
+                    "activity_id": hit.meta.id,
+                    "activity_type": hit.activity_type,
+                    "operator": hit.operator or "",
+                    "from_value": hit.from_value,
+                    "to_value": hit.to_value,
+                    "content": hit.content,
+                    "time": int(hit.time) if hit.time else 0,
+                }
+                for hit in hits
+            ]
+        except Exception:
+            logger.exception("Failed to read activities, issue_id=%s", issue_id)
+            return []
+
+    @staticmethod
+    def _create_tapd(
+        tapd_type: str,
+        workspace_id: int,
+        name: str,
+        description: str,
+        owner: str,
+        priority_label: str,
+        iteration_id: str,
+        te: str = "",
+    ) -> dict:
+        """调用 TAPD API 创建单据并返回统一结构的单据信息
+
+        Args:
+            tapd_type: 单据类型，story 或 bug
+            workspace_id: TAPD 项目 ID
+            name: 单据标题
+            description: 详细描述
+            owner: 处理人
+            priority_label: 优先级
+            iteration_id: 迭代 ID
+            te: 测试人员（bug 类型必填）
+
+        Returns:
+            统一结构的单据信息 dict，包含 tapd_id、tapd_type、name、
+            description、owner、priority_label、iteration_id 等字段。
+            bug 类型额外包含 te 字段。
+        """
+        if tapd_type == "story":
+            params = {
+                "workspace_id": workspace_id,
+                "name": name,
+                "description": description,
+                "owner": owner,
+                "priority_label": priority_label,
+                "iteration_id": iteration_id,
+            }
+            params = {k: v for k, v in params.items() if v is not None}
+            rs = api.tapd.add_story(**params)["Story"]
+            return {
+                "tapd_id": str(rs["id"]),
+                "tapd_type": tapd_type,
+                "name": rs["name"],
+                "description": rs["description"],
+                "owner": rs["owner"],
+                "priority_label": rs["priority_label"],
+                "iteration_id": rs["iteration_id"],
+            }
+        else:
+            params = {
+                "workspace_id": workspace_id,
+                "title": name,
+                "description": description,
+                "current_owner": owner,
+                "priority_label": priority_label,
+                "iteration_id": iteration_id,
+                "te": te,
+            }
+            params = {k: v for k, v in params.items() if v is not None}
+            rs = api.tapd.add_bug(**params)["Bug"]
+            return {
+                "tapd_id": str(rs["id"]),
+                "tapd_type": tapd_type,
+                "name": rs["title"],
+                "description": rs["description"],
+                "owner": rs["current_owner"],
+                "priority_label": rs["priority_label"],
+                "iteration_id": rs["iteration_id"],
+                "te": rs["te"],
+            }
+
+    @staticmethod
+    def _save_relation(tapd_info: dict) -> None:
+        """保存 Issue 与 TAPD 单据的关联关系
+
+        如果相同 bk_biz_id + workspace_id + issue_id + tapd_id 的关联记录已存在，则修改。
+
+        Args:
+            tapd_info: TAPD 单据信息字典，必须包含以下字段：
+                - tapd_id: TAPD 单据 ID（用于关联查询）
+                - tapd_type: 单据类型（story/bug）
+                - name: 单据标题
+                - bk_biz_id: 业务 ID
+                - issue_id: Issue ID
+                - workspace_id: TAPD 项目 ID
+                - sync_status: 是否同步状态
+        """
+        tapd_id = tapd_info["tapd_id"]
+        obj, created = IssueTapdRelation.objects.update_or_create(
+            bk_biz_id=tapd_info["bk_biz_id"],
+            issue_id=tapd_info["issue_id"],
+            workspace_id=tapd_info["workspace_id"],
+            tapd_id=tapd_id,
+            defaults={
+                "tapd_type": tapd_info["tapd_type"],
+                "tapd_title": tapd_info["name"],
+                "link_mode": "create",
+                "sync_status": tapd_info["sync_status"],
+            },
+        )
+        if not created:
+            logger.info(
+                "IssueTapdRelation already exists, issue_id=%s, tapd_id=%s, skip creating",
+                tapd_info["issue_id"],
+                tapd_id,
+            )
+
+    def _record_activity(
+        self,
+        issue_id: str,
+        bk_biz_id: int,
+        tapd_info: dict,
+    ) -> list:
+        """记录 TAPD 创建活动日志并合并返回完整活动列表
+
+        写入 ES 失败时重试一次，仍失败则仅记录日志，不将失败的活动拼入返回，
+        避免返回无效的 activity_id。
+
+        Args:
+            issue_id: Issue ID
+            bk_biz_id: 业务 ID
+            tapd_info: TAPD 单据信息（序列化为 content）
+
+        Returns:
+            完整的活动日志列表（新活动在前，历史在后）
+        """
+        # 读取历史活动日志（先读后写，避免 ES 延迟）
+        existing_activities = self._read_activities(issue_id)
+
+        create_time = int(time.time())
+        create_username = get_request_username()
+        tapd_content = json.dumps(tapd_info, ensure_ascii=False)
+
+        new_activity = IssueActivityDocument(
+            issue_id=issue_id,
+            bk_biz_id=bk_biz_id,
+            activity_type=IssueActivityType.CREATE_TAPD,
+            from_value=None,
+            to_value=None,
+            operator=create_username,
+            content=tapd_content,
+            time=create_time,
+            create_time=create_time,
+        )
+
+        write_succeeded = False
+        try:
+            IssueActivityDocument.bulk_create([new_activity])
+            write_succeeded = True
+        except Exception as e:
+            logger.warning(
+                "IssueActivityDocument create_tapd activity write failed, retrying once, issue_id=%s: %s",
+                issue_id,
+                e,
+            )
+            try:
+                IssueActivityDocument.bulk_create([new_activity])
+                write_succeeded = True
+            except Exception as e2:
+                logger.error(
+                    "IssueActivityDocument create_tapd activity write retry failed, issue_id=%s: %s",
+                    issue_id,
+                    e2,
+                )
+
+        if not write_succeeded:
+            return existing_activities
+
+        new_activity_item = {
+            "bk_biz_id": new_activity.bk_biz_id,
+            "activity_id": new_activity.id,
+            "activity_type": new_activity.activity_type,
+            "operator": new_activity.operator or "",
+            "from_value": new_activity.from_value,
+            "to_value": new_activity.to_value,
+            "content": new_activity.content,
+            "time": new_activity.time,
+        }
+        return [new_activity_item] + existing_activities
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        issue_id = validated_request_data["issue_id"]
+
+        IssueDocument.get_issue_or_raise(issue_id, bk_biz_id=bk_biz_id)
+
+        # 已被合并冻结的 Issue 禁止创建 TAPD（与状态机操作一致）
+        IssueMergeResolver.assert_not_frozen(issue_id)
+
+        tapd_type = validated_request_data["tapd_type"]
+        workspace_id = validated_request_data["workspace_id"]
+        name = validated_request_data["name"]
+        description = validated_request_data["description"]
+        owner = validated_request_data["owner"]
+        sync_status = validated_request_data["sync_status"]
+        priority_label = validated_request_data["priority_label"]
+        iteration_id = validated_request_data["iteration_id"]
+        te = validated_request_data.get("te", "")
+
+        if sync_status:
+            # TODO: [issue-tapd-sync] 实现 TAPD 单据状态同步功能
+            logger.warning(
+                "sync_status=True requested but not yet implemented, issue_id=%s, tapd_type=%s",
+                issue_id,
+                tapd_type,
+            )
+
+        # Step 1: 调用 TAPD API 创建单据
+        tapd_info = self._create_tapd(
+            tapd_type=tapd_type,
+            workspace_id=workspace_id,
+            name=name,
+            description=description,
+            owner=owner,
+            priority_label=priority_label,
+            iteration_id=iteration_id,
+            te=te,
+        )
+
+        # 补充公共字段
+        tapd_info.update(
+            {
+                "bk_biz_id": bk_biz_id,
+                "issue_id": issue_id,
+                "workspace_id": workspace_id,
+                "sync_status": sync_status,
+            }
+        )
+
+        # Step 2: 保存issue与tapd单据的关联记录
+        self._save_relation(tapd_info=tapd_info)
+
+        # Step 3: 记录活动日志并返回完整活动列表
+        tapd_info["activities"] = self._record_activity(issue_id=issue_id, bk_biz_id=bk_biz_id, tapd_info=tapd_info)
+
+        return tapd_info
+
+
+class ListUserTapdWorkspaceResource(Resource):
+    """查询当前用户有权限的 TAPD 项目列表（冷启动去关联用）
+
+    端点：POST /fta/issue/tapd/user_workspace/
+    Body: { bk_biz_id, success_url, error_url }
+    数据源：TAPD 用户态 API（Bearer Token，从 Redis 解密获取）。
+
+    success_url: 成功/失败回调后 302 重定向的前端页面地址（含 #）。
+    error_url: 授权失败时重定向的前端错误页面地址（含 #）。
+        若未传则回退到 success_url（同一页面，前端根据 URL 参数区分成功/失败）。
+
+    四态判定（以用户级已授权项目为基准全集，项目级×本地为二维标记）：
+    - bound      用户级✓ + 项目级✓ + 本地✓
+    - importable 用户级✓ + 项目级✓ + 本地✗（静默尝试建 binding，成功转 bound）
+    - stale      用户级✓ + 项目级✗ + 本地✓
+    - unbound    用户级✓ + 项目级✗ + 本地✗
+
+    注：用户级无权限但本地有 binding 的项目不展示（用户已无权限，不应再操作）。
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="蓝鲸业务ID")
+        success_url = serializers.CharField(label="成功回调重定向地址（含#）", max_length=512)
+        error_url = serializers.CharField(label="失败回调重定向地址（含#）", max_length=512, required=False)
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        success_url = validated_request_data["success_url"]
+        # 未传 error_url 时回退到 success_url
+        error_url = validated_request_data.get("error_url") or success_url
+
+        # URL 补全：前端可传路径或全 URL，路径自动补 / 前缀和域名
+        request = get_request()
+        success_url = normalize_redirect_url(success_url, request)
+        error_url = normalize_redirect_url(error_url, request)
+
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        tenant_id = space_uid_to_bk_tenant_id(space_uid)
+        username = get_request_username()
+
+        # 查本地 binding（用于四态标记的【本地存在】侧）
+        local_bindings = {
+            str(b["tapd_workspace_id"]): b
+            for b in TapdWorkspaceBinding.objects.filter(bk_tenant_id=tenant_id, space_uid=space_uid).values(
+                "tapd_workspace_id", "tapd_workspace_name", "create_user"
+            )
+        }
+
+        token_payload = get_tapd_token(bk_tenant_id=tenant_id, username=username)
+        access_token = token_payload.get("access_token", "")
+
+        # 1. 获取用户级已授权 workspace_id 列表（Bearer Token）
+        #    无 token / token 失效 → raise 403 + auth_url 引导重新授权
+        user_workspace_ids = self._fetch_user_workspace_ids(
+            tenant_id, username, bk_biz_id, success_url, error_url, access_token
+        )
+
+        # 2. 并发查详情拿 workspace_name（复用 ListTapdWorkspaceResource 模式）
+        workspace_details = self._enrich_workspace_details(user_workspace_ids, access_token)
+
+        # 3. 四态标记（项目级×本地 二维判定）
+        app_granted_ids = self._fetch_app_granted_ids(bk_biz_id)
+        items, any_unbound_or_stale = self._mark_bind_status(
+            workspace_details, app_granted_ids, local_bindings, bk_biz_id, tenant_id, username
+        )
+
+        # install_url 仅在存在 unbound 或 stale 时按需构建（涉及签名生成，避免无用开销）
+        install_url = ""
+        if any_unbound_or_stale:
+            request = get_request()
+            backend_callback = request.build_absolute_uri(reverse("fta_web:tapd_app_install_callback"))
+            install_url = generate_install_url(
+                bk_biz_id=bk_biz_id,
+                bk_tenant_id=tenant_id,
+                space_uid=space_uid,
+                initiator=username,
+                success_url=success_url,
+                error_url=error_url,
+                backend_callback=backend_callback,
+            )
+
+        return {
+            "total": len(items),
+            "items": items,
+            "install_url": install_url,
+            "method": "GET",
+        }
+
+    @classmethod
+    def _raise_reauth_required(
+        cls, bk_biz_id: int, tenant_id: str, username: str, success_url: str, error_url: str
+    ) -> None:
+        """构造 403 + auth_url 响应，引导前端跳转 TAPD 用户态授权页。
+        与 view 层 TAPDAuthPermission 同模式（views.py:126-142）。
+        """
+        req = get_request()
+        oauth_callback = req.build_absolute_uri(reverse("fta_web:tapd_user_oauth_callback"))
+        auth_url = generate_auth_url(
+            bk_biz_id=bk_biz_id,
+            bk_tenant_id=tenant_id,
+            initiator=username,
+            success_url=success_url,
+            error_url=error_url,
+            backend_callback=oauth_callback,
+        )
+        exc = CustomException(
+            message="TAPD 用户态授权未生效",
+            data={"auth_url": auth_url},
+            code=403,
+        )
+        exc.status_code = 403
+        raise exc
+
+    def _fetch_user_workspace_ids(
+        self,
+        tenant_id: str,
+        username: str,
+        bk_biz_id: int,
+        success_url: str,
+        error_url: str,
+        access_token: str,
+    ) -> list[str]:
+        """获取用户级已授权的 workspace_id 列表（Bearer Token）。
+
+        无 token → raise 403；token 失效（422）→ 清理 token + raise 403。
+        :return: ws_ids 列表
+        """
+        if not access_token:
+            self._raise_reauth_required(bk_biz_id, tenant_id, username, success_url, error_url)
+
+        try:
+            user_granted_resp = api.tapd.get_granted_workspaces(access_token=access_token)
+        except BKAPIError as e:
+            # 422 = access_token 无效/过期，清理失效 token，统一转 403 + auth_url 引导重新授权
+            # 注：TAPD 返回 HTTP 422，APIResource.raise_for_status 先抛 HTTPError → BKAPIError，
+            # 此时 e.data 是 response.content 字符串（非 dict），e.message 含 "422"
+            error_code = ""
+            if isinstance(e.data, dict):
+                error_code = str(e.data.get("code", ""))
+            elif isinstance(e.data, str) and "422" in e.data:
+                error_code = "422"
+            if error_code == "422" or "422" in str(e.message):
+                logger.info("TAPD user token invalid (422), clearing token for reauth: %s", e)
+                delete_tapd_token(tenant_id=tenant_id, username=username)
+                self._raise_reauth_required(bk_biz_id, tenant_id, username, success_url, error_url)
+            # 其他 API 错误直接抛出
+            raise
+
+        user_granted_list = (
+            user_granted_resp.get("list", []) if isinstance(user_granted_resp, dict) else (user_granted_resp or [])
+        )
+        # 提取 workspace_id 列表（OpenOrganizationApp 内层不含 name，名称由 _enrich 补全）
+        ws_ids = []
+        for ws in user_granted_list:
+            ws_inner = ws.get("OpenOrganizationApp", {}) if isinstance(ws, dict) else {}
+            ws_id = str(ws_inner.get("workspace_id", ""))
+            if ws_id:
+                ws_ids.append(ws_id)
+        return ws_ids
+
+    @classmethod
+    def _enrich_workspace_details(cls, workspace_ids: list[str], access_token: str) -> list[dict]:
+        """并发查 workspace 详情拿 name（复用 bulk_request 框架）。
+
+        :param workspace_ids: workspace_id 字符串列表
+        :param access_token: 用户态 access_token（Bearer Token 认证）
+        :return: [{workspace_id, workspace_name}, ...]，顺序与入参一致；失败的兜底为 ws_id
+        """
+        if not workspace_ids:
+            return []
+
+        params = [{"workspace_id": int(ws_id), "access_token": access_token} for ws_id in workspace_ids]
+        # ignore_exceptions=True：单个失败返回 None，不中断整体
+        raw_results = api.tapd.get_workspace_info.bulk_request(params, ignore_exceptions=True)
+
+        details = []
+        for ws_id, raw in zip(workspace_ids, raw_results):
+            if raw and isinstance(raw, dict) and "Workspace" in raw:
+                ws_info = raw["Workspace"]
+                details.append(
+                    {
+                        "workspace_id": str(ws_info["id"]),
+                        "workspace_name": ws_info["name"],
+                        "pretty_name": ws_info.get("pretty_name", ""),
+                        "category": ws_info.get("category", ""),
+                        "status": ws_info.get("status", ""),
+                        "description": ws_info.get("description", ""),
+                        "creator": ws_info.get("creator", ""),
+                        "created": ws_info.get("created", ""),
+                    }
+                )
+            else:
+                # 查询失败兜底
+                logger.warning("获取TAPD workspace信息失败, workspace_id=%s", ws_id)
+                details.append(
+                    {
+                        "workspace_id": str(ws_id),
+                        "workspace_name": str(ws_id),
+                        "pretty_name": "",
+                        "category": "",
+                        "status": "",
+                        "description": "",
+                        "creator": "",
+                        "created": "",
+                    }
+                )
+        return details
+
+    @classmethod
+    def _fetch_app_granted_ids(cls, bk_biz_id: int) -> set[str]:
+        """获取项目级（应用级，Basic Auth）已授权的 workspace_id 集合。"""
+        try:
+            app_granted_resp = api.tapd.get_granted_workspaces(bk_biz_id=bk_biz_id)
+        except Exception as e:
+            logger.warning("GetGrantedWorkspaces failed for B-01: %s", e)
+            app_granted_resp = {}
+
+        app_granted_list = (
+            app_granted_resp.get("list", []) if isinstance(app_granted_resp, dict) else (app_granted_resp or [])
+        )
+        app_granted_ids = set()
+        for ws in app_granted_list:
+            ws_inner = ws.get("OpenOrganizationApp", {}) if isinstance(ws, dict) else {}
+            ws_id = str(ws_inner.get("workspace_id", ""))
+            if ws_id:
+                app_granted_ids.add(ws_id)
+        return app_granted_ids
+
+    @classmethod
+    def _mark_bind_status(
+        cls,
+        workspace_details: list[dict],
+        app_granted_ids: set[str],
+        local_bindings: dict[str, dict],
+        bk_biz_id: int,
+        tenant_id: str,
+        username: str,
+    ) -> tuple[list[dict], bool]:
+        """四态标记：以用户级为基准全集，按 项目级×本地 二维判定。
+
+        :return: (items, any_unbound_or_stale)
+        """
+        items = []
+        any_unbound_or_stale = False
+
+        for ws in workspace_details:
+            ws_id = ws["workspace_id"]
+            workspace_name = ws["workspace_name"]
+            in_app = ws_id in app_granted_ids
+            in_local = ws_id in local_bindings
+
+            if in_app and in_local:
+                status = TapdWorkspaceBindStatus.BOUND
+            elif in_app and not in_local:
+                status = TapdWorkspaceBindStatus.IMPORTABLE
+                # 静默尝试创建本地 binding（传入 workspace_name，避免 name 落空）
+                if try_bind_importable(ws_id, bk_biz_id, tenant_id, username, tapd_workspace_name=workspace_name):
+                    status = TapdWorkspaceBindStatus.BOUND
+            elif not in_app and in_local:
+                status = TapdWorkspaceBindStatus.STALE
+                any_unbound_or_stale = True
+            else:  # not in_app and not in_local
+                status = TapdWorkspaceBindStatus.UNBOUND
+                any_unbound_or_stale = True
+
+            # 名称优先用本地 binding（可能用户改过名），其次详情 API 返回值
+            final_name = local_bindings.get(ws_id, {}).get("tapd_workspace_name") or workspace_name
+            items.append({"workspace_id": ws_id, "workspace_name": final_name, "is_bound": status})
+
+        return items, any_unbound_or_stale
+
+
+class UnbindTapdWorkspaceResource(Resource):
+    """解除 TAPD 项目与当前业务的关联
+
+    仅删除本地 TapdWorkspaceBinding，不在 TAPD 侧撤回应用授权。
+    端点：POST /fta/issue/tapd/workspace/unbind/
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="蓝鲸业务ID", required=True)
+        workspace_id = serializers.CharField(label="TAPD项目ID", required=True)
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        workspace_id: str = validated_request_data["workspace_id"]
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        tenant_id = space_uid_to_bk_tenant_id(space_uid)
+
+        binding_qs = TapdWorkspaceBinding.objects.filter(
+            bk_tenant_id=tenant_id,
+            space_uid=space_uid,
+            tapd_workspace_id=workspace_id,
+        )
+        if not binding_qs.exists():
+            raise HTTP404Error(
+                message=f"TAPD 项目 {workspace_id} 未与当前业务关联",
+            )
+
+        # 删除 binding（不存在时 delete() 返回 (0, {})）
+        deleted_count, _ = binding_qs.delete()
+        logger.info(
+            "UnbindTapdWorkspace: delete binding biz=%s ws=%s tenant=%s count=%s",
+            bk_biz_id,
+            workspace_id,
+            tenant_id,
+            deleted_count,
+        )
+
+        return {"success": True}
+
+
+@api_view(["GET"])
+@csrf_exempt
+def tapd_app_install_callback(request):
+    """TAPD `open_app_install` 回调 — 应用态授权。
+
+    Query params: code, resource, signed_state
+    1. 解析 signed_state → 验签、验过期
+    2. 提取 workspace_id → 调 app 级 Basic Auth 获取 name
+    3. upsert TapdWorkspaceBinding（create_user = initiator）
+    4. 302 重定向前端 success / 失败重定向 error_url
+    """
+    signed_state = request.query_params.get("signed_state", "")
+    if not signed_state:
+        # signed_state 缺失时无法获取前端地址，回退到根路径
+        return HttpResponseRedirect(request.build_absolute_uri("/"))
+
+    # 1) 解析并验签 signed_state
+    try:
+        payload = verify_signed_state(signed_state)
+    except exceptions.ValidationError as e:
+        logger.warning("signed_state verification failed: %s", e.detail)
+        return HttpResponseRedirect(request.build_absolute_uri("/"))
+
+    bk_biz_id = payload["bk_biz_id"]
+    tenant_id = payload["bk_tenant_id"]
+    space_uid = payload["space_uid"]
+    initiator = payload["initiator"]
+    success_url = payload["success_url"]
+    error_url = payload["error_url"]
+
+    # 安全性由 verify_signed_state 保证：HMAC 签名 + 过期时间校验
+    # 解码 resource JSON 获取 workspace_id
+    resource_json = request.query_params.get("resource", "{}")
+    try:
+        resource = json.loads(resource_json) if resource_json else {}
+    except Exception:
+        safe_resource_json = resource_json.replace("\r", "").replace("\n", "")
+        logger.warning("invalid resource JSON: %s", safe_resource_json)
+        return HttpResponseRedirect(error_url)
+
+    if not isinstance(resource, dict):
+        logger.warning("invalid resource JSON object")
+        return HttpResponseRedirect(error_url)
+
+    raw_workspace_id = resource.get("workspace_id", "")
+    try:
+        workspace_id = str(int(raw_workspace_id))
+    except (TypeError, ValueError):
+        logger.warning("invalid workspace_id: %s", _sanitize_for_log(raw_workspace_id))
+        return HttpResponseRedirect(error_url)
+
+    # 2) 获取项目信息（app 级 Basic Auth）
+    try:
+        info = api.tapd.get_workspace_info(workspace_id=int(workspace_id))
+        ws = info.get("Workspace", {})
+        ws_name = ws.get("name") or ws.get("pretty_name") or str(workspace_id)
+    except BKAPIError:
+        logger.exception("get_workspace_info failed: ws=%s", _sanitize_for_log(workspace_id))
+        return HttpResponseRedirect(error_url)
+    except Exception as e:
+        logger.exception(f"get_workspace_info unexpected error: ws=%s,{e}", workspace_id)
+        return HttpResponseRedirect(error_url)
+
+    # 3) upsert binding（set_local_username 确保 AbstractRecordModel.save() 审计字段正确）
+    set_local_username(initiator)
+    TapdWorkspaceBinding.objects.update_or_create(
+        bk_tenant_id=tenant_id,
+        space_uid=space_uid,
+        tapd_workspace_id=workspace_id,
+        defaults={
+            "bk_biz_id": bk_biz_id,
+            "tapd_workspace_name": ws_name,
+            "create_user": initiator,
+            "update_user": initiator,
+        },
+    )
+    logger.info(
+        "TapdWorkspaceBinding upserted: tenant=%s space=%s ws=%s name=%s initiator=%s",
+        tenant_id,
+        space_uid,
+        workspace_id,
+        ws_name,
+        initiator,
+    )
+
+    return HttpResponseRedirect(success_url)
+
+
+@api_view(["GET"])
+@csrf_exempt
+def tapd_user_oauth_callback(request):
+    """TAPD 用户态 OAuth 回调。
+
+    Query params: code, state（signed_state）
+    1. state 为自包含 signed_state → 验签、验过期（不依赖 session）
+    2. 用 code 换取 access_token（UserOauthTokenResource），redirect_uri 取 payload 中的 backend_callback
+    3. 加密 token → 存入 Redis（TTL = expires_in），key = tapd_uat:{tenant}:{user}
+    4. 302 重定向前端 success_url
+    """
+    code = request.query_params.get("code", "")
+    state = request.query_params.get("state", "")
+
+    if not code or not state:
+        # 缺少必要参数，回退到根路径
+        return HttpResponseRedirect(request.build_absolute_uri("/"))
+
+    # 1) 解析并验签 signed_state（自包含 payload，不依赖 session）
+    try:
+        payload = verify_signed_state(state)
+    except exceptions.ValidationError as e:
+        logger.warning("signed_state verification failed: %s", e.detail)
+        return HttpResponseRedirect(request.build_absolute_uri("/"))
+
+    bk_biz_id = payload["bk_biz_id"]
+    tenant_id = payload["bk_tenant_id"]
+    username = payload["initiator"]
+    success_url = payload.get("success_url", "")
+    error_url = payload.get("error_url") or success_url or request.build_absolute_uri("/")
+
+    # 校验失败统一处理：记日志 + 重定向到 error_url
+    def _fail(log_msg, *args):
+        logger.warning(log_msg, *args)
+        return HttpResponseRedirect(error_url)
+
+    # 2) 校验 username + backend_callback
+    if not username:
+        return _fail("missing initiator in signed_state payload, bk_biz_id=%s", bk_biz_id)
+
+    callback_username = get_request_username()
+    if not callback_username or callback_username != username:
+        return _fail(
+            "TAPD user oauth callback user mismatch, bk_biz_id=%s, initiator=%s, callback_user=%s",
+            bk_biz_id,
+            username,
+            callback_username,
+        )
+
+    backend_callback = payload.get("backend_callback", "")
+    if not backend_callback:
+        return _fail("missing backend_callback in signed_state payload, bk_biz_id=%s", bk_biz_id)
+
+    # 3) code 换 token（Basic Auth，client_id:client_secret）
+    # redirect_uri 必须和 authorize 时传给 TAPD 的一致（即 backend_callback）
+    try:
+        token_resp = api.tapd.user_oauth_token(
+            code=code,
+            redirect_uri=backend_callback.rstrip("/"),
+        )
+    except BKAPIError:
+        logger.exception("exchange token failed")
+        return HttpResponseRedirect(error_url)
+    except Exception:
+        logger.exception("exchange token unexpected error")
+        return HttpResponseRedirect(error_url)
+
+    access_token = token_resp.get("access_token", "")
+    expires_in = token_resp.get("expires_in", 7200)
+    if not access_token:
+        return _fail("empty access_token from TAPD")
+
+    # 4) 存 Redis（AESCipher 加密），key 按 (tenant, username)
+    save_tapd_token(
+        tenant_id=tenant_id,
+        username=username,
+        token_data=token_resp,
+        expires_in=expires_in,
+    )
+
+    # 5) 302 重定向到 success_url（含 # 的前端地址）
+    return HttpResponseRedirect(success_url)
