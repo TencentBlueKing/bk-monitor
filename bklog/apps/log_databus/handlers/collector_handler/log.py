@@ -76,7 +76,7 @@ class LogCollectorHandler:
 
             related_space_info = {}
 
-            if include_related_spaces:
+            if self.space_type_id == SpaceTypeEnum.BKCC.value and include_related_spaces:
                 bk_biz_id = item.get("bk_biz_id")
                 space_detail = self.bk_biz_id_to_space_detail_map.get(bk_biz_id) or {}
                 space_uid = space_detail.get("space_uid")
