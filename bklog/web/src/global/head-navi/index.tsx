@@ -195,7 +195,12 @@ export default defineComponent({
       // 相同菜单再次点击时的处理策略
       const sameMenuHandlers: Record<string, () => void> = {
         retrieve: () => {
-          router.push({ name: 'retrieve', query: spaceUidQuery });
+          const indexId = route.params?.indexId;
+          router.push({
+            name: 'retrieve',
+            params: indexId ? { indexId } : undefined,
+            query: spaceUidQuery,
+          });
         },
         extract: () => {
           if (currentRoute.query.create) {
