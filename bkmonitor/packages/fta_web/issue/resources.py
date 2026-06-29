@@ -62,6 +62,10 @@ from fta_web.issue.utils.tapd import (
 logger = logging.getLogger("root")
 
 
+def _sanitize_for_log(value) -> str:
+    return str(value).replace("\r", "").replace("\n", "")
+
+
 class IssueIDField(serializers.CharField):
     """Issue ID 合法性校验"""
 
@@ -2413,7 +2417,7 @@ def tapd_app_install_callback(request):
         ws = info.get("Workspace", {})
         ws_name = ws.get("name") or ws.get("pretty_name") or str(workspace_id)
     except BKAPIError:
-        logger.exception("get_workspace_info failed: ws=%s", workspace_id)
+        logger.exception("get_workspace_info failed: ws=%s", _sanitize_for_log(workspace_id))
         return HttpResponseRedirect(error_url)
     except Exception as e:
         logger.exception(f"get_workspace_info unexpected error: ws=%s,{e}", workspace_id)
