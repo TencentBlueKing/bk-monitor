@@ -74,7 +74,7 @@ from apps.log_databus.exceptions import (
     CollectorConfigNameENDuplicateException,
     CollectorConfigNotExistException,
     CollectorResultTableIDDuplicateException,
-    PublicESClusterNotExistException, RegexInvalidException,
+    RegexInvalidException,
     RegexMatchException,
     ResultTableNotExistException,
     SubscriptionInfoNotFoundException,
@@ -83,7 +83,6 @@ from apps.log_databus.exceptions import (
 )
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
-from apps.log_databus.handlers.etl.base import EtlHandler
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import (
@@ -125,8 +124,6 @@ from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import format_user_time_zone
 from bkm_space.utils import bk_biz_id_to_space_uid
-from apps.log_databus.constants import REGISTERED_SYSTEM_DEFAULT
-from apps.log_databus.utils.es_config import get_default_public_storage_cluster_id
 
 COLLECTOR_RE = re.compile(r".*\d{6,8}$")
 
@@ -624,35 +621,38 @@ class CollectorHandler:
             etl_config = custom_config.etl_config
             fields = custom_config.fields
 
-        etl_handler = EtlHandler.get_instance(self.data.collector_config_id)
-        # 优先使用collector_config的table_id，如果存在则提取表名部分
-        if self.data.table_id:
-            # table_id格式为: prefix.table_name，需要提取表名部分
-            table_id_name = self.data.table_id.split(".")[-1]
-        else:
-            # 如果table_id不存在，则使用collector_config_name_en作为后备
-            table_id_name = self.data.collector_config_name_en
-        params = {
-            "table_id": table_id_name,
-            "storage_cluster_id": storage_cluster_id,
-            "storage_cluster_type": storage_cluster_type,
-            "retention": retention,
-            "es_shards": es_shards,
-            "allocation_min_days": allocation_min_days,
-            "storage_replies": storage_replies,
-            "etl_params": etl_params,
-            "etl_config": etl_config,
-            "fields": fields,
-            "sort_fields": sort_fields,
-            "target_fields": target_fields,
-            "labels": self._build_scene_labels(),
-            "is_platform_index": is_platform_index,
-            "platform_index_visibility": platform_index_visibility,
-            "platform_index_filter": platform_index_filter,
-        }
-        params = self.reset_clean_config(params)
-        etl_handler.update_or_create(**params)
-        self._sync_scene_tags_to_index_set(etl_params["labels"])
+        # 仅在传入集群ID时更新
+        if storage_cluster_id:
+            from apps.log_databus.handlers.etl import EtlHandler
+
+            etl_handler = EtlHandler.get_instance(self.data.collector_config_id)
+            # 优先使用collector_config的table_id，如果存在则提取表名部分
+            if self.data.table_id:
+                # table_id格式为: prefix.table_name，需要提取表名部分
+                table_id_name = self.data.table_id.split(".")[-1]
+            else:
+                # 如果table_id不存在，则使用collector_config_name_en作为后备
+                table_id_name = self.data.collector_config_name_en
+            etl_params = {
+                "table_id": table_id_name,
+                "storage_cluster_id": storage_cluster_id,
+                "storage_cluster_type": storage_cluster_type,
+                "retention": retention,
+                "es_shards": es_shards,
+                "allocation_min_days": allocation_min_days,
+                "storage_replies": storage_replies,
+                "etl_params": etl_params,
+                "etl_config": etl_config,
+                "fields": fields,
+                "sort_fields": sort_fields,
+                "target_fields": target_fields,
+                "labels": self._build_scene_labels(),
+                "is_platform_index": is_platform_index,
+                "platform_index_visibility": platform_index_visibility,
+                "platform_index_filter": platform_index_filter,
+            }
+            etl_handler.update_or_create(**etl_params)
+            self._sync_scene_tags_to_index_set(etl_params["labels"])
 
         custom_config.after_hook(self.data)
 
@@ -1541,31 +1541,34 @@ class CollectorHandler:
         if not sort_fields and custom_config.default_sort_fields:
             sort_fields = custom_config.default_sort_fields.copy()
 
-        etl_handler = EtlHandler.get_instance(self.data.collector_config_id)
-        params = {
-            "table_id": collector_config_name_en,
-            "storage_cluster_id": storage_cluster_id,
-            "storage_cluster_type": storage_cluster_type,
-            "retention": retention,
-            "allocation_min_days": allocation_min_days,
-            "storage_replies": storage_replies,
-            "es_shards": es_shards,
-            "etl_params": custom_config.etl_params,
-            "etl_config": custom_config.etl_config,
-            "fields": custom_config.fields,
-            "sort_fields": sort_fields,
-            "target_fields": target_fields,
-            "labels": self._build_scene_labels(),
-            "is_platform_index": is_platform_index,
-            "platform_index_visibility": platform_index_visibility,
-            "platform_index_filter": platform_index_filter,
-        }
-        if etl_params and fields:
-            # 如果传递了清洗参数，则优先使用
-            params.update({"etl_params": etl_params, "etl_config": etl_config, "fields": fields})
-        self.data.index_set_id = etl_handler.update_or_create(**params)["index_set_id"]
-        self.data.save(update_fields=["index_set_id"])
-        self._sync_scene_tags_to_index_set(params["labels"])
+        # 仅在有集群ID时创建清洗
+        if storage_cluster_id:
+            from apps.log_databus.handlers.etl import EtlHandler
+
+            etl_handler = EtlHandler.get_instance(self.data.collector_config_id)
+            params = {
+                "table_id": collector_config_name_en,
+                "storage_cluster_id": storage_cluster_id,
+                "storage_cluster_type": storage_cluster_type,
+                "retention": retention,
+                "allocation_min_days": allocation_min_days,
+                "storage_replies": storage_replies,
+                "es_shards": es_shards,
+                "etl_params": custom_config.etl_params,
+                "etl_config": custom_config.etl_config,
+                "fields": custom_config.fields,
+                "sort_fields": sort_fields,
+                "target_fields": target_fields,
+                "labels": self._build_scene_labels(),
+                "is_platform_index": is_platform_index,
+                "platform_index_visibility": platform_index_visibility,
+                "platform_index_filter": platform_index_filter,
+            }
+            if etl_params and fields:
+                params.update({"etl_params": etl_params, "etl_config": etl_config, "fields": fields})
+            self.data.index_set_id = etl_handler.update_or_create(**params)["index_set_id"]
+            self.data.save(update_fields=["index_set_id"])
+            self._sync_scene_tags_to_index_set(params["labels"])
 
         custom_config.after_hook(self.data)
 
@@ -1707,41 +1710,36 @@ class CollectorHandler:
 
     def create_or_update_clean_config(self, is_update, params):
         if is_update:
-            params = self.reset_clean_config(params)
-
-        etl_handler = EtlHandler.get_instance(self.data.collector_config_id)
-        result = etl_handler.update_or_create(**params)
-        self._sync_scene_tags_to_index_set(params["labels"])
-        return result
-
-    def reset_clean_config(self, params):
-        if table_id := self.data.table_id:
+            table_id = self.data.table_id
+            # 更新场景，需要把之前的存储设置拿出来，和更新的配置合并一下
             result_table_info = TransferApi.get_result_table_storage(
                 {"result_table_list": table_id, "storage_type": self.storage_cluster_type}
             )
             result_table = result_table_info.get(table_id, {})
             if not result_table:
                 raise ResultTableNotExistException(ResultTableNotExistException.MESSAGE.format(table_id))
-            if params.get("storage_cluster_id") is None:
-                params["storage_cluster_id"] = result_table["cluster_config"]["cluster_id"]
-            if params.get("retention") is None:
-                params["retention"] = result_table["storage_config"].get("retention", 0)
-            if params.get("allocation_min_days") is None:
-                params["allocation_min_days"] = result_table["storage_config"].get("warm_phase_days", 0)
-            if params.get("storage_replies") is None:
-                params["storage_replies"] = (
+
+            default_etl_params = {
+                "es_shards": result_table["storage_config"].get("index_settings", {}).get("number_of_shards", 1),
+                "storage_replies": (
                     result_table["storage_config"].get("index_settings", {}).get("number_of_replicas", 0)
-                )
-            if params.get("es_shards") is None:
-                params["es_shards"] = (
-                    result_table["storage_config"].get("index_settings", {}).get("number_of_shards", 1)
-                )
-            if not params.get("etl_config"):
-                params["etl_config"] = self.data.etl_config
+                ),
+                "storage_cluster_id": result_table["cluster_config"]["cluster_id"],
+                "retention": result_table["storage_config"].get("retention", 0),
+                "allocation_min_days": params.get("allocation_min_days", 0),
+                "etl_config": self.data.etl_config,
+            }
+            default_etl_params.update(params)
+            params = default_etl_params
 
-            params.setdefault("labels", self._build_scene_labels())
+        params.setdefault("labels", self._build_scene_labels())
 
-        return params
+        from apps.log_databus.handlers.etl import EtlHandler
+
+        etl_handler = EtlHandler.get_instance(self.data.collector_config_id)
+        result = etl_handler.update_or_create(**params)
+        self._sync_scene_tags_to_index_set(params["labels"])
+        return result
 
     @classmethod
     def _send_create_notify(cls, collector_config: CollectorConfig):
@@ -1889,20 +1887,3 @@ class CollectorHandler:
             space_uid=space_uid,
             index_groups_names=parent_index_set_names,
         )
-
-    @classmethod
-    def get_default_public_cluster_id(cls, bk_biz_id: int, raise_exception: bool = False) -> int:
-        storage_cluster_id = get_default_public_storage_cluster_id(bk_biz_id)
-        if storage_cluster_id:
-            result = TransferApi.get_cluster_info({"cluster_id": storage_cluster_id})
-            if result:
-                cluster_info = result[0]
-                if cluster_info.get("cluster_config", {}).get("registered_system") == REGISTERED_SYSTEM_DEFAULT:
-                    return storage_cluster_id
-        else:
-            logger.warning("default public storage cluster is not configured or unavailable, bk_biz_id=%s", bk_biz_id)
-
-        if raise_exception:
-            raise PublicESClusterNotExistException()
-        else:
-            return 0

@@ -18,7 +18,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from django.conf import settings
 
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import BKLOG_ES_CONFIG
@@ -48,17 +47,3 @@ def is_version_less_than(version, target_version):
 
     except (ValueError, IndexError):
         return True
-
-
-def get_default_public_storage_cluster_id(bk_biz_id):
-    """
-    获取日志平台默认公共集群 ID
-    """
-    default_storage_cluster_id = (
-        get_es_config(bk_biz_id).get("BKLOG_DEFAULT_PUBLIC_STORAGE_CLUSTER_ID")
-        or settings.BKLOG_DEFAULT_PUBLIC_STORAGE_CLUSTER_ID
-    )
-    try:
-        return int(default_storage_cluster_id)
-    except (TypeError, ValueError):
-        return settings.BKLOG_DEFAULT_PUBLIC_STORAGE_CLUSTER_ID
