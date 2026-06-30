@@ -201,3 +201,77 @@ def test_invalid_modes_rejected():
     with mock.patch("monitor_web.strategies.built_in.run_build_in", run_build_in):
         call_command(CMD, modes="host,hots")
     run_build_in.assert_not_called()
+
+
+# ---- 前置清障（--rename-legacy-os-strategies）----
+
+
+def _make_strategy(bk_biz_id, name, metric_id, data_type_label, result_table_id, scenario="os"):
+    """造一条策略 + 其查询配置，用于前置清障识别测试。"""
+    from bkmonitor.models import QueryConfigModel, StrategyModel
+
+    strategy = StrategyModel.objects.create(bk_biz_id=bk_biz_id, name=name, scenario=scenario, type="monitor")
+    QueryConfigModel.objects.create(
+        strategy_id=strategy.id,
+        item_id=strategy.id,
+        alias="a",
+        data_source_label="bk_monitor",
+        data_type_label=data_type_label,
+        metric_id=metric_id,
+        config={"result_table_id": result_table_id},
+    )
+    return strategy
+
+
+def _rename_patches():
+    """前置清障路径只依赖 ORM + 租户/管理员上下文；biz 为造的测试号，需打桩租户解析。"""
+    return [
+        mock.patch("bkmonitor.utils.tenant.bk_biz_id_to_bk_tenant_id", mock.Mock(return_value="t1")),
+        mock.patch("bkmonitor.utils.tenant.set_local_tenant_id", mock.Mock()),
+        mock.patch("bkmonitor.utils.user.set_local_username", mock.Mock()),
+        mock.patch("bkmonitor.utils.user.get_admin_username", mock.Mock(return_value="admin")),
+    ]
+
+
+@override_settings(ENABLE_DEFAULT_STRATEGY=True)
+def test_rename_legacy_only_canonical_named_dirty_v1_and_idempotent():
+    """前置清障：只改"脏 v1 形态(bk_monitor/event/system.event) + 名恰为内置 canonical"的策略；
+    用户改过名的脏 v1、以及新建版本(time_series 重定向形态)都不动；且幂等。"""
+    from bkmonitor.models import StrategyModel
+
+    biz = 990001
+    # A：脏 v1 PING，占用 canonical 名 -> 应改名
+    a = _make_strategy(biz, "PING不可达告警", "bk_monitor.ping-gse", "event", "system.event")
+    # B：脏 v1 os_restart 但用户已改名 -> 不阻塞、不动
+    b = _make_strategy(biz, "标准化-主机重启", "bk_monitor.os_restart", "event", "system.event")
+    # C：新建 v3 os_restart（重定向后 time_series/system.env），名为 canonical -> 不是脏 v1，不动
+    c = _make_strategy(biz, "主机重启", "bk_monitor.os_restart", "time_series", "system.env")
+
+    with ExitStack() as stack:
+        for p in _rename_patches():
+            stack.enter_context(p)
+        call_command(CMD, bk_biz_ids=str(biz), rename_legacy_os_strategies=True)
+
+        assert StrategyModel.objects.get(id=a.id).name == "PING不可达告警 [v1-已失效]"
+        assert StrategyModel.objects.get(id=b.id).name == "标准化-主机重启"  # 未动
+        assert StrategyModel.objects.get(id=c.id).name == "主机重启"  # 新版 time_series，未动
+
+        # 幂等：再跑一次，A 已非 canonical 名 -> 不再改、不双后缀
+        call_command(CMD, bk_biz_ids=str(biz), rename_legacy_os_strategies=True)
+        assert StrategyModel.objects.get(id=a.id).name == "PING不可达告警 [v1-已失效]"
+
+
+@override_settings(ENABLE_DEFAULT_STRATEGY=True)
+def test_rename_legacy_dry_run_does_not_write():
+    """--rename-legacy-os-strategies --dry-run：只列不改。"""
+    from bkmonitor.models import StrategyModel
+
+    biz = 990002
+    a = _make_strategy(biz, "OOM异常告警", "bk_monitor.oom-gse", "event", "system.event")
+
+    with ExitStack() as stack:
+        for p in _rename_patches():
+            stack.enter_context(p)
+        call_command(CMD, bk_biz_ids=str(biz), rename_legacy_os_strategies=True, dry_run=True)
+
+    assert StrategyModel.objects.get(id=a.id).name == "OOM异常告警"  # dry-run 未改

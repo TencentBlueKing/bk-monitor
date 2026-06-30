@@ -49,7 +49,17 @@ class Command(BaseCommand):
         parser.add_argument(
             "--dry-run",
             action="store_true",
-            help="仅打印将处理的(租户, 业务)清单，不实际加载。",
+            help="仅打印将处理的清单，不实际写入（补建/改名都尊重此开关）。",
+        )
+        parser.add_argument(
+            "--rename-legacy-os-strategies",
+            action="store_true",
+            help=(
+                "前置清障模式（与补建互斥）：把与内置同名、且为脏 v1 形态(bk_monitor/event/system.event 主机系统事件)"
+                "的旧策略改名加后缀 [v1-已失效]，腾出 canonical 名供 v2/v3/v4 补建。识别按 metric 元组(非名称模糊)，"
+                "只动名字恰为内置 canonical 名的那批；不删除、不改启用态。默认不触碰用户资产，仅显式传参才执行；"
+                "建议先配 --dry-run 出清单、再灰度。"
+            ),
         )
 
     def handle(self, *args, **options):
@@ -71,6 +81,7 @@ class Command(BaseCommand):
             self.stderr.write(f"--modes 非法: {bad_modes or '(空)'}；仅支持 {sorted(valid_modes)}。")
             return
         dry_run = options["dry_run"]
+        rename_legacy = options["rename_legacy_os_strategies"]
         explicit_biz_ids = [int(b) for b in options["bk_biz_ids"].split(",") if b.strip()]
         only_tenant_id = options["bk_tenant_id"].strip()
 
@@ -111,6 +122,11 @@ class Command(BaseCommand):
                     self.stderr.write(f"  SKIP tenant={tenant_id}（list_spaces 失败）")
                     continue
                 tenant_to_biz_ids[tenant_id] = [space.bk_biz_id for space in spaces if space.bk_biz_id > 0]
+
+        # 前置清障模式：与补建互斥。先腾出被脏 v1 占用的 canonical 名，否则补建 v2/v3/v4 会因保存层重名判重失败。
+        if rename_legacy:
+            self._rename_legacy_os_strategies(tenant_to_biz_ids, dry_run, skipped)
+            return
 
         triggered = 0
         for bk_tenant_id, biz_ids in tenant_to_biz_ids.items():
@@ -157,3 +173,87 @@ class Command(BaseCommand):
                 f"完成。已触发 {triggered} 个 (业务 x 模式)；跳过 {skipped} 个(租户/业务，枚举或上下文设置失败)。"
                 "实际补建结果请按验证方案查 DB 复核。"
             )
+
+    # 脏 v1 主机系统事件的识别句柄(plan §二 metric 元组)：bk_monitor 源 + event 类型 + 底层 system.event。
+    # 关键区分：补建的 v3/v4 经 EVENT_QUERY_CONFIG_MAP 重定向后 data_type_label 变为 time_series、result_table_id
+    # 变为 system.env/pingserver.base，故 data_type_label=event 这一条即可把脏 v1 与新建版本干净分开；v2 是
+    # custom 源(data_source_label=custom)，也被 bk_monitor 这一条排除。metric_id -> 内置 canonical 策略名：
+    # 仅当旧策略名恰为该 canonical 名时才改（即真正占名、阻塞补建的那批），用户改过名的变体不动。
+    LEGACY_OS_EVENT_METRIC_ID_TO_NAME = {
+        "bk_monitor.agent-gse": "Agent心跳丢失",
+        "bk_monitor.disk-readonly-gse": "磁盘只读",
+        "bk_monitor.corefile-gse": "Corefile产生",
+        "bk_monitor.oom-gse": "OOM异常告警",
+        "bk_monitor.os_restart": "主机重启",
+        "bk_monitor.proc_port": "进程端口",
+        "bk_monitor.ping-gse": "PING不可达告警",
+    }
+    LEGACY_RENAME_SUFFIX = " [v1-已失效]"
+    LEGACY_SYSTEM_EVENT_RT = "system.event"
+
+    def _rename_legacy_os_strategies(self, tenant_to_biz_ids, dry_run, skipped):
+        """前置清障：把占用内置 canonical 名的脏 v1 主机系统事件策略改名加后缀，腾出名字供 v2/v3/v4 补建。
+
+        - 识别：QueryConfigModel(data_source_label=bk_monitor, data_type_label=event, metric_id ∈ 7 个伪事件,
+          config.result_table_id=system.event)，对应 StrategyModel 名恰为该 metric 的内置 canonical 名。
+        - 动作：StrategyModel.name 追加 [v1-已失效]；不删除、不改启用态、不改其它字段。
+        - 安全：StrategyModel/QueryConfigModel 按 bk_biz_id/strategy_id 键(全局唯一、无租户列)，按 bk_biz_id 过滤即租户安全；
+          幂等(改名后名不再等于 canonical、重跑跳过)；逐租户上下文 try/except 容错。
+        - 留痕：逐条输出 tenant/biz/strategy_id/old_name/new_name/metric tuple/enabled。
+        """
+        from bkmonitor.models import QueryConfigModel, StrategyModel
+        from bkmonitor.utils.tenant import set_local_tenant_id
+        from bkmonitor.utils.user import get_admin_username, set_local_username
+
+        renamed = 0
+        scanned = 0
+        for bk_tenant_id, biz_ids in tenant_to_biz_ids.items():
+            try:
+                admin = get_admin_username(bk_tenant_id=bk_tenant_id)
+                set_local_tenant_id(bk_tenant_id=bk_tenant_id)
+                set_local_username(admin)
+            except Exception:
+                logger.exception("[init_builtin_strategies] rename setup failed, skip tenant=%s", bk_tenant_id)
+                self.stderr.write(f"  SKIP tenant={bk_tenant_id}（管理员/上下文设置失败）")
+                continue
+
+            for bk_biz_id in biz_ids:
+                strategies = {s.id: s for s in StrategyModel.objects.filter(bk_biz_id=bk_biz_id)}
+                if not strategies:
+                    continue
+                query_configs = QueryConfigModel.objects.filter(
+                    strategy_id__in=list(strategies.keys()),
+                    data_source_label="bk_monitor",
+                    data_type_label="event",
+                    metric_id__in=list(self.LEGACY_OS_EVENT_METRIC_ID_TO_NAME.keys()),
+                )
+                for query_config in query_configs:
+                    scanned += 1
+                    # 仅脏 v1 存盘形态(system.event)；新建 v3/v4 已是 time_series，本不会进入此 event 过滤，这里再兜一层
+                    if query_config.config.get("result_table_id") != self.LEGACY_SYSTEM_EVENT_RT:
+                        continue
+                    strategy = strategies.get(query_config.strategy_id)
+                    if strategy is None:
+                        continue
+                    canonical = self.LEGACY_OS_EVENT_METRIC_ID_TO_NAME[query_config.metric_id]
+                    # 只动真正占用 canonical 名的脏 v1；用户改过名的变体不阻塞补建，不触碰
+                    if strategy.name != canonical:
+                        continue
+                    new_name = f"{canonical}{self.LEGACY_RENAME_SUFFIX}"
+                    self.stdout.write(
+                        f"  {'[dry-run] ' if dry_run else ''}RENAME tenant={bk_tenant_id} biz={bk_biz_id} "
+                        f"sid={strategy.id} '{strategy.name}' -> '{new_name}' "
+                        f"metric={query_config.metric_id}"
+                        f"({query_config.data_source_label}/{query_config.data_type_label}/{self.LEGACY_SYSTEM_EVENT_RT}) "
+                        f"enabled={strategy.is_enabled}"
+                    )
+                    if not dry_run:
+                        StrategyModel.objects.filter(id=strategy.id).update(name=new_name, update_user=admin)
+                    renamed += 1
+
+        verb = "将改名" if dry_run else "已改名"
+        tail = "（dry-run，未实际修改）" if dry_run else ""
+        self.stdout.write(
+            f"前置清障完成。扫描脏 v1 系统事件 {scanned} 条，{verb} {renamed} 条占名策略；"
+            f"跳过 {skipped} 个(租户/业务，枚举失败)。{tail}"
+        )
