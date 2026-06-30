@@ -1,0 +1,62 @@
+.host-stat-cards {
+  display: flex;
+  gap: 16px;
+
+  &__item {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    min-width: 200px;
+    height: 64px;
+    padding: 0 24px;
+    cursor: pointer;
+    background: #f5f7fa;
+    border: 1px solid transparent;
+    border-radius: 2px;
+    transition:
+      background-color 0.2s,
+      border-color 0.2s;
+
+    &:hover {
+      background: #f0f1f5;
+    }
+
+    &.is-active {
+      background: #e1ecff;
+      border-color: #3a84ff;
+
+      .host-stat-cards__icon {
+        color: #3a84ff;
+      }
+
+      .host-stat-cards__num {
+        color: #3a84ff;
+      }
+    }
+  }
+
+  &__icon {
+    margin-right: 16px;
+    font-size: 32px;
+    color: #c4c6cc;
+  }
+
+  &__desc {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  &__name {
+    font-size: 12px;
+    line-height: 20px;
+    color: #63656e;
+  }
+
+  &__num {
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 28px;
+    color: #313238;
+  }
+}

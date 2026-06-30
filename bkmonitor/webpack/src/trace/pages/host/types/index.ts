@@ -24,4 +24,5 @@
  * IN THE SOFTWARE.
  */
 export * from './host';
+export * from './host-list';
 export * from './topo';

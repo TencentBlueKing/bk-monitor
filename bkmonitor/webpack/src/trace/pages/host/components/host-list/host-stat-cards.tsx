@@ -24,57 +24,52 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, shallowRef } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
-import { HOST_CONTENT_TAB_LIST, type HostContentTab } from '../../constants/constants';
-import HostList from '../host-list/host-list';
+import { HOST_QUICK_CARD_LIST } from '../../constants/host-list';
 
-import type { IHostTopoTreeNode } from '../../types';
+import type { EHostQuickCategory, IHostQuickCardStats } from '../../types/host-list';
 
-import './host-content-tabs.scss';
+import './host-stat-cards.scss';
 
 export default defineComponent({
-  name: 'HostContentTabs',
+  name: 'HostStatCards',
   props: {
-    /** 当前选中的拓扑节点（透传给主机列表用于联动过滤） */
-    selectedNode: {
-      type: Object as PropType<IHostTopoTreeNode | null>,
-      default: null,
+    /** 各分类命中主机数 */
+    stats: {
+      type: Object as PropType<IHostQuickCardStats>,
+      required: true,
+    },
+    /** 当前激活的分类（空为未激活） */
+    activeKey: {
+      type: String as PropType<EHostQuickCategory | ''>,
+      default: '',
     },
   },
-  setup(props) {
+  emits: {
+    /** 点击卡片快速过滤（再次点击取消） */
+    cardClick: (_key: EHostQuickCategory) => true,
+  },
+  setup(props, { emit }) {
     const { t } = useI18n();
-    /** 当前激活 Tab，默认主机列表 */
-    const activeTab = shallowRef<HostContentTab>('list');
-
-    const handleTabChange = (value: HostContentTab) => {
-      activeTab.value = value;
-    };
 
     return () => (
-      <div class='host-content-tabs'>
-        <div class='host-content-tabs__tabs'>
-          {HOST_CONTENT_TAB_LIST.map(tab => (
-            <div
-              key={tab.value}
-              class={['host-content-tabs__tab', { 'is-active': activeTab.value === tab.value }]}
-              onClick={() => handleTabChange(tab.value)}
-            >
-              <i class={['icon-monitor', tab.icon, 'host-content-tabs__tab-icon']} />
-              <span>{t(tab.label)}</span>
+      <div class='host-stat-cards'>
+        {HOST_QUICK_CARD_LIST.map(card => (
+          <div
+            key={card.key}
+            class={['host-stat-cards__item', { 'is-active': props.activeKey === card.key }]}
+            onClick={() => emit('cardClick', card.key)}
+          >
+            <i class={['icon-monitor', card.icon, 'host-stat-cards__icon']} />
+            <div class='host-stat-cards__desc'>
+              <span class='host-stat-cards__name'>{t(card.name)}</span>
+              <span class='host-stat-cards__num'>{props.stats[card.key] ?? 0}</span>
             </div>
-          ))}
-        </div>
-        <div class='host-content-tabs__content'>
-          {activeTab.value === 'list' ? (
-            <HostList selectedNode={props.selectedNode} />
-          ) : (
-            // 指标汇聚 内容本期暂以占位替代
-            <div class='host-content-tabs__placeholder' />
-          )}
-        </div>
+          </div>
+        ))}
       </div>
     );
   },

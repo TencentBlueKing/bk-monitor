@@ -27,8 +27,13 @@
 import { getTopoTree } from 'monitor-api/modules/commons';
 import { searchHostInfo, searchHostMetric } from 'monitor-api/modules/performance';
 
+import { getMockHostBaseList, getMockHostMetricList } from '../mock/host-list';
+
 import type { IHostTopoTree } from '../types';
 import type { IHostBaseInfo, IHostMetricInfo } from '../types/host';
+
+/** 模拟接口延迟，用于还原「基础数据先到、指标数据后到」的两段式加载体验 */
+const delay = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 
 /**
  * @description: 获取基础主机列表, 这个 API 要更快，但是不包含指标数据, 用于主机列表第一屏渲染
@@ -48,6 +53,26 @@ export const getHostMetricInfoList = async () => {
     return { hosts: [] };
   });
   return hosts;
+};
+
+/**
+ * @description: 获取基础主机列表（mock）。对应 searchHostInfo，快、无指标，用于第一屏渲染。
+ * TODO: 接入真实接口时替换为 getHostInfoList。
+ * @returns {Promise<IHostBaseInfo[]>} 基础主机列表
+ */
+export const getMockHostInfoList = async (): Promise<IHostBaseInfo[]> => {
+  await delay(150);
+  return getMockHostBaseList();
+};
+
+/**
+ * @description: 获取带指标的主机列表（mock）。对应 searchHostMetric，慢、含指标，用于补充渲染。
+ * TODO: 接入真实接口时替换为 getHostMetricInfoList。
+ * @returns {Promise<IHostMetricInfo[]>} 带指标数据的主机列表
+ */
+export const getMockHostMetricInfoList = async (): Promise<IHostMetricInfo[]> => {
+  await delay(800);
+  return getMockHostMetricList();
 };
 
 /**

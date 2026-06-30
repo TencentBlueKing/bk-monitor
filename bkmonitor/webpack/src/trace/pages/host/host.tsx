@@ -121,7 +121,7 @@ export default defineComponent({
                 ),
                 main: () => (
                   <div class='host-page-content-main'>
-                    <HostContentTabs />
+                    <HostContentTabs selectedNode={this.topoTree.selectedNode.value} />
                   </div>
                 ),
               }}
