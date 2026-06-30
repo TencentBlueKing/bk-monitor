@@ -1,0 +1,13 @@
+.host-process {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 16px;
+  background: #fff;
+
+  &__search {
+    flex: 0 0 auto;
+    margin-bottom: 12px;
+  }
+}

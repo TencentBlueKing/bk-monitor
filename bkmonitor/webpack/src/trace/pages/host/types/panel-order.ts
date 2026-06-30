@@ -23,19 +23,22 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+/** 单个分组的指标排序配置 */
+export interface MetricGroupPanelOrder {
+  /** 分组唯一标识，如 memory */
+  id: string;
+  /** 分组下的指标列表，顺序即展示顺序 */
+  panels: MetricOrderPanel[];
+  /** 分组标题，如 内存 */
+  title: string;
+}
 
-import { getMockProcessList } from '../mock/process-list';
-
-import type { ProcessItem } from '../types';
-
-/**
- * @description 获取选中主机的进程列表（当前返回 mock，后续可零改动替换为真实接口）。
- */
-export const getHostProcessList = async (_params: {
-  bk_target_cloud_id?: string;
-  bk_target_ip?: string;
-  end_time: number;
-  start_time: number;
-}): Promise<ProcessItem[]> => {
-  return getMockProcessList();
-};
+/** 分组下单个指标的排序与显隐配置 */
+export interface MetricOrderPanel {
+  /** 是否隐藏该指标，true 表示默认不展示 */
+  hidden: boolean;
+  /** 指标唯一标识，如 bk_monitor.time_series.system.mem.free */
+  id: string;
+  /** 指标标题，如 物理内存空闲量 */
+  title: string;
+}

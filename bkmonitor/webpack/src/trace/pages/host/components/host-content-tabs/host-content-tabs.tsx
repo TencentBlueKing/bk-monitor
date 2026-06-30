@@ -24,21 +24,24 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
-import { HOST_CONTENT_TAB_LIST, type HostContentTab } from '../../constants/constants';
+import { type HostContentTab, type HostPerspective, HOST_PERSPECTIVE_TAB_MAP } from '../../constants/constants';
+import { isHostNode } from '../../utils/topo-tree';
 import HostList from '../host-list/host-list';
+import HostMetric from '../host-metric/host-metric';
+import HostProcess from '../host-process/host-process';
 
-import type { IHostTopoTreeNode } from '../../types';
+import type { IHostTopoHostNode, IHostTopoTreeNode } from '../../types';
 
 import './host-content-tabs.scss';
 
 export default defineComponent({
   name: 'HostContentTabs',
   props: {
-    /** 当前选中的拓扑节点（透传给主机列表用于联动过滤） */
+    /** 当前选中的拓扑节点 / 主机（决定内容区视角与各 Tab 数据） */
     selectedNode: {
       type: Object as PropType<IHostTopoTreeNode | null>,
       default: null,
@@ -46,17 +49,47 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
-    /** 当前激活 Tab，默认主机列表 */
-    const activeTab = shallowRef<HostContentTab>('list');
+
+    /** 当前视角：选中主机叶子 → host 视角，否则 → topo 视角 */
+    const perspective = computed<HostPerspective>(() =>
+      props.selectedNode && isHostNode(props.selectedNode) ? 'host' : 'topo'
+    );
+
+    /** 当前视角对应的 Tab 列表 */
+    const tabList = computed(() => HOST_PERSPECTIVE_TAB_MAP[perspective.value]);
+
+    /** 当前激活 Tab */
+    const activeTab = shallowRef<HostContentTab>(tabList.value[0].value);
+
+    // 切换视角时重置为该视角的第一个 Tab（host → 系统指标，topo → 主机列表）
+    watch(perspective, () => {
+      activeTab.value = tabList.value[0].value;
+    });
 
     const handleTabChange = (value: HostContentTab) => {
       activeTab.value = value;
     };
 
+    /** 按激活 Tab 渲染对应内容组件 */
+    const renderContent = () => {
+      switch (activeTab.value) {
+        case 'list':
+          return <HostList selectedNode={props.selectedNode} />;
+        case 'metric':
+        case 'system':
+          // 指标汇聚（topo）与系统指标（host）视觉一致，复用同一组件
+          return <HostMetric />;
+        case 'process':
+          return <HostProcess host={props.selectedNode as IHostTopoHostNode} />;
+        default:
+          return null;
+      }
+    };
+
     return () => (
       <div class='host-content-tabs'>
         <div class='host-content-tabs__tabs'>
-          {HOST_CONTENT_TAB_LIST.map(tab => (
+          {tabList.value.map(tab => (
             <div
               key={tab.value}
               class={['host-content-tabs__tab', { 'is-active': activeTab.value === tab.value }]}
@@ -67,13 +100,13 @@ export default defineComponent({
             </div>
           ))}
         </div>
-        <div class='host-content-tabs__content'>
-          {activeTab.value === 'list' ? (
-            <HostList selectedNode={props.selectedNode} />
-          ) : (
-            // 指标汇聚 内容本期暂以占位替代
-            <div class='host-content-tabs__placeholder' />
-          )}
+        <div
+          class={{
+            'is-host-list': activeTab.value === 'list',
+            'host-content-tabs__content': true,
+          }}
+        >
+          {renderContent()}
         </div>
       </div>
     );

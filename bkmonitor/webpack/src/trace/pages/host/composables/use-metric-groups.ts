@@ -23,19 +23,40 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { ref as deepRef } from 'vue';
 
-import { getMockProcessList } from '../mock/process-list';
+import { cloneDeep } from 'lodash';
 
-import type { ProcessItem } from '../types';
+import { MOCK_METRIC_GROUPS, MOCK_METRICS } from '../mock/metric-groups';
+
+import type { MetricGroupModel, MetricItemModel } from '../types/metric-group';
+
+export type MetricGroupsController = ReturnType<typeof useMetricGroups>;
 
 /**
- * @description 获取选中主机的进程列表（当前返回 mock，后续可零改动替换为真实接口）。
+ * 指标分组与指标数据控制器。
+ * 持有分组与指标的「已生效」数据，供「视图分组管理」编辑、图表后续消费。
  */
-export const getHostProcessList = async (_params: {
-  bk_target_cloud_id?: string;
-  bk_target_ip?: string;
-  end_time: number;
-  start_time: number;
-}): Promise<ProcessItem[]> => {
-  return getMockProcessList();
-};
+export function useMetricGroups() {
+  const groups = deepRef<MetricGroupModel[]>(cloneDeep(MOCK_METRIC_GROUPS));
+  const metrics = deepRef<MetricItemModel[]>(cloneDeep(MOCK_METRICS));
+
+  /** 覆盖写入分组与指标（用于 Dialog 保存） */
+  const setData = (nextGroups: MetricGroupModel[], nextMetrics: MetricItemModel[]) => {
+    groups.value = nextGroups;
+    metrics.value = nextMetrics;
+  };
+
+  /** 恢复默认（mock 初始数据） */
+  const resetDefault = () => {
+    groups.value = cloneDeep(MOCK_METRIC_GROUPS);
+    metrics.value = cloneDeep(MOCK_METRICS);
+  };
+
+  return {
+    groups,
+    metrics,
+    resetDefault,
+    setData,
+  };
+}

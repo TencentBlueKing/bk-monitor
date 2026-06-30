@@ -23,6 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+export * from './aggregation';
 export * from './host';
 export * from './host-list';
+export * from './metric-group';
+export * from './panel-order';
+export * from './panels';
+export * from './process';
 export * from './topo';

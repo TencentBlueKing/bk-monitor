@@ -24,18 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { getMockProcessList } from '../mock/process-list';
+export { default as DashboardPanel } from './components/dashboard-panel';
+export { useDashboardPanels } from './composables/use-dashboard-panels';
+export { createGraphApi } from './services/graph-api';
+export { buildScopedVars } from './variables/resolve';
 
-import type { ProcessItem } from '../types';
-
-/**
- * @description 获取选中主机的进程列表（当前返回 mock，后续可零改动替换为真实接口）。
- */
-export const getHostProcessList = async (_params: {
-  bk_target_cloud_id?: string;
-  bk_target_ip?: string;
-  end_time: number;
-  start_time: number;
-}): Promise<ProcessItem[]> => {
-  return getMockProcessList();
-};
+export type { GraphApi } from './services/graph-api';
+export type { DashboardRow } from './typings/dashboard';
+export type { ScopedVarMap } from './variables/resolve';

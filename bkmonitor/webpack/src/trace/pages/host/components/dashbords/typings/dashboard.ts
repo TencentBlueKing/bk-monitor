@@ -24,18 +24,14 @@
  * IN THE SOFTWARE.
  */
 
-import { getMockProcessList } from '../mock/process-list';
+import type { HostViewsGraphPanel } from '../../../types/panels';
 
-import type { ProcessItem } from '../types';
-
-/**
- * @description 获取选中主机的进程列表（当前返回 mock，后续可零改动替换为真实接口）。
- */
-export const getHostProcessList = async (_params: {
-  bk_target_cloud_id?: string;
-  bk_target_ip?: string;
-  end_time: number;
-  start_time: number;
-}): Promise<ProcessItem[]> => {
-  return getMockProcessList();
-};
+/** 仪表盘分组行：一个可折叠分组 + 其下图表面板列表 */
+export interface DashboardRow {
+  /** 分组唯一标识 */
+  id: string;
+  /** 分组下（过滤后）的图表面板 */
+  panels: HostViewsGraphPanel[];
+  /** 分组标题，如 CPU、内存 */
+  title: string;
+}
