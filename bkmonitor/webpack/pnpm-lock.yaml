@@ -167,11 +167,11 @@ importers:
         specifier: ^1.0.6
         version: 1.0.6
       '@blueking/monitor-alarm-center':
-        specifier: 0.0.12
-        version: 0.0.12(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)(highlight.js@11.11.1)(typescript@5.9.3)
+        specifier: 0.0.13
+        version: 0.0.13(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)(highlight.js@11.11.1)(typescript@5.9.3)
       '@blueking/monitor-trace-explore':
-        specifier: 0.0.23
-        version: 0.0.23(highlight.js@11.11.1)(typescript@5.9.3)
+        specifier: 0.0.24
+        version: 0.0.24(highlight.js@11.11.1)(typescript@5.9.3)
       '@blueking/search-select-v3':
         specifier: 0.0.1-beta.10
         version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.112(highlight.js@11.11.1)(vue@2.7.16))(vue@2.7.16)
@@ -1639,8 +1639,8 @@ packages:
   '@blueking/login-modal@1.0.6':
     resolution: {integrity: sha512-zjDHiCNY2Aydo9BcFiGiiw8uodPkCSK+SthXQZQQ/8Bq4nHnz+Hkuo8rnPrwuDIgB2E2C6X+T5+6jDXqTwrZyg==}
 
-  '@blueking/monitor-alarm-center@0.0.12':
-    resolution: {integrity: sha512-K4C/VQSFMxCYgY3scu9gyG1OYWxJO2mOs4+CjS9tjweyS9DrNvl6kpUKMOfBSZWYvdlCsV1j7HiXAcPpwl0BMA==}
+  '@blueking/monitor-alarm-center@0.0.13':
+    resolution: {integrity: sha512-kEFElyeArues/UWaWLNiIakoKehos4e2irduVQdgpo+lvvg4+oPVrUfYdCEKc+T8QvkFWVlxRhP78ggIYiZncQ==}
 
   '@blueking/monitor-apm-log@2.3.27':
     resolution: {integrity: sha512-1mvvjHg7tQhHDeyEObPwX9pKXRIrdRTWrUqhk8eoh28Vk4WvqktXSFq3D2Tc5dTRCBYE6wTDYUeCdFgXGF6lXA==}
@@ -1651,8 +1651,8 @@ packages:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3
 
-  '@blueking/monitor-trace-explore@0.0.23':
-    resolution: {integrity: sha512-Ti9W83ozCO2/9nFD1eadsUbttuh3TopfOrC2mPPChvi1w8ysz0LizM+SF6GIb8WelR5nJc69fG31NKbUsVy3xQ==}
+  '@blueking/monitor-trace-explore@0.0.24':
+    resolution: {integrity: sha512-NiPz1sSBUTi3FxXM2C0xD6N4n+HZ/ty/jt+fIGsWo6ldB66z/unOaya9NmyLCssriXyc2YTmGvYk88HcXh7REg==}
 
   '@blueking/monitor-trace-log@2.0.25':
     resolution: {integrity: sha512-6E/I1hzqvTpSpN0FwqVSAgO/ZxIaRlExXUSfOrMFaucvPEjjm84H0iaAeacrbCiQEbmuZ1p8WoD3g2Z4CdPfaA==}
@@ -10646,11 +10646,11 @@ snapshots:
 
   '@blueking/login-modal@1.0.6': {}
 
-  '@blueking/monitor-alarm-center@0.0.12(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)(highlight.js@11.11.1)(typescript@5.9.3)':
+  '@blueking/monitor-alarm-center@0.0.13(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)(highlight.js@11.11.1)(typescript@5.9.3)':
     dependencies:
       '@blueking/tdesign-ui': 0.0.1(vue@3.5.29(typescript@5.9.3))
       '@prometheus-io/lezer-promql': 0.305.0(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)
-      bkui-vue: 2.0.2-beta.63(highlight.js@11.11.1)(vue@3.5.29(typescript@5.9.3))
+      bkui-vue: 2.0.2-beta.68(highlight.js@11.11.1)(vue@3.5.29(typescript@5.9.3))
       dayjs: 1.11.20
       monaco-editor: 0.44.0
       vue: 3.5.29(typescript@5.9.3)
@@ -10668,7 +10668,7 @@ snapshots:
       '@blueking/bkui-library': 0.0.0-beta.6
       vue: 2.7.16
 
-  '@blueking/monitor-trace-explore@0.0.23(highlight.js@11.11.1)(typescript@5.9.3)':
+  '@blueking/monitor-trace-explore@0.0.24(highlight.js@11.11.1)(typescript@5.9.3)':
     dependencies:
       '@blueking/tdesign-ui': 0.0.1(vue@3.5.29(typescript@5.9.3))
       bkui-vue: 2.0.2-beta.68(highlight.js@11.11.1)(vue@3.5.29(typescript@5.9.3))

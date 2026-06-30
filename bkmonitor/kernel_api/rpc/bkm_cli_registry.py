@@ -11,7 +11,27 @@ specific language governing permissions and limitations under the License.
 from dataclasses import dataclass, field
 from typing import Any
 
+from django.utils.translation import gettext_lazy as _lazy
+
 from core.drf_resource.exceptions import CustomException
+
+
+class BkmCliOpNotFound(CustomException):
+    # op 未在当前环境后端部署（或 CLI 版本领先于后端发布）时抛出。
+    # 用数值 code=404 让 bkm-cli 端 mapStatusToCode(404) 映射为 target_not_found，
+    # 而不是落到 invalid_argument 兜底——后者会误导 agent 反复改 schema（以为是参数错），
+    # 实际是「该 op 根本不存在/未部署」。CLI 无需改动即可受益于这个语义区分。
+    status_code = 404
+    code = 404
+    name = _lazy("bkm-cli op 未部署")
+
+    def __init__(self, message=None, data=None, code=None):
+        # 显式把类属性 code(404) 注入构造，确保进 custom_exception_handler 的 envelope。
+        # 不能依赖默认 code=None：父类 CustomException 会把 extra={"code": None} 透传，
+        # 而 custom_exception_handler 末尾 result.update(exc.extra) 会用 extra 里的 code
+        # 覆盖前面写入的 exc.code——若 extra.code 为 None 则把 envelope 的 code 冲掉。
+        # 这里固定传 code=self.code(404)，让 exc.code 与 envelope code 都稳定为 404。
+        super().__init__(message=message, data=data, code=code or self.code)
 
 
 @dataclass
@@ -93,5 +113,7 @@ class BkmCliOpRegistry:
         op_id = (op_id or "").strip()
         op = cls._ops.get(op_id)
         if op is None:
-            raise CustomException(message=f"未找到 bkm-cli op: {op_id}")
+            raise BkmCliOpNotFound(
+                message=(f"未找到 bkm-cli op: {op_id}。该 op 可能未在当前环境后端部署，或 CLI 版本领先于后端发布。")
+            )
         return op

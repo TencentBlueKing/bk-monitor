@@ -318,6 +318,11 @@ class Strategy:
         }
         """
         is_aiops_algorithm = False
+        # 含 NewSeries 算法的 level：NewSeries 单次性(新维度首现即产 1 个异常点，下周期即非异常)，
+        # trigger_count>1 永远凑不满 -> 永不告警，故对这些 level 强制 trigger_count=1。
+        # 触发配置按 level 在全策略共享，故保存层按 strategy 维保证 NewSeries 独占该 level
+        # (跨 item 同 level 冲突也会被拒)，强制 count=1 不会误伤其它 item 的同级算法。
+        new_series_levels = set()
         items = strategy.get("items", [])
         if items:
             is_aiops_list = [
@@ -328,21 +333,32 @@ class Strategy:
             # is_aiops_list不为空时，算法类型全部都是AIOPS算法时，设置is_aiops_algorithm为True
             is_aiops_algorithm = all(is_aiops_list) and len(is_aiops_list) > 0
 
+            new_series_levels = {
+                str(algorithm["level"])
+                for item in items
+                for algorithm in item.get("algorithms") or []
+                if algorithm["type"] == AlgorithmModel.AlgorithmChoices.NewSeries
+            }
+
         trigger_config = {}
         for detect in strategy.get("detects") or []:
+            level = str(detect["level"])
             # 如果只有AIOPS算法，则写死 check_window_size 为 5，trigger_count 为 1
             if is_aiops_algorithm:
-                trigger_config[str(detect["level"])] = {
+                trigger_config[level] = {
                     "check_window_size": 5,
                     "trigger_count": 1,
                     "uptime": detect["trigger_config"].get("uptime"),
                 }
             else:
-                trigger_config[str(detect["level"])] = {
+                trigger_config[level] = {
                     "check_window_size": int(detect["trigger_config"]["check_window"]),
                     "trigger_count": int(detect["trigger_config"]["count"]),
                     "uptime": detect["trigger_config"].get("uptime"),
                 }
+            # NewSeries 单次性算法：后端强制 count=1(独占 level，不影响同级其它算法)。
+            if level in new_series_levels:
+                trigger_config[level]["trigger_count"] = 1
         return trigger_config
 
     @staticmethod

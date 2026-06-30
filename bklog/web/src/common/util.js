@@ -501,7 +501,12 @@ export function formatDateNanos(val, isTimzone = true) {
     return formatDate(Number(val), isTimzone, `${val}`.length > 10);
   }
 
-  if (/null|undefined/.test(strVal) || strVal === '') {
+  if (val === null || val === undefined || strVal === '' || strVal === '--') {
+    return '--';
+  }
+
+  const dateValue = dayjs(val);
+  if (!dateValue.isValid()) {
     return '--';
   }
 
@@ -520,7 +525,7 @@ export function formatDateNanos(val, isTimzone = true) {
   }
 
   // 使用dayjs解析字符串到毫秒 包含时区处理
-  const dateTimeToMilliseconds = dayjs(val).tz(window.timezone)
+  const dateTimeToMilliseconds = dateValue.tz(window.timezone)
     .format('YYYY-MM-DD HH:mm:ss.SSS');
   // 获取微秒并且判断是否是000，也就是纳秒部分的最后三位
   const nanosecondsNum = nanoseconds ? parseInt(nanoseconds, 10) : 0;
@@ -1027,6 +1032,10 @@ export const Debounce = (delay = 200) => (target, key, descriptor) => {
 };
 
 export const formatDateTimeField = (data, fieldType, emptyCharacter = '--') => {
+  if (data === null || data === undefined || data === '' || data === emptyCharacter) {
+    return emptyCharacter;
+  }
+
   if (fieldType === 'date') {
     return formatDate(Number(data)) || data || emptyCharacter;
   }
@@ -1125,12 +1134,12 @@ export const parseTableRowData = (
       isMark = true;
     }
 
-    if (fieldType === 'date' && /^\d+$/.test(formatData)) {
+    if (formatData === null || formatData === undefined || formatData === '' || formatData === emptyCharacter) {
+      formatValue = emptyCharacter;
+    } else if (fieldType === 'date' && /^\d+$/.test(formatData)) {
       formatValue = formatDate(Number(formatData), false) || data || emptyCharacter;
-    }
-
-    // 处理纳秒精度的UTC时间格式
-    if (fieldType === 'date_nanos') {
+    } else if (fieldType === 'date_nanos') {
+      // 处理纳秒精度的UTC时间格式
       formatValue = formatDateNanos(formatData, false) || emptyCharacter;
     }
 

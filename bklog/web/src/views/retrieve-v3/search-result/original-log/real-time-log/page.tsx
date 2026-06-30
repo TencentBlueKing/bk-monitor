@@ -29,15 +29,14 @@ export default defineComponent({
 
     return () => (
       <div class='standalone-related-log-page'>
-        <div class='standalone-related-log-title'>{page.t('实时日志')}</div>
         {page.loading.value ? (
           <RelatedLogLoading
-            title={page.t('实时日志')}
+            title='Loading...'
             text={page.loadingText.value}
             steps={[
-              page.t('解析 URL 中的检索参数'),
-              page.t('重放检索请求并定位原始日志行'),
-              page.t('加载字段配置和实时日志'),
+              'Resolve URL',
+              'Run search',
+              'Load realtime',
             ]}
           />
         ) : page.error.value ? (

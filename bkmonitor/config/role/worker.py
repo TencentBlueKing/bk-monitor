@@ -151,6 +151,8 @@ DEFAULT_CRONTAB = [
     # clean detect result cache
     ("alarm_backends.core.detect_result.tasks.clean_expired_detect_result", "0 */2 * * *", "global"),
     ("alarm_backends.core.detect_result.tasks.clean_md5_to_dimension_cache", "0 23 * * *", "global"),
+    # clean new series(新维度值检测) seen cache: 按 max_series 收口
+    ("alarm_backends.core.detect_result.tasks.clean_new_series_seen_cache", "0 */2 * * *", "global"),
     # 定期清理超时未执行任务
     ("alarm_backends.service.fta_action.tasks.check_timeout_actions", "* * * * *", "global"),
     # 定期清理mysql内半个月前的数据

@@ -663,7 +663,7 @@ class GetProxiesResource(NodeManAPIGWResource):
 
     @property
     def action(self):
-        if self.use_apigw:
+        if self.use_apigw and settings.ENABLE_MULTI_TENANT_MODE:
             return "system/api/host/proxies/"
         return "api/host/proxies/"
 
@@ -681,7 +681,7 @@ class GetProxiesByBizResource(NodeManAPIGWResource):
 
     @property
     def action(self):
-        if self.use_apigw:
+        if self.use_apigw and settings.ENABLE_MULTI_TENANT_MODE:
             return "system/api/host/biz_proxies/"
         return "api/host/biz_proxies/"
 
@@ -710,7 +710,7 @@ class PluginOperate(NodeManAPIGWResource):
 
     @property
     def action(self):
-        if self.use_apigw:
+        if self.use_apigw and settings.ENABLE_MULTI_TENANT_MODE:
             return "system/api/plugin/operate/"
         return "api/plugin/operate/"
 
@@ -740,7 +740,7 @@ class PluginSearch(NodeManAPIGWResource):
 
     @property
     def action(self):
-        if self.use_apigw:
+        if self.use_apigw and settings.ENABLE_MULTI_TENANT_MODE:
             return "system/api/plugin/search/"
         return "api/plugin/search/"
 
@@ -760,6 +760,26 @@ class PluginSearch(NodeManAPIGWResource):
 
     def full_request_data(self, validated_request_data):
         return super().full_request_data(validated_request_data)
+
+
+class JobDetailResource(NodeManAPIGWResource):
+    """
+    【节点管理2.0】任务详情接口
+    """
+
+    @property
+    def action(self):
+        if self.use_apigw and settings.ENABLE_MULTI_TENANT_MODE:
+            return "system/api/job/{id}/details/"
+        return "api/job/{id}/details/"
+
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        id = serializers.IntegerField(required=True, label="任务ID")
+        page = serializers.IntegerField(required=False, label="页数", default=1)
+        pagesize = serializers.IntegerField(required=False, label="数量", default=100)
+        conditions = serializers.ListField(required=False, label="搜索条件")
 
 
 def adapter_nodeman_bk_cloud_id(instance):

@@ -18,6 +18,7 @@ from alarm_backends.core.cache.key import (
 )
 from alarm_backends.core.control.item import detect_result_point_required
 from alarm_backends.core.control.strategy import StrategyCacheManager
+from bkmonitor.models import AlgorithmModel
 
 DUMMY_DIMENSIONS_MD5 = "dummy_dimensions_md5"
 CLEAN_EXPIRED_ARROW_REPLACE_TIME = {"hours": -5}
@@ -95,6 +96,71 @@ class CleanResult:
                         pipeline.execute()
                     index += 1
                 pipeline.execute()
+
+    @staticmethod
+    def clean_new_series_seen_cache(strategy_range=None):
+        """
+        清理新维度值检测(NewSeries)的已见维度集合缓存：按 max_series 上限把每条 seen-zset 收口。
+        热路径只读写不淘汰(仅 2*max_series 安全阀)，故由本周期任务按 10w 上限做主清理。
+        逐条 zremrangebyrank 分批删(每批 5000)，不下"一条删百万成员"的长命令。
+        另：对无 TTL(ttl==-1)的 seen-zset 补设软 TTL，兜住"首写后 expire 前崩溃"导致的无 TTL 残留泄漏。
+        """
+        # 复用 detector 的签名口径，避免 clean 与 detector 双写漂移
+        from alarm_backends.service.detect.strategy.new_series import NewSeries
+
+        strategy_ids = StrategyCacheManager.get_strategy_ids()
+        if strategy_range is not None:
+            strategy_ids = [s_id for s_id in strategy_ids if s_id in range(*strategy_range)]
+        strategies = StrategyCacheManager.get_strategy_by_ids(strategy_ids)
+
+        client = key.NEW_SERIES_SEEN_KEY.client
+        for strategy in strategies:
+            for item in strategy["items"]:
+                # 找出该 item 下的 NewSeries 算法(可能多 level，独占各自 level，共享同一 seen-zset)
+                ns_algorithms = [
+                    algorithm
+                    for algorithm in item.get("algorithms") or []
+                    if algorithm.get("type") == AlgorithmModel.AlgorithmChoices.NewSeries
+                ]
+                if not ns_algorithms:
+                    continue
+
+                ns_configs = [(algorithm.get("config") or {}) for algorithm in ns_algorithms]
+                # max_series / detect_range 取各 NewSeries 算法配置的最大值(最宽松)，与 detector 写侧口径一致
+                max_series = max(int(c.get("max_series", 100000)) for c in ns_configs)
+                max_detect_range = max(int(c.get("detect_range", 0) or 0) for c in ns_configs)
+                soft_ttl = max(max_detect_range * 2, 86400)
+
+                # seen key 含维度签名(配置层 agg_dimension 的稳定 md5)，与 detector 口径一致
+                query_configs = item.get("query_configs") or []
+                agg_dimension = query_configs[0].get("agg_dimension") if query_configs else None
+                dimension_signature = NewSeries.signature_from_agg_dimension(agg_dimension)
+
+                seen_key = key.NEW_SERIES_SEEN_KEY.get_key(
+                    strategy_id=strategy["id"], item_id=item["id"], dimension_signature=dimension_signature
+                )
+                # 兜底：无 TTL 残留(ttl==-1) -> 补设软 TTL，防止首写崩溃后永久驻留
+                if client.ttl(seen_key) == -1:
+                    client.expire(seen_key, soft_ttl)
+
+                card = client.zcard(seen_key)
+                if card <= max_series:
+                    continue
+
+                # 分批删最旧(score 升序=last_seen 最旧)，收口到 max_series
+                excess = card - max_series
+                removed = 0
+                while removed < excess:
+                    step = min(5000, excess - removed)
+                    client.zremrangebyrank(seen_key, 0, step - 1)
+                    removed += step
+                logger.info(
+                    "clean_new_series_seen_cache strategy(%s) item(%s) trimmed %s -> %s",
+                    strategy["id"],
+                    item["id"],
+                    card,
+                    max_series,
+                )
 
     @staticmethod
     def clean_md5_to_dimension_cache():

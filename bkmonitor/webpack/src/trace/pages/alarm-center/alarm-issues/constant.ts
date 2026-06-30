@@ -342,3 +342,22 @@ export const ISSUES_ACTIVE_NODE_ICON_MAP = {
     alias: window.i18n.t('Issue 拆分'),
   },
 };
+
+export const TapdTypeEnum = {
+  BUG: 'bug',
+  STORY: 'story',
+  TASK: 'task',
+} as const;
+
+export const TAPDWorkspaceBoundEnum = {
+  BOUND: 'bound',
+  IMPORTABLE: 'importable',
+  STALE: 'stale',
+  UNBOUND: 'unbound',
+} as const;
+
+export const TapdTypeMap = [
+  { label: window.i18n.t('需求'), value: TapdTypeEnum.STORY },
+  { label: window.i18n.t('缺陷'), value: TapdTypeEnum.BUG },
+  { label: window.i18n.t('任务'), value: TapdTypeEnum.TASK },
+];
