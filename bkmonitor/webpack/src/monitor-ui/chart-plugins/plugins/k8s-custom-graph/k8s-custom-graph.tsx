@@ -1095,6 +1095,7 @@ class K8SCustomChart extends CommonSimpleChart {
                             filterCommonParams={this.panel.externalData?.filterCommonParams}
                             groupByField={this.panel.externalData?.groupByField}
                             value={item.name}
+                            dimensions={item.dimensions}
                           />
                           // <K8sDimensionDrillDown
                           //   dimension={this.panel.externalData?.groupByField}

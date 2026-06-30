@@ -425,8 +425,14 @@ class IssueDocument(BaseDocument):
         self._persist_and_cache(active=self.status in IssueStatus.ACTIVE_STATUSES)
         return self._write_activities(activities)
 
-    def rename(self, new_name: str, operator: str) -> list:
-        """重命名 Issue"""
+    def rename(self, new_name: str, operator: str, enforce_unique: bool = True) -> list:
+        """重命名 Issue。
+
+        enforce_unique：是否强制业务内标题唯一。
+        - 用户改名（默认 True）：人手填重名是误操作，撞名抛 IssueNameDuplicatedError 拦下。
+        - 系统自动标题（False）：同类错误天然生成相同标题（标题描述错误，不含实例维度），
+          实例区分交由 issue 的结构化维度，允许重名；不应被给用户用的唯一性约束卡回默认名。
+        """
         IssueMergeResolver.assert_not_frozen(self.id)
         new_name = new_name.strip()
         old_name = self.name
@@ -434,15 +440,18 @@ class IssueDocument(BaseDocument):
         if new_name == old_name:
             return self._read_activities()
 
-        dup_search = (
-            IssueDocument.search(all_indices=True)
-            .filter("term", bk_biz_id=str(self.bk_biz_id))
-            .filter("term", **{"name.raw": new_name})
-            .exclude("term", **{"_id": self.id})
-            .params(size=1)
-        )
-        if dup_search.execute().hits:
-            raise IssueNameDuplicatedError(f"Issue name already exists, bk_biz_id={self.bk_biz_id}, name={new_name}")
+        if enforce_unique:
+            dup_search = (
+                IssueDocument.search(all_indices=True)
+                .filter("term", bk_biz_id=str(self.bk_biz_id))
+                .filter("term", **{"name.raw": new_name})
+                .exclude("term", **{"_id": self.id})
+                .params(size=1)
+            )
+            if dup_search.execute().hits:
+                raise IssueNameDuplicatedError(
+                    f"Issue name already exists, bk_biz_id={self.bk_biz_id}, name={new_name}"
+                )
 
         self.name = new_name
         self.update_time = int(time.time())

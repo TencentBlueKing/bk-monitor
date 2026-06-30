@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -263,6 +264,8 @@ ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
         note=(
             "确认 dataid/链路 是否存在与归属的权威来源；多租户内置链路 data_name 形如 "
             "{bk_tenant_id}_{bk_biz_id}_sys_base(主机基础性能)等。token 等密钥字段不可读。"
+            "解读前先用 env-info op 确认环境 regime：多租户与否决定结果表是否带租户前缀、"
+            "基础采集 dataid 是否按业务申请。"
         ),
         examples=[
             {
@@ -302,6 +305,7 @@ ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
         note=(
             "确认结果表是否存在、存储类型(default_storage)、data_label、是否内置；"
             "常与 DataSource 配套核对一个 dataid 的落地结果表。"
+            "table_id 是否带租户前缀取决于多租户开关,解读前先用 env-info op 确认 regime。"
         ),
         examples=[
             {
@@ -582,7 +586,23 @@ def _validate_field(field_name: str, spec: ModelSpec) -> None:
 
 
 def _serialize_instance(instance: Any, selected_fields: set[str]) -> dict[str, Any]:
-    return {field_name: getattr(instance, field_name) for field_name in sorted(selected_fields)}
+    # read-db-model 专项防御层：逐字段 json-safe 归一。
+    # 纯 getattr 会让 datetime / Decimal 等非 JSON-safe 字段在整行序列化时崩掉，
+    # 报「result 值必须是有效 JSON」且不提示是哪个坏字段，难诊断。
+    # 这里每个字段单独 json.loads(json.dumps(value, default=str))：
+    #   - 正常字段：datetime/Decimal 等转成字符串，与服务桥出口归一一致；
+    #   - 某字段归一失败：降级为 "<unserializable: 类名>" 占位并继续，
+    #     绝不让单个坏字段崩掉整行（出口层 default=str 已能兜大多数，这里再细化诊断粒度）。
+    serialized: dict[str, Any] = {}
+    for field_name in sorted(selected_fields):
+        value = getattr(instance, field_name)
+        try:
+            serialized[field_name] = json.loads(json.dumps(value, default=str))
+        except Exception:
+            # 宽捕获：default=str 兜不住的极端坏字段（连 str() 都抛错的对象等）
+            # 也只降级该字段，绝不让单个坏字段崩掉整行。
+            serialized[field_name] = f"<unserializable: {type(value).__name__}>"
+    return serialized
 
 
 KernelRPCRegistry.register_function(

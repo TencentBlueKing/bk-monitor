@@ -1,33 +1,38 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import useStore from '@/hooks/use-store';
 import { getCommonFilterAdditionWithValues } from '@/store/helper';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 import { throttle } from 'lodash-es';
 
-import RetrieveHelper from '../../retrieve-helper';
+import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import NoIndexSet from '../result-comp/no-index-set';
+import LogResult from './log-result/index';
+
 // #if MONITOR_APP !== 'trace'
-import SearchResultChart from '../search-result-chart/index.tsx';
+const SearchResultChart = defineAsyncComponent(() =>
+  import(/* webpackChunkName: 'retrieve-search-result-chart' */ '../search-result-chart/index.tsx'),
+);
 // #else
 // #code const SearchResultChart = () => null;
 // #endif
 
 // #if MONITOR_APP !== 'trace'
-import FieldFilter from './field-filter';
+const FieldFilter = defineAsyncComponent(() =>
+  import(/* webpackChunkName: 'retrieve-field-filter' */ './field-filter'),
+);
 // #else
 // #code const FieldFilter = () => null;
 // #endif
 
 // #if MONITOR_APP !== 'trace' && MONITOR_APP !== 'apm'
-import LogClustering from './log-clustering/index';
+const LogClustering = defineAsyncComponent(() =>
+  import(/* webpackChunkName: 'retrieve-v2-log-clustering' */ './log-clustering/index'),
+);
 // #else
 // #code const LogClustering = () => null;
 // #endif
-
-import { BK_LOG_STORAGE } from '@/store/store.type';
-
-import LogResult from './log-result/index';
 
 const DEFAULT_FIELDS_WIDTH = 200;
 
@@ -44,14 +49,103 @@ const retrieveParams = computed(() => store.getters.retrieveParams);
 const requestAddition = computed(() => store.getters.requestAddition);
 const isNoIndexSet = computed(() => !store.state.retrieve.flatIndexSetList.length);
 const isOriginShow = computed(() => props.activeTab === 'origin');
+const trendContextKey = computed(() => [
+  store.state.spaceUid,
+  store.state.indexId,
+  ...(store.state.indexItem.ids ?? []),
+].join('|'));
 const pageLoading = computed(
   () => isFilterLoading.value || isSearchRersultLoading.value || store.state.retrieve.isIndexSetLoading,
 );
 
 const totalCount = ref(0);
 const queueStatus = ref(false);
-const isTrendChartShow = ref(true);
-const heightNum = ref();
+const isTrendChartShow = ref(!store.state.storage[BK_LOG_STORAGE.TREND_CHART_IS_FOLD]);
+const DEFAULT_TREND_CHART_EXPANDED_HEIGHT = 170;
+const DEFAULT_TREND_CHART_FOLDED_HEIGHT = 40;
+const heightNum = ref(isTrendChartShow.value ? DEFAULT_TREND_CHART_EXPANDED_HEIGHT : DEFAULT_TREND_CHART_FOLDED_HEIGHT);
+const shouldRenderTrendChart = ref(false);
+const isTrendChartPending = ref(!shouldRenderTrendChart.value);
+const TREND_CHART_MIN_DELAY = 500;
+let renderTrendChartDelayTimer = null;
+let renderTrendChartIdleTimer = null;
+
+const setTrendChartPending = () => {
+  if (!isOriginShow.value) {
+    return;
+  }
+
+  isTrendChartPending.value = true;
+  store.commit('retrieve/updateTrendDataLoading', true);
+  heightNum.value = isTrendChartShow.value ? Math.max(heightNum.value, DEFAULT_TREND_CHART_EXPANDED_HEIGHT) : DEFAULT_TREND_CHART_FOLDED_HEIGHT;
+  RetrieveHelper.setTrendGraphHeight(heightNum.value);
+};
+
+const clearRenderTrendChartTimer = () => {
+  if (renderTrendChartDelayTimer) {
+    window.clearTimeout(renderTrendChartDelayTimer);
+    renderTrendChartDelayTimer = null;
+  }
+
+  if (renderTrendChartIdleTimer) {
+    if (window.cancelIdleCallback) {
+      window.cancelIdleCallback(renderTrendChartIdleTimer);
+    } else {
+      window.clearTimeout(renderTrendChartIdleTimer);
+    }
+    renderTrendChartIdleTimer = null;
+  }
+};
+
+const scheduleRenderTrendChart = () => {
+  if (shouldRenderTrendChart.value || renderTrendChartDelayTimer || renderTrendChartIdleTimer) {
+    return;
+  }
+
+  const render = () => {
+    renderTrendChartIdleTimer = null;
+    shouldRenderTrendChart.value = true;
+  };
+
+  renderTrendChartDelayTimer = window.setTimeout(() => {
+    renderTrendChartDelayTimer = null;
+
+    if (!isOriginShow.value) {
+      return;
+    }
+
+    if (window.requestIdleCallback) {
+      renderTrendChartIdleTimer = window.requestIdleCallback(render, { timeout: 3000 });
+      return;
+    }
+
+    renderTrendChartIdleTimer = window.setTimeout(render, 1200);
+  }, TREND_CHART_MIN_DELAY);
+};
+
+watch(isOriginShow, (value) => {
+  if (value) {
+    scheduleRenderTrendChart();
+  }
+});
+
+watch(trendContextKey, (value, oldValue) => {
+  if (oldValue !== undefined && value !== oldValue) {
+    setTrendChartPending();
+  }
+});
+
+RetrieveHelper.on(RetrieveEvent.TREND_GRAPH_PENDING, setTrendChartPending);
+
+onMounted(() => {
+  RetrieveHelper.setTrendGraphHeight(heightNum.value);
+  scheduleRenderTrendChart();
+});
+
+onBeforeUnmount(() => {
+  clearRenderTrendChartTimer();
+  RetrieveHelper.off(RetrieveEvent.TREND_GRAPH_PENDING, setTrendChartPending);
+});
 
 const fieldFilterWidth = computed(() => store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].width);
 const isShowFieldStatistics = computed(() => {
@@ -75,6 +169,9 @@ const changeTotalCount = (count) => {
 };
 const changeQueueRes = (status) => {
   queueStatus.value = status;
+};
+const handleTrendReady = () => {
+  isTrendChartPending.value = false;
 };
 
 const handleToggleChange = (isShow, height) => {
@@ -160,13 +257,45 @@ const rightContentStyle = computed(() => {
         :style="__IS_MONITOR_TRACE__ ? undefined : rightContentStyle"
         :class="['search-result-content', { 'field-list-show': isShowFieldStatistics }]"
       >
-        <SearchResultChart
+        <div
           v-show="isOriginShow"
-          :class="RetrieveHelper.randomTrendGraphClassName"
-          @change-queue-res="changeQueueRes"
-          @change-total-count="changeTotalCount"
-          @toggle-change="handleToggleChange"
-        />
+          :class="[
+            'trend-chart-reserved',
+            RetrieveHelper.randomTrendGraphClassName,
+            { 'is-fold': !isTrendChartShow, 'is-loading': isTrendChartPending || !shouldRenderTrendChart },
+          ]"
+          :style="{ height: `${heightNum}px` }"
+        >
+          <SearchResultChart
+            v-if="shouldRenderTrendChart"
+            @change-queue-res="changeQueueRes"
+            @change-total-count="changeTotalCount"
+            @toggle-change="handleToggleChange"
+            @trend-ready="handleTrendReady"
+          />
+          <div
+            v-if="isTrendChartPending || !shouldRenderTrendChart"
+            class="trend-chart-skeleton"
+            aria-hidden="true"
+          >
+            <div class="trend-chart-skeleton-title">
+              <span class="trend-chart-skeleton-caret" />
+              <span class="trend-chart-skeleton-title-line" />
+              <span class="trend-chart-skeleton-meta-line" />
+            </div>
+            <div
+              v-if="isTrendChartShow"
+              class="trend-chart-skeleton-body"
+            >
+              <span
+                v-for="index in 36"
+                :key="index"
+                class="trend-chart-skeleton-bar"
+                :style="{ height: `${24 + ((index * 17) % 78)}px` }"
+              />
+            </div>
+          </div>
+        </div>
         <div
           v-show="isOriginShow"
           class="split-line"

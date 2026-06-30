@@ -247,7 +247,7 @@ export default class AiopsDimensionLine extends LineChart {
         /** 关联指标不需要展示阈值后，可以根据数据来展示最大最小值，因为阈值可能为0 */
         const yAxis = {
           scale: this.height < 120 ? false : canScale,
-          max: v => Math.max(v.max, +maxThreshold),
+          max: v => Math.max(v.max + (Math.abs(v.max - v.min) || Math.abs(v.max) || 1) * 0.1, +maxThreshold),
           min: v => Math.min(v.min, +minThreshold),
         };
         const formatterFunc = this.handleSetFormatterFunc(seriesList[0].data);
@@ -275,7 +275,7 @@ export default class AiopsDimensionLine extends LineChart {
               splitNumber: this.height < 200 ? 2 : 4,
               minInterval: 1,
               scale: this.height < 120 ? false : canScale,
-              max: v => Math.max(v.max, +maxThreshold),
+              max: v => Math.max(v.max + (Math.abs(v.max - v.min) || Math.abs(v.max) || 1) * 0.1, +maxThreshold),
               ...yAxis,
             },
             xAxis: {

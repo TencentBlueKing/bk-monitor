@@ -32,7 +32,7 @@ import K8sDimensionDrillDown from 'monitor-ui/chart-plugins/plugins/k8s-custom-g
 
 import { EMode } from '../../../../components/retrieval-filter/utils';
 import { DimensionSceneMap, K8sGroupDimension, SceneAliasMap } from '../../k8s-dimension';
-import { K8sTableColumnKeysEnum, K8SToEventWhereKeyMap, SceneEnum } from '../../typings/k8s-new';
+import { K8sTableColumnKeysEnum, K8SToEventWhereKeyMap, SceneEnum, K8sNewTabEnum } from '../../typings/k8s-new';
 
 import type { DrillDownEvent, K8sTableColumnResourceKey, K8sTableGroupByEvent } from '../k8s-table-new/k8s-table-new';
 
@@ -59,7 +59,8 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
   @Prop({ type: String }) value!: string;
   /** 当前筛选过滤中已存在的过滤值 filterBy数据 */
   @Prop({ type: Object }) filterCommonParams: K8sQuickToolsProps['filterCommonParams'];
-
+  /** 指标视图下的 dimensions */
+  @Prop({ type: Object, default: () => ({}) }) dimensions: Record<string, string>;
   /** 场景下拉菜单 dom 实例 */
   @Ref('sceneRef') sceneRef: any;
   // 视图变量--图表中的时间对比值
@@ -150,7 +151,7 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
    *
    */
   handleFilterChange() {
-    if (this.apmResourceField.includes(this.groupByField)) return;
+    if (this.isApmMonitor && this.apmResourceField.includes(this.groupByField)) return;
     this.onFilterChange(this.filterValue, this.groupByField, !this.filterToolConfig.hasFilter);
   }
 
@@ -188,21 +189,35 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
       ];
     }
 
-    // 指标视图：按 pod → workload → namespace 优先级取值
-    const podValue = filterDict[K8sTableColumnKeysEnum.POD]?.[0];
-    if (podValue) {
+    const isContainerField = this.groupByField === K8sTableColumnKeysEnum.CONTAINER;
+    if (isContainerField) {
       return [
         {
-          key: K8SToEventWhereKeyMap[K8sTableColumnKeysEnum.POD],
+          key: isContainerField ? K8sTableColumnKeysEnum.POD : this.groupByField,
           method: 'eq',
-          value: [podValue],
+          value: isContainerField ? [this.dimensions.pod_name] : [this.filterValue],
           condition: 'and',
         },
       ];
     }
 
-    const workloadValue = filterDict[K8sTableColumnKeysEnum.WORKLOAD]?.[0];
-    if (workloadValue) {
+    // 指标视图：按 pod → workload → namespace 优先级取值
+    const isPodField = this.groupByField === K8sTableColumnKeysEnum.POD;
+    // const podValue = filterDict[K8sTableColumnKeysEnum.POD]?.[0];
+    if (isPodField) {
+      return [
+        {
+          key: K8SToEventWhereKeyMap[K8sTableColumnKeysEnum.POD],
+          method: 'eq',
+          value: [this.filterValue],
+          condition: 'and',
+        },
+      ];
+    }
+
+    const isWorkloadField = this.groupByField === K8sTableColumnKeysEnum.WORKLOAD;
+    if (isWorkloadField) {
+      const workloadValue = filterDict[K8sTableColumnKeysEnum.WORKLOAD]?.[0] || this.filterValue;
       return [
         {
           key: K8SToEventWhereKeyMap.workload_kind,
@@ -217,8 +232,9 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
       ];
     }
 
-    const namespaceValue = filterDict[K8sTableColumnKeysEnum.NAMESPACE]?.[0];
-    if (namespaceValue) {
+    const isNamespaceField = this.groupByField === K8sTableColumnKeysEnum.NAMESPACE;
+    if (isNamespaceField) {
+      const namespaceValue = filterDict[K8sTableColumnKeysEnum.NAMESPACE]?.[0] || this.filterValue;
       return [
         {
           key: K8SToEventWhereKeyMap[K8sTableColumnKeysEnum.NAMESPACE],
@@ -245,6 +261,7 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
     if (targetScene === SceneEnum.Event) {
       const eventQuery = {
         ...rest,
+        cluster: this.filterCommonParams.bcs_cluster_id,
         scene: targetScene,
         /** 因存在内部跳转功能，所以使用事件检索URL格式 */
         targets: JSON.stringify([
@@ -259,6 +276,7 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
             },
           },
         ]),
+        filterBy: JSON.stringify({ [this.groupByField]: [this.filterValue] }),
         filterMode: EMode.ui,
         prop: '',
         order: '',
@@ -268,6 +286,7 @@ export default class K8sQuickTools extends tsc<K8sQuickToolsProps> {
     }
     const query = {
       ...rest,
+      cluster: this.filterCommonParams.bcs_cluster_id,
       filterBy: JSON.stringify({ [this.groupByField]: [this.filterValue] }),
       groupBy: JSON.stringify(targetPageGroupInstance.groupFilters),
       scene: targetScene,

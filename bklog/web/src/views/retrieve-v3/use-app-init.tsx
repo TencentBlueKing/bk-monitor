@@ -450,6 +450,8 @@ export default () => {
 
           RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type, false);
 
+          RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_PENDING);
+
           resolveAdditionKeyword().then(async () => {
             if (isFeatureToggleOn('scene_search', [String(store.state.bkBizId), String(store.state.spaceUid)])) {
               if (store.state.indexItem.retrieve_type === RetrieveType.Scene) {

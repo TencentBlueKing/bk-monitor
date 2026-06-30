@@ -300,7 +300,7 @@ export default defineComponent({
                     on-resize-width={handleResizeColumn}
                     fieldName={item}
                   >
-                    {item}
+                    <div class='dynamic-column-header' v-bk-overflow-tips>{item}</div>
                   </HeadColumn>
                 ))}
               <HeadColumn

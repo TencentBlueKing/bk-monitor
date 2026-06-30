@@ -147,6 +147,61 @@ class TestPatternSearch(TestCase):
         self.assertEqual(called_query["index_set_ids"], [INDEX_SET_ID])
         self.assertEqual(called_query["agg_field"], f"{AGGS_FIELD_PREFIX}_05")
 
+    @patch.object(PatternHandler, "_get_pattern_aggs_result")
+    @patch.object(PatternHandler, "_get_new_class")
+    def test_new_class_multi_query_chunks_signature_condition_and_merges_results(
+        self, mock_get_new_class, mock_get_pattern_aggs_result
+    ):
+        signatures = [f"signature-{index}" for index in range(901)]
+        mock_get_new_class.return_value = {(signature,) for signature in signatures}
+
+        def fake_get_pattern_aggs_result(index_set_id, query):  # pylint: disable=unused-argument
+            chunk = query["addition"][-1]["value"]
+            return [{"key": "e4b60ecf", "doc_count": len(chunk), "group": "gamesvr"}]
+
+        mock_get_pattern_aggs_result.side_effect = fake_get_pattern_aggs_result
+
+        query = copy.deepcopy(PARAMS)
+        query["bk_biz_id"] = 2
+        query["size"] = 1
+        query["group_by"] = ["service_name"]
+
+        result = PatternHandler(INDEX_SET_ID, query)._new_class_multi_query()
+
+        self.assertEqual(mock_get_pattern_aggs_result.call_count, 2)
+        chunks = [call.args[1]["addition"][-1]["value"] for call in mock_get_pattern_aggs_result.call_args_list]
+        self.assertEqual(sum(len(chunk) for chunk in chunks), 901)
+        self.assertTrue(all(len(chunk) <= 900 for chunk in chunks))
+        self.assertEqual(result["pattern_aggs"], [{"key": "e4b60ecf", "doc_count": 901, "group": "gamesvr"}])
+
+    @patch.object(PatternHandler, "_get_year_on_year_aggs_result")
+    @patch.object(PatternHandler, "_get_pattern_aggs_result")
+    @patch.object(PatternHandler, "_get_new_class")
+    def test_new_class_multi_query_chunks_year_on_year_signature_condition(
+        self, mock_get_new_class, mock_get_pattern_aggs_result, mock_get_year_on_year_aggs_result
+    ):
+        signatures = [f"signature-{index}" for index in range(901)]
+        mock_get_new_class.return_value = {(signature,) for signature in signatures}
+        mock_get_pattern_aggs_result.return_value = []
+
+        def fake_get_year_on_year_aggs_result(query):
+            chunk = query["addition"][-1]["value"]
+            return {"e4b60ecf|gamesvr": len(chunk)}
+
+        mock_get_year_on_year_aggs_result.side_effect = fake_get_year_on_year_aggs_result
+
+        query = copy.deepcopy(PARAMS)
+        query["bk_biz_id"] = 2
+        query["year_on_year_hour"] = 24
+
+        result = PatternHandler(INDEX_SET_ID, query)._new_class_multi_query()
+
+        self.assertEqual(mock_get_year_on_year_aggs_result.call_count, 2)
+        chunks = [call.args[0]["addition"][-1]["value"] for call in mock_get_year_on_year_aggs_result.call_args_list]
+        self.assertEqual(sum(len(chunk) for chunk in chunks), 901)
+        self.assertTrue(all(len(chunk) <= 900 for chunk in chunks))
+        self.assertEqual(result["year_on_year_result"], {"e4b60ecf|gamesvr": 901})
+
     @patch.object(PatternHandler, "_multi_query")
     def test_pattern_search_returns_placeholders(self, mock_multi_query):
         ClusteringConfig.objects.filter(index_set_id=INDEX_SET_ID).update(model_id="model_1")

@@ -40,6 +40,23 @@ interface IState {
 }
 
 const DEFAULT_MIN_VALUE = 240;
+/** 「服务 & 操作」列自适应宽度的上限（占容器宽度比例） */
+const AUTO_FIT_MAX_RATIO = 0.8;
+/** 调用树每一层缩进的宽度（与 span-tree-offset 的 indent-guide 宽度保持一致） */
+const INDENT_PER_DEPTH = 29;
+/** span 名称单元格除文本外的固定占位（图标、内边距、收起标记等）的估算宽度 */
+const SPAN_NAME_EXTRA_WIDTH = 112;
+
+let measureCanvas: HTMLCanvasElement | null = null;
+const measureTextWidth = (text: string, font: string) => {
+  if (!measureCanvas) {
+    measureCanvas = document.createElement('canvas');
+  }
+  const ctx = measureCanvas.getContext('2d');
+  if (!ctx) return 0;
+  ctx.font = font;
+  return ctx.measureText(text || '').width;
+};
 
 const TProps = {
   updateViewRangeTime: Function as PropType<TUpdateViewRangeTimeFunction>,
@@ -77,20 +94,9 @@ export default defineComponent({
 
     onMounted(() => {
       resizeObsever();
-      setDefaultExpandSpan();
-      getSpanNameColumnWidth();
+      // getSpanNameColumnWidth();
+      nextTick(() => getAutoFitColumnWidth());
     });
-
-    /** 默认展开三层 其他的先收起 */
-    const setDefaultExpandSpan = () => {
-      const childrenHiddenIDs = spans.value.reduce((res, s) => {
-        if (s.depth > 1) {
-          res.add(s.spanID);
-        }
-        return res;
-      }, new Set<string>());
-      childrenHiddenIds.value = childrenHiddenIDs;
-    };
     const resizeObsever = () => {
       state.resizeObserver = new ResizeObserver(entries => {
         const rect = entries[0].contentRect;
@@ -179,6 +185,28 @@ export default defineComponent({
       if (minRact < spanNameColumnWidth.value) return;
 
       spanNameColumnWidth.value = Number(minRact);
+    };
+    /** 根据调用树内容（缩进 + 服务名 + 接口名）自适应「服务 & 操作」列宽，上限 40% */
+    const getAutoFitColumnWidth = () => {
+      const elemWidth = wrapperRef.value?.getBoundingClientRect()?.width || 0;
+      if (!elemWidth || !spans.value.length) return;
+      const fontFamily = getComputedStyle(wrapperRef.value as HTMLElement).fontFamily;
+      const serviceFont = `14px ${fontFamily}`;
+      const operationFont = `12px ${fontFamily}`;
+      let maxContentWidth = 0;
+      for (const s of spans.value) {
+        const serviceName = s.service_name || s.process?.serviceName || '';
+        const operationName = s.operationName || '';
+        const indentWidth = (s.depth + 1) * INDENT_PER_DEPTH;
+        const textWidth = measureTextWidth(serviceName, serviceFont) + measureTextWidth(operationName, operationFont);
+        const contentWidth = indentWidth + textWidth + SPAN_NAME_EXTRA_WIDTH;
+        if (contentWidth > maxContentWidth) {
+          maxContentWidth = contentWidth;
+        }
+      }
+      const fitRatio = maxContentWidth / elemWidth;
+      const ratio = Math.min(Math.max(fitRatio, minSpanNameColumnWidth.value), AUTO_FIT_MAX_RATIO);
+      spanNameColumnWidth.value = Number(ratio.toFixed(2));
     };
     return {
       ...toRefs(state),
