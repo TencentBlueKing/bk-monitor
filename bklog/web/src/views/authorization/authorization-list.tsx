@@ -299,9 +299,9 @@ export default class AuthorizationList extends tsc<object> {
     return STATUS_LIST.filter(item => item.show.includes(this.angleType));
   }
 
-  // 经过筛选，分页后实际展示的列表数据
-  get listData() {
-    const filterList = this.totalListData.filter(item => {
+  // 经过状态和关键字筛选后的列表
+  get filteredListData() {
+    return this.totalListData.filter(item => {
       // 状态匹配
       const statusPick = this.statusActive === 'all' || item.status === this.statusActive;
       if (!(this.searchValue && statusPick)) {
@@ -317,21 +317,25 @@ export default class AuthorizationList extends tsc<object> {
         if (key === TableColumnEnum.resources || key === TableColumnEnum.resource_id) {
           return val.some(id => {
             const resourceList = this.resourceMaps[item[TableColumnEnum.action_id]] || [];
-            const { text } = resourceList.find(rItem => rItem.id === id);
-            return text?.includes(this.searchValue) ?? '';
+            const rItem = resourceList.find(r => r.id === id);
+            return rItem?.text?.includes(this.searchValue) ?? false;
           });
         }
         if (key === TableColumnEnum.action_id) {
           return val.some(id => {
-            const { name } = this.actionList.find(aItem => aItem.id === id);
-            return name.includes(this.searchValue);
+            const aItem = this.actionList.find(aItem => aItem.id === id);
+            return aItem?.name?.includes(this.searchValue) ?? false;
           });
         }
         return val.some(newVal => newVal.toString().includes(this.searchValue));
       });
     });
+  }
+
+  // 经过筛选，分页后实际展示的列表数据
+  get listData() {
     const { current, limit } = this.pagination;
-    return filterList.slice((current - 1) * limit, current * limit);
+    return this.filteredListData.slice((current - 1) * limit, current * limit);
   }
 
   async created() {
@@ -478,6 +482,8 @@ export default class AuthorizationList extends tsc<object> {
   @Debounce(300)
   handleSearchBlur(val) {
     this.searchValue = val;
+    this.pagination.current = 1;
+    this.pagination.count = this.filteredListData.length;
     this.changeEmptyStatusType();
   }
 
