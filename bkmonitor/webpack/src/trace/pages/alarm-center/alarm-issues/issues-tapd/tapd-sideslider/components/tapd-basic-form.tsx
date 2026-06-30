@@ -30,7 +30,7 @@ import { useI18n } from 'vue-i18n';
 
 import { TapdTypeMap } from '../../../constant';
 
-import type { CreateTapdDefaultSetting, TapdWorkspaceItem } from '../../../typing';
+import type { CreateTapdDefaultSetting, TapdWorkspaceItem } from '../../typing';
 
 import './tapd-basic-form.scss';
 export default defineComponent({
