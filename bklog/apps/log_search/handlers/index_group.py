@@ -57,6 +57,7 @@ class IndexGroupHandler(APIModel):
         current_space_obj = SpaceApi.get_space_detail(space_uid=current_space_uid)
 
         related_space_uids = set()
+        bkcc_space_uid = current_space_uid
         bkcc_space_obj = None
 
         if current_space_obj.space_type_id != SpaceTypeEnum.BKCC.value:
@@ -64,11 +65,11 @@ class IndexGroupHandler(APIModel):
                 space_uid=current_space_uid,
                 related_space_type=SpaceTypeEnum.BKCC.value
             )
-            bkcc_space_uid = bkcc_space_obj.space_uid
+            if bkcc_space_obj:
+                bkcc_space_uid = bkcc_space_obj.space_uid
+                related_space_uids.add(bkcc_space_uid)
             related_space_uids.add(current_space_uid)
-            related_space_uids.add(bkcc_space_uid)
         else:
-            bkcc_space_uid = current_space_uid
             related_space_uids = set(IndexSetHandler.get_all_related_space_uids(bkcc_space_uid))
 
         space_uid_to_index_groups_map = defaultdict(list)
