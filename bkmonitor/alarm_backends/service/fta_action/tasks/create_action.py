@@ -546,29 +546,90 @@ class CreateActionProcessor:
         return assignee_manager
 
     @classmethod
-    def is_action_config_valid(cls, alert, action_config, config_id):
+    def is_action_config_valid(cls, alert, action_config, config_id, suspected_pending=False):
         """
         当前处理套餐是否有效
         :param alert:
         :param action_config:
         :param config_id:
+        :param suspected_pending: 缓存未命中且未经 DB 确认删除时为 True(疑似配置尚未生效, 将自动重试)
         :return:
         """
-        if action_config and action_config["is_enabled"]:
+        if action_config and action_config.get("is_enabled"):
             return True
         current_timestamp = int(time.time())
+        if suspected_pending:
+            # 缓存未命中但未经 DB 确认删除(兜底关闭/兜底异常等): 疑似配置尚未生效, 不写"已删除"误导文案
+            description = _("处理套餐【{}】配置尚未生效，已跳过本次处理（将自动重试）").format(config_id)
+        else:
+            description = _("处理套餐【{}】已经被删除或禁用，系统自动忽略该处理").format(
+                (action_config or {}).get("name") or config_id
+            )
         action_log = dict(
             op_type=AlertLog.OpType.ACTION,
             alert_id=[alert.id],
-            description=_("处理套餐【{}】已经被删除或禁用，系统自动忽略该处理").format(
-                action_config.get("name") or config_id
-            ),
+            description=description,
             time=current_timestamp,
             create_time=current_timestamp,
             event_id=current_timestamp,
         )
         AlertLog.bulk_create([AlertLog(**action_log)])
         return False
+
+    def resolve_missing_action_config(self, config_id):
+        """
+        缓存未命中时的处理套餐兜底解析。
+
+        仅当所属策略近期变更(GATE_WINDOW 内)时才回查 DB: 这种缺失大概率是新建/克隆策略的套餐
+        尚未刷入 action_config 缓存(传播延迟), 而非真的删除/停用; 命中则写回缓存供后续复用,
+        DB 也无则写短 TTL 负缓存避免反复回查(防穿透)。稳定老策略的缓存缺失维持原行为(判无效、
+        不查 DB), 从而不会被穿透。
+
+        :return: (action_config, suspected_pending)
+            action_config 为解析到的配置 dict(命中)或 {}(未命中);
+            suspected_pending 为 True 表示无法确认是否真删(疑似尚未生效, 文案提示自动重试)。
+        """
+        if not getattr(settings, "ACTION_CONFIG_CACHE_DB_FALLBACK_ENABLED", True):
+            return {}, False
+        strategy_update_time = (self.strategy or {}).get("update_time")
+        if not strategy_update_time:
+            return {}, False
+        gate_window = int(getattr(settings, "ACTION_CONFIG_CACHE_FALLBACK_GATE_WINDOW", 600))
+        delta = int(time.time()) - int(strategy_update_time)
+        if delta > gate_window:
+            # 稳定老策略 + 缓存缺失 = 真删/真禁, 不回查 DB, 防止缓存穿透
+            return {}, False
+        try:
+            db_config = ActionConfigCacheManager.get_action_config_from_db(config_id)
+        except Exception:  # pylint: disable=broad-except
+            logger.exception(
+                "[create actions] action_config(%s) db fallback error, strategy(%s)",
+                config_id,
+                self.strategy_id,
+            )
+            # 回查异常: 无法确认是否真删, 标记疑似尚未生效(将自动重试), 不写负缓存
+            return {}, True
+        if db_config:
+            ActionConfigCacheManager.set_action_config_cache(config_id, db_config)
+            logger.info(
+                "[create actions] action_config(%s) cache-miss; strategy(%s) updated %ss ago; "
+                "db fallback HIT, cache repopulated",
+                config_id,
+                self.strategy_id,
+                delta,
+            )
+            return db_config, False
+        negative_ttl = int(getattr(settings, "ACTION_CONFIG_NEGATIVE_CACHE_TTL", 60))
+        ActionConfigCacheManager.set_negative_cache(config_id, negative_ttl)
+        logger.info(
+            "[create actions] action_config(%s) cache-miss; strategy(%s) updated %ss ago; "
+            "db fallback MISS; negative-cached for %ss",
+            config_id,
+            self.strategy_id,
+            delta,
+            negative_ttl,
+        )
+        return {}, False
 
     def do_create_actions(self):
         if not self.alerts:
@@ -718,7 +779,14 @@ class CreateActionProcessor:
 
             for action in actions + itsm_actions:
                 action_config = action_configs.get(str(action["config_id"]))
-                if not self.is_action_config_valid(alert, action_config, action["config_id"]):
+                suspected_pending = False
+                if not action_config:
+                    # 缓存未命中: 若策略近期变更, 大概率是新建/克隆套餐尚未刷入缓存, 回查 DB 兜底
+                    action_config, suspected_pending = self.resolve_missing_action_config(action["config_id"])
+                    if action_config:
+                        # 兜底命中的配置回填, 供同批后续告警复用, 避免重复回查
+                        action_configs[str(action["config_id"])] = action_config
+                if not self.is_action_config_valid(alert, action_config, action["config_id"], suspected_pending):
                     continue
                 action_plugin = action_plugins.get(str(action_config["plugin_id"]))
                 skip_delay = int(action["options"].get("skip_delay", 0))
