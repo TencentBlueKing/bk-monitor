@@ -17,7 +17,6 @@ from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource import resource
 from core.drf_resource.exceptions import CustomException
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-from fta_web.issue.resources import ListUserTapdWorkspaceResource, UnbindTapdWorkspaceResource
 from fta_web.issue.utils.tapd import generate_auth_url, normalize_redirect_url
 
 
@@ -197,9 +196,13 @@ class IssueViewSet(ResourceViewSet):
         # 获取已授权的tapd项目列表
         ResourceRoute("POST", resource.issue.list_tapd_workspace, endpoint="tapd/workspace"),
         # 查询当前用户可见的 TAPD 项目列表（含 install_url）
-        ResourceRoute("POST", ListUserTapdWorkspaceResource, endpoint="tapd/user_workspace"),
-        # 解绑 TAPD 项目（仅删除本地 binding）
-        ResourceRoute("POST", UnbindTapdWorkspaceResource, endpoint="tapd/unbind_workspace/"),
+        ResourceRoute("POST", resource.issue.list_user_tapd_workspace, endpoint="tapd/user_workspace"),
+        # 解绑 TAPD 项目（删除本地 binding + 写入 tombstone）
+        ResourceRoute("POST", resource.issue.unbind_tapd_workspace, endpoint="tapd/unbind_workspace"),
+        # 重新关联 TAPD 项目（删除 tombstone + 恢复 binding）
+        ResourceRoute("POST", resource.issue.rebind_tapd_workspace, endpoint="tapd/rebind_workspace"),
+        # 撤销 TAPD 用户态授权（仅清除 token，保留 binding）
+        ResourceRoute("POST", resource.issue.revoke_tapd_user_auth, endpoint="tapd/revoke_auth"),
         # 获取 TAPD 单据的字段
         ResourceRoute("POST", resource.issue.get_tapd_fields, endpoint="issue/get_tapd_fields"),
         # 查询已有TAPD单据
