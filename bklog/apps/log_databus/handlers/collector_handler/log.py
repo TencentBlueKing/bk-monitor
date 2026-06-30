@@ -38,9 +38,9 @@ class LogCollectorHandler:
         self.space_uid = space_uid
         self.bk_biz_id = space_uid_to_bk_biz_id(self.space_uid)
         self.space_type_id = None
-        self.related_space_uids = None
-        self.related_bk_biz_ids = None
-        self.bk_biz_id_to_space_detail_map = None
+        self.related_space_uids = []
+        self.related_bk_biz_ids = []
+        self.bk_biz_id_to_space_detail_map = {}
 
         self.space_type_id, _ = SpaceApi.parse_space_uid(self.space_uid)
         if self.space_type_id == SpaceTypeEnum.BKCC.value:
