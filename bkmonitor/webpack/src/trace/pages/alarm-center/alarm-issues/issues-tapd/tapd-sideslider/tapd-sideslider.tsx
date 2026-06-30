@@ -59,7 +59,7 @@ export default defineComponent({
       default: () => [],
     },
   },
-  emits: ['update:show', 'addWorkspace'],
+  emits: ['update:show', 'addWorkspace', 'revokeAuth'],
   setup(props, { emit }) {
     /** 基础表单组件 ref，用于调用表单校验方法 - 由外部传入 */
     const basicFormRef = useTemplateRef<InstanceType<typeof TapdBasicForm>>('basicForm');
@@ -90,6 +90,7 @@ export default defineComponent({
 
     const handleShowChange = (isShow: boolean) => emit('update:show', isShow);
     const handleAddWorkspace = () => emit('addWorkspace');
+    const handleRevokeAuth = () => emit('revokeAuth');
 
     /**
      * 处理确认创建
@@ -168,6 +169,7 @@ export default defineComponent({
       handleLinkTapdIdsChange,
       handleAddWorkspace,
       handleLinkTapdItemsChange,
+      handleRevokeAuth,
     };
   },
   render() {
@@ -179,13 +181,18 @@ export default defineComponent({
           header: () => (
             <div class='create-tapd-side-slider-header'>
               <div class='create-tapd-side-slider-header-title'>{this.$t('TAPD 单据')}</div>
-              <div class='tapd-auth-text'>
+              {/* <div class='tapd-auth-text'>
                 <i class='icon-monitor icon-mc-check-fill' />
                 <span class='tips-text'>
                   {this.$t('已授权 TAPD 项目列表 · 已关联 {count} 个项目', { count: this.count })},
                 </span>
-                <span class='cancel-auth-btn'>{this.$t('解除授权')}</span>
-              </div>
+                <span
+                  class='cancel-auth-btn'
+                  onClick={this.handleRevokeAuth}
+                >
+                  {this.$t('解除授权')}
+                </span>
+              </div> */}
             </div>
           ),
           default: () => (
@@ -234,28 +241,26 @@ export default defineComponent({
                 }
                 return undefined;
               })()}
-              <div class='create-tapd-content'>
-                <div class='sync-tapd-status'>
-                  <Checkbox v-model={this.formData.sync_status}>
-                    <span class='sync-tapd-status-title'>{this.$t('同步单据状态')}</span>
-                  </Checkbox>
-                  <div class='sync-tapd-status-tips'>
-                    <div class='tip-item'>
-                      <span class='tip-dot' />
-                      <span class='tip-text'>
-                        <i18n-t keypath='开启后，当本单据在外部平台进入「已完成」类状态{0}时，本 Issue 将自动流转为「已解决」。'>
-                          <span style='color: #21A380'>（如 TAPD「已关闭 / 已解决」、GitHub closed）</span>
-                        </i18n-t>
-                      </span>
-                    </div>
-                    <div class='tip-item'>
-                      <span class='tip-dot' />
-                      <span class='tip-text'>{this.$t('未勾选，则仅保留关联，不因单据关闭而自动关 Issue。')}</span>
-                    </div>
+              <div class='sync-tapd-status'>
+                <Checkbox v-model={this.formData.sync_status}>
+                  <span class='sync-tapd-status-title'>{this.$t('同步单据状态')}</span>
+                </Checkbox>
+                <div class='sync-tapd-status-tips'>
+                  <div class='tip-item'>
+                    <span class='tip-dot' />
+                    <span class='tip-text'>
+                      <i18n-t keypath='开启后，当本单据在外部平台进入「已完成」类状态{0}时，本 Issue 将自动流转为「已解决」。'>
+                        <span style='color: #21A380'>（如 TAPD「已关闭 / 已解决」、GitHub closed）</span>
+                      </i18n-t>
+                    </span>
+                  </div>
+                  <div class='tip-item'>
+                    <span class='tip-dot' />
+                    <span class='tip-text'>{this.$t('未勾选，则仅保留关联，不因单据关闭而自动关 Issue。')}</span>
                   </div>
                 </div>
               </div>
-              <div class='create-tapd-footer'>
+              <div class={['create-tapd-footer', { fixed: this.tabActive === 'add' }]}>
                 <Button
                   loading={this.confirmLoading}
                   theme='primary'
