@@ -161,7 +161,7 @@ class NetworkWithRelation:
         pod_filters = FilterCollection(self)
         pod_filters.add(load_resource_filter("bcs_cluster_id", self.bcs_cluster_id))
         for filter_id, r_filter in self.filter.filters.items():
-            if r_filter.resource_type in ["pod", "namespace"]:
+            if r_filter.resource_type in ["pod", "namespace", "workload"]:
                 pod_filters.add(r_filter)
         return pod_filters
 
