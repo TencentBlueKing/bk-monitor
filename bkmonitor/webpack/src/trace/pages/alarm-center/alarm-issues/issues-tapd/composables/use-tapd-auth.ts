@@ -26,19 +26,19 @@
 
 import { type Ref, shallowRef, watch } from 'vue';
 
-import { getUserWorkspace } from '../services/tapd';
+import { getUserWorkspace, unbindWorkspace } from '../services/tapd';
 
 import type { TapdWorkspaceItem } from '../typing';
 
 interface UseTapdAuthOptions {
   bizId: Ref<number | string>;
+  firstAlarmTime: Ref<number | string>;
   issuesId: Ref<string>;
   show: Ref<boolean>;
 }
 
 export function useTapdAuth(options: UseTapdAuthOptions) {
-  const { show, bizId, issuesId } = options;
-
+  const { show, bizId, issuesId, firstAlarmTime } = options;
   const authDialogShow = shallowRef(false);
   const createTapdSliderShow = shallowRef(false);
   /** 项目列表 */
@@ -46,11 +46,12 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
   /** 项目关联链接 */
   const installUrl = shallowRef('');
   const loading = shallowRef(false);
+  const isAuth = shallowRef(false);
 
   const getAuth = async () => {
     workspaceList.value = [];
     installUrl.value = '';
-
+    /** 授权成功后跳转的参数 */
     const successUrlParams = new URLSearchParams({
       tapdBizId: `${bizId.value}`,
       tapdIssueId: `${issuesId.value}`,
@@ -58,13 +59,14 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
       alarmType: 'issues',
     });
 
+    /** 授权失败后跳转的参数，展示issues详情页 */
     const errorUrlParams = new URLSearchParams({
       detailBizId: `${bizId.value}`,
       detailId: `${issuesId.value}`,
       showDetail: 'true',
+      issueFirstAlarmTime: `${firstAlarmTime.value}`,
       alarmType: 'issues',
     });
-
     try {
       loading.value = true;
       const data = await getUserWorkspace({
@@ -74,8 +76,10 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
       });
       workspaceList.value = data.items || [];
       installUrl.value = data.install_url;
+      isAuth.value = true;
     } catch (err) {
       const { code, data: errData } = err as { code: number; data?: { auth_url: string } };
+      isAuth.value = false;
       if (code === 403) {
         window.location.href = errData.auth_url;
       }
@@ -103,14 +107,46 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
     }
   );
 
-  const handleWorkspaceSelect = (item: TapdWorkspaceItem) => {
+  const handleWorkspaceSelect = async (item: TapdWorkspaceItem) => {
     if (item.is_bound !== 'bound') {
       window.location.href = installUrl.value.replace('{workspace_id}', item.workspace_id);
+      return;
+    }
+
+    try {
+      await unbindWorkspace({
+        bk_biz_id: bizId.value,
+        workspace_id: item.workspace_id,
+      });
+      // 取消关联成功后，更新本地项目状态，不需要重新获取列表
+      const target = workspaceList.value.find(w => w.workspace_id === item.workspace_id);
+      if (target) {
+        target.is_bound = 'unbound';
+        workspaceList.value = [...workspaceList.value];
+      }
+      // 如果取消关联后没有已关联的项目了，关闭创建单据侧栏，展示授权弹窗
+      if (!workspaceList.value.find(w => w.is_bound === 'bound')) {
+        createTapdSliderShow.value = false;
+        authDialogShow.value = true;
+      }
+    } catch (err) {
+      console.error('取消关联失败', err);
     }
   };
 
+  /** 取消授权 */
+  const handleRevokeAuth = () => {
+    console.log('取消授权');
+    authDialogShow.value = false;
+    isAuth.value = false;
+  };
+
   const handleAddWorkspace = () => {
-    authDialogShow.value = true;
+    if (isAuth.value) {
+      authDialogShow.value = true;
+    } else {
+      getAuth();
+    }
   };
 
   return {
@@ -119,6 +155,7 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
     createTapdSliderShow,
     workspaceList,
     handleWorkspaceSelect,
+    handleRevokeAuth,
     handleAddWorkspace,
   };
 }

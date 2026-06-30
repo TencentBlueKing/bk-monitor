@@ -852,11 +852,15 @@ export default defineComponent({
     /** issues Tapd展示 */
     const tapdBizId = shallowRef<number | string>(null);
     const tapdIssueId = shallowRef('');
+    const tapdIssueFirstAlarmTime = shallowRef<number | string>('');
     const issuesTapdShow = shallowRef(false);
-    const handleIssuesTapdShowChange = (show: boolean, issuesBizId: number | string = '', issuesId = '') => {
+    const handleIssuesTapdShowChange = (show: boolean) => {
+      if (show) {
+        tapdBizId.value = detailBizId.value;
+        tapdIssueId.value = detailId.value;
+        tapdIssueFirstAlarmTime.value = issueFirstAlarmTime.value;
+      }
       issuesTapdShow.value = show;
-      tapdBizId.value = issuesBizId;
-      tapdIssueId.value = issuesId;
     };
 
     /** */
@@ -1223,6 +1227,7 @@ export default defineComponent({
       issuesTapdShow,
       tapdBizId,
       tapdIssueId,
+      tapdIssueFirstAlarmTime,
       handleIssuesTapdShowChange,
     };
   },
@@ -1524,6 +1529,7 @@ export default defineComponent({
               <IssuesTapd
                 key='issues-tapd'
                 bizId={this.tapdBizId}
+                firstAlarmTime={this.tapdIssueFirstAlarmTime}
                 issuesId={this.tapdIssueId}
                 show={this.issuesTapdShow}
                 onUpdate:show={this.handleIssuesTapdShowChange}
