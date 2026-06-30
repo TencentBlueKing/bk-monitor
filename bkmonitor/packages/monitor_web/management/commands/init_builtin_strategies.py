@@ -64,34 +64,55 @@ class Command(BaseCommand):
             self.stdout.write("ENABLE_DEFAULT_STRATEGY=False，内置策略未启用，跳过。")
             return
 
+        valid_modes = {"host", "k8s"}
         modes = [m.strip() for m in options["modes"].split(",") if m.strip()]
-        if not modes:
-            self.stderr.write("--modes 为空，未指定任何加载模式。")
+        bad_modes = [m for m in modes if m not in valid_modes]
+        if not modes or bad_modes:
+            self.stderr.write(f"--modes 非法: {bad_modes or '(空)'}；仅支持 {sorted(valid_modes)}。")
             return
         dry_run = options["dry_run"]
         explicit_biz_ids = [int(b) for b in options["bk_biz_ids"].split(",") if b.strip()]
         only_tenant_id = options["bk_tenant_id"].strip()
 
-        # 组织待处理的 (bk_tenant_id, [bk_biz_id, ...]) 列表
+        # 组织待处理的 {bk_tenant_id: [bk_biz_id, ...]}。租户一律由业务真实推导（与 loader 内部
+        # bk_biz_id_to_bk_tenant_id 同口径），--bk-tenant-id 只作过滤、不覆盖业务真实租户——否则会把业务
+        # 挂到错误租户上下文里建策略/通知组。枚举/解析阶段对单点失败 skip-and-continue，避免一个坏租户/
+        # 坏业务号拖垮整轮（不漏覆盖）。
+        tenant_to_biz_ids: dict[str, list[int]] = {}
+        skipped = 0
         if explicit_biz_ids:
-            # 显式业务列表：按业务推导租户(或用 --bk-tenant-id 覆盖)，避免把同一业务号跨租户重复处理
-            tenant_to_biz_ids: dict[str, list[int]] = {}
             for bk_biz_id in explicit_biz_ids:
-                tenant_id = only_tenant_id or bk_biz_id_to_bk_tenant_id(bk_biz_id)
+                try:
+                    tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+                except Exception:
+                    skipped += 1
+                    logger.exception("[init_builtin_strategies] resolve tenant failed, skip biz=%s", bk_biz_id)
+                    self.stderr.write(f"  SKIP biz={bk_biz_id}（租户解析失败）")
+                    continue
+                if only_tenant_id and tenant_id != only_tenant_id:
+                    continue  # --bk-tenant-id 作为过滤：跳过不属于该租户的业务
                 tenant_to_biz_ids.setdefault(tenant_id, []).append(bk_biz_id)
         else:
-            # 全量：遍历目标租户的全部业务
             if only_tenant_id:
                 tenant_ids = [only_tenant_id]
             else:
-                tenant_ids = [tenant["id"] for tenant in api.bk_login.list_tenant()]
-            tenant_to_biz_ids = {}
+                try:
+                    tenant_ids = [tenant["id"] for tenant in api.bk_login.list_tenant()]
+                except Exception:
+                    logger.exception("[init_builtin_strategies] list_tenant failed")
+                    self.stderr.write("list_tenant 失败，无法枚举租户。")
+                    return
             for tenant_id in tenant_ids:
-                spaces: list[Space] = SpaceApi.list_spaces(bk_tenant_id=tenant_id)
+                try:
+                    spaces: list[Space] = SpaceApi.list_spaces(bk_tenant_id=tenant_id)
+                except Exception:
+                    skipped += 1
+                    logger.exception("[init_builtin_strategies] list_spaces failed, skip tenant=%s", tenant_id)
+                    self.stderr.write(f"  SKIP tenant={tenant_id}（list_spaces 失败）")
+                    continue
                 tenant_to_biz_ids[tenant_id] = [space.bk_biz_id for space in spaces if space.bk_biz_id > 0]
 
         triggered = 0
-        skipped_tenants = 0
         for bk_tenant_id, biz_ids in tenant_to_biz_ids.items():
             self.stdout.write(f"[tenant={bk_tenant_id}] 待处理业务数: {len(biz_ids)}")
             if dry_run:
@@ -106,7 +127,7 @@ class Command(BaseCommand):
                 set_local_tenant_id(bk_tenant_id=bk_tenant_id)
                 set_local_username(get_admin_username(bk_tenant_id=bk_tenant_id))
             except Exception:
-                skipped_tenants += 1
+                skipped += 1
                 logger.exception("[init_builtin_strategies] setup failed, skip tenant=%s", bk_tenant_id)
                 self.stderr.write(f"  SKIP tenant={bk_tenant_id}（管理员/上下文设置失败）")
                 continue
@@ -133,6 +154,6 @@ class Command(BaseCommand):
             # 不等于"成功补建的策略数"；指标未就绪的业务本轮产出 0 条也计入触发。实际补建结果（v2/v3/v4 是否
             # 建出、接入记录是否登记）须按发布后验证方案查 StrategyModel / DefaultStrategyBizAccessModel 复核。
             self.stdout.write(
-                f"完成。已触发 {triggered} 个 (业务 x 模式)；跳过租户 {skipped_tenants} 个。"
+                f"完成。已触发 {triggered} 个 (业务 x 模式)；跳过 {skipped} 个(租户/业务，枚举或上下文设置失败)。"
                 "实际补建结果请按验证方案查 DB 复核。"
             )

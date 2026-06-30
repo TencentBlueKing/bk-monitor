@@ -148,3 +148,56 @@ def test_bk_tenant_id_narrows_without_listing_all_tenants():
 
     assert set(calls) == {(7, "host")}
     list_tenant.assert_not_called()
+
+
+@override_settings(ENABLE_DEFAULT_STRATEGY=True)
+def test_explicit_biz_filtered_by_bk_tenant_id_not_overridden():
+    """--bk-tenant-id 对显式业务作过滤、不覆盖：不属于该租户的业务被跳过（防跨租户写）。"""
+    calls = []
+    run_build_in = mock.Mock(side_effect=lambda biz, mode="host": calls.append((biz, mode)))
+    derive = {2: "tA", 20: "tB"}
+
+    with ExitStack() as stack:
+        for p in _common_patches(run_build_in, derive_tenant=lambda biz: derive[biz]):
+            stack.enter_context(p)
+        call_command(CMD, bk_biz_ids="2,20", bk_tenant_id="tA", modes="host")
+
+    # 只有真正属于 tA 的 biz 2 被处理；biz 20(tB) 被过滤掉，不会挂到 tA 上下文里建策略
+    assert set(calls) == {(2, "host")}
+
+
+@override_settings(ENABLE_DEFAULT_STRATEGY=True)
+def test_tenant_list_spaces_failure_skipped_others_continue():
+    """全量枚举时单租户 list_spaces 失败 -> 跳过该租户、继续其余（枚举阶段也容错）。"""
+    calls = []
+    run_build_in = mock.Mock(side_effect=lambda biz, mode="host": calls.append((biz, mode)))
+
+    def list_spaces(bk_tenant_id):
+        if bk_tenant_id == "t_bad":
+            raise RuntimeError("list_spaces boom")
+        return [SimpleNamespace(bk_biz_id=20)]
+
+    with ExitStack() as stack:
+        stack.enter_context(mock.patch("monitor_web.strategies.built_in.run_build_in", run_build_in))
+        stack.enter_context(mock.patch("bkmonitor.utils.tenant.set_local_tenant_id", mock.Mock()))
+        stack.enter_context(mock.patch("bkmonitor.utils.user.set_local_username", mock.Mock()))
+        stack.enter_context(mock.patch("bkmonitor.utils.user.get_admin_username", mock.Mock(return_value="admin")))
+        stack.enter_context(
+            mock.patch(
+                "core.drf_resource.api.bk_login.list_tenant", mock.Mock(return_value=[{"id": "t_bad"}, {"id": "t_ok"}])
+            )
+        )
+        stack.enter_context(mock.patch("bkm_space.api.SpaceApi.list_spaces", mock.Mock(side_effect=list_spaces)))
+        call_command(CMD, modes="host")
+
+    # t_bad 枚举失败被跳过；t_ok 的 biz 20 正常处理
+    assert set(calls) == {(20, "host")}
+
+
+@override_settings(ENABLE_DEFAULT_STRATEGY=True)
+def test_invalid_modes_rejected():
+    """--modes 含非法值直接报错、不加载（避免 typo 静默 no-op）。"""
+    run_build_in = mock.Mock()
+    with mock.patch("monitor_web.strategies.built_in.run_build_in", run_build_in):
+        call_command(CMD, modes="host,hots")
+    run_build_in.assert_not_called()
