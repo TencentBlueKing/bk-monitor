@@ -708,6 +708,7 @@ def test_refresh_biz_bk_collector_configs_checks_delivery_after_refresh(monkeypa
             "operator": "admin",
             "wait_timeout": 30,
             "poll_interval": 2,
+            "subscription_scope": [],
         }
     ]
     assert result["delivery_check"]["result"] is True
@@ -719,7 +720,17 @@ def test_refresh_biz_bk_collector_configs_drops_delivery_check_details_by_defaul
     monkeypatch.setattr(
         bk_collector.CustomReportSubscription,
         "refresh_collector_custom_conf",
-        lambda **kwargs: {"summary": {"failed_count": 0}, "details": []},
+        lambda **kwargs: {
+            "summary": {"failed_count": 0},
+            "details": [
+                {
+                    "bk_tenant_id": "system",
+                    "bk_biz_id": 2,
+                    "data_ids": [2001],
+                    "targets": {"node_man": {"action": "refresh", "result": True, "message": "success"}},
+                }
+            ],
+        },
     )
     monkeypatch.setattr(
         bk_collector,
@@ -793,6 +804,122 @@ def test_refresh_biz_bk_collector_configs_keeps_failure_summary_without_details(
             "render_step_statuses": ["FAILED"],
         }
     ]
+
+
+def test_refresh_biz_bk_collector_configs_checks_only_refreshed_apm_applications(monkeypatch):
+    checked_subscription_ids = []
+
+    class FakeApplicationConfig:
+        def __init__(self, application):
+            self.application = application
+
+        def refresh(self):
+            return None
+
+    monkeypatch.setattr(bk_collector, "_list_apm_applications", lambda **kwargs: [_application(app_name="active")])
+    monkeypatch.setattr(bk_collector, "ApplicationConfig", FakeApplicationConfig)
+    monkeypatch.setattr(
+        bk_collector,
+        "_list_proxy_config_delivery_subscriptions",
+        lambda **kwargs: [
+            {
+                "config_type": bk_collector.APM_APPLICATION,
+                "bk_tenant_id": "system",
+                "bk_biz_id": 2,
+                "subscription_id": 1001,
+                "name": "active",
+            },
+            {
+                "config_type": bk_collector.APM_APPLICATION,
+                "bk_tenant_id": "system",
+                "bk_biz_id": 2,
+                "subscription_id": 1002,
+                "name": "deleted",
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "batch_task_result",
+        lambda **kwargs: checked_subscription_ids.append(kwargs["subscription_id"])
+        or [_proxy_config_delivery_task(render_status="SUCCESS", instance_status="FAILED")],
+    )
+
+    result = bk_collector.refresh_biz_bk_collector_proxy_configs(
+        bk_tenant_id="system",
+        bk_biz_ids=[2],
+        config_types=[bk_collector.APM_APPLICATION],
+        check_delivery=True,
+        include_details=True,
+    )
+
+    assert checked_subscription_ids == [1001]
+    assert result["delivery_check"]["summary"]["total"]["subscription_count"] == 1
+    assert result["delivery_check"]["details"][bk_collector.APM_APPLICATION][0]["name"] == "active"
+
+
+def test_refresh_biz_bk_collector_configs_checks_only_refreshed_custom_report_data_ids(monkeypatch):
+    checked_subscription_ids = []
+
+    monkeypatch.setattr(
+        bk_collector.CustomReportSubscription,
+        "refresh_collector_custom_conf",
+        lambda **kwargs: {
+            "summary": {"failed_count": 0},
+            "details": [
+                {
+                    "bk_tenant_id": "system",
+                    "bk_biz_id": 2,
+                    "data_ids": [2001],
+                    "targets": {"node_man": {"action": "refresh", "result": True, "message": "success"}},
+                },
+                {
+                    "bk_tenant_id": "system",
+                    "bk_biz_id": 2,
+                    "data_ids": [2002],
+                    "targets": {"node_man": {"action": "skip", "result": True, "message": "no proxy found"}},
+                },
+            ],
+        },
+    )
+    monkeypatch.setattr(
+        bk_collector,
+        "_list_proxy_config_delivery_subscriptions",
+        lambda **kwargs: [
+            {
+                "config_type": bk_collector.CUSTOM_REPORT,
+                "bk_tenant_id": "system",
+                "bk_biz_id": 2,
+                "subscription_id": 1001,
+                "bk_data_id": 2001,
+            },
+            {
+                "config_type": bk_collector.CUSTOM_REPORT,
+                "bk_tenant_id": "system",
+                "bk_biz_id": 2,
+                "subscription_id": 1002,
+                "bk_data_id": 2002,
+            },
+        ],
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "batch_task_result",
+        lambda **kwargs: checked_subscription_ids.append(kwargs["subscription_id"])
+        or [_proxy_config_delivery_task(render_status="SUCCESS", instance_status="FAILED")],
+    )
+
+    result = bk_collector.refresh_biz_bk_collector_proxy_configs(
+        bk_tenant_id="system",
+        bk_biz_ids=[2],
+        config_types=[bk_collector.CUSTOM_REPORT],
+        check_delivery=True,
+        include_details=True,
+    )
+
+    assert checked_subscription_ids == [1001]
+    assert result["delivery_check"]["summary"]["total"]["subscription_count"] == 1
+    assert result["delivery_check"]["details"][bk_collector.CUSTOM_REPORT][0]["bk_data_id"] == 2001
 
 
 def test_refresh_biz_bk_collector_configs_refreshes_apm_application(monkeypatch):
