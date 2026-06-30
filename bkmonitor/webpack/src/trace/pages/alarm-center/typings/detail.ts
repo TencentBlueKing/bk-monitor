@@ -25,7 +25,12 @@
  */
 /* eslint-disable @typescript-eslint/naming-convention */
 
-import { ALARM_CENTER_PANEL_TAB_MAP, AlarmCenterPanelTabList, HIDDEN_TABS_MAP } from '../utils/constant';
+import {
+  ALARM_CENTER_PANEL_TAB_MAP,
+  AlarmCenterPanelTabList,
+  getTargetTypeRelatedTabs,
+  HIDDEN_TABS_MAP,
+} from '../utils/constant';
 
 /** 聚合条件 */
 export interface IAggCondition {
@@ -555,17 +560,11 @@ export class AlarmDetail {
   }
 
   get alarmTabList() {
+    /* 根据 data_type 隐藏特定 Tab */
+    const hiddenTabKeys = HIDDEN_TABS_MAP[this.data_type] || [];
+    /* 根据 target_type 关联展示的 Tab（与 data_type 取并集，满足其一即展示） */
+    const targetTypeTabKeys = getTargetTypeRelatedTabs(this.target_type);
     return AlarmCenterPanelTabList.filter(item => {
-      /* 根据 data_type 隐藏特定 Tab */
-      const hiddenTabKeys = HIDDEN_TABS_MAP[this.data_type] || [];
-      if (hiddenTabKeys.includes(item.name)) {
-        return false;
-      }
-
-      /* 主机和日志 */
-      // if (item.name === ALARM_CENTER_PANEL_TAB_MAP.HOST || item.name === ALARM_CENTER_PANEL_TAB_MAP.LOG) {
-      //   return this.dimensions?.some(item => ['bk_target_ip', 'ip'].includes(item.key));
-      // }
       /* 进程 */
       if (item.name === ALARM_CENTER_PANEL_TAB_MAP.PROCESS) {
         return this.category === 'host_process' && this.dimensions?.some(item => item.key === 'tags.display_name');
@@ -573,6 +572,10 @@ export class AlarmDetail {
       /* 容器 */
       if (item.name === ALARM_CENTER_PANEL_TAB_MAP.CONTAINER) {
         return /^(APM|K8S)-\w+$/.test(this.target_type);
+      }
+      /* 被 data_type 隐藏的 Tab：命中 target_type 关联规则则仍展示（满足其一即可） */
+      if (hiddenTabKeys.includes(item.name)) {
+        return targetTypeTabKeys.includes(item.name);
       }
       return true;
     });

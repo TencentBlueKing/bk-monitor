@@ -78,3 +78,32 @@ export const HIDDEN_TABS_MAP: Record<string, AlarmCenterPanelTabType[]> = {
   ],
   [DataTypeEnum.EVENT]: [ALARM_CENTER_PANEL_TAB_MAP.TRACE],
 };
+
+/** 监控目标类型枚举（target_type） */
+export const TargetTypeEnum = {
+  HOST: 'HOST',
+  APM_SERVICE: 'APM-SERVICE',
+} as const;
+
+/**
+ * target_type 关联展示的 Tab 列表。
+ * 命中对应 target_type 时，这些 Tab 即使被 data_type 规则隐藏也应展示（与 data_type 取并集，满足其一即展示）。
+ */
+export const getTargetTypeRelatedTabs = (targetType: string): AlarmCenterPanelTabType[] => {
+  if (targetType === TargetTypeEnum.HOST) {
+    return [ALARM_CENTER_PANEL_TAB_MAP.HOST, ALARM_CENTER_PANEL_TAB_MAP.EVENT];
+  }
+  if (targetType === TargetTypeEnum.APM_SERVICE) {
+    return [
+      ALARM_CENTER_PANEL_TAB_MAP.TRACE,
+      ALARM_CENTER_PANEL_TAB_MAP.CONTAINER,
+      ALARM_CENTER_PANEL_TAB_MAP.LOG,
+      ALARM_CENTER_PANEL_TAB_MAP.EVENT,
+    ];
+  }
+  /* 容器（K8S-*） */
+  if (/^K8S-\w+$/.test(targetType)) {
+    return [ALARM_CENTER_PANEL_TAB_MAP.CONTAINER, ALARM_CENTER_PANEL_TAB_MAP.EVENT];
+  }
+  return [];
+};
