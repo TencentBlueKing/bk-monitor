@@ -66,12 +66,12 @@
       <template #content>
         <div
           class="download-progress-content"
+          @click="handleShowHistoryExport"
         >
           <TaskItem
             v-for="task in displayTasks"
             :key="task.id"
             :item="task"
-            @view-detail="handleTaskViewDetail"
           />
         </div>
       </template>
@@ -767,9 +767,9 @@
         this.exportTableLoading = isLoading;
       },
       /**
-       * @desc: 处理任务详情点击事件 - 打开历史下载弹窗
+       * @desc: 显示下载历史弹窗
        */
-      handleTaskViewDetail(_task) {
+      handleShowHistoryExport() {
         // 打开下载历史弹窗
         this.showHistoryExport = true;
         // 清空失败任务定时器和记录
@@ -1329,6 +1329,7 @@
     padding: 16px 0;
     display: flex;
     flex-direction: column;
-    gap: 24px
+    gap: 24px;
+    cursor: pointer;
   }
 </style>

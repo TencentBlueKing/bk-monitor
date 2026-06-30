@@ -79,13 +79,6 @@ export default defineComponent({
     };
 
     /**
-     * 处理查看详情点击
-     */
-    const handleViewDetail = () => {
-      emit('view-detail', props.item);
-    };
-
-    /**
      * 渲染右侧状态区域的内容
      */
     const renderStatusContent = () => {
@@ -96,7 +89,6 @@ export default defineComponent({
             <span class="status-text">{t('失败')}</span>
             <span
               class="detail-link" 
-              onClick={handleViewDetail}
             >
               {t('查看详情')}
             </span>
