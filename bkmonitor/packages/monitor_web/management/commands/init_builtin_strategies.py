@@ -174,27 +174,47 @@ class Command(BaseCommand):
                 "实际补建结果请按验证方案查 DB 复核。"
             )
 
-    # 脏 v1 主机系统事件的识别句柄(plan §二 metric 元组)：bk_monitor 源 + event 类型 + 底层 system.event。
+    # 脏 v1 主机系统事件的识别句柄（plan §二 metric 元组）：bk_monitor 源 + event 类型 + 底层 system.event。
     # 关键区分：补建的 v3/v4 经 EVENT_QUERY_CONFIG_MAP 重定向后 data_type_label 变为 time_series、result_table_id
     # 变为 system.env/pingserver.base，故 data_type_label=event 这一条即可把脏 v1 与新建版本干净分开；v2 是
-    # custom 源(data_source_label=custom)，也被 bk_monitor 这一条排除。metric_id -> 内置 canonical 策略名：
+    # custom 源（data_source_label=custom），也被 bk_monitor 这一条排除。metric_id -> 内置 canonical 策略名：
     # 仅当旧策略名恰为该 canonical 名时才改（即真正占名、阻塞补建的那批），用户改过名的变体不动。
+    #
+    # 脏 v1 存盘形态 = event/system.event（非 time_series——实测 bk2game biz 19078 确认 os_restart/proc_port/
+    # ping-gse 的 v1 策略在 QueryConfigModel 中 data_type_label 仍为 event、result_table_id 仍为 system.event，
+    # 不因 os_loader 的 EVENT_QUERY_CONFIG_MAP 重定向改变——该重定向仅对新 build 生效，v1 是单租户时期所建，
+    # 未走该代码路径）。
+    #
+    # 范围：仅 4 类 GSE 事件（agent-gse/disk-readonly-gse/corefile-gse/oom-gse）。这四类脏 v1 在 MT 下「悬空
+    # 静默」（system.event 只有单租户事件、MT 无事件产出），必须清障让 v2 补建，否则这 4 类永无工作策略。
+    #
+    # 排除 os_restart / proc_port / ping-gse（不含在 dict 中）：
+    #   - os_restart + proc_port：v1 在 MT 仍工作（alarm_backends handle_special_query_config 按
+    #     metric_id=bk_monitor.os_restart/proc_port 做运行时 OsRestart/ProcPort 算法重定向，不依赖
+    #     data_type_label），改名会误伤工作策略；v3 重建是等价的冗余、无增益。
+    #   - ping-gse：线上多数被用户手动停用（enabled=False），改名 + v4 重建 = 复活已停用策略（风险）；
+    #     且对仍启用的 ping，v1 同 v4 一样走 panic_backends 的 PingUnreachable 运行时重定向、语义等价。
+    #     v4 真正区别于 v1 的仅是「统一由 ENABLE_PING_ALARM 开关治理」，不应以清障方式实现。
+    #   - （已知边角）原 #11148 v2 custom PingUnreachable（name="PING不可达告警" / custom 源）同样会占
+    #     canonical 名阻塞 v4，但属于另一 form（data_source_label=custom），不在本 selector 范围；12 迁移
+    #     业务上因 F1（v2 全未建）不具备此形态。若需处理可单独加 selector。
     LEGACY_OS_EVENT_METRIC_ID_TO_NAME = {
         "bk_monitor.agent-gse": "Agent心跳丢失",
         "bk_monitor.disk-readonly-gse": "磁盘只读",
         "bk_monitor.corefile-gse": "Corefile产生",
         "bk_monitor.oom-gse": "OOM异常告警",
-        "bk_monitor.os_restart": "主机重启",
-        "bk_monitor.proc_port": "进程端口",
-        "bk_monitor.ping-gse": "PING不可达告警",
     }
     LEGACY_RENAME_SUFFIX = " [v1-已失效]"
     LEGACY_SYSTEM_EVENT_RT = "system.event"
 
     def _rename_legacy_os_strategies(self, tenant_to_biz_ids, dry_run, skipped):
-        """前置清障：把占用内置 canonical 名的脏 v1 主机系统事件策略改名加后缀，腾出名字供 v2/v3/v4 补建。
+        """前置清障：把占用内置 canonical 名的脏 v1 GSE 系统事件策略改名加后缀，腾出名字供 v2 补建。
 
-        - 识别：QueryConfigModel(data_source_label=bk_monitor, data_type_label=event, metric_id ∈ 7 个伪事件,
+        仅改名 4 类 GSE 事件（Agent 心跳丢失 / 磁盘只读 / Corefile 产生 / OOM 异常告警），排除 os_restart /
+        proc_port（v1 在 MT 仍工作：alarm_backends 运行时 OsRestart/ProcPort 算法 redirect）和 ping-gse
+        （用户多数停用，改名+重建=复活已停用策略；v1 ping 本身在 alarm_backends 同样走 PingUnreachable 重定向）。
+
+        - 识别：QueryConfigModel(data_source_label=bk_monitor, data_type_label=event, metric_id ∈ 4 个 GSE 事件,
           config.result_table_id=system.event)，对应 StrategyModel 名恰为该 metric 的内置 canonical 名。
         - 动作：StrategyModel.name 追加 [v1-已失效]；不删除、不改启用态、不改其它字段。
         - 安全：StrategyModel/QueryConfigModel 按 bk_biz_id/strategy_id 键(全局唯一、无租户列)，按 bk_biz_id 过滤即租户安全；

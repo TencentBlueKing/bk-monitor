@@ -235,30 +235,37 @@ def _rename_patches():
 
 @override_settings(ENABLE_DEFAULT_STRATEGY=True)
 def test_rename_legacy_only_canonical_named_dirty_v1_and_idempotent():
-    """前置清障：只改"脏 v1 形态(bk_monitor/event/system.event) + 名恰为内置 canonical"的策略；
+    """前置清障：只改"脏 v1 形态(bk_monitor/event/system.event) + 名恰为内置 canonical"的四类 GSE 事件；
+    os_restart(在 MT 仍工作)/proc_port(仍工作)/ping-gse(用户停用)虽同为 event/system.event 但不在改名范围；
     用户改过名的脏 v1、以及新建版本(time_series 重定向形态)都不动；且幂等。"""
     from bkmonitor.models import StrategyModel
 
     biz = 990001
-    # A：脏 v1 PING，占用 canonical 名 -> 应改名
-    a = _make_strategy(biz, "PING不可达告警", "bk_monitor.ping-gse", "event", "system.event")
+    # A：脏 v1 Agent心跳丢失，占用 canonical 名 -> 应改名（GSE 事件在 MT 悬空静默、需腾名供 v2 补建）
+    a = _make_strategy(biz, "Agent心跳丢失", "bk_monitor.agent-gse", "event", "system.event")
     # B：脏 v1 os_restart 但用户已改名 -> 不阻塞、不动
     b = _make_strategy(biz, "标准化-主机重启", "bk_monitor.os_restart", "event", "system.event")
     # C：新建 v3 os_restart（重定向后 time_series/system.env），名为 canonical -> 不是脏 v1，不动
     c = _make_strategy(biz, "主机重启", "bk_monitor.os_restart", "time_series", "system.env")
+    # D：脏 v1 PING不可达告警(bk_monitor/event/system.event)，不在改名范围 -> 不动
+    d = _make_strategy(biz, "PING不可达告警", "bk_monitor.ping-gse", "event", "system.event")
+    # E：脏 v1 主机重启(bk_monitor/event/system.event)，不在改名范围 -> 不动
+    e = _make_strategy(biz, "主机重启", "bk_monitor.os_restart", "event", "system.event")
 
     with ExitStack() as stack:
         for p in _rename_patches():
             stack.enter_context(p)
         call_command(CMD, bk_biz_ids=str(biz), rename_legacy_os_strategies=True)
 
-        assert StrategyModel.objects.get(id=a.id).name == "PING不可达告警 [v1-已失效]"
-        assert StrategyModel.objects.get(id=b.id).name == "标准化-主机重启"  # 未动
+        assert StrategyModel.objects.get(id=a.id).name == "Agent心跳丢失 [v1-已失效]"
+        assert StrategyModel.objects.get(id=b.id).name == "标准化-主机重启"  # 未动（用户改名）
         assert StrategyModel.objects.get(id=c.id).name == "主机重启"  # 新版 time_series，未动
+        assert StrategyModel.objects.get(id=d.id).name == "PING不可达告警"  # 未动（ping 不在改名范围）
+        assert StrategyModel.objects.get(id=e.id).name == "主机重启"  # 未动（os_restart 不在改名范围）
 
         # 幂等：再跑一次，A 已非 canonical 名 -> 不再改、不双后缀
         call_command(CMD, bk_biz_ids=str(biz), rename_legacy_os_strategies=True)
-        assert StrategyModel.objects.get(id=a.id).name == "PING不可达告警 [v1-已失效]"
+        assert StrategyModel.objects.get(id=a.id).name == "Agent心跳丢失 [v1-已失效]"
 
 
 @override_settings(ENABLE_DEFAULT_STRATEGY=True)
