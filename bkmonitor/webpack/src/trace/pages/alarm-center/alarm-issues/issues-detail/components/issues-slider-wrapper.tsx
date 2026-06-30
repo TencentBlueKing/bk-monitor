@@ -48,6 +48,7 @@ import IssuesBasicInfo from './issues-basic-info/issues-basic-info';
 import IssuesDetailAlarmPanel from './issues-detail-alarm-panel/issues-detail-alarm-panel';
 import IssuesDetailAlarmTable from './issues-detail-alarm-table/issues-detail-alarm-table';
 import IssuesHistory from './issues-history/issues-history';
+import IssuesRelationTapd from './issues-relation-tapd/issues-relation-tapd';
 import IssuesRetrievalFilter from './issues-retrieval-filter/issues-retrieval-filter';
 import IssuesTrendChart from './issues-trend-chart/issues-trend-chart';
 import { type TimeRangeType, DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '@/components/time-range/utils';
@@ -531,6 +532,7 @@ export default defineComponent({
             onImpactScopeClick={this.handleImpactScopeClick}
             onPriorityChange={this.handlePriorityChange}
           />
+          <IssuesRelationTapd detail={this.detail} />
           <IssuesHistory detail={this.detail} />
           <IssuesActivity
             detail={this.detail}
