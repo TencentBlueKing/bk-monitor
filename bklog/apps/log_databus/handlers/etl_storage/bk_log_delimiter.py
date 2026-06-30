@@ -233,23 +233,26 @@ class BkLogDelimiterEtlStorage(EtlStorage):
         )
 
         # 4. 从iter_item提取data字段作为原文
-        rules.extend(
-            [
+        # 仅在保留原文 或 保留清洗失败日志 时才输出 log 字段，否则按用户配置丢弃原始日志
+        if etl_params.get("retain_original_text") or etl_params.get("enable_retain_content"):
+            rules.append(
                 {
                     "input_id": "iter_item",
                     "output_id": "log",
                     "operator": {"type": "assign", "key_index": "data", "alias": "log", "output_type": "string"},
+                }
+            )
+        # iter_string 供后续分隔符切分使用，无论是否保留原文都必须提取
+        rules.append(
+            {
+                "input_id": "iter_item",
+                "output_id": "iter_string",
+                "operator": {
+                    "type": "get",
+                    "key_index": [{"type": "key", "value": "data"}],
+                    "missing_strategy": None,
                 },
-                {
-                    "input_id": "iter_item",
-                    "output_id": "iter_string",
-                    "operator": {
-                        "type": "get",
-                        "key_index": [{"type": "key", "value": "data"}],
-                        "missing_strategy": None,
-                    },
-                },
-            ]
+            }
         )
 
         # 4.1. 提取 flat_field=True 的内置字段（从iter_item提取）
