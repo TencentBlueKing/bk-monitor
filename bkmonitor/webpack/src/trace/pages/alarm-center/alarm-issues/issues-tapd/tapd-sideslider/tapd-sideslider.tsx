@@ -101,7 +101,7 @@ export default defineComponent({
       const basicFormValid = await basicFormRef.value
         ?.validate()
         .then(() => true)
-        .catch(() => true);
+        .catch(() => false);
       if (tabActive.value === 'link') {
         const linkTapdIdsValid = await tapdRelationRef.value?.validate().catch(() => false);
 
