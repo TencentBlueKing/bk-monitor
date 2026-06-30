@@ -63,3 +63,30 @@ class TestExternalPermissionCreate(TestCase):
         expire_time = self._get("user_a").expire_time
         self.assertGreaterEqual(expire_time, before)
         self.assertLessEqual(expire_time, after)
+
+    def test_existing_null_expire_time_uses_default_when_resources_added(self):
+        ExternalPermission.objects.create(
+            authorized_user="user_a",
+            space_uid=self.SPACE_UID,
+            action_id=self.ACTION_ID,
+            resources=["1001"],
+            expire_time=None,
+        )
+
+        before = timezone.now() + timedelta(days=DEFAULT_EXTERNAL_PERMISSION_EXPIRE_DAYS)
+        ExternalPermission.create(
+            authorized_users=["user_a", "user_b"],
+            space_uid=self.SPACE_UID,
+            action_id=self.ACTION_ID,
+            resources=["1001", "1002"],
+            expire_time=None,
+        )
+        after = timezone.now() + timedelta(days=DEFAULT_EXTERNAL_PERMISSION_EXPIRE_DAYS)
+
+        existing_perm = self._get("user_a")
+        new_perm = self._get("user_b")
+        self.assertSetEqual(set(existing_perm.resources), {"1001", "1002"})
+        self.assertGreaterEqual(existing_perm.expire_time, before)
+        self.assertLessEqual(existing_perm.expire_time, after)
+        self.assertGreaterEqual(new_perm.expire_time, before)
+        self.assertLessEqual(new_perm.expire_time, after)
