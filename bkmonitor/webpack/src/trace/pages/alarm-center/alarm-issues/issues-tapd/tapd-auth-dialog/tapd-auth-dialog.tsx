@@ -51,7 +51,7 @@ export default defineComponent({
       default: () => [],
     },
   },
-  emits: ['update:show', 'select'],
+  emits: ['update:show', 'select', 'revokeAuth'],
   setup(props, { emit }) {
     const { t } = useI18n();
 
@@ -112,22 +112,32 @@ export default defineComponent({
             >
               <span class='workspace-name'>{item.workspace_name}</span>
               <Button
-                class='workspace-btn'
+                class={['workspace-btn', { bound: item.is_bound === 'bound' }]}
                 theme={item.is_bound === 'bound' ? 'success' : 'primary'}
                 outline
               >
                 {item.is_bound === 'bound' ? t('已关联') : t('去关联')}
               </Button>
+              {item.is_bound === 'bound' && (
+                <div class='revoke-relation'>
+                  <span>{t('取消关联')}</span>
+                </div>
+              )}
             </div>
           ))}
         </div>
       );
     };
 
+    const handleRevokeAuth = () => {
+      emit('revokeAuth');
+    };
+
     return {
       searchValue,
       handleShowChange,
       renderWorkspaceList,
+      handleRevokeAuth,
     };
   },
   render() {
@@ -160,6 +170,7 @@ export default defineComponent({
                 <Button
                   class='dialog-footer-btn'
                   size='large'
+                  onClick={this.handleRevokeAuth}
                 >
                   {this.$t('取消授权')}
                 </Button>
