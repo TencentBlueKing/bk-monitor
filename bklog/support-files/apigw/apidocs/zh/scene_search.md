@@ -21,10 +21,10 @@
 | scene_filter_values | list | 否 | 场景维度过滤条件,格式同`addition`,会合并到查询过滤条件中 |
 | keyword | string | 否 | 查询字符串,默认为`*` |
 | addition | list | 否 | 结构化过滤条件 |
-| start_time | string | 是 | 查询开始时间,支持`YYYY-MM-DD HH:mm:ss`或毫秒时间戳 |
-| end_time | string | 是 | 查询结束时间,支持`YYYY-MM-DD HH:mm:ss`或毫秒时间戳 |
+| start_time | string | 是 | 查询开始时间,支持`YYYY-MM-DD HH:mm:ss`、秒级或毫秒级时间戳 |
+| end_time | string | 是 | 查询结束时间,支持`YYYY-MM-DD HH:mm:ss`、秒级或毫秒级时间戳 |
 | begin | int | 否 | 偏移量,默认0 |
-| size | int | 否 | 最大返回结果条数,默认50,最大10000 |
+| size | int | 否 | 最大返回结果条数,默认50,最大10000;超过10000时按10000处理 |
 | sort_list | list | 否 | 结果排序字段列表,每项为`[字段名, asc/desc]`,默认按`dtEventTimeStamp`倒序 |
 | is_desensitize | boolean | 否 | 是否执行脱敏,默认true |
 
@@ -144,8 +144,8 @@
         "list": [
             {
                 "__data_label": "bklog_index_set_1000002",
-                "_time": "1782727200000",
-                "dtEventTimeStamp": "1782727200000",
+                "_time": "1782727500000",
+                "dtEventTimeStamp": "1782727500000",
                 "gseIndex": 2665481,
                 "iterationIndex": 12,
                 "log": "request success",
@@ -158,8 +158,8 @@
         "origin_log_list": [
             {
                 "__data_label": "bklog_index_set_1000002",
-                "_time": "1782727200000",
-                "dtEventTimeStamp": "1782727200000",
+                "_time": "1782727500000",
+                "dtEventTimeStamp": "1782727500000",
                 "gseIndex": 2665481,
                 "iterationIndex": 12,
                 "log": "request success",
