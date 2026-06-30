@@ -162,6 +162,41 @@ class TestTapdOauthContract(unittest.TestCase):
         callback = _function(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "tapd_app_install_callback")
         self.assertIn("verify_signed_state", _call_names(callback))
 
+    def test_redirect_urls_are_restricted_to_allowed_hosts(self):
+        source = _read("bkmonitor/packages/fta_web/issue/utils/tapd.py")
+        normalize_redirect_url = _function(
+            _parse("bkmonitor/packages/fta_web/issue/utils/tapd.py"), "normalize_redirect_url"
+        )
+
+        self.assertIn("url_has_allowed_host_and_scheme", source)
+        self.assertIn("DisallowedHost", source)
+        self.assertIn("url_has_allowed_host_and_scheme", _call_names(normalize_redirect_url))
+
+    def test_signed_state_decode_errors_are_validation_errors(self):
+        verify_signed_state = _function(_parse("bkmonitor/packages/fta_web/issue/utils/tapd.py"), "verify_signed_state")
+        source = ast.get_source_segment(_read("bkmonitor/packages/fta_web/issue/utils/tapd.py"), verify_signed_state)
+
+        self.assertIn("except Exception as e", source)
+        self.assertIn('ValidationError("invalid_signed_state")', source)
+        self.assertIn("isinstance(payload, dict)", source)
+
+    def test_app_install_callback_validates_resource_shape_and_canonical_workspace_id(self):
+        callback = _function(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "tapd_app_install_callback")
+        source = ast.get_source_segment(_read("bkmonitor/packages/fta_web/issue/resources.py"), callback)
+
+        self.assertIn("isinstance(resource, dict)", source)
+        self.assertIn("raw_workspace_id", source)
+        self.assertIn("workspace_id = str(int(raw_workspace_id))", source)
+
+    def test_oauth_token_exchange_logs_without_exception_payload(self):
+        callback = _function(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "tapd_user_oauth_callback")
+        source = ast.get_source_segment(_read("bkmonitor/packages/fta_web/issue/resources.py"), callback)
+
+        self.assertIn('logger.exception("exchange token failed")', source)
+        self.assertIn('logger.exception("exchange token unexpected error")', source)
+        self.assertNotIn('logger.exception(f"exchange token failed: {e}")', source)
+        self.assertNotIn('logger.exception(f"exchange token unexpected error: {e}")', source)
+
 
 if __name__ == "__main__":
     unittest.main()

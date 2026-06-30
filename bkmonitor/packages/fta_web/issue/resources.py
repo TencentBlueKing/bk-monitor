@@ -62,6 +62,10 @@ from fta_web.issue.utils.tapd import (
 logger = logging.getLogger("root")
 
 
+def _sanitize_for_log(value) -> str:
+    return str(value).replace("\r", "").replace("\n", "")
+
+
 class IssueIDField(serializers.CharField):
     """Issue ID 合法性校验"""
 
@@ -2398,12 +2402,19 @@ def tapd_app_install_callback(request):
     try:
         resource = json.loads(resource_json) if resource_json else {}
     except Exception:
-        logger.warning("invalid resource JSON: %s", resource_json)
+        safe_resource_json = resource_json.replace("\r", "").replace("\n", "")
+        logger.warning("invalid resource JSON: %s", safe_resource_json)
         return HttpResponseRedirect(error_url)
 
-    workspace_id = str(resource.get("workspace_id", ""))
-    if not workspace_id:
-        logger.warning("missing workspace_id")
+    if not isinstance(resource, dict):
+        logger.warning("invalid resource JSON object")
+        return HttpResponseRedirect(error_url)
+
+    raw_workspace_id = resource.get("workspace_id", "")
+    try:
+        workspace_id = str(int(raw_workspace_id))
+    except (TypeError, ValueError):
+        logger.warning("invalid workspace_id: %s", _sanitize_for_log(raw_workspace_id))
         return HttpResponseRedirect(error_url)
 
     # 2) 获取项目信息（app 级 Basic Auth）
@@ -2412,7 +2423,7 @@ def tapd_app_install_callback(request):
         ws = info.get("Workspace", {})
         ws_name = ws.get("name") or ws.get("pretty_name") or str(workspace_id)
     except BKAPIError:
-        logger.exception("get_workspace_info failed: ws=%s", workspace_id)
+        logger.exception("get_workspace_info failed: ws=%s", _sanitize_for_log(workspace_id))
         return HttpResponseRedirect(error_url)
     except Exception as e:
         logger.exception(f"get_workspace_info unexpected error: ws=%s,{e}", workspace_id)
@@ -2503,11 +2514,11 @@ def tapd_user_oauth_callback(request):
             code=code,
             redirect_uri=backend_callback.rstrip("/"),
         )
-    except BKAPIError as e:
-        logger.exception(f"exchange token failed: {e}")
+    except BKAPIError:
+        logger.exception("exchange token failed")
         return HttpResponseRedirect(error_url)
-    except Exception as e:
-        logger.exception(f"exchange token unexpected error: {e}")
+    except Exception:
+        logger.exception("exchange token unexpected error")
         return HttpResponseRedirect(error_url)
 
     access_token = token_resp.get("access_token", "")
