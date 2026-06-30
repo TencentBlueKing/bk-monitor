@@ -23,19 +23,55 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-import { getMockProcessList } from '../mock/process-list';
-
-import type { ProcessItem } from '../types';
-
-/**
- * @description 获取选中主机的进程列表（当前返回 mock，后续可零改动替换为真实接口）。
- */
-export const getHostProcessList = async (_params: {
-  bk_target_cloud_id?: string;
-  bk_target_ip?: string;
-  end_time: number;
-  start_time: number;
-}): Promise<ProcessItem[]> => {
-  return getMockProcessList();
+export const panel = {
+  id: 'bk_monitor.time_series.system.load.load5',
+  type: 'graph',
+  title: '5分钟平均负载',
+  subTitle: 'system.load.load5',
+  targets: [
+    {
+      data: {
+        expression: 'A',
+        query_configs: [
+          {
+            metrics: [
+              {
+                field: 'load5',
+                method: '$method',
+                alias: 'A',
+              },
+            ],
+            interval: '$interval', // 汇聚周期 变量
+            table: 'system.load',
+            data_source_label: 'bk_monitor',
+            data_type_label: 'time_series',
+            group_by: ['$group_by'], // 汇聚维度 变量
+            where: [],
+            functions: [
+              {
+                id: 'time_shift',
+                params: [
+                  {
+                    id: 'n',
+                    value: '$time_shift', // 时间偏移 变量
+                  },
+                ],
+              },
+            ],
+            filter_dict: {
+              targets: ['$current_target', '$compare_targets'], // 目标对比 变量
+            },
+          },
+        ],
+      },
+      ignore_group_by: ['bk_host_id'],
+      alias: '',
+      datasource: 'time_series',
+      data_type: 'time_series',
+      api: 'grafana.graphUnifyQuery',
+    },
+  ],
+  matchDisplay: {
+    os_type: 'linux',
+  },
 };

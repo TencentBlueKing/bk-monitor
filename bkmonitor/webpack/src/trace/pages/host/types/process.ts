@@ -24,18 +24,42 @@
  * IN THE SOFTWARE.
  */
 
-import { getMockProcessList } from '../mock/process-list';
+/** 进程端口状态：决定端口列状态圆点颜色（正常绿点 / 异常红点） */
+export enum EProcessPortStatus {
+  /** 异常 */
+  Abnormal = 1,
+  /** 正常 */
+  Normal = 0,
+}
 
-import type { ProcessItem } from '../types';
-
-/**
- * @description 获取选中主机的进程列表（当前返回 mock，后续可零改动替换为真实接口）。
- */
-export const getHostProcessList = async (_params: {
-  bk_target_cloud_id?: string;
-  bk_target_ip?: string;
-  end_time: number;
-  start_time: number;
-}): Promise<ProcessItem[]> => {
-  return getMockProcessList();
-};
+/** 进程列表行数据 */
+export interface ProcessItem {
+  /** 监听地址 */
+  bindIp: string;
+  /** 占用 CPU 百分比 */
+  cpuUsage: number;
+  /** 所属主机 IP（蓝色链接） */
+  hostIp: string;
+  /** 行唯一 key（进程名 + 主机 IP，保证同主机内唯一） */
+  id: string;
+  /** 物理内存 RSS（字节） */
+  memRss: number;
+  /** 物理内存使用率百分比（进度条 + 文案） */
+  memUsage: number;
+  /** 进程名（蓝色链接，点击打开进程详情） */
+  name: string;
+  /** 进程 PID（用于「进程名/PID」搜索） */
+  pid: number;
+  /** 监听端口 */
+  port: number;
+  /** 端口状态（决定状态圆点颜色） */
+  portStatus: EProcessPortStatus;
+  /** 监听协议（TCP / UDP） */
+  protocol: string;
+  /** 启动命令（进程详情头部展示） */
+  startCommand: string;
+  /** 运行时长（秒） */
+  uptime: number;
+  /** 运行用户 */
+  user: string;
+}

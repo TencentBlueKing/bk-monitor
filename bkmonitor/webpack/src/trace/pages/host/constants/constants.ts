@@ -36,8 +36,15 @@ export const HOST_PAGE_HEADER_NAV_BAR_LIST = [
 
 export type HostPageScene = (typeof HOST_PAGE_HEADER_NAV_BAR_LIST)[number]['value'];
 
-/** 内容区 Tab：主机列表、指标汇聚（label 为 i18n key，icon 为 icon-monitor 字体类名） */
-export const HOST_CONTENT_TAB_LIST = [
+/**
+ * 内容区视角：
+ * - topo：选中父级（业务/集群/模块）节点 → 主机列表 + 指标汇聚
+ * - host：选中主机叶子节点 → 系统指标 + 进程
+ */
+export type HostPerspective = 'host' | 'topo';
+
+/** 拓扑视角 Tab：主机列表、指标汇聚（label 为 i18n key，icon 为 icon-monitor 字体类名） */
+export const HOST_TOPO_TAB_LIST = [
   {
     label: '主机列表',
     value: 'list',
@@ -50,4 +57,27 @@ export const HOST_CONTENT_TAB_LIST = [
   },
 ] as const;
 
-export type HostContentTab = (typeof HOST_CONTENT_TAB_LIST)[number]['value'];
+/** 主机视角 Tab：系统指标、进程 */
+export const HOST_DETAIL_TAB_LIST = [
+  {
+    label: '系统指标',
+    value: 'system',
+    icon: 'icon-zhibiaojiansuo',
+  },
+  {
+    label: '进程',
+    value: 'process',
+    icon: 'icon-mc-process',
+  },
+] as const;
+
+/** 视角 → Tab 列表 注册表（新增视角/Tab 只需扩展此处 + 容器渲染分支） */
+export const HOST_PERSPECTIVE_TAB_MAP = {
+  topo: HOST_TOPO_TAB_LIST,
+  host: HOST_DETAIL_TAB_LIST,
+} as const;
+
+/** 全部内容区 Tab 取值（两视角合集） */
+export type HostContentTab =
+  | (typeof HOST_DETAIL_TAB_LIST)[number]['value']
+  | (typeof HOST_TOPO_TAB_LIST)[number]['value'];

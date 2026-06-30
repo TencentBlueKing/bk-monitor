@@ -24,18 +24,53 @@
  * IN THE SOFTWARE.
  */
 
-import { getMockProcessList } from '../mock/process-list';
-
-import type { ProcessItem } from '../types';
+import { defineComponent, onBeforeUnmount, onMounted, shallowRef, useTemplateRef } from 'vue';
 
 /**
- * @description 获取选中主机的进程列表（当前返回 mock，后续可零改动替换为真实接口）。
+ * 懒渲染容器：仅当自身滚动进入视口（含 100px 预加载边距）后才渲染默认插槽，
+ * 用于推迟图表卡片的挂载与取数，避免一次性请求全部图表。
  */
-export const getHostProcessList = async (_params: {
-  bk_target_cloud_id?: string;
-  bk_target_ip?: string;
-  end_time: number;
-  start_time: number;
-}): Promise<ProcessItem[]> => {
-  return getMockProcessList();
-};
+export default defineComponent({
+  name: 'ChartLazy',
+  props: {
+    /** 占位最小高度，避免未渲染时高度塌陷导致 IntersectionObserver 误判 */
+    minHeight: {
+      type: [Number, String],
+      default: 240,
+    },
+  },
+  setup(props, { slots }) {
+    const root = useTemplateRef<HTMLElement>('root');
+    const visible = shallowRef(false);
+    let observer: IntersectionObserver | null = null;
+
+    onMounted(() => {
+      observer = new IntersectionObserver(
+        entries => {
+          if (entries.some(entry => entry.isIntersecting)) {
+            visible.value = true;
+            observer?.disconnect();
+            observer = null;
+          }
+        },
+        { rootMargin: '100px' }
+      );
+      if (root.value) observer.observe(root.value);
+    });
+
+    onBeforeUnmount(() => {
+      observer?.disconnect();
+      observer = null;
+    });
+
+    return () => (
+      <div
+        ref='root'
+        style={{ minHeight: typeof props.minHeight === 'number' ? `${props.minHeight}px` : props.minHeight }}
+        class='chart-lazy'
+      >
+        {visible.value ? slots.default?.() : null}
+      </div>
+    );
+  },
+});

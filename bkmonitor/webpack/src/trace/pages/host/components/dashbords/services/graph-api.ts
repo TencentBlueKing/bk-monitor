@@ -24,18 +24,30 @@
  * IN THE SOFTWARE.
  */
 
-import { getMockProcessList } from '../mock/process-list';
+import { cloneDeep } from 'lodash';
 
-import type { ProcessItem } from '../types';
+import { data as MOCK_GRAPH_UNIFY_QUERY } from '../../../mock/graph_unify_query';
 
 /**
- * @description 获取选中主机的进程列表（当前返回 mock，后续可零改动替换为真实接口）。
+ * 图表取数 API 的最小契约：与 useEcharts 中 `$api[apiModule][apiFunc](params, config)` 对齐。
+ * 当前仅 mock，后续切真实接口时保持同款签名即可零改动替换。
  */
-export const getHostProcessList = async (_params: {
-  bk_target_cloud_id?: string;
-  bk_target_ip?: string;
-  end_time: number;
-  start_time: number;
-}): Promise<ProcessItem[]> => {
-  return getMockProcessList();
-};
+export type GraphApi = Record<string, Record<string, (params: Record<string, any>, config?: any) => Promise<any>>>;
+
+/** mock 接口的网络延迟（ms），用于复现 loading 态 */
+const MOCK_DELAY = 300;
+
+/**
+ * 创建图表取数 $api。
+ * 现阶段返回 mock 数据；正式接入时把 grafana.graphUnifyQuery 换成真实 $api 调用即可。
+ */
+export function createGraphApi(): GraphApi {
+  return {
+    grafana: {
+      graphUnifyQuery: () =>
+        new Promise(resolve => {
+          setTimeout(() => resolve(cloneDeep(MOCK_GRAPH_UNIFY_QUERY)), MOCK_DELAY);
+        }),
+    },
+  };
+}

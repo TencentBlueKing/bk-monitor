@@ -24,18 +24,33 @@
  * IN THE SOFTWARE.
  */
 
-import { getMockProcessList } from '../mock/process-list';
+/** 「未分组的指标」固定分组 id，始终置底且不可拖拽/删除 */
+export const UNGROUP_ID = '__UNGROUP__';
 
-import type { ProcessItem } from '../types';
+/** 分组的可见/隐藏指标数量统计 */
+export interface MetricGroupCount {
+  /** 隐藏指标数 */
+  hidden: number;
+  /** 可见指标数 */
+  visible: number;
+}
 
-/**
- * @description 获取选中主机的进程列表（当前返回 mock，后续可零改动替换为真实接口）。
- */
-export const getHostProcessList = async (_params: {
-  bk_target_cloud_id?: string;
-  bk_target_ip?: string;
-  end_time: number;
-  start_time: number;
-}): Promise<ProcessItem[]> => {
-  return getMockProcessList();
-};
+/** 指标分组 */
+export interface MetricGroupModel {
+  /** 分组唯一标识 */
+  id: string;
+  /** 分组标题，如 CPU、网络 */
+  title: string;
+}
+
+/** 单个指标 */
+export interface MetricItemModel {
+  /** 所属分组 id，UNGROUP_ID 表示未分组 */
+  groupId: string;
+  /** 是否隐藏（显示开关关闭） */
+  hidden: boolean;
+  /** 指标唯一标识 */
+  id: string;
+  /** 指标名称 */
+  title: string;
+}

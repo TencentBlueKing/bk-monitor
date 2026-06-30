@@ -23,19 +23,20 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import type { CompareTargetOption } from '../types/aggregation';
 
-import { getMockProcessList } from '../mock/process-list';
-
-import type { ProcessItem } from '../types';
-
-/**
- * @description 获取选中主机的进程列表（当前返回 mock，后续可零改动替换为真实接口）。
- */
-export const getHostProcessList = async (_params: {
-  bk_target_cloud_id?: string;
-  bk_target_ip?: string;
-  end_time: number;
-  start_time: number;
-}): Promise<ProcessItem[]> => {
-  return getMockProcessList();
+/** 目标对比 - 当前主目标（mock，后续由选中主机节点提供） */
+export const MOCK_CURRENT_TARGET: CompareTargetOption = {
+  id: '0-11.147.2.124',
+  name: '11.147.2.124',
 };
+
+/** 目标对比 - 可选目标列表（mock） */
+export const MOCK_COMPARE_TARGETS: CompareTargetOption[] = [
+  { id: '0-11.34.234.2', name: '11.34.234.2' },
+  { id: '0-234.223.22.1', name: '234.223.22.1' },
+  { id: '0-11.147.2.125', name: '11.147.2.125' },
+  { id: '0-11.147.2.126', name: '11.147.2.126' },
+  { id: '0-192.168.1.10', name: '192.168.1.10' },
+  { id: '0-192.168.1.11', name: '192.168.1.11' },
+];
