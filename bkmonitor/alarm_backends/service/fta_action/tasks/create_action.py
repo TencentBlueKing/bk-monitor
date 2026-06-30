@@ -699,6 +699,9 @@ class CreateActionProcessor:
         alert_logs = []
         qos_alerts = []
         current_qos_count = 0
+        # 单批兜底解析备忘: 每个缺失 config_id 在本批内只解析一次(含 DB-miss/异常/门控关闭等结果),
+        # 避免同批多条告警引用同一缺失套餐时反复回查 DB(批内穿透)
+        resolved_missing_configs: dict = {}
         for alert in self.alerts:
             alert_dict = alert.to_dict()
             alerts_assignee[alert.id] = alert_dict.get("assignee") or []
@@ -778,14 +781,20 @@ class CreateActionProcessor:
                     )
 
             for action in actions + itsm_actions:
-                action_config = action_configs.get(str(action["config_id"]))
+                cid = str(action["config_id"])
+                action_config = action_configs.get(cid)
                 suspected_pending = False
                 if not action_config:
-                    # 缓存未命中: 若策略近期变更, 大概率是新建/克隆套餐尚未刷入缓存, 回查 DB 兜底
-                    action_config, suspected_pending = self.resolve_missing_action_config(action["config_id"])
-                    if action_config:
-                        # 兜底命中的配置回填, 供同批后续告警复用, 避免重复回查
-                        action_configs[str(action["config_id"])] = action_config
+                    # 缓存未命中: 若策略近期变更, 大概率是新建/克隆套餐尚未刷入缓存, 回查 DB 兜底。
+                    # 本批已解析过的(含未命中)直接复用备忘, 保证每个缺失套餐每批最多回查一次 DB。
+                    if cid in resolved_missing_configs:
+                        action_config, suspected_pending = resolved_missing_configs[cid]
+                    else:
+                        action_config, suspected_pending = self.resolve_missing_action_config(action["config_id"])
+                        resolved_missing_configs[cid] = (action_config, suspected_pending)
+                        if action_config:
+                            # 兜底命中的配置回填, 供同批后续告警复用, 避免重复回查
+                            action_configs[cid] = action_config
                 if not self.is_action_config_valid(alert, action_config, action["config_id"], suspected_pending):
                     continue
                 action_plugin = action_plugins.get(str(action_config["plugin_id"]))

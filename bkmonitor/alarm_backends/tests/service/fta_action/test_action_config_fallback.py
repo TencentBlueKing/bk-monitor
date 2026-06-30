@@ -8,13 +8,11 @@
 import time
 from unittest.mock import MagicMock, patch
 
-import pytest
 from django.test import override_settings
 
 from alarm_backends.core.cache.action_config import ActionConfigCacheManager
 from alarm_backends.service.fta_action.tasks.create_action import CreateActionProcessor
-
-pytestmark = pytest.mark.django_db(databases="__all__")
+from constants.action import ActionNoticeType, ActionSignal
 
 
 class _StubProcessor:
@@ -187,3 +185,80 @@ def test_get_from_db_found_serializes():
         m_slz.return_value.data = {"id": 100, "is_enabled": True}
         out = ActionConfigCacheManager.get_action_config_from_db(100)
     assert out == {"id": 100, "is_enabled": True}
+
+
+# ---------------- 批内去重: 同批多条告警引用同一缺失套餐, DB 只回查一次 ----------------
+
+_CA = "alarm_backends.service.fta_action.tasks.create_action"
+
+
+def _make_alert(alert_id):
+    alert = MagicMock()
+    alert.id = alert_id
+    alert.to_dict.return_value = {}
+    alert.is_no_data.return_value = False
+    return alert
+
+
+def _build_processor(missing_config_id, alert_ids):
+    """绕过重量级 __init__, 仅注入 do_create_actions 走到处理套餐解析所需的最小属性与桩。"""
+    proc = CreateActionProcessor.__new__(CreateActionProcessor)
+    proc.strategy_id = 1
+    proc.signal = ActionSignal.ABNORMAL
+    proc.severity = 1
+    proc.relation_id = None
+    proc.execute_times = 0
+    proc.notice_type = ActionNoticeType.NORMAL
+    proc.is_alert_shielded = False
+    proc.noise_reduce_result = False
+    proc.generate_uuid = "uuid"
+    proc.notice = {}
+    # 策略近期变更 -> 命中兜底门控
+    proc.strategy = {"update_time": int(time.time()) - 10}
+    alerts = [_make_alert(aid) for aid in alert_ids]
+    proc.alerts = alerts
+    proc.alert_ids = list(alert_ids)
+    proc.alert_objs = {a.id: a for a in alerts}
+
+    action = {"config_id": missing_config_id, "id": 1, "options": {}, "signal": [ActionSignal.ABNORMAL]}
+    assignee_manager = MagicMock()
+    assignee_manager.is_matched = True
+    assignee_manager.match_manager = None
+    assignee_manager.get_assignees.return_value = []
+
+    # 桩掉处理套餐解析之外的协作者, 让 do_create_actions 干净地走到 action 循环并在无效套餐处 continue
+    proc.get_action_relations = MagicMock(return_value=[action])
+    proc.get_alert_shield_result = MagicMock(return_value=(False, []))
+    proc.create_message_queue_action = MagicMock()
+    proc.is_alert_status_valid = MagicMock(return_value=True)
+    proc.alert_assign_handle = MagicMock(return_value=assignee_manager)
+    proc.get_alert_related_users = MagicMock(return_value=[])
+    proc.update_alert_documents = MagicMock()
+    proc._process_issue_aggregation = MagicMock()
+    return proc
+
+
+@override_settings(ACTION_CONFIG_CACHE_DB_FALLBACK_ENABLED=True)
+def test_batch_missing_config_db_queried_once_across_alerts():
+    missing_cid = 999001
+    proc = _build_processor(missing_cid, alert_ids=["alert-1", "alert-2"])
+
+    with (
+        patch.object(ActionConfigCacheManager, "get_action_config_by_id", return_value={}),
+        patch.object(ActionConfigCacheManager, "get_action_config_from_db", return_value={}) as m_db,
+        patch.object(ActionConfigCacheManager, "set_negative_cache") as m_neg,
+        patch(f"{_CA}.ActionPlugin"),
+        patch(f"{_CA}.ActionPluginSlz") as m_plugin_slz,
+        patch(f"{_CA}.AssignCacheManager"),
+        patch(f"{_CA}.SubscribeCacheManager"),
+        patch(f"{_CA}.AlertLog") as m_alertlog,
+    ):
+        m_plugin_slz.return_value.data = []
+        proc.do_create_actions()
+
+    # 两条告警引用同一缺失套餐, 但 DB 只回查一次, 负缓存只写一次 -> 批内无穿透
+    assert m_db.call_count == 1
+    assert m_neg.call_count == 1
+    # 两条告警各记录一条"已删除或禁用"的 AlertLog
+    deleted_logs = [c for c in m_alertlog.call_args_list if "已经被删除或禁用" in (c.kwargs.get("description") or "")]
+    assert len(deleted_logs) == 2
