@@ -243,9 +243,6 @@ class ExternalPermission(OperateRecordModel):
             2. 判定该实例是否已被授权，若有则不处理，无则更新该条授权记录
             3. 给剩余被授权人新增权限
         """
-        if not expire_time:
-            expire_time = get_default_external_permission_expire_time()
-
         exist_authorized_users = set()
         for permission_obj in cls.objects.filter(
             authorized_user__in=authorized_users,
@@ -264,6 +261,8 @@ class ExternalPermission(OperateRecordModel):
             if update_fields:
                 permission_obj.save(update_fields=update_fields)
         add_authorized_users = set(authorized_users) - exist_authorized_users
+        if add_authorized_users and not expire_time:
+            expire_time = get_default_external_permission_expire_time()
         cls.objects.bulk_create(
             cls(
                 authorized_user=authorized_user,
@@ -404,6 +403,9 @@ class ExternalPermission(OperateRecordModel):
             # 判定当前实例是否有新增的被授权人，有则创建审批单据
             add_authorized_users = list(origin_authorized_users - exist_authorized_users)
             if add_authorized_users:
+                if not expire_time:
+                    expire_time = get_default_external_permission_expire_time()
+                    validated_request_data["expire_time"] = expire_time
                 need_approval = True
         else:
             # 基于被授权人视角的编辑操作
@@ -424,9 +426,6 @@ class ExternalPermission(OperateRecordModel):
                 permission.resources = resources
                 permission.expire_time = expire_time
                 permission.save()
-        if need_approval and not expire_time:
-            expire_time = get_default_external_permission_expire_time()
-            validated_request_data["expire_time"] = expire_time
         # 记录更新授权操作
         ExternalPermissionApplyRecord.objects.create(
             **validated_request_data, authorized_users=authorized_users, operate=OperateEnum.UPDATE.value
