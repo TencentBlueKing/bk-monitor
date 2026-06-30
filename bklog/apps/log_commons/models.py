@@ -404,9 +404,6 @@ class ExternalPermission(OperateRecordModel):
             # 判定当前实例是否有新增的被授权人，有则创建审批单据
             add_authorized_users = list(origin_authorized_users - exist_authorized_users)
             if add_authorized_users:
-                if not expire_time:
-                    expire_time = get_default_external_permission_expire_time()
-                    validated_request_data["expire_time"] = expire_time
                 need_approval = True
         else:
             # 基于被授权人视角的编辑操作
@@ -427,6 +424,9 @@ class ExternalPermission(OperateRecordModel):
                 permission.resources = resources
                 permission.expire_time = expire_time
                 permission.save()
+        if need_approval and not expire_time:
+            expire_time = get_default_external_permission_expire_time()
+            validated_request_data["expire_time"] = expire_time
         # 记录更新授权操作
         ExternalPermissionApplyRecord.objects.create(
             **validated_request_data, authorized_users=authorized_users, operate=OperateEnum.UPDATE.value
