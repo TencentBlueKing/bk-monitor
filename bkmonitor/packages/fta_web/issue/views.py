@@ -15,9 +15,9 @@ from bkmonitor.iam.drf import IAMPermission
 from bkmonitor.iam.resource import ResourceEnum
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource import resource
+from core.drf_resource.exceptions import CustomException
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from fta_web.issue.resources import ListUserTapdWorkspaceResource, UnbindTapdWorkspaceResource
-from core.drf_resource.exceptions import CustomException
 from fta_web.issue.utils.tapd import generate_auth_url, normalize_redirect_url
 
 
@@ -139,7 +139,7 @@ class IssueViewSet(ResourceViewSet):
                 data={"auth_url": auth_url},
                 code=403,
             )
-            exc.status_code = 403
+            exc.status_code = 200
             raise exc
 
     def get_permissions(self):
@@ -199,7 +199,7 @@ class IssueViewSet(ResourceViewSet):
         # 查询当前用户可见的 TAPD 项目列表（含 install_url）
         ResourceRoute("POST", ListUserTapdWorkspaceResource, endpoint="tapd/user_workspace"),
         # 解绑 TAPD 项目（仅删除本地 binding）
-        ResourceRoute("POST", UnbindTapdWorkspaceResource, endpoint="tapd/workspace/unbind"),
+        ResourceRoute("POST", UnbindTapdWorkspaceResource, endpoint="tapd/unbind_workspace/"),
         # 获取 TAPD 单据的字段
         ResourceRoute("POST", resource.issue.get_tapd_fields, endpoint="issue/get_tapd_fields"),
         # 查询已有TAPD单据

@@ -2535,7 +2535,7 @@ class ListUserTapdWorkspaceResource(Resource):
             data={"auth_url": auth_url},
             code=403,
         )
-        exc.status_code = 403
+        exc.status_code = 200
         raise exc
 
     def _fetch_user_workspace_ids(
@@ -2701,7 +2701,7 @@ class UnbindTapdWorkspaceResource(Resource):
     """解除 TAPD 项目与当前业务的关联
 
     仅删除本地 TapdWorkspaceBinding，不在 TAPD 侧撤回应用授权。
-    端点：POST /fta/issue/tapd/workspace/unbind/
+    端点：POST /fta/issue/tapd/unbind_workspace
     """
 
     class RequestSerializer(serializers.Serializer):
