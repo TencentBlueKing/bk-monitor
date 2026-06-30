@@ -104,9 +104,8 @@ export const handleToAlertList = (
       .format('YYYY-MM-DD HH:mm:ss')
     : dayjs.tz().format('YYYY-MM-DD HH:mm:ss');
   window.open(
-    `${location.origin}${location.pathname}?bizId=${bizId}/#/trace/alarm-center?queryString=${queryString(
-      type,
-      detailInfo.id
-    )}&form=${startTime}&to=${endTime}&filterMode=queryString&alarmType=alert`
+    `${location.origin}${location.pathname}?bizId=${bizId}/#/trace/alarm-center?queryString=${encodeURIComponent(
+      queryString(type, detailInfo.id)
+    )}&from=${startTime}&to=${endTime}&filterMode=queryString&alarmType=alert`
   );
 };

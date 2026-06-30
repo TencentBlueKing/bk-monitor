@@ -61,6 +61,7 @@ from core.prometheus.metrics import safe_push_to_gateway
 from monitor_web.grafana.utils import get_cookies_filter, remove_all_conditions
 from monitor_web.statistics.v2.query import unify_query_count
 from monitor_web.strategies.constant import CORE_FILE_SIGNAL_LIST
+from monitor_web.strategies.metric_cache.process_dimensions import get_process_extra_dimensions
 
 logger = logging.getLogger(__name__)
 
@@ -1557,6 +1558,7 @@ class GetDrillDimensionsResource(Resource):
         metric_cache = {(m.result_table_id, m.metric_field): m for m in metrics}
         dimension_sets: list[set[str]] = []
         dimension_map: dict[str, str] = {}
+        process_extra_cache: dict = {}
         for config in query_configs:
             metric = metric_cache.get((config["result_table_id"], config["metric_field"]))
             if not metric:
@@ -1570,8 +1572,21 @@ class GetDrillDimensionsResource(Resource):
 
             dim_set: set[str] = set()
             for dimension in metric.dimensions:
+                if dimension.get("is_dimension") is False:
+                    continue
                 dim_set.add(dimension["id"])
                 dimension_map[dimension["id"]] = dimension["name"]
+
+            # 进程采集：补全用户「维度提取」(extract_pattern) 出的、不在静态指标缓存里的维度（如 process），
+            # 再参与下钻的单指标全集 / 多指标交集计算
+            rt = metric.result_table_id
+            if rt not in process_extra_cache:
+                process_extra_cache[rt] = (
+                    get_process_extra_dimensions(get_request_tenant_id(), bk_biz_id, {rt}).get(rt) or []
+                )
+            for extra in process_extra_cache[rt]:
+                dim_set.add(extra["id"])
+                dimension_map.setdefault(extra["id"], extra["name"])
 
             # 拨测指标下钻维度排除维度：业务ID/IP/云区域ID/错误码
             if metric.result_table_id.startswith("uptimecheck."):

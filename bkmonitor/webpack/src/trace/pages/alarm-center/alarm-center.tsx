@@ -36,6 +36,7 @@ import {
 } from 'vue';
 
 import { commonPageSizeSet, convertDurationArray, copyText, tryURLDecodeParse } from 'monitor-common/utils';
+import { safeDecodeQueryString } from 'monitor-common/utils/alarm-center-router';
 import FavoriteBox, {
   type IFavorite,
   type IFavoriteGroup,
@@ -683,7 +684,8 @@ export default defineComponent({
         }
         alarmStore.timezone = (timezone as string) || getDefaultTimezone();
         alarmStore.refreshInterval = Number(refreshInterval) || -1;
-        alarmStore.queryString = (queryString as string) || '';
+        // 对企业微信分享链接的 queryString 进行安全解码（防止二次编码问题）
+        alarmStore.queryString = safeDecodeQueryString((queryString as string) || '');
         alarmStore.conditions = tryURLDecodeParse(conditions as string, []);
         alarmStore.residentCondition = tryURLDecodeParse(residentCondition as string, []);
         /** 兼容事件中心的condition */

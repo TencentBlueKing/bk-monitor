@@ -1376,7 +1376,8 @@ def test_cluster_info_serializer_masks_sensitive_fields():
         is_register_to_gse=False,
         gse_stream_to_id=-1,
         label="",
-        default_settings={},
+        default_settings={"bk_biz_id": 2},
+        custom_option='{"source": "manual"}',
         creator="admin",
         create_time=None,
         last_modify_user="admin",
@@ -1401,7 +1402,8 @@ def test_cluster_info_serializer_masks_sensitive_fields():
     assert item["has_ssl_certificate_authorities"] is True
     assert item["has_ssl_certificate"] is True
     assert item["has_ssl_certificate_key"] is True
-    assert "custom_option" not in item
+    assert item["default_settings"] == {"bk_biz_id": 2}
+    assert item["custom_option"] == '{"source": "manual"}'
 
 
 def test_cluster_info_serializer_empty_sensitive_fields():
@@ -1429,6 +1431,7 @@ def test_cluster_info_serializer_empty_sensitive_fields():
         gse_stream_to_id=-1,
         label="",
         default_settings={},
+        custom_option="",
         creator="admin",
         create_time=None,
         last_modify_user="admin",
@@ -3020,7 +3023,7 @@ def test_admin_token_resolve_hits_apm_application(monkeypatch):
     assert result["data"]["matched"] is True
     assert result["data"]["kind"] == "apm"
     assert result["data"]["apm_application"]["application_id"] == 1
-    assert result["data"]["apm_application"]["app_token"] == "bkapm_1_a1b2c3d4e5f6"
+    assert result["data"]["apm_application"]["apm_token"] == "bkapm_1_a1b2c3d4e5f6"
     assert result["data"]["custom_report"] is None
 
 

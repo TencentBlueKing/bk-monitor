@@ -17,6 +17,7 @@ class DataLinkKind(Enum):
     DATAID = "DataId"
     RESULTTABLE = "ResultTable"
     VMSTORAGEBINDING = "VmStorageBinding"
+    GRAPHRELATIONBINDING = "GraphRelationBinding"
     ESSTORAGEBINDING = "ElasticSearchBinding"
     DORISBINDING = "DorisBinding"
     DATABUS = "Databus"
@@ -27,11 +28,14 @@ class DataLinkKind(Enum):
     VMSTORAGE = "VmStorage"
     ELASTICSEARCH = "ElasticSearch"
     DORIS = "Doris"
+    SURREALDB = "SurrealDB"
+    SURREALDBBINDING = "SurrealDBBinding"
 
     choices_labels = (
         (DATAID, "dataids"),
         (RESULTTABLE, "resulttables"),
         (VMSTORAGEBINDING, "vmstoragebindings"),
+        (GRAPHRELATIONBINDING, "graphrelationbindings"),
         (ESSTORAGEBINDING, "elasticsearchbindings"),
         (DORISBINDING, "dorisbindings"),
         (DATABUS, "databuses"),
@@ -42,6 +46,8 @@ class DataLinkKind(Enum):
         (ELASTICSEARCH, "elasticsearchs"),
         (DORIS, "dorises"),
         (KAFKACHANNEL, "kafkachannels"),
+        (SURREALDB, "surrealdbs"),
+        (SURREALDBBINDING, "surrealdbbindings"),
     )
 
     @classmethod

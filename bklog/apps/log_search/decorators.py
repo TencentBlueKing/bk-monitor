@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,11 +18,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import functools
 import time
 
 from apps.log_search.constants import IndexSetType
 from apps.log_search.models import UserIndexSetSearchHistory
+from apps.log_search.utils import create_log_ndjson_stream_response, is_log_stream_request
 from apps.utils.local import get_request_external_username
 
 
@@ -68,6 +69,15 @@ def search_history_record(func):
                 from_favorite_id=union_search_history_obj["from_favorite_id"],
             )
             del result.data["union_search_history_obj"]
+
+        request = kwargs.get("request")
+        if request is None:
+            if len(args) > 1 and hasattr(args[1], "META"):
+                request = args[1]
+            elif args and hasattr(args[0], "META"):
+                request = args[0]
+        if request and is_log_stream_request(request):
+            return create_log_ndjson_stream_response(result.data)
 
         return result
 

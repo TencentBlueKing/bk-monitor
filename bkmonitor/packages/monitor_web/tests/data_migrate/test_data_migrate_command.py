@@ -1,3 +1,6 @@
+import pytest
+from django.core.management.base import CommandError
+
 from monitor_web.management.commands import data_migrate as data_migrate_command
 
 
@@ -109,6 +112,68 @@ def test_rebuild_positive_biz_keeps_full_steps(monkeypatch):
     ]
 
 
+def test_rebuild_passes_apm_cluster_names_when_provided(monkeypatch):
+    received = {}
+
+    monkeypatch.setattr(data_migrate_command, "rebuild_dashboard", lambda bk_biz_id: None)
+    monkeypatch.setattr(
+        data_migrate_command,
+        "rebuild_bklog_data_source_route",
+        lambda **kwargs: received.setdefault("bklog", kwargs),
+    )
+    monkeypatch.setattr(data_migrate_command, "rebuild_system_data", lambda **kwargs: None)
+    monkeypatch.setattr(data_migrate_command, "rebuild_uptime_check", lambda **kwargs: None)
+    monkeypatch.setattr(data_migrate_command, "rebuild_collect_plugins", lambda **kwargs: None)
+    monkeypatch.setattr(data_migrate_command, "rebuild_k8s_data", lambda **kwargs: None)
+    monkeypatch.setattr(
+        data_migrate_command,
+        "rebuild_custom_report",
+        lambda **kwargs: received.setdefault("custom_report", kwargs),
+    )
+
+    options = {
+        **_rebuild_options([2]),
+        "apm_kafka_cluster_name": "apm-kafka-public-1",
+        "apm_es_cluster_name": "apm-es-public-1",
+    }
+    data_migrate_command.Command()._handle_rebuild(options)
+
+    assert received["bklog"]["apm_kafka_cluster_name"] == "apm-kafka-public-1"
+    assert received["bklog"]["apm_es_cluster_name"] == "apm-es-public-1"
+    assert received["custom_report"]["apm_kafka_cluster_name"] == "apm-kafka-public-1"
+
+
+def test_rebuild_treats_blank_apm_cluster_names_as_default(monkeypatch):
+    received = {}
+
+    monkeypatch.setattr(data_migrate_command, "rebuild_dashboard", lambda bk_biz_id: None)
+    monkeypatch.setattr(
+        data_migrate_command,
+        "rebuild_bklog_data_source_route",
+        lambda **kwargs: received.setdefault("bklog", kwargs),
+    )
+    monkeypatch.setattr(data_migrate_command, "rebuild_system_data", lambda **kwargs: None)
+    monkeypatch.setattr(data_migrate_command, "rebuild_uptime_check", lambda **kwargs: None)
+    monkeypatch.setattr(data_migrate_command, "rebuild_collect_plugins", lambda **kwargs: None)
+    monkeypatch.setattr(data_migrate_command, "rebuild_k8s_data", lambda **kwargs: None)
+    monkeypatch.setattr(
+        data_migrate_command,
+        "rebuild_custom_report",
+        lambda **kwargs: received.setdefault("custom_report", kwargs),
+    )
+
+    options = {
+        **_rebuild_options([2]),
+        "apm_kafka_cluster_name": " ",
+        "apm_es_cluster_name": "",
+    }
+    data_migrate_command.Command()._handle_rebuild(options)
+
+    assert received["bklog"]["apm_kafka_cluster_name"] is None
+    assert received["bklog"]["apm_es_cluster_name"] is None
+    assert received["custom_report"]["apm_kafka_cluster_name"] is None
+
+
 def test_find_custom_report_data_ids_accepts_negative_biz_ids(monkeypatch):
     received = {}
 
@@ -195,3 +260,162 @@ def test_stop_biz_subscription_tasks_handler_passes_negative_biz_ids(monkeypatch
         "operator": "admin",
         "dry_run": False,
     }
+
+
+def test_stop_biz_bk_collector_handler_passes_arguments(monkeypatch):
+    received = {}
+
+    def fake_stop_biz_bk_collector(**kwargs):
+        received.update(kwargs)
+        return {
+            "summary": {
+                "total": {
+                    "matched_count": 1,
+                    "planned_count": 0,
+                    "succeeded_count": 1,
+                    "skipped_count": 0,
+                    "failed_count": 0,
+                }
+            }
+        }
+
+    monkeypatch.setattr(data_migrate_command, "stop_biz_bk_collector", fake_stop_biz_bk_collector)
+
+    data_migrate_command.Command()._handle_stop_biz_bk_collector(
+        {
+            "bk_tenant_id": "tencent",
+            "bk_biz_ids": [2],
+            "operator": "admin",
+            "dry_run": True,
+            "job_wait_timeout": 30,
+            "job_poll_interval": 2,
+        }
+    )
+
+    assert received == {
+        "bk_tenant_id": "tencent",
+        "bk_biz_ids": [2],
+        "operator": "admin",
+        "dry_run": True,
+        "job_wait_timeout": 30,
+        "job_poll_interval": 2,
+    }
+
+
+def test_refresh_biz_bk_collector_configs_handler_passes_delivery_check_arguments(monkeypatch):
+    received = {}
+
+    def fake_refresh_biz_bk_collector_proxy_configs(**kwargs):
+        received.update(kwargs)
+        return {
+            "summary": {
+                "total": {
+                    "matched_count": 1,
+                    "planned_count": 0,
+                    "succeeded_count": 1,
+                    "skipped_count": 0,
+                    "failed_count": 0,
+                }
+            },
+            "delivery_check": {"result": True, "timed_out": False},
+        }
+
+    monkeypatch.setattr(
+        data_migrate_command,
+        "refresh_biz_bk_collector_proxy_configs",
+        fake_refresh_biz_bk_collector_proxy_configs,
+    )
+
+    data_migrate_command.Command()._handle_refresh_biz_bk_collector_configs(
+        {
+            "bk_tenant_id": "tencent",
+            "bk_biz_ids": [2],
+            "config_types": ["custom_report"],
+            "operator": "admin",
+            "dry_run": False,
+            "skip_delivery_check": False,
+            "include_details": False,
+            "delivery_wait_timeout": 30,
+            "delivery_poll_interval": 2,
+        }
+    )
+
+    assert received == {
+        "bk_tenant_id": "tencent",
+        "bk_biz_ids": [2],
+        "config_types": ["custom_report"],
+        "operator": "admin",
+        "dry_run": False,
+        "check_delivery": True,
+        "delivery_wait_timeout": 30,
+        "delivery_poll_interval": 2,
+        "include_details": False,
+    }
+
+
+def test_bk_collector_report_result_raises_command_error_on_job_timeout():
+    result = {
+        "summary": {
+            "total": {
+                "matched_count": 1,
+                "planned_count": 0,
+                "succeeded_count": 0,
+                "pending_count": 0,
+                "timeout_count": 1,
+                "skipped_count": 0,
+                "failed_count": 1,
+            }
+        }
+    }
+
+    with pytest.raises(CommandError, match="timeout jobs"):
+        data_migrate_command.Command()._write_report_result(
+            result,
+            success_message="stop biz bk-collector completed",
+            warning_message="stop biz bk-collector completed with failures",
+        )
+
+
+def test_bk_collector_report_result_raises_command_error_on_delivery_timeout():
+    result = {
+        "summary": {
+            "total": {
+                "matched_count": 1,
+                "planned_count": 0,
+                "succeeded_count": 1,
+                "pending_count": 0,
+                "skipped_count": 0,
+                "failed_count": 0,
+            }
+        },
+        "delivery_check": {"result": False, "timed_out": True},
+    }
+
+    with pytest.raises(CommandError, match="delivery check timeout"):
+        data_migrate_command.Command()._write_report_result(
+            result,
+            success_message="refresh biz bk-collector configs completed",
+            warning_message="refresh biz bk-collector configs completed with failures",
+        )
+
+
+def test_bk_collector_report_result_raises_command_error_on_failed_result():
+    result = {
+        "summary": {
+            "total": {
+                "matched_count": 1,
+                "planned_count": 0,
+                "succeeded_count": 0,
+                "pending_count": 0,
+                "skipped_count": 0,
+                "failed_count": 1,
+            }
+        }
+    }
+
+    with pytest.raises(CommandError, match="completed with failures: 1"):
+        data_migrate_command.Command()._write_report_result(
+            result,
+            success_message="install biz bk-collector completed",
+            warning_message="install biz bk-collector completed with failures",
+        )

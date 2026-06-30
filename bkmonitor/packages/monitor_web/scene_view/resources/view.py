@@ -41,13 +41,9 @@ from monitor_web.scene_view.builtin import (
     post_handle_view_list_config,
     post_handle_view_config,
 )
+from monitor_web.strategies.metric_cache.process_dimensions import get_process_extra_dimensions
 
 logger = logging.getLogger(__name__)
-
-# 进程采集结果表 -> 对应的自定义时序分组名（metadata TimeSeriesGroup）
-PROCESS_RT_TO_TS_GROUP = {"process.perf": "process_perf", "process.port": "process_port"}
-# 补全进程维度时需要过滤掉的内部维度（与 metric_list_cache.FILTER_DIMENSION_LIST 对齐）
-PROCESS_EXTRA_DIMENSION_FILTER = {"time", "bk_supplier_id", "bk_cmdb_level", "timestamp"}
 
 
 def validate_scene_type(params):
@@ -609,56 +605,9 @@ class GetSceneViewDimensionsResource(ApiAuthResource):
 
             yield from metrics
 
-    @classmethod
-    def _augment_process_dimensions(cls, bk_tenant_id: str, bk_biz_id: int, result_table_ids: set) -> dict:
-        """进程采集：用业务真实上报的自定义时序分组维度补全 process 及维度提取出的自定义维度。
-
-        process.perf / process.port 在指标缓存里的维度是写死的静态清单，不含进程别名维度 process，
-        也不含进程采集"维度提取"(extract_pattern) 出来的自定义维度。这里按业务真实上报的
-        TimeSeriesGroup(process_perf / process_port).tag_list 动态补齐，避免静态清单漂移。
-
-        仅在请求涉及进程表且业务确有进程采集时才查询 metadata，常规业务零额外开销。
-        返回 {result_table_id: [{"id", "name"}, ...]}。
-        """
-        process_tables = {rt for rt in result_table_ids if rt in PROCESS_RT_TO_TS_GROUP}
-        if not process_tables:
-            return {}
-
-        from monitor_web.models.collecting import CollectConfigMeta
-
-        if not CollectConfigMeta.objects.filter(
-            bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, plugin_id="bkprocessbeat"
-        ).exists():
-            return {}
-
-        extra: dict[str, list[dict]] = {}
-        for table_id in process_tables:
-            group_name = PROCESS_RT_TO_TS_GROUP[table_id]
-            try:
-                groups = api.metadata.query_time_series_group(
-                    bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, time_series_group_name=group_name
-                )
-            except Exception:  # noqa
-                # 数据未上报或 metadata 异常时静默降级为静态维度，不阻断维度接口
-                logger.exception("augment process dimensions failed: biz=%s, table=%s", bk_biz_id, table_id)
-                continue
-            seen: set = set()
-            dims: list = []
-            for group in groups or []:
-                for metric in group.get("metric_info_list") or []:
-                    for tag in metric.get("tag_list") or []:
-                        field = tag.get("field_name")
-                        if not field or field in PROCESS_EXTRA_DIMENSION_FILTER or field in seen:
-                            continue
-                        seen.add(field)
-                        dims.append({"id": field, "name": tag.get("description") or field})
-            if dims:
-                extra[table_id] = dims
-        return extra
-
     def perform_request(self, params):
         metrics = list(self.get_metrics(params))
-        extra = self._augment_process_dimensions(
+        extra = get_process_extra_dimensions(
             bk_biz_id_to_bk_tenant_id(params["bk_biz_id"]),
             params["bk_biz_id"],
             {metric.result_table_id for metric in metrics},
@@ -699,7 +648,7 @@ class GetSceneViewDimensionValueResource(ApiAuthResource):
 
     def perform_request(self, params):
         metrics = list(GetSceneViewDimensionsResource.get_metrics(params))
-        extra = GetSceneViewDimensionsResource._augment_process_dimensions(
+        extra = get_process_extra_dimensions(
             bk_biz_id_to_bk_tenant_id(params["bk_biz_id"]),
             params["bk_biz_id"],
             {metric.result_table_id for metric in metrics},
