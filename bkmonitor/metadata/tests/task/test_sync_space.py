@@ -144,7 +144,7 @@ def test_sync_bkcc_space_soft_disable_conflict_orphan(create_and_delete_record, 
 
 
 def test_sync_bkcc_space_skip_create_below_start_biz_id(create_and_delete_record, mocker, settings):
-    settings.SYNC_BKCC_SPACE_START_BIZ_ID = "10"
+    settings.NEW_ENV_START_BIZ_ID = "10"
     mocker.patch("alarm_backends.core.storage.redis.Cache.__new__", return_value=LockCacheMock())
     mocker.patch("core.drf_resource.api.bk_login.list_tenant", return_value=[{"id": "system"}])
     mocker.patch(
@@ -161,7 +161,7 @@ def test_sync_bkcc_space_skip_create_below_start_biz_id(create_and_delete_record
 
 
 def test_sync_bkcc_space_skip_delete_below_start_biz_id(create_and_delete_record, mocker, settings):
-    settings.SYNC_BKCC_SPACE_START_BIZ_ID = "10"
+    settings.NEW_ENV_START_BIZ_ID = "10"
     mocker.patch("alarm_backends.core.storage.redis.Cache.__new__", return_value=LockCacheMock())
     Space.objects.create(
         creator=SYSTEM_USERNAME,
@@ -186,7 +186,7 @@ def test_sync_bkcc_space_skip_delete_below_start_biz_id(create_and_delete_record
 
 
 def test_sync_bkcc_space_skip_builtin_datalink_for_unmanaged_biz(create_and_delete_record, mocker, settings):
-    settings.SYNC_BKCC_SPACE_START_BIZ_ID = "10"
+    settings.NEW_ENV_START_BIZ_ID = "10"
     mocker.patch("alarm_backends.core.storage.redis.Cache.__new__", return_value=LockCacheMock())
     mocker.patch("core.drf_resource.api.bk_login.list_tenant", return_value=[{"id": "system"}])
     mocker.patch(
@@ -213,7 +213,7 @@ def test_sync_bkcc_space_skip_builtin_datalink_for_unmanaged_biz(create_and_dele
 
 
 def test_sync_bkcc_space_invalid_start_biz_id_warn_once(create_and_delete_record, mocker, settings):
-    settings.SYNC_BKCC_SPACE_START_BIZ_ID = "abc"
+    settings.NEW_ENV_START_BIZ_ID = "abc"
     mocker.patch("alarm_backends.core.storage.redis.Cache.__new__", return_value=LockCacheMock())
     mocker.patch("core.drf_resource.api.bk_login.list_tenant", return_value=[{"id": "system"}])
     mocker.patch(
@@ -230,7 +230,7 @@ def test_sync_bkcc_space_invalid_start_biz_id_warn_once(create_and_delete_record
     sync_bkcc_space()
 
     warning.assert_called_once_with(
-        "sync_bkcc_space: invalid SYNC_BKCC_SPACE_START_BIZ_ID(%s), disable threshold filter", "abc"
+        "sync_bkcc_space: invalid NEW_ENV_START_BIZ_ID(%s), disable threshold filter", "abc"
     )
 
 

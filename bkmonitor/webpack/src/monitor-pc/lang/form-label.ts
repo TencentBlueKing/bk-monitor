@@ -147,6 +147,7 @@ export default {
   语音拨打顺序: 'Voice Call Order',
   串行: 'Serial',
   并行: 'Parallel',
+  检测周期: 'Detection Cycle',
 
   // 专业表单 - 图表相关
   已选图表: 'Selected charts',
@@ -453,6 +454,7 @@ export default {
   周: 'Week',
   年: 'Year',
   天: 'Day',
+  维度组合: 'Dimension combinations',
   昨天: 'Yesterday',
   一: 'One',
   二: 'Two',

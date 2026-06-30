@@ -25,7 +25,7 @@
  */
 
 import { handleTransformToTimestamp, intTimestampStr } from '@/components/time-range/utils';
-import { getAllSceneFieldOpKeys } from '@/views/retrieve-v3/search-bar/scene-filter/scene-config';
+import { getAllSceneFieldOpKeys } from '@/store/scene-filter-config';
 
 import { ConditionOperator } from './condition-operator';
 import { isEmptyFilterValue } from './helper';

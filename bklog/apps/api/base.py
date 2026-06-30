@@ -131,6 +131,8 @@ class DataApiRetryClass:
     @property
     def retry_on_exception(self):
         def wraps(exception):
+            if not self.fail_exceptions:
+                return False
             for fail_exception in self.fail_exceptions:
                 if isinstance(exception, fail_exception):
                     return False

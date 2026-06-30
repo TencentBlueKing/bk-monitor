@@ -13,6 +13,7 @@ import logging
 from typing import Any
 
 from django.apps import apps
+from django.conf import settings
 from django.db import transaction
 from django.utils.translation import gettext as _
 from rest_framework import serializers
@@ -83,6 +84,7 @@ class EntityHandler:
                 defaults=create_data,
             )
 
+            changed = created
             # 如果 spec 发生变化，更新数据以及 generation
             if not created and (cleaned_spec != entity.get_spec() or entity.labels != labels):
                 for field in cleaned_spec:
@@ -90,9 +92,11 @@ class EntityHandler:
                 entity.labels = labels
                 entity.generation += 1
                 entity.save()
+                changed = True
 
         # 同步到 Redis（仅对特定类型）
         self._rebuild_redis_cache(entity)
+        self._schedule_bkbase_graph_definition_sync(entity, action="apply", changed=changed)
 
         return entity.to_json()
 
@@ -160,6 +164,55 @@ class EntityHandler:
 
         # 从 DB 全量重建该 namespace 的 Redis 缓存
         self._rebuild_redis_cache(entity)
+        self._schedule_bkbase_graph_definition_sync(entity, action="delete", changed=True)
+
+    def _schedule_bkbase_graph_definition_sync(self, entity: EntityMeta, action: str, changed: bool) -> None:
+        """
+        ResourceDefinition / RelationDefinition 变更后，异步触发已有 BKBase graph relation 链路重算并 apply。
+
+        BKBase apply 是外部调用，不能阻塞 metadata apply/delete 主链路；这里仅在事务提交后投递任务。
+        """
+        kind = entity.get_kind()
+        if kind not in REDIS_SYNC_KINDS or not changed:
+            return
+        if not getattr(settings, "ENABLE_SYNC_GRAPH_DEFINITION_TO_BKBASE", False):
+            return
+
+        namespace = entity.namespace or NAMESPACE_ALL
+        task_kwargs = {
+            "namespace": namespace,
+            "kind": kind,
+            "name": entity.name,
+            "generation": entity.generation,
+            "action": action,
+        }
+
+        def _send_task():
+            try:
+                from alarm_backends.service.scheduler.app import app
+
+                app.send_task(
+                    "metadata.sync_graph_definition_to_bkbase",
+                    kwargs=task_kwargs,
+                    queue="celery_metadata_task_worker",
+                )
+                logger.info(
+                    "scheduled bkbase graph definition sync: kind=%s, namespace=%s, name=%s, action=%s",
+                    kind,
+                    namespace,
+                    entity.name,
+                    action,
+                )
+            except Exception as e:  # pylint: disable=broad-except
+                logger.exception(
+                    "failed to schedule bkbase graph definition sync: kind=%s, namespace=%s, name=%s, error=%s",
+                    kind,
+                    namespace,
+                    entity.name,
+                    e,
+                )
+
+        transaction.on_commit(_send_task)
 
     def _rebuild_redis_cache(self, entity: EntityMeta) -> None:
         """

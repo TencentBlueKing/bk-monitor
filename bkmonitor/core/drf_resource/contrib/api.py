@@ -238,6 +238,9 @@ class APIResource(CacheResource, metaclass=abc.ABCMeta):
                 if "method" in kwargs:
                     del kwargs["method"]
 
+                if not is_stream:
+                    self.record_request_data_to_span("request.params", validated_request_data)
+
                 result = self.session.get(
                     url=request_url,
                     params=validated_request_data,
@@ -258,6 +261,8 @@ class APIResource(CacheResource, metaclass=abc.ABCMeta):
                     kwargs["data"] = non_file_data
 
                 kwargs = self.before_request(kwargs)
+                if not is_stream and not file_data:
+                    self.record_request_data_to_span("request.body", kwargs.get("json") or kwargs.get("data") or "")
                 result = self.session.request(**kwargs)
         except ReadTimeout as error:
             # 上报API调用失败统计指标

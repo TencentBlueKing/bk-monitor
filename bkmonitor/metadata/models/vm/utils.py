@@ -17,6 +17,7 @@ from django.conf import settings
 from django.db.models import Q
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
+from bkm_space.api import SpaceApi
 from bkmonitor.utils.tenant import get_tenant_datalink_biz_id, get_tenant_default_biz_id
 from constants.data_source import DATA_LINK_V3_VERSION_NAME, DATA_LINK_V4_VERSION_NAME
 from core.drf_resource import api
@@ -36,7 +37,7 @@ from metadata.models.data_link.utils import (
     compose_bkdata_data_id_name,
     compose_bkdata_table_id,
 )
-from metadata.models.space.constants import EtlConfigs
+from metadata.models.space.constants import EtlConfigs, SpaceTypes
 from metadata.models.vm.bk_data import BkDataAccessor, access_vm
 from metadata.models.vm.config import BkDataStorageWithDataID
 from metadata.models.vm.constants import (
@@ -441,9 +442,13 @@ def get_vm_cluster_id_name(
 
     # vm 集群名称存在
     if vm_cluster_name:
-        cluster = ClusterInfo.objects.filter(
-            bk_tenant_id=bk_tenant_id, cluster_type=ClusterInfo.TYPE_VM, cluster_name=vm_cluster_name
-        ).first()
+        cluster = (
+            ClusterInfo.objects.filter(
+                bk_tenant_id=bk_tenant_id, cluster_type=ClusterInfo.TYPE_VM, cluster_name=vm_cluster_name
+            )
+            .only("cluster_id", "cluster_name")
+            .first()
+        )
         if not cluster:
             logger.error(
                 "query vm cluster error, vm_cluster_name: %s not found, please register to clusterinfo", vm_cluster_name
@@ -451,12 +456,46 @@ def get_vm_cluster_id_name(
             raise ValueError(f"vm_cluster_name: {vm_cluster_name} not found")
         return {"cluster_id": cluster.cluster_id, "cluster_name": cluster.cluster_name}
     elif space_type and space_id:
-        space_vm_info = SpaceVMInfo.objects.filter(space_type=space_type, space_id=space_id).first()
+        # 业务ID或关联业务ID
+        bk_biz_id: str | None = None
+        if space_type == SpaceTypes.BKCC.value:
+            bk_biz_id = str(space_id)
+        else:
+            space = SpaceApi.get_related_space(
+                space_uid=f"{space_type}__{space_id}", related_space_type=SpaceTypes.BKCC.value
+            )
+            if space:
+                bk_biz_id = str(space.bk_biz_id)
+
+        # 优先选择default_settings中配置了对应业务ID的VM集群
+        if bk_biz_id:
+            vm_clusters = (
+                ClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, cluster_type=ClusterInfo.TYPE_VM)
+                .only("cluster_id", "cluster_name", "default_settings")
+                .order_by("-cluster_id")
+            )
+            for cluster in vm_clusters:
+                default_settings = cluster.default_settings or {}
+                if not isinstance(default_settings, dict):
+                    continue
+
+                cluster_bk_biz_id = default_settings.get("bk_biz_id")
+                if not cluster_bk_biz_id or str(cluster_bk_biz_id) != bk_biz_id:
+                    continue
+
+                return {"cluster_id": cluster.cluster_id, "cluster_name": cluster.cluster_name}
+
+        # 通过SpaceVMInfo查询对应的VM集群
+        space_vm_info = (
+            SpaceVMInfo.objects.filter(space_type=space_type, space_id=space_id).only("vm_cluster_id").first()
+        )
         if not space_vm_info:
             logger.warning("space_type: %s, space_id: %s not access vm", space_type, space_id)
         else:
             try:
-                cluster = ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_id=space_vm_info.vm_cluster_id)
+                cluster = ClusterInfo.objects.only("cluster_id", "cluster_name").get(
+                    bk_tenant_id=bk_tenant_id, cluster_id=space_vm_info.vm_cluster_id
+                )
             except Exception:
                 logger.error(
                     "space_type: %s, space_id: %s, cluster_id: %s not found",
@@ -468,12 +507,21 @@ def get_vm_cluster_id_name(
             return {"cluster_id": cluster.cluster_id, "cluster_name": cluster.cluster_name}
 
     # 获取默认 VM 集群
-    cluster = ClusterInfo.objects.filter(
-        bk_tenant_id=bk_tenant_id, cluster_type=ClusterInfo.TYPE_VM, is_default_cluster=True
-    ).first()
-    if not cluster:
+    default_clusters = list(
+        ClusterInfo.objects.filter(bk_tenant_id=bk_tenant_id, cluster_type=ClusterInfo.TYPE_VM, is_default_cluster=True)
+        .only("cluster_id", "cluster_name")
+        .order_by("-cluster_id")[:2]
+    )
+    if not default_clusters:
         logger.error("not found vm default cluster")
         raise ValueError("not found vm default cluster")
+    if len(default_clusters) > 1:
+        logger.warning(
+            "multiple vm default clusters found, cluster_ids: %s, selected: %s",
+            [cluster.cluster_id for cluster in default_clusters],
+            default_clusters[0].cluster_id,
+        )
+    cluster = default_clusters[0]
     return {"cluster_id": cluster.cluster_id, "cluster_name": cluster.cluster_name}
 
 
@@ -782,7 +830,10 @@ def create_bkbase_data_link(
         data_link_name=data_link_name,
         namespace=namespace,
         data_link_strategy=data_link_strategy,
-        defaults={"bk_data_id": data_source.bk_data_id, "table_ids": [monitor_table_id]},
+        defaults={
+            "bk_data_id": data_source.bk_data_id,
+            "table_ids": [monitor_table_id],
+        },
     )
     try:
         # 2. 尝试根据套餐，申请创建链路

@@ -12,7 +12,7 @@ import pytest
 
 from core.drf_resource.exceptions import CustomException
 from kernel_api.resource.bkm_cli import BkmCliOpCallResource
-from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
+from kernel_api.rpc.bkm_cli_registry import BkmCliOpNotFound, BkmCliOpRegistry
 from kernel_api.rpc.registry import KernelRPCRegistry
 
 
@@ -63,6 +63,31 @@ def test_bkm_cli_op_call_rejects_unknown_op_id():
         BkmCliOpCallResource().perform_request({"op_id": "missing-op", "params": {}})
 
     assert "未找到 bkm-cli op" in str(exc.value)
+
+
+def test_resolve_unknown_op_raises_op_not_found_with_code_404():
+    """未注册 op 抛 BkmCliOpNotFound，且 .code == 404（让 CLI 映射为 target_not_found，
+    而非误落 invalid_argument 兜底导致 agent 徒劳改 schema）。"""
+    KernelRPCRegistry.ensure_loaded()
+    with pytest.raises(BkmCliOpNotFound) as exc:
+        BkmCliOpRegistry.resolve("不存在的op")
+
+    assert exc.value.code == 404
+    assert exc.value.status_code == 404
+    # 子类仍是 CustomException，沿用既有异常处理链
+    assert isinstance(exc.value, CustomException)
+    assert "未找到 bkm-cli op" in str(exc.value)
+
+
+def test_op_not_found_code_survives_into_envelope():
+    """custom_exception_handler 末尾 result.update(exc.extra) 不会把 envelope 的 code 冲掉，
+    最终 envelope 里 code 仍为 404（子类 __init__ 已把 code=404 注入 extra）。"""
+    from core.drf_resource.exceptions import custom_exception_handler
+
+    exc = BkmCliOpNotFound(message="未找到 bkm-cli op: x")
+    response = custom_exception_handler(exc, context={})
+    assert response.status_code == 404
+    assert response.data["code"] == 404
 
 
 def test_bkm_cli_op_call_does_not_accept_raw_func_name():

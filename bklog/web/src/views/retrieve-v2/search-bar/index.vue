@@ -69,6 +69,14 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   },
+  /**
+   * 将检索输入弹层挂载到 body，避免在嵌套 resize-layout / overflow 容器内被遮挡。
+   * 默认关闭，只有上下文/实时日志新 Tab 的下半部分原始日志检索结果开启。
+   */
+  popupAppendToBody: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits([
@@ -838,6 +846,7 @@ defineExpose({
             v-if="activeIndex === 0"
             v-model="uiQueryValue"
             class="search-input-section"
+            :popup-append-to-body="popupAppendToBody"
             @change="handleBtnQueryClick"
             @text-to-query="handleUITextToQuery"
           >
@@ -849,6 +858,7 @@ defineExpose({
             v-if="activeIndex === 1"
             v-model="sqlQueryValue"
             class="search-input-section"
+            :popup-append-to-body="popupAppendToBody"
             @retrieve="handleSqlRetrieve"
             @text-to-query="handleTextToQuery"
           >

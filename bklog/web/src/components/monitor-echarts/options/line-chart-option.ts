@@ -86,7 +86,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
               }
             : this.handleYxisLabelFormatter,
         },
-        max: (v: { min: number; max: number }) => Math.max(v.max, maxThreshold),
+        max: (v: { min: number; max: number }) => Math.max(v.max + (Math.abs(v.max - v.min) || Math.abs(v.max) || 1) * 0.1, maxThreshold),
         min: (v: { min: number; max: number }) => Math.min(v.min, minThreshold),
         splitNumber: 4,
         minInterval: 1,

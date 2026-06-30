@@ -2054,6 +2054,377 @@ class CreateTapdResource(Resource):
         return tapd_info
 
 
+class ListIssueTapdRelationsResource(Resource):
+    """
+    获取指定 Issue 关联的 TAPD 单据信息
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+        issue_id = IssueIDField(label="Issue ID")
+
+    def perform_request(self, validated_request_data: dict) -> list:
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        issue_id = validated_request_data["issue_id"]
+
+        # 校验 Issue 存在且归属当前业务
+        IssueDocument.get_issue_or_raise(issue_id, bk_biz_id=bk_biz_id)
+
+        # 查询关联关系
+        relations = IssueTapdRelation.objects.filter(
+            bk_biz_id=bk_biz_id,
+            issue_id=issue_id,
+        ).order_by("-create_time")
+
+        # 构建 results
+        results = []
+        for obj in relations:
+            results.append(
+                {
+                    "relation_id": obj.id,
+                    "bk_biz_id": obj.bk_biz_id,
+                    "issue_id": obj.issue_id,
+                    "workspace_id": obj.workspace_id,
+                    "tapd_id": obj.tapd_id,
+                    "tapd_type": obj.tapd_type,
+                    "tapd_title": obj.tapd_title,
+                    "link_mode": obj.link_mode,
+                    "sync_status": obj.sync_status,
+                }
+            )
+
+        return results
+
+
+class LinkIssueToTapdResource(Resource):
+    """
+    将指定 Issue 与一个或多个 TAPD 单据建立关联关系
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        class TapdItem(serializers.Serializer):
+            tapd_id = serializers.CharField(label="TAPD 单据 ID")
+            tapd_type = serializers.ChoiceField(label="TAPD 单据类型", choices=["story", "bug"])
+            tapd_title = serializers.CharField(label="TAPD 单据标题")
+
+        bk_biz_id = serializers.IntegerField(label="业务 ID")
+        issue_id = IssueIDField(label="Issue ID")
+        workspace_id = serializers.IntegerField(label="TAPD 项目 ID")
+        tapd_items = serializers.ListField(
+            label="TAPD 单据列表",
+            child=TapdItem(),
+            min_length=1,
+            max_length=200,
+        )
+        sync_status = serializers.BooleanField(
+            label="是否同步单据状态",
+            help_text="勾选后，TAPD单据完成时自动同步状态到Issue",
+        )
+
+        def validate(self, attrs):
+            if attrs.get("sync_status"):
+                raise serializers.ValidationError("sync_status is not supported until TAPD status sync is implemented")
+
+            seen_tapd_ids = set()
+            for item in attrs.get("tapd_items", []):
+                tapd_id = item["tapd_id"]
+                if tapd_id in seen_tapd_ids:
+                    raise serializers.ValidationError(f"duplicate TAPD ID: {tapd_id}")
+                seen_tapd_ids.add(tapd_id)
+            return attrs
+
+    @staticmethod
+    def _validate_workspace_binding(bk_biz_id: int, workspace_id: int) -> None:
+        """校验当前业务空间已绑定 TAPD 项目。"""
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        tenant_id = space_uid_to_bk_tenant_id(space_uid)
+        if not TapdWorkspaceBinding.objects.filter(
+            bk_tenant_id=tenant_id,
+            space_uid=space_uid,
+            tapd_workspace_id=str(workspace_id),
+        ).exists():
+            raise serializers.ValidationError(f"TAPD 项目 {workspace_id} 未与当前业务关联")
+
+    @staticmethod
+    def _validate_tapd_items(workspace_id: int, tapd_items: list[dict]) -> list[dict]:
+        """校验 TAPD 单据真实存在且归属于指定项目，并用 TAPD 返回标题覆盖前端传值。"""
+        items_by_type: dict[str, dict[str, dict]] = {}
+        for item in tapd_items:
+            items_by_type.setdefault(item["tapd_type"], {})[str(item["tapd_id"])] = item
+
+        for tapd_type, items_by_id in items_by_type.items():
+            expected_ids = list(items_by_id.keys())
+            queried_items = SearchTAPDItemsResource._query_tapd_items(
+                tapd_type=tapd_type,
+                workspace_id=workspace_id,
+                id=",".join(expected_ids),
+                limit=len(expected_ids),
+                page=1,
+                order="created desc",
+                fields="id,name",
+            )
+            queried_items_by_id = {str(item.get("id")): item for item in queried_items}
+            missing_ids = sorted(set(expected_ids) - set(queried_items_by_id.keys()))
+            if missing_ids:
+                raise serializers.ValidationError(
+                    f"TAPD 单据不存在或不属于项目 {workspace_id}: {', '.join(missing_ids)}"
+                )
+
+            for tapd_id, item in items_by_id.items():
+                item["tapd_title"] = queried_items_by_id[tapd_id].get("name") or item.get("tapd_title", "")
+
+        return tapd_items
+
+    @staticmethod
+    def _bulk_check_existing(
+        bk_biz_id: int,
+        issue_id: str,
+        workspace_id: int,
+        tapd_ids: list[str],
+    ) -> dict[tuple[int, int, str, str], IssueTapdRelation]:
+        """批量查重：返回已关联的记录 {(bk_biz_id, issue_id, workspace_id, tapd_id): IssueTapdRelation}"""
+        existing = IssueTapdRelation.objects.filter(
+            bk_biz_id=bk_biz_id,
+            issue_id=issue_id,
+            workspace_id=workspace_id,
+            tapd_id__in=tapd_ids,
+        )
+        return {(obj.bk_biz_id, obj.issue_id, obj.workspace_id, obj.tapd_id): obj for obj in existing}
+
+    @staticmethod
+    def _bulk_create_relations(
+        bk_biz_id: int,
+        issue_id: str,
+        workspace_id: int,
+        sync_status: bool,
+        to_create: list[dict],
+    ) -> list[IssueTapdRelation]:
+        """批量创建关联记录
+
+        注意：MySQL 下 bulk_create 返回的对象不会填充 PK，因此需要重新查询。
+        """
+        objs = [
+            IssueTapdRelation(
+                bk_biz_id=bk_biz_id,
+                issue_id=issue_id,
+                workspace_id=workspace_id,
+                tapd_id=item["tapd_id"],
+                tapd_type=item["tapd_type"],
+                tapd_title=item.get("tapd_title", ""),
+                link_mode="link",
+                sync_status=sync_status,
+            )
+            for item in to_create
+        ]
+        IssueTapdRelation.objects.bulk_create(objs)
+        # MySQL 下 bulk_create 返回的对象不会填充 PK，需要重新查询
+        return IssueTapdRelation.objects.filter(
+            bk_biz_id=bk_biz_id,
+            issue_id=issue_id,
+            workspace_id=workspace_id,
+            tapd_id__in=[item["tapd_id"] for item in to_create],
+        )
+
+    @staticmethod
+    def _record_link_activities(
+        issue_id: str,
+        bk_biz_id: int,
+        workspace_id: int,
+        items: list[dict],
+    ) -> list[dict]:
+        """记录关联活动日志并返回完整活动列表
+
+        Args:
+            issue_id: Issue ID
+            bk_biz_id: 业务 ID
+            workspace_id: TAPD 项目 ID
+            items: 需要记录活动的关联项列表
+
+        Returns:
+            完整的活动日志列表（新活动在前，历史在后）
+        """
+        # 读取历史活动日志
+        try:
+            search = (
+                IssueActivityDocument.search(all_indices=True)
+                .filter("term", issue_id=issue_id)
+                .sort("-time")
+                .extra(size=500)
+            )
+            existing_activities = [
+                {
+                    "bk_biz_id": hit.bk_biz_id,
+                    "activity_id": hit.meta.id,
+                    "activity_type": hit.activity_type,
+                    "operator": hit.operator or "",
+                    "from_value": getattr(hit, "from_value", None) or None,
+                    "to_value": getattr(hit, "to_value", None) or None,
+                    "content": getattr(hit, "content", None) or None,
+                    "time": int(hit.time) if hit.time else 0,
+                }
+                for hit in search.execute().hits
+            ]
+        except Exception:
+            logger.exception("Failed to read activities, issue_id=%s", issue_id)
+            existing_activities = []
+
+        if not items:
+            return existing_activities
+
+        # 批量写入活动日志
+        create_time = int(time.time())
+        create_username = get_request_username()
+        new_activities = []
+        for item in items:
+            tapd_content = json.dumps(
+                {
+                    "tapd_id": item["tapd_id"],
+                    "tapd_type": item["tapd_type"],
+                    "tapd_title": item.get("tapd_title", ""),
+                    "workspace_id": workspace_id,
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+            new_activities.append(
+                IssueActivityDocument(
+                    issue_id=issue_id,
+                    bk_biz_id=bk_biz_id,
+                    activity_type=IssueActivityType.TAPD_LINK,
+                    from_value=None,
+                    to_value=str(item["tapd_id"]),
+                    operator=create_username,
+                    content=tapd_content,
+                    time=create_time,
+                    create_time=create_time,
+                )
+            )
+
+        try:
+            IssueActivityDocument.bulk_create(new_activities)
+        except Exception as e:
+            logger.warning(
+                "IssueActivityDocument tapd_link activity write failed, retrying once, issue_id=%s: %s",
+                issue_id,
+                e,
+            )
+            try:
+                IssueActivityDocument.bulk_create(new_activities)
+            except Exception as e2:
+                logger.error(
+                    "IssueActivityDocument tapd_link activity write retry failed, issue_id=%s: %s",
+                    issue_id,
+                    e2,
+                )
+                return existing_activities
+
+        # 拼装新活动
+        new_activity_items = [
+            {
+                "bk_biz_id": act.bk_biz_id,
+                "activity_id": act.id,
+                "activity_type": act.activity_type,
+                "operator": act.operator or "",
+                "from_value": act.from_value,
+                "to_value": act.to_value,
+                "content": act.content,
+                "time": act.time,
+            }
+            for act in new_activities
+        ]
+        return new_activity_items + existing_activities
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        issue_id = validated_request_data["issue_id"]
+        workspace_id = validated_request_data["workspace_id"]
+        sync_status = validated_request_data["sync_status"]
+        tapd_items = validated_request_data["tapd_items"]
+
+        # 校验 Issue 存在且归属当前业务
+        IssueDocument.get_issue_or_raise(issue_id, bk_biz_id=bk_biz_id)
+        # 已被合并冻结的 Issue 禁止关联 TAPD
+        IssueMergeResolver.assert_not_frozen(issue_id)
+        # 校验 TAPD 项目已绑定当前业务空间
+        self._validate_workspace_binding(bk_biz_id, workspace_id)
+        # 校验 TAPD 单据存在且归属于当前项目
+        tapd_items = self._validate_tapd_items(workspace_id, tapd_items)
+
+        # 提取 tapd_id 列表用于批量查重
+        tapd_ids = [item["tapd_id"] for item in tapd_items]
+        # 批量查重：当前 issue 已关联的记录
+        existing_map = self._bulk_check_existing(bk_biz_id, issue_id, workspace_id, tapd_ids)
+        # 分离需要新建的关联项
+        to_create = [
+            item for item in tapd_items if (bk_biz_id, issue_id, workspace_id, item["tapd_id"]) not in existing_map
+        ]
+
+        # 批量创建关联记录
+        created_objs = []
+        if to_create:
+            created_objs = self._bulk_create_relations(
+                bk_biz_id=bk_biz_id,
+                issue_id=issue_id,
+                workspace_id=workspace_id,
+                sync_status=sync_status,
+                to_create=to_create,
+            )
+
+        # 更新已存在关联的 sync_status
+        if existing_map:
+            to_update = []
+            for _, obj in existing_map.items():
+                if obj.sync_status != sync_status:
+                    obj.sync_status = sync_status
+                    to_update.append(obj)
+            if to_update:
+                IssueTapdRelation.objects.bulk_update(to_update, ["sync_status"])
+
+        # 构建 results（包含所有关联项，已存在 + 新建）
+        results = []
+        # 新建的关联项
+        for obj in created_objs:
+            results.append(
+                {
+                    "relation_id": obj.id,
+                    "bk_biz_id": obj.bk_biz_id,
+                    "issue_id": obj.issue_id,
+                    "workspace_id": obj.workspace_id,
+                    "tapd_id": obj.tapd_id,
+                    "tapd_type": obj.tapd_type,
+                    "tapd_title": obj.tapd_title,
+                    "sync_status": obj.sync_status,
+                }
+            )
+        # 已存在的关联项
+        for _, obj in existing_map.items():
+            results.append(
+                {
+                    "relation_id": obj.id,
+                    "bk_biz_id": obj.bk_biz_id,
+                    "issue_id": obj.issue_id,
+                    "workspace_id": obj.workspace_id,
+                    "tapd_id": obj.tapd_id,
+                    "tapd_type": obj.tapd_type,
+                    "tapd_title": obj.tapd_title,
+                    "sync_status": obj.sync_status,
+                }
+            )
+
+        # 记录活动日志
+        activities = self._record_link_activities(
+            issue_id=issue_id,
+            bk_biz_id=bk_biz_id,
+            workspace_id=workspace_id,
+            items=to_create,
+        )
+
+        return {
+            "results": results,
+            "activities": activities,
+        }
+
+
 class ListUserTapdWorkspaceResource(Resource):
     """查询当前用户有权限的 TAPD 项目列表（冷启动去关联用）
 
@@ -2164,7 +2535,7 @@ class ListUserTapdWorkspaceResource(Resource):
             data={"auth_url": auth_url},
             code=403,
         )
-        exc.status_code = 403
+        exc.status_code = 200
         raise exc
 
     def _fetch_user_workspace_ids(
@@ -2330,7 +2701,7 @@ class UnbindTapdWorkspaceResource(Resource):
     """解除 TAPD 项目与当前业务的关联
 
     仅删除本地 TapdWorkspaceBinding，不在 TAPD 侧撤回应用授权。
-    端点：POST /fta/issue/tapd/workspace/unbind/
+    端点：POST /fta/issue/tapd/unbind_workspace
     """
 
     class RequestSerializer(serializers.Serializer):

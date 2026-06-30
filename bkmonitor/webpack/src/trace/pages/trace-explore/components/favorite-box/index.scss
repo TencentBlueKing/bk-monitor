@@ -5,12 +5,15 @@
 
   .header-wrapper {
     display: flex;
-    display: flex;
     align-items: center;
     padding: 15px 12px;
     font-size: 14px;
     line-height: 22px;
     color: #313238;
+
+    > .icon-monitor {
+      cursor: pointer;
+    }
 
     .number-tag {
       display: flex;

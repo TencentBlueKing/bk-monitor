@@ -50,6 +50,10 @@
     height: 100%;
   }
 
+  &.is-headless {
+    height: 100%;
+  }
+
   &.is-show-notice {
     height: calc(100% - 90px);
 

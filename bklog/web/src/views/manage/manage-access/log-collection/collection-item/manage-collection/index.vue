@@ -78,15 +78,20 @@
 <script>
   import BasicTab from '@/components/basic-tab';
   import AuthContainerPage from '@/components/common/auth-container-page';
-  import UsageDetails from '@/views/manage/manage-access/components/usage-details';
-  import IndexSetBasicInfo from '@/views/manage/manage-access/components/index-set/manage/basic-info';
-
   import * as authorityMap from '../../../../../../common/authority-map';
-  import BasicInfo from './basic-info';
-  import CollectionStatus from './collection-status';
-  import DataStatus from './data-status';
-  import DataStorage from './data-storage';
-  import FieldInfo from './field-info.tsx';
+
+  const BasicInfo = () => import(/* webpackChunkName: 'manage-collection-basic-info' */ './basic-info');
+  const CollectionStatus = () =>
+    import(/* webpackChunkName: 'manage-collection-status' */ './collection-status');
+  const DataStorage = () => import(/* webpackChunkName: 'manage-collection-data-storage' */ './data-storage');
+  const DataStatus = () => import(/* webpackChunkName: 'manage-collection-data-status' */ './data-status');
+  const FieldInfo = () => import(/* webpackChunkName: 'manage-collection-field-info' */ './field-info.tsx');
+  const UsageDetails = () =>
+    import(/* webpackChunkName: 'manage-collection-usage-details' */ '@/views/manage/manage-access/components/usage-details');
+  const IndexSetBasicInfo = () =>
+    import(
+      /* webpackChunkName: 'manage-index-set-basic-info' */ '@/views/manage/manage-access/components/index-set/manage/basic-info'
+    );
 
   export default {
     name: 'CollectionItem',
@@ -116,7 +121,7 @@
     },
     computed: {
       panels() {
-        const type = this.$route.query.typeKey
+        const type = this.$route.query.typeKey;
         // 第三方ES / 计算平台：仅3个 tab（与旧版 index-set/manage 对齐）
         if (['bkdata', 'es'].includes(type)) {
           return [
@@ -260,7 +265,7 @@
           const res = await this.$store.dispatch('checkAndGetData', paramData);
           if (!res.isAllowed) this.editAuthData = res.data;
           this.editAuth = res.isAllowed;
-        } catch (error) {
+        } catch {
           this.editAuth = false;
         }
       },

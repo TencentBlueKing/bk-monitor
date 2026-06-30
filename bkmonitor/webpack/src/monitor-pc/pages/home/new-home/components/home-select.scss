@@ -432,7 +432,7 @@
   top: calc(10px + var(--notice-alert-height));
   // right: 262px;
   right: 235px;
-  z-index: 100; // 数据探索→指标检索容器.data-retrieval-main: z-index: 9; tracing探索.inquire-right-header: z-index: 99;
+  z-index: 2000; // 与旧版 global-search-modal 一致；需高于告警分派配置页 sticky 表头 z-index: 666
   width: 720px !important;
   min-height: 32px;
 

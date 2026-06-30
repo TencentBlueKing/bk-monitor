@@ -276,19 +276,25 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   @Provide('onFilterChange')
   filterByChange(id: string, dimensionId: string, isSelect: boolean) {
     this.showCancelDrill = false;
-    if (!this.filterBy[dimensionId]) this.filterBy[dimensionId] = [];
+    if (!this.filterBy[dimensionId]) {
+      this.$set(this.filterBy, dimensionId, []);
+    }
     if (isSelect) {
       if (!this.groupInstance.hasGroupFilter(dimensionId as K8sTableColumnResourceKey)) {
         this.groupByChange(dimensionId, true);
       }
       /** workload维度只能选择一项 */
       if (dimensionId === EDimensionKey.workload) {
-        this.filterBy[dimensionId] = [id];
+        this.$set(this.filterBy, dimensionId, [id]);
       } else if (!this.filterBy[dimensionId].includes(id)) {
         this.filterBy[dimensionId].push(id);
       }
     } else {
-      this.filterBy[dimensionId] = this.filterBy[dimensionId].filter(item => item !== id);
+      this.$set(
+        this.filterBy,
+        dimensionId,
+        this.filterBy[dimensionId].filter(item => item !== id)
+      );
     }
   }
 
