@@ -30,6 +30,13 @@ THRESHOLD_ALGORITHM = {
     "config": [[{"method": "gte", "threshold": 10.0}]],
     "unit_prefix": "",
 }
+NEW_SERIES_ALGORITHM = {
+    "id": 9,
+    "type": "NewSeries",
+    "level": 1,
+    "config": {"detect_range": 86400, "effective_delay": 86400, "max_series": 100000},
+    "unit_prefix": "",
+}
 
 
 @pytest.fixture
@@ -147,6 +154,19 @@ def test_only_aiops(strategy):
         actual_trigger_count = trigger_config[level].get("trigger_count")
         assert expected_check_window_size == actual_check_window_size
         assert expected_trigger_count == actual_trigger_count
+
+
+def test_new_series_force_count_one(strategy):
+    """
+    NewSeries 单次性算法：后端强制 trigger_count=1，但 check_window_size 保留用户配置(非 aiops 的 5)。
+    """
+    algorithms = [NEW_SERIES_ALGORITHM]
+    strategy_config = create_strategy_config(algorithms, algorithms)
+    trigger_config = strategy.get_trigger_configs(strategy_config)
+    # level 1 含 NewSeries -> count 强制为 1
+    assert trigger_config["1"].get("trigger_count") == 1
+    # check_window_size 保留用户配置(15)，不被写成 aiops 的 5
+    assert trigger_config["1"].get("check_window_size") == 15
 
 
 def test_not_only_aiops(strategy):

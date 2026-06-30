@@ -66,7 +66,7 @@ const DEFAULT_TREND_CHART_FOLDED_HEIGHT = 40;
 const heightNum = ref(isTrendChartShow.value ? DEFAULT_TREND_CHART_EXPANDED_HEIGHT : DEFAULT_TREND_CHART_FOLDED_HEIGHT);
 const shouldRenderTrendChart = ref(false);
 const isTrendChartPending = ref(!shouldRenderTrendChart.value);
-const TREND_CHART_MIN_DELAY = 5000;
+const TREND_CHART_MIN_DELAY = 500;
 let renderTrendChartDelayTimer = null;
 let renderTrendChartIdleTimer = null;
 

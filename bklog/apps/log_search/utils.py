@@ -22,15 +22,21 @@ the project delivered to anyone in the future.
 import functools
 import json
 import operator
+import re
 from io import BytesIO
 from typing import Any
 
-from django.http import FileResponse
-import re
+from django.core.serializers.json import DjangoJSONEncoder
+from django.http import FileResponse, StreamingHttpResponse
 
 from apps.log_search.constants import DEFAULT_TIME_FIELD, HighlightConfig, ES_ERROR_PATTERNS
 from apps.log_search.exceptions import LogSearchException
 from apps.utils.local import get_request_external_username, get_request_username
+
+
+LOG_STREAM_CONTENT_TYPE = "application/x-ndjson; charset=utf-8"
+LOG_STREAM_ACCEPT = "application/x-ndjson"
+LOG_STREAM_QUERY_PARAM = "stream"
 
 
 def sort_func(data: list[dict[str, Any]], sort_list: list[list[str]], key_func=lambda x: x) -> list[dict[str, Any]]:
@@ -249,6 +255,68 @@ def create_download_response(buffer: BytesIO, file_name: str, content_type: str 
         content_type=content_type,
     )
 
+    return response
+
+
+def is_log_stream_request(request) -> bool:
+    """
+    判断日志结果是否使用 NDJSON 流式响应。
+    """
+    query_params = getattr(request, "query_params", None) or getattr(request, "GET", {})
+    stream_value = query_params.get(LOG_STREAM_QUERY_PARAM)
+    if isinstance(stream_value, bool):
+        return stream_value
+    if str(stream_value).lower() in {"1", "true"}:
+        return True
+
+    headers = getattr(request, "headers", {})
+    accept = headers.get("Accept") or getattr(request, "META", {}).get("HTTP_ACCEPT", "")
+    return LOG_STREAM_ACCEPT in accept
+
+
+def create_log_ndjson_stream_response(result: dict[str, Any]) -> StreamingHttpResponse:
+    """
+    将日志检索结果按 meta/row/done 格式流式输出。
+    """
+
+    def _json_line(payload: dict[str, Any]) -> str:
+        return json.dumps(payload, cls=DjangoJSONEncoder, ensure_ascii=False) + "\n"
+
+    def _stream():
+        data = result or {}
+        rows = data.get("list") or []
+        origin_rows = data.get("origin_log_list")
+        warnings = []
+
+        if origin_rows is None:
+            origin_rows = []
+            if rows:
+                warnings.append("origin_log_list_missing")
+        elif not isinstance(origin_rows, list):
+            origin_rows = []
+            warnings.append("origin_log_list_invalid")
+        elif len(origin_rows) != len(rows):
+            warnings.append("origin_log_list_length_mismatch")
+
+        meta = {key: value for key, value in data.items() if key not in {"list", "origin_log_list"}}
+        meta_warnings = meta.get("warnings") or []
+        if not isinstance(meta_warnings, list):
+            meta_warnings = [meta_warnings]
+        meta["warnings"] = meta_warnings + warnings
+
+        meta_event = dict(meta)
+        meta_event["event"] = "meta"
+        yield _json_line(meta_event)
+
+        for index, row in enumerate(rows):
+            origin_row = origin_rows[index] if index < len(origin_rows) else row
+            yield _json_line({"event": "row", "index": index, "data": row, "origin_data": origin_row})
+
+        yield _json_line({"event": "done"})
+
+    response = StreamingHttpResponse(_stream(), content_type=LOG_STREAM_CONTENT_TYPE)
+    response["Cache-Control"] = "no-cache"
+    response["X-Accel-Buffering"] = "no"
     return response
 
 

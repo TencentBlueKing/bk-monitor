@@ -8,7 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from django.db import models
 from django.conf import settings
@@ -35,6 +35,9 @@ class CollectConfigMeta(OperateRecordModelBase):
     """
     采集配置基本信息
     """
+
+    if TYPE_CHECKING:
+        deployment_config_id: int | None
 
     STATUS_CHOICES = (
         (Status.STARTING, _lazy("启用中")),
@@ -255,7 +258,7 @@ class CollectConfigMeta(OperateRecordModelBase):
         return None
 
     @property
-    def data_id(self):
+    def data_id(self) -> int | None:
         if self.collect_type == self.CollectType.PROCESS:
             # 进程采集对应dataid 有两个，通过ProcessPluginManager.perf_data_id 和 port_data_id获取
             return None

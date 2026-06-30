@@ -31,5 +31,6 @@ from .metric_list_cache import *  # noqa
 from .report import *  # noqa
 from .statistics import *  # noqa
 from .strategy import *  # noqa
+from .tapd import *  # noqa
 from .token import *  # noqa
 from .query_template import *  # noqa

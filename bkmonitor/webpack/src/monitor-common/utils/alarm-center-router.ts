@@ -268,6 +268,27 @@ export function openAlarmCenterDetail(
 }
 
 /**
+ * @description 安全解码 queryString 参数值
+ * 解决企业微信分享链接时 URL 被二次编码的问题
+ * @param value - 待解码的字符串（可能已被 encodeURIComponent 编码）
+ * @returns 解码后的字符串
+ * @example
+ * safeDecodeQueryString('key%20%3A%20value') // => 'key : value'
+ * safeDecodeQueryString('key : value') // => 'key : value'（已是解码状态，直接返回）
+ */
+export function safeDecodeQueryString(value: string): string {
+  if (!value || typeof value !== 'string') return value || '';
+  try {
+    // 尝试解码，如果值中包含 % 编码的字符，decodeURIComponent 会解码它们
+    const decoded = decodeURIComponent(value);
+    return decoded;
+  } catch {
+    // 解码失败（如包含单独的 % 但不是有效的编码序列），返回原始值
+    return value;
+  }
+}
+
+/**
  * 把"旧版事件中心 URL 参数"转换成"新版告警中心 URL 参数"。
  * 仅做字段映射，不负责 URL 拼接。
  */

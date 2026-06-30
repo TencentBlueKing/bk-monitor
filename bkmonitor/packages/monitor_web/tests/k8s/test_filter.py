@@ -1232,6 +1232,61 @@ class TestK8sListResources(TestCase):
             ] + [obj.to_meta_dict() for obj in orm_resource]
             self.assertEqual(pod_list, {"count": len(expect_pod_list), "items": expect_pod_list})
 
+    def test_with_network_pod_workload_filter(self):
+        validated_request_data = {
+            "scenario": "network",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "start_time": 1735801850,
+            "end_time": 1735805450,
+            "filter_dict": {"namespace": "blueking", "workload": ["Deployment:bk-monitor-web"]},
+            "page_size": 10,
+            "page": 1,
+            "resource_type": "pod",
+            "with_history": True,
+            "page_type": "scrolling",
+            "bk_biz_id": 2,
+            "order_by": "desc",
+            "method": "sum",
+            "column": "container_network_receive_bytes_total",
+        }
+        query_result = [
+            {
+                "dimensions": {
+                    "namespace": "blueking",
+                    "pod": "bk-monitor-web-579f6bf4bc-nmld9",
+                    "pod_name": "bk-monitor-web-579f6bf4bc-nmld9",
+                },
+                "target": "{namespace=blueking, pod=bk-monitor-web-579f6bf4bc-nmld9}",
+                "metric_field": "_result_",
+                "datapoints": [[661.64, 1733104260000]],
+                "alias": "_result_",
+                "type": "line",
+                "dimensions_translation": {},
+                "unit": "",
+            }
+        ]
+        with mock.patch("core.drf_resource.resource.grafana.graph_unify_query") as mock_graph_unify_query:
+            mock_graph_unify_query.return_value = {"series": query_result}
+            pod_list = ListK8SResources()(validated_request_data)
+
+        query_params = mock_graph_unify_query.call_args.args[0]
+        promql = query_params["query_configs"][0]["promql"]
+        self.assertIn('namespace="blueking"', promql)
+        self.assertIn('workload_kind="Deployment"', promql)
+        self.assertIn('workload_name="bk-monitor-web"', promql)
+        self.assertEqual(
+            pod_list,
+            {
+                "count": 1,
+                "items": [
+                    {
+                        "namespace": "blueking",
+                        "pod": "bk-monitor-web-579f6bf4bc-nmld9",
+                    }
+                ],
+            },
+        )
+
     def test_with_container(self):
         validated_request_data = {
             "bk_biz_id": 2,

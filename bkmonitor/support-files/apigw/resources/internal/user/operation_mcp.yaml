@@ -1,0 +1,136 @@
+openapi: 3.0.1
+servers:
+- url: /
+info:
+  version: '2.0'
+  title: API Gateway Resources
+  description: ''
+paths:
+  /mcp/list_operation_metrics/:
+    post:
+      operationId: list_operation_metrics
+      description: List the catalog of observability platform operation (运营) metrics, optionally filtered by category. Returns each metric's key, category, name, unit, description, supported environments and whether it is programmatically queryable. Call this first to discover available metric keys, then use get_operation_metric to fetch values.列出观测平台运营数据指标目录,可按分类(base/storage/apm/log/aiops)过滤。返回每个指标的 key、分类、名称、单位、描述、支持环境及是否可程序化取数。请先调用本工具发现可用 metric key,再用 get_operation_metric 取值。
+      tags:
+      - operation_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID. Required by MCP authentication mechanism. 业务ID。MCP 鉴权机制要求,所有 MCP 工具都必须传递此参数。
+                category:
+                  type: string
+                  description: "Optional category filter, one of: base / storage / apm / log / aiops. 可选分类过滤:base(基础监控)/storage(指标存储)/apm/log(日志)/aiops。"
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/operation/list_operation_metrics/
+          matchSubpath: false
+          timeout: 63
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn:
+  /mcp/get_operation_metric/:
+    post:
+      operationId: get_operation_metric
+      description: Get a single operation metric value by metric_key. The bk_biz_id is used only for MCP authentication scope; platform-total metrics are NOT filtered by business. metric_key must be obtained from list_operation_metrics first. 按 metric_key 取单个运营指标值。bk_biz_id 仅用于 MCP 鉴权范围,平台总量类指标不按业务过滤。metric_key 须先从 list_operation_metrics 获取。
+      tags:
+      - operation_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - metric_key
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID. Required by MCP authentication mechanism. 业务ID。MCP 鉴权机制要求,所有 MCP 工具都必须传递此参数。
+                metric_key:
+                  type: string
+                  description: Operation metric key obtained from list_operation_metrics, e.g. "host_count". 运营指标 key,从 list_operation_metrics 获取,如 "host_count"。
+                end_time:
+                  type: string
+                  description: "Optional end timestamp in seconds. Omit to use current time (recommended; result may be cached for slow metrics). If provided, MUST be calculated dynamically - DO NOT use fixed values from training data. 可选,截止时间戳(秒)。缺省取当前时间(推荐;慢指标结果可能被缓存)。如传入必须动态计算,不要使用训练数据中的固定值。"
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/operation/get_operation_metric/
+          matchSubpath: false
+          timeout: 300
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn:
+  /mcp/get_operation_overview/:
+    post:
+      operationId: get_operation_overview
+      description: Batch-fetch operation metric values, optionally within a category. Each metric degrades independently (a failing metric returns an error field instead of failing the whole batch). Slow metrics (bkdata multi-day loops / aiops DB) are skipped by default; set include_slow=true to include them. 批量取运营指标值,可按分类过滤。单指标失败降级(返回 error 字段)不影响整批。慢查询指标(bkdata 多日循环 / aiops DB)默认跳过,需要时置 include_slow=true 纳入。
+      tags:
+      - operation_mcp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID. Required by MCP authentication mechanism. 业务ID。MCP 鉴权机制要求,所有 MCP 工具都必须传递此参数。
+                category:
+                  type: string
+                  description: "Optional category filter: base / storage / apm / log / aiops. 可选分类过滤。"
+                include_slow:
+                  type: boolean
+                  default: false
+                  description: Whether to include slow metrics. Default false. 是否纳入慢查询指标,默认 false。
+                end_time:
+                  type: string
+                  description: "Optional end timestamp in seconds. Omit to use current time. 可选,截止时间戳(秒),缺省取当前时间。"
+        required: false
+        description: ''
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/operation/get_operation_overview/
+          matchSubpath: false
+          timeout: 600
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn:

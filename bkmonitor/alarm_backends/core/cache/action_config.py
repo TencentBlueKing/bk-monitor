@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,8 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import datetime
-from typing import Dict
 
 import pytz
 
@@ -29,6 +28,9 @@ class ActionConfigCacheManager(CacheManager):
     CACHE_KEY_TEMPLATE = CacheManager.CACHE_KEY_PREFIX + ".action_config.{cache_type}_{cache_id}"
 
     PLUGIN_CACHE_KEY = CacheManager.CACHE_KEY_PREFIX + ".action_plugin_{cache_id}"
+
+    # 负缓存哨兵标记: 取值非空但 is_enabled=False, 表示已通过 DB 确认该套餐确实不存在/已删除
+    NEGATIVE_CACHE_FLAG = "__negative__"
 
     class CacheType:
         CONFIG_ID = "config_id"
@@ -56,14 +58,14 @@ class ActionConfigCacheManager(CacheManager):
         }
 
     @classmethod
-    def get_action_plugin_by_id(cls, plugin_id: int) -> Dict:
+    def get_action_plugin_by_id(cls, plugin_id: int) -> dict:
         """
         从缓存中获取策略详情
         """
         return extended_json.loads(cls.cache.get(cls.PLUGIN_CACHE_KEY.format(cache_id=plugin_id)) or "{}")
 
     @classmethod
-    def get_action_config_by_id(cls, config_id: int) -> Dict:
+    def get_action_config_by_id(cls, config_id: int) -> dict:
         """
         从缓存中获取策略详情
         """
@@ -72,6 +74,45 @@ class ActionConfigCacheManager(CacheManager):
 
         return extended_json.loads(
             cls.cache.get(cls.CACHE_KEY_TEMPLATE.format(cache_type=cls.CacheType.CONFIG_ID, cache_id=config_id)) or "{}"
+        )
+
+    @classmethod
+    def get_action_config_from_db(cls, config_id: int) -> dict:
+        """
+        缓存未命中时, 从 DB 直读单个套餐配置, 序列化成与缓存一致的结构。
+        objects 管理器已排除软删, 故返回空 dict 表示该套餐已被删除或不存在;
+        被停用(is_enabled=False)的套餐仍会返回, 由调用方按 is_enabled 判定有效性。
+        仅用于"策略近期变更"导致的缓存传播延迟兜底, 不要在常规读路径无差别调用。
+        """
+        instance = ActionConfig.objects.filter(id=config_id).first()
+        if not instance:
+            return {}
+        return ActionConfigDetailSlz(instance=instance).data
+
+    @classmethod
+    def set_action_config_cache(cls, config_id: int, action_config: dict) -> None:
+        """
+        将单个套餐配置写回缓存(正向), 复用全量刷新的键模板与超时。
+        """
+        cls.cache.set(
+            cls.CACHE_KEY_TEMPLATE.format(cache_type=cls.CacheType.CONFIG_ID, cache_id=config_id),
+            extended_json.dumps(action_config),
+            cls.CACHE_TIMEOUT,
+        )
+
+    @classmethod
+    def set_negative_cache(cls, config_id: int, ttl: int) -> None:
+        """
+        写入短 TTL 的负缓存哨兵: 取值非空但 is_enabled=False。
+        作用: DB 兜底也未命中(套餐确实已删/不存在)时, 在 ttl 内避免对同一不存在配置反复
+        回查 DB, 防止缓存穿透。哨兵非空, 故下次读取不会再次触发 DB 兜底; ttl 到期后自动消失,
+        周期刷新也会用真实配置覆盖它。
+        """
+        sentinel = {"id": config_id, "is_enabled": False, cls.NEGATIVE_CACHE_FLAG: True}
+        cls.cache.set(
+            cls.CACHE_KEY_TEMPLATE.format(cache_type=cls.CacheType.CONFIG_ID, cache_id=config_id),
+            extended_json.dumps(sentinel),
+            ttl,
         )
 
     @classmethod

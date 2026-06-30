@@ -309,5 +309,7 @@ export default {
   克隆配置不能和源模板一致: 'Cloned configuration cannot be consistent with the source template',
   静态阈值算法只能添加一次: 'Static threshold algorithm can only be added once',
   同环比算法最多添加三个级别: 'Algorithm for adding three levels at most',
+  新维度值检测最多支持三个告警级别: 'New dimension value detection supports at most three alarm levels',
   必须选择一个检测规则: 'You must select a detection rule',
+  时间不能为空且必须大于0: 'Time cannot be empty and must be greater than 0',
 };

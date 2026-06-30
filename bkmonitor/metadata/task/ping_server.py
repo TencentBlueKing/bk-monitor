@@ -18,6 +18,7 @@ from django.conf import settings
 from alarm_backends.management.hashring import HashRing
 from api.cmdb.define import Host
 from bkmonitor.commons.tools import is_ipv6_biz
+from bkmonitor.utils.new_env import is_biz_id_in_black_list
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.prometheus import metrics
@@ -157,6 +158,8 @@ def _refresh_ping_conf_by_cloud_id(
         for p in proxy_list:
             if p["status"] != "RUNNING":
                 logger.warning("proxy({}) can not be use with pingserver, it's not running".format(p["inner_ip"]))
+            elif is_biz_id_in_black_list(p["bk_biz_id"]):
+                logger.warning(f"proxy({p['inner_ip']}) can not be use with pingserver, it's in black list")
             else:
                 proxies.append(p)
                 target_hosts.append(
