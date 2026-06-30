@@ -24,27 +24,54 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent } from 'vue';
+import { defineComponent, onMounted } from 'vue';
 
-import { ResizeLayout } from 'bkui-vue';
+import { Message, ResizeLayout } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
+import { useI18n } from 'vue-i18n';
 
+import HostContentTabs from './components/host-content-tabs/host-content-tabs';
+import HostLocationBar from './components/host-location-bar/host-location-bar';
+import HostTopoTree from './components/host-topo-tree/host-topo-tree';
+import { useHostTopoTree } from './composables/use-host-topo-tree';
 import { HOST_PAGE_HEADER_NAV_BAR_LIST } from './constants/constants';
 import CommonHeader from '@/components/common-header/common-header';
 import { useHostStore } from '@/store/modules/host';
+
+import type { IHostTopoHostNode } from './types';
 
 import './host.scss';
 
 export default defineComponent({
   name: 'HostPage',
   setup() {
+    const { t } = useI18n();
     const { timeRange, timezone, refreshImmediate, refreshInterval, scene } = storeToRefs(useHostStore());
+
+    // 拓扑树控制器（Controller），由页面统一持有，向侧边栏与标题栏分发
+    const topoTree = useHostTopoTree();
+
+    onMounted(() => {
+      topoTree.loadTopoTree();
+    });
+
+    /** 主机对比：本期表格内容未开发，先以消息提示反馈交互（占位） */
+    const handleCompare = (payload: { source: IHostTopoHostNode; target: IHostTopoHostNode }) => {
+      Message({
+        theme: 'primary',
+        message: `${t('主机对比')}：${payload.source.ip} vs ${payload.target.ip}`,
+      });
+    };
+
     return {
+      t,
       timeRange,
       timezone,
       refreshImmediate,
       refreshInterval,
       scene,
+      topoTree,
+      handleCompare,
     };
   },
   render() {
@@ -64,45 +91,52 @@ export default defineComponent({
         >
           {{
             left: () => (
-              <ul class='host-page-header-nav'>
-                {HOST_PAGE_HEADER_NAV_BAR_LIST.map(item => (
-                  <li
-                    key={item.value}
-                    class={['host-page-header-nav-item', { active: item.value === this.scene }]}
-                    onClick={() => (this.scene = item.value)}
-                  >
-                    <div class='bar-name'>{item.label}</div>
-                  </li>
-                ))}
-              </ul>
+              <div class='host-page-header-left'>
+                <ul class='host-page-header-nav'>
+                  {HOST_PAGE_HEADER_NAV_BAR_LIST.map(item => (
+                    <li
+                      key={item.value}
+                      class={['host-page-header-nav-item', { active: item.value === this.scene }]}
+                      onClick={() => (this.scene = item.value)}
+                    >
+                      <div class='bar-name'>{this.t(item.label)}</div>
+                    </li>
+                  ))}
+                </ul>
+                {this.scene === 'host' && <HostLocationBar selectedNode={this.topoTree.selectedNode.value} />}
+              </div>
             ),
           }}
         </CommonHeader>
         <div class='host-page-content'>
-          <ResizeLayout
-            class='host-page-content-layout'
-            v-slots={{
-              aside: () => (
-                <div class='host-page-content-aside'>
-                  <div class='host-page-content-aside-top' />
-                </div>
-              ),
-              main: () => (
-                <div class='host-page-content-main'>
-                  <div class='host-page-content-main-left'>
-                    <div class='host-page-content-main-left-top' />
+          {this.scene === 'host' ? (
+            <ResizeLayout
+              class='host-page-content-layout'
+              v-slots={{
+                aside: () => (
+                  <HostTopoTree
+                    context={this.topoTree}
+                    onCompare={this.handleCompare}
+                  />
+                ),
+                main: () => (
+                  <div class='host-page-content-main'>
+                    <HostContentTabs />
                   </div>
-                </div>
-              ),
-            }}
-            border={false}
-            initialDivide={280}
-            max={800}
-            min={200}
-            placement='left'
-            collapsible
-            immediate
-          />
+                ),
+              }}
+              border={false}
+              initialDivide={280}
+              max={800}
+              min={200}
+              placement='left'
+              collapsible
+              immediate
+            />
+          ) : (
+            // 进程监控场景本期占位
+            <div class='host-page-process-placeholder' />
+          )}
         </div>
       </div>
     );

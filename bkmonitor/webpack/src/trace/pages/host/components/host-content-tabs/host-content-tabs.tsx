@@ -23,31 +23,45 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export const HOST_PAGE_HEADER_NAV_BAR_LIST = [
-  {
-    label: '主机监控',
-    value: 'host',
-  },
-  {
-    label: '进程监控',
-    value: 'process',
-  },
-] as const;
 
-export type HostPageScene = (typeof HOST_PAGE_HEADER_NAV_BAR_LIST)[number]['value'];
+import { defineComponent, shallowRef } from 'vue';
 
-/** 内容区 Tab：主机列表、指标汇聚（label 为 i18n key，icon 为 icon-monitor 字体类名） */
-export const HOST_CONTENT_TAB_LIST = [
-  {
-    label: '主机列表',
-    value: 'list',
-    icon: 'icon-mc-list',
-  },
-  {
-    label: '指标汇聚',
-    value: 'metric',
-    icon: 'icon-zhibiaojiansuo',
-  },
-] as const;
+import { useI18n } from 'vue-i18n';
 
-export type HostContentTab = (typeof HOST_CONTENT_TAB_LIST)[number]['value'];
+import { HOST_CONTENT_TAB_LIST, type HostContentTab } from '../../constants/constants';
+
+import './host-content-tabs.scss';
+
+export default defineComponent({
+  name: 'HostContentTabs',
+  setup() {
+    const { t } = useI18n();
+    /** 当前激活 Tab，默认主机列表 */
+    const activeTab = shallowRef<HostContentTab>('list');
+
+    const handleTabChange = (value: HostContentTab) => {
+      activeTab.value = value;
+    };
+
+    return () => (
+      <div class='host-content-tabs'>
+        <div class='host-content-tabs__tabs'>
+          {HOST_CONTENT_TAB_LIST.map(tab => (
+            <div
+              key={tab.value}
+              class={['host-content-tabs__tab', { 'is-active': activeTab.value === tab.value }]}
+              onClick={() => handleTabChange(tab.value)}
+            >
+              <i class={['icon-monitor', tab.icon, 'host-content-tabs__tab-icon']} />
+              <span>{t(tab.label)}</span>
+            </div>
+          ))}
+        </div>
+        <div class='host-content-tabs__content'>
+          {/* 主机列表 / 指标汇聚 内容本期暂以占位替代 */}
+          <div class='host-content-tabs__placeholder' />
+        </div>
+      </div>
+    );
+  },
+});
