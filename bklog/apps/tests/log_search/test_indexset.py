@@ -847,9 +847,10 @@ class IndexGroupViewSetTestCase(TestCase):
         self.index_group = new_group
 
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
+    @patch("apps.log_search.models.SpaceApi.batch_get_space_detail")
     @patch("apps.log_search.models.SpaceApi.get_space_detail")
-    def test_list_index_groups(self, mock_get_space_detail, *args, **kwargs):
-        mock_get_space_detail.return_value = Space(
+    def test_list_index_groups(self, mock_get_space_detail, mock_batch_get_space_detail, *args, **kwargs):
+        mock_space = Space(
             id=2,
             space_type_id="bkcc",
             space_id="2",
@@ -869,6 +870,8 @@ class IndexGroupViewSetTestCase(TestCase):
             },
             bk_tenant_id="system",
         )
+        mock_get_space_detail.return_value = mock_space
+        mock_batch_get_space_detail.return_value = {"bkcc__2": mock_space}
 
         path = "/api/v1/index_group/"
         data = {"space_uid": SPACE_UID}
