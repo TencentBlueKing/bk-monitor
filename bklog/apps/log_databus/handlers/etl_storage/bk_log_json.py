@@ -193,7 +193,13 @@ class BkLogJsonEtlStorage(EtlStorage):
                 {
                     "input_id": "iter_item",
                     "output_id": "log",
-                    "operator": {"type": "assign", "key_index": "data", "alias": "log", "output_type": "string"},
+                    "operator": {
+                        "type": "assign",
+                        "key_index": "data",
+                        "alias": "log",
+                        "output_type": "string",
+                        "default_value": None,
+                    },
                 }
             )
 
@@ -227,6 +233,7 @@ class BkLogJsonEtlStorage(EtlStorage):
                         "key_index": field["field_name"],
                         "alias": target_field,
                         "output_type": self._get_output_type(field["field_type"]),
+                        "default_value": None,
                     },
                 }
             )
