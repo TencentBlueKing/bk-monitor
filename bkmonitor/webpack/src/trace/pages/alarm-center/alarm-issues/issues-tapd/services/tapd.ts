@@ -31,4 +31,3 @@ export const getUserWorkspace = request('POST', '/fta/issue/tapd/user_workspace/
 
 export const searchTapdItems = request('POST', '/fta/issue/issue/search_tapd_items/');
 
-export const unbindWorkspace = request('POST', '/fta/issue/tapd/unbind_workspace/');
