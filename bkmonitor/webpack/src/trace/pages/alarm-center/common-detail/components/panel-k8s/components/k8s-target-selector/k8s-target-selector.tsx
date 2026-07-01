@@ -132,22 +132,28 @@ export default defineComponent({
     return (
       <div class='k8s-target-selector'>
         <Select
-          displayKey={this.displayKey}
-          filterable
-          idKey={TARGET_UNIQUE_ID_KEY}
-          list={this.targetSelectorData.targetListWithUniqueId}
-          modelValue={this.currentTargetUniqueId}
+          filterOption={(input, option) => {
+            if (!input || !option.bcs_cluster_id) return true;
+            const { namespace, workload, pod, bcs_cluster_id: clusterId } = option;
+            const targetText = `[${namespace}] ${workload || pod}（${this.$t('集群')}: ${clusterId}）`;
+            return targetText.toLowerCase().includes(input.toLowerCase());
+          }}
           popoverOptions={{
             boundary: 'parent',
             extCls: 'k8s-target-selector-popover',
           }}
+          displayKey={this.displayKey}
+          idKey={TARGET_UNIQUE_ID_KEY}
+          list={this.targetSelectorData.targetListWithUniqueId}
+          modelValue={this.currentTargetUniqueId}
+          filterable
           onSelect={this.handleSelected}
         >
           {{
             trigger: () => (
               <div
-                class='k8s-target-selector-trigger-container'
                 key={this.selectTargetText}
+                class='k8s-target-selector-trigger-container'
               >
                 <div
                   class='trigger-main'
@@ -165,7 +171,7 @@ export default defineComponent({
                 class='k8s-target-selector-item'
                 v-overflow-tips
               >
-                {`[${item.namespace}] ${item.workload || item.pod}（集群: ${item.bcs_cluster_id}）`}
+                {`[${item.namespace}] ${item.workload || item.pod}（${this.$t('集群')}: ${item.bcs_cluster_id}）`}
               </div>
             ),
           }}
