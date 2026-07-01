@@ -316,8 +316,8 @@ export default defineComponent({
     /**
      * @description 滚动触底加载更多
      */
-    const handleScrollToEnd = (target: HTMLElement) => {
-      if (!props.tableHasScrollLoading) {
+    const handleScrollToEnd = (target?: HTMLElement) => {
+      if (!props.tableHasScrollLoading || !target) {
         return;
       }
       const { scrollHeight, scrollTop, clientHeight } = target;
