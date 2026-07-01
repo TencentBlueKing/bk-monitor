@@ -19,7 +19,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-
 from django.db import transaction
 
 from apps.iam import Permission, ResourceEnum
