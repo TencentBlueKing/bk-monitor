@@ -7430,6 +7430,7 @@ def test_graph_relation_apply_uses_metadata_transaction_and_merges_existing_conf
     mock_apply.assert_called_once_with(merged_configs)
 
 
+@pytest.mark.django_db(databases="__all__")
 def test_graph_relation_apply_locks_existing_datalink_before_composing(mocker):
     datalink = DataLink(
         pk=123,
@@ -7467,7 +7468,7 @@ def test_graph_relation_apply_locks_existing_datalink_before_composing(mocker):
     )
 
     mock_select_for_update.assert_called_once_with()
-    lock_queryset.only.assert_called_once_with("id")
+    lock_queryset.only.assert_called_once_with("data_link_name")
     lock_queryset.get.assert_called_once_with(pk=datalink.pk)
     assert call_order == ["lock", "compose"]
     mock_merge.assert_called_once_with([])
