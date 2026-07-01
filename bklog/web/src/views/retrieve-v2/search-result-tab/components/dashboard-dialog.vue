@@ -339,7 +339,7 @@ const saveChartToDashboard = async (dashboardUids) => {
       });
       handleClose();
       const url = `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#${result.data[0]?.url}`;
-      window.open(url, '_blank');
+      window.open(url, '_blank', 'noopener,noreferrer');
     } else {
       bkMessage({
         theme: 'error',

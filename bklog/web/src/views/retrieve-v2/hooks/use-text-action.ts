@@ -93,7 +93,7 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
         }
         if (isLink) {
           const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
-          window.open(openUrl, '_blank');
+          window.open(openUrl, '_blank', 'noopener,noreferrer');
         }
       });
   };
@@ -105,7 +105,7 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
       const { app_name: appName, bk_biz_id: bkBizId } = apmRelation.extra;
       const path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${traceId}`;
       const url = `${window.__IS_MONITOR_COMPONENT__ ? location.origin : window.MONITOR_URL}${path}`;
-      window.open(url, '_blank');
+      window.open(url, '_blank', 'noopener,noreferrer');
     } else {
       bkMessage({
         theme: 'warning',

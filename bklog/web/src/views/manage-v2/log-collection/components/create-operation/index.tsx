@@ -280,7 +280,7 @@ export default defineComponent({
     const handleOpenGuide = () => {
       const docPath = 'markdown/ZH/LogSearch/4.7/UserGuide/ProductFeatures/integrations-logs/simple_log_collection.md';
       const url = (window as any).BK_DOC_URL.replace(/\/$/, '');
-      url && window.open(`${url}/${docPath}`, '_blank');
+      url && window.open(`${url}/${docPath}`, '_blank', 'noopener,noreferrer');
     };
 
     /**
