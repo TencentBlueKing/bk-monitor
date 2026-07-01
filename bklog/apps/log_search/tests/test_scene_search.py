@@ -3,7 +3,6 @@ Unit tests for scene_search endpoints (SceneSearchViewSet).
 Covers: scenes / search / fields / date_histogram / agg_field / total / dimension_values
 """
 
-import json
 from unittest.mock import MagicMock, patch
 
 from django.test import TestCase, override_settings
@@ -62,8 +61,8 @@ def _make_post_request(data, factory=None):
 # 1. AllConditionsBuilder
 # =========================================================================
 
-class TestAllConditionsBuilder(TestCase):
 
+class TestAllConditionsBuilder(TestCase):
     def test_valid_conditions(self):
         conds = [[{"field_name": "scene", "value": ["k8s"], "op": "eq"}]]
         result = AllConditionsBuilder.from_raw(conds)
@@ -102,8 +101,8 @@ class TestAllConditionsBuilder(TestCase):
 # 2. Serializer validation
 # =========================================================================
 
-class TestConditionFieldSerializer(TestCase):
 
+class TestConditionFieldSerializer(TestCase):
     def test_valid(self):
         s = ConditionFieldSerializer(data={"field_name": "scene", "value": ["k8s"], "op": "eq"})
         self.assertTrue(s.is_valid(), s.errors)
@@ -123,7 +122,6 @@ class TestConditionFieldSerializer(TestCase):
 
 
 class TestSceneRouteMixin(TestCase):
-
     def test_valid(self):
         s = _SceneRouteMixin(data=BASE_POST_BODY)
         self.assertTrue(s.is_valid(), s.errors)
@@ -150,9 +148,9 @@ class TestSceneRouteMixin(TestCase):
 
 
 class TestMergeSceneFiltersToAddition(TestCase):
-
     def test_list_format_merges(self):
         from apps.log_search.views.scene_search_views import _merge_scene_filters_to_addition
+
         data = {
             "addition": [{"field": "status", "operator": "is", "value": "200"}],
             "scene_filter_values": [
@@ -167,19 +165,20 @@ class TestMergeSceneFiltersToAddition(TestCase):
 
     def test_empty_scene_filters_noop(self):
         from apps.log_search.views.scene_search_views import _merge_scene_filters_to_addition
+
         data = {"addition": [{"field": "a", "operator": "is", "value": "1"}]}
         result = _merge_scene_filters_to_addition(data)
         self.assertEqual(len(result["addition"]), 1)
 
     def test_none_scene_filters_noop(self):
         from apps.log_search.views.scene_search_views import _merge_scene_filters_to_addition
+
         data = {"addition": [], "scene_filter_values": None}
         result = _merge_scene_filters_to_addition(data)
         self.assertEqual(result["addition"], [])
 
 
 class TestSceneSearchSerializer(TestCase):
-
     def test_valid_minimal(self):
         s = SceneSearchSerializer(data=SEARCH_POST_BODY)
         self.assertTrue(s.is_valid(), s.errors)
@@ -200,7 +199,6 @@ class TestSceneSearchSerializer(TestCase):
 
 
 class TestSceneFieldsSerializer(TestCase):
-
     def test_valid_minimal(self):
         s = SceneFieldsSerializer(data=BASE_POST_BODY)
         self.assertTrue(s.is_valid(), s.errors)
@@ -212,7 +210,6 @@ class TestSceneFieldsSerializer(TestCase):
 
 
 class TestSceneDateHistogramSerializer(TestCase):
-
     def test_valid(self):
         data = {**SEARCH_POST_BODY, "interval": "5m"}
         s = SceneDateHistogramSerializer(data=data)
@@ -225,7 +222,6 @@ class TestSceneDateHistogramSerializer(TestCase):
 
 
 class TestSceneAggFieldSerializer(TestCase):
-
     def test_valid(self):
         data = {**SEARCH_POST_BODY, "agg_field": "status"}
         s = SceneAggFieldSerializer(data=data)
@@ -237,7 +233,6 @@ class TestSceneAggFieldSerializer(TestCase):
 
 
 class TestSceneTotalSerializer(TestCase):
-
     def test_valid(self):
         s = SceneTotalSerializer(data=SEARCH_POST_BODY)
         self.assertTrue(s.is_valid(), s.errors)
@@ -247,10 +242,12 @@ class TestSceneTotalSerializer(TestCase):
 # 3. ViewSet endpoint tests
 # =========================================================================
 
+
 def _get_viewset(action_name, request, initkwargs=None):
     """Instantiate viewset, wrap request with DRF Request, and route action."""
     from rest_framework.parsers import JSONParser, FormParser, MultiPartParser
     from rest_framework.request import Request
+
     vs = SceneSearchViewSet(**{**(initkwargs or {}), "format_kwarg": None})
     if not isinstance(request, Request):
         request = Request(request, parsers=[JSONParser(), FormParser(), MultiPartParser()])
@@ -271,8 +268,12 @@ class TestSceneSearchViewSetScenes(TestCase):
     MOCK_DIMENSIONS = {
         "k8s": [
             {"key": "cluster_id", "name": "BCS 集群", "choices_type": "dynamic"},
-            {"key": "stream", "name": "日志流类型", "choices_type": "static",
-             "choices": [{"id": "stdout", "name": "标准输出"}]},
+            {
+                "key": "stream",
+                "name": "日志流类型",
+                "choices_type": "static",
+                "choices": [{"id": "stdout", "name": "标准输出"}],
+            },
             {"key": "__ext.io_kubernetes_pod_namespace", "name": "命名空间", "choices_type": "free_input"},
             {"key": "__ext.io_kubernetes_pod", "name": "Pod名称", "choices_type": "free_input"},
         ],
@@ -286,12 +287,15 @@ class TestSceneSearchViewSetScenes(TestCase):
         factory = APIRequestFactory()
         request = factory.get("/api/v1/search/scene/scenes/")
 
-        with patch(
-            "apps.log_search.constants.SceneLabelEnum.get_choices",
-            return_value=(("k8s", "容器场景"), ("host", "主机场景")),
-        ), patch(
-            "apps.log_databus.constants.SCENE_SEARCH_DIMENSIONS",
-            self.MOCK_DIMENSIONS,
+        with (
+            patch(
+                "apps.log_search.constants.SceneLabelEnum.get_choices",
+                return_value=(("k8s", "容器场景"), ("host", "主机场景")),
+            ),
+            patch(
+                "apps.log_databus.constants.SCENE_SEARCH_DIMENSIONS",
+                self.MOCK_DIMENSIONS,
+            ),
         ):
             vs = _get_viewset("scenes", request)
             response = vs.scenes(request)
@@ -310,12 +314,15 @@ class TestSceneSearchViewSetScenes(TestCase):
         factory = APIRequestFactory()
         request = factory.get("/api/v1/search/scene/scenes/")
 
-        with patch(
-            "apps.log_search.constants.SceneLabelEnum.get_choices",
-            return_value=(("k8s", "容器场景"), ("host", "主机场景")),
-        ), patch(
-            "apps.log_databus.constants.SCENE_SEARCH_DIMENSIONS",
-            self.MOCK_DIMENSIONS,
+        with (
+            patch(
+                "apps.log_search.constants.SceneLabelEnum.get_choices",
+                return_value=(("k8s", "容器场景"), ("host", "主机场景")),
+            ),
+            patch(
+                "apps.log_databus.constants.SCENE_SEARCH_DIMENSIONS",
+                self.MOCK_DIMENSIONS,
+            ),
         ):
             vs = _get_viewset("scenes", request)
             response = vs.scenes(request)
@@ -441,7 +448,7 @@ class TestSceneSearchViewSetDateHistogram(TestCase):
         factory = APIRequestFactory()
         request = _make_post_request(data, factory)
         vs = _get_viewset("date_histogram", request)
-        response = vs.date_histogram(request)
+        vs.date_histogram(request)
 
         mock_dh.assert_called_once_with(interval="5m")
 
@@ -490,6 +497,7 @@ class TestSceneSearchViewSetTotal(TestCase):
 # =========================================================================
 # 4. SceneUnifyQueryHandler unit tests
 # =========================================================================
+
 
 @override_settings(PRE_SEARCH_SECONDS=60, TIME_ZONE="UTC")
 class TestSceneUnifyQueryHandler(TestCase):
@@ -744,15 +752,22 @@ class TestSceneUnifyQueryHandler(TestCase):
         mock_api.return_value = {
             "data": [
                 {
-                    "field_name": "log", "field_type": "text",
-                    "is_agg": False, "is_analyzed": True,
-                    "alias_name": "", "origin_field": "log",
+                    "field_name": "log",
+                    "field_type": "text",
+                    "is_agg": False,
+                    "is_analyzed": True,
+                    "alias_name": "",
+                    "origin_field": "log",
                 },
                 {
-                    "field_name": "__ext.container_name", "field_type": "keyword",
-                    "is_agg": True, "is_analyzed": False,
-                    "alias_name": "container", "origin_field": "__ext",
-                    "is_case_sensitive": True, "tokenize_on_chars": ["-", "_"],
+                    "field_name": "__ext.container_name",
+                    "field_type": "keyword",
+                    "is_agg": True,
+                    "is_analyzed": False,
+                    "alias_name": "container",
+                    "origin_field": "__ext",
+                    "is_case_sensitive": True,
+                    "tokenize_on_chars": ["-", "_"],
                 },
             ],
             "trace_id": "abc123",
@@ -829,8 +844,8 @@ class TestSceneUnifyQueryHandler(TestCase):
 # 5. SceneDimensionValuesSerializer tests
 # =========================================================================
 
-class TestSceneDimensionValuesSerializer(TestCase):
 
+class TestSceneDimensionValuesSerializer(TestCase):
     def test_valid_minimal(self):
         data = {"bk_biz_id": 2, "scene": "k8s", "dimension_key": "cluster_id"}
         s = SceneDimensionValuesSerializer(data=data)
@@ -874,17 +889,20 @@ class TestSceneDimensionValuesSerializer(TestCase):
 # 6. IndexSetTag model extension tests
 # =========================================================================
 
+
 class TestIndexSetTagExtension(TestCase):
     """Test IndexSetTag with tag_type, get_dimension_values, batch_get_tags."""
 
     def test_get_tag_id_default_tag_type_is_user(self):
         from apps.log_search.models import IndexSetTag
+
         tag_id = IndexSetTag.get_tag_id(name="my_custom_tag")
         tag = IndexSetTag.objects.get(tag_id=tag_id)
         self.assertEqual(tag.tag_type, "user")
 
     def test_get_tag_id_scene_type(self):
         from apps.log_search.models import IndexSetTag
+
         tag_id = IndexSetTag.get_tag_id(name="scene", value="k8s", tag_type="scene")
         tag = IndexSetTag.objects.get(tag_id=tag_id)
         self.assertEqual(tag.name, "scene")
@@ -893,30 +911,35 @@ class TestIndexSetTagExtension(TestCase):
 
     def test_get_tag_id_inner_type(self):
         from apps.log_search.models import IndexSetTag
+
         tag_id = IndexSetTag.get_tag_id(name="trace", tag_type="inner")
         tag = IndexSetTag.objects.get(tag_id=tag_id)
         self.assertEqual(tag.tag_type, "inner")
 
     def test_get_tag_id_idempotent(self):
         from apps.log_search.models import IndexSetTag
+
         id1 = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-001", tag_type="scene")
         id2 = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-001", tag_type="scene")
         self.assertEqual(id1, id2)
 
     def test_same_name_different_value(self):
         from apps.log_search.models import IndexSetTag
+
         id1 = IndexSetTag.get_tag_id(name="stream", value="stdout", tag_type="scene")
         id2 = IndexSetTag.get_tag_id(name="stream", value="file", tag_type="scene")
         self.assertNotEqual(id1, id2)
 
     def test_same_name_value_different_tag_type(self):
         from apps.log_search.models import IndexSetTag
+
         id_user = IndexSetTag.get_tag_id(name="bcs", value="", tag_type="user")
         id_inner = IndexSetTag.get_tag_id(name="bcs", value="", tag_type="inner")
         self.assertNotEqual(id_user, id_inner)
 
     def test_batch_get_tags_includes_tag_type(self):
         from apps.log_search.models import IndexSetTag
+
         tid = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-002", tag_type="scene")
         result = IndexSetTag.batch_get_tags({tid})
         self.assertIn(str(tid), result)
@@ -992,7 +1015,9 @@ class TestIndexSetTagExtension(TestCase):
         )
 
         values = IndexSetTag.get_dimension_values(
-            bk_biz_id=5, scene="k8s", dimension_key="cluster_id",
+            bk_biz_id=5,
+            scene="k8s",
+            dimension_key="cluster_id",
             filters={"stream": "stdout"},
         )
         self.assertIn("BCS-FILTER-001", values)
@@ -1010,21 +1035,32 @@ class TestIndexSetTagExtension(TestCase):
         c3 = IndexSetTag.get_tag_id(name="cluster_id", value="BCS-LIST-003", tag_type="scene")
 
         LogIndexSet.objects.create(
-            index_set_name="list_filter_1", space_uid="bkcc__6", scenario_id="log",
-            tag_ids=[str(scene_tag), str(stdout_tag), str(c1)], is_active=True,
+            index_set_name="list_filter_1",
+            space_uid="bkcc__6",
+            scenario_id="log",
+            tag_ids=[str(scene_tag), str(stdout_tag), str(c1)],
+            is_active=True,
         )
         LogIndexSet.objects.create(
-            index_set_name="list_filter_2", space_uid="bkcc__6", scenario_id="log",
-            tag_ids=[str(scene_tag), str(file_tag), str(c2)], is_active=True,
+            index_set_name="list_filter_2",
+            space_uid="bkcc__6",
+            scenario_id="log",
+            tag_ids=[str(scene_tag), str(file_tag), str(c2)],
+            is_active=True,
         )
         # c3 has no stream tag — should NOT match
         LogIndexSet.objects.create(
-            index_set_name="list_filter_3", space_uid="bkcc__6", scenario_id="log",
-            tag_ids=[str(scene_tag), str(c3)], is_active=True,
+            index_set_name="list_filter_3",
+            space_uid="bkcc__6",
+            scenario_id="log",
+            tag_ids=[str(scene_tag), str(c3)],
+            is_active=True,
         )
 
         values = IndexSetTag.get_dimension_values(
-            bk_biz_id=6, scene="k8s", dimension_key="cluster_id",
+            bk_biz_id=6,
+            scene="k8s",
+            dimension_key="cluster_id",
             filters={"stream": ["file", "stdout"]},
         )
         self.assertIn("BCS-LIST-001", values)
@@ -1033,16 +1069,22 @@ class TestIndexSetTagExtension(TestCase):
 
     def test_get_dimension_values_nonexistent_filter_returns_empty(self):
         from apps.log_search.models import IndexSetTag
+
         values = IndexSetTag.get_dimension_values(
-            bk_biz_id=999, scene="k8s", dimension_key="cluster_id",
+            bk_biz_id=999,
+            scene="k8s",
+            dimension_key="cluster_id",
             filters={"stream": "nonexistent_value_xyz"},
         )
         self.assertEqual(values, [])
 
     def test_get_dimension_values_nonexistent_list_filter_returns_empty(self):
         from apps.log_search.models import IndexSetTag
+
         values = IndexSetTag.get_dimension_values(
-            bk_biz_id=999, scene="k8s", dimension_key="cluster_id",
+            bk_biz_id=999,
+            scene="k8s",
+            dimension_key="cluster_id",
             filters={"stream": ["no_such_a", "no_such_b"]},
         )
         self.assertEqual(values, [])
@@ -1098,6 +1140,7 @@ class TestIndexSetTagExtension(TestCase):
 # =========================================================================
 # 7. dimension_values ViewSet endpoint test
 # =========================================================================
+
 
 @override_settings(PRE_SEARCH_SECONDS=60, TIME_ZONE="UTC")
 class TestSceneSearchViewSetDimensionValues(TestCase):
@@ -1193,11 +1236,13 @@ class TestSceneSearchViewSetDimensionValues(TestCase):
 # 8. _build_scene_labels / _detect_container_stream tests
 # =========================================================================
 
+
 class TestBuildSceneLabelsExtended(TestCase):
     """Test the extended _build_scene_labels with stream detection."""
 
     def test_build_scene_labels_k8s_stdout(self):
         from apps.log_databus.constants import build_scene_labels
+
         labels = build_scene_labels("k8s", cluster_id="BCS-001", stream="stdout")
         self.assertEqual(labels["scene"], "k8s")
         self.assertEqual(labels["cluster_id"], "BCS-001")
@@ -1205,6 +1250,7 @@ class TestBuildSceneLabelsExtended(TestCase):
 
     def test_build_scene_labels_host(self):
         from apps.log_databus.constants import build_scene_labels
+
         labels = build_scene_labels("host")
         self.assertEqual(labels["scene"], "host")
         self.assertNotIn("stream", labels)
@@ -1350,6 +1396,7 @@ class TestBuildSceneLabelsBranchSelection(TestCase):
 # 9. _sync_scene_tags_to_index_set tests
 # =========================================================================
 
+
 class TestSyncSceneTagsToIndexSet(TestCase):
     """Test that scene labels are persisted to IndexSetTag and LogIndexSet.tag_ids."""
 
@@ -1423,6 +1470,7 @@ class TestSyncSceneTagsToIndexSet(TestCase):
 # 10. SceneAsyncExportHandler.get_export_history pagination test
 # =========================================================================
 
+
 @override_settings(PRE_SEARCH_SECONDS=60, TIME_ZONE="UTC")
 class TestSceneExportHistoryPagination(TestCase):
     """Verify get_export_history uses manual Paginator (not DRF query_params)."""
@@ -1444,6 +1492,9 @@ class TestSceneExportHistoryPagination(TestCase):
                 end_time="",
                 export_status="success",
                 export_type="async",
+                exported_count=10 + i,
+                export_total_count=100,
+                download_count=i,
                 created_by="admin",
                 source_app_code="bk_log_search",
             )
@@ -1453,16 +1504,25 @@ class TestSceneExportHistoryPagination(TestCase):
 
         handler = SceneAsyncExportHandler(bk_biz_id=2, search_dict={})
         response = handler.get_export_history(
-            request=request, view=None, show_all=True,
-            page=1, pagesize=2,
+            request=request,
+            view=None,
+            show_all=True,
+            page=1,
+            pagesize=2,
         )
 
         self.assertEqual(response.data["total"], 3)
         self.assertEqual(len(response.data["list"]), 2)
+        self.assertIn("exported_count", response.data["list"][0])
+        self.assertIn("export_total_count", response.data["list"][0])
+        self.assertIn("download_count", response.data["list"][0])
 
         response2 = handler.get_export_history(
-            request=request, view=None, show_all=True,
-            page=2, pagesize=2,
+            request=request,
+            view=None,
+            show_all=True,
+            page=2,
+            pagesize=2,
         )
         self.assertEqual(response2.data["total"], 3)
         self.assertEqual(len(response2.data["list"]), 1)
@@ -1471,6 +1531,7 @@ class TestSceneExportHistoryPagination(TestCase):
 # =========================================================================
 # Scene fields config (template + user pointer)
 # =========================================================================
+
 
 @override_settings(PRE_SEARCH_SECONDS=60, TIME_ZONE="UTC")
 class TestSceneFieldsConfigApi(TestCase):
@@ -1659,9 +1720,7 @@ class TestSceneUserCustomConfig(TestCase):
             self.assertTrue(UserSceneCustomConfig.objects.filter(bk_biz_id=self.BIZ_ID).exists())
 
             req_del = factory.delete(
-                "/api/v1/search/scene/user_custom_config/?bk_biz_id={}&scene_id={}".format(
-                    self.BIZ_ID, self.SCENE_ID
-                ),
+                f"/api/v1/search/scene/user_custom_config/?bk_biz_id={self.BIZ_ID}&scene_id={self.SCENE_ID}",
             )
             vs = _get_viewset("user_custom_config", req_del)
             resp = vs.user_custom_config(req_del)
@@ -1676,9 +1735,7 @@ class TestSceneUserCustomConfig(TestCase):
 
         factory = APIRequestFactory()
         with self._patch_user():
-            tpl = SceneFieldsConfigHandler.get_or_create_default(
-                bk_biz_id=self.BIZ_ID, scene_id=self.SCENE_ID
-            )
+            tpl = SceneFieldsConfigHandler.get_or_create_default(bk_biz_id=self.BIZ_ID, scene_id=self.SCENE_ID)
             tpl.display_fields = ["dtEventTimeStamp", "log"]
             tpl.sort_list = [["dtEventTimeStamp", "desc"]]
             tpl.save()
@@ -1736,6 +1793,7 @@ class TestSceneSearchModePersisted(TestCase):
 # scene_search_history dedup & filter
 # =========================================================================
 
+
 class TestSceneSearchHistoryDedupAndFilter(TestCase):
     """
     /search/scene/history/ 的过滤与去重策略：
@@ -1787,12 +1845,15 @@ class TestSceneSearchHistoryDedupAndFilter(TestCase):
     def _call_history(self, body):
         factory = APIRequestFactory()
         request = factory.post("/api/v1/search/scene/history/", data=body, format="json")
-        with patch(
-            "apps.log_search.views.scene_search_views.get_request_username",
-            return_value=self.USER,
-        ), patch(
-            "apps.log_search.views.scene_search_views.get_request_external_username",
-            return_value="",
+        with (
+            patch(
+                "apps.log_search.views.scene_search_views.get_request_username",
+                return_value=self.USER,
+            ),
+            patch(
+                "apps.log_search.views.scene_search_views.get_request_external_username",
+                return_value="",
+            ),
         ):
             vs = _get_viewset("scene_search_history", request)
             return vs.scene_search_history(request)
@@ -1808,10 +1869,12 @@ class TestSceneSearchHistoryDedupAndFilter(TestCase):
         # 同 scene 但带额外维度，仍应命中
         h_host_with_cluster = self._write_history(
             keyword="B",
-            table_id_conditions=[[
-                {"field_name": "scene", "value": ["host"], "op": "eq"},
-                {"field_name": "cluster_id", "value": ["c1"], "op": "eq"},
-            ]],
+            table_id_conditions=[
+                [
+                    {"field_name": "scene", "value": ["host"], "op": "eq"},
+                    {"field_name": "cluster_id", "value": ["c1"], "op": "eq"},
+                ]
+            ],
         )
         # 不同 scene，应被过滤
         self._write_history(
@@ -1819,10 +1882,12 @@ class TestSceneSearchHistoryDedupAndFilter(TestCase):
             table_id_conditions=[[{"field_name": "scene", "value": ["k8s"], "op": "eq"}]],
         )
 
-        resp = self._call_history({
-            "space_uid": SPACE_UID,
-            "table_id_conditions": [[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
-        })
+        resp = self._call_history(
+            {
+                "space_uid": SPACE_UID,
+                "table_id_conditions": [[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
+            }
+        )
         ids = {r["id"] for r in resp.data}
         self.assertEqual(ids, {h_host.id, h_host_with_cluster.id})
 
@@ -1832,20 +1897,24 @@ class TestSceneSearchHistoryDedupAndFilter(TestCase):
             keyword="legacy",
             table_id_conditions=[[{"field_name": "cluster_id", "value": ["c1"], "op": "eq"}]],
         )
-        resp = self._call_history({
-            "space_uid": SPACE_UID,
-            "table_id_conditions": [[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
-        })
+        resp = self._call_history(
+            {
+                "space_uid": SPACE_UID,
+                "table_id_conditions": [[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
+            }
+        )
         self.assertIn(h_legacy.id, {r["id"] for r in resp.data})
 
     def test_filter_by_space_uid(self):
         h_match = self._write_history(keyword="A", space_uid=SPACE_UID)
         self._write_history(keyword="B", space_uid="bkcc__999")
 
-        resp = self._call_history({
-            "space_uid": SPACE_UID,
-            "table_id_conditions": [[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
-        })
+        resp = self._call_history(
+            {
+                "space_uid": SPACE_UID,
+                "table_id_conditions": [[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
+            }
+        )
         ids = {r["id"] for r in resp.data}
         self.assertIn(h_match.id, ids)
         self.assertEqual(len(ids), 1)
@@ -1864,43 +1933,53 @@ class TestSceneSearchHistoryDedupAndFilter(TestCase):
         )
         h3 = self._write_history(keyword="A", scene_filter_values=[])
 
-        resp = self._call_history({
-            "space_uid": SPACE_UID,
-            "table_id_conditions": [[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
-        })
+        resp = self._call_history(
+            {
+                "space_uid": SPACE_UID,
+                "table_id_conditions": [[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
+            }
+        )
         self.assertEqual({r["id"] for r in resp.data}, {h1.id, h2.id, h3.id})
 
     def test_dedup_different_ip_chooser_not_merged(self):
         h1 = self._write_history(keyword="A", ip_chooser={"host_list": [{"bk_host_id": 1}]})
         h2 = self._write_history(keyword="A", ip_chooser={"host_list": [{"bk_host_id": 2}]})
 
-        resp = self._call_history({
-            "space_uid": SPACE_UID,
-            "table_id_conditions": [[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
-        })
+        resp = self._call_history(
+            {
+                "space_uid": SPACE_UID,
+                "table_id_conditions": [[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
+            }
+        )
         self.assertEqual({r["id"] for r in resp.data}, {h1.id, h2.id})
 
     def test_dedup_different_non_scene_dims_not_merged(self):
         """table_id_conditions 中除 scene 外的维度（cluster_id 等）参与去重，区分 c1/c2/c3。"""
         h_c1 = self._write_history(
             keyword="A",
-            table_id_conditions=[[
-                {"field_name": "scene", "value": ["host"], "op": "eq"},
-                {"field_name": "cluster_id", "value": ["c1"], "op": "eq"},
-            ]],
+            table_id_conditions=[
+                [
+                    {"field_name": "scene", "value": ["host"], "op": "eq"},
+                    {"field_name": "cluster_id", "value": ["c1"], "op": "eq"},
+                ]
+            ],
         )
         h_c2 = self._write_history(
             keyword="A",
-            table_id_conditions=[[
-                {"field_name": "scene", "value": ["host"], "op": "eq"},
-                {"field_name": "cluster_id", "value": ["c2"], "op": "eq"},
-            ]],
+            table_id_conditions=[
+                [
+                    {"field_name": "scene", "value": ["host"], "op": "eq"},
+                    {"field_name": "cluster_id", "value": ["c2"], "op": "eq"},
+                ]
+            ],
         )
 
-        resp = self._call_history({
-            "space_uid": SPACE_UID,
-            "table_id_conditions": [[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
-        })
+        resp = self._call_history(
+            {
+                "space_uid": SPACE_UID,
+                "table_id_conditions": [[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
+            }
+        )
         self.assertEqual({r["id"] for r in resp.data}, {h_c1.id, h_c2.id})
 
     def test_dedup_truly_equivalent_collapses_keep_newest(self):
@@ -1909,10 +1988,12 @@ class TestSceneSearchHistoryDedupAndFilter(TestCase):
         self._write_history(keyword="A")
         newest = self._write_history(keyword="A")
 
-        resp = self._call_history({
-            "space_uid": SPACE_UID,
-            "table_id_conditions": [[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
-        })
+        resp = self._call_history(
+            {
+                "space_uid": SPACE_UID,
+                "table_id_conditions": [[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
+            }
+        )
         self.assertEqual(len(resp.data), 1)
         self.assertEqual(resp.data[0]["id"], newest.id)
 
@@ -1923,8 +2004,10 @@ class TestSceneSearchHistoryDedupAndFilter(TestCase):
         h2 = self._write_history(keyword="B")
         h3 = self._write_history(keyword="C")
 
-        resp = self._call_history({
-            "space_uid": SPACE_UID,
-            "table_id_conditions": [[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
-        })
+        resp = self._call_history(
+            {
+                "space_uid": SPACE_UID,
+                "table_id_conditions": [[{"field_name": "scene", "value": ["host"], "op": "eq"}]],
+            }
+        )
         self.assertEqual([r["id"] for r in resp.data], [h3.id, h2.id, h1.id])
