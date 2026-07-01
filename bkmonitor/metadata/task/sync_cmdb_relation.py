@@ -518,6 +518,11 @@ def enable_relation_surrealdb_dual_write(ds: DataSource, bk_tenant_id: str, bk_b
         _graph_definition_sync_write_mode(existed_graph_binding) if existed_graph_binding else current_write_mode
     )
     apply_write_mode = desired_write_mode
+    is_auto_restoring_vm_binding = (
+        bool(existed_graph_binding and existed_graph_binding.surrealdb_auto_restore)
+        and current_write_mode == GraphRelationBindingConfig.WRITE_MODE_VM
+        and desired_write_mode == GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB
+    )
     should_write_vm = desired_write_mode in (
         GraphRelationBindingConfig.WRITE_MODE_VM,
         GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
@@ -560,11 +565,22 @@ def enable_relation_surrealdb_dual_write(ds: DataSource, bk_tenant_id: str, bk_b
             )
         )
     if should_write_surrealdb and not surrealdb_cluster:
-        logger.warning(
-            "enable_relation_surrealdb_dual_write: data_id->[%s] has no surrealdb cluster, skip apply graph relation link",
-            ds.bk_data_id,
-        )
-        return
+        if is_auto_restoring_vm_binding:
+            logger.warning(
+                "enable_relation_surrealdb_dual_write: data_id->[%s] has no surrealdb cluster, "
+                "fallback to vm-only graph relation link",
+                ds.bk_data_id,
+            )
+            desired_write_mode = current_write_mode
+            apply_write_mode = GraphRelationBindingConfig.WRITE_MODE_VM
+            should_write_surrealdb = False
+        else:
+            logger.warning(
+                "enable_relation_surrealdb_dual_write: data_id->[%s] has no surrealdb cluster, "
+                "skip apply graph relation link",
+                ds.bk_data_id,
+            )
+            return
 
     vertices = []
     relations = []
