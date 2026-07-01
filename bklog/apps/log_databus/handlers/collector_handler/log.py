@@ -286,18 +286,7 @@ class LogCollectorHandler:
 
         if self.space_type_id == SpaceTypeEnum.BKCC.value and include_related_spaces:
             self._loads_related_var()
-            if not collector_source:
-                query_bk_biz_ids = self.related_bk_biz_ids
-            else:
-                query_bk_biz_ids = []
-                other_bk_biz_ids = [b_b_i for b_b_i in self.related_bk_biz_ids if b_b_i != self.bk_biz_id]
-                collector_source = set(collector_source)
-
-                if CollectorSourceEnum.CURRENT_SPACE.value in collector_source:
-                    query_bk_biz_ids.append(self.bk_biz_id)
-                if CollectorSourceEnum.RELATED_SPACE.value in collector_source:
-                    query_bk_biz_ids.extend(other_bk_biz_ids)
-
+            query_bk_biz_ids = self.get_query_ids_by_collector_source(collector_source, is_bk_biz_id=True)
             qs = CollectorConfig.objects.filter(bk_biz_id__in=query_bk_biz_ids)
         else:
             qs = CollectorConfig.objects.filter(bk_biz_id=self.bk_biz_id)
@@ -435,18 +424,7 @@ class LogCollectorHandler:
 
         if self.space_type_id == SpaceTypeEnum.BKCC.value and include_related_spaces:
             self._loads_related_var()
-            if not collector_source:
-                query_space_uids = self.related_space_uids
-            else:
-                query_space_uids = []
-                other_space_uids = [s_u for s_u in self.related_space_uids if s_u != self.space_uid]
-                collector_source = set(collector_source)
-
-                if CollectorSourceEnum.CURRENT_SPACE.value in collector_source:
-                    query_space_uids.append(self.space_uid)
-                if CollectorSourceEnum.RELATED_SPACE.value in collector_source:
-                    query_space_uids.extend(other_space_uids)
-
+            query_space_uids = self.get_query_ids_by_collector_source(collector_source)
             log_index_sets = qs.filter(space_uid__in=query_space_uids)
         else:
             log_index_sets = qs.filter(space_uid=self.space_uid)
@@ -803,3 +781,22 @@ class LogCollectorHandler:
                 }
             )
         return result
+
+    def get_query_ids_by_collector_source(self, collector_source, is_bk_biz_id=False):
+        if not collector_source:
+            query_ids = self.related_bk_biz_ids if is_bk_biz_id else self.related_space_uids
+        else:
+            query_ids = []
+            if is_bk_biz_id:
+                other_ids = [r_b_b_i for r_b_b_i in self.related_bk_biz_ids if r_b_b_i != self.bk_biz_id]
+            else:
+                other_ids = [r_s_u for r_s_u in self.related_space_uids if r_s_u != self.space_uid]
+
+            collector_source = set(collector_source)
+
+            if CollectorSourceEnum.CURRENT_SPACE.value in collector_source:
+                query_ids.append(self.bk_biz_id if is_bk_biz_id else self.space_uid)
+            if CollectorSourceEnum.RELATED_SPACE.value in collector_source:
+                query_ids.extend(other_ids)
+
+        return query_ids

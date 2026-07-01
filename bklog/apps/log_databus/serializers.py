@@ -37,7 +37,7 @@ from apps.log_databus.constants import (
     ArchiveInstanceType,
     ClusterTypeEnum,
     CollectorBatchOperationType,
-    ContainerCollectorType,
+    CollectorSourceEnum, ContainerCollectorType,
     Environment,
     EsSourceType,
     EtlConfig,
@@ -1876,6 +1876,17 @@ class LogCollectorSerializer(serializers.Serializer):
     class ConditionSerializer(serializers.Serializer):
         key = serializers.CharField(required=True)
         value = serializers.ListField(required=True)
+
+        def validate(self, attrs):
+            key = attrs.get("key")
+            value = attrs.get("value")
+
+            if key == "collector_source":
+                for item in value:
+                    if item not in CollectorSourceEnum.get_enums_values():
+                        raise ValidationError(_("采集项来源(collector_source)类型不合法"))
+
+            return attrs
 
     parent_index_set_id = serializers.IntegerField(label=_("归属索引集ID"), default=None, allow_null=True)
     exclude_parent_index_set_id = serializers.IntegerField(label=_("排除归属索引集ID"), default=None, allow_null=True)

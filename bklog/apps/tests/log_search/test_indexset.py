@@ -849,30 +849,7 @@ class IndexGroupViewSetTestCase(TestCase):
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
     @patch("apps.log_search.models.SpaceApi.batch_get_space_detail")
     @patch("apps.log_search.models.SpaceApi.get_space_detail")
-    def test_list_index_groups(self, mock_get_space_detail, mock_batch_get_space_detail, *args, **kwargs):
-        mock_space = Space(
-            id=2,
-            space_type_id="bkcc",
-            space_id="2",
-            space_name="蓝鲸",
-            status="normal",
-            space_code="2",
-            space_uid="bkcc__2",
-            type_name="业务",
-            bk_biz_id=2,
-            extend={
-                "status": "normal",
-                "language": "zh-hans",
-                "resources": [{"resource_id": "blueking", "resource_type": "bkci"}],
-                "time_zone": "Asia/Shanghai",
-                "display_name": "[业务] 蓝鲸",
-                "is_bcs_valid": False,
-            },
-            bk_tenant_id="system",
-        )
-        mock_get_space_detail.return_value = mock_space
-        mock_batch_get_space_detail.return_value = {"bkcc__2": mock_space}
-
+    def test_list_index_groups(self, *args, **kwargs):
         path = "/api/v1/index_group/"
         data = {"space_uid": SPACE_UID}
 
