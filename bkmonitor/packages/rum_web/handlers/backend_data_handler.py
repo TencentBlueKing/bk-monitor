@@ -260,7 +260,7 @@ class RumBackendHandler(TelemetryBackendHandler):
             "data_type_label": DataTypeLabel.TIME_SERIES,
             "data_source_label": DataSourceLabel.CUSTOM,
             "table_name": metric_table,
-            "metric_field": "browser_web_vital_duration_bucket",
+            "metric_field": "browser_web_vital_duration_bucket",  # TODO: 实际还是要用另一个代表数量的指标
             "method_method": "SUM",
         }
         kwargs.update(view_params)

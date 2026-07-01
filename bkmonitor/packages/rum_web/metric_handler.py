@@ -46,7 +46,7 @@ class MetricHandler:
     calculation = Calculation
     query_type = "instance"
     dimension_field = ""
-    metric_field = "bk_apm_duration"
+    metric_field = "browser_web_vital_duration_bucket"
     data_source_label = "custom"
     datasource_query = False
 
