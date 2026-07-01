@@ -85,6 +85,18 @@ export default defineComponent({
     /** 当前选中对象的唯一标识 */
     const currentTargetUniqueId = computed(() => getTargetUniqueId(props.currentTarget));
 
+    /** 当前选中对象的文本 */
+    const selectTargetText = computed(() => {
+      if (!props.currentTarget) return window.i18n.t('请选择');
+      const { namespace = '', workload = '', pod = '' } = props.currentTarget || {};
+      return `[${namespace}] ${workload || pod}`;
+    });
+
+    const selectTargetTextTooltip = computed(() => {
+      const { bcs_cluster_id: clusterId = '' } = (props.currentTarget || {}) as any;
+      return `${selectTargetText.value}（${window.i18n.t('集群')}: ${clusterId}）`;
+    });
+
     /**
      * @method getTargetUniqueId
      * @description 基于目标对象所有属性值生成唯一标识
@@ -109,8 +121,10 @@ export default defineComponent({
 
     return {
       displayKey,
+      selectTargetText,
       targetSelectorData,
       currentTargetUniqueId,
+      selectTargetTextTooltip,
       handleSelected,
     };
   },
@@ -119,22 +133,39 @@ export default defineComponent({
       <div class='k8s-target-selector'>
         <Select
           displayKey={this.displayKey}
-          filterable={false}
+          filterable
           idKey={TARGET_UNIQUE_ID_KEY}
           list={this.targetSelectorData.targetListWithUniqueId}
           modelValue={this.currentTargetUniqueId}
-          popoverOptions={{ boundary: 'parent' }}
+          popoverOptions={{
+            boundary: 'parent',
+            extCls: 'k8s-target-selector-popover',
+          }}
           onSelect={this.handleSelected}
         >
           {{
             trigger: () => (
-              <div class='k8s-target-selector-trigger-container'>
-                <div class='trigger-main'>
-                  <span class='selected-text'>{this.currentTarget?.[this.displayKey] ?? '--'}</span>
+              <div
+                class='k8s-target-selector-trigger-container'
+                key={this.selectTargetText}
+              >
+                <div
+                  class='trigger-main'
+                  v-overflow-tips={{ content: this.selectTargetTextTooltip, placement: 'top' }}
+                >
+                  {this.selectTargetText}
                 </div>
                 <div class='trigger-suffix'>
                   <i class='icon-monitor icon-arrow-down' />
                 </div>
+              </div>
+            ),
+            optionRender: ({ item }) => (
+              <div
+                class='k8s-target-selector-item'
+                v-overflow-tips
+              >
+                {`[${item.namespace}] ${item.workload || item.pod}（集群: ${item.bcs_cluster_id}）`}
               </div>
             ),
           }}
