@@ -318,6 +318,7 @@ def try_bind_importable(
     bk_biz_id: int,
     bk_tenant_id: str,
     create_user: str,
+    space_uid: str,
     tapd_workspace_name: str = "",
 ) -> bool:
     """尝试为 importable 状态的项目创建本地 binding。
@@ -325,10 +326,10 @@ def try_bind_importable(
     成功 → 返回 True，is_bound 最终显示为 bound
     失败 → 返回 False，is_bound 保持 importable（静默失败）
 
+    :param space_uid: 业务空间 UID，由调用方转换后传入，避免函数内部重复转换
     :param tapd_workspace_name: TAPD 项目名称，写入本地 binding 的 tapd_workspace_name 字段
     """
     # tombstone 存在则跳过（不自动重绑，需用户手动 rebind 恢复）
-    space_uid = bk_biz_id_to_space_uid(bk_biz_id)
     if is_manually_unbound(bk_tenant_id, space_uid, workspace_id):
         logger.info("try_bind_importable skipped (manually unbound): ws=%s biz=%s", workspace_id, bk_biz_id)
         return False

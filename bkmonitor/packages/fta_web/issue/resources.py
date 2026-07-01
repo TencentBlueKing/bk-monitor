@@ -2689,6 +2689,8 @@ class ListUserTapdWorkspaceResource(Resource):
         """
         items = []
         any_unbound_or_stale = False
+        # 统一获取 space_uid，供循环内 try_bind_importable 使用（避免重复转换）
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
 
         for ws in workspace_details:
             ws_id = ws["workspace_id"]
@@ -2705,7 +2707,9 @@ class ListUserTapdWorkspaceResource(Resource):
                     status = TapdWorkspaceBindStatus.MANUALLY_UNBOUND
                 else:
                     status = TapdWorkspaceBindStatus.IMPORTABLE
-                    if try_bind_importable(ws_id, bk_biz_id, tenant_id, username, tapd_workspace_name=workspace_name):
+                    if try_bind_importable(
+                        ws_id, bk_biz_id, tenant_id, username, space_uid, tapd_workspace_name=workspace_name
+                    ):
                         status = TapdWorkspaceBindStatus.BOUND
             elif not in_app and in_local:
                 status = TapdWorkspaceBindStatus.STALE
