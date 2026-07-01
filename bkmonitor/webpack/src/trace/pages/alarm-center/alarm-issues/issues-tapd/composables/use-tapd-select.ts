@@ -26,7 +26,7 @@
 
 import { type Ref, shallowRef } from 'vue';
 
-import { searchTapdItems } from '../services/tapd';
+import { searchTapdItemsApi } from '../services/tapd';
 
 import type { ITapdListItem } from '../typing';
 
@@ -70,7 +70,7 @@ export function useTapdSelect(options: UseTapdSelectOptions) {
     scrollLoading.value = true;
 
     try {
-      const data = await searchTapdItems({
+      const data = await searchTapdItemsApi({
         bk_biz_id: Number(bizId.value),
         workspace_id: Number(workspaceId.value),
         tapd_type: tapdType.value,
