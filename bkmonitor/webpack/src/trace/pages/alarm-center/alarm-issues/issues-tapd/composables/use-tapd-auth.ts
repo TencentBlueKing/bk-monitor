@@ -26,7 +26,7 @@
 
 import { type Ref, shallowRef, watch } from 'vue';
 
-import { getUserWorkspace, unbindWorkspace } from '../services/tapd';
+import { getUserWorkspaceApi, unbindWorkspaceApi } from '../services/tapd';
 
 import type { TapdWorkspaceItem } from '../typing';
 
@@ -69,7 +69,7 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
     });
     try {
       loading.value = true;
-      const data = await getUserWorkspace({
+      const data = await getUserWorkspaceApi({
         bk_biz_id: bizId.value,
         success_url: `${window.location.search}#/trace/alarm-center?${successUrlParams.toString()}`,
         error_url: `${window.location.search}#/trace/alarm-center?${errorUrlParams.toString()}`,
@@ -114,7 +114,7 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
     }
 
     try {
-      await unbindWorkspace({
+      await unbindWorkspaceApi({
         bk_biz_id: bizId.value,
         workspace_id: item.workspace_id,
       });

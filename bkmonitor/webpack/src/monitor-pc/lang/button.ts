@@ -549,4 +549,9 @@ export default {
   '设为主 Issue': 'Set as Main Issue',
   了解更多: 'Learn More',
   合并: 'Merge',
+  创建单据: 'Create Document',
+  关联更多项目: 'Related More Project',
+  取消授权: 'Cancel Authorization',
+  取消关联: 'Cancel Association',
+  去关联: 'Go to Association',
 };

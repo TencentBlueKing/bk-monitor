@@ -385,4 +385,5 @@ export default {
     'Custom split criteria, e.g. Same BlueShift release after a consolidated appearance',
   '自定义新增合并依据，例如：同一蓝盾发布后集中出现':
     'Custom add merge criteria, e.g. Same BlueShift release after a consolidated appearance',
+  '搜索 项目': 'Search Project',
 };

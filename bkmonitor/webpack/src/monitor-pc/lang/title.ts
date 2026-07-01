@@ -285,4 +285,8 @@ export default {
   '被合并 Issue': 'Merged Issue',
   合并依据: 'Merge criteria',
   '合并策略：': 'Merge strategy:',
+  关联项目: 'Associated project',
+  蓝鲸监控关联项目: 'Blue Whale Monitoring Associated Project',
+  新建单据: 'New Ticket',
+  关联已有: 'Associate existing',
 };
