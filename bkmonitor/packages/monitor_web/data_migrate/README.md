@@ -74,6 +74,7 @@ python manage.py data_migrate import \
 - 默认按 `manifest.json` 中记录的业务列表全量导入
 - 如果显式传入 `--bk-biz-ids`，则只导入对应业务
 - `0` 代表同时导入 `global/` 下的全局数据
+- 导入业务数据后会自动转换本次导入业务下的内置系统事件策略到多租户 custom event 链路
 
 可选参数：
 
