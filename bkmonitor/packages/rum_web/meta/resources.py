@@ -931,7 +931,18 @@ class GetNoDataStrategyInfoResource(Resource):
             "title": _("告警数量"),
             "type": "apdex-chart",
             "gridPos": {"x": 0, "y": 0, "w": 24, "h": 6},
-            "targets": [],
+            "targets": [
+                {
+                    "dataType": "event",
+                    "datasource": "time_series",
+                    "api": "rum_metric.rumAlertQuery",
+                    "data": {
+                        "bk_biz_id": app.bk_biz_id,
+                        "app_name": app.app_name,
+                        "strategy_id": strategy.get("id"),
+                    },
+                }
+            ],
             "options": {},
         }
 
