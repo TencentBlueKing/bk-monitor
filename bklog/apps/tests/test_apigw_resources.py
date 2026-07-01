@@ -55,6 +55,7 @@ class ApiGatewayResourcesTests(SimpleTestCase):
         bklog_root = Path(__file__).resolve().parents[2]
         resources_path = bklog_root / "support-files" / "apigw" / "resources.yaml"
         cls.resources = yaml.safe_load(resources_path.read_text(encoding="utf-8"))
+        cls.zh_docs_dir = resources_path.parent / "apidocs" / "zh"
 
     def test_public_resources_match_approved_scope(self):
         public_resources = {
@@ -78,10 +79,39 @@ class ApiGatewayResourcesTests(SimpleTestCase):
             self.assertTrue(resource["allowApplyPermission"], f"{method} {path}")
             self.assertEqual(resource["authConfig"], expected_auth_config, f"{method} {path}")
 
-    def test_delete_resources_use_canonical_paths(self):
+    def test_delete_resources_keep_private_compatibility_paths(self):
         paths = self.resources["paths"]
 
-        self.assertNotIn("/delete_index_set/{index_set_id}/", paths)
-        self.assertNotIn("/databus/collectors/{collector_config_id}/", paths)
         self.assertIn("delete", paths["/index_set/{index_set_id}/"])
         self.assertIn("delete", paths["/databus_collectors/{collector_config_id}/"])
+
+        compatibility_resources = {
+            "/delete_index_set/{index_set_id}/": "esb_delete_index_set",
+            "/databus/collectors/{collector_config_id}/": "delete_databus_collectors",
+        }
+        for path, operation_id in compatibility_resources.items():
+            resource = paths[path]["delete"]
+            self.assertEqual(resource["operationId"], operation_id)
+            self.assertFalse(resource["x-bk-apigateway-resource"]["isPublic"])
+
+    def test_operation_ids_are_unique(self):
+        operation_ids = [
+            operation["operationId"] for methods in self.resources["paths"].values() for operation in methods.values()
+        ]
+
+        self.assertEqual(len(operation_ids), len(set(operation_ids)))
+
+    def test_public_resources_have_chinese_docs(self):
+        for methods in self.resources["paths"].values():
+            for operation in methods.values():
+                resource = operation["x-bk-apigateway-resource"]
+                if not resource["isPublic"]:
+                    continue
+
+                operation_id = operation["operationId"]
+                doc_path = self.zh_docs_dir / f"{operation_id}.md"
+                self.assertTrue(doc_path.is_file(), f"missing API document: {doc_path.name}")
+
+                content = doc_path.read_text(encoding="utf-8")
+                self.assertIn("## 功能描述", content, doc_path.name)
+                self.assertIn("## 请求", content, doc_path.name)

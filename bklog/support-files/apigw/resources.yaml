@@ -179,7 +179,7 @@ paths:
           resourcePermissionRequired: true
         descriptionEn:
     delete:
-      operationId: esb_delete_index_set
+      operationId: delete_index_set
       description: 删除索引集
       tags:
       - 索引集
@@ -867,7 +867,7 @@ paths:
           resourcePermissionRequired: true
         descriptionEn:
     delete:
-      operationId: delete_databus_collectors
+      operationId: delete_databus_collector
       description: 日志平台-删除采集项
       tags:
       - 采集项
@@ -2124,6 +2124,28 @@ paths:
           appVerifiedRequired: true
           resourcePermissionRequired: true
         descriptionEn:
+  /delete_index_set/{index_set_id}/:
+    delete:
+      operationId: esb_delete_index_set
+      description: 删除索引集（兼容路径）
+      tags:
+      - 索引集
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: delete
+          path: /api/v1/index_set/{index_set_id}/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
   /databus_collectors/{collector_config_id}/indices_info/:
     get:
       operationId: databus_collector_indices_info
@@ -2947,6 +2969,28 @@ paths:
           name: default
           method: post
           path: /api/v1/field/index_set/fetch_topk_list/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /databus/collectors/{collector_config_id}/:
+    delete:
+      operationId: delete_databus_collectors
+      description: 日志平台-删除采集项（兼容路径）
+      tags:
+      - 采集项
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: delete
+          path: /api/v1/databus/collectors/{collector_config_id}/
           matchSubpath: false
           timeout: 0
         pluginConfigs: []
