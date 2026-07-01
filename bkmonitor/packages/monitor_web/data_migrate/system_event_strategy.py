@@ -64,16 +64,16 @@ SYSTEM_EVENT_TARGET_CONFIGS: dict[str, SystemEventTargetConfig] = {
         old_event_name="corefile-gse",
         custom_event_name="CoreFile",
         agg_dimension=["bk_target_ip", "bk_target_cloud_id", "executable_path", "executable", "signal"],
-        trigger_config={"count": 1, "check_window": 10},
-        recovery_config={"check_window": 10, "status_setter": "close"},
+        trigger_config={"count": 1, "check_window": 5},
+        recovery_config={"check_window": 5, "status_setter": "close"},
     ),
     "bk_monitor.oom-gse": SystemEventTargetConfig(
         old_metric_id="bk_monitor.oom-gse",
         old_event_name="oom-gse",
         custom_event_name="OOM",
         agg_dimension=["bk_target_ip", "bk_target_cloud_id", "process", "constraint"],
-        trigger_config={"count": 1, "check_window": 10},
-        recovery_config={"check_window": 10, "status_setter": "close"},
+        trigger_config={"count": 1, "check_window": 5},
+        recovery_config={"check_window": 5, "status_setter": "close"},
     ),
 }
 
@@ -309,12 +309,14 @@ def _build_change_record(
     target_metric: SystemEventMetric,
 ) -> dict[str, Any]:
     old_config = query_config.config or {}
+    # 存量的过滤条件（agg_condition）需要继承，避免迁移后丢失用户已有的告警过滤逻辑。
+    inherited_agg_condition = deepcopy(old_config.get("agg_condition") or [])
     new_config = {
         "result_table_id": target_metric.result_table_id,
         "agg_method": "COUNT",
         "agg_interval": target_metric.agg_interval,
         "agg_dimension": list(target_config.agg_dimension),
-        "agg_condition": [],
+        "agg_condition": inherited_agg_condition,
         "custom_event_name": target_config.custom_event_name,
     }
     if target_metric.data_label:
@@ -349,6 +351,8 @@ def _build_change_record(
         "old_custom_event_name": old_config.get("custom_event_name"),
         "old_agg_dimension": old_config.get("agg_dimension"),
         "new_agg_dimension": list(target_config.agg_dimension),
+        "old_agg_condition": old_config.get("agg_condition"),
+        "new_agg_condition": deepcopy(inherited_agg_condition),
         "old_agg_method": old_config.get("agg_method"),
         "new_agg_method": "COUNT",
         "old_config": deepcopy(old_config),
