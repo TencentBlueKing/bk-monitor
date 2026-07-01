@@ -2254,6 +2254,7 @@ class DataLink(models.Model):
                         cleanup_write_mode,
                         e,
                     )
+                    raise
             if graph_binding_update_after_apply and graph_transition_cleanup_succeeded:
                 graph_binding_lookup, graph_binding_defaults = graph_binding_update_after_apply
                 graph_binding_defaults = {
@@ -2288,12 +2289,14 @@ class DataLink(models.Model):
         """
         Apply graph relation links atomically with local compose-side metadata.
 
-        Graph compose creates several local child resources before BKBase apply. Keeping
-        compose and apply in one DB transaction ensures a failed apply rolls back only
-        this attempt's local child-resource changes while preserving the old binding.
+        Graph compose creates several local child resources before BKBase apply. Keeping compose, apply and cleanup in
+        one DB transaction ensures a failed attempt rolls back this attempt's local child-resource changes while
+        preserving the old binding. The DataLink row lock serializes apply attempts for the same graph binding.
         """
         try:
             with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+                if self.pk:
+                    DataLink.objects.select_for_update().only("id").get(pk=self.pk)
                 try:
                     self._defer_graph_binding_update_after_apply = True
                     configs: list[dict[str, Any]] = self.compose_configs(
@@ -2364,6 +2367,7 @@ class DataLink(models.Model):
                             cleanup_write_mode,
                             e,
                         )
+                        raise
                 if graph_binding_update_after_apply and graph_transition_cleanup_succeeded:
                     graph_binding_lookup, graph_binding_defaults = graph_binding_update_after_apply
                     GraphRelationBindingConfig.objects.update_or_create(

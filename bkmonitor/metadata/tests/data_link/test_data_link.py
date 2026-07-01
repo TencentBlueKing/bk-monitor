@@ -7367,7 +7367,7 @@ def test_graph_relation_apply_transient_write_mode_keeps_desired_mode(create_or_
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_graph_relation_apply_ignores_post_apply_cleanup_error(mocker):
+def test_graph_relation_apply_raises_post_apply_cleanup_error(mocker):
     datalink = DataLink.objects.create(
         data_link_name="graph_cleanup_test",
         namespace="bkmonitor",
@@ -7387,10 +7387,11 @@ def test_graph_relation_apply_ignores_post_apply_cleanup_error(mocker):
     mocker.patch.object(DataLink, "compose_configs", side_effect=compose_with_cleanup_state)
     mocked_apply = mocker.patch.object(DataLink, "apply_data_link_with_retry", return_value={"status": "success"})
 
-    datalink.apply_data_link(
-        table_id="1001_bkmonitor_time_series_60300.__default__",
-        write_mode=GraphRelationBindingConfig.WRITE_MODE_SURREALDB,
-    )
+    with pytest.raises(RuntimeError, match="cleanup failed"):
+        datalink.apply_data_link(
+            table_id="1001_bkmonitor_time_series_60300.__default__",
+            write_mode=GraphRelationBindingConfig.WRITE_MODE_SURREALDB,
+        )
 
     mocked_apply.assert_called_once_with([])
     cleanup_binding.transition_write_mode.assert_called_once_with(GraphRelationBindingConfig.WRITE_MODE_VM)
