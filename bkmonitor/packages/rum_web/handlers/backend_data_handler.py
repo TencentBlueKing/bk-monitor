@@ -165,32 +165,6 @@ class RumBackendHandler(TelemetryBackendHandler):
             "es_storage_cluster": settings.RUM_APP_DEFAULT_ES_STORAGE_CLUSTER,
         }
 
-    def storage_field_info(self):
-        """
-        获取存储字段信息。
-        参考 apm_web RumBackendHandler.storage_field_info()（简化版）
-        """
-        if not self.app.span_result_table_id:
-            return []
-
-        try:
-            table_data = api.metadata.get_result_table({"table_id": self.app.span_result_table_id})
-            field_list = table_data.get("field_list", [])
-        except Exception as e:
-            logger.warning(f"[RumBackendHandler] storage_field_info failed: {e}")
-            return []
-
-        return [
-            {
-                "field_name": field["field_name"],
-                "ch_field_name": field.get("description", ""),
-                "analysis_field": field.get("field_type") == "text",
-                "field_type": field.get("field_type", ""),
-                "time_field": field.get("field_type") == "date",
-            }
-            for field in field_list
-        ]
-
     def _get_es_storage_cluster(self) -> int:
         """获取 ES 存储集群 ID"""
         config = RumAppConfig.get_application_config_value(
@@ -247,6 +221,32 @@ class RumBackendHandler(TelemetryBackendHandler):
             return []
         return [{"raw_log": log, "sampling_time": log.get("datetime", "")} for log in resp]
 
+    def storage_field_info(self):
+        """
+        获取存储字段信息。
+        参考 apm_web TraceBackendHandler.storage_field_info()（简化版）
+        """
+        if not self.app.span_result_table_id:
+            return []
+
+        try:
+            table_data = api.metadata.get_result_table({"table_id": self.app.span_result_table_id})
+            field_list = table_data.get("field_list", [])
+        except Exception as e:
+            logger.warning(f"[RumBackendHandler] storage_field_info failed: {e}")
+            return []
+
+        return [
+            {
+                "field_name": field["field_name"],
+                "ch_field_name": field.get("description", ""),
+                "analysis_field": field.get("type") == "text",
+                "field_type": field.get("type", ""),
+                "time_field": field.get("type") == "date",
+            }
+            for field in field_list
+        ]
+
     def get_data_view_config(self, **kwargs):
         """
         获取数据视图查询配置（分钟 + 日两个面板）。
@@ -260,7 +260,7 @@ class RumBackendHandler(TelemetryBackendHandler):
             "data_type_label": DataTypeLabel.TIME_SERIES,
             "data_source_label": DataSourceLabel.CUSTOM,
             "table_name": metric_table,
-            "metric_field": "browser_web_vital_duration_bucket",
+            "metric_field": "browser_web_vital_duration_bucket",  # TODO: 实际还是要用另一个代表数量的指标
             "method_method": "SUM",
         }
         kwargs.update(view_params)

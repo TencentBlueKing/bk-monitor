@@ -368,6 +368,9 @@
             },
             {
               "id": "using_apm_mcp"
+            },
+            {
+              "id": "using_operation_mcp"
             }
           ]
         }

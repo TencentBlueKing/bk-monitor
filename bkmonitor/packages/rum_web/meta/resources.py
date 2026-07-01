@@ -236,6 +236,7 @@ class GetApplicationInfoByAppNameResource(ApiAuthResource):
 
         def to_representation(self, instance):
             data = super().to_representation(instance)
+            data["es_storage_index_name"] = instance.span_result_table_id.replace(".", "_")
             data["is_create_finished"] = bool(instance.span_result_table_id and instance.metric_result_table_id)
             # 将所有配置写入响应
             for config in instance.get_all_config():
@@ -458,6 +459,10 @@ class ListApplicationResource(PageListResource):
                 "span_result_table_id",
                 "metric_result_table_id",
                 "is_create_finished",
+                "create_time",
+                "update_time",
+                "create_user",
+                "update_user",
             ]
 
     def get_filter_fields(self):
@@ -926,7 +931,18 @@ class GetNoDataStrategyInfoResource(Resource):
             "title": _("告警数量"),
             "type": "apdex-chart",
             "gridPos": {"x": 0, "y": 0, "w": 24, "h": 6},
-            "targets": [],
+            "targets": [
+                {
+                    "dataType": "event",
+                    "datasource": "time_series",
+                    "api": "rum_metric.rumAlertQuery",
+                    "data": {
+                        "bk_biz_id": app.bk_biz_id,
+                        "app_name": app.app_name,
+                        "strategy_id": strategy.get("id"),
+                    },
+                }
+            ],
             "options": {},
         }
 

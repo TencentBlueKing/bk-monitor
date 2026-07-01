@@ -4,9 +4,9 @@ from bkmonitor.migrate import BaseMigration
 
 def add_rum_permission(*args, **kwargs):
     # 新增 RUM 应用权限
-    IAMMigrator("0011_rum_application.json").migrate()
+    IAMMigrator("0012_rum_application.json").migrate()
 
 
 class Migration(BaseMigration):
-    dependencies = ["0010_apm_mcp"]
+    dependencies = ["0011_operation_mcp"]
     operations = [add_rum_permission]

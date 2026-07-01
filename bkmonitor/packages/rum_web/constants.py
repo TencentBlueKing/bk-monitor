@@ -42,9 +42,8 @@ DEFAULT_RUM_APP_QPS = 500
 
 # 默认 Apdex 配置（单位 ms）
 DEFAULT_RUM_APDEX_CONFIG = {
-    "lcp": 2500,
-    "fcp": 1800,
-    "fid": 100,
+    "apdex_api_request": 500,
+    "apdex_view_load": 500,
 }
 
 # 应用列表异步指标列名
