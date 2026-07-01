@@ -692,9 +692,6 @@ class AlertDetailResource(Resource):
             relation_data["_alert_topo_info"] = topo_info
             return json.dumps(relation_data, ensure_ascii=False)
 
-        if isinstance(relation_data, list):
-            return relation_info
-
         return f"{topo_info} {relation_info}"
 
     @staticmethod
