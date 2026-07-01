@@ -46,7 +46,7 @@ if settings.ENABLE_MULTI_TENANT_MODE:
                 "data_source_label": "custom",
                 "result_table_label": "os",
                 "metric_field": "AgentLost",
-                "agg_dimension": ["bk_target_ip", "bk_target_cloud_id"],
+                "agg_dimension": ["bk_target_ip", "bk_target_cloud_id", "bk_agent_id"],
                 # GSE 2.0版本默认触发次数为3，如果为1.0版本则需在saas部署时配置 GSE_VERSION_1 环境变量
                 "trigger_count": 1 if "GSE_VERSION_1" in os.environ else 3,
                 "trigger_check_window": 10,
@@ -83,8 +83,7 @@ if settings.ENABLE_MULTI_TENANT_MODE:
                 "data_source_label": "custom",
                 "result_table_label": "os",
                 "metric_field": "OOM",
-                # OOM 在旧链路 process 属补充字段、不参与去重；这里按主机聚合，process 不参与聚合、不保证出现在告警维度
-                "agg_dimension": ["bk_target_ip", "bk_target_cloud_id"],
+                "agg_dimension": ["bk_target_ip", "bk_target_cloud_id", "process", "constraint"],
                 "trigger_count": 1,
                 "trigger_check_window": 5,
                 "recovery_check_window": 5,
