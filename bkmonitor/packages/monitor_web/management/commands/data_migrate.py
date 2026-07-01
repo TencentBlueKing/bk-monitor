@@ -47,6 +47,7 @@ from monitor_web.data_migrate import (
     replace_cluster_id_in_directory,
     replace_tenant_id_in_directory,
     refresh_biz_bk_collector_proxy_configs,
+    retry_biz_bk_collector_proxy_config_delivery,
     restore_disabled_models_in_directory,
     sanitize_cluster_info_in_directory,
     stop_biz_bk_collector,
@@ -141,6 +142,9 @@ class Command(BaseCommand):
             "  触发业务下 proxy 的 bk-collector 配置下发:\n"
             "    python manage.py data_migrate refresh-biz-bk-collector-configs --bk-tenant-id tencent --bk-biz-ids 18901 --config-types apm_application custom_report log\n"
             "\n"
+            "  对 render 失败的 bk-collector proxy 配置订阅补一轮下发:\n"
+            "    python manage.py data_migrate retry-biz-bk-collector-config-delivery --bk-tenant-id tencent --bk-biz-ids 18901 --config-types apm_application custom_report log\n"
+            "\n"
             "  迁移存量系统事件策略到多租户 custom event 链路:\n"
             "    python manage.py data_migrate migrate-system-event-strategies --bk-biz-ids 18901 --dry-run"
         )
@@ -165,6 +169,7 @@ class Command(BaseCommand):
                 "disable-biz-bk-collector-subscription-checks",
                 "stop-biz-bk-collector",
                 "refresh-biz-bk-collector-configs",
+                "retry-biz-bk-collector-config-delivery",
                 "migrate-system-event-strategies",
             ],
             help="执行导出、导入、恢复游标或 handler 处理",
@@ -260,7 +265,7 @@ class Command(BaseCommand):
             help=(
                 "操作人；仅 stop-biz-subscription-tasks、install-biz-bk-collector、"
                 "disable-biz-bk-collector-subscription-checks、stop-biz-bk-collector、"
-                "refresh-biz-bk-collector-configs 动作需要"
+                "refresh-biz-bk-collector-configs、retry-biz-bk-collector-config-delivery 动作需要"
             ),
         )
         parser.add_argument(
@@ -269,7 +274,8 @@ class Command(BaseCommand):
             help=(
                 "仅预览不执行；仅 stop-biz-subscription-tasks、install-biz-bk-collector、"
                 "disable-biz-bk-collector-subscription-checks、stop-biz-bk-collector、"
-                "refresh-biz-bk-collector-configs、migrate-system-event-strategies 动作需要"
+                "refresh-biz-bk-collector-configs、retry-biz-bk-collector-config-delivery、"
+                "migrate-system-event-strategies 动作需要"
             ),
         )
         parser.add_argument(
@@ -285,10 +291,23 @@ class Command(BaseCommand):
             help="轮询节点管理插件任务状态的间隔，单位秒；仅 install-biz-bk-collector、stop-biz-bk-collector 动作需要",
         )
         parser.add_argument(
+            "--skip-hosts-without-agent",
+            action=argparse.BooleanOptionalAction,
+            default=None,
+            help=(
+                "执行前是否检查主机 Agent 状态并跳过 Agent 未安装的主机；"
+                "install-biz-bk-collector 默认不跳过，stop-biz-bk-collector 默认跳过；"
+                "可用 --skip-hosts-without-agent / --no-skip-hosts-without-agent 显式覆盖"
+            ),
+        )
+        parser.add_argument(
             "--config-types",
             nargs="+",
             choices=BK_COLLECTOR_CONFIG_TYPES,
-            help="需要刷新的 bk-collector 配置类型；仅 refresh-biz-bk-collector-configs 动作需要",
+            help=(
+                "需要刷新/重试的 bk-collector 配置类型；"
+                "仅 refresh-biz-bk-collector-configs、retry-biz-bk-collector-config-delivery 动作需要"
+            ),
         )
         parser.add_argument(
             "--skip-delivery-check",
@@ -296,21 +315,39 @@ class Command(BaseCommand):
             help="刷新 bk-collector proxy 配置后跳过节点管理配置下发状态检查；仅 refresh-biz-bk-collector-configs 动作需要",
         )
         parser.add_argument(
+            "--skip-delivery-recheck",
+            action="store_true",
+            help=("补一轮下发后跳过节点管理配置下发状态复检；仅 retry-biz-bk-collector-config-delivery 动作需要"),
+        )
+        parser.add_argument(
+            "--skip-render-failure-retry",
+            action="store_true",
+            help=("刷新并检查配置下发后跳过对 render 失败订阅的自动补发；仅 refresh-biz-bk-collector-configs 动作需要"),
+        )
+        parser.add_argument(
             "--include-details",
             action="store_true",
-            help="刷新 bk-collector proxy 配置时输出完整 details；仅 refresh-biz-bk-collector-configs 动作需要",
+            help=(
+                "输出完整 details；仅 refresh-biz-bk-collector-configs、retry-biz-bk-collector-config-delivery 动作需要"
+            ),
         )
         parser.add_argument(
             "--delivery-wait-timeout",
             type=int,
             default=DEFAULT_CONFIG_DELIVERY_WAIT_TIMEOUT,
-            help="等待 bk-collector proxy 配置渲染下发完成的超时时间，单位秒；仅 refresh-biz-bk-collector-configs 动作需要",
+            help=(
+                "等待 bk-collector proxy 配置渲染下发完成的超时时间，单位秒；"
+                "仅 refresh-biz-bk-collector-configs、retry-biz-bk-collector-config-delivery 动作需要"
+            ),
         )
         parser.add_argument(
             "--delivery-poll-interval",
             type=int,
             default=DEFAULT_CONFIG_DELIVERY_POLL_INTERVAL,
-            help="轮询 bk-collector proxy 配置渲染下发状态的间隔，单位秒；仅 refresh-biz-bk-collector-configs 动作需要",
+            help=(
+                "轮询 bk-collector proxy 配置渲染下发状态的间隔，单位秒；"
+                "仅 refresh-biz-bk-collector-configs、retry-biz-bk-collector-config-delivery 动作需要"
+            ),
         )
 
     def handle(self, *args, **options):
@@ -334,6 +371,7 @@ class Command(BaseCommand):
             "disable-biz-bk-collector-subscription-checks": (self._handle_disable_biz_bk_collector_subscription_checks),
             "stop-biz-bk-collector": self._handle_stop_biz_bk_collector,
             "refresh-biz-bk-collector-configs": self._handle_refresh_biz_bk_collector_configs,
+            "retry-biz-bk-collector-config-delivery": self._handle_retry_biz_bk_collector_config_delivery,
             "migrate-system-event-strategies": self._handle_migrate_system_event_strategies,
         }
         handlers[action](options)
@@ -616,6 +654,7 @@ class Command(BaseCommand):
             dry_run=options.get("dry_run", False),
             job_wait_timeout=options.get("job_wait_timeout", DEFAULT_PLUGIN_JOB_WAIT_TIMEOUT),
             job_poll_interval=options.get("job_poll_interval", DEFAULT_PLUGIN_JOB_POLL_INTERVAL),
+            skip_hosts_without_agent=self._resolve_skip_hosts_without_agent(options, default=False),
         )
         self._write_report_result(
             result,
@@ -651,6 +690,7 @@ class Command(BaseCommand):
             dry_run=options.get("dry_run", False),
             job_wait_timeout=options.get("job_wait_timeout", DEFAULT_PLUGIN_JOB_WAIT_TIMEOUT),
             job_poll_interval=options.get("job_poll_interval", DEFAULT_PLUGIN_JOB_POLL_INTERVAL),
+            skip_hosts_without_agent=self._resolve_skip_hosts_without_agent(options, default=True),
         )
         self._write_report_result(
             result,
@@ -676,6 +716,7 @@ class Command(BaseCommand):
                 check_delivery=not options.get("skip_delivery_check", False),
                 delivery_wait_timeout=options.get("delivery_wait_timeout", DEFAULT_CONFIG_DELIVERY_WAIT_TIMEOUT),
                 delivery_poll_interval=options.get("delivery_poll_interval", DEFAULT_CONFIG_DELIVERY_POLL_INTERVAL),
+                retry_render_failures=not options.get("skip_render_failure_retry", False),
                 include_details=options.get("include_details", False),
             )
         except ValueError as error:
@@ -684,6 +725,31 @@ class Command(BaseCommand):
             result,
             success_message="refresh biz bk-collector configs completed",
             warning_message="refresh biz bk-collector configs completed with failures",
+        )
+
+    def _handle_retry_biz_bk_collector_config_delivery(self, options) -> None:
+        action_name = "retry-biz-bk-collector-config-delivery"
+        bk_tenant_id = self._load_bk_tenant_id(options.get("bk_tenant_id"), action_name=action_name)
+        bk_biz_ids = self._load_positive_biz_ids(options.get("bk_biz_ids"), action_name=action_name)
+        operator = self._load_operator(options.get("operator"), action_name=action_name)
+        try:
+            result = retry_biz_bk_collector_proxy_config_delivery(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_ids=bk_biz_ids,
+                config_types=options.get("config_types"),
+                operator=operator,
+                dry_run=options.get("dry_run", False),
+                recheck_delivery=not options.get("skip_delivery_recheck", False),
+                delivery_wait_timeout=options.get("delivery_wait_timeout", DEFAULT_CONFIG_DELIVERY_WAIT_TIMEOUT),
+                delivery_poll_interval=options.get("delivery_poll_interval", DEFAULT_CONFIG_DELIVERY_POLL_INTERVAL),
+                include_details=options.get("include_details", False),
+            )
+        except ValueError as error:
+            raise CommandError(str(error)) from error
+        self._write_report_result(
+            result,
+            success_message="retry biz bk-collector config delivery completed",
+            warning_message="retry biz bk-collector config delivery completed with failures",
         )
 
     def _handle_migrate_system_event_strategies(self, options) -> None:
@@ -708,6 +774,7 @@ class Command(BaseCommand):
 
     def _write_report_result(self, result: dict[str, Any], *, success_message: str, warning_message: str) -> None:
         self.stdout.write(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        self._write_skipped_hosts(result)
         total_summary = result["summary"]["total"]
         failed_count = total_summary["failed_count"]
         timeout_count = total_summary.get("timeout_count", 0)
@@ -732,6 +799,37 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.WARNING(command_error_message))
         raise CommandError(command_error_message)
+
+    @staticmethod
+    def _resolve_skip_hosts_without_agent(options, *, default: bool) -> bool:
+        """按动作解析是否跳过 Agent 未安装的主机；命令行显式指定时优先。"""
+        value = options.get("skip_hosts_without_agent")
+        if value is None:
+            return default
+        return bool(value)
+
+    def _write_skipped_hosts(self, result: dict[str, Any]) -> None:
+        """集中打印因 Agent 未安装等原因被跳过的主机及原因。"""
+        skip_summary = result.get("skip_summary") or {}
+        host_count = skip_summary.get("host_count", 0)
+        if not host_count:
+            return
+
+        self.stdout.write(self.style.WARNING(f"skipped {host_count} host(s), detail:"))
+        for record in skip_summary.get("records", []):
+            for host in record.get("hosts", []):
+                self.stdout.write(
+                    self.style.WARNING(
+                        "  bk_biz_id={bk_biz_id} bk_host_id={bk_host_id} ip={ip} "
+                        "agent_status={agent_status} reason={reason}".format(
+                            bk_biz_id=record.get("bk_biz_id"),
+                            bk_host_id=host.get("bk_host_id"),
+                            ip=host.get("ip"),
+                            agent_status=host.get("agent_status"),
+                            reason=host.get("reason"),
+                        )
+                    )
+                )
 
     def _import_from_directory(self, directory: Path, options) -> None:
         """从已解压目录执行数据导入。"""

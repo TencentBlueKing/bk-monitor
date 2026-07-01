@@ -31,12 +31,13 @@ INSTALL = "install"
 STOP = "stop"
 DISABLE_AUTO_INSPECTION = "disable_auto_inspection"
 UPDATE = "update"
+RETRY = "retry"
 NEW_ENV_BLACK_LIST = "new_env_black_list"
 NEW_ENV_BIZ_BLACK_LIST_CONFIG_KEY = "NEW_ENV_BIZ_BLACK_LIST"
 NEW_ENV_BIZ_WHITE_LIST_CONFIG_KEY = "NEW_ENV_BIZ_WHITE_LIST"
 
 CONFIG_TYPES = (APM_APPLICATION, CUSTOM_REPORT, LOG)
-SUCCEEDED_ACTIONS = {INSTALL, STOP, "refresh", DISABLE_AUTO_INSPECTION, UPDATE}
+SUCCEEDED_ACTIONS = {INSTALL, STOP, "refresh", DISABLE_AUTO_INSPECTION, UPDATE, RETRY}
 CONFIG_DELIVERY_SUCCESS_STATUS = "SUCCESS"
 CONFIG_DELIVERY_TIMEOUT_STATUS = "TIMEOUT"
 PROXY_CONFIG_RENDER_STEP_CODE = "render_and_push_config"
@@ -44,6 +45,10 @@ PENDING_CONFIG_DELIVERY_STATUSES = {"PENDING", "RUNNING", "DEPLOYING"}
 PLUGIN_JOB_SUCCESS_STATUS = "SUCCESS"
 PLUGIN_JOB_PENDING_STATUSES = {"PENDING", "RUNNING", "DEPLOYING"}
 PLUGIN_JOB_TIMEOUT_STATUS = "TIMEOUT"
+# 节点管理主机 Agent 状态为该值（或缺失/为空）时，视为 Agent 未安装，需跳过 bk-collector 安装/停止。
+AGENT_NOT_INSTALLED_STATUS = "NOT_INSTALLED"
+SKIP_REASON_AGENT_NOT_INSTALLED = "agent not installed"
+SKIP_REASON_BK_COLLECTOR_NOT_INSTALLED = "bk-collector not installed"
 DEFAULT_PLUGIN_JOB_WAIT_TIMEOUT = 90
 DEFAULT_PLUGIN_JOB_POLL_INTERVAL = 10
 DEFAULT_CONFIG_DELIVERY_WAIT_TIMEOUT = 90
@@ -85,17 +90,23 @@ def install_biz_bk_collector(
     dry_run: bool = False,
     job_wait_timeout: int = DEFAULT_PLUGIN_JOB_WAIT_TIMEOUT,
     job_poll_interval: int = DEFAULT_PLUGIN_JOB_POLL_INTERVAL,
+    skip_hosts_without_agent: bool = False,
 ) -> dict[str, Any]:
-    """Install or upgrade bk-collector on proxy hosts used by the given businesses."""
+    """Install or upgrade bk-collector on proxy hosts used by the given businesses.
+
+    默认不跳过 Agent 未安装的主机（``skip_hosts_without_agent=False``），保持全量安装；
+    如需跳过，可显式传入 ``skip_hosts_without_agent=True``。
+    """
     logger.info(
         "install_biz_bk_collector: start bk_tenant_id=%s bk_biz_ids=%s operator=%s dry_run=%s "
-        "job_wait_timeout=%s job_poll_interval=%s",
+        "job_wait_timeout=%s job_poll_interval=%s skip_hosts_without_agent=%s",
         bk_tenant_id,
         bk_biz_ids,
         operator,
         dry_run,
         job_wait_timeout,
         job_poll_interval,
+        skip_hosts_without_agent,
     )
     with _local_operator_context(bk_tenant_id=bk_tenant_id, operator=operator):
         try:
@@ -135,10 +146,11 @@ def install_biz_bk_collector(
         plugin_version=plugin_version,
         operation_host_key="deploy_host_ids",
         host_plan_loader=_get_deploy_host_ids,
-        empty_operation_message="all proxy hosts already deployed",
+        empty_operation_message="no proxy host available to install bk-collector",
         dry_run_message="would install bk-collector",
         job_wait_timeout=job_wait_timeout,
         job_poll_interval=job_poll_interval,
+        skip_hosts_without_agent=skip_hosts_without_agent,
     )
 
 
@@ -151,17 +163,23 @@ def stop_biz_bk_collector(
     dry_run: bool = False,
     job_wait_timeout: int = DEFAULT_PLUGIN_JOB_WAIT_TIMEOUT,
     job_poll_interval: int = DEFAULT_PLUGIN_JOB_POLL_INTERVAL,
+    skip_hosts_without_agent: bool = True,
 ) -> dict[str, Any]:
-    """Stop bk-collector on proxy hosts used by the given businesses."""
+    """Stop bk-collector on proxy hosts used by the given businesses.
+
+    默认跳过 Agent 未安装的主机（``skip_hosts_without_agent=True``）；
+    如需对这些主机也执行停止，可显式传入 ``skip_hosts_without_agent=False``。
+    """
     logger.info(
         "stop_biz_bk_collector: start bk_tenant_id=%s bk_biz_ids=%s operator=%s dry_run=%s "
-        "job_wait_timeout=%s job_poll_interval=%s",
+        "job_wait_timeout=%s job_poll_interval=%s skip_hosts_without_agent=%s",
         bk_tenant_id,
         bk_biz_ids,
         operator,
         dry_run,
         job_wait_timeout,
         job_poll_interval,
+        skip_hosts_without_agent,
     )
     return _operate_biz_bk_collector_plugin(
         bk_tenant_id=bk_tenant_id,
@@ -177,6 +195,7 @@ def stop_biz_bk_collector(
         dry_run_message="would stop bk-collector",
         job_wait_timeout=job_wait_timeout,
         job_poll_interval=job_poll_interval,
+        skip_hosts_without_agent=skip_hosts_without_agent,
     )
 
 
@@ -190,14 +209,19 @@ def refresh_biz_bk_collector_proxy_configs(
     check_delivery: bool = True,
     delivery_wait_timeout: int = DEFAULT_CONFIG_DELIVERY_WAIT_TIMEOUT,
     delivery_poll_interval: int = DEFAULT_CONFIG_DELIVERY_POLL_INTERVAL,
+    retry_render_failures: bool = True,
     include_details: bool = False,
 ) -> dict[str, Any]:
-    """Refresh bk-collector proxy configs for selected config families."""
+    """Refresh bk-collector proxy configs for selected config families.
+
+    非 dry-run 且开启下发检查时，会在检查后复用检查结果，对 render 失败的订阅调用
+    retry_subscription 补一轮执行，用于解决节点管理对多次失败订阅不再自动重试的问题。
+    """
     selected_config_types = _normalize_config_types(config_types)
     logger.info(
         "refresh_biz_bk_collector_proxy_configs: start bk_tenant_id=%s bk_biz_ids=%s config_types=%s "
         "operator=%s dry_run=%s check_delivery=%s delivery_wait_timeout=%s delivery_poll_interval=%s "
-        "include_details=%s",
+        "retry_render_failures=%s include_details=%s",
         bk_tenant_id,
         bk_biz_ids,
         selected_config_types,
@@ -206,6 +230,7 @@ def refresh_biz_bk_collector_proxy_configs(
         check_delivery,
         delivery_wait_timeout,
         delivery_poll_interval,
+        retry_render_failures,
         include_details,
     )
     report = _init_report(
@@ -242,8 +267,42 @@ def refresh_biz_bk_collector_proxy_configs(
             wait_timeout=delivery_wait_timeout,
             poll_interval=delivery_poll_interval,
         )
+
+        # 复用上面的下发检查结果，对 render 失败的订阅补一轮执行，不重复检查。
+        final_delivery_check = report["delivery_check"]
+        if retry_render_failures and report["delivery_check"].get("result") is False:
+            logger.info(
+                "refresh_biz_bk_collector_proxy_configs: delivery check has failures, retry render failures "
+                "bk_tenant_id=%s bk_biz_ids=%s config_types=%s",
+                bk_tenant_id,
+                bk_biz_ids,
+                selected_config_types,
+            )
+            retry_report = _retry_render_failed_proxy_config_subscriptions(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_ids=bk_biz_ids,
+                operator=operator,
+                dry_run=dry_run,
+                categories=selected_config_types,
+                delivery_details=report["delivery_check"].get("details"),
+            )
+            report["retry"] = retry_report
+            if _count_triggered_render_failure_retry(retry_report["details"]):
+                # 仅在确有 render 失败被重试后，才复检一次以反映最终下发状态。
+                retry_report["delivery_check"] = check_biz_bk_collector_proxy_config_delivery(
+                    bk_tenant_id=bk_tenant_id,
+                    bk_biz_ids=bk_biz_ids,
+                    config_types=selected_config_types,
+                    operator=operator,
+                    wait_timeout=delivery_wait_timeout,
+                    poll_interval=delivery_poll_interval,
+                )
+                final_delivery_check = retry_report["delivery_check"]
+            if not include_details:
+                _drop_report_details(retry_report)
+
         report["result"] = (
-            report["summary"]["total"]["failed_count"] == 0 and report["delivery_check"]["result"] is True
+            report["summary"]["total"]["failed_count"] == 0 and final_delivery_check.get("result") is True
         )
         report["message"] = (
             "refresh completed and all proxy configs rendered and pushed successfully"
@@ -407,6 +466,228 @@ def check_biz_bk_collector_proxy_config_delivery(
                 sleep_seconds,
             )
             time.sleep(sleep_seconds)
+
+
+@_with_nodeman_api_context
+def retry_biz_bk_collector_proxy_config_delivery(
+    *,
+    bk_tenant_id: str,
+    bk_biz_ids: list[int],
+    config_types: list[str] | tuple[str, ...] | None = None,
+    operator: str = "system",
+    dry_run: bool = False,
+    recheck_delivery: bool = True,
+    delivery_wait_timeout: int = DEFAULT_CONFIG_DELIVERY_WAIT_TIMEOUT,
+    delivery_poll_interval: int = DEFAULT_CONFIG_DELIVERY_POLL_INTERVAL,
+    include_details: bool = False,
+) -> dict[str, Any]:
+    """Retry bk-collector proxy config delivery for subscriptions with render-failed proxies.
+
+    节点管理对多次失败的订阅不会再自动重试，导致 refresh 在配置未变化时无法触发下发。
+    此命令会先检查配置下发状态，对存在 render 失败实例的订阅调用 retry_subscription 补一轮执行。
+    """
+    selected_config_types = _normalize_config_types(config_types)
+    normalized_bk_biz_ids = _unique_ints(bk_biz_ids)
+    logger.info(
+        "retry_biz_bk_collector_proxy_config_delivery: start bk_tenant_id=%s bk_biz_ids=%s config_types=%s "
+        "operator=%s dry_run=%s recheck_delivery=%s delivery_wait_timeout=%s delivery_poll_interval=%s "
+        "include_details=%s",
+        bk_tenant_id,
+        normalized_bk_biz_ids,
+        selected_config_types,
+        operator,
+        dry_run,
+        recheck_delivery,
+        delivery_wait_timeout,
+        delivery_poll_interval,
+        include_details,
+    )
+
+    # 先做一次即时检查（不等待），拿到每个订阅下 render 失败的实例明细。
+    initial_check = check_biz_bk_collector_proxy_config_delivery(
+        bk_tenant_id=bk_tenant_id,
+        bk_biz_ids=normalized_bk_biz_ids,
+        config_types=selected_config_types,
+        operator=operator,
+        wait_timeout=0,
+    )
+    report = _retry_render_failed_proxy_config_subscriptions(
+        bk_tenant_id=bk_tenant_id,
+        bk_biz_ids=normalized_bk_biz_ids,
+        operator=operator,
+        dry_run=dry_run,
+        categories=selected_config_types,
+        delivery_details=initial_check.get("details"),
+    )
+    report["initial_delivery_check"] = {
+        "summary": initial_check.get("summary", {}),
+        "message": initial_check.get("message", ""),
+    }
+    if include_details:
+        report["initial_delivery_check"]["failure_summary"] = initial_check.get("failure_summary", {})
+
+    triggered_count = _count_triggered_render_failure_retry(report["details"])
+
+    if recheck_delivery and not dry_run and triggered_count:
+        logger.info(
+            "retry_biz_bk_collector_proxy_config_delivery: start recheck bk_tenant_id=%s bk_biz_ids=%s "
+            "config_types=%s triggered_count=%s",
+            bk_tenant_id,
+            normalized_bk_biz_ids,
+            selected_config_types,
+            triggered_count,
+        )
+        report["delivery_check"] = check_biz_bk_collector_proxy_config_delivery(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_ids=normalized_bk_biz_ids,
+            config_types=selected_config_types,
+            operator=operator,
+            wait_timeout=delivery_wait_timeout,
+            poll_interval=delivery_poll_interval,
+        )
+        report["result"] = (
+            report["summary"]["total"]["failed_count"] == 0 and report["delivery_check"]["result"] is True
+        )
+        report["message"] = (
+            "retry completed and all proxy configs rendered and pushed successfully"
+            if report["result"]
+            else "retry completed but some proxy configs were still not rendered and pushed successfully"
+        )
+    else:
+        report["result"] = report["summary"]["total"]["failed_count"] == 0
+        if dry_run:
+            report["message"] = "dry run completed, proxy config delivery recheck skipped"
+        elif not triggered_count:
+            report["message"] = "no render-failed proxy config subscription to retry"
+        else:
+            report["message"] = "retry completed, proxy config delivery recheck skipped"
+
+    logger.info(
+        "retry_biz_bk_collector_proxy_config_delivery: completed bk_tenant_id=%s bk_biz_ids=%s result=%s "
+        "summary=%s message=%s",
+        bk_tenant_id,
+        normalized_bk_biz_ids,
+        report["result"],
+        report["summary"],
+        report["message"],
+    )
+    if not include_details:
+        _drop_report_details(report)
+    return report
+
+
+def _retry_render_failed_proxy_config_subscriptions(
+    *,
+    bk_tenant_id: str,
+    bk_biz_ids: list[int],
+    operator: str,
+    dry_run: bool,
+    categories: tuple[str, ...],
+    delivery_details: dict[str, list[dict[str, Any]]] | None,
+) -> dict[str, Any]:
+    """基于已有的配置下发检查结果，对 render 失败的订阅补一轮执行，避免重复检查。"""
+    report = _init_report(
+        bk_tenant_id=bk_tenant_id,
+        bk_biz_ids=bk_biz_ids,
+        operator=operator,
+        dry_run=dry_run,
+        categories=categories,
+    )
+    delivery_details = delivery_details or {}
+    with _local_operator_context(bk_tenant_id=bk_tenant_id, operator=operator):
+        for config_type in categories:
+            for detail in delivery_details.get(config_type, []):
+                report["details"][config_type].append(
+                    _retry_proxy_config_delivery_subscription(detail, dry_run=dry_run)
+                )
+    report["summary"] = _build_summary(report["details"], dry_run=dry_run)
+    return report
+
+
+def _count_triggered_render_failure_retry(report_details: dict[str, list[dict[str, Any]]]) -> int:
+    return sum(1 for records in report_details.values() for record in records if record["action"] in {RETRY, "dry_run"})
+
+
+def _is_retryable_proxy_config_delivery_instance(instance: dict[str, Any]) -> bool:
+    """render 失败（非 pending、非 unknown 且未成功）的实例才需要补一轮执行。"""
+    return (
+        instance.get("result") is not True
+        and instance.get("status") not in PENDING_CONFIG_DELIVERY_STATUSES
+        and instance.get("status") != "UNKNOWN"
+    )
+
+
+def _retry_proxy_config_delivery_subscription(detail: dict[str, Any], *, dry_run: bool) -> dict[str, Any]:
+    retry_instances = [
+        instance for instance in detail.get("instances", []) if _is_retryable_proxy_config_delivery_instance(instance)
+    ]
+    instance_id_list = [instance["instance_id"] for instance in retry_instances if instance.get("instance_id")]
+
+    record: dict[str, Any] = {
+        "config_type": detail.get("config_type"),
+        "bk_tenant_id": detail.get("bk_tenant_id"),
+        "bk_biz_id": detail.get("bk_biz_id"),
+        "subscription_id": detail.get("subscription_id"),
+        "target_instance_count": len(instance_id_list),
+        "instance_id_list": instance_id_list,
+    }
+    for optional_key in ("name", "bk_data_id"):
+        if optional_key in detail:
+            record[optional_key] = detail[optional_key]
+
+    if not instance_id_list:
+        record.update({"action": "skip", "result": True, "message": "no render-failed proxy to retry"})
+        return record
+
+    logger.info(
+        "retry bk-collector proxy config subscription: start config_type=%s bk_tenant_id=%s bk_biz_id=%s "
+        "subscription_id=%s target_instance_count=%s dry_run=%s",
+        record["config_type"],
+        record["bk_tenant_id"],
+        record["bk_biz_id"],
+        record["subscription_id"],
+        record["target_instance_count"],
+        dry_run,
+    )
+
+    if dry_run:
+        record.update(
+            {
+                "action": "dry_run",
+                "result": None,
+                "message": f"would retry {len(instance_id_list)} render-failed proxies",
+            }
+        )
+        return record
+
+    try:
+        retry_result = api.node_man.retry_subscription(
+            bk_tenant_id=record["bk_tenant_id"],
+            subscription_id=record["subscription_id"],
+            instance_id_list=instance_id_list,
+        )
+    except Exception as error:  # noqa: BLE001 - migration command reports per-subscription failures.
+        logger.exception(
+            "retry bk-collector proxy config subscription: failed config_type=%s bk_tenant_id=%s bk_biz_id=%s "
+            "subscription_id=%s",
+            record["config_type"],
+            record["bk_tenant_id"],
+            record["bk_biz_id"],
+            record["subscription_id"],
+        )
+        record.update({"action": RETRY, "result": False, "message": str(error)})
+    else:
+        logger.info(
+            "retry bk-collector proxy config subscription: completed config_type=%s bk_tenant_id=%s bk_biz_id=%s "
+            "subscription_id=%s retry_result=%s",
+            record["config_type"],
+            record["bk_tenant_id"],
+            record["bk_biz_id"],
+            record["subscription_id"],
+            retry_result,
+        )
+        record.update({"action": RETRY, "result": True, "message": "success", "retry_result": retry_result})
+    return record
 
 
 def _check_biz_bk_collector_proxy_config_delivery_once(
@@ -911,15 +1192,17 @@ def _operate_biz_bk_collector_plugin(
     job_type: str,
     plugin_version: str,
     operation_host_key: str,
-    host_plan_loader: Callable[..., tuple[list[int], list[int]]],
+    host_plan_loader: Callable[..., tuple[list[int], list[dict[str, Any]]]],
     empty_operation_message: str,
     dry_run_message: str,
     job_wait_timeout: int,
     job_poll_interval: int,
+    skip_hosts_without_agent: bool,
 ) -> dict[str, Any]:
     logger.info(
         "operate_biz_bk_collector_plugin: start category=%s job_type=%s bk_tenant_id=%s bk_biz_ids=%s "
-        "operator=%s dry_run=%s plugin_version=%s job_wait_timeout=%s job_poll_interval=%s",
+        "operator=%s dry_run=%s plugin_version=%s job_wait_timeout=%s job_poll_interval=%s "
+        "skip_hosts_without_agent=%s",
         category,
         job_type,
         bk_tenant_id,
@@ -929,6 +1212,7 @@ def _operate_biz_bk_collector_plugin(
         plugin_version,
         job_wait_timeout,
         job_poll_interval,
+        skip_hosts_without_agent,
     )
     report = _init_report(
         bk_tenant_id=bk_tenant_id,
@@ -956,6 +1240,7 @@ def _operate_biz_bk_collector_plugin(
                 "target_host_ids": [],
                 operation_host_key: [],
                 "skipped_host_ids": [],
+                "skipped_hosts": [],
             }
             try:
                 target_host_ids = _unique_ints(BkCollectorConfig.get_target_host_ids_by_biz_id(bk_tenant_id, bk_biz_id))
@@ -981,25 +1266,28 @@ def _operate_biz_bk_collector_plugin(
                     report["details"][category].append(record)
                     continue
 
-                operation_host_ids, skipped_host_ids = host_plan_loader(
+                operation_host_ids, skipped_hosts = host_plan_loader(
                     bk_tenant_id=bk_tenant_id,
                     bk_host_ids=target_host_ids,
                     plugin_name=PLUGIN_NAME,
                     plugin_version=plugin_version,
+                    skip_hosts_without_agent=skip_hosts_without_agent,
                 )
+                skipped_host_ids = [skipped_host["bk_host_id"] for skipped_host in skipped_hosts]
                 record[operation_host_key] = operation_host_ids
+                record["skipped_hosts"] = skipped_hosts
                 record["skipped_host_ids"] = skipped_host_ids
                 logger.info(
                     "operate_biz_bk_collector_plugin: operation plan ready category=%s bk_tenant_id=%s "
                     "bk_biz_id=%s operation_host_count=%s skipped_host_count=%s operation_host_ids=%s "
-                    "skipped_host_ids=%s",
+                    "skipped_hosts=%s",
                     category,
                     bk_tenant_id,
                     bk_biz_id,
                     len(operation_host_ids),
-                    len(skipped_host_ids),
+                    len(skipped_hosts),
                     operation_host_ids,
-                    skipped_host_ids,
+                    skipped_hosts,
                 )
                 if not operation_host_ids:
                     record.update({"action": "skip", "result": True, "message": empty_operation_message})
@@ -1092,12 +1380,15 @@ def _operate_biz_bk_collector_plugin(
 
     report["summary"] = _build_summary(report["details"], dry_run=dry_run)
     report["failure_summary"] = _build_plugin_operation_failure_summary(report["details"])
+    report["skip_summary"] = _build_plugin_operation_skip_summary(report["details"])
     logger.info(
-        "operate_biz_bk_collector_plugin: completed category=%s bk_tenant_id=%s bk_biz_ids=%s summary=%s",
+        "operate_biz_bk_collector_plugin: completed category=%s bk_tenant_id=%s bk_biz_ids=%s summary=%s "
+        "skip_summary=%s",
         category,
         bk_tenant_id,
         bk_biz_ids,
         report["summary"],
+        report["skip_summary"],
     )
     return report
 
@@ -1128,6 +1419,7 @@ def _build_biz_bk_collector_operation_error_report(
                 "target_host_ids": [],
                 operation_host_key: [],
                 "skipped_host_ids": [],
+                "skipped_hosts": [],
                 "action": category,
                 "result": False,
                 "message": message,
@@ -1135,6 +1427,7 @@ def _build_biz_bk_collector_operation_error_report(
         )
     report["summary"] = _build_summary(report["details"], dry_run=dry_run)
     report["failure_summary"] = _build_plugin_operation_failure_summary(report["details"])
+    report["skip_summary"] = _build_plugin_operation_skip_summary(report["details"])
     return report
 
 
@@ -1180,6 +1473,33 @@ def _build_plugin_operation_failure_summary(details: dict[str, list[dict[str, An
     return {
         "record_count": len(records),
         "host_count": abnormal_host_count,
+        "records": records,
+    }
+
+
+def _build_plugin_operation_skip_summary(details: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
+    """汇总因 Agent 未安装等原因被跳过的主机，方便命令层集中打印跳过的机器和原因。"""
+    records = []
+    host_count = 0
+
+    for category, category_records in details.items():
+        for record in category_records:
+            skipped_hosts = record.get("skipped_hosts") or []
+            if not skipped_hosts:
+                continue
+            host_count += len(skipped_hosts)
+            records.append(
+                {
+                    "category": category,
+                    "bk_biz_id": record.get("bk_biz_id"),
+                    "skipped_host_count": len(skipped_hosts),
+                    "hosts": skipped_hosts,
+                }
+            )
+
+    return {
+        "record_count": len(records),
+        "host_count": host_count,
         "records": records,
     }
 
@@ -1616,27 +1936,77 @@ def _refresh_log(
 
 
 def _get_deploy_host_ids(
-    *, bk_tenant_id: str, bk_host_ids: list[int], plugin_name: str, plugin_version: str
-) -> tuple[list[int], list[int]]:
-    return _unique_ints(bk_host_ids), []
+    *,
+    bk_tenant_id: str,
+    bk_host_ids: list[int],
+    plugin_name: str,
+    plugin_version: str,
+    skip_hosts_without_agent: bool = False,
+) -> tuple[list[int], list[dict[str, Any]]]:
+    """安装场景默认全量安装；仅当 ``skip_hosts_without_agent`` 为真时才检查 Agent 状态并跳过未安装主机。"""
+    if not skip_hosts_without_agent:
+        return _unique_ints(bk_host_ids), []
 
-
-def _get_stop_host_ids(
-    *, bk_tenant_id: str, bk_host_ids: list[int], plugin_name: str, plugin_version: str = ""
-) -> tuple[list[int], list[int]]:
-    plugin_info_list = _list_plugin_info_by_host_ids(bk_tenant_id=bk_tenant_id, bk_host_ids=bk_host_ids)
-    plugin_info_by_host_id = {plugin_info["bk_host_id"]: plugin_info for plugin_info in plugin_info_list}
-    skipped_host_ids = []
-    stop_host_ids = []
+    plugin_info_by_host_id = _get_plugin_info_by_host_id(bk_tenant_id=bk_tenant_id, bk_host_ids=bk_host_ids)
+    deploy_host_ids: list[int] = []
+    skipped_hosts: list[dict[str, Any]] = []
 
     for bk_host_id in bk_host_ids:
         plugin_info = plugin_info_by_host_id.get(bk_host_id)
-        if plugin_info and _has_plugin(plugin_info.get("plugin_status") or [], plugin_name):
+        if _is_agent_not_installed((plugin_info or {}).get("status")):
+            skipped_hosts.append(_build_skipped_host_record(plugin_info, bk_host_id, SKIP_REASON_AGENT_NOT_INSTALLED))
+            continue
+        deploy_host_ids.append(bk_host_id)
+
+    return _unique_ints(deploy_host_ids), skipped_hosts
+
+
+def _get_stop_host_ids(
+    *,
+    bk_tenant_id: str,
+    bk_host_ids: list[int],
+    plugin_name: str,
+    plugin_version: str = "",
+    skip_hosts_without_agent: bool = True,
+) -> tuple[list[int], list[dict[str, Any]]]:
+    """停止场景默认跳过 Agent 未安装的主机；同时跳过未安装 bk-collector 的主机，并记录跳过原因。"""
+    plugin_info_by_host_id = _get_plugin_info_by_host_id(bk_tenant_id=bk_tenant_id, bk_host_ids=bk_host_ids)
+    stop_host_ids: list[int] = []
+    skipped_hosts: list[dict[str, Any]] = []
+
+    for bk_host_id in bk_host_ids:
+        plugin_info = plugin_info_by_host_id.get(bk_host_id)
+        if skip_hosts_without_agent and _is_agent_not_installed((plugin_info or {}).get("status")):
+            skipped_hosts.append(_build_skipped_host_record(plugin_info, bk_host_id, SKIP_REASON_AGENT_NOT_INSTALLED))
+        elif plugin_info and _has_plugin(plugin_info.get("plugin_status") or [], plugin_name):
             stop_host_ids.append(bk_host_id)
         else:
-            skipped_host_ids.append(bk_host_id)
+            skipped_hosts.append(
+                _build_skipped_host_record(plugin_info, bk_host_id, SKIP_REASON_BK_COLLECTOR_NOT_INSTALLED)
+            )
 
-    return _unique_ints(stop_host_ids), _unique_ints(skipped_host_ids)
+    return _unique_ints(stop_host_ids), skipped_hosts
+
+
+def _get_plugin_info_by_host_id(*, bk_tenant_id: str, bk_host_ids: list[int]) -> dict[int, dict[str, Any]]:
+    plugin_info_list = _list_plugin_info_by_host_ids(bk_tenant_id=bk_tenant_id, bk_host_ids=bk_host_ids)
+    return {plugin_info["bk_host_id"]: plugin_info for plugin_info in plugin_info_list}
+
+
+def _is_agent_not_installed(agent_status: str | None) -> bool:
+    """Agent 状态为 NOT_INSTALLED，或节点管理未返回该主机（状态缺失/为空）时，视为 Agent 未安装。"""
+    return str(agent_status or "").strip().upper() in {"", AGENT_NOT_INSTALLED_STATUS}
+
+
+def _build_skipped_host_record(plugin_info: dict[str, Any] | None, bk_host_id: int, reason: str) -> dict[str, Any]:
+    plugin_info = plugin_info or {}
+    return {
+        "bk_host_id": bk_host_id,
+        "ip": plugin_info.get("inner_ip") or plugin_info.get("inner_ipv6") or plugin_info.get("ip"),
+        "bk_cloud_id": plugin_info.get("bk_cloud_id"),
+        "agent_status": plugin_info.get("status"),
+        "reason": reason,
+    }
 
 
 def _list_plugin_info_by_host_ids(*, bk_tenant_id: str, bk_host_ids: list[int]) -> list[dict[str, Any]]:
