@@ -66,6 +66,34 @@ from metadata.utils.redis_tools import RedisTools, bkbase_redis_client
 logger = logging.getLogger("metadata")
 
 
+PING_SERVER_DATA_LABEL = "pingserver.base,pingserver"
+PING_SERVER_DATA_NAME_TPL = "base_{bk_biz_id}_pingserver"
+PING_SERVER_TABLE_ID_TPL = "{bk_tenant_id}_{bk_biz_id}_pingserver.base"
+PING_SERVER_DATA_SOURCE_OPTIONS = {
+    "flat_batch_key": "data",
+    models.DataSourceOption.OPTION_TIMESTAMP_UNIT: "ms",
+    models.DataSourceOption.OPTION_DISABLE_METRIC_CUTTER: "true",
+}
+PING_SERVER_CREATE_DATA_SOURCE_OPTIONS = {
+    name: value
+    for name, value in PING_SERVER_DATA_SOURCE_OPTIONS.items()
+    if name != models.DataSourceOption.OPTION_TIMESTAMP_UNIT
+}
+PING_SERVER_RESULT_TABLE_FIELDS = [
+    {"field_name": "bk_biz_id", "field_type": "int", "tag": "dimension", "description": "业务ID"},
+    {"field_name": "bk_target_ip", "field_type": "string", "tag": "dimension", "description": "目标IP"},
+    {"field_name": "bk_target_cloud_id", "field_type": "int", "tag": "dimension", "description": "目标云区域ID"},
+    {"field_name": "ip", "field_type": "string", "tag": "dimension", "description": "采集器IP"},
+    {"field_name": "bk_cloud_id", "field_type": "int", "tag": "dimension", "description": "采集器云区域ID"},
+    {"field_name": "bk_host_id", "field_type": "int", "tag": "dimension", "description": "采集器主机ID"},
+    {"field_name": "loss_percent", "field_type": "double", "tag": "metric", "description": "丢包率"},
+    {"field_name": "max_rtt", "field_type": "double", "unit": "ms", "tag": "metric", "description": "最大时延"},
+    {"field_name": "min_rtt", "field_type": "double", "unit": "ms", "tag": "metric", "description": "最小时延"},
+    {"field_name": "avg_rtt", "field_type": "double", "unit": "ms", "tag": "metric", "description": "平均时延"},
+    {"field_name": "time", "field_type": "timestamp", "tag": "timestamp", "description": "上报时间"},
+]
+
+
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
 def refresh_custom_report_config(bk_biz_id=None):
     from metadata.task.custom_report import refresh_custom_report_2_node_man
@@ -1347,6 +1375,7 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
             | Q(data_name__endswith="_sys_base")
             | Q(data_name__endswith="_system_proc_port")
             | Q(data_name__endswith="_system_proc_perf")
+            | Q(data_name__endswith="_pingserver")
         ).values_list("data_name", flat=True)
     )
 
@@ -1360,6 +1389,8 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
         ("bkmonitor", ("base_{bk_biz_id}_system_proc_port",)): create_system_proc_datalink_for_bkcc,
         ("bkmonitor", ("base_{bk_biz_id}_system_proc_perf",)): create_system_proc_datalink_for_bkcc,
     }
+    if settings.ENABLE_PING_ALARM:
+        data_name_tpl_to_task[("bkmonitor", (PING_SERVER_DATA_NAME_TPL,))] = create_biz_ping_datalink_for_bkcc
 
     # 遍历业务列表，检查是否存在对应的数据源名称，如果不存在，则执行对应任务创建数据源
     for bk_tenant_id, bk_biz_id in biz_list:
@@ -1407,6 +1438,205 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
                     task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
 
     logger.info("check_bkcc_space_builtin_datalink: check bkcc space builtin datalink success")
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def create_biz_ping_datalink_for_bkcc(
+    bk_tenant_id: str,
+    bk_biz_id: int,
+    storage_cluster_name: str | None = None,
+):
+    """创建多租户业务 Ping Server 时序数据链路。"""
+
+    logger.info(
+        "create_biz_ping_datalink_for_bkcc: start to create pingserver datalink,bk_tenant_id->[%s],bk_biz_id->[%s]",
+        bk_tenant_id,
+        bk_biz_id,
+    )
+
+    if not settings.ENABLE_PING_ALARM:
+        logger.info("create_biz_ping_datalink_for_bkcc: ping alarm is disabled,return!")
+        return
+
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        logger.info("create_biz_ping_datalink_for_bkcc: multi tenant mode is not enabled,return!")
+        return
+
+    if bk_biz_id <= 0:
+        logger.info("create_biz_ping_datalink_for_bkcc: invalid bk_biz_id->[%s],return!", bk_biz_id)
+        return
+
+    is_platform_data_id = False
+    if settings.SPACE_BUILTIN_DATA_LINK_MODE == "tenant":
+        try:
+            default_biz_id = get_tenant_default_biz_id(bk_tenant_id)
+        except ValueError:
+            logger.error(
+                "create_biz_ping_datalink_for_bkcc: get tenant default biz id failed, bk_tenant_id->[%s], return!",
+                bk_tenant_id,
+            )
+            return
+        if bk_biz_id != default_biz_id:
+            logger.info(
+                "create_biz_ping_datalink_for_bkcc: bk_biz_id->[%s] is not the operation business of bk_tenant_id->[%s],return!",
+                bk_biz_id,
+                bk_tenant_id,
+            )
+            return
+        is_platform_data_id = True
+
+    if not storage_cluster_name:
+        cluster = models.ClusterInfo.objects.filter(
+            bk_tenant_id=bk_tenant_id, cluster_type=models.ClusterInfo.TYPE_VM, is_default_cluster=True
+        ).last()
+        if not cluster:
+            logger.error("create_biz_ping_datalink_for_bkcc: get default vm cluster failed,return!")
+            return
+        storage_cluster_name = cluster.cluster_name
+    else:
+        cluster = models.ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=storage_cluster_name)
+
+    data_name = PING_SERVER_DATA_NAME_TPL.format(bk_biz_id=bk_biz_id)
+    table_id = PING_SERVER_TABLE_ID_TPL.format(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+
+    data_source = models.DataSource.objects.filter(data_name=data_name, bk_tenant_id=bk_tenant_id).first()
+    if not data_source:
+        logger.info(
+            "create_biz_ping_datalink_for_bkcc: data source not found,bk_tenant_id->[%s],bk_biz_id->[%s],data_name->[%s]",
+            bk_tenant_id,
+            bk_biz_id,
+            data_name,
+        )
+        data_source = models.DataSource.create_data_source(
+            data_name=data_name,
+            etl_config=EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value,
+            operator="system",
+            source_label="bk_monitor",
+            type_label="time_series",
+            bk_biz_id=bk_biz_id,
+            bk_tenant_id=bk_tenant_id,
+            created_from=DataIdCreatedFromSystem.BKDATA.value,
+            is_platform_data_id=is_platform_data_id,
+            option=PING_SERVER_CREATE_DATA_SOURCE_OPTIONS,
+        )
+    for option_name, option_value in PING_SERVER_DATA_SOURCE_OPTIONS.items():
+        option_record = models.DataSourceOption.objects.filter(
+            bk_data_id=data_source.bk_data_id,
+            name=option_name,
+            bk_tenant_id=DEFAULT_TENANT_ID,
+        ).first()
+        if option_record:
+            option_record.value, option_record.value_type = models.DataSourceOption._parse_value(option_value)
+            option_record.creator = "system"
+            option_record.save(update_fields=["value", "value_type", "creator"])
+        else:
+            models.DataSourceOption.create_option(
+                bk_data_id=data_source.bk_data_id,
+                name=option_name,
+                value=option_value,
+                creator="system",
+            )
+
+    try:
+        with transaction.atomic():
+            models.ResultTable.objects.update_or_create(
+                table_id=table_id,
+                bk_tenant_id=bk_tenant_id,
+                defaults={
+                    "data_label": PING_SERVER_DATA_LABEL,
+                    "table_name_zh": f"{bk_tenant_id}_{bk_biz_id}_PING_SERVER上报数据",
+                    "is_custom_table": False,
+                    "schema_type": "free",
+                    "default_storage": models.ClusterInfo.TYPE_VM,
+                    "creator": "system",
+                    "label": "os",
+                    "bk_biz_id": bk_biz_id,
+                },
+            )
+            models.DataSourceResultTable.objects.update_or_create(
+                bk_data_id=data_source.bk_data_id, table_id=table_id, bk_tenant_id=bk_tenant_id
+            )
+
+            existing_fields = set(
+                models.ResultTableField.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).values_list(
+                    "field_name", flat=True
+                )
+            )
+            field_to_create = []
+            for field in PING_SERVER_RESULT_TABLE_FIELDS:
+                if field["field_name"] in existing_fields:
+                    continue
+                field_to_create.append(
+                    models.ResultTableField(
+                        table_id=table_id,
+                        bk_tenant_id=bk_tenant_id,
+                        field_name=field["field_name"],
+                        field_type=field["field_type"],
+                        description=field.get("description", ""),
+                        unit=field.get("unit", ""),
+                        tag=field.get("tag", ""),
+                        is_config_by_user=field.get("is_config_by_user", True),
+                        default_value=field.get("default_value"),
+                        creator="system",
+                        alias_name=field.get("alias_name", ""),
+                        is_disabled=field.get("is_disabled", False),
+                    )
+                )
+            if field_to_create:
+                models.ResultTableField.objects.bulk_create(field_to_create)
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(
+            "create_biz_ping_datalink_for_bkcc: failed to create metadata,bk_tenant_id->[%s],bk_biz_id->[%s],error->[%s]",
+            bk_tenant_id,
+            bk_biz_id,
+            e,
+        )
+        return
+
+    data_link_ins, _ = models.DataLink.objects.update_or_create(
+        bk_tenant_id=bk_tenant_id,
+        data_link_name=data_name,
+        namespace="bkmonitor",
+        data_link_strategy=models.DataLink.BK_STANDARD_V2_TIME_SERIES,
+        defaults={"bk_data_id": data_source.bk_data_id, "table_ids": [table_id]},
+    )
+
+    try:
+        data_link_ins.apply_data_link(
+            data_source=data_source,
+            table_id=table_id,
+            storage_cluster_name=storage_cluster_name,
+            bk_biz_id=bk_biz_id,
+        )
+        data_link_ins.sync_metadata(table_id=table_id, storage_cluster_name=storage_cluster_name)
+        bkbase_rt_name = f"bkm_{table_id.replace('.', '_')}"
+        AccessVMRecord.objects.update_or_create(
+            bk_tenant_id=bk_tenant_id,
+            result_table_id=table_id,
+            bk_base_data_id=data_source.bk_data_id,
+            bk_base_data_name=data_name,
+            defaults={
+                "data_type": AccessVMRecord.ACCESS_VM,
+                "vm_result_table_id": f"{bk_biz_id}_{bkbase_rt_name}",
+                "vm_cluster_id": cluster.cluster_id,
+                "storage_cluster_id": cluster.cluster_id,
+            },
+        )
+    except Exception as e:  # pylint: disable=broad-except
+        logger.exception(
+            "create_biz_ping_datalink_for_bkcc: failed to apply datalink,bk_tenant_id->[%s],bk_biz_id->[%s],error->[%s]",
+            bk_tenant_id,
+            bk_biz_id,
+            e,
+        )
+        return
+
+    logger.info(
+        "create_biz_ping_datalink_for_bkcc: finished creating pingserver datalink,bk_tenant_id->[%s],bk_biz_id->[%s],bk_data_id->[%s]",
+        bk_tenant_id,
+        bk_biz_id,
+        data_source.bk_data_id,
+    )
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
