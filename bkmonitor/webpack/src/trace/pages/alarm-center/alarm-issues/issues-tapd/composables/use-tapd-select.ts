@@ -66,8 +66,10 @@ export function useTapdSelect(options: UseTapdSelectOptions) {
       loading.value = true;
       list.value = [];
       page.value = 1;
+    } else {
+      // 滚动加载更多时仅显示列表内部 loading，避免整体骨架屏闪烁
+      scrollLoading.value = true;
     }
-    scrollLoading.value = true;
 
     try {
       const data = await searchTapdItemsApi({
