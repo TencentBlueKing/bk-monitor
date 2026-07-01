@@ -32,9 +32,9 @@ from bkmonitor.documents.issue import (
 from bkmonitor.issue_merge import IssueFrozenError, IssueMergeResolver
 from bkmonitor.models import TapdWorkspaceBinding, TapdWorkspaceManualUnbind
 from bkmonitor.models.issue import IssueMergeRelation, IssueTapdRelation
-from bkmonitor.utils.request import get_request_username, get_request, get_request_tenant_id
+from bkmonitor.utils.request import get_request_username, get_request
 from django.db import transaction
-from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
+from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id, bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.user import set_local_username
 from constants.issue import IssuePriority, IssueStatus, IssueActivityType
@@ -2855,12 +2855,12 @@ class RevokeTapdUserAuthResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
-        pass  # 当前用户取 request.user.username，当前租户取 request 的 tenant
+        bk_biz_id = serializers.IntegerField(label="蓝鲸业务ID", required=True)
 
     def perform_request(self, validated_request_data: dict) -> dict:
         # 1. 获取当前用户和租户
         username = get_request_username()
-        tenant_id = get_request_tenant_id()
+        tenant_id = bk_biz_id_to_bk_tenant_id(validated_request_data["bk_biz_id"])
 
         # 2. 删除用户态 token（Redis）
         delete_tapd_token(tenant_id, username)
