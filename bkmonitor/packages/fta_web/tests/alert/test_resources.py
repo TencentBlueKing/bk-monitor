@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -58,13 +59,24 @@ class TestAlertTopNResource:
 
 
 class TestAlertDetailResource:
-    def test_perform_request_allows_empty_graph_panel(self, monkeypatch):
+    @pytest.mark.parametrize(
+        ("relation_info", "expected_relation_info", "expected_relation_data"),
+        [
+            ("recent", "topo recent", None),
+            ('{"logText": "error"}', None, {"logText": "error", "topo_info": "topo"}),
+        ],
+    )
+    def test_perform_request_allows_empty_graph_panel(
+        self, monkeypatch, relation_info, expected_relation_info, expected_relation_data
+    ):
         alert_id = "17742505258462064"
         fake_alert = SimpleNamespace(event=SimpleNamespace(bk_biz_id=8))
 
         monkeypatch.setattr(alert_resources.AlertDocument, "get", lambda _alert_id: fake_alert)
         monkeypatch.setattr(alert_resources.AIOPSManager, "get_graph_panel", lambda _alert: None)
-        monkeypatch.setattr(AlertDetailResource, "get_relation_info", lambda self, alert, length_limit=True: "recent")
+        monkeypatch.setattr(
+            AlertDetailResource, "get_relation_info", lambda self, alert, length_limit=True: relation_info
+        )
         monkeypatch.setattr(
             alert_resources.AlertQueryHandler,
             "clean_document",
@@ -89,7 +101,10 @@ class TestAlertDetailResource:
 
         assert result["graph_panel"] is None
         assert result["plugin_display_name"] == "Test Plugin"
-        assert result["relation_info"] == "topo recent"
+        if expected_relation_data is None:
+            assert result["relation_info"] == expected_relation_info
+        else:
+            assert json.loads(result["relation_info"]) == expected_relation_data
 
 
 class TestSearchAlertResourceDetectActionIdQuery:
