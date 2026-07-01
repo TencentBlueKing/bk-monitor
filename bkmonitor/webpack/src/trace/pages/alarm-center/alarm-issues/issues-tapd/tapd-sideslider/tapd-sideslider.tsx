@@ -26,12 +26,17 @@
 import { type PropType, defineComponent, toRefs, useTemplateRef } from 'vue';
 
 import { Button, Checkbox, Message, Sideslider } from 'bkui-vue';
-import { linkIssueToTapd } from 'monitor-api/modules/issue';
 
 import TapdFieldForm from '../../components/tapd-field-form/tapd-field-form';
 import TapdFieldFormLoadingCom from '../../components/tapd-field-form/tapd-field-form-loading';
+import { useTapdIssueActivities } from '../composables/use-tapd-issue-activities';
 import { useTapdSideslider } from '../composables/use-tapd-sideslider';
-import { type TCreateTapdApiParams, createTapdApi } from '../services/create-tapd';
+import {
+  type TCreateTapdApiParams,
+  type TLinkIssueToTapdApiParams,
+  createTapdApi,
+  linkIssueToTapdApi,
+} from '../services/create-tapd';
 import TapdRelation from '../tapd-relation/tapd-relation';
 import TapdBasicForm from './components/tapd-basic-form';
 
@@ -65,6 +70,8 @@ export default defineComponent({
     const basicFormRef = useTemplateRef<InstanceType<typeof TapdBasicForm>>('basicForm');
     const tapdFieldFormRef = useTemplateRef<InstanceType<typeof TapdFieldForm>>('tapdFieldForm');
     const tapdRelationRef = useTemplateRef<InstanceType<typeof TapdRelation>>('tapdRelation');
+
+    const tapdIssueActivities = useTapdIssueActivities();
 
     const { show, bizId, issuesId, workspaceList } = toRefs(props);
 
@@ -115,12 +122,16 @@ export default defineComponent({
             tapd_items: linkTapdItems.value,
           };
           confirmLoading.value = true;
-          const success = await linkIssueToTapd(params).catch(() => null);
+          const success = await linkIssueToTapdApi(params as TLinkIssueToTapdApiParams).catch(() => null);
           Message({
             type: success ? 'success' : 'error',
             message: success ? window.i18n.t('关联单据成功') : window.i18n.t('关联单据失败'),
           });
           if (success) {
+            // 将 TAPD 返回的活动记录写入全局状态，供 Issue 详情页活动列表回写
+            if (success?.activities) {
+              tapdIssueActivities.setActivities({ issueId: issuesId.value, list: success.activities });
+            }
             handleShowChange(false);
           }
         }
@@ -142,6 +153,10 @@ export default defineComponent({
             message: success ? window.i18n.t('创建单据成功') : window.i18n.t('创建单据失败'),
           });
           if (success) {
+            // 将 TAPD 返回的活动记录写入全局状态，供 Issue 详情页活动列表回写
+            if (success?.activities) {
+              tapdIssueActivities.setActivities({ issueId: issuesId.value, list: success.activities });
+            }
             handleShowChange(false);
           }
         }
