@@ -689,7 +689,7 @@ class AlertDetailResource(Resource):
 
         if isinstance(relation_data, dict):
             # 结构化日志需保持为 JSON，避免破坏前端解析。
-            relation_data["topo_info"] = topo_info
+            relation_data["_alert_topo_info"] = topo_info
             return json.dumps(relation_data, ensure_ascii=False)
 
         if isinstance(relation_data, list):

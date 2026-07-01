@@ -63,7 +63,7 @@ class TestAlertDetailResource:
         ("relation_info", "expected_relation_info", "expected_relation_data"),
         [
             ("recent", "topo recent", None),
-            ('{"logText": "error"}', None, {"logText": "error", "topo_info": "topo"}),
+            ('{"logText": "error"}', None, {"logText": "error", "_alert_topo_info": "topo"}),
         ],
     )
     def test_perform_request_allows_empty_graph_panel(
