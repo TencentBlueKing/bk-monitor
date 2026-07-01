@@ -50,4 +50,10 @@ export default {
   项目必填: 'Project is required',
   单据类型必填: 'Ticket Type is required',
   同步单据状态: 'Sync Ticket Status',
+  选择单据: 'Select Ticket',
+  选择已有单据: 'Select Existing Ticket',
+  请选择单据: 'Please select a ticket',
+  关联单据: 'Relate Ticket',
+  关联已有单据: 'Relate Existing Ticket',
+  状态不同步: 'Status is not synced',
 };

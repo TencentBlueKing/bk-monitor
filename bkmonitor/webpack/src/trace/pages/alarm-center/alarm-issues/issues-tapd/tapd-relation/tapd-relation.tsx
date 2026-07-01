@@ -24,9 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, shallowRef, toRef, watch } from 'vue';
+import { type PropType, defineComponent, shallowRef, toRef, watch } from 'vue';
 
 import { Select } from 'bkui-vue';
+import { debounce } from 'lodash';
+import OverflowTips from 'trace/directive/overflow-tips';
 import { useI18n } from 'vue-i18n';
 
 import { useTapdSelect } from '../composables/use-tapd-select';
@@ -36,6 +38,9 @@ import './tapd-relation.scss';
 
 export default defineComponent({
   name: 'TapdRelation',
+  directive: {
+    OverflowTips,
+  },
   props: {
     modelValue: {
       type: Array as PropType<string[]>,
@@ -69,11 +74,15 @@ export default defineComponent({
     const workspaceIdRef = toRef(props, 'workspaceId');
     const tapdTypeRef = toRef(props, 'tapdType');
 
-    const { list, loading, scrollLoading, tapdMaps, fetchData, handleSearch, handleScrollEnd } = useTapdSelect({
-      bizId: bizIdRef,
-      workspaceId: workspaceIdRef,
-      tapdType: tapdTypeRef,
-    });
+    const { list, loading, scrollLoading, tapdMaps, isToggle, fetchData, handleSearch, handleScrollEnd } =
+      useTapdSelect({
+        bizId: bizIdRef,
+        workspaceId: workspaceIdRef,
+        tapdType: tapdTypeRef,
+      });
+
+    /** 搜索输入防抖处理（300ms），避免频繁触发接口请求 */
+    const handleSearchDebounce = debounce(handleSearch, 300);
 
     /** 当查询参数变化时重新加载列表 */
     watch(
@@ -84,9 +93,6 @@ export default defineComponent({
         }
       }
     );
-
-    /** Select 是否处于加载态（首次或滚动加载） */
-    const selectLoading = computed(() => loading.value || scrollLoading.value);
 
     const validate = async () => {
       if (!props.modelValue.length) {
@@ -117,13 +123,17 @@ export default defineComponent({
       );
     };
 
+    /**
+     * Select 下拉面板展开/收起回调
+     * - 展开时：清空错误提示并触发首加载数据
+     * - 收起时：执行校验（用于提交前的表单验证）
+     */
     const handleToggle = (val: boolean) => {
+      isToggle.value = val;
       if (val) {
         errMsg.value = '';
-        /** 打开下拉时触发首加载数据 */
-        if (!list.value.length) {
-          fetchData();
-        }
+        // 每次展开都重新拉取最新数据，保证数据一致性
+        fetchData();
       } else {
         validate();
       }
@@ -133,8 +143,9 @@ export default defineComponent({
       errMsg,
       t,
       list,
-      selectLoading,
+      loading,
       scrollLoading,
+      handleSearchDebounce,
       handleChange,
       handleSearch,
       handleScrollEnd,
@@ -158,13 +169,14 @@ export default defineComponent({
                 popoverOptions={{
                   extCls: 'tapd-sideslider-relation-compoent-popover',
                 }}
-                loading={this.selectLoading}
+                loading={this.loading}
                 modelValue={this.modelValue}
                 multiple={true}
+                noDataText={this.loading ? this.t('加载中...') : this.t('无数据')}
                 scrollLoading={this.scrollLoading}
                 filterable
                 onScroll-end={this.handleScrollEnd}
-                onSearch-change={this.handleSearch}
+                onSearch-change={this.handleSearchDebounce}
                 onToggle={this.handleToggle}
                 onUpdate:modelValue={this.handleChange}
               >
@@ -176,7 +188,12 @@ export default defineComponent({
                   >
                     <span class='tapd-select-item'>
                       <span class='tapd-id'>#TAPD-{item.id}</span>
-                      <span class='tapd-title'>{item.name}</span>
+                      <span
+                        class='tapd-title'
+                        v-overflow-tips
+                      >
+                        {item.name}
+                      </span>
                       <span
                         style={{
                           borderColor: TapdStatusMap[item.status].color,
