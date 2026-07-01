@@ -3,8 +3,15 @@
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  */
 import { retrieveRowRepository } from '../repositories/retrieve-row.repository';
-import { createRetrieveRowRenderMeta, type RetrieveRowRenderMeta } from '../utils/retrieve-render-meta';
-import { estimateValueBytes, retrieveRowProjectionService, type RetrieveRowProjection } from './retrieve-row-projection.service';
+import {
+  createRetrieveRowRenderMeta,
+  type RetrieveRowRenderMeta,
+} from '../utils/retrieve-render-meta';
+import {
+  estimateValueBytes,
+  retrieveRowProjectionService,
+  type RetrieveRowProjection,
+} from './retrieve-row-projection.service';
 import { storageHealthService } from './storage-health.service';
 
 interface MemoryEntry<T = any> {
@@ -18,8 +25,13 @@ interface RenderMemoryEntry extends MemoryEntry<Record<string, any>> {
 
 interface WriteOptions {
   fieldNames?: string[];
+  copyExcludedFields?: string[];
   renderRows?: Record<string, any>[];
   renderMetas?: RetrieveRowRenderMeta[];
+}
+
+interface CopyRowsOptions {
+  includeFields?: string[];
 }
 
 export class RetrieveRowCacheService {
@@ -39,9 +51,8 @@ export class RetrieveRowCacheService {
       hash = (hash * 31 + seed.charCodeAt(i)) | 0;
     }
 
-    const randomId = typeof crypto !== 'undefined' && crypto.randomUUID
-      ? crypto.randomUUID()
-      : Math.random().toString(16).slice(2);
+    const randomId =
+      typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(16).slice(2);
 
     return `retrieve:${Date.now()}:${Math.abs(hash)}:${randomId}`;
   }
@@ -52,7 +63,7 @@ export class RetrieveRowCacheService {
     try {
       await retrieveRowRepository.replaceRows(queryKey, rows, 0, options);
       this.rememberRows(keys, rows, options.fieldNames, false, options.renderMetas);
-      retrieveRowRepository.gc().catch((error) => {
+      retrieveRowRepository.gc().catch(error => {
         console.warn('[retrieve-row-cache] gc failed', error);
       });
       return keys;
@@ -109,7 +120,7 @@ export class RetrieveRowCacheService {
       console.warn('[retrieve-row-cache] get render entries failed', error);
     }
 
-    return keys.map((key) => {
+    return keys.map(key => {
       const row = this.volatileRows.get(key) || this.rowMemory.get(key)?.value;
       if (!row) return undefined;
       const renderMeta = this.rowMemory.get(key)?.renderMeta || createRetrieveRowRenderMeta(row);
@@ -138,13 +149,13 @@ export class RetrieveRowCacheService {
 
   async getRows(keys: string[]) {
     const missingKeySet = new Set<string>();
-    const output = keys.map((key) => {
+    const output = keys.map(key => {
       const value = this.volatileRows.get(key) || this.touchRow(key);
       if (!value) missingKeySet.add(key);
       return value;
     });
 
-    if (missingKeySet.size && await storageHealthService.ensureIndexedDBUsable()) {
+    if (missingKeySet.size && (await storageHealthService.ensureIndexedDBUsable())) {
       const missingKeys = Array.from(missingKeySet);
       try {
         const dbRows = await retrieveRowRepository.getRowsByKeys(missingKeys);
@@ -171,15 +182,20 @@ export class RetrieveRowCacheService {
     return output.filter(Boolean);
   }
 
+  async getCopyRows(keys: string[], options: CopyRowsOptions = {}) {
+    if (!keys.length) return [];
+    return (await retrieveRowRepository.getCopyRowsByKeys(keys, options)).filter(Boolean);
+  }
+
   async getProjections(keys: string[]) {
     const missingKeySet = new Set<string>();
-    const output = keys.map((key) => {
+    const output = keys.map(key => {
       const value = this.volatileProjections.get(key) || this.touchProjection(key);
       if (!value) missingKeySet.add(key);
       return value;
     });
 
-    if (missingKeySet.size && await storageHealthService.ensureIndexedDBUsable()) {
+    if (missingKeySet.size && (await storageHealthService.ensureIndexedDBUsable())) {
       const missingKeys = Array.from(missingKeySet);
       try {
         const dbRows = await retrieveRowRepository.getProjectionsByKeys(missingKeys);
@@ -207,12 +223,12 @@ export class RetrieveRowCacheService {
   }
 
   async getRowsByQuery(queryKey: string, offset = 0, limit?: number) {
-    if (!await storageHealthService.ensureIndexedDBUsable()) {
+    if (!(await storageHealthService.ensureIndexedDBUsable())) {
       return this.getRows(this.createMemoryKeysByQuery(queryKey, offset, limit));
     }
     try {
       const entities = await retrieveRowRepository.getEntitiesByQuery(queryKey, offset, limit);
-      entities.forEach((entity) => {
+      entities.forEach(entity => {
         if (entity?.row) this.setRowMemory(entity.key, entity.row);
       });
       return entities.map(entity => entity?.row).filter(Boolean);
@@ -225,12 +241,12 @@ export class RetrieveRowCacheService {
   }
 
   async getProjectionsByQuery(queryKey: string, offset = 0, limit?: number) {
-    if (!await storageHealthService.ensureIndexedDBUsable()) {
+    if (!(await storageHealthService.ensureIndexedDBUsable())) {
       return this.getProjections(this.createMemoryKeysByQuery(queryKey, offset, limit));
     }
     try {
       const entities = await retrieveRowRepository.getEntitiesByQuery(queryKey, offset, limit);
-      entities.forEach((entity) => {
+      entities.forEach(entity => {
         if (entity?.projection) this.setProjectionMemory(entity.key, entity.projection);
       });
       return entities.map(entity => entity?.projection).filter(Boolean);
@@ -284,7 +300,13 @@ export class RetrieveRowCacheService {
       .slice(offset, typeof limit === 'number' ? offset + limit : undefined);
   }
 
-  private rememberRows(keys: string[], rows: Record<string, any>[], fieldNames: string[] = [], forceVolatile = false, renderMetas?: RetrieveRowRenderMeta[]) {
+  private rememberRows(
+    keys: string[],
+    rows: Record<string, any>[],
+    fieldNames: string[] = [],
+    forceVolatile = false,
+    renderMetas?: RetrieveRowRenderMeta[],
+  ) {
     keys.forEach((key, index) => {
       const [queryKey, seqText] = this.resolveKey(key);
       const seq = Number(seqText);
@@ -357,7 +379,7 @@ export class RetrieveRowCacheService {
   }
 
   private deleteByPrefix(memory: Map<string, MemoryEntry>, queryKey: string, type: 'row' | 'projection') {
-    Array.from(memory.keys()).forEach((key) => {
+    Array.from(memory.keys()).forEach(key => {
       if (!key.startsWith(`${queryKey}:`)) return;
       const entry = memory.get(key);
       memory.delete(key);
@@ -367,7 +389,7 @@ export class RetrieveRowCacheService {
   }
 
   private deleteVolatileByPrefix(memory: Map<string, any>, queryKey: string) {
-    Array.from(memory.keys()).forEach((key) => {
+    Array.from(memory.keys()).forEach(key => {
       if (key.startsWith(`${queryKey}:`)) {
         memory.delete(key);
       }

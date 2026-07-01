@@ -294,7 +294,19 @@ export default defineComponent({
     const resultContainerIdSelector = `#${resultContainerId.value}`;
 
 
-    const getRowRenderMeta = (row?: Record<string, any>) => (row as any)?.__component_render_meta__ as RetrieveRowRenderMeta | undefined;
+    const rowComponentMetaMap = new WeakMap<
+      Record<string, any>,
+      { renderMeta?: RetrieveRowRenderMeta; rowKey?: string }
+    >();
+
+    const setRowComponentMeta = (row: Record<string, any> | undefined, rowKey?: string, renderMeta?: RetrieveRowRenderMeta) => {
+      if (row && typeof row === 'object') {
+        rowComponentMetaMap.set(row, { rowKey, renderMeta });
+      }
+    };
+
+    const getRowRenderMeta = (row?: Record<string, any>) => row ? rowComponentMetaMap.get(row)?.renderMeta : undefined;
+    const getRowComponentKey = (row: Record<string, any> | undefined) => row ? rowComponentMetaMap.get(row)?.rowKey : undefined;
 
     const shouldShowFullRowAction = (row: Record<string, any>) => {
       const meta = getRowRenderMeta(row);
@@ -302,7 +314,7 @@ export default defineComponent({
     };
 
     const openFullRowViewer = (row: Record<string, any>, rowIndex: number) => {
-      const rowKey = (row as any)?.[ROW_KEY] || rowKeys.value[rowIndex] || '';
+      const rowKey = getRowComponentKey(row) || rowKeys.value[rowIndex] || '';
       const meta = getRowRenderMeta(row);
       fullRowViewerState.rowKey = rowKey;
       fullRowViewerState.rowData = row;
@@ -777,6 +789,7 @@ export default defineComponent({
             kv-show-fields-list={kvShowFieldsList.value}
             list-data={row}
             row-index={realRowIndex}
+            row-key={getRowComponentKey(row) || rowKeys.value[realRowIndex] || ''}
             onValue-click={(type, content, isLink, field, depth, isNestedField) => {
               return handleIconClick(type, content, field, row, isLink, depth, isNestedField);
             }}
@@ -1626,8 +1639,7 @@ export default defineComponent({
 
       return renderList.map((row, rowIndex) => {
         const renderRow = row.item as Record<string, any>;
-        renderRow[ROW_KEY] = row[ROW_KEY];
-        renderRow.__component_render_meta__ = row.renderMeta;
+        setRowComponentMeta(renderRow, row[ROW_KEY], row.renderMeta);
         const logLevel = gradeOption.value.disabled ? '' : RetrieveHelper.getLogLevel(renderRow, gradeOption.value);
 
         return [

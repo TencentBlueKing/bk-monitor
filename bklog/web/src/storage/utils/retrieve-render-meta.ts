@@ -17,13 +17,21 @@ export interface RetrieveRowRenderMeta {
   fieldSegments: Record<string, RetrieveTextSegment[]>;
 }
 
+interface RetrieveRowRenderMetaOptions {
+  highlightField?: string;
+}
+
 // 暂时改为1kb测试，后续改为32kb
 export const LARGE_FIELD_TEXT_LENGTH = 32 * 1024;
+export const DEFAULT_HIGHLIGHT_FIELD = '__highlight';
 const SEGMENT_MAX_TOKENS = 500;
 const SEGMENT_CHUNK_SIZE = 200;
 const LARGE_FIELD_PREVIEW_SUFFIX = '...';
 
-export const stripMark = (value: string) => String(value).replace(/<mark>/gi, '').replace(/<\/mark>/gi, '');
+export const stripMark = (value: string) =>
+  String(value)
+    .replace(/<mark>/gi, '')
+    .replace(/<\/mark>/gi, '');
 
 const stringifyValue = (value: any) => {
   if (value === null || value === undefined) return '';
@@ -67,18 +75,16 @@ const isPlainObject = (value: any) => Object.prototype.toString.call(value) === 
 
 const getValueByPath = (row: Record<string, any> | undefined, path: string) => {
   if (!row || typeof path !== 'string') return undefined;
-  if (Object.prototype.hasOwnProperty.call(row, path)) return row[path];
+  if (Object.hasOwn(row, path)) return row[path];
 
   const parts = path.split('.');
   let current: any = row;
   for (let index = 0; index < parts.length; index++) {
     const part = parts[index];
     if (current === null || current === undefined) return undefined;
-    if (!Object.prototype.hasOwnProperty.call(current, part)) {
+    if (!Object.hasOwn(current, part)) {
       const validKey = parts.slice(index).join('.');
-      return Object.prototype.hasOwnProperty.call(current, validKey)
-        ? current[validKey]
-        : undefined;
+      return Object.hasOwn(current, validKey) ? current[validKey] : undefined;
     }
     current = current[part];
   }
@@ -86,7 +92,12 @@ const getValueByPath = (row: Record<string, any> | undefined, path: string) => {
   return current;
 };
 
-const collectMarkedFields = (value: any, prefix = '', output: Record<string, any> = {}) => {
+const collectMarkedFields = (
+  value: any,
+  prefix = '',
+  output: Record<string, any> = {},
+  highlightField = DEFAULT_HIGHLIGHT_FIELD,
+) => {
   if (hasMark(value) && prefix) {
     output[prefix] = value;
     return output;
@@ -94,24 +105,25 @@ const collectMarkedFields = (value: any, prefix = '', output: Record<string, any
 
   if (!isPlainObject(value)) return output;
 
-  Object.keys(value).forEach((key) => {
-    if (key === '__highlight') return;
+  Object.keys(value).forEach(key => {
+    if (key === highlightField) return;
     const fieldName = prefix ? `${prefix}.${key}` : key;
-    collectMarkedFields(value[key], fieldName, output);
+    collectMarkedFields(value[key], fieldName, output, highlightField);
   });
 
   return output;
 };
 
-const collectHighlightFields = (rawRow: Record<string, any> = {}) => {
+const collectHighlightFields = (
+  rawRow: Record<string, any> | undefined = {},
+  highlightField = DEFAULT_HIGHLIGHT_FIELD,
+) => {
   const output: Record<string, any> = {};
-  const highlight = rawRow.__highlight;
+  const highlight = rawRow[highlightField];
   if (!isPlainObject(highlight)) return output;
 
-  Object.keys(highlight).forEach((fieldName) => {
-    const value = Array.isArray(highlight[fieldName])
-      ? highlight[fieldName][0]
-      : highlight[fieldName];
+  Object.keys(highlight).forEach(fieldName => {
+    const value = Array.isArray(highlight[fieldName]) ? highlight[fieldName][0] : highlight[fieldName];
     if (hasMark(value)) {
       output[fieldName] = value;
     }
@@ -175,24 +187,27 @@ export const splitRenderText = (value: any): RetrieveTextSegment[] => {
 export const createRetrieveRowRenderMeta = (
   rawRow: Record<string, any> = {},
   renderRow?: Record<string, any>,
+  options: RetrieveRowRenderMetaOptions = {},
 ): RetrieveRowRenderMeta => {
+  const highlightField = options.highlightField || DEFAULT_HIGHLIGHT_FIELD;
   const truncatedFields: string[] = [];
   const fieldSegments: Record<string, RetrieveTextSegment[]> = {};
   const sourceRow = renderRow || rawRow;
   const markedFields = {
-    ...collectMarkedFields(sourceRow),
-    ...collectHighlightFields(rawRow),
+    ...collectMarkedFields(sourceRow, '', {}, highlightField),
+    ...collectHighlightFields(rawRow, highlightField),
+    ...collectHighlightFields(renderRow, highlightField),
   };
   const fieldNames = new Set([
-    ...Object.keys(rawRow ?? {}),
-    ...Object.keys(sourceRow ?? {}),
+    ...Object.keys(rawRow ?? {}).filter(fieldName => fieldName !== highlightField),
+    ...Object.keys(sourceRow ?? {}).filter(fieldName => fieldName !== highlightField),
     ...Object.keys(markedFields),
   ]);
 
-  fieldNames.forEach((fieldName) => {
-    const value = Object.prototype.hasOwnProperty.call(markedFields, fieldName)
+  fieldNames.forEach(fieldName => {
+    const value = Object.hasOwn(markedFields, fieldName)
       ? markedFields[fieldName]
-      : getValueByPath(sourceRow, fieldName) ?? getValueByPath(rawRow, fieldName);
+      : (getValueByPath(sourceRow, fieldName) ?? getValueByPath(rawRow, fieldName));
     if (value === null || value === undefined) return;
 
     const rawValue = getValueByPath(rawRow, fieldName);

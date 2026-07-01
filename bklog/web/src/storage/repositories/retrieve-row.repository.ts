@@ -4,7 +4,11 @@
  */
 import db, { type RetrieveRowEntity } from '../core/db';
 import { retrieveRowProjectionService, type RetrieveRowProjection } from '../services/retrieve-row-projection.service';
-import { createRetrieveRowRenderMeta, type RetrieveRowRenderMeta } from '../utils/retrieve-render-meta';
+import {
+  createRetrieveRowRenderMeta,
+  DEFAULT_HIGHLIGHT_FIELD,
+  type RetrieveRowRenderMeta,
+} from '../utils/retrieve-render-meta';
 
 const DEFAULT_TTL = 30 * 60 * 1000;
 const DEFAULT_BATCH_ROWS = 5;
@@ -16,7 +20,12 @@ const hasMark = (value: any) => typeof value === 'string' && /<\/?mark>/i.test(v
 
 const isPlainObject = (value: any) => Object.prototype.toString.call(value) === '[object Object]';
 
-const collectMarkedFields = (value: any, prefix = '', output: Record<string, any> = {}) => {
+const collectMarkedFields = (
+  value: any,
+  prefix = '',
+  output: Record<string, any> = {},
+  highlightField = DEFAULT_HIGHLIGHT_FIELD,
+) => {
   if (hasMark(value) && prefix) {
     output[prefix] = value;
     return output;
@@ -24,24 +33,25 @@ const collectMarkedFields = (value: any, prefix = '', output: Record<string, any
 
   if (!isPlainObject(value)) return output;
 
-  Object.keys(value).forEach((key) => {
-    if (key === '__highlight') return;
+  Object.keys(value).forEach(key => {
+    if (key === highlightField) return;
     const fieldName = prefix ? `${prefix}.${key}` : key;
-    collectMarkedFields(value[key], fieldName, output);
+    collectMarkedFields(value[key], fieldName, output, highlightField);
   });
 
   return output;
 };
 
-const collectHighlightFields = (rawRow: Record<string, any> = {}) => {
+const collectHighlightFields = (
+  rawRow: Record<string, any> | undefined = {},
+  highlightField = DEFAULT_HIGHLIGHT_FIELD,
+) => {
   const output: Record<string, any> = {};
-  const highlight = rawRow.__highlight;
+  const highlight = rawRow[highlightField];
   if (!isPlainObject(highlight)) return output;
 
-  Object.keys(highlight).forEach((fieldName) => {
-    const value = Array.isArray(highlight[fieldName])
-      ? highlight[fieldName][0]
-      : highlight[fieldName];
+  Object.keys(highlight).forEach(fieldName => {
+    const value = Array.isArray(highlight[fieldName]) ? highlight[fieldName][0] : highlight[fieldName];
     if (hasMark(value)) {
       output[fieldName] = value;
     }
@@ -51,7 +61,7 @@ const collectHighlightFields = (rawRow: Record<string, any> = {}) => {
 };
 
 const setOverlayValue = (row: Record<string, any>, fieldName: string, value: any) => {
-  if (!fieldName.includes('.') || Object.prototype.hasOwnProperty.call(row, fieldName)) {
+  if (!fieldName.includes('.') || Object.hasOwn(row, fieldName)) {
     row[fieldName] = value;
     return row;
   }
@@ -79,6 +89,74 @@ const setOverlayValue = (row: Record<string, any>, fieldName: string, value: any
   return row;
 };
 
+const createHighlightField = () => `${DEFAULT_HIGHLIGHT_FIELD}_${Math.random().toString(36).slice(2, 10)}`;
+
+const hasOwnField = (row: Record<string, any> | undefined, fieldName: string) => !!row && Object.hasOwn(row, fieldName);
+
+const resolveHighlightField = (rawRow: Record<string, any>) => {
+  if (hasOwnField(rawRow, DEFAULT_HIGHLIGHT_FIELD)) {
+    return createHighlightField();
+  }
+  return DEFAULT_HIGHLIGHT_FIELD;
+};
+
+const normalizeRenderRowHighlightField = (
+  renderRow: Record<string, any> | undefined,
+  highlightField = DEFAULT_HIGHLIGHT_FIELD,
+) => {
+  if (!renderRow || highlightField === DEFAULT_HIGHLIGHT_FIELD || !hasOwnField(renderRow, DEFAULT_HIGHLIGHT_FIELD)) {
+    return renderRow;
+  }
+
+  const nextRenderRow = {
+    ...renderRow,
+    [highlightField]: renderRow[DEFAULT_HIGHLIGHT_FIELD],
+  };
+  delete nextRenderRow[DEFAULT_HIGHLIGHT_FIELD];
+  return nextRenderRow;
+};
+
+const getCopyFieldValue = (row: Record<string, any>, fieldName: string) => {
+  if (Object.hasOwn(row, fieldName)) {
+    return { exists: true, value: row[fieldName] };
+  }
+
+  if (!fieldName.includes('.')) {
+    return { exists: false, value: undefined };
+  }
+
+  const path = fieldName.split('.');
+  let current: any = row;
+  for (const key of path) {
+    if (!isPlainObject(current) || !Object.hasOwn(current, key)) {
+      return { exists: false, value: undefined };
+    }
+    current = current[key];
+  }
+  return { exists: true, value: current };
+};
+
+const sanitizeCopyRow = (
+  row: Record<string, any> | undefined,
+  copyExcludedFields: string[] = [],
+  includeFields: string[] = [],
+) => {
+  if (!row) return undefined;
+  const excludedFieldSet = new Set(copyExcludedFields);
+  const fieldNames = includeFields.length ? includeFields : Object.keys(row);
+
+  return fieldNames.reduce(
+    (output, key) => {
+      if (excludedFieldSet.has(key)) return output;
+      const fieldValue = getCopyFieldValue(row, key);
+      if (!fieldValue.exists) return output;
+      output[key] = fieldValue.value;
+      return output;
+    },
+    {} as Record<string, any>,
+  );
+};
+
 interface RenderOverlayField {
   renderValue: any;
 }
@@ -95,6 +173,11 @@ interface WriteRowsOptions {
   batchBytes?: number;
   renderRows?: Record<string, any>[];
   renderMetas?: RetrieveRowRenderMeta[];
+  copyExcludedFields?: string[];
+}
+
+interface CopyRowsOptions {
+  includeFields?: string[];
 }
 
 export class RetrieveRowRepository {
@@ -115,6 +198,12 @@ export class RetrieveRowRepository {
     if (!keys.length) return [];
     const rows = await db.retrieveRows.bulkGet(keys);
     return rows.map(item => item?.row);
+  }
+
+  async getCopyRowsByKeys(keys: string[], options: CopyRowsOptions = {}) {
+    if (!keys.length) return [];
+    const rows = await db.retrieveRows.bulkGet(keys);
+    return rows.map(item => sanitizeCopyRow(item?.row, item?.copyExcludedFields, options.includeFields ?? []));
   }
 
   async getEntitiesByKeys(keys: string[]) {
@@ -167,9 +256,7 @@ export class RetrieveRowRepository {
 
     await db.transaction('rw', db.retrieveRows, async () => {
       const expiredRows = await db.retrieveRows.where('expireAt').below(now).toArray();
-      const deleteKeys = expiredRows
-        .filter(row => !excludeQueryKeySet.has(row.queryKey))
-        .map(row => row.key);
+      const deleteKeys = expiredRows.filter(row => !excludeQueryKeySet.has(row.queryKey)).map(row => row.key);
       if (deleteKeys.length) {
         await db.retrieveRows.bulkDelete(deleteKeys);
       }
@@ -178,10 +265,9 @@ export class RetrieveRowRepository {
 
   async getEntitiesByQuery(queryKey: string, offset = 0, limit?: number) {
     if (!queryKey) return [];
-    const collection = db.retrieveRows.where('[queryKey+seq]').between(
-      [queryKey, offset],
-      [queryKey, Number.MAX_SAFE_INTEGER],
-    );
+    const collection = db.retrieveRows
+      .where('[queryKey+seq]')
+      .between([queryKey, offset], [queryKey, Number.MAX_SAFE_INTEGER]);
 
     if (typeof limit === 'number') {
       return collection.limit(limit).toArray();
@@ -215,15 +301,24 @@ export class RetrieveRowRepository {
 
     for (let index = 0; index < rows.length; index++) {
       const seq = startSeq + index;
-      const storageValue = retrieveRowProjectionService.createStorageValue(rows[index], queryKey, seq, options.fieldNames ?? []);
-      const renderOverlay = this.createRenderOverlay(storageValue.row, options.renderRows?.[index]);
+      const storageValue = retrieveRowProjectionService.createStorageValue(
+        rows[index],
+        queryKey,
+        seq,
+        options.fieldNames ?? [],
+      );
+      const highlightField = resolveHighlightField(storageValue.row);
+      const renderRow = normalizeRenderRowHighlightField(options.renderRows?.[index], highlightField);
+      const renderOverlay = this.createRenderOverlay(storageValue.row, renderRow, highlightField);
       const entity: RetrieveRowEntity = {
         key: `${queryKey}:${seq}`,
         queryKey,
         seq,
         row: storageValue.row,
+        highlightField,
+        copyExcludedFields: options.copyExcludedFields ?? [],
         renderOverlay,
-        renderMeta: options.renderMetas?.[index] || createRetrieveRowRenderMeta(storageValue.row, options.renderRows?.[index]),
+        renderMeta: createRetrieveRowRenderMeta(storageValue.row, renderRow, { highlightField }),
         projection: storageValue.projection,
         bytes: storageValue.bytes,
         createdAt: now,
@@ -242,15 +337,20 @@ export class RetrieveRowRepository {
     return keys;
   }
 
-  private createRenderOverlay(rawRow: Record<string, any>, renderRow?: Record<string, any>): RetrieveRowRenderOverlay | undefined {
-    if (!rawRow || (!renderRow && !rawRow.__highlight)) return undefined;
+  private createRenderOverlay(
+    rawRow: Record<string, any>,
+    renderRow?: Record<string, any>,
+    highlightField = DEFAULT_HIGHLIGHT_FIELD,
+  ): RetrieveRowRenderOverlay | undefined {
+    if (!rawRow || (!renderRow && !rawRow[highlightField])) return undefined;
     const fields: Record<string, RenderOverlayField> = {};
 
     const markedFields = {
-      ...collectMarkedFields(renderRow),
-      ...collectHighlightFields(rawRow),
+      ...collectMarkedFields(renderRow, '', {}, highlightField),
+      ...collectHighlightFields(rawRow, highlightField),
+      ...collectHighlightFields(renderRow, highlightField),
     };
-    Object.keys(markedFields).forEach((fieldName) => {
+    Object.keys(markedFields).forEach(fieldName => {
       const renderValue = markedFields[fieldName];
       if (!hasMark(renderValue)) return;
       fields[fieldName] = { renderValue };

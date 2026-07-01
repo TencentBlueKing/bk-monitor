@@ -9,6 +9,8 @@ export interface RetrieveRowEntity {
   queryKey: string;
   seq: number;
   row: Record<string, any>;
+  highlightField?: string;
+  copyExcludedFields?: string[];
   renderOverlay?: any;
   projection?: any;
   renderMeta?: any;

@@ -823,7 +823,7 @@ export const copyMessage = (val, alertMsg = undefined) => {
   try {
 
     if (navigator.clipboard) {
-      navigator.clipboard.writeText(text);
+      navigator.clipboard.writeText(val);
       window.mainComponent.messageSuccess(
         alertMsg ? (alertMsg ?? window.mainComponent.$t('复制失败')) : window.mainComponent.$t('复制成功'),
       );

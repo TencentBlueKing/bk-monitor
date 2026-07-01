@@ -501,16 +501,10 @@
         }
       },
       async getOriginCopyRow() {
-        if (this.originRow) return this.originRow;
-        if (!this.rowKey) return this.rowData;
+        if (!this.rowKey) return null;
 
-        const [originRow] = await retrieveRowCacheService.getRows([this.rowKey]);
-        if (originRow) {
-          this.originRow = originRow;
-          return originRow;
-        }
-
-        return null;
+        const [originRow] = await retrieveRowCacheService.getCopyRows([this.rowKey]);
+        return originRow || null;
       },
       handleScroll(event) {
         this.scrollTop = event.target.scrollTop;

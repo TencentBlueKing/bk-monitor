@@ -256,17 +256,18 @@
       async handleCopy() {
         try {
           if (this.rowKey) {
-            const [originRow] = await retrieveRowCacheService.getRows([this.rowKey]);
+            const includeFields = this.kvListData.map(field => field.field_name).filter(Boolean);
+            const [originRow] = await retrieveRowCacheService.getCopyRows([this.rowKey], { includeFields });
             if (originRow) {
               copyMessage(JSON.stringify(originRow));
               return;
             }
           }
         } catch (error) {
-          console.warn('[expand-view] copy origin row from IndexedDB failed, fallback to current row', error);
+          console.warn('[expand-view] copy origin row failed', error);
         }
 
-        copyMessage(JSON.stringify(this.jsonShowData));
+        this.$bkMessage?.({ theme: 'warning', message: this.$t('原始日志数据读取失败，请稍后重试') });
       },
       handleSearch() {
         this.activeSearchKeyword = this.searchKeyword.trim();
@@ -277,7 +278,7 @@
       },
       handleInputChange(value) {
         // 当输入框内容被手动删空时，重置搜索
-        if (!value || !value.trim()) {
+        if (!value?.trim?.()) {
           this.activeSearchKeyword = '';
         }
       },
