@@ -3317,7 +3317,7 @@ paths:
       - 场景化
       x-bk-apigateway-resource:
         isPublic: false
-        allowApplyPermission: true
+        allowApplyPermission: false
         matchSubpath: false
         backend:
           name: default
