@@ -7433,12 +7433,12 @@ def test_graph_relation_apply_uses_metadata_transaction_and_merges_existing_conf
 @pytest.mark.django_db(databases="__all__")
 def test_graph_relation_apply_locks_existing_datalink_before_composing(mocker):
     datalink = DataLink(
-        pk=123,
         data_link_name="graph_apply_lock_test",
         namespace="bkmonitor",
         bk_tenant_id="system",
         data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
     )
+    datalink._state.adding = False
     call_order = []
     lock_queryset = mocker.Mock()
     lock_queryset.only.return_value = lock_queryset
@@ -7471,6 +7471,40 @@ def test_graph_relation_apply_locks_existing_datalink_before_composing(mocker):
     lock_queryset.only.assert_called_once_with("data_link_name")
     lock_queryset.get.assert_called_once_with(pk=datalink.pk)
     assert call_order == ["lock", "compose"]
+    mock_merge.assert_called_once_with([])
+    mock_apply.assert_called_once_with([])
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_graph_relation_apply_skips_row_lock_for_unsaved_datalink(mocker):
+    datalink = DataLink(
+        data_link_name="graph_apply_unsaved_lock_test",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+    )
+    call_order = []
+
+    def compose_without_lock(*args, **kwargs):
+        call_order.append("compose")
+        return []
+
+    mock_select_for_update = mocker.patch.object(DataLink.objects, "select_for_update")
+    mocker.patch.object(datalink, "compose_configs", side_effect=compose_without_lock)
+    mock_merge = mocker.patch.object(datalink, "merge_existing_component_configs", return_value=[])
+    mock_apply = mocker.patch.object(datalink, "apply_data_link_with_retry", return_value={"status": "success"})
+
+    datalink._apply_graph_relation_data_link_in_transaction(
+        args=(),
+        kwargs={},
+        existing_context=None,
+        bkbase_rt_record=mocker.Mock(),
+        storage_type=models.ClusterInfo.TYPE_SURREALDB,
+        should_update_bkbase_rt_storage_type=False,
+    )
+
+    mock_select_for_update.assert_not_called()
+    assert call_order == ["compose"]
     mock_merge.assert_called_once_with([])
     mock_apply.assert_called_once_with([])
 

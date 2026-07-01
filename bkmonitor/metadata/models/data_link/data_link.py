@@ -2295,7 +2295,7 @@ class DataLink(models.Model):
         """
         try:
             with transaction.atomic(using=DATABASE_CONNECTION_NAME):
-                if self.pk:
+                if self.pk and not self._state.adding:
                     DataLink.objects.select_for_update().only(self._meta.pk.attname).get(pk=self.pk)
                 try:
                     self._defer_graph_binding_update_after_apply = True
