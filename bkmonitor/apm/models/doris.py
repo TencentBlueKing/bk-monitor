@@ -848,10 +848,6 @@ class BkDataDorisV4Provider:
                     }
                 ],
                 "subTaskNum": 1,
-                "preferCluster": {
-                    "kind": "DatabusCluster",
-                    "namespace": _V4_NAMESPACE,
-                },
             },
         }
         return config

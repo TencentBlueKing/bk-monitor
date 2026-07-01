@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("bkmonitor", "0199_tapd_workspace_binding"),
+        ("bkmonitor", "0200_add_is_deleted_to_issue_tapd_relation"),
     ]
 
     operations = [

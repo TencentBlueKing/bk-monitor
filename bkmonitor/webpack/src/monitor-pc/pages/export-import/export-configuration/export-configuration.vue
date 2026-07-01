@@ -49,20 +49,23 @@
         @check-change="handleCheckChange(...arguments, index)"
       />
     </div>
-    <bk-button
-      theme="primary"
-      :disabled="isdisable"
-      class="btn"
-      @click="handleSubmit"
-    >
-      {{ $t('导出') }}
-    </bk-button>
-    <bk-button
-      class="cancel"
-      @click="handleCancel"
-    >
-      {{ $t('取消') }}
-    </bk-button>
+    <section class="export-footer">
+      <div class="footer-banner" />
+      <bk-button
+        theme="primary"
+        :disabled="isdisable"
+        class="btn footer-button1"
+        @click="handleSubmit"
+      >
+        {{ $t('导出') }}
+      </bk-button>
+      <bk-button
+        class="cancel footer-button2"
+        @click="handleCancel"
+      >
+        {{ $t('取消') }}
+      </bk-button>
+    </section>
     <!-- 导出dialog框 组件 -->
     <export-configuration-dialog
       :state="state"
@@ -315,8 +318,8 @@ export default {
   &-table {
     display: flex;
     width: 100%;
-    height: calc(100vh - 234px);
-    margin-bottom: 20px;
+    height: calc(100vh - 234px - var(--notice-alert-height, 0px));
+    margin-bottom: 54px;
     background: #fff;
 
     .view-border {
@@ -324,12 +327,34 @@ export default {
     }
   }
 
-  .btn {
-    margin-right: 8px;
-  }
+  &-footer {
+    padding: 11px 0;
 
-  .cancel {
-    width: 88px;
+    .footer-banner {
+      position: fixed;
+      right: 0;
+      bottom: 0;
+      z-index: 1;
+      width: 100%;
+      height: 54px;
+      background: #fff;
+      box-shadow: 0 -3px 6px 0 rgb(49 50 56 / 5%);
+    }
+
+    .footer-button1,
+    .footer-button2 {
+      position: fixed;
+      bottom: 11px;
+      z-index: 2;
+    }
+
+    .btn {
+      margin-right: 8px;
+    }
+
+    .cancel {
+      width: 88px;
+    }
   }
 }
 </style>

@@ -88,6 +88,16 @@ class TestTapdOauthContract(unittest.TestCase):
         source = migration_path.read_text(encoding="utf-8")
         self.assertIn('("bkmonitor", "0198_add_issue_tapd_relation")', source)
 
+    def test_manual_unbind_migration_follows_issue_tapd_relation_is_deleted_fix(self):
+        migration_path = REPO_ROOT / "bkmonitor/bkmonitor/migrations/0201_create_tapd_workspace_manual_unbind.py"
+        self.assertTrue(migration_path.exists())
+        self.assertFalse(
+            (REPO_ROOT / "bkmonitor/bkmonitor/migrations/0200_create_tapd_workspace_manual_unbind.py").exists()
+        )
+
+        source = migration_path.read_text(encoding="utf-8")
+        self.assertIn('("bkmonitor", "0200_add_is_deleted_to_issue_tapd_relation")', source)
+
     def test_user_workspace_requires_manage_event_and_keeps_tapd_auth_permission(self):
         viewset = _class(_parse("bkmonitor/packages/fta_web/issue/views.py"), "IssueViewSet")
         read_only_endpoints = _string_constants(_class_assignment(viewset, "READ_ONLY_ENDPOINTS"))
