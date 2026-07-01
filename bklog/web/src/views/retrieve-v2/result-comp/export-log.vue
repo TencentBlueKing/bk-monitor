@@ -797,6 +797,8 @@
        * @param { Object } task 任务对象
        */
       async handleRetryExport(task) {
+        // 从失败任务列表中移除
+        this.failedTaskIds = this.failedTaskIds.filter(id => id !== task.id);
         // 异常任务直接异步下载
         if (task.export_type === 'sync') {
           await this.openDownloadUrl(task);
