@@ -24,10 +24,19 @@
  * IN THE SOFTWARE.
  */
 
+import { type RequestConfig, request } from 'monitor-api/base';
 import { getUserWorkspace, searchTapdItems, unbindWorkspace } from 'monitor-api/modules/issue';
 
-import type { GetUserWorkspaceData, GetUserWorkspaceRequest, UnbindWorkspaceRequest } from '../typing';
-import type { RequestConfig } from 'monitor-api/base';
+import type {
+  GetUserWorkspaceData,
+  GetUserWorkspaceRequest,
+  RebindWorkspaceRequest,
+  RevokeAuthRequest,
+  UnbindWorkspaceRequest,
+} from '../typing';
+
+const rebindWorkspace = request('post', '/fta/issue/tapd/rebind_workspace/');
+const revokeAuth = request('post', '/fta/issue/tapd/revoke_auth');
 
 /** 获取用户 TAPD 工作空间列表 */
 export const getUserWorkspaceApi = (
@@ -37,9 +46,19 @@ export const getUserWorkspaceApi = (
   return getUserWorkspace(params, options);
 };
 
-/** 用户解绑项目 */
+/** 用户取消关联项目 */
 export const unbindWorkspaceApi = (params: UnbindWorkspaceRequest, options?: RequestConfig) => {
   return unbindWorkspace(params, options);
+};
+
+/** 用户重新关联项目 */
+export const rebindWorkspaceApi = (params: RebindWorkspaceRequest, options?: RequestConfig) => {
+  return rebindWorkspace(params, options);
+};
+
+/** 用户取消授权 */
+export const revokeAuthApi = (params: RevokeAuthRequest, options?: RequestConfig) => {
+  return revokeAuth(params, options);
 };
 
 export const searchTapdItemsApi = (params, options?: RequestConfig) => {
