@@ -360,7 +360,7 @@
           // 编辑、删除操作，高级清洗跳转计算平台
           const id = row.bk_data_id;
           const jumpUrl = `${window.BKDATA_URL}/#/data-access/data-detail/${id}/3`;
-          window.open(jumpUrl, '_blank');
+          window.open(jumpUrl, '_blank', 'noopener,noreferrer');
           return;
         }
         if (operateType === 'delete' && row.etl_config !== 'bkdata_clean') {

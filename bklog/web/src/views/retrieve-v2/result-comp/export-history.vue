@@ -574,7 +574,7 @@
         const allParams = [params, sceneParams].filter(Boolean).join('&');
         const siteUrl = window.__IS_MONITOR_COMPONENT__ ? window.site_url : window.SITE_URL;
         const jumpUrl = `${siteUrl}#/retrieve/${indexSetID}?spaceUid=${spaceUid}&bizId=${dict.bk_biz_id}&${allParams}`;
-        window.open(jumpUrl, '_blank');
+        window.open(jumpUrl, '_blank', 'noopener,noreferrer');
       },
       /**
        * @desc: 轮询

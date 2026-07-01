@@ -287,7 +287,7 @@ export default defineComponent({
         name: 'templateManage',
         query,
       });
-      window.open(href.href, '_blank');
+      window.open(href.href, '_blank', 'noopener,noreferrer');
     };
 
     initTemplateList();

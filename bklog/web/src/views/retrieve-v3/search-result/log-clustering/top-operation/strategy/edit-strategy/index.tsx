@@ -216,6 +216,7 @@ export default defineComponent({
       window.open(
         `${window.MONITOR_URL}/?bizId=${bkBizId.value}#/alarm-group/add`,
         "_blank",
+        'noopener,noreferrer'
       );
     };
 

@@ -309,7 +309,7 @@ export const useCollectList = () => {
       params,
       query: finalQuery,
     });
-    window.open(resolved.href, '_blank');
+    window.open(resolved.href, '_blank', 'noopener,noreferrer');
   };
 
   const operateHandler = (
