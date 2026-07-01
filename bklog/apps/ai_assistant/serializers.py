@@ -64,7 +64,10 @@ class CreateChatSessionContentSerializer(serializers.Serializer):
     """
 
     session_code = serializers.CharField(label=_("会话代码"))
-    role = serializers.CharField(label=_("角色"))
+    role = serializers.ChoiceField(
+        label=_("角色"),
+        choices=["user", "assistant"],  # 安全修复: 限制 role 字段防止注入 system/hidden-role
+    )
     content = serializers.CharField(label=_("内容"))
     property = serializers.DictField(label=_("属性"), required=False)
 
@@ -76,7 +79,10 @@ class UpdateChatSessionContentSerializer(serializers.Serializer):
 
     session_code = serializers.CharField(label=_("会话代码"))
     id = serializers.CharField(label=_("内容ID"))
-    role = serializers.CharField(label=_("角色"))
+    role = serializers.ChoiceField(
+        label=_("角色"),
+        choices=["user", "assistant"],  # 安全修复: 限制 role 字段防止注入 system/hidden-role
+    )
     content = serializers.CharField(label=_("内容"))
     status = serializers.CharField(label=_("状态"), default="loading")
     property = serializers.DictField(label=_("属性"), required=False)

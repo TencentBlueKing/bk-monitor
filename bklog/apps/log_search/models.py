@@ -745,7 +745,10 @@ class LogIndexSetData(SoftDeleteModel):
     )
 
     def list_operate(self):
-        return format_html(_('<a href="../logindexset/?index_set_id=%s">索引集</a>&nbsp;&nbsp;') % self.index_set_id)
+        # 安全修复: 参数作为 format_html 的后续参数传入，而非通过 % 预插值
+        return format_html(
+            _('<a href="../logindexset/?index_set_id={}">索引集</a>&nbsp;&nbsp;'), self.index_set_id
+        )
 
     list_operate.__name__ = "操作列表"
 
