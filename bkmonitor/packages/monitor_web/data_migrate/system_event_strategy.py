@@ -39,7 +39,7 @@ SYSTEM_EVENT_TARGET_CONFIGS: dict[str, SystemEventTargetConfig] = {
         old_metric_id="bk_monitor.agent-gse",
         old_event_name="agent-gse",
         custom_event_name="AgentLost",
-        agg_dimension=["bk_target_ip", "bk_target_cloud_id"],
+        agg_dimension=["bk_target_ip", "bk_target_cloud_id", "bk_agent_id"],
         trigger_config={"count": 1 if "GSE_VERSION_1" in os.environ else 3, "check_window": 10},
         recovery_config={"check_window": 10, "status_setter": "close"},
     ),
