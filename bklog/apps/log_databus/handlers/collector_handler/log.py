@@ -37,17 +37,22 @@ class LogCollectorHandler:
     def __init__(self, space_uid):
         self.space_uid = space_uid
         self.bk_biz_id = space_uid_to_bk_biz_id(self.space_uid)
-        self.space_type_id = None
+
+        # related var
+        self.space_type_id, _ = SpaceApi.parse_space_uid(self.space_uid)
         self.related_space_uids = []
         self.related_bk_biz_ids = []
         self.bk_biz_id_to_space_detail_map = {}
+        self.is_related_var_loaded = False
 
-        self.space_type_id, _ = SpaceApi.parse_space_uid(self.space_uid)
-        if self.space_type_id == SpaceTypeEnum.BKCC.value:
-            self.related_space_uids = IndexSetHandler.get_all_related_space_uids(self.space_uid)
-            self.related_bk_biz_ids = [space_uid_to_bk_biz_id(space_uid) for space_uid in self.related_space_uids]
-            space_objs = SpaceApi.batch_get_space_detail(set(self.related_space_uids))
-            self.bk_biz_id_to_space_detail_map = {v.bk_biz_id: v.to_dict() for _, v in space_objs.items()}
+    def _loads_related_var(self):
+        if self.is_related_var_loaded:
+            return
+        self.related_space_uids = IndexSetHandler.get_all_related_space_uids(self.space_uid)
+        self.related_bk_biz_ids = [space_uid_to_bk_biz_id(space_uid) for space_uid in self.related_space_uids]
+        space_objs = SpaceApi.batch_get_space_detail(set(self.related_space_uids))
+        self.bk_biz_id_to_space_detail_map = {v.bk_biz_id: v.to_dict() for _, v in space_objs.items()}
+        self.is_related_var_loaded = True
 
     def fetch_log_collector_data(self, result: list[dict], include_related_spaces: bool = False):
         result_list = []
@@ -77,6 +82,7 @@ class LogCollectorHandler:
             related_space_info = {}
 
             if self.space_type_id == SpaceTypeEnum.BKCC.value and include_related_spaces:
+                self._loads_related_var()
                 bk_biz_id = item.get("bk_biz_id")
                 space_detail = self.bk_biz_id_to_space_detail_map.get(bk_biz_id) or {}
                 space_uid = space_detail.get("space_uid")
@@ -279,6 +285,7 @@ class LogCollectorHandler:
             return []
 
         if self.space_type_id == SpaceTypeEnum.BKCC.value and include_related_spaces:
+            self._loads_related_var()
             if not collector_source:
                 query_bk_biz_ids = self.related_bk_biz_ids
             else:
@@ -427,6 +434,7 @@ class LogCollectorHandler:
         )
 
         if self.space_type_id == SpaceTypeEnum.BKCC.value and include_related_spaces:
+            self._loads_related_var()
             if not collector_source:
                 query_space_uids = self.related_space_uids
             else:
@@ -728,6 +736,7 @@ class LogCollectorHandler:
         :return: 包含创建人和更新人枚举值的字典
         """
         if self.space_type_id == SpaceTypeEnum.BKCC.value and include_related_spaces:
+            self._loads_related_var()
             query_collector_condition = {
                 "bk_biz_id__in": self.related_bk_biz_ids
             }
