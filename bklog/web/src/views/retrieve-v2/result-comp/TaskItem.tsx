@@ -129,7 +129,7 @@ export default defineComponent({
         {/* 进度条区域 */}
         <div class="task-progress-area">
           <bk-progress
-            percent={props.item.progressPercent / 100}
+            percent={(props.item.progressPercent ?? 0) / 100}
             theme={progressTheme()}
             showText={false}
             strokeWidth={6}

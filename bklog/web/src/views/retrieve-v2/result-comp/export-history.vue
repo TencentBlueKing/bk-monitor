@@ -138,7 +138,7 @@
               :class="['status', `status-${row.export_status + ''}`]"
             >
               <i
-                v-if="row.export_status === null"
+                v-if="isShowProgress(row.export_status)"
                 class="bk-icon icon-refresh"
               ></i>
               {{ getStatusStr(row.export_status) }}
@@ -380,7 +380,7 @@
           failed: this.$t('异常'),
           download_expired: this.$t('下载链接过期'),
           data_expired: this.$t('数据源过期'),
-          null: this.$t('下载中'),
+          null: this.$t('未启动'),
         },
         position: {
           top: 120,
@@ -584,7 +584,7 @@
         return ['success', 'failed'].includes(status);
       },
       isShowProgress(status) {
-        return ['download_log', 'export_package', 'export_upload', null].includes(status);
+        return ['download_log'].includes(status);
       },
       getStatusStr(status) {
         return this.exportStatusList[status];
