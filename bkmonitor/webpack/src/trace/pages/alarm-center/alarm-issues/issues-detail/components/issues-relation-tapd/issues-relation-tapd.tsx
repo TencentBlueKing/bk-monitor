@@ -26,6 +26,7 @@
 import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
 import EmptyStatus from 'trace/components/empty-status/empty-status';
+import OverflowTips from 'trace/directive/overflow-tips';
 import useRequestAbort from 'trace/hooks/useRequestAbort';
 import tapdLogo from 'trace/static/img/issues/tapd-logo.png';
 import { useI18n } from 'vue-i18n';
@@ -40,6 +41,9 @@ import './issues-relation-tapd.scss';
 
 export default defineComponent({
   name: 'IssuesRelationTapd',
+  directive: {
+    OverflowTips,
+  },
   props: {
     detail: {
       type: Object as PropType<IssueDetail>,
@@ -119,7 +123,12 @@ export default defineComponent({
               <div class='tapd-item-right'>
                 <div class='tapd-item-right-top'>
                   <div class='tapd-id'>#TAPD-{item.tapd_id}</div>
-                  <div class='tapd-name'>{item.tapd_title}</div>
+                  <div
+                    class='tapd-name'
+                    v-overflow-tips
+                  >
+                    {item.tapd_title}
+                  </div>
                 </div>
                 <div class='tapd-item-right-bottom'>
                   <span class='link-mode'>
