@@ -70,7 +70,7 @@ class TopoNodeFuller(Fuller):
             dimensions["bk_target_cloud_id"] = str(host.bk_cloud_id)
             dimensions["bk_topo_node"] = bk_topo_node
             if "bk_host_id" not in dimensions:
-                dimensions["bk_host_id"] = host.bk_host_id
+                dimensions["bk_host_id"] = str(host.bk_host_id)
             return
 
         # 按服务实例补全维度
