@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from itertools import chain
 
 from alarm_backends.core.cache.cmdb import HostManager, ServiceInstanceManager
+from alarm_backends.core.cache.cmdb.host import Host
 from alarm_backends.service.access.base import Fuller
 from alarm_backends.service.access.data.records import DataRecord
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -54,11 +55,23 @@ class TopoNodeFuller(Fuller):
 
         # 按主机ID补全维度
         bk_host_id = dimensions.get("bk_host_id")
+        bk_agent_id = dimensions.get("bk_agent_id")
+        host: Host | None = None
         if bk_host_id:
-            host = HostManager.get_by_id(bk_tenant_id=bk_tenant_id, bk_host_id=bk_host_id)
-            if host:
-                dimensions["bk_target_ip"] = host.ip
-                dimensions["bk_target_cloud_id"] = str(host.bk_cloud_id)
+            host = HostManager.get_by_id(bk_tenant_id=bk_tenant_id, bk_host_id=bk_host_id, using_mem=True)
+        elif bk_agent_id:
+            host = HostManager.get_by_agent_id(bk_tenant_id=bk_tenant_id, bk_agent_id=bk_agent_id)
+
+        if host:
+            bk_topo_node = []
+            if host.topo_link:
+                bk_topo_node = list({node.id for node in chain(*list(host.topo_link.values()))})
+            dimensions["bk_target_ip"] = host.ip
+            dimensions["bk_target_cloud_id"] = str(host.bk_cloud_id)
+            dimensions["bk_topo_node"] = bk_topo_node
+            if "bk_host_id" not in dimensions:
+                dimensions["bk_host_id"] = host.bk_host_id
+            return
 
         # 按服务实例补全维度
         service_instance_id = dimensions.get("bk_target_service_instance_id") or dimensions.get("service_instance_id")
