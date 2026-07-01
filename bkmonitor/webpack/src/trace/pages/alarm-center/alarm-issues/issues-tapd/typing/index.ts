@@ -53,6 +53,7 @@ export interface ITapdListItem {
   name: string;
   priority: string;
   status: TTapdStatus;
+  status_display_name?: string;
   tapd_type: string;
   workspace_id: number;
 }
