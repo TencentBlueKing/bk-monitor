@@ -194,6 +194,7 @@ export default defineComponent({
           <div class='issues-detail-head-btn-group'>
             <div class='btn-item skeleton-element' />
             <div class='btn-item skeleton-element' />
+            <div class='btn-item skeleton-element' />
           </div>
         </div>
       );
