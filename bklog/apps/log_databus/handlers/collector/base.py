@@ -589,7 +589,7 @@ class CollectorHandler:
             parent_index_set_ids = CollectorHandler.obtain_parent_index_set_ids(
                 parent_index_set_ids,
                 parent_index_set_names,
-                bk_biz_id=self.data.get_bk_biz_id(),
+                bk_biz_id=self.data.bk_biz_id,
                 is_update=True,
             )
 
@@ -1871,9 +1871,9 @@ class CollectorHandler:
     @staticmethod
     def get_or_create_parent_index_set_ids_by_parent_index_set_names(
         parent_index_set_names,
-        bk_biz_id: int = None,
-        space_uid: str = None
-    ) -> list:
+        bk_biz_id: int | None = None,
+        space_uid: str | None = None
+    ) -> list | None:
         if parent_index_set_names is None:
             return None
 
@@ -1894,10 +1894,10 @@ class CollectorHandler:
     def obtain_parent_index_set_ids(
         parent_index_set_ids,
         parent_index_set_names,
-        bk_biz_id: int = None,
-        space_uid: str = None,
+        bk_biz_id: int | None = None,
+        space_uid: str | None = None,
         is_update: bool = False,
-    ) -> list:
+    ) -> list | None:
         if not is_update:
             if not parent_index_set_ids and parent_index_set_names:
                 return CollectorHandler.get_or_create_parent_index_set_ids_by_parent_index_set_names(

@@ -145,7 +145,12 @@ class IndexSetViewSet(ModelViewSet):
             space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
             bkdata_auth_url = serializers.ReadOnlyField()
             is_editable = serializers.BooleanField(required=False, default=True)
-            parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=list)
+            parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=None)
+            parent_index_set_names = serializers.ListField(
+                label=_("归属索引集名称列表"),
+                child=serializers.CharField(max_length=128),
+                default=None
+            )
 
             def validate(self, attrs):
                 attrs = super().validate(attrs)
@@ -162,7 +167,12 @@ class IndexSetViewSet(ModelViewSet):
             category_id = serializers.CharField(required=False, default=DEFAULT_CATEGORY_ID)
             space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
             bkdata_auth_url = serializers.ReadOnlyField()
-            parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=list)
+            parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=None)
+            parent_index_set_names = serializers.ListField(
+                label=_("归属索引集名称列表"),
+                child=serializers.CharField(max_length=128),
+                default=None
+            )
 
         class ShowMoreSerializer(CustomSerializer):
             source_name = serializers.CharField(read_only=True)
@@ -642,6 +652,7 @@ class IndexSetViewSet(ModelViewSet):
             target_fields=data.get("target_fields", []),
             sort_fields=data.get("sort_fields", []),
             parent_index_set_ids=data.get("parent_index_set_ids", []),
+            parent_index_set_names=data.get("parent_index_set_names", []),
             is_platform_index=data.get("is_platform_index"),
             platform_index_visibility=data.get("platform_index_visibility"),
             platform_index_filter=data.get("platform_index_filter"),
@@ -715,6 +726,7 @@ class IndexSetViewSet(ModelViewSet):
             target_fields=data.get("target_fields", []),
             sort_fields=data.get("sort_fields", []),
             parent_index_set_ids=data.get("parent_index_set_ids", []),
+            parent_index_set_names=data.get("parent_index_set_names", []),
             is_platform_index=data.get("is_platform_index"),
             platform_index_visibility=data.get("platform_index_visibility"),
             platform_index_filter=data.get("platform_index_filter"),

@@ -298,7 +298,7 @@ class HostCollectorHandler(CollectorHandler):
                     parent_index_set_ids = CollectorHandler.obtain_parent_index_set_ids(
                         parent_index_set_ids,
                         parent_index_set_names,
-                        bk_biz_id=self.data.get_bk_biz_id(),
+                        bk_biz_id=bk_biz_id,
                         is_update=False,
                     )
 

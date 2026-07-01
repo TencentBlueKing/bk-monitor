@@ -433,6 +433,7 @@ class IndexSetHandler(APIModel):
         sort_fields=None,
         bcs_cluster_id=None,
         parent_index_set_ids=None,
+        parent_index_set_names=None,
         is_platform_index=None,
         platform_index_visibility=None,
         platform_index_filter=None,
@@ -462,6 +463,7 @@ class IndexSetHandler(APIModel):
             sort_fields=sort_fields,
             bcs_cluster_id=bcs_cluster_id,
             parent_index_set_ids=parent_index_set_ids,
+            parent_index_set_names=parent_index_set_names,
             is_platform_index=is_platform_index,
             platform_index_visibility=platform_index_visibility,
             platform_index_filter=platform_index_filter,
@@ -515,6 +517,7 @@ class IndexSetHandler(APIModel):
         sort_fields=None,
         bcs_cluster_id=None,
         parent_index_set_ids=None,
+        parent_index_set_names=None,
         is_platform_index=None,
         platform_index_visibility=None,
         platform_index_filter=None,
@@ -538,6 +541,7 @@ class IndexSetHandler(APIModel):
             sort_fields=sort_fields,
             bcs_cluster_id=bcs_cluster_id,
             parent_index_set_ids=parent_index_set_ids,
+            parent_index_set_names=parent_index_set_names,
             is_platform_index=is_platform_index,
             platform_index_visibility=platform_index_visibility,
             platform_index_filter=platform_index_filter,
@@ -1637,7 +1641,7 @@ class IndexSetHandler(APIModel):
             parent_index_sets = LogIndexSet.objects.filter(index_set_id__in=parent_index_set_ids, is_group=True)
             BaseIndexSetHandler.sync_router(list(parent_index_sets))
 
-    def update_parent_index_sets(self, new_parent_index_set_ids: list):
+    def update_parent_index_sets(self, new_parent_index_set_ids: list | None):
         """
         更新归属索引集
         """
@@ -1848,12 +1852,13 @@ class BaseIndexSetHandler:
                 time_field_unit=index.get("time_field_unit") or self.time_field_unit,
             )
 
-        if not self.parent_index_set_ids and self.parent_index_set_names:
-            from apps.log_databus.handlers.collector.base import CollectorHandler
-            self.parent_index_set_ids = CollectorHandler.get_or_create_parent_index_set_ids_by_parent_index_set_names(
-                self.parent_index_set_names,
-                space_uid=self.space_uid
-            )
+        from apps.log_databus.handlers.collector.base import CollectorHandler
+        self.parent_index_set_ids = CollectorHandler.obtain_parent_index_set_ids(
+            self.parent_index_set_ids,
+            self.parent_index_set_names,
+            space_uid=self.space_uid,
+            is_update=False
+        )
 
         # 将索引集添加到归属索引集(索引组)中
         if self.parent_index_set_ids:
@@ -2187,12 +2192,13 @@ class BaseIndexSetHandler:
                 time_field_unit=index.get("time_field_unit") or self.time_field_unit,
             )
 
-        if self.parent_index_set_ids is None and self.parent_index_set_names is not None:
-            from apps.log_databus.handlers.collector.base import CollectorHandler
-            self.parent_index_set_ids = CollectorHandler.get_or_create_parent_index_set_ids_by_parent_index_set_names(
-                self.parent_index_set_names,
-                bk_biz_id=index["bk_biz_id"],
-            )
+        from apps.log_databus.handlers.collector.base import CollectorHandler
+        self.parent_index_set_ids = CollectorHandler.obtain_parent_index_set_ids(
+            self.parent_index_set_ids,
+            self.parent_index_set_names,
+            space_uid=self.space_uid,
+            is_update=False
+        )
 
         # 更新归属索引集
         IndexSetHandler(index_set_id=self.index_set_obj.index_set_id).update_parent_index_sets(
