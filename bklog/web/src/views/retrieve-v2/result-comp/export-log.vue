@@ -72,6 +72,7 @@
             v-for="task in displayTasks"
             :key="task.id"
             :item="task"
+            @retry-export="handleRetryExport"
           />
         </div>
       </template>
@@ -415,32 +416,38 @@
       isScene() {
         return this.$store.getters.isSceneMode;
       },
-      /** 所有下载中任务的总进度百分比（仅计算当前用户创建的任务） */
-      totalProgressPercent() {
+      /** 当前显示的单个下载中任务（最先下载的任务） */
+      activeDownloadingTask() {
         const currentUser = this.$store.state.userMeta?.username || '';
-        let totalExported = 0;
-        let totalExportCount = 0;
-        this.exportListData.forEach(row => {
-          if (POLLING_STATUS.includes(row.export_status) && row.export_created_by === currentUser) {
-            totalExported += row.exported_count || 0;
-            totalExportCount += row.export_total_count || 0;
-          }
-        });
-        if (totalExportCount <= 0) return 0;
-        return calculateProgressPercent(totalExported, totalExportCount);
+        return (
+          this.exportListData.findLast(
+            row => POLLING_STATUS.includes(row.export_status) && row.export_created_by === currentUser,
+          ) || null
+        );
       },
-      /** 需要显示的任务列表（下载中、未启动、失败）- 只显示当前用户的任务 */
+      /** 当前下载中任务的进度百分比 */
+      totalProgressPercent() {
+        const task = this.activeDownloadingTask;
+        if (!task) return 0;
+        const total = task.export_total_count || 0;
+        if (total <= 0) return 0;
+        return calculateProgressPercent(task.exported_count || 0, total);
+      },
+      /** 需要显示的任务列表（只显示一个下载中任务 + 失败任务） */
       displayTasks() {
         const currentUser = this.$store.state.userMeta?.username || '';
-        return this.exportListData.filter(row => {
-          // 只显示当前用户的任务
-          if (row.export_created_by !== currentUser) return false;
-          const status = row.export_status;
-          if (status === 'failed') {
-            return this.failedTaskIds.includes(row.id);
+        const list = [];
+        if (this.activeDownloadingTask) {
+          list.push(this.activeDownloadingTask);
+        }
+        // 失败任务
+        this.exportListData.forEach(row => {
+          if (row.export_created_by !== currentUser) return;
+          if (row.export_status === 'failed' && this.failedTaskIds.includes(row.id)) {
+            list.push(row);
           }
-          return ['download_log', 'export_package', 'export_upload'].includes(status) || status === null;
         });
+        return list;
       },
       /** 失败任务数量 */
       failedTaskCount() {
@@ -469,6 +476,12 @@
       isLoading(newVal, oldVal) {
         if (this.isScene && oldVal === true && newVal === false) {
           this.resetComponentState();
+        }
+      },
+      displayTasks() {
+        // 当 displayTasks 为空时，手动关闭 popover
+        if (this.displayTasks.length === 0 && this.$refs.downloadProgressPopover) {
+          this.$refs.downloadProgressPopover.hide();
         }
       },
     },
@@ -613,7 +626,7 @@
             this.selectFiledList = [];
           });
       },
-      openDownloadUrl() {
+      async openDownloadUrl() {
         const { timezone, ...rest } = this.retrieveParams;
         const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
         let downRequestUrl;
@@ -655,7 +668,7 @@
             this.selectFiledList = [];
           });
       },
-      downloadAsync() {
+      async downloadAsync() {
         const { timezone, ...rest } = this.retrieveParams;
         const params = Object.assign(rest, { begin: 0, bk_biz_id: this.bkBizId });
         const data = { ...params };
@@ -777,6 +790,19 @@
         this.failedTaskIds = [];
       },
       /**
+       * @desc: 处理重试导出
+       * @param { Object } task 任务对象
+       */
+      async handleRetryExport(task) {
+        // 异常任务直接异步下载
+        if (task.export_type === 'sync') {
+          await this.openDownloadUrl(task);
+        } else {
+          await this.downloadAsync(task.search_dict);
+        }
+        this.getTableList(true);
+      },
+      /**
        * @desc: 轮询
        */
       startStatusPolling() {
@@ -799,12 +825,12 @@
         return this.exportListData.some(item => POLLING_STATUS.includes(item.export_status));
       },
       /**
-       * @desc: 初始化进行中任务的增长修正量
-       * 为每个进行中的任务设置 currentGrowth 和 progressPercent
+       * @desc: 初始化拉取中任务的增长修正量
+       * 为每个拉取中的任务设置 currentGrowth 和 progressPercent
        */
       initGrowthAdjustMap() {
         this.exportListData.forEach(row => {
-          if (POLLING_STATUS.includes(row.export_status)) {
+          if (row.export_status === 'download_log') {
             // 初始增长量等于基础增长量
             row.currentGrowth = this.baseGrowth;
             // 初始化进度百分比
@@ -821,7 +847,7 @@
       startProgressUpdate() {
         this.stopProgressUpdate();
         this.progressUpdateTimer = setInterval(() => {
-          this.updateAllTaskProgress();
+          this.updateTaskProgress();
         }, 1000);
       },
       /**
@@ -843,23 +869,17 @@
         }
       },
       /**
-       * @desc: 每秒更新所有进行中任务的进度
-       * 单次遍历更新 exported_count 和 progressPercent
+       * @desc: 每秒更新当前下载中任务的进度
        */
-      updateAllTaskProgress() {
-        let hasActiveTask = false;
-
-        this.exportListData.forEach(row => {
-          if (POLLING_STATUS.includes(row.export_status)) {
-            hasActiveTask = true;
-            calculateProgress(row);
-          }
-        });
-
-        // 如果没有进行中的任务，停止定时器
-        if (!hasActiveTask) {
+      updateTaskProgress() {
+        const downloadingTask = this.activeDownloadingTask;
+        if (!downloadingTask) {
+          // 没有下载任务时停止定时器
           this.stopProgressUpdate();
+          return;
         }
+        // download_log 状态下模拟进度增长
+        downloadingTask.export_status === 'download_log' && calculateProgress(downloadingTask);
       },
       /**
        * @desc: 处理任务状态记录与变化检测
@@ -920,8 +940,8 @@
           data.forEach(item => {
             this.exportListData.forEach(row => {
               if (row.id === item.id) {
-                // 如果是进行中的任务，修正增长量
-                if (POLLING_STATUS.includes(item.export_status)) {
+                // 如果是拉取中的任务，修正增长量
+                if (row.export_status === 'download_log' && item.export_status === 'download_log') {
                   adjustGrowthAfterPoll(row, item.exported_count || 0, this.baseGrowth);
                 } else {
                   Object.assign(row, { ...item });
@@ -1052,7 +1072,7 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background: conic-gradient(from 0deg, rgba(0, 0, 0, 0) var(--progress, 0%), rgba(211, 215, 221, 0.45) 0);
+      background: conic-gradient(from 0deg, rgba(0, 0, 0, 0) var(--progress, 0%), rgba(0, 0, 0, 0.3) 0);
       transition: background 0.25s ease;
     }
   }
@@ -1293,7 +1313,7 @@
         height: 16px;
         margin-left: 8px;
         border-radius: 50%;
-        background: conic-gradient(from 0deg, rgba(233, 237, 245, 1) var(--progress, 0%), rgba(211, 215, 221, 1) 0);
+        background: conic-gradient(from 0deg, rgba(233, 237, 245, 1) var(--progress, 0%), rgba(0, 0, 0, 0.3) 0);
       }
     }
   }

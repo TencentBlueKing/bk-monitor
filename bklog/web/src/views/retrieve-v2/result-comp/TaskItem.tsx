@@ -42,7 +42,7 @@ export default defineComponent({
       required: true
     }
   },
-  emits: ['view-detail'],
+  emits: ['retry-export'],
   setup(props, { emit }) {
     /**
      * 判断是否为下载中的状态
@@ -88,9 +88,13 @@ export default defineComponent({
             <span class="status-dot failed-dot"></span>
             <span class="status-text">{t('失败')}</span>
             <span
-              class="detail-link" 
+              class="detail-link"
+              onClick={(e) => {
+                e.stopPropagation();
+                emit('retry-export', props.item);
+              }}
             >
-              {t('查看详情')}
+              {t('重试')}
             </span>
           </div>
         );
