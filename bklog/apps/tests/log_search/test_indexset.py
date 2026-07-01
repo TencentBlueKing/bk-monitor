@@ -31,7 +31,6 @@ from django.test import TestCase, override_settings
 from apps.log_databus.models import CollectorConfig, DataLinkConfig
 from apps.log_search.models import LogIndexSet, LogIndexSetData
 from apps.tests.utils import FakeRedis
-from bkm_space.define import Space
 
 BK_BIZ_ID = 1
 SPACE_UID = "bkcc__2"
