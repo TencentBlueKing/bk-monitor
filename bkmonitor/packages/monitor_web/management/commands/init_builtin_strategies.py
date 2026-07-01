@@ -177,9 +177,9 @@ class Command(BaseCommand):
     # 脏 v1 主机系统事件的识别句柄（plan §二 metric 元组）：bk_monitor 源 + event 类型 + 底层 system.event
     # + metric_id ∈ 下方 7 个内置伪事件。命中 → 当 StrategyModel 名恰为该 metric 的内置 canonical 名时改名腾位。
     #
-    # 存盘形态区分（关键）：脏 v1 存盘 = event/system.event（实测 bk2game biz 19078：agent/oom/磁盘只读/
-    # 主机重启/进程端口/PING 的 v1 在 QueryConfigModel 中 data_type_label 仍为 event、result_table_id 仍为
-    # system.event——v1 建于单租户时期，未走 os_loader 的 EVENT_QUERY_CONFIG_MAP 重定向）。而**新补建**的
+    # 存盘形态区分（关键）：脏 v1 存盘 = event/system.event（agent/oom/磁盘只读/主机重启/进程端口/PING
+    # 的 v1 在 QueryConfigModel 中 data_type_label 仍为 event、result_table_id 仍为 system.event——v1 建于
+    # 单租户时期，未走 os_loader 的 EVENT_QUERY_CONFIG_MAP 重定向）。而**新补建**的
     # v3/v4 经该重定向后 data_type_label=time_series、result_table_id=system.env/pingserver.base；v2 是 custom
     # 源。故 `bk_monitor + event + system.event` 这一组条件即把「旧脏 v1」与「新补建版本」「v2 custom」干净
     # 分开，只命中要腾名的旧脏 v1。metric_id -> canonical 名：仅当旧策略名恰为 canonical 名时才改（真正占名的），
