@@ -756,6 +756,40 @@ class BkdataMetricCacheManager(BaseMetricCacheManager):
                 storages=["mysql", "tspider", "databus_tspider"],
             )
 
+    @staticmethod
+    def _convert_count_freq_to_seconds(table):
+        """
+        将 BKBase 结果表的 count_freq 和 count_freq_unit 换算为秒
+        count_freq_unit 支持的值: S/second, m/minute, H/hour, d/day, week, month
+        当 count_freq 为 None 或 0 时，返回默认值 1
+        """
+        try:
+            count_freq = int(table.get("count_freq") or 0)
+        except Exception:
+            return 1
+
+        if count_freq <= 0:
+            return 1
+
+        count_freq_unit = (table.get("count_freq_unit") or "s").lower()
+
+        unit_to_seconds = {
+            "s": 1,
+            "second": 1,
+            "m": 60,
+            "minute": 60,
+            "h": 3600,
+            "hour": 3600,
+            "d": 86400,
+            "day": 86400,
+            "week": 604800,
+            "month": 2592000,  # 30天 × 86400秒/天
+        }
+
+        seconds_per_unit = unit_to_seconds.get(count_freq_unit) or 1
+
+        return count_freq * seconds_per_unit
+
     def get_metrics_by_table(self, table):
         bk_biz_id = table["bk_biz_id"]
         result_table_id = table["result_table_id"]
@@ -801,6 +835,7 @@ class BkdataMetricCacheManager(BaseMetricCacheManager):
                 data_type_label=DataTypeLabel.TIME_SERIES,
             ),
             "bk_biz_id": bk_biz_id,
+            "collect_interval": self._convert_count_freq_to_seconds(table),
         }
 
         for field in table["fields"]:
