@@ -131,7 +131,9 @@ def test_create_or_update_log_doris_router_resource_for_bkcc(create_or_delete_re
             expected_space_router = {"bkcc__2": '{"2_bklog.test_doris_non_exists":{"filters":[]}}'}
             expected_rt_detail_router = {
                 non_exist_doris_table_id: '{"db":"2_bklog_pure_doris,2_bklog_doris_log","measurement":"doris",'
-                '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839","labels":{},"field_alias":{}}'
+                '"storage_type":"bk_sql","storage_id":10034,"storage_name":"default_doris",'
+                '"cluster_name":"default_doris","storage_cluster_records":[],'
+                '"data_label":"bkdata_index_set_7839","labels":{},"field_alias":{}}'
             }
 
             # 创建流程,先推送RT详情路由,再推送空间路由
@@ -212,7 +214,9 @@ def test_create_or_update_log_doris_router_resource_for_bkcc(create_or_delete_re
             )
             expected_rt_detail_router = {
                 non_exist_doris_table_id: '{"db":"2_bklog_pure_doris,2_bklog_doris_log","measurement":"doris",'
-                '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839","labels":{},"field_alias":{}}'
+                '"storage_type":"bk_sql","storage_id":10034,"storage_name":"default_doris",'
+                '"cluster_name":"default_doris","storage_cluster_records":[],'
+                '"data_label":"bkdata_index_set_7839","labels":{},"field_alias":{}}'
             }
 
             mock_hmset_to_redis.assert_has_calls(
@@ -250,7 +254,9 @@ def test_create_or_update_log_doris_router_resource_for_bkcc(create_or_delete_re
             CreateOrUpdateLogRouter().request(**modify_params)
             expected_rt_detail_router = {
                 non_exist_doris_table_id: '{"db":"2_bklog_pure_doris","measurement":"doris",'
-                '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839","labels":{},"field_alias":{}}'
+                '"storage_type":"bk_sql","storage_id":10035,"storage_name":"custom_doris",'
+                '"cluster_name":"custom_doris","storage_cluster_records":[],'
+                '"data_label":"bkdata_index_set_7839","labels":{},"field_alias":{}}'
             }
 
             # 创建流程,先推送RT详情路由,再推送空间路由
@@ -304,11 +310,13 @@ def test_create_or_update_log_es_router_resource_for_bkcc(create_or_delete_recor
             expected_space_router = {"bkcc__2": '{"2_bklog.test_es_non_exists":{"filters":[]}}'}
 
             detail_string = (
-                '{"storage_id":3,"db":"2_bklog_pure_es,2_bklog_es_log",'
+                '{"storage_id":10036,"db":"2_bklog_pure_es,2_bklog_es_log",'
                 '"measurement":"__default__","source_type":"bkdata","options":{},'
                 '"storage_type":"elasticsearch","storage_cluster_records":[{'
-                '"storage_id":3,"enable_time":1747130440}],'
-                '"data_label":"bkdata_index_set_6788","labels":{},"field_alias":{}}'
+                '"storage_id":10036,"enable_time":1747130440,"storage_name":"default_es",'
+                '"cluster_name":"default_es","storage_type":"elasticsearch",'
+                '"db":"2_bklog_pure_es,2_bklog_es_log","measurement":"__default__",'
+                '"source_type":"bkdata"}],"data_label":"bkdata_index_set_6788","labels":{},"field_alias":{}}'
             )
 
             detail_string = detail_string.replace(
@@ -327,7 +335,8 @@ def test_create_or_update_log_es_router_resource_for_bkcc(create_or_delete_recor
                         "bkmonitorv3:spaces:data_label_to_result_table",
                         {"bkdata_index_set_6788": '["2_bklog.test_es_non_exists"]'},
                     ),
-                ]
+                ],
+                any_order=True,
             )
 
             mock_publish.assert_has_calls(
@@ -335,12 +344,13 @@ def test_create_or_update_log_es_router_resource_for_bkcc(create_or_delete_recor
                     call("bkmonitorv3:spaces:result_table_detail:channel", [non_exist_es_table_id]),
                     call("bkmonitorv3:spaces:space_to_result_table:channel", ["bkcc__2"]),
                     call("bkmonitorv3:spaces:data_label_to_result_table:channel", ["bkdata_index_set_6788"]),
-                ]
+                ],
+                any_order=True,
             )
 
             es_storage_ins = models.ESStorage.objects.get(table_id=non_exist_es_table_id)
             assert es_storage_ins.index_set == "2_bklog_pure_es,2_bklog_es_log"
-            assert es_storage_ins.storage_cluster_id == 3
+            assert es_storage_ins.storage_cluster_id == 10036
             assert es_storage_ins.source_type == "bkdata"
             assert es_storage_ins.origin_table_id == non_exist_es_table_id
 
@@ -401,9 +411,12 @@ def test_create_or_update_log_es_router_resource_for_bkcc(create_or_delete_recor
             CreateOrUpdateLogRouter().request(**modify_params)
 
             detail_string = (
-                '{"source_type":"bkdata","storage_id":3,"db":"2_bklog_pure_es",'
-                '"measurement":"__default__","storage_type":"elasticsearch","options":{},'
-                '"storage_cluster_records":[{"storage_id":3,"enable_time":1747130440}]}'
+                '{"storage_id":10036,"db":"2_bklog_pure_es","measurement":"__default__",'
+                '"source_type":"bkdata","options":{},"storage_type":"elasticsearch",'
+                '"storage_cluster_records":[{"storage_id":10036,"enable_time":1747130440,'
+                '"storage_name":"default_es","cluster_name":"default_es",'
+                '"storage_type":"elasticsearch","db":"2_bklog_pure_es","measurement":"__default__",'
+                '"source_type":"bkdata"}],"data_label":"bkdata_index_set_6788","labels":{},"field_alias":{}}'
             )
 
             detail_string = detail_string.replace(
@@ -427,7 +440,7 @@ def test_create_or_update_log_es_router_resource_for_bkcc(create_or_delete_recor
 
             es_storage_ins = models.ESStorage.objects.get(table_id=non_exist_es_table_id)
             assert es_storage_ins.index_set == "2_bklog_pure_es"
-            assert es_storage_ins.storage_cluster_id == 3
+            assert es_storage_ins.storage_cluster_id == 10036
             assert es_storage_ins.source_type == "bkdata"
 
             result_table_ins = models.ResultTable.objects.get(table_id=non_exist_es_table_id)

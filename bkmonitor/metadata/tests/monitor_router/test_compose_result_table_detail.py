@@ -21,7 +21,11 @@ base_time = timezone.datetime(2020, 1, 1, tzinfo=timezone.utc)
 
 @pytest.fixture
 def create_or_delete_records(mocker):
-    models.ESStorage.objects.create(table_id="1001_bklog.stdout", storage_cluster_id=11)
+    models.ESStorage.objects.create(
+        table_id="1001_bklog.stdout",
+        storage_cluster_id=11,
+        index_set="bklog_index_set_1001",
+    )
     models.ResultTable.objects.create(
         table_id="1001_bklog.stdout",
         table_name_zh="stdout",
@@ -38,9 +42,29 @@ def create_or_delete_records(mocker):
     models.ResultTable.objects.create(
         table_id="1001_bklog.stdout_fake",
         table_name_zh="stdout",
-        data_label="bklog_index_set_1001",
+        data_label="bklog_index_set_fake",
         labels={"scene": "log-fake"},
         is_custom_table=False,
+    )
+    models.ClusterInfo.objects.create(
+        cluster_id=11,
+        cluster_name="test_es_1",
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        domain_name="es_test.1",
+        port=9090,
+        description="",
+        is_default_cluster=True,
+        version="5.x",
+    )
+    models.ClusterInfo.objects.create(
+        cluster_id=12,
+        cluster_name="test_es_2",
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        domain_name="es_test.2",
+        port=9090,
+        description="",
+        is_default_cluster=False,
+        version="5.x",
     )
 
     # 日志链路必备的两个查询Option： need_add_time & time_field
@@ -95,10 +119,16 @@ def create_or_delete_records(mocker):
         is_deleted=True,  # 软删除的别名不会出现
     )
     models.ESFieldQueryAliasOption.objects.create(
-        table_id="1001_bklog.stdout_fake", field_path="__ext.pod_name", query_alias="pod_name", is_deleted=False
+        table_id="1001_bklog.stdout_fake",
+        field_path="__ext.fake_pod_name",
+        query_alias="fake_pod_name",
+        is_deleted=False,
     )
     models.ESFieldQueryAliasOption.objects.create(
-        table_id="1001_bklog.stdout_fake", field_path="__ext.pod_ip", query_alias="pod_ip", is_deleted=False
+        table_id="1001_bklog.stdout_fake",
+        field_path="__ext.fake_pod_ip",
+        query_alias="fake_pod_ip",
+        is_deleted=False,
     )
     models.ESFieldQueryAliasOption.objects.create(
         table_id="1001_bklog.stdout_fake",
@@ -107,10 +137,12 @@ def create_or_delete_records(mocker):
         is_deleted=True,  # 软删除的别名不会出现
     )
     yield
-    models.ESStorage.objects.filter(table_id="1001_bklog.stdout").delete()
-    models.ResultTable.objects.filter(table_id="1001_bklog.stdout").delete()
-    models.ResultTableOption.objects.filter(table_id="1001_bklog.stdout").delete()
-    models.ESFieldQueryAliasOption.objects.filter(table_id="1001_bklog.stdout").delete()
+    table_ids = ["1001_bklog.stdout", "1001_bklog.stdout_fake"]
+    models.ESStorage.objects.filter(table_id__in=table_ids).delete()
+    models.ResultTable.objects.filter(table_id__in=table_ids).delete()
+    models.ResultTableOption.objects.filter(table_id__in=table_ids).delete()
+    models.ESFieldQueryAliasOption.objects.filter(table_id__in=table_ids).delete()
+    models.ClusterInfo.objects.filter(cluster_id__in=[11, 12]).delete()
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -123,7 +155,7 @@ def test_compose_es_table_detail(create_or_delete_records):
     expected = {
         "1001_bklog.stdout": {
             "storage_id": 11,
-            "db": None,
+            "db": "bklog_index_set_1001",
             "measurement": "__default__",
             "source_type": "log",
             "options": {
@@ -132,8 +164,26 @@ def test_compose_es_table_detail(create_or_delete_records):
             },
             "storage_type": "elasticsearch",
             "storage_cluster_records": [
-                {"enable_time": 1572652800, "storage_id": 12},
-                {"enable_time": 1575244800, "storage_id": 11},
+                {
+                    "enable_time": 1572652800,
+                    "storage_id": 12,
+                    "storage_name": "test_es_2",
+                    "cluster_name": "test_es_2",
+                    "storage_type": "elasticsearch",
+                    "db": "bklog_index_set_1001",
+                    "measurement": "__default__",
+                    "source_type": "log",
+                },
+                {
+                    "enable_time": 1575244800,
+                    "storage_id": 11,
+                    "storage_name": "test_es_1",
+                    "cluster_name": "test_es_1",
+                    "storage_type": "elasticsearch",
+                    "db": "bklog_index_set_1001",
+                    "measurement": "__default__",
+                    "source_type": "log",
+                },
             ],
             "data_label": "bklog_index_set_1001",
             "labels": {"scene": "log"},
@@ -166,14 +216,32 @@ def test_compose_es_table_detail_for_fake_rt(create_or_delete_records):
             },
             "storage_type": "elasticsearch",
             "storage_cluster_records": [
-                {"enable_time": 1572652800, "storage_id": 12},
-                {"enable_time": 1575244800, "storage_id": 11},
+                {
+                    "enable_time": 1572652800,
+                    "storage_id": 12,
+                    "storage_name": "test_es_2",
+                    "cluster_name": "test_es_2",
+                    "storage_type": "elasticsearch",
+                    "db": "bklog_index_set_1001",
+                    "measurement": "__default__",
+                    "source_type": "log",
+                },
+                {
+                    "enable_time": 1575244800,
+                    "storage_id": 11,
+                    "storage_name": "test_es_1",
+                    "cluster_name": "test_es_1",
+                    "storage_type": "elasticsearch",
+                    "db": "bklog_index_set_1001",
+                    "measurement": "__default__",
+                    "source_type": "log",
+                },
             ],
-            "data_label": "bklog_index_set_1001",
+            "data_label": "bklog_index_set_fake",
             "labels": {"scene": "log-fake"},
             "field_alias": {
-                "pod_name": "__ext.pod_name",
-                "pod_ip": "__ext.pod_ip",
+                "fake_pod_name": "__ext.fake_pod_name",
+                "fake_pod_ip": "__ext.fake_pod_ip",
             },
         }
     }

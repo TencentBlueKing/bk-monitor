@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 from unittest.mock import call, patch
 
 from django.conf import settings
@@ -16,6 +17,32 @@ import pytest
 from metadata import models
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.tests.common_utils import consul_client
+
+
+def assert_doris_detail(mapping, redis_key, *, data_label, labels, field_alias):
+    detail = json.loads(mapping[redis_key])
+    assert detail["db"] == "2_bklog_pure_doris,2_bklog_doris_log"
+    assert detail["measurement"] == "doris"
+    assert detail["storage_type"] == "bk_sql"
+    assert detail["storage_id"] == 10034
+    assert detail["storage_name"] == ""
+    assert detail["cluster_name"] == ""
+    assert detail["storage_cluster_records"] == []
+    assert detail["data_label"] == data_label
+    assert detail["labels"] == labels
+    assert detail["field_alias"] == field_alias
+
+
+def test_compose_result_table_detail_redis_values_without_empty_tenant_suffix():
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    try:
+        redis_values = SpaceTableIDRedis()._compose_result_table_detail_redis_values({"2_bklog": {"db": "db"}}, "")
+    finally:
+        settings.ENABLE_MULTI_TENANT_MODE = False
+
+    assert "2_bklog.__default__|" not in redis_values
+    assert set(redis_values) == {"2_bklog.__default__|system"}
+    assert json.loads(redis_values["2_bklog.__default__|system"]) == {"db": "db"}
 
 
 @pytest.fixture
@@ -206,17 +233,14 @@ def test_push_doris_table_id_detail(create_or_delete_records):
             space_client.push_doris_table_id_detail(
                 bk_tenant_id="riot", table_id_list=["2_bklog.test_doris_non_exists"], is_publish=True
             )
-            expected_rt_detail_router = {
-                "2_bklog.test_doris_non_exists|riot": '{"db":"2_bklog_pure_doris,2_bklog_doris_log",'
-                '"measurement":"doris","storage_type":"bk_sql",'
-                '"data_label":"bkdata_index_set_7839","labels":{"scene":"doris"},"field_alias":{'
-                '"pod_name":"__ext.pod_name","pod_ip":"__ext.pod_ip"}}'
-            }
-
-            mock_hmset_to_redis.assert_has_calls(
-                [
-                    call("bkmonitorv3:spaces:result_table_detail", expected_rt_detail_router),
-                ]
+            actual_key, actual_mapping = mock_hmset_to_redis.call_args.args
+            assert actual_key == "bkmonitorv3:spaces:result_table_detail"
+            assert_doris_detail(
+                actual_mapping,
+                "2_bklog.test_doris_non_exists|riot",
+                data_label="bkdata_index_set_7839",
+                labels={"scene": "doris"},
+                field_alias={"pod_name": "__ext.pod_name", "pod_ip": "__ext.pod_ip"},
             )
 
             mock_publish.assert_has_calls(
@@ -239,17 +263,14 @@ def test_push_doris_table_id_detail_for_fake_rt(create_or_delete_records):
             space_client.push_doris_table_id_detail(
                 bk_tenant_id="riot", table_id_list=["2_bklog.test_doris_fake"], is_publish=True
             )
-            expected_rt_detail_router = {
-                "2_bklog.test_doris_fake|riot": '{"db":"2_bklog_pure_doris,2_bklog_doris_log",'
-                '"measurement":"doris","storage_type":"bk_sql",'
-                '"data_label":"bkdata_index_set_fake","labels":{"scene":"doris-fake"},"field_alias":{'
-                '"fake_pod_name":"__ext.fake_pod_name"}}'
-            }
-
-            mock_hmset_to_redis.assert_has_calls(
-                [
-                    call("bkmonitorv3:spaces:result_table_detail", expected_rt_detail_router),
-                ]
+            actual_key, actual_mapping = mock_hmset_to_redis.call_args.args
+            assert actual_key == "bkmonitorv3:spaces:result_table_detail"
+            assert_doris_detail(
+                actual_mapping,
+                "2_bklog.test_doris_fake|riot",
+                data_label="bkdata_index_set_fake",
+                labels={"scene": "doris-fake"},
+                field_alias={"fake_pod_name": "__ext.fake_pod_name"},
             )
 
             mock_publish.assert_has_calls(

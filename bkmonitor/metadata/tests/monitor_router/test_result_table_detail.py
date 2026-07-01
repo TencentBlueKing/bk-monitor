@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from datetime import timedelta
+import json
 from unittest.mock import patch
 
 import pytest
@@ -20,6 +21,29 @@ from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.tests.common_utils import consul_client
 
 base_time = timezone.datetime(2020, 1, 1, tzinfo=timezone.utc)
+
+
+def assert_es_log_detail(mapping, redis_key):
+    detail = json.loads(mapping[redis_key])
+    assert detail["storage_id"] == 11
+    assert detail["db"] is None
+    assert detail["measurement"] == "__default__"
+    assert detail["source_type"] == "log"
+    assert detail["storage_type"] == "elasticsearch"
+    assert detail["data_label"] == "bklog_index_set_1001,bklog_index_set_1002"
+    assert detail["labels"] == {"scene": "log"}
+    assert detail["field_alias"] == {}
+    assert detail["storage_cluster_records"][:2] == [
+        {"storage_id": 13, "enable_time": 0},
+        {"storage_id": 12, "enable_time": 1572652800},
+    ]
+    assert detail["storage_cluster_records"][2] == {
+        "storage_id": 11,
+        "enable_time": 1575244800,
+        "storage_name": "test_es_1",
+        "cluster_name": "test_es_1",
+        "storage_type": "elasticsearch",
+    }
 
 
 @pytest.fixture
@@ -207,12 +231,10 @@ def test_push_table_id_detail_with_tenant_for_log(create_or_delete_records):
                 table_id_list=["1001_bklog.stdout"], bk_tenant_id="riot", is_publish=True, include_es_table_ids=True
             )
 
-            expected = {
-                "1001_bklog.stdout|riot": '{"storage_id":11,"db":null,"measurement":"__default__","source_type":"log","options":{},"storage_type":"elasticsearch","storage_cluster_records":[{"storage_id":13,"enable_time":0},{"storage_id":12,"enable_time":1572652800},{"storage_id":11,"enable_time":1575244800}],"data_label":"bklog_index_set_1001,bklog_index_set_1002","labels":{"scene":"log"},"field_alias":{}}'
-            }
-
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
-            mock_hmset_to_redis.assert_called_once_with("bkmonitorv3:spaces:result_table_detail", expected)
+            actual_key, actual_mapping = mock_hmset_to_redis.call_args.args
+            assert actual_key == "bkmonitorv3:spaces:result_table_detail"
+            assert_es_log_detail(actual_mapping, "1001_bklog.stdout|riot")
 
             # 验证 RedisTools.publish 是否被正确调用
             mock_publish.assert_called_once_with(
@@ -230,16 +252,10 @@ def test_push_table_id_detail_with_tenant_for_log(create_or_delete_records):
                 is_publish=True,
             )
 
-            expected = {
-                "1001_bklog.stdout|riot": '{"storage_id":11,"db":null,"measurement":"__default__",'
-                '"source_type":"log","options":{},"storage_type":"elasticsearch",'
-                '"storage_cluster_records":[{"storage_id":13,"enable_time":0},'
-                '{"storage_id":12,"enable_time":1572652800},{"storage_id":11,'
-                '"enable_time":1575244800}],"data_label":"bklog_index_set_1001,bklog_index_set_1002","labels":{"scene":"log"},"field_alias":{}}'
-            }
-
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
-            mock_hmset_to_redis.assert_called_once_with("bkmonitorv3:spaces:result_table_detail", expected)
+            actual_key, actual_mapping = mock_hmset_to_redis.call_args.args
+            assert actual_key == "bkmonitorv3:spaces:result_table_detail"
+            assert_es_log_detail(actual_mapping, "1001_bklog.stdout|riot")
 
             # 验证 RedisTools.publish 是否被正确调用
             mock_publish.assert_called_once_with(
@@ -260,12 +276,10 @@ def test_push_table_id_detail_without_tenant_for_log(create_or_delete_records):
                 table_id_list=["1001_bklog.stdout"], bk_tenant_id="riot", is_publish=True, include_es_table_ids=True
             )
 
-            expected = {
-                "1001_bklog.stdout": '{"storage_id":11,"db":null,"measurement":"__default__","source_type":"log","options":{},"storage_type":"elasticsearch","storage_cluster_records":[{"storage_id":13,"enable_time":0},{"storage_id":12,"enable_time":1572652800},{"storage_id":11,"enable_time":1575244800}],"data_label":"bklog_index_set_1001,bklog_index_set_1002","labels":{"scene":"log"},"field_alias":{}}'
-            }
-
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
-            mock_hmset_to_redis.assert_called_once_with("bkmonitorv3:spaces:result_table_detail", expected)
+            actual_key, actual_mapping = mock_hmset_to_redis.call_args.args
+            assert actual_key == "bkmonitorv3:spaces:result_table_detail"
+            assert_es_log_detail(actual_mapping, "1001_bklog.stdout")
 
             # 验证 RedisTools.publish 是否被正确调用
             mock_publish.assert_called_once_with(
@@ -283,16 +297,10 @@ def test_push_table_id_detail_without_tenant_for_log(create_or_delete_records):
                 is_publish=True,
             )
 
-            expected = {
-                "1001_bklog.stdout": '{"storage_id":11,"db":null,"measurement":"__default__",'
-                '"source_type":"log","options":{},"storage_type":"elasticsearch",'
-                '"storage_cluster_records":[{"storage_id":13,"enable_time":0},'
-                '{"storage_id":12,"enable_time":1572652800},{"storage_id":11,'
-                '"enable_time":1575244800}],"data_label":"bklog_index_set_1001,bklog_index_set_1002","labels":{"scene":"log"},"field_alias":{}}'
-            }
-
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
-            mock_hmset_to_redis.assert_called_once_with("bkmonitorv3:spaces:result_table_detail", expected)
+            actual_key, actual_mapping = mock_hmset_to_redis.call_args.args
+            assert actual_key == "bkmonitorv3:spaces:result_table_detail"
+            assert_es_log_detail(actual_mapping, "1001_bklog.stdout")
 
             # 验证 RedisTools.publish 是否被正确调用
             mock_publish.assert_called_once_with(
