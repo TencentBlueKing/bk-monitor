@@ -18,7 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-from collections import defaultdict
+
 
 from django.db import transaction
 
@@ -29,10 +29,9 @@ from apps.log_search.exceptions import (
     DuplicateIndexGroupException,
     ChildIndexSetNotExistException,
 )
-from apps.log_search.handlers.index_set import BaseIndexSetHandler, IndexSetHandler
-from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario, SpaceApi
+from apps.log_search.handlers.index_set import BaseIndexSetHandler
+from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
 from apps.utils import APIModel
-from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import space_uid_to_bk_biz_id
 
 
