@@ -143,13 +143,13 @@ export default defineComponent({
               {(() => {
                 if (this.tabActive === 'add') {
                   if (this.tapdFieldFormLoading) {
-                    return <TapdFieldFormLoadingCom style='margin: 13px 40px' />;
+                    return <TapdFieldFormLoadingCom style='margin: 13px 40px 0' />;
                   }
                   if (this.tapdFields.length) {
                     return (
                       <TapdFieldForm
                         ref='tapdFieldForm'
-                        style='margin: 13px 40px'
+                        style='margin: 13px 40px 0'
                         fields={this.tapdFields}
                         value={this.tapdFieldValue}
                         onChange={this.handleFieldValueChange}
@@ -161,7 +161,7 @@ export default defineComponent({
                   return (
                     <TapdRelation
                       ref='tapdRelation'
-                      style='margin: 13px 40px'
+                      style='margin: 13px 40px 0'
                       bizId={this.bizId}
                       modelValue={this.linkTapdIds}
                       tapdType={this.formData.tapd_type}

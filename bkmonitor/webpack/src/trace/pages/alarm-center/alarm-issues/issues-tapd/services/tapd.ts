@@ -24,11 +24,24 @@
  * IN THE SOFTWARE.
  */
 
-import { request } from 'monitor-api/base';
+import { getUserWorkspace, searchTapdItems, unbindWorkspace } from 'monitor-api/modules/issue';
+
+import type { GetUserWorkspaceData, GetUserWorkspaceRequest, UnbindWorkspaceRequest } from '../typing';
+import type { RequestConfig } from 'monitor-api/base';
 
 /** 获取用户 TAPD 工作空间列表 */
-export const getUserWorkspace = request('POST', '/fta/issue/tapd/user_workspace/');
+export const getUserWorkspaceApi = (
+  params: GetUserWorkspaceRequest,
+  options?: RequestConfig
+): Promise<GetUserWorkspaceData> => {
+  return getUserWorkspace(params, options);
+};
 
-export const searchTapdItems = request('POST', '/fta/issue/issue/search_tapd_items/');
+/** 用户解绑项目 */
+export const unbindWorkspaceApi = (params: UnbindWorkspaceRequest, options?: RequestConfig) => {
+  return unbindWorkspace(params, options);
+};
 
-export const unbindWorkspace = request('POST', '/fta/issue/tapd/unbind_workspace/');
+export const searchTapdItemsApi = (params, options?: RequestConfig) => {
+  return searchTapdItems(params, options);
+};
