@@ -107,6 +107,7 @@ import { useIssuesMergeActions } from './alarm-issues/hooks/use-issues-merge-act
 import IssuesDetailSideSlider from './alarm-issues/issues-detail/issues-detail-sideslider';
 import IssuesMergeSplitSideslider from './alarm-issues/issues-merge-split/issues-merge-split-sideslider';
 import IssuesTable from './alarm-issues/issues-table/issues-table';
+import IssuesTapd from './alarm-issues/issues-tapd/issues-tapd';
 import IssuesToolbar from './alarm-issues/issues-toolbar/issues-toolbar';
 import {
   exportIssues,
@@ -664,6 +665,9 @@ export default defineComponent({
         detailBizId: queryDetailBizId,
         favorite_id: favoriteId,
         showResidentBtn: queryShowResidentBtn,
+        tapdAuth: queryTapdAuth,
+        tapdBizId: queryTapdBizId,
+        tapdIssueId: queryTapdIssueId,
         /** 最后一次操作的快速过滤条件分类数据 */
         lastQuickFilterCategoryData,
         /** issue 相关参数 */
@@ -721,6 +725,11 @@ export default defineComponent({
         detailId.value = (queryDetailId as string) || '';
         detailBizId.value = queryDetailBizId ? Number(queryDetailBizId) : null;
         issueFirstAlarmTime.value = (queryIssueFirstAlarmTime as string) || '';
+        if (JSON.parse((queryTapdAuth as string) || 'false')) {
+          issuesTapdShow.value = true;
+          tapdBizId.value = Number(queryTapdBizId) || null;
+          tapdIssueId.value = (queryTapdIssueId as string) || '';
+        }
         alarmStore.initAlarmService();
       } catch (error) {
         console.log('route query:', error);
@@ -839,6 +848,18 @@ export default defineComponent({
       detailBizId.value = target.bk_biz_id;
       detailId.value = target.id;
     };
+
+    /** issues Tapd展示 */
+    const tapdBizId = shallowRef<number | string>(null);
+    const tapdIssueId = shallowRef('');
+    const issuesTapdShow = shallowRef(false);
+    const handleIssuesTapdShowChange = (show: boolean, issuesBizId: number | string = '', issuesId = '') => {
+      issuesTapdShow.value = show;
+      tapdBizId.value = issuesBizId;
+      tapdIssueId.value = issuesId;
+    };
+
+    /** */
 
     /**
      * @method autoShowAlertDialog 自动打开告警确认 | 告警屏蔽 dialog
@@ -1199,6 +1220,10 @@ export default defineComponent({
       handleMergeSplitShowChange,
       addSplitHighlight,
       highlightedRowIds,
+      issuesTapdShow,
+      tapdBizId,
+      tapdIssueId,
+      handleIssuesTapdShowChange,
     };
   },
   render() {
@@ -1477,6 +1502,7 @@ export default defineComponent({
                 issueId={this.detailId}
                 show={this.alarmDetailShow}
                 showStepBtn={this.data.length > 1}
+                onCreateTapd={this.handleIssuesTapdShowChange}
                 onNext={this.handleIssueNextDetail}
                 onPrevious={this.handleIssuePreviousDetail}
                 onUpdate:show={this.handleDetailShowChange}
@@ -1494,6 +1520,13 @@ export default defineComponent({
                   this.addSplitHighlight(memberIssueId);
                 }}
                 onUpdate:show={this.handleMergeSplitShowChange}
+              />,
+              <IssuesTapd
+                key='issues-tapd'
+                bizId={this.tapdBizId}
+                issuesId={this.tapdIssueId}
+                show={this.issuesTapdShow}
+                onUpdate:show={this.handleIssuesTapdShowChange}
               />,
             ]
           ) : (

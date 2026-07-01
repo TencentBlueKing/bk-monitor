@@ -41,17 +41,18 @@
       {{ $t('下载历史') }}
     </div>
     <div class="search-history">
-      <span
-        class="top-start"
-        v-bk-tooltips="$t('查看所有的索引集的下载历史')"
+      <bk-date-picker
+        v-model="dateRange"
+        type="datetimerange"
+        :shortcuts="dateShortcuts"
+        :shortcut-close="true"
+        :use-shortcut-text="true"
+        :clearable="false"
+        :shortcut-selected-index="shortcutSelectedIndex"
+        @shortcut-change="handleShortcutChange"
+        @pick-success="handlePickSuccess"
       >
-        <bk-button
-          theme="primary"
-          @click="handleSearchAll"
-        >
-          {{ $t('查看所有') }}</bk-button
-        >
-      </span>
+      </bk-date-picker>
     </div>
     <div
       class="table-container"
@@ -106,21 +107,6 @@
             </bk-popover>
           </template>
         </bk-table-column>
-        <!-- 下载类型 -->
-        <bk-table-column
-          :label="$t('下载类型')"
-          align="center"
-          header-align="center"
-        >
-          <template #default="{ row }">
-            <div
-              class="title-overflow"
-              v-bk-overflow-tips
-            >
-              <span>{{ row.export_type === 'async' ? $t('异步') : $t('同步') }}</span>
-            </div>
-          </template>
-        </bk-table-column>
         <!-- 导出状态 -->
         <bk-table-column
           :label="$t('导出状态')"
@@ -152,10 +138,17 @@
               :class="['status', `status-${row.export_status + ''}`]"
             >
               <i
-                v-if="row.export_status === null"
+                v-if="isShowProgress(row.export_status)"
                 class="bk-icon icon-refresh"
               ></i>
               {{ getStatusStr(row.export_status) }}
+              <span
+                v-if="isShowProgress(row.export_status)"
+                class="progress-text"
+              >
+                {{ row.progressPercent || 0 }} %
+                ({{ formatNumber(row.exported_count) }} / {{ formatNumber(row.export_total_count) }})
+              </span>
             </span>
           </template>
         </bk-table-column>
@@ -295,6 +288,7 @@
   import { parseTableIdConditions } from '@/store/helper.ts';
 
   import { axiosInstance } from '@/api';
+  import { formatNumber } from '@/views/retrieve-v2/result-comp/download/downloadProgress';
 
   export default {
     props: {
@@ -306,15 +300,78 @@
         type: Array,
         required: true,
       },
+      exportList: {
+        type: Array,
+        default: () => [],
+      },
+      tableLoading: {
+        type: Boolean,
+        default: false,
+      },
+      dateRangeProp: {
+        type: Array,
+        default: () => [],
+      },
+      pagination: {
+        type: Object,
+        default: () => ({
+          current: 1,
+          count: 0,
+          limit: 10,
+        }),
+      },
     },
     data() {
       return {
-        exportList: [],
         isShowDialog: false,
-        tableLoading: false,
-        isSearchAll: false, // 是否查看所有索引集下载历史
         isShowSetLabel: false, // 是否展示索引集ID
-        timer: false,
+        dateRange: [], // 日期范围
+        shortcutSelectedIndex: 3, // 当前选中的快捷键索引（默认为"最近3月"）
+        dateShortcuts: [
+          {
+            text: this.$t('近{n}天', { n: 7 }),
+            value() {
+              const end = new Date();
+              const start = new Date();
+              start.setTime(start.getTime() - 3600 * 1000 * 24 * 7);
+              return [start, end];
+            },
+          },
+          {
+            text: this.$t('本月'),
+            value() {
+              const end = new Date();
+              const start = new Date();
+              start.setDate(1);
+              start.setHours(0, 0, 0, 0);
+              return [start, end];
+            },
+          },
+          {
+            text: this.$t('上月'),
+            value() {
+              const end = new Date();
+              const start = new Date();
+              // 上月第一天
+              start.setDate(1);
+              start.setMonth(start.getMonth() - 1);
+              start.setHours(0, 0, 0, 0);
+              // 上月最后一天
+              end.setDate(0);
+              end.setHours(23, 59, 59, 999);
+              return [start, end];
+            },
+          },
+          {
+            text: this.$t('最近{n}月', { n: 3 }),
+            value() {
+              const end = new Date();
+              const start = new Date();
+              start.setTime(start.getTime() - 3600 * 1000 * 24 * 90);
+              return [start, end];
+            },
+          },
+        ],
         exportStatusList: {
           download_log: this.$t('拉取中'),
           export_package: this.$t('打包中'),
@@ -323,22 +380,17 @@
           failed: this.$t('异常'),
           download_expired: this.$t('下载链接过期'),
           data_expired: this.$t('数据源过期'),
-          null: this.$t('下载中'),
-        },
-        pagination: {
-          current: 1,
-          count: 0,
-          limit: 10,
+          null: this.$t('未启动'),
         },
         position: {
           top: 120,
         },
         enTableWidth: {
-          export_status: '190',
+          export_status: '250',
           operate: '220',
         },
         cnTableWidth: {
-          export_status: '170',
+          export_status: '230',
           operate: '150',
         },
       };
@@ -359,16 +411,25 @@
         return this.$store.getters.isSceneMode;
       },
     },
-    watch: {
+      watch: {
       showHistoryExport(val) {
         this.isShowDialog = val;
         if (val) {
-          this.getTableList();
-          this.startStatusPolling();
+          // 同步日期范围
+          this.dateRange = this.dateRangeProp || [];
         }
+      },
+      // 同步父组件的日期范围
+      dateRangeProp: {
+        handler(val) {
+          if (val && val.length === 2) {
+            this.dateRange = val;
+          }
+        },
       },
     },
     methods: {
+      formatNumber,
       downloadExport($row) {
         // 异步导出使用downloadURL下载
         if ($row.download_url) {
@@ -376,7 +437,7 @@
           return;
         }
         this.openDownloadUrl($row);
-        this.startStatusPolling();
+        this.$emit('start-polling');
       },
       retryExport($row) {
         // 异常任务直接异步下载
@@ -385,7 +446,7 @@
         } else {
           this.downloadAsync($row.search_dict);
         }
-        this.startStatusPolling();
+        this.$emit('start-polling');
       },
       /**
        * @desc: 同步下载
@@ -423,7 +484,7 @@
             blobDownload(res, downloadName);
           })
           .finally(() => {
-            this.getTableList(true);
+            this.$emit('get-table-list', true);
           });
       },
       /**
@@ -431,7 +492,7 @@
        * @param { Object } data
        */
       downloadAsync(data) {
-        this.tableLoading = true;
+        this.$emit('loading-change', true);
         let downRequestUrl;
 
         if (this.isScene) {
@@ -473,7 +534,7 @@
           })
           .finally(() => {
             setTimeout(() => {
-              this.getTableList(true);
+              this.$emit('get-table-list', true);
             }, 1000);
           });
       },
@@ -482,7 +543,29 @@
           return;
         }
         this.isSearchAll = true;
-        this.getTableList();
+        this.$emit('get-table-list');
+      },
+      /**
+       * @desc: 设置默认日期范围（最近3月）
+       */
+      setDefaultDateRange() {
+        const end = new Date();
+        const start = new Date();
+        start.setTime(start.getTime() - 3600 * 1000 * 24 * 90);
+        this.dateRange = [start, end];
+        this.shortcutSelectedIndex = 3;
+      },
+      /**
+       * @desc: 日期选择器快捷键变更
+       */
+      handleShortcutChange(shortcut) {
+        this.shortcutSelectedIndex = shortcut.index;
+      },
+      /**
+       * @desc: 日期选择器确认
+       */
+      handlePickSuccess() {
+        this.$emit('date-range-change', this.dateRange);
       },
       getSearchDictStr(searchObj) {
         return JSON.stringify(searchObj);
@@ -499,6 +582,9 @@
       },
       isShowShape(status) {
         return ['success', 'failed'].includes(status);
+      },
+      isShowProgress(status) {
+        return ['download_log'].includes(status);
       },
       getStatusStr(status) {
         return this.exportStatusList[status];
@@ -574,104 +660,16 @@
         const allParams = [params, sceneParams].filter(Boolean).join('&');
         const siteUrl = window.__IS_MONITOR_COMPONENT__ ? window.site_url : window.SITE_URL;
         const jumpUrl = `${siteUrl}#/retrieve/${indexSetID}?spaceUid=${spaceUid}&bizId=${dict.bk_biz_id}&${allParams}`;
-        window.open(jumpUrl, '_blank');
-      },
-      /**
-       * @desc: 轮询
-       */
-      startStatusPolling() {
-        this.stopStatusPolling();
-        this.timer = setInterval(() => {
-          this.getTableList(false, true);
-        }, 10000);
-      },
-      stopStatusPolling() {
-        clearTimeout(this.timer);
-      },
-      /**
-       * @desc: 导出状态轮询
-       * @param { Array } data 数据
-       * @param { Boolean } isPolling 该次请求是否是轮询
-       */
-      setExportListData(data, isPolling) {
-        if (isPolling) {
-          data.forEach(item => {
-            this.exportList.forEach(row => {
-              if (row.id === item.id) {
-                Object.assign(row, { ...item });
-              }
-            });
-          });
-        } else {
-          this.exportList = data;
-          this.startStatusPolling();
-        }
-      },
-      /**
-       * @desc: 获取table列表数据
-       * @param { Boolean } isReset 是否从1页开始查询
-       * @param { Boolean } isPolling 该次请求是否是轮询
-       */
-      getTableList(isReset = false, isPolling = false) {
-        isReset && (this.pagination.current = 1);
-        !isPolling && (this.tableLoading = true);
-        const { limit, current } = this.pagination;
-        let queryUrl;
-        let requestConfig;
-
-        const params = {
-          bk_biz_id: this.bkBizId,
-          page: current,
-          pagesize: limit,
-          show_all: this.isSearchAll,
-        };
-
-        if (this.isScene) {
-          queryUrl = 'retrieve/getSceneExportHistory';
-          params.space_uid = this.retrieveParams?.space_uid;
-          params.table_id_conditions = this.retrieveParams?.table_id_conditions;
-          params.scene_filter_values = this.retrieveParams?.scene_filter_values;
-          requestConfig = { data: params };
-        } else if (this.isUnionSearch) {
-          queryUrl = 'unionSearch/unionExportHistory';
-          params.index_set_id = window.__IS_MONITOR_COMPONENT__
-          ? this.$route.query.indexId : this.$route.params.indexId;
-          params.index_set_ids = this.unionIndexList;
-        } else {
-          queryUrl = 'retrieve/getExportHistoryList';
-          params.index_set_id = window.__IS_MONITOR_COMPONENT__
-          ? this.$route.query.indexId : this.$route.params.indexId;
-        }
-
-        if (!this.isScene) {
-          requestConfig = { params };
-        }
-
-        this.$http
-          .request(queryUrl, requestConfig)
-          .then(res => {
-            if (res.result) {
-              this.pagination.count = res.data.total;
-              this.setExportListData(res.data.list, isPolling);
-            }
-            // 查询所有索引集时才显示索引集IDLabel
-            if (this.isSearchAll) {
-              this.isShowSetLabel = true;
-            }
-          })
-          .finally(() => {
-            this.tableLoading = false;
-          });
+        window.open(jumpUrl, '_blank', 'noopener,noreferrer');
       },
       handlePageChange(page) {
-        this.pagination.current = page;
-        this.getTableList();
+        // 通知父组件更新分页并刷新数据
+        this.$emit('pagination-change', { page });
       },
       handleLimitChange(size) {
         if (this.pagination.limit !== size) {
-          this.pagination.current = 1;
-          this.pagination.limit = size;
-          this.getTableList();
+          // 通知父组件更新分页并刷新数据
+          this.$emit('pagination-change', { limit: size });
         }
       },
       /**
@@ -680,13 +678,7 @@
       closeDialog() {
         this.isSearchAll = false;
         this.isShowSetLabel = false;
-        this.exportList = [];
-        this.pagination = {
-          current: 1,
-          count: 0,
-          limit: 10,
-        };
-        this.stopStatusPolling();
+        this.dateRange = [];
         this.$emit('handle-close-dialog');
       },
       getIndexSetIDs(row) {
@@ -708,7 +700,7 @@
   .search-history {
     width: 100%;
     margin: 10px 0 20px 0;
-    text-align: right;
+    text-align: left;
   }
 
   .export-table {
@@ -757,5 +749,12 @@
     &.status-failed i {
       color: $iconFailColor;
     }
+  }
+
+  .progress-text {
+    font-size: 12px;
+    font-weight: 700;
+    color: #3A84FF;
+    white-space: nowrap;
   }
 </style>

@@ -418,13 +418,25 @@ NEW_SERIES_SEEN_KEY = register_key_with_config(
     }
 )
 
-# 新维度值检测-学习起点：首跑(seen 首写成功后)由 detector setnx 写入 wall-clock，用于 effective_delay 冷启动宽限判定。
-# 与 seen key 同维度签名、同写入续期、一起过期(避免"seen 空而 learn_start 在"导致存量误报风暴)。
+# 新维度值检测-学习起点：历史兼容 key。旧版本用它记录 wall-clock 学习起点；新版本只用它判断旧策略已完成基线。
+# 与 seen key 同维度签名、同写入续期、一起过期。
 NEW_SERIES_LEARN_START_KEY = register_key_with_config(
     {
         "label": "[detect]新维度值检测-学习起点时间戳(type:String)(value: 冷启动学习起点 wall-clock 秒)",
         "key_type": "string",
         "key_tpl": f"{KEY_PREFIX}.detect.new_series.learn_start.{{strategy_id}}.{{item_id}}.{{dimension_signature}}",
+        "ttl": TTL_NOT_SET,
+        "backend": "service",
+    }
+)
+
+# 新维度值检测-基线完成标记：首次拉取成功写入此 key 后完成基线。空批次也写此 key；非空批次 seen 写成功后再写。
+# 旧 NEW_SERIES_LEARN_START_KEY 存在时也视为已完成基线，用于兼容存量策略。
+NEW_SERIES_BASELINE_DONE_KEY = register_key_with_config(
+    {
+        "label": "[detect]新维度值检测-基线完成标记(type:String)(value: 1)",
+        "key_type": "string",
+        "key_tpl": f"{KEY_PREFIX}.detect.new_series.baseline_done.{{strategy_id}}.{{item_id}}.{{dimension_signature}}",
         "ttl": TTL_NOT_SET,
         "backend": "service",
     }

@@ -6598,10 +6598,11 @@ def test_graph_relation_compose_rejects_empty_definitions(create_or_delete_recor
     assert surrealdb_binding.vertices == []
     assert surrealdb_binding.relations == []
     assert not hasattr(datalink, "_graph_binding_update_after_apply")
-    assert configs[1]["kind"] == DataLinkKind.SURREALDBBINDING.value
-    assert configs[1]["spec"]["table_type"] == "normal"
-    assert configs[1]["spec"]["vertices"] == []
-    assert configs[1]["spec"]["relations"] == []
+    surrealdb_config = next(config for config in configs if config["kind"] == DataLinkKind.SURREALDBBINDING.value)
+    assert configs[0]["kind"] == DataLinkKind.DATAID.value
+    assert surrealdb_config["spec"]["table_type"] == "normal"
+    assert surrealdb_config["spec"]["vertices"] == []
+    assert surrealdb_config["spec"]["relations"] == []
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -6728,14 +6729,12 @@ def test_graph_relation_compose_preserves_existing_child_component_names(create_
     assert not DataBusConfig.objects.filter(name=generated_vmrt_name).exists()
     assert not SurrealDBBindingConfig.objects.filter(name=generated_graph_rt_name).exists()
     assert not GraphDataBusConfig.objects.filter(name=generated_graph_rt_name).exists()
-    assert configs[1]["metadata"]["name"] == "rebuilt_vm_binding"
-    assert configs[1]["spec"]["data"]["name"] == "rebuilt_vm_rt"
-    assert configs[2]["metadata"]["name"] == "rebuilt_vm_databus"
-    assert configs[2]["spec"]["sinks"][0]["name"] == "rebuilt_vm_binding"
-    assert configs[4]["metadata"]["name"] == "rebuilt_surreal_binding"
-    assert configs[4]["spec"]["data"]["name"] == "rebuilt_graph_rt"
-    assert configs[5]["metadata"]["name"] == "rebuilt_graph_databus"
-    assert configs[5]["spec"]["sinks"][0]["name"] == "rebuilt_surreal_binding"
+    configs_by_name = {config["metadata"]["name"]: config for config in configs}
+    assert configs[0]["kind"] == DataLinkKind.DATAID.value
+    assert configs_by_name["rebuilt_vm_binding"]["spec"]["data"]["name"] == "rebuilt_vm_rt"
+    assert configs_by_name["rebuilt_vm_databus"]["spec"]["sinks"][0]["name"] == "rebuilt_vm_binding"
+    assert configs_by_name["rebuilt_surreal_binding"]["spec"]["data"]["name"] == "rebuilt_graph_rt"
+    assert configs_by_name["rebuilt_graph_databus"]["spec"]["sinks"][0]["name"] == "rebuilt_surreal_binding"
 
 
 @pytest.mark.django_db(databases="__all__")

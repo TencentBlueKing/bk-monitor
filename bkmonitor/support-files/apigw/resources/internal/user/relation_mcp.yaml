@@ -60,7 +60,7 @@ paths:
         pluginConfigs: []
         authConfig:
           userVerifiedRequired: true
-          appVerifiedRequired: true
+          appVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: None
   /mcp/find_relations_range/:
@@ -132,6 +132,6 @@ paths:
         pluginConfigs: []
         authConfig:
           userVerifiedRequired: true
-          appVerifiedRequired: true
+          appVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: None

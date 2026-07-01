@@ -598,6 +598,8 @@ APM_PROFILING_ENABLED_APPS = {}
 APM_PROFILING_ENABLED = False
 # APM metrics维度补充功能应用白名单 {2:["app1", "app2"], 3:["app3"]}
 APM_RESOURCE_FILTER_METRICS_ENABLED_APPS = {}
+# APM logs维度补充功能应用白名单 {2:["app1", "app2"], 3:["app3"]}
+APM_RESOURCE_FILTER_LOGS_ENABLED_APPS = {}
 APM_EBPF_ENABLED = False
 APM_TRPC_ENABLED = False
 # {2:["app1", "app2"], 3:["app_name"]}
@@ -1251,10 +1253,12 @@ BKCHAT_MANAGE_URL = os.getenv("BKAPP_BKCHAT_MANAGE_URL", "")
 AIDEV_API_BASE_URL = os.getenv("BKAPP_AIDEV_API_BASE_URL", "")
 
 # TAPD API 基础URL
-TAPD_API_BASE_URL = os.getenv("BKAPP_TAPD_API_BASE_URL", os.getenv("TAPD_API_BASE_URL", ""))
+TAPD_API_BASE_URL = os.getenv("BKAPP_TAPD_API_BASE_URL", os.getenv("TAPD_API_BASE_URL", "http://apiv2.tapd.woa.com"))
 # 对于 TAPD API 有权限的应用ID和密钥
 TAPD_APP_ID = os.getenv("BKAPP_TAPD_APP_ID", os.getenv("TAPD_APP_ID", ""))
 TAPD_APP_SECRET = os.getenv("BKAPP_TAPD_APP_SECRET", os.getenv("TAPD_APP_SECRET", ""))
+# TAPD OAuth 授权基础URL（用户态授权跳转、code换token）
+TAPD_OAUTH_BASE_URL = os.getenv("BKAPP_TAPD_OAUTH_BASE_URL", os.getenv("TAPD_OAUTH_BASE_URL", ""))
 
 BK_NODEMAN_HOST = AGENT_SETUP_URL = os.getenv("BK_NODEMAN_SITE_URL") or os.getenv(
     "BKAPP_NODEMAN_OUTER_HOST", get_service_url("bk_nodeman", bk_paas_host=BK_PAAS_HOST)

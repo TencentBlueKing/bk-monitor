@@ -230,3 +230,77 @@ class TestShieldBizCacheType:
     def test_shield_missing_biz_id_raises(self):
         with pytest.raises(CustomException, match="bk_biz_id is required"):
             read_config_cache({"cache_type": "shield.biz", "params": {}})
+
+
+class TestActionConfigCacheType:
+    _GET = "alarm_backends.core.cache.action_config.ActionConfigCacheManager.get_action_config_by_id"
+
+    def test_action_config_found_masks_execute_config(self, mocker):
+        # 缓存返回的完整配置含 execute_config（凭据面，可内嵌 webhook/token）——只读不得透出
+        mocker.patch(
+            self._GET,
+            return_value={
+                "id": 1001,
+                "name": "demo-notice",
+                "is_enabled": True,
+                "plugin_id": "1",
+                "bk_biz_id": "2",
+                "execute_config": {"template_detail": {"webhook": "http://example/?token=should-not-leak"}},
+            },
+        )
+        result = read_config_cache({"cache_type": "action_config", "params": {"config_id": 1001}})
+        assert result["cache_type"] == "action_config"
+        assert result["exists"] is True
+        assert result["is_negative"] is False
+        assert result["params"] == {"config_id": 1001}
+        # 安全摘要只回取证字段 + 负缓存标记，execute_config 绝不透出
+        assert result["data"] == {
+            "id": 1001,
+            "name": "demo-notice",
+            "is_enabled": True,
+            "plugin_id": "1",
+            "bk_biz_id": "2",
+            "is_negative": False,
+        }
+        assert "execute_config" not in result["data"]
+
+    def test_action_config_not_found_is_cache_miss(self, mocker):
+        # get_action_config_by_id 缺失时返回 {}（缓存未传播 = 竞态特征）→ exists False
+        mocker.patch(self._GET, return_value={})
+        result = read_config_cache({"cache_type": "action_config", "params": {"config_id": 999001}})
+        assert result["exists"] is False
+        assert result["is_negative"] is False
+        assert result["data"] is None
+
+    def test_action_config_negative_sentinel_is_db_confirmed_deletion(self, mocker):
+        # 负缓存哨兵（set_negative_cache 写入）：非空但带 __negative__ 标记 = DB 已确认真删/不存在。
+        # 必须与「正常存在但被禁用」区分开——这是本 op 区分缓存竞态 vs 真删的最高置信缓存信号。
+        from alarm_backends.core.cache.action_config import ActionConfigCacheManager
+
+        sentinel = {"id": 1001, "is_enabled": False, ActionConfigCacheManager.NEGATIVE_CACHE_FLAG: True}
+        mocker.patch(self._GET, return_value=sentinel)
+        result = read_config_cache({"cache_type": "action_config", "params": {"config_id": 1001}})
+        # 哨兵非空 → exists=True，但 is_negative=True 标明这是 DB 确认的真删墓碑，而非活跃配置
+        assert result["exists"] is True
+        assert result["is_negative"] is True
+        assert result["data"]["is_negative"] is True
+        assert result["data"]["is_enabled"] is False
+        # __negative__ 内部标记不直接透出在摘要键里（只经 is_negative 表达）
+        assert ActionConfigCacheManager.NEGATIVE_CACHE_FLAG not in result["data"]
+
+    def test_action_config_missing_config_id_raises(self):
+        with pytest.raises(CustomException, match="config_id is required"):
+            read_config_cache({"cache_type": "action_config", "params": {}})
+
+    def test_action_config_config_id_not_integer_raises(self):
+        with pytest.raises(CustomException, match="must be an integer"):
+            read_config_cache({"cache_type": "action_config", "params": {"config_id": "abc"}})
+
+    def test_action_config_dispatch_coerces_and_passes_config_id(self, mocker):
+        # 变异自检：action_config 真派发到 ActionConfigCacheManager，config_id 被归一为 int 透传
+        m = mocker.patch(
+            self._GET,
+            return_value={"id": 5, "name": "x", "is_enabled": False, "plugin_id": "1", "bk_biz_id": "0"},
+        )
+        read_config_cache({"cache_type": "action_config", "params": {"config_id": "5"}})
+        m.assert_called_once_with(5)

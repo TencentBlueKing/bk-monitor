@@ -1942,7 +1942,7 @@ class Strategy(AbstractConfig):
             """
             新维度值检测(NewSeries)保存层硬校验：
             - NewSeries 单次性算法，独占告警级别(策略维度内该 level 不能再有其它算法)；
-            - 仅支持单 query_config 与时序数据；
+            - 仅支持单 query_config；数据源限定为「时序」或「日志平台-日志关键字(BK_LOG_SEARCH/LOG)」；
             - 检测周期(detect_range)不能小于数据聚合周期(agg_interval)。
             """
             new_series_type = AlgorithmModel.AlgorithmChoices.NewSeries
@@ -1978,8 +1978,18 @@ class Strategy(AbstractConfig):
                     raise ValidationError(detail=_("新维度值检测算法仅支持单个查询配置"))
 
                 query_config = query_configs[0]
-                if query_config.get("data_type_label") != DataTypeLabel.TIME_SERIES:
-                    raise ValidationError(detail=_("新维度值检测算法仅支持时序数据"))
+                # 数据源白名单：时序(任意 data_source) + 日志平台-日志关键字(BK_LOG_SEARCH/LOG)。
+                # 二者均走 access.data 链路、record_id=md5(group_by维度).time，与 detect 指纹机制同构。
+                # 显式排除事件链路(BK_MONITOR_COLLECTOR/LOG、EVENT)：其指纹维度按 record 类型写死、
+                # 不取 agg_dimension，与 NewSeries 的维度签名口径(_dimension_signature)错位。
+                ds_label = query_config.get("data_source_label")
+                dt_label = query_config.get("data_type_label")
+                is_supported = dt_label == DataTypeLabel.TIME_SERIES or (
+                    ds_label,
+                    dt_label,
+                ) == (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG)
+                if not is_supported:
+                    raise ValidationError(detail=_("新维度值检测算法仅支持时序数据与日志关键字"))
 
                 agg_interval = query_config.get("agg_interval")
                 for algorithm in ns_algorithms:

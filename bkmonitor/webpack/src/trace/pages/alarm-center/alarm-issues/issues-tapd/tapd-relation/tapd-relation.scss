@@ -1,0 +1,110 @@
+/* stylelint-disable selector-class-pattern */
+.tapd-sideslider-relation-compoent {
+  padding: 16px 24px;
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px 0 #1919290d;
+
+  .form-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    line-height: 22px;
+
+    .form-header-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: #313238;
+    }
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0 24px;
+
+    .form-item {
+      grid-column: span 2;
+      margin-bottom: 24px;
+    }
+
+    .form-item-title {
+      margin-bottom: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 20px;
+      color: #4d4f56;
+
+      &.required {
+        & > span {
+          position: relative;
+
+          &::after {
+            position: absolute;
+            top: 0;
+            right: -10px;
+            font-size: 12px;
+            color: #ea3636;
+            content: '*';
+          }
+        }
+      }
+    }
+
+    .form-item-content {
+      position: relative;
+
+      &.is-error {
+        .bk-select .bk-select-trigger .bk-input--default {
+          border-color: #ea3636;
+          transition: all 0.15s;
+        }
+      }
+
+      .err-msg {
+        position: absolute;
+        bottom: -18px;
+        left: 0;
+        display: inline-block;
+        font-size: 12px;
+        line-height: 12px;
+        color: #ea3636;
+      }
+    }
+  }
+
+  &-popover {
+    .tapd-select-item {
+      display: flex;
+      flex: 1;
+      align-items: center;
+
+      .tapd-id {
+        font-size: 12px;
+        font-weight: 700;
+        color: #8f9fbd;
+      }
+
+      .tapd-title {
+        margin-left: 7px;
+        font-size: 12px;
+        color: #313238;
+      }
+
+      .tapd-status {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 24px;
+        padding: 0 8px;
+        margin: 0 0 0 auto;
+        font-size: 12px;
+        color: #21a380;
+        white-space: nowrap;
+        border: 1px solid #21a380;
+        border-radius: 12px;
+      }
+    }
+  }
+}

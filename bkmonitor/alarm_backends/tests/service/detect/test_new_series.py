@@ -77,6 +77,22 @@ def seen_score(item, fingerprint):
     return key.NEW_SERIES_SEEN_KEY.client.zscore(seen_key, fingerprint)
 
 
+def baseline_done(item):
+    sig = signature(item)
+    done_key = key.NEW_SERIES_BASELINE_DONE_KEY.get_key(
+        strategy_id=item.strategy.id, item_id=item.id, dimension_signature=sig
+    )
+    return key.NEW_SERIES_BASELINE_DONE_KEY.client.exists(done_key) == 1
+
+
+def learn_start_exists(item):
+    sig = signature(item)
+    learn_key = key.NEW_SERIES_LEARN_START_KEY.get_key(
+        strategy_id=item.strategy.id, item_id=item.id, dimension_signature=sig
+    )
+    return key.NEW_SERIES_LEARN_START_KEY.client.exists(learn_key) == 1
+
+
 @pytest.mark.django_db
 class TestNewSeries:
     def test_config_validate(self):
@@ -127,17 +143,87 @@ class TestNewSeries:
 
     def test_b1_cold_start_warmup_no_alert_but_learns(self):
         item = make_item()
-        # 不预置 learn_start -> 首跑进入宽限期
+        # 不预置 baseline -> 首个非空批次作为基线，只积累不告警
         detector = NewSeries(config=default_config(effective_delay=86400))
         dp1 = make_dp("dimD", 100000000, item)
         dp2 = make_dp("dimE", 100000000, item)
         detector.pre_detect([dp1, dp2])
-        # 宽限期内：不告警
         assert len(detector.detect(dp1)) == 0
         assert len(detector.detect(dp2)) == 0
-        # 但已灌库
         assert int(seen_score(item, "dimD")) == 100000000
         assert int(seen_score(item, "dimE")) == 100000000
+        assert baseline_done(item)
+
+    def test_first_non_empty_batch_is_baseline_only_then_next_new_dimension_alerts(self):
+        item = make_item()
+        detector = NewSeries(config=default_config(detect_range=86400))
+        baseline_dp = make_dp("baseline", 100000000, item)
+        detector.pre_detect([baseline_dp])
+        assert len(detector.detect(baseline_dp)) == 0
+
+        item._new_series_cache = None
+        detector2 = NewSeries(config=default_config(detect_range=86400))
+        new_dp = make_dp("new-after-baseline", 100000060, item)
+        detector2.pre_detect([new_dp])
+        assert len(detector2.detect(new_dp)) == 1
+
+    def test_empty_first_pull_marks_baseline_done_and_next_new_dimension_alerts(self):
+        item = make_item()
+        NewSeries.bootstrap_empty_batch(item)
+        assert baseline_done(item)
+
+        detector = NewSeries(config=default_config(detect_range=86400))
+        dp = make_dp("first-real-dim", 100000000, item)
+        detector.pre_detect([dp])
+        assert len(detector.detect(dp)) == 1
+
+    def test_baseline_done_failure_does_not_leave_legacy_completion_state(self):
+        item = make_item()
+        detector = NewSeries(config=default_config(detect_range=86400))
+        failed_dp = make_dp("failed-baseline", 100000000, item)
+
+        with mock.patch.object(NewSeries, "_mark_baseline_done", side_effect=RuntimeError("redis timeout")):
+            detector.pre_detect([failed_dp])
+
+        assert not baseline_done(item)
+        assert not learn_start_exists(item)
+        assert len(detector.detect(failed_dp)) == 0
+
+        item._new_series_cache = None
+        detector2 = NewSeries(config=default_config(detect_range=86400))
+        next_dp = make_dp("next-baseline", 100000060, item)
+        detector2.pre_detect([next_dp])
+        assert len(detector2.detect(next_dp)) == 0
+        assert baseline_done(item)
+
+    def test_detect_process_empty_batch_bootstraps_new_series_item(self):
+        from alarm_backends.service.detect.process import DetectProcess
+
+        item = make_item()
+        item.detect = mock.Mock(return_value=[])
+        process = object.__new__(DetectProcess)
+        process.inputs = {item.id: []}
+        process.outputs = {}
+
+        process.handle_data(item)
+
+        assert baseline_done(item)
+        item.detect.assert_called_once_with([])
+
+    def test_empty_batch_does_not_bootstrap_non_new_series_item(self):
+        from alarm_backends.service.detect.process import DetectProcess
+
+        item = make_item()
+        item.algorithms = []
+        item.detect = mock.Mock(return_value=[])
+        process = object.__new__(DetectProcess)
+        process.inputs = {item.id: []}
+        process.outputs = {}
+
+        process.handle_data(item)
+
+        assert not baseline_done(item)
+        item.detect.assert_called_once_with([])
 
     def test_effective_delay_equals_detect_range(self):
         # NewSeries 不设独立宽限期：detector 忽略存档 effective_delay,运行宽限恒 = detect_range(小/大输入都一样)。
@@ -154,14 +240,13 @@ class TestNewSeries:
         key.NEW_SERIES_LEARN_START_KEY.client.set(learn_key, int(time.time()) - seconds_ago)
 
     def test_rewarmup_when_history_shorter_than_detect_range(self):
-        # P1(由 P0 免费交付): effective_delay=detect_range 时,历史(now-learn_start) < detect_range
-        # 仍处宽限 -> 不告警。等价"调大 detect_range 后自动补差额重学",无需操作 learn_start。
+        # 兼容旧状态：只有 learn_start 的线上策略视为已完成基线，不再按 detect_range 继续压制。
         item = make_item()
         self._set_learn_start(item, 5400)  # 历史仅 1.5h
         detector = NewSeries(config=default_config(detect_range=10800, effective_delay=10800))  # 检测窗 3h
         dp = make_dp("dimNew", int(time.time()), item)
         detector.pre_detect([dp])
-        assert len(detector.detect(dp)) == 0  # 未学满,补差额中 -> 不报
+        assert len(detector.detect(dp)) == 1
 
     def test_no_rewarmup_when_history_covers_detect_range(self):
         # 历史 5h >= detect_range 3h -> 已学满 -> 正常告警(不会因 detect_range 较大而过度抑制)

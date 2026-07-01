@@ -139,22 +139,31 @@ class NodeDiscover(DiscoverBase):
                     )
                     continue
 
-                v["system"] = list(v["system"].values())
-                v["sdk"] = list(v["sdk"].values())
+                exists_instance = exists_instances.get(k)
+                v.update({"system": list(v["system"].values()), "sdk": list(v["sdk"].values())})
                 if v["extra_data"]["category"] == ApmTopoDiscoverRule.APM_TOPO_CATEGORY_OTHER:
-                    if all(k not in i for i in [update_instances, create_instances, exists_instances]):
-                        # 如果目前没有发现这个符合 other 规则的服务 才把他添加进列表中 (不然如果更新的话会导致数据被覆盖为空)
-                        create_instances.update({k: {**v, "source": [TelemetryDataType.TRACE.value]}})
-                else:
-                    if k not in exists_instances:
-                        create_instances.update({k: {**v, "source": [TelemetryDataType.TRACE.value]}})
+                    if k in update_instances:
+                        self.merge_other_discovery(update_instances[k], v)
+                    elif k in create_instances:
+                        self.merge_other_discovery(create_instances[k], v)
+                    elif exists_instance:
+                        update_instances[k] = {
+                            **v,
+                            "extra_data": self.merge_other_extra_data_preserving_category(
+                                exists_instance["extra_data"], v["extra_data"]
+                            ),
+                            "source": self.combine_sources(exists_instance["source"], TelemetryDataType.TRACE.value),
+                        }
                     else:
-                        source = exists_instances[k]["source"]
-                        if not source:
-                            source = [TelemetryDataType.TRACE.value]
-                        elif TelemetryDataType.TRACE.value not in source:
-                            source.append(TelemetryDataType.TRACE.value)
-                        update_instances.update({k: {**v, "source": source}})
+                        create_instances[k] = {**v, "source": [TelemetryDataType.TRACE.value]}
+                else:
+                    if exists_instance:
+                        update_instances[k] = {
+                            **v,
+                            "source": self.combine_sources(exists_instance["source"], TelemetryDataType.TRACE.value),
+                        }
+                    else:
+                        create_instances[k] = {**v, "source": [TelemetryDataType.TRACE.value]}
 
                 pod_tuples = pod_tuples | v["platform"].get("pod_tuples", set())
 
@@ -173,7 +182,7 @@ class NodeDiscover(DiscoverBase):
                     topo_key=topo_key,
                     extra_data=topo_value["extra_data"],
                     platform=self.combine_workloads(
-                        pod_workload_mapping, exist_instance["platform"], topo_value["platform"]
+                        pod_workload_mapping, exist_instance["platform"], topo_value.get("platform") or {}
                     ),
                     system=combine_list(exist_instance["system"], topo_value["system"]),
                     sdk=combine_list(exist_instance["sdk"], topo_value["sdk"]),
@@ -201,6 +210,55 @@ class NodeDiscover(DiscoverBase):
         self.clear_if_overflow()
         self.clear_expired()
 
+    @staticmethod
+    def combine_sources(target: list[str] | None, source: str) -> list[str]:
+        sources: list[str] = list(target or [])
+        if source not in sources:
+            sources.append(source)
+        return sources
+
+    @staticmethod
+    def merge_other_extra_data_preserving_category(
+        target: dict[str, Any] | None, source: dict[str, Any]
+    ) -> dict[str, Any]:
+        if not target:
+            return source
+
+        if target.get("category") and target["category"] != ApmTopoDiscoverRule.APM_TOPO_CATEGORY_OTHER:
+            return target
+
+        merged: dict[str, Any] = target.copy()
+        merged.update({key: value for key, value in source.items() if value not in ("", None)})
+        return merged
+
+    @classmethod
+    def merge_other_discovery(cls, target: dict[str, Any], source: dict[str, Any]) -> None:
+        target["extra_data"] = cls.merge_other_extra_data_preserving_category(
+            target.get("extra_data"), source["extra_data"]
+        )
+        target["platform"] = cls.merge_platform(target.get("platform") or {}, source.get("platform") or {})
+        target["system"] = combine_list(target.get("system"), source.get("system"))
+        target["sdk"] = combine_list(target.get("sdk"), source.get("sdk"))
+        target["source"] = cls.combine_sources(target.get("source"), TelemetryDataType.TRACE.value)
+
+    @staticmethod
+    def merge_platform(target: dict[str, Any], source: dict[str, Any]) -> dict[str, Any]:
+        if not source:
+            return target
+        if not target:
+            return source
+
+        if target.get("name") == source.get("name") == ApmTopoDiscoverRule.APM_TOPO_PLATFORM_K8S:
+            merged_platform: dict[str, Any] = {
+                **target,
+                **source,
+                "extra_data": {**target.get("extra_data", {}), **source.get("extra_data", {})},
+                "pod_tuples": set(target.get("pod_tuples", set())) | set(source.get("pod_tuples", set())),
+            }
+            return merged_platform
+
+        return source
+
     @classmethod
     def combine_workloads(
         cls,
@@ -208,6 +266,9 @@ class NodeDiscover(DiscoverBase):
         target: dict[str, Any] | None,
         source: dict[str, Any],
     ) -> dict[str, Any]:
+        if not source:
+            return target or {}
+
         if source.get("name") != ApmTopoDiscoverRule.APM_TOPO_PLATFORM_K8S:
             return source
 

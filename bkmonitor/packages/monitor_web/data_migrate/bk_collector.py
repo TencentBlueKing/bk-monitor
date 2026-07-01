@@ -266,6 +266,7 @@ def refresh_biz_bk_collector_proxy_configs(
             operator=operator,
             wait_timeout=delivery_wait_timeout,
             poll_interval=delivery_poll_interval,
+            subscription_scope=_build_proxy_config_delivery_subscription_scope(report["details"]),
         )
 
         # 复用上面的下发检查结果，对 render 失败的订阅补一轮执行，不重复检查。
@@ -390,19 +391,21 @@ def check_biz_bk_collector_proxy_config_delivery(
     operator: str = "system",
     wait_timeout: int = 0,
     poll_interval: int = DEFAULT_CONFIG_DELIVERY_POLL_INTERVAL,
+    subscription_scope: list[dict[str, Any]] | tuple[dict[str, Any], ...] | None = None,
 ) -> dict[str, Any]:
     """Check whether bk-collector proxy configs have been rendered and pushed successfully."""
     selected_config_types = _normalize_config_types(config_types)
     normalized_bk_biz_ids = _unique_ints(bk_biz_ids)
     logger.info(
         "check_biz_bk_collector_proxy_config_delivery: start bk_tenant_id=%s bk_biz_ids=%s "
-        "config_types=%s operator=%s wait_timeout=%s poll_interval=%s",
+        "config_types=%s operator=%s wait_timeout=%s poll_interval=%s subscription_scope_count=%s",
         bk_tenant_id,
         normalized_bk_biz_ids,
         selected_config_types,
         operator,
         wait_timeout,
         poll_interval,
+        len(subscription_scope) if subscription_scope is not None else None,
     )
     normalized_wait_timeout = max(_read_int(wait_timeout), 0)
     normalized_poll_interval = max(_read_int(poll_interval), 0)
@@ -416,6 +419,7 @@ def check_biz_bk_collector_proxy_config_delivery(
             bk_biz_ids=normalized_bk_biz_ids,
             config_types=selected_config_types,
             operator=operator,
+            subscription_scope=subscription_scope,
         )
         report["poll_attempts"] = poll_attempts
         report["timed_out"] = False
@@ -696,6 +700,7 @@ def _check_biz_bk_collector_proxy_config_delivery_once(
     bk_biz_ids: list[int],
     config_types: tuple[str, ...],
     operator: str,
+    subscription_scope: list[dict[str, Any]] | tuple[dict[str, Any], ...] | None = None,
 ) -> dict[str, Any]:
     report = _init_report(
         bk_tenant_id=bk_tenant_id,
@@ -710,12 +715,19 @@ def _check_biz_bk_collector_proxy_config_delivery_once(
         bk_biz_ids=bk_biz_ids,
         config_types=config_types,
     )
+    listed_subscription_count = len(subscriptions)
+    subscriptions = _filter_proxy_config_delivery_subscriptions_by_scope(
+        subscriptions,
+        subscription_scope=subscription_scope,
+    )
     logger.info(
         "check_biz_bk_collector_proxy_config_delivery: matched subscriptions bk_tenant_id=%s "
-        "bk_biz_ids=%s subscription_count=%s",
+        "bk_biz_ids=%s listed_subscription_count=%s subscription_count=%s subscription_scope_count=%s",
         bk_tenant_id,
         bk_biz_ids,
+        listed_subscription_count,
         len(subscriptions),
+        len(subscription_scope) if subscription_scope is not None else None,
     )
 
     with _local_operator_context(bk_tenant_id=bk_tenant_id, operator=operator):
@@ -992,6 +1004,114 @@ def _list_proxy_config_delivery_subscriptions(
         subscription_counts,
     )
     return subscriptions
+
+
+def _build_proxy_config_delivery_subscription_scope(details: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    subscription_scope: list[dict[str, Any]] = []
+
+    for record in details.get(APM_APPLICATION, []):
+        if record.get("result") is True:
+            subscription_scope.append(
+                {
+                    "config_type": APM_APPLICATION,
+                    "bk_tenant_id": record.get("bk_tenant_id"),
+                    "bk_biz_id": record.get("bk_biz_id"),
+                    "name": record.get("app_name"),
+                    "subscription_id": record.get("subscription_id"),
+                }
+            )
+
+    for record in details.get(CUSTOM_REPORT, []):
+        if record.get("result") is not True:
+            continue
+        refresh_result = record.get("refresh_result") or {}
+        for detail in refresh_result.get("details") or []:
+            node_man_target = (detail.get("targets") or {}).get("node_man") or {}
+            if node_man_target.get("action") != "refresh" or node_man_target.get("result") is not True:
+                continue
+            for bk_data_id in _read_ints(detail.get("data_ids") or []):
+                subscription_scope.append(
+                    {
+                        "config_type": CUSTOM_REPORT,
+                        "bk_tenant_id": detail.get("bk_tenant_id") or record.get("bk_tenant_id"),
+                        "bk_biz_id": detail.get("bk_biz_id", record.get("bk_biz_id")),
+                        "bk_data_id": bk_data_id,
+                    }
+                )
+
+    for record in details.get(LOG, []):
+        if record.get("result") is True:
+            subscription_scope.append(
+                {
+                    "config_type": LOG,
+                    "bk_tenant_id": record.get("bk_tenant_id"),
+                    "bk_biz_id": record.get("bk_biz_id"),
+                    "name": record.get("log_group_name"),
+                    "subscription_id": record.get("subscription_id"),
+                }
+            )
+
+    return _dedupe_proxy_config_delivery_subscription_scope(subscription_scope)
+
+
+def _dedupe_proxy_config_delivery_subscription_scope(
+    subscription_scope: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    deduped_scope = []
+    seen_keys = set()
+    for scope in subscription_scope:
+        match_keys = _proxy_config_delivery_subscription_match_keys(scope)
+        if not match_keys:
+            continue
+        dedupe_key = tuple(match_keys)
+        if dedupe_key in seen_keys:
+            continue
+        seen_keys.add(dedupe_key)
+        deduped_scope.append(scope)
+    return deduped_scope
+
+
+def _filter_proxy_config_delivery_subscriptions_by_scope(
+    subscriptions: list[dict[str, Any]],
+    *,
+    subscription_scope: list[dict[str, Any]] | tuple[dict[str, Any], ...] | None,
+) -> list[dict[str, Any]]:
+    if subscription_scope is None:
+        return subscriptions
+
+    scope_keys = {
+        match_key for scope in subscription_scope for match_key in _proxy_config_delivery_subscription_match_keys(scope)
+    }
+    if not scope_keys:
+        return []
+
+    return [
+        subscription
+        for subscription in subscriptions
+        if any(match_key in scope_keys for match_key in _proxy_config_delivery_subscription_match_keys(subscription))
+    ]
+
+
+def _proxy_config_delivery_subscription_match_keys(subscription: dict[str, Any]) -> list[tuple[Any, ...]]:
+    config_type = subscription.get("config_type")
+    bk_tenant_id = subscription.get("bk_tenant_id")
+    bk_biz_id = subscription.get("bk_biz_id")
+    match_keys: list[tuple[Any, ...]] = []
+
+    subscription_id = _read_int(subscription.get("subscription_id"))
+    if subscription_id > 0:
+        match_keys.append((config_type, bk_tenant_id, "subscription_id", subscription_id))
+
+    if config_type == CUSTOM_REPORT:
+        bk_data_id = _read_int(subscription.get("bk_data_id"))
+        if bk_data_id > 0:
+            match_keys.append((config_type, bk_tenant_id, bk_biz_id, "bk_data_id", bk_data_id))
+    else:
+        name = subscription.get("name") or subscription.get("app_name") or subscription.get("log_name")
+        if name:
+            match_keys.append((config_type, bk_tenant_id, bk_biz_id, "name", str(name)))
+
+    return match_keys
 
 
 def _check_proxy_config_delivery_subscription(subscription: dict[str, Any]) -> dict[str, Any]:
@@ -1730,6 +1850,10 @@ def _read_int(value: Any) -> int:
         return int(value or 0)
     except (TypeError, ValueError):
         return 0
+
+
+def _read_ints(values: list[Any] | tuple[Any, ...]) -> list[int]:
+    return [int_value for value in values if (int_value := _read_int(value)) > 0]
 
 
 def _refresh_apm_applications(

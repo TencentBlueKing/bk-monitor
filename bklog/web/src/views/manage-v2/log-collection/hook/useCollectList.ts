@@ -73,11 +73,13 @@ export const useCollectList = () => {
    * 跳转到采集项列表
    */
   const goListPage = () => {
+    const indexSetId = route.query.indexSetId as string;
     router.push({
       name: 'collection-item-list',
       query: {
         bizId: bkBizId.value,
         spaceUid: spaceUid.value,
+        ...(indexSetId ? { indexSetId: String(indexSetId) } : {}),
       },
     });
   };
@@ -309,7 +311,7 @@ export const useCollectList = () => {
       params,
       query: finalQuery,
     });
-    window.open(resolved.href, '_blank');
+    window.open(resolved.href, '_blank', 'noopener,noreferrer');
   };
 
   const operateHandler = (

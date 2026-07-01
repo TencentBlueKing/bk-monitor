@@ -50,7 +50,7 @@ const unionExport = {
 
 /** 联合查询导出历史 */
 const unionExportHistory = {
-  url: '/search/index_set/union_search/export_history/?bk_biz_id=:bk_biz_id&page=:page&pagesize=:pagesize&show_all=:show_all&index_set_ids=:index_set_ids',
+  url: '/search/index_set/union_search/export_history/?bk_biz_id=:bk_biz_id&page=:page&pagesize=:pagesize&show_all=:show_all&index_set_ids=:index_set_ids&start_time=:start_time&end_time=:end_time',
   method: 'get',
 };
 

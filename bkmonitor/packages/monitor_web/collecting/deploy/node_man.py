@@ -12,7 +12,7 @@ import copy
 import logging
 import itertools
 from collections import defaultdict
-from typing import Any
+from typing import Any, cast
 
 from django.conf import settings
 from django.db import transaction
@@ -37,6 +37,7 @@ from monitor_web.collecting.constant import (
 from monitor_web.models import CollectConfigMeta, DeploymentConfigVersion
 from monitor_web.plugin.constant import ParamMode, PluginType
 from monitor_web.plugin.manager import PluginManagerFactory
+from monitor_web.plugin.manager.process import ProcessPluginManager
 
 from .base import BaseInstaller
 
@@ -55,6 +56,10 @@ class NodeManInstaller(BaseInstaller):
         super().__init__(collect_config)
         self._topo_tree = topo_tree
         self._topo_links = None
+
+    @property
+    def bk_tenant_id(self) -> str:
+        return self.collect_config.bk_tenant_id
 
     def _get_topo_links(self) -> dict[str, list[TopoNode]]:
         """
@@ -105,11 +110,12 @@ class NodeManInstaller(BaseInstaller):
                         dms_insert_params[dms_key] = dms_value
 
         if self.plugin.plugin_type == PluginType.PROCESS:
+            plugin_manager = cast(ProcessPluginManager, plugin_manager)
             # processbeat 配置
             # processbeat 采集不需要dataid
             config_params["collector"].update(
                 {
-                    "taskid": str(self.collect_config.id),
+                    "taskid": str(self.collect_config.pk),
                     "namespace": self.plugin.plugin_id,
                     # 采集周期带上单位 `s`
                     "period": f"{config_params['collector']['period']}s",
@@ -142,7 +148,7 @@ class NodeManInstaller(BaseInstaller):
                             "bk_target_service_category_id": (
                                 "{{ cmdb_instance.service.service_category_id | default('', true) }}"
                             ),
-                            "bk_collect_config_id": self.collect_config.id,
+                            "bk_collect_config_id": self.collect_config.pk,
                             "bk_biz_id": str(self.collect_config.bk_biz_id),
                         },
                     },
@@ -153,7 +159,7 @@ class NodeManInstaller(BaseInstaller):
             # bkmonitorbeat通用配置参数
             config_params["collector"].update(
                 {
-                    "task_id": str(self.collect_config.id),
+                    "task_id": str(self.collect_config.pk),
                     "bk_biz_id": str(self.collect_config.bk_biz_id),
                     "config_name": self.plugin.plugin_id,
                     "config_version": "1.0",
@@ -200,6 +206,7 @@ class NodeManInstaller(BaseInstaller):
         data_id = self.collect_config.data_id
 
         subscription_params = {
+            "bk_tenant_id": self.bk_tenant_id,
             "scope": {
                 "bk_biz_id": self.collect_config.bk_biz_id,
                 "object_type": self.collect_config.target_object_type,
@@ -225,7 +232,7 @@ class NodeManInstaller(BaseInstaller):
         部署插件采集
         """
         if self.collect_config.deployment_config_id and self.collect_config.deployment_config_id != target_version.pk:
-            last_version: DeploymentConfigVersion = self.collect_config.deployment_config
+            last_version: DeploymentConfigVersion | None = self.collect_config.deployment_config
         else:
             last_version = None
 
@@ -257,6 +264,7 @@ class NodeManInstaller(BaseInstaller):
         elif operate_type == "update":
             # 更新上一次订阅任务
             update_params = {
+                "bk_tenant_id": self.bk_tenant_id,
                 "subscription_id": last_version.subscription_id,
                 "scope": {
                     "bk_biz_id": self.collect_config.bk_biz_id,
@@ -276,17 +284,24 @@ class NodeManInstaller(BaseInstaller):
             task_id = result["task_id"]
 
             # 卸载上一次订阅任务
-            api.node_man.switch_subscription(subscription_id=last_version.subscription_id, action="disable")
+            api.node_man.switch_subscription(
+                bk_tenant_id=self.bk_tenant_id, subscription_id=last_version.subscription_id, action="disable"
+            )
             api.node_man.run_subscription(
+                bk_tenant_id=self.bk_tenant_id,
                 subscription_id=last_version.subscription_id,
                 actions={step["id"]: "UNINSTALL_AND_DELETE" for step in subscription_params["steps"]},
             )
 
         # 启动自动巡检
         if settings.IS_SUBSCRIPTION_ENABLED:
-            api.node_man.switch_subscription(subscription_id=subscription_id, action="enable")
+            api.node_man.switch_subscription(
+                bk_tenant_id=self.bk_tenant_id, subscription_id=subscription_id, action="enable"
+            )
         else:
-            api.node_man.switch_subscription(subscription_id=subscription_id, action="disable")
+            api.node_man.switch_subscription(
+                bk_tenant_id=self.bk_tenant_id, subscription_id=subscription_id, action="disable"
+            )
 
         # 更新部署记录及采集配置
         target_version.subscription_id = subscription_id
@@ -442,9 +457,12 @@ class NodeManInstaller(BaseInstaller):
 
         # 卸载并删除节点管理订阅任务
         if subscription_id:
-            api.node_man.switch_subscription(subscription_id=subscription_id, action="disable")
+            api.node_man.switch_subscription(
+                bk_tenant_id=self.bk_tenant_id, subscription_id=subscription_id, action="disable"
+            )
             subscription_params = self._get_deploy_params(self.collect_config.deployment_config)
             api.node_man.run_subscription(
+                bk_tenant_id=self.bk_tenant_id,
                 subscription_id=subscription_id,
                 actions={step["id"]: "UNINSTALL_AND_DELETE" for step in subscription_params["steps"]},
             )
@@ -498,13 +516,20 @@ class NodeManInstaller(BaseInstaller):
             return
 
         # 关闭订阅任务巡检
-        api.node_man.switch_subscription(subscription_id=subscription_id, action="disable")
+        api.node_man.switch_subscription(
+            bk_tenant_id=self.bk_tenant_id, subscription_id=subscription_id, action="disable"
+        )
 
         # 停用采集配置
-        subscription_params = self._get_deploy_params(self.collect_config.deployment_config)
+        subscription_infos = api.node_man.subscription_info(
+            bk_tenant_id=self.bk_tenant_id, subscription_id_list=[subscription_id]
+        )
+        if not subscription_infos or not subscription_infos[0].get("steps"):
+            raise SubscriptionStatusError({"msg": _("订阅任务不存在或无可执行步骤")})
         result = api.node_man.run_subscription(
+            bk_tenant_id=self.bk_tenant_id,
             subscription_id=subscription_id,
-            actions={step["id"]: "STOP" for step in subscription_params["steps"]},
+            actions={step["id"]: "STOP" for step in subscription_infos[0]["steps"]},
         )
 
         # 更新采集配置及部署记录
@@ -534,11 +559,14 @@ class NodeManInstaller(BaseInstaller):
 
         # 启用订阅任务巡检
         if settings.IS_SUBSCRIPTION_ENABLED:
-            api.node_man.switch_subscription(subscription_id=subscription_id, action="enable")
+            api.node_man.switch_subscription(
+                bk_tenant_id=self.bk_tenant_id, subscription_id=subscription_id, action="enable"
+            )
 
         # 启动采集配置
         subscription_params = self._get_deploy_params(self.collect_config.deployment_config)
         result = api.node_man.run_subscription(
+            bk_tenant_id=self.bk_tenant_id,
             subscription_id=subscription_id,
             actions={step["id"]: "START" for step in subscription_params["steps"]},
         )
@@ -573,6 +601,7 @@ class NodeManInstaller(BaseInstaller):
         # 执行采集配置
         subscription_params = self._get_deploy_params(self.collect_config.deployment_config)
         params = {
+            "bk_tenant_id": self.bk_tenant_id,
             "subscription_id": subscription_id,
             "actions": {step["id"]: action for step in subscription_params["steps"]},
         }
@@ -593,13 +622,14 @@ class NodeManInstaller(BaseInstaller):
         if not current_version.subscription_id:
             return
 
-        params = {"subscription_id": current_version.subscription_id}
+        params = {"bk_tenant_id": self.bk_tenant_id, "subscription_id": current_version.subscription_id}
         if instance_ids is not None:
             # 如果指定了实例ID，则只重试指定的实例
             params["instance_id_list"] = instance_ids
         elif current_version.task_ids:
             # 如果没有指定实例ID，则重试所有失败实例
             result = api.node_man.batch_task_result(
+                bk_tenant_id=self.bk_tenant_id,
                 subscription_id=current_version.subscription_id,
                 task_id_list=current_version.task_ids,
             )
@@ -633,7 +663,7 @@ class NodeManInstaller(BaseInstaller):
         subscription_id = self.collect_config.deployment_config.subscription_id
 
         # 如果没有指定实例ID，则终止所有实例
-        params = {"subscription_id": subscription_id}
+        params = {"bk_tenant_id": self.bk_tenant_id, "subscription_id": subscription_id}
         if instance_ids is not None:
             params["instance_id_list"] = instance_ids
 
@@ -782,7 +812,9 @@ class NodeManInstaller(BaseInstaller):
         if not subscription_id:
             return []
         try:
-            result = api.node_man.batch_task_result(subscription_id=subscription_id, need_detail=True)
+            result = api.node_man.batch_task_result(
+                bk_tenant_id=self.bk_tenant_id, subscription_id=subscription_id, need_detail=True
+            )
         except BKAPIError as e:
             # 记录警告日志并返回空结果，避免因订阅没有关联任务导致整个接口失败
             logger.warning(f"获取订阅任务结果失败，订阅ID: {subscription_id}，错误: {e}")
@@ -998,6 +1030,7 @@ class NodeManInstaller(BaseInstaller):
             return {"log_detail": _("未找到日志")}
 
         params = {
+            "bk_tenant_id": self.bk_tenant_id,
             "subscription_id": self.collect_config.deployment_config.subscription_id,
             "instance_id": instance_id,
             "task_id": self.collect_config.deployment_config.task_ids[0],
@@ -1025,7 +1058,9 @@ class NodeManInstaller(BaseInstaller):
         current_version = self.collect_config.deployment_config
 
         try:
-            status_result = api.node_man.batch_task_result(subscription_id=current_version.subscription_id)
+            status_result = api.node_man.batch_task_result(
+                bk_tenant_id=self.bk_tenant_id, subscription_id=current_version.subscription_id
+            )
         except BKAPIError as e:
             message = _("采集配置 CollectConfigMeta: {} 查询订阅{}结果出错: {}").format(
                 self.collect_config.id, current_version.subscription_id, e
