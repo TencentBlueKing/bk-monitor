@@ -105,7 +105,7 @@ export const useTraceSpanK8s = (options: UseTraceSpanK8sOptions) => {
     currentTarget,
     () => {
       sceneList.value = currentTarget.value?.scenario_list ?? [];
-      scene.value = sceneList.value[0];
+      scene.value = sceneList.value.includes(scene.value) ? scene.value : sceneList.value[0];
       groupBy.value = currentTarget.value?.resource_type;
     },
     { immediate: true, deep: true }

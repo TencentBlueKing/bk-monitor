@@ -87,8 +87,8 @@ class TestCollapseUnderscores(TestCase):
 
 
 class TestMakeBkdataRtName(TestCase):
-    """覆盖 make_bkdata_rt_name 对 BKData 命名四条约束 (首字符字母 / 字符集 /
-    禁止 __ / 长度 <= 50) 的处理.
+    """覆盖 make_bkdata_rt_name 对 BKData 命名约束 (首字符字母 / 字符集 /
+    禁止 __ / 禁止尾 _ / 长度 <= 50) 的处理.
 
     回归基线: 早期实现 ``f"bklog_{name_en}"[-50:]`` 在 name_en 较长时会把 ``bklog_``
     前缀尾截掉, 导致首字符变成下划线 / 数字, 触发 BKData 1500001. 本测试类显式覆盖
@@ -144,6 +144,20 @@ class TestMakeBkdataRtName(TestCase):
         self.assertEqual(len(rt), BKDATA_RT_NAME_MAX_LEN)
         self.assertTrue(rt.startswith(BKLOG_RT_NAME_PREFIX))
 
+    def test_trailing_underscore_after_truncation_removed(self):
+        # 线上实测边界: 48 字符 BCS K8s 采集名被截在分隔符后, 旧实现会生成尾 _.
+        name_en = "bcs_k8s_42261_linkverse_aivo_test_log_4n88b_path"
+        self.assertEqual(len(name_en), 48)
+        rt = make_bkdata_rt_name(name_en)
+        self.assertEqual(rt, "bklog_bcs_k8s_42261_linkverse_aivo_test_log_4n88b")
+        self.assertFalse(rt.endswith("_"))
+        self.assertLessEqual(len(rt), BKDATA_RT_NAME_MAX_LEN)
+
+    def test_trailing_underscore_in_name_en_removed(self):
+        rt = make_bkdata_rt_name("foo_")
+        self.assertEqual(rt, "bklog_foo")
+        self.assertFalse(rt.endswith("_"))
+
     def test_first_char_is_always_letter_for_typical_inputs(self):
         # 穷举几种典型脏数据形态, 都必须保证首字符是字母.
         for name_en in [
@@ -158,6 +172,7 @@ class TestMakeBkdataRtName(TestCase):
             rt = make_bkdata_rt_name(name_en)
             self.assertTrue(rt[0].isalpha(), f"first char must be letter for {name_en!r}, got {rt!r}")
             self.assertNotIn("__", rt)
+            self.assertFalse(rt.endswith("_"))
             self.assertLessEqual(len(rt), BKDATA_RT_NAME_MAX_LEN)
 
     def test_idempotent(self):

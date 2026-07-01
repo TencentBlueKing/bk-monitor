@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import enum
+import json
 import time
 from collections import Counter, defaultdict
 from collections.abc import Callable
@@ -354,7 +355,17 @@ def _build_k8s_cluster_record(context: CheckContext, cluster) -> dict[str, Any]:
 
 def _build_custom_metric_record(context: CheckContext, table) -> dict[str, Any]:
     metric_fields = _safe_value(lambda: _get_custom_metric_fields(context, table), default=[])
-    sample_metric = metric_fields[0]["name"] if metric_fields else ""
+    kafka_status = _check_data_id_status(context, table.bk_data_id, keep_internal_kafka_latest_data=True)
+    sample_metric = _extract_custom_metric_sample_metric(kafka_status) or (
+        metric_fields[0]["name"] if metric_fields else ""
+    )
+    table_sample = _query_time_series_metric(
+        context,
+        table.table_id,
+        sample_metric,
+        data_label=_get_primary_data_label(table.data_label),
+    )
+    _drop_internal_kafka_latest_data(kafka_status)
     return {
         "time_series_group_id": table.time_series_group_id,
         "bk_biz_id": table.bk_biz_id,
@@ -366,13 +377,9 @@ def _build_custom_metric_record(context: CheckContext, table) -> dict[str, Any]:
         "protocol": table.protocol,
         "token": _safe_value(lambda: _get_custom_metric_token(context, table), default=""),
         "metric_fields": metric_fields,
-        "kafka_status": _check_data_id_status(context, table.bk_data_id),
-        "table_sample": _query_time_series_metric(
-            context,
-            table.table_id,
-            sample_metric,
-            data_label=_get_primary_data_label(table.data_label),
-        ),
+        "sample_metric": sample_metric,
+        "kafka_status": kafka_status,
+        "table_sample": table_sample,
     }
 
 
@@ -742,26 +749,48 @@ def _extract_k8s_custom_metric_sample(cluster_id: str, data_id_status: dict[str,
     return {"sample_metric": "", "sample_bcs_cluster_id": ""}
 
 
+def _extract_custom_metric_sample_metric(data_id_status: dict[str, Any]) -> str:
+    for message in data_id_status.get("_internal_kafka_latest_data") or []:
+        for item in _iter_data_items(message):
+            metrics = item.get("metrics") or {}
+            if not isinstance(metrics, dict):
+                continue
+            for metric_name in metrics:
+                if metric_name:
+                    return str(metric_name)
+    return ""
+
+
 def _drop_internal_kafka_latest_data(record: dict[str, Any]) -> None:
+    record.pop("_internal_kafka_latest_data", None)
     raw_status = record.get("raw_status")
     if isinstance(raw_status, dict):
         raw_status.pop("_internal_kafka_latest_data", None)
 
 
 def _iter_data_items(message: Any):
+    if isinstance(message, bytes | bytearray):
+        message = message.decode()
+    if isinstance(message, str):
+        try:
+            message = json.loads(message)
+        except json.JSONDecodeError:
+            return
     if isinstance(message, list):
         for sub_message in message:
             yield from _iter_data_items(sub_message)
         return
     if not isinstance(message, dict):
         return
+    if isinstance(message.get("metrics"), dict):
+        yield message
+        return
     data = message.get("data")
     if isinstance(data, list):
         for item in data:
-            if isinstance(item, dict):
-                yield item
+            yield from _iter_data_items(item)
     elif isinstance(data, dict):
-        yield data
+        yield from _iter_data_items(data)
 
 
 def _check_k8s_custom_metric_landing(context: CheckContext, sample: dict[str, Any]) -> dict[str, Any]:

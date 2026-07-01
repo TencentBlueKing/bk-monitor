@@ -28,9 +28,9 @@ class TestBaseAlarmMetricCacheManagerMultiTenant:
     事件（bk_monitor 源）会与 os/v2 的 custom 版重复创建、产生双告警。
     """
 
-    def _fields_in_mode(self, multi_tenant: bool) -> set:
+    def _fields_in_mode(self, multi_tenant: bool, enable_ping: bool = True) -> set:
         mgr = BaseAlarmMetricCacheManager(bk_tenant_id="tenant", bk_biz_id=0)
-        with override_settings(ENABLE_MULTI_TENANT_MODE=multi_tenant):
+        with override_settings(ENABLE_MULTI_TENANT_MODE=multi_tenant, ENABLE_PING_ALARM=enable_ping):
             # get_label_name 会调 api.metadata，测试中直接打桩为标签原值
             with mock.patch.object(BaseAlarmMetricCacheManager, "get_label_name", side_effect=lambda label: label):
                 return {metric["metric_field"] for metric in mgr.get_metrics_by_table({})}
@@ -46,9 +46,16 @@ class TestBaseAlarmMetricCacheManagerMultiTenant:
         with override_settings(ENABLE_MULTI_TENANT_MODE=True):
             assert list(mgr.get_tables()) == [{}]
 
-    def test_multi_tenant_yields_only_proc_port_and_os_restart(self):
-        # 多租户：catalog 只产出 proc_port/os_restart（gse 系统事件 + gse 进程托管事件均不在此）
-        assert self._fields_in_mode(multi_tenant=True) == {"proc_port", "os_restart"}
+    def test_multi_tenant_yields_proc_port_os_restart_and_ping(self):
+        # 多租户：catalog 产出 proc_port/os_restart 两个 bk_monitor 源伪事件；PING 不可达(ping-gse)在
+        # ENABLE_PING_ALARM 开启时内置为 bk_monitor 源伪事件目录项(走指标逻辑，供 os/v4 命中)。
+        # gse 系统事件 + gse 进程托管事件均不在此(走 V4 custom 链路)。
+        assert self._fields_in_mode(multi_tenant=True) == {"proc_port", "os_restart", "ping-gse"}
+
+    def test_multi_tenant_ping_gse_gated_by_enable_ping_alarm(self):
+        # PING 不可达由全局开关 ENABLE_PING_ALARM 单点治理：关闭时多租户不内置 ping-gse 目录项
+        # （os_loader 创建 PING 策略时亦按此开关跳过，口径一致）。
+        assert self._fields_in_mode(multi_tenant=True, enable_ping=False) == {"proc_port", "os_restart"}
 
     def test_single_tenant_still_includes_gse_process_event(self):
         # 单租户：proc_port/os_restart 之外，仍内置 gse 进程托管事件（多租户不含，构成差异守护）

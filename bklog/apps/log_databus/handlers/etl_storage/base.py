@@ -205,6 +205,7 @@ class EtlStorage:
                         "key_index": field_name,
                         "alias": field_name,
                         "output_type": "string",
+                        "default_value": None,
                     },
                 }
             )

@@ -71,6 +71,7 @@ export const useCollectList = () => {
   const collectProject = computed(() => projectManages(store.state.topMenu, 'collection-item'));
   /**
    * 跳转到采集项列表
+   * @param indexSetId 可选，索引集ID，用于回选对应的索引集
    */
   const goListPage = () => {
     const indexSetId = route.query.indexSetId as string;
@@ -311,7 +312,7 @@ export const useCollectList = () => {
       params,
       query: finalQuery,
     });
-    window.open(resolved.href, '_blank');
+    window.open(resolved.href, '_blank', 'noopener,noreferrer');
   };
 
   const operateHandler = (

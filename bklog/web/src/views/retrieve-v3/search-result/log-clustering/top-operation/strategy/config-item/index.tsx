@@ -145,7 +145,8 @@ export default defineComponent({
         `${window.MONITOR_URL}/?bizId=${
           props.bkBizId
         }#/strategy-config?strategyLabels=${JSON.stringify(props.labelName)}`,
-        "_blank"
+        "_blank",
+        'noopener,noreferrer'
       );
     };
 

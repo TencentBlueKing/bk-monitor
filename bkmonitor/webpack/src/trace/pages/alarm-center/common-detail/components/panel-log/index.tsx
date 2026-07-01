@@ -116,7 +116,7 @@ export default defineComponent({
     const timeParams = () => {
       return {
         start_time: props.detail?.begin_time * 1000,
-        end_time: props.detail.end_time ? props.detail.end_time * 1000 : Date.now(),
+        end_time: Date.now(), // tapd 1010158081135647614 end_time为当前时间戳
       };
     };
     const bizIdParams = () => {
