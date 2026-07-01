@@ -411,7 +411,7 @@
         return [];
       },
       routerIndexSet() {
-        return window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId;
+        return window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$store.state.indexId;
       },
       isScene() {
         return this.$store.getters.isSceneMode;
@@ -464,9 +464,13 @@
           this.downloadType = 'quick';
         }
       },
-      routerIndexSet() {
-        // 切换业务时重置组件状态
-        this.resetComponentState();
+      routerIndexSet: {
+        immediate: true,
+        handler(newVal) {
+          if (newVal) {
+            this.resetComponentState();
+          }
+        }
       },
       retrieveType(newVal, oldVal) {
         if (oldVal === 'scene' && newVal !== 'scene') {
@@ -488,7 +492,6 @@
     mounted() {
       // 初始化时间范围为最近3月
       this.initDateRange();
-      this.getTableList();
     },
     beforeUnmount() {
       // 设置组件卸载标志位
@@ -993,12 +996,12 @@
         } else if (this.isUnionSearch) {
           queryUrl = 'unionSearch/unionExportHistory';
           params.index_set_id = window.__IS_MONITOR_COMPONENT__
-            ? this.$route.query.indexId : this.$route.params.indexId;
+            ? this.$route.query.indexId : this.$store.state.indexId;
           params.index_set_ids = this.unionIndexList;
         } else {
           queryUrl = 'retrieve/getExportHistoryList';
           params.index_set_id = window.__IS_MONITOR_COMPONENT__
-            ? this.$route.query.indexId : this.$route.params.indexId;
+            ? this.$route.query.indexId : this.$store.state.indexId;
         }
 
         if (!this.isScene) {
