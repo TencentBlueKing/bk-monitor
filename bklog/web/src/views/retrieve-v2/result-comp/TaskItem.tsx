@@ -42,7 +42,7 @@ export default defineComponent({
       required: true
     }
   },
-  emits: ['view-detail'],
+  emits: ['retry-export'],
   setup(props, { emit }) {
     /**
      * 判断是否为下载中的状态
@@ -79,13 +79,6 @@ export default defineComponent({
     };
 
     /**
-     * 处理查看详情点击
-     */
-    const handleViewDetail = () => {
-      emit('view-detail', props.item);
-    };
-
-    /**
      * 渲染右侧状态区域的内容
      */
     const renderStatusContent = () => {
@@ -95,10 +88,13 @@ export default defineComponent({
             <span class="status-dot failed-dot"></span>
             <span class="status-text">{t('失败')}</span>
             <span
-              class="detail-link" 
-              onClick={handleViewDetail}
+              class="detail-link"
+              onClick={(e) => {
+                e.stopPropagation();
+                emit('retry-export', props.item);
+              }}
             >
-              {t('查看详情')}
+              {t('重试')}
             </span>
           </div>
         );
@@ -137,7 +133,7 @@ export default defineComponent({
         {/* 进度条区域 */}
         <div class="task-progress-area">
           <bk-progress
-            percent={props.item.progressPercent / 100}
+            percent={(props.item.progressPercent ?? 0) / 100}
             theme={progressTheme()}
             showText={false}
             strokeWidth={6}
