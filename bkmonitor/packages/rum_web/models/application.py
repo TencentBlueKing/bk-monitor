@@ -11,21 +11,31 @@ specific language governing permissions and limitations under the License.
 import json
 from django.db import models
 from django.db.transaction import atomic
+from django.utils.functional import cached_property
 
 from bkm_space.api import SpaceApi
 from bkmonitor.middlewares.source import get_source_app_code
 from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.model_manager import AbstractRecordModel
+from bkmonitor.utils.time_tools import get_datetime_range
 from bkmonitor.utils.request import get_request
 from common.log import logger
 from constants.common import DEFAULT_TENANT_ID
+from constants.rum import TelemetryDataType
 from core.drf_resource import api
+
+from rum_web.constants import DataStatus, DEFAULT_NO_DATA_PERIOD
 
 
 class Application(AbstractRecordModel):
     """
     RUM SaaS 侧镜像应用表
     """
+
+    NO_DATA_CONFIG_KEY = "no_data_config"
+
+    class NoDataConfig:
+        no_data_period = "no_data_period"
 
     APPLICATION_DATASOURCE_CONFIG_KEY = "application_datasource_config"
     APDEX_CONFIG_KEY = "application_apdex_config"
@@ -136,10 +146,43 @@ class Application(AbstractRecordModel):
         self.time_series_group_id = metric_ds_info["time_series_group_id"]
         self.save()
 
+    @cached_property
+    def no_data_period(self):
+        no_data_config = self.get_config_by_key(self.NO_DATA_CONFIG_KEY)
+        if no_data_config:
+            return no_data_config.config_value[self.NoDataConfig.no_data_period]
+        return DEFAULT_NO_DATA_PERIOD
+
     def set_data_status(self):
         """刷新数据状态"""
-        # TODO: 实现数据状态检测逻辑
-        pass
+        from rum_web.handlers.backend_data_handler import telemetry_handler_registry
+
+        start_time, end_time = get_datetime_range("minute", self.no_data_period)
+        start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
+
+        if not getattr(self, "is_enabled", False):
+            data_status = DataStatus.DISABLED
+        else:
+            try:
+                count = telemetry_handler_registry(TelemetryDataType.RUM.value, app=self).get_data_count(
+                    start_time, end_time
+                )
+                if count:
+                    logger.info(
+                        f"[Application] set_data_status ->  "
+                        f"bk_biz_id: {self.bk_biz_id} app: {self.app_name}"
+                        f"have data in {self.no_data_period} period"
+                    )
+
+                    data_status = DataStatus.NORMAL
+                else:
+                    data_status = DataStatus.NO_DATA
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning(f"[Application] set app: {self.app_name} data_status failed: {e}")
+                data_status = DataStatus.NO_DATA
+
+        # 这里通过update方式，指定字段更新，是为了不自动变更 update_user， update_time 字段
+        Application.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).update(data_status=data_status)
 
     def get_all_config(self):
         return RumAppConfig.get_all_application_config_value(self.application_id)

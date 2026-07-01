@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from django.utils.translation import gettext_lazy as _
+
 
 # 告警级别常量
 class AlertLevel:
@@ -77,3 +79,60 @@ class BizConfigKey:
 RUM_WEB_CLIENT_CHOICES = [
     "web",
 ]
+
+
+class CalculationMethod:
+    # 健康度
+    APDEX = "apdex"
+
+
+class Apdex:
+    DIMENSION_KEY = "apdex_type"
+    SATISFIED = "satisfied"
+    TOLERATING = "tolerating"
+    FRUSTRATED = "frustrated"
+    ERROR = "error"
+
+    @classmethod
+    def get_label_by_key(cls, key: str):
+        return {cls.SATISFIED: _("满意"), cls.TOLERATING: _("可容忍"), cls.FRUSTRATED: _("烦躁期")}.get(key, key)
+
+    @classmethod
+    def get_status_by_key(cls, key: str):
+        return {
+            cls.SATISFIED: {"type": Status.SUCCESS, "text": cls.get_label_by_key(key)},
+            cls.TOLERATING: {"type": Status.WAITING, "text": cls.get_label_by_key(key)},
+            cls.FRUSTRATED: {"type": Status.FAILED, "text": cls.get_label_by_key(key)},
+        }.get(key, {"type": None, "text": "--"})
+
+
+class Status:
+    """状态"""
+
+    NORMAL = "normal"
+    WARNING = "warning"
+    FAILED = "failed"
+    SUCCESS = "success"
+    DISABLED = "disabled"
+    WAITING = "waiting"
+
+    @classmethod
+    def get_label_by_key(cls, key: str):
+        return {
+            cls.NORMAL: _("正常"),
+            cls.WARNING: _("预警"),
+            cls.FAILED: _("异常"),
+            cls.SUCCESS: _("成功"),
+            cls.DISABLED: _("禁用"),
+            cls.WAITING: _("等待"),
+        }.get(key, key)
+
+
+RUM_APPLICATION_DEFAULT_METRIC = {
+    "lcp_p75": 0.0,
+    "js_error_rate": 0.0,
+    "api_fail_rate": 0.0,
+}
+
+# RUM 应用列表页, 应用相关指标 key -> BKMONITOR_{PLATFORM}_{ENVIRONMENT}_RUM_APPLICATION_METRIC_{bk_biz_id}_{application_id}
+RUM_APPLICATION_METRIC = "BKMONITOR_{}_{}_RUM_APPLICATION_METRIC_{}_{}"

@@ -15,7 +15,7 @@ from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from constants.data_source import DataSourceLabel, DataTypeLabel
-from core.drf_resource import api
+from core.drf_resource import api, resource
 from rum_web.models.application import Application, RumAppConfig
 
 logger = logging.getLogger("rum")
@@ -133,7 +133,7 @@ telemetry_handler_registry = BackendRegistry()
 @telemetry_handler_registry.register
 class RumBackendHandler(TelemetryBackendHandler):
     """
-    RUM Span 数据后端适配器，对齐 apm_web TraceBackendHandler。
+    RUM Span 数据后端适配器，对齐 apm_web RumBackendHandler。
     操作 span 数据源（ES），对应 Application.span_result_table_id。
     """
 
@@ -165,6 +165,32 @@ class RumBackendHandler(TelemetryBackendHandler):
             "es_storage_cluster": settings.RUM_APP_DEFAULT_ES_STORAGE_CLUSTER,
         }
 
+    def storage_field_info(self):
+        """
+        获取存储字段信息。
+        参考 apm_web RumBackendHandler.storage_field_info()（简化版）
+        """
+        if not self.app.span_result_table_id:
+            return []
+
+        try:
+            table_data = api.metadata.get_result_table({"table_id": self.app.span_result_table_id})
+            field_list = table_data.get("field_list", [])
+        except Exception as e:
+            logger.warning(f"[RumBackendHandler] storage_field_info failed: {e}")
+            return []
+
+        return [
+            {
+                "field_name": field["field_name"],
+                "ch_field_name": field.get("description", ""),
+                "analysis_field": field.get("field_type") == "text",
+                "field_type": field.get("field_type", ""),
+                "time_field": field.get("field_type") == "date",
+            }
+            for field in field_list
+        ]
+
     def _get_es_storage_cluster(self) -> int:
         """获取 ES 存储集群 ID"""
         config = RumAppConfig.get_application_config_value(
@@ -179,7 +205,7 @@ class RumBackendHandler(TelemetryBackendHandler):
     def indices_info(self):
         """
         查询 ES 索引信息。
-        参考 apm_web TraceBackendHandler.indices_info()
+        参考 apm_web RumBackendHandler.indices_info()
         """
         if not self.app.span_result_table_id:
             return []
@@ -209,7 +235,7 @@ class RumBackendHandler(TelemetryBackendHandler):
     def data_sampling(self, size: int = 10, **kwargs):
         """
         获取采样数据。
-        参考 apm_web TraceBackendHandler.data_sampling()
+        参考 apm_web RumBackendHandler.data_sampling()
         """
         if not self.app.span_result_table_id:
             return []
@@ -221,36 +247,10 @@ class RumBackendHandler(TelemetryBackendHandler):
             return []
         return [{"raw_log": log, "sampling_time": log.get("datetime", "")} for log in resp]
 
-    def storage_field_info(self):
-        """
-        获取存储字段信息。
-        参考 apm_web TraceBackendHandler.storage_field_info()（简化版）
-        """
-        if not self.app.span_result_table_id:
-            return []
-
-        try:
-            table_data = api.metadata.get_result_table({"table_id": self.app.span_result_table_id})
-            field_list = table_data.get("field_list", [])
-        except Exception as e:
-            logger.warning(f"[RumBackendHandler] storage_field_info failed: {e}")
-            return []
-
-        return [
-            {
-                "field_name": field["field_name"],
-                "ch_field_name": field.get("description", ""),
-                "analysis_field": field.get("field_type") == "text",
-                "field_type": field.get("field_type", ""),
-                "time_field": field.get("field_type") == "date",
-            }
-            for field in field_list
-        ]
-
     def get_data_view_config(self, **kwargs):
         """
         获取数据视图查询配置（分钟 + 日两个面板）。
-        参考 apm_web TraceBackendHandler.get_data_view_config()
+        参考 apm_web RumBackendHandler.get_data_view_config()
         """
         metric_table = self.app.metric_result_table_id
         if not metric_table:
@@ -260,8 +260,40 @@ class RumBackendHandler(TelemetryBackendHandler):
             "data_type_label": DataTypeLabel.TIME_SERIES,
             "data_source_label": DataSourceLabel.CUSTOM,
             "table_name": metric_table,
-            "metric_field": "bk_rum_count",
+            "metric_field": "browser_web_vital_duration_bucket",
             "method_method": "SUM",
         }
         kwargs.update(view_params)
         return self.build_data_count_query(**kwargs)
+
+    def get_data_count(self, start_time: int, end_time: int, **kwargs):
+        view_config = self.get_data_view_config(
+            start_time=start_time, end_time=end_time, bk_biz_id=self.app.bk_biz_id, **kwargs
+        )
+        data = resource.grafana.graph_unify_query(view_config[0]["targets"][0]["data"])
+        count = 0
+        for line in data["series"]:
+            for point in line["datapoints"]:
+                point_count = point[0] if isinstance(point[0], int) else 0
+                count += point_count
+        return count
+
+    def get_no_data_strategy_config(self, **kwargs):
+        promql = f'sum(sum_over_time({{__name__="custom:{self.app.metric_result_table_id}:browser_web_vital_duration_bucket"}}[1m])) or vector(0)'
+        return {
+            "result_table_id": self.app.span_result_table_id,
+            "metric_id": promql,
+            "metric_field": "browser_web_vital_duration_bucket",
+            "name": f"BKRUM-{_('无数据告警')}-{self.app.app_name}",
+            "data_source_label": DataSourceLabel.PROMETHEUS,
+            "data_type_label": DataTypeLabel.TIME_SERIES,
+            "query_configs": [
+                {
+                    "data_source_label": DataSourceLabel.PROMETHEUS,
+                    "data_type_label": DataTypeLabel.TIME_SERIES,
+                    "promql": promql,
+                    "agg_interval": 60,
+                    "alias": "a",
+                }
+            ],
+        }

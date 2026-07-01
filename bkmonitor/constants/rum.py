@@ -8,6 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from enum import Enum
+
+from django.utils.translation import gettext_lazy as _
+
 from constants.result_table import ResultTableField
 
 
@@ -185,3 +189,15 @@ RUM_RESULT_TABLE_OPTION = {
     # 默认查询时间字段，页面查询时间范围过滤与此字段联动。
     "time_field": {"name": "end_time", "type": "long", "unit": "microsecond"},
 }
+
+
+class TelemetryDataType(Enum):
+    RUM = "rum"
+    METRIC = "metric"
+
+    @classmethod
+    def choices(cls):
+        return [
+            (cls.METRIC.value, _("指标")),
+            (cls.RUM.value, _("用户体验数据")),
+        ]

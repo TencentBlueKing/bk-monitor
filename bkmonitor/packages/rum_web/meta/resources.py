@@ -9,18 +9,23 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+import copy
+from typing import Any
 
 from django.conf import settings
+from django.core.cache import cache
 from django.db.transaction import atomic
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.user import get_global_user, get_backend_username
+from bkmonitor.utils import group_by
 from common.log import logger
 from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE, EventSeverity
 from constants.common import DEFAULT_TENANT_ID
-from constants.data_source import ApplicationsResultTableLabel, DataSourceLabel, DataTypeLabel
+from constants.data_source import ApplicationsResultTableLabel
+from constants.rum import TelemetryDataType
 from core.drf_resource import Resource, api, resource
 from monitor.models import ApplicationConfig
 from monitor_web.constants import AlgorithmType
@@ -34,10 +39,20 @@ from rum_web.constants import (
     DefaultSetupConfig,
     NODATA_ERROR_STRATEGY_CONFIG_KEY,
     DataStatus,
+    RUM_APPLICATION_DEFAULT_METRIC,
     RUM_WEB_CLIENT_CHOICES,
 )
-from rum_web.handlers.backend_handler import telemetry_handler_registry
+from rum_web.handlers.service_handler import ServiceHandler
+from rum_web.handlers.backend_data_handler import telemetry_handler_registry
 from rum_web.models.application import Application, RumAppConfig
+from rum_web.metric_handler import (
+    LcpP75Instance,
+    JsErrorRateInstance,
+    ApiFailRateInstance,
+)
+from rum_web.metrics import APPLICATION_LIST
+from rum_web.resources import AsyncColumnsListResource
+from rum_web.serializers import ApplicationCacheSerializer
 
 
 class CreateApplicationResource(Resource):
@@ -463,11 +478,116 @@ class ListApplicationResource(PageListResource):
         return self.get_pagination_data(data, validate_data)
 
 
-class ListApplicationAsyncResource(Resource):
+class ListApplicationAsyncResource(AsyncColumnsListResource):
     """
     应用列表异步指标查询接口。
-    TODO: 待 RUM metric 字段定义完成后实现真实查询。
+    参考 APM 的 ListApplicationAsyncResource 实现。
     """
+
+    METRIC_MAP = {
+        "lcp_p75": LcpP75Instance,
+        "js_error_rate": JsErrorRateInstance,
+        "api_fail_rate": ApiFailRateInstance,
+    }
+    METRIC_UNIT = {
+        "lcp_p75": "s",
+        "js_error_rate": "%",
+        "api_fail_rate": "%",
+    }
+
+    SyncResource = ListApplicationResource
+
+    @classmethod
+    def get_miss_application_and_cache_metric_data(cls, applications):
+        """
+        获取应用指标缓存数据及miss_application
+        :param applications: 应用列表
+        :return:
+        """
+
+        miss_application = []
+        cache_metric_data = {}
+
+        # 获取缓存数据
+        cache_key_maps = {str(app.get("application_id")): ServiceHandler.build_cache_key(app) for app in applications}
+        cache_data = cache.get_many(cache_key_maps.values())
+
+        for app in applications:
+            application_id = str(app.get("application_id"))
+            key = cache_key_maps.get(application_id)
+            app_cache_data = cache_data.get(key)
+            if app_cache_data:
+                cache_metric_data[application_id] = app_cache_data
+            else:
+                miss_application.append(app)
+        return miss_application, cache_metric_data
+
+    @classmethod
+    def get_metric_data(
+        cls, metric_name: str, applications: list, start_time: int | None = None, end_time: int | None = None
+    ) -> dict:
+        """
+        获取应用指标数据
+        :param metric_name: 指标名称
+        :param applications: 应用列表
+        :param start_time: 开始时间戳（秒），可选
+        :param end_time: 结束时间戳（秒），可选
+        :return: 应用 ID 到指标数据的映射字典
+        """
+
+        metric_data = APPLICATION_LIST(
+            applications, metric_handler_cls=[cls.METRIC_MAP.get(metric_name)], start_time=start_time, end_time=end_time
+        )
+
+        metric_map = {}
+        for app in applications:
+            application_id = str(app["application_id"])
+            app_metric = metric_data.get(application_id, copy.deepcopy(RUM_APPLICATION_DEFAULT_METRIC))
+            metric_map[application_id] = app_metric
+        return metric_map
+
+    @classmethod
+    def get_async_column_item(cls, data, column, **kwargs):
+        column_dict: dict[str, float] = super().get_async_column_item(data, column, **kwargs)
+        metric_dict: dict[str, dict[str, Any]] = {}
+        for metric_name, metric_value in column_dict.items():
+            if metric_name == "lcp_p75":
+                metric_value = round(metric_value / 1000, 1)
+            elif metric_name in {"js_error_rate", "api_fail_rate"}:
+                metric_value = round(metric_value * 100, 1)
+            metric_dict[metric_name] = {
+                "id": metric_name,
+                "value": metric_value,
+                "unit": cls.METRIC_UNIT.get(metric_name, ""),
+            }
+        return metric_dict
+
+    def build_res(self, validate_data, app_mapping, metric_data):
+        """
+        获取返回数据
+        :param validate_data: 参数
+        :param app_mapping: 应用MAP
+        :param metric_data: 指标数据
+        :return:
+        """
+
+        res = []
+
+        for application_id in validate_data.get("application_ids"):
+            if application_id not in app_mapping:
+                continue
+
+            app_metric = metric_data.get(str(application_id), {})
+            if validate_data["column"] in app_metric:
+                res.append(
+                    {
+                        "application_id": application_id,
+                        "app_name": app_mapping[application_id][0].app_name,
+                        **self.get_async_column_item(app_metric, validate_data["column"]),
+                    }
+                )
+
+        return res
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
@@ -478,10 +598,40 @@ class ListApplicationAsyncResource(Resource):
 
     many_response_data = True
 
-    def perform_request(self, validated_request_data):
-        # TODO: 待 RUM metric 数据源定义 lcp_p75/js_error_rate/api_fail_rate 字段后，
-        #  通过 resource.grafana.graph_unify_query 查询真实指标数据
-        return []
+    def perform_request(self, validate_data):
+        res = []
+
+        application_ids = validate_data.get("application_ids")
+        if not application_ids:
+            return res
+
+        applications = Application.objects.filter(
+            bk_biz_id=validate_data["bk_biz_id"], application_id__in=[int(app_id) for app_id in application_ids]
+        )
+        application_mapping = group_by(applications, lambda i: str(i.application_id))
+
+        cache_applications = sorted(
+            ApplicationCacheSerializer(applications, many=True).data, key=lambda i: i.get("application_id", 0)
+        )
+
+        miss_application, cache_metric_data = self.get_miss_application_and_cache_metric_data(
+            applications=cache_applications
+        )
+
+        # 缓存中缺少部分应用时，补全数据
+        if miss_application:
+            metric_data = self.get_metric_data(
+                metric_name=validate_data["column"],
+                applications=miss_application,
+                start_time=validate_data["start_time"],
+                end_time=validate_data["end_time"],
+            )
+            cache_metric_data.update(metric_data)
+
+        res = self.build_res(
+            validate_data=validate_data, app_mapping=application_mapping, metric_data=cache_metric_data
+        )
+        return self.get_async_data(res, validate_data["column"])
 
 
 class GetMetaConfigInfoResource(Resource):
@@ -555,7 +705,7 @@ class GetStorageInfoResource(Resource):
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
-        return telemetry_handler_registry("rum", app=app).storage_info()
+        return telemetry_handler_registry(TelemetryDataType.RUM.value, app=app).storage_info()
 
 
 class GetIndicesInfoResource(Resource):
@@ -575,7 +725,7 @@ class GetIndicesInfoResource(Resource):
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
-        return telemetry_handler_registry("rum", app=app).indices_info()
+        return telemetry_handler_registry(TelemetryDataType.RUM.value, app=app).indices_info()
 
 
 class GetDataSamplingResource(Resource):
@@ -596,7 +746,9 @@ class GetDataSamplingResource(Resource):
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
-        return telemetry_handler_registry("rum", app=app).data_sampling(size=validated_request_data["size"])
+        return telemetry_handler_registry(TelemetryDataType.RUM.value, app=app).data_sampling(
+            size=validated_request_data["size"]
+        )
 
 
 class StorageFieldInfoResource(Resource):
@@ -616,7 +768,7 @@ class StorageFieldInfoResource(Resource):
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
-        return telemetry_handler_registry("rum", app=app).storage_field_info()
+        return telemetry_handler_registry(TelemetryDataType.RUM.value, app=app).storage_field_info()
 
 
 class GetDataViewConfigResource(Resource):
@@ -636,7 +788,7 @@ class GetDataViewConfigResource(Resource):
         except Application.DoesNotExist:
             raise ValueError(_("应用不存在"))
 
-        return telemetry_handler_registry("rum", app=app).get_data_view_config()
+        return telemetry_handler_registry(TelemetryDataType.RUM.value, app=app).get_data_view_config()
 
 
 class GetNoDataStrategyInfoResource(Resource):
@@ -694,14 +846,12 @@ class GetNoDataStrategyInfoResource(Resource):
         if not app.metric_result_table_id:
             return None
 
-        # TODO: promql 中 bk_rum_count 指标名待对齐 RUM metric 数据源的实际字段定义
-        promql = f'sum(sum_over_time({{__name__="custom:{app.metric_result_table_id}:bk_rum_count"}}[1m])) or vector(0)'
-        strategy_name = f"BKRUM-{_('无数据告警')}-{app.app_name}"
+        register_config = telemetry_handler_registry(TelemetryDataType.RUM.value, app=app).get_no_data_strategy_config()
 
         config = {
             "bk_biz_id": app.bk_biz_id,
             "is_enabled": False,
-            "name": strategy_name,
+            "name": register_config["name"],
             "labels": ["BKRUM"],
             "scenario": ApplicationsResultTableLabel.application_check,
             "detects": [
@@ -715,7 +865,7 @@ class GetNoDataStrategyInfoResource(Resource):
             ],
             "items": [
                 {
-                    "name": strategy_name,
+                    "name": register_config["name"],
                     "no_data_config": {
                         "is_enabled": False,
                         "continuous": DEFAULT_NO_DATA_PERIOD,
@@ -729,15 +879,7 @@ class GetNoDataStrategyInfoResource(Resource):
                             "unit_prefix": "",
                         }
                     ],
-                    "query_configs": [
-                        {
-                            "data_source_label": DataSourceLabel.PROMETHEUS,
-                            "data_type_label": DataTypeLabel.TIME_SERIES,
-                            "promql": promql,
-                            "agg_interval": 60,
-                            "alias": "a",
-                        }
-                    ],
+                    "query_configs": register_config["query_configs"],
                     "target": [],
                 }
             ],
