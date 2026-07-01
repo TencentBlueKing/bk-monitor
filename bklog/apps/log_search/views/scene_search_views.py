@@ -31,11 +31,12 @@ from apps.log_search.constants import (
     FieldDataTypeEnum,
     MAX_RESULT_WINDOW,
     RESULT_WINDOW_COST_TIME,
+    SceneLabelEnum,
     SearchMode,
 )
 from apps.log_search.decorators import search_history_record
 from apps.log_search.exceptions import GetMultiResultFailException
-from apps.log_search.handlers.scene_search import AllConditionsBuilder
+from apps.log_search.handlers.scene_search import AllConditionsBuilder, get_field_candidates
 from apps.log_search.handlers.search.scene_fields_config import (
     SceneFieldsConfigHandler,
     UserSceneCustomConfigHandler,
@@ -214,6 +215,72 @@ class SceneDimensionValuesSerializer(serializers.Serializer):
         child = SceneDimensionFilterSerializer(data=value, many=True)
         child.is_valid(raise_exception=True)
         return child.validated_data
+
+
+class SceneFieldCandidatesConditionSerializer(serializers.Serializer):
+    """字段联想级联条件项（已选维度过滤）"""
+
+    key = serializers.CharField(required=True, help_text="维度字段名")
+    method = serializers.ChoiceField(choices=["eq", "include"], default="eq", help_text="eq=精确多选, include=包含匹配")
+    value = serializers.ListField(child=serializers.CharField(), required=True, allow_empty=True, help_text="已选值列表")
+
+
+class SceneFieldCandidatesSerializer(serializers.Serializer):
+    """
+    IaaS 化字段联想候选值检索。
+
+    - 容器场景（scene=k8s）：转调监控 k8s_resource 候选值缓存接口，需带 bcs_cluster_ids。
+    - 主机场景（scene=host 等）：通过 unify-query ts/reference 聚合实时入库数据，
+      需带 table_id_conditions 路由选表与 start_time / end_time 时间窗。
+    """
+
+    space_uid = serializers.CharField(required=True, help_text="空间 UID, e.g. bkcc__2")
+    bk_biz_id = serializers.IntegerField(required=True, help_text="业务 ID")
+    scene = serializers.CharField(required=True, help_text="场景标识, k8s=容器, host=主机")
+    resource_type = serializers.CharField(required=True, help_text="目标维度字段名（要联想候选值的字段）")
+    conditions = serializers.ListField(
+        child=SceneFieldCandidatesConditionSerializer(), required=False, default=list, help_text="已选级联条件"
+    )
+    query_string = serializers.CharField(
+        required=False, allow_blank=True, default="", help_text="对目标维度候选值做包含匹配"
+    )
+    page = serializers.IntegerField(required=False, default=1)
+    page_size = serializers.IntegerField(required=False, default=500)
+
+    # 容器场景
+    bcs_cluster_ids = serializers.ListField(
+        child=serializers.CharField(), required=False, default=list, help_text="容器场景：BCS 集群 ID 列表"
+    )
+
+    # 主机场景（ts/reference 聚合）
+    table_id_conditions = serializers.ListField(
+        child=serializers.ListField(child=ConditionFieldSerializer()),
+        required=False,
+        default=list,
+        help_text="主机场景：AllConditions 二维数组，外层 OR，内层 AND",
+    )
+    keyword = serializers.CharField(required=False, allow_blank=True, allow_null=True, default="")
+    start_time = serializers.CharField(required=False, allow_blank=True, default="")
+    end_time = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if attrs.get("page", 1) < 1:
+            attrs["page"] = 1
+        if attrs.get("page_size", 500) > 1000:
+            attrs["page_size"] = 1000
+        if attrs.get("page_size", 500) < 1:
+            attrs["page_size"] = 1
+
+        if attrs["scene"] == SceneLabelEnum.K8S.value:
+            if not attrs.get("bcs_cluster_ids"):
+                raise serializers.ValidationError("容器场景必须提供 bcs_cluster_ids")
+        else:
+            if not attrs.get("table_id_conditions"):
+                raise serializers.ValidationError("主机场景必须提供 table_id_conditions")
+            if not attrs.get("start_time") or not attrs.get("end_time"):
+                raise serializers.ValidationError("主机场景必须提供 start_time 和 end_time")
+        return attrs
 
 
 # ---------------------------------------------------------------------------
@@ -677,6 +744,20 @@ class SceneSearchViewSet(APIViewSet):
             filters=data.get("filters") or None,
         )
         return Response({"dimension_key": data["dimension_key"], "values": sorted(values)})
+
+    @list_route(methods=["POST"], url_path="list_field_candidates")
+    def list_field_candidates(self, request):
+        """
+        @api {post} /search/scene/list_field_candidates/ 场景化检索-字段联想候选值
+        @apiName scene_list_field_candidates
+        @apiGroup 14_SceneSearch
+        @apiDescription IaaS 化字段联想：容器场景转调监控 k8s_resource 候选值缓存，
+        主机场景通过 unify-query ts/reference 聚合实时入库数据，统一返回 {count, items}。
+        """
+        data = self.params_valid(SceneFieldCandidatesSerializer)
+        if data.get("table_id_conditions"):
+            data["table_id_conditions"] = AllConditionsBuilder.from_raw(data["table_id_conditions"])
+        return Response(get_field_candidates(data))
 
     # ------------------------------------------------------------------
     # Scene user custom config (UI 偏好 JSON，与模板系统解耦)
