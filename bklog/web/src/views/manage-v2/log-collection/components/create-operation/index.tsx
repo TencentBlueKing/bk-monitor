@@ -216,8 +216,7 @@ export default defineComponent({
     };
 
     const handleCancel = () => {
-      const indexSetId = route.query.indexSetId as string;
-      goListPage(indexSetId);
+      goListPage();
     };
 
     /**
