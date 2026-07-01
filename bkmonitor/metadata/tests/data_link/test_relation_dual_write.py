@@ -16,6 +16,7 @@ from metadata.models.data_link import DataLink
 from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.data_link.data_link_configs import (
     DataBusConfig,
+    DataIdConfig,
     GraphDataBusConfig,
     GraphRelationBindingConfig,
     ResultTableConfig,
@@ -154,9 +155,23 @@ def test_compose_graph_relation_time_series_configs_by_write_mode(
     )
 
     kinds = [config["kind"] for config in configs]
+    assert kinds[0] == "DataId"
     assert kinds.count("Databus") == expected_databus_count
     assert ("VmStorageBinding" in kinds) is expected_vm
     assert ("SurrealDBBinding" in kinds) is expected_surrealdb
+
+    data_id_name = "bkm_2_bkcc_built_in_time_series"
+    source_data_id = configs[0]
+    assert source_data_id["metadata"]["name"] == data_id_name
+    assert source_data_id["spec"]["predefined"]["dataId"] == data_source.bk_data_id
+    assert (
+        DataIdConfig.objects.get(
+            bk_tenant_id=data_link.bk_tenant_id,
+            namespace=data_link.namespace,
+            name=data_id_name,
+        ).bk_data_id
+        == data_source.bk_data_id
+    )
 
     if expected_surrealdb:
         databus_names = [config["metadata"]["name"] for config in configs if config["kind"] == "Databus"]
