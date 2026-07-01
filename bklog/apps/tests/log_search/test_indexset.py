@@ -847,8 +847,6 @@ class IndexGroupViewSetTestCase(TestCase):
         self.index_group = new_group
 
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
-    @patch("apps.log_search.models.SpaceApi.batch_get_space_detail")
-    @patch("apps.log_search.models.SpaceApi.get_space_detail")
     def test_list_index_groups(self, *args, **kwargs):
         path = "/api/v1/index_group/"
         data = {"space_uid": SPACE_UID}
