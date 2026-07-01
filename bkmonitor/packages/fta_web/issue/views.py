@@ -44,6 +44,22 @@ class IssueViewSet(ResourceViewSet):
     # 新增支持「无业务 ID」的接口时，只需在此处追加 endpoint 名称即可
     NO_BIZ_REQUIRED_ENDPOINTS = ["issue/search", "issue/top_n", "issue/recent_assignees"]
 
+    # 所有 TAPD 相关接口，均需前置校验 TAPD 用户态授权（Redis tapd_uat:{tenant}:{user}）
+    # 新增 TAPD 接口时，只需在此处追加 endpoint 名称即可
+    TAPD_ENDPOINTS = [
+        "tapd/workspace",
+        "tapd/user_workspace",
+        "tapd/unbind_workspace",
+        "tapd/rebind_workspace",
+        # “取消用户态授权”不需要进行tapd权限状态检查
+        # "tapd/revoke_auth",
+        "issue/get_tapd_fields",
+        "issue/search_tapd_items",
+        "issue/create_tapd",
+        "issue/link_tapd",
+        "issue/tapd_relations",
+    ]
+
     class IssueBusinessActionPermission(IAMPermission):
         """
         Issue 功能专用业务权限校验。
@@ -89,29 +105,22 @@ class IssueViewSet(ResourceViewSet):
     class TAPDAuthPermission(IAMPermission):
         """校验用户是否持有有效 TAPD 用户态 token（Redis tapd_uat:{tenant}:{user}）。
 
-        未授权时 raise PermissionDenied(detail={"auth_url": ...})，前端直接跳转授权页。
+        覆盖所有 TAPD 相关接口（见 TAPD_ENDPOINTS）：
+        - 已授权（token 有效）：放行；
+        - 未授权：
+          * 携带 success_url（当前仅 tapd/user_workspace）→ 返回 403 + auth_url，前端跳转授权页；
+          * 其余接口无回调地址参数 → 返回 403 提示未授权，前端自行引导授权。
         """
 
         def has_permission(self, request, view) -> bool:
-            if getattr(view, "action", "") != "tapd/user_workspace":
+            # 非 TAPD 接口不校验
+            if getattr(view, "action", "") not in getattr(view, "TAPD_ENDPOINTS", []):
                 return True
 
             body = request.data or {}
-            # 从 POST body 提取参数
             bk_biz_id = body.get("bk_biz_id")
-            success_url = body.get("success_url")
-            # error_url 为可选，未传时回退到 success_url
-            error_url = body.get("error_url") or success_url
-
-            # URL 补全：前端可传路径或全 URL，路径自动补 / 前缀和域名
-            success_url = normalize_redirect_url(success_url, request)
-            error_url = normalize_redirect_url(error_url, request)
-
-            if not all([bk_biz_id, success_url, error_url]):
+            if not bk_biz_id:
                 return True  # 参数不完整，交由后续序列化器校验
-
-            # 构建 OAuth 回调地址（绝对 URL）
-            backend_callback = request.build_absolute_uri(reverse("fta_web:tapd_user_oauth_callback"))
 
             # 检查 Redis tapd_uat:{tenant_id}:{username} 中是否有有效 token
             from fta_web.issue.utils.tapd import get_tapd_token
@@ -122,22 +131,38 @@ class IssueViewSet(ResourceViewSet):
             if token_data and token_data.get("access_token"):
                 return True
 
-            # 未授权 → 返回 403 + auth_url，前端拿到后跳转 TAPD 授权页
-            auth_url = generate_auth_url(
-                int(bk_biz_id),
-                bk_tenant_id,
-                initiator=username,
-                success_url=success_url,
-                error_url=error_url,
-                backend_callback=backend_callback,
-            )
+            # 未授权处理：
+            # - tapd/user_workspace 携带 success_url/error_url，可生成完整 auth_url 引导跳转授权页
+            # - 其余 TAPD 接口无回调地址参数，返回 403 提示未授权，前端自行引导授权
+            success_url = body.get("success_url")
+            error_url = body.get("error_url") or success_url
+            if success_url:
+                # URL 补全：前端可传路径或全 URL，路径自动补 / 前缀和域名
+                success_url = normalize_redirect_url(success_url, request)
+                error_url = normalize_redirect_url(error_url, request)
+                # 构建 OAuth 回调地址（绝对 URL）
+                backend_callback = request.build_absolute_uri(reverse("fta_web:tapd_user_oauth_callback"))
+                auth_url = generate_auth_url(
+                    int(bk_biz_id),
+                    bk_tenant_id,
+                    initiator=username,
+                    success_url=success_url,
+                    error_url=error_url,
+                    backend_callback=backend_callback,
+                )
+                exc = CustomException(
+                    message="TAPD 用户态授权未生效",
+                    data={"auth_url": auth_url},
+                    code=403,
+                )
+            else:
+                exc = CustomException(
+                    message="TAPD 用户态授权未生效，请先完成授权",
+                    data={},
+                    code=403,
+                )
             # 使用 CustomException（非 DRF PermissionDenied）以保证
-            # MonitorJSONRenderer 能输出 {"result":false, "code":403, "data":{"auth_url":...}}
-            exc = CustomException(
-                message="TAPD 用户态授权未生效",
-                data={"auth_url": auth_url},
-                code=403,
-            )
+            # MonitorJSONRenderer 能输出 {"result":false, "code":403, "data":{...}}
             exc.status_code = 200
             raise exc
 
@@ -147,8 +172,8 @@ class IssueViewSet(ResourceViewSet):
         base_perm = self.IssueBusinessActionPermission(
             [ActionEnum.VIEW_EVENT if self.action in self.READ_ONLY_ENDPOINTS else ActionEnum.MANAGE_EVENT]
         )
-        # tapd_user_workspace 需要前置校验 TAPD 用户态授权
-        if self.action == "tapd/user_workspace":
+        # 所有 TAPD 相关接口需前置校验 TAPD 用户态授权
+        if self.action in self.TAPD_ENDPOINTS:
             return [base_perm, self.TAPDAuthPermission(actions=[])]
         return [base_perm]
 
