@@ -40,7 +40,7 @@ import {
 } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { builtInInitHiddenList } from '@/const/index.js';
-import { MENU_LISTS } from '@/global/head-navi/complete-menu.ts';
+import { mergeMenuWithDefaultConfig } from './menu-config.ts';
 import DOMPurify from 'dompurify';
 import * as pinyin from 'tiny-pinyin';
 import * as patcher56L from 'tiny-pinyin/dist/patchers/56l.js';
@@ -1189,13 +1189,7 @@ const store = new Vuex.Store({
         .then((res) => {
           const menuList = replaceMenuId(res.data || []);
 
-          menuList.forEach((child) => {
-            child.id = routeMap[child.id] || child.id;
-            const menu = MENU_LISTS.find(menuItem => menuItem.id === child.id);
-            if (menu) {
-              deepUpdateMenu(menu, child);
-            }
-          });
+          mergeMenuWithDefaultConfig(menuList, routeMap, deepUpdateMenu);
 
           commit('updateState', { topMenu: menuList });
           commit('updateState', { menuProject: res.data || [] });

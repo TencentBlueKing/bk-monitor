@@ -44,7 +44,7 @@ export default defineComponent({
     const handleBtnClick = (isNewTarget = true) => {
       if (isNewTarget) {
         const target = `${window.MONITOR_URL}/?bizId=${store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID]}#/grafana?${getQueryString()}`;
-        window.open(target, '_blank');
+        window.open(target, '_blank', 'noopener,noreferrer');
         return;
       }
 

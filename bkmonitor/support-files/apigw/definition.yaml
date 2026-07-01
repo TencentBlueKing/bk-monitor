@@ -150,6 +150,10 @@ grant_permissions:
       - bulk_save_subscribe
       - bulk_delete_subscribe
       - list_subscribe
+  - bk_app_code: bk_nodeman
+    grant_dimension: "resource"
+    resource_names:
+      - metadata_get_or_create_agent_event_data_id
 
 # 应用申请指定网关所有资源的权限，待网关管理员审批后，应用才可访问网关资源；
 # 用于命令 `apply_apigw_permissions`

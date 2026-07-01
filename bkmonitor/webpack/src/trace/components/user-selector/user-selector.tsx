@@ -111,6 +111,7 @@ export default defineComponent({
     'update:modelValue': (value: string[]) => Array.isArray(value),
     change: (userInfos: IUserInfo[]) => Array.isArray(userInfos),
     blur: () => true,
+    focus: () => true,
     dragStart: (dragStartEvent: UserSelectorDragEvent) => dragStartEvent instanceof Object,
     dragEnd: (dragEndEvent: UserSelectorDragEvent) => dragEndEvent instanceof Object,
   },
@@ -157,6 +158,12 @@ export default defineComponent({
      */
     const handleBlur = () => {
       emit('blur');
+    };
+    /**
+     * @description 输入框聚焦
+     */
+    const handleFocus = () => {
+      emit('focus');
     };
 
     /**
@@ -226,6 +233,7 @@ export default defineComponent({
       handleDragStart,
       handleDragEnd,
       handleBlur,
+      handleFocus,
     };
   },
   render() {
@@ -252,6 +260,7 @@ export default defineComponent({
         onChange={this.handleUserInfoChange}
         onDragEnd={this.handleDragEnd}
         onDragStart={this.handleDragStart}
+        onFocus={this.handleFocus}
         onUpdate:modelValue={this.handleUpdateModuleValue}
       />
     );

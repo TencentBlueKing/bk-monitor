@@ -349,7 +349,10 @@ export default defineComponent({
 
       choosedIndex.value = index;
       const rowInfo = row;
-      const contextFields = store.state.indexSetOperatorConfig.contextAndRealtime.extra?.context_fields;
+      if (!rowInfo) {
+        return;
+      }
+      const contextFields = store.state.indexSetOperatorConfig.contextAndRealtime?.extra?.context_fields;
       const timeField = store.state.indexFieldInfo.time_field;
       const dialogNewParams = {};
       Object.assign(dialogNewParams, {
@@ -439,7 +442,7 @@ export default defineComponent({
         const modeIndex = store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE];
         searchBarRef.value.setLocalMode(modeIndex);
         requestOtherparams.search_mode = modeIndex === 0 ? 'ui' : 'sql';
-        const addition = props.retrieveParams.addition;
+        const addition = props.retrieveParams.addition || [];
         // 初始化带上常用查询设置
         if (modeIndex === 0) {
           // ui 模式
@@ -449,7 +452,7 @@ export default defineComponent({
             const addAdditionList = addition.map(item => ({
               disabled: false,
               field: item.field,
-              field_type: fieldsMap.value[item.field].field_type,
+              field_type: fieldsMap.value[item.field]?.field_type ?? item.field_type,
               operator: item.operator,
               value: item.value,
               relation: 'OR',
@@ -472,7 +475,10 @@ export default defineComponent({
         // 设置外部数据
         const outerLogResult = store.state.indexSetQueryResult;
         total = outerLogResult.total;
-        logList.value = outerLogResult.list.slice();
+        logList.value = (outerLogResult.origin_log_list?.length
+          ? parseBigNumberList(outerLogResult.origin_log_list)
+          : outerLogResult.list
+        ).slice();
         begin = logList.value.length;
         if (scrollIntoViewTimer) {
           clearTimeout(scrollIntoViewTimer);
@@ -524,6 +530,7 @@ export default defineComponent({
             showFavorites={false}
             showQuerySetting={false}
             usageType='local'
+            popupAppendToBody
             on-mode-change={handleSearch}
             on-search={handleSearch}
           />

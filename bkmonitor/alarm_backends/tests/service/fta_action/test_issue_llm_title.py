@@ -348,6 +348,33 @@ class TestCollectExampleGroups:
         assert by_b == {"2": ["同标题"]}
 
 
+class TestRelationInfoHasContent:
+    """relation_info_has_content：dict 形态关联信息是否含可总结的实质内容。"""
+
+    def test_link_only_is_empty(self):
+        # 源日志过期只剩跳转链接 → 无内容
+        assert llm_title.relation_info_has_content({"bklog_link": "https://x"}) is False
+
+    def test_all_meta_keys_is_empty(self):
+        assert (
+            llm_title.relation_info_has_content(
+                {"bklog_link": "u", "group_by": ["a"], "owners": "o", "remark_text": "r"}
+            )
+            is False
+        )
+
+    def test_pattern_is_content(self):
+        # 聚类 pattern 是实质内容
+        assert llm_title.relation_info_has_content({"pattern": "ErrX(1)", "bklog_link": "u"}) is True
+
+    def test_log_body_is_content(self):
+        assert llm_title.relation_info_has_content({"log": "ERROR x failed", "bklog_link": "u"}) is True
+
+    def test_empty_values_not_content(self):
+        # 内容字段存在但为空 → 仍视为无内容
+        assert llm_title.relation_info_has_content({"log": "", "pattern": None, "bklog_link": "u"}) is False
+
+
 class TestGenerateIssueLlmTitleBranches:
     """任务体关键分支：shadow / CAS / 限流 / 无效输出。重依赖全 mock，不触 ES/网关。"""
 
@@ -380,7 +407,8 @@ class TestGenerateIssueLlmTitleBranches:
         )
         monkeypatch.setattr(prom_metrics, "report_all", lambda *a, **kw: None)
         fake_issue = types.SimpleNamespace(
-            name="默认名", rename=lambda title, operator: self.renames.append((title, operator))
+            name="默认名",
+            rename=lambda title, operator, enforce_unique=True: self.renames.append((title, operator, enforce_unique)),
         )
         self.fake_issue = fake_issue
         monkeypatch.setattr(it.IssueDocument, "get_issue_or_raise", classmethod(lambda cls, *a, **kw: fake_issue))
@@ -397,9 +425,10 @@ class TestGenerateIssueLlmTitleBranches:
         assert self.renames == []
 
     def test_write_when_shadow_off(self):
+        # system 标题写入时 enforce_unique=False（免唯一性约束，允许同类错误重名）
         self.monkeypatch.setattr(settings, "ISSUE_LLM_TITLE_SHADOW", False, raising=False)
         self._run()
-        assert self.renames == [("svc 调用 demo 失败：ErrX(1)", "system")]
+        assert self.renames == [("svc 调用 demo 失败：ErrX(1)", "system", False)]
 
     def test_cas_name_changed_no_write(self):
         self.monkeypatch.setattr(settings, "ISSUE_LLM_TITLE_SHADOW", False, raising=False)
@@ -435,6 +464,22 @@ class TestGenerateIssueLlmTitleBranches:
         self.fake_issue.name = "[回归] 默认名"
         self.it.generate_issue_llm_title("issue1", 2, "[回归] 默认名", "17000000001")
         assert self.renames and self.renames[0][0].startswith("[回归] ")
+
+    def test_link_only_relation_no_llm_no_write(self):
+        # 关联信息只剩 bklog_link（源日志已过期）→ 判 empty_log，既不调 LLM 也不改名
+        self.monkeypatch.setattr(settings, "ISSUE_LLM_TITLE_SHADOW", False, raising=False)
+        self.monkeypatch.setattr(
+            "bkmonitor.utils.event_related_info.get_alert_relation_info",
+            lambda alert, length_limit=False: '{"bklog_link": "https://bklog.example/#/retrieve/1?x=1"}',
+        )
+        calls = []
+        from core.drf_resource import api as drf_api
+
+        self.monkeypatch.setattr(
+            drf_api, "aidev", types.SimpleNamespace(chat_completion=lambda **kw: calls.append(1)), raising=False
+        )
+        self._run()
+        assert calls == [] and self.renames == []
 
 
 class TestRefreshExamplesGate:
@@ -516,3 +561,52 @@ class TestChatCompletionResourceContract:
         headers = ChatCompletionResource.__new__(ChatCompletionResource).get_headers()
         # 未配 agent 凭据时不覆盖，沿用父类（不报错）
         assert json.loads(headers["x-bkapi-authorization"])["bk_app_code"] == "plat"
+
+
+class TestIssueRenameEnforceUnique:
+    """IssueDocument.rename 的 enforce_unique：用户改名强制业务内唯一，system 标题允许重名。"""
+
+    @pytest.fixture(autouse=True)
+    def _patch(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        from bkmonitor.documents.issue import IssueDocument
+        from bkmonitor.issue_merge import IssueMergeResolver
+
+        monkeypatch.setattr(IssueMergeResolver, "assert_not_frozen", staticmethod(lambda _id: None))
+        self.written = []
+        written = self.written
+        monkeypatch.setattr(IssueDocument, "_persist_and_cache", lambda doc, active: None)
+        monkeypatch.setattr(
+            IssueDocument,
+            "_write_activities",
+            lambda doc, activity_tuples, now=None: written.append(activity_tuples) or activity_tuples,
+        )
+        # mock 业务内已存在同名 issue（命中 dup）
+        search = MagicMock()
+        search.filter.return_value = search
+        search.exclude.return_value = search
+        search.params.return_value = search
+        search.execute.return_value = types.SimpleNamespace(hits=[object()])
+        monkeypatch.setattr(IssueDocument, "search", classmethod(lambda cls, **kw: search))
+        self.search = search
+        self.IssueDocument = IssueDocument
+
+    def _issue(self):
+        return self.IssueDocument(id="i1", bk_biz_id="2", name="默认名", status="unresolved")
+
+    def test_user_rename_raises_on_duplicate(self):
+        from bkmonitor.documents.issue import IssueNameDuplicatedError
+
+        # 默认 enforce_unique=True：撞名抛错、不写入
+        with pytest.raises(IssueNameDuplicatedError):
+            self._issue().rename("新名", operator="alice")
+        assert self.written == []
+
+    def test_system_rename_allows_duplicate(self):
+        # enforce_unique=False：撞名也写入，且根本不查重
+        issue = self._issue()
+        acts = issue.rename("新名", operator="system", enforce_unique=False)
+        assert issue.name == "新名"
+        assert self.written == [acts]
+        self.search.execute.assert_not_called()

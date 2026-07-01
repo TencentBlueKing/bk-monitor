@@ -45,7 +45,7 @@ export default {
             },
           })
           .then(res => {
-            window.open(res.data, '_blank');
+            window.open(res.data, '_blank', 'noopener,noreferrer');
           })
           .catch(() => false);
       }

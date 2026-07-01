@@ -87,6 +87,18 @@ export default defineComponent({
       retention: 7,
       es_shards: 3,
       allocation_min_days: 0,
+      // 清洗相关字段默认值，与旧版保持一致
+      etl_config: 'bk_log_text',
+      etl_params: {
+        retain_original_text: true,
+        retain_extra_json: false,
+        separator_regexp: '',
+        separator: '',
+        enable_retain_content: true,
+        path_regexp: '',
+        metadata_fields: [],
+      },
+      fields: [],
     };
 
     const storageFormRef = ref(null);
@@ -369,6 +381,13 @@ export default defineComponent({
         });
         if (res.data) {
           cleanStash.value = res.data;
+          // 回填清洗配置到 formData，与旧版保持一致
+          formData.value = {
+            ...formData.value,
+            etl_config: res.data.clean_type,
+            etl_params: res.data.etl_params,
+            fields: res.data.etl_fields,
+          };
         }
       } catch (error) {
         console.log(error);
@@ -669,8 +688,8 @@ export default defineComponent({
       callback,
     }: ISubmitOptions = {}) => {
       submitLoading.value = true;
-      const { etl_params, etl_fields, clean_type } = cleanStash.value;
-      const { retention, allocation_min_days, storage_replies, es_shards } = formData.value;
+      // 从 formData 读取清洗相关数据，与旧版保持一致
+      const { etl_config, etl_params, fields, retention, allocation_min_days, storage_replies, es_shards } = formData.value;
       const collectorConfigId = currentCollect.value?.collector_config_id || route.params.collectorId;
       const tableId = props.isClone
         ? currentCollect.value.collector_config_name_en
@@ -682,8 +701,8 @@ export default defineComponent({
         storage_replies: Number(storage_replies),
         etl_params,
         es_shards: Number(es_shards),
-        fields: etl_fields,
-        etl_config: clean_type,
+        fields,
+        etl_config,
         table_id: tableId,
         storage_cluster_id: clusterSelect.value,
       };

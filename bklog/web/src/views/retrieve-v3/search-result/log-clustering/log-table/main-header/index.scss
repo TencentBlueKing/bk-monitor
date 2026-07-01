@@ -27,6 +27,12 @@
         &:hover {
           background: #f0f1f5;
         }
+
+        .dynamic-column-header {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
       }
 
       .sort-column {

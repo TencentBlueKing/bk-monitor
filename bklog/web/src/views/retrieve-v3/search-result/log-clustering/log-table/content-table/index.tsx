@@ -302,7 +302,7 @@ export default defineComponent({
               isNewSearchPage,
               { tab: 'origin' },
             );
-            window.open(openUrl, '_blank');
+            window.open(openUrl, '_blank', 'noopener,noreferrer');
             // 新开页后当前页面回填聚类参数
             store.commit('updateState', {
               key: 'clusterParams',
@@ -400,6 +400,7 @@ export default defineComponent({
       window.open(
         `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/strategy-config/detail/${row.strategy_id}`,
         '_blank',
+        'noopener,noreferrer'
       );
     };
 
@@ -626,13 +627,13 @@ export default defineComponent({
             </td>
           )}
           {isFlattenMode.value
-            && row.data?.group.map(item => (
-              <td>
-                <div class='dynamic-column' v-bk-overflow-tips>
-                  {item}
-                </div>
-              </td>
-            ))}
+          && props.requestData.group_by.map((_: any, index: number) => (
+            <td>
+              <div class='dynamic-column' v-bk-overflow-tips>
+                {row.data?.group?.[index] || '--'}
+              </div>
+            </td>
+          ))}
           <td>
             <div
               class={[

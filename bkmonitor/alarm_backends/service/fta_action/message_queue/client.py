@@ -29,6 +29,11 @@ class KafKaClient:
     KafKa客户端
     """
 
+    # message.timeout.ms 与其 librdkafka 别名 delivery.timeout.ms 等价（同一投递时限）。
+    # 仅当二者都未显式配置时才注入默认值，否则会额外注入冲突值、静默覆盖调用方的设置。
+    DELIVERY_TIMEOUT_KEYS = ("message.timeout.ms", "delivery.timeout.ms")
+    DEFAULT_DELIVERY_TIMEOUT_MS = 3000
+
     def __init__(self, conf: Any):
         """
         支持两种输入：
@@ -58,18 +63,55 @@ class KafKaClient:
         else:
             raise ValueError(f"unsupported kafka config type: {conf}")
 
+        # 限定单条消息的投递时限，避免 broker 不可达时阻塞到 librdkafka
+        # 默认的 message.timeout.ms(=5min)，从而拖垮 fta_action 执行队列。
+        # 调用方通过 message.timeout.ms 或其别名 delivery.timeout.ms 显式指定时，尊重其取值，
+        # 不再额外注入默认值（否则会与别名冲突、静默覆盖调用方的投递时限）。
+        configured = [producer_conf[k] for k in self.DELIVERY_TIMEOUT_KEYS if k in producer_conf]
+        if configured:
+            raw_timeout = configured[-1]
+        else:
+            producer_conf["message.timeout.ms"] = self.DEFAULT_DELIVERY_TIMEOUT_MS
+            raw_timeout = self.DEFAULT_DELIVERY_TIMEOUT_MS
+        # flush 的等待窗口由生效的投递时限推导（再加 1s 余量等待投递回调），而不是写死常量：
+        # 否则当调用方调大投递时限时，flush 会早于其返回，把本可在时限内成功的投递误判为失败。
+        # 兼容 int/str/float 配置形式（librdkafka 统一转为字符串）；
+        # 0 在 librdkafka 语义里是“无限”，与有界发送矛盾，退回默认值。
+        try:
+            timeout_ms = int(float(raw_timeout))
+        except (TypeError, ValueError):
+            timeout_ms = self.DEFAULT_DELIVERY_TIMEOUT_MS
+        self.flush_timeout = (timeout_ms or self.DEFAULT_DELIVERY_TIMEOUT_MS) / 1000 + 1
         self.client = Producer(producer_conf)
 
     def send(self, message: str):
         """
         发送消息
+
+        confluent_kafka 的 produce 仅为异步入队，broker 不可达/认证失败不会同步抛错，
+        投递结果只能通过 delivery 回调获取。这里注册回调并检查 flush 的返回值（仍在
+        队列中的消息数），任一表明未投递成功即抛异常，交由上层置为 FAILURE，
+        从而保证推送失败能被如实统计，且不会无界阻塞。
         """
+        delivery_error = {}
+
+        def _on_delivery(err, _msg):
+            if err is not None:
+                delivery_error["err"] = err
+
         try:
-            self.client.produce(topic=self.topic, value=message.encode("utf-8"))
-            # 等待发送完成（含重试）
-            self.client.flush(timeout=3)
+            self.client.produce(
+                topic=self.topic,
+                value=message.encode("utf-8"),
+                on_delivery=_on_delivery,
+            )
+            # 有界等待投递完成；返回值为仍未投递的消息数
+            remaining = self.client.flush(timeout=self.flush_timeout)
+            if remaining > 0:
+                raise RuntimeError(f"kafka flush timeout, {remaining} message(s) not delivered to topic {self.topic}")
+            if delivery_error:
+                raise RuntimeError(f"kafka delivery failed for topic {self.topic}: {delivery_error['err']}")
         finally:
-            self.client.flush()  # 二次确保消息发送
             del self.client  # 释放生产者对象
 
 

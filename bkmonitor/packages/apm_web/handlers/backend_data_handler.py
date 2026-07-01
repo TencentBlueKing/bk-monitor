@@ -450,6 +450,21 @@ class MetricBackendHandler(TelemetryBackendHandler):
     def bk_vm_result_table_id(self):
         return self.bk_base_data_info.get("vm_result_table_id")
 
+    @cached_property
+    def v4_data_id_name(self):
+        from metadata import models
+
+        bkbase_result_table = models.BkBaseResultTable.objects.filter(monitor_table_id=self.result_table_id).first()
+        if not bkbase_result_table or not bkbase_result_table.data_link_name:
+            return ""
+
+        databus_configs = models.DataBusConfig.objects.filter(data_link_name=bkbase_result_table.data_link_name)
+        databus_config = databus_configs.filter(bk_tenant_id=bkbase_result_table.bk_tenant_id).first()
+        if not databus_config:
+            databus_config = databus_configs.first()
+
+        return databus_config.data_id_name if databus_config and databus_config.data_id_name else ""
+
     def storage_info(self):
         vm_cluster_id = self.bk_base_data_info.get("vm_cluster_id")
         if settings.ENABLE_MULTI_TENANT_MODE and vm_cluster_id:
@@ -561,8 +576,7 @@ class MetricBackendHandler(TelemetryBackendHandler):
 
     def _get_data_view(self, start_time: int, end_time: int, **kwargs):
         if self.datalink_version == DATA_LINK_V4_VERSION_NAME:
-            namespace = self.data_status_config.get("namespace", "bkmonitor-vm")
-            data_id_name = str(self.bk_data_id) if self.bk_data_id else ""
+            data_id_name = self.v4_data_id_name
             if not data_id_name:
                 return []
 
@@ -571,12 +585,21 @@ class MetricBackendHandler(TelemetryBackendHandler):
             if interval:
                 start_time = time_interval_align(timestamp=start_time, interval=interval)
                 end_time = time_interval_align(timestamp=end_time, interval=interval)
-            resp = api.bkdata.get_v4_metrics_msgs_stat(
-                resource={"kind": "DataId", "namespace": namespace, "name": data_id_name},
-                start=start_time,
-                end=end_time,
-                step=grain,
-            )
+            try:
+                resp = api.bkdata.get_v4_metrics_msgs_stat(
+                    resource={"kind": "DataId", "namespace": "bkmonitor", "name": data_id_name},
+                    start=start_time,
+                    end=end_time,
+                    step=grain,
+                )
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning(
+                    "get metric v4 metrics msgs stat failed, app_name=%s, data_id_name=%s, error=%s",
+                    self.app.app_name,
+                    data_id_name,
+                    e,
+                )
+                return []
             return self.format_v4_metrics_msgs_stat(resp, grain=grain)
         else:
             storages = self.storage_info()

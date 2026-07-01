@@ -38,6 +38,7 @@ from monitor_web.data_migrate.data_rebuilder import (
 from monitor_web.data_migrate.subscription_tasks import stop_biz_subscription_tasks
 from monitor_web.data_migrate import (
     apply_auto_increment_from_directory,
+    disable_biz_bk_collector_subscription_auto_inspection,
     disable_models_in_directory,
     export_auto_increment_to_directory,
     export_biz_data_to_directory,
@@ -48,9 +49,16 @@ from monitor_web.data_migrate import (
     refresh_biz_bk_collector_proxy_configs,
     restore_disabled_models_in_directory,
     sanitize_cluster_info_in_directory,
+    stop_biz_bk_collector,
     upload_export_directory_to_storage,
 )
-from monitor_web.data_migrate.bk_collector import CONFIG_TYPES as BK_COLLECTOR_CONFIG_TYPES
+from monitor_web.data_migrate.bk_collector import (
+    CONFIG_TYPES as BK_COLLECTOR_CONFIG_TYPES,
+    DEFAULT_CONFIG_DELIVERY_POLL_INTERVAL,
+    DEFAULT_CONFIG_DELIVERY_WAIT_TIMEOUT,
+    DEFAULT_PLUGIN_JOB_POLL_INTERVAL,
+    DEFAULT_PLUGIN_JOB_WAIT_TIMEOUT,
+)
 from monitor_web.data_migrate.handler.model_disable import MODEL_DISABLE_HANDLERS
 
 FIXED_CLOSE_MODEL_LABELS: tuple[str, ...] = tuple(MODEL_DISABLE_HANDLERS.keys())
@@ -83,6 +91,9 @@ class Command(BaseCommand):
             "\n"
             "  导入后按业务执行重建脚本:\n"
             "    python manage.py data_migrate rebuild --bk-tenant-id tencent --bk-biz-ids 18901\n"
+            "\n"
+            "  导入后按业务执行重建脚本，并单独指定 APM Kafka / ES:\n"
+            "    python manage.py data_migrate rebuild --bk-tenant-id tencent --bk-biz-ids 18901 --apm-kafka-cluster-name apm-kafka-public-1 --apm-es-cluster-name apm-es-public-1\n"
             "\n"
             "  查询业务下需要添加双写路由的数据 ID:\n"
             "    python manage.py data_migrate find-custom-report-data-ids --bk-tenant-id tencent --bk-biz-ids 18901\n"
@@ -120,6 +131,12 @@ class Command(BaseCommand):
             "  为业务下 proxy 安装 bk-collector:\n"
             "    python manage.py data_migrate install-biz-bk-collector --bk-tenant-id tencent --bk-biz-ids 18901 --operator admin\n"
             "\n"
+            "  禁用业务下 bk-collector 相关订阅自动巡检并加入新环境业务黑名单:\n"
+            "    python manage.py data_migrate disable-biz-bk-collector-subscription-checks --bk-tenant-id system --bk-biz-ids 18901 --operator admin\n"
+            "\n"
+            "  停止业务下 proxy 上的 bk-collector:\n"
+            "    python manage.py data_migrate stop-biz-bk-collector --bk-tenant-id tencent --bk-biz-ids 18901 --operator admin\n"
+            "\n"
             "  触发业务下 proxy 的 bk-collector 配置下发:\n"
             "    python manage.py data_migrate refresh-biz-bk-collector-configs --bk-tenant-id tencent --bk-biz-ids 18901 --config-types apm_application custom_report log"
         )
@@ -141,6 +158,8 @@ class Command(BaseCommand):
                 "restore-disabled-models",
                 "stop-biz-subscription-tasks",
                 "install-biz-bk-collector",
+                "disable-biz-bk-collector-subscription-checks",
+                "stop-biz-bk-collector",
                 "refresh-biz-bk-collector-configs",
             ],
             help="执行导出、导入、恢复游标或 handler 处理",
@@ -210,6 +229,17 @@ class Command(BaseCommand):
             help="事件 ES 集群名称；仅 rebuild 动作需要",
         )
         parser.add_argument(
+            "--apm-kafka-cluster-name",
+            help=(
+                "APM Kafka 集群名称；仅 rebuild 动作需要。"
+                "为空时保持原有逻辑：APM trace/log 使用日志 Kafka，APM metric 使用指标 Kafka"
+            ),
+        )
+        parser.add_argument(
+            "--apm-es-cluster-name",
+            help="APM trace/log ES 集群名称；仅 rebuild 动作需要。为空时保持原有逻辑：使用日志 ES",
+        )
+        parser.add_argument(
             "--data-id-infos",
             help="数据 ID 信息 JSON 或 JSON 文件路径；仅 add-migrate-data-id-routes 动作需要",
         )
@@ -221,18 +251,60 @@ class Command(BaseCommand):
         parser.add_argument(
             "--operator",
             default="system",
-            help="操作人；仅 stop-biz-subscription-tasks、install-biz-bk-collector、refresh-biz-bk-collector-configs 动作需要",
+            help=(
+                "操作人；仅 stop-biz-subscription-tasks、install-biz-bk-collector、"
+                "disable-biz-bk-collector-subscription-checks、stop-biz-bk-collector、"
+                "refresh-biz-bk-collector-configs 动作需要"
+            ),
         )
         parser.add_argument(
             "--dry-run",
             action="store_true",
-            help="仅预览不执行；仅 stop-biz-subscription-tasks、install-biz-bk-collector、refresh-biz-bk-collector-configs 动作需要",
+            help=(
+                "仅预览不执行；仅 stop-biz-subscription-tasks、install-biz-bk-collector、"
+                "disable-biz-bk-collector-subscription-checks、stop-biz-bk-collector、"
+                "refresh-biz-bk-collector-configs 动作需要"
+            ),
+        )
+        parser.add_argument(
+            "--job-wait-timeout",
+            type=int,
+            default=DEFAULT_PLUGIN_JOB_WAIT_TIMEOUT,
+            help="等待节点管理插件任务完成的超时时间，单位秒；仅 install-biz-bk-collector、stop-biz-bk-collector 动作需要",
+        )
+        parser.add_argument(
+            "--job-poll-interval",
+            type=int,
+            default=DEFAULT_PLUGIN_JOB_POLL_INTERVAL,
+            help="轮询节点管理插件任务状态的间隔，单位秒；仅 install-biz-bk-collector、stop-biz-bk-collector 动作需要",
         )
         parser.add_argument(
             "--config-types",
             nargs="+",
             choices=BK_COLLECTOR_CONFIG_TYPES,
             help="需要刷新的 bk-collector 配置类型；仅 refresh-biz-bk-collector-configs 动作需要",
+        )
+        parser.add_argument(
+            "--skip-delivery-check",
+            action="store_true",
+            help="刷新 bk-collector proxy 配置后跳过节点管理配置下发状态检查；仅 refresh-biz-bk-collector-configs 动作需要",
+        )
+        parser.add_argument(
+            "--include-details",
+            action="store_true",
+            help="刷新 bk-collector proxy 配置时输出完整 details；仅 refresh-biz-bk-collector-configs 动作需要",
+        )
+        parser.add_argument(
+            "--delivery-wait-timeout",
+            type=int,
+            default=DEFAULT_CONFIG_DELIVERY_WAIT_TIMEOUT,
+            help="等待 bk-collector proxy 配置渲染下发完成的超时时间，单位秒；仅 refresh-biz-bk-collector-configs 动作需要",
+        )
+        parser.add_argument(
+            "--delivery-poll-interval",
+            type=int,
+            default=DEFAULT_CONFIG_DELIVERY_POLL_INTERVAL,
+            help="轮询 bk-collector proxy 配置渲染下发状态的间隔，单位秒；仅 refresh-biz-bk-collector-configs 动作需要",
         )
 
     def handle(self, *args, **options):
@@ -253,6 +325,8 @@ class Command(BaseCommand):
             "restore-disabled-models": self._handle_restore_disabled_models,
             "stop-biz-subscription-tasks": self._handle_stop_biz_subscription_tasks,
             "install-biz-bk-collector": self._handle_install_biz_bk_collector,
+            "disable-biz-bk-collector-subscription-checks": (self._handle_disable_biz_bk_collector_subscription_checks),
+            "stop-biz-bk-collector": self._handle_stop_biz_bk_collector,
             "refresh-biz-bk-collector-configs": self._handle_refresh_biz_bk_collector_configs,
         }
         handlers[action](options)
@@ -328,6 +402,8 @@ class Command(BaseCommand):
         log_kafka_cluster_name = options["log_kafka_cluster_name"]
         log_es_cluster_name = options["log_es_cluster_name"]
         event_es_cluster_name = options["event_es_cluster_name"]
+        apm_kafka_cluster_name = self._load_optional_cluster_name(options.get("apm_kafka_cluster_name"))
+        apm_es_cluster_name = self._load_optional_cluster_name(options.get("apm_es_cluster_name"))
 
         self.stdout.write(
             self.style.SUCCESS(
@@ -336,7 +412,9 @@ class Command(BaseCommand):
                 f"metric_kafka_cluster_name={metric_kafka_cluster_name}, "
                 f"log_kafka_cluster_name={log_kafka_cluster_name}, "
                 f"log_es_cluster_name={log_es_cluster_name}, "
-                f"event_es_cluster_name={event_es_cluster_name}"
+                f"event_es_cluster_name={event_es_cluster_name}, "
+                f"apm_kafka_cluster_name={apm_kafka_cluster_name}, "
+                f"apm_es_cluster_name={apm_es_cluster_name}"
             )
         )
 
@@ -352,6 +430,8 @@ class Command(BaseCommand):
                 bk_biz_id=bk_biz_id,
                 kafka_cluster_name=log_kafka_cluster_name,
                 es_cluster_name=log_es_cluster_name,
+                apm_kafka_cluster_name=apm_kafka_cluster_name,
+                apm_es_cluster_name=apm_es_cluster_name,
             )
             self.stdout.write(self.style.SUCCESS(f"rebuild bklog data source route completed: bk_biz_id={bk_biz_id}"))
             if is_negative_biz:
@@ -407,6 +487,7 @@ class Command(BaseCommand):
                 metric_kafka_cluster_name=metric_kafka_cluster_name,
                 event_kafka_cluster_name=log_kafka_cluster_name,
                 es_cluster_name=event_es_cluster_name,
+                apm_kafka_cluster_name=apm_kafka_cluster_name,
             )
             self.stdout.write(self.style.SUCCESS(f"rebuild custom report completed: bk_biz_id={bk_biz_id}"))
             self.stdout.write(self.style.SUCCESS(f"rebuild completed: bk_biz_id={bk_biz_id}"))
@@ -526,11 +607,48 @@ class Command(BaseCommand):
             bk_biz_ids=bk_biz_ids,
             operator=operator,
             dry_run=options.get("dry_run", False),
+            job_wait_timeout=options.get("job_wait_timeout", DEFAULT_PLUGIN_JOB_WAIT_TIMEOUT),
+            job_poll_interval=options.get("job_poll_interval", DEFAULT_PLUGIN_JOB_POLL_INTERVAL),
         )
         self._write_report_result(
             result,
             success_message="install biz bk-collector completed",
             warning_message="install biz bk-collector completed with failures",
+        )
+
+    def _handle_disable_biz_bk_collector_subscription_checks(self, options) -> None:
+        action_name = "disable-biz-bk-collector-subscription-checks"
+        bk_tenant_id = self._load_bk_tenant_id(options.get("bk_tenant_id"), action_name=action_name)
+        bk_biz_ids = self._load_positive_biz_ids(options.get("bk_biz_ids"), action_name=action_name)
+        operator = self._load_operator(options.get("operator"), action_name=action_name)
+        result = disable_biz_bk_collector_subscription_auto_inspection(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_ids=bk_biz_ids,
+            operator=operator,
+            dry_run=options.get("dry_run", False),
+        )
+        self._write_report_result(
+            result,
+            success_message="disable biz bk-collector subscription checks completed",
+            warning_message="disable biz bk-collector subscription checks completed with failures",
+        )
+
+    def _handle_stop_biz_bk_collector(self, options) -> None:
+        bk_tenant_id = self._load_bk_tenant_id(options.get("bk_tenant_id"), action_name="stop-biz-bk-collector")
+        bk_biz_ids = self._load_positive_biz_ids(options.get("bk_biz_ids"), action_name="stop-biz-bk-collector")
+        operator = self._load_operator(options.get("operator"), action_name="stop-biz-bk-collector")
+        result = stop_biz_bk_collector(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_ids=bk_biz_ids,
+            operator=operator,
+            dry_run=options.get("dry_run", False),
+            job_wait_timeout=options.get("job_wait_timeout", DEFAULT_PLUGIN_JOB_WAIT_TIMEOUT),
+            job_poll_interval=options.get("job_poll_interval", DEFAULT_PLUGIN_JOB_POLL_INTERVAL),
+        )
+        self._write_report_result(
+            result,
+            success_message="stop biz bk-collector completed",
+            warning_message="stop biz bk-collector completed with failures",
         )
 
     def _handle_refresh_biz_bk_collector_configs(self, options) -> None:
@@ -548,6 +666,10 @@ class Command(BaseCommand):
                 config_types=options.get("config_types"),
                 operator=operator,
                 dry_run=options.get("dry_run", False),
+                check_delivery=not options.get("skip_delivery_check", False),
+                delivery_wait_timeout=options.get("delivery_wait_timeout", DEFAULT_CONFIG_DELIVERY_WAIT_TIMEOUT),
+                delivery_poll_interval=options.get("delivery_poll_interval", DEFAULT_CONFIG_DELIVERY_POLL_INTERVAL),
+                include_details=options.get("include_details", False),
             )
         except ValueError as error:
             raise CommandError(str(error)) from error
@@ -559,11 +681,30 @@ class Command(BaseCommand):
 
     def _write_report_result(self, result: dict[str, Any], *, success_message: str, warning_message: str) -> None:
         self.stdout.write(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
-        failed_count = result["summary"]["total"]["failed_count"]
-        if failed_count:
-            self.stdout.write(self.style.WARNING(f"{warning_message}: {failed_count}"))
+        total_summary = result["summary"]["total"]
+        failed_count = total_summary["failed_count"]
+        timeout_count = total_summary.get("timeout_count", 0)
+        pending_count = total_summary.get("pending_count", 0)
+        delivery_check = result.get("delivery_check") or {}
+        delivery_failed = bool(delivery_check) and delivery_check.get("result") is False
+        delivery_timed_out = delivery_check.get("timed_out") is True
+        command_error_message = ""
+        if timeout_count:
+            command_error_message = f"{warning_message} with timeout jobs: {timeout_count}"
+        elif delivery_timed_out:
+            command_error_message = f"{warning_message} with delivery check timeout"
+        elif failed_count:
+            command_error_message = f"{warning_message}: {failed_count}"
+        elif delivery_failed:
+            command_error_message = f"{warning_message} with delivery check failures"
+        elif pending_count:
+            command_error_message = f"{success_message} with pending jobs: {pending_count}"
         else:
             self.stdout.write(self.style.SUCCESS(success_message))
+            return
+
+        self.stdout.write(self.style.WARNING(command_error_message))
+        raise CommandError(command_error_message)
 
     def _import_from_directory(self, directory: Path, options) -> None:
         """从已解压目录执行数据导入。"""
@@ -747,6 +888,11 @@ class Command(BaseCommand):
         if not kafka_cluster_name:
             raise CommandError(f"{action_name} 动作必须提供 --kafka-cluster-name")
         return kafka_cluster_name
+
+    def _load_optional_cluster_name(self, raw_cluster_name: str | None) -> str | None:
+        """规范化可选集群名称，空值表示沿用旧逻辑。"""
+        cluster_name = str(raw_cluster_name or "").strip()
+        return cluster_name or None
 
     def _load_operator(self, raw_operator: str | None, action_name: str) -> str:
         """校验操作人参数。"""

@@ -64,6 +64,14 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
+    initialEditType: {
+      type: String as PropType<'markdown' | 'wysiwyg'>,
+      default: 'markdown',
+    },
+    autofocus: {
+      type: Boolean,
+      default: true,
+    },
   },
   emits: ['input', 'load', 'change', 'focus', 'blur'],
   setup(props, { emit }) {
@@ -124,9 +132,10 @@ export default defineComponent({
     onMounted(() => {
       editor.value = new Editor({
         el: editorRef.value,
+        autofocus: props.autofocus,
         language: 'zh-cn',
         initialValue: props.value,
-        initialEditType: 'markdown',
+        initialEditType: props.initialEditType,
         height: props.height,
         previewStyle: props.previewStyle,
         hideModeSwitch: true,

@@ -652,12 +652,37 @@ def rebuild_event_group(
         result_table.modify(operator="system", is_enable=True)
 
 
-def rebuild_bklog_data_source_route(bk_tenant_id: str, bk_biz_id: int, kafka_cluster_name: str, es_cluster_name: str):
+def _get_apm_log_table_ids_and_data_ids(bk_biz_id: int) -> tuple[set[str], set[int]]:
+    """获取 APM trace/log 对应的日志类结果表和数据 ID。"""
+    apm_table_ids: set[str] = set()
+    apm_data_ids: set[int] = set()
+    for model in (TraceDataSource, LogDataSource):
+        for result_table_id, bk_data_id in model.objects.filter(bk_biz_id=bk_biz_id).values_list(
+            "result_table_id", "bk_data_id"
+        ):
+            if result_table_id:
+                apm_table_ids.add(result_table_id)
+            if bk_data_id and bk_data_id != -1:
+                apm_data_ids.add(bk_data_id)
+    return apm_table_ids, apm_data_ids
+
+
+def rebuild_bklog_data_source_route(
+    bk_tenant_id: str,
+    bk_biz_id: int,
+    kafka_cluster_name: str,
+    es_cluster_name: str,
+    apm_kafka_cluster_name: str | None = None,
+    apm_es_cluster_name: str | None = None,
+):
     """重建bklog数据源路由
     Args:
         bk_tenant_id (str): 租户ID
         bk_biz_id (int): 业务ID
-        cluster_name (str): 集群名称
+        kafka_cluster_name (str): 日志 Kafka 集群名称
+        es_cluster_name (str): 日志 ES 集群名称
+        apm_kafka_cluster_name (str): APM Kafka 集群名称；为空时沿用日志 Kafka
+        apm_es_cluster_name (str): APM ES 集群名称；为空时沿用日志 ES
 
     1. 替换ESStorage/StorageClusterRecord的集群信息
     2. 替换数据源的集群信息
@@ -667,9 +692,20 @@ def rebuild_bklog_data_source_route(bk_tenant_id: str, bk_biz_id: int, kafka_clu
     """
     kafka_cluster = ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=kafka_cluster_name)
     es_cluster = ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=es_cluster_name)
+    apm_kafka_cluster = (
+        ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=apm_kafka_cluster_name)
+        if apm_kafka_cluster_name
+        else kafka_cluster
+    )
+    apm_es_cluster = (
+        ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=apm_es_cluster_name)
+        if apm_es_cluster_name
+        else es_cluster
+    )
     biz_result_tables = ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+    apm_table_ids, apm_bk_data_ids = _get_apm_log_table_ids_and_data_ids(bk_biz_id)
 
-    # 排除trace
+    # APM trace/log 与普通日志同属 flat batch，需要在指定 APM 集群时拆开处理。
     log_data_sources = DataSource.objects.filter(bk_tenant_id=bk_tenant_id, etl_config=EtlConfigs.BK_FLAT_BATCH.value)
     dsrt = DataSourceResultTable.objects.filter(
         table_id__in=biz_result_tables.values_list("table_id", flat=True),
@@ -677,32 +713,53 @@ def rebuild_bklog_data_source_route(bk_tenant_id: str, bk_biz_id: int, kafka_clu
     )
     bk_data_ids: list[int] = [dsrt.bk_data_id for dsrt in dsrt]
     real_table_ids: list[str] = [dsrt.table_id for dsrt in dsrt]
-    virtual_table_ids = list(
-        ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, origin_table_id__in=real_table_ids).values_list(
-            "table_id", flat=True
+    apm_real_table_ids = [table_id for table_id in real_table_ids if table_id in apm_table_ids]
+    log_real_table_ids = [table_id for table_id in real_table_ids if table_id not in apm_table_ids]
+    virtual_table_records = list(
+        ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, origin_table_id__in=real_table_ids).values(
+            "table_id", "origin_table_id"
         )
     )
+    apm_virtual_table_ids = [
+        record["table_id"] for record in virtual_table_records if record["origin_table_id"] in apm_real_table_ids
+    ]
+    log_virtual_table_ids = [
+        record["table_id"] for record in virtual_table_records if record["origin_table_id"] not in apm_real_table_ids
+    ]
 
     data_sources = DataSource.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id__in=bk_data_ids)
 
-    # real_result_tables = ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id__in=real_table_ids)
-    # virtual_result_tables = ResultTable.objects.filter(bk_tenant_id=bk_tenant_id, table_id__in=virtual_table_ids)
-    real_ess = ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id__in=real_table_ids)
-    virtual_ess = ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id__in=virtual_table_ids)
-    storage_cluster_records = StorageClusterRecord.objects.filter(
-        bk_tenant_id=bk_tenant_id, table_id__in=real_table_ids + virtual_table_ids
-    )
-
     # 替换ess的集群信息
-    real_ess.update(storage_cluster_id=es_cluster.cluster_id)
-    virtual_ess.update(need_create_index=False, storage_cluster_id=es_cluster.cluster_id)
-    storage_cluster_records.update(cluster_id=es_cluster.cluster_id)
+    ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id__in=log_real_table_ids).update(
+        storage_cluster_id=es_cluster.cluster_id
+    )
+    ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id__in=log_virtual_table_ids).update(
+        need_create_index=False,
+        storage_cluster_id=es_cluster.cluster_id,
+    )
+    StorageClusterRecord.objects.filter(
+        bk_tenant_id=bk_tenant_id, table_id__in=log_real_table_ids + log_virtual_table_ids
+    ).update(cluster_id=es_cluster.cluster_id)
+    if apm_real_table_ids or apm_virtual_table_ids:
+        ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id__in=apm_real_table_ids).update(
+            storage_cluster_id=apm_es_cluster.cluster_id
+        )
+        ESStorage.objects.filter(bk_tenant_id=bk_tenant_id, table_id__in=apm_virtual_table_ids).update(
+            need_create_index=False,
+            storage_cluster_id=apm_es_cluster.cluster_id,
+        )
+        StorageClusterRecord.objects.filter(
+            bk_tenant_id=bk_tenant_id, table_id__in=apm_real_table_ids + apm_virtual_table_ids
+        ).update(cluster_id=apm_es_cluster.cluster_id)
 
     # 替换数据源的集群信息
-    data_sources.update(mq_cluster_id=kafka_cluster.cluster_id)
+    log_data_sources_for_update = data_sources.exclude(bk_data_id__in=apm_bk_data_ids)
+    apm_data_sources_for_update = data_sources.filter(bk_data_id__in=apm_bk_data_ids)
+    log_data_sources_for_update.update(mq_cluster_id=kafka_cluster.cluster_id)
+    apm_data_sources_for_update.update(mq_cluster_id=apm_kafka_cluster.cluster_id)
 
     # 替换数据源kafka并注册到gse和bkbase
-    for data_source in data_sources:
+    for data_source in DataSource.objects.filter(bk_tenant_id=bk_tenant_id, bk_data_id__in=bk_data_ids):
         if not data_source.is_enable:
             continue
         _register_data_source(
@@ -721,7 +778,7 @@ def rebuild_bklog_data_source_route(bk_tenant_id: str, bk_biz_id: int, kafka_clu
     rebuild_apm_application_storage_config(
         bk_tenant_id=bk_tenant_id,
         bk_biz_id=bk_biz_id,
-        es_cluster_id=es_cluster.cluster_id,
+        es_cluster_id=apm_es_cluster.cluster_id,
     )
 
 
@@ -941,6 +998,7 @@ def rebuild_custom_report(
     metric_kafka_cluster_name: str,
     event_kafka_cluster_name: str,
     es_cluster_name: str,
+    apm_kafka_cluster_name: str | None = None,
 ):
     """重建自定义报告权限配置。
 
@@ -950,6 +1008,11 @@ def rebuild_custom_report(
 
     metric_kafka_cluster = ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=metric_kafka_cluster_name)
     event_kafka_cluster = ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=event_kafka_cluster_name)
+    apm_kafka_cluster = (
+        ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=apm_kafka_cluster_name)
+        if apm_kafka_cluster_name
+        else metric_kafka_cluster
+    )
     es_cluster = ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=es_cluster_name)
 
     ts_tables = CustomTSTable.objects.filter(bk_biz_id=bk_biz_id)
@@ -977,7 +1040,7 @@ def rebuild_custom_report(
     rebuild_time_series_group(
         bk_tenant_id=bk_tenant_id,
         bk_biz_id=bk_biz_id,
-        kafka_cluster_name=metric_kafka_cluster.cluster_name,
+        kafka_cluster_name=apm_kafka_cluster.cluster_name,
         time_series_group_ids=list(time_series_groups.values_list("time_series_group_id", flat=True)),
     )
 

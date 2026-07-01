@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import enum
+import json
 import time
 from collections import Counter, defaultdict
 from collections.abc import Callable
@@ -262,13 +263,17 @@ def check_plugin_collect(context: CheckContext) -> dict[str, Any]:
 
     collect_configs = list(
         CollectConfigMeta.objects.filter(bk_tenant_id=context.bk_tenant_id, bk_biz_id=context.bk_biz_id)
-        .select_related("deployment_config")
+        .select_related(
+            "deployment_config",
+            "deployment_config__plugin_version",
+        )
         .order_by("id")
         .iterator()
     )
-    plugin_type_map = dict(
-        CollectorPluginMeta.objects.filter(bk_tenant_id=context.bk_tenant_id).values_list("plugin_id", "plugin_type")
-    )
+    plugin_ids = sorted({config.plugin_id for config in collect_configs})
+    plugins = list(CollectorPluginMeta.objects.filter(bk_tenant_id=context.bk_tenant_id, plugin_id__in=plugin_ids))
+    plugin_map = {plugin.plugin_id: plugin for plugin in plugins}
+    plugin_type_map = {plugin.plugin_id: plugin.plugin_type for plugin in plugins}
     configs = _run_concurrently(
         collect_configs,
         lambda config: _build_collect_config_record(
@@ -277,6 +282,7 @@ def check_plugin_collect(context: CheckContext) -> dict[str, Any]:
             get_collect_installer,
             CollectTargetStatusTopoResource,
             plugin_type_map,
+            plugin_map,
         ),
         DEFAULT_ITEM_CHECK_WORKERS,
     )
@@ -349,7 +355,17 @@ def _build_k8s_cluster_record(context: CheckContext, cluster) -> dict[str, Any]:
 
 def _build_custom_metric_record(context: CheckContext, table) -> dict[str, Any]:
     metric_fields = _safe_value(lambda: _get_custom_metric_fields(context, table), default=[])
-    sample_metric = metric_fields[0]["name"] if metric_fields else ""
+    kafka_status = _check_data_id_status(context, table.bk_data_id, keep_internal_kafka_latest_data=True)
+    sample_metric = _extract_custom_metric_sample_metric(kafka_status) or (
+        metric_fields[0]["name"] if metric_fields else ""
+    )
+    table_sample = _query_time_series_metric(
+        context,
+        table.table_id,
+        sample_metric,
+        data_label=_get_primary_data_label(table.data_label),
+    )
+    _drop_internal_kafka_latest_data(kafka_status)
     return {
         "time_series_group_id": table.time_series_group_id,
         "bk_biz_id": table.bk_biz_id,
@@ -361,13 +377,9 @@ def _build_custom_metric_record(context: CheckContext, table) -> dict[str, Any]:
         "protocol": table.protocol,
         "token": _safe_value(lambda: _get_custom_metric_token(context, table), default=""),
         "metric_fields": metric_fields,
-        "kafka_status": _check_data_id_status(context, table.bk_data_id),
-        "table_sample": _query_time_series_metric(
-            context,
-            table.table_id,
-            sample_metric,
-            data_label=_get_primary_data_label(table.data_label),
-        ),
+        "sample_metric": sample_metric,
+        "kafka_status": kafka_status,
+        "table_sample": table_sample,
     }
 
 
@@ -397,7 +409,9 @@ def _build_collect_config_record(
     get_collect_installer_func,
     collect_target_status_topo_resource,
     plugin_type_map: dict[str, str],
+    plugin_map: dict[str, Any],
 ) -> dict[str, Any]:
+    _bind_collect_config_plugin(config, plugin_map)
     status_records = _get_collect_status_records(context, config, get_collect_installer_func)
     targets = _build_collect_targets(status_records)
     no_data_info = _safe_value(
@@ -415,7 +429,7 @@ def _build_collect_config_record(
         "last_operation": config.last_operation,
         "operation_result": config.operation_result,
         "deploy_status": _build_collect_deploy_status(config, status_records),
-        "data_status": _build_collect_data_status(targets, no_data_info),
+        "data_status": _build_collect_data_status(context, config, targets, no_data_info),
     }
 
 
@@ -652,6 +666,19 @@ def _extract_record_value(record: dict[str, Any]) -> Any:
     return None
 
 
+def _to_number(value: Any) -> float | int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int | float):
+        return value
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _check_k8s_cluster_connectivity(cluster) -> dict[str, Any]:
     from kubernetes import client as k8s_client
 
@@ -722,26 +749,48 @@ def _extract_k8s_custom_metric_sample(cluster_id: str, data_id_status: dict[str,
     return {"sample_metric": "", "sample_bcs_cluster_id": ""}
 
 
+def _extract_custom_metric_sample_metric(data_id_status: dict[str, Any]) -> str:
+    for message in data_id_status.get("_internal_kafka_latest_data") or []:
+        for item in _iter_data_items(message):
+            metrics = item.get("metrics") or {}
+            if not isinstance(metrics, dict):
+                continue
+            for metric_name in metrics:
+                if metric_name:
+                    return str(metric_name)
+    return ""
+
+
 def _drop_internal_kafka_latest_data(record: dict[str, Any]) -> None:
+    record.pop("_internal_kafka_latest_data", None)
     raw_status = record.get("raw_status")
     if isinstance(raw_status, dict):
         raw_status.pop("_internal_kafka_latest_data", None)
 
 
 def _iter_data_items(message: Any):
+    if isinstance(message, bytes | bytearray):
+        message = message.decode()
+    if isinstance(message, str):
+        try:
+            message = json.loads(message)
+        except json.JSONDecodeError:
+            return
     if isinstance(message, list):
         for sub_message in message:
             yield from _iter_data_items(sub_message)
         return
     if not isinstance(message, dict):
         return
+    if isinstance(message.get("metrics"), dict):
+        yield message
+        return
     data = message.get("data")
     if isinstance(data, list):
         for item in data:
-            if isinstance(item, dict):
-                yield item
+            yield from _iter_data_items(item)
     elif isinstance(data, dict):
-        yield data
+        yield from _iter_data_items(data)
 
 
 def _check_k8s_custom_metric_landing(context: CheckContext, sample: dict[str, Any]) -> dict[str, Any]:
@@ -1186,7 +1235,12 @@ def _build_collect_deploy_status(config, status_records: list[dict[str, Any]]) -
     }
 
 
-def _build_collect_data_status(targets: list[dict[str, Any]], no_data_info: dict[str, bool]) -> dict[str, Any]:
+def _build_collect_data_status(
+    context: CheckContext,
+    config,
+    targets: list[dict[str, Any]],
+    no_data_info: dict[str, bool],
+) -> dict[str, Any]:
     no_data_samples = []
     no_data_count = 0
     for target in targets:
@@ -1195,9 +1249,11 @@ def _build_collect_data_status(targets: list[dict[str, Any]], no_data_info: dict
             no_data_count += 1
             if len(no_data_samples) < 20:
                 no_data_samples.append(target)
+    transfer_count_status = {}
     if not targets:
-        has_data = None
-        message = "no targets"
+        transfer_count_status = _query_collect_transfer_count_status(context, config)
+        has_data = transfer_count_status.get("has_data")
+        message = transfer_count_status.get("message", "")
     elif no_data_info:
         has_data = no_data_count < len(targets)
         message = ""
@@ -1209,8 +1265,69 @@ def _build_collect_data_status(targets: list[dict[str, Any]], no_data_info: dict
         "checked_instance_count": len(targets),
         "no_data_instance_count": no_data_count,
         "no_data_instance_samples": no_data_samples,
+        "transfer_count_status": transfer_count_status,
         "message": message,
     }
+
+
+def _query_collect_transfer_count_status(context: CheckContext, config) -> dict[str, Any]:
+    status = {
+        "method": "datalink.transfer_count_series",
+        "interval_option": "minute",
+        "has_data": None,
+        "latest_time": None,
+        "value": None,
+        "message": "",
+    }
+
+    try:
+        series = _query_collect_transfer_count_series(context, config)
+    except Exception as error:  # noqa: BLE001
+        status["message"] = str(error)
+        return status
+
+    datapoints = _extract_transfer_count_datapoints(series)
+    latest_datapoint = next((datapoint for datapoint in reversed(datapoints) if datapoint[0] is not None), None)
+    status["has_data"] = any((datapoint[0] or 0) > 0 for datapoint in datapoints)
+    if latest_datapoint:
+        status["latest_time"] = latest_datapoint[1]
+        status["value"] = latest_datapoint[0]
+    status["series_count"] = len(series)
+    status["datapoint_count"] = len(datapoints)
+    return status
+
+
+def _query_collect_transfer_count_series(context: CheckContext, config) -> list[dict[str, Any]]:
+    from core.drf_resource import resource
+
+    return _call_with_local_tenant(
+        context.bk_tenant_id,
+        lambda: resource.datalink.transfer_count_series(
+            bk_biz_id=context.bk_biz_id,
+            collect_config_id=config.id,
+            start_time=context.start_time,
+            end_time=context.end_time,
+            interval_option="minute",
+        ),
+    )
+
+
+def _extract_transfer_count_datapoints(series: list[dict[str, Any]]) -> list[tuple[float | int | None, int | None]]:
+    datapoints = []
+    for item in series or []:
+        for datapoint in item.get("datapoints") or []:
+            if not isinstance(datapoint, list | tuple) or len(datapoint) < 2:
+                continue
+            datapoints.append((_to_number(datapoint[0]), datapoint[1]))
+    return datapoints
+
+
+def _bind_collect_config_plugin(config, plugin_map: dict[str, Any]) -> None:
+    plugin = plugin_map.get(getattr(config, "plugin_id", ""))
+    deployment_config = getattr(config, "deployment_config", None)
+    plugin_version = getattr(deployment_config, "plugin_version", None) if deployment_config else None
+    if plugin and plugin_version:
+        plugin_version.plugin = plugin
 
 
 def _target_key(target: dict[str, Any]) -> str:

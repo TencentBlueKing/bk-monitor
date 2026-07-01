@@ -217,10 +217,10 @@ class ExportConfigResource(Resource):
         for user_group in all_user_groups:
             notice_group_ids[user_group.name] = user_group.pk
 
-        action_ids = {}
-        all_actions = ActionConfig.objects.filter(bk_biz_id__in=[bk_biz_id, 0]).only("id", "path", "name")
-        for action in all_actions:
-            action_ids[action.name] = action.pk
+        action_ids = cls._build_action_ids_by_config_ids(
+            bk_biz_id,
+            cls._get_strategy_action_config_ids(strategy_configs),
+        )
 
         # 转换为AsCode配置
         parser = StrategyConfigParser(
@@ -367,6 +367,48 @@ class ExportConfigResource(Resource):
             seen_user_ids.add(user_type_id)
             deduped_users.append(user)
         return deduped_users
+
+    @staticmethod
+    def _build_action_ids_by_config_ids(bk_biz_id: int, action_config_ids: Iterable[int]) -> dict[str, int]:
+        """
+        根据实际引用的处理套餐 ID 构造 AsCode 名称映射，避免导出策略时扫描业务下所有处理套餐。
+        """
+        action_config_ids = set(action_config_ids)
+        if not action_config_ids:
+            return {}
+
+        return {
+            name: action_id
+            for name, action_id in ActionConfig.objects.filter(
+                bk_biz_id__in=[bk_biz_id, 0],
+                id__in=action_config_ids,
+            ).values_list("name", "id")
+        }
+
+    @staticmethod
+    def _get_strategy_action_config_ids(strategy_configs: Iterable[dict[str, Any]]) -> set[int]:
+        """
+        从策略导出数据中提取实际引用的处理套餐 ID。
+        """
+        action_config_ids = set()
+        for config in strategy_configs:
+            for action_config in config.get("actions") or []:
+                if action_config.get("config_id"):
+                    action_config_ids.add(action_config["config_id"])
+        return action_config_ids
+
+    @staticmethod
+    def _get_assign_rule_action_config_ids(assign_group_configs: Iterable[dict[str, Any]]) -> set[int]:
+        """
+        从分派规则导出数据中提取实际引用的处理套餐 ID。
+        """
+        action_config_ids = set()
+        for config in assign_group_configs:
+            for rule in config.get("rules") or []:
+                for action in rule.get("actions") or []:
+                    if action.get("action_type") != "notice" and action.get("action_id"):
+                        action_config_ids.add(action["action_id"])
+        return action_config_ids
 
     @classmethod
     def export_duties(
@@ -533,10 +575,10 @@ class ExportConfigResource(Resource):
         for user_group in all_user_groups:
             notice_group_ids[user_group.name] = user_group.pk
 
-        action_ids = {}
-        all_actions = ActionConfig.objects.filter(bk_biz_id__in=[bk_biz_id, 0]).only("id", "path", "name")
-        for action in all_actions:
-            action_ids[action.name] = action.pk
+        action_ids = cls._build_action_ids_by_config_ids(
+            bk_biz_id,
+            cls._get_assign_rule_action_config_ids(groups_dict.values()),
+        )
 
         # 转换为AsCode配置
         parser = AssignGroupRuleParser(bk_biz_id=bk_biz_id, notice_group_ids=notice_group_ids, action_ids=action_ids)
