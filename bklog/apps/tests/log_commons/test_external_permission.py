@@ -3,6 +3,7 @@ from datetime import timedelta
 from django.test import TestCase
 from django.utils import timezone
 
+from apps.log_commons.constants import DEFAULT_EXTERNAL_PERMISSION_EXPIRE_DAYS
 from apps.log_commons.models import ExternalPermission
 
 
@@ -47,3 +48,18 @@ class TestExternalPermissionCreate(TestCase):
         new_time = timezone.now() + timedelta(days=60)
         self._create(["user_a"], ["1001"], expire_time=new_time)
         self.assertEqual(self._get("user_a").expire_time, new_time)
+
+    def test_new_user_uses_default_expire_time_when_empty(self):
+        before = timezone.now() + timedelta(days=DEFAULT_EXTERNAL_PERMISSION_EXPIRE_DAYS)
+        ExternalPermission.create(
+            authorized_users=["user_a"],
+            space_uid=self.SPACE_UID,
+            action_id=self.ACTION_ID,
+            resources=["1001"],
+            expire_time=None,
+        )
+        after = timezone.now() + timedelta(days=DEFAULT_EXTERNAL_PERMISSION_EXPIRE_DAYS)
+
+        expire_time = self._get("user_a").expire_time
+        self.assertGreaterEqual(expire_time, before)
+        self.assertLessEqual(expire_time, after)

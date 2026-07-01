@@ -42,6 +42,7 @@ import { logServiceRelationBkLogIndexSet } from 'monitor-api/modules/apm_service
 import { getFieldOptionValues } from 'monitor-api/modules/apm_trace';
 import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { deepClone, typeTools } from 'monitor-common/utils/utils';
+import { ETagsType } from 'monitor-pc/components/biz-select/list';
 import ChangeRcord from 'monitor-pc/components/change-record/change-record';
 // import CycleInput from '../../../components/cycle-input/cycle-input';
 import CycleInput from 'monitor-pc/components/cycle-input/cycle-input';
@@ -349,7 +350,8 @@ export default class BasicInfo extends tsc<IProps> {
   get bizSelectList() {
     return this.$store.getters.bizList.map(el => ({
       id: el.id,
-      name: el.text,
+      // 业务名后拼接英文标识，与顶部业务选择器保持一致，避免同名业务无法区分
+      name: `${el.text} (${el.space_type_id === ETagsType.BKCC ? `#${el.id}` : el.space_id || el.space_code})`,
     }));
   }
 

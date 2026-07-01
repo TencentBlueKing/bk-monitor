@@ -32,6 +32,7 @@ import { EnlargeLine } from 'bkui-vue/lib/icon';
 import dayjs from 'dayjs';
 import { CancelToken } from 'monitor-api/cancel';
 import { query as apmProfileQuery } from 'monitor-api/modules/apm_profile';
+import { listLinks } from 'monitor-api/modules/apm_trace';
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
@@ -51,6 +52,7 @@ import { useSpanDetailQueryStore } from '../../store/modules/span-detail-query';
 import { useTraceStore } from '../../store/modules/trace';
 import {
   type IInfo,
+  type ISpanLinkItem,
   type IStageTimeItem,
   type IStageTimeItemContent,
   type ITagContent,
@@ -87,6 +89,14 @@ const guideInfoData: Record<string, IGuideInfo> = {
   // Container: {},
   // Index: {}
 };
+
+type SpanLinksRequestParams = {
+  requestAppName: string;
+  requestSpanId: string;
+  requestTraceId: string;
+};
+
+type SpanLinksResponse = Record<string, unknown>[] | { links?: Record<string, unknown>[] };
 
 type TabName = 'BasicInfo' | 'Container' | 'Event' | 'Host' | 'Index' | 'Log' | 'Process' | 'Profiling';
 
@@ -216,6 +226,11 @@ export default defineComponent({
     provide('spanId', spanId);
     // 用作 Event 栏的首行打开。
     let isInvokeOnceFlag = true;
+    let spanLinksCancelToken: (() => void) | null = null;
+    let spanLinksRequestKey = '';
+    let spanLinksRequestSeq = 0;
+    let spanLinksResponseKey = '';
+    let spanLinksResponseLinks: Record<string, unknown>[] = [];
 
     const getSpanDetailExpandUserConfig = () => {
       const allExpandTypes = [
@@ -244,6 +259,108 @@ export default defineComponent({
       return SPAN_KIND_MAPS[kind];
     }
 
+    function buildSpanLinksInfoItem(linkList: ISpanLinkItem[], isExpan?: boolean): IInfo['list'][number] {
+      return {
+        type: EListItemType.links,
+        isExpan: isExpan ?? basicInfoExpand.value.includes(EListItemType.links),
+        title: 'Links',
+        [EListItemType.links]: {
+          list: linkList,
+        },
+      };
+    }
+
+    function updateSpanLinksInfo(linkList: ISpanLinkItem[]): void {
+      const linkInfoIndex = info.list.findIndex(item => item.type === EListItemType.links);
+      if (!linkList.length) {
+        if (linkInfoIndex > -1) info.list.splice(linkInfoIndex, 1);
+        return;
+      }
+
+      const currentExpandStatus = linkInfoIndex > -1 ? info.list[linkInfoIndex].isExpan : undefined;
+      const linkInfoItem = buildSpanLinksInfoItem(linkList, currentExpandStatus);
+      if (linkInfoIndex > -1) {
+        info.list.splice(linkInfoIndex, 1, linkInfoItem);
+        return;
+      }
+
+      const eventInfoIndex = info.list.findIndex(item => item.type === EListItemType.events);
+      info.list.splice(eventInfoIndex > -1 ? eventInfoIndex : info.list.length, 0, linkInfoItem);
+    }
+
+    function buildSpanLinksRequestKey(params: SpanLinksRequestParams): string {
+      return JSON.stringify([params.requestAppName, params.requestTraceId, params.requestSpanId]);
+    }
+
+    function getSpanLinks(response: null | SpanLinksResponse): Record<string, unknown>[] {
+      if (Array.isArray(response)) return response;
+      if (Array.isArray(response?.links)) return response.links;
+      return [];
+    }
+
+    function resetSpanLinksRequestState(): void {
+      if (spanLinksCancelToken) {
+        spanLinksCancelToken();
+        spanLinksCancelToken = null;
+      }
+      spanLinksRequestKey = '';
+      spanLinksRequestSeq += 1;
+      spanLinksResponseKey = '';
+      spanLinksResponseLinks = [];
+    }
+
+    async function loadSpanLinks(params: SpanLinksRequestParams): Promise<void> {
+      const { requestAppName, requestSpanId, requestTraceId } = params;
+      if (!requestAppName || !requestSpanId || !requestTraceId) return;
+
+      const requestKey = buildSpanLinksRequestKey(params);
+      if (requestKey === spanLinksResponseKey) {
+        updateSpanLinksInfo(formatSpanLinks(spanLinksResponseLinks));
+        return;
+      }
+      if (requestKey === spanLinksRequestKey) return;
+
+      if (spanLinksCancelToken) {
+        spanLinksCancelToken();
+        spanLinksCancelToken = null;
+      }
+      spanLinksRequestKey = requestKey;
+      const requestSeq = ++spanLinksRequestSeq;
+
+      const response = await listLinks(
+        {
+          bk_biz_id: bizId.value,
+          app_name: requestAppName,
+          trace_id: requestTraceId,
+          span_id: requestSpanId,
+        },
+        {
+          cancelToken: new CancelToken((cancel: () => void) => {
+            spanLinksCancelToken = cancel;
+          }),
+        }
+      ).catch(() => null);
+      if (
+        requestSeq !== spanLinksRequestSeq ||
+        requestKey !== spanLinksRequestKey ||
+        !props.show ||
+        props.spanDetails?.app_name !== requestAppName ||
+        props.spanDetails?.span_id !== requestSpanId ||
+        (props.spanDetails?.traceID || traceId.value) !== requestTraceId
+      ) {
+        return;
+      }
+      spanLinksCancelToken = null;
+      if (!response) {
+        spanLinksRequestKey = '';
+        return;
+      }
+
+      spanLinksResponseKey = requestKey;
+      spanLinksResponseLinks = getSpanLinks(response);
+      updateSpanLinksInfo(formatSpanLinks(spanLinksResponseLinks));
+    }
+
     /* 获取详情数据 */
     function getDetails() {
       const {
@@ -265,7 +382,10 @@ export default defineComponent({
       const originalDataList = [...store.traceData.original_data, ...store.compareTraceOriginalData];
       // 根据span_id获取原始数据
       const curSpan = originalDataList.find((data: any) => data.span_id === originalSpanId);
-      if (!curSpan) return;
+      if (!curSpan) {
+        resetSpanLinksRequestState();
+        return;
+      }
       spanStartTime.value = Math.floor(curSpan.start_time / 1000) || 0;
       spanEndTime.value = Math.floor(curSpan.end_time / 1000) || 0;
       spanTime.value = Number(curSpan.time || 0);
@@ -474,16 +594,12 @@ export default defineComponent({
       }
       const linkList = formatSpanLinks(links);
       /** Links 信息 */
-      if (linkList.length) {
-        info.list.push({
-          type: EListItemType.links,
-          isExpan: basicInfoExpand.value.includes(EListItemType.links),
-          title: 'Links',
-          [EListItemType.links]: {
-            list: linkList,
-          },
-        });
-      }
+      updateSpanLinksInfo(linkList);
+      loadSpanLinks({
+        requestAppName: appName,
+        requestSpanId: originalSpanId,
+        requestTraceId: originTraceId,
+      });
       /** Events信息 来源：status_message & events */
       if (events?.length) {
         const eventList = [];
@@ -1748,6 +1864,7 @@ export default defineComponent({
             document.querySelector('.span-details-sideslider')?.appendChild(maskEle);
           }
         } else {
+          resetSpanLinksRequestState();
           isInvokeOnceFlag = true;
           activeTab.value = 'BasicInfo';
           // countOfInfo.value = {};

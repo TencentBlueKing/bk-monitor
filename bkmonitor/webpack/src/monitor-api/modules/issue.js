@@ -21,7 +21,16 @@ export const splitIssue = request('POST', 'fta/issue/issue/split/');
 export const listMergeSources = request('GET', 'fta/issue/issue/merge_sources/');
 export const alertIssueEnrich = request('POST', 'fta/issue/issue/alert_enrich/');
 export const listTapdWorkspace = request('POST', 'fta/issue/tapd/workspace/');
+export const getTapdFields = request('POST', 'fta/issue/issue/get_tapd_fields/');
+export const searchTAPDItems = request('POST', 'fta/issue/issue/search_tapd_items/');
+export const createTapd = request('POST', 'fta/issue/issue/create_tapd/');
+export const listIssueTapdRelations = request('POST', 'fta/issue/issue/tapd_relations/');
+export const linkIssueToTapd = request('POST', 'fta/issue/issue/link_tapd/');
 
+/** 获取用户 TAPD 工作空间列表 */
+export const getUserWorkspace = request('POST', '/fta/issue/tapd/user_workspace/');
+export const searchTapdItems = request('POST', '/fta/issue/issue/search_tapd_items/');
+export const unbindWorkspace = request('POST', '/fta/issue/tapd/unbind_workspace/');
 
 export default {
   assignIssue,
@@ -45,4 +54,12 @@ export default {
   listMergeSources,
   alertIssueEnrich,
   listTapdWorkspace,
+  getTapdFields,
+  searchTAPDItems,
+  createTapd,
+  listIssueTapdRelations,
+  linkIssueToTapd,
+  getUserWorkspace,
+  searchTapdItems,
+  unbindWorkspace
 };

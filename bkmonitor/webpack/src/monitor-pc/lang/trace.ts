@@ -36,4 +36,18 @@ export default {
   'Trace 助手': 'Trace Helper',
   请输入应用名称: 'Please enter the application name',
   总计: 'Total',
+
+  // 创建tapd
+  单据字段: 'Ticket Field',
+  必填项不能为空: 'Required field cannot be empty',
+  项目: 'Project',
+  'TAPD 单据': 'TAPD Ticket',
+  名称变更: 'Name Change',
+  需求: 'Story',
+  缺陷: 'Bug',
+  解除授权: 'Revoke Authorization',
+  确认创建: 'Confirm Create',
+  项目必填: 'Project is required',
+  单据类型必填: 'Ticket Type is required',
+  同步单据状态: 'Sync Ticket Status',
 };

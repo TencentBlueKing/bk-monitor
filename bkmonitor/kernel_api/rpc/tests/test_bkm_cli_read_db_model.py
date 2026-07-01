@@ -547,3 +547,192 @@ def test_mask_deployment_config_row_masks_file_type_param_via_config_json():
     item = {"params": {"plugin": {"env": {"filename": "env.sh", "blob": "Y29udGVudA=="}}}}
     masked = db._mask_deployment_config_row(item, instance)["params"]
     assert masked["plugin"]["env"] == db.MASKED_VALUE
+
+
+# ── P4: _serialize_instance 逐字段 json-safe 归一 ─────────────────────────────
+
+
+def test_serialize_instance_datetime_field_becomes_json_safe_string():
+    """含 datetime 字段的行：_serialize_instance 输出可被 json.dumps，datetime 变为字符串。"""
+    import json as _json
+    from datetime import datetime
+    from decimal import Decimal
+
+    from kernel_api.rpc.functions.bkm_cli.db import _serialize_instance
+
+    instance = SimpleNamespace(
+        id=7,
+        name="alpha",
+        create_at=datetime(2026, 6, 23, 10, 30, 0),
+        ratio=Decimal("3.14"),
+    )
+    out = _serialize_instance(instance, {"id", "name", "create_at", "ratio"})
+
+    # 整行可被 json.dumps（无 default=），证明所有字段已 JSON-safe
+    _json.dumps(out)
+    assert out["id"] == 7
+    assert out["name"] == "alpha"
+    assert isinstance(out["create_at"], str)
+    assert out["create_at"].startswith("2026-06-23")
+    # Decimal 经 json.dumps(default=str) 后是字符串
+    assert isinstance(out["ratio"], str)
+    assert out["ratio"] == "3.14"
+
+
+def test_serialize_instance_bad_field_degrades_and_keeps_row():
+    """单个不可序列化字段降级为 <unserializable: 类名>，绝不崩掉整行。"""
+    import json as _json
+
+    from kernel_api.rpc.functions.bkm_cli.db import _serialize_instance
+
+    class _NotSerializable:
+        # default=str 会回退到 repr/str，仍可序列化；这里用一个连 str() 都抛错的对象，
+        # 强制走 except 分支，验证降级占位。
+        def __repr__(self):
+            raise RuntimeError("boom-repr")
+
+        def __str__(self):
+            raise RuntimeError("boom-str")
+
+    instance = SimpleNamespace(ok="fine", bad=_NotSerializable())
+    out = _serialize_instance(instance, {"ok", "bad"})
+
+    # 整行仍可 json.dumps，坏字段被占位，好字段保留
+    _json.dumps(out)
+    assert out["ok"] == "fine"
+    assert out["bad"] == "<unserializable: _NotSerializable>"
+
+
+# ---------- ActionConfig / StrategyActionConfigRelation 白名单 + origin_objects 软删可见 + execute_config 脱敏 ----------
+
+
+def test_action_config_and_relation_registered_in_allowlist():
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    ac = db.ALLOWED_MODEL_SPECS["bkmonitor.models.fta.action.ActionConfig"]
+    rel = db.ALLOWED_MODEL_SPECS["bkmonitor.models.fta.action.StrategyActionConfigRelation"]
+    # 软删模型必须用 origin_objects 读，否则 .objects 过滤掉 is_deleted 行——那正是要看的证据
+    assert ac.manager_name == "origin_objects"
+    assert rel.manager_name == "origin_objects"
+    assert {"is_deleted", "is_enabled", "create_time", "update_time"} <= ac.fields
+    assert {"strategy_id", "config_id", "relate_type", "is_deleted"} <= rel.fields
+    assert ac.note and rel.note
+
+
+def test_action_config_execute_config_never_exposed():
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    spec = db.ALLOWED_MODEL_SPECS["bkmonitor.models.fta.action.ActionConfig"]
+    # execute_config（可内嵌 webhook/凭据）既不列入 fields，也登记 sensitive_fields 兜底显式请求
+    assert "execute_config" not in spec.fields
+    assert "execute_config" in spec.sensitive_fields
+    assert "execute_config" not in db._safe_fields(spec)
+    # list-db-models 自描述既不广告 execute_config，又回显 origin_objects manager
+    serialized = db._serialize_model_spec("bkmonitor.models.fta.action.ActionConfig", spec)
+    assert "execute_config" not in serialized["allowed_fields"]
+    assert serialized["manager"] == "origin_objects"
+
+
+def test_list_db_models_omits_manager_for_default_objects_models():
+    """MAJOR 回归：默认 objects 的模型不回显 manager，保持既有自描述不变；origin_objects 模型才回显。"""
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    ds = db.ALLOWED_MODEL_SPECS["metadata.models.data_source.DataSource"]
+    assert "manager" not in db._serialize_model_spec("metadata.models.data_source.DataSource", ds)
+
+    rel = db.ALLOWED_MODEL_SPECS["bkmonitor.models.fta.action.StrategyActionConfigRelation"]
+    serialized = db._serialize_model_spec("bkmonitor.models.fta.action.StrategyActionConfigRelation", rel)
+    assert serialized["manager"] == "origin_objects"
+
+
+def test_read_db_model_uses_origin_objects_to_surface_soft_deleted_rows(monkeypatch):
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    # objects（默认 manager，模拟 RecordModelManager）只回未删行；origin_objects 回含软删行的全集
+    objects_qs = FakeQuerySet([SimpleNamespace(id=1, name="live", is_deleted=False)])
+    origin_qs = FakeQuerySet(
+        [
+            SimpleNamespace(id=1, name="live", is_deleted=False),
+            SimpleNamespace(id=2, name="soft-deleted", is_deleted=True),
+        ]
+    )
+
+    class _SoftDeleteModel:
+        objects = FakeManager(objects_qs)
+        origin_objects = FakeManager(origin_qs)
+
+    monkeypatch.setitem(
+        db.ALLOWED_MODEL_SPECS,
+        "demo.SoftDelete",
+        db.ModelSpec(model_path="demo.SoftDelete", fields={"id", "name", "is_deleted"}, manager_name="origin_objects"),
+    )
+    monkeypatch.setattr(db, "import_string", lambda _model_path: _SoftDeleteModel)
+
+    result = BkmCliOpCallResource().perform_request(
+        {"op_id": "read-db-model", "params": {"model": "demo.SoftDelete", "filter": {}}}
+    )
+
+    ids = {item["id"] for item in result["result"]["items"]}
+    # 读到了软删行(id=2)——证明走 origin_objects 而非 objects(后者会过滤掉)
+    assert ids == {1, 2}
+    assert origin_qs.filter_kwargs == {}
+    # 默认 objects manager 未被触碰
+    assert objects_qs.filter_kwargs is None
+
+
+def test_read_db_model_defaults_to_objects_manager(monkeypatch):
+    """变异自检对偶：manager_name 缺省时走 objects，不得误用 origin_objects。"""
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    objects_qs = FakeQuerySet([SimpleNamespace(id=1, name="x")])
+
+    class _Model:
+        objects = FakeManager(objects_qs)
+        # origin_objects 存在且数据不同：若被错误使用，断言会暴露
+        origin_objects = FakeManager(FakeQuerySet([SimpleNamespace(id=9, name="wrong")]))
+
+    monkeypatch.setitem(db.ALLOWED_MODEL_SPECS, "demo.M", db.ModelSpec(model_path="demo.M", fields={"id", "name"}))
+    monkeypatch.setattr(db, "import_string", lambda _model_path: _Model)
+
+    result = BkmCliOpCallResource().perform_request(
+        {"op_id": "read-db-model", "params": {"model": "demo.M", "filter": {"id": 1}}}
+    )
+    assert [i["id"] for i in result["result"]["items"]] == [1]
+    assert objects_qs.filter_kwargs == {"id": 1}
+
+
+def test_read_db_model_action_config_drops_execute_config_even_when_explicitly_requested(monkeypatch):
+    """兜底回归：显式 fields 含 execute_config 也拿不到（sensitive_fields 在 _normalize_selected_fields 拦截）。"""
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    origin_qs = FakeQuerySet(
+        [
+            SimpleNamespace(
+                id=1001,
+                name="demo-notice",
+                is_enabled=True,
+                is_deleted=False,
+                execute_config={"template_detail": {"webhook": "http://example/?token=should-not-leak"}},
+            )
+        ]
+    )
+
+    class _ActionConfig:
+        objects = FakeManager(FakeQuerySet([]))
+        origin_objects = FakeManager(origin_qs)
+
+    monkeypatch.setattr(db, "import_string", lambda _model_path: _ActionConfig)
+
+    result = BkmCliOpCallResource().perform_request(
+        {
+            "op_id": "read-db-model",
+            "params": {
+                "model": "bkmonitor.models.fta.action.ActionConfig",
+                "filter": {"id": 1001},
+                "fields": ["id", "name", "is_enabled", "is_deleted", "execute_config"],
+            },
+        }
+    )
+    item = result["result"]["items"][0]
+    assert "execute_config" not in item
+    assert item == {"id": 1001, "name": "demo-notice", "is_enabled": True, "is_deleted": False}

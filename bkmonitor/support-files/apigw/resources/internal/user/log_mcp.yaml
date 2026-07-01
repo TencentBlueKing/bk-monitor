@@ -26,7 +26,7 @@ paths:
         pluginConfigs: []
         authConfig:
           userVerifiedRequired: true
-          appVerifiedRequired: true
+          appVerifiedRequired: false
           resourcePermissionRequired: true
   /mcp/get_index_set_fields/:
     get:
@@ -61,7 +61,7 @@ paths:
         pluginConfigs: []
         authConfig:
           userVerifiedRequired: true
-          appVerifiedRequired: true
+          appVerifiedRequired: false
           resourcePermissionRequired: true
   /mcp/search_logs/:
     post:
@@ -120,7 +120,7 @@ paths:
         pluginConfigs: []
         authConfig:
           userVerifiedRequired: true
-          appVerifiedRequired: true
+          appVerifiedRequired: false
           resourcePermissionRequired: true
   /mcp/search_index_set_context/:
     post:
@@ -191,7 +191,7 @@ paths:
         pluginConfigs: []
         authConfig:
           userVerifiedRequired: true
-          appVerifiedRequired: true
+          appVerifiedRequired: false
           resourcePermissionRequired: true
   /mcp/analyze_field/:
     post:
@@ -264,7 +264,7 @@ paths:
         pluginConfigs: []
         authConfig:
           userVerifiedRequired: true
-          appVerifiedRequired: true
+          appVerifiedRequired: false
           resourcePermissionRequired: true
   /mcp/search_log_clustering_pattern/:
     post:
@@ -325,5 +325,5 @@ paths:
         pluginConfigs: []
         authConfig:
           userVerifiedRequired: true
-          appVerifiedRequired: true
+          appVerifiedRequired: false
           resourcePermissionRequired: true

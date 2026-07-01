@@ -57,6 +57,8 @@ export default defineComponent({
   },
   setup(props) {
     const logResultRef = ref<any>();
+    const collapsedDivide = window.__IS_MONITOR_APM__ ? 20 : 42;
+    const initialDivide = ref(250);
 
     onMounted(() => {
       nextTick(() => {
@@ -65,29 +67,22 @@ export default defineComponent({
     });
 
     const noop = () => {};
+    const handleToggleCollapse = (isCollapsed: boolean) => {
+      initialDivide.value = isCollapsed ? collapsedDivide : 250;
+      props.viewModel.toggleCollapse?.(isCollapsed);
+    };
 
     return () => {
       const vm = props.viewModel;
       const handleChooseRow = vm.chooseRow || noop;
-      const handleToggleCollapse = vm.toggleCollapse || noop;
-      const dataFilterListeners: Record<string, (..._args: any[]) => void> = {
-        'fields-config-update': vm.handleFieldsConfigUpdate,
-        'fix-current-row': vm.scrollToCurrentRow,
-        'handle-filter': vm.handleFilter,
-      };
-
-      if (props.isRealTime) {
-        dataFilterListeners.copy = vm.handleCopy || noop;
-        dataFilterListeners['toggle-poll'] = vm.togglePoll || noop;
-      }
 
       return (
         <bk-resize-layout
           class='standalone-related-log-resize'
           style='height: 100%'
           border={false}
-          initial-divide={250}
-          min={42}
+          initial-divide={initialDivide.value}
+          min={collapsedDivide}
           placement='bottom'
         >
           <div
@@ -104,7 +99,11 @@ export default defineComponent({
                 <DataFilter
                   ref={vm.dataFilterRef}
                   isRealTime={props.isRealTime}
-                  on={dataFilterListeners}
+                  on-copy={props.isRealTime ? vm.handleCopy || noop : undefined}
+                  on-fields-config-update={vm.handleFieldsConfigUpdate}
+                  on-fix-current-row={vm.scrollToCurrentRow}
+                  on-handle-filter={vm.handleFilter}
+                  on-toggle-poll={props.isRealTime ? vm.togglePoll || noop : undefined}
                 />
               </div>
               <div

@@ -26,7 +26,12 @@ from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
-from apps.api.modules.utils import add_esb_info_before_request, biz_to_tenant_getter, result_table_to_tenant_getter
+from apps.api.modules.utils import (
+    add_esb_info_before_request,
+    biz_to_tenant_getter,
+    result_table_to_tenant_getter,
+    space_type_id_to_tenant_getter,
+)
 from config.domains import MONITOR_APIGATEWAY_ROOT, MONITOR_APIGATEWAY_ROOT_NEW
 from apps.api.constants import CACHE_TIME_FIVE_MINUTES
 
@@ -471,6 +476,7 @@ class _TransferApi:
             module=self.MODULE,
             description=_("创建或更新metadata路由"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=space_type_id_to_tenant_getter(),
         )
         self.bulk_create_or_update_log_router = DataAPI(
             method="POST",
@@ -478,6 +484,7 @@ class _TransferApi:
             module=self.MODULE,
             description=_("批量创建或更新metadata路由"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=space_type_id_to_tenant_getter(),
         )
         self.list_kafka_tail = DataAPI(
             method="GET",

@@ -11,6 +11,8 @@ specific language governing permissions and limitations under the License.
 import pytest
 
 from metadata import models
+from metadata.health_check import get_bkdata_status
+from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.task.tasks import _refresh_data_link_status
 
 
@@ -224,3 +226,330 @@ def test_refresh_data_link_status_falls_back_to_bk_data_id(create_or_delete_reco
 
     # fallback 命中后，DataIdConfig 按 bk_data_id 找到的记录被更新状态
     assert models.DataIdConfig.objects.get(name="actual_data_id_name").status == "Failed"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_refresh_graph_link_status_skips_local_binding(mocker):
+    """GraphRelationBindingConfig 参与本地状态聚合，但不应作为 BKBase 资源查询状态。"""
+    data_link_name = "bkm_graph_status_link"
+    models.BkBaseResultTable.objects.create(
+        data_link_name=data_link_name,
+        bkbase_data_name=data_link_name,
+        storage_type="victoria_metrics",
+        monitor_table_id="1001_bkm_graph_status.__default__",
+        storage_cluster_id=11,
+        status="creating",
+        bkbase_table_id="2_bkm_graph_status",
+        bkbase_rt_name="graph_status_rt",
+    )
+    models.DataLink.objects.create(
+        data_link_name=data_link_name,
+        namespace="bkmonitor",
+        data_link_strategy=models.DataLink.GRAPH_RELATION_TIME_SERIES,
+        table_ids=["1001_bkm_graph_status.__default__"],
+        bk_data_id=90001,
+    )
+    models.DataIdConfig.objects.create(namespace="bkmonitor", name=data_link_name, bk_data_id=90001, bk_biz_id=1001)
+    models.ResultTableConfig.objects.create(
+        namespace="bkmonitor",
+        status="creating",
+        data_link_name=data_link_name,
+        name="graph_status_rt",
+        bk_biz_id=1001,
+    )
+    models.VMStorageBindingConfig.objects.create(
+        namespace="bkmonitor",
+        name="graph_status_binding",
+        bkbase_result_table_name="graph_status_rt",
+        status="creating",
+        data_link_name=data_link_name,
+        bk_biz_id=1001,
+    )
+    models.DataBusConfig.objects.create(
+        namespace="bkmonitor",
+        name="graph_status_databus",
+        data_link_name=data_link_name,
+        status="creating",
+        bk_biz_id=1001,
+    )
+    graph_binding = models.GraphRelationBindingConfig.objects.create(
+        namespace="bkmonitor",
+        name="graph_status_binding_config",
+        data_link_name=data_link_name,
+        bkbase_result_table_name="graph_status_rt",
+        vm_storage_binding_name="graph_status_binding",
+        vm_databus_name="graph_status_databus",
+        write_mode=models.GraphRelationBindingConfig.WRITE_MODE_VM,
+        status="creating",
+        bk_biz_id=1001,
+    )
+    status_mock = mocker.patch("metadata.task.tasks.get_data_link_component_status", return_value="Ok")
+
+    _refresh_data_link_status(models.BkBaseResultTable.objects.get(data_link_name=data_link_name))
+
+    queried_kinds = [call.kwargs["kind"] for call in status_mock.call_args_list]
+    assert models.GraphRelationBindingConfig.kind not in queried_kinds
+    assert models.GraphRelationBindingConfig.objects.get(pk=graph_binding.pk).status == "creating"
+
+
+def _create_graph_status_link(
+    *,
+    create_vm_databus: bool = False,
+    create_graph_result_table: bool = True,
+    create_graph_binding: bool = True,
+):
+    data_link_name = "bkm_graph_databus_status_link"
+    vm_databus_name = "graph_status_missing_vm_databus"
+    graph_databus_name = "graph_status_graph_databus"
+    models.BkBaseResultTable.objects.create(
+        data_link_name=data_link_name,
+        bkbase_data_name=data_link_name,
+        storage_type="victoria_metrics",
+        monitor_table_id="1001_bkm_graph_databus_status.__default__",
+        storage_cluster_id=11,
+        status="creating",
+        bkbase_table_id="2_bkm_graph_databus_status",
+        bkbase_rt_name="graph_status_vm_rt",
+    )
+    models.DataLink.objects.create(
+        data_link_name=data_link_name,
+        namespace="bkmonitor",
+        data_link_strategy=models.DataLink.GRAPH_RELATION_TIME_SERIES,
+        table_ids=["1001_bkm_graph_databus_status.__default__"],
+        bk_data_id=90002,
+    )
+    models.DataIdConfig.objects.create(namespace="bkmonitor", name=data_link_name, bk_data_id=90002, bk_biz_id=1001)
+    models.ResultTableConfig.objects.create(
+        namespace="bkmonitor",
+        status="creating",
+        data_link_name=data_link_name,
+        name="graph_status_vm_rt",
+        bk_biz_id=1001,
+    )
+    if create_graph_result_table:
+        models.ResultTableConfig.objects.create(
+            namespace="bkmonitor",
+            status="creating",
+            data_link_name=data_link_name,
+            name="graph_status_graph_rt",
+            bk_biz_id=1001,
+        )
+    models.VMStorageBindingConfig.objects.create(
+        namespace="bkmonitor",
+        name="graph_status_vm_binding",
+        bkbase_result_table_name="graph_status_vm_rt",
+        status="creating",
+        data_link_name=data_link_name,
+        bk_biz_id=1001,
+    )
+    models.SurrealDBBindingConfig.objects.create(
+        namespace="bkmonitor",
+        name="graph_status_surreal_binding",
+        bkbase_result_table_name="graph_status_graph_rt",
+        surrealdb_cluster_name="surrealdb",
+        status="creating",
+        data_link_name=data_link_name,
+        bk_biz_id=1001,
+    )
+    if create_vm_databus:
+        models.DataBusConfig.objects.create(
+            namespace="bkmonitor",
+            name=vm_databus_name,
+            data_link_name=data_link_name,
+            status="creating",
+            bk_biz_id=1001,
+        )
+    models.GraphDataBusConfig.objects.create(
+        namespace="bkmonitor",
+        name=graph_databus_name,
+        data_id_name=data_link_name,
+        data_link_name=data_link_name,
+        status="creating",
+        bk_biz_id=1001,
+        bk_data_id=90002,
+        sink_names=["SurrealDBBinding:graph_status_surreal_binding"],
+    )
+    if create_graph_binding:
+        models.GraphRelationBindingConfig.objects.create(
+            namespace="bkmonitor",
+            name="graph_status_binding_config",
+            data_link_name=data_link_name,
+            bkbase_result_table_name="graph_status_vm_rt",
+            graph_result_table_name="graph_status_graph_rt",
+            vm_storage_binding_name="graph_status_vm_binding",
+            vm_databus_name=vm_databus_name,
+            surrealdb_binding_name="graph_status_surreal_binding",
+            graph_databus_name=graph_databus_name,
+            write_mode=models.GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
+            status="creating",
+            bk_biz_id=1001,
+        )
+    assert models.DataBusConfig.objects.filter(name=graph_databus_name).exists()
+    return data_link_name, vm_databus_name, graph_databus_name
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_refresh_graph_link_status_does_not_count_graph_databus_as_vm(mocker):
+    data_link_name, vm_databus_name, graph_databus_name = _create_graph_status_link()
+
+    status_mock = mocker.patch("metadata.task.tasks.get_data_link_component_status", return_value="Ok")
+    _refresh_data_link_status(models.BkBaseResultTable.objects.get(data_link_name=data_link_name))
+
+    queried_databus_names = [
+        call.kwargs["component_name"]
+        for call in status_mock.call_args_list
+        if call.kwargs["kind"] == models.DataBusConfig.kind
+    ]
+    assert vm_databus_name not in queried_databus_names
+    assert queried_databus_names.count(graph_databus_name) == 1
+    assert models.BkBaseResultTable.objects.get(data_link_name=data_link_name).status == "Pending"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_refresh_graph_link_status_requires_each_result_table(mocker):
+    data_link_name, _, _ = _create_graph_status_link(
+        create_vm_databus=True,
+        create_graph_result_table=False,
+    )
+
+    status_mock = mocker.patch("metadata.task.tasks.get_data_link_component_status", return_value="Ok")
+    _refresh_data_link_status(models.BkBaseResultTable.objects.get(data_link_name=data_link_name))
+
+    queried_result_table_names = [
+        call.kwargs["component_name"]
+        for call in status_mock.call_args_list
+        if call.kwargs["kind"] == models.ResultTableConfig.kind
+    ]
+    assert "graph_status_vm_rt" in queried_result_table_names
+    assert "graph_status_graph_rt" not in queried_result_table_names
+    assert models.BkBaseResultTable.objects.get(data_link_name=data_link_name).status == "Pending"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_refresh_graph_link_status_requires_graph_binding(mocker):
+    data_link_name, _, _ = _create_graph_status_link(
+        create_vm_databus=True,
+        create_graph_binding=False,
+    )
+
+    mocker.patch("metadata.task.tasks.get_data_link_component_status", return_value="Ok")
+    _refresh_data_link_status(models.BkBaseResultTable.objects.get(data_link_name=data_link_name))
+
+    assert models.BkBaseResultTable.objects.get(data_link_name=data_link_name).status == "Pending"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_get_bkdata_status_does_not_count_graph_databus_as_vm(mocker):
+    data_link_name, vm_databus_name, graph_databus_name = _create_graph_status_link()
+    mocker.patch(
+        "metadata.models.data_link.service.get_data_link_component_config",
+        return_value={"status": {"phase": "OK"}},
+    )
+
+    bkdata_status = get_bkdata_status("system", data_link_name)
+
+    assert not bkdata_status.finished
+    assert f"Name:{vm_databus_name}配置不存在" in bkdata_status.message
+    missing_vm_databus_status = next(
+        status
+        for status in bkdata_status.component_statuses
+        if status.kind == models.DataBusConfig.kind and status.name == vm_databus_name
+    )
+    assert not missing_vm_databus_status.exists
+    graph_databus_statuses = [
+        status
+        for status in bkdata_status.component_statuses
+        if status.kind == models.DataBusConfig.kind and status.name == graph_databus_name
+    ]
+    assert len(graph_databus_statuses) == 1
+    assert graph_databus_statuses[0].exists
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_get_bkdata_status_requires_each_graph_result_table(mocker):
+    data_link_name, _, _ = _create_graph_status_link(
+        create_vm_databus=True,
+        create_graph_result_table=False,
+    )
+    mocker.patch(
+        "metadata.models.data_link.service.get_data_link_component_config",
+        return_value={"status": {"phase": "OK"}},
+    )
+
+    bkdata_status = get_bkdata_status("system", data_link_name)
+
+    assert not bkdata_status.finished
+    assert "Name:graph_status_graph_rt配置不存在" in bkdata_status.message
+    missing_graph_rt_status = next(
+        status
+        for status in bkdata_status.component_statuses
+        if status.kind == models.ResultTableConfig.kind and status.name == "graph_status_graph_rt"
+    )
+    assert not missing_graph_rt_status.exists
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_get_bkdata_status_requires_graph_binding(mocker):
+    data_link_name, _, _ = _create_graph_status_link(
+        create_vm_databus=True,
+        create_graph_binding=False,
+    )
+    mocker.patch(
+        "metadata.models.data_link.service.get_data_link_component_config",
+        return_value={"status": {"phase": "OK"}},
+    )
+
+    bkdata_status = get_bkdata_status("system", data_link_name)
+
+    assert not bkdata_status.finished
+    assert models.GraphRelationBindingConfig.kind in bkdata_status.message
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_refresh_graph_relation_binding_status_preserves_failed_until_reapply(mocker):
+    data_link_name = "bkm_graph_recover_data_link"
+    models.BkBaseResultTable.objects.create(
+        data_link_name=data_link_name,
+        bkbase_data_name=data_link_name,
+        storage_type="victoria_metrics",
+        monitor_table_id="1001_bkm_graph_recover.__default__",
+        storage_cluster_id=11,
+        status=DataLinkResourceStatus.PENDING.value,
+        bkbase_table_id="2_bkm_graph_recover",
+        bkbase_rt_name="bkm_graph_recover_rt",
+    )
+    models.DataLink.objects.create(
+        data_link_name=data_link_name,
+        namespace="bkmonitor",
+        data_link_strategy=models.DataLink.GRAPH_RELATION_TIME_SERIES,
+        table_ids=["1001_bkm_graph_recover.__default__"],
+    )
+    models.DataIdConfig.objects.create(namespace="bkmonitor", name=data_link_name, bk_biz_id=1001)
+    models.GraphRelationBindingConfig.objects.create(
+        namespace="bkmonitor",
+        name=data_link_name,
+        data_link_name=data_link_name,
+        status=DataLinkResourceStatus.FAILED.value,
+        bk_biz_id=1001,
+        write_mode=models.GraphRelationBindingConfig.WRITE_MODE_VM,
+    )
+    mocker.patch(
+        "metadata.task.tasks.get_data_link_component_status",
+        return_value=DataLinkResourceStatus.OK.value,
+    )
+    mocker.patch.object(
+        models.GraphRelationBindingConfig,
+        "_aggregate_status",
+        return_value=DataLinkResourceStatus.OK.value,
+    )
+
+    _refresh_data_link_status(models.BkBaseResultTable.objects.get(data_link_name=data_link_name))
+
+    assert (
+        models.GraphRelationBindingConfig.objects.get(data_link_name=data_link_name).status
+        == DataLinkResourceStatus.FAILED.value
+    )
+    assert (
+        models.BkBaseResultTable.objects.get(data_link_name=data_link_name).status
+        == DataLinkResourceStatus.PENDING.value
+    )

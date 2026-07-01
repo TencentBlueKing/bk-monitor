@@ -10,8 +10,9 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 
+from bkmonitor.models import MetricListCache
 from constants.data_source import DataSourceLabel, DataTypeLabel
-from monitor_web.grafana.resources.unify_query import DimensionUnifyQuery
+from monitor_web.grafana.resources.unify_query import DimensionUnifyQuery, GetDrillDimensionsResource
 
 get_dimension_data_return = {
     "values": {
@@ -624,3 +625,54 @@ class TestDimensionUnifyQuery:
         data = dimension_unify_query.request(params)
         data.sort(key=lambda x: x["value"])
         assert data == [{"label": "Pod", "value": "Pod"}]
+
+
+@pytest.mark.django_db(databases="__all__")
+class TestGetDrillDimensionsResource:
+    def test_filter_not_aggregatable_metric_dimensions(self, mocker):
+        mocker.patch("monitor_web.grafana.resources.unify_query.get_process_extra_dimensions", return_value={})
+        MetricListCache.objects.create(
+            bk_biz_id=100674,
+            category_display="日志平台",
+            collect_config="",
+            collect_config_ids=[],
+            collect_interval=1,
+            data_source_label=DataSourceLabel.BK_LOG_SEARCH,
+            data_target="",
+            data_type_label=DataTypeLabel.LOG,
+            default_condition=[],
+            default_dimensions=[],
+            description="日志关键字",
+            dimensions=[
+                {"id": "codefile", "is_dimension": False, "name": "代码文件", "type": "keyword"},
+                {"id": "ip", "is_dimension": True, "name": "IP", "type": "keyword"},
+            ],
+            extend_fields={},
+            metric_field="_index",
+            metric_field_name="日志关键字",
+            plugin_type="",
+            related_id="21877",
+            related_name="索引集",
+            result_table_id="100674_bklog.jkminiformal_log",
+            result_table_label="log",
+            result_table_label_name="日志",
+            result_table_name="业务日志",
+            unit="",
+            unit_conversion=1.0,
+            use_frequency=0,
+        )
+
+        data = GetDrillDimensionsResource().perform_request(
+            {
+                "bk_biz_id": 100674,
+                "query_configs": [
+                    {
+                        "result_table_id": "100674_bklog.jkminiformal_log",
+                        "metric_field": "_index",
+                        "configured_dimensions": [],
+                    }
+                ],
+            }
+        )
+
+        assert data == [{"value": "ip", "text": "IP"}]
