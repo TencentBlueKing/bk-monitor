@@ -2521,8 +2521,8 @@ class ListUserTapdWorkspaceResource(Resource):
             "method": "GET",
         }
 
-    @staticmethod
-    def _is_tapd_token_invalid_422(error: BKAPIError) -> bool:
+    @classmethod
+    def _is_tapd_token_invalid_422(cls, error: BKAPIError) -> bool:
         """判断 BKAPIError 是否为 TAPD access_token 无效/过期导致的 422 错误。
 
         TAPD 返回 HTTP 422 时，APIResource.raise_for_status 先抛 HTTPError → BKAPIError，
@@ -2535,6 +2535,7 @@ class ListUserTapdWorkspaceResource(Resource):
             error_code = "422"
         return error_code == "422" or "422" in str(error.message)
 
+    @classmethod
     def _raise_reauth_required(
         cls, bk_biz_id: int, tenant_id: str, username: str, success_url: str, error_url: str
     ) -> None:
@@ -2787,21 +2788,26 @@ class RebindTapdWorkspaceResource(Resource):
         space_uid = bk_biz_id_to_space_uid(bk_biz_id)
         tenant_id = space_uid_to_bk_tenant_id(space_uid)
 
-        # 1. 验重：若 binding 已存在，无需重新关联（避免重复查询 get after exists）
+        # 1. 验重：若 binding 已存在，无需重新关联
         try:
             existing = TapdWorkspaceBinding.objects.get(
                 bk_tenant_id=tenant_id, space_uid=space_uid, tapd_workspace_id=workspace_id
             )
+            # 兜底：清理可能残留的 tombstone（并发/脏数据场景）
+            TapdWorkspaceManualUnbind.objects.filter(
+                bk_tenant_id=tenant_id, space_uid=space_uid, tapd_workspace_id=workspace_id
+            ).delete()
             return {"success": True, "workspace": {"id": workspace_id, "name": existing.tapd_workspace_name}}
         except TapdWorkspaceBinding.DoesNotExist:
             pass
 
         # 2. 校验用户态 token 存在并可用（重新关联需用户明确授权）
+        # 授权失效时返回 403（HTTP 状态码 200），前端按 code=403 自行跳转授权流程，无需 auth_url
         user_token = get_tapd_token(tenant_id, username)
         if not user_token.get("access_token"):
-            raise HTTP404Error(
-                message="TAPD 用户态授权已失效或未授权，请先完成授权",
-            )
+            exc = CustomException(message="TAPD 用户态授权已失效或未授权，请先完成授权", code=403)
+            exc.status_code = 200
+            raise exc
 
         # 3. 校验当前用户是否仍有权访问该 workspace（用户态鉴权有效性检查）
         try:
@@ -2809,14 +2815,15 @@ class RebindTapdWorkspaceResource(Resource):
                 workspace_id=workspace_id,
                 access_token=user_token["access_token"],
             )["Workspace"]
-            workspace_name = ws_info.get("workspace_name") or ws_info.get("name", "")
+            workspace_name = ws_info.get("name", "")
         except BKAPIError as e:
             if ListUserTapdWorkspaceResource._is_tapd_token_invalid_422(e):
                 logger.info("TAPD user token invalid (422) during rebind, clearing token: ws=%s", workspace_id)
                 delete_tapd_token(tenant_id=tenant_id, username=username)
-                raise HTTP404Error(
-                    message="TAPD 用户态授权已失效（422），请重新完成授权",
-                )
+                # token 失效，返回 403（HTTP 状态码 200），前端按 code=403 自行跳转授权流程
+                exc = CustomException(message="TAPD 用户态授权已失效（422），请重新完成授权", code=403)
+                exc.status_code = 200
+                raise exc
             raise
 
         # 4. 删除 tombstone + 创建 binding，事务包裹保证原子性
