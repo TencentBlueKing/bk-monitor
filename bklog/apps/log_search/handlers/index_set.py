@@ -2197,7 +2197,7 @@ class BaseIndexSetHandler:
             self.parent_index_set_ids,
             self.parent_index_set_names,
             space_uid=self.space_uid,
-            is_update=False
+            is_update=True
         )
 
         # 更新归属索引集
