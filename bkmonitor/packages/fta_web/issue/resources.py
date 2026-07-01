@@ -2419,8 +2419,10 @@ class LinkIssueToTapdResource(Resource):
             items=to_create,
         )
 
+        # 注意：不能直接返回 {"results": ..., "activities": ...} 结构
+        # 因为 MonitorJSONRenderer 会自动将 results 提取为 data，其他字段放到 _meta
         return {
-            "results": results,
+            "info": results,
             "activities": activities,
         }
 
