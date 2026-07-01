@@ -70,9 +70,7 @@ def _get_graph_definition_binding_queryset(namespace: str):
     if namespace and namespace != NAMESPACE_ALL:
         bk_biz_id = space_uid_to_bk_biz_id(namespace)
         if not bk_biz_id:
-            logger.warning(
-                "sync_graph_definition_to_bkbase: namespace->[%s] cannot resolve bk_biz_id, skip", namespace
-            )
+            logger.warning("sync_graph_definition_to_bkbase: namespace->[%s] cannot resolve bk_biz_id, skip", namespace)
             return GraphRelationBindingConfig.objects.none()
         queryset = queryset.filter(bk_biz_id=bk_biz_id)
     return queryset
@@ -86,9 +84,7 @@ def _get_data_source_and_table_id(graph_binding: GraphRelationBindingConfig) -> 
         data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
     ).first()
     if not data_link:
-        logger.warning(
-            "sync_graph_definition_to_bkbase: data_link->[%s] not found, skip", graph_binding.data_link_name
-        )
+        logger.warning("sync_graph_definition_to_bkbase: data_link->[%s] not found, skip", graph_binding.data_link_name)
         return None, ""
 
     data_source = DataSource.objects.filter(
@@ -273,9 +269,7 @@ def sync_graph_definition_to_bkbase(
         try:
             vertices, relations = EntityMeta.auto_query_graph_definitions(bk_biz_id=graph_binding.bk_biz_id)
             if not vertices or not relations:
-                error_message = (
-                    "graph definitions are empty, SurrealDB write requires non-empty vertices and relations"
-                )
+                error_message = "graph definitions are empty, SurrealDB write requires non-empty vertices and relations"
                 if graph_binding.write_mode == GraphRelationBindingConfig.WRITE_MODE_VM:
                     result["skipped"] += 1
                     logger.info(
@@ -790,9 +784,6 @@ def sync_relation_redis_data():
                         operator="system",
                         table_id=table_id,
                         is_builtin=True,
-                        default_storage_config={
-                            ClusterInfo.TYPE_INFLUXDB,
-                        },
                         bk_tenant_id=bk_tenant_id,
                     )
                     existing_time_series_groups_dict[(bk_tenant_id, table_id)] = ts_group
