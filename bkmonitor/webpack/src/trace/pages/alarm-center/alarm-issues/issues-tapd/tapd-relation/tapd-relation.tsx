@@ -196,12 +196,12 @@ export default defineComponent({
                       </span>
                       <span
                         style={{
-                          borderColor: TapdStatusMap[item.status].color,
-                          color: TapdStatusMap[item.status].color,
+                          borderColor: TapdStatusMap?.[item.status]?.color || '#7C8597',
+                          color: TapdStatusMap?.[item.status]?.color || '#7C8597',
                         }}
                         class='tapd-status'
                       >
-                        {TapdStatusMap[item.status].text}
+                        {item?.status_display_name || TapdStatusMap?.[item.status]?.text || '--'}
                       </span>
                     </span>
                   </Select.Option>
