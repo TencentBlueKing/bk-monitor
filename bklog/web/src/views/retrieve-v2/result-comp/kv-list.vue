@@ -802,7 +802,7 @@
 
         if (path) {
           const url = `${window.__IS_MONITOR_COMPONENT__ ? location.origin : window.MONITOR_URL}${path}`;
-          window.open(url, '_blank');
+          window.open(url, '_blank', 'noopener,noreferrer');
         }
       },
       /**

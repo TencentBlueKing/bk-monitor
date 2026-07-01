@@ -60,7 +60,7 @@ export default defineComponent({
       // 不显示字段提取时跳转计算平台
       if (indexSetItem.value?.scenario_id !== 'log' && !isHaveAnalyzed.value) {
         const jumpUrl = `${window.BKDATA_URL}`;
-        window.open(jumpUrl, '_blank');
+        window.open(jumpUrl, '_blank', 'noopener,noreferrer');
         return;
       }
       // 无清洗 去清洗

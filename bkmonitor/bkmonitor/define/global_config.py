@@ -425,6 +425,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BKBASE_REDIS_LOCK_NAME", slz.CharField(label="计算平台Redis锁名称", default="watch_bkbase_meta_redis_lock")),
         ("ENABLE_SYNC_BKBASE_METADATA_TO_DB", slz.BooleanField(label="是否同步bkbase元数据至DB", default=False)),
         (
+            "ENABLE_SYNC_GRAPH_DEFINITION_TO_BKBASE",
+            slz.BooleanField(label="是否自动同步计算平台图关系链路", default=False),
+        ),
+        (
             "ACCESS_DATA_BATCH_PROCESS_THRESHOLD",
             slz.IntegerField(label="access数据批量处理触发阈值(0为不触发)", default=0),
         ),
@@ -481,12 +485,20 @@ ADVANCED_OPTIONS = OrderedDict(
         ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[0])),
         ("EXCLUDE_WORKER_TASKS", slz.ListField(label="排除特定的worker任务(需要重启alarm-beat生效)", default=[])),
         (
-            "BCS_DISCOVER_BCS_CLUSTER_BIZ_BLACK_LIST",
-            slz.ListField(label="BCS集群自动发现任务黑名单业务ID列表", default=[]),
+            "NEW_ENV_BIZ_BLACK_LIST",
+            slz.ListField(label="新环境业务黑名单业务ID列表", default=[]),
         ),
         (
-            "BCS_DISCOVER_BCS_CLUSTER_BIZ_WHITE_LIST",
-            slz.ListField(label="BCS集群自动发现任务白名单业务ID列表", default=[]),
+            "NEW_ENV_BIZ_WHITE_LIST",
+            slz.ListField(label="新环境业务白名单业务ID列表", default=[]),
+        ),
+        (
+            "NEW_ENV_CLUSTER_BLACK_LIST",
+            slz.ListField(label="新环境集群黑名单业务ID列表", default=[]),
+        ),
+        (
+            "NEW_ENV_CLUSTER_WHITE_LIST",
+            slz.ListField(label="新环境集群白名单业务ID列表", default=[]),
         ),
         (
             "ALARM_CACHE_REFRESH_BIZ_CONCURRENT",
@@ -653,6 +665,10 @@ STANDARD_CONFIGS = OrderedDict(
         (
             "APM_RESOURCE_FILTER_METRICS_ENABLED_APPS",
             slz.DictField(label=_("APM metrics维度补充功能应用白名单"), default={}),
+        ),
+        (
+            "APM_RESOURCE_FILTER_LOGS_ENABLED_APPS",
+            slz.DictField(label=_("APM logs维度补充功能应用白名单"), default={}),
         ),
         (
             "APM_BMW_DEPLOY_BIZ_ID",

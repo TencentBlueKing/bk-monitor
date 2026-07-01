@@ -94,7 +94,7 @@ export default class FieldItem extends tsc<object> {
     return this.$store.getters.unionIndexItemList;
   }
   get indexSetList() {
-    return this.$store.state.retrieve?.indexSetList ?? [];
+    return this.$store.state.retrieve?.flatIndexSetList ?? [];
   }
   get gatherFieldsCount() {
     if (this.isFrontStatistics) {

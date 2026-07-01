@@ -1572,6 +1572,8 @@ class GetDrillDimensionsResource(Resource):
 
             dim_set: set[str] = set()
             for dimension in metric.dimensions:
+                if dimension.get("is_dimension") is False:
+                    continue
                 dim_set.add(dimension["id"])
                 dimension_map[dimension["id"]] = dimension["name"]
 

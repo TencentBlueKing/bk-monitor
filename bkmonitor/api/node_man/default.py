@@ -663,7 +663,7 @@ class GetProxiesResource(NodeManAPIGWResource):
 
     @property
     def action(self):
-        if self.use_apigw:
+        if self.use_apigw and settings.ENABLE_MULTI_TENANT_MODE:
             return "system/api/host/proxies/"
         return "api/host/proxies/"
 
@@ -681,7 +681,7 @@ class GetProxiesByBizResource(NodeManAPIGWResource):
 
     @property
     def action(self):
-        if self.use_apigw:
+        if self.use_apigw and settings.ENABLE_MULTI_TENANT_MODE:
             return "system/api/host/biz_proxies/"
         return "api/host/biz_proxies/"
 

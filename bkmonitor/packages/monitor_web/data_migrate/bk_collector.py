@@ -1,20 +1,21 @@
 from __future__ import annotations
 
 import logging
-import re
 import time
 from collections.abc import Callable
 from contextlib import contextmanager
+from functools import wraps
 from typing import Any
 
 from django.conf import settings
 
 from apm.core.application_config import ApplicationConfig
 from apm.models import ApmApplication, SubscriptionConfig
+from bkmonitor.models import GlobalConfig
+from bkmonitor.utils.bk_collector_config import BkCollectorConfig
 from bkmonitor.utils.local import local
 from bkmonitor.utils.tenant import set_local_tenant_id
 from bkmonitor.utils.user import set_local_username
-from bkmonitor.utils.bk_collector_config import BkCollectorConfig
 from bkmonitor.utils.version import get_max_version
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
@@ -28,10 +29,14 @@ CUSTOM_REPORT = "custom_report"
 LOG = "log"
 INSTALL = "install"
 STOP = "stop"
+DISABLE_AUTO_INSPECTION = "disable_auto_inspection"
+UPDATE = "update"
+NEW_ENV_BLACK_LIST = "new_env_black_list"
+NEW_ENV_BIZ_BLACK_LIST_CONFIG_KEY = "NEW_ENV_BIZ_BLACK_LIST"
+NEW_ENV_BIZ_WHITE_LIST_CONFIG_KEY = "NEW_ENV_BIZ_WHITE_LIST"
 
 CONFIG_TYPES = (APM_APPLICATION, CUSTOM_REPORT, LOG)
-VERSION_PATTERN = re.compile(r"[vV]?(\d+\.){1,5}\d+$")
-SUCCEEDED_ACTIONS = {INSTALL, STOP, "refresh"}
+SUCCEEDED_ACTIONS = {INSTALL, STOP, "refresh", DISABLE_AUTO_INSPECTION, UPDATE}
 CONFIG_DELIVERY_SUCCESS_STATUS = "SUCCESS"
 CONFIG_DELIVERY_TIMEOUT_STATUS = "TIMEOUT"
 PROXY_CONFIG_RENDER_STEP_CODE = "render_and_push_config"
@@ -45,14 +50,33 @@ DEFAULT_CONFIG_DELIVERY_WAIT_TIMEOUT = 90
 DEFAULT_CONFIG_DELIVERY_POLL_INTERVAL = 10
 
 
-def _set_nodeman_api():
+def _set_nodeman_api() -> str | None:
     """
     单租户情况下，如果使用的是esb，有些API调用会有问题，需要临时切换到apigw
     """
+    original_api_base_url = getattr(settings, "BKNODEMAN_API_BASE_URL", None)
     if not settings.ENABLE_MULTI_TENANT_MODE:
         settings.BKNODEMAN_API_BASE_URL = f"{settings.BK_COMPONENT_API_URL}/api/bk-nodeman/prod/"
+    return original_api_base_url
 
 
+def _restore_nodeman_api(original_api_base_url: str | None) -> None:
+    settings.BKNODEMAN_API_BASE_URL = original_api_base_url
+
+
+def _with_nodeman_api_context(func: Callable[..., dict[str, Any]]):
+    @wraps(func)
+    def wrapped(*args, **kwargs):
+        original_api_base_url = _set_nodeman_api()
+        try:
+            return func(*args, **kwargs)
+        finally:
+            _restore_nodeman_api(original_api_base_url)
+
+    return wrapped
+
+
+@_with_nodeman_api_context
 def install_biz_bk_collector(
     *,
     bk_tenant_id: str,
@@ -63,7 +87,6 @@ def install_biz_bk_collector(
     job_poll_interval: int = DEFAULT_PLUGIN_JOB_POLL_INTERVAL,
 ) -> dict[str, Any]:
     """Install or upgrade bk-collector on proxy hosts used by the given businesses."""
-    _set_nodeman_api()
     logger.info(
         "install_biz_bk_collector: start bk_tenant_id=%s bk_biz_ids=%s operator=%s dry_run=%s "
         "job_wait_timeout=%s job_poll_interval=%s",
@@ -119,6 +142,7 @@ def install_biz_bk_collector(
     )
 
 
+@_with_nodeman_api_context
 def stop_biz_bk_collector(
     *,
     bk_tenant_id: str,
@@ -129,7 +153,6 @@ def stop_biz_bk_collector(
     job_poll_interval: int = DEFAULT_PLUGIN_JOB_POLL_INTERVAL,
 ) -> dict[str, Any]:
     """Stop bk-collector on proxy hosts used by the given businesses."""
-    _set_nodeman_api()
     logger.info(
         "stop_biz_bk_collector: start bk_tenant_id=%s bk_biz_ids=%s operator=%s dry_run=%s "
         "job_wait_timeout=%s job_poll_interval=%s",
@@ -167,16 +190,14 @@ def refresh_biz_bk_collector_proxy_configs(
     check_delivery: bool = True,
     delivery_wait_timeout: int = DEFAULT_CONFIG_DELIVERY_WAIT_TIMEOUT,
     delivery_poll_interval: int = DEFAULT_CONFIG_DELIVERY_POLL_INTERVAL,
-    include_default_biz: bool = True,
     include_details: bool = False,
 ) -> dict[str, Any]:
     """Refresh bk-collector proxy configs for selected config families."""
-    _set_nodeman_api()
     selected_config_types = _normalize_config_types(config_types)
     logger.info(
         "refresh_biz_bk_collector_proxy_configs: start bk_tenant_id=%s bk_biz_ids=%s config_types=%s "
         "operator=%s dry_run=%s check_delivery=%s delivery_wait_timeout=%s delivery_poll_interval=%s "
-        "include_default_biz=%s include_details=%s",
+        "include_details=%s",
         bk_tenant_id,
         bk_biz_ids,
         selected_config_types,
@@ -185,7 +206,6 @@ def refresh_biz_bk_collector_proxy_configs(
         check_delivery,
         delivery_wait_timeout,
         delivery_poll_interval,
-        include_default_biz,
         include_details,
     )
     report = _init_report(
@@ -219,9 +239,9 @@ def refresh_biz_bk_collector_proxy_configs(
             bk_biz_ids=bk_biz_ids,
             config_types=selected_config_types,
             operator=operator,
-            include_default_biz=include_default_biz,
             wait_timeout=delivery_wait_timeout,
             poll_interval=delivery_poll_interval,
+            subscription_scope=_build_proxy_config_delivery_subscription_scope(report["details"]),
         )
         report["result"] = (
             report["summary"]["total"]["failed_count"] == 0 and report["delivery_check"]["result"] is True
@@ -251,30 +271,82 @@ def refresh_biz_bk_collector_proxy_configs(
     return report
 
 
+def disable_biz_bk_collector_subscription_auto_inspection(
+    *,
+    bk_tenant_id: str,
+    bk_biz_ids: list[int],
+    operator: str = "system",
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """Disable NodeMan auto-inspection for migrated bk-collector config subscriptions and blacklist businesses."""
+    normalized_bk_biz_ids = _unique_ints(bk_biz_ids)
+    logger.info(
+        "disable_biz_bk_collector_subscription_auto_inspection: start bk_tenant_id=%s bk_biz_ids=%s "
+        "operator=%s dry_run=%s",
+        bk_tenant_id,
+        normalized_bk_biz_ids,
+        operator,
+        dry_run,
+    )
+    report = _init_report(
+        bk_tenant_id=bk_tenant_id,
+        bk_biz_ids=normalized_bk_biz_ids,
+        operator=operator,
+        dry_run=dry_run,
+        categories=(*CONFIG_TYPES, NEW_ENV_BLACK_LIST),
+    )
+    subscriptions = _list_proxy_config_delivery_subscriptions(
+        bk_tenant_id=bk_tenant_id,
+        bk_biz_ids=normalized_bk_biz_ids,
+        config_types=CONFIG_TYPES,
+    )
+
+    with _local_operator_context(bk_tenant_id=bk_tenant_id, operator=operator):
+        for subscription in subscriptions:
+            record = _disable_bk_collector_subscription_auto_inspection(subscription, dry_run=dry_run)
+            report["details"][subscription["config_type"]].append(record)
+
+    _append_new_env_scope_update_record(
+        report,
+        category=NEW_ENV_BLACK_LIST,
+        config_key=NEW_ENV_BIZ_BLACK_LIST_CONFIG_KEY,
+        bk_biz_ids=normalized_bk_biz_ids,
+        dry_run=dry_run,
+        remove_config_keys=(NEW_ENV_BIZ_WHITE_LIST_CONFIG_KEY,),
+        empty_message="no biz to add into new env black list",
+    )
+    logger.info(
+        "disable_biz_bk_collector_subscription_auto_inspection: completed bk_tenant_id=%s bk_biz_ids=%s summary=%s",
+        bk_tenant_id,
+        normalized_bk_biz_ids,
+        report["summary"],
+    )
+    return report
+
+
 def check_biz_bk_collector_proxy_config_delivery(
     *,
     bk_tenant_id: str,
     bk_biz_ids: list[int],
     config_types: list[str] | tuple[str, ...] | None = None,
     operator: str = "system",
-    include_default_biz: bool = False,
     wait_timeout: int = 0,
     poll_interval: int = DEFAULT_CONFIG_DELIVERY_POLL_INTERVAL,
+    subscription_scope: list[dict[str, Any]] | tuple[dict[str, Any], ...] | None = None,
 ) -> dict[str, Any]:
     """Check whether bk-collector proxy configs have been rendered and pushed successfully."""
-    _set_nodeman_api()
     selected_config_types = _normalize_config_types(config_types)
     normalized_bk_biz_ids = _unique_ints(bk_biz_ids)
     logger.info(
         "check_biz_bk_collector_proxy_config_delivery: start bk_tenant_id=%s bk_biz_ids=%s "
-        "config_types=%s operator=%s include_default_biz=%s wait_timeout=%s poll_interval=%s",
+        "config_types=%s operator=%s wait_timeout=%s poll_interval=%s subscription_scope_count=%s",
         bk_tenant_id,
         normalized_bk_biz_ids,
         selected_config_types,
         operator,
-        include_default_biz,
         wait_timeout,
         poll_interval,
+        len(subscription_scope) if subscription_scope is not None else None,
     )
     normalized_wait_timeout = max(_read_int(wait_timeout), 0)
     normalized_poll_interval = max(_read_int(poll_interval), 0)
@@ -288,7 +360,7 @@ def check_biz_bk_collector_proxy_config_delivery(
             bk_biz_ids=normalized_bk_biz_ids,
             config_types=selected_config_types,
             operator=operator,
-            include_default_biz=include_default_biz,
+            subscription_scope=subscription_scope,
         )
         report["poll_attempts"] = poll_attempts
         report["timed_out"] = False
@@ -347,7 +419,7 @@ def _check_biz_bk_collector_proxy_config_delivery_once(
     bk_biz_ids: list[int],
     config_types: tuple[str, ...],
     operator: str,
-    include_default_biz: bool,
+    subscription_scope: list[dict[str, Any]] | tuple[dict[str, Any], ...] | None = None,
 ) -> dict[str, Any]:
     report = _init_report(
         bk_tenant_id=bk_tenant_id,
@@ -356,20 +428,25 @@ def _check_biz_bk_collector_proxy_config_delivery_once(
         dry_run=False,
         categories=config_types,
     )
-    report["include_default_biz"] = include_default_biz
 
     subscriptions = _list_proxy_config_delivery_subscriptions(
         bk_tenant_id=bk_tenant_id,
         bk_biz_ids=bk_biz_ids,
         config_types=config_types,
-        include_default_biz=include_default_biz,
+    )
+    listed_subscription_count = len(subscriptions)
+    subscriptions = _filter_proxy_config_delivery_subscriptions_by_scope(
+        subscriptions,
+        subscription_scope=subscription_scope,
     )
     logger.info(
         "check_biz_bk_collector_proxy_config_delivery: matched subscriptions bk_tenant_id=%s "
-        "bk_biz_ids=%s subscription_count=%s",
+        "bk_biz_ids=%s listed_subscription_count=%s subscription_count=%s subscription_scope_count=%s",
         bk_tenant_id,
         bk_biz_ids,
+        listed_subscription_count,
         len(subscriptions),
+        len(subscription_scope) if subscription_scope is not None else None,
     )
 
     with _local_operator_context(bk_tenant_id=bk_tenant_id, operator=operator):
@@ -416,14 +493,165 @@ def _drop_report_details(report: dict[str, Any]) -> None:
         delivery_check.pop("details", None)
 
 
+def _disable_bk_collector_subscription_auto_inspection(
+    subscription: dict[str, Any], *, dry_run: bool
+) -> dict[str, Any]:
+    record = {
+        **subscription,
+        "action": "dry_run" if dry_run else DISABLE_AUTO_INSPECTION,
+        "result": None if dry_run else True,
+        "message": "would disable subscription auto inspection" if dry_run else "success",
+    }
+    logger.info(
+        "disable bk-collector subscription auto inspection: start config_type=%s bk_tenant_id=%s "
+        "bk_biz_id=%s subscription_id=%s dry_run=%s",
+        subscription.get("config_type"),
+        subscription.get("bk_tenant_id"),
+        subscription.get("bk_biz_id"),
+        subscription.get("subscription_id"),
+        dry_run,
+    )
+    if dry_run:
+        return record
+
+    try:
+        result = api.node_man.switch_subscription(
+            bk_tenant_id=subscription["bk_tenant_id"],
+            subscription_id=subscription["subscription_id"],
+            action="disable",
+        )
+    except Exception as error:  # noqa: BLE001 - migration command reports per-subscription failures.
+        logger.exception(
+            "disable bk-collector subscription auto inspection: failed config_type=%s bk_tenant_id=%s "
+            "bk_biz_id=%s subscription_id=%s",
+            subscription.get("config_type"),
+            subscription.get("bk_tenant_id"),
+            subscription.get("bk_biz_id"),
+            subscription.get("subscription_id"),
+        )
+        record.update({"result": False, "message": str(error)})
+    else:
+        logger.info(
+            "disable bk-collector subscription auto inspection: completed config_type=%s bk_tenant_id=%s "
+            "bk_biz_id=%s subscription_id=%s result=%s",
+            subscription.get("config_type"),
+            subscription.get("bk_tenant_id"),
+            subscription.get("bk_biz_id"),
+            subscription.get("subscription_id"),
+            result,
+        )
+        record["switch_result"] = result
+    return record
+
+
+def _append_new_env_scope_update_record(
+    report: dict[str, Any],
+    *,
+    category: str,
+    config_key: str,
+    bk_biz_ids: list[int],
+    dry_run: bool,
+    remove_config_keys: tuple[str, ...] = (),
+    empty_message: str,
+) -> None:
+    report["details"].setdefault(category, [])
+    try:
+        record = _sync_new_env_biz_scope_config(
+            config_key=config_key,
+            bk_biz_ids=bk_biz_ids,
+            dry_run=dry_run,
+            remove_config_keys=remove_config_keys,
+            empty_message=empty_message,
+        )
+    except Exception as error:  # noqa: BLE001 - keep a structured failure in command output.
+        logger.exception(
+            "sync new env biz scope config failed config_key=%s bk_biz_ids=%s dry_run=%s remove_config_keys=%s",
+            config_key,
+            bk_biz_ids,
+            dry_run,
+            remove_config_keys,
+        )
+        record = {
+            "config_key": config_key,
+            "bk_biz_ids": _unique_ints(bk_biz_ids),
+            "remove_config_keys": list(remove_config_keys),
+            "action": "dry_run" if dry_run else UPDATE,
+            "result": False,
+            "message": str(error),
+        }
+    report["details"][category].append(record)
+    report["summary"] = _build_summary(report["details"], dry_run=report["dry_run"])
+
+
+def _sync_new_env_biz_scope_config(
+    *,
+    config_key: str,
+    bk_biz_ids: list[int],
+    dry_run: bool,
+    remove_config_keys: tuple[str, ...],
+    empty_message: str,
+) -> dict[str, Any]:
+    normalized_bk_biz_ids = _unique_ints(bk_biz_ids)
+    current_value = _get_global_config_biz_id_list(config_key)
+    next_value = _merge_biz_id_list(current_value, normalized_bk_biz_ids)
+    removed_before_values = {
+        remove_config_key: _get_global_config_biz_id_list(remove_config_key) for remove_config_key in remove_config_keys
+    }
+    removed_values = {
+        remove_config_key: _remove_biz_ids_from_list(remove_config_value, normalized_bk_biz_ids)
+        for remove_config_key, remove_config_value in removed_before_values.items()
+    }
+    record = {
+        "config_key": config_key,
+        "bk_biz_ids": normalized_bk_biz_ids,
+        "before": current_value,
+        "after": next_value,
+        "remove_config_keys": list(remove_config_keys),
+        "removed_configs": {
+            remove_config_key: {
+                "before": removed_before_values[remove_config_key],
+                "after": removed_value,
+            }
+            for remove_config_key, removed_value in removed_values.items()
+        },
+    }
+    if not normalized_bk_biz_ids:
+        record.update({"action": "skip", "result": True, "message": empty_message})
+        return record
+    if dry_run:
+        record.update({"action": "dry_run", "result": None, "message": f"would update {config_key}"})
+        return record
+
+    GlobalConfig.set(config_key, next_value)
+    setattr(settings, config_key, next_value)
+    for remove_config_key, removed_value in removed_values.items():
+        GlobalConfig.set(remove_config_key, removed_value)
+        setattr(settings, remove_config_key, removed_value)
+    record.update({"action": UPDATE, "result": True, "message": "success"})
+    return record
+
+
+def _get_global_config_biz_id_list(config_key: str) -> list[int]:
+    value = GlobalConfig.get(config_key, getattr(settings, config_key, []))
+    return _unique_ints(value or [])
+
+
+def _merge_biz_id_list(current_value: list[int], added_biz_ids: list[int]) -> list[int]:
+    return _unique_ints([*current_value, *added_biz_ids])
+
+
+def _remove_biz_ids_from_list(current_value: list[int], removed_biz_ids: list[int]) -> list[int]:
+    removed = set(_unique_ints(removed_biz_ids))
+    return [bk_biz_id for bk_biz_id in _unique_ints(current_value) if bk_biz_id not in removed]
+
+
 def _list_proxy_config_delivery_subscriptions(
     *,
     bk_tenant_id: str,
     bk_biz_ids: list[int],
     config_types: tuple[str, ...],
-    include_default_biz: bool,
 ) -> list[dict[str, Any]]:
-    query_bk_biz_ids = _unique_ints([*bk_biz_ids, 0] if include_default_biz else bk_biz_ids)
+    query_bk_biz_ids = _unique_ints(bk_biz_ids)
     subscriptions: list[dict[str, Any]] = []
 
     if APM_APPLICATION in config_types:
@@ -488,14 +716,121 @@ def _list_proxy_config_delivery_subscriptions(
     }
     logger.info(
         "list_proxy_config_delivery_subscriptions: completed bk_tenant_id=%s bk_biz_ids=%s "
-        "include_default_biz=%s subscription_count=%s subscription_counts=%s",
+        "subscription_count=%s subscription_counts=%s",
         bk_tenant_id,
         bk_biz_ids,
-        include_default_biz,
         len(subscriptions),
         subscription_counts,
     )
     return subscriptions
+
+
+def _build_proxy_config_delivery_subscription_scope(details: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    subscription_scope: list[dict[str, Any]] = []
+
+    for record in details.get(APM_APPLICATION, []):
+        if record.get("result") is True:
+            subscription_scope.append(
+                {
+                    "config_type": APM_APPLICATION,
+                    "bk_tenant_id": record.get("bk_tenant_id"),
+                    "bk_biz_id": record.get("bk_biz_id"),
+                    "name": record.get("app_name"),
+                    "subscription_id": record.get("subscription_id"),
+                }
+            )
+
+    for record in details.get(CUSTOM_REPORT, []):
+        if record.get("result") is not True:
+            continue
+        refresh_result = record.get("refresh_result") or {}
+        for detail in refresh_result.get("details") or []:
+            node_man_target = (detail.get("targets") or {}).get("node_man") or {}
+            if node_man_target.get("action") != "refresh" or node_man_target.get("result") is not True:
+                continue
+            for bk_data_id in _read_ints(detail.get("data_ids") or []):
+                subscription_scope.append(
+                    {
+                        "config_type": CUSTOM_REPORT,
+                        "bk_tenant_id": detail.get("bk_tenant_id") or record.get("bk_tenant_id"),
+                        "bk_biz_id": detail.get("bk_biz_id", record.get("bk_biz_id")),
+                        "bk_data_id": bk_data_id,
+                    }
+                )
+
+    for record in details.get(LOG, []):
+        if record.get("result") is True:
+            subscription_scope.append(
+                {
+                    "config_type": LOG,
+                    "bk_tenant_id": record.get("bk_tenant_id"),
+                    "bk_biz_id": record.get("bk_biz_id"),
+                    "name": record.get("log_group_name"),
+                    "subscription_id": record.get("subscription_id"),
+                }
+            )
+
+    return _dedupe_proxy_config_delivery_subscription_scope(subscription_scope)
+
+
+def _dedupe_proxy_config_delivery_subscription_scope(
+    subscription_scope: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    deduped_scope = []
+    seen_keys = set()
+    for scope in subscription_scope:
+        match_keys = _proxy_config_delivery_subscription_match_keys(scope)
+        if not match_keys:
+            continue
+        dedupe_key = tuple(match_keys)
+        if dedupe_key in seen_keys:
+            continue
+        seen_keys.add(dedupe_key)
+        deduped_scope.append(scope)
+    return deduped_scope
+
+
+def _filter_proxy_config_delivery_subscriptions_by_scope(
+    subscriptions: list[dict[str, Any]],
+    *,
+    subscription_scope: list[dict[str, Any]] | tuple[dict[str, Any], ...] | None,
+) -> list[dict[str, Any]]:
+    if subscription_scope is None:
+        return subscriptions
+
+    scope_keys = {
+        match_key for scope in subscription_scope for match_key in _proxy_config_delivery_subscription_match_keys(scope)
+    }
+    if not scope_keys:
+        return []
+
+    return [
+        subscription
+        for subscription in subscriptions
+        if any(match_key in scope_keys for match_key in _proxy_config_delivery_subscription_match_keys(subscription))
+    ]
+
+
+def _proxy_config_delivery_subscription_match_keys(subscription: dict[str, Any]) -> list[tuple[Any, ...]]:
+    config_type = subscription.get("config_type")
+    bk_tenant_id = subscription.get("bk_tenant_id")
+    bk_biz_id = subscription.get("bk_biz_id")
+    match_keys: list[tuple[Any, ...]] = []
+
+    subscription_id = _read_int(subscription.get("subscription_id"))
+    if subscription_id > 0:
+        match_keys.append((config_type, bk_tenant_id, "subscription_id", subscription_id))
+
+    if config_type == CUSTOM_REPORT:
+        bk_data_id = _read_int(subscription.get("bk_data_id"))
+        if bk_data_id > 0:
+            match_keys.append((config_type, bk_tenant_id, bk_biz_id, "bk_data_id", bk_data_id))
+    else:
+        name = subscription.get("name") or subscription.get("app_name") or subscription.get("log_name")
+        if name:
+            match_keys.append((config_type, bk_tenant_id, bk_biz_id, "name", str(name)))
+
+    return match_keys
 
 
 def _check_proxy_config_delivery_subscription(subscription: dict[str, Any]) -> dict[str, Any]:
@@ -1197,6 +1532,10 @@ def _read_int(value: Any) -> int:
         return 0
 
 
+def _read_ints(values: list[Any] | tuple[Any, ...]) -> list[int]:
+    return [int_value for value in values if (int_value := _read_int(value)) > 0]
+
+
 def _refresh_apm_applications(
     report: dict[str, Any],
     *,
@@ -1403,20 +1742,7 @@ def _refresh_log(
 def _get_deploy_host_ids(
     *, bk_tenant_id: str, bk_host_ids: list[int], plugin_name: str, plugin_version: str
 ) -> tuple[list[int], list[int]]:
-    plugin_info_list = _list_plugin_info_by_host_ids(bk_tenant_id=bk_tenant_id, bk_host_ids=bk_host_ids)
-    returned_host_ids = {plugin_info["bk_host_id"] for plugin_info in plugin_info_list}
-    skipped_host_ids = []
-    deploy_host_ids = []
-
-    for plugin_info in plugin_info_list:
-        current_version = _get_current_plugin_version(plugin_info.get("plugin_status") or [], plugin_name)
-        if current_version == plugin_version:
-            skipped_host_ids.append(plugin_info["bk_host_id"])
-        else:
-            deploy_host_ids.append(plugin_info["bk_host_id"])
-
-    deploy_host_ids.extend([bk_host_id for bk_host_id in bk_host_ids if bk_host_id not in returned_host_ids])
-    return _unique_ints(deploy_host_ids), _unique_ints(skipped_host_ids)
+    return _unique_ints(bk_host_ids), []
 
 
 def _get_stop_host_ids(
@@ -1440,12 +1766,6 @@ def _get_stop_host_ids(
 def _list_plugin_info_by_host_ids(*, bk_tenant_id: str, bk_host_ids: list[int]) -> list[dict[str, Any]]:
     params = {"page": 1, "pagesize": len(bk_host_ids), "conditions": [], "bk_host_id": bk_host_ids}
     return api.node_man.plugin_search(bk_tenant_id=bk_tenant_id, **params).get("list", [])
-
-
-def _get_current_plugin_version(plugin_status: list[dict[str, Any]], plugin_name: str) -> str:
-    proc = next((item for item in plugin_status if item.get("name") == plugin_name), {})
-    current_plugin_version = VERSION_PATTERN.search(proc.get("version", ""))
-    return current_plugin_version.group() if current_plugin_version else ""
 
 
 def _has_plugin(plugin_status: list[dict[str, Any]], plugin_name: str) -> bool:

@@ -160,7 +160,11 @@ if not settings.ENABLE_MULTI_TENANT_MODE:
     )
 
 
-if not Platform.te:
+# PING 不可达：与上面的 gse 系统事件 / os_restart / proc_port 一样，仅单租户由 v1 声明；多租户改由
+# os/v4 单独声明（bk_monitor 源 ping-gse 伪事件，走指标逻辑）。必须叠加 `not ENABLE_MULTI_TENANT_MODE`
+# 门控：否则多租户下 v1 仍声明 ping-gse，与 v4 同时命中 BaseAlarmMetricCacheManager 内置的
+# bk_monitor.ping-gse 目录项，对未登记 v1 的新业务会被 v1、v4 各建一条、产生重复 PING 策略（双告警）。
+if not settings.ENABLE_MULTI_TENANT_MODE and not Platform.te:
     DEFAULT_OS_STRATEGIES.append(
         {
             "name": _lazy("PING不可达告警"),

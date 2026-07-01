@@ -659,7 +659,7 @@ export default defineComponent({
         }
 
         const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage, appendParams);
-        window.open(openUrl, '_blank');
+        window.open(openUrl, '_blank', 'noopener,noreferrer');
         // 回填当前页面聚类参数
         store.commit('updateState', {
           key: 'clusterParams',

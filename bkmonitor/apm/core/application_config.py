@@ -13,16 +13,16 @@ import json
 import logging
 from collections import defaultdict
 
-from jinja2.sandbox import SandboxedEnvironment as Environment
 from django.conf import settings
+from jinja2.sandbox import SandboxedEnvironment as Environment
 from opentelemetry import trace
 
 from apm.constants import (
     DEFAULT_APM_APPLICATION_ATTRIBUTE_CONFIG,
     DEFAULT_APM_APPLICATION_DB_SLOW_COMMAND_CONFIG,
+    DEFAULT_APM_APPLICATION_LOGS_ATTRIBUTE_CONFIG,
     GLOBAL_CONFIG_BK_BIZ_ID,
     ConfigTypes,
-    DEFAULT_APM_APPLICATION_LOGS_ATTRIBUTE_CONFIG,
 )
 from apm.models import (
     ApdexConfig,
@@ -41,11 +41,13 @@ from apm.models import (
     SubscriptionConfig,
     TraceDataSource,
 )
-from bkmonitor.utils.bk_collector_config import BkCollectorConfig, BkCollectorClusterConfig
+from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig, BkCollectorConfig
 from bkmonitor.utils.common_utils import count_md5
+from bkmonitor.utils.new_env import is_biz_id_in_black_list, is_biz_id_need_managed
 from constants.bk_collector import BkCollectorComp
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
+from metadata.models import BCSClusterInfo
 
 logger = logging.getLogger("apm")
 
@@ -160,18 +162,28 @@ class ApplicationConfig(BkCollectorConfig):
         self.application_config = self.get_application_config()
 
     def refresh(self):
-        """[旧] 下发应用配置（通过节点管理）"""
+        """[旧] 下发应用配置（通过节点管理）
+
+        业务黑白名单:
+        如果业务在黑名单中, 不下发到业务的proxy下, 只下发到全局配置主机下。
+        业务配置下发不受新环境黑白名单和阈值约束, 因为agent路径独立, 不会有影响。
+        """
         bk_tenant_id = self.bk_tenant_id
         bk_biz_id = self.bk_biz_id
 
         # 1. 获取应用配置上下文
         application_config = self.get_application_config()
 
-        # 2.1 获取指定租户指定业务下的主机
-        proxy_target_hosts = self.get_target_host_ids_by_biz_id(bk_tenant_id, bk_biz_id)
+        # 2.1 获取指定租户指定业务下的主机，如果业务在黑名单中, 不下发到业务的proxy下, 只下发到全局配置主机下。
+        if is_biz_id_in_black_list(bk_biz_id):
+            proxy_target_hosts = []
+        else:
+            proxy_target_hosts = self.get_target_host_ids_by_biz_id(bk_tenant_id, bk_biz_id)
 
-        # 2.2 获取默认租户下全局配置中主机配置列表
+        # 2.2 获取默认租户下全局配置中主机配置列表，全部配置的主机一定是默认租户下的主机
         default_target_hosts = self.get_target_host_in_default_cloud_area()
+
+        # 2.3 如果没有任何主机需要下发, 则跳过流程
         if not default_target_hosts and not proxy_target_hosts:
             logger.info("no bk-collector node, otlp is disabled")
             return
@@ -179,16 +191,27 @@ class ApplicationConfig(BkCollectorConfig):
         try:
             # 3. 下发给指定租户下
             if bk_tenant_id == DEFAULT_TENANT_ID:
-                self.deploy(bk_tenant_id, application_config, default_target_hosts + proxy_target_hosts)
+                # 下发到默认租户下全局配置主机和指定租户下业务代理主机上
+                self.deploy(bk_tenant_id, application_config, list(set(default_target_hosts + proxy_target_hosts)))
             else:
-                self.deploy(DEFAULT_TENANT_ID, application_config, default_target_hosts)
-                self.deploy(bk_tenant_id, application_config, proxy_target_hosts)
+                if default_target_hosts:
+                    # 下发到默认租户下全局配置主机
+                    self.deploy(DEFAULT_TENANT_ID, application_config, default_target_hosts)
+                if proxy_target_hosts:
+                    # 下发到指定租户下业务代理主机
+                    self.deploy(bk_tenant_id, application_config, proxy_target_hosts)
         except Exception:  # noqa
             logger.exception("auto deploy bk-collector application config error")
 
     @classmethod
     def refresh_k8s(cls, applications: list[ApmApplication], need_config_cache=False) -> None:
-        """批量刷新多个应用的 k8s 配置"""
+        """批量刷新多个应用的 k8s 配置
+
+        业务黑白名单:
+        如果业务在黑名单中，则不下发该业务下的所有集群配置，避免与新环境刷新配置冲突。
+        如果业务不在白名单或阈值外，则不下发该业务下的所有集群配置，避免与旧环境刷新配置冲突。
+        配置的默认部署集群, 必须下发。
+        """
         if not applications:
             return
 
@@ -220,8 +243,27 @@ class ApplicationConfig(BkCollectorConfig):
             for cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
                 cluster_mapping[cluster_id] = [BkCollectorClusterConfig.GLOBAL_CONFIG_BK_BIZ_ID]
 
+        # 获取BCS集群与业务ID的映射关系
+        bcs_cluster_to_biz_ids: dict[str, int] = {}
+        for bcs_cluster in BCSClusterInfo.objects.all().only("cluster_id", "bk_biz_id"):
+            bcs_cluster_to_biz_ids[bcs_cluster.cluster_id] = bcs_cluster.bk_biz_id
+
         # 按集群分组配置，实现批量下发
         for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
+            # 如果集群是默认部署集群, 则必须下发
+            if cluster_id not in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
+                # 如果集群不在BCS集群中，则不下发该集群的配置
+                if cluster_id not in bcs_cluster_to_biz_ids:
+                    continue
+                bk_biz_id = bcs_cluster_to_biz_ids[cluster_id]
+
+                # 如果集群对应业务不需要管理，则不下发该集群的配置
+                if not is_biz_id_need_managed(bk_biz_id):
+                    logger.info(
+                        f"apm config refresh k8s: cluster({cluster_id}) corresponding business({bk_biz_id}) is not managed, skip"
+                    )
+                    continue
+
             with tracer.start_as_current_span(f"cluster-id: {cluster_id}") as s:
                 try:
                     application_tpl = BkCollectorClusterConfig.sub_config_tpl(
@@ -267,7 +309,10 @@ class ApplicationConfig(BkCollectorConfig):
 
     def get_cluster_application_config(self, bcs_cluster_id: str | None = None):
         """获取集群应用配置"""
-        return {"resource_filter_config_metrics": self.get_resource_filter_config_metrics(bcs_cluster_id)}
+        return {
+            "resource_filter_config_logs": self.get_resource_filter_config_logs(bcs_cluster_id),
+            "resource_filter_config_metrics": self.get_resource_filter_config_metrics(bcs_cluster_id),
+        }
 
     def get_application_config(self):
         """获取应用配置上下文"""
@@ -578,16 +623,49 @@ class ApplicationConfig(BkCollectorConfig):
         }
 
     @staticmethod
-    def get_resource_filter_config_logs():
+    def get_k8s_dimension_fill_config() -> dict:
+        return {
+            "from_record": [
+                {
+                    "source": "request.client.ip",
+                    "destination": "resource.net.host.ip",
+                }
+            ],
+            "from_cache": {"key": "resource.net.host.ip", "cache_name": "k8s_cache"},
+        }
+
+    @staticmethod
+    def is_resource_filter_enabled(
+        bcs_cluster_id: str | None,
+        bk_biz_id: int,
+        app_name: str,
+        enabled_apps: dict,
+    ) -> bool:
+        if not bcs_cluster_id or bcs_cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
+            # 中心化集群，可以接收到所有的数据，不对中心化集群做维度补充逻辑
+            return False
+
+        return bool(enabled_apps and app_name in enabled_apps.get(str(bk_biz_id), []))
+
+    def get_resource_filter_config_logs(self, bcs_cluster_id: str | None = None):
         """
         针对日志数据源 resource 字段处理逻辑
         """
-        return {
+        default_logs_config = {
             "name": "resource_filter/logs",
             "drop": {"keys": ["resource.bk.data.token", "resource.tps.tenant.id"]},
         }
 
-    def get_resource_filter_config_metrics(self, bcs_cluster_id=None):
+        if self.is_resource_filter_enabled(
+            bcs_cluster_id,
+            self._application.bk_biz_id,
+            self._application.app_name,
+            settings.APM_RESOURCE_FILTER_LOGS_ENABLED_APPS,
+        ):
+            return {**default_logs_config, **self.get_k8s_dimension_fill_config()}
+        return default_logs_config
+
+    def get_resource_filter_config_metrics(self, bcs_cluster_id: str | None = None):
         """
         维度补充配置
         """
@@ -597,25 +675,14 @@ class ApplicationConfig(BkCollectorConfig):
             "from_token": {"keys": ["app_name"]},
         }
 
-        if not bcs_cluster_id or bcs_cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
-            # 中心化集群，可以接收到所有的数据，不对中心化集群做维度补充逻辑
-            return default_metrics_config
-
-        enabled_apps = settings.APM_RESOURCE_FILTER_METRICS_ENABLED_APPS
-
         # 只有在白名单中的应用才启用该功能
-        if enabled_apps and self._application.app_name in enabled_apps.get(str(self._application.bk_biz_id), []):
-            extra_config = {
-                "from_record": [
-                    {
-                        "source": "request.client.ip",
-                        "destination": "resource.net.host.ip",
-                    }
-                ],
-                "from_cache": {"key": "resource.net.host.ip", "cache_name": "k8s_cache"},
-            }
-            extra_config.update(default_metrics_config)
-            return extra_config
+        if self.is_resource_filter_enabled(
+            bcs_cluster_id,
+            self._application.bk_biz_id,
+            self._application.app_name,
+            settings.APM_RESOURCE_FILTER_METRICS_ENABLED_APPS,
+        ):
+            return {**self.get_k8s_dimension_fill_config(), **default_metrics_config}
         return default_metrics_config
 
     def get_sub_configs(self, unique_key: str, config_level):
