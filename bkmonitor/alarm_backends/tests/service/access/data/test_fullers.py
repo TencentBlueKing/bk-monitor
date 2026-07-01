@@ -149,7 +149,7 @@ class TestTopoNodeFuller:
         assert get_host_by_agent_id.call_args[1]["bk_agent_id"] == agent_id
         assert record.dimensions["bk_target_ip"] == "127.0.0.2"
         assert record.dimensions["bk_target_cloud_id"] == "0"
-        assert record.dimensions["bk_host_id"] == 1
+        assert record.dimensions["bk_host_id"] == "1"
         agent_topo_node = record.dimensions["bk_topo_node"]
         agent_topo_node.sort()
         assert agent_topo_node == ["biz|2", "module|2", "set|1"]
