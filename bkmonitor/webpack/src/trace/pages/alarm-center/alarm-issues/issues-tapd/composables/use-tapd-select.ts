@@ -83,7 +83,6 @@ export function useTapdSelect(options: UseTapdSelectOptions) {
         name: keyword.value || undefined,
         limit: PAGE_SIZE,
         page: page.value,
-        fields: 'status',
       }).catch(() => null);
       const items = data ?? [];
       for (const item of items) {
