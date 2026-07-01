@@ -2830,7 +2830,14 @@ class RebindTapdWorkspaceResource(Resource):
                 raise exc
             raise
 
-        # 4. 删除 tombstone + 创建 binding，事务包裹保证原子性
+        # 4. 校验应用态授权仍然存在，避免绕过 TAPD 应用安装直接恢复本地 binding
+        app_granted_ids = ListUserTapdWorkspaceResource._fetch_app_granted_ids(bk_biz_id)
+        if workspace_id not in app_granted_ids:
+            exc = CustomException(message="TAPD 项目未完成应用授权，请先完成项目关联授权", code=403)
+            exc.status_code = 200
+            raise exc
+
+        # 5. 删除 tombstone + 创建 binding，事务包裹保证原子性
         with transaction.atomic():
             TapdWorkspaceManualUnbind.objects.filter(
                 bk_tenant_id=tenant_id, space_uid=space_uid, tapd_workspace_id=workspace_id
