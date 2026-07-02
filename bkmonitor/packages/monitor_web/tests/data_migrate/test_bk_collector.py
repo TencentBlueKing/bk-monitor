@@ -884,6 +884,49 @@ def test_check_biz_bk_collector_proxy_config_delivery_waits_until_render_success
     assert sleep_calls == [1]
 
 
+def test_check_biz_bk_collector_proxy_config_delivery_waits_when_failed_with_pending(monkeypatch):
+    subscriptions = [
+        {
+            "config_type": bk_collector.CUSTOM_REPORT,
+            "bk_tenant_id": "system",
+            "bk_biz_id": 2,
+            "subscription_id": 1001,
+            "bk_data_id": 2001,
+        },
+        {
+            "config_type": bk_collector.CUSTOM_REPORT,
+            "bk_tenant_id": "system",
+            "bk_biz_id": 2,
+            "subscription_id": 1002,
+            "bk_data_id": 2002,
+        },
+    ]
+    task_results = [
+        [_proxy_config_delivery_task(render_status="FAILED", instance_status="FAILED")],
+        [_proxy_config_delivery_task(render_status="PENDING", instance_status="RUNNING")],
+        [_proxy_config_delivery_task(render_status="SUCCESS", instance_status="FAILED")],
+        [_proxy_config_delivery_task(render_status="SUCCESS", instance_status="FAILED")],
+    ]
+    sleep_calls = []
+
+    monkeypatch.setattr(bk_collector, "_list_proxy_config_delivery_subscriptions", lambda **kwargs: subscriptions)
+    monkeypatch.setattr(bk_collector.api.node_man, "batch_task_result", lambda **kwargs: task_results.pop(0))
+    monkeypatch.setattr(bk_collector.time, "sleep", lambda seconds: sleep_calls.append(seconds))
+
+    result = bk_collector.check_biz_bk_collector_proxy_config_delivery(
+        bk_tenant_id="system",
+        bk_biz_ids=[2],
+        config_types=[bk_collector.CUSTOM_REPORT],
+        wait_timeout=10,
+        poll_interval=1,
+    )
+
+    assert result["result"] is True
+    assert result["poll_attempts"] == 2
+    assert result["summary"]["total"]["succeeded_count"] == 2
+    assert sleep_calls == [1]
+
+
 def test_refresh_biz_bk_collector_configs_checks_delivery_after_refresh(monkeypatch):
     custom_report_calls = []
     delivery_check_calls = []
@@ -973,7 +1016,17 @@ def test_refresh_biz_bk_collector_configs_keeps_failure_summary_without_details(
     monkeypatch.setattr(
         bk_collector.CustomReportSubscription,
         "refresh_collector_custom_conf",
-        lambda **kwargs: {"summary": {"failed_count": 0}, "details": []},
+        lambda **kwargs: {
+            "summary": {"failed_count": 0},
+            "details": [
+                {
+                    "bk_tenant_id": "system",
+                    "bk_biz_id": 2,
+                    "data_ids": [2001],
+                    "targets": {"node_man": {"action": "refresh", "result": True, "message": "success"}},
+                }
+            ],
+        },
     )
     monkeypatch.setattr(
         bk_collector,
@@ -1027,7 +1080,17 @@ def test_refresh_biz_bk_collector_configs_auto_retries_render_failures_reusing_c
     monkeypatch.setattr(
         bk_collector.CustomReportSubscription,
         "refresh_collector_custom_conf",
-        lambda **kwargs: {"summary": {"failed_count": 0}, "details": []},
+        lambda **kwargs: {
+            "summary": {"failed_count": 0},
+            "details": [
+                {
+                    "bk_tenant_id": "system",
+                    "bk_biz_id": 2,
+                    "data_ids": [2001],
+                    "targets": {"node_man": {"action": "refresh", "result": True, "message": "success"}},
+                }
+            ],
+        },
     )
     monkeypatch.setattr(
         bk_collector,
@@ -1077,6 +1140,7 @@ def test_refresh_biz_bk_collector_configs_auto_retries_render_failures_reusing_c
     assert retry_record["action"] == bk_collector.RETRY
     assert retry_record["result"] is True
     assert result["retry"]["delivery_check"]["result"] is True
+    assert result["delivery_check"]["result"] is True
     assert result["result"] is True
 
 
@@ -1084,7 +1148,17 @@ def test_refresh_biz_bk_collector_configs_skip_render_failure_retry_does_not_ret
     monkeypatch.setattr(
         bk_collector.CustomReportSubscription,
         "refresh_collector_custom_conf",
-        lambda **kwargs: {"summary": {"failed_count": 0}, "details": []},
+        lambda **kwargs: {
+            "summary": {"failed_count": 0},
+            "details": [
+                {
+                    "bk_tenant_id": "system",
+                    "bk_biz_id": 2,
+                    "data_ids": [2001],
+                    "targets": {"node_man": {"action": "refresh", "result": True, "message": "success"}},
+                }
+            ],
+        },
     )
     monkeypatch.setattr(
         bk_collector,
@@ -1543,6 +1617,7 @@ def test_custom_report_refresh_skips_bk_saas_space_with_structured_target(monkey
 
     monkeypatch.setattr(subscription_config, "bk_biz_id_to_space_uid", lambda bk_biz_id: f"bk_saas__{bk_biz_id}")
     monkeypatch.setattr(subscription_config, "is_bk_saas_space", lambda space_uid: True)
+    monkeypatch.setattr(subscription_config, "is_biz_id_in_black_list", lambda bk_biz_id: False)
     monkeypatch.setattr(
         subscription_config.api.node_man,
         "get_proxies_by_biz",

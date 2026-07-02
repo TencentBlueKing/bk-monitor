@@ -2,39 +2,18 @@ import pytest
 from django.test import override_settings
 
 from bkmonitor.models import AlgorithmModel, DetectModel, ItemModel, QueryConfigModel, StrategyModel
-from bkmonitor.models.metric_list_cache import MetricListCache
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.data_migrate import system_event_strategy
 from monitor_web.management.commands import data_migrate as data_migrate_command
 
 
-def _create_custom_event_metric(bk_biz_id: int, custom_event_name: str) -> MetricListCache:
-    return MetricListCache.objects.create(
-        bk_tenant_id="tenant",
-        bk_biz_id=bk_biz_id,
-        category_display="物理机",
-        collect_config="",
-        collect_config_ids=[],
-        collect_interval=1,
-        data_source_label=DataSourceLabel.CUSTOM,
-        data_target="host_target",
-        data_type_label=DataTypeLabel.EVENT,
-        default_condition=[],
-        default_dimensions=[],
-        description=custom_event_name,
-        dimensions=[],
-        extend_fields={"custom_event_name": custom_event_name},
-        metric_field=custom_event_name,
-        metric_field_name=custom_event_name,
-        plugin_type="",
-        related_id="system",
-        related_name="system",
-        result_table_id=f"base_tenant_{bk_biz_id}_event",
-        result_table_label="os",
-        result_table_label_name="操作系统",
-        result_table_name="系统事件",
-        unit="",
-        unit_conversion=1.0,
+@pytest.fixture(autouse=True)
+def _mock_bk_tenant_id(monkeypatch):
+    """迁移逻辑按业务推导租户 ID，测试固定为 ``tenant`` 以对齐结果表命名。"""
+    monkeypatch.setattr(
+        system_event_strategy,
+        "bk_biz_id_to_bk_tenant_id",
+        lambda bk_biz_id: "tenant",
     )
 
 
@@ -104,7 +83,6 @@ def _create_legacy_system_event_strategy(
 @override_settings(ENABLE_MULTI_TENANT_MODE=True)
 @pytest.mark.django_db
 def test_migrate_system_event_strategy_config_dry_run_does_not_update():
-    _create_custom_event_metric(2, "OOM")
     _, item, query_config, algorithm, detect = _create_legacy_system_event_strategy()
 
     result = system_event_strategy.migrate_system_event_strategy_config(bk_biz_id=2, dry_run=True)
@@ -127,7 +105,6 @@ def test_migrate_system_event_strategy_config_dry_run_does_not_update():
 @override_settings(ENABLE_MULTI_TENANT_MODE=True)
 @pytest.mark.django_db
 def test_migrate_system_event_strategy_config_updates_legacy_event_strategy():
-    _create_custom_event_metric(2, "OOM")
     _, item, query_config, algorithm, detect = _create_legacy_system_event_strategy()
 
     result = system_event_strategy.migrate_system_event_strategy_config(bk_biz_id=[2], dry_run=False)
@@ -162,8 +139,6 @@ def test_migrate_system_event_strategy_config_updates_legacy_event_strategy():
 @override_settings(ENABLE_MULTI_TENANT_MODE=True)
 @pytest.mark.django_db
 def test_migrate_system_event_strategy_config_scans_all_biz_when_omitted():
-    _create_custom_event_metric(2, "OOM")
-    _create_custom_event_metric(3, "DiskReadonly")
     _create_legacy_system_event_strategy(bk_biz_id=2)
     _create_legacy_system_event_strategy(
         bk_biz_id=3,
@@ -181,15 +156,32 @@ def test_migrate_system_event_strategy_config_scans_all_biz_when_omitted():
 
 @override_settings(ENABLE_MULTI_TENANT_MODE=True)
 @pytest.mark.django_db
-def test_migrate_system_event_strategy_config_skips_missing_target_metric():
-    _create_legacy_system_event_strategy()
+def test_migrate_system_event_strategy_config_derives_table_without_metric_cache():
+    """无需 MetricListCache 也能直接按业务推导目标结果表。"""
+    _, _, query_config, _, _ = _create_legacy_system_event_strategy()
 
     result = system_event_strategy.migrate_system_event_strategy_config(bk_biz_id=2, dry_run=False)
+
+    assert result["changed_count"] == 1
+    assert result["applied_count"] == 1
+    assert result["skipped_count"] == 0
+
+    query_config.refresh_from_db()
+    assert query_config.metric_id == "custom.event.base_tenant_2_event.OOM"
+
+
+@override_settings(ENABLE_MULTI_TENANT_MODE=True)
+@pytest.mark.django_db
+def test_migrate_system_event_strategy_config_skips_non_positive_biz():
+    """负数/零业务没有内置分业务 custom event 表，直接跳过。"""
+    _create_legacy_system_event_strategy(bk_biz_id=-1)
+
+    result = system_event_strategy.migrate_system_event_strategy_config(bk_biz_id=-1, dry_run=False)
 
     assert result["changed_count"] == 0
     assert result["applied_count"] == 0
     assert result["skipped_count"] == 1
-    assert result["skipped"][0]["reason"] == "target custom event metric not found in MetricListCache"
+    assert result["skipped"][0]["reason"] == "non-positive bk_biz_id has no built-in custom event table"
 
 
 def test_migrate_system_event_strategies_command_passes_optional_biz_ids(monkeypatch):
