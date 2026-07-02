@@ -24,6 +24,7 @@ from unittest.mock import patch
 from django.test import TestCase
 
 from bkm_space.define import Space, SpaceTypeEnum
+from apps.exceptions import ValidationError
 from apps.log_databus.constants import CollectorSourceEnum
 from apps.log_databus.handlers.collector_handler.log import LogCollectorHandler
 from apps.log_databus.models import CollectorConfig
@@ -293,7 +294,10 @@ class TestLogCollectorHandlerRelatedSpaces(TestCase):
                 "conditions": [{"key": "collector_source", "value": ["invalid_source"]}],
             }
         )
-        self.assertFalse(invalid_serializer.is_valid())
+        # 项目自定义 ValidationError 会直接抛出（由统一异常处理器转换为错误响应）
+        with self.assertRaises(ValidationError) as ctx:
+            invalid_serializer.is_valid()
+        self.assertIn("collector_source", str(ctx.exception))
 
     def test_get_query_ids_by_collector_source_logic(self):
         """直接验证 get_query_ids_by_collector_source 的查询 id 组合逻辑。"""
