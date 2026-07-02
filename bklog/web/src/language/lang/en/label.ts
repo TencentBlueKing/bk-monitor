@@ -982,4 +982,5 @@ export default {
   客户端: 'Client',
   清空查询: 'Clear Query',
   场景: 'Scene',
+  个人设置: 'Personal Settings',
 };

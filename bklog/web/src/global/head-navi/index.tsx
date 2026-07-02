@@ -44,6 +44,9 @@ import { bkDropdownMenu, bkMessage } from 'bk-magic-vue';
 import jsCookie from 'js-cookie';
 import { useRoute } from 'vue-router/composables';
 
+import BkLoginUserinfo from '@blueking/login-userinfo/vue2';
+import '@blueking/login-userinfo/vue2/vue2.css';
+
 import { MENU_LISTS } from './complete-menu';
 import LogVersion from './log-version';
 
@@ -53,7 +56,7 @@ import { join } from '../utils/path';
 
 export default defineComponent({
   name: 'HeaderNavTsx',
-  components: { BizMenuSelect, GlobalDialog, LogVersion, bkDropdownMenu },
+  components: { BizMenuSelect, GlobalDialog, LogVersion, bkDropdownMenu, BkLoginUserinfo },
   props: {
     welcomeData: {
       type: Object as () => Record<string, any> | null,
@@ -98,11 +101,11 @@ export default defineComponent({
       isFirstLoad: true,
       username: '',
       bk_tenant_id: null,
+      timezone: 'Asia/Shanghai',
       usernameRequested: false,
       isShowLanguageDropdown: false,
       isShowGlobalDropdown: false,
       isShowHelpDropdown: false,
-      isShowLogoutDropdown: false,
       showLogVersion: false,
       language: 'zh-cn',
       showGlobalDialog: false,
@@ -149,6 +152,7 @@ export default defineComponent({
         const res = store.state.userMeta;
         state.username = res?.username || '';
         state.bk_tenant_id = res?.bk_tenant_id || null;
+        state.timezone = res?.time_zone || 'Asia/Shanghai';
         if ((window as any).__aegisInstance && state.username) {
           (window as any).__aegisInstance.setConfig({ uin: state.username });
         }
@@ -413,6 +417,34 @@ export default defineComponent({
       );
     }
 
+    const showPersonalSettings = computed(() => {
+      const config = (window as any).SHOW_PERSONAL_SETTINGS;
+      return config === undefined ? true : config;
+    });
+
+    const actionList = computed(() => [
+      {
+        text: t('权限中心'),
+        icon: 'bklog-icon bklog-quanxianzhongxin',
+        handle: handleGoToPermissionCenter,
+      },
+      ...(showPersonalSettings.value
+        ? [
+          {
+            text: t('个人设置'),
+            icon: 'bklog-icon bklog-yonghu',
+            handle: handleGoToPersonalCenter,
+          },
+        ]
+        : []),
+      {
+        text: t('退出登录'),
+        icon: 'bklog-icon bklog-tuichu',
+        handle: handleQuit,
+        theme: 'danger' as const,
+      },
+    ]);
+
     /**
      * 渲染带图标的语言下拉菜单链接
      */
@@ -598,30 +630,19 @@ export default defineComponent({
           />
 
           {/* 用户 */}
-          <bkDropdownMenu
-            scopedSlots={{
-              'dropdown-trigger': () => (
-                <div class={['icon-language-container', state.isShowLogoutDropdown && 'active']}>
-                  {state.username ? (
-                    <span class='username'>
-                      <bk-user-display-name user-id={state.username}></bk-user-display-name>
-                      <i class='bk-icon icon-down-shape'></i>
-                    </span>
-                  ) : null}
-                </div>
-              ),
-              'dropdown-content': () => (
-                <ul class='bk-dropdown-list'>
-                  <li>{renderDropdownLink(t('权限中心'), handleGoToPermissionCenter)}</li>
-                  <li>{renderDropdownLink(t('个人中心'), handleGoToPersonalCenter)}</li>
-                  <li>{renderDropdownLink(t('退出登录'), handleQuit)}</li>
-                </ul>
-              ),
+          {/* @ts-ignore */}
+          <BkLoginUserinfo
+            class='username'
+            userinfo={{
+              name: state.username,
+              organization: state.bk_tenant_id,
+              timezone: state.timezone,
             }}
-            align='center'
-            onHide={() => (state.isShowLogoutDropdown = false)}
-            onShow={() => (state.isShowLogoutDropdown = true)}
-          ></bkDropdownMenu>
+            offset={[0, 20]}
+            actionList={actionList.value}
+          >
+            <bk-user-display-name user-id={state.username}></bk-user-display-name>
+          </BkLoginUserinfo>
         </div>
 
         <GlobalDialog
