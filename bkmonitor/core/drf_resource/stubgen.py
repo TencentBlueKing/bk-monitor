@@ -25,6 +25,7 @@ from rest_framework.fields import empty
 RESOURCE_LEAF = "resource"
 FUNCTION_LEAF = "function"
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+COMMON_REQUEST_KWARGS: tuple[tuple[str, str, bool], ...] = (("bk_tenant_id", "str | None", False),)
 logger = logging.getLogger(__name__)
 STUB_HEADER = '''"""
 Auto-generated type stubs for ``core.drf_resource`` entrypoints.
@@ -631,6 +632,7 @@ def _serializer_type_expr(
     context: StubRenderContext,
     mode: str,
     many: bool,
+    extra_fields: tuple[tuple[str, str, bool], ...] = (),
 ) -> str:
     if serializer_obj_or_cls is None:
         return "Any"
@@ -662,6 +664,13 @@ def _serializer_type_expr(
             is_required = bool(getattr(field_obj, "required", False) and getattr(field_obj, "default", empty) is empty)
             typed_fields.append((field_name, field_type, is_required))
 
+        typed_field_names = {field_name for field_name, _, _ in typed_fields}
+        typed_fields.extend(
+            (field_name, field_type, is_required)
+            for field_name, field_type, is_required in extra_fields
+            if field_name not in typed_field_names
+        )
+
         context.type_defs.append(_typed_dict_block(type_name, typed_fields))
 
     return f"list[{type_name}]" if many else type_name
@@ -679,6 +688,7 @@ def _resource_request_response_types(
         context,
         mode="request",
         many=bool(getattr(resource_cls, "many_request_data", False)),
+        extra_fields=COMMON_REQUEST_KWARGS,
     )
     response_type = _serializer_type_expr(
         response_serializer_cls,

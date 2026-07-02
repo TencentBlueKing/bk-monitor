@@ -387,24 +387,26 @@
     };
     if (active.value === 'mission') {
       const res = getQueryString();
-      window.open(`${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?${res}`, '_blank');
+      window.open(`${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?${res}`, '_blank', 'noopener,noreferrer');
       return;
     }
 
     window.open(
       `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/${addressMap[active.value]}?filters=[{"key":"metric_id","value":["bk_log_search.index_set.${store.state.indexId}"]}]`,
       '_blank',
+      'noopener,noreferrer'
     );
   };
 
   const handleViewWarningDetail = row => {
-    window.open(`${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/event-center/detail/${row.id}`, '_blank');
+    window.open(`${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/event-center/detail/${row.id}`, '_blank', 'noopener,noreferrer');
   };
 
   const handleStrategyInfoClick = row => {
     window.open(
       `${window.MONITOR_URL}/?bizId=${store.state.bkBizId}#/strategy-config/detail/${row.strategy_id}`,
       '_blank',
+      'noopener,noreferrer'
     );
   };
 

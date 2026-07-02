@@ -206,7 +206,6 @@ export default defineComponent({
           emit('choose', updatedItem);
         }
       },
-      { immediate: true },
     );
 
     onMounted(() => {

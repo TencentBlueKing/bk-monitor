@@ -37,9 +37,9 @@ def test_os_v2_multi_tenant_system_event_strategies():
             importlib.reload(os_v2)
             strategies = {s["metric_field"]: s for s in os_v2.DEFAULT_OS_STRATEGIES}
 
-            # 5 类系统事件均无条件声明在模块里（PingUnreachable 不再按部署平台门控）；
-            # PingUnreachable 是否真创建由 os_loader 按 ENABLE_PING_ALARM 运行时决定（见 test_os_loader）。
-            assert {"AgentLost", "DiskReadonly", "CoreFile", "OOM", "PingUnreachable"} == set(strategies)
+            # v2 仅承载 4 类 gse 系统事件(custom 源)；PING 不可达本质是时序指标、不是 gse 系统事件，
+            # 已移出 v2、改由 os/v4(bk_monitor 源 ping-gse 伪事件，走指标逻辑)承载，故此处不含 PingUnreachable。
+            assert {"AgentLost", "DiskReadonly", "CoreFile", "OOM"} == set(strategies)
 
             # v2 仅承载 custom event 系统事件：走 custom 事件链路、按主机聚合、统一 close 恢复语义
             for strategy in os_v2.DEFAULT_OS_STRATEGIES:
@@ -94,6 +94,10 @@ def test_os_v1_v3_multi_tenant_builtin_event_declaration():
             # v1 多租户不声明 os_restart/proc_port（与 gse 事件同处单租户块，被门控掉）
             assert "os_restart" not in v1_fields
             assert "proc_port" not in v1_fields
+            # 关键回归：v1 的 PING(ping-gse) 也必须在多租户被门控掉（v1.py 叠加 not ENABLE_MULTI_TENANT_MODE）。
+            # 否则 v1 与 v4 会同时命中 bk_monitor.ping-gse 目录项，对未登记 v1 的新业务各建一条、产生重复 PING。
+            # 多租户 PING 唯一来源是 os/v4。
+            assert "ping-gse" not in v1_fields
 
             # v3 多租户声明 os_restart/proc_port，且为 bk_monitor + event 伪事件（非 custom、非降级时序）
             assert {"os_restart", "proc_port"} == v3_fields
@@ -115,11 +119,49 @@ def test_os_v1_v3_multi_tenant_builtin_event_declaration():
         importlib.reload(os_v3)
 
 
-def test_os_strategies_list_registers_v2_v3_only_in_multi_tenant():
-    """端到端：多租户下 default_strategy_settings 注册 v1+v2+v3；单租户只注册 v1。
+def test_os_v4_multi_tenant_ping_metric_logic_declaration():
+    """真实多租户导入态下，PING 不可达由 v4 声明为 bk_monitor 源 ping-gse 伪事件(走指标逻辑)，
+    而非 v2 的 custom 计数事件。
 
-    保证 loader.get_default_strategy() 在真实多租户能拿到 v3（主机重启/进程端口的策略声明来源），
-    否则即便指标缓存就绪、v3 模块声明了策略，版本未注册同样建不出来。
+    关键回归：ping-gse 必须是 bk_monitor + event（os_loader 据此命中 BaseAlarmMetricCacheManager 内置的
+    bk_monitor.ping-gse 目录项，并经 EVENT_QUERY_CONFIG_MAP 重定向到 pingserver.base/loss_percent +
+    PingUnreachable 算法）；若误用 custom 源则退化为事件计数语义，与单租户不一致。
+    """
+    import importlib
+
+    from django.test import override_settings
+
+    from monitor_web.strategies.default_settings.os import v2 as os_v2
+    from monitor_web.strategies.default_settings.os import v4 as os_v4
+
+    try:
+        with override_settings(ENABLE_MULTI_TENANT_MODE=True):
+            importlib.reload(os_v2)
+            importlib.reload(os_v4)
+            v2_fields = {s["metric_field"] for s in os_v2.DEFAULT_OS_STRATEGIES}
+            v4_fields = {s["metric_field"] for s in os_v4.DEFAULT_OS_STRATEGIES}
+
+            # PING 已移出 v2（custom 计数事件形态错误），由 v4 以 ping-gse 指标逻辑承载
+            assert "PingUnreachable" not in v2_fields
+            assert v4_fields == {"ping-gse"}
+
+            ping = next(s for s in os_v4.DEFAULT_OS_STRATEGIES if s["metric_field"] == "ping-gse")
+            # bk_monitor 源伪事件（非 custom），与单租户 v1 的 ping-gse 同形
+            assert ping["data_source_label"] == "bk_monitor"
+            assert ping["data_type_label"] == "event"
+            assert ping["result_table_label"] == "os"
+            assert ping["trigger_count"] == 3
+    finally:
+        # 还原为当前部署模式下的定义，避免污染其他用例
+        importlib.reload(os_v2)
+        importlib.reload(os_v4)
+
+
+def test_os_strategies_list_registers_mt_versions_only_in_multi_tenant():
+    """端到端：多租户下 default_strategy_settings 注册 v1+v2+v3+v4；单租户只注册 v1。
+
+    保证 loader.get_default_strategy() 在真实多租户能拿到 v3/v4（主机重启/进程端口、PING 不可达的策略
+    声明来源），否则即便指标缓存就绪、模块声明了策略，版本未注册同样建不出来。
     """
     import importlib
 
@@ -131,7 +173,7 @@ def test_os_strategies_list_registers_v2_v3_only_in_multi_tenant():
         with override_settings(ENABLE_MULTI_TENANT_MODE=True):
             importlib.reload(ds)
             versions = [item["version"] for item in ds.default_strategy_settings.DEFAULT_OS_STRATEGIES_LIST]
-            assert versions == ["v1", "v2", "v3"]
+            assert versions == ["v1", "v2", "v3", "v4"]
 
         with override_settings(ENABLE_MULTI_TENANT_MODE=False):
             importlib.reload(ds)

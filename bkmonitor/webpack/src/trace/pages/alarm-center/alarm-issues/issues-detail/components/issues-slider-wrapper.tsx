@@ -41,6 +41,7 @@ import {
 import { useI18n } from 'vue-i18n';
 
 import { IssueDetailTabEnum } from '../../constant';
+import { useTapdIssueActivities } from '../../issues-tapd/composables/use-tapd-issue-activities';
 import { conditionAlertQueryFieldReplace } from '../utils';
 import DimensionStats from './dimension-stats/dimension-stats';
 import IssuesActivity from './issues-activity/issues-activity';
@@ -158,6 +159,25 @@ export default defineComponent({
         }, {}) || {}
       );
     });
+
+    /** TAPD 单据操作成功后的全局活动记录，用于回写到当前 Issue 活动列表 */
+    const tapdIssueActivities = useTapdIssueActivities();
+
+    /**
+     * 监听 TAPD 全局活动记录变化，当与当前 issue 匹配时自动追加到活动列表
+     * 触发时机：TAPD 侧滑栏中创建/关联单据成功后调用 setActivities
+     */
+    watch(
+      () => tapdIssueActivities.activities.value,
+      () => {
+        if (
+          tapdIssueActivities.activities.value?.issueId === props.detail?.id &&
+          tapdIssueActivities.activities.value?.list?.length
+        ) {
+          handleActivitiesChange(tapdIssueActivities.activities.value.list);
+        }
+      }
+    );
 
     const getAllAlertId = async () => {
       if (!props.detail?.id) {

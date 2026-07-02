@@ -13,7 +13,7 @@ from django.db import models
 from constants.common import DEFAULT_TENANT_ID
 from bkmonitor.utils.model_manager import AbstractRecordModel
 
-__all__ = ["TapdWorkspaceBinding"]
+__all__ = ["TapdWorkspaceBinding", "TapdWorkspaceManualUnbind"]
 
 
 class TapdWorkspaceBinding(AbstractRecordModel):
@@ -40,3 +40,29 @@ class TapdWorkspaceBinding(AbstractRecordModel):
         unique_together = [("bk_tenant_id", "space_uid", "tapd_workspace_id")]
         verbose_name = "TAPD项目关联"
         verbose_name_plural = "TAPD项目关联"
+
+
+class TapdWorkspaceManualUnbind(AbstractRecordModel):
+    """TAPD 项目手动解绑 tombstone 表
+
+    当用户主动点击"取消关联"时写入本表，用于标记"已手动解绑"状态，
+    阻止 `try_bind_importable()` 自动重绑，并与"从未关联"区分。
+
+    重新关联时删除本表记录，恢复为正常可自动重绑状态。
+
+    关键约束：
+    - 唯一键 `(bk_tenant_id, space_uid, tapd_workspace_id)` 保证幂等。
+    - 不存储项目名称等冗余字段，保持轻量。
+    """
+
+    bk_tenant_id = models.CharField("蓝鲸租户ID", max_length=64, default=DEFAULT_TENANT_ID)
+    space_uid = models.CharField("蓝鲸空间唯一标识", max_length=128)
+    bk_biz_id = models.IntegerField("蓝鲸CMDB业务ID", db_index=True)
+    tapd_workspace_id = models.CharField("TAPD项目ID", max_length=64)
+
+    class Meta:
+        db_table = "tapd_workspace_manual_unbind"
+        unique_together = [("bk_tenant_id", "space_uid", "tapd_workspace_id")]
+        verbose_name = "TAPD项目手动解绑记录"
+        verbose_name_plural = "TAPD项目手动解绑记录"
+        ordering = ["-create_time"]

@@ -54,6 +54,10 @@ class ModelSpec:
     select_related: list[str] = field(default_factory=list)
     # list-db-models 输出里的模型级提示：用途与选型边界（与 row_mask_note 区分，后者只讲脱敏）。
     note: str = ""
+    # 读取所用的 manager 名。默认 objects；软删模型（AbstractRecordModel）可设 origin_objects，
+    # 以读到 is_deleted=True 的行——「配置真删/真禁」类排障必须能看到软删行，否则 .objects
+    # （RecordModelManager）会过滤掉 is_deleted 的行，缺失正是要看的证据。
+    manager_name: str = "objects"
 
 
 MASKED_VALUE = "***masked***"
@@ -418,6 +422,85 @@ ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
             }
         ],
     ),
+    "bkmonitor.models.fta.action.ActionConfig": ModelSpec(
+        model_path="bkmonitor.models.fta.action.ActionConfig",
+        fields={
+            "id",
+            "name",
+            "bk_biz_id",
+            "plugin_id",
+            "is_builtin",
+            "is_enabled",
+            "is_deleted",
+            "create_time",
+            "update_time",
+            "update_user",
+        },
+        default_fields={
+            "id",
+            "name",
+            "bk_biz_id",
+            "plugin_id",
+            "is_enabled",
+            "is_deleted",
+            "create_time",
+            "update_time",
+        },
+        # execute_config（执行参数，可内嵌 webhook URL / header token 等凭据，键名由插件作者自定义、
+        # 无类型源可穷举）一律不透出：既不列入 fields，也登记 sensitive_fields 兜底显式 fields 请求。
+        sensitive_fields={"execute_config"},
+        manager_name="origin_objects",
+        note=(
+            "处理/通知套餐(ActionConfig)。用 origin_objects 读，含 is_deleted=True 的软删行，"
+            "用于区分「克隆/新建套餐缓存未传播的瞬时误判」与「套餐真删/真禁」——软删行的 is_deleted/"
+            "is_enabled 为权威态。execute_config（执行参数，可内嵌凭据）不透出，需其内容走 SaaS。"
+        ),
+        examples=[
+            {
+                "filter": {"id": 1},
+                "fields": ["id", "name", "is_enabled", "is_deleted", "create_time", "update_time", "update_user"],
+            },
+            {"filter": {"bk_biz_id": "2"}, "limit": 20},
+        ],
+    ),
+    "bkmonitor.models.fta.action.StrategyActionConfigRelation": ModelSpec(
+        model_path="bkmonitor.models.fta.action.StrategyActionConfigRelation",
+        fields={
+            "id",
+            "strategy_id",
+            "config_id",
+            "relate_type",
+            "signal",
+            "user_type",
+            "is_enabled",
+            "is_deleted",
+            "create_time",
+            "update_time",
+            "update_user",
+        },
+        default_fields={
+            "id",
+            "strategy_id",
+            "config_id",
+            "relate_type",
+            "signal",
+            "is_enabled",
+            "is_deleted",
+        },
+        manager_name="origin_objects",
+        note=(
+            "策略↔套餐绑定关系(StrategyActionConfigRelation)。用 origin_objects 读，含软删行，"
+            "配合 ActionConfig 判定绑定漂移/解绑/孤儿：relate_type=NOTICE 通知套餐、ACTION 处理动作。"
+            "user_groups/options（可能较大且非取证核心）未纳入白名单。"
+        ),
+        examples=[
+            {
+                "filter": {"strategy_id": 1},
+                "fields": ["id", "config_id", "relate_type", "signal", "is_enabled", "is_deleted"],
+            },
+            {"filter": {"config_id": 1}, "limit": 20},
+        ],
+    ),
 }
 
 
@@ -429,7 +512,7 @@ def read_db_model(params: dict[str, Any]) -> dict[str, Any]:
     normalized_filter = _normalize_filter(params.get("filter") or {}, spec)
     selected_fields = _normalize_selected_fields(params.get("fields"), params.get("exclude_fields"), spec)
 
-    queryset = model_cls.objects.all()
+    queryset = getattr(model_cls, spec.manager_name).all()
     if spec.select_related:
         queryset = queryset.select_related(*spec.select_related)
     queryset = queryset.filter(**normalized_filter)
@@ -487,6 +570,9 @@ def _serialize_model_spec(model_name: str, spec: ModelSpec) -> dict[str, Any]:
         serialized["note"] = spec.note
     if spec.row_masker is not None:
         serialized["row_masking"] = spec.row_mask_note or f"敏感行的 value 字段会被脱敏为 {MASKED_VALUE}"
+    # 仅非默认 manager 才回显，避免改动既有模型自描述（默认 objects 的模型输出保持不变）。
+    if spec.manager_name != "objects":
+        serialized["manager"] = spec.manager_name
     return serialized
 
 

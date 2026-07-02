@@ -30,11 +30,12 @@ from bkmonitor.documents.issue import (
     IssueNotFoundError,
 )
 from bkmonitor.issue_merge import IssueFrozenError, IssueMergeResolver
-from bkmonitor.models import TapdWorkspaceBinding
+from bkmonitor.models import TapdWorkspaceBinding, TapdWorkspaceManualUnbind
 from bkmonitor.models.issue import IssueMergeRelation, IssueTapdRelation
 from bkmonitor.utils.request import get_request_username, get_request
+from django.db import transaction
+from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id, bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
-from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
 from bkmonitor.utils.user import set_local_username
 from constants.issue import IssuePriority, IssueStatus, IssueActivityType
 from core.drf_resource import Resource, api, resource
@@ -2419,8 +2420,10 @@ class LinkIssueToTapdResource(Resource):
             items=to_create,
         )
 
+        # 注意：不能直接返回 {"results": ..., "activities": ...} 结构
+        # 因为 MonitorJSONRenderer 会自动将 results 提取为 data，其他字段放到 _meta
         return {
-            "results": results,
+            "info": results,
             "activities": activities,
         }
 
@@ -2485,10 +2488,17 @@ class ListUserTapdWorkspaceResource(Resource):
         # 2. 并发查详情拿 workspace_name（复用 ListTapdWorkspaceResource 模式）
         workspace_details = self._enrich_workspace_details(user_workspace_ids, access_token)
 
-        # 3. 四态标记（项目级×本地 二维判定）
+        # 3. 五态标记（项目级×本地 二维判定 + tombstone 检查）
         app_granted_ids = self._fetch_app_granted_ids(bk_biz_id)
+        # 批量查询 tombstone，避免 N+1（§ 2.8 非功能性需求）
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        tombstone_ids = set(
+            TapdWorkspaceManualUnbind.objects.filter(bk_tenant_id=tenant_id, space_uid=space_uid).values_list(
+                "tapd_workspace_id", flat=True
+            )
+        )
         items, any_unbound_or_stale = self._mark_bind_status(
-            workspace_details, app_granted_ids, local_bindings, bk_biz_id, tenant_id, username
+            workspace_details, app_granted_ids, local_bindings, bk_biz_id, tenant_id, username, tombstone_ids
         )
 
         # install_url 仅在存在 unbound 或 stale 时按需构建（涉及签名生成，避免无用开销）
@@ -2512,6 +2522,20 @@ class ListUserTapdWorkspaceResource(Resource):
             "install_url": install_url,
             "method": "GET",
         }
+
+    @classmethod
+    def _is_tapd_token_invalid_422(cls, error: BKAPIError) -> bool:
+        """判断 BKAPIError 是否为 TAPD access_token 无效/过期导致的 422 错误。
+
+        TAPD 返回 HTTP 422 时，APIResource.raise_for_status 先抛 HTTPError → BKAPIError，
+        此时 e.data 可能是 response.content 字符串（非 dict），e.message 含 "422"。
+        """
+        error_code = ""
+        if isinstance(error.data, dict):
+            error_code = str(error.data.get("code", ""))
+        elif isinstance(error.data, str) and "422" in error.data:
+            error_code = "422"
+        return error_code == "422" or "422" in str(error.message)
 
     @classmethod
     def _raise_reauth_required(
@@ -2559,14 +2583,7 @@ class ListUserTapdWorkspaceResource(Resource):
             user_granted_resp = api.tapd.get_granted_workspaces(access_token=access_token)
         except BKAPIError as e:
             # 422 = access_token 无效/过期，清理失效 token，统一转 403 + auth_url 引导重新授权
-            # 注：TAPD 返回 HTTP 422，APIResource.raise_for_status 先抛 HTTPError → BKAPIError，
-            # 此时 e.data 是 response.content 字符串（非 dict），e.message 含 "422"
-            error_code = ""
-            if isinstance(e.data, dict):
-                error_code = str(e.data.get("code", ""))
-            elif isinstance(e.data, str) and "422" in e.data:
-                error_code = "422"
-            if error_code == "422" or "422" in str(e.message):
+            if self._is_tapd_token_invalid_422(e):
                 logger.info("TAPD user token invalid (422), clearing token for reauth: %s", e)
                 delete_tapd_token(tenant_id=tenant_id, username=username)
                 self._raise_reauth_required(bk_biz_id, tenant_id, username, success_url, error_url)
@@ -2662,13 +2679,20 @@ class ListUserTapdWorkspaceResource(Resource):
         bk_biz_id: int,
         tenant_id: str,
         username: str,
+        tombstone_ids: set[str],
     ) -> tuple[list[dict], bool]:
-        """四态标记：以用户级为基准全集，按 项目级×本地 二维判定。
+        """五态标记：以用户级为基准全集，按 项目级×本地 二维判定。
 
+        新增状态 manually_unbound：当项目是 importable（in_app && !in_local）
+        但 tombstone（手动解绑记录）存在时，标记为此状态。
+
+        :param tombstone_ids: 当前业务空间下已手动解绑的 workspace_id 集合（避免 N+1 查询）
         :return: (items, any_unbound_or_stale)
         """
         items = []
         any_unbound_or_stale = False
+        # 统一获取 space_uid，供循环内 try_bind_importable 使用（避免重复转换）
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
 
         for ws in workspace_details:
             ws_id = ws["workspace_id"]
@@ -2679,10 +2703,16 @@ class ListUserTapdWorkspaceResource(Resource):
             if in_app and in_local:
                 status = TapdWorkspaceBindStatus.BOUND
             elif in_app and not in_local:
-                status = TapdWorkspaceBindStatus.IMPORTABLE
-                # 静默尝试创建本地 binding（传入 workspace_name，避免 name 落空）
-                if try_bind_importable(ws_id, bk_biz_id, tenant_id, username, tapd_workspace_name=workspace_name):
-                    status = TapdWorkspaceBindStatus.BOUND
+                # 五态判定：importable 状态增加 tombstone 检查，若存在则标记为 manually_unbound
+                # 🔒 约束：batch tombstone 查询已在 loop 外完成（避免 N+1）
+                if tombstone_ids and ws_id in tombstone_ids:
+                    status = TapdWorkspaceBindStatus.MANUALLY_UNBOUND
+                else:
+                    status = TapdWorkspaceBindStatus.IMPORTABLE
+                    if try_bind_importable(
+                        ws_id, bk_biz_id, tenant_id, username, space_uid, tapd_workspace_name=workspace_name
+                    ):
+                        status = TapdWorkspaceBindStatus.BOUND
             elif not in_app and in_local:
                 status = TapdWorkspaceBindStatus.STALE
                 any_unbound_or_stale = True
@@ -2724,10 +2754,18 @@ class UnbindTapdWorkspaceResource(Resource):
                 message=f"TAPD 项目 {workspace_id} 未与当前业务关联",
             )
 
-        # 删除 binding（不存在时 delete() 返回 (0, {})）
-        deleted_count, _ = binding_qs.delete()
+        # 写入 tombstone + 删除 binding，放在同一事务中保证一致性（避免 tombstone 已写但 binding 删除失败）
+        with transaction.atomic():
+            TapdWorkspaceManualUnbind.objects.get_or_create(
+                bk_tenant_id=tenant_id,
+                space_uid=space_uid,
+                tapd_workspace_id=workspace_id,
+                defaults={"bk_biz_id": bk_biz_id},
+            )
+            # 删除 binding（不存在时 delete() 返回 (0, {})）
+            deleted_count, _ = binding_qs.delete()
         logger.info(
-            "UnbindTapdWorkspace: delete binding biz=%s ws=%s tenant=%s count=%s",
+            "UnbindTapdWorkspace: tombstone created + binding deleted biz=%s ws=%s tenant=%s count=%s",
             bk_biz_id,
             workspace_id,
             tenant_id,
@@ -2735,6 +2773,114 @@ class UnbindTapdWorkspaceResource(Resource):
         )
 
         return {"success": True}
+
+
+class RebindTapdWorkspaceResource(Resource):
+    """重新关联 TAPD 项目与当前业务
+
+    删除 tombstone 记录后，创建本地 TapdWorkspaceBinding。
+    重新获取项目信息（Basic Auth）以填充 workspace_name。
+    端点：POST /fta/issue/tapd/rebind_workspace
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="蓝鲸业务ID", required=True)
+        workspace_id = serializers.CharField(label="TAPD项目ID", required=True)
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        workspace_id = validated_request_data["workspace_id"]
+        username = get_request_username()
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        tenant_id = space_uid_to_bk_tenant_id(space_uid)
+
+        # 1. 验重：若 binding 已存在，无需重新关联
+        try:
+            existing = TapdWorkspaceBinding.objects.get(
+                bk_tenant_id=tenant_id, space_uid=space_uid, tapd_workspace_id=workspace_id
+            )
+            # 兜底：清理可能残留的 tombstone（并发/脏数据场景）
+            TapdWorkspaceManualUnbind.objects.filter(
+                bk_tenant_id=tenant_id, space_uid=space_uid, tapd_workspace_id=workspace_id
+            ).delete()
+            return {"success": True, "workspace": {"id": workspace_id, "name": existing.tapd_workspace_name}}
+        except TapdWorkspaceBinding.DoesNotExist:
+            pass
+
+        # 2. 校验用户态 token 存在并可用（重新关联需用户明确授权）
+        # 授权失效时返回 403（HTTP 状态码 200），前端按 code=403 自行跳转授权流程，无需 auth_url
+        user_token = get_tapd_token(tenant_id, username)
+        if not user_token.get("access_token"):
+            exc = CustomException(message="TAPD 用户态授权已失效或未授权，请先完成授权", code=403)
+            exc.status_code = 200
+            raise exc
+
+        # 3. 校验当前用户是否仍有权访问该 workspace（用户态鉴权有效性检查）
+        try:
+            ws_info = api.tapd.get_workspace_info(
+                workspace_id=workspace_id,
+                access_token=user_token["access_token"],
+            )["Workspace"]
+            workspace_name = ws_info.get("name", "")
+        except BKAPIError as e:
+            if ListUserTapdWorkspaceResource._is_tapd_token_invalid_422(e):
+                logger.info("TAPD user token invalid (422) during rebind, clearing token: ws=%s", workspace_id)
+                delete_tapd_token(tenant_id=tenant_id, username=username)
+                # token 失效，返回 403（HTTP 状态码 200），前端按 code=403 自行跳转授权流程
+                exc = CustomException(message="TAPD 用户态授权已失效（422），请重新完成授权", code=403)
+                exc.status_code = 200
+                raise exc
+            raise
+
+        # 4. 校验应用态授权仍然存在，避免绕过 TAPD 应用安装直接恢复本地 binding
+        app_granted_ids = ListUserTapdWorkspaceResource._fetch_app_granted_ids(bk_biz_id)
+        if workspace_id not in app_granted_ids:
+            exc = CustomException(message="TAPD 项目未完成应用授权，请先完成项目关联授权", code=403)
+            exc.status_code = 200
+            raise exc
+
+        # 5. 删除 tombstone + 创建 binding，事务包裹保证原子性
+        with transaction.atomic():
+            TapdWorkspaceManualUnbind.objects.filter(
+                bk_tenant_id=tenant_id, space_uid=space_uid, tapd_workspace_id=workspace_id
+            ).delete()
+            binding, _ = TapdWorkspaceBinding.objects.get_or_create(
+                bk_tenant_id=tenant_id,
+                space_uid=space_uid,
+                tapd_workspace_id=workspace_id,
+                defaults={
+                    "bk_biz_id": bk_biz_id,
+                    "tapd_workspace_name": workspace_name,
+                    "create_user": username,
+                    "update_user": username,
+                },
+            )
+
+        return {"success": True, "workspace": {"id": workspace_id, "name": binding.tapd_workspace_name}}
+
+
+class RevokeTapdUserAuthResource(Resource):
+    """撤销 TAPD 用户态授权
+
+    仅清除用户级用户态 token（Redis），不清除 TapdWorkspaceBinding。
+    前端重新授权即可恢复。
+    端点：POST /fta/issue/tapd/revoke_auth
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="蓝鲸业务ID", required=True)
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        # 1. 获取当前用户和租户
+        username = get_request_username()
+        tenant_id = bk_biz_id_to_bk_tenant_id(validated_request_data["bk_biz_id"])
+
+        # 2. 删除用户态 token（Redis）
+        delete_tapd_token(tenant_id, username)
+
+        logger.info("RevokeTapdUserAuth: token deleted tenant=%s user=%s", tenant_id, username)
+
+        return {"success": True, "message": "授权已撤销"}
 
 
 @api_view(["GET"])

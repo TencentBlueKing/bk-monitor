@@ -233,7 +233,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
 
   get selectTargetTextTooltip() {
     const { bcs_cluster_id: clusterId = '' } = this.selectTargetItem || {};
-    return `${this.selectTargetText}（集群: ${clusterId}）`;
+    return `${this.selectTargetText}（${this.$t('集群')}: ${clusterId}）`;
   }
 
   // 选中的目标项
@@ -626,6 +626,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
         clearable={false}
         search-placeholder={this.$t('请输入 关键字')}
         value={this.selectTarget}
+        filterable
         searchable
         onChange={this.handleTargetListChange}
         onToggle={this.handleTargetListToggle}

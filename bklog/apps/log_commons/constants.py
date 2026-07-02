@@ -22,3 +22,6 @@ the project delivered to anyone in the future.
 # Token申请频率限制常量
 TOKEN_REQUEST_LIMIT_COUNT = 5  # 60秒内最多申请5次
 TOKEN_REQUEST_LIMIT_SECONDS = 60  # 限制时间窗口为60秒
+
+# 外部授权默认过期时间
+DEFAULT_EXTERNAL_PERMISSION_EXPIRE_DAYS = 180

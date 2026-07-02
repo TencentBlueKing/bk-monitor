@@ -31,6 +31,8 @@ export const linkIssueToTapd = request('POST', 'fta/issue/issue/link_tapd/');
 export const getUserWorkspace = request('POST', '/fta/issue/tapd/user_workspace/');
 export const searchTapdItems = request('POST', '/fta/issue/issue/search_tapd_items/');
 export const unbindWorkspace = request('POST', '/fta/issue/tapd/unbind_workspace/');
+export const rebindWorkspace = request('POST', '/fta/issue/tapd/rebind_workspace/');
+export const revokeAuth = request('POST', '/fta/issue/tapd/revoke_auth/');
 
 export default {
   assignIssue,
@@ -62,4 +64,6 @@ export default {
   getUserWorkspace,
   searchTapdItems,
   unbindWorkspace,
+  rebindWorkspace,
+  revokeAuth,
 };

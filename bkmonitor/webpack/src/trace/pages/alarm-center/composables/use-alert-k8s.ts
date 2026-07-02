@@ -93,7 +93,7 @@ export const useAlertK8s = (options: UseAlertK8sOptions) => {
     if (targetList.value?.length && !hasTarget(currentTarget.value)) {
       currentTarget.value = targetList.value[0];
       sceneList.value = currentTarget.value?.scenario_list ?? [];
-      scene.value = sceneList.value[0];
+      scene.value = sceneList.value.includes(scene.value) ? scene.value : sceneList.value[0];
     }
     loading.value = false;
   };
