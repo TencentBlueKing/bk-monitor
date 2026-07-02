@@ -40,19 +40,32 @@ class LogCollectorHandler:
 
         # related var
         self.space_type_id, _ = SpaceApi.parse_space_uid(self.space_uid)
-        self.related_space_uids = []
-        self.related_bk_biz_ids = []
-        self.bk_biz_id_to_space_detail_map = {}
-        self.is_related_var_loaded = False
+        self._all_related_space_uids = None
+        self._all_related_bk_biz_ids = None
+        self._bk_biz_id_to_space_detail_map = None
 
-    def _loads_related_var(self):
-        if self.is_related_var_loaded:
-            return
-        self.related_space_uids = IndexSetHandler.get_all_related_space_uids(self.space_uid)
-        self.related_bk_biz_ids = [space_uid_to_bk_biz_id(space_uid) for space_uid in self.related_space_uids]
-        space_objs = SpaceApi.batch_get_space_detail(set(self.related_space_uids))
-        self.bk_biz_id_to_space_detail_map = {v.bk_biz_id: v.to_dict() for _, v in space_objs.items()}
-        self.is_related_var_loaded = True
+    @property
+    def all_related_space_uids(self) -> list[str]:
+        if self._all_related_space_uids is None:
+            self._all_related_space_uids = IndexSetHandler.get_all_related_space_uids(self.space_uid)
+        return self._all_related_space_uids
+
+    @property
+    def all_related_bk_biz_ids(self) -> list[int]:
+        if self._all_related_bk_biz_ids is None:
+            self._all_related_bk_biz_ids = [
+                space_uid_to_bk_biz_id(related_space_uid) for related_space_uid in self.all_related_space_uids
+            ]
+        return self._all_related_bk_biz_ids
+
+    @property
+    def bk_biz_id_to_space_detail_map(self) -> dict[int, dict]:
+        if self._bk_biz_id_to_space_detail_map is None:
+            all_space_objs = SpaceApi.batch_get_space_detail(set(self.all_related_space_uids))
+            self._bk_biz_id_to_space_detail_map = {
+                v.bk_biz_id: v.to_dict() for _, v in all_space_objs.items()
+            }
+        return self._bk_biz_id_to_space_detail_map
 
     def fetch_log_collector_data(self, result: list[dict], include_related_spaces: bool = False):
         result_list = []
@@ -82,7 +95,6 @@ class LogCollectorHandler:
             related_space_info = {}
 
             if self.space_type_id == SpaceTypeEnum.BKCC.value and include_related_spaces:
-                self._loads_related_var()
                 bk_biz_id = item.get("bk_biz_id")
                 space_detail = self.bk_biz_id_to_space_detail_map.get(bk_biz_id) or {}
                 space_uid = space_detail.get("space_uid")
@@ -285,7 +297,6 @@ class LogCollectorHandler:
             return []
 
         if self.space_type_id == SpaceTypeEnum.BKCC.value and include_related_spaces:
-            self._loads_related_var()
             query_bk_biz_ids = self.get_query_ids_by_collector_source(collector_source, is_bk_biz_id=True)
             qs = CollectorConfig.objects.filter(bk_biz_id__in=query_bk_biz_ids)
         else:
@@ -423,7 +434,6 @@ class LogCollectorHandler:
         )
 
         if self.space_type_id == SpaceTypeEnum.BKCC.value and include_related_spaces:
-            self._loads_related_var()
             query_space_uids = self.get_query_ids_by_collector_source(collector_source)
             log_index_sets = qs.filter(space_uid__in=query_space_uids)
         else:
@@ -714,13 +724,12 @@ class LogCollectorHandler:
         :return: 包含创建人和更新人枚举值的字典
         """
         if self.space_type_id == SpaceTypeEnum.BKCC.value and include_related_spaces:
-            self._loads_related_var()
             query_collector_condition = {
-                "bk_biz_id__in": self.related_bk_biz_ids
+                "bk_biz_id__in": self.all_related_bk_biz_ids
             }
             query_index_set_condition = {
                 "collector_config_id__isnull": True,
-                "space_uid__in": self.related_space_uids
+                "space_uid__in": self.all_related_space_uids
             }
         else:
             query_collector_condition = {
@@ -784,13 +793,13 @@ class LogCollectorHandler:
 
     def get_query_ids_by_collector_source(self, collector_source, is_bk_biz_id=False):
         if not collector_source:
-            query_ids = self.related_bk_biz_ids if is_bk_biz_id else self.related_space_uids
+            query_ids = self.all_related_bk_biz_ids if is_bk_biz_id else self.all_related_space_uids
         else:
             query_ids = []
             if is_bk_biz_id:
-                other_ids = [r_b_b_i for r_b_b_i in self.related_bk_biz_ids if r_b_b_i != self.bk_biz_id]
+                other_ids = [a_r_b_b_i for a_r_b_b_i in self.all_related_bk_biz_ids if a_r_b_b_i != self.bk_biz_id]
             else:
-                other_ids = [r_s_u for r_s_u in self.related_space_uids if r_s_u != self.space_uid]
+                other_ids = [a_r_s_u for a_r_s_u in self.all_related_space_uids if a_r_s_u != self.space_uid]
 
             collector_source = set(collector_source)
 
