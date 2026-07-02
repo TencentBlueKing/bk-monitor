@@ -53,7 +53,7 @@ from apps.log_databus.constants import (
     BULK_CLUSTER_INFOS_LIMIT,
     CACHE_KEY_CLUSTER_INFO,
     COLLECTOR_SCENARIO_TO_SCENE,
-    META_DATA_ENCODING,
+    DORIS_CLUSTER_TYPE, META_DATA_ENCODING,
     ArchiveInstanceType,
     CollectStatus,
     EtlConfig,
@@ -1336,6 +1336,10 @@ class CollectorHandler:
 
     def indices_info(self):
         result_table_id = self.data.table_id
+        storage_cluster_type = self.data.storage_cluster_type
+        # doris 集群无索引相关信息
+        if storage_cluster_type == DORIS_CLUSTER_TYPE:
+            return []
         if not result_table_id:
             raise CollectNotSuccess
         result = EsRoute(scenario_id=Scenario.LOG, indices=result_table_id).cat_indices()

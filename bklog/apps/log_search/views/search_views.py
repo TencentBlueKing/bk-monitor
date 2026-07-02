@@ -124,7 +124,8 @@ from apps.log_unifyquery.handler.context import UnifyQueryContextHandler
 from apps.log_unifyquery.handler.chart import UnifyQueryChartHandler
 from apps.log_unifyquery.handler.tail import UnifyQueryTailHandler
 from apps.utils.drf import detail_route, list_route
-from apps.utils.local import get_request_app_code, get_request_external_username, get_request_username
+from apps.utils.local import get_local_param, get_request_app_code, get_request_external_username, get_request_username
+from apps.utils.time_handler import _customize_time_range
 from bkm_space.utils import space_uid_to_bk_biz_id
 
 
@@ -440,9 +441,21 @@ class SearchViewSet(APIViewSet):
         data = self.params_valid(OriginalSearchAttrSerializer)
         data["original_search"] = True
         data["is_desensitize"] = False
-        # TODO: 需要切换为 UnifyQuery 查询
-        search_handler = SearchHandlerEsquery(index_set_id, data, only_for_agg=True)
-        return Response(search_handler.search())
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            data["index_set_ids"] = [index_set_id]
+            time_zone = get_local_param("time_zone", settings.TIME_ZONE)
+            _start_time, _end_time = _customize_time_range(
+                data.get("start_time"),
+                data.get("end_time"),
+                time_zone
+            )
+            data["start_time"] = _start_time.format("YYYY-MM-DD HH:mm:ss")
+            data["end_time"] = _end_time.format("YYYY-MM-DD HH:mm:ss")
+            query_handler = UnifyQueryHandler(data)
+            return Response(query_handler.search())
+        else:
+            search_handler = SearchHandlerEsquery(index_set_id, data, only_for_agg=True)
+            return Response(search_handler.search())
 
     @detail_route(methods=["POST"], url_path="context")
     def context(self, request, index_set_id=None):
