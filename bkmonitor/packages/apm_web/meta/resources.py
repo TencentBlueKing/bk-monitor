@@ -731,7 +731,7 @@ class SetupResource(Resource):
         application_sampler_config = SamplerConfigSerializer(required=False)
         application_instance_name_config = InstanceNameConfigSerializer(required=False)
         application_dimension_config = DimensionConfigSerializer(required=False)
-        application_db_config = serializers.ListField(label="db配置", child=DbConfigSerializer(), default=[])
+        application_db_config = serializers.ListField(label="db配置", child=DbConfigSerializer(), required=False)
         application_log_relation_configs = serializers.ListField(
             label=_("日志关联配置"), child=LogRelationSerializer(), default=[]
         )
