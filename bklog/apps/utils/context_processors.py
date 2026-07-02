@@ -106,5 +106,6 @@ def mysetting(request):
         "VERSION": settings.VERSION,
         "BK_USER_URL": settings.BK_USER_HOST,
         "BK_IAM_URL": settings.BK_IAM_SAAS_HOST,
+        "SHOW_PERSONAL_SETTINGS": "true" if settings.SHOW_PERSONAL_SETTINGS else "false",
         "TGPA_SDK_DOC_URL": settings.TGPA_SDK_DOC_URL,
     }
