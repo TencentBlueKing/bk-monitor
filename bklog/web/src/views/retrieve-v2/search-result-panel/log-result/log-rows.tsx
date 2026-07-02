@@ -148,7 +148,8 @@ export default defineComponent({
     const pageSize = ref(50);
     const isRending = ref(false);
 
-    const tableRowConfig = new WeakMap();
+    let tableRowConfig = new WeakMap();
+    const tableRowConfigByKey = new Map();
     const isPageLoading = ref(RetrieveHelper.isSearching);
     const isPaginationLoading = ref(false);
     // 前端本地分页loadmore触发器
@@ -210,6 +211,8 @@ export default defineComponent({
       hasMoreList.value = true;
       isFirstPageLayoutPending.value = true;
       firstPageLayoutToken += 1;
+      tableRowConfig = new WeakMap();
+      tableRowConfigByKey.clear();
     };
 
     const { addEvent } = useRetrieveEvent();
@@ -727,14 +730,17 @@ export default defineComponent({
       }, {});
     };
 
-    const createRowConfigRef = (index: number) => {
+    const createRowConfigRef = (index: number, rowKey?: string) => {
       const rowIndex = index >= 0 ? index : -1;
-      const rowKey = `${ROW_KEY}_${rowIndex}`;
       return ref({
-        [ROW_KEY]: rowKey,
+        [ROW_KEY]: rowKey || `${ROW_KEY}_${rowIndex}`,
         [ROW_INDEX]: rowIndex,
         ...getRowConfigWithCache(),
       });
+    };
+
+    const getRowConfigKey = (row, index: number) => {
+      return getRowComponentKey(row) || rowKeys.value[index] || '';
     };
 
     const ensureTableRowConfig = (row, index: number) => {
@@ -742,11 +748,22 @@ export default defineComponent({
         return createRowConfigRef(index);
       }
 
-      let config = tableRowConfig.get(row);
+      const rowKey = getRowConfigKey(row, index);
+      let config = rowKey ? tableRowConfigByKey.get(rowKey) : tableRowConfig.get(row);
       if (!config) {
-        config = createRowConfigRef(index);
-        tableRowConfig.set(row, config);
-      } else if (index >= 0 && config.value[ROW_INDEX] !== index) {
+        config = createRowConfigRef(index, rowKey);
+        if (rowKey) {
+          tableRowConfigByKey.set(rowKey, config);
+        }
+      } else {
+        if (rowKey && config.value[ROW_KEY] !== rowKey) {
+          config.value[ROW_KEY] = rowKey;
+        }
+      }
+
+      tableRowConfig.set(row, config);
+
+      if (index >= 0 && config.value[ROW_INDEX] !== index) {
         config.value[ROW_INDEX] = index;
       }
 
