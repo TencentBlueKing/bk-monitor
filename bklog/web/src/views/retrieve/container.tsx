@@ -55,6 +55,19 @@ export default defineComponent({
       }, 60000);
     };
 
+    const triggerBlobDownload = (blob: Blob, fileName = 'default', type = 'text/plain') => {
+      const downloadBlob = blob instanceof Blob ? blob : new Blob([blob], { type });
+      const downloadElement = document.createElement('a');
+      const href = window.URL.createObjectURL(downloadBlob);
+      downloadElement.href = href;
+      downloadElement.download = fileName;
+      downloadElement.style.display = 'none';
+      document.body.appendChild(downloadElement);
+      downloadElement.click();
+      document.body.removeChild(downloadElement);
+      window.URL.revokeObjectURL(href);
+    };
+
     // 解析 hash 中的查询参数
     const parseHashQuery = (hash: string) => {
       const query: Record<string, string> = {};
@@ -139,6 +152,14 @@ export default defineComponent({
                 const url = evt.data.payload?.url;
                 if (typeof url === 'string' && url) {
                   triggerDownload(url);
+                }
+              }
+
+              if (evt.data.type === 'download-blob') {
+                const { blob, fileName, type } = evt.data.payload ?? {};
+                const isBlobLike = blob && typeof blob.arrayBuffer === 'function' && typeof blob.size === 'number';
+                if (blob instanceof Blob || isBlobLike) {
+                  triggerBlobDownload(blob, fileName, type);
                 }
               }
 
