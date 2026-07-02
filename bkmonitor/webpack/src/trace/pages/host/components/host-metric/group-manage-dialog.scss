@@ -1,0 +1,76 @@
+.group-manage-dialog {
+  display: flex;
+  height: 572px;
+  margin: -18px -24px 0;
+  border-top: 1px solid #dcdee5;
+
+  &__aside {
+    flex-shrink: 0;
+    width: 280px;
+    height: 100%;
+    overflow: hidden;
+    border-right: 1px solid #dcdee5;
+  }
+
+  &__main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    height: 100%;
+    padding: 16px;
+    overflow: hidden;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  &__title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #313238;
+  }
+
+  &__operations {
+    display: flex;
+    column-gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  &__batch-move {
+    width: 120px;
+  }
+
+  &__search {
+    flex: 1;
+  }
+
+  &__footer {
+    display: flex;
+    column-gap: 8px;
+    justify-content: flex-end;
+  }
+
+  &__delete-confirm {
+    padding: 2px 0;
+  }
+
+  &__delete-title {
+    margin-bottom: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #313238;
+  }
+
+  &__delete-name {
+    margin-bottom: 4px;
+    color: #63656e;
+  }
+
+  &__delete-tip {
+    color: #979ba5;
+  }
+}

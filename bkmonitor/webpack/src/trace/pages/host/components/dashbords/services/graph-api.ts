@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
  * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -23,58 +23,31 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export interface IRouteConfig {
-  children?: any[];
-  id: string;
-  name: string;
-  route: string;
-}
-export const allRouteConfig: IRouteConfig[] = [
-  {
-    id: 'home',
-    name: 'route-首页',
-    route: 'home',
-  },
-  {
-    id: 'trace-old',
-    name: 'Trace 检索',
-    route: 'trace-old',
-  },
-  {
-    id: 'rotation',
-    name: '轮值',
-    route: 'rotation',
-  },
-  {
-    id: 'alarm-shield',
-    name: 'route-屏蔽',
-    route: 'alarm-shield',
-  },
-  {
-    id: 'incident-detail',
-    name: 'route-故障',
-    route: 'incident-detail',
-  },
-  {
-    id: 'profiling',
-    name: 'Profiling',
-    route: 'profiling',
-  },
-  {
-    id: 'report',
-    name: 'route-订阅配置',
-    route: 'report',
-  },
-  {
-    id: 'alarm-center',
-    name: 'route-告警中心',
-    route: 'alarm-center',
-  },
-  {
-    id: 'host',
-    name: 'route-主机监控',
-    route: 'host',
-  },
-];
 
-export const createRouteConfig = () => allRouteConfig;
+import { cloneDeep } from 'lodash';
+
+import { data as MOCK_GRAPH_UNIFY_QUERY } from '../../../mock/graph_unify_query';
+
+/**
+ * 图表取数 API 的最小契约：与 useEcharts 中 `$api[apiModule][apiFunc](params, config)` 对齐。
+ * 当前仅 mock，后续切真实接口时保持同款签名即可零改动替换。
+ */
+export type GraphApi = Record<string, Record<string, (params: Record<string, any>, config?: any) => Promise<any>>>;
+
+/** mock 接口的网络延迟（ms），用于复现 loading 态 */
+const MOCK_DELAY = 300;
+
+/**
+ * 创建图表取数 $api。
+ * 现阶段返回 mock 数据；正式接入时把 grafana.graphUnifyQuery 换成真实 $api 调用即可。
+ */
+export function createGraphApi(): GraphApi {
+  return {
+    grafana: {
+      graphUnifyQuery: () =>
+        new Promise(resolve => {
+          setTimeout(() => resolve(cloneDeep(MOCK_GRAPH_UNIFY_QUERY)), MOCK_DELAY);
+        }),
+    },
+  };
+}

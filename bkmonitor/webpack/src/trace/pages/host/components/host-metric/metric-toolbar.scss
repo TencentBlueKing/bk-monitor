@@ -1,0 +1,140 @@
+.metric-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  row-gap: 8px;
+  width: 100%;
+  padding: 8px 8px 8px 16px;
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px 0 rgba(25, 25, 41, 0.05);
+
+  &__left {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    row-gap: 8px;
+    column-gap: 24px;
+  }
+
+  &__right {
+    display: flex;
+    align-items: center;
+    column-gap: 16px;
+  }
+
+  &__field {
+    display: flex;
+    align-items: center;
+
+    &-label {
+      margin-right: 9px;
+      font-size: 12px;
+      line-height: 20px;
+      color: #4d4f56;
+      white-space: nowrap;
+    }
+  }
+
+  &__agg-select {
+    width: 80px;
+
+    :deep(.bk-input) {
+      border: 0;
+      border-bottom: 1px solid #dcdee5;
+    }
+  }
+
+  &__compare-target {
+    display: flex;
+    align-items: center;
+    column-gap: 8px;
+  }
+
+  &__main-target {
+    height: 18px;
+    padding: 0 6px;
+    font-weight: 700;
+    color: #3a84ff;
+    background: #edf4ff;
+    border-radius: 2px;
+  }
+
+  &__vs {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 18px;
+    padding: 0 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    background: #ff9c01;
+    border-radius: 2px;
+  }
+
+  &__target-select,
+  &__time-select {
+    min-width: 200px;
+    max-width: 420px;
+  }
+
+  &__search {
+    width: 240px;
+  }
+
+  &__checkbox {
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  &__column-switch {
+    display: flex;
+    align-items: center;
+    column-gap: 4px;
+    font-size: 12px;
+    color: #4d4f56;
+    cursor: pointer;
+
+    .icon-monitor {
+      font-size: 16px;
+      color: #63656e;
+    }
+
+    &:hover {
+      color: #3a84ff;
+
+      .icon-monitor {
+        color: #3a84ff;
+      }
+    }
+  }
+
+  &__column-text {
+    white-space: nowrap;
+  }
+
+  &__setting {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    background: #f0f1f5;
+    border-radius: 4px;
+
+    .icon-monitor {
+      font-size: 16px;
+      color: #63656e;
+    }
+
+    &:hover {
+      .icon-monitor {
+        color: #3a84ff;
+      }
+    }
+  }
+}

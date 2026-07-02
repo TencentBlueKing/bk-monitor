@@ -1,0 +1,31 @@
+.host-location-bar {
+  display: flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px 0 6px;
+  background: #f0f1f5;
+  border-radius: 4px;
+
+  &__locate {
+    margin-right: 4px;
+    font-size: 16px;
+    color: #979ba5;
+  }
+
+  &__text {
+    font-size: 12px;
+    line-height: 20px;
+    color: #4d4f56;
+  }
+
+  &__share {
+    margin-left: 2px;
+    font-size: 16px;
+    color: #3a84ff;
+    cursor: pointer;
+
+    &:hover {
+      color: #1768ef;
+    }
+  }
+}

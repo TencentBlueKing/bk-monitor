@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
  * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -23,58 +23,43 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export interface IRouteConfig {
-  children?: any[];
-  id: string;
-  name: string;
-  route: string;
-}
-export const allRouteConfig: IRouteConfig[] = [
-  {
-    id: 'home',
-    name: 'route-首页',
-    route: 'home',
-  },
-  {
-    id: 'trace-old',
-    name: 'Trace 检索',
-    route: 'trace-old',
-  },
-  {
-    id: 'rotation',
-    name: '轮值',
-    route: 'rotation',
-  },
-  {
-    id: 'alarm-shield',
-    name: 'route-屏蔽',
-    route: 'alarm-shield',
-  },
-  {
-    id: 'incident-detail',
-    name: 'route-故障',
-    route: 'incident-detail',
-  },
-  {
-    id: 'profiling',
-    name: 'Profiling',
-    route: 'profiling',
-  },
-  {
-    id: 'report',
-    name: 'route-订阅配置',
-    route: 'report',
-  },
-  {
-    id: 'alarm-center',
-    name: 'route-告警中心',
-    route: 'alarm-center',
-  },
-  {
-    id: 'host',
-    name: 'route-主机监控',
-    route: 'host',
-  },
-];
 
-export const createRouteConfig = () => allRouteConfig;
+/** 进程端口状态：决定端口列状态圆点颜色（正常绿点 / 异常红点） */
+export enum EProcessPortStatus {
+  /** 异常 */
+  Abnormal = 1,
+  /** 正常 */
+  Normal = 0,
+}
+
+/** 进程列表行数据 */
+export interface ProcessItem {
+  /** 监听地址 */
+  bindIp: string;
+  /** 占用 CPU 百分比 */
+  cpuUsage: number;
+  /** 所属主机 IP（蓝色链接） */
+  hostIp: string;
+  /** 行唯一 key（进程名 + 主机 IP，保证同主机内唯一） */
+  id: string;
+  /** 物理内存 RSS（字节） */
+  memRss: number;
+  /** 物理内存使用率百分比（进度条 + 文案） */
+  memUsage: number;
+  /** 进程名（蓝色链接，点击打开进程详情） */
+  name: string;
+  /** 进程 PID（用于「进程名/PID」搜索） */
+  pid: number;
+  /** 监听端口 */
+  port: number;
+  /** 端口状态（决定状态圆点颜色） */
+  portStatus: EProcessPortStatus;
+  /** 监听协议（TCP / UDP） */
+  protocol: string;
+  /** 启动命令（进程详情头部展示） */
+  startCommand: string;
+  /** 运行时长（秒） */
+  uptime: number;
+  /** 运行用户 */
+  user: string;
+}

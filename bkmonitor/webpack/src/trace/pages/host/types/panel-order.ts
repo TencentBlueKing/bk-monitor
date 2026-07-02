@@ -1,12 +1,12 @@
 /*
  * Tencent is pleased to support the open source community by making
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
  * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
- * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
  *
  * ---------------------------------------------------
  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -23,58 +23,22 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export interface IRouteConfig {
-  children?: any[];
+/** 单个分组的指标排序配置 */
+export interface MetricGroupPanelOrder {
+  /** 分组唯一标识，如 memory */
   id: string;
-  name: string;
-  route: string;
+  /** 分组下的指标列表，顺序即展示顺序 */
+  panels: MetricOrderPanel[];
+  /** 分组标题，如 内存 */
+  title: string;
 }
-export const allRouteConfig: IRouteConfig[] = [
-  {
-    id: 'home',
-    name: 'route-首页',
-    route: 'home',
-  },
-  {
-    id: 'trace-old',
-    name: 'Trace 检索',
-    route: 'trace-old',
-  },
-  {
-    id: 'rotation',
-    name: '轮值',
-    route: 'rotation',
-  },
-  {
-    id: 'alarm-shield',
-    name: 'route-屏蔽',
-    route: 'alarm-shield',
-  },
-  {
-    id: 'incident-detail',
-    name: 'route-故障',
-    route: 'incident-detail',
-  },
-  {
-    id: 'profiling',
-    name: 'Profiling',
-    route: 'profiling',
-  },
-  {
-    id: 'report',
-    name: 'route-订阅配置',
-    route: 'report',
-  },
-  {
-    id: 'alarm-center',
-    name: 'route-告警中心',
-    route: 'alarm-center',
-  },
-  {
-    id: 'host',
-    name: 'route-主机监控',
-    route: 'host',
-  },
-];
 
-export const createRouteConfig = () => allRouteConfig;
+/** 分组下单个指标的排序与显隐配置 */
+export interface MetricOrderPanel {
+  /** 是否隐藏该指标，true 表示默认不展示 */
+  hidden: boolean;
+  /** 指标唯一标识，如 bk_monitor.time_series.system.mem.free */
+  id: string;
+  /** 指标标题，如 物理内存空闲量 */
+  title: string;
+}
