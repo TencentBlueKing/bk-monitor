@@ -80,7 +80,16 @@ def test_install_biz_bk_collector_dry_run_does_not_call_plugin_operate(monkeypat
     monkeypatch.setattr(
         bk_collector,
         "_get_deploy_host_ids",
-        lambda **kwargs: ([101], [102]),
+        lambda **kwargs: (
+            [101],
+            [
+                {
+                    "bk_host_id": 102,
+                    "agent_status": "NOT_INSTALLED",
+                    "reason": bk_collector.SKIP_REASON_AGENT_NOT_INSTALLED,
+                }
+            ],
+        ),
     )
     monkeypatch.setattr(
         bk_collector.api.node_man,
@@ -93,8 +102,12 @@ def test_install_biz_bk_collector_dry_run_does_not_call_plugin_operate(monkeypat
     )
 
     assert result["plugin_version"] == "1.2.3"
-    assert result["details"][bk_collector.INSTALL][0]["deploy_host_ids"] == [101]
+    install_detail = result["details"][bk_collector.INSTALL][0]
+    assert install_detail["deploy_host_ids"] == [101]
+    assert install_detail["skipped_host_ids"] == [102]
     assert result["summary"][bk_collector.INSTALL]["planned_count"] == 1
+    assert result["skip_summary"]["host_count"] == 1
+    assert result["skip_summary"]["records"][0]["hosts"][0]["reason"] == (bk_collector.SKIP_REASON_AGENT_NOT_INSTALLED)
 
 
 def test_install_biz_bk_collector_temporarily_switches_and_restores_nodeman_api(settings, monkeypatch):
@@ -133,7 +146,7 @@ def test_install_biz_bk_collector_reinstalls_all_proxy_hosts(monkeypatch):
     monkeypatch.setattr(
         bk_collector.api.node_man,
         "plugin_search",
-        lambda **kwargs: (_ for _ in ()).throw(AssertionError("install should not skip hosts by current version")),
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("install should not check agent status by default")),
     )
     monkeypatch.setattr(
         bk_collector.api.node_man,
@@ -171,7 +184,7 @@ def test_install_biz_bk_collector_reports_failed_hosts_in_failure_summary(monkey
     monkeypatch.setattr(
         bk_collector.api.node_man,
         "plugin_search",
-        lambda **kwargs: {"list": [{"bk_host_id": 101, "plugin_status": []}]},
+        lambda **kwargs: {"list": [{"bk_host_id": 101, "status": "RUNNING", "plugin_status": []}]},
     )
     monkeypatch.setattr(bk_collector.api.node_man, "plugin_operate", lambda **kwargs: {"job_id": 123})
     monkeypatch.setattr(
@@ -194,6 +207,182 @@ def test_install_biz_bk_collector_reports_failed_hosts_in_failure_summary(monkey
     assert failure_record["job_status"] == "FAILED"
     assert failure_record["hosts"][0]["bk_host_id"] == 101
     assert failure_record["hosts"][0]["status"] == "FAILED"
+
+
+def test_install_biz_bk_collector_skips_hosts_without_agent(monkeypatch):
+    calls = []
+
+    monkeypatch.setattr(bk_collector, "_find_latest_plugin_version", lambda **kwargs: "1.2.3")
+    monkeypatch.setattr(
+        bk_collector.BkCollectorConfig,
+        "get_target_host_ids_by_biz_id",
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101, 102, 103]),
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "plugin_search",
+        lambda **kwargs: {
+            "list": [
+                {"bk_host_id": 101, "status": "RUNNING", "inner_ip": "127.0.0.1", "bk_cloud_id": 0},
+                {"bk_host_id": 102, "status": "NOT_INSTALLED", "inner_ip": "127.0.0.2", "bk_cloud_id": 0},
+                # 103 未被节点管理返回，视为 Agent 未安装
+            ]
+        },
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "plugin_operate",
+        lambda **kwargs: calls.append(kwargs) or {"job_id": 123},
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "job_detail",
+        lambda **kwargs: _plugin_job_detail(job_id=kwargs["id"], status="SUCCESS", instance_status="SUCCESS"),
+    )
+
+    result = bk_collector.install_biz_bk_collector(
+        bk_tenant_id="system", bk_biz_ids=[2], operator="admin", dry_run=False, skip_hosts_without_agent=True
+    )
+
+    # 只对 Agent 已安装的 101 执行安装
+    assert calls[0]["bk_host_id"] == [101]
+    install_detail = result["details"][bk_collector.INSTALL][0]
+    assert install_detail["deploy_host_ids"] == [101]
+    assert install_detail["skipped_host_ids"] == [102, 103]
+    skip_reason_by_host = {host["bk_host_id"]: host["reason"] for host in install_detail["skipped_hosts"]}
+    assert skip_reason_by_host == {
+        102: bk_collector.SKIP_REASON_AGENT_NOT_INSTALLED,
+        103: bk_collector.SKIP_REASON_AGENT_NOT_INSTALLED,
+    }
+    assert result["skip_summary"]["host_count"] == 2
+    assert result["skip_summary"]["records"][0]["bk_biz_id"] == 2
+
+
+def test_install_biz_bk_collector_skips_all_when_no_agent(monkeypatch):
+    monkeypatch.setattr(bk_collector, "_find_latest_plugin_version", lambda **kwargs: "1.2.3")
+    monkeypatch.setattr(
+        bk_collector.BkCollectorConfig,
+        "get_target_host_ids_by_biz_id",
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101]),
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "plugin_search",
+        lambda **kwargs: {"list": [{"bk_host_id": 101, "status": "NOT_INSTALLED"}]},
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "plugin_operate",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("agent not installed should not install plugin")),
+    )
+
+    result = bk_collector.install_biz_bk_collector(
+        bk_tenant_id="system", bk_biz_ids=[2], operator="admin", dry_run=False, skip_hosts_without_agent=True
+    )
+
+    install_detail = result["details"][bk_collector.INSTALL][0]
+    assert install_detail["action"] == "skip"
+    assert install_detail["deploy_host_ids"] == []
+    assert install_detail["skipped_host_ids"] == [101]
+    assert install_detail["message"] == "no proxy host available to install bk-collector"
+    assert result["summary"][bk_collector.INSTALL]["skipped_count"] == 1
+
+
+def test_stop_biz_bk_collector_skips_hosts_without_agent(monkeypatch):
+    calls = []
+
+    monkeypatch.setattr(
+        bk_collector.BkCollectorConfig,
+        "get_target_host_ids_by_biz_id",
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101, 102]),
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "plugin_search",
+        lambda **kwargs: {
+            "list": [
+                {
+                    "bk_host_id": 101,
+                    "status": "RUNNING",
+                    "plugin_status": [{"name": "bk-collector", "version": "1.2.3"}],
+                },
+                {
+                    "bk_host_id": 102,
+                    "status": "NOT_INSTALLED",
+                    "plugin_status": [{"name": "bk-collector", "version": "1.2.3"}],
+                },
+            ]
+        },
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "plugin_operate",
+        lambda **kwargs: calls.append(kwargs) or {"job_id": 456},
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "job_detail",
+        lambda **kwargs: _plugin_job_detail(job_id=kwargs["id"], status="SUCCESS", instance_status="SUCCESS"),
+    )
+
+    result = bk_collector.stop_biz_bk_collector(bk_tenant_id="system", bk_biz_ids=[2], operator="admin", dry_run=False)
+
+    # 102 虽装有 bk-collector，但 Agent 未安装，跳过并只停止 101
+    assert calls[0]["bk_host_id"] == [101]
+    stop_detail = result["details"][bk_collector.STOP][0]
+    assert stop_detail["stop_host_ids"] == [101]
+    assert stop_detail["skipped_host_ids"] == [102]
+    assert stop_detail["skipped_hosts"][0]["reason"] == bk_collector.SKIP_REASON_AGENT_NOT_INSTALLED
+    assert result["skip_summary"]["host_count"] == 1
+
+
+def test_stop_biz_bk_collector_can_disable_agent_skip(monkeypatch):
+    calls = []
+
+    monkeypatch.setattr(
+        bk_collector.BkCollectorConfig,
+        "get_target_host_ids_by_biz_id",
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101, 102]),
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "plugin_search",
+        lambda **kwargs: {
+            "list": [
+                {
+                    "bk_host_id": 101,
+                    "status": "RUNNING",
+                    "plugin_status": [{"name": "bk-collector", "version": "1.2.3"}],
+                },
+                {
+                    "bk_host_id": 102,
+                    "status": "NOT_INSTALLED",
+                    "plugin_status": [{"name": "bk-collector", "version": "1.2.3"}],
+                },
+            ]
+        },
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "plugin_operate",
+        lambda **kwargs: calls.append(kwargs) or {"job_id": 456},
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "job_detail",
+        lambda **kwargs: _plugin_job_detail(job_id=kwargs["id"], status="SUCCESS", instance_status="SUCCESS"),
+    )
+
+    result = bk_collector.stop_biz_bk_collector(
+        bk_tenant_id="system", bk_biz_ids=[2], operator="admin", dry_run=False, skip_hosts_without_agent=False
+    )
+
+    # 关闭 Agent 跳过后，只要装有 bk-collector 就会被停止，不再因 Agent 未安装跳过
+    assert calls[0]["bk_host_id"] == [101, 102]
+    stop_detail = result["details"][bk_collector.STOP][0]
+    assert stop_detail["stop_host_ids"] == [101, 102]
+    assert stop_detail["skipped_host_ids"] == []
+    assert result["skip_summary"]["host_count"] == 0
 
 
 def test_disable_biz_bk_collector_subscription_auto_inspection_disables_subscriptions_and_blacklists(monkeypatch):
@@ -357,8 +546,16 @@ def test_stop_biz_bk_collector_dry_run_only_stops_installed_hosts(monkeypatch):
         "plugin_search",
         lambda **kwargs: {
             "list": [
-                {"bk_host_id": 101, "plugin_status": [{"name": "bk-collector", "version": "1.2.3"}]},
-                {"bk_host_id": 102, "plugin_status": [{"name": "bkmonitorbeat", "version": "1.0.0"}]},
+                {
+                    "bk_host_id": 101,
+                    "status": "RUNNING",
+                    "plugin_status": [{"name": "bk-collector", "version": "1.2.3"}],
+                },
+                {
+                    "bk_host_id": 102,
+                    "status": "RUNNING",
+                    "plugin_status": [{"name": "bkmonitorbeat", "version": "1.0.0"}],
+                },
             ]
         },
     )
@@ -373,7 +570,14 @@ def test_stop_biz_bk_collector_dry_run_only_stops_installed_hosts(monkeypatch):
     stop_detail = result["details"][bk_collector.STOP][0]
     assert stop_detail["stop_host_ids"] == [101]
     assert stop_detail["skipped_host_ids"] == [102, 103]
+    # 102 已上报但未装 bk-collector；103 节点管理未返回，视为 Agent 未安装
+    skip_reason_by_host = {host["bk_host_id"]: host["reason"] for host in stop_detail["skipped_hosts"]}
+    assert skip_reason_by_host == {
+        102: bk_collector.SKIP_REASON_BK_COLLECTOR_NOT_INSTALLED,
+        103: bk_collector.SKIP_REASON_AGENT_NOT_INSTALLED,
+    }
     assert result["summary"][bk_collector.STOP]["planned_count"] == 1
+    assert result["skip_summary"]["host_count"] == 2
 
 
 def test_stop_biz_bk_collector_temporarily_switches_and_restores_nodeman_api(settings, monkeypatch):
@@ -411,7 +615,13 @@ def test_stop_biz_bk_collector_calls_main_stop_plugin(monkeypatch):
         bk_collector.api.node_man,
         "plugin_search",
         lambda **kwargs: {
-            "list": [{"bk_host_id": 101, "plugin_status": [{"name": "bk-collector", "version": "1.2.3"}]}]
+            "list": [
+                {
+                    "bk_host_id": 101,
+                    "status": "RUNNING",
+                    "plugin_status": [{"name": "bk-collector", "version": "1.2.3"}],
+                }
+            ]
         },
     )
     monkeypatch.setattr(
@@ -456,7 +666,7 @@ def test_install_biz_bk_collector_polls_job_until_success(monkeypatch):
     monkeypatch.setattr(
         bk_collector.api.node_man,
         "plugin_search",
-        lambda **kwargs: {"list": [{"bk_host_id": 101, "plugin_status": []}]},
+        lambda **kwargs: {"list": [{"bk_host_id": 101, "status": "RUNNING", "plugin_status": []}]},
     )
     monkeypatch.setattr(bk_collector.api.node_man, "plugin_operate", lambda **kwargs: {"job_id": 123})
     monkeypatch.setattr(bk_collector.api.node_man, "job_detail", lambda **kwargs: job_details.pop(0))
@@ -489,7 +699,13 @@ def test_stop_biz_bk_collector_reports_running_job_as_timeout(monkeypatch):
         bk_collector.api.node_man,
         "plugin_search",
         lambda **kwargs: {
-            "list": [{"bk_host_id": 101, "plugin_status": [{"name": "bk-collector", "version": "1.2.3"}]}]
+            "list": [
+                {
+                    "bk_host_id": 101,
+                    "status": "RUNNING",
+                    "plugin_status": [{"name": "bk-collector", "version": "1.2.3"}],
+                }
+            ]
         },
     )
     monkeypatch.setattr(bk_collector.api.node_man, "plugin_operate", lambda **kwargs: {"job_id": 456})
@@ -668,6 +884,49 @@ def test_check_biz_bk_collector_proxy_config_delivery_waits_until_render_success
     assert sleep_calls == [1]
 
 
+def test_check_biz_bk_collector_proxy_config_delivery_waits_when_failed_with_pending(monkeypatch):
+    subscriptions = [
+        {
+            "config_type": bk_collector.CUSTOM_REPORT,
+            "bk_tenant_id": "system",
+            "bk_biz_id": 2,
+            "subscription_id": 1001,
+            "bk_data_id": 2001,
+        },
+        {
+            "config_type": bk_collector.CUSTOM_REPORT,
+            "bk_tenant_id": "system",
+            "bk_biz_id": 2,
+            "subscription_id": 1002,
+            "bk_data_id": 2002,
+        },
+    ]
+    task_results = [
+        [_proxy_config_delivery_task(render_status="FAILED", instance_status="FAILED")],
+        [_proxy_config_delivery_task(render_status="PENDING", instance_status="RUNNING")],
+        [_proxy_config_delivery_task(render_status="SUCCESS", instance_status="FAILED")],
+        [_proxy_config_delivery_task(render_status="SUCCESS", instance_status="FAILED")],
+    ]
+    sleep_calls = []
+
+    monkeypatch.setattr(bk_collector, "_list_proxy_config_delivery_subscriptions", lambda **kwargs: subscriptions)
+    monkeypatch.setattr(bk_collector.api.node_man, "batch_task_result", lambda **kwargs: task_results.pop(0))
+    monkeypatch.setattr(bk_collector.time, "sleep", lambda seconds: sleep_calls.append(seconds))
+
+    result = bk_collector.check_biz_bk_collector_proxy_config_delivery(
+        bk_tenant_id="system",
+        bk_biz_ids=[2],
+        config_types=[bk_collector.CUSTOM_REPORT],
+        wait_timeout=10,
+        poll_interval=1,
+    )
+
+    assert result["result"] is True
+    assert result["poll_attempts"] == 2
+    assert result["summary"]["total"]["succeeded_count"] == 2
+    assert sleep_calls == [1]
+
+
 def test_refresh_biz_bk_collector_configs_checks_delivery_after_refresh(monkeypatch):
     custom_report_calls = []
     delivery_check_calls = []
@@ -757,7 +1016,17 @@ def test_refresh_biz_bk_collector_configs_keeps_failure_summary_without_details(
     monkeypatch.setattr(
         bk_collector.CustomReportSubscription,
         "refresh_collector_custom_conf",
-        lambda **kwargs: {"summary": {"failed_count": 0}, "details": []},
+        lambda **kwargs: {
+            "summary": {"failed_count": 0},
+            "details": [
+                {
+                    "bk_tenant_id": "system",
+                    "bk_biz_id": 2,
+                    "data_ids": [2001],
+                    "targets": {"node_man": {"action": "refresh", "result": True, "message": "success"}},
+                }
+            ],
+        },
     )
     monkeypatch.setattr(
         bk_collector,
@@ -782,6 +1051,7 @@ def test_refresh_biz_bk_collector_configs_keeps_failure_summary_without_details(
         bk_tenant_id="system",
         bk_biz_ids=[2],
         config_types=[bk_collector.CUSTOM_REPORT],
+        retry_render_failures=False,
     )
 
     assert result["result"] is False
@@ -804,6 +1074,125 @@ def test_refresh_biz_bk_collector_configs_keeps_failure_summary_without_details(
             "render_step_statuses": ["FAILED"],
         }
     ]
+
+
+def test_refresh_biz_bk_collector_configs_auto_retries_render_failures_reusing_check(monkeypatch):
+    monkeypatch.setattr(
+        bk_collector.CustomReportSubscription,
+        "refresh_collector_custom_conf",
+        lambda **kwargs: {
+            "summary": {"failed_count": 0},
+            "details": [
+                {
+                    "bk_tenant_id": "system",
+                    "bk_biz_id": 2,
+                    "data_ids": [2001],
+                    "targets": {"node_man": {"action": "refresh", "result": True, "message": "success"}},
+                }
+            ],
+        },
+    )
+    monkeypatch.setattr(
+        bk_collector,
+        "_list_proxy_config_delivery_subscriptions",
+        lambda **kwargs: [
+            {
+                "config_type": bk_collector.CUSTOM_REPORT,
+                "bk_tenant_id": "system",
+                "bk_biz_id": 2,
+                "subscription_id": 1001,
+                "bk_data_id": 2001,
+            }
+        ],
+    )
+    # 第一次检查 render 失败（refresh 自身的下发检查），补一轮后复检成功
+    batch_task_calls = []
+    task_results = [
+        [_proxy_config_delivery_task(render_status="FAILED", instance_status="FAILED")],
+        [_proxy_config_delivery_task(render_status="SUCCESS", instance_status="FAILED")],
+    ]
+
+    def fake_batch_task_result(**kwargs):
+        batch_task_calls.append(kwargs)
+        return task_results.pop(0)
+
+    monkeypatch.setattr(bk_collector.api.node_man, "batch_task_result", fake_batch_task_result)
+
+    retry_calls = []
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "retry_subscription",
+        lambda **kwargs: retry_calls.append(kwargs) or {"task_id": 9001},
+    )
+
+    result = bk_collector.refresh_biz_bk_collector_proxy_configs(
+        bk_tenant_id="system",
+        bk_biz_ids=[2],
+        config_types=[bk_collector.CUSTOM_REPORT],
+        include_details=True,
+    )
+
+    # 只有 refresh 的初次检查 + retry 后的复检两次；retry 未重复执行初次检查
+    assert len(batch_task_calls) == 2
+    assert len(retry_calls) == 1
+    assert retry_calls[0]["instance_id_list"] == ["host|instance|host|101"]
+    retry_record = result["retry"]["details"][bk_collector.CUSTOM_REPORT][0]
+    assert retry_record["action"] == bk_collector.RETRY
+    assert retry_record["result"] is True
+    assert result["retry"]["delivery_check"]["result"] is True
+    assert result["delivery_check"]["result"] is True
+    assert result["result"] is True
+
+
+def test_refresh_biz_bk_collector_configs_skip_render_failure_retry_does_not_retry(monkeypatch):
+    monkeypatch.setattr(
+        bk_collector.CustomReportSubscription,
+        "refresh_collector_custom_conf",
+        lambda **kwargs: {
+            "summary": {"failed_count": 0},
+            "details": [
+                {
+                    "bk_tenant_id": "system",
+                    "bk_biz_id": 2,
+                    "data_ids": [2001],
+                    "targets": {"node_man": {"action": "refresh", "result": True, "message": "success"}},
+                }
+            ],
+        },
+    )
+    monkeypatch.setattr(
+        bk_collector,
+        "_list_proxy_config_delivery_subscriptions",
+        lambda **kwargs: [
+            {
+                "config_type": bk_collector.CUSTOM_REPORT,
+                "bk_tenant_id": "system",
+                "bk_biz_id": 2,
+                "subscription_id": 1001,
+                "bk_data_id": 2001,
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "batch_task_result",
+        lambda **kwargs: [_proxy_config_delivery_task(render_status="FAILED", instance_status="FAILED")],
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "retry_subscription",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("skip retry should not call retry_subscription")),
+    )
+
+    result = bk_collector.refresh_biz_bk_collector_proxy_configs(
+        bk_tenant_id="system",
+        bk_biz_ids=[2],
+        config_types=[bk_collector.CUSTOM_REPORT],
+        retry_render_failures=False,
+    )
+
+    assert "retry" not in result
+    assert result["result"] is False
 
 
 def test_refresh_biz_bk_collector_configs_checks_only_refreshed_apm_applications(monkeypatch):
@@ -1228,6 +1617,7 @@ def test_custom_report_refresh_skips_bk_saas_space_with_structured_target(monkey
 
     monkeypatch.setattr(subscription_config, "bk_biz_id_to_space_uid", lambda bk_biz_id: f"bk_saas__{bk_biz_id}")
     monkeypatch.setattr(subscription_config, "is_bk_saas_space", lambda space_uid: True)
+    monkeypatch.setattr(subscription_config, "is_biz_id_in_black_list", lambda bk_biz_id: False)
     monkeypatch.setattr(
         subscription_config.api.node_man,
         "get_proxies_by_biz",
@@ -1352,3 +1742,108 @@ def test_refresh_k8s_custom_config_by_biz_keeps_render_failure(monkeypatch):
     assert result["clusters"][0]["action"] == "refresh"
     assert result["clusters"][0]["result"] is False
     assert result["clusters"][0]["message"] == "render failed"
+
+
+def _patch_retry_subscriptions(monkeypatch):
+    monkeypatch.setattr(
+        bk_collector,
+        "_list_proxy_config_delivery_subscriptions",
+        lambda **kwargs: [
+            {
+                "config_type": bk_collector.CUSTOM_REPORT,
+                "bk_tenant_id": "system",
+                "bk_biz_id": 2,
+                "subscription_id": 1001,
+                "bk_data_id": 2001,
+            }
+        ],
+    )
+
+
+def test_retry_biz_bk_collector_config_delivery_retries_render_failed_instances(monkeypatch):
+    _patch_retry_subscriptions(monkeypatch)
+    # 首次检查 render 失败，补一轮后复检成功
+    task_results = [
+        [_proxy_config_delivery_task(render_status="FAILED", instance_status="FAILED")],
+        [_proxy_config_delivery_task(render_status="SUCCESS", instance_status="FAILED")],
+    ]
+    monkeypatch.setattr(bk_collector.api.node_man, "batch_task_result", lambda **kwargs: task_results.pop(0))
+
+    retry_calls = []
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "retry_subscription",
+        lambda **kwargs: retry_calls.append(kwargs) or {"task_id": 9001},
+    )
+
+    result = bk_collector.retry_biz_bk_collector_proxy_config_delivery(
+        bk_tenant_id="system",
+        bk_biz_ids=[2],
+        config_types=[bk_collector.CUSTOM_REPORT],
+        include_details=True,
+    )
+
+    assert len(retry_calls) == 1
+    assert retry_calls[0]["subscription_id"] == 1001
+    assert retry_calls[0]["instance_id_list"] == ["host|instance|host|101"]
+    record = result["details"][bk_collector.CUSTOM_REPORT][0]
+    assert record["action"] == bk_collector.RETRY
+    assert record["result"] is True
+    assert record["target_instance_count"] == 1
+    assert result["delivery_check"]["result"] is True
+    assert result["result"] is True
+
+
+def test_retry_biz_bk_collector_config_delivery_dry_run_does_not_call_retry(monkeypatch):
+    _patch_retry_subscriptions(monkeypatch)
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "batch_task_result",
+        lambda **kwargs: [_proxy_config_delivery_task(render_status="FAILED", instance_status="FAILED")],
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "retry_subscription",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("dry run should not call retry_subscription")),
+    )
+
+    result = bk_collector.retry_biz_bk_collector_proxy_config_delivery(
+        bk_tenant_id="system",
+        bk_biz_ids=[2],
+        config_types=[bk_collector.CUSTOM_REPORT],
+        dry_run=True,
+        include_details=True,
+    )
+
+    record = result["details"][bk_collector.CUSTOM_REPORT][0]
+    assert record["action"] == "dry_run"
+    assert record["result"] is None
+    assert record["target_instance_count"] == 1
+    assert "delivery_check" not in result
+
+
+def test_retry_biz_bk_collector_config_delivery_skips_when_no_render_failure(monkeypatch):
+    _patch_retry_subscriptions(monkeypatch)
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "batch_task_result",
+        lambda **kwargs: [_proxy_config_delivery_task(render_status="SUCCESS", instance_status="FAILED")],
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "retry_subscription",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("no render failure should not call retry_subscription")),
+    )
+
+    result = bk_collector.retry_biz_bk_collector_proxy_config_delivery(
+        bk_tenant_id="system",
+        bk_biz_ids=[2],
+        config_types=[bk_collector.CUSTOM_REPORT],
+        include_details=True,
+    )
+
+    record = result["details"][bk_collector.CUSTOM_REPORT][0]
+    assert record["action"] == "skip"
+    assert record["target_instance_count"] == 0
+    assert result["message"] == "no render-failed proxy config subscription to retry"
+    assert "delivery_check" not in result

@@ -24,7 +24,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from rest_framework.exceptions import ValidationError
 
 from bkm_space.utils import bk_biz_id_to_space_uid
-from bkmonitor.models import TapdWorkspaceBinding
+from bkmonitor.models import TapdWorkspaceBinding, TapdWorkspaceManualUnbind
 from bkmonitor.utils.cipher import AESCipher
 from fta_web.constants import TapdOauthEndpoint
 
@@ -306,11 +306,19 @@ def generate_auth_url(
     )
 
 
+def is_manually_unbound(bk_tenant_id: str, space_uid: str, workspace_id: str) -> bool:
+    """检查指定项目是否已被手动解绑（tombstone 是否存在）。"""
+    return TapdWorkspaceManualUnbind.objects.filter(
+        bk_tenant_id=bk_tenant_id, space_uid=space_uid, tapd_workspace_id=workspace_id
+    ).exists()
+
+
 def try_bind_importable(
     workspace_id: str,
     bk_biz_id: int,
     bk_tenant_id: str,
     create_user: str,
+    space_uid: str,
     tapd_workspace_name: str = "",
 ) -> bool:
     """尝试为 importable 状态的项目创建本地 binding。
@@ -318,12 +326,18 @@ def try_bind_importable(
     成功 → 返回 True，is_bound 最终显示为 bound
     失败 → 返回 False，is_bound 保持 importable（静默失败）
 
+    :param space_uid: 业务空间 UID，由调用方转换后传入，避免函数内部重复转换
     :param tapd_workspace_name: TAPD 项目名称，写入本地 binding 的 tapd_workspace_name 字段
     """
+    # tombstone 存在则跳过（不自动重绑，需用户手动 rebind 恢复）
+    if is_manually_unbound(bk_tenant_id, space_uid, workspace_id):
+        logger.info("try_bind_importable skipped (manually unbound): ws=%s biz=%s", workspace_id, bk_biz_id)
+        return False
+
     try:
         TapdWorkspaceBinding.objects.get_or_create(
             bk_tenant_id=bk_tenant_id,
-            space_uid=bk_biz_id_to_space_uid(bk_biz_id),
+            space_uid=space_uid,
             tapd_workspace_id=workspace_id,
             defaults={
                 "bk_biz_id": bk_biz_id,
