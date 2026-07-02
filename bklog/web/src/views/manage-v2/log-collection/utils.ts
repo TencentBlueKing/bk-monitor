@@ -95,6 +95,12 @@ export const COLLECTOR_SCENARIO_ENUM = [
   { value: 'custom', label: window.$t('自定义') },
 ];
 
+/** 采集项来源（空间类型） */
+export const IS_RELATED_SPACE_ENUM = [
+  { label: window.$t('当前空间'), value: 'current_space' },
+  { label: window.$t('关联空间'), value: 'related_space' },
+];
+
 /** 表格需要展示的字段 */
 export const SETTING_FIELDS = [
   // 数据ID
@@ -129,6 +135,11 @@ export const SETTING_FIELDS = [
     id: 'index_set_id',
     label: window.$t('所属索引集'),
     disabled: true,
+  },
+  // 采集项来源
+  {
+    id: 'is_related_space',
+    label: window.$t('采集项来源'),
   },
   // 接入类型
   {

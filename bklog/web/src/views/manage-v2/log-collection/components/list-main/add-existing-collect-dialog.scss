@@ -6,7 +6,7 @@
     width: 818px;
 
     .popover-header {
-      padding: 10px 0 20px;
+      padding: 10px 0;
 
       .popover-title {
         font-size: 20px;
@@ -36,8 +36,8 @@
       display: flex;
       min-height: 420px;
       max-height: 560px;
-      border: 1px solid #dcdee5;
       border-radius: 0 0 2px 2px;
+      margin-top: 12px;
     }
 
     .popover-column {
@@ -55,25 +55,7 @@
         font-size: 14px;
         font-weight: 600;
         color: #313238;
-        background: #fafbfd;
-        border-bottom: 1px solid #dcdee5;
-
-        .sub-title {
-          margin-left: 8px;
-          padding-left: 8px;
-          color: #979ba5;
-          font-size: 12px;
-          font-style: normal;
-          font-weight: Normal;
-          border-left: 1px solid #dcdee5;
-        }
       }
-    }
-
-    .popover-divider {
-      flex-shrink: 0;
-      width: 1px;
-      background-color: #dcdee5;
     }
 
     .popover-search {
@@ -81,7 +63,7 @@
       flex-shrink: 0;
       gap: 8px;
       align-items: center;
-      padding: 12px 16px 8px;
+      padding: 0 16px 8px 0;
 
       .search-input {
         flex: 1;
@@ -94,49 +76,121 @@
       }
     }
 
+    .popover-field-list-wrapper {
+      flex: 1;
+      min-height: 0;
+      margin-right: 16px;
+      border-radius: 6px;
+      border: 1px solid #DCDEE5;
+      box-shadow: 0 1px 2px 0 #00000014;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
     .popover-field-list {
       flex: 1;
       min-height: 0;
-      padding: 4px 8px;
-      margin: 0;
       overflow-y: auto;
-      list-style: none;
-
-      .bk-exception {
-        justify-content: center;
-        height: 100%;
-      }
     }
 
     .popover-field-item {
       display: flex;
-      gap: 6px;
-      align-items: center;
-      height: 32px;
-      padding: 0 8px;
+      gap: 8px;
+      padding: 8px 12px;
       font-size: 12px;
       color: #63656e;
       cursor: pointer;
-      border-radius: 2px;
+      border-bottom: 1px solid #DCDEE5;
 
-      &:hover {
-        background: #f1f4ff;
-      }
-
-      .field-id {
-        flex-shrink: 0;
-        font-size: 12px;
-        color: #979ba5;
-      }
-
-      .field-name {
+      // 左侧内容区域
+      .field-left-content {
+        display: flex;
         flex: 1;
-        overflow: hidden;
+        gap: 8px;
+        align-items: center;
+        min-width: 0;
+        min-height: 52px;
+      }
+
+      // 日志类型图标
+      .log-type-icon {
+        flex-shrink: 0;
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        background-color: #EAEBF0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        .bklog-icon {
+          font-size: 24px;
+          color: #4E5E7A;
+        }
+      }
+
+      // 详细信息
+      .field-details {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-width: 0;
+        gap: 2px;
+        color: #4E5E7A;
+      }
+
+      // 第一行：name
+      .field-row-name {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+
+        .field-name-text {
+          overflow: hidden;
+          font-size: 12px;
+          line-height: 20px;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
+
+      // 第二行：数据id和数据名
+      .field-row-id {
+        display: flex;
+        align-items: center;
+        gap: 6px;
         font-size: 12px;
-        line-height: 20px;
-        color: #313238;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        line-height: 18px;
+
+        .field-table-id-text {
+          color: #8F9FBD;
+        }
+      }
+
+      // 右侧内容区域
+      .field-right-content {
+
+        // 空间标签
+        .space-tag {
+            display: inline-flex;
+            height: 22px;
+            padding: 0 8px;
+            align-items: center;
+            border-radius: 4px;
+
+          &.current {
+              color: #1768EF;
+              background-color: #E1ECFF;
+              border: 1px solid #A3C5FD;
+            }
+          
+            &.related {
+              color: #E38B02;
+              background-color: #FDEED8;
+              border: 1px solid #F9D090;
+            }
+        }
       }
 
       .bk-checkbox {
@@ -144,28 +198,117 @@
       }
     }
 
-    .selected-field-list {
+    .selected-column {
+      width: 314px;
+      flex-shrink: 0;
+      background: #F5F7FA;
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      padding: 16px;
+      border-radius: 4px;
+
+      .selected-column-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+
+        .header-left {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+
+          .header-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #313238;
+            position: relative;
+
+            &::after {
+              content: '';
+              position: absolute;
+              right: -11px;
+              top: 50%;
+              transform: translateY(-50%);
+              width: 1px;
+              height: 12px;
+              background: #C4C6CC;
+            }
+          }
+
+          .header-count {
+            font-size: 12px;
+            color: #63656E;
+            margin-left: 10px;
+
+            .count-num {
+              color: #3A84FF;
+              font-weight: 700;
+
+              &.is-zero {
+                color: #313238;
+              }
+            }
+          }
+        }
+
+        .header-clear-btn {
+          font-size: 12px;
+        }
+      }
+    }
+
+    .selected-field-list {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 0 16px 12px;
+      overflow-y: auto;
+
+      &::-webkit-scrollbar {
+        width: 4px;
+        background-color: #F5F7FA
+      }
+
+      .bk-exception {
+        justify-content: center;
+        height: 60%;
+
+        .bk-exception-text {
+          color: #979BA5;
+        }
+      }
     }
 
     .selected-tag {
       display: flex;
       gap: 6px;
       align-items: center;
-      height: 32px;
-      padding: 8px 12px;
+      height: 36px;
+      padding: 8px;
       font-size: 12px;
-      background: #F5F7FA;
+      background: #FFFFFF;
       border-radius: 4px;
       cursor: pointer;
 
-      .tag-id {
+      .tag-label {
         flex-shrink: 0;
-        font-size: 12px;
-        color: #979ba5;
+        padding: 2px 6px;
+        font-size: 10px;
+        line-height: 16px;
+        border-radius: 2px;
+        font-weight: 500;
+
+        &.tag-added {
+          background: #DAF6E5;
+          color: #299E56;
+        }
+
+        &.tag-removed {
+          background: #FFEBEB;
+          color: #E71818;
+        }
       }
 
       .tag-name {
@@ -176,15 +319,23 @@
         white-space: nowrap;
       }
 
+      .name-removed {
+        color: #C4C6CC;
+        text-decoration-line: line-through;
+      }
+
       .tag-remove {
         flex-shrink: 0;
-        font-size: 16px;
         color: #c4c6cc;
         cursor: pointer;
 
         &:hover {
           color: #ea3636;
         }
+      }
+
+      .bk-icon {
+        font-size: 16px;
       }
     }
 
