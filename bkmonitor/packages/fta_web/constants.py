@@ -762,10 +762,12 @@ class TapdWorkspaceBindStatus:
     bound      用户级✓ + 项目级✓ + 本地✓  已完成全链路绑定
     importable 用户级✓ + 项目级✓ + 本地✗  可导入（应用已装、本地未绑）
     stale      用户级✓ + 项目级✗ + 本地✓  已过期（应用授权失效，本地残留）
-    unbound    用户级✓ + 项目级✗ + 本地✗  未绑定（应用未装，需引导安装）
+    unbound          用户级✓ + 项目级✗ + 本地✗  未绑定（应用未装，需引导安装）
+    manually_unbound 用户级✓ + 项目级✓ + 本地✗ + 曾手动解绑  已手动取消关联（不再自动重绑）
     """
 
     BOUND = "bound"
     STALE = "stale"
     IMPORTABLE = "importable"
     UNBOUND = "unbound"
+    MANUALLY_UNBOUND = "manually_unbound"

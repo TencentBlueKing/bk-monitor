@@ -88,6 +88,16 @@ class TestTapdOauthContract(unittest.TestCase):
         source = migration_path.read_text(encoding="utf-8")
         self.assertIn('("bkmonitor", "0198_add_issue_tapd_relation")', source)
 
+    def test_manual_unbind_migration_follows_issue_tapd_relation_is_deleted_fix(self):
+        migration_path = REPO_ROOT / "bkmonitor/bkmonitor/migrations/0201_create_tapd_workspace_manual_unbind.py"
+        self.assertTrue(migration_path.exists())
+        self.assertFalse(
+            (REPO_ROOT / "bkmonitor/bkmonitor/migrations/0200_create_tapd_workspace_manual_unbind.py").exists()
+        )
+
+        source = migration_path.read_text(encoding="utf-8")
+        self.assertIn('("bkmonitor", "0200_add_is_deleted_to_issue_tapd_relation")', source)
+
     def test_user_workspace_requires_manage_event_and_keeps_tapd_auth_permission(self):
         viewset = _class(_parse("bkmonitor/packages/fta_web/issue/views.py"), "IssueViewSet")
         read_only_endpoints = _string_constants(_class_assignment(viewset, "READ_ONLY_ENDPOINTS"))
@@ -196,6 +206,37 @@ class TestTapdOauthContract(unittest.TestCase):
         self.assertIn('logger.exception("exchange token unexpected error")', source)
         self.assertNotIn('logger.exception(f"exchange token failed: {e}")', source)
         self.assertNotIn('logger.exception(f"exchange token unexpected error: {e}")', source)
+
+    def test_rebind_requires_app_granted_workspace_before_creating_binding(self):
+        resource = _class(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "RebindTapdWorkspaceResource")
+        perform_request = _method(resource, "perform_request")
+        source = ast.get_source_segment(_read("bkmonitor/packages/fta_web/issue/resources.py"), perform_request)
+
+        self.assertIn("ListUserTapdWorkspaceResource._fetch_app_granted_ids", source)
+        app_grant_index = source.index("ListUserTapdWorkspaceResource._fetch_app_granted_ids")
+        create_binding_index = source.index("TapdWorkspaceBinding.objects.get_or_create")
+
+        self.assertLess(app_grant_index, create_binding_index)
+        self.assertIn("workspace_id not in app_granted_ids", source)
+        self.assertIn("TAPD 项目未完成应用授权", source)
+
+    def test_trace_tapd_frontend_rebinds_manually_unbound_workspace(self):
+        service_source = _read(
+            "bkmonitor/webpack/src/trace/pages/alarm-center/alarm-issues/issues-tapd/services/tapd.ts"
+        )
+        auth_source = _read(
+            "bkmonitor/webpack/src/trace/pages/alarm-center/alarm-issues/issues-tapd/composables/use-tapd-auth.ts"
+        )
+        constants_source = _read("bkmonitor/webpack/src/trace/pages/alarm-center/alarm-issues/constant.ts")
+
+        self.assertIn("MANUALLY_UNBOUND: 'manually_unbound'", constants_source)
+        self.assertIn("export const rebindWorkspace", service_source)
+        self.assertIn("export const unbindWorkspace", service_source)
+        self.assertIn("export const revokeAuth", service_source)
+        self.assertIn("item.is_bound === 'manually_unbound'", auth_source)
+        self.assertIn("await rebindWorkspace", auth_source)
+        self.assertIn("await getAuth()", auth_source)
+        self.assertIn("installUrl.value.replace", auth_source)
 
 
 if __name__ == "__main__":

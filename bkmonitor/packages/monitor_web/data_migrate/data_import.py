@@ -12,6 +12,7 @@ from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.data_migrate.constants import DATA_MIGRATE_CLOSED_RECORDS_APPLICATION_CONFIG_KEY, DEFAULT_ENCODING
 from monitor_web.data_migrate.handler.runner import get_close_records_by_biz_from_directory
 from monitor_web.data_migrate.plugin_strategy_result_table import repair_plugin_strategy_result_table_id
+from monitor_web.data_migrate.system_event_strategy import migrate_system_event_strategy_config
 from monitor_web.data_migrate.utils import import_model_from_file, read_json_file
 
 
@@ -104,6 +105,15 @@ def _sync_close_records_to_application_config(
         )
 
 
+def _migrate_imported_builtin_system_event_strategies(bk_biz_ids: Sequence[int]) -> None:
+    """导入后转换内置系统事件策略到多租户 custom event 链路。"""
+    imported_bk_biz_ids = [bk_biz_id for bk_biz_id in _normalize_bk_biz_ids(bk_biz_ids) if bk_biz_id > 0]
+    if not imported_bk_biz_ids:
+        return
+
+    migrate_system_event_strategy_config(bk_biz_id=imported_bk_biz_ids, dry_run=False)
+
+
 def import_biz_data_from_directory(
     directory_path: str | Path,
     bk_biz_ids: Sequence[int] | None = None,
@@ -168,5 +178,6 @@ def import_biz_data_from_directory(
         directory_path=target_directory,
         bk_biz_ids=target_bk_biz_ids,
     )
+    _migrate_imported_builtin_system_event_strategies(target_bk_biz_ids)
     repair_plugin_strategy_result_table_id(bk_biz_id=target_bk_biz_ids, dry_run=False)
     return imported_objects

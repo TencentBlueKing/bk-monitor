@@ -26,7 +26,7 @@
 
 import { type Ref, shallowRef, watch } from 'vue';
 
-import { getUserWorkspace } from '../services/tapd';
+import { getUserWorkspace, rebindWorkspace } from '../services/tapd';
 
 import type { TapdWorkspaceItem } from '../typing';
 
@@ -103,8 +103,19 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
     }
   );
 
-  const handleWorkspaceSelect = (item: TapdWorkspaceItem) => {
-    if (item.is_bound !== 'bound') {
+  const handleWorkspaceSelect = async (item: TapdWorkspaceItem) => {
+    if (item.is_bound === 'bound') {
+      return;
+    }
+    if (item.is_bound === 'manually_unbound') {
+      await rebindWorkspace({
+        bk_biz_id: bizId.value,
+        workspace_id: item.workspace_id,
+      });
+      await getAuth();
+      return;
+    }
+    if (installUrl.value) {
       window.location.href = installUrl.value.replace('{workspace_id}', item.workspace_id);
     }
   };

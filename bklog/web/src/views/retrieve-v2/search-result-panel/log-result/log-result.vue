@@ -182,9 +182,36 @@ export default {
         } else {
           Object.assign(dialogNewParams, row);
         }
-        this.openLogDialog(dialogNewParams, event, row.__index_set_id__ || this.$store.getters.indexId);
+        this.openLogDialog(dialogNewParams, event, this.getIndexSetIdByRow(row));
       } else if (event === 'webConsole') this.openWebConsole(row);
       else if (event === 'logSource') this.$store.dispatch('changeShowUnionSource');
+    },
+    getIndexSetIdByRow(row = {}) {
+      const rowIndexSetId = row.__index_set_id__ ?? row.index_set_id;
+      if (rowIndexSetId !== undefined && rowIndexSetId !== null && rowIndexSetId !== '') {
+        return Number(rowIndexSetId);
+      }
+
+      // 场景化检索模式下，row.__index_set_id__ 可能不存在，
+      // 需要通过 row.__result_table 在 flatIndexSetList 的 indices 中查找匹配的 result_table_id，取其 index_set_id
+      if (this.$store.getters.isSceneMode && row.__result_table) {
+        const flatIndexSetList = this.$store.state.retrieve.flatIndexSetList;
+        for (const indexSet of flatIndexSetList) {
+          const matchedIndex = (indexSet.indices || []).find(
+            index => index.result_table_id === row.__result_table
+          );
+          if (matchedIndex) {
+            return matchedIndex.index_set_id;
+          }
+        }
+      }
+
+      const storeIndexId = this.$store.getters.indexId;
+      if (storeIndexId !== undefined && storeIndexId !== null && storeIndexId !== '') {
+        return Number(storeIndexId);
+      }
+
+      return Number(this.$route.params.indexId || 0);
     },
     hideDialog() {
       this.logDialog.type = '';
