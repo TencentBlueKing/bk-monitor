@@ -439,7 +439,7 @@ def init_action_plugin():
                                 {"key": "id", "value": "response.id", "format": "jmespath"},
                                 {
                                     "key": "url",
-                                    "value": "{{itsm_site_url}}#/ticket/detail?id={{id}}",
+                                    "value": "{{itsm_site_url}}/#/ticket/detail?id={{id}}",
                                     "format": "jinja2",
                                 },
                             ],
