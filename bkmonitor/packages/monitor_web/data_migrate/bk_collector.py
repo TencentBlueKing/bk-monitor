@@ -302,6 +302,7 @@ def refresh_biz_bk_collector_proxy_configs(
             if not include_details:
                 _drop_report_details(retry_report)
 
+        report["delivery_check"] = final_delivery_check
         report["result"] = (
             report["summary"]["total"]["failed_count"] == 0 and final_delivery_check.get("result") is True
         )
@@ -764,7 +765,13 @@ def _check_biz_bk_collector_proxy_config_delivery_once(
 
 def _is_proxy_config_delivery_terminal(report: dict[str, Any]) -> bool:
     total_summary = report["summary"]["total"]
-    return total_summary["subscription_count"] == 0 or total_summary["failed_count"] > 0 or report["result"] is True
+    if total_summary["subscription_count"] == 0 or report["result"] is True:
+        return True
+    return (
+        total_summary["failed_count"] > 0
+        and total_summary.get("pending_count", 0) == 0
+        and total_summary.get("unknown_count", 0) == 0
+    )
 
 
 def _drop_report_details(report: dict[str, Any]) -> None:
