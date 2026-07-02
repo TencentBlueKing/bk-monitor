@@ -225,7 +225,7 @@ const getSearchHistory = {
   method: 'get',
 };
 const getExportHistoryList = {
-  url: '/search/index_set/:index_set_id/export_history/?bk_biz_id=:bk_biz_id&page=:page&pagesize=:pagesize&show_all=:show_all',
+  url: '/search/index_set/:index_set_id/export_history/?bk_biz_id=:bk_biz_id&page=:page&pagesize=:pagesize&show_all=:show_all&start_time=:start_time&end_time=:end_time',
   method: 'get',
 };
 const getFieldsListConfig = {

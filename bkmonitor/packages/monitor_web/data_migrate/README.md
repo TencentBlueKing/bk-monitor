@@ -13,6 +13,11 @@
 - `restore_disabled_models_in_directory`
 - `sanitize_cluster_info_in_directory`
 - `stop_biz_subscription_tasks`
+- `install_biz_bk_collector`
+- `stop_biz_bk_collector`
+- `refresh_biz_bk_collector_proxy_configs`
+- `check_biz_bk_collector_proxy_config_delivery`
+- `retry_biz_bk_collector_proxy_config_delivery`
 
 代码导出位置见 [__init__.py](/Users/unique0lai/Documents/Codes/bk-monitor/bk-monitor/worktrees/data-migrate/bkmonitor/bkmonitor/data_migrate/__init__.py)。
 
@@ -29,6 +34,10 @@
 - `python manage.py data_migrate restore-disabled-models ...`
 - `python manage.py data_migrate sanitize-cluster-info ...`
 - `python manage.py data_migrate stop-biz-subscription-tasks ...`
+- `python manage.py data_migrate install-biz-bk-collector ...`
+- `python manage.py data_migrate stop-biz-bk-collector ...`
+- `python manage.py data_migrate refresh-biz-bk-collector-configs ...`
+- `python manage.py data_migrate retry-biz-bk-collector-config-delivery ...`
 
 ## 使用方式
 
@@ -65,6 +74,7 @@ python manage.py data_migrate import \
 - 默认按 `manifest.json` 中记录的业务列表全量导入
 - 如果显式传入 `--bk-biz-ids`，则只导入对应业务
 - `0` 代表同时导入 `global/` 下的全局数据
+- 导入业务数据后会自动转换本次导入业务下的内置系统事件策略到多租户 custom event 链路
 
 可选参数：
 
@@ -264,6 +274,117 @@ python manage.py data_migrate stop-biz-subscription-tasks \
 - 负数业务 ID 会直接跳过，并在返回结果的 `skipped_biz_ids` 中说明原因
 - 支持 `--dry-run` 只输出待处理对象，不执行停用
 - 每个任务独立执行并输出结果；单个失败不会中断其他任务
+
+### 安装业务 Proxy 上的 bk-collector
+
+```bash
+python manage.py data_migrate install-biz-bk-collector \
+  --bk-tenant-id tencent \
+  --bk-biz-ids 2 3 \
+  --operator admin
+```
+
+说明：
+
+- 会找出业务下正在使用的 proxy 主机，并安装或升级节点管理中可用的 latest 版本 `bk-collector`
+- 默认不检查 Agent 状态、不跳过任何主机（保持全量安装）
+- 如需跳过 Agent 未安装（`NOT_INSTALLED` 或节点管理未返回该主机）的机器，可加 `--skip-hosts-without-agent`
+- 被跳过的主机会记录在明细的 `skipped_hosts` 中，并汇总到返回结果的 `skip_summary`（含 `bk_host_id`、`ip`、`agent_status` 和 `reason`），命令执行结束后也会集中打印跳过的机器和原因
+- 支持 `--dry-run` 只输出待安装主机，不执行安装
+- 实际执行时每条成功明细会在 `operate_result` 中透传节点管理返回结果
+- 会根据 `operate_result.job_id` 轮询节点管理任务详情，并在 `job_status` 中输出成功、失败或超时状态
+- 如果安装失败或超时，可在 `failure_summary` 中查看异常业务、任务和主机
+- 可通过 `--job-wait-timeout` 和 `--job-poll-interval` 控制等待超时和轮询间隔，默认等待 90 秒
+- 每个业务独立执行并输出结果；单个失败不会中断其他业务
+
+### 停止业务 Proxy 上的 bk-collector
+
+```bash
+python manage.py data_migrate stop-biz-bk-collector \
+  --bk-tenant-id tencent \
+  --bk-biz-ids 2 3 \
+  --operator admin
+```
+
+说明：
+
+- 会找出业务下正在使用的 proxy 主机，并停止已安装的 `bk-collector`
+- 默认会检查主机 Agent 状态，Agent 未安装（`NOT_INSTALLED` 或节点管理未返回该主机）的机器会跳过，不会执行停止；如需对这些主机也执行停止，可加 `--no-skip-hosts-without-agent`
+- 未安装 `bk-collector` 的主机始终会跳过
+- 被跳过的主机会记录在明细的 `skipped_hosts` 中，并汇总到返回结果的 `skip_summary`（含 `bk_host_id`、`ip`、`agent_status` 和 `reason`），命令执行结束后也会集中打印跳过的机器和原因
+- 支持 `--dry-run` 只输出待停止主机，不执行停止
+- 实际执行时每条成功明细会在 `operate_result` 中透传节点管理返回结果
+- 会根据 `operate_result.job_id` 轮询节点管理任务详情，并在 `job_status` 中输出成功、失败或超时状态
+- 如果停用失败或超时，可在 `failure_summary` 中查看异常业务、任务和主机
+- 可通过 `--job-wait-timeout` 和 `--job-poll-interval` 控制等待超时和轮询间隔，默认等待 90 秒
+- 每个业务独立执行并输出结果；单个失败不会中断其他业务
+
+### 刷新业务 Proxy 上的 bk-collector 配置
+
+```bash
+python manage.py data_migrate refresh-biz-bk-collector-configs \
+  --bk-tenant-id tencent \
+  --bk-biz-ids 2 3 \
+  --config-types apm_application custom_report log \
+  --operator admin
+```
+
+说明：
+
+- `--config-types` 可选值为 `apm_application`、`custom_report`、`log`
+- 不传 `--config-types` 时默认执行全部类型
+- `custom_report` 只触发 NodeMan proxy 下发，不触发 K8s 配置下发
+- 支持 `--dry-run` 只输出待刷新对象，不执行配置下发
+- 非 dry-run 默认会串联配置下发检查，并在返回结果的 `delivery_check.summary` 中输出配置渲染下发汇总
+- 如果存在下发失败、pending、unknown 或超时，可在 `delivery_check.failure_summary` 中查看异常订阅和异常主机
+- 下发检查发现 render 失败时，默认会复用检查结果对失败订阅调用 `retry_subscription` 自动补一轮执行（不重复检查），补发与复检结果在返回结果的 `retry` 中输出；可用 `--skip-render-failure-retry` 关闭
+- 默认不会输出完整 `details`，避免命令输出过长；需要排查明细时可使用 `--include-details`
+- 串联检查默认会包含默认业务配置，和 `custom_report` 的刷新范围保持一致
+- 可通过 `--delivery-wait-timeout` 和 `--delivery-poll-interval` 控制配置下发检查的等待超时和轮询间隔，默认等待 90 秒
+- 如只需要触发刷新、不等待下发结果，可使用 `--skip-delivery-check`
+
+### 检查业务 Proxy 上的 bk-collector 配置下发
+
+```python
+from monitor_web.data_migrate import check_biz_bk_collector_proxy_config_delivery
+
+result = check_biz_bk_collector_proxy_config_delivery(
+    bk_tenant_id="tencent",
+    bk_biz_ids=[2, 3],
+    config_types=["apm_application", "custom_report", "log"],
+    wait_timeout=90,
+    poll_interval=10,
+)
+```
+
+说明：
+
+- 会查询匹配业务下的 bk-collector proxy 配置订阅，并拉取节点管理任务详情
+- 成功标准是每台 proxy 的 `render_and_push_config` 子步骤为 `SUCCESS`
+- 订阅任务总状态失败、后续重载进程失败，不会影响配置渲染下发成功的判定
+- 返回结果顶层 `result` 表示是否全部 proxy 配置都成功完成渲染下发
+- 不传 `wait_timeout` 时只做一次检查；传入正数时会轮询直到成功、失败或超时
+
+### 对 render 失败的 bk-collector 配置订阅补一轮下发
+
+```bash
+python manage.py data_migrate retry-biz-bk-collector-config-delivery \
+  --bk-tenant-id tencent \
+  --bk-biz-ids 2 3 \
+  --config-types apm_application custom_report log \
+  --operator admin
+```
+
+说明：
+
+- 用于解决节点管理对多次失败的订阅不再自动重试、`refresh` 在配置未变化时无法触发下发的问题
+- 会先做一次即时下发检查，找出各订阅下 `render_and_push_config` 失败的 proxy 实例
+- 仅对 render 失败（非 pending、非 unknown）的实例调用节点管理 `retry_subscription` 精准补一轮执行，不影响正常主机
+- 检查结果汇总在返回结果的 `initial_delivery_check` 中，每个订阅的重试明细在 `details` 中（`--include-details` 时输出）
+- 支持 `--dry-run` 只输出待重试的订阅和实例数量，不实际触发
+- 非 dry-run 且确有重试时，默认会串联下发状态复检，并在 `delivery_check` 中输出复检结果；可用 `--skip-delivery-recheck` 跳过
+- 可通过 `--delivery-wait-timeout` 和 `--delivery-poll-interval` 控制复检的等待超时和轮询间隔，默认等待 90 秒
+- 每个订阅独立执行并输出结果；单个失败不会中断其他订阅
 
 ## 导出目录结构
 

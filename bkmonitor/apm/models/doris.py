@@ -850,12 +850,6 @@ class BkDataDorisV4Provider:
                 "subTaskNum": 1,
             },
         }
-        if settings.APM_PROFILE_V4_DATABUS_PREFER_CLUSTER:
-            config["spec"]["preferCluster"] = {
-                "kind": "DatabusCluster",
-                "namespace": _V4_NAMESPACE,
-                "name": settings.APM_PROFILE_V4_DATABUS_PREFER_CLUSTER,
-            }
         return config
 
     def _build_step1_configs(self) -> list:

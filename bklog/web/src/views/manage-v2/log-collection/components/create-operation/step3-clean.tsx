@@ -401,6 +401,10 @@ export default defineComponent({
           if (cleaningMode.value === 'bk_log_delimiter') {
             delimiter.value = etl_params.separator;
           }
+          // 根据 original_text_tokenize_on_chars 判断是否为自定义分词
+          originParticipleState.value = etl_params.original_text_tokenize_on_chars
+            ? 'custom'
+            : 'default';
           cacheTemplateData.value = deepClone(formData.value);
           return;
         }
@@ -449,6 +453,73 @@ export default defineComponent({
             }
             const fieldsSource = props.isClone ? res.data.fields : curCollect.value.fields;
             builtInFieldsList.value = (fieldsSource || []).filter(item => item.is_built_in);
+
+            // 从 curCollect 获取详情数据并回填到 formData，与旧版 getDetail 保持一致
+            const {
+              etl_config,
+              etl_params: etlParams,
+              fields,
+            } = curCollect.value;
+
+            // 处理 fields：清空 value、处理 is_delete、确保 option 存在
+            const option = { time_zone: '', time_format: '' };
+            const copyFields = fields ? structuredClone(fields) : [];
+            copyFields.forEach(row => {
+              row.value = '';
+              if (row.is_delete) {
+                const copyRow = Object.assign(
+                  structuredClone(rowTemplate.value),
+                  structuredClone(row),
+                );
+                Object.assign(row, copyRow);
+              }
+              if (row.option) {
+                row.option = Object.assign({}, option, row.option || {});
+              } else {
+                row.option = Object.assign({}, option);
+              }
+            });
+
+            // 更新 cleaningMode 和 enableMetaData
+            cleaningMode.value = etl_config || 'bk_log_text';
+            enableMetaData.value = !!etlParams?.path_regexp;
+
+            // 更新 delimiter 和 originParticipleState
+            if (cleaningMode.value === 'bk_log_delimiter') {
+              delimiter.value = etlParams?.separator;
+            }
+            originParticipleState.value = etlParams?.original_text_tokenize_on_chars
+              ? 'custom'
+              : 'default';
+
+            // 合并 etl_params 默认值并更新 formData
+            formData.value = {
+              ...formData.value,
+              etl_config: cleaningMode.value,
+              etl_params: Object.assign(
+                {
+                  retain_original_text: true,
+                  separator_regexp: '',
+                  separator: '',
+                  retain_extra_json: false,
+                  original_text_is_case_sensitive: false,
+                  original_text_tokenize_on_chars: '',
+                  enable_retain_content: true,
+                  path_regexp: '',
+                  metadata_fields: [],
+                },
+                etlParams
+                  ? {
+                      ...structuredClone(etlParams),
+                      metadata_fields: etlParams.metadata_fields || [],
+                    }
+                  : {},
+              ),
+              etl_fields: copyFields.filter(item => !item.is_built_in),
+            };
+            
+            cacheTemplateData.value = deepClone(formData.value);
+
             if (props.isEdit || props.isClone || props.isCleanField) {
               getDataLog('init');
               await getCleanStash(id);
@@ -1609,10 +1680,23 @@ export default defineComponent({
          */
         const isNeedCreate = (isUpdate.value && !!storage_cluster_id) || props.isCleanField;
         const url = isNeedCreate ? 'collect/fieldCollection' : 'clean/updateCleanStash';
+        // 构建 payload（对齐旧版逻辑）
+        const payload = {
+          retain_original_text: etl_params.retain_original_text,
+          original_text_is_case_sensitive: etl_params.original_text_is_case_sensitive ?? false,
+          original_text_tokenize_on_chars: etl_params.original_text_tokenize_on_chars ?? '',
+          retain_extra_json: etl_params.retain_extra_json ?? false,
+          path_regexp: enableMetaData.value ? etl_params.path_regexp : null,
+          enable_retain_content: etl_params.enable_retain_content,
+          record_parse_failure: etl_params.enable_retain_content,
+          metadata_fields: etl_params.metadata_fields,
+        };
         const data = {
           bk_biz_id: bkBizId.value,
           etl_params: {
-            ...etl_params,
+            separator_regexp: cleaningMode.value === 'bk_log_regexp' ? etl_params.separator_regexp : '',
+            separator: etl_params.separator,
+            ...payload,
             ...(cleaningMode.value === 'bk_log_regexp'
               ? { is_grok: grokModeEnabled.value }
               : {}),
@@ -1656,7 +1740,9 @@ export default defineComponent({
                 // 保存成功后跳转到列表页
                 goListPage();
               } else {
-                const data = isNeedCreate ? { ...formData.value, ...curCollect.value } : formData.value;
+                const data = isNeedCreate
+                  ? { ...formData.value, ...curCollect.value, etl_config: cleaningMode.value }
+                  : { ...formData.value, etl_config: cleaningMode.value };
                 emit('next', data);
                 if (props.isCleanField) {
                   emit('change-submit', true);

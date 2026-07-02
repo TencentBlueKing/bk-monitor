@@ -12,6 +12,7 @@ import abc
 import logging
 
 from django.conf import settings
+from django.db import transaction
 from django.db.utils import IntegrityError
 
 from bkmonitor.models import DefaultStrategyBizAccessModel
@@ -54,8 +55,8 @@ class DefaultAlarmStrategyLoaderBase(metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def load_strategies(self, strategies: list) -> None:
-        """加载默认配置 ."""
+    def load_strategies(self, strategies: list) -> list:
+        """加载默认配置，返回实际创建的策略配置列表 ."""
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -73,8 +74,6 @@ class DefaultAlarmStrategyLoaderBase(metaclass=abc.ABCMeta):
         # 缓存前置校验
         if not self.check_before_set_cache():
             return
-        # 每次版本发布，每个业务只运行一次
-        self.CACHE.add(self.bk_biz_id)
 
         # 判断第一个版本的内置策略是否已经接入
         is_access_for_v1 = self.has_default_strategy_for_v1()
@@ -105,6 +104,9 @@ class DefaultAlarmStrategyLoaderBase(metaclass=abc.ABCMeta):
             return
 
         # 添加默认告警策略
+        # pending_retry 标记本轮是否存在“待重试”的版本（指标未就绪而产出 0 条，或加载异常）。
+        # 只要有待重试版本，就不写内存 CACHE，使同进程后续运行仍可重试。
+        pending_retry = False
         for item in strategies_list:
             version = item["version"]
             module = item["module"]
@@ -112,16 +114,35 @@ class DefaultAlarmStrategyLoaderBase(metaclass=abc.ABCMeta):
             if version in versions_of_access:
                 continue
             try:
-                DefaultStrategyBizAccessModel.objects.get_or_create(
-                    bk_biz_id=self.bk_biz_id,
-                    access_type=self.LOADER_TYPE,
-                    version=version,
-                    defaults={"create_user": "admin"},
-                )
-            except IntegrityError:
-                pass
-            try:
                 strategies = getattr(module, self.STRATEGY_ATTR_NAME)
-                self.load_strategies(strategies)
+                # 单个版本的策略创建与接入记录写入放在同一事务内：部分创建后异常时整体回滚，
+                # 避免残留半套策略导致下次重试撞已存在策略而永久失败（save_strategy_v2 非幂等）。
+                with transaction.atomic():
+                    created_strategies = self.load_strategies(strategies)
+                    # 仅在实际创建出策略后才登记接入记录：避免指标尚未就绪时产出 0 条策略却被标记为
+                    # 已接入、后续因幂等跳过而永久漏建（多租户系统事件依赖的 custom 指标可能异步晚于
+                    # 业务激活就绪）。本身无需创建任何策略的空版本（strategies 为空）也登记，避免反复重试。
+                    if strategies and not created_strategies:
+                        pending_retry = True
+                    else:
+                        DefaultStrategyBizAccessModel.objects.get_or_create(
+                            bk_biz_id=self.bk_biz_id,
+                            access_type=self.LOADER_TYPE,
+                            version=version,
+                            defaults={"create_user": "admin"},
+                        )
             except Exception as exc_info:
                 logger.error("create default %s strategy failed: %s", self.LOADER_TYPE, exc_info)
+                # 加载/登记异常时不登记接入记录、不写 CACHE，下次运行整体重试
+                pending_retry = True
+                # 本版本 atomic 已回滚：load_strategies 内可能已创建并缓存了通知组（notice_group_cache
+                # 是 loader 实例级、跨版本存活），但其 DB 行随回滚消失。若不清缓存，同一 run() 的后续版本会
+                # 复用已失效的通知组 id，建出的策略 notice.user_groups 指向不存在的组（JSON 列表、非外键，
+                # 不报错而静默指向空组）导致告警发不出。清空后让后续版本重新解析（命中已提交的或重建被回滚的）。
+                self.notice_group_cache = {}
+                continue
+
+        # 仅当本轮所有待处理版本都已成功登记（无待重试）时，才将该业务标记为本进程已处理；
+        # 否则保持未缓存状态，让指标就绪后的下一次运行能在同进程内补建缺失的版本策略。
+        if not pending_retry:
+            self.CACHE.add(self.bk_biz_id)

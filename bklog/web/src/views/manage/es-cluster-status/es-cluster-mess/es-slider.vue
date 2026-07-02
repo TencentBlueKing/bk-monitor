@@ -1299,7 +1299,7 @@
         return list;
       },
       handleOpenDocument() {
-        window.open(this.archiveDocUrl, '_blank');
+        window.open(this.archiveDocUrl, '_blank', 'noopener,noreferrer');
       },
       checkSelectItem() {
         let messageType;

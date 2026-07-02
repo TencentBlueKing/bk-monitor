@@ -54,7 +54,7 @@ def test_list_tapd_workspace_invalid_item_falls_back_without_crashing():
     logger.warning.assert_called_once()
 
 
-def test_tapd_workspace_endpoint_uses_read_permission():
+def test_tapd_query_endpoints_use_read_permission():
     source = (PROJECT_ROOT / "packages/fta_web/issue/views.py").read_text(encoding="utf-8")
     tree = ast.parse(source)
     viewset = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "IssueViewSet")
@@ -68,3 +68,4 @@ def test_tapd_workspace_endpoint_uses_read_permission():
     read_only_endpoints = ast.literal_eval(read_only_assignment.value)
 
     assert "tapd/workspace" in read_only_endpoints
+    assert "issue/get_tapd_fields" in read_only_endpoints

@@ -12,8 +12,8 @@ import tarfile
 import arrow
 import ujson
 from django.conf import settings
-from django.utils import timezone, translation
-from django.utils.crypto import get_random_string
+from django.db.models import F
+from django.utils import translation
 from django.utils.translation import gettext as _
 from rest_framework.reverse import reverse
 
@@ -21,9 +21,7 @@ from apps.constants import RemoteStorageType
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH_EXPORT
 from apps.log_search.constants import (
-    ASYNC_APP_CODE,
     ASYNC_DIR,
-    ASYNC_EXPORT_EMAIL_ERR_TEMPLATE,
     ASYNC_EXPORT_EMAIL_TEMPLATE,
     ASYNC_EXPORT_EXPIRED,
     FEATURE_ASYNC_EXPORT_COMMON,
@@ -32,7 +30,8 @@ from apps.log_search.constants import (
     FEATURE_ASYNC_EXPORT_STORAGE_TYPE,
     ExportStatus,
     ExportType,
-    IndexSetType,
+    MAX_ASYNC_COUNT,
+    MAX_QUICK_EXPORT_ASYNC_COUNT,
     MsgModel,
 )
 from apps.log_search.models import AsyncTask
@@ -99,6 +98,10 @@ class SceneAsyncExportHandler:
             logger.error("can not create scene async_export task, reason: no data")
             raise PreCheckAsyncExportException()
 
+        export_total_count = self.get_export_total_count(
+            total_count=result.get("total", 0),
+            is_quick_export=is_quick_export,
+        )
         async_task = AsyncTask.objects.create(
             request_param=self.search_dict,
             sorted_param=self.scene_handler.origin_order_by,
@@ -108,6 +111,7 @@ class SceneAsyncExportHandler:
             start_time=self.search_dict.get("start_time", ""),
             end_time=self.search_dict.get("end_time", ""),
             export_type=ExportType.ASYNC,
+            export_total_count=export_total_count,
             created_by=self.request_user,
         )
 
@@ -128,7 +132,7 @@ class SceneAsyncExportHandler:
             export_file_type=self.export_file_type,
             external_user_email=get_request_external_user_email(),
         )
-        return async_task.id, self.search_dict.get("size", 30)
+        return async_task.id, export_total_count
 
     def _get_search_url(self):
         request = get_request()
@@ -152,16 +156,17 @@ class SceneAsyncExportHandler:
             query_set = query_set.filter(created_by=self.request_user)
 
         pg = DataPageNumberPagination()
-        page_history = pg.paginate_queryset(
-            queryset=query_set.order_by("-created_at", "created_by"),
-            request=request,
-            view=view,
-        ) or []
+        page_history = (
+            pg.paginate_queryset(
+                queryset=query_set.order_by("-created_at", "created_by"),
+                request=request,
+                view=view,
+            )
+            or []
+        )
         from apps.models import model_to_dict
 
-        return pg.get_paginated_response([
-            self._format_history(model_to_dict(h)) for h in page_history
-        ])
+        return pg.get_paginated_response([self._format_history(model_to_dict(h)) for h in page_history])
 
     @staticmethod
     def _format_history(task_dict):
@@ -180,10 +185,18 @@ class SceneAsyncExportHandler:
             "export_created_at": task_dict["created_at"],
             "export_created_by": task_dict["created_by"],
             "export_completed_at": task_dict["completed_at"],
+            "exported_count": task_dict["exported_count"],
+            "export_total_count": task_dict["export_total_count"],
+            "download_count": task_dict["download_count"],
             "download_able": download_able,
             "retry_able": True,
             "index_set_type": "scene",
         }
+
+    @staticmethod
+    def get_export_total_count(total_count, is_quick_export: bool = False):
+        export_limit = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
+        return min(total_count or export_limit, export_limit)
 
 
 class SceneExportUtils:
@@ -213,14 +226,18 @@ class SceneExportUtils:
         self.notify = self._init_notify_type()
         self.file_path_list = []
 
-    def export_package(self):
+    def export_package(self, async_task_id: int):
         if not (os.path.exists(ASYNC_DIR) and os.path.isdir(ASYNC_DIR)):
             os.makedirs(ASYNC_DIR)
         summary_file_path = f"{ASYNC_DIR}/{self.file_name}_summary.{self.export_file_type}"
         with open(summary_file_path, "a+", encoding="utf-8") as f:
             for result_batch in self.scene_handler.export_data(is_quick_export=self.is_quick_export):
-                for item in result_batch.get("origin_log_list", []):
+                origin_log_list = result_batch.get("origin_log_list", [])
+                for item in origin_log_list:
                     f.write(f"{ujson.dumps(item, ensure_ascii=False)}\n")
+                AsyncTask.objects.filter(id=async_task_id).update(
+                    exported_count=F("exported_count") + len(origin_log_list)
+                )
 
         with tarfile.open(self.tar_file_path, "w:gz") as tar:
             tar.add(summary_file_path, arcname=os.path.basename(summary_file_path))

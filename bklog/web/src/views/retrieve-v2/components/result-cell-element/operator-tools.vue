@@ -284,7 +284,7 @@
             const path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${traceId}`;
             if (path) {
               const url = `${window.MONITOR_URL ?? ''}${path}`;
-              window.open(url, '_blank');
+              window.open(url, '_blank', 'noopener,noreferrer');
             }
           } else {
             this.$bkMessage({

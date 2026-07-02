@@ -36,6 +36,7 @@ from apps.log_search.constants import (
     MAX_GET_ATTENTION_SIZE,
     MAX_ASYNC_COUNT,
     MAX_QUICK_EXPORT_ASYNC_COUNT,
+    MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT,
     ExportStatus,
     ExportType,
     IndexSetType,
@@ -232,7 +233,7 @@ class AsyncExportHandlers:
             "export_type": export_task_history["export_type"],
             "export_status": export_task_history["export_status"] if retry_able else ExportStatus.DATA_EXPIRED,
             "error_msg": export_task_history["failed_reason"],
-            "download_url": cls.get_async_export_download_url(export_task_history),
+            "download_url": export_task_history["download_url"],
             "export_pkg_name": export_task_history["file_name"],
             "export_pkg_size": export_task_history["file_size"],
             "export_created_at": export_task_history["created_at"],
@@ -258,19 +259,6 @@ class AsyncExportHandlers:
         return res
 
     @classmethod
-    def get_async_export_download_url(cls, export_task_history):
-        if not export_task_history["download_url"]:
-            return export_task_history["download_url"]
-
-        query_params = urlencode(
-            {
-                "task_id": export_task_history["id"],
-                "bk_biz_id": export_task_history["bk_biz_id"],
-            }
-        )
-        return f"{settings.SITE_URL.rstrip('/')}/api/v1/search/index_set/async_export/download_file/?{query_params}"
-
-    @classmethod
     def judge_download_able(cls, status):
         if status == ExportStatus.DOWNLOAD_EXPIRED:
             return False
@@ -284,7 +272,9 @@ class AsyncExportHandlers:
 
     @staticmethod
     def get_export_total_count(request_size, is_quick_export: bool = False, max_async_count: int = 0):
-        default_export_limit = MAX_QUICK_EXPORT_ASYNC_COUNT if is_quick_export else MAX_ASYNC_COUNT
+        default_export_limit = (
+            MAX_QUICK_EXPORT_ASYNC_COUNT * MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT if is_quick_export else MAX_ASYNC_COUNT
+        )
         export_limit = max(max_async_count or 0, default_export_limit)
         request_size = request_size or export_limit
         return min(request_size, export_limit)
@@ -429,7 +419,7 @@ class UnionAsyncExportHandlers:
                 "start_time": self.search_dict["start_time"],
                 "end_time": self.search_dict["end_time"],
                 "export_type": ExportType.ASYNC,
-                "export_total_count": AsyncExportHandlers.get_export_total_count(
+                "export_total_count": self.get_union_export_total_count(
                     request_size=self.search_dict.get("size"), is_quick_export=is_quick_export
                 ),
                 "created_by": self.request_user,
@@ -450,6 +440,18 @@ class UnionAsyncExportHandlers:
             external_user_email=get_request_external_user_email(),
         )
         return async_task.id, self.search_dict.get("size", 30)
+
+    def get_union_export_total_count(self, request_size, is_quick_export: bool = False):
+        # 联合导出会按索引集分别执行导出，进度总数需要使用各索引集有效上限之和。
+        default_export_limit = (
+            MAX_QUICK_EXPORT_ASYNC_COUNT * MAX_QUICK_EXPORT_ASYNC_SLICE_COUNT if is_quick_export else MAX_ASYNC_COUNT
+        )
+        union_export_limit = sum(
+            max(index_set.max_async_count or 0, default_export_limit)
+            for index_set in self.union_search_handler.index_sets
+        )
+        request_size = request_size or union_export_limit
+        return min(request_size, union_export_limit)
 
     def _pre_check_fields(self, search_handler: SearchHandler):
         fields = search_handler.fields()

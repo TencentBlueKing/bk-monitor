@@ -52,24 +52,21 @@
 </template>
 
 <script>
-import { parseTableRowData } from "@/common/util";
-import RetrieveLoader from "@/skeleton/retrieve-loader";
-
-import ContextLog from "@/views/retrieve-v3/search-result/original-log/context-log/index.tsx";
-import RealTimeLog from "@/views/retrieve-v3/search-result/original-log/real-time-log";
-import LogRows from "./log-rows.tsx";
-import RetrieveHelper from "@/views/retrieve-helper";
+import { parseTableRowData } from '@/common/util';
+import ContextLog from '@/views/retrieve-v3/search-result/original-log/context-log/index.tsx';
+import RealTimeLog from '@/views/retrieve-v3/search-result/original-log/real-time-log';
+import LogRows from './log-rows.tsx';
+import RetrieveHelper from '@/views/retrieve-helper';
 export default {
   components: {
-    RetrieveLoader,
     ContextLog,
-    RealTimeLog,
     LogRows,
+    RealTimeLog,
   },
   props: {
     contentType: {
       type: String,
-      default: "table",
+      default: 'table',
     },
     retrieveParams: {
       type: Object,
@@ -82,7 +79,7 @@ export default {
       isShowRealTimeLog: false,
       isShowContextLog: false,
       logDialog: {
-        type: "",
+        type: '',
         data: {},
         indexSetId: 0,
       },
@@ -98,12 +95,11 @@ export default {
     // handleAiClose() {
     //   this.$el.querySelector(".ai-active")?.classList.remove("ai-active");
     // },
-    // 打开实时日志或上下文弹窗
     openLogDialog(row, type, indexSetId) {
       this.logDialog.data = row;
       this.logDialog.type = type;
       this.logDialog.indexSetId = indexSetId;
-      if (type === "realTimeLog") {
+      if (type === 'realTimeLog') {
         this.isShowRealTimeLog = true;
       } else {
         this.isShowContextLog = true;
@@ -136,7 +132,7 @@ export default {
       }
       if (!queryData.cluster_id || !queryData.container_id) return;
       this.$http
-        .request("retrieve/getWebConsoleUrl", {
+        .request('retrieve/getWebConsoleUrl', {
           params: {
             index_set_id: this.$route.params.indexId,
           },
@@ -152,64 +148,73 @@ export default {
     handleClickTools(event, row, config, index) {
       if (event === 'ai') {
         RetrieveHelper.aiAssitantHelper.openAiAssitant(true, {
-            space_uid: this.$store.getters.spaceUid,
-            index_set_id: this.$store.getters.indexId,
-            log: row,
-            index,
-          });
-          return;
-        }
+          space_uid: this.$store.getters.spaceUid,
+          index_set_id: this.$store.getters.indexId,
+          log: row,
+          index,
+        });
+        return;
+      }
 
-        if (event === 'add-to-ai') {
-          RetrieveHelper.aiAssitantHelper.setCiteText(row);
-          return;
-        }
-      if (["realTimeLog", "contextLog"].includes(event)) {
+      if (event === 'add-to-ai') {
+        RetrieveHelper.aiAssitantHelper.setCiteText(row);
+        return;
+      }
+      if (['realTimeLog', 'contextLog'].includes(event)) {
         this.currentIndex = index - 1;
-        const contextFields = config.contextAndRealtime.extra?.context_fields;
+        const contextFields = config.contextAndRealtime?.extra?.context_fields;
         const timeField = this.$store.state.indexFieldInfo.time_field;
-        const dialogNewParams = {};
-        const { targetFields = [], sortFields = [] } = config.indexSetValue;
-
-        // const fieldParamsKey = [...new Set([...targetFields, ...sortFields])];
+        const dialogNewParams = {
+          dtEventTimeStamp: row.dtEventTimeStamp,
+        };
+        const { targetFields = [] } = config.indexSetValue || {};
         this.targetFields = targetFields ?? [];
 
-        Object.assign(dialogNewParams, {
-          dtEventTimeStamp: row.dtEventTimeStamp,
-        });
-        // 非日志采集的情况下判断是否设置过字段设置 设置了的话传已设置过的参数
-        // if (config.indexSetValue.scenarioID !== 'log' && fieldParamsKey.length) {
-        //   fieldParamsKey.forEach(field => {
-        //     dialogNewParams[field] = parseTableRowData(row, field, '', this.$store.state.isFormatDate, '');
-        //   });
-        // } else
         if (Array.isArray(contextFields) && contextFields.length) {
-          // 传参配置指定字段。不要直接 push 到 store 配置数组，否则每次打开上下文/实时日志都会污染全局配置并持续增长。
           const targetContextFields = Array.from(new Set([...contextFields, timeField].filter(Boolean)));
           targetContextFields.forEach((field) => {
-            if (field === "bk_host_id") {
+            if (field === 'bk_host_id') {
               if (row[field]) dialogNewParams[field] = row[field];
             } else {
-              dialogNewParams[field] = parseTableRowData(
-                row,
-                field,
-                "",
-                this.$store.state.isFormatDate,
-                ""
-              );
+              dialogNewParams[field] = parseTableRowData(row, field, '', this.$store.state.isFormatDate, '');
             }
           });
         } else {
           Object.assign(dialogNewParams, row);
         }
-        this.openLogDialog(dialogNewParams, event, row.__index_set_id__);
-      } else if (event === "webConsole") this.openWebConsole(row);
-      else if (event === "logSource")
-        this.$store.dispatch("changeShowUnionSource");
+        this.openLogDialog(dialogNewParams, event, this.getIndexSetIdByRow(row));
+      } else if (event === 'webConsole') this.openWebConsole(row);
+      else if (event === 'logSource') this.$store.dispatch('changeShowUnionSource');
     },
-    // 关闭实时日志或上下文弹窗后的回调
+    getIndexSetIdByRow(row = {}) {
+      const rowIndexSetId = row.__index_set_id__ ?? row.index_set_id;
+      if (rowIndexSetId !== undefined && rowIndexSetId !== null && rowIndexSetId !== '') {
+        return Number(rowIndexSetId);
+      }
+
+      // 场景化检索模式下，row.__index_set_id__ 可能不存在，
+      // 需要通过 row.__result_table 在 flatIndexSetList 的 indices 中查找匹配的 result_table_id，取其 index_set_id
+      if (this.$store.getters.isSceneMode && row.__result_table) {
+        const flatIndexSetList = this.$store.state.retrieve.flatIndexSetList;
+        for (const indexSet of flatIndexSetList) {
+          const matchedIndex = (indexSet.indices || []).find(
+            index => index.result_table_id === row.__result_table
+          );
+          if (matchedIndex) {
+            return matchedIndex.index_set_id;
+          }
+        }
+      }
+
+      const storeIndexId = this.$store.getters.indexId;
+      if (storeIndexId !== undefined && storeIndexId !== null && storeIndexId !== '') {
+        return Number(storeIndexId);
+      }
+
+      return Number(this.$route.params.indexId || 0);
+    },
     hideDialog() {
-      this.logDialog.type = "";
+      this.logDialog.type = '';
       this.logDialog.data = {};
       this.logDialog.indexSetId = 0;
       this.targetFields = [];

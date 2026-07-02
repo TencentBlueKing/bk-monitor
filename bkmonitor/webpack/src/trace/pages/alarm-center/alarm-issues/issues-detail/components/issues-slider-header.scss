@@ -82,16 +82,23 @@
       background-color: #fff;
 
       &.is-focused:not(.is-readonly) {
+        /* stylelint-disable selector-class-pattern */
         .bk-input--text {
           background-color: #fff;
         }
+
+        /* stylelint-enable selector-class-pattern */
       }
 
       &:hover {
         background-color: #fff;
+
+        /* stylelint-disable selector-class-pattern, no-descending-specificity */
         .bk-input--text {
           background-color: #fff;
         }
+
+        /* stylelint-enable selector-class-pattern, no-descending-specificity */
       }
     }
 
@@ -159,6 +166,12 @@
       &:hover {
         background: #f5f7fa;
       }
+
+      &.create-tapd {
+        &:hover {
+          background: #fff;
+        }
+      }
     }
 
     .btn-item-icon {
@@ -172,6 +185,42 @@
     .icon-back-left,
     .icon-back-right {
       font-size: 24px;
+    }
+
+    .create-tapd-btn {
+      padding: 0 16px;
+      border-radius: 4px;
+    }
+  }
+}
+
+.create-tapd-menu-popover.bk-popover {
+  padding: 4px 0;
+
+  .create-tapd-menu-popover-content {
+    .create-tapd-menu-item {
+      display: flex;
+      align-items: center;
+      min-width: 102px;
+      height: 32px;
+      padding: 0 12px;
+      font-size: 12px;
+      font-weight: 400;
+      color: #4d4f56;
+
+      &.disabled {
+        color: #aaa;
+        cursor: not-allowed;
+      }
+
+      &:not(.disabled) {
+        cursor: pointer;
+
+        &:hover {
+          color: #3a84ff;
+          background-color: #eaf3ff;
+        }
+      }
     }
   }
 }

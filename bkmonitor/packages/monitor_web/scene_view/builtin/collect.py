@@ -26,6 +26,7 @@ from monitor_web.plugin.constant import PluginType
 from monitor_web.plugin.manager import PluginManagerFactory
 from monitor_web.scene_view.builtin import BuiltinProcessor
 from monitor_web.scene_view.builtin.utils import get_variable_filter_dict, sort_panels
+from monitor_web.strategies.metric_cache.process_dimensions import get_process_extra_dimensions
 
 
 def get_order_config(view: SceneViewModel) -> list:
@@ -119,6 +120,11 @@ def get_panels(view: SceneViewModel) -> list[dict]:
         if metric_cache:
             dimensions = [dimension["id"] for dimension in metric_cache.dimensions]
             data_label = metric_cache.data_label
+            # 进程采集：补全用户「维度提取」(extract_pattern) 出的、不在静态指标缓存里的维度（如 process）
+            extra_dims = get_process_extra_dimensions(bk_tenant_id, view.bk_biz_id, {table_id}).get(table_id)
+            if extra_dims:
+                existing = set(dimensions)
+                dimensions += [d["id"] for d in extra_dims if d["id"] not in existing]
         else:
             dimensions = []
             data_label = table_id.split(".")[0]

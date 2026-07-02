@@ -488,13 +488,16 @@ class HostCollectorHandler(CollectorHandler):
         is_create = False
         try:
             if not self.data:
+                data_link_id = self.get_data_link_id(
+                    bk_biz_id=bk_biz_id, data_link_id=int(params.get("data_link_id") or 0)
+                )
                 model_fields.update(
                     {
                         "category_id": params["category_id"],
                         "collector_scenario_id": params["collector_scenario_id"],
                         "bk_biz_id": bk_biz_id,
                         "bkdata_biz_id": params.get("bkdata_biz_id"),
-                        "data_link_id": int(params["data_link_id"]) if params.get("data_link_id") else 0,
+                        "data_link_id": data_link_id,
                         "bk_data_id": params.get("bk_data_id"),
                         "etl_processor": params.get("etl_processor", ETLProcessorChoices.TRANSFER.value),
                         "etl_config": params.get("etl_config"),

@@ -481,15 +481,15 @@ export const getContainerNameList = (containerName = '') => {
  * @param {Array} excludeFiles 原始exclude_files值（对象数组/字符串数组）
  * @returns {Array<string>} 标准化后的非空字符串数组
  */
-export const formatExcludeFiles = excludeFiles => {
+export const formatExcludeFiles = (excludeFiles: Array<any>): Array<string> => {
   // 1. 容错处理：非数组/空数组直接返回空数组
   if (!Array.isArray(excludeFiles) || excludeFiles.length === 0) {
     return [];
   }
 
-  const resultArr = [];
+  const resultArr: string[] = [];
   // 2. 遍历数组，区分「对象项」和「字符串项」
-  excludeFiles.forEach(item => {
+  excludeFiles.forEach((item) => {
     // 情况A：元素是对象，且包含value属性 → 提取value
     if (typeof item === 'object' && item !== null && 'value' in item) {
       const val = item.value;
@@ -503,5 +503,6 @@ export const formatExcludeFiles = excludeFiles => {
     }
   });
 
-  return resultArr;
+  // 3. 过滤掉空字符串
+  return resultArr.filter(str => str !== '');
 };

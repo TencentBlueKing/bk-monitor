@@ -1,0 +1,76 @@
+.tapd-auth-dialog {
+  .bk-dialog-content {
+    padding: 0 48px;
+    margin-top: 36px;
+    margin-bottom: 48px;
+  }
+
+  .bk-modal-footer {
+    display: none;
+  }
+
+  .tapd-auth-dialog-header {
+    display: flex;
+    align-items: center;
+
+    .dialog-title {
+      margin-right: 8px;
+      font-size: 20px;
+      color: #313238;
+    }
+
+    .dialog-desc {
+      padding-left: 8px;
+      font-size: 14px;
+      color: #979ba5;
+      border-left: 1px solid #979ba5;
+    }
+  }
+
+  .tapd-auth-dialog-content {
+    .search-wrapper {
+      margin-top: 12px;
+    }
+
+    .workspace-list {
+      max-height: 300px;
+      margin-top: 12px;
+      overflow-y: auto;
+
+      .workspace-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 48px;
+        padding: 0 12px 0 16px;
+        cursor: pointer;
+        background: #f5f7fa;
+        border-radius: 4px;
+
+        & + .workspace-item {
+          margin-top: 8px;
+        }
+
+        .workspace-name {
+          font-size: 13px;
+          font-weight: 500;
+          color: #313238;
+        }
+
+        .workspace-btn {
+          min-width: 60px;
+          height: 28px;
+          padding: 0 12px;
+          font-size: 12px;
+          line-height: 28px;
+          border-radius: 999px;
+        }
+      }
+    }
+
+    .dialog-footer-btn {
+      width: 100%;
+      margin-top: 24px;
+    }
+  }
+}

@@ -590,14 +590,16 @@ APM_TRACE_DIAGRAM_CONFIG = {}
 APM_DORIS_STORAGE_CONFIG = {}
 # APM profile v4接入配置
 APM_PROFILE_V4_BIZ_WHITE_LIST = []
+APM_PROFILING_DEFAULT_USE_BKDATA_V4 = False
 APM_PROFILE_V4_DORIS_BINDING_CLUSTER = ""
-APM_PROFILE_V4_DATABUS_PREFER_CLUSTER = ""
 # {2:["foo", "bar"], 3:["baz"]}
 APM_PROFILING_ENABLED_APPS = {}
 # dis/enable profiling for all apps
 APM_PROFILING_ENABLED = False
 # APM metrics维度补充功能应用白名单 {2:["app1", "app2"], 3:["app3"]}
 APM_RESOURCE_FILTER_METRICS_ENABLED_APPS = {}
+# APM logs维度补充功能应用白名单 {2:["app1", "app2"], 3:["app3"]}
+APM_RESOURCE_FILTER_LOGS_ENABLED_APPS = {}
 APM_EBPF_ENABLED = False
 APM_TRPC_ENABLED = False
 # {2:["app1", "app2"], 3:["app_name"]}
@@ -1251,10 +1253,12 @@ BKCHAT_MANAGE_URL = os.getenv("BKAPP_BKCHAT_MANAGE_URL", "")
 AIDEV_API_BASE_URL = os.getenv("BKAPP_AIDEV_API_BASE_URL", "")
 
 # TAPD API 基础URL
-TAPD_API_BASE_URL = os.getenv("BKAPP_TAPD_API_BASE_URL", os.getenv("TAPD_API_BASE_URL", ""))
+TAPD_API_BASE_URL = os.getenv("BKAPP_TAPD_API_BASE_URL", os.getenv("TAPD_API_BASE_URL", "http://apiv2.tapd.woa.com"))
 # 对于 TAPD API 有权限的应用ID和密钥
 TAPD_APP_ID = os.getenv("BKAPP_TAPD_APP_ID", os.getenv("TAPD_APP_ID", ""))
 TAPD_APP_SECRET = os.getenv("BKAPP_TAPD_APP_SECRET", os.getenv("TAPD_APP_SECRET", ""))
+# TAPD OAuth 授权基础URL（用户态授权跳转、code换token）
+TAPD_OAUTH_BASE_URL = os.getenv("BKAPP_TAPD_OAUTH_BASE_URL", os.getenv("TAPD_OAUTH_BASE_URL", "https://tapd.woa.com"))
 
 BK_NODEMAN_HOST = AGENT_SETUP_URL = os.getenv("BK_NODEMAN_SITE_URL") or os.getenv(
     "BKAPP_NODEMAN_OUTER_HOST", get_service_url("bk_nodeman", bk_paas_host=BK_PAAS_HOST)
@@ -1458,8 +1462,31 @@ BKCRYPTO = {
     },
 }
 
+# 迁移专用配置
+
 # 自定义上报/APM使用的密钥
 CUSTOM_REPORT_AES_KEY = os.getenv("CUSTOM_REPORT_AES_KEY", "")
+
+# 新环境新业务的起始业务ID，如果没有配置就不是新环境。
+# 仅接管 bk_biz_id 严格大于该阈值的 CMDB 业务；阈值以下业务交由旧环境/其它链路管理。
+NEW_ENV_START_BIZ_ID = os.getenv("NEW_ENV_START_BIZ_ID", "")
+# 新环境新集群的起始集群ID，用于判断是否需要执行相关发现任务。
+# 取值示例: "BCS-K8S-10000" 表示仅接管后缀 > 10000 的集群变更。
+NEW_ENV_START_CLUSTER_ID = os.getenv("NEW_ENV_START_CLUSTER_ID", "")
+
+# 业务黑白名单，黑名单是给旧环境使用的，白名单是给新环境与起始业务ID配合使用
+NEW_ENV_BIZ_BLACK_LIST = []
+NEW_ENV_BIZ_WHITE_LIST = []
+
+# 集群黑白名单，黑名单是给旧环境使用的，白名单是给新环境与起始集群ID配合使用
+NEW_ENV_CLUSTER_BLACK_LIST = []
+NEW_ENV_CLUSTER_WHITE_LIST = []
+
+# 是否禁用BCS集群内置公共dataid资源刷新
+DISABLE_BCS_CLUSTER_REFRESH_COMMON_RESOURCE = (
+    os.getenv("DISABLE_BCS_CLUSTER_REFRESH_COMMON_RESOURCE", "false").lower() == "true"
+)
+
 
 # 特别的AES加密配置信息(全局配置)
 SPECIFY_AES_KEY = ""
@@ -1511,6 +1538,20 @@ MCP_MAX_TIME_SPAN_SECONDS = 86400  # MCP 查询跨度限制
 # APM Profiling 数据密度高(秒级采样, 单服务每分钟可达数 MB), 单独收紧 MCP 查询跨度上限
 # 避免: 数据量爆炸 / LLM 上下文超限 / 下游 doris 查询超时
 APM_PROFILING_MCP_MAX_TIME_SPAN_SECONDS = 30 * 60
+
+# ===== 运营数据(operation) MCP 环境相关配置 =====
+# 以下标识因部署环境而异（内部业务 ID / bkdata 结果表 / 集群域名等），不在开源代码中硬编码。
+# 这里只给默认空值；实际取值在 Global Settings(全局配置, 见 bkmonitor/define/global_config.py 的 ADVANCED_OPTIONS)
+# 中动态配置并在运行时覆盖到 settings；未配置时对应运营指标返回 null（不影响其他指标）。
+OPERATION_MCP_ENV = ""  # 当前环境标识（如 bkte / bkop / sg），用于隐藏本环境不存在的指标
+OPERATION_MCP_FRONTEND_EVENT_TABLE = ""  # 前端埋点事件 bkdata 结果表（月活/活跃业务/活跃部门）
+OPERATION_MCP_FRONTEND_EVENT_TARGET = ""  # 前端埋点事件 target 取值
+OPERATION_MCP_LOG_QUERY_API_PROMQL = ""  # 日志查询量(API) PromQL（指标名内含业务 ID）
+OPERATION_MCP_DORIS_STORAGE_PROMQL: dict = {}  # doris 存储量 PromQL，形如 {"bkte": "<promql>", "sg": "<promql>"}
+# 平台统计指标(bkm_statistics 等)上报所在的业务 ID（PromQL 取数须用该业务查询，按环境在全局配置设置）
+OPERATION_MCP_PLATFORM_BIZ_ID = 0
+# 按指标族覆盖统计业务 ID（不同族可能落在不同业务），形如 {"default": <业务ID>, "logbeat": <业务ID>}
+OPERATION_MCP_STAT_BIZ_IDS: dict = {}
 
 # 场景-Agent映射配置,用于实现Agent路由
 AIDEV_SCENE_AGENT_CODE_MAPPING = {}
@@ -1642,36 +1683,14 @@ BKBASE_REDIS_RECONNECT_INTERVAL_SECONDS = 2
 BKBASE_REDIS_LOCK_NAME = "watch_bkbase_meta_redis_lock"
 # 是否同步数据至DB
 ENABLE_SYNC_BKBASE_METADATA_TO_DB = False
+# 是否启用 BKBase graph relation 链路自动 apply，包括内置关系周期双写和图定义变更增量同步
+ENABLE_SYNC_GRAPH_DEFINITION_TO_BKBASE = os.getenv("ENABLE_SYNC_GRAPH_DEFINITION_TO_BKBASE", "false").lower() == "true"
 
 # 特殊的可以不被禁用的BCS集群ID
 ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST = []
 
 # 使用RT中的路由过滤别名的结果表列表
 SPECIAL_RT_ROUTE_ALIAS_RESULT_TABLE_LIST = []
-
-# BCS集群自动发现任务的起始集群ID（严格大于，不包含该ID本身）。
-# 取值示例: "BCS-K8S-10000" 表示仅接管后缀 > 10000 的集群的变更；
-# 留空表示禁用阈值过滤，全部集群均由本任务接管（保持历史行为）。
-BCS_DISCOVER_START_CLUSTER_ID = os.getenv("BCS_DISCOVER_START_CLUSTER_ID", "")
-
-# BCS集群自动发现任务黑名单业务ID列表
-BCS_DISCOVER_BCS_CLUSTER_BIZ_BLACK_LIST = []
-
-# BCS集群自动发现任务白名单业务ID列表（作为 BCS_DISCOVER_START_CLUSTER_ID 阈值的例外：
-# 命中白名单的业务，即使集群ID后缀不大于阈值也会被接管；为空表示无例外）
-BCS_DISCOVER_BCS_CLUSTER_BIZ_WHITE_LIST = []
-
-# 是否禁用BCS集群内置公共dataid资源刷新
-DISABLE_BCS_CLUSTER_REFRESH_COMMON_RESOURCE = (
-    os.getenv("DISABLE_BCS_CLUSTER_REFRESH_COMMON_RESOURCE", "false").lower() == "true"
-)
-
-# BKCC 业务同步任务的起始业务 ID（严格大于，不包含该 ID 本身）。
-# 取值示例: "1000" 表示仅接管 bk_biz_id > 1000 的 CMDB 业务的新增、删除及 V4 内置链路检查；
-# 阈值以下（含阈值）的业务不会被本任务新增，也不会因 CMDB 缺失而被删除，且不会触发 V4 内置链路检查，
-# 交由其它任务/链路管理，但冲突空间软禁用等保护性逻辑仍对全量业务生效。
-# 留空表示禁用阈值过滤，全部业务均由本任务接管（保持历史行为）。
-SYNC_BKCC_SPACE_START_BIZ_ID = os.getenv("SYNC_BKCC_SPACE_START_BIZ_ID", "")
 
 # 启用新版ES索引轮转的ES集群名单
 ENABLE_V2_ROTATION_ES_CLUSTER_IDS = []
@@ -1792,6 +1811,9 @@ APM_SERVICE_CACHE_APPLICATIONS = []
 
 # 企业微信模块化（layouts）消息通知灰度业务列表
 WECOM_LAYOUTS_BIZ_LIST = []
+
+# 是否默认开启 APM 指标维度分组接入
+APM_METRIC_GROUP_DIMENSIONS_ENABLED = False
 
 # 允许 APM 配置指标分组维度的白名单，格式：["2"](整业务) 或 ["2-app_name"](单应用)
 APM_METRIC_GROUP_DIMENSIONS_WHITELIST = []

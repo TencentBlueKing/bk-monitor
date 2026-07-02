@@ -90,6 +90,7 @@ export interface IAssitantInstance {
 }
 
 export default defineComponent({
+  name: 'BklogAiAssitant',
   setup(_props, { expose, emit }) {
     const aiBlueking = ref<InstanceType<typeof AIBlueking> | null>(null);
 
@@ -118,9 +119,20 @@ export default defineComponent({
     const apiUrl = `${window.AJAX_URL_PREFIX || '/api/v1'}ai_assistant`;
     const shortcuts = ref<any[]>([...AI_BLUEKING_SHORTCUTS]);
 
-    // 暂停聊天
-    const handleStop = () => {
-      aiBlueking.value?.handleStop();
+    const isAiBluekingEmptyContentError = (error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error || '');
+      return message.includes("Cannot read properties of undefined (reading 'content')");
+    };
+
+    // 暂停聊天。ai-blueking 在无有效流式消息时调用 stop 可能触发 handleEnd 空 content 异常，业务侧兜底吞掉该已知异常。
+    const handleStop = async () => {
+      try {
+        await aiBlueking.value?.handleStop?.();
+      } catch (error) {
+        if (!isAiBluekingEmptyContentError(error)) {
+          console.warn('[bklog-ai-assistant] stop failed', error);
+        }
+      }
     };
 
     const hiddenAiAssistant = () => {
@@ -166,8 +178,7 @@ export default defineComponent({
 
     const showAiAssistant = (sendMsg = false, args: IRowSendData) => {
       if (isShow.value && chatid) {
-        handleStop();
-        setTimeout(() => {
+        handleStop().finally(() => {
           setAiStart(sendMsg, args);
         });
         return;

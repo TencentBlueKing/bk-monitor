@@ -71,7 +71,9 @@ class Command(BaseCommand):
                 "log_clustering_clusteringsubscription,"
                 "log_clustering_noticegroup,"
                 "log_clustering_regextemplate,"
-                "log_clustering_signaturestrategysettings"
+                "log_clustering_signaturestrategysettings,"
+                "log_search_favoritegroup,"
+                "log_search_favorite"
             )
         else:
             table_names_str = options["table_names"]

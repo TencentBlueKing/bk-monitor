@@ -15,6 +15,10 @@ const props = defineProps({
     required: true,
     default: '',
   },
+  popupAppendToBody: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const emit = defineEmits(['retrieve', 'input', 'change', 'height-change', 'popup-change', 'text-to-query']);
@@ -102,6 +106,29 @@ const { modelValue, delayShowInstance, getTippyInstance, handleContainerClick, h
       maxWidth: 'none',
       offset: [0, 15],
       hideOnClick: false,
+      appendTo: props.popupAppendToBody ? document.body : undefined,
+      zIndex: props.popupAppendToBody ? 99999 : undefined,
+      popperOptions: props.popupAppendToBody
+        ? {
+          strategy: 'fixed',
+          modifiers: [
+            {
+              name: 'preventOverflow',
+              options: {
+                boundary: document.body,
+                padding: 8,
+              },
+            },
+            {
+              name: 'flip',
+              options: {
+                boundary: document.body,
+                padding: 8,
+              },
+            },
+          ],
+        }
+        : undefined,
     },
     onShowFn: (instance) => {
       emit('popup-change', { isShow: true });
