@@ -22,6 +22,7 @@ from alarm_backends.service.detect.strategy import (
     ExprDetectAlgorithms,
 )
 from bkmonitor.utils.common_utils import count_md5
+from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.prometheus import metrics
 
 logger = logging.getLogger("detect")
@@ -157,6 +158,25 @@ class NewSeries(BasicAlgorithmsCollection):
             return _("%(n)s 小时") % {"n": self.detect_range // 3600}
         return _("%(n)s 秒") % {"n": self.detect_range}
 
+    @classmethod
+    def _is_log_count_item(cls, item):
+        if not item.query_configs:
+            return False
+        query_config = item.query_configs[0]
+        return (
+            query_config.get("data_source_label") == DataSourceLabel.BK_LOG_SEARCH
+            and query_config.get("data_type_label") == DataTypeLabel.LOG
+        )
+
+    @classmethod
+    def _is_observable_data_point(cls, data_point):
+        if not cls._is_log_count_item(data_point.item):
+            return True
+        try:
+            return float(data_point.value) > 0
+        except (TypeError, ValueError):
+            return True
+
     # ------------------------------------------------------------------ #
     # 逐点检测：读 pre_detect 缓存的旧态，注入布尔
     # ------------------------------------------------------------------ #
@@ -175,9 +195,17 @@ class NewSeries(BasicAlgorithmsCollection):
     def pre_detect(self, data_points):
         # 防御性重置：保证每次 pre_detect 从干净 map 起步(当前框架每批新建实例，此处为冗余防御)。
         self._fire_by_dp = {}
+        observable_data_points = [
+            data_point for data_point in data_points if self._is_observable_data_point(data_point)
+        ]
+        if not observable_data_points:
+            self.bootstrap_empty_batch(data_points[0].item)
+            self._fire_by_dp = {id(data_point): False for data_point in data_points}
+            return
+
         item = data_points[0].item
         sig = self._dimension_signature(item)
-        token = self._batch_token(data_points)
+        token = self._batch_token(observable_data_points)
 
         cache = getattr(item, "_new_series_cache", None)
         if not (isinstance(cache, dict) and cache.get("token") == token):
@@ -187,7 +215,7 @@ class NewSeries(BasicAlgorithmsCollection):
         by_sig = cache["by_sig"]
         if sig not in by_sig:
             # 同一 (item, 维度签名, 批次) 下，仅首个 detector 读旧态+写新态；其余 level 复用快照、不重复读写。
-            by_sig[sig] = self._read_and_write(data_points, item, sig)
+            by_sig[sig] = self._read_and_write(observable_data_points, item, sig)
 
         entry = by_sig[sig]
         if entry is None:
@@ -208,6 +236,10 @@ class NewSeries(BasicAlgorithmsCollection):
         flagged = set()
         fire_by_dp = {}
         for data_point in data_points:
+            if not self._is_observable_data_point(data_point):
+                fire_by_dp[id(data_point)] = False
+                continue
+
             fingerprint = self._fingerprint(data_point)
             last_seen = self._seen_before.get(fingerprint)
             is_new = (last_seen is None) or (int(data_point.timestamp) - last_seen > self.detect_range)
