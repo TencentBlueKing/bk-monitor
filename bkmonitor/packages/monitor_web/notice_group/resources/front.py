@@ -25,6 +25,22 @@ from core.errors.notice_group import NoticeGroupNotExist
 logger = logging.getLogger(__name__)
 
 
+def normalize_members(members) -> list[str]:
+    """
+    兼容 CMDB 人员字段为空、字符串或列表的不同返回格式。
+
+    自定义角色字段（objuser 类型）未经过 CMDB 侧的 _split_member_list 归一化，
+    可能返回逗号分隔字符串，若直接消费会被按字符拆分，因此在此统一转换为列表。
+    """
+    if not members:
+        return []
+    if isinstance(members, str):
+        return [member.strip() for member in members.split(",") if member.strip()]
+    if isinstance(members, list | tuple | set):
+        return [member for member in members if member]
+    return []
+
+
 class GetReceiverResource(Resource):
     """
     获取平台全部的通知对象
@@ -44,9 +60,11 @@ class GetReceiverResource(Resource):
         # 获取角色组列表
         group_msg = resource.cc.get_notify_roles()
 
+        # 提前归一化各角色成员，避免后续两处循环重复计算及逻辑漂移
+        group_members = {key: normalize_members(getattr(business, key, None)) if business else [] for key in group_msg}
+
         all_members = set()
-        for key, value in list(group_msg.items()):
-            members = getattr(business, key, []) if business else []
+        for members in group_members.values():
             all_members.update(members)
 
         futures = []
@@ -75,7 +93,7 @@ class GetReceiverResource(Resource):
 
         group_list = []
         for key, value in list(group_msg.items()):
-            members = getattr(business, key, []) if business else []
+            members = group_members[key]
             group_list.append(
                 {
                     "id": key,

@@ -49,6 +49,12 @@ class RequestOnlyResource:
         type = serializers.CharField(required=False, label="Type", default="monitor")
 
 
+class TenantRequiredResource:
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(required=True, label="租户 ID")
+        name = serializers.CharField(required=True, label="名称")
+
+
 class BaseDocumentedResource:
     """父类文档不应被子类继承。"""
 
@@ -98,6 +104,7 @@ class TestDRFResourceStubgen:
         assert "_resource_demo_ping_Request = TypedDict(" in source
         assert '"name": Required[str]' in source
         assert '"age": NotRequired[int]' in source
+        assert '"bk_tenant_id": NotRequired[str | None]' in source
         assert "_resource_demo_ping_Response = TypedDict(" in source
         assert '"message": Required[str]' in source
         assert "class _resource_demo:" in source
@@ -138,6 +145,27 @@ class TestDRFResourceStubgen:
         assert "resource: _resource" in source
         assert "api: _api" in source
         assert "adapter: Any" in source
+
+    def test_request_typeddict_includes_optional_bk_tenant_id(self):
+        resource_root = FakeNamespace()
+        resource_root.demo = FakeShortcut({"query": RequestOnlyResource})
+
+        source = render_entrypoint_type_stubs({"resource": resource_root})
+
+        request_block = source.split("_resource_demo_query_Request = TypedDict(", 1)[1].split("class ", 1)[0]
+        assert '"keyword": NotRequired[str]' in request_block
+        assert '"bk_tenant_id": NotRequired[str | None]' in request_block
+        assert "def query(self, **kwargs: Unpack[_resource_demo_query_Request]) -> Any: ..." in source
+
+    def test_common_bk_tenant_id_does_not_override_serializer_field(self):
+        resource_root = FakeNamespace()
+        resource_root.demo = FakeShortcut({"query": TenantRequiredResource})
+
+        source = render_entrypoint_type_stubs({"resource": resource_root})
+
+        request_block = source.split("_resource_demo_query_Request = TypedDict(", 1)[1].split("class ", 1)[0]
+        assert '"bk_tenant_id": Required[str]' in request_block
+        assert '"bk_tenant_id": NotRequired[str | None]' not in request_block
 
     def test_resource_docstring_without_response_section(self):
         resource_root = FakeNamespace()
@@ -192,3 +220,8 @@ class TestDRFResourceStubgen:
         assert "Request Models:" not in source
         assert "Response Models:" in source
         assert "ResultModel:" in source
+        nested_item_block = source.split("_resource_demo_nested_Request_items_item = TypedDict(", 1)[1].split(
+            "_resource_demo_nested_Request_notice = TypedDict(",
+            1,
+        )[0]
+        assert '"bk_tenant_id"' not in nested_item_block
