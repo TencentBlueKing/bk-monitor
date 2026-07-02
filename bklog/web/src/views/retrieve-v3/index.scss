@@ -43,6 +43,10 @@
       &.flex {
         .search-result-content {
           .original-log-panel {
+            .original-log-panel-tools {
+              padding: 1px 0 1px 0;
+            }
+
             .bklog-result-box {
               .bklog-result-container {
                 &.show-header {
@@ -51,7 +55,7 @@
                     overflow: visible;
                     &.row-header {
                       position: sticky;
-                      top: calc(var(--top-searchbar-height) + var(--scene-toolbar-height, 0px));
+                      top: calc(var(--top-searchbar-height) + 32px);
                       left: calc(var(--left-collection-width) + var(--left-field-setting-width) + 8px);
 
                       .right {

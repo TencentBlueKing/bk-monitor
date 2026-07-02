@@ -174,6 +174,11 @@ export default {
         maxWidth: 1200,
         arrow: false,
         hideOnClick: false,
+        appendTo: document.body,
+        popperOptions: {
+          strategy: 'fixed',
+        },
+        zIndex: window.__bk_zIndex_manager?.nextZIndex?.() ?? 2500,
         onShow: () => {
           this.showFieldsSetting = true;
         },
@@ -211,15 +216,9 @@ export default {
       return this.$route.params.indexId;
     },
 
-    tableList() {
-      return this.indexSetQueryResult.list ?? [];
-    },
 
     fieldAliasMap() {
-      return (this.indexFieldInfo.fields ?? []).reduce(
-        (out, field) => ({ ...out, [field.field_name]: field.field_alias || field.field_name }),
-        {},
-      );
+      return this.$store.getters.fieldAliasMap;
     },
     showFieldsConfigPopoverNum() {
       return this.$store.state.showFieldsConfigPopoverNum;
@@ -260,7 +259,9 @@ export default {
       });
     }
 
-    this.logResultResizeObserverFn = debounce(this.calcHighlightWidth, 100);
+    this.logResultResizeObserverFn = debounce(() => {
+      this.calcHighlightWidth();
+    }, 100);
     this.logResultResizeObserver = new ResizeObserver(this.logResultResizeObserverFn);
     this.logResultResizeObserver.observe(this.$el);
   },
@@ -362,9 +363,14 @@ export default {
 
 .original-log-panel {
   .original-log-panel-tools {
+    position: sticky;
+    top: var(--top-searchbar-height, 0);
+    z-index: 6;
     display: flex;
     justify-content: space-between;
-    padding: 0 6px 0 6px;
+    padding: 0 6px 0 0;
+    background: #fff;
+    // border-bottom: 1px solid #dfe0e5;
 
     &.trace-log-panel {
       padding-top: 6px;
@@ -568,5 +574,9 @@ body.no-user-select {
 .bklog-v3-match-mode {
   height: 32px;
   padding-left: 6px;
+}
+
+.bklog-v3-select-dropdown {
+  z-index: 2500;
 }
 </style>

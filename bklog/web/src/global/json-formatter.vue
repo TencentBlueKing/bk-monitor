@@ -76,6 +76,10 @@
       type: [Array, Object],
       default: () => [],
     },
+    renderMeta: {
+      type: Object,
+      default: null,
+    },
 
     limitRow: {
       type: [Number, String, null],
@@ -162,6 +166,9 @@
 
   let mousedownItem = null;
   const handleMouseDown = e => {
+    e.stopPropagation();
+    e.preventDefault();
+    e.stopImmediatePropagation();
     mousedownItem = e.target;
   };
 
@@ -170,6 +177,7 @@
     e.preventDefault();
     e.stopImmediatePropagation();
     if (mousedownItem === e.target) {
+      RetrieveHelper.jsonFormatter.setIsExpandNodeClick(true);
       showAllText.value = !showAllText.value;
       scheduleSetIsOverflowY();
     }
@@ -213,17 +221,12 @@
   };
 
   const getDateFieldValue = (field, content, formatDate) => {
-    if (content === null || content === undefined || content === '' || content === '--') {
-      return '--';
-    }
-
     if (formatDate && ['date_nanos', 'date'].includes(field.field_type)) {
       const timezone = store.state.indexItem.timezone;
-      const formatValue = RetrieveHelper.formatTimeZoneValue(content, field.field_type, timezone);
-      return formatValue === 'Invalid Date' ? content : formatValue;
+      return RetrieveHelper.formatTimeZoneValue(content, field.field_type, timezone);
     }
 
-    return content;
+    return content !== null && content !== undefined && content !== '' ? content : '--';
   };
 
   const getFieldValue = field => {
@@ -288,12 +291,18 @@
 
   const rootList = computed(() => {
     formatCounter.value++;
-    return fieldList.value.map((f: any) => ({
-      name: f.field_name,
-      type: f.field_type,
-      formatter: getFieldFormatter(f, isFormatDateField.value && !!f.__is_virtual_root__),
-      __is_virtual_root__: !!f.__is_virtual_root__,
-    }));
+    return fieldList.value.map((f: any) => {
+      const shouldFormatDate = isFormatDateField.value && !!f.__is_virtual_root__;
+      return {
+        name: f.field_name,
+        type: f.field_type,
+        formatter: {
+          ...getFieldFormatter(f, shouldFormatDate),
+          precomputedSegments: shouldFormatDate ? undefined : props.renderMeta?.fieldSegments,
+        },
+        __is_virtual_root__: !!f.__is_virtual_root__,
+      };
+    });
   });
 
   const depth = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]);
@@ -319,7 +328,7 @@
   };
 
   watch(
-    () => [props.limitRow, props.jsonValue, props.fields, isLimitExpandText.value, isFormatDateField.value],
+    () => [props.limitRow, props.jsonValue, props.fields, props.renderMeta, isLimitExpandText.value],
     () => {
       showAllText.value = false;
       hasScrollY.value = false;

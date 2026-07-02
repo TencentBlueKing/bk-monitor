@@ -33,6 +33,7 @@ type RootFieldOperator = {
   value: boolean | number | object | string;
   editor?: UseJsonFormatter;
   field: any;
+  precomputedSegments?: Record<string, any[]>;
 };
 
 type RootField = {
@@ -42,6 +43,7 @@ type RootField = {
     ref: Ref<HTMLElement>;
     value: boolean | number | object | string;
     field: any;
+    precomputedSegments?: Record<string, any[]>;
   };
 };
 
@@ -60,6 +62,7 @@ export default ({ fields, onSegmentClick, onSegmentRenderUpdate }) => {
             onSegmentClick,
             onSegmentRenderUpdate,
             field: value.field,
+            precomputedSegments: value.precomputedSegments,
           });
         }
 
@@ -89,6 +92,7 @@ export default ({ fields, onSegmentClick, onSegmentRenderUpdate }) => {
           onSegmentClick,
           onSegmentRenderUpdate,
           field: value.field,
+          precomputedSegments: value.precomputedSegments,
         });
       }
 
@@ -124,6 +128,7 @@ export default ({ fields, onSegmentClick, onSegmentRenderUpdate }) => {
           ref: formatter.ref,
           value: formatter.value,
           field: formatter.field,
+          precomputedSegments: formatter.precomputedSegments,
         });
 
         rootFieldOperator.get(name).editor?.update({
@@ -133,6 +138,7 @@ export default ({ fields, onSegmentClick, onSegmentRenderUpdate }) => {
           onSegmentClick,
           onSegmentRenderUpdate,
           field: formatter.field,
+          precomputedSegments: formatter.precomputedSegments,
         });
       } else {
         rootFieldOperator.set(name, {
@@ -140,6 +146,7 @@ export default ({ fields, onSegmentClick, onSegmentRenderUpdate }) => {
           ref: formatter.ref,
           value: formatter.value,
           field: formatter.field,
+          precomputedSegments: formatter.precomputedSegments,
         });
       }
     }
