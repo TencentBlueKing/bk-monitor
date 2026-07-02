@@ -80,6 +80,14 @@ export interface GetUserWorkspaceRequest {
   success_url: string;
 }
 
+/** 重新关联TAPD项目 */
+export type RebindWorkspaceRequest = UnbindWorkspaceRequest;
+
+/** 取消授权请求参数 */
+export interface RevokeAuthRequest {
+  bk_biz_id: number | string;
+}
+
 /**
  * 取消关联项目请求参数
  */

@@ -509,4 +509,6 @@ export default {
     'If not checked, only the association is retained, and the issue is not automatically closed due to document closure.',
   '请选择有权限的项目，完成蓝鲸监控关联项目的应用授权。':
     'Please select a project with permission, and complete the application authorization of the BK-Monitor project.',
+  '取消后，TAPD 侧授权不会被撤销，但蓝鲸侧不再与该 TAPD 项目关联。确认解绑吗？':
+    'After unchecking, the TAPD side authorization will not be revoked, but the BK-Monitor side will no longer be associated with the TAPD project. Are you sure to unbind?',
 };
