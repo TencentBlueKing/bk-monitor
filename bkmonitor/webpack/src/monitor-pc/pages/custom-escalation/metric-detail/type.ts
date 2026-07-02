@@ -47,17 +47,23 @@ export interface ICondition {
 
 export interface IDataItem {
   avg?: number;
+  avgTime?: number;
   color?: string;
   datapoints?: number[];
   date?: number;
   dimensions?: IObjItem;
   latest?: number;
+  latestTime?: number;
   max?: number;
+  maxTime?: number;
   min?: number;
+  minTime?: number;
   name?: string;
   percentage?: number;
   show?: boolean;
   target?: string;
+  total?: number;
+  totalTime?: number;
   time_offset?: string;
   timeOffset?: string;
   unit?: string;
