@@ -159,6 +159,7 @@ class TestTapdOauthContract(unittest.TestCase):
         get_headers = _method(tapd_api_resource, "get_headers")
         get_granted_serializer = _class(_class(module, "GetGrantedWorkspacesResource"), "RequestSerializer")
         get_workspace_serializer = _class(_class(module, "GetWorkspaceInfoResource"), "RequestSerializer")
+        participant_projects_serializer = _class(_class(module, "GetParticipantProjects"), "RequestSerializer")
 
         self.assertIn("contextvars.ContextVar", source)
         self.assertNotIn("self.access_token", source)
@@ -167,6 +168,21 @@ class TestTapdOauthContract(unittest.TestCase):
         self.assertIn("tapd_access_token.get", _call_names(get_headers))
         self.assertIsNotNone(_serializer_field(get_granted_serializer, "access_token"))
         self.assertIsNotNone(_serializer_field(get_workspace_serializer, "access_token"))
+        self.assertIsNotNone(_serializer_field(participant_projects_serializer, "access_token"))
+
+    def test_user_workspace_uses_participant_projects_with_workspace_shape(self):
+        resource = _class(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "ListUserTapdWorkspaceResource")
+        fetch_user_workspaces = _method(resource, "_fetch_user_workspaces")
+        perform_request = _method(resource, "perform_request")
+        source = ast.get_source_segment(_read("bkmonitor/packages/fta_web/issue/resources.py"), fetch_user_workspaces)
+
+        self.assertIn("api.tapd.get_participant_projects", _call_names(fetch_user_workspaces))
+        self.assertNotIn("api.tapd.get_granted_workspaces", _call_names(fetch_user_workspaces))
+        self.assertNotIn("_enrich_workspace_details", _call_names(perform_request))
+        self.assertIn('ws.get("Workspace", {})', source)
+        self.assertIn('ws_inner.get("id", "")', source)
+        self.assertIn('"workspace_id": ws_id', source)
+        self.assertIn('"workspace_name": ws_inner.get("name", ws_id)', source)
 
     def test_app_install_callback_still_uses_signed_state(self):
         callback = _function(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "tapd_app_install_callback")
