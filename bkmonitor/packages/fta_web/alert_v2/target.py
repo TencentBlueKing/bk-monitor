@@ -655,6 +655,14 @@ class HostTarget(DefaultTarget):
         ]
 
     def list_related_log_targets(self) -> list[dict[str, Any]]:
+        """获取主机告警关联的日志目标信息。
+
+        日志类 HOST 告警优先使用原始日志策略配置，命中后直接返回策略内的索引集、查询语句和维度过滤条件；未命中时再回退到原有主机关系日志查询。
+        """
+        origin_log_targets: list[dict[str, Any]] = super().list_related_log_targets()
+        if origin_log_targets:
+            return origin_log_targets
+
         if not self._alert.event.ip:
             return []
 

@@ -15,7 +15,7 @@
   .application-configuration-page {
     display: flex;
     width: 100%;
-    height: calc(100vh - 104px);
+    height: calc(100vh - 104px - var(--notice-alert-height, 0px));
 
     .configuration-content-left {
       position: relative;
@@ -23,9 +23,9 @@
       flex: 1;
       width: 100%;
       min-height: calc(100% - 32px);
-      margin: 16px;
+      padding: 16px;
       border-radius: 2px;
-      box-shadow: 0 2px 4px 0 rgba(25, 25, 41, 0.05);
+      box-shadow: 0 2px 4px 0 rgb(25 25 41 / 5%);
 
       .conf-content {
         flex: 1;
@@ -117,7 +117,7 @@
             padding: 0 10px;
             margin-right: 4px;
             background: #fafbfd;
-            border: 1px solid rgba(151, 155, 165, 0.3);
+            border: 1px solid rgb(151 155 165 / 30%);
             border-radius: 2px;
 
             @include flex-align;
@@ -198,8 +198,8 @@
       .status-name {
         margin-left: 8px;
         line-height: 16px;
-        white-space: nowrap;
         vertical-align: middle;
+        white-space: nowrap;
       }
     }
 
@@ -207,7 +207,7 @@
       display: flex;
       overflow: hidden;
       background: #fff;
-      box-shadow: 0px 1px 2px 0px rgba(253, 207, 207, 0.1);
+      box-shadow: 0 1px 2px 0 rgb(253 207 207 / 10%);
 
       .right-wrapper {
         width: 100%;
@@ -218,14 +218,13 @@
         top: 104px;
         z-index: 9;
         display: flex;
-        align-items: center;
-        justify-items: center;
+        place-items: center center;
         width: 7px;
         height: calc(100% - 104px);
-        border-left: 1px solid rgba(255, 255, 255, 0);
         outline: 0;
+        border-left: 1px solid rgb(255 255 255 / 0%);
 
-        &:after {
+        &::after {
           position: absolute;
           top: 50%;
           right: 1px;
@@ -234,17 +233,12 @@
           color: #63656e;
           cursor: col-resize;
           content: '';
-          background: currentColor;
+          background: currentcolor;
           box-shadow:
-            0 4px 0 0 currentColor,
-            0 8px 0 0 currentColor,
-            0 -4px 0 0 currentColor,
-            0 -8px 0 0 currentColor;
-          box-shadow:
-            0 4px 0 0 currentColor,
-            0 8px 0 0 currentColor,
-            0 -4px 0 0 currentColor,
-            0 -8px 0 0 currentColor;
+            0 4px 0 0 currentcolor,
+            0 8px 0 0 currentcolor,
+            0 -4px 0 0 currentcolor,
+            0 -8px 0 0 currentcolor;
         }
 
         &.active {
@@ -416,6 +410,7 @@
   .panel-intro {
     position: absolute;
     margin-bottom: 16px;
+
     // padding-left: 68px;
     // margin: 4px 0px;
     line-height: 20px;
@@ -454,6 +449,7 @@
     &.sampling-rules-item {
       align-items: normal;
       height: auto;
+
       // margin-top: 10px;
     }
   }
@@ -571,7 +567,7 @@
             z-index: 9;
             background-color: white;
             border-color: #3a84ff;
-            box-shadow: 0 0 4px rgba(58, 132, 255, 0.4);
+            box-shadow: 0 0 4px rgb(58 132 255 / 40%);
           }
         }
 
@@ -625,7 +621,7 @@
           color: #3a84ff;
           background-color: white;
           border-color: #3a84ff;
-          box-shadow: 0 0 4px rgba(58, 132, 255, 0.4);
+          box-shadow: 0 0 4px rgb(58 132 255 / 40%);
         }
       }
     }
@@ -646,6 +642,7 @@
     ul {
       display: flex;
       flex-wrap: wrap;
+
       // line-height: 32px;
 
       .instanct-wrap {
@@ -728,7 +725,7 @@
 
       .add-button {
         position: relative;
-        top: 0px;
+        top: 0;
         width: 22px;
         height: 22px;
         line-height: 20px;
@@ -801,6 +798,7 @@
       width: 230px;
     }
   }
+
   // todo 这里后续需要根据平台左侧菜单是否打开调整下宽度和位置
   .submit-handle {
     // padding-bottom: 38px;
@@ -812,8 +810,8 @@
     height: 48px;
     padding-left: 24px;
     line-height: 48px;
-    background: rgb(250, 251, 253);
-    box-shadow: rgba(0, 0, 0, 0.08) 0px -2px 6px 0px;
+    background: rgb(250 251 253);
+    box-shadow: rgb(0 0 0 / 8%) 0 -2px 6px 0;
 
     button {
       width: 88px;
@@ -862,7 +860,6 @@
   .switcher-text {
     margin-left: 10px;
     font-size: 12px;
-
     font-weight: normal !important;
   }
 
@@ -1149,6 +1146,7 @@
 
     .bk-form-content {
       line-height: 28px;
+
       // .form-error-tip {
       //   position: absolute;
       // }
@@ -1290,7 +1288,6 @@
 
   .bk-icon.icon-plus-circle {
     display: inline;
-
     font-size: 18px !important;
     line-height: none;
   }
@@ -1305,7 +1302,7 @@
     margin-bottom: 12px;
 
     &:first-child {
-      margin-bottom: 0px;
+      margin-bottom: 0;
     }
 
     .title-bar {
@@ -1391,7 +1388,7 @@
 
     .db-config-card-preview-container {
       width: 320px;
-      margin: 0 16px 0px 0;
+      margin: 0 16px 0 0;
 
       .db-config-card-preview-title {
         padding: 2px 12px;

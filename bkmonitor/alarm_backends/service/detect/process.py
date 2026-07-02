@@ -104,7 +104,15 @@ class DetectProcess(BaseAbnormalPushProcessor):
     def handle_data(self, item):
         # detect data
         data_points = self.inputs[item.id]
+        if not data_points:
+            self.bootstrap_new_series_empty_batch(item)
         self.outputs[item.id] = item.detect(data_points)
+
+    @staticmethod
+    def bootstrap_new_series_empty_batch(item):
+        from alarm_backends.service.detect.strategy.new_series import NewSeries
+
+        NewSeries.bootstrap_empty_batch(item)
 
     def push_data(self):
         current_time = time.time()

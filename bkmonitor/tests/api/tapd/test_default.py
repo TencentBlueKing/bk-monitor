@@ -69,6 +69,9 @@ def test_tapd_failed_status_raises_api_error():
 def test_tapd_base_url_uses_bkapp_env_name():
     source = (PROJECT_ROOT / "config/default.py").read_text(encoding="utf-8")
 
-    assert 'TAPD_API_BASE_URL = os.getenv("BKAPP_TAPD_API_BASE_URL", os.getenv("TAPD_API_BASE_URL", ""))' in source
+    assert (
+        'TAPD_API_BASE_URL = os.getenv("BKAPP_TAPD_API_BASE_URL", '
+        'os.getenv("TAPD_API_BASE_URL", "http://apiv2.tapd.woa.com"))'
+    ) in source
     assert 'TAPD_APP_ID = os.getenv("BKAPP_TAPD_APP_ID", os.getenv("TAPD_APP_ID", ""))' in source
     assert 'TAPD_APP_SECRET = os.getenv("BKAPP_TAPD_APP_SECRET", os.getenv("TAPD_APP_SECRET", ""))' in source

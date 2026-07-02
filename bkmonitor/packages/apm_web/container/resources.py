@@ -254,7 +254,6 @@ class ListServiceK8sTargetsResource(Resource):
                 "namespace": w["namespace"],
             }
             for w in workloads
-            if w["kind"] != "ReplicaSet"
         ]
 
         def _construct_response(_targets: list[dict[str, Any]]) -> dict[str, Any]:

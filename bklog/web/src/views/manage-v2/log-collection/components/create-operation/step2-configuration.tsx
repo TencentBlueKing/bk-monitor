@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted, ref, onBeforeMount } from 'vue';
+import { computed, defineComponent, onMounted, ref, onBeforeMount, nextTick } from 'vue';
 
 import LogIpSelector, { toTransformNode, toSelectorNode } from '@/components/log-ip-selector/log-ip-selector'; // 日志IP选择器组件
 import useLocale from '@/hooks/use-locale';
@@ -694,9 +694,8 @@ export default defineComponent({
         emit('detail', res.data);
         // 更新 store 中的当前采集配置
         store.commit('collect/setCurCollect', res.data);
-        setTimeout(() => {
-          isConfigChange.value = false;
-        }, 2000);
+        await nextTick();
+        isConfigChange.value = false;
       } catch (err) {
         console.log('获取采集配置详情失败:', err);
       } finally {

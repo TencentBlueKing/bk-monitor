@@ -425,6 +425,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BKBASE_REDIS_LOCK_NAME", slz.CharField(label="计算平台Redis锁名称", default="watch_bkbase_meta_redis_lock")),
         ("ENABLE_SYNC_BKBASE_METADATA_TO_DB", slz.BooleanField(label="是否同步bkbase元数据至DB", default=False)),
         (
+            "ENABLE_SYNC_GRAPH_DEFINITION_TO_BKBASE",
+            slz.BooleanField(label="是否自动同步计算平台图关系链路", default=False),
+        ),
+        (
             "ACCESS_DATA_BATCH_PROCESS_THRESHOLD",
             slz.IntegerField(label="access数据批量处理触发阈值(0为不触发)", default=0),
         ),
@@ -661,6 +665,10 @@ STANDARD_CONFIGS = OrderedDict(
         (
             "APM_RESOURCE_FILTER_METRICS_ENABLED_APPS",
             slz.DictField(label=_("APM metrics维度补充功能应用白名单"), default={}),
+        ),
+        (
+            "APM_RESOURCE_FILTER_LOGS_ENABLED_APPS",
+            slz.DictField(label=_("APM logs维度补充功能应用白名单"), default={}),
         ),
         (
             "APM_BMW_DEPLOY_BIZ_ID",

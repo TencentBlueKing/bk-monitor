@@ -48,6 +48,7 @@ from .storage import (
     InfluxDBStorage,
     KafkaStorage,
     RedisStorage,
+    SurrealDBStorage,
 )
 
 logger = logging.getLogger("metadata")
@@ -75,6 +76,7 @@ class ResultTable(models.Model):
         ClusterInfo.TYPE_INFLUXDB: InfluxDBStorage,
         ClusterInfo.TYPE_REDIS: RedisStorage,
         ClusterInfo.TYPE_KAFKA: KafkaStorage,
+        ClusterInfo.TYPE_SURREALDB: SurrealDBStorage,
         ClusterInfo.TYPE_BKDATA: BkDataStorage,
         ClusterInfo.TYPE_ARGUS: ArgusStorage,
     }

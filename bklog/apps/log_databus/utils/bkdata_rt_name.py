@@ -54,10 +54,11 @@ def make_bkdata_rt_name(
     - 必须以字母开头
     - 仅允许 ``[A-Za-z0-9_]``
     - 不允许连续下划线 (违反时返回 1500001 "结果表名称: 输入值不匹配要求的模式")
+    - 不允许尾下划线 (违反时同样返回 1500001)
     - 长度 <= 50
 
-    本函数对齐 "首字符是字母" + "禁止连续下划线" + "长度上限" 三条; 字符集由 bklog 侧的
-    ``COLLECTOR_CONFIG_NAME_EN_REGEX = r"^[A-Za-z0-9_]+$"`` 保证, 此处不再做替换以保持
+    本函数对齐 "首字符是字母" + "禁止连续下划线" + "禁止尾下划线" + "长度上限"; 字符集由
+    bklog 侧的 ``COLLECTOR_CONFIG_NAME_EN_REGEX = r"^[A-Za-z0-9_]+$"`` 保证, 此处不再做替换以保持
     历史行为 (大小写 / 数字开头的 ``name_en`` 也允许进来, 因为前缀会接管首字符).
 
     实现要点 (避免历史踩过的坑):
@@ -69,6 +70,7 @@ def make_bkdata_rt_name(
     2. 拼接后调 :func:`collapse_underscores` 折叠 ``prefix`` 与 ``name_en`` 衔接处可能
        产生的 ``__`` (如 ``prefix="bklog_"`` 配上 ``name_en="_foo"`` 会得到 ``bklog__foo``).
     3. 折叠后长度只会变短不会变长, 仍按 ``max_len`` 兜底裁剪一次, 防御 ``prefix`` 自身超长.
+    4. 最后去掉尾部 ``_``. 长名字截断点可能刚好落在分隔符后, 此时 BKData 仍会拒绝.
 
     :param name_en: 用户提交的英文名, 通常是 ``CollectorConfig.collector_config_name_en``.
     :param prefix: 表名前缀, 必须以字母开头且长度 < ``max_len``, 默认 ``"bklog_"``.
@@ -77,9 +79,9 @@ def make_bkdata_rt_name(
     """
     if len(prefix) >= max_len:
         # 防御: prefix 自己就超长 (调用姿势错误), 仍尽量返回合法字符串而不抛异常.
-        return collapse_underscores(prefix)[:max_len]
+        return collapse_underscores(prefix)[:max_len].rstrip("_")
 
     truncated_name_en = name_en[: max_len - len(prefix)]
     rt = f"{prefix}{truncated_name_en}"
     rt = collapse_underscores(rt)
-    return rt[:max_len]
+    return rt[:max_len].rstrip("_")

@@ -555,6 +555,54 @@ def _read_shield(params: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _read_action_config(params: dict[str, Any]) -> dict[str, Any]:
+    """读取处理/通知套餐(ActionConfig)的运行时配置缓存。
+
+    用于「克隆/新建套餐缓存未传播被误判为已删除/禁用」类排障的缓存侧取证。缓存有三态：
+    - exists=False（键不存在）：套餐尚未刷入缓存（克隆/新建竞态特征），或负缓存哨兵已过 TTL 被清；
+      单看缓存无法区分「竞态未传播」与「曾真删」，须配合 read-db-model(ActionConfig, origin_objects)
+      读 DB 真态对拍。
+    - exists=True 且 is_negative=True（负缓存哨兵）：读路径回查 DB 也未命中，即 DB 已确认套餐
+      真删/不存在——这是缓存层对「真删」的最高置信信号（来自 set_negative_cache，非真实配置）。
+    - exists=True 且 is_negative=False：套餐配置已正常刷入缓存，is_enabled 为其真实启停态。
+
+    脱敏：execute_config（执行参数，可内嵌 webhook/凭据）不透出，只回安全摘要。
+    注意：config_id 命中内置默认通知套餐(DEFAULT_NOTICE_ID)时，返回硬编码默认、不读 Redis，
+    故该 id 恒 exists=True、is_negative=False，与缓存实际状态无关。
+    """
+    config_id = params.get("config_id")
+    if config_id is None:
+        raise CustomException(message="params.config_id is required for cache_type=action_config")
+    try:
+        config_id = int(config_id)
+    except (TypeError, ValueError) as exc:
+        raise CustomException(message=f"config_id must be an integer: {config_id}") from exc
+
+    from alarm_backends.core.cache.action_config import ActionConfigCacheManager
+
+    data = ActionConfigCacheManager.get_action_config_by_id(config_id)
+    # 负缓存哨兵：非空但带 NEGATIVE_CACHE_FLAG 标记，表示 DB 已确认真删/不存在（非真实配置）。
+    is_negative = bool(data) and bool(data.get(ActionConfigCacheManager.NEGATIVE_CACHE_FLAG))
+    summary = None
+    if data:
+        # 安全摘要白名单：只回取证必要字段 + 负缓存标记；execute_config 等其余字段一律不透出。
+        summary = {
+            "id": data.get("id"),
+            "name": data.get("name"),
+            "is_enabled": data.get("is_enabled"),
+            "plugin_id": data.get("plugin_id"),
+            "bk_biz_id": data.get("bk_biz_id"),
+            "is_negative": is_negative,
+        }
+    return {
+        "cache_type": "action_config",
+        "params": {"config_id": config_id},
+        "exists": bool(data),
+        "is_negative": is_negative,
+        "data": summary,
+    }
+
+
 def read_config_cache(params: dict[str, Any]) -> dict[str, Any]:
     cache_type = str(params.get("cache_type") or "").strip()
     if not cache_type:
@@ -572,9 +620,11 @@ def read_config_cache(params: dict[str, Any]) -> dict[str, Any]:
         return _read_assign(cache_params)
     elif cache_type == "shield.biz":
         return _read_shield(cache_params)
+    elif cache_type == "action_config":
+        return _read_action_config(cache_params)
     else:
         raise CustomException(
-            message=f"不支持的 cache_type: {cache_type}。允许: strategy, host, assign.biz, shield.biz"
+            message=f"不支持的 cache_type: {cache_type}。允许: strategy, host, assign.biz, shield.biz, action_config"
         )
 
 
@@ -681,12 +731,12 @@ KernelRPCRegistry.register_function(
     description=(
         "bkm-cli read-config-cache 后端函数。"
         "按 cache_type 读取 alarm_backends CacheManager 子类管理的 Redis 配置缓存。"
-        "支持的 cache_type: strategy, host, assign.biz, shield.biz。"
+        "支持的 cache_type: strategy, host, assign.biz, shield.biz, action_config。"
     ),
     handler=read_config_cache,
     params_schema={
-        "cache_type": "缓存类型: strategy | host | assign.biz | shield.biz",
-        "params": "缓存查询参数，因 cache_type 而异",
+        "cache_type": "缓存类型: strategy | host | assign.biz | shield.biz | action_config",
+        "params": "缓存查询参数，因 cache_type 而异（action_config 需 config_id）",
     },
     example_params={
         "cache_type": "strategy",

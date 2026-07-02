@@ -32,6 +32,7 @@ import pytz
 import ujson
 from django.conf import settings
 from django.core.cache import cache
+from django.db.models import F
 from django.utils.translation import gettext as _
 
 from apps.api import BcsApi, BkLogApi, MonitorApi
@@ -113,6 +114,7 @@ from apps.log_search.handlers.es.indices_optimizer_context_tail import (
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.pre_search_handlers import PreSearchHandlers
 from apps.log_search.models import (
+    AsyncTask,
     IndexSetFieldsConfig,
     LogIndexSet,
     LogIndexSetData,
@@ -1243,7 +1245,7 @@ class SearchHandler:
             result_size += scroll_size
             yield self._deal_query_result(scroll_result)
 
-    def multi_get_slice_data(self, pre_file_name, export_file_type):
+    def multi_get_slice_data(self, pre_file_name, export_file_type, async_task_id=None):
         collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
         if collector_config:
             storage_shards_nums = collector_config.storage_shards_nums
@@ -1260,12 +1262,15 @@ class SearchHandler:
                 "slice_max": slice_max,
                 "file_name": f"{pre_file_name}_slice_{idx}",
                 "export_file_type": export_file_type,
+                "async_task_id": async_task_id,
             }
             multi_execute_func.append(result_key=idx, func=self.get_slice_data, params=body, multi_func_params=True)
         result = multi_execute_func.run(return_exception=True)
         return result
 
-    def get_slice_data(self, slice_id: int, slice_max: int, file_name: str, export_file_type: str):
+    def get_slice_data(
+        self, slice_id: int, slice_max: int, file_name: str, export_file_type: str, async_task_id: int = None
+    ):
         """
         get_slice_data
         @param slice_id:
@@ -1280,15 +1285,22 @@ class SearchHandler:
         # 文件路径
         file_path = f"{ASYNC_DIR}/{file_name}_cluster_{self.storage_cluster_id}.{export_file_type}"
 
-        def content_generator():
-            yield from result.get("hits", {}).get("hits", [])
+        def result_batch_generator():
+            yield result.get("hits", {}).get("hits", [])
             for res in generate_result:
                 origin_result_list = res.get("hits", {}).get("hits", [])
-                yield from origin_result_list
+                yield origin_result_list
 
         with open(file_path, "a+", encoding="utf-8") as f:
-            for content in content_generator():
-                f.write(f"{ujson.dumps(content, ensure_ascii=False)}\n")
+            for result_batch in result_batch_generator():
+                if not result_batch:
+                    continue
+                for content in result_batch:
+                    f.write(f"{ujson.dumps(content, ensure_ascii=False)}\n")
+                if async_task_id:
+                    AsyncTask.objects.filter(id=async_task_id).update(
+                        exported_count=F("exported_count") + len(result_batch)
+                    )
         return file_path
 
     def slice_pre_get_result(self, size: int, slice_id: int, slice_max: int):

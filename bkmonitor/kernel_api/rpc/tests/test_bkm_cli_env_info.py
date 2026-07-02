@@ -32,4 +32,25 @@ def test_get_monitor_info_returns_regime_flags():
         "space_builtin_data_link_mode",
         "monitor_access_url",
         "site_url",
+        "saas_version",
     } <= set(result)
+
+
+def test_get_monitor_info_returns_saas_version(settings):
+    # 显式覆盖 settings.SAAS_VERSION,使断言不依赖部署期 VERSION 文件,结果稳定。
+    from kernel_api.rpc.functions.info import get_monitor_info
+
+    settings.SAAS_VERSION = "3.2.x"
+    result = get_monitor_info({})
+    assert result["saas_version"] == "3.2.x"
+    assert isinstance(result["saas_version"], str)
+
+
+def test_get_monitor_info_saas_version_never_raises_on_empty(settings):
+    # SAAS_VERSION 取不到(空串/未设置)时仍归一为 str,不抛错。
+    from kernel_api.rpc.functions.info import get_monitor_info
+
+    settings.SAAS_VERSION = ""
+    result = get_monitor_info({})
+    assert result["saas_version"] == ""
+    assert isinstance(result["saas_version"], str)

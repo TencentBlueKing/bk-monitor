@@ -28,9 +28,13 @@ from django.utils.translation import gettext_lazy as _lazy
 # （bk_target_ip/bk_target_cloud_id）聚合，磁盘只读/Corefile 再叠加各自的实例维度以区分
 # 同主机的不同只读盘 / 不同 corefile 信号。
 #
-# 覆盖范围：仅 V4 gse_system_event 表实际产出的 5 类事件
-# （AgentLost / DiskReadonly / CoreFile / OOM / PingUnreachable），custom 源。
-# 主机重启 os_restart、进程端口 proc_port 不在此列——它们不是 gse 系统事件，而是底层 system.env /
+# 覆盖范围：仅 V4 gse_system_event 表实际产出的 4 类 gse 系统事件
+# （AgentLost / DiskReadonly / CoreFile / OOM），custom 源。
+# PING 不可达不在此列：它本质是时序指标（底层 pingserver.base/loss_percent 按丢包率），不是 gse
+# 系统事件，custom 计数语义不符；改由 os/v4（bk_monitor 源 ping-gse 伪事件，走指标逻辑、经
+# EVENT_QUERY_CONFIG_MAP 重定向到 pingserver.base/loss_percent + PingUnreachable 算法）承载，与单租户
+# v1 同形。详见 os/v4.py。
+# 主机重启 os_restart、进程端口 proc_port 也不在此列——它们不是 gse 系统事件，而是底层 system.env /
 # system.proc_port 时序指标（CMDB 内置进程采集），由 BaseAlarmMetricCacheManager 在多租户内置为
 # bk_monitor 源伪事件、经 os/v3 命中创建（见 metric_list_cache.BaseAlarmMetricCacheManager、
 # os_loader 与 os/v3.py 注释），不走 custom 链路。
@@ -90,23 +94,4 @@ if settings.ENABLE_MULTI_TENANT_MODE:
                 "recovery_status_setter": "close",
             },
         ]
-    )
-    # PING 不可达：是否内置由全局 ping 开关 ENABLE_PING_ALARM 决定（而非部署平台）。该开关是动态设置、
-    # 需运行时读，故不在此模块级门控，改由 os_loader 加载时按 settings.ENABLE_PING_ALARM 跳过（access 层
-    # 同样按此开关门控 ping 事件处理，见 alarm_backends access processor）。检测语义差异（有意为之）：
-    # 单租户 PING 走 pingserver.base.loss_percent 时序 + PingUnreachable 算法（按丢包率）；多租户作为 V4
-    # 系统事件，与上面 4 个事件一致走 custom 计数阈值（事件计数 >= 1 即异常，见 os_loader is_custom_event 分支）。
-    DEFAULT_OS_STRATEGIES.append(
-        {
-            "name": _lazy("PING不可达告警"),
-            "data_type_label": "event",
-            "data_source_label": "custom",
-            "result_table_label": "os",
-            "metric_field": "PingUnreachable",
-            "agg_dimension": ["bk_target_ip", "bk_target_cloud_id"],
-            "trigger_count": 3,
-            "trigger_check_window": 5,
-            "recovery_check_window": 5,
-            "recovery_status_setter": "close",
-        }
     )

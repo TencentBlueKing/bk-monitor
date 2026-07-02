@@ -42,7 +42,7 @@ paths:
         pluginConfigs: []
         authConfig:
           userVerifiedRequired: true
-          appVerifiedRequired: true
+          appVerifiedRequired: false
           resourcePermissionRequired: true
   /mcp/list_time_series_metrics/:
     get:
@@ -77,7 +77,7 @@ paths:
         pluginConfigs: []
         authConfig:
           userVerifiedRequired: true
-          appVerifiedRequired: true
+          appVerifiedRequired: false
           resourcePermissionRequired: true
   /mcp/execute_range_query/:
     post:
@@ -128,7 +128,7 @@ paths:
         pluginConfigs: []
         authConfig:
           userVerifiedRequired: true
-          appVerifiedRequired: true
+          appVerifiedRequired: false
           resourcePermissionRequired: true
   /mcp/execute_sql_query/:
     post:
@@ -187,5 +187,5 @@ paths:
         pluginConfigs: []
         authConfig:
           userVerifiedRequired: true
-          appVerifiedRequired: true
+          appVerifiedRequired: false
           resourcePermissionRequired: true

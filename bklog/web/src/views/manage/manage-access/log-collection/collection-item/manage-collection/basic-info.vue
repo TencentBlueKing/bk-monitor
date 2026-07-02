@@ -502,6 +502,7 @@
             backRoute,
             type: 'basicInfo',
             typeKey: this.collectorData.log_access_type,
+            indexSetId: this.$route.query.indexSetId,
           },
         });
       },
