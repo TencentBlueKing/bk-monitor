@@ -5695,39 +5695,70 @@ class StorageClusterRecord(models.Model):
         unique_together = ("table_id", "cluster_id", "enable_time", "bk_tenant_id")  # 联合索引，保证唯一性
 
     @classmethod
-    def compose_table_id_storage_cluster_records(cls, table_id, bk_tenant_id=DEFAULT_TENANT_ID):
+    def compose_table_id_storage_cluster_records(cls, table_id, bk_tenant_id=DEFAULT_TENANT_ID, current_table_id=None):
         """
-        组装指定结果表的历史存储集群记录
+        组装指定结果表的历史存储集群分段路由
         [
             {
-                "cluster_id": 1,            # 存储集群ID 对应ClusterInfo.cluster_id
-                "enable_time": 1111111111,  # Unix 时间戳
+                "storage_id": 1,             # 存储集群ID 对应ClusterInfo.cluster_id
+                "enable_time": 1111111111,   # Unix 时间戳
+                "storage_type": "bk_sql",    # 分段命中的存储类型
+                "db": "bkbase_table",        # 分段查询物理表
+                "measurement": "doris",      # 分段查询 measurement
             },
         ]
         """
+        current_table_id = current_table_id or table_id
         logger.info(
             "compose_table_id_storage_cluster_records: try to get storage cluster records for table_id->[%s] under "
-            "bk_tenant_id->[%s]",
+            "bk_tenant_id->[%s], current_table_id->[%s]",
             table_id,
             bk_tenant_id,
+            current_table_id,
         )
 
-        # FAKE_TABLE -> FIND ESStorage -> IF GOT REAL -> USE REAL
-        es_storage = ESStorage.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
-
-        if es_storage.origin_table_id:  # 若关联的Storage表记录了原始table_id,那么使用原始table_id去查询历史集群记录
+        # FAKE_TABLE -> FIND Storage -> IF GOT REAL -> USE REAL
+        record_table_id = table_id
+        current_es_storage = ESStorage.objects.filter(table_id=current_table_id, bk_tenant_id=bk_tenant_id).first()
+        current_doris_storage = DorisStorage.objects.filter(
+            table_id=current_table_id, bk_tenant_id=bk_tenant_id
+        ).first()
+        if current_table_id == table_id and current_es_storage and current_es_storage.origin_table_id:
             logger.info(
                 "compose_table_id_storage_cluster_records: table_id->[%s] has origin_table_id->[%s],will use origin",
                 table_id,
-                es_storage.origin_table_id,
+                current_es_storage.origin_table_id,
             )
-            table_id = es_storage.origin_table_id
+            record_table_id = current_es_storage.origin_table_id
+        elif current_table_id == table_id and current_doris_storage and current_doris_storage.origin_table_id:
+            logger.info(
+                "compose_table_id_storage_cluster_records: doris table_id->[%s] has origin_table_id->[%s],"
+                "will use origin",
+                table_id,
+                current_doris_storage.origin_table_id,
+            )
+            record_table_id = current_doris_storage.origin_table_id
 
         # 过滤出指定 table_id 且未删除的记录，按 create_time 降序排列
         records = (
-            cls.objects.filter(table_id=table_id, is_deleted=False, bk_tenant_id=bk_tenant_id)
+            cls.objects.filter(table_id=record_table_id, is_deleted=False, bk_tenant_id=bk_tenant_id)
             .order_by("-create_time")
             .values("cluster_id", "is_current", "enable_time")
+        )
+
+        cluster_ids = [record["cluster_id"] for record in records if record["cluster_id"]]
+        cluster_info_map = {
+            cluster.cluster_id: cluster for cluster in ClusterInfo.objects.filter(cluster_id__in=cluster_ids)
+        }
+        es_route = cls._compose_es_storage_cluster_record_route(
+            table_id=record_table_id,
+            current_table_id=current_table_id,
+            bk_tenant_id=bk_tenant_id,
+        )
+        doris_route = cls._compose_doris_storage_cluster_record_route(
+            table_id=record_table_id,
+            current_table_id=current_table_id,
+            bk_tenant_id=bk_tenant_id,
         )
 
         result = []
@@ -5745,21 +5776,113 @@ class StorageClusterRecord(models.Model):
                 )
                 enable_timestamp = 0
 
-            result.append(
-                {
-                    "storage_id": record["cluster_id"],
-                    "enable_time": enable_timestamp,
-                }
-            )
+            route = {
+                "storage_id": record["cluster_id"],
+                "enable_time": enable_timestamp,
+            }
+            cluster_info = cluster_info_map.get(record["cluster_id"])
+            if cluster_info:
+                if cluster_info.cluster_name:
+                    route["storage_name"] = cluster_info.cluster_name
+                    route["cluster_name"] = cluster_info.cluster_name
+                if cluster_info.cluster_type == ClusterInfo.TYPE_DORIS:
+                    route["storage_type"] = "bk_sql"
+                    route.update(doris_route)
+                elif cluster_info.cluster_type == ClusterInfo.TYPE_ES:
+                    route["storage_type"] = ClusterInfo.TYPE_ES
+                    route.update(es_route)
+
+            result.append(route)
 
         logger.info(
             "compose_table_id_storage_cluster_records: get storage cluster records for table_id->[%s] success,"
             "records->[%s]",
-            table_id,
+            record_table_id,
             result,
         )
 
         return result
+
+    @staticmethod
+    def _select_storage_record(storage_model, table_id, current_table_id, bk_tenant_id):
+        storage = storage_model.objects.filter(table_id=current_table_id, bk_tenant_id=bk_tenant_id).first()
+        if not storage and current_table_id != table_id:
+            storage = storage_model.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
+        return storage
+
+    @staticmethod
+    def _fill_es_storage_from_origin(es_storage, bk_tenant_id):
+        if not es_storage or es_storage.index_set or not es_storage.origin_table_id:
+            return es_storage
+        origin_storage = ESStorage.objects.filter(
+            table_id=es_storage.origin_table_id, bk_tenant_id=bk_tenant_id
+        ).first()
+        if not origin_storage:
+            return es_storage
+        if not es_storage.index_set:
+            es_storage.index_set = origin_storage.index_set
+        if not es_storage.source_type:
+            es_storage.source_type = origin_storage.source_type
+        return es_storage
+
+    @staticmethod
+    def _fill_doris_storage_from_origin(doris_storage, bk_tenant_id):
+        if not doris_storage or not doris_storage.origin_table_id:
+            return doris_storage
+        if (
+            doris_storage.bkbase_table_id
+            and doris_storage.storage_cluster_id
+            and doris_storage.index_set
+            and doris_storage.source_type
+        ):
+            return doris_storage
+        origin_storage = DorisStorage.objects.filter(
+            table_id=doris_storage.origin_table_id, bk_tenant_id=bk_tenant_id
+        ).first()
+        if not origin_storage:
+            return doris_storage
+        if not doris_storage.bkbase_table_id:
+            doris_storage.bkbase_table_id = origin_storage.bkbase_table_id
+        if not doris_storage.storage_cluster_id:
+            doris_storage.storage_cluster_id = origin_storage.storage_cluster_id
+        if not doris_storage.index_set:
+            doris_storage.index_set = origin_storage.index_set
+        if not doris_storage.source_type:
+            doris_storage.source_type = origin_storage.source_type
+        return doris_storage
+
+    @classmethod
+    def _compose_es_storage_cluster_record_route(cls, table_id, current_table_id, bk_tenant_id):
+        es_storage = cls._select_storage_record(ESStorage, table_id, current_table_id, bk_tenant_id)
+        es_storage = cls._fill_es_storage_from_origin(es_storage, bk_tenant_id)
+        if not es_storage or not es_storage.index_set:
+            doris_storage = cls._select_storage_record(DorisStorage, table_id, current_table_id, bk_tenant_id)
+            doris_storage = cls._fill_doris_storage_from_origin(doris_storage, bk_tenant_id)
+            if doris_storage and doris_storage.index_set:
+                return {
+                    "db": doris_storage.index_set,
+                    "measurement": constants.DEFAULT_MEASUREMENT,
+                    "source_type": doris_storage.source_type,
+                }
+            return {}
+        route = {
+            "db": es_storage.index_set,
+            "measurement": constants.DEFAULT_MEASUREMENT,
+        }
+        if es_storage.source_type:
+            route["source_type"] = es_storage.source_type
+        return route
+
+    @classmethod
+    def _compose_doris_storage_cluster_record_route(cls, table_id, current_table_id, bk_tenant_id):
+        doris_storage = cls._select_storage_record(DorisStorage, table_id, current_table_id, bk_tenant_id)
+        doris_storage = cls._fill_doris_storage_from_origin(doris_storage, bk_tenant_id)
+        if not doris_storage or not doris_storage.bkbase_table_id:
+            return {}
+        return {
+            "db": doris_storage.bkbase_table_id,
+            "measurement": ClusterInfo.TYPE_DORIS,
+        }
 
 
 class SpaceRelatedStorageInfo(models.Model):

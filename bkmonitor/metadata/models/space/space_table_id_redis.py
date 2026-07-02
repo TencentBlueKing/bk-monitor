@@ -69,6 +69,30 @@ class SpaceTableIDRedis:
 
     SUPPORT_SPACE_TYPES = {SpaceTypes.BKCC.value, SpaceTypes.BKCI.value, SpaceTypes.BKSAAS.value}
 
+    @staticmethod
+    def _normalize_result_table_detail_key(table_id: str) -> str | None:
+        """规范 result_table_detail 的 Redis field 名。"""
+        parts = table_id.split(".")
+        if len(parts) == 1:
+            return f"{table_id}.{DEFAULT_MEASUREMENT}"
+        if len(parts) == 2:
+            return table_id
+        logger.error("result_table_detail key(table_id)->[%s] is invalid, contains too many dots", table_id)
+        return None
+
+    def _compose_result_table_detail_redis_values(
+        self, table_id_detail: dict[str, dict], bk_tenant_id: str
+    ) -> dict[str, str]:
+        redis_values = {}
+        for table_id, value in table_id_detail.items():
+            redis_key = self._normalize_result_table_detail_key(table_id)
+            if not redis_key:
+                continue
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                redis_key = f"{redis_key}|{bk_tenant_id or DEFAULT_TENANT_ID}"
+            redis_values[redis_key] = json.dumps(value)
+        return redis_values
+
     def push_space_table_ids(self, space_type: str, space_id: str, is_publish: bool | None = False):
         """
         推送空间及对应的结果表和过滤条件
@@ -204,7 +228,7 @@ class SpaceTableIDRedis:
 
     def push_es_table_id_detail(
         self,
-        bk_tenant_id: str,
+        bk_tenant_id: str = DEFAULT_TENANT_ID,
         table_id_list: list | None = None,
         is_publish: bool = True,
     ):
@@ -234,48 +258,18 @@ class SpaceTableIDRedis:
                     json.dumps(_table_id_detail),
                     RESULT_TABLE_DETAIL_KEY,
                 )
-                updated_table_id_detail: dict[str, dict] = {}
-                for key, value in _table_id_detail.items():
-                    parts = key.split(".")  # 通过 "." 分割 key
-                    if len(parts) == 1:
-                        logger.info(
-                            "push_es_table_id_detail: key(table_id)->[%s] is missing '.', adding '.__default__'", key
-                        )
-                        # 如果分割结果长度为 1，补充 ".__default__"
-                        new_key = f"{key}.__default__"
-                        updated_table_id_detail[new_key] = value
-                    elif len(parts) == 2:
-                        # 如果分割结果长度为 2，保持原样
-                        updated_table_id_detail[key] = value
-                    else:
-                        # 如果分割结果长度超过 2，打印错误日志
-                        logger.error(
-                            "push_es_table_id_detail: key(table_id)->[%s] is invalid, contains too many dots", key
-                        )
+                redis_values = self._compose_result_table_detail_redis_values(_table_id_detail, bk_tenant_id)
 
-                # 更新 _table_id_detail
-                _table_id_detail = updated_table_id_detail
-
-                # 若开启多租户模式,则在table_id前拼接bk_tenant_id
-                if settings.ENABLE_MULTI_TENANT_MODE:
-                    logger.info(
-                        "push_es_table_id_detail: enable multi tenant mode,will append bk_tenant_id->[%s]",
-                        bk_tenant_id,
-                    )
-                    _table_id_detail = {f"{key}|{bk_tenant_id}": value for key, value in _table_id_detail.items()}
-
-                RedisTools.hmset_to_redis(
-                    RESULT_TABLE_DETAIL_KEY,
-                    {key: json.dumps(value) for key, value in _table_id_detail.items()},
-                )
-                if is_publish:
+                if redis_values:
+                    RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, redis_values)
+                if is_publish and redis_values:
                     logger.info(
                         "push_es_table_id_detail: table_id_list->[%s] got detail->[%s],try to push into channel->[%s]",
                         table_id_list,
-                        json.dumps(_table_id_detail),
+                        json.dumps(redis_values),
                         RESULT_TABLE_DETAIL_CHANNEL,
                     )
-                    RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(_table_id_detail.keys()))
+                    RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(redis_values.keys()))
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
                 "push_es_table_id_detail: failed to push es_table_detail for table_id_list->[%s],error->[%s]",
@@ -314,19 +308,46 @@ class SpaceTableIDRedis:
         }
         # 构建字段别名map
         field_alias_map = self._get_field_alias_map(tids, bk_tenant_id)
+        storage_cluster_ids = {
+            record.storage_cluster_id or (origin_doris_map.get(record.origin_table_id).storage_cluster_id or 0)
+            for record in doris_records
+            if record.storage_cluster_id or origin_doris_map.get(record.origin_table_id)
+        }
+        storage_cluster_name_map = {
+            item["cluster_id"]: item["cluster_name"]
+            for item in models.ClusterInfo.objects.filter(cluster_id__in=storage_cluster_ids).values(
+                "cluster_id", "cluster_name"
+            )
+        }
 
         data: dict[str, dict] = {}
         for record in doris_records:
             # Redis key 仍使用当前 RT；db 优先使用当前记录，缺失时再回退到实体 DorisStorage。
             origin_record = origin_doris_map.get(record.origin_table_id)
             db = record.bkbase_table_id or (origin_record.bkbase_table_id if origin_record else None)
+            storage_id = record.storage_cluster_id or (origin_record.storage_cluster_id if origin_record else 0)
+            storage_name = storage_cluster_name_map.get(storage_id, "")
             table_id = record.table_id
             rt_meta = rt_meta_map.get(table_id, {})
+            real_table_id = record.origin_table_id or table_id
+            try:
+                storage_cluster_records = models.StorageClusterRecord.compose_table_id_storage_cluster_records(
+                    table_id=real_table_id,
+                    current_table_id=table_id,
+                    bk_tenant_id=bk_tenant_id,
+                )
+            except Exception as e:  # pylint: disable=broad-except
+                logger.warning("get doris table_id storage cluster record failed, table_id: %s, error: %s", table_id, e)
+                storage_cluster_records = []
 
             data[table_id] = {
                 "db": db,
                 "measurement": models.ClusterInfo.TYPE_DORIS,
                 "storage_type": "bk_sql",
+                "storage_id": storage_id,
+                "storage_name": storage_name,
+                "cluster_name": storage_name,
+                "storage_cluster_records": storage_cluster_records,
                 # data_label、labels、field_alias 始终归属当前 RT，避免虚拟 RT 丢失自身路由元信息。
                 "data_label": rt_meta.get("data_label", ""),
                 "labels": rt_meta.get("labels", {}),
@@ -355,48 +376,19 @@ class SpaceTableIDRedis:
                     table_id_list,
                     json.dumps(_table_id_detail),
                 )
-                updated_table_id_detail = {}
-                for key, value in _table_id_detail.items():
-                    parts = key.split(".")  # 通过 "." 分割 key
-                    if len(parts) == 1:
-                        logger.info(
-                            "push_doris_table_id_detail: key(table_id)->[%s] is missing '.', adding '.__default__'", key
-                        )
-                        # 如果分割结果长度为 1，补充 ".__default__"
-                        new_key = f"{key}.__default__"
-                        updated_table_id_detail[new_key] = value
-                    elif len(parts) == 2:
-                        # 如果分割结果长度为 2，保持原样
-                        updated_table_id_detail[key] = value
-                    else:
-                        # 如果分割结果长度超过 2，打印错误日志
-                        logger.error(
-                            "push_doris_table_id_detail: key(table_id)->[%s] is invalid, contains too many dots", key
-                        )
+                redis_values = self._compose_result_table_detail_redis_values(_table_id_detail, bk_tenant_id)
 
-                # 更新 _table_id_detail
-                _table_id_detail = updated_table_id_detail
-
-                # 若开启多租户模式,则在table_id后面拼接bk_tenant_id
-                if settings.ENABLE_MULTI_TENANT_MODE:
-                    logger.info(
-                        "push_es_table_id_detail: enable multi tenant mode,will append bk_tenant_id->[%s]",
-                        bk_tenant_id,
-                    )
-                    _table_id_detail = {f"{key}|{bk_tenant_id}": value for key, value in _table_id_detail.items()}
-
-                RedisTools.hmset_to_redis(
-                    RESULT_TABLE_DETAIL_KEY, {key: json.dumps(value) for key, value in _table_id_detail.items()}
-                )
-                if is_publish:
+                if redis_values:
+                    RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, redis_values)
+                if is_publish and redis_values:
                     logger.info(
                         "push_doris_table_id_detail: table_id_list->[%s] got detail->[%s],try to push into channel->["
                         "%s]",
                         table_id_list,
-                        json.dumps(_table_id_detail),
+                        json.dumps(redis_values),
                         RESULT_TABLE_DETAIL_CHANNEL,
                     )
-                    RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(_table_id_detail.keys()))
+                    RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(redis_values.keys()))
 
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
@@ -466,49 +458,19 @@ class SpaceTableIDRedis:
                     table_id_list,
                     json.dumps(_table_id_detail),
                 )
-                updated_table_id_detail: dict[str, dict] = {}
-                for key, value in _table_id_detail.items():
-                    parts = key.split(".")  # 通过 "." 分割 key
-                    if len(parts) == 1:
-                        logger.info(
-                            "push_bkbase_table_id_detail: key(table_id)->[%s] is missing '.', adding '.__default__'",
-                            key,
-                        )
-                        # 如果分割结果长度为 1，补充 ".__default__"
-                        new_key = f"{key}.__default__"
-                        updated_table_id_detail[new_key] = value
-                    elif len(parts) == 2:
-                        # 如果分割结果长度为 2，保持原样
-                        updated_table_id_detail[key] = value
-                    else:
-                        # 如果分割结果长度超过 2，打印错误日志
-                        logger.error(
-                            "push_doris_table_id_detail: key(table_id)->[%s] is invalid, contains too many dots", key
-                        )
+                redis_values = self._compose_result_table_detail_redis_values(_table_id_detail, bk_tenant_id)
 
-                # 更新 _table_id_detail
-                _table_id_detail = updated_table_id_detail
-
-                # 若开启多租户模式,则在table_id前拼接bk_tenant_id
-                if settings.ENABLE_MULTI_TENANT_MODE:
-                    logger.info(
-                        "push_bkbase_table_id_detail: enable multi tenant mode,will append bk_tenant_id->[%s]",
-                        bk_tenant_id,
-                    )
-                    _table_id_detail = {f"{key}|{bk_tenant_id}": value for key, value in _table_id_detail.items()}
-
-                RedisTools.hmset_to_redis(
-                    RESULT_TABLE_DETAIL_KEY, {key: json.dumps(value) for key, value in _table_id_detail.items()}
-                )
-                if is_publish:
+                if redis_values:
+                    RedisTools.hmset_to_redis(RESULT_TABLE_DETAIL_KEY, redis_values)
+                if is_publish and redis_values:
                     logger.info(
                         "push_bkbase_table_id_detail: table_id_list->[%s] got detail->[%s],try to push into channel->["
                         "%s]",
                         table_id_list,
-                        json.dumps(_table_id_detail),
+                        json.dumps(redis_values),
                         RESULT_TABLE_DETAIL_CHANNEL,
                     )
-                    RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(_table_id_detail.keys()))
+                    RedisTools.publish(RESULT_TABLE_DETAIL_CHANNEL, list(redis_values.keys()))
 
         except Exception as e:  # pylint: disable=broad-except
             logger.error(
@@ -830,7 +792,7 @@ class SpaceTableIDRedis:
         # 追加ES结果表
         _values.update(self._compose_es_table_ids(space_type, space_id))
         # 追加Doris结果表
-        _values.update(self._compose_doris_table_ids(space_type, space_id))
+        _values.update(self._compose_doris_table_ids(space_type, space_id, bk_tenant_id=bk_tenant_id))
         _values.update(self._compose_es_table_ids(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id))
 
         # 追加关联的BKCI的ES结果表，适配ES多空间功能
@@ -871,7 +833,7 @@ class SpaceTableIDRedis:
         )
         _values.update(self._compose_es_table_ids(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id))
         # 追加Doris结果表
-        _values.update(self._compose_doris_table_ids(space_type, space_id))
+        _values.update(self._compose_doris_table_ids(space_type, space_id, bk_tenant_id=bk_tenant_id))
         # APM 真全局数据
         _values.update(self._compose_apm_all_type_table_ids(space_type, space_id))
         _values.update(self._compose_vm_short_link_table_ids(space_type, space_id, bk_tenant_id))
@@ -905,7 +867,7 @@ class SpaceTableIDRedis:
         )
         _values.update(self._compose_es_table_ids(space_type=space_type, space_id=space_id, bk_tenant_id=bk_tenant_id))
         # 追加Doris结果表
-        _values.update(self._compose_doris_table_ids(space_type, space_id))
+        _values.update(self._compose_doris_table_ids(space_type, space_id, bk_tenant_id=bk_tenant_id))
         # APM 真全局数据
         _values.update(self._compose_apm_all_type_table_ids(space_type, space_id))
         _values.update(self._compose_vm_short_link_table_ids(space_type, space_id, bk_tenant_id))
@@ -1415,13 +1377,17 @@ class SpaceTableIDRedis:
         ).values_list("table_id", flat=True)
         return {tid: {"filters": []} for tid in tids}
 
-    def _compose_doris_table_ids(self, space_type: str, space_id: str):
+    def _compose_doris_table_ids(self, space_type: str, space_id: str, bk_tenant_id=DEFAULT_TENANT_ID):
         """
         组装Doris链路结果表
         """
         biz_id = models.Space.objects.get_biz_id_by_space(space_type, space_id)
         tids = models.ResultTable.objects.filter(
-            bk_biz_id=biz_id, default_storage=models.ClusterInfo.TYPE_DORIS, is_deleted=False, is_enable=True
+            bk_biz_id=biz_id,
+            default_storage=models.ClusterInfo.TYPE_DORIS,
+            is_deleted=False,
+            is_enable=True,
+            bk_tenant_id=bk_tenant_id,
         ).values_list("table_id", flat=True)
         return {tid: {"filters": []} for tid in tids}
 
