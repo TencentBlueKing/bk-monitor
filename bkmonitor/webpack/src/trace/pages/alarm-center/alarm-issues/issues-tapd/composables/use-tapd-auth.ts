@@ -114,7 +114,8 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
         createTapdSliderShow.value = false;
         authDialogShow.value = false;
       }
-    }
+    },
+    { immediate: true }
   );
 
   const handleBoundWorkspace = (item: TapdWorkspaceItem) => {
