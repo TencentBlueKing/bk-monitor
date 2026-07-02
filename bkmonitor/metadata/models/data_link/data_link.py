@@ -45,6 +45,7 @@ from metadata.models.data_link.data_link_configs import (
     BasereportSinkConfig,
     ConditionalSinkConfig,
     DataBusConfig,
+    DataIdConfig,
     DorisStorageBindingConfig,
     ESStorageBindingConfig,
     ExpandableGroup,
@@ -499,6 +500,23 @@ class DataLink(models.Model):
             graph_table_id = f"{table_id}{SURREALDB_RT_SUFFIX}"
         return utils.compose_bkdata_table_id(graph_table_id)
 
+    def _compose_graph_relation_source_data_id_config(
+        self,
+        bk_biz_id: int,
+        data_source: "DataSource",
+        bkbase_data_name: str,
+    ) -> dict[str, Any]:
+        data_id_ins, _ = DataIdConfig.objects.update_or_create(
+            bk_tenant_id=self.bk_tenant_id,
+            namespace=self.namespace,
+            name=bkbase_data_name,
+            defaults={
+                "bk_biz_id": bk_biz_id,
+                "bk_data_id": data_source.bk_data_id,
+            },
+        )
+        return data_id_ins.compose_predefined_config(data_source=data_source)
+
     def _compose_graph_relation_surrealdb_configs(
         self,
         graph_binding_ins: GraphRelationBindingConfig,
@@ -742,7 +760,13 @@ class DataLink(models.Model):
         if persist_write_mode and cleanup_write_mode is not None:
             self._graph_write_mode_after_apply = (graph_binding_ins.pk, effective_write_mode)
 
-        configs: list[dict[str, Any]] = []
+        configs: list[dict[str, Any]] = [
+            self._compose_graph_relation_source_data_id_config(
+                bk_biz_id=bk_biz_id,
+                data_source=data_source,
+                bkbase_data_name=bkbase_data_name,
+            )
+        ]
         if graph_binding_ins.should_write_vm:
             if not graph_binding_ins.vm_cluster_name:
                 raise ValueError("compose_graph_relation_time_series_configs: vm cluster name is empty")

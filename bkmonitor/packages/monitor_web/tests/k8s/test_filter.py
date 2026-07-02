@@ -1232,6 +1232,65 @@ class TestK8sListResources(TestCase):
             ] + [obj.to_meta_dict() for obj in orm_resource]
             self.assertEqual(pod_list, {"count": len(expect_pod_list), "items": expect_pod_list})
 
+    def test_with_history_pod_fills_page_size_from_history_series(self):
+        workload_name = "bk-monitor-history-fill"
+        validated_request_data = {
+            "scenario": "performance",
+            "bcs_cluster_id": "BCS-K8S-00000",
+            "start_time": 1735801850,
+            "end_time": 1735805450,
+            "filter_dict": {"namespace": "blueking", "workload": [f"Deployment:{workload_name}"]},
+            "page_size": 35,
+            "page": 1,
+            "resource_type": "pod",
+            "with_history": True,
+            "page_type": "scrolling",
+            "bk_biz_id": 2,
+            "order_by": "desc",
+            "method": "sum",
+            "column": "container_cpu_usage_seconds_total",
+        }
+        latest_time = 1733104260000
+        old_time = latest_time - 60000
+
+        def build_series(pod_name, datapoints):
+            return {
+                "dimensions": {
+                    "namespace": "blueking",
+                    "pod_name": pod_name,
+                    "workload_kind": "Deployment",
+                    "workload_name": workload_name,
+                },
+                "target": f"{{namespace=blueking,pod_name={pod_name}}}",
+                "metric_field": "_result_",
+                "datapoints": datapoints,
+                "alias": "_result_",
+                "type": "line",
+                "dimensions_translation": {},
+                "unit": "",
+            }
+
+        current_prefix = f"{workload_name}-current-"
+        history_prefix = f"{workload_name}-history-"
+        current_series = [
+            build_series(f"{current_prefix}{index:02d}", [[1000 + index, latest_time]]) for index in range(12)
+        ]
+        history_series = [
+            build_series(f"{history_prefix}{index:02d}", [[100 + index, old_time], [None, latest_time]])
+            for index in range(24)
+        ]
+
+        with mock.patch("core.drf_resource.resource.grafana.graph_unify_query") as mock_graph_unify_query:
+            mock_graph_unify_query.return_value = {"series": current_series + history_series}
+            pod_list = ListK8SResources()(validated_request_data)
+
+        pod_names = [item["pod"] for item in pod_list["items"]]
+        expected_current_pod_names = [f"{current_prefix}{index:02d}" for index in range(11, -1, -1)]
+        expected_history_pod_names = [f"{history_prefix}{index:02d}" for index in range(23, 0, -1)]
+        self.assertEqual(pod_list["count"], 36)
+        self.assertEqual(len(pod_list["items"]), 35)
+        self.assertEqual(pod_names, expected_current_pod_names + expected_history_pod_names)
+
     def test_with_network_pod_workload_filter(self):
         validated_request_data = {
             "scenario": "network",

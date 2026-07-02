@@ -26,7 +26,7 @@ paths:
         pluginConfigs: []
         authConfig:
           userVerifiedRequired: true
-          appVerifiedRequired: true
+          appVerifiedRequired: false
           resourcePermissionRequired: true
   /mcp/search_spaces/:
     get:
@@ -68,5 +68,5 @@ paths:
         pluginConfigs: []
         authConfig:
           userVerifiedRequired: true
-          appVerifiedRequired: true
+          appVerifiedRequired: false
           resourcePermissionRequired: true
