@@ -11,7 +11,7 @@ from django.conf import settings
 from django.db import transaction
 
 from bkmonitor.models import AlgorithmModel, DetectModel, ItemModel, QueryConfigModel, StrategyModel
-from bkmonitor.models.metric_list_cache import MetricListCache
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
@@ -32,6 +32,11 @@ class SystemEventMetric:
     result_table_id: str
     agg_interval: int
     data_label: str
+
+
+# 多租户内置系统事件（custom 源）采集周期固定为 1 分钟，与 os_loader 用 collect_interval(=1)*60
+# 推出的聚合周期保持一致；这里直接按固定值推导 agg_interval，避免再回查 MetricListCache。
+SYSTEM_EVENT_AGG_INTERVAL = 60
 
 
 SYSTEM_EVENT_TARGET_CONFIGS: dict[str, SystemEventTargetConfig] = {
@@ -90,6 +95,9 @@ def migrate_system_event_strategy_config(
     多租户下 GSE 系统事件不再走 ``bk_monitor`` 的 ``system.event`` / Kafka 告警链路，
     而是由业务内置 custom event 表承载。该函数只调整系统事件链路相关字段：
     查询配置、监控项类型、检测算法和恢复语义；策略启停、通知组、目标范围等存量配置保持不变。
+
+    目标结果表按业务与租户直接推导（``base_{bk_tenant_id}_{bk_biz_id}_event``），不再回查
+    MetricListCache；负数/零业务没有内置分业务 custom event 表，直接跳过。
 
     Args:
         bk_biz_id: 可选业务 ID 或业务 ID 列表；不传时扫描全量策略。
@@ -174,9 +182,8 @@ def _collect_change_records(
         return [], []
 
     strategies = _get_strategy_map({query_config.strategy_id for query_config in query_configs})
-    target_metric_map = _get_system_event_metric_map(
-        {strategy.bk_biz_id for strategy in strategies.values() if strategy.bk_biz_id > 0}
-    )
+    # 仅 cmdb 业务（bk_biz_id > 0）才有内置的分业务 custom event 结果表，负数/零业务直接跳过。
+    tenant_map = _get_bk_tenant_map({strategy.bk_biz_id for strategy in strategies.values() if strategy.bk_biz_id > 0})
 
     change_records: list[dict[str, Any]] = []
     skipped_records: list[dict[str, Any]] = []
@@ -203,18 +210,23 @@ def _collect_change_records(
             )
             continue
 
-        target_metric = target_metric_map.get((strategy.bk_biz_id, target_config.custom_event_name))
-        if target_metric is None:
+        bk_tenant_id = tenant_map.get(strategy.bk_biz_id)
+        if not bk_tenant_id:
             skipped_records.append(
                 _build_skip_record(
                     query_config=query_config,
                     target_config=target_config,
                     strategy=strategy,
-                    reason="target custom event metric not found in MetricListCache",
+                    reason="resolve bk_tenant_id from bk_biz_id failed",
                 )
             )
             continue
 
+        target_metric = _build_system_event_metric(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=strategy.bk_biz_id,
+            custom_event_name=target_config.custom_event_name,
+        )
         change_records.append(
             _build_change_record(
                 query_config=query_config,
@@ -239,46 +251,34 @@ def _get_strategy_map(strategy_ids: set[int]) -> dict[int, StrategyModel]:
     }
 
 
-def _get_system_event_metric_map(bk_biz_ids: set[int]) -> dict[tuple[int, str], SystemEventMetric]:
-    if not bk_biz_ids:
-        return {}
-
-    target_event_names = {config.custom_event_name for config in SYSTEM_EVENT_TARGET_CONFIGS.values()}
-    metric_map: dict[tuple[int, str], SystemEventMetric] = {}
-    metrics = (
-        MetricListCache.objects.filter(
-            bk_biz_id__in=bk_biz_ids,
-            data_source_label=DataSourceLabel.CUSTOM,
-            data_type_label=DataTypeLabel.EVENT,
-            result_table_label__in=["os", "host_process"],
-        )
-        .only(
-            "bk_biz_id",
-            "metric_field",
-            "result_table_id",
-            "collect_interval",
-            "extend_fields",
-            "data_label",
-        )
-        .order_by("bk_biz_id", "result_table_id", "metric_field")
-    )
-
-    for metric in metrics:
-        custom_event_name = (metric.extend_fields or {}).get("custom_event_name") or metric.metric_field
-        if custom_event_name not in target_event_names:
+def _get_bk_tenant_map(bk_biz_ids: set[int]) -> dict[int, str]:
+    """按业务批量解析租户 ID，解析失败（如业务已删除）的业务直接跳过。"""
+    tenant_map: dict[int, str] = {}
+    for bk_biz_id in bk_biz_ids:
+        try:
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+        except ValueError:
             continue
-        metric_map.setdefault(
-            (metric.bk_biz_id, custom_event_name),
-            SystemEventMetric(
-                bk_biz_id=metric.bk_biz_id,
-                custom_event_name=custom_event_name,
-                result_table_id=metric.result_table_id,
-                agg_interval=(metric.collect_interval or 1) * 60,
-                data_label=metric.data_label or "",
-            ),
-        )
+        if bk_tenant_id:
+            tenant_map[bk_biz_id] = bk_tenant_id
+    return tenant_map
 
-    return metric_map
+
+def _build_system_event_metric(bk_tenant_id: str, bk_biz_id: int, custom_event_name: str) -> SystemEventMetric:
+    """
+    直接按业务推导内置系统事件的目标指标，不再回查 MetricListCache。
+
+    多租户下 GSE 系统事件走分业务 custom event 链路，结果表命名固定为
+    ``base_{bk_tenant_id}_{bk_biz_id}_event``（见 metric_list_cache.get_system_event_tables 与
+    os_loader），聚合周期固定 1 分钟，故这些字段可由业务与租户直接推导。
+    """
+    return SystemEventMetric(
+        bk_biz_id=bk_biz_id,
+        custom_event_name=custom_event_name,
+        result_table_id=f"base_{bk_tenant_id}_{bk_biz_id}_event",
+        agg_interval=SYSTEM_EVENT_AGG_INTERVAL,
+        data_label="",
+    )
 
 
 def _build_skip_record(
