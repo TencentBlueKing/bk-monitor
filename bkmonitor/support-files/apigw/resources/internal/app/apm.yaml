@@ -955,7 +955,7 @@ paths:
         descriptionEn: "list trace view config"
   /app/apm/calculate_by_range/:
     post:
-      operationId: apm_calculate_by_range
+      operationId: calculate_by_range
       description: 调用分析表格统计
       x-bk-apigateway-resource:
         isPublic: false
