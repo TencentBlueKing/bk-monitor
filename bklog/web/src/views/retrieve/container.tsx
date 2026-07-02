@@ -45,6 +45,16 @@ export default defineComponent({
     const error = ref<string | null>(null);
     let messageHandler: ((_evt: MessageEvent) => void) | null = null;
 
+    const triggerDownload = (url: string) => {
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = url;
+      document.body.appendChild(iframe);
+      setTimeout(() => {
+        iframe.remove();
+      }, 60000);
+    };
+
     // 解析 hash 中的查询参数
     const parseHashQuery = (hash: string) => {
       const query: Record<string, string> = {};
@@ -123,6 +133,13 @@ export default defineComponent({
               if (evt.data.type === 'vue2-app-error') {
                 loading.value = false;
                 error.value = evt.data.error || '加载失败';
+              }
+
+              if (evt.data.type === 'download-url') {
+                const url = evt.data.payload?.url;
+                if (typeof url === 'string' && url) {
+                  triggerDownload(url);
+                }
               }
 
               if (evt.data.type === 'sync-route-params') {
