@@ -1027,7 +1027,12 @@ class StrategyCacheManager(CacheManager):
             """
             获取查询配置排序字段
             """
-            return x["items"][0]["query_md5"] or x["items"][0]["query_configs"][0]["metric_id"]
+            item = x["items"][0]
+            if item["query_md5"]:
+                return f"query_md5:{item['query_md5']}"
+
+            query_config = item["query_configs"][0]
+            return f"system_event:{query_config['metric_id']}:{cls.get_query_md5(x['bk_biz_id'], item)}"
 
         # 过滤掉无目标，无查询分组的策略
         def is_valid_strategy_config(strategy_config):
