@@ -31,6 +31,7 @@ from django.test import TestCase, override_settings
 from apps.log_databus.models import CollectorConfig, DataLinkConfig
 from apps.log_search.models import LogIndexSet, LogIndexSetData
 from apps.tests.utils import FakeRedis
+from bkm_space.define import Space
 
 BK_BIZ_ID = 1
 SPACE_UID = "bkcc__2"
@@ -846,7 +847,31 @@ class IndexGroupViewSetTestCase(TestCase):
         self.index_group = new_group
 
     @override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
-    def test_list_index_groups(self, *args, **kwargs):
+    @patch("apps.log_search.models.SpaceApi.get_space_detail")
+    def test_list_index_groups(self, mock_get_space_detail, *args, **kwargs):
+        mock_space = Space(
+            id=2,
+            space_type_id="bkcc",
+            space_id="2",
+            space_name="蓝鲸",
+            status="normal",
+            space_code="2",
+            space_uid="bkcc__2",
+            type_name="业务",
+            bk_biz_id=2,
+            extend={
+                "status": "normal",
+                "language": "zh-hans",
+                "resources": [{"resource_id": "blueking", "resource_type": "bkci"}],
+                "time_zone": "Asia/Shanghai",
+                "display_name": "[业务] 蓝鲸",
+                "is_bcs_valid": False,
+            },
+            bk_tenant_id="system",
+        )
+
+        mock_get_space_detail.return_value = mock_space
+
         path = "/api/v1/index_group/"
         data = {"space_uid": SPACE_UID}
 
