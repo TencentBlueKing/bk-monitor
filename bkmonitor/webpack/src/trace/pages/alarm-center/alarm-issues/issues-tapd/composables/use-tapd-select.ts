@@ -57,17 +57,21 @@ export function useTapdSelect(options: UseTapdSelectOptions) {
 
   const tapdMaps: Map<string, ITapdListItem> = new Map();
 
+  /** 标记 Select 下拉面板是否处于展开状态，用于控制搜索时是否触发请求 */
+  const isToggle = shallowRef(false);
+
   /**
    * @description 调用接口查询 TAPD 单据列表
    */
   const fetchList = async (isLoadMore = false) => {
-    if (!workspaceId.value || !bizId.value || !tapdType.value) return;
+    // 前置校验：必填参数缺失或已有请求在执行中则跳过，防止重复并发请求
+    if (!workspaceId.value || !bizId.value || !tapdType.value || loading.value || scrollLoading.value) return;
     if (!isLoadMore) {
       loading.value = true;
       list.value = [];
       page.value = 1;
     } else {
-      // 滚动加载更多时仅显示列表内部 loading，避免整体骨架屏闪烁
+      // 滚动加载更多时仅显示列表内部 loading
       scrollLoading.value = true;
     }
 
@@ -79,7 +83,6 @@ export function useTapdSelect(options: UseTapdSelectOptions) {
         name: keyword.value || undefined,
         limit: PAGE_SIZE,
         page: page.value,
-        fields: 'status',
       }).catch(() => null);
       const items = data ?? [];
       for (const item of items) {
@@ -98,10 +101,12 @@ export function useTapdSelect(options: UseTapdSelectOptions) {
   /** 初始加载 / 重置后重新加载 */
   const fetchData = () => fetchList(false);
 
-  /** 搜索关键词变化：重置分页并重新请求 */
+  /** 搜索关键词变化：仅在下拉面板展开时触发请求，避免面板关闭时的无效搜索 */
   const handleSearch = (val: string) => {
     keyword.value = val;
-    fetchList(false);
+    if (isToggle.value) {
+      fetchList(false);
+    }
   };
 
   /** Select 滚动到底部触发加载更多 */
@@ -117,6 +122,7 @@ export function useTapdSelect(options: UseTapdSelectOptions) {
     scrollLoading,
     hasMore,
     tapdMaps,
+    isToggle,
     fetchData,
     handleSearch,
     handleScrollEnd,
