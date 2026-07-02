@@ -302,7 +302,17 @@ class K8sCollectorHandler(CollectorHandler):
         # 更新归属索引集
         index_set = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).first()
         if index_set:
-            IndexSetHandler(index_set.index_set_id).update_parent_index_sets(data.get("parent_index_set_ids", []))
+            parent_index_set_ids = data.get("parent_index_set_ids")
+            parent_index_set_names = data.get("parent_index_set_names")
+
+            parent_index_set_ids = CollectorHandler.obtain_parent_index_set_ids(
+                parent_index_set_ids,
+                parent_index_set_names,
+                bk_biz_id=bk_biz_id,
+                is_update=True,
+            )
+
+            IndexSetHandler(index_set.index_set_id).update_parent_index_sets(parent_index_set_ids)
 
         # collector_config_name更改后更新索引集名称
         if _collector_config_name != self.data.collector_config_name and self.data.index_set_id:
@@ -545,8 +555,19 @@ class K8sCollectorHandler(CollectorHandler):
 
             # 创建索引集，并添加到归属索引集中
             index_set = self.data.create_index_set()
-            if data.get("parent_index_set_ids"):
-                IndexSetHandler(index_set.index_set_id).add_to_parent_index_sets(data["parent_index_set_ids"])
+
+            parent_index_set_ids = data.get("parent_index_set_ids")
+            parent_index_set_names = data.get("parent_index_set_names")
+
+            parent_index_set_ids = CollectorHandler.obtain_parent_index_set_ids(
+                parent_index_set_ids,
+                parent_index_set_names,
+                bk_biz_id=data["bk_biz_id"],
+                is_update=False,
+            )
+
+            if parent_index_set_ids:
+                IndexSetHandler(index_set.index_set_id).add_to_parent_index_sets(parent_index_set_ids)
 
             if self.data.yaml_config_enabled:
                 # yaml 模式，先反序列化解出来，再保存

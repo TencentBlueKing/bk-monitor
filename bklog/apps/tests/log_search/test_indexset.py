@@ -43,15 +43,15 @@ SCENARIO_ID_BKDATA = "bkdata"
 OVERRIDE_MIDDLEWARE = "apps.tests.middlewares.OverrideMiddleware"
 
 CLUSTER_INFO = [
-    {"cluster_config": {"cluster_id": 1, "cluster_name": "", "display_name": "", "port": 123, "domain_name": ""}}
+    {"cluster_config": {"cluster_id": 1, "cluster_name": "", "display_name": "", "port": 123, "domain_name": "", "version": "7.x"}}
 ]
 CLUSTER_INFO_WITH_AUTH = [
     {
-        "cluster_config": {"cluster_id": 1, "cluster_name": "", "display_name": ""},
+        "cluster_config": {"cluster_id": 1, "cluster_name": "", "display_name": "", "version": "7.x"},
         "auth_info": {"username": "", "password": ""},
+        "cluster_type": "elasticsearch",
     }
 ]
-
 CLUSTER_INFOS = {"2_bklog.test3333": {"cluster_config": {"cluster_id": 1, "cluster_name": ""}}}
 
 MAPPING_LIST = [
@@ -108,7 +108,8 @@ CREATE_SUCCESS = {
         "tag_ids": [],
         "is_editable": True,
         "is_group": False,
-        "parent_index_set_ids": [],
+        "parent_index_set_ids": None,
+        "parent_index_set_names": None,
         "sort_fields": [],
         "target_fields": [],
         "result_window": 10000,
@@ -1323,12 +1324,18 @@ class TestCustomCreateIdempotent(TestCase):
     @patch("apps.log_databus.tasks.bkdata.async_create_bkdata_data_id.delay", return_value=None)
     @patch("apps.api.TransferApi.get_result_table", return_value={})
     @patch("apps.api.TransferApi.get_data_id", return_value={})
+    @patch("apps.api.TransferApi.create_result_table", return_value={"table_id": "test_table_id"})
+    @patch("apps.api.TransferApi.get_cluster_info", return_value=CLUSTER_INFO_WITH_AUTH)
+    @patch("apps.utils.thread.MultiExecuteFunc.append", return_value="")
+    @patch("apps.utils.thread.MultiExecuteFunc.run", return_value={})
     @patch("apps.log_databus.handlers.collector.base.CollectorHandler._send_create_notify", return_value=None)
     @patch("apps.log_databus.handlers.collector.base.CollectorHandler._authorization_collector", return_value=None)
     @patch(
         "apps.log_databus.handlers.collector_scenario.base.CollectorScenario.update_or_create_data_id",
         return_value=300,
     )
+    @patch("apps.log_search.handlers.index_set.sync_index_set_archive.delay", return_value=None)
+    @patch("apps.log_search.tasks.mapping.sync_single_index_set_mapping_snapshot.delay", return_value=None)
     @patch("apps.decorators.user_operation_record.delay", return_value=None)
     def test_custom_create_resolves_default_data_link(self, *args):
         from apps.log_databus.handlers.collector.base import CollectorHandler

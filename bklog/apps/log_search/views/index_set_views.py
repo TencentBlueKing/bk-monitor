@@ -37,7 +37,7 @@ from apps.iam.handlers.drf import (
 )
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_databus.constants import DEFAULT_CATEGORY_ID
-from apps.log_databus.serializers import PlatformIndexFieldsSerializer
+from apps.log_databus.serializers import ParentIndexSetFieldsSerializer, PlatformIndexFieldsSerializer
 from apps.log_search.constants import TimeFieldTypeEnum, TimeFieldUnitEnum
 from apps.log_search.exceptions import BkJwtVerifyException, IndexSetNotEmptyException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler, IndexSetHandler
@@ -136,7 +136,7 @@ class IndexSetViewSet(ModelViewSet):
                     return value
                 raise IndexSetNotEmptyException
 
-        class CreateSerializer(CustomSerializer, PlatformIndexFieldsSerializer):
+        class CreateSerializer(CustomSerializer, PlatformIndexFieldsSerializer, ParentIndexSetFieldsSerializer):
             index_set_name = serializers.CharField(required=True)
             result_table_id = serializers.CharField(required=False)
             storage_cluster_id = serializers.IntegerField(required=False)
@@ -145,7 +145,6 @@ class IndexSetViewSet(ModelViewSet):
             space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
             bkdata_auth_url = serializers.ReadOnlyField()
             is_editable = serializers.BooleanField(required=False, default=True)
-            parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=list)
 
             def validate(self, attrs):
                 attrs = super().validate(attrs)
@@ -155,14 +154,13 @@ class IndexSetViewSet(ModelViewSet):
                     raise ValidationError(_("集群ID不能为空"))
                 return attrs
 
-        class UpdateSerializer(CustomSerializer, PlatformIndexFieldsSerializer):
+        class UpdateSerializer(CustomSerializer, PlatformIndexFieldsSerializer, ParentIndexSetFieldsSerializer):
             index_set_name = serializers.CharField(required=True)
             storage_cluster_id = serializers.IntegerField(required=False, default=None)
             scenario_id = serializers.CharField(required=True)
             category_id = serializers.CharField(required=False, default=DEFAULT_CATEGORY_ID)
             space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
             bkdata_auth_url = serializers.ReadOnlyField()
-            parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=list)
 
         class ShowMoreSerializer(CustomSerializer):
             source_name = serializers.CharField(read_only=True)
@@ -642,6 +640,7 @@ class IndexSetViewSet(ModelViewSet):
             target_fields=data.get("target_fields", []),
             sort_fields=data.get("sort_fields", []),
             parent_index_set_ids=data.get("parent_index_set_ids", []),
+            parent_index_set_names=data.get("parent_index_set_names", []),
             is_platform_index=data.get("is_platform_index"),
             platform_index_visibility=data.get("platform_index_visibility"),
             platform_index_filter=data.get("platform_index_filter"),
@@ -715,6 +714,7 @@ class IndexSetViewSet(ModelViewSet):
             target_fields=data.get("target_fields", []),
             sort_fields=data.get("sort_fields", []),
             parent_index_set_ids=data.get("parent_index_set_ids", []),
+            parent_index_set_names=data.get("parent_index_set_names", []),
             is_platform_index=data.get("is_platform_index"),
             platform_index_visibility=data.get("platform_index_visibility"),
             platform_index_filter=data.get("platform_index_filter"),
