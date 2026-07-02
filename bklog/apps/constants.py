@@ -364,6 +364,11 @@ class ViewSetActionEnum(ChoicesEnum):
     SEARCH_VIEWSET_FIELDS = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="fields"
     )
+    SEARCH_VIEWSET_GENERATE_QUERYSTRING = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="SearchViewSet",
+        view_action="generate_querystring",
+    )
     SEARCH_VIEWSET_CONTEXT = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="SearchViewSet", view_action="context"
     )
@@ -637,6 +642,7 @@ class ViewSetActionEnum(ChoicesEnum):
         SEARCH_VIEWSET_BIZS,
         SEARCH_VIEWSET_SEARCH,
         SEARCH_VIEWSET_FIELDS,
+        SEARCH_VIEWSET_GENERATE_QUERYSTRING,
         SEARCH_VIEWSET_CONTEXT,
         SEARCH_VIEWSET_TAILF,
         SEARCH_VIEWSET_EXPORT,
