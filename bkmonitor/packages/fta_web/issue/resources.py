@@ -2479,14 +2479,12 @@ class ListUserTapdWorkspaceResource(Resource):
         token_payload = get_tapd_token(bk_tenant_id=tenant_id, username=username)
         access_token = token_payload.get("access_token", "")
 
-        # 1. 获取用户级已授权 workspace_id 列表（Bearer Token）
+        # 1. 获取用户级已授权 workspace 列表（Bearer Token）
         #    无 token / token 失效 → raise 403 + auth_url 引导重新授权
-        user_workspace_ids = self._fetch_user_workspace_ids(
+        #    get_participant_projects 已返回完整详情，无需额外查询
+        workspace_details = self._fetch_user_workspaces(
             tenant_id, username, bk_biz_id, success_url, error_url, access_token
         )
-
-        # 2. 并发查详情拿 workspace_name（复用 ListTapdWorkspaceResource 模式）
-        workspace_details = self._enrich_workspace_details(user_workspace_ids, access_token)
 
         # 3. 五态标记（项目级×本地 二维判定 + tombstone 检查）
         app_granted_ids = self._fetch_app_granted_ids(bk_biz_id)
@@ -2562,7 +2560,7 @@ class ListUserTapdWorkspaceResource(Resource):
         exc.status_code = 200
         raise exc
 
-    def _fetch_user_workspace_ids(
+    def _fetch_user_workspaces(
         self,
         tenant_id: str,
         username: str,
@@ -2570,17 +2568,17 @@ class ListUserTapdWorkspaceResource(Resource):
         success_url: str,
         error_url: str,
         access_token: str,
-    ) -> list[str]:
-        """获取用户级已授权的 workspace_id 列表（Bearer Token）。
+    ) -> list[dict]:
+        """获取用户级已授权的 workspace 列表（Bearer Token）。
 
         无 token → raise 403；token 失效（422）→ 清理 token + raise 403。
-        :return: ws_ids 列表
+        :return: [{workspace_id, workspace_name, ...}, ...] 列表
         """
         if not access_token:
             self._raise_reauth_required(bk_biz_id, tenant_id, username, success_url, error_url)
 
         try:
-            user_granted_resp = api.tapd.get_granted_workspaces(access_token=access_token)
+            user_granted_resp = api.tapd.get_participant_projects(access_token=access_token)
         except BKAPIError as e:
             # 422 = access_token 无效/过期，清理失效 token，统一转 403 + auth_url 引导重新授权
             if self._is_tapd_token_invalid_422(e):
@@ -2593,62 +2591,25 @@ class ListUserTapdWorkspaceResource(Resource):
         user_granted_list = (
             user_granted_resp.get("list", []) if isinstance(user_granted_resp, dict) else (user_granted_resp or [])
         )
-        # 提取 workspace_id 列表（OpenOrganizationApp 内层不含 name，名称由 _enrich 补全）
-        ws_ids = []
+        # 提取 workspace 详情（get_participant_projects 已返回完整信息）
+        workspace_details = []
         for ws in user_granted_list:
-            ws_inner = ws.get("OpenOrganizationApp", {}) if isinstance(ws, dict) else {}
-            ws_id = str(ws_inner.get("workspace_id", ""))
+            ws_inner = ws.get("Workspace", {}) if isinstance(ws, dict) else {}
+            ws_id = str(ws_inner.get("id", ""))
             if ws_id:
-                ws_ids.append(ws_id)
-        return ws_ids
-
-    @classmethod
-    def _enrich_workspace_details(cls, workspace_ids: list[str], access_token: str) -> list[dict]:
-        """并发查 workspace 详情拿 name（复用 bulk_request 框架）。
-
-        :param workspace_ids: workspace_id 字符串列表
-        :param access_token: 用户态 access_token（Bearer Token 认证）
-        :return: [{workspace_id, workspace_name}, ...]，顺序与入参一致；失败的兜底为 ws_id
-        """
-        if not workspace_ids:
-            return []
-
-        params = [{"workspace_id": int(ws_id), "access_token": access_token} for ws_id in workspace_ids]
-        # ignore_exceptions=True：单个失败返回 None，不中断整体
-        raw_results = api.tapd.get_workspace_info.bulk_request(params, ignore_exceptions=True)
-
-        details = []
-        for ws_id, raw in zip(workspace_ids, raw_results):
-            if raw and isinstance(raw, dict) and "Workspace" in raw:
-                ws_info = raw["Workspace"]
-                details.append(
+                workspace_details.append(
                     {
-                        "workspace_id": str(ws_info["id"]),
-                        "workspace_name": ws_info["name"],
-                        "pretty_name": ws_info.get("pretty_name", ""),
-                        "category": ws_info.get("category", ""),
-                        "status": ws_info.get("status", ""),
-                        "description": ws_info.get("description", ""),
-                        "creator": ws_info.get("creator", ""),
-                        "created": ws_info.get("created", ""),
+                        "workspace_id": ws_id,
+                        "workspace_name": ws_inner.get("name", ws_id),
+                        "pretty_name": ws_inner.get("pretty_name", ""),
+                        "category": ws_inner.get("category", ""),
+                        "status": ws_inner.get("status", ""),
+                        "description": ws_inner.get("description", ""),
+                        "creator": ws_inner.get("creator", ""),
+                        "created": ws_inner.get("created", ""),
                     }
                 )
-            else:
-                # 查询失败兜底
-                logger.warning("获取TAPD workspace信息失败, workspace_id=%s", ws_id)
-                details.append(
-                    {
-                        "workspace_id": str(ws_id),
-                        "workspace_name": str(ws_id),
-                        "pretty_name": "",
-                        "category": "",
-                        "status": "",
-                        "description": "",
-                        "creator": "",
-                        "created": "",
-                    }
-                )
-        return details
+        return workspace_details
 
     @classmethod
     def _fetch_app_granted_ids(cls, bk_biz_id: int) -> set[str]:
