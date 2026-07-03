@@ -337,7 +337,6 @@ class SearchAttrSerializer(serializers.Serializer):
 
 
 class OriginalSearchAttrSerializer(serializers.Serializer):
-    bk_biz_id = serializers.IntegerField(label=_("业务ID"), required=False)
     begin = serializers.IntegerField(required=False, default=0)
     size = serializers.IntegerField(required=False, default=3, max_value=10)
 

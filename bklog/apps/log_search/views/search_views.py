@@ -441,9 +441,8 @@ class SearchViewSet(APIViewSet):
         data["original_search"] = True
         data["is_desensitize"] = False
 
-        index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
-        if index_set_obj:
-            data["bk_biz_id"] = space_uid_to_bk_biz_id(index_set_obj.space_uid)
+        index_set_obj = self.get_object()
+        data["bk_biz_id"] = space_uid_to_bk_biz_id(index_set_obj.space_uid)
 
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
             _start_time = data.get("start_time")
@@ -452,11 +451,13 @@ class SearchViewSet(APIViewSet):
                 now = arrow.now()
                 _start_time = now.shift(days=-1).int_timestamp * 1000
                 _end_time = now.int_timestamp * 1000
-            data.update({
-                "index_set_ids": [index_set_id],
-                "start_time": _start_time,
-                "end_time": _end_time,
-            })
+            data.update(
+                {
+                    "index_set_ids": [index_set_id],
+                    "start_time": _start_time,
+                    "end_time": _end_time,
+                }
+            )
             query_handler = UnifyQueryHandler(data)
             return Response(query_handler.search())
         else:
