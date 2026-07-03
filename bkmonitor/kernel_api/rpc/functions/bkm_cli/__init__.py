@@ -8,6 +8,30 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from . import assignment, bcs_metadata, cache, commands, db, es, issue, platform_source, strategy  # noqa
+from . import (  # noqa
+    assignment,
+    bcs_metadata,
+    cache,
+    commands,
+    db,
+    es,
+    issue,
+    kafka_sample,
+    platform_source,
+    space_router,
+    strategy,
+)
 
-__all__ = ["assignment", "bcs_metadata", "cache", "commands", "db", "es", "issue", "platform_source", "strategy"]
+__all__ = [
+    "assignment",
+    "bcs_metadata",
+    "cache",
+    "commands",
+    "db",
+    "es",
+    "issue",
+    "kafka_sample",
+    "platform_source",
+    "space_router",
+    "strategy",
+]

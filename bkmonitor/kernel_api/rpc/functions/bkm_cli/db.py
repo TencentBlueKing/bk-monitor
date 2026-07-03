@@ -501,6 +501,98 @@ ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
             {"filter": {"config_id": 1}, "limit": 20},
         ],
     ),
+    "metadata.models.vm.record.AccessVMRecord": ModelSpec(
+        model_path="metadata.models.vm.record.AccessVMRecord",
+        # VM 接入登记：某结果表落在哪个 VM 集群（vm_cluster_id）、对应 bkbase vm_rt。
+        # 「多租户 VM 未对齐 / 元数据陈旧」致查空的判别第一跳：取 result_table_id 的 vm_cluster_id，
+        # 再用 ClusterInfo(cluster_type=victoria_metrics, cluster_id=该值, bk_tenant_id=该租户) 对账。
+        fields={
+            "id",
+            "result_table_id",
+            "bk_tenant_id",
+            "vm_cluster_id",
+            "vm_result_table_id",
+            "bk_base_data_id",
+            "bk_base_data_name",
+            "storage_cluster_id",
+            "bcs_cluster_id",
+            "data_type",
+        },
+        default_fields={
+            "result_table_id",
+            "bk_tenant_id",
+            "vm_cluster_id",
+            "vm_result_table_id",
+            "bk_base_data_id",
+        },
+        note=(
+            "VM 接入登记(AccessVMRecord)。查空判别第一跳：取某 result_table_id 的 vm_cluster_id，"
+            "再到 ClusterInfo(cluster_type=victoria_metrics, cluster_id=该值, bk_tenant_id=该租户)对账——"
+            "对不上即 ds_rt.py storage_name 解析为空、unify-query 查空。多租户务必带 bk_tenant_id 过滤。"
+        ),
+        examples=[
+            {
+                "filter": {"result_table_id": "system_20001_sys.cpu_summary", "bk_tenant_id": "system"},
+                "fields": ["result_table_id", "vm_cluster_id", "vm_result_table_id", "bk_base_data_id"],
+            }
+        ],
+    ),
+    "metadata.models.storage.ClusterInfo": ModelSpec(
+        model_path="metadata.models.storage.ClusterInfo",
+        # 存储集群登记。查空判别第二跳：按 (bk_tenant_id, cluster_type=victoria_metrics, cluster_id)
+        # 核 AccessVMRecord.vm_cluster_id 能否命中——命不中即 storage_name 空、查空。
+        # ⚠️ cluster_type 的 VM 值是 "victoria_metrics"（ClusterInfo.TYPE_VM），不是 "vm"。
+        # username/password（SymmetricTextField 加密凭据）不纳入白名单、不可读、不可过滤。
+        fields={
+            "cluster_id",
+            "cluster_name",
+            "cluster_type",
+            "bk_tenant_id",
+            "domain_name",
+            "port",
+            "schema",
+            "is_default_cluster",
+            "registered_to_bkbase",
+            "version",
+            "description",
+            "creator",
+            "create_time",
+            "last_modify_time",
+        },
+        default_fields={
+            "cluster_id",
+            "cluster_name",
+            "cluster_type",
+            "bk_tenant_id",
+            "is_default_cluster",
+            "registered_to_bkbase",
+        },
+        # 凭据/私钥字段兜底：即便未来误加进 fields 或被显式请求也不透出、不可过滤。
+        # username/password（SASL 凭据）+ ssl_certificate/ssl_certificate_key（TLS 证书与私钥）/
+        # ssl_certificate_authorities（CA）——均属敏感，绝不进白名单读取面。
+        sensitive_fields={
+            "username",
+            "password",
+            "ssl_certificate",
+            "ssl_certificate_key",
+            "ssl_certificate_authorities",
+        },
+        note=(
+            "存储集群登记(ClusterInfo)。查空判别第二跳：按 (bk_tenant_id, cluster_type='victoria_metrics', "
+            "cluster_id) 核 AccessVMRecord.vm_cluster_id 能否命中——命不中即 ds_rt.py storage_name 空、"
+            "unify-query 查空。cluster_type 的 VM 值是 'victoria_metrics'（勿写 'vm'）。username/password 不可读。"
+        ),
+        examples=[
+            {
+                "filter": {"bk_tenant_id": "system", "cluster_type": "victoria_metrics"},
+                "fields": ["cluster_id", "cluster_name", "registered_to_bkbase"],
+            },
+            {
+                "filter": {"bk_tenant_id": "system", "cluster_type": "victoria_metrics", "cluster_id": 10113},
+                "fields": ["cluster_id", "cluster_name", "domain_name", "registered_to_bkbase"],
+            },
+        ],
+    ),
 }
 
 
