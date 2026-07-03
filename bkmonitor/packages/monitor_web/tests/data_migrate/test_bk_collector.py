@@ -75,7 +75,7 @@ def test_install_biz_bk_collector_dry_run_does_not_call_plugin_operate(monkeypat
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101, 102]),
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False: [101, 102]),
     )
     monkeypatch.setattr(
         bk_collector,
@@ -125,7 +125,7 @@ def test_install_biz_bk_collector_temporarily_switches_and_restores_nodeman_api(
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id: []),
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False: []),
     )
 
     bk_collector.install_biz_bk_collector(bk_tenant_id="system", bk_biz_ids=[2], operator="admin", dry_run=True)
@@ -136,12 +136,24 @@ def test_install_biz_bk_collector_temporarily_switches_and_restores_nodeman_api(
 
 def test_install_biz_bk_collector_reinstalls_all_proxy_hosts(monkeypatch):
     calls = []
+    target_host_calls = []
 
     monkeypatch.setattr(bk_collector, "_find_latest_plugin_version", lambda **kwargs: "1.2.3")
+
+    def fake_get_target_host_ids_by_biz_id(cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False):
+        target_host_calls.append(
+            {
+                "bk_tenant_id": bk_tenant_id,
+                "bk_biz_id": bk_biz_id,
+                "only_current_bk_biz_id": only_current_bk_biz_id,
+            }
+        )
+        return [101, 102, 103]
+
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101, 102, 103]),
+        classmethod(fake_get_target_host_ids_by_biz_id),
     )
     monkeypatch.setattr(
         bk_collector.api.node_man,
@@ -166,6 +178,13 @@ def test_install_biz_bk_collector_reinstalls_all_proxy_hosts(monkeypatch):
     assert calls[0]["bk_host_id"] == [101, 102, 103]
     assert calls[0]["plugin_params"] == {"name": "bk-collector", "version": "1.2.3"}
     assert calls[0]["job_type"] == "MAIN_INSTALL_PLUGIN"
+    assert target_host_calls == [
+        {
+            "bk_tenant_id": "system",
+            "bk_biz_id": 2,
+            "only_current_bk_biz_id": True,
+        }
+    ]
     install_detail = result["details"][bk_collector.INSTALL][0]
     assert install_detail["skipped_host_ids"] == []
     assert install_detail["operate_result"] == {"job_id": 123}
@@ -179,7 +198,7 @@ def test_install_biz_bk_collector_reports_failed_hosts_in_failure_summary(monkey
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101]),
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False: [101]),
     )
     monkeypatch.setattr(
         bk_collector.api.node_man,
@@ -216,7 +235,7 @@ def test_install_biz_bk_collector_skips_hosts_without_agent(monkeypatch):
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101, 102, 103]),
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False: [101, 102, 103]),
     )
     monkeypatch.setattr(
         bk_collector.api.node_man,
@@ -263,7 +282,7 @@ def test_install_biz_bk_collector_skips_all_when_no_agent(monkeypatch):
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101]),
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False: [101]),
     )
     monkeypatch.setattr(
         bk_collector.api.node_man,
@@ -294,7 +313,7 @@ def test_stop_biz_bk_collector_skips_hosts_without_agent(monkeypatch):
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101, 102]),
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False: [101, 102]),
     )
     monkeypatch.setattr(
         bk_collector.api.node_man,
@@ -342,7 +361,7 @@ def test_stop_biz_bk_collector_can_disable_agent_skip(monkeypatch):
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101, 102]),
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False: [101, 102]),
     )
     monkeypatch.setattr(
         bk_collector.api.node_man,
@@ -539,7 +558,7 @@ def test_stop_biz_bk_collector_dry_run_only_stops_installed_hosts(monkeypatch):
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101, 102, 103]),
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False: [101, 102, 103]),
     )
     monkeypatch.setattr(
         bk_collector.api.node_man,
@@ -587,7 +606,7 @@ def test_stop_biz_bk_collector_temporarily_switches_and_restores_nodeman_api(set
     settings.BK_COMPONENT_API_URL = "https://component.example.com"
     settings.BKNODEMAN_API_BASE_URL = "https://old.example.com/api/c/compapi/v2/nodeman/"
 
-    def fake_get_target_host_ids_by_biz_id(cls, bk_tenant_id, bk_biz_id):
+    def fake_get_target_host_ids_by_biz_id(cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False):
         seen_base_urls.append(settings.BKNODEMAN_API_BASE_URL)
         return []
 
@@ -609,7 +628,7 @@ def test_stop_biz_bk_collector_calls_main_stop_plugin(monkeypatch):
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101]),
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False: [101]),
     )
     monkeypatch.setattr(
         bk_collector.api.node_man,
@@ -661,7 +680,7 @@ def test_install_biz_bk_collector_polls_job_until_success(monkeypatch):
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101]),
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False: [101]),
     )
     monkeypatch.setattr(
         bk_collector.api.node_man,
@@ -693,7 +712,7 @@ def test_stop_biz_bk_collector_reports_running_job_as_timeout(monkeypatch):
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101]),
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False: [101]),
     )
     monkeypatch.setattr(
         bk_collector.api.node_man,

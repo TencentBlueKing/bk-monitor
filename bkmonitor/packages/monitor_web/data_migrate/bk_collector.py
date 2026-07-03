@@ -1489,7 +1489,11 @@ def _operate_biz_bk_collector_plugin(
                 "skipped_hosts": [],
             }
             try:
-                target_host_ids = _unique_ints(BkCollectorConfig.get_target_host_ids_by_biz_id(bk_tenant_id, bk_biz_id))
+                target_host_ids = _unique_ints(
+                    BkCollectorConfig.get_target_host_ids_by_biz_id(
+                        bk_tenant_id, bk_biz_id, only_current_bk_biz_id=True
+                    )
+                )
                 record["target_host_ids"] = target_host_ids
                 logger.info(
                     "operate_biz_bk_collector_plugin: target proxy hosts loaded category=%s bk_tenant_id=%s "
