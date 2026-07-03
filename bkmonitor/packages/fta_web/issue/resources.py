@@ -1775,9 +1775,6 @@ class CreateTapdResource(Resource):
             # 创建bug单据时te字段必填
             if attrs.get("tapd_type") == "bug" and not attrs.get("te"):
                 raise serializers.ValidationError("The te field is required when tapd_type is bug")
-            if attrs.get("sync_status"):
-                raise serializers.ValidationError("sync_status is not supported until TAPD status sync is implemented")
-
             return attrs
 
     @staticmethod
@@ -2016,14 +2013,6 @@ class CreateTapdResource(Resource):
         iteration_id = validated_request_data["iteration_id"]
         te = validated_request_data.get("te", "")
 
-        if sync_status:
-            # TODO: [issue-tapd-sync] 实现 TAPD 单据状态同步功能
-            logger.warning(
-                "sync_status=True requested but not yet implemented, issue_id=%s, tapd_type=%s",
-                issue_id,
-                tapd_type,
-            )
-
         # Step 1: 调用 TAPD API 创建单据
         tapd_info = self._create_tapd(
             tapd_type=tapd_type,
@@ -2123,9 +2112,6 @@ class LinkIssueToTapdResource(Resource):
         )
 
         def validate(self, attrs):
-            if attrs.get("sync_status"):
-                raise serializers.ValidationError("sync_status is not supported until TAPD status sync is implemented")
-
             seen_tapd_ids = set()
             for item in attrs.get("tapd_items", []):
                 tapd_id = item["tapd_id"]

@@ -134,4 +134,10 @@ class Config:
             "schedule": crontab(minute="*/30"),
             "enabled": True,
         },
+        "fta_web.tasks.sync_tapd_issue_status": {
+            "task": "fta_web.tasks.sync_tapd_issue_status",
+            "schedule": crontab(minute="*/10"),
+            "enabled": True,
+            "options": {"queue": "celery_resource"},
+        },
     }
