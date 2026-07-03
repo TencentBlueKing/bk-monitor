@@ -119,7 +119,10 @@ export class IncidentAlertScenario extends AlertScenario {
       /** 覆盖 tags 列：使用独立的故障告警 tags 组件渲染，最大展示4行 */
       tags: {
         cellRenderer: (row: AlertTableItem) => {
-          const tags = row.tags?.map?.(e => ({ alias: `${e.key}: ${e.value}`, value: e.value })) as TagCellItem[];
+          const tags = row.tags?.map?.(e => ({
+            alias: `${e.key.replace(/^tags\./, '')}: ${e.value}`,
+            value: e.value,
+          })) as TagCellItem[];
           if (!tags?.length) return '--';
           return (
             <CollapseTagsMultiRows

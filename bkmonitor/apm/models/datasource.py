@@ -327,6 +327,7 @@ class MetricDataSource(ApmDataSourceConfigBase):
     DATASOURCE_TYPE = ApmDataSourceConfigBase.METRIC_DATASOURCE
 
     DEFAULT_MEASUREMENT = "__default__"
+    DEFAULT_METRIC_GROUP_DIMENSIONS = [{"key": "scope_name", "default_value": "default"}]
 
     DATA_ID_PARAM = {
         "etl_config": "bk_standard_v2_time_series",
@@ -365,6 +366,15 @@ class MetricDataSource(ApmDataSourceConfigBase):
                 f"{cls.DATASOURCE_TYPE}_{app_name}.{cls.DEFAULT_MEASUREMENT}"
             )
 
+    def is_metric_group_dimensions_enabled(self) -> bool:
+        if settings.APM_METRIC_GROUP_DIMENSIONS_ENABLED:
+            return True
+
+        whitelist = settings.APM_METRIC_GROUP_DIMENSIONS_WHITELIST
+        biz_key = str(self.bk_biz_id)
+        app_key = f"{self.bk_biz_id}-{self.app_name}"
+        return biz_key in whitelist or app_key in whitelist
+
     def create_or_update_result_table(self, **option):
         if self.result_table_id != "":
             return
@@ -391,6 +401,9 @@ class MetricDataSource(ApmDataSourceConfigBase):
                 f"[MetricDataSource] bk_data_id: {self.bk_data_id} app_name: {self.app_name} "
                 f"use proxy_cluster_name: {datalink.influxdb_cluster_name}"
             )
+
+        if self.is_metric_group_dimensions_enabled():
+            params["metric_group_dimensions"] = self.DEFAULT_METRIC_GROUP_DIMENSIONS
 
         group_info = resource.metadata.create_time_series_group(params)
         self.time_series_group_id = group_info["time_series_group_id"]
@@ -1519,10 +1532,10 @@ class ProfileDataSource(ApmDataSourceConfigBase):
         global_user = get_global_user(bk_tenant_id=bk_tenant_id)
         maintainer = global_user if not apm_maintainers else f"{global_user},{apm_maintainers}"
 
-        # 判断是否使用 V4 链路（以 profile_bk_biz_id 作为判断依据，负数业务映射到公共业务 ID）
+        # 判断是否使用 V4 链路：全局默认开启或命中业务白名单
         # GlobalConfig 前端输入的值可能为字符串，统一转 int 比较
         v4_white_list = [int(x) for x in settings.APM_PROFILE_V4_BIZ_WHITE_LIST]
-        use_v4 = profile_bk_biz_id in v4_white_list
+        use_v4 = settings.APM_PROFILING_DEFAULT_USE_BKDATA_V4 or bk_biz_id in v4_white_list
 
         if use_v4:
             # V4 声明式链路：轮询可能长达 5 分钟，不可放入事务内
@@ -1547,7 +1560,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
             obj.save()
 
             essentials = provider.provider()
-            # provider() 成功后，补全 resource_name
+            # provider() 成功后，补全 resource_names（bk_data_id 已在 provider() 内部持久化）
             resource_names = provider.get_resource_names(bk_data_id=essentials["bk_data_id"])
             bkdata_datalink_config = {
                 "version": 4,

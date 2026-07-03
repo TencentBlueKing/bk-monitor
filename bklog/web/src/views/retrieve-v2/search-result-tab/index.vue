@@ -91,6 +91,7 @@ const handleDialogUpdate = (newVal) => {
 const handleCollectionSuccess = () => {
   console.log('收藏成功');
 };
+
 const handleAddAlertPolicy = async () => {
   const params = {
     bizId: store.state.bkBizId,
@@ -119,13 +120,12 @@ const handleAddAlertPolicy = async () => {
     }
   }
 
-  // 构建 URL 参数，统一使用 encodeURIComponent 确保特殊字符正确编码
   const urlArr = [];
   for (const key in params) {
     const value = typeof params[key] === 'object' ? JSON.stringify(params[key]) : params[key];
-    urlArr.push(`${key}=${encodeURIComponent(value)}`);
+    urlArr.push(`${key}=${value}`);
   }
-  window.open(`${window.MONITOR_URL}/?${urlArr.join('&')}#/strategy-config/add`, '_blank');
+  window.open(`${window.MONITOR_URL}/?${urlArr.join('&')}#/strategy-config/add`, '_blank', 'noopener,noreferrer');
 };
 const handleAddAlertDashboard = async () => {
   showDialog.value = true;
@@ -144,8 +144,8 @@ watch(
     if (['clustering', 'graphAnalysis', 'grep', 'graph_analysis'].includes(route.query.tab)) {
       if (
         (!grepEnable && route.query.tab === 'grep')
-        || (!graphEnable && route.query.tab === 'graphAnalysis'
-        || route.query.tab === 'graph_analysis')
+        || (!graphEnable && (route.query.tab === 'graphAnalysis'
+        || route.query.tab === 'graph_analysis'))
         || (!aiopsEnable && route.query.tab === 'clustering')
       ) {
         handleActive('origin');

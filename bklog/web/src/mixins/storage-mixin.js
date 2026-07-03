@@ -160,6 +160,7 @@ export default {
           },
         }).href,
         '_blank',
+        'noopener,noreferrer'
       );
     },
     // 存储集群管理权限
@@ -176,7 +177,7 @@ export default {
             },
           ],
         });
-        window.open(res.data.apply_url);
+        window.open(res.data.apply_url, '_blank', 'noopener,noreferrer');
       } catch (err) {
         console.warn(err);
       } finally {

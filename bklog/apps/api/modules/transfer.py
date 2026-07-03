@@ -26,7 +26,12 @@ from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
-from apps.api.modules.utils import add_esb_info_before_request, biz_to_tenant_getter, result_table_to_tenant_getter
+from apps.api.modules.utils import (
+    add_esb_info_before_request,
+    biz_to_tenant_getter,
+    result_table_to_tenant_getter,
+    space_type_id_to_tenant_getter,
+)
 from config.domains import MONITOR_APIGATEWAY_ROOT, MONITOR_APIGATEWAY_ROOT_NEW
 from apps.api.constants import CACHE_TIME_FIVE_MINUTES
 
@@ -87,15 +92,22 @@ def parse_cluster_info(cluster_obj):
     """
     custom_option = cluster_obj["cluster_config"].get("custom_option", {})
     try:
-        cluster_obj["cluster_config"]["custom_option"] = (
-            json.loads(custom_option) if custom_option else {"bk_biz_id": ""}
-        )
-        # bk_biz_id str to int
-        biz_id = str(cluster_obj["cluster_config"]["custom_option"]["bk_biz_id"])
-        if biz_id.isdigit():
-            cluster_obj["cluster_config"]["custom_option"]["bk_biz_id"] = int(biz_id)
+        if isinstance(custom_option, str):
+            custom_option = json.loads(custom_option) if custom_option else {}
     except (ValueError, TypeError):
-        cluster_obj["cluster_config"]["custom_option"] = {}
+        custom_option = {}
+
+    if not isinstance(custom_option, dict):
+        custom_option = {}
+
+    custom_option.setdefault("bk_biz_id", "")
+    cluster_obj["cluster_config"]["custom_option"] = custom_option
+
+    # bk_biz_id str to int
+    biz_id = str(custom_option.get("bk_biz_id", ""))
+    normalized_biz_id = biz_id[1:] if biz_id.startswith("-") else biz_id
+    if normalized_biz_id.isdigit():
+        custom_option["bk_biz_id"] = int(biz_id)
 
     if cluster_obj["auth_info"] and isinstance(cluster_obj["auth_info"], str):
         cluster_obj["auth_info"] = json.loads(base64.b64decode(cluster_obj["auth_info"]))
@@ -464,6 +476,7 @@ class _TransferApi:
             module=self.MODULE,
             description=_("创建或更新metadata路由"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=space_type_id_to_tenant_getter(),
         )
         self.bulk_create_or_update_log_router = DataAPI(
             method="POST",
@@ -471,6 +484,7 @@ class _TransferApi:
             module=self.MODULE,
             description=_("批量创建或更新metadata路由"),
             before_request=add_esb_info_before_request,
+            bk_tenant_id=space_type_id_to_tenant_getter(),
         )
         self.list_kafka_tail = DataAPI(
             method="GET",

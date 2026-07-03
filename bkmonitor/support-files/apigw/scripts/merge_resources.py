@@ -5,6 +5,28 @@ from pathlib import Path
 import yaml
 
 
+def check_unique_operation_ids(merged_data: dict):
+    """校验合并后所有资源的 operationId 全局唯一。
+
+    apigateway 要求 operationId 全局唯一，重复会在 sync_apigw 阶段被网关以
+    `40002 校验失败` 拒绝，进而导致 migrate Job 的 init 容器退出、CrashLoopBackOff。
+    在合并阶段提前 fail-fast，把问题暴露在本地/CI，而非部署时。
+    """
+    seen: dict[str, str] = {}
+    for path, path_data in merged_data.items():
+        for method, method_data in path_data.items():
+            operation_id = method_data.get("operationId")
+            if not operation_id:
+                continue
+            origin = f"{method.upper()} {path}"
+            if operation_id in seen:
+                raise ValueError(
+                    f"duplicate operationId '{operation_id}': {seen[operation_id]} vs {origin}; "
+                    f"apigateway requires globally-unique operationId"
+                )
+            seen[operation_id] = origin
+
+
 def merge_resources(resources_dir: Path):
     """
     合并resources目录下的所有yaml文件，除了old目录
@@ -40,6 +62,9 @@ def merge_resources(resources_dir: Path):
                         method_data["x-bk-apigateway-resource"]["allowApplyPermission"] = True
 
                 merged_data.update(data)
+
+    # 写入前校验 operationId 全局唯一，避免重复定义被带到部署时才由网关报错
+    check_unique_operation_ids(merged_data)
 
     # 生成合并后的资源
     resources = {

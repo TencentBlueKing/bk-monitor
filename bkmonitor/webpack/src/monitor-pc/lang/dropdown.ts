@@ -82,6 +82,7 @@ export default {
   进程端口: 'Process Port',
   时序预测: 'Forecasting',
   离群检测: 'Outlier Detection',
+  新维度值检测: 'New Dimension Value Detection',
   查看告警策略: 'View Rule',
   修改生效时间段: 'Edit Effective Time Period',
   // 管理端

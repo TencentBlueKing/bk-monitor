@@ -44,6 +44,9 @@ class AlertManager(BaseAlertProcessor):
         super().__init__()
         self.logger = logging.getLogger("alert.manager")
         self.alert_keys = alert_keys
+        # 本批告警状态是否已落库(save_alerts 完成)。用于区分 broker 异常发生在 finalize 前后:
+        # finalize 后(send_signal)再抛 broker 异常会丢 signal、终态不会被下周期重发,不应计 deferred。
+        self.alerts_finalized = False
 
     def fetch_alerts(self) -> list[Alert]:
         # 1. 根据告警ID，从ES拉出数据
@@ -168,6 +171,9 @@ class AlertManager(BaseAlertProcessor):
 
             # 4. 保存告警到ES
             saved_alerts = self.save_alerts(alerts_to_check, action=BulkActionType.UPSERT, force_save=True)
+            # 状态已落库: 此后(save_alert_logs / send_signal)再抛异常属 finalize 后,
+            # recovered/closed 等终态不会被下周期 check_abnormal_alert 重新捞起重发 signal。
+            self.alerts_finalized = True
 
         # 5. 保存流水日志
         self.save_alert_logs(saved_alerts)

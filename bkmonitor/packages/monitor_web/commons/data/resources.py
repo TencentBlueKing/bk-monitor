@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 from django.conf import settings
 from django.utils.translation import gettext as _
@@ -39,7 +37,7 @@ def get_desc_by_field(rt_id, field):
         ret = get_key_alias(rt_id).get(field, field)
         return _(ret) if ret else ret
     except Exception as e:
-        logger.warning("获取表字段的中文描述失败" + " rt_id:{} field:{}, except:{}".format(rt_id, field, e))
+        logger.warning("获取表字段的中文描述失败" + f" rt_id:{rt_id} field:{field}, except:{e}")
         return field
 
 
@@ -109,7 +107,8 @@ class GetLabelResource(CacheResource):
 
 def get_label_msg(label):
     """
-    根据二级标签获取一级标签信息
+    根据二级标签获取一级标签信息；若 label 本身是一级标签则回退用一级标签信息；
+    label 不存在于结果表标签中时记录 warning 并回退用 label 自身，避免导入/展示整体中断。
     """
     result = {}
     label_map = resource.commons.get_label()
@@ -121,5 +120,28 @@ def get_label_msg(label):
                 result["second_label"] = second_label["id"]
                 result["second_label_name"] = second_label["name"]
                 return result
-    else:
-        raise CustomException(_("获取{}一级标签失败".format(label)))
+
+    # 未命中二级标签：label 可能本身是一级标签（如 others，无二级子标签，
+    # 会被上面 get_label() 的 children 过滤丢掉，故改用原始 metadata 接口判断全部层级）。
+    # include_admin_only 是后端 LabelResource 的必填参数，须显式传入。
+    all_labels = api.metadata.get_label(label_type=LabelType.ResultTableLabel, include_admin_only=True)[
+        "result_table_label"
+    ]
+    for label_info in all_labels:
+        if label_info["level"] == 1 and label_info["label_id"] == label:
+            return {
+                "first_label": label_info["label_id"],
+                "first_label_name": label_info["label_name"],
+                "second_label": label_info["label_id"],
+                "second_label_name": label_info["label_name"],
+            }
+
+    # 既非二级、也非真实一级标签：可能是拼错或已删除的无效标签。
+    # 记录告警便于排查，但仍回退展示，避免导入配置包、插件、采集等场景因单个无效标签整体中断。
+    logger.warning("get_label_msg 未匹配到结果表标签，可能为无效或已删除的标签: %s", label)
+    return {
+        "first_label": label,
+        "first_label_name": label,
+        "second_label": label,
+        "second_label_name": label,
+    }

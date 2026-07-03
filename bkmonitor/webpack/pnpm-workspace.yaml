@@ -40,4 +40,4 @@ publicHoistPattern:
   - '!@vue/compiler-sfc'
 
 minimumReleaseAgeExclude:
-  - '@blueking/monitor-trace-explore@0.0.21'
+  - '@blueking/monitor-trace-explore@0.0.21 || 0.0.23 || 0.0.24 || 0.0.25 || 0.0.26 || 0.0.27'

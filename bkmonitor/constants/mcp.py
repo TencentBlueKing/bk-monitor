@@ -49,6 +49,7 @@ MCP_SERVER_SUFFIX_TO_PERMISSION_ACTION = {
     "event-query": "using_log_mcp",
     "alarm": "using_alarm_mcp",
     "relation-query": "using_metrics_mcp",
+    "operation": "using_operation_mcp",
     # SSE 协议 MCP Server
     "event": "using_log_mcp",
     "log": "using_log_mcp",

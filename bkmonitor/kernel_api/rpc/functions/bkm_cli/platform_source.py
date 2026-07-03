@@ -172,6 +172,7 @@ def _describe(domain_id: str, operation_id: str) -> dict[str, Any]:
         "kind": "schema",
         "domain": domain.id,
         "operation": op.id,
+        "required_params": list(op.required_params),
         "params_schema": op.params_schema_override or _reflect_schema(op),
         "example_params": op.example_params,
         "default_fields": op.default_fields,

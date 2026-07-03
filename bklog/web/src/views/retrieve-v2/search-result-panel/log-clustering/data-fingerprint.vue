@@ -685,7 +685,7 @@
         this.$store.dispatch('setQueryCondition', additionList).then(([newSearchList, searchMode, isNewSearchPage]) => {
           if (isLink) {
             const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage, { tab: 'origin' });
-            window.open(openUrl, '_blank');
+            window.open(openUrl, '_blank', 'noopener,noreferrer');
             // 新开页后当前页面回填聚类参数
             this.$store.commit('updateState', {'clusterParams': this.requestData});
             return

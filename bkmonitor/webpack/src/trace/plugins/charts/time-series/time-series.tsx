@@ -711,7 +711,7 @@ export default defineComponent({
                   minInterval: 1,
                   scale: !(height.value < 120),
                   position: 'right',
-                  max: v => Math.max(v.max, +maxThreshold),
+                  max: v => Math.max(v.max + (Math.abs(v.max - v.min) || Math.abs(v.max) || 1) * 0.1, +maxThreshold),
                   min: 0,
                 },
               ],

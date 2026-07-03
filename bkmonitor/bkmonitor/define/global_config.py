@@ -425,6 +425,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BKBASE_REDIS_LOCK_NAME", slz.CharField(label="计算平台Redis锁名称", default="watch_bkbase_meta_redis_lock")),
         ("ENABLE_SYNC_BKBASE_METADATA_TO_DB", slz.BooleanField(label="是否同步bkbase元数据至DB", default=False)),
         (
+            "ENABLE_SYNC_GRAPH_DEFINITION_TO_BKBASE",
+            slz.BooleanField(label="是否自动同步计算平台图关系链路", default=False),
+        ),
+        (
             "ACCESS_DATA_BATCH_PROCESS_THRESHOLD",
             slz.IntegerField(label="access数据批量处理触发阈值(0为不触发)", default=0),
         ),
@@ -488,16 +492,50 @@ ADVANCED_OPTIONS = OrderedDict(
         ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[0])),
         ("EXCLUDE_WORKER_TASKS", slz.ListField(label="排除特定的worker任务(需要重启alarm-beat生效)", default=[])),
         (
-            "BCS_DISCOVER_BCS_CLUSTER_BIZ_BLACK_LIST",
-            slz.ListField(label="BCS集群自动发现任务黑名单业务ID列表", default=[]),
+            "NEW_ENV_BIZ_BLACK_LIST",
+            slz.ListField(label="新环境业务黑名单业务ID列表", default=[]),
         ),
         (
-            "BCS_DISCOVER_BCS_CLUSTER_BIZ_WHITE_LIST",
-            slz.ListField(label="BCS集群自动发现任务白名单业务ID列表", default=[]),
+            "NEW_ENV_BIZ_WHITE_LIST",
+            slz.ListField(label="新环境业务白名单业务ID列表", default=[]),
+        ),
+        (
+            "NEW_ENV_CLUSTER_BLACK_LIST",
+            slz.ListField(label="新环境集群黑名单业务ID列表", default=[]),
+        ),
+        (
+            "NEW_ENV_CLUSTER_WHITE_LIST",
+            slz.ListField(label="新环境集群白名单业务ID列表", default=[]),
         ),
         (
             "ALARM_CACHE_REFRESH_BIZ_CONCURRENT",
             slz.IntegerField(label="告警缓存刷新任务的业务并发度", default=3),
+        ),
+        # === 运营数据(operation) MCP 环境相关配置 ===
+        ("OPERATION_MCP_ENV", slz.CharField(label="运营MCP当前环境标识(bkte/bkop/sg)", default="")),
+        (
+            "OPERATION_MCP_FRONTEND_EVENT_TABLE",
+            slz.CharField(label="运营MCP前端埋点事件bkdata结果表", default=""),
+        ),
+        (
+            "OPERATION_MCP_FRONTEND_EVENT_TARGET",
+            slz.CharField(label="运营MCP前端埋点事件target取值", default=""),
+        ),
+        (
+            "OPERATION_MCP_LOG_QUERY_API_PROMQL",
+            slz.CharField(label="运营MCP日志查询量(API)PromQL", default=""),
+        ),
+        (
+            "OPERATION_MCP_DORIS_STORAGE_PROMQL",
+            slz.JSONField(label="运营MCP doris存储量PromQL(按环境, 形如{bkte:.., sg:..})", default={}),
+        ),
+        (
+            "OPERATION_MCP_PLATFORM_BIZ_ID",
+            slz.IntegerField(label="运营MCP平台统计指标所在业务ID", default=0),
+        ),
+        (
+            "OPERATION_MCP_STAT_BIZ_IDS",
+            slz.JSONField(label="运营MCP按指标族的统计业务ID(形如{default:id,logbeat:id})", default={}),
         ),
     ]
 )
@@ -618,12 +656,12 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_DORIS_STORAGE_CONFIG", slz.DictField(label=_("APM Doris 存储配置"), default={})),
         ("APM_PROFILE_V4_BIZ_WHITE_LIST", slz.ListField(label=_("APM Profile V4 链路业务白名单"), default=[])),
         (
-            "APM_PROFILE_V4_DORIS_BINDING_CLUSTER",
-            slz.CharField(label=_("APM Profile V4 DorisBinding 存储集群名称"), default="", allow_blank=True),
+            "APM_PROFILING_DEFAULT_USE_BKDATA_V4",
+            slz.BooleanField(label=_("APM Profiling 默认使用 BKData V4 链路"), default=False),
         ),
         (
-            "APM_PROFILE_V4_DATABUS_PREFER_CLUSTER",
-            slz.CharField(label=_("APM Profile V4 Databus 计算集群名称"), default="", allow_blank=True),
+            "APM_PROFILE_V4_DORIS_BINDING_CLUSTER",
+            slz.CharField(label=_("APM Profile V4 DorisBinding 存储集群名称"), default="", allow_blank=True),
         ),
         ("APM_PROFILING_ENABLED_APPS", slz.DictField(label=_("APM Profiling 开启应用白名单"), default={})),
         ("APM_PROFILING_ENABLED", slz.BooleanField(label=_("APM Profiling 开启功能"), default=False)),
@@ -634,6 +672,10 @@ STANDARD_CONFIGS = OrderedDict(
         (
             "APM_RESOURCE_FILTER_METRICS_ENABLED_APPS",
             slz.DictField(label=_("APM metrics维度补充功能应用白名单"), default={}),
+        ),
+        (
+            "APM_RESOURCE_FILTER_LOGS_ENABLED_APPS",
+            slz.DictField(label=_("APM logs维度补充功能应用白名单"), default={}),
         ),
         (
             "APM_BMW_DEPLOY_BIZ_ID",
@@ -752,6 +794,11 @@ STANDARD_CONFIGS = OrderedDict(
         ("APM_SERVICE_CACHE_APPLICATIONS", slz.ListField(label=_("APM 按服务缓存指标的灰度应用列表"), default=[])),
         # 企业微信模块化（layouts）消息通知灰度业务列表
         ("WECOM_LAYOUTS_BIZ_LIST", slz.ListField(label=_("企业微信模块化消息通知灰度业务列表"), default=[])),
+        # 是否默认开启 APM 指标维度分组接入
+        (
+            "APM_METRIC_GROUP_DIMENSIONS_ENABLED",
+            slz.BooleanField(label=_("是否默认开启 APM 指标维度分组接入"), default=False),
+        ),
         # metric_group_dimensions 分组配置白名单，格式：["业务ID-应用名1", "业务ID-应用名2"]
         (
             "APM_METRIC_GROUP_DIMENSIONS_WHITELIST",

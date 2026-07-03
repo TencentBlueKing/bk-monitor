@@ -850,12 +850,6 @@ class BkDataDorisV4Provider:
                 "subTaskNum": 1,
             },
         }
-        if settings.APM_PROFILE_V4_DATABUS_PREFER_CLUSTER:
-            config["spec"]["preferCluster"] = {
-                "kind": "DatabusCluster",
-                "namespace": _V4_NAMESPACE,
-                "name": settings.APM_PROFILE_V4_DATABUS_PREFER_CLUSTER,
-            }
         return config
 
     def _build_step1_configs(self) -> list:
@@ -953,25 +947,47 @@ class BkDataDorisV4Provider:
         向 BkBase V4 提交 Profile Doris 链路配置，轮询 DataId 就绪后返回数据源信息。
         分两步提交：第一步提交 DataId，第二步提交其余资源。
         返回格式与 V3 BkDataDorisProvider.provider() 保持一致。
-        """
-        # 第一步：提交 DataId
-        step1_configs = self._build_step1_configs()
-        logger.info(
-            "[ProfileDatasource] apply V4 data link step 1 (DataId), name=%s, config_count=%d",
-            self._data_id_name(),
-            len(step1_configs),
-        )
-        try:
-            self._apply_data_link_with_retry(step1_configs)
-        except RetryError as e:
-            logger.error(
-                "[ProfileDatasource] apply V4 data link step 1 retry exhausted, name=%s",
-                self._data_id_name(),
-            )
-            raise e.__cause__ if e.__cause__ else e
 
-        # 轮询 DataId 就绪，获取 bk_data_id
-        bk_data_id = self._wait_for_data_id()
+        幂等设计：
+          - 若 _obj.bk_data_id 已存在（> 0），说明第一步已成功，直接跳过进入第二步。
+          - 第一步成功后立即将 bk_data_id 持久化到 _obj，防止第二步失败后重试时重复创建 DataId。
+        """
+        # 幂等：bk_data_id 已存在则跳过第一步
+        existing_bk_data_id = self._obj.bk_data_id if self._obj else -1
+        if existing_bk_data_id and existing_bk_data_id > 0:
+            bk_data_id = existing_bk_data_id
+            logger.info(
+                "[ProfileDatasource] V4 provider skip step 1, bk_data_id already exists: %d",
+                bk_data_id,
+            )
+        else:
+            # 第一步：提交 DataId
+            step1_configs = self._build_step1_configs()
+            logger.info(
+                "[ProfileDatasource] apply V4 data link step 1 (DataId), name=%s, config_count=%d",
+                self._data_id_name(),
+                len(step1_configs),
+            )
+            try:
+                self._apply_data_link_with_retry(step1_configs)
+            except RetryError as e:
+                logger.error(
+                    "[ProfileDatasource] apply V4 data link step 1 retry exhausted, name=%s",
+                    self._data_id_name(),
+                )
+                raise e.__cause__ if e.__cause__ else e
+
+            # 轮询 DataId 就绪，获取 bk_data_id
+            bk_data_id = self._wait_for_data_id()
+
+            # 第一步成功后立即持久化 bk_data_id，防止第二步失败后重试时重复创建 DataId
+            if self._obj:
+                self._obj.bk_data_id = bk_data_id
+                self._obj.save(update_fields=["bk_data_id"])
+                logger.info(
+                    "[ProfileDatasource] V4 provider step 1 done, bk_data_id=%d saved",
+                    bk_data_id,
+                )
 
         # 第二步：用 bk_data_id 构建并提交其余资源
         step2_configs = self._build_step2_configs(bk_data_id)
@@ -1006,33 +1022,37 @@ class BkDataDorisV4Provider:
 
     def apply(self):
         """
-        DataId 和 ResultTable 在 delete 时不会被删除，启动时只需重新 apply DorisBinding 和 Databus。
-        使用 bkdata_datalink_config.v4_resource_names 中存储的资源名称。
+        启动 V4 链路：复用 provider() 的幂等流程。
+
+        provider() 负责：
+          - bk_data_id 已存在时跳过第一步；
+          - bk_data_id 不存在时提交 DataId，轮询成功后立即持久化 bk_data_id；
+          - 提交 ResultTable / DorisBinding / Databus。
+
+        apply() 负责：provider() 成功后补全 result_table_id / retention / bkdata_datalink_config 并持久化。
         """
-        v4_names = self._obj.bkdata_datalink_config.get("v4_resource_names", {}) if self._obj else {}
-        if not self._obj or not v4_names.get("doris_binding_name"):
-            raise ValueError("[ProfileDatasource] cannot apply V4 data link without stored resource names")
-        bk_data_id = self._obj.bk_data_id
-        # 只提交 DorisBinding 和 Databus
-        configs = [
-            self._build_doris_binding_config(bk_data_id),
-            self._build_databus_config(bk_data_id),
-        ]
-        logger.info(
-            "[ProfileDatasource] apply V4 data link (start), doris_binding_name=%s, databus_name=%s, bk_data_id=%d",
-            self._doris_binding_name(bk_data_id),
-            self._databus_name(bk_data_id),
-            bk_data_id,
-        )
-        try:
-            self._apply_data_link_with_retry(configs)
-        except RetryError as e:
-            logger.error(
-                "[ProfileDatasource] apply V4 data link (start) retry exhausted, doris_binding_name=%s, databus_name=%s",
-                self._doris_binding_name(bk_data_id),
-                self._databus_name(bk_data_id),
-            )
-            raise e.__cause__ if e.__cause__ else e
+        if not self._obj:
+            raise ValueError("[ProfileDatasource] cannot apply V4 data link without datasource instance")
+
+        essentials = self.provider()
+        bk_data_id = essentials["bk_data_id"]
+
+        # 提交成功后补全并持久化（兼容第二步之前失败导致字段未写入的情况）
+        resource_names = self.get_resource_names(bk_data_id=bk_data_id)
+        self._obj.bk_data_id = bk_data_id
+        self._obj.result_table_id = essentials["result_table_id"]
+        self._obj.retention = essentials["retention"]
+        self._obj.bkdata_datalink_config = {
+            "version": 4,
+            "namespace": self._obj.bkdata_datalink_config.get("namespace", ""),
+            "v4_resource_names": {
+                "data_id_name": resource_names["data_id_name"],
+                "result_table_name": resource_names["result_table_name"],
+                "doris_binding_name": resource_names["doris_binding_name"],
+                "databus_name": resource_names["databus_name"],
+            },
+        }
+        self._obj.save(update_fields=["bk_data_id", "result_table_id", "retention", "bkdata_datalink_config"])
 
     def delete(self):
         """

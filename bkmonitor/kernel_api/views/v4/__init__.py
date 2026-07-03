@@ -30,6 +30,7 @@ from .metrics import *  # noqa
 from .new_report import *  # noqa
 from .notice_group import *  # noqa
 from .openclaw import *  # noqa
+from .operation import *  # noqa
 from .plugin import *  # noqa
 from .relation import *  # noqa
 from .shield import *  # noqa

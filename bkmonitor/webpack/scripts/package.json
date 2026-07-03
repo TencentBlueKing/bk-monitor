@@ -1,6 +1,6 @@
 {
   "name": "@blueking/monitor-vue3-components",
-  "version": "1.0.6",
+  "version": "1.0.7-beta.1",
   "description": "blueking monitor vue3 components builder",
   "scripts": {},
   "files": [
@@ -22,6 +22,10 @@
     "dayjs": "^1.11.18",
     "monaco-editor": "0.44.0",
     "vue": "^3.5.15",
-    "vue-tippy": "^6.3.7"
+    "vue-tippy": "^6.3.7",
+    "echarts": "^5.6.0",
+    "@blueking/bk-user-display-name": "1.0.3-beta.3",
+    "@blueking/bk-user-selector": "0.1.8",
+    "@blueking/date-picker": "3.0.6"
   }
 }

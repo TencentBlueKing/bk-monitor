@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 from urllib.parse import urljoin
 
@@ -27,6 +27,7 @@ from apps.iam import Permission
 from apps.iam.handlers import ResourceEnum
 from apps.iam.handlers.actions import ActionEnum
 from apps.log_commons.cc import get_maintainers
+from apps.log_commons.constants import DEFAULT_EXTERNAL_PERMISSION_EXPIRE_DAYS
 from apps.log_commons.exceptions import IllegalMaintainerException
 from apps.models import OperateRecordModel
 from apps.utils.local import get_local_username, get_request_username
@@ -34,6 +35,10 @@ from apps.utils.log import logger
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
 import builtins
+
+
+def get_default_external_permission_expire_time():
+    return timezone.now() + timedelta(days=DEFAULT_EXTERNAL_PERMISSION_EXPIRE_DAYS)
 
 
 def get_random_string_16() -> str:
@@ -256,6 +261,8 @@ class ExternalPermission(OperateRecordModel):
             if update_fields:
                 permission_obj.save(update_fields=update_fields)
         add_authorized_users = set(authorized_users) - exist_authorized_users
+        if add_authorized_users and not expire_time:
+            expire_time = get_default_external_permission_expire_time()
         cls.objects.bulk_create(
             cls(
                 authorized_user=authorized_user,
@@ -396,6 +403,9 @@ class ExternalPermission(OperateRecordModel):
             # 判定当前实例是否有新增的被授权人，有则创建审批单据
             add_authorized_users = list(origin_authorized_users - exist_authorized_users)
             if add_authorized_users:
+                if not expire_time:
+                    expire_time = get_default_external_permission_expire_time()
+                    validated_request_data["expire_time"] = expire_time
                 need_approval = True
         else:
             # 基于被授权人视角的编辑操作

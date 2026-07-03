@@ -43,12 +43,26 @@
           min-width: 0;
           overflow: hidden;
           text-overflow: ellipsis;
+          color: #4d4f56;
           white-space: nowrap;
-
-          .selected-text {
-            color: #4d4f56;
-          }
         }
+      }
+    }
+  }
+}
+
+.k8s-target-selector-popover {
+  .k8s-target-selector-item {
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .bk-select-content-wrapper {
+    .icon-search {
+      &::before {
+        display: none !important;
       }
     }
   }

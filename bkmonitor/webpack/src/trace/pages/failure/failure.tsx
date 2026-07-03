@@ -306,7 +306,7 @@ export default defineComponent({
         .catch(err => {
           console.log(err);
         })
-        .finally(() => { });
+        .finally(() => {});
     };
     /** 获取故障流转列表 */
     const getIncidentOperations = () => {
@@ -371,11 +371,14 @@ export default defineComponent({
       incidentResults({ id: resolvedId.value }).then(res => {
         incidentResultStatus.value = res.status || 'finished';
         incidentResultList.value = res.panels || {};
-        /** 第一次请求这个接口的时候去判断是否要切换到故障诊断的Tab */
+        // 第一次请求这个接口的时候去判断是否要切换到故障诊断的Tab
         const len = Object.keys(incidentResultList.value).length;
         if (isInit && len) {
           const panel = incidentResultList.value.incident_diagnosis.sub_panels || {};
-          isShowDiagnosis.value = Object.values(panel).findIndex(item => item.status === 'finished') > -1;
+          const isDiagnosisEnabled = incidentResultList.value.incident_diagnosis.enabled || false;
+          // 如果故障诊断是开启的且存在子面板且子面板中有完成状态，则显示故障诊断Tab
+          isShowDiagnosis.value =
+            isDiagnosisEnabled && Object.values(panel).findIndex(item => item.status === 'finished') > -1;
         }
       });
     };

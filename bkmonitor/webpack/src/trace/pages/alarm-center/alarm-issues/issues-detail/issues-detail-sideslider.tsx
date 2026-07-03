@@ -29,6 +29,7 @@ import { Sideslider } from 'bkui-vue';
 import { issueDetail } from 'monitor-api/modules/issue';
 import { convertDurationArray } from 'monitor-common/utils';
 import { getDefaultTimezone, updateTimezone } from 'monitor-pc/i18n/dayjs';
+import { appendQueryStringCondition } from 'trace/components/retrieval-filter/query-string-utils';
 import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing';
 
 import IssuesImpactScopeDrawer from '../components/issues-impact-scope-drawer/issues-impact-scope-drawer';
@@ -72,7 +73,7 @@ export default defineComponent({
       default: true,
     },
   },
-  emits: ['update:show', 'next', 'previous'],
+  emits: ['update:show', 'next', 'previous', 'createTapd'],
   setup(props, { emit }) {
     const detail = shallowRef<IssueDetail>(undefined);
     const loading = shallowRef(false);
@@ -180,6 +181,11 @@ export default defineComponent({
       isFullscreen.value = value;
     };
 
+    const handleCreateTapd = () => {
+      emit('createTapd', true, props.issueBizId, props.issueId);
+      handleShowChange(false);
+    };
+
     const handleConditionChange = (val: IWhereItem[]) => {
       conditions.value = val;
     };
@@ -227,7 +233,7 @@ export default defineComponent({
           conditionResult = convertDurationArray(condition.value as string[]);
         }
         conditions.value = mergeWhereList(
-          conditions.value,
+          conditions.value.filter(item => item.key !== condition.key),
           conditionResult.map(condition => ({
             key: condition.key,
             method: condition.method,
@@ -242,8 +248,8 @@ export default defineComponent({
           }))
         );
       } else {
-        const value = `${queryString.value ? ' AND ' : ''}${condition.method === 'neq' ? '-' : ''}${condition.key}: ${condition.value[0]}`;
-        queryString.value = value;
+        const newClause = `${condition.method === 'neq' ? '-' : ''}${condition.key}: ${condition.value[0]}`;
+        queryString.value = appendQueryStringCondition(queryString.value, condition.key, newClause);
       }
     };
 
@@ -268,6 +274,7 @@ export default defineComponent({
       handleImmediateRefresh,
       handleRefreshChange,
       handleToggleFullscreen,
+      handleCreateTapd,
       handleConditionChange,
       handleQueryStringChange,
       handleFilterModeChange,
@@ -308,6 +315,7 @@ export default defineComponent({
               isFullscreen={this.isFullscreen}
               loading={this.loading}
               showStepBtn={this.showStepBtn}
+              onCreateTapdSliderShowChange={this.handleCreateTapd}
               onNameChange={this.handleNameChange}
               onNext={this.handleNext}
               onPrevious={this.handlePrevious}

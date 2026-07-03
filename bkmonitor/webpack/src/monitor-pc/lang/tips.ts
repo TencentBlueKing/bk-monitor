@@ -201,6 +201,8 @@ export default {
   去检索: 'To retrieve',
   '监控数据维度未配置("目标IP"和"云区域ID")，监控目标无法命中目标':
     'The monitoring data dimensions are not configured ("target IP" and "cloud region ID"), and the monitoring target cannot hit the target',
+  '每次检测任务出现新的维度值 {dimensions} 时，都会倒推过去 {window} 内是否出现过相同维度值，如果没有则告警，出现过则不告警。':
+    'Whenever new dimension values ({dimensions}) appear in a detection task, the system retroactively checks whether the same dimension values occurred within the past {window}. If not, an alert is triggered; otherwise, no alert is issued.',
   '监控数据维度未配置("服务实例")， 监控目标无法命中目标':
     'The monitoring data dimension is not configured ("service instance"), and the monitoring target cannot hit the target',
   存在关联的告警组: 'There is an associated alarm group',
@@ -506,4 +508,8 @@ export default {
   '事件数、影响范围会并入主 Issue；': 'Event count and impact scope will be merged into the main Issue.',
   '默认保留第 1 条选中的 Issue 作为主 Issue，也可以在下方表单切换；':
     'By default, the first selected Issue is retained as the main Issue, and can be switched in the form below.',
+
+  '已授权 TAPD 项目列表 · 已关联 {count} 个项目': 'Authorized TAPD Project List · {count} Projects Associated',
+  '开启后，当本单据在外部平台进入「已完成」类状态{0}时，本 Issue 将自动流转为「已解决」。':
+    'After opening, when this document enters the "Completed" status {0} on the external platform, this issue will automatically flow to "Resolved".',
 };

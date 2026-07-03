@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from __future__ import annotations
 
 import copy
-from typing import Any
+from typing import Any, cast
 
 from django.db.models import Q
 
@@ -23,6 +23,7 @@ from kernel_api.rpc.functions.admin.common import (
     PAGE_LIST_TENANT_SCHEMA,
     build_response,
     filter_by_bk_tenant_id,
+    filter_by_tenant_resource_pairs,
     get_bk_tenant_id,
     get_page_list_bk_tenant_id,
     normalize_optional_bool,
@@ -46,6 +47,7 @@ FUNC_COLLECT_CONFIG_TARGET_STATUS = "admin.collect_config.target_status"
 FUNC_COLLECT_CONFIG_SUBSCRIPTION_DETAIL = "admin.collect_config.subscription_detail"
 
 COLLECT_CONFIG_ORDERING_FIELDS = {"id", "name", "bk_biz_id", "collect_type", "plugin_id", "update_time", "create_time"}
+_UNSET = object()
 
 
 def _normalize_int(value: Any, field_name: str, *, required: bool = False) -> int | None:
@@ -140,11 +142,99 @@ def _safe_need_upgrade(config: CollectConfigMeta) -> bool:
         return latest_version.config_version > current_version.config_version
 
 
-def _serialize_collect_config_summary(config: CollectConfigMeta) -> dict[str, Any]:
+def _plugin_key(instance: Any) -> tuple[str | None, str]:
+    return getattr(instance, "bk_tenant_id", None), str(getattr(instance, "plugin_id", ""))
+
+
+def _version_sort_key(version: PluginVersionHistory) -> tuple[int, int, str, str, int]:
+    return (
+        int(getattr(version, "config_version", 0) or 0),
+        int(getattr(version, "info_version", 0) or 0),
+        str(getattr(version, "create_time", "") or ""),
+        str(getattr(version, "update_time", "") or ""),
+        int(getattr(version, "id", 0) or 0),
+    )
+
+
+def _select_upgrade_version(versions: list[PluginVersionHistory]) -> PluginVersionHistory | None:
+    release_versions = [version for version in versions if version.stage == PluginVersionHistory.Stage.RELEASE]
+    packaged_versions = [version for version in release_versions if version.is_packaged]
+    candidates = packaged_versions or release_versions
+    if not candidates:
+        return None
+    return sorted(candidates, key=_version_sort_key)[-1]
+
+
+def _load_collect_config_plugin_context(
+    configs: list[CollectConfigMeta],
+) -> tuple[
+    dict[tuple[str | None, str], CollectorPluginMeta],
+    dict[tuple[str | None, str], PluginVersionHistory],
+    dict[tuple[str | None, str], PluginVersionHistory],
+]:
+    plugin_pairs = {_plugin_key(config) for config in configs if config.plugin_id}
+    if not plugin_pairs:
+        return {}, {}, {}
+
+    plugin_queryset = filter_by_tenant_resource_pairs(CollectorPluginMeta.objects.all(), "plugin_id", plugin_pairs)
+    plugins = {_plugin_key(plugin): plugin for plugin in plugin_queryset}
+
+    version_queryset = filter_by_tenant_resource_pairs(
+        PluginVersionHistory.objects.select_related("config", "info"),
+        "plugin_id",
+        plugin_pairs,
+    )
+    versions_by_plugin: dict[tuple[str | None, str], list[PluginVersionHistory]] = {}
+    for version in version_queryset.order_by("bk_tenant_id", "plugin_id", "config_version", "info_version", "id"):
+        versions_by_plugin.setdefault(_plugin_key(version), []).append(version)
+
+    latest_versions: dict[tuple[str | None, str], PluginVersionHistory] = {}
+    upgrade_versions: dict[tuple[str | None, str], PluginVersionHistory] = {}
+    for key, versions in versions_by_plugin.items():
+        latest_version = _select_current_version(versions)
+        upgrade_version = _select_upgrade_version(versions)
+        if latest_version is not None:
+            latest_versions[key] = latest_version
+        if upgrade_version is not None:
+            upgrade_versions[key] = upgrade_version
+
+    return plugins, latest_versions, upgrade_versions
+
+
+def _calculate_need_upgrade(config: CollectConfigMeta, upgrade_version: PluginVersionHistory | None) -> bool:
+    if upgrade_version is None:
+        return False
+
+    cache_data = _safe_dict(config.cache_data)
+    if _safe_attr(config, "task_status", config.operation_result) == "STOPPED":
+        return False
+    if int(cache_data.get("total_instance_count") or 0) == 0:
+        return False
+
+    current_version = config.deployment_config.plugin_version
+    return upgrade_version.config_version > current_version.config_version
+
+
+def _serialize_collect_config_summary(
+    config: CollectConfigMeta,
+    *,
+    plugin: CollectorPluginMeta | None | object = _UNSET,
+    latest_version: PluginVersionHistory | None | object = _UNSET,
+    upgrade_version: PluginVersionHistory | None | object = _UNSET,
+) -> dict[str, Any]:
     deployment_config: DeploymentConfigVersion = config.deployment_config
     plugin_version = deployment_config.plugin_version
-    plugin = _get_plugin_for_config(config)
-    latest_version = _latest_plugin_version(plugin)
+    resolved_plugin = _get_plugin_for_config(config) if plugin is _UNSET else cast(CollectorPluginMeta | None, plugin)
+    resolved_latest_version = (
+        _latest_plugin_version(resolved_plugin)
+        if latest_version is _UNSET
+        else cast(PluginVersionHistory | None, latest_version)
+    )
+    need_upgrade = (
+        _safe_need_upgrade(config)
+        if upgrade_version is _UNSET
+        else _calculate_need_upgrade(config, cast(PluginVersionHistory | None, upgrade_version))
+    )
     cache_data = _safe_dict(config.cache_data)
     target_nodes = _safe_list(deployment_config.target_nodes)
     total_instance_count = int(cache_data.get("total_instance_count") or len(target_nodes))
@@ -164,11 +254,11 @@ def _serialize_collect_config_summary(config: CollectConfigMeta) -> dict[str, An
         "target_node_type": deployment_config.target_node_type,
         "target_nodes_count": len(target_nodes),
         "subscription_id": deployment_config.subscription_id or None,
-        "need_upgrade": _safe_need_upgrade(config),
+        "need_upgrade": need_upgrade,
         "config_version": plugin_version.config_version,
         "info_version": plugin_version.info_version,
-        "latest_config_version": getattr(latest_version, "config_version", None),
-        "latest_info_version": getattr(latest_version, "info_version", None),
+        "latest_config_version": getattr(resolved_latest_version, "config_version", None),
+        "latest_info_version": getattr(resolved_latest_version, "info_version", None),
         "error_instance_count": error_instance_count,
         "total_instance_count": total_instance_count,
         "running_tasks": _safe_list(cache_data.get("running_tasks")),
@@ -345,20 +435,12 @@ def _serialize_collect_config_detail(config: CollectConfigMeta) -> dict[str, Any
     return summary
 
 
-def _filter_summary(item: dict[str, Any], params: dict[str, Any]) -> bool:
-    status = _normalize_string(params.get("status"))
-    if status and item["status"] != status:
-        return False
-
-    task_status = _normalize_string(params.get("task_status"))
-    if task_status and item["task_status"] != task_status:
-        return False
-
-    need_upgrade = normalize_optional_bool(params.get("need_upgrade"), "need_upgrade")
-    if need_upgrade is not None and item["need_upgrade"] != need_upgrade:
-        return False
-
-    return True
+def _cache_json_contains(field: str, value: Any) -> str:
+    if isinstance(value, bool):
+        normalized_value = str(value).lower()
+    else:
+        normalized_value = f'"{value}"'
+    return f'"{field}": {normalized_value}'
 
 
 def _paginate_items(items: list[dict[str, Any]], *, page: int, page_size: int) -> tuple[list[dict[str, Any]], int]:
@@ -462,17 +544,41 @@ def list_collect_configs(params: dict[str, Any]) -> dict[str, Any]:
     if target_node_type:
         queryset = queryset.filter(deployment_config__target_node_type=target_node_type)
 
-    summaries = [
-        item
-        for item in (_serialize_collect_config_summary(config) for config in queryset.order_by(ordering, "-id"))
-        if _filter_summary(item, params)
+    status = _normalize_string(params.get("status"))
+    if status:
+        queryset = queryset.filter(cache_data__contains=_cache_json_contains("status", status))
+    task_status = _normalize_string(params.get("task_status"))
+    if task_status:
+        queryset = queryset.filter(cache_data__contains=_cache_json_contains("task_status", task_status))
+    need_upgrade = normalize_optional_bool(params.get("need_upgrade"), "need_upgrade")
+    if need_upgrade is not None:
+        queryset = queryset.filter(cache_data__contains=_cache_json_contains("need_upgrade", need_upgrade))
+
+    type_list = [
+        {"id": collect_type_item, "name": collect_type_item}
+        for collect_type_item in sorted(
+            {
+                collect_type_item
+                for collect_type_item in queryset.values_list("collect_type", flat=True).distinct()
+                if collect_type_item
+            }
+        )
     ]
-    page_items, total = _paginate_items(summaries, page=page, page_size=page_size)
-    type_list = sorted(
-        [{"id": item["collect_type"], "name": item["collect_type"]} for item in summaries],
-        key=lambda item: item["id"],
-    )
-    deduped_type_list = list({item["id"]: item for item in type_list}.values())
+
+    ordered_queryset = queryset.order_by(ordering, "-id")
+    total = ordered_queryset.count()
+    offset = (page - 1) * page_size
+    page_configs = list(ordered_queryset[offset : offset + page_size])
+    plugins, latest_versions, upgrade_versions = _load_collect_config_plugin_context(page_configs)
+    page_items = [
+        _serialize_collect_config_summary(
+            config,
+            plugin=plugins.get(_plugin_key(config)),
+            latest_version=latest_versions.get(_plugin_key(config)),
+            upgrade_version=upgrade_versions.get(_plugin_key(config)),
+        )
+        for config in page_configs
+    ]
     return build_response(
         operation="collect_config.list",
         func_name=FUNC_COLLECT_CONFIG_LIST,
@@ -482,7 +588,7 @@ def list_collect_configs(params: dict[str, Any]) -> dict[str, Any]:
             "page": page,
             "page_size": page_size,
             "total": total,
-            "type_list": deduped_type_list,
+            "type_list": type_list,
         },
     )
 

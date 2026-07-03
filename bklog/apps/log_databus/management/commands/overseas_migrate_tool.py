@@ -24,7 +24,13 @@ from apps.log_clustering.models import (
 )
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
-from apps.log_search.models import LogIndexSet, LogIndexSetData
+from apps.log_search.constants import FavoriteGroupType, FavoriteSourceType
+from apps.log_search.models import (
+    Favorite,
+    FavoriteGroup,
+    LogIndexSet,
+    LogIndexSetData,
+)
 from apps.utils.local import activate_request
 from apps.utils.thread import generate_request
 from bkm_space.utils import bk_biz_id_to_space_uid
@@ -105,6 +111,19 @@ class Command(BaseCommand):
             help="是否迁移日志聚类相关表",
             default=True,
         )
+        parser.add_argument(
+            "-mf",
+            "--is_migrate_favorite",
+            type=str_to_bool,
+            help="是否迁移检索收藏相关表",
+            default=True,
+        )
+        parser.add_argument(
+            "--is_migrate_favorite_only",
+            type=str_to_bool,
+            help="是否只迁移检索收藏相关表, 用于已迁移业务补充迁移收藏数据",
+            default=False,
+        )
 
     def handle(self, *args, **options):
         # 设置id偏移量
@@ -140,6 +159,8 @@ class Command(BaseCommand):
             "regex_template": os.path.join(dir_path, "log_clustering_regextemplate.json"),
             "sample_set": os.path.join(dir_path, "log_clustering_sampleset.json"),
             "signature_strategy_settings": os.path.join(dir_path, "log_clustering_signaturestrategysettings.json"),
+            "favorite_group": os.path.join(dir_path, "log_search_favoritegroup.json"),
+            "favorite": os.path.join(dir_path, "log_search_favorite.json"),
         }
 
         json_content_dict = {}
@@ -164,6 +185,8 @@ class Command(BaseCommand):
             is_skip=options["is_skip"],
             is_migrate_index_set=options["is_migrate_index_set"],
             is_migrate_clustering=options["is_migrate_clustering"],
+            is_migrate_favorite=options["is_migrate_favorite"],
+            is_migrate_favorite_only=options["is_migrate_favorite_only"],
             json_content_dict=json_content_dict,
             bk_biz_id=options["bk_biz_id"],
             index_set_ids_str=options["index_set_ids"],
@@ -179,6 +202,8 @@ class OverseasMigrateTool:
         is_skip: bool,
         is_migrate_index_set: bool,
         is_migrate_clustering: bool,
+        is_migrate_favorite: bool,
+        is_migrate_favorite_only: bool,
         json_content_dict: dict,
         bk_biz_id: int = 0,
         index_set_ids_str: str = "",
@@ -187,6 +212,8 @@ class OverseasMigrateTool:
         self.is_skip = is_skip
         self.is_migrate_index_set = is_migrate_index_set
         self.is_migrate_clustering = is_migrate_clustering
+        self.is_migrate_favorite = is_migrate_favorite
+        self.is_migrate_favorite_only = is_migrate_favorite_only
         self.json_content_dict = json_content_dict
         self.bk_biz_id = bk_biz_id
         self.space_uid = ""
@@ -209,6 +236,8 @@ class OverseasMigrateTool:
         self.clustering_subscription_success_migrate_ids = []
         self.notice_group_success_migrate_ids = []
         self.signature_strategy_settings_success_migrate_ids = []
+        self.favorite_group_success_migrate_ids = []
+        self.favorite_success_migrate_ids = []
 
     @transaction.atomic
     def migrate(self):
@@ -224,6 +253,11 @@ class OverseasMigrateTool:
             self.index_set_id_set = set(
                 [data.get("index_set_id") for data in index_set_file_datas if data.get("index_set_id")]
             )
+
+        if self.is_migrate_favorite_only:
+            self.migrate_favorite()
+            self.print_migrate_success_info()
+            return
 
         with transaction.atomic():
             # 无外键关联, 直接全表迁移
@@ -313,6 +347,27 @@ class OverseasMigrateTool:
             # 迁移日志聚类相关表
             self.migrate_clustering()
 
+        if self.is_migrate_favorite:
+            # 迁移检索收藏相关表
+            self.migrate_favorite()
+
+        self.print_migrate_success_info()
+
+        for collector_config_id, collector_config_name in collector_config_id_name_dict.items():
+            try:
+                CollectorHandler.get_instance(collector_config_id).start()
+            except Exception as e:
+                Prompt.error(
+                    msg="采集项 [{collector_config_id}] {collector_config_name} 重新启用失败, 错误信息: {error}",
+                    collector_config_id=collector_config_id,
+                    collector_config_name=collector_config_name,
+                    error=str(e),
+                )
+
+    def print_migrate_success_info(self):
+        """
+        打印迁移成功信息
+        """
         activate_request(generate_request("admin"))
 
         Prompt.info(
@@ -331,7 +386,9 @@ class OverseasMigrateTool:
             "log_clustering_clusteringconfig: {clustering_config_success_migrate_ids}\n"
             "log_clustering_clusteringsubscription: {clustering_subscription_success_migrate_ids}\n"
             "log_clustering_noticegroup: {notice_group_success_migrate_ids}\n"
-            "log_clustering_signaturestrategysettings: {signature_strategy_settings_success_migrate_ids}",
+            "log_clustering_signaturestrategysettings: {signature_strategy_settings_success_migrate_ids}\n"
+            "log_search_favoritegroup: {favorite_group_success_migrate_ids}\n"
+            "log_search_favorite: {favorite_success_migrate_ids}",
             aiops_model_success_migrate_ids=self.aiops_model_success_migrate_ids,
             aiops_model_experiment_success_migrate_ids=self.aiops_model_experiment_success_migrate_ids,
             aiops_signature_and_pattern_success_migrate_ids=self.aiops_signature_and_pattern_success_migrate_ids,
@@ -346,18 +403,9 @@ class OverseasMigrateTool:
             clustering_subscription_success_migrate_ids=self.clustering_subscription_success_migrate_ids,
             notice_group_success_migrate_ids=self.notice_group_success_migrate_ids,
             signature_strategy_settings_success_migrate_ids=self.signature_strategy_settings_success_migrate_ids,
+            favorite_group_success_migrate_ids=self.favorite_group_success_migrate_ids,
+            favorite_success_migrate_ids=self.favorite_success_migrate_ids,
         )
-
-        for collector_config_id, collector_config_name in collector_config_id_name_dict.items():
-            try:
-                CollectorHandler.get_instance(collector_config_id).start()
-            except Exception as e:
-                Prompt.error(
-                    msg="采集项 [{collector_config_id}] {collector_config_name} 重新启用失败, 错误信息: {error}",
-                    collector_config_id=collector_config_id,
-                    collector_config_name=collector_config_name,
-                    error=str(e),
-                )
 
     def migrate_index_set(self, index_set_file_datas: list[dict]) -> dict:
         """
@@ -510,6 +558,74 @@ class OverseasMigrateTool:
             self.signature_strategy_settings_success_migrate_ids.extend(
                 [obj["id"] for obj in signature_strategy_settings_objs]
             )
+
+    def migrate_favorite(self):
+        """
+        迁移检索收藏相关表
+        """
+        favorite_group_id_map = self.migrate_favorite_group()
+
+        for data in self.json_content_dict.get("favorite", []):
+            if self.space_uid and data.get("space_uid") != self.space_uid:
+                continue
+
+            data = data.copy()
+            data.pop("id", None)
+            data["group_id"] = favorite_group_id_map.get(data.get("group_id"))
+            if not data["group_id"]:
+                continue
+
+            if Favorite.objects.filter(
+                name=data.get("name"),
+                space_uid=data.get("space_uid", ""),
+                group_id=data.get("group_id"),
+                source_app_code=data.get("source_app_code", ""),
+                created_by=data.get("created_by", ""),
+            ).exists():
+                continue
+
+            obj = self.data_save_db(Favorite, data)
+            self.favorite_success_migrate_ids.append(obj["id"])
+
+    def migrate_favorite_group(self) -> dict[int, int]:
+        """
+        迁移收藏组, 返回源收藏组 ID 到目标收藏组 ID 的映射
+        """
+        group_id_map = {}
+        for data in self.json_content_dict.get("favorite_group", []):
+            if self.space_uid and data.get("space_uid") != self.space_uid:
+                continue
+
+            source_id = data.get("id")
+            data = data.copy()
+            data.pop("id", None)
+            source_type = data.get("source_type") or FavoriteSourceType.INDEX_SET.value
+            data["source_type"] = source_type
+
+            query = {
+                "group_type": data.get("group_type", ""),
+                "space_uid": data.get("space_uid", ""),
+                "source_app_code": data.get("source_app_code", ""),
+                "source_type": source_type,
+            }
+            if data.get("group_type") == FavoriteGroupType.PRIVATE.value:
+                query["created_by"] = data.get("created_by", "")
+            elif data.get("group_type") != FavoriteGroupType.UNGROUPED.value:
+                query.update(
+                    {
+                        "name": data.get("name", ""),
+                        "created_by": data.get("created_by", ""),
+                    }
+                )
+
+            obj = FavoriteGroup.objects.filter(**query).order_by("created_at").first()
+            if not obj:
+                obj = FavoriteGroup.objects.create(**data)
+                self.favorite_group_success_migrate_ids.append(obj.id)
+
+            group_id_map[source_id] = obj.id
+
+        return group_id_map
 
     @staticmethod
     def datas_save_db(model, file_datas):

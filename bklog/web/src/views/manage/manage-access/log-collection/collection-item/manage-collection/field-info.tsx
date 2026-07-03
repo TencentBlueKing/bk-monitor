@@ -360,6 +360,7 @@ export default class FieldInfo extends tsc<IProps> {
         type: 'fieldInfo',
         step: '2',
         typeKey: (this.collectorData as any).collector_scenario_id,
+        indexSetId: this.$route.query.indexSetId,
       },
     });
   }

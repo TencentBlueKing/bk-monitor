@@ -421,3 +421,58 @@ def test_func_registered_in_kernel_rpc_registry():
     detail = KernelRPCRegistry.get_function_detail("bkm_cli.query_platform_source")
     assert detail is not None
     assert detail["func_name"] == "bkm_cli.query_platform_source"
+
+
+# ---------- nodeman domain ----------
+
+
+def test_nodeman_register_adds_readonly_status_op():
+    from kernel_api.rpc.functions.bkm_cli.platform_catalog import nodeman
+
+    nodeman.register()  # autouse isolated_catalog 已 reset，catalog 为空，可重注册
+    domain = PlatformSourceCatalog.get_domain("nodeman")
+    assert domain is not None
+    assert "readonly" in domain.audit_tags
+    op = domain.operations["get_subscription_instance_status"]
+    assert op.id.startswith("get_")
+    assert op.params_guard is nodeman.guard_subscription_instance_status
+    assert op.required_params == ["subscription_id_list"]
+
+
+def test_nodeman_guard_rejects_unknown_keys():
+    from kernel_api.rpc.functions.bkm_cli.platform_catalog import nodeman
+    from kernel_api.rpc.functions.bkm_cli.platform_catalog._catalog import ParamsGuardRejected
+
+    # _user_request 等隐藏参数（可切换鉴权）必须被拒
+    with pytest.raises(ParamsGuardRejected):
+        nodeman.guard_subscription_instance_status({"subscription_id_list": [1], "_user_request": "x"})
+
+
+def test_nodeman_guard_requires_nonempty_int_list():
+    from kernel_api.rpc.functions.bkm_cli.platform_catalog import nodeman
+    from kernel_api.rpc.functions.bkm_cli.platform_catalog._catalog import ParamsGuardRejected
+
+    for bad in ({}, {"subscription_id_list": []}, {"subscription_id_list": ["x"]}, {"subscription_id_list": [True]}):
+        with pytest.raises(ParamsGuardRejected):
+            nodeman.guard_subscription_instance_status(bad)
+
+
+def test_nodeman_guard_normalizes_ids_and_flag():
+    from kernel_api.rpc.functions.bkm_cli.platform_catalog import nodeman
+
+    out = nodeman.guard_subscription_instance_status({"subscription_id_list": ["12", 13], "show_task_detail": True})
+    assert out == {"subscription_id_list": [12, 13], "show_task_detail": True}
+
+
+def test_describe_includes_required_params():
+    op = OperationSpec(
+        id="get_thing",
+        summary="s",
+        handler=_stub_handler,
+        required_params=["thing_id"],
+        audit_tags=["readonly"],
+    )
+    PlatformSourceCatalog.register_domain(id="d", summary="d", audit_tags=["readonly"], operations=[op])
+    out = query_platform_source({"mode": "describe", "domain": "d", "operation": "get_thing"})
+    assert out["status"] == "ok"
+    assert out["required_params"] == ["thing_id"]

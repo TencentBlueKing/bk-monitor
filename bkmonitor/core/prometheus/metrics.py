@@ -88,6 +88,7 @@ class StatusEnum:
 
     SUCCESS = "success"
     FAILED = "failed"
+    DEFERRED = "deferred"
 
     @classmethod
     def from_exc(cls, expr):
@@ -217,6 +218,22 @@ DETECT_PROCESS_DATA_COUNT = Counter(
     labelnames=("strategy_id", "type"),
 )
 
+# 新维度值检测(NewSeries)自监控：失败安全分支会静默不报，故指标是能力闭环的一部分。
+NEW_SERIES_PROCESS_TIME = Histogram(
+    name="bkmonitor_new_series_pre_detect_time",
+    documentation="NewSeries pre_detect(读旧态+写新态)耗时",
+    labelnames=("strategy_id",),
+    # 显式桶覆盖到 60s(整次 strategy detect 锁顶): 包装类默认桶顶=30s, 超 30s 全塌进 +Inf,
+    # p95/p99 会饱和、分不清 31s 与 59s(恰是锁危险区)。低端保留亚秒分辨率(现实最坏 ~7s)。
+    buckets=(0.1, 0.5, 1.0, 2.5, 5.0, 7.5, 10.0, 15.0, 20.0, 30.0, 45.0, 60.0, INF),
+)
+
+NEW_SERIES_PROCESS_COUNT = Counter(
+    name="bkmonitor_new_series_process_count",
+    documentation="NewSeries 处理计数(type: seen_write/trim/over_limit/failure)",
+    labelnames=("strategy_id", "type"),
+)
+
 # trigger
 TRIGGER_PROCESS_TIME = Histogram(
     name="bkmonitor_trigger_process_time",
@@ -284,6 +301,12 @@ ALERT_MANAGE_COUNT = Counter(
     name="bkmonitor_alert_manage_count",
     documentation="alert(manager) 模块处理告警量",
     labelnames=("status", "exception"),
+)
+
+ALERT_MANAGE_DEFERRED_COUNT = Counter(
+    name="bkmonitor_alert_manage_deferred_count",
+    documentation="alert(manager) 模块因瞬态基础设施错误延后重试的告警量(本批未 finalize, 下周期重跑, 不计入处理成功率)",
+    labelnames=("exception",),
 )
 
 ALERT_PROCESS_PULL_EVENT_COUNT = Counter(

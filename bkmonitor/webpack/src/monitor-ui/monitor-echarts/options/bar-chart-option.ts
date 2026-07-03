@@ -178,7 +178,7 @@ export default class MonitorLineSeries extends MonitorBaseSeries implements ICha
         },
       },
       yAxis: {
-        max: (v: { max: number; min: number }) => Math.max(v.max, maxThreshold),
+        max: (v: { max: number; min: number }) => Math.max(v.max + (Math.abs(v.max - v.min) || Math.abs(v.max) || 1) * 0.1, maxThreshold),
         min: Math.min(0, minThreshold),
       },
       legend: {

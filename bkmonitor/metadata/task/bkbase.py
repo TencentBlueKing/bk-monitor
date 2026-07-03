@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import copy
 import itertools
+import json
 import logging
 import re
 import threading
@@ -27,7 +28,7 @@ from core.prometheus import metrics
 from metadata import models
 from metadata.config import KAFKA_SASL_PROTOCOL
 from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG, BKBASE_NAMESPACE_BK_MONITOR, DataLinkKind
-from metadata.models.data_link.data_link_configs import COMPONENT_CLASS_MAP, ClusterConfig
+from metadata.models.data_link.data_link_configs import COMPONENT_CLASS_MAP, ClusterConfig, ResultTableConfig
 from metadata.models.space.constants import SpaceStatus, SpaceTypes
 from metadata.task.constants import BKBASE_V4_KIND_STORAGE_CONFIGS
 from metadata.task.tasks import sync_bkbase_v4_metadata
@@ -278,6 +279,7 @@ def sync_bkbase_cluster_info(
     username = _get_attr_by_path(cluster_spec, field_mappings["username"])
     password = _get_attr_by_path(cluster_spec, field_mappings["password"])
     version = _get_attr_by_path(cluster_spec, field_mappings.get("version", ""))
+    bk_biz_id = _get_attr_by_path(cluster_spec, field_mappings.get("bk_biz_id", ""))
 
     # kafka 集群专用字段
     sasl_mechanisms = _get_attr_by_path(cluster_spec, field_mappings.get("sasl_mechanisms", ""))
@@ -299,13 +301,19 @@ def sync_bkbase_cluster_info(
 
     # 设置集群配置
     default_settings = {}
+    custom_option = ""
 
     if cluster_type == models.ClusterInfo.TYPE_VM:
         # 如果是VictoriaMetrics集群，需要获取过期时间和所属业务ID
         # 记录过期时间，单位为秒
         default_settings["retention_time"] = (cluster_spec.get("expiresMs") or DEFAULT_VM_EXPIRES_MS) // 1000
         # 记录集群所属业务ID，只有业务独立集群才会有对应字段，默认为None
-        default_settings["bk_biz_id"] = cluster_spec.get("bkBizId")
+        default_settings["bk_biz_id"] = bk_biz_id
+    elif cluster_type == models.ClusterInfo.TYPE_DORIS:
+        # 记录集群所属业务ID，只有业务独立集群才会有对应字段，默认为None
+        default_settings["bk_biz_id"] = bk_biz_id
+        if bk_biz_id is not None:
+            custom_option = json.dumps({"bk_biz_id": bk_biz_id})
     elif cluster_type == models.ClusterInfo.TYPE_KAFKA:
         # 如果是kafka集群，需要获取SASL认证信息
         if is_auth:
@@ -357,6 +365,11 @@ def sync_bkbase_cluster_info(
                     is_updated = True
                     update_fields.append(field)
 
+            if custom_option and not cluster.custom_option:
+                cluster.custom_option = custom_option
+                is_updated = True
+                update_fields.append("custom_option")
+
             # 如果集群未被标记为已注册到bkbase平台，则标记为已注册
             if not cluster.registered_to_bkbase:
                 cluster.registered_to_bkbase = True
@@ -387,6 +400,7 @@ def sync_bkbase_cluster_info(
                 username=username or "",
                 password=password or "",
                 is_default_cluster=False,
+                custom_option=custom_option,
                 default_settings=default_settings,
                 registered_system=models.ClusterInfo.BKDATA_REGISTERED_SYSTEM,
                 registered_to_bkbase=True,
@@ -551,6 +565,14 @@ def _get_bkbase_components_config(
     }
     extra_config: dict[str, Any] = {"status": status}
 
+    def _get_result_table_id(rt_name: str) -> str:
+        return (
+            ResultTableConfig.objects.filter(bk_tenant_id=bk_tenant_id, namespace=namespace, name=rt_name)
+            .values_list("table_id", flat=True)
+            .first()
+            or ""
+        )
+
     # 根据kind处理不同字段
     match kind:
         case DataLinkKind.DATAID.value:
@@ -558,21 +580,33 @@ def _get_bkbase_components_config(
             extra_config["bk_data_id"] = bk_data_id
         case DataLinkKind.RESULTTABLE.value:
             extra_config["bkbase_table_id"] = _get_annotation_value(annotations, "ResultTableId") or ""
+            if not extra_config["bkbase_table_id"]:
+                # 如果annotations中没有ResultTableId，可以使用 bizId拼接name生成table_id
+                extra_config["bkbase_table_id"] = f"{spec['bizId']}_{name}"
             extra_config["data_type"] = spec["dataType"]
         case DataLinkKind.VMSTORAGEBINDING.value:
             extra_config["vm_cluster_name"] = spec["storage"]["name"]
             extra_config["bkbase_result_table_name"] = spec["data"]["name"]
+            extra_config["table_id"] = _get_result_table_id(spec["data"]["name"])
         case DataLinkKind.ESSTORAGEBINDING.value:
             extra_config["es_cluster_name"] = spec["storage"]["name"]
             extra_config["bkbase_result_table_name"] = spec["data"]["name"]
         case DataLinkKind.DORISBINDING.value:
             extra_config["doris_cluster_name"] = spec["storage"]["name"]
             extra_config["bkbase_result_table_name"] = spec["data"]["name"]
+        case DataLinkKind.SURREALDBBINDING.value:
+            extra_config["surrealdb_cluster_name"] = spec["storage"]["name"]
+            extra_config["bkbase_result_table_name"] = spec["data"]["name"]
+            extra_config["table_id"] = _get_result_table_id(spec["data"]["name"])
+            extra_config["table_type"] = spec.get("table_type", "temporary")
+            extra_config["vertices"] = spec.get("vertices", [])
+            extra_config["relations"] = spec.get("relations", [])
         case DataLinkKind.DATABUS.value:
             sink_names = [f"{sink['kind']}:{sink['name']}" for sink in spec["sinks"]]
             extra_config["data_id_name"] = spec["sources"][0]["name"]
             extra_config["sink_names"] = sink_names
             extra_config["consumer_group"] = spec.get("consumerGroup", "")
+            extra_config["data_link_strategy"] = labels.get("bkm_data_link_strategy", "")
         case DataLinkKind.BASEREPORTSINK.value:
             vm_storage_binding_names = []
             for mapping in spec.get("mappings", []):
@@ -625,8 +659,10 @@ def _sync_bkbase_v4_datalink_components(bk_tenant_id: str, namespace: str, kind:
             exists_component = exists_components[base_config["name"]]
             is_updated = False
             for field, value in extra_config.items():
-                # 如果值不为空且与现有值不同，则更新
-                if value and getattr(exists_component, field) != value:
+                if (
+                    _should_update_bkbase_component_field(kind, field, value)
+                    and getattr(exists_component, field) != value
+                ):
                     setattr(exists_component, field, value)
                     is_updated = True
                     update_fields.add(field)
@@ -652,6 +688,14 @@ def _sync_bkbase_v4_datalink_components(bk_tenant_id: str, namespace: str, kind:
     )
 
 
+def _should_update_bkbase_component_field(kind: str, field: str, value: Any) -> bool:
+    if value:
+        return True
+    if kind == DataLinkKind.DATABUS.value and field == "data_link_strategy" and value == "":
+        return True
+    return kind == DataLinkKind.SURREALDBBINDING.value and field in {"vertices", "relations"} and value == []
+
+
 @share_lock(ttl=3600, identify="metadata_sync_bkbase_v4_datalink_components")
 def sync_bkbase_v4_datalink_components():
     """定时同步 V4 链路组件配置"""
@@ -668,6 +712,7 @@ def sync_bkbase_v4_datalink_components():
         DataLinkKind.VMSTORAGEBINDING.value,
         DataLinkKind.ESSTORAGEBINDING.value,
         DataLinkKind.DORISBINDING.value,
+        DataLinkKind.SURREALDBBINDING.value,
         DataLinkKind.DATABUS.value,
         DataLinkKind.DATAID.value,
         DataLinkKind.RESULTTABLE.value,

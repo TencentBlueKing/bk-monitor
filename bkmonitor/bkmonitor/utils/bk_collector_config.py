@@ -18,7 +18,7 @@ from kubernetes import client
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
 from bkmonitor.utils.bcs import BcsKubeClient
-from bkmonitor.utils.common_utils import safe_int, count_md5
+from bkmonitor.utils.common_utils import count_md5, safe_int
 from constants.bk_collector import BkCollectorComp
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
@@ -59,7 +59,7 @@ class BkCollectorConfig:
             if int(bk_cloud_id) in [0, -1]:
                 continue
 
-            proxy_list = api.node_man.get_proxies(bk_cloud_id=bk_cloud_id)
+            proxy_list = api.node_man.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
             for p in proxy_list:
                 if p["status"] != "RUNNING":
                     logger.warning(
@@ -71,7 +71,7 @@ class BkCollectorConfig:
         return bk_host_ids
 
     @classmethod
-    def get_target_host_ids_by_biz_id(cls, bk_tenant_id, bk_biz_id) -> list[int]:
+    def get_target_host_ids_by_biz_id(cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id: bool = False) -> list[int]:
         """
         获取指定租户指定业务下所有 Proxy 机器列表
         """
@@ -85,7 +85,13 @@ class BkCollectorConfig:
             proxies = []
             logger.info(f"get_proxies_by_biz({bk_biz_id}) error ({e})")
 
-        proxy_biz_ids = {proxy["bk_biz_id"] for proxy in proxies}
+        # 如果only_current_bk_biz_id为True，则只获取当前业务下的Proxy机器列表
+        proxy_biz_ids: set[int] = {proxy["bk_biz_id"] for proxy in proxies}
+        if only_current_bk_biz_id:
+            if bk_biz_id not in proxy_biz_ids:
+                return []
+            proxy_biz_ids = {bk_biz_id}
+
         proxy_hosts = []
         for proxy_biz_id in proxy_biz_ids:
             current_proxy_hosts = api.cmdb.get_host_by_ip(

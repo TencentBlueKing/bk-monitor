@@ -100,6 +100,9 @@ export default defineComponent({
     let begin = 0;
     const size = 50;
     let total = 0;
+    let isUnmounted = false;
+    let requestSeq = 0;
+    let scrollIntoViewTimer: ReturnType<typeof setTimeout> | null = null;
 
     const isMonitorApm = window.__IS_MONITOR_APM__;
 
@@ -114,6 +117,7 @@ export default defineComponent({
     );
 
     const requestLogList = (isManualSearch = true) => {
+      const currentRequestSeq = ++requestSeq;
       listLoading.value = true;
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
       const searchUrl = store.getters.isSceneMode
@@ -142,8 +146,14 @@ export default defineComponent({
       }
       axiosInstance(params)
         .then((resp: any) => {
+          if (isUnmounted || currentRequestSeq !== requestSeq) {
+            return;
+          }
           if (resp.data && !resp.message) {
             readBlobRespToJson(resp.data).then(({ code, data, result, permission }) => {
+              if (isUnmounted || currentRequestSeq !== requestSeq) {
+                return;
+              }
               if (code === '9900403') {
                 store.commit('updateState', {
                   authDialogData: {
@@ -167,7 +177,9 @@ export default defineComponent({
           }
         })
         .finally(() => {
-          listLoading.value = false;
+          if (!isUnmounted && currentRequestSeq === requestSeq) {
+            listLoading.value = false;
+          }
         });
     };
 
@@ -337,16 +349,19 @@ export default defineComponent({
 
       choosedIndex.value = index;
       const rowInfo = row;
-      const contextFields = store.state.indexSetOperatorConfig.contextAndRealtime.extra?.context_fields;
+      if (!rowInfo) {
+        return;
+      }
+      const contextFields = store.state.indexSetOperatorConfig.contextAndRealtime?.extra?.context_fields;
       const timeField = store.state.indexFieldInfo.time_field;
       const dialogNewParams = {};
       Object.assign(dialogNewParams, {
         dtEventTimeStamp: rowInfo.dtEventTimeStamp,
       });
       if (Array.isArray(contextFields) && contextFields.length) {
-        // 传参配置指定字段
-        contextFields.push(timeField);
-        contextFields.forEach((field) => {
+        // 传参配置指定字段。不要直接 push 到 store 配置数组，否则每次点击行都会污染全局配置并持续增长。
+        const targetContextFields = Array.from(new Set([...contextFields, timeField].filter(Boolean)));
+        targetContextFields.forEach((field) => {
           if (field === 'bk_host_id') {
             if (rowInfo[field]) {
               dialogNewParams[field] = rowInfo[field];
@@ -409,6 +424,14 @@ export default defineComponent({
     });
 
     onBeforeUnmount(() => {
+      isUnmounted = true;
+      requestSeq += 1;
+      handleScrollContent.cancel();
+      if (scrollIntoViewTimer) {
+        clearTimeout(scrollIntoViewTimer);
+        scrollIntoViewTimer = null;
+      }
+      logList.value = [];
       removeSegmentLightStyle();
     });
 
@@ -419,7 +442,7 @@ export default defineComponent({
         const modeIndex = store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE];
         searchBarRef.value.setLocalMode(modeIndex);
         requestOtherparams.search_mode = modeIndex === 0 ? 'ui' : 'sql';
-        const addition = props.retrieveParams.addition;
+        const addition = props.retrieveParams.addition || [];
         // 初始化带上常用查询设置
         if (modeIndex === 0) {
           // ui 模式
@@ -429,7 +452,7 @@ export default defineComponent({
             const addAdditionList = addition.map(item => ({
               disabled: false,
               field: item.field,
-              field_type: fieldsMap.value[item.field].field_type,
+              field_type: fieldsMap.value[item.field]?.field_type ?? item.field_type,
               operator: item.operator,
               value: item.value,
               relation: 'OR',
@@ -452,11 +475,23 @@ export default defineComponent({
         // 设置外部数据
         const outerLogResult = store.state.indexSetQueryResult;
         total = outerLogResult.total;
-        logList.value = outerLogResult.list.slice();
+        logList.value = (outerLogResult.origin_log_list?.length
+          ? parseBigNumberList(outerLogResult.origin_log_list)
+          : outerLogResult.list
+        ).slice();
         begin = logList.value.length;
-        setTimeout(() => {
+        if (scrollIntoViewTimer) {
+          clearTimeout(scrollIntoViewTimer);
+        }
+        scrollIntoViewTimer = setTimeout(() => {
+          if (isUnmounted) {
+            return;
+          }
           // 自动定位到选中行
-          const isChoosedRow = Array.from(tableRef.value.querySelectorAll('.is-choosed'))[0];
+          const isChoosedRow = Array.from(tableRef.value?.querySelectorAll('.is-choosed') ?? [])[0] as HTMLElement;
+          if (!isChoosedRow) {
+            return;
+          }
           const positionInfo = isChoosedRow.getBoundingClientRect();
           if (positionInfo.top > window.innerHeight - 70) {
             isChoosedRow.scrollIntoView();
@@ -495,6 +530,7 @@ export default defineComponent({
             showFavorites={false}
             showQuerySetting={false}
             usageType='local'
+            popupAppendToBody
             on-mode-change={handleSearch}
             on-search={handleSearch}
           />

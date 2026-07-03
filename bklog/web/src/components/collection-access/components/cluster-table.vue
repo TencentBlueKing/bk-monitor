@@ -277,7 +277,7 @@
             spaceUid: this.$store.state.spaceUid,
           },
         });
-        window.open(newUrl.href, '_blank');
+        window.open(newUrl.href, '_blank', 'noopener,noreferrer');
       },
       getPercent($row) {
         return (100 - $row.storage_usage) / 100;
