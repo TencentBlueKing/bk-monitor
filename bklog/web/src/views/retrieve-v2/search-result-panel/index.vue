@@ -66,9 +66,6 @@ const DEFAULT_TREND_CHART_FOLDED_HEIGHT = 40;
 const heightNum = ref(isTrendChartShow.value ? DEFAULT_TREND_CHART_EXPANDED_HEIGHT : DEFAULT_TREND_CHART_FOLDED_HEIGHT);
 const shouldRenderTrendChart = ref(false);
 const isTrendChartPending = ref(!shouldRenderTrendChart.value);
-const TREND_CHART_MIN_DELAY = 500;
-let renderTrendChartDelayTimer = null;
-let renderTrendChartIdleTimer = null;
 
 const setTrendChartPending = () => {
   if (!isOriginShow.value) {
@@ -81,46 +78,17 @@ const setTrendChartPending = () => {
   RetrieveHelper.setTrendGraphHeight(heightNum.value);
 };
 
-const clearRenderTrendChartTimer = () => {
-  if (renderTrendChartDelayTimer) {
-    window.clearTimeout(renderTrendChartDelayTimer);
-    renderTrendChartDelayTimer = null;
-  }
-
-  if (renderTrendChartIdleTimer) {
-    if (window.cancelIdleCallback) {
-      window.cancelIdleCallback(renderTrendChartIdleTimer);
-    } else {
-      window.clearTimeout(renderTrendChartIdleTimer);
-    }
-    renderTrendChartIdleTimer = null;
-  }
-};
-
 const scheduleRenderTrendChart = () => {
-  if (shouldRenderTrendChart.value || renderTrendChartDelayTimer || renderTrendChartIdleTimer) {
+  if (shouldRenderTrendChart.value) {
     return;
   }
 
-  const render = () => {
-    renderTrendChartIdleTimer = null;
-    shouldRenderTrendChart.value = true;
-  };
+  if (!isOriginShow.value) {
+    return;
+  }
 
-  renderTrendChartDelayTimer = window.setTimeout(() => {
-    renderTrendChartDelayTimer = null;
-
-    if (!isOriginShow.value) {
-      return;
-    }
-
-    if (window.requestIdleCallback) {
-      renderTrendChartIdleTimer = window.requestIdleCallback(render, { timeout: 3000 });
-      return;
-    }
-
-    renderTrendChartIdleTimer = window.setTimeout(render, 1200);
-  }, TREND_CHART_MIN_DELAY);
+  // 立即渲染，不延迟
+  shouldRenderTrendChart.value = true;
 };
 
 watch(isOriginShow, (value) => {
@@ -143,7 +111,6 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-  clearRenderTrendChartTimer();
   RetrieveHelper.off(RetrieveEvent.TREND_GRAPH_PENDING, setTrendChartPending);
 });
 

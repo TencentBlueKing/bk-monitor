@@ -338,8 +338,9 @@ export const useFavorite = () => {
     });
 
     store.commit('updateIndexSetQueryResult', {
-      origin_log_list: [],
-      list: [],
+      row_keys: [],
+      row_query_key: '',
+      cached_count: 0,
     });
 
     store.dispatch('requestIndexSetFieldInfo').then(() => {

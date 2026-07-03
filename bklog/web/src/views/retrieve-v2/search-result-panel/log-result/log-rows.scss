@@ -282,7 +282,7 @@
     &.row-header {
       position: sticky;
       top: 0;
-      z-index: 2;
+      z-index: 5;
       pointer-events: none;
       box-sizing: content-box;
       display: none;
@@ -505,53 +505,7 @@
     }
 
     .handle-content {
-      box-sizing: border-box;
-      display: inline-flex;
-      gap: 2px;
-      align-items: center;
-      justify-content: flex-start;
-      width: max-content;
-      min-width: 0;
-      max-width: none;
-      height: 28px;
-      padding: 3px 5px;
       overflow: visible;
-      background: #fff;
-      border: 1px solid #c4cee3;
-      border-radius: 4px;
-      box-shadow: 0 2px 6px 0 #0000001f;
-
-      .handle-card {
-        flex: 0 0 20px;
-        width: 20px;
-        min-width: 20px;
-        height: 20px;
-        margin-left: 0;
-        font-size: 16px;
-        line-height: 20px;
-        border-radius: 3px;
-
-        &:hover,
-        &:focus {
-          color: #3a84ff;
-          background-color: #edf4ff;
-        }
-
-        .bklog-icon,
-        .icon {
-          font-size: 16px;
-          line-height: 20px;
-        }
-
-        &.ai-assistant {
-          img {
-            top: 0;
-            left: 0;
-            width: 20px;
-            height: 20px;
-          }
-        }
-      }
     }
   }
 
@@ -580,4 +534,9 @@
       }
     }
   }
+}
+
+.bklog-row-hover-operator-content {
+  display: inline-flex;
+  align-items: center;
 }

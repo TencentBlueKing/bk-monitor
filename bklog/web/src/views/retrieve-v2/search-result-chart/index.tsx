@@ -93,6 +93,7 @@ export default defineComponent({
       canGoBack,
       cacheChartOptions,
       restoreChartOptions,
+      processChartDataWithWorker,
     } = useTrendChart({
       target: trendChartCanvas,
       handleChartDataZoom,
@@ -182,9 +183,7 @@ export default defineComponent({
         },
       });
       store.commit('retrieve/updateTrendDataLoading', true);
-      setTimeout(() => {
-        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH); // 触发趋势图刷新
-      });
+      RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH); // 触发趋势图刷新
     };
 
     // 节流后的回退操作函数
@@ -235,7 +234,27 @@ export default defineComponent({
           const { urlStr, indexId, queryData, isInit: currentIsInit } = result.value;
           try {
             const res = await fetchTrendChartData(urlStr, indexId, queryData);
-            setChartData(res?.data?.aggs, queryData.group_field, currentIsInit);
+
+            // P3 优化：对于大数据量使用 Worker 处理
+            const totalCount = res?.data?.aggs?.group_by_histogram?.buckets?.length ?? 0;
+            if (totalCount > 100 && processChartDataWithWorker) {
+              try {
+                await processChartDataWithWorker(
+                  res?.data?.aggs,
+                  queryData.group_field,
+                  gradeOptions.value?.settings ?? [],
+                  queryData,
+                  runningInterval,
+                  store.state.indexItem.timezone,
+                  currentIsInit,
+                );
+              } catch {
+                // Worker 处理失败，降级到主线程处理
+                setChartData(res?.data?.aggs, queryData.group_field, currentIsInit);
+              }
+            } else {
+              setChartData(res?.data?.aggs, queryData.group_field, currentIsInit);
+            }
             if (currentIsInit) {
               markTrendReady();
             }

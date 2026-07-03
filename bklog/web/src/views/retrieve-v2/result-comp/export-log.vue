@@ -387,7 +387,7 @@
           return state.retrieve.trendDataCount;
         },
         queueStatus: state => state.retrieve.isTotalCountLoaded,
-        totalFields: state => state.indexFieldInfo.fields ?? [],
+        totalFields: (_state, getters) => getters.filteredFieldList,
         visibleFields: state => state.visibleFields ?? [],
         showFieldAlias: state => state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
         retrieveType: state => state.indexItem?.retrieve_type,

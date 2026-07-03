@@ -7,6 +7,7 @@ import {
 import useFieldNameHook from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+import { storeRuntimeCacheService } from '@/store/services/runtime-cache.service';
 import jsCookie from 'js-cookie';
 
 import IPSelector from '../components/ip-selector';
@@ -101,6 +102,7 @@ const handleHeightChange = (height) => {
 };
 
 const operatorDictionary = computed(() => {
+  store.state.operatorDictionaryVersion;
   const defVal = {
     [getOperatorKey(FulltextOperatorKey)]: {
       label: t('包含'),
@@ -109,7 +111,7 @@ const operatorDictionary = computed(() => {
   };
   return {
     ...defVal,
-    ...store.state.operatorDictionary,
+    ...storeRuntimeCacheService.getOperatorDictionary(store.state.indexId || 'default'),
   };
 });
 
