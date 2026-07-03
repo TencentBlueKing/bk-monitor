@@ -84,6 +84,7 @@ export default defineComponent({
           isShowCopy={false}
           isShowFavorite={false}
           isShowResident={false}
+          isSingleMode={true}
           queryString={props.queryString}
           where={props.where}
           onModeChange={(v: EMode) => emit('modeChange', v)}

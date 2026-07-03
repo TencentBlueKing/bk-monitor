@@ -25,6 +25,7 @@
  */
 
 import { EFieldType } from '../../../components/retrieval-filter/typing';
+import { HOST_FILTER_FIELDS_ENUM } from './constants';
 
 import type { IFilterField } from '../../../components/retrieval-filter/typing';
 import type { EHostAggMethod, IHostQuickCard, IHostStatusConfig } from '../types';
@@ -129,19 +130,162 @@ const ENUM_METHODS = [
  * 与旧版主机监控字段保持一致，但仅保留新版列表实际支持的过滤维度。
  */
 export const HOST_FILTER_FIELDS: IFilterField[] = [
-  { name: 'bk_host_innerip', alias: '内网IP', type: EFieldType.text, isEnableOptions: true, methods: ENUM_METHODS },
-  { name: 'bk_host_name', alias: '主机名', type: EFieldType.keyword, isEnableOptions: true, methods: ENUM_METHODS },
-  { name: 'bk_os_name', alias: 'OS名称', type: EFieldType.keyword, isEnableOptions: true, methods: ENUM_METHODS },
-  { name: 'bk_cloud_name', alias: '管控区域', type: EFieldType.keyword, isEnableOptions: true, methods: ENUM_METHODS },
-  { name: 'status', alias: '采集状态', type: EFieldType.keyword, isEnableOptions: true, methods: ENUM_METHODS },
-  { name: 'bk_cluster', alias: '集群名', type: EFieldType.keyword, isEnableOptions: true, methods: ENUM_METHODS },
-  { name: 'bk_inst_name', alias: '模块名', type: EFieldType.keyword, isEnableOptions: true, methods: ENUM_METHODS },
-  { name: 'display_name', alias: '进程', type: EFieldType.keyword, isEnableOptions: true, methods: ENUM_METHODS },
-  { name: 'cpu_usage', alias: 'CPU使用率', type: EFieldType.integer, isEnableOptions: false, methods: NUMBER_METHODS },
-  { name: 'mem_usage', alias: '应用内存使用率', type: EFieldType.integer, isEnableOptions: false, methods: NUMBER_METHODS },
-  { name: 'disk_in_use', alias: '磁盘空间使用率', type: EFieldType.integer, isEnableOptions: false, methods: NUMBER_METHODS },
-  { name: 'alarm_count', alias: '未恢复告警', type: EFieldType.integer, isEnableOptions: false, methods: NUMBER_METHODS },
+  {
+    name: HOST_FILTER_FIELDS_ENUM.bkHostId,
+    alias: window.i18n.t('主机'),
+    type: EFieldType.text,
+    methods: ENUM_METHODS,
+    isEnableOptions: false,
+  },
+  {
+    name: HOST_FILTER_FIELDS_ENUM.bkHostInnerIpV6,
+    alias: window.i18n.t('内网IPv6'),
+    type: EFieldType.text,
+    methods: ENUM_METHODS,
+    isEnableOptions: false,
+  },
+  {
+    name: HOST_FILTER_FIELDS_ENUM.bkHostOuterIpV6,
+    alias: window.i18n.t('外网IPv6'),
+    type: EFieldType.text,
+    methods: ENUM_METHODS,
+    isEnableOptions: false,
+  },
+  {
+    name: HOST_FILTER_FIELDS_ENUM.bkHostInnerIp,
+    alias: window.i18n.t('内网IP'),
+    type: EFieldType.text,
+    methods: ENUM_METHODS,
+    isEnableOptions: false,
+  },
+  {
+    name: HOST_FILTER_FIELDS_ENUM.bkHostOuterIp,
+    alias: window.i18n.t('外网IP'),
+    type: EFieldType.text,
+    methods: ENUM_METHODS,
+    isEnableOptions: false,
+  },
+  {
+    name: HOST_FILTER_FIELDS_ENUM.status,
+    alias: window.i18n.t('采集状态'),
+    type: EFieldType.keyword,
+    methods: ENUM_METHODS,
+    isEnableOptions: true,
+  },
+  {
+    name: HOST_FILTER_FIELDS_ENUM.bkHostName,
+    alias: window.i18n.t('主机名'),
+    type: EFieldType.keyword,
+    methods: ENUM_METHODS,
+    isEnableOptions: true,
+  },
+  {
+    name: HOST_FILTER_FIELDS_ENUM.bkOsName,
+    alias: window.i18n.t('OS名称'),
+    type: EFieldType.keyword,
+    methods: ENUM_METHODS,
+    isEnableOptions: true,
+  },
+  {
+    name: HOST_FILTER_FIELDS_ENUM.bkCloudName,
+    alias: window.i18n.t('管控区域'),
+    type: EFieldType.keyword,
+    methods: ENUM_METHODS,
+    isEnableOptions: true,
+  },
+  {
+    name: HOST_FILTER_FIELDS_ENUM.clusterModule,
+    alias: window.i18n.t('业务拓扑'),
+    type: EFieldType.keyword,
+    methods: ENUM_METHODS,
+    isEnableOptions: true,
+  },
+  {
+    name: HOST_FILTER_FIELDS_ENUM.bkCluster,
+    alias: window.i18n.t('集群名'),
+    type: EFieldType.keyword,
+    methods: ENUM_METHODS,
+    isEnableOptions: true,
+  },
+  {
+    name: HOST_FILTER_FIELDS_ENUM.bkInstName,
+    alias: window.i18n.t('模块名'),
+    type: EFieldType.keyword,
+    methods: ENUM_METHODS,
+    isEnableOptions: true,
+  },
+  {
+    name: HOST_FILTER_FIELDS_ENUM.alarmCount,
+    alias: window.i18n.t('未恢复告警'),
+    type: EFieldType.integer,
+    methods: NUMBER_METHODS,
+    isEnableOptions: false,
+  },
+  {
+    name: HOST_FILTER_FIELDS_ENUM.cpuLoad,
+    alias: window.i18n.t('CPU五分钟负载'),
+    type: EFieldType.integer,
+    methods: NUMBER_METHODS,
+    isEnableOptions: false,
+  },
+  {
+    name: HOST_FILTER_FIELDS_ENUM.cpuUsage,
+    alias: window.i18n.t('CPU使用率'),
+    type: EFieldType.integer,
+    methods: NUMBER_METHODS,
+    isEnableOptions: false,
+  },
+  {
+    name: HOST_FILTER_FIELDS_ENUM.diskInUse,
+    alias: window.i18n.t('磁盘空间使用率'),
+    type: EFieldType.integer,
+    methods: NUMBER_METHODS,
+    isEnableOptions: false,
+  },
+  {
+    name: HOST_FILTER_FIELDS_ENUM.ioUtil,
+    alias: window.i18n.t('磁盘IO使用率'),
+    type: EFieldType.integer,
+    methods: NUMBER_METHODS,
+    isEnableOptions: false,
+  },
+  {
+    name: HOST_FILTER_FIELDS_ENUM.memUsage,
+    alias: window.i18n.t('应用内存使用率'),
+    type: EFieldType.integer,
+    methods: NUMBER_METHODS,
+    isEnableOptions: false,
+  },
+  {
+    name: HOST_FILTER_FIELDS_ENUM.pscMemUsage,
+    alias: window.i18n.t('物理内存使用率'),
+    type: EFieldType.integer,
+    methods: NUMBER_METHODS,
+    isEnableOptions: false,
+  },
+  {
+    name: HOST_FILTER_FIELDS_ENUM.kBizName,
+    alias: window.i18n.t('业务名'),
+    type: EFieldType.keyword,
+    methods: ENUM_METHODS,
+    isEnableOptions: false,
+  },
+  {
+    name: HOST_FILTER_FIELDS_ENUM.displayName,
+    alias: window.i18n.t('进程'),
+    type: EFieldType.keyword,
+    methods: ENUM_METHODS,
+    isEnableOptions: true,
+  },
 ];
 
 /** 数值类过滤字段集合（用于 where 匹配时的数值比较分支） */
-export const HOST_NUMBER_FILTER_FIELDS = new Set(['cpu_usage', 'mem_usage', 'disk_in_use', 'io_util', 'psc_mem_usage', 'cpu_load', 'alarm_count']);
+export const HOST_NUMBER_FILTER_FIELDS = new Set([
+  'cpu_usage',
+  'mem_usage',
+  'disk_in_use',
+  'io_util',
+  'psc_mem_usage',
+  'cpu_load',
+  'alarm_count',
+]);
