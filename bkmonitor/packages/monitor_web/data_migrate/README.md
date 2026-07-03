@@ -363,6 +363,8 @@ result = check_biz_bk_collector_proxy_config_delivery(
 - 成功标准是每台 proxy 的 `render_and_push_config` 子步骤为 `SUCCESS`
 - 订阅任务总状态失败、后续重载进程失败，不会影响配置渲染下发成功的判定
 - 返回结果顶层 `result` 表示是否全部 proxy 配置都成功完成渲染下发
+- 默认（`only_current_bk_biz_id=True`）只统计属于本业务的 proxy 主机（业务自有 proxy 及默认直连区域全局主机），忽略订阅中从其他业务借用的 proxy 主机的下发异常，避免因借用主机失败误判本业务结果；被忽略的主机数量在各订阅及 `summary` 的 `ignored_count` 中输出。传 `only_current_bk_biz_id=False` 可恢复对订阅下全部主机的全量检查
+- 忽略借用主机同样作用于 render 失败自动补执行，`retry_subscription` 只会对本业务主机补发，不会触碰其他业务的 proxy
 - 不传 `wait_timeout` 时只做一次检查；传入正数时会轮询直到成功、失败或超时
 
 ### 对 render 失败的 bk-collector 配置订阅补一轮下发

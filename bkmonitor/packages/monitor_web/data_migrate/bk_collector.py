@@ -393,8 +393,16 @@ def check_biz_bk_collector_proxy_config_delivery(
     wait_timeout: int = 0,
     poll_interval: int = DEFAULT_CONFIG_DELIVERY_POLL_INTERVAL,
     subscription_scope: list[dict[str, Any]] | tuple[dict[str, Any], ...] | None = None,
+    only_current_bk_biz_id: bool = True,
 ) -> dict[str, Any]:
-    """Check whether bk-collector proxy configs have been rendered and pushed successfully."""
+    """Check whether bk-collector proxy configs have been rendered and pushed successfully.
+
+    Args:
+        only_current_bk_biz_id: 为 True（默认）时，仅统计订阅中属于本业务的 Proxy 主机
+            （业务自有 Proxy 及默认直连区域全局主机）的下发状态，忽略从其他业务借用的
+            Proxy 主机的下发异常，避免因借用主机失败误判本业务下发结果；为 False 时
+            统计订阅下的全部主机，保持原有全量检查行为。
+    """
     selected_config_types = _normalize_config_types(config_types)
     normalized_bk_biz_ids = _unique_ints(bk_biz_ids)
     logger.info(
@@ -421,6 +429,7 @@ def check_biz_bk_collector_proxy_config_delivery(
             config_types=selected_config_types,
             operator=operator,
             subscription_scope=subscription_scope,
+            only_current_bk_biz_id=only_current_bk_biz_id,
         )
         report["poll_attempts"] = poll_attempts
         report["timed_out"] = False
@@ -614,9 +623,14 @@ def _count_triggered_render_failure_retry(report_details: dict[str, list[dict[st
 
 
 def _is_retryable_proxy_config_delivery_instance(instance: dict[str, Any]) -> bool:
-    """render 失败（非 pending、非 unknown 且未成功）的实例才需要补一轮执行。"""
+    """render 失败（非 pending、非 unknown 且未成功）的实例才需要补一轮执行。
+
+    被标记为 ``ignored`` 的实例（借用的其他业务 Proxy）不属于本业务，不参与补执行，
+    避免重试触碰其他业务的 Proxy 主机。
+    """
     return (
-        instance.get("result") is not True
+        not instance.get("ignored")
+        and instance.get("result") is not True
         and instance.get("status") not in PENDING_CONFIG_DELIVERY_STATUSES
         and instance.get("status") != "UNKNOWN"
     )
@@ -695,6 +709,55 @@ def _retry_proxy_config_delivery_subscription(detail: dict[str, Any], *, dry_run
     return record
 
 
+def _load_biz_owned_proxy_host_ids(*, bk_tenant_id: str, bk_biz_id: int) -> set[int] | None:
+    """加载指定业务视角下应纳入下发检查的 Proxy 主机 host id 集合。
+
+    集合包含两部分：
+
+    - 业务自有的 Proxy 主机（``only_current_bk_biz_id=True``），即 bk_biz_id 归属当前业务的 Proxy；
+    - 默认租户直连区域下的全局配置主机。
+
+    订阅实际会下发到业务所在管控区域下的全部 Proxy（可能包含从其他业务借用的 Proxy），
+    这些借用主机不在本集合内，其下发异常在检查时应被忽略，避免因借用 Proxy 的失败
+    误判本业务的下发结果。
+
+    Args:
+        bk_tenant_id: 租户 ID。
+        bk_biz_id: 业务 ID，非正数（如 0 号直连业务）时跳过业务自有 Proxy 查询。
+
+    Returns:
+        本业务视角下需要关注的 Proxy 主机 host id 集合。查询成功但没有应统计主机时
+        返回空集合；查询失败时返回 ``None``，调用方应降级为不过滤，避免用不完整集合误判。
+    """
+    owned_host_ids: set[int] = set()
+    if bk_biz_id and bk_biz_id > 0:
+        try:
+            owned_host_ids.update(
+                _unique_ints(
+                    BkCollectorConfig.get_target_host_ids_by_biz_id(
+                        bk_tenant_id, bk_biz_id, only_current_bk_biz_id=True
+                    )
+                )
+            )
+        except Exception:  # noqa: BLE001 - 查询失败时退化为不过滤，避免用不完整集合误判
+            logger.exception(
+                "load_biz_owned_proxy_host_ids: load current biz proxy hosts failed bk_tenant_id=%s bk_biz_id=%s",
+                bk_tenant_id,
+                bk_biz_id,
+            )
+            return None
+    try:
+        owned_host_ids.update(_unique_ints(BkCollectorConfig.get_target_host_in_default_cloud_area()))
+    except Exception:  # noqa: BLE001 - 查询失败时退化为不过滤，避免用不完整集合误判
+        logger.exception(
+            "load_biz_owned_proxy_host_ids: load default cloud area hosts failed bk_tenant_id=%s bk_biz_id=%s",
+            bk_tenant_id,
+            bk_biz_id,
+        )
+        return None
+    return owned_host_ids
+
+
 def _check_biz_bk_collector_proxy_config_delivery_once(
     *,
     bk_tenant_id: str,
@@ -702,6 +765,7 @@ def _check_biz_bk_collector_proxy_config_delivery_once(
     config_types: tuple[str, ...],
     operator: str,
     subscription_scope: list[dict[str, Any]] | tuple[dict[str, Any], ...] | None = None,
+    only_current_bk_biz_id: bool = True,
 ) -> dict[str, Any]:
     report = _init_report(
         bk_tenant_id=bk_tenant_id,
@@ -723,18 +787,31 @@ def _check_biz_bk_collector_proxy_config_delivery_once(
     )
     logger.info(
         "check_biz_bk_collector_proxy_config_delivery: matched subscriptions bk_tenant_id=%s "
-        "bk_biz_ids=%s listed_subscription_count=%s subscription_count=%s subscription_scope_count=%s",
+        "bk_biz_ids=%s listed_subscription_count=%s subscription_count=%s subscription_scope_count=%s "
+        "only_current_bk_biz_id=%s",
         bk_tenant_id,
         bk_biz_ids,
         listed_subscription_count,
         len(subscriptions),
         len(subscription_scope) if subscription_scope is not None else None,
+        only_current_bk_biz_id,
     )
 
+    # 缓存按 (租户, 业务) 计算的本业务 Proxy host 集合，避免同一业务重复请求节点管理/CMDB
+    owned_host_ids_cache: dict[tuple[str, int], set[int] | None] = {}
     with _local_operator_context(bk_tenant_id=bk_tenant_id, operator=operator):
         for subscription in subscriptions:
+            owned_host_ids: set[int] | None = None
+            if only_current_bk_biz_id:
+                cache_key = (subscription["bk_tenant_id"], _read_int(subscription.get("bk_biz_id")))
+                if cache_key not in owned_host_ids_cache:
+                    owned_host_ids_cache[cache_key] = _load_biz_owned_proxy_host_ids(
+                        bk_tenant_id=cache_key[0], bk_biz_id=cache_key[1]
+                    )
+                # None 表示 owner 查询失败，降级不过滤；空集合表示查询成功但本业务没有应统计主机
+                owned_host_ids = owned_host_ids_cache[cache_key]
             report["details"][subscription["config_type"]].append(
-                _check_proxy_config_delivery_subscription(subscription)
+                _check_proxy_config_delivery_subscription(subscription, owned_host_ids=owned_host_ids)
             )
 
     report["summary"] = _build_config_delivery_summary(report["details"])
@@ -1121,14 +1198,25 @@ def _proxy_config_delivery_subscription_match_keys(subscription: dict[str, Any])
     return match_keys
 
 
-def _check_proxy_config_delivery_subscription(subscription: dict[str, Any]) -> dict[str, Any]:
+def _check_proxy_config_delivery_subscription(
+    subscription: dict[str, Any], *, owned_host_ids: set[int] | None = None
+) -> dict[str, Any]:
+    """检查单个订阅的 Proxy 配置下发状态。
+
+    Args:
+        subscription: 订阅元信息（config_type / bk_tenant_id / bk_biz_id / subscription_id 等）。
+        owned_host_ids: 本业务视角下需要关注的 Proxy 主机 host id 集合。为 ``None`` 时统计
+            订阅下的全部主机；非空时，host id 不在该集合内的实例（借用的其他业务 Proxy）
+            会被标记为 ``ignored`` 并从各项计数与结果判定中排除。
+    """
     logger.info(
         "check bk-collector proxy config subscription: start config_type=%s bk_tenant_id=%s bk_biz_id=%s "
-        "subscription_id=%s",
+        "subscription_id=%s owned_host_count=%s",
         subscription.get("config_type"),
         subscription.get("bk_tenant_id"),
         subscription.get("bk_biz_id"),
         subscription.get("subscription_id"),
+        len(owned_host_ids) if owned_host_ids is not None else None,
     )
     detail = {
         **subscription,
@@ -1140,6 +1228,7 @@ def _check_proxy_config_delivery_subscription(subscription: dict[str, Any]) -> d
         "failed_count": 0,
         "pending_count": 0,
         "unknown_count": 0,
+        "ignored_count": 0,
         "instances": [],
     }
     try:
@@ -1176,24 +1265,40 @@ def _check_proxy_config_delivery_subscription(subscription: dict[str, Any]) -> d
 
     instances = [_get_proxy_config_delivery_status(task_result) for task_result in task_results]
     detail["instances"] = instances
-    detail["proxy_count"] = len(instances)
-    detail["succeeded_count"] = sum(1 for instance in instances if instance["result"] is True)
-    detail["pending_count"] = sum(1 for instance in instances if instance["status"] in PENDING_CONFIG_DELIVERY_STATUSES)
-    detail["unknown_count"] = sum(1 for instance in instances if instance["status"] == "UNKNOWN")
+
+    # 标记不属于本业务的实例（借用的其他业务 Proxy），其下发异常不纳入统计与结果判定
+    ignored_count = 0
+    if owned_host_ids is not None:
+        for instance in instances:
+            if _read_int(instance.get("bk_host_id")) not in owned_host_ids:
+                instance["ignored"] = True
+                ignored_count += 1
+
+    considered_instances = [instance for instance in instances if not instance.get("ignored")]
+    detail["ignored_count"] = ignored_count
+    detail["proxy_count"] = len(considered_instances)
+    detail["succeeded_count"] = sum(1 for instance in considered_instances if instance["result"] is True)
+    detail["pending_count"] = sum(
+        1 for instance in considered_instances if instance["status"] in PENDING_CONFIG_DELIVERY_STATUSES
+    )
+    detail["unknown_count"] = sum(1 for instance in considered_instances if instance["status"] == "UNKNOWN")
     detail["failed_count"] = sum(
         1
-        for instance in instances
+        for instance in considered_instances
         if instance["result"] is False
         and instance["status"] not in PENDING_CONFIG_DELIVERY_STATUSES
         and instance["status"] != "UNKNOWN"
     )
     detail["result"] = detail["failed_count"] == 0 and detail["pending_count"] == 0 and detail["unknown_count"] == 0
     detail["status"] = CONFIG_DELIVERY_SUCCESS_STATUS if detail["result"] else "FAILED"
-    detail["message"] = "success" if detail["result"] else "not all proxy configs were rendered and pushed"
+    if not considered_instances and ignored_count:
+        detail["message"] = "no proxy host belongs to this business, skipped"
+    else:
+        detail["message"] = "success" if detail["result"] else "not all proxy configs were rendered and pushed"
     logger.info(
         "check bk-collector proxy config subscription: completed config_type=%s bk_tenant_id=%s bk_biz_id=%s "
         "subscription_id=%s result=%s proxy_count=%s succeeded_count=%s failed_count=%s pending_count=%s "
-        "unknown_count=%s",
+        "unknown_count=%s ignored_count=%s",
         subscription.get("config_type"),
         subscription.get("bk_tenant_id"),
         subscription.get("bk_biz_id"),
@@ -1204,16 +1309,33 @@ def _check_proxy_config_delivery_subscription(subscription: dict[str, Any]) -> d
         detail["failed_count"],
         detail["pending_count"],
         detail["unknown_count"],
+        detail["ignored_count"],
     )
     return detail
+
+
+def _parse_bk_host_id_from_instance_id(instance_id: Any) -> int:
+    """从节点管理订阅实例 ID 中解析 bk_host_id。
+
+    实例 ID 形如 ``"host|instance|host|30313642"``，末尾的数字段即为 bk_host_id，
+    在 ``instance_info.host`` 缺失 bk_host_id 时作为兜底来源。
+    """
+    if not instance_id:
+        return 0
+    for segment in reversed(str(instance_id).split("|")):
+        if segment.isdigit():
+            return int(segment)
+    return 0
 
 
 def _get_proxy_config_delivery_status(task_result: dict[str, Any]) -> dict[str, Any]:
     render_steps = list(_iter_proxy_config_render_steps(task_result))
     host = (task_result.get("instance_info") or {}).get("host") or {}
+    # host 信息缺失 bk_host_id 时，从实例 ID 末段兜底解析
+    bk_host_id = _read_int(host.get("bk_host_id")) or _parse_bk_host_id_from_instance_id(task_result.get("instance_id"))
     detail = {
         "instance_id": task_result.get("instance_id"),
-        "bk_host_id": host.get("bk_host_id"),
+        "bk_host_id": bk_host_id or None,
         "bk_cloud_id": host.get("bk_cloud_id"),
         "ip": host.get("bk_host_innerip") or host.get("bk_host_innerip_v6") or host.get("inner_ip"),
         "render_steps": [
@@ -1370,7 +1492,11 @@ def _operate_biz_bk_collector_plugin(
                 "skipped_hosts": [],
             }
             try:
-                target_host_ids = _unique_ints(BkCollectorConfig.get_target_host_ids_by_biz_id(bk_tenant_id, bk_biz_id))
+                target_host_ids = _unique_ints(
+                    BkCollectorConfig.get_target_host_ids_by_biz_id(
+                        bk_tenant_id, bk_biz_id, only_current_bk_biz_id=True
+                    )
+                )
                 record["target_host_ids"] = target_host_ids
                 logger.info(
                     "operate_biz_bk_collector_plugin: target proxy hosts loaded category=%s bk_tenant_id=%s "
@@ -2236,6 +2362,7 @@ def _build_config_delivery_summary(details: dict[str, list[dict[str, Any]]]) -> 
             "failed_count": sum(record["failed_count"] for record in records),
             "pending_count": sum(record["pending_count"] for record in records),
             "unknown_count": sum(record["unknown_count"] for record in records),
+            "ignored_count": sum(record.get("ignored_count", 0) for record in records),
         }
     summary["total"] = {
         key: sum(category_summary[key] for category_summary in summary.values())
@@ -2246,6 +2373,7 @@ def _build_config_delivery_summary(details: dict[str, list[dict[str, Any]]]) -> 
             "failed_count",
             "pending_count",
             "unknown_count",
+            "ignored_count",
         ]
     }
     return summary
@@ -2260,7 +2388,7 @@ def _build_config_delivery_failure_summary(details: dict[str, list[dict[str, Any
             abnormal_instances = [
                 _serialize_config_delivery_abnormal_instance(instance)
                 for instance in record.get("instances", [])
-                if instance.get("result") is not True
+                if instance.get("result") is not True and not instance.get("ignored")
             ]
             if record.get("result") is True and not abnormal_instances:
                 continue
