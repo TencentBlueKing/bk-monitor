@@ -66,6 +66,7 @@ export type TAPDWorkspaceBoundType = GetEnumTypeTool<typeof TAPDWorkspaceBoundEn
 /** TAPD 项目信息 */
 export interface TapdWorkspaceItem {
   is_bound: TAPDWorkspaceBoundType;
+  loading?: boolean;
   workspace_id: string;
   workspace_name: string;
 }

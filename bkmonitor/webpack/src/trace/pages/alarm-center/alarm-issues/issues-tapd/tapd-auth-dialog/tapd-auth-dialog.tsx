@@ -27,6 +27,7 @@
 import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
 import { Alert, Button, Dialog, Input } from 'bkui-vue';
+import loadingImg from 'monitor-ui/chart-plugins/icons/spinner.svg';
 import { useI18n } from 'vue-i18n';
 
 import EmptyStatus, { type EmptyStatusOperationType } from '@/components/empty-status/empty-status';
@@ -84,6 +85,8 @@ export default defineComponent({
     };
 
     const handleWorkspaceClick = (item: TapdWorkspaceItem) => {
+      if (item.loading) return;
+      console.log('click');
       emit('select', item);
     };
 
@@ -108,6 +111,7 @@ export default defineComponent({
       return (
         <div class='tapd-relation-workspace-wrapper'>
           <Alert
+            class='tapd-relation-workspace-alert'
             theme='info'
             title={t('请选择有权限的项目，完成蓝鲸监控关联项目的应用授权。')}
           />
@@ -115,6 +119,7 @@ export default defineComponent({
             <Input
               v-model={searchValue.value}
               placeholder={t('搜索 项目')}
+              type='search'
               clearable
             />
           </div>
@@ -129,17 +134,32 @@ export default defineComponent({
                   }}
                 >
                   <span class='workspace-name'>{item.workspace_name}</span>
-                  <Button
-                    class={['workspace-btn', { bound: item.is_bound === 'bound' }]}
-                    theme={item.is_bound === 'bound' ? 'success' : 'primary'}
-                    outline
-                  >
-                    {item.is_bound === 'bound' ? t('已关联') : t('去关联')}
-                  </Button>
-                  {item.is_bound === 'bound' && (
-                    <div class='revoke-relation'>
-                      <span>{t('取消关联')}</span>
-                    </div>
+                  {item.loading ? (
+                    <img
+                      class='workspace-item-loading'
+                      alt=''
+                      src={loadingImg}
+                    />
+                  ) : (
+                    [
+                      <Button
+                        key='tag'
+                        class={['workspace-btn', { bound: item.is_bound === 'bound' }]}
+                        theme={item.is_bound === 'bound' ? 'success' : 'primary'}
+                        outline
+                      >
+                        {item.is_bound === 'bound' ? t('已关联') : t('去关联')}
+                      </Button>,
+                      item.is_bound === 'bound' && (
+                        <div
+                          key='unlock-btn'
+                          class='revoke-relation'
+                        >
+                          <i class='icon-monitor icon-Unlock' />
+                          <span>{t('取消关联')}</span>
+                        </div>
+                      ),
+                    ]
                   )}
                 </div>
               ))

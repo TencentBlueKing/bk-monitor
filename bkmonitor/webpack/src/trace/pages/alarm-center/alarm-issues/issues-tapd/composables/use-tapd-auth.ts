@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { type Ref, shallowRef, watch } from 'vue';
+import { type Ref, reactive, shallowRef, watch } from 'vue';
 
-import { InfoBox } from 'bkui-vue';
+import { InfoBox, Message } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { getUserWorkspaceApi, rebindWorkspaceApi, revokeAuthApi, unbindWorkspaceApi } from '../services/tapd';
@@ -46,7 +46,7 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
   const authDialogShow = shallowRef(false);
   const createTapdSliderShow = shallowRef(false);
   /** 项目列表 */
-  const workspaceList = shallowRef<TapdWorkspaceItem[]>([]);
+  const workspaceList = reactive<TapdWorkspaceItem[]>([]);
   /** 是否授权 */
   const isAuth = shallowRef(false);
   /** 是否有授权链接, 用于判断是否有访问TAPD关联功能 */
@@ -57,7 +57,6 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
   const loading = shallowRef(false);
 
   const getAuth = async () => {
-    workspaceList.value = [];
     installUrl.value = '';
     /** 授权成功后跳转的参数 */
     const successUrlParams = new URLSearchParams({
@@ -82,7 +81,8 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
         success_url: `${window.location.search}#/trace/alarm-center?${successUrlParams.toString()}`,
         error_url: `${window.location.search}#/trace/alarm-center?${errorUrlParams.toString()}`,
       });
-      workspaceList.value = data.items || [];
+      const list = data.items || [];
+      workspaceList.splice(0, workspaceList.length, ...list.map(item => ({ ...item, loading: false })));
       installUrl.value = data.install_url;
       isAuth.value = true;
     } catch (err) {
@@ -94,7 +94,7 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
       }
     }
     /** 如果有已关联的项目,展示创建单据侧栏，否则展示授权弹窗 */
-    if (workspaceList.value.find(item => item.is_bound === 'bound')) {
+    if (workspaceList.find(item => item.is_bound === 'bound')) {
       createTapdSliderShow.value = true;
       authDialogShow.value = false;
     } else {
@@ -129,13 +129,12 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
             workspace_id: item.workspace_id,
           });
           // 取消关联成功后，更新本地项目状态，不需要重新获取列表
-          const target = workspaceList.value.find(w => w.workspace_id === item.workspace_id);
+          const target = workspaceList.find(w => w.workspace_id === item.workspace_id);
           if (target) {
             target.is_bound = 'manually_unbound';
-            workspaceList.value = [...workspaceList.value];
           }
           // 如果取消关联后没有已关联的项目了，关闭创建单据侧栏，展示授权弹窗
-          if (!workspaceList.value.find(w => w.is_bound === 'bound')) {
+          if (!workspaceList.find(w => w.is_bound === 'bound')) {
             createTapdSliderShow.value = false;
             authDialogShow.value = true;
           }
@@ -153,16 +152,22 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
         break;
       }
       case 'manually_unbound': {
+        item.loading = true;
         rebindWorkspaceApi({
           bk_biz_id: bizId.value,
           workspace_id: item.workspace_id,
-        }).then(() => {
-          const target = workspaceList.value.find(w => w.workspace_id === item.workspace_id);
-          if (target) {
-            target.is_bound = 'bound';
-            workspaceList.value = [...workspaceList.value];
-          }
-        });
+        })
+          .then(() => {
+            const target = workspaceList.find(w => w.workspace_id === item.workspace_id);
+            if (target) {
+              target.is_bound = 'bound';
+              createTapdSliderShow.value = true;
+              authDialogShow.value = false;
+            }
+          })
+          .finally(() => {
+            item.loading = false;
+          });
         break;
       }
       default: {
@@ -180,6 +185,10 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
       .then(() => {
         authDialogShow.value = false;
         isAuth.value = false;
+        Message({
+          theme: 'success',
+          message: t('取消授权成功'),
+        });
       })
       .finally(() => {
         revokeAuthLoading.value = false;
