@@ -918,6 +918,81 @@ def test_check_biz_bk_collector_proxy_config_delivery_ignores_other_biz_proxy_fa
     assert result["failure_summary"]["subscription_count"] == 0
 
 
+def test_check_biz_bk_collector_proxy_config_delivery_ignores_all_when_owned_hosts_empty(monkeypatch):
+    """本业务没有应统计 Proxy 时，订阅中的借用 Proxy 应全部忽略。"""
+    monkeypatch.setattr(
+        bk_collector,
+        "_list_proxy_config_delivery_subscriptions",
+        lambda **kwargs: [
+            {
+                "config_type": bk_collector.CUSTOM_REPORT,
+                "bk_tenant_id": "system",
+                "bk_biz_id": 2,
+                "subscription_id": 1001,
+                "bk_data_id": 2001,
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "batch_task_result",
+        lambda **kwargs: [_proxy_config_delivery_task_for_host(999, render_status="FAILED", instance_status="FAILED")],
+    )
+    monkeypatch.setattr(bk_collector, "_load_biz_owned_proxy_host_ids", lambda **kwargs: set())
+
+    result = bk_collector.check_biz_bk_collector_proxy_config_delivery(
+        bk_tenant_id="system",
+        bk_biz_ids=[2],
+        config_types=[bk_collector.CUSTOM_REPORT],
+    )
+
+    assert result["result"] is True
+    total = result["summary"]["total"]
+    assert total["proxy_count"] == 0
+    assert total["failed_count"] == 0
+    assert total["ignored_count"] == 1
+    detail = result["details"][bk_collector.CUSTOM_REPORT][0]
+    assert detail["message"] == "no proxy host belongs to this business, skipped"
+    assert detail["instances"][0]["ignored"] is True
+    assert result["failure_summary"]["subscription_count"] == 0
+
+
+def test_check_biz_bk_collector_proxy_config_delivery_counts_all_when_owned_hosts_degraded(monkeypatch):
+    """owner 查询失败返回 None 时降级为不过滤，避免把未知范围误判为成功。"""
+    monkeypatch.setattr(
+        bk_collector,
+        "_list_proxy_config_delivery_subscriptions",
+        lambda **kwargs: [
+            {
+                "config_type": bk_collector.CUSTOM_REPORT,
+                "bk_tenant_id": "system",
+                "bk_biz_id": 2,
+                "subscription_id": 1001,
+                "bk_data_id": 2001,
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "batch_task_result",
+        lambda **kwargs: [_proxy_config_delivery_task_for_host(999, render_status="FAILED", instance_status="FAILED")],
+    )
+    monkeypatch.setattr(bk_collector, "_load_biz_owned_proxy_host_ids", lambda **kwargs: None)
+
+    result = bk_collector.check_biz_bk_collector_proxy_config_delivery(
+        bk_tenant_id="system",
+        bk_biz_ids=[2],
+        config_types=[bk_collector.CUSTOM_REPORT],
+    )
+
+    assert result["result"] is False
+    total = result["summary"]["total"]
+    assert total["proxy_count"] == 1
+    assert total["failed_count"] == 1
+    assert total["ignored_count"] == 0
+    assert "ignored" not in result["details"][bk_collector.CUSTOM_REPORT][0]["instances"][0]
+
+
 def test_check_biz_bk_collector_proxy_config_delivery_disable_only_current_counts_all(monkeypatch):
     """only_current_bk_biz_id=False 时保持原有全量检查，借用 Proxy 失败仍计入。"""
     monkeypatch.setattr(

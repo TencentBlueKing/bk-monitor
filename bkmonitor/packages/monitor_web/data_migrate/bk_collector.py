@@ -709,7 +709,7 @@ def _retry_proxy_config_delivery_subscription(detail: dict[str, Any], *, dry_run
     return record
 
 
-def _load_biz_owned_proxy_host_ids(*, bk_tenant_id: str, bk_biz_id: int) -> set[int]:
+def _load_biz_owned_proxy_host_ids(*, bk_tenant_id: str, bk_biz_id: int) -> set[int] | None:
     """加载指定业务视角下应纳入下发检查的 Proxy 主机 host id 集合。
 
     集合包含两部分：
@@ -726,7 +726,8 @@ def _load_biz_owned_proxy_host_ids(*, bk_tenant_id: str, bk_biz_id: int) -> set[
         bk_biz_id: 业务 ID，非正数（如 0 号直连业务）时跳过业务自有 Proxy 查询。
 
     Returns:
-        本业务视角下需要关注的 Proxy 主机 host id 集合；查询失败时对应部分为空。
+        本业务视角下需要关注的 Proxy 主机 host id 集合。查询成功但没有应统计主机时
+        返回空集合；查询失败时返回 ``None``，调用方应降级为不过滤，避免用不完整集合误判。
     """
     owned_host_ids: set[int] = set()
     if bk_biz_id and bk_biz_id > 0:
@@ -738,20 +739,22 @@ def _load_biz_owned_proxy_host_ids(*, bk_tenant_id: str, bk_biz_id: int) -> set[
                     )
                 )
             )
-        except Exception:  # noqa: BLE001 - 查询失败时退化为不过滤该来源
+        except Exception:  # noqa: BLE001 - 查询失败时退化为不过滤，避免用不完整集合误判
             logger.exception(
                 "load_biz_owned_proxy_host_ids: load current biz proxy hosts failed bk_tenant_id=%s bk_biz_id=%s",
                 bk_tenant_id,
                 bk_biz_id,
             )
+            return None
     try:
         owned_host_ids.update(_unique_ints(BkCollectorConfig.get_target_host_in_default_cloud_area()))
-    except Exception:  # noqa: BLE001 - 查询失败时退化为不过滤该来源
+    except Exception:  # noqa: BLE001 - 查询失败时退化为不过滤，避免用不完整集合误判
         logger.exception(
             "load_biz_owned_proxy_host_ids: load default cloud area hosts failed bk_tenant_id=%s bk_biz_id=%s",
             bk_tenant_id,
             bk_biz_id,
         )
+        return None
     return owned_host_ids
 
 
@@ -795,7 +798,7 @@ def _check_biz_bk_collector_proxy_config_delivery_once(
     )
 
     # 缓存按 (租户, 业务) 计算的本业务 Proxy host 集合，避免同一业务重复请求节点管理/CMDB
-    owned_host_ids_cache: dict[tuple[str, int], set[int]] = {}
+    owned_host_ids_cache: dict[tuple[str, int], set[int] | None] = {}
     with _local_operator_context(bk_tenant_id=bk_tenant_id, operator=operator):
         for subscription in subscriptions:
             owned_host_ids: set[int] | None = None
@@ -805,8 +808,8 @@ def _check_biz_bk_collector_proxy_config_delivery_once(
                     owned_host_ids_cache[cache_key] = _load_biz_owned_proxy_host_ids(
                         bk_tenant_id=cache_key[0], bk_biz_id=cache_key[1]
                     )
-                # 仅在成功取到本业务主机时才启用过滤，取空（含查询失败）时退化为不过滤，避免误判全部成功
-                owned_host_ids = owned_host_ids_cache[cache_key] or None
+                # None 表示 owner 查询失败，降级不过滤；空集合表示查询成功但本业务没有应统计主机
+                owned_host_ids = owned_host_ids_cache[cache_key]
             report["details"][subscription["config_type"]].append(
                 _check_proxy_config_delivery_subscription(subscription, owned_host_ids=owned_host_ids)
             )
