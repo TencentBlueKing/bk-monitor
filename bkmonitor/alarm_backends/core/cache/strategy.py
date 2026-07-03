@@ -15,6 +15,7 @@ import time
 from collections import defaultdict
 from collections.abc import Callable, Iterable
 from datetime import datetime, timedelta
+from functools import reduce
 from itertools import chain, groupby
 from operator import itemgetter
 from typing import Any
@@ -40,6 +41,7 @@ from bkmonitor.models import (
 )
 from bkmonitor.utils.common_utils import chunks, count_md5
 from bkmonitor.utils.kubernetes import is_k8s_target
+from bkmonitor.utils.metric_id import build_metric_id_filter_queries
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.cmdb import TargetNodeType
 from constants.data_source import DataSourceLabel, DataTypeLabel, UnifyQueryDataSources
@@ -201,10 +203,13 @@ class StrategyCacheManager(CacheManager):
                     strategy["is_invalid"] = True
                 else:
                     metric_params = parse_metric_id(metric_id)
-                    if "index_set_id" in metric_params:
-                        metric_params["related_id"] = metric_params["index_set_id"]
-                        del metric_params["index_set_id"]
-                    if MetricListCache.objects.filter(bk_tenant_id=bk_tenant_id, **metric_params).exists():
+                    metric_queries = build_metric_id_filter_queries(metric_params)
+                    if (
+                        metric_queries
+                        and MetricListCache.objects.filter(
+                            reduce(lambda x, y: x | y, metric_queries), bk_tenant_id=bk_tenant_id
+                        ).exists()
+                    ):
                         invalid_strategy_dict["checked_metric_ids"]["exists"].add(metric_id)
                     else:
                         invalid_strategy_dict["checked_metric_ids"]["not_exists"].add(metric_id)
