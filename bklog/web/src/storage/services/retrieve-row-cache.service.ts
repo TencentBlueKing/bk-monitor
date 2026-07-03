@@ -107,7 +107,7 @@ export class RetrieveRowCacheService {
         const entities = await retrieveRowRepository.getEntitiesByKeys(keys);
         return entities.map((entity, index) => {
           if (!entity) return undefined;
-          const renderRow = retrieveRowRepository.applyRenderOverlay(entity);
+          const renderRow = retrieveRowRepository.resolveRenderRow(entity);
           if (entity.row) {
             this.setRowMemory(keys[index], entity.row, entity.renderMeta);
           }
@@ -124,7 +124,8 @@ export class RetrieveRowCacheService {
       const row = this.volatileRows.get(key) || this.rowMemory.get(key)?.value;
       if (!row) return undefined;
       const renderMeta = this.rowMemory.get(key)?.renderMeta || createRetrieveRowRenderMeta(row);
-      return { row, renderMeta };
+      const displayRow = renderMeta.displayRow ?? row;
+      return { row: displayRow, renderMeta };
     });
   }
 

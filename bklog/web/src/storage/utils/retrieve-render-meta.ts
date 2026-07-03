@@ -15,13 +15,15 @@ export interface RetrieveRowRenderMeta {
   hasTruncatedField: boolean;
   truncatedFields: string[];
   fieldSegments: Record<string, RetrieveTextSegment[]>;
+  /** 表格 CELL 渲染用的截断行，大字段已在入库阶段截到 32KB */
+  displayRow?: Record<string, any>;
 }
 
 interface RetrieveRowRenderMetaOptions {
   highlightField?: string;
 }
 
-// 暂时改为1kb测试，后续改为32kb
+// 表格 CELL 默认展示上限：32KB，超出部分通过「全量」侧栏查看
 export const LARGE_FIELD_TEXT_LENGTH = 32 * 1024;
 export const DEFAULT_HIGHLIGHT_FIELD = '__highlight';
 const SEGMENT_MAX_TOKENS = 500;
@@ -73,7 +75,36 @@ const hasMark = (value: any) => typeof value === 'string' && /<\/?mark>/i.test(v
 
 const isPlainObject = (value: any) => Object.prototype.toString.call(value) === '[object Object]';
 
-const getValueByPath = (row: Record<string, any> | undefined, path: string) => {
+const setDisplayFieldValue = (row: Record<string, any>, fieldName: string, value: any) => {
+  if (!fieldName.includes('.') || Object.hasOwn(row, fieldName)) {
+    row[fieldName] = value;
+    return row;
+  }
+
+  const path = fieldName.split('.');
+  const rootKey = path[0];
+  if (!isPlainObject(row[rootKey])) {
+    row[fieldName] = value;
+    return row;
+  }
+
+  row[rootKey] = { ...row[rootKey] };
+  let current = row[rootKey];
+  for (let index = 1; index < path.length - 1; index += 1) {
+    const key = path[index];
+    if (!isPlainObject(current[key])) {
+      current[path.slice(index).join('.')] = value;
+      return row;
+    }
+    current[key] = { ...current[key] };
+    current = current[key];
+  }
+
+  current[path[path.length - 1]] = value;
+  return row;
+};
+
+export const getValueByPath = (row: Record<string, any> | undefined, path: string) => {
   if (!row || typeof path !== 'string') return undefined;
   if (Object.hasOwn(row, path)) return row[path];
 
@@ -193,6 +224,7 @@ export const createRetrieveRowRenderMeta = (
   const truncatedFields: string[] = [];
   const fieldSegments: Record<string, RetrieveTextSegment[]> = {};
   const sourceRow = renderRow || rawRow;
+  const displayRow = isPlainObject(sourceRow) ? { ...sourceRow } : sourceRow;
   const markedFields = {
     ...collectMarkedFields(sourceRow, '', {}, highlightField),
     ...collectHighlightFields(rawRow, highlightField),
@@ -220,15 +252,22 @@ export const createRetrieveRowRenderMeta = (
       truncatedFields.push(fieldName);
     }
 
+    const truncatedRenderText = exceedsLargeFieldLimit
+      ? truncateTextByBytes(plainRenderText, LARGE_FIELD_TEXT_LENGTH)
+      : renderText;
+
+    if (isPlainObject(displayRow) && exceedsLargeFieldLimit) {
+      setDisplayFieldValue(displayRow, fieldName, truncatedRenderText);
+    }
+
     // Store the pre-tokenized render value for every field that may be rendered.
-    fieldSegments[fieldName] = splitRenderText(
-      exceedsLargeFieldLimit ? truncateTextByBytes(plainRenderText, LARGE_FIELD_TEXT_LENGTH) : value,
-    );
+    fieldSegments[fieldName] = splitRenderText(truncatedRenderText);
   });
 
   return {
     hasTruncatedField: truncatedFields.length > 0,
     truncatedFields,
     fieldSegments,
+    displayRow: isPlainObject(displayRow) ? displayRow : undefined,
   };
 };

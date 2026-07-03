@@ -7,6 +7,7 @@ import { retrieveRowProjectionService, type RetrieveRowProjection } from '../ser
 import {
   createRetrieveRowRenderMeta,
   DEFAULT_HIGHLIGHT_FIELD,
+  getValueByPath,
   type RetrieveRowRenderMeta,
 } from '../utils/retrieve-render-meta';
 
@@ -220,7 +221,7 @@ export class RetrieveRowRepository {
   async getRenderRowsByKeys(keys: string[]) {
     if (!keys.length) return [];
     const entities = await db.retrieveRows.bulkGet(keys);
-    return entities.map(entity => this.applyRenderOverlay(entity));
+    return entities.map(entity => this.resolveRenderRow(entity));
   }
 
   async getRenderMetasByKeys(keys: string[]) {
@@ -368,6 +369,29 @@ export class RetrieveRowRepository {
       (row, fieldName) => setOverlayValue(row, fieldName, overlay.fields[fieldName].renderValue),
       { ...entity.row },
     );
+  }
+
+  /** 表格渲染行：优先 displayRow（32KB 截断），再叠加高亮 overlay */
+  resolveRenderRow(entity?: RetrieveRowEntity) {
+    if (!entity?.row) return undefined;
+
+    const baseRow = entity.renderMeta?.displayRow ?? entity.row;
+    const renderRow = this.applyRenderOverlay({
+      ...entity,
+      row: baseRow,
+    });
+    if (!renderRow || !entity.renderMeta?.displayRow || !entity.renderMeta.truncatedFields?.length) {
+      return renderRow;
+    }
+
+    const nextRow = { ...renderRow };
+    entity.renderMeta.truncatedFields.forEach((fieldName) => {
+      const truncatedValue = getValueByPath(entity.renderMeta!.displayRow!, fieldName);
+      if (truncatedValue !== undefined) {
+        setOverlayValue(nextRow, fieldName, truncatedValue);
+      }
+    });
+    return nextRow;
   }
 }
 
