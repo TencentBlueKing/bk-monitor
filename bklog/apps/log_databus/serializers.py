@@ -436,9 +436,7 @@ class PlatformIndexFieldsSerializer(serializers.Serializer):
 class ParentIndexSetFieldsSerializer(serializers.Serializer):
     parent_index_set_ids = serializers.ListField(label=_("归属索引集"), default=None)
     parent_index_set_names = serializers.ListField(
-        label=_("归属索引集名称列表"),
-        child=serializers.CharField(max_length=128),
-        default=None
+        label=_("归属索引集名称列表"), child=serializers.CharField(max_length=128), default=None
     )
 
     def validate(self, attrs):
@@ -1635,7 +1633,9 @@ class CustomUpdateSerializer(CustomCollectorBaseSerializer, PlatformIndexFieldsS
     target_fields = serializers.ListField(label=_("目标字段"), required=False, allow_empty=True)
 
 
-class FastContainerCollectorCreateSerializer(CollectorETLParamsFieldSerializer, PlatformIndexFieldsSerializer, ParentIndexSetFieldsSerializer):
+class FastContainerCollectorCreateSerializer(
+    CollectorETLParamsFieldSerializer, PlatformIndexFieldsSerializer, ParentIndexSetFieldsSerializer
+):
     bk_biz_id = serializers.IntegerField(label=_("业务ID"))
     collector_plugin_id = serializers.IntegerField(label=_("采集插件ID"), required=False)
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50)
@@ -1678,7 +1678,9 @@ class FastContainerCollectorCreateSerializer(CollectorETLParamsFieldSerializer, 
         return yaml_text
 
 
-class FastCollectorCreateSerializer(CollectorETLParamsFieldSerializer, PlatformIndexFieldsSerializer, ParentIndexSetFieldsSerializer):
+class FastCollectorCreateSerializer(
+    CollectorETLParamsFieldSerializer, PlatformIndexFieldsSerializer, ParentIndexSetFieldsSerializer
+):
     """
     API快速创建采集项序列化
     """
@@ -1762,7 +1764,9 @@ class FastCollectorCreateSerializer(CollectorETLParamsFieldSerializer, PlatformI
         return attrs
 
 
-class FastContainerCollectorUpdateSerializer(CollectorETLParamsFieldSerializer, PlatformIndexFieldsSerializer, ParentIndexSetFieldsSerializer):
+class FastContainerCollectorUpdateSerializer(
+    CollectorETLParamsFieldSerializer, PlatformIndexFieldsSerializer, ParentIndexSetFieldsSerializer
+):
     collector_config_name = serializers.CharField(label=_("采集名称"), max_length=50, required=False)
     description = serializers.CharField(label=_("备注说明"), max_length=100, required=False, allow_blank=True)
     collector_scenario_id = serializers.ChoiceField(
@@ -1790,7 +1794,9 @@ class FastContainerCollectorUpdateSerializer(CollectorETLParamsFieldSerializer, 
         return yaml_text
 
 
-class FastCollectorUpdateSerializer(CollectorETLParamsFieldSerializer, PlatformIndexFieldsSerializer, ParentIndexSetFieldsSerializer):
+class FastCollectorUpdateSerializer(
+    CollectorETLParamsFieldSerializer, PlatformIndexFieldsSerializer, ParentIndexSetFieldsSerializer
+):
     collector_config_name = serializers.CharField(label=_("采集名称"), required=False, max_length=50)
     description = serializers.CharField(
         label=_("备注说明"), max_length=64, required=False, allow_null=True, allow_blank=True
