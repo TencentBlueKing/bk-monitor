@@ -28,9 +28,10 @@ from apps.log_search.exceptions import (
     DuplicateIndexGroupException,
     ChildIndexSetNotExistException,
 )
-from apps.log_search.handlers.index_set import BaseIndexSetHandler
-from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
+from apps.log_search.handlers.index_set import BaseIndexSetHandler, IndexSetHandler
+from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario, SpaceApi
 from apps.utils import APIModel
+from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import space_uid_to_bk_biz_id
 
 
@@ -51,13 +52,21 @@ class IndexGroupHandler(APIModel):
         """
         获取索引组列表
         """
-        index_groups = LogIndexSet.objects.filter(is_group=True, space_uid=params["space_uid"]).values(
+        current_space_uid = params["space_uid"]
+
+        index_groups = LogIndexSet.objects.filter(is_group=True, space_uid=current_space_uid).values(
             "index_set_id", "index_set_name"
         )
 
-        # 补充索引数量字段（仅统计当前空间的子索引集，排除关联空间的索引集）
+        query_space_uids = [current_space_uid]
+        space_type_id, _ = SpaceApi.parse_space_uid(current_space_uid)
+
+        if space_type_id == SpaceTypeEnum.BKCC.value:
+            query_space_uids = IndexSetHandler.get_all_related_space_uids(current_space_uid)
+
+        # 补充索引数量字段 (统计当前空间以及关联空间的子索引集)
         current_space_index_set_ids = set(
-            LogIndexSet.objects.filter(space_uid=params["space_uid"], is_group=False).values_list(
+            LogIndexSet.objects.filter(space_uid__in=query_space_uids, is_group=False).values_list(
                 "index_set_id", flat=True
             )
         )
