@@ -21,10 +21,11 @@ def build_metric_id_filter_queries(metric_params: dict[str, Any]) -> list[Q]:
     """
     Build MetricListCache queries for a parsed metric_id.
 
-    Custom time series may be exposed by data_label in PromQL-style names, for
-    example custom.system_base.xxx. The canonical strategy metric_id still uses
-    the physical result_table_id, but cache lookups should accept the data_label
-    alias when exact result_table_id lookup misses.
+    Time series metrics may be exposed by data_label in PromQL-style names, for
+    example custom.system_base.xxx or bk_monitor.system_base.xxx. The canonical
+    strategy metric_id still uses the physical result_table_id, but cache
+    lookups should accept the data_label alias when exact result_table_id lookup
+    misses.
     """
     if not metric_params:
         return []
@@ -35,15 +36,16 @@ def build_metric_id_filter_queries(metric_params: dict[str, Any]) -> list[Q]:
 
     queries = [Q(**normalized_params)]
 
+    data_source_label = normalized_params.get("data_source_label")
     if (
-        normalized_params.get("data_source_label") == DataSourceLabel.CUSTOM
+        data_source_label in [DataSourceLabel.CUSTOM, DataSourceLabel.BK_MONITOR_COLLECTOR]
         and normalized_params.get("data_type_label") == DataTypeLabel.TIME_SERIES
         and normalized_params.get("result_table_id")
         and normalized_params.get("metric_field")
     ):
         queries.append(
             Q(
-                data_source_label=DataSourceLabel.CUSTOM,
+                data_source_label=data_source_label,
                 data_type_label=DataTypeLabel.TIME_SERIES,
                 data_label=normalized_params["result_table_id"],
                 metric_field=normalized_params["metric_field"],

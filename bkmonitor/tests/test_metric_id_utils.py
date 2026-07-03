@@ -27,6 +27,25 @@ def test_build_metric_id_filter_queries_adds_custom_time_series_data_label_fallb
     }
 
 
+def test_build_metric_id_filter_queries_adds_bk_monitor_time_series_data_label_fallback():
+    queries = build_metric_id_filter_queries(
+        {
+            "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
+            "data_type_label": DataTypeLabel.TIME_SERIES,
+            "result_table_id": "system_base",
+            "metric_field": "host_timesync_query_seconds_min",
+        }
+    )
+
+    assert len(queries) == 2
+    assert dict(queries[1].children) == {
+        "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
+        "data_type_label": DataTypeLabel.TIME_SERIES,
+        "data_label": "system_base",
+        "metric_field": "host_timesync_query_seconds_min",
+    }
+
+
 def test_build_metric_id_filter_queries_normalizes_index_set_id():
     queries = build_metric_id_filter_queries(
         {
