@@ -797,9 +797,9 @@ class LogCollectorHandler:
         else:
             query_ids = []
             if is_bk_biz_id:
-                other_ids = [a_r_b_b_i for a_r_b_b_i in self.all_related_bk_biz_ids if a_r_b_b_i != self.bk_biz_id]
+                other_ids = [bk_biz_id for bk_biz_id in self.all_related_bk_biz_ids if bk_biz_id != self.bk_biz_id]
             else:
-                other_ids = [a_r_s_u for a_r_s_u in self.all_related_space_uids if a_r_s_u != self.space_uid]
+                other_ids = [space_uid for space_uid in self.all_related_space_uids if space_uid != self.space_uid]
 
             collector_source = set(collector_source)
 
