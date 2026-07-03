@@ -333,24 +333,6 @@ export default defineComponent({
       fullRowViewerState.visible = true;
     };
 
-    const renderFullRowAction = (row: Record<string, any>, rowIndex: number) => {
-      if (!shouldShowFullRowAction(row)) return null;
-      return (
-        <button
-          class='bklog-full-row-action'
-          type='button'
-          aria-label={$t('全量')}
-          onClick={(event: MouseEvent) => {
-            event.stopPropagation();
-            event.preventDefault();
-            openFullRowViewer(row, rowIndex);
-          }}
-        >
-          {$t('全量')}
-        </button>
-      );
-    };
-
     const originalColumns = computed(() => {
       return [
         {
@@ -1531,6 +1513,10 @@ export default defineComponent({
                   handleRowAIClcik(event, hoverOperatorState.row, hoverOperatorState.rowIndex);
                   return;
                 }
+                if (type === 'fullRow') {
+                  openFullRowViewer(hoverOperatorState.row, hoverOperatorState.rowIndex);
+                  return;
+                }
                 props.handleClickTools(
                   type,
                   hoverOperatorState.row,
@@ -1541,8 +1527,8 @@ export default defineComponent({
               index={hoverOperatorState.row[ROW_INDEX]}
               operator-config={indexSetOperatorConfig.value}
               row-data={hoverOperatorState.row}
+              show-full-row={shouldShowFullRowAction(hoverOperatorState.row)}
             />
-            {renderFullRowAction(hoverOperatorState.row, hoverOperatorState.rowIndex)}
           </div>
         </div>
       );
