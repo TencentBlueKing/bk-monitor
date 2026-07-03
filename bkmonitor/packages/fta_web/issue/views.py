@@ -57,7 +57,8 @@ class IssueViewSet(ResourceViewSet):
         "issue/search_tapd_items",
         "issue/create_tapd",
         "issue/link_tapd",
-        "issue/tapd_relations",
+        # 此接口没有涉及到tapd 相关接口调用，不用做授权检查
+        # "issue/tapd_relations",
     ]
 
     class IssueBusinessActionPermission(IAMPermission):
