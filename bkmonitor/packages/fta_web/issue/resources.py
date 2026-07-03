@@ -2835,13 +2835,13 @@ class RevokeTapdUserAuthResource(Resource):
 def tapd_app_install_callback(request):
     """TAPD `open_app_install` 回调 — 应用态授权。
 
-    Query params: code, resource, signed_state
+    Query params: code, resource, state（即 signed_state，TAPD 原样透传 authorize 时的 state）
     1. 解析 signed_state → 验签、验过期
     2. 提取 workspace_id → 调 app 级 Basic Auth 获取 name
     3. upsert TapdWorkspaceBinding（create_user = initiator）
     4. 302 重定向前端 success / 失败重定向 error_url
     """
-    signed_state = request.query_params.get("signed_state", "")
+    signed_state = request.query_params.get("state", "")
     if not signed_state:
         # signed_state 缺失时无法获取前端地址，回退到根路径
         return HttpResponseRedirect(request.build_absolute_uri("/"))
