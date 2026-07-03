@@ -559,4 +559,5 @@ export default {
 
   '已拆分为独立 Issue': 'Split into independent Issue',
   issue合并成功: 'Issue merged successfully',
+  取消授权成功: 'Authorization cancelled successfully',
 };
