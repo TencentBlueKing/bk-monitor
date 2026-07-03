@@ -81,3 +81,31 @@ export const HOST_PERSPECTIVE_TAB_MAP = {
 export type HostContentTab =
   | (typeof HOST_DETAIL_TAB_LIST)[number]['value']
   | (typeof HOST_TOPO_TAB_LIST)[number]['value'];
+
+/** 新版主机列表筛选字段名映射（camelCase → snake_case），与 table-store fieldData.id 保持一致 */
+export const HOST_FILTER_FIELDS_ENUM = {
+  hostDisplayName: 'host_display_name',
+  bkHostId: 'bk_host_id',
+  bkHostInnerIpV6: 'bk_host_innerip_v6',
+  bkHostOuterIpV6: 'bk_host_outerip_v6',
+  bkHostInnerIp: 'bk_host_innerip',
+  bkHostOuterIp: 'bk_host_outerip',
+  status: 'status',
+  bkHostName: 'bk_host_name',
+  bkOsName: 'bk_os_name',
+  bkCloudName: 'bk_cloud_name',
+  clusterModule: 'cluster_module',
+  bkCluster: 'bk_cluster',
+  bkInstName: 'bk_inst_name',
+  alarmCount: 'alarm_count',
+  cpuLoad: 'cpu_load',
+  cpuUsage: 'cpu_usage',
+  diskInUse: 'disk_in_use',
+  ioUtil: 'io_util',
+  memUsage: 'mem_usage',
+  pscMemUsage: 'psc_mem_usage',
+  kBizName: 'bk_biz_name',
+  displayName: 'display_name',
+} as const;
+/** 筛选字段 snake_case 值类型，用于 where 条件类型约束 */
+export type THostFilterField = (typeof HOST_FILTER_FIELDS_ENUM)[keyof typeof HOST_FILTER_FIELDS_ENUM];

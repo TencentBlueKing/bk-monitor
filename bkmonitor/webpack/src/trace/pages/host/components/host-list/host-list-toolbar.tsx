@@ -65,8 +65,8 @@ export default defineComponent({
         <div class='host-list-toolbar__buttons'>
           {/* 指标对比：本期占位，勾选主机后激活的能力后续接入 */}
           <Button
-            disabled
             v-bk-tooltips={{ content: t('功能开发中'), delay: 300 }}
+            disabled
           >
             {t('指标对比')}
           </Button>
@@ -80,10 +80,10 @@ export default defineComponent({
         <div class='host-list-toolbar__search'>
           <Input
             class='host-list-toolbar__keyword'
-            clearable
             modelValue={props.keyword}
             placeholder={t('输入关键字，模糊搜索')}
             type='search'
+            clearable
             onClear={() => emit('keywordChange', '')}
             onEnter={() => emit('search')}
             onInput={(v: string) => emit('keywordChange', v)}
@@ -93,7 +93,7 @@ export default defineComponent({
             v-bk-tooltips={{ content: t('高级筛选'), delay: 300 }}
             onClick={() => emit('toggleFilter')}
           >
-            <i class='icon-monitor icon-shaixuan' />
+            <i class='icon-monitor icon-filter' />
           </Button>
         </div>
       </div>

@@ -30,7 +30,12 @@ import { Message } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
 
 import { EMode } from '../../../components/retrieval-filter/typing';
-import { HOST_AGG_METHOD_LIST, HOST_FILTER_FIELDS, HOST_LIST_COLUMNS, HOST_LIST_DEFAULT_PAGE_SIZE } from '../constants/host-list';
+import {
+  HOST_AGG_METHOD_LIST,
+  HOST_FILTER_FIELDS,
+  HOST_LIST_COLUMNS,
+  HOST_LIST_DEFAULT_PAGE_SIZE,
+} from '../constants/host-list';
 import { getMockHostInfoList, getMockHostMetricInfoList } from '../services/host-service';
 import {
   buildFilterOptionsMap,
@@ -43,7 +48,11 @@ import {
   sortRows,
 } from '../utils/host-list';
 
-import type { IGetValueFnParams, IWhereItem, IWhereValueOptionsItem } from '../../../components/retrieval-filter/typing';
+import type {
+  IGetValueFnParams,
+  IWhereItem,
+  IWhereValueOptionsItem,
+} from '../../../components/retrieval-filter/typing';
 import type { EHostAggMethod, EHostQuickCategory, IHostListRow } from '../types/host-list';
 import type { IHostTopoTreeNode } from '../types/topo';
 
@@ -90,7 +99,7 @@ export const useHostList = (options: IUseHostListOptions) => {
   const filterExpanded = shallowRef(false);
 
   /** 当前激活的快捷过滤分类（空为不过滤） */
-  const activeCategory = shallowRef<EHostQuickCategory | ''>('');
+  const activeCategory = shallowRef<'' | EHostQuickCategory>('');
   /** 排序（tdesign 字符串格式：`-key` 倒序 / `key` 正序） */
   const sortInfo = shallowRef('');
   /** 当前页码 */
@@ -137,11 +146,12 @@ export const useHostList = (options: IUseHostListOptions) => {
   /** retrieval-filter 字段列表（静态定义） */
   const filterFields = HOST_FILTER_FIELDS;
 
-  /** 检索候选项获取函数 */
+  /** 检索候选项获取函数（适配 retrieval-filter v2 接口：fields 数组 + where 结构） */
   const getValueFn = async (params: IGetValueFnParams): Promise<IWhereValueOptionsItem> => {
-    const field = params.field || '';
+    // fields[0]: 当前筛选字段的 snake_case 名；where[0].value[0]: 用户输入的搜索关键词
+    const field = params.fields?.[0] || '';
     const list = optionsMap.value.get(field) || [];
-    const search = (params.search || '').toLowerCase();
+    const search = String(params.where?.[0]?.value?.[0] || '').toLowerCase();
     const filtered = search ? list.filter(item => String(item.name).toLowerCase().includes(search)) : list;
     return {
       count: filtered.length,
@@ -221,7 +231,10 @@ export const useHostList = (options: IUseHostListOptions) => {
     if (!selectedRows.value.length) {
       return;
     }
-    const ipText = selectedRows.value.map(row => row.bk_host_innerip).filter(Boolean).join('\n');
+    const ipText = selectedRows.value
+      .map(row => row.bk_host_innerip)
+      .filter(Boolean)
+      .join('\n');
     copyText(ipText, (msg: string) => {
       Message({ message: msg, theme: 'error' });
     });
