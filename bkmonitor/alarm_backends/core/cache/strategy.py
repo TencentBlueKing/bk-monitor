@@ -207,7 +207,9 @@ class StrategyCacheManager(CacheManager):
                     if (
                         metric_queries
                         and MetricListCache.objects.filter(
-                            reduce(lambda x, y: x | y, metric_queries), bk_tenant_id=bk_tenant_id
+                            reduce(lambda x, y: x | y, metric_queries),
+                            bk_tenant_id=bk_tenant_id,
+                            bk_biz_id__in=[strategy["bk_biz_id"], 0],
                         ).exists()
                     ):
                         invalid_strategy_dict["checked_metric_ids"]["exists"].add(metric_id)
