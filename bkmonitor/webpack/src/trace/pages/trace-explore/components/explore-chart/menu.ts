@@ -29,10 +29,10 @@ import { deepClone } from 'monitor-common/utils';
 import { openAlarmCenter } from 'monitor-common/utils/alarm-center-router';
 import { filterDictConvertedToWhere } from 'monitor-ui/chart-plugins/utils';
 
-import { commOpenUrl, getMetricId, transformLogUrlQuery } from '@/plugins/utls/menu';
-import { downFile } from '@/utils';
+import { commOpenUrl, getMetricId, transformLogUrlQuery } from '../../../../plugins/utls/menu';
+import { downFile } from '../../../../utils';
 
-import type { IDataQuery, IExtendMetricData, ILogUrlParams } from '@/plugins/typings';
+import type { IDataQuery, IExtendMetricData, ILogUrlParams } from '../../../../plugins/typings';
 
 /**
  * @description: 跳转到检索
