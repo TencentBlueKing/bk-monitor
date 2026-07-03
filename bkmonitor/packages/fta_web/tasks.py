@@ -258,7 +258,7 @@ def _query_and_check_tapd_status(workspace_id: int, tapd_type: str, relations: l
             else:
                 result["skipped"] += 1
 
-    except Exception:
+    except Exception as e:
         logger.warning(
             "Failed to query TAPD status for sync, workspace_id=%s, tapd_type=%s, tapd_ids=%s",
             workspace_id,
@@ -266,7 +266,7 @@ def _query_and_check_tapd_status(workspace_id: int, tapd_type: str, relations: l
             tapd_ids,
             exc_info=True,
         )
-        result["error"] = str(relations)
+        result["error"] = str(e)
 
     return result
 
