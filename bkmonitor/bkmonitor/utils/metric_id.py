@@ -12,6 +12,11 @@ from django.db.models import Q
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
+def build_metric_check_key(bk_tenant_id: str, bk_biz_id: int, metric_id: str) -> tuple[str, int, str]:
+    """Build the in-memory cache key for metric existence checks."""
+    return bk_tenant_id, bk_biz_id, metric_id
+
+
 def build_metric_id_filter_queries(metric_params: dict[str, Any]) -> list[Q]:
     """
     Build MetricListCache queries for a parsed metric_id.

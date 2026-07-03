@@ -1,4 +1,4 @@
-from bkmonitor.utils.metric_id import build_metric_id_filter_queries
+from bkmonitor.utils.metric_id import build_metric_check_key, build_metric_id_filter_queries
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
 
@@ -44,3 +44,9 @@ def test_build_metric_id_filter_queries_normalizes_index_set_id():
         "related_id": "123",
         "metric_field": "log_count",
     }
+
+
+def test_build_metric_check_key_is_isolated_by_biz():
+    metric_id = "custom.system_base.host_timesync_query_seconds_min"
+
+    assert build_metric_check_key("system", 2, metric_id) != build_metric_check_key("system", 3, metric_id)

@@ -41,7 +41,7 @@ from bkmonitor.models import (
 )
 from bkmonitor.utils.common_utils import chunks, count_md5
 from bkmonitor.utils.kubernetes import is_k8s_target
-from bkmonitor.utils.metric_id import build_metric_id_filter_queries
+from bkmonitor.utils.metric_id import build_metric_check_key, build_metric_id_filter_queries
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.cmdb import TargetNodeType
 from constants.data_source import DataSourceLabel, DataTypeLabel, UnifyQueryDataSources
@@ -196,9 +196,10 @@ class StrategyCacheManager(CacheManager):
                 if data_type == DataTypeLabel.ALERT and data_source == DataSourceLabel.BK_MONITOR_COLLECTOR:
                     # 关联的策略待验证是否失效
                     invalid_strategy_dict["related_ids_map"][query_config["bkmonitor_strategy_id"]].add(strategy["id"])
-                if metric_id in invalid_strategy_dict["checked_metric_ids"]["exists"]:
+                metric_check_key = build_metric_check_key(bk_tenant_id, strategy["bk_biz_id"], metric_id)
+                if metric_check_key in invalid_strategy_dict["checked_metric_ids"]["exists"]:
                     continue
-                elif metric_id in invalid_strategy_dict["checked_metric_ids"]["not_exists"]:
+                elif metric_check_key in invalid_strategy_dict["checked_metric_ids"]["not_exists"]:
                     invalid_strategy_dict[data_type_map[data_type]].add(strategy["id"])
                     strategy["is_invalid"] = True
                 else:
@@ -212,9 +213,9 @@ class StrategyCacheManager(CacheManager):
                             bk_biz_id__in=[strategy["bk_biz_id"], 0],
                         ).exists()
                     ):
-                        invalid_strategy_dict["checked_metric_ids"]["exists"].add(metric_id)
+                        invalid_strategy_dict["checked_metric_ids"]["exists"].add(metric_check_key)
                     else:
-                        invalid_strategy_dict["checked_metric_ids"]["not_exists"].add(metric_id)
+                        invalid_strategy_dict["checked_metric_ids"]["not_exists"].add(metric_check_key)
                         invalid_strategy_dict[data_type_map[data_type]].add(strategy["id"])
                         strategy["is_invalid"] = True
 
