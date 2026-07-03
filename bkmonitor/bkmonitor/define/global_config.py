@@ -817,6 +817,8 @@ STANDARD_CONFIGS = OrderedDict(
         # RUM
         ("RUM_ACCESS_URL", slz.CharField(label=_("RUM接入链接"), default="", allow_blank=True)),
         ("RUM_FUNC_INTRODUCTION_URL", slz.CharField(label=_("RUM产品白皮书"), default="", allow_blank=True)),
+        # RUM新版灰度配置
+        ("RUM_BIZ_LIST", slz.ListField(label=_("RUM 新版灰度配置"), default=[])),
     ]
 )
 
