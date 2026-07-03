@@ -288,8 +288,10 @@ def sync_issues_from_tapd_status() -> dict:
     stats = {"checked": 0, "resolved": 0, "failed": 0, "skipped": 0}
 
     # 查询所有 sync_status=True 的关联记录
-    sync_relations = IssueTapdRelation.objects.filter(sync_status=True).values(
-        "id", "bk_biz_id", "issue_id", "workspace_id", "tapd_id", "tapd_type"
+    sync_relations = list(
+        IssueTapdRelation.objects.filter(sync_status=True).values(
+            "id", "bk_biz_id", "issue_id", "workspace_id", "tapd_id", "tapd_type"
+        )
     )
 
     if not sync_relations:
@@ -348,7 +350,7 @@ def sync_issues_from_tapd_status() -> dict:
                 stats["failed"] += len(grouped_relations[group_key])
 
     stats["checked"] = total_checked
-    stats["skipped"] = total_skipped
+    stats["skipped"] += total_skipped
 
     # 并发处理需要流转的 Issue
     if issues_to_resolve:
