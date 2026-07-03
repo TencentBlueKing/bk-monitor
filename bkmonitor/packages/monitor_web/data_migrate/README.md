@@ -7,7 +7,9 @@
 - `apply_auto_increment_from_directory`
 - `export_auto_increment_to_directory`
 - `export_biz_data_to_directory`
+- `export_partial_data_to_directory`
 - `import_biz_data_from_directory`
+- `import_partial_data_from_directory`
 - `disable_models_in_directory`
 - `replace_tenant_id_in_directory`
 - `restore_disabled_models_in_directory`
@@ -27,6 +29,9 @@
 - `python manage.py data_migrate export ...`
 - `python manage.py data_migrate import ...`
 - `python manage.py data_migrate rebuild ...`
+- `python manage.py data_migrate partial-export ...`
+- `python manage.py data_migrate partial-import ...`
+- `python manage.py data_migrate partial-rebuild ...`
 - `python manage.py data_migrate enable-closed-strategies ...`
 - `python manage.py data_migrate update-migrate-data-id-routes ...`
 - `python manage.py data_migrate disable-models ...`
@@ -82,6 +87,35 @@ python manage.py data_migrate import \
   - 仅导入指定业务 ID 列表
 - `--disable-atomic`
   - 是否按单个文件事务导入
+
+### 局部导出 / 导入 / 重建
+
+```bash
+python manage.py data_migrate partial-export \
+  --directory /tmp \
+  --bk-tenant-id tencent \
+  --bk-biz-id 2 \
+  --bcs-cluster-ids BCS-K8S-00000 \
+  --custom-report-data-ids 123 456 \
+  --app-names demo-app
+
+python manage.py data_migrate partial-import \
+  --directory /tmp/bkmonitor-partial-data-migrate-20260307120000
+
+python manage.py data_migrate partial-rebuild \
+  --directory /tmp/bkmonitor-partial-data-migrate-20260307120000 \
+  --event-kafka-cluster-name log-kafka-public-1
+```
+
+说明：
+
+- `partial-export` 是独立于全量 `export` 的局部导出入口，目前支持 BCS 集群、自定义上报 Data ID 和 APM 应用三个选择器
+- `partial-import` 导入前会检查 `bk_data_id`、`data_name`、`table_id`、`time_series_group_name`、`event_group_name` 等关键字段冲突，命中则失败且不写入
+- `partial-import` 会先完整预扫描导出目录，随后复用通用导入逻辑写入；大目录会有一次额外解析开销，并发写入导致的最终唯一性冲突仍以数据库约束和导入事务为准
+- `partial-import` 不执行整业务清理，避免局部增量导入影响同业务的其他配置
+- `partial-rebuild` 可直接从导出目录的 `manifest.json` 读取局部范围，也可以显式传入相同选择器
+- `partial-rebuild` 支持独立指定 `--metric-kafka-cluster-name`、`--log-kafka-cluster-name`、`--event-kafka-cluster-name`、`--log-es-cluster-name`、`--event-es-cluster-name`
+- `partial-rebuild` 会在重建后基于新环境生成 `data_id_infos`；传入 `--directory` 时会写入 `partial_data_id_infos.json`，可继续传给 `add-migrate-data-id-routes` 复用双写路由逻辑
 
 ### 数据重建
 
