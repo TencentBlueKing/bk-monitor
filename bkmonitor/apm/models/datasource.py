@@ -1560,7 +1560,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
             obj.save()
 
             essentials = provider.provider()
-            # provider() 成功后，补全 resource_name
+            # provider() 成功后，补全 resource_names（bk_data_id 已在 provider() 内部持久化）
             resource_names = provider.get_resource_names(bk_data_id=essentials["bk_data_id"])
             bkdata_datalink_config = {
                 "version": 4,

@@ -429,6 +429,260 @@ def test_enable_relation_surrealdb_dual_write_preserves_existing_write_mode(mock
     mock_apply.assert_called_once()
 
 
+def test_enable_relation_surrealdb_dual_write_restores_auto_downgraded_vm_binding(mocker):
+    data_source = models.DataSource.objects.create(
+        bk_data_id=50018,
+        data_name="9_bkcc_built_in_time_series",
+        bk_tenant_id="system",
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config="bk_standard_v2_time_series",
+        is_custom_source=False,
+        space_uid="bkcc__9",
+    )
+    table_id = "9_bkcc_built_in_time_series.__default__"
+    graph_table_id = "9_bkcc_built_in_time_series_graph.__default__"
+    models.DataSourceResultTable.objects.create(
+        bk_data_id=data_source.bk_data_id,
+        table_id=table_id,
+        bk_tenant_id="system",
+        creator="system",
+    )
+    models.ClusterInfo.objects.create(
+        cluster_id=1008,
+        cluster_name="vm-default",
+        cluster_type=models.ClusterInfo.TYPE_VM,
+        domain_name="vm.example.com",
+        port=80,
+        username="admin",
+        password="1234",
+        is_default_cluster=True,
+        is_ssl_verify=False,
+        bk_tenant_id="system",
+    )
+    models.ClusterInfo.objects.create(
+        cluster_id=2008,
+        cluster_name="surreal-default",
+        cluster_type=models.ClusterInfo.TYPE_SURREALDB,
+        domain_name="surreal.example.com",
+        port=80,
+        username="admin",
+        password="1234",
+        is_default_cluster=True,
+        is_ssl_verify=False,
+        bk_tenant_id="system",
+    )
+    data_link_name = compose_bkdata_table_id("system_9_bkcc_built_in_time_series_graph_relation")
+    data_link = DataLink.objects.create(
+        bk_tenant_id="system",
+        data_link_name=data_link_name,
+        namespace="bkmonitor",
+        bk_data_id=data_source.bk_data_id,
+        table_ids=[table_id],
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+    )
+    bkbase_result_table_name = compose_bkdata_table_id(table_id, DataLink.BK_STANDARD_V2_TIME_SERIES)
+    graph_result_table_name = compose_bkdata_table_id(graph_table_id, DataLink.BK_STANDARD_V2_TIME_SERIES)
+    vertices = [{"name": "pod", "id_fields": ["pod"]}]
+    relations = [{"name": "pod_node", "from": "pod", "to": "node"}]
+    GraphRelationBindingConfig.objects.create(
+        name=data_link_name,
+        data_link_name=data_link.data_link_name,
+        namespace=data_link.namespace,
+        bk_tenant_id="system",
+        bk_biz_id=9,
+        status=DataLinkResourceStatus.OK.value,
+        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM,
+        surrealdb_auto_restore=True,
+        vm_cluster_name="vm-default",
+        surrealdb_cluster_name="surreal-default",
+        table_id=table_id,
+        bkbase_result_table_name=bkbase_result_table_name,
+        graph_result_table_name=graph_result_table_name,
+        vertices=vertices,
+        relations=relations,
+    )
+    mocker.patch(
+        "metadata.task.sync_cmdb_relation.EntityMeta.auto_query_graph_definitions",
+        return_value=(vertices, relations),
+    )
+    mock_apply = mocker.patch("metadata.models.data_link.data_link.DataLink.apply_data_link")
+
+    enable_relation_surrealdb_dual_write(data_source, "system", 9)
+
+    binding = GraphRelationBindingConfig.objects.get(data_link_name=data_link_name)
+    assert binding.write_mode == GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB
+    assert binding.surrealdb_auto_restore is False
+    mock_apply.assert_called_once()
+    assert mock_apply.call_args.kwargs["write_mode"] == GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB
+    assert mock_apply.call_args.kwargs["persist_graph_write_mode"] is True
+    assert mock_apply.call_args.kwargs["surrealdb_auto_restore"] is False
+
+
+def test_enable_relation_surrealdb_dual_write_falls_back_to_vm_when_restore_cluster_missing(mocker):
+    data_source = models.DataSource.objects.create(
+        bk_data_id=50021,
+        data_name="12_bkcc_built_in_time_series",
+        bk_tenant_id="system",
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config="bk_standard_v2_time_series",
+        is_custom_source=False,
+        space_uid="bkcc__12",
+    )
+    table_id = "12_bkcc_built_in_time_series.__default__"
+    graph_table_id = "12_bkcc_built_in_time_series_graph.__default__"
+    models.DataSourceResultTable.objects.create(
+        bk_data_id=data_source.bk_data_id,
+        table_id=table_id,
+        bk_tenant_id="system",
+        creator="system",
+    )
+    models.ClusterInfo.objects.create(
+        cluster_id=1011,
+        cluster_name="vm-default",
+        cluster_type=models.ClusterInfo.TYPE_VM,
+        domain_name="vm.example.com",
+        port=80,
+        username="admin",
+        password="1234",
+        is_default_cluster=True,
+        is_ssl_verify=False,
+        bk_tenant_id="system",
+    )
+    data_link_name = compose_bkdata_table_id("system_12_bkcc_built_in_time_series_graph_relation")
+    data_link = DataLink.objects.create(
+        bk_tenant_id="system",
+        data_link_name=data_link_name,
+        namespace="bkmonitor",
+        bk_data_id=data_source.bk_data_id,
+        table_ids=[table_id],
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+    )
+    bkbase_result_table_name = compose_bkdata_table_id(table_id, DataLink.BK_STANDARD_V2_TIME_SERIES)
+    graph_result_table_name = compose_bkdata_table_id(graph_table_id, DataLink.BK_STANDARD_V2_TIME_SERIES)
+    vertices = [{"name": "pod", "id_fields": ["pod"]}]
+    relations = [{"name": "pod_node", "from": "pod", "to": "node"}]
+    GraphRelationBindingConfig.objects.create(
+        name=data_link_name,
+        data_link_name=data_link.data_link_name,
+        namespace=data_link.namespace,
+        bk_tenant_id="system",
+        bk_biz_id=12,
+        status=DataLinkResourceStatus.OK.value,
+        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM,
+        surrealdb_auto_restore=True,
+        vm_cluster_name="vm-default",
+        surrealdb_cluster_name="surreal-removed",
+        table_id=table_id,
+        bkbase_result_table_name=bkbase_result_table_name,
+        graph_result_table_name=graph_result_table_name,
+        vertices=vertices,
+        relations=relations,
+    )
+    mock_auto_query = mocker.patch("metadata.task.sync_cmdb_relation.EntityMeta.auto_query_graph_definitions")
+    mock_apply = mocker.patch("metadata.models.data_link.data_link.DataLink.apply_data_link")
+
+    enable_relation_surrealdb_dual_write(data_source, "system", 12)
+
+    binding = GraphRelationBindingConfig.objects.get(data_link_name=data_link_name)
+    assert binding.write_mode == GraphRelationBindingConfig.WRITE_MODE_VM
+    assert binding.surrealdb_auto_restore is True
+    assert binding.surrealdb_cluster_name == "surreal-removed"
+    assert binding.vertices == vertices
+    assert binding.relations == relations
+    mock_auto_query.assert_not_called()
+    mock_apply.assert_called_once()
+    assert mock_apply.call_args.kwargs["write_mode"] == GraphRelationBindingConfig.WRITE_MODE_VM
+    assert mock_apply.call_args.kwargs["persist_graph_write_mode"] is True
+    assert mock_apply.call_args.kwargs["surrealdb_auto_restore"] is True
+
+
+def test_enable_relation_surrealdb_dual_write_keeps_auto_restore_vm_binding_when_definitions_empty(mocker):
+    data_source = models.DataSource.objects.create(
+        bk_data_id=50019,
+        data_name="10_bkcc_built_in_time_series",
+        bk_tenant_id="system",
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config="bk_standard_v2_time_series",
+        is_custom_source=False,
+        space_uid="bkcc__10",
+    )
+    table_id = "10_bkcc_built_in_time_series.__default__"
+    graph_table_id = "10_bkcc_built_in_time_series_graph.__default__"
+    models.DataSourceResultTable.objects.create(
+        bk_data_id=data_source.bk_data_id,
+        table_id=table_id,
+        bk_tenant_id="system",
+        creator="system",
+    )
+    models.ClusterInfo.objects.create(
+        cluster_id=1009,
+        cluster_name="vm-default",
+        cluster_type=models.ClusterInfo.TYPE_VM,
+        domain_name="vm.example.com",
+        port=80,
+        username="admin",
+        password="1234",
+        is_default_cluster=True,
+        is_ssl_verify=False,
+        bk_tenant_id="system",
+    )
+    models.ClusterInfo.objects.create(
+        cluster_id=2009,
+        cluster_name="surreal-default",
+        cluster_type=models.ClusterInfo.TYPE_SURREALDB,
+        domain_name="surreal.example.com",
+        port=80,
+        username="admin",
+        password="1234",
+        is_default_cluster=True,
+        is_ssl_verify=False,
+        bk_tenant_id="system",
+    )
+    data_link_name = compose_bkdata_table_id("system_10_bkcc_built_in_time_series_graph_relation")
+    data_link = DataLink.objects.create(
+        bk_tenant_id="system",
+        data_link_name=data_link_name,
+        namespace="bkmonitor",
+        bk_data_id=data_source.bk_data_id,
+        table_ids=[table_id],
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+    )
+    bkbase_result_table_name = compose_bkdata_table_id(table_id, DataLink.BK_STANDARD_V2_TIME_SERIES)
+    graph_result_table_name = compose_bkdata_table_id(graph_table_id, DataLink.BK_STANDARD_V2_TIME_SERIES)
+    GraphRelationBindingConfig.objects.create(
+        name=data_link_name,
+        data_link_name=data_link.data_link_name,
+        namespace=data_link.namespace,
+        bk_tenant_id="system",
+        bk_biz_id=10,
+        status=DataLinkResourceStatus.OK.value,
+        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM,
+        surrealdb_auto_restore=True,
+        vm_cluster_name="vm-default",
+        surrealdb_cluster_name="surreal-default",
+        table_id=table_id,
+        bkbase_result_table_name=bkbase_result_table_name,
+        graph_result_table_name=graph_result_table_name,
+        vertices=[{"name": "pod", "id_fields": ["pod"]}],
+        relations=[{"name": "pod_node", "from": "pod", "to": "node"}],
+    )
+    mocker.patch("metadata.task.sync_cmdb_relation.EntityMeta.auto_query_graph_definitions", return_value=([], []))
+    mock_apply = mocker.patch("metadata.models.data_link.data_link.DataLink.apply_data_link")
+
+    enable_relation_surrealdb_dual_write(data_source, "system", 10)
+
+    binding = GraphRelationBindingConfig.objects.get(data_link_name=data_link_name)
+    assert binding.write_mode == GraphRelationBindingConfig.WRITE_MODE_VM
+    assert binding.surrealdb_auto_restore is True
+    mock_apply.assert_called_once()
+    assert mock_apply.call_args.kwargs["write_mode"] == GraphRelationBindingConfig.WRITE_MODE_VM
+    assert mock_apply.call_args.kwargs["persist_graph_write_mode"] is True
+    assert mock_apply.call_args.kwargs["surrealdb_auto_restore"] is True
+
+
 @pytest.mark.parametrize(
     "binding_status",
     [DataLinkResourceStatus.OK.value, DataLinkResourceStatus.INITIALIZING.value],
