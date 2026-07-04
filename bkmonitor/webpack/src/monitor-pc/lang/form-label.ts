@@ -1714,6 +1714,8 @@ export default {
   // '采集配置名称/ID': 'Collection configuration name/ID',
   '搜素 ID、名称': 'Search ID, Name',
   '主机&云平台': 'Host & Cloud Platform',
+  '前端监控 - RUM': 'Frontend Monitoring - RUM',
+  RUM: 'RUM',
   指标选择器: 'Metric Selector',
 
   // 日历
@@ -2012,6 +2014,10 @@ export default {
   数据后保留小数位: 'Data decimal places',
   '{0} 位': '{0} decimal places',
   Y轴最小值自适应: 'Y-axis minimum value adaptive',
+
+  // RUM
+  页面加载: 'Page load',
+  'API 请求': 'API request',
   动作: 'Action',
   Issue聚合: 'Issue aggregation',
   生效告警级别: 'Effective alarm level',

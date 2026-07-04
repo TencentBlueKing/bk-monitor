@@ -1,0 +1,103 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+.alert-info-card {
+  box-sizing: border-box;
+  width: 100%;
+  height: 56px;
+  background-color: #f5f7fa;
+  border-radius: 2px;
+
+  .alert-info-card-skeleton {
+    width: 100%;
+    height: 100%;
+  }
+
+  .alert-info-card-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 100%;
+    padding: 0 14px 0 24px;
+  }
+
+  // 左侧区域：无数据告警开关
+  .alert-info-card-left {
+    display: flex;
+    align-items: center;
+    height: 22px;
+
+    .alert-label {
+      margin-right: 14px;
+      font-size: 14px;
+      font-weight: 400;
+      color: #313238;
+      text-decoration: underline dashed #979ba5;
+      text-underline-offset: 6px;
+    }
+
+    .switch-wrapper {
+      display: flex;
+      align-items: center;
+      margin-top: 4px;
+    }
+  }
+
+  // 右侧区域：告警历史与操作链接
+  .alert-info-card-right {
+    display: flex;
+    align-items: center;
+    height: 22px;
+
+    .alert-history {
+      display: flex;
+      align-items: center;
+      margin-right: 12px;
+
+      .history-label {
+        margin-right: 2px;
+        color: #979ba5;
+      }
+    }
+
+    .action-link {
+      // 编辑告警策略链接，与"更多"链接保持 16px 间距
+      &.action-link-edit {
+        margin-left: 32px;
+      }
+
+      .bk-button-text {
+        line-height: 16px;
+      }
+
+      .link-icon {
+        margin-left: 4px;
+        font-size: 11px;
+      }
+    }
+  }
+}

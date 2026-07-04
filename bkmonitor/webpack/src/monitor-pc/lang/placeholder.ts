@@ -376,6 +376,9 @@ export default {
   '搜索 指标名、别名': 'Search Metric Name, Alias',
   输入告警ID进行变量渲染: 'Enter Alarm ID to render variables',
   '搜索 告警关键词': 'Search Alarm Keywords',
+
+  // RUM
+  '搜索 应用名称、应用别名、应用状态': 'Search Application Name, Application Alias, Application Status',
   '我要评论...': 'I want to comment...',
   请选择负责人: 'Please select the person in charge',
   请选择聚合维度: 'Please select aggregation dimension',

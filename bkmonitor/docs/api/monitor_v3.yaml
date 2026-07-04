@@ -3165,3 +3165,124 @@
   name: metadata_modify_data_id_source
   path: /v2/monitor_v3/modify_data_id_source/
   method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /rum_api/v1/rum_application/create_application/
+  is_hidden: true
+  label: 创建RUM应用
+  label_en: null
+  name: create_rum_application
+  path: /v2/monitor_v3/create_rum_application/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /rum_api/v1/rum_application/delete_application/
+  is_hidden: true
+  label: 删除RUM应用
+  label_en: null
+  name: delete_rum_application
+  path: /v2/monitor_v3/delete_rum_application/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /rum_api/v1/rum_application/list_application/
+  is_hidden: true
+  label: 获取RUM应用列表
+  label_en: null
+  name: list_rum_application
+  path: /v2/monitor_v3/list_rum_application/
+  method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /rum_api/v1/rum_application/detail_application/
+  is_hidden: true
+  label: 获取RUM应用详情
+  label_en: null
+  name: detail_rum_application
+  path: /v2/monitor_v3/detail_rum_application/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /rum_api/v1/rum_application/start_application/
+  is_hidden: true
+  label: 启动RUM应用
+  label_en: null
+  name: start_rum_application
+  path: /v2/monitor_v3/start_rum_application/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /rum_api/v1/rum_application/stop_application/
+  is_hidden: true
+  label: 停止RUM应用
+  label_en: null
+  name: stop_rum_application
+  path: /v2/monitor_v3/stop_rum_application/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /rum_api/v1/rum_application/apply_datasource/
+  is_hidden: true
+  label: 创建或更新RUM数据源
+  label_en: null
+  name: apply_rum_datasource
+  path: /v2/monitor_v3/apply_rum_datasource/
+  method: POST
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /rum_api/v1/rum_application/query_bk_data_token_info/
+  is_hidden: true
+  label: 查询RUM数据上报Token
+  label_en: null
+  name: query_rum_bk_data_token
+  path: /v2/monitor_v3/query_rum_bk_data_token/
+  method: GET
+
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
+  dest_path: /rum_api/v1/rum_application/application_config/
+  is_hidden: true
+  label: 获取RUM应用配置
+  label_en: null
+  name: query_rum_application_config
+  path: /v2/monitor_v3/query_rum_application_config/
+  method: GET
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /rum_api/v1/rum_application/release_app_config/
+  is_hidden: true
+  label: 发布RUM应用配置
+  label_en: null
+  name: release_rum_app_config
+  path: /v2/monitor_v3/release_rum_app_config/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
+  dest_path: /rum_api/v1/rum_application/delete_app_config/
+  is_hidden: true
+  label: 删除RUM应用配置
+  label_en: null
+  name: delete_rum_app_config
+  path: /v2/monitor_v3/delete_rum_app_config/
+  method: POST

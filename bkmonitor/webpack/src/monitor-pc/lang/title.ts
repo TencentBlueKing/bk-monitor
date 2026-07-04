@@ -247,6 +247,7 @@ export default {
   缩放: 'DataZoom',
 
   诊断概率: 'Diagnostic probability',
+  基本配置: 'Basic Configuration',
 
   // ISSUES
   指派负责人: 'Assign owner',

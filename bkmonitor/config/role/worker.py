@@ -56,6 +56,8 @@ INSTALLED_APPS += (  # noqa: F405,F821
     "alarm_backends",
     "apm",
     "apm_ebpf",
+    "rum",
+    "rum_web",
     "core.drf_resource",
     "ai_whale",
 )
@@ -186,6 +188,8 @@ DEFAULT_CRONTAB = [
     ("metadata.task.sync_space.refresh_bkcc_space_name", "*/6 * * * *", "global"),
     # metadata 全量刷新 ResourceDefinition/RelationDefinition 到 Redis 兜底任务，每10分钟一次
     ("metadata.task.entity_relation.refresh_entity_definition_to_redis", "*/10 * * * *", "global"),
+    # rum k8s 批量配置下发: 每5分钟触发，获取全部数据进行批量调度
+    ("rum.task.tasks.refresh_rum_config_to_k8s", "*/10 * * * *", "global"),
 ]
 
 if BCS_API_GATEWAY_HOST:  # noqa: F821

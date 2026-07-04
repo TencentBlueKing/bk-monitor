@@ -192,6 +192,7 @@ TASK_ROOT_MODULES = [
     "api",
     "apm",
     "apm_ebpf",
+    "rum",
     "metadata",
     "bkmonitor",
 ]
