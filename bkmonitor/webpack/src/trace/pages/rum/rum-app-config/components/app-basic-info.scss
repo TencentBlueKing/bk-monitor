@@ -1,0 +1,283 @@
+@mixin ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-basic-info {
+  display: flex;
+  gap: 50px;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+
+  /* 左侧：图标和基本信息区域 */
+  &__left {
+    display: flex;
+    flex: 1;
+    gap: 12px;
+    align-items: flex-start;
+    overflow: hidden;
+
+    /* 应用图标容器 */
+    .app-icon-wrapper {
+      display: flex;
+      flex-shrink: 0;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(180deg, #cddffe 0%, #e1ecff 100%);
+      border: 1px solid #cddffe;
+      border-radius: 6px;
+      box-shadow: 0 2px 8px 0 #3a84ff14;
+
+      .app-icon {
+        font-size: 32px;
+        color: #3a84ff;
+      }
+    }
+
+    /* 应用内容区域 */
+    .app-content {
+      display: flex;
+      flex: 1;
+      flex-shrink: 0;
+      flex-direction: column;
+      gap: 6px;
+      overflow: hidden;
+
+      /* 内容行 */
+      .content-row {
+        display: flex;
+        align-items: center;
+
+        /* 应用名 */
+        .app-name {
+          font-size: 18px;
+          font-weight: 700;
+          line-height: 24px;
+          color: #111214;
+
+          @include ellipsis;
+        }
+
+        /* 应用状态标签 */
+        .app-status {
+          display: flex;
+          flex-shrink: 0;
+          align-items: center;
+          height: 24px;
+          padding: 0 12px;
+          margin: 0 8px 0 12px;
+          font-size: 11px;
+          color: #fff;
+          background: #979ba5;
+          border-radius: 999px;
+
+          &.is-enabled {
+            color: #fff;
+            background-color: #2caf5e;
+          }
+        }
+
+        /* TOKEN 区域 */
+        .app-token {
+          display: flex;
+          flex-shrink: 0;
+          align-items: center;
+          height: 24px;
+          padding: 0 12px;
+          background-color: #f0f4fa;
+          border-radius: 999px;
+
+          .token-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #4e5e7a;
+          }
+
+          .token-value {
+            margin-left: 4px;
+            font-size: 11px;
+            font-weight: 400;
+            color: #111214;
+          }
+
+          /* TOKEN 操作按钮 */
+          .token-action {
+            display: flex;
+            gap: 2px;
+            align-items: center;
+            margin-left: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #3a84ff;
+            cursor: pointer;
+
+            .icon-monitor {
+              font-size: 14px;
+            }
+
+            &:hover {
+              color: #5594fa;
+            }
+          }
+        }
+
+        /* 应用别名 */
+        .app-alias {
+          font-size: 12px;
+          font-weight: 500;
+          line-height: 20px;
+          color: #4e5e7a;
+
+          @include ellipsis;
+        }
+
+        /* 分隔线 */
+        .separator {
+          width: 1px;
+          height: 12px;
+          margin: 0 8px;
+          background-color: #e4e9f2;
+        }
+
+        /* 应用描述区域 */
+        .app-desc {
+          display: flex;
+          align-items: center;
+          overflow: hidden;
+
+          .desc-text {
+            font-size: 12px;
+            line-height: 20px;
+            color: #8896b3;
+
+            @include ellipsis;
+          }
+
+          /* 编辑图标 */
+          .edit-icon {
+            margin-left: 8px;
+            font-size: 14px;
+            color: #3a84ff;
+            cursor: pointer;
+
+            &:hover {
+              color: #5594fa;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /* 右侧：操作按钮区域 */
+  &__right {
+    display: flex;
+    flex-shrink: 0;
+    gap: 24px;
+    align-items: center;
+
+    .link-icon {
+      font-size: 16px;
+
+      &:hover {
+        color: #5594fa;
+      }
+    }
+
+    .operation-btn {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      font-size: 12px;
+      color: #3a84ff;
+      cursor: pointer;
+
+      &:hover {
+        color: #5594fa;
+      }
+    }
+  }
+}
+
+/* 编辑应用信息弹窗样式 */
+.bk-popover.bk-pop2-content.edit-app-info-popover {
+  padding: 18px 24px 24px;
+
+  .edit-app-info-popover-content {
+    .action-btns {
+      display: flex;
+      gap: 8px;
+
+      .bk-button {
+        min-width: 64px;
+      }
+    }
+  }
+}
+
+.bk-popover.bk-pop2-content.rum-app-more-menu-popover {
+  padding: 4px 0;
+
+  .more-menu {
+    .more-menu-item {
+      min-width: 32px;
+      padding: 0 12px;
+      line-height: 32px;
+      cursor: pointer;
+
+      &:hover {
+        background-color: #f5f7fa;
+      }
+    }
+  }
+}
+
+.bk-popover.bk-pop2-content.rum-app-operation-popover {
+  padding: 16px;
+
+  .rum-app-operation-content {
+    .title {
+      font-size: 16px;
+      font-weight: 400;
+      line-height: 24px;
+      color: #313238;
+    }
+
+    .app-name {
+      margin-top: 14px;
+      font-size: 12px;
+      line-height: 20px;
+
+      .label {
+        color: #4e5e7a;
+      }
+
+      .value {
+        color: #111214;
+      }
+    }
+
+    .tips {
+      margin-top: 6px;
+      font-size: 12px;
+      line-height: 20px;
+      color: #4e5e7a;
+    }
+
+    .btns {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: end;
+      margin-top: 16px;
+
+      .bk-button {
+        min-width: 72px;
+      }
+    }
+  }
+}

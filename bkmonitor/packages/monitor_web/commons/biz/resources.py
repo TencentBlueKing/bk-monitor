@@ -184,6 +184,7 @@ class ListSpacesResource(Resource):
             ),
             (SpaceFunction.CI_BUILDER.value, lambda s: s["space_type_id"] == SpaceTypeEnum.BKCI.value),
             (SpaceFunction.PAAS_APP.value, lambda s: s["space_type_id"] == SpaceTypeEnum.BKSAAS.value),
+            (SpaceFunction.RUM.value, lambda s: True),
         )
         func_info = {}
         for func_name, validator in func_requirment:
@@ -449,6 +450,38 @@ class SpaceIntroduceResource(Resource):
                 },
             }
 
+        def rum():
+            return {
+                "is_no_data": not CM.get_controller(SpaceFunction.RUM.value, bk_biz_id).accessed,
+                "is_no_source": not CM.get_controller(SpaceFunction.RUM.value, bk_biz_id).related,
+                "data": {
+                    "title": _("RUM"),
+                    "subTitle": _(
+                        "RUM 即真实用户监控，通过采集用户在浏览器、移动端等真实访问过程中的性能、错误和行为数据，帮助定位页面加载慢、接口异常、白屏崩溃以及用户体验问题，尤其适用于前端应用和终端场景下的问题发现与分析。"
+                    ),
+                    "introduce": [
+                        _("通过页面性能指标，了解首屏加载、资源加载、接口耗时等用户访问体验"),
+                        _("通过 JS 报错、接口异常等数据，快速发现并定位前端稳定性问题"),
+                        _("通过用户行为与会话回放，还原用户操作，辅助分析问题影响与根因"),
+                        _("结合告警能力，对性能劣化和异常问题进行及时发现与响应"),
+                    ],
+                    "buttons": [
+                        {"name": _("新建应用"), "url": "#/trace/rum/application/add"},
+                        {"name": "DEMO", "url": ""},
+                    ],
+                    "links": [
+                        {
+                            "name": _("产品白皮书"),
+                            "url": settings.RUM_FUNC_INTRODUCTION_URL or "",
+                        },
+                        {
+                            "name": _("接入指引"),
+                            "url": settings.RUM_ACCESS_URL or "",
+                        },
+                    ],
+                },
+            }
+
         tag_intro_key = f"introduce:{tag}:{bk_biz_id}"
         func = {
             "performance": performance,
@@ -458,6 +491,7 @@ class SpaceIntroduceResource(Resource):
             "custom-scenes": custom_scenes,
             "collect-config": collect_config,
             "plugin-manager": collect_config,
+            "rum": rum,
         }.get(tag, lambda: {})
         ret_from_cache = cache.get(tag_intro_key)
         if ret_from_cache:
@@ -479,7 +513,7 @@ class SpaceIntroduceResource(Resource):
                 logger.exception(f"get biz({bk_biz_id}) introduce error: {e}")
                 return {}
         else:
-            tags = ["performance", "uptime-check", "apm-home", "k8s", "custom-scenes", "collect-config"]
+            tags = ["performance", "uptime-check", "apm-home", "k8s", "custom-scenes", "collect-config", "rum"]
             return {_tag: self.get_introduce(_tag, bk_biz_id) for _tag in tags}
 
 

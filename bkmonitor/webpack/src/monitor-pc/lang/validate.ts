@@ -311,5 +311,9 @@ export default {
   同环比算法最多添加三个级别: 'Algorithm for adding three levels at most',
   新维度值检测最多支持三个告警级别: 'New dimension value detection supports at most three alarm levels',
   必须选择一个检测规则: 'You must select a detection rule',
+
+  // RUM
+  只能填写正整数: 'Only positive integers can be filled in',
+  应用别名必填: 'Application alias is required',
   时间不能为空且必须大于0: 'Time cannot be empty and must be greater than 0',
 };

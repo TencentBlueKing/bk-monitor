@@ -84,6 +84,13 @@ GRAFANA_DASHBOARD_RESOURCE = {
     "related_instance_selections": [{"system_id": settings.BK_IAM_SYSTEM_ID, "id": "grafana_dashboard_list"}],
 }
 
+RUM_APPLICATION_RESOURCE = {
+    "id": "rum_application",
+    "system_id": settings.BK_IAM_SYSTEM_ID,
+    "selection_mode": "instance",
+    "related_instance_selections": [{"system_id": settings.BK_IAM_SYSTEM_ID, "id": "rum_application_list_v2"}],
+}
+
 
 class ActionEnum:
     VIEW_BUSINESS = ActionMeta(
@@ -581,6 +588,26 @@ class ActionEnum:
         version=1,
     )
 
+    VIEW_RUM_APPLICATION = ActionMeta(
+        id="view_rum_application_v2",
+        name=_("RUM应用查看"),
+        name_en="RUM Application View",
+        type="view",
+        related_resource_types=[RUM_APPLICATION_RESOURCE],
+        related_actions=[VIEW_BUSINESS.id],
+        version=1,
+    )
+
+    MANAGE_RUM_APPLICATION = ActionMeta(
+        id="manage_rum_application_v2",
+        name=_("RUM应用管理"),
+        name_en="RUM Application Manage",
+        type="manage",
+        related_resource_types=[RUM_APPLICATION_RESOURCE],
+        related_actions=[],
+        version=1,
+    )
+
 
 _all_actions = {action.id: action for action in ActionEnum.__dict__.values() if isinstance(action, ActionMeta)}
 
@@ -662,6 +689,8 @@ MINI_ACTION_IDS = [
     ActionEnum.IMPORT_CONFIG.id,
     ActionEnum.VIEW_APM_APPLICATION.id,
     ActionEnum.MANAGE_APM_APPLICATION.id,
+    ActionEnum.VIEW_RUM_APPLICATION.id,
+    ActionEnum.MANAGE_RUM_APPLICATION.id,
     ActionEnum.VIEW_INCIDENT.id,
     ActionEnum.MANAGE_INCIDENT.id,
     ActionEnum.USE_PUBLIC_SYNTHETIC_LOCATION.id,
