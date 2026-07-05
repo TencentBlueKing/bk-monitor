@@ -1,18 +1,5 @@
 from types import SimpleNamespace
 
-from django.conf import settings
-
-if not settings.configured:
-    settings.configure(
-        CACHE_BIZ_TIMEOUT=60,
-        CACHE_HOST_TIMEOUT=60,
-        CACHE_CC_TIMEOUT=60,
-        CACHE_DATA_TIMEOUT=60,
-        CACHE_OVERVIEW_TIMEOUT=60,
-        CACHE_USER_TIMEOUT=60,
-        CACHE_HOME_TIMEOUT=60,
-    )
-
 from bkmonitor.utils import dynamic_settings
 from bkmonitor.utils.dynamic_settings import DynamicSettings
 
@@ -44,11 +31,11 @@ def test_dynamic_settings_does_not_cache_default_when_db_unavailable(monkeypatch
     monkeypatch.setattr(dynamic_settings, "locmem_cache", cache)
     monkeypatch.setattr(dynamic_settings, "redis_cache", None)
 
-    settings = object.__new__(DynamicSettings)
-    settings._wrapped = SimpleNamespace(WXWORK_BOT_WEBHOOK_URL="")
-    settings._global_config_model = _FallbackGlobalConfig
-    settings.__name_list__ = {"WXWORK_BOT_WEBHOOK_URL"}
-    settings.has_redis_cache = False
+    dynamic_settings_obj = object.__new__(DynamicSettings)
+    dynamic_settings_obj._wrapped = SimpleNamespace(WXWORK_BOT_WEBHOOK_URL="")
+    dynamic_settings_obj._global_config_model = _FallbackGlobalConfig
+    dynamic_settings_obj.__name_list__ = {"WXWORK_BOT_WEBHOOK_URL"}
+    dynamic_settings_obj.has_redis_cache = False
 
-    assert settings.WXWORK_BOT_WEBHOOK_URL == ""
+    assert dynamic_settings_obj.WXWORK_BOT_WEBHOOK_URL == ""
     assert "WXWORK_BOT_WEBHOOK_URL" not in cache.store
