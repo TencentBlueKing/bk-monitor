@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import logging
 import os
+from ipaddress import ip_address
 
 from django.utils.translation import gettext as _
 
@@ -199,7 +200,38 @@ class StandardTranslateEnricher(BaseAlertEnricher):
             alert.add_dimension(key="ip", value=alert.top_event["ip"], display_key=_("目标IP"))
             alert.add_dimension(key="bk_cloud_id", value=alert.top_event["bk_cloud_id"], display_key=_("云区域ID"))
 
+        if not alert.top_event.get("ip") and bool({"bk_target_ip", "ip"} & dimension_fields):
+            self.enrich_host_target(alert)
+
         return alert
+
+    @classmethod
+    def enrich_host_target(cls, alert: Alert):
+        ip, bk_cloud_id = cls.parse_host_target(alert.top_event.get("target"))
+        if not ip:
+            return
+
+        # CMDB 反查失败时保留原始目标 IP 供展示，不反向写入事件主机身份字段。
+        alert.add_dimension(key="ip", value=ip, display_key=_("目标IP"))
+        if bk_cloud_id is not None:
+            alert.add_dimension(key="bk_cloud_id", value=bk_cloud_id, display_key=_("云区域ID"))
+
+    @staticmethod
+    def parse_host_target(target):
+        if not target:
+            return None, None
+
+        ip, separator, bk_cloud_id = str(target).partition("|")
+        try:
+            ip_address(ip)
+        except ValueError:
+            return None, None
+
+        if not separator:
+            return ip, None
+        if bk_cloud_id.isdigit():
+            return ip, int(bk_cloud_id)
+        return ip, None
 
     def enrich_service(self, alert: Alert):
         bk_service_instance_id = alert.top_event["target"]

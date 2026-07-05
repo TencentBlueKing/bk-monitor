@@ -764,6 +764,31 @@ class TestProcessor(TestCase):
         self.assertEqual("tags.device", target_dimension.get("display_key"))
         self.assertEqual("cpu0", target_dimension.get("display_value"))
 
+    def test_enrich_host_alert_fallback_to_target_ip_when_cmdb_missing(self):
+        processor, alerts = self.get_alert_processor(
+            {
+                "target": "9.150.80.221",
+                "extra_info": {
+                    "origin_alarm": {
+                        "data": {
+                            "dimension_fields": ["bk_target_ip"],
+                            "dimensions": {"bk_target_ip": "9.150.80.221"},
+                        }
+                    }
+                },
+            }
+        )
+
+        alerts = processor.enrich_alerts(alerts)
+        self.assertEqual(1, len(alerts))
+        alert = alerts[0]
+        dimensions = {d["key"]: d["value"] for d in alert.dimensions}
+
+        self.assertEqual("9.150.80.221", dimensions["ip"])
+        self.assertNotIn("bk_cloud_id", dimensions)
+        self.assertNotIn("ip", alert.top_event)
+        self.assertNotIn("bk_cloud_id", alert.top_event)
+
     def test_enrich_kubernetes_alerts(self):
         with mock.patch("bkmonitor.utils.thread_backend.ThreadPool.map_ignore_exception") as relation_mock:
             relation_mock.return_value = [
