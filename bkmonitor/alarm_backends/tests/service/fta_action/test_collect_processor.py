@@ -48,5 +48,6 @@ def test_send_collect_notice_logs_regular_failure(settings, monkeypatch, caplog)
 
     assert processor.action.status == ActionStatus.FAILURE
     assert processor.action.failure_type == FailureType.EXECUTE_ERROR
+    assert "in send_collect_notice" in caplog.text
     assert "collect notice failed" in caplog.text
     assert "missing webhook" in caplog.text

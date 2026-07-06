@@ -229,7 +229,7 @@ class ActionProcessor(BaseActionProcessor):
                 self.action.failure_type = failure_type
                 self.action.ex_data = {"message": notice_result["message"]}
                 logger.error(
-                    "--$%s|%s collect notice failed for actions(%s), notice_way(%s), receiver(%s), "
+                    "in send_collect_notice: --$%s|%s collect notice failed for actions(%s), notice_way(%s), receiver(%s), "
                     "failure_type(%s), message: %s",
                     self.action.id,
                     self.converge_instance.id,
