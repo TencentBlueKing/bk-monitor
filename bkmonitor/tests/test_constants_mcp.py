@@ -12,6 +12,7 @@ import pytest
 
 from constants.mcp import (
     MCP_SERVER_SUFFIX_TO_PERMISSION_ACTION,
+    OPERATION_MCP_PERMISSION_ACTION,
     extract_mcp_server_suffix,
     get_mcp_permission_action_by_server_name,
 )
@@ -89,10 +90,16 @@ class TestGetMcpPermissionActionByServerName:
             ("bk-monitor-prod-profiling-query", "using_apm_mcp"),
             ("bkmonitorv3-stage-log-query", "using_log_mcp"),
             ("BKMonitorV3-Prod-Dashboard-Edit", "using_dashboard_mcp"),  # 大小写不敏感
+            ("bkmonitorv3-prod-operation", "using_operation_mcp"),  # 运营数据 MCP
         ],
     )
     def test_known_actions(self, server_name, expected_action):
         assert get_mcp_permission_action_by_server_name(server_name) == expected_action
+
+    def test_operation_action_constant_matches_mapping(self):
+        """运营 MCP 权限动作常量必须与映射表一致，避免鉴权收敛逻辑因常量漂移而失效。"""
+        assert OPERATION_MCP_PERMISSION_ACTION == "using_operation_mcp"
+        assert MCP_SERVER_SUFFIX_TO_PERMISSION_ACTION["operation"] == OPERATION_MCP_PERMISSION_ACTION
 
     @pytest.mark.parametrize(
         "server_name",

@@ -1572,6 +1572,12 @@ OPERATION_MCP_DORIS_STORAGE_PROMQL: dict = {}  # doris 存储量 PromQL，形如
 OPERATION_MCP_PLATFORM_BIZ_ID = 0
 # 按指标族覆盖统计业务 ID（不同族可能落在不同业务），形如 {"default": <业务ID>, "logbeat": <业务ID>}
 OPERATION_MCP_STAT_BIZ_IDS: dict = {}
+# 运营数据 MCP 鉴权收敛业务 ID（>0 时生效）：
+# 运营数据为平台总量，bk_biz_id 只用于鉴权范围。默认实现会用"调用方传入的 bk_biz_id"做 IAM 校验，
+# 导致用户只要在自己任一业务上拥有 using_operation_mcp 权限即可解锁全平台运营数据。
+# 配置为某个固定的"运营/平台业务"后，运营 MCP 的鉴权将忽略调用方传入的 bk_biz_id，统一在该业务上校验，
+# 仅被授予"在该业务上使用运营数据 MCP"的人才能调用；未配置(0)时保持原有按调用方业务校验的行为（会打告警日志）。
+OPERATION_MCP_AUTH_BIZ_ID = 0
 
 # 场景-Agent映射配置,用于实现Agent路由
 AIDEV_SCENE_AGENT_CODE_MAPPING = {}
