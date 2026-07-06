@@ -35,18 +35,32 @@ def sync_bkbase_result_table_meta(round_iter, bkbase_rt_meta_list, biz_id_list):
 
     start_time = time.time()
     try:
+        target_table_ids = []
+        target_field_names = set()
+        for data in bkbase_rt_meta_list:
+            bkbase_result_table_id = data.get("result_table_id")
+            if not bkbase_result_table_id:
+                continue
+            target_table_ids.append(f"{bkbase_result_table_id}.__default__")
+            target_field_names.update(
+                field.get("field_name") for field in data.get("fields", []) if field.get("field_name")
+            )
+        target_table_ids = list(dict.fromkeys(target_table_ids))
+
         # 这里指定业务ID列表作为过滤条件,避免全量拉取数据可能导致的性能问题
         existing_bkbase_result_tables = {
             result_table.table_id: result_table
             for result_table in models.ResultTable.objects.filter(
-                default_storage=ClusterInfo.TYPE_BKDATA, bk_biz_id__in=biz_id_list
+                default_storage=ClusterInfo.TYPE_BKDATA, bk_biz_id__in=biz_id_list, table_id__in=target_table_ids
             )
         }
-        existing_bkbase_table_ids = list(existing_bkbase_result_tables)
-        existing_bkbase_rt_fields = {
-            (field.table_id, field.field_name): field
-            for field in models.ResultTableField.objects.filter(table_id__in=existing_bkbase_table_ids)
-        }
+        existing_bkbase_rt_fields = set()
+        if target_table_ids and target_field_names:
+            existing_bkbase_rt_fields = set(
+                models.ResultTableField.objects.filter(
+                    table_id__in=target_table_ids, field_name__in=target_field_names
+                ).values_list("table_id", "field_name")
+            )
 
         # 存储需要批量创建的 ResultTable 和 ResultTableField
         result_table_to_create = []

@@ -512,4 +512,10 @@ export default {
   '已授权 TAPD 项目列表 · 已关联 {count} 个项目': 'Authorized TAPD Project List · {count} Projects Associated',
   '开启后，当本单据在外部平台进入「已完成」类状态{0}时，本 Issue 将自动流转为「已解决」。':
     'After opening, when this document enters the "Completed" status {0} on the external platform, this issue will automatically flow to "Resolved".',
+  '未勾选，则仅保留关联，不因单据关闭而自动关 Issue。':
+    'If not checked, only the association is retained, and the issue is not automatically closed due to document closure.',
+  '请选择有权限的项目，完成蓝鲸监控关联项目的应用授权。':
+    'Please select a project with permission, and complete the application authorization of the BK-Monitor project.',
+  '取消后，TAPD 侧授权不会被撤销，但蓝鲸侧不再与该 TAPD 项目关联。确认解绑吗？':
+    'After unchecking, the TAPD side authorization will not be revoked, but the BK-Monitor side will no longer be associated with the TAPD project. Are you sure to unbind?',
 };

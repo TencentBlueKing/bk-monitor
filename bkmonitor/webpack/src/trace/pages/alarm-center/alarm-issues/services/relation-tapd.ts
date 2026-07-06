@@ -2,7 +2,7 @@
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  *
- * Copyright (C) 2017-2025 THL A29 Limited, a Tencent company.  All rights reserved.
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
  *
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
  *
@@ -23,47 +23,31 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { request } from 'monitor-api/base';
 
-import {
-  getUserWorkspace,
-  rebindWorkspace,
-  revokeAuth,
-  searchTapdItems,
-  unbindWorkspace,
-} from 'monitor-api/modules/issue';
+import type { RequestOptions } from '../../services/base';
 
-import type {
-  GetUserWorkspaceData,
-  GetUserWorkspaceRequest,
-  RebindWorkspaceRequest,
-  RevokeAuthRequest,
-  UnbindWorkspaceRequest,
-} from '../typing';
-import type { RequestConfig } from 'monitor-api/base';
+const tapdRelationApi = request('POST', '/fta/issue/issue/tapd_relations/');
 
-/** 获取用户 TAPD 工作空间列表 */
-export const getUserWorkspaceApi = (
-  params: GetUserWorkspaceRequest,
-  options?: RequestConfig
-): Promise<GetUserWorkspaceData> => {
-  return getUserWorkspace(params, options);
-};
+export interface TapdRelationItem {
+  bk_biz_id: number;
+  issue_id: string;
+  link_mode: string;
+  relation_id: number;
+  sync_status: boolean;
+  tapd_id: string;
+  tapd_title: string;
+  tapd_type: string;
+  workspace_id: number;
+}
 
-/** 用户取消关联项目 */
-export const unbindWorkspaceApi = (params: UnbindWorkspaceRequest, options?: RequestConfig) => {
-  return unbindWorkspace(params, options);
-};
-
-/** 用户重新关联项目 */
-export const rebindWorkspaceApi = (params: RebindWorkspaceRequest, options?: RequestConfig) => {
-  return rebindWorkspace(params, options);
-};
-
-/** 用户取消授权 */
-export const revokeAuthApi = (params: RevokeAuthRequest, options?: RequestConfig) => {
-  return revokeAuth(params, options);
-};
-
-export const searchTapdItemsApi = (params, options?: RequestConfig) => {
-  return searchTapdItems(params, options);
+export const getTapdRelations = (
+  params: {
+    bk_biz_id: number;
+    issue_id: string;
+  },
+  options?: RequestOptions
+): Promise<TapdRelationItem[]> => {
+  const data = tapdRelationApi(params, options).catch(() => []);
+  return data;
 };

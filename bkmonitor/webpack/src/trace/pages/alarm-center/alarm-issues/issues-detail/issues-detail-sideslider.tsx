@@ -182,7 +182,7 @@ export default defineComponent({
     };
 
     const handleCreateTapd = () => {
-      emit('createTapd', true, props.issueBizId, props.issueId);
+      emit('createTapd', true);
       handleShowChange(false);
     };
 
