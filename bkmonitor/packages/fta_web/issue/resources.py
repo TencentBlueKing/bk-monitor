@@ -2678,6 +2678,7 @@ class UnbindTapdWorkspaceResource(Resource):
     """解除 TAPD 项目与当前业务的关联
 
     仅删除本地 TapdWorkspaceBinding，不在 TAPD 侧撤回应用授权。
+    解绑前会校验 Issue-TAPD 关联关系：若存在活跃 Issue（待审核/未解决）关联此项目，则阻止解绑。
     端点：POST /fta/issue/tapd/unbind_workspace
     """
 
@@ -2701,6 +2702,11 @@ class UnbindTapdWorkspaceResource(Resource):
                 message=f"TAPD 项目 {workspace_id} 未与当前业务关联",
             )
 
+        # 校验：检查是否存在活跃的 Issue-TAPD 关联关系
+        # 仅当 Issue 处于活跃状态（待审核/未解决）时阻止解绑
+        # RESOLVED 和 ARCHIVED 视为"过时"，允许解绑
+        self._check_active_tapd_relations(bk_biz_id, workspace_id)
+
         # 写入 tombstone + 删除 binding，放在同一事务中保证一致性（避免 tombstone 已写但 binding 删除失败）
         with transaction.atomic():
             TapdWorkspaceManualUnbind.objects.get_or_create(
@@ -2720,6 +2726,56 @@ class UnbindTapdWorkspaceResource(Resource):
         )
 
         return {"success": True}
+
+    def _check_active_tapd_relations(self, bk_biz_id: int, workspace_id: str) -> None:
+        """检查是否存在活跃的 Issue-TAPD 关联关系
+
+        若关联的 Issue 仍处于活跃状态（待审核/未解决），则阻止解绑。
+        ES 查询直接在 status 维度过滤 ACTIVE_STATUSES，仅返回活跃 Issue。
+        ES 查询失败时 fail-open，记录日志后允许解绑。
+        """
+        try:
+            workspace_id_int = int(workspace_id)
+        except (TypeError, ValueError):
+            # workspace_id 无法转换为 int，IssueTapdRelation.workspace_id 是 IntegerField，
+            # 无法匹配任何记录，直接返回
+            return
+
+        relations_qs = IssueTapdRelation.objects.filter(
+            bk_biz_id=bk_biz_id,
+            workspace_id=workspace_id_int,
+        )
+        if not relations_qs.exists():
+            return
+
+        # 批量查询关联的 Issue，ES 侧直接过滤活跃状态，避免拉取全量再逐条判断
+        issue_ids = list(relations_qs.values_list("issue_id", flat=True))
+        try:
+            hits = (
+                IssueDocument.search(all_indices=True)
+                .filter("terms", **{"_id": issue_ids})
+                .filter("terms", status=IssueStatus.ACTIVE_STATUSES)
+                .params(size=len(issue_ids))
+                .execute()
+                .hits
+            )
+        except Exception as e:
+            # ES 查询失败时 fail-open，记录日志后允许解绑
+            logger.warning(
+                "UnbindTapdWorkspace: ES query failed, fail-open. biz=%s ws=%s error=%s",
+                bk_biz_id,
+                workspace_id,
+                e,
+            )
+            return
+
+        if hits:
+            active_ids = [hit.meta.id for hit in hits]
+            preview = ", ".join(active_ids[:10])
+            raise CustomException(
+                f"存在 {len(active_ids)} 个活跃的 Issue 关联此 TAPD 项目，"
+                f"请先解决或归档这些 Issue 后再解绑。活跃 Issue ID: {preview}"
+            )
 
 
 class RebindTapdWorkspaceResource(Resource):
