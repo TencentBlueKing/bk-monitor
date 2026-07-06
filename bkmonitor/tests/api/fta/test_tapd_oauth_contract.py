@@ -252,6 +252,39 @@ class TestTapdOauthContract(unittest.TestCase):
         self.assertIn("workspace_id not in app_granted_ids", source)
         self.assertIn("TAPD 项目未完成应用授权", source)
 
+    def test_unbind_checks_active_issue_relations_before_deleting_binding(self):
+        resource = _class(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "UnbindTapdWorkspaceResource")
+        perform_request = _method(resource, "perform_request")
+        check_relations = _method(resource, "_check_active_tapd_relations")
+        perform_source = ast.get_source_segment(_read("bkmonitor/packages/fta_web/issue/resources.py"), perform_request)
+        check_source = ast.get_source_segment(_read("bkmonitor/packages/fta_web/issue/resources.py"), check_relations)
+
+        check_index = perform_source.index("self._check_active_tapd_relations")
+        delete_index = perform_source.index("binding_qs.delete")
+
+        self.assertLess(check_index, delete_index)
+        self.assertIn("IssueTapdRelation.objects.filter", check_source)
+        self.assertIn("bk_biz_id=bk_biz_id", check_source)
+        self.assertIn("workspace_id=workspace_id_int", check_source)
+        self.assertIn("IssueDocument.search(all_indices=True)", check_source)
+        self.assertIn('filter("term", bk_biz_id=bk_biz_id)', check_source)
+        self.assertIn("IssueStatus.ACTIVE_STATUSES", check_source)
+        self.assertIn("CustomException", check_source)
+        self.assertIn("except Exception as e", check_source)
+        self.assertIn("fail-open", check_source)
+
+    def test_unbind_active_issue_query_is_batched_and_uses_es_total(self):
+        resource = _class(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "UnbindTapdWorkspaceResource")
+        check_relations = _method(resource, "_check_active_tapd_relations")
+        source = ast.get_source_segment(_read("bkmonitor/packages/fta_web/issue/resources.py"), check_relations)
+
+        self.assertIn("ACTIVE_RELATION_ES_CHUNK_SIZE", source)
+        self.assertIn("ACTIVE_RELATION_PREVIEW_LIMIT", source)
+        self.assertIn("track_total_hits=True", source)
+        self.assertIn("active_count +=", source)
+        self.assertIn("preview_ids.extend", source)
+        self.assertNotIn("params(size=len(issue_ids))", source)
+
     def test_trace_tapd_frontend_rebinds_manually_unbound_workspace(self):
         service_source = _read(
             "bkmonitor/webpack/src/trace/pages/alarm-center/alarm-issues/issues-tapd/services/tapd.ts"
@@ -262,12 +295,13 @@ class TestTapdOauthContract(unittest.TestCase):
         constants_source = _read("bkmonitor/webpack/src/trace/pages/alarm-center/alarm-issues/constant.ts")
 
         self.assertIn("MANUALLY_UNBOUND: 'manually_unbound'", constants_source)
-        self.assertIn("export const rebindWorkspace", service_source)
-        self.assertIn("export const unbindWorkspace", service_source)
-        self.assertIn("export const revokeAuth", service_source)
-        self.assertIn("item.is_bound === 'manually_unbound'", auth_source)
-        self.assertIn("await rebindWorkspace", auth_source)
-        self.assertIn("await getAuth()", auth_source)
+        self.assertIn("export const rebindWorkspaceApi", service_source)
+        self.assertIn("export const unbindWorkspaceApi", service_source)
+        self.assertIn("export const revokeAuthApi", service_source)
+        self.assertIn("case 'manually_unbound'", auth_source)
+        self.assertIn("rebindWorkspaceApi", auth_source)
+        self.assertIn("target.is_bound = 'bound'", auth_source)
+        self.assertIn("workspaceList.value = [...workspaceList.value]", auth_source)
         self.assertIn("installUrl.value.replace", auth_source)
 
 
