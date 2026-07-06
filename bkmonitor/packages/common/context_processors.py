@@ -162,6 +162,11 @@ def get_core_context(request):
         # 全局配置资源链接
         "BK_SHARED_RES_URL": settings.BK_SHARED_RES_URL,
         "FOOTER_VERSION": settings.VERSION,
+        # RUM 配置
+        "BKAPP_RUM_SDK": settings.BKAPP_RUM_SDK,
+        "BKAPP_RUM_ENDPOINT": settings.BKAPP_RUM_ENDPOINT,
+        "BKAPP_RUM_TOKEN": settings.BKAPP_RUM_TOKEN,
+        "BKAPP_RUM_ENABLED": settings.BKAPP_RUM_ENABLED,
     }
 
 
