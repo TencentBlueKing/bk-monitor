@@ -184,6 +184,15 @@ DEFAULT_DIMENSIONS_MAP = {
     "device_target": DefaultDimensions.device,
 }
 
+
+def extend_missing_dimensions(dimensions: list[dict[str, Any]], additions: list[dict[str, Any]]) -> None:
+    exist_dimension_ids = {dimension["id"] for dimension in dimensions}
+    for dimension in additions:
+        if dimension["id"] not in exist_dimension_ids:
+            dimensions.append(copy.deepcopy(dimension))
+            exist_dimension_ids.add(dimension["id"])
+
+
 UPTIMECHECK_MAP = {
     "HTTP": [AvailableMetric, TaskDurationMetric, ResponseCodeMetric, ResponseMetric],
     "UDP": [AvailableMetric, TaskDurationMetric],
@@ -2145,6 +2154,8 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
 
     def get_system_metric(self, table):
         base_metric = self.get_base_dict(table)
+        if base_metric["data_target"] == DataTarget.HOST_TARGET:
+            extend_missing_dimensions(base_metric["dimensions"], DEFAULT_DIMENSIONS_MAP[DataTarget.HOST_TARGET])
         if settings.IS_ACCESS_BK_DATA and settings.IS_ENABLE_VIEW_CMDB_LEVEL:
             base_metric["dimensions"].append({"id": "bk_obj_id", "name": _("节点类型")})
             base_metric["dimensions"].append({"id": "bk_inst_id", "name": _("节点名称")})
