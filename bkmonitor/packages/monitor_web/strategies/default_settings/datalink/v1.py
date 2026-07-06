@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,8 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import enum
-from typing import Dict, List
 
 from django.utils.translation import gettext_lazy as _
 
@@ -45,18 +44,24 @@ class DatalinkStrategy(enum.Enum):
         return self.value
 
     def render_escaped_label(self, **context):
-        return "/{}/".format(self.render_label(**context))
+        return f"/{self.render_label(**context)}/"
 
 
 COLLECTING_SYS_ALARM_DESC = _("数据采集遇到系统异常情况，导致无法上报数据，会发送告警。")
 COLLECTING_USER_METRICBEAT_ALARM_DESC = _(
-    "数据采集遇到插件异常情况，导致无法上报数据，会发送告警，目前能覆盖以下插件异常情况：" "\n- 端口服务无法正常监听" "\n- 服务输出的内容格式不符合Prom格式"
+    "数据采集遇到插件异常情况，导致无法上报数据，会发送告警，目前能覆盖以下插件异常情况："
+    "\n- 端口服务无法正常监听"
+    "\n- 服务输出的内容格式不符合Prom格式"
 )
 COLLECTING_USER_SCRIPT_ALARM_DESC = _(
-    "当数据采集时遇到异常情况，导致无法上报数据，则会触发告警，目前能覆盖以下异常情况：" "\n- 脚本执行异常，返回非0状态码" "\n- 脚本打印内容格式不符合Prom格式"
+    "当数据采集时遇到异常情况，导致无法上报数据，则会触发告警，目前能覆盖以下异常情况："
+    "\n- 脚本执行异常，返回非0状态码"
+    "\n- 脚本打印内容格式不符合Prom格式"
 )
 COLLECTING_USER_PROCCUSTOM_ALARM_DESC = _(
-    "当数据采集时遇到异常情况，导致无法上报数据，则会触发告警，目前能覆盖以下异常情况：" "\n- 用户配置中的PID文件不存在" "\n- 用户配置的匹配规则无命中任何进程"
+    "当数据采集时遇到异常情况，导致无法上报数据，则会触发告警，目前能覆盖以下异常情况："
+    "\n- 用户配置中的PID文件不存在"
+    "\n- 用户配置的匹配规则无命中任何进程"
 )
 
 
@@ -76,7 +81,7 @@ class DataLinkStage(enum.Enum):
     STORAGE = "storage"
 
 
-STAGE_STRATEGY_MAPPING: Dict[DataLinkStage, List[DatalinkStrategy]] = {
+STAGE_STRATEGY_MAPPING: dict[DataLinkStage, list[DatalinkStrategy]] = {
     DataLinkStage.COLLECTING: [DatalinkStrategy.COLLECTING_SYS_ALARM, DatalinkStrategy.COLLECTING_USER_ALARM],
     DataLinkStage.TRANSFER: [],
     DataLinkStage.STORAGE: [],
@@ -86,6 +91,12 @@ STAGE_STRATEGY_MAPPING: Dict[DataLinkStage, List[DatalinkStrategy]] = {
 DEFAULT_DATALINK_COLLECTING_FLAG = "__datalink_collecting__"
 DEFAULT_DATALINK_LABEL = _("集成内置")
 DEFAULT_RULE_GROUP_NAME = _("集成内置-数据采集告警分派")
+
+# gather_up 结果表 data_label：多租户下每个业务的 gather_up 结果表为
+# {bk_tenant_id}_{bk_biz_id}_bkmonitorbeat_gather_up.__default__，无法在默认策略里硬编码结果表，
+# 因此统一通过 data_label 引用指标，运行期按当前租户/业务解析到真实结果表。
+# 需与 metadata 侧建链常量（metadata.task.tasks.GATHER_UP_DATA_LABEL）保持一致。
+GATHER_UP_DATA_LABEL = "bkmonitorbeat_gather_up"
 
 
 DEFAULT_DATALINK_STRATEGIES = [

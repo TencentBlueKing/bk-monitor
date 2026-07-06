@@ -69,9 +69,11 @@ from metadata.models.vm.utils import (
     create_fed_bkbase_data_link,
 )
 from metadata.task.tasks import (
+    _get_bk_biz_internal_data_ids,
     create_base_event_datalink_for_bkcc,
     create_basereport_datalink_for_bkcc,
     create_biz_ping_datalink_for_bkcc,
+    create_gather_up_datalink_for_bkcc,
     create_system_proc_datalink_for_bkcc,
 )
 from metadata.tests.common_utils import consul_client
@@ -5127,7 +5129,7 @@ def test_create_biz_ping_datalink_for_bkcc_metadata_part(create_or_delete_record
         mock_apply.assert_called_once()
 
     data_name = f"base_{bk_biz_id}_pingserver"
-    table_id = f"{bk_tenant_id}_{bk_biz_id}_pingserver.base"
+    table_id = f"{bk_tenant_id}_{bk_biz_id}_pingserver.__default__"
     data_source = models.DataSource.objects.get(data_name=data_name, bk_tenant_id=bk_tenant_id)
     assert data_source.bk_data_id != settings.PING_SERVER_DATAID
     assert data_source.source_label == "bk_monitor"
@@ -5192,6 +5194,67 @@ def test_create_biz_ping_datalink_for_bkcc_tenant_mode_only_default_biz(create_o
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_create_gather_up_datalink_for_bkcc_metadata_part(create_or_delete_records, mocker):
+    """多租户 gather_up 采集任务状态指标建链：校验元信息、指标自动发现分组与单表单指标选项。"""
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    settings.SPACE_BUILTIN_DATA_LINK_MODE = "biz"
+    bk_tenant_id = "test_tenant"
+    bk_biz_id = 18862
+    _prepare_ping_datalink_base_records(bk_tenant_id, (bk_biz_id,), mocker)
+
+    with patch.object(DataLink, "apply_data_link_with_retry", return_value={"status": "success"}) as mock_apply:
+        create_gather_up_datalink_for_bkcc(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+        mock_apply.assert_called_once()
+
+    data_name = f"base_{bk_biz_id}_bkmonitorbeat_gather_up"
+    table_id = f"{bk_tenant_id}_{bk_biz_id}_bkmonitorbeat_gather_up.__default__"
+
+    data_source = models.DataSource.objects.get(data_name=data_name, bk_tenant_id=bk_tenant_id)
+    assert data_source.source_label == "bk_monitor"
+    assert data_source.type_label == "time_series"
+    assert not data_source.is_platform_data_id
+
+    result_table = models.ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
+    assert result_table.bk_biz_id == bk_biz_id
+    assert result_table.default_storage == models.ClusterInfo.TYPE_VM
+    assert result_table.data_label == "bkmonitorbeat_gather_up"
+    assert result_table.label == "service_process"
+
+    # 自动发现场景不预置指标字段
+    assert not models.ResultTableField.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).exists()
+
+    # 单表单指标选项
+    split_option = models.ResultTableOption.objects.get(
+        table_id=table_id, name=models.ResultTableOption.OPTION_IS_SPLIT_MEASUREMENT, bk_tenant_id=bk_tenant_id
+    )
+    assert split_option.value_type == models.ResultTableOption.TYPE_BOOL
+    assert split_option.value == "true"
+
+    # 指标自动发现分组
+    ts_group = models.TimeSeriesGroup.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=data_source.bk_data_id)
+    assert ts_group.table_id == table_id
+    assert ts_group.bk_biz_id == bk_biz_id
+    assert ts_group.time_series_group_name == "bkmonitorbeat gather up metrics"
+
+    data_link = models.DataLink.objects.get(data_link_name=data_name, bk_tenant_id=bk_tenant_id)
+    assert data_link.data_link_strategy == DataLink.BK_STANDARD_V2_TIME_SERIES
+    assert data_link.table_ids == [table_id]
+    assert models.DataSourceResultTable.objects.filter(
+        bk_tenant_id=bk_tenant_id, bk_data_id=data_source.bk_data_id, table_id=table_id
+    ).exists()
+    assert models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id, result_table_id=table_id).exists()
+
+    options = models.DataSourceOption.get_option(data_source.bk_data_id)
+    assert options["flat_batch_key"] == "data"
+    assert options["timestamp_precision"] == "ms"
+    assert options["disable_metric_cutter"] == "true"
+
+    # GSE 下发内置数据ID返回 gather_up_beat
+    internal_data_ids = _get_bk_biz_internal_data_ids(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+    assert {"task": "gather_up_beat", "dataid": data_source.bk_data_id} in internal_data_ids
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_check_bkcc_space_builtin_datalink_creates_ping_only_when_enabled(mocker, settings):
     from metadata.task.tasks import check_bkcc_space_builtin_datalink
 
@@ -5203,19 +5266,24 @@ def test_check_bkcc_space_builtin_datalink_creates_ping_only_when_enabled(mocker
     mock_event = mocker.patch("metadata.task.tasks.create_base_event_datalink_for_bkcc")
     mock_proc = mocker.patch("metadata.task.tasks.create_system_proc_datalink_for_bkcc")
     mock_ping = mocker.patch("metadata.task.tasks.create_biz_ping_datalink_for_bkcc")
+    mock_gather_up = mocker.patch("metadata.task.tasks.create_gather_up_datalink_for_bkcc")
 
     check_bkcc_space_builtin_datalink([("system", 1)])
     mock_base.assert_called_once()
     mock_event.assert_called_once()
     assert mock_proc.call_count == 2
     mock_ping.assert_not_called()
+    # gather_up 不受 ENABLE_PING_ALARM 影响，随内置链路一起巡检创建
+    mock_gather_up.assert_called_once_with(bk_tenant_id="system", bk_biz_id=1)
 
     mock_base.reset_mock()
     mock_event.reset_mock()
     mock_proc.reset_mock()
+    mock_gather_up.reset_mock()
     settings.ENABLE_PING_ALARM = True
     check_bkcc_space_builtin_datalink([("system", 1)])
     mock_ping.assert_called_once_with(bk_tenant_id="system", bk_biz_id=1)
+    mock_gather_up.assert_called_once_with(bk_tenant_id="system", bk_biz_id=1)
 
 
 @pytest.mark.django_db(databases="__all__")

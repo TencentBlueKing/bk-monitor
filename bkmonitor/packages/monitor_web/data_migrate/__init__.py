@@ -28,7 +28,11 @@ from monitor_web.data_migrate.bk_collector import (
     retry_biz_bk_collector_proxy_config_delivery,
     stop_biz_bk_collector,
 )
-from monitor_web.data_migrate.system_event_strategy import migrate_system_event_strategy_config
+from monitor_web.data_migrate.strategy_migration import (
+    migrate_builtin_strategy_config,
+    migrate_gather_up_strategy_config,
+    migrate_system_event_strategy_config,
+)
 
 __all__ = [
     "PARTIAL_DATA_ID_INFOS_FILE",
@@ -44,6 +48,8 @@ __all__ = [
     "import_biz_data_from_directory",
     "import_partial_data_from_directory",
     "install_biz_bk_collector",
+    "migrate_builtin_strategy_config",
+    "migrate_gather_up_strategy_config",
     "migrate_system_event_strategy_config",
     "load_partial_scope_from_directory",
     "make_partial_export_archive",
