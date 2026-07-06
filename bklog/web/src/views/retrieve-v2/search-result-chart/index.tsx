@@ -35,6 +35,7 @@ import useStore from '@/hooks/use-store';
 import useTrendChart from '@/hooks/use-trend-chart';
 import { formatAdditionalFields, getCommonFilterAddition } from '@/store/helper';
 import { BK_LOG_STORAGE } from '@/store/store.type.ts';
+import { getEffectiveSearchTotal } from '@/storage/utils/normalize-search-total';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import { throttle } from 'lodash-es';
 import { useRoute, useRouter } from 'vue-router/composables';
@@ -45,7 +46,7 @@ import './index.scss';
 
 export default defineComponent({
   name: 'SearchResultChart',
-  emits: ['toggle-change', 'trend-ready'],
+  emits: ['toggle-change', 'trend-ready', 'change-total-count', 'change-queue-res'],
   setup(_props, { emit }) {
     const store = useStore();
     const route = useRoute();
@@ -143,9 +144,25 @@ export default defineComponent({
     // 是否正在加载趋势图数据
     const loading = computed(() => store.state.retrieve.isTrendDataLoading);
 
-    // 总条数和耗时
-    const totalCount = computed(() => store.state.searchTotal);
+    // 总条数和耗时（stream meta 写入 indexSetQueryResult.total 后也可作为来源）
+    const totalCount = computed(() => getEffectiveSearchTotal(store.state));
     const tookTime = computed(() => Number.parseFloat(store.state.tookTime).toFixed(0));
+
+    watch(
+      totalCount,
+      value => {
+        emit('change-total-count', value);
+      },
+      { immediate: true },
+    );
+
+    watch(
+      finishPolling,
+      value => {
+        emit('change-queue-res', value);
+      },
+      { immediate: true },
+    );
 
     // 汇聚周期选项
     const intervalArr = [
@@ -415,11 +432,11 @@ export default defineComponent({
         }
 
         try {
-          // 1. 先请求总数
-          const res = await store.dispatch('requestSearchTotal');
-          store.commit('retrieve/updateTotalCountLoaded', true); // 总数请求成功
-          // 2. 判断总数是否为0或请求是否失败
-          if (store.state.searchTotal === 0 || res.result === false) {
+          // 1. 先请求总数（stream 检索 meta 可能已写入 indexSetQueryResult.total）
+          await store.dispatch('requestSearchTotal').catch(() => ({ result: false }));
+          store.commit('retrieve/updateTotalCountLoaded', true);
+          // 2. 判断总数是否为0
+          if (!getEffectiveSearchTotal(store.state)) {
             isStart.value = false;
             store.commit('retrieve/updateTrendDataLoading', false);
             markTrendReady();

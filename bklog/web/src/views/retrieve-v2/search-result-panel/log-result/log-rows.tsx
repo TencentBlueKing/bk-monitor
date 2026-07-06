@@ -1073,6 +1073,12 @@ export default defineComponent({
         return Promise.resolve(false);
       }
 
+      // 首屏（流式）检索进行中时，row_keys 是渐进写入的部分数据，此时不能触发后端分页，
+      // 否则会因“未满一屏”误判而在首屏完成前反复发起 append 请求。
+      if (indexSetQueryResult.value.is_loading && !indexSetQueryResult.value.is_pagination_loading) {
+        return Promise.resolve(false);
+      }
+
       if (pageIndex.value * pageSize.value < tableDataSize.value) {
         hasMoreList.value = true;
         isRequesting.value = true;

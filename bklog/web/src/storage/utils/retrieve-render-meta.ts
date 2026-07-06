@@ -21,6 +21,7 @@ export interface RetrieveRowRenderMeta {
 
 interface RetrieveRowRenderMetaOptions {
   highlightField?: string;
+  precomputeSegments?: boolean;
 }
 
 // 表格 CELL 默认展示上限：32KB，超出部分通过「全量」侧栏查看
@@ -29,6 +30,7 @@ export const DEFAULT_HIGHLIGHT_FIELD = '__highlight';
 const SEGMENT_MAX_TOKENS = 500;
 const SEGMENT_CHUNK_SIZE = 200;
 const LARGE_FIELD_PREVIEW_SUFFIX = '...';
+const textEncoder = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null;
 
 export const stripMark = (value: string) =>
   String(value)
@@ -47,6 +49,9 @@ const stringifyValue = (value: any) => {
 
 /** 估算字符串字节数（UTF-8）。Blob 不可用时降级为 length * 3（UTF-16 保守估计）。 */
 const estimateTextBytes = (text: string): number => {
+  if (textEncoder) {
+    return textEncoder.encode(text).length;
+  }
   if (typeof Blob !== 'undefined') {
     try {
       return new Blob([text]).size;
@@ -58,14 +63,23 @@ const estimateTextBytes = (text: string): number => {
 };
 
 const truncateTextByBytes = (text: string, maxBytes: number): string => {
-  let bytes = 0;
+  if (estimateTextBytes(text) <= maxBytes) {
+    return text;
+  }
+
+  let left = 0;
+  let right = text.length;
   let output = '';
 
-  for (const char of text) {
-    const charBytes = estimateTextBytes(char);
-    if (bytes + charBytes > maxBytes) break;
-    bytes += charBytes;
-    output += char;
+  while (left <= right) {
+    const mid = Math.floor((left + right) / 2);
+    const candidate = text.slice(0, mid);
+    if (estimateTextBytes(candidate) <= maxBytes) {
+      output = candidate;
+      left = mid + 1;
+    } else {
+      right = mid - 1;
+    }
   }
 
   return `${output}${LARGE_FIELD_PREVIEW_SUFFIX}`;
@@ -221,6 +235,7 @@ export const createRetrieveRowRenderMeta = (
   options: RetrieveRowRenderMetaOptions = {},
 ): RetrieveRowRenderMeta => {
   const highlightField = options.highlightField || DEFAULT_HIGHLIGHT_FIELD;
+  const precomputeSegments = options.precomputeSegments ?? true;
   const truncatedFields: string[] = [];
   const fieldSegments: Record<string, RetrieveTextSegment[]> = {};
   const sourceRow = renderRow || rawRow;
@@ -261,7 +276,9 @@ export const createRetrieveRowRenderMeta = (
     }
 
     // Store the pre-tokenized render value for every field that may be rendered.
-    fieldSegments[fieldName] = splitRenderText(truncatedRenderText);
+    if (precomputeSegments) {
+      fieldSegments[fieldName] = splitRenderText(truncatedRenderText);
+    }
   });
 
   return {

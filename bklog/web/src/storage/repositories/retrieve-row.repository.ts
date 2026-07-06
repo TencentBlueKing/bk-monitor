@@ -12,8 +12,9 @@ import {
 } from '../utils/retrieve-render-meta';
 
 const DEFAULT_TTL = 30 * 60 * 1000;
-const DEFAULT_BATCH_ROWS = 5;
+const DEFAULT_BATCH_ROWS = 10;
 const DEFAULT_BATCH_BYTES = 8 * 1024 * 1024;
+const ROW_YIELD_INTERVAL = 5;
 
 const nextIdle = () => new Promise(resolve => setTimeout(resolve, 0));
 
@@ -181,6 +182,108 @@ interface CopyRowsOptions {
   includeFields?: string[];
 }
 
+interface StreamWriterOptions extends WriteRowsOptions {
+  writeMode?: 'append' | 'replace';
+}
+
+export class RetrieveRowStreamWriter {
+  private batch: RetrieveRowEntity[] = [];
+  private batchBytes = 0;
+  private keys: string[] = [];
+  private initialized = false;
+  private readonly maxBatchRows: number;
+  private readonly maxBatchBytes: number;
+  private readonly ttl: number;
+  private readonly now = Date.now();
+  private readonly expireAt: number;
+
+  constructor(
+    private readonly repository: RetrieveRowRepository,
+    private readonly queryKey: string,
+    private readonly startSeq: number,
+    private readonly options: StreamWriterOptions = {},
+  ) {
+    this.maxBatchRows = options.batchRows ?? DEFAULT_BATCH_ROWS;
+    this.maxBatchBytes = options.batchBytes ?? DEFAULT_BATCH_BYTES;
+    this.ttl = options.ttl ?? DEFAULT_TTL;
+    this.expireAt = this.now + this.ttl;
+  }
+
+  async init() {
+    if (this.initialized) return;
+    if ((this.options.writeMode ?? 'replace') === 'replace' && this.startSeq === 0) {
+      await db.retrieveRows.where('queryKey').equals(this.queryKey).delete();
+    }
+    this.initialized = true;
+  }
+
+  async appendRow(pageIndex: number, originRow: Record<string, any>, renderRow?: Record<string, any>) {
+    await this.init();
+    const seq = pageIndex >= this.startSeq ? pageIndex : this.startSeq + pageIndex;
+    const entity = this.createEntity(originRow, renderRow, seq);
+    this.keys.push(entity.key);
+    this.batch.push(entity);
+    this.batchBytes += entity.bytes ?? 0;
+
+    if (this.batch.length >= this.maxBatchRows || this.batchBytes >= this.maxBatchBytes) {
+      await this.flush();
+    } else if (pageIndex % ROW_YIELD_INTERVAL === ROW_YIELD_INTERVAL - 1) {
+      await nextIdle();
+    }
+  }
+
+  async finish() {
+    await this.flush();
+    return this.keys.filter(Boolean);
+  }
+
+  getPartialRowKeys() {
+    return this.keys.filter(Boolean);
+  }
+
+  private async flush() {
+    if (!this.batch.length) return;
+    await db.retrieveRows.bulkPut(this.batch);
+    this.batch = [];
+    this.batchBytes = 0;
+    await nextIdle();
+  }
+
+  private createEntity(originRow: Record<string, any>, renderRow: Record<string, any> | undefined, seq: number) {
+    const storageValue = retrieveRowProjectionService.createStorageValue(
+      originRow,
+      this.queryKey,
+      seq,
+      this.options.fieldNames ?? [],
+    );
+    const highlightField = resolveHighlightField(storageValue.row);
+    const normalizedRenderRow = normalizeRenderRowHighlightField(renderRow, highlightField);
+    const renderOverlay = this.repository.createRenderOverlay(
+      storageValue.row,
+      normalizedRenderRow,
+      highlightField,
+    );
+
+    return {
+      key: `${this.queryKey}:${seq}`,
+      queryKey: this.queryKey,
+      seq,
+      row: storageValue.row,
+      highlightField,
+      copyExcludedFields: this.options.copyExcludedFields ?? [],
+      renderOverlay,
+      renderMeta: createRetrieveRowRenderMeta(storageValue.row, normalizedRenderRow, {
+        highlightField,
+        precomputeSegments: false,
+      }),
+      projection: storageValue.projection,
+      bytes: storageValue.bytes,
+      createdAt: this.now,
+      expireAt: this.expireAt,
+    } as RetrieveRowEntity;
+  }
+}
+
 export class RetrieveRowRepository {
   async replaceRows(queryKey: string, rows: Record<string, any>[], startSeq = 0, options: WriteRowsOptions = {}) {
     const ttl = options.ttl ?? DEFAULT_TTL;
@@ -193,6 +296,10 @@ export class RetrieveRowRepository {
 
   async appendRows(queryKey: string, rows: Record<string, any>[], startSeq: number, options: WriteRowsOptions = {}) {
     return this.writeRows(queryKey, rows, startSeq, options.ttl ?? DEFAULT_TTL, options);
+  }
+
+  createStreamWriter(queryKey: string, startSeq: number, options: StreamWriterOptions = {}) {
+    return new RetrieveRowStreamWriter(this, queryKey, startSeq, options);
   }
 
   async getRowsByKeys(keys: string[]) {
@@ -319,7 +426,9 @@ export class RetrieveRowRepository {
         highlightField,
         copyExcludedFields: options.copyExcludedFields ?? [],
         renderOverlay,
-        renderMeta: createRetrieveRowRenderMeta(storageValue.row, renderRow, { highlightField }),
+        renderMeta:
+          options.renderMetas?.[index]
+          ?? createRetrieveRowRenderMeta(storageValue.row, renderRow, { highlightField }),
         projection: storageValue.projection,
         bytes: storageValue.bytes,
         createdAt: now,
@@ -331,6 +440,8 @@ export class RetrieveRowRepository {
 
       if (batch.length >= maxBatchRows || batchBytes >= maxBatchBytes) {
         await flush();
+      } else if (index % ROW_YIELD_INTERVAL === ROW_YIELD_INTERVAL - 1) {
+        await nextIdle();
       }
     }
 
@@ -338,7 +449,7 @@ export class RetrieveRowRepository {
     return keys;
   }
 
-  private createRenderOverlay(
+  createRenderOverlay(
     rawRow: Record<string, any>,
     renderRow?: Record<string, any>,
     highlightField = DEFAULT_HIGHLIGHT_FIELD,

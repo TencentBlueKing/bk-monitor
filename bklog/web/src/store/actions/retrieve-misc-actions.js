@@ -10,6 +10,8 @@ import { formatDate } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { retrieveFieldCacheService, storeCacheService } from '@/storage';
 
+import { normalizeSearchTotal } from '@/storage/utils/normalize-search-total';
+
 import { formatAdditionalFields, getCommonFilterAdditionWithValues, isSceneRetrieve } from '../helper.ts';
 import RequestPool from '../request-pool.ts';
 import { storeRuntimeCacheService } from '../services/runtime-cache.service.js';
@@ -116,7 +118,6 @@ export function requestIndexSetValueListAction({ commit, state, getters }, paylo
 }
 
 export function requestSearchTotalAction({ state, getters }) {
-  state.searchTotal = 0;
   const startTime = Math.floor(getters.retrieveParams.start_time);
   const endTime = Math.ceil(getters.retrieveParams.end_time);
   const isScene = isSceneRetrieve(state);
@@ -149,7 +150,12 @@ export function requestSearchTotalAction({ state, getters }) {
     )
     .then((res) => {
       const { data } = res;
-      if (res.result === true) state.searchTotal = data.total_count ?? data.total;
+      if (res.result === true) {
+        const normalizedTotal = normalizeSearchTotal(data.total_count ?? data.total);
+        if (normalizedTotal > 0) {
+          state.searchTotal = normalizedTotal;
+        }
+      }
       cacheApi(urlStr, `${state.indexId}:${startTime}:${endTime}`, data || {});
       return res;
     })

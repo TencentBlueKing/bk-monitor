@@ -4,18 +4,19 @@
  */
 import axios from 'axios';
 
-import http, { axiosInstance } from '@/api';
-import { parseBigNumberList, readBlobRespToJson } from '@/common/util';
+import http from '@/api';
+import { parseBigNumberList } from '@/common/util';
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import {
   retrieveFieldCacheService,
   retrieveRowCacheService,
-  retrieveSearchWorkerIngestService,
+  retrieveSearchWorkerService,
   storageHealthService,
   storeCacheService,
 } from '@/storage';
-import { createRetrieveRowRenderMeta } from '@/storage/utils/retrieve-render-meta';
+import { logRetrieveSearchIngest } from '@/storage/utils/retrieve-search-ingest.logger';
 import { normalizeRetrieveFields } from '@/storage/utils/retrieve-field-meta';
+import { normalizeSearchTotal } from '@/storage/utils/normalize-search-total';
 
 import { formatAdditionalFields, getCommonFilterAdditionWithValues, isSceneRetrieve } from '../helper.ts';
 import { reportRouteLog } from '../modules/report-helper.ts';
@@ -24,82 +25,89 @@ import RequestPool from '../request-pool.ts';
 let dateFieldSortList = [];
 let currentRetrieveRowQueryKey = '';
 
-const ingestSearchResponseOnMainThread = async (blob, { fieldNames, isPagination, rowQueryKey, startSeq }) => {
-  const { code, data, result, message, permission } = await readBlobRespToJson(blob);
-  const rsolvedData = data;
-  if (result) {
-    const renderList = rsolvedData.list;
-    const originLogList = rsolvedData.origin_log_list;
-
-    if (!Array.isArray(renderList) || !Array.isArray(originLogList)) {
-      throw new Error('Invalid search response: list and origin_log_list are required');
-    }
-
-    if (renderList.length !== originLogList.length) {
-      throw new Error(
-        'Invalid search response: list length ' +
-          renderList.length +
-          ' !== origin_log_list length ' +
-          originLogList.length,
-      );
-    }
-
-    const renderMetas = originLogList.map((row, index) => createRetrieveRowRenderMeta(row, renderList[index]));
-    const rowKeys = isPagination
-      ? await retrieveRowCacheService.appendRows(rowQueryKey, originLogList, startSeq, {
-          fieldNames,
-          renderRows: renderList,
-          renderMetas,
-        })
-      : await retrieveRowCacheService.replaceRows(rowQueryKey, originLogList, {
-          fieldNames,
-          renderRows: renderList,
-          renderMetas,
-        });
-    delete rsolvedData.list;
-    delete rsolvedData.origin_log_list;
-    return {
-      code,
-      data: rsolvedData,
-      length: originLogList.length,
-      message,
-      permission,
-      result,
-      rowKeys,
-      size: originLogList.length,
-      source: 'main-thread',
-    };
-  }
-
-  return {
-    code,
-    data: rsolvedData,
-    length: 0,
-    message,
-    permission,
-    result,
-    rowKeys: [],
-    size: 0,
-    source: 'main-thread',
-  };
+const getCookie = name => {
+  const matched = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return matched ? decodeURIComponent(matched[1]) : '';
 };
 
-const ingestSearchResponse = async (blob, options) => {
-  try {
-    const workerResult = await retrieveSearchWorkerIngestService.ingestBlob(blob, {
-      fieldNames: options.fieldNames,
-      queryKey: options.rowQueryKey,
-      startSeq: options.startSeq,
-      writeMode: options.isPagination ? 'append' : 'replace',
+const buildSearchRequestHeaders = state => {
+  const headers = {
+    'Content-Type': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
+  };
+  const csrfToken = getCookie('bklog_csrftoken');
+  if (csrfToken) {
+    headers['X-CSRFToken'] = csrfToken;
+  }
+  if (window.IS_EXTERNAL && JSON.parse(window.IS_EXTERNAL) && state.spaceUid) {
+    headers['X-Bk-Space-Uid'] = state.spaceUid;
+  }
+  if (state.indexItem?.timezone) {
+    headers['X-BKLOG-TIMEZONE'] = state.indexItem.timezone;
+  }
+  return headers;
+};
+
+const isSearchRequestCanceled = error =>
+  error?.code === 'ERR_CANCELED'
+  || error?.name === 'AbortError'
+  || error?.message === 'Search request canceled';
+
+// 乐观更新：仅在拿到有效正数时更新总数（meta 阶段 / 分页），不会把已知总数清零
+const applyOptimisticTotal = (state, total) => {
+  const normalizedTotal = normalizeSearchTotal(total);
+  if (normalizedTotal > 0) {
+    state.searchTotal = normalizedTotal;
+  }
+  return normalizedTotal;
+};
+
+// 权威更新：非分页检索的最终结果，如实反映（包含 0 结果）
+const applyAuthoritativeTotal = (state, total) => {
+  const normalizedTotal = normalizeSearchTotal(total);
+  state.searchTotal = normalizedTotal;
+  return normalizedTotal;
+};
+
+// 展示用总数：优先本次有效值，否则回退到已知总数，避免中间态（分页/meta 缺失）把总数显示成 0
+const resolveDisplayTotal = (state, total) => {
+  const normalizedTotal = normalizeSearchTotal(total);
+  if (normalizedTotal > 0) return normalizedTotal;
+  return normalizeSearchTotal(state.searchTotal) || normalizeSearchTotal(state.indexSetQueryResult.total);
+};
+
+const applySearchStreamProgress = ({
+  commit,
+  payload,
+  progress,
+  requestCurrentRowKeys,
+  requestRowQueryKey,
+  state,
+}) => {
+  if (progress.stage === 'meta' && progress.meta) {
+    const meta = { ...progress.meta };
+    applyOptimisticTotal(state, meta.total);
+    meta.total = resolveDisplayTotal(state, meta.total);
+    storageHealthService.markActiveQuery(requestRowQueryKey);
+    commit('updateIndexSetQueryResult', {
+      ...meta,
+      row_keys: Object.freeze([...requestCurrentRowKeys]),
+      row_query_key: requestRowQueryKey,
+      cached_count: requestCurrentRowKeys.length,
+      is_error: false,
+      exception_msg: '',
+      is_loading: true,
+      is_pagination_loading: !!payload?.isPagination,
     });
-    return {
-      ...workerResult,
-      source: 'worker',
-    };
-  } catch (error) {
-    console.warn('[retrieve-search] WebWorker ingest failed, fallback to main thread', error);
-    storageHealthService.notifyWorkerFallback();
-    return ingestSearchResponseOnMainThread(blob, options);
+    return;
+  }
+
+  if (progress.stage === 'row' && progress.rowKeys?.length) {
+    if (!payload?.isPagination && progress.rowCount === 1) {
+      retrieveRowCacheService.getRows(progress.rowKeys.slice(0, 1)).then(layoutRows => {
+        commit('updateIsSetDefaultTableColumn', { list: layoutRows });
+      });
+    }
   }
 };
 
@@ -263,6 +271,7 @@ export function requestIndexSetQueryAction(
   };
 
   if (!payload?.isPagination) {
+    // 不在此处将 searchTotal 清零：保留上一次总数直到新结果（meta/最终）返回，避免因请求耗时/竞态导致标题闪成 0
     commit('updateIndexSetQueryResult', {
       row_keys: [],
       row_query_key: '',
@@ -288,6 +297,16 @@ export function requestIndexSetQueryAction(
   let begin = state.indexItem.begin;
   const { size, format, ...otherParams } = getters.retrieveParams;
   const requestAddition = getters.requestAddition;
+
+  // 首屏流式检索未完成时，row_keys 只是部分缓存结果；此时分页请求会先取消当前 active search，
+  // 导致 replace 流被 append 误杀，最终表现为只解析了部分行但页面无结果。
+  if (
+    payload?.isPagination
+    && state.indexSetQueryResult.is_loading
+    && !state.indexSetQueryResult.is_pagination_loading
+  ) {
+    return Promise.resolve({ result: false, ignored: true, reason: 'initial-search-loading' });
+  }
 
   if (!payload?.isPagination) {
     if (payload?.defaultSortList) {
@@ -317,7 +336,9 @@ export function requestIndexSetQueryAction(
   const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
   const cancelTokenKey = 'requestIndexSetQueryCancelToken';
   RequestPool.execCanceToken(cancelTokenKey);
-  const requestCancelToken = payload.cancelToken ?? RequestPool.getCancelToken(cancelTokenKey);
+  RequestPool.setCancelToken(cancelTokenKey, () => {
+    retrieveSearchWorkerService.cancelActiveSearch();
+  });
 
   const searchUrl = isSceneRetrieve(state)
     ? '/search/scene/search/'
@@ -377,140 +398,150 @@ export function requestIndexSetQueryAction(
           union_configs: unionConfigs,
         },
   );
-  const params = {
-    method: 'post',
-    url: searchUrl,
-    cancelToken: requestCancelToken,
-    withCredentials: true,
-    baseURL: baseUrl,
-    responseType: 'blob',
-    data: queryData,
-  };
-  if (state.isExternal) {
-    params.headers = {
-      'X-Bk-Space-Uid': state.spaceUid,
-    };
-  }
 
   const requestRowQueryKey = payload.isPagination
     ? state.indexSetQueryResult.row_query_key || currentRetrieveRowQueryKey
     : currentRetrieveRowQueryKey;
-  const requestStartSeq = payload.isPagination ? state.indexSetQueryResult.cached_count || 0 : 0;
   const requestCurrentRowKeys = payload.isPagination ? state.indexSetQueryResult.row_keys || [] : [];
+  const requestStartSeq = payload.isPagination ? requestCurrentRowKeys.length : 0;
   let isStaleSearchResponse = false;
   const isCurrentSearchRequest = () =>
     payload.isPagination
       ? requestRowQueryKey === state.indexSetQueryResult.row_query_key &&
-        requestStartSeq === (state.indexSetQueryResult.cached_count || 0)
+        requestStartSeq === ((state.indexSetQueryResult.row_keys || []).length)
       : requestRowQueryKey === currentRetrieveRowQueryKey;
 
-  return axiosInstance(params)
-    .then(async resp => {
-      if (resp.data && !resp.message) {
-        const projectionFieldNames = getProjectionFieldNames(state);
-        const rowQueryKey = requestRowQueryKey;
-        const startSeq = requestStartSeq;
-        const currentRowKeys = requestCurrentRowKeys;
-        const { code, data, result, message, permission, rowKeys, size, source } = await ingestSearchResponse(
-          resp.data,
-          {
-            fieldNames: projectionFieldNames,
-            isPagination: payload.isPagination,
-            rowQueryKey,
-            startSeq,
-          },
-        );
-        const rsolvedData = data;
+  const searchHeaders = buildSearchRequestHeaders(state);
 
-        if (!isCurrentSearchRequest()) {
-          isStaleSearchResponse = true;
-          if (!payload.isPagination || rowQueryKey !== state.indexSetQueryResult.row_query_key) {
-            retrieveRowCacheService.clearQuery(rowQueryKey).catch(error => {
-              console.warn('[retrieve-search] clear stale query rows failed', error);
-            });
-          }
-          return { result: false, ignored: true };
-        }
-
-        if (result) {
-          rsolvedData.total = rsolvedData.total?.toNumber
-            ? rsolvedData.total.toNumber()
-            : Number(rsolvedData.total || 0);
-          rsolvedData.row_keys = Object.freeze(currentRowKeys.concat(rowKeys));
-          rsolvedData.row_query_key = rowQueryKey;
-          rsolvedData.cached_count = rsolvedData.row_keys.length;
-          rsolvedData.ingest_source = source;
-          storageHealthService.markActiveQuery(rowQueryKey);
-
-          const catchUnionBeginList = parseBigNumberList(rsolvedData?.union_configs || []);
-          state.tookTime = payload.isPagination
-            ? state.tookTime + Number(rsolvedData?.took || 0)
-            : Number(rsolvedData?.took || 0);
-
-          if (!payload?.isPagination) {
-            const layoutRows = await retrieveRowCacheService.getRows(rowKeys.slice(0, Math.min(rowKeys.length, 10)));
-            commit('updateIsSetDefaultTableColumn', { list: layoutRows });
-          }
-          commit('updateSqlQueryFieldList', []);
-          commit('updateIndexItem', {
-            catchUnionBeginList,
-            begin: payload.isPagination ? begin : 0,
-          });
-          commit('updateIndexSetQueryResult', rsolvedData);
-          storeCacheService
-            .setApiCache('retrieve/search-result-meta', rowQueryKey, {
-              ...rsolvedData,
-              row_keys: rsolvedData.row_keys,
-              row_query_key: rowQueryKey,
-              cached_count: rsolvedData.cached_count,
-            })
-            .catch(error => {
-              console.warn('[store-cache] cache search meta failed', error);
-            });
-          retrieveRowCacheService
-            .gc({
-              excludeQueryKeys: Array.from(new Set([rowQueryKey, ...storageHealthService.getActiveQueryKeys()])),
-            })
-            .catch(error => {
-              console.warn('[retrieve-search] gc rows failed', error);
-            });
-
-          return {
-            data: rsolvedData,
-            message,
-            code,
-            result,
-            length: size,
-            size,
-          };
-        }
-
-        if (code === '9900403') {
-          commit('updateState', {
-            authDialogData: {
-              apply_url: data.apply_url,
-              apply_data: permission,
-            },
+  return retrieveSearchWorkerService
+    .searchStream({
+      baseURL: baseUrl,
+      body: queryData,
+      fieldNames: getProjectionFieldNames(state),
+      headers: searchHeaders,
+      onProgress: progress => {
+        if (!isCurrentSearchRequest()) return;
+        applySearchStreamProgress({
+          commit,
+          payload,
+          progress,
+          requestCurrentRowKeys,
+          requestRowQueryKey,
+          state,
+        });
+      },
+      queryKey: requestRowQueryKey,
+      searchPath: searchUrl,
+      startSeq: requestStartSeq,
+      writeMode: payload.isPagination ? 'append' : 'replace',
+    })
+    .then(async workerResult => {
+      const { code, data, result, message, permission, rowKeys, size, source } = workerResult;
+      if (!isCurrentSearchRequest()) {
+        isStaleSearchResponse = true;
+        if (!payload.isPagination || requestRowQueryKey !== state.indexSetQueryResult.row_query_key) {
+          retrieveRowCacheService.clearQuery(requestRowQueryKey).catch(error => {
+            console.warn('[retrieve-search] clear stale query rows failed', error);
           });
         }
+        return { result: false, ignored: true };
+      }
 
-        commit('updateIndexSetQueryResult', {
-          exception_msg: message,
-          is_error: !result,
-          total: 0,
+      const rsolvedData = data;
+      const currentRowKeys = payload.isPagination
+        ? state.indexSetQueryResult.row_keys || requestCurrentRowKeys
+        : requestCurrentRowKeys;
+
+      if (result) {
+        if (payload.isPagination) {
+          // 分页请求：仅在有效正数时更新总数，否则沿用已知总数，避免覆盖为 0
+          applyOptimisticTotal(state, rsolvedData.total);
+          rsolvedData.total = resolveDisplayTotal(state, rsolvedData.total);
+        } else {
+          // 首屏检索：以最终结果为权威值（含 0 结果）
+          rsolvedData.total = applyAuthoritativeTotal(state, rsolvedData.total);
+        }
+        rsolvedData.row_keys = Object.freeze(Array.from(new Set(currentRowKeys.concat(rowKeys))));
+        rsolvedData.row_query_key = requestRowQueryKey;
+        rsolvedData.cached_count = rsolvedData.row_keys.length;
+        rsolvedData.ingest_source = source;
+        storageHealthService.markActiveQuery(requestRowQueryKey);
+
+        const catchUnionBeginList = parseBigNumberList(rsolvedData?.union_configs || []);
+        state.tookTime = payload.isPagination
+          ? state.tookTime + Number(rsolvedData?.took || 0)
+          : Number(rsolvedData?.took || 0);
+
+        if (!payload?.isPagination) {
+          const layoutRows = await retrieveRowCacheService.getRows(rowKeys.slice(0, Math.min(rowKeys.length, 10)));
+          commit('updateIsSetDefaultTableColumn', { list: layoutRows });
+        }
+        commit('updateSqlQueryFieldList', []);
+        commit('updateIndexItem', {
+          catchUnionBeginList,
+          begin: payload.isPagination ? begin : 0,
+        });
+        commit('updateIndexSetQueryResult', rsolvedData);
+        storeCacheService
+          .setApiCache('retrieve/search-result-meta', requestRowQueryKey, {
+            ...rsolvedData,
+            row_keys: rsolvedData.row_keys,
+            row_query_key: requestRowQueryKey,
+            cached_count: rsolvedData.cached_count,
+          })
+          .catch(error => {
+            console.warn('[store-cache] cache search meta failed', error);
+          });
+        retrieveRowCacheService
+          .gc({
+            excludeQueryKeys: Array.from(new Set([requestRowQueryKey, ...storageHealthService.getActiveQueryKeys()])),
+          })
+          .catch(error => {
+            console.warn('[retrieve-search] gc rows failed', error);
+          });
+
+        logRetrieveSearchIngest('info', 'search stream result applied on main thread', {
+          queryKey: requestRowQueryKey,
+          rowCount: size,
+          source,
+          stage: 'complete',
         });
 
         return {
-          data,
+          data: rsolvedData,
           message,
           code,
           result,
-          length: 0,
-          size: 0,
+          length: size,
+          size,
         };
       }
 
-      return { result: false };
+      if (code === '9900403') {
+        commit('updateState', {
+          authDialogData: {
+            apply_url: data.apply_url,
+            apply_data: permission,
+          },
+        });
+      }
+
+      // 明确的失败/无权限：权威清零总数
+      state.searchTotal = 0;
+      commit('updateIndexSetQueryResult', {
+        exception_msg: message,
+        is_error: !result,
+        total: 0,
+      });
+
+      return {
+        data,
+        message,
+        code,
+        result,
+        length: 0,
+        size: 0,
+      };
     })
     .catch(e => {
       if (!isCurrentSearchRequest()) {
@@ -521,7 +552,7 @@ export function requestIndexSetQueryAction(
       state.searchTotal = 0;
       retrieveRowCacheService.clearMemory();
       commit('updateSqlQueryFieldList', []);
-      if (e.code !== 'ERR_CANCELED') {
+      if (!isSearchRequestCanceled(e)) {
         commit('updateIndexSetQueryResult', {
           is_error: true,
           exception_msg: e?.message ?? e?.toString(),
@@ -529,7 +560,7 @@ export function requestIndexSetQueryAction(
         });
       }
 
-      if (e.code === 'ERR_CANCELED') {
+      if (isSearchRequestCanceled(e)) {
         cachedQueryResult.is_loading = false;
         cachedQueryResult.is_pagination_loading = false;
         commit('updateIndexSetQueryResult', cachedQueryResult);
