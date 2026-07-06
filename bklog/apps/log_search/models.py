@@ -1090,9 +1090,7 @@ class FavoriteGroup(OperateRecordModel):
         groups = list()
         source_app_code = get_request_app_code()
         # Lazy create private/ungrouped per source_type, so scene 与 index_set 各有一套
-        private_group = cls.get_or_create_private_group(
-            space_uid=space_uid, username=username, source_type=source_type
-        )
+        private_group = cls.get_or_create_private_group(space_uid=space_uid, username=username, source_type=source_type)
         ungrouped_group = cls.get_or_create_ungrouped_group(space_uid=space_uid, source_type=source_type)
         public_groups = (
             cls.objects.filter(
@@ -1189,28 +1187,36 @@ TAG_TYPE_CHOICES = (
 
 class IndexSetTag(models.Model):
     tag_id = models.AutoField(_("标签id"), primary_key=True)
+    space_uid = models.CharField(_("空间唯一标识"), blank=True, default="", max_length=256, db_index=True)
     name = models.CharField(_("标签名称"), max_length=255, db_index=True)
     value = models.CharField(_("标签值"), max_length=255, default="", blank=True)
     color = models.CharField(_("配色"), max_length=255, choices=TagColor.get_choices(), default=TagColor.GREEN.value)
     tag_type = models.CharField(
-        _("标签类型"), max_length=16, choices=TAG_TYPE_CHOICES, default=TAG_TYPE_USER, db_index=True,
+        _("标签类型"),
+        max_length=16,
+        choices=TAG_TYPE_CHOICES,
+        default=TAG_TYPE_USER,
+        db_index=True,
     )
 
     class Meta:
         verbose_name = _("标签表")
         verbose_name_plural = _("标签表")
-        unique_together = (("name", "value", "tag_type"),)
+        unique_together = (("space_uid", "name", "value", "tag_type"),)
 
     @classmethod
-    def get_tag_id(cls, name: str, value: str = "", tag_type: str = TAG_TYPE_USER) -> int:
-        tag, _created = cls.objects.get_or_create(name=name, value=value, tag_type=tag_type)
+    def get_tag_id(cls, name: str, value: str = "", tag_type: str = TAG_TYPE_USER, space_uid: str = "") -> int:
+        tag, _created = cls.objects.get_or_create(space_uid=space_uid, name=name, value=value, tag_type=tag_type)
         return tag.tag_id
 
     @classmethod
     def batch_get_tags(cls, tag_ids: set):
-        tags = cls.objects.filter(tag_id__in=tag_ids).values("name", "value", "color", "tag_id", "tag_type")
+        tags = cls.objects.filter(tag_id__in=tag_ids).values(
+            "space_uid", "name", "value", "color", "tag_id", "tag_type"
+        )
         return {
             str(tag["tag_id"]): {
+                "space_uid": tag["space_uid"],
                 "name": InnerTag.get_choice_label(tag["name"]),
                 "value": tag["value"],
                 "color": tag["color"],

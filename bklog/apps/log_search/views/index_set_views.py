@@ -50,6 +50,7 @@ from apps.log_search.serializers import (
     ESRouterListSerializer,
     IndexSetAddTagSerializer,
     IndexSetDeleteTagSerializer,
+    IndexSetTagListSerializer,
     StorageUsageSerializer,
     UserFavoriteSerializer,
     UserSearchSerializer,
@@ -1268,7 +1269,8 @@ class IndexSetViewSet(ModelViewSet):
         @apiName list_tag
         @apiGroup 05_AccessIndexSet
         """
-        return Response(IndexSetHandler().tag_list())
+        data = self.params_valid(IndexSetTagListSerializer)
+        return Response(IndexSetHandler().tag_list(space_uid=data["space_uid"]))
 
     @list_route(methods=["POST"], url_path="user_search")
     def user_search(self, request):
