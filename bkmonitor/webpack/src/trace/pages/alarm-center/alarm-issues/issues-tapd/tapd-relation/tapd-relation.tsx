@@ -170,6 +170,7 @@ export default defineComponent({
                   extCls: 'tapd-sideslider-relation-compoent-popover',
                 }}
                 customContent={this.loading}
+                filterOption={() => true}
                 loading={this.loading}
                 modelValue={this.modelValue}
                 multiple={true}
