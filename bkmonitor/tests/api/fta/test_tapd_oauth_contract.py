@@ -295,12 +295,13 @@ class TestTapdOauthContract(unittest.TestCase):
         constants_source = _read("bkmonitor/webpack/src/trace/pages/alarm-center/alarm-issues/constant.ts")
 
         self.assertIn("MANUALLY_UNBOUND: 'manually_unbound'", constants_source)
-        self.assertIn("export const rebindWorkspace", service_source)
-        self.assertIn("export const unbindWorkspace", service_source)
-        self.assertIn("export const revokeAuth", service_source)
-        self.assertIn("item.is_bound === 'manually_unbound'", auth_source)
-        self.assertIn("await rebindWorkspace", auth_source)
-        self.assertIn("await getAuth()", auth_source)
+        self.assertIn("export const rebindWorkspaceApi", service_source)
+        self.assertIn("export const unbindWorkspaceApi", service_source)
+        self.assertIn("export const revokeAuthApi", service_source)
+        self.assertIn("case 'manually_unbound'", auth_source)
+        self.assertIn("rebindWorkspaceApi", auth_source)
+        self.assertIn("target.is_bound = 'bound'", auth_source)
+        self.assertIn("workspaceList.value = [...workspaceList.value]", auth_source)
         self.assertIn("installUrl.value.replace", auth_source)
 
 
