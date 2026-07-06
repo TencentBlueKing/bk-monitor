@@ -93,7 +93,7 @@ class TopoNodeFuller(Fuller):
         if bk_target_ip is None:
             return
 
-        bk_target_cloud_id = dimensions.get("bk_target_cloud_id", "0") or dimensions.get("bk_cloud_id", "0")
+        bk_target_cloud_id = dimensions.get("bk_target_cloud_id") or dimensions.get("bk_cloud_id") or "0"
         host = HostManager.get(
             bk_tenant_id=bk_tenant_id, ip=bk_target_ip, bk_cloud_id=bk_target_cloud_id, using_mem=True
         )
@@ -103,6 +103,7 @@ class TopoNodeFuller(Fuller):
         bk_topo_node = []
         if host.topo_link:
             bk_topo_node = list({node.id for node in chain(*list(host.topo_link.values()))})
+        dimensions["bk_target_cloud_id"] = str(bk_target_cloud_id)
         dimensions["bk_topo_node"] = bk_topo_node
         if "bk_host_id" not in dimensions:
             # 主机对象获取到后，必定补上bk_host_id。 后续模块基于bk_host_id即可确认唯一主机

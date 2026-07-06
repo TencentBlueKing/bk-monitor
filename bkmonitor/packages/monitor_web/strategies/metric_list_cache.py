@@ -185,12 +185,16 @@ DEFAULT_DIMENSIONS_MAP = {
 }
 
 
-def extend_missing_dimensions(dimensions: list[dict[str, Any]], additions: list[dict[str, Any]]) -> None:
-    exist_dimension_ids = {dimension["id"] for dimension in dimensions}
-    for dimension in additions:
-        if dimension["id"] not in exist_dimension_ids:
-            dimensions.append(copy.deepcopy(dimension))
-            exist_dimension_ids.add(dimension["id"])
+def get_default_dimension_ids(data_target: str, dimensions: list[dict[str, Any]]) -> list[str]:
+    default_dimensions = [dimension["id"] for dimension in DEFAULT_DIMENSIONS_MAP[data_target]]
+    dimension_ids = {dimension["id"] for dimension in dimensions}
+    if (
+        data_target == DataTarget.HOST_TARGET
+        and "bk_cloud_id" in dimension_ids
+        and "bk_target_cloud_id" not in dimension_ids
+    ):
+        return ["bk_target_ip", "bk_cloud_id"]
+    return default_dimensions
 
 
 UPTIMECHECK_MAP = {
@@ -2065,7 +2069,7 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
 
         data_target = DataTargetMapping().get_data_target(table["label"], table["source_label"], table["type_label"])
 
-        default_dimensions = list([x["id"] for x in DEFAULT_DIMENSIONS_MAP[data_target]])
+        default_dimensions = get_default_dimension_ids(data_target, dimensions)
 
         return {
             "bk_biz_id": 0,
@@ -2154,8 +2158,6 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
 
     def get_system_metric(self, table):
         base_metric = self.get_base_dict(table)
-        if base_metric["data_target"] == DataTarget.HOST_TARGET:
-            extend_missing_dimensions(base_metric["dimensions"], DEFAULT_DIMENSIONS_MAP[DataTarget.HOST_TARGET])
         if settings.IS_ACCESS_BK_DATA and settings.IS_ENABLE_VIEW_CMDB_LEVEL:
             base_metric["dimensions"].append({"id": "bk_obj_id", "name": _("节点类型")})
             base_metric["dimensions"].append({"id": "bk_inst_id", "name": _("节点名称")})

@@ -12,7 +12,7 @@ from monitor_web.strategies.metric_list_cache import BkmonitorMetricCacheManager
 
 
 class TestBkmonitorMetricCacheManager:
-    def test_get_system_metric_adds_host_target_dimensions(self):
+    def test_get_system_metric_uses_existing_cloud_dimension(self):
         manager = BkmonitorMetricCacheManager.__new__(BkmonitorMetricCacheManager)
         manager.dimension_map = {}
         manager.get_label_name = lambda label: label
@@ -36,6 +36,7 @@ class TestBkmonitorMetricCacheManager:
 
         dimensions = [dimension["id"] for dimension in metric["dimensions"]]
         assert "bk_target_ip" in dimensions
-        assert "bk_target_cloud_id" in dimensions
+        assert "bk_cloud_id" in dimensions
+        assert "bk_target_cloud_id" not in dimensions
         assert dimensions.count("bk_target_ip") == 1
-        assert metric["default_dimensions"] == ["bk_target_ip", "bk_target_cloud_id"]
+        assert metric["default_dimensions"] == ["bk_target_ip", "bk_cloud_id"]
