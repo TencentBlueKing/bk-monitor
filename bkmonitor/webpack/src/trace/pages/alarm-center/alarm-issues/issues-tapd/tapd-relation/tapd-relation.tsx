@@ -169,6 +169,7 @@ export default defineComponent({
                 popoverOptions={{
                   extCls: 'tapd-sideslider-relation-compoent-popover',
                 }}
+                customContent={this.loading}
                 loading={this.loading}
                 modelValue={this.modelValue}
                 multiple={true}
@@ -180,32 +181,45 @@ export default defineComponent({
                 onToggle={this.handleToggle}
                 onUpdate:modelValue={this.handleChange}
               >
-                {this.list.map(item => (
-                  <Select.Option
-                    id={item.id}
-                    key={item.id}
-                    name={item.name}
-                  >
-                    <span class='tapd-select-item'>
-                      <span class='tapd-id'>#TAPD-{item.id}</span>
-                      <span
-                        class='tapd-title'
-                        v-overflow-tips
-                      >
-                        {item.name}
+                {/* 首次加载/搜索时显示骨架屏占位，避免下拉面板空白闪烁 */}
+                {this.loading ? (
+                  <div style='padding: 0 8px;'>
+                    {new Array(4).fill(null).map((_item, index) => (
+                      <div
+                        key={index}
+                        style='height: 24px; margin: 4px 0;'
+                        class='skeleton-element'
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  this.list.map(item => (
+                    <Select.Option
+                      id={item.id}
+                      key={item.id}
+                      name={item.name}
+                    >
+                      <span class='tapd-select-item'>
+                        <span class='tapd-id'>#TAPD-{item.id}</span>
+                        <span
+                          class='tapd-title'
+                          v-overflow-tips
+                        >
+                          {item.name}
+                        </span>
+                        <span
+                          style={{
+                            borderColor: TapdStatusMap?.[item.status]?.color || '#7C8597',
+                            color: TapdStatusMap?.[item.status]?.color || '#7C8597',
+                          }}
+                          class='tapd-status'
+                        >
+                          {item?.status_display_name || TapdStatusMap?.[item.status]?.text || '--'}
+                        </span>
                       </span>
-                      <span
-                        style={{
-                          borderColor: TapdStatusMap?.[item.status]?.color || '#7C8597',
-                          color: TapdStatusMap?.[item.status]?.color || '#7C8597',
-                        }}
-                        class='tapd-status'
-                      >
-                        {item?.status_display_name || TapdStatusMap?.[item.status]?.text || '--'}
-                      </span>
-                    </span>
-                  </Select.Option>
-                ))}
+                    </Select.Option>
+                  ))
+                )}
               </Select>
               {this.errMsg ? <span class='err-msg'>{this.errMsg}</span> : undefined}
             </div>
