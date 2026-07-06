@@ -445,17 +445,12 @@ class SearchViewSet(APIViewSet):
         data["bk_biz_id"] = space_uid_to_bk_biz_id(index_set_obj.space_uid)
 
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
-            _start_time = data.get("start_time")
-            _end_time = data.get("end_time")
-            if not _start_time and not _end_time:
-                now = arrow.now()
-                _start_time = now.shift(days=-1).int_timestamp * 1000
-                _end_time = now.int_timestamp * 1000
+            now = arrow.now()
             data.update(
                 {
                     "index_set_ids": [index_set_id],
-                    "start_time": _start_time,
-                    "end_time": _end_time,
+                    "start_time": now.shift(days=-1).int_timestamp * 1000,
+                    "end_time": now.int_timestamp * 1000,
                 }
             )
             query_handler = UnifyQueryHandler(data)
