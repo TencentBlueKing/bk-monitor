@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,10 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import json
-from typing import Dict, List, Optional, Tuple
 
+from django.conf import settings
 from rest_framework.utils import encoders
 from typing_extensions import TypedDict
 
@@ -27,6 +27,7 @@ from monitor_web.strategies.default_settings.datalink.v1 import (
     DEFAULT_DATALINK_COLLECTING_FLAG,
     DEFAULT_DATALINK_STRATEGIES,
     DEFAULT_RULE_GROUP_NAME,
+    GATHER_UP_DATA_LABEL,
     PLUGIN_TYPE_MAPPING,
     STAGE_STRATEGY_MAPPING,
     DataLinkStage,
@@ -38,12 +39,16 @@ from monitor_web.strategies.user_groups import (
     remove_member_from_collecting_notice_group,
 )
 
-DataLinkStrategyRule = TypedDict("DataLinkStrategyRule", {"user_groups": List[int]})
 
-DataLinkStrategyInfo = TypedDict(
-    "DataLinkStrategyInfo",
-    {"strategy_id": int, "strategy_name": DatalinkStrategy, "strategy_desc": str, "rule": DataLinkStrategyRule},
-)
+class DataLinkStrategyRule(TypedDict):
+    user_groups: list[int]
+
+
+class DataLinkStrategyInfo(TypedDict):
+    strategy_id: int
+    strategy_name: DatalinkStrategy
+    strategy_desc: str
+    rule: DataLinkStrategyRule
 
 
 class DatalinkDefaultAlarmStrategyLoader:
@@ -56,10 +61,10 @@ class DatalinkDefaultAlarmStrategyLoader:
         self.collect_config_id = self.collect_config.id
         self.collect_config_name = self.collect_config.name
 
-    def check_strategy_exist(self, name: DatalinkStrategy) -> Optional[int]:
+    def check_strategy_exist(self, name: DatalinkStrategy) -> int | None:
         """检测策略是否存在"""
         label = self.render_label(name)
-        insts = StrategyLabel.objects.filter(bk_biz_id=self.bk_biz_id, label_name="/{}/".format(label))
+        insts = StrategyLabel.objects.filter(bk_biz_id=self.bk_biz_id, label_name=f"/{label}/")
         if insts.exists() == 0:
             return None
         return insts[0].strategy_id
@@ -78,7 +83,7 @@ class DatalinkDefaultAlarmStrategyLoader:
 
     def run(self):
         if not self.get_gather_type():
-            logger.info("Plugin ({}) has no initial strategy".format(self.collect_config.plugin.plugin_type))
+            logger.info(f"Plugin ({self.collect_config.plugin.plugin_type}) has no initial strategy")
             return
 
         # 获得默认告警策略
@@ -88,30 +93,28 @@ class DatalinkDefaultAlarmStrategyLoader:
 
         # 初始化默认告警组
         notice_group_id = self.init_notice_group()
-        logger.info("Succeed to init notice group: {}, {}".format(notice_group_id, self.user_id))
+        logger.info(f"Succeed to init notice group: {notice_group_id}, {self.user_id}")
 
         # 添加默认告警策略
-        strategy_tuples: List[Tuple[int, DatalinkStrategy]] = []
+        strategy_tuples: list[tuple[int, DatalinkStrategy]] = []
         for item in strategies_list:
             name = item["_name"]
             strategy_id = self.check_strategy_exist(name)
             if strategy_id is not None:
                 strategy_tuples.append((strategy_id, name))
                 logger.info(
-                    "Strategy(collect_config={}, {}) has existed, strategy_id={}".format(
-                        self.collect_config_id, name, strategy_id
-                    )
+                    f"Strategy(collect_config={self.collect_config_id}, {name}) has existed, strategy_id={strategy_id}"
                 )
                 continue
             new_strategy_id = self.update_strategy(item)
             strategy_tuples.append((new_strategy_id, name))
-            logger.info("Succeed to update strategy({}, {})".format(self.collect_config_id, name))
+            logger.info(f"Succeed to update strategy({self.collect_config_id}, {name})")
 
         # 添加告警分派规则
         self.update_rule_group([notice_group_id], strategy_tuples, force_update=False)
-        logger.info("Succeed to update rule group, {}".format(strategy_tuples))
+        logger.info(f"Succeed to update rule group, {strategy_tuples}")
 
-    def update_strategy(self, strategy: Dict) -> int:
+    def update_strategy(self, strategy: dict) -> int:
         """加载默认告警策略 ."""
         _name: DatalinkStrategy = strategy.pop("_name")
         # 占位符渲染
@@ -119,6 +122,9 @@ class DatalinkDefaultAlarmStrategyLoader:
         strategy_str = strategy_str.replace("${{custom_label}}", self.render_label(_name))
         strategy_str = strategy_str.replace("${{bk_biz_id}}", str(self.bk_biz_id))
         strategy = json.loads(strategy_str)
+
+        # 多租户环境下，gather_up 结果表按业务隔离，无法沿用单租户全局结果表，改用 data_label 引用指标
+        self._adapt_query_config_for_multi_tenant(strategy)
 
         # 组装通知信息
         notice = strategy["notice"]
@@ -142,8 +148,28 @@ class DatalinkDefaultAlarmStrategyLoader:
         logger.info("Start to save strategy, %s", strategy_config)
         return resource.strategies.save_strategy_v2(**strategy_config)["id"]
 
+    @staticmethod
+    def _adapt_query_config_for_multi_tenant(strategy: dict) -> None:
+        """多租户环境下适配 gather_up 采集状态策略的查询配置。
+
+        单租户默认策略硬编码了全局结果表 ``bkmonitorbeat_gather_up.__default__``（migration 0177）。
+        多租户下每个业务的 gather_up 结果表为 ``{bk_tenant_id}_{bk_biz_id}_bkmonitorbeat_gather_up.__default__``，
+        无法硬编码，因此清空 ``result_table_id`` 并改用 ``data_label`` 引用指标，运行期按当前租户/业务解析到
+        真实结果表（结果表已配置同名 data_label）。单租户环境保持原结果表不变。
+
+        Args:
+            strategy: 已完成占位符渲染的策略配置（原地修改）。
+        """
+        if not settings.ENABLE_MULTI_TENANT_MODE:
+            return
+
+        for item in strategy.get("items", []):
+            for query_config in item.get("query_configs", []):
+                query_config["result_table_id"] = ""
+                query_config["data_label"] = GATHER_UP_DATA_LABEL
+
     def update_rule_group(
-        self, user_group_ids: List[int], strategy_tuples: List[Tuple[int, DatalinkStrategy]], force_update: bool = True
+        self, user_group_ids: list[int], strategy_tuples: list[tuple[int, DatalinkStrategy]], force_update: bool = True
     ):
         """保存告警分派组"""
         rules = []
@@ -179,9 +205,9 @@ class DatalinkDefaultAlarmStrategyLoader:
 
     def build_rule_idx(self, strategy_id: int):
         """构建分派规则唯一标识"""
-        return "idx_{}_{}".format(strategy_id, self.collect_config_id)
+        return f"idx_{strategy_id}_{self.collect_config_id}"
 
-    def load_strategy_map(self, stage: DataLinkStage) -> Dict[int, DataLinkStrategyInfo]:
+    def load_strategy_map(self, stage: DataLinkStage) -> dict[int, DataLinkStrategyInfo]:
         """基于采集配置加载告警配置信息"""
         map = {}
         gather_type = self.get_gather_type()
@@ -231,7 +257,7 @@ class RuleGroupManager:
         self.bk_biz_id = bk_biz_id
         self.group_name = DEFAULT_RULE_GROUP_NAME
         self.group_id = None
-        self.rules: List[AlertAssignRule] = []
+        self.rules: list[AlertAssignRule] = []
 
     def ensure_group(self, auto_create=True) -> bool:
         """确保分派组"""
@@ -248,12 +274,12 @@ class RuleGroupManager:
                 is_builtin=True,
                 source=DEFAULT_DATALINK_COLLECTING_FLAG,
             )
-            logger.info("Succeed to create assign group, {}".format(DEFAULT_RULE_GROUP_NAME))
+            logger.info(f"Succeed to create assign group, {DEFAULT_RULE_GROUP_NAME}")
             self.group_id = group.id
             self.rules = []
         return True
 
-    def ensure_rules(self, new_rules: List[Dict], force_update: bool = True):
+    def ensure_rules(self, new_rules: list[dict], force_update: bool = True):
         """确保分配规则生效"""
         for new_rule in new_rules:
             new_idx = new_rule["additional_tags"][0]["value"]
@@ -263,7 +289,7 @@ class RuleGroupManager:
                 slz = AssignRuleSlz(data=new_rule)
                 slz.is_valid(raise_exception=True)
                 AlertAssignRule.objects.create(**slz.validated_data)
-                logger.info("Succeed to create assign rule, {}".format(slz.validated_data))
+                logger.info(f"Succeed to create assign rule, {slz.validated_data}")
             # 目前强制更新只支持用户组ID列表
             elif force_update:
                 existed_rule.user_groups = new_rule["user_groups"]

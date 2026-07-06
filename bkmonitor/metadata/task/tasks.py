@@ -68,7 +68,10 @@ logger = logging.getLogger("metadata")
 
 PING_SERVER_DATA_LABEL = "pingserver.base,pingserver"
 PING_SERVER_DATA_NAME_TPL = "base_{bk_biz_id}_pingserver"
-PING_SERVER_TABLE_ID_TPL = "{bk_tenant_id}_{bk_biz_id}_pingserver.base"
+# 结果表统一采用 xxx.__default__ 后缀（与 gather_up 及多租户归一化约定一致）。
+# 注意：PING_SERVER_DATA_LABEL 仍保留 "pingserver.base"，多租户 PING 不可达策略依赖该 data_label 路由，
+# 与 table_id 后缀无关，故此处后缀调整不影响告警链路。
+PING_SERVER_TABLE_ID_TPL = "{bk_tenant_id}_{bk_biz_id}_pingserver.__default__"
 PING_SERVER_DATA_SOURCE_OPTIONS = {
     "flat_batch_key": "data",
     models.DataSourceOption.OPTION_TIMESTAMP_UNIT: "ms",
@@ -92,6 +95,27 @@ PING_SERVER_RESULT_TABLE_FIELDS = [
     {"field_name": "avg_rtt", "field_type": "double", "unit": "ms", "tag": "metric", "description": "平均时延"},
     {"field_name": "time", "field_type": "timestamp", "tag": "timestamp", "description": "上报时间"},
 ]
+
+# bkmonitorbeat 采集任务状态指标（gather_up，原单租户全局 dataid 1100017，参考 migration 0177）。
+# 多租户下按业务建链，走指标自动发现（TimeSeriesGroup），单表单指标（is_split_measurement）。
+GATHER_UP_DATA_LABEL = "bkmonitorbeat_gather_up"
+GATHER_UP_DATA_NAME_TPL = "base_{bk_biz_id}_bkmonitorbeat_gather_up"
+GATHER_UP_TABLE_ID_TPL = "{bk_tenant_id}_{bk_biz_id}_bkmonitorbeat_gather_up.__default__"
+GATHER_UP_TABLE_LABEL = "service_process"
+GATHER_UP_TS_GROUP_NAME = "bkmonitorbeat gather up metrics"
+GATHER_UP_DATA_SOURCE_OPTIONS = {
+    "flat_batch_key": "data",
+    models.DataSourceOption.OPTION_TIMESTAMP_UNIT: "ms",
+    models.DataSourceOption.OPTION_DISABLE_METRIC_CUTTER: "true",
+}
+GATHER_UP_CREATE_DATA_SOURCE_OPTIONS = {
+    name: value
+    for name, value in GATHER_UP_DATA_SOURCE_OPTIONS.items()
+    if name != models.DataSourceOption.OPTION_TIMESTAMP_UNIT
+}
+GATHER_UP_RESULT_TABLE_OPTIONS = {
+    models.ResultTableOption.OPTION_IS_SPLIT_MEASUREMENT: True,
+}
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
@@ -1231,6 +1255,13 @@ def _get_bk_biz_internal_data_ids(bk_tenant_id: str, bk_biz_id: int) -> list[dic
     if system_proc_port_data_source:
         result.append({"task": "processbeat_port", "dataid": system_proc_port_data_source.bk_data_id})
 
+    # bkmonitorbeat 采集任务状态指标（gather_up）
+    gather_up_data_source = DataSource.objects.filter(
+        data_name=GATHER_UP_DATA_NAME_TPL.format(bk_biz_id=bk_biz_id)
+    ).first()
+    if gather_up_data_source:
+        result.append({"task": "gather_up_beat", "dataid": gather_up_data_source.bk_data_id})
+
     return result
 
 
@@ -1376,6 +1407,7 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
             | Q(data_name__endswith="_system_proc_port")
             | Q(data_name__endswith="_system_proc_perf")
             | Q(data_name__endswith="_pingserver")
+            | Q(data_name__endswith="_bkmonitorbeat_gather_up")
         ).values_list("data_name", flat=True)
     )
 
@@ -1388,6 +1420,7 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
         ("bklog", ("base_{bk_biz_id}_agent_event",)): create_base_event_datalink_for_bkcc,
         ("bkmonitor", ("base_{bk_biz_id}_system_proc_port",)): create_system_proc_datalink_for_bkcc,
         ("bkmonitor", ("base_{bk_biz_id}_system_proc_perf",)): create_system_proc_datalink_for_bkcc,
+        ("bkmonitor", ("base_{bk_biz_id}_bkmonitorbeat_gather_up",)): create_gather_up_datalink_for_bkcc,
     }
     if settings.ENABLE_PING_ALARM:
         data_name_tpl_to_task[("bkmonitor", (PING_SERVER_DATA_NAME_TPL,))] = create_biz_ping_datalink_for_bkcc
@@ -1440,69 +1473,70 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
     logger.info("check_bkcc_space_builtin_datalink: check bkcc space builtin datalink success")
 
 
-@app.task(ignore_result=True, queue="celery_metadata_task_worker")
-def create_biz_ping_datalink_for_bkcc(
+def _create_biz_standard_time_series_datalink_for_bkcc(
+    *,
     bk_tenant_id: str,
     bk_biz_id: int,
+    data_name: str,
+    table_id: str,
+    data_label: str,
+    table_name_zh: str,
+    table_label: str,
+    result_table_fields: list[dict[str, Any]],
+    data_source_options: dict[str, Any],
+    create_data_source_options: dict[str, Any],
     storage_cluster_name: str | None = None,
-):
-    """创建多租户业务 Ping Server 时序数据链路。"""
+    is_platform_data_id: bool = False,
+    enable_time_series_group: bool = False,
+    time_series_group_name: str | None = None,
+    result_table_options: dict[str, Any] | None = None,
+    log_prefix: str = "create_biz_standard_time_series_datalink_for_bkcc",
+) -> models.DataSource | None:
+    """创建多租户业务标准单指标单表时序数据链路（bk_standard_v2_time_series）。
 
-    logger.info(
-        "create_biz_ping_datalink_for_bkcc: start to create pingserver datalink,bk_tenant_id->[%s],bk_biz_id->[%s]",
-        bk_tenant_id,
-        bk_biz_id,
-    )
+    从 Ping Server 建链逻辑中抽取的公共实现，覆盖：DataSource + DataSourceOption ->
+    事务内 ResultTable / DataSourceResultTable / ResultTableField（可选 ResultTableOption、
+    TimeSeriesGroup）-> DataLink.apply_data_link + sync_metadata + AccessVMRecord。
 
-    if not settings.ENABLE_PING_ALARM:
-        logger.info("create_biz_ping_datalink_for_bkcc: ping alarm is disabled,return!")
-        return
+    Args:
+        bk_tenant_id: 租户 ID。
+        bk_biz_id: 业务 ID。
+        data_name: 数据源名称，同时作为 DataLink 名称。
+        table_id: 结果表 ID。
+        data_label: 结果表 data_label。
+        table_name_zh: 结果表中文名。
+        table_label: 结果表监控对象标签（如 os / service_process）。
+        result_table_fields: 预置结果表字段列表；自动发现场景可传空列表。
+        data_source_options: 需要 upsert 的 DataSourceOption（全量）。
+        create_data_source_options: 创建 DataSource 时初始化的 option。
+        storage_cluster_name: VM 存储集群名称，未指定时取默认 VM 集群。
+        is_platform_data_id: 是否为平台级公共数据源。
+        enable_time_series_group: 是否创建 TimeSeriesGroup 以支持指标自动发现。
+        time_series_group_name: TimeSeriesGroup 名称，enable 时使用，缺省回退到 data_name。
+        result_table_options: 需要 upsert 的 ResultTableOption（如 is_split_measurement）。
+        log_prefix: 日志前缀，便于按调用方区分排障。
 
-    if not settings.ENABLE_MULTI_TENANT_MODE:
-        logger.info("create_biz_ping_datalink_for_bkcc: multi tenant mode is not enabled,return!")
-        return
-
-    if bk_biz_id <= 0:
-        logger.info("create_biz_ping_datalink_for_bkcc: invalid bk_biz_id->[%s],return!", bk_biz_id)
-        return
-
-    is_platform_data_id = False
-    if settings.SPACE_BUILTIN_DATA_LINK_MODE == "tenant":
-        try:
-            default_biz_id = get_tenant_default_biz_id(bk_tenant_id)
-        except ValueError:
-            logger.error(
-                "create_biz_ping_datalink_for_bkcc: get tenant default biz id failed, bk_tenant_id->[%s], return!",
-                bk_tenant_id,
-            )
-            return
-        if bk_biz_id != default_biz_id:
-            logger.info(
-                "create_biz_ping_datalink_for_bkcc: bk_biz_id->[%s] is not the operation business of bk_tenant_id->[%s],return!",
-                bk_biz_id,
-                bk_tenant_id,
-            )
-            return
-        is_platform_data_id = True
-
+    Returns:
+        创建或复用的 DataSource；任一环节失败返回 None。
+    """
+    # 存储集群解析
     if not storage_cluster_name:
         cluster = models.ClusterInfo.objects.filter(
             bk_tenant_id=bk_tenant_id, cluster_type=models.ClusterInfo.TYPE_VM, is_default_cluster=True
         ).last()
         if not cluster:
-            logger.error("create_biz_ping_datalink_for_bkcc: get default vm cluster failed,return!")
-            return
+            logger.error("%s: get default vm cluster failed,return!", log_prefix)
+            return None
         storage_cluster_name = cluster.cluster_name
     else:
         cluster = models.ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=storage_cluster_name)
 
-    data_name = PING_SERVER_DATA_NAME_TPL.format(bk_biz_id=bk_biz_id)
-    table_id = PING_SERVER_TABLE_ID_TPL.format(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
-
+    # DataSource（幂等：不存在则创建）
     data_source = models.DataSource.objects.filter(data_name=data_name, bk_tenant_id=bk_tenant_id).first()
     if not data_source:
         logger.info(
-            "create_biz_ping_datalink_for_bkcc: data source not found,bk_tenant_id->[%s],bk_biz_id->[%s],data_name->[%s]",
+            "%s: data source not found,bk_tenant_id->[%s],bk_biz_id->[%s],data_name->[%s]",
+            log_prefix,
             bk_tenant_id,
             bk_biz_id,
             data_name,
@@ -1517,9 +1551,11 @@ def create_biz_ping_datalink_for_bkcc(
             bk_tenant_id=bk_tenant_id,
             created_from=DataIdCreatedFromSystem.BKDATA.value,
             is_platform_data_id=is_platform_data_id,
-            option=PING_SERVER_CREATE_DATA_SOURCE_OPTIONS,
+            option=create_data_source_options,
         )
-    for option_name, option_value in PING_SERVER_DATA_SOURCE_OPTIONS.items():
+
+    # DataSourceOption upsert
+    for option_name, option_value in data_source_options.items():
         option_record = models.DataSourceOption.objects.filter(
             bk_data_id=data_source.bk_data_id,
             name=option_name,
@@ -1543,13 +1579,13 @@ def create_biz_ping_datalink_for_bkcc(
                 table_id=table_id,
                 bk_tenant_id=bk_tenant_id,
                 defaults={
-                    "data_label": PING_SERVER_DATA_LABEL,
-                    "table_name_zh": f"{bk_tenant_id}_{bk_biz_id}_PING_SERVER上报数据",
+                    "data_label": data_label,
+                    "table_name_zh": table_name_zh,
                     "is_custom_table": False,
                     "schema_type": "free",
                     "default_storage": models.ClusterInfo.TYPE_VM,
                     "creator": "system",
-                    "label": "os",
+                    "label": table_label,
                     "bk_biz_id": bk_biz_id,
                 },
             )
@@ -1563,7 +1599,7 @@ def create_biz_ping_datalink_for_bkcc(
                 )
             )
             field_to_create = []
-            for field in PING_SERVER_RESULT_TABLE_FIELDS:
+            for field in result_table_fields:
                 if field["field_name"] in existing_fields:
                     continue
                 field_to_create.append(
@@ -1584,14 +1620,43 @@ def create_biz_ping_datalink_for_bkcc(
                 )
             if field_to_create:
                 models.ResultTableField.objects.bulk_create(field_to_create)
+
+            # 结果表选项（如单表单指标 is_split_measurement）
+            if result_table_options:
+                for option_name, option_value in result_table_options.items():
+                    value, value_type = models.ResultTableOption._parse_value(option_value)
+                    models.ResultTableOption.objects.update_or_create(
+                        table_id=table_id,
+                        name=option_name,
+                        bk_tenant_id=bk_tenant_id,
+                        defaults={"value": value, "value_type": value_type, "creator": "system"},
+                    )
+
+            # 指标自动发现分组（TimeSeriesGroup），Ping Server 等固定字段场景无需开启
+            if enable_time_series_group:
+                models.TimeSeriesGroup.objects.update_or_create(
+                    bk_tenant_id=bk_tenant_id,
+                    bk_data_id=data_source.bk_data_id,
+                    defaults={
+                        "bk_biz_id": bk_biz_id,
+                        "table_id": table_id,
+                        "label": table_label,
+                        "time_series_group_name": time_series_group_name or data_name,
+                        "creator": "system",
+                        "last_modify_user": "system",
+                        "is_enable": True,
+                        "is_delete": False,
+                    },
+                )
     except Exception as e:  # pylint: disable=broad-except
         logger.exception(
-            "create_biz_ping_datalink_for_bkcc: failed to create metadata,bk_tenant_id->[%s],bk_biz_id->[%s],error->[%s]",
+            "%s: failed to create metadata,bk_tenant_id->[%s],bk_biz_id->[%s],error->[%s]",
+            log_prefix,
             bk_tenant_id,
             bk_biz_id,
             e,
         )
-        return
+        return None
 
     data_link_ins, _ = models.DataLink.objects.update_or_create(
         bk_tenant_id=bk_tenant_id,
@@ -1624,18 +1689,155 @@ def create_biz_ping_datalink_for_bkcc(
         )
     except Exception as e:  # pylint: disable=broad-except
         logger.exception(
-            "create_biz_ping_datalink_for_bkcc: failed to apply datalink,bk_tenant_id->[%s],bk_biz_id->[%s],error->[%s]",
+            "%s: failed to apply datalink,bk_tenant_id->[%s],bk_biz_id->[%s],error->[%s]",
+            log_prefix,
             bk_tenant_id,
             bk_biz_id,
             e,
         )
-        return
+        return None
 
     logger.info(
-        "create_biz_ping_datalink_for_bkcc: finished creating pingserver datalink,bk_tenant_id->[%s],bk_biz_id->[%s],bk_data_id->[%s]",
+        "%s: finished creating datalink,bk_tenant_id->[%s],bk_biz_id->[%s],bk_data_id->[%s]",
+        log_prefix,
         bk_tenant_id,
         bk_biz_id,
         data_source.bk_data_id,
+    )
+    return data_source
+
+
+def _resolve_platform_data_id_for_tenant(bk_tenant_id: str, bk_biz_id: int, log_prefix: str) -> bool | None:
+    """按租户内置数据链路模式判定当前业务是否应建链，并返回是否为平台级数据源。
+
+    Args:
+        bk_tenant_id: 租户 ID。
+        bk_biz_id: 业务 ID。
+        log_prefix: 日志前缀。
+
+    Returns:
+        - False/True: 应建链，值表示是否为平台级公共数据源。
+        - None: 当前业务不应建链（非租户运营业务或获取默认业务失败），调用方应直接返回。
+    """
+    if settings.SPACE_BUILTIN_DATA_LINK_MODE != "tenant":
+        return False
+
+    try:
+        default_biz_id = get_tenant_default_biz_id(bk_tenant_id)
+    except ValueError:
+        logger.error("%s: get tenant default biz id failed, bk_tenant_id->[%s], return!", log_prefix, bk_tenant_id)
+        return None
+
+    if bk_biz_id != default_biz_id:
+        logger.info(
+            "%s: bk_biz_id->[%s] is not the operation business of bk_tenant_id->[%s],return!",
+            log_prefix,
+            bk_biz_id,
+            bk_tenant_id,
+        )
+        return None
+
+    return True
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def create_biz_ping_datalink_for_bkcc(
+    bk_tenant_id: str,
+    bk_biz_id: int,
+    storage_cluster_name: str | None = None,
+):
+    """创建多租户业务 Ping Server 时序数据链路。"""
+
+    log_prefix = "create_biz_ping_datalink_for_bkcc"
+    logger.info(
+        "%s: start to create pingserver datalink,bk_tenant_id->[%s],bk_biz_id->[%s]",
+        log_prefix,
+        bk_tenant_id,
+        bk_biz_id,
+    )
+
+    if not settings.ENABLE_PING_ALARM:
+        logger.info("%s: ping alarm is disabled,return!", log_prefix)
+        return
+
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        logger.info("%s: multi tenant mode is not enabled,return!", log_prefix)
+        return
+
+    if bk_biz_id <= 0:
+        logger.info("%s: invalid bk_biz_id->[%s],return!", log_prefix, bk_biz_id)
+        return
+
+    is_platform_data_id = _resolve_platform_data_id_for_tenant(bk_tenant_id, bk_biz_id, log_prefix)
+    if is_platform_data_id is None:
+        return
+
+    _create_biz_standard_time_series_datalink_for_bkcc(
+        bk_tenant_id=bk_tenant_id,
+        bk_biz_id=bk_biz_id,
+        data_name=PING_SERVER_DATA_NAME_TPL.format(bk_biz_id=bk_biz_id),
+        table_id=PING_SERVER_TABLE_ID_TPL.format(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id),
+        data_label=PING_SERVER_DATA_LABEL,
+        table_name_zh=f"{bk_tenant_id}_{bk_biz_id}_PING_SERVER上报数据",
+        table_label="os",
+        result_table_fields=PING_SERVER_RESULT_TABLE_FIELDS,
+        data_source_options=PING_SERVER_DATA_SOURCE_OPTIONS,
+        create_data_source_options=PING_SERVER_CREATE_DATA_SOURCE_OPTIONS,
+        storage_cluster_name=storage_cluster_name,
+        is_platform_data_id=is_platform_data_id,
+        log_prefix=log_prefix,
+    )
+
+
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def create_gather_up_datalink_for_bkcc(
+    bk_tenant_id: str,
+    bk_biz_id: int,
+    storage_cluster_name: str | None = None,
+):
+    """创建多租户业务 bkmonitorbeat 采集任务状态指标（gather_up）时序数据链路。
+
+    参考单租户全局 dataid 1100017（migration 0177），多租户下按业务建链，
+    通过 TimeSeriesGroup 支持指标自动发现，并以单表单指标（is_split_measurement）方式存储。
+    """
+
+    log_prefix = "create_gather_up_datalink_for_bkcc"
+    logger.info(
+        "%s: start to create gather_up datalink,bk_tenant_id->[%s],bk_biz_id->[%s]",
+        log_prefix,
+        bk_tenant_id,
+        bk_biz_id,
+    )
+
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        logger.info("%s: multi tenant mode is not enabled,return!", log_prefix)
+        return
+
+    if bk_biz_id <= 0:
+        logger.info("%s: invalid bk_biz_id->[%s],return!", log_prefix, bk_biz_id)
+        return
+
+    is_platform_data_id = _resolve_platform_data_id_for_tenant(bk_tenant_id, bk_biz_id, log_prefix)
+    if is_platform_data_id is None:
+        return
+
+    _create_biz_standard_time_series_datalink_for_bkcc(
+        bk_tenant_id=bk_tenant_id,
+        bk_biz_id=bk_biz_id,
+        data_name=GATHER_UP_DATA_NAME_TPL.format(bk_biz_id=bk_biz_id),
+        table_id=GATHER_UP_TABLE_ID_TPL.format(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id),
+        data_label=GATHER_UP_DATA_LABEL,
+        table_name_zh=f"{bk_tenant_id}_{bk_biz_id}_bkmonitorbeat 采集任务状态指标",
+        table_label=GATHER_UP_TABLE_LABEL,
+        result_table_fields=[],
+        data_source_options=GATHER_UP_DATA_SOURCE_OPTIONS,
+        create_data_source_options=GATHER_UP_CREATE_DATA_SOURCE_OPTIONS,
+        storage_cluster_name=storage_cluster_name,
+        is_platform_data_id=is_platform_data_id,
+        enable_time_series_group=True,
+        time_series_group_name=GATHER_UP_TS_GROUP_NAME,
+        result_table_options=GATHER_UP_RESULT_TABLE_OPTIONS,
+        log_prefix=log_prefix,
     )
 
 
