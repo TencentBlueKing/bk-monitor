@@ -71,6 +71,7 @@ from metadata.models.vm.utils import (
 from metadata.task.tasks import (
     create_base_event_datalink_for_bkcc,
     create_basereport_datalink_for_bkcc,
+    create_biz_ping_datalink_for_bkcc,
     create_system_proc_datalink_for_bkcc,
 )
 from metadata.tests.common_utils import consul_client
@@ -130,6 +131,38 @@ def _with_compose_nullable_fields(configs: list[dict] | dict) -> list[dict] | di
             for field in ("filter", "metricGroupDimensions", "ddVersion"):
                 spec.setdefault(field, None)
     return configs
+
+
+def _prepare_ping_datalink_base_records(bk_tenant_id: str, bk_biz_ids: tuple[int, ...], mocker):
+    mocker.patch("metadata.models.data_source.Label.exists_label", return_value=True)
+    mocker.patch(
+        "metadata.models.data_link.data_link_configs.get_tenant_datalink_biz_id",
+        side_effect=lambda bk_tenant_id, bk_biz_id: SimpleNamespace(
+            label_biz_id=bk_biz_id,
+            data_biz_id=bk_biz_id,
+        ),
+    )
+    mocker.patch("metadata.models.data_link.data_link.api.bkdata.get_data_link", return_value=None)
+    settings.IS_ASSIGN_DATAID_BY_GSE = False
+    for bk_biz_id in bk_biz_ids:
+        models.Space.objects.get_or_create(
+            space_type_id="bkcc",
+            space_id=bk_biz_id,
+            bk_tenant_id=bk_tenant_id,
+            defaults={"space_name": f"bkcc_{bk_biz_id}"},
+        )
+    models.ClusterInfo.objects.get_or_create(
+        bk_tenant_id=bk_tenant_id,
+        cluster_type=models.ClusterInfo.TYPE_KAFKA,
+        is_default_cluster=True,
+        defaults={
+            "cluster_name": f"{bk_tenant_id}_kafka_default",
+            "domain_name": "default.kafka",
+            "port": 9092,
+            "description": "",
+            "cluster_id": 910000,
+        },
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -5078,6 +5111,111 @@ def test_create_bkbase_data_link_for_bk_standard(create_or_delete_records, mocke
     ]
 
     assert actual_configs == _with_compose_nullable_fields(expected_configs)
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_create_biz_ping_datalink_for_bkcc_metadata_part(create_or_delete_records, mocker):
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    settings.ENABLE_PING_ALARM = True
+    settings.SPACE_BUILTIN_DATA_LINK_MODE = "biz"
+    bk_tenant_id = "test_tenant"
+    bk_biz_id = 18862
+    _prepare_ping_datalink_base_records(bk_tenant_id, (bk_biz_id,), mocker)
+
+    with patch.object(DataLink, "apply_data_link_with_retry", return_value={"status": "success"}) as mock_apply:
+        create_biz_ping_datalink_for_bkcc(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+        mock_apply.assert_called_once()
+
+    data_name = f"base_{bk_biz_id}_pingserver"
+    table_id = f"{bk_tenant_id}_{bk_biz_id}_pingserver.base"
+    data_source = models.DataSource.objects.get(data_name=data_name, bk_tenant_id=bk_tenant_id)
+    assert data_source.bk_data_id != settings.PING_SERVER_DATAID
+    assert data_source.source_label == "bk_monitor"
+    assert data_source.type_label == "time_series"
+    assert data_source.space_uid == f"bkcc__{bk_biz_id}"
+    assert not data_source.is_platform_data_id
+
+    result_table = models.ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
+    assert result_table.bk_biz_id == bk_biz_id
+    assert result_table.default_storage == models.ClusterInfo.TYPE_VM
+    assert result_table.data_label == "pingserver.base,pingserver"
+
+    fields = {
+        field.field_name: field
+        for field in models.ResultTableField.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id)
+    }
+    assert {"max_rtt", "min_rtt", "avg_rtt", "loss_percent"} <= set(fields)
+    assert {"bk_cloud_id", "ip", "bk_biz_id", "bk_target_ip", "bk_target_cloud_id", "bk_host_id"} <= set(fields)
+    assert fields["loss_percent"].tag == "metric"
+    assert fields["bk_host_id"].tag == "dimension"
+
+    data_link = models.DataLink.objects.get(data_link_name=data_name, bk_tenant_id=bk_tenant_id)
+    assert data_link.data_link_strategy == DataLink.BK_STANDARD_V2_TIME_SERIES
+    assert data_link.table_ids == [table_id]
+    assert models.DataSourceResultTable.objects.filter(
+        bk_tenant_id=bk_tenant_id, bk_data_id=data_source.bk_data_id, table_id=table_id
+    ).exists()
+    assert models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id, result_table_id=table_id).exists()
+
+    options = models.DataSourceOption.get_option(data_source.bk_data_id)
+    assert options["flat_batch_key"] == "data"
+    assert options["timestamp_precision"] == "ms"
+    assert options["disable_metric_cutter"] == "true"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_create_biz_ping_datalink_for_bkcc_tenant_mode_only_default_biz(create_or_delete_records, mocker):
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    settings.ENABLE_PING_ALARM = True
+    settings.SPACE_BUILTIN_DATA_LINK_MODE = "tenant"
+    bk_tenant_id = "test_tenant"
+    non_default_biz_id = 18862
+    default_biz_id = 18863
+    _prepare_ping_datalink_base_records(bk_tenant_id, (non_default_biz_id, default_biz_id), mocker)
+
+    with (
+        patch.object(DataLink, "apply_data_link_with_retry", return_value={"status": "success"}) as mock_apply,
+        patch("metadata.task.tasks.get_tenant_default_biz_id", return_value=default_biz_id),
+    ):
+        create_biz_ping_datalink_for_bkcc(bk_tenant_id=bk_tenant_id, bk_biz_id=non_default_biz_id)
+        assert not models.DataSource.objects.filter(
+            data_name=f"base_{non_default_biz_id}_pingserver", bk_tenant_id=bk_tenant_id
+        ).exists()
+
+        create_biz_ping_datalink_for_bkcc(bk_tenant_id=bk_tenant_id, bk_biz_id=default_biz_id)
+        mock_apply.assert_called_once()
+
+    data_source = models.DataSource.objects.get(
+        data_name=f"base_{default_biz_id}_pingserver", bk_tenant_id=bk_tenant_id
+    )
+    assert data_source.is_platform_data_id
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_check_bkcc_space_builtin_datalink_creates_ping_only_when_enabled(mocker, settings):
+    from metadata.task.tasks import check_bkcc_space_builtin_datalink
+
+    settings.ENABLE_V2_VM_DATA_LINK = True
+    settings.ENABLE_SPACE_BUILTIN_DATA_LINK = True
+    settings.SPACE_BUILTIN_DATA_LINK_MODE = "biz"
+    settings.ENABLE_PING_ALARM = False
+    mock_base = mocker.patch("metadata.task.tasks.create_basereport_datalink_for_bkcc")
+    mock_event = mocker.patch("metadata.task.tasks.create_base_event_datalink_for_bkcc")
+    mock_proc = mocker.patch("metadata.task.tasks.create_system_proc_datalink_for_bkcc")
+    mock_ping = mocker.patch("metadata.task.tasks.create_biz_ping_datalink_for_bkcc")
+
+    check_bkcc_space_builtin_datalink([("system", 1)])
+    mock_base.assert_called_once()
+    mock_event.assert_called_once()
+    assert mock_proc.call_count == 2
+    mock_ping.assert_not_called()
+
+    mock_base.reset_mock()
+    mock_event.reset_mock()
+    mock_proc.reset_mock()
+    settings.ENABLE_PING_ALARM = True
+    check_bkcc_space_builtin_datalink([("system", 1)])
+    mock_ping.assert_called_once_with(bk_tenant_id="system", bk_biz_id=1)
 
 
 @pytest.mark.django_db(databases="__all__")
