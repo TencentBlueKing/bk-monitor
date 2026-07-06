@@ -4,6 +4,7 @@ from apps.log_search.constants import TagColor
 from apps.log_search.exceptions import IndexSetTagNameExistException, IndexSetTagNotExistException
 from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.models import IndexSetTag, LogIndexSet, Scenario
+from apps.log_search.serializers import CreateIndexSetTagSerializer, IndexSetTagListSerializer
 
 
 class TestIndexSetTagSpace(TestCase):
@@ -18,11 +19,33 @@ class TestIndexSetTagSpace(TestCase):
         self.assertEqual(tag_a["space_uid"], space_a)
         self.assertEqual(tag_b["space_uid"], space_b)
 
-    def test_user_tag_name_conflicts_with_global_tag_in_same_visible_scope(self):
-        IndexSetTag.objects.create(name="legacy-global", color=TagColor.GREEN.value)
+    def test_user_tag_can_use_same_name_as_global_tag_in_space(self):
+        global_tag = IndexSetTag.objects.create(name="legacy-global", color=TagColor.GREEN.value)
+
+        space_tag = IndexSetHandler.create_tag(
+            {"space_uid": "bkcc__2", "name": "legacy-global", "color": TagColor.BLUE.value}
+        )
+
+        self.assertNotEqual(global_tag.tag_id, space_tag["tag_id"])
+        self.assertEqual(space_tag["space_uid"], "bkcc__2")
+
+    def test_user_tag_name_conflicts_in_same_space(self):
+        IndexSetTag.objects.create(space_uid="bkcc__2", name="space-tag", color=TagColor.GREEN.value)
 
         with self.assertRaises(IndexSetTagNameExistException):
-            IndexSetHandler.create_tag({"space_uid": "bkcc__2", "name": "legacy-global", "color": TagColor.BLUE.value})
+            IndexSetHandler.create_tag({"space_uid": "bkcc__2", "name": "space-tag", "color": TagColor.BLUE.value})
+
+    def test_create_tag_serializer_allows_empty_space_uid(self):
+        serializer = CreateIndexSetTagSerializer(data={"name": "global-tag", "color": TagColor.GREEN.value})
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data["space_uid"], "")
+
+    def test_tag_list_serializer_allows_empty_space_uid(self):
+        serializer = IndexSetTagListSerializer(data={})
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data["space_uid"], "")
 
     def test_tag_list_returns_global_and_current_space_tags(self):
         global_tag = IndexSetTag.objects.create(name="legacy-global", color=TagColor.GREEN.value)
