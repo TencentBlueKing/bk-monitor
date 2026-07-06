@@ -749,6 +749,16 @@ class OTLPProxyHostConfig:
     HTTP_SCHEME = "http://"
 
 
+class CollectorSourceEnum(ChoicesEnum):
+    CURRENT_SPACE = "current_space"
+    RELATED_SPACE = "related_space"
+
+    _choices_labels = (
+        (CURRENT_SPACE, _("当前空间")),
+        (RELATED_SPACE, _("关联空间")),
+    )
+
+
 RETRIEVE_CHAIN = [
     "set_itsm_info",
     "set_split_rule",

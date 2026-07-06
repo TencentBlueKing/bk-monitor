@@ -530,6 +530,7 @@ export default {
   上一个: 'Previous',
   下一个: 'Next',
   分析详情: 'Analysis Details',
+  'SDK 接入指引': 'SDK Access Guide',
 
   // ISSUES
   标为已解决: 'Mark as Resolved',
