@@ -44,13 +44,25 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    /** issues 第一个告警产生时间 (秒级时间戳) */
+    firstAlarmTime: {
+      type: [Number, String],
+      default: 'now-1h',
+    },
   },
   emits: ['update:show'],
   setup(props, { emit }) {
-    const { show, bizId, issuesId } = toRefs(props);
+    const { show, bizId, issuesId, firstAlarmTime } = toRefs(props);
 
-    const { loading, authDialogShow, createTapdSliderShow, workspaceList, handleWorkspaceSelect, handleAddWorkspace } =
-      useTapdAuth({ show, bizId, issuesId });
+    const {
+      loading,
+      authDialogShow,
+      createTapdSliderShow,
+      workspaceList,
+      handleWorkspaceSelect,
+      handleAddWorkspace,
+      handleRevokeAuth,
+    } = useTapdAuth({ show, bizId, issuesId, firstAlarmTime });
 
     const handleShowChange = (val: boolean) => emit('update:show', val);
 
@@ -69,6 +81,7 @@ export default defineComponent({
       workspaceList,
       handleWorkspaceSelect,
       handleAddWorkspace,
+      handleRevokeAuth,
       handleShowChange,
       handleAuthDialogShowChange,
     };
@@ -82,12 +95,14 @@ export default defineComponent({
           show={this.createTapdSliderShow}
           workspaceList={this.workspaceList}
           onAddWorkspace={this.handleAddWorkspace}
+          onRevokeAuth={this.handleRevokeAuth}
           onUpdate:show={this.handleShowChange}
         />
         <TapdAuthDialog
           loading={this.loading}
           show={this.authDialogShow}
           workspaceList={this.workspaceList}
+          onRevokeAuth={this.handleRevokeAuth}
           onSelect={this.handleWorkspaceSelect}
           onUpdate:show={this.handleAuthDialogShowChange}
         />
