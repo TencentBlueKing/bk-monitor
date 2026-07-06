@@ -59,15 +59,13 @@ from metadata.models.data_link.data_link_configs import (
 from metadata.models.data_link.utils import generate_result_table_field_list, get_bkbase_raw_data_id_name
 from metadata.models.entity_relation import (
     EntityMeta,
-    NAMESPACE_ALL,
-    RelationDefinition,
-    ResourceDefinition,
 )
 from metadata.models.storage import ClusterInfo, DorisStorage, ESStorage, SurrealDBStorage
 from metadata.models.vm.record import AccessVMRecord
 
 if TYPE_CHECKING:
     from metadata.models import DataSource
+    from metadata.models.bkdata.result_table import BkBaseResultTable
     from metadata.models.data_link.data_link_configs import DataLinkResourceConfigBase
 
 logger = logging.getLogger("metadata")
@@ -308,15 +306,13 @@ class DataLink(models.Model):
                 cluster_id__in=storage_cluster_ids,
             ).delete()
 
-    def get_related_component_classes(
-        self, write_mode: str | None = None
-    ) -> list[type["DataLinkResourceConfigBase"]]:
+    def get_related_component_classes(self, write_mode: str | None = None) -> list[type["DataLinkResourceConfigBase"]]:
         if write_mode is None and self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
             graph_binding = self._get_graph_relation_binding()
             if graph_binding:
                 write_mode = graph_binding.write_mode
 
-        component_classes: list[type["DataLinkResourceConfigBase"]] = []
+        component_classes: list[type[DataLinkResourceConfigBase]] = []
         for cls in self.STRATEGY_RELATED_COMPONENTS[self.data_link_strategy]:
             if isinstance(cls, type) and issubclass(cls, ExpandableGroup):
                 component_classes.extend(cls.expand(write_mode))
@@ -682,7 +678,9 @@ class DataLink(models.Model):
             if should_write_surrealdb
             else (existed_graph_binding.relations if existed_graph_binding else [])
         )
-        vm_cluster_name = storage_cluster_name or (existed_graph_binding.vm_cluster_name if existed_graph_binding else "")
+        vm_cluster_name = storage_cluster_name or (
+            existed_graph_binding.vm_cluster_name if existed_graph_binding else ""
+        )
         table_type = existed_graph_binding.table_type if existed_graph_binding else "temporary"
         bkbase_result_table_name = (
             existed_graph_binding.bkbase_result_table_name if existed_graph_binding else bkbase_vmrt_name
@@ -2383,6 +2381,12 @@ class DataLink(models.Model):
                 if should_update_bkbase_rt_storage_type and graph_transition_cleanup_succeeded:
                     bkbase_rt_record.storage_type = storage_type
                     bkbase_rt_record.save(update_fields=["storage_type"])
+                if graph_transition_cleanup_succeeded:
+                    self.sync_graph_relation_vm_metadata(
+                        table_id=self._get_graph_relation_apply_table_id(args=args, kwargs=kwargs),
+                        data_source=self._get_graph_relation_apply_data_source(args=args, kwargs=kwargs),
+                        storage_cluster_name=kwargs.get("storage_cluster_name"),
+                    )
         finally:
             self._clear_graph_relation_apply_state()
 
@@ -2588,6 +2592,68 @@ class DataLink(models.Model):
             if hasattr(self, attr):
                 delattr(self, attr)
 
+    @staticmethod
+    def _get_graph_relation_apply_data_source(
+        args: tuple[Any, ...],
+        kwargs: dict[str, Any],
+    ) -> "DataSource | None":
+        data_source = kwargs.get("data_source")
+        if data_source is not None:
+            return data_source
+        return args[1] if len(args) > 1 else None
+
+    @staticmethod
+    def _get_graph_relation_apply_table_id(args: tuple[Any, ...], kwargs: dict[str, Any]) -> str:
+        table_id = kwargs.get("table_id")
+        if table_id:
+            return table_id
+        return args[2] if len(args) > 2 else ""
+
+    def sync_graph_relation_vm_metadata(
+        self,
+        table_id: str,
+        data_source: "DataSource | None",
+        storage_cluster_name: str | None = None,
+    ) -> None:
+        """同步 GraphRelation VM 写入模式的 UQ 路由元数据。"""
+        if not table_id or data_source is None:
+            return
+
+        graph_binding = self._get_graph_relation_binding()
+        if not graph_binding or not graph_binding.should_write_vm:
+            return
+
+        from metadata.models.bkdata.result_table import BkBaseResultTable
+
+        self.sync_metadata(
+            table_id=table_id,
+            storage_cluster_name=graph_binding.vm_cluster_name or storage_cluster_name,
+            storage_type=ClusterInfo.TYPE_VM,
+        )
+        bkbase_rt = BkBaseResultTable.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
+            data_link_name=self.data_link_name,
+        ).first()
+        if not bkbase_rt or not bkbase_rt.bkbase_table_id:
+            logger.error(
+                "sync_graph_relation_vm_metadata: data_link_name->[%s],table_id->[%s] BkBaseResultTable missing",
+                self.data_link_name,
+                table_id,
+            )
+            return
+
+        AccessVMRecord.objects.update_or_create(
+            bk_tenant_id=self.bk_tenant_id,
+            result_table_id=table_id,
+            defaults={
+                "bk_base_data_id": data_source.bk_data_id,
+                "bk_base_data_name": bkbase_rt.bkbase_data_name or "",
+                "storage_cluster_id": bkbase_rt.storage_cluster_id,
+                "vm_cluster_id": bkbase_rt.storage_cluster_id,
+                "vm_result_table_id": bkbase_rt.bkbase_table_id,
+            },
+        )
+
     def sync_metadata(
         self,
         table_id,
@@ -2747,7 +2813,9 @@ class DataLink(models.Model):
     def _resolve_graph_relation_storage_type(self, write_mode: str | None) -> str:
         if write_mode is None:
             graph_binding = self._get_graph_relation_binding()
-            write_mode = graph_binding.write_mode if graph_binding else GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB
+            write_mode = (
+                graph_binding.write_mode if graph_binding else GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB
+            )
 
         return (
             ClusterInfo.TYPE_SURREALDB
