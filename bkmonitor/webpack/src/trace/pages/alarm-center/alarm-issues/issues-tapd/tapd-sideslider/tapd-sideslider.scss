@@ -41,8 +41,12 @@
       border-radius: 4px;
       box-shadow: 0 2px 4px 0 #1919290d;
 
+      &.mb-32 {
+        margin-bottom: 32px;
+      }
+
       .sync-tapd-status-title {
-        font-size: 14px;
+        font-size: 12px;
         font-weight: 700;
         color: #313238;
       }

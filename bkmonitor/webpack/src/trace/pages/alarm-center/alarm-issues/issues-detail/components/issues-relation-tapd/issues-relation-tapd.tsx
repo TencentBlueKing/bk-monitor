@@ -31,6 +31,7 @@ import useRequestAbort from 'trace/hooks/useRequestAbort';
 import tapdLogo from 'trace/static/img/issues/tapd-logo.png';
 import { useI18n } from 'vue-i18n';
 
+import { TapdLinkModeEnum } from '../../../issues-tapd/constant';
 import { getTapdRelations } from '../../../services/relation-tapd';
 import BasicCard from '../basic-card/basic-card';
 
@@ -132,7 +133,7 @@ export default defineComponent({
                 </div>
                 <div class='tapd-item-right-bottom'>
                   <span class='link-mode'>
-                    {`${item.link_mode === 'link' ? this.t('关联已有单据') : this.t('新建单据')} · `}
+                    {`${item.link_mode === TapdLinkModeEnum.LINK ? this.t('关联已有单据') : this.t('新建单据')} · `}
                     {item.sync_status ? undefined : this.t('状态不同步')}
                   </span>
                   {item.sync_status ? (
