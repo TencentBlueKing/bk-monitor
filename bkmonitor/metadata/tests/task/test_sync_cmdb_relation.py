@@ -375,6 +375,57 @@ def test_enable_relation_graph_link_reuses_existing_vm_result_table_name(mocker)
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_enable_relation_graph_link_corrects_existing_vm_component_names(mocker):
+    table_id = "2_bkcc_built_in_time_series.__default__"
+    data_name = "bkcc_built_in_time_series"
+    graph_link_name = compose_bkdata_table_id("system_bkcc_built_in_time_series_graph_relation")
+    graph_table_id = table_id.replace(".__default__", f"{SURREALDB_RT_SUFFIX}.__default__", 1)
+    ds = _create_relation_graph_source(61005, data_name, "system", table_id)
+    _create_relation_graph_clusters("system", 40)
+    models.AccessVMRecord.objects.create(
+        bk_tenant_id="system",
+        result_table_id=table_id,
+        bk_base_data_id=12345,
+        bk_base_data_name="legacy_data_name",
+        storage_cluster_id=9001,
+        vm_cluster_id=9001,
+        vm_result_table_id="2_vm_bkcc_built_in_time_series",
+    )
+    vertices = [{"name": "host", "id_fields": ["bk_host_id"]}]
+    relations = [{"name": "host_service"}]
+    models.GraphRelationBindingConfig.objects.create(
+        name=graph_link_name,
+        data_link_name=graph_link_name,
+        namespace=settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+        bk_tenant_id="system",
+        bk_biz_id=2,
+        vm_cluster_name="vm-default-system",
+        surrealdb_cluster_name="surreal-default-system",
+        table_id=table_id,
+        bkbase_result_table_name=compose_bkdata_table_id(table_id, models.DataLink.BK_STANDARD_V2_TIME_SERIES),
+        graph_result_table_name=compose_bkdata_table_id(graph_table_id, models.DataLink.BK_STANDARD_V2_TIME_SERIES),
+        vm_storage_binding_name=compose_bkdata_table_id(table_id, models.DataLink.BK_STANDARD_V2_TIME_SERIES),
+        vm_databus_name=compose_bkdata_table_id(table_id, models.DataLink.BK_STANDARD_V2_TIME_SERIES),
+        table_type="temporary",
+        vertices=vertices,
+        relations=relations,
+        write_mode=models.GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
+        status=DataLinkResourceStatus.OK.value,
+    )
+    mocker.patch(
+        "metadata.task.sync_cmdb_relation.EntityMeta.auto_query_graph_definitions", return_value=(vertices, relations)
+    )
+    mocker.patch("metadata.models.data_link.data_link.DataLink.apply_data_link", return_value=None)
+
+    enable_relation_surrealdb_dual_write(ds, "system", 2)
+
+    graph_binding = models.GraphRelationBindingConfig.objects.get(name=graph_link_name)
+    assert graph_binding.bkbase_result_table_name == "vm_bkcc_built_in_time_series"
+    assert graph_binding.vm_storage_binding_name == "vm_bkcc_built_in_time_series"
+    assert graph_binding.vm_databus_name == "vm_bkcc_built_in_time_series"
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_enable_relation_graph_link_applies_vm_fallback_when_existing_config_unchanged(mocker):
     table_id = "2_bkcc_built_in_time_series.__default__"
     data_name = "bkcc_built_in_time_series"

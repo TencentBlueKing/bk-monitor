@@ -498,7 +498,20 @@ class DataLink(models.Model):
 
     @staticmethod
     def _strip_bkbase_biz_prefix(bkbase_table_id: str) -> str:
-        return bkbase_table_id.split("_", 1)[-1] if "_" in bkbase_table_id else bkbase_table_id
+        prefix, sep, table_name = bkbase_table_id.partition("_")
+        if sep and prefix.isdigit():
+            return table_name
+        return bkbase_table_id
+
+    @staticmethod
+    def _resolve_graph_relation_vm_component_name(
+        existing_name: str,
+        previous_result_table_name: str,
+        result_table_name: str,
+    ) -> str:
+        if not existing_name or existing_name == previous_result_table_name:
+            return result_table_name
+        return existing_name
 
     @classmethod
     def resolve_graph_relation_vm_result_table_name(
@@ -701,23 +714,37 @@ class DataLink(models.Model):
             existed_graph_binding.vm_cluster_name if existed_graph_binding else ""
         )
         table_type = existed_graph_binding.table_type if existed_graph_binding else "temporary"
+        previous_bkbase_result_table_name = (
+            existed_graph_binding.bkbase_result_table_name if existed_graph_binding else bkbase_vmrt_name
+        )
         bkbase_result_table_name = (
-            existed_graph_binding.bkbase_result_table_name
-            if existed_graph_binding
-            else self.resolve_graph_relation_vm_result_table_name(
+            self.resolve_graph_relation_vm_result_table_name(
                 bk_tenant_id=self.bk_tenant_id,
                 table_id=table_id,
-                default_name=bkbase_vmrt_name,
+                default_name=previous_bkbase_result_table_name,
             )
-        ) or bkbase_vmrt_name
+            or bkbase_vmrt_name
+        )
         graph_result_table_name = (
             existed_graph_binding.graph_result_table_name if existed_graph_binding else surrealdb_rt_name
         ) or surrealdb_rt_name
         vm_storage_binding_name = (
-            existed_graph_binding.vm_binding_component_name if existed_graph_binding else bkbase_result_table_name
+            self._resolve_graph_relation_vm_component_name(
+                existing_name=existed_graph_binding.vm_storage_binding_name,
+                previous_result_table_name=previous_bkbase_result_table_name,
+                result_table_name=bkbase_result_table_name,
+            )
+            if existed_graph_binding
+            else bkbase_result_table_name
         )
         vm_databus_name = (
-            existed_graph_binding.vm_databus_component_name if existed_graph_binding else bkbase_result_table_name
+            self._resolve_graph_relation_vm_component_name(
+                existing_name=existed_graph_binding.vm_databus_name,
+                previous_result_table_name=previous_bkbase_result_table_name,
+                result_table_name=bkbase_result_table_name,
+            )
+            if existed_graph_binding
+            else bkbase_result_table_name
         )
         surrealdb_binding_name = (
             existed_graph_binding.surrealdb_binding_component_name if existed_graph_binding else graph_result_table_name
