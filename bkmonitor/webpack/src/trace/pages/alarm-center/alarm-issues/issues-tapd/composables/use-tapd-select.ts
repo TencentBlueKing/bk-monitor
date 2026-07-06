@@ -26,7 +26,7 @@
 
 import { type Ref, shallowRef } from 'vue';
 
-import { searchTapdItems } from '../services/tapd';
+import { searchTapdItemsApi } from '../services/tapd';
 
 import type { ITapdListItem, TTapdStatus } from '../typing';
 
@@ -73,7 +73,7 @@ export function useTapdSelect(options: UseTapdSelectOptions) {
     scrollLoading.value = true;
 
     try {
-      const res = await searchTapdItems({
+      const data = await searchTapdItemsApi({
         bk_biz_id: Number(bizId.value),
         workspace_id: Number(workspaceId.value),
         tapd_type: tapdType.value,
@@ -82,7 +82,7 @@ export function useTapdSelect(options: UseTapdSelectOptions) {
         page: page.value,
         fields: 'status',
       }).catch(() => null);
-      let items = res ?? [];
+      let items = data ?? [];
       // TODO: 临时 mock，接口联调后删除此分支
       if (items.length === 0) {
         items = buildMockData(page.value, PAGE_SIZE, keyword.value || undefined);
