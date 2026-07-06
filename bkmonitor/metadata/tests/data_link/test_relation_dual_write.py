@@ -586,6 +586,54 @@ def test_apply_graph_relation_time_series_syncs_vm_access_record(mocker, write_m
     assert vm_record.vm_cluster_id == 1001
 
 
+def test_apply_graph_relation_time_series_keeps_existing_vm_record_data_id(mocker):
+    table_id = "2_bkcc_built_in_time_series.__default__"
+    data_source = create_graph_relation_data_source()
+    create_storage_clusters()
+    models.AccessVMRecord.objects.create(
+        bk_tenant_id="system",
+        result_table_id=table_id,
+        bk_base_data_id=12345,
+        bk_base_data_name="legacy_data_name",
+        storage_cluster_id=9001,
+        vm_cluster_id=9001,
+        vm_result_table_id="2_vm_bkcc_built_in_time_series",
+    )
+    mocker.patch(
+        "metadata.models.entity_relation.EntityMeta.auto_query_graph_definitions",
+        return_value=([{"name": "pod", "id_fields": ["pod"]}], [{"name": "pod_node", "from": "pod", "to": "node"}]),
+    )
+
+    data_link = DataLink.objects.create(
+        bk_tenant_id="system",
+        data_link_name="bkm_relation_apply_existing_vm_record",
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+        bk_data_id=data_source.bk_data_id,
+        table_ids=[table_id],
+    )
+    mocker.patch.object(data_link, "apply_data_link_with_retry", return_value={})
+
+    data_link.apply_data_link(
+        bk_biz_id=2,
+        data_source=data_source,
+        table_id=table_id,
+        storage_cluster_name="vm-default",
+        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
+    )
+
+    bkbase_rt = BkBaseResultTable.objects.get(data_link_name=data_link.data_link_name)
+    vm_record = models.AccessVMRecord.objects.get(
+        bk_tenant_id=data_link.bk_tenant_id,
+        result_table_id=table_id,
+    )
+    assert vm_record.bk_base_data_id == 12345
+    assert vm_record.bk_base_data_name == bkbase_rt.bkbase_data_name
+    assert vm_record.vm_result_table_id == bkbase_rt.bkbase_table_id
+    assert vm_record.storage_cluster_id == 1001
+    assert vm_record.vm_cluster_id == 1001
+
+
 def test_sync_graph_definition_marks_surrealdb_only_empty_definitions_failed(mocker):
     table_id = "2_bkcc_built_in_time_series.__default__"
     data_source = create_graph_relation_data_source()

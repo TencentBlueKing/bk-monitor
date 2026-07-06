@@ -2642,17 +2642,27 @@ class DataLink(models.Model):
             )
             return
 
-        AccessVMRecord.objects.update_or_create(
+        vm_record = AccessVMRecord.objects.filter(
             bk_tenant_id=self.bk_tenant_id,
             result_table_id=table_id,
-            defaults={
-                "bk_base_data_id": data_source.bk_data_id,
-                "bk_base_data_name": bkbase_rt.bkbase_data_name or "",
-                "storage_cluster_id": bkbase_rt.storage_cluster_id,
-                "vm_cluster_id": bkbase_rt.storage_cluster_id,
-                "vm_result_table_id": bkbase_rt.bkbase_table_id,
-            },
-        )
+        ).last()
+        record_fields = {
+            "bk_base_data_name": bkbase_rt.bkbase_data_name or "",
+            "storage_cluster_id": bkbase_rt.storage_cluster_id,
+            "vm_cluster_id": bkbase_rt.storage_cluster_id,
+            "vm_result_table_id": bkbase_rt.bkbase_table_id,
+        }
+        if vm_record:
+            for field, value in record_fields.items():
+                setattr(vm_record, field, value)
+            vm_record.save(update_fields=list(record_fields))
+        else:
+            AccessVMRecord.objects.create(
+                bk_tenant_id=self.bk_tenant_id,
+                result_table_id=table_id,
+                bk_base_data_id=data_source.bk_data_id,
+                **record_fields,
+            )
 
     def sync_metadata(
         self,
