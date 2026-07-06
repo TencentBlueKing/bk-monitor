@@ -64,42 +64,81 @@ class SearchLogResource(Resource):
     class RequestSerializer(TimeSpanValidationPassThroughSerializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         index_set_id = serializers.IntegerField(required=True, label="索引集ID")
-        query_string = serializers.CharField(required=False, default="*", label="查询字符串")
+        query_string = serializers.CharField(required=False, default="*", label="查询字符串(检索语法)")
+        # 结构化过滤条件，与 query_string 可同时使用（AND 关系），适合精确的字段级过滤。
+        # 格式：{"field_list": [{"field_name": "level", "op": "eq", "value": ["ERROR", "WARN"]}], "condition_list": ["and"]}
+        # field_list: 字段筛选规则列表，op 支持 eq/ne/req(正则) 等；value 为多值列表(默认 OR 关系)。
+        # condition_list: 逻辑运算符列表，长度为 field_list.length - 1，例如 ["and", "or"]。
+        conditions = serializers.DictField(required=False, allow_null=True, default=None, label="结构化过滤条件")
+        # 需要保留的输出字段列表，用于裁剪返回内容、降低返回数据量(避免 LLM 上下文超限)，例如 ["dtEventTimeStamp", "log", "level"]
+        keep_columns = serializers.ListField(
+            child=serializers.CharField(),
+            required=False,
+            allow_null=True,
+            allow_empty=True,
+            default=None,
+            label="保留输出字段列表",
+        )
+        # 排序字段列表，"-" 前缀表示降序，例如 ["-dtEventTimeStamp"] 表示按时间倒序(最新在前)
+        order_by = serializers.ListField(
+            child=serializers.CharField(),
+            required=False,
+            allow_null=True,
+            allow_empty=True,
+            default=None,
+            label="排序字段列表",
+        )
         start_time = serializers.CharField(required=True, label="开始时间")
         end_time = serializers.CharField(required=True, label="结束时间")
+        offset = serializers.IntegerField(required=False, default=0, min_value=0, label="偏移量(分页用)")
         limit = serializers.IntegerField(required=False, default=10, label="返回条数")
 
     def perform_request(self, validated_request_data):
         index_set_id = validated_request_data.get("index_set_id")
         bk_biz_id = validated_request_data.get("bk_biz_id")
         query_string = validated_request_data.get("query_string", "*")
+        conditions = validated_request_data.get("conditions")
+        keep_columns = validated_request_data.get("keep_columns")
+        order_by = validated_request_data.get("order_by")
         start_time = validated_request_data.get("start_time")
         end_time = validated_request_data.get("end_time")
+        offset = validated_request_data.get("offset", 0)
         limit = validated_request_data.get("limit")
 
         logger.info(
-            "SearchLogResource: try to search log, index_set_id->[%s], bk_biz_id->[%s]", index_set_id, bk_biz_id
+            "SearchLogResource: try to search log, index_set_id->[%s], bk_biz_id->[%s], offset->[%s], limit->[%s]",
+            index_set_id,
+            bk_biz_id,
+            offset,
+            limit,
         )
 
         # 构造 unify_query.query_raw 请求参数
         table_id = f"bklog_index_set_{index_set_id}"  # 日志索引集规则
         space_uid = bk_biz_id_to_space_uid(bk_biz_id)  # 业务ID转SPACE_UID，用于构建Headers
 
+        query_item = {
+            "data_source": "bklog",
+            "table_id": table_id,
+            "query_string": query_string,
+        }
+        if conditions:
+            query_item["conditions"] = conditions
+        if keep_columns:
+            query_item["keep_columns"] = keep_columns
+
         query_params = {
-            "query_list": [
-                {
-                    "data_source": "bklog",
-                    "table_id": table_id,
-                    "query_string": query_string,
-                }
-            ],
+            "query_list": [query_item],
             "metric_merge": "a",  # 返回引用名为 "a" 的查询结果，便于后续使用,日志侧无需关心
             "start_time": start_time,
             "end_time": end_time,
             "step": "auto",
             "limit": limit,
+            "_from": offset,  # query_raw 内部会转换为 "from"
             "space_uid": space_uid,
         }
+        if order_by:
+            query_params["order_by"] = order_by
 
         result = api.unify_query.query_raw(**query_params)
         return result
