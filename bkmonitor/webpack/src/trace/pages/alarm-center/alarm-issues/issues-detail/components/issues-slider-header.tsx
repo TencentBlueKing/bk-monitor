@@ -90,6 +90,8 @@ export default defineComponent({
     const isEdit = shallowRef(false);
     /** 编辑名称的加载状态 */
     const editNameLoading = shallowRef(false);
+    /** 创建单据Popover */
+    const createTapdPopover = useTemplateRef<InstanceType<typeof Popover>>('createTapdPopover');
 
     /**
      * 处理编辑名称
@@ -171,6 +173,7 @@ export default defineComponent({
 
     const handleCreateTapdSliderShowChange = () => {
       emit('createTapdSliderShowChange');
+      createTapdPopover.value.hide();
     };
 
     return {
@@ -259,6 +262,7 @@ export default defineComponent({
             ))}
           <div class='btn-group-item create-tapd'>
             <Popover
+              ref='createTapdPopover'
               v-slots={{
                 content: () => (
                   <div class='create-tapd-menu-popover-content'>
