@@ -554,6 +554,11 @@ export default {
   克隆模板成功: 'Cloned template successfully',
   解除关联成功: 'Unassociation successful',
   解除关联失败: 'Unassociation failed',
+
+  // RUM
+  '确认停用该应用？': 'Confirm to disable the application?',
+  '确认删除该应用？': 'Confirm to delete the application?',
+  '确认启用该应用？': 'Confirm to enable the application?',
   评论发送失败: 'Comment sending failed',
 
   '已拆分为独立 Issue': 'Split into independent Issue',

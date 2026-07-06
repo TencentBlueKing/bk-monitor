@@ -188,6 +188,22 @@ class TestTapdOauthContract(unittest.TestCase):
         callback = _function(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "tapd_app_install_callback")
         self.assertIn("verify_signed_state", _call_names(callback))
 
+    def test_app_install_uses_state_for_signed_state_and_clean_callback(self):
+        utils_module = _parse("bkmonitor/packages/fta_web/issue/utils/tapd.py")
+        generate_install_url = _function(utils_module, "generate_install_url")
+        callback = _function(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "tapd_app_install_callback")
+        utils_source = ast.get_source_segment(
+            _read("bkmonitor/packages/fta_web/issue/utils/tapd.py"), generate_install_url
+        )
+        callback_source = ast.get_source_segment(_read("bkmonitor/packages/fta_web/issue/resources.py"), callback)
+
+        self.assertIn("signed_state = generate_signed_state(payload)", utils_source)
+        self.assertIn('cb = backend_callback.rstrip("/")', utils_source)
+        self.assertIn('"state": signed_state', utils_source)
+        self.assertNotIn("?signed_state=", utils_source)
+        self.assertIn('request.query_params.get("state", "")', callback_source)
+        self.assertNotIn('request.query_params.get("signed_state"', callback_source)
+
     def test_redirect_urls_are_restricted_to_allowed_hosts(self):
         source = _read("bkmonitor/packages/fta_web/issue/utils/tapd.py")
         normalize_redirect_url = _function(

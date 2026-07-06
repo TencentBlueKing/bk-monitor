@@ -227,7 +227,7 @@ def generate_install_url(
     if not backend_callback:
         raise ValidationError("backend_callback is empty")
 
-    # 生成 signed_state（应用态），nonce 写入 session 供 B-03 回调校验
+    # nonce 作为 payload 随机熵，保证每次 signed_state 不同（防重放）
     nonce = secrets.token_urlsafe(8)
     payload = {
         "bk_biz_id": bk_biz_id,
@@ -240,16 +240,16 @@ def generate_install_url(
         "error_url": error_url,
     }
     signed_state = generate_signed_state(payload)
-    # cb 内嵌 signed_state，urlencode 会自动处理特殊字符编码
-    cb = f"{backend_callback.rstrip('/')}?signed_state={signed_state}"
+    # cb 保持干净（仅 scheme+host+path），便于 TAPD 白名单精确配置
+    # signed_state 通过 state 参数透传（TAPD 原样回传 state），回调时从 state 读取
+    cb = backend_callback.rstrip("/")
     params = {
         "client_id": settings.TAPD_APP_ID,
         # test=1 测试应用（未上架），test=0 正式应用（已上架）
         # 仅生产环境（prod）传 0，dev/stag 传 1
         "test": 0 if settings.ENVIRONMENT == "prod" else 1,
-        # state 为 TAPD 协议必选参数，应用态回调不消费它（signed_state 已嵌在 cb 中）
-        # 传 nonce 仅满足协议要求
-        "state": nonce,
+        # state 透传 signed_state（TAPD 原样回传），回调时从 state 参数读取并验签
+        "state": signed_state,
         # show_installed=1（显示已授权项目，便于管理员查看/重新授权）
         "show_installed": 1,
         "cb": cb,

@@ -70,7 +70,7 @@ export default defineComponent({
   setup(props: any | ICommonNavBarProps, { slots }) {
     const router = useRouter();
     const route = useRoute();
-    const readonly = inject('readonly');
+    const readonly = inject('readonly', false);
     const navList = computed(() => {
       if (window.__POWERED_BY_BK_WEWEB__ && window.token) {
         return window.__BK_WEWEB_DATA__.navList || props.routeList || [];

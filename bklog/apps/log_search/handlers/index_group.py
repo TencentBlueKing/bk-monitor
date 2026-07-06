@@ -28,9 +28,10 @@ from apps.log_search.exceptions import (
     DuplicateIndexGroupException,
     ChildIndexSetNotExistException,
 )
-from apps.log_search.handlers.index_set import BaseIndexSetHandler
-from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario
+from apps.log_search.handlers.index_set import BaseIndexSetHandler, IndexSetHandler
+from apps.log_search.models import LogIndexSet, LogIndexSetData, Scenario, SpaceApi
 from apps.utils import APIModel
+from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import space_uid_to_bk_biz_id
 
 
@@ -51,13 +52,21 @@ class IndexGroupHandler(APIModel):
         """
         获取索引组列表
         """
-        index_groups = LogIndexSet.objects.filter(is_group=True, space_uid=params["space_uid"]).values(
+        current_space_uid = params["space_uid"]
+
+        index_groups = LogIndexSet.objects.filter(is_group=True, space_uid=current_space_uid).values(
             "index_set_id", "index_set_name"
         )
 
-        # 补充索引数量字段（仅统计当前空间的子索引集，排除关联空间的索引集）
+        query_space_uids = [current_space_uid]
+        space_type_id, _ = SpaceApi.parse_space_uid(current_space_uid)
+
+        if space_type_id == SpaceTypeEnum.BKCC.value:
+            query_space_uids = IndexSetHandler.get_all_related_space_uids(current_space_uid)
+
+        # 补充索引数量字段 (统计当前空间以及关联空间的子索引集)
         current_space_index_set_ids = set(
-            LogIndexSet.objects.filter(space_uid=params["space_uid"], is_group=False).values_list(
+            LogIndexSet.objects.filter(space_uid__in=query_space_uids, is_group=False).values_list(
                 "index_set_id", flat=True
             )
         )
@@ -169,3 +178,42 @@ class IndexGroupHandler(APIModel):
             index_set_id=self.data.index_set_id, result_table_id__in=child_index_set_ids
         ).delete()
         BaseIndexSetHandler.sync_router(self.data)
+
+    @staticmethod
+    @transaction.atomic
+    def get_or_create_index_group_ids_by_index_group_names(space_uid: str, index_groups_names: list[str]) -> list[int]:
+        unique_index_group_names = set()
+        cleaned_index_group_names = []
+
+        for index_groups_name in index_groups_names:
+            stripped = index_groups_name.strip() if index_groups_name else ""
+            if stripped and stripped not in unique_index_group_names:
+                unique_index_group_names.add(stripped)
+                cleaned_index_group_names.append(stripped)
+
+        if not cleaned_index_group_names:
+            return []
+
+        existing_index_group_name_to_index_group_obj_map = {
+            index_group_obj.index_set_name: index_group_obj
+            for index_group_obj in LogIndexSet.objects.filter(
+                is_group=True,
+                space_uid=space_uid,
+                is_deleted=False,
+                scenario_id=Scenario.LOG,
+                index_set_name__in=cleaned_index_group_names,
+            )
+        }
+
+        index_group_ids = []
+
+        for index_group_name in cleaned_index_group_names:
+            index_group_obj = existing_index_group_name_to_index_group_obj_map.get(index_group_name)
+            if index_group_obj is None:
+                index_group_obj = IndexGroupHandler.create_index_group(
+                    {"space_uid": space_uid, "index_set_name": index_group_name}
+                )
+                existing_index_group_name_to_index_group_obj_map[index_group_name] = index_group_obj
+            index_group_ids.append(index_group_obj.index_set_id)
+
+        return index_group_ids

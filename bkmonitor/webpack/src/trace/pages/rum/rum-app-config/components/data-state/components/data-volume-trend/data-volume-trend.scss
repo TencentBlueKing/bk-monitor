@@ -1,0 +1,76 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+.data-volume-trend {
+  width: 100%;
+
+  %data-volume-trend-chart-item {
+    height: 296px;
+    border: 1px solid #0000;
+    border-radius: 2px;
+    box-shadow: 0 2px 4px 0 #1919290d;
+  }
+
+  .data-volume-trend-skeleton {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+
+    .data-volume-trend-skeleton-item {
+      background: #f5f7fa;
+      border-color: #eaebf0;
+
+      @extend %data-volume-trend-chart-item;
+    }
+  }
+
+  .data-volume-trend-content {
+    .data-volume-trend-dashboard {
+      .alarm-metrics-chart-container {
+        gap: 30px;
+        padding-top: 0;
+
+        .alarm-lazy-chart {
+          .base-chart {
+            @extend %data-volume-trend-chart-item;
+
+            .title-wrapper {
+              .chart-title {
+                padding: 10px 34px 8px 16px;
+
+                .main-title {
+                  & > div:last-child {
+                    margin-bottom: 0;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

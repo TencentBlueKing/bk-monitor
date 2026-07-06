@@ -1,0 +1,129 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import { Component, Prop, Ref } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
+
+import { loadApp, mount, unmount } from '@blueking/bk-weweb';
+
+import introduce from '../../common/introduce';
+import aiWhaleStore from '@/store/modules/ai-whale';
+import '@blueking/bk-weweb';
+
+import type { AIBluekingShortcut } from '@/components/ai-whale/types';
+import type { Vue3WewebData } from '@/types/weweb/weweb';
+
+import './rum.scss';
+
+const traceAppId = 'trace-explore';
+Component.registerHooks(['beforeRouteLeave']);
+@Component
+export default class Rum extends tsc<object> {
+  @Ref('traceApp') traceApp: HTMLElement;
+  @Prop() a: number;
+  unmountCallback: () => void;
+  // 是否显示引导页（依赖 space_introduce 接口数据，未接入时通过本地兜底模板始终展示）
+  // get showGuidePage() {
+  //   return introduce.getShowGuidePageByRoute(this.$route.meta?.navId);
+  // }
+  get traceHost() {
+    return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
+  }
+  get traceUrl() {
+    return process.env.NODE_ENV === 'development'
+      ? `${this.traceHost}/?bizId=${this.$store.getters.bizId}/#/trace/rum`
+      : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}/#/trace/rum`;
+  }
+  get traceData(): Vue3WewebData {
+    return {
+      host: this.traceHost,
+      parentRoute: '/trace/',
+      get enableAiAssistant() {
+        return aiWhaleStore.enableAiAssistant;
+      },
+      setUnmountCallback: (callback: () => void) => {
+        this.unmountCallback = callback;
+      },
+      handleAIBluekingShortcut: (shortcut: AIBluekingShortcut) => {
+        aiWhaleStore.setCustomFallbackShortcut(shortcut);
+      },
+      setIntroduceData: (setData: (data) => void) => {
+        setData(introduce.data.rum.introduce);
+      },
+    };
+  }
+  created() {
+    if (!window.customElements.get('trace-explore')) {
+      class TraceExploreElement extends HTMLElement {
+        async connectedCallback() {
+          if (!this.shadowRoot) {
+            this.attachShadow({ delegatesFocus: false, mode: 'open' });
+          }
+        }
+      }
+      window.customElements.define('trace-explore', TraceExploreElement);
+    }
+  }
+  async mounted() {
+    // console.log('mounted--------------------------', this.showGuidePage);
+    // if (this.showGuidePage) {
+    //   this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', false);
+    //   return;
+    // }
+    await loadApp({
+      url: this.traceUrl,
+      id: traceAppId,
+      setShadowDom: true,
+      container: this.traceApp.shadowRoot,
+      data: this.traceData,
+      showSourceCode: false,
+      scopeCss: true,
+      scopeJs: true,
+      scopeLocation: false,
+    });
+    mount(traceAppId, this.traceApp.shadowRoot);
+    setTimeout(() => {
+      this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', false);
+    }, 300);
+  }
+  beforeDestroy() {
+    // if (this.showGuidePage) return;
+    this.unmountCallback?.();
+    unmount(traceAppId);
+    this.unmountCallback = undefined;
+  }
+  render() {
+    // if (this.showGuidePage) {
+    //   return <GuidePage guideData={introduce.data.rum.introduce} />;
+    // }
+    return (
+      <div class='rum-wrap'>
+        <div class='rum-wrap-iframe'>
+          <trace-explore ref='traceApp' />
+        </div>
+      </div>
+    );
+  }
+}

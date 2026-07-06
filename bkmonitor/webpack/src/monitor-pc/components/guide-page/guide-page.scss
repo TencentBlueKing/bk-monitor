@@ -10,7 +10,7 @@
 
   .guide-page-main {
     display: flex;
-    padding: 36px 40px 58px 40px;
+    padding: 36px 40px 58px;
     padding-top: 36px;
     margin: 0 auto;
   }
@@ -18,7 +18,7 @@
   .guide-left {
     display: flex;
     flex-direction: column;
-    padding: 24px 0 28px 0;
+    padding: 24px 0 28px;
 
     .guide-title {
       height: 28px;
@@ -59,6 +59,7 @@
       display: flex;
       flex: 1;
       flex-direction: column;
+
       // justify-content: flex-end;
       margin-top: 64px;
 
@@ -100,6 +101,10 @@
 
       &.img-apm-home {
         background-image: url('../../static/images/png/apm-home.png');
+      }
+
+      &.img-rum {
+        background-image: url('../../static/images/png/rum-home.png');
       }      
 
       &.img-k8s {
@@ -124,7 +129,7 @@
     }
   }
 
-  @media only screen and (max-width: 1440px) {
+  @media only screen and (width <= 1440px) {
     .guide-left {
       width: 400px;
       margin-right: 40px;
@@ -147,7 +152,7 @@
     }
   }
 
-  @media only screen and (min-width: 1441px) and (max-width: 1919px) {
+  @media only screen and (width >= 1441px) and (width <= 1919px) {
     .guide-left {
       width: 460px;
       margin-right: 100px;
@@ -170,7 +175,7 @@
     }
   }
 
-  @media only screen and (min-width: 1920px) {
+  @media only screen and (width >= 1920px) {
     .guide-left {
       width: 520px;
       margin-right: 160px;

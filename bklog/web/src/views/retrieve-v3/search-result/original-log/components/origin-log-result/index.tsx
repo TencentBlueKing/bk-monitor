@@ -25,7 +25,7 @@
  */
 import { defineComponent, ref, watch, computed, onMounted, onBeforeUnmount } from 'vue';
 
-import { parseTableRowData, readBlobRespToJson, parseBigNumberList, xssFilter } from '@/common/util';
+import { readBlobRespToJson, parseBigNumberList, xssFilter } from '@/common/util';
 
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
@@ -65,6 +65,7 @@ export default defineComponent({
     const searchBarRef = ref<any>();
     const tableRef = ref<HTMLElement>();
     const logList = ref<any[]>([]);
+    const cachedRowKeys = ref<string[]>([]);
     const choosedIndex = ref(props.logIndex);
     const listLoading = ref(false);
     const isCollapsed = ref(false);
@@ -343,38 +344,20 @@ export default defineComponent({
       requestLogList(isManualSearch);
     };
 
-    const handleChooseRow = (index: number, row: any) => {
+    const handleChooseRow = (index: number, fallbackRow?: Record<string, any>) => {
       if (choosedIndex.value === index) {
         return;
       }
 
       choosedIndex.value = index;
-      const rowInfo = row;
-      if (!rowInfo) {
+      const rowKey = cachedRowKeys.value[index];
+      if (rowKey) {
+        emit('choose-row', { rowKey });
         return;
       }
-      const contextFields = store.state.indexSetOperatorConfig.contextAndRealtime?.extra?.context_fields;
-      const timeField = store.state.indexFieldInfo.time_field;
-      const dialogNewParams = {};
-      Object.assign(dialogNewParams, {
-        dtEventTimeStamp: rowInfo.dtEventTimeStamp,
-      });
-      if (Array.isArray(contextFields) && contextFields.length) {
-        // 传参配置指定字段。不要直接 push 到 store 配置数组，否则每次点击行都会污染全局配置并持续增长。
-        const targetContextFields = Array.from(new Set([...contextFields, timeField].filter(Boolean)));
-        targetContextFields.forEach((field) => {
-          if (field === 'bk_host_id') {
-            if (rowInfo[field]) {
-              dialogNewParams[field] = rowInfo[field];
-            }
-          } else {
-            dialogNewParams[field] = parseTableRowData(rowInfo, field, '', store.state.isFormatDate, '');
-          }
-        });
-      } else {
-        Object.assign(dialogNewParams, rowInfo);
+      if (fallbackRow) {
+        emit('choose-row', fallbackRow);
       }
-      emit('choose-row', dialogNewParams);
     };
 
     const handleScrollContent = debounce((e: any) => {
@@ -477,10 +460,12 @@ export default defineComponent({
         const outerLogResult = store.state.indexSetQueryResult;
         total = outerLogResult.total;
         const rowKeys = outerLogResult.row_keys ?? [];
+        cachedRowKeys.value = rowKeys;
         if (rowKeys.length) {
           const cachedRows = await retrieveRowCacheService.getRows(rowKeys);
           logList.value = cachedRows.length === rowKeys.length ? cachedRows : (outerLogResult.list ?? []).slice();
         } else {
+          cachedRowKeys.value = [];
           logList.value = (outerLogResult.list ?? []).slice();
         }
         begin = logList.value.length;
@@ -560,7 +545,7 @@ export default defineComponent({
                   <tr
                     key={`${index}_${row.time}`}
                     class={{ 'is-choosed': choosedIndex.value === index }}
-                    on-click={() => handleChooseRow(index, row)}
+                    on-click={() => handleChooseRow(index)}
                   >
                     <td>
                       <div class='index-column'>
