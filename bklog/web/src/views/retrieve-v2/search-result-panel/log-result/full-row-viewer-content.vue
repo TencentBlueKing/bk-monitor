@@ -912,7 +912,7 @@
     flex: 1;
     width: 100%;
     padding: 8px 12px;
-    white-space: pre-wrap;
+    // white-space: pre-wrap;
     word-break: break-all;
   }
 
