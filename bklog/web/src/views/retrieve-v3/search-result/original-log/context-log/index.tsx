@@ -2,6 +2,7 @@ import { computed, defineComponent, nextTick, ref, watch } from 'vue';
 
 import RelatedLogLayout from '../standalone-tab/related-log-layout';
 import { useContextRelatedLog } from '../standalone-tab/hooks/use-context-related-log';
+import { useRelatedLogRowResolver } from '../standalone-tab/hooks/use-related-log-row-resolver';
 
 import '../standalone-tab/index.scss';
 import './index.scss';
@@ -16,6 +17,10 @@ export default defineComponent({
     retrieveParams: {
       type: Object,
       required: true,
+    },
+    rowKey: {
+      type: String,
+      default: '',
     },
     logParams: {
       type: Object,
@@ -36,7 +41,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const visible = ref(false);
-    const indexSetId = computed(() => props.indexSetId);
+    const indexSetId = ref(props.indexSetId);
     const rowIndex = computed(() => props.rowIndex);
     const retrieveParams = computed(() => props.retrieveParams || {});
     const targetFields = computed(() => props.targetFields as string[]);
@@ -48,18 +53,27 @@ export default defineComponent({
       targetFields,
     });
 
+    const { resolveByRowKey } = useRelatedLogRowResolver({
+      targetRow,
+      indexSetId,
+    });
+
     const init = async () => {
-      if (!props.isShow || !props.indexSetId || !props.logParams || !Object.keys(props.logParams).length) {
+      if (!props.isShow || !props.rowKey) {
         return;
       }
 
-      targetRow.value = props.logParams as Record<string, any>;
+      const ready = await resolveByRowKey(props.rowKey, props.logParams as Record<string, any>);
+      if (!ready) {
+        return;
+      }
+
       await nextTick();
       await viewModel.init();
     };
 
     watch(
-      () => [props.isShow, props.indexSetId, props.logParams],
+      () => [props.isShow, props.rowKey],
       async () => {
         visible.value = props.isShow;
         if (props.isShow) {
@@ -101,7 +115,7 @@ export default defineComponent({
               title={viewModel.t('上下文')}
               viewModel={{
                 ...viewModel,
-                indexSetId,
+                indexSetId: computed(() => indexSetId.value),
                 rowIndex,
                 retrieveParams,
               }}

@@ -1522,6 +1522,7 @@ export default defineComponent({
                   hoverOperatorState.row,
                   indexSetOperatorConfig.value,
                   ensureTableRowConfig(hoverOperatorState.row, hoverOperatorState.rowIndex).value[ROW_INDEX] + 1,
+                  getRowConfigKey(hoverOperatorState.row, hoverOperatorState.rowIndex),
                 );
               }}
               index={hoverOperatorState.row[ROW_INDEX]}
