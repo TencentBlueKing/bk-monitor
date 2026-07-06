@@ -35,6 +35,9 @@ const BASE_GROWTH = 20000;
 /** 进度上限：模拟增长最多到 99% */
 const PROGRESS_CEILING = 0.99;
 
+/** 单位数组 */
+const UNITS = ['', 'K', 'M', 'G'];
+
 /**
  * 计算单任务进度，直接更新 task 上的 exported_count 和 progressPercent
  * 每秒增长量 = currentGrowth / 10
@@ -98,16 +101,30 @@ export function calculateProgressPercent(exportedCount: number, totalCount: numb
 }
 
 /**
- * 数字格式化（万）
+ * 数字格式化（K/M/G）
  * 供使用方组装显示文本时使用
  *
  * @param num - 要格式化的数字
- * @returns 格式化后的字符串，如 "567w"
+ * @returns 格式化后的字符串，如 "567M"
  */
 export function formatNumber(num: number | null | undefined) {
   if (num === undefined || num === null) return '--';
-  if (num >= 10000) {
-    return `${(num / 10000).toFixed(1).replace(/\.0$/, '')}w`;
+
+  let unitIndex = 0;
+  let value = num;
+
+  while (value >= 1000 && unitIndex < UNITS.length - 1) {
+    value /= 1000;
+    unitIndex++;
   }
-  return `${num}`;
+
+  value = Number(value.toFixed(1));
+
+  // 四舍五入后达到1000，则升级单位
+  if (value >= 1000 && unitIndex < UNITS.length - 1) {
+    value = 1;
+    unitIndex++;
+  }
+
+  return `${value}${UNITS[unitIndex]}`;
 }
