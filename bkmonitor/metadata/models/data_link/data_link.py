@@ -496,6 +496,25 @@ class DataLink(models.Model):
             graph_table_id = f"{table_id}{SURREALDB_RT_SUFFIX}"
         return utils.compose_bkdata_table_id(graph_table_id)
 
+    @staticmethod
+    def _strip_bkbase_biz_prefix(bkbase_table_id: str) -> str:
+        return bkbase_table_id.split("_", 1)[-1] if "_" in bkbase_table_id else bkbase_table_id
+
+    @classmethod
+    def resolve_graph_relation_vm_result_table_name(
+        cls,
+        bk_tenant_id: str,
+        table_id: str,
+        default_name: str,
+    ) -> str:
+        existing_vm_record = AccessVMRecord.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            result_table_id=table_id,
+        ).last()
+        if existing_vm_record and existing_vm_record.vm_result_table_id:
+            return cls._strip_bkbase_biz_prefix(existing_vm_record.vm_result_table_id)
+        return default_name
+
     def _compose_graph_relation_source_data_id_config(
         self,
         bk_biz_id: int,
@@ -683,7 +702,13 @@ class DataLink(models.Model):
         )
         table_type = existed_graph_binding.table_type if existed_graph_binding else "temporary"
         bkbase_result_table_name = (
-            existed_graph_binding.bkbase_result_table_name if existed_graph_binding else bkbase_vmrt_name
+            existed_graph_binding.bkbase_result_table_name
+            if existed_graph_binding
+            else self.resolve_graph_relation_vm_result_table_name(
+                bk_tenant_id=self.bk_tenant_id,
+                table_id=table_id,
+                default_name=bkbase_vmrt_name,
+            )
         ) or bkbase_vmrt_name
         graph_result_table_name = (
             existed_graph_binding.graph_result_table_name if existed_graph_binding else surrealdb_rt_name
@@ -2381,12 +2406,6 @@ class DataLink(models.Model):
                 if should_update_bkbase_rt_storage_type and graph_transition_cleanup_succeeded:
                     bkbase_rt_record.storage_type = storage_type
                     bkbase_rt_record.save(update_fields=["storage_type"])
-                if graph_transition_cleanup_succeeded:
-                    self.sync_graph_relation_vm_metadata(
-                        table_id=self._get_graph_relation_apply_table_id(args=args, kwargs=kwargs),
-                        data_source=self._get_graph_relation_apply_data_source(args=args, kwargs=kwargs),
-                        storage_cluster_name=kwargs.get("storage_cluster_name"),
-                    )
         finally:
             self._clear_graph_relation_apply_state()
 
@@ -2591,78 +2610,6 @@ class DataLink(models.Model):
         ):
             if hasattr(self, attr):
                 delattr(self, attr)
-
-    @staticmethod
-    def _get_graph_relation_apply_data_source(
-        args: tuple[Any, ...],
-        kwargs: dict[str, Any],
-    ) -> "DataSource | None":
-        data_source = kwargs.get("data_source")
-        if data_source is not None:
-            return data_source
-        return args[1] if len(args) > 1 else None
-
-    @staticmethod
-    def _get_graph_relation_apply_table_id(args: tuple[Any, ...], kwargs: dict[str, Any]) -> str:
-        table_id = kwargs.get("table_id")
-        if table_id:
-            return table_id
-        return args[2] if len(args) > 2 else ""
-
-    def sync_graph_relation_vm_metadata(
-        self,
-        table_id: str,
-        data_source: "DataSource | None",
-        storage_cluster_name: str | None = None,
-    ) -> None:
-        """同步 GraphRelation VM 写入模式的 UQ 路由元数据。"""
-        if not table_id or data_source is None:
-            return
-
-        graph_binding = self._get_graph_relation_binding()
-        if not graph_binding or not graph_binding.should_write_vm:
-            return
-
-        from metadata.models.bkdata.result_table import BkBaseResultTable
-
-        self.sync_metadata(
-            table_id=table_id,
-            storage_cluster_name=graph_binding.vm_cluster_name or storage_cluster_name,
-            storage_type=ClusterInfo.TYPE_VM,
-        )
-        bkbase_rt = BkBaseResultTable.objects.filter(
-            bk_tenant_id=self.bk_tenant_id,
-            data_link_name=self.data_link_name,
-        ).first()
-        if not bkbase_rt or not bkbase_rt.bkbase_table_id:
-            logger.error(
-                "sync_graph_relation_vm_metadata: data_link_name->[%s],table_id->[%s] BkBaseResultTable missing",
-                self.data_link_name,
-                table_id,
-            )
-            return
-
-        vm_record = AccessVMRecord.objects.filter(
-            bk_tenant_id=self.bk_tenant_id,
-            result_table_id=table_id,
-        ).last()
-        record_fields = {
-            "bk_base_data_name": bkbase_rt.bkbase_data_name or "",
-            "storage_cluster_id": bkbase_rt.storage_cluster_id,
-            "vm_cluster_id": bkbase_rt.storage_cluster_id,
-            "vm_result_table_id": bkbase_rt.bkbase_table_id,
-        }
-        if vm_record:
-            for field, value in record_fields.items():
-                setattr(vm_record, field, value)
-            vm_record.save(update_fields=list(record_fields))
-        else:
-            AccessVMRecord.objects.create(
-                bk_tenant_id=self.bk_tenant_id,
-                result_table_id=table_id,
-                bk_base_data_id=data_source.bk_data_id,
-                **record_fields,
-            )
 
     def sync_metadata(
         self,

@@ -528,18 +528,19 @@ def test_apply_graph_relation_time_series_records_storage_type(mocker, write_mod
     assert bkbase_rt.storage_type == expected_storage_type
 
 
-@pytest.mark.parametrize(
-    ("write_mode", "expected_vm_record"),
-    [
-        (GraphRelationBindingConfig.WRITE_MODE_VM, True),
-        (GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB, True),
-        (GraphRelationBindingConfig.WRITE_MODE_SURREALDB, False),
-    ],
-)
-def test_apply_graph_relation_time_series_syncs_vm_access_record(mocker, write_mode, expected_vm_record):
+def test_compose_graph_relation_time_series_reuses_existing_vm_result_table(mocker):
     table_id = "2_bkcc_built_in_time_series.__default__"
     data_source = create_graph_relation_data_source()
     create_storage_clusters()
+    models.AccessVMRecord.objects.create(
+        bk_tenant_id="system",
+        result_table_id=table_id,
+        bk_base_data_id=12345,
+        bk_base_data_name="legacy_data_name",
+        storage_cluster_id=9001,
+        vm_cluster_id=9001,
+        vm_result_table_id="2_vm_bkcc_built_in_time_series",
+    )
     mocker.patch(
         "metadata.models.entity_relation.EntityMeta.auto_query_graph_definitions",
         return_value=([{"name": "pod", "id_fields": ["pod"]}], [{"name": "pod_node", "from": "pod", "to": "node"}]),
@@ -547,46 +548,51 @@ def test_apply_graph_relation_time_series_syncs_vm_access_record(mocker, write_m
 
     data_link = DataLink.objects.create(
         bk_tenant_id="system",
-        data_link_name=f"bkm_relation_apply_vm_record_{write_mode}",
+        data_link_name="bkm_relation_compose_existing_vm_record",
         namespace="bkmonitor",
         data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
         bk_data_id=data_source.bk_data_id,
         table_ids=[table_id],
     )
-    mocker.patch.object(data_link, "apply_data_link_with_retry", return_value={})
 
-    data_link.apply_data_link(
+    configs = data_link.compose_graph_relation_time_series_configs(
         bk_biz_id=2,
         data_source=data_source,
         table_id=table_id,
         storage_cluster_name="vm-default",
-        write_mode=write_mode,
+        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
     )
 
-    vm_record_exists = models.AccessVMRecord.objects.filter(
-        bk_tenant_id=data_link.bk_tenant_id,
-        result_table_id=table_id,
-    ).exists()
-    assert vm_record_exists is expected_vm_record
-
-    if not expected_vm_record:
-        return
-
-    bkbase_rt = BkBaseResultTable.objects.get(data_link_name=data_link.data_link_name)
-    vm_record = models.AccessVMRecord.objects.get(
-        bk_tenant_id=data_link.bk_tenant_id,
-        result_table_id=table_id,
+    graph_binding = GraphRelationBindingConfig.objects.get(data_link_name=data_link.data_link_name)
+    vm_result_table = ResultTableConfig.objects.get(
+        data_link_name=data_link.data_link_name, name="vm_bkcc_built_in_time_series"
     )
-    assert bkbase_rt.storage_type == models.ClusterInfo.TYPE_VM
-    assert bkbase_rt.storage_cluster_id == 1001
-    assert vm_record.bk_base_data_id == data_source.bk_data_id
-    assert vm_record.bk_base_data_name == bkbase_rt.bkbase_data_name
-    assert vm_record.vm_result_table_id == bkbase_rt.bkbase_table_id
-    assert vm_record.storage_cluster_id == 1001
-    assert vm_record.vm_cluster_id == 1001
+    vm_binding = VMStorageBindingConfig.objects.get(data_link_name=data_link.data_link_name)
+    vm_databus = DataBusConfig.objects.get(data_link_name=data_link.data_link_name, name="vm_bkcc_built_in_time_series")
+    vm_binding_payload = next(
+        config
+        for config in configs
+        if config["kind"] == "VmStorageBinding" and config["metadata"]["name"] == "vm_bkcc_built_in_time_series"
+    )
+    vm_databus_payload = next(
+        config
+        for config in configs
+        if config["kind"] == "Databus"
+        and config["metadata"]["name"] == "vm_bkcc_built_in_time_series"
+        and config["spec"]["sinks"][0]["kind"] == "VmStorageBinding"
+    )
+
+    assert graph_binding.bkbase_result_table_name == "vm_bkcc_built_in_time_series"
+    assert graph_binding.vm_storage_binding_name == "vm_bkcc_built_in_time_series"
+    assert graph_binding.vm_databus_name == "vm_bkcc_built_in_time_series"
+    assert vm_result_table.table_id == table_id
+    assert vm_binding.bkbase_result_table_name == "vm_bkcc_built_in_time_series"
+    assert vm_databus.bk_data_id == data_source.bk_data_id
+    assert vm_binding_payload["spec"]["data"]["name"] == "vm_bkcc_built_in_time_series"
+    assert vm_databus_payload["spec"]["sinks"][0]["name"] == "vm_bkcc_built_in_time_series"
 
 
-def test_apply_graph_relation_time_series_keeps_existing_vm_record_data_id(mocker):
+def test_apply_graph_relation_time_series_does_not_rewrite_existing_vm_record(mocker):
     table_id = "2_bkcc_built_in_time_series.__default__"
     data_source = create_graph_relation_data_source()
     create_storage_clusters()
@@ -622,16 +628,15 @@ def test_apply_graph_relation_time_series_keeps_existing_vm_record_data_id(mocke
         write_mode=GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
     )
 
-    bkbase_rt = BkBaseResultTable.objects.get(data_link_name=data_link.data_link_name)
     vm_record = models.AccessVMRecord.objects.get(
         bk_tenant_id=data_link.bk_tenant_id,
         result_table_id=table_id,
     )
     assert vm_record.bk_base_data_id == 12345
-    assert vm_record.bk_base_data_name == bkbase_rt.bkbase_data_name
-    assert vm_record.vm_result_table_id == bkbase_rt.bkbase_table_id
-    assert vm_record.storage_cluster_id == 1001
-    assert vm_record.vm_cluster_id == 1001
+    assert vm_record.bk_base_data_name == "legacy_data_name"
+    assert vm_record.vm_result_table_id == "2_vm_bkcc_built_in_time_series"
+    assert vm_record.storage_cluster_id == 9001
+    assert vm_record.vm_cluster_id == 9001
 
 
 def test_sync_graph_definition_marks_surrealdb_only_empty_definitions_failed(mocker):

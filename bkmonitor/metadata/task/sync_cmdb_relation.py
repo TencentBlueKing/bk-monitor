@@ -626,7 +626,11 @@ def enable_relation_surrealdb_dual_write(ds: DataSource, bk_tenant_id: str, bk_b
         "vm_cluster_name": vm_cluster_name,
         "surrealdb_cluster_name": surrealdb_cluster_name,
         "table_id": table_id,
-        "bkbase_result_table_name": compose_bkdata_table_id(table_id, DataLink.BK_STANDARD_V2_TIME_SERIES),
+        "bkbase_result_table_name": DataLink.resolve_graph_relation_vm_result_table_name(
+            bk_tenant_id=bk_tenant_id,
+            table_id=table_id,
+            default_name=compose_bkdata_table_id(table_id, DataLink.BK_STANDARD_V2_TIME_SERIES),
+        ),
         "graph_result_table_name": compose_bkdata_table_id(graph_table_id, DataLink.BK_STANDARD_V2_TIME_SERIES),
         "table_type": existed_graph_binding.table_type if existed_graph_binding else "temporary",
         "vertices": vertices,
