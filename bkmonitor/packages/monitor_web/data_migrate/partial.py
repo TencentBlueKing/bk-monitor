@@ -1031,6 +1031,7 @@ def import_partial_data_from_directory(
             cleanup_existing=False,
             sync_close_records=False,
             migrate_builtin_system_event_strategy=False,
+            migrate_builtin_gather_up_strategy=False,
             repair_plugin_strategy=False,
         )
     return {

@@ -1,3 +1,5 @@
+import copy
+
 import pytest
 
 from bkmonitor.models import (
@@ -9,6 +11,10 @@ from bkmonitor.models import (
 )
 from monitor_web.models import CollectConfigMeta, CollectorPluginMeta
 from monitor_web.plugin.constant import PluginType
+from monitor_web.strategies.default_settings.datalink.v1 import (
+    DEFAULT_DATALINK_STRATEGIES,
+    GATHER_UP_DATA_LABEL,
+)
 from monitor_web.strategies.loader.datalink_loader import (
     DatalinkDefaultAlarmStrategyLoader,
 )
@@ -78,3 +84,37 @@ class TestDatalinkStrategyLoader:
 
         assert AlertAssignRule.objects.count() == 2
         assert DutyArrange.objects.filter(users__contains={"id": USER_ID}).exists()
+
+
+class TestDatalinkStrategyMultiTenantAdaptation:
+    """gather_up 采集状态默认策略的多租户查询配置适配。"""
+
+    @staticmethod
+    def _build_strategy() -> dict:
+        strategy = copy.deepcopy(DEFAULT_DATALINK_STRATEGIES[0])
+        strategy.pop("_name", None)
+        return strategy
+
+    def test_adapt_query_config_multi_tenant(self, settings):
+        """多租户下清空 result_table_id 并改用 data_label 引用 gather_up 业务结果表。"""
+        settings.ENABLE_MULTI_TENANT_MODE = True
+        strategy = self._build_strategy()
+
+        DatalinkDefaultAlarmStrategyLoader._adapt_query_config_for_multi_tenant(strategy)
+
+        for item in strategy["items"]:
+            for query_config in item["query_configs"]:
+                assert query_config["result_table_id"] == ""
+                assert query_config["data_label"] == GATHER_UP_DATA_LABEL
+
+    def test_adapt_query_config_single_tenant(self, settings):
+        """单租户保持原全局结果表不变。"""
+        settings.ENABLE_MULTI_TENANT_MODE = False
+        strategy = self._build_strategy()
+
+        DatalinkDefaultAlarmStrategyLoader._adapt_query_config_for_multi_tenant(strategy)
+
+        for item in strategy["items"]:
+            for query_config in item["query_configs"]:
+                assert query_config["result_table_id"] == "bkmonitorbeat_gather_up.__default__"
+                assert "data_label" not in query_config
