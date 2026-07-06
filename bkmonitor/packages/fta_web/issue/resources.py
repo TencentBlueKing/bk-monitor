@@ -2686,6 +2686,9 @@ class UnbindTapdWorkspaceResource(Resource):
         bk_biz_id = serializers.IntegerField(label="蓝鲸业务ID", required=True)
         workspace_id = serializers.CharField(label="TAPD项目ID", required=True)
 
+    ACTIVE_RELATION_ES_CHUNK_SIZE = 500
+    ACTIVE_RELATION_PREVIEW_LIMIT = 10
+
     def perform_request(self, validated_request_data: dict) -> dict:
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         workspace_id: str = validated_request_data["workspace_id"]
@@ -2748,17 +2751,33 @@ class UnbindTapdWorkspaceResource(Resource):
         if not relations_qs.exists():
             return
 
-        # 批量查询关联的 Issue，ES 侧直接过滤活跃状态，避免拉取全量再逐条判断
-        issue_ids = list(relations_qs.values_list("issue_id", flat=True))
+        # 分批查询关联的 Issue，ES 侧直接过滤业务和活跃状态，避免拉取全量再逐条判断。
+        issue_ids = list(relations_qs.values_list("issue_id", flat=True).distinct())
         try:
-            hits = (
-                IssueDocument.search(all_indices=True)
-                .filter("terms", **{"_id": issue_ids})
-                .filter("terms", status=IssueStatus.ACTIVE_STATUSES)
-                .params(size=len(issue_ids))
-                .execute()
-                .hits
-            )
+            active_count = 0
+            preview_ids: list[str] = []
+            for index in range(0, len(issue_ids), self.ACTIVE_RELATION_ES_CHUNK_SIZE):
+                chunk_issue_ids = issue_ids[index : index + self.ACTIVE_RELATION_ES_CHUNK_SIZE]
+                search_result = (
+                    IssueDocument.search(all_indices=True)
+                    .filter("terms", **{"_id": chunk_issue_ids})
+                    .filter("term", bk_biz_id=bk_biz_id)
+                    .filter("terms", status=IssueStatus.ACTIVE_STATUSES)
+                    .source(False)
+                    .params(
+                        size=max(0, self.ACTIVE_RELATION_PREVIEW_LIMIT - len(preview_ids)),
+                        track_total_hits=True,
+                    )
+                    .execute()
+                )
+                total = getattr(search_result.hits, "total", 0)
+                active_count += getattr(total, "value", total) or 0
+                if len(preview_ids) < self.ACTIVE_RELATION_PREVIEW_LIMIT:
+                    preview_ids.extend(
+                        str(hit.meta.id)
+                        for hit in search_result.hits
+                        if len(preview_ids) < self.ACTIVE_RELATION_PREVIEW_LIMIT
+                    )
         except Exception as e:
             # ES 查询失败时 fail-open，记录日志后允许解绑
             logger.warning(
@@ -2769,11 +2788,10 @@ class UnbindTapdWorkspaceResource(Resource):
             )
             return
 
-        if hits:
-            active_ids = [hit.meta.id for hit in hits]
-            preview = ", ".join(active_ids[:10])
+        if active_count:
+            preview = ", ".join(preview_ids)
             raise CustomException(
-                f"存在 {len(active_ids)} 个活跃的 Issue 关联此 TAPD 项目，"
+                f"存在 {active_count} 个活跃的 Issue 关联此 TAPD 项目，"
                 f"请先解决或归档这些 Issue 后再解绑。活跃 Issue ID: {preview}"
             )
 
