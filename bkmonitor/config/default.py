@@ -1927,4 +1927,4 @@ SYNC_BKBASE_CLUSTER_INFO_UPDATE = os.getenv("SYNC_BKBASE_CLUSTER_INFO_UPDATE", "
 BKAPP_RUM_SDK = os.getenv("BKAPP_RUM_SDK", "otlp")  # otlp / ageis
 BKAPP_RUM_ENDPOINT = os.getenv("BKAPP_RUM_ENDPOINT", "")
 BKAPP_RUM_TOKEN = os.getenv("BKAPP_RUM_TOKEN", "")
-BKAPP_RUM_ENABLED = bool(str(os.getenv("BKAPP_RUM_ENABLED", False)).lower() == "true")
+BKAPP_RUM_ENABLED = str(str(os.getenv("BKAPP_RUM_ENABLED", False)).lower() == "true").lower()
