@@ -510,8 +510,9 @@ export default {
     'By default, the first selected Issue is retained as the main Issue, and can be switched in the form below.',
 
   '已授权 TAPD 项目列表 · 已关联 {count} 个项目': 'Authorized TAPD Project List · {count} Projects Associated',
-  '开启后，当本单据在外部平台进入「已完成」类状态{0}时，本 Issue 将自动流转为「已解决」。':
-    'After opening, when this document enters the "Completed" status {0} on the external platform, this issue will automatically flow to "Resolved".',
+
+  '开启后，当本单据在外部平台进入{0}类状态{1}时，本 Issue 将自动流转为{2}。':
+    'After enabling, when this document enters the {0} status {1} in the external platform, this Issue will automatically transition to {2}.',
   '未勾选，则仅保留关联，不因单据关闭而自动关 Issue。':
     'If not checked, only the association is retained, and the issue is not automatically closed due to document closure.',
   '请选择有权限的项目，完成蓝鲸监控关联项目的应用授权。':

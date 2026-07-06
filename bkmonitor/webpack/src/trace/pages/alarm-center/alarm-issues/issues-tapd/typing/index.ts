@@ -25,6 +25,7 @@
  */
 
 import type { TapdTypeEnum, TAPDWorkspaceBoundEnum } from '../../constant';
+import type { TapdLinkModeEnum } from '../constant';
 import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/constants';
 
 export * from './api';
@@ -57,6 +58,9 @@ export interface ITapdListItem {
   tapd_type: string;
   workspace_id: number;
 }
+
+/** TAPD 关联方式类型 */
+export type TapdLinkModeType = GetEnumTypeTool<typeof TapdLinkModeEnum>;
 
 /** Tapd单据类型 */
 export type TapdType = GetEnumTypeTool<typeof TapdTypeEnum>;

@@ -1,6 +1,6 @@
 /* stylelint-disable selector-class-pattern */
 .tapd-sideslider-relation-compoent {
-  padding: 16px 24px;
+  padding: 16px 24px 24px;
   background: #fff;
   border-radius: 4px;
   box-shadow: 0 2px 4px 0 #1919290d;
@@ -22,11 +22,10 @@
   .form-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 0 24px;
+    gap: 24px;
 
     .form-item {
       grid-column: span 2;
-      margin-bottom: 24px;
     }
 
     .form-item-title {

@@ -31,6 +31,7 @@ import TapdFieldForm from '../../components/tapd-field-form/tapd-field-form';
 import TapdFieldFormLoadingCom from '../../components/tapd-field-form/tapd-field-form-loading';
 import { useTapdIssueActivities } from '../composables/use-tapd-issue-activities';
 import { useTapdSideslider } from '../composables/use-tapd-sideslider';
+import { TapdLinkModeEnum } from '../constant';
 import {
   type TCreateTapdApiParams,
   type TLinkIssueToTapdApiParams,
@@ -110,7 +111,7 @@ export default defineComponent({
         ?.validate()
         .then(() => true)
         .catch(() => false);
-      if (tabActive.value === 'link') {
+      if (tabActive.value === TapdLinkModeEnum.LINK) {
         const linkTapdIdsValid = await tapdRelationRef.value?.validate().catch(() => false);
 
         if (basicFormValid && linkTapdIdsValid) {
@@ -224,7 +225,7 @@ export default defineComponent({
                 onUpdate:modelValue={this.handleFormDataChange}
               />
               {(() => {
-                if (this.tabActive === 'add') {
+                if (this.tabActive === TapdLinkModeEnum.CREATE) {
                   if (this.tapdFieldFormLoading) {
                     return <TapdFieldFormLoadingCom style='margin: 13px 40px 0' />;
                   }
@@ -240,7 +241,7 @@ export default defineComponent({
                     );
                   }
                 }
-                if (this.tabActive === 'link') {
+                if (this.tabActive === TapdLinkModeEnum.LINK) {
                   return (
                     <TapdRelation
                       ref='tapdRelation'
@@ -256,7 +257,7 @@ export default defineComponent({
                 }
                 return undefined;
               })()}
-              <div class='sync-tapd-status'>
+              <div class={['sync-tapd-status', { 'mb-32': this.tabActive === TapdLinkModeEnum.LINK }]}>
                 <Checkbox v-model={this.formData.sync_status}>
                   <span class='sync-tapd-status-title'>{this.$t('同步单据状态')}</span>
                 </Checkbox>
@@ -264,8 +265,10 @@ export default defineComponent({
                   <div class='tip-item'>
                     <span class='tip-dot' />
                     <span class='tip-text'>
-                      <i18n-t keypath='开启后，当本单据在外部平台进入「已完成」类状态{0}时，本 Issue 将自动流转为「已解决」。'>
+                      <i18n-t keypath='开启后，当本单据在外部平台进入{0}类状态{1}时，本 Issue 将自动流转为{2}。'>
+                        <span style='font-weight: 600'>「{this.$t('已完成')}」</span>
                         <span style='color: #21A380'>（如 TAPD「已关闭 / 已解决」、GitHub closed）</span>
+                        <span style='font-weight: 600'>「{this.$t('已解决')}」</span>
                       </i18n-t>
                     </span>
                   </div>
@@ -275,7 +278,7 @@ export default defineComponent({
                   </div>
                 </div>
               </div>
-              <div class={['create-tapd-footer', { fixed: this.tabActive === 'add' }]}>
+              <div class={['create-tapd-footer', { fixed: this.tabActive === TapdLinkModeEnum.CREATE }]}>
                 <Button
                   loading={this.confirmLoading}
                   theme='primary'
