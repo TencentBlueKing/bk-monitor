@@ -59,6 +59,9 @@ export default defineComponent({
       authDialogShow,
       createTapdSliderShow,
       workspaceList,
+      authUrl,
+      isAuth,
+      revokeAuthLoading,
       handleWorkspaceSelect,
       handleAddWorkspace,
       handleRevokeAuth,
@@ -79,6 +82,9 @@ export default defineComponent({
       createTapdSliderShow,
       authDialogShow,
       workspaceList,
+      authUrl,
+      isAuth,
+      revokeAuthLoading,
       handleWorkspaceSelect,
       handleAddWorkspace,
       handleRevokeAuth,
@@ -99,7 +105,10 @@ export default defineComponent({
           onUpdate:show={this.handleShowChange}
         />
         <TapdAuthDialog
+          authUrl={this.authUrl}
+          isAuth={this.isAuth}
           loading={this.loading}
+          revokeAuthLoading={this.revokeAuthLoading}
           show={this.authDialogShow}
           workspaceList={this.workspaceList}
           onRevokeAuth={this.handleRevokeAuth}

@@ -46,6 +46,18 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    authUrl: {
+      type: String,
+      default: '',
+    },
+    isAuth: {
+      type: Boolean,
+      default: true,
+    },
+    revokeAuthLoading: {
+      type: Boolean,
+      default: false,
+    },
     workspaceList: {
       type: Array as PropType<TapdWorkspaceItem[]>,
       default: () => [],
@@ -89,42 +101,64 @@ export default defineComponent({
         );
       }
 
-      if (filterList.value.length === 0)
-        return (
-          <div class='workspace-list'>
-            <EmptyStatus
-              textMap={{ empty: t('暂无项目') }}
-              type={searchValue.value ? 'search-empty' : 'empty'}
-              onOperation={handleEmptyOperation}
-            />
-          </div>
-        );
+      if (!props.authUrl && !props.isAuth) {
+        return <span>{t('您没有权限访问该业务的 TAPD 关联功能')}</span>;
+      }
 
       return (
-        <div class='workspace-list'>
-          {filterList.value.map(item => (
-            <div
-              key={item.workspace_id}
-              class='workspace-item'
-              onClick={() => {
-                handleWorkspaceClick(item);
-              }}
-            >
-              <span class='workspace-name'>{item.workspace_name}</span>
-              <Button
-                class={['workspace-btn', { bound: item.is_bound === 'bound' }]}
-                theme={item.is_bound === 'bound' ? 'success' : 'primary'}
-                outline
-              >
-                {item.is_bound === 'bound' ? t('已关联') : t('去关联')}
-              </Button>
-              {item.is_bound === 'bound' && (
-                <div class='revoke-relation'>
-                  <span>{t('取消关联')}</span>
+        <div class='tapd-relation-workspace-wrapper'>
+          <Alert
+            theme='info'
+            title={t('请选择有权限的项目，完成蓝鲸监控关联项目的应用授权。')}
+          />
+          <div class='search-wrapper'>
+            <Input
+              v-model={searchValue.value}
+              placeholder={t('搜索 项目')}
+              clearable
+            />
+          </div>
+          <div class='workspace-list'>
+            {filterList.value.length ? (
+              filterList.value.map(item => (
+                <div
+                  key={item.workspace_id}
+                  class='workspace-item'
+                  onClick={() => {
+                    handleWorkspaceClick(item);
+                  }}
+                >
+                  <span class='workspace-name'>{item.workspace_name}</span>
+                  <Button
+                    class={['workspace-btn', { bound: item.is_bound === 'bound' }]}
+                    theme={item.is_bound === 'bound' ? 'success' : 'primary'}
+                    outline
+                  >
+                    {item.is_bound === 'bound' ? t('已关联') : t('去关联')}
+                  </Button>
+                  {item.is_bound === 'bound' && (
+                    <div class='revoke-relation'>
+                      <span>{t('取消关联')}</span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
+              ))
+            ) : (
+              <EmptyStatus
+                textMap={{ empty: t('暂无项目') }}
+                type={searchValue.value ? 'search-empty' : 'empty'}
+                onOperation={handleEmptyOperation}
+              />
+            )}
+          </div>
+          <Button
+            class='dialog-footer-btn'
+            loading={props.revokeAuthLoading}
+            size='large'
+            onClick={handleRevokeAuth}
+          >
+            {t('取消授权')}
+          </Button>
         </div>
       );
     };
@@ -152,31 +186,7 @@ export default defineComponent({
               <div class='dialog-desc'>{this.$t('蓝鲸监控关联项目')}</div>
             </div>
           ),
-          default: () => (
-            <div class='tapd-auth-dialog-content'>
-              <Alert
-                theme='info'
-                title={this.$t('请选择有权限的项目，完成蓝鲸监控关联项目的应用授权。')}
-              />
-              <div class='search-wrapper'>
-                <Input
-                  v-model={this.searchValue}
-                  placeholder={this.$t('搜索 项目')}
-                  clearable
-                />
-              </div>
-              {this.renderWorkspaceList()}
-              {!this.loading && (
-                <Button
-                  class='dialog-footer-btn'
-                  size='large'
-                  onClick={this.handleRevokeAuth}
-                >
-                  {this.$t('取消授权')}
-                </Button>
-              )}
-            </div>
-          ),
+          default: () => <div class='tapd-auth-dialog-content'>{this.renderWorkspaceList()}</div>,
           footer: () => null,
         }}
         isShow={this.show}
