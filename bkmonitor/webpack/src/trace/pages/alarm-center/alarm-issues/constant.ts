@@ -355,7 +355,6 @@ export const TAPDWorkspaceBoundEnum = {
   MANUALLY_UNBOUND: 'manually_unbound',
   STALE: 'stale',
   UNBOUND: 'unbound',
-  MANUALLY_UNBOUND: 'manually_unbound',
 } as const;
 
 export const TapdTypeMap = [
