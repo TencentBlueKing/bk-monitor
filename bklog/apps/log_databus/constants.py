@@ -783,6 +783,15 @@ COLLECTOR_SCENARIO_TO_SCENE = {
     "client": "client",
 }
 
+K8S_SCENE_FIELD_TO_MONITOR_RESOURCE_TYPE = {
+    "__ext.io_kubernetes_pod_namespace": "namespace",
+    "__ext.io_kubernetes_workload_type": "workload_type",
+    "__ext.io_kubernetes_workload_name": "workload_name",
+    "__ext.io_kubernetes_pod": "pod_name",
+    "__ext.container_name": "container_name",
+    "__ext.io_kubernetes_pod_ip": "node_ip",
+}
+
 SCENE_SEARCH_DIMENSIONS = {
     "k8s": [
         {
@@ -1161,5 +1170,7 @@ def build_scene_labels(scene: str, **dynamic_tags) -> dict:
         if value:
             labels[key] = str(value)
     return labels
+
+
 # doris 集群默认日志过期天数
 DORIS_DEFAULT_EXPIRE_DAYS = 30
