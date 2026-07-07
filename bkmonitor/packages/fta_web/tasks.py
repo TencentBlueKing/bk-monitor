@@ -26,6 +26,27 @@ from monitor_web.strategies.user_groups import create_default_notice_group
 logger = logging.getLogger("celery")
 
 
+def has_builtin_quick_solution_actions(bk_biz_id):
+    if ActionConfig.origin_objects.filter(bk_biz_id=bk_biz_id, is_builtin=True).exists():
+        return True
+
+    solution_names = {
+        str(config["name"]) for config in QuickSolutionsConfig.QUICK_SOLUTIONS_CONFIG.values() if config.get("name")
+    }
+    if not solution_names:
+        return False
+
+    existing_names = set(
+        ActionConfig.origin_objects.filter(
+            bk_biz_id=bk_biz_id,
+            plugin_id="4",
+            is_deleted=False,
+            name__in=solution_names,
+        ).values_list("name", flat=True)
+    )
+    return solution_names.issubset(existing_names)
+
+
 @shared_task(ignore_result=True)
 def update_home_statistics():
     # 更新首页的统计数据
@@ -40,7 +61,7 @@ def update_home_statistics():
 def run_init_builtin_action_config(bk_biz_id):
     # 为业务初始化快捷套餐
     # 在当前业务下注册对应的快捷内容
-    if ActionConfig.origin_objects.filter(bk_biz_id=bk_biz_id, is_builtin=True).exists():
+    if has_builtin_quick_solution_actions(bk_biz_id):
         logger.info("[init_builtin_action_config(%s)] builtin config is existed", bk_biz_id)
         return
 
