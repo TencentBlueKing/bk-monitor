@@ -931,7 +931,7 @@ class ListIssueActivitiesResource(Resource):
         bk_biz_id = validated_request_data["bk_biz_id"]
 
         # 校验 Issue 存在且归属当前业务（单条查询，bk_biz_id 为单个值）
-        IssueDocument.get_issue_or_raise(issue_id, bk_biz_id=bk_biz_id)
+        issue = IssueDocument.get_issue_or_raise(issue_id, bk_biz_id=bk_biz_id)
 
         # 查询该 Issue 的全部活动日志，按时间降序排列（最近发生的在前）
         # 使用 all_indices=True 避免跨天漏查（活动日志与 Issue 可能跨天）
@@ -941,7 +941,10 @@ class ListIssueActivitiesResource(Resource):
             .sort("-time")
             .params(size=500)
         )
-        hits = search.execute().hits
+        hits = list(search.execute().hits)
+        repair_activity = self._repair_missing_resolved_activity(issue, hits)
+        if repair_activity:
+            hits.insert(0, repair_activity)
 
         return [
             {
@@ -956,6 +959,50 @@ class ListIssueActivitiesResource(Resource):
             }
             for hit in hits
         ]
+
+    @classmethod
+    def _repair_missing_resolved_activity(cls, issue: IssueDocument, hits: list) -> IssueActivityDocument | None:
+        if issue.status != IssueStatus.RESOLVED or not getattr(issue, "resolved_time", None):
+            return None
+
+        for hit in hits:
+            if (
+                hit.activity_type == IssueActivityType.STATUS_CHANGE
+                and getattr(hit, "to_value", None) == IssueStatus.RESOLVED
+            ):
+                return None
+
+        from_value = None
+        for hit in hits:
+            if hit.activity_type != IssueActivityType.STATUS_CHANGE:
+                continue
+            to_value = getattr(hit, "to_value", None)
+            if to_value in IssueStatus.ACTIVE_STATUSES:
+                from_value = to_value
+                break
+
+        now = int(issue.resolved_time)
+        activity = IssueActivityDocument(
+            issue_id=issue.id,
+            bk_biz_id=issue.bk_biz_id,
+            activity_type=IssueActivityType.STATUS_CHANGE,
+            from_value=from_value,
+            to_value=IssueStatus.RESOLVED,
+            operator="system",
+            content=json.dumps({"repair_source": "list_issue_activities"}, ensure_ascii=False),
+            time=now,
+            create_time=now,
+        )
+        try:
+            IssueActivityDocument.bulk_create([activity])
+        except Exception as e:
+            logger.warning(
+                "IssueActivityDocument resolved activity repair failed, issue_id=%s: %s",
+                issue.id,
+                e,
+            )
+            return None
+        return activity
 
 
 class ListIssueHistoryResource(Resource):
