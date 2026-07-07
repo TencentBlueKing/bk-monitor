@@ -12,6 +12,7 @@ import logging
 from collections import Counter
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import hashlib
 import json
 import re
 import time
@@ -23,6 +24,7 @@ from rest_framework import serializers, exceptions
 from rest_framework.decorators import api_view
 
 from bkm_space.utils import bk_biz_id_to_space_uid
+from bkmonitor.documents.base import BulkActionType
 from bkmonitor.documents.issue import (
     IssueActivityDocument,
     IssueDocument,
@@ -946,19 +948,21 @@ class ListIssueActivitiesResource(Resource):
         if repair_activity:
             hits.insert(0, repair_activity)
 
-        return [
-            {
-                "bk_biz_id": hit.bk_biz_id,
-                "activity_id": hit.meta.id,
-                "activity_type": hit.activity_type,
-                "operator": hit.operator or "",
-                "from_value": getattr(hit, "from_value", None) or None,
-                "to_value": getattr(hit, "to_value", None) or None,
-                "content": getattr(hit, "content", None) or None,
-                "time": int(hit.time) if hit.time else 0,
-            }
-            for hit in hits
-        ]
+        return [self._format_activity(hit) for hit in hits]
+
+    @classmethod
+    def _format_activity(cls, activity) -> dict:
+        activity_id = getattr(getattr(activity, "meta", None), "id", None) or getattr(activity, "id", "")
+        return {
+            "bk_biz_id": activity.bk_biz_id,
+            "activity_id": activity_id,
+            "activity_type": activity.activity_type,
+            "operator": activity.operator or "",
+            "from_value": getattr(activity, "from_value", None) or None,
+            "to_value": getattr(activity, "to_value", None) or None,
+            "content": getattr(activity, "content", None) or None,
+            "time": int(activity.time) if activity.time else 0,
+        }
 
     @classmethod
     def _repair_missing_resolved_activity(cls, issue: IssueDocument, hits: list) -> IssueActivityDocument | None:
@@ -982,7 +986,9 @@ class ListIssueActivitiesResource(Resource):
                 break
 
         now = int(issue.resolved_time)
+        activity_id = cls._make_resolved_repair_activity_id(issue)
         activity = IssueActivityDocument(
+            id=activity_id,
             issue_id=issue.id,
             bk_biz_id=issue.bk_biz_id,
             activity_type=IssueActivityType.STATUS_CHANGE,
@@ -994,7 +1000,7 @@ class ListIssueActivitiesResource(Resource):
             create_time=now,
         )
         try:
-            IssueActivityDocument.bulk_create([activity])
+            IssueActivityDocument.bulk_create([activity], action=BulkActionType.UPSERT)
         except Exception as e:
             logger.warning(
                 "IssueActivityDocument resolved activity repair failed, issue_id=%s: %s",
@@ -1003,6 +1009,12 @@ class ListIssueActivitiesResource(Resource):
             )
             return None
         return activity
+
+    @classmethod
+    def _make_resolved_repair_activity_id(cls, issue: IssueDocument) -> str:
+        resolved_time = int(issue.resolved_time)
+        digest = hashlib.sha256(f"{issue.id}:{IssueStatus.RESOLVED}:{resolved_time}".encode()).hexdigest()[:8]
+        return f"{resolved_time}{digest}"
 
 
 class ListIssueHistoryResource(Resource):

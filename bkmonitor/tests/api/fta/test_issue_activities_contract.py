@@ -69,6 +69,15 @@ class TestIssueActivitiesResolvedRepairContract(unittest.TestCase):
         self.assertIn("self._repair_missing_resolved_activity", calls)
         self.assertIn("repair_activity = self._repair_missing_resolved_activity(issue, hits)", source)
         self.assertIn("hits.insert(0, repair_activity)", source)
+        self.assertIn("return [self._format_activity(hit) for hit in hits]", source)
+
+    def test_activity_serializer_uses_meta_id_or_document_id(self):
+        format_method = _method(self._resource(), "_format_activity")
+        source = _source(format_method)
+
+        self.assertIn('getattr(getattr(activity, "meta", None), "id", None)', source)
+        self.assertIn('getattr(activity, "id", "")', source)
+        self.assertIn('"activity_id": activity_id', source)
 
     def test_repair_is_resolved_only_and_uses_resolved_time(self):
         repair_method = _method(self._resource(), "_repair_missing_resolved_activity")
@@ -93,9 +102,22 @@ class TestIssueActivitiesResolvedRepairContract(unittest.TestCase):
         source = _source(repair_method)
 
         self.assertIn("IssueActivityDocument.bulk_create", calls)
+        self.assertIn("action=BulkActionType.UPSERT", source)
+        self.assertIn("id=activity_id", source)
+        self.assertIn("activity_id = cls._make_resolved_repair_activity_id(issue)", source)
         self.assertIn('"repair_source": "list_issue_activities"', source)
         self.assertIn("logger.warning", calls)
         self.assertIn("return activity", source)
+
+    def test_repair_activity_id_is_deterministic(self):
+        id_method = _method(self._resource(), "_make_resolved_repair_activity_id")
+        calls = _calls(id_method)
+        source = _source(id_method)
+
+        self.assertIn("hashlib.sha256", calls)
+        self.assertIn("issue.id", source)
+        self.assertIn("IssueStatus.RESOLVED", source)
+        self.assertIn("resolved_time", source)
 
 
 if __name__ == "__main__":
