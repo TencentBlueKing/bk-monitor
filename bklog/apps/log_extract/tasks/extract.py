@@ -424,7 +424,7 @@ class LogExtractUtils:
     def _bkrepo_upload(self):
         # 如果是提取链路bkrepo类型 需要上传bkrepo
         transit_server, *_ = self.distribution_ip
-        cos_pack_file_name = get_packed_file_name(task_id=self.task_id)
+        cos_pack_file_name = self.pack_file_name
         full_file_path = os.path.join(transit_server.target_dir, cos_pack_file_name)
         BKREPOStorage().export_upload(file_path=full_file_path, file_name=cos_pack_file_name)
         os.remove(full_file_path)
