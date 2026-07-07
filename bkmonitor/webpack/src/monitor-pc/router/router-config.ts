@@ -193,7 +193,7 @@ export const getRouteConfig = () => {
             },
             {
               name: 'RUM',
-              icon: 'icon-monitor icon-APM menu-icon',
+              icon: 'icon-monitor icon-RUM menu-icon',
               navName: 'RUM',
               id: 'rum',
               path: '/trace/rum',

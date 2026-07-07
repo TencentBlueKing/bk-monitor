@@ -147,8 +147,8 @@ def test_sync_relation_redis_data(create_and_delete_records):
 
 
 @pytest.mark.django_db(databases="__all__")
-@override_settings(ENABLE_SYNC_GRAPH_DEFINITION_TO_BKBASE=False)
-def test_sync_relation_redis_data_skips_graph_dual_write_when_feature_disabled(create_and_delete_records):
+@override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST=[])
+def test_sync_relation_redis_data_skips_graph_dual_write_when_whitelist_empty(create_and_delete_records):
     created_group = Mock(token="", last_modify_time=datetime.fromtimestamp(1733198214, tz=timezone.utc))
     with (
         patch("metadata.utils.redis_tools.RedisTools.hgetall", return_value=mock_redis_hgetall_return_value),
@@ -167,8 +167,8 @@ def test_sync_relation_redis_data_skips_graph_dual_write_when_feature_disabled(c
 
 
 @pytest.mark.django_db(databases="__all__")
-@override_settings(ENABLE_SYNC_GRAPH_DEFINITION_TO_BKBASE=True)
-def test_sync_relation_redis_data_calls_graph_dual_write_when_feature_enabled(create_and_delete_records):
+@override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST=[2])
+def test_sync_relation_redis_data_calls_graph_dual_write_for_whitelisted_biz(create_and_delete_records):
     created_group = Mock(token="", last_modify_time=datetime.fromtimestamp(1733198214, tz=timezone.utc))
     with (
         patch("metadata.utils.redis_tools.RedisTools.hgetall", return_value=mock_redis_hgetall_return_value),
@@ -182,7 +182,26 @@ def test_sync_relation_redis_data_calls_graph_dual_write_when_feature_enabled(cr
     ):
         sync_relation_redis_data()
 
-    assert [call_args.args[0].bk_data_id for call_args in mock_enable_dual_write.call_args_list] == [50010, 50011]
+    assert [call_args.args[0].bk_data_id for call_args in mock_enable_dual_write.call_args_list] == [50010]
+    assert [call_args.args[2] for call_args in mock_enable_dual_write.call_args_list] == [2]
+
+
+@pytest.mark.django_db(databases="__all__")
+@override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST="2, invalid, 3")
+def test_sync_relation_redis_data_accepts_comma_separated_whitelist(create_and_delete_records):
+    created_group = Mock(token="", last_modify_time=datetime.fromtimestamp(1733198214, tz=timezone.utc))
+    with (
+        patch("metadata.utils.redis_tools.RedisTools.hgetall", return_value=mock_redis_hgetall_return_value),
+        patch("metadata.utils.redis_tools.RedisTools.hset_to_redis", return_value=0),
+        patch("metadata.models.DataSource.apply_for_data_id_from_bkdata", return_value=50011),
+        patch("time.time", return_value=1733198214),
+        patch("metadata.task.sync_cmdb_relation.metrics.report_all", return_value=None),
+        patch("metadata.models.DataSource.refresh_consul_config", autospec=True),
+        patch("metadata.models.TimeSeriesGroup.create_time_series_group", return_value=created_group),
+        patch("metadata.task.sync_cmdb_relation.enable_relation_surrealdb_dual_write") as mock_enable_dual_write,
+    ):
+        sync_relation_redis_data()
+
     assert [call_args.args[2] for call_args in mock_enable_dual_write.call_args_list] == [2, 3]
 
 

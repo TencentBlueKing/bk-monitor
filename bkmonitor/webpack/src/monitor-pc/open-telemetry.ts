@@ -24,16 +24,26 @@
  * IN THE SOFTWARE.
  */
 import { BkOpenTelemetry } from '@blueking/open-telemetry';
-new BkOpenTelemetry({
-  app: {
-    name: 'bk_monitor',
-  },
-  debug: true,
-  transport: {
-    endpoint: 'https://bk-rum.tencent.com/',
-    token: 'your-token',
-  },
-  user: {
-    id: window.user_name,
-  },
-});
+
+// 初始化蓝鲸 RUM 上报 SDK，仅在后端下发 window.rum.enabled 且提供 endpoint 时启用
+export const initOpenTelemetry = () => {
+  if (!window.rum?.enabled || !window.rum.endpoint) return;
+  // 构造后默认 autoStart，采集页面访问、接口、资源、JS 错误、Web Vitals 等并通过 OTLP 上报
+  return new BkOpenTelemetry({
+    app: {
+      name: 'bk-monitor',
+      environment: process.env.NODE_ENV,
+      version: window.footer_version,
+    },
+    transport: {
+      endpoint: window.rum.endpoint,
+      token: window.rum.token,
+    },
+    user: {
+      id: window.username,
+    },
+  });
+};
+
+// 导出实例，供业务在异步拿到用户信息后通过 setUser 补充 user.id
+export const bkOTInstance = initOpenTelemetry();

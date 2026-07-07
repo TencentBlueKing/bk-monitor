@@ -117,14 +117,10 @@ $rum-filter-icon-svg: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/s
       display: inline-flex;
       gap: 4px;
       align-items: center;
+    }
 
-      // &::after {
-      //   display: inline-block;
-      //   width: 12px;
-      //   height: 12px;
-      //   content: '';
-      //   background: url($rum-filter-icon-svg) center / contain no-repeat;
-      // }
+    .t-table__last-full-row {
+      display: none;
     }
   }
 
@@ -241,7 +237,7 @@ $rum-filter-icon-svg: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/s
 
   .rum-table-header-title,
   .rum-table-content-cell {
-    display: inline-block;
+    display: inline-flex;
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;

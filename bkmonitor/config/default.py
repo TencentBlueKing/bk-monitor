@@ -1703,8 +1703,13 @@ BKBASE_REDIS_RECONNECT_INTERVAL_SECONDS = 2
 BKBASE_REDIS_LOCK_NAME = "watch_bkbase_meta_redis_lock"
 # 是否同步数据至DB
 ENABLE_SYNC_BKBASE_METADATA_TO_DB = False
-# 是否启用 BKBase graph relation 链路自动 apply，包括内置关系周期双写和图定义变更增量同步
-ENABLE_SYNC_GRAPH_DEFINITION_TO_BKBASE = os.getenv("ENABLE_SYNC_GRAPH_DEFINITION_TO_BKBASE", "false").lower() == "true"
+# BKBase graph relation 链路自动 apply 业务白名单，包括内置关系周期双写和图定义变更增量同步
+_graph_relation_bkbase_sync_biz_id_white_list_env = os.getenv("GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST", "")
+GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST = [
+    int(biz_id.strip())
+    for biz_id in _graph_relation_bkbase_sync_biz_id_white_list_env.split(",")
+    if biz_id.strip().isdigit()
+]
 
 # 特殊的可以不被禁用的BCS集群ID
 ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST = []

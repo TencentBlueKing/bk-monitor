@@ -26,7 +26,7 @@
  */
 
 import './public-path';
-import './open-telemetry';
+import { bkOTInstance } from './open-telemetry';
 import 'monitor-common/polyfill';
 
 import i18n from './i18n/i18n';
@@ -103,6 +103,9 @@ if (hasRouteHash) {
         window.username = window.uin;
         window.user_name = window.uin;
         window.cc_biz_id = +window.bk_biz_id;
+        // username 异步就绪后补充到 RUM 上报的 user.id
+        bkOTInstance?.setUser({ id: window.username });
+
         updateTimezone(data.USER_TIME_ZONE);
         window.bk_log_search_url = data.BKLOGSEARCH_HOST;
         const bizId = setGlobalBizId();

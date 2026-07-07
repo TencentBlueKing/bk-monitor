@@ -149,6 +149,10 @@ declare global {
     page_title: string;
     rawDocument: Document;
     rawWindow: Window;
+    /*
+     * 灰度开启 RUM 监控业务列表
+     */
+    rum_biz_list?: number[];
     show_realtime_strategy: boolean;
     site_url: string;
     slimit: number;
@@ -174,6 +178,13 @@ declare global {
       ce: boolean; // 社区版
       ee: boolean; // 企业版
       te: boolean; // 内部版
+    };
+    // RUM 监控ot sdk 配置
+    rum?: {
+      enabled?: boolean;
+      endpoint?: string;
+      sdk?: string;
+      token?: string;
     };
   }
   namespace VueTsxSupport.JSX {

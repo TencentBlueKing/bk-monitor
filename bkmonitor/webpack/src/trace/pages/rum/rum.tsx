@@ -294,12 +294,13 @@ export default defineComponent({
     });
 
     const handleConfigure = (row: RumAppRow) => {
-      router.push({
-        name: 'rumAppConfig',
-        params: {
-          appName: row.appName,
-        },
-      });
+      row.appName?.length &&
+        router.push({
+          name: 'rumAppConfig',
+          params: {
+            appName: encodeURIComponent(row.appName),
+          },
+        });
     };
 
     const handleSearchSelectUpdate = (v: ISearchValue[]) => {
@@ -340,7 +341,7 @@ export default defineComponent({
             return (
               <div class='rum-app-name-cell'>
                 <div class='rum-app-icon'>
-                  <i class='icon-monitor icon-mc-global' />
+                  <i class='icon-monitor icon-web' />
                 </div>
                 <div class='rum-app-name-text'>
                   <div
@@ -420,16 +421,7 @@ export default defineComponent({
         },
         {
           colKey: 'description',
-          title: () => (
-            <span
-              class='rum-table-header-title'
-              v-overflow-tips={{
-                placement: 'top',
-              }}
-            >
-              {t('描述')}
-            </span>
-          ),
+          title: () => <span class='rum-table-header-title'>{t('描述')}</span>,
           minWidth: 160,
           ellipsis: false,
           ellipsisTitle: false,
@@ -449,6 +441,7 @@ export default defineComponent({
                   <div>${METRIC_COLUMN_TIPS[key].expression}</div>
                   </div>`),
                 delay: [300, 0],
+                placement: 'top',
                 allowHTML: true,
               }}
             >
@@ -456,7 +449,7 @@ export default defineComponent({
             </span>
           ),
           thClassName: 'rum-th--dotted',
-          width: 110,
+          width: 140,
           sorter: true,
           ellipsis: false,
           ellipsisTitle: false,
@@ -517,7 +510,7 @@ export default defineComponent({
               {t('操作')}
             </span>
           ),
-          width: 180,
+          width: 100,
           ellipsis: false,
           ellipsisTitle: false,
           cellRenderer: (row => {
@@ -633,7 +626,7 @@ export default defineComponent({
                 onClick={handleCreateApp}
               >
                 <span class='rum-toolbar-btn-inner'>
-                  <i class='icon-monitor icon-mc-plus-fill' />
+                  <i class='icon-monitor icon-a-1jiahao' />
                   {t('新建应用')}
                 </span>
               </Button>

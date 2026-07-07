@@ -32,7 +32,7 @@ export default [
     component: () => import(/* webpackChunkName: "rum" */ '../../pages/rum/rum-page'),
   },
   {
-    path: '/rum/app/:appName/config',
+    path: '/rum/config/:appName',
     name: 'rumAppConfig',
     component: () => import(/* webpackChunkName: "rum-app-config" */ '../../pages/rum/rum-app-config/rum-app-config'),
   },

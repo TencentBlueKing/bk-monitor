@@ -156,9 +156,9 @@ export default defineComponent({
       // submitLoading.value = false;
     };
     const handleGoAppDetail = () => {
-      const hash = `#${window.__POWERED_BY_BK_WEWEB__ ? '/trace' : ''}/rum/app/${props.appInfo.app_name}/config`;
+      const hash = `#${window.__POWERED_BY_BK_WEWEB__ ? '/trace' : ''}/rum/config/${encodeURIComponent(props.appInfo.app_name)}`;
       const url = `${location.origin}${location.pathname}?bizId=${props.appInfo.bk_biz_id}${hash}`;
-      window.open(url, '_blank');
+      window.open(url, '_blank', 'noopener,noreferrer');
     };
     return {
       protocol,
