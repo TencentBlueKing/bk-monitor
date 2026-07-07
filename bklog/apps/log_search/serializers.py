@@ -261,10 +261,15 @@ class IndexSetDeleteTagSerializer(serializers.Serializer):
 
 
 class CreateIndexSetTagSerializer(serializers.Serializer):
+    space_uid = SpaceUIDField(label=_("空间唯一标识"), required=True)
     name = serializers.CharField(label=_("标签名称"), max_length=255, required=True)
     color = serializers.ChoiceField(
         label=_("标签颜色"), choices=TagColor.get_choices(), default=TagColor.GREEN.value, required=False
     )
+
+
+class IndexSetTagListSerializer(serializers.Serializer):
+    space_uid = serializers.CharField(label=_("空间唯一标识"), required=False, allow_blank=True, default="")
 
 
 class KeywordSerializer(serializers.Serializer):

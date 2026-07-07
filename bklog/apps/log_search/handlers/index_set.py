@@ -89,6 +89,7 @@ from apps.log_search.exceptions import (
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import (
+    TAG_TYPE_INNER,
     TAG_TYPE_SCENE,
     TAG_TYPE_USER,
     IndexSetCustomConfig,
@@ -1036,13 +1037,16 @@ class IndexSetHandler(APIModel):
         """
         索引集添加标签
         """
-        if not IndexSetTag.objects.filter(tag_id=tag_id).exists():
-            raise IndexSetTagNotExistException(IndexSetTagNotExistException.MESSAGE.format(tag_id=tag_id))
-
         if tag_id in self._get_protected_tag_ids():
             raise IndexSetInnerTagOperatorException()
 
         index_set_obj = self._get_data()
+        if not IndexSetTag.objects.filter(
+            tag_id=tag_id,
+            tag_type=TAG_TYPE_USER,
+            space_uid__in=["", index_set_obj.space_uid],
+        ).exists():
+            raise IndexSetTagNotExistException(IndexSetTagNotExistException.MESSAGE.format(tag_id=tag_id))
 
         tag_ids = list(index_set_obj.tag_ids)
 
@@ -1078,22 +1082,29 @@ class IndexSetHandler(APIModel):
         """
         创建标签
         """
+        space_uid = params.get("space_uid", "")
         if (
             params["name"] in list(InnerTag.get_dict_choices().values())
-            or IndexSetTag.objects.filter(name=params["name"], tag_type=TAG_TYPE_USER).exists()
+            or IndexSetTag.objects.filter(
+                space_uid__in=["", space_uid], name=params["name"], tag_type=TAG_TYPE_USER
+            ).exists()
         ):
             raise IndexSetTagNameExistException(IndexSetTagNameExistException.MESSAGE.format(name=params["name"]))
 
-        obj = IndexSetTag.objects.create(name=params["name"], color=params["color"], tag_type=TAG_TYPE_USER)
+        obj = IndexSetTag.objects.create(
+            space_uid=space_uid, name=params["name"], color=params["color"], tag_type=TAG_TYPE_USER
+        )
 
         return model_to_dict(obj)
 
     @staticmethod
-    def tag_list():
+    def tag_list(space_uid: str):
         """
         标签列表 — 仅返回用户自定义标签和系统内置标签，不包含场景维度标签
         """
-        objs = IndexSetTag.objects.exclude(tag_type="scene")
+        objs = IndexSetTag.objects.filter(
+            Q(tag_type=TAG_TYPE_USER, space_uid__in=["", space_uid]) | Q(tag_type=TAG_TYPE_INNER)
+        )
 
         ret = list()
 
@@ -1111,7 +1122,7 @@ class IndexSetHandler(APIModel):
         获取受保护（不可由用户操作）的标签 ID 列表，包括系统内置标签和场景维度标签
         """
         return list(
-            IndexSetTag.objects.filter(tag_type__in=["inner", "scene"]).values_list("tag_id", flat=True)
+            IndexSetTag.objects.filter(tag_type__in=[TAG_TYPE_INNER, TAG_TYPE_SCENE]).values_list("tag_id", flat=True)
         )
 
     @staticmethod
