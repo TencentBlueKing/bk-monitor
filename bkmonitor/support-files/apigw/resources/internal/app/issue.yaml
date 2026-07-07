@@ -1,0 +1,19 @@
+paths:
+  /app/issue/regenerate_title/:
+    post:
+      operationId: issue_regenerate_title
+      description: 批量重跑 Issue LLM 标题（运维显式补偿，最多 5 个，同步执行）
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/issue/regenerate_title/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: regenerate issue llm title

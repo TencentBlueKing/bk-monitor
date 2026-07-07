@@ -455,6 +455,10 @@ ISSUE_LLM_TITLE_TOTAL = Counter(
     #   - invalid_output：输出校验不过（多行/禁项/空）
     #   - name_changed：CAS 失败（用户已改名），放弃写入
     #   - name_duplicated：业务内标题撞名，保留默认名
+    #   仅运维显式补偿路径（regenerate_issue_llm_title）产生的额外取值：
+    #   - not_found：Issue 不存在或业务归属不匹配
+    #   - skipped_user_renamed：已被真实用户手工改名，跳过（不覆盖用户标题）
+    #   - no_alert：Issue 无关联告警，无重跑素材
     # examples_source 取值 strategy|biz|static：自动 few-shot 是否生效及其层级；
     # auto 桶（strategy/biz）违例率劣化是 few-shot 漂移信号，回退 = 停周期任务等缓存过期
     labelnames=("bk_biz_id", "result", "examples_source"),

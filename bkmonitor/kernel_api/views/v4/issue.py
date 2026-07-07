@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 from django.db import router, transaction
 from django.utils import timezone
@@ -504,6 +505,53 @@ class SplitResource(Resource):
         return {"status": "ok", "member_issue_id": member_id}
 
 
+class RegenerateTitleResource(Resource):
+    """批量重跑 Issue LLM 标题（运维显式补偿，同步执行，最多 5 个）。
+
+    用于修复"未重命名成功"（LLM 标题任务失败/超时/未派发，Issue 仍是默认名）。语义与约束
+    见 ``alarm_backends...issue_tasks.regenerate_issue_llm_title``：绕过业务白名单 +
+    ENABLE_ISSUE_LLM_TITLE 部署闸门，保留业务级限流；已被用户手工改名的跳过，上次 LLM 改的可覆盖。
+
+    并发（而非串行）执行：单条含 LLM 调用尾延迟可达数十秒，串行 5 条易撞网关超时；
+    并发后接口耗时收敛到最慢一条。单条异常隔离进各自 result，不影响其他条目。
+    注：本接口在 api role 执行（同步直调 regenerate_issue_llm_title，非 apply_async 派发），
+    api role 具备 REDIS_*_CONF（限流/示例缓存）与 AIDEV 网关配置，可直接跑 LLM。
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        issue_ids = serializers.ListField(
+            label="Issue ID 列表", child=IssueIDField(), min_length=1, max_length=5
+        )
+        # 操作人可选：运维显式补偿默认记 system（与自动派发路径一致），传入则记该账号便于审计
+        operator = serializers.CharField(label="操作人", required=False, default="system")
+
+    def perform_request(self, validated_request_data):
+        from alarm_backends.service.fta_action.tasks.issue_tasks import regenerate_issue_llm_title
+
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        issue_ids = list(dict.fromkeys(validated_request_data["issue_ids"]))  # 去重保序
+        operator = validated_request_data["operator"]
+
+        def _one(issue_id: str) -> dict:
+            try:
+                return regenerate_issue_llm_title(issue_id, bk_biz_id, operator=operator)
+            except Exception as e:  # 单条异常隔离，不影响其他条目
+                logger.warning("[issue][llm_title] regenerate failed, issue(%s): %s", issue_id, e)
+                return {
+                    "issue_id": issue_id,
+                    "bk_biz_id": bk_biz_id,
+                    "result": "llm_error",
+                    "old_name": None,
+                    "new_name": None,
+                }
+
+        with ThreadPoolExecutor(max_workers=len(issue_ids)) as executor:
+            results = list(executor.map(_one, issue_ids))
+
+        return {"bk_biz_id": bk_biz_id, "results": results}
+
+
 class IssueViewSet(ResourceViewSet):
     """
     Issue 接口
@@ -532,4 +580,6 @@ class IssueViewSet(ResourceViewSet):
         ResourceRoute("POST", MergeResource(), endpoint="merge"),
         # 拆分 Issue
         ResourceRoute("POST", SplitResource(), endpoint="split"),
+        # 批量重跑 Issue LLM 标题（运维显式补偿，≤5，同步）
+        ResourceRoute("POST", RegenerateTitleResource(), endpoint="regenerate_title"),
     ]
