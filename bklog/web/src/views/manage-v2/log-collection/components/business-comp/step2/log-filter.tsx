@@ -288,9 +288,9 @@ export default defineComponent({
      * 新增过滤组（最多10个）
      */
     const addFilterGroup = () => {
-      if (filterData.value.length >= 10) {
-        return;
-      }
+      // if (filterData.value.length >= 10) {
+      //   return;
+      // }
 
       filterData.value.push([
         {

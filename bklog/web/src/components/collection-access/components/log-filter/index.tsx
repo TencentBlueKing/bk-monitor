@@ -204,9 +204,9 @@ export default class LogFilter extends tsc<object> {
   }
   /** 新增分组 */
   handleClickNewGroupBtn() {
-    if (this.filterData.length >= 10) {
-      return;
-    }
+    // if (this.filterData.length >= 10) {
+    //   return;
+    // }
     this.filterData.push([{ ...tableRowBaseObj, tableIndex: this.filterData.length }]);
   }
   /** 组内新增 */
