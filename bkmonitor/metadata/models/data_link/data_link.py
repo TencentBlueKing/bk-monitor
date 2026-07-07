@@ -72,6 +72,7 @@ logger = logging.getLogger("metadata")
 
 _MISSING_CONFIG_FIELD = object()
 SURREALDB_RT_SUFFIX = "_graph"
+GRAPH_RELATION_STATUS_REFRESH_COUNTDOWN = 300
 
 
 CUSTOM_EVENT_CLEAN_RULES: list[dict[str, Any]] = [
@@ -2373,6 +2374,23 @@ class DataLink(models.Model):
             bkbase_rt_record.storage_type = storage_type
             bkbase_rt_record.save(update_fields=["storage_type"])
 
+    def _schedule_graph_relation_status_refresh_after_commit(self) -> None:
+        """
+        GraphRelation apply 后延迟刷新本地 DataLink 状态，避免等待 4 小时全量刷新。
+        """
+        from metadata.task.tasks import refresh_data_link_status_by_name
+
+        bk_tenant_id = self.bk_tenant_id
+        data_link_name = self.data_link_name
+
+        transaction.on_commit(
+            lambda: refresh_data_link_status_by_name.apply_async(
+                args=(bk_tenant_id, data_link_name),
+                countdown=GRAPH_RELATION_STATUS_REFRESH_COUNTDOWN,
+            ),
+            using=DATABASE_CONNECTION_NAME,
+        )
+
     def _apply_graph_relation_data_link_in_transaction(
         self,
         args: tuple[Any, ...],
@@ -2480,6 +2498,7 @@ class DataLink(models.Model):
                 if should_update_bkbase_rt_storage_type and graph_transition_cleanup_succeeded:
                     bkbase_rt_record.storage_type = storage_type
                     bkbase_rt_record.save(update_fields=["storage_type"])
+                self._schedule_graph_relation_status_refresh_after_commit()
         finally:
             self._clear_graph_relation_apply_state()
 
