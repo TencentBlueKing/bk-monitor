@@ -142,3 +142,24 @@ class CreateOrUpdateLogRouterException(BaseException):
 
     ERROR_CODE = "503"
     MESSAGE = _("创建或更新路由失败: {reason}")
+
+
+class TenantIdIsNoneError(BaseException):
+    """租户ID为空"""
+
+    ERROR_CODE = "550"
+    MESSAGE = _("请求头 X-Bk-Tenant-Id 为空")
+
+
+class TenantIdNotMatchError(BaseException):
+    """租户ID不匹配"""
+
+    ERROR_CODE = "551"
+    MESSAGE = _("您当前的企业空间是【{bk_tenant_id}】，无法访问该链接，请您尝试返回登录页面切换其他企业空间访问。")
+
+
+class UserNotExistsError(BaseException):
+    """用户不存在"""
+
+    ERROR_CODE = "552"
+    MESSAGE = _("用户不存在: {username}")
