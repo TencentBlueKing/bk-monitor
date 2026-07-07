@@ -18,7 +18,7 @@ from django.db import transaction
 from django.db.models import Q
 
 from alarm_backends.core.lock.service_lock import share_lock
-from bkm_space.utils import space_uid_to_bk_biz_id
+from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
 from bkmonitor.utils.cipher import transform_data_id_to_token
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.prometheus import metrics
@@ -224,6 +224,202 @@ def _get_builtin_relation_token(
 
 def _canonical_graph_definitions(definitions: list) -> list[str]:
     return sorted(json.dumps(item, sort_keys=True, ensure_ascii=False) for item in definitions)
+
+
+def _graph_relation_preview_reason(
+    *,
+    graph_binding: GraphRelationBindingConfig,
+    target_write_mode: str,
+    graph_definitions_changed: bool,
+    healthy: bool,
+) -> str:
+    if target_write_mode != graph_binding.write_mode:
+        return "write_mode_changed"
+    if graph_definitions_changed:
+        return "graph_definitions_changed"
+    if not healthy:
+        return "component_unhealthy"
+    return "no_change"
+
+
+def _build_graph_relation_sync_preview(
+    graph_binding: GraphRelationBindingConfig,
+    *,
+    target_write_mode: str,
+    vertices: list,
+    relations: list,
+    would_apply: bool,
+    reason: str,
+    table_id: str = "",
+) -> dict[str, Any]:
+    return {
+        "data_link_name": graph_binding.data_link_name,
+        "name": graph_binding.name,
+        "bk_tenant_id": graph_binding.bk_tenant_id,
+        "namespace": graph_binding.namespace,
+        "bk_biz_id": graph_binding.bk_biz_id,
+        "status": graph_binding.status,
+        "table_id": table_id or graph_binding.table_id,
+        "current_write_mode": graph_binding.write_mode,
+        "target_write_mode": target_write_mode,
+        "would_apply": would_apply,
+        "reason": reason,
+        "surrealdb_auto_restore": graph_binding.surrealdb_auto_restore,
+        "vm_target": {
+            "result_table_name": graph_binding.bkbase_result_table_name,
+            "storage_binding_name": graph_binding.vm_binding_component_name,
+            "databus_name": graph_binding.vm_databus_component_name,
+            "cluster_name": graph_binding.vm_cluster_name,
+        },
+        "surrealdb_target": {
+            "result_table_name": graph_binding.graph_result_table_name,
+            "binding_name": graph_binding.surrealdb_binding_component_name,
+            "cluster_name": graph_binding.surrealdb_cluster_name,
+            "table_type": graph_binding.table_type,
+        },
+        "graph_databus_target": {
+            "databus_name": graph_binding.graph_databus_component_name,
+        },
+        "vertices_count": len(vertices),
+        "relations_count": len(relations),
+    }
+
+
+def preview_graph_definition_sync_to_bkbase(
+    namespace: str = "",
+    bk_biz_id: int | None = None,
+    action: str = "manual",
+) -> dict[str, Any]:
+    """
+    只读预览 ResourceDefinition / RelationDefinition 同步会影响哪些 GraphRelation 链路。
+
+    与 sync_graph_definition_to_bkbase(dry_run=True) 使用同一批筛选与判定 helper，
+    但额外返回每条 binding 的目标组件名，供 bkm-cli 激活前核验，不执行任何 apply 或状态写入。
+    """
+    if bk_biz_id is not None:
+        namespace = bk_biz_id_to_space_uid(bk_biz_id)
+        if not namespace:
+            raise ValueError(f"cannot resolve namespace from bk_biz_id={bk_biz_id}")
+
+    namespace = namespace or NAMESPACE_ALL
+    bindings = list(_get_graph_definition_binding_queryset(namespace))
+    result: dict[str, Any] = {
+        "namespace": namespace,
+        "action": action,
+        "dry_run": True,
+        "matched": len(bindings),
+        "would_apply": 0,
+        "would_skip": 0,
+        "would_fail": 0,
+        "previews": [],
+    }
+
+    for graph_binding in bindings:
+        try:
+            vertices, relations = EntityMeta.auto_query_graph_definitions(bk_biz_id=graph_binding.bk_biz_id)
+            target_write_mode = _graph_definition_sync_write_mode(graph_binding)
+
+            if not vertices or not relations:
+                data_source = None
+                table_id = ""
+                if graph_binding.write_mode == GraphRelationBindingConfig.WRITE_MODE_VM:
+                    result["would_skip"] += 1
+                    reason = "vm_only_empty_graph_definitions_skipped"
+                    would_apply = False
+                elif graph_binding.write_mode == GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB:
+                    data_source, table_id = _get_data_source_and_table_id(graph_binding)
+                    if data_source and table_id:
+                        result["would_apply"] += 1
+                        reason = "empty_graph_definitions_would_downgrade_to_vm"
+                        target_write_mode = GraphRelationBindingConfig.WRITE_MODE_VM
+                        would_apply = True
+                    else:
+                        result["would_skip"] += 1
+                        reason = "missing_data_source_or_table_id"
+                        would_apply = False
+                else:
+                    result["would_fail"] += 1
+                    reason = "graph_definitions_empty"
+                    would_apply = False
+
+                result["previews"].append(
+                    _build_graph_relation_sync_preview(
+                        graph_binding,
+                        target_write_mode=target_write_mode,
+                        vertices=vertices,
+                        relations=relations,
+                        would_apply=would_apply,
+                        reason=reason,
+                        table_id=table_id,
+                    )
+                )
+                continue
+
+            graph_definitions_changed = (
+                _graph_definitions_changed(graph_binding, vertices, relations)
+                or target_write_mode != graph_binding.write_mode
+            )
+            healthy = _graph_relation_binding_sync_healthy(graph_binding)
+            if not graph_definitions_changed and healthy:
+                result["would_skip"] += 1
+                result["previews"].append(
+                    _build_graph_relation_sync_preview(
+                        graph_binding,
+                        target_write_mode=target_write_mode,
+                        vertices=vertices,
+                        relations=relations,
+                        would_apply=False,
+                        reason="no_change",
+                    )
+                )
+                continue
+
+            data_source, table_id = _get_data_source_and_table_id(graph_binding)
+            if not data_source or not table_id:
+                result["would_skip"] += 1
+                result["previews"].append(
+                    _build_graph_relation_sync_preview(
+                        graph_binding,
+                        target_write_mode=target_write_mode,
+                        vertices=vertices,
+                        relations=relations,
+                        would_apply=False,
+                        reason="missing_data_source_or_table_id",
+                    )
+                )
+                continue
+
+            result["would_apply"] += 1
+            result["previews"].append(
+                _build_graph_relation_sync_preview(
+                    graph_binding,
+                    target_write_mode=target_write_mode,
+                    vertices=vertices,
+                    relations=relations,
+                    would_apply=True,
+                    reason=_graph_relation_preview_reason(
+                        graph_binding=graph_binding,
+                        target_write_mode=target_write_mode,
+                        graph_definitions_changed=graph_definitions_changed,
+                        healthy=healthy,
+                    ),
+                    table_id=table_id,
+                )
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            result["would_fail"] += 1
+            preview = _build_graph_relation_sync_preview(
+                graph_binding,
+                target_write_mode=graph_binding.write_mode,
+                vertices=[],
+                relations=[],
+                would_apply=False,
+                reason="preview_failed",
+            )
+            preview["error"] = str(e)
+            result["previews"].append(preview)
+
+    return result
 
 
 def sync_graph_definition_to_bkbase(
