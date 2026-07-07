@@ -44,8 +44,8 @@ def _get_viewset(action_name, request):
 # 1. Serializer validation
 # =========================================================================
 
-class TestSceneFieldCandidatesSerializer(TestCase):
 
+class TestSceneFieldCandidatesSerializer(TestCase):
     def test_container_valid(self):
         data = {
             "space_uid": SPACE_UID,
@@ -135,6 +135,7 @@ class TestSceneFieldCandidatesSerializer(TestCase):
 # 2. SceneFieldCandidatesHandler._build_addition
 # =========================================================================
 
+
 class TestBuildAddition(TestCase):
     def _handler(self, resource_type, query_string=""):
         from apps.log_unifyquery.handler.scene_field_candidates import (
@@ -193,6 +194,7 @@ class TestBuildAddition(TestCase):
 # 3. SceneFieldCandidatesHandler.list_candidates pagination
 # =========================================================================
 
+
 class TestListCandidatesPagination(TestCase):
     def _handler(self, items, page, page_size, resource_type="serverIp"):
         from apps.log_unifyquery.handler.scene_field_candidates import (
@@ -242,6 +244,7 @@ class TestListCandidatesPagination(TestCase):
 # 4. SceneFieldCandidatesHandler full init (params assembly)
 # =========================================================================
 
+
 @override_settings(PRE_SEARCH_SECONDS=60, TIME_ZONE="UTC")
 class TestSceneFieldCandidatesHandlerInit(TestCase):
     @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
@@ -288,8 +291,9 @@ class TestSceneFieldCandidatesHandlerInit(TestCase):
 # 5. get_field_candidates dispatch
 # =========================================================================
 
+
 class TestGetFieldCandidatesDispatch(TestCase):
-    def test_container_branch_passthrough(self):
+    def test_container_branch_maps_k8s_fields_for_monitor(self):
         with patch("apps.api.MonitorApi") as mock_api:
             mock_api.list_resource_candidates.return_value = {"count": 2, "items": ["ns-a", "ns-b"]}
 
@@ -300,8 +304,11 @@ class TestGetFieldCandidatesDispatch(TestCase):
                     "scene": "k8s",
                     "bk_biz_id": 2,
                     "bcs_cluster_ids": ["BCS-K8S-00000"],
-                    "resource_type": "namespace",
-                    "conditions": [],
+                    "resource_type": "__ext.io_kubernetes_workload_name",
+                    "conditions": [
+                        {"key": "__ext.io_kubernetes_pod_namespace", "method": "eq", "value": ["ns-a"]},
+                        {"key": "__ext.container_name", "method": "include", "value": ["api"]},
+                    ],
                     "query_string": "ns",
                     "page": 1,
                     "page_size": 500,
@@ -312,7 +319,14 @@ class TestGetFieldCandidatesDispatch(TestCase):
         mock_api.list_resource_candidates.assert_called_once()
         call_params = mock_api.list_resource_candidates.call_args[0][0]
         self.assertEqual(call_params["bk_biz_id"], 2)
-        self.assertEqual(call_params["resource_type"], "namespace")
+        self.assertEqual(call_params["resource_type"], "workload_name")
+        self.assertEqual(
+            call_params["conditions"],
+            [
+                {"key": "namespace", "method": "eq", "value": ["ns-a"]},
+                {"key": "container_name", "method": "include", "value": ["api"]},
+            ],
+        )
         self.assertEqual(call_params["bcs_cluster_ids"], ["BCS-K8S-00000"])
 
     def test_container_branch_none_result_defaults_empty(self):
@@ -352,6 +366,7 @@ class TestGetFieldCandidatesDispatch(TestCase):
 # =========================================================================
 # 6. ViewSet endpoint
 # =========================================================================
+
 
 @override_settings(PRE_SEARCH_SECONDS=60, TIME_ZONE="UTC")
 class TestSceneSearchViewSetListFieldCandidates(TestCase):
