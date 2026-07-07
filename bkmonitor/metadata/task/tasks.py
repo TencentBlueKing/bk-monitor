@@ -53,6 +53,7 @@ from metadata.models.space.space import Space
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 from metadata.models.vm.record import AccessVMRecord
 from metadata.models.vm.utils import (
+    create_bkbase_data_link,
     create_fed_bkbase_data_link,
     get_vm_cluster_id_name,
     report_metadata_data_link_status_info,
@@ -101,6 +102,7 @@ PING_SERVER_RESULT_TABLE_FIELDS = [
 GATHER_UP_DATA_LABEL = "bkmonitorbeat_gather_up"
 GATHER_UP_DATA_NAME_TPL = "base_{bk_biz_id}_bkmonitorbeat_gather_up"
 GATHER_UP_TABLE_ID_TPL = "{bk_tenant_id}_{bk_biz_id}_bkmonitorbeat_gather_up.__default__"
+GATHER_UP_TENANT_TABLE_ID = "bkmonitorbeat_gather_up.__default__"
 GATHER_UP_TABLE_LABEL = "service_process"
 GATHER_UP_TS_GROUP_NAME = "bkmonitorbeat gather up metrics"
 GATHER_UP_DATA_SOURCE_OPTIONS = {
@@ -116,6 +118,13 @@ GATHER_UP_CREATE_DATA_SOURCE_OPTIONS = {
 GATHER_UP_RESULT_TABLE_OPTIONS = {
     models.ResultTableOption.OPTION_IS_SPLIT_MEASUREMENT: True,
 }
+
+
+def _get_gather_up_table_id(bk_tenant_id: str, bk_biz_id: int) -> str:
+    """获取 gather_up 建链使用的结果表 ID。"""
+    if settings.SPACE_BUILTIN_DATA_LINK_MODE == "tenant":
+        return GATHER_UP_TENANT_TABLE_ID
+    return GATHER_UP_TABLE_ID_TPL.format(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
 
 
 @app.task(ignore_result=True, queue="celery_metadata_task_worker")
@@ -1399,20 +1408,28 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
                     continue
         biz_list = tenant_biz_list
 
-    # 获取已存在的数据源名称
-    exists_data_names: set[str] = set(
-        DataSource.objects.filter(
+    # 获取已存在的数据源信息：(bk_tenant_id, data_name) -> (bk_data_id, etl_config)
+    # etl_config 用于判定是否为标准自定义时序数据源（bk_standard_v2_time_series）——这类数据源统一走
+    # create_bkbase_data_link，其 DataLink 名称由计算平台命名规则决定，需以 BkBaseResultTable 反查真实名。
+    data_source_info: dict[tuple[str, str], tuple[int, str]] = {
+        (bk_tenant_id, data_name): (bk_data_id, etl_config)
+        for bk_tenant_id, data_name, bk_data_id, etl_config in DataSource.objects.filter(
             Q(data_name__endswith="_agent_event")
             | Q(data_name__endswith="_sys_base")
             | Q(data_name__endswith="_system_proc_port")
             | Q(data_name__endswith="_system_proc_perf")
             | Q(data_name__endswith="_pingserver")
             | Q(data_name__endswith="_bkmonitorbeat_gather_up")
-        ).values_list("data_name", flat=True)
-    )
+        ).values_list("bk_tenant_id", "data_name", "bk_data_id", "etl_config")
+    }
 
     # 获取已存在的DataLink名称
-    data_link_name_to_namespaces: dict[str, str] = dict(DataLink.objects.values_list("data_link_name", "namespace"))
+    data_link_key_to_namespaces: dict[tuple[str, str], str] = {
+        (bk_tenant_id, data_link_name): namespace
+        for bk_tenant_id, data_link_name, namespace in DataLink.objects.values_list(
+            "bk_tenant_id", "data_link_name", "namespace"
+        )
+    }
 
     # 数据源名称模板到任务的映射
     data_name_tpl_to_task: dict[tuple[str, tuple[str, ...]], Any] = {
@@ -1425,6 +1442,32 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
     if settings.ENABLE_PING_ALARM:
         data_name_tpl_to_task[("bkmonitor", (PING_SERVER_DATA_NAME_TPL,))] = create_biz_ping_datalink_for_bkcc
 
+    # 预取标准自定义时序数据源的真实 DataLink 名称，作为幂等判断依据（不依赖计算平台命名规则）：
+    # 1) 按 etl_config 挑出标准自定义时序数据源的 bk_data_id；
+    # 2) 经 DataSourceResultTable 拿到其监控结果表 ID（table_id）；
+    # 3) 以 table_id 反查 BkBaseResultTable 记录的真实 data_link_name。
+    standard_bk_data_ids = [
+        bk_data_id
+        for bk_data_id, etl_config in data_source_info.values()
+        if etl_config == EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value
+    ]
+    # bk_data_id -> table_id
+    bk_data_id_to_table_id: dict[int, str] = dict(
+        models.DataSourceResultTable.objects.filter(bk_data_id__in=standard_bk_data_ids).values_list(
+            "bk_data_id", "table_id"
+        )
+    )
+    # (bk_tenant_id, table_id/monitor_table_id) -> [data_link_name]。
+    # tenant 模式下多个租户允许使用相同 table_id，因此必须带租户维度反查。
+    bkbase_rt_link_names: dict[tuple[str, str], list[str]] = {}
+    if bk_data_id_to_table_id:
+        for bk_tenant_id, monitor_table_id, data_link_name in (
+            BkBaseResultTable.objects.filter(monitor_table_id__in=list(bk_data_id_to_table_id.values()))
+            .exclude(data_link_name="")
+            .values_list("bk_tenant_id", "monitor_table_id", "data_link_name")
+        ):
+            bkbase_rt_link_names.setdefault((bk_tenant_id, monitor_table_id), []).append(data_link_name)
+
     # 遍历业务列表，检查是否存在对应的数据源名称，如果不存在，则执行对应任务创建数据源
     for bk_tenant_id, bk_biz_id in biz_list:
         for (namespace, data_name_tpls), task in data_name_tpl_to_task.items():
@@ -1432,7 +1475,8 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
                 data_name_tpl.format(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id) for data_name_tpl in data_name_tpls
             ]
             for data_name in data_names:
-                if data_name not in exists_data_names:
+                data_source_key = (bk_tenant_id, data_name)
+                if data_source_key not in data_source_info:
                     logger.info(
                         "check_bkcc_space_builtin_datalink: data_source(%s) not found, bk_tenant_id->[%s], bk_biz_id->[%s], run task->[%s] to create",
                         data_name,
@@ -1443,31 +1487,51 @@ def check_bkcc_space_builtin_datalink(biz_list: list[tuple[str, int]]):
                     task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
                     break
 
-                if data_name not in data_link_name_to_namespaces:
+                # 计算该数据源对应的 DataLink 名称候选集，作为幂等/命名空间判断的键。
+                # 标准自定义时序数据源（bk_standard_v2_time_series）经 create_bkbase_data_link 建链，DataLink 名称由
+                # 计算平台命名规则决定，故直接取 BkBaseResultTable 记录的真实 data_link_name（任一存在即算已建链），
+                # 避免依赖命名规则；其余数据源仍以监控侧原始 data_name 建链。
+                bk_data_id, etl_config = data_source_info[data_source_key]
+                if etl_config == EtlConfigs.BK_STANDARD_V2_TIME_SERIES.value:
+                    monitor_table_id = bk_data_id_to_table_id.get(bk_data_id)
+                    candidate_link_names = (
+                        bkbase_rt_link_names.get((bk_tenant_id, monitor_table_id), []) if monitor_table_id else []
+                    )
+                else:
+                    candidate_link_names = [data_name]
+
+                existing_link_name = next(
+                    (name for name in candidate_link_names if (bk_tenant_id, name) in data_link_key_to_namespaces),
+                    None,
+                )
+
+                if existing_link_name is None:
                     # 如果数据链路不存在，则创建数据链路
                     logger.info(
                         "check_bkcc_space_builtin_datalink: data_link(%s) not found, bk_tenant_id->[%s], bk_biz_id->[%s], run task->[%s] to create",
-                        data_name,
+                        candidate_link_names[0] if candidate_link_names else data_name,
                         bk_tenant_id,
                         bk_biz_id,
                         task,
                     )
                     task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
                     break
-                elif data_link_name_to_namespaces[data_name] != namespace:
+                elif data_link_key_to_namespaces[(bk_tenant_id, existing_link_name)] != namespace:
                     # 如果数据链路存在，但命名空间不匹配，则调整命名空间后重建
-                    datalink_ins = DataLink.objects.get(data_link_name=data_name)
+                    datalink_ins = DataLink.objects.get(bk_tenant_id=bk_tenant_id, data_link_name=existing_link_name)
                     datalink_ins.namespace = namespace
                     datalink_ins.save()
                     logger.info(
                         "check_bkcc_space_builtin_datalink: data_link(%s) namespace mismatch, bk_tenant_id->[%s], bk_biz_id->[%s], run task->[%s] to rebuild",
-                        data_name,
+                        existing_link_name,
                         bk_tenant_id,
                         bk_biz_id,
                         task,
                     )
                     for component_class in datalink_ins.get_related_component_classes():
-                        component_class.objects.filter(data_link_name=data_name).update(namespace=namespace)
+                        component_class.objects.filter(
+                            bk_tenant_id=bk_tenant_id, data_link_name=existing_link_name
+                        ).update(namespace=namespace)
                     task(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
 
     logger.info("check_bkcc_space_builtin_datalink: check bkcc space builtin datalink success")
@@ -1519,7 +1583,8 @@ def _create_biz_standard_time_series_datalink_for_bkcc(
     Returns:
         创建或复用的 DataSource；任一环节失败返回 None。
     """
-    # 存储集群解析
+    # 存储集群解析：仅需拿到 storage_cluster_name，链路申请与 AccessVMRecord 写入统一委托给
+    # create_bkbase_data_link，无需在此维护 cluster 对象。
     if not storage_cluster_name:
         cluster = models.ClusterInfo.objects.filter(
             bk_tenant_id=bk_tenant_id, cluster_type=models.ClusterInfo.TYPE_VM, is_default_cluster=True
@@ -1527,9 +1592,9 @@ def _create_biz_standard_time_series_datalink_for_bkcc(
         if not cluster:
             logger.error("%s: get default vm cluster failed,return!", log_prefix)
             return None
-        storage_cluster_name = cluster.cluster_name
+        selected_storage_cluster_name: str = cluster.cluster_name
     else:
-        cluster = models.ClusterInfo.objects.get(bk_tenant_id=bk_tenant_id, cluster_name=storage_cluster_name)
+        selected_storage_cluster_name = storage_cluster_name
 
     # DataSource（幂等：不存在则创建）
     data_source = models.DataSource.objects.filter(data_name=data_name, bk_tenant_id=bk_tenant_id).first()
@@ -1658,34 +1723,18 @@ def _create_biz_standard_time_series_datalink_for_bkcc(
         )
         return None
 
-    data_link_ins, _ = models.DataLink.objects.update_or_create(
-        bk_tenant_id=bk_tenant_id,
-        data_link_name=data_name,
-        namespace="bkmonitor",
-        data_link_strategy=models.DataLink.BK_STANDARD_V2_TIME_SERIES,
-        defaults={"bk_data_id": data_source.bk_data_id, "table_ids": [table_id]},
-    )
-
+    # 链路申请（DataLink 创建 + apply_data_link + sync_metadata + AccessVMRecord 写入）统一复用
+    # create_bkbase_data_link，保证与常规 VM 链路使用同一套计算平台命名（含 40 字符截断/hash）、
+    # AccessVMRecord 生成与状态处理逻辑，避免内置链路自行拼接 vm_result_table_id 产生漂移。
+    # 注意：create_bkbase_data_link 会以 compose_bkdata_data_id_name(data_name) 作为 DataLink 名称，
+    # 与 check_bkcc_space_builtin_datalink 的幂等判断需保持一致。
     try:
-        data_link_ins.apply_data_link(
-            data_source=data_source,
-            table_id=table_id,
-            storage_cluster_name=storage_cluster_name,
+        create_bkbase_data_link(
             bk_biz_id=bk_biz_id,
-        )
-        data_link_ins.sync_metadata(table_id=table_id, storage_cluster_name=storage_cluster_name)
-        bkbase_rt_name = f"bkm_{table_id.replace('.', '_')}"
-        AccessVMRecord.objects.update_or_create(
-            bk_tenant_id=bk_tenant_id,
-            result_table_id=table_id,
-            bk_base_data_id=data_source.bk_data_id,
-            bk_base_data_name=data_name,
-            defaults={
-                "data_type": AccessVMRecord.ACCESS_VM,
-                "vm_result_table_id": f"{bk_biz_id}_{bkbase_rt_name}",
-                "vm_cluster_id": cluster.cluster_id,
-                "storage_cluster_id": cluster.cluster_id,
-            },
+            data_source=data_source,
+            monitor_table_id=table_id,
+            storage_cluster_name=selected_storage_cluster_name,
+            data_link_strategy=models.DataLink.BK_STANDARD_V2_TIME_SERIES,
         )
     except Exception as e:  # pylint: disable=broad-except
         logger.exception(
@@ -1797,8 +1846,9 @@ def create_gather_up_datalink_for_bkcc(
 ):
     """创建多租户业务 bkmonitorbeat 采集任务状态指标（gather_up）时序数据链路。
 
-    参考单租户全局 dataid 1100017（migration 0177），多租户下按业务建链，
-    通过 TimeSeriesGroup 支持指标自动发现，并以单表单指标（is_split_measurement）方式存储。
+    参考单租户全局 dataid 1100017（migration 0177），多租户下通过 TimeSeriesGroup 支持指标自动发现，
+    并以单表单指标（is_split_measurement）方式存储。tenant 模式使用不带业务/租户前缀的中立结果表，
+    data_name 仍保留默认业务 ID 方便巡检。
     """
 
     log_prefix = "create_gather_up_datalink_for_bkcc"
@@ -1825,7 +1875,7 @@ def create_gather_up_datalink_for_bkcc(
         bk_tenant_id=bk_tenant_id,
         bk_biz_id=bk_biz_id,
         data_name=GATHER_UP_DATA_NAME_TPL.format(bk_biz_id=bk_biz_id),
-        table_id=GATHER_UP_TABLE_ID_TPL.format(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id),
+        table_id=_get_gather_up_table_id(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id),
         data_label=GATHER_UP_DATA_LABEL,
         table_name_zh=f"{bk_tenant_id}_{bk_biz_id}_bkmonitorbeat 采集任务状态指标",
         table_label=GATHER_UP_TABLE_LABEL,

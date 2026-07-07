@@ -92,11 +92,23 @@ DEFAULT_DATALINK_COLLECTING_FLAG = "__datalink_collecting__"
 DEFAULT_DATALINK_LABEL = _("集成内置")
 DEFAULT_RULE_GROUP_NAME = _("集成内置-数据采集告警分派")
 
-# gather_up 结果表 data_label：多租户下每个业务的 gather_up 结果表为
-# {bk_tenant_id}_{bk_biz_id}_bkmonitorbeat_gather_up.__default__，无法在默认策略里硬编码结果表，
-# 因此统一通过 data_label 引用指标，运行期按当前租户/业务解析到真实结果表。
-# 需与 metadata 侧建链常量（metadata.task.tasks.GATHER_UP_DATA_LABEL）保持一致。
+# gather_up 结果表 data_label，需与 metadata 侧建链常量（metadata.task.tasks.GATHER_UP_DATA_LABEL）保持一致。
 GATHER_UP_DATA_LABEL = "bkmonitorbeat_gather_up"
+# 多租户按业务建链时，每个业务的 gather_up 结果表命名模板：
+# {bk_tenant_id}_{bk_biz_id}_bkmonitorbeat_gather_up.__default__。
+GATHER_UP_RESULT_TABLE_ID_TPL = "{bk_tenant_id}_{bk_biz_id}_bkmonitorbeat_gather_up.__default__"
+# 多租户按租户建链时，gather_up 使用不含业务/租户前缀的中立结果表；
+# 不同租户依赖 bk_tenant_id 字段隔离，可使用相同 table_id。
+GATHER_UP_TENANT_RESULT_TABLE_ID = "bkmonitorbeat_gather_up.__default__"
+# gather_up 指标字段，用于自定义时序指标 ID 拼接。
+GATHER_UP_METRIC_FIELD = "bkm_gather_up"
+
+
+def get_gather_up_result_table_id(bk_tenant_id: str, bk_biz_id: int, space_builtin_data_link_mode: str = "") -> str:
+    """获取 gather_up 默认策略应引用的结果表 ID。"""
+    if space_builtin_data_link_mode == "tenant":
+        return GATHER_UP_TENANT_RESULT_TABLE_ID
+    return GATHER_UP_RESULT_TABLE_ID_TPL.format(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
 
 
 DEFAULT_DATALINK_STRATEGIES = [

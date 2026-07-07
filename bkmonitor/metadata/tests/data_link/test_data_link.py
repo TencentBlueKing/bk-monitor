@@ -5151,7 +5151,9 @@ def test_create_biz_ping_datalink_for_bkcc_metadata_part(create_or_delete_record
     assert fields["loss_percent"].tag == "metric"
     assert fields["bk_host_id"].tag == "dimension"
 
-    data_link = models.DataLink.objects.get(data_link_name=data_name, bk_tenant_id=bk_tenant_id)
+    # 链路申请复用 create_bkbase_data_link，DataLink 名称为计算平台组装名（compose_bkdata_data_id_name）
+    bkbase_data_name = utils.compose_bkdata_data_id_name(data_name)
+    data_link = models.DataLink.objects.get(data_link_name=bkbase_data_name, bk_tenant_id=bk_tenant_id)
     assert data_link.data_link_strategy == DataLink.BK_STANDARD_V2_TIME_SERIES
     assert data_link.table_ids == [table_id]
     assert models.DataSourceResultTable.objects.filter(
@@ -5236,7 +5238,9 @@ def test_create_gather_up_datalink_for_bkcc_metadata_part(create_or_delete_recor
     assert ts_group.bk_biz_id == bk_biz_id
     assert ts_group.time_series_group_name == "bkmonitorbeat gather up metrics"
 
-    data_link = models.DataLink.objects.get(data_link_name=data_name, bk_tenant_id=bk_tenant_id)
+    # 链路申请复用 create_bkbase_data_link，DataLink 名称为计算平台组装名（compose_bkdata_data_id_name）
+    bkbase_data_name = utils.compose_bkdata_data_id_name(data_name)
+    data_link = models.DataLink.objects.get(data_link_name=bkbase_data_name, bk_tenant_id=bk_tenant_id)
     assert data_link.data_link_strategy == DataLink.BK_STANDARD_V2_TIME_SERIES
     assert data_link.table_ids == [table_id]
     assert models.DataSourceResultTable.objects.filter(
@@ -5252,6 +5256,42 @@ def test_create_gather_up_datalink_for_bkcc_metadata_part(create_or_delete_recor
     # GSE 下发内置数据ID返回 gather_up_beat
     internal_data_ids = _get_bk_biz_internal_data_ids(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
     assert {"task": "gather_up_beat", "dataid": data_source.bk_data_id} in internal_data_ids
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_create_gather_up_datalink_for_bkcc_tenant_mode_uses_neutral_table(create_or_delete_records, mocker):
+    """tenant 模式下 gather_up data_name 保留默认业务 ID，table_id 使用不带业务/租户前缀的中立名称。"""
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    settings.SPACE_BUILTIN_DATA_LINK_MODE = "tenant"
+    bk_tenant_id = "test_tenant"
+    default_biz_id = 18863
+    _prepare_ping_datalink_base_records(bk_tenant_id, (default_biz_id,), mocker)
+
+    with (
+        patch.object(DataLink, "apply_data_link_with_retry", return_value={"status": "success"}) as mock_apply,
+        patch("metadata.task.tasks.get_tenant_default_biz_id", return_value=default_biz_id),
+    ):
+        create_gather_up_datalink_for_bkcc(bk_tenant_id=bk_tenant_id, bk_biz_id=default_biz_id)
+        mock_apply.assert_called_once()
+
+    data_name = f"base_{default_biz_id}_bkmonitorbeat_gather_up"
+    table_id = "bkmonitorbeat_gather_up.__default__"
+
+    data_source = models.DataSource.objects.get(data_name=data_name, bk_tenant_id=bk_tenant_id)
+    assert data_source.is_platform_data_id
+
+    result_table = models.ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
+    assert result_table.bk_biz_id == default_biz_id
+    assert result_table.data_label == "bkmonitorbeat_gather_up"
+    assert result_table.label == "service_process"
+
+    ts_group = models.TimeSeriesGroup.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=data_source.bk_data_id)
+    assert ts_group.table_id == table_id
+    assert ts_group.bk_biz_id == default_biz_id
+
+    data_link = models.DataLink.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=data_source.bk_data_id)
+    assert data_link.table_ids == [table_id]
+    assert models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id, result_table_id=table_id).exists()
 
 
 @pytest.mark.django_db(databases="__all__")

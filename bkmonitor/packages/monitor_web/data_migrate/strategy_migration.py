@@ -3,7 +3,7 @@
 汇总各类内置告警策略在多租户改造下的存量迁移逻辑，目前包含：
 
 - ``migrate_system_event_strategy_config``：GSE 系统事件策略迁移到多租户内置 custom event 链路。
-- ``migrate_gather_up_strategy_config``：gather_up 采集任务状态策略从全局结果表改为 data_label 引用。
+- ``migrate_gather_up_strategy_config``：gather_up 采集任务状态策略从全局结果表改为分业务自定义时序引用。
 
 各迁移函数彼此独立、可单独调用；``migrate_builtin_strategy_config`` 为统一入口，按业务依次执行全部
 内置策略迁移并返回聚合结果。所有迁移仅在多租户模式（``ENABLE_MULTI_TENANT_MODE``）下生效。
@@ -27,6 +27,8 @@ from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.strategies.default_settings.datalink.v1 import (
     DEFAULT_DATALINK_COLLECTING_FLAG,
     GATHER_UP_DATA_LABEL,
+    GATHER_UP_METRIC_FIELD,
+    get_gather_up_result_table_id,
 )
 
 # ---------------------------------------------------------------------------
@@ -580,10 +582,12 @@ def _system_event_apply_change_records(change_records: list[dict[str, Any]]) -> 
 # ---------------------------------------------------------------------------
 
 # 单租户默认策略（见 metadata migration 0177_add_gather_up_dataid）硬编码的全局 gather_up 结果表。
-# 多租户下每个业务的 gather_up 结果表命名为 ``{bk_tenant_id}_{bk_biz_id}_bkmonitorbeat_gather_up.__default__``，
-# 无法在策略里硬编码结果表，需要统一改用 data_label 引用，运行期再解析到真实结果表。
+# 多租户下 gather_up 走自定义时序（custom time series）链路：按业务建链时每个业务拥有独立结果表，
+# 按租户建链时使用不带业务/租户前缀的中立结果表（见 metadata.task.tasks 建链逻辑）。
+# 迁移时需把存量策略改为引用对应结果表，并将数据来源切换为自定义时序。
 GATHER_UP_LEGACY_RESULT_TABLE_ID = "bkmonitorbeat_gather_up.__default__"
-GATHER_UP_METRIC_FIELD = "bkm_gather_up"
+# GATHER_UP_METRIC_FIELD / get_gather_up_result_table_id 统一由默认策略配置（datalink.v1）提供，
+# 确保存量迁移与新建默认策略使用完全一致的结果表命名与指标字段。
 
 
 def migrate_gather_up_strategy_config(
@@ -591,17 +595,18 @@ def migrate_gather_up_strategy_config(
     dry_run: bool = True,
 ) -> dict[str, Any]:
     """
-    将存量 gather_up（采集任务状态）内置告警策略迁移到多租户 data_label 引用方式。
+    将存量 gather_up（采集任务状态）内置告警策略迁移到多租户分业务自定义时序引用方式。
 
     单租户默认策略（``DatalinkDefaultAlarmStrategyLoader`` 自动创建）硬编码了全局结果表
-    ``bkmonitorbeat_gather_up.__default__``。多租户下每个业务拥有独立的 gather_up 结果表
-    ``{bk_tenant_id}_{bk_biz_id}_bkmonitorbeat_gather_up.__default__``，无法硬编码，需要清空
-    ``result_table_id`` 并改用同名 ``data_label``（``bkmonitorbeat_gather_up``）引用指标，运行期由
-    unify-query 按当前租户/业务解析到真实结果表，与 ``DatalinkDefaultAlarmStrategyLoader`` 新建策略
-    的行为保持一致。
+    ``bkmonitorbeat_gather_up.__default__``。多租户下需要把查询配置改为引用对应的 gather_up 结果表：
+    按业务建链时使用分业务结果表，按租户建链时使用不带业务/租户前缀的中立结果表，并把数据来源
+    切换为自定义时序（``data_source_label=custom``、``data_type_label=time_series``）。
+
+    覆盖两类存量形态：仍指向全局结果表的原始策略，以及此前已迁移为 data_label 引用（``result_table_id``
+    为空、``data_label=bkmonitorbeat_gather_up``）的中间态策略，统一收敛到分业务自定义时序引用。
 
     仅处理 ``source`` 为 ``DEFAULT_DATALINK_COLLECTING_FLAG`` 的内置采集告警策略，避免误改用户策略。
-    单租户环境（``ENABLE_MULTI_TENANT_MODE`` 关闭）直接跳过。
+    单租户环境（``ENABLE_MULTI_TENANT_MODE`` 关闭）直接跳过；业务无法解析租户（如已删除）时跳过该业务。
 
     Args:
         bk_biz_id: 可选业务 ID 或业务 ID 列表；不传时扫描全量内置采集告警策略。
@@ -637,9 +642,16 @@ def _gather_up_collect_change_records(bk_biz_ids: list[int] | None) -> list[dict
     if bk_biz_ids is not None:
         strategy_queryset = strategy_queryset.filter(bk_biz_id__in=bk_biz_ids)
 
+    strategy_map = {strategy.pk: strategy for strategy in strategy_queryset.only("id", "name", "bk_biz_id")}
+    if not strategy_map:
+        return []
+
+    # 结果表命名需要租户 ID，按业务批量解析，解析失败（如业务已删除）的业务后续跳过。
+    tenant_map = _gather_up_get_bk_tenant_map({strategy.bk_biz_id for strategy in strategy_map.values()})
+
     query_configs = (
         QueryConfigModel.objects.filter(
-            strategy_id__in=strategy_queryset.values("id"),
+            strategy_id__in=list(strategy_map),
             data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
             data_type_label=DataTypeLabel.TIME_SERIES,
         )
@@ -659,22 +671,72 @@ def _gather_up_collect_change_records(bk_biz_ids: list[int] | None) -> list[dict
     change_records: list[dict[str, Any]] = []
     for query_config in query_configs.iterator(chunk_size=1000):
         config = query_config.config or {}
-        if config.get("result_table_id") != GATHER_UP_LEGACY_RESULT_TABLE_ID:
+        if not _gather_up_is_migratable_config(config):
             continue
-        # 已经是 data_label 引用（result_table_id 为空且 data_label 已配置）的策略不重复处理，
-        # 这里只需匹配仍指向全局结果表的存量策略。
-        change_records.append(_gather_up_build_change_record(query_config=query_config, config=config))
+        strategy = strategy_map.get(query_config.strategy_id)
+        if strategy is None:
+            continue
+        bk_tenant_id = tenant_map.get(strategy.bk_biz_id)
+        if not bk_tenant_id:
+            # 业务无法解析租户（如已删除），跳过，避免生成错误的结果表命名。
+            continue
+        change_records.append(
+            _gather_up_build_change_record(
+                query_config=query_config,
+                config=config,
+                strategy=strategy,
+                bk_tenant_id=bk_tenant_id,
+            )
+        )
 
-    _gather_up_fill_strategy_info(change_records)
     return change_records
 
 
-def _gather_up_build_change_record(query_config: QueryConfigModel, config: dict[str, Any]) -> dict[str, Any]:
+def _gather_up_get_bk_tenant_map(bk_biz_ids: set[int]) -> dict[int, str]:
+    """按业务批量解析租户 ID，解析失败（如业务已删除）的业务直接跳过。"""
+    tenant_map: dict[int, str] = {}
+    for bk_biz_id in bk_biz_ids:
+        try:
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+        except ValueError:
+            continue
+        if bk_tenant_id:
+            tenant_map[bk_biz_id] = bk_tenant_id
+    return tenant_map
+
+
+def _gather_up_is_migratable_config(config: dict[str, Any]) -> bool:
+    """判断查询配置是否为待迁移的 gather_up 存量形态。
+
+    覆盖两类：仍指向全局结果表 ``bkmonitorbeat_gather_up.__default__`` 的原始策略，以及此前迁移为
+    data_label 引用（``result_table_id`` 为空、``data_label=bkmonitorbeat_gather_up``）的中间态策略。
+    已收敛到分业务结果表的策略（``result_table_id`` 指向真实业务表）不再匹配。
+    """
+    result_table_id = config.get("result_table_id")
+    if result_table_id == GATHER_UP_LEGACY_RESULT_TABLE_ID:
+        return True
+    if not result_table_id and config.get("data_label") == GATHER_UP_DATA_LABEL:
+        return True
+    return False
+
+
+def _gather_up_build_change_record(
+    query_config: QueryConfigModel,
+    config: dict[str, Any],
+    strategy: StrategyModel,
+    bk_tenant_id: str,
+) -> dict[str, Any]:
     metric_field = config.get("metric_field") or GATHER_UP_METRIC_FIELD
+    new_result_table_id = get_gather_up_result_table_id(
+        bk_tenant_id=bk_tenant_id,
+        bk_biz_id=strategy.bk_biz_id,
+        space_builtin_data_link_mode=settings.SPACE_BUILTIN_DATA_LINK_MODE,
+    )
+    # 自定义时序指标 ID：custom.{result_table_id}.bkm_gather_up
     new_metric_id = get_metric_id(
-        data_source_label=DataSourceLabel.BK_MONITOR_COLLECTOR,
+        data_source_label=DataSourceLabel.CUSTOM,
         data_type_label=DataTypeLabel.TIME_SERIES,
-        result_table_id="",
+        result_table_id=new_result_table_id,
         metric_field=metric_field,
     )
     return {
@@ -683,36 +745,24 @@ def _gather_up_build_change_record(query_config: QueryConfigModel, config: dict[
         "table": QueryConfigModel._meta.db_table,
         "query_config_id": query_config.pk,
         "strategy_id": query_config.strategy_id,
+        "strategy_name": strategy.name,
+        "bk_biz_id": strategy.bk_biz_id,
+        "bk_tenant_id": bk_tenant_id,
         "item_id": query_config.item_id,
         "alias": query_config.alias,
-        "data_source_label": query_config.data_source_label,
-        "data_type_label": query_config.data_type_label,
         "metric_field": metric_field,
+        "old_data_source_label": query_config.data_source_label,
+        "new_data_source_label": DataSourceLabel.CUSTOM,
+        "old_data_type_label": query_config.data_type_label,
+        "new_data_type_label": DataTypeLabel.TIME_SERIES,
         "old_result_table_id": config.get("result_table_id"),
-        "new_result_table_id": "",
+        "new_result_table_id": new_result_table_id,
         "old_data_label": config.get("data_label", ""),
         "new_data_label": GATHER_UP_DATA_LABEL,
         "old_metric_id": query_config.metric_id,
         "new_metric_id": new_metric_id,
         "applied": False,
     }
-
-
-def _gather_up_fill_strategy_info(change_records: list[dict[str, Any]]) -> None:
-    strategy_ids = {record["strategy_id"] for record in change_records}
-    if not strategy_ids:
-        return
-
-    strategies = {
-        strategy.pk: strategy
-        for strategy in StrategyModel.objects.filter(id__in=strategy_ids).only("id", "name", "bk_biz_id")
-    }
-    for record in change_records:
-        strategy = strategies.get(record["strategy_id"])
-        if strategy is None:
-            continue
-        record["strategy_name"] = strategy.name
-        record["bk_biz_id"] = strategy.bk_biz_id
 
 
 def _gather_up_apply_change_records(change_records: list[dict[str, Any]]) -> None:
@@ -726,19 +776,26 @@ def _gather_up_apply_change_records(change_records: list[dict[str, Any]]) -> Non
         query_configs = QueryConfigModel.objects.select_for_update().filter(id__in=list(record_map))
         for query_config in query_configs:
             record = record_map[query_config.pk]
-            config = query_config.config or {}
-            if config.get("result_table_id") != record["old_result_table_id"]:
+            # 以 metric_id 作为幂等/防并发基准：与采集时不一致说明已被其他流程改写，跳过。
+            if query_config.metric_id != record["old_metric_id"]:
                 record["stale"] = True
-                record["current_result_table_id"] = config.get("result_table_id")
+                record["current_metric_id"] = query_config.metric_id
                 continue
 
-            new_config = deepcopy(config)
+            new_config = deepcopy(query_config.config or {})
             new_config["result_table_id"] = record["new_result_table_id"]
+            # 保留同名 data_label 作为兜底引用，与默认策略加载器（DatalinkDefaultAlarmStrategyLoader）保持一致。
             new_config["data_label"] = record["new_data_label"]
             query_config.config = new_config
+            query_config.data_source_label = record["new_data_source_label"]
+            query_config.data_type_label = record["new_data_type_label"]
             query_config.metric_id = record["new_metric_id"]
             update_query_configs.append(query_config)
             record["applied"] = True
 
         if update_query_configs:
-            QueryConfigModel.objects.bulk_update(update_query_configs, fields=["config", "metric_id"], batch_size=500)
+            QueryConfigModel.objects.bulk_update(
+                update_query_configs,
+                fields=["data_source_label", "data_type_label", "metric_id", "config"],
+                batch_size=500,
+            )
