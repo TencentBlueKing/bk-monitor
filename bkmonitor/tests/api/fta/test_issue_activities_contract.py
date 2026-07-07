@@ -96,7 +96,20 @@ class TestIssueActivitiesResolvedRepairContract(unittest.TestCase):
 
         self.assertIn("hit.activity_type == IssueActivityType.STATUS_CHANGE", source)
         self.assertIn('getattr(hit, "to_value", None) == IssueStatus.RESOLVED', source)
+        self.assertIn("cls._resolved_activity_exists(issue.id)", source)
         self.assertIn("return None", source)
+
+    def test_repair_checks_resolved_activity_beyond_list_window(self):
+        exists_method = _method(self._resource(), "_resolved_activity_exists")
+        source = _source(exists_method)
+
+        self.assertIn("IssueActivityDocument.search(all_indices=True)", source)
+        self.assertIn('.filter("term", issue_id=issue_id)', source)
+        self.assertIn('.filter("term", activity_type=IssueActivityType.STATUS_CHANGE)', source)
+        self.assertIn('.filter("term", to_value=IssueStatus.RESOLVED)', source)
+        self.assertIn(".params(size=1)", source)
+        self.assertIn("return bool(hits)", source)
+        self.assertIn("return True", source)
 
     def test_repair_writes_best_effort_activity_with_source_marker(self):
         repair_method = _method(self._resource(), "_repair_missing_resolved_activity")

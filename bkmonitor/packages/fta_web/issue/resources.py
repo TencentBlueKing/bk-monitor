@@ -976,6 +976,8 @@ class ListIssueActivitiesResource(Resource):
                 and getattr(hit, "to_value", None) == IssueStatus.RESOLVED
             ):
                 return None
+        if cls._resolved_activity_exists(issue.id):
+            return None
 
         from_value = None
         for hit in hits:
@@ -1010,6 +1012,27 @@ class ListIssueActivitiesResource(Resource):
             )
             return None
         return activity
+
+    @classmethod
+    def _resolved_activity_exists(cls, issue_id: str) -> bool:
+        try:
+            hits = (
+                IssueActivityDocument.search(all_indices=True)
+                .filter("term", issue_id=issue_id)
+                .filter("term", activity_type=IssueActivityType.STATUS_CHANGE)
+                .filter("term", to_value=IssueStatus.RESOLVED)
+                .params(size=1)
+                .execute()
+                .hits
+            )
+        except Exception as e:
+            logger.warning(
+                "IssueActivityDocument resolved activity existence check failed, issue_id=%s: %s",
+                issue_id,
+                e,
+            )
+            return True
+        return bool(hits)
 
     @classmethod
     def _make_resolved_repair_activity_id(cls, issue: IssueDocument) -> str:
