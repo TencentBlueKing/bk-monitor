@@ -49,9 +49,37 @@ from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils.redis_tools import RedisTools
 
 logger = logging.getLogger("metadata")
+GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST = "GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST"
 
 
-def _get_graph_definition_binding_queryset(namespace: str):
+def _get_graph_relation_bkbase_sync_biz_ids() -> set[int]:
+    raw_biz_ids = getattr(settings, GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST, [])
+    if raw_biz_ids is None:
+        return set()
+    if isinstance(raw_biz_ids, str):
+        values = raw_biz_ids.split(",")
+    elif isinstance(raw_biz_ids, list | tuple | set):
+        values = raw_biz_ids
+    else:
+        values = [raw_biz_ids]
+
+    biz_ids = set()
+    for value in values:
+        value = str(value).strip()
+        if not value:
+            continue
+        try:
+            biz_ids.add(int(value))
+        except ValueError:
+            logger.warning(
+                "invalid %s item ignored: %s",
+                GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST,
+                value,
+            )
+    return biz_ids
+
+
+def _get_graph_definition_binding_queryset(namespace: str, filter_by_biz_whitelist: bool = True):
     queryset = GraphRelationBindingConfig.objects.filter(
         namespace=settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
     ).filter(
@@ -73,6 +101,11 @@ def _get_graph_definition_binding_queryset(namespace: str):
             logger.warning("sync_graph_definition_to_bkbase: namespace->[%s] cannot resolve bk_biz_id, skip", namespace)
             return GraphRelationBindingConfig.objects.none()
         queryset = queryset.filter(bk_biz_id=bk_biz_id)
+    if filter_by_biz_whitelist:
+        enabled_biz_ids = _get_graph_relation_bkbase_sync_biz_ids()
+        if not enabled_biz_ids:
+            return GraphRelationBindingConfig.objects.none()
+        queryset = queryset.filter(bk_biz_id__in=enabled_biz_ids)
     return queryset
 
 
@@ -302,12 +335,16 @@ def preview_graph_definition_sync_to_bkbase(
             raise ValueError(f"cannot resolve namespace from bk_biz_id={bk_biz_id}")
 
     namespace = namespace or NAMESPACE_ALL
+    enabled_biz_ids = sorted(_get_graph_relation_bkbase_sync_biz_ids())
+    unfiltered_matched = _get_graph_definition_binding_queryset(namespace, filter_by_biz_whitelist=False).count()
     bindings = list(_get_graph_definition_binding_queryset(namespace))
     result: dict[str, Any] = {
         "namespace": namespace,
         "action": action,
         "dry_run": True,
+        "enabled_biz_ids": enabled_biz_ids,
         "matched": len(bindings),
+        "filtered_by_whitelist": max(unfiltered_matched - len(bindings), 0),
         "would_apply": 0,
         "would_skip": 0,
         "would_fail": 0,
@@ -436,6 +473,8 @@ def sync_graph_definition_to_bkbase(
     只处理已存在且写入 SurrealDB 的 GraphRelationBindingConfig；首次创建链路仍由 CMDB relation 同步负责。
     """
     namespace = namespace or NAMESPACE_ALL
+    enabled_biz_ids = sorted(_get_graph_relation_bkbase_sync_biz_ids())
+    unfiltered_matched = _get_graph_definition_binding_queryset(namespace, filter_by_biz_whitelist=False).count()
     bindings = list(_get_graph_definition_binding_queryset(namespace))
     result: dict[str, Any] = {
         "namespace": namespace,
@@ -444,7 +483,9 @@ def sync_graph_definition_to_bkbase(
         "generation": generation,
         "action": action,
         "dry_run": dry_run,
+        "enabled_biz_ids": enabled_biz_ids,
         "matched": len(bindings),
+        "filtered_by_whitelist": max(unfiltered_matched - len(bindings), 0),
         "applied": 0,
         "skipped": 0,
         "failed": 0,
@@ -674,9 +715,9 @@ def _enable_relation_surrealdb_dual_write_best_effort(ds: DataSource, bk_tenant_
         )
 
 
-def _is_relation_surrealdb_dual_write_enabled() -> bool:
-    # 内置关系周期路径和图定义变更路径共用同一个 rollout 开关，保持默认关闭语义一致。
-    return getattr(settings, "ENABLE_SYNC_GRAPH_DEFINITION_TO_BKBASE", False)
+def _is_relation_surrealdb_dual_write_enabled(bk_biz_id: int, enabled_biz_ids: set[int] | None = None) -> bool:
+    enabled_biz_ids = enabled_biz_ids if enabled_biz_ids is not None else _get_graph_relation_bkbase_sync_biz_ids()
+    return bk_biz_id in enabled_biz_ids
 
 
 def enable_relation_surrealdb_dual_write(ds: DataSource, bk_tenant_id: str, bk_biz_id: int) -> None:
@@ -908,7 +949,7 @@ def sync_relation_redis_data():
     existing_time_series_groups_dict = {
         (group.bk_tenant_id, group.table_id): group for group in existing_time_series_groups
     }
-    enable_graph_dual_write = _is_relation_surrealdb_dual_write_enabled()
+    enabled_graph_dual_write_biz_ids = _get_graph_relation_bkbase_sync_biz_ids()
     for field, value in redis_data.items():
         try:
             # 将json解析放在try中，确保value是有效的JSON字符串
@@ -975,7 +1016,7 @@ def sync_relation_redis_data():
                 value_dict["token"] = builtin_token
                 value_dict["modifyTime"] = new_modify_time
                 RedisTools.hset_to_redis(redis_key, key, json.dumps(value_dict))
-                if enable_graph_dual_write:
+                if _is_relation_surrealdb_dual_write_enabled(biz_id, enabled_graph_dual_write_biz_ids):
                     _enable_relation_surrealdb_dual_write_best_effort(ds, bk_tenant_id, biz_id)
                 logger.info(
                     "sync_relation_redis_data: Update Data For Field->[%s],has completed,value->[%s]", key, value_dict
@@ -1033,7 +1074,7 @@ def sync_relation_redis_data():
                 value_dict["token"] = builtin_token
                 value_dict["modifyTime"] = int(ts_group.last_modify_time.timestamp())
                 RedisTools.hset_to_redis(redis_key, key, json.dumps(value_dict))
-                if enable_graph_dual_write:
+                if _is_relation_surrealdb_dual_write_enabled(biz_id, enabled_graph_dual_write_biz_ids):
                     _enable_relation_surrealdb_dual_write_best_effort(ds, bk_tenant_id, biz_id)
                 logger.info(
                     "sync_relation_redis_data: Create Data For Field->[%s],has completed,value->[%s]",
