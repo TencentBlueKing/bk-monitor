@@ -26,10 +26,10 @@
 
 import { type Ref, reactive, shallowRef, watch } from 'vue';
 
-import { InfoBox, Message } from 'bkui-vue';
+import { InfoBox } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import { getUserWorkspaceApi, rebindWorkspaceApi, revokeAuthApi, unbindWorkspaceApi } from '../services/tapd';
+import { getUserWorkspaceApi, rebindWorkspaceApi, unbindWorkspaceApi } from '../services/tapd';
 
 import type { TapdWorkspaceItem } from '../typing';
 
@@ -90,7 +90,7 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
       isAuth.value = false;
       authUrl.value = errData?.auth_url || '';
       if (code === 403 && errData?.auth_url) {
-        window.location.href = errData.auth_url;
+        window.open(errData.auth_url, '_self');
       }
     }
     /** 如果有已关联的项目,展示创建单据侧栏，否则展示授权弹窗 */
@@ -118,7 +118,7 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
     { immediate: true }
   );
 
-  const handleBoundWorkspace = (item: TapdWorkspaceItem) => {
+  const handleUnboundWorkspace = (item: TapdWorkspaceItem) => {
     InfoBox({
       title: t('确认取消关联吗？'),
       content: t('取消后，TAPD 侧授权不会被撤销，但蓝鲸侧不再与该 TAPD 项目关联。确认解绑吗？'),
@@ -148,7 +148,7 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
   const handleWorkspaceSelect = (item: TapdWorkspaceItem) => {
     switch (item.is_bound) {
       case 'bound': {
-        handleBoundWorkspace(item);
+        handleUnboundWorkspace(item);
         break;
       }
       case 'manually_unbound': {
@@ -176,31 +176,8 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
     }
   };
 
-  /** 取消授权 */
-  const handleRevokeAuth = () => {
-    revokeAuthLoading.value = true;
-    revokeAuthApi({
-      bk_biz_id: bizId.value,
-    })
-      .then(() => {
-        authDialogShow.value = false;
-        isAuth.value = false;
-        Message({
-          theme: 'success',
-          message: t('取消授权成功'),
-        });
-      })
-      .finally(() => {
-        revokeAuthLoading.value = false;
-      });
-  };
-
   const handleAddWorkspace = () => {
-    if (isAuth.value) {
-      authDialogShow.value = true;
-    } else {
-      getAuth();
-    }
+    authDialogShow.value = true;
   };
 
   return {
@@ -212,7 +189,6 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
     isAuth,
     revokeAuthLoading,
     handleWorkspaceSelect,
-    handleRevokeAuth,
     handleAddWorkspace,
   };
 }

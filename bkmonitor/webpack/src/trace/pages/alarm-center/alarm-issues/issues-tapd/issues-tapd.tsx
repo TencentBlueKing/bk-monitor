@@ -25,7 +25,11 @@
  */
 import { defineComponent, toRefs } from 'vue';
 
+import { Message } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
+
 import { useTapdAuth } from './composables/use-tapd-auth';
+import { revokeAuthApi } from './services/tapd';
 import TapdAuthDialog from './tapd-auth-dialog/tapd-auth-dialog';
 import TapdSideslider from './tapd-sideslider/tapd-sideslider';
 
@@ -52,6 +56,7 @@ export default defineComponent({
   },
   emits: ['update:show'],
   setup(props, { emit }) {
+    const { t } = useI18n();
     const { show, bizId, issuesId, firstAlarmTime } = toRefs(props);
 
     const {
@@ -64,16 +69,36 @@ export default defineComponent({
       revokeAuthLoading,
       handleWorkspaceSelect,
       handleAddWorkspace,
-      handleRevokeAuth,
     } = useTapdAuth({ show, bizId, issuesId, firstAlarmTime });
 
     const handleShowChange = (val: boolean) => emit('update:show', val);
+
+    /** 取消授权 */
+    const handleRevokeAuth = () => {
+      revokeAuthLoading.value = true;
+      revokeAuthApi({
+        bk_biz_id: bizId.value,
+      })
+        .then(() => {
+          authDialogShow.value = false;
+          createTapdSliderShow.value = false;
+          isAuth.value = false;
+          Message({
+            theme: 'success',
+            message: t('取消授权成功'),
+          });
+          handleShowChange(false);
+        })
+        .finally(() => {
+          revokeAuthLoading.value = false;
+        });
+    };
 
     const handleAuthDialogShowChange = (val: boolean) => {
       if (createTapdSliderShow.value) {
         authDialogShow.value = val;
       } else {
-        emit('update:show', val);
+        handleShowChange(val);
       }
     };
 
