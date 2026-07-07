@@ -1,13 +1,20 @@
-from django.test import TestCase
+import json
+
+from django.test import TestCase, override_settings
 
 from apps.log_search.constants import TagColor
 from apps.log_search.exceptions import IndexSetTagNameExistException, IndexSetTagNotExistException
 from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.models import IndexSetTag, LogIndexSet, Scenario
-from apps.log_search.serializers import CreateIndexSetTagSerializer, IndexSetTagListSerializer
+
+OVERRIDE_MIDDLEWARE = "apps.tests.middlewares.OverrideMiddleware"
 
 
+@override_settings(MIDDLEWARE=(OVERRIDE_MIDDLEWARE,))
 class TestIndexSetTagSpace(TestCase):
+    create_tag_path = "/api/v1/index_set/tag/"
+    tag_list_path = "/api/v1/index_set/tag/list/"
+
     def test_user_tag_can_use_same_name_in_different_spaces(self):
         space_a = "bkcc__2"
         space_b = "bkcc__3"
@@ -31,27 +38,44 @@ class TestIndexSetTagSpace(TestCase):
         with self.assertRaises(IndexSetTagNameExistException):
             IndexSetHandler.create_tag({"space_uid": "bkcc__2", "name": "space-tag", "color": TagColor.BLUE.value})
 
-    def test_create_tag_serializer_allows_empty_space_uid(self):
-        serializer = CreateIndexSetTagSerializer(data={"name": "global-tag", "color": TagColor.GREEN.value})
+    def test_create_tag_api_defaults_to_global_space(self):
+        response = self.client.post(
+            path=self.create_tag_path,
+            data=json.dumps({"name": "global-tag", "color": TagColor.GREEN.value}),
+            content_type="application/json",
+        )
+        content = json.loads(response.content)
 
-        self.assertTrue(serializer.is_valid(), serializer.errors)
-        self.assertEqual(serializer.validated_data["space_uid"], "")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(content["data"]["space_uid"], "")
+        self.assertTrue(IndexSetTag.objects.filter(space_uid="", name="global-tag").exists())
 
-    def test_tag_list_serializer_allows_empty_space_uid(self):
-        serializer = IndexSetTagListSerializer(data={})
+    def test_tag_list_api_defaults_to_global_space(self):
+        global_tag = IndexSetTag.objects.create(name="legacy-global", color=TagColor.GREEN.value)
+        other_space_tag = IndexSetTag.objects.create(
+            space_uid="bkcc__3", name="other-space-tag", color=TagColor.RED.value
+        )
 
-        self.assertTrue(serializer.is_valid(), serializer.errors)
-        self.assertEqual(serializer.validated_data["space_uid"], "")
+        response = self.client.get(path=self.tag_list_path)
+        content = json.loads(response.content)
 
-    def test_tag_list_returns_global_and_current_space_tags(self):
+        self.assertEqual(response.status_code, 200)
+        tag_ids = {tag["tag_id"] for tag in content["data"]}
+        self.assertIn(global_tag.tag_id, tag_ids)
+        self.assertNotIn(other_space_tag.tag_id, tag_ids)
+
+    def test_tag_list_api_returns_global_and_current_space_tags(self):
         global_tag = IndexSetTag.objects.create(name="legacy-global", color=TagColor.GREEN.value)
         space_tag = IndexSetTag.objects.create(space_uid="bkcc__2", name="space-tag", color=TagColor.BLUE.value)
         other_space_tag = IndexSetTag.objects.create(
             space_uid="bkcc__3", name="other-space-tag", color=TagColor.RED.value
         )
 
-        tag_ids = {tag["tag_id"] for tag in IndexSetHandler.tag_list(space_uid="bkcc__2")}
+        response = self.client.get(path=self.tag_list_path, data={"space_uid": "bkcc__2"})
+        content = json.loads(response.content)
 
+        self.assertEqual(response.status_code, 200)
+        tag_ids = {tag["tag_id"] for tag in content["data"]}
         self.assertIn(global_tag.tag_id, tag_ids)
         self.assertIn(space_tag.tag_id, tag_ids)
         self.assertNotIn(other_space_tag.tag_id, tag_ids)
