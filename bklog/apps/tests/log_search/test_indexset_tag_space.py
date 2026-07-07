@@ -38,7 +38,7 @@ class TestIndexSetTagSpace(TestCase):
         with self.assertRaises(IndexSetTagNameExistException):
             IndexSetHandler.create_tag({"space_uid": "bkcc__2", "name": "space-tag", "color": TagColor.BLUE.value})
 
-    def test_create_tag_api_defaults_to_global_space(self):
+    def test_create_tag_api_rejects_empty_space_uid(self):
         response = self.client.post(
             path=self.create_tag_path,
             data=json.dumps({"name": "global-tag", "color": TagColor.GREEN.value}),
@@ -47,8 +47,8 @@ class TestIndexSetTagSpace(TestCase):
         content = json.loads(response.content)
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(content["data"]["space_uid"], "")
-        self.assertTrue(IndexSetTag.objects.filter(space_uid="", name="global-tag").exists())
+        self.assertFalse(content["result"])
+        self.assertEqual(IndexSetTag.objects.filter(name="global-tag").count(), 0)
 
     def test_tag_list_api_defaults_to_global_space(self):
         global_tag = IndexSetTag.objects.create(name="legacy-global", color=TagColor.GREEN.value)
