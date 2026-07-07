@@ -416,14 +416,14 @@
       isScene() {
         return this.$store.getters.isSceneMode;
       },
-      /** 当前显示的单个下载中任务（最先下载的任务） */
+      /** 当前显示的单个下载中任务（最先下载的任务），优先取 download_log 类型 */
       activeDownloadingTask() {
-        const currentUser = this.$store.state.userMeta?.username || '';
-        return (
-          this.exportListData.findLast(
-            row => POLLING_STATUS.includes(row.export_status) && row.export_created_by === currentUser,
-          ) || null
-        );
+        const tasks = this.displayTasks;
+        // 优先查找 download_log 类型的任务
+        const downloadLogTask = tasks.find(row => row.export_type === 'download_log');
+        if (downloadLogTask) return downloadLogTask;
+        // 否则返回第一个任务
+        return tasks[0] || null;
       },
       /** 当前下载中任务的进度百分比 */
       totalProgressPercent() {
@@ -433,21 +433,20 @@
         if (total <= 0) return 0;
         return calculateProgressPercent(task.exported_count || 0, total);
       },
-      /** 需要显示的任务列表（只显示一个下载中任务 + 失败任务） */
+      /** 需要显示的任务列表（下载中/未启动任务 + 失败任务） */
       displayTasks() {
         const currentUser = this.$store.state.userMeta?.username || '';
-        const list = [];
-        if (this.activeDownloadingTask) {
-          list.push(this.activeDownloadingTask);
-        }
-        // 失败任务
-        this.exportListData.forEach(row => {
-          if (row.export_created_by !== currentUser) return;
-          if (row.export_status === 'failed' && this.failedTaskIds.includes(row.id)) {
-            list.push(row);
-          }
-        });
-        return list;
+        return this.exportListData
+          .filter(row => {
+            // 只显示当前用户的任务
+            if (row.export_created_by !== currentUser) return false;
+            const status = row.export_status;
+            if (status === 'failed') {
+              return this.failedTaskIds.includes(row.id);
+            }
+            return POLLING_STATUS.includes(status);
+          })
+          .reverse();
       },
       /** 失败任务数量 */
       failedTaskCount() {
@@ -493,7 +492,7 @@
       // 初始化时间范围为最近3月
       this.initDateRange();
     },
-    beforeUnmount() {
+    beforeDestroy() {
       // 设置组件卸载标志位
       this.isComponentUnmounted = true;
       // 清除轮询定时器
@@ -852,7 +851,7 @@
       startProgressUpdate() {
         this.stopProgressUpdate();
         this.progressUpdateTimer = setInterval(() => {
-          this.updateTaskProgress();
+          this.updateAllTaskProgress();
         }, 1000);
       },
       /**
@@ -876,15 +875,19 @@
       /**
        * @desc: 每秒更新当前下载中任务的进度
        */
-      updateTaskProgress() {
-        const downloadingTask = this.activeDownloadingTask;
-        if (!downloadingTask) {
-          // 没有下载任务时停止定时器
+      updateAllTaskProgress() {
+        let hasActiveTask = false;
+
+        this.exportListData.forEach(row => {
+          if (POLLING_STATUS.includes(row.export_status)) {
+            hasActiveTask = true;
+            row.export_status === 'download_log' && calculateProgress(row);
+          }
+        });
+
+        if (!hasActiveTask) {
           this.stopProgressUpdate();
-          return;
         }
-        // download_log 状态下模拟进度增长
-        downloadingTask.export_status === 'download_log' && calculateProgress(downloadingTask);
       },
       /**
        * @desc: 处理任务状态记录与变化检测
