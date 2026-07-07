@@ -2383,11 +2383,20 @@ class DataLink(models.Model):
         bk_tenant_id = self.bk_tenant_id
         data_link_name = self.data_link_name
 
+        def _schedule_refresh():
+            try:
+                refresh_data_link_status_by_name.apply_async(
+                    args=(bk_tenant_id, data_link_name),
+                    countdown=GRAPH_RELATION_STATUS_REFRESH_COUNTDOWN,
+                )
+            except Exception:  # pylint: disable=broad-except
+                logger.exception(
+                    "apply_data_link: data_link_name->[%s] schedule graph relation status refresh failed",
+                    data_link_name,
+                )
+
         transaction.on_commit(
-            lambda: refresh_data_link_status_by_name.apply_async(
-                args=(bk_tenant_id, data_link_name),
-                countdown=GRAPH_RELATION_STATUS_REFRESH_COUNTDOWN,
-            ),
+            _schedule_refresh,
             using=DATABASE_CONNECTION_NAME,
         )
 
