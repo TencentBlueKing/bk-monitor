@@ -32,6 +32,7 @@ import failureRoutes from './modules/failure';
 import homeRoutes from './modules/home';
 import profilingRoutes from './modules/profiling';
 import rotationRoutes from './modules/rotation';
+import rumRoutes from './modules/rum';
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -41,6 +42,7 @@ const router = createRouter({
       ...alarmShield,
       ...rotationRoutes,
       ...profilingRoutes,
+      ...rumRoutes,
       ...Report,
       ...failureRoutes,
       ...alarmCenterRoutes,

@@ -7,7 +7,9 @@
 - `apply_auto_increment_from_directory`
 - `export_auto_increment_to_directory`
 - `export_biz_data_to_directory`
+- `export_partial_data_to_directory`
 - `import_biz_data_from_directory`
+- `import_partial_data_from_directory`
 - `disable_models_in_directory`
 - `replace_tenant_id_in_directory`
 - `restore_disabled_models_in_directory`
@@ -27,6 +29,9 @@
 - `python manage.py data_migrate export ...`
 - `python manage.py data_migrate import ...`
 - `python manage.py data_migrate rebuild ...`
+- `python manage.py data_migrate partial-export ...`
+- `python manage.py data_migrate partial-import ...`
+- `python manage.py data_migrate partial-rebuild ...`
 - `python manage.py data_migrate enable-closed-strategies ...`
 - `python manage.py data_migrate update-migrate-data-id-routes ...`
 - `python manage.py data_migrate disable-models ...`
@@ -82,6 +87,35 @@ python manage.py data_migrate import \
   - 仅导入指定业务 ID 列表
 - `--disable-atomic`
   - 是否按单个文件事务导入
+
+### 局部导出 / 导入 / 重建
+
+```bash
+python manage.py data_migrate partial-export \
+  --directory /tmp \
+  --bk-tenant-id tencent \
+  --bk-biz-id 2 \
+  --bcs-cluster-ids BCS-K8S-00000 \
+  --custom-report-data-ids 123 456 \
+  --app-names demo-app
+
+python manage.py data_migrate partial-import \
+  --directory /tmp/bkmonitor-partial-data-migrate-20260307120000
+
+python manage.py data_migrate partial-rebuild \
+  --directory /tmp/bkmonitor-partial-data-migrate-20260307120000 \
+  --event-kafka-cluster-name log-kafka-public-1
+```
+
+说明：
+
+- `partial-export` 是独立于全量 `export` 的局部导出入口，目前支持 BCS 集群、自定义上报 Data ID 和 APM 应用三个选择器
+- `partial-import` 导入前会检查 `bk_data_id`、`data_name`、`table_id`、`time_series_group_name`、`event_group_name` 等关键字段冲突，命中则失败且不写入
+- `partial-import` 会先完整预扫描导出目录，随后复用通用导入逻辑写入；大目录会有一次额外解析开销，并发写入导致的最终唯一性冲突仍以数据库约束和导入事务为准
+- `partial-import` 不执行整业务清理，避免局部增量导入影响同业务的其他配置
+- `partial-rebuild` 可直接从导出目录的 `manifest.json` 读取局部范围，也可以显式传入相同选择器
+- `partial-rebuild` 支持独立指定 `--metric-kafka-cluster-name`、`--log-kafka-cluster-name`、`--event-kafka-cluster-name`、`--log-es-cluster-name`、`--event-es-cluster-name`
+- `partial-rebuild` 会在重建后基于新环境生成 `data_id_infos`；传入 `--directory` 时会写入 `partial_data_id_infos.json`，可继续传给 `add-migrate-data-id-routes` 复用双写路由逻辑
 
 ### 数据重建
 
@@ -363,6 +397,8 @@ result = check_biz_bk_collector_proxy_config_delivery(
 - 成功标准是每台 proxy 的 `render_and_push_config` 子步骤为 `SUCCESS`
 - 订阅任务总状态失败、后续重载进程失败，不会影响配置渲染下发成功的判定
 - 返回结果顶层 `result` 表示是否全部 proxy 配置都成功完成渲染下发
+- 默认（`only_current_bk_biz_id=True`）只统计属于本业务的 proxy 主机（业务自有 proxy 及默认直连区域全局主机），忽略订阅中从其他业务借用的 proxy 主机的下发异常，避免因借用主机失败误判本业务结果；被忽略的主机数量在各订阅及 `summary` 的 `ignored_count` 中输出。传 `only_current_bk_biz_id=False` 可恢复对订阅下全部主机的全量检查
+- 忽略借用主机同样作用于 render 失败自动补执行，`retry_subscription` 只会对本业务主机补发，不会触碰其他业务的 proxy
 - 不传 `wait_timeout` 时只做一次检查；传入正数时会轮询直到成功、失败或超时
 
 ### 对 render 失败的 bk-collector 配置订阅补一轮下发

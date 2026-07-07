@@ -37,21 +37,29 @@ from monitor_web.data_migrate.data_rebuilder import (
 )
 from monitor_web.data_migrate.subscription_tasks import stop_biz_subscription_tasks
 from monitor_web.data_migrate import (
+    PARTIAL_DATA_ID_INFOS_FILE,
     apply_auto_increment_from_directory,
     disable_biz_bk_collector_subscription_auto_inspection,
     disable_models_in_directory,
     export_auto_increment_to_directory,
     export_biz_data_to_directory,
+    export_partial_data_to_directory,
     import_biz_data_from_directory,
+    import_partial_data_from_directory,
     install_biz_bk_collector,
+    load_partial_scope_from_directory,
+    make_partial_export_archive,
     replace_cluster_id_in_directory,
     replace_tenant_id_in_directory,
     refresh_biz_bk_collector_proxy_configs,
     retry_biz_bk_collector_proxy_config_delivery,
+    rebuild_partial_data,
     restore_disabled_models_in_directory,
     sanitize_cluster_info_in_directory,
     stop_biz_bk_collector,
     upload_export_directory_to_storage,
+    migrate_builtin_strategy_config,
+    migrate_gather_up_strategy_config,
     migrate_system_event_strategy_config,
 )
 from monitor_web.data_migrate.bk_collector import (
@@ -146,7 +154,22 @@ class Command(BaseCommand):
             "    python manage.py data_migrate retry-biz-bk-collector-config-delivery --bk-tenant-id tencent --bk-biz-ids 18901 --config-types apm_application custom_report log\n"
             "\n"
             "  迁移存量系统事件策略到多租户 custom event 链路:\n"
-            "    python manage.py data_migrate migrate-system-event-strategies --bk-biz-ids 18901 --dry-run"
+            "    python manage.py data_migrate migrate-system-event-strategies --bk-biz-ids 18901 --dry-run\n"
+            "\n"
+            "  迁移存量 gather_up 采集状态策略到多租户 data_label 引用:\n"
+            "    python manage.py data_migrate migrate-gather-up-strategies --bk-biz-ids 18901 --dry-run\n"
+            "\n"
+            "  统一迁移全部内置策略（系统事件 + gather_up 采集状态）:\n"
+            "    python manage.py data_migrate migrate-builtin-strategies --bk-biz-ids 18901 --dry-run\n"
+            "\n"
+            "  局部导出指定 BCS 集群、自定义上报 Data ID 和 APM 应用:\n"
+            "    python manage.py data_migrate partial-export --directory /tmp/output --bk-tenant-id tencent --bk-biz-id 18901 --bcs-cluster-ids BCS-K8S-00000 --custom-report-data-ids 123 456 --app-names demo-app\n"
+            "\n"
+            "  局部导入，导入前会检查 bk_data_id/data_name/table_id/time_series_group_name 等关键冲突:\n"
+            "    python manage.py data_migrate partial-import --directory /tmp/bkmonitor-partial-data-migrate-20260307120000\n"
+            "\n"
+            "  局部重建指定范围的数据链路:\n"
+            "    python manage.py data_migrate partial-rebuild --bk-tenant-id tencent --bk-biz-id 18901 --app-names demo-app --event-kafka-cluster-name log-kafka-public-1"
         )
         parser.add_argument(
             "action",
@@ -171,6 +194,11 @@ class Command(BaseCommand):
                 "refresh-biz-bk-collector-configs",
                 "retry-biz-bk-collector-config-delivery",
                 "migrate-system-event-strategies",
+                "migrate-gather-up-strategies",
+                "migrate-builtin-strategies",
+                "partial-export",
+                "partial-import",
+                "partial-rebuild",
             ],
             help="执行导出、导入、恢复游标或 handler 处理",
         )
@@ -186,21 +214,47 @@ class Command(BaseCommand):
                 "find-custom-report-data-ids 支持正数和负数业务 ID；"
                 "enable-closed-strategies 支持正数和负数业务 ID；"
                 "stop-biz-subscription-tasks 会跳过负数业务 ID；"
-                "migrate-system-event-strategies 不传时扫描全量策略"
+                "migrate-system-event-strategies/migrate-gather-up-strategies/migrate-builtin-strategies "
+                "不传时扫描全量策略"
             ),
         )
-        parser.add_argument("--format", default="json", help="导出文件格式，默认 json；仅 export 动作需要")
-        parser.add_argument("--indent", type=int, default=2, help="导出文件缩进，默认 2；仅 export 动作需要")
+        parser.add_argument(
+            "--bk-biz-id",
+            type=int,
+            help="单个业务 ID；仅 partial-export、partial-import、partial-rebuild 动作需要",
+        )
+        parser.add_argument(
+            "--format", default="json", help="导出文件格式，默认 json；仅 export/partial-export 动作需要"
+        )
+        parser.add_argument(
+            "--indent", type=int, default=2, help="导出文件缩进，默认 2；仅 export/partial-export 动作需要"
+        )
         parser.add_argument(
             "--target-tenant-id",
-            help="导出目标租户 ID；仅 export 动作需要，导出后默认执行租户 ID 替换",
+            help="导出目标租户 ID；仅 export/partial-export 动作需要，导出后执行租户 ID 替换",
         )
         parser.add_argument(
             "--disable-atomic",
             action="store_true",
             help="导入时关闭按单文件事务处理；仅 import 动作需要",
         )
-        parser.add_argument("--bk-tenant-id", help="租户 ID；仅 rebuild 动作需要")
+        parser.add_argument("--bk-tenant-id", help="租户 ID；仅 rebuild、partial-export、partial-rebuild 动作需要")
+        parser.add_argument(
+            "--bcs-cluster-ids",
+            nargs="+",
+            help="BCS 集群 ID 列表；仅 partial-export、partial-rebuild 动作需要",
+        )
+        parser.add_argument(
+            "--custom-report-data-ids",
+            nargs="+",
+            type=int,
+            help="自定义上报 Data ID 列表；仅 partial-export、partial-rebuild 动作需要",
+        )
+        parser.add_argument(
+            "--app-names",
+            nargs="+",
+            help="APM 应用名列表；仅 partial-export、partial-rebuild 动作需要",
+        )
         parser.add_argument(
             "--biz-tenant-id-map",
             help='租户替换映射 JSON，形如 \'{"*":"tenant-a","2":"tenant-b"}\'；仅 replace-tenant-id 动作需要',
@@ -212,7 +266,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--no-upload",
             action="store_true",
-            help="导出时跳过上传到制品库；仅 export 动作需要",
+            help="导出时跳过上传到制品库；仅 export/partial-export 动作需要",
         )
         parser.add_argument(
             "--models",
@@ -222,33 +276,38 @@ class Command(BaseCommand):
         parser.add_argument(
             "--metric-kafka-cluster-name",
             default=DEFAULT_KAFKA_CLUSTER_NAMES["metric"],
-            help="指标 Kafka 集群名称；仅 rebuild 动作需要",
+            help="指标 Kafka 集群名称；仅 rebuild/partial-rebuild 动作需要",
         )
         parser.add_argument(
             "--log-kafka-cluster-name",
             default=DEFAULT_KAFKA_CLUSTER_NAMES["event"],
-            help="日志 Kafka 集群名称；仅 rebuild 动作需要",
+            help="日志 Kafka 集群名称；仅 rebuild/partial-rebuild 动作需要",
+        )
+        parser.add_argument(
+            "--event-kafka-cluster-name",
+            default=DEFAULT_KAFKA_CLUSTER_NAMES["event"],
+            help="事件 Kafka 集群名称；仅 rebuild/partial-rebuild 动作需要",
         )
         parser.add_argument(
             "--log-es-cluster-name",
             default=DEFAULT_ES_CLUSTER_NAMES["log"],
-            help="日志 ES 集群名称；仅 rebuild 动作需要",
+            help="日志 ES 集群名称；仅 rebuild/partial-rebuild 动作需要",
         )
         parser.add_argument(
             "--event-es-cluster-name",
             default=DEFAULT_ES_CLUSTER_NAMES["event"],
-            help="事件 ES 集群名称；仅 rebuild 动作需要",
+            help="事件 ES 集群名称；仅 rebuild/partial-rebuild 动作需要",
         )
         parser.add_argument(
             "--apm-kafka-cluster-name",
             help=(
-                "APM Kafka 集群名称；仅 rebuild 动作需要。"
+                "APM Kafka 集群名称；仅 rebuild/partial-rebuild 动作需要。"
                 "为空时保持原有逻辑：APM trace/log 使用日志 Kafka，APM metric 使用指标 Kafka"
             ),
         )
         parser.add_argument(
             "--apm-es-cluster-name",
-            help="APM trace/log ES 集群名称；仅 rebuild 动作需要。为空时保持原有逻辑：使用日志 ES",
+            help="APM trace/log ES 集群名称；仅 rebuild/partial-rebuild 动作需要。为空时保持原有逻辑：使用日志 ES",
         )
         parser.add_argument(
             "--data-id-infos",
@@ -373,6 +432,11 @@ class Command(BaseCommand):
             "refresh-biz-bk-collector-configs": self._handle_refresh_biz_bk_collector_configs,
             "retry-biz-bk-collector-config-delivery": self._handle_retry_biz_bk_collector_config_delivery,
             "migrate-system-event-strategies": self._handle_migrate_system_event_strategies,
+            "migrate-gather-up-strategies": self._handle_migrate_gather_up_strategies,
+            "migrate-builtin-strategies": self._handle_migrate_builtin_strategies,
+            "partial-export": self._handle_partial_export,
+            "partial-import": self._handle_partial_import,
+            "partial-rebuild": self._handle_partial_rebuild,
         }
         handlers[action](options)
 
@@ -440,11 +504,104 @@ class Command(BaseCommand):
         self._import_from_directory(directory, options)
         self.stdout.write(self.style.SUCCESS(f"import completed: {directory}"))
 
+    def _handle_partial_export(self, options):
+        bk_tenant_id = self._load_bk_tenant_id(options.get("bk_tenant_id"), action_name="partial-export")
+        bk_biz_id = self._load_bk_biz_id(options.get("bk_biz_id"), action_name="partial-export")
+        selectors = self._load_partial_selectors(options, action_name="partial-export")
+        output_directory = self._load_directory(options, action_name="partial-export")
+        output_directory.mkdir(parents=True, exist_ok=True)
+        archive_name = f"bkmonitor-partial-data-migrate-{timezone.now().strftime('%Y%m%d%H%M%S')}"
+        target_tenant_id = self._load_optional_tenant_id(options.get("target_tenant_id"))
+
+        with tempfile.TemporaryDirectory(prefix="bkmonitor-partial-data-migrate-") as temp_directory:
+            export_directory = Path(temp_directory) / archive_name
+            export_partial_data_to_directory(
+                directory_path=export_directory,
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id=bk_biz_id,
+                format=options["format"],
+                indent=options["indent"],
+                **selectors,
+            )
+            export_auto_increment_to_directory(export_directory)
+            if target_tenant_id:
+                replace_tenant_id_in_directory(
+                    directory_path=export_directory,
+                    biz_tenant_id_map=self._build_export_biz_tenant_id_map(target_tenant_id),
+                )
+                self._rewrite_partial_manifest_tenant_id(export_directory, target_tenant_id)
+            disable_models_in_directory(
+                directory_path=export_directory,
+                model_labels=list(FIXED_CLOSE_MODEL_LABELS),
+            )
+
+            if not options.get("no_upload", False):
+                download_url = upload_export_directory_to_storage(export_directory)
+                self.stdout.write(self.style.SUCCESS(f"upload completed, download_url: {download_url}"))
+
+            target_archive_path = make_partial_export_archive(
+                export_directory=export_directory,
+                output_directory=output_directory,
+            )
+
+        self.stdout.write(self.style.SUCCESS(f"partial export completed: {target_archive_path}"))
+
+    def _handle_partial_import(self, options):
+        directory = self._load_directory(options, action_name="partial-import")
+        bk_biz_id = (
+            self._load_bk_biz_id(options.get("bk_biz_id"), action_name="partial-import")
+            if options.get("bk_biz_id") is not None
+            else None
+        )
+        bk_biz_ids = [bk_biz_id] if bk_biz_id is not None else None
+        try:
+            result = import_partial_data_from_directory(
+                directory_path=directory,
+                bk_biz_ids=bk_biz_ids,
+                atomic=not options["disable_atomic"],
+            )
+        except ValueError as error:
+            raise CommandError(str(error)) from error
+        self.stdout.write(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        self.stdout.write(self.style.SUCCESS(f"partial import completed: {directory}"))
+
+    def _handle_partial_rebuild(self, options):
+        partial_scope = self._load_partial_scope_from_options(options)
+        bk_tenant_id = self._load_bk_tenant_id(
+            options.get("bk_tenant_id") or partial_scope.get("bk_tenant_id"),
+            action_name="partial-rebuild",
+        )
+        bk_biz_id = self._load_bk_biz_id(
+            options.get("bk_biz_id") or partial_scope.get("bk_biz_id"),
+            action_name="partial-rebuild",
+        )
+        selectors = self._load_partial_selectors(
+            options,
+            action_name="partial-rebuild",
+            partial_scope=partial_scope,
+        )
+        result = rebuild_partial_data(
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            metric_kafka_cluster_name=options["metric_kafka_cluster_name"],
+            log_kafka_cluster_name=options["log_kafka_cluster_name"],
+            event_kafka_cluster_name=options["event_kafka_cluster_name"],
+            log_es_cluster_name=options["log_es_cluster_name"],
+            event_es_cluster_name=options["event_es_cluster_name"],
+            apm_kafka_cluster_name=self._load_optional_cluster_name(options.get("apm_kafka_cluster_name")),
+            apm_es_cluster_name=self._load_optional_cluster_name(options.get("apm_es_cluster_name")),
+            **selectors,
+        )
+        self._write_partial_data_id_infos(options, result)
+        self.stdout.write(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        self.stdout.write(self.style.SUCCESS(f"partial rebuild completed: bk_biz_id={bk_biz_id}"))
+
     def _handle_rebuild(self, options):
         bk_tenant_id = self._load_bk_tenant_id(options.get("bk_tenant_id"), action_name="rebuild")
         bk_biz_ids = self._load_non_zero_biz_ids(options.get("bk_biz_ids"), action_name="rebuild")
         metric_kafka_cluster_name = options["metric_kafka_cluster_name"]
         log_kafka_cluster_name = options["log_kafka_cluster_name"]
+        event_kafka_cluster_name = options["event_kafka_cluster_name"]
         log_es_cluster_name = options["log_es_cluster_name"]
         event_es_cluster_name = options["event_es_cluster_name"]
         apm_kafka_cluster_name = self._load_optional_cluster_name(options.get("apm_kafka_cluster_name"))
@@ -456,6 +613,7 @@ class Command(BaseCommand):
                 f"bk_tenant_id={bk_tenant_id}, bk_biz_ids={bk_biz_ids}, "
                 f"metric_kafka_cluster_name={metric_kafka_cluster_name}, "
                 f"log_kafka_cluster_name={log_kafka_cluster_name}, "
+                f"event_kafka_cluster_name={event_kafka_cluster_name}, "
                 f"log_es_cluster_name={log_es_cluster_name}, "
                 f"event_es_cluster_name={event_es_cluster_name}, "
                 f"apm_kafka_cluster_name={apm_kafka_cluster_name}, "
@@ -511,7 +669,7 @@ class Command(BaseCommand):
                     bk_biz_id=bk_biz_id,
                     kafka_cluster_names={
                         "metric": metric_kafka_cluster_name,
-                        "event": log_kafka_cluster_name,
+                        "event": event_kafka_cluster_name,
                     },
                     es_cluster_names={"event": event_es_cluster_name},
                 )
@@ -521,7 +679,7 @@ class Command(BaseCommand):
                 bk_tenant_id=bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 metric_kafka_cluster_name=metric_kafka_cluster_name,
-                event_kafka_cluster_name=log_kafka_cluster_name,
+                event_kafka_cluster_name=event_kafka_cluster_name,
                 es_cluster_name=event_es_cluster_name,
             )
             self.stdout.write(self.style.SUCCESS(f"rebuild k8s data completed: bk_biz_id={bk_biz_id}"))
@@ -530,7 +688,7 @@ class Command(BaseCommand):
                 bk_tenant_id=bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 metric_kafka_cluster_name=metric_kafka_cluster_name,
-                event_kafka_cluster_name=log_kafka_cluster_name,
+                event_kafka_cluster_name=event_kafka_cluster_name,
                 es_cluster_name=event_es_cluster_name,
                 apm_kafka_cluster_name=apm_kafka_cluster_name,
             )
@@ -772,6 +930,44 @@ class Command(BaseCommand):
                 )
             )
 
+    def _handle_migrate_gather_up_strategies(self, options) -> None:
+        result = migrate_gather_up_strategy_config(
+            bk_biz_id=options.get("bk_biz_ids"),
+            dry_run=options.get("dry_run", False),
+        )
+        self.stdout.write(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        if result["stale_count"]:
+            self.stdout.write(
+                self.style.WARNING(
+                    f"migrate gather_up strategies completed with stale records: {result['stale_count']}"
+                )
+            )
+        else:
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"migrate gather_up strategies completed: changed={result['changed_count']}, "
+                    f"applied={result['applied_count']}"
+                )
+            )
+
+    def _handle_migrate_builtin_strategies(self, options) -> None:
+        result = migrate_builtin_strategy_config(
+            bk_biz_id=options.get("bk_biz_ids"),
+            dry_run=options.get("dry_run", False),
+        )
+        self.stdout.write(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        if result["stale_count"]:
+            self.stdout.write(
+                self.style.WARNING(f"migrate builtin strategies completed with stale records: {result['stale_count']}")
+            )
+        else:
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"migrate builtin strategies completed: changed={result['changed_count']}, "
+                    f"applied={result['applied_count']}"
+                )
+            )
+
     def _write_report_result(self, result: dict[str, Any], *, success_message: str, warning_message: str) -> None:
         self.stdout.write(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
         self._write_skipped_hosts(result)
@@ -911,12 +1107,26 @@ class Command(BaseCommand):
             raise CommandError("export 动作必须提供 --target-tenant-id")
         return target_tenant_id
 
+    def _load_optional_tenant_id(self, raw_tenant_id):
+        """规范化可选租户 ID。"""
+        tenant_id = str(raw_tenant_id or "").strip()
+        return tenant_id or None
+
     def _load_bk_tenant_id(self, raw_bk_tenant_id: str | None, action_name: str) -> str:
         """校验需要租户 ID 的动作参数。"""
         bk_tenant_id = str(raw_bk_tenant_id or "").strip()
         if not bk_tenant_id:
             raise CommandError(f"{action_name} 动作必须提供 --bk-tenant-id")
         return bk_tenant_id
+
+    def _load_bk_biz_id(self, raw_bk_biz_id: int | None, action_name: str) -> int:
+        """校验局部迁移使用的单业务 ID。"""
+        if raw_bk_biz_id is None:
+            raise CommandError(f"{action_name} 动作必须提供 --bk-biz-id")
+        bk_biz_id = int(raw_bk_biz_id)
+        if bk_biz_id == 0:
+            raise CommandError(f"{action_name} 动作不支持业务 ID: 0")
+        return bk_biz_id
 
     def _load_positive_biz_ids(self, bk_biz_ids: list[int] | None, action_name: str) -> list[int]:
         """校验仅支持正整数业务 ID 的动作入参。"""
@@ -1029,6 +1239,61 @@ class Command(BaseCommand):
     def _build_export_biz_tenant_id_map(self, target_tenant_id: str) -> dict[int | str, str]:
         """构造导出流程默认使用的租户替换映射。"""
         return {"*": target_tenant_id}
+
+    def _load_partial_scope_from_options(self, options) -> dict[str, Any]:
+        raw_directory = options.get("directory")
+        if not raw_directory:
+            return {}
+        directory = Path(raw_directory)
+        manifest_path = directory / "manifest.json"
+        if not manifest_path.exists():
+            return {}
+        try:
+            return load_partial_scope_from_directory(directory)
+        except ValueError as error:
+            raise CommandError(str(error)) from error
+
+    def _load_partial_selectors(
+        self,
+        options,
+        action_name: str,
+        partial_scope: dict[str, Any] | None = None,
+    ) -> dict[str, list[Any]]:
+        scope_selectors = (partial_scope or {}).get("selectors") or {}
+        selectors = {
+            "bcs_cluster_ids": options.get("bcs_cluster_ids") or scope_selectors.get("bcs_cluster_ids") or [],
+            "custom_report_data_ids": (
+                options.get("custom_report_data_ids") or scope_selectors.get("custom_report_data_ids") or []
+            ),
+            "app_names": options.get("app_names") or scope_selectors.get("app_names") or [],
+        }
+        if not any(selectors.values()):
+            raise CommandError(f"{action_name} 动作必须提供 --bcs-cluster-ids、--custom-report-data-ids 或 --app-names")
+        return selectors
+
+    def _rewrite_partial_manifest_tenant_id(self, directory: Path, target_tenant_id: str) -> None:
+        manifest_path = directory / "manifest.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        partial_scope = manifest.get("partial")
+        if isinstance(partial_scope, dict):
+            partial_scope["bk_tenant_id"] = target_tenant_id
+        manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
+
+    def _write_partial_data_id_infos(self, options, result: dict[str, Any]) -> None:
+        """将局部重建后的新环境 Data ID 信息写回迁移目录。"""
+        raw_directory = options.get("directory")
+        if not raw_directory or "data_id_infos" not in result:
+            return
+
+        directory = Path(raw_directory)
+        if not directory.exists():
+            raise CommandError(f"partial-rebuild 写入 {PARTIAL_DATA_ID_INFOS_FILE} 失败，目录不存在: {directory}")
+
+        target_path = directory / PARTIAL_DATA_ID_INFOS_FILE
+        target_path.write_text(
+            json.dumps(result["data_id_infos"], ensure_ascii=False, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
 
     def _load_cluster_id_map(self, raw_mapping) -> dict[int | str, int | str]:
         if not raw_mapping:

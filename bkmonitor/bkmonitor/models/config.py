@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -46,12 +44,14 @@ class GlobalConfig(models.Model):
         db_table = "global_setting"
 
     @classmethod
-    def get(cls, key, defaults=None):
+    def get(cls, key, defaults=None, raise_exception=False):
         try:
             conf = cls.objects.filter(key=key).last()
             if conf:
                 return conf.value
         except Exception:
+            if raise_exception:
+                raise
             pass
 
         return defaults
@@ -72,7 +72,7 @@ class GlobalConfig(models.Model):
         """
         获取对应字段的 Serializer
         """
-        cls_name = "{}Field".format(self.data_type)
+        cls_name = f"{self.data_type}Field"
         serializer_cls = getattr(serializers, cls_name)
         options = self.options or {}
         return serializer_cls(**options)

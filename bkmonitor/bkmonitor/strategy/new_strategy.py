@@ -3027,10 +3027,11 @@ class Strategy(AbstractConfig):
         """
         静态目标补全静态维度
         """
-        if is_ipv6_biz(self.bk_biz_id):
+        is_ipv6 = is_ipv6_biz(self.bk_biz_id)
+        if is_ipv6:
             host_dimensions = {"bk_host_id"}
         else:
-            host_dimensions = {"bk_target_ip", "bk_target_cloud_id"}
+            host_dimensions = {"bk_target_ip"}
 
         for item in self.items:
             if not item.target or not item.target[0]:
@@ -3046,7 +3047,15 @@ class Strategy(AbstractConfig):
                     or query_config.data_type_label != DataTypeLabel.TIME_SERIES
                 ):
                     continue
-                query_config.agg_dimension = list(set(query_config.agg_dimension) | host_dimensions)
+                agg_dimension = set(query_config.agg_dimension)
+                target_dimensions = set(host_dimensions)
+                if not is_ipv6:
+                    if "bk_cloud_id" in agg_dimension and "bk_target_cloud_id" not in agg_dimension:
+                        host_cloud_dimension = "bk_cloud_id"
+                    else:
+                        host_cloud_dimension = "bk_target_cloud_id"
+                    target_dimensions.add(host_cloud_dimension)
+                query_config.agg_dimension = list(agg_dimension | target_dimensions)
 
     def delete(self):
         if id == 0:

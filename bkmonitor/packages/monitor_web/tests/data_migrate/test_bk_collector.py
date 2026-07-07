@@ -75,7 +75,7 @@ def test_install_biz_bk_collector_dry_run_does_not_call_plugin_operate(monkeypat
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101, 102]),
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False: [101, 102]),
     )
     monkeypatch.setattr(
         bk_collector,
@@ -125,7 +125,7 @@ def test_install_biz_bk_collector_temporarily_switches_and_restores_nodeman_api(
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id: []),
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False: []),
     )
 
     bk_collector.install_biz_bk_collector(bk_tenant_id="system", bk_biz_ids=[2], operator="admin", dry_run=True)
@@ -136,12 +136,24 @@ def test_install_biz_bk_collector_temporarily_switches_and_restores_nodeman_api(
 
 def test_install_biz_bk_collector_reinstalls_all_proxy_hosts(monkeypatch):
     calls = []
+    target_host_calls = []
 
     monkeypatch.setattr(bk_collector, "_find_latest_plugin_version", lambda **kwargs: "1.2.3")
+
+    def fake_get_target_host_ids_by_biz_id(cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False):
+        target_host_calls.append(
+            {
+                "bk_tenant_id": bk_tenant_id,
+                "bk_biz_id": bk_biz_id,
+                "only_current_bk_biz_id": only_current_bk_biz_id,
+            }
+        )
+        return [101, 102, 103]
+
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101, 102, 103]),
+        classmethod(fake_get_target_host_ids_by_biz_id),
     )
     monkeypatch.setattr(
         bk_collector.api.node_man,
@@ -166,6 +178,13 @@ def test_install_biz_bk_collector_reinstalls_all_proxy_hosts(monkeypatch):
     assert calls[0]["bk_host_id"] == [101, 102, 103]
     assert calls[0]["plugin_params"] == {"name": "bk-collector", "version": "1.2.3"}
     assert calls[0]["job_type"] == "MAIN_INSTALL_PLUGIN"
+    assert target_host_calls == [
+        {
+            "bk_tenant_id": "system",
+            "bk_biz_id": 2,
+            "only_current_bk_biz_id": True,
+        }
+    ]
     install_detail = result["details"][bk_collector.INSTALL][0]
     assert install_detail["skipped_host_ids"] == []
     assert install_detail["operate_result"] == {"job_id": 123}
@@ -179,7 +198,7 @@ def test_install_biz_bk_collector_reports_failed_hosts_in_failure_summary(monkey
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101]),
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False: [101]),
     )
     monkeypatch.setattr(
         bk_collector.api.node_man,
@@ -216,7 +235,7 @@ def test_install_biz_bk_collector_skips_hosts_without_agent(monkeypatch):
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101, 102, 103]),
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False: [101, 102, 103]),
     )
     monkeypatch.setattr(
         bk_collector.api.node_man,
@@ -263,7 +282,7 @@ def test_install_biz_bk_collector_skips_all_when_no_agent(monkeypatch):
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101]),
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False: [101]),
     )
     monkeypatch.setattr(
         bk_collector.api.node_man,
@@ -294,7 +313,7 @@ def test_stop_biz_bk_collector_skips_hosts_without_agent(monkeypatch):
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101, 102]),
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False: [101, 102]),
     )
     monkeypatch.setattr(
         bk_collector.api.node_man,
@@ -342,7 +361,7 @@ def test_stop_biz_bk_collector_can_disable_agent_skip(monkeypatch):
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101, 102]),
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False: [101, 102]),
     )
     monkeypatch.setattr(
         bk_collector.api.node_man,
@@ -539,7 +558,7 @@ def test_stop_biz_bk_collector_dry_run_only_stops_installed_hosts(monkeypatch):
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101, 102, 103]),
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False: [101, 102, 103]),
     )
     monkeypatch.setattr(
         bk_collector.api.node_man,
@@ -587,7 +606,7 @@ def test_stop_biz_bk_collector_temporarily_switches_and_restores_nodeman_api(set
     settings.BK_COMPONENT_API_URL = "https://component.example.com"
     settings.BKNODEMAN_API_BASE_URL = "https://old.example.com/api/c/compapi/v2/nodeman/"
 
-    def fake_get_target_host_ids_by_biz_id(cls, bk_tenant_id, bk_biz_id):
+    def fake_get_target_host_ids_by_biz_id(cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False):
         seen_base_urls.append(settings.BKNODEMAN_API_BASE_URL)
         return []
 
@@ -609,7 +628,7 @@ def test_stop_biz_bk_collector_calls_main_stop_plugin(monkeypatch):
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101]),
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False: [101]),
     )
     monkeypatch.setattr(
         bk_collector.api.node_man,
@@ -661,7 +680,7 @@ def test_install_biz_bk_collector_polls_job_until_success(monkeypatch):
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101]),
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False: [101]),
     )
     monkeypatch.setattr(
         bk_collector.api.node_man,
@@ -693,7 +712,7 @@ def test_stop_biz_bk_collector_reports_running_job_as_timeout(monkeypatch):
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id: [101]),
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False: [101]),
     )
     monkeypatch.setattr(
         bk_collector.api.node_man,
@@ -845,6 +864,174 @@ def test_check_biz_bk_collector_proxy_config_delivery_reports_render_failure(mon
     assert (
         result["details"][bk_collector.CUSTOM_REPORT][0]["instances"][0]["message"] == "render_and_push_config failed"
     )
+
+
+def _proxy_config_delivery_task_for_host(bk_host_id, render_status="SUCCESS", instance_status="FAILED"):
+    task = _proxy_config_delivery_task(render_status=render_status, instance_status=instance_status)
+    task["instance_id"] = f"host|instance|host|{bk_host_id}"
+    task["instance_info"]["host"]["bk_host_id"] = bk_host_id
+    return task
+
+
+def test_check_biz_bk_collector_proxy_config_delivery_ignores_other_biz_proxy_failure(monkeypatch):
+    """借用的其他业务 Proxy 下发失败时，不应拖垮本业务的下发检查结果。"""
+    monkeypatch.setattr(
+        bk_collector,
+        "_list_proxy_config_delivery_subscriptions",
+        lambda **kwargs: [
+            {
+                "config_type": bk_collector.CUSTOM_REPORT,
+                "bk_tenant_id": "system",
+                "bk_biz_id": 2,
+                "subscription_id": 1001,
+                "bk_data_id": 2001,
+            }
+        ],
+    )
+    # 101 属于本业务且成功；999 为借用的其他业务 Proxy 且失败
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "batch_task_result",
+        lambda **kwargs: [
+            _proxy_config_delivery_task_for_host(101, render_status="SUCCESS", instance_status="SUCCESS"),
+            _proxy_config_delivery_task_for_host(999, render_status="FAILED", instance_status="FAILED"),
+        ],
+    )
+    monkeypatch.setattr(bk_collector, "_load_biz_owned_proxy_host_ids", lambda **kwargs: {101})
+
+    result = bk_collector.check_biz_bk_collector_proxy_config_delivery(
+        bk_tenant_id="system",
+        bk_biz_ids=[2],
+        config_types=[bk_collector.CUSTOM_REPORT],
+    )
+
+    assert result["result"] is True
+    total = result["summary"]["total"]
+    assert total["succeeded_count"] == 1
+    assert total["failed_count"] == 0
+    assert total["ignored_count"] == 1
+    detail = result["details"][bk_collector.CUSTOM_REPORT][0]
+    assert detail["proxy_count"] == 1
+    assert detail["ignored_count"] == 1
+    ignored_instance = next(instance for instance in detail["instances"] if instance["bk_host_id"] == 999)
+    assert ignored_instance["ignored"] is True
+    assert result["failure_summary"]["subscription_count"] == 0
+
+
+def test_check_biz_bk_collector_proxy_config_delivery_ignores_all_when_owned_hosts_empty(monkeypatch):
+    """本业务没有应统计 Proxy 时，订阅中的借用 Proxy 应全部忽略。"""
+    monkeypatch.setattr(
+        bk_collector,
+        "_list_proxy_config_delivery_subscriptions",
+        lambda **kwargs: [
+            {
+                "config_type": bk_collector.CUSTOM_REPORT,
+                "bk_tenant_id": "system",
+                "bk_biz_id": 2,
+                "subscription_id": 1001,
+                "bk_data_id": 2001,
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "batch_task_result",
+        lambda **kwargs: [_proxy_config_delivery_task_for_host(999, render_status="FAILED", instance_status="FAILED")],
+    )
+    monkeypatch.setattr(bk_collector, "_load_biz_owned_proxy_host_ids", lambda **kwargs: set())
+
+    result = bk_collector.check_biz_bk_collector_proxy_config_delivery(
+        bk_tenant_id="system",
+        bk_biz_ids=[2],
+        config_types=[bk_collector.CUSTOM_REPORT],
+    )
+
+    assert result["result"] is True
+    total = result["summary"]["total"]
+    assert total["proxy_count"] == 0
+    assert total["failed_count"] == 0
+    assert total["ignored_count"] == 1
+    detail = result["details"][bk_collector.CUSTOM_REPORT][0]
+    assert detail["message"] == "no proxy host belongs to this business, skipped"
+    assert detail["instances"][0]["ignored"] is True
+    assert result["failure_summary"]["subscription_count"] == 0
+
+
+def test_check_biz_bk_collector_proxy_config_delivery_counts_all_when_owned_hosts_degraded(monkeypatch):
+    """owner 查询失败返回 None 时降级为不过滤，避免把未知范围误判为成功。"""
+    monkeypatch.setattr(
+        bk_collector,
+        "_list_proxy_config_delivery_subscriptions",
+        lambda **kwargs: [
+            {
+                "config_type": bk_collector.CUSTOM_REPORT,
+                "bk_tenant_id": "system",
+                "bk_biz_id": 2,
+                "subscription_id": 1001,
+                "bk_data_id": 2001,
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "batch_task_result",
+        lambda **kwargs: [_proxy_config_delivery_task_for_host(999, render_status="FAILED", instance_status="FAILED")],
+    )
+    monkeypatch.setattr(bk_collector, "_load_biz_owned_proxy_host_ids", lambda **kwargs: None)
+
+    result = bk_collector.check_biz_bk_collector_proxy_config_delivery(
+        bk_tenant_id="system",
+        bk_biz_ids=[2],
+        config_types=[bk_collector.CUSTOM_REPORT],
+    )
+
+    assert result["result"] is False
+    total = result["summary"]["total"]
+    assert total["proxy_count"] == 1
+    assert total["failed_count"] == 1
+    assert total["ignored_count"] == 0
+    assert "ignored" not in result["details"][bk_collector.CUSTOM_REPORT][0]["instances"][0]
+
+
+def test_check_biz_bk_collector_proxy_config_delivery_disable_only_current_counts_all(monkeypatch):
+    """only_current_bk_biz_id=False 时保持原有全量检查，借用 Proxy 失败仍计入。"""
+    monkeypatch.setattr(
+        bk_collector,
+        "_list_proxy_config_delivery_subscriptions",
+        lambda **kwargs: [
+            {
+                "config_type": bk_collector.CUSTOM_REPORT,
+                "bk_tenant_id": "system",
+                "bk_biz_id": 2,
+                "subscription_id": 1001,
+                "bk_data_id": 2001,
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        bk_collector.api.node_man,
+        "batch_task_result",
+        lambda **kwargs: [
+            _proxy_config_delivery_task_for_host(101, render_status="SUCCESS", instance_status="SUCCESS"),
+            _proxy_config_delivery_task_for_host(999, render_status="FAILED", instance_status="FAILED"),
+        ],
+    )
+
+    def _should_not_be_called(**kwargs):
+        raise AssertionError("owned host loading should be skipped when only_current_bk_biz_id is False")
+
+    monkeypatch.setattr(bk_collector, "_load_biz_owned_proxy_host_ids", _should_not_be_called)
+
+    result = bk_collector.check_biz_bk_collector_proxy_config_delivery(
+        bk_tenant_id="system",
+        bk_biz_ids=[2],
+        config_types=[bk_collector.CUSTOM_REPORT],
+        only_current_bk_biz_id=False,
+    )
+
+    assert result["result"] is False
+    assert result["summary"]["total"]["failed_count"] == 1
+    assert result["summary"]["total"]["ignored_count"] == 0
 
 
 def test_check_biz_bk_collector_proxy_config_delivery_waits_until_render_success(monkeypatch):

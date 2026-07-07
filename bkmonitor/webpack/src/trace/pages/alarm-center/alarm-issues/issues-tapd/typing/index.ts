@@ -27,46 +27,11 @@
 import type { TapdTypeEnum, TAPDWorkspaceBoundEnum } from '../../constant';
 import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/constants';
 
+export * from './api';
+
 export interface CreateTapdDefaultSetting {
   tapd_type?: '' | TapdType;
   workspace_id?: string;
-}
-
-/**
- * 创建 TAPD 单据响应 data
- * POST /fta/issue/issue/create_tapd/
- */
-export interface CreateTapdIssueData {
-  activities: IssueActivityItem[];
-  bk_biz_id: number;
-  description: string;
-  issue_id: string;
-  iteration_id: string;
-  name: string;
-  owner: string;
-  priority_label: string;
-  sync_status: boolean;
-  tapd_id: string;
-  tapd_type: TapdType;
-  te?: string;
-  workspace_id: number;
-}
-
-/**
- * 创建 TAPD 单据请求参数
- */
-export interface CreateTapdIssueRequest {
-  bk_biz_id: number;
-  description: string;
-  issue_id: string;
-  iteration_id: string;
-  name: string;
-  owner: string;
-  priority_label: 'High' | 'Low' | 'Middle' | 'Nice To Have';
-  sync_status: boolean;
-  tapd_type: TapdType;
-  te?: string;
-  workspace_id: number | string;
 }
 
 /** Issue 活动日志项 */
@@ -101,6 +66,7 @@ export type TAPDWorkspaceBoundType = GetEnumTypeTool<typeof TAPDWorkspaceBoundEn
 /** TAPD 项目信息 */
 export interface TapdWorkspaceItem {
   is_bound: TAPDWorkspaceBoundType;
+  loading?: boolean;
   workspace_id: string;
   workspace_name: string;
 }

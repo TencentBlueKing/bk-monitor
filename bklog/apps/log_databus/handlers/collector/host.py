@@ -203,6 +203,8 @@ class HostCollectorHandler(CollectorHandler):
         description = params.get("description") or collector_config_name
         bk_biz_id = params.get("bk_biz_id") or self.data.bk_biz_id
         is_display = params.get("is_display", True)
+        parent_index_set_ids = params.get("parent_index_set_ids")
+        parent_index_set_names = params.get("parent_index_set_names")
         params["params"]["encoding"] = data_encoding
         params["params"]["run_task"] = params.get("run_task", True)
 
@@ -292,8 +294,16 @@ class HostCollectorHandler(CollectorHandler):
                     is_create = True
                     # 创建索引集，并添加到归属索引集中
                     index_set = self.data.create_index_set()
-                    if params.get("parent_index_set_ids"):
-                        IndexSetHandler(index_set.index_set_id).add_to_parent_index_sets(params["parent_index_set_ids"])
+
+                    parent_index_set_ids = CollectorHandler.obtain_parent_index_set_ids(
+                        parent_index_set_ids,
+                        parent_index_set_names,
+                        bk_biz_id=bk_biz_id,
+                        is_update=False,
+                    )
+
+                    if parent_index_set_ids:
+                        IndexSetHandler(index_set.index_set_id).add_to_parent_index_sets(parent_index_set_ids)
                 else:
                     _collector_config_name = copy.deepcopy(self.data.collector_config_name)
                     if self.data.bk_data_id and self.data.bk_data_name != bk_data_name:
@@ -317,9 +327,14 @@ class HostCollectorHandler(CollectorHandler):
                     # 更新归属索引集
                     index_set = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).first()
                     if index_set:
-                        IndexSetHandler(index_set.index_set_id).update_parent_index_sets(
-                            params.get("parent_index_set_ids", [])
+                        parent_index_set_ids = CollectorHandler.obtain_parent_index_set_ids(
+                            parent_index_set_ids,
+                            parent_index_set_names,
+                            bk_biz_id=bk_biz_id,
+                            is_update=True,
                         )
+
+                        IndexSetHandler(index_set.index_set_id).update_parent_index_sets(parent_index_set_ids)
 
                     # collector_config_name更改后更新索引集名称
                     if _collector_config_name != self.data.collector_config_name and self.data.index_set_id:
@@ -1199,6 +1214,20 @@ class HostCollectorHandler(CollectorHandler):
 
         params["table_id"] = params["collector_config_name_en"]
         index_set_id = self.create_or_update_clean_config(False, params).get("index_set_id", 0)
+
+        parent_index_set_ids = params.get("parent_index_set_ids")
+        parent_index_set_names = params.get("parent_index_set_names")
+
+        parent_index_set_ids = CollectorHandler.obtain_parent_index_set_ids(
+            parent_index_set_ids,
+            parent_index_set_names,
+            bk_biz_id=params["bk_biz_id"],
+            is_update=False,
+        )
+
+        if parent_index_set_ids:
+            IndexSetHandler(index_set_id).add_to_parent_index_sets(parent_index_set_ids)
+
         self._send_create_notify(self.data)
         return {
             "collector_config_id": self.data.collector_config_id,
@@ -1241,6 +1270,22 @@ class HostCollectorHandler(CollectorHandler):
                 for key, value in model_fields.items():
                     setattr(self.data, key, value)
                 self.data.save()
+
+                # 更新归属索引集
+                if self.data.index_set_id:
+                    index_set = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).first()
+                    if index_set:
+                        parent_index_set_ids = params.get("parent_index_set_ids")
+                        parent_index_set_names = params.get("parent_index_set_names")
+
+                        parent_index_set_ids = CollectorHandler.obtain_parent_index_set_ids(
+                            parent_index_set_ids,
+                            parent_index_set_names,
+                            bk_biz_id=self.data.bk_biz_id,
+                            is_update=True,
+                        )
+
+                        IndexSetHandler(index_set.index_set_id).update_parent_index_sets(parent_index_set_ids)
 
                 # collector_config_name更改后更新索引集名称
                 if _collector_config_name != self.data.collector_config_name and self.data.index_set_id:

@@ -12,7 +12,10 @@ from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 from monitor_web.data_migrate.constants import DATA_MIGRATE_CLOSED_RECORDS_APPLICATION_CONFIG_KEY, DEFAULT_ENCODING
 from monitor_web.data_migrate.handler.runner import get_close_records_by_biz_from_directory
 from monitor_web.data_migrate.plugin_strategy_result_table import repair_plugin_strategy_result_table_id
-from monitor_web.data_migrate.system_event_strategy import migrate_system_event_strategy_config
+from monitor_web.data_migrate.strategy_migration import (
+    migrate_gather_up_strategy_config,
+    migrate_system_event_strategy_config,
+)
 from monitor_web.data_migrate.utils import import_model_from_file, read_json_file
 
 
@@ -114,10 +117,24 @@ def _migrate_imported_builtin_system_event_strategies(bk_biz_ids: Sequence[int])
     migrate_system_event_strategy_config(bk_biz_id=imported_bk_biz_ids, dry_run=False)
 
 
+def _migrate_imported_builtin_gather_up_strategies(bk_biz_ids: Sequence[int]) -> None:
+    """导入后将内置 gather_up 采集状态策略从全局结果表改为多租户 data_label 引用。"""
+    imported_bk_biz_ids = [bk_biz_id for bk_biz_id in _normalize_bk_biz_ids(bk_biz_ids) if bk_biz_id > 0]
+    if not imported_bk_biz_ids:
+        return
+
+    migrate_gather_up_strategy_config(bk_biz_id=imported_bk_biz_ids, dry_run=False)
+
+
 def import_biz_data_from_directory(
     directory_path: str | Path,
     bk_biz_ids: Sequence[int] | None = None,
     atomic: bool = True,
+    cleanup_existing: bool = True,
+    sync_close_records: bool = True,
+    migrate_builtin_system_event_strategy: bool = True,
+    migrate_builtin_gather_up_strategy: bool = True,
+    repair_plugin_strategy: bool = True,
 ) -> list[Model]:
     """
     按目录结构导入迁移数据。
@@ -139,7 +156,8 @@ def import_biz_data_from_directory(
     if missing_bk_biz_ids:
         raise ValueError(f"导入目录中不存在这些业务 ID: {missing_bk_biz_ids}")
 
-    _cleanup_biz_related_configs(target_bk_biz_ids)
+    if cleanup_existing:
+        _cleanup_biz_related_configs(target_bk_biz_ids)
 
     imported_objects: list[Model] = []
     if 0 in target_bk_biz_ids:
@@ -174,10 +192,15 @@ def import_biz_data_from_directory(
                 )
             )
 
-    _sync_close_records_to_application_config(
-        directory_path=target_directory,
-        bk_biz_ids=target_bk_biz_ids,
-    )
-    _migrate_imported_builtin_system_event_strategies(target_bk_biz_ids)
-    repair_plugin_strategy_result_table_id(bk_biz_id=target_bk_biz_ids, dry_run=False)
+    if sync_close_records:
+        _sync_close_records_to_application_config(
+            directory_path=target_directory,
+            bk_biz_ids=target_bk_biz_ids,
+        )
+    if migrate_builtin_system_event_strategy:
+        _migrate_imported_builtin_system_event_strategies(target_bk_biz_ids)
+    if migrate_builtin_gather_up_strategy:
+        _migrate_imported_builtin_gather_up_strategies(target_bk_biz_ids)
+    if repair_plugin_strategy:
+        repair_plugin_strategy_result_table_id(bk_biz_id=target_bk_biz_ids, dry_run=False)
     return imported_objects

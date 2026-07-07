@@ -1,0 +1,62 @@
+.data-sampling-table-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  .sampling-table {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+
+    /* ===================== 多行文本展开收起（文本与按钮布局独立） ===================== */
+    .text-log-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+
+      .text-log-main {
+        display: -webkit-box;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        -webkit-line-clamp: 3;
+        font-size: 12px;
+        line-height: 20px;
+        word-break: break-all;
+        -webkit-box-orient: vertical;
+
+        &:hover {
+          color: #3a84ff;
+        }
+
+        .log-text {
+          cursor: pointer;
+        }
+      }
+
+      .collapse-btn {
+        flex-shrink: 0;
+        line-height: 20px;
+        color: #3a84ff;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+
+      &.is-expanded {
+        .text-log-main {
+          display: block;
+          overflow: visible;
+          -webkit-line-clamp: unset;
+        }
+      }
+    }
+
+    /* ===================== 操作列 ===================== */
+    .operation-cell {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+  }
+}

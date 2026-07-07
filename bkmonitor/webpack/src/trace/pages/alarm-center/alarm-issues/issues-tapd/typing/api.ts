@@ -24,102 +24,74 @@
  * IN THE SOFTWARE.
  */
 
-import type { TapdType, TAPDWorkspaceBoundType } from './constants';
-
-export interface CreateTapdDefaultSetting {
-  tapd_type?: '' | TapdType;
-  workspace_id?: string;
-}
+import type { IssueActivityItem, TapdType } from '../../typing';
+import type { TapdWorkspaceItem } from './index';
 
 /**
  * 创建 TAPD 单据响应 data
  * POST /fta/issue/issue/create_tapd/
  */
 export interface CreateTapdIssueData {
-  /** 该 Issue 全部活动日志，按发生时间降序排列（最新在前） */
   activities: IssueActivityItem[];
-  /** 业务 ID */
   bk_biz_id: number;
-  /** TAPD 单据详细描述 */
   description: string;
-  /** Issue ID */
   issue_id: string;
-  /** 迭代 ID */
   iteration_id: string;
-  /** TAPD 单据标题 */
   name: string;
-  /** TAPD 单据处理人 */
   owner: string;
-  /** TAPD 单据优先级 */
   priority_label: string;
-  /** 是否同步单据状态 */
   sync_status: boolean;
-  /** 创建的 TAPD 单据 ID */
   tapd_id: string;
-  /** TAPD 单据类型 */
   tapd_type: TapdType;
-  /** 测试人员，bug 单据才返回这个字段 */
   te?: string;
-  /** TAPD 项目 ID */
   workspace_id: number;
 }
 
 /**
  * 创建 TAPD 单据请求参数
- * POST /fta/issue/issue/create_tapd/
  */
 export interface CreateTapdIssueRequest {
-  /** 业务 ID */
   bk_biz_id: number;
-  /** 详细描述 */
   description: string;
-  /** 目标 Issue ID */
   issue_id: string;
-  /** 迭代 ID */
   iteration_id: string;
-  /** 单据标题 */
   name: string;
-  /** 单据处理人，支持多成员（如：aaa;bbb;） */
   owner: string;
-  /** 优先级，可选值: High（高）、Middle（中）、Low（低）、Nice To Have（无关紧要） */
   priority_label: 'High' | 'Low' | 'Middle' | 'Nice To Have';
-  /** 是否同步单据状态 */
   sync_status: boolean;
-  /** TAPD 单据类型，可选值：story（需求）、bug（缺陷） */
   tapd_type: TapdType;
-  /** 测试人员，创建 bug 时必填 */
   te?: string;
-  /** TAPD 项目 ID */
   workspace_id: number | string;
 }
 
 /**
- * Issue 活动日志项
+ * 获取用户项目数据列表请求参数
  */
-export interface IssueActivityItem {
-  /** 活动记录 ID */
-  activity_id: string;
-  /** 活动类型（create_tapd、comment、assignee_change 等） */
-  activity_type: string;
-  /** 活动归属业务 ID */
-  bk_biz_id: number;
-  /** 内容字段（create_tapd 类型存储 JSON 格式的结构化内容） */
-  content: null | string;
-  /** 变更前的值 */
-  from_value: null | string;
-  /** 操作人 */
-  operator: string;
-  /** 活动发生时间（Unix 秒级时间戳） */
-  time: number;
-  /** 变更后的值 */
-  to_value: null | string;
+export interface GetUserWorkspaceData {
+  install_url: string;
+  items: TapdWorkspaceItem[];
+  total: number;
+}
+
+/** 获取用户项目数据列表响应数据 */
+export interface GetUserWorkspaceRequest {
+  bk_biz_id: number | string;
+  error_url: string;
+  success_url: string;
+}
+
+/** 重新关联TAPD项目 */
+export type RebindWorkspaceRequest = UnbindWorkspaceRequest;
+
+/** 取消授权请求参数 */
+export interface RevokeAuthRequest {
+  bk_biz_id: number | string;
 }
 
 /**
- * TAPD 项目信息
+ * 取消关联项目请求参数
  */
-export interface TapdWorkspaceItem {
-  is_bound: TAPDWorkspaceBoundType;
-  workspace_id: string;
-  workspace_name: string;
+export interface UnbindWorkspaceRequest {
+  bk_biz_id: number | string;
+  workspace_id: number | string;
 }

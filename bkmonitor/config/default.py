@@ -365,6 +365,10 @@ ACTIVE_VIEWS = {
         "apm_container": "apm_web.container.views",
         "apm_strategy": "apm_web.strategy.views",
     },
+    "rum_web": {
+        "rum_meta": "rum_web.meta.views",
+        "rum_metric": "rum_web.metric.views",
+    },
 }
 
 # 是否使用动态配置特性
@@ -531,6 +535,10 @@ APM_BEST_PRACTICE_URL = ""
 APM_METRIC_DESCRIPTION_URL = ""
 APM_FUNC_INTRODUCTION_URL = ""
 
+# RUM config
+RUM_ACCESS_URL = ""
+RUM_FUNC_INTRODUCTION_URL = ""
+
 APM_APDEX_T_VALUE = 800
 APM_SAMPLING_PERCENTAGE = 100
 APM_APP_QPS = 500
@@ -638,6 +646,18 @@ BK_DATA_AES_IV = b"bkbkbkbkbkbkbkbk"
 # RUM config
 RUM_ENABLED = False
 RUM_ACCESS_URL = ""
+RUM_BEST_PRACTICE_URL = ""
+RUM_METRIC_DESCRIPTION_URL = ""
+
+RUM_KAFKA_CLUSTER_ID = None
+RUM_ELASTICSEARCH_CLUSTER_ID = None
+RUM_APP_DEFAULT_ES_STORAGE_CLUSTER = -1
+RUM_APP_DEFAULT_ES_RETENTION = 7
+RUM_APP_DEFAULT_ES_SLICE_LIMIT = 100
+RUM_APP_DEFAULT_ES_REPLICAS = 0
+RUM_APP_DEFAULT_ES_SHARDS = 3
+
+RUM_CUSTOM_EVENT_REPORT_CONFIG = {}
 
 # ==============================================================================
 # elasticsearch for fta
@@ -1787,6 +1807,9 @@ ENABLED_TARGET_CACHE_BK_BIZ_IDS = []
 # k8s灰度列表，关闭灰度: [0] 或删除该配置
 K8S_V2_BIZ_LIST = []
 
+# RUM 灰度列表，关闭灰度: [0] 或删除该配置
+RUM_BIZ_LIST = []
+
 # APM UnifyQuery 查询业务黑名单
 APM_UNIFY_QUERY_BLACK_BIZ_LIST = []
 
@@ -1899,3 +1922,9 @@ BKFARA_AIOPS_SERVICE_HOST_PREFIX = os.getenv("BKFARA_AIOPS_SERVICE_HOST_PREFIX",
 
 # 在同步bkbase集群信息时，是否进行更新
 SYNC_BKBASE_CLUSTER_INFO_UPDATE = os.getenv("SYNC_BKBASE_CLUSTER_INFO_UPDATE", "false").lower() == "true"
+
+# RUM 接入配置
+BKAPP_RUM_SDK = os.getenv("BKAPP_RUM_SDK", "otlp")  # otlp / ageis
+BKAPP_RUM_ENDPOINT = os.getenv("BKAPP_RUM_ENDPOINT", "")
+BKAPP_RUM_TOKEN = os.getenv("BKAPP_RUM_TOKEN", "")
+BKAPP_RUM_ENABLED = str(os.getenv("BKAPP_RUM_ENABLED", False)).lower() == "true"

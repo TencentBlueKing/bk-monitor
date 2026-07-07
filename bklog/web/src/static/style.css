@@ -848,6 +848,15 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-trpc:before {
 	content: "\e247";
 }
+.bklog-quanxianzhongxin:before {
+	content: "\e27c";
+}
+.bklog-tuichu:before {
+	content: "\e27d";
+}
+.bklog-yonghu:before {
+	content: "\e27e";
+}
 .bklog-wangluo-line:before {
 	content: "\e24d";
 }

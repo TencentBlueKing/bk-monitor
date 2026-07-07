@@ -1775,9 +1775,6 @@ class CreateTapdResource(Resource):
             # 创建bug单据时te字段必填
             if attrs.get("tapd_type") == "bug" and not attrs.get("te"):
                 raise serializers.ValidationError("The te field is required when tapd_type is bug")
-            if attrs.get("sync_status"):
-                raise serializers.ValidationError("sync_status is not supported until TAPD status sync is implemented")
-
             return attrs
 
     @staticmethod
@@ -2016,14 +2013,6 @@ class CreateTapdResource(Resource):
         iteration_id = validated_request_data["iteration_id"]
         te = validated_request_data.get("te", "")
 
-        if sync_status:
-            # TODO: [issue-tapd-sync] 实现 TAPD 单据状态同步功能
-            logger.warning(
-                "sync_status=True requested but not yet implemented, issue_id=%s, tapd_type=%s",
-                issue_id,
-                tapd_type,
-            )
-
         # Step 1: 调用 TAPD API 创建单据
         tapd_info = self._create_tapd(
             tapd_type=tapd_type,
@@ -2123,9 +2112,6 @@ class LinkIssueToTapdResource(Resource):
         )
 
         def validate(self, attrs):
-            if attrs.get("sync_status"):
-                raise serializers.ValidationError("sync_status is not supported until TAPD status sync is implemented")
-
             seen_tapd_ids = set()
             for item in attrs.get("tapd_items", []):
                 tapd_id = item["tapd_id"]
@@ -2692,12 +2678,16 @@ class UnbindTapdWorkspaceResource(Resource):
     """解除 TAPD 项目与当前业务的关联
 
     仅删除本地 TapdWorkspaceBinding，不在 TAPD 侧撤回应用授权。
+    解绑前会校验 Issue-TAPD 关联关系：若存在活跃 Issue（待审核/未解决）关联此项目，则阻止解绑。
     端点：POST /fta/issue/tapd/unbind_workspace
     """
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="蓝鲸业务ID", required=True)
         workspace_id = serializers.CharField(label="TAPD项目ID", required=True)
+
+    ACTIVE_RELATION_ES_CHUNK_SIZE = 500
+    ACTIVE_RELATION_PREVIEW_LIMIT = 10
 
     def perform_request(self, validated_request_data: dict) -> dict:
         bk_biz_id: int = validated_request_data["bk_biz_id"]
@@ -2714,6 +2704,11 @@ class UnbindTapdWorkspaceResource(Resource):
             raise HTTP404Error(
                 message=f"TAPD 项目 {workspace_id} 未与当前业务关联",
             )
+
+        # 校验：检查是否存在活跃的 Issue-TAPD 关联关系
+        # 仅当 Issue 处于活跃状态（待审核/未解决）时阻止解绑
+        # RESOLVED 和 ARCHIVED 视为"过时"，允许解绑
+        self._check_active_tapd_relations(bk_biz_id, workspace_id)
 
         # 写入 tombstone + 删除 binding，放在同一事务中保证一致性（避免 tombstone 已写但 binding 删除失败）
         with transaction.atomic():
@@ -2734,6 +2729,71 @@ class UnbindTapdWorkspaceResource(Resource):
         )
 
         return {"success": True}
+
+    def _check_active_tapd_relations(self, bk_biz_id: int, workspace_id: str) -> None:
+        """检查是否存在活跃的 Issue-TAPD 关联关系
+
+        若关联的 Issue 仍处于活跃状态（待审核/未解决），则阻止解绑。
+        ES 查询直接在 status 维度过滤 ACTIVE_STATUSES，仅返回活跃 Issue。
+        ES 查询失败时 fail-open，记录日志后允许解绑。
+        """
+        try:
+            workspace_id_int = int(workspace_id)
+        except (TypeError, ValueError):
+            # workspace_id 无法转换为 int，IssueTapdRelation.workspace_id 是 IntegerField，
+            # 无法匹配任何记录，直接返回
+            return
+
+        relations_qs = IssueTapdRelation.objects.filter(
+            bk_biz_id=bk_biz_id,
+            workspace_id=workspace_id_int,
+        )
+        if not relations_qs.exists():
+            return
+
+        # 分批查询关联的 Issue，ES 侧直接过滤业务和活跃状态，避免拉取全量再逐条判断。
+        issue_ids = list(relations_qs.values_list("issue_id", flat=True).distinct())
+        try:
+            active_count = 0
+            preview_ids: list[str] = []
+            for index in range(0, len(issue_ids), self.ACTIVE_RELATION_ES_CHUNK_SIZE):
+                chunk_issue_ids = issue_ids[index : index + self.ACTIVE_RELATION_ES_CHUNK_SIZE]
+                search_result = (
+                    IssueDocument.search(all_indices=True)
+                    .filter("terms", **{"_id": chunk_issue_ids})
+                    .filter("term", bk_biz_id=bk_biz_id)
+                    .filter("terms", status=IssueStatus.ACTIVE_STATUSES)
+                    .source(False)
+                    .params(
+                        size=max(0, self.ACTIVE_RELATION_PREVIEW_LIMIT - len(preview_ids)),
+                        track_total_hits=True,
+                    )
+                    .execute()
+                )
+                total = getattr(search_result.hits, "total", 0)
+                active_count += getattr(total, "value", total) or 0
+                if len(preview_ids) < self.ACTIVE_RELATION_PREVIEW_LIMIT:
+                    preview_ids.extend(
+                        str(hit.meta.id)
+                        for hit in search_result.hits
+                        if len(preview_ids) < self.ACTIVE_RELATION_PREVIEW_LIMIT
+                    )
+        except Exception as e:
+            # ES 查询失败时 fail-open，记录日志后允许解绑
+            logger.warning(
+                "UnbindTapdWorkspace: ES query failed, fail-open. biz=%s ws=%s error=%s",
+                bk_biz_id,
+                workspace_id,
+                e,
+            )
+            return
+
+        if active_count:
+            preview = ", ".join(preview_ids)
+            raise CustomException(
+                f"存在 {active_count} 个活跃的 Issue 关联此 TAPD 项目，"
+                f"请先解决或归档这些 Issue 后再解绑。活跃 Issue ID: {preview}"
+            )
 
 
 class RebindTapdWorkspaceResource(Resource):
@@ -2849,13 +2909,13 @@ class RevokeTapdUserAuthResource(Resource):
 def tapd_app_install_callback(request):
     """TAPD `open_app_install` 回调 — 应用态授权。
 
-    Query params: code, resource, signed_state
+    Query params: code, resource, state（即 signed_state，TAPD 原样透传 authorize 时的 state）
     1. 解析 signed_state → 验签、验过期
     2. 提取 workspace_id → 调 app 级 Basic Auth 获取 name
     3. upsert TapdWorkspaceBinding（create_user = initiator）
     4. 302 重定向前端 success / 失败重定向 error_url
     """
-    signed_state = request.query_params.get("signed_state", "")
+    signed_state = request.query_params.get("state", "")
     if not signed_state:
         # signed_state 缺失时无法获取前端地址，回退到根路径
         return HttpResponseRedirect(request.build_absolute_uri("/"))

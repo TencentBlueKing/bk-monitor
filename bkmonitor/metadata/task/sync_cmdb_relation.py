@@ -412,6 +412,7 @@ def _apply_relation_graph_link_best_effort(
     effective_write_mode: str,
     graph_binding: GraphRelationBindingConfig | None = None,
     persist_graph_write_mode: bool = True,
+    surrealdb_auto_restore: bool = False,
 ) -> bool:
     """
     Relation data must keep the historical VM/event path available.
@@ -427,6 +428,7 @@ def _apply_relation_graph_link_best_effort(
             storage_cluster_name=vm_cluster_name,
             write_mode=effective_write_mode,
             persist_graph_write_mode=persist_graph_write_mode,
+            surrealdb_auto_restore=surrealdb_auto_restore,
         )
         return True
     except Exception as e:  # pylint: disable=broad-except
@@ -501,12 +503,20 @@ def enable_relation_surrealdb_dual_write(ds: DataSource, bk_tenant_id: str, bk_b
         namespace=settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
         name=data_link_name,
     ).first()
-    desired_write_mode = (
+    current_write_mode = (
         existed_graph_binding.write_mode
         if existed_graph_binding
         else GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB
     )
+    desired_write_mode = (
+        _graph_definition_sync_write_mode(existed_graph_binding) if existed_graph_binding else current_write_mode
+    )
     apply_write_mode = desired_write_mode
+    is_auto_restoring_vm_binding = (
+        bool(existed_graph_binding and existed_graph_binding.surrealdb_auto_restore)
+        and current_write_mode == GraphRelationBindingConfig.WRITE_MODE_VM
+        and desired_write_mode == GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB
+    )
     should_write_vm = desired_write_mode in (
         GraphRelationBindingConfig.WRITE_MODE_VM,
         GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
@@ -549,11 +559,22 @@ def enable_relation_surrealdb_dual_write(ds: DataSource, bk_tenant_id: str, bk_b
             )
         )
     if should_write_surrealdb and not surrealdb_cluster:
-        logger.warning(
-            "enable_relation_surrealdb_dual_write: data_id->[%s] has no surrealdb cluster, skip apply graph relation link",
-            ds.bk_data_id,
-        )
-        return
+        if is_auto_restoring_vm_binding:
+            logger.warning(
+                "enable_relation_surrealdb_dual_write: data_id->[%s] has no surrealdb cluster, "
+                "fallback to vm-only graph relation link",
+                ds.bk_data_id,
+            )
+            desired_write_mode = current_write_mode
+            apply_write_mode = GraphRelationBindingConfig.WRITE_MODE_VM
+            should_write_surrealdb = False
+        else:
+            logger.warning(
+                "enable_relation_surrealdb_dual_write: data_id->[%s] has no surrealdb cluster, "
+                "skip apply graph relation link",
+                ds.bk_data_id,
+            )
+            return
 
     vertices = []
     relations = []
@@ -573,6 +594,8 @@ def enable_relation_surrealdb_dual_write(ds: DataSource, bk_tenant_id: str, bk_b
             )
             apply_write_mode = GraphRelationBindingConfig.WRITE_MODE_VM
             should_write_surrealdb = False
+            if current_write_mode == GraphRelationBindingConfig.WRITE_MODE_VM:
+                desired_write_mode = current_write_mode
 
     if not should_write_surrealdb and existed_graph_binding:
         vertices = existed_graph_binding.vertices
@@ -608,6 +631,10 @@ def enable_relation_surrealdb_dual_write(ds: DataSource, bk_tenant_id: str, bk_b
         "table_type": existed_graph_binding.table_type if existed_graph_binding else "temporary",
         "vertices": vertices,
         "relations": relations,
+        "surrealdb_auto_restore": (
+            bool(existed_graph_binding and existed_graph_binding.surrealdb_auto_restore)
+            and desired_write_mode == GraphRelationBindingConfig.WRITE_MODE_VM
+        ),
     }
     graph_binding, created = GraphRelationBindingConfig.objects.get_or_create(
         bk_tenant_id=bk_tenant_id,
@@ -653,6 +680,7 @@ def enable_relation_surrealdb_dual_write(ds: DataSource, bk_tenant_id: str, bk_b
         effective_write_mode=apply_write_mode,
         graph_binding=graph_binding,
         persist_graph_write_mode=apply_write_mode == desired_write_mode,
+        surrealdb_auto_restore=graph_binding_defaults["surrealdb_auto_restore"],
     )
 
 

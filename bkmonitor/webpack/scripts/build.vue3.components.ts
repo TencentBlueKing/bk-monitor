@@ -31,6 +31,14 @@ import { viteStaticCopy } from 'vite-plugin-static-copy';
 
 const outputDir = resolve(__dirname, '../monitor-vue3-components');
 export default defineConfig({
+  resolve: {
+    alias: [
+      {
+        find: '@',
+        replacement: resolve(__dirname, '../src/trace'),
+      },
+    ],
+  },
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
     'process.env.APP': JSON.stringify(''),
@@ -44,8 +52,9 @@ export default defineConfig({
           dest: outputDir,
         },
         {
-          src: resolve(__dirname, '../src/trace/components/retrieval-filter/readme.md'),
+          src: resolve(__dirname, '../src/trace/components.md'),
           dest: outputDir,
+          rename: 'readme.md',
         },
       ],
     }),
@@ -65,7 +74,7 @@ export default defineConfig({
     rollupOptions: {
       external: [
         'vue',
-        'bkui-vue',
+        /^bkui-vue[/]?\w*/,
         '@blueking/tdesign-ui',
         'tdesign-vue-next',
         'vue-i18n',
@@ -73,6 +82,8 @@ export default defineConfig({
         'vue-tippy',
         '@prometheus-io/lezer-promql',
         /^monaco-editor[/]?\w*/,
+        /^echarts[/]?\w*/,
+        /^@blueking[/]?\w*/,
       ],
       output: {
         globals: {

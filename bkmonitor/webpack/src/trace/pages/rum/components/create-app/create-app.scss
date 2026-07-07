@@ -1,0 +1,36 @@
+.rum-create-app-sideslider {
+  .rum-create-app-content {
+    padding: 24px 40px;
+
+    .select-tag-title {
+      color: #4d4f56;
+    }
+
+    .select-tag-subtitle {
+      margin-left: 6px;
+      color: #8896b3;
+    }
+
+    .select-tag-tip {
+      display: inline-flex;
+      align-items: center;
+      height: 18px;
+      padding: 0 8px;
+      margin-left: 13px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #e38b02;
+      background: #fdeed8;
+      border-radius: 9px;
+
+      & > span {
+        display: inline-block;
+        scale: 0.9;
+      }
+    }
+
+    .bk-form-label {
+      font-size: 12px;
+    }
+  }
+}

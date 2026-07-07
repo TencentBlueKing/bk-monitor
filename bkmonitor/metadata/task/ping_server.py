@@ -18,14 +18,18 @@ from django.conf import settings
 from alarm_backends.management.hashring import HashRing
 from api.cmdb.define import Host
 from bkmonitor.commons.tools import is_ipv6_biz
+from bkmonitor.utils.tenant import get_tenant_default_biz_id
 from bkmonitor.utils.new_env import is_biz_id_in_black_list
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.prometheus import metrics
+from metadata import models
 from metadata.models.ping_server import PingServerSubscriptionConfig
 from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
 
 logger = logging.getLogger("metadata")
+
+PING_SERVER_DATA_NAME_TPL = "base_{bk_biz_id}_pingserver"
 
 
 def refresh_ping_server_2_node_man():
@@ -91,7 +95,7 @@ def refresh_ping_conf(plugin_name: str):
         for h in all_hosts:
             ip = h.bk_host_innerip_v6 if is_ipv6_biz(h.bk_biz_id) else h.bk_host_innerip
             # 跳过忽略监控的主机和已经处理过的主机
-            if h.ignore_monitoring or not ip or h.bk_host_id in exists_host_ids:
+            if h.ignore_monitoring or not ip or h.bk_host_id in exists_host_ids or is_biz_id_in_black_list(h.bk_biz_id):
                 continue
 
             # 将主机添加到租户ID+云区域对应的列表中
@@ -199,10 +203,107 @@ def _refresh_ping_conf_by_cloud_id(
 
     # 4. 通过节点管理订阅任务将分配好的ip下发到机器
     try:
-        PingServerSubscriptionConfig.create_subscription(
-            bk_tenant_id, bk_cloud_id, host_info, target_hosts, plugin_name
-        )
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            _create_multi_tenant_ping_subscription(
+                bk_tenant_id=bk_tenant_id,
+                bk_cloud_id=bk_cloud_id,
+                items=host_info,
+                target_hosts=target_hosts,
+                plugin_name=plugin_name,
+            )
+        else:
+            PingServerSubscriptionConfig.create_subscription(
+                bk_tenant_id, bk_cloud_id, host_info, target_hosts, plugin_name
+            )
     except Exception:  # noqa
         logger.exception(
             f"下发pingserver订阅任务失败， bk_tenant_id({bk_tenant_id}), bk_cloud_id({bk_cloud_id}), proxies_ips({proxies_host_ids}), plugin({plugin_name})"
+        )
+
+
+def _get_multi_tenant_ping_data_id(bk_tenant_id: str, target_bk_biz_id: int) -> int | None:
+    """获取多租户目标业务实际使用的 Ping Server DataID"""
+    if target_bk_biz_id <= 0:
+        logger.warning(
+            "get multi tenant ping data id skipped, invalid target_bk_biz_id(%s), bk_tenant_id(%s)",
+            target_bk_biz_id,
+            bk_tenant_id,
+        )
+        return None
+
+    data_bk_biz_id = target_bk_biz_id
+    if settings.SPACE_BUILTIN_DATA_LINK_MODE == "tenant":
+        try:
+            data_bk_biz_id = get_tenant_default_biz_id(bk_tenant_id)
+        except ValueError:
+            logger.error("get tenant default biz id failed, bk_tenant_id(%s)", bk_tenant_id)
+            return None
+
+    data_name = PING_SERVER_DATA_NAME_TPL.format(bk_biz_id=data_bk_biz_id)
+    data_source = models.DataSource.objects.filter(data_name=data_name, bk_tenant_id=bk_tenant_id).first()
+    if not data_source:
+        logger.warning(
+            "multi tenant ping data source not found, bk_tenant_id(%s), target_bk_biz_id(%s), data_bk_biz_id(%s), "
+            "data_name(%s)",
+            bk_tenant_id,
+            target_bk_biz_id,
+            data_bk_biz_id,
+            data_name,
+        )
+        return None
+    return data_source.bk_data_id
+
+
+def _create_multi_tenant_ping_subscription(
+    bk_tenant_id: str,
+    bk_cloud_id: int,
+    items: dict[int, list[dict[str, Any]]],
+    target_hosts: list[dict[str, Any]],
+    plugin_name: str,
+):
+    """多租户按目标业务拆分 Ping Server 订阅"""
+    target_host_map = {host["bk_host_id"]: host for host in target_hosts}
+    biz_items: dict[int, dict[int, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
+
+    for proxy_host_id, target_items in items.items():
+        for item in target_items:
+            target_bk_biz_id = item.get("target_biz_id")
+            if target_bk_biz_id is None:
+                logger.warning("ping target item missing target_biz_id, item(%s)", item)
+                continue
+            biz_items[target_bk_biz_id][proxy_host_id].append(item)
+
+    existing_biz_ids = set(
+        PingServerSubscriptionConfig.objects.filter(
+            bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id, plugin_name=plugin_name
+        ).values_list("bk_biz_id", flat=True)
+    )
+
+    data_id_cache: dict[int, int | None] = {}
+    for target_bk_biz_id in set(biz_items) | existing_biz_ids:
+        proxy_items = biz_items.get(target_bk_biz_id, {})
+        bk_data_id = settings.PING_SERVER_DATAID
+        if proxy_items:
+            if target_bk_biz_id not in data_id_cache:
+                data_id_cache[target_bk_biz_id] = _get_multi_tenant_ping_data_id(bk_tenant_id, target_bk_biz_id)
+            bk_data_id = data_id_cache[target_bk_biz_id]
+            if not bk_data_id:
+                if target_bk_biz_id not in existing_biz_ids:
+                    continue
+                proxy_items = {}
+
+        biz_target_hosts = [
+            target_host_map[proxy_host_id] for proxy_host_id in proxy_items.keys() if proxy_host_id in target_host_map
+        ]
+        if proxy_items and not biz_target_hosts:
+            continue
+
+        PingServerSubscriptionConfig.create_subscription(
+            bk_tenant_id=bk_tenant_id,
+            bk_cloud_id=bk_cloud_id,
+            items=proxy_items,
+            target_hosts=biz_target_hosts,
+            plugin_name=plugin_name,
+            bk_biz_id=target_bk_biz_id,
+            bk_data_id=bk_data_id,
         )
