@@ -519,4 +519,12 @@ export default {
     'Please select a project with permission, and complete the application authorization of the BK-Monitor project.',
   '取消后，TAPD 侧授权不会被撤销，但蓝鲸侧不再与该 TAPD 项目关联。确认解绑吗？':
     'After unchecking, the TAPD side authorization will not be revoked, but the BK-Monitor side will no longer be associated with the TAPD project. Are you sure to unbind?',
+  '页面主要内容完成渲染的耗时第 75 分位值，数值越低体验越好。':
+    'The page main content is rendered in 75th percentile, the lower the better.',
+  '页面运行中发生 JSt异常比例，数值越高稳定性越差。':
+    'The page runs into JSt exceptions in 75th percentile, the higher the worse.',
+  '接口请求失败比例，包含 HTTP 非成功状态码、请求超时或网络异常等情况。':
+    'The proportion of failed API requests, including HTTP non-success status codes, request timeouts, or network exceptions.',
+  'JS 错误的View数 / 总View数 × 100%': 'JS Error View Count / Total View Count × 100%',
+  '失败接口请求次数 / 接口请求总次数 × 100%': 'Failed API Request Count / Total API Request Count × 100%',
 };

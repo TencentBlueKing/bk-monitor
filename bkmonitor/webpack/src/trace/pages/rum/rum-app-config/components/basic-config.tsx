@@ -162,6 +162,7 @@ export default defineComponent({
     };
 
     return {
+      t,
       isEdit,
       formData,
       rules,
@@ -201,7 +202,7 @@ export default defineComponent({
                 <div class='form-wrap'>
                   <div class='form-row'>
                     <Form.FormItem
-                      label={this.$t('页面加载')}
+                      label={this.t('页面加载')}
                       property='load'
                       required={this.isEdit}
                     >
@@ -222,7 +223,7 @@ export default defineComponent({
                       )}
                     </Form.FormItem>
                     <Form.FormItem
-                      label={this.$t('API 请求')}
+                      label={this.t('API 请求')}
                       property='request'
                       required={this.isEdit}
                     >
@@ -248,7 +249,7 @@ export default defineComponent({
             </div>
 
             <div class='section qps'>
-              <div class='section-title'>{this.$t('限制')} QPS</div>
+              <div class='section-title'>{this.t('限制')} QPS</div>
               <div class='section-body'>
                 {this.qpsTips.map((tip, ind) => (
                   <div
@@ -271,14 +272,14 @@ export default defineComponent({
                           v-model={this.formData.qps}
                           min={1}
                           showControl={false}
-                          suffix={this.$t('次/秒')}
+                          suffix={this.t('次/秒')}
                           type='number'
                         />
                       ) : (
                         <span class='value-text'>
                           {this.detail?.application_qps_config === undefined
                             ? '--'
-                            : `${this.detail?.application_qps_config}${this.$t('次/秒')}`}
+                            : `${this.detail?.application_qps_config}${this.t('次/秒')}`}
                         </span>
                       )}
                     </Form.FormItem>
@@ -295,14 +296,14 @@ export default defineComponent({
                 theme='primary'
                 onClick={this.handleSave}
               >
-                {this.$t('保存')}
+                {this.t('保存')}
               </Button>
               <Button
                 onClick={() => {
                   this.handleEditClick(false);
                 }}
               >
-                {this.$t('取消')}
+                {this.t('取消')}
               </Button>
             </div>
           )}
@@ -323,7 +324,7 @@ export default defineComponent({
                 }}
               >
                 <EditLine />
-                <span class='edit-text'>{this.$t('编辑')}</span>
+                <span class='edit-text'>{this.t('编辑')}</span>
               </Button>
             </div>
           )}

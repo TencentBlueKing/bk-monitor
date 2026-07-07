@@ -26,6 +26,13 @@
     padding: 16px 52px;
     overflow-y: auto;
 
+    .skeleton-panel {
+      .skeleton-element {
+        height: 240px;
+        margin-bottom: 12px;
+      }
+    }
+
     .bk-tab.panel-tab {
       .bk-tab-header-item {
         font-size: 14px;

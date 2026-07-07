@@ -181,6 +181,7 @@ export default defineComponent({
     };
 
     return {
+      t,
       isEditing,
       editValue,
       displayText,
@@ -235,7 +236,10 @@ export default defineComponent({
                   <span class='suffix'>{this.suffix}</span>
                 </span>
                 {this.editable && (
-                  <span class='editable-field-icon'>
+                  <span
+                    class='editable-field-icon'
+                    v-tippy={{ content: this.t('编辑') }}
+                  >
                     <EditLine />
                   </span>
                 )}
