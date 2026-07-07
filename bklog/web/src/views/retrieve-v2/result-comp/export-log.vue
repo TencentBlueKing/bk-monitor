@@ -992,6 +992,15 @@
           end_time: endTime,
         };
 
+        if (this.isUnionSearch && !this.unionIndexList.length) {
+          this.exportListData = [];
+          this.exportPagination.count = 0;
+          this.stopStatusPolling();
+          this.stopProgressUpdate();
+          this.exportTableLoading = false;
+          return;
+        }
+
         if (this.isScene) {
           queryUrl = 'retrieve/getSceneExportHistory';
           params.space_uid = this.retrieveParams?.space_uid;
