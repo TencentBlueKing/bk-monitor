@@ -386,7 +386,7 @@ export default class App extends tsc<object> {
     if (isMicroApp) {
       hasRouteChange = location.hash !== item.href;
     }
-    if (hasRouteChange && !!item.href) {
+    if (hasRouteChange && item.href) {
       // await this.$nextTick();
       // if (!(this.$router as any).history.pending) {
       const route = item.usePath ? { path: item.path } : { name: item.id };
