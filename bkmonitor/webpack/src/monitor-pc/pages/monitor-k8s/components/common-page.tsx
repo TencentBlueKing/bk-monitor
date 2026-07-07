@@ -369,7 +369,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
     const panels = this.isPreciseFilter
       ? this.preciseFilteringPanels
       : this.handleGetLocalPanels(this.sceneData.panels);
-    if (this.sceneData?.options?.enable_index_list && !!panels.length) {
+    if (this.sceneData?.options?.enable_index_list && panels.length) {
       let curTagChartId = '';
       const list = panels.reduce((total, row) => {
         const { mode } = this.sceneData;
@@ -409,7 +409,7 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
         }
         return total;
       }, []);
-      if (list.length === 1 && !!list[0].children?.length) return list[0].children;
+      if (list.length === 1 && list[0].children?.length) return list[0].children;
       return list;
     }
     return [];
@@ -797,14 +797,14 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
       hasDefaultSelectPanelValue = true;
     }
     /** overview有侧边栏情况下选中数据总览 */
-    if (this.isOverview && !!this.sceneData.selectorPanel) {
+    if (this.isOverview && this.sceneData.selectorPanel) {
       hasDefaultSelectPanelValue = true;
     }
     /* 少量图表的索引默认收起来 */
     if (this.sceneData?.panelCount <= 6) {
       const indexStorage = new Storage();
       const defaultIndexData = indexStorage.get(INDEX_LIST_DEFAULT_CONFIG_KEY);
-      if (!defaultIndexData || !!defaultIndexData?.expand) {
+      if (!defaultIndexData || defaultIndexData?.expand) {
         indexStorage.set(INDEX_LIST_DEFAULT_CONFIG_KEY, {
           height: ASIDE_COLLAPSE_HEIGHT,
           placement: defaultIndexData?.placement || 'bottom',
@@ -1261,11 +1261,11 @@ export default class CommonPage extends tsc<ICommonPageProps, ICommonPageEvent> 
         queryString: this.queryString,
         preciseFilter: String(this.isPreciseFilter) /** 是否开启精准过滤 */,
         compares:
-          this.compareType === 'target' && !!this.compares.targets?.length
+          this.compareType === 'target' && this.compares.targets?.length
             ? encodeURIComponent(JSON.stringify(this.compares))
             : undefined /** 目标对比 */,
         timeOffset:
-          this.compareType === 'time' && !!this.timeOffset.length
+          this.compareType === 'time' && this.timeOffset.length
             ? encodeURIComponent(JSON.stringify(this.timeOffset))
             : undefined /** 时间对比 */,
         ...customQuery,

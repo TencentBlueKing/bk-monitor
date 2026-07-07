@@ -40,4 +40,13 @@ publicHoistPattern:
   - '!@vue/compiler-sfc'
 
 minimumReleaseAgeExclude:
-  - '@blueking/monitor-trace-explore@0.0.21 || 0.0.23 || 0.0.24 || 0.0.25 || 0.0.26 || 0.0.27'
+  - '@blueking/monitor-trace-explore@0.0.21 || 0.0.23 || 0.0.24 || 0.0.25 || 0.0.26 || 0.0.27 || 0.0.28'
+
+allowBuilds:
+  '@parcel/watcher': set this to true or false
+  core-js: set this to true or false
+  esbuild: set this to true or false
+  protobufjs: set this to true or false
+  simple-git-hooks: set this to true or false
+  vue-demi: set this to true or false
+  vuex-module-decorators: set this to true or false
