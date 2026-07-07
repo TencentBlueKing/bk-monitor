@@ -946,7 +946,8 @@ class ListIssueActivitiesResource(Resource):
         hits = list(search.execute().hits)
         repair_activity = self._repair_missing_resolved_activity(issue, hits)
         if repair_activity:
-            hits.insert(0, repair_activity)
+            hits.append(repair_activity)
+            hits.sort(key=lambda activity: int(activity.time) if activity.time else 0, reverse=True)
 
         return [self._format_activity(hit) for hit in hits]
 

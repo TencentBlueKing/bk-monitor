@@ -68,7 +68,9 @@ class TestIssueActivitiesResolvedRepairContract(unittest.TestCase):
         self.assertIn("IssueDocument.get_issue_or_raise", calls)
         self.assertIn("self._repair_missing_resolved_activity", calls)
         self.assertIn("repair_activity = self._repair_missing_resolved_activity(issue, hits)", source)
-        self.assertIn("hits.insert(0, repair_activity)", source)
+        self.assertIn("hits.append(repair_activity)", source)
+        self.assertIn("hits.sort(", source)
+        self.assertIn("reverse=True", source)
         self.assertIn("return [self._format_activity(hit) for hit in hits]", source)
 
     def test_activity_serializer_uses_meta_id_or_document_id(self):
