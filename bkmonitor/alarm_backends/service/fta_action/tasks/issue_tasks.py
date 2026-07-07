@@ -891,7 +891,7 @@ def _apply_llm_title(
     alert_id: str,
     expected_name: str,
     apply_regression_prefix: bool,
-    operator: str,
+    audit_operator: str,
 ) -> tuple[str, str]:
     """LLM 标题生成核心：取关联日志 → 调 LLM → 校验 → CAS 写入 name。
 
@@ -904,7 +904,10 @@ def _apply_llm_title(
       （允许覆盖上次 LLM 标题，但仍防"读取后到写入前被用户并发改名"）。
     - apply_regression_prefix：是否给生成标题拼 ``[回归]`` 前缀（由调用方按 issue 回归态决定，
       不交给 LLM）。自动路径按 default_name 是否以 ``[回归]`` 开头判断，补偿路径按 issue.is_regression。
-    - operator：写入 name_change 活动日志的操作人（自动路径 ``system``；补偿路径可传运维账号）。
+    - audit_operator：真实发起人，仅写进 NAME_CHANGE 活动日志的 content 供审计。
+      **rename 的 operator 固定为 ``system``**（自动派发与运维补偿都是系统/LLM 写入）：
+      三态判别（regenerate 里 ``最近 NAME_CHANGE.operator == "system"`` → LLM 改的、可覆盖）
+      依赖它稳定；若把真实运维账号写进 operator，二次补偿会被误判为"用户手工改名"而跳过。
 
     返回 ``(result, examples_source)``：
     - result（与 ISSUE_LLM_TITLE_TOTAL.result 取值一致）：
@@ -1044,7 +1047,9 @@ def _apply_llm_title(
     try:
         # enforce_unique=False：同类错误天然生成相同标题，允许重名（实例靠 issue 维度区分），
         # 不被给用户改名用的唯一性约束卡回默认名。详见 IssueDocument.rename。
-        issue.rename(title, operator=operator, enforce_unique=False)
+        # operator 固定 system（保证三态判别稳定），真实发起人记入 content 供审计。
+        content = None if audit_operator == "system" else f"llm_title regenerate by {audit_operator}"
+        issue.rename(title, operator="system", enforce_unique=False, content=content)
     except Exception:
         logger.warning("[issue][llm_title] rename failed, issue(%s)", issue_id, exc_info=True)
         return "llm_error", examples_source
@@ -1074,7 +1079,7 @@ def generate_issue_llm_title(issue_id: str, bk_biz_id, default_name: str, alert_
         alert_id=alert_id,
         expected_name=default_name,
         apply_regression_prefix=default_name.startswith("[回归]"),
-        operator="system",
+        audit_operator="system",
     )
     metrics.ISSUE_LLM_TITLE_TOTAL.labels(
         bk_biz_id=str(bk_biz_id), result=result, examples_source=examples_source
@@ -1098,6 +1103,8 @@ def regenerate_issue_llm_title(issue_id: str, bk_biz_id, *, alert_id: str | None
         · name != 默认名 且最近改名 operator=system → LLM 改过，允许覆盖重跑
           （LLM 可能效果不好；expected_name=当前名，仍防并发用户改名）
         · name != 默认名 且最近改名为真实用户      → 用户手工改过，跳过（skipped_user_renamed）
+      ``operator`` 入参仅作审计（记入 NAME_CHANGE content），**不会写进 rename operator**——
+      rename operator 恒为 system，否则传真实账号会让下次补偿把自己误判成"用户手工改名"。
     - **alert_id 可缺省**：不传则现查该 Issue 最新关联告警（日志越新越可能未过期）；查不到
       返回 no_alert。
 
@@ -1160,7 +1167,7 @@ def regenerate_issue_llm_title(issue_id: str, bk_biz_id, *, alert_id: str | None
         alert_id=alert_id,
         expected_name=current_name,
         apply_regression_prefix=is_regression,
-        operator=operator,
+        audit_operator=operator,
     )
     metrics.ISSUE_LLM_TITLE_TOTAL.labels(
         bk_biz_id=str(bk_biz_id), result=result, examples_source=examples_source

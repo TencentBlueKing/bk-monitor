@@ -111,4 +111,3 @@ class RegenerateTitleResource(IssueAPIResource):
 
     action = "/app/issue/regenerate_title/"
     method = "POST"
-

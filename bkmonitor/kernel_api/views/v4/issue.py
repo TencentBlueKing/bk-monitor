@@ -516,7 +516,17 @@ class RegenerateTitleResource(Resource):
     并发后接口耗时收敛到最慢一条。单条异常隔离进各自 result，不影响其他条目。
     注：本接口在 api role 执行（同步直调 regenerate_issue_llm_title，非 apply_async 派发），
     api role 具备 REDIS_*_CONF（限流/示例缓存）与 AIDEV 网关配置，可直接跑 LLM。
+
+    超时兜底：补偿路径复用的 _apply_llm_title 不像原 Celery 任务带 soft/hard time_limit，
+    而取关联日志（get_alert_relation_info）下游有 sleep 重试 + 无超时的日志平台查询，卡住会
+    长期占用请求线程。故每条用 future.result(timeout) 限时：超时则该条记 timeout 结果、
+    释放请求线程（游离线程由 ES/HTTP 客户端自身 socket 超时收尾，不阻塞 API 返回）。
+    单条上限 = AIDEV 客户端 TIMEOUT(30s) + 取日志重试冗余，取 60s。
     """
+
+    # 单条重跑墙钟上限（秒）：AIDEV chat_completion TIMEOUT=30s + get_alert_relation_info
+    # 一次 sleep 重试 + 日志查询冗余。超过即判该条 timeout，释放请求线程。
+    PER_ISSUE_TIMEOUT = 60
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
@@ -527,27 +537,45 @@ class RegenerateTitleResource(Resource):
         operator = serializers.CharField(label="操作人", required=False, default="system")
 
     def perform_request(self, validated_request_data):
+        from concurrent.futures import TimeoutError as FuturesTimeoutError
+
         from alarm_backends.service.fta_action.tasks.issue_tasks import regenerate_issue_llm_title
 
         bk_biz_id = validated_request_data["bk_biz_id"]
         issue_ids = list(dict.fromkeys(validated_request_data["issue_ids"]))  # 去重保序
         operator = validated_request_data["operator"]
 
-        def _one(issue_id: str) -> dict:
-            try:
-                return regenerate_issue_llm_title(issue_id, bk_biz_id, operator=operator)
-            except Exception as e:  # 单条异常隔离，不影响其他条目
-                logger.warning("[issue][llm_title] regenerate failed, issue(%s): %s", issue_id, e)
-                return {
-                    "issue_id": issue_id,
-                    "bk_biz_id": bk_biz_id,
-                    "result": "llm_error",
-                    "old_name": None,
-                    "new_name": None,
-                }
+        def _fallback(issue_id: str, result: str) -> dict:
+            return {
+                "issue_id": issue_id,
+                "bk_biz_id": bk_biz_id,
+                "result": result,
+                "old_name": None,
+                "new_name": None,
+            }
 
-        with ThreadPoolExecutor(max_workers=len(issue_ids)) as executor:
-            results = list(executor.map(_one, issue_ids))
+        # submit + result(timeout) 而非 executor.map：单条超时只影响该条（记 timeout），
+        # 不让卡住的取数拖垮整个请求线程；其余条目正常返回。
+        # 不用 with 上下文：其 __exit__ 会 shutdown(wait=True) 阻塞到卡住线程结束，反而抵消超时；
+        # 改为手动 shutdown(wait=False)——请求线程即时返回，游离线程由客户端 socket 超时自行收尾。
+        executor = ThreadPoolExecutor(max_workers=len(issue_ids))
+        try:
+            future_map = {
+                executor.submit(regenerate_issue_llm_title, iid, bk_biz_id, operator=operator): iid
+                for iid in issue_ids
+            }
+            results = []
+            for future, iid in future_map.items():
+                try:
+                    results.append(future.result(timeout=self.PER_ISSUE_TIMEOUT))
+                except FuturesTimeoutError:
+                    logger.warning("[issue][llm_title] regenerate timeout, issue(%s)", iid)
+                    results.append(_fallback(iid, "timeout"))
+                except Exception as e:  # 单条异常隔离，不影响其他条目
+                    logger.warning("[issue][llm_title] regenerate failed, issue(%s): %s", iid, e)
+                    results.append(_fallback(iid, "llm_error"))
+        finally:
+            executor.shutdown(wait=False)
 
         return {"bk_biz_id": bk_biz_id, "results": results}
 
