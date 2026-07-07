@@ -1720,6 +1720,26 @@ class DataFlowHandler(BaseAiopsHandler):
         return route_params
 
     @classmethod
+    def _build_clustered_bulk_route_params(cls, index_set: LogIndexSet, clustering_config: ClusteringConfig) -> dict:
+        if clustering_config.storage_type == StorageTypeEnum.DORIS.value:
+            route_params = cls._build_clustered_doris_route_params(index_set, clustering_config)
+        else:
+            route_params = cls._build_clustered_es_route_params(index_set, clustering_config)
+        route_params = copy.deepcopy(route_params)
+        space_type = route_params.pop("space_type")
+        space_id = route_params.pop("space_id")
+        data_label = route_params.pop("data_label")
+        # 显式声明 is_enable=True：单条 create_or_update_log_router 的 update 分支不会修改 is_enable，
+        # 无法把曾被停用（is_enable=False）的聚类结果表重新启用；改走批量接口并对齐 IndexSetHandler.sync_router。
+        route_params["is_enable"] = True
+        return {
+            "space_type": space_type,
+            "space_id": space_id,
+            "data_label": data_label,
+            "table_info": [route_params],
+        }
+
+    @classmethod
     def sync_clustered_route(cls, index_set_id: int, raise_exception: bool = False) -> bool:
         index_set = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id, raise_exception=False)
@@ -1737,12 +1757,9 @@ class DataFlowHandler(BaseAiopsHandler):
             )
             return False
 
-        if clustering_config.storage_type == StorageTypeEnum.DORIS.value:
-            route_params = cls._build_clustered_doris_route_params(index_set, clustering_config)
-        else:
-            route_params = cls._build_clustered_es_route_params(index_set, clustering_config)
+        bulk_route_params = cls._build_clustered_bulk_route_params(index_set, clustering_config)
         try:
-            TransferApi.create_or_update_log_router(route_params)
+            TransferApi.bulk_create_or_update_log_router(bulk_route_params)
             return True
         except Exception as error:
             logger.exception("sync clustered route for index set(%s) failed: %s", index_set_id, error)
