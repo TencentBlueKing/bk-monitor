@@ -565,7 +565,11 @@
       /** 初始化标签列表 */
       async initLabelSelectList() {
         try {
-          const res = await this.$http.request('unionSearch/unionLabelList');
+          const res = await this.$http.request('unionSearch/unionLabelList', {
+            query: {
+              space_uid: this.spaceUid,
+            },
+          });
           this.selectLabelList = res.data;
         } catch (error) {
           this.selectLabelList = [];
