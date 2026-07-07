@@ -16,14 +16,25 @@ from celery import shared_task
 from django.utils.translation import gettext as _
 
 from bkmonitor.documents.issue import IssueDocument
-from bkmonitor.models import ActionConfig, AlertAssignGroup, AlertAssignRule
+from bkmonitor.models import ActionConfig, ActionPlugin, AlertAssignGroup, AlertAssignRule
 from bkmonitor.models.issue import IssueTapdRelation
+from constants.action import ActionPluginType
 from constants.issue import IssueStatus
 from core.drf_resource import api, resource
 from fta_web.constants import QuickSolutionsConfig
 from monitor_web.strategies.user_groups import create_default_notice_group
 
 logger = logging.getLogger("celery")
+
+DEFAULT_SOPS_ACTION_PLUGIN_ID = "4"
+
+
+def get_sops_action_plugin_id():
+    plugin_id = (
+        ActionPlugin.objects.filter(plugin_key=ActionPluginType.SOPS).values_list("id", flat=True).first()
+        or DEFAULT_SOPS_ACTION_PLUGIN_ID
+    )
+    return str(plugin_id)
 
 
 def has_builtin_quick_solution_actions(bk_biz_id):
@@ -39,7 +50,7 @@ def has_builtin_quick_solution_actions(bk_biz_id):
     existing_names = set(
         ActionConfig.origin_objects.filter(
             bk_biz_id=bk_biz_id,
-            plugin_id="4",
+            plugin_id=get_sops_action_plugin_id(),
             is_deleted=False,
             name__in=solution_names,
         ).values_list("name", flat=True)
@@ -93,7 +104,7 @@ def run_init_builtin_action_config(bk_biz_id):
                 action_config = {
                     "is_builtin": True,
                     "name": solution_name,
-                    "plugin_id": 4,
+                    "plugin_id": get_sops_action_plugin_id(),
                     "bk_biz_id": bk_biz_id,
                     "desc": _("系统内置快捷套餐"),
                     "execute_config": {

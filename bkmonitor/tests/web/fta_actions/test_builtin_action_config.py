@@ -12,22 +12,36 @@ from unittest.mock import patch
 
 from django.test import TestCase
 
-from bkmonitor.models import ActionConfig
+from bkmonitor.models import ActionConfig, ActionPlugin
+from constants.action import ActionPluginType
 from fta_web.constants import QuickSolutionsConfig
 from fta_web.tasks import run_init_builtin_action_config
 
 
 class TestRunInitBuiltinActionConfig(TestCase):
     databases = {"default", "monitor_api"}
+    sops_plugin_id = "44"
 
     def setUp(self):
         ActionConfig.objects.filter(bk_biz_id=100474).delete()
+        ActionPlugin.objects.update_or_create(
+            id=self.sops_plugin_id,
+            defaults={
+                "plugin_type": ActionPluginType.SOPS,
+                "plugin_key": ActionPluginType.SOPS,
+                "name": "标准运维",
+                "category": "execute",
+                "config_schema": {},
+                "backend_config": {},
+            },
+        )
 
     def tearDown(self):
         ActionConfig.objects.filter(bk_biz_id=100474).delete()
+        ActionPlugin.objects.filter(id=self.sops_plugin_id).delete()
 
     @staticmethod
-    def create_quick_solution_actions(bk_biz_id, is_builtin=False, limit=None):
+    def create_quick_solution_actions(bk_biz_id, plugin_id, is_builtin=False, limit=None):
         configs = list(QuickSolutionsConfig.QUICK_SOLUTIONS_CONFIG.values())
         if limit is not None:
             configs = configs[:limit]
@@ -35,7 +49,7 @@ class TestRunInitBuiltinActionConfig(TestCase):
             ActionConfig.objects.create(
                 bk_biz_id=bk_biz_id,
                 name=str(config["name"]),
-                plugin_id="4",
+                plugin_id=plugin_id,
                 is_builtin=is_builtin,
                 is_enabled=False,
                 execute_config={
@@ -51,7 +65,7 @@ class TestRunInitBuiltinActionConfig(TestCase):
     def test_skip_sops_import_when_all_quick_solution_actions_already_exist(
         self, mock_import_project_template, mock_get_template_list
     ):
-        self.create_quick_solution_actions(bk_biz_id=100474, is_builtin=False)
+        self.create_quick_solution_actions(bk_biz_id=100474, plugin_id=self.sops_plugin_id, is_builtin=False)
 
         run_init_builtin_action_config(100474)
 
@@ -63,7 +77,7 @@ class TestRunInitBuiltinActionConfig(TestCase):
     def test_keep_sops_import_when_quick_solution_actions_are_incomplete(
         self, mock_import_project_template, mock_get_template_list
     ):
-        self.create_quick_solution_actions(bk_biz_id=100474, is_builtin=False, limit=1)
+        self.create_quick_solution_actions(bk_biz_id=100474, plugin_id=self.sops_plugin_id, is_builtin=False, limit=1)
 
         run_init_builtin_action_config(100474)
 
