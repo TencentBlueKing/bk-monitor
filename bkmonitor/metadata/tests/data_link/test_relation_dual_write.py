@@ -636,6 +636,35 @@ def test_compose_graph_relation_time_series_corrects_existing_binding_vm_result_
         vertices=[{"name": "old"}],
         relations=[{"name": "old_relation"}],
     )
+    ResultTableConfig.objects.create(
+        name="bkm_bkcc_built_in_time_series",
+        data_link_name=data_link.data_link_name,
+        namespace=data_link.namespace,
+        bk_tenant_id=data_link.bk_tenant_id,
+        bk_biz_id=2,
+        table_id=table_id,
+    )
+    VMStorageBindingConfig.objects.create(
+        name="bkm_bkcc_built_in_time_series",
+        data_link_name=data_link.data_link_name,
+        namespace=data_link.namespace,
+        bk_tenant_id=data_link.bk_tenant_id,
+        bk_biz_id=2,
+        vm_cluster_name="vm-default",
+        table_id=table_id,
+        bkbase_result_table_name="bkm_bkcc_built_in_time_series",
+    )
+    DataBusConfig.objects.create(
+        name="bkm_bkcc_built_in_time_series",
+        data_link_name=data_link.data_link_name,
+        namespace=data_link.namespace,
+        bk_tenant_id=data_link.bk_tenant_id,
+        bk_biz_id=2,
+        data_id_name="old_data_id",
+        bk_data_id=data_source.bk_data_id,
+        sink_names=["VmStorageBinding:bkm_bkcc_built_in_time_series"],
+        data_link_strategy=data_link.data_link_strategy,
+    )
 
     configs = data_link.compose_graph_relation_time_series_configs(
         bk_biz_id=2,
@@ -664,6 +693,30 @@ def test_compose_graph_relation_time_series_corrects_existing_binding_vm_result_
     assert graph_binding.vm_databus_name == "vm_bkcc_built_in_time_series"
     assert vm_binding_payload["spec"]["data"]["name"] == "vm_bkcc_built_in_time_series"
     assert vm_databus_payload["spec"]["sinks"][0]["name"] == "vm_bkcc_built_in_time_series"
+    assert not ResultTableConfig.objects.filter(
+        data_link_name=data_link.data_link_name,
+        name="bkm_bkcc_built_in_time_series",
+    ).exists()
+    assert not VMStorageBindingConfig.objects.filter(
+        data_link_name=data_link.data_link_name,
+        name="bkm_bkcc_built_in_time_series",
+    ).exists()
+    assert not DataBusConfig.objects.filter(
+        data_link_name=data_link.data_link_name,
+        name="bkm_bkcc_built_in_time_series",
+    ).exists()
+    assert ResultTableConfig.objects.filter(
+        data_link_name=data_link.data_link_name,
+        name="vm_bkcc_built_in_time_series",
+    ).exists()
+    assert VMStorageBindingConfig.objects.filter(
+        data_link_name=data_link.data_link_name,
+        name="vm_bkcc_built_in_time_series",
+    ).exists()
+    assert DataBusConfig.objects.filter(
+        data_link_name=data_link.data_link_name,
+        name="vm_bkcc_built_in_time_series",
+    ).exists()
 
 
 def test_resolve_graph_relation_vm_result_table_name_keeps_non_numeric_prefix():

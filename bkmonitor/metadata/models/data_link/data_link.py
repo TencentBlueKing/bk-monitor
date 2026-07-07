@@ -513,6 +513,42 @@ class DataLink(models.Model):
             return result_table_name
         return existing_name
 
+    def _delete_graph_relation_local_orphan_vm_components(
+        self,
+        *,
+        bk_biz_id: int,
+        table_id: str,
+        old_result_table_name: str,
+        old_vm_storage_binding_name: str,
+        old_vm_databus_name: str,
+        new_result_table_name: str,
+        new_vm_storage_binding_name: str,
+        new_vm_databus_name: str,
+    ) -> None:
+        common_filters = {
+            "data_link_name": self.data_link_name,
+            "namespace": self.namespace,
+            "bk_biz_id": bk_biz_id,
+            "bk_tenant_id": self.bk_tenant_id,
+        }
+        if old_result_table_name and old_result_table_name != new_result_table_name:
+            ResultTableConfig.objects.filter(
+                **common_filters,
+                table_id=table_id,
+                name=old_result_table_name,
+            ).delete()
+        if old_vm_storage_binding_name and old_vm_storage_binding_name != new_vm_storage_binding_name:
+            VMStorageBindingConfig.objects.filter(
+                **common_filters,
+                table_id=table_id,
+                name=old_vm_storage_binding_name,
+            ).delete()
+        if old_vm_databus_name and old_vm_databus_name != new_vm_databus_name:
+            DataBusConfig.objects.filter(
+                **common_filters,
+                name=old_vm_databus_name,
+            ).delete()
+
     @classmethod
     def resolve_graph_relation_vm_result_table_name(
         cls,
@@ -874,6 +910,17 @@ class DataLink(models.Model):
                     data_bus_ins.compose_config(sinks),
                 ]
             )
+            if existed_graph_binding:
+                self._delete_graph_relation_local_orphan_vm_components(
+                    bk_biz_id=bk_biz_id,
+                    table_id=table_id,
+                    old_result_table_name=previous_bkbase_result_table_name,
+                    old_vm_storage_binding_name=existed_graph_binding.vm_binding_component_name,
+                    old_vm_databus_name=existed_graph_binding.vm_databus_component_name,
+                    new_result_table_name=graph_binding_ins.bkbase_result_table_name,
+                    new_vm_storage_binding_name=graph_binding_ins.vm_binding_component_name,
+                    new_vm_databus_name=graph_binding_ins.vm_databus_component_name,
+                )
 
         if graph_binding_ins.should_write_surrealdb:
             configs.extend(
