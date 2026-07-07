@@ -41,6 +41,7 @@ import {
 import { useI18n } from 'vue-i18n';
 
 import { IssueDetailTabEnum } from '../../constant';
+import { useTapdIssueActivities } from '../../issues-tapd/composables/use-tapd-issue-activities';
 import { conditionAlertQueryFieldReplace } from '../utils';
 import DimensionStats from './dimension-stats/dimension-stats';
 import IssuesActivity from './issues-activity/issues-activity';
@@ -48,6 +49,7 @@ import IssuesBasicInfo from './issues-basic-info/issues-basic-info';
 import IssuesDetailAlarmPanel from './issues-detail-alarm-panel/issues-detail-alarm-panel';
 import IssuesDetailAlarmTable from './issues-detail-alarm-table/issues-detail-alarm-table';
 import IssuesHistory from './issues-history/issues-history';
+import IssuesRelationTapd from './issues-relation-tapd/issues-relation-tapd';
 import IssuesRetrievalFilter from './issues-retrieval-filter/issues-retrieval-filter';
 import IssuesTrendChart from './issues-trend-chart/issues-trend-chart';
 import { type TimeRangeType, DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '@/components/time-range/utils';
@@ -157,6 +159,25 @@ export default defineComponent({
         }, {}) || {}
       );
     });
+
+    /** TAPD 单据操作成功后的全局活动记录，用于回写到当前 Issue 活动列表 */
+    const tapdIssueActivities = useTapdIssueActivities();
+
+    /**
+     * 监听 TAPD 全局活动记录变化，当与当前 issue 匹配时自动追加到活动列表
+     * 触发时机：TAPD 侧滑栏中创建/关联单据成功后调用 setActivities
+     */
+    watch(
+      () => tapdIssueActivities.activities.value,
+      () => {
+        if (
+          tapdIssueActivities.activities.value?.issueId === props.detail?.id &&
+          tapdIssueActivities.activities.value?.list?.length
+        ) {
+          handleActivitiesChange(tapdIssueActivities.activities.value.list);
+        }
+      }
+    );
 
     const getAllAlertId = async () => {
       if (!props.detail?.id) {
@@ -531,6 +552,7 @@ export default defineComponent({
             onImpactScopeClick={this.handleImpactScopeClick}
             onPriorityChange={this.handlePriorityChange}
           />
+          <IssuesRelationTapd detail={this.detail} />
           <IssuesHistory detail={this.detail} />
           <IssuesActivity
             detail={this.detail}

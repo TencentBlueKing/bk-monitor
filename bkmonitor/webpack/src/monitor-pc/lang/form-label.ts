@@ -2023,4 +2023,6 @@ export default {
   生效告警级别: 'Effective alarm level',
   操作时间: 'Operation time',
   影响范围维度: 'Impact scope dimension',
+
+  单据类型: 'Ticket type',
 };

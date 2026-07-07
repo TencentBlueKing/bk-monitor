@@ -1,3 +1,5 @@
+import copy
+
 import pytest
 
 from bkmonitor.models import (
@@ -7,8 +9,13 @@ from bkmonitor.models import (
     StrategyModel,
     UserGroup,
 )
+from constants.data_source import DataSourceLabel, DataTypeLabel
 from monitor_web.models import CollectConfigMeta, CollectorPluginMeta
 from monitor_web.plugin.constant import PluginType
+from monitor_web.strategies.default_settings.datalink.v1 import (
+    DEFAULT_DATALINK_STRATEGIES,
+    GATHER_UP_DATA_LABEL,
+)
 from monitor_web.strategies.loader.datalink_loader import (
     DatalinkDefaultAlarmStrategyLoader,
 )
@@ -78,3 +85,69 @@ class TestDatalinkStrategyLoader:
 
         assert AlertAssignRule.objects.count() == 2
         assert DutyArrange.objects.filter(users__contains={"id": USER_ID}).exists()
+
+
+class TestDatalinkStrategyMultiTenantAdaptation:
+    """gather_up 采集状态默认策略的多租户查询配置适配。"""
+
+    @staticmethod
+    def _build_strategy() -> dict:
+        strategy = copy.deepcopy(DEFAULT_DATALINK_STRATEGIES[0])
+        strategy.pop("_name", None)
+        return strategy
+
+    @staticmethod
+    def _build_loader(bk_tenant_id: str = "tenant", bk_biz_id: int = BK_BIZ_ID) -> DatalinkDefaultAlarmStrategyLoader:
+        collect_config = CollectConfigMeta(
+            id=1,
+            bk_tenant_id=bk_tenant_id,
+            bk_biz_id=bk_biz_id,
+            name="default_config",
+            plugin_id="test_plugin",
+        )
+        return DatalinkDefaultAlarmStrategyLoader(collect_config=collect_config, user_id=USER_ID)
+
+    def test_adapt_query_config_multi_tenant(self, settings):
+        """多租户按业务建链时改用分业务自定义时序结果表。"""
+        settings.ENABLE_MULTI_TENANT_MODE = True
+        settings.SPACE_BUILTIN_DATA_LINK_MODE = ""
+        strategy = self._build_strategy()
+        loader = self._build_loader()
+
+        loader._adapt_query_config_for_multi_tenant(strategy)
+
+        for item in strategy["items"]:
+            for query_config in item["query_configs"]:
+                assert query_config["data_source_label"] == DataSourceLabel.CUSTOM
+                assert query_config["data_type_label"] == DataTypeLabel.TIME_SERIES
+                assert query_config["result_table_id"] == "tenant_2_bkmonitorbeat_gather_up.__default__"
+                assert query_config["data_label"] == GATHER_UP_DATA_LABEL
+
+    def test_adapt_query_config_multi_tenant_mode_uses_neutral_table(self, settings):
+        """多租户按租户建链时引用不带业务/租户前缀的中立 gather_up 结果表。"""
+        settings.ENABLE_MULTI_TENANT_MODE = True
+        settings.SPACE_BUILTIN_DATA_LINK_MODE = "tenant"
+        strategy = self._build_strategy()
+        loader = self._build_loader(bk_tenant_id="tenant", bk_biz_id=BK_BIZ_ID)
+
+        loader._adapt_query_config_for_multi_tenant(strategy)
+
+        for item in strategy["items"]:
+            for query_config in item["query_configs"]:
+                assert query_config["data_source_label"] == DataSourceLabel.CUSTOM
+                assert query_config["data_type_label"] == DataTypeLabel.TIME_SERIES
+                assert query_config["result_table_id"] == "bkmonitorbeat_gather_up.__default__"
+                assert query_config["data_label"] == GATHER_UP_DATA_LABEL
+
+    def test_adapt_query_config_single_tenant(self, settings):
+        """单租户保持原全局结果表不变。"""
+        settings.ENABLE_MULTI_TENANT_MODE = False
+        strategy = self._build_strategy()
+        loader = self._build_loader()
+
+        loader._adapt_query_config_for_multi_tenant(strategy)
+
+        for item in strategy["items"]:
+            for query_config in item["query_configs"]:
+                assert query_config["result_table_id"] == "bkmonitorbeat_gather_up.__default__"
+                assert "data_label" not in query_config

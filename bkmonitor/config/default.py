@@ -1922,3 +1922,9 @@ BKFARA_AIOPS_SERVICE_HOST_PREFIX = os.getenv("BKFARA_AIOPS_SERVICE_HOST_PREFIX",
 
 # 在同步bkbase集群信息时，是否进行更新
 SYNC_BKBASE_CLUSTER_INFO_UPDATE = os.getenv("SYNC_BKBASE_CLUSTER_INFO_UPDATE", "false").lower() == "true"
+
+# RUM 接入配置
+BKAPP_RUM_SDK = os.getenv("BKAPP_RUM_SDK", "otlp")  # otlp / ageis
+BKAPP_RUM_ENDPOINT = os.getenv("BKAPP_RUM_ENDPOINT", "")
+BKAPP_RUM_TOKEN = os.getenv("BKAPP_RUM_TOKEN", "")
+BKAPP_RUM_ENABLED = str(os.getenv("BKAPP_RUM_ENABLED", False)).lower() == "true"

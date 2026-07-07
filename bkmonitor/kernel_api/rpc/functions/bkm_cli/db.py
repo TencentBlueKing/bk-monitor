@@ -537,6 +537,65 @@ ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
             }
         ],
     ),
+    "metadata.models.data_link.data_link_configs.GraphRelationBindingConfig": ModelSpec(
+        model_path="metadata.models.data_link.data_link_configs.GraphRelationBindingConfig",
+        fields={
+            "bk_tenant_id",
+            "namespace",
+            "name",
+            "data_link_name",
+            "bk_biz_id",
+            "status",
+            "write_mode",
+            "table_id",
+            "bkbase_result_table_name",
+            "graph_result_table_name",
+            "vm_storage_binding_name",
+            "vm_databus_name",
+            "surrealdb_binding_name",
+            "graph_databus_name",
+            "vm_cluster_name",
+            "surrealdb_cluster_name",
+            "surrealdb_auto_restore",
+            "create_time",
+            "last_modify_time",
+        },
+        default_fields={
+            "bk_tenant_id",
+            "namespace",
+            "name",
+            "data_link_name",
+            "bk_biz_id",
+            "status",
+            "write_mode",
+            "table_id",
+        },
+        note=(
+            "图关系写入目标绑定(GraphRelationBindingConfig)。用于核对关联关系链路当前写入模式："
+            "write_mode=vm/vm_and_surrealdb/surrealdb 分别表示 VM、双写、SurrealDB 写入目标；"
+            "排查双写开启后 VM 查询兼容性时，先按 bk_biz_id/data_link_name/name 过滤本表确认目标态，"
+            "再联动 AccessVMRecord、ClusterInfo、kafka-sample、query-metric 分段取证。"
+            "vertices/relations 体积较大且非路由核验核心，默认不开放。"
+        ),
+        examples=[
+            {
+                "filter": {"write_mode": "vm_and_surrealdb"},
+                "fields": [
+                    "bk_tenant_id",
+                    "namespace",
+                    "name",
+                    "data_link_name",
+                    "bk_biz_id",
+                    "status",
+                    "write_mode",
+                    "table_id",
+                    "bkbase_result_table_name",
+                    "graph_result_table_name",
+                ],
+                "limit": 20,
+            }
+        ],
+    ),
     "metadata.models.storage.ClusterInfo": ModelSpec(
         model_path="metadata.models.storage.ClusterInfo",
         # 存储集群登记。查空判别第二跳：按 (bk_tenant_id, cluster_type=victoria_metrics, cluster_id)

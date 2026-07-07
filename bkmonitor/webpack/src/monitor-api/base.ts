@@ -30,13 +30,7 @@ import { random } from 'monitor-common/utils/utils';
 import axios from './axios/axios';
 import { axiosError, bkMessage, makeMessage } from './utils/index';
 
-interface ApiError {
-  code?: number | string;
-  error_details?: string;
-  message?: string;
-}
-
-interface RequestConfig {
+export interface RequestConfig {
   /* cancelToken */
   cancelToken?: any;
   /* 是否需要配置header */
@@ -60,6 +54,12 @@ interface RequestConfig {
   cancelFn?: () => void;
   /* 上传进度 */
   onUploadProgress?: (progressEvent: any) => void;
+}
+
+interface ApiError {
+  code?: number | string;
+  error_details?: string;
+  message?: string;
 }
 
 type RequestMethod = 'delete' | 'get' | 'head' | 'options' | 'patch' | 'post' | 'put';

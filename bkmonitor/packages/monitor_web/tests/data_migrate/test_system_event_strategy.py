@@ -3,7 +3,7 @@ from django.test import override_settings
 
 from bkmonitor.models import AlgorithmModel, DetectModel, ItemModel, QueryConfigModel, StrategyModel
 from constants.data_source import DataSourceLabel, DataTypeLabel
-from monitor_web.data_migrate import system_event_strategy
+from monitor_web.data_migrate import strategy_migration as system_event_strategy
 from monitor_web.management.commands import data_migrate as data_migrate_command
 
 

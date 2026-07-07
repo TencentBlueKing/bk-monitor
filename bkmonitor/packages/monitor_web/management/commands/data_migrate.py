@@ -58,6 +58,8 @@ from monitor_web.data_migrate import (
     sanitize_cluster_info_in_directory,
     stop_biz_bk_collector,
     upload_export_directory_to_storage,
+    migrate_builtin_strategy_config,
+    migrate_gather_up_strategy_config,
     migrate_system_event_strategy_config,
 )
 from monitor_web.data_migrate.bk_collector import (
@@ -154,6 +156,12 @@ class Command(BaseCommand):
             "  迁移存量系统事件策略到多租户 custom event 链路:\n"
             "    python manage.py data_migrate migrate-system-event-strategies --bk-biz-ids 18901 --dry-run\n"
             "\n"
+            "  迁移存量 gather_up 采集状态策略到多租户 data_label 引用:\n"
+            "    python manage.py data_migrate migrate-gather-up-strategies --bk-biz-ids 18901 --dry-run\n"
+            "\n"
+            "  统一迁移全部内置策略（系统事件 + gather_up 采集状态）:\n"
+            "    python manage.py data_migrate migrate-builtin-strategies --bk-biz-ids 18901 --dry-run\n"
+            "\n"
             "  局部导出指定 BCS 集群、自定义上报 Data ID 和 APM 应用:\n"
             "    python manage.py data_migrate partial-export --directory /tmp/output --bk-tenant-id tencent --bk-biz-id 18901 --bcs-cluster-ids BCS-K8S-00000 --custom-report-data-ids 123 456 --app-names demo-app\n"
             "\n"
@@ -186,6 +194,8 @@ class Command(BaseCommand):
                 "refresh-biz-bk-collector-configs",
                 "retry-biz-bk-collector-config-delivery",
                 "migrate-system-event-strategies",
+                "migrate-gather-up-strategies",
+                "migrate-builtin-strategies",
                 "partial-export",
                 "partial-import",
                 "partial-rebuild",
@@ -204,7 +214,8 @@ class Command(BaseCommand):
                 "find-custom-report-data-ids 支持正数和负数业务 ID；"
                 "enable-closed-strategies 支持正数和负数业务 ID；"
                 "stop-biz-subscription-tasks 会跳过负数业务 ID；"
-                "migrate-system-event-strategies 不传时扫描全量策略"
+                "migrate-system-event-strategies/migrate-gather-up-strategies/migrate-builtin-strategies "
+                "不传时扫描全量策略"
             ),
         )
         parser.add_argument(
@@ -421,6 +432,8 @@ class Command(BaseCommand):
             "refresh-biz-bk-collector-configs": self._handle_refresh_biz_bk_collector_configs,
             "retry-biz-bk-collector-config-delivery": self._handle_retry_biz_bk_collector_config_delivery,
             "migrate-system-event-strategies": self._handle_migrate_system_event_strategies,
+            "migrate-gather-up-strategies": self._handle_migrate_gather_up_strategies,
+            "migrate-builtin-strategies": self._handle_migrate_builtin_strategies,
             "partial-export": self._handle_partial_export,
             "partial-import": self._handle_partial_import,
             "partial-rebuild": self._handle_partial_rebuild,
@@ -914,6 +927,44 @@ class Command(BaseCommand):
                 self.style.SUCCESS(
                     f"migrate system event strategies completed: changed={result['changed_count']}, "
                     f"applied={result['applied_count']}, skipped={result['skipped_count']}"
+                )
+            )
+
+    def _handle_migrate_gather_up_strategies(self, options) -> None:
+        result = migrate_gather_up_strategy_config(
+            bk_biz_id=options.get("bk_biz_ids"),
+            dry_run=options.get("dry_run", False),
+        )
+        self.stdout.write(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        if result["stale_count"]:
+            self.stdout.write(
+                self.style.WARNING(
+                    f"migrate gather_up strategies completed with stale records: {result['stale_count']}"
+                )
+            )
+        else:
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"migrate gather_up strategies completed: changed={result['changed_count']}, "
+                    f"applied={result['applied_count']}"
+                )
+            )
+
+    def _handle_migrate_builtin_strategies(self, options) -> None:
+        result = migrate_builtin_strategy_config(
+            bk_biz_id=options.get("bk_biz_ids"),
+            dry_run=options.get("dry_run", False),
+        )
+        self.stdout.write(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        if result["stale_count"]:
+            self.stdout.write(
+                self.style.WARNING(f"migrate builtin strategies completed with stale records: {result['stale_count']}")
+            )
+        else:
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"migrate builtin strategies completed: changed={result['changed_count']}, "
+                    f"applied={result['applied_count']}"
                 )
             )
 

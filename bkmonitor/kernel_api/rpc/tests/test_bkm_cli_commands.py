@@ -187,3 +187,60 @@ def test_get_effective_setting_masks_credential_name(mocker):
     assert result["db_value"] == "***masked***"
     # 真实 token 值不得出现在任何回显字段里
     assert "super-secret-token-value" not in repr(result)
+
+
+# ── GraphRelation dry-run 预览 ───────────────────────────────────────────────
+
+
+def test_run_readonly_command_dispatches_graph_relation_sync_dry_run(mocker):
+    """GraphRelation 写入激活预览必须通过只读 command_id 分发，且强制 dry_run=true。"""
+    fake_preview = {
+        "namespace": "bkcc__100",
+        "action": "manual",
+        "dry_run": True,
+        "matched": 1,
+        "would_apply": 1,
+        "previews": [
+            {
+                "data_link_name": "graph_relation_builtin",
+                "bk_biz_id": 100,
+                "current_write_mode": "vm",
+                "target_write_mode": "vm_and_surrealdb",
+                "would_apply": True,
+                "reason": "graph_definitions_changed",
+                "vm_target": {"result_table_name": "vm_100_bkcc_built_in_time_series"},
+                "surrealdb_target": {"binding_name": "bkm_100_bkcc_built_in_time_series_graph"},
+                "graph_databus_target": {"databus_name": "bkm_100_bkcc_built_in_time_series_graph"},
+                "vertices_count": 2,
+                "relations_count": 1,
+            }
+        ],
+    }
+    preview = mocker.patch(
+        "metadata.task.sync_cmdb_relation.preview_graph_definition_sync_to_bkbase",
+        return_value=fake_preview,
+        create=True,
+    )
+
+    result = run_readonly_command(
+        {
+            "command_id": "graph_relation_sync_dry_run",
+            "params": {"bk_biz_id": 100, "dry_run": True},
+        }
+    )
+
+    assert result["command_id"] == "graph_relation_sync_dry_run"
+    assert result["dry_run"] is True
+    assert result["would_apply"] == 1
+    assert result["previews"][0]["target_write_mode"] == "vm_and_surrealdb"
+    preview.assert_called_once_with(namespace="", bk_biz_id=100, action="manual")
+
+
+def test_graph_relation_sync_dry_run_rejects_non_dry_run():
+    with pytest.raises(CustomException, match="dry_run=true is required"):
+        run_readonly_command(
+            {
+                "command_id": "graph_relation_sync_dry_run",
+                "params": {"bk_biz_id": 100, "dry_run": False},
+            }
+        )

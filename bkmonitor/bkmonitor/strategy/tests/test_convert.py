@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,13 +7,15 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 
 import pytest
-from mock import MagicMock
+from unittest.mock import MagicMock
 
 from bkmonitor.strategy.convert import CMDBTopoNodeAggConvert, FakeEventConvert
 from bkmonitor.strategy.new_strategy import Item, Strategy
+from bkmonitor.strategy.strategy import StrategyConfig
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.strategy import SYSTEM_EVENT_RT_TABLE_ID
 
@@ -86,7 +87,9 @@ class TestCmdbLevelAgg:
         try:
             CMDBTopoNodeAggConvert.convert(strategy)
         except Exception as e:
-            assert "主机性能指标按CMDB动态节点聚合暂不可用(原因：维度未使用云区域ID + IP，目标又选择了CMDB节点)" == str(e)
+            assert "主机性能指标按CMDB动态节点聚合暂不可用(原因：维度未使用云区域ID + IP，目标又选择了CMDB节点)" == str(
+                e
+            )
         else:
             assert False
 
@@ -293,6 +296,28 @@ class TestDimensionProcess:
         item = Item(strategy_id=1, **copy.deepcopy(self.Config))
         item.supplement_inst_target_dimension()
         assert set(item.query_configs[0].agg_dimension) == {"bk_target_ip", "bk_target_cloud_id"}
+
+    def test_instance_target_dimension_with_collector_cloud_dimension(self):
+        item = Item(strategy_id=1, **copy.deepcopy(self.Config))
+        item.query_configs[0].agg_dimension = ["bk_cloud_id"]
+        item.supplement_inst_target_dimension()
+        assert set(item.query_configs[0].agg_dimension) == {"bk_target_ip", "bk_cloud_id"}
+
+    def test_handle_target_dimensions(self):
+        data_source_dict = {"agg_dimension": []}
+        target = [[{"field": "bk_target_ip"}]]
+
+        StrategyConfig.handle_target_dimensions(data_source_dict, target)
+
+        assert data_source_dict["agg_dimension"] == ["bk_target_ip", "bk_target_cloud_id"]
+
+    def test_handle_target_dimensions_with_collector_cloud_dimension(self):
+        data_source_dict = {"agg_dimension": ["bk_cloud_id"]}
+        target = [[{"field": "bk_target_ip"}]]
+
+        StrategyConfig.handle_target_dimensions(data_source_dict, target)
+
+        assert data_source_dict["agg_dimension"] == ["bk_cloud_id", "bk_target_ip"]
 
     def test_advance_condition_dimension(self):
         item = Item(strategy_id=1, **copy.deepcopy(self.Config))

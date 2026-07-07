@@ -1379,4 +1379,13 @@ export default {
   已选采集项不能为空: 'Selected collection items cannot be empty',
   查看下载历史: 'View download history',
   下载成功: 'Download successful',
+  当前空间: 'Current space',
+  关联空间: 'Associated space',
+  采集项来源: 'Collection item source',
+  关联预览: 'Associated preview',
+  请先在左侧选择: 'Please select on the left first',
+  '共 {0} 个': 'Total of {0}',
+  '关联空间的索引集，无法编辑': 'Index sets from associated spaces cannot be edited',
+  '请{0}编辑。': 'Please edit {0}.',
+  前往对应的空间: 'Go to the corresponding space',
 };

@@ -1187,7 +1187,11 @@
       /** 初始化标签列表 */
       async initLabelSelectList() {
         try {
-          const res = await this.$http.request('unionSearch/unionLabelList');
+          const res = await this.$http.request('unionSearch/unionLabelList', {
+            query: {
+              space_uid: this.$store.state.spaceUid,
+            },
+          });
           this.selectLabelList = res.data;
           const cloneTagBase = structuredClone(this.tagBaseList);
           const notBuiltInList = res.data

@@ -47,6 +47,12 @@ const pcBuildVariates = `
 window.site_url = "\${SITE_URL}"
 window.static_url = "\${STATIC_URL}"
 window.csrf_cookie_name = "\${CSRF_COOKIE_NAME}"
+window.rum = {
+  enabled: \${BKAPP_RUM_ENABLED},
+  sdk: "\${BKAPP_RUM_SDK}",
+  endpoint: "\${BKAPP_RUM_ENDPOINT}",
+  token: "\${BKAPP_RUM_TOKEN}",
+}
 </script>`;
 
 const externalBuildVariates = `
