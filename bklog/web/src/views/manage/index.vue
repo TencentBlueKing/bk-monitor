@@ -33,10 +33,13 @@
   <bk-navigation v-else class="bk-log-navigation" :theme-color="navThemeColor" head-height="0" header-title=""
     navigation-type="left-right" :default-open="false" @toggle="handleToggle">
     <template #menu>
-      <bk-navigation-menu :default-active="activeManageNav.id" :item-default-bg-color="navThemeColor">
+      <bk-navigation-menu :default-active="activeManageNav.id || ''" :item-default-bg-color="navThemeColor">
         <template v-for="groupItem in menuList">
-          <bk-navigation-menu-group v-if="groupItem.children.length"
-            :group-name="isExpand ? groupItem.name : groupItem.keyword" :key="groupItem.id">
+          <bk-navigation-menu-group
+            v-if="getGroupChildren(groupItem.children).length"
+            :group-name="isExpand ? groupItem.name : groupItem.keyword"
+            :key="groupItem.id"
+          >
             <template>
               <a v-for="navItem in getGroupChildren(groupItem.children)" class="nav-item"
                 :href="getRouteHref(navItem.id)" :key="navItem.id">
@@ -87,6 +90,9 @@ import { isFeatureToggleOn } from '@/store/helper';
         refreshKey: '',
       };
     },
+    created() {
+      this.refreshKey = this.buildRefreshKey();
+    },
 
     computed: {
       ...mapState(['topMenu', 'spaceUid', 'bkBizId', 'isExternal', 'globals']),
@@ -97,22 +103,30 @@ import { isFeatureToggleOn } from '@/store/helper';
         if (this.isHeadless) {
           return [];
         }
-        return this.topMenu.find(item => item.id === 'manage')?.children || [];
+        return (this.topMenu || []).find(item => item.id === 'manage')?.children || [];
       },
       menuList() {
-        const list = this.manageNavList;
+        const list = (this.manageNavList || [])
+          .filter(Boolean)
+          .map(menu => ({
+            ...menu,
+            children: menu.children || [],
+          }));
         if (this.isExternal) {
           // 外部版只保留【日志提取】菜单
           return list.filter(menu => menu.id === 'manage-extract-strategy');
         }
-        return list ?? [];
+        return list;
       },
       activeManageNav() {
         if (this.isHeadless) {
           return {};
         }
-        const childList = this.menuList.map(m => m.children).flat(2);
-        return childList.find(t => t.id === this.$route.meta.navId) ?? {};
+        const childList = this.menuList
+          .map(m => m.children || [])
+          .flat(2)
+          .filter(Boolean);
+        return childList.find(t => t.id === this.$route.meta?.navId) ?? {};
       },
       isHeadless() {
         return this.$route.query.hl === '1';
@@ -153,7 +167,7 @@ import { isFeatureToggleOn } from '@/store/helper';
               bizId: this.bkBizId,
             },
           }).then(() => {
-            this.refreshKey = `${this.$router.name}_${this.$route.query.spaceUid}`;
+            this.updateRefreshKey();
           });
         }
       },
@@ -169,15 +183,24 @@ import { isFeatureToggleOn } from '@/store/helper';
           ...this.$route.query,
         },
       }).then(() => {
-        this.refreshKey = `${this.$router.name}_${this.$route.query.spaceUid}`;
+        this.updateRefreshKey();
       });
       if (!this.isHeadless) {
         setTimeout(() => {
-          this.handleToggle();
+          this.handleToggle(true);
         }, 10);
       }
     },
     methods: {
+      buildRefreshKey() {
+        return `${this.$router.name}_${this.$route.query.spaceUid ?? ''}`;
+      },
+      updateRefreshKey() {
+        const nextKey = this.buildRefreshKey();
+        if (nextKey !== this.refreshKey) {
+          this.refreshKey = nextKey;
+        }
+      },
       getMenuIcon(item) {
         if (item.icon) {
           return `bklog-icon bklog-${item.icon}`;
@@ -185,6 +208,7 @@ import { isFeatureToggleOn } from '@/store/helper';
         return 'bk-icon icon-home-shape';
       },
       handleClickNavItem(id) {
+        if (!this.isValidRouteName(id)) return;
         this.$router.push({
           name: id,
           query: {
@@ -193,7 +217,9 @@ import { isFeatureToggleOn } from '@/store/helper';
         });
       },
       handleToggle(data) {
-        this.isExpand = data;
+        if (typeof data === 'boolean') {
+          this.isExpand = data;
+        }
       },
       // 获取当前路由的最外层路径，用于切换业务时跳转到菜单栏目录项
       getTopLevelRoute() {
@@ -204,14 +230,23 @@ import { isFeatureToggleOn } from '@/store/helper';
 
         return 'manage';
       },
-      getGroupChildren(list) {
+      isValidRouteName(name) {
+        if (!name) return false;
+        return this.$router.getRoutes().some(route => route.name === name);
+      },
+      getGroupChildren(list = []) {
+        const safeList = (list || []).filter(Boolean);
         if (this.isExternal) {
           // 外部版只保留【日志提取任务】
-          return list.filter(menu => menu.id === 'log-extract-task');
+          return safeList.filter(menu => menu.id === 'log-extract-task' && this.isValidRouteName(menu.id));
         }
-        return list;
+        // 仅展示已注册的路由项，过滤 collectAccess / addIndexSet 等权限元数据菜单
+        return safeList.filter(menu => this.isValidRouteName(menu.id));
       },
       getRouteHref(pageName) {
+        if (!this.isValidRouteName(pageName)) {
+          return '#';
+        }
         const newUrl = this.$router.resolve({
           name: pageName,
           query: {
@@ -222,6 +257,9 @@ import { isFeatureToggleOn } from '@/store/helper';
       },
       // 判断是否应该显示菜单项
       shouldShowMenuItem(menuId) {
+        if (!this.isValidRouteName(menuId)) {
+          return false;
+        }
         // 如果是 tgpa-task 菜单项，需要检查功能开关
         if (menuId === 'tgpa-task') {
           return this.checkTgpaTaskFeatureToggle();
