@@ -1031,13 +1031,11 @@ class ApmMetaConfig(models.Model):
 
     @classmethod
     def _setup(cls, config_level, level_key, config_key, config_value):
-        qs = cls.objects.filter(config_level=config_level, level_key=level_key, config_key=config_key)
-        if qs.exists():
-            qs.update(config_value=config_value)
-            return
-
-        cls.objects.create(
-            config_level=config_level, level_key=level_key, config_key=config_key, config_value=config_value
+        cls.objects.update_or_create(
+            config_level=config_level,
+            level_key=level_key,
+            config_key=config_key,
+            defaults={"config_value": config_value},
         )
 
 
