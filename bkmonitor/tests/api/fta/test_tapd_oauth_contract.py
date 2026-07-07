@@ -139,6 +139,37 @@ class TestTapdOauthContract(unittest.TestCase):
         self.assertNotIn("request.session.get", callback_source)
         self.assertIn("redirect_uri=backend_callback.rstrip", callback_source)
 
+    def test_user_oauth_scope_uses_enum_without_expanding_permissions(self):
+        constants_source = _read("bkmonitor/packages/fta_web/constants.py")
+        utils_module = _parse("bkmonitor/packages/fta_web/issue/utils/tapd.py")
+        generate_auth_url = _function(utils_module, "generate_auth_url")
+        utils_source = ast.get_source_segment(
+            _read("bkmonitor/packages/fta_web/issue/utils/tapd.py"), generate_auth_url
+        )
+
+        for scope in (
+            "story#read",
+            "story#write",
+            "story#update",
+            "story#delete",
+            "bug#read",
+            "bug#write",
+            "bug#update",
+            "bug#delete",
+            "task#read",
+            "task#write",
+            "task#update",
+            "task#delete",
+        ):
+            self.assertIn(scope, constants_source)
+
+        self.assertIn("TapdOAuthScope.issue_user_oauth()", utils_source)
+        self.assertNotIn("TapdOAuthScope.full()", utils_source)
+        self.assertIn("cls.STORY_READ.value", constants_source)
+        self.assertIn("cls.STORY_WRITE.value", constants_source)
+        self.assertIn("cls.BUG_READ.value", constants_source)
+        self.assertIn("cls.BUG_WRITE.value", constants_source)
+
     def test_user_oauth_callback_binds_token_to_current_bk_user(self):
         callback = _function(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "tapd_user_oauth_callback")
         callback_source = ast.get_source_segment(_read("bkmonitor/packages/fta_web/issue/resources.py"), callback)
@@ -301,7 +332,8 @@ class TestTapdOauthContract(unittest.TestCase):
         self.assertIn("case 'manually_unbound'", auth_source)
         self.assertIn("rebindWorkspaceApi", auth_source)
         self.assertIn("target.is_bound = 'bound'", auth_source)
-        self.assertIn("workspaceList.value = [...workspaceList.value]", auth_source)
+        self.assertIn("workspaceList.splice", auth_source)
+        self.assertIn("createTapdSliderShow.value = true", auth_source)
         self.assertIn("installUrl.value.replace", auth_source)
 
 
