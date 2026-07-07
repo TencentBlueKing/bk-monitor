@@ -653,6 +653,18 @@ class BkDataDorisV4Provider:
         """V4 资源的 metadata.labels，与指标链路保持一致"""
         return {"bk_biz_id": str(self.bk_biz_id)}
 
+    def _tenant_kwargs(self) -> dict:
+        """
+        多租户模式下附加 tenant 字段。
+
+        用于两类场景：
+          1. 资源自身的 metadata（标识资源归属的租户）；
+          2. spec 中对其他资源的引用（name + namespace + kind），标识被引用资源所属的租户。
+        """
+        if settings.ENABLE_MULTI_TENANT_MODE and self.bk_tenant_id:
+            return {"tenant": self.bk_tenant_id}
+        return {}
+
     # ── 资源配置构建 ──────────────────────────
 
     def _build_data_id_config(self) -> dict:
@@ -662,6 +674,7 @@ class BkDataDorisV4Provider:
             "metadata": {
                 "namespace": _V4_NAMESPACE,
                 "name": name,
+                **self._tenant_kwargs(),
                 "labels": self._metadata_labels(),
                 "annotations": {},
             },
@@ -681,6 +694,7 @@ class BkDataDorisV4Provider:
             "metadata": {
                 "namespace": _V4_NAMESPACE,
                 "name": rt_name,
+                **self._tenant_kwargs(),
                 "labels": self._metadata_labels(),
                 "annotations": {},
             },
@@ -802,10 +816,16 @@ class BkDataDorisV4Provider:
                 "labels": self._metadata_labels(),
                 "name": dorisbinding_name,
                 "namespace": _V4_NAMESPACE,
+                **self._tenant_kwargs(),
             },
             "spec": {
-                "data": {"name": rt_name, "namespace": _V4_NAMESPACE, "kind": "ResultTable"},
-                "storage": {"name": storage_cluster, "namespace": _V4_NAMESPACE, "kind": "Doris"},
+                "data": {"name": rt_name, "namespace": _V4_NAMESPACE, "kind": "ResultTable", **self._tenant_kwargs()},
+                "storage": {
+                    "name": storage_cluster,
+                    "namespace": _V4_NAMESPACE,
+                    "kind": "Doris",
+                    **self._tenant_kwargs(),
+                },
                 "storage_config": {
                     "table_type": "duplicate_table",
                     "is_profiling": True,
@@ -835,11 +855,21 @@ class BkDataDorisV4Provider:
                 "name": bus_name,
                 "labels": self._metadata_labels(),
                 "annotations": {},
+                **self._tenant_kwargs(),
             },
             "spec": {
                 "maintainers": self._maintainers_list(),
-                "sources": [{"kind": "DataId", "name": data_id_name, "namespace": _V4_NAMESPACE}],
-                "sinks": [{"kind": "DorisBinding", "name": dorisbinding_name, "namespace": _V4_NAMESPACE}],
+                "sources": [
+                    {"kind": "DataId", "name": data_id_name, "namespace": _V4_NAMESPACE, **self._tenant_kwargs()}
+                ],
+                "sinks": [
+                    {
+                        "kind": "DorisBinding",
+                        "name": dorisbinding_name,
+                        "namespace": _V4_NAMESPACE,
+                        **self._tenant_kwargs(),
+                    }
+                ],
                 "transforms": [
                     {
                         "kind": "Clean",
