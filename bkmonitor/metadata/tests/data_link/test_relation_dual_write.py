@@ -29,6 +29,11 @@ from metadata.models.space.constants import EtlConfigs
 pytestmark = pytest.mark.django_db(databases="__all__")
 
 
+@pytest.fixture(autouse=True)
+def enable_graph_relation_bkbase_sync(settings):
+    settings.GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST = [2]
+
+
 def create_graph_relation_data_source() -> models.DataSource:
     return models.DataSource.objects.create(
         bk_data_id=50001,
@@ -1588,6 +1593,69 @@ def test_sync_graph_definition_dry_run_does_not_mark_apply_exception_failed(mock
     mock_apply.assert_not_called()
     graph_binding = GraphRelationBindingConfig.objects.get(data_link_name=data_link.data_link_name)
     assert graph_binding.status == DataLinkResourceStatus.OK.value
+
+
+def test_sync_graph_definition_filters_bindings_by_biz_whitelist(mocker, settings):
+    settings.GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST = [2]
+    table_id = "2_bkcc_built_in_time_series.__default__"
+    data_source = create_graph_relation_data_source()
+    models.DataSourceResultTable.objects.create(
+        bk_data_id=data_source.bk_data_id,
+        table_id=table_id,
+        bk_tenant_id=data_source.bk_tenant_id,
+        creator="system",
+    )
+    data_link = DataLink.objects.create(
+        bk_tenant_id="system",
+        data_link_name="bkm_relation_graph_whitelist",
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+        bk_data_id=data_source.bk_data_id,
+        table_ids=[table_id],
+    )
+    GraphRelationBindingConfig.objects.create(
+        name=data_link.data_link_name,
+        data_link_name=data_link.data_link_name,
+        namespace=data_link.namespace,
+        bk_tenant_id=data_link.bk_tenant_id,
+        bk_biz_id=2,
+        table_id=table_id,
+        vm_cluster_name="vm-default",
+        surrealdb_cluster_name="surreal-default",
+        graph_result_table_name=DataLink.compose_surrealdb_table_name(table_id),
+        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
+        status=DataLinkResourceStatus.OK.value,
+        vertices=[{"name": "pod", "id_fields": ["pod_name"]}],
+        relations=[{"name": "pod_node", "from": "pod", "to": "node"}],
+    )
+    GraphRelationBindingConfig.objects.create(
+        name="bkm_relation_graph_not_whitelisted",
+        data_link_name="bkm_relation_graph_not_whitelisted",
+        namespace=data_link.namespace,
+        bk_tenant_id=data_link.bk_tenant_id,
+        bk_biz_id=3,
+        table_id="3_bkcc_built_in_time_series.__default__",
+        vm_cluster_name="vm-default",
+        surrealdb_cluster_name="surreal-default",
+        graph_result_table_name="vm_3_bkcc_built_in_time_series",
+        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
+        status=DataLinkResourceStatus.OK.value,
+        vertices=[{"name": "pod", "id_fields": ["pod_name"]}],
+        relations=[{"name": "pod_node", "from": "pod", "to": "node"}],
+    )
+    mocker.patch(
+        "metadata.task.sync_cmdb_relation.EntityMeta.auto_query_graph_definitions",
+        return_value=([{"name": "service", "id_fields": ["service_name"]}], [{"name": "service_pod"}]),
+    )
+
+    from metadata.models.entity_relation import NAMESPACE_ALL
+    from metadata.task.sync_cmdb_relation import sync_graph_definition_to_bkbase
+
+    result = sync_graph_definition_to_bkbase(namespace=NAMESPACE_ALL, action="apply", dry_run=True)
+
+    assert result["matched"] == 1
+    assert result["filtered_by_whitelist"] == 1
+    assert result["enabled_biz_ids"] == [2]
 
 
 def test_sync_graph_definition_retries_unchanged_failed_binding(mocker):
