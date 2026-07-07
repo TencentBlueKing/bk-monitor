@@ -23,13 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, toRefs } from 'vue';
+import { type PropType, defineComponent, toRefs, useTemplateRef } from 'vue';
 
-import { Button, Checkbox, Sideslider } from 'bkui-vue';
+import { Button, Checkbox, Message, Sideslider } from 'bkui-vue';
+import { linkIssueToTapd } from 'monitor-api/modules/issue';
 
 import TapdFieldForm from '../../components/tapd-field-form/tapd-field-form';
 import TapdFieldFormLoadingCom from '../../components/tapd-field-form/tapd-field-form-loading';
 import { useTapdSideslider } from '../composables/use-tapd-sideslider';
+import { type TCreateTapdApiParams, createTapdApi } from '../services/create-tapd';
 import TapdRelation from '../tapd-relation/tapd-relation';
 import TapdBasicForm from './components/tapd-basic-form';
 
@@ -59,6 +61,11 @@ export default defineComponent({
   },
   emits: ['update:show', 'addWorkspace', 'revokeAuth'],
   setup(props, { emit }) {
+    /** 基础表单组件 ref，用于调用表单校验方法 - 由外部传入 */
+    const basicFormRef = useTemplateRef<InstanceType<typeof TapdBasicForm>>('basicForm');
+    const tapdFieldFormRef = useTemplateRef<InstanceType<typeof TapdFieldForm>>('tapdFieldForm');
+    const tapdRelationRef = useTemplateRef<InstanceType<typeof TapdRelation>>('tapdRelation');
+
     const { show, bizId, issuesId, workspaceList } = toRefs(props);
 
     const {
@@ -71,17 +78,76 @@ export default defineComponent({
       tapdFields,
       tapdFieldFormLoading,
       linkTapdIds,
+      confirmLoading,
+      linkTapdItems,
       handleTabChange,
       handleSetDefaultValue,
-      handleConfirm,
       handleFormDataChange,
       handleFieldValueChange,
       handleLinkTapdIdsChange,
+      handleLinkTapdItemsChange,
     } = useTapdSideslider({ show, bizId, workspaceList, issuesId });
 
     const handleShowChange = (isShow: boolean) => emit('update:show', isShow);
     const handleAddWorkspace = () => emit('addWorkspace');
     const handleRevokeAuth = () => emit('revokeAuth');
+
+    /**
+     * 处理确认创建
+     */
+    const handleConfirm = async () => {
+      if (confirmLoading.value) {
+        return;
+      }
+      const basicFormValid = await basicFormRef.value
+        ?.validate()
+        .then(() => true)
+        .catch(() => false);
+      if (tabActive.value === 'link') {
+        const linkTapdIdsValid = await tapdRelationRef.value?.validate().catch(() => false);
+
+        if (basicFormValid && linkTapdIdsValid) {
+          const params = {
+            bk_biz_id: bizId.value,
+            issue_id: issuesId.value,
+            workspace_id: formData.value.workspace_id,
+            sync_status: formData.value.sync_status,
+            tapd_items: linkTapdItems.value,
+          };
+          confirmLoading.value = true;
+          const success = await linkIssueToTapd(params).catch(() => null);
+          Message({
+            type: success ? 'success' : 'error',
+            message: success ? window.i18n.t('关联单据成功') : window.i18n.t('关联单据失败'),
+          });
+          if (success) {
+            handleShowChange(false);
+          }
+        }
+      } else {
+        const tapdFieldFormValid = await tapdFieldFormRef.value?.validate().catch(() => false);
+        if (basicFormValid && tapdFieldFormValid) {
+          const params = {
+            bk_biz_id: bizId.value,
+            issue_id: issuesId.value,
+            workspace_id: formData.value.workspace_id,
+            sync_status: formData.value.sync_status,
+            tapd_type: formData.value.tapd_type,
+            ...tapdFieldValue.value,
+          };
+          confirmLoading.value = true;
+          const success = await createTapdApi(params as TCreateTapdApiParams).catch(() => null);
+          Message({
+            type: success ? 'success' : 'error',
+            message: success ? window.i18n.t('创建单据成功') : window.i18n.t('创建单据失败'),
+          });
+          if (success) {
+            handleShowChange(false);
+          }
+        }
+      }
+      confirmLoading.value = false;
+    };
 
     return {
       count,
@@ -93,6 +159,7 @@ export default defineComponent({
       tapdFields,
       tapdFieldFormLoading,
       linkTapdIds,
+      confirmLoading,
       handleShowChange,
       handleTabChange,
       handleSetDefaultValue,
@@ -102,6 +169,7 @@ export default defineComponent({
       handleLinkTapdIdsChange,
       handleAddWorkspace,
       handleRevokeAuth,
+      handleLinkTapdItemsChange,
     };
   },
   render() {
@@ -166,6 +234,7 @@ export default defineComponent({
                       modelValue={this.linkTapdIds}
                       tapdType={this.formData.tapd_type}
                       workspaceId={this.formData.workspace_id}
+                      onChangeTapdItems={this.handleLinkTapdItemsChange}
                       onUpdate:modelValue={this.handleLinkTapdIdsChange}
                     />
                   );
@@ -193,6 +262,7 @@ export default defineComponent({
               </div>
               <div class={['create-tapd-footer', { fixed: this.tabActive === 'add' }]}>
                 <Button
+                  loading={this.confirmLoading}
                   theme='primary'
                   onClick={this.handleConfirm}
                 >

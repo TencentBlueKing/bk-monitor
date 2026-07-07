@@ -59,6 +59,7 @@ export default defineComponent({
   },
   emits: {
     'update:modelValue': (_val: string[]) => true,
+    changeTapdItems: (_val: { tapd_id: string; tapd_title: string; tapd_type: string }[]) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -68,7 +69,7 @@ export default defineComponent({
     const workspaceIdRef = toRef(props, 'workspaceId');
     const tapdTypeRef = toRef(props, 'tapdType');
 
-    const { list, loading, scrollLoading, fetchData, handleSearch, handleScrollEnd } = useTapdSelect({
+    const { list, loading, scrollLoading, tapdMaps, fetchData, handleSearch, handleScrollEnd } = useTapdSelect({
       bizId: bizIdRef,
       workspaceId: workspaceIdRef,
       tapdType: tapdTypeRef,
@@ -98,6 +99,22 @@ export default defineComponent({
 
     const handleChange = (val: string[]) => {
       emit('update:modelValue', val);
+      emit(
+        'changeTapdItems',
+        val
+          .map(id => {
+            const item = tapdMaps.get(id);
+            if (item) {
+              return {
+                tapd_id: id,
+                tapd_type: item.tapd_type,
+                tapd_title: item.name,
+              };
+            }
+            return null;
+          })
+          .filter(item => !!item)
+      );
     };
 
     const handleToggle = (val: boolean) => {
@@ -158,7 +175,7 @@ export default defineComponent({
                     name={item.name}
                   >
                     <span class='tapd-select-item'>
-                      <span class='tapd-id'>#{item.id}</span>
+                      <span class='tapd-id'>#TAPD-{item.id}</span>
                       <span class='tapd-title'>{item.name}</span>
                       <span
                         style={{
