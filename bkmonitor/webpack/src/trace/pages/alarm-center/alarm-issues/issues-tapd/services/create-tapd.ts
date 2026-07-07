@@ -24,29 +24,31 @@
  * IN THE SOFTWARE.
  */
 
-import { listIssueTapdRelations } from 'monitor-api/modules/issue';
+import { createTapd, linkIssueToTapd } from 'monitor-api/modules/issue';
 
-import type { RequestOptions } from '../../services/base';
+import type { RequestOptions } from 'trace/pages/alarm-center/services/base';
 
-export interface TapdRelationItem {
+export type TCreateTapdApiParams = Record<string, (number | string)[] | number | string> & {
   bk_biz_id: number;
   issue_id: string;
-  link_mode: string;
-  relation_id: number;
   sync_status: boolean;
-  tapd_id: string;
-  tapd_title: string;
   tapd_type: string;
   workspace_id: number;
-}
+};
 
-export const getTapdRelations = (
-  params: {
-    bk_biz_id: number;
-    issue_id: string;
-  },
-  options?: RequestOptions
-): Promise<TapdRelationItem[]> => {
-  const data = listIssueTapdRelations(params, options).catch(() => []);
+export type TLinkIssueToTapdApiParams = {
+  bk_biz_id: number;
+  issue_id: string;
+  sync_status: boolean;
+  tapd_items: { tapd_id: string; tapd_title: string; tapd_type: string }[];
+  workspace_id: number;
+};
+export const createTapdApi = async (params: TCreateTapdApiParams, options?: RequestOptions) => {
+  const data = await createTapd(params, options).catch(() => null);
+  return data;
+};
+
+export const linkIssueToTapdApi = async (params: TLinkIssueToTapdApiParams, options?: RequestOptions) => {
+  const data = await linkIssueToTapd(params, options).catch(() => null);
   return data;
 };

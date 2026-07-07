@@ -28,7 +28,7 @@ import { type Ref, shallowRef } from 'vue';
 
 import { searchTapdItemsApi } from '../services/tapd';
 
-import type { ITapdListItem, TTapdStatus } from '../typing';
+import type { ITapdListItem } from '../typing';
 
 /** 每页加载数量 */
 const PAGE_SIZE = 30;
@@ -38,11 +38,6 @@ interface UseTapdSelectOptions {
   tapdType: Ref<string>;
   workspaceId: Ref<number | string>;
 }
-
-/** TODO: 临时 mock 数据，接口联调后删除 */
-const MOCK_TOTAL = 52;
-const MOCK_STATUSES: TTapdStatus[] = ['planning', 'developing', 'status_1', 'for_test', 'resolved'];
-const MOCK_PRIORITIES = ['1', '2', '3'];
 
 export function useTapdSelect(options: UseTapdSelectOptions) {
   const { bizId, workspaceId, tapdType } = options;
@@ -59,6 +54,8 @@ export function useTapdSelect(options: UseTapdSelectOptions) {
   const page = shallowRef(1);
   /** 当前搜索关键词 */
   const keyword = shallowRef('');
+
+  const tapdMaps: Map<string, ITapdListItem> = new Map();
 
   /**
    * @description 调用接口查询 TAPD 单据列表
@@ -82,10 +79,9 @@ export function useTapdSelect(options: UseTapdSelectOptions) {
         page: page.value,
         fields: 'status',
       }).catch(() => null);
-      let items = data ?? [];
-      // TODO: 临时 mock，接口联调后删除此分支
-      if (items.length === 0) {
-        items = buildMockData(page.value, PAGE_SIZE, keyword.value || undefined);
+      const items = data ?? [];
+      for (const item of items) {
+        tapdMaps.set(item.id, item);
       }
       list.value = isLoadMore ? [...list.value, ...items] : items;
       hasMore.value = items.length >= PAGE_SIZE;
@@ -118,28 +114,9 @@ export function useTapdSelect(options: UseTapdSelectOptions) {
     loading,
     scrollLoading,
     hasMore,
+    tapdMaps,
     fetchData,
     handleSearch,
     handleScrollEnd,
   };
-}
-
-function buildMockData(page: number, pageSize: number, keyword?: string): ITapdListItem[] {
-  const list: ITapdListItem[] = [];
-  const start = (page - 1) * pageSize;
-  for (let i = start; i < Math.min(start + pageSize, MOCK_TOTAL); i++) {
-    const name = `[Mock] TAPD 单据 ${i + 1} - ${['告警关联优化', 'TAPD 同步异常', '单据状态流转', '工单自动创建', '数据对接调试'][i % 5]}`;
-    if (keyword && !name.toLowerCase().includes(keyword.toLowerCase())) continue;
-    list.push({
-      id: String(1000000 + i),
-      name,
-      status: MOCK_STATUSES[i % MOCK_STATUSES.length],
-      priority: MOCK_PRIORITIES[i % MOCK_PRIORITIES.length],
-      tapd_type: 'story',
-      bk_biz_id: 0,
-      workspace_id: 1000000000000,
-      created: '2025-06-26 10:00:00',
-    });
-  }
-  return list;
 }

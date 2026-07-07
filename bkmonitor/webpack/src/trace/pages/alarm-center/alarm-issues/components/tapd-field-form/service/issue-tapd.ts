@@ -24,29 +24,19 @@
  * IN THE SOFTWARE.
  */
 
-import { listIssueTapdRelations } from 'monitor-api/modules/issue';
+import { getTapdFields } from 'monitor-api/modules/issue';
 
-import type { RequestOptions } from '../../services/base';
+import type { IField } from '../typing';
+import type { RequestOptions } from 'trace/pages/alarm-center/services/base';
 
-export interface TapdRelationItem {
-  bk_biz_id: number;
-  issue_id: string;
-  link_mode: string;
-  relation_id: number;
-  sync_status: boolean;
-  tapd_id: string;
-  tapd_title: string;
-  tapd_type: string;
-  workspace_id: number;
-}
-
-export const getTapdRelations = (
+export const getTapdFieldsApi = (
   params: {
     bk_biz_id: number;
-    issue_id: string;
+    tapd_type: string;
+    workspace_id: number;
   },
   options?: RequestOptions
-): Promise<TapdRelationItem[]> => {
-  const data = listIssueTapdRelations(params, options).catch(() => []);
+): Promise<IField[]> => {
+  const data = getTapdFields(params, options).catch(() => []);
   return data;
 };
