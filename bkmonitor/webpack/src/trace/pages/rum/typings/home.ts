@@ -153,6 +153,22 @@ export const SORTABLE_METRIC_KEYS = Object.values(SortableMetric) as readonly So
 /** 排序列的标题 i18n key 映射 */
 export const METRIC_COLUMN_TITLES: Record<SortableMetricKey, string> = {
   [SortableMetric.lcpP75]: 'LCP P75',
-  [SortableMetric.jsErrorRate]: 'JS 错误率',
-  [SortableMetric.apiFailRate]: 'API 失败率',
+  [SortableMetric.jsErrorRate]: window.i18n.t('JS 错误率'),
+  [SortableMetric.apiFailRate]: window.i18n.t('API 失败率'),
+};
+
+/** 排序列的标题 i18n key 映射 */
+export const METRIC_COLUMN_TIPS = {
+  [SortableMetric.lcpP75]: {
+    tip: window.i18n.t('页面主要内容完成渲染的耗时第 75 分位值，数值越低体验越好。'),
+    expression: '',
+  },
+  [SortableMetric.jsErrorRate]: {
+    tip: window.i18n.t('页面运行中发生 JSt异常比例，数值越高稳定性越差。'),
+    expression: `${window.i18n.t('计算公式')}：${window.i18n.t('JS 错误的View数 / 总View数 × 100%')}`,
+  },
+  [SortableMetric.apiFailRate]: {
+    tip: window.i18n.t('接口请求失败比例，包含 HTTP 非成功状态码、请求超时或网络异常等情况。'),
+    expression: `${window.i18n.t('计算公式')}：${window.i18n.t('失败接口请求次数 / 接口请求总次数 × 100%')}`,
+  },
 };

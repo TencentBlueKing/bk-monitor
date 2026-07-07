@@ -396,6 +396,7 @@ export default defineComponent({
     });
 
     return {
+      t,
       storageData,
       clusterOptions,
       handleFieldChange,
@@ -413,20 +414,20 @@ export default defineComponent({
     return (
       <div class='storage-status'>
         <div class='storage-info'>
-          <div class='storage-status-title'>{this.$t('存储信息')}</div>
+          <div class='storage-status-title'>{this.t('存储信息')}</div>
           <div class='storage-status-content'>
             <div class='storage-info-row'>
               <div class='storage-info-item'>
                 <EditableField
                   editable={false}
-                  label={this.$t('存储索引名')}
+                  label={this.t('存储索引名')}
                   value={this.detail?.es_storage_index_name || '--'}
                 />
               </div>
               <div class='storage-info-item'>
                 <EditableField
                   confirm={v => this.handleFieldChange(v, 'es_storage_cluster')}
-                  label={this.$t('存储集群')}
+                  label={this.t('存储集群')}
                   options={this.clusterOptions}
                   type='select'
                   value={this.storageData.es_storage_cluster}
@@ -437,9 +438,9 @@ export default defineComponent({
               <div class='storage-info-item'>
                 <EditableField
                   confirm={v => this.handleFieldChange(v, 'es_retention')}
-                  label={this.$t('过期时间')}
+                  label={this.t('过期时间')}
                   maxExpired={3}
-                  suffix={this.$t('天')}
+                  suffix={this.t('天')}
                   type='expired'
                   value={this.storageData.es_retention}
                 />
@@ -447,7 +448,7 @@ export default defineComponent({
               <div class='storage-info-item'>
                 <EditableField
                   confirm={v => this.handleFieldChange(v, 'es_number_of_replicas')}
-                  label={this.$t('副本数')}
+                  label={this.t('副本数')}
                   value={this.storageData.es_number_of_replicas}
                 />
               </div>
@@ -456,14 +457,14 @@ export default defineComponent({
               <div class='storage-info-item'>
                 <EditableField
                   confirm={v => this.handleFieldChange(v, 'es_shards')}
-                  label={this.$t('分片数')}
+                  label={this.t('分片数')}
                   value={this.storageData.es_shards}
                 />
               </div>
               <div class='storage-info-item'>
                 <EditableField
                   confirm={v => this.handleFieldChange(v, 'es_slice_size')}
-                  label={this.$t('索引切分大小')}
+                  label={this.t('索引切分大小')}
                   suffix='G'
                   value={this.storageData.es_slice_size}
                 />
@@ -473,7 +474,7 @@ export default defineComponent({
         </div>
 
         <div class='physical-index'>
-          <div class='storage-status-title'>{this.$t('物理索引')}</div>
+          <div class='storage-status-title'>{this.t('物理索引')}</div>
           <div class='storage-status-content'>
             <CommonTable
               columns={this.indicesInfoColumns}
@@ -492,7 +493,7 @@ export default defineComponent({
         </div>
 
         <div class='field-info'>
-          <div class='storage-status-title'>{this.$t('字段信息')}</div>
+          <div class='storage-status-title'>{this.t('字段信息')}</div>
           <div class='storage-status-content'>
             <CommonTable
               columns={this.fieldInfoColumns}

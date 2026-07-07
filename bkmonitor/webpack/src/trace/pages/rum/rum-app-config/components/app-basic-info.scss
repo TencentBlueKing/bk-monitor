@@ -60,6 +60,11 @@
           color: #111214;
 
           @include ellipsis;
+
+          &.skeleton-element {
+            width: 120px;
+            height: 24px;
+          }
         }
 
         /* 应用状态标签 */
@@ -79,6 +84,11 @@
             color: #fff;
             background-color: #2caf5e;
           }
+
+          &.skeleton-element {
+            width: 80px;
+            background-color: transparent;
+          }
         }
 
         /* TOKEN 区域 */
@@ -90,6 +100,11 @@
           padding: 0 12px;
           background-color: #f0f4fa;
           border-radius: 999px;
+
+          &.skeleton-element {
+            width: 120px;
+            background-color: transparent;
+          }
 
           .token-label {
             font-size: 11px;
@@ -133,6 +148,11 @@
           color: #4e5e7a;
 
           @include ellipsis;
+
+          &.skeleton-element {
+            width: 120px;
+            height: 20px;
+          }
         }
 
         /* 分隔线 */
@@ -148,6 +168,11 @@
           display: flex;
           align-items: center;
           overflow: hidden;
+
+          &.skeleton-element {
+            width: 240px;
+            height: 20px;
+          }
 
           .desc-text {
             font-size: 12px;

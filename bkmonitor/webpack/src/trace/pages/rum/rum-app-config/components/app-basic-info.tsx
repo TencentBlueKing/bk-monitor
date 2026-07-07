@@ -49,6 +49,10 @@ export default defineComponent({
       type: Object as PropType<IRumAppConfig>,
       default: () => ({}),
     },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
     applicationOperation: (_type: ApplicationOperationType) => true,
@@ -238,13 +242,37 @@ export default defineComponent({
         });
     };
 
+    const renderSkeleton = () => {
+      return (
+        <div class='app-basic-info'>
+          <div class='app-basic-info__left'>
+            <div class='app-icon-wrapper'>
+              <i class='icon-monitor icon-wangye app-icon' />
+            </div>
+            <div class='app-content'>
+              <div class='content-row'>
+                <div class='skeleton-element app-name' />
+                <div class='skeleton-element app-status' />
+                <div class='skeleton-element app-token' />
+              </div>
+              <div class='content-row'>
+                <div class='skeleton-element app-alias' />
+                <div class='separator' />
+                <div class='skeleton-element app-desc' />
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
     return {
+      t,
       token,
       isShowToken,
       tokenLoading,
       model,
       rules,
-      t,
       saveLoading,
       appOperationMenuShow,
       appOperationMapText,
@@ -260,10 +288,13 @@ export default defineComponent({
       handleOperationApp,
       handleOperationCancel,
       handleApplicationOperation,
+      renderSkeleton,
     };
   },
 
   render() {
+    if (this.loading) return this.renderSkeleton();
+
     return (
       <div class='app-basic-info'>
         <div class='app-basic-info__left'>
@@ -279,7 +310,7 @@ export default defineComponent({
                 {this.data.app_name}
               </span>
               <span class={['app-status', { 'is-enabled': this.data.is_enabled }]}>
-                {this.data.is_enabled ? this.$t('启用中') : this.$t('已停用')}
+                {this.data.is_enabled ? this.t('启用中') : this.t('已停用')}
               </span>
               <div class='app-token'>
                 <span class='token-label'>TOKEN：</span>
@@ -296,7 +327,7 @@ export default defineComponent({
                   onClick={this.handleViewToken}
                 >
                   <i class={['icon-monitor', this.isShowToken ? 'icon-mc-invisible' : 'icon-mc-visual']} />
-                  <span>{this.isShowToken ? this.$t('隐藏') : this.$t('查看')}</span>
+                  <span>{this.isShowToken ? this.t('隐藏') : this.t('查看')}</span>
                 </span>
                 {this.isShowToken && (
                   <span
@@ -304,7 +335,7 @@ export default defineComponent({
                     onClick={this.handleCopyToken}
                   >
                     <i class='icon-monitor icon-mc-copy' />
-                    <span>{this.$t('复制')}</span>
+                    <span>{this.t('复制')}</span>
                   </span>
                 )}
               </div>
@@ -322,7 +353,7 @@ export default defineComponent({
                   class='desc-text'
                   v-overflow-tips
                 >
-                  {this.data.description}
+                  {this.data.description || '--'}
                 </span>
                 {/* 编辑弹窗 */}
                 <Popover
@@ -340,14 +371,14 @@ export default defineComponent({
                           rules={this.rules}
                         >
                           <Form.FormItem
-                            label={this.$t('应用别名')}
+                            label={this.t('应用别名')}
                             property='alias'
                             required
                           >
                             <Input v-model={this.model.alias} />
                           </Form.FormItem>
                           <Form.FormItem
-                            label={this.$t('应用描述')}
+                            label={this.t('应用描述')}
                             property='desc'
                           >
                             <Input
@@ -365,13 +396,13 @@ export default defineComponent({
                             theme='primary'
                             onClick={this.handleSave}
                           >
-                            {this.$t('保存')}
+                            {this.t('保存')}
                           </Button>
                           <Button
                             size='small'
                             onClick={this.handleCancel}
                           >
-                            {this.$t('取消')}
+                            {this.t('取消')}
                           </Button>
                         </div>
                       </div>
@@ -384,9 +415,7 @@ export default defineComponent({
                 >
                   <EditLine
                     class='edit-icon'
-                    v-tippy={{
-                      content: this.t('编辑'),
-                    }}
+                    v-tippy={{ content: this.t('编辑') }}
                   />
                 </Popover>
               </div>
@@ -399,7 +428,7 @@ export default defineComponent({
             onClick={() => this.$emit('showSdkGuide')}
           >
             <i class='icon-monitor icon-bangzhuwendang link-icon' />
-            <span>{this.$t('SDK 接入指引')}</span>
+            <span>{this.t('SDK 接入指引')}</span>
           </span>
           <Popover
             v-slots={{
@@ -407,7 +436,7 @@ export default defineComponent({
                 <div class='rum-app-operation-content'>
                   <div class='title'>{this.appOperationMapText.title}</div>
                   <div class='app-name'>
-                    <span class='label'>{this.$t('应用名称')}：</span>
+                    <span class='label'>{this.t('应用名称')}：</span>
                     <span class='value'>{this.data.app_name}</span>
                   </div>
                   <div class='tips'>{this.appOperationMapText.tips}</div>
@@ -424,7 +453,7 @@ export default defineComponent({
                       size='small'
                       onClick={this.handleOperationCancel}
                     >
-                      {this.$t('取消')}
+                      {this.t('取消')}
                     </Button>
                   </div>
                 </div>
@@ -448,7 +477,7 @@ export default defineComponent({
                         this.handleOperationApp(e, this.data?.is_enabled ? 'stop' : 'start');
                       }}
                     >
-                      {this.data?.is_enabled ? this.$t('停用') : this.$t('启用')}
+                      {this.data?.is_enabled ? this.t('停用') : this.t('启用')}
                     </div>
                     <div
                       class='more-menu-item'
@@ -456,7 +485,7 @@ export default defineComponent({
                         this.handleOperationApp(e, 'delete');
                       }}
                     >
-                      {this.$t('删除')}
+                      {this.t('删除')}
                     </div>
                   </div>
                 ),
@@ -472,7 +501,7 @@ export default defineComponent({
                 onClick={this.handleAppOperationMenuShow}
               >
                 <i class='icon-monitor icon-mc-more' />
-                <span>{this.$t('更多')}</span>
+                <span>{this.t('更多')}</span>
               </span>
             </Popover>
           </Popover>
