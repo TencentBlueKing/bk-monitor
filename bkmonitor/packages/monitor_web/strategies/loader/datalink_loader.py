@@ -20,6 +20,7 @@ from bkmonitor.models import StrategyLabel
 from bkmonitor.models.fta.assign import AlertAssignGroup, AlertAssignRule
 from bkmonitor.utils.common_utils import logger
 from constants.alert import DEFAULT_NOTICE_MESSAGE_TEMPLATE
+from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import resource
 from monitor_web.models.collecting import CollectConfigMeta
 from monitor_web.strategies.default_settings.datalink.v1 import (
@@ -33,6 +34,7 @@ from monitor_web.strategies.default_settings.datalink.v1 import (
     DataLinkStage,
     DatalinkStrategy,
     GatherType,
+    get_gather_up_result_table_id,
 )
 from monitor_web.strategies.user_groups import (
     add_member_to_collecting_notice_group,
@@ -58,6 +60,7 @@ class DatalinkDefaultAlarmStrategyLoader:
         self.user_id = user_id
         self.collect_config = collect_config
         self.bk_biz_id = self.collect_config.bk_biz_id
+        self.bk_tenant_id = self.collect_config.bk_tenant_id
         self.collect_config_id = self.collect_config.id
         self.collect_config_name = self.collect_config.name
 
@@ -123,7 +126,7 @@ class DatalinkDefaultAlarmStrategyLoader:
         strategy_str = strategy_str.replace("${{bk_biz_id}}", str(self.bk_biz_id))
         strategy = json.loads(strategy_str)
 
-        # 多租户环境下，gather_up 结果表按业务隔离，无法沿用单租户全局结果表，改用 data_label 引用指标
+        # 多租户环境下，gather_up 无法沿用单租户全局结果表，改用自定义时序引用指标
         self._adapt_query_config_for_multi_tenant(strategy)
 
         # 组装通知信息
@@ -148,14 +151,15 @@ class DatalinkDefaultAlarmStrategyLoader:
         logger.info("Start to save strategy, %s", strategy_config)
         return resource.strategies.save_strategy_v2(**strategy_config)["id"]
 
-    @staticmethod
-    def _adapt_query_config_for_multi_tenant(strategy: dict) -> None:
+    def _adapt_query_config_for_multi_tenant(self, strategy: dict) -> None:
         """多租户环境下适配 gather_up 采集状态策略的查询配置。
 
         单租户默认策略硬编码了全局结果表 ``bkmonitorbeat_gather_up.__default__``（migration 0177）。
-        多租户下每个业务的 gather_up 结果表为 ``{bk_tenant_id}_{bk_biz_id}_bkmonitorbeat_gather_up.__default__``，
-        无法硬编码，因此清空 ``result_table_id`` 并改用 ``data_label`` 引用指标，运行期按当前租户/业务解析到
-        真实结果表（结果表已配置同名 data_label）。单租户环境保持原结果表不变。
+        多租户下 gather_up 走自定义时序链路：按业务建链时引用分业务结果表，按租户建链时引用不带
+        业务/租户前缀的中立结果表，避免默认业务 ID 泄漏到各业务默认策略。查询配置的数据来源切换为
+        自定义时序（``data_source_label=custom``、``data_type_label=time_series``），同时保留同名 ``data_label``
+        作为兜底引用，与 ``migrate_gather_up_strategy_config`` 的存量迁移结果保持一致。单租户环境保持原
+        结果表不变。
 
         Args:
             strategy: 已完成占位符渲染的策略配置（原地修改）。
@@ -163,9 +167,16 @@ class DatalinkDefaultAlarmStrategyLoader:
         if not settings.ENABLE_MULTI_TENANT_MODE:
             return
 
+        result_table_id = get_gather_up_result_table_id(
+            bk_tenant_id=self.bk_tenant_id,
+            bk_biz_id=self.bk_biz_id,
+            space_builtin_data_link_mode=settings.SPACE_BUILTIN_DATA_LINK_MODE,
+        )
         for item in strategy.get("items", []):
             for query_config in item.get("query_configs", []):
-                query_config["result_table_id"] = ""
+                query_config["data_source_label"] = DataSourceLabel.CUSTOM
+                query_config["data_type_label"] = DataTypeLabel.TIME_SERIES
+                query_config["result_table_id"] = result_table_id
                 query_config["data_label"] = GATHER_UP_DATA_LABEL
 
     def update_rule_group(
