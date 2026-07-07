@@ -29,6 +29,7 @@ import { defineComponent, nextTick, onBeforeUnmount, onMounted, ref, watch, comp
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 
 import $http from '@/api';
+import useStore from '@/hooks/use-store';
 import { showMessage } from '../../utils';
 
 import './tag-more.scss';
@@ -124,6 +125,8 @@ export default defineComponent({
   emits: ['refresh-label-list', 'update-tags'],
 
   setup(props: ITagMoreProps, { emit }) {
+    const store = useStore();
+
     // DOM引用
     const containerRef = ref<HTMLDivElement>(); // 主容器引用
     const measureRef = ref<HTMLDivElement>(); // 隐藏的测量容器引用
@@ -239,7 +242,7 @@ export default defineComponent({
           () => {
             $http
               .request('unionSearch/unionCreateLabel', {
-                data: { name: verifyData.value.labelEditName.trim() },
+                data: { name: verifyData.value.labelEditName.trim(), space_uid: store.state.spaceUid },
               })
               .then(res => {
                 emit('refresh-label-list');

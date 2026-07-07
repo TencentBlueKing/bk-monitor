@@ -1198,7 +1198,11 @@ export default defineComponent({
 
     /** 获取全量标签列表 */
     const fetchLabelList = () => {
-      $http.request('unionSearch/unionLabelList').then(res => {
+      $http.request('unionSearch/unionLabelList', {
+        query: {
+          space_uid: spaceUid.value,
+        },
+      }).then(res => {
         selectLabelList.value = res.data || [];
         // 构建过滤列表："全部"选项 + 非内置标签
         const notBuiltInList = (res.data || [])
