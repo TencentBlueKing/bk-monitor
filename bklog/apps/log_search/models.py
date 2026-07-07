@@ -1187,7 +1187,7 @@ TAG_TYPE_CHOICES = (
 
 class IndexSetTag(models.Model):
     tag_id = models.AutoField(_("标签id"), primary_key=True)
-    space_uid = models.CharField(_("空间唯一标识"), blank=True, default="", max_length=256, db_index=True)
+    space_uid = models.CharField(_("空间唯一标识"), blank=True, default="", max_length=240, db_index=True)
     name = models.CharField(_("标签名称"), max_length=255, db_index=True)
     value = models.CharField(_("标签值"), max_length=255, default="", blank=True)
     color = models.CharField(_("配色"), max_length=255, choices=TagColor.get_choices(), default=TagColor.GREEN.value)

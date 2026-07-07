@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="indexsettag",
             name="space_uid",
-            field=models.CharField(blank=True, db_index=True, default="", max_length=256, verbose_name="空间唯一标识"),
+            field=models.CharField(blank=True, db_index=True, default="", max_length=240, verbose_name="空间唯一标识"),
         ),
         migrations.AlterUniqueTogether(
             name="indexsettag",

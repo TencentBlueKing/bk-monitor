@@ -19,15 +19,11 @@ class TestIndexSetTagSpace(TestCase):
         self.assertEqual(tag_a["space_uid"], space_a)
         self.assertEqual(tag_b["space_uid"], space_b)
 
-    def test_user_tag_can_use_same_name_as_global_tag_in_space(self):
-        global_tag = IndexSetTag.objects.create(name="legacy-global", color=TagColor.GREEN.value)
+    def test_user_tag_name_conflicts_with_global_tag_in_space(self):
+        IndexSetTag.objects.create(name="legacy-global", color=TagColor.GREEN.value)
 
-        space_tag = IndexSetHandler.create_tag(
-            {"space_uid": "bkcc__2", "name": "legacy-global", "color": TagColor.BLUE.value}
-        )
-
-        self.assertNotEqual(global_tag.tag_id, space_tag["tag_id"])
-        self.assertEqual(space_tag["space_uid"], "bkcc__2")
+        with self.assertRaises(IndexSetTagNameExistException):
+            IndexSetHandler.create_tag({"space_uid": "bkcc__2", "name": "legacy-global", "color": TagColor.BLUE.value})
 
     def test_user_tag_name_conflicts_in_same_space(self):
         IndexSetTag.objects.create(space_uid="bkcc__2", name="space-tag", color=TagColor.GREEN.value)
