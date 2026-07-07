@@ -26,7 +26,7 @@ from rest_framework.exceptions import ValidationError
 from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.models import TapdWorkspaceBinding, TapdWorkspaceManualUnbind
 from bkmonitor.utils.cipher import AESCipher
-from fta_web.constants import TapdOauthEndpoint
+from fta_web.constants import TapdOAuthScope, TapdOauthEndpoint
 
 logger = logging.getLogger("root")
 
@@ -293,7 +293,7 @@ def generate_auth_url(
     signed_state = generate_signed_state(payload)
 
     backend_callback = quote(backend_callback.rstrip("/"), safe="")
-    scope = quote("story#read story#write bug#read bug#write", safe="")
+    scope = quote(TapdOAuthScope.full(), safe="")
     state = quote(signed_state, safe="")
     return (
         f"{TapdOauthEndpoint.authorize()}"
