@@ -753,6 +753,18 @@ class TapdOAuthScope(str, enum.Enum):
         """返回完整 scope 字符串（包含所有权限）"""
         return " ".join(s.value for s in cls)
 
+    @classmethod
+    def issue_user_oauth(cls) -> str:
+        """返回用户态 Issue-TAPD OAuth 所需 scope。"""
+        return " ".join(
+            [
+                cls.STORY_READ.value,
+                cls.STORY_WRITE.value,
+                cls.BUG_READ.value,
+                cls.BUG_WRITE.value,
+            ]
+        )
+
 
 class TapdOauthEndpoint:
     """TAPD OAuth 端点（完整地址，基于 TAPD_OAUTH_BASE_URL）"""

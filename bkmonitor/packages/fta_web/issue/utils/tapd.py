@@ -293,7 +293,7 @@ def generate_auth_url(
     signed_state = generate_signed_state(payload)
 
     backend_callback = quote(backend_callback.rstrip("/"), safe="")
-    scope = quote(TapdOAuthScope.full(), safe="")
+    scope = quote(TapdOAuthScope.issue_user_oauth(), safe="")
     state = quote(signed_state, safe="")
     return (
         f"{TapdOauthEndpoint.authorize()}"
