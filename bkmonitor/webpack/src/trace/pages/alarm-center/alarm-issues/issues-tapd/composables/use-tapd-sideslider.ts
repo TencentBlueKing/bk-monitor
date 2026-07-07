@@ -27,10 +27,10 @@
 import { type Ref, computed, shallowRef, watch } from 'vue';
 
 import { getTapdFieldsApi } from '../../components/tapd-field-form/service/issue-tapd';
+import { TapdLinkModeEnum } from '../constant';
 import useUserConfig from '@/hooks/useUserConfig';
 
-import type { CreateTapdDefaultSetting } from '../typing';
-import type { TapdWorkspaceItem } from '../typing';
+import type { CreateTapdDefaultSetting, TapdLinkModeType, TapdWorkspaceItem } from '../typing';
 
 interface UseTapdSidesliderOptions {
   bizId: Ref<number | string>;
@@ -57,7 +57,7 @@ export function useTapdSideslider(options: UseTapdSidesliderOptions) {
   });
   const filterWorkspaceList = computed(() => workspaceList.value.filter(item => item.is_bound === 'bound'));
   /** 当前激活的 tab */
-  const tabActive = shallowRef('add');
+  const tabActive = shallowRef<TapdLinkModeType>(TapdLinkModeEnum.CREATE);
   /* 单据字段 */
   const tapdFields = shallowRef([]);
   /* 单据字段值 */
@@ -128,9 +128,9 @@ export function useTapdSideslider(options: UseTapdSidesliderOptions) {
   /**
    * 处理 tab 切换
    */
-  const handleTabChange = (value: string) => {
+  const handleTabChange = (value: TapdLinkModeType) => {
     tabActive.value = value;
-    if (value === 'link') {
+    if (value === TapdLinkModeEnum.LINK) {
       linkTapdItems.value = [];
       linkTapdIds.value = [];
     }
