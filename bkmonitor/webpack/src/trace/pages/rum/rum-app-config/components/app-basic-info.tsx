@@ -244,6 +244,7 @@ export default defineComponent({
       tokenLoading,
       model,
       rules,
+      t,
       saveLoading,
       appOperationMenuShow,
       appOperationMapText,
@@ -381,7 +382,12 @@ export default defineComponent({
                   trigger='click'
                   onAfterShow={this.handleEditPopoverShow}
                 >
-                  <EditLine class='edit-icon' />
+                  <EditLine
+                    class='edit-icon'
+                    v-tippy={{
+                      content: this.t('编辑'),
+                    }}
+                  />
                 </Popover>
               </div>
             </div>

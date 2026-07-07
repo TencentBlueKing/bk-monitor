@@ -84,7 +84,7 @@ export default defineComponent({
 
     /** 获取应用配置信息 */
     const getRumAppConfig = async () => {
-      appInfo.value = await getAppConfigByAppName(route.params.appName as string);
+      appInfo.value = await getAppConfigByAppName(decodeURIComponent(route.params.appName as string));
     };
 
     /**
