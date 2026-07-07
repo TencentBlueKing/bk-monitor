@@ -166,7 +166,7 @@ def get_core_context(request):
         "BKAPP_RUM_SDK": settings.BKAPP_RUM_SDK,
         "BKAPP_RUM_ENDPOINT": settings.BKAPP_RUM_ENDPOINT,
         "BKAPP_RUM_TOKEN": settings.BKAPP_RUM_TOKEN,
-        "BKAPP_RUM_ENABLED": settings.BKAPP_RUM_ENABLED,
+        "BKAPP_RUM_ENABLED": str(settings.BKAPP_RUM_ENABLED).lower(),
     }
 
 
