@@ -11,8 +11,10 @@ specific language governing permissions and limitations under the License.
 import pytest
 
 from metadata import models
+from metadata.config import DATABASE_CONNECTION_NAME
 from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.data_link import DataLink
+from metadata.models.data_link.data_link import GRAPH_RELATION_STATUS_REFRESH_COUNTDOWN
 from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.data_link.data_link_configs import (
     DataBusConfig,
@@ -531,6 +533,86 @@ def test_apply_graph_relation_time_series_records_storage_type(mocker, write_mod
 
     bkbase_rt = BkBaseResultTable.objects.get(data_link_name=data_link.data_link_name)
     assert bkbase_rt.storage_type == expected_storage_type
+
+
+def test_apply_graph_relation_time_series_schedules_status_refresh_after_commit(mocker):
+    table_id = "2_bkcc_built_in_time_series.__default__"
+    data_source = create_graph_relation_data_source()
+    data_link = DataLink.objects.create(
+        bk_tenant_id="system",
+        data_link_name="bkm_relation_apply_refresh",
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+        bk_data_id=data_source.bk_data_id,
+        table_ids=[table_id],
+    )
+    mocker.patch.object(data_link, "compose_configs", return_value=[])
+    mocker.patch.object(data_link, "apply_data_link_with_retry", return_value={})
+    refresh_task = mocker.patch("metadata.task.tasks.refresh_data_link_status_by_name.apply_async")
+    on_commit_callbacks = []
+    on_commit = mocker.patch(
+        "metadata.models.data_link.data_link.transaction.on_commit",
+        side_effect=lambda func, **kwargs: on_commit_callbacks.append((func, kwargs)),
+    )
+
+    data_link.apply_data_link(
+        bk_biz_id=2,
+        data_source=data_source,
+        table_id=table_id,
+        storage_cluster_name="vm-default",
+        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
+    )
+
+    on_commit.assert_called_once()
+    assert on_commit.call_args.kwargs == {"using": DATABASE_CONNECTION_NAME}
+    callback, kwargs = on_commit_callbacks[0]
+    assert callback.__name__ == "_schedule_refresh"
+    assert kwargs == {"using": DATABASE_CONNECTION_NAME}
+
+    callback()
+
+    refresh_task.assert_called_once_with(
+        args=(data_link.bk_tenant_id, data_link.data_link_name),
+        countdown=GRAPH_RELATION_STATUS_REFRESH_COUNTDOWN,
+    )
+
+
+def test_apply_graph_relation_time_series_ignores_status_refresh_schedule_error(mocker):
+    table_id = "2_bkcc_built_in_time_series.__default__"
+    data_source = create_graph_relation_data_source()
+    data_link = DataLink.objects.create(
+        bk_tenant_id="system",
+        data_link_name="bkm_relation_apply_refresh_error",
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+        bk_data_id=data_source.bk_data_id,
+        table_ids=[table_id],
+    )
+    mocker.patch.object(data_link, "compose_configs", return_value=[])
+    mocker.patch.object(data_link, "apply_data_link_with_retry", return_value={})
+    refresh_task = mocker.patch(
+        "metadata.task.tasks.refresh_data_link_status_by_name.apply_async",
+        side_effect=RuntimeError("broker unavailable"),
+    )
+    logger_exception = mocker.patch("metadata.models.data_link.data_link.logger.exception")
+    on_commit_callbacks = []
+    mocker.patch(
+        "metadata.models.data_link.data_link.transaction.on_commit",
+        side_effect=lambda func, **kwargs: on_commit_callbacks.append(func),
+    )
+
+    data_link.apply_data_link(
+        bk_biz_id=2,
+        data_source=data_source,
+        table_id=table_id,
+        storage_cluster_name="vm-default",
+        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
+    )
+
+    on_commit_callbacks[0]()
+
+    refresh_task.assert_called_once()
+    logger_exception.assert_called_once()
 
 
 def test_compose_graph_relation_time_series_reuses_existing_vm_result_table(mocker):
