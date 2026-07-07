@@ -29,18 +29,26 @@ import type { PropType } from 'vue';
 export enum EFieldType {
   // 全文检索输入框
   all = 'all',
+  // 布尔类型tag输入框
   boolean = 'boolean',
+  // 日期类型 (TODO)
   date = 'date',
   // 是否为耗时组件
   duration = 'duration',
   // input输入框
   input = 'input',
+  // 数字类型tag输入框
   integer = 'integer',
+  // 字符串类型tag输入框
   keyword = 'keyword',
+  // 数字类型tag输入框
   long = 'long',
+  // 数字类型输入框
+  numberInput = 'number_input',
   // textarea 输入框
   text = 'text',
 }
+
 export enum EMethod {
   containsMatchPhrase = 'contains match phrase',
   eq = 'equal',
