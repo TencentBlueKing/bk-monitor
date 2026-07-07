@@ -156,24 +156,6 @@
 
       @include flex-center;
 
-      .username {
-        margin: 0 28px 0 6px;
-        font-size: 12px;
-        line-height: 20px;
-        color: #63656e;
-
-        &:hover {
-          color: #d3d9e4;
-          cursor: pointer;
-        }
-      }
-
-      &.active {
-        .username {
-          color: #d3d9e4;
-        }
-      }
-
       .icon-circle-container {
         width: 32px;
         height: 32px;
@@ -195,6 +177,10 @@
           font-size: 16px;
           transition: all 0.2s;
         }
+
+        .bklog-help {
+          font-size: 17px;
+        }
       }
 
       &:hover,
@@ -209,6 +195,11 @@
           }
         }
       }
+    }
+
+    .username {
+      margin: 0 28px 0 6px;
+      z-index: 999;
     }
 
     .icon-icon-help-document-fill {
