@@ -24,6 +24,7 @@ from monitor_web.data_migrate.data_rebuilder import (
     DEFAULT_ES_CLUSTER_NAMES,
     DEFAULT_KAFKA_CLUSTER_NAMES,
     add_new_migrate_data_id_routes,
+    add_profiling_migrate_data_id_route,
     enable_closed_strategies_from_application_config,
     find_biz_custom_report_data_ids,
     rebuild_bklog_data_source_route,
@@ -114,6 +115,9 @@ class Command(BaseCommand):
             "  更新单个数据 ID 的迁移双写路由:\n"
             "    python manage.py data_migrate update-migrate-data-id-routes --bk-data-id 123 --kafka-cluster-name kafka_cluster\n"
             "\n"
+            "  根据 Profiling 存量 GSE 路由添加迁移双写路由:\n"
+            "    python manage.py data_migrate add-profiling-migrate-data-id-route --bk-biz-id 18901 --app-name demo-app --migrate-cluster-name migrate_apm-kafka-public-1 --dry-run\n"
+            "\n"
             "  根据导入阶段记录开启被关闭的策略:\n"
             "    python manage.py data_migrate enable-closed-strategies --bk-biz-ids 18901\n"
             "\n"
@@ -180,6 +184,7 @@ class Command(BaseCommand):
                 "find-custom-report-data-ids",
                 "add-migrate-data-id-routes",
                 "update-migrate-data-id-routes",
+                "add-profiling-migrate-data-id-route",
                 "enable-closed-strategies",
                 "apply-sequences",
                 "replace-tenant-id",
@@ -221,7 +226,10 @@ class Command(BaseCommand):
         parser.add_argument(
             "--bk-biz-id",
             type=int,
-            help="单个业务 ID；仅 partial-export、partial-import、partial-rebuild 动作需要",
+            help=(
+                "单个业务 ID；仅 partial-export、partial-import、partial-rebuild、"
+                "add-profiling-migrate-data-id-route 动作需要"
+            ),
         )
         parser.add_argument(
             "--format", default="json", help="导出文件格式，默认 json；仅 export/partial-export 动作需要"
@@ -254,6 +262,11 @@ class Command(BaseCommand):
             "--app-names",
             nargs="+",
             help="APM 应用名列表；仅 partial-export、partial-rebuild 动作需要",
+        )
+        parser.add_argument("--app-name", help="APM 应用名；仅 add-profiling-migrate-data-id-route 动作需要")
+        parser.add_argument(
+            "--migrate-cluster-name",
+            help="迁移 Kafka 集群名称；仅 add-profiling-migrate-data-id-route 动作需要",
         )
         parser.add_argument(
             "--biz-tenant-id-map",
@@ -334,7 +347,7 @@ class Command(BaseCommand):
                 "仅预览不执行；仅 stop-biz-subscription-tasks、install-biz-bk-collector、"
                 "disable-biz-bk-collector-subscription-checks、stop-biz-bk-collector、"
                 "refresh-biz-bk-collector-configs、retry-biz-bk-collector-config-delivery、"
-                "migrate-system-event-strategies 动作需要"
+                "migrate-system-event-strategies、add-profiling-migrate-data-id-route 动作需要"
             ),
         )
         parser.add_argument(
@@ -418,6 +431,7 @@ class Command(BaseCommand):
             "find-custom-report-data-ids": self._handle_find_custom_report_data_ids,
             "add-migrate-data-id-routes": self._handle_add_migrate_data_id_routes,
             "update-migrate-data-id-routes": self._handle_update_migrate_data_id_routes,
+            "add-profiling-migrate-data-id-route": self._handle_add_profiling_migrate_data_id_route,
             "enable-closed-strategies": self._handle_enable_closed_strategies,
             "apply-sequences": self._handle_apply_sequences,
             "replace-tenant-id": self._handle_replace_tenant_id,
@@ -718,6 +732,26 @@ class Command(BaseCommand):
         route_changes = update_migrate_data_id_routes({bk_data_id: kafka_cluster_name})
         self.stdout.write(json.dumps(route_changes, ensure_ascii=False, indent=2, sort_keys=True))
         self.stdout.write(self.style.SUCCESS(f"update migrate data id routes completed: {len(route_changes)}"))
+
+    def _handle_add_profiling_migrate_data_id_route(self, options) -> None:
+        action_name = "add-profiling-migrate-data-id-route"
+        bk_biz_id = self._load_bk_biz_id(options.get("bk_biz_id"), action_name=action_name)
+        app_name = self._load_app_name(options.get("app_name"), action_name=action_name)
+        migrate_cluster_name = self._load_migrate_cluster_name(options.get("migrate_cluster_name"), action_name)
+        try:
+            route_change = add_profiling_migrate_data_id_route(
+                bk_biz_id=bk_biz_id,
+                app_name=app_name,
+                migrate_cluster_name=migrate_cluster_name,
+                dry_run=options.get("dry_run", False),
+            )
+        except ValueError as error:
+            raise CommandError(str(error)) from error
+        self.stdout.write(json.dumps(route_change, ensure_ascii=False, indent=2, sort_keys=True))
+        if options.get("dry_run", False):
+            self.stdout.write(self.style.SUCCESS("add profiling migrate data id route dry-run completed"))
+        else:
+            self.stdout.write(self.style.SUCCESS("add profiling migrate data id route completed"))
 
     def _handle_enable_closed_strategies(self, options) -> None:
         bk_biz_ids = self._load_non_zero_biz_ids(options.get("bk_biz_ids"), action_name="enable-closed-strategies")
@@ -1223,6 +1257,20 @@ class Command(BaseCommand):
         if not kafka_cluster_name:
             raise CommandError(f"{action_name} 动作必须提供 --kafka-cluster-name")
         return kafka_cluster_name
+
+    def _load_migrate_cluster_name(self, raw_migrate_cluster_name: str | None, action_name: str) -> str:
+        """校验迁移 Kafka 集群名称参数。"""
+        migrate_cluster_name = str(raw_migrate_cluster_name or "").strip()
+        if not migrate_cluster_name:
+            raise CommandError(f"{action_name} 动作必须提供 --migrate-cluster-name")
+        return migrate_cluster_name
+
+    def _load_app_name(self, raw_app_name: str | None, action_name: str) -> str:
+        """校验 APM 应用名参数。"""
+        app_name = str(raw_app_name or "").strip()
+        if not app_name:
+            raise CommandError(f"{action_name} 动作必须提供 --app-name")
+        return app_name
 
     def _load_optional_cluster_name(self, raw_cluster_name: str | None) -> str | None:
         """规范化可选集群名称，空值表示沿用旧逻辑。"""
