@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import json
 import random
 from unittest.mock import patch
@@ -109,7 +109,7 @@ CREATE_RESULT = [
 ]
 
 
-class PipelineMock(object):
+class PipelineMock:
     def __init__(self):
         self.result = 1
 
@@ -120,7 +120,10 @@ class TestTasks(TestCase):
         self.tasks = TasksHandler()
         ExtractLink.objects.create(name="test", link_id=1, link_type="common", operator="admin", op_bk_biz_id=1)
 
-    @override_settings(MIDDLEWARE=("apps.tests.middlewares.OverrideMiddleware",))
+    @override_settings(
+        MIDDLEWARE=("apps.tests.middlewares.OverrideMiddleware",),
+        ENABLE_MULTI_TENANT_MODE=False,
+    )
     @patch("apps.decorators.user_operation_record.delay", return_value=None)
     @patch("apps.log_extract.handlers.explorer.ExplorerHandler.get_module_by_ip")
     @patch("apps.log_extract.handlers.tasks.task_service.run_pipeline")
