@@ -38,6 +38,7 @@ import {
 } from '../services/app-config';
 import EditableField from './editable-field';
 import EmptyStatus from '@/components/empty-status/empty-status';
+import TableSkeleton from '@/components/skeleton/table-skeleton';
 import TextOverflowCopy from '@/components/text-overflow-copy/text-overflow-copy';
 
 import type { BaseTableColumn } from '../../../trace-explore/components/trace-explore-table/typing';
@@ -92,6 +93,8 @@ export default defineComponent({
       es_slice_size: 100,
       es_storage_cluster: '',
     });
+
+    const storageDataLoading = shallowRef(false);
 
     // 集群下拉选项
     const clusterOptions = computed(() => {
@@ -157,6 +160,7 @@ export default defineComponent({
 
     /** 获取存储信息 */
     const fetchStorageInfoData = async () => {
+      storageDataLoading.value = true;
       storageData.value = await getStorageInfoData(
         {
           bk_biz_id: props.detail?.bk_biz_id,
@@ -170,6 +174,7 @@ export default defineComponent({
           es_storage_cluster: '',
         }
       );
+      storageDataLoading.value = false;
     };
 
     /** 判断行数据是否满足筛选条件 */
@@ -250,6 +255,7 @@ export default defineComponent({
     const indicesTableFilters = shallowRef({});
     /** 索引表格排序条件 */
     const indicesTableSorts = shallowRef('');
+    const indicesInfoDataLoading = shallowRef(false);
     /** 带筛选和排序的索引表格数据 */
     const indicesTableData = computed(() => {
       const filters = indicesTableFilters.value;
@@ -267,9 +273,11 @@ export default defineComponent({
     });
     /** 获取物理索引数据 */
     const fetchIndicesInfoData = async () => {
+      indicesInfoDataLoading.value = true;
       indicesInfoData.value = await getIndicesInfoData({
         app_name: props.detail?.app_name,
       });
+      indicesInfoDataLoading.value = false;
     };
     /** 索引表格筛选变更 */
     const handleIndicesInfoFilterChange = filters => {
@@ -338,6 +346,7 @@ export default defineComponent({
     ]);
     /** 字段信息数据 */
     const fieldInfoData = shallowRef<IStorageField[]>([]);
+    const fieldInfoDataLoading = shallowRef(false);
     /** 字段表格筛选条件 */
     const filedTableFilters = shallowRef({});
     /** 字段类型筛选列表 */
@@ -370,11 +379,13 @@ export default defineComponent({
 
     /** 获取字段信息数据并生成字段类型筛选列表 */
     const fetchFieldInfo = async () => {
+      fieldInfoDataLoading.value = true;
       fieldInfoData.value = await getFieldInfoData({
         bk_biz_id: props.detail?.bk_biz_id,
         app_name: props.detail?.app_name,
       });
       fieldFilterList.value = getFieldFilterList(fieldInfoData.value);
+      fieldInfoDataLoading.value = false;
     };
 
     /** 字段表格筛选变更，将 yes/no 字符串转为布尔值以匹配数据 */
@@ -398,15 +409,18 @@ export default defineComponent({
     return {
       t,
       storageData,
+      storageDataLoading,
       clusterOptions,
       handleFieldChange,
       indicesInfoColumns,
+      indicesInfoDataLoading,
       indicesTableData,
       indicesTableSorts,
       handleIndicesInfoFilterChange,
       handleIndicesSortChange,
       fieldInfoColumns,
       fieldTableData,
+      fieldInfoDataLoading,
       handleFieldTableFilterChange,
     };
   },
@@ -421,6 +435,7 @@ export default defineComponent({
                 <EditableField
                   editable={false}
                   label={this.t('存储索引名')}
+                  skeletonLoading={this.storageDataLoading}
                   value={this.detail?.es_storage_index_name || '--'}
                 />
               </div>
@@ -429,6 +444,7 @@ export default defineComponent({
                   confirm={v => this.handleFieldChange(v, 'es_storage_cluster')}
                   label={this.t('存储集群')}
                   options={this.clusterOptions}
+                  skeletonLoading={this.storageDataLoading}
                   type='select'
                   value={this.storageData.es_storage_cluster}
                 />
@@ -440,6 +456,7 @@ export default defineComponent({
                   confirm={v => this.handleFieldChange(v, 'es_retention')}
                   label={this.t('过期时间')}
                   maxExpired={3}
+                  skeletonLoading={this.storageDataLoading}
                   suffix={this.t('天')}
                   type='expired'
                   value={this.storageData.es_retention}
@@ -449,6 +466,7 @@ export default defineComponent({
                 <EditableField
                   confirm={v => this.handleFieldChange(v, 'es_number_of_replicas')}
                   label={this.t('副本数')}
+                  skeletonLoading={this.storageDataLoading}
                   value={this.storageData.es_number_of_replicas}
                 />
               </div>
@@ -458,6 +476,7 @@ export default defineComponent({
                 <EditableField
                   confirm={v => this.handleFieldChange(v, 'es_shards')}
                   label={this.t('分片数')}
+                  skeletonLoading={this.storageDataLoading}
                   value={this.storageData.es_shards}
                 />
               </div>
@@ -465,6 +484,7 @@ export default defineComponent({
                 <EditableField
                   confirm={v => this.handleFieldChange(v, 'es_slice_size')}
                   label={this.t('索引切分大小')}
+                  skeletonLoading={this.storageDataLoading}
                   suffix='G'
                   value={this.storageData.es_slice_size}
                 />
@@ -476,36 +496,44 @@ export default defineComponent({
         <div class='physical-index'>
           <div class='storage-status-title'>{this.t('物理索引')}</div>
           <div class='storage-status-content'>
-            <CommonTable
-              columns={this.indicesInfoColumns}
-              data={this.indicesTableData as unknown as Record<string, unknown>[]}
-              rowKey={indicesInfoTableColumnKey.Index}
-              sort={this.indicesTableSorts}
-              autoFillSpace
-              onFilterChange={this.handleIndicesInfoFilterChange}
-              onSortChange={this.handleIndicesSortChange}
-            >
-              {{
-                empty: () => <EmptyStatus type='empty' />,
-              }}
-            </CommonTable>
+            {this.indicesInfoDataLoading ? (
+              <TableSkeleton />
+            ) : (
+              <CommonTable
+                columns={this.indicesInfoColumns}
+                data={this.indicesTableData as unknown as Record<string, unknown>[]}
+                rowKey={indicesInfoTableColumnKey.Index}
+                sort={this.indicesTableSorts}
+                autoFillSpace
+                onFilterChange={this.handleIndicesInfoFilterChange}
+                onSortChange={this.handleIndicesSortChange}
+              >
+                {{
+                  empty: () => <EmptyStatus type='empty' />,
+                }}
+              </CommonTable>
+            )}
           </div>
         </div>
 
         <div class='field-info'>
           <div class='storage-status-title'>{this.t('字段信息')}</div>
           <div class='storage-status-content'>
-            <CommonTable
-              columns={this.fieldInfoColumns}
-              data={this.fieldTableData as unknown as Record<string, unknown>[]}
-              rowKey={fieldInfoTableColumnKey.FieldName}
-              autoFillSpace
-              onFilterChange={this.handleFieldTableFilterChange}
-            >
-              {{
-                empty: () => <EmptyStatus type='empty' />,
-              }}
-            </CommonTable>
+            {this.fieldInfoDataLoading ? (
+              <TableSkeleton />
+            ) : (
+              <CommonTable
+                columns={this.fieldInfoColumns}
+                data={this.fieldTableData as unknown as Record<string, unknown>[]}
+                rowKey={fieldInfoTableColumnKey.FieldName}
+                autoFillSpace
+                onFilterChange={this.handleFieldTableFilterChange}
+              >
+                {{
+                  empty: () => <EmptyStatus type='empty' />,
+                }}
+              </CommonTable>
+            )}
           </div>
         </div>
       </div>
