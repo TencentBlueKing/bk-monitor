@@ -61,12 +61,14 @@
 
 - device
 
-| 字段                            | 类型     | 描述         | 备注 |
-|-------------------------------|--------|------------|----|
-| `attributes.device.cpu_cores` | Number | 设备 cpu 核心数 |    |
-| `attributes.device.id`        | String | 设备 id      |    |
-| `attributes.device.memory`    | Number | 设备内存       |    |
-| `attributes.device_type`      | String | 设备类型       |    |
+| 字段                            | 类型      | 描述         | 备注 |
+|-------------------------------|---------|------------|----|
+| `attributes.device.cpu_cores` | Number  | 设备 cpu 核心数 |    |
+| `attributes.device.id`        | String  | 设备 id      |    |
+| `attributes.device.memory`    | Number  | 设备内存       |    |
+| `attributes.device.mobile`    | Boolean | 是否为移动设备    |    |
+| `attributes.device.platform`  | String  | 设备平台       |    |
+| `attributes.device_type`      | String  | 设备类型       |    |
 
 - network
 
@@ -228,17 +230,19 @@
 
 - csp 插件采集
 
-| 字段                                   | 类型 | 描述 | 备注 |
-|--------------------------------------|----|----|----|
-| `attributes.csp.blocked_uri`         |    |    |    |
-| `attributes.csp.violated_directive`  |    |    |    |
-| `attributes.csp.effective_directive` |    |    |    |
-| `attributes.csp.source_file`         |    |    |    |
-| `attributes.csp.line_number`         |    |    |    |
-| `attributes.csp.status_code`         |    |    |    |
-| `attributes.csp.fingerprint`         |    |    |    |
-| `attributes.csp.window_count`        |    |    |    |
-| `attributes.csp.original_policy`     |    |    |    |
+| 字段                                   | 类型     | 描述               | 备注 |
+|--------------------------------------|--------|------------------|----|
+| `attributes.csp.blocked_uri`         | String | 被拦截资源（URL 类值已脱敏） |    |
+| `attributes.csp.violated_directive`  | String | 违反的指令            |    |
+| `attributes.csp.effective_directive` | String | 生效的指令            |    |
+| `attributes.csp.disposition`         | String | enforce / report |    |
+| `attributes.csp.source_file`         | String | 触发脚本（已脱敏）        |    |
+| `attributes.csp.line_number`         | Number | 触发位置行号           |    |
+| `attributes.csp.column_number`       | Number | 触发位置列号           |    |
+| `attributes.csp.status_code`         | Number | 状态码              |    |
+| `attributes.csp.fingerprint`         | String | 节流指纹（djb2 hash）  |    |
+| `attributes.csp.window_count`        | Number | 节流窗口内触发次数        |    |
+| `attributes.csp.original_policy`     | String | 完整策略，仅窗口首条携带     |    |
 
 - blank_screen
 
@@ -264,6 +268,7 @@
 | 字段                                 | 类型     | 描述                          | 备注 |
 |------------------------------------|--------|-----------------------------|----|
 | `attributes.action.type`           | String | 动作类型                        |    |
+| `attributes.target_label`          | String | 跨类型主标签，用于统一检索               |    |
 | `attributes.target.tag`            | String | 目标元素标签                      |    |
 | `attributes.target.text_short`     | String | 目标文本前 32 字符                 |    |
 | `attributes.session.start_time`    | Number | 会话开始时间戳                     |    |
@@ -285,3 +290,17 @@
 | 字段                           | 类型     | 描述                       | 备注 |
 |------------------------------|--------|--------------------------|----|
 | `attributes.rum.custom.name` | String | reportCustomEvent() 的事件名 |    |
+
+- websocket
+
+| 字段                                        | 类型     | 描述                    | 备注          |
+|-------------------------------------------|--------|-----------------------|-------------|
+| `attributes.url.scheme`                   | String | `ws` / `wss`          |             |
+| `attributes.server.address`               | String | 目标 host               |             |
+| `attributes.network.protocol.name`        | String | 固定 `websocket`        |             |
+| `attributes.websocket.direction`          | String | 消息收发方向 `in` / `out`   | metric 插件适用 |
+| `attributes.websocket.error.phase`        | String | `connect` / `runtime` | 错误场景        |
+| `attributes.websocket.error.window_count` | Number | 错误日志节流窗口内触发次数         |             |
+| `attributes.websocket.close.code`         | Mixed  | 关闭事件状态码               |             |
+| `attributes.websocket.close.reason`       | Mixed  | 关闭原因                  |             |
+| `attributes.websocket.close.was_clean`    | Mixed  | 是否为干净关闭               |             |
