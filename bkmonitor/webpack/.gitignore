@@ -114,3 +114,4 @@ monitor-alarm-center
 skills-lock.json
 AGENTS.md
 .opencode/
+.pnpm-store/
