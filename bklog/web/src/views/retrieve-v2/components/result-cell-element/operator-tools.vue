@@ -30,7 +30,6 @@
       <button
         :class="['handle-item', { 'is-disable': !isActiveLog }]"
         type="button"
-        v-bk-tooltips="{ allowHtml: true, content: '#realTimeLog-html', delay: 500 }"
         @click.stop="handleCheckClick('realTimeLog', isActiveLog)"
         @mouseup.stop
       >
@@ -41,7 +40,6 @@
       <button
         :class="['handle-item', { 'is-disable': !isActiveLog }]"
         type="button"
-        v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html', delay: 500 }"
         @click.stop="handleCheckClick('contextLog', isActiveLog)"
         @mouseup.stop
       >
@@ -53,7 +51,6 @@
         <button
           class="handle-item"
           type="button"
-          v-bk-tooltips="{ allowHtml: false, content: $t('关联Trace检索'), delay: 500 }"
           @click.stop="handleCheckClick('trace_id', true)"
           @mouseup.stop
         >
@@ -66,7 +63,6 @@
         <button
           class="handle-item"
           type="button"
-          v-bk-tooltips="{ allowHtml: false, content: $t('全量'), delay: 500 }"
           @click.stop="handleCheckClick('fullRow', true)"
           @mouseup.stop
         >
@@ -79,7 +75,6 @@
         <button
           class="handle-item ai-assistant bklog-row-ai"
           type="button"
-          v-bk-tooltips="{ allowHtml: false, content: $t('AI助手'), delay: 500 }"
           @click.stop="e => handleCheckClick('ai', true, e)"
           @mouseup.stop
         >
@@ -115,7 +110,6 @@
       <button
         :class="['handle-item', { 'is-disable': !isActiveLog }]"
         type="button"
-        v-bk-tooltips="{ allowHtml: true, content: $t('上下文'), delay: 500 }"
         @click.stop="handleCheckClick('contextLog', isActiveLog)"
         @mouseup.stop
       >
@@ -127,7 +121,6 @@
         <button
           class="handle-item"
           type="button"
-          v-bk-tooltips="{ allowHtml: false, content: $t('全量'), delay: 500 }"
           @click.stop="handleCheckClick('fullRow', true)"
           @mouseup.stop
         >

@@ -118,8 +118,49 @@ export default defineComponent({
         theme: 'segment-light',
         placement: 'bottom',
         appendTo: document.body,
+        popperOptions: {
+          strategy: 'fixed',
+        },
       },
     });
+
+    const getSelectionReferenceRect = (range: Range, e: MouseEvent) => {
+      const rects = Array.from(range.getClientRects()).filter(rect => rect.width && rect.height);
+
+      if (!rects.length) {
+        return range.getBoundingClientRect();
+      }
+
+      return rects.reduce((closestRect, rect) => {
+        const getDistance = (targetRect: DOMRect) => {
+          const offsetX = e.clientX < targetRect.left ? targetRect.left - e.clientX : Math.max(e.clientX - targetRect.right, 0);
+          const offsetY = e.clientY < targetRect.top ? targetRect.top - e.clientY : Math.max(e.clientY - targetRect.bottom, 0);
+          return offsetX ** 2 + offsetY ** 2;
+        };
+
+        return getDistance(rect) < getDistance(closestRect) ? rect : closestRect;
+      }, rects[rects.length - 1]);
+    };
+
+    const setSelectionPopTargetHandler = (rect: DOMRect) => {
+      let virtualTarget = document.body.querySelector('.bklog-selection-pop-target') as HTMLElement;
+      if (!virtualTarget) {
+        virtualTarget = document.createElement('span');
+        virtualTarget.className = 'bklog-selection-pop-target';
+        virtualTarget.style.setProperty('position', 'fixed');
+        virtualTarget.style.setProperty('visibility', 'hidden');
+        virtualTarget.style.setProperty('pointer-events', 'none');
+        virtualTarget.style.setProperty('z-index', '-1');
+        document.body.appendChild(virtualTarget);
+      }
+
+      virtualTarget.style.setProperty('left', `${rect.left}px`);
+      virtualTarget.style.setProperty('top', `${rect.top}px`);
+      virtualTarget.style.setProperty('width', `${Math.max(rect.width, 1)}px`);
+      virtualTarget.style.setProperty('height', `${Math.max(rect.height, 1)}px`);
+
+      return virtualTarget;
+    };
 
     const useSegmentPop = new UseSegmentProp({
       delineate: true,
@@ -1603,8 +1644,11 @@ export default defineComponent({
         const selection = window.getSelection();
         if (selection.rangeCount > 0) {
           savedSelection = selection.getRangeAt(0);
+          const rect = getSelectionReferenceRect(savedSelection, e);
+          const target = setSelectionPopTargetHandler(rect);
+          popInstanceUtil.uninstallInstance();
+          popInstanceUtil.show(target, true, true);
         }
-        popInstanceUtil.show(e.target);
         return;
       }
 

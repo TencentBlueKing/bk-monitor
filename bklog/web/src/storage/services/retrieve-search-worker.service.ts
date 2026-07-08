@@ -7,7 +7,7 @@ import { workerManagerService } from './worker-manager.service';
 import {
   categorizeIngestError,
   computeIngestTimeout,
-  logRetrieveSearchIngest,
+  // logRetrieveSearchIngest,
   type RetrieveSearchIngestErrorCategory,
 } from '../utils/retrieve-search-ingest.logger';
 
@@ -193,12 +193,12 @@ class RetrieveSearchWorkerService {
       url: this.getWorkerUrl(),
     });
 
-    logRetrieveSearchIngest('info', 'dispatch search stream to worker', {
-      queryKey: request.queryKey,
-      source: 'worker',
-      stage: 'prepare',
-      writeMode: request.writeMode,
-    });
+    // logRetrieveSearchIngest('info', 'dispatch search stream to worker', {
+    //   queryKey: request.queryKey,
+    //   source: 'worker',
+    //   stage: 'prepare',
+    //   writeMode: request.writeMode,
+    // });
 
     if (!this.workerSupported) {
       throw new Error('WebWorker is not supported');
@@ -278,12 +278,12 @@ class RetrieveSearchWorkerService {
 
     if (message.progress) {
       const pending = this.pendingRequests.get(id);
-      logRetrieveSearchIngest('info', `worker search progress: ${message.stage}`, {
-        queryKey: message.queryKey,
-        rowCount: message.rowCount,
-        source: 'worker',
-        stage: message.stage,
-      });
+      // logRetrieveSearchIngest('info', `worker search progress: ${message.stage}`, {
+      //   queryKey: message.queryKey,
+      //   rowCount: message.rowCount,
+      //   source: 'worker',
+      //   stage: message.stage,
+      // });
       pending?.onProgress?.({
         meta: message.meta,
         queryKey: message.queryKey,
@@ -322,13 +322,13 @@ class RetrieveSearchWorkerService {
       state: 'idle',
     });
 
-    logRetrieveSearchIngest('info', 'search stream completed in worker', {
-      durationMs: Date.now() - pending.startedAt,
-      rowCount: message.size || 0,
-      source: 'worker',
-      stage: 'complete',
-      timings: message.timings,
-    });
+    // logRetrieveSearchIngest('info', 'search stream completed in worker', {
+    //   durationMs: Date.now() - pending.startedAt,
+    //   rowCount: message.size || 0,
+    //   source: 'worker',
+    //   stage: 'complete',
+    //   timings: message.timings,
+    // });
 
     pending.resolve({
       code: message.response?.code,
@@ -370,11 +370,11 @@ class RetrieveSearchWorkerService {
 
   private resetWorker(reason: string) {
     if (!this.activeWorker) return;
-    logRetrieveSearchIngest('warn', `reset retrieve-search worker: ${reason}`, {
-      pendingRequests: this.pendingRequests.size,
-      source: 'worker',
-      stage: 'prepare',
-    });
+    // logRetrieveSearchIngest('warn', `reset retrieve-search worker: ${reason}`, {
+    //   pendingRequests: this.pendingRequests.size,
+    //   source: 'worker',
+    //   stage: 'prepare',
+    // });
     this.activeWorker.onmessage = null;
     this.activeWorker.onerror = null;
     this.activeWorker.onmessageerror = null;
@@ -399,13 +399,13 @@ class RetrieveSearchWorkerService {
       },
       state: 'error',
     });
-    logRetrieveSearchIngest('warn', message, {
-      durationMs,
-      errorCategory,
-      queryKey,
-      source: 'worker',
-      timings,
-    });
+    // logRetrieveSearchIngest('warn', message, {
+    //   durationMs,
+    //   errorCategory,
+    //   queryKey,
+    //   source: 'worker',
+    //   timings,
+    // });
   }
 
   private createWorker() {

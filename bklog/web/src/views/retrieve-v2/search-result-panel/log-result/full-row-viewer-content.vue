@@ -59,28 +59,12 @@
               v-if="index < jsonFieldSegments.length - 1"
               class="json-comma"
             >,</span>
-            <span
-              v-if="segment.hasMore"
-              class="field-load-actions"
-            >
-              <button
-                class="field-load-action-btn"
-                type="button"
-                @click="loadMoreField(segment.fieldName)"
-              >
-                {{ $t('加载更多') }} ({{ formatBytes(segment.loadedSize) }} / {{ formatBytes(segment.totalSize) }})
-              </button>
-              <span class="field-load-divider">|</span>
-              <button
-                class="field-load-action-btn"
-                type="button"
-                @click="loadAllField(segment.fieldName)"
-              >
-                {{ $t('加载全部') }}
-              </button>
-            </span>
           </div>
           <div class="json-brace">}</div>
+          <div
+            v-if="jsonHasMore"
+            class="scroll-load-tip"
+          >{{ $t('向下滚动加载更多') }}</div>
         </div>
         <template v-else-if="mode === 'text'">
           <div
@@ -93,10 +77,16 @@
               class="line-number"
             >{{ lineNumber }}</span>
           </div>
-          <pre
-            class="content-text"
-            v-html="contentHtml"
-          ></pre>
+          <div class="text-content-wrap">
+            <pre
+              class="content-text"
+              v-html="contentHtml"
+            ></pre>
+            <div
+              v-if="textHasMore"
+              class="scroll-load-tip"
+            >{{ $t('向下滚动加载更多') }}</div>
+          </div>
         </template>
       </div>
       <div
@@ -118,6 +108,11 @@
   const MAX_SEARCH_MATCHES = 2000;
   const LARGE_FIELD_THRESHOLD = 16384;
   const FIELD_CHUNK_SIZE = 64 * 1024;
+  const JSON_INITIAL_FIELD_COUNT = 20;
+  const JSON_FIELD_PAGE_SIZE = 20;
+  const PIXI_RENDER_THRESHOLD = 128 * 1024;
+  const HIGHLIGHT_FIELD_NAME = '__highlight';
+  const SCROLL_LOAD_MORE_THRESHOLD = 240;
 
   const escapeHtml = value => String(value)
     .replace(/&/g, '&amp;')
@@ -266,19 +261,24 @@
         resizeTimer: null,
         pendingScrollToMatch: false,
         fieldLoadedChunks: {},
+        textLoadedChunks: 1,
+        jsonVisibleFieldCount: JSON_INITIAL_FIELD_COUNT,
+        scrollLoadMoreTimer: null,
       };
     },
     computed: {
       displayRow() {
-        if (this.originRow) return this.originRow;
-        if (this.rowKey && this.loading) return null;
-        return this.originRow || this.rowData;
+        if (this.originRow) {
+          return this.buildDisplayRowWithRenderMarks(this.originRow, this.rowData);
+        }
+        if (this.rowKey) return null;
+        return this.rowData;
       },
       orderedFieldNames() {
-        const fieldNames = this.fields.map(getFieldName).filter(Boolean);
+        const fieldNames = this.fields.map(getFieldName).filter(fieldName => fieldName && fieldName !== HIGHLIGHT_FIELD_NAME);
         if (!this.displayRow) return fieldNames;
 
-        const rowFieldNames = Object.keys(this.displayRow);
+        const rowFieldNames = Object.keys(this.displayRow).filter(fieldName => fieldName !== HIGHLIGHT_FIELD_NAME);
         const orderedFields = fieldNames.filter(fieldName => Object.prototype.hasOwnProperty.call(this.displayRow, fieldName));
         const orderedFieldSet = new Set(orderedFields);
         const extraFields = rowFieldNames.filter(fieldName => !orderedFieldSet.has(fieldName));
@@ -291,9 +291,7 @@
       jsonFieldSegments() {
         if (this.mode !== 'json' || !this.displayRowData) return [];
 
-        const fieldNames = this.orderedFieldNames.length
-          ? this.orderedFieldNames
-          : Object.keys(this.displayRowData);
+        const fieldNames = this.visibleJsonFieldNames;
 
         let valueGlobalCursor = 0;
         return fieldNames
@@ -334,6 +332,22 @@
             };
           });
       },
+      allJsonFieldNames() {
+        if (!this.displayRowData) return [];
+        const fieldNames = this.orderedFieldNames.length
+          ? this.orderedFieldNames
+          : Object.keys(this.displayRowData);
+
+        return fieldNames.filter(fieldName => fieldName !== HIGHLIGHT_FIELD_NAME
+          && Object.prototype.hasOwnProperty.call(this.displayRowData, fieldName));
+      },
+      visibleJsonFieldNames() {
+        if (this.mode !== 'json') return [];
+        return this.allJsonFieldNames.slice(0, this.jsonVisibleFieldCount);
+      },
+      hasMoreJsonFields() {
+        return this.mode === 'json' && this.jsonVisibleFieldCount < this.allJsonFieldNames.length;
+      },
       renderTextInfo() {
         return parseMarkedText(this.contentText);
       },
@@ -347,14 +361,32 @@
           }).join('\n');
         }
 
-        return this.renderTextInfo.plainText;
+        return this.renderTextInfo.plainText.slice(0, this.textVisibleLength);
+      },
+      textVisibleLength() {
+        if (this.mode !== 'text') return 0;
+        return Math.min(this.renderTextInfo.plainText.length, this.textLoadedChunks * FIELD_CHUNK_SIZE);
+      },
+      textHasMore() {
+        return this.mode === 'text' && this.textVisibleLength < this.renderTextInfo.plainText.length;
+      },
+      jsonHasMore() {
+        return this.mode === 'json' && (this.hasMoreJsonFields || this.jsonFieldSegments.some(segment => segment.hasMore));
+      },
+      hasMoreContent() {
+        return this.mode === 'json' ? this.jsonHasMore : this.textHasMore;
       },
       markRanges() {
         if (this.mode === 'json') return [];
-        return this.renderTextInfo.markRanges;
+        return this.renderTextInfo.markRanges
+          .filter(range => range.start < this.textVisibleLength)
+          .map(range => ({
+            start: range.start,
+            end: Math.min(range.end, this.textVisibleLength),
+          }));
       },
       usePixiRenderer() {
-        return this.active && this.visibleContentText.length > CHUNK_SIZE && !this.pixiError;
+        return this.active && this.visibleContentText.length > PIXI_RENDER_THRESHOLD && !this.pixiError;
       },
       contentText() {
         if (!this.displayRowData) return '';
@@ -363,7 +395,7 @@
       },
       hasVisibleContent() {
         if (this.mode === 'json') return this.jsonFieldSegments.length > 0;
-        return Boolean(this.contentText);
+        return Boolean(this.visibleContentText);
       },
       lineNumbers() {
         if (this.mode !== 'text' || !this.visibleContentText) return [];
@@ -460,9 +492,7 @@
       },
       searchKeyword() {
         this.searchVersion += 1;
-        if (this.mode === 'json') {
-          this.ensureSearchMatchesVisible();
-        }
+        this.ensureSearchMatchesVisible();
         const nextIndex = this.matches.length ? 0 : -1;
         if (nextIndex === this.activeMatchIndex) {
           this.queueScrollToActiveMatch();
@@ -500,6 +530,10 @@
         clearTimeout(this.resizeTimer);
         this.resizeTimer = null;
       }
+      if (this.scrollLoadMoreTimer) {
+        clearTimeout(this.scrollLoadMoreTimer);
+        this.scrollLoadMoreTimer = null;
+      }
       this.resizeObserver?.disconnect?.();
       this.resizeObserver = null;
       this.loadSeq += 1;
@@ -516,40 +550,114 @@
       buildOrderedRow(row, normalizeJson = false) {
         const fieldNames = this.orderedFieldNames.length ? this.orderedFieldNames : Object.keys(row ?? {});
         return fieldNames.reduce((output, fieldName) => {
+          if (fieldName === HIGHLIGHT_FIELD_NAME) return output;
           const value = row?.[fieldName];
           output[fieldName] = normalizeJson ? normalizeJsonValue(value) : value;
           return output;
         }, {});
       },
+      buildDisplayRowWithRenderMarks(originRow, renderRow) {
+        if (!originRow) return originRow;
+        if (!renderRow || typeof renderRow !== 'object') return originRow;
+
+        const output = { ...originRow };
+        Object.keys(renderRow).forEach((fieldName) => {
+          const renderValue = renderRow[fieldName];
+          const originValue = originRow[fieldName];
+          if (typeof renderValue !== 'string' || !/<\/?mark>/i.test(renderValue)) return;
+
+          const renderInfo = parseMarkedText(renderValue);
+          if (typeof originValue === 'string' && originValue.length > renderInfo.plainText.length) {
+            output[fieldName] = this.mergeFieldRenderMarks(originValue, renderInfo);
+            return;
+          }
+
+          output[fieldName] = renderValue;
+        });
+        return output;
+      },
+      mergeFieldRenderMarks(originValue, renderInfo) {
+        if (typeof originValue !== 'string') return originValue;
+        if (!renderInfo?.markRanges?.length) return originValue;
+
+        const originText = String(originValue);
+        const plainRenderText = renderInfo.plainText;
+        const directOffset = originText.startsWith(plainRenderText)
+          ? 0
+          : originText.indexOf(plainRenderText);
+        const mergedRanges = [];
+
+        if (directOffset >= 0) {
+          renderInfo.markRanges.forEach((range) => {
+            mergedRanges.push({
+              start: directOffset + range.start,
+              end: directOffset + range.end,
+            });
+          });
+        } else {
+          let searchStart = 0;
+          renderInfo.markRanges.forEach((range) => {
+            const markedText = plainRenderText.slice(range.start, range.end);
+            if (!markedText) return;
+
+            const hitIndex = originText.indexOf(markedText, searchStart);
+            if (hitIndex < 0) return;
+
+            mergedRanges.push({ start: hitIndex, end: hitIndex + markedText.length });
+            searchStart = hitIndex + markedText.length;
+          });
+        }
+
+        if (!mergedRanges.length) return originValue;
+
+        let cursor = 0;
+        let output = '';
+        mergedRanges.forEach((range) => {
+          output += originText.slice(cursor, range.start);
+          output += ['<mark>', originText.slice(range.start, range.end), '</mark>'].join('');
+          cursor = range.end;
+        });
+        output += originText.slice(cursor);
+        return output;
+      },
       resetFieldChunks() {
         this.fieldLoadedChunks = {};
+        this.textLoadedChunks = 1;
+        this.jsonVisibleFieldCount = JSON_INITIAL_FIELD_COUNT;
       },
       loadMoreField(fieldName) {
         const current = this.fieldLoadedChunks[fieldName] || 1;
         this.$set(this.fieldLoadedChunks, fieldName, current + 1);
       },
-      loadAllField(fieldName) {
-        const value = this.displayRowData?.[fieldName];
-        const { plainText } = formatFieldPlainValue(value);
-        const totalChunks = Math.max(1, Math.ceil(plainText.length / FIELD_CHUNK_SIZE));
-        this.$set(this.fieldLoadedChunks, fieldName, totalChunks);
-      },
       ensureSearchMatchesVisible() {
         const keyword = this.searchKeyword?.trim();
-        if (!keyword || this.mode !== 'json') return;
+        if (!keyword) return;
 
         const lowerKeyword = keyword.toLowerCase();
-        const fieldNames = this.orderedFieldNames.length
-          ? this.orderedFieldNames
-          : Object.keys(this.displayRowData ?? {});
+        if (this.mode === 'text') {
+          const hitIndex = this.renderTextInfo.plainText.toLowerCase().indexOf(lowerKeyword);
+          if (hitIndex < 0) return;
 
-        fieldNames.forEach((fieldName) => {
+          const neededChunks = Math.ceil((hitIndex + keyword.length) / FIELD_CHUNK_SIZE);
+          if (neededChunks > this.textLoadedChunks) {
+            this.textLoadedChunks = neededChunks;
+          }
+          return;
+        }
+
+        if (this.mode !== 'json') return;
+        const fieldNames = this.allJsonFieldNames;
+
+        fieldNames.forEach((fieldName, fieldIndex) => {
           const value = this.displayRowData?.[fieldName];
           const { plainText } = formatFieldPlainValue(value);
-          if (plainText.length <= LARGE_FIELD_THRESHOLD) return;
-
           const hitIndex = plainText.toLowerCase().indexOf(lowerKeyword);
           if (hitIndex < 0) return;
+
+          if (fieldIndex + 1 > this.jsonVisibleFieldCount) {
+            this.jsonVisibleFieldCount = fieldIndex + 1;
+          }
+          if (plainText.length <= LARGE_FIELD_THRESHOLD) return;
 
           const neededChunks = Math.ceil((hitIndex + keyword.length) / FIELD_CHUNK_SIZE);
           const currentChunks = this.fieldLoadedChunks[fieldName] || 1;
@@ -627,6 +735,10 @@
         this.loading = false;
         this.pixiError = '';
         this.destroyPixi();
+        if (this.scrollLoadMoreTimer) {
+          clearTimeout(this.scrollLoadMoreTimer);
+          this.scrollLoadMoreTimer = null;
+        }
         this.resetFieldChunks();
         this.resetSearchState();
         this.resetScroll();
@@ -668,11 +780,11 @@
           if (originRow) {
             this.originRow = originRow;
           } else {
-            this.loadError = this.$t('未找到当前行全量数据，已显示当前渲染数据');
+            this.loadError = this.$t('未找到当前行全量数据');
           }
         } catch (error) {
           if (seq !== this.loadSeq) return;
-          this.loadError = this.$t('读取全量数据失败，已显示当前渲染数据');
+          this.loadError = this.$t('读取全量数据失败');
           console.warn('[FullRowViewerContent] load origin row failed', error);
         } finally {
           if (seq === this.loadSeq) {
@@ -690,7 +802,41 @@
         return originRow || null;
       },
       handleScroll(event) {
-        this.scrollTop = event.target.scrollTop;
+        const target = event.target;
+        this.scrollTop = target.scrollTop;
+        this.loadMoreOnScroll(target);
+      },
+      loadMoreOnScroll(target = this.$refs.scrollContainer) {
+        if (!target || !this.hasMoreContent) return;
+        const distanceToBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
+        if (distanceToBottom > SCROLL_LOAD_MORE_THRESHOLD) return;
+        if (this.scrollLoadMoreTimer) return;
+
+        this.scrollLoadMoreTimer = setTimeout(() => {
+          this.scrollLoadMoreTimer = null;
+          this.loadNextContentChunk();
+        }, 80);
+      },
+      loadNextContentChunk() {
+        if (this.mode === 'text') {
+          if (this.textHasMore) {
+            this.textLoadedChunks += 1;
+          }
+          return;
+        }
+
+        const nextSegment = this.jsonFieldSegments.find(segment => segment.hasMore);
+        if (nextSegment) {
+          this.loadMoreField(nextSegment.fieldName);
+          return;
+        }
+
+        if (this.hasMoreJsonFields) {
+          this.jsonVisibleFieldCount = Math.min(
+            this.allJsonFieldNames.length,
+            this.jsonVisibleFieldCount + JSON_FIELD_PAGE_SIZE,
+          );
+        }
       },
       schedulePixiRender() {
         this.$nextTick(() => {
@@ -934,32 +1080,6 @@
     color: #16171a;
   }
 
-  .field-load-actions {
-    display: inline;
-    margin-left: 4px;
-    white-space: nowrap;
-  }
-
-  .field-load-action-btn {
-    display: inline;
-    padding: 0;
-    font-family: inherit;
-    font-size: 12px;
-    color: #3a84ff;
-    cursor: pointer;
-    background: transparent;
-    border: 0;
-
-    &:hover {
-      text-decoration: underline;
-    }
-  }
-
-  .field-load-divider {
-    margin: 0 6px;
-    color: #dcdee5;
-  }
-
   .full-row-line-numbers {
     flex: 0 0 48px;
     padding: 8px 0;
@@ -976,6 +1096,13 @@
     }
   }
 
+  .text-content-wrap {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+  }
+
   .content-text {
     box-sizing: border-box;
     flex: 1;
@@ -984,6 +1111,13 @@
     margin: 0;
     white-space: pre-wrap;
     word-break: break-all;
+  }
+
+  .scroll-load-tip {
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #979ba5;
+    text-align: center;
   }
 
   .empty-content {

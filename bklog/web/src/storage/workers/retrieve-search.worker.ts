@@ -9,7 +9,7 @@ import { cloneSearchMeta } from '../utils/clone-search-value';
 import { isSearchJsonEnvelope, parseNDJSONByteStream, shouldUseNDJSONStream } from '../utils/ndjson-stream';
 import {
   categorizeIngestError,
-  logRetrieveSearchIngest,
+  // logRetrieveSearchIngest,
   type RetrieveSearchIngestStage,
 } from '../utils/retrieve-search-ingest.logger';
 import { sanitizeBidi } from '../utils/sanitize-bidi';
@@ -49,12 +49,12 @@ const postFailure = (
 ) => {
   const errorCategory = categorizeIngestError(error);
   const message = error?.message || String(error);
-  logRetrieveSearchIngest('error', `worker search failed at ${stage}: ${message}`, {
-    ...context,
-    errorCategory,
-    source: 'worker',
-    stage,
-  });
+  // logRetrieveSearchIngest('error', `worker search failed at ${stage}: ${message}`, {
+  //   ...context,
+  //   errorCategory,
+  //   source: 'worker',
+  //   stage,
+  // });
   postMessageSafe({
     id,
     ok: false,
@@ -151,11 +151,11 @@ const ingestNDJSONStream = async (
     // 兜底：响应实际不是 NDJSON（后端未流式返回或 content-type 丢失），
     // 在尚未处理任何 meta/row 事件时探测到 JSON envelope，则按整包解析，避免数据被静默丢弃。
     if (metaPayload === null && rowCount === 0 && isSearchJsonEnvelope(event)) {
-      logRetrieveSearchIngest('warn', 'search response is JSON envelope, fallback from NDJSON parsing', {
-        queryKey: message.queryKey,
-        source: 'worker',
-        stage: 'parse',
-      });
+      // logRetrieveSearchIngest('warn', 'search response is JSON envelope, fallback from NDJSON parsing', {
+      //   queryKey: message.queryKey,
+      //   source: 'worker',
+      //   stage: 'parse',
+      // });
       timings.stream = Date.now() - streamStartedAt;
       return ingestJsonEnvelopeRows(message, event, timings);
     }
@@ -223,12 +223,12 @@ const runSearchStream = async (message: SearchStreamMessage) => {
   const abortController = new AbortController();
   activeTasks.set(message.id, { abortController });
 
-  logRetrieveSearchIngest('info', 'worker search stream started', {
-    queryKey: message.queryKey,
-    source: 'worker',
-    stage: 'start',
-    writeMode: message.writeMode,
-  });
+  // logRetrieveSearchIngest('info', 'worker search stream started', {
+  //   queryKey: message.queryKey,
+  //   source: 'worker',
+  //   stage: 'start',
+  //   writeMode: message.writeMode,
+  // });
 
   try {
     if (!message.url || !message.queryKey) {
@@ -287,15 +287,15 @@ const runSearchStream = async (message: SearchStreamMessage) => {
       },
     });
 
-    logRetrieveSearchIngest('info', 'worker search stream completed', {
-      durationMs: Date.now() - startedAt,
-      queryKey: message.queryKey,
-      rowCount: resultPayload.size,
-      source: 'worker',
-      stage: 'complete',
-      timings: resultPayload.timings,
-      writeMode: message.writeMode,
-    });
+    // logRetrieveSearchIngest('info', 'worker search stream completed', {
+    //   durationMs: Date.now() - startedAt,
+    //   queryKey: message.queryKey,
+    //   rowCount: resultPayload.size,
+    //   source: 'worker',
+    //   stage: 'complete',
+    //   timings: resultPayload.timings,
+    //   writeMode: message.writeMode,
+    // });
   } catch (error) {
     if ((error as Error)?.name === 'AbortError') {
       postFailure(message.id, new Error('Search request canceled'), 'fetch', {

@@ -85,6 +85,55 @@ const truncateTextByBytes = (text: string, maxBytes: number): string => {
   return `${output}${LARGE_FIELD_PREVIEW_SUFFIX}`;
 };
 
+const truncateMarkedTextByBytes = (text: string, maxBytes: number): string => {
+  if (estimateTextBytes(stripMark(text)) <= maxBytes) {
+    return text;
+  }
+
+  let output = '';
+  let consumedBytes = 0;
+  let isInsideMark = false;
+  const tokens = text.split(/(<\/?mark>)/gi).filter(Boolean);
+
+  const appendVisibleText = (value: string) => {
+    if (!value) return false;
+    const remainingBytes = maxBytes - consumedBytes;
+    if (remainingBytes <= 0) return true;
+    if (estimateTextBytes(value) <= remainingBytes) {
+      output += value;
+      consumedBytes += estimateTextBytes(value);
+      return false;
+    }
+
+    output += truncateTextByBytes(value, remainingBytes).slice(0, -LARGE_FIELD_PREVIEW_SUFFIX.length);
+    consumedBytes = maxBytes;
+    return true;
+  };
+
+  for (const token of tokens) {
+    if (/^<mark>$/i.test(token)) {
+      if (!isInsideMark) {
+        output += token;
+        isInsideMark = true;
+      }
+      continue;
+    }
+    if (/^<\/mark>$/i.test(token)) {
+      if (isInsideMark) {
+        output += token;
+        isInsideMark = false;
+      }
+      continue;
+    }
+
+    if (appendVisibleText(token)) {
+      break;
+    }
+  }
+
+  return output + (isInsideMark ? '</mark>' : '') + LARGE_FIELD_PREVIEW_SUFFIX;
+};
+
 const hasMark = (value: any) => typeof value === 'string' && /<\/?mark>/i.test(value);
 
 const isPlainObject = (value: any) => Object.prototype.toString.call(value) === '[object Object]';
@@ -210,7 +259,7 @@ export const splitRenderText = (value: any): RetrieveTextSegment[] => {
       continue;
     }
 
-    const parts = cleanText.split(/([\s:\.,\-_\[\]\{\}\(\)"'=\/\\]+)/).filter(Boolean);
+    const parts = cleanText.split(/([\s:.,_[\]{}()"'=/\\-]+)/).filter(Boolean);
     for (const part of parts) {
       if (count >= SEGMENT_MAX_TOKENS) {
         output.push({ text: part, isMark: false, isCursorText: false, isBlobWord: true });
@@ -220,7 +269,7 @@ export const splitRenderText = (value: any): RetrieveTextSegment[] => {
       output.push({
         text: part,
         isMark: false,
-        isCursorText: !/^[\s:\.,\-_\[\]\{\}\(\)"'=\/\\]+$/.test(part),
+        isCursorText: !/^[\s:.,_[\]{}()"'=/\\-]+$/.test(part),
       });
       count += 1;
     }
@@ -260,7 +309,6 @@ export const createRetrieveRowRenderMeta = (
     const rawValue = getValueByPath(rawRow, fieldName);
     const rawText = stringifyValue(rawValue);
     const renderText = stringifyValue(value);
-    const plainRenderText = stripMark(renderText);
     const rawBytes = estimateTextBytes(rawText);
     const exceedsLargeFieldLimit = rawBytes > LARGE_FIELD_TEXT_LENGTH;
     if (exceedsLargeFieldLimit) {
@@ -268,7 +316,7 @@ export const createRetrieveRowRenderMeta = (
     }
 
     const truncatedRenderText = exceedsLargeFieldLimit
-      ? truncateTextByBytes(plainRenderText, LARGE_FIELD_TEXT_LENGTH)
+      ? truncateMarkedTextByBytes(renderText, LARGE_FIELD_TEXT_LENGTH)
       : renderText;
 
     if (isPlainObject(displayRow) && exceedsLargeFieldLimit) {

@@ -14,7 +14,7 @@ import {
   storageHealthService,
   storeCacheService,
 } from '@/storage';
-import { logRetrieveSearchIngest } from '@/storage/utils/retrieve-search-ingest.logger';
+// import { logRetrieveSearchIngest } from '@/storage/utils/retrieve-search-ingest.logger';
 import { normalizeRetrieveFields } from '@/storage/utils/retrieve-field-meta';
 import { normalizeSearchTotal } from '@/storage/utils/normalize-search-total';
 
@@ -500,12 +500,12 @@ export function requestIndexSetQueryAction(
             console.warn('[retrieve-search] gc rows failed', error);
           });
 
-        logRetrieveSearchIngest('info', 'search stream result applied on main thread', {
-          queryKey: requestRowQueryKey,
-          rowCount: size,
-          source,
-          stage: 'complete',
-        });
+        // logRetrieveSearchIngest('info', 'search stream result applied on main thread', {
+        //   queryKey: requestRowQueryKey,
+        //   rowCount: size,
+        //   source,
+        //   stage: 'complete',
+        // });
 
         return {
           data: rsolvedData,
