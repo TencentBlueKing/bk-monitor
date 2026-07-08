@@ -149,7 +149,7 @@ export default defineComponent({
             if (type === EditType.userChooser) {
               fieldValueParams[key] = Array.isArray(tapdFieldValue.value[key])
                 ? tapdFieldValue.value[key].map(v => `${v};`).join('')
-                : '';
+                : tapdFieldValue.value[key];
             } else {
               fieldValueParams[key] = tapdFieldValue.value[key];
             }
