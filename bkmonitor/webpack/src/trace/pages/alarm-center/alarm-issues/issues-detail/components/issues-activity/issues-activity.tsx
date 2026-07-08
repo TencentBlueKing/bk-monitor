@@ -651,6 +651,8 @@ export default defineComponent({
           return renderNameChangeActivity(item, showLine);
         case IssueActiveNodeTypeEnum.CREATE:
           return renderFirstActivity(item, showLine);
+        case IssueActiveNodeTypeEnum.TAPD_LINK:
+          return renderCommentActivity(item, showLine);
         // case IssueActiveNodeTypeEnum.SPLIT_FROM:
         //   return renderSplitActivity(item);
         // case IssueActiveNodeTypeEnum.MERGED_INTO:

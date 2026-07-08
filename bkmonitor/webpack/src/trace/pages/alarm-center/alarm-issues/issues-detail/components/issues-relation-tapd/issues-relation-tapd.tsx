@@ -27,10 +27,10 @@ import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
 import EmptyStatus from 'trace/components/empty-status/empty-status';
 import OverflowTips from 'trace/directive/overflow-tips';
-import useRequestAbort from 'trace/hooks/useRequestAbort';
 import tapdLogo from 'trace/static/img/issues/tapd-logo.png';
 import { useI18n } from 'vue-i18n';
 
+import { useTapdIssueActivities } from '../../../issues-tapd/composables/use-tapd-issue-activities';
 import { TapdLinkModeEnum } from '../../../issues-tapd/constant';
 import { getTapdRelations } from '../../../services/relation-tapd';
 import BasicCard from '../basic-card/basic-card';
@@ -58,17 +58,17 @@ export default defineComponent({
     const list = shallowRef<TapdRelationItem[]>([]);
     const loading = shallowRef(false);
 
-    const { run: getTapdListApi, signal } = useRequestAbort<TapdRelationItem[]>(getTapdRelations);
+    /** TAPD 单据操作成功后的全局活动记录，用于回写到当前 Issue 活动列表 */
+    const tapdIssueActivities = useTapdIssueActivities();
 
     /** 获取 TAPD 关联列表 */
     const getTapdList = async () => {
-      if (!props.detail?.id || !props.detail?.bk_biz_id) return;
+      if (!props.detail?.id || !props.detail?.bk_biz_id || loading.value) return;
       loading.value = true;
-      const res = await getTapdListApi({
+      const res = await getTapdRelations({
         bk_biz_id: props.detail.bk_biz_id,
         issue_id: props.detail.id,
       });
-      if (signal?.aborted) return;
       list.value = Array.isArray(res) ? res : [];
       loading.value = false;
     };
@@ -88,6 +88,18 @@ export default defineComponent({
         if (id) getTapdList();
       },
       { immediate: true }
+    );
+
+    watch(
+      () => tapdIssueActivities.infos.value,
+      () => {
+        if (
+          tapdIssueActivities.infos.value?.issueId === props.detail?.id &&
+          tapdIssueActivities.infos.value?.list?.length
+        ) {
+          list.value = tapdIssueActivities.infos.value.list;
+        }
+      }
     );
 
     return {
