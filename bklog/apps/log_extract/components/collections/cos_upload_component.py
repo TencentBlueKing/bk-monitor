@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import os
 
 from django.conf import settings
@@ -110,7 +110,7 @@ class CosUploadService(BaseService):
         # 如果是提取链路bkrepo类型 需要上传bkrepo
         if extract_link.link_type == ExtractLinkType.BK_REPO.value:
             transit_server = data.get_one_of_inputs("transit_server")[0]
-            cos_pack_file_name = get_packed_file_name(task_id)
+            cos_pack_file_name = data.get_one_of_outputs("pack_file_name")
             BKREPOStorage().export_upload(
                 file_path=os.path.join(transit_server.target_dir, cos_pack_file_name), file_name=cos_pack_file_name
             )

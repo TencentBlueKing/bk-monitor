@@ -365,6 +365,10 @@ ACTIVE_VIEWS = {
         "apm_container": "apm_web.container.views",
         "apm_strategy": "apm_web.strategy.views",
     },
+    "rum_web": {
+        "rum_meta": "rum_web.meta.views",
+        "rum_metric": "rum_web.metric.views",
+    },
 }
 
 # 是否使用动态配置特性
@@ -531,6 +535,10 @@ APM_BEST_PRACTICE_URL = ""
 APM_METRIC_DESCRIPTION_URL = ""
 APM_FUNC_INTRODUCTION_URL = ""
 
+# RUM config
+RUM_ACCESS_URL = ""
+RUM_FUNC_INTRODUCTION_URL = ""
+
 APM_APDEX_T_VALUE = 800
 APM_SAMPLING_PERCENTAGE = 100
 APM_APP_QPS = 500
@@ -638,6 +646,18 @@ BK_DATA_AES_IV = b"bkbkbkbkbkbkbkbk"
 # RUM config
 RUM_ENABLED = False
 RUM_ACCESS_URL = ""
+RUM_BEST_PRACTICE_URL = ""
+RUM_METRIC_DESCRIPTION_URL = ""
+
+RUM_KAFKA_CLUSTER_ID = None
+RUM_ELASTICSEARCH_CLUSTER_ID = None
+RUM_APP_DEFAULT_ES_STORAGE_CLUSTER = -1
+RUM_APP_DEFAULT_ES_RETENTION = 7
+RUM_APP_DEFAULT_ES_SLICE_LIMIT = 100
+RUM_APP_DEFAULT_ES_REPLICAS = 0
+RUM_APP_DEFAULT_ES_SHARDS = 3
+
+RUM_CUSTOM_EVENT_REPORT_CONFIG = {}
 
 # ==============================================================================
 # elasticsearch for fta
@@ -1253,12 +1273,12 @@ BKCHAT_MANAGE_URL = os.getenv("BKAPP_BKCHAT_MANAGE_URL", "")
 AIDEV_API_BASE_URL = os.getenv("BKAPP_AIDEV_API_BASE_URL", "")
 
 # TAPD API 基础URL
-TAPD_API_BASE_URL = os.getenv("BKAPP_TAPD_API_BASE_URL", os.getenv("TAPD_API_BASE_URL", ""))
+TAPD_API_BASE_URL = os.getenv("BKAPP_TAPD_API_BASE_URL", os.getenv("TAPD_API_BASE_URL", "http://apiv2.tapd.woa.com"))
 # 对于 TAPD API 有权限的应用ID和密钥
 TAPD_APP_ID = os.getenv("BKAPP_TAPD_APP_ID", os.getenv("TAPD_APP_ID", ""))
 TAPD_APP_SECRET = os.getenv("BKAPP_TAPD_APP_SECRET", os.getenv("TAPD_APP_SECRET", ""))
 # TAPD OAuth 授权基础URL（用户态授权跳转、code换token）
-TAPD_OAUTH_BASE_URL = os.getenv("BKAPP_TAPD_OAUTH_BASE_URL", os.getenv("TAPD_OAUTH_BASE_URL", ""))
+TAPD_OAUTH_BASE_URL = os.getenv("BKAPP_TAPD_OAUTH_BASE_URL", os.getenv("TAPD_OAUTH_BASE_URL", "https://tapd.woa.com"))
 
 BK_NODEMAN_HOST = AGENT_SETUP_URL = os.getenv("BK_NODEMAN_SITE_URL") or os.getenv(
     "BKAPP_NODEMAN_OUTER_HOST", get_service_url("bk_nodeman", bk_paas_host=BK_PAAS_HOST)
@@ -1683,8 +1703,13 @@ BKBASE_REDIS_RECONNECT_INTERVAL_SECONDS = 2
 BKBASE_REDIS_LOCK_NAME = "watch_bkbase_meta_redis_lock"
 # 是否同步数据至DB
 ENABLE_SYNC_BKBASE_METADATA_TO_DB = False
-# 是否启用 BKBase graph relation 链路自动 apply，包括内置关系周期双写和图定义变更增量同步
-ENABLE_SYNC_GRAPH_DEFINITION_TO_BKBASE = os.getenv("ENABLE_SYNC_GRAPH_DEFINITION_TO_BKBASE", "false").lower() == "true"
+# BKBase graph relation 链路自动 apply 业务白名单，包括内置关系周期双写和图定义变更增量同步
+_graph_relation_bkbase_sync_biz_id_white_list_env = os.getenv("GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST", "")
+GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST = [
+    int(biz_id.strip())
+    for biz_id in _graph_relation_bkbase_sync_biz_id_white_list_env.split(",")
+    if biz_id.strip().isdigit()
+]
 
 # 特殊的可以不被禁用的BCS集群ID
 ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST = []
@@ -1786,6 +1811,9 @@ ENABLED_TARGET_CACHE_BK_BIZ_IDS = []
 
 # k8s灰度列表，关闭灰度: [0] 或删除该配置
 K8S_V2_BIZ_LIST = []
+
+# RUM 灰度列表，关闭灰度: [0] 或删除该配置
+RUM_BIZ_LIST = []
 
 # APM UnifyQuery 查询业务黑名单
 APM_UNIFY_QUERY_BLACK_BIZ_LIST = []
@@ -1899,3 +1927,9 @@ BKFARA_AIOPS_SERVICE_HOST_PREFIX = os.getenv("BKFARA_AIOPS_SERVICE_HOST_PREFIX",
 
 # 在同步bkbase集群信息时，是否进行更新
 SYNC_BKBASE_CLUSTER_INFO_UPDATE = os.getenv("SYNC_BKBASE_CLUSTER_INFO_UPDATE", "false").lower() == "true"
+
+# RUM 接入配置
+BKAPP_RUM_SDK = os.getenv("BKAPP_RUM_SDK", "otlp")  # otlp / ageis
+BKAPP_RUM_ENDPOINT = os.getenv("BKAPP_RUM_ENDPOINT", "")
+BKAPP_RUM_TOKEN = os.getenv("BKAPP_RUM_TOKEN", "")
+BKAPP_RUM_ENABLED = str(os.getenv("BKAPP_RUM_ENABLED", False)).lower() == "true"

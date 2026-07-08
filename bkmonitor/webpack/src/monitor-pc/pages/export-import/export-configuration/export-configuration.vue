@@ -315,7 +315,7 @@ export default {
   &-table {
     display: flex;
     width: 100%;
-    height: calc(100vh - 234px);
+    height: calc(100vh - 234px - var(--notice-alert-height, 0px));
     margin-bottom: 20px;
     background: #fff;
 

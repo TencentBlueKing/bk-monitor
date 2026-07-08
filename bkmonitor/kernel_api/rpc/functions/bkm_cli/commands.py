@@ -154,6 +154,39 @@ def _get_effective_setting(params: dict[str, Any]) -> dict[str, Any]:
     return json.loads(json.dumps(result, default=str))
 
 
+@_register("graph_relation_sync_dry_run")
+def _graph_relation_sync_dry_run(params: dict[str, Any]) -> dict[str, Any]:
+    """GraphRelation 写入激活前的只读同步预览。"""
+    import json
+
+    from metadata.task.sync_cmdb_relation import preview_graph_definition_sync_to_bkbase
+
+    if params.get("dry_run") is not True:
+        raise CustomException(message="params.dry_run=true is required")
+
+    namespace = str(params.get("namespace") or "").strip()
+    bk_biz_id_raw = params.get("bk_biz_id")
+    if not namespace and bk_biz_id_raw in (None, ""):
+        raise CustomException(message="params.namespace or params.bk_biz_id is required")
+
+    bk_biz_id = None
+    if bk_biz_id_raw not in (None, ""):
+        try:
+            bk_biz_id = int(bk_biz_id_raw)
+        except (TypeError, ValueError) as exc:
+            raise CustomException(message="params.bk_biz_id must be an integer") from exc
+
+    try:
+        result = preview_graph_definition_sync_to_bkbase(
+            namespace=namespace,
+            bk_biz_id=bk_biz_id,
+            action=str(params.get("action") or "manual"),
+        )
+        return json.loads(json.dumps(result, default=str))
+    except ValueError as exc:
+        raise CustomException(message=str(exc)) from exc
+
+
 # ── get_effective_setting 辅助 ────────────────────────────────────────────────
 
 # 凭据类 name（含 token/secret/password/appsecret 等，大小写不敏感）一律脱敏。

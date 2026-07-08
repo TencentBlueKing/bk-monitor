@@ -20,15 +20,18 @@ DEFAULTS = {
             "module_path": "monitor_web.strategies.default_settings.os.v1",
         },
         # 仅在多租户模式注册以下版本（单租户下不注册，列表只剩 v1）：
-        # - v2=多租户系统事件（custom 源）：gse 系统事件 AgentLost/DiskReadonly/CoreFile/OOM/PingUnreachable
+        # - v2=多租户系统事件（custom 源）：gse 系统事件 AgentLost/DiskReadonly/CoreFile/OOM
         #   走 V4 分业务链路（base_{tenant}_{biz}_event）；
         # - v3=多租户主机重启/进程端口（bk_monitor 源伪事件）：底层 system.env / system.proc_port 时序，
-        #   由 BaseAlarmMetricCacheManager 在多租户内置目录项，经 os_loader 重定向 + 检测算法命中创建。
-        # 为何用 MT 门控、单租户不注册：v2/v3 在单租户下 DEFAULT_OS_STRATEGIES 为空，若不门控、照样注册，
-        # 基础 loader 会把空版本当作“无需创建的空版本”直接登记接入记录；日后该业务切到多租户时，这两个
+        #   由 BaseAlarmMetricCacheManager 在多租户内置目录项，经 os_loader 重定向 + 检测算法命中创建；
+        # - v4=多租户 PING 不可达（bk_monitor 源 ping-gse 伪事件，走指标逻辑）：底层 pingserver.base/loss_percent
+        #   时序，由 BaseAlarmMetricCacheManager 在多租户内置目录项，经 os_loader 重定向 + PingUnreachable
+        #   算法命中创建（修正 v2 把 PING 当 custom 事件的错误形态，详见 os/v4.py）。
+        # 为何用 MT 门控、单租户不注册：v2/v3/v4 在单租户下 DEFAULT_OS_STRATEGIES 为空，若不门控、照样注册，
+        # 基础 loader 会把空版本当作“无需创建的空版本”直接登记接入记录；日后该业务切到多租户时，这些
         # 版本因已登记而幂等跳过、永不补建。门控掉即可让多租户首次运行重新注册并补建。
-        # 单列 v3 而非并入 v1：v1 把这两条圈在单租户块内、多租户不声明；且 v1 在多租户已因时序策略
-        # 被登记接入，若移进 v1 会令存量业务幂等跳过、永不补建（详见 os/v3.py 注释）。
+        # 单列 v3/v4 而非并入 v1：v1 把对应声明圈在单租户块/Platform.te 口径，多租户不（可）声明；且 v1 在
+        # 多租户已因时序策略被登记接入，若移进 v1 会令存量业务幂等跳过、永不补建（详见 os/v3.py、os/v4.py 注释）。
         *(
             [
                 {
@@ -38,6 +41,10 @@ DEFAULTS = {
                 {
                     "version": "v3",
                     "module_path": "monitor_web.strategies.default_settings.os.v3",
+                },
+                {
+                    "version": "v4",
+                    "module_path": "monitor_web.strategies.default_settings.os.v4",
                 },
             ]
             if settings.ENABLE_MULTI_TENANT_MODE

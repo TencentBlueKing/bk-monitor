@@ -448,7 +448,7 @@ export const useFavorite = () => {
 
     shareUrl = `${window.location.origin + shareUrl}${router.resolve(routeData).href}`;
     if (type === 'new-link') {
-      window.open(shareUrl, '_blank');
+      window.open(shareUrl, '_blank', 'noopener,noreferrer');
     } else {
       copyMessage(shareUrl, window.$t('复制分享链接成功，通过链接，可直接查询对应收藏日志。'));
     }

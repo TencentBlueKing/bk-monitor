@@ -669,10 +669,30 @@ class AlertDetailResource(Resource):
         result["graph_panel"] = graph_panel
 
         topo_info = result["extend_info"].get("topo_info", "")
-        result["relation_info"] = f"{topo_info} {relation_info}"
+        result["relation_info"] = self.build_relation_info(topo_info, relation_info)
         self.add_project_name(result)
         self.add_graph_extra_info(alert, result)
         return result
+
+    @staticmethod
+    def build_relation_info(topo_info: str, relation_info: str) -> str:
+        if not relation_info:
+            return topo_info
+
+        if not topo_info:
+            return relation_info
+
+        try:
+            relation_data = json.loads(relation_info)
+        except (TypeError, json.JSONDecodeError):
+            return f"{topo_info} {relation_info}"
+
+        if isinstance(relation_data, dict):
+            # 结构化日志需保持为 JSON，避免破坏前端解析。
+            relation_data["_alert_topo_info"] = topo_info
+            return json.dumps(relation_data, ensure_ascii=False)
+
+        return f"{topo_info} {relation_info}"
 
     @staticmethod
     def clean_graph_panel_where(graph_panel: dict | None) -> None:

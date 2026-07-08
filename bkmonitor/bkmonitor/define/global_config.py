@@ -425,8 +425,8 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BKBASE_REDIS_LOCK_NAME", slz.CharField(label="计算平台Redis锁名称", default="watch_bkbase_meta_redis_lock")),
         ("ENABLE_SYNC_BKBASE_METADATA_TO_DB", slz.BooleanField(label="是否同步bkbase元数据至DB", default=False)),
         (
-            "ENABLE_SYNC_GRAPH_DEFINITION_TO_BKBASE",
-            slz.BooleanField(label="是否自动同步计算平台图关系链路", default=False),
+            "GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST",
+            slz.ListField(label="自动同步计算平台图关系链路业务白名单", default=[]),
         ),
         (
             "ACCESS_DATA_BATCH_PROCESS_THRESHOLD",
@@ -482,6 +482,13 @@ ADVANCED_OPTIONS = OrderedDict(
         # RUM 配置
         ("RUM_ENABLED", slz.BooleanField(label="RUM总开关", default=False)),
         ("RUM_ACCESS_URL", slz.CharField(label="RUM接收端URL", default="", allow_blank=True)),
+        ("RUM_KAFKA_CLUSTER_ID", slz.IntegerField(label="RUM默认Kafka集群ID", default=None, allow_null=True)),
+        ("RUM_ELASTICSEARCH_CLUSTER_ID", slz.IntegerField(label="RUM默认ES集群ID", default=None, allow_null=True)),
+        ("RUM_APP_DEFAULT_ES_STORAGE_CLUSTER", slz.IntegerField(label="RUM应用默认集群ID", default=-1)),
+        ("RUM_APP_DEFAULT_ES_RETENTION", slz.IntegerField(label="RUM应用默认过期时间", default=7)),
+        ("RUM_APP_DEFAULT_ES_SLICE_LIMIT", slz.IntegerField(label="RUM应用ES索引集默认切分大小", default=100)),
+        ("RUM_APP_DEFAULT_ES_REPLICAS", slz.IntegerField(label="RUM应用默认副本数", default=0)),
+        ("RUM_APP_DEFAULT_ES_SHARDS", slz.IntegerField(label="RUM应用默认索引分片数", default=3)),
         ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[0])),
         ("EXCLUDE_WORKER_TASKS", slz.ListField(label="排除特定的worker任务(需要重启alarm-beat生效)", default=[])),
         (
@@ -807,6 +814,11 @@ STANDARD_CONFIGS = OrderedDict(
                 label=_("APM 自定义指标 V2 开启的白名单，支持业务ID(整业务)或'业务ID-应用名'(单应用)格式"), default=[]
             ),
         ),
+        # RUM
+        ("RUM_ACCESS_URL", slz.CharField(label=_("RUM接入链接"), default="", allow_blank=True)),
+        ("RUM_FUNC_INTRODUCTION_URL", slz.CharField(label=_("RUM产品白皮书"), default="", allow_blank=True)),
+        # RUM新版灰度配置
+        ("RUM_BIZ_LIST", slz.ListField(label=_("RUM 新版灰度配置"), default=[])),
     ]
 )
 

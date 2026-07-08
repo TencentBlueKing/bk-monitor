@@ -352,6 +352,7 @@ export const TapdTypeEnum = {
 export const TAPDWorkspaceBoundEnum = {
   BOUND: 'bound',
   IMPORTABLE: 'importable',
+  MANUALLY_UNBOUND: 'manually_unbound',
   STALE: 'stale',
   UNBOUND: 'unbound',
 } as const;
@@ -359,5 +360,5 @@ export const TAPDWorkspaceBoundEnum = {
 export const TapdTypeMap = [
   { label: window.i18n.t('需求'), value: TapdTypeEnum.STORY },
   { label: window.i18n.t('缺陷'), value: TapdTypeEnum.BUG },
-  { label: window.i18n.t('任务'), value: TapdTypeEnum.TASK },
+  // { label: window.i18n.t('任务'), value: TapdTypeEnum.TASK },
 ];

@@ -29,8 +29,9 @@ import { Form, Select } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { TapdTypeMap } from '../../../constant';
+import { TapdLinkModeEnum } from '../../constant';
 
-import type { CreateTapdDefaultSetting, TapdWorkspaceItem } from '../../../typing';
+import type { CreateTapdDefaultSetting, TapdLinkModeType, TapdWorkspaceItem } from '../../typing';
 
 import './tapd-basic-form.scss';
 export default defineComponent({
@@ -48,8 +49,8 @@ export default defineComponent({
       default: () => [],
     },
     tabActive: {
-      type: String,
-      default: 'add',
+      type: String as PropType<TapdLinkModeType>,
+      default: TapdLinkModeEnum.CREATE,
     },
     defaultValue: {
       type: Object as PropType<CreateTapdDefaultSetting>,
@@ -67,8 +68,8 @@ export default defineComponent({
     };
 
     const tabList = [
-      { label: t('新建单据'), value: 'add', icon: 'icon-jia' },
-      { label: t('关联已有'), value: 'link', icon: 'icon-mc-guanlian' },
+      { label: t('新建单据'), value: TapdLinkModeEnum.CREATE, icon: 'icon-jia' },
+      { label: t('关联已有'), value: TapdLinkModeEnum.LINK, icon: 'icon-mc-guanlian' },
     ];
 
     const handleWorkspaceChange = value => {

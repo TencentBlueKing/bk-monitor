@@ -88,6 +88,16 @@ class TestTapdOauthContract(unittest.TestCase):
         source = migration_path.read_text(encoding="utf-8")
         self.assertIn('("bkmonitor", "0198_add_issue_tapd_relation")', source)
 
+    def test_manual_unbind_migration_follows_issue_tapd_relation_is_deleted_fix(self):
+        migration_path = REPO_ROOT / "bkmonitor/bkmonitor/migrations/0201_create_tapd_workspace_manual_unbind.py"
+        self.assertTrue(migration_path.exists())
+        self.assertFalse(
+            (REPO_ROOT / "bkmonitor/bkmonitor/migrations/0200_create_tapd_workspace_manual_unbind.py").exists()
+        )
+
+        source = migration_path.read_text(encoding="utf-8")
+        self.assertIn('("bkmonitor", "0200_add_is_deleted_to_issue_tapd_relation")', source)
+
     def test_user_workspace_requires_manage_event_and_keeps_tapd_auth_permission(self):
         viewset = _class(_parse("bkmonitor/packages/fta_web/issue/views.py"), "IssueViewSet")
         read_only_endpoints = _string_constants(_class_assignment(viewset, "READ_ONLY_ENDPOINTS"))
@@ -129,6 +139,37 @@ class TestTapdOauthContract(unittest.TestCase):
         self.assertNotIn("request.session.get", callback_source)
         self.assertIn("redirect_uri=backend_callback.rstrip", callback_source)
 
+    def test_user_oauth_scope_uses_enum_without_expanding_permissions(self):
+        constants_source = _read("bkmonitor/packages/fta_web/constants.py")
+        utils_module = _parse("bkmonitor/packages/fta_web/issue/utils/tapd.py")
+        generate_auth_url = _function(utils_module, "generate_auth_url")
+        utils_source = ast.get_source_segment(
+            _read("bkmonitor/packages/fta_web/issue/utils/tapd.py"), generate_auth_url
+        )
+
+        for scope in (
+            "story#read",
+            "story#write",
+            "story#update",
+            "story#delete",
+            "bug#read",
+            "bug#write",
+            "bug#update",
+            "bug#delete",
+            "task#read",
+            "task#write",
+            "task#update",
+            "task#delete",
+        ):
+            self.assertIn(scope, constants_source)
+
+        self.assertIn("TapdOAuthScope.issue_user_oauth()", utils_source)
+        self.assertNotIn("TapdOAuthScope.full()", utils_source)
+        self.assertIn("cls.STORY_READ.value", constants_source)
+        self.assertIn("cls.STORY_WRITE.value", constants_source)
+        self.assertIn("cls.BUG_READ.value", constants_source)
+        self.assertIn("cls.BUG_WRITE.value", constants_source)
+
     def test_user_oauth_callback_binds_token_to_current_bk_user(self):
         callback = _function(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "tapd_user_oauth_callback")
         callback_source = ast.get_source_segment(_read("bkmonitor/packages/fta_web/issue/resources.py"), callback)
@@ -149,6 +190,7 @@ class TestTapdOauthContract(unittest.TestCase):
         get_headers = _method(tapd_api_resource, "get_headers")
         get_granted_serializer = _class(_class(module, "GetGrantedWorkspacesResource"), "RequestSerializer")
         get_workspace_serializer = _class(_class(module, "GetWorkspaceInfoResource"), "RequestSerializer")
+        participant_projects_serializer = _class(_class(module, "GetParticipantProjects"), "RequestSerializer")
 
         self.assertIn("contextvars.ContextVar", source)
         self.assertNotIn("self.access_token", source)
@@ -157,10 +199,41 @@ class TestTapdOauthContract(unittest.TestCase):
         self.assertIn("tapd_access_token.get", _call_names(get_headers))
         self.assertIsNotNone(_serializer_field(get_granted_serializer, "access_token"))
         self.assertIsNotNone(_serializer_field(get_workspace_serializer, "access_token"))
+        self.assertIsNotNone(_serializer_field(participant_projects_serializer, "access_token"))
+
+    def test_user_workspace_uses_participant_projects_with_workspace_shape(self):
+        resource = _class(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "ListUserTapdWorkspaceResource")
+        fetch_user_workspaces = _method(resource, "_fetch_user_workspaces")
+        perform_request = _method(resource, "perform_request")
+        source = ast.get_source_segment(_read("bkmonitor/packages/fta_web/issue/resources.py"), fetch_user_workspaces)
+
+        self.assertIn("api.tapd.get_participant_projects", _call_names(fetch_user_workspaces))
+        self.assertNotIn("api.tapd.get_granted_workspaces", _call_names(fetch_user_workspaces))
+        self.assertNotIn("_enrich_workspace_details", _call_names(perform_request))
+        self.assertIn('ws.get("Workspace", {})', source)
+        self.assertIn('ws_inner.get("id", "")', source)
+        self.assertIn('"workspace_id": ws_id', source)
+        self.assertIn('"workspace_name": ws_inner.get("name", ws_id)', source)
 
     def test_app_install_callback_still_uses_signed_state(self):
         callback = _function(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "tapd_app_install_callback")
         self.assertIn("verify_signed_state", _call_names(callback))
+
+    def test_app_install_uses_state_for_signed_state_and_clean_callback(self):
+        utils_module = _parse("bkmonitor/packages/fta_web/issue/utils/tapd.py")
+        generate_install_url = _function(utils_module, "generate_install_url")
+        callback = _function(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "tapd_app_install_callback")
+        utils_source = ast.get_source_segment(
+            _read("bkmonitor/packages/fta_web/issue/utils/tapd.py"), generate_install_url
+        )
+        callback_source = ast.get_source_segment(_read("bkmonitor/packages/fta_web/issue/resources.py"), callback)
+
+        self.assertIn("signed_state = generate_signed_state(payload)", utils_source)
+        self.assertIn('cb = backend_callback.rstrip("/")', utils_source)
+        self.assertIn('"state": signed_state', utils_source)
+        self.assertNotIn("?signed_state=", utils_source)
+        self.assertIn('request.query_params.get("state", "")', callback_source)
+        self.assertNotIn('request.query_params.get("signed_state"', callback_source)
 
     def test_redirect_urls_are_restricted_to_allowed_hosts(self):
         source = _read("bkmonitor/packages/fta_web/issue/utils/tapd.py")
@@ -196,6 +269,72 @@ class TestTapdOauthContract(unittest.TestCase):
         self.assertIn('logger.exception("exchange token unexpected error")', source)
         self.assertNotIn('logger.exception(f"exchange token failed: {e}")', source)
         self.assertNotIn('logger.exception(f"exchange token unexpected error: {e}")', source)
+
+    def test_rebind_requires_app_granted_workspace_before_creating_binding(self):
+        resource = _class(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "RebindTapdWorkspaceResource")
+        perform_request = _method(resource, "perform_request")
+        source = ast.get_source_segment(_read("bkmonitor/packages/fta_web/issue/resources.py"), perform_request)
+
+        self.assertIn("ListUserTapdWorkspaceResource._fetch_app_granted_ids", source)
+        app_grant_index = source.index("ListUserTapdWorkspaceResource._fetch_app_granted_ids")
+        create_binding_index = source.index("TapdWorkspaceBinding.objects.get_or_create")
+
+        self.assertLess(app_grant_index, create_binding_index)
+        self.assertIn("workspace_id not in app_granted_ids", source)
+        self.assertIn("TAPD 项目未完成应用授权", source)
+
+    def test_unbind_checks_active_issue_relations_before_deleting_binding(self):
+        resource = _class(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "UnbindTapdWorkspaceResource")
+        perform_request = _method(resource, "perform_request")
+        check_relations = _method(resource, "_check_active_tapd_relations")
+        perform_source = ast.get_source_segment(_read("bkmonitor/packages/fta_web/issue/resources.py"), perform_request)
+        check_source = ast.get_source_segment(_read("bkmonitor/packages/fta_web/issue/resources.py"), check_relations)
+
+        check_index = perform_source.index("self._check_active_tapd_relations")
+        delete_index = perform_source.index("binding_qs.delete")
+
+        self.assertLess(check_index, delete_index)
+        self.assertIn("IssueTapdRelation.objects.filter", check_source)
+        self.assertIn("bk_biz_id=bk_biz_id", check_source)
+        self.assertIn("workspace_id=workspace_id_int", check_source)
+        self.assertIn("IssueDocument.search(all_indices=True)", check_source)
+        self.assertIn('filter("term", bk_biz_id=bk_biz_id)', check_source)
+        self.assertIn("IssueStatus.ACTIVE_STATUSES", check_source)
+        self.assertIn("CustomException", check_source)
+        self.assertIn("except Exception as e", check_source)
+        self.assertIn("fail-open", check_source)
+
+    def test_unbind_active_issue_query_is_batched_and_uses_es_total(self):
+        resource = _class(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "UnbindTapdWorkspaceResource")
+        check_relations = _method(resource, "_check_active_tapd_relations")
+        source = ast.get_source_segment(_read("bkmonitor/packages/fta_web/issue/resources.py"), check_relations)
+
+        self.assertIn("ACTIVE_RELATION_ES_CHUNK_SIZE", source)
+        self.assertIn("ACTIVE_RELATION_PREVIEW_LIMIT", source)
+        self.assertIn("track_total_hits=True", source)
+        self.assertIn("active_count +=", source)
+        self.assertIn("preview_ids.extend", source)
+        self.assertNotIn("params(size=len(issue_ids))", source)
+
+    def test_trace_tapd_frontend_rebinds_manually_unbound_workspace(self):
+        service_source = _read(
+            "bkmonitor/webpack/src/trace/pages/alarm-center/alarm-issues/issues-tapd/services/tapd.ts"
+        )
+        auth_source = _read(
+            "bkmonitor/webpack/src/trace/pages/alarm-center/alarm-issues/issues-tapd/composables/use-tapd-auth.ts"
+        )
+        constants_source = _read("bkmonitor/webpack/src/trace/pages/alarm-center/alarm-issues/constant.ts")
+
+        self.assertIn("MANUALLY_UNBOUND: 'manually_unbound'", constants_source)
+        self.assertIn("export const rebindWorkspaceApi", service_source)
+        self.assertIn("export const unbindWorkspaceApi", service_source)
+        self.assertIn("export const revokeAuthApi", service_source)
+        self.assertIn("case 'manually_unbound'", auth_source)
+        self.assertIn("rebindWorkspaceApi", auth_source)
+        self.assertIn("target.is_bound = 'bound'", auth_source)
+        self.assertIn("workspaceList.splice", auth_source)
+        self.assertIn("createTapdSliderShow.value = true", auth_source)
+        self.assertIn("installUrl.value.replace", auth_source)
 
 
 if __name__ == "__main__":

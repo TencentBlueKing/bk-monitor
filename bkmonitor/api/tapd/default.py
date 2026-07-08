@@ -62,6 +62,34 @@ class TapdAPIResource(APIResource):
 class GetGrantedWorkspacesResource(TapdAPIResource):
     """
     获取已授权的项目列表
+    示例：
+        {
+            "status": 1,
+            "data": {
+                "list": [
+                    {
+                        "OpenOrganizationApp": {
+                            "workspace_id": "10104801",
+                            "type": "1",
+                            "created": "2024-04-02 16:10:30"
+                        }
+                    },
+                    {
+                        "OpenOrganizationApp": {
+                            "workspace_id": "10028191",
+                            "type": "1",
+                            "created": "2023-06-15 20:00:13"
+                        }
+                    }
+                ],
+                "pager": {
+                    "count": 3,
+                    "page": 1,
+                    "limit": 30
+                }
+            },
+            "info": "success"
+        }
     """
 
     action = "app_auth/get_granted_workspaces"
@@ -90,9 +118,72 @@ class GetGrantedWorkspacesResource(TapdAPIResource):
         )
 
 
+class GetParticipantProjects(TapdAPIResource):
+    """
+    获取当前用户参与的项目列表（用户态 OAuth）
+    仅支持 Bearer Token 认证，不支持 Basic Auth。
+    示例：
+        {
+            "status": 1,
+            "data": [
+                {
+                    "Workspace": {
+                        "id": "755",
+                        "name": "TAPD平台",
+                        "pretty_name": "tapd",
+                        "category": "product",
+                        "status": "normal",
+                        "description": "研发管理平台",
+                        "begin_date": "2006-04-13",
+                        "end_date": "2017-09-27",
+                        "external_on": "1",
+                        "creator": "",
+                        "created": "2007-05-01 00:00:00"
+                    }
+                }
+            ],
+            "info": "success"
+        }
+    """
+
+    action = "workspaces/get_participant_projects"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        status = serializers.CharField(
+            label="项目状态",
+            required=False,
+            default="normal",
+            help_text="项目状态过滤，多个状态用逗号隔开，例如 normal,suspend,closed，默认为normal",
+        )
+        access_token = serializers.CharField(
+            label="用户态访问令牌", required=True, help_text="必须传入 OAuth Access Token（用户级）"
+        )
+
+
 class GetWorkspaceInfoResource(TapdAPIResource):
     """
     根据项目ID（workspace_id）获取项目信息
+    示例：
+        {
+            "status": 1,
+            "data": {
+                "Workspace": {
+                    "id": "10104801",
+                    "name": "TAPD 乌云",
+                    "pretty_name": "tapd_security",
+                    "category": "product",
+                    "status": "normal",
+                    "description": "",
+                    "begin_date": null,
+                    "end_date": null,
+                    "external_on": "0",
+                    "creator": "",
+                    "created": "2015-03-27 16:02:02"
+                }
+            },
+            "info": "success"
+        }
     """
 
     action = "workspaces/get_workspace_info"

@@ -197,6 +197,9 @@ export default {
   '根 Span 接口': 'Root Span Interface',
   入口服务接口: 'Entry Service Interface',
 
+  // RUM
+  展示名称: 'Display Name',
+  应用状态: 'Application Status',
   // ISSUES 最后出现时间UES 列表
   最后出现时间: 'Last Occurrence Time',
   最早发生时间: 'Earliest Occurrence Time',

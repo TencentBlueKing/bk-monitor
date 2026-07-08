@@ -113,10 +113,14 @@ class TestCreateTapdBackendContract(unittest.TestCase):
         self.assertTrue(create_tapd_lines)
         self.assertLess(min(get_issue_lines), min(create_tapd_lines))
 
-    def test_create_tapd_rejects_sync_status_until_sync_is_implemented(self):
+    def test_create_tapd_persists_sync_status_after_sync_task_is_implemented(self):
         resource = _class(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "CreateTapdResource")
         request_serializer = _class(resource, "RequestSerializer")
         validate = _method(request_serializer, "validate")
+        perform_request = _method(resource, "perform_request")
+        perform_source = ast.get_source_segment(
+            _source("bkmonitor/packages/fta_web/issue/resources.py"), perform_request
+        )
 
         has_sync_status_guard = False
         for node in ast.walk(validate):
@@ -127,17 +131,23 @@ class TestCreateTapdBackendContract(unittest.TestCase):
                 )
                 break
 
-        self.assertTrue(has_sync_status_guard)
+        self.assertFalse(has_sync_status_guard)
+        self.assertIn('sync_status = validated_request_data["sync_status"]', perform_source)
+        self.assertIn('"sync_status": sync_status', perform_source)
 
     def test_issue_list_tapd_count_query_is_scoped_by_biz(self):
         source = (REPO_ROOT / "bkmonitor/packages/fta_web/issue/handlers/issue.py").read_text(encoding="utf-8")
         self.assertIn("page_tapd_biz_ids", source)
         self.assertIn("bk_biz_id__in=page_tapd_biz_ids", source)
 
-    def test_link_tapd_rejects_sync_status_until_sync_is_implemented(self):
+    def test_link_tapd_updates_sync_status_after_sync_task_is_implemented(self):
         resource = _class(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "LinkIssueToTapdResource")
         request_serializer = _class(resource, "RequestSerializer")
         validate = _method(request_serializer, "validate")
+        perform_request = _method(resource, "perform_request")
+        perform_source = ast.get_source_segment(
+            _source("bkmonitor/packages/fta_web/issue/resources.py"), perform_request
+        )
 
         has_sync_status_guard = False
         for node in ast.walk(validate):
@@ -148,7 +158,49 @@ class TestCreateTapdBackendContract(unittest.TestCase):
                 )
                 break
 
-        self.assertTrue(has_sync_status_guard)
+        self.assertFalse(has_sync_status_guard)
+        self.assertIn('sync_status = validated_request_data["sync_status"]', perform_source)
+        self.assertIn("obj.sync_status = sync_status", perform_source)
+        self.assertIn('IssueTapdRelation.objects.bulk_update(to_update, ["sync_status"])', perform_source)
+
+    def test_sync_tapd_status_task_queries_enabled_relations_and_resolves_issue(self):
+        tasks_source = _source("bkmonitor/packages/fta_web/tasks.py")
+        tasks = _parse("bkmonitor/packages/fta_web/tasks.py")
+        sync_func = next(
+            node
+            for node in tasks.body
+            if isinstance(node, ast.FunctionDef) and node.name == "sync_issues_from_tapd_status"
+        )
+        query_func = next(
+            node
+            for node in tasks.body
+            if isinstance(node, ast.FunctionDef) and node.name == "_query_and_check_tapd_status"
+        )
+        resolve_func = next(
+            node
+            for node in tasks.body
+            if isinstance(node, ast.FunctionDef) and node.name == "_resolve_issue_by_tapd_sync"
+        )
+        sync_source = ast.get_source_segment(tasks_source, sync_func)
+        query_source = ast.get_source_segment(tasks_source, query_func)
+        resolve_source = ast.get_source_segment(tasks_source, resolve_func)
+
+        self.assertIn("IssueTapdRelation.objects.filter(sync_status=True)", sync_source)
+        self.assertIn("sync_relations = list(", sync_source)
+        self.assertIn("IssueDocument.search(all_indices=True)", sync_source)
+        self.assertIn('stats["skipped"] += total_skipped', sync_source)
+        self.assertIn("SearchTAPDItemsResource._query_tapd_items", query_source)
+        self.assertIn('fields="id,status"', query_source)
+        self.assertIn("_is_tapd_status_completed", query_source)
+        self.assertIn("api.issue.resolve", resolve_source)
+        self.assertIn('operator="system"', resolve_source)
+
+    def test_sync_tapd_status_task_is_scheduled_on_resource_queue(self):
+        source = _source("bkmonitor/config/celery/config.py")
+
+        self.assertIn('"fta_web.tasks.sync_tapd_issue_status"', source)
+        self.assertIn('"schedule": crontab(minute="*/10")', source)
+        self.assertIn('"options": {"queue": "celery_resource"}', source)
 
     def test_link_tapd_rejects_duplicate_tapd_ids_before_bulk_create(self):
         resource = _class(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "LinkIssueToTapdResource")

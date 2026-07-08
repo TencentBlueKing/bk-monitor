@@ -28,10 +28,10 @@ class MonitorMetricCollector(BaseCollector):
         监控指标数
         """
 
+        valid_biz_ids = list(self.biz_info)
         monitor_metrics = (
-            MetricListCache.objects.values(
-                "bk_biz_id", "data_source_label", "data_type_label", "result_table_label", "bk_tenant_id"
-            )
+            MetricListCache.objects.filter(bk_biz_id__in=valid_biz_ids)
+            .values("bk_biz_id", "data_source_label", "data_type_label", "result_table_label", "bk_tenant_id")
             .annotate(count=Count("id"))
             .order_by()
         )

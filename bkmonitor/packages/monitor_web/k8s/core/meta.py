@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from typing import Any
+
 from django.db.models import F, Max, Value
 from django.db.models.functions import Concat
 from django.utils.functional import cached_property
@@ -297,70 +299,55 @@ class K8sResourceMeta:
             "slimit": 10001,
             "down_sample_range": "",
         }
-        series = resource.grafana.graph_unify_query(query_params)["series"]
-        # 这里需要排序
-        # 1. 得到最新时间点
-        # 2. 基于最新时间点数据进行排序
-        lines = []
-        max_data_point = None
-        # 找到所有有值数据点中的最大时间戳
-        for line in series:
-            if line["datapoints"]:
-                for point in reversed(line["datapoints"]):
-                    if point[0] is not None:
-                        if max_data_point is None:
-                            max_data_point = point[1]
-                        else:
-                            max_data_point = max(max_data_point, point[1])
 
-        # 如果没有找到任何有值的数据点，max_data_point 仍为 None，后续处理需要考虑这种情况
-        if max_data_point is None:
-            # 如果所有数据点都是 None，使用最后一个数据点的时间戳作为 max_data_point
-            for line in series:
-                if line["datapoints"]:
-                    max_data_point = line["datapoints"][-1][1]
-                    break
+        series: list[dict[str, Any]] = resource.grafana.graph_unify_query(query_params)["series"]
 
+        # 找到有值数据点的最大时间戳。
+        latest_point_time: int | None = max(
+            (point[1] for line in series for point in line.get("datapoints") or [] if point[0] is not None),
+            default=None,
+        )
+        if latest_point_time is None:
+            # 如果所有数据点都是 None，使用最后一个数据点的时间戳作为 latest_point_time。
+            latest_point_time = next((line["datapoints"][-1][1] for line in series if line.get("datapoints")), None)
+
+        include_empty_series: bool = len(series) <= page_size
+        empty_value_lines: list[tuple[float | int, dict[str, Any]]] = []
+        current_value_lines: list[tuple[float | int, dict[str, Any]]] = []
+        historical_value_lines: list[tuple[float | int, int, dict[str, Any]]] = []
         for line in series:
-            if not line["datapoints"]:
+            if not line.get("datapoints"):
                 # 如果 datapoints 为空，跳过或使用负无穷
-                if len(series) <= page_size:
-                    lines.append([float("-inf"), line])
+                if include_empty_series:
+                    empty_value_lines.append((float("-inf"), line))
                 continue
 
-            last_data_points_value: float | int | None = line["datapoints"][-1][0]
-            last_data_points = line["datapoints"][-1][1]
+            # 获取最后一个非空数据点
+            last_non_null_point: tuple[float | int, int] | None = next(
+                (point for point in reversed(line["datapoints"]) if point[0] is not None), None
+            )
+            last_non_null_value, last_non_null_time = last_non_null_point or (None, None)
 
-            if max_data_point is not None and last_data_points == max_data_point:
-                # 时间戳等于最新时间点：使用该点的值进行排序
-                if len(series) <= page_size:
-                    # 如果数量较少，保留 None 值的情况，但使用特殊标记值进行排序区分
-                    # 使用负无穷或极小值来区分 None 和真实 0 值，保证排序时 None 排在最后
-                    sort_value = last_data_points_value if last_data_points_value is not None else float("-inf")
-                    lines.append([sort_value, line])
-                elif last_data_points_value is not None:
-                    lines.append([last_data_points_value, line])
+            if latest_point_time is not None and last_non_null_time == latest_point_time:
+                # 有数据的时序。
+                current_value_lines.append((last_non_null_value, line))
+            elif last_non_null_value is not None:
+                # 历史有数据的时序。
+                historical_value_lines.append((last_non_null_value, last_non_null_time or 0, line))
             else:
-                # 时间戳不等于最新时间点：查找该 series 在最新时间点的值
-                value_at_max_time = None
-                if max_data_point is not None:
-                    for point in reversed(line["datapoints"]):
-                        if point[1] == max_data_point:
-                            value_at_max_time = point[0]
-                            break
-
-                # 如果找到了最新时间点的值，使用该值；否则使用负无穷标记非最新且无值的情况
-                if value_at_max_time is not None:
-                    lines.append([value_at_max_time, line])
-                else:
-                    # 非最新时间点且没有值的情况，使用负无穷确保排序时排在最后
-                    if len(series) <= page_size:
-                        lines.append([float("-inf"), line])
-                    # 如果数量超过 page_size，则直接跳过无值的情况（原有逻辑）
+                # 没有任何有效值，只有候选数不超过 page_size 时才保留，沿用原有低优先级语义。
+                if include_empty_series:
+                    empty_value_lines.append((float("-inf"), line))
 
         if order_by:
             reverse = order_by.startswith("-")
-            lines.sort(key=lambda x: x[0], reverse=reverse)
+            current_value_lines.sort(key=lambda x: x[0], reverse=reverse)
+            historical_value_lines.sort(key=lambda x: (x[0], x[1]), reverse=reverse)
+        lines: list[tuple[float | int, dict[str, Any]]] = (
+            current_value_lines
+            + [(sort_value, line) for sort_value, _, line in historical_value_lines]
+            + empty_value_lines
+        )
         obj_list = []
         resource_id_list = []
         for _, line in lines:

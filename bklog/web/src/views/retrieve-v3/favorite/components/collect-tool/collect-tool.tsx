@@ -184,11 +184,13 @@ export default defineComponent({
             ></i>
           </BklogPopover>
           {/* 全部收起/展开 */}
-          <i
-            class={`bklog-icon bklog-${props.collapseAll ? 'zhankai-2' : 'shouqi'} tool-icon`}
-            v-bk-tooltips={props.collapseAll ? t('全部展开') : t('全部收起')}
-            onClick={handleCollapseAll}
-          ></i>
+          <div>
+            <i
+              class={`bklog-icon bklog-${props.collapseAll ? 'zhankai-2' : 'shouqi'} tool-icon`}
+              v-bk-tooltips={props.collapseAll ? t('全部展开') : t('全部收起')}
+              onClick={handleCollapseAll}
+            ></i>
+          </div>
 
           {/* 调整排序 */}
           <BklogPopover

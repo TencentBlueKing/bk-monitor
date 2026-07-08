@@ -89,6 +89,7 @@ export default defineComponent({
       target_fields: [],
       sort_fields: [],
       index_set_id: '',
+      data_link_id: '',
     });
     /** 目标字段选择列表 */
     const targetFieldSelectList = ref<{ id: string; name: string }[]>([]);
@@ -114,6 +115,13 @@ export default defineComponent({
       return options;
     });
     const globalsData = computed(() => store.getters['globals/globalsData']);
+
+    /**
+     * 链路配置列表
+     */
+    const linkConfigurationList = ref([]);
+    const linkListLoading = ref(false);
+
     /**
      * 当前采集id
      */
@@ -129,10 +137,10 @@ export default defineComponent({
 
     onMounted(() => {
       // this.containerLoading = true;
+      getLinkData();
       initFormData();
     });
     const initFormData = async () => {
-      console.log(' isInitializing.value', isInitializing.value);
       // 防止重复调用：如果正在初始化，直接返回
       if (isInitializing.value) {
         return;
@@ -195,6 +203,62 @@ export default defineComponent({
         targetFieldSelectList.value = [];
       }
     };
+
+    /**
+     * 是否为编辑
+     */
+    const isUpdate = computed(() =>
+      route.name === 'collectEdit' && props.isEdit,
+    );
+
+    /**
+     * 获取链路配置列表
+     */
+    const getLinkData = async () => {
+      try {
+        linkListLoading.value = true;
+        const res = await $http.request('linkConfiguration/getLinkList', {
+          query: {
+            bk_biz_id: bkBizId.value,
+          },
+        });
+        linkConfigurationList.value = res.data.filter(item => item.is_active);
+        if (linkConfigurationList.value.length && !isUpdate.value) {
+          configData.value.data_link_id = linkConfigurationList.value[0].data_link_id;
+        }
+      } catch (e) {
+        console.log(e);
+      } finally {
+        linkListLoading.value = false;
+      }
+    };
+
+    /**
+     * 链路配置卡片
+     */
+    const renderLinkConfig = () => (
+      <div class='link-config label-form-box'>
+        <span class='label-title'>{t('上报链路')}</span>
+        <bk-select
+          class='form-box'
+          clearable={false}
+          disabled={isUpdate.value}
+          loading={linkListLoading.value}
+          value={configData.value.data_link_id}
+          on-selected={val => {
+            configData.value.data_link_id = val;
+          }}
+        >
+          {linkConfigurationList.value.map(item => (
+            <bk-option
+              id={item.data_link_id}
+              key={item.data_link_id}
+              name={item.link_group_name}
+            />
+          ))}
+        </bk-select>
+      </div>
+    );
 
     /** 基本信息 */
     const renderBaseInfo = () => (
@@ -304,6 +368,7 @@ export default defineComponent({
         es_shards,
         parent_index_set_ids,
         storage_cluster_type,
+        data_link_id,
       } = configData.value as { [key: string]: unknown };
 
       const submitData = {
@@ -322,6 +387,7 @@ export default defineComponent({
         bk_biz_id: Number(bkBizId.value),
         target_fields: configData.value.target_fields || [],
         sort_fields: configData.value.sort_fields || [],
+        data_link_id,
       };
 
       // 根据 storage_cluster_type 判断是否需要移除字段
@@ -370,6 +436,14 @@ export default defineComponent({
           renderFn: renderFieldSetting,
         });
       }
+      // 只有在有可上报的链路且 data_link_id 不为 0 或 null 时才显示链路配置卡片
+      if (linkConfigurationList.value.length > 0 && configData.value.data_link_id) {
+        cards.push({
+          title: t('链路配置'),
+          key: 'linkConfig',
+          renderFn: renderLinkConfig,
+        });
+      }
       return cards;
     });
 
@@ -403,7 +477,6 @@ export default defineComponent({
               baseInfoRef.value
                 .validate()
                 .then(() => {
-                  console.log('configData.value', configData.value);
                   emit('next', configData.value);
                 })
                 .catch(() => {

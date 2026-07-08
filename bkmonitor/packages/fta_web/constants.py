@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import enum
+
 from django.conf import settings
 from django.utils.translation import gettext as _
 
@@ -728,6 +730,42 @@ CONDITIONS_REQ = [
 ]
 
 
+class TapdOAuthScope(str, enum.Enum):
+    """TAPD OAuth 授权 scope"""
+
+    STORY_READ = "story#read"
+    STORY_WRITE = "story#write"
+    STORY_UPDATE = "story#update"
+    STORY_DELETE = "story#delete"
+
+    BUG_READ = "bug#read"
+    BUG_WRITE = "bug#write"
+    BUG_UPDATE = "bug#update"
+    BUG_DELETE = "bug#delete"
+
+    TASK_READ = "task#read"
+    TASK_WRITE = "task#write"
+    TASK_UPDATE = "task#update"
+    TASK_DELETE = "task#delete"
+
+    @classmethod
+    def full(cls) -> str:
+        """返回完整 scope 字符串（包含所有权限）"""
+        return " ".join(s.value for s in cls)
+
+    @classmethod
+    def issue_user_oauth(cls) -> str:
+        """返回用户态 Issue-TAPD OAuth 所需 scope。"""
+        return " ".join(
+            [
+                cls.STORY_READ.value,
+                cls.STORY_WRITE.value,
+                cls.BUG_READ.value,
+                cls.BUG_WRITE.value,
+            ]
+        )
+
+
 class TapdOauthEndpoint:
     """TAPD OAuth 端点（完整地址，基于 TAPD_OAUTH_BASE_URL）"""
 
@@ -762,10 +800,12 @@ class TapdWorkspaceBindStatus:
     bound      用户级✓ + 项目级✓ + 本地✓  已完成全链路绑定
     importable 用户级✓ + 项目级✓ + 本地✗  可导入（应用已装、本地未绑）
     stale      用户级✓ + 项目级✗ + 本地✓  已过期（应用授权失效，本地残留）
-    unbound    用户级✓ + 项目级✗ + 本地✗  未绑定（应用未装，需引导安装）
+    unbound          用户级✓ + 项目级✗ + 本地✗  未绑定（应用未装，需引导安装）
+    manually_unbound 用户级✓ + 项目级✓ + 本地✗ + 曾手动解绑  已手动取消关联（不再自动重绑）
     """
 
     BOUND = "bound"
     STALE = "stale"
     IMPORTABLE = "importable"
     UNBOUND = "unbound"
+    MANUALLY_UNBOUND = "manually_unbound"

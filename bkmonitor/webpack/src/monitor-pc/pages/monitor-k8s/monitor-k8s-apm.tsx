@@ -26,6 +26,7 @@
 import { Component, Inject, InjectReactive, Mixins, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
 
 import { listServiceK8sTargets } from 'monitor-api/modules/apm_container';
+import bus from 'monitor-common/utils/event-bus';
 import { scenarioMetricList } from 'monitor-api/modules/k8s';
 
 import introduce from '../../common/introduce';
@@ -55,6 +56,15 @@ import type { IK8sTargetList } from 'monitor-pc/pages/monitor-k8s/typings/book-m
 import type { IViewOptions } from 'monitor-ui/chart-plugins/typings/index';
 
 import './monitor-k8s-apm.scss';
+
+/** APM K8s 容器监控离开页面前需持久化 target 选择时发出的事件 */
+export const APM_K8S_CACHE_FLUSH_EVENT = 'apm-k8s-cache-flush';
+
+export function dispatchApmK8sCacheFlush() {
+  bus.$emit(APM_K8S_CACHE_FLUSH_EVENT);
+}
+
+Component.registerHooks(['deactivated']);
 
 const HIDE_METRICS_KEY = 'monitor_k8s_hide_metrics';
 
@@ -233,7 +243,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
 
   get selectTargetTextTooltip() {
     const { bcs_cluster_id: clusterId = '' } = this.selectTargetItem || {};
-    return `${this.selectTargetText}（集群: ${clusterId}）`;
+    return `${this.selectTargetText}（${this.$t('集群')}: ${clusterId}）`;
   }
 
   // 选中的目标项
@@ -348,6 +358,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
 
   mounted() {
     this.observerFilterByHeader();
+    bus.$on(APM_K8S_CACHE_FLUSH_EVENT, this.saveNewTargetValueToUserConfig);
   }
 
   observerFilterByHeader() {
@@ -363,21 +374,30 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
     }
   }
 
+  /** keep-alive / 微前端挂起时 beforeDestroy 不会触发 */
+  deactivated() {
+    this.saveNewTargetValueToUserConfig();
+  }
+
   beforeDestroy() {
-    // 用户手动切换过负载才需要缓存
-    if (this.isUserManualSwitch && this.appName) {
-      const setData = {
-        ...this.cacheData,
-        [this.serviceName]: {
-          target: this.selectTarget,
-        },
-      };
-      this.handleSetUserConfig(`${CACHE_APM_SEARCH_QUERY}_${this.bizId}_${this.appName}`, JSON.stringify(setData));
-    }
+    bus.$off(APM_K8S_CACHE_FLUSH_EVENT, this.saveNewTargetValueToUserConfig);
+    this.saveNewTargetValueToUserConfig();
   }
 
   destroyed() {
-    this.resizeObserver.disconnect();
+    this.resizeObserver?.disconnect();
+  }
+
+  /** 用户手动切换过target时，持久化当前服务的 target 选择 */
+  saveNewTargetValueToUserConfig() {
+    if (!this.isUserManualSwitch || !this.appName) return;
+    const setData = {
+      ...this.cacheData,
+      [this.serviceName]: {
+        target: this.selectTarget,
+      },
+    };
+    this.handleSetUserConfig(`${CACHE_APM_SEARCH_QUERY}_${this.bizId}_${this.appName}`, JSON.stringify(setData));
   }
 
   /** 初始化filterBy结构 */
@@ -626,6 +646,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
         clearable={false}
         search-placeholder={this.$t('请输入 关键字')}
         value={this.selectTarget}
+        filterable
         searchable
         onChange={this.handleTargetListChange}
         onToggle={this.handleTargetListToggle}

@@ -431,7 +431,7 @@ def register_builtin_plugins():
                     "outputs": [
                         {"key": "sn", "value": "response.sn", "format": "jmespath"},
                         {"key": "id", "value": "response.id", "format": "jmespath"},
-                        {"key": "url", "value": "{{itsm_site_url}}#/ticket/detail?id={{id}}", "format": "jinja2"},
+                        {"key": "url", "value": "{{itsm_site_url}}/#/ticket/detail?id={{id}}", "format": "jinja2"},
                     ],
                     "need_insert_log": True,
                     "log_template": "流程服务套餐【{{action_name}}】已成功创建工单[{{sn}}]，点击$查看工单详情$",

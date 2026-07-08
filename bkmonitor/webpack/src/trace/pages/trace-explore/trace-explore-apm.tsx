@@ -92,9 +92,9 @@ export default defineComponent({
     watch(
       bridgeProps,
       () => {
-        exploreStore.refreshImmediate = bridgeProps.refreshImmediate as string;
-        exploreStore.refreshInterval = Number(bridgeProps.refreshInterval);
-        exploreStore.timeRange = bridgeProps.timeRange as TimeRangeType;
+        exploreStore.updateRefreshImmediate(bridgeProps.refreshImmediate as string);
+        exploreStore.updateRefreshInterval(Number(bridgeProps.refreshInterval));
+        exploreStore.updateTimeRange(bridgeProps.timeRange as TimeRangeType);
       },
       {
         immediate: true,

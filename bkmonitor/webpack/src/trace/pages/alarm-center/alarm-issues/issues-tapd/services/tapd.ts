@@ -24,10 +24,46 @@
  * IN THE SOFTWARE.
  */
 
-import { request } from 'monitor-api/base';
+import {
+  getUserWorkspace,
+  rebindWorkspace,
+  revokeAuth,
+  searchTapdItems,
+  unbindWorkspace,
+} from 'monitor-api/modules/issue';
+
+import type {
+  GetUserWorkspaceData,
+  GetUserWorkspaceRequest,
+  RebindWorkspaceRequest,
+  RevokeAuthRequest,
+  UnbindWorkspaceRequest,
+} from '../typing';
+import type { RequestConfig } from 'monitor-api/base';
 
 /** 获取用户 TAPD 工作空间列表 */
-export const getUserWorkspace = request('POST', '/fta/issue/tapd/user_workspace/');
+export const getUserWorkspaceApi = (
+  params: GetUserWorkspaceRequest,
+  options?: RequestConfig
+): Promise<GetUserWorkspaceData> => {
+  return getUserWorkspace(params, options);
+};
 
-export const searchTapdItems = request('POST', '/fta/issue/issue/search_tapd_items/');
+/** 用户取消关联项目 */
+export const unbindWorkspaceApi = (params: UnbindWorkspaceRequest, options?: RequestConfig) => {
+  return unbindWorkspace(params, options);
+};
 
+/** 用户重新关联项目 */
+export const rebindWorkspaceApi = (params: RebindWorkspaceRequest, options?: RequestConfig) => {
+  return rebindWorkspace(params, options);
+};
+
+/** 用户取消授权 */
+export const revokeAuthApi = (params: RevokeAuthRequest, options?: RequestConfig) => {
+  return revokeAuth(params, options);
+};
+
+export const searchTapdItemsApi = (params, options?: RequestConfig) => {
+  return searchTapdItems(params, options);
+};

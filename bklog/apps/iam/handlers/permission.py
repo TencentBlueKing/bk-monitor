@@ -182,6 +182,7 @@ class Permission:
         if not ok:
             logger.error(f"iam generate apply url fail: {message}")
             return settings.BK_IAM_SAAS_HOST
+        url = f"{url}&tab_key=independent" if "?" in url else f"{url}?tab_key=independent"
         return url
 
     def get_apply_data(self, actions: list[ActionMeta | str], resources: list[Resource] = None):

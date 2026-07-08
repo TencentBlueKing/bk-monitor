@@ -12,6 +12,7 @@ import logging
 from collections import Counter
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import hashlib
 import json
 import re
 import time
@@ -23,6 +24,7 @@ from rest_framework import serializers, exceptions
 from rest_framework.decorators import api_view
 
 from bkm_space.utils import bk_biz_id_to_space_uid
+from bkmonitor.documents.base import BulkActionType
 from bkmonitor.documents.issue import (
     IssueActivityDocument,
     IssueDocument,
@@ -30,11 +32,12 @@ from bkmonitor.documents.issue import (
     IssueNotFoundError,
 )
 from bkmonitor.issue_merge import IssueFrozenError, IssueMergeResolver
-from bkmonitor.models import TapdWorkspaceBinding
+from bkmonitor.models import TapdWorkspaceBinding, TapdWorkspaceManualUnbind
 from bkmonitor.models.issue import IssueMergeRelation, IssueTapdRelation
 from bkmonitor.utils.request import get_request_username, get_request
+from django.db import transaction
+from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id, bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
-from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
 from bkmonitor.utils.user import set_local_username
 from constants.issue import IssuePriority, IssueStatus, IssueActivityType
 from core.drf_resource import Resource, api, resource
@@ -930,7 +933,7 @@ class ListIssueActivitiesResource(Resource):
         bk_biz_id = validated_request_data["bk_biz_id"]
 
         # 校验 Issue 存在且归属当前业务（单条查询，bk_biz_id 为单个值）
-        IssueDocument.get_issue_or_raise(issue_id, bk_biz_id=bk_biz_id)
+        issue = IssueDocument.get_issue_or_raise(issue_id, bk_biz_id=bk_biz_id)
 
         # 查询该 Issue 的全部活动日志，按时间降序排列（最近发生的在前）
         # 使用 all_indices=True 避免跨天漏查（活动日志与 Issue 可能跨天）
@@ -940,21 +943,102 @@ class ListIssueActivitiesResource(Resource):
             .sort("-time")
             .params(size=500)
         )
-        hits = search.execute().hits
+        hits = list(search.execute().hits)
+        repair_activity = self._repair_missing_resolved_activity(issue, hits)
+        if repair_activity:
+            hits.append(repair_activity)
+            hits.sort(key=lambda activity: int(activity.time) if activity.time else 0, reverse=True)
 
-        return [
-            {
-                "bk_biz_id": hit.bk_biz_id,
-                "activity_id": hit.meta.id,
-                "activity_type": hit.activity_type,
-                "operator": hit.operator or "",
-                "from_value": getattr(hit, "from_value", None) or None,
-                "to_value": getattr(hit, "to_value", None) or None,
-                "content": getattr(hit, "content", None) or None,
-                "time": int(hit.time) if hit.time else 0,
-            }
-            for hit in hits
-        ]
+        return [self._format_activity(hit) for hit in hits]
+
+    @classmethod
+    def _format_activity(cls, activity) -> dict:
+        activity_id = getattr(getattr(activity, "meta", None), "id", None) or getattr(activity, "id", "")
+        return {
+            "bk_biz_id": activity.bk_biz_id,
+            "activity_id": activity_id,
+            "activity_type": activity.activity_type,
+            "operator": activity.operator or "",
+            "from_value": getattr(activity, "from_value", None) or None,
+            "to_value": getattr(activity, "to_value", None) or None,
+            "content": getattr(activity, "content", None) or None,
+            "time": int(activity.time) if activity.time else 0,
+        }
+
+    @classmethod
+    def _repair_missing_resolved_activity(cls, issue: IssueDocument, hits: list) -> IssueActivityDocument | None:
+        if issue.status != IssueStatus.RESOLVED or not getattr(issue, "resolved_time", None):
+            return None
+
+        for hit in hits:
+            if (
+                hit.activity_type == IssueActivityType.STATUS_CHANGE
+                and getattr(hit, "to_value", None) == IssueStatus.RESOLVED
+            ):
+                return None
+        if cls._resolved_activity_exists(issue.id):
+            return None
+
+        from_value = None
+        for hit in hits:
+            if hit.activity_type != IssueActivityType.STATUS_CHANGE:
+                continue
+            to_value = getattr(hit, "to_value", None)
+            if to_value in IssueStatus.ACTIVE_STATUSES:
+                from_value = to_value
+                break
+
+        now = int(issue.resolved_time)
+        activity_id = cls._make_resolved_repair_activity_id(issue)
+        activity = IssueActivityDocument(
+            id=activity_id,
+            issue_id=issue.id,
+            bk_biz_id=issue.bk_biz_id,
+            activity_type=IssueActivityType.STATUS_CHANGE,
+            from_value=from_value,
+            to_value=IssueStatus.RESOLVED,
+            operator="system",
+            content=json.dumps({"repair_source": "list_issue_activities"}, ensure_ascii=False),
+            time=now,
+            create_time=now,
+        )
+        try:
+            IssueActivityDocument.bulk_create([activity], action=BulkActionType.UPSERT)
+        except Exception as e:
+            logger.warning(
+                "IssueActivityDocument resolved activity repair failed, issue_id=%s: %s",
+                issue.id,
+                e,
+            )
+            return None
+        return activity
+
+    @classmethod
+    def _resolved_activity_exists(cls, issue_id: str) -> bool:
+        try:
+            hits = (
+                IssueActivityDocument.search(all_indices=True)
+                .filter("term", issue_id=issue_id)
+                .filter("term", activity_type=IssueActivityType.STATUS_CHANGE)
+                .filter("term", to_value=IssueStatus.RESOLVED)
+                .params(size=1)
+                .execute()
+                .hits
+            )
+        except Exception as e:
+            logger.warning(
+                "IssueActivityDocument resolved activity existence check failed, issue_id=%s: %s",
+                issue_id,
+                e,
+            )
+            return True
+        return bool(hits)
+
+    @classmethod
+    def _make_resolved_repair_activity_id(cls, issue: IssueDocument) -> str:
+        resolved_time = int(issue.resolved_time)
+        digest = hashlib.sha256(f"{issue.id}:{IssueStatus.RESOLVED}:{resolved_time}".encode()).hexdigest()[:8]
+        return f"{resolved_time}{digest}"
 
 
 class ListIssueHistoryResource(Resource):
@@ -1774,9 +1858,6 @@ class CreateTapdResource(Resource):
             # 创建bug单据时te字段必填
             if attrs.get("tapd_type") == "bug" and not attrs.get("te"):
                 raise serializers.ValidationError("The te field is required when tapd_type is bug")
-            if attrs.get("sync_status"):
-                raise serializers.ValidationError("sync_status is not supported until TAPD status sync is implemented")
-
             return attrs
 
     @staticmethod
@@ -2015,14 +2096,6 @@ class CreateTapdResource(Resource):
         iteration_id = validated_request_data["iteration_id"]
         te = validated_request_data.get("te", "")
 
-        if sync_status:
-            # TODO: [issue-tapd-sync] 实现 TAPD 单据状态同步功能
-            logger.warning(
-                "sync_status=True requested but not yet implemented, issue_id=%s, tapd_type=%s",
-                issue_id,
-                tapd_type,
-            )
-
         # Step 1: 调用 TAPD API 创建单据
         tapd_info = self._create_tapd(
             tapd_type=tapd_type,
@@ -2122,9 +2195,6 @@ class LinkIssueToTapdResource(Resource):
         )
 
         def validate(self, attrs):
-            if attrs.get("sync_status"):
-                raise serializers.ValidationError("sync_status is not supported until TAPD status sync is implemented")
-
             seen_tapd_ids = set()
             for item in attrs.get("tapd_items", []):
                 tapd_id = item["tapd_id"]
@@ -2419,8 +2489,10 @@ class LinkIssueToTapdResource(Resource):
             items=to_create,
         )
 
+        # 注意：不能直接返回 {"results": ..., "activities": ...} 结构
+        # 因为 MonitorJSONRenderer 会自动将 results 提取为 data，其他字段放到 _meta
         return {
-            "results": results,
+            "info": results,
             "activities": activities,
         }
 
@@ -2476,19 +2548,24 @@ class ListUserTapdWorkspaceResource(Resource):
         token_payload = get_tapd_token(bk_tenant_id=tenant_id, username=username)
         access_token = token_payload.get("access_token", "")
 
-        # 1. 获取用户级已授权 workspace_id 列表（Bearer Token）
+        # 1. 获取用户级已授权 workspace 列表（Bearer Token）
         #    无 token / token 失效 → raise 403 + auth_url 引导重新授权
-        user_workspace_ids = self._fetch_user_workspace_ids(
+        #    get_participant_projects 已返回完整详情，无需额外查询
+        workspace_details = self._fetch_user_workspaces(
             tenant_id, username, bk_biz_id, success_url, error_url, access_token
         )
 
-        # 2. 并发查详情拿 workspace_name（复用 ListTapdWorkspaceResource 模式）
-        workspace_details = self._enrich_workspace_details(user_workspace_ids, access_token)
-
-        # 3. 四态标记（项目级×本地 二维判定）
+        # 3. 五态标记（项目级×本地 二维判定 + tombstone 检查）
         app_granted_ids = self._fetch_app_granted_ids(bk_biz_id)
+        # 批量查询 tombstone，避免 N+1（§ 2.8 非功能性需求）
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        tombstone_ids = set(
+            TapdWorkspaceManualUnbind.objects.filter(bk_tenant_id=tenant_id, space_uid=space_uid).values_list(
+                "tapd_workspace_id", flat=True
+            )
+        )
         items, any_unbound_or_stale = self._mark_bind_status(
-            workspace_details, app_granted_ids, local_bindings, bk_biz_id, tenant_id, username
+            workspace_details, app_granted_ids, local_bindings, bk_biz_id, tenant_id, username, tombstone_ids
         )
 
         # install_url 仅在存在 unbound 或 stale 时按需构建（涉及签名生成，避免无用开销）
@@ -2512,6 +2589,20 @@ class ListUserTapdWorkspaceResource(Resource):
             "install_url": install_url,
             "method": "GET",
         }
+
+    @classmethod
+    def _is_tapd_token_invalid_422(cls, error: BKAPIError) -> bool:
+        """判断 BKAPIError 是否为 TAPD access_token 无效/过期导致的 422 错误。
+
+        TAPD 返回 HTTP 422 时，APIResource.raise_for_status 先抛 HTTPError → BKAPIError，
+        此时 e.data 可能是 response.content 字符串（非 dict），e.message 含 "422"。
+        """
+        error_code = ""
+        if isinstance(error.data, dict):
+            error_code = str(error.data.get("code", ""))
+        elif isinstance(error.data, str) and "422" in error.data:
+            error_code = "422"
+        return error_code == "422" or "422" in str(error.message)
 
     @classmethod
     def _raise_reauth_required(
@@ -2538,7 +2629,7 @@ class ListUserTapdWorkspaceResource(Resource):
         exc.status_code = 200
         raise exc
 
-    def _fetch_user_workspace_ids(
+    def _fetch_user_workspaces(
         self,
         tenant_id: str,
         username: str,
@@ -2546,27 +2637,20 @@ class ListUserTapdWorkspaceResource(Resource):
         success_url: str,
         error_url: str,
         access_token: str,
-    ) -> list[str]:
-        """获取用户级已授权的 workspace_id 列表（Bearer Token）。
+    ) -> list[dict]:
+        """获取用户级已授权的 workspace 列表（Bearer Token）。
 
         无 token → raise 403；token 失效（422）→ 清理 token + raise 403。
-        :return: ws_ids 列表
+        :return: [{workspace_id, workspace_name, ...}, ...] 列表
         """
         if not access_token:
             self._raise_reauth_required(bk_biz_id, tenant_id, username, success_url, error_url)
 
         try:
-            user_granted_resp = api.tapd.get_granted_workspaces(access_token=access_token)
+            user_granted_resp = api.tapd.get_participant_projects(access_token=access_token)
         except BKAPIError as e:
             # 422 = access_token 无效/过期，清理失效 token，统一转 403 + auth_url 引导重新授权
-            # 注：TAPD 返回 HTTP 422，APIResource.raise_for_status 先抛 HTTPError → BKAPIError，
-            # 此时 e.data 是 response.content 字符串（非 dict），e.message 含 "422"
-            error_code = ""
-            if isinstance(e.data, dict):
-                error_code = str(e.data.get("code", ""))
-            elif isinstance(e.data, str) and "422" in e.data:
-                error_code = "422"
-            if error_code == "422" or "422" in str(e.message):
+            if self._is_tapd_token_invalid_422(e):
                 logger.info("TAPD user token invalid (422), clearing token for reauth: %s", e)
                 delete_tapd_token(tenant_id=tenant_id, username=username)
                 self._raise_reauth_required(bk_biz_id, tenant_id, username, success_url, error_url)
@@ -2576,62 +2660,25 @@ class ListUserTapdWorkspaceResource(Resource):
         user_granted_list = (
             user_granted_resp.get("list", []) if isinstance(user_granted_resp, dict) else (user_granted_resp or [])
         )
-        # 提取 workspace_id 列表（OpenOrganizationApp 内层不含 name，名称由 _enrich 补全）
-        ws_ids = []
+        # 提取 workspace 详情（get_participant_projects 已返回完整信息）
+        workspace_details = []
         for ws in user_granted_list:
-            ws_inner = ws.get("OpenOrganizationApp", {}) if isinstance(ws, dict) else {}
-            ws_id = str(ws_inner.get("workspace_id", ""))
+            ws_inner = ws.get("Workspace", {}) if isinstance(ws, dict) else {}
+            ws_id = str(ws_inner.get("id", ""))
             if ws_id:
-                ws_ids.append(ws_id)
-        return ws_ids
-
-    @classmethod
-    def _enrich_workspace_details(cls, workspace_ids: list[str], access_token: str) -> list[dict]:
-        """并发查 workspace 详情拿 name（复用 bulk_request 框架）。
-
-        :param workspace_ids: workspace_id 字符串列表
-        :param access_token: 用户态 access_token（Bearer Token 认证）
-        :return: [{workspace_id, workspace_name}, ...]，顺序与入参一致；失败的兜底为 ws_id
-        """
-        if not workspace_ids:
-            return []
-
-        params = [{"workspace_id": int(ws_id), "access_token": access_token} for ws_id in workspace_ids]
-        # ignore_exceptions=True：单个失败返回 None，不中断整体
-        raw_results = api.tapd.get_workspace_info.bulk_request(params, ignore_exceptions=True)
-
-        details = []
-        for ws_id, raw in zip(workspace_ids, raw_results):
-            if raw and isinstance(raw, dict) and "Workspace" in raw:
-                ws_info = raw["Workspace"]
-                details.append(
+                workspace_details.append(
                     {
-                        "workspace_id": str(ws_info["id"]),
-                        "workspace_name": ws_info["name"],
-                        "pretty_name": ws_info.get("pretty_name", ""),
-                        "category": ws_info.get("category", ""),
-                        "status": ws_info.get("status", ""),
-                        "description": ws_info.get("description", ""),
-                        "creator": ws_info.get("creator", ""),
-                        "created": ws_info.get("created", ""),
+                        "workspace_id": ws_id,
+                        "workspace_name": ws_inner.get("name", ws_id),
+                        "pretty_name": ws_inner.get("pretty_name", ""),
+                        "category": ws_inner.get("category", ""),
+                        "status": ws_inner.get("status", ""),
+                        "description": ws_inner.get("description", ""),
+                        "creator": ws_inner.get("creator", ""),
+                        "created": ws_inner.get("created", ""),
                     }
                 )
-            else:
-                # 查询失败兜底
-                logger.warning("获取TAPD workspace信息失败, workspace_id=%s", ws_id)
-                details.append(
-                    {
-                        "workspace_id": str(ws_id),
-                        "workspace_name": str(ws_id),
-                        "pretty_name": "",
-                        "category": "",
-                        "status": "",
-                        "description": "",
-                        "creator": "",
-                        "created": "",
-                    }
-                )
-        return details
+        return workspace_details
 
     @classmethod
     def _fetch_app_granted_ids(cls, bk_biz_id: int) -> set[str]:
@@ -2662,13 +2709,20 @@ class ListUserTapdWorkspaceResource(Resource):
         bk_biz_id: int,
         tenant_id: str,
         username: str,
+        tombstone_ids: set[str],
     ) -> tuple[list[dict], bool]:
-        """四态标记：以用户级为基准全集，按 项目级×本地 二维判定。
+        """五态标记：以用户级为基准全集，按 项目级×本地 二维判定。
 
+        新增状态 manually_unbound：当项目是 importable（in_app && !in_local）
+        但 tombstone（手动解绑记录）存在时，标记为此状态。
+
+        :param tombstone_ids: 当前业务空间下已手动解绑的 workspace_id 集合（避免 N+1 查询）
         :return: (items, any_unbound_or_stale)
         """
         items = []
         any_unbound_or_stale = False
+        # 统一获取 space_uid，供循环内 try_bind_importable 使用（避免重复转换）
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
 
         for ws in workspace_details:
             ws_id = ws["workspace_id"]
@@ -2679,10 +2733,16 @@ class ListUserTapdWorkspaceResource(Resource):
             if in_app and in_local:
                 status = TapdWorkspaceBindStatus.BOUND
             elif in_app and not in_local:
-                status = TapdWorkspaceBindStatus.IMPORTABLE
-                # 静默尝试创建本地 binding（传入 workspace_name，避免 name 落空）
-                if try_bind_importable(ws_id, bk_biz_id, tenant_id, username, tapd_workspace_name=workspace_name):
-                    status = TapdWorkspaceBindStatus.BOUND
+                # 五态判定：importable 状态增加 tombstone 检查，若存在则标记为 manually_unbound
+                # 🔒 约束：batch tombstone 查询已在 loop 外完成（避免 N+1）
+                if tombstone_ids and ws_id in tombstone_ids:
+                    status = TapdWorkspaceBindStatus.MANUALLY_UNBOUND
+                else:
+                    status = TapdWorkspaceBindStatus.IMPORTABLE
+                    if try_bind_importable(
+                        ws_id, bk_biz_id, tenant_id, username, space_uid, tapd_workspace_name=workspace_name
+                    ):
+                        status = TapdWorkspaceBindStatus.BOUND
             elif not in_app and in_local:
                 status = TapdWorkspaceBindStatus.STALE
                 any_unbound_or_stale = True
@@ -2701,12 +2761,16 @@ class UnbindTapdWorkspaceResource(Resource):
     """解除 TAPD 项目与当前业务的关联
 
     仅删除本地 TapdWorkspaceBinding，不在 TAPD 侧撤回应用授权。
+    解绑前会校验 Issue-TAPD 关联关系：若存在活跃 Issue（待审核/未解决）关联此项目，则阻止解绑。
     端点：POST /fta/issue/tapd/unbind_workspace
     """
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="蓝鲸业务ID", required=True)
         workspace_id = serializers.CharField(label="TAPD项目ID", required=True)
+
+    ACTIVE_RELATION_ES_CHUNK_SIZE = 500
+    ACTIVE_RELATION_PREVIEW_LIMIT = 10
 
     def perform_request(self, validated_request_data: dict) -> dict:
         bk_biz_id: int = validated_request_data["bk_biz_id"]
@@ -2724,10 +2788,23 @@ class UnbindTapdWorkspaceResource(Resource):
                 message=f"TAPD 项目 {workspace_id} 未与当前业务关联",
             )
 
-        # 删除 binding（不存在时 delete() 返回 (0, {})）
-        deleted_count, _ = binding_qs.delete()
+        # 校验：检查是否存在活跃的 Issue-TAPD 关联关系
+        # 仅当 Issue 处于活跃状态（待审核/未解决）时阻止解绑
+        # RESOLVED 和 ARCHIVED 视为"过时"，允许解绑
+        self._check_active_tapd_relations(bk_biz_id, workspace_id)
+
+        # 写入 tombstone + 删除 binding，放在同一事务中保证一致性（避免 tombstone 已写但 binding 删除失败）
+        with transaction.atomic():
+            TapdWorkspaceManualUnbind.objects.get_or_create(
+                bk_tenant_id=tenant_id,
+                space_uid=space_uid,
+                tapd_workspace_id=workspace_id,
+                defaults={"bk_biz_id": bk_biz_id},
+            )
+            # 删除 binding（不存在时 delete() 返回 (0, {})）
+            deleted_count, _ = binding_qs.delete()
         logger.info(
-            "UnbindTapdWorkspace: delete binding biz=%s ws=%s tenant=%s count=%s",
+            "UnbindTapdWorkspace: tombstone created + binding deleted biz=%s ws=%s tenant=%s count=%s",
             bk_biz_id,
             workspace_id,
             tenant_id,
@@ -2736,19 +2813,192 @@ class UnbindTapdWorkspaceResource(Resource):
 
         return {"success": True}
 
+    def _check_active_tapd_relations(self, bk_biz_id: int, workspace_id: str) -> None:
+        """检查是否存在活跃的 Issue-TAPD 关联关系
+
+        若关联的 Issue 仍处于活跃状态（待审核/未解决），则阻止解绑。
+        ES 查询直接在 status 维度过滤 ACTIVE_STATUSES，仅返回活跃 Issue。
+        ES 查询失败时 fail-open，记录日志后允许解绑。
+        """
+        try:
+            workspace_id_int = int(workspace_id)
+        except (TypeError, ValueError):
+            # workspace_id 无法转换为 int，IssueTapdRelation.workspace_id 是 IntegerField，
+            # 无法匹配任何记录，直接返回
+            return
+
+        relations_qs = IssueTapdRelation.objects.filter(
+            bk_biz_id=bk_biz_id,
+            workspace_id=workspace_id_int,
+        )
+        if not relations_qs.exists():
+            return
+
+        # 分批查询关联的 Issue，ES 侧直接过滤业务和活跃状态，避免拉取全量再逐条判断。
+        issue_ids = list(relations_qs.values_list("issue_id", flat=True).distinct())
+        try:
+            active_count = 0
+            preview_ids: list[str] = []
+            for index in range(0, len(issue_ids), self.ACTIVE_RELATION_ES_CHUNK_SIZE):
+                chunk_issue_ids = issue_ids[index : index + self.ACTIVE_RELATION_ES_CHUNK_SIZE]
+                search_result = (
+                    IssueDocument.search(all_indices=True)
+                    .filter("terms", **{"_id": chunk_issue_ids})
+                    .filter("term", bk_biz_id=bk_biz_id)
+                    .filter("terms", status=IssueStatus.ACTIVE_STATUSES)
+                    .source(False)
+                    .params(
+                        size=max(0, self.ACTIVE_RELATION_PREVIEW_LIMIT - len(preview_ids)),
+                        track_total_hits=True,
+                    )
+                    .execute()
+                )
+                total = getattr(search_result.hits, "total", 0)
+                active_count += getattr(total, "value", total) or 0
+                if len(preview_ids) < self.ACTIVE_RELATION_PREVIEW_LIMIT:
+                    preview_ids.extend(
+                        str(hit.meta.id)
+                        for hit in search_result.hits
+                        if len(preview_ids) < self.ACTIVE_RELATION_PREVIEW_LIMIT
+                    )
+        except Exception as e:
+            # ES 查询失败时 fail-open，记录日志后允许解绑
+            logger.warning(
+                "UnbindTapdWorkspace: ES query failed, fail-open. biz=%s ws=%s error=%s",
+                bk_biz_id,
+                workspace_id,
+                e,
+            )
+            return
+
+        if active_count:
+            preview = ", ".join(preview_ids)
+            raise CustomException(
+                f"存在 {active_count} 个活跃的 Issue 关联此 TAPD 项目，"
+                f"请先解决或归档这些 Issue 后再解绑。活跃 Issue ID: {preview}"
+            )
+
+
+class RebindTapdWorkspaceResource(Resource):
+    """重新关联 TAPD 项目与当前业务
+
+    删除 tombstone 记录后，创建本地 TapdWorkspaceBinding。
+    重新获取项目信息（Basic Auth）以填充 workspace_name。
+    端点：POST /fta/issue/tapd/rebind_workspace
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="蓝鲸业务ID", required=True)
+        workspace_id = serializers.CharField(label="TAPD项目ID", required=True)
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        workspace_id = validated_request_data["workspace_id"]
+        username = get_request_username()
+        space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+        tenant_id = space_uid_to_bk_tenant_id(space_uid)
+
+        # 1. 验重：若 binding 已存在，无需重新关联
+        try:
+            existing = TapdWorkspaceBinding.objects.get(
+                bk_tenant_id=tenant_id, space_uid=space_uid, tapd_workspace_id=workspace_id
+            )
+            # 兜底：清理可能残留的 tombstone（并发/脏数据场景）
+            TapdWorkspaceManualUnbind.objects.filter(
+                bk_tenant_id=tenant_id, space_uid=space_uid, tapd_workspace_id=workspace_id
+            ).delete()
+            return {"success": True, "workspace": {"id": workspace_id, "name": existing.tapd_workspace_name}}
+        except TapdWorkspaceBinding.DoesNotExist:
+            pass
+
+        # 2. 校验用户态 token 存在并可用（重新关联需用户明确授权）
+        # 授权失效时返回 403（HTTP 状态码 200），前端按 code=403 自行跳转授权流程，无需 auth_url
+        user_token = get_tapd_token(tenant_id, username)
+        if not user_token.get("access_token"):
+            exc = CustomException(message="TAPD 用户态授权已失效或未授权，请先完成授权", code=403)
+            exc.status_code = 200
+            raise exc
+
+        # 3. 校验当前用户是否仍有权访问该 workspace（用户态鉴权有效性检查）
+        try:
+            ws_info = api.tapd.get_workspace_info(
+                workspace_id=workspace_id,
+                access_token=user_token["access_token"],
+            )["Workspace"]
+            workspace_name = ws_info.get("name", "")
+        except BKAPIError as e:
+            if ListUserTapdWorkspaceResource._is_tapd_token_invalid_422(e):
+                logger.info("TAPD user token invalid (422) during rebind, clearing token: ws=%s", workspace_id)
+                delete_tapd_token(tenant_id=tenant_id, username=username)
+                # token 失效，返回 403（HTTP 状态码 200），前端按 code=403 自行跳转授权流程
+                exc = CustomException(message="TAPD 用户态授权已失效（422），请重新完成授权", code=403)
+                exc.status_code = 200
+                raise exc
+            raise
+
+        # 4. 校验应用态授权仍然存在，避免绕过 TAPD 应用安装直接恢复本地 binding
+        app_granted_ids = ListUserTapdWorkspaceResource._fetch_app_granted_ids(bk_biz_id)
+        if workspace_id not in app_granted_ids:
+            exc = CustomException(message="TAPD 项目未完成应用授权，请先完成项目关联授权", code=403)
+            exc.status_code = 200
+            raise exc
+
+        # 5. 删除 tombstone + 创建 binding，事务包裹保证原子性
+        with transaction.atomic():
+            TapdWorkspaceManualUnbind.objects.filter(
+                bk_tenant_id=tenant_id, space_uid=space_uid, tapd_workspace_id=workspace_id
+            ).delete()
+            binding, _ = TapdWorkspaceBinding.objects.get_or_create(
+                bk_tenant_id=tenant_id,
+                space_uid=space_uid,
+                tapd_workspace_id=workspace_id,
+                defaults={
+                    "bk_biz_id": bk_biz_id,
+                    "tapd_workspace_name": workspace_name,
+                    "create_user": username,
+                    "update_user": username,
+                },
+            )
+
+        return {"success": True, "workspace": {"id": workspace_id, "name": binding.tapd_workspace_name}}
+
+
+class RevokeTapdUserAuthResource(Resource):
+    """撤销 TAPD 用户态授权
+
+    仅清除用户级用户态 token（Redis），不清除 TapdWorkspaceBinding。
+    前端重新授权即可恢复。
+    端点：POST /fta/issue/tapd/revoke_auth
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="蓝鲸业务ID", required=True)
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        # 1. 获取当前用户和租户
+        username = get_request_username()
+        tenant_id = bk_biz_id_to_bk_tenant_id(validated_request_data["bk_biz_id"])
+
+        # 2. 删除用户态 token（Redis）
+        delete_tapd_token(tenant_id, username)
+
+        logger.info("RevokeTapdUserAuth: token deleted tenant=%s user=%s", tenant_id, username)
+
+        return {"success": True, "message": "授权已撤销"}
+
 
 @api_view(["GET"])
 @csrf_exempt
 def tapd_app_install_callback(request):
     """TAPD `open_app_install` 回调 — 应用态授权。
 
-    Query params: code, resource, signed_state
+    Query params: code, resource, state（即 signed_state，TAPD 原样透传 authorize 时的 state）
     1. 解析 signed_state → 验签、验过期
     2. 提取 workspace_id → 调 app 级 Basic Auth 获取 name
     3. upsert TapdWorkspaceBinding（create_user = initiator）
     4. 302 重定向前端 success / 失败重定向 error_url
     """
-    signed_state = request.query_params.get("signed_state", "")
+    signed_state = request.query_params.get("state", "")
     if not signed_state:
         # signed_state 缺失时无法获取前端地址，回退到根路径
         return HttpResponseRedirect(request.build_absolute_uri("/"))

@@ -25,7 +25,7 @@
  */
 import { Component, Emit, InjectReactive, Prop, ProvideReactive, Watch, Inject } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
+import _ from 'lodash';
 import { connect, disconnect } from 'echarts/core';
 import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
@@ -35,7 +35,6 @@ import { type DashboardColumnType, type IGridPos, type IPanelModel, type ZrClick
 import ChartCollect from './chart-collect/chart-collect';
 import ChartWrapper from './chart-wrapper';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
-import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 import type { ITableItem, SceneType } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './dashboard-panel.scss';
@@ -134,20 +133,33 @@ export default class DashboardPanel extends tsc<IDashboardPanelProps, IDashboard
   }
   @Watch('timeRange', { immediate: true })
   handleGlobalTimeRangeChange(val: TimeRangeType) {
-    if (ALARM_CENTER_DASHBOARD_IDS.includes(this.dashboardId)) {
-      return;
-    }
     window.LOCAL_OLD_TIME_RANGE = val;
   }
+
   @Watch('dashboardId', { immediate: true })
-  handleDashboardIdChange() {
-    if (ALARM_CENTER_DASHBOARD_IDS.includes(this.dashboardId)) {
-      this.handleTimeRangeChange(['now-7d', 'now']);
-    } else {
-      if (!window.LOCAL_OLD_TIME_RANGE) {
-        window.LOCAL_OLD_TIME_RANGE = DEFAULT_TIME_RANGE;
+  handleDashboardIdChange(newDashboardId: string, oldDashboardId: string) {
+    if (!oldDashboardId || !newDashboardId) {
+      return;
+    }
+
+    if (ALARM_CENTER_DASHBOARD_IDS.includes(newDashboardId)) {
+      // 从其他默认时间的tab切换到告警，告警使用默认七天
+      if (_.isEqual(window.LOCAL_OLD_TIME_RANGE, ['now-1h', 'now'])) {
+        this.handleTimeRangeChange(['now-7d', 'now']);
+        return;
       }
+
       this.handleTimeRangeChange(window.LOCAL_OLD_TIME_RANGE);
+    } else {
+      // 从告警默认时间切到其他tab，其他tab使用默认近一小时
+      if (ALARM_CENTER_DASHBOARD_IDS.includes(oldDashboardId)) {
+        if (_.isEqual(window.LOCAL_OLD_TIME_RANGE, ['now-7d', 'now'])) {
+          this.handleTimeRangeChange(['now-1h', 'now']);
+          return;
+        }
+
+        this.handleTimeRangeChange(window.LOCAL_OLD_TIME_RANGE);
+      }
     }
   }
   mounted() {

@@ -1,0 +1,28 @@
+.text-overflow-copy-comp {
+  position: relative;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-all;
+  white-space: nowrap;
+
+  &.has-copy {
+    padding-right: 15px;
+  }
+
+  .icon-mc-copy {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    display: none;
+    font-weight: 400;
+    color: #63656e;
+    cursor: pointer;
+    transform: translateY(-50%);
+  }
+
+  &:hover {
+    .icon-mc-copy {
+      display: block;
+    }
+  }
+}

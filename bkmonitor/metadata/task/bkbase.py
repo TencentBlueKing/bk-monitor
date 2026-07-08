@@ -580,6 +580,9 @@ def _get_bkbase_components_config(
             extra_config["bk_data_id"] = bk_data_id
         case DataLinkKind.RESULTTABLE.value:
             extra_config["bkbase_table_id"] = _get_annotation_value(annotations, "ResultTableId") or ""
+            if not extra_config["bkbase_table_id"]:
+                # 如果annotations中没有ResultTableId，可以使用 bizId拼接name生成table_id
+                extra_config["bkbase_table_id"] = f"{spec['bizId']}_{name}"
             extra_config["data_type"] = spec["dataType"]
         case DataLinkKind.VMSTORAGEBINDING.value:
             extra_config["vm_cluster_name"] = spec["storage"]["name"]

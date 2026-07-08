@@ -231,4 +231,5 @@ export default {
   批量上传: 'Batch Upload',
   权限中心: 'Permission Center',
   个人中心: 'Personal Center',
+  关联采集项管理: 'Related data collection item management',
 };

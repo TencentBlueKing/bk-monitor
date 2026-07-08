@@ -199,6 +199,7 @@
             type: 'dataStorage',
             step: '3',
             typeKey: this.collectorData.collector_scenario_id,
+            indexSetId: this.$route.query.indexSetId,
           },
         });
       },

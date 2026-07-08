@@ -367,11 +367,26 @@
       downloadExport($row) {
         // 异步导出使用downloadURL下载
         if ($row.download_url) {
-          window.iframeParent.open($row.download_url);
+          this.downloadFromParent($row.download_url);
           return;
         }
         this.openDownloadUrl({...$row.search_dict, log_index_set_id: $row.log_index_set_id });
         this.startStatusPolling();
+      },
+      downloadFromParent(url) {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage(
+            {
+              type: 'download-url',
+              source: 'vue2-container',
+              payload: { url },
+            },
+            '*',
+          );
+          return;
+        }
+
+        window.open(url);
       },
       retryExport($row) {
         // 异常任务直接异步下载

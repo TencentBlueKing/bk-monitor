@@ -27,8 +27,11 @@ from collections.abc import Sequence
 from typing import TypeAlias, cast
 
 from django.db import transaction
+from django.db.models import Q
 
 from bkmonitor.utils.tenant import get_tenant_default_biz_id
+from constants.common import DEFAULT_TENANT_ID
+from metadata.config import DATABASE_CONNECTION_NAME
 from metadata.models import (
     AccessVMRecord,
     BkBaseResultTable,
@@ -88,6 +91,7 @@ SIMPLE_STORAGE_BINDING_MODELS: dict[str, type[SimpleStorageBindingConfig]] = {
     DataLinkKind.ESSTORAGEBINDING.value: ESStorageBindingConfig,
     DataLinkKind.DORISBINDING.value: DorisStorageBindingConfig,
 }
+
 
 # 双写会产生 VM/SurrealDB 两条 Databus，rebuild 时需要合并成一条 graph DataLink。
 def _parse_sink_names(sink_names: Sequence[str], databus_name: str) -> dict[str, list[str]] | None:
@@ -177,11 +181,11 @@ def _merge_graph_dual_write_sibling_databus(
 ) -> tuple[list[DataBusConfig], list[DataLinkResourceConfigBase]]:
     def graph_storage_keys(instances: list[DataLinkResourceConfigBase]) -> set[str]:
         storage_bindings = [
-            instance
-            for instance in instances
-            if isinstance(instance, (VMStorageBindingConfig, SurrealDBBindingConfig))
+            instance for instance in instances if isinstance(instance, VMStorageBindingConfig | SurrealDBBindingConfig)
         ]
-        rt_names = [instance.bkbase_result_table_name for instance in storage_bindings if instance.bkbase_result_table_name]
+        rt_names = [
+            instance.bkbase_result_table_name for instance in storage_bindings if instance.bkbase_result_table_name
+        ]
         rt_table_id_map = {
             rt.name: rt.table_id
             for rt in ResultTableConfig.objects.filter(
@@ -200,9 +204,7 @@ def _merge_graph_dual_write_sibling_databus(
             .values_list("table_id", flat=True)
             .distinct()
         )
-        data_source_result_table_id = (
-            data_source_result_table_ids[0] if len(data_source_result_table_ids) == 1 else ""
-        )
+        data_source_result_table_id = data_source_result_table_ids[0] if len(data_source_result_table_ids) == 1 else ""
         return {
             key
             for instance in storage_bindings
@@ -255,6 +257,8 @@ def _merge_graph_dual_write_sibling_databus(
 
 # 重建链路名称前缀，便于与正常创建的链路区分，支持回溯和回滚
 REBUILT_DATA_LINK_NAME_PREFIX = "rebuilt__"
+DATA_LINK_COMPONENT_NAME_MAX_LENGTH = cast(int, DataBusConfig._meta.get_field("data_link_name").max_length)
+
 
 def _compose_rebuilt_graph_binding_name(data_link_name: str) -> str:
     """Keep rebuilt GraphRelationBindingConfig.name within its 64-char DB limit."""
@@ -264,6 +268,20 @@ def _compose_rebuilt_graph_binding_name(data_link_name: str) -> str:
 def _compose_rebuilt_graph_data_link_name(databus: DataBusConfig) -> str:
     raw_name = f"{REBUILT_DATA_LINK_NAME_PREFIX}{databus.bk_tenant_id}__{databus.namespace}__{databus.name}"
     return f"{REBUILT_DATA_LINK_NAME_PREFIX}{utils.compose_bkdata_table_id(raw_name)}"
+
+
+def _compose_rebuilt_simple_data_link_name(databus: DataBusConfig) -> str:
+    """Compose simple rebuild DataLink name, keeping default-tenant names short enough for components."""
+    if databus.bk_tenant_id == DEFAULT_TENANT_ID:
+        name_prefix = REBUILT_DATA_LINK_NAME_PREFIX
+    else:
+        name_prefix = f"{REBUILT_DATA_LINK_NAME_PREFIX}{databus.bk_tenant_id}_"
+    remain_length = DATA_LINK_COMPONENT_NAME_MAX_LENGTH - len(name_prefix)
+    if remain_length <= 0:
+        return name_prefix[:DATA_LINK_COMPONENT_NAME_MAX_LENGTH]
+    if len(databus.name) <= remain_length:
+        return f"{name_prefix}{databus.name}"
+    return f"{name_prefix}{databus.name[-remain_length:]}"
 
 
 def _find_databus_name_for_sink(
@@ -339,6 +357,7 @@ def _resolve_rebuild_result_table_id(
         )
     return vmrt_to_table_id.get(rt_instance.bkbase_table_id, "")
 
+
 # etl_config → data_link_strategy 映射
 ETL_CONFIG_TO_STRATEGY = {
     "bk_standard_v2_time_series": DataLink.BK_STANDARD_V2_TIME_SERIES,
@@ -375,7 +394,14 @@ def rebuild_simple_databus_relation(
     from metadata.models.data_source import DataSource
 
     databus_name = databus.name
-    rebuilt_data_link_name = f"{REBUILT_DATA_LINK_NAME_PREFIX}{databus.bk_tenant_id}_{databus_name}"
+    rebuilt_data_link_name = _compose_rebuilt_simple_data_link_name(databus)
+    if DataLink.objects.filter(data_link_name=rebuilt_data_link_name).exists():
+        logger.error(
+            "rebuild_simple_databus_relation: databus->[%s] data_link_name->[%s] already exists, skip",
+            databus_name,
+            rebuilt_data_link_name,
+        )
+        return None
 
     # Step 1: 简单链路只处理尚未归属 DataLink 的 DataBus，已有归属直接跳过避免覆盖关系。
     if databus.data_link_name and databus.data_link_name != rebuilt_data_link_name:
@@ -678,6 +704,15 @@ def rebuild_simple_databus_relation(
             table_id,
         )
         return None
+    bkbase_result_table_conflicts = _find_bkbase_result_table_conflicts(bkbase_result_table)
+    if bkbase_result_table_conflicts:
+        logger.warning(
+            "rebuild_simple_databus_relation: databus->[%s] BkBaseResultTable unique fields conflict, "
+            "conflicts->[%s], skip",
+            databus_name,
+            bkbase_result_table_conflicts,
+        )
+        return None
 
     # Step 9: dry_run 只返回解析结果，实际重建在事务中统一更新 DataLink 和组件归属。
     if dry_run:
@@ -694,7 +729,7 @@ def rebuild_simple_databus_relation(
             "bkbase_result_table": bkbase_result_table,
         }
 
-    with transaction.atomic():
+    with transaction.atomic(using=DATABASE_CONNECTION_NAME):
         data_link, created = DataLink.objects.update_or_create(
             bk_tenant_id=databus.bk_tenant_id,
             namespace=databus.namespace,
@@ -918,6 +953,45 @@ def _get_simple_storage_info(
             return None
         return ClusterInfo.TYPE_DORIS, storage.storage_cluster_id
     return None
+
+
+def _find_bkbase_result_table_conflicts(bkbase_result_table: dict[str, object]) -> list[dict[str, object]]:
+    """Find existing records that would violate independent BkBaseResultTable unique fields."""
+    conflicts: list[dict[str, object]] = []
+    bkbase_data_name = bkbase_result_table.get("bkbase_data_name")
+    bkbase_rt_name = bkbase_result_table.get("bkbase_rt_name")
+    query = Q()
+    if bkbase_data_name:
+        query |= Q(bkbase_data_name=bkbase_data_name)
+    if bkbase_rt_name:
+        query |= Q(bkbase_rt_name=bkbase_rt_name)
+    if not query:
+        return conflicts
+
+    for conflict in BkBaseResultTable.objects.filter(query).exclude(
+        data_link_name=bkbase_result_table["data_link_name"]
+    ):
+        if bkbase_data_name and conflict.bkbase_data_name == bkbase_data_name:
+            conflicts.append(
+                {
+                    "field": "bkbase_data_name",
+                    "value": bkbase_data_name,
+                    "conflict_data_link_name": conflict.data_link_name,
+                    "conflict_bkbase_data_name": conflict.bkbase_data_name,
+                    "conflict_bkbase_rt_name": conflict.bkbase_rt_name,
+                }
+            )
+        if bkbase_rt_name and conflict.bkbase_rt_name == bkbase_rt_name:
+            conflicts.append(
+                {
+                    "field": "bkbase_rt_name",
+                    "value": bkbase_rt_name,
+                    "conflict_data_link_name": conflict.data_link_name,
+                    "conflict_bkbase_data_name": conflict.bkbase_data_name,
+                    "conflict_bkbase_rt_name": conflict.bkbase_rt_name,
+                }
+            )
+    return conflicts
 
 
 def _simple_storage_exists(
@@ -1164,9 +1238,7 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
         .values_list("table_id", flat=True)
         .distinct()
     )
-    data_source_result_table_id = (
-        data_source_result_table_ids[0] if len(data_source_result_table_ids) == 1 else ""
-    )
+    data_source_result_table_id = data_source_result_table_ids[0] if len(data_source_result_table_ids) == 1 else ""
     result_table_name_to_table_id: dict[str, str] = {}
     graph_base_name_to_table_id: dict[str, str] = {}
     for rt_instance in rt_instances:

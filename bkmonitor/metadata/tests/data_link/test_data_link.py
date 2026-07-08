@@ -69,8 +69,11 @@ from metadata.models.vm.utils import (
     create_fed_bkbase_data_link,
 )
 from metadata.task.tasks import (
+    _get_bk_biz_internal_data_ids,
     create_base_event_datalink_for_bkcc,
     create_basereport_datalink_for_bkcc,
+    create_biz_ping_datalink_for_bkcc,
+    create_gather_up_datalink_for_bkcc,
     create_system_proc_datalink_for_bkcc,
 )
 from metadata.tests.common_utils import consul_client
@@ -130,6 +133,38 @@ def _with_compose_nullable_fields(configs: list[dict] | dict) -> list[dict] | di
             for field in ("filter", "metricGroupDimensions", "ddVersion"):
                 spec.setdefault(field, None)
     return configs
+
+
+def _prepare_ping_datalink_base_records(bk_tenant_id: str, bk_biz_ids: tuple[int, ...], mocker):
+    mocker.patch("metadata.models.data_source.Label.exists_label", return_value=True)
+    mocker.patch(
+        "metadata.models.data_link.data_link_configs.get_tenant_datalink_biz_id",
+        side_effect=lambda bk_tenant_id, bk_biz_id: SimpleNamespace(
+            label_biz_id=bk_biz_id,
+            data_biz_id=bk_biz_id,
+        ),
+    )
+    mocker.patch("metadata.models.data_link.data_link.api.bkdata.get_data_link", return_value=None)
+    settings.IS_ASSIGN_DATAID_BY_GSE = False
+    for bk_biz_id in bk_biz_ids:
+        models.Space.objects.get_or_create(
+            space_type_id="bkcc",
+            space_id=bk_biz_id,
+            bk_tenant_id=bk_tenant_id,
+            defaults={"space_name": f"bkcc_{bk_biz_id}"},
+        )
+    models.ClusterInfo.objects.get_or_create(
+        bk_tenant_id=bk_tenant_id,
+        cluster_type=models.ClusterInfo.TYPE_KAFKA,
+        is_default_cluster=True,
+        defaults={
+            "cluster_name": f"{bk_tenant_id}_kafka_default",
+            "domain_name": "default.kafka",
+            "port": 9092,
+            "description": "",
+            "cluster_id": 910000,
+        },
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -2835,7 +2870,7 @@ def test_rebuild_simple_databus_relation_supports_bkdata_es_storage_without_vm_r
         es_cluster_name="bkdata-app-log2-es",
     )
 
-    expected_data_link_name = "rebuilt___l_524502"
+    expected_data_link_name = "rebuilt__default_l_524502"
     relation = rebuild_simple_databus_relation(databus, dry_run=True)
 
     assert relation is not None
@@ -2851,6 +2886,7 @@ def test_rebuild_simple_databus_relation_supports_bkdata_es_storage_without_vm_r
             "namespace": "bklog",
             "bk_tenant_id": "default",
             "data_link_name": "",
+            "bk_biz_id": 10,
             "bk_data_id": 524502,
         },
         {
@@ -2859,6 +2895,7 @@ def test_rebuild_simple_databus_relation_supports_bkdata_es_storage_without_vm_r
             "namespace": "bklog",
             "bk_tenant_id": "default",
             "data_link_name": "",
+            "bk_biz_id": 10,
             "table_id": table_id,
         },
         {
@@ -2867,6 +2904,7 @@ def test_rebuild_simple_databus_relation_supports_bkdata_es_storage_without_vm_r
             "namespace": "bklog",
             "bk_tenant_id": "default",
             "data_link_name": "",
+            "bk_biz_id": 10,
             "table_id": table_id,
         },
         {
@@ -2875,6 +2913,7 @@ def test_rebuild_simple_databus_relation_supports_bkdata_es_storage_without_vm_r
             "namespace": "bklog",
             "bk_tenant_id": "default",
             "data_link_name": "",
+            "bk_biz_id": 10,
             "bk_data_id": 524502,
             "data_id_name": "l_524502",
             "sink_names": [f"{DataLinkKind.ESSTORAGEBINDING.value}:l_524502"],
@@ -2905,6 +2944,228 @@ def test_rebuild_simple_databus_relation_supports_bkdata_es_storage_without_vm_r
     assert bkbase_rt.storage_type == models.ClusterInfo.TYPE_ES
     assert bkbase_rt.storage_cluster_id == 1
     assert bkbase_rt.status == DataLinkResourceStatus.OK.value
+
+
+@pytest.mark.parametrize("conflict_field", ["bkbase_data_name", "bkbase_rt_name"])
+@pytest.mark.django_db(databases="__all__")
+def test_rebuild_simple_databus_relation_skips_bkbase_result_table_name_conflict(caplog, conflict_field):
+    """重建 BkBaseResultTable 前应跳过已被其它链路占用的 bkbase_data_name / bkbase_rt_name。"""
+    data_name = f"l_524510_{conflict_field}"
+    table_id = f"10_bklog.simple_conflict_{conflict_field}"
+    bkbase_table_id = f"10_{data_name}"
+    models.DataSource.objects.create(
+        bk_data_id=524510,
+        data_name=data_name,
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config="bk_standard_v2_event",
+        is_custom_source=False,
+        bk_tenant_id="default",
+        created_from=DataIdCreatedFromSystem.BKDATA.value,
+    )
+    models.DataSourceResultTable.objects.create(
+        bk_data_id=524510,
+        table_id=table_id,
+        bk_tenant_id="default",
+    )
+    _create_simple_rebuild_result_table(table_id=table_id, bk_biz_id=10)
+    models.ESStorage.objects.create(table_id=table_id, storage_cluster_id=1, bk_tenant_id="default")
+    models.DataIdConfig.objects.create(
+        name=data_name,
+        namespace="bklog",
+        bk_tenant_id="default",
+        bk_biz_id=10,
+        bk_data_id=524510,
+    )
+    databus = models.DataBusConfig.objects.create(
+        name=data_name,
+        namespace="bklog",
+        bk_tenant_id="default",
+        bk_biz_id=10,
+        data_id_name=data_name,
+        bk_data_id=524510,
+        sink_names=[f"{DataLinkKind.ESSTORAGEBINDING.value}:{data_name}"],
+        status=DataLinkResourceStatus.OK.value,
+    )
+    models.ResultTableConfig.objects.create(
+        name=data_name,
+        namespace="bklog",
+        bk_tenant_id="default",
+        bk_biz_id=10,
+        bkbase_table_id=bkbase_table_id,
+    )
+    models.ESStorageBindingConfig.objects.create(
+        name=data_name,
+        namespace="bklog",
+        bk_tenant_id="default",
+        bk_biz_id=10,
+        bkbase_result_table_name=data_name,
+        es_cluster_name="bkdata-app-log2-es",
+    )
+    conflict_defaults = {
+        "bkbase_data_name": f"existing_data_{conflict_field}",
+        "bkbase_rt_name": f"existing_rt_{conflict_field}",
+    }
+    conflict_defaults[conflict_field] = data_name
+    BkBaseResultTable.objects.create(
+        data_link_name=f"existing_link_{conflict_field}",
+        monitor_table_id=f"existing_table_{conflict_field}",
+        bkbase_table_id=f"existing_bkbase_table_{conflict_field}",
+        bk_tenant_id="default",
+        **conflict_defaults,
+    )
+
+    with caplog.at_level("WARNING", logger="metadata"):
+        assert rebuild_simple_databus_relation(databus, dry_run=True) is None
+
+    assert "BkBaseResultTable unique fields conflict" in caplog.text
+    assert conflict_field in caplog.text
+    assert data_name in caplog.text
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_rebuild_simple_databus_relation_truncates_long_system_data_link_name():
+    """system 租户 simple rebuild 名称超过组件长度时，应显式截断后统一写入 DataLink 与组件。"""
+    data_name = f"same_prefix_{'x' * 40}_25392"
+    table_id = f"10_bklog.{data_name}"
+    bkbase_table_id = f"10_{data_name}"
+    expected_data_link_name = f"rebuilt__{data_name[-55:]}"
+    models.DataSource.objects.create(
+        bk_data_id=524511,
+        data_name=data_name,
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config="bk_standard_v2_event",
+        is_custom_source=False,
+        bk_tenant_id="system",
+        created_from=DataIdCreatedFromSystem.BKDATA.value,
+    )
+    models.DataSourceResultTable.objects.create(
+        bk_data_id=524511,
+        table_id=table_id,
+        bk_tenant_id="system",
+    )
+    _create_simple_rebuild_result_table(table_id=table_id, bk_biz_id=10, bk_tenant_id="system")
+    models.ESStorage.objects.create(table_id=table_id, storage_cluster_id=1, bk_tenant_id="system")
+    models.DataIdConfig.objects.create(
+        name=data_name,
+        namespace="bklog",
+        bk_tenant_id="system",
+        bk_biz_id=10,
+        bk_data_id=524511,
+    )
+    databus = models.DataBusConfig.objects.create(
+        name=data_name,
+        namespace="bklog",
+        bk_tenant_id="system",
+        bk_biz_id=10,
+        data_id_name=data_name,
+        bk_data_id=524511,
+        sink_names=[f"{DataLinkKind.ESSTORAGEBINDING.value}:{data_name}"],
+        status=DataLinkResourceStatus.OK.value,
+    )
+    models.ResultTableConfig.objects.create(
+        name=data_name,
+        namespace="bklog",
+        bk_tenant_id="system",
+        bk_biz_id=10,
+        bkbase_table_id=bkbase_table_id,
+    )
+    models.ESStorageBindingConfig.objects.create(
+        name=data_name,
+        namespace="bklog",
+        bk_tenant_id="system",
+        bk_biz_id=10,
+        bkbase_result_table_name=data_name,
+        es_cluster_name="bkdata-app-log2-es",
+    )
+
+    relation = rebuild_simple_databus_relation(databus, dry_run=True)
+
+    assert relation is not None
+    assert relation["data_link_name"] == expected_data_link_name
+    assert len(relation["data_link_name"]) == 64
+
+    data_link = rebuild_simple_databus_relation(databus, dry_run=False)
+
+    assert data_link is not None
+    assert data_link.data_link_name == expected_data_link_name
+    assert models.DataBusConfig.objects.get(id=databus.id).data_link_name == expected_data_link_name
+    assert models.ResultTableConfig.objects.get(name=data_name).data_link_name == expected_data_link_name
+    assert models.ESStorageBindingConfig.objects.get(name=data_name).data_link_name == expected_data_link_name
+    assert BkBaseResultTable.objects.get(data_link_name=expected_data_link_name).bkbase_data_name == data_name
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_rebuild_simple_databus_relation_skips_existing_truncated_data_link_name(caplog):
+    """截断后的 DataLink 名称已存在时，应跳过避免链路混淆。"""
+    data_name = f"same_prefix_{'y' * 40}_25393"
+    table_id = f"10_bklog.{data_name}"
+    bkbase_table_id = f"10_{data_name}"
+    truncated_data_link_name = f"rebuilt__{data_name[-55:]}"
+    models.DataLink.objects.create(
+        data_link_name=truncated_data_link_name,
+        bk_tenant_id="system",
+        namespace="bklog",
+        bk_data_id=5245120,
+        table_ids=[table_id],
+        data_link_strategy=DataLink.BK_STANDARD_V2_EVENT,
+    )
+    models.DataSource.objects.create(
+        bk_data_id=524512,
+        data_name=data_name,
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config="bk_standard_v2_event",
+        is_custom_source=False,
+        bk_tenant_id="system",
+        created_from=DataIdCreatedFromSystem.BKDATA.value,
+    )
+    models.DataSourceResultTable.objects.create(
+        bk_data_id=524512,
+        table_id=table_id,
+        bk_tenant_id="system",
+    )
+    _create_simple_rebuild_result_table(table_id=table_id, bk_biz_id=10, bk_tenant_id="system")
+    models.ESStorage.objects.create(table_id=table_id, storage_cluster_id=1, bk_tenant_id="system")
+    models.DataIdConfig.objects.create(
+        name=data_name,
+        namespace="bklog",
+        bk_tenant_id="system",
+        bk_biz_id=10,
+        bk_data_id=524512,
+    )
+    databus = models.DataBusConfig.objects.create(
+        name=data_name,
+        namespace="bklog",
+        bk_tenant_id="system",
+        bk_biz_id=10,
+        data_id_name=data_name,
+        bk_data_id=524512,
+        sink_names=[f"{DataLinkKind.ESSTORAGEBINDING.value}:{data_name}"],
+        status=DataLinkResourceStatus.OK.value,
+    )
+    models.ResultTableConfig.objects.create(
+        name=data_name,
+        namespace="bklog",
+        bk_tenant_id="system",
+        bk_biz_id=10,
+        bkbase_table_id=bkbase_table_id,
+    )
+    models.ESStorageBindingConfig.objects.create(
+        name=data_name,
+        namespace="bklog",
+        bk_tenant_id="system",
+        bk_biz_id=10,
+        bkbase_result_table_name=data_name,
+        es_cluster_name="bkdata-app-log2-es",
+    )
+
+    with caplog.at_level("WARNING", logger="metadata"):
+        assert rebuild_simple_databus_relation(databus, dry_run=True) is None
+
+    assert "data_link_name" in caplog.text
+    assert "already exists" in caplog.text
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -3193,7 +3454,7 @@ def test_rebuild_simple_databus_relation_supports_vm_migration_bkbase_data_id():
         bk_tenant_id="system",
     )
 
-    expected_data_link_name = f"rebuilt___{data_name}"
+    expected_data_link_name = f"rebuilt__{data_name}"
     relation = rebuild_simple_databus_relation(databus, dry_run=True)
 
     assert relation is not None
@@ -3613,9 +3874,7 @@ def test_rebuild_bkbase_v4_datalink_relation_deduplicates_graph_dual_write_dry_r
         (DataLinkKind.SURREALDBBINDING.value, "graph_surreal_binding", table_id),
     }
     databus_component_names = {
-        component["name"]
-        for component in results[0]["components"]
-        if component["kind"] == DataLinkKind.DATABUS.value
+        component["name"] for component in results[0]["components"] if component["kind"] == DataLinkKind.DATABUS.value
     }
     assert databus_component_names == {"graph_vm_databus", "graph_surreal_databus"}
 
@@ -4348,9 +4607,7 @@ def test_get_bkbase_components_config_defaults_databus_consumer_group():
 
 
 def test_should_update_bkbase_component_field_allows_selected_empty_values():
-    assert _should_update_bkbase_component_field(
-        DataLinkKind.DATABUS.value, "data_link_strategy", ""
-    ) is True
+    assert _should_update_bkbase_component_field(DataLinkKind.DATABUS.value, "data_link_strategy", "") is True
     assert _should_update_bkbase_component_field(DataLinkKind.SURREALDBBINDING.value, "vertices", []) is True
     assert _should_update_bkbase_component_field(DataLinkKind.SURREALDBBINDING.value, "relations", []) is True
     assert _should_update_bkbase_component_field(DataLinkKind.DATAID.value, "bk_data_id", 0) is False
@@ -4859,6 +5116,217 @@ def test_create_bkbase_data_link_for_bk_standard(create_or_delete_records, mocke
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_create_biz_ping_datalink_for_bkcc_metadata_part(create_or_delete_records, mocker):
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    settings.ENABLE_PING_ALARM = True
+    settings.SPACE_BUILTIN_DATA_LINK_MODE = "biz"
+    bk_tenant_id = "test_tenant"
+    bk_biz_id = 18862
+    _prepare_ping_datalink_base_records(bk_tenant_id, (bk_biz_id,), mocker)
+
+    with patch.object(DataLink, "apply_data_link_with_retry", return_value={"status": "success"}) as mock_apply:
+        create_biz_ping_datalink_for_bkcc(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+        mock_apply.assert_called_once()
+
+    data_name = f"base_{bk_biz_id}_pingserver"
+    table_id = f"{bk_tenant_id}_{bk_biz_id}_pingserver.__default__"
+    data_source = models.DataSource.objects.get(data_name=data_name, bk_tenant_id=bk_tenant_id)
+    assert data_source.bk_data_id != settings.PING_SERVER_DATAID
+    assert data_source.source_label == "bk_monitor"
+    assert data_source.type_label == "time_series"
+    assert data_source.space_uid == f"bkcc__{bk_biz_id}"
+    assert not data_source.is_platform_data_id
+
+    result_table = models.ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
+    assert result_table.bk_biz_id == bk_biz_id
+    assert result_table.default_storage == models.ClusterInfo.TYPE_VM
+    assert result_table.data_label == "pingserver.base,pingserver"
+
+    fields = {
+        field.field_name: field
+        for field in models.ResultTableField.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id)
+    }
+    assert {"max_rtt", "min_rtt", "avg_rtt", "loss_percent"} <= set(fields)
+    assert {"bk_cloud_id", "ip", "bk_biz_id", "bk_target_ip", "bk_target_cloud_id", "bk_host_id"} <= set(fields)
+    assert fields["loss_percent"].tag == "metric"
+    assert fields["bk_host_id"].tag == "dimension"
+
+    # 链路申请复用 create_bkbase_data_link，DataLink 名称为计算平台组装名（compose_bkdata_data_id_name）
+    bkbase_data_name = utils.compose_bkdata_data_id_name(data_name)
+    data_link = models.DataLink.objects.get(data_link_name=bkbase_data_name, bk_tenant_id=bk_tenant_id)
+    assert data_link.data_link_strategy == DataLink.BK_STANDARD_V2_TIME_SERIES
+    assert data_link.table_ids == [table_id]
+    assert models.DataSourceResultTable.objects.filter(
+        bk_tenant_id=bk_tenant_id, bk_data_id=data_source.bk_data_id, table_id=table_id
+    ).exists()
+    assert models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id, result_table_id=table_id).exists()
+
+    options = models.DataSourceOption.get_option(data_source.bk_data_id)
+    assert options["flat_batch_key"] == "data"
+    assert options["timestamp_precision"] == "ms"
+    assert options["disable_metric_cutter"] == "true"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_create_biz_ping_datalink_for_bkcc_tenant_mode_only_default_biz(create_or_delete_records, mocker):
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    settings.ENABLE_PING_ALARM = True
+    settings.SPACE_BUILTIN_DATA_LINK_MODE = "tenant"
+    bk_tenant_id = "test_tenant"
+    non_default_biz_id = 18862
+    default_biz_id = 18863
+    _prepare_ping_datalink_base_records(bk_tenant_id, (non_default_biz_id, default_biz_id), mocker)
+
+    with (
+        patch.object(DataLink, "apply_data_link_with_retry", return_value={"status": "success"}) as mock_apply,
+        patch("metadata.task.tasks.get_tenant_default_biz_id", return_value=default_biz_id),
+    ):
+        create_biz_ping_datalink_for_bkcc(bk_tenant_id=bk_tenant_id, bk_biz_id=non_default_biz_id)
+        assert not models.DataSource.objects.filter(
+            data_name=f"base_{non_default_biz_id}_pingserver", bk_tenant_id=bk_tenant_id
+        ).exists()
+
+        create_biz_ping_datalink_for_bkcc(bk_tenant_id=bk_tenant_id, bk_biz_id=default_biz_id)
+        mock_apply.assert_called_once()
+
+    data_source = models.DataSource.objects.get(
+        data_name=f"base_{default_biz_id}_pingserver", bk_tenant_id=bk_tenant_id
+    )
+    assert data_source.is_platform_data_id
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_create_gather_up_datalink_for_bkcc_metadata_part(create_or_delete_records, mocker):
+    """多租户 gather_up 采集任务状态指标建链：校验元信息、指标自动发现分组与单表单指标选项。"""
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    settings.SPACE_BUILTIN_DATA_LINK_MODE = "biz"
+    bk_tenant_id = "test_tenant"
+    bk_biz_id = 18862
+    _prepare_ping_datalink_base_records(bk_tenant_id, (bk_biz_id,), mocker)
+
+    with patch.object(DataLink, "apply_data_link_with_retry", return_value={"status": "success"}) as mock_apply:
+        create_gather_up_datalink_for_bkcc(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+        mock_apply.assert_called_once()
+
+    data_name = f"base_{bk_biz_id}_bkmonitorbeat_gather_up"
+    table_id = f"{bk_tenant_id}_{bk_biz_id}_bkmonitorbeat_gather_up.__default__"
+
+    data_source = models.DataSource.objects.get(data_name=data_name, bk_tenant_id=bk_tenant_id)
+    assert data_source.source_label == "bk_monitor"
+    assert data_source.type_label == "time_series"
+    assert not data_source.is_platform_data_id
+
+    result_table = models.ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
+    assert result_table.bk_biz_id == bk_biz_id
+    assert result_table.default_storage == models.ClusterInfo.TYPE_VM
+    assert result_table.data_label == "bkmonitorbeat_gather_up"
+    assert result_table.label == "service_process"
+
+    # 自动发现场景不预置指标字段
+    assert not models.ResultTableField.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).exists()
+
+    # 单表单指标选项
+    split_option = models.ResultTableOption.objects.get(
+        table_id=table_id, name=models.ResultTableOption.OPTION_IS_SPLIT_MEASUREMENT, bk_tenant_id=bk_tenant_id
+    )
+    assert split_option.value_type == models.ResultTableOption.TYPE_BOOL
+    assert split_option.value == "true"
+
+    # 指标自动发现分组
+    ts_group = models.TimeSeriesGroup.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=data_source.bk_data_id)
+    assert ts_group.table_id == table_id
+    assert ts_group.bk_biz_id == bk_biz_id
+    assert ts_group.time_series_group_name == "bkmonitorbeat gather up metrics"
+
+    # 链路申请复用 create_bkbase_data_link，DataLink 名称为计算平台组装名（compose_bkdata_data_id_name）
+    bkbase_data_name = utils.compose_bkdata_data_id_name(data_name)
+    data_link = models.DataLink.objects.get(data_link_name=bkbase_data_name, bk_tenant_id=bk_tenant_id)
+    assert data_link.data_link_strategy == DataLink.BK_STANDARD_V2_TIME_SERIES
+    assert data_link.table_ids == [table_id]
+    assert models.DataSourceResultTable.objects.filter(
+        bk_tenant_id=bk_tenant_id, bk_data_id=data_source.bk_data_id, table_id=table_id
+    ).exists()
+    assert models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id, result_table_id=table_id).exists()
+
+    options = models.DataSourceOption.get_option(data_source.bk_data_id)
+    assert options["flat_batch_key"] == "data"
+    assert options["timestamp_precision"] == "ms"
+    assert options["disable_metric_cutter"] == "true"
+
+    # GSE 下发内置数据ID返回 gather_up_beat
+    internal_data_ids = _get_bk_biz_internal_data_ids(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+    assert {"task": "gather_up_beat", "dataid": data_source.bk_data_id} in internal_data_ids
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_create_gather_up_datalink_for_bkcc_tenant_mode_uses_neutral_table(create_or_delete_records, mocker):
+    """tenant 模式下 gather_up data_name 保留默认业务 ID，table_id 使用不带业务/租户前缀的中立名称。"""
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    settings.SPACE_BUILTIN_DATA_LINK_MODE = "tenant"
+    bk_tenant_id = "test_tenant"
+    default_biz_id = 18863
+    _prepare_ping_datalink_base_records(bk_tenant_id, (default_biz_id,), mocker)
+
+    with (
+        patch.object(DataLink, "apply_data_link_with_retry", return_value={"status": "success"}) as mock_apply,
+        patch("metadata.task.tasks.get_tenant_default_biz_id", return_value=default_biz_id),
+    ):
+        create_gather_up_datalink_for_bkcc(bk_tenant_id=bk_tenant_id, bk_biz_id=default_biz_id)
+        mock_apply.assert_called_once()
+
+    data_name = f"base_{default_biz_id}_bkmonitorbeat_gather_up"
+    table_id = "bkmonitorbeat_gather_up.__default__"
+
+    data_source = models.DataSource.objects.get(data_name=data_name, bk_tenant_id=bk_tenant_id)
+    assert data_source.is_platform_data_id
+
+    result_table = models.ResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
+    assert result_table.bk_biz_id == default_biz_id
+    assert result_table.data_label == "bkmonitorbeat_gather_up"
+    assert result_table.label == "service_process"
+
+    ts_group = models.TimeSeriesGroup.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=data_source.bk_data_id)
+    assert ts_group.table_id == table_id
+    assert ts_group.bk_biz_id == default_biz_id
+
+    data_link = models.DataLink.objects.get(bk_tenant_id=bk_tenant_id, bk_data_id=data_source.bk_data_id)
+    assert data_link.table_ids == [table_id]
+    assert models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id, result_table_id=table_id).exists()
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_check_bkcc_space_builtin_datalink_creates_ping_only_when_enabled(mocker, settings):
+    from metadata.task.tasks import check_bkcc_space_builtin_datalink
+
+    settings.ENABLE_V2_VM_DATA_LINK = True
+    settings.ENABLE_SPACE_BUILTIN_DATA_LINK = True
+    settings.SPACE_BUILTIN_DATA_LINK_MODE = "biz"
+    settings.ENABLE_PING_ALARM = False
+    mock_base = mocker.patch("metadata.task.tasks.create_basereport_datalink_for_bkcc")
+    mock_event = mocker.patch("metadata.task.tasks.create_base_event_datalink_for_bkcc")
+    mock_proc = mocker.patch("metadata.task.tasks.create_system_proc_datalink_for_bkcc")
+    mock_ping = mocker.patch("metadata.task.tasks.create_biz_ping_datalink_for_bkcc")
+    mock_gather_up = mocker.patch("metadata.task.tasks.create_gather_up_datalink_for_bkcc")
+
+    check_bkcc_space_builtin_datalink([("system", 1)])
+    mock_base.assert_called_once()
+    mock_event.assert_called_once()
+    assert mock_proc.call_count == 2
+    mock_ping.assert_not_called()
+    # gather_up 不受 ENABLE_PING_ALARM 影响，随内置链路一起巡检创建
+    mock_gather_up.assert_called_once_with(bk_tenant_id="system", bk_biz_id=1)
+
+    mock_base.reset_mock()
+    mock_event.reset_mock()
+    mock_proc.reset_mock()
+    mock_gather_up.reset_mock()
+    settings.ENABLE_PING_ALARM = True
+    check_bkcc_space_builtin_datalink([("system", 1)])
+    mock_ping.assert_called_once_with(bk_tenant_id="system", bk_biz_id=1)
+    mock_gather_up.assert_called_once_with(bk_tenant_id="system", bk_biz_id=1)
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_create_system_proc_datalink_for_bkcc(create_or_delete_records, mocker):
     """
     测试多租户系统进程数据链路创建
@@ -5302,7 +5770,13 @@ class TestRelationGraphAutoQuery:
 
         explicit_vertices = [{"name": "custom_pod", "id_fields": ["id"], "delimiter": GraphDelimiter.default().value}]
         explicit_relations = [
-            {"name": "custom_relation", "from": "pod", "to": "node", "metric": "custom_metric", "delimiter": GraphDelimiter.default().value}
+            {
+                "name": "custom_relation",
+                "from": "pod",
+                "to": "node",
+                "metric": "custom_metric",
+                "delimiter": GraphDelimiter.default().value,
+            }
         ]
 
         # 验证显式参数不会被覆盖
@@ -5330,7 +5804,7 @@ class TestRelationGraphAutoQuery:
 
     def test_query_with_fallback_empty_result(self):
         """当业务级和全局级都无数据时，应返回空列表"""
-        from metadata.models.entity_relation import EntityMeta, NAMESPACE_ALL, ResourceDefinition
+        from metadata.models.entity_relation import EntityMeta, ResourceDefinition
 
         result = EntityMeta.query_with_fallback(
             model_class=ResourceDefinition,
@@ -6598,10 +7072,11 @@ def test_graph_relation_compose_rejects_empty_definitions(create_or_delete_recor
     assert surrealdb_binding.vertices == []
     assert surrealdb_binding.relations == []
     assert not hasattr(datalink, "_graph_binding_update_after_apply")
-    assert configs[1]["kind"] == DataLinkKind.SURREALDBBINDING.value
-    assert configs[1]["spec"]["table_type"] == "normal"
-    assert configs[1]["spec"]["vertices"] == []
-    assert configs[1]["spec"]["relations"] == []
+    surrealdb_config = next(config for config in configs if config["kind"] == DataLinkKind.SURREALDBBINDING.value)
+    assert configs[0]["kind"] == DataLinkKind.DATAID.value
+    assert surrealdb_config["spec"]["table_type"] == "normal"
+    assert surrealdb_config["spec"]["vertices"] == []
+    assert surrealdb_config["spec"]["relations"] == []
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -6622,7 +7097,10 @@ def test_graph_relation_compose_uses_synced_non_default_surrealdb_cluster(create
     )
     mocker.patch(
         "metadata.models.data_link.data_link.EntityMeta.auto_query_graph_definitions",
-        return_value=([{"name": "pod", "id_fields": ["pod_name"]}], [{"name": "pod_node", "from": "pod", "to": "node"}]),
+        return_value=(
+            [{"name": "pod", "id_fields": ["pod_name"]}],
+            [{"name": "pod_node", "from": "pod", "to": "node"}],
+        ),
     )
     mocker.patch("metadata.models.data_link.data_link.SurrealDBStorage.create_table")
 
@@ -6694,7 +7172,10 @@ def test_graph_relation_compose_preserves_existing_child_component_names(create_
     )
     mocker.patch(
         "metadata.models.data_link.data_link.EntityMeta.auto_query_graph_definitions",
-        return_value=([{"name": "pod", "id_fields": ["pod_name"]}], [{"name": "pod_node", "from": "pod", "to": "node"}]),
+        return_value=(
+            [{"name": "pod", "id_fields": ["pod_name"]}],
+            [{"name": "pod_node", "from": "pod", "to": "node"}],
+        ),
     )
     mocker.patch("metadata.models.data_link.data_link.SurrealDBStorage.create_table")
 
@@ -6728,14 +7209,12 @@ def test_graph_relation_compose_preserves_existing_child_component_names(create_
     assert not DataBusConfig.objects.filter(name=generated_vmrt_name).exists()
     assert not SurrealDBBindingConfig.objects.filter(name=generated_graph_rt_name).exists()
     assert not GraphDataBusConfig.objects.filter(name=generated_graph_rt_name).exists()
-    assert configs[1]["metadata"]["name"] == "rebuilt_vm_binding"
-    assert configs[1]["spec"]["data"]["name"] == "rebuilt_vm_rt"
-    assert configs[2]["metadata"]["name"] == "rebuilt_vm_databus"
-    assert configs[2]["spec"]["sinks"][0]["name"] == "rebuilt_vm_binding"
-    assert configs[4]["metadata"]["name"] == "rebuilt_surreal_binding"
-    assert configs[4]["spec"]["data"]["name"] == "rebuilt_graph_rt"
-    assert configs[5]["metadata"]["name"] == "rebuilt_graph_databus"
-    assert configs[5]["spec"]["sinks"][0]["name"] == "rebuilt_surreal_binding"
+    configs_by_name = {config["metadata"]["name"]: config for config in configs}
+    assert configs[0]["kind"] == DataLinkKind.DATAID.value
+    assert configs_by_name["rebuilt_vm_binding"]["spec"]["data"]["name"] == "rebuilt_vm_rt"
+    assert configs_by_name["rebuilt_vm_databus"]["spec"]["sinks"][0]["name"] == "rebuilt_vm_binding"
+    assert configs_by_name["rebuilt_surreal_binding"]["spec"]["data"]["name"] == "rebuilt_graph_rt"
+    assert configs_by_name["rebuilt_graph_databus"]["spec"]["sinks"][0]["name"] == "rebuilt_surreal_binding"
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -6866,17 +7345,10 @@ def test_graph_relation_compose_configs_accepts_consumer_group(create_or_delete_
 
     assert vm_databus_payload["spec"]["consumerGroup"] == "graph_consumer_group"
     assert graph_databus_payload["spec"]["consumerGroup"] == "graph_consumer_group"
+    assert vm_databus_payload["metadata"]["labels"]["bkm_data_link_strategy"] == DataLink.GRAPH_RELATION_TIME_SERIES
+    assert graph_databus_payload["metadata"]["labels"]["bkm_data_link_strategy"] == DataLink.GRAPH_RELATION_TIME_SERIES
     assert (
-        vm_databus_payload["metadata"]["labels"]["bkm_data_link_strategy"]
-        == DataLink.GRAPH_RELATION_TIME_SERIES
-    )
-    assert (
-        graph_databus_payload["metadata"]["labels"]["bkm_data_link_strategy"]
-        == DataLink.GRAPH_RELATION_TIME_SERIES
-    )
-    assert (
-        DataBusConfig.objects.get(name=graph_binding.vm_databus_component_name).consumer_group
-        == "graph_consumer_group"
+        DataBusConfig.objects.get(name=graph_binding.vm_databus_component_name).consumer_group == "graph_consumer_group"
     )
     assert (
         DataBusConfig.objects.get(name=graph_binding.vm_databus_component_name).data_link_strategy
@@ -7368,7 +7840,7 @@ def test_graph_relation_apply_transient_write_mode_keeps_desired_mode(create_or_
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_graph_relation_apply_ignores_post_apply_cleanup_error(mocker):
+def test_graph_relation_apply_raises_post_apply_cleanup_error(mocker):
     datalink = DataLink.objects.create(
         data_link_name="graph_cleanup_test",
         namespace="bkmonitor",
@@ -7388,10 +7860,11 @@ def test_graph_relation_apply_ignores_post_apply_cleanup_error(mocker):
     mocker.patch.object(DataLink, "compose_configs", side_effect=compose_with_cleanup_state)
     mocked_apply = mocker.patch.object(DataLink, "apply_data_link_with_retry", return_value={"status": "success"})
 
-    datalink.apply_data_link(
-        table_id="1001_bkmonitor_time_series_60300.__default__",
-        write_mode=GraphRelationBindingConfig.WRITE_MODE_SURREALDB,
-    )
+    with pytest.raises(RuntimeError, match="cleanup failed"):
+        datalink.apply_data_link(
+            table_id="1001_bkmonitor_time_series_60300.__default__",
+            write_mode=GraphRelationBindingConfig.WRITE_MODE_SURREALDB,
+        )
 
     mocked_apply.assert_called_once_with([])
     cleanup_binding.transition_write_mode.assert_called_once_with(GraphRelationBindingConfig.WRITE_MODE_VM)
@@ -7408,7 +7881,9 @@ def test_graph_relation_apply_uses_metadata_transaction_and_merges_existing_conf
         data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
     )
     composed_configs = [{"kind": DataLinkKind.RESULTTABLE.value, "metadata": {"name": "graph_rt"}, "spec": {}}]
-    merged_configs = [{"kind": DataLinkKind.RESULTTABLE.value, "metadata": {"name": "graph_rt"}, "spec": {"merged": True}}]
+    merged_configs = [
+        {"kind": DataLinkKind.RESULTTABLE.value, "metadata": {"name": "graph_rt"}, "spec": {"merged": True}}
+    ]
     mock_atomic = mocker.patch("metadata.models.data_link.data_link.transaction.atomic")
     mock_compose = mocker.patch.object(datalink, "compose_configs", return_value=composed_configs)
     mock_merge = mocker.patch.object(datalink, "merge_existing_component_configs", return_value=merged_configs)
@@ -7428,6 +7903,85 @@ def test_graph_relation_apply_uses_metadata_transaction_and_merges_existing_conf
     mock_compose.assert_called_once_with(existing_context=None, consumer_group="graph_consumer_group")
     mock_merge.assert_called_once_with(composed_configs)
     mock_apply.assert_called_once_with(merged_configs)
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_graph_relation_apply_locks_existing_datalink_before_composing(mocker):
+    datalink = DataLink(
+        data_link_name="graph_apply_lock_test",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+    )
+    datalink._state.adding = False
+    call_order = []
+    lock_queryset = mocker.Mock()
+    lock_queryset.only.return_value = lock_queryset
+
+    def get_locked_datalink(**kwargs):
+        call_order.append("lock")
+        assert kwargs == {"pk": datalink.pk}
+        return datalink
+
+    def compose_after_lock(*args, **kwargs):
+        call_order.append("compose")
+        return []
+
+    lock_queryset.get.side_effect = get_locked_datalink
+    mock_select_for_update = mocker.patch.object(DataLink.objects, "select_for_update", return_value=lock_queryset)
+    mocker.patch.object(datalink, "compose_configs", side_effect=compose_after_lock)
+    mock_merge = mocker.patch.object(datalink, "merge_existing_component_configs", return_value=[])
+    mock_apply = mocker.patch.object(datalink, "apply_data_link_with_retry", return_value={"status": "success"})
+
+    datalink._apply_graph_relation_data_link_in_transaction(
+        args=(),
+        kwargs={},
+        existing_context=None,
+        bkbase_rt_record=mocker.Mock(),
+        storage_type=models.ClusterInfo.TYPE_SURREALDB,
+        should_update_bkbase_rt_storage_type=False,
+    )
+
+    mock_select_for_update.assert_called_once_with()
+    lock_queryset.only.assert_called_once_with("data_link_name")
+    lock_queryset.get.assert_called_once_with(pk=datalink.pk)
+    assert call_order == ["lock", "compose"]
+    mock_merge.assert_called_once_with([])
+    mock_apply.assert_called_once_with([])
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_graph_relation_apply_skips_row_lock_for_unsaved_datalink(mocker):
+    datalink = DataLink(
+        data_link_name="graph_apply_unsaved_lock_test",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+    )
+    call_order = []
+
+    def compose_without_lock(*args, **kwargs):
+        call_order.append("compose")
+        return []
+
+    mock_select_for_update = mocker.patch.object(DataLink.objects, "select_for_update")
+    mocker.patch.object(datalink, "compose_configs", side_effect=compose_without_lock)
+    mock_merge = mocker.patch.object(datalink, "merge_existing_component_configs", return_value=[])
+    mock_apply = mocker.patch.object(datalink, "apply_data_link_with_retry", return_value={"status": "success"})
+
+    datalink._apply_graph_relation_data_link_in_transaction(
+        args=(),
+        kwargs={},
+        existing_context=None,
+        bkbase_rt_record=mocker.Mock(),
+        storage_type=models.ClusterInfo.TYPE_SURREALDB,
+        should_update_bkbase_rt_storage_type=False,
+    )
+
+    mock_select_for_update.assert_not_called()
+    assert call_order == ["compose"]
+    mock_merge.assert_called_once_with([])
+    mock_apply.assert_called_once_with([])
 
 
 def test_surrealdb_storage_registered_in_result_table_storage_map():

@@ -54,6 +54,10 @@ class ModelSpec:
     select_related: list[str] = field(default_factory=list)
     # list-db-models 输出里的模型级提示：用途与选型边界（与 row_mask_note 区分，后者只讲脱敏）。
     note: str = ""
+    # 读取所用的 manager 名。默认 objects；软删模型（AbstractRecordModel）可设 origin_objects，
+    # 以读到 is_deleted=True 的行——「配置真删/真禁」类排障必须能看到软删行，否则 .objects
+    # （RecordModelManager）会过滤掉 is_deleted 的行，缺失正是要看的证据。
+    manager_name: str = "objects"
 
 
 MASKED_VALUE = "***masked***"
@@ -418,6 +422,236 @@ ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
             }
         ],
     ),
+    "bkmonitor.models.fta.action.ActionConfig": ModelSpec(
+        model_path="bkmonitor.models.fta.action.ActionConfig",
+        fields={
+            "id",
+            "name",
+            "bk_biz_id",
+            "plugin_id",
+            "is_builtin",
+            "is_enabled",
+            "is_deleted",
+            "create_time",
+            "update_time",
+            "update_user",
+        },
+        default_fields={
+            "id",
+            "name",
+            "bk_biz_id",
+            "plugin_id",
+            "is_enabled",
+            "is_deleted",
+            "create_time",
+            "update_time",
+        },
+        # execute_config（执行参数，可内嵌 webhook URL / header token 等凭据，键名由插件作者自定义、
+        # 无类型源可穷举）一律不透出：既不列入 fields，也登记 sensitive_fields 兜底显式 fields 请求。
+        sensitive_fields={"execute_config"},
+        manager_name="origin_objects",
+        note=(
+            "处理/通知套餐(ActionConfig)。用 origin_objects 读，含 is_deleted=True 的软删行，"
+            "用于区分「克隆/新建套餐缓存未传播的瞬时误判」与「套餐真删/真禁」——软删行的 is_deleted/"
+            "is_enabled 为权威态。execute_config（执行参数，可内嵌凭据）不透出，需其内容走 SaaS。"
+        ),
+        examples=[
+            {
+                "filter": {"id": 1},
+                "fields": ["id", "name", "is_enabled", "is_deleted", "create_time", "update_time", "update_user"],
+            },
+            {"filter": {"bk_biz_id": "2"}, "limit": 20},
+        ],
+    ),
+    "bkmonitor.models.fta.action.StrategyActionConfigRelation": ModelSpec(
+        model_path="bkmonitor.models.fta.action.StrategyActionConfigRelation",
+        fields={
+            "id",
+            "strategy_id",
+            "config_id",
+            "relate_type",
+            "signal",
+            "user_type",
+            "is_enabled",
+            "is_deleted",
+            "create_time",
+            "update_time",
+            "update_user",
+        },
+        default_fields={
+            "id",
+            "strategy_id",
+            "config_id",
+            "relate_type",
+            "signal",
+            "is_enabled",
+            "is_deleted",
+        },
+        manager_name="origin_objects",
+        note=(
+            "策略↔套餐绑定关系(StrategyActionConfigRelation)。用 origin_objects 读，含软删行，"
+            "配合 ActionConfig 判定绑定漂移/解绑/孤儿：relate_type=NOTICE 通知套餐、ACTION 处理动作。"
+            "user_groups/options（可能较大且非取证核心）未纳入白名单。"
+        ),
+        examples=[
+            {
+                "filter": {"strategy_id": 1},
+                "fields": ["id", "config_id", "relate_type", "signal", "is_enabled", "is_deleted"],
+            },
+            {"filter": {"config_id": 1}, "limit": 20},
+        ],
+    ),
+    "metadata.models.vm.record.AccessVMRecord": ModelSpec(
+        model_path="metadata.models.vm.record.AccessVMRecord",
+        # VM 接入登记：某结果表落在哪个 VM 集群（vm_cluster_id）、对应 bkbase vm_rt。
+        # 「多租户 VM 未对齐 / 元数据陈旧」致查空的判别第一跳：取 result_table_id 的 vm_cluster_id，
+        # 再用 ClusterInfo(cluster_type=victoria_metrics, cluster_id=该值, bk_tenant_id=该租户) 对账。
+        fields={
+            "id",
+            "result_table_id",
+            "bk_tenant_id",
+            "vm_cluster_id",
+            "vm_result_table_id",
+            "bk_base_data_id",
+            "bk_base_data_name",
+            "storage_cluster_id",
+            "bcs_cluster_id",
+            "data_type",
+        },
+        default_fields={
+            "result_table_id",
+            "bk_tenant_id",
+            "vm_cluster_id",
+            "vm_result_table_id",
+            "bk_base_data_id",
+        },
+        note=(
+            "VM 接入登记(AccessVMRecord)。查空判别第一跳：取某 result_table_id 的 vm_cluster_id，"
+            "再到 ClusterInfo(cluster_type=victoria_metrics, cluster_id=该值, bk_tenant_id=该租户)对账——"
+            "对不上即 ds_rt.py storage_name 解析为空、unify-query 查空。多租户务必带 bk_tenant_id 过滤。"
+        ),
+        examples=[
+            {
+                "filter": {"result_table_id": "system_20001_sys.cpu_summary", "bk_tenant_id": "system"},
+                "fields": ["result_table_id", "vm_cluster_id", "vm_result_table_id", "bk_base_data_id"],
+            }
+        ],
+    ),
+    "metadata.models.data_link.data_link_configs.GraphRelationBindingConfig": ModelSpec(
+        model_path="metadata.models.data_link.data_link_configs.GraphRelationBindingConfig",
+        fields={
+            "bk_tenant_id",
+            "namespace",
+            "name",
+            "data_link_name",
+            "bk_biz_id",
+            "status",
+            "write_mode",
+            "table_id",
+            "bkbase_result_table_name",
+            "graph_result_table_name",
+            "vm_storage_binding_name",
+            "vm_databus_name",
+            "surrealdb_binding_name",
+            "graph_databus_name",
+            "vm_cluster_name",
+            "surrealdb_cluster_name",
+            "surrealdb_auto_restore",
+            "create_time",
+            "last_modify_time",
+        },
+        default_fields={
+            "bk_tenant_id",
+            "namespace",
+            "name",
+            "data_link_name",
+            "bk_biz_id",
+            "status",
+            "write_mode",
+            "table_id",
+        },
+        note=(
+            "图关系写入目标绑定(GraphRelationBindingConfig)。用于核对关联关系链路当前写入模式："
+            "write_mode=vm/vm_and_surrealdb/surrealdb 分别表示 VM、双写、SurrealDB 写入目标；"
+            "排查双写开启后 VM 查询兼容性时，先按 bk_biz_id/data_link_name/name 过滤本表确认目标态，"
+            "再联动 AccessVMRecord、ClusterInfo、kafka-sample、query-metric 分段取证。"
+            "vertices/relations 体积较大且非路由核验核心，默认不开放。"
+        ),
+        examples=[
+            {
+                "filter": {"write_mode": "vm_and_surrealdb"},
+                "fields": [
+                    "bk_tenant_id",
+                    "namespace",
+                    "name",
+                    "data_link_name",
+                    "bk_biz_id",
+                    "status",
+                    "write_mode",
+                    "table_id",
+                    "bkbase_result_table_name",
+                    "graph_result_table_name",
+                ],
+                "limit": 20,
+            }
+        ],
+    ),
+    "metadata.models.storage.ClusterInfo": ModelSpec(
+        model_path="metadata.models.storage.ClusterInfo",
+        # 存储集群登记。查空判别第二跳：按 (bk_tenant_id, cluster_type=victoria_metrics, cluster_id)
+        # 核 AccessVMRecord.vm_cluster_id 能否命中——命不中即 storage_name 空、查空。
+        # ⚠️ cluster_type 的 VM 值是 "victoria_metrics"（ClusterInfo.TYPE_VM），不是 "vm"。
+        # username/password（SymmetricTextField 加密凭据）不纳入白名单、不可读、不可过滤。
+        fields={
+            "cluster_id",
+            "cluster_name",
+            "cluster_type",
+            "bk_tenant_id",
+            "domain_name",
+            "port",
+            "schema",
+            "is_default_cluster",
+            "registered_to_bkbase",
+            "version",
+            "description",
+            "creator",
+            "create_time",
+            "last_modify_time",
+        },
+        default_fields={
+            "cluster_id",
+            "cluster_name",
+            "cluster_type",
+            "bk_tenant_id",
+            "is_default_cluster",
+            "registered_to_bkbase",
+        },
+        # 凭据/私钥字段兜底：即便未来误加进 fields 或被显式请求也不透出、不可过滤。
+        # username/password（SASL 凭据）+ ssl_certificate/ssl_certificate_key（TLS 证书与私钥）/
+        # ssl_certificate_authorities（CA）——均属敏感，绝不进白名单读取面。
+        sensitive_fields={
+            "username",
+            "password",
+            "ssl_certificate",
+            "ssl_certificate_key",
+            "ssl_certificate_authorities",
+        },
+        note=(
+            "存储集群登记(ClusterInfo)。查空判别第二跳：按 (bk_tenant_id, cluster_type='victoria_metrics', "
+            "cluster_id) 核 AccessVMRecord.vm_cluster_id 能否命中——命不中即 ds_rt.py storage_name 空、"
+            "unify-query 查空。cluster_type 的 VM 值是 'victoria_metrics'（勿写 'vm'）。username/password 不可读。"
+        ),
+        examples=[
+            {
+                "filter": {"bk_tenant_id": "system", "cluster_type": "victoria_metrics"},
+                "fields": ["cluster_id", "cluster_name", "registered_to_bkbase"],
+            },
+            {
+                "filter": {"bk_tenant_id": "system", "cluster_type": "victoria_metrics", "cluster_id": 10113},
+                "fields": ["cluster_id", "cluster_name", "domain_name", "registered_to_bkbase"],
+            },
+        ],
+    ),
 }
 
 
@@ -429,7 +663,7 @@ def read_db_model(params: dict[str, Any]) -> dict[str, Any]:
     normalized_filter = _normalize_filter(params.get("filter") or {}, spec)
     selected_fields = _normalize_selected_fields(params.get("fields"), params.get("exclude_fields"), spec)
 
-    queryset = model_cls.objects.all()
+    queryset = getattr(model_cls, spec.manager_name).all()
     if spec.select_related:
         queryset = queryset.select_related(*spec.select_related)
     queryset = queryset.filter(**normalized_filter)
@@ -487,6 +721,9 @@ def _serialize_model_spec(model_name: str, spec: ModelSpec) -> dict[str, Any]:
         serialized["note"] = spec.note
     if spec.row_masker is not None:
         serialized["row_masking"] = spec.row_mask_note or f"敏感行的 value 字段会被脱敏为 {MASKED_VALUE}"
+    # 仅非默认 manager 才回显，避免改动既有模型自描述（默认 objects 的模型输出保持不变）。
+    if spec.manager_name != "objects":
+        serialized["manager"] = spec.manager_name
     return serialized
 
 

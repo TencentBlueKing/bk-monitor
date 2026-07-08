@@ -441,6 +441,7 @@ DEPLOY_MODE = os.environ.get("DEPLOY_MODE", "")
 BK_IAM_APIGATEWAY_URL = os.getenv("BKAPP_IAM_API_BASE_URL") or f"{BK_COMPONENT_API_URL}/api/bk-iam/prod/"
 
 BK_USER_HOST = os.getenv("BKAPP_BKUSER_HOST", BK_BKLOG_HOST.replace("bklog", "bkuser"))
+SHOW_PERSONAL_SETTINGS = os.getenv("BKAPP_SHOW_PERSONAL_SETTINGS", "on") == "on"
 
 # ===============================================================================
 # 企业版登录重定向

@@ -25,7 +25,11 @@
  */
 import { defineComponent, toRefs } from 'vue';
 
+import { Message } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
+
 import { useTapdAuth } from './composables/use-tapd-auth';
+import { revokeAuthApi } from './services/tapd';
 import TapdAuthDialog from './tapd-auth-dialog/tapd-auth-dialog';
 import TapdSideslider from './tapd-sideslider/tapd-sideslider';
 
@@ -44,21 +48,57 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    /** issues 第一个告警产生时间 (秒级时间戳) */
+    firstAlarmTime: {
+      type: [Number, String],
+      default: 'now-1h',
+    },
   },
   emits: ['update:show'],
   setup(props, { emit }) {
-    const { show, bizId, issuesId } = toRefs(props);
+    const { t } = useI18n();
+    const { show, bizId, issuesId, firstAlarmTime } = toRefs(props);
 
-    const { loading, authDialogShow, createTapdSliderShow, workspaceList, handleWorkspaceSelect, handleAddWorkspace } =
-      useTapdAuth({ show, bizId, issuesId });
+    const {
+      loading,
+      authDialogShow,
+      createTapdSliderShow,
+      workspaceList,
+      authUrl,
+      isAuth,
+      revokeAuthLoading,
+      handleWorkspaceSelect,
+      handleAddWorkspace,
+    } = useTapdAuth({ show, bizId, issuesId, firstAlarmTime });
 
     const handleShowChange = (val: boolean) => emit('update:show', val);
+
+    /** 取消授权 */
+    const handleRevokeAuth = () => {
+      revokeAuthLoading.value = true;
+      revokeAuthApi({
+        bk_biz_id: bizId.value,
+      })
+        .then(() => {
+          authDialogShow.value = false;
+          createTapdSliderShow.value = false;
+          isAuth.value = false;
+          Message({
+            theme: 'success',
+            message: t('取消授权成功'),
+          });
+          handleShowChange(false);
+        })
+        .finally(() => {
+          revokeAuthLoading.value = false;
+        });
+    };
 
     const handleAuthDialogShowChange = (val: boolean) => {
       if (createTapdSliderShow.value) {
         authDialogShow.value = val;
       } else {
-        emit('update:show', val);
+        handleShowChange(val);
       }
     };
 
@@ -67,8 +107,12 @@ export default defineComponent({
       createTapdSliderShow,
       authDialogShow,
       workspaceList,
+      authUrl,
+      isAuth,
+      revokeAuthLoading,
       handleWorkspaceSelect,
       handleAddWorkspace,
+      handleRevokeAuth,
       handleShowChange,
       handleAuthDialogShowChange,
     };
@@ -82,12 +126,17 @@ export default defineComponent({
           show={this.createTapdSliderShow}
           workspaceList={this.workspaceList}
           onAddWorkspace={this.handleAddWorkspace}
+          onRevokeAuth={this.handleRevokeAuth}
           onUpdate:show={this.handleShowChange}
         />
         <TapdAuthDialog
+          authUrl={this.authUrl}
+          isAuth={this.isAuth}
           loading={this.loading}
+          revokeAuthLoading={this.revokeAuthLoading}
           show={this.authDialogShow}
           workspaceList={this.workspaceList}
+          onRevokeAuth={this.handleRevokeAuth}
           onSelect={this.handleWorkspaceSelect}
           onUpdate:show={this.handleAuthDialogShowChange}
         />
