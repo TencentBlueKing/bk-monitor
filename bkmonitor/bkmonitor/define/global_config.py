@@ -425,8 +425,8 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BKBASE_REDIS_LOCK_NAME", slz.CharField(label="计算平台Redis锁名称", default="watch_bkbase_meta_redis_lock")),
         ("ENABLE_SYNC_BKBASE_METADATA_TO_DB", slz.BooleanField(label="是否同步bkbase元数据至DB", default=False)),
         (
-            "ENABLE_SYNC_GRAPH_DEFINITION_TO_BKBASE",
-            slz.BooleanField(label="是否自动同步计算平台图关系链路", default=False),
+            "GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST",
+            slz.ListField(label="自动同步计算平台图关系链路业务白名单", default=[]),
         ),
         (
             "ACCESS_DATA_BATCH_PROCESS_THRESHOLD",

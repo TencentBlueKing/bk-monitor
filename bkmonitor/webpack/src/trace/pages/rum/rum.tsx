@@ -28,7 +28,7 @@ import { computed, defineComponent, onMounted, shallowRef, watch } from 'vue';
 
 import { Button, SearchSelect } from 'bkui-vue';
 import { listApplication, listApplicationAsync } from 'monitor-api/modules/rum_meta';
-import { random } from 'monitor-common/utils';
+import { random, xssFilter } from 'monitor-common/utils';
 import OverflowTips from 'trace/directive/overflow-tips';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
@@ -40,7 +40,11 @@ import CommonTable from '../alarm-center/components/alarm-table/components/commo
 import CreateApp from './components/create-app/create-app';
 import SDKReport from './components/sdk-report/sdk-report';
 import { type MetricMap, buildRumAppRows } from './rum-controller';
-import { METRIC_COLUMN_TITLES, SORTABLE_METRIC_KEYS } from './typings/home';
+import { METRIC_COLUMN_TIPS, METRIC_COLUMN_TITLES, SORTABLE_METRIC_KEYS } from './typings/home';
+import EmptyStatus, {
+  type EmptyStatusOperationType,
+  type EmptyStatusType,
+} from '@/components/empty-status/empty-status';
 
 import type { BaseTableColumn } from '../trace-explore/components/trace-explore-table/typing';
 import type { MetricTier, RumApplicationAsyncItem, RumAppRow, RumTableItem, SortableMetricKey } from './typings';
@@ -59,7 +63,7 @@ type RumFilterCriteria = Partial<Record<RumCriteriaKey, string[]>>;
 const SEARCH_DIMENSION_KEYS: RumCriteriaKey[] = ['appName', 'appAlias', 'appStatus'];
 
 /** 表头带筛选的列字段（含 dataStatus；与 criteriaToFilterValue 一致） */
-const TABLE_FILTER_KEYS: RumCriteriaKey[] = ['appName', 'appAlias', 'appStatus', 'dataStatus'];
+const TABLE_FILTER_KEYS: RumCriteriaKey[] = ['appStatus', 'dataStatus'];
 
 const uniqSorted = (arr: string[]) => [...new Set(arr)].sort((a, b) => a.localeCompare(b));
 
@@ -75,7 +79,14 @@ const mergeSearchValuesIntoCriteria = (prev: RumFilterCriteria, values: ISearchV
   }
   return next;
 };
-
+const criteriaToFilterValue = (criteria: RumFilterCriteria): FilterValue => {
+  const fv: FilterValue = {};
+  for (const key of TABLE_FILTER_KEYS) {
+    const vals = criteria[key];
+    if (vals?.length) fv[key] = vals;
+  }
+  return fv;
+};
 const mergeTableFilterIntoCriteria = (prev: RumFilterCriteria, value: FilterValue): RumFilterCriteria => {
   const next: RumFilterCriteria = { ...prev };
   for (const key of TABLE_FILTER_KEYS) {
@@ -149,6 +160,8 @@ export default defineComponent({
     const showSdkReport = shallowRef(false);
     const sdkReportAppInfo = shallowRef<Partial<IRumAppConfig>>(null);
     const loading = shallowRef(false);
+
+    const emptyType = shallowRef<EmptyStatusType>('empty');
 
     const searchLabel = (k: RumCriteriaKey) => {
       const map: Record<RumCriteriaKey, string> = {
@@ -281,16 +294,18 @@ export default defineComponent({
     });
 
     const handleConfigure = (row: RumAppRow) => {
-      router.push({
-        name: 'rumAppConfig',
-        params: {
-          appName: row.appName,
-        },
-      });
+      row.appName?.length &&
+        router.push({
+          name: 'rumAppConfig',
+          params: {
+            appName: encodeURIComponent(row.appName),
+          },
+        });
     };
 
     const handleSearchSelectUpdate = (v: ISearchValue[]) => {
       rumCriteria.value = mergeSearchValuesIntoCriteria(rumCriteria.value, v);
+      emptyType.value = v.length > 0 ? 'search-empty' : 'empty';
     };
 
     const handleTableFilterChange = (value: FilterValue) => {
@@ -326,7 +341,7 @@ export default defineComponent({
             return (
               <div class='rum-app-name-cell'>
                 <div class='rum-app-icon'>
-                  <i class='icon-monitor icon-mc-global' />
+                  <i class='icon-monitor icon-web' />
                 </div>
                 <div class='rum-app-name-text'>
                   <div
@@ -406,16 +421,7 @@ export default defineComponent({
         },
         {
           colKey: 'description',
-          title: () => (
-            <span
-              class='rum-table-header-title'
-              v-overflow-tips={{
-                placement: 'top',
-              }}
-            >
-              {t('描述')}
-            </span>
-          ),
+          title: () => <span class='rum-table-header-title'>{t('描述')}</span>,
           minWidth: 160,
           ellipsis: false,
           ellipsisTitle: false,
@@ -429,15 +435,21 @@ export default defineComponent({
           title: () => (
             <span
               class='rum-table-header-title'
-              v-overflow-tips={{
+              v-tippy={{
+                content: xssFilter(`<div class='max-width: 300px;'>
+                  <div>${METRIC_COLUMN_TIPS[key].tip}</div>
+                  <div>${METRIC_COLUMN_TIPS[key].expression}</div>
+                  </div>`),
+                delay: [300, 0],
                 placement: 'top',
+                allowHTML: true,
               }}
             >
               {t(METRIC_COLUMN_TITLES[key])}
             </span>
           ),
           thClassName: 'rum-th--dotted',
-          width: 110,
+          width: 140,
           sorter: true,
           ellipsis: false,
           ellipsisTitle: false,
@@ -498,7 +510,7 @@ export default defineComponent({
               {t('操作')}
             </span>
           ),
-          width: 180,
+          width: 100,
           ellipsis: false,
           ellipsisTitle: false,
           cellRenderer: (row => {
@@ -552,6 +564,12 @@ export default defineComponent({
 
     const handleSortChange = (sort: string | string[]) => {
       tableSort.value = Array.isArray(sort) ? sort[0] : sort;
+    };
+
+    const handleEmptyOperation = (type: EmptyStatusOperationType) => {
+      if (type === 'clear-filter') {
+        rumCriteria.value = {};
+      }
     };
 
     const handleCurrentPageChange = (page: number) => {
@@ -608,7 +626,7 @@ export default defineComponent({
                 onClick={handleCreateApp}
               >
                 <span class='rum-toolbar-btn-inner'>
-                  <i class='icon-monitor icon-mc-plus-fill' />
+                  <i class='icon-monitor icon-a-1jiahao' />
                   {t('新建应用')}
                 </span>
               </Button>
@@ -626,9 +644,16 @@ export default defineComponent({
 
             <div class='rum-table-wrap'>
               <CommonTable
+                empty={() => (
+                  <EmptyStatus
+                    type={emptyType.value}
+                    onOperation={handleEmptyOperation}
+                  />
+                )}
                 columns={columns.value}
                 // data={tablePageData.value.rows as unknown as Record<string, unknown>[]}
                 data={filteredTableData.value as unknown as Record<string, unknown>[]}
+                filterValue={criteriaToFilterValue(rumCriteria.value)}
                 loading={loading.value}
                 // pagination={tablePageData.value.pagination}
                 rowKey='id'

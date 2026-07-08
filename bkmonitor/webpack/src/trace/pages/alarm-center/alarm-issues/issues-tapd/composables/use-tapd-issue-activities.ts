@@ -27,9 +27,11 @@ import { shallowRef } from 'vue';
 
 import { createGlobalState } from '@vueuse/core';
 
+import type { TapdRelationItem } from '../../services/relation-tapd';
 import type { IssueActivityItem } from '../../typing/detail';
 
 export type TTapdIssueActivities = { issueId: string; list: IssueActivityItem[] };
+export type TTapdIssueInfos = { issueId: string; list: TapdRelationItem[] };
 
 /**
  * @description TAPD 单据操作（创建/关联）成功后，后端返回的活动记录全局状态
@@ -40,6 +42,7 @@ export type TTapdIssueActivities = { issueId: string; list: IssueActivityItem[] 
 export const useTapdIssueActivities = createGlobalState(() => {
   /** 当前 issueId 对应的 TAPD 活动记录列表，null 表示无数据 */
   const activities = shallowRef<TTapdIssueActivities>(null);
+  const infos = shallowRef<TTapdIssueInfos>(null);
 
   /**
    * 设置指定 issue 的 TAPD 活动
@@ -48,5 +51,8 @@ export const useTapdIssueActivities = createGlobalState(() => {
   const setActivities = (data: TTapdIssueActivities) => {
     activities.value = data;
   };
-  return { activities, setActivities };
+  const setInfos = (data: TTapdIssueInfos) => {
+    infos.value = data;
+  };
+  return { activities, infos, setActivities, setInfos };
 });

@@ -67,6 +67,7 @@ export default defineComponent({
      * 应用基本信息数据
      */
     const appInfo = shallowRef<IRumAppConfig>(undefined);
+    const loading = shallowRef(false);
 
     /** 当前选中的 Tab 面板 */
     const currentPanel = shallowRef<RumAppConfigTabType>(RUM_APP_CONFIG_TAB_ENUM.BASIC_CONFIG);
@@ -79,12 +80,15 @@ export default defineComponent({
 
     /** 切换 Tab 面板 */
     const handleCurrentPanelChange = (v: RumAppConfigTabType) => {
+      if (!appInfo.value) return;
       currentPanel.value = v;
     };
 
     /** 获取应用配置信息 */
     const getRumAppConfig = async () => {
-      appInfo.value = await getAppConfigByAppName(route.params.appName as string);
+      loading.value = true;
+      appInfo.value = await getAppConfigByAppName(decodeURIComponent(route.params.appName as string));
+      loading.value = false;
     };
 
     /**
@@ -124,6 +128,14 @@ export default defineComponent({
 
     /** 根据当前 Tab 获取对应的面板组件 */
     const getPanelComponent = () => {
+      if (loading.value)
+        return (
+          <div class='skeleton-panel'>
+            <div class='skeleton-element' />
+            <div class='skeleton-element' />
+          </div>
+        );
+
       switch (currentPanel.value) {
         case RUM_APP_CONFIG_TAB_ENUM.BASIC_CONFIG:
           return (
@@ -147,6 +159,7 @@ export default defineComponent({
     return {
       navList,
       appInfo,
+      loading,
       currentPanel,
       sdkGuideShow,
       handleCurrentPanelChange,
@@ -171,6 +184,7 @@ export default defineComponent({
         <div class='rum-app-config-page__header'>
           <AppBasicInfo
             data={this.appInfo}
+            loading={this.loading}
             onApplicationInfoChange={this.handleAppInfoChange}
             onApplicationOperation={this.handleAppOperation}
             onShowSdkGuide={() => this.handleShowSdkGuide(true)}

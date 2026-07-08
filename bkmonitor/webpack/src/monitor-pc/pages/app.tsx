@@ -901,6 +901,9 @@ export default class App extends tsc<object> {
                                 if (this.$store.getters.k8sV2EnableList && menu.id === 'k8s-new') return true;
                                 return false;
                               }
+                              if (menu.id === 'rum') {
+                                return window.rum_biz_list?.includes(+this.bizId);
+                              }
                               return true;
                             })
                             .map(child => (

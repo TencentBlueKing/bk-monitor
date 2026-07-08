@@ -32,7 +32,7 @@
 
 import Vue from 'vue';
 
-import { messageError } from '@/common/bkmagic';
+import { messageError, messageWarn } from '@/common/bkmagic';
 import { bus } from '@/common/bus';
 import { makeMessage, readBlobRespToJson } from '@/common/util';
 import i18n from '@/language/i18n';
@@ -47,6 +47,9 @@ import RequestQueue from './request-queue';
 import store from '@/store';
 
 const baseURL = window.AJAX_URL_PREFIX || '/api/v1';
+
+// 用于防止 租户不一致(3641001) 错误弹窗重复显示
+let hasShownTenantMismatchWarning = false;
 // axios 实例
 export const axiosInstance = axios.create({
   headers: { 'X-Requested-With': 'XMLHttpRequest' },
@@ -318,6 +321,16 @@ function handleReject(error, config, reject) {
         bus.$emit('show-apply-perm-modal', error.data);
       } else if (code === '3621602') {
         return 1;
+      } else if (code === 3641001) {
+        const resMessage = makeMessage(message, traceparent);
+        if (config.catchIsShowMessage && !hasShownTenantMismatchWarning) {
+          hasShownTenantMismatchWarning = true;
+          messageWarn(resMessage);
+          // 3秒后重置标志位，允许下次再显示
+          setTimeout(() => {
+            hasShownTenantMismatchWarning = false;
+          }, 3000);
+        }
       } else {
         const resMessage = makeMessage(message, traceparent);
         config.catchIsShowMessage && messageError(resMessage);

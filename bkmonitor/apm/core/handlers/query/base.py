@@ -308,7 +308,14 @@ class BaseQuery:
         # 最早可查询时间
         earliest_start_time: int = now - retention_seconds
 
-        end_time: int = end_time or now
+        if not end_time:
+            # 不传 end_time 代表查询最新数据，通常我们会在页面拿到 TraceID 后便进行查询，
+            # 请求时间距离实际存储查询时间可能存在一定延迟，因此需增加一个时间填充，避免查询不到数据。
+            end_time = now + cls.TIME_PADDING
+        else:
+            # 已指定查询时间范围，则需要对 end_time 做限制，避免查询到未来时间的数据。
+            end_time = min(now, end_time)
+
         start_time: int = start_time or earliest_start_time
         if end_time < earliest_start_time:
             # 情况 1 - 查询返回不在有效查询时间内：-<start_time>-----<end_time>-----<earliest_start_time>----<now>--
@@ -317,12 +324,8 @@ class BaseQuery:
             # 情况 2 - 查询时间部分或全部在有效查询时间内：-<start_time>---<earliest_start_time>---<end_time>----<now>--
             start_time = max(earliest_start_time, start_time)
 
-        # 结束时间不能大于 now
-        end_time = min(now, end_time)
-
-        # 通常我们会在页面拿到 TraceID 后便进行查询，「查询请求时间」可能 Trace 还未完成，前后补一个填充时间
-        start_time = (start_time - cls.TIME_PADDING) * cls.TIME_FIELD_ACCURACY
-        end_time = (end_time + cls.TIME_PADDING) * cls.TIME_FIELD_ACCURACY
+        start_time *= cls.TIME_FIELD_ACCURACY
+        end_time *= cls.TIME_FIELD_ACCURACY
 
         return start_time, end_time
 

@@ -54,6 +54,8 @@ def test_incident_resources_route_remote_api_by_notice_source():
     assert "self.get_remote_analysis_results" in resource_source
     assert "api.bk_incident.get_incident_diagnosis" not in resource_source
     assert "api.bkdata.get_incident_analysis_results" not in resource_source
+    assert '"extracted_info": raw_results["incident_diagnosis"].get("extracted_info", {})' in resource_source
+    assert '"extracted_info": sub_panel.get("extracted_info", {})' in resource_source
 
 
 def test_incident_edit_and_feedback_use_source_routed_api():

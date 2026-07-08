@@ -805,6 +805,26 @@ def bulk_refresh_data_link_status(bkbase_rt_records):
     metrics.report_all()
 
 
+@app.task(ignore_result=True, queue="celery_metadata_task_worker")
+def refresh_data_link_status_by_name(bk_tenant_id: str, data_link_name: str):
+    """
+    定向刷新单条数据链路状态。
+    """
+    bkbase_rt_record = BkBaseResultTable.objects.filter(
+        bk_tenant_id=bk_tenant_id,
+        data_link_name=data_link_name,
+    ).first()
+    if not bkbase_rt_record:
+        logger.warning(
+            "refresh_data_link_status_by_name: data_link_name->[%s],bk_tenant_id->[%s] not found, skip",
+            data_link_name,
+            bk_tenant_id,
+        )
+        return
+
+    _refresh_data_link_status(bkbase_rt_record)
+
+
 def _refresh_data_link_status(bkbase_rt_record: BkBaseResultTable):
     """
     刷新链路状态（各组件状态+整体状态）

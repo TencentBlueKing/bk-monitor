@@ -12,6 +12,7 @@ import logging
 from collections import Counter
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import hashlib
 import json
 import re
 import time
@@ -23,6 +24,7 @@ from rest_framework import serializers, exceptions
 from rest_framework.decorators import api_view
 
 from bkm_space.utils import bk_biz_id_to_space_uid
+from bkmonitor.documents.base import BulkActionType
 from bkmonitor.documents.issue import (
     IssueActivityDocument,
     IssueDocument,
@@ -931,7 +933,7 @@ class ListIssueActivitiesResource(Resource):
         bk_biz_id = validated_request_data["bk_biz_id"]
 
         # 校验 Issue 存在且归属当前业务（单条查询，bk_biz_id 为单个值）
-        IssueDocument.get_issue_or_raise(issue_id, bk_biz_id=bk_biz_id)
+        issue = IssueDocument.get_issue_or_raise(issue_id, bk_biz_id=bk_biz_id)
 
         # 查询该 Issue 的全部活动日志，按时间降序排列（最近发生的在前）
         # 使用 all_indices=True 避免跨天漏查（活动日志与 Issue 可能跨天）
@@ -941,21 +943,102 @@ class ListIssueActivitiesResource(Resource):
             .sort("-time")
             .params(size=500)
         )
-        hits = search.execute().hits
+        hits = list(search.execute().hits)
+        repair_activity = self._repair_missing_resolved_activity(issue, hits)
+        if repair_activity:
+            hits.append(repair_activity)
+            hits.sort(key=lambda activity: int(activity.time) if activity.time else 0, reverse=True)
 
-        return [
-            {
-                "bk_biz_id": hit.bk_biz_id,
-                "activity_id": hit.meta.id,
-                "activity_type": hit.activity_type,
-                "operator": hit.operator or "",
-                "from_value": getattr(hit, "from_value", None) or None,
-                "to_value": getattr(hit, "to_value", None) or None,
-                "content": getattr(hit, "content", None) or None,
-                "time": int(hit.time) if hit.time else 0,
-            }
-            for hit in hits
-        ]
+        return [self._format_activity(hit) for hit in hits]
+
+    @classmethod
+    def _format_activity(cls, activity) -> dict:
+        activity_id = getattr(getattr(activity, "meta", None), "id", None) or getattr(activity, "id", "")
+        return {
+            "bk_biz_id": activity.bk_biz_id,
+            "activity_id": activity_id,
+            "activity_type": activity.activity_type,
+            "operator": activity.operator or "",
+            "from_value": getattr(activity, "from_value", None) or None,
+            "to_value": getattr(activity, "to_value", None) or None,
+            "content": getattr(activity, "content", None) or None,
+            "time": int(activity.time) if activity.time else 0,
+        }
+
+    @classmethod
+    def _repair_missing_resolved_activity(cls, issue: IssueDocument, hits: list) -> IssueActivityDocument | None:
+        if issue.status != IssueStatus.RESOLVED or not getattr(issue, "resolved_time", None):
+            return None
+
+        for hit in hits:
+            if (
+                hit.activity_type == IssueActivityType.STATUS_CHANGE
+                and getattr(hit, "to_value", None) == IssueStatus.RESOLVED
+            ):
+                return None
+        if cls._resolved_activity_exists(issue.id):
+            return None
+
+        from_value = None
+        for hit in hits:
+            if hit.activity_type != IssueActivityType.STATUS_CHANGE:
+                continue
+            to_value = getattr(hit, "to_value", None)
+            if to_value in IssueStatus.ACTIVE_STATUSES:
+                from_value = to_value
+                break
+
+        now = int(issue.resolved_time)
+        activity_id = cls._make_resolved_repair_activity_id(issue)
+        activity = IssueActivityDocument(
+            id=activity_id,
+            issue_id=issue.id,
+            bk_biz_id=issue.bk_biz_id,
+            activity_type=IssueActivityType.STATUS_CHANGE,
+            from_value=from_value,
+            to_value=IssueStatus.RESOLVED,
+            operator="system",
+            content=json.dumps({"repair_source": "list_issue_activities"}, ensure_ascii=False),
+            time=now,
+            create_time=now,
+        )
+        try:
+            IssueActivityDocument.bulk_create([activity], action=BulkActionType.UPSERT)
+        except Exception as e:
+            logger.warning(
+                "IssueActivityDocument resolved activity repair failed, issue_id=%s: %s",
+                issue.id,
+                e,
+            )
+            return None
+        return activity
+
+    @classmethod
+    def _resolved_activity_exists(cls, issue_id: str) -> bool:
+        try:
+            hits = (
+                IssueActivityDocument.search(all_indices=True)
+                .filter("term", issue_id=issue_id)
+                .filter("term", activity_type=IssueActivityType.STATUS_CHANGE)
+                .filter("term", to_value=IssueStatus.RESOLVED)
+                .params(size=1)
+                .execute()
+                .hits
+            )
+        except Exception as e:
+            logger.warning(
+                "IssueActivityDocument resolved activity existence check failed, issue_id=%s: %s",
+                issue_id,
+                e,
+            )
+            return True
+        return bool(hits)
+
+    @classmethod
+    def _make_resolved_repair_activity_id(cls, issue: IssueDocument) -> str:
+        resolved_time = int(issue.resolved_time)
+        digest = hashlib.sha256(f"{issue.id}:{IssueStatus.RESOLVED}:{resolved_time}".encode()).hexdigest()[:8]
+        return f"{resolved_time}{digest}"
 
 
 class ListIssueHistoryResource(Resource):
