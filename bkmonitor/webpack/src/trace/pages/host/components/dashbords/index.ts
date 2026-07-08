@@ -27,8 +27,7 @@
 export { default as DashboardPanel } from './components/dashboard-panel';
 export { useDashboardPanels } from './composables/use-dashboard-panels';
 export { createGraphApi } from './services/graph-api';
-export { buildScopedVars } from './variables/resolve';
-
-export type { GraphApi } from './services/graph-api';
 export type { DashboardRow } from './typings/dashboard';
+
+export { buildScopedVars } from './variables/resolve';
 export type { ScopedVarMap } from './variables/resolve';

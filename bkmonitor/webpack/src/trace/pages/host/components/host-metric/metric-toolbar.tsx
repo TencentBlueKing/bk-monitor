@@ -38,13 +38,17 @@ import {
   TIME_SHIFT_OPTIONS,
 } from '../../constants/aggregation';
 
-import type { CompareTargetOption, MetricAggregationState } from '../../types/aggregation';
+import type { CompareTargetOption, MetricAggregationState, MetricCompareType } from '../../types/aggregation';
 
 import './metric-toolbar.scss';
 
 export default defineComponent({
   name: 'MetricToolbar',
   props: {
+    compareListEnable: {
+      type: Array as PropType<MetricCompareType[]>,
+      default: () => ['none', 'target', 'time'],
+    },
     /** Toolbar 当前状态（受控） */
     value: {
       type: Object as PropType<MetricAggregationState>,
@@ -84,6 +88,11 @@ export default defineComponent({
       </div>
     );
 
+    /** 对比方式列表 */
+    const compareTypeOptions = computed(() =>
+      COMPARE_TYPE_OPTIONS.filter(item => props.compareListEnable.includes(item.id))
+    );
+
     const renderCompareExtra = () => {
       if (props.value.compareType === 'target') {
         return (
@@ -92,6 +101,7 @@ export default defineComponent({
             <span class='metric-toolbar__vs'>VS</span>
             <Select
               class='metric-toolbar__target-select'
+              behavior='simplicity'
               modelValue={props.value.compareTargets}
               multipleMode='tag'
               placeholder={t('选择目标')}
@@ -115,6 +125,7 @@ export default defineComponent({
         return (
           <Select
             class='metric-toolbar__time-select'
+            behavior='simplicity'
             modelValue={props.value.timeShift}
             multipleMode='tag'
             placeholder={t('选择时间')}
@@ -180,7 +191,7 @@ export default defineComponent({
               modelValue={props.value.compareType}
               onChange={(v: MetricAggregationState['compareType']) => emit('change', { compareType: v })}
             >
-              {COMPARE_TYPE_OPTIONS.map(item => (
+              {compareTypeOptions.value.map(item => (
                 <Select.Option
                   id={item.id}
                   key={item.id}

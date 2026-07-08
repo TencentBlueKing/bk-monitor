@@ -24,14 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, defineComponent, shallowRef } from 'vue';
 
 import { Exception } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import DashboardRow from './dashboard-row';
 
-import type { GraphApi } from '../services/graph-api';
 import type { DashboardRow as DashboardRowModel } from '../typings/dashboard';
 import type { ScopedVarMap } from '../variables/resolve';
 
@@ -55,24 +54,24 @@ export default defineComponent({
       type: Object as PropType<ScopedVarMap>,
       default: () => ({}),
     },
-    /** 取数 API */
-    api: {
-      type: Object as PropType<GraphApi>,
-      required: true,
-    },
   },
   setup(props) {
     const { t } = useI18n();
+    const height = shallowRef(240);
+
     return () =>
       props.rows.length ? (
         <div class='dashboard-panel'>
           {props.rows.map(row => (
             <DashboardRow
               key={row.id}
-              api={props.api}
+              height={height.value}
               columns={props.columns}
               row={row}
               scopedVars={props.scopedVars}
+              onResize={val => {
+                height.value = val;
+              }}
             />
           ))}
         </div>

@@ -171,7 +171,9 @@ export interface IMarkPointConfig {
 export interface IMarkPointDataItem {
   name?: string;
   symbol?: string;
+  symbolRotate?: number;
   symbolSize?: number;
+  type?: 'average' | 'max' | 'min';
   xAxis?: number | string;
   yAxis?: number | string;
   itemStyle?: {
@@ -180,6 +182,13 @@ export interface IMarkPointDataItem {
     color?: string;
     opacity?: number;
     shadowBlur?: number;
+  };
+  label?: {
+    formatter?: (v: any) => string;
+    offset?: number[];
+    position?: string;
+    rich?: Record<string, any>;
+    show?: boolean;
   };
 }
 

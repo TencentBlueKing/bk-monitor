@@ -78,7 +78,7 @@ export default defineComponent({
         case 'metric':
         case 'system':
           // 指标汇聚（topo）与系统指标（host）视觉一致，复用同一组件
-          return <HostMetric />;
+          return <HostMetric selectedNode={props.selectedNode} />;
         case 'process':
           return <HostProcess host={props.selectedNode as IHostTopoHostNode} />;
         default:
