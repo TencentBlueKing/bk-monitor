@@ -28,12 +28,84 @@
 
         .json-text-style {
           height: 100%;
-          color: #c4c6cc;
-          background-color: #313238;
+          color: #dcdcdc;
+          background-color: #1e1e1e;
 
           .vjs-tree {
             height: 100%;
             padding: 20px;
+
+            .vjs-key {
+              color: #88deff;
+            }
+
+            .vjs-value-string {
+              color: #d98e73;
+            }
+
+            .vjs-value-number {
+              color: #abcca0;
+            }
+
+            .vjs-value-boolean {
+              color: #d98e73;
+            }
+
+            .vjs-value-null,
+            .vjs-value-undefined {
+              color: #abcca0;
+            }
+
+            .vjs-indent-unit.has-line {
+              width: 2em;
+              border-color: #404040;
+              border-left-style: solid;
+            }
+
+            .vjs-node-index {
+              color: #757575;
+            }
+
+            .vjs-colon {
+              color: #dcdcdc;
+            }
+
+            .vjs-tree-node {
+              padding-left: 2em;
+
+              &:hover {
+                background-color: rgb(255 255 255 / 5%);
+              }
+            }
+
+            // 括号层级颜色：通过缩进单元总数取模3实现颜色循环
+            // level 0（无缩进）
+            .vjs-tree-node:not(:has(.vjs-indent-unit)) {
+              .vjs-tree-brackets {
+                color: #ffd700;
+              }
+            }
+
+            // 缩进总数 1, 4, 7, 10...（3n + 1）
+            .vjs-tree-node:has(.vjs-indent-unit:nth-of-type(3n + 1):last-of-type) {
+              .vjs-tree-brackets {
+                color: #da70d6;
+              }
+            }
+
+            // 缩进总数 2, 5, 8, 11...（3n + 2）
+            .vjs-tree-node:has(.vjs-indent-unit:nth-of-type(3n + 2):last-of-type) {
+              .vjs-tree-brackets {
+                color: #179fff;
+              }
+            }
+
+            // 缩进总数 3, 6, 9, 12...（3n + 3）
+            .vjs-tree-node:has(.vjs-indent-unit:nth-of-type(3n + 3):last-of-type) {
+              .vjs-tree-brackets {
+                color: #ffd700;
+              }
+            }
           }
         }
       }

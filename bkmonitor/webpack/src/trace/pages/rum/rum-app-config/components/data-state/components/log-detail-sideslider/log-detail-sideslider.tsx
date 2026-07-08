@@ -110,7 +110,7 @@ export default defineComponent({
   render() {
     return (
       <Sideslider
-        width={596}
+        width={800}
         class='rum-origin-log-sideslider'
         isShow={this.isShow}
         quickClose={true}
@@ -133,6 +133,7 @@ export default defineComponent({
                 data={this.log}
                 deep={5}
                 itemHeight={20}
+                showLineNumber={true}
                 virtual={true}
               />
             </div>
