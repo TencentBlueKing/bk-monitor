@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.utils.translation import gettext_lazy as _
 
 from apps.exceptions import BaseException, ErrorCode
@@ -44,15 +44,15 @@ class DesensitizeRuleNameExistException(BaseDesensitizeRuleException):
 
 
 class DesensitizeRuleRegexCompileException(BaseDesensitizeRuleException):
-    ErrorCode = "003"
+    ERROR_CODE = "003"
     MESSAGE = _("脱敏规则(ID [{rule_id}] ): 正则表达式 [{pattern}] 编译失败")
 
 
 class DesensitizeDataErrorException(BaseDesensitizeRuleException):
-    ErrorCode = "004"
+    ERROR_CODE = "004"
     MESSAGE = _("原始日志子对象处理异常: {e}")
 
 
 class DesensitizeRegexDebugNoMatchException(BaseDesensitizeRuleException):
-    ErrorCode = "005"
+    ERROR_CODE = "005"
     MESSAGE = _("正则表达式未匹配目标字符串")
