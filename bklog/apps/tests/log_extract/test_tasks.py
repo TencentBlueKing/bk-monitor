@@ -103,9 +103,9 @@ CREATE_PARAMS_LIST = [
 ]
 CREATE_RESULT = [
     {"result": True},
-    {"result": False, "code": "3626500"},
-    {"result": False, "code": "3626500"},
-    {"result": False, "code": "3626500"},
+    {"result": False, "code": "3626105"},
+    {"result": False, "code": "3626105"},
+    {"result": False, "code": "3626203"},
 ]
 
 
@@ -120,10 +120,7 @@ class TestTasks(TestCase):
         self.tasks = TasksHandler()
         ExtractLink.objects.create(name="test", link_id=1, link_type="common", operator="admin", op_bk_biz_id=1)
 
-    @override_settings(
-        MIDDLEWARE=("apps.tests.middlewares.OverrideMiddleware",),
-        ENABLE_MULTI_TENANT_MODE=False,
-    )
+    @override_settings(MIDDLEWARE=("apps.tests.middlewares.OverrideMiddleware",))
     @patch("apps.decorators.user_operation_record.delay", return_value=None)
     @patch("apps.log_extract.handlers.explorer.ExplorerHandler.get_module_by_ip")
     @patch("apps.log_extract.handlers.tasks.task_service.run_pipeline")
