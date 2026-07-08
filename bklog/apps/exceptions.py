@@ -117,6 +117,13 @@ class LockError(BaseException):
     ERROR_CODE = "006"
 
 
+class UserNotExistsException(BaseException):
+    """用户不存在"""
+
+    ERROR_CODE = "007"
+    MESSAGE = _("用户不存在: {username}")
+
+
 class PermissionError(BaseException):
     MESSAGE = _("权限不足")
     ERROR_CODE = "403"
@@ -159,10 +166,3 @@ class TenantIdNotMatchException(BaseTenantInfoException):
 
     ERROR_CODE = "001"
     MESSAGE = _("您当前的企业空间是【{bk_tenant_id}】，无法访问该链接，请您尝试返回登录页面切换其他企业空间访问。")
-
-
-class UserNotExistsException(BaseTenantInfoException):
-    """用户不存在"""
-
-    ERROR_CODE = "002"
-    MESSAGE = _("用户不存在: {username}")

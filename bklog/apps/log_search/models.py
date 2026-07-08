@@ -38,7 +38,7 @@ from jinja2.sandbox import SandboxedEnvironment as Environment
 
 from apps.api import TransferApi
 from apps.constants import SpacePropertyEnum
-from apps.exceptions import BizNotExistError, SpaceNotExistError
+from apps.exceptions import BizNotExistError
 from apps.feature_toggle.handlers.toggle import feature_switch
 from apps.log_clustering.constants import PatternEnum, YearOnYearEnum
 from apps.log_databus.constants import EsSourceType
@@ -1536,7 +1536,7 @@ class Space(SoftDeleteModel):
         return spaces
 
     @classmethod
-    def get_tenant_id(cls, space_uid: str = "", bk_biz_id: int = 0, is_exception: bool = False) -> str:
+    def get_tenant_id(cls, space_uid: str = "", bk_biz_id: int = 0, is_need_default: bool = True) -> str | None:
         """
         获取空间的租户ID
         """
@@ -1545,16 +1545,16 @@ class Space(SoftDeleteModel):
         if space_uid:
             space = cls.objects.filter(space_uid=space_uid).first()
             if not space:
-                if is_exception:
-                    raise SpaceNotExistError(SpaceNotExistError.MESSAGE.format(space_uid=space_uid))
+                if not is_need_default:
+                    return None
                 return default_tenant_id
             return space.bk_tenant_id
 
         if bk_biz_id:
             space = cls.objects.filter(bk_biz_id=bk_biz_id).first()
             if not space:
-                if is_exception:
-                    raise BizNotExistError(BizNotExistError.MESSAGE.format(bk_biz_id=bk_biz_id))
+                if not is_need_default:
+                    return None
                 return default_tenant_id
             return space.bk_tenant_id
 

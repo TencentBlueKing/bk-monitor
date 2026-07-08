@@ -3,8 +3,8 @@ import json
 from django.utils.deprecation import MiddlewareMixin
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.http import JsonResponse
 
-from apps.exceptions import TenantIdNotMatchException, UserNotExistsException
 from apps.utils.local import get_local_username, get_request_username
 
 
@@ -15,7 +15,7 @@ class TenantValidationMiddleware(MiddlewareMixin):
 
     def process_view(self, request, view_func, view_args, view_kwargs):
         # 非多租户环境不用校验
-        if not settings.ENABLE_MULTI_TENANT_MODE:
+        if settings.ENABLE_MULTI_TENANT_MODE:
             return None
 
         if request.method in {"GET"}:
@@ -30,11 +30,14 @@ class TenantValidationMiddleware(MiddlewareMixin):
         from apps.log_search.models import Space
 
         if bk_biz_id:
-            bk_tenant_id = Space.get_tenant_id(bk_biz_id=bk_biz_id, is_exception=True)
+            bk_tenant_id = Space.get_tenant_id(bk_biz_id=bk_biz_id, is_need_default=False)
         elif space_uid:
-            bk_tenant_id = Space.get_tenant_id(space_uid=space_uid, is_exception=True)
+            bk_tenant_id = Space.get_tenant_id(space_uid=space_uid, is_need_default=False)
         else:
             return None
+
+        if not bk_tenant_id:
+            return self.return_json_response(3600004, f"空间不存在: {space_uid}")
 
         user_model = get_user_model()
         username = get_request_username() or get_local_username()
@@ -42,9 +45,24 @@ class TenantValidationMiddleware(MiddlewareMixin):
         user_obj = user_model.objects.filter(username=username).first()
 
         if not user_obj:
-            raise UserNotExistsException(UserNotExistsException.MESSAGE.format(username=username))
+            return self.return_json_response(3600007, f"用户不存在: {username}")
 
         if user_obj.tenant_id != bk_tenant_id:
-            raise TenantIdNotMatchException(TenantIdNotMatchException.MESSAGE.format(bk_tenant_id=bk_tenant_id))
+            return self.return_json_response(
+                3641001,
+                f"您当前的企业空间是【{bk_tenant_id}】，无法访问该链接，请您尝试返回登录页面切换其他企业空间访问。",
+            )
 
         return None
+
+    @staticmethod
+    def return_json_response(code, message, data=None, result=False):
+        return JsonResponse(
+            {
+                "code": code,
+                "message": message,
+                "data": data,
+                "result": result,
+            },
+            status=200,
+        )
