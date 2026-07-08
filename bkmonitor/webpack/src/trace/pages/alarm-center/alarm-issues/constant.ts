@@ -147,6 +147,7 @@ export const IssueActiveNodeTypeEnum = {
   /** 拆分 */
   SPLIT_FROM: 'split_from',
   TAPD_LINK: 'tapd_link',
+  CREATE_TAPD: 'create_tapd',
 } as const;
 
 /** 影响范围资源类型枚举 */
