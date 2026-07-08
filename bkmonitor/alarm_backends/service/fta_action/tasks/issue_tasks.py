@@ -21,7 +21,7 @@ from alarm_backends.core.cache.cmdb import BusinessManager, SetManager
 from alarm_backends.service.scheduler.app import app
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
-from bkmonitor.documents.issue import IssueDocument
+from bkmonitor.documents.issue import IssueActivityDocument, IssueDocument
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.issue import IssueActivityType, IssueStatus
@@ -885,15 +885,36 @@ def _collect_example_groups(latest_by_issue: dict[str, str], issue_hits) -> tupl
     return by_strategy, by_biz
 
 
-@app.task(ignore_result=True, queue="celery_llm_task", soft_time_limit=60, time_limit=90)
-def generate_issue_llm_title(issue_id: str, bk_biz_id, default_name: str, alert_id: str):
-    """对日志相关告警触发的新建 Issue，用 LLM 总结关联日志生成可读标题。
+def _apply_llm_title(
+    issue_id: str,
+    bk_biz_id,
+    alert_id: str,
+    expected_name: str,
+    apply_regression_prefix: bool,
+    audit_operator: str,
+) -> tuple[str, str]:
+    """LLM 标题生成核心：取关联日志 → 调 LLM → 校验 → CAS 写入 name。
 
-    失败语义：任何环节失败/超时/校验不过 = 静默保留默认名，不重试不入队。
-    标题是体验增强非关键数据；指标按 result label 区分原因。
-    独立队列 celery_llm_task 消费（与通知/周期任务隔离），队列带 TTL 自蒸发兜底。
-    time_limit 硬兜底是必需的：取关联日志的下游实现存在 except BaseException 重试，
-    可能吞掉 soft_time_limit 信号导致软限失效。
+    自动派发（``generate_issue_llm_title``）与运维显式补偿（``regenerate_issue_llm_title``）
+    共用本函数，保证两条路径的取数/校验/写入口径完全一致。
+
+    参数与语义：
+    - expected_name：CAS 期望名。写入前当前 name 必须等于它才写，否则返回 ``name_changed``。
+      自动派发传创建时的默认名（防用户抢先改名）；补偿路径传"读取时的当前名"
+      （允许覆盖上次 LLM 标题，但仍防"读取后到写入前被用户并发改名"）。
+    - apply_regression_prefix：是否给生成标题拼 ``[回归]`` 前缀（由调用方按 issue 回归态决定，
+      不交给 LLM）。自动路径按 default_name 是否以 ``[回归]`` 开头判断，补偿路径按 issue.is_regression。
+    - audit_operator：真实发起人，仅写进 NAME_CHANGE 活动日志的 content 供审计。
+      **rename 的 operator 固定为 ``system``**（自动派发与运维补偿都是系统/LLM 写入）：
+      三态判别（regenerate 里 ``最近 NAME_CHANGE.operator == "system"`` → LLM 改的、可覆盖）
+      依赖它稳定；若把真实运维账号写进 operator，二次补偿会被误判为"用户手工改名"而跳过。
+
+    返回 ``(result, examples_source)``：
+    - result（与 ISSUE_LLM_TITLE_TOTAL.result 取值一致）：
+      ok / shadow_ok / empty_log / ratelimited / timeout / llm_error / invalid_output / name_changed。
+    - examples_source（strategy|biz|static）：few-shot 是否生效及层级；命中限流/取数失败等
+      未走到 resolve_examples 的早退分支时为默认 ``static``。
+    本函数只返回不打点：ISSUE_LLM_TITLE_TOTAL 由调用方按上述二元组统一上报（两路共用观测口径）。
     """
     from alarm_backends.service.fta_action import llm_title
     from bkmonitor.utils.event_related_info import get_alert_relation_info
@@ -903,23 +924,16 @@ def generate_issue_llm_title(issue_id: str, bk_biz_id, default_name: str, alert_
 
     examples_source = "static"
 
-    def _finish(result: str):
-        metrics.ISSUE_LLM_TITLE_TOTAL.labels(
-            bk_biz_id=str(bk_biz_id), result=result, examples_source=examples_source
-        ).inc()
-        metrics.report_all()
-
     try:
         alert = AlertDocument.get(alert_id)
     except Exception:
         logger.warning(
             "[issue][llm_title] get alert failed, keep default name, issue(%s) alert(%s)", issue_id, alert_id
         )
-        _finish("llm_error")
-        return
+        return "llm_error", examples_source
 
     # 关联日志取数：非日志类告警返回空串，天然完成"是否适用"过滤。
-    # 耗时与 LLM 分开打点（observe 先于 _finish 的 report_all，避免样本滞后到下个任务）：
+    # 耗时与 LLM 分开打点（observe 先于 report_all，避免样本滞后到下个任务）：
     # 长尾在日志平台查询侧，阈值分别设。
     fetch_start = time.time()
     relation_info = ""
@@ -934,12 +948,10 @@ def generate_issue_llm_title(issue_id: str, bk_biz_id, default_name: str, alert_
     metrics.ISSUE_LLM_TITLE_STEP_SECONDS.labels(step="fetch_log").observe(time.time() - fetch_start)
     if timed_out:
         logger.warning("[issue][llm_title] soft time limit hit on fetch, issue(%s)", issue_id)
-        _finish("timeout")
-        return
+        return "timeout", examples_source
     if fetch_failed:
         logger.warning("[issue][llm_title] fetch relation info failed, issue(%s) alert(%s)", issue_id, alert_id)
-        _finish("empty_log")
-        return
+        return "empty_log", examples_source
 
     # 关联日志可能是 JSON 字符串（含 log 字段）也可能是原始文本；
     # 合法 JSON 标量/数组（如纯数字日志行）不带 .get，必须先判 dict
@@ -950,18 +962,15 @@ def generate_issue_llm_title(issue_id: str, bk_biz_id, default_name: str, alert_
             # 关联信息无实质内容（如源日志已过期，record 只剩 bklog_link 等纯元数据）：
             # 不据跳转链接 URL 编造泛化标题，按不适用处理保留默认名。
             if not llm_title.relation_info_has_content(parsed):
-                _finish("empty_log")
-                return
+                return "empty_log", examples_source
             log_content = parsed.get("log", relation_info)
     except (TypeError, ValueError):
         pass
     if not isinstance(log_content, str) or not log_content.strip():
-        _finish("empty_log")
-        return
+        return "empty_log", examples_source
 
     if not llm_title.acquire_rate_limit_token(bk_biz_id):
-        _finish("ratelimited")
-        return
+        return "ratelimited", examples_source
 
     template = llm_title.resolve_template(bk_biz_id)
     examples_block, examples_source = llm_title.resolve_examples(alert.strategy_id, bk_biz_id)
@@ -1009,48 +1018,217 @@ def generate_issue_llm_title(issue_id: str, bk_biz_id, default_name: str, alert_
     metrics.ISSUE_LLM_TITLE_STEP_SECONDS.labels(step="llm_call").observe(time.time() - llm_start)
     if timed_out:
         logger.warning("[issue][llm_title] soft time limit hit on llm call, issue(%s)", issue_id)
-        _finish("timeout")
-        return
+        return "timeout", examples_source
     if llm_failed:
-        _finish("llm_error")
-        return
+        return "llm_error", examples_source
 
     title = llm_title.validate_title(raw_title)
     if not title:
-        _finish("invalid_output")
-        return
+        return "invalid_output", examples_source
     # 回归前缀由代码层拼接，不交给 LLM 处理
-    if default_name.startswith("[回归]"):
+    if apply_regression_prefix:
         title = f"[回归] {title}"[: llm_title.TITLE_MAX_LEN]
 
     if getattr(settings, "ISSUE_LLM_TITLE_SHADOW", False):
         # shadow 模式：只生成+打日志+打点，不写 name。默认关闭，需先抽检质量的环境手工开启。
-        logger.info("[issue][llm_title] shadow, issue(%s) default(%s) generated(%s)", issue_id, default_name, title)
-        _finish("shadow_ok")
-        return
+        logger.info("[issue][llm_title] shadow, issue(%s) expected(%s) generated(%s)", issue_id, expected_name, title)
+        return "shadow_ok", examples_source
 
     try:
         issue = IssueDocument.get_issue_or_raise(issue_id, bk_biz_id=safe_int(bk_biz_id))
     except Exception:
         logger.warning("[issue][llm_title] get issue failed, issue(%s)", issue_id)
-        _finish("llm_error")
-        return
-    # CAS：当前 name 已不是创建时的默认名（用户已改名/其他写入），放弃写入。
+        return "llm_error", examples_source
+    # CAS：当前 name 必须等于 expected_name 才写入。
     # 注意这是 search-read + write（ES NRT，refresh 约 1s），存在极窄的误判窗口，
     # best-effort 语义下可接受：误覆盖可由用户再次改名修正，活动日志留痕可审计
-    if issue.name != default_name:
-        _finish("name_changed")
-        return
+    if issue.name != expected_name:
+        return "name_changed", examples_source
     try:
         # enforce_unique=False：同类错误天然生成相同标题，允许重名（实例靠 issue 维度区分），
         # 不被给用户改名用的唯一性约束卡回默认名。详见 IssueDocument.rename。
-        issue.rename(title, operator="system", enforce_unique=False)
+        # operator 固定 system（保证三态判别稳定），真实发起人记入 content 供审计。
+        content = None if audit_operator == "system" else f"llm_title regenerate by {audit_operator}"
+        issue.rename(title, operator="system", enforce_unique=False, content=content)
     except Exception:
         logger.warning("[issue][llm_title] rename failed, issue(%s)", issue_id, exc_info=True)
-        _finish("llm_error")
-        return
+        return "llm_error", examples_source
     logger.info("[issue][llm_title] renamed, issue(%s) -> %s", issue_id, title)
-    _finish("ok")
+    return "ok", examples_source
+
+
+@app.task(ignore_result=True, queue="celery_llm_task", soft_time_limit=60, time_limit=90)
+def generate_issue_llm_title(issue_id: str, bk_biz_id, default_name: str, alert_id: str):
+    """对日志相关告警触发的新建 Issue，用 LLM 总结关联日志生成可读标题。
+
+    失败语义：任何环节失败/超时/校验不过 = 静默保留默认名，不重试不入队。
+    标题是体验增强非关键数据；指标按 result label 区分原因。
+    独立队列 celery_llm_task 消费（与通知/周期任务隔离），队列带 TTL 自蒸发兜底。
+    time_limit 硬兜底是必需的：取关联日志的下游实现存在 except BaseException 重试，
+    可能吞掉 soft_time_limit 信号导致软限失效。
+
+    核心逻辑抽到 ``_apply_llm_title``（与运维显式补偿 ``regenerate_issue_llm_title`` 共用）；
+    本任务保持自动派发语义：expected_name=创建时的默认名（CAS 防用户抢先改名），
+    operator=system，回归前缀按默认名是否以 ``[回归]`` 开头判断。
+    """
+    from core.prometheus import metrics
+
+    result, examples_source = _apply_llm_title(
+        issue_id=issue_id,
+        bk_biz_id=bk_biz_id,
+        alert_id=alert_id,
+        expected_name=default_name,
+        apply_regression_prefix=default_name.startswith("[回归]"),
+        audit_operator="system",
+    )
+    metrics.ISSUE_LLM_TITLE_TOTAL.labels(
+        bk_biz_id=str(bk_biz_id), result=result, examples_source=examples_source
+    ).inc()
+    metrics.report_all()
+
+
+def regenerate_issue_llm_title(issue_id: str, bk_biz_id, *, alert_id: str | None = None, operator: str = "system"):
+    """运维显式补偿：对指定 Issue 重新生成 LLM 标题（同步执行）。
+
+    用于修复"未重命名成功"（LLM 标题任务失败/超时/未派发，Issue 仍是默认名）。
+    与自动派发路径（``generate_issue_llm_title``）的差异：
+
+    - **绕过部署闸门**：不校验业务白名单（``is_llm_title_enabled_for_biz``）与
+      ``ENABLE_ISSUE_LLM_TITLE`` env——本函数是运维显式发起，传了 issue 就代表要重跑；
+      否则未开白名单的业务永远补不了。
+    - **保留业务级限流**：``acquire_rate_limit_token`` 仍在核心函数内生效，防止误传大批量
+      打爆 LLM 网关。
+    - **三态判别**（按当前 name vs 重建的默认名 + 最近一次 NAME_CHANGE 的 operator）：
+        · name == 默认名                          → 未改名，重跑（expected_name=默认名）
+        · name != 默认名 且最近改名 operator=system → LLM 改过，允许覆盖重跑
+          （LLM 可能效果不好；expected_name=当前名，仍防并发用户改名）
+        · name != 默认名 且最近改名为真实用户      → 用户手工改过，跳过（skipped_user_renamed）
+      ``operator`` 入参仅作审计（记入 NAME_CHANGE content），**不会写进 rename operator**——
+      rename operator 恒为 system，否则传真实账号会让下次补偿把自己误判成"用户手工改名"。
+    - **alert_id 可缺省**：不传则现查该 Issue 最新关联告警（日志越新越可能未过期）；查不到
+      返回 no_alert。
+
+    返回 ``{issue_id, bk_biz_id, result, old_name, new_name}``，result 取值为核心函数 label
+    或 ``skipped_user_renamed`` / ``no_alert`` / ``not_found``。同样打 ISSUE_LLM_TITLE_TOTAL
+    指标（result 复用，运维路径与自动路径共用观测面）。
+    """
+    from alarm_backends.service.fta_action.issue_processor import build_issue_default_name
+    from core.prometheus import metrics
+
+    biz_id_int = safe_int(bk_biz_id)
+
+    def _record(result: str, old_name: str | None = None, new_name: str | None = None):
+        metrics.ISSUE_LLM_TITLE_TOTAL.labels(
+            bk_biz_id=str(bk_biz_id), result=result, examples_source="static"
+        ).inc()
+        metrics.report_all()
+        return {
+            "issue_id": issue_id,
+            "bk_biz_id": bk_biz_id,
+            "result": result,
+            "old_name": old_name,
+            "new_name": new_name,
+        }
+
+    # Step 1: 取 Issue，重建默认名判别是否已改名
+    try:
+        issue = IssueDocument.get_issue_or_raise(issue_id, bk_biz_id=biz_id_int)
+    except Exception:
+        logger.warning("[issue][llm_title] regenerate: issue not found, issue(%s)", issue_id)
+        return _record("not_found")
+
+    current_name = issue.name or ""
+    dimension_values = issue.dimension_values
+    if hasattr(dimension_values, "to_dict"):
+        dimension_values = dimension_values.to_dict()
+    is_regression = bool(issue.is_regression)
+    default_name = build_issue_default_name(issue.strategy_name or "", dict(dimension_values or {}), is_regression)
+
+    if current_name != default_name:
+        # 已改名：区分 LLM 改的（可覆盖）与用户改的（跳过）
+        if not _latest_name_change_by_system(issue_id):
+            logger.info(
+                "[issue][llm_title] regenerate: skip user-renamed issue(%s) name(%s)", issue_id, current_name
+            )
+            return _record("skipped_user_renamed", old_name=current_name)
+
+    # Step 2: alert_id 缺省则现查最新关联告警
+    if not alert_id:
+        alert_id = _latest_alert_id_for_issue(issue_id)
+        if not alert_id:
+            logger.warning("[issue][llm_title] regenerate: no associated alert, issue(%s)", issue_id)
+            return _record("no_alert", old_name=current_name)
+
+    # Step 3: 调核心（绕闸门、保留限流）。expected_name=当前名：
+    # 未改名时即默认名，LLM 改过时即上次标题——都允许写，仍防并发用户改名。
+    result, examples_source = _apply_llm_title(
+        issue_id=issue_id,
+        bk_biz_id=bk_biz_id,
+        alert_id=alert_id,
+        expected_name=current_name,
+        apply_regression_prefix=is_regression,
+        audit_operator=operator,
+    )
+    metrics.ISSUE_LLM_TITLE_TOTAL.labels(
+        bk_biz_id=str(bk_biz_id), result=result, examples_source=examples_source
+    ).inc()
+    metrics.report_all()
+
+    new_name = None
+    if result == "ok":
+        try:
+            new_name = IssueDocument.get_issue_or_raise(issue_id, bk_biz_id=biz_id_int).name
+        except Exception:
+            pass
+    return {
+        "issue_id": issue_id,
+        "bk_biz_id": bk_biz_id,
+        "result": result,
+        "old_name": current_name,
+        "new_name": new_name,
+    }
+
+
+def _latest_name_change_by_system(issue_id: str) -> bool:
+    """最近一次 NAME_CHANGE 活动的 operator 是否为 system。
+
+    True  → 最近改名是 LLM/系统所为（补偿可覆盖）；
+    False → 最近改名是真实用户，或查不到 NAME_CHANGE 记录（保守起见按用户处理，跳过）。
+    查询失败按 False 兜底（宁可跳过也不误覆盖用户标题）。
+    """
+    try:
+        hits = (
+            IssueActivityDocument.search(all_indices=True)
+            .filter("term", issue_id=issue_id)
+            .filter("term", activity_type=IssueActivityType.NAME_CHANGE)
+            .sort("-time")
+            .params(size=1)
+            .execute()
+            .hits
+        )
+    except Exception:
+        logger.warning("[issue][llm_title] regenerate: query name_change failed, issue(%s)", issue_id, exc_info=True)
+        return False
+    if not hits:
+        return False
+    return (getattr(hits[0], "operator", "") or "") == "system"
+
+
+def _latest_alert_id_for_issue(issue_id: str) -> str | None:
+    """查该 Issue 最新关联告警 id（按 begin_time 降序取 1 条），无则 None。"""
+    try:
+        hits = (
+            AlertDocument.search(all_indices=True)
+            .filter("term", issue_id=issue_id)
+            .sort("-begin_time")
+            .params(size=1)
+            .execute()
+            .hits
+        )
+    except Exception:
+        logger.warning("[issue][llm_title] regenerate: query latest alert failed, issue(%s)", issue_id, exc_info=True)
+        return None
+    return hits[0].meta.id if hits else None
 
 
 @app.task(ignore_result=True, queue="celery_action_cron")
