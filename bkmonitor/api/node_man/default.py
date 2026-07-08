@@ -17,6 +17,7 @@ from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.commons.tools import batch_request
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.request import get_request_username
+from bkmonitor.utils.serializers import TenantIdField
 from bkmonitor.utils.user import get_admin_username
 from constants.cmdb import TargetNodeType
 from core.drf_resource import APIResource
@@ -828,6 +829,7 @@ class FetchSubscriptionStatistic(NodeManAPIGWResource):
 
 class BatchTaskResultResource(Resource):
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(required=True, label="租户ID", prefer_request_tenant=False)
         subscription_id = serializers.IntegerField(required=True, label="订阅配置id")
         task_id_list = serializers.ListField(required=False, label="任务id列表")
         need_detail = serializers.BooleanField(default=False, label="是否需要详细log")
