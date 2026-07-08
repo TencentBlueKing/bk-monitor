@@ -27,8 +27,11 @@
 .data-volume-trend {
   width: 100%;
 
+  /** 图表卡片统一高度 */
+  $chart-card-height: 296px;
+
   %data-volume-trend-chart-item {
-    height: 296px;
+    height: $chart-card-height;
     border: 1px solid #0000;
     border-radius: 2px;
     box-shadow: 0 2px 4px 0 #1919290d;
@@ -72,5 +75,12 @@
         }
       }
     }
+  }
+
+  .data-volume-trend-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: $chart-card-height;
   }
 }

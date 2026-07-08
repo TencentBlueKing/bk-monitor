@@ -26,6 +26,7 @@
 
 import { type PropType, defineComponent, provide, toRef } from 'vue';
 
+import EmptyStatus from '../../../../../../../components/empty-status/empty-status';
 import { DEFAULT_TIME_RANGE } from '../../../../../../../components/time-range/utils';
 import AlarmMetricsDashboard from '../../../../../../alarm-center/components/alarm-metrics-dashboard/alarm-metrics-dashboard';
 
@@ -34,6 +35,23 @@ import type { IDataQuery } from '../../../../../../../plugins/typings';
 import type { IPanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import './data-volume-trend.scss';
+
+/** 图表格式化数据 */
+interface IChartData {
+  [key: string]: any;
+  query_config?: IDataQuery[];
+  series: IChartSeriesItem[];
+}
+
+/** 图表数据项 */
+interface IChartSeriesItem {
+  [key: string]: any;
+  alias?: string;
+  target: string;
+}
+
+/** 图表默认列数 */
+const DEFAULT_GRID_COL = 2;
 
 export default defineComponent({
   name: 'DataVolumeTrend',
@@ -55,14 +73,13 @@ export default defineComponent({
     },
   },
   setup(props) {
-    /** 图表列数 */
-    const gridCol = 2;
     /** 注入时间范围给图表组件使用 */
     provide('timeRange', toRef(props, 'timeRange'));
+
     /**
      * @description 格式化图表数据
      */
-    const formatterData = (data: any, target: IDataQuery) => {
+    const formatterData = (data: IChartData, target: IDataQuery) => {
       return {
         ...data,
         query_config: data?.query_config || target.data,
@@ -72,34 +89,50 @@ export default defineComponent({
         })),
       };
     };
-    return { gridCol, formatterData };
+
+    /** 渲染骨架屏 */
+    const renderSkeleton = () => (
+      <div class='data-volume-trend-skeleton'>
+        {['minute-data', 'daily-data'].map(key => (
+          <div
+            key={key}
+            class='data-volume-trend-skeleton-item skeleton-element'
+          />
+        ))}
+      </div>
+    );
+
+    /** 渲染空状态 */
+    const renderEmpty = () => (
+      <div class='data-volume-trend-empty'>
+        <EmptyStatus type='empty' />
+      </div>
+    );
+
+    /** 渲染数据面板 */
+    const renderDashboard = () => (
+      <div class='data-volume-trend-content'>
+        <AlarmMetricsDashboard
+          class='data-volume-trend-dashboard'
+          customOptions={{
+            formatterData,
+          }}
+          gridCol={DEFAULT_GRID_COL}
+          panelModels={props.dashboardPanels}
+          showHeader={false}
+        />
+      </div>
+    );
+    return { renderSkeleton, renderEmpty, renderDashboard };
   },
   render() {
     return (
       <div class='data-volume-trend'>
-        {/* 加载中 - 骨架屏 */}
-        {this.loading ? (
-          <div class='data-volume-trend-skeleton'>
-            {['minute-data', 'daily-data'].map(key => (
-              <div
-                key={key}
-                class='data-volume-trend-skeleton-item skeleton-element'
-              />
-            ))}
-          </div>
-        ) : (
-          <div class='data-volume-trend-content'>
-            <AlarmMetricsDashboard
-              class='data-volume-trend-dashboard'
-              customOptions={{
-                formatterData: this.formatterData,
-              }}
-              gridCol={this.gridCol}
-              panelModels={this.dashboardPanels}
-              showHeader={false}
-            />
-          </div>
-        )}
+        {this.loading
+          ? this.renderSkeleton()
+          : this.dashboardPanels.length === 0
+            ? this.renderEmpty()
+            : this.renderDashboard()}
       </div>
     );
   },

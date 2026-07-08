@@ -113,3 +113,4 @@ monitor-alarm-center
 .agents/**
 skills-lock.json
 AGENTS.md
+.opencode/
