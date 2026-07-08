@@ -515,6 +515,12 @@ const getSceneExport = {
   method: 'post',
 };
 
+/** 场景化检索 - 字段值联想 */
+const listSceneFieldCandidates = {
+  url: '/search/scene/list_field_candidates/',
+  method: 'post',
+};
+
 /** 场景化检索 - 全文下载 */
 const getSceneAsyncExport = {
   url: '/search/scene/export/async/',
@@ -645,4 +651,5 @@ export {
   sceneUpdateConfig,
   sceneDeleteConfig,
   sceneApplyFieldsConfig,
+  listSceneFieldCandidates,
 };
