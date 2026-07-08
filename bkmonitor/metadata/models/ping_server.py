@@ -38,16 +38,26 @@ class PingServerSubscriptionConfig(models.Model):
     bk_cloud_id = models.IntegerField(verbose_name="云区域ID")
     ip = models.CharField(verbose_name="IP地址", default="", blank=True, max_length=32)
     bk_host_id = models.IntegerField(verbose_name="主机ID", default=None, null=True, db_index=True)
+    bk_biz_id = models.IntegerField(verbose_name="业务ID", default=0, db_index=True)
     config = JsonField(verbose_name="订阅配置")
     plugin_name = models.CharField(verbose_name="插件名称", default="bkmonitorproxy", max_length=32)
 
     class Meta:
         verbose_name = "PingServer下发订阅配置"
         verbose_name_plural = "PingServer下发订阅配置"
-        unique_together = (("bk_host_id", "bk_cloud_id", "ip", "plugin_name", "bk_tenant_id"),)
+        unique_together = (("bk_host_id", "bk_cloud_id", "ip", "plugin_name", "bk_tenant_id", "bk_biz_id"),)
 
     @classmethod
-    def create_subscription(cls, bk_tenant_id: str, bk_cloud_id: int, items, target_hosts, plugin_name: str):
+    def create_subscription(
+        cls,
+        bk_tenant_id: str,
+        bk_cloud_id: int,
+        items,
+        target_hosts,
+        plugin_name: str,
+        bk_biz_id: int | None = None,
+        bk_data_id: int | None = None,
+    ):
         """
         创建或更新PingServer订阅配置
         :param bk_tenant_id: 租户ID
@@ -55,16 +65,24 @@ class PingServerSubscriptionConfig(models.Model):
         :param items: 订阅配置
         :param target_hosts: 目标主机列表
         :param plugin_name: 插件名称
+        :param bk_biz_id: 多租户目标业务ID，单租户为空时使用Proxy所属业务刷新记录
+        :param bk_data_id: Ping Server 上报 DataID，单租户默认使用 settings.PING_SERVER_DATAID
         """
+        bk_data_id = bk_data_id or settings.PING_SERVER_DATAID
         logger.info(
-            "update or create ping server subscription task, bk_cloud_id(%s), target_hosts(%s), plugin(%s)",
+            "update or create ping server subscription task, bk_cloud_id(%s), target_hosts(%s), plugin(%s), "
+            "bk_biz_id(%s), bk_data_id(%s)",
             bk_cloud_id,
             target_hosts,
             plugin_name,
+            bk_biz_id,
+            bk_data_id,
         )
         configs = PingServerSubscriptionConfig.objects.filter(
             bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id, plugin_name=plugin_name
         )
+        if bk_biz_id is not None:
+            configs = configs.filter(bk_biz_id=bk_biz_id)
         config_ips = [config.ip for config in configs if not config.bk_host_id and config.ip]
         ip_hosts = api.cmdb.get_host_without_biz(bk_tenant_id=bk_tenant_id, ips=config_ips, bk_cloud_ids=[bk_cloud_id])[
             "hosts"
@@ -81,8 +99,9 @@ class PingServerSubscriptionConfig(models.Model):
 
         for host in target_hosts:
             bk_host_id = host["bk_host_id"]
-            bk_biz_id = host["bk_biz_id"]
-            ip = host["ipv6"] if is_ipv6_biz(bk_biz_id) else host["ip"]
+            proxy_bk_biz_id = host["bk_biz_id"]
+            record_bk_biz_id = bk_biz_id if bk_biz_id is not None else proxy_bk_biz_id
+            ip = host["ipv6"] if is_ipv6_biz(proxy_bk_biz_id) else host["ip"]
             scope = {"object_type": "HOST", "node_type": "INSTANCE", "nodes": [{"bk_host_id": bk_host_id}]}
             subscription_params = {
                 "scope": scope,
@@ -97,18 +116,18 @@ class PingServerSubscriptionConfig(models.Model):
                         },
                         "params": {
                             "context": {
-                                "dataid": settings.PING_SERVER_DATAID,
+                                "dataid": bk_data_id,
                                 "period": DEFAULT_DATA_REPORT_INTERVAL,
                                 "total_num": DEFAULT_EXEC_TOTAL_NUM,
                                 "max_batch_size": DEFAULT_MAX_BATCH_SIZE,
                                 "ping_size": DEFAULT_PING_SIZE,
                                 "ping_timeout": DEFAULT_PING_TIMEOUT,
                                 "server_ip": "{{ cmdb_instance.host.bk_host_innerip_v6 }}"
-                                if is_ipv6_biz(bk_biz_id)
+                                if is_ipv6_biz(proxy_bk_biz_id)
                                 else "{{ cmdb_instance.host.bk_host_innerip }}",
                                 "server_host_id": "{{ cmdb_instance.host.bk_host_id }}",
                                 "server_cloud_id": bk_cloud_id,
-                                "ip_to_items": {bk_host_id: items[bk_host_id]},
+                                "ip_to_items": {bk_host_id: items.get(bk_host_id, [])},
                             }
                         },
                     }
@@ -121,6 +140,9 @@ class PingServerSubscriptionConfig(models.Model):
             if config and not config.bk_host_id:
                 config.bk_host_id = bk_host_id
                 config.save()
+            if config and config.bk_biz_id != record_bk_biz_id:
+                config.bk_biz_id = record_bk_biz_id
+                config.save(update_fields=["bk_biz_id"])
 
             if config:
                 try:
@@ -152,6 +174,7 @@ class PingServerSubscriptionConfig(models.Model):
                     PingServerSubscriptionConfig.objects.create(
                         bk_tenant_id=bk_tenant_id,
                         bk_cloud_id=bk_cloud_id,
+                        bk_biz_id=record_bk_biz_id,
                         bk_host_id=bk_host_id,
                         config=subscription_params,
                         ip=ip,

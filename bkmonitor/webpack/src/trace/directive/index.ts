@@ -26,13 +26,13 @@
 
 import type { App } from 'vue';
 
+import { BkXssFilterDirective } from '@blueking/xss-filter';
 import { bkTooltips, clickoutside } from 'bkui-vue';
 import { directive } from 'vue-tippy';
 
 import authority from './authority';
 import overflowTips from './overflow-tips';
 import watermark from './watermark';
-import { BkXssFilterDirective } from '@blueking/xss-filter';
 
 const directives: Record<string, any> = {
   // 指令对象

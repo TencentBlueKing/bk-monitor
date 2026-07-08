@@ -121,8 +121,20 @@ export default defineComponent({
         let transformTargets = e?.targets;
         if (transformTargets?.length) {
           const [startTime, endTime] = handleTransformToTimestamp(get(timeRange));
+          // 日数据量图表时间范围修正逻辑（与 APM time-series.tsx 保持一致）
+          let adjustedStartTime = startTime;
+          let adjustedEndTime = endTime;
+          let shouldAddDayTimeRange = false;
+          if (e.options?.collect_interval_display === '1d') {
+            shouldAddDayTimeRange = true;
+            const weekTime = 7 * 24 * 60 * 60;
+            if (adjustedEndTime - adjustedStartTime < weekTime) {
+              adjustedStartTime = adjustedEndTime - weekTime;
+            }
+            adjustedEndTime = adjustedEndTime + 24 * 60 * 60;
+          }
           const rawInterval = props.viewOptions?.interval;
-          const computedDownSampleRange = downSampleRangeComputed([startTime, endTime]);
+          const computedDownSampleRange = downSampleRangeComputed([adjustedStartTime, adjustedEndTime]);
           // eslint-disable-next-line @typescript-eslint/naming-convention
           let down_sample_range: string;
           let interval: number | string;
@@ -153,6 +165,8 @@ export default defineComponent({
                   interval,
                   interval_second: intervalSecond,
                 }),
+                // 日数据量图表：追加修正后的时间范围（与 APM time-series.tsx 保持一致）
+                ...(shouldAddDayTimeRange ? { start_time: adjustedStartTime, end_time: adjustedEndTime } : {}),
                 ...(shouldPassDownSampleRange ? { down_sample_range } : {}),
               },
             };

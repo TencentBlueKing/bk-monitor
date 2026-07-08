@@ -28,6 +28,7 @@ class BkCollectorComp:
     CONFIG_MAP_REPORT_V2_TPL_NAME = "bk-collector-report-v2.conf.tpl"
     CONFIG_MAP_NAME_MAP = {
         "apm": CONFIG_MAP_APPLICATION_TPL_NAME,
+        "rum": CONFIG_MAP_APPLICATION_TPL_NAME,
         "json": CONFIG_MAP_REPORT_V2_TPL_NAME,
         "prometheus": CONFIG_MAP_APPLICATION_TPL_NAME,
         "log": CONFIG_MAP_APPLICATION_TPL_NAME,
@@ -47,6 +48,12 @@ class BkCollectorComp:
             "secret_data_key_tpl": "application-{}.conf",
             "secret_hash_ring_bucket_count": 20,  # 这个数值不能随意变动，如需变更，需先清理所有apm的secrets再重新下发
             "secret_extra_label": "type=subconfig,source=apm",
+        },
+        "rum": {
+            "secret_hash_ring_bucket_name_tpl": "bk-collector-subconfig-rum-{}-{}",
+            "secret_data_key_tpl": "application-{}.conf",
+            "secret_hash_ring_bucket_count": 20,  # 这个数值不能随意变动，如需变更，需先清理所有 rum 的 secrets 再重新下发
+            "secret_extra_label": "type=subconfig,source=rum",
         },
         "json": {
             "secret_hash_ring_bucket_name_tpl": "bk-collector-subconfig-json-{}-{}",

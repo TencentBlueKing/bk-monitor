@@ -1,10 +1,12 @@
 .common-header-comp {
   display: flex;
   height: 52px;
-  background: #ffffff;
+  background: #fff;
   box-shadow: 0 3px 4px 0 #0000000a;
 
   .header-left {
+    display: flex;
+    align-items: center;
     margin-right: auto;
   }
 

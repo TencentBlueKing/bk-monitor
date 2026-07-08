@@ -13,7 +13,7 @@ import pytest
 from metadata import models
 from metadata.health_check import get_bkdata_status
 from metadata.models.data_link.constants import DataLinkResourceStatus
-from metadata.task.tasks import _refresh_data_link_status
+from metadata.task.tasks import _refresh_data_link_status, refresh_data_link_status_by_name
 
 
 @pytest.fixture
@@ -79,6 +79,18 @@ def test_refresh_data_link_status(create_or_delete_records):
     assert models.VMStorageBindingConfig.objects.get(name=bkbase_rt_name).status == "Failed"
     assert models.DataBusConfig.objects.get(name=bkbase_rt_name).status == "Failed"
     assert models.BkBaseResultTable.objects.get(data_link_name=data_link_name).status == "Pending"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_refresh_data_link_status_by_name_refreshes_target_record(create_or_delete_records, mocker):
+    refresh = mocker.patch("metadata.task.tasks._refresh_data_link_status")
+
+    refresh_data_link_status_by_name("system", "bkm_test_data_link")
+
+    refresh.assert_called_once()
+    bkbase_rt_record = refresh.call_args.args[0]
+    assert bkbase_rt_record.bk_tenant_id == "system"
+    assert bkbase_rt_record.data_link_name == "bkm_test_data_link"
 
 
 @pytest.fixture

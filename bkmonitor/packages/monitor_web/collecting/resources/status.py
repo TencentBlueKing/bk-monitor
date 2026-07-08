@@ -157,7 +157,9 @@ class CollectTargetStatusTopoResource(Resource):
         # 获取结果表配置
         if collect_config.plugin.is_split_measurement:
             db_name = f"{collect_config.plugin.plugin_type}_{collect_config.plugin.plugin_id}".lower()
-            group_result = api.metadata.query_time_series_group(bk_biz_id=0, time_series_group_name=db_name)
+            group_result = api.metadata.query_time_series_group(
+                bk_tenant_id=collect_config.bk_tenant_id, time_series_group_name=db_name
+            )
             result_tables = [ResultTable.time_series_group_to_result_table(group_result)]
         else:
             if collect_config.plugin.plugin_type == PluginType.PROCESS:

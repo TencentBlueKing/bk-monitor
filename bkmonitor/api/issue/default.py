@@ -104,3 +104,10 @@ class SplitResource(IssueAPIResource):
 
     action = "/app/issue/split/"
     method = "POST"
+
+
+class RegenerateTitleResource(IssueAPIResource):
+    """批量重跑 Issue LLM 标题（运维显式补偿，最多 5 个，同步）"""
+
+    action = "/app/issue/regenerate_title/"
+    method = "POST"

@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import enum
+
 from django.conf import settings
 from django.utils.translation import gettext as _
 
@@ -726,6 +728,42 @@ CONDITIONS_REQ = [
     {"key": "tags.tnm_attr_id", "method": "neq", "value": EXCLUDE_IDS, "condition": "and"},
     {"key": "alert_name", "method": "neq", "value": ["Ping告警", "上报超时告警", "服务器系统时间偏移告警"]},
 ]
+
+
+class TapdOAuthScope(str, enum.Enum):
+    """TAPD OAuth 授权 scope"""
+
+    STORY_READ = "story#read"
+    STORY_WRITE = "story#write"
+    STORY_UPDATE = "story#update"
+    STORY_DELETE = "story#delete"
+
+    BUG_READ = "bug#read"
+    BUG_WRITE = "bug#write"
+    BUG_UPDATE = "bug#update"
+    BUG_DELETE = "bug#delete"
+
+    TASK_READ = "task#read"
+    TASK_WRITE = "task#write"
+    TASK_UPDATE = "task#update"
+    TASK_DELETE = "task#delete"
+
+    @classmethod
+    def full(cls) -> str:
+        """返回完整 scope 字符串（包含所有权限）"""
+        return " ".join(s.value for s in cls)
+
+    @classmethod
+    def issue_user_oauth(cls) -> str:
+        """返回用户态 Issue-TAPD OAuth 所需 scope。"""
+        return " ".join(
+            [
+                cls.STORY_READ.value,
+                cls.STORY_WRITE.value,
+                cls.BUG_READ.value,
+                cls.BUG_WRITE.value,
+            ]
+        )
 
 
 class TapdOauthEndpoint:

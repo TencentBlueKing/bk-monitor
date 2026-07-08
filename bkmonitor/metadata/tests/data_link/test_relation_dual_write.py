@@ -11,8 +11,10 @@ specific language governing permissions and limitations under the License.
 import pytest
 
 from metadata import models
+from metadata.config import DATABASE_CONNECTION_NAME
 from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.data_link import DataLink
+from metadata.models.data_link.data_link import GRAPH_RELATION_STATUS_REFRESH_COUNTDOWN
 from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.data_link.data_link_configs import (
     DataBusConfig,
@@ -27,6 +29,11 @@ from metadata.models.storage import StorageClusterRecord, SurrealDBStorage
 from metadata.models.space.constants import EtlConfigs
 
 pytestmark = pytest.mark.django_db(databases="__all__")
+
+
+@pytest.fixture(autouse=True)
+def enable_graph_relation_bkbase_sync(settings):
+    settings.GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST = [2]
 
 
 def create_graph_relation_data_source() -> models.DataSource:
@@ -528,6 +535,346 @@ def test_apply_graph_relation_time_series_records_storage_type(mocker, write_mod
     assert bkbase_rt.storage_type == expected_storage_type
 
 
+def test_apply_graph_relation_time_series_schedules_status_refresh_after_commit(mocker):
+    table_id = "2_bkcc_built_in_time_series.__default__"
+    data_source = create_graph_relation_data_source()
+    data_link = DataLink.objects.create(
+        bk_tenant_id="system",
+        data_link_name="bkm_relation_apply_refresh",
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+        bk_data_id=data_source.bk_data_id,
+        table_ids=[table_id],
+    )
+    mocker.patch.object(data_link, "compose_configs", return_value=[])
+    mocker.patch.object(data_link, "apply_data_link_with_retry", return_value={})
+    refresh_task = mocker.patch("metadata.task.tasks.refresh_data_link_status_by_name.apply_async")
+    on_commit_callbacks = []
+    on_commit = mocker.patch(
+        "metadata.models.data_link.data_link.transaction.on_commit",
+        side_effect=lambda func, **kwargs: on_commit_callbacks.append((func, kwargs)),
+    )
+
+    data_link.apply_data_link(
+        bk_biz_id=2,
+        data_source=data_source,
+        table_id=table_id,
+        storage_cluster_name="vm-default",
+        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
+    )
+
+    on_commit.assert_called_once()
+    assert on_commit.call_args.kwargs == {"using": DATABASE_CONNECTION_NAME}
+    callback, kwargs = on_commit_callbacks[0]
+    assert callback.__name__ == "_schedule_refresh"
+    assert kwargs == {"using": DATABASE_CONNECTION_NAME}
+
+    callback()
+
+    refresh_task.assert_called_once_with(
+        args=(data_link.bk_tenant_id, data_link.data_link_name),
+        countdown=GRAPH_RELATION_STATUS_REFRESH_COUNTDOWN,
+    )
+
+
+def test_apply_graph_relation_time_series_ignores_status_refresh_schedule_error(mocker):
+    table_id = "2_bkcc_built_in_time_series.__default__"
+    data_source = create_graph_relation_data_source()
+    data_link = DataLink.objects.create(
+        bk_tenant_id="system",
+        data_link_name="bkm_relation_apply_refresh_error",
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+        bk_data_id=data_source.bk_data_id,
+        table_ids=[table_id],
+    )
+    mocker.patch.object(data_link, "compose_configs", return_value=[])
+    mocker.patch.object(data_link, "apply_data_link_with_retry", return_value={})
+    refresh_task = mocker.patch(
+        "metadata.task.tasks.refresh_data_link_status_by_name.apply_async",
+        side_effect=RuntimeError("broker unavailable"),
+    )
+    logger_exception = mocker.patch("metadata.models.data_link.data_link.logger.exception")
+    on_commit_callbacks = []
+    mocker.patch(
+        "metadata.models.data_link.data_link.transaction.on_commit",
+        side_effect=lambda func, **kwargs: on_commit_callbacks.append(func),
+    )
+
+    data_link.apply_data_link(
+        bk_biz_id=2,
+        data_source=data_source,
+        table_id=table_id,
+        storage_cluster_name="vm-default",
+        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
+    )
+
+    on_commit_callbacks[0]()
+
+    refresh_task.assert_called_once()
+    logger_exception.assert_called_once()
+
+
+def test_compose_graph_relation_time_series_reuses_existing_vm_result_table(mocker):
+    table_id = "2_bkcc_built_in_time_series.__default__"
+    data_source = create_graph_relation_data_source()
+    create_storage_clusters()
+    models.AccessVMRecord.objects.create(
+        bk_tenant_id="system",
+        result_table_id=table_id,
+        bk_base_data_id=12345,
+        bk_base_data_name="legacy_data_name",
+        storage_cluster_id=9001,
+        vm_cluster_id=9001,
+        vm_result_table_id="2_vm_bkcc_built_in_time_series",
+    )
+    mocker.patch(
+        "metadata.models.entity_relation.EntityMeta.auto_query_graph_definitions",
+        return_value=([{"name": "pod", "id_fields": ["pod"]}], [{"name": "pod_node", "from": "pod", "to": "node"}]),
+    )
+
+    data_link = DataLink.objects.create(
+        bk_tenant_id="system",
+        data_link_name="bkm_relation_compose_existing_vm_record",
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+        bk_data_id=data_source.bk_data_id,
+        table_ids=[table_id],
+    )
+
+    configs = data_link.compose_graph_relation_time_series_configs(
+        bk_biz_id=2,
+        data_source=data_source,
+        table_id=table_id,
+        storage_cluster_name="vm-default",
+        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
+    )
+
+    graph_binding = GraphRelationBindingConfig.objects.get(data_link_name=data_link.data_link_name)
+    vm_result_table = ResultTableConfig.objects.get(
+        data_link_name=data_link.data_link_name, name="vm_bkcc_built_in_time_series"
+    )
+    vm_binding = VMStorageBindingConfig.objects.get(data_link_name=data_link.data_link_name)
+    vm_databus = DataBusConfig.objects.get(data_link_name=data_link.data_link_name, name="vm_bkcc_built_in_time_series")
+    vm_binding_payload = next(
+        config
+        for config in configs
+        if config["kind"] == "VmStorageBinding" and config["metadata"]["name"] == "vm_bkcc_built_in_time_series"
+    )
+    vm_databus_payload = next(
+        config
+        for config in configs
+        if config["kind"] == "Databus"
+        and config["metadata"]["name"] == "vm_bkcc_built_in_time_series"
+        and config["spec"]["sinks"][0]["kind"] == "VmStorageBinding"
+    )
+
+    assert graph_binding.bkbase_result_table_name == "vm_bkcc_built_in_time_series"
+    assert graph_binding.vm_storage_binding_name == "vm_bkcc_built_in_time_series"
+    assert graph_binding.vm_databus_name == "vm_bkcc_built_in_time_series"
+    assert vm_result_table.table_id == table_id
+    assert vm_binding.bkbase_result_table_name == "vm_bkcc_built_in_time_series"
+    assert vm_databus.bk_data_id == data_source.bk_data_id
+    assert vm_binding_payload["spec"]["data"]["name"] == "vm_bkcc_built_in_time_series"
+    assert vm_databus_payload["spec"]["sinks"][0]["name"] == "vm_bkcc_built_in_time_series"
+
+
+def test_compose_graph_relation_time_series_corrects_existing_binding_vm_result_table(mocker):
+    table_id = "2_bkcc_built_in_time_series.__default__"
+    data_source = create_graph_relation_data_source()
+    create_storage_clusters()
+    models.AccessVMRecord.objects.create(
+        bk_tenant_id="system",
+        result_table_id=table_id,
+        bk_base_data_id=12345,
+        bk_base_data_name="legacy_data_name",
+        storage_cluster_id=9001,
+        vm_cluster_id=9001,
+        vm_result_table_id="2_vm_bkcc_built_in_time_series",
+    )
+    mocker.patch(
+        "metadata.models.entity_relation.EntityMeta.auto_query_graph_definitions",
+        return_value=([{"name": "pod", "id_fields": ["pod"]}], [{"name": "pod_node", "from": "pod", "to": "node"}]),
+    )
+
+    data_link = DataLink.objects.create(
+        bk_tenant_id="system",
+        data_link_name="bkm_relation_compose_correct_existing_binding",
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+        bk_data_id=data_source.bk_data_id,
+        table_ids=[table_id],
+    )
+    GraphRelationBindingConfig.objects.create(
+        name=data_link.data_link_name,
+        data_link_name=data_link.data_link_name,
+        namespace=data_link.namespace,
+        bk_tenant_id=data_link.bk_tenant_id,
+        bk_biz_id=2,
+        vm_cluster_name="vm-default",
+        surrealdb_cluster_name="surreal-default",
+        table_id=table_id,
+        bkbase_result_table_name="bkm_bkcc_built_in_time_series",
+        graph_result_table_name="bkm_bkcc_built_in_time_series_graph_relation",
+        vm_storage_binding_name="bkm_bkcc_built_in_time_series",
+        vm_databus_name="bkm_bkcc_built_in_time_series",
+        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
+        table_type="temporary",
+        vertices=[{"name": "old"}],
+        relations=[{"name": "old_relation"}],
+    )
+    ResultTableConfig.objects.create(
+        name="bkm_bkcc_built_in_time_series",
+        data_link_name=data_link.data_link_name,
+        namespace=data_link.namespace,
+        bk_tenant_id=data_link.bk_tenant_id,
+        bk_biz_id=2,
+        table_id=table_id,
+    )
+    VMStorageBindingConfig.objects.create(
+        name="bkm_bkcc_built_in_time_series",
+        data_link_name=data_link.data_link_name,
+        namespace=data_link.namespace,
+        bk_tenant_id=data_link.bk_tenant_id,
+        bk_biz_id=2,
+        vm_cluster_name="vm-default",
+        table_id=table_id,
+        bkbase_result_table_name="bkm_bkcc_built_in_time_series",
+    )
+    DataBusConfig.objects.create(
+        name="bkm_bkcc_built_in_time_series",
+        data_link_name=data_link.data_link_name,
+        namespace=data_link.namespace,
+        bk_tenant_id=data_link.bk_tenant_id,
+        bk_biz_id=2,
+        data_id_name="old_data_id",
+        bk_data_id=data_source.bk_data_id,
+        sink_names=["VmStorageBinding:bkm_bkcc_built_in_time_series"],
+        data_link_strategy=data_link.data_link_strategy,
+    )
+
+    configs = data_link.compose_graph_relation_time_series_configs(
+        bk_biz_id=2,
+        data_source=data_source,
+        table_id=table_id,
+        storage_cluster_name="vm-default",
+        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
+    )
+
+    graph_binding = GraphRelationBindingConfig.objects.get(data_link_name=data_link.data_link_name)
+    vm_binding_payload = next(
+        config
+        for config in configs
+        if config["kind"] == "VmStorageBinding" and config["metadata"]["name"] == "vm_bkcc_built_in_time_series"
+    )
+    vm_databus_payload = next(
+        config
+        for config in configs
+        if config["kind"] == "Databus"
+        and config["metadata"]["name"] == "vm_bkcc_built_in_time_series"
+        and config["spec"]["sinks"][0]["kind"] == "VmStorageBinding"
+    )
+
+    assert graph_binding.bkbase_result_table_name == "vm_bkcc_built_in_time_series"
+    assert graph_binding.vm_storage_binding_name == "vm_bkcc_built_in_time_series"
+    assert graph_binding.vm_databus_name == "vm_bkcc_built_in_time_series"
+    assert vm_binding_payload["spec"]["data"]["name"] == "vm_bkcc_built_in_time_series"
+    assert vm_databus_payload["spec"]["sinks"][0]["name"] == "vm_bkcc_built_in_time_series"
+    assert not ResultTableConfig.objects.filter(
+        data_link_name=data_link.data_link_name,
+        name="bkm_bkcc_built_in_time_series",
+    ).exists()
+    assert not VMStorageBindingConfig.objects.filter(
+        data_link_name=data_link.data_link_name,
+        name="bkm_bkcc_built_in_time_series",
+    ).exists()
+    assert not DataBusConfig.objects.filter(
+        data_link_name=data_link.data_link_name,
+        name="bkm_bkcc_built_in_time_series",
+    ).exists()
+    assert ResultTableConfig.objects.filter(
+        data_link_name=data_link.data_link_name,
+        name="vm_bkcc_built_in_time_series",
+    ).exists()
+    assert VMStorageBindingConfig.objects.filter(
+        data_link_name=data_link.data_link_name,
+        name="vm_bkcc_built_in_time_series",
+    ).exists()
+    assert DataBusConfig.objects.filter(
+        data_link_name=data_link.data_link_name,
+        name="vm_bkcc_built_in_time_series",
+    ).exists()
+
+
+def test_resolve_graph_relation_vm_result_table_name_keeps_non_numeric_prefix():
+    table_id = "2_bkcc_built_in_time_series.__default__"
+    models.AccessVMRecord.objects.create(
+        bk_tenant_id="system",
+        result_table_id=table_id,
+        bk_base_data_id=12345,
+        bk_base_data_name="legacy_data_name",
+        storage_cluster_id=9001,
+        vm_cluster_id=9001,
+        vm_result_table_id="test_vm_rt",
+    )
+
+    assert (
+        DataLink.resolve_graph_relation_vm_result_table_name(
+            bk_tenant_id="system",
+            table_id=table_id,
+            default_name="bkm_bkcc_built_in_time_series",
+        )
+        == "test_vm_rt"
+    )
+
+
+def test_apply_graph_relation_time_series_does_not_rewrite_existing_vm_record(mocker):
+    table_id = "2_bkcc_built_in_time_series.__default__"
+    data_source = create_graph_relation_data_source()
+    create_storage_clusters()
+    models.AccessVMRecord.objects.create(
+        bk_tenant_id="system",
+        result_table_id=table_id,
+        bk_base_data_id=12345,
+        bk_base_data_name="legacy_data_name",
+        storage_cluster_id=9001,
+        vm_cluster_id=9001,
+        vm_result_table_id="2_vm_bkcc_built_in_time_series",
+    )
+    mocker.patch(
+        "metadata.models.entity_relation.EntityMeta.auto_query_graph_definitions",
+        return_value=([{"name": "pod", "id_fields": ["pod"]}], [{"name": "pod_node", "from": "pod", "to": "node"}]),
+    )
+
+    data_link = DataLink.objects.create(
+        bk_tenant_id="system",
+        data_link_name="bkm_relation_apply_existing_vm_record",
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+        bk_data_id=data_source.bk_data_id,
+        table_ids=[table_id],
+    )
+    mocker.patch.object(data_link, "apply_data_link_with_retry", return_value={})
+
+    data_link.apply_data_link(
+        bk_biz_id=2,
+        data_source=data_source,
+        table_id=table_id,
+        storage_cluster_name="vm-default",
+        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
+    )
+
+    vm_record = models.AccessVMRecord.objects.get(
+        bk_tenant_id=data_link.bk_tenant_id,
+        result_table_id=table_id,
+    )
+    assert vm_record.bk_base_data_id == 12345
+    assert vm_record.bk_base_data_name == "legacy_data_name"
+    assert vm_record.vm_result_table_id == "2_vm_bkcc_built_in_time_series"
+    assert vm_record.storage_cluster_id == 9001
+    assert vm_record.vm_cluster_id == 9001
+
+
 def test_sync_graph_definition_marks_surrealdb_only_empty_definitions_failed(mocker):
     table_id = "2_bkcc_built_in_time_series.__default__"
     data_source = create_graph_relation_data_source()
@@ -575,7 +922,10 @@ def test_sync_graph_definition_marks_surrealdb_only_empty_definitions_failed(moc
     assert result["skipped"] == 0
     assert result["failed"] == 1
     assert "graph definitions are empty" in result["failures"][0]["error"]
-    assert GraphRelationBindingConfig.objects.get(data_link_name=data_link.data_link_name).status == DataLinkResourceStatus.FAILED.value
+    assert (
+        GraphRelationBindingConfig.objects.get(data_link_name=data_link.data_link_name).status
+        == DataLinkResourceStatus.FAILED.value
+    )
     mock_apply.assert_not_called()
 
 
@@ -1226,7 +1576,10 @@ def test_sync_graph_definition_marks_binding_failed_when_apply_raises(mocker):
     assert result["failed"] == 1
     mock_apply.assert_called_once()
     assert result["failures"][0]["error"] == "apply failed"
-    assert GraphRelationBindingConfig.objects.get(data_link_name=data_link.data_link_name).status == DataLinkResourceStatus.FAILED.value
+    assert (
+        GraphRelationBindingConfig.objects.get(data_link_name=data_link.data_link_name).status
+        == DataLinkResourceStatus.FAILED.value
+    )
 
 
 def test_sync_graph_definition_dry_run_does_not_mark_empty_surrealdb_binding_failed(mocker):
@@ -1322,6 +1675,69 @@ def test_sync_graph_definition_dry_run_does_not_mark_apply_exception_failed(mock
     mock_apply.assert_not_called()
     graph_binding = GraphRelationBindingConfig.objects.get(data_link_name=data_link.data_link_name)
     assert graph_binding.status == DataLinkResourceStatus.OK.value
+
+
+def test_sync_graph_definition_filters_bindings_by_biz_whitelist(mocker, settings):
+    settings.GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST = [2]
+    table_id = "2_bkcc_built_in_time_series.__default__"
+    data_source = create_graph_relation_data_source()
+    models.DataSourceResultTable.objects.create(
+        bk_data_id=data_source.bk_data_id,
+        table_id=table_id,
+        bk_tenant_id=data_source.bk_tenant_id,
+        creator="system",
+    )
+    data_link = DataLink.objects.create(
+        bk_tenant_id="system",
+        data_link_name="bkm_relation_graph_whitelist",
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+        bk_data_id=data_source.bk_data_id,
+        table_ids=[table_id],
+    )
+    GraphRelationBindingConfig.objects.create(
+        name=data_link.data_link_name,
+        data_link_name=data_link.data_link_name,
+        namespace=data_link.namespace,
+        bk_tenant_id=data_link.bk_tenant_id,
+        bk_biz_id=2,
+        table_id=table_id,
+        vm_cluster_name="vm-default",
+        surrealdb_cluster_name="surreal-default",
+        graph_result_table_name=DataLink.compose_surrealdb_table_name(table_id),
+        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
+        status=DataLinkResourceStatus.OK.value,
+        vertices=[{"name": "pod", "id_fields": ["pod_name"]}],
+        relations=[{"name": "pod_node", "from": "pod", "to": "node"}],
+    )
+    GraphRelationBindingConfig.objects.create(
+        name="bkm_relation_graph_not_whitelisted",
+        data_link_name="bkm_relation_graph_not_whitelisted",
+        namespace=data_link.namespace,
+        bk_tenant_id=data_link.bk_tenant_id,
+        bk_biz_id=3,
+        table_id="3_bkcc_built_in_time_series.__default__",
+        vm_cluster_name="vm-default",
+        surrealdb_cluster_name="surreal-default",
+        graph_result_table_name="vm_3_bkcc_built_in_time_series",
+        write_mode=GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
+        status=DataLinkResourceStatus.OK.value,
+        vertices=[{"name": "pod", "id_fields": ["pod_name"]}],
+        relations=[{"name": "pod_node", "from": "pod", "to": "node"}],
+    )
+    mocker.patch(
+        "metadata.task.sync_cmdb_relation.EntityMeta.auto_query_graph_definitions",
+        return_value=([{"name": "service", "id_fields": ["service_name"]}], [{"name": "service_pod"}]),
+    )
+
+    from metadata.models.entity_relation import NAMESPACE_ALL
+    from metadata.task.sync_cmdb_relation import sync_graph_definition_to_bkbase
+
+    result = sync_graph_definition_to_bkbase(namespace=NAMESPACE_ALL, action="apply", dry_run=True)
+
+    assert result["matched"] == 1
+    assert result["filtered_by_whitelist"] == 1
+    assert result["enabled_biz_ids"] == [2]
 
 
 def test_sync_graph_definition_retries_unchanged_failed_binding(mocker):

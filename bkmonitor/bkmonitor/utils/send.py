@@ -629,8 +629,9 @@ class Sender(BaseSender):
             return {"msgtype": "message", "chatid": "|".join(_chat_ids), "layouts": _layouts}
 
         url: str = settings.WXWORK_BOT_WEBHOOK_URL
+        if not url:
+            return {"errcode": -1, "errmsg": [_("未配置蓝鲸监控群机器人回调地址，请联系管理员")]}
         if sender:
-            # 进入 send_wxwork_layouts 说明 url 已经存在，这里无需重复检查。
             if "?key=" in url:
                 url = url.split("?key=", 1)[0] + f"?key={sender}"
 

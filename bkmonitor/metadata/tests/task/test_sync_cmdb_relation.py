@@ -147,8 +147,8 @@ def test_sync_relation_redis_data(create_and_delete_records):
 
 
 @pytest.mark.django_db(databases="__all__")
-@override_settings(ENABLE_SYNC_GRAPH_DEFINITION_TO_BKBASE=False)
-def test_sync_relation_redis_data_skips_graph_dual_write_when_feature_disabled(create_and_delete_records):
+@override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST=[])
+def test_sync_relation_redis_data_skips_graph_dual_write_when_whitelist_empty(create_and_delete_records):
     created_group = Mock(token="", last_modify_time=datetime.fromtimestamp(1733198214, tz=timezone.utc))
     with (
         patch("metadata.utils.redis_tools.RedisTools.hgetall", return_value=mock_redis_hgetall_return_value),
@@ -167,8 +167,8 @@ def test_sync_relation_redis_data_skips_graph_dual_write_when_feature_disabled(c
 
 
 @pytest.mark.django_db(databases="__all__")
-@override_settings(ENABLE_SYNC_GRAPH_DEFINITION_TO_BKBASE=True)
-def test_sync_relation_redis_data_calls_graph_dual_write_when_feature_enabled(create_and_delete_records):
+@override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST=[2])
+def test_sync_relation_redis_data_calls_graph_dual_write_for_whitelisted_biz(create_and_delete_records):
     created_group = Mock(token="", last_modify_time=datetime.fromtimestamp(1733198214, tz=timezone.utc))
     with (
         patch("metadata.utils.redis_tools.RedisTools.hgetall", return_value=mock_redis_hgetall_return_value),
@@ -182,7 +182,26 @@ def test_sync_relation_redis_data_calls_graph_dual_write_when_feature_enabled(cr
     ):
         sync_relation_redis_data()
 
-    assert [call_args.args[0].bk_data_id for call_args in mock_enable_dual_write.call_args_list] == [50010, 50011]
+    assert [call_args.args[0].bk_data_id for call_args in mock_enable_dual_write.call_args_list] == [50010]
+    assert [call_args.args[2] for call_args in mock_enable_dual_write.call_args_list] == [2]
+
+
+@pytest.mark.django_db(databases="__all__")
+@override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST="2, invalid, 3")
+def test_sync_relation_redis_data_accepts_comma_separated_whitelist(create_and_delete_records):
+    created_group = Mock(token="", last_modify_time=datetime.fromtimestamp(1733198214, tz=timezone.utc))
+    with (
+        patch("metadata.utils.redis_tools.RedisTools.hgetall", return_value=mock_redis_hgetall_return_value),
+        patch("metadata.utils.redis_tools.RedisTools.hset_to_redis", return_value=0),
+        patch("metadata.models.DataSource.apply_for_data_id_from_bkdata", return_value=50011),
+        patch("time.time", return_value=1733198214),
+        patch("metadata.task.sync_cmdb_relation.metrics.report_all", return_value=None),
+        patch("metadata.models.DataSource.refresh_consul_config", autospec=True),
+        patch("metadata.models.TimeSeriesGroup.create_time_series_group", return_value=created_group),
+        patch("metadata.task.sync_cmdb_relation.enable_relation_surrealdb_dual_write") as mock_enable_dual_write,
+    ):
+        sync_relation_redis_data()
+
     assert [call_args.args[2] for call_args in mock_enable_dual_write.call_args_list] == [2, 3]
 
 
@@ -252,7 +271,9 @@ def test_sync_relation_redis_data_existing_rt_without_group_uses_generated_token
 @pytest.mark.django_db(databases="__all__")
 def test_sync_relation_redis_data_new_rt_uses_created_group_token(create_and_delete_records, mocker):
     redis_data = {b"bkcc__3": b'{"token":""}'}
-    created_group = Mock(token="created-group-token", last_modify_time=datetime.fromtimestamp(1733198214, tz=timezone.utc))
+    created_group = Mock(
+        token="created-group-token", last_modify_time=datetime.fromtimestamp(1733198214, tz=timezone.utc)
+    )
     with (
         patch("metadata.utils.redis_tools.RedisTools.hgetall", return_value=redis_data),
         patch("metadata.utils.redis_tools.RedisTools.hset_to_redis", return_value=0) as mock_hset_to_redis,
@@ -343,6 +364,84 @@ def test_enable_relation_graph_link_namespaces_generated_name_by_tenant(mocker):
     assert first_name != second_name
     assert models.DataLink.objects.filter(bk_tenant_id="system", data_link_name=first_name).exists()
     assert models.DataLink.objects.filter(bk_tenant_id="tenant_b", data_link_name=second_name).exists()
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_enable_relation_graph_link_reuses_existing_vm_result_table_name(mocker):
+    table_id = "2_bkcc_built_in_time_series.__default__"
+    data_name = "bkcc_built_in_time_series"
+    ds = _create_relation_graph_source(61004, data_name, "system", table_id)
+    _create_relation_graph_clusters("system", 30)
+    models.AccessVMRecord.objects.create(
+        bk_tenant_id="system",
+        result_table_id=table_id,
+        bk_base_data_id=12345,
+        bk_base_data_name="legacy_data_name",
+        storage_cluster_id=9001,
+        vm_cluster_id=9001,
+        vm_result_table_id="2_vm_bkcc_built_in_time_series",
+    )
+    mocker.patch(
+        "metadata.task.sync_cmdb_relation.EntityMeta.auto_query_graph_definitions",
+        return_value=([{"name": "host", "id_fields": ["bk_host_id"]}], [{"name": "host_service"}]),
+    )
+    mocker.patch("metadata.models.data_link.data_link.DataLink.apply_data_link", return_value=None)
+
+    enable_relation_surrealdb_dual_write(ds, "system", 2)
+
+    graph_binding = models.GraphRelationBindingConfig.objects.get()
+    assert graph_binding.bkbase_result_table_name == "vm_bkcc_built_in_time_series"
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_enable_relation_graph_link_corrects_existing_vm_component_names(mocker):
+    table_id = "2_bkcc_built_in_time_series.__default__"
+    data_name = "bkcc_built_in_time_series"
+    graph_link_name = compose_bkdata_table_id("system_bkcc_built_in_time_series_graph_relation")
+    graph_table_id = table_id.replace(".__default__", f"{SURREALDB_RT_SUFFIX}.__default__", 1)
+    ds = _create_relation_graph_source(61005, data_name, "system", table_id)
+    _create_relation_graph_clusters("system", 40)
+    models.AccessVMRecord.objects.create(
+        bk_tenant_id="system",
+        result_table_id=table_id,
+        bk_base_data_id=12345,
+        bk_base_data_name="legacy_data_name",
+        storage_cluster_id=9001,
+        vm_cluster_id=9001,
+        vm_result_table_id="2_vm_bkcc_built_in_time_series",
+    )
+    vertices = [{"name": "host", "id_fields": ["bk_host_id"]}]
+    relations = [{"name": "host_service"}]
+    models.GraphRelationBindingConfig.objects.create(
+        name=graph_link_name,
+        data_link_name=graph_link_name,
+        namespace=settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+        bk_tenant_id="system",
+        bk_biz_id=2,
+        vm_cluster_name="vm-default-system",
+        surrealdb_cluster_name="surreal-default-system",
+        table_id=table_id,
+        bkbase_result_table_name=compose_bkdata_table_id(table_id, models.DataLink.BK_STANDARD_V2_TIME_SERIES),
+        graph_result_table_name=compose_bkdata_table_id(graph_table_id, models.DataLink.BK_STANDARD_V2_TIME_SERIES),
+        vm_storage_binding_name=compose_bkdata_table_id(table_id, models.DataLink.BK_STANDARD_V2_TIME_SERIES),
+        vm_databus_name=compose_bkdata_table_id(table_id, models.DataLink.BK_STANDARD_V2_TIME_SERIES),
+        table_type="temporary",
+        vertices=vertices,
+        relations=relations,
+        write_mode=models.GraphRelationBindingConfig.WRITE_MODE_VM_AND_SURREALDB,
+        status=DataLinkResourceStatus.OK.value,
+    )
+    mocker.patch(
+        "metadata.task.sync_cmdb_relation.EntityMeta.auto_query_graph_definitions", return_value=(vertices, relations)
+    )
+    mocker.patch("metadata.models.data_link.data_link.DataLink.apply_data_link", return_value=None)
+
+    enable_relation_surrealdb_dual_write(ds, "system", 2)
+
+    graph_binding = models.GraphRelationBindingConfig.objects.get(name=graph_link_name)
+    assert graph_binding.bkbase_result_table_name == "vm_bkcc_built_in_time_series"
+    assert graph_binding.vm_storage_binding_name == "vm_bkcc_built_in_time_series"
+    assert graph_binding.vm_databus_name == "vm_bkcc_built_in_time_series"
 
 
 @pytest.mark.django_db(databases="__all__")

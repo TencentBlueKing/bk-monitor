@@ -1143,6 +1143,22 @@ export const setDefaultTableWidth = (visibleFields, tableData, catchFieldsWidthO
  */
 export const blobDownload = (data, fileName = 'default', type = 'text/plain') => {
   const blob = new Blob([data], { type });
+  if (window.parent && window.parent !== window) {
+    window.parent.postMessage(
+      {
+        type: 'download-blob',
+        source: 'vue2-container',
+        payload: {
+          blob,
+          fileName,
+          type,
+        },
+      },
+      '*',
+    );
+    return;
+  }
+
   const downloadElement = document.createElement('a');
   const href = window.URL.createObjectURL(blob); // 创建下载的链接
   downloadElement.href = href;

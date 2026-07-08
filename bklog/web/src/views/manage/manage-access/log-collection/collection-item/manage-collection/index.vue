@@ -166,56 +166,70 @@
     },
     created() {
       this.initPage();
-      const typeKey = this.$route.query.typeKey;
-      if (!['bkdata', 'es'].includes(typeKey)) {
-        this.getEditAuth();
-      }
     },
     methods: {
       async initPage() {
-        // 进入路由需要先判断权限
+        // 进入路由需要先判断权限（查看 + 编辑权限合并为一次 check_allowed 请求）
         try {
           const typeKey = this.$route.query.typeKey;
           const isBkDataOrEs = ['bkdata', 'es'].includes(typeKey);
           const collectorId = this.$route.params.collectorId;
+          const resourceType = isBkDataOrEs ? 'indices' : 'collection';
+          const resources = [{ type: resourceType, id: collectorId }];
 
-          const paramData = {
-            action_ids: [isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.VIEW_COLLECTION_AUTH],
-            resources: [
-              {
-                type: isBkDataOrEs ? 'indices' : 'collection',
-                id: collectorId,
-              },
-            ],
-          };
-          const res = await this.$store.dispatch('checkAndGetData', paramData);
-          if (res.isAllowed === false) {
-            this.authPageInfo = res.data;
-            // 显示无权限页面
-          } else {
-            // 正常显示页面
-            // bkdata/es 的 initPage 已用 MANAGE_INDICES_AUTH 校验，直接复用结果
-            if (isBkDataOrEs) {
-              this.editAuth = true;
-              const [{ data: indexSetData }] = await Promise.all([
-                this.$http.request('indexSet/info', {
-                  params: {
-                    index_set_id: collectorId,
-                  },
-                }),
-                this.fetchScenarioMap(),
-              ]);
-              this.collectorData = indexSetData;
-              this.$store.commit('collect/updateCurIndexSet', indexSetData);
-            } else {
-              const { data: collectorData } = await this.$http.request('collect/details', {
+          const viewAction = isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.VIEW_COLLECTION_AUTH;
+          const manageAction = isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.MANAGE_COLLECTION_AUTH;
+          const actionIds = isBkDataOrEs ? [viewAction] : [viewAction, manageAction];
+
+          const { data: checkResult } = await this.$http.request('auth/checkAllowed', {
+            data: { action_ids: actionIds, resources },
+          });
+
+          const allowedMap = {};
+          (checkResult || []).forEach(item => {
+            allowedMap[item.action_id] = item.is_allowed;
+          });
+
+          const canView = Boolean(allowedMap[viewAction]);
+          const canManage = Boolean(allowedMap[manageAction]);
+
+          if (!canView) {
+            const applyRes = await this.$store.dispatch('getApplyData', {
+              action_ids: [viewAction],
+              resources,
+            });
+            this.authPageInfo = applyRes.data;
+            return;
+          }
+
+          this.editAuth = isBkDataOrEs ? true : canManage;
+          if (!canManage && !isBkDataOrEs) {
+            const applyRes = await this.$store.dispatch('getApplyData', {
+              action_ids: [manageAction],
+              resources,
+            });
+            this.editAuthData = applyRes.data;
+          }
+
+          if (isBkDataOrEs) {
+            const [{ data: indexSetData }] = await Promise.all([
+              this.$http.request('indexSet/info', {
                 params: {
-                  collector_config_id: collectorId,
+                  index_set_id: collectorId,
                 },
-              });
-              this.collectorData = collectorData;
-              this.$store.commit('collect/setCurCollect', collectorData);
-            }
+              }),
+              this.fetchScenarioMap(),
+            ]);
+            this.collectorData = indexSetData;
+            this.$store.commit('collect/updateCurIndexSet', indexSetData);
+          } else {
+            const { data: collectorData } = await this.$http.request('collect/details', {
+              params: {
+                collector_config_id: collectorId,
+              },
+            });
+            this.collectorData = collectorData;
+            this.$store.commit('collect/setCurCollect', collectorData);
           }
         } catch (err) {
           console.warn(err);
@@ -247,26 +261,6 @@
             map[item.scenario_id] = item.scenario_name;
           });
           this.$store.commit('collect/updateScenarioMap', map);
-        }
-      },
-      async getEditAuth() {
-        try {
-          const typeKey = this.$route.query.typeKey;
-          const isBkDataOrEs = ['bkdata', 'es'].includes(typeKey);
-          const paramData = {
-            action_ids: [isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.MANAGE_COLLECTION_AUTH],
-            resources: [
-              {
-                type: isBkDataOrEs ? 'indices' : 'collection',
-                id: this.$route.params.collectorId,
-              },
-            ],
-          };
-          const res = await this.$store.dispatch('checkAndGetData', paramData);
-          if (!res.isAllowed) this.editAuthData = res.data;
-          this.editAuth = res.isAllowed;
-        } catch {
-          this.editAuth = false;
         }
       },
     },

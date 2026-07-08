@@ -148,7 +148,7 @@ watch(
         || route.query.tab === 'graph_analysis'))
         || (!aiopsEnable && route.query.tab === 'clustering')
       ) {
-        handleActive('origin');
+        emit('input', 'origin', false);
       }
     }
   },
@@ -167,7 +167,7 @@ watch(
 onMounted(() => {
   const tabName = normalizeTabValue(route.query.tab) ?? 'origin';
   if (panelList.value.find(item => item.name === tabName)?.disabled ?? true) {
-    handleActive(panelList.value[0].name);
+    emit('input', panelList.value[0].name, false);
   }
 });
 </script>

@@ -24,16 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { type Ref, computed, shallowRef, useTemplateRef, watch } from 'vue';
+import { type Ref, computed, shallowRef, watch } from 'vue';
 
-import { mockFields } from '../../components/tapd-field-form/mock';
+import { getTapdFieldsApi } from '../../components/tapd-field-form/service/issue-tapd';
+import { TapdLinkModeEnum } from '../constant';
 import useUserConfig from '@/hooks/useUserConfig';
 
-import type tapdFieldForm from '../../components/tapd-field-form/tapd-field-form';
-import type tapdRelation from '../tapd-relation/tapd-relation';
-import type tapdBasicForm from '../tapd-sideslider/components/tapd-basic-form';
-import type { CreateTapdDefaultSetting } from '../typing';
-import type { TapdWorkspaceItem } from '../typing';
+import type { CreateTapdDefaultSetting, TapdLinkModeType, TapdWorkspaceItem } from '../typing';
 
 interface UseTapdSidesliderOptions {
   bizId: Ref<number | string>;
@@ -47,10 +44,6 @@ export function useTapdSideslider(options: UseTapdSidesliderOptions) {
 
   /** 已关联 TAPD 项目数量 */
   const count = shallowRef(1);
-  /** 基础表单组件 ref，用于调用表单校验方法 - 由外部传入 */
-  const basicFormRef = useTemplateRef<InstanceType<typeof tapdBasicForm>>('basicForm');
-  const tapdFieldFormRef = useTemplateRef<InstanceType<typeof tapdFieldForm>>('tapdFieldForm');
-  const tapdRelationRef = useTemplateRef<InstanceType<typeof tapdRelation>>('tapdRelation');
   /** 用户设置的 TAPD 创建单据默认值 */
   const createTapdDefaultValue = shallowRef<CreateTapdDefaultSetting>({
     workspace_id: null,
@@ -64,7 +57,7 @@ export function useTapdSideslider(options: UseTapdSidesliderOptions) {
   });
   const filterWorkspaceList = computed(() => workspaceList.value.filter(item => item.is_bound === 'bound'));
   /** 当前激活的 tab */
-  const tabActive = shallowRef('add');
+  const tabActive = shallowRef<TapdLinkModeType>(TapdLinkModeEnum.CREATE);
   /* 单据字段 */
   const tapdFields = shallowRef([]);
   /* 单据字段值 */
@@ -73,6 +66,9 @@ export function useTapdSideslider(options: UseTapdSidesliderOptions) {
   const tapdFieldFormLoading = shallowRef(false);
   // Issue 关联指定 TAPD 单据
   const linkTapdIds = shallowRef<string[]>([]);
+  const linkTapdItems = shallowRef([]);
+
+  const confirmLoading = shallowRef(false);
 
   /** 用户配置 key */
   const CREATE_TAPD_DETAIL_SETTING = computed(() => `${bizId.value}_CREATE_TAPD_DETAIL_SETTING`);
@@ -83,18 +79,17 @@ export function useTapdSideslider(options: UseTapdSidesliderOptions) {
   /**
    * @description 获取tapd单据字段
    */
-  const getTapdFields = () => {
+  const getTapdFieldsFn = async () => {
     tapdFieldFormLoading.value = true;
     tapdFieldValue.value = {};
-    const params = {
-      workspace_id: formData.value.workspace_id,
+
+    const fields = await getTapdFieldsApi({
+      workspace_id: formData.value.workspace_id as number,
       tapd_type: formData.value.tapd_type,
-    };
-    console.log(params);
-    setTimeout(() => {
-      tapdFieldFormLoading.value = false;
-      tapdFields.value = mockFields;
-    }, 1000);
+      bk_biz_id: bizId.value as number,
+    });
+    tapdFields.value = fields;
+    tapdFieldFormLoading.value = false;
   };
 
   /**
@@ -119,7 +114,7 @@ export function useTapdSideslider(options: UseTapdSidesliderOptions) {
           sync_status: false,
         };
       }
-      getTapdFields();
+      getTapdFieldsFn();
     });
   };
 
@@ -133,8 +128,12 @@ export function useTapdSideslider(options: UseTapdSidesliderOptions) {
   /**
    * 处理 tab 切换
    */
-  const handleTabChange = (value: string) => {
+  const handleTabChange = (value: TapdLinkModeType) => {
     tabActive.value = value;
+    if (value === TapdLinkModeEnum.LINK) {
+      linkTapdItems.value = [];
+      linkTapdIds.value = [];
+    }
   };
 
   /**
@@ -148,22 +147,8 @@ export function useTapdSideslider(options: UseTapdSidesliderOptions) {
     handleSetUserConfig(JSON.stringify(createTapdDefaultValue.value));
   };
 
-  /**
-   * 处理确认创建
-   */
-  const handleConfirm = async () => {
-    basicFormRef.value?.validate().then(() => console.log('success'));
-    if (tabActive.value === 'link') {
-      const linkTapdIdsValid = await tapdRelationRef.value?.validate().catch(() => false);
-      console.log(linkTapdIdsValid);
-    } else {
-      const tapdFieldFormValid = await tapdFieldFormRef.value?.validate().catch(() => false);
-      console.log(tapdFieldFormValid);
-    }
-  };
-
   const handleFormDataChange = () => {
-    getTapdFields();
+    getTapdFieldsFn();
   };
 
   /** 单据字段值变化 */
@@ -173,6 +158,9 @@ export function useTapdSideslider(options: UseTapdSidesliderOptions) {
 
   const handleLinkTapdIdsChange = (val: string[]) => {
     linkTapdIds.value = val;
+  };
+  const handleLinkTapdItemsChange = val => {
+    linkTapdItems.value = val;
   };
 
   return {
@@ -185,11 +173,13 @@ export function useTapdSideslider(options: UseTapdSidesliderOptions) {
     tapdFields,
     tapdFieldFormLoading,
     linkTapdIds,
+    confirmLoading,
+    linkTapdItems,
     handleTabChange,
     handleSetDefaultValue,
-    handleConfirm,
     handleFormDataChange,
     handleFieldValueChange,
     handleLinkTapdIdsChange,
+    handleLinkTapdItemsChange,
   };
 }

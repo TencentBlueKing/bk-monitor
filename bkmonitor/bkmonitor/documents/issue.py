@@ -425,13 +425,17 @@ class IssueDocument(BaseDocument):
         self._persist_and_cache(active=self.status in IssueStatus.ACTIVE_STATUSES)
         return self._write_activities(activities)
 
-    def rename(self, new_name: str, operator: str, enforce_unique: bool = True) -> list:
+    def rename(self, new_name: str, operator: str, enforce_unique: bool = True, content: str | None = None) -> list:
         """重命名 Issue。
 
         enforce_unique：是否强制业务内标题唯一。
         - 用户改名（默认 True）：人手填重名是误操作，撞名抛 IssueNameDuplicatedError 拦下。
         - 系统自动标题（False）：同类错误天然生成相同标题（标题描述错误，不含实例维度），
           实例区分交由 issue 的结构化维度，允许重名；不应被给用户用的唯一性约束卡回默认名。
+
+        content：写入 NAME_CHANGE 活动日志的附加内容（默认 None）。用于 LLM 标题生成路径
+          记录改名来源/审计人——rename operator 固定为 ``system``（保证"是否系统改名"判据稳定），
+          真实发起人另记于此，避免把审计人写进 operator 污染下游三态判别。用户手工改名不传。
         """
         IssueMergeResolver.assert_not_frozen(self.id)
         new_name = new_name.strip()
@@ -458,7 +462,7 @@ class IssueDocument(BaseDocument):
         self._persist_and_cache(active=self.status in IssueStatus.ACTIVE_STATUSES)
         return self._write_activities(
             [
-                (IssueActivityType.NAME_CHANGE, old_name, new_name, operator, None),
+                (IssueActivityType.NAME_CHANGE, old_name, new_name, operator, content),
             ]
         )
 
@@ -868,7 +872,8 @@ class IssueDocument(BaseDocument):
         批量写 IssueActivityDocument，返回该 Issue 全部活动日志（含本次新增）。
 
         activity_tuples 每项格式为 (activity_type, from_value, to_value, operator, content)，
-        其中 content 仅 COMMENT 类型使用，其余传 None。
+        其中 content 主要用于 COMMENT 类型；NAME_CHANGE 走 LLM 标题生成路径时也用它记录来源/审计人，
+        其余类型传 None。
         """
         if now is None:
             now = int(time.time())

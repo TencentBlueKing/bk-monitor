@@ -1389,7 +1389,7 @@ const store = new Vuex.Store({
 
       if (
         (!state.indexItem.isUnionIndex && !state.indexId)
-        || (state.indexItem.isUnionIndex && !state.indexItem.ids.length)
+        || (state.indexItem.isUnionIndex && !state.unionIndexList.length)
       ) {
         state.searchTotal = 0;
         commit('updateSqlQueryFieldList', []);

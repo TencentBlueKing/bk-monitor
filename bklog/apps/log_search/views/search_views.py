@@ -440,9 +440,24 @@ class SearchViewSet(APIViewSet):
         data = self.params_valid(OriginalSearchAttrSerializer)
         data["original_search"] = True
         data["is_desensitize"] = False
-        # TODO: 需要切换为 UnifyQuery 查询
-        search_handler = SearchHandlerEsquery(index_set_id, data, only_for_agg=True)
-        return Response(search_handler.search())
+
+        index_set_obj = self.get_object()
+        data["bk_biz_id"] = space_uid_to_bk_biz_id(index_set_obj.space_uid)
+
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
+            now = arrow.now()
+            data.update(
+                {
+                    "index_set_ids": [index_set_id],
+                    "start_time": now.shift(days=-1).int_timestamp * 1000,
+                    "end_time": now.int_timestamp * 1000,
+                }
+            )
+            query_handler = UnifyQueryHandler(data)
+            return Response(query_handler.search())
+        else:
+            search_handler = SearchHandlerEsquery(index_set_id, data, only_for_agg=True)
+            return Response(search_handler.search())
 
     @detail_route(methods=["POST"], url_path="context")
     def context(self, request, index_set_id=None):
