@@ -38,7 +38,7 @@ from jinja2.sandbox import SandboxedEnvironment as Environment
 
 from apps.api import TransferApi
 from apps.constants import SpacePropertyEnum
-from apps.exceptions import BizNotExistError
+from apps.exceptions import BizNotExistError, SpaceNotExistError
 from apps.feature_toggle.handlers.toggle import feature_switch
 from apps.log_clustering.constants import PatternEnum, YearOnYearEnum
 from apps.log_databus.constants import EsSourceType
@@ -1090,9 +1090,7 @@ class FavoriteGroup(OperateRecordModel):
         groups = list()
         source_app_code = get_request_app_code()
         # Lazy create private/ungrouped per source_type, so scene 与 index_set 各有一套
-        private_group = cls.get_or_create_private_group(
-            space_uid=space_uid, username=username, source_type=source_type
-        )
+        private_group = cls.get_or_create_private_group(space_uid=space_uid, username=username, source_type=source_type)
         ungrouped_group = cls.get_or_create_ungrouped_group(space_uid=space_uid, source_type=source_type)
         public_groups = (
             cls.objects.filter(
@@ -1193,7 +1191,11 @@ class IndexSetTag(models.Model):
     value = models.CharField(_("标签值"), max_length=255, default="", blank=True)
     color = models.CharField(_("配色"), max_length=255, choices=TagColor.get_choices(), default=TagColor.GREEN.value)
     tag_type = models.CharField(
-        _("标签类型"), max_length=16, choices=TAG_TYPE_CHOICES, default=TAG_TYPE_USER, db_index=True,
+        _("标签类型"),
+        max_length=16,
+        choices=TAG_TYPE_CHOICES,
+        default=TAG_TYPE_USER,
+        db_index=True,
     )
 
     class Meta:
@@ -1534,7 +1536,7 @@ class Space(SoftDeleteModel):
         return spaces
 
     @classmethod
-    def get_tenant_id(cls, space_uid: str = "", bk_biz_id: int = 0) -> str:
+    def get_tenant_id(cls, space_uid: str = "", bk_biz_id: int = 0, is_exception: bool = False) -> str:
         """
         获取空间的租户ID
         """
@@ -1543,12 +1545,16 @@ class Space(SoftDeleteModel):
         if space_uid:
             space = cls.objects.filter(space_uid=space_uid).first()
             if not space:
+                if is_exception:
+                    raise SpaceNotExistError(SpaceNotExistError.MESSAGE.format(space_uid=space_uid))
                 return default_tenant_id
             return space.bk_tenant_id
 
         if bk_biz_id:
             space = cls.objects.filter(bk_biz_id=bk_biz_id).first()
             if not space:
+                if is_exception:
+                    raise BizNotExistError(BizNotExistError.MESSAGE.format(bk_biz_id=bk_biz_id))
                 return default_tenant_id
             return space.bk_tenant_id
 
