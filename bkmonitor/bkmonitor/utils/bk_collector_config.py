@@ -22,6 +22,7 @@ from bkmonitor.utils.common_utils import count_md5, safe_int
 from constants.bk_collector import BkCollectorComp
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
+from core.errors.iam import APIPermissionDeniedError
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,16 @@ class BkCollectorConfig:
             if int(bk_cloud_id) in [0, -1]:
                 continue
 
-            proxy_list = api.node_man.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
+            try:
+                proxy_list = api.node_man.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
+            except APIPermissionDeniedError as error:
+                logger.warning(
+                    "get proxies permission denied, skip bk_tenant_id(%s), bk_cloud_id(%s), error: %s",
+                    bk_tenant_id,
+                    bk_cloud_id,
+                    error,
+                )
+                continue
             for p in proxy_list:
                 if p["status"] != "RUNNING":
                     logger.warning(
