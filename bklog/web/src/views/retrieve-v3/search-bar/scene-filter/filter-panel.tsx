@@ -68,6 +68,10 @@ export default defineComponent({
       type: Array as () => Array<[string, string]> | null,
       default: null,
     },
+    isSticky: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['scene-change', 'filter-change', 'clear', 'display-fields-change', 'operator-change'],
   setup(props, { emit }) {
@@ -989,7 +993,11 @@ export default defineComponent({
     );
 
     return () => (
-      <div class='scene-filter-panel' v-bkloading={{ isLoading: sceneLoading.value }}>
+      <div
+        class='scene-filter-panel'
+        v-bkloading={{ isLoading: sceneLoading.value }}
+        style={{ opacity: props.isSticky ? 0 : 1 }}
+      >
         <div class='scene-filter-top'>
           <div class='top-left'>
             {renderSceneTabBar()}
