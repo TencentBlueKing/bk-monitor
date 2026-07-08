@@ -146,7 +146,11 @@ class Config:
         },
         "fta_web.tasks.sync_tapd_issue_status": {
             "task": "fta_web.tasks.sync_tapd_issue_status",
-            "schedule": crontab(minute="*/10"),
+            # 实时状态同步以 TAPD webhook (tapd_status_update_callback) 为主路径，
+            # 本定时任务仅作兜底：补偿 webhook 漏投/回调不可用/历史关联等场景。
+            "schedule": crontab(
+                minute=15, hour="*/2"
+            ),  # 每 2 小时的第 15 分钟执行（00:15, 02:15, 04:15, ...，每天 12 次）
             "enabled": True,
             "options": {"queue": "celery_resource"},
         },
