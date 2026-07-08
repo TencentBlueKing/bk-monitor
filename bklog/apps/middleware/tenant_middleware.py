@@ -15,7 +15,7 @@ class TenantValidationMiddleware(MiddlewareMixin):
 
     def process_view(self, request, view_func, view_args, view_kwargs):
         # 非多租户环境不用校验
-        if settings.ENABLE_MULTI_TENANT_MODE:
+        if not settings.ENABLE_MULTI_TENANT_MODE:
             return None
 
         if request.method in {"GET"}:
