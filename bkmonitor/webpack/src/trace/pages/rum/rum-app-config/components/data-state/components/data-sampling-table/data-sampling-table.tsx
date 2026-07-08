@@ -26,6 +26,8 @@
 
 import { type PropType, computed, defineComponent, shallowRef, toRef } from 'vue';
 
+import { useI18n } from 'vue-i18n';
+
 import CommonTable from '../../../../../../alarm-center/components/alarm-table/components/common-table/common-table';
 import { SAMPLING_TABLE_COLUMNS } from '../../../../../constants';
 import { useSamplingColumnsRenderer } from '../../../../hooks/use-sampling-columns-renderer';
@@ -55,6 +57,7 @@ export default defineComponent({
     viewDetail: (_log: IDataSamplingItem['raw_log']) => true,
   },
   setup(props, { emit }) {
+    const { t } = useI18n();
     /** 已展开原始数据的行索引集合 */
     const collapseRowIndexes = shallowRef<number[]>([]);
 
@@ -83,6 +86,7 @@ export default defineComponent({
     const columns = computed(() => transformColumns([...SAMPLING_TABLE_COLUMNS]));
 
     return {
+      t,
       collapseRowIndexes,
       columns,
     };
@@ -92,6 +96,10 @@ export default defineComponent({
       <div class='data-sampling-table-wrapper'>
         <CommonTable
           class='sampling-table'
+          empty={{
+            type: 'empty',
+            emptyText: this.t('暂无数据'),
+          }}
           autoFillSpace={!this.samplingList?.length}
           columns={this.columns}
           data={this.samplingList as unknown as Record<string, unknown>[]}

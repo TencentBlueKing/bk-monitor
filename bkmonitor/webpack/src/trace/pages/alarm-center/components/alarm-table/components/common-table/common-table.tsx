@@ -33,6 +33,7 @@ import {
   PrimaryTable,
 } from '@blueking/tdesign-ui';
 import { Exception, Pagination } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import TableSkeleton from '../../../../../../components/skeleton/table-skeleton';
 import { useTableCell } from '../../../../../trace-explore/components/trace-explore-table/hooks/use-table-cell';
@@ -177,6 +178,7 @@ export default defineComponent({
     columnResizeChange: (context: ColumnResizeContext) => context && typeof context.columnsWidth === 'object',
   },
   setup(props, { emit }) {
+    const { t } = useI18n();
     const wrapperRef = useTemplateRef<HTMLElement>('wrapperRef');
     /** 表格单元格渲染逻辑 */
     const { tableCellRender, renderContext } = useTableCell({
@@ -347,7 +349,7 @@ export default defineComponent({
       return (
         <Exception
           class='common-table-empty'
-          description={props.empty?.emptyText || '搜索为空'}
+          description={props.empty?.emptyText || t('搜索为空')}
           scene='part'
           type={props.empty?.type || 'search-empty'}
         />
