@@ -88,6 +88,10 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
+    skeletonLoading: {
+      type: Boolean,
+      default: false,
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -207,45 +211,49 @@ export default defineComponent({
               </span>
             </span>
           )}
-          <div class='editable-field-content'>
-            {this.isEditing ? (
-              <div class='editable-field-edit-mode'>
-                {this.renderEditValue()}
-                {this.loading ? (
-                  <div class='action-loading' />
-                ) : (
-                  <div class='action-btns'>
-                    <i
-                      class='icon-monitor icon-mc-check-small confirm'
-                      onClick={this.handleConfirm}
-                    />
-                    <i
-                      class='icon-monitor icon-mc-close close'
-                      onClick={this.handleCancel}
-                    />
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div
-                class='editable-field-view-mode'
-                onClick={this.handleStartEdit}
-              >
-                <span class='editable-field-value'>
-                  {this.displayText}
-                  <span class='suffix'>{this.suffix}</span>
-                </span>
-                {this.editable && (
-                  <span
-                    class='editable-field-icon'
-                    v-tippy={{ content: this.t('编辑') }}
-                  >
-                    <EditLine />
+          {this.skeletonLoading ? (
+            <div class='skeleton-element editable-field-content' />
+          ) : (
+            <div class='editable-field-content'>
+              {this.isEditing ? (
+                <div class='editable-field-edit-mode'>
+                  {this.renderEditValue()}
+                  {this.loading ? (
+                    <div class='action-loading' />
+                  ) : (
+                    <div class='action-btns'>
+                      <i
+                        class='icon-monitor icon-mc-check-small confirm'
+                        onClick={this.handleConfirm}
+                      />
+                      <i
+                        class='icon-monitor icon-mc-close close'
+                        onClick={this.handleCancel}
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div
+                  class='editable-field-view-mode'
+                  onClick={this.handleStartEdit}
+                >
+                  <span class='editable-field-value'>
+                    {this.displayText}
+                    <span class='suffix'>{this.suffix}</span>
                   </span>
-                )}
-              </div>
-            )}
-          </div>
+                  {this.editable && (
+                    <span
+                      class='editable-field-icon'
+                      v-tippy={{ content: this.t('编辑') }}
+                    >
+                      <EditLine />
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {this.isEditing && this.errorMsg && <span class='error-msg'>{this.errorMsg}</span>}

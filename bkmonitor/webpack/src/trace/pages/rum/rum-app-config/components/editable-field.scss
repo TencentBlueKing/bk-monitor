@@ -29,6 +29,11 @@
 
   &-content {
     flex: 1;
+
+    &.skeleton-element {
+      width: 120px;
+      height: 20px;
+    }
   }
 
   .error-msg {
