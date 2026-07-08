@@ -29,6 +29,7 @@ import { Button, Checkbox, Message, Sideslider } from 'bkui-vue';
 
 import TapdFieldForm from '../../components/tapd-field-form/tapd-field-form';
 import TapdFieldFormLoadingCom from '../../components/tapd-field-form/tapd-field-form-loading';
+import { EditType } from '../../components/tapd-field-form/typing';
 import { useTapdIssueActivities } from '../composables/use-tapd-issue-activities';
 import { useTapdSideslider } from '../composables/use-tapd-sideslider';
 import { TapdLinkModeEnum } from '../constant';
@@ -133,19 +134,33 @@ export default defineComponent({
             if (success?.activities) {
               tapdIssueActivities.setActivities({ issueId: issuesId.value, list: success.activities });
             }
+            if (success?.info) {
+              tapdIssueActivities.setInfos({ issueId: issuesId.value, list: success.info });
+            }
             handleShowChange(false);
           }
         }
       } else {
         const tapdFieldFormValid = await tapdFieldFormRef.value?.validate().catch(() => false);
         if (basicFormValid && tapdFieldFormValid) {
+          const fieldValueParams = {};
+          for (const key in tapdFieldValue.value) {
+            const type = tapdFields.value.find(item => item.field_id === key)?.field_type;
+            if (type === EditType.userChooser) {
+              fieldValueParams[key] = Array.isArray(tapdFieldValue.value[key])
+                ? tapdFieldValue.value[key].map(v => `${v};`).join('')
+                : '';
+            } else {
+              fieldValueParams[key] = tapdFieldValue.value[key];
+            }
+          }
           const params = {
             bk_biz_id: bizId.value,
             issue_id: issuesId.value,
             workspace_id: formData.value.workspace_id,
             sync_status: formData.value.sync_status,
             tapd_type: formData.value.tapd_type,
-            ...tapdFieldValue.value,
+            ...fieldValueParams,
           };
           confirmLoading.value = true;
           const success = await createTapdApi(params as TCreateTapdApiParams).catch(() => null);
@@ -157,6 +172,9 @@ export default defineComponent({
             // 将 TAPD 返回的活动记录写入全局状态，供 Issue 详情页活动列表回写
             if (success?.activities) {
               tapdIssueActivities.setActivities({ issueId: issuesId.value, list: success.activities });
+            }
+            if (success?.info) {
+              tapdIssueActivities.setInfos({ issueId: issuesId.value, list: success.info });
             }
             handleShowChange(false);
           }
