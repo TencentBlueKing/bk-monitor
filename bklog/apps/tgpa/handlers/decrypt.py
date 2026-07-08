@@ -114,6 +114,22 @@ class XorDecryptHandler(BaseDecryptHandler):
                     self.PRINTABLE_RATIO_THRESHOLD * 100,
                 )
                 return
+            # 解密第一块数据后做二次校验：配置了未加密特征前缀时必须命中特征；
+            # 未配置特征前缀时，退化为明文特征检测，避免误解密二进制文件。
+            decrypted_first_chunk = self.decrypt(first_chunk)
+            if self.unencrypted_prefix:
+                if self.unencrypted_prefix.encode("utf-8") not in decrypted_first_chunk:
+                    logger.info(
+                        "File %s does not contain log marker after decrypting first chunk, skipping decryption",
+                        file_path,
+                    )
+                    return
+            elif not self._is_likely_plaintext(decrypted_first_chunk):
+                logger.info(
+                    "File %s is not likely plaintext after decrypting first chunk, skipping decryption",
+                    file_path,
+                )
+                return
 
             # 分块解密，写入临时文件
             with open(file_path, "rb") as f_in, open(temp_path, "wb") as f_out:
