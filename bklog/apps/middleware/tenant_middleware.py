@@ -1,5 +1,6 @@
 import json
 
+from django.utils.translation import gettext_lazy as _
 from django.utils.deprecation import MiddlewareMixin
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -23,7 +24,13 @@ class TenantValidationMiddleware(MiddlewareMixin):
             space_uid = request.GET.get("space_uid")
         else:
             raw_body = request.body
-            body_data = json.loads(raw_body) if raw_body else {}
+
+            try:
+                body_data = json.loads(raw_body) if raw_body else {}
+            except (ValueError, TypeError):
+                # body 数据非 JSON 格式, 无从取 bk_biz_id 或 space_uid, 放行
+                return None
+
             bk_biz_id = body_data.get("bk_biz_id")
             space_uid = body_data.get("space_uid")
 
@@ -37,7 +44,12 @@ class TenantValidationMiddleware(MiddlewareMixin):
             return None
 
         if not bk_tenant_id:
-            return self.return_json_response(3600004, f"空间不存在: {space_uid}")
+            return self.return_json_response(
+                3600004,
+                _("{tip}不存在: {id}").format(
+                    tip="业务" if bk_biz_id else "空间", id=bk_biz_id if bk_biz_id else space_uid
+                ),
+            )
 
         user_model = get_user_model()
         username = get_request_username() or get_local_username()
@@ -45,12 +57,14 @@ class TenantValidationMiddleware(MiddlewareMixin):
         user_obj = user_model.objects.filter(username=username).first()
 
         if not user_obj:
-            return self.return_json_response(3600007, f"用户不存在: {username}")
+            return self.return_json_response(3600007, _("用户不存在: {username}").format(username=username))
 
         if user_obj.tenant_id != bk_tenant_id:
             return self.return_json_response(
                 3641001,
-                f"您当前的企业空间是【{bk_tenant_id}】，无法访问该链接，请您尝试返回登录页面切换其他企业空间访问。",
+                _(
+                    "您当前的企业空间是【{bk_tenant_id}】，无法访问该链接，请您尝试返回登录页面切换其他企业空间访问。"
+                ).format(bk_tenant_id=bk_tenant_id),
             )
 
         return None
