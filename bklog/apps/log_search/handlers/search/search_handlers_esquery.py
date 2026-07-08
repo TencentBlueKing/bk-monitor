@@ -2785,6 +2785,11 @@ class UnionSearchHandler:
         time_fields_type = set()
         time_fields_unit = set()
         for index_set_obj in index_set_objs:
+            (
+                index_set_obj.time_field,
+                index_set_obj.time_field_type,
+                index_set_obj.time_field_unit,
+            ) = SearchHandler.init_time_field(index_set_obj.index_set_id, index_set_obj.scenario_id)
             if not index_set_obj.time_field or not index_set_obj.time_field_type or not index_set_obj.time_field_unit:
                 raise SearchUnKnowTimeField()
             time_fields.add(index_set_obj.time_field)
@@ -2953,6 +2958,11 @@ class UnionSearchHandler:
         time_fields_type = set()
         time_fields_unit = set()
         for index_set_obj in index_set_objs:
+            (
+                index_set_obj.time_field,
+                index_set_obj.time_field_type,
+                index_set_obj.time_field_unit,
+            ) = SearchHandler.init_time_field(index_set_obj.index_set_id, index_set_obj.scenario_id)
             if not index_set_obj.time_field or not index_set_obj.time_field_type or not index_set_obj.time_field_unit:
                 raise SearchUnKnowTimeField()
             time_fields.add(index_set_obj.time_field)
@@ -3190,6 +3200,11 @@ class UnionSearchHandler:
 
         # 处理时间字段
         for index_set_obj in index_set_objs:
+            (
+                index_set_obj.time_field,
+                index_set_obj.time_field_type,
+                index_set_obj.time_field_unit,
+            ) = SearchHandler.init_time_field(index_set_obj.index_set_id, index_set_obj.scenario_id)
             if not index_set_obj.time_field or not index_set_obj.time_field_type or not index_set_obj.time_field_unit:
                 raise SearchUnKnowTimeField()
             union_time_fields.add(index_set_obj.time_field)
@@ -3342,6 +3357,11 @@ class UnionSearchHandler:
 
         # 处理时间字段
         for index_set_obj in index_set_objs:
+            (
+                index_set_obj.time_field,
+                index_set_obj.time_field_type,
+                index_set_obj.time_field_unit,
+            ) = SearchHandler.init_time_field(index_set_obj.index_set_id, index_set_obj.scenario_id)
             if not index_set_obj.time_field or not index_set_obj.time_field_type or not index_set_obj.time_field_unit:
                 raise SearchUnKnowTimeField()
             union_time_fields.add(index_set_obj.time_field)
