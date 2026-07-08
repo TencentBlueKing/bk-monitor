@@ -25,7 +25,6 @@
  */
 import { Component, Emit, InjectReactive, Prop, ProvideReactive, Watch, Inject } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import _ from 'lodash';
 import { connect, disconnect } from 'echarts/core';
 import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
@@ -40,7 +39,6 @@ import type { ITableItem, SceneType } from 'monitor-pc/pages/monitor-k8s/typings
 import './dashboard-panel.scss';
 /** 接收图表当前页面跳转事件 */
 export const UPDATE_SCENES_TAB_DATA = 'UPDATE_SCENES_TAB_DATA';
-const ALARM_CENTER_DASHBOARD_IDS = ['service-default-alarm_center', 'alarm_center'];
 interface IDashboardPanelEvents {
   onLintToDetail: ITableItem<'link'>;
   onBackToOverview: () => void;
@@ -131,37 +129,7 @@ export default class DashboardPanel extends tsc<IDashboardPanelProps, IDashboard
     this.handleUpdateLayout();
     this.handleConnectEcharts();
   }
-  @Watch('timeRange', { immediate: true })
-  handleGlobalTimeRangeChange(val: TimeRangeType) {
-    window.LOCAL_OLD_TIME_RANGE = val;
-  }
 
-  @Watch('dashboardId', { immediate: true })
-  handleDashboardIdChange(newDashboardId: string, oldDashboardId: string) {
-    if (!oldDashboardId || !newDashboardId) {
-      return;
-    }
-
-    if (ALARM_CENTER_DASHBOARD_IDS.includes(newDashboardId)) {
-      // 从其他默认时间的tab切换到告警，告警使用默认七天
-      if (_.isEqual(window.LOCAL_OLD_TIME_RANGE, ['now-1h', 'now'])) {
-        this.handleTimeRangeChange(['now-7d', 'now']);
-        return;
-      }
-
-      this.handleTimeRangeChange(window.LOCAL_OLD_TIME_RANGE);
-    } else {
-      // 从告警默认时间切到其他tab，其他tab使用默认近一小时
-      if (ALARM_CENTER_DASHBOARD_IDS.includes(oldDashboardId)) {
-        if (_.isEqual(window.LOCAL_OLD_TIME_RANGE, ['now-7d', 'now'])) {
-          this.handleTimeRangeChange(['now-1h', 'now']);
-          return;
-        }
-
-        this.handleTimeRangeChange(window.LOCAL_OLD_TIME_RANGE);
-      }
-    }
-  }
   mounted() {
     // 等待所以子视图实例创建完进行视图示例的关联 暂定5000ms 后期进行精细化配置
     this.handleConnectEcharts();

@@ -36,6 +36,7 @@ import {
   Inject,
 } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import _ from 'lodash';
 
 import { APM_ALARM_TEMPLATE_ROUTER_QUERY_KEYS } from 'apm/pages/alarm-template/constant';
 import { isEqual } from 'lodash';
@@ -125,6 +126,8 @@ const DEFAULT_QUERY_DATA = {
   sort: '',
   filterDict: {},
 };
+
+const ALARM_CENTER_DASHBOARD_IDS = ['service-default-alarm_center', 'alarm_center'];
 
 interface ICommonPageEvent {
   onSceneTypeChange: SceneType;
@@ -649,6 +652,38 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     bus.$off('dashboardModeChange', this.handleDashboardModeChange);
     bus.$off('switch_scenes_type');
   }
+  @Watch('timeRange', { immediate: true })
+  handleGlobalTimeRangeChange(val: TimeRangeType) {
+    window.LOCAL_OLD_TIME_RANGE = val;
+  }
+
+  @Watch('dashboardId', { immediate: true })
+  handleDashboardIdChange(newDashboardId: string, oldDashboardId: string) {
+    if (!oldDashboardId || !newDashboardId) {
+      return;
+    }
+
+    if (ALARM_CENTER_DASHBOARD_IDS.includes(newDashboardId)) {
+      // 从其他默认时间的tab切换到告警，告警使用默认七天
+      if (_.isEqual(window.LOCAL_OLD_TIME_RANGE, ['now-1h', 'now'])) {
+        this.handleTimeRangeChange(['now-7d', 'now']);
+        return;
+      }
+
+      this.handleTimeRangeChange(window.LOCAL_OLD_TIME_RANGE);
+    } else {
+      // 从告警默认时间切到其他tab，其他tab使用默认近一小时
+      if (ALARM_CENTER_DASHBOARD_IDS.includes(oldDashboardId)) {
+        if (_.isEqual(window.LOCAL_OLD_TIME_RANGE, ['now-7d', 'now'])) {
+          this.handleTimeRangeChange(['now-1h', 'now']);
+          return;
+        }
+
+        this.handleTimeRangeChange(window.LOCAL_OLD_TIME_RANGE);
+      }
+    }
+  }
+
   @Watch('backToOverviewKey')
   backToOverviewKeyChange() {
     this.localSceneType = 'overview';
