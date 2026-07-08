@@ -35,6 +35,7 @@ import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats/valueFor
 
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { useChartTooltips } from './use-chart-tooltips';
+import { useChartViewOption } from './use-chart-view-option';
 import {
   handleGetMinPrecision,
   handleSetMarkPoints,
@@ -452,6 +453,7 @@ export const useEcharts = ({
   const chartId = shallowRef(random(8));
   const timeRange = inject('timeRange', DEFAULT_TIME_RANGE);
   const refreshImmediate = inject('refreshImmediate');
+  const { applyPeakMarkPoint, watchHighlightPeak } = useChartViewOption();
 
   let cancelTokens = [];
   /** 请求版本号，用于丢弃 lazyRender 阶段的过期回调 */
@@ -471,6 +473,25 @@ export const useEcharts = ({
     }, []);
   });
   const series = shallowRef([]);
+
+  /** 根据已合并的 series 列表构建 echarts options */
+  const buildOptions = (seriesList: any[]) => {
+    if (!seriesList.length) return undefined;
+    const { xAxis, seriesData, xData } = createSeries(seriesList, customOptions.series);
+    applyPeakMarkPoint(seriesData, xData);
+    const yAxis = createYAxis(seriesData, toValue(panel).options?.time_series?.type);
+    const echartOptions = createOptions(xAxis, yAxis, seriesData, customOptions.options);
+    const { tooltipsOptions } = useChartTooltips(chartRef, {
+      isMouseOver: interactionState?.isMouseOver ?? true,
+      hoverAllTooltips: interactionState?.hoverAllTooltips ?? false,
+      options: echartOptions,
+      customTooltipsOptions: customOptions.tooltips,
+    });
+    return {
+      ...echartOptions,
+      tooltip: tooltipsOptions.value,
+    };
+  };
 
   const getEchartOptions = async () => {
     for (const cb of cancelTokens) {
@@ -540,24 +561,6 @@ export const useEcharts = ({
         .catch(() => []);
     };
 
-    /** 根据已合并的 series 列表构建 echarts options */
-    const buildOptions = (seriesList: any[]) => {
-      if (!seriesList.length) return undefined;
-      const { xAxis, seriesData } = createSeries(seriesList, customOptions.series);
-      const yAxis = createYAxis(seriesData, toValue(panel).options?.time_series?.type);
-      const echartOptions = createOptions(xAxis, yAxis, seriesData, customOptions.options);
-      const { tooltipsOptions } = useChartTooltips(chartRef, {
-        isMouseOver: interactionState?.isMouseOver ?? true,
-        hoverAllTooltips: interactionState?.hoverAllTooltips ?? false,
-        options: echartOptions,
-        customTooltipsOptions: customOptions.tooltips,
-      });
-      return {
-        ...echartOptions,
-        tooltip: tooltipsOptions.value,
-      };
-    };
-
     /** 把 Promise.allSettled 结果展开为 series 列表 */
     const flattenSeries = (resList: PromiseSettledResult<any[]>[]) => {
       const list: any[] = [];
@@ -611,6 +614,13 @@ export const useEcharts = ({
       immediate: true,
     }
   );
+  watchHighlightPeak(() => {
+    const nextOptions = buildOptions(series.value);
+    if (nextOptions) {
+      options.value = nextOptions;
+      chartId.value = random(8);
+    }
+  });
   return {
     loading,
     options,

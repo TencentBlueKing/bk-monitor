@@ -38,7 +38,6 @@ import ChartTitle from '@/plugins/components/chart-title';
 import CommonLegend from '@/plugins/components/common-legend';
 
 import type { HostViewsGraphPanel } from '../../../types/panels';
-import type { GraphApi } from '../services/graph-api';
 import type { ScopedVarMap } from '../variables/resolve';
 
 import './time-series-card.scss';
@@ -55,11 +54,6 @@ export default defineComponent({
     scopedVars: {
       type: Object as PropType<ScopedVarMap>,
       default: () => ({}),
-    },
-    /** 取数 API（mock / 真实接口同款签名） */
-    api: {
-      type: Object as PropType<GraphApi>,
-      required: true,
     },
     /** echarts 联动分组 id（同分组图表共享 tooltip/缩放） */
     dashboardId: {
@@ -79,7 +73,7 @@ export default defineComponent({
     const { options, loading, metricList, targets, series, chartId } = useEcharts({
       panel: resolvedPanel,
       chartRef: chartMainRef,
-      $api: props.api as any,
+      $api: instance.appContext.config.globalProperties.$api,
       params: computed(() => ({})),
       customOptions: {},
     });

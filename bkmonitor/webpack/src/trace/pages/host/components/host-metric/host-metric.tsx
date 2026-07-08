@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, provide, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, provide, shallowRef } from 'vue';
 
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
@@ -32,31 +32,47 @@ import { useI18n } from 'vue-i18n';
 import { useMetricAggregation } from '../../composables/use-metric-aggregation';
 import { useMetricGroups } from '../../composables/use-metric-groups';
 import { MOCK_COMPARE_TARGETS, MOCK_CURRENT_TARGET } from '../../mock/aggregation';
-import { buildScopedVars, createGraphApi, DashboardPanel, useDashboardPanels } from '../dashbords';
+import { buildScopedVars, DashboardPanel, useDashboardPanels } from '../dashbords';
 import GroupManageDialog from './group-manage-dialog';
 import MetricToolbar from './metric-toolbar';
 import { useHostStore } from '@/store/modules/host';
 
+import type { IHostTopoTreeNode, MetricCompareType } from '../../types';
 import type { MetricGroupModel, MetricItemModel } from '../../types/metric-group';
 
 import './host-metric.scss';
 
 export default defineComponent({
   name: 'HostMetric',
-  setup() {
+  props: {
+    selectedNode: {
+      type: Object as PropType<IHostTopoTreeNode | null>,
+      default: null,
+    },
+  },
+  setup(props) {
     const { t } = useI18n();
     // 汇聚状态：由本容器持有，向 Toolbar（受控）与图表（props）统一分发
     const aggregation = useMetricAggregation();
     // 分组与指标数据：图表渲染与「视图分组管理」的单一数据源
     const groupsCtrl = useMetricGroups();
 
+    // 是否选中的是主机或者是服务实例
+    const isCheckedHost = computed(() => {
+      return 'bk_host_id' in props.selectedNode;
+    });
+
+    /** 可选的对比类型 */
+    const compareListEnable = computed<MetricCompareType[]>(() => {
+      if (isCheckedHost.value) return ['none', 'target', 'time'];
+      return ['none', 'time'];
+    });
+
     // 向下游图表（useEcharts）提供时间范围与刷新信号
     const { timeRange, refreshImmediate } = storeToRefs(useHostStore());
     provide('timeRange', timeRange);
     provide('refreshImmediate', refreshImmediate);
-
-    // 图表取数 API（mock，后续可零改动替换为真实接口）
-    const graphApi = createGraphApi();
+    provide('viewOptions', aggregation.viewOptions);
 
     // 变量取值：仅请求态字段变化才会触发图表重新取数
     const scopedVars = computed(() => buildScopedVars(aggregation.state, MOCK_CURRENT_TARGET));
@@ -78,6 +94,7 @@ export default defineComponent({
     return () => (
       <div class='host-metric'>
         <MetricToolbar
+          compareListEnable={compareListEnable.value}
           currentTarget={MOCK_CURRENT_TARGET}
           targetList={MOCK_COMPARE_TARGETS}
           value={aggregation.state}
@@ -86,7 +103,6 @@ export default defineComponent({
         />
         <DashboardPanel
           class='host-metric__charts'
-          api={graphApi}
           columns={aggregation.state.columns}
           rows={rows.value}
           scopedVars={scopedVars.value}

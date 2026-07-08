@@ -28,8 +28,8 @@ import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
 import ChartLazy from './chart-lazy';
 import TimeSeriesCard from './time-series-card';
+import MonitorCrossDrag from '@/components/monitor-cross-drag/monitor-cross-drag';
 
-import type { GraphApi } from '../services/graph-api';
 import type { DashboardRow } from '../typings/dashboard';
 import type { ScopedVarMap } from '../variables/resolve';
 
@@ -48,18 +48,26 @@ export default defineComponent({
       type: Number,
       default: 3,
     },
+    height: {
+      type: Number,
+      default: 240,
+    },
+    maxHeight: {
+      type: Number,
+      default: 600,
+    },
+    minHeight: {
+      type: Number,
+      default: 240,
+    },
     /** 变量取值映射 */
     scopedVars: {
       type: Object as PropType<ScopedVarMap>,
       default: () => ({}),
     },
-    /** 取数 API */
-    api: {
-      type: Object as PropType<GraphApi>,
-      required: true,
-    },
   },
-  setup(props) {
+  emits: ['resize'],
+  setup(props, { emit }) {
     /** 分组展开状态，折叠时不挂载图表（避免无谓取数） */
     const expanded = shallowRef(true);
 
@@ -71,10 +79,16 @@ export default defineComponent({
       expanded.value = !expanded.value;
     };
 
+    const handleCrossResize = (height: number) => {
+      console.log(height);
+      emit('resize', height);
+    };
+
     return {
       expanded,
       gridStyle,
       toggle,
+      handleCrossResize,
     };
   },
   render() {
@@ -101,13 +115,25 @@ export default defineComponent({
             class='dashboard-row__grid'
           >
             {this.row.panels.map(panel => (
-              <ChartLazy key={panel.id}>
-                <TimeSeriesCard
-                  api={this.api}
-                  dashboardId={this.row.id}
-                  panel={panel}
-                  scopedVars={this.scopedVars}
-                />
+              <ChartLazy
+                key={panel.id}
+                minHeight={this.minHeight}
+              >
+                <div
+                  style={{ height: `${this.height}px` }}
+                  class='chart-card'
+                >
+                  <TimeSeriesCard
+                    dashboardId={this.row.id}
+                    panel={panel}
+                    scopedVars={this.scopedVars}
+                  />
+                  <MonitorCrossDrag
+                    maxHeight={this.maxHeight}
+                    minHeight={this.minHeight}
+                    onMove={this.handleCrossResize}
+                  />
+                </div>
               </ChartLazy>
             ))}
           </div>
