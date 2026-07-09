@@ -89,6 +89,9 @@ export default defineComponent({
 
     const apiOptions = ref<Record<string, { loading: boolean; options: Array<{ id: string; name: string }> }>>({});
 
+    /** 标签输入框组件引用 */
+    const tagInputRefs = ref<Record<string, any>>({});
+
     const currentScene = computed<SceneConfig | undefined>(() => sceneConfigs.value
       .find((scene: { type: string; }) => scene.type === props.activeScene),
     );
@@ -567,6 +570,11 @@ export default defineComponent({
       // 更新标签输入框的值
       const currentTags = [...suggestionState.selectedItems];
       handleTagChange(suggestionState.currentFieldKey, currentTags);
+      // 清空标签输入框的文本值
+      const tagInputRef = tagInputRefs.value[suggestionState.currentFieldKey];
+      if (tagInputRef?.clearInput) {
+        tagInputRef.clearInput();
+      }
     };
 
     /** 处理加载更多 */
@@ -872,6 +880,7 @@ export default defineComponent({
             <div class='field-input-placeholder' />
             <div class='tag-input-wrapper'>
               <bk-tag-input
+                ref={(el: any) => { tagInputRefs.value[field.key] = el; }}
                 value={getLocalTagValues(field.key)}
                 placeholder={field.placeholder}
                 allow-create={true}
