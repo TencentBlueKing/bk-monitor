@@ -42,6 +42,12 @@ export const fieldTypeMap = {
     color: '#60A087',
     bgColor: '#DDEBE6',
   },
+  number_input: {
+    name: window.i18n.t('数字'),
+    icon: 'icon-monitor icon-number1',
+    color: '#60A087',
+    bgColor: '#DDEBE6',
+  },
   long: {
     name: window.i18n.t('数字'),
     icon: 'icon-monitor icon-number1',
