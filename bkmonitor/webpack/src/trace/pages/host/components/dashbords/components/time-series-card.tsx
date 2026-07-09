@@ -24,8 +24,19 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, getCurrentInstance, useTemplateRef } from 'vue';
+import {
+  type MaybeRef,
+  type PropType,
+  computed,
+  defineComponent,
+  getCurrentInstance,
+  inject,
+  shallowRef,
+  toValue,
+  useTemplateRef,
+} from 'vue';
 
+import { ResizeLayout } from 'bkui-vue';
 import VueEcharts from 'vue-echarts';
 import { useI18n } from 'vue-i18n';
 
@@ -36,9 +47,11 @@ import { useChartTitleEvent } from '@/pages/trace-explore/components/explore-cha
 import { useEcharts } from '@/pages/trace-explore/components/explore-chart/use-echarts';
 import ChartTitle from '@/plugins/components/chart-title';
 import CommonLegend from '@/plugins/components/common-legend';
+import TableLegend from '@/plugins/components/table-legend';
 
 import type { HostViewsGraphPanel } from '../../../types/panels';
 import type { ScopedVarMap } from '../variables/resolve';
+import type { ChartViewOptions } from '@/pages/trace-explore/components/explore-chart/use-chart-view-option';
 
 import './time-series-card.scss';
 
@@ -66,6 +79,22 @@ export default defineComponent({
     const instance = getCurrentInstance();
     const chartRef = useTemplateRef<HTMLElement>('chart');
     const chartMainRef = useTemplateRef<HTMLElement>('chartMain');
+    const resizeLayoutRef = useTemplateRef<InstanceType<typeof ResizeLayout>>('resizeLayout');
+    const viewOptions = inject<MaybeRef<ChartViewOptions>>('viewOptions', undefined);
+
+    /** 是否展示统计值 */
+    const isShowStatistics = computed(() => toValue(viewOptions)?.showStatistics ?? false);
+
+    /** 图表区域高度 */
+    const chartHeight = shallowRef(200);
+    /** 最大拉伸高度 */
+    const layoutDragMaxHeight = shallowRef(300);
+    const handleResizing = (height: number) => {
+      const { height: layoutHeight } = resizeLayoutRef.value.$el.getBoundingClientRect();
+      const rowHeight = 52; // 统计值表格表头高度+一行数据的高度+间隙高度
+      layoutDragMaxHeight.value = layoutHeight - rowHeight; // 图表可拖拽的最大高度
+      chartHeight.value = height > layoutDragMaxHeight.value ? layoutDragMaxHeight.value : height;
+    };
 
     /** 变量解析后的可取数面板，scopedVars 变化时自动重算并触发取数 */
     const resolvedPanel = computed(() => resolveGraphPanel(props.panel, props.scopedVars, props.dashboardId));
@@ -94,6 +123,10 @@ export default defineComponent({
       loading,
       metricList,
       legendData,
+      isShowStatistics,
+      chartHeight,
+      layoutDragMaxHeight,
+      handleResizing,
       handleAlarmClick,
       handleMenuClick,
       handleMetricClick,
@@ -101,6 +134,22 @@ export default defineComponent({
     };
   },
   render() {
+    const renderChart = () => {
+      return (
+        <div
+          ref='chartMain'
+          class='time-series-card__chart'
+        >
+          <VueEcharts
+            ref='echart'
+            group={this.dashboardId}
+            option={this.options}
+            autoresize
+          />
+        </div>
+      );
+    };
+
     return (
       <div
         ref='chart'
@@ -123,21 +172,36 @@ export default defineComponent({
           <ChartSkeleton />
         ) : this.options ? (
           <>
-            <div
-              ref='chartMain'
-              class='time-series-card__chart'
-            >
-              <VueEcharts
-                ref='echart'
-                group={this.dashboardId}
-                option={this.options}
-                autoresize
-              />
-            </div>
-            <CommonLegend
-              legendData={this.legendData}
-              onSelectLegend={this.handleSelectLegend}
-            />
+            {this.isShowStatistics ? (
+              <ResizeLayout
+                ref='resizeLayout'
+                class='time-series-card__resize-layout'
+                border={false}
+                initialDivide={`${this.chartHeight}px`}
+                max={this.layoutDragMaxHeight}
+                min={100}
+                placement='top'
+                onResizing={this.handleResizing}
+              >
+                {{
+                  aside: renderChart,
+                  main: () => (
+                    <TableLegend
+                      legendData={this.legendData}
+                      onSelectLegend={this.handleSelectLegend}
+                    />
+                  ),
+                }}
+              </ResizeLayout>
+            ) : (
+              <>
+                {renderChart()}
+                <CommonLegend
+                  legendData={this.legendData}
+                  onSelectLegend={this.handleSelectLegend}
+                />
+              </>
+            )}
           </>
         ) : (
           <div class='time-series-card__empty'>{this.t('暂无数据')}</div>

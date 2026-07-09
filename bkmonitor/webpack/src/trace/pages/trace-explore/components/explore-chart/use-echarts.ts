@@ -57,11 +57,13 @@ export interface ChartInteractionState {
   isMouseOver: MaybeRef<boolean>;
 }
 export interface ChartOptions {
+  // biome-ignore lint/suspicious/noExplicitAny: API 返回类型通用
   $api: Record<string, () => Promise<any>>;
   chartRef: Ref<HTMLElement>;
   customOptions: CustomOptions;
   interactionState?: ChartInteractionState;
   panel: MaybeRef<PanelModel>;
+  // biome-ignore lint/suspicious/noExplicitAny: API 参数类型通用
   params: MaybeRef<Record<string, any>>;
   downSampleRangeComputed?: (timeRange: number[]) => string | undefined;
 }
