@@ -185,6 +185,28 @@ def test_metric_zero_value_still_alerts():
     assert int(seen_score(item, "metric-zero")) == 100000000
 
 
+def test_log_count_zero_bucket_filtered_across_shared_multi_level():
+    # 多 level 共享同一 seen-zset 时，日志关键字批次内 0 桶 + 真实点混合：
+    # 0 桶两个 level 都不报、真实点两个 level 都报，且 seen 只按真实点写一次。
+    use_fake_cache_router()
+    item = make_item(data_source_label=DataSourceLabel.BK_LOG_SEARCH, data_type_label=DataTypeLabel.LOG)
+    seed_learned(item)
+
+    d1 = NewSeries(config=default_config())
+    d2 = NewSeries(config=default_config())
+    zero_bucket = make_dp("log-pattern", 100000000, item, value=0)
+    real_bucket = make_dp("log-pattern", 100000060, item, value=1)
+
+    d1.pre_detect([zero_bucket, real_bucket])  # 读干净态 + 只按真实点写
+    d2.pre_detect([zero_bucket, real_bucket])  # 复用 d1 快照(干净态)，不被写污染
+
+    assert len(d1.detect(zero_bucket)) == 0
+    assert len(d2.detect(zero_bucket)) == 0
+    assert len(d1.detect(real_bucket)) == 1
+    assert len(d2.detect(real_bucket)) == 1
+    assert int(seen_score(item, "log-pattern")) == 100000060
+
+
 @pytest.mark.django_db
 class TestNewSeries:
     def test_config_validate(self):
