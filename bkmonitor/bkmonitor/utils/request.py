@@ -132,9 +132,11 @@ def is_mcp_request(request: HttpRequest | None) -> bool:
         return False
     if request.META.get("HTTP_X_BKAPI_MCP_SERVER_NAME"):
         return True
-    return request.META.get("HTTP_X_BK_REQUEST_SOURCE") == getattr(
+    if request.META.get("HTTP_X_BK_REQUEST_SOURCE") == getattr(
         settings, "AIDEV_AGENT_MCP_REQUEST_HEADER_VALUE", "bkm-mcp-client"
-    )
+    ):
+        return True
+    return get_app_code_by_request(request) == getattr(settings, "AIDEV_AGENT_MCP_REQUEST_AGENT_CODE", "bkmonitor-mcp")
 
 
 def extract_trace_id_from_traceparent(traceparent: str | None) -> str:

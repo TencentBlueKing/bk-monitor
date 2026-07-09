@@ -58,6 +58,16 @@ def test_mcp_trace_context_generates_traceparent_when_missing():
     assert request.META["HTTP_TRACEPARENT"].startswith(f"00-{trace_id}-")
 
 
+def test_mcp_trace_context_supports_app_code_only_compatible_request():
+    request = RequestFactory().post("/api/v4/metrics/list_time_series_groups/", HTTP_BK_APP_CODE="bkmonitor-mcp")
+    local.current_request = request
+
+    trace_id = ensure_mcp_trace_context(request)
+
+    assert TRACE_ID_RE.match(trace_id)
+    assert request.META["HTTP_TRACEPARENT"].startswith(f"00-{trace_id}-")
+
+
 def test_api_renderer_adds_trace_id_only_for_mcp_request():
     mcp_request = make_mcp_request("00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01")
     normal_request = RequestFactory().post("/api/v4/metrics/list_time_series_groups/")
