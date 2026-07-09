@@ -22,6 +22,7 @@ from alarm_backends.service.detect.strategy import (
     ExprDetectAlgorithms,
 )
 from bkmonitor.utils.common_utils import count_md5
+from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.prometheus import metrics
 
 logger = logging.getLogger("detect")
@@ -157,6 +158,27 @@ class NewSeries(BasicAlgorithmsCollection):
             return _("%(n)s 小时") % {"n": self.detect_range // 3600}
         return _("%(n)s 秒") % {"n": self.detect_range}
 
+    @classmethod
+    def _is_log_count_item(cls, item):
+        if not item.query_configs:
+            return False
+        query_config = item.query_configs[0]
+        return (
+            query_config.get("data_source_label") == DataSourceLabel.BK_LOG_SEARCH
+            and query_config.get("data_type_label") == DataTypeLabel.LOG
+        )
+
+    @staticmethod
+    def _is_positive_count(data_point):
+        # 日志关键字(COUNT)场景下，唯一可靠的"该分钟有真实文档"信号是 _result_>=1；
+        # unify-query 对 date_histogram 设 MinDocCount(0)+ExtendedBounds，无文档的分钟会补出 value=0 的合成桶，
+        # 这类合成 0 桶不对应任何原始日志，不应据以判定"新维度值"。
+        # value 取不到数值(None/非数字)时保守判为可观测——宁可多告(交由指纹去重)也不静默漏报。
+        try:
+            return float(data_point.value) > 0
+        except (TypeError, ValueError):
+            return True
+
     # ------------------------------------------------------------------ #
     # 逐点检测：读 pre_detect 缓存的旧态，注入布尔
     # ------------------------------------------------------------------ #
@@ -175,9 +197,20 @@ class NewSeries(BasicAlgorithmsCollection):
     def pre_detect(self, data_points):
         # 防御性重置：保证每次 pre_detect 从干净 map 起步(当前框架每批新建实例，此处为冗余防御)。
         self._fire_by_dp = {}
+        # 是否日志关键字(COUNT)场景，item 级恒定：只算一次，避免在推导式/_compute_fire_map 里逐点重复解析 query_configs。
+        is_log_count = self._is_log_count_item(data_points[0].item)
+        if is_log_count:
+            observable_data_points = [dp for dp in data_points if self._is_positive_count(dp)]
+        else:
+            observable_data_points = data_points
+        if not observable_data_points:
+            self.bootstrap_empty_batch(data_points[0].item)
+            self._fire_by_dp = {id(data_point): False for data_point in data_points}
+            return
+
         item = data_points[0].item
         sig = self._dimension_signature(item)
-        token = self._batch_token(data_points)
+        token = self._batch_token(observable_data_points)
 
         cache = getattr(item, "_new_series_cache", None)
         if not (isinstance(cache, dict) and cache.get("token") == token):
@@ -187,7 +220,7 @@ class NewSeries(BasicAlgorithmsCollection):
         by_sig = cache["by_sig"]
         if sig not in by_sig:
             # 同一 (item, 维度签名, 批次) 下，仅首个 detector 读旧态+写新态；其余 level 复用快照、不重复读写。
-            by_sig[sig] = self._read_and_write(data_points, item, sig)
+            by_sig[sig] = self._read_and_write(observable_data_points, item, sig)
 
         entry = by_sig[sig]
         if entry is None:
@@ -197,9 +230,9 @@ class NewSeries(BasicAlgorithmsCollection):
 
         self._seen_before = entry["seen_before"]
         self._baseline_batch = entry["baseline_batch"]
-        self._compute_fire_map(data_points)
+        self._compute_fire_map(data_points, is_log_count)
 
-    def _compute_fire_map(self, data_points):
+    def _compute_fire_map(self, data_points, is_log_count):
         # 预计算每个数据点是否告警，供 extra_context 纯读。判定口径与 detect_records 遍历同序：
         # is_new = 库无该指纹 或 距上次出现已超 detect_range；基线批次一律不报。
         # 批内去重：同一指纹仅放行首个符合点。按 id(data_point) 建键(而非 record_id)——
@@ -208,6 +241,11 @@ class NewSeries(BasicAlgorithmsCollection):
         flagged = set()
         fire_by_dp = {}
         for data_point in data_points:
+            # 日志关键字场景过滤合成 0 桶：非正计数点不参与新维度判定，直接不报(与 pre_detect 的可观测口径一致)。
+            if is_log_count and not self._is_positive_count(data_point):
+                fire_by_dp[id(data_point)] = False
+                continue
+
             fingerprint = self._fingerprint(data_point)
             last_seen = self._seen_before.get(fingerprint)
             is_new = (last_seen is None) or (int(data_point.timestamp) - last_seen > self.detect_range)
