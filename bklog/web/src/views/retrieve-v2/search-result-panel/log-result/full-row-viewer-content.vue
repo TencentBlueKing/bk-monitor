@@ -209,6 +209,37 @@
     return { plainText: stringifyContentValue(value, false), markRanges: [], wrapQuotes: false };
   };
 
+  const escapeRegExp = value => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  const buildKeywordRegExp = (keyword) => {
+    if (!keyword) return null;
+    try {
+      return new RegExp(escapeRegExp(keyword), 'gi');
+    } catch {
+      return null;
+    }
+  };
+
+  const collectSearchRanges = ({ text, keywordRegExp, offset = 0, maxMatches = Infinity }) => {
+    if (!text || !keywordRegExp || maxMatches <= 0) return [];
+    const source = String(text);
+    const flags = keywordRegExp.flags.includes('g') ? keywordRegExp.flags : keywordRegExp.flags + 'g';
+    const regExp = new RegExp(keywordRegExp.source, flags);
+    const ranges = [];
+    let match = regExp.exec(source);
+
+    while (match && ranges.length < maxMatches) {
+      const start = offset + match.index;
+      const matchText = match[0] || '';
+      const matchLength = matchText.length || 1;
+      ranges.push({ start, end: start + matchLength });
+      if (matchLength === 0) regExp.lastIndex = match.index + 1;
+      match = regExp.exec(source);
+    }
+
+    return ranges;
+  };
+
   export default {
     name: 'FullRowViewerContent',
     props: {
@@ -239,6 +270,7 @@
         scrollLoadMoreTimer: null,
         isAppendingChunk: false,
         pendingAppendScrollTop: null,
+        allSearchMatches: [],
       };
     },
     computed: {
@@ -269,6 +301,9 @@
       textSourceInfo() {
         if (!this.displayRowData) return { plainText: '', markRanges: [] };
         return parseMarkedText(stringifyContentValue(this.displayRowData, false));
+      },
+      searchKeywordRegExp() {
+        return buildKeywordRegExp(this.searchKeyword?.trim());
       },
       textVisibleLength() {
         return Math.min(this.textSourceInfo.plainText.length, this.textLoadedChunkCount * FIELD_CHUNK_SIZE);
@@ -309,7 +344,7 @@
           const loadedLength = Math.min(totalLength, this.jsonLoadedBytes[fieldName] || 0);
           const visiblePlainText = formatted.plainText.slice(0, loadedLength);
           const valueGlobalStart = globalOffset + fieldName.length + 4 + (formatted.wrapQuotes ? 1 : 0);
-          globalOffset += fieldName.length + 4 + (formatted.wrapQuotes ? 2 : 0) + visiblePlainText.length + (index < this.allJsonFieldNames.length - 1 ? 1 : 0);
+          globalOffset += fieldName.length + 4 + (formatted.wrapQuotes ? 2 : 0) + totalLength + (index < this.allJsonFieldNames.length - 1 ? 1 : 0);
           return {
             fieldName,
             plainText: formatted.plainText,
@@ -365,27 +400,11 @@
       },
       matches() {
         this.searchVersion;
-        this.searchKeyword;
-        const keyword = this.searchKeyword;
-        if (!keyword || !this.visibleContentText) return [];
-        const matches = [];
-        const lowerText = this.visibleContentText.toLowerCase();
-        const lowerKeyword = keyword.toLowerCase();
-        let offset = 0;
-        while (offset <= lowerText.length && matches.length < MAX_SEARCH_MATCHES) {
-          const index = lowerText.indexOf(lowerKeyword, offset);
-          if (index < 0) break;
-          matches.push({ start: index, end: index + keyword.length });
-          offset = index + Math.max(1, keyword.length);
-        }
-        return matches;
+        if (!this.searchKeywordRegExp) return [];
+        return this.allSearchMatches.slice(0, MAX_SEARCH_MATCHES);
       },
       searchMatchLimited() {
-        const keyword = this.searchKeyword;
-        if (!keyword || this.matches.length < MAX_SEARCH_MATCHES) return false;
-        const lastMatch = this.matches[this.matches.length - 1];
-        if (!lastMatch) return false;
-        return this.visibleContentText.toLowerCase().indexOf(keyword.toLowerCase(), lastMatch.end) >= 0;
+        return Boolean(this.searchKeywordRegExp && this.allSearchMatches.length > MAX_SEARCH_MATCHES);
       },
       activeMatch() {
         if (this.activeMatchIndex < 0 || this.activeMatchIndex >= this.matches.length) return null;
@@ -412,6 +431,7 @@
       },
       mode() {
         this.resetChunkState();
+        this.refreshSearchMatches();
         this.activeMatchIndex = this.matches.length ? 0 : -1;
         this.resetScroll();
       },
@@ -430,6 +450,7 @@
       },
       searchKeyword() {
         this.searchVersion += 1;
+        this.refreshSearchMatches();
         this.ensureSearchMatchesVisible();
         const nextIndex = this.matches.length ? 0 : -1;
         if (nextIndex === this.activeMatchIndex) this.queueScrollToActiveMatch();
@@ -447,7 +468,14 @@
       },
       activeMatchIndex() {
         this.emitMatchUpdate();
+        this.ensureActiveMatchVisible();
         this.queueScrollToActiveMatch();
+      },
+      displayRowData: {
+        handler() {
+          this.refreshSearchMatches();
+        },
+        immediate: true,
       },
     },
     mounted() {
@@ -672,7 +700,50 @@
       },
       resetSearchState() {
         this.activeMatchIndex = -1;
+        this.allSearchMatches = [];
         this.searchVersion += 1;
+      },
+      refreshSearchMatches() {
+        const keywordRegExp = this.searchKeywordRegExp;
+        if (!keywordRegExp || !this.displayRowData) {
+          this.allSearchMatches = [];
+          return;
+        }
+        this.allSearchMatches = this.collectAllSearchMatches(keywordRegExp);
+      },
+      collectAllSearchMatches(keywordRegExp) {
+        if (this.mode === 'text') {
+          return collectSearchRanges({
+            text: this.textSourceInfo.plainText,
+            keywordRegExp,
+            maxMatches: MAX_SEARCH_MATCHES + 1,
+          });
+        }
+        const matches = [];
+        this.jsonFieldMetaList.forEach((field) => {
+          if (matches.length > MAX_SEARCH_MATCHES) return;
+          const ranges = collectSearchRanges({
+            text: field.plainText,
+            keywordRegExp,
+            offset: field.valueGlobalStart,
+            maxMatches: MAX_SEARCH_MATCHES + 1 - matches.length,
+          });
+          matches.push(...ranges);
+        });
+        return matches;
+      },
+      ensureActiveMatchVisible() {
+        const match = this.activeMatch;
+        if (!match) return;
+        if (this.mode === 'text') {
+          this.textLoadedChunkCount = Math.max(this.textLoadedChunkCount, Math.ceil(match.end / FIELD_CHUNK_SIZE));
+          return;
+        }
+        const field = this.jsonFieldMetaList.find(item => match.start >= item.valueGlobalStart && match.start < item.valueGlobalStart + item.totalLength);
+        if (!field) return;
+        this.ensureFieldVisible(field.fieldName);
+        const localEnd = Math.min(field.totalLength, Math.max(1, match.end - field.valueGlobalStart));
+        this.$set(this.jsonLoadedBytes, field.fieldName, Math.max(this.jsonLoadedBytes[field.fieldName] || 0, Math.ceil(localEnd / FIELD_CHUNK_SIZE) * FIELD_CHUNK_SIZE));
       },
       observeContentResize() {
         if (typeof ResizeObserver === 'undefined') return;
