@@ -1818,7 +1818,7 @@ class BaseIndexSetHandler:
         tag_ids = []
         if self.bcs_cluster_id:
             # 为k8s容器添加默认标签
-            tag_id = IndexSetTag.get_tag_id(name=self.bcs_cluster_id)
+            tag_id = IndexSetTag.get_tag_id(name=self.bcs_cluster_id, space_uid=self.space_uid)
             tag_ids.append(str(tag_id))
 
         # 创建索引集
@@ -1864,11 +1864,9 @@ class BaseIndexSetHandler:
             )
 
         from apps.log_databus.handlers.collector.base import CollectorHandler
+
         self.parent_index_set_ids = CollectorHandler.obtain_parent_index_set_ids(
-            self.parent_index_set_ids,
-            self.parent_index_set_names,
-            space_uid=self.space_uid,
-            is_update=False
+            self.parent_index_set_ids, self.parent_index_set_names, space_uid=self.space_uid, is_update=False
         )
 
         # 将索引集添加到归属索引集(索引组)中
@@ -2124,7 +2122,7 @@ class BaseIndexSetHandler:
 
         # 标签
         if self.bcs_cluster_id:
-            tag_id = IndexSetTag.get_tag_id(name=self.bcs_cluster_id)
+            tag_id = IndexSetTag.get_tag_id(name=self.bcs_cluster_id, space_uid=self.space_uid)
             tag_ids = list(self.index_set_obj.tag_ids)
             if str(tag_id) not in tag_ids:
                 tag_ids.append(str(tag_id))
@@ -2204,11 +2202,9 @@ class BaseIndexSetHandler:
             )
 
         from apps.log_databus.handlers.collector.base import CollectorHandler
+
         self.parent_index_set_ids = CollectorHandler.obtain_parent_index_set_ids(
-            self.parent_index_set_ids,
-            self.parent_index_set_names,
-            space_uid=self.space_uid,
-            is_update=True
+            self.parent_index_set_ids, self.parent_index_set_names, space_uid=self.space_uid, is_update=True
         )
 
         # 更新归属索引集
