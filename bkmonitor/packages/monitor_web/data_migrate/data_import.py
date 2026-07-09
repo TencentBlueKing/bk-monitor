@@ -11,6 +11,7 @@ from monitor_web.models.scene_view import SceneViewModel, SceneViewOrderModel
 
 from monitor_web.data_migrate.constants import DATA_MIGRATE_CLOSED_RECORDS_APPLICATION_CONFIG_KEY, DEFAULT_ENCODING
 from monitor_web.data_migrate.handler.runner import get_close_records_by_biz_from_directory
+from monitor_web.data_migrate.plugin_dashboard_result_table import repair_plugin_dashboard_result_table_id
 from monitor_web.data_migrate.plugin_strategy_result_table import repair_plugin_strategy_result_table_id
 from monitor_web.data_migrate.strategy_migration import (
     migrate_gather_up_strategy_config,
@@ -135,6 +136,7 @@ def import_biz_data_from_directory(
     migrate_builtin_system_event_strategy: bool = True,
     migrate_builtin_gather_up_strategy: bool = True,
     repair_plugin_strategy: bool = True,
+    repair_plugin_dashboard: bool = True,
 ) -> list[Model]:
     """
     按目录结构导入迁移数据。
@@ -203,4 +205,6 @@ def import_biz_data_from_directory(
         _migrate_imported_builtin_gather_up_strategies(target_bk_biz_ids)
     if repair_plugin_strategy:
         repair_plugin_strategy_result_table_id(bk_biz_id=target_bk_biz_ids, dry_run=False)
+    if repair_plugin_dashboard:
+        repair_plugin_dashboard_result_table_id(bk_biz_id=target_bk_biz_ids, dry_run=False)
     return imported_objects

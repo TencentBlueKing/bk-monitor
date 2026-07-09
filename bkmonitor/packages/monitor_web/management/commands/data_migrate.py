@@ -55,6 +55,7 @@ from monitor_web.data_migrate import (
     refresh_biz_bk_collector_proxy_configs,
     retry_biz_bk_collector_proxy_config_delivery,
     rebuild_partial_data,
+    repair_plugin_dashboard_result_table_id,
     restore_disabled_models_in_directory,
     sanitize_cluster_info_in_directory,
     stop_biz_bk_collector,
@@ -166,6 +167,9 @@ class Command(BaseCommand):
             "  统一迁移全部内置策略（系统事件 + gather_up 采集状态）:\n"
             "    python manage.py data_migrate migrate-builtin-strategies --bk-biz-ids 18901 --dry-run\n"
             "\n"
+            "  修复仪表盘中插件类指标的旧 result_table_id:\n"
+            "    python manage.py data_migrate repair-plugin-dashboard-result-table --bk-biz-ids 18901 --dry-run\n"
+            "\n"
             "  局部导出指定 BCS 集群、自定义上报 Data ID 和 APM 应用:\n"
             "    python manage.py data_migrate partial-export --directory /tmp/output --bk-tenant-id tencent --bk-biz-id 18901 --bcs-cluster-ids BCS-K8S-00000 --custom-report-data-ids 123 456 --app-names demo-app\n"
             "\n"
@@ -201,6 +205,7 @@ class Command(BaseCommand):
                 "migrate-system-event-strategies",
                 "migrate-gather-up-strategies",
                 "migrate-builtin-strategies",
+                "repair-plugin-dashboard-result-table",
                 "partial-export",
                 "partial-import",
                 "partial-rebuild",
@@ -220,7 +225,7 @@ class Command(BaseCommand):
                 "enable-closed-strategies 支持正数和负数业务 ID；"
                 "stop-biz-subscription-tasks 会跳过负数业务 ID；"
                 "migrate-system-event-strategies/migrate-gather-up-strategies/migrate-builtin-strategies "
-                "不传时扫描全量策略"
+                "不传时扫描全量策略；repair-plugin-dashboard-result-table 不传时扫描全量仪表盘"
             ),
         )
         parser.add_argument(
@@ -350,7 +355,8 @@ class Command(BaseCommand):
                 "仅预览不执行；仅 stop-biz-subscription-tasks、install-biz-bk-collector、"
                 "disable-biz-bk-collector-subscription-checks、stop-biz-bk-collector、"
                 "refresh-biz-bk-collector-configs、retry-biz-bk-collector-config-delivery、"
-                "migrate-system-event-strategies、add-profiling-migrate-data-id-route 动作需要"
+                "migrate-system-event-strategies、add-profiling-migrate-data-id-route、"
+                "repair-plugin-dashboard-result-table 动作需要"
             ),
         )
         parser.add_argument(
@@ -451,6 +457,7 @@ class Command(BaseCommand):
             "migrate-system-event-strategies": self._handle_migrate_system_event_strategies,
             "migrate-gather-up-strategies": self._handle_migrate_gather_up_strategies,
             "migrate-builtin-strategies": self._handle_migrate_builtin_strategies,
+            "repair-plugin-dashboard-result-table": self._handle_repair_plugin_dashboard_result_table,
             "partial-export": self._handle_partial_export,
             "partial-import": self._handle_partial_import,
             "partial-rebuild": self._handle_partial_rebuild,
@@ -1003,6 +1010,28 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.SUCCESS(
                     f"migrate builtin strategies completed: changed={result['changed_count']}, "
+                    f"applied={result['applied_count']}"
+                )
+            )
+
+    def _handle_repair_plugin_dashboard_result_table(self, options) -> None:
+        result = repair_plugin_dashboard_result_table_id(
+            bk_biz_id=options.get("bk_biz_ids"),
+            dry_run=options.get("dry_run", False),
+        )
+        self.stdout.write(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        if result["stale_count"] or result["invalid_json_count"]:
+            self.stdout.write(
+                self.style.WARNING(
+                    "repair plugin dashboard result table completed with warnings: "
+                    f"changed={result['changed_count']}, applied={result['applied_count']}, "
+                    f"stale={result['stale_count']}, invalid_json={result['invalid_json_count']}"
+                )
+            )
+        else:
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"repair plugin dashboard result table completed: changed={result['changed_count']}, "
                     f"applied={result['applied_count']}"
                 )
             )
