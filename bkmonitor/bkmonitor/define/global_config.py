@@ -429,6 +429,10 @@ ADVANCED_OPTIONS = OrderedDict(
             slz.ListField(label="自动同步计算平台图关系链路业务白名单", default=[]),
         ),
         (
+            "GRAPH_RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST",
+            slz.ListField(label="图关系 v1beta3 查询灰度业务白名单", default=[]),
+        ),
+        (
             "ACCESS_DATA_BATCH_PROCESS_THRESHOLD",
             slz.IntegerField(label="access数据批量处理触发阈值(0为不触发)", default=0),
         ),

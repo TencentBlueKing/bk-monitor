@@ -9,14 +9,17 @@ specific language governing permissions and limitations under the License.
 """
 
 import time
-
+from types import SimpleNamespace
 from unittest import mock
+
 import pytest
 
 from alarm_backends.core.cache import key
+from alarm_backends.core.storage import redis_cluster
 from alarm_backends.service.detect import DataPoint
 from alarm_backends.service.detect.strategy.new_series import NewSeries
 from bkmonitor.utils.common_utils import count_md5
+from constants.data_source import DataSourceLabel, DataTypeLabel
 
 ITEM_ID = 1
 AGG_DIMENSION = ["bk_target_ip", "bk_target_cloud_id"]
@@ -28,15 +31,40 @@ _UID = [8000]
 @pytest.fixture(autouse=True)
 def _isolate_keys():
     _UID[0] += 1
+    # use_fake_cache_router() 会改写 redis_cluster 的三个进程级全局；这里 setup 存旧值、teardown 恢复，
+    # 避免泄漏到后续用例(同一 pytest 进程共享模块状态)形成顺序依赖或掩盖真实路由问题。
+    saved = (
+        redis_cluster.DEFAULT_NODE,
+        redis_cluster.STRATEGY_ROUTER_CACHE,
+        redis_cluster.STRATEGY_NODE_MAP,
+    )
     yield
+    (
+        redis_cluster.DEFAULT_NODE,
+        redis_cluster.STRATEGY_ROUTER_CACHE,
+        redis_cluster.STRATEGY_NODE_MAP,
+    ) = saved
 
 
-def make_item(strategy_id=None, item_id=ITEM_ID, agg_dimension=None, agg_interval=60, ns_configs=None):
+def make_item(
+    strategy_id=None,
+    item_id=ITEM_ID,
+    agg_dimension=None,
+    agg_interval=60,
+    ns_configs=None,
+    data_source_label=None,
+    data_type_label=None,
+):
     item = mock.MagicMock()
     item.strategy.id = _UID[0] if strategy_id is None else strategy_id
     item.id = item_id
     item.query_configs = [
-        {"agg_dimension": AGG_DIMENSION if agg_dimension is None else agg_dimension, "agg_interval": agg_interval}
+        {
+            "agg_dimension": AGG_DIMENSION if agg_dimension is None else agg_dimension,
+            "agg_interval": agg_interval,
+            "data_source_label": data_source_label,
+            "data_type_label": data_type_label,
+        }
     ]
     # item.algorithms 必须是真实 list(检测器写侧据此取 max(detect_range)/max(max_series))
     item.algorithms = [{"type": "NewSeries", "config": c} for c in (ns_configs or [default_config()])]
@@ -46,9 +74,14 @@ def make_item(strategy_id=None, item_id=ITEM_ID, agg_dimension=None, agg_interva
     return item
 
 
-def make_dp(fingerprint, timestamp, item):
+def make_dp(fingerprint, timestamp, item, value=1):
     dp = DataPoint(
-        accessed_data={"value": 1, "time": timestamp, "record_id": f"{fingerprint}.{timestamp}"},
+        accessed_data={
+            "value": value,
+            "values": {"_result_": value},
+            "time": timestamp,
+            "record_id": f"{fingerprint}.{timestamp}",
+        },
         item=item,
     )
     return dp
@@ -91,6 +124,99 @@ def learn_start_exists(item):
         strategy_id=item.strategy.id, item_id=item.id, dimension_signature=sig
     )
     return key.NEW_SERIES_LEARN_START_KEY.client.exists(learn_key) == 1
+
+
+def use_fake_cache_router():
+    node = SimpleNamespace(id="fake-default", cache_type="RedisCache", host="127.0.0.1", port=6379, password=None)
+    redis_cluster.DEFAULT_NODE = node
+    redis_cluster.STRATEGY_ROUTER_CACHE = [SimpleNamespace(strategy_score=10**12, node=node)]
+    redis_cluster.STRATEGY_NODE_MAP = {}
+
+
+def test_log_count_zero_bucket_does_not_alert_or_mark_seen():
+    use_fake_cache_router()
+    item = make_item(data_source_label=DataSourceLabel.BK_LOG_SEARCH, data_type_label=DataTypeLabel.LOG)
+    seed_learned(item)
+
+    detector = NewSeries(config=default_config())
+    zero_bucket = make_dp("log-pattern", 100000000, item, value=0)
+
+    detector.pre_detect([zero_bucket])
+
+    assert len(detector.detect(zero_bucket)) == 0
+    assert seen_score(item, "log-pattern") is None
+
+
+def test_log_count_zero_bucket_does_not_consume_later_real_point():
+    use_fake_cache_router()
+    item = make_item(data_source_label=DataSourceLabel.BK_LOG_SEARCH, data_type_label=DataTypeLabel.LOG)
+    seed_learned(item)
+
+    detector = NewSeries(config=default_config())
+    zero_bucket = make_dp("log-pattern", 100000000, item, value=0)
+    real_bucket = make_dp("log-pattern", 100000060, item, value=1)
+
+    detector.pre_detect([zero_bucket, real_bucket])
+
+    assert len(detector.detect(zero_bucket)) == 0
+    assert len(detector.detect(real_bucket)) == 1
+    assert int(seen_score(item, "log-pattern")) == 100000060
+
+
+def test_log_count_zero_bucket_bootstraps_baseline_for_later_real_point():
+    use_fake_cache_router()
+    item = make_item(data_source_label=DataSourceLabel.BK_LOG_SEARCH, data_type_label=DataTypeLabel.LOG)
+
+    detector = NewSeries(config=default_config())
+    zero_bucket = make_dp("log-pattern", 100000000, item, value=0)
+    detector.pre_detect([zero_bucket])
+
+    assert len(detector.detect(zero_bucket)) == 0
+    assert baseline_done(item) is True
+    assert seen_score(item, "log-pattern") is None
+
+    next_detector = NewSeries(config=default_config())
+    real_bucket = make_dp("log-pattern", 100000060, item, value=1)
+    next_detector.pre_detect([real_bucket])
+
+    assert len(next_detector.detect(real_bucket)) == 1
+    assert int(seen_score(item, "log-pattern")) == 100000060
+
+
+def test_metric_zero_value_still_alerts():
+    use_fake_cache_router()
+    item = make_item()
+    seed_learned(item)
+
+    detector = NewSeries(config=default_config())
+    zero_metric = make_dp("metric-zero", 100000000, item, value=0)
+
+    detector.pre_detect([zero_metric])
+
+    assert len(detector.detect(zero_metric)) == 1
+    assert int(seen_score(item, "metric-zero")) == 100000000
+
+
+def test_log_count_zero_bucket_filtered_across_shared_multi_level():
+    # 多 level 共享同一 seen-zset 时，日志关键字批次内 0 桶 + 真实点混合：
+    # 0 桶两个 level 都不报、真实点两个 level 都报，且 seen 只按真实点写一次。
+    use_fake_cache_router()
+    item = make_item(data_source_label=DataSourceLabel.BK_LOG_SEARCH, data_type_label=DataTypeLabel.LOG)
+    seed_learned(item)
+
+    d1 = NewSeries(config=default_config())
+    d2 = NewSeries(config=default_config())
+    zero_bucket = make_dp("log-pattern", 100000000, item, value=0)
+    real_bucket = make_dp("log-pattern", 100000060, item, value=1)
+
+    d1.pre_detect([zero_bucket, real_bucket])  # 读干净态 + 只按真实点写
+    d2.pre_detect([zero_bucket, real_bucket])  # 复用 d1 快照(干净态)，不被写污染
+
+    assert len(d1.detect(zero_bucket)) == 0
+    assert len(d2.detect(zero_bucket)) == 0
+    assert len(d1.detect(real_bucket)) == 1
+    assert len(d2.detect(real_bucket)) == 1
+    assert int(seen_score(item, "log-pattern")) == 100000060
 
 
 @pytest.mark.django_db

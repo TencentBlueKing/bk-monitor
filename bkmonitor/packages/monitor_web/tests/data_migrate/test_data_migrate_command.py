@@ -213,6 +213,57 @@ def test_rebuild_treats_blank_apm_cluster_names_as_default(monkeypatch):
     assert received["custom_report"]["apm_kafka_cluster_name"] is None
 
 
+def test_add_profiling_migrate_data_id_route_handler_passes_arguments(monkeypatch):
+    received = {}
+
+    def fake_add_profiling_migrate_data_id_route(**kwargs):
+        received.update(kwargs)
+        return {
+            "bk_biz_id": kwargs["bk_biz_id"],
+            "app_name": kwargs["app_name"],
+            "bk_data_id": 7788,
+            "before": [],
+            "after": [],
+        }
+
+    monkeypatch.setattr(
+        data_migrate_command,
+        "add_profiling_migrate_data_id_route",
+        fake_add_profiling_migrate_data_id_route,
+    )
+
+    data_migrate_command.Command()._handle_add_profiling_migrate_data_id_route(
+        {
+            "bk_tenant_id": " target-tenant ",
+            "bk_biz_id": 2,
+            "app_name": " demo ",
+            "migrate_cluster_name": " migrate_apm-kafka-public-1 ",
+            "dry_run": True,
+        }
+    )
+
+    assert received == {
+        "bk_tenant_id": "target-tenant",
+        "bk_biz_id": 2,
+        "app_name": "demo",
+        "migrate_cluster_name": "migrate_apm-kafka-public-1",
+        "dry_run": True,
+    }
+
+
+def test_add_profiling_migrate_data_id_route_handler_requires_app_name():
+    with pytest.raises(CommandError, match="add-profiling-migrate-data-id-route 动作必须提供 --app-name"):
+        data_migrate_command.Command()._handle_add_profiling_migrate_data_id_route(
+            {
+                "bk_tenant_id": "target-tenant",
+                "bk_biz_id": 2,
+                "app_name": "",
+                "migrate_cluster_name": "migrate_apm-kafka-public-1",
+                "dry_run": False,
+            }
+        )
+
+
 def test_partial_export_handler_uses_independent_export_helper(monkeypatch, tmp_path):
     received = {}
 
