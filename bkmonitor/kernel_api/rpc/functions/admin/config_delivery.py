@@ -430,6 +430,7 @@ def _serialize_ping_server_config(record: PingServerSubscriptionConfig) -> dict[
         "source_type": "ping_server",
         "bk_tenant_id": record.bk_tenant_id,
         "subscription_id": record.subscription_id,
+        "bk_biz_id": record.bk_biz_id,
         "bk_cloud_id": record.bk_cloud_id,
         "cloud_area_type": cloud_area_type,
         "direct_area": record.bk_cloud_id == 0,
@@ -453,38 +454,6 @@ def _serialize_ping_server_config(record: PingServerSubscriptionConfig) -> dict[
         "global_ping_disabled": not collect_state["global_ping_enabled"],
         "direct_area_disabled": record.bk_cloud_id == 0 and not collect_state["direct_area_ping_collect_enabled"],
     }
-
-
-def _extract_proxy_filter(
-    *, bk_tenant_id: str | None, bk_biz_id: int | None
-) -> tuple[set[int], set[int], list[dict[str, Any]]]:
-    if bk_biz_id is None:
-        return set(), set(), []
-    if bk_tenant_id is None:
-        return set(), set(), [{"code": "PING_BIZ_FILTER_NEEDS_TENANT", "message": "业务过滤需要指定租户"}]
-
-    from core.drf_resource import api
-
-    try:
-        proxies = api.node_man.get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id) or []
-    except Exception as error:  # noqa: BLE001
-        return set(), set(), [{"code": "LOAD_BIZ_PROXIES_FAILED", "message": str(error)}]
-
-    host_ids: set[int] = set()
-    cloud_ids: set[int] = set()
-    for proxy in proxies:
-        if not isinstance(proxy, dict):
-            continue
-        host_id = proxy.get("bk_host_id") or proxy.get("host_id")
-        cloud_id = proxy.get("bk_cloud_id") or proxy.get("cloud_id")
-        try:
-            if host_id not in (None, ""):
-                host_ids.add(int(host_id))
-            if cloud_id not in (None, ""):
-                cloud_ids.add(int(cloud_id))
-        except (TypeError, ValueError):
-            continue
-    return host_ids, cloud_ids, []
 
 
 def _read_dict_int(value: dict[str, Any], keys: list[str]) -> int | None:
@@ -812,6 +781,7 @@ def _build_proxy_related_configs(
     }
 
     ping_queryset = filter_by_bk_tenant_id(PingServerSubscriptionConfig.objects.all(), bk_tenant_id)
+    ping_queryset = ping_queryset.filter(bk_biz_id=bk_biz_id)
     if bk_cloud_id is not None:
         ping_queryset = ping_queryset.filter(bk_cloud_id=bk_cloud_id)
     for record in ping_queryset:
@@ -1028,16 +998,10 @@ def _build_ping_server_queryset(params: dict[str, Any], bk_tenant_id: str | None
         queryset = queryset.filter(ip=proxy_ip)
 
     bk_biz_id = _normalize_int(params.get("bk_biz_id"), "bk_biz_id")
-    proxy_host_ids, proxy_cloud_ids, warnings = _extract_proxy_filter(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
     if bk_biz_id is not None:
-        if proxy_host_ids:
-            queryset = queryset.filter(bk_host_id__in=proxy_host_ids)
-        elif proxy_cloud_ids:
-            queryset = queryset.filter(bk_cloud_id__in=proxy_cloud_ids)
-        else:
-            queryset = queryset.none()
+        queryset = queryset.filter(bk_biz_id=bk_biz_id)
 
-    return queryset.order_by("bk_cloud_id", "bk_host_id", "subscription_id"), warnings
+    return queryset.order_by("bk_biz_id", "bk_cloud_id", "bk_host_id", "subscription_id"), []
 
 
 def _custom_report_biz_matches_tenant(bk_biz_id: int, bk_tenant_id: str | None) -> bool:
@@ -1327,10 +1291,10 @@ def list_proxy_delivery_overview(params: dict[str, Any]) -> dict[str, Any]:
 @KernelRPCRegistry.register(
     FUNC_CONFIG_DELIVERY_PING_SERVER_LIST,
     summary="Admin 查询 PingServer 配置下发列表",
-    description="只读分页查询 PingServerSubscriptionConfig。业务过滤通过 NodeMan get_proxies_by_biz 反查代理主机。",
+    description="只读分页查询 PingServerSubscriptionConfig。业务过滤使用模型 bk_biz_id 字段。",
     params_schema={
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
-        "bk_biz_id": "可选，业务 ID；通过 NodeMan 代理主机做后过滤",
+        "bk_biz_id": "可选，业务 ID；精确匹配 PingServerSubscriptionConfig.bk_biz_id",
         "bk_cloud_id": "可选，云区域 ID",
         "plugin_name": "可选，插件名",
         "ip": "可选，代理 IP 精确匹配",

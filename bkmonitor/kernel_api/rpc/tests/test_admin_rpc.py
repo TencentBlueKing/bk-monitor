@@ -453,6 +453,7 @@ def test_config_delivery_ping_server_serializer_marks_disabled_flags(monkeypatch
         bk_cloud_id=0,
         ip="127.0.0.1",
         bk_host_id=2001,
+        bk_biz_id=19078,
         plugin_name="bkmonitorproxy",
         config={
             "type": "PLUGIN",
@@ -477,6 +478,7 @@ def test_config_delivery_ping_server_serializer_marks_disabled_flags(monkeypatch
 
     item = admin_config_delivery._serialize_ping_server_config(subscription)
 
+    assert item["bk_biz_id"] == 19078
     assert item["direct_area"] is True
     assert item["special_area"] is False
     assert item["global_ping_disabled"] is True
@@ -506,6 +508,26 @@ def test_config_delivery_ping_server_serializer_marks_disabled_flags(monkeypatch
     second_page = admin_config_delivery._paginate_ping_targets(subscription.config, page=2, page_size=1)
     assert second_page["items"][0]["index"] == 2
     assert second_page["items"][0]["target_ip"] == "127.0.0.1"
+
+
+def test_config_delivery_ping_server_queryset_filters_by_model_biz_id(monkeypatch):
+    queryset = _FakeQuerySet([])
+    monkeypatch.setattr(
+        admin_config_delivery.PingServerSubscriptionConfig,
+        "objects",
+        SimpleNamespace(all=lambda: queryset),
+    )
+
+    result, warnings = admin_config_delivery._build_ping_server_queryset(
+        {"bk_biz_id": 19078, "bk_cloud_id": 42}, "system"
+    )
+
+    assert result is queryset
+    assert warnings == []
+    assert {"bk_tenant_id": "system"} in queryset.filters
+    assert {"bk_biz_id": 19078} in queryset.filters
+    assert {"bk_cloud_id": 42} in queryset.filters
+    assert ("bk_biz_id", "bk_cloud_id", "bk_host_id", "subscription_id") in queryset.ordering
 
 
 def test_config_delivery_custom_report_serializer_keeps_default_tenant():
@@ -618,6 +640,7 @@ def test_config_delivery_proxy_related_configs_collects_four_config_types(monkey
         bk_cloud_id=30000901,
         ip="127.0.0.1",
         bk_host_id=70001,
+        bk_biz_id=19078,
         plugin_name="bk-collector",
         config={"scope": {"nodes": [{"bk_host_id": 70001}]}, "steps": [{"config": {"plugin_name": "bk-collector"}}]},
     )
