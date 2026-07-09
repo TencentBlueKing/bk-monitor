@@ -1033,6 +1033,7 @@ def import_partial_data_from_directory(
             migrate_builtin_system_event_strategy=False,
             migrate_builtin_gather_up_strategy=False,
             repair_plugin_strategy=False,
+            repair_plugin_dashboard=False,
         )
     return {
         "precheck": precheck_result,

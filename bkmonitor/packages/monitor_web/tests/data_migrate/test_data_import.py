@@ -42,7 +42,12 @@ def test_import_biz_data_repairs_plugin_strategy_result_table_id(monkeypatch, tm
     monkeypatch.setattr(
         data_import,
         "repair_plugin_strategy_result_table_id",
-        lambda **kwargs: events.append(("repair", kwargs["bk_biz_id"], kwargs["dry_run"])),
+        lambda **kwargs: events.append(("repair_strategy", kwargs["bk_biz_id"], kwargs["dry_run"])),
+    )
+    monkeypatch.setattr(
+        data_import,
+        "repair_plugin_dashboard_result_table_id",
+        lambda **kwargs: events.append(("repair_dashboard", kwargs["bk_biz_id"], kwargs["dry_run"])),
     )
 
     imported_objects = data_import.import_biz_data_from_directory(tmp_path, bk_biz_ids=[2], atomic=False)
@@ -54,7 +59,8 @@ def test_import_biz_data_repairs_plugin_strategy_result_table_id(monkeypatch, tm
         ("sync", tmp_path, [2]),
         ("migrate_system_event", [2], False),
         ("migrate_gather_up", [2], False),
-        ("repair", [2], False),
+        ("repair_strategy", [2], False),
+        ("repair_dashboard", [2], False),
     ]
 
 
@@ -85,6 +91,7 @@ def test_import_biz_data_skips_builtin_system_event_migration_when_only_global(m
         lambda **kwargs: events.append(("migrate_gather_up", kwargs["bk_biz_id"], kwargs["dry_run"])),
     )
     monkeypatch.setattr(data_import, "repair_plugin_strategy_result_table_id", lambda **kwargs: None)
+    monkeypatch.setattr(data_import, "repair_plugin_dashboard_result_table_id", lambda **kwargs: None)
 
     imported_objects = data_import.import_biz_data_from_directory(tmp_path, bk_biz_ids=[0])
 
@@ -133,7 +140,12 @@ def test_import_biz_data_can_skip_business_cleanup_and_post_handlers(monkeypatch
     monkeypatch.setattr(
         data_import,
         "repair_plugin_strategy_result_table_id",
-        lambda **kwargs: events.append(("repair", kwargs["bk_biz_id"], kwargs["dry_run"])),
+        lambda **kwargs: events.append(("repair_strategy", kwargs["bk_biz_id"], kwargs["dry_run"])),
+    )
+    monkeypatch.setattr(
+        data_import,
+        "repair_plugin_dashboard_result_table_id",
+        lambda **kwargs: events.append(("repair_dashboard", kwargs["bk_biz_id"], kwargs["dry_run"])),
     )
 
     imported_objects = data_import.import_biz_data_from_directory(
@@ -145,6 +157,7 @@ def test_import_biz_data_can_skip_business_cleanup_and_post_handlers(monkeypatch
         migrate_builtin_system_event_strategy=False,
         migrate_builtin_gather_up_strategy=False,
         repair_plugin_strategy=False,
+        repair_plugin_dashboard=False,
     )
 
     assert imported_objects == ["imported"]
