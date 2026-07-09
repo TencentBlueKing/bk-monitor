@@ -119,6 +119,9 @@ class AdminResourceCallViewTest(ClearRequestLocalMixin, TestCase):
         self.assertEqual(content["data"]["func_name"], "__meta__")
         self.assertEqual(content["data"]["protocol"], "bklog.admin_resource.v1")
         self.assertIn("bklog.collector.list", content["data"]["result"]["functions"])
+        self.assertIn("bklog.collector.storage.preview", content["data"]["result"]["functions"])
+        self.assertIn("bklog.collector.storage.apply", content["data"]["result"]["functions"])
+        self.assertIn("bklog.storage_cluster.list", content["data"]["result"]["functions"])
 
     def test_viewset_uses_drf_permission_for_entry_auth(self):
         permission_class_names = {
@@ -203,7 +206,7 @@ class TransferApiTenantGetterTest(TestCase):
         mock_get_tenant_id.assert_called_once_with(space_uid="bkcc__18996")
 
 
-class CollectorResourceCallTest(ClearRequestLocalMixin, TestCase):
+class CollectorFixtureMixin:
     def setUp(self):
         self.plugin = CollectorPlugin.objects.create(
             collector_plugin_id=50001,
@@ -340,6 +343,8 @@ class CollectorResourceCallTest(ClearRequestLocalMixin, TestCase):
         self.assertEqual(response.status_code, 200)
         return json.loads(response.content)
 
+
+class CollectorResourceCallTest(CollectorFixtureMixin, ClearRequestLocalMixin, TestCase):
     @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     @patch("apps.log_admin_resource.handlers.collector._get_primary_index_set", return_value=(None, None))
     def test_collector_list_filters_by_storage_cluster_without_biz_filter(self, mock_get_primary_index_set):
@@ -354,6 +359,9 @@ class CollectorResourceCallTest(ClearRequestLocalMixin, TestCase):
         item = result["items"][0]
         self.assertEqual(item["collector_config_id"], 10402)
         self.assertEqual(item["storage_cluster_id"], 25)
+        self.assertEqual(item["storage_shards_nums"], 6)
+        self.assertEqual(item["storage_shards_size"], 30)
+        self.assertEqual(item["storage_replies"], 1)
         self.assertEqual(item["log_access_type"], "container_file")
         self.assertEqual(item["log_access_type_name"], "容器文件采集")
         mock_get_primary_index_set.assert_not_called()
@@ -413,6 +421,9 @@ class CollectorResourceCallTest(ClearRequestLocalMixin, TestCase):
         self.assertEqual(result["storage"]["retention"], 30)
         self.assertEqual(result["storage"]["storage_shards_nums"], 9)
         self.assertEqual(result["storage"]["storage_replies"], 2)
+        self.assertEqual(result["collector"]["storage_shards_nums"], 6)
+        self.assertEqual(result["collector"]["storage_shards_size"], 30)
+        self.assertEqual(result["collector"]["storage_replies"], 1)
         mock_get_result_table_storage.assert_called_once_with(
             {"result_table_list": "2_bklog.bcs_checkinsvr", "storage_type": "elasticsearch"}
         )
@@ -571,3 +582,130 @@ class CollectorResourceCallTest(ClearRequestLocalMixin, TestCase):
         mock_batch.assert_called_once()
         called_space_uids = mock_batch.call_args.args[0]
         self.assertEqual(set(called_space_uids), {"bkci__pipeline-a", "bkci__pipeline-b"})
+
+
+class CollectorStorageResourceCallTest(CollectorFixtureMixin, ClearRequestLocalMixin, TestCase):
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("apps.api.TransferApi.get_result_table_storage", return_value=METADATA_STORAGE)
+    def test_storage_preview_returns_diff_for_selected_collectors(self, mock_get_result_table_storage):
+        content = self._call(
+            "bklog.collector.storage.preview",
+            {
+                "collector_config_ids": [10402],
+                "target": {
+                    "storage_cluster_id": 25,
+                    "retention": 7,
+                    "storage_shards_nums": 3,
+                    "storage_replies": 0,
+                },
+            },
+        )
+
+        self.assertTrue(content["result"])
+        result = content["data"]["result"]
+        self.assertEqual(result["summary"]["total"], 1)
+        self.assertEqual(result["summary"]["changeable"], 1)
+        item = result["items"][0]
+        self.assertEqual(item["collector_config_id"], 10402)
+        self.assertEqual(item["before"]["storage_cluster_id"], 88)
+        self.assertEqual(item["before"]["retention"], 30)
+        self.assertEqual(item["before"]["storage_shards_nums"], 9)
+        self.assertEqual(item["before"]["storage_replies"], 2)
+        self.assertEqual(item["after"]["storage_cluster_id"], 25)
+        self.assertEqual(item["after"]["retention"], 7)
+        self.assertIn("storage_cluster_id", [diff["field"] for diff in item["diff"]])
+        self.assertIn("retention", [diff["field"] for diff in item["diff"]])
+        mock_get_result_table_storage.assert_called_once()
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    def test_storage_preview_rejects_empty_target(self):
+        content = self._call(
+            "bklog.collector.storage.preview",
+            {"collector_config_ids": [10402], "target": {}},
+        )
+
+        self.assertFalse(content["result"])
+        self.assertIn("target must include", content["message"])
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("apps.api.TransferApi.get_result_table_storage", return_value=METADATA_STORAGE)
+    @patch("apps.log_admin_resource.handlers.collector_storage.TransferEtlHandler.patch_update")
+    def test_storage_apply_uses_existing_patch_update_after_expected_before_check(
+        self, mock_patch_update, mock_get_result_table_storage
+    ):
+        mock_patch_update.return_value = {"storage_cluster_id": 25, "retention": 7, "es_shards": 3}
+        content = self._call(
+            "bklog.collector.storage.apply",
+            {
+                "collector_config_ids": [10402],
+                "target": {
+                    "storage_cluster_id": 25,
+                    "retention": 7,
+                    "storage_shards_nums": 3,
+                    "storage_replies": 0,
+                },
+                "expected_before": {
+                    "10402": {
+                        "storage_cluster_id": 88,
+                        "retention": 30,
+                        "storage_shards_nums": 9,
+                        "storage_replies": 2,
+                    }
+                },
+                "remark": "批量调整采集项存储配置",
+            },
+        )
+
+        self.assertTrue(content["result"])
+        result = content["data"]["result"]
+        self.assertEqual(result["summary"]["success"], 1)
+        self.assertEqual(result["items"][0]["status"], "success")
+        mock_patch_update.assert_called_once_with(
+            storage_cluster_id=25,
+            retention=7,
+            allocation_min_days=None,
+            storage_replies=0,
+            es_shards=3,
+        )
+        mock_get_result_table_storage.assert_called_once()
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("apps.api.TransferApi.get_result_table_storage", return_value=METADATA_STORAGE)
+    @patch("apps.log_admin_resource.handlers.collector_storage.TransferEtlHandler.patch_update")
+    def test_storage_apply_blocks_when_expected_before_is_stale(self, mock_patch_update, mock_get_result_table_storage):
+        content = self._call(
+            "bklog.collector.storage.apply",
+            {
+                "collector_config_ids": [10402],
+                "target": {"retention": 7},
+                "expected_before": {"10402": {"retention": 14}},
+            },
+        )
+
+        self.assertTrue(content["result"])
+        result = content["data"]["result"]
+        self.assertEqual(result["summary"]["blocked"], 1)
+        self.assertEqual(result["items"][0]["status"], "blocked")
+        self.assertIn("expected_before", result["items"][0]["execution_message"])
+        mock_patch_update.assert_not_called()
+        mock_get_result_table_storage.assert_called_once()
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("apps.log_admin_resource.handlers.storage_cluster.StorageHandler")
+    def test_storage_cluster_list_returns_selectable_es_clusters(self, mock_storage_handler):
+        mock_storage_handler.return_value.list.return_value = [
+            {
+                "storage_cluster_id": 25,
+                "cluster_name": "hot-es",
+                "domain_name": "hot-es.service",
+                "is_active": True,
+            }
+        ]
+
+        content = self._call("bklog.storage_cluster.list", {"page": 1, "page_size": 20})
+
+        self.assertTrue(content["result"])
+        result = content["data"]["result"]
+        self.assertEqual(result["total"], 1)
+        self.assertEqual(result["items"][0]["storage_cluster_id"], 25)
+        self.assertEqual(result["items"][0]["storage_cluster_name"], "hot-es")
