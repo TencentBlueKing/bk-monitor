@@ -11,12 +11,21 @@ export interface RetrieveTextSegment {
   isNotParticiple?: boolean;
 }
 
+export interface RetrieveOriginalValuePreviewMeta {
+  isTruncated: boolean;
+  previewText: string;
+  previewSegments: RetrieveTextSegment[];
+  rawTextLength: number;
+}
+
 export interface RetrieveRowRenderMeta {
   hasTruncatedField: boolean;
   truncatedFields: string[];
   fieldSegments: Record<string, RetrieveTextSegment[]>;
   /** 大字段表格 CELL 渲染覆盖值：仅保存超 32KB 字段的截断文本，避免存储 row-shaped 副本 */
   truncatedTextByField?: Record<string, string>;
+  /** original 模式 VALUE 级 1000 字符预览元数据；不参与 table 渲染/数据处理 */
+  originalValuePreviewMeta?: Record<string, RetrieveOriginalValuePreviewMeta>;
 }
 
 interface RetrieveRowRenderMetaOptions {
@@ -28,6 +37,8 @@ interface RetrieveRowRenderMetaOptions {
 
 // 表格 CELL 默认展示上限：32KB，超出部分通过「全量」侧栏查看
 export const LARGE_FIELD_TEXT_LENGTH = 32 * 1024;
+export const ORIGINAL_VALUE_PREVIEW_TEXT_LENGTH = 1000;
+export const ORIGINAL_VALUE_EXPANDED_TEXT_LENGTH = 16 * 1024;
 export const DEFAULT_HIGHLIGHT_FIELD = '__highlight';
 const SEGMENT_MAX_TOKENS = 500;
 const SEGMENT_CHUNK_SIZE = 200;
@@ -85,6 +96,55 @@ const truncateTextByBytes = (text: string, maxBytes: number): string => {
   }
 
   return `${output}${LARGE_FIELD_PREVIEW_SUFFIX}`;
+};
+
+export const truncateMarkedTextByChars = (text: string, maxChars: number): string => {
+  if (stripMark(text).length <= maxChars) {
+    return text;
+  }
+
+  let output = '';
+  let consumedChars = 0;
+  let isInsideMark = false;
+  const tokens = text.split(/(<\/?mark>)/gi).filter(Boolean);
+
+  const appendVisibleText = (value: string) => {
+    if (!value) return false;
+    const remainingChars = maxChars - consumedChars;
+    if (remainingChars <= 0) return true;
+    if (value.length <= remainingChars) {
+      output += value;
+      consumedChars += value.length;
+      return false;
+    }
+
+    output += value.slice(0, remainingChars);
+    consumedChars = maxChars;
+    return true;
+  };
+
+  for (const token of tokens) {
+    if (/^<mark>$/i.test(token)) {
+      if (!isInsideMark) {
+        output += token;
+        isInsideMark = true;
+      }
+      continue;
+    }
+    if (/^<\/mark>$/i.test(token)) {
+      if (isInsideMark) {
+        output += token;
+        isInsideMark = false;
+      }
+      continue;
+    }
+
+    if (appendVisibleText(token)) {
+      break;
+    }
+  }
+
+  return output + (isInsideMark ? '</mark>' : '');
 };
 
 const truncateMarkedTextByBytes = (text: string, maxBytes: number): string => {
@@ -262,6 +322,7 @@ export const createRetrieveRowRenderMeta = (
   const fieldSegments: Record<string, RetrieveTextSegment[]> = {};
   const sourceRow = renderRow || rawRow;
   let truncatedTextByField: Record<string, string> | undefined;
+  let originalValuePreviewMeta: Record<string, RetrieveOriginalValuePreviewMeta> | undefined;
   const markedFields = {
     ...collectMarkedFields(sourceRow, '', {}, highlightField),
     ...collectHighlightFields(rawRow, highlightField),
@@ -303,6 +364,15 @@ export const createRetrieveRowRenderMeta = (
       truncatedTextByField[fieldName] = truncatedRenderText;
     }
 
+    const originalPreviewText = truncateMarkedTextByChars(renderText, ORIGINAL_VALUE_PREVIEW_TEXT_LENGTH);
+    originalValuePreviewMeta = originalValuePreviewMeta ?? {};
+    originalValuePreviewMeta[fieldName] = {
+      isTruncated: originalPreviewText !== renderText,
+      previewText: originalPreviewText,
+      previewSegments: splitRenderText(originalPreviewText),
+      rawTextLength: stripMark(renderText).length,
+    };
+
     // Store the pre-tokenized render value for every field that may be rendered.
     if (precomputeSegments) {
       fieldSegments[fieldName] = splitRenderText(truncatedRenderText);
@@ -314,5 +384,6 @@ export const createRetrieveRowRenderMeta = (
     truncatedFields,
     fieldSegments,
     truncatedTextByField,
+    originalValuePreviewMeta,
   };
 };

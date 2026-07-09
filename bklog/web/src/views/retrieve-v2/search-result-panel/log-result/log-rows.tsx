@@ -414,7 +414,8 @@ export default defineComponent({
                 class='bklog-column-wrapper'
                 fields={visibleFields.value}
                 jsonValue={row}
-                limitRow={limitRow.value}
+                limitRow={null}
+                originalMode={true}
                 renderMeta={getRowRenderMeta(row)}
                 onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink)}
               />

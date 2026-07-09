@@ -4,11 +4,12 @@
     :class="[
       'bklog-json-formatter-root',
       {
-        'is-wrap-line': isWrap,
-        'is-inline': !isWrap,
+        'is-wrap-line': !isOriginalMode && isWrap,
+        'is-inline': !isOriginalMode && !isWrap,
         'is-json': formatJson,
         'is-hidden': !isRowIntersecting && isResolved,
         'show-all-word': showAllWords,
+        'is-original-mode': isOriginalMode,
       },
     ]"
     :style="rootElementStyle"
@@ -34,6 +35,17 @@
           :ref="item.formatter.ref"
           >{{ item.formatter.stringValue }}</span
         >
+        <button
+          v-if="isOriginalMode && item.originalValuePreviewMeta?.isTruncated"
+          class="btn-original-value-action"
+          type="button"
+          :aria-expanded="isOriginalValueExpanded(item.name)"
+          @click="handleOriginalValueActionClick($event, item.name)"
+          @mousedown="stopOriginalValueActionEvent"
+          @mouseup="stopOriginalValueActionEvent"
+        >
+          {{ getOriginalValueActionText(item.name) }}
+        </button>
       </span>
     </template>
     <template v-if="showMoreAction">
@@ -58,6 +70,11 @@
   import useRetrieveEvent from '@/hooks/use-retrieve-event';
   import JSONBig from 'json-bigint';
   import { debounce, isEmpty } from 'lodash-es';
+  import {
+    ORIGINAL_VALUE_EXPANDED_TEXT_LENGTH,
+    splitRenderText,
+    truncateMarkedTextByChars,
+  } from '../storage/utils/retrieve-render-meta';
   import useJsonRoot from '../hooks/use-json-root';
   import useStore from '../hooks/use-store';
   import { BK_LOG_STORAGE } from '../store/store.type';
@@ -82,6 +99,11 @@
       default: null,
     },
 
+    originalMode: {
+      type: Boolean,
+      default: false,
+    },
+
     limitRow: {
       type: [Number, String, null],
       default: 3,
@@ -92,6 +114,9 @@
   const fieldNameHook = useFieldNameHook({ store });
   const refJsonFormatterCell = ref();
   const showAllText = ref(false);
+  const expandedOriginalValueFields = ref<Record<string, boolean>>({});
+  const expandedOriginalValueTexts = ref<Record<string, string>>({});
+  const expandedOriginalValueSegments = ref<Record<string, any[]>>({});
   const hasScrollY = ref(false);
   const isRowIntersecting = inject('isRowIntersecting', ref(false));
   const isResolved = ref(isRowIntersecting.value);
@@ -100,6 +125,7 @@
   const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
   const isLimitExpandText = computed(() => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
   const formatJson = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]);
+  const isOriginalMode = computed(() => props.originalMode);
   const limitRowNumber = computed(() => {
     if (props.limitRow === null || props.limitRow === undefined || props.limitRow === '') {
       return null;
@@ -144,6 +170,10 @@
   });
 
   const showMoreTextAction = computed(() => {
+    if (isOriginalMode.value) {
+      return false;
+    }
+
     if (limitRowNumber.value !== null && !isLimitExpandText.value) {
       return true;
     }
@@ -164,6 +194,120 @@
 
     return ` ...${$t('更多')}`;
   });
+
+  const stopOriginalValueActionEvent = (e: MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  };
+
+  const isOriginalValueExpanded = (fieldName: string) => !!expandedOriginalValueFields.value[fieldName];
+
+  const getOriginalValueActionText = (fieldName: string) => {
+    return isOriginalValueExpanded(fieldName) ? $t('收起') : $t('更多');
+  };
+
+  const getOriginalValueRenderText = (fieldName: string) => {
+    const field = fieldList.value.find((item: any) => item.field_name === fieldName) ?? { field_name: fieldName };
+    const [, val] = getFieldValue(field);
+    const renderText = getDateFieldValue(field, getCellRender(val), false);
+    return renderText?.replace?.(/<\/mark>/igm, '</mark>') ?? String(renderText ?? '');
+  };
+
+  const getOriginalValueExpandedText = (fieldName: string) => {
+    if (!expandedOriginalValueTexts.value[fieldName]) {
+      expandedOriginalValueTexts.value = {
+        ...expandedOriginalValueTexts.value,
+        [fieldName]: truncateMarkedTextByChars(
+          getOriginalValueRenderText(fieldName),
+          ORIGINAL_VALUE_EXPANDED_TEXT_LENGTH,
+        ),
+      };
+    }
+
+    return expandedOriginalValueTexts.value[fieldName];
+  };
+
+  const getOriginalValueSegments = (fieldName: string) => {
+    if (!isOriginalMode.value) {
+      return props.renderMeta?.fieldSegments;
+    }
+
+    if (expandedOriginalValueFields.value[fieldName]) {
+      if (!expandedOriginalValueSegments.value[fieldName]) {
+        const expandedText = getOriginalValueExpandedText(fieldName);
+        expandedOriginalValueSegments.value = {
+          ...expandedOriginalValueSegments.value,
+          [fieldName]: splitRenderText(expandedText),
+        };
+      }
+
+      return {
+        ...(props.renderMeta?.fieldSegments ?? {}),
+        [fieldName]: expandedOriginalValueSegments.value[fieldName],
+      };
+    }
+
+    const previewSegments = props.renderMeta?.originalValuePreviewMeta?.[fieldName]?.previewSegments;
+    if (previewSegments) {
+      return {
+        ...(props.renderMeta?.fieldSegments ?? {}),
+        [fieldName]: previewSegments,
+      };
+    }
+
+    return props.renderMeta?.fieldSegments;
+  };
+
+  const getOriginalValueDisplayText = (fieldName: string, fallback: any) => {
+    if (!isOriginalMode.value) {
+      return fallback;
+    }
+
+    const renderText = expandedOriginalValueFields.value[fieldName]
+      ? getOriginalValueExpandedText(fieldName)
+      : props.renderMeta?.originalValuePreviewMeta?.[fieldName]?.previewText;
+
+    return renderText?.replace?.(/<\/?mark>/igm, '') ?? fallback;
+  };
+
+  const resetOriginalValueRenderedFlag = (fieldName: string) => {
+    const root = refJsonFormatterCell.value as HTMLElement | undefined;
+    const elements = root?.querySelectorAll?.('.field-value[data-field-name]') ?? [];
+    for (const element of Array.from(elements) as HTMLElement[]) {
+      if (element.getAttribute('data-field-name') === fieldName) {
+        element.removeAttribute('data-has-word-split');
+      }
+    }
+  };
+
+  const resetOriginalValueRenderedFlags = () => {
+    if (!isOriginalMode.value) return;
+
+    const root = refJsonFormatterCell.value as HTMLElement | undefined;
+    const elements = root?.querySelectorAll?.('.field-value[data-field-name][data-has-word-split]') ?? [];
+    for (const element of Array.from(elements) as HTMLElement[]) {
+      const fieldName = element.getAttribute('data-field-name');
+      if (fieldName && props.renderMeta?.originalValuePreviewMeta?.[fieldName]?.isTruncated) {
+        element.removeAttribute('data-has-word-split');
+      }
+    }
+  };
+
+  const handleOriginalValueActionClick = (e: MouseEvent, fieldName: string) => {
+    stopOriginalValueActionEvent(e);
+    RetrieveHelper.jsonFormatter.setIsExpandNodeClick(true);
+    expandedOriginalValueFields.value = {
+      ...expandedOriginalValueFields.value,
+      [fieldName]: !expandedOriginalValueFields.value[fieldName],
+    };
+    nextTick(() => {
+      resetOriginalValueRenderedFlag(fieldName);
+      debounceUpdate();
+      scheduleSetIsOverflowY();
+      RetrieveHelper.fire(RetrieveEvent.RESULT_ROW_BOX_RESIZE);
+    });
+  };
 
   let mousedownItem = null;
   const handleMouseDown = e => {
@@ -290,13 +434,21 @@
   const rootList = computed(() => {
     return fieldList.value.map((f: any) => {
       const shouldFormatDate = isFormatDateField.value && !!f.__is_virtual_root__;
+      const formatter = getFieldFormatter(f, shouldFormatDate);
+      const originalValuePreviewMeta = props.renderMeta?.originalValuePreviewMeta?.[f.field_name];
+      const shouldUseOriginalValueText = isOriginalMode.value && !!originalValuePreviewMeta?.isTruncated;
+      const originalValueDisplayText = getOriginalValueDisplayText(f.field_name, formatter.stringValue);
       return {
         name: f.field_name,
         type: f.field_type,
         formatter: {
-          ...getFieldFormatter(f, shouldFormatDate),
-          precomputedSegments: shouldFormatDate ? undefined : props.renderMeta?.fieldSegments,
+          ...formatter,
+          isJson: shouldUseOriginalValueText ? false : formatter.isJson,
+          value: shouldUseOriginalValueText ? originalValueDisplayText : formatter.value,
+          stringValue: shouldUseOriginalValueText ? originalValueDisplayText : formatter.stringValue,
+          precomputedSegments: shouldFormatDate ? undefined : getOriginalValueSegments(f.field_name),
         },
+        originalValuePreviewMeta,
         __is_virtual_root__: !!f.__is_virtual_root__,
       };
     });
@@ -326,9 +478,12 @@
 
   watch(
     // renderMeta 会在日志行异步渲染/高亮回填时更新；它只影响内容重绘，不应重置用户手动展开状态。
-    () => [props.limitRow, props.jsonValue, props.fields, isLimitExpandText.value],
+    () => [props.limitRow, props.jsonValue, props.fields, isLimitExpandText.value, isOriginalMode.value],
     () => {
       showAllText.value = false;
+      expandedOriginalValueFields.value = {};
+      expandedOriginalValueTexts.value = {};
+      expandedOriginalValueSegments.value = {};
       hasScrollY.value = false;
       scheduleSetIsOverflowY();
     },
@@ -344,9 +499,10 @@
   );
 
   watch(
-    () => [props.jsonValue, props.fields, props.renderMeta, formatJson.value, pageHighlightState.version],
+    () => [props.jsonValue, props.fields, props.renderMeta, formatJson.value, pageHighlightState.version, expandedOriginalValueFields.value],
     () => {
       if (isResolved.value) {
+        resetOriginalValueRenderedFlags();
         debounceUpdate();
       }
     },
@@ -426,6 +582,59 @@
       color: #3a84ff;
       cursor: pointer;
       background-color: #fff;
+    }
+
+    &.is-original-mode {
+      overflow: visible;
+      max-height: none !important;
+      white-space: normal;
+
+      > .bklog-root-field {
+        display: inline !important;
+        max-width: none;
+        margin-right: 8px;
+        white-space: normal;
+        word-break: break-all;
+        vertical-align: baseline;
+      }
+
+      .field-name,
+      .field-value,
+      .field-value[data-with-intersection],
+      .field-value .segment-content,
+      .field-value .bklog-scroll-cell,
+      .field-value span,
+      .field-value mark,
+      .valid-text {
+        display: inline !important;
+        white-space: normal;
+      }
+
+      .field-value,
+      .field-value[data-with-intersection] {
+        max-height: none !important;
+        overflow: visible !important;
+        word-break: break-all;
+        overflow-wrap: anywhere;
+      }
+
+      .btn-more-action {
+        display: none;
+      }
+
+      .btn-original-value-action {
+        display: inline !important;
+        padding: 0;
+        margin: 0 4px 0 2px;
+        font: inherit;
+        line-height: inherit;
+        color: #3a84ff;
+        vertical-align: baseline;
+        cursor: pointer;
+        background: transparent;
+        border: 0;
+        appearance: none;
+      }
     }
 
     .bklog-root-field {
