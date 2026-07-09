@@ -28,6 +28,7 @@ import { computed, reactive } from 'vue';
 import { DEFAULT_AGGREGATION_STATE } from '../constants/aggregation';
 
 import type { MetricAggregationState } from '../types/aggregation';
+import type { ChartViewOptions } from '@/pages/trace-explore/components/explore-chart/use-chart-view-option';
 
 export type MetricAggregationController = ReturnType<typeof useMetricAggregation>;
 
@@ -59,7 +60,7 @@ export function useMetricAggregation() {
    * 纯视图选项：仅影响前端展示、不触发请求的字段集合。
    * 下游直接消费即可，无需 watch 后重新请求。
    */
-  const viewOptions = computed(() => ({
+  const viewOptions = computed<ChartViewOptions>(() => ({
     keyword: state.keyword,
     showStatistics: state.showStatistics,
     highlightPeak: state.highlightPeak,

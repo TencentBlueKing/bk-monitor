@@ -27,13 +27,20 @@
 import { type MaybeRef, computed, inject, toValue, watch } from 'vue';
 
 import dayjs from 'dayjs';
+import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
 import type { EchartSeriesItem, IMarkPointDataItem } from './types';
 
 /** 上层容器（如 HostMetric）注入的视图选项 */
 export interface ChartViewOptions {
+  /** 列数量 */
+  columns?: number;
   /** 高亮峰谷值 */
   highlightPeak?: boolean;
+  /** 关键字  */
+  keyword?: string;
+  /** 展示统计值 */
+  showStatistics?: boolean;
 }
 
 /**
@@ -51,7 +58,7 @@ export const useChartViewOption = () => {
    * @description 根据 X 轴时间范围构建 Max/Min 峰谷值 markPoint 数据
    * @param xData X 轴时间戳数组
    */
-  const buildPeakMarkPointData = (xData: number[]): IMarkPointDataItem[] => {
+  const buildPeakMarkPointData = (xData: number[], unit: string): IMarkPointDataItem[] => {
     if (!xData.length) return [];
 
     const minXTime = xData[0];
@@ -72,8 +79,11 @@ export const useChartViewOption = () => {
       position: 'right',
       offset: [0, 0],
       formatter: (params: { data?: { coord?: [number, number] }; name: string; value: number }) => {
-        const time = formatTime(params.data?.coord?.[0]);
-        return `{label|${params.name}:}{value| ${params.value} }{time|@${time}}`;
+        const index = params.data?.coord?.[0];
+        const time = typeof index === 'number' && xData[index] ? formatTime(xData[index]) : '';
+        const { text, suffix } = getValueFormat(unit)(params.value);
+        const value = unit !== 'none' ? `${text}${suffix}` : params.value;
+        return `{label|${params.name}:}{value| ${value} }{time|@${time}}`;
       },
       rich: {
         label: { color: '#FFB848', fontWeight: 'bold' },
@@ -106,13 +116,58 @@ export const useChartViewOption = () => {
    */
   const applyPeakMarkPoint = (seriesData: EchartSeriesItem[], xData: number[]) => {
     if (!isHighlightPeak.value) return;
-    const peakData = buildPeakMarkPointData(xData);
-    if (!peakData.length) return;
+    if (!seriesData.length) return;
+    const getValues = (series: EchartSeriesItem): number[] => {
+      if (!Array.isArray(series.data)) return [];
+      if (!series.data.length) return [];
+      if (typeof series.data[0] === 'object' && series.data[0] !== null && 'value' in series.data[0]) {
+        return (series.data as { value: null | number }[])
+          .map(d => d.value)
+          .filter((v): v is number => v !== null && v !== undefined && !Number.isNaN(v));
+      }
+      return (series.data as number[]).filter(v => v !== null && v !== undefined && !Number.isNaN(v));
+    };
 
-    for (const seriesItem of seriesData) {
+    let globalMax = -Infinity;
+    let globalMin = Infinity;
+    let maxSeriesIndex = -1;
+    let minSeriesIndex = -1;
+
+    for (let i = 0; i < seriesData.length; i++) {
+      const values = getValues(seriesData[i]);
+      if (!values.length) continue;
+
+      const seriesMax = Math.max(...values);
+      const seriesMin = Math.min(...values);
+
+      if (seriesMax > globalMax) {
+        globalMax = seriesMax;
+        maxSeriesIndex = i;
+      }
+      if (seriesMin < globalMin) {
+        globalMin = seriesMin;
+        minSeriesIndex = i;
+      }
+    }
+
+    if (maxSeriesIndex === -1 && minSeriesIndex === -1) return;
+
+    const peakData = buildPeakMarkPointData(xData, seriesData[0]?.unit);
+    const maxPeakData = peakData.find(item => item.type === 'max');
+    const minPeakData = peakData.find(item => item.type === 'min');
+
+    if (maxSeriesIndex !== -1 && maxPeakData) {
+      const seriesItem = seriesData[maxSeriesIndex];
       seriesItem.markPoint = seriesItem.markPoint
-        ? { ...seriesItem.markPoint, data: [...(seriesItem.markPoint.data || []), ...peakData] }
-        : { data: peakData };
+        ? { ...seriesItem.markPoint, data: [...(seriesItem.markPoint.data || []), maxPeakData] }
+        : { data: [maxPeakData] };
+    }
+
+    if (minSeriesIndex !== -1 && minPeakData) {
+      const seriesItem = seriesData[minSeriesIndex];
+      seriesItem.markPoint = seriesItem.markPoint
+        ? { ...seriesItem.markPoint, data: [...(seriesItem.markPoint.data || []), minPeakData] }
+        : { data: [minPeakData] };
     }
   };
 

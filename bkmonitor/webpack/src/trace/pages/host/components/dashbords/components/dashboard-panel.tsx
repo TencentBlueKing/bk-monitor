@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, shallowRef } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 
 import { Exception } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
@@ -57,7 +57,6 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
-    const height = shallowRef(240);
 
     return () =>
       props.rows.length ? (
@@ -65,13 +64,9 @@ export default defineComponent({
           {props.rows.map(row => (
             <DashboardRow
               key={row.id}
-              height={height.value}
               columns={props.columns}
               row={row}
               scopedVars={props.scopedVars}
-              onResize={val => {
-                height.value = val;
-              }}
             />
           ))}
         </div>
