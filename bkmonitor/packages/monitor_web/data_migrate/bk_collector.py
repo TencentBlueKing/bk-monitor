@@ -45,9 +45,11 @@ PENDING_CONFIG_DELIVERY_STATUSES = {"PENDING", "RUNNING", "DEPLOYING"}
 PLUGIN_JOB_SUCCESS_STATUS = "SUCCESS"
 PLUGIN_JOB_PENDING_STATUSES = {"PENDING", "RUNNING", "DEPLOYING"}
 PLUGIN_JOB_TIMEOUT_STATUS = "TIMEOUT"
-# 节点管理主机 Agent 状态为该值（或缺失/为空）时，视为 Agent 未安装，需跳过 bk-collector 安装/停止。
+# 安装场景仅跳过 Agent 未安装的主机；停止场景仅对 Agent RUNNING 的主机执行。
 AGENT_NOT_INSTALLED_STATUS = "NOT_INSTALLED"
+AGENT_RUNNING_STATUS = "RUNNING"
 SKIP_REASON_AGENT_NOT_INSTALLED = "agent not installed"
+SKIP_REASON_AGENT_NOT_RUNNING = "agent not running"
 SKIP_REASON_BK_COLLECTOR_NOT_INSTALLED = "bk-collector not installed"
 DEFAULT_PLUGIN_JOB_WAIT_TIMEOUT = 90
 DEFAULT_PLUGIN_JOB_POLL_INTERVAL = 10
@@ -167,7 +169,7 @@ def stop_biz_bk_collector(
 ) -> dict[str, Any]:
     """Stop bk-collector on proxy hosts used by the given businesses.
 
-    默认跳过 Agent 未安装的主机（``skip_hosts_without_agent=True``）；
+    默认跳过 Agent 状态非 RUNNING 的主机（``skip_hosts_without_agent=True``）；
     如需对这些主机也执行停止，可显式传入 ``skip_hosts_without_agent=False``。
     """
     logger.info(
@@ -1731,7 +1733,7 @@ def _build_plugin_operation_failure_summary(details: dict[str, list[dict[str, An
 
 
 def _build_plugin_operation_skip_summary(details: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
-    """汇总因 Agent 未安装等原因被跳过的主机，方便命令层集中打印跳过的机器和原因。"""
+    """汇总因 Agent 状态或插件未安装等原因被跳过的主机，方便命令层集中打印。"""
     records = []
     host_count = 0
 
@@ -2226,15 +2228,15 @@ def _get_stop_host_ids(
     plugin_version: str = "",
     skip_hosts_without_agent: bool = True,
 ) -> tuple[list[int], list[dict[str, Any]]]:
-    """停止场景默认跳过 Agent 未安装的主机；同时跳过未安装 bk-collector 的主机，并记录跳过原因。"""
+    """停止场景默认跳过 Agent 状态非 RUNNING 的主机；同时跳过未安装 bk-collector 的主机。"""
     plugin_info_by_host_id = _get_plugin_info_by_host_id(bk_tenant_id=bk_tenant_id, bk_host_ids=bk_host_ids)
     stop_host_ids: list[int] = []
     skipped_hosts: list[dict[str, Any]] = []
 
     for bk_host_id in bk_host_ids:
         plugin_info = plugin_info_by_host_id.get(bk_host_id)
-        if skip_hosts_without_agent and _is_agent_not_installed((plugin_info or {}).get("status")):
-            skipped_hosts.append(_build_skipped_host_record(plugin_info, bk_host_id, SKIP_REASON_AGENT_NOT_INSTALLED))
+        if skip_hosts_without_agent and not _is_agent_running((plugin_info or {}).get("status")):
+            skipped_hosts.append(_build_skipped_host_record(plugin_info, bk_host_id, SKIP_REASON_AGENT_NOT_RUNNING))
         elif plugin_info and _has_plugin(plugin_info.get("plugin_status") or [], plugin_name):
             stop_host_ids.append(bk_host_id)
         else:
@@ -2253,6 +2255,11 @@ def _get_plugin_info_by_host_id(*, bk_tenant_id: str, bk_host_ids: list[int]) ->
 def _is_agent_not_installed(agent_status: str | None) -> bool:
     """Agent 状态为 NOT_INSTALLED，或节点管理未返回该主机（状态缺失/为空）时，视为 Agent 未安装。"""
     return str(agent_status or "").strip().upper() in {"", AGENT_NOT_INSTALLED_STATUS}
+
+
+def _is_agent_running(agent_status: str | None) -> bool:
+    """仅节点管理返回 RUNNING 时视为 Agent 可执行插件停止操作。"""
+    return str(agent_status or "").strip().upper() == AGENT_RUNNING_STATUS
 
 
 def _build_skipped_host_record(plugin_info: dict[str, Any] | None, bk_host_id: int, reason: str) -> dict[str, Any]:

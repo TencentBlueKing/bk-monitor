@@ -354,8 +354,8 @@ class Command(BaseCommand):
             action=argparse.BooleanOptionalAction,
             default=None,
             help=(
-                "执行前是否检查主机 Agent 状态并跳过 Agent 未安装的主机；"
-                "install-biz-bk-collector 默认不跳过，stop-biz-bk-collector 默认跳过；"
+                "执行前是否按 Agent 状态跳过主机；install-biz-bk-collector 启用时跳过 Agent 未安装的主机，"
+                "stop-biz-bk-collector 默认跳过 Agent 状态非 RUNNING 的主机；"
                 "可用 --skip-hosts-without-agent / --no-skip-hosts-without-agent 显式覆盖"
             ),
         )
@@ -998,14 +998,14 @@ class Command(BaseCommand):
 
     @staticmethod
     def _resolve_skip_hosts_without_agent(options, *, default: bool) -> bool:
-        """按动作解析是否跳过 Agent 未安装的主机；命令行显式指定时优先。"""
+        """按动作解析是否启用 Agent 状态过滤；命令行显式指定时优先。"""
         value = options.get("skip_hosts_without_agent")
         if value is None:
             return default
         return bool(value)
 
     def _write_skipped_hosts(self, result: dict[str, Any]) -> None:
-        """集中打印因 Agent 未安装等原因被跳过的主机及原因。"""
+        """集中打印因 Agent 状态或插件未安装等原因被跳过的主机及原因。"""
         skip_summary = result.get("skip_summary") or {}
         host_count = skip_summary.get("host_count", 0)
         if not host_count:
