@@ -343,7 +343,7 @@ python manage.py data_migrate stop-biz-bk-collector \
 说明：
 
 - 会找出业务下正在使用的 proxy 主机，并停止已安装的 `bk-collector`
-- 默认会检查主机 Agent 状态，Agent 未安装（`NOT_INSTALLED` 或节点管理未返回该主机）的机器会跳过，不会执行停止；如需对这些主机也执行停止，可加 `--no-skip-hosts-without-agent`
+- 默认会检查主机 Agent 状态，仅 `RUNNING` 状态的机器会执行停止；其他状态、空状态或节点管理未返回的机器均会跳过；如需对这些主机也执行停止，可加 `--no-skip-hosts-without-agent`
 - 未安装 `bk-collector` 的主机始终会跳过
 - 被跳过的主机会记录在明细的 `skipped_hosts` 中，并汇总到返回结果的 `skip_summary`（含 `bk_host_id`、`ip`、`agent_status` 和 `reason`），命令执行结束后也会集中打印跳过的机器和原因
 - 支持 `--dry-run` 只输出待停止主机，不执行停止
