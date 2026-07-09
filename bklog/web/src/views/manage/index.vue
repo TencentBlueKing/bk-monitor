@@ -86,7 +86,7 @@ import { isFeatureToggleOn } from '@/store/helper';
     data() {
       return {
         navThemeColor: '#2c354d',
-        isExpand: true,
+        isExpand: false,
         refreshKey: '',
       };
     },
@@ -187,7 +187,7 @@ import { isFeatureToggleOn } from '@/store/helper';
       });
       if (!this.isHeadless) {
         setTimeout(() => {
-          this.handleToggle(true);
+          this.handleToggle(false);
         }, 10);
       }
     },
