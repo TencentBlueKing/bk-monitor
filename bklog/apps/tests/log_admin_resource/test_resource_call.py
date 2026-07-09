@@ -278,6 +278,7 @@ class CollectorFixtureMixin:
             time_field_unit="millisecond",
             target_fields=["serverIp"],
             sort_fields=["dtEventTimeStamp"],
+            created_by="index-creator",
         )
         LogIndexSetData.objects.create(
             index_id=1755,
@@ -447,6 +448,8 @@ class CollectorResourceCallTest(CollectorFixtureMixin, ClearRequestLocalMixin, T
         self.assertEqual(result["total"], 2)
         by_id = {item["index_set_id"]: item for item in result["items"]}
         self.assertEqual(by_id[755]["collector_config_id"], 10402)
+        self.assertIsNotNone(by_id[755]["created_at"])
+        self.assertEqual(by_id[755]["created_by"], "index-creator")
         self.assertEqual(by_id[755]["result_table_ids"], ["2_bklog.bcs_checkinsvr"])
         self.assertEqual(by_id[755]["index_count"], 1)
         self.assertEqual(by_id[901]["result_table_ids"], ["2_bklog.bcs_checkinsvr"])
@@ -497,6 +500,8 @@ class CollectorResourceCallTest(CollectorFixtureMixin, ClearRequestLocalMixin, T
         self.assertTrue(content["result"])
         result = content["data"]["result"]
         self.assertEqual(result["index_set"]["collector_config_id"], 10402)
+        self.assertIsNotNone(result["index_set"]["created_at"])
+        self.assertEqual(result["index_set"]["created_by"], "index-creator")
         self.assertEqual([item["result_table_id"] for item in result["indexes"]], ["2_bklog.bcs_checkinsvr"])
         self.assertEqual([item["collector_config_id"] for item in result["collectors"]], [10402])
 
