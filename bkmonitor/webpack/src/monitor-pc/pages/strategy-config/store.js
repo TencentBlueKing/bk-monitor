@@ -67,6 +67,7 @@ const detectionTypeMap = {
   PingUnreachable: window.i18n.t('Ping不可达算法'),
   TimeSeriesForecasting: window.i18n.t('时序预测'),
   AbnormalCluster: window.i18n.t('离群检测'),
+  NewSeries: window.i18n.t('新维度值检测'),
 };
 
 export const invalidTypeMap = {
