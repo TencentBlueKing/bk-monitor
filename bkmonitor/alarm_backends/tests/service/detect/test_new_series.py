@@ -31,7 +31,19 @@ _UID = [8000]
 @pytest.fixture(autouse=True)
 def _isolate_keys():
     _UID[0] += 1
+    # use_fake_cache_router() 会改写 redis_cluster 的三个进程级全局；这里 setup 存旧值、teardown 恢复，
+    # 避免泄漏到后续用例(同一 pytest 进程共享模块状态)形成顺序依赖或掩盖真实路由问题。
+    saved = (
+        redis_cluster.DEFAULT_NODE,
+        redis_cluster.STRATEGY_ROUTER_CACHE,
+        redis_cluster.STRATEGY_NODE_MAP,
+    )
     yield
+    (
+        redis_cluster.DEFAULT_NODE,
+        redis_cluster.STRATEGY_ROUTER_CACHE,
+        redis_cluster.STRATEGY_NODE_MAP,
+    ) = saved
 
 
 def make_item(
