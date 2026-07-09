@@ -586,7 +586,7 @@ public class CodeTransform extends AbstractFlinkBasicTransform {
             out.setField(10, String.valueOf(spanInfoJson.get("status")));
             out.setField(11, String.valueOf(spanInfoJson.get("attributes")));
             out.setField(12, Long.valueOf(String.valueOf(spanInfoJson.get("start_time"))));
-            out.setField(13, spanInfoJson.get("trace_state").getAsString());
+            out.setField(13, spanInfoJson.get("trace_state").toString());
             out.setField(14, String.valueOf(spanInfoJson.get("resource")));
             out.setField(15, datetime);
             return out;

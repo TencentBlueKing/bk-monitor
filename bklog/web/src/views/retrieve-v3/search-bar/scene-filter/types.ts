@@ -35,4 +35,7 @@ export type {
   SceneDisplayFields,
   SceneConfig,
   FilterValues,
+  FieldCandidateCondition,
+  ListFieldCandidatesParams,
+  ListFieldCandidatesResponse,
 } from '@/store/scene-filter-types';

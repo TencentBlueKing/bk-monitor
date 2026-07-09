@@ -184,6 +184,19 @@ DEFAULT_DIMENSIONS_MAP = {
     "device_target": DefaultDimensions.device,
 }
 
+
+def get_default_dimension_ids(data_target: str, dimensions: list[dict[str, Any]]) -> list[str]:
+    default_dimensions = [dimension["id"] for dimension in DEFAULT_DIMENSIONS_MAP[data_target]]
+    dimension_ids = {dimension["id"] for dimension in dimensions}
+    if (
+        data_target == DataTarget.HOST_TARGET
+        and "bk_cloud_id" in dimension_ids
+        and "bk_target_cloud_id" not in dimension_ids
+    ):
+        return ["bk_target_ip", "bk_cloud_id"]
+    return default_dimensions
+
+
 UPTIMECHECK_MAP = {
     "HTTP": [AvailableMetric, TaskDurationMetric, ResponseCodeMetric, ResponseMetric],
     "UDP": [AvailableMetric, TaskDurationMetric],
@@ -2056,7 +2069,7 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
 
         data_target = DataTargetMapping().get_data_target(table["label"], table["source_label"], table["type_label"])
 
-        default_dimensions = list([x["id"] for x in DEFAULT_DIMENSIONS_MAP[data_target]])
+        default_dimensions = get_default_dimension_ids(data_target, dimensions)
 
         return {
             "bk_biz_id": 0,

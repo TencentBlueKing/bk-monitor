@@ -493,7 +493,9 @@ export default defineComponent({
     }
 
     onMounted(async () => {
-      getUrlParams();
+      if (!apmHooks) {
+        getUrlParams();
+      }
       await getAllUserConfig();
       await getApplicationList();
       await getViewConfig();

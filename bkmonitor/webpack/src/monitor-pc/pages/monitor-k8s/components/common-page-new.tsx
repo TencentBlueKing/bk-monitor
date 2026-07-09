@@ -24,8 +24,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, InjectReactive, Prop, Provide, ProvideReactive, Ref, Watch, Inject } from 'vue-property-decorator';
+import {
+  Component,
+  Emit,
+  InjectReactive,
+  Prop,
+  Provide,
+  ProvideReactive,
+  Ref,
+  Watch,
+  Inject,
+} from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
+import _ from 'lodash';
 
 import { APM_ALARM_TEMPLATE_ROUTER_QUERY_KEYS } from 'apm/pages/alarm-template/constant';
 import { isEqual } from 'lodash';
@@ -115,6 +126,8 @@ const DEFAULT_QUERY_DATA = {
   sort: '',
   filterDict: {},
 };
+
+const ALARM_CENTER_DASHBOARD_IDS = ['service-default-alarm_center', 'alarm_center'];
 
 interface ICommonPageEvent {
   onSceneTypeChange: SceneType;
@@ -321,7 +334,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   get compareTypeMap(): PanelToolsType.CompareId[] {
     return (
       !this.readonly &&
-      (this.isCheckedHost || !!this.sceneData?.options?.panel_tool?.need_compare_target
+      (this.isCheckedHost || this.sceneData?.options?.panel_tool?.need_compare_target
         ? ['none', 'target', 'time']
         : ['none', 'time'])
     );
@@ -405,7 +418,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     const panels = this.isPreciseFilter
       ? this.preciseFilteringPanels
       : this.handleGetLocalPanels(this.isOverview ? this.sceneData.overview_panels : this.sceneData.panels);
-    if (this.sceneData?.options?.enable_index_list && !!panels.length) {
+    if (this.sceneData?.options?.enable_index_list && panels.length) {
       let curTagChartId = '';
       const { mode } = this.sceneData;
       const list = panels.reduce((total, row) => {
@@ -445,7 +458,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         }
         return total;
       }, []);
-      if (list.length === 1 && !!list[0].children?.length) return list[0].children;
+      if (list.length === 1 && list[0].children?.length) return list[0].children;
       return list;
     }
     return [];
@@ -510,7 +523,15 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   /* 当前单图模式下dashboard-panel是否需要padding */
   /* 当前单图模式下dashboard-panel是否需要padding */
   get isSingleChartNoPadding() {
-    const noPaddingTypeList = ['apm-relation-graph', 'apm-service-caller-callee', 'log-retrieve', 'custom_metric_v2', 'alarm_center', 'trace', 'container'];
+    const noPaddingTypeList = [
+      'apm-relation-graph',
+      'apm-service-caller-callee',
+      'log-retrieve',
+      'custom_metric_v2',
+      'alarm_center',
+      'trace',
+      'container',
+    ];
     return this.isSingleChart && noPaddingTypeList.includes(this.localPanels?.[0]?.type);
     // return (
     //   this.isSingleChart &&
@@ -631,6 +652,38 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     bus.$off('dashboardModeChange', this.handleDashboardModeChange);
     bus.$off('switch_scenes_type');
   }
+  @Watch('timeRange', { immediate: true })
+  handleGlobalTimeRangeChange(val: TimeRangeType) {
+    window.LOCAL_OLD_TIME_RANGE = val;
+  }
+
+  @Watch('dashboardId', { immediate: true })
+  handleDashboardIdChange(newDashboardId: string, oldDashboardId: string) {
+    if (!oldDashboardId || !newDashboardId) {
+      return;
+    }
+
+    if (ALARM_CENTER_DASHBOARD_IDS.includes(newDashboardId)) {
+      // 从其他默认时间的tab切换到告警，告警使用默认七天
+      if (_.isEqual(window.LOCAL_OLD_TIME_RANGE, ['now-1h', 'now'])) {
+        this.handleTimeRangeChange(['now-7d', 'now']);
+        return;
+      }
+
+      this.handleTimeRangeChange(window.LOCAL_OLD_TIME_RANGE);
+    } else {
+      // 从告警默认时间切到其他tab，其他tab使用默认近一小时
+      if (ALARM_CENTER_DASHBOARD_IDS.includes(oldDashboardId)) {
+        if (_.isEqual(window.LOCAL_OLD_TIME_RANGE, ['now-7d', 'now'])) {
+          this.handleTimeRangeChange(['now-1h', 'now']);
+          return;
+        }
+
+        this.handleTimeRangeChange(window.LOCAL_OLD_TIME_RANGE);
+      }
+    }
+  }
+
   @Watch('backToOverviewKey')
   backToOverviewKeyChange() {
     this.localSceneType = 'overview';
@@ -726,12 +779,16 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       } else if (!['key'].includes(key)) {
         if (customRouterQueryKeys.includes(key)) {
           this.customRouteQuery[key] = val;
-        } else if (typeof val === 'string' && /^-?[1-9]?[0-9]*[1-9]+$/.test(val)) {
-          this[key] = +val;
+          // 优先匹配时间范围
         } else if (['from', 'to'].includes(key)) {
           // this[key] = Array.isArray(val) ? val : isNaN(+val) ? val : +val;
-          key === 'from' && (this.timeRange[0] = val as string);
-          key === 'to' && (this.timeRange[1] = val as string);
+          if (key === 'from') {
+            this.timeRange[0] = val as string;
+          } else if (key === 'to') {
+            this.timeRange[1] = val as string;
+          }
+        } else if (typeof val === 'string' && /^-?[1-9]?[0-9]*[1-9]+$/.test(val)) {
+          this[key] = +val;
         } else if (key === 'queryData') {
           try {
             const {
@@ -959,7 +1016,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     if (this.sceneData?.panelCount <= 6) {
       const indexStorage = new Storage();
       const defaultIndexData = indexStorage.get(INDEX_LIST_DEFAULT_CONFIG_KEY);
-      if (!defaultIndexData || !!defaultIndexData?.expand) {
+      if (!defaultIndexData || defaultIndexData?.expand) {
         indexStorage.set(INDEX_LIST_DEFAULT_CONFIG_KEY, {
           height: ASIDE_COLLAPSE_HEIGHT,
           placement: defaultIndexData?.placement || 'bottom',
@@ -1456,11 +1513,11 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
       queryString: this.queryString,
       preciseFilter: String(this.isPreciseFilter) /** 是否开启精准过滤 */,
       compares:
-        this.compareType === 'target' && !!this.compares.targets?.length
+        this.compareType === 'target' && this.compares.targets?.length
           ? encodeURIComponent(JSON.stringify(this.compares))
           : undefined /** 目标对比 */,
       timeOffset:
-        this.compareType === 'time' && !!this.timeOffset.length
+        this.compareType === 'time' && this.timeOffset.length
           ? encodeURIComponent(JSON.stringify(this.timeOffset))
           : undefined /** 时间对比 */,
       isGroupByLimit: this.isGroupByLimit ? 'true' : 'false',

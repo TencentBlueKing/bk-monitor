@@ -87,6 +87,16 @@ class Config:
             "schedule": crontab(minute="*/1"),
             "enabled": True,
         },
+        "rum_web.tasks.application_create_check": {
+            "task": "rum_web.tasks.application_create_check",
+            "schedule": crontab(minute="*/1"),
+            "enabled": True,
+        },
+        "rum_web.tasks.refresh_application": {
+            "task": "rum_web.tasks.refresh_application",
+            "schedule": crontab(minute="*/10"),
+            "enabled": True,
+        },
         "apm_web.tasks.cache_application_scope_name": {
             "task": "apm_web.tasks.cache_application_scope_name",
             "schedule": crontab(minute="*/10"),
@@ -133,5 +143,11 @@ class Config:
             "task": "apm_web.tasks.auto_apply_strategy_template",
             "schedule": crontab(minute="*/30"),
             "enabled": True,
+        },
+        "fta_web.tasks.sync_tapd_issue_status": {
+            "task": "fta_web.tasks.sync_tapd_issue_status",
+            "schedule": crontab(minute="*/10"),
+            "enabled": True,
+            "options": {"queue": "celery_resource"},
         },
     }

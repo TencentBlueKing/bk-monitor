@@ -533,6 +533,10 @@ class UnifyQueryHandler:
         )
 
     def _init_desensitize(self) -> bool:
+        # 查询原始日志时不进行脱敏  original_search参数不由用户传入
+        if self.search_params.get("original_search", False):
+            return False
+
         is_desensitize = self.search_params.get("is_desensitize", True)
 
         if not is_desensitize:

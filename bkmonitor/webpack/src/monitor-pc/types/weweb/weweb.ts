@@ -25,11 +25,13 @@
  */
 
 import type { AIBluekingShortcut } from '../../components/ai-whale/types';
+import type { ISPaceIntroduceData } from '../common/common';
 
 export type Vue3WewebData = {
-  parentRoute: string;
   enableAiAssistant?: boolean;
   handleAIBluekingShortcut?: (shortcut: AIBluekingShortcut) => void;
   host: string;
+  parentRoute: string;
+  setIntroduceData?: (callback: (data: ISPaceIntroduceData) => void) => void;
   setUnmountCallback?: (callback: () => void) => void;
 };

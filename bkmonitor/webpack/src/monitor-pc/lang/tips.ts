@@ -211,9 +211,10 @@ export default {
   取消反馈根因: 'Cancel feedback root cause',
   反馈根因: 'Feedback root cause',
   '共 {slot0} 条边': 'There are {slot0} edges',
-  '共 {slot0} 个 {type}节点': 'There are {slot0} {type} nodes in total',
-  '共 {slot0} 个 {type}节点，其中 {slot1} 个异常':
+  '共 {slot0} 个 {type} 节点': 'There are {slot0} {type} nodes in total',
+  '共 {slot0} 个 {type} 节点，其中 {slot1} 个异常':
     'There are {slot0} {type} nodes in total, of which {slot1} are abnormal.',
+  '共 {0} 个 {1} 节点，其中 {2} 个异常': 'There are {0} {1} nodes in total, of which {2} are abnormal.',
   '10分钟内无数据': 'No data within 10 minutes',
   '直接进行 精准查询，定位到 Trace 详情': 'Directly perform precise queries and locate Trace details',
   '查看关联 Trace': 'View associated Trace',
@@ -480,6 +481,13 @@ export default {
   标记为已解决成功: 'Mark as resolved successfully',
   已配置issue聚合: 'Issue aggregation already configured',
   '该服务已关联{0}个告警策略': 'This service has been associated with{0}alarm policies',
+
+  '启用后数据将重新上报至该应用，若无数据，请检查上报配置':
+    'After enabling, the data will be reported to this application. If there is no data, please check the reporting configuration',
+  '停用后将不会有数据上报，请谨慎操作': 'After disabling, there will be no data reporting. Please operate carefully.',
+  '删除后无法恢复，请谨慎操作！': 'After deletion, it cannot be recovered. Please operate carefully!',
+  '设置系统可承受的 qps 峰值，每秒最多处理 X 条请求，超出可以造成数据丢弃。':
+    'Set the system-acceptable qps peak value, which can process up to X requests per second, and exceeding which can cause data to be discarded.',
   归档成功: 'Archive successfully',
   恢复成功: 'Restore successfully',
   重新打开成功: 'Reopen successfully',
@@ -503,6 +511,21 @@ export default {
     'By default, the first selected Issue is retained as the main Issue, and can be switched in the form below.',
 
   '已授权 TAPD 项目列表 · 已关联 {count} 个项目': 'Authorized TAPD Project List · {count} Projects Associated',
-  '开启后，当本单据在外部平台进入「已完成」类状态{0}时，本 Issue 将自动流转为「已解决」。':
-    'After opening, when this document enters the "Completed" status {0} on the external platform, this issue will automatically flow to "Resolved".',
+
+  '开启后，当本单据在外部平台进入{0}类状态{1}时，本 Issue 将自动流转为{2}。':
+    'After enabling, when this document enters the {0} status {1} in the external platform, this Issue will automatically transition to {2}.',
+  '未勾选，则仅保留关联，不因单据关闭而自动关 Issue。':
+    'If not checked, only the association is retained, and the issue is not automatically closed due to document closure.',
+  '请选择有权限的项目，完成蓝鲸监控关联项目的应用授权。':
+    'Please select a project with permission, and complete the application authorization of the BK-Monitor project.',
+  '取消后，TAPD 侧授权不会被撤销，但蓝鲸侧不再与该 TAPD 项目关联。确认解绑吗？':
+    'After unchecking, the TAPD side authorization will not be revoked, but the BK-Monitor side will no longer be associated with the TAPD project. Are you sure to unbind?',
+  '页面主要内容完成渲染的耗时第 75 分位值，数值越低体验越好。':
+    'The page main content is rendered in 75th percentile, the lower the better.',
+  '页面运行中发生 JSt异常比例，数值越高稳定性越差。':
+    'The page runs into JSt exceptions in 75th percentile, the higher the worse.',
+  '接口请求失败比例，包含 HTTP 非成功状态码、请求超时或网络异常等情况。':
+    'The proportion of failed API requests, including HTTP non-success status codes, request timeouts, or network exceptions.',
+  'JS 错误的View数 / 总View数 × 100%': 'JS Error View Count / Total View Count × 100%',
+  '失败接口请求次数 / 接口请求总次数 × 100%': 'Failed API Request Count / Total API Request Count × 100%',
 };

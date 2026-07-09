@@ -109,7 +109,7 @@
         >
           <div class="header-help is-left">
             <svg
-              style="width: 1em; height: 1em; overflow: hidden; vertical-align: middle; fill: currentColor"
+              style="width: 1em; height: 1em; overflow: hidden; vertical-align: middle; fill: currentcolor"
               class="bk-icon"
               version="1.1"
               viewBox="0 0 64 64"
@@ -595,7 +595,7 @@ export default {
 @mixin icon-hover-mixin {
   color: #d3d9e4;
   cursor: pointer;
-  background: linear-gradient(270deg, rgba(37, 48, 71, 1) 0%, rgba(38, 50, 71, 1) 100%);
+  background: linear-gradient(270deg, rgb(37 48 71 / 100%) 0%, rgb(38 50 71 / 100%) 100%);
   border-radius: 100%;
 }
 
@@ -608,7 +608,7 @@ export default {
   color: #63656e;
   background: #fff;
   border: 1px solid #e2e2e2;
-  box-shadow: 0px 3px 4px 0px rgba(64, 112, 203, 0.06);
+  box-shadow: 0 3px 4px 0 rgb(64 112 203 / 6%);
 
   .nav-item {
     display: flex;
@@ -672,7 +672,8 @@ export default {
     }
   }
 
-  &.data-retrieval-nav {
+  &.data-retrieval-nav,
+  &.rum-nav {
     :deep(.container-content) {
       padding: 0;
     }

@@ -25,8 +25,15 @@
  */
 import { type PropType, computed, defineComponent, nextTick, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 
-import { type BkUiSettings, type TableSort, type TdBaseTableProps, PrimaryTable } from '@blueking/tdesign-ui';
+import {
+  type BkUiSettings,
+  type FilterValue,
+  type TableSort,
+  type TdBaseTableProps,
+  PrimaryTable,
+} from '@blueking/tdesign-ui';
 import { Exception, Pagination } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
 import TableSkeleton from '../../../../../../components/skeleton/table-skeleton';
 import { useTableCell } from '../../../../../trace-explore/components/trace-explore-table/hooks/use-table-cell';
@@ -126,6 +133,10 @@ export default defineComponent({
       type: Array as PropType<(number | string)[]>,
       default: () => [],
     },
+    /** 表头筛选受控值（与 PrimaryTable filterValue 一致） */
+    filterValue: {
+      type: Object as PropType<FilterValue>,
+    },
     /** 行类名，参数为 { row, rowIndex, type } */
     rowClassName: {
       type: [String, Function] as PropType<TdBaseTableProps['rowClassName']>,
@@ -162,10 +173,12 @@ export default defineComponent({
     /** 行选择变化回调 */
     selectChange: (selectedRowKeys: (number | string)[], options: SelectOptions<unknown>) =>
       Array.isArray(selectedRowKeys) && options,
+    filterChange: (filterValue: FilterValue) => filterValue != null,
     /** 列宽拖拽变化回调 */
     columnResizeChange: (context: ColumnResizeContext) => context && typeof context.columnsWidth === 'object',
   },
   setup(props, { emit }) {
+    const { t } = useI18n();
     const wrapperRef = useTemplateRef<HTMLElement>('wrapperRef');
     /** 表格单元格渲染逻辑 */
     const { tableCellRender, renderContext } = useTableCell({
@@ -292,6 +305,13 @@ export default defineComponent({
     };
 
     /**
+     * @description 表头筛选变化
+     * @param {FilterValue} value
+     */
+    const handleFilterChange = (value: FilterValue) => {
+      emit('filterChange', value);
+    };
+    /**
      * @description 表格高亮行发生变化时的回调
      * @param {Array<string | number>} activeRowKeys 高亮行
      */
@@ -329,7 +349,7 @@ export default defineComponent({
       return (
         <Exception
           class='common-table-empty'
-          description={props.empty?.emptyText || '搜索为空'}
+          description={props.empty?.emptyText || t('搜索为空')}
           scene='part'
           type={props.empty?.type || 'search-empty'}
         />
@@ -363,6 +383,7 @@ export default defineComponent({
       handleColumnResizeChange,
       tableLastFullRowRender,
       tableEmptyRender,
+      handleFilterChange,
       handleActiveChange,
     };
   },
@@ -387,6 +408,7 @@ export default defineComponent({
             columns={this.tableColumns}
             data={this.data}
             disableDataPage={true}
+            filterValue={this.filterValue}
             firstFullRow={this.firstFullRow}
             headerAffixedTop={this.headerAffixedTop}
             horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
@@ -407,6 +429,7 @@ export default defineComponent({
             onActiveChange={this.handleActiveChange}
             onColumnResizeChange={this.handleColumnResizeChange}
             onDisplayColumnsChange={this.handleDisplayColFieldsChange}
+            onFilterChange={this.handleFilterChange}
             onSelectChange={this.handleSelectChange}
             onSortChange={this.handleSortChange}
           />

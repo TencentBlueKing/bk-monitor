@@ -132,17 +132,24 @@
   }
 
   .skeleton-element {
+    &.level-tag {
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+    }
+
     &.issues-detail-title {
       flex: 1;
-      height: 40px;
+      height: 36px;
       margin: 6px 8px;
     }
 
     &.btn-item {
-      width: 68px;
-      height: 42px;
+      width: 64px;
+      height: 36px;
       padding: 0;
-      margin-left: 5px;
+      margin-left: 8px;
+      border-radius: 4px;
     }
   }
 
@@ -150,6 +157,7 @@
     display: flex;
     align-items: center;
     height: 100%;
+    padding-right: 16px;
     line-height: 20px;
 
     .btn-group-item {
@@ -194,7 +202,7 @@
   }
 }
 
-.create-tapd-menu-popover.bk-popover {
+.create-tapd-menu-popover.bk-popover.bk-pop2-content {
   padding: 4px 0;
 
   .create-tapd-menu-popover-content {

@@ -8,7 +8,24 @@
   .tool-checkbox {
     font-size: 12px;
     flex: 1;
+    min-width: 0;
     margin-left: 2px;
+
+    .bk-form-checkbox {
+      display: flex;
+
+      .bk-checkbox {
+        flex-shrink: 0;
+      }
+
+      .bk-checkbox-text {
+        font-size: 12px;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
   }
 
   .tool-icon-box {
@@ -16,6 +33,11 @@
     display: flex;
     align-items: center;
     font-size: 16px;
+
+    >div {
+      display: flex;
+    }
+
     .tool-icon {
       margin-left: 12px;
       cursor: pointer;

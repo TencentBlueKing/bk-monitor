@@ -1,0 +1,22 @@
+paths:
+  /app/issue/regenerate_title/:
+    post:
+      operationId: issue_regenerate_title
+      description: 批量重跑 Issue LLM 标题（运维显式补偿，最多 5 个，同步执行）
+      x-bk-apigateway-resource:
+        isPublic: false
+        # 与既有私有接口(bkm_cli.yaml)一致：私有性由 isPublic:false 保证(不进公开/可申请列表，
+        # 靠网关管理员/配置授权)。allowApplyPermission 会被 merge_resources.py 统一改写为 true，
+        # 此处显式写 true 对齐合并结果，避免死值误导。
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/issue/regenerate_title/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: regenerate issue llm title

@@ -646,6 +646,7 @@ export default defineComponent({
         bk_biz_id: Number(bkBizId.value),
         target_fields: props.configData.target_fields || [],
         sort_fields: props.configData.sort_fields || [],
+        data_link_id: props.configData.data_link_id || '',
       };
 
       if (isDorisMode.value) {

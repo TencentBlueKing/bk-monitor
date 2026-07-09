@@ -7840,7 +7840,7 @@ def test_graph_relation_apply_transient_write_mode_keeps_desired_mode(create_or_
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_graph_relation_apply_ignores_post_apply_cleanup_error(mocker):
+def test_graph_relation_apply_raises_post_apply_cleanup_error(mocker):
     datalink = DataLink.objects.create(
         data_link_name="graph_cleanup_test",
         namespace="bkmonitor",
@@ -7860,10 +7860,11 @@ def test_graph_relation_apply_ignores_post_apply_cleanup_error(mocker):
     mocker.patch.object(DataLink, "compose_configs", side_effect=compose_with_cleanup_state)
     mocked_apply = mocker.patch.object(DataLink, "apply_data_link_with_retry", return_value={"status": "success"})
 
-    datalink.apply_data_link(
-        table_id="1001_bkmonitor_time_series_60300.__default__",
-        write_mode=GraphRelationBindingConfig.WRITE_MODE_SURREALDB,
-    )
+    with pytest.raises(RuntimeError, match="cleanup failed"):
+        datalink.apply_data_link(
+            table_id="1001_bkmonitor_time_series_60300.__default__",
+            write_mode=GraphRelationBindingConfig.WRITE_MODE_SURREALDB,
+        )
 
     mocked_apply.assert_called_once_with([])
     cleanup_binding.transition_write_mode.assert_called_once_with(GraphRelationBindingConfig.WRITE_MODE_VM)
@@ -7902,6 +7903,85 @@ def test_graph_relation_apply_uses_metadata_transaction_and_merges_existing_conf
     mock_compose.assert_called_once_with(existing_context=None, consumer_group="graph_consumer_group")
     mock_merge.assert_called_once_with(composed_configs)
     mock_apply.assert_called_once_with(merged_configs)
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_graph_relation_apply_locks_existing_datalink_before_composing(mocker):
+    datalink = DataLink(
+        data_link_name="graph_apply_lock_test",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+    )
+    datalink._state.adding = False
+    call_order = []
+    lock_queryset = mocker.Mock()
+    lock_queryset.only.return_value = lock_queryset
+
+    def get_locked_datalink(**kwargs):
+        call_order.append("lock")
+        assert kwargs == {"pk": datalink.pk}
+        return datalink
+
+    def compose_after_lock(*args, **kwargs):
+        call_order.append("compose")
+        return []
+
+    lock_queryset.get.side_effect = get_locked_datalink
+    mock_select_for_update = mocker.patch.object(DataLink.objects, "select_for_update", return_value=lock_queryset)
+    mocker.patch.object(datalink, "compose_configs", side_effect=compose_after_lock)
+    mock_merge = mocker.patch.object(datalink, "merge_existing_component_configs", return_value=[])
+    mock_apply = mocker.patch.object(datalink, "apply_data_link_with_retry", return_value={"status": "success"})
+
+    datalink._apply_graph_relation_data_link_in_transaction(
+        args=(),
+        kwargs={},
+        existing_context=None,
+        bkbase_rt_record=mocker.Mock(),
+        storage_type=models.ClusterInfo.TYPE_SURREALDB,
+        should_update_bkbase_rt_storage_type=False,
+    )
+
+    mock_select_for_update.assert_called_once_with()
+    lock_queryset.only.assert_called_once_with("data_link_name")
+    lock_queryset.get.assert_called_once_with(pk=datalink.pk)
+    assert call_order == ["lock", "compose"]
+    mock_merge.assert_called_once_with([])
+    mock_apply.assert_called_once_with([])
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_graph_relation_apply_skips_row_lock_for_unsaved_datalink(mocker):
+    datalink = DataLink(
+        data_link_name="graph_apply_unsaved_lock_test",
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+    )
+    call_order = []
+
+    def compose_without_lock(*args, **kwargs):
+        call_order.append("compose")
+        return []
+
+    mock_select_for_update = mocker.patch.object(DataLink.objects, "select_for_update")
+    mocker.patch.object(datalink, "compose_configs", side_effect=compose_without_lock)
+    mock_merge = mocker.patch.object(datalink, "merge_existing_component_configs", return_value=[])
+    mock_apply = mocker.patch.object(datalink, "apply_data_link_with_retry", return_value={"status": "success"})
+
+    datalink._apply_graph_relation_data_link_in_transaction(
+        args=(),
+        kwargs={},
+        existing_context=None,
+        bkbase_rt_record=mocker.Mock(),
+        storage_type=models.ClusterInfo.TYPE_SURREALDB,
+        should_update_bkbase_rt_storage_type=False,
+    )
+
+    mock_select_for_update.assert_not_called()
+    assert call_order == ["compose"]
+    mock_merge.assert_called_once_with([])
+    mock_apply.assert_called_once_with([])
 
 
 def test_surrealdb_storage_registered_in_result_table_storage_map():

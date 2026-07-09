@@ -153,3 +153,32 @@ class TestTopoNodeFuller:
         agent_topo_node = record.dimensions["bk_topo_node"]
         agent_topo_node.sort()
         assert agent_topo_node == ["biz|2", "module|2", "set|1"]
+
+    def test_full_with_collector_cloud_dimension(self, mocker):
+        mocker.patch.object(StrategyCacheManager, "get_strategy_by_id", return_value=copy.deepcopy(STRATEGY_CONFIG))
+        get_host = mocker.patch.object(
+            HostManager,
+            "get",
+            return_value=MockHost(
+                {"module|1": [MockTopoNode("biz|2"), MockTopoNode("module|1"), MockTopoNode("set|1")]},
+                bk_cloud_id=2,
+            ),
+        )
+        mocker.patch.object(HostManager, "get_by_id")
+        mocker.patch.object(HostManager, "get_by_agent_id")
+        mocker.patch.object(ServiceInstanceManager, "get")
+
+        strategy = Strategy(1)
+        strategy.config["scenario"] = "os"
+        strategy.items[0].query_configs[0]["agg_dimension"] = ["bk_target_ip", "bk_cloud_id"]
+
+        raw_data = copy.deepcopy(RAW_DATA)
+        raw_data.pop("bk_target_cloud_id")
+        raw_data["bk_cloud_id"] = "2"
+        record = DataRecord(strategy.items[0], raw_data)
+
+        TopoNodeFuller().full(record)
+
+        assert get_host.call_args[1]["bk_cloud_id"] == "2"
+        assert record.dimensions["bk_target_cloud_id"] == "2"
+        assert "bk_topo_node" in record.dimensions

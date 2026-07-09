@@ -146,6 +146,8 @@ export const IssueActiveNodeTypeEnum = {
   MERGED_INTO: 'merged_into',
   /** 拆分 */
   SPLIT_FROM: 'split_from',
+  TAPD_LINK: 'tapd_link',
+  CREATE_TAPD: 'create_tapd',
 } as const;
 
 /** 影响范围资源类型枚举 */
@@ -360,5 +362,5 @@ export const TAPDWorkspaceBoundEnum = {
 export const TapdTypeMap = [
   { label: window.i18n.t('需求'), value: TapdTypeEnum.STORY },
   { label: window.i18n.t('缺陷'), value: TapdTypeEnum.BUG },
-  { label: window.i18n.t('任务'), value: TapdTypeEnum.TASK },
+  // { label: window.i18n.t('任务'), value: TapdTypeEnum.TASK },
 ];

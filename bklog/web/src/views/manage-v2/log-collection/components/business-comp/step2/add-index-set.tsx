@@ -214,6 +214,17 @@ export default defineComponent({
               onInput={val => {
                 editData.value.index_set_name = val;
               }}
+              onEnter={() => {
+                handleEditGroupSubmit();
+              }}
+              onKeydown={(_, event) => {
+                // 在 keydown 阶段阻止事件传播
+                if (event.keyCode === 13 || event.key === 'Enter') {
+                  event.stopPropagation();
+                  event.preventDefault();
+                  return false;
+                }
+              }}
             />
           </bk-form-item>
         </bk-form>

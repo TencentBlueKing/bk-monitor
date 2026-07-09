@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import os
 import random
 
@@ -60,7 +60,9 @@ class FileDistributionService(BaseService):
         ]
 
     def _poll_status(self, task_instance_id, operator, bk_biz_id):
-        return FileServer.query_task_result(task_instance_id, operator, bk_biz_id)
+        return FileServer.query_task_result(
+            task_instance_id, operator, bk_biz_id, is_platform=settings.ENABLE_MULTI_TENANT_MODE
+        )
 
     def _get_transit_server(self, extract_link: ExtractLink, task_id):
         packed_dir_name = get_packed_dir_name("", task_id=task_id)
@@ -93,6 +95,9 @@ class FileDistributionService(BaseService):
         Tasks.objects.filter(task_id=task_id).update(download_status=constants.DownloadStatus.DISTRIBUTING.value)
         task = Tasks.objects.get(task_id=task_id)
         extract_link: ExtractLink = ExtractLink.objects.filter(link_id=task.link_id).first()
+        # 跨租户，需要确保执行人有权限
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            operator = extract_link.operator
         transit_servers, transit_server_packing_file_path, transit_server_file_path = self._get_transit_server(
             extract_link, task_id=task_id
         )
@@ -128,6 +133,10 @@ class FileDistributionService(BaseService):
         operator = data.get_one_of_inputs("operator")
         bk_biz_id = data.get_one_of_inputs("bk_biz_id")
         Tasks.objects.filter(task_id=task_id).update(download_status=constants.DownloadStatus.DISTRIBUTING.value)
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            task = Tasks.objects.get(task_id=task_id)
+            extract_link: ExtractLink = task.get_link()
+            operator = extract_link.operator
         task_instance_id = data.get_one_of_outputs("task_instance_id")
         query_result = self._poll_status(task_instance_id, operator, bk_biz_id)
 

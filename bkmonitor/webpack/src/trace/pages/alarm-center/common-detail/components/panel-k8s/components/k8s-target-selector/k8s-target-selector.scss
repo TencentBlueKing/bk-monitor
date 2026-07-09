@@ -58,4 +58,12 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+
+  .bk-select-content-wrapper {
+    .icon-search {
+      &::before {
+        display: none !important;
+      }
+    }
+  }
 }

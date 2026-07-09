@@ -49,6 +49,7 @@ export default defineComponent({
     const route = useRoute();
     const router = useRouter();
     const isShow = ref<boolean>(false);
+    const autoFocusReason = ref<boolean>(false);
     const isShowResolve = ref<boolean>(false);
     const listLoading = ref(false);
     const alertAggregateData = ref<IAggregationRoot[]>([]);
@@ -313,6 +314,7 @@ export default defineComponent({
       DialogFn,
       incidentDetailData,
       isShow,
+      autoFocusReason,
       levelList,
       t,
       statusTips,
@@ -441,11 +443,15 @@ export default defineComponent({
             </div>
           </div>
           <FailureEditDialog
+            autoFocusReason={this.autoFocusReason}
             levelList={this.levelList}
             visible={this.isShow}
             onEditSuccess={this.onEditSuccess}
             onUpdate:isShow={(val: boolean) => {
               this.isShow = val;
+              if (!val) {
+                this.autoFocusReason = false;
+              }
             }}
           />
           {this.DialogFn()}

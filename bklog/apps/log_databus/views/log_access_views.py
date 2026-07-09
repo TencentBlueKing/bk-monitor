@@ -56,7 +56,9 @@ class LogAccessViewSet(APIViewSet):
     @list_route(methods=["GET"], url_path="collector_field_enums")
     def get_collector_field_enums(self, request):
         data = self.params_valid(GetCollectorFieldEnumsSerializer)
-        result = LogCollectorHandler(data["space_uid"]).get_collector_field_enums()
+        result = LogCollectorHandler(data["space_uid"]).get_collector_field_enums(
+            data.get("include_related_spaces", False)
+        )
         return Response(result)
 
     @list_route(methods=["POST"], url_path="collector_status")

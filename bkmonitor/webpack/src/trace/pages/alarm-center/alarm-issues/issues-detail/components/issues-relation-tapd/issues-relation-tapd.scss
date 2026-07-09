@@ -1,0 +1,78 @@
+.issues-detail-issues-relation-tapd {
+  .tapd-item {
+    display: flex;
+    align-items: center;
+    height: 56px;
+    padding: 0 12px;
+    margin-bottom: 8px;
+    background: #f2f6fc;
+    border-radius: 6px;
+
+    &:first-of-type {
+      margin-top: 16px;
+    }
+
+    &.tapd-item-skeleton {
+      width: 100%;
+      height: 56px;
+    }
+
+    .tapd-item-left {
+      & > img {
+        width: 32px;
+        height: 32px;
+      }
+    }
+
+    .tapd-item-right {
+      margin-left: 8px;
+      overflow: hidden;
+
+      .tapd-item-right-top {
+        display: flex;
+        align-items: center;
+        font-size: 12px;
+        line-height: 20px;
+
+        .tapd-id {
+          font-family: Menlo, monospace;
+          font-weight: 700;
+          color: #8f9fbd;
+          white-space: nowrap;
+        }
+
+        .tapd-name {
+          margin-left: 6px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          font-weight: 500;
+          color: #313238;
+          white-space: nowrap;
+        }
+      }
+
+      .tapd-item-right-bottom {
+        display: flex;
+        align-items: center;
+        font-size: 12px;
+        line-height: 20px;
+        transform: scale(0.83);
+        transform-origin: left center;
+
+        .link-mode {
+          color: #8f9fbd;
+        }
+
+        .icon-change {
+          font-size: 20px;
+          color: #21a380;
+        }
+
+        .sync-status {
+          margin-left: 4px;
+          color: #21a380;
+        }
+      }
+    }
+  }
+}

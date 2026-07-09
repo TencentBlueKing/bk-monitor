@@ -173,6 +173,15 @@ class _MonitorApi:
             after_request=save_to_dashboard_after,
             bk_tenant_id=biz_to_tenant_getter(),
         )
+        self.list_resource_candidates = DataAPI(
+            method="POST",
+            url=self._build_url("k8s_resource/list_resource_candidates/", "list_resource_candidates/"),
+            module=self.MODULE,
+            description="容器资源过滤候选值检索",
+            default_return_value=None,
+            before_request=add_esb_info_before_request,
+            bk_tenant_id=biz_to_tenant_getter(),
+        )
 
     @property
     def use_apigw(self):

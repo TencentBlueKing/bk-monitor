@@ -143,3 +143,51 @@ export interface SceneConfig {
 
 /** 筛选条件值（含操作符） */
 export type FilterValues = Record<string, FilterFieldValue>;
+
+/** ============ 字段值联想接口类型 ============ */
+
+/** 字段联想条件 */
+export interface FieldCandidateCondition {
+  /** 字段名 */
+  key: string;
+  /** 匹配方式：eq 精确匹配，include 模糊匹配 */
+  method: 'eq' | 'include';
+  /** 字段值列表 */
+  value: string[];
+}
+
+/** 字段联想请求参数 */
+export interface ListFieldCandidatesParams {
+  /** 空间 ID */
+  space_uid: string;
+  /** 业务 ID */
+  bk_biz_id: number;
+  /** 场景标识，如 "k8s"、"host" */
+  scene: string;
+  /** 目标维度字段 */
+  resource_type: string;
+  /** 已选的级联条件 */
+  conditions: FieldCandidateCondition[];
+  /** 当前输入的值 */
+  query_string: string;
+  /** 页码 */
+  page: number;
+  /** 页大小，默认 500 */
+  page_size: number;
+  /** 容器场景下必填，集群 ID 列表 */
+  bcs_cluster_ids?: string[];
+  /** 主机场景下必填，二维数组格式：[[{field_name, value, op}, ...]] */
+  table_id_conditions?: Array<Array<{ field_name: string; value: string[]; op: string }>>;
+  /** 主机场景必填 */
+  start_time?: number;
+  /** 主机场景必填 */
+  end_time?: number;
+}
+
+/** 字段联想响应 */
+export interface ListFieldCandidatesResponse {
+  /** 总数 */
+  count: number;
+  /** 可选值列表 */
+  items: string[];
+}

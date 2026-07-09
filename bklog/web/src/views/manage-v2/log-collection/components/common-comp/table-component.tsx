@@ -147,6 +147,15 @@ export default defineComponent({
     // 用户选择的可见列（初始值为所有列）
     const visibleColumns = ref<string[]>(columnConfigFields.value.map(field => props.colKeyMap[field.id] || field.id));
 
+    // 监听 settingFields 变化，更新列配置
+    watch(
+      () => props.settingFields,
+      (newFields) => {
+        columnConfigFields.value = [...newFields];
+        visibleColumns.value = columnConfigFields.value.map(field => props.colKeyMap[field.id] || field.id);
+      },
+    );
+
     const isNeedSetting = computed(() => {
       return Object.keys(props.colKeyMap || {}).length > 0 && (props.settingFields || []).length > 0;
     });

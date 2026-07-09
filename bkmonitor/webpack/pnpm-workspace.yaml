@@ -9,21 +9,21 @@ modulesDir: node_modules
 
 onlyBuiltDependencies:
   - '@biomejs/biome'
-  - 'simple-git-hooks'
+  - simple-git-hooks
 
 overrides:
+  '@prometheus-io/lezer-promql': 0.305.0
   bk-magic-vue: 2.5.10-beta.18
-  eslint: $eslint
+  browserslist: ^4.28.1
+  cross-spawn: ^7.0.6
+  eslint: ^9.35.0
   monaco-editor: 0.44.0
+  on-headers: ^1.1.0
   semver: ^7.7.2
   vue-class-component: ^7.2.6
   vue-property-decorator: ^9.1.2
   vue-tsx-support: ^3.2.0
   vuex-module-decorators: ^1.2.0
-  cross-spawn: ^7.0.6
-  on-headers: ^1.1.0
-  '@prometheus-io/lezer-promql': 0.305.0
-  browserslist: ^4.28.1
   'braces': '>=3.0.3'
   'dompurify': '>=2.5.4'
   'minimatch': '>=9.0.7'
@@ -39,13 +39,15 @@ publicHoistPattern:
   - '!vue-i18n'
   - '!@vue/compiler-sfc'
 
+minimumReleaseAgeExclude:
+  - '@blueking/monitor-trace-explore@0.0.21 || 0.0.23 || 0.0.24 || 0.0.25 || 0.0.26 || 0.0.27 || 0.0.28'
+  - '@blueking/open-telemetry@0.0.14'
+
 allowBuilds:
   '@parcel/watcher': set this to true or false
   core-js: set this to true or false
   esbuild: set this to true or false
+  protobufjs: set this to true or false
   simple-git-hooks: set this to true or false
   vue-demi: set this to true or false
   vuex-module-decorators: set this to true or false
-
-minimumReleaseAgeExclude:
-  - '@blueking/monitor-trace-explore@0.0.21 || 0.0.23 || 0.0.24 || 0.0.25 || 0.0.26'

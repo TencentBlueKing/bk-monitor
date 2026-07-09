@@ -13,12 +13,11 @@ import logging
 from typing import Any
 
 from django.apps import apps
-from django.conf import settings
 from django.db import transaction
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
-from bkm_space.utils import bk_biz_id_to_space_uid
+from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
 from core.drf_resource import Resource
 from core.errors.metadata import EntityNotFoundError, UnsupportedKindError
 from metadata.models import EntityMeta
@@ -175,10 +174,19 @@ class EntityHandler:
         kind = entity.get_kind()
         if kind not in REDIS_SYNC_KINDS or not changed:
             return
-        if not getattr(settings, "ENABLE_SYNC_GRAPH_DEFINITION_TO_BKBASE", False):
+
+        from metadata.task.sync_cmdb_relation import _get_graph_relation_bkbase_sync_biz_ids
+
+        enabled_biz_ids = _get_graph_relation_bkbase_sync_biz_ids()
+        if not enabled_biz_ids:
             return
 
         namespace = entity.namespace or NAMESPACE_ALL
+        if namespace != NAMESPACE_ALL:
+            bk_biz_id = space_uid_to_bk_biz_id(namespace)
+            if not bk_biz_id or bk_biz_id not in enabled_biz_ids:
+                return
+
         task_kwargs = {
             "namespace": namespace,
             "kind": kind,

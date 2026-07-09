@@ -22,9 +22,9 @@
     "@blueking/ip-selector": "0.3.0-beta.51",
     "@blueking/login-modal": "^1.0.6",
     "@blueking/notice-component-vue2": "^2.0.7",
+    "@blueking/open-telemetry": "^0.0.14",
     "@blueking/platform-config": "^1.0.5",
     "@blueking/search-select-v3": "0.0.1-beta.10",
-    "@prometheus-io/lezer-promql": "0.305.0",
     "apm": "workspace:*",
     "async-validator": "^3.5.2",
     "big.js": "^7.0.1",
@@ -53,6 +53,7 @@
     "vuedraggable": "^2.24.3",
     "vuex": "^3.6.2",
     "vuex-module-decorators": "^1.2.0",
+    "web-vitals": "5.2.0",
     "xlsx": "^0.18.5"
   },
   "keywords": [

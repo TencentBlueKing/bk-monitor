@@ -276,12 +276,52 @@ def test_datasource_and_resulttable_in_allowlist_with_token_excluded():
     assert {"table_id", "bk_biz_id", "default_storage", "data_label", "is_builtin"} <= rt.fields
 
 
+def test_graph_relation_binding_config_registered_in_allowlist():
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    spec = db.ALLOWED_MODEL_SPECS["metadata.models.data_link.data_link_configs.GraphRelationBindingConfig"]
+
+    required = {
+        "bk_tenant_id",
+        "namespace",
+        "name",
+        "data_link_name",
+        "bk_biz_id",
+        "status",
+        "write_mode",
+        "table_id",
+        "bkbase_result_table_name",
+        "graph_result_table_name",
+        "vm_storage_binding_name",
+        "vm_databus_name",
+        "surrealdb_binding_name",
+        "graph_databus_name",
+        "vm_cluster_name",
+        "surrealdb_cluster_name",
+        "surrealdb_auto_restore",
+        "create_time",
+        "last_modify_time",
+    }
+    assert required <= spec.fields
+    assert {"bk_biz_id", "data_link_name", "name", "write_mode", "status"} <= db._safe_fields(spec)
+    assert {"bk_tenant_id", "namespace", "name", "data_link_name", "bk_biz_id", "status", "write_mode"} <= (
+        spec.default_fields
+    )
+    assert "vertices" not in spec.fields
+    assert "relations" not in spec.fields
+    assert spec.note
+
+
 def test_list_db_models_surfaces_model_note():
     result = BkmCliOpCallResource().perform_request({"op_id": "list-db-models", "params": {}})
 
     items = {item["model"]: item for item in result["result"]["items"]}
     assert items["metadata.models.data_source.DataSource"]["note"]
     assert "token" not in items["metadata.models.data_source.DataSource"]["allowed_fields"]
+    graph_binding = items["metadata.models.data_link.data_link_configs.GraphRelationBindingConfig"]
+    assert graph_binding["note"]
+    assert "write_mode" in graph_binding["allowed_fields"]
+    assert "vertices" not in graph_binding["allowed_fields"]
 
 
 # ---------- GlobalConfig (row-level masking) ----------

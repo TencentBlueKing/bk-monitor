@@ -858,6 +858,7 @@ export default defineComponent({
               clearable={false}
               loading={linkListLoading.value}
               disabled={isUpdate.value}
+              searchable={true}
               value={formData.value.bcs_cluster_id}
               on-selected={val => {
                 isConfigChange.value = true;

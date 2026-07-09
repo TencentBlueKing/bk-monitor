@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,10 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import time
 
-import mock as _mock
+from unittest import mock as _mock
 import pytest
 from django.conf import settings
 
@@ -439,7 +439,7 @@ def init_action_plugin():
                                 {"key": "id", "value": "response.id", "format": "jmespath"},
                                 {
                                     "key": "url",
-                                    "value": "{{itsm_site_url}}#/ticket/detail?id={{id}}",
+                                    "value": "{{itsm_site_url}}/#/ticket/detail?id={{id}}",
                                     "format": "jinja2",
                                 },
                             ],
@@ -834,10 +834,10 @@ class TestAssignManager:
         assert len(actions) == 2
         p_ai = ActionInstance.objects.get(is_parent_action=True, id__in=actions)
         p_ai.inputs["notify_info"].pop("wxbot_mention_users", None)
-        assert p_ai.inputs["notify_info"] == {'mail': ['admin']}
+        assert p_ai.inputs["notify_info"] == {"mail": ["admin"]}
         assert new_alert.severity == 2
         assert new_alert.extra_info.severity_source == AssignMode.BY_RULE
-        assert p_ai.get_content()["text"], '达到通知告警的执行条件【告警升级】，已出发告警'
+        assert p_ai.get_content()["text"], "达到通知告警的执行条件【告警升级】，已出发告警"
 
         alert.extra_info = new_alert.extra_info
         alert.supervisor = new_alert.supervisor
@@ -880,7 +880,7 @@ class TestAssignManager:
         assert len(actions) == 2
         p_ai = ActionInstance.objects.get(is_parent_action=True, id__in=actions)
         p_ai.inputs["notify_info"].pop("wxbot_mention_users", None)
-        assert p_ai.inputs["notify_info"] == {'mail': ['lisa']}
+        assert p_ai.inputs["notify_info"] == {"mail": ["lisa"]}
         assert new_alert.severity == 2
         assert new_alert.extra_info.severity_source == AssignMode.BY_RULE
 
@@ -903,7 +903,7 @@ class TestAssignManager:
         assert len(actions) == 2
         p_ai = ActionInstance.objects.get(is_parent_action=True, id__in=actions)
         p_ai.inputs["notify_info"].pop("wxbot_mention_users", None)
-        assert p_ai.inputs["notify_info"] == {'weixin': ['lisa']}
+        assert p_ai.inputs["notify_info"] == {"weixin": ["lisa"]}
         assert alert.severity == 3
 
     def test_ignore_origin_notice(self, condition_rule, alert, user_group_setup, biz_mock, init_configs):
@@ -912,14 +912,14 @@ class TestAssignManager:
         """
         alert.extra_info.strategy.notice["options"]["assign_mode"] = [AssignMode.ONLY_NOTICE, AssignMode.BY_RULE]
         alert.severity = 1
-        alert.appointee = ['lisa', 'lisa1']
+        alert.appointee = ["lisa", "lisa1"]
         AlertDocument.bulk_create([alert])
         assert biz_mock.call_count == 1
         actions = create_actions(0, "abnormal", alerts=[alert])
         assert len(actions) == 4
         p_ai = ActionInstance.objects.get(is_parent_action=True, id__in=actions)
         p_ai.inputs["notify_info"].pop("wxbot_mention_users", None)
-        assert p_ai.inputs["notify_info"]['voice'] == [['lisa', 'lisa1']]
+        assert p_ai.inputs["notify_info"]["voice"] == [["lisa", "lisa1"]]
         new_alert = AlertDocument.get(id=alert.id)
         assert new_alert.appointee == ["lisa", "lisa1"]
         assert new_alert.severity == 1
@@ -935,7 +935,7 @@ class TestAssignManager:
         assert len(actions) == 3
         p_ai = ActionInstance.objects.get(is_parent_action=True, id__in=actions)
         p_ai.inputs["notify_info"].pop("wxbot_mention_users", None)
-        assert p_ai.inputs["notify_info"] == {'mail': ['lisa']}
+        assert p_ai.inputs["notify_info"] == {"mail": ["lisa"]}
         new_alert = AlertDocument.get(id=alert.id)
         assert new_alert.severity == 2
         assert new_alert.assign_tags == setup.additional_tags
@@ -952,7 +952,7 @@ class TestAssignManager:
         p_ai = ActionInstance.objects.get(is_parent_action=True, id__in=actions)
         p_ai.inputs["notify_info"].pop("wxbot_mention_users", None)
         p_ai.inputs["follow_notify_info"].pop("wxbot_mention_users", None)
-        assert p_ai.inputs["follow_notify_info"] == {'mail': ['lisa']}
+        assert p_ai.inputs["follow_notify_info"] == {"mail": ["lisa"]}
         new_alert = AlertDocument.get(id=alert.id)
         assert new_alert.severity == 2
         assert new_alert.assign_tags == follow_setup.additional_tags
@@ -972,8 +972,8 @@ class TestAssignManager:
         p_ai = ActionInstance.objects.get(is_parent_action=True, id__in=actions)
         p_ai.inputs["notify_info"].pop("wxbot_mention_users", None)
         p_ai.inputs["follow_notify_info"].pop("wxbot_mention_users", None)
-        assert p_ai.inputs["follow_notify_info"] == {'mail': ['lisa']}
-        assert p_ai.inputs["notify_info"] == {'mail': ['admin1', "admin2"]}
+        assert p_ai.inputs["follow_notify_info"] == {"mail": ["lisa"]}
+        assert p_ai.inputs["notify_info"] == {"mail": ["admin1", "admin2"]}
         new_alert = AlertDocument.get(id=alert.id)
         assert new_alert.severity == 2
         assert new_alert.assign_tags == follow_setup.additional_tags

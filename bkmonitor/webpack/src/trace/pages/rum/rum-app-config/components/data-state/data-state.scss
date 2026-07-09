@@ -1,0 +1,105 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+.run-config-data-state {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  margin-top: 6px;
+
+  // 区块标题栏通用样式
+  %section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  // 区块标题文本通用样式
+  %section-title {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 22px;
+    color: #63656e;
+  }
+
+  .run-config-data-state-card {
+    flex-shrink: 0;
+  }
+
+  // 工具栏（时间选择器）
+  .run-config-data-state-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 10px;
+  }
+
+  // 数据量趋势容器
+  .run-config-data-state-chart-container {
+    flex-shrink: 0;
+
+    // 数据量趋势标题栏
+    .run-config-data-state-chart-header {
+      padding: 14px 0;
+
+      @extend %section-header;
+
+      .run-config-data-state-chart-title {
+        @extend %section-title;
+      }
+    }
+
+    // 数据量趋势内容
+    .run-config-data-state-chart-content {
+      padding: 24px;
+      background: #f5f7fa;
+      border-radius: 2px;
+    }
+  }
+
+  // 数据采样容器
+  .run-config-data-state-sampling-container {
+    display: flex;
+    flex-grow: 1;
+    flex-basis: auto;
+    flex-direction: column;
+
+    // 数据采样标题栏
+    .run-config-data-state-sampling-header {
+      flex-shrink: 0;
+      padding: 24px 0 16px;
+
+      @extend %section-header;
+
+      .run-config-data-state-sampling-title {
+        @extend %section-title;
+      }
+    }
+
+    .run-config-data-state-sampling-content {
+      flex-grow: 1;
+    }
+  }
+}
