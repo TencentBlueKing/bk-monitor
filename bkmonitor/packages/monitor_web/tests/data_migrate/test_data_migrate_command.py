@@ -499,6 +499,31 @@ def test_find_custom_report_data_ids_accepts_negative_biz_ids(monkeypatch):
     assert received == {"bk_tenant_id": "tencent", "bk_biz_ids": [-4759, 2]}
 
 
+def test_repair_plugin_dashboard_result_table_handler_allows_empty_biz_ids(monkeypatch):
+    received = {}
+
+    def fake_repair_plugin_dashboard_result_table_id(**kwargs):
+        received.update(kwargs)
+        return {
+            "changed_count": 1,
+            "applied_count": 0,
+            "stale_count": 0,
+            "invalid_json_count": 0,
+            "changes": [],
+            "invalid_json": [],
+        }
+
+    monkeypatch.setattr(
+        data_migrate_command,
+        "repair_plugin_dashboard_result_table_id",
+        fake_repair_plugin_dashboard_result_table_id,
+    )
+
+    data_migrate_command.Command()._handle_repair_plugin_dashboard_result_table({"bk_biz_ids": None, "dry_run": True})
+
+    assert received == {"bk_biz_id": None, "dry_run": True}
+
+
 def test_enable_closed_strategies_accepts_negative_biz_ids(monkeypatch):
     received = {}
 
