@@ -291,6 +291,41 @@ def test_partial_import_handler_runs_prechecked_import(monkeypatch, tmp_path):
     }
 
 
+def test_partial_import_disables_global_post_import_repairs(monkeypatch, tmp_path):
+    received = {}
+
+    monkeypatch.setattr(
+        partial_migrate,
+        "precheck_partial_import_directory",
+        lambda **kwargs: {"result": True, "checked": {"files": 1, "records": 1}, "conflicts": []},
+    )
+
+    def fake_import_biz_data_from_directory(**kwargs):
+        received.update(kwargs)
+        return ["imported"]
+
+    monkeypatch.setattr(partial_migrate, "import_biz_data_from_directory", fake_import_biz_data_from_directory)
+
+    result = partial_migrate.import_partial_data_from_directory(
+        directory_path=tmp_path,
+        bk_biz_ids=[2],
+        atomic=False,
+    )
+
+    assert result["imported_count"] == 1
+    assert received == {
+        "directory_path": tmp_path,
+        "bk_biz_ids": [2],
+        "atomic": False,
+        "cleanup_existing": False,
+        "sync_close_records": False,
+        "migrate_builtin_system_event_strategy": False,
+        "migrate_builtin_gather_up_strategy": False,
+        "repair_plugin_strategy": False,
+        "repair_plugin_dashboard": False,
+    }
+
+
 def test_partial_import_rejects_zero_biz_id(tmp_path):
     with pytest.raises(CommandError, match="partial-import 动作不支持业务 ID: 0"):
         data_migrate_command.Command()._handle_partial_import(
