@@ -48,10 +48,6 @@ export default defineComponent({
       type: Number,
       default: 3,
     },
-    height: {
-      type: Number,
-      default: 240,
-    },
     maxHeight: {
       type: Number,
       default: 600,
@@ -66,10 +62,11 @@ export default defineComponent({
       default: () => ({}),
     },
   },
-  emits: ['resize'],
-  setup(props, { emit }) {
+  setup(props) {
     /** 分组展开状态，折叠时不挂载图表（避免无谓取数） */
     const expanded = shallowRef(true);
+
+    const height = shallowRef(240);
 
     const gridStyle = computed(() => ({
       gridTemplateColumns: `repeat(${props.columns}, minmax(0, 1fr))`,
@@ -79,14 +76,14 @@ export default defineComponent({
       expanded.value = !expanded.value;
     };
 
-    const handleCrossResize = (height: number) => {
-      console.log(height);
-      emit('resize', height);
+    const handleCrossResize = (value: number) => {
+      height.value = value;
     };
 
     return {
       expanded,
       gridStyle,
+      height,
       toggle,
       handleCrossResize,
     };
