@@ -60,6 +60,7 @@ logger = logging.getLogger(__name__)
 UPTIME_CHECK_CLOSE_RECORDS_MODEL_LABEL = "monitor.uptimechecktask"
 COLLECT_CONFIG_CLOSE_RECORDS_MODEL_LABEL = "monitor_web.collectconfigmeta"
 STRATEGY_CLOSE_RECORDS_MODEL_LABEL = "bkmonitor.strategymodel"
+PROFILING_MIGRATE_ROUTE_NAME_TEMPLATE = "migrate_profiling_data_id_{data_id}"
 
 
 DEFAULT_KAFKA_CLUSTER_NAMES = {
@@ -1437,6 +1438,117 @@ def add_new_migrate_data_id_routes(data_id_infos: dict[int, dict[str, Any]]):
         except BKAPIError as e:
             print(f"data_id({data_id}) migrate failed, update gse router failed, error:({e})")
             continue
+
+
+def add_profiling_migrate_data_id_route(
+    *,
+    bk_tenant_id: str,
+    bk_biz_id: int,
+    app_name: str,
+    migrate_cluster_name: str,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """为 profiling dataid 添加迁移双写路由。
+
+    Profiling 的 topic 只存在于 GSE 路由中，因此这里以存量非迁移 route 为模板，
+    只替换 name 和 stream_to_id，保留 topic 等 stream_to 细节。
+    """
+
+    bk_tenant_id = bk_tenant_id.strip()
+    app_name = app_name.strip()
+    migrate_cluster_name = migrate_cluster_name.strip()
+    profile_datasource = ProfileDataSource.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+    if profile_datasource is None or profile_datasource.bk_data_id <= 0:
+        raise ValueError(f"profile datasource not found: bk_biz_id={bk_biz_id}, app_name={app_name}")
+
+    cluster = _get_migrate_kafka_cluster(bk_tenant_id=bk_tenant_id, migrate_cluster_name=migrate_cluster_name)
+    if cluster.gse_stream_to_id == -1:
+        raise ValueError(f"kafka cluster({cluster.cluster_name}) gse_stream_to_id is not initialized")
+
+    data_id = profile_datasource.bk_data_id
+    route_group = _query_gse_route_group(data_id)
+    exist_route_config = route_group.get("route") or []
+    if not exist_route_config:
+        raise ValueError(f"data_id({data_id}) gse router config is empty")
+
+    migrate_route_name = PROFILING_MIGRATE_ROUTE_NAME_TEMPLATE.format(data_id=data_id)
+    source_route = next((route for route in exist_route_config if route.get("name") != migrate_route_name), None)
+    if source_route is None:
+        raise ValueError(f"data_id({data_id}) source gse router config not found")
+
+    migrate_route = deepcopy(source_route)
+    migrate_route["name"] = migrate_route_name
+    migrate_route.setdefault("stream_to", {})["stream_to_id"] = cluster.gse_stream_to_id
+
+    replaced = False
+    new_route_config = []
+    for route in exist_route_config:
+        if route.get("name") == migrate_route_name:
+            new_route_config.append(migrate_route)
+            replaced = True
+            continue
+        new_route_config.append(deepcopy(route))
+    if not replaced:
+        new_route_config.append(migrate_route)
+
+    result = {
+        "bk_tenant_id": bk_tenant_id,
+        "bk_biz_id": bk_biz_id,
+        "app_name": app_name,
+        "bk_data_id": data_id,
+        "migrate_cluster_name": cluster.cluster_name,
+        "migrate_stream_to_id": cluster.gse_stream_to_id,
+        "migrate_route_name": migrate_route_name,
+        "updated": not dry_run,
+        "replaced": replaced,
+        "before": deepcopy(exist_route_config),
+        "after": new_route_config,
+    }
+    if dry_run:
+        return result
+
+    try:
+        api.gse.update_route(
+            condition={"channel_id": data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
+            operation={"operator_name": settings.COMMON_USERNAME},
+            specification={"route": new_route_config},
+        )
+    except BKAPIError as error:
+        raise ValueError(f"data_id({data_id}) update gse router failed, error:({error})") from error
+    return result
+
+
+def _get_migrate_kafka_cluster(*, bk_tenant_id: str, migrate_cluster_name: str) -> ClusterInfo:
+    if migrate_cluster_name.startswith("migrate_"):
+        cluster_names = [migrate_cluster_name]
+    else:
+        cluster_names = [f"migrate_{migrate_cluster_name}", migrate_cluster_name]
+
+    clusters = ClusterInfo.objects.filter(
+        bk_tenant_id=bk_tenant_id,
+        cluster_type=ClusterInfo.TYPE_KAFKA,
+        cluster_name__in=cluster_names,
+    )
+    cluster_map = {cluster.cluster_name: cluster for cluster in clusters}
+    for cluster_name in cluster_names:
+        cluster = cluster_map.get(cluster_name)
+        if cluster is not None:
+            return cluster
+    raise ValueError(f"kafka cluster({migrate_cluster_name}) not found in tenant({bk_tenant_id})")
+
+
+def _query_gse_route_group(data_id: int) -> dict[str, Any]:
+    try:
+        route_info_list = api.gse.query_route(
+            condition={"plat_name": config.DEFAULT_GSE_API_PLAT_NAME, "channel_id": data_id},
+            operation={"operator_name": settings.COMMON_USERNAME},
+        )
+    except BKAPIError as error:
+        raise ValueError(f"data_id({data_id}) query gse router failed, error:({error})") from error
+
+    if not route_info_list:
+        raise ValueError(f"data_id({data_id}) gse router config is empty")
+    return route_info_list[0]
 
 
 class ClusterData(BaseModel):
