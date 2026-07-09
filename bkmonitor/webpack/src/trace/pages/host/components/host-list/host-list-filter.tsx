@@ -27,6 +27,7 @@
 import { type PropType, defineComponent } from 'vue';
 
 import RetrievalFilter from '../../../../components/retrieval-filter/retrieval-filter';
+import { HOST_FILTER_FIELDS_ENUM } from '../../constants/constants';
 
 import type {
   EMode,
@@ -74,6 +75,21 @@ export default defineComponent({
     search: () => true,
   },
   setup(props, { emit }) {
+    const tagValueDisplayFormatter = (val, fieldId) => {
+      if (
+        [
+          HOST_FILTER_FIELDS_ENUM.cpuLoad,
+          HOST_FILTER_FIELDS_ENUM.cpuUsage,
+          HOST_FILTER_FIELDS_ENUM.diskInUse,
+          HOST_FILTER_FIELDS_ENUM.ioUtil,
+          HOST_FILTER_FIELDS_ENUM.memUsage,
+          HOST_FILTER_FIELDS_ENUM.pscMemUsage,
+        ].includes(fieldId)
+      ) {
+        return `${val}%`;
+      }
+      return val;
+    };
     return () => (
       <div class='host-list-filter'>
         <RetrievalFilter
@@ -86,6 +102,7 @@ export default defineComponent({
           isShowResident={false}
           isSingleMode={true}
           queryString={props.queryString}
+          tagValueDisplayFormatter={tagValueDisplayFormatter}
           where={props.where}
           onModeChange={(v: EMode) => emit('modeChange', v)}
           onQueryStringChange={(v: string) => emit('queryStringChange', v)}

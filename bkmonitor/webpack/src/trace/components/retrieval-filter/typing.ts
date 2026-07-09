@@ -47,6 +47,8 @@ export enum EFieldType {
   numberInput = 'number_input',
   // textarea 输入框
   text = 'text',
+  // 树形选择器
+  treeSelect = 'tree_select',
 }
 
 export enum EMethod {
@@ -439,6 +441,11 @@ export const RETRIEVAL_FILTER_PROPS = {
     type: Array as PropType<string[]>,
     default: () => [],
   },
+  // ui 模式下已选条件tag的value显示值格式化
+  tagValueDisplayFormatter: {
+    type: Function as PropType<(val: boolean | number | string) => JSX.Element | string>,
+    default: (val, _fieldId) => `${val}`,
+  },
 };
 export const RETRIEVAL_FILTER_EMITS = {
   favorite: (_isEdit: boolean) => true,
@@ -504,6 +511,11 @@ export const UI_SELECTOR_PROPS = {
   noValueOfMethods: {
     type: Array as PropType<string[]>,
     default: () => [],
+  },
+  // ui 模式下已选条件tag的value显示值格式化
+  tagValueDisplayFormatter: {
+    type: Function as PropType<(val: boolean | number | string) => JSX.Element | string>,
+    default: (val, _fieldId) => `${val}`,
   },
 };
 export const UI_SELECTOR_EMITS = {
@@ -813,6 +825,11 @@ export const KV_TAG_PROPS = {
   hasTagHidden: {
     type: Boolean,
     default: true,
+  },
+  // ui 模式下已选条件tag的value显示值格式化
+  tagValueDisplayFormatter: {
+    type: Function as PropType<(val: boolean | number | string) => JSX.Element | string>,
+    default: (val, _fieldId) => `${val}`,
   },
 };
 export const KV_TAG_EMITS = {

@@ -196,7 +196,7 @@ export const HOST_FILTER_FIELDS: IFilterField[] = [
   {
     name: HOST_FILTER_FIELDS_ENUM.clusterModule,
     alias: window.i18n.t('业务拓扑'),
-    type: EFieldType.keyword,
+    type: EFieldType.treeSelect,
     methods: ENUM_METHODS,
     isEnableOptions: true,
   },
