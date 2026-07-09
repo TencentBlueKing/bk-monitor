@@ -246,9 +246,9 @@ export default defineComponent({
     // 处理匹配模式更新
     const handleMatchModeUpdate = (mode: any) => {
       Object.assign(matchMode.value, mode);
-      RetrieveHelper.markInstance?.setCaseSensitive(matchMode.value.caseSensitive);
-      RetrieveHelper.markInstance?.setRegExpMode(matchMode.value.regexMode);
-      RetrieveHelper.markInstance?.setAccuracy(matchMode.value.wordMatch ? 'exactly' : 'partially');
+      RetrieveHelper.setHighlightCaseSensitive(matchMode.value.caseSensitive);
+      RetrieveHelper.setHighlightRegExpMode(matchMode.value.regexMode);
+      RetrieveHelper.setHighlightAccuracy(matchMode.value.wordMatch ? 'exactly' : 'partially');
       RetrieveHelper.highLightKeywords([searchValue.value], true);
     };
 

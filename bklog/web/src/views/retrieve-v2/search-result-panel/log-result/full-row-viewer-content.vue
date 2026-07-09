@@ -89,18 +89,12 @@
 <script>
   import { retrieveRowCacheService } from '@/storage';
   import { copyMessage } from '@/common/util';
+  import { collectPageHighlightRanges, escapeHtml, pageHighlightState } from '@/views/retrieve-core/page-highlight';
 
   const MAX_SEARCH_MATCHES = 2000;
   const FIELD_CHUNK_SIZE = 16 * 1024;
   const HIGHLIGHT_FIELD_NAME = '__highlight';
   const SCROLL_LOAD_MORE_THRESHOLD = 240;
-
-  const escapeHtml = value => String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 
   const stripMarkTags = value => String(value)
     .replace(/<mark>/gi, '')
@@ -223,7 +217,7 @@
   const collectSearchRanges = ({ text, keywordRegExp, offset = 0, maxMatches = Infinity }) => {
     if (!text || !keywordRegExp || maxMatches <= 0) return [];
     const source = String(text);
-    const flags = keywordRegExp.flags.includes('g') ? keywordRegExp.flags : keywordRegExp.flags + 'g';
+    const flags = keywordRegExp.flags.includes('g') ? keywordRegExp.flags : `${keywordRegExp.flags}g`;
     const regExp = new RegExp(keywordRegExp.source, flags);
     const ranges = [];
     let match = regExp.exec(source);
@@ -400,6 +394,7 @@
       },
       matches() {
         this.searchVersion;
+        pageHighlightState.version;
         if (!this.searchKeywordRegExp) return [];
         return this.allSearchMatches.slice(0, MAX_SEARCH_MATCHES);
       },
@@ -655,36 +650,76 @@
       },
       buildHighlightedHtml({ text, markRanges = [], globalOffset = 0 }) {
         if (!text) return '';
+        pageHighlightState.version;
         const searchRanges = this.matches
           .map((range, index) => ({ ...range, searchIndex: index }))
           .filter(range => range.end > globalOffset && range.start < globalOffset + text.length)
-          .map(range => ({ start: Math.max(0, range.start - globalOffset), end: Math.min(text.length, range.end - globalOffset), searchIndex: range.searchIndex }));
-        const ranges = [...markRanges.map(range => ({ ...range, origin: true })), ...searchRanges];
-        if (!ranges.length) return escapeHtml(text);
+          .map(range => ({
+            start: Math.max(0, range.start - globalOffset),
+            end: Math.min(text.length, range.end - globalOffset),
+            searchIndex: range.searchIndex,
+          }))
+          .filter(range => range.end > range.start);
+        const pageRanges = collectPageHighlightRanges(text);
         const points = new Set([0, text.length]);
-        ranges.forEach((range) => {
-          points.add(Math.max(0, Math.min(text.length, range.start)));
-          points.add(Math.max(0, Math.min(text.length, range.end)));
-        });
+        const addRangePoints = (range) => {
+          const start = Math.max(0, Math.min(text.length, range.start));
+          const end = Math.max(0, Math.min(text.length, range.end));
+          if (end > start) {
+            points.add(start);
+            points.add(end);
+          }
+        };
+
+        // 搜索命中范围也必须参与切分，否则一个 chunk 内任意命中都会导致整片文本被加搜索高亮。
+        markRanges.forEach(addRangePoints);
+        pageRanges.forEach(addRangePoints);
+        searchRanges.forEach(addRangePoints);
+
         const sortedPoints = Array.from(points).sort((a, b) => a - b);
-        let html = '';
+        let activeMatchIdRendered = false;
+        const htmlList = [];
+
         for (let index = 0; index < sortedPoints.length - 1; index += 1) {
-          const start = sortedPoints[index];
-          const end = sortedPoints[index + 1];
-          if (start === end) continue;
+          const segmentStart = sortedPoints[index];
+          const segmentEnd = sortedPoints[index + 1];
+          if (segmentEnd <= segmentStart) continue;
+
+          const segmentText = text.slice(segmentStart, segmentEnd);
           const classes = [];
-          if (markRanges.some(range => range.start < end && range.end > start)) classes.push('full-row-origin-mark');
-          const searchMatchIndex = searchRanges.findIndex(range => range.start < end && range.end > start);
-          const isActiveMatch = searchMatchIndex >= 0 && searchRanges[searchMatchIndex].searchIndex === this.activeMatchIndex;
-          if (searchMatchIndex >= 0) {
+          const stylePairs = [];
+
+          if (markRanges.some(range => range.start < segmentEnd && range.end > segmentStart)) {
+            classes.push('full-row-origin-mark', 'result-highlight');
+          }
+
+          const pageRange = pageRanges.find(range => range.start < segmentEnd && range.end > segmentStart);
+          if (pageRange) {
+            classes.push('page-highlight');
+            if (typeof pageRange.keywordIndex === 'number') {
+              classes.push(['page-highlight-', pageRange.keywordIndex].join(''));
+              const keyword = pageHighlightState.keywords[pageRange.keywordIndex];
+              if (keyword) {
+                stylePairs.push(['background-color:', keyword.backgroundColor].join(''));
+                stylePairs.push(['color:', keyword.color].join(''));
+              }
+            }
+          }
+
+          const searchRange = searchRanges.find(range => range.start < segmentEnd && range.end > segmentStart);
+          const isActiveMatch = Boolean(searchRange && searchRange.searchIndex === this.activeMatchIndex);
+          if (searchRange) {
             classes.push('full-row-search-mark');
             if (isActiveMatch) classes.push('active');
           }
-          const segment = text.slice(start, end);
-          const activeMatchId = isActiveMatch ? ' id="full-row-active-match"' : '';
-          html += classes.length ? `<mark class="${classes.join(' ')}"${activeMatchId}>${escapeHtml(segment)}</mark>` : escapeHtml(segment);
+
+          const activeMatchId = isActiveMatch && !activeMatchIdRendered ? ' id="full-row-active-match"' : '';
+          if (activeMatchId) activeMatchIdRendered = true;
+          const styleAttr = stylePairs.length ? [' style="', stylePairs.join(';'), '"'].join('') : '';
+          htmlList.push(classes.length ? ['<mark class="', classes.join(' '), '"', activeMatchId, styleAttr, '>', escapeHtml(segmentText), '</mark>'].join('') : escapeHtml(segmentText));
         }
-        return html;
+
+        return htmlList.join('');
       },
       resetViewer() {
         this.originRow = null;
@@ -1057,6 +1092,12 @@
     border-radius: 2px;
   }
 
+  ::v-deep .page-highlight {
+    padding: 0 1px;
+    color: inherit;
+    border-radius: 2px;
+  }
+
   ::v-deep .full-row-search-mark {
     padding: 0 1px;
     color: inherit;
@@ -1067,5 +1108,10 @@
       color: #000;
       background: #ff9c01;
     }
+  }
+
+  ::v-deep .result-highlight.page-highlight,
+  ::v-deep .full-row-origin-mark.page-highlight {
+    box-shadow: inset 0 -2px 0 rgb(255 128 0 / 70%);
   }
 </style>

@@ -41,6 +41,7 @@ import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import UseTextSegmentation from '@/hooks/use-text-segmentation';
 import RetrieveHelper from '@/views/retrieve-helper';
+import { highlightPlainTextIntoFragment, pageHighlightState } from '@/views/retrieve-core/page-highlight';
 import { debounce } from 'lodash-es';
 
 import type { WordListItem } from '@/hooks/use-text-segmentation';
@@ -115,10 +116,6 @@ export default defineComponent({
     let renderMoreItems: (size?, next?) => void = null;
 
     const getTagName = item => {
-      if (item.isMark) {
-        return 'mark';
-      }
-
       if (/^(br|\n)$/.test(item.text)) {
         return 'br';
       }
@@ -199,19 +196,25 @@ export default defineComponent({
             const child = document.createElement(getTagName(item));
             child.classList.add(item.isCursorText ? 'valid-text' : 'others-text');
 
+            if (/^(br|\n)$/.test(item.text)) {
+              return child;
+            }
+
             if (item.isBlobWord) {
               child.innerHTML = xssFilter(item.text?.length ? item.text : '""');
               return child;
             }
 
-            child.textContent = item.text?.length ? item.text : '""';
+            const text = item.text?.length ? item.text : '""';
+            child.appendChild(highlightPlainTextIntoFragment({
+              text,
+              resultHighlighted: item.isMark,
+            }));
             return child;
           },
         );
 
         setWordSegmentRender();
-
-        nextTick(() => RetrieveHelper.highlightElement(refSegmentContent.value));
       });
     });
 
@@ -246,7 +249,7 @@ export default defineComponent({
     );
 
     watch(
-      () => [props.content, props.precomputedSegments],
+      () => [props.content, props.precomputedSegments, pageHighlightState.version],
       () => {
         textSegmentInstance = new UseTextSegmentation({
           onSegmentClick: handleMenuClick,

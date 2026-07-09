@@ -583,7 +583,7 @@ export default defineComponent({
         .closest('.bklog-row-container')
         ?.querySelector('.bklog-row-observe .expand-view-wrapper');
       if (expandTarget) {
-        RetrieveHelper.highlightElement(expandTarget);
+        RetrieveHelper.highlightElement(expandTarget as HTMLElement);
       }
     };
 

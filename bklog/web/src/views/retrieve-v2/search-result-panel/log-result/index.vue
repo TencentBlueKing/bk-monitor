@@ -293,9 +293,9 @@ export default {
     },
     handleMatchModeChange(args) {
       Object.assign(this.matchMode, args);
-      RetrieveHelper.markInstance?.setCaseSensitive(args.caseSensitive);
-      RetrieveHelper.markInstance?.setRegExpMode(args.regexMode);
-      RetrieveHelper.markInstance?.setAccuracy(args.wordMatch ? 'exactly' : 'partially');
+      RetrieveHelper.setHighlightCaseSensitive(args.caseSensitive);
+      RetrieveHelper.setHighlightRegExpMode(args.regexMode);
+      RetrieveHelper.setHighlightAccuracy(args.wordMatch ? 'exactly' : 'partially');
       RetrieveHelper.highLightKeywords(this.highlightValue);
     },
     handleBeforeHide(e) {

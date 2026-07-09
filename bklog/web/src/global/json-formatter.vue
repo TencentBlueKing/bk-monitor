@@ -62,6 +62,7 @@
   import useStore from '../hooks/use-store';
   import { BK_LOG_STORAGE } from '../store/store.type';
   import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
+  import { pageHighlightState } from '../views/retrieve-core/page-highlight';
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
@@ -270,7 +271,7 @@
     }
 
     return val;
-  }
+  };
 
   const getFieldFormatter = (field, formatDate) => {
     const [objValue, val] = getFieldValue(field);
@@ -324,7 +325,8 @@
   };
 
   watch(
-    () => [props.limitRow, props.jsonValue, props.fields, props.renderMeta, isLimitExpandText.value],
+    // renderMeta 会在日志行异步渲染/高亮回填时更新；它只影响内容重绘，不应重置用户手动展开状态。
+    () => [props.limitRow, props.jsonValue, props.fields, isLimitExpandText.value],
     () => {
       showAllText.value = false;
       hasScrollY.value = false;
@@ -342,7 +344,7 @@
   );
 
   watch(
-    () => [props.jsonValue, props.fields, props.renderMeta, formatJson.value],
+    () => [props.jsonValue, props.fields, props.renderMeta, formatJson.value, pageHighlightState.version],
     () => {
       if (isResolved.value) {
         debounceUpdate();
@@ -403,6 +405,18 @@
     mark {
       border-radius: 4px;
       padding: 1px 2px;
+    }
+
+    mark.result-highlight {
+      background-color: #faeeb1;
+    }
+
+    mark.page-highlight {
+      border-radius: 4px;
+    }
+
+    mark.result-highlight.page-highlight {
+      box-shadow: inset 0 -2px 0 rgb(255 128 0 / 70%);
     }
 
     .btn-more-action {

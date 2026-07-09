@@ -80,10 +80,11 @@ export default class UseTextSegmentation {
   }
 
   getTextCellClickHandler(e: MouseEvent) {
-    if ((e.target as HTMLElement).classList.contains('valid-text')) {
+    const validTextElement = (e.target as HTMLElement).closest?.('.valid-text') as HTMLElement | null;
+    if (validTextElement) {
       const { offsetY, offsetX } = getClickTargetElement(e);
       const offsetTarget = setPointerCellClickTargetHandler(e, { offsetY, offsetX });
-      this.handleSegmentClick(offsetTarget, (e.target as HTMLElement).textContent);
+      this.handleSegmentClick(offsetTarget, validTextElement.textContent);
     }
   }
 
