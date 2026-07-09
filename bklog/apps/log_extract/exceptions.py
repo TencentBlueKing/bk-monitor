@@ -55,117 +55,117 @@ class TaskPullTopoNotExist(BaseExtractException):
 
 
 class TasksRetrieveFailed(BaseExtractException):
-    ErrorCode = "104"
+    ERROR_CODE = "104"
     MESSAGE = _("获取任务详情失败，您不是该任务的创建者")
 
 
 class TaskCreateFailed(BaseExtractException):
-    ErrorCode = "105"
+    ERROR_CODE = "105"
     MESSAGE = _("选择文件不可下载，请确认所配置策略，不可下载文件：{failed_download_file_list}")
 
 
 class TasksRecreateFailed(BaseExtractException):
-    ErrorCode = "106"
+    ERROR_CODE = "106"
     MESSAGE = _("重新创建任务失败，您不是原任务的创建者")
 
 
 class TaskDeleteNotAllowed(BaseExtractException):
-    ErrorCode = "107"
+    ERROR_CODE = "107"
     MESSAGE = _("禁止删除任务！")
 
 
 class TaskFilterError(BaseExtractException):
-    ErrorCode = "108"
+    ERROR_CODE = "108"
     MESSAGE = _("{message}")
 
 
 class TaskDownloadExpired(BaseExtractException):
-    ErrorCode = "109"
+    ERROR_CODE = "109"
     MESSAGE = _("当前任务已过期")
 
 
 class TaskOverDownloadCount(BaseExtractException):
-    ErrorCode = "110"
+    ERROR_CODE = "110"
     MESSAGE = _("当前任务已达最大下载次数")
 
 
 class TaskRunPipelineError(BaseExtractException):
-    ErrorCode = "111"
+    ERROR_CODE = "111"
     MESSAGE = _("创建任务异常")
 
 
 class TaskDownloadNotAvailable(BaseExtractException):
-    ErrorCode = "112"
+    ERROR_CODE = "112"
     MESSAGE = _("当前任务不可下载")
 
 
 class TaskDownloadDenied(BaseExtractException):
-    ErrorCode = "113"
+    ERROR_CODE = "113"
     MESSAGE = _("下载任务失败，您没有此任务的下载权限")
 
 
 class TaskUpdateFailed(BaseExtractException):
-    ErrorCode = "114"
+    ERROR_CODE = "114"
     MESSAGE = _("更新任务信息失败，你不是此任务的创建者")
 
 
 class TaskQcloudCosNotConfig(BaseExtractException):
-    ErrorCode = "115"
+    ERROR_CODE = "115"
     MESSAGE = _("{message}")
 
 
 class TaskNotHaveExtractLink(BaseExtractException):
-    ErrorCode = "116"
+    ERROR_CODE = "116"
     MESSAGE = _("请管理员配置提取链路")
 
 
 class TaskExtractLinkNotExist(BaseExtractException):
-    ErrorCode = "117"
+    ERROR_CODE = "117"
     MESSAGE = _("提取链路不存在，请管理员检查")
 
 
 class TaskFileLinkNotExist(BaseExtractException):
-    ErrorCode = "118"
+    ERROR_CODE = "118"
     MESSAGE = _("下载目标文件不存在")
 
 
 class TaskCannotCreateByCommonLink(BaseExtractException):
-    ErrorCode = "119"
+    ERROR_CODE = "119"
     MESSAGE = _("当前容器化部署方式, 不支持内网链路")
 
 
 class ExplorerDirFailed(BaseExtractException):
-    ErrorCode = "201"
+    ERROR_CODE = "201"
     MESSAGE = _("访问{request_dir}目录错误，请检查是否已授权")
 
 
 class ExplorerStrategiesFailed(BaseExtractException):
-    ErrorCode = "202"
+    ERROR_CODE = "202"
     MESSAGE = _("用户获取可访问目录失败，请重新选择服务器")
 
 
 class ExplorerModuleNotAllowed(BaseExtractException):
-    ErrorCode = "203"
+    ERROR_CODE = "203"
     MESSAGE = _("未对用户授权模块{request_module}")
 
 
 class ExplorerFileOrDirDoesNotExist(BaseExtractException):
-    ErrorCode = "204"
+    ERROR_CODE = "204"
     MESSAGE = _("文件或目录不存在")
 
 
 class ExplorerOsTypeMismatch(BaseExtractException):
-    ErrorCode = "205"
+    ERROR_CODE = "205"
     MESSAGE = _("所选服务器器中同时包含windows与linux，请重新选择服务器")
 
 
 class ExplorerMatchTopoFailed(BaseExtractException):
-    ErrorCode = "206"
+    ERROR_CODE = "206"
     MESSAGE = _("存在{mismatch_number}个服务器无对应TOPO，请重新选择服务器")
 
 
 class ExplorerDoesNotIntersection(BaseExtractException):
-    ErrorCode = "207"
+    ERROR_CODE = "207"
     MESSAGE = _("所选择的服务器授权目录或文件后缀无交集，请重新选择服务器")
 
 
@@ -190,12 +190,12 @@ class ExplorerFilterTopoNotExist(BaseExtractException):
 
 
 class ExplorerFilesTimeout(BaseExtractException):
-    ErrorCode = "212"
+    ERROR_CODE = "212"
     MESSAGE = _("预览文件超时，请重试")
 
 
 class ExplorerException(BaseExtractException):
-    ErrorCode = "213"
+    ERROR_CODE = "213"
     MESSAGE = _("文件预览异常")
 
 
@@ -205,7 +205,7 @@ class ObjsNotHaveHost(BaseExtractException):
 
 
 class StrategyDoesNotExist(BaseExtractException):
-    ErrorCode = "301"
+    ERROR_CODE = "301"
     MESSAGE = _("ID为{strategy_id}的策略不存在!")
 
 
@@ -215,42 +215,42 @@ class StrategyIDDoesNotExists(BaseExtractException):
 
 
 class StrategyNameExisted(BaseExtractException):
-    ErrorCode = "303"
+    ERROR_CODE = "303"
     MESSAGE = _("该业务下已存在相同的策略名")
 
 
 class StrategiesNoExistsForGeneral(BaseExtractException):
-    ErrorCode = "304"
+    ERROR_CODE = "304"
     MESSAGE = _("您在该业务下尚未拥有下载策略，联系业务运维进行下载策略授权")
 
 
 class StrategiesNoExistsForOperator(BaseExtractException):
-    ErrorCode = "305"
+    ERROR_CODE = "305"
     MESSAGE = _("您在该业务下尚未拥有下载策略，请先通过'管理-日志提取配置'添加策略")
 
 
 class StrategyOperatorNotAllow(BaseExtractException):
-    ErrorCode = "306"
+    ERROR_CODE = "306"
     MESSAGE = _("策略执行人配置不合法")
 
 
 class StrategyGroupDoesNotExist(BaseExtractException):
-    ErrorCode = "307"
+    ERROR_CODE = "307"
     MESSAGE = _("该用户组不存在")
 
 
 class FileServerExecuteFailed(BaseExtractException):
-    ErrorCode = "401"
+    ERROR_CODE = "401"
     MESSAGE = _("搜索文件失败,失败原因: {message}")
 
 
 class PipelineApiFailed(BaseExtractException):
-    ErrorCode = "402"
+    ERROR_CODE = "402"
     MESSAGE = _("{message}")
 
 
 class PipelineRevoked(BaseExtractException):
-    ErrorCode = "501"
+    ERROR_CODE = "501"
     MESSAGE = _(
         "[periodic_clear_timeout_pipeline_task]撤销超时pipeline任务失败：{exceptions} "
         "task_id=>{task_id}, pipeline_id=>{pipeline_id}"
@@ -258,30 +258,30 @@ class PipelineRevoked(BaseExtractException):
 
 
 class ExtractLinkDoesNotExistException(BaseExtractException):
-    ErrorCode = "601"
+    ERROR_CODE = "601"
     MESSAGE = _("查找的日志提取链路不存在")
 
 
 class ExtractLinkTypeNotImplementException(BaseExtractException):
-    ErrorCode = "602"
+    ERROR_CODE = "602"
     MESSAGE = _("查找的日志提取链路type不支持")
 
 
 class ExtractLinkCannotModifyException(BaseExtractException):
-    ErrorCode = "603"
+    ERROR_CODE = "603"
     MESSAGE = _("不能修改或者删除还在进行中任务的链路")
 
 
 class ExtractLinkExistedException(BaseExtractException):
-    ErrorCode = "604"
+    ERROR_CODE = "604"
     MESSAGE = _("同名日志提取链路已存在")
 
 
 class SearchHostException(BaseExtractException):
-    ErrorCode = "605"
+    ERROR_CODE = "605"
     MESSAGE = _("根据bk_cloud_id:ip查找主机失败")
 
 
 class CCMissingBkHostIDException(BaseExtractException):
-    ErrorCode = "606"
+    ERROR_CODE = "606"
     MESSAGE = _("CC返回的主机信息中缺少bk_host_id")

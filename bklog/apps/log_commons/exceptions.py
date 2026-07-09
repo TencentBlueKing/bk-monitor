@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.utils.translation import gettext_lazy as _
 
 from apps.exceptions import BaseException, ErrorCode
@@ -30,17 +30,17 @@ class BaseCommonsException(BaseException):
 
 
 class SearchHostException(BaseCommonsException):
-    ErrorCode = "001"
+    ERROR_CODE = "001"
     MESSAGE = _("根据bk_cloud_id:ip查找主机失败")
 
 
 class CCMissingBkHostIDException(BaseCommonsException):
-    ErrorCode = "002"
+    ERROR_CODE = "002"
     MESSAGE = _("CC返回的主机信息中缺少bk_host_id")
 
 
 class IllegalMaintainerException(BaseCommonsException):
-    ErrorCode = "003"
+    ERROR_CODE = "003"
     MESSAGE = _("非法的授权人")
 
 
@@ -49,7 +49,7 @@ class SearchLockedException(BaseCommonsException):
     查询时间段权限异常
     """
 
-    ErrorCode = "004"
+    ERROR_CODE = "004"
     MESSAGE = _("查询该时间段数据的权限校验不通过")
 
 
@@ -58,7 +58,7 @@ class TokenValidatedException(BaseCommonsException):
     token校验异常
     """
 
-    ErrorCode = "005"
+    ERROR_CODE = "005"
     MESSAGE = _("当前分享链接不存在")
 
 
@@ -67,7 +67,7 @@ class TokenExpiredException(BaseCommonsException):
     token已过期
     """
 
-    ErrorCode = "006"
+    ERROR_CODE = "006"
     MESSAGE = _("当前分享链接已过期")
 
 
@@ -76,6 +76,5 @@ class TokenDeletedException(BaseCommonsException):
     token已收回
     """
 
-    ErrorCode = "007"
+    ERROR_CODE = "007"
     MESSAGE = _("当前分享链接已收回")
-

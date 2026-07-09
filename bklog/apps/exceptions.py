@@ -97,6 +97,11 @@ class ComponentCallError(BaseException):
     ERROR_CODE = "003"
 
 
+class SpaceNotExistError(BaseException):
+    MESSAGE = _("空间不存在: {space_uid}")
+    ERROR_CODE = "004"
+
+
 class BizNotExistError(BaseException):
     MESSAGE = _("业务不存在: {bk_biz_id}")
     ERROR_CODE = "004"
@@ -110,6 +115,13 @@ class LanguageDoseNotSupported(BaseException):
 class LockError(BaseException):
     MESSAGE = _("获取锁失败")
     ERROR_CODE = "006"
+
+
+class UserNotExistsException(BaseException):
+    """用户不存在"""
+
+    ERROR_CODE = "007"
+    MESSAGE = _("用户不存在: {username}")
 
 
 class PermissionError(BaseException):
@@ -142,3 +154,15 @@ class CreateOrUpdateLogRouterException(BaseException):
 
     ERROR_CODE = "503"
     MESSAGE = _("创建或更新路由失败: {reason}")
+
+
+class BaseTenantInfoException(BaseException):
+    MODULE_CODE = ErrorCode.BKLOG_TENCENT_AUTH
+    MESSAGE = _("租户信息异常")
+
+
+class TenantIdNotMatchException(BaseTenantInfoException):
+    """租户ID不匹配"""
+
+    ERROR_CODE = "001"
+    MESSAGE = _("您当前的企业空间是【{bk_tenant_id}】，无法访问该链接，请您尝试返回登录页面切换其他企业空间访问。")

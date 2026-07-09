@@ -48,18 +48,18 @@ const isAiopsToggle = computed(() => {
   return isFeatureToggleOn('bkdata_aiops_toggle', String(bkBizId.value), { defaultEnabled: isLocalToggle });
 });
 
-const isChartEnable = computed(() => !store.getters.isUnionSearch && indexSetItems.value?.[0]?.support_doris);
-const isGrepEnable = computed(() => !store.getters.isUnionSearch && indexSetItems.value?.[0]?.support_doris);
-
 const isExternal = computed(() => window.IS_EXTERNAL === true);
 const isSceneMode = computed(() => store.getters.isSceneMode);
+const isChartEnable = computed(() => !store.getters.isUnionSearch && indexSetItems.value?.[0]?.support_doris && !isSceneMode.value && !isExternal.value);
+const isGrepEnable = computed(() => !store.getters.isUnionSearch && indexSetItems.value?.[0]?.support_doris && !isSceneMode.value && !isExternal.value);
+
 // 可切换Tab数组
 const panelList = computed(() => {
   return [
     { name: 'origin', label: $t('原始日志'), disabled: false },
     { name: 'clustering', label: $t('日志聚类'), disabled: !isAiopsToggle.value || isSceneMode.value },
-    { name: 'graph_analysis', label: $t('图表分析'), disabled: !isChartEnable.value || isSceneMode.value },
-    { name: 'grep', label: $t('Grep模式'), disabled: !isGrepEnable.value || isSceneMode.value },
+    { name: 'graph_analysis', label: $t('图表分析'), disabled: !isChartEnable.value },
+    { name: 'grep', label: $t('Grep模式'), disabled: !isGrepEnable.value },
   ];
 });
 

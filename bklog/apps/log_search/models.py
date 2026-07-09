@@ -1540,7 +1540,7 @@ class Space(SoftDeleteModel):
         return spaces
 
     @classmethod
-    def get_tenant_id(cls, space_uid: str = "", bk_biz_id: int = 0) -> str:
+    def get_tenant_id(cls, space_uid: str = "", bk_biz_id: int = 0, is_need_default: bool = True) -> str | None:
         """
         获取空间的租户ID
         """
@@ -1549,12 +1549,16 @@ class Space(SoftDeleteModel):
         if space_uid:
             space = cls.objects.filter(space_uid=space_uid).first()
             if not space:
+                if not is_need_default:
+                    return None
                 return default_tenant_id
             return space.bk_tenant_id
 
         if bk_biz_id:
             space = cls.objects.filter(bk_biz_id=bk_biz_id).first()
             if not space:
+                if not is_need_default:
+                    return None
                 return default_tenant_id
             return space.bk_tenant_id
 

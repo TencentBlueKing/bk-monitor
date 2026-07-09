@@ -160,6 +160,8 @@ MIDDLEWARE = (
     # 项目空间参数注入
     "bkm_space.middleware.ParamInjectMiddleware",
     "apps.log_audit.middleware.RequestProvider",
+    # 租户ID校验中间件
+    "apps.middleware.tenant_middleware.TenantValidationMiddleware",
 )
 
 # 所有环境的日志级别可以在这里配置
