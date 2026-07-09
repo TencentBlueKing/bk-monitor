@@ -234,6 +234,7 @@ def test_add_profiling_migrate_data_id_route_handler_passes_arguments(monkeypatc
 
     data_migrate_command.Command()._handle_add_profiling_migrate_data_id_route(
         {
+            "bk_tenant_id": " target-tenant ",
             "bk_biz_id": 2,
             "app_name": " demo ",
             "migrate_cluster_name": " migrate_apm-kafka-public-1 ",
@@ -242,6 +243,7 @@ def test_add_profiling_migrate_data_id_route_handler_passes_arguments(monkeypatc
     )
 
     assert received == {
+        "bk_tenant_id": "target-tenant",
         "bk_biz_id": 2,
         "app_name": "demo",
         "migrate_cluster_name": "migrate_apm-kafka-public-1",
@@ -253,6 +255,7 @@ def test_add_profiling_migrate_data_id_route_handler_requires_app_name():
     with pytest.raises(CommandError, match="add-profiling-migrate-data-id-route 动作必须提供 --app-name"):
         data_migrate_command.Command()._handle_add_profiling_migrate_data_id_route(
             {
+                "bk_tenant_id": "target-tenant",
                 "bk_biz_id": 2,
                 "app_name": "",
                 "migrate_cluster_name": "migrate_apm-kafka-public-1",

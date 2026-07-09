@@ -116,7 +116,7 @@ class Command(BaseCommand):
             "    python manage.py data_migrate update-migrate-data-id-routes --bk-data-id 123 --kafka-cluster-name kafka_cluster\n"
             "\n"
             "  根据 Profiling 存量 GSE 路由添加迁移双写路由:\n"
-            "    python manage.py data_migrate add-profiling-migrate-data-id-route --bk-biz-id 18901 --app-name demo-app --migrate-cluster-name migrate_apm-kafka-public-1 --dry-run\n"
+            "    python manage.py data_migrate add-profiling-migrate-data-id-route --bk-tenant-id tencent --bk-biz-id 18901 --app-name demo-app --migrate-cluster-name migrate_apm-kafka-public-1 --dry-run\n"
             "\n"
             "  根据导入阶段记录开启被关闭的策略:\n"
             "    python manage.py data_migrate enable-closed-strategies --bk-biz-ids 18901\n"
@@ -246,7 +246,10 @@ class Command(BaseCommand):
             action="store_true",
             help="导入时关闭按单文件事务处理；仅 import 动作需要",
         )
-        parser.add_argument("--bk-tenant-id", help="租户 ID；仅 rebuild、partial-export、partial-rebuild 动作需要")
+        parser.add_argument(
+            "--bk-tenant-id",
+            help=("租户 ID；仅 rebuild、partial-export、partial-rebuild、add-profiling-migrate-data-id-route 动作需要"),
+        )
         parser.add_argument(
             "--bcs-cluster-ids",
             nargs="+",
@@ -735,11 +738,13 @@ class Command(BaseCommand):
 
     def _handle_add_profiling_migrate_data_id_route(self, options) -> None:
         action_name = "add-profiling-migrate-data-id-route"
+        bk_tenant_id = self._load_bk_tenant_id(options.get("bk_tenant_id"), action_name=action_name)
         bk_biz_id = self._load_bk_biz_id(options.get("bk_biz_id"), action_name=action_name)
         app_name = self._load_app_name(options.get("app_name"), action_name=action_name)
         migrate_cluster_name = self._load_migrate_cluster_name(options.get("migrate_cluster_name"), action_name)
         try:
             route_change = add_profiling_migrate_data_id_route(
+                bk_tenant_id=bk_tenant_id,
                 bk_biz_id=bk_biz_id,
                 app_name=app_name,
                 migrate_cluster_name=migrate_cluster_name,
