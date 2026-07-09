@@ -88,7 +88,7 @@
   });
 
   const bigJson = JSONBig({ useNativeBigInt: true });
-  const formatCounter = ref(0);
+  const fieldNameHook = useFieldNameHook({ store });
   const refJsonFormatterCell = ref();
   const showAllText = ref(false);
   const hasScrollY = ref(false);
@@ -284,13 +284,9 @@
     };
   };
 
-  const getFieldName = field => {
-    const { getFieldName } = useFieldNameHook({ store });
-    return getFieldName(field);
-  };
+  const getFieldName = field => fieldNameHook.getFieldName(field);
 
   const rootList = computed(() => {
-    formatCounter.value++;
     return fieldList.value.map((f: any) => {
       const shouldFormatDate = isFormatDateField.value && !!f.__is_virtual_root__;
       return {
@@ -346,7 +342,7 @@
   );
 
   watch(
-    () => [formatCounter.value],
+    () => [props.jsonValue, props.fields, props.renderMeta, formatJson.value],
     () => {
       if (isResolved.value) {
         debounceUpdate();

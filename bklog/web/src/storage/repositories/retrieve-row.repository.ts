@@ -3,11 +3,10 @@
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  */
 import db, { type RetrieveRowEntity } from '../core/db';
-import { retrieveRowProjectionService, type RetrieveRowProjection } from '../services/retrieve-row-projection.service';
+import { estimateValueBytes } from '../services/retrieve-row-projection.service';
 import {
   createRetrieveRowRenderMeta,
   DEFAULT_HIGHLIGHT_FIELD,
-  getValueByPath,
   type RetrieveRowRenderMeta,
 } from '../utils/retrieve-render-meta';
 
@@ -250,16 +249,10 @@ export class RetrieveRowStreamWriter {
   }
 
   private createEntity(originRow: Record<string, any>, renderRow: Record<string, any> | undefined, seq: number) {
-    const storageValue = retrieveRowProjectionService.createStorageValue(
-      originRow,
-      this.queryKey,
-      seq,
-      this.options.fieldNames ?? [],
-    );
-    const highlightField = resolveHighlightField(storageValue.row);
+    const highlightField = resolveHighlightField(originRow);
     const normalizedRenderRow = normalizeRenderRowHighlightField(renderRow, highlightField);
     const renderOverlay = this.repository.createRenderOverlay(
-      storageValue.row,
+      originRow,
       normalizedRenderRow,
       highlightField,
     );
@@ -268,16 +261,15 @@ export class RetrieveRowStreamWriter {
       key: `${this.queryKey}:${seq}`,
       queryKey: this.queryKey,
       seq,
-      row: storageValue.row,
+      row: originRow,
       highlightField,
       copyExcludedFields: this.options.copyExcludedFields ?? [],
       renderOverlay,
-      renderMeta: createRetrieveRowRenderMeta(storageValue.row, normalizedRenderRow, {
+      renderMeta: createRetrieveRowRenderMeta(originRow, normalizedRenderRow, {
+        fieldNames: this.options.fieldNames,
         highlightField,
-        precomputeSegments: false,
       }),
-      projection: storageValue.projection,
-      bytes: storageValue.bytes,
+      bytes: estimateValueBytes(originRow),
       createdAt: this.now,
       expireAt: this.expireAt,
     } as RetrieveRowEntity;
@@ -319,12 +311,6 @@ export class RetrieveRowRepository {
     return db.retrieveRows.bulkGet(keys);
   }
 
-  async getProjectionsByKeys(keys: string[]): Promise<(RetrieveRowProjection | undefined)[]> {
-    if (!keys.length) return [];
-    const rows = await db.retrieveRows.bulkGet(keys);
-    return rows.map(item => item?.projection);
-  }
-
   async getRenderRowsByKeys(keys: string[]) {
     if (!keys.length) return [];
     const entities = await db.retrieveRows.bulkGet(keys);
@@ -340,11 +326,6 @@ export class RetrieveRowRepository {
   async getRowsByQuery(queryKey: string, offset = 0, limit?: number) {
     const entities = await this.getEntitiesByQuery(queryKey, offset, limit);
     return entities.map(item => item.row).filter(Boolean);
-  }
-
-  async getProjectionsByQuery(queryKey: string, offset = 0, limit?: number) {
-    const entities = await this.getEntitiesByQuery(queryKey, offset, limit);
-    return entities.map(item => item.projection).filter(Boolean);
   }
 
   async getAllRowsByQuery(queryKey: string) {
@@ -409,28 +390,24 @@ export class RetrieveRowRepository {
 
     for (let index = 0; index < rows.length; index++) {
       const seq = startSeq + index;
-      const storageValue = retrieveRowProjectionService.createStorageValue(
-        rows[index],
-        queryKey,
-        seq,
-        options.fieldNames ?? [],
-      );
-      const highlightField = resolveHighlightField(storageValue.row);
+      const highlightField = resolveHighlightField(rows[index]);
       const renderRow = normalizeRenderRowHighlightField(options.renderRows?.[index], highlightField);
-      const renderOverlay = this.createRenderOverlay(storageValue.row, renderRow, highlightField);
+      const renderOverlay = this.createRenderOverlay(rows[index], renderRow, highlightField);
       const entity: RetrieveRowEntity = {
         key: `${queryKey}:${seq}`,
         queryKey,
         seq,
-        row: storageValue.row,
+        row: rows[index],
         highlightField,
         copyExcludedFields: options.copyExcludedFields ?? [],
         renderOverlay,
         renderMeta:
           options.renderMetas?.[index]
-          ?? createRetrieveRowRenderMeta(storageValue.row, renderRow, { highlightField }),
-        projection: storageValue.projection,
-        bytes: storageValue.bytes,
+          ?? createRetrieveRowRenderMeta(rows[index], renderRow, {
+            fieldNames: options.fieldNames,
+            highlightField,
+          }),
+        bytes: estimateValueBytes(rows[index]),
         createdAt: now,
         expireAt,
       };
@@ -482,27 +459,20 @@ export class RetrieveRowRepository {
     );
   }
 
-  /** 表格渲染行：优先 displayRow（32KB 截断），再叠加高亮 overlay */
+  /** 表格渲染行：先叠加高亮 overlay，再按字段覆盖 32KB 截断展示文本 */
   resolveRenderRow(entity?: RetrieveRowEntity) {
     if (!entity?.row) return undefined;
 
-    const baseRow = entity.renderMeta?.displayRow ?? entity.row;
-    const renderRow = this.applyRenderOverlay({
-      ...entity,
-      row: baseRow,
-    });
-    if (!renderRow || !entity.renderMeta?.displayRow || !entity.renderMeta.truncatedFields?.length) {
+    const renderRow = this.applyRenderOverlay(entity);
+    const truncatedTextByField = entity.renderMeta?.truncatedTextByField;
+    if (!renderRow || !truncatedTextByField || !Object.keys(truncatedTextByField).length) {
       return renderRow;
     }
 
-    const nextRow = { ...renderRow };
-    entity.renderMeta.truncatedFields.forEach((fieldName) => {
-      const truncatedValue = getValueByPath(entity.renderMeta!.displayRow!, fieldName);
-      if (truncatedValue !== undefined) {
-        setOverlayValue(nextRow, fieldName, truncatedValue);
-      }
-    });
-    return nextRow;
+    return Object.keys(truncatedTextByField).reduce(
+      (row, fieldName) => setOverlayValue(row, fieldName, truncatedTextByField[fieldName]),
+      { ...renderRow },
+    );
   }
 }
 

@@ -12,7 +12,6 @@ export interface RetrieveRowEntity {
   highlightField?: string;
   copyExcludedFields?: string[];
   renderOverlay?: any;
-  projection?: any;
   renderMeta?: any;
   bytes?: number;
   createdAt: number;
