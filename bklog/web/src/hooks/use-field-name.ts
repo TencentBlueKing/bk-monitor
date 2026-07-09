@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import { retrieveFieldCacheService } from '@/storage';
+import { storeRuntimeCacheService } from '../store/services/runtime-cache.service';
 import { BK_LOG_STORAGE, FieldInfoItem } from '../store/store.type';
 
 /**
@@ -41,11 +43,24 @@ export const getFieldNameByField = (field, store) => {
 };
 
 export default ({ store }) => {
-  const getStoreFieldNameIndex = (): Record<string, FieldInfoItem> =>
-    store.state.indexFieldInfo.fieldNameIndex ?? {};
+  const getFieldScope = () => store.state.indexFieldInfo.field_scope || store.state.indexId || 'default';
+  const getIndexWithFallback = (runtimeIndex: Record<string, FieldInfoItem>, fallbackIndex: Record<string, FieldInfoItem>) =>
+    Object.keys(runtimeIndex ?? {}).length ? runtimeIndex : fallbackIndex;
+  const getStoreFieldNameIndex = (): Record<string, FieldInfoItem> => {
+    const scope = getFieldScope();
+    return getIndexWithFallback(
+      storeRuntimeCacheService.getFieldNameIndex(scope),
+      retrieveFieldCacheService.getFieldNameIndex(scope),
+    );
+  };
 
-  const getStoreQueryAliasIndex = (): Record<string, FieldInfoItem> =>
-    store.state.indexFieldInfo.queryAliasIndex ?? {};
+  const getStoreQueryAliasIndex = (): Record<string, FieldInfoItem> => {
+    const scope = getFieldScope();
+    return getIndexWithFallback(
+      storeRuntimeCacheService.getQueryAliasIndex(scope),
+      retrieveFieldCacheService.getQueryAliasIndex(scope),
+    );
+  };
 
   const buildFieldNameIndex = (list: FieldInfoItem[]): Record<string, FieldInfoItem> => {
     const map: Record<string, FieldInfoItem> = {};
@@ -130,14 +145,6 @@ export default ({ store }) => {
     return store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
       ? field.query_alias || field.field_name
       : field.field_name;
-  };
-
-  const getFieldList = (withAliasFieldMap = false) => {
-    if (withAliasFieldMap) {
-      return store.state.indexFieldInfo.fields;
-    }
-
-    return store.state.indexFieldInfo.fields.filter(field => !field.is_virtual_alias_field);
   };
 
   /**

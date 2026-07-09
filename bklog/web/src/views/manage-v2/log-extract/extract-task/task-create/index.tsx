@@ -32,6 +32,7 @@ import useLocale from '@/hooks/use-locale';
 import useRoute from '@/hooks/use-route';
 import useRouter from '@/hooks/use-router';
 import useStore from '@/hooks/use-store';
+import { manageDraftCacheService } from '@/storage';
 
 import http from '@/api';
 // #else
@@ -107,8 +108,12 @@ export default defineComponent({
     // 检查是否为克隆模式并初始化克隆数据
     const checkIsClone = async () => {
       if (isClone.value) {
-        const cloneData = JSON.parse(sessionStorage.getItem('cloneData') || '{}');
+        let cloneData = JSON.parse(sessionStorage.getItem('cloneData') || '{}');
+        if (!Object.keys(cloneData).length) {
+          cloneData = await manageDraftCacheService.get('cloneData') || {};
+        }
         sessionStorage.removeItem('cloneData');
+        manageDraftCacheService.remove('cloneData').catch(() => {});
 
         const cloneNodeType = cloneData.target_node_type || 'INSTANCE';
         targetNodeType.value = cloneNodeType;

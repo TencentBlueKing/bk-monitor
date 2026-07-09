@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import RetrieveHelper from '@/views/retrieve-helper';
+import { highlightPlainTextIntoFragment } from '@/views/retrieve-core/page-highlight';
 
 import JsonView from '../global/json-view';
 // import jsonEditorTask, { EditorTask } from '../global/utils/json-editor-task';
@@ -47,9 +48,23 @@ export type FormatterConfig = {
   onSegmentClick: (_args: any) => void;
   onSegmentRenderUpdate?: () => void;
   options?: Record<string, any>;
+  precomputedSegments?: PrecomputedSegments;
 };
 
-export type SegmentAppendText = { text: string; onClick?: (..._args) => void; attributes?: Record<string, string> };
+export type SegmentAppendText = {
+  text: string;
+  onClick?: (..._args) => void;
+  onMouseDown?: (..._args) => void;
+  onMouseUp?: (..._args) => void;
+  attributes?: Record<string, string>;
+};
+export type PrecomputedSegments = Record<string, Array<{
+  text: string;
+  isMark?: boolean;
+  isCursorText?: boolean;
+  isBlobWord?: boolean;
+  isNotParticiple?: boolean;
+}>>;
 export default class UseJsonFormatter {
   editor: JsonView;
   config: FormatterConfig;
@@ -190,6 +205,12 @@ export default class UseJsonFormatter {
   }
 
   getSplitList(field: any, content: any) {
+    const fieldName = typeof field === 'string' ? field : field?.field_name;
+    const precomputedSegments = fieldName ? this.config.precomputedSegments?.[fieldName] : undefined;
+    if (Array.isArray(precomputedSegments)) {
+      return precomputedSegments;
+    }
+
     /** 检索高亮分词字符串 */
     const markRegStr = '<mark>(.*?)</mark>';
     const value = this.escapeString(`${content}`);
@@ -218,25 +239,28 @@ export default class UseJsonFormatter {
       return brNode;
     }
 
+    const text = item.text?.length ? item.text : '""';
+    const textNode = document.createElement('span');
+
     if (item.isMark) {
-      const mrkNode = document.createElement('mark');
-      mrkNode.textContent = item.text.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
-      mrkNode.classList.add('valid-text');
-      return mrkNode;
+      textNode.classList.add('valid-text');
+      textNode.appendChild(highlightPlainTextIntoFragment({
+        text: text.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
+        resultHighlighted: true,
+      }));
+      return textNode;
     }
 
     if (!(item.isNotParticiple || item.isBlobWord)) {
-      const validTextNode = document.createElement('span');
       if (item.isCursorText) {
-        validTextNode.classList.add('valid-text');
+        textNode.classList.add('valid-text');
       }
-      validTextNode.textContent = item.text?.length ? item.text : '""';
-      return validTextNode;
+      textNode.appendChild(highlightPlainTextIntoFragment({ text }));
+      return textNode;
     }
 
-    const textNode = document.createElement('span');
     textNode.classList.add('others-text');
-    textNode.textContent = item.text?.length ? item.text : '""';
+    textNode.appendChild(highlightPlainTextIntoFragment({ text }));
     return textNode;
   }
 
@@ -264,8 +288,9 @@ export default class UseJsonFormatter {
     if (!root.hasAttribute('data-word-segment-click')) {
       root.setAttribute('data-word-segment-click', '1');
       root.addEventListener('click', (e) => {
-        if ((e.target as HTMLElement).classList.contains('valid-text')) {
-          this.handleSegmentClick(e, (e.target as HTMLElement).textContent);
+        const validTextElement = (e.target as HTMLElement).closest?.('.valid-text') as HTMLElement | null;
+        if (validTextElement) {
+          this.handleSegmentClick(e, validTextElement.textContent);
         }
       });
     }
@@ -312,6 +337,12 @@ export default class UseJsonFormatter {
           appendElement.textContent = appendText.text;
           if (appendText.onClick) {
             appendElement.addEventListener('click', appendText.onClick);
+          }
+          if (appendText.onMouseDown) {
+            appendElement.addEventListener('mousedown', appendText.onMouseDown);
+          }
+          if (appendText.onMouseUp) {
+            appendElement.addEventListener('mouseup', appendText.onMouseUp);
           }
 
           for (const key of Object.keys(appendText.attributes ?? {})) {
@@ -384,8 +415,9 @@ export default class UseJsonFormatter {
       });
 
       this.editor.initClickEvent((e) => {
-        if ((e.target as HTMLElement).classList.contains('valid-text')) {
-          this.handleSegmentClick(e, (e.target as HTMLElement).textContent);
+        const validTextElement = (e.target as HTMLElement).closest?.('.valid-text') as HTMLElement | null;
+        if (validTextElement) {
+          this.handleSegmentClick(e, validTextElement.textContent);
         }
       });
     }

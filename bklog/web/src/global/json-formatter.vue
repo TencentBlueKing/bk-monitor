@@ -62,6 +62,7 @@
   import useStore from '../hooks/use-store';
   import { BK_LOG_STORAGE } from '../store/store.type';
   import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
+  import { pageHighlightState } from '../views/retrieve-core/page-highlight';
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
@@ -76,6 +77,10 @@
       type: [Array, Object],
       default: () => [],
     },
+    renderMeta: {
+      type: Object,
+      default: null,
+    },
 
     limitRow: {
       type: [Number, String, null],
@@ -84,7 +89,7 @@
   });
 
   const bigJson = JSONBig({ useNativeBigInt: true });
-  const formatCounter = ref(0);
+  const fieldNameHook = useFieldNameHook({ store });
   const refJsonFormatterCell = ref();
   const showAllText = ref(false);
   const hasScrollY = ref(false);
@@ -162,6 +167,9 @@
 
   let mousedownItem = null;
   const handleMouseDown = e => {
+    e.stopPropagation();
+    e.preventDefault();
+    e.stopImmediatePropagation();
     mousedownItem = e.target;
   };
 
@@ -170,6 +178,7 @@
     e.preventDefault();
     e.stopImmediatePropagation();
     if (mousedownItem === e.target) {
+      RetrieveHelper.jsonFormatter.setIsExpandNodeClick(true);
       showAllText.value = !showAllText.value;
       scheduleSetIsOverflowY();
     }
@@ -213,17 +222,12 @@
   };
 
   const getDateFieldValue = (field, content, formatDate) => {
-    if (content === null || content === undefined || content === '' || content === '--') {
-      return '--';
-    }
-
     if (formatDate && ['date_nanos', 'date'].includes(field.field_type)) {
       const timezone = store.state.indexItem.timezone;
-      const formatValue = RetrieveHelper.formatTimeZoneValue(content, field.field_type, timezone);
-      return formatValue === 'Invalid Date' ? content : formatValue;
+      return RetrieveHelper.formatTimeZoneValue(content, field.field_type, timezone);
     }
 
-    return content;
+    return content !== null && content !== undefined && content !== '' ? content : '--';
   };
 
   const getFieldValue = field => {
@@ -267,7 +271,7 @@
     }
 
     return val;
-  }
+  };
 
   const getFieldFormatter = (field, formatDate) => {
     const [objValue, val] = getFieldValue(field);
@@ -281,19 +285,21 @@
     };
   };
 
-  const getFieldName = field => {
-    const { getFieldName } = useFieldNameHook({ store });
-    return getFieldName(field);
-  };
+  const getFieldName = field => fieldNameHook.getFieldName(field);
 
   const rootList = computed(() => {
-    formatCounter.value++;
-    return fieldList.value.map((f: any) => ({
-      name: f.field_name,
-      type: f.field_type,
-      formatter: getFieldFormatter(f, isFormatDateField.value && !!f.__is_virtual_root__),
-      __is_virtual_root__: !!f.__is_virtual_root__,
-    }));
+    return fieldList.value.map((f: any) => {
+      const shouldFormatDate = isFormatDateField.value && !!f.__is_virtual_root__;
+      return {
+        name: f.field_name,
+        type: f.field_type,
+        formatter: {
+          ...getFieldFormatter(f, shouldFormatDate),
+          precomputedSegments: shouldFormatDate ? undefined : props.renderMeta?.fieldSegments,
+        },
+        __is_virtual_root__: !!f.__is_virtual_root__,
+      };
+    });
   });
 
   const depth = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]);
@@ -319,7 +325,8 @@
   };
 
   watch(
-    () => [props.limitRow, props.jsonValue, props.fields, isLimitExpandText.value, isFormatDateField.value],
+    // renderMeta 会在日志行异步渲染/高亮回填时更新；它只影响内容重绘，不应重置用户手动展开状态。
+    () => [props.limitRow, props.jsonValue, props.fields, isLimitExpandText.value],
     () => {
       showAllText.value = false;
       hasScrollY.value = false;
@@ -337,7 +344,7 @@
   );
 
   watch(
-    () => [formatCounter.value],
+    () => [props.jsonValue, props.fields, props.renderMeta, formatJson.value, pageHighlightState.version],
     () => {
       if (isResolved.value) {
         debounceUpdate();
@@ -398,6 +405,18 @@
     mark {
       border-radius: 4px;
       padding: 1px 2px;
+    }
+
+    mark.result-highlight {
+      background-color: #faeeb1;
+    }
+
+    mark.page-highlight {
+      border-radius: 4px;
+    }
+
+    mark.result-highlight.page-highlight {
+      box-shadow: inset 0 -2px 0 rgb(255 128 0 / 70%);
     }
 
     .btn-more-action {

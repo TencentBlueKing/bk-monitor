@@ -31,6 +31,9 @@ const instance = new PopInstanceUtil({
     theme: 'segment-light',
     placement: 'bottom',
     appendTo: document.body,
+    popperOptions: {
+      strategy: 'fixed',
+    },
   },
 });
 
