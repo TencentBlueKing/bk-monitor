@@ -68,6 +68,7 @@ const detectionTypeMap = {
   TimeSeriesForecasting: window.i18n.t('时序预测'),
   AbnormalCluster: window.i18n.t('离群检测'),
   NewSeries: window.i18n.t('新维度值检测'),
+  HostAnomalyDetection: window.i18n.t('主机异常检测'),
 };
 
 export const invalidTypeMap = {
