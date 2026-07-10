@@ -4,6 +4,7 @@
  */
 import db, { type RetrieveRowEntity } from '../core/db';
 import { estimateValueBytes } from '../services/retrieve-row-projection.service';
+import { normalizeStorageValue } from '../utils/normalize-storage-value';
 import {
   createRetrieveRowRenderMeta,
   DEFAULT_HIGHLIGHT_FIELD,
@@ -249,10 +250,12 @@ export class RetrieveRowStreamWriter {
   }
 
   private createEntity(originRow: Record<string, any>, renderRow: Record<string, any> | undefined, seq: number) {
-    const highlightField = resolveHighlightField(originRow);
-    const normalizedRenderRow = normalizeRenderRowHighlightField(renderRow, highlightField);
+    const normalizedOriginRow = normalizeStorageValue(originRow);
+    const normalizedRenderSource = normalizeStorageValue(renderRow);
+    const highlightField = resolveHighlightField(normalizedOriginRow);
+    const normalizedRenderRow = normalizeRenderRowHighlightField(normalizedRenderSource, highlightField);
     const renderOverlay = this.repository.createRenderOverlay(
-      originRow,
+      normalizedOriginRow,
       normalizedRenderRow,
       highlightField,
     );
@@ -261,15 +264,15 @@ export class RetrieveRowStreamWriter {
       key: `${this.queryKey}:${seq}`,
       queryKey: this.queryKey,
       seq,
-      row: originRow,
+      row: normalizedOriginRow,
       highlightField,
       copyExcludedFields: this.options.copyExcludedFields ?? [],
       renderOverlay,
-      renderMeta: createRetrieveRowRenderMeta(originRow, normalizedRenderRow, {
+      renderMeta: createRetrieveRowRenderMeta(normalizedOriginRow, normalizedRenderRow, {
         fieldNames: this.options.fieldNames,
         highlightField,
       }),
-      bytes: estimateValueBytes(originRow),
+      bytes: estimateValueBytes(normalizedOriginRow),
       createdAt: this.now,
       expireAt: this.expireAt,
     } as RetrieveRowEntity;
@@ -390,24 +393,26 @@ export class RetrieveRowRepository {
 
     for (let index = 0; index < rows.length; index++) {
       const seq = startSeq + index;
-      const highlightField = resolveHighlightField(rows[index]);
-      const renderRow = normalizeRenderRowHighlightField(options.renderRows?.[index], highlightField);
-      const renderOverlay = this.createRenderOverlay(rows[index], renderRow, highlightField);
+      const row = normalizeStorageValue(rows[index]);
+      const renderSource = normalizeStorageValue(options.renderRows?.[index]);
+      const highlightField = resolveHighlightField(row);
+      const renderRow = normalizeRenderRowHighlightField(renderSource, highlightField);
+      const renderOverlay = this.createRenderOverlay(row, renderRow, highlightField);
       const entity: RetrieveRowEntity = {
         key: `${queryKey}:${seq}`,
         queryKey,
         seq,
-        row: rows[index],
+        row,
         highlightField,
         copyExcludedFields: options.copyExcludedFields ?? [],
         renderOverlay,
         renderMeta:
           options.renderMetas?.[index]
-          ?? createRetrieveRowRenderMeta(rows[index], renderRow, {
+          ?? createRetrieveRowRenderMeta(row, renderRow, {
             fieldNames: options.fieldNames,
             highlightField,
           }),
-        bytes: estimateValueBytes(rows[index]),
+        bytes: estimateValueBytes(row),
         createdAt: now,
         expireAt,
       };

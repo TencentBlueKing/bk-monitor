@@ -3,6 +3,12 @@
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  */
 
+import {
+  isBigNumberValue,
+  normalizeBigNumberForStorage,
+  normalizeStorageValue,
+} from '../utils/normalize-storage-value';
+
 export interface RetrieveRowProjectionField {
   fieldName: string;
   value: any;
@@ -60,7 +66,7 @@ export const estimateValueBytes = (value: any): number => {
   if (typeof value === 'string') return value.length * 2;
   if (typeof value === 'number') return 8;
   if (typeof value === 'boolean') return 4;
-  if (value?._isBigNumber) return String(value.toString()).length * 2;
+  if (isBigNumberValue(value)) return String(value.toString()).length * 2;
 
   try {
     return JSON.stringify(value).length * 2;
@@ -75,9 +81,8 @@ const createPreview = (value: any, bytes: number) => {
     return value.length > PREVIEW_STRING_LENGTH ? `${value.slice(0, PREVIEW_STRING_LENGTH)}...` : value;
   }
   if (typeof value === 'number' || typeof value === 'boolean') return value;
-  if (value?._isBigNumber) {
-    const stringValue = value.toString();
-    return stringValue.length < 16 ? Number(value) : stringValue;
+  if (isBigNumberValue(value)) {
+    return normalizeBigNumberForStorage(value);
   }
 
   try {
@@ -92,9 +97,8 @@ const createPreview = (value: any, bytes: number) => {
 
 const normalizePrimitiveForRender = (value: any) => {
   if (value === null || value === undefined) return '';
-  if (value?._isBigNumber) {
-    const stringValue = value.toString();
-    return stringValue.length < 16 ? Number(value) : stringValue;
+  if (isBigNumberValue(value)) {
+    return normalizeBigNumberForStorage(value);
   }
   return value;
 };
@@ -106,7 +110,7 @@ export class RetrieveRowProjectionService {
     seq: number,
     fieldNames: string[] = [],
   ): RetrieveRowStorageValue {
-    const normalizedRow = this.normalizeShallowRow(row);
+    const normalizedRow = normalizeStorageValue(this.normalizeShallowRow(row));
     const projection = this.createProjection(normalizedRow, queryKey, seq, fieldNames);
     return {
       row: normalizedRow,
@@ -145,7 +149,7 @@ export class RetrieveRowProjectionService {
 
     names.forEach((fieldName) => {
       if (!Object.prototype.hasOwnProperty.call(row ?? {}, fieldName)) return;
-      const value = row[fieldName];
+      const value = normalizeStorageValue(row[fieldName]);
       const bytes = estimateValueBytes(value);
       totalBytes += bytes;
       const isLarge = bytes > LARGE_FIELD_BYTES;

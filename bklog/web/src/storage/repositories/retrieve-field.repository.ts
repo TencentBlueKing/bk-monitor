@@ -4,6 +4,7 @@
  */
 import db, { type RetrieveFieldMetaEntity, type RetrieveFieldWidthEntity } from '../core/db';
 import { storageHealthService } from '../services/storage-health.service';
+import { normalizeStorageValue } from '../utils/normalize-storage-value';
 
 const DEFAULT_TTL = 7 * 24 * 60 * 60 * 1000;
 
@@ -22,7 +23,7 @@ export class RetrieveFieldRepository {
       await db.retrieveFieldMetas.put({
         key: scope,
         scope,
-        ...data,
+        ...normalizeStorageValue(data),
         createdAt: old?.createdAt ?? now,
         updatedAt: now,
         expireAt: now + ttl,
@@ -81,7 +82,7 @@ export class RetrieveFieldRepository {
         key: getWidthKey(scope, fieldName),
         scope,
         fieldName,
-        ...widths[fieldName],
+        ...normalizeStorageValue(widths[fieldName]),
         updatedAt: now,
         expireAt: now + ttl,
       }));

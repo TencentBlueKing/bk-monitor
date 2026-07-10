@@ -4,13 +4,14 @@
  */
 import db, { type PerformanceRecordEntity } from '../core/db';
 import { storageHealthService } from '../services/storage-health.service';
+import { isBigNumberValue, normalizeBigNumberForStorage } from '../utils/normalize-storage-value';
 
 const DEFAULT_LIMIT = 10000;
 const MAX_SAFE_DEPTH = 8;
 const MAX_SAFE_ARRAY_LENGTH = 200;
 const MAX_SAFE_STRING_LENGTH = 4000;
 
-const toCloneableValue = (value: unknown, depth = 0, seen = new WeakSet<object>()): unknown => {
+const toCloneableValue = (value: any, depth = 0, seen = new WeakSet<object>()): unknown => {
   if (value === null || value === undefined) return value;
 
   const valueType = typeof value;
@@ -20,6 +21,10 @@ const toCloneableValue = (value: unknown, depth = 0, seen = new WeakSet<object>(
   if (valueType === 'symbol') {
     return value.toString();
   }
+  if (isBigNumberValue(value)) {
+    return normalizeBigNumberForStorage(value);
+  }
+
   if (valueType !== 'object') {
     if (valueType === 'string' && value.length > MAX_SAFE_STRING_LENGTH) {
       return `${value.slice(0, MAX_SAFE_STRING_LENGTH)}...<truncated:${value.length}>`;

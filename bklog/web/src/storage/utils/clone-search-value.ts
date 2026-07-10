@@ -3,10 +3,11 @@
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  */
 
+import { isBigNumberValue, normalizeBigNumberForStorage } from './normalize-storage-value';
+
 const bigNumberToCloneable = (value: any): any => {
-  if (value?._isBigNumber) {
-    const stringValue = value.toString();
-    return stringValue.length < 16 ? Number(value) : stringValue;
+  if (isBigNumberValue(value)) {
+    return normalizeBigNumberForStorage(value);
   }
   return value;
 };

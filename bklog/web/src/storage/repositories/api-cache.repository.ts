@@ -4,6 +4,7 @@
  */
 import db, { type ApiCacheEntity } from '../core/db';
 import { storageHealthService } from '../services/storage-health.service';
+import { normalizeStorageValue } from '../utils/normalize-storage-value';
 
 const DEFAULT_TTL = 30 * 60 * 1000;
 
@@ -14,8 +15,8 @@ export class ApiCacheRepository {
     try {
       await db.apiCaches.put({
         key,
-        data,
-        meta,
+        data: normalizeStorageValue(data),
+        meta: normalizeStorageValue(meta),
         updatedAt: now,
         expireAt: now + ttl,
       });
