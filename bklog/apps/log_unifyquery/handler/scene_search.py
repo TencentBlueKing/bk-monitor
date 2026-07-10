@@ -231,11 +231,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             result_table_index_set_map = self._get_result_table_index_set_map(result_dict.get("list", []))
         for log in result_dict.get("list", []):
             log = merge_nested_data(log)
-            # 补充 index_set_id 用于给前端标记来源
-            index_set_id = result_table_index_set_map.get(log.get("__result_table"))
-            if index_set_id:
-                log["__index_set_id__"] = index_set_id
-
+            log["__index_set_id__"] = result_table_index_set_map.get(log.get("__result_table"))  # 给前端标记来源
             if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
                 log = self._log_desensitize(log)
             log = self._add_cmdb_fields(log)
