@@ -6,6 +6,7 @@
       {
         'is-wrap-line': !isOriginalMode && isWrap,
         'is-inline': !isOriginalMode && !isWrap,
+        'is-original-wrap-line': isOriginalMode && isWrap,
         'is-json': formatJson,
         'is-hidden': !isRowIntersecting && isResolved,
         'show-all-word': showAllWords,
@@ -502,8 +503,12 @@
     return [props.jsonValue, props.jsonValue];
   };
 
-  const getCellRender = (val: unknown) => {
-    if (typeof val === 'object') {
+  const getCellRender = (val: unknown, isJson = false) => {
+    if (val !== null && typeof val === 'object') {
+      if (isJson) {
+        return Array.isArray(val) ? '[...]' : '{...}';
+      }
+
       try {
         return JSON.stringify(val, null, 2);
       } catch (e) {
@@ -525,10 +530,11 @@
 
   const getFieldFormatter = (field, formatDate) => {
     const [objValue, val] = getFieldValue(field);
-    const strVal = getDateFieldValue(field, getCellRender(val), formatDate);
+    const isJsonValue = objValue !== null && typeof objValue === 'object' && objValue !== undefined;
+    const strVal = getDateFieldValue(field, getCellRender(val, isJsonValue), formatDate);
     return {
       ref: ref(),
-      isJson: typeof objValue === 'object' && objValue !== undefined,
+      isJson: isJsonValue,
       value: formatEmptyObject(getDateFieldValue(field, objValue, formatDate)),
       stringValue: strVal?.replace?.(/<\/?mark>/igm, '') ?? strVal,
       field,
@@ -586,6 +592,17 @@
   watch(
     () => [props.limitRow, isLimitExpandText.value],
     () => {
+      showAllText.value = false;
+      hasScrollY.value = false;
+      scheduleSetIsOverflowY();
+    },
+  );
+
+  watch(
+    () => [props.jsonValue, originalValueFieldsSignature.value, isOriginalMode.value],
+    () => {
+      if (isOriginalMode.value) return;
+
       showAllText.value = false;
       hasScrollY.value = false;
       scheduleSetIsOverflowY();
@@ -672,8 +689,8 @@
     text-align: left;
 
     .bklog-scroll-box {
-      max-height: 50vh;
-      overflow: auto;
+      max-height: none;
+      overflow: visible;
       transform: translateZ(0); /* 强制开启GPU加速 */
       will-change: transform;
     }
@@ -729,13 +746,16 @@
 
       .field-name,
       .field-value,
-      .field-value[data-with-intersection],
+      .field-value[data-with-intersection] {
+        display: inline !important;
+        white-space: normal;
+      }
+
       .field-value .segment-content,
       .field-value .bklog-scroll-cell,
       .field-value span,
       .field-value mark,
       .valid-text {
-        display: inline !important;
         white-space: normal;
       }
 
@@ -745,6 +765,15 @@
         overflow: visible !important;
         word-break: break-all;
         overflow-wrap: anywhere;
+      }
+
+      &.is-original-wrap-line {
+        display: block;
+
+        > .bklog-root-field {
+          display: block !important;
+          margin-right: 0;
+        }
       }
 
       .btn-more-action {
@@ -834,22 +863,32 @@
       }
     }
 
-    &.show-all-word {
-      .bklog-root-field {
-        .field-value {
-          max-height: 50vh;
-          overflow: auto;
+    &:not(.is-original-mode).show-all-word {
+      // 非 JSON 文本展开时，保留字段值容器滚动，避免超长普通文本撑开表格行。
+      &:not(.is-json) {
+        .bklog-root-field {
+          .field-value {
+            max-height: 50vh;
+            overflow: auto;
 
-          &::-webkit-scrollbar {
-            width: 6px;
-            background: #fff;
-          }
+            &::-webkit-scrollbar {
+              width: 6px;
+              background: #fff;
+            }
 
-          &::-webkit-scrollbar-thumb {
-            background: #dcdee5;
-            border-radius: 2px;
+            &::-webkit-scrollbar-thumb {
+              background: #dcdee5;
+              border-radius: 2px;
+            }
           }
         }
+      }
+
+      // JSON 格式化后的超大 value 只由最内层分词容器负责滚动加载。
+      // KV 展开模式外层已有 .kv-list-wrapper 滚动，避免 field-value 再产生第三层滚动条。
+      .bklog-scroll-box {
+        max-height: 50vh;
+        overflow: auto;
       }
     }
 
@@ -881,7 +920,9 @@
         cursor: pointer;
 
         &.focus-text,
-        &:hover {
+        &:hover,
+        &.focus-text *,
+        &:hover * {
           color: #3a84ff;
         }
       }

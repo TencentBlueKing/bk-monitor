@@ -75,7 +75,7 @@ const props = defineProps({
    */
   popupAppendToBody: {
     type: Boolean,
-    default: false,
+    default: true,
   },
 });
 

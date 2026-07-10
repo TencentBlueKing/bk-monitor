@@ -364,7 +364,7 @@ export default {
 .original-log-panel {
   .original-log-panel-tools {
     position: sticky;
-    top: var(--top-searchbar-height, 0);
+    top: var(--bklog-result-tools-sticky-top, var(--offset-search-bar, var(--top-searchbar-height, 0)));
     z-index: 6;
     display: flex;
     justify-content: space-between;

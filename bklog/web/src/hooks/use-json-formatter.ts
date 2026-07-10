@@ -66,18 +66,20 @@ export type PrecomputedSegments = Record<string, Array<{
   isNotParticiple?: boolean;
 }>>;
 export default class UseJsonFormatter {
-  editor: JsonView;
+  editor?: JsonView;
   config: FormatterConfig;
   setValuePromise: Promise<any>;
   localDepth: number;
   getSegmentContent: (_keyRef: object, _fn: (..._args) => void) => Ref<HTMLElement>;
   keyRef: any;
+  segmentTaskId: number;
 
   constructor(cfg: FormatterConfig) {
     this.config = cfg;
     this.setValuePromise = Promise.resolve(true);
     this.localDepth = 1;
     this.keyRef = {};
+    this.segmentTaskId = 0;
     this.getSegmentContent = UseSegmentPropInstance.getSegmentContent.bind(UseSegmentPropInstance);
   }
 
@@ -326,11 +328,12 @@ export default class UseJsonFormatter {
           element as HTMLElement,
           segmentContent,
           this.getChildItem,
+          { pageSize: 80, maxAutoRenderItems: 240 },
         );
         removeScrollEvent();
 
         element.append(segmentContent);
-        setListItem(1000, this.config.onSegmentRenderUpdate);
+        setListItem(120, this.config.onSegmentRenderUpdate);
 
         if (appendText !== undefined) {
           const appendElement = document.createElement('span');
@@ -388,49 +391,65 @@ export default class UseJsonFormatter {
   }
 
   initEditor(depth) {
-    if (this.getTargetRoot()) {
-      this.localDepth = depth;
-      this.editor = new JsonView(this.getTargetRoot(), {
-        onNodeExpand: this.handleExpandNode.bind(this),
-        depth,
-        field: this.config.field,
-        segmentRender: (value: string, rootNode: HTMLElement) => {
-          const vlaues = this.getSplitList(this.config.field, value);
-          const segmentContent = this.creatSegmentNodes();
-          rootNode.append(segmentContent);
-
-          if (!rootNode.classList.contains('bklog-scroll-box')) {
-            rootNode.classList.add('bklog-scroll-box');
-          }
-
-          const { setListItem, removeScrollEvent } = setScrollLoadCell(
-            vlaues,
-            rootNode,
-            segmentContent,
-            this.getChildItem,
-          );
-          removeScrollEvent();
-          setListItem(600, this.config.onSegmentRenderUpdate);
-        },
-      });
-
-      this.editor.initClickEvent((e) => {
-        const validTextElement = (e.target as HTMLElement).closest?.('.valid-text') as HTMLElement | null;
-        if (validTextElement) {
-          this.handleSegmentClick(e, validTextElement.textContent);
-        }
-      });
+    const targetRoot = this.getTargetRoot();
+    if (!targetRoot) {
+      this.editor = undefined;
+      return false;
     }
+
+    this.localDepth = depth;
+    this.editor = new JsonView(targetRoot, {
+      onNodeExpand: this.handleExpandNode.bind(this),
+      depth,
+      field: this.config.field,
+      segmentRender: (value: string, rootNode: HTMLElement) => {
+        const taskId = this.segmentTaskId;
+        const vlaues = this.getSplitList(this.config.field, value);
+        if (taskId !== this.segmentTaskId || !rootNode.isConnected) return;
+
+        const segmentContent = this.creatSegmentNodes();
+        rootNode.append(segmentContent);
+
+        if (!rootNode.classList.contains('bklog-scroll-box')) {
+          rootNode.classList.add('bklog-scroll-box');
+        }
+
+        const { setListItem, removeScrollEvent } = setScrollLoadCell(
+          vlaues,
+          rootNode,
+          segmentContent,
+          this.getChildItem,
+          { pageSize: 80, maxAutoRenderItems: 240 },
+        );
+        removeScrollEvent();
+        setListItem(120, this.config.onSegmentRenderUpdate);
+      },
+    });
+
+    this.editor.initClickEvent((e) => {
+      const validTextElement = (e.target as HTMLElement).closest?.('.valid-text') as HTMLElement | null;
+      if (validTextElement) {
+        this.handleSegmentClick(e, validTextElement.textContent);
+      }
+    });
+
+    return true;
   }
 
   setNodeExpand([currentDepth]) {
-    this.editor.expand(currentDepth);
+    this.editor?.expand(currentDepth);
   }
 
   setValue(depth) {
     this.setValuePromise = new Promise((resolve, reject) => {
       try {
-        this.editor.setValue(this.config.jsonValue);
+        this.segmentTaskId += 1;
+        if (!this.editor && !this.initEditor(depth)) {
+          resolve(false);
+          return;
+        }
+
+        this.editor?.setValue(this.config.jsonValue);
         this.setNodeExpand([depth]);
         this.localDepth = depth;
         resolve(true);
@@ -444,13 +463,17 @@ export default class UseJsonFormatter {
 
   setExpand(depth) {
     this.setValuePromise?.then(() => {
+      if (!this.editor && !this.initEditor(depth)) return;
+
       this.setNodeExpand([depth]);
       this.localDepth = depth;
-    });
+    }).catch(() => undefined);
   }
 
   destroy() {
+    this.segmentTaskId += 1;
     this.editor?.destroy();
+    this.editor = undefined;
     const root = this.getTargetRoot() as HTMLElement;
     if (root) {
       let target = root;

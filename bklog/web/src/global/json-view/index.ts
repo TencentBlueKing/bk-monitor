@@ -29,25 +29,35 @@ import RetrieveHelper from '@/views/retrieve-helper';
 import JSONBig from 'json-bigint';
 
 export type JsonViewConfig = {
-  onNodeExpand: (args: { isExpand: boolean; node: any; targetElement: HTMLElement; rootElement: HTMLElement }) => void;
+  onNodeExpand: (_args: { isExpand: boolean; node: any; targetElement: HTMLElement; rootElement: HTMLElement }) => void;
   jsonValue?: any;
   depth?: number;
   segmentRegStr?: string;
   field?: any;
-  segmentRender?: (value: string, rootNode: HTMLElement) => void;
+  segmentRender?: (_value: string, _rootNode: HTMLElement) => void;
+  batchSize?: number;
+  initialBatchSize?: number;
 };
 export default class JsonView {
   options: JsonViewConfig;
   targetEl: HTMLElement;
   jsonNodeMap: WeakMap<HTMLElement, { target?: any; isExpand?: boolean }>;
   JSONBigInstance: JSONBig;
+  renderTaskId: number;
+  timeoutHandles: Set<number>;
+  activeDepth: number;
 
-  rootElClick?: (...args) => void;
+  rootElClick?: (..._args) => void;
+  targetElClickHandler?: EventListener;
+  targetElMouseUpHandler?: EventListener;
   constructor(target: HTMLElement, options: JsonViewConfig) {
     this.options = { depth: 1, isExpand: false, ...options };
     this.targetEl = target;
     this.jsonNodeMap = new WeakMap();
     this.JSONBigInstance = JSONBig({ useNativeBigInt: true });
+    this.renderTaskId = 0;
+    this.timeoutHandles = new Set();
+    this.activeDepth = Number(this.options.depth ?? 1);
   }
 
   private createJsonField(name: number | string) {
@@ -69,34 +79,82 @@ export default class JsonView {
     return fieldEl;
   }
 
+  private getBatchSize(isInitial = false) {
+    const fallback = isInitial ? 60 : 120;
+    const optionKey = isInitial ? 'initialBatchSize' : 'batchSize';
+    const value = Number(this.options[optionKey]);
+
+    return Number.isFinite(value) && value > 0 ? value : fallback;
+  }
+
+  private scheduleRender(callback: () => void) {
+    const handle = window.setTimeout(() => {
+      this.timeoutHandles.delete(handle);
+      callback();
+    }, 0);
+
+    this.timeoutHandles.add(handle);
+    return handle;
+  }
+
+  private clearScheduledRender() {
+    for (const handle of this.timeoutHandles) {
+      window.clearTimeout(handle);
+    }
+
+    this.timeoutHandles.clear();
+  }
+
+  private createObjectRow(key: number | string, value: any, depth: number) {
+    const row = document.createElement('div');
+    row.classList.add('bklog-json-view-row');
+    row.setAttribute('data-field-name', String(key));
+    row.append(this.createJsonField(key));
+    row.append(this.createJsonSymbol());
+    row.append(this.createJsonNodeElment(value, depth));
+
+    return row;
+  }
+
+  private appendObjectRowsInChunks(
+    container: HTMLElement,
+    entries: Array<[number | string, any]>,
+    depth: number,
+    taskId: number,
+  ) {
+    let startIndex = 0;
+
+    const appendChunk = (size: number) => {
+      if (taskId !== this.renderTaskId) return;
+
+      const fragment = document.createDocumentFragment();
+      const endIndex = Math.min(startIndex + size, entries.length);
+      for (let index = startIndex; index < endIndex; index += 1) {
+        const [key, value] = entries[index];
+        fragment.append(this.createObjectRow(key, value, depth));
+      }
+
+      startIndex = endIndex;
+      container.append(fragment);
+
+      if (startIndex < entries.length) {
+        this.scheduleRender(() => appendChunk(this.getBatchSize()));
+      }
+    };
+
+    appendChunk(this.getBatchSize(true));
+  }
+
   private createObjectChildNode(target, depth) {
     const node = document.createElement('div');
     node.classList.add('bklog-json-view-child');
     node.classList.add('bklog-json-view-object');
-    if (Array.isArray(target)) {
-      target.forEach((item, index) => {
-        const row = document.createElement('div');
-        row.classList.add('bklog-json-view-row');
-        row.append(this.createJsonField(index));
-        row.append(this.createJsonSymbol());
-        row.append(this.createJsonNodeElment(item, depth));
 
-        node.append(row);
-      });
+    const entries: Array<[number | string, any]> = Array.isArray(target)
+      ? target.map((item, index) => [index, item])
+      : Object.keys(target ?? {}).map(key => [key, target[key]]);
 
-      return node;
-    }
-
-    for (const key of Object.keys(target ?? {})) {
-      const row = document.createElement('div');
-      row.classList.add('bklog-json-view-row');
-      row.setAttribute('data-field-name', key);
-      row.append(this.createJsonField(key));
-      row.append(this.createJsonSymbol());
-      row.append(this.createJsonNodeElment(target[key], depth));
-
-      node.append(row);
-    }
+    this.appendObjectRowsInChunks(node, entries, depth, this.renderTaskId);
 
     return node;
   }
@@ -104,7 +162,7 @@ export default class JsonView {
   private createObjectNode(target, depth) {
     const node = document.createElement('div');
     node.classList.add('bklog-json-view-object');
-    const isExpand = depth <= this.options.depth;
+    const isExpand = depth <= this.activeDepth;
 
     this.jsonNodeMap.set(node, {
       isExpand,
@@ -163,8 +221,11 @@ export default class JsonView {
     } else {
       node.classList.add('bklog-json-field-value');
       if (nodeType === 'string' && typeof this.options.segmentRender === 'function' && formatTarget !== '') {
-        setTimeout(() => {
-          this.options.segmentRender(formatTarget, node);
+        const taskId = this.renderTaskId;
+        this.scheduleRender(() => {
+          if (taskId === this.renderTaskId && node.isConnected) {
+            this.options.segmentRender(formatTarget, node);
+          }
         });
       } else {
         const displayValue = formatTarget !== null && formatTarget !== undefined && formatTarget !== ''
@@ -178,6 +239,9 @@ export default class JsonView {
   }
 
   private setJsonViewSchema(value: any) {
+    this.activeDepth = Number(this.options.depth ?? 1);
+    this.renderTaskId += 1;
+    this.clearScheduledRender();
     this.targetEl.innerHTML = '';
     this.targetEl.append(this.createJsonNodeElment(value, 1));
   }
@@ -205,8 +269,8 @@ export default class JsonView {
   private handleTargetElementClick(e) {
     const targetNode = e.target as HTMLElement;
     if (
-      targetNode.classList.contains('bklog-json-view-icon-expand') ||
-      targetNode.classList.contains('bklog-json-view-icon-text')
+      targetNode.classList.contains('bklog-json-view-icon-expand')
+      || targetNode.classList.contains('bklog-json-view-icon-text')
     ) {
       const storeNode = targetNode.closest('.bklog-json-view-object') as HTMLElement;
       if (this.jsonNodeMap.get(storeNode)) {
@@ -245,13 +309,23 @@ export default class JsonView {
     this.setJsonViewSchema(val);
   }
 
-  public initClickEvent(fn?: (...args) => void) {
+  public initClickEvent(fn?: (..._args) => void) {
+    if (this.targetElClickHandler) {
+      this.targetEl.removeEventListener('click', this.targetElClickHandler);
+    }
+    if (this.targetElMouseUpHandler) {
+      this.targetEl.removeEventListener('mouseup', this.targetElMouseUpHandler);
+    }
+
     this.rootElClick = fn;
-    this.targetEl.addEventListener('click', this.handleTargetElementClick.bind(this));
-    this.targetEl.addEventListener('mouseup', this.handleMouseUp.bind(this));
+    this.targetElClickHandler = this.handleTargetElementClick.bind(this) as EventListener;
+    this.targetElMouseUpHandler = this.handleMouseUp.bind(this) as EventListener;
+    this.targetEl.addEventListener('click', this.targetElClickHandler);
+    this.targetEl.addEventListener('mouseup', this.targetElMouseUpHandler);
   }
 
   public expand(depth: number) {
+    this.activeDepth = depth;
     for (const element of this.targetEl.querySelectorAll('[data-depth]')) {
       const elementDepth = element.getAttribute('data-depth');
       const objectElement = element.children[0] as HTMLElement;
@@ -269,10 +343,18 @@ export default class JsonView {
   }
 
   public destroy() {
+    this.renderTaskId += 1;
+    this.clearScheduledRender();
     if (this.targetEl.querySelector('.bklog-json-view-node')) {
       this.targetEl.innerHTML = '';
-      this.targetEl.removeEventListener('click', this.handleTargetElementClick.bind(this));
-      this.targetEl.removeEventListener('mouseup', this.handleMouseUp.bind(this));
+      if (this.targetElClickHandler) {
+        this.targetEl.removeEventListener('click', this.targetElClickHandler);
+        this.targetElClickHandler = undefined;
+      }
+      if (this.targetElMouseUpHandler) {
+        this.targetEl.removeEventListener('mouseup', this.targetElMouseUpHandler);
+        this.targetElMouseUpHandler = undefined;
+      }
     }
   }
 }

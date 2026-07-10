@@ -97,7 +97,7 @@
             </span>
             <JsonFormatter
               :fields="getFieldItem(field.field_name)"
-              :json-value="listData"
+              :json-value="getFieldValue(field)"
               @menu-click="agrs => handleJsonSegmentClick(agrs, field.field_name)"
             ></JsonFormatter>
           </div>
@@ -715,6 +715,15 @@
         }
         
         return result;
+      },
+      getFieldValue(field) {
+        if (!field) return '--';
+
+        if (field.field_name.indexOf('.') === -1 && field.field_name.indexOf('[') === -1) {
+          return this.listData?.[field.field_name];
+        }
+
+        return this.tableRowDeepView(this.listData, field.field_name, field.field_type, false) ?? '--';
       },
       getFieldType(fieldName) {
         return this.fieldItemMapByName[fieldName]?.field_type || '';
