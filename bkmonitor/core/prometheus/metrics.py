@@ -182,6 +182,12 @@ ACCESS_EVENT_PROCESS_PULL_DATA_COUNT = Counter(
     labelnames=("data_id",),
 )
 
+ACCESS_EVENT_QUEUE_DROPPED_COUNT = Counter(
+    name="bkmonitor_access_event_queue_dropped_count",
+    documentation="access(event) 中间队列长度保护丢弃条数",
+    labelnames=("data_id", "partition"),
+)
+
 ACCESS_PROCESS_PUSH_DATA_COUNT = Counter(
     name="bkmonitor_access_process_push_data_count",
     documentation="access 模块数据推送条数",

@@ -186,12 +186,42 @@ EVENT_LIST_KEY = register_key_with_config(
     }
 )
 
+EVENT_PARTITION_LIST_KEY = register_key_with_config(
+    {
+        "label": "[access]按partition待处理event队列",
+        "key_type": "list",
+        "key_tpl": "access.event.{data_id}.partition.{partition}",
+        "ttl": 30 * CONST_MINUTES,
+        "backend": "queue",
+    }
+)
+
 EVENT_SIGNAL_KEY = register_key_with_config(
     {
         "label": "[access]待检测event信号队列",
         "key_type": "set",
         "key_tpl": "access.event.signal",
         "ttl": 30 * CONST_MINUTES,
+        "backend": "queue",
+    }
+)
+
+EVENT_PARTITION_SIGNAL_KEY = register_key_with_config(
+    {
+        "label": "[access]按partition待检测event信号队列",
+        "key_type": "set",
+        "key_tpl": "access.event.partition.signal",
+        "ttl": 30 * CONST_MINUTES,
+        "backend": "queue",
+    }
+)
+
+EVENT_PARTITION_TASK_KEY = register_key_with_config(
+    {
+        "label": "[access]按partition处理event任务标记",
+        "key_type": "string",
+        "key_tpl": "access.event.{data_id}.partition.{partition}.task",
+        "ttl": 5 * CONST_MINUTES,
         "backend": "queue",
     }
 )

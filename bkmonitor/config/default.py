@@ -460,6 +460,17 @@ ES_RETAIN_INVALID_ALIAS = True
 # gse进程托管DATA ID
 GSE_PROCESS_REPORT_DATAID = 1100008
 
+# access event 分片队列默认关闭。切换前需停止 EventPoller，并等待旧模式 Redis List、
+# celery_service_access_event ready/unacked 全部归零；回切时同样需先排空 partition List、Signal 和任务标记。
+# 禁止在两种队列仍有在途任务时直接切换，避免改变现有事件处理顺序。
+ENABLE_ACCESS_EVENT_PARTITION_QUEUE = os.getenv("ENABLE_ACCESS_EVENT_PARTITION_QUEUE", "false").lower() == "true"
+# 保持现有保护阈值不变；分片模式下按 topic 全量 partition 数均分
+ACCESS_EVENT_QUEUE_MAX_LENGTH = int(os.getenv("ACCESS_EVENT_QUEUE_MAX_LENGTH", str(10**7)))
+# partition 任务标记超时后允许任一 poller 通过分布式占用标记恢复投递
+ACCESS_EVENT_PARTITION_TASK_TTL = int(os.getenv("ACCESS_EVENT_PARTITION_TASK_TTL", "300"))
+# heartbeat 最长续租 1 小时，避免异常任务永久占用 partition
+ACCESS_EVENT_PARTITION_TASK_MAX_LEASE = int(os.getenv("ACCESS_EVENT_PARTITION_TASK_MAX_LEASE", "3600"))
+
 # 日志采集器所属业务
 BKUNIFYLOGBEAT_METRIC_BIZ = 0
 

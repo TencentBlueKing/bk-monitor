@@ -21,12 +21,20 @@ from django.conf import settings
 import kafka
 
 from alarm_backends.core.cache import key
+from alarm_backends.service.access.event.queue import (
+    acquire_partition_task,
+    build_partition_signal,
+    enqueue_partition_messages,
+    get_partition_queue_max_length,
+    parse_partition_signal,
+)
 from alarm_backends.service.access.tasks import run_access_event_handler_v2
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.thread_backend import InheritParentThread
 from constants.common import DEFAULT_TENANT_ID
 from constants.strategy import MAX_RETRIEVE_NUMBER
 from core.drf_resource import api
+from core.prometheus import metrics
 
 
 logger = logging.getLogger("access.event")
@@ -56,6 +64,7 @@ class EventPoller:
         self.should_exit = False
         self.consumer = None
         self.polled_info = defaultdict(int)
+        self.topic_partition_counts = {}
 
     def get_consumer(self):
         if self.consumer is None:
@@ -87,6 +96,9 @@ class EventPoller:
     def poll_once(self):
         consumer = self.get_consumer()
         logger.debug(f"[start event poller] topics: {consumer.subscription()}, pod_id: {self.pod_id}")
+        if settings.ENABLE_ACCESS_EVENT_PARTITION_QUEUE and not self.refresh_partition_metadata(consumer):
+            time.sleep(1)
+            return []
         records = consumer.poll(500, max_records=MAX_RETRIEVE_NUMBER)
         messages = list(itertools.chain.from_iterable(records.values()))
         logger.debug(f"[event poller] pulled {len(messages)}, pod_id: {self.pod_id}")
@@ -122,21 +134,49 @@ class EventPoller:
         while True:
             if time.time() - check_time < 5.0:
                 time.sleep(1)
-            client = key.EVENT_SIGNAL_KEY.client
-            signal_channel = key.EVENT_SIGNAL_KEY.get_key()
-            signals = client.smembers(signal_channel)
-            # send task
-            for data_id in signals:
-                run_access_event_handler_v2.delay(data_id)
-                logger.info(
-                    "[access event poller] data_id(%s) pod_id(%s) push alarm list(%s) to redis %s",
-                    data_id,
-                    self.pod_id,
-                    self.polled_info[data_id],
-                    key.EVENT_LIST_KEY.get_key(data_id=data_id),
-                )
+            self.kick_tasks_once()
+            if settings.ENABLE_ACCESS_EVENT_PARTITION_QUEUE:
+                self.report_metrics()
             check_time = time.time()
             self.polled_info.clear()
+
+    @staticmethod
+    def report_metrics():
+        try:
+            metrics.report_all()
+        except Exception as e:
+            logger.warning("[access event poller] report metrics failed: %s", e)
+
+    def kick_tasks_once(self):
+        client = key.EVENT_SIGNAL_KEY.client
+        for data_id in sorted(client.smembers(key.EVENT_SIGNAL_KEY.get_key())):
+            run_access_event_handler_v2.delay(data_id)
+            logger.info(
+                "[access event poller] data_id(%s) pod_id(%s) push alarm list(%s) to redis %s",
+                data_id,
+                self.pod_id,
+                self.polled_info[data_id],
+                key.EVENT_LIST_KEY.get_key(data_id=data_id),
+            )
+
+        partition_signal_key = key.EVENT_PARTITION_SIGNAL_KEY.get_key()
+        for partition_signal in sorted(client.smembers(partition_signal_key)):
+            try:
+                data_id, partition = parse_partition_signal(partition_signal)
+            except ValueError:
+                logger.warning("[access event poller] invalid partition signal(%s)", partition_signal)
+                client.srem(partition_signal_key, partition_signal)
+                continue
+
+            task_key = key.EVENT_PARTITION_TASK_KEY.get_key(data_id=data_id, partition=partition)
+            task_token = acquire_partition_task(client, task_key, settings.ACCESS_EVENT_PARTITION_TASK_TTL)
+            if task_token is None:
+                continue
+            run_access_event_handler_v2.delay(
+                data_id,
+                partition=partition,
+                partition_task_token=task_token,
+            )
 
     def start(self):
         # 添加退出信号处理，支持优雅退出
@@ -146,20 +186,16 @@ class EventPoller:
         kick_task.start()
         while not self.should_exit:
             try:
-                topic_data = {}
                 messages = self.poll_once()
-                # 先收集所有消息按topic分类
-                for message in messages:
-                    topic = message.topic
-                    data = message.value
-                    if topic not in topic_data:
-                        topic_data[topic] = []
-                    topic_data[topic].append(data)
-                # 统一推送所有topic的数据到redis
-                for topic, data_list in topic_data.items():
+                grouped_messages = self.group_messages(messages)
+                for group, data_list in grouped_messages.items():
                     if data_list:
                         try:
-                            self.push_to_redis(topic, data_list)
+                            if isinstance(group, tuple):
+                                topic, partition = group
+                                self.push_to_redis(topic, data_list, partition=partition)
+                            else:
+                                self.push_to_redis(group, data_list)
                         except KeyboardInterrupt:
                             self.should_exit = True
                         except Exception:
@@ -171,23 +207,88 @@ class EventPoller:
 
         self.close()
 
+    @staticmethod
+    def group_messages(messages):
+        grouped_messages = {}
+        for message in messages:
+            if settings.ENABLE_ACCESS_EVENT_PARTITION_QUEUE:
+                group = (message.topic, message.partition)
+            else:
+                group = message.topic
+            grouped_messages.setdefault(group, []).append(message.value)
+        return grouped_messages
+
+    def refresh_partition_metadata(self, consumer):
+        partition_counts = {}
+        for topic in self.topics_map:
+            partitions = consumer.partitions_for_topic(topic)
+            if not partitions:
+                logger.warning("[access event poller] topic(%s) partition metadata is unavailable", topic)
+                return False
+            partition_counts[topic] = len(partitions)
+        self.topic_partition_counts = partition_counts
+        return True
+
     def send_signal(self, data_id):
         client = key.EVENT_SIGNAL_KEY.client
         signal_channel = key.EVENT_SIGNAL_KEY.get_key()
         client.sadd(signal_channel, data_id)
         client.expire(signal_channel, key.EVENT_SIGNAL_KEY.ttl)
 
-    def push_to_redis(self, topic, messages):
+    def push_to_redis(self, topic, messages, partition=None):
         if not messages:
             return
         messages = [m[:-1] if m[-1] == "\x00" or m[-1] == "\n" else m for m in messages]
         data_id = self.topics_map[topic]
         redis_client = key.EVENT_LIST_KEY.client
-        data_channel = key.EVENT_LIST_KEY.get_key(data_id=data_id)
-        redis_client.lpush(data_channel, *messages)
-        redis_client.expire(data_channel, key.EVENT_LIST_KEY.ttl)
-        self.send_signal(data_id)
-        self.polled_info[data_id] += len(messages)
+        if settings.ENABLE_ACCESS_EVENT_PARTITION_QUEUE and partition is not None:
+            partition_count = self.topic_partition_counts[topic]
+            max_length = get_partition_queue_max_length(settings.ACCESS_EVENT_QUEUE_MAX_LENGTH, partition_count)
+            data_channel = key.EVENT_PARTITION_LIST_KEY.get_key(data_id=data_id, partition=partition)
+            partition_signal = build_partition_signal(data_id, partition)
+            task_key = key.EVENT_PARTITION_TASK_KEY.get_key(data_id=data_id, partition=partition)
+            dropped_count, task_token = enqueue_partition_messages(
+                client=redis_client,
+                queue_key=data_channel,
+                signal_key=key.EVENT_PARTITION_SIGNAL_KEY.get_key(),
+                signal_member=partition_signal,
+                task_key=task_key,
+                messages=messages,
+                max_length=max_length,
+                queue_ttl=key.EVENT_PARTITION_LIST_KEY.ttl,
+                task_ttl=settings.ACCESS_EVENT_PARTITION_TASK_TTL,
+            )
+            if task_token is not None:
+                run_access_event_handler_v2.delay(
+                    data_id,
+                    partition=partition,
+                    partition_task_token=task_token,
+                )
+            polled_key = (data_id, partition)
+            metric_partition = str(partition)
+        else:
+            max_length = settings.ACCESS_EVENT_QUEUE_MAX_LENGTH
+            data_channel = key.EVENT_LIST_KEY.get_key(data_id=data_id)
+            redis_client.lpush(data_channel, *messages)
+            redis_client.expire(data_channel, key.EVENT_LIST_KEY.ttl)
+            dropped_count = 0
+            self.send_signal(data_id)
+            polled_key = data_id
+            metric_partition = "legacy"
+
+        if dropped_count:
+            metrics.ACCESS_EVENT_QUEUE_DROPPED_COUNT.labels(data_id=data_id, partition=metric_partition).inc(
+                dropped_count
+            )
+            logger.warning(
+                "[access event poller] data_id(%s) partition(%s) queue exceeded max length(%s), "
+                "dropped oldest events(%s)",
+                data_id,
+                metric_partition,
+                max_length,
+                dropped_count,
+            )
+        self.polled_info[polled_key] += len(messages)
         logger.debug(
             "data_id(%s) topic(%s) pod_id(%s) push alarm list(%s) to redis %s",
             data_id,

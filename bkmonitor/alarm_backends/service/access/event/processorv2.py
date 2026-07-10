@@ -25,6 +25,13 @@ from alarm_backends.core.storage.kafka_v2 import KafkaQueueV2 as KafkaQueue
 from alarm_backends.service.access.base import BaseAccessProcess
 from alarm_backends.service.access.data.filters import HostStatusFilter, RangeFilter
 from alarm_backends.service.access.event.filters import ConditionFilter, ExpireFilter
+from alarm_backends.service.access.event.queue import (
+    build_partition_signal,
+    finish_partition_task as finish_partition_task_state,
+    get_event_lock_id,
+    get_event_queue_key,
+    pull_event_records,
+)
 from alarm_backends.service.access.event.qos import QoSMixin
 from alarm_backends.service.access.event.records import (
     AgentEvent,
@@ -214,10 +221,11 @@ class AccessCustomEventGlobalProcessV2(BaseAccessEventProcess):
             cls._kafka_queues[queue_key] = kafka_queue
         return cls._kafka_queues[queue_key]
 
-    def __init__(self, data_id=None, topic=None):
+    def __init__(self, data_id=None, topic=None, partition=None):
         super().__init__()
 
         self.data_id = data_id
+        self.partition = partition
         if not topic:
             # 获取topic信息
             topic_info = api.metadata.get_data_id(
@@ -292,26 +300,29 @@ class AccessCustomEventGlobalProcessV2(BaseAccessEventProcess):
                 return GseProcessEventRecord(raw_data, self.strategies)
 
     def _pull_from_redis(self, max_records=MAX_RETRIEVE_NUMBER):
-        data_channel = key.EVENT_LIST_KEY.get_key(data_id=self.data_id)
+        data_channel = get_event_queue_key(
+            data_id=self.data_id,
+            partition=self.partition,
+            legacy_key=key.EVENT_LIST_KEY,
+            partition_key=key.EVENT_PARTITION_LIST_KEY,
+        )
         client = key.DATA_LIST_KEY.client
 
         total_events = client.llen(data_channel)
-        # 如果队列中事件数量超过1亿条，则记录日志，并进行清理
-        # 有损，但需要保证整体服务依赖redis稳定
-        if total_events > 10**7:
-            logger.warning(
-                f"[access event] data_id({self.data_id}) has {total_events} events, cleaning up! drop all events."
-            )
-            client.delete(data_channel)
-            return []
-
         offset = min([total_events, max_records])
         if offset == 0:
             logger.info(f"[access event] data_id({self.data_id}) 暂无待检测事件")
             return []
 
+        use_atomic_pull = self.partition is not None or total_events > settings.ACCESS_EVENT_QUEUE_MAX_LENGTH
         try:
-            records = client.lrange(data_channel, -offset, -1)
+            if use_atomic_pull:
+                max_length = settings.ACCESS_EVENT_QUEUE_MAX_LENGTH if self.partition is None else 0
+                records, dropped_count = pull_event_records(client, data_channel, max_records, max_length=max_length)
+                offset = len(records)
+            else:
+                records = client.lrange(data_channel, -offset, -1)
+                dropped_count = 0
         except UnicodeDecodeError as e:
             logger.error(
                 "drop events: data_id(%s) topic(%s) poll alarm list(%s) from redis failed: %s",
@@ -320,19 +331,48 @@ class AccessCustomEventGlobalProcessV2(BaseAccessEventProcess):
                 offset,
                 e,
             )
-            client.ltrim(data_channel, 0, -offset - 1)
+            if not use_atomic_pull:
+                client.ltrim(data_channel, 0, -offset - 1)
             return self._pull_from_redis(max_records=max_records)
 
+        if dropped_count:
+            logger.warning(
+                "[access event] data_id(%s) legacy queue exceeded max length(%s), dropped oldest events(%s)",
+                self.data_id,
+                settings.ACCESS_EVENT_QUEUE_MAX_LENGTH,
+                dropped_count,
+            )
+            metrics.ACCESS_EVENT_QUEUE_DROPPED_COUNT.labels(data_id=self.data_id, partition="legacy").inc(dropped_count)
+
         logger.info("data_id(%s) topic(%s) poll alarm list(%s) from redis", self.data_id, self.topic, len(records))
-        if records:
+        if records and not use_atomic_pull:
             client.ltrim(data_channel, 0, -offset - 1)
-        if offset == MAX_RETRIEVE_NUMBER:
+        if offset == MAX_RETRIEVE_NUMBER and self.partition is None:
             # 队列中时间量级超过单次处理上限。
             logger.info("data_id(%s) topic(%s) run_access_event_handler_v2 immediately", self.data_id, self.topic)
             from alarm_backends.service.access.tasks import run_access_event_handler_v2
 
             run_access_event_handler_v2.delay(self.data_id)
         return records
+
+    def finish_partition_task(self, task_token):
+        if self.partition is None:
+            return False
+
+        client = key.EVENT_PARTITION_LIST_KEY.client
+        queue_key = key.EVENT_PARTITION_LIST_KEY.get_key(data_id=self.data_id, partition=self.partition)
+        signal_key = key.EVENT_PARTITION_SIGNAL_KEY.get_key()
+        signal_member = build_partition_signal(self.data_id, self.partition)
+        task_key = key.EVENT_PARTITION_TASK_KEY.get_key(data_id=self.data_id, partition=self.partition)
+        return finish_partition_task_state(
+            client=client,
+            queue_key=queue_key,
+            signal_key=signal_key,
+            signal_member=signal_member,
+            task_key=task_key,
+            task_token=task_token,
+            task_ttl=settings.ACCESS_EVENT_PARTITION_TASK_TTL,
+        )
 
     def get_pull_type(self):
         # group_prefix
@@ -355,7 +395,7 @@ class AccessCustomEventGlobalProcessV2(BaseAccessEventProcess):
             logger.warning(f"[access] dataid:({self.data_id}) no topic")
             return
 
-        with service_lock(ACCESS_EVENT_LOCKS, data_id=f"{self.data_id}-[redis]"):
+        with service_lock(ACCESS_EVENT_LOCKS, data_id=get_event_lock_id(self.data_id, self.partition)):
             result = self._pull_from_redis()
         for m in result:
             if not m:

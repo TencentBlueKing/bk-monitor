@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 
 import logging
 
+from django.conf import settings
+
 from alarm_backends.core.cache import key
 from alarm_backends.core.lock.service_lock import service_lock
 from alarm_backends.service.access import ACCESS_TYPE_TO_CLASS
@@ -17,6 +19,7 @@ from alarm_backends.service.access.data import AccessBatchDataProcess, AccessDat
 from alarm_backends.service.access.data.token import TokenBucket
 from alarm_backends.service.access.event.processor import AccessCustomEventGlobalProcess
 from alarm_backends.service.access.event.processorv2 import AccessCustomEventGlobalProcessV2
+from alarm_backends.service.access.event.queue import keep_partition_task_alive, start_partition_task
 from alarm_backends.service.access.incident import AccessIncidentProcess
 from alarm_backends.service.scheduler.app import app
 from core.prometheus import metrics
@@ -132,17 +135,56 @@ def run_access_event_handler(data_id, **kwargs):
 @app.task(ignore_result=True, queue="celery_service_access_event")
 def run_access_event_handler_v2(data_id, **kwargs):
     """
-    事件处理器
-    1. 处理任务，对DataID加锁
-    2. 如果加锁成功，拉取数据；加锁失败，return；
-    3. 拉取数据成功后，如果数据大小刚好等于上限，说明可能还有数据，继续将此 DataID 发布给下个Worker
-    4. 解锁DataID，处理数据。
+    事件处理器。
+
+    legacy 任务保持按 DataID 加锁和满批续投；partition 任务按 DataID + partition 加锁，
+    处理完成后通过任务标记确保同一 partition 只续投一个任务。
     """
+    partition = kwargs.pop("partition", None)
+    partition_task_token = kwargs.pop("partition_task_token", None)
     if kwargs:
         logger.warning(f"run_access_event_handler_v2() got an unexpected keyword argument {kwargs}")
-    processor = AccessCustomEventGlobalProcessV2(data_id=data_id)
-    processor.process()
-    metrics.report_all()
+    if partition is None:
+        processor = AccessCustomEventGlobalProcessV2(data_id=data_id)
+        processor.process()
+        metrics.report_all()
+        return
+
+    if not partition_task_token:
+        logger.warning(
+            "run_access_event_handler_v2() partition(%s) is missing partition_task_token",
+            partition,
+        )
+        return
+
+    task_key = key.EVENT_PARTITION_TASK_KEY.get_key(data_id=data_id, partition=partition)
+    task_client = key.EVENT_PARTITION_TASK_KEY.client
+    active_token = start_partition_task(
+        task_client,
+        task_key,
+        partition_task_token,
+        settings.ACCESS_EVENT_PARTITION_TASK_TTL,
+    )
+    if active_token is None:
+        logger.info("run_access_event_handler_v2() partition(%s) task token is stale", partition)
+        return
+
+    with keep_partition_task_alive(
+        client=task_client,
+        task_key=task_key,
+        active_token=active_token,
+        ttl=settings.ACCESS_EVENT_PARTITION_TASK_TTL,
+        max_lease=settings.ACCESS_EVENT_PARTITION_TASK_MAX_LEASE,
+    ):
+        processor = AccessCustomEventGlobalProcessV2(data_id=data_id, partition=partition)
+        processor.process()
+        metrics.report_all()
+    if processor.finish_partition_task(active_token):
+        run_access_event_handler_v2.delay(
+            data_id,
+            partition=partition,
+            partition_task_token=active_token,
+        )
 
 
 def run_access_incident_handler(incident_broker_url: str, queue_name: str):

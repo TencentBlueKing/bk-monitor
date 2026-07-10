@@ -125,6 +125,7 @@ metrics.report_all()
 | bkmonitor_access_event_process_time            | access(event) 模块处理耗时         | histogram |
 | bkmonitor_access_event_process_count           | access(event) 模块处理次数         | counter   |
 | bkmonitor_access_event_process_pull_data_count | access(event) 模块数据拉取条数       | counter   |
+| bkmonitor_access_event_queue_dropped_count     | access(event) 中间队列长度保护丢弃条数 | counter   |
 | bkmonitor_access_process_push_data_count       | access 模块数据推送条数              | counter   |
 | bkmonitor_detect_process_time                  | detect 模块处理耗时                | histogram |
 | bkmonitor_detect_process_count                 | detect 模块处理次数                | counter   |
