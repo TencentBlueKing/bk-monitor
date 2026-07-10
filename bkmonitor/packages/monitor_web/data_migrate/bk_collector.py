@@ -57,6 +57,13 @@ DEFAULT_CONFIG_DELIVERY_WAIT_TIMEOUT = 90
 DEFAULT_CONFIG_DELIVERY_POLL_INTERVAL = 10
 
 
+def _refresh_biz_ping_conf(*, bk_tenant_id: str, bk_biz_ids: list[int], plugin_name: str) -> None:
+    # 延迟导入，避免 data_migrate 初始化时加载 metadata.task 下的全部周期任务。
+    from metadata.task.ping_server import refresh_biz_ping_conf
+
+    refresh_biz_ping_conf(bk_tenant_id=bk_tenant_id, bk_biz_ids=bk_biz_ids, plugin_name=plugin_name)
+
+
 def _set_nodeman_api() -> str | None:
     """
     单租户情况下，如果使用的是esb，有些API调用会有问题，需要临时切换到apigw
@@ -319,6 +326,22 @@ def refresh_biz_bk_collector_proxy_configs(
             report["message"] = "dry run completed, proxy config delivery check skipped"
         else:
             report["message"] = "refresh completed, proxy config delivery check skipped"
+
+    if not dry_run:
+        try:
+            _refresh_biz_ping_conf(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_ids=bk_biz_ids,
+                plugin_name=PLUGIN_NAME,
+            )
+        except Exception:  # noqa: BLE001 - Ping Server 是附带下发，任何异常都不能影响原配置刷新结果。
+            logger.exception(
+                "refresh_biz_bk_collector_proxy_configs: refresh ping server config failed and skipped "
+                "bk_tenant_id=%s bk_biz_ids=%s",
+                bk_tenant_id,
+                bk_biz_ids,
+            )
+
     logger.info(
         "refresh_biz_bk_collector_proxy_configs: completed bk_tenant_id=%s bk_biz_ids=%s result=%s "
         "summary=%s message=%s",
