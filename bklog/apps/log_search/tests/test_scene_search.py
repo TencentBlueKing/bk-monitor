@@ -801,13 +801,23 @@ class TestSceneUnifyQueryHandler(TestCase):
     @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
     @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
     @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
-    def test_deal_query_result(self, mock_local, mock_user, mock_ext_user):
+    @patch(
+        "apps.log_unifyquery.handler.scene_search.IndexSetHandler.get_all_related_space_uids",
+        return_value=[SPACE_UID],
+    )
+    def test_deal_query_result(self, mock_local, mock_user, mock_ext_user, mock_related_space_uids):
         from apps.log_search.constants import IndexSetDataType
-        from apps.log_search.models import LogIndexSetData
+        from apps.log_search.models import LogIndexSet, LogIndexSetData
         from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 
         params = {**SEARCH_POST_BODY, "begin": 0, "size": 10}
         handler = SceneUnifyQueryHandler(params)
+        LogIndexSet.objects.create(
+            index_set_id=123,
+            index_set_name="scene_idx",
+            space_uid=SPACE_UID,
+            scenario_id="log",
+        )
         LogIndexSetData.objects.create(
             index_set_id=123,
             result_table_id="2_bklog.test_container_stdout",
@@ -833,21 +843,68 @@ class TestSceneUnifyQueryHandler(TestCase):
         self.assertEqual(result["list"][0]["__id__"], "doc1")
         self.assertEqual(result["list"][0]["__index_set_id__"], 123)
         self.assertNotIn("__index", result["list"][0])
+        mock_related_space_uids.assert_called_once_with(SPACE_UID)
 
-    def test_get_result_table_index_set_map(self):
+    @patch(
+        "apps.log_unifyquery.handler.scene_search.IndexSetHandler.get_all_related_space_uids",
+        return_value=[SPACE_UID, "bkcc__3"],
+    )
+    def test_get_result_table_index_set_map(self, mock_related_space_uids):
         from apps.log_search.constants import IndexSetDataType
-        from apps.log_search.models import LogIndexSetData
+        from apps.log_search.models import LogIndexSet, LogIndexSetData
         from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 
+        LogIndexSet.objects.create(
+            index_set_id=101,
+            index_set_name="scene_source",
+            space_uid=SPACE_UID,
+            scenario_id="log",
+        )
+        LogIndexSet.objects.create(
+            index_set_id=102,
+            index_set_name="related_scene_source",
+            space_uid="bkcc__3",
+            scenario_id="log",
+        )
+        LogIndexSet.objects.create(
+            index_set_id=103,
+            index_set_name="other_scene_source",
+            space_uid="bkcc__4",
+            scenario_id="log",
+        )
         LogIndexSetData.objects.create(
             index_set_id=101,
             result_table_id="2_bklog.scene_source_table",
             type=IndexSetDataType.RESULT_TABLE.value,
         )
+        LogIndexSetData.objects.create(
+            index_set_id=102,
+            result_table_id="3_bklog.related_scene_source_table",
+            type=IndexSetDataType.RESULT_TABLE.value,
+        )
+        LogIndexSetData.objects.create(
+            index_set_id=103,
+            result_table_id="4_bklog.other_scene_source_table",
+            type=IndexSetDataType.RESULT_TABLE.value,
+        )
 
-        result = SceneUnifyQueryHandler._get_result_table_index_set_map({"2_bklog.scene_source_table"})
+        handler = SceneUnifyQueryHandler({**BASE_POST_BODY, "start_time": "", "end_time": ""})
+        result = handler._get_result_table_index_set_map(
+            {
+                "2_bklog.scene_source_table",
+                "3_bklog.related_scene_source_table",
+                "4_bklog.other_scene_source_table",
+            }
+        )
 
-        self.assertEqual(result, {"2_bklog.scene_source_table": 101})
+        self.assertEqual(
+            result,
+            {
+                "2_bklog.scene_source_table": 101,
+                "3_bklog.related_scene_source_table": 102,
+            },
+        )
+        mock_related_space_uids.assert_called_once_with(SPACE_UID)
 
     @patch("apps.log_unifyquery.handler.scene_search.UnifyQueryApi.query_ts_raw")
     @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")

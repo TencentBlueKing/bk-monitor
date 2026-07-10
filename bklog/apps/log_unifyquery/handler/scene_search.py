@@ -27,7 +27,8 @@ from apps.log_search.constants import (
     FieldBuiltInEnum,
     IndexSetDataType,
 )
-from apps.log_search.models import LogIndexSetData
+from apps.log_search.handlers.index_set import IndexSetHandler
+from apps.log_search.models import LogIndexSet, LogIndexSetData
 from apps.log_unifyquery.constants import BASE_OP_MAP, SEARCH_AFTER_KEY
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
@@ -204,18 +205,21 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
     # Override _deal_query_result to handle missing index_set_ids
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _get_result_table_index_set_map(result_table_ids: set[str]) -> dict[str, int]:
-        """将结果表映射为索引集。"""
+    def _get_result_table_index_set_map(self, result_table_ids: set[str]) -> dict[str, int]:
+        """将当前空间及其关联空间内的结果表映射为索引集。"""
         result_table_ids = {result_table_id for result_table_id in result_table_ids if result_table_id}
         if not result_table_ids:
             return {}
 
+        space_uids = IndexSetHandler.get_all_related_space_uids(self.space_uid)
+        index_set_ids = LogIndexSet.objects.filter(space_uid__in=space_uids, is_group=False).values_list(
+            "index_set_id", flat=True
+        )
         return dict(
             LogIndexSetData.objects.filter(
+                index_set_id__in=index_set_ids,
                 result_table_id__in=result_table_ids,
                 type=IndexSetDataType.RESULT_TABLE.value,
-                is_deleted=False,
             ).values_list("result_table_id", "index_set_id")
         )
 
