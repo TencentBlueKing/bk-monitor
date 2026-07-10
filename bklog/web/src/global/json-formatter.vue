@@ -297,7 +297,7 @@
   const getOriginalValueRenderText = (fieldName: string) => {
     const field = fieldList.value.find((item: any) => item.field_name === fieldName) ?? { field_name: fieldName };
     const [, val] = getFieldValue(field);
-    const renderText = getDateFieldValue(field, getCellRender(val), false);
+    const renderText = getDateFieldValue(field, getCellRender(val), isFormatDateField.value);
     return renderText?.replace?.(/<\/mark>/igm, '</mark>') ?? String(renderText ?? '');
   };
 
@@ -545,7 +545,7 @@
 
   const rootList = computed(() => {
     return fieldList.value.map((f: any) => {
-      const shouldFormatDate = isFormatDateField.value && !!f.__is_virtual_root__;
+      const shouldFormatDate = isFormatDateField.value && (!!f.__is_virtual_root__ || isOriginalMode.value);
       const formatter = getFieldFormatter(f, shouldFormatDate);
       const originalValueDisplayText = getOriginalValueDisplayText(f.field_name, formatter.stringValue);
       const shouldUseOriginalValueText = isOriginalMode.value && isOriginalValueTruncated(f.field_name);
@@ -935,9 +935,42 @@
 
     &.is-inline {
       .bklog-root-field {
-        display: inline-flex;
+        display: inline;
         word-break: break-all;
-        vertical-align: top; // 确保顶部对齐，避免基线对齐问题
+        vertical-align: baseline;
+
+        .field-name,
+        .field-value {
+          display: inline;
+          white-space: normal;
+        }
+
+        .field-name[data-is-virtual-root='true'] {
+          display: none;
+        }
+
+        // Table 非换行模式复用 Origin 的 JSON 渲染内容，只将外层流式排布改成 inline；
+        // 不能隐藏 .bklog-json-view-icon-text，否则收起态的 {...}/[...] 会丢失。
+        .field-value > .bklog-json-view-node,
+        .field-value > .bklog-json-view-node > .bklog-json-view-object,
+        .field-value > .bklog-json-view-node > .bklog-json-view-object > .bklog-json-view-icon-expand,
+        .field-value > .bklog-json-view-node > .bklog-json-view-object > .bklog-json-view-icon-text,
+        .field-value > .bklog-json-view-node > .bklog-json-view-object > .bklog-json-view-copy {
+          display: inline-block;
+          white-space: normal;
+          vertical-align: baseline;
+        }
+
+        .field-value > .bklog-json-view-node > .bklog-json-view-object > .bklog-json-view-icon-expand {
+          vertical-align: middle;
+        }
+
+        .bklog-json-field-value,
+        .segment-content,
+        .bklog-scroll-cell {
+          display: inline;
+          white-space: normal;
+        }
 
         .segment-content {
           word-break: break-all;

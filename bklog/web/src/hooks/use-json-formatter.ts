@@ -31,11 +31,9 @@ import JsonView from '../global/json-view';
 import segmentPopInstance from '../global/utils/segment-pop-instance';
 import {
   getClickTargetElement,
-  optimizedSplit,
   setPointerCellClickTargetHandler,
   setScrollLoadCell,
 } from './hooks-helper';
-import LuceneSegment from './lucene.segment';
 import UseSegmentPropInstance from './use-segment-pop';
 
 import type { Ref } from 'vue';
@@ -206,6 +204,22 @@ export default class UseJsonFormatter {
       : val.replace(new RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]);
   }
 
+  splitTextIntoChunks(value: string, chunkSize = 2000) {
+    if (!value) {
+      return [];
+    }
+
+    const chunks: string[] = [];
+    for (let index = 0; index < value.length; index += chunkSize) {
+      chunks.push(value.slice(index, index + chunkSize));
+    }
+
+    return chunks.map(text => ({
+      text,
+      isCursorText: true,
+    }));
+  }
+
   getSplitList(field: any, content: any, options: { usePrecomputedSegments?: boolean } = {}) {
     const fieldName = typeof field === 'string' ? field : field?.field_name;
     const usePrecomputedSegments = options.usePrecomputedSegments ?? true;
@@ -216,24 +230,13 @@ export default class UseJsonFormatter {
 
     /** 检索高亮分词字符串 */
     const markRegStr = '<mark>(.*?)</mark>';
-    const value = this.escapeString(`${content}`);
-    if (this.isAnalyzed(field)) {
-      if (field.tokenize_on_chars) {
-        // 这里进来的都是开了分词的情况
-        return optimizedSplit(value, field.tokenize_on_chars);
-      }
+    const value = this.escapeString(String(content));
 
-      return LuceneSegment.split(value, 1000);
-    }
-
-    return [
-      {
-        text: value.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
-        isNotParticiple: this.isTextField(field),
-        isMark: new RegExp(markRegStr).test(value),
-        isCursorText: true,
-      },
-    ];
+    return this.splitTextIntoChunks(value).map(item => ({
+      ...item,
+      isNotParticiple: this.isTextField(field),
+      isMark: new RegExp(markRegStr).test(item.text),
+    }));
   }
 
   getChildItem(item) {
@@ -314,26 +317,6 @@ export default class UseJsonFormatter {
         const vlaues = this.getSplitList(field, text);
         const targetElement = element as HTMLElement;
 
-        if (process.env.NODE_ENV === 'development' && fieldName === 'log') {
-          const debugPayload = {
-            fieldName,
-            fieldType: field?.field_type,
-            textPreview: String(text ?? '').slice(0, 300),
-            tokenCount: Array.isArray(vlaues) ? vlaues.length : -1,
-            tokensPreview: Array.isArray(vlaues)
-              ? vlaues.slice(0, 5).map((item: any) => ({
-                text: item?.text,
-                isMark: item?.isMark,
-                isCursorText: item?.isCursorText,
-                isBlobWord: item?.isBlobWord,
-                isNotParticiple: item?.isNotParticiple,
-              }))
-              : [],
-            beforeInnerHTML: targetElement.innerHTML,
-          };
-          console.info('[use-json-formatter:setNodeValueWordSplit]', debugPayload);
-        }
-
         targetElement.setAttribute('data-has-word-split', '1');
         targetElement.setAttribute('data-field-name', fieldName);
         targetElement.setAttribute('data-field-type', field?.field_type);
@@ -351,21 +334,12 @@ export default class UseJsonFormatter {
           targetElement,
           segmentContent,
           this.getChildItem,
-          { pageSize: 80, maxAutoRenderItems: 240 },
+          { pageSize: 1, maxAutoRenderItems: 1 },
         );
         removeScrollEvent();
 
         targetElement.append(segmentContent);
-        setListItem(120, () => {
-          if (process.env.NODE_ENV === 'development' && fieldName === 'log') {
-            console.info('[use-json-formatter:setNodeValueWordSplit:afterRender]', {
-              fieldName,
-              textPreview: String(text ?? '').slice(0, 300),
-              renderedText: targetElement.textContent?.slice(0, 300),
-              renderedHtml: targetElement.innerHTML.slice(0, 500),
-              childCount: targetElement.querySelectorAll('span').length,
-            });
-          }
+        setListItem(1, () => {
           this.config.onSegmentRenderUpdate?.();
         });
 
@@ -441,24 +415,6 @@ export default class UseJsonFormatter {
         const vlaues = this.getSplitList(this.config.field, value, { usePrecomputedSegments: false });
         if (taskId !== this.segmentTaskId || !rootNode.isConnected) return;
 
-        if (process.env.NODE_ENV === 'development' && this.config.field?.field_name === 'log') {
-          console.info('[use-json-formatter:json-leaf-segmentRender]', {
-            rootFieldName: this.config.field?.field_name,
-            leafFieldName: rootNode.closest('.bklog-json-view-row')?.getAttribute('data-field-name'),
-            valuePreview: String(value ?? '').slice(0, 300),
-            tokenCount: Array.isArray(vlaues) ? vlaues.length : -1,
-            tokensPreview: Array.isArray(vlaues)
-              ? vlaues.slice(0, 5).map((item: any) => ({
-                text: item?.text,
-                isMark: item?.isMark,
-                isCursorText: item?.isCursorText,
-                isBlobWord: item?.isBlobWord,
-                isNotParticiple: item?.isNotParticiple,
-              }))
-              : [],
-          });
-        }
-
         const segmentContent = this.creatSegmentNodes();
         rootNode.append(segmentContent);
 
@@ -471,10 +427,10 @@ export default class UseJsonFormatter {
           rootNode,
           segmentContent,
           this.getChildItem,
-          { pageSize: 80, maxAutoRenderItems: 240 },
+          { pageSize: 1, maxAutoRenderItems: 1 },
         );
         removeScrollEvent();
-        setListItem(120, this.config.onSegmentRenderUpdate);
+        setListItem(1, this.config.onSegmentRenderUpdate);
       },
     });
 
