@@ -825,6 +825,7 @@ class TestSceneUnifyQueryHandler(TestCase):
         )
 
         raw_result = {
+            "result_table_id": ["2_bklog.test_container_stdout"],
             "list": [
                 {
                     "log": "test error",
@@ -890,11 +891,11 @@ class TestSceneUnifyQueryHandler(TestCase):
 
         handler = SceneUnifyQueryHandler({**BASE_POST_BODY, "start_time": "", "end_time": ""})
         result = handler._get_result_table_index_set_map(
-            {
+            [
                 "2_bklog.scene_source_table",
                 "3_bklog.related_scene_source_table",
                 "4_bklog.other_scene_source_table",
-            }
+            ]
         )
 
         self.assertEqual(

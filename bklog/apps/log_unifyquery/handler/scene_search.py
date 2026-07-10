@@ -205,7 +205,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
     # Override _deal_query_result to handle missing index_set_ids
     # ------------------------------------------------------------------
 
-    def _get_result_table_index_set_map(self, result_table_ids: set[str]) -> dict[str, int]:
+    def _get_result_table_index_set_map(self, result_table_ids: list[str]) -> dict[str, int]:
         """将当前空间及其关联空间内的结果表映射为索引集。"""
         result_table_ids = {result_table_id for result_table_id in result_table_ids if result_table_id}
         if not result_table_ids:
@@ -227,7 +227,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         log_list = []
         origin_log_list = []
         logs = result_dict.get("list", [])
-        result_table_index_set_map = self._get_result_table_index_set_map({log.get("__result_table") for log in logs})
+        result_table_index_set_map = self._get_result_table_index_set_map(result_dict.get("result_table_id") or [])
         for log in logs:
             log = merge_nested_data(log)
             index_set_id = result_table_index_set_map.get(log.get("__result_table"))
