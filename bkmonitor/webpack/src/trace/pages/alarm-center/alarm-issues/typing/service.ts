@@ -25,6 +25,7 @@
  */
 
 import type { CommonFilterParams, QuickFilterItem } from '../../typings';
+import type { TrendRangeType } from './constants';
 import type { IssueItem } from './table';
 
 /** Issue 搜索请求参数 */
@@ -38,7 +39,6 @@ export interface IssueSearchParams extends CommonFilterParams {
   /** 告警趋势图开始时间（trend_end_time 往前推 24 小时） */
   trend_start_time?: number;
 }
-
 /** Issue 搜索响应结果 */
 export interface IssueSearchResponse {
   /** 聚合数据 */
@@ -47,4 +47,10 @@ export interface IssueSearchResponse {
   issues: IssueItem[];
   /** 总数 */
   total: number;
+}
+
+/** Issues 表格列表查询参数（扩展公共参数，增加趋势范围） */
+export interface IssuesFilterTableParams extends Partial<CommonFilterParams> {
+  /** 趋势时间范围状态值，内部转换为趋势时间参数 */
+  trendRange?: TrendRangeType;
 }

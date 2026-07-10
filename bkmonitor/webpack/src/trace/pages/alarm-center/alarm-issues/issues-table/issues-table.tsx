@@ -24,19 +24,20 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, useTemplateRef } from 'vue';
+import { type PropType, computed, defineComponent, toRef, useTemplateRef } from 'vue';
 
 import CommonTable from '../../components/alarm-table/components/common-table/common-table';
 import { usePopover } from '../../components/alarm-table/hooks/use-popover';
 import { useEchartsGroupConnect } from '../../composables/use-echarts-group';
 import { useTableScrollOptimize } from '../../composables/use-table-scroll-optimize';
-import { ENDED_STATUS_SET } from '../constant';
+import { ENDED_STATUS_SET, TrendRangeEnum } from '../constant';
 import { useIssuesColumnsRenderer } from './hooks/use-issues-columns-renderer';
 import { useIssuesHandlers } from './hooks/use-issues-handlers';
 import ExploreTableEmpty from '@/pages/trace-explore/components/trace-explore-table/components/explore-table-empty';
 
 import type { ColumnResizeContext, TableColumnItem, TablePagination } from '../../typings';
 import type { ImpactScopeEvent, IssueItem, IssuePriorityType, IssuesBatchActionType } from '../typing';
+import type { TrendRangeType } from '../typing/constants';
 import type { SelectOptions, SlotReturnValue } from 'tdesign-vue-next';
 
 import './issues-table.scss';
@@ -100,6 +101,11 @@ export default defineComponent({
       type: Function as PropType<(id: string, name: string) => Promise<void>>,
       default: () => () => Promise.resolve(),
     },
+    /** 当前趋势范围 */
+    trendRange: {
+      type: String as PropType<TrendRangeType>,
+      default: TrendRangeEnum.HOURS_24,
+    },
   },
   emits: {
     /** 页码变化 */
@@ -127,6 +133,8 @@ export default defineComponent({
     clearFilter: () => true,
     /** 列宽拖拽变化回调 */
     columnResizeChange: (context: ColumnResizeContext) => context && typeof context.columnsWidth === 'object',
+    /** 趋势范围变化 */
+    trendRangeChange: (range: TrendRangeType) => range === TrendRangeEnum.HOURS_24 || range === TrendRangeEnum.DAYS_7,
   },
   setup(props, { emit }) {
     const tableRef = useTemplateRef<InstanceType<typeof CommonTable>>('tableRef');
@@ -174,6 +182,8 @@ export default defineComponent({
       handleImpactScopeClick,
       handleSplitClick,
       handleNameChange: (row, name) => props.nameChange(row.id, name),
+      trendRange: toRef(props, 'trendRange'),
+      onTrendRangeChange: range => emit('trendRangeChange', range),
     });
 
     /** 转换后的列配置 */

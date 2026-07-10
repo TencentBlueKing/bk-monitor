@@ -120,6 +120,26 @@
   }
 
   // ===================== 趋势列 =====================
+  .issues-trend-header {
+    display: flex;
+    column-gap: 4px;
+    align-items: center;
+
+    .bk-radio-capsule {
+      padding: 3px;
+      border-radius: 4px;
+
+      .bk-radio-button-label {
+        width: 28px;
+        height: 18px;
+        padding: 0;
+        font-weight: 500;
+        line-height: 18px;
+        border-radius: 2px;
+      }
+    }
+  }
+
   .issues-trend-col {
     &.is-empty {
       display: flex;

@@ -102,7 +102,7 @@ import { useIssuesImpactScopeDrawer } from './alarm-issues/components/issues-imp
 import IssuesImpactScopeDrawer from './alarm-issues/components/issues-impact-scope-drawer/issues-impact-scope-drawer';
 import { useIssuesDialogs } from './alarm-issues/components/issues-operation-dialogs/hooks/use-issues-dialogs';
 import IssuesOperationDialogs from './alarm-issues/components/issues-operation-dialogs/issues-operation-dialogs';
-import { IssuesBatchActionEnum } from './alarm-issues/constant';
+import { getTrendRangeSeconds, IssuesBatchActionEnum, TrendRangeEnum } from './alarm-issues/constant';
 import { useIssuesMergeActions } from './alarm-issues/hooks/use-issues-merge-actions';
 import IssuesDetailSideSlider from './alarm-issues/issues-detail/issues-detail-sideslider';
 import IssuesMergeSplitSideslider from './alarm-issues/issues-merge-split/issues-merge-split-sideslider';
@@ -119,6 +119,7 @@ import { saveAlertContentName } from './services/alert-services';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
 import type { IssueItem, IssuePriorityType, IssuesBatchActionType } from './alarm-issues/typing';
+import type { TrendRangeType } from './alarm-issues/typing';
 import type { AlertSavePromiseEvent } from './components/alarm-table/components/alert-content-detail/alert-content-detail';
 
 import './alarm-center.scss';
@@ -157,7 +158,7 @@ export default defineComponent({
       handleQuickFilteringOperation,
     } = useQuickFilter();
 
-    const { data, loading, total, page, pageSize, ordering, enabledSpaces, wxCsLink } = useAlarmTable();
+    const { data, loading, total, page, pageSize, ordering, trendRange, enabledSpaces, wxCsLink } = useAlarmTable();
 
     /** 表格分页配置 */
     const pagination = computed(() => ({
@@ -367,7 +368,8 @@ export default defineComponent({
         .filter(item => selectedIds.has(item.id))
         .map(item => ({ bk_biz_id: item.bk_biz_id, issue_id: item.id }));
       const { end_time: trendEndTime } = alarmStore.timeRangeTimestamp;
-      const trendStartTime = trendEndTime ? trendEndTime - 24 * 60 * 60 : undefined;
+      const trendSeconds = getTrendRangeSeconds(trendRange.value);
+      const trendStartTime = trendEndTime ? trendEndTime - trendSeconds : undefined;
       await exportIssues({ issues, trend_start_time: trendStartTime, trend_end_time: trendEndTime });
     };
 
@@ -617,6 +619,7 @@ export default defineComponent({
         currentPage: page.value,
         sortOrder: ordering.value,
         showResidentBtn: String(showResidentBtn.value),
+        issuesTrendRange: trendRange.value,
         ...detailUrlParams,
       };
     });
@@ -670,6 +673,8 @@ export default defineComponent({
         tapdIssueId: queryTapdIssueId,
         /** 最后一次操作的快速过滤条件分类数据 */
         lastQuickFilterCategoryData,
+        /** issues 趋势范围 */
+        issuesTrendRange,
         /** issue 相关参数 */
         issueFirstAlarmTime: queryIssueFirstAlarmTime,
         /** 以下是兼容事件中心的URL参数 */
@@ -736,6 +741,8 @@ export default defineComponent({
           tapdBizId.value = Number(queryTapdBizId) || null;
           tapdIssueId.value = (queryTapdIssueId as string) || '';
         }
+        trendRange.value =
+          (issuesTrendRange as string) === TrendRangeEnum.DAYS_7 ? TrendRangeEnum.DAYS_7 : TrendRangeEnum.HOURS_24;
         alarmStore.initAlarmService();
       } catch (error) {
         console.log('route query:', error);
@@ -1235,6 +1242,7 @@ export default defineComponent({
       tapdIssueId,
       tapdIssueFirstAlarmTime,
       handleIssuesTapdShowChange,
+      trendRange,
     };
   },
   render() {
@@ -1427,6 +1435,7 @@ export default defineComponent({
                                 scrollContainerSelector={`.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`}
                                 selectedRowKeys={this.selectedRowKeys}
                                 sort={this.ordering}
+                                trendRange={this.trendRange}
                                 onAction={(type: IssuesBatchActionType, id: string) =>
                                   this.handleIssuesDialogShow(type, id)
                                 }
@@ -1453,6 +1462,9 @@ export default defineComponent({
                                 onShowDetail={this.handleIssuesShowDetail}
                                 onSortChange={sort => this.handleSortChange(sort as string)}
                                 onSplitClick={this.handleIssuesSplitClick}
+                                onTrendRangeChange={(range: TrendRangeType) => {
+                                  this.trendRange = range;
+                                }}
                               />
                             </IssuesToolbar>
                           ) : (

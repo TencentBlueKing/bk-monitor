@@ -27,10 +27,13 @@ import { ref as deepRef, onMounted, onScopeDispose, shallowRef, watchEffect } fr
 
 import { commonPageSizeGet } from 'monitor-common/utils';
 
+import { TrendRangeEnum } from '../alarm-issues/constant';
+import { AlarmType } from '../typings/constants';
 import { getOperatorDisabled } from '../utils';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
 import type { IssueItem } from '../alarm-issues/typing';
+import type { TrendRangeType } from '../alarm-issues/typing';
 import type { ActionTableItem, AlertTableItem, IncidentTableItem } from '../typings';
 
 export function useAlarmTable() {
@@ -51,6 +54,8 @@ export function useAlarmTable() {
   const enabledSpaces = deepRef<number[]>([]);
   /** BK助手链接 */
   const wxCsLink = shallowRef('');
+  /** Issues 趋势时间范围（仅 Issues 场景生效） */
+  const trendRange = shallowRef<TrendRangeType>(TrendRangeEnum.HOURS_24);
   /** 请求中止控制器 */
   let abortController: AbortController | null = null;
 
@@ -68,6 +73,7 @@ export function useAlarmTable() {
     const res = await alarmStore.alarmService.getFilterTableList(
       {
         ...alarmStore.commonFilterParams,
+        ...(alarmStore.alarmType === AlarmType.ISSUES ? { trendRange: trendRange.value } : {}),
         page_size: pageSize.value,
         page: page.value,
         ordering: ordering.value ? [ordering.value] : [],
@@ -115,6 +121,7 @@ export function useAlarmTable() {
     ordering.value = '';
     enabledSpaces.value = [];
     wxCsLink.value = '';
+    trendRange.value = TrendRangeEnum.HOURS_24;
   });
   return {
     pageSize,
@@ -123,6 +130,7 @@ export function useAlarmTable() {
     data,
     loading,
     ordering,
+    trendRange,
     enabledSpaces,
     wxCsLink,
   };

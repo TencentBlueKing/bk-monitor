@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import type { TrendRangeType } from '../alarm-issues/typing';
 import type { AlarmType } from './constants';
 import type { EMode } from '@/components/retrieval-filter/typing';
 
@@ -77,4 +78,6 @@ export interface AlarmUrlParams {
   timezone: string;
   /** 结束时间 */
   to: string;
+  /** issues 趋势范围（'24h' | '7d'） */
+  trendRange?: TrendRangeType;
 }

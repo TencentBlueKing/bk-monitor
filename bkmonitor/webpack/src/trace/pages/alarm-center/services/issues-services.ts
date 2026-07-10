@@ -27,14 +27,21 @@ import { issueSearch, issueTopN } from 'monitor-api/modules/issue';
 import { type IFilterField, EFieldType } from 'trace/components/retrieval-filter/typing';
 
 import {
+  getTrendRangeSeconds,
   ISSUES_ASSIGNEE_MAP,
   ISSUES_PRIORITY_MAP,
   ISSUES_REGRESSION_MAP,
   ISSUES_STATUS_MAP,
+  TrendRangeEnum,
 } from '../alarm-issues/constant';
 import { type RequestOptions, AlarmService } from './base';
 
-import type { IssueItem, IssueSearchParams, IssueSearchResponse } from '../alarm-issues/typing';
+import type {
+  IssueItem,
+  IssueSearchParams,
+  IssueSearchResponse,
+  IssuesFilterTableParams,
+} from '../alarm-issues/typing';
 import type {
   AnalysisFieldAggItem,
   AnalysisTopNDataResponse,
@@ -547,16 +554,19 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
     return { doc_count: 0, fields: [] };
   }
   async getFilterTableList<T = IssueItem>(
-    params: Partial<CommonFilterParams>,
+    params: Partial<IssuesFilterTableParams>,
     options?: RequestOptions
   ): Promise<FilterTableResponse<T>> {
-    // 计算告警趋势图时间范围：trend_end_time 跟随 end_time，trend_start_time 为往前 24 小时
+    // 根据 trendRange 计算趋势时间范围，未传入时默认 24h
+    // 注：params.end_time 由 commonFilterParams 提供，为必选
+    const { trendRange, ...requestArgs } = params;
+    const seconds = getTrendRangeSeconds(trendRange ?? TrendRangeEnum.HOURS_24);
     const trendEndTime = params.end_time;
-    const trendStartTime = trendEndTime ? trendEndTime - 24 * 60 * 60 : undefined;
+    const trendStartTime = trendEndTime ? trendEndTime - seconds : undefined;
 
     const data = await issueSearch<Partial<IssueSearchParams>, IssueSearchResponse>(
       {
-        ...params,
+        ...requestArgs,
         show_aggs: false,
         show_dsl: false,
         trend_end_time: trendEndTime,

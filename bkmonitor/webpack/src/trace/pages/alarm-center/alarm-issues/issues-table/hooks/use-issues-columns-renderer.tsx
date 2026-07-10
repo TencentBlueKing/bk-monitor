@@ -27,6 +27,7 @@
 import type { MaybeRef } from 'vue';
 
 import { get } from '@vueuse/core';
+import { BkRadioButton, BkRadioGroup } from 'bkui-vue/lib/radio';
 import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
 
@@ -43,16 +44,17 @@ import {
   ISSUES_REGRESSION_MAP,
   ISSUES_STATUS_MAP,
   IssueStatusEnum,
+  TrendRangeEnum,
 } from '../../constant';
 import IssueNameCell from '../components/issue-name-cell/issue-name-cell';
 
 import type { IUsePopoverTools } from '../../../components/alarm-table/hooks/use-popover';
 import type { TableColumnItem } from '../../../typings';
-import type { ImpactScopeResource, ImpactScopeResourceKeyType, IssueItem } from '../../typing';
+import type { ImpactScopeResource, ImpactScopeResourceKeyType, IssueItem, TrendRangeType } from '../../typing';
 import type { UseIssuesHandlersReturnType } from './use-issues-handlers';
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
-/** useIssuesColumnsRenderer 入参：useIssuesHandlers 返回的交互处理函数 + clickPopoverTools 弹出框工具 */
+/** useIssuesColumnsRenderer 入参：useIssuesHandlers 返回的交互处理函数 + clickPopoverTools 弹出框工具 + 趋势范围相关 */
 export type IssuesColumnsRendererCtx = {
   /** 图表联动 ID（相同 group 的 MiniBarChart 实例会联动 tooltip / 高亮） */
   chartGroupId?: MaybeRef<string>;
@@ -62,6 +64,10 @@ export type IssuesColumnsRendererCtx = {
   handleNameChange: (row: IssueItem, name: string) => Promise<void>;
   /** hover popover 工具（基础设施依赖） */
   hoverPopoverTools: IUsePopoverTools;
+  /** 切换趋势范围回调 */
+  onTrendRangeChange?: (range: TrendRangeType) => void;
+  /** 当前趋势范围 */
+  trendRange?: MaybeRef<TrendRangeType>;
 } & UseIssuesHandlersReturnType;
 
 /**
@@ -201,6 +207,29 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
           group={get(rendererCtx.chartGroupId)}
           seriesList={seriesList}
         />
+      </div>
+    ) as unknown as SlotReturnValue;
+  };
+
+  /**
+   * @description 趋势列列头渲染（24h/7d 胶囊 Radio 切换）
+   * @returns {SlotReturnValue} 趋势列列头 JSX
+   */
+  const renderTrendHeader = (): SlotReturnValue => {
+    const range = get(rendererCtx.trendRange ?? TrendRangeEnum.HOURS_24);
+    return (
+      <div class='issues-trend-header'>
+        <BkRadioGroup
+          modelValue={range}
+          size='small'
+          type='capsule'
+          onChange={(v: string) => rendererCtx.onTrendRangeChange?.(v as TrendRangeType)}
+        >
+          <BkRadioButton label={TrendRangeEnum.HOURS_24}>24h</BkRadioButton>
+          <BkRadioButton label={TrendRangeEnum.DAYS_7}>7d</BkRadioButton>
+        </BkRadioGroup>
+
+        <div class='issues-trend-header-text'>{t('趋势')}</div>
       </div>
     ) as unknown as SlotReturnValue;
   };
@@ -376,7 +405,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
     labels: { renderType: ExploreTableColumnTypeEnum.TAGS },
     last_alert_time: { cellRenderer: renderTimeCell },
     first_alert_time: { cellRenderer: renderTimeCell },
-    trend: { cellRenderer: renderTrendCell },
+    trend: { cellRenderer: renderTrendCell, title: renderTrendHeader },
     impact_scope: { cellRenderer: renderImpactCell },
     priority: { cellRenderer: renderPriorityCell },
     status: { cellRenderer: renderStatusCell },

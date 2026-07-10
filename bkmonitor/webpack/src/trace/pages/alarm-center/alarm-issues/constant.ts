@@ -30,9 +30,26 @@ import mergeIcon from '../../../static/img/issues/merge.png';
 import splitIcon from '../../../static/img/issues/split.png';
 import statusIcon from '../../../static/img/issues/status.png';
 
-import type { IssuePriorityType, IssueStatusType, MapEntry } from './typing';
+import type { IssuePriorityType, IssueStatusType, MapEntry, TrendRangeType } from './typing';
 
 // ===================== 枚举常量 =====================
+
+/** Issues 趋势时间范围枚举值 */
+export const TrendRangeEnum = {
+  /** 24 小时 */
+  HOURS_24: '24h',
+  /** 7 天 */
+  DAYS_7: '7d',
+} as const;
+
+/**
+ * 将趋势时间范围转换为秒数
+ * @param range - 趋势范围值
+ * @returns 对应的秒数
+ */
+export function getTrendRangeSeconds(range: TrendRangeType): number {
+  return range === TrendRangeEnum.DAYS_7 ? 7 * 24 * 60 * 60 : 24 * 60 * 60;
+}
 
 /** Issues 详情 Tab 枚举 */
 export const IssueDetailTabEnum = {
