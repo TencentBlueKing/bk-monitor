@@ -11,21 +11,12 @@ export interface RetrieveTextSegment {
   isNotParticiple?: boolean;
 }
 
-export interface RetrieveOriginalValuePreviewMeta {
-  isTruncated: boolean;
-  previewText: string;
-  previewSegments: RetrieveTextSegment[];
-  rawTextLength: number;
-}
-
 export interface RetrieveRowRenderMeta {
   hasTruncatedField: boolean;
   truncatedFields: string[];
   fieldSegments: Record<string, RetrieveTextSegment[]>;
   /** 大字段表格 CELL 渲染覆盖值：仅保存超 32KB 字段的截断文本，避免存储 row-shaped 副本 */
   truncatedTextByField?: Record<string, string>;
-  /** original 模式 VALUE 级 1000 字符预览元数据；不参与 table 渲染/数据处理 */
-  originalValuePreviewMeta?: Record<string, RetrieveOriginalValuePreviewMeta>;
 }
 
 interface RetrieveRowRenderMetaOptions {
@@ -322,7 +313,6 @@ export const createRetrieveRowRenderMeta = (
   const fieldSegments: Record<string, RetrieveTextSegment[]> = {};
   const sourceRow = renderRow || rawRow;
   let truncatedTextByField: Record<string, string> | undefined;
-  let originalValuePreviewMeta: Record<string, RetrieveOriginalValuePreviewMeta> | undefined;
   const markedFields = {
     ...collectMarkedFields(sourceRow, '', {}, highlightField),
     ...collectHighlightFields(rawRow, highlightField),
@@ -364,14 +354,6 @@ export const createRetrieveRowRenderMeta = (
       truncatedTextByField[fieldName] = truncatedRenderText;
     }
 
-    const originalPreviewText = truncateMarkedTextByChars(renderText, ORIGINAL_VALUE_PREVIEW_TEXT_LENGTH);
-    originalValuePreviewMeta = originalValuePreviewMeta ?? {};
-    originalValuePreviewMeta[fieldName] = {
-      isTruncated: originalPreviewText !== renderText,
-      previewText: originalPreviewText,
-      previewSegments: splitRenderText(originalPreviewText),
-      rawTextLength: stripMark(renderText).length,
-    };
 
     // Store the pre-tokenized render value for every field that may be rendered.
     if (precomputeSegments) {
@@ -384,6 +366,5 @@ export const createRetrieveRowRenderMeta = (
     truncatedFields,
     fieldSegments,
     truncatedTextByField,
-    originalValuePreviewMeta,
   };
 };

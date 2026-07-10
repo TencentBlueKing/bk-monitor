@@ -36,7 +36,7 @@
           >{{ item.formatter.stringValue }}</span
         >
         <button
-          v-if="isOriginalMode && item.originalValuePreviewMeta?.isTruncated"
+          v-if="isOriginalMode && item.originalValueMeta?.isTruncated"
           class="btn-original-value-action"
           type="button"
           :aria-expanded="isOriginalValueExpanded(item.name)"
@@ -72,7 +72,9 @@
   import { debounce, isEmpty } from 'lodash-es';
   import {
     ORIGINAL_VALUE_EXPANDED_TEXT_LENGTH,
+    ORIGINAL_VALUE_PREVIEW_TEXT_LENGTH,
     splitRenderText,
+    stripMark,
     truncateMarkedTextByChars,
   } from '../storage/utils/retrieve-render-meta';
   import useJsonRoot from '../hooks/use-json-root';
@@ -115,6 +117,8 @@
   const refJsonFormatterCell = ref();
   const showAllText = ref(false);
   const expandedOriginalValueFields = ref<Record<string, boolean>>({});
+  const originalValuePreviewTextCache = new Map<string, { text: string; isTruncated: boolean }>();
+  const originalValuePreviewSegmentCache = new Map<string, any[]>();
   const expandedOriginalValueTexts = ref<Record<string, string>>({});
   const expandedOriginalValueSegments = ref<Record<string, any[]>>({});
   const hasScrollY = ref(false);
@@ -214,6 +218,22 @@
     return renderText?.replace?.(/<\/mark>/igm, '</mark>') ?? String(renderText ?? '');
   };
 
+  const getOriginalValuePreviewInfo = (fieldName: string) => {
+    if (!originalValuePreviewTextCache.has(fieldName)) {
+      const renderText = getOriginalValueRenderText(fieldName);
+      originalValuePreviewTextCache.set(fieldName, {
+        text: truncateMarkedTextByChars(renderText, ORIGINAL_VALUE_PREVIEW_TEXT_LENGTH),
+        isTruncated: stripMark(renderText).length > ORIGINAL_VALUE_PREVIEW_TEXT_LENGTH,
+      });
+    }
+
+    return originalValuePreviewTextCache.get(fieldName);
+  };
+
+  const getOriginalValuePreviewText = (fieldName: string) => getOriginalValuePreviewInfo(fieldName)?.text;
+
+  const isOriginalValueTruncated = (fieldName: string) => !!getOriginalValuePreviewInfo(fieldName)?.isTruncated;
+
   const getOriginalValueExpandedText = (fieldName: string) => {
     if (!expandedOriginalValueTexts.value[fieldName]) {
       expandedOriginalValueTexts.value = {
@@ -243,16 +263,19 @@
       }
 
       return {
-        ...(props.renderMeta?.fieldSegments ?? {}),
+        ...props.renderMeta?.fieldSegments,
         [fieldName]: expandedOriginalValueSegments.value[fieldName],
       };
     }
 
-    const previewSegments = props.renderMeta?.originalValuePreviewMeta?.[fieldName]?.previewSegments;
-    if (previewSegments) {
+    if (isOriginalValueTruncated(fieldName)) {
+      if (!originalValuePreviewSegmentCache.has(fieldName)) {
+        originalValuePreviewSegmentCache.set(fieldName, splitRenderText(getOriginalValuePreviewText(fieldName)));
+      }
+
       return {
-        ...(props.renderMeta?.fieldSegments ?? {}),
-        [fieldName]: previewSegments,
+        ...props.renderMeta?.fieldSegments,
+        [fieldName]: originalValuePreviewSegmentCache.get(fieldName),
       };
     }
 
@@ -266,7 +289,7 @@
 
     const renderText = expandedOriginalValueFields.value[fieldName]
       ? getOriginalValueExpandedText(fieldName)
-      : props.renderMeta?.originalValuePreviewMeta?.[fieldName]?.previewText;
+      : getOriginalValuePreviewText(fieldName);
 
     return renderText?.replace?.(/<\/?mark>/igm, '') ?? fallback;
   };
@@ -288,7 +311,7 @@
     const elements = root?.querySelectorAll?.('.field-value[data-field-name][data-has-word-split]') ?? [];
     for (const element of Array.from(elements) as HTMLElement[]) {
       const fieldName = element.getAttribute('data-field-name');
-      if (fieldName && props.renderMeta?.originalValuePreviewMeta?.[fieldName]?.isTruncated) {
+      if (fieldName && isOriginalValueTruncated(fieldName)) {
         element.removeAttribute('data-has-word-split');
       }
     }
@@ -435,9 +458,8 @@
     return fieldList.value.map((f: any) => {
       const shouldFormatDate = isFormatDateField.value && !!f.__is_virtual_root__;
       const formatter = getFieldFormatter(f, shouldFormatDate);
-      const originalValuePreviewMeta = props.renderMeta?.originalValuePreviewMeta?.[f.field_name];
-      const shouldUseOriginalValueText = isOriginalMode.value && !!originalValuePreviewMeta?.isTruncated;
       const originalValueDisplayText = getOriginalValueDisplayText(f.field_name, formatter.stringValue);
+      const shouldUseOriginalValueText = isOriginalMode.value && isOriginalValueTruncated(f.field_name);
       return {
         name: f.field_name,
         type: f.field_type,
@@ -448,7 +470,9 @@
           stringValue: shouldUseOriginalValueText ? originalValueDisplayText : formatter.stringValue,
           precomputedSegments: shouldFormatDate ? undefined : getOriginalValueSegments(f.field_name),
         },
-        originalValuePreviewMeta,
+        originalValueMeta: {
+          isTruncated: shouldUseOriginalValueText,
+        },
         __is_virtual_root__: !!f.__is_virtual_root__,
       };
     });
@@ -482,6 +506,8 @@
     () => {
       showAllText.value = false;
       expandedOriginalValueFields.value = {};
+      originalValuePreviewTextCache.clear();
+      originalValuePreviewSegmentCache.clear();
       expandedOriginalValueTexts.value = {};
       expandedOriginalValueSegments.value = {};
       hasScrollY.value = false;
