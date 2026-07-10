@@ -28,7 +28,6 @@ import { getRGBAColors } from './colors';
 import JsonFormatter from './json-formatter';
 import StaticUtil from './static.util';
 
-import type OptimizedHighlighter from './optimized-highlighter';
 import type RetrieveEvent from './retrieve-events';
 import { EventEmitter } from './event';
 import { reportRouteLog } from '@/store/modules/report-helper.ts';
@@ -73,7 +72,6 @@ export default class extends EventEmitter<RetrieveEvent> {
   // 索引集类型
   indexSetType: string;
 
-  markInstance: OptimizedHighlighter = undefined;
 
   // JSON格式化辅助
   jsonFormatter: JsonFormatter;

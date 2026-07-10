@@ -43,14 +43,21 @@
             span {
               color: #934c04;
               white-space: pre-wrap;
+            }
 
-              &.valid-text {
-                cursor: pointer;
+            .valid-text,
+            .valid-text * {
+              color: #934c04;
+            }
 
-                &.focus-text,
-                &:hover {
-                  color: #3a84ff;
-                }
+            .valid-text {
+              cursor: pointer;
+
+              &.focus-text,
+              &:hover,
+              &.focus-text *,
+              &:hover * {
+                color: #3a84ff;
               }
             }
           }

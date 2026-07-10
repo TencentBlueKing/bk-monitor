@@ -63,6 +63,7 @@ export interface UseSegmentPropOptions {
   stopPropagation?: boolean;
   aiBluekingEnabled?: boolean;
   highlightEnabled?: boolean;
+  allowDelineateSearch?: boolean;
 }
 
 class UseSegmentProp {
@@ -78,6 +79,7 @@ class UseSegmentProp {
   private stopPropagation: boolean;
   private aiBluekingEnabled: boolean;
   private highlightEnabled: boolean;
+  private allowDelineateSearch: boolean;
 
   /**
    * 生成实例 owner id（跨 bundle 全局唯一）。
@@ -100,6 +102,7 @@ class UseSegmentProp {
     stopPropagation = false,
     aiBluekingEnabled = true,
     highlightEnabled = true,
+    allowDelineateSearch = false,
   }: UseSegmentPropOptions = {}) {
     const { $t } = useLocale();
     // 生成全局唯一 owner，后续会写到 DOM data 属性中做精确定位。
@@ -109,6 +112,7 @@ class UseSegmentProp {
     this.delineate = delineate;
     this.aiBluekingEnabled = aiBluekingEnabled;
     this.highlightEnabled = highlightEnabled;
+    this.allowDelineateSearch = allowDelineateSearch;
     this.onclick = onclick;
     this.stopPropagation = stopPropagation;
     if (!this.delineate) {
@@ -151,8 +155,8 @@ class UseSegmentProp {
         onClick: (e: MouseEvent) => this.executeClickEvent(e, 'is'),
         iconName: 'icon bk-icon icon-plus-circle',
         text: this.$t('添加到本次检索'),
-        disabled: this.delineate,
-        link: {
+        disabled: this.delineate && !this.allowDelineateSearch,
+        link: this.delineate ? undefined : {
           tooltip: this.$t('新开标签页'),
           iconName: 'bklog-icon bklog-jump',
           onClick: (e) => {

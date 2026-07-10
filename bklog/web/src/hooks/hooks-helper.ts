@@ -173,12 +173,14 @@ export const setScrollLoadCell = (
   wordList: unknown[],
   rootElement: HTMLElement,
   contentElement: HTMLElement,
-  renderFn: (item: unknown) => HTMLElement,
+  renderFn: (_item: unknown) => HTMLElement,
+  options: { pageSize?: number; maxAutoRenderItems?: number } = {},
 ) => {
   let startIndex = 0;
   let scrollEvtAdded = false;
   let scrollHandler: EventListener | null = null;
-  const pageSize = 50;
+  const pageSize = options.pageSize ?? 50;
+  const maxAutoRenderItems = options.maxAutoRenderItems ?? Number.POSITIVE_INFINITY;
 
   const defaultRenderFn = (item: any) => {
     const child = document.createElement('span');
@@ -260,7 +262,7 @@ export const setScrollLoadCell = (
       requestAnimationFrame(() => {
         if (rootElement) {
           const { offsetHeight, scrollHeight } = rootElement;
-          if (offsetHeight * 1.2 > scrollHeight) {
+          if (startIndex < maxAutoRenderItems && offsetHeight * 1.2 > scrollHeight) {
             setListItem(undefined, next);
           } else {
             next?.();

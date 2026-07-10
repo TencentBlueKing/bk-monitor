@@ -54,9 +54,9 @@
         >
           <div class="field-label">
             <span
-              v-if="hiddenFieldsSet.has(field)"
+              v-if="hiddenFieldsSet.has(field.field_name)"
               class="field-eye-icon bklog-icon bklog-eye-slash"
-              v-bk-tooltips="{ content: $t('隐藏') }"
+              v-bk-tooltips="{ content: $t('展示') }"
               @click="
                 e => {
                   e.stopPropagation();
@@ -67,7 +67,7 @@
             <span
               v-else
               class="field-eye-icon bklog-icon bklog-eye"
-              v-bk-tooltips="{ content: $t('展示') }"
+              v-bk-tooltips="{ content: $t('隐藏') }"
               @click="
                 e => {
                   e.stopPropagation();
@@ -97,7 +97,7 @@
             </span>
             <JsonFormatter
               :fields="getFieldItem(field.field_name)"
-              :json-value="listData"
+              :json-value="getFieldValue(field)"
               @menu-click="agrs => handleJsonSegmentClick(agrs, field.field_name)"
             ></JsonFormatter>
           </div>
@@ -125,6 +125,7 @@
 
   // import TextSegmentation from '../search-result-panel/log-result/text-segmentation';
   import { BK_LOG_STORAGE } from '@/store/store.type';
+  import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 
   export default {
     components: {
@@ -241,10 +242,11 @@
       },
 
       hiddenFields() {
-        return this.fieldList.filter(item => !this.visibleFields.some(visibleItem => item === visibleItem));
+        const visibleFieldNames = new Set(this.visibleFields.map(item => item.field_name));
+        return this.fieldList.filter(item => !visibleFieldNames.has(item.field_name));
       },
       hiddenFieldsSet() {
-        return new Set(this.hiddenFields);
+        return new Set(this.hiddenFields.map(item => item.field_name));
       },
       filedSettingConfigID() {
         // 当前索引集的显示字段ID
@@ -714,6 +716,15 @@
         
         return result;
       },
+      getFieldValue(field) {
+        if (!field) return '--';
+
+        if (field.field_name.indexOf('.') === -1 && field.field_name.indexOf('[') === -1) {
+          return this.listData?.[field.field_name];
+        }
+
+        return this.tableRowDeepView(this.listData, field.field_name, field.field_type, false) ?? '--';
+      },
       getFieldType(fieldName) {
         return this.fieldItemMapByName[fieldName]?.field_type || '';
       },
@@ -870,12 +881,13 @@
           }
         });
 
-        if (visible) {
+        if (visible && !displayFields.includes(field.field_name)) {
           displayFields.push(field.field_name);
         }
         this.$store.dispatch('userFieldConfigChange', { displayFields }).then(() => {
-          this.$store.commit('resetVisibleFields', displayFields);
-          this.$store.commit('updateIsSetDefaultTableColumn');
+          this.$store.commit('resetVisibleFields', { displayFieldNames: displayFields, version: 'v2' });
+          this.$store.commit('updateIsSetDefaultTableColumn', false);
+          RetrieveHelper.fire(RetrieveEvent.VISIBLE_FIELD_COLUMN_LAYOUT_CHANGE);
         });
       },
     },

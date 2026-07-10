@@ -24,17 +24,16 @@
  * IN THE SOFTWARE.
  */
 import RetrieveHelper from '@/views/retrieve-helper';
+import { highlightPlainTextIntoFragment } from '@/views/retrieve-core/page-highlight';
 
 import JsonView from '../global/json-view';
 // import jsonEditorTask, { EditorTask } from '../global/utils/json-editor-task';
 import segmentPopInstance from '../global/utils/segment-pop-instance';
 import {
   getClickTargetElement,
-  optimizedSplit,
   setPointerCellClickTargetHandler,
   setScrollLoadCell,
 } from './hooks-helper';
-import LuceneSegment from './lucene.segment';
 import UseSegmentPropInstance from './use-segment-pop';
 
 import type { Ref } from 'vue';
@@ -47,22 +46,38 @@ export type FormatterConfig = {
   onSegmentClick: (_args: any) => void;
   onSegmentRenderUpdate?: () => void;
   options?: Record<string, any>;
+  precomputedSegments?: PrecomputedSegments;
 };
 
-export type SegmentAppendText = { text: string; onClick?: (..._args) => void; attributes?: Record<string, string> };
+export type SegmentAppendText = {
+  text: string;
+  onClick?: (..._args) => void;
+  onMouseDown?: (..._args) => void;
+  onMouseUp?: (..._args) => void;
+  attributes?: Record<string, string>;
+};
+export type PrecomputedSegments = Record<string, Array<{
+  text: string;
+  isMark?: boolean;
+  isCursorText?: boolean;
+  isBlobWord?: boolean;
+  isNotParticiple?: boolean;
+}>>;
 export default class UseJsonFormatter {
-  editor: JsonView;
+  editor?: JsonView;
   config: FormatterConfig;
   setValuePromise: Promise<any>;
   localDepth: number;
   getSegmentContent: (_keyRef: object, _fn: (..._args) => void) => Ref<HTMLElement>;
   keyRef: any;
+  segmentTaskId: number;
 
   constructor(cfg: FormatterConfig) {
     this.config = cfg;
     this.setValuePromise = Promise.resolve(true);
     this.localDepth = 1;
     this.keyRef = {};
+    this.segmentTaskId = 0;
     this.getSegmentContent = UseSegmentPropInstance.getSegmentContent.bind(UseSegmentPropInstance);
   }
 
@@ -189,27 +204,39 @@ export default class UseJsonFormatter {
       : val.replace(new RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]);
   }
 
-  getSplitList(field: any, content: any) {
-    /** 检索高亮分词字符串 */
-    const markRegStr = '<mark>(.*?)</mark>';
-    const value = this.escapeString(`${content}`);
-    if (this.isAnalyzed(field)) {
-      if (field.tokenize_on_chars) {
-        // 这里进来的都是开了分词的情况
-        return optimizedSplit(value, field.tokenize_on_chars);
-      }
-
-      return LuceneSegment.split(value, 1000);
+  splitTextIntoChunks(value: string, chunkSize = 2000) {
+    if (!value) {
+      return [];
     }
 
-    return [
-      {
-        text: value.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
-        isNotParticiple: this.isTextField(field),
-        isMark: new RegExp(markRegStr).test(value),
-        isCursorText: true,
-      },
-    ];
+    const chunks: string[] = [];
+    for (let index = 0; index < value.length; index += chunkSize) {
+      chunks.push(value.slice(index, index + chunkSize));
+    }
+
+    return chunks.map(text => ({
+      text,
+      isCursorText: true,
+    }));
+  }
+
+  getSplitList(field: any, content: any, options: { usePrecomputedSegments?: boolean } = {}) {
+    const fieldName = typeof field === 'string' ? field : field?.field_name;
+    const usePrecomputedSegments = options.usePrecomputedSegments ?? true;
+    const precomputedSegments = fieldName ? this.config.precomputedSegments?.[fieldName] : undefined;
+    if (usePrecomputedSegments && Array.isArray(precomputedSegments)) {
+      return precomputedSegments;
+    }
+
+    /** 检索高亮分词字符串 */
+    const markRegStr = '<mark>(.*?)</mark>';
+    const value = this.escapeString(String(content));
+
+    return this.splitTextIntoChunks(value).map(item => ({
+      ...item,
+      isNotParticiple: this.isTextField(field),
+      isMark: new RegExp(markRegStr).test(item.text),
+    }));
   }
 
   getChildItem(item) {
@@ -218,25 +245,28 @@ export default class UseJsonFormatter {
       return brNode;
     }
 
+    const text = item.text?.length ? item.text : '""';
+    const textNode = document.createElement('span');
+
     if (item.isMark) {
-      const mrkNode = document.createElement('mark');
-      mrkNode.textContent = item.text.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
-      mrkNode.classList.add('valid-text');
-      return mrkNode;
+      textNode.classList.add('valid-text');
+      textNode.appendChild(highlightPlainTextIntoFragment({
+        text: text.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
+        resultHighlighted: true,
+      }));
+      return textNode;
     }
 
     if (!(item.isNotParticiple || item.isBlobWord)) {
-      const validTextNode = document.createElement('span');
       if (item.isCursorText) {
-        validTextNode.classList.add('valid-text');
+        textNode.classList.add('valid-text');
       }
-      validTextNode.textContent = item.text?.length ? item.text : '""';
-      return validTextNode;
+      textNode.appendChild(highlightPlainTextIntoFragment({ text }));
+      return textNode;
     }
 
-    const textNode = document.createElement('span');
     textNode.classList.add('others-text');
-    textNode.textContent = item.text?.length ? item.text : '""';
+    textNode.appendChild(highlightPlainTextIntoFragment({ text }));
     return textNode;
   }
 
@@ -264,8 +294,9 @@ export default class UseJsonFormatter {
     if (!root.hasAttribute('data-word-segment-click')) {
       root.setAttribute('data-word-segment-click', '1');
       root.addEventListener('click', (e) => {
-        if ((e.target as HTMLElement).classList.contains('valid-text')) {
-          this.handleSegmentClick(e, (e.target as HTMLElement).textContent);
+        const validTextElement = (e.target as HTMLElement).closest?.('.valid-text') as HTMLElement | null;
+        if (validTextElement) {
+          this.handleSegmentClick(e, validTextElement.textContent);
         }
       });
     }
@@ -284,34 +315,45 @@ export default class UseJsonFormatter {
         const text = textValue ?? element.textContent;
         const field = this.getField(fieldName);
         const vlaues = this.getSplitList(field, text);
-        element?.setAttribute('data-has-word-split', '1');
-        element?.setAttribute('data-field-name', fieldName);
-        element?.setAttribute('data-field-type', field?.field_type);
+        const targetElement = element as HTMLElement;
 
-        if (element.hasAttribute('data-with-intersection')) {
-          (element as HTMLElement).style.setProperty('min-height', `${(element as HTMLElement).offsetHeight}px`);
+        targetElement.setAttribute('data-has-word-split', '1');
+        targetElement.setAttribute('data-field-name', fieldName);
+        targetElement.setAttribute('data-field-type', field?.field_type);
+
+        if (targetElement.hasAttribute('data-with-intersection')) {
+          targetElement.style.setProperty('min-height', [targetElement.offsetHeight, 'px'].join(''));
         }
 
-        element.innerHTML = '';
+        targetElement.innerHTML = '';
 
         const segmentContent = this.creatSegmentNodes();
 
         const { setListItem, removeScrollEvent } = setScrollLoadCell(
           vlaues,
-          element as HTMLElement,
+          targetElement,
           segmentContent,
           this.getChildItem,
+          { pageSize: 1, maxAutoRenderItems: 1 },
         );
         removeScrollEvent();
 
-        element.append(segmentContent);
-        setListItem(1000, this.config.onSegmentRenderUpdate);
+        targetElement.append(segmentContent);
+        setListItem(1, () => {
+          this.config.onSegmentRenderUpdate?.();
+        });
 
         if (appendText !== undefined) {
           const appendElement = document.createElement('span');
           appendElement.textContent = appendText.text;
           if (appendText.onClick) {
             appendElement.addEventListener('click', appendText.onClick);
+          }
+          if (appendText.onMouseDown) {
+            appendElement.addEventListener('mousedown', appendText.onMouseDown);
+          }
+          if (appendText.onMouseUp) {
+            appendElement.addEventListener('mouseup', appendText.onMouseUp);
           }
 
           for (const key of Object.keys(appendText.attributes ?? {})) {
@@ -357,48 +399,65 @@ export default class UseJsonFormatter {
   }
 
   initEditor(depth) {
-    if (this.getTargetRoot()) {
-      this.localDepth = depth;
-      this.editor = new JsonView(this.getTargetRoot(), {
-        onNodeExpand: this.handleExpandNode.bind(this),
-        depth,
-        field: this.config.field,
-        segmentRender: (value: string, rootNode: HTMLElement) => {
-          const vlaues = this.getSplitList(this.config.field, value);
-          const segmentContent = this.creatSegmentNodes();
-          rootNode.append(segmentContent);
-
-          if (!rootNode.classList.contains('bklog-scroll-box')) {
-            rootNode.classList.add('bklog-scroll-box');
-          }
-
-          const { setListItem, removeScrollEvent } = setScrollLoadCell(
-            vlaues,
-            rootNode,
-            segmentContent,
-            this.getChildItem,
-          );
-          removeScrollEvent();
-          setListItem(600, this.config.onSegmentRenderUpdate);
-        },
-      });
-
-      this.editor.initClickEvent((e) => {
-        if ((e.target as HTMLElement).classList.contains('valid-text')) {
-          this.handleSegmentClick(e, (e.target as HTMLElement).textContent);
-        }
-      });
+    const targetRoot = this.getTargetRoot();
+    if (!targetRoot) {
+      this.editor = undefined;
+      return false;
     }
+
+    this.localDepth = depth;
+    this.editor = new JsonView(targetRoot, {
+      onNodeExpand: this.handleExpandNode.bind(this),
+      depth,
+      field: this.config.field,
+      segmentRender: (value: string, rootNode: HTMLElement) => {
+        const taskId = this.segmentTaskId;
+        const vlaues = this.getSplitList(this.config.field, value, { usePrecomputedSegments: false });
+        if (taskId !== this.segmentTaskId || !rootNode.isConnected) return;
+
+        const segmentContent = this.creatSegmentNodes();
+        rootNode.append(segmentContent);
+
+        if (!rootNode.classList.contains('bklog-scroll-box')) {
+          rootNode.classList.add('bklog-scroll-box');
+        }
+
+        const { setListItem, removeScrollEvent } = setScrollLoadCell(
+          vlaues,
+          rootNode,
+          segmentContent,
+          this.getChildItem,
+          { pageSize: 1, maxAutoRenderItems: 1 },
+        );
+        removeScrollEvent();
+        setListItem(1, this.config.onSegmentRenderUpdate);
+      },
+    });
+
+    this.editor.initClickEvent((e) => {
+      const validTextElement = (e.target as HTMLElement).closest?.('.valid-text') as HTMLElement | null;
+      if (validTextElement) {
+        this.handleSegmentClick(e, validTextElement.textContent);
+      }
+    });
+
+    return true;
   }
 
   setNodeExpand([currentDepth]) {
-    this.editor.expand(currentDepth);
+    this.editor?.expand(currentDepth);
   }
 
   setValue(depth) {
     this.setValuePromise = new Promise((resolve, reject) => {
       try {
-        this.editor.setValue(this.config.jsonValue);
+        this.segmentTaskId += 1;
+        if (!this.editor && !this.initEditor(depth)) {
+          resolve(false);
+          return;
+        }
+
+        this.editor?.setValue(this.config.jsonValue);
         this.setNodeExpand([depth]);
         this.localDepth = depth;
         resolve(true);
@@ -412,13 +471,17 @@ export default class UseJsonFormatter {
 
   setExpand(depth) {
     this.setValuePromise?.then(() => {
+      if (!this.editor && !this.initEditor(depth)) return;
+
       this.setNodeExpand([depth]);
       this.localDepth = depth;
-    });
+    }).catch(() => undefined);
   }
 
   destroy() {
+    this.segmentTaskId += 1;
     this.editor?.destroy();
+    this.editor = undefined;
     const root = this.getTargetRoot() as HTMLElement;
     if (root) {
       let target = root;

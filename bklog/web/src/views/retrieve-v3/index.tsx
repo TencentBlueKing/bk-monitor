@@ -112,8 +112,8 @@ export default defineComponent({
         aiPreloadIdleTask = scheduleIdleTask(() => {
           aiPreloadIdleTask = undefined;
           preloadAiAssitant();
-        }, 5000);
-      }, 3000);
+        }, 200);
+      }, 100);
     };
 
     RetrieveHelper.aiAssitantHelper.setAiAssitantMountLoader(async () => {
@@ -181,7 +181,7 @@ export default defineComponent({
     // 字段列表已请求完成但返回为空
     const isFieldListEmpty = computed(
       () => isFieldListFetched.value
-        && store.state.indexFieldInfo.fields?.length === 0,
+        && store.getters.rawFieldList.length === 0,
     );
 
     /**
