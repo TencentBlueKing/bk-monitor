@@ -27,7 +27,7 @@
 import { computed, defineComponent, nextTick, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { promiseTimeout, useDebounceFn, useEventListener } from '@vueuse/core';
-import { Button, Checkbox, Input, Radio, Select } from 'bkui-vue';
+import { Button, Checkbox, Input, Radio, Select, Tree } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
 import { detectOperatingSystem } from 'monitor-common/utils/navigator';
 import OverflowTips from 'trace/directive/overflow-tips';
@@ -145,6 +145,9 @@ export default defineComponent({
     /** 是否为 numberInput 数字输入框类型（直接输入数值，不走候选项列表） */
     const isNumberInput = computed(() => {
       return checkedItem.value?.type === EFieldType.numberInput;
+    });
+    const isTreeSelect = computed(() => {
+      return checkedItem.value?.type === EFieldType.treeSelect;
     });
 
     const enterSelectionDebounce = useDebounceFn((isFocus = false) => {
@@ -569,6 +572,7 @@ export default defineComponent({
       isDurationKey,
       isTextarea,
       numberInputValue,
+      isTreeSelect,
       getValueFnProxy,
       handleValueChange,
       handleTimeConsumingValueChange,
@@ -682,6 +686,24 @@ export default defineComponent({
                             onFocus={this.handleSelectorFocus}
                             onUpdate:modelValue={this.handleNumberInputChange}
                           />
+                        );
+                      }
+                      if (this.isTreeSelect) {
+                        return (
+                          <Select
+                            display-key='name'
+                            id-key='id'
+                            multiple-mode='tag'
+                            custom-content
+                            multiple
+                          >
+                            <Tree
+                              children='children'
+                              data={[]}
+                              label='name'
+                              show-checkbox
+                            />
+                          </Select>
                         );
                       }
                       return (

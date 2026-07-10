@@ -352,6 +352,7 @@ export default defineComponent({
           <KvTag
             key={`${index}_kv`}
             hasTagHidden={this.hasTagHidden}
+            tagValueDisplayFormatter={this.tagValueDisplayFormatter}
             value={item}
             onDelete={() => this.handleDeleteTag(index)}
             onHide={() => this.handleHideTag(index)}

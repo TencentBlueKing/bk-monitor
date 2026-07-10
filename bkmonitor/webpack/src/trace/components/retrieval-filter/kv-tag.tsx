@@ -28,7 +28,7 @@ import { computed, defineComponent, shallowRef, watch } from 'vue';
 
 import { promiseTimeout } from '@vueuse/core';
 
-import { type IFilterItem, KV_TAG_EMITS, KV_TAG_PROPS, NOT_TYPE_METHODS } from './typing';
+import { type EMethod, type IFilterItem, KV_TAG_EMITS, KV_TAG_PROPS, NOT_TYPE_METHODS } from './typing';
 import { NULL_VALUE_NAME } from './utils';
 
 import './kv-tag.scss';
@@ -142,7 +142,7 @@ export default defineComponent({
             allowHTML: true,
             content: (
               <div style='max-width: 600px; word-break: break-all; word-wrap: break-word; white-space: normal'>
-                {`${this.value.key.id} ${this.value.method.id} ${this.value.value.map(v => v.id).join(` ${this.groupRelation || 'OR'} `)}`}
+                {`${this.value.key.id} ${this.value.method.id} ${this.value.value.map(v => this.tagValueDisplayFormatter(v.id, this.value.key.id)).join(` ${this.groupRelation || 'OR'} `)}`}
               </div>
             ),
           }}
@@ -153,7 +153,9 @@ export default defineComponent({
                 ? this.localValue.key.id
                 : `${this.localValue.key.name} (${this.localValue.key.id})`}
             </span>
-            <span class={['key-method', { 'red-text': NOT_TYPE_METHODS.includes(this.localValue.method.id) }]}>
+            <span
+              class={['key-method', { 'red-text': NOT_TYPE_METHODS.includes(this.localValue.method.id as EMethod) }]}
+            >
               {this.localValue.method.name}
             </span>
           </div>
@@ -175,7 +177,9 @@ export default defineComponent({
                     key={`${index}_key`}
                     class='value-name'
                   >
-                    {['string', 'number', 'boolean'].includes(typeof item.name) ? `${item.name}` : NULL_VALUE_NAME}
+                    {['string', 'number', 'boolean'].includes(typeof item.name)
+                      ? this.tagValueDisplayFormatter(item.name, this.localValue.key.id)
+                      : NULL_VALUE_NAME}
                   </span>,
                 ])}
                 {this.hideCount > 0 && <span class='value-condition'>{`+${this.hideCount}`}</span>}
