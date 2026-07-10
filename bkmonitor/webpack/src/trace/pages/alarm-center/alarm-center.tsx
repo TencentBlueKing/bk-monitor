@@ -726,6 +726,12 @@ export default defineComponent({
         detailBizId.value = queryDetailBizId ? Number(queryDetailBizId) : null;
         issueFirstAlarmTime.value = (queryIssueFirstAlarmTime as string) || '';
         if (JSON.parse((queryTapdAuth as string) || 'false')) {
+          // 打开 issues 详情
+          alarmDetailShow.value = true;
+          detailId.value = (queryTapdIssueId as string) || '';
+          detailBizId.value = queryTapdBizId ? Number(queryTapdBizId) : null;
+          issueFirstAlarmTime.value = (queryIssueFirstAlarmTime as string) || '';
+          // 打开 TAPD 弹窗
           issuesTapdShow.value = true;
           tapdBizId.value = Number(queryTapdBizId) || null;
           tapdIssueId.value = (queryTapdIssueId as string) || '';
