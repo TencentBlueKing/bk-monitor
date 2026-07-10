@@ -26,6 +26,7 @@
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, reactive, ref, watch, type Ref } from 'vue';
 
 import { getRowFieldValue, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR, xssFilter } from '@/common/util';
+import { getInputQueryDefaultItem } from '@/views/retrieve-v2/search-bar/utils/const.common';
 // import { perfStart, perfEnd } from '@/utils/performance-monitor';
 import JsonFormatter from '@/global/json-formatter.vue';
 import type { RetrieveRowRenderMeta } from '@/storage/utils/retrieve-render-meta';
@@ -95,7 +96,7 @@ export default defineComponent({
     const refLoadMoreElement: Ref<HTMLElement> = ref();
     const refResultRowBox: Ref<HTMLElement> = ref();
     const refSegmentContent: Ref<HTMLElement> = ref();
-    const { handleOperation, getObjectValue } = useTextAction(emit, 'origin');
+    const { handleOperation, getObjectValue, handleAddCondition } = useTextAction(emit, 'origin');
 
     let savedSelection: Range = null;
     let mousedownOnRow = false;
@@ -142,6 +143,224 @@ export default defineComponent({
       }, rects[rects.length - 1]);
     };
 
+    const FULLTEXT_FIELD_NAME = '*';
+    const SELECTION_WORD_REGEX = /\S+/g;
+
+    type SelectionToken = {
+      text: string;
+      isCursorText: boolean;
+      fieldName?: string;
+      tokenType?: 'field-name' | 'field-value';
+    };
+
+    const stripSelectionMarkup = (value: string) => String(value ?? '').replace(/<\/?mark>/gim, '');
+
+    const tokenizeSelectionText = (value: string, extra?: Partial<SelectionToken>) => {
+      const tokens: SelectionToken[] = [];
+      const text = stripSelectionMarkup(value);
+      let lastIndex = 0;
+      let match: RegExpExecArray | null;
+      SELECTION_WORD_REGEX.lastIndex = 0;
+
+      while ((match = SELECTION_WORD_REGEX.exec(text)) !== null) {
+        if (match.index > lastIndex) {
+          tokens.push({
+            text: text.slice(lastIndex, match.index),
+            isCursorText: false,
+          });
+        }
+
+        tokens.push({
+          text: match[0],
+          isCursorText: true,
+          ...extra,
+        });
+        lastIndex = match.index + match[0].length;
+      }
+
+      if (lastIndex < text.length) {
+        tokens.push({
+          text: text.slice(lastIndex),
+          isCursorText: false,
+        });
+      }
+
+      return tokens;
+    };
+
+    const getFieldPlainText = (row: Record<string, any>, field: Record<string, any>) => {
+      const rawValue = getRowFieldValue(row, field);
+      if (rawValue === null || rawValue === undefined || rawValue === '') {
+        return '--';
+      }
+
+      return stripSelectionMarkup(String(rawValue));
+    };
+
+    const getFieldSegmentTokens = (row: Record<string, any>, field: Record<string, any>) => tokenizeSelectionText(getFieldPlainText(row, field));
+
+    const getOriginSegmentTokens = (row: Record<string, any>) => {
+      const tokens: SelectionToken[] = [];
+      const fields = visibleFields.value.length ? visibleFields.value : filteredFieldList.value;
+
+      fields.forEach((field, index) => {
+        if (index > 0) {
+          tokens.push({ text: ' ', isCursorText: false });
+        }
+
+        tokens.push({
+          text: field.field_name,
+          isCursorText: true,
+          fieldName: field.field_name,
+          tokenType: 'field-name',
+        });
+        tokens.push({ text: ' ', isCursorText: false });
+        tokens.push(...tokenizeSelectionText(getFieldPlainText(row, field), {
+          fieldName: field.field_name,
+          tokenType: 'field-value',
+        }));
+      });
+
+      return tokens;
+    };
+
+    const getSelectionTextByRange = (range: Range) => stripSelectionMarkup(range?.toString?.() ?? '');
+
+    const getSelectionAnchorElement = (range: Range) => {
+      const startNode = range?.startContainer as Node | null;
+      const endNode = range?.endContainer as Node | null;
+      const startElement = startNode instanceof Element ? startNode : startNode?.parentElement;
+      const endElement = endNode instanceof Element ? endNode : endNode?.parentElement;
+
+      return (startElement?.closest?.('[data-field-name]') ?? endElement?.closest?.('[data-field-name]')) as HTMLElement | null;
+    };
+
+    const completeSelectionByTokens = (selectionText: string, tokens: SelectionToken[]) => {
+      if (!selectionText || !tokens.length) {
+        return [];
+      }
+
+      const normalizedSelection = stripSelectionMarkup(selectionText);
+      if (!normalizedSelection) {
+        return [];
+      }
+
+      const plainText = tokens.map(item => item.text).join('');
+      const selectionStart = plainText.indexOf(normalizedSelection);
+      if (selectionStart < 0) {
+        return [];
+      }
+
+      const selectionEnd = selectionStart + normalizedSelection.length;
+      let cursor = 0;
+      const selectedTokenIndexes = new Set<number>();
+      for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+        const tokenStart = cursor;
+        const tokenEnd = tokenStart + token.text.length;
+        cursor = tokenEnd;
+
+        if (selectionStart < tokenEnd && selectionEnd > tokenStart) {
+          selectedTokenIndexes.add(i);
+        }
+      }
+
+      if (!selectedTokenIndexes.size) {
+        return [];
+      }
+
+      const completedTokens: SelectionToken[] = [];
+      const appendedTokenSet = new Set<string>();
+      for (const index of Array.from(selectedTokenIndexes).sort((a, b) => a - b)) {
+        const token = tokens[index];
+        if (!token?.isCursorText) {
+          continue;
+        }
+
+        const tokenKey = [token.fieldName ?? '', token.tokenType ?? '', token.text].join('__');
+        if (!appendedTokenSet.has(tokenKey)) {
+          appendedTokenSet.add(tokenKey);
+          completedTokens.push(token);
+        }
+      }
+
+      return completedTokens;
+    };
+
+    const getFieldByName = (fieldName: string) => {
+      if (!fieldName) {
+        return undefined;
+      }
+
+      return filteredFieldList.value.find(item => item.field_name === fieldName)
+        ?? visibleFields.value.find(item => item.field_name === fieldName)
+        ?? fullColumns.value.find(item => item.field_name === fieldName);
+    };
+
+    const addSelectionToCurrentSearch = (selectionRange: Range, row: Record<string, any>) => {
+      const selectionText = getSelectionTextByRange(selectionRange);
+      if (!selectionText) {
+        return;
+      }
+
+      const targetElement = getSelectionAnchorElement(selectionRange);
+      const targetFieldName = targetElement?.getAttribute('data-field-name') ?? '';
+      const fulltextFieldItem = getInputQueryDefaultItem();
+
+      if (showCtxType.value === 'table') {
+        const targetField = getFieldByName(targetFieldName);
+        if (!targetField) {
+          handleAddCondition(FULLTEXT_FIELD_NAME, fulltextFieldItem.operator, [selectionText]);
+          return;
+        }
+
+        const completedTokens = completeSelectionByTokens(selectionText, getFieldSegmentTokens(row, targetField));
+        if (!completedTokens.length) {
+          handleAddCondition(targetField.field_name, 'is', [selectionText]);
+          return;
+        }
+
+        completedTokens.forEach(token => {
+          handleAddCondition(targetField.field_name, 'is', [token.text]);
+        });
+        return;
+      }
+
+      const conditions: Array<{ field: string; operator: string; value: string[] }> = [];
+      const appendedConditionKeys = new Set<string>();
+      const fieldNameSet = new Set(filteredFieldList.value.map(item => item.field_name));
+      const originTokens = completeSelectionByTokens(selectionText, getOriginSegmentTokens(row));
+
+      originTokens.forEach((token) => {
+        if (!token.text || token.tokenType === 'field-name' || fieldNameSet.has(token.text)) {
+          return;
+        }
+
+        const field = getFieldByName(token.fieldName ?? '');
+        const plainText = field ? getFieldPlainText(row, field) : '';
+        const operator = field && plainText === token.text ? 'is' : fulltextFieldItem.operator;
+        const conditionField = operator === 'is' && field ? field.field_name : FULLTEXT_FIELD_NAME;
+        const conditionKey = [conditionField, operator, token.text].join('__');
+        if (!appendedConditionKeys.has(conditionKey)) {
+          appendedConditionKeys.add(conditionKey);
+          conditions.push({
+            field: conditionField,
+            operator,
+            value: [token.text],
+          });
+        }
+      });
+
+      if (!conditions.length) {
+        handleAddCondition(FULLTEXT_FIELD_NAME, fulltextFieldItem.operator, [selectionText]);
+        return;
+      }
+
+      conditions.forEach(item => {
+        handleAddCondition(item.field, item.operator, item.value);
+      });
+    };
+
     const setSelectionPopTargetHandler = (rect: DOMRect) => {
       let virtualTarget = document.body.querySelector('.bklog-selection-pop-target') as HTMLElement;
       if (!virtualTarget) {
@@ -167,10 +386,13 @@ export default defineComponent({
       aiBluekingEnabled: store.state.features.isAiAssistantActive,
       stopPropagation: true,
       highlightEnabled: true,
+      allowDelineateSearch: true,
       onclick: (...args) => {
         const type = args[1];
         if (type === 'add-to-ai') {
           props.handleClickTools(type, savedSelection?.toString() ?? '');
+        } else if (type === 'is' && savedSelection && hoverOperatorState.row) {
+          addSelectionToCurrentSearch(savedSelection, hoverOperatorState.row);
         } else {
           handleOperation(type, { value: savedSelection?.toString() ?? '', operation: type });
         }
