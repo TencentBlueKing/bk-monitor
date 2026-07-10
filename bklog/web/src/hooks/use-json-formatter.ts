@@ -206,10 +206,11 @@ export default class UseJsonFormatter {
       : val.replace(new RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]);
   }
 
-  getSplitList(field: any, content: any) {
+  getSplitList(field: any, content: any, options: { usePrecomputedSegments?: boolean } = {}) {
     const fieldName = typeof field === 'string' ? field : field?.field_name;
+    const usePrecomputedSegments = options.usePrecomputedSegments ?? true;
     const precomputedSegments = fieldName ? this.config.precomputedSegments?.[fieldName] : undefined;
-    if (Array.isArray(precomputedSegments)) {
+    if (usePrecomputedSegments && Array.isArray(precomputedSegments)) {
       return precomputedSegments;
     }
 
@@ -311,29 +312,62 @@ export default class UseJsonFormatter {
         const text = textValue ?? element.textContent;
         const field = this.getField(fieldName);
         const vlaues = this.getSplitList(field, text);
-        element?.setAttribute('data-has-word-split', '1');
-        element?.setAttribute('data-field-name', fieldName);
-        element?.setAttribute('data-field-type', field?.field_type);
+        const targetElement = element as HTMLElement;
 
-        if (element.hasAttribute('data-with-intersection')) {
-          (element as HTMLElement).style.setProperty('min-height', `${(element as HTMLElement).offsetHeight}px`);
+        if (process.env.NODE_ENV === 'development' && fieldName === 'log') {
+          const debugPayload = {
+            fieldName,
+            fieldType: field?.field_type,
+            textPreview: String(text ?? '').slice(0, 300),
+            tokenCount: Array.isArray(vlaues) ? vlaues.length : -1,
+            tokensPreview: Array.isArray(vlaues)
+              ? vlaues.slice(0, 5).map((item: any) => ({
+                text: item?.text,
+                isMark: item?.isMark,
+                isCursorText: item?.isCursorText,
+                isBlobWord: item?.isBlobWord,
+                isNotParticiple: item?.isNotParticiple,
+              }))
+              : [],
+            beforeInnerHTML: targetElement.innerHTML,
+          };
+          console.info('[use-json-formatter:setNodeValueWordSplit]', debugPayload);
         }
 
-        element.innerHTML = '';
+        targetElement.setAttribute('data-has-word-split', '1');
+        targetElement.setAttribute('data-field-name', fieldName);
+        targetElement.setAttribute('data-field-type', field?.field_type);
+
+        if (targetElement.hasAttribute('data-with-intersection')) {
+          targetElement.style.setProperty('min-height', [targetElement.offsetHeight, 'px'].join(''));
+        }
+
+        targetElement.innerHTML = '';
 
         const segmentContent = this.creatSegmentNodes();
 
         const { setListItem, removeScrollEvent } = setScrollLoadCell(
           vlaues,
-          element as HTMLElement,
+          targetElement,
           segmentContent,
           this.getChildItem,
           { pageSize: 80, maxAutoRenderItems: 240 },
         );
         removeScrollEvent();
 
-        element.append(segmentContent);
-        setListItem(120, this.config.onSegmentRenderUpdate);
+        targetElement.append(segmentContent);
+        setListItem(120, () => {
+          if (process.env.NODE_ENV === 'development' && fieldName === 'log') {
+            console.info('[use-json-formatter:setNodeValueWordSplit:afterRender]', {
+              fieldName,
+              textPreview: String(text ?? '').slice(0, 300),
+              renderedText: targetElement.textContent?.slice(0, 300),
+              renderedHtml: targetElement.innerHTML.slice(0, 500),
+              childCount: targetElement.querySelectorAll('span').length,
+            });
+          }
+          this.config.onSegmentRenderUpdate?.();
+        });
 
         if (appendText !== undefined) {
           const appendElement = document.createElement('span');
@@ -404,8 +438,26 @@ export default class UseJsonFormatter {
       field: this.config.field,
       segmentRender: (value: string, rootNode: HTMLElement) => {
         const taskId = this.segmentTaskId;
-        const vlaues = this.getSplitList(this.config.field, value);
+        const vlaues = this.getSplitList(this.config.field, value, { usePrecomputedSegments: false });
         if (taskId !== this.segmentTaskId || !rootNode.isConnected) return;
+
+        if (process.env.NODE_ENV === 'development' && this.config.field?.field_name === 'log') {
+          console.info('[use-json-formatter:json-leaf-segmentRender]', {
+            rootFieldName: this.config.field?.field_name,
+            leafFieldName: rootNode.closest('.bklog-json-view-row')?.getAttribute('data-field-name'),
+            valuePreview: String(value ?? '').slice(0, 300),
+            tokenCount: Array.isArray(vlaues) ? vlaues.length : -1,
+            tokensPreview: Array.isArray(vlaues)
+              ? vlaues.slice(0, 5).map((item: any) => ({
+                text: item?.text,
+                isMark: item?.isMark,
+                isCursorText: item?.isCursorText,
+                isBlobWord: item?.isBlobWord,
+                isNotParticiple: item?.isNotParticiple,
+              }))
+              : [],
+          });
+        }
 
         const segmentContent = this.creatSegmentNodes();
         rootNode.append(segmentContent);

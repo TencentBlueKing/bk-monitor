@@ -118,9 +118,16 @@ export function requestIndexSetValueListAction({ commit, state, getters }, paylo
 }
 
 export function requestSearchTotalAction({ state, getters }) {
-  const startTime = Math.floor(getters.retrieveParams.start_time);
-  const endTime = Math.ceil(getters.retrieveParams.end_time);
+  const retrieveParams = getters.retrieveParams;
   const isScene = isSceneRetrieve(state);
+  const shouldSkipEmptySceneSearch = isScene
+    && (getters.isSceneFilterEmpty || !retrieveParams.table_id_conditions?.length);
+  if (shouldSkipEmptySceneSearch) {
+    return Promise.resolve({ result: false, ignored: true, reason: 'empty-scene-filter' });
+  }
+
+  const startTime = Math.floor(retrieveParams.start_time);
+  const endTime = Math.ceil(retrieveParams.end_time);
   const urlStr = isScene ? 'retrieve/getSceneFieldStatisticsTotal' : 'retrieve/fieldStatisticsTotal';
 
   const cancelTokenKey = 'requestSearchTotalCancelToken';
@@ -128,7 +135,7 @@ export function requestSearchTotalAction({ state, getters }) {
   const requestCancelToken = RequestPool.getCancelToken(cancelTokenKey);
 
   const data = {
-    ...getters.retrieveParams,
+    ...retrieveParams,
     bk_biz_id: state.bkBizId,
     ...(isScene ? {} : { index_set_ids: state.indexItem.ids }),
     start_time: startTime,

@@ -161,8 +161,17 @@ export function requestIndexSetFieldInfoAction({ commit, state, getters }) {
     is_realtime: 'True',
   };
   if (isScene) {
-    const { space_uid, table_id_conditions, scene_filter_values } = getters.retrieveParams;
-    Object.assign(queryData, { space_uid, table_id_conditions, scene_filter_values });
+    const retrieveParams = getters.retrieveParams;
+    const tableIdConditions = retrieveParams.table_id_conditions;
+    if (getters.isSceneFilterEmpty || !tableIdConditions?.length) {
+      commit('resetIndexFieldInfo');
+      return Promise.resolve({ result: false, ignored: true, reason: 'empty-scene-filter' });
+    }
+    Object.assign(queryData, {
+      space_uid: retrieveParams.space_uid,
+      table_id_conditions: tableIdConditions,
+      scene_filter_values: retrieveParams.scene_filter_values,
+    });
   } else if (isUnionIndex) {
     Object.assign(queryData, {
       index_set_ids: ids,
@@ -294,8 +303,21 @@ export function requestIndexSetQueryAction(
     return;
   }
 
+  const retrieveParams = getters.retrieveParams;
+  const shouldSkipEmptySceneSearch = isSceneRetrieve(state)
+    && (getters.isSceneFilterEmpty || !retrieveParams.table_id_conditions?.length);
+  if (shouldSkipEmptySceneSearch) {
+    commit('updateIndexSetQueryResult', {
+      is_error: false,
+      exception_msg: '',
+      is_loading: false,
+      is_pagination_loading: false,
+    });
+    return Promise.resolve({ result: false, ignored: true, reason: 'empty-scene-filter' });
+  }
+
   let begin = state.indexItem.begin;
-  const { size, format, ...otherParams } = getters.retrieveParams;
+  const { size, format, ...otherParams } = retrieveParams;
   const requestAddition = getters.requestAddition;
 
   // 首屏流式检索未完成时，row_keys 只是部分缓存结果；此时分页请求会先取消当前 active search，
