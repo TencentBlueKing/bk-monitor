@@ -6,6 +6,7 @@ from metadata.models.ping_server import PingServerSubscriptionConfig
 from metadata.task.ping_server import (
     _create_multi_tenant_ping_subscription,
     _refresh_ping_conf_by_cloud_id,
+    refresh_biz_ping_conf,
     refresh_ping_conf,
 )
 
@@ -47,6 +48,30 @@ def test_refresh_ping_conf_filters_new_env_biz_black_list(settings, mocker):
         "bk-collector",
         [
             {"ip": "127.0.0.1", "bk_cloud_id": 100, "bk_biz_id": 0, "bk_host_id": 4},
+            {"ip": "127.0.0.2", "bk_cloud_id": 100, "bk_biz_id": 3, "bk_host_id": 2},
+        ],
+    )
+
+
+def test_refresh_biz_ping_conf_only_refreshes_related_clouds_with_all_cloud_hosts(mocker):
+    mocker.patch(
+        "alarm_backends.core.cache.cmdb.host.HostManager.all",
+        return_value=[
+            make_host(bk_biz_id=2, bk_host_id=1, bk_cloud_id=100, ip="127.0.0.1"),
+            make_host(bk_biz_id=3, bk_host_id=2, bk_cloud_id=100, ip="127.0.0.2"),
+            make_host(bk_biz_id=3, bk_host_id=3, bk_cloud_id=101, ip="127.0.0.3"),
+        ],
+    )
+    refresh_by_cloud_id = mocker.patch("metadata.task.ping_server._refresh_ping_conf_by_cloud_id")
+
+    refresh_biz_ping_conf(bk_tenant_id="system", bk_biz_ids=[2], plugin_name="bk-collector")
+
+    refresh_by_cloud_id.assert_called_once_with(
+        "system",
+        100,
+        "bk-collector",
+        [
+            {"ip": "127.0.0.1", "bk_cloud_id": 100, "bk_biz_id": 2, "bk_host_id": 1},
             {"ip": "127.0.0.2", "bk_cloud_id": 100, "bk_biz_id": 3, "bk_host_id": 2},
         ],
     )
