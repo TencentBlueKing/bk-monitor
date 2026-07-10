@@ -912,7 +912,7 @@
                     },
                     {
                         "key": "source",
-                        "value": "execute_config.source",
+                        "value": "execute_config.source || 'bk_monitor'",
                         "type": "string",
                         "format": "jmespath"
                     }
