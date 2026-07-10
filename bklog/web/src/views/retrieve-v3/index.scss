@@ -44,6 +44,7 @@
         .search-result-content {
           .original-log-panel {
             .original-log-panel-tools {
+              top: calc(var(--top-searchbar-height) + var(--scene-toolbar-height, 0px));
               padding: 1px 0 1px 0;
             }
 
@@ -55,7 +56,7 @@
                     overflow: visible;
                     &.row-header {
                       position: sticky;
-                      top: calc(var(--top-searchbar-height) + 32px);
+                      top: calc(var(--top-searchbar-height) + var(--scene-toolbar-height, 0px) + 32px);
                       left: calc(var(--left-collection-width) + var(--left-field-setting-width) + 8px);
 
                       .right {
