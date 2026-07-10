@@ -228,7 +228,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         origin_log_list = []
         result_table_index_set_map = {}
         if add_index_set_id:
-            result_table_index_set_map = self._get_result_table_index_set_map(result_dict.get("list", []))
+            result_table_index_set_map = self._get_result_table_index_set_map(result_dict.get("result_table_id") or [])
         for log in result_dict.get("list", []):
             log = merge_nested_data(log)
             log["__index_set_id__"] = result_table_index_set_map.get(log.get("__result_table"))  # 给前端标记来源
