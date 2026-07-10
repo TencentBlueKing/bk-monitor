@@ -132,7 +132,7 @@ class CreateTaskResource(IncidentBaseResource):
         template_id = serializers.IntegerField(label="模版ID", required=True)
         constants = serializers.JSONField(label="创建任务参数", required=False)
         name = serializers.CharField(label="任务名称", required=False)
-        source = serializers.CharField(label="任务来源", required=False,default="bk_monitor_debug")
+        source = serializers.CharField(label="任务来源", required=False,default="bk_monitor")
 
 
 class OperateTaskResource(IncidentBaseResource):
