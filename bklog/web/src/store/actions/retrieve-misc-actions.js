@@ -158,10 +158,8 @@ export function requestSearchTotalAction({ state, getters }) {
     .then((res) => {
       const { data } = res;
       if (res.result === true) {
-        const normalizedTotal = normalizeSearchTotal(data.total_count ?? data.total);
-        if (normalizedTotal > 0) {
-          state.searchTotal = normalizedTotal;
-        }
+        // Total 接口是总趋势展示总数的权威来源，包含 0 结果场景
+        state.searchTotal = normalizeSearchTotal(data.total_count ?? data.total);
       }
       cacheApi(urlStr, `${state.indexId}:${startTime}:${endTime}`, data || {});
       return res;

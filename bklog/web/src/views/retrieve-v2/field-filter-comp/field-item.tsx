@@ -145,7 +145,7 @@ export default class FieldItem extends tsc<object> {
   }
 
   get isFieldDisplayToggleSupported() {
-    return !(this.type === 'hidden' && this.isFieldObject && this.fieldItem.children?.length);
+    return true;
   }
 
   beforeDestroy() {

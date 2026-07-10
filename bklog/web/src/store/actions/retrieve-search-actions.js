@@ -53,21 +53,8 @@ const isSearchRequestCanceled = error =>
   || error?.name === 'AbortError'
   || error?.message === 'Search request canceled';
 
-// 乐观更新：仅在拿到有效正数时更新总数（meta 阶段 / 分页），不会把已知总数清零
-const applyOptimisticTotal = (state, total) => {
-  const normalizedTotal = normalizeSearchTotal(total);
-  if (normalizedTotal > 0) {
-    state.searchTotal = normalizedTotal;
-  }
-  return normalizedTotal;
-};
-
-// 权威更新：非分页检索的最终结果，如实反映（包含 0 结果）
-const applyAuthoritativeTotal = (state, total) => {
-  const normalizedTotal = normalizeSearchTotal(total);
-  state.searchTotal = normalizedTotal;
-  return normalizedTotal;
-};
+// 检索接口 total 只用于结果集自身，不覆盖 requestSearchTotal 写入的总趋势总数
+const normalizeResultTotal = total => normalizeSearchTotal(total);
 
 // 展示用总数：优先本次有效值，否则回退到已知总数，避免中间态（分页/meta 缺失）把总数显示成 0
 const resolveDisplayTotal = (state, total) => {
@@ -86,8 +73,8 @@ const applySearchStreamProgress = ({
 }) => {
   if (progress.stage === 'meta' && progress.meta) {
     const meta = { ...progress.meta };
-    applyOptimisticTotal(state, meta.total);
-    meta.total = resolveDisplayTotal(state, meta.total);
+    // 流式 meta 阶段的 /search total 只用于结果集自身，不覆盖总趋势 total
+    meta.total = resolveDisplayTotal(state, normalizeResultTotal(meta.total));
     storageHealthService.markActiveQuery(requestRowQueryKey);
     commit('updateIndexSetQueryResult', {
       ...meta,
@@ -476,12 +463,11 @@ export function requestIndexSetQueryAction(
 
       if (result) {
         if (payload.isPagination) {
-          // 分页请求：仅在有效正数时更新总数，否则沿用已知总数，避免覆盖为 0
-          applyOptimisticTotal(state, rsolvedData.total);
+          // 分页请求：不使用 /search total 覆盖总趋势 total，展示总数以 Total 接口为准
           rsolvedData.total = resolveDisplayTotal(state, rsolvedData.total);
         } else {
-          // 首屏检索：以最终结果为权威值（含 0 结果）
-          rsolvedData.total = applyAuthoritativeTotal(state, rsolvedData.total);
+          // 首屏检索：/search total 只更新结果集自身，避免覆盖 Total 接口返回的准确总数
+          rsolvedData.total = normalizeResultTotal(rsolvedData.total);
         }
         rsolvedData.row_keys = Object.freeze(Array.from(new Set(currentRowKeys.concat(rowKeys))));
         rsolvedData.row_query_key = requestRowQueryKey;

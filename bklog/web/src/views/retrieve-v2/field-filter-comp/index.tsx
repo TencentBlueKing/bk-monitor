@@ -334,33 +334,49 @@ export default class FieldFilterComp extends tsc<object> {
   handleVisibleMoveEnd() {
     this.$emit('fields-updated', this.dragVisibleFields);
   }
+  getFieldFullName(fieldItem) {
+    if (fieldItem.full_name || fieldItem.fullName) {
+      return fieldItem.full_name || fieldItem.fullName;
+    }
+
+    const parentFieldName = fieldItem.parentFieldName || fieldItem.parent_field_name;
+    const fieldName = fieldItem.field_name;
+    if (
+      parentFieldName
+      && typeof fieldName === 'string'
+      && !fieldName.startsWith(`${parentFieldName}.`)
+    ) {
+      return `${parentFieldName}.${fieldName}`;
+    }
+
+    return fieldName;
+  }
+
+  getDisplayFieldName(fieldItem) {
+    return fieldItem.field_type === 'object' ? this.getFieldFullName(fieldItem) : fieldItem.field_name;
+  }
+
   // 字段显示或隐藏
   handleToggleItem(type: string, fieldItem) {
     const displayFieldNames = this.visibleFields.map(item => item.field_name);
-    // object格式单独处理
-    if (fieldItem.field_type === 'object') {
-      const fieldName = fieldItem.parentFieldName
-        ? `${fieldItem.parentFieldName}.${fieldItem.field_name}`
-        : fieldItem.field_name;
+    const fieldName = this.getDisplayFieldName(fieldItem);
 
-      if (type === 'visible') {
-        // 需要隐藏字段
-        const index = this.visibleFields.findIndex(item => fieldName === item.field_name);
-        displayFieldNames.splice(index, 1);
-      } else {
-        // 需要显示字段 如果已存在不进行操作
-        if (this.visibleFields.some(item => item.field_name === fieldName)) {
-          return;
-        }
-        displayFieldNames.push(fieldName);
-      }
-    } else if (type === 'visible') {
+    if (!fieldName) {
+      return;
+    }
+
+    if (type === 'visible') {
       // 需要隐藏字段
-      const index = this.visibleFields.findIndex(item => fieldItem.field_name === item.field_name);
-      displayFieldNames.splice(index, 1);
+      const index = displayFieldNames.findIndex(item => item === fieldName);
+      if (index > -1) {
+        displayFieldNames.splice(index, 1);
+      }
     } else {
-      // 需要显示字段
-      displayFieldNames.push(fieldItem.field_name);
+      // 需要显示字段 如果已存在不进行操作
+      if (displayFieldNames.includes(fieldName)) {
+        return;
+      }
+      displayFieldNames.push(fieldName);
     }
     this.$emit('fields-updated', displayFieldNames);
   }

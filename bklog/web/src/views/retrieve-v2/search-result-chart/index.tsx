@@ -35,7 +35,7 @@ import useStore from '@/hooks/use-store';
 import useTrendChart from '@/hooks/use-trend-chart';
 import { formatAdditionalFields, getCommonFilterAddition } from '@/store/helper';
 import { BK_LOG_STORAGE } from '@/store/store.type.ts';
-import { getEffectiveSearchTotal } from '@/storage/utils/normalize-search-total';
+import { normalizeSearchTotal } from '@/storage/utils/normalize-search-total';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import { throttle } from 'lodash-es';
 import { useRoute, useRouter } from 'vue-router/composables';
@@ -144,8 +144,8 @@ export default defineComponent({
     // 是否正在加载趋势图数据
     const loading = computed(() => store.state.retrieve.isTrendDataLoading);
 
-    // 总条数和耗时（stream meta 写入 indexSetQueryResult.total 后也可作为来源）
-    const totalCount = computed(() => getEffectiveSearchTotal(store.state));
+    // 总趋势展示总数以 Total 接口写入的 searchTotal 为准，避免 /search 截断 total 覆盖展示
+    const totalCount = computed(() => normalizeSearchTotal(store.state.searchTotal));
     const tookTime = computed(() => Number.parseFloat(store.state.tookTime).toFixed(0));
 
     watch(
@@ -436,7 +436,7 @@ export default defineComponent({
           await store.dispatch('requestSearchTotal').catch(() => ({ result: false }));
           store.commit('retrieve/updateTotalCountLoaded', true);
           // 2. 判断总数是否为0
-          if (!getEffectiveSearchTotal(store.state)) {
+          if (!normalizeSearchTotal(store.state.searchTotal)) {
             isStart.value = false;
             store.commit('retrieve/updateTrendDataLoading', false);
             markTrendReady();
@@ -462,7 +462,7 @@ export default defineComponent({
         RetrieveEvent.INDEX_SET_ID_CHANGE,
         RetrieveEvent.AUTO_REFRESH,
         RetrieveEvent.SORT_LIST_CHANGED,
-        RetrieveEvent.SEARCH_TIME_ZONE_CHANGE
+        RetrieveEvent.SEARCH_TIME_ZONE_CHANGE,
       ],
       loadTrendData,
     );

@@ -4,7 +4,7 @@ import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch 
 import useStore from '@/hooks/use-store';
 import { getCommonFilterAdditionWithValues } from '@/store/helper';
 import { BK_LOG_STORAGE } from '@/store/store.type';
-import { getEffectiveSearchTotal } from '@/storage/utils/normalize-search-total';
+import { normalizeSearchTotal } from '@/storage/utils/normalize-search-total';
 import { throttle } from 'lodash-es';
 
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
@@ -136,7 +136,7 @@ const changeTotalCount = (count) => {
   totalCount.value = count;
 };
 watch(
-  () => getEffectiveSearchTotal(store.state),
+  () => normalizeSearchTotal(store.state.searchTotal),
   count => {
     totalCount.value = count;
   },

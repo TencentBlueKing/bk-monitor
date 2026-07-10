@@ -112,8 +112,8 @@ export default defineComponent({
         aiPreloadIdleTask = scheduleIdleTask(() => {
           aiPreloadIdleTask = undefined;
           preloadAiAssitant();
-        }, 5000);
-      }, 3000);
+        }, 200);
+      }, 100);
     };
 
     RetrieveHelper.aiAssitantHelper.setAiAssitantMountLoader(async () => {
