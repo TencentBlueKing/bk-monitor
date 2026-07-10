@@ -1557,25 +1557,22 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     @classmethod
     def _get_default_kafka_cluster_name(cls, bk_tenant_id: str) -> str:
         """
-        查询默认 Kafka 集群的 cluster_name，用于 V4 链路 DataId.spec.preferCluster.name。
+        查询已注册到 bkbase 的 Kafka 集群 cluster_name，用于 V4 链路 DataId.spec.preferCluster.name。
+        优先取默认集群；若默认集群未注册到 bkbase，则遍历该租户下其他 Kafka 集群找已注册的；
+        都未注册则报错。
         """
-        try:
-            cluster = metadata_models.ClusterInfo.objects.get(
-                bk_tenant_id=bk_tenant_id,
-                cluster_type=metadata_models.ClusterInfo.TYPE_KAFKA,
-                is_default_cluster=True,
-            )
-        except metadata_models.ClusterInfo.DoesNotExist:
-            raise ValueError(
-                f"no default kafka cluster for bk_tenant_id={bk_tenant_id}, "
-                "please contact administrator to configure default kafka cluster"
-            )
-        if not cluster.registered_to_bkbase:
-            raise ValueError(
-                f"kafka cluster {cluster.cluster_name} is not registered to bkbase, "
-                "please contact administrator to register"
-            )
-        return cluster.cluster_name
+        # is_default_cluster 降序，默认集群排前优先使用
+        kafka_clusters = metadata_models.ClusterInfo.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            cluster_type=metadata_models.ClusterInfo.TYPE_KAFKA,
+        ).order_by("-is_default_cluster")
+        for cluster in kafka_clusters:
+            if cluster.registered_to_bkbase:
+                return cluster.cluster_name
+        raise ValueError(
+            f"no kafka cluster registered to bkbase for bk_tenant_id={bk_tenant_id}, "
+            "please contact administrator to register a kafka cluster to bkbase"
+        )
 
     @classmethod
     def apply_datasource(cls, bk_biz_id, app_name, **options):
