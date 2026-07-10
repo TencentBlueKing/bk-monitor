@@ -19,6 +19,10 @@ class TenantValidationMiddleware(MiddlewareMixin):
         if not settings.ENABLE_MULTI_TENANT_MODE:
             return None
 
+        # api 请求豁免
+        if settings.BKAPP_IS_BKLOG_API:
+            return None
+
         if request.method in {"GET"}:
             bk_biz_id = request.GET.get("bk_biz_id")
             space_uid = request.GET.get("space_uid")

@@ -213,6 +213,57 @@ def test_rebuild_treats_blank_apm_cluster_names_as_default(monkeypatch):
     assert received["custom_report"]["apm_kafka_cluster_name"] is None
 
 
+def test_add_profiling_migrate_data_id_route_handler_passes_arguments(monkeypatch):
+    received = {}
+
+    def fake_add_profiling_migrate_data_id_route(**kwargs):
+        received.update(kwargs)
+        return {
+            "bk_biz_id": kwargs["bk_biz_id"],
+            "app_name": kwargs["app_name"],
+            "bk_data_id": 7788,
+            "before": [],
+            "after": [],
+        }
+
+    monkeypatch.setattr(
+        data_migrate_command,
+        "add_profiling_migrate_data_id_route",
+        fake_add_profiling_migrate_data_id_route,
+    )
+
+    data_migrate_command.Command()._handle_add_profiling_migrate_data_id_route(
+        {
+            "bk_tenant_id": " target-tenant ",
+            "bk_biz_id": 2,
+            "app_name": " demo ",
+            "migrate_cluster_name": " migrate_apm-kafka-public-1 ",
+            "dry_run": True,
+        }
+    )
+
+    assert received == {
+        "bk_tenant_id": "target-tenant",
+        "bk_biz_id": 2,
+        "app_name": "demo",
+        "migrate_cluster_name": "migrate_apm-kafka-public-1",
+        "dry_run": True,
+    }
+
+
+def test_add_profiling_migrate_data_id_route_handler_requires_app_name():
+    with pytest.raises(CommandError, match="add-profiling-migrate-data-id-route 动作必须提供 --app-name"):
+        data_migrate_command.Command()._handle_add_profiling_migrate_data_id_route(
+            {
+                "bk_tenant_id": "target-tenant",
+                "bk_biz_id": 2,
+                "app_name": "",
+                "migrate_cluster_name": "migrate_apm-kafka-public-1",
+                "dry_run": False,
+            }
+        )
+
+
 def test_partial_export_handler_uses_independent_export_helper(monkeypatch, tmp_path):
     received = {}
 
@@ -288,6 +339,41 @@ def test_partial_import_handler_runs_prechecked_import(monkeypatch, tmp_path):
         "directory_path": tmp_path,
         "bk_biz_ids": [2],
         "atomic": False,
+    }
+
+
+def test_partial_import_disables_global_post_import_repairs(monkeypatch, tmp_path):
+    received = {}
+
+    monkeypatch.setattr(
+        partial_migrate,
+        "precheck_partial_import_directory",
+        lambda **kwargs: {"result": True, "checked": {"files": 1, "records": 1}, "conflicts": []},
+    )
+
+    def fake_import_biz_data_from_directory(**kwargs):
+        received.update(kwargs)
+        return ["imported"]
+
+    monkeypatch.setattr(partial_migrate, "import_biz_data_from_directory", fake_import_biz_data_from_directory)
+
+    result = partial_migrate.import_partial_data_from_directory(
+        directory_path=tmp_path,
+        bk_biz_ids=[2],
+        atomic=False,
+    )
+
+    assert result["imported_count"] == 1
+    assert received == {
+        "directory_path": tmp_path,
+        "bk_biz_ids": [2],
+        "atomic": False,
+        "cleanup_existing": False,
+        "sync_close_records": False,
+        "migrate_builtin_system_event_strategy": False,
+        "migrate_builtin_gather_up_strategy": False,
+        "repair_plugin_strategy": False,
+        "repair_plugin_dashboard": False,
     }
 
 
@@ -497,6 +583,31 @@ def test_find_custom_report_data_ids_accepts_negative_biz_ids(monkeypatch):
     )
 
     assert received == {"bk_tenant_id": "tencent", "bk_biz_ids": [-4759, 2]}
+
+
+def test_repair_plugin_dashboard_result_table_handler_allows_empty_biz_ids(monkeypatch):
+    received = {}
+
+    def fake_repair_plugin_dashboard_result_table_id(**kwargs):
+        received.update(kwargs)
+        return {
+            "changed_count": 1,
+            "applied_count": 0,
+            "stale_count": 0,
+            "invalid_json_count": 0,
+            "changes": [],
+            "invalid_json": [],
+        }
+
+    monkeypatch.setattr(
+        data_migrate_command,
+        "repair_plugin_dashboard_result_table_id",
+        fake_repair_plugin_dashboard_result_table_id,
+    )
+
+    data_migrate_command.Command()._handle_repair_plugin_dashboard_result_table({"bk_biz_ids": None, "dry_run": True})
+
+    assert received == {"bk_biz_id": None, "dry_run": True}
 
 
 def test_enable_closed_strategies_accepts_negative_biz_ids(monkeypatch):

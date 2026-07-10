@@ -24,6 +24,7 @@ from monitor_web.data_migrate.data_rebuilder import (
     DEFAULT_ES_CLUSTER_NAMES,
     DEFAULT_KAFKA_CLUSTER_NAMES,
     add_new_migrate_data_id_routes,
+    add_profiling_migrate_data_id_route,
     enable_closed_strategies_from_application_config,
     find_biz_custom_report_data_ids,
     rebuild_bklog_data_source_route,
@@ -54,6 +55,7 @@ from monitor_web.data_migrate import (
     refresh_biz_bk_collector_proxy_configs,
     retry_biz_bk_collector_proxy_config_delivery,
     rebuild_partial_data,
+    repair_plugin_dashboard_result_table_id,
     restore_disabled_models_in_directory,
     sanitize_cluster_info_in_directory,
     stop_biz_bk_collector,
@@ -114,6 +116,9 @@ class Command(BaseCommand):
             "  更新单个数据 ID 的迁移双写路由:\n"
             "    python manage.py data_migrate update-migrate-data-id-routes --bk-data-id 123 --kafka-cluster-name kafka_cluster\n"
             "\n"
+            "  根据 Profiling 存量 GSE 路由添加迁移双写路由:\n"
+            "    python manage.py data_migrate add-profiling-migrate-data-id-route --bk-tenant-id tencent --bk-biz-id 18901 --app-name demo-app --migrate-cluster-name migrate_apm-kafka-public-1 --dry-run\n"
+            "\n"
             "  根据导入阶段记录开启被关闭的策略:\n"
             "    python manage.py data_migrate enable-closed-strategies --bk-biz-ids 18901\n"
             "\n"
@@ -162,6 +167,9 @@ class Command(BaseCommand):
             "  统一迁移全部内置策略（系统事件 + gather_up 采集状态）:\n"
             "    python manage.py data_migrate migrate-builtin-strategies --bk-biz-ids 18901 --dry-run\n"
             "\n"
+            "  修复仪表盘中插件类指标的旧 result_table_id:\n"
+            "    python manage.py data_migrate repair-plugin-dashboard-result-table --bk-biz-ids 18901 --dry-run\n"
+            "\n"
             "  局部导出指定 BCS 集群、自定义上报 Data ID 和 APM 应用:\n"
             "    python manage.py data_migrate partial-export --directory /tmp/output --bk-tenant-id tencent --bk-biz-id 18901 --bcs-cluster-ids BCS-K8S-00000 --custom-report-data-ids 123 456 --app-names demo-app\n"
             "\n"
@@ -180,6 +188,7 @@ class Command(BaseCommand):
                 "find-custom-report-data-ids",
                 "add-migrate-data-id-routes",
                 "update-migrate-data-id-routes",
+                "add-profiling-migrate-data-id-route",
                 "enable-closed-strategies",
                 "apply-sequences",
                 "replace-tenant-id",
@@ -196,6 +205,7 @@ class Command(BaseCommand):
                 "migrate-system-event-strategies",
                 "migrate-gather-up-strategies",
                 "migrate-builtin-strategies",
+                "repair-plugin-dashboard-result-table",
                 "partial-export",
                 "partial-import",
                 "partial-rebuild",
@@ -215,13 +225,16 @@ class Command(BaseCommand):
                 "enable-closed-strategies 支持正数和负数业务 ID；"
                 "stop-biz-subscription-tasks 会跳过负数业务 ID；"
                 "migrate-system-event-strategies/migrate-gather-up-strategies/migrate-builtin-strategies "
-                "不传时扫描全量策略"
+                "不传时扫描全量策略；repair-plugin-dashboard-result-table 不传时扫描全量仪表盘"
             ),
         )
         parser.add_argument(
             "--bk-biz-id",
             type=int,
-            help="单个业务 ID；仅 partial-export、partial-import、partial-rebuild 动作需要",
+            help=(
+                "单个业务 ID；仅 partial-export、partial-import、partial-rebuild、"
+                "add-profiling-migrate-data-id-route 动作需要"
+            ),
         )
         parser.add_argument(
             "--format", default="json", help="导出文件格式，默认 json；仅 export/partial-export 动作需要"
@@ -238,7 +251,10 @@ class Command(BaseCommand):
             action="store_true",
             help="导入时关闭按单文件事务处理；仅 import 动作需要",
         )
-        parser.add_argument("--bk-tenant-id", help="租户 ID；仅 rebuild、partial-export、partial-rebuild 动作需要")
+        parser.add_argument(
+            "--bk-tenant-id",
+            help=("租户 ID；仅 rebuild、partial-export、partial-rebuild、add-profiling-migrate-data-id-route 动作需要"),
+        )
         parser.add_argument(
             "--bcs-cluster-ids",
             nargs="+",
@@ -254,6 +270,11 @@ class Command(BaseCommand):
             "--app-names",
             nargs="+",
             help="APM 应用名列表；仅 partial-export、partial-rebuild 动作需要",
+        )
+        parser.add_argument("--app-name", help="APM 应用名；仅 add-profiling-migrate-data-id-route 动作需要")
+        parser.add_argument(
+            "--migrate-cluster-name",
+            help="迁移 Kafka 集群名称；仅 add-profiling-migrate-data-id-route 动作需要",
         )
         parser.add_argument(
             "--biz-tenant-id-map",
@@ -334,7 +355,8 @@ class Command(BaseCommand):
                 "仅预览不执行；仅 stop-biz-subscription-tasks、install-biz-bk-collector、"
                 "disable-biz-bk-collector-subscription-checks、stop-biz-bk-collector、"
                 "refresh-biz-bk-collector-configs、retry-biz-bk-collector-config-delivery、"
-                "migrate-system-event-strategies 动作需要"
+                "migrate-system-event-strategies、add-profiling-migrate-data-id-route、"
+                "repair-plugin-dashboard-result-table 动作需要"
             ),
         )
         parser.add_argument(
@@ -354,8 +376,8 @@ class Command(BaseCommand):
             action=argparse.BooleanOptionalAction,
             default=None,
             help=(
-                "执行前是否检查主机 Agent 状态并跳过 Agent 未安装的主机；"
-                "install-biz-bk-collector 默认不跳过，stop-biz-bk-collector 默认跳过；"
+                "执行前是否按 Agent 状态跳过主机；install-biz-bk-collector 启用时跳过 Agent 未安装的主机，"
+                "stop-biz-bk-collector 默认跳过 Agent 状态非 RUNNING 的主机；"
                 "可用 --skip-hosts-without-agent / --no-skip-hosts-without-agent 显式覆盖"
             ),
         )
@@ -418,6 +440,7 @@ class Command(BaseCommand):
             "find-custom-report-data-ids": self._handle_find_custom_report_data_ids,
             "add-migrate-data-id-routes": self._handle_add_migrate_data_id_routes,
             "update-migrate-data-id-routes": self._handle_update_migrate_data_id_routes,
+            "add-profiling-migrate-data-id-route": self._handle_add_profiling_migrate_data_id_route,
             "enable-closed-strategies": self._handle_enable_closed_strategies,
             "apply-sequences": self._handle_apply_sequences,
             "replace-tenant-id": self._handle_replace_tenant_id,
@@ -434,6 +457,7 @@ class Command(BaseCommand):
             "migrate-system-event-strategies": self._handle_migrate_system_event_strategies,
             "migrate-gather-up-strategies": self._handle_migrate_gather_up_strategies,
             "migrate-builtin-strategies": self._handle_migrate_builtin_strategies,
+            "repair-plugin-dashboard-result-table": self._handle_repair_plugin_dashboard_result_table,
             "partial-export": self._handle_partial_export,
             "partial-import": self._handle_partial_import,
             "partial-rebuild": self._handle_partial_rebuild,
@@ -719,6 +743,28 @@ class Command(BaseCommand):
         self.stdout.write(json.dumps(route_changes, ensure_ascii=False, indent=2, sort_keys=True))
         self.stdout.write(self.style.SUCCESS(f"update migrate data id routes completed: {len(route_changes)}"))
 
+    def _handle_add_profiling_migrate_data_id_route(self, options) -> None:
+        action_name = "add-profiling-migrate-data-id-route"
+        bk_tenant_id = self._load_bk_tenant_id(options.get("bk_tenant_id"), action_name=action_name)
+        bk_biz_id = self._load_bk_biz_id(options.get("bk_biz_id"), action_name=action_name)
+        app_name = self._load_app_name(options.get("app_name"), action_name=action_name)
+        migrate_cluster_name = self._load_migrate_cluster_name(options.get("migrate_cluster_name"), action_name)
+        try:
+            route_change = add_profiling_migrate_data_id_route(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id=bk_biz_id,
+                app_name=app_name,
+                migrate_cluster_name=migrate_cluster_name,
+                dry_run=options.get("dry_run", False),
+            )
+        except ValueError as error:
+            raise CommandError(str(error)) from error
+        self.stdout.write(json.dumps(route_change, ensure_ascii=False, indent=2, sort_keys=True))
+        if options.get("dry_run", False):
+            self.stdout.write(self.style.SUCCESS("add profiling migrate data id route dry-run completed"))
+        else:
+            self.stdout.write(self.style.SUCCESS("add profiling migrate data id route completed"))
+
     def _handle_enable_closed_strategies(self, options) -> None:
         bk_biz_ids = self._load_non_zero_biz_ids(options.get("bk_biz_ids"), action_name="enable-closed-strategies")
         enable_results = enable_closed_strategies_from_application_config(bk_biz_ids=bk_biz_ids)
@@ -968,6 +1014,28 @@ class Command(BaseCommand):
                 )
             )
 
+    def _handle_repair_plugin_dashboard_result_table(self, options) -> None:
+        result = repair_plugin_dashboard_result_table_id(
+            bk_biz_id=options.get("bk_biz_ids"),
+            dry_run=options.get("dry_run", False),
+        )
+        self.stdout.write(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        if result["stale_count"] or result["invalid_json_count"]:
+            self.stdout.write(
+                self.style.WARNING(
+                    "repair plugin dashboard result table completed with warnings: "
+                    f"changed={result['changed_count']}, applied={result['applied_count']}, "
+                    f"stale={result['stale_count']}, invalid_json={result['invalid_json_count']}"
+                )
+            )
+        else:
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"repair plugin dashboard result table completed: changed={result['changed_count']}, "
+                    f"applied={result['applied_count']}"
+                )
+            )
+
     def _write_report_result(self, result: dict[str, Any], *, success_message: str, warning_message: str) -> None:
         self.stdout.write(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
         self._write_skipped_hosts(result)
@@ -998,14 +1066,14 @@ class Command(BaseCommand):
 
     @staticmethod
     def _resolve_skip_hosts_without_agent(options, *, default: bool) -> bool:
-        """按动作解析是否跳过 Agent 未安装的主机；命令行显式指定时优先。"""
+        """按动作解析是否启用 Agent 状态过滤；命令行显式指定时优先。"""
         value = options.get("skip_hosts_without_agent")
         if value is None:
             return default
         return bool(value)
 
     def _write_skipped_hosts(self, result: dict[str, Any]) -> None:
-        """集中打印因 Agent 未安装等原因被跳过的主机及原因。"""
+        """集中打印因 Agent 状态或插件未安装等原因被跳过的主机及原因。"""
         skip_summary = result.get("skip_summary") or {}
         host_count = skip_summary.get("host_count", 0)
         if not host_count:
@@ -1223,6 +1291,20 @@ class Command(BaseCommand):
         if not kafka_cluster_name:
             raise CommandError(f"{action_name} 动作必须提供 --kafka-cluster-name")
         return kafka_cluster_name
+
+    def _load_migrate_cluster_name(self, raw_migrate_cluster_name: str | None, action_name: str) -> str:
+        """校验迁移 Kafka 集群名称参数。"""
+        migrate_cluster_name = str(raw_migrate_cluster_name or "").strip()
+        if not migrate_cluster_name:
+            raise CommandError(f"{action_name} 动作必须提供 --migrate-cluster-name")
+        return migrate_cluster_name
+
+    def _load_app_name(self, raw_app_name: str | None, action_name: str) -> str:
+        """校验 APM 应用名参数。"""
+        app_name = str(raw_app_name or "").strip()
+        if not app_name:
+            raise CommandError(f"{action_name} 动作必须提供 --app-name")
+        return app_name
 
     def _load_optional_cluster_name(self, raw_cluster_name: str | None) -> str | None:
         """规范化可选集群名称，空值表示沿用旧逻辑。"""

@@ -117,6 +117,68 @@ def refresh_ping_conf(plugin_name: str):
                 )
 
 
+def refresh_biz_ping_conf(*, bk_tenant_id: str, bk_biz_ids: list[int], plugin_name: str):
+    """刷新指定业务关联云区域的 Ping Server 配置。"""
+    # metadata模块不应该引入alarm_backends下的文件，这里通过函数内引用，避免循环引用问题
+    from alarm_backends.core.cache.cmdb.host import HostManager
+
+    all_hosts: list[Host] = HostManager.all(bk_tenant_id=bk_tenant_id)
+    target_bk_biz_ids = set(bk_biz_ids)
+    related_cloud_ids = {
+        host.bk_cloud_id for host in all_hosts if host.bk_biz_id in target_bk_biz_ids and host.bk_cloud_id >= 0
+    }
+    if not related_cloud_ids:
+        logger.info(
+            "no cloud area related to businesses, skip refreshing ping server config, bk_tenant_id(%s), bk_biz_ids(%s)",
+            bk_tenant_id,
+            sorted(target_bk_biz_ids),
+        )
+        return
+
+    exists_host_ids: set[int] = set()
+    cloud_to_hosts: dict[int, list[dict[str, Any]]] = defaultdict(list)
+    for host in all_hosts:
+        if host.bk_cloud_id not in related_cloud_ids:
+            continue
+
+        ip = host.bk_host_innerip_v6 if is_ipv6_biz(host.bk_biz_id) else host.bk_host_innerip
+        if (
+            host.ignore_monitoring
+            or not ip
+            or host.bk_host_id in exists_host_ids
+            or is_biz_id_in_black_list(host.bk_biz_id)
+        ):
+            continue
+
+        cloud_to_hosts[host.bk_cloud_id].append(
+            {
+                "ip": ip,
+                "bk_cloud_id": host.bk_cloud_id,
+                "bk_biz_id": host.bk_biz_id,
+                "bk_host_id": host.bk_host_id,
+            }
+        )
+        exists_host_ids.add(host.bk_host_id)
+
+    for bk_cloud_id in sorted(related_cloud_ids):
+        try:
+            _refresh_ping_conf_by_cloud_id(
+                bk_tenant_id,
+                bk_cloud_id,
+                plugin_name,
+                cloud_to_hosts.get(bk_cloud_id, []),
+            )
+        except Exception as error:  # noqa: BLE001 - 云区域之间互不影响，失败时继续下发其他区域。
+            logger.exception(
+                "refresh business ping server config error, bk_tenant_id(%s), bk_biz_ids(%s), "
+                "bk_cloud_id(%s), error(%s)",
+                bk_tenant_id,
+                sorted(target_bk_biz_ids),
+                bk_cloud_id,
+                error,
+            )
+
+
 def _refresh_ping_conf_by_cloud_id(
     bk_tenant_id: str, bk_cloud_id: int, plugin_name: str, target_ips: list[dict[str, Any]]
 ):
