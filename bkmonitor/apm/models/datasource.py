@@ -1555,6 +1555,29 @@ class ProfileDataSource(ApmDataSourceConfigBase):
         }
 
     @classmethod
+    def _get_default_kafka_cluster_name(cls, bk_tenant_id: str) -> str:
+        """
+        查询默认 Kafka 集群的 cluster_name，用于 V4 链路 DataId.spec.preferCluster.name。
+        """
+        try:
+            cluster = metadata_models.ClusterInfo.objects.get(
+                bk_tenant_id=bk_tenant_id,
+                cluster_type=metadata_models.ClusterInfo.TYPE_KAFKA,
+                is_default_cluster=True,
+            )
+        except metadata_models.ClusterInfo.DoesNotExist:
+            raise ValueError(
+                f"no default kafka cluster for bk_tenant_id={bk_tenant_id}, "
+                "please contact administrator to configure default kafka cluster"
+            )
+        if not cluster.registered_to_bkbase:
+            raise ValueError(
+                f"kafka cluster {cluster.cluster_name} is not registered to bkbase, "
+                "please contact administrator to register"
+            )
+        return cluster.cluster_name
+
+    @classmethod
     def apply_datasource(cls, bk_biz_id, app_name, **options):
         option = options["option"]
         profile_bk_biz_id = bk_biz_id
@@ -1587,11 +1610,13 @@ class ProfileDataSource(ApmDataSourceConfigBase):
         if use_v4:
             # V4 声明式链路：轮询可能长达 5 分钟，不可放入事务内
             # 先生成 DataId 名称并持久化，防止 provider() 中途失败后重试时生成不同随机后缀导致孤儿资源
+            prefer_kafka_cluster_name = cls._get_default_kafka_cluster_name(bk_tenant_id)
             provider = BkDataDorisV4Provider.from_datasource_instance(
                 obj,
                 bk_tenant_id=bk_tenant_id,
                 maintainer=maintainer,
                 operator=global_user,
+                prefer_kafka_cluster_name=prefer_kafka_cluster_name,
             )
             data_id_name = compose_profile_data_id_name(provider.data_biz_id, obj.app_name)
             obj.bkdata_datalink_config = {
@@ -1668,8 +1693,13 @@ class ProfileDataSource(ApmDataSourceConfigBase):
             apm_maintainers = ",".join(settings.APM_APP_BKDATA_MAINTAINER)
             global_user = get_global_user(bk_tenant_id=bk_tenant_id)
             maintainer = global_user if not apm_maintainers else f"{global_user},{apm_maintainers}"
+            prefer_kafka_cluster_name = cls._get_default_kafka_cluster_name(bk_tenant_id)
             provider = BkDataDorisV4Provider.from_datasource_instance(
-                instance, bk_tenant_id=bk_tenant_id, maintainer=maintainer, operator=global_user
+                instance,
+                bk_tenant_id=bk_tenant_id,
+                maintainer=maintainer,
+                operator=global_user,
+                prefer_kafka_cluster_name=prefer_kafka_cluster_name,
             )
             provider.apply()
         else:
