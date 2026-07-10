@@ -445,6 +445,10 @@ export default defineComponent({
       },
     ]);
 
+    const renderSlot = h => {
+      return h('bk-user-display-name', { 'user-id': state.username });
+    };
+
     /**
      * 渲染带图标的语言下拉菜单链接
      */
@@ -639,9 +643,9 @@ export default defineComponent({
               timezone: state.timezone,
             }}
             offset={[0, 20]}
+            renderSlot={renderSlot}
             actionList={actionList.value}
           >
-            <bk-user-display-name user-id={state.username}></bk-user-display-name>
           </BkLoginUserinfo>
         </div>
 
