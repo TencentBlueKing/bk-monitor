@@ -36,6 +36,7 @@ export type FormatterConfig = {
     content: boolean | number | string;
     field: any;
     data: any;
+    precomputedSegments?: WordListItem[];
   };
 };
 
@@ -60,7 +61,7 @@ export default class UseTextSegmentation {
   onSegmentClick: (...args) => void;
   clickValue: string;
   keyRef: any;
-  options = {
+  options: FormatterConfig['options'] = {
     field: null,
     content: '',
     data: {},
@@ -79,10 +80,11 @@ export default class UseTextSegmentation {
   }
 
   getTextCellClickHandler(e: MouseEvent) {
-    if ((e.target as HTMLElement).classList.contains('valid-text')) {
+    const validTextElement = (e.target as HTMLElement).closest?.('.valid-text') as HTMLElement | null;
+    if (validTextElement) {
       const { offsetY, offsetX } = getClickTargetElement(e);
       const offsetTarget = setPointerCellClickTargetHandler(e, { offsetY, offsetX });
-      this.handleSegmentClick(offsetTarget, (e.target as HTMLElement).textContent);
+      this.handleSegmentClick(offsetTarget, validTextElement.textContent);
     }
   }
 
@@ -103,7 +105,7 @@ export default class UseTextSegmentation {
   }
 
   formatValue() {
-    return this.escapeString(this.options.content)
+    return this.escapeString(`${this.options.content}`)
       .replace(/<mark>/g, '')
       .replace(/<\/mark>/g, '');
   }
@@ -199,7 +201,7 @@ export default class UseTextSegmentation {
   }
 
   private convertVirtaulObjToArray() {
-    const target = this.options.data[this.options.field.field_name] ?? this.convertJsonStrToObj(this.options.content);
+    const target = this.options.data[this.options.field.field_name] ?? this.convertJsonStrToObj(`${this.options.content}`);
 
     const convertObjToArray = (root: object, isValue = false) => {
       const result: Record<string, any>[] = [];
@@ -326,6 +328,10 @@ export default class UseTextSegmentation {
   }
 
   private getSplitList(field: any, content: any, forceSplit = false) {
+    if (Array.isArray(this.options.precomputedSegments)) {
+      return this.options.precomputedSegments;
+    }
+
     /** 检索高亮分词字符串 */
     const value = this.escapeString(`${content}`);
 

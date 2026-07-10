@@ -240,6 +240,7 @@
 </template>
 
 <script>
+  import { manageDraftCacheService } from '@/storage';
   import EmptyStatus from '@/components/empty-status';
   import useUtils from '@/hooks/use-utils';
 
@@ -449,6 +450,7 @@
       cloneTask(row) {
         if (!row.enable_clone) return;
         sessionStorage.setItem('cloneData', JSON.stringify(row));
+        manageDraftCacheService.set('cloneData', row, { source: 'extract-home' }).catch(() => {});
         this.$router.push({
           name: 'extract-clone',
           query: {

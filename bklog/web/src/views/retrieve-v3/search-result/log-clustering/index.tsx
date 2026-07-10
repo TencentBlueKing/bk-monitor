@@ -100,7 +100,7 @@ export default defineComponent({
 
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const indexSetFieldConfig = computed(() => store.state.indexSetFieldConfig);
-    const totalFields = computed(() => (indexFieldInfo.value.fields || []) as Array<any>);
+    const totalFields = computed(() => store.getters.rawFieldList as Array<any>);
     const globalLoading = computed(() => indexFieldInfo.value.is_loading || isFieldInit.value);
     const clusteringConfig = computed(() => indexSetFieldConfig.value.clustering_config);
     const clusterSwitch = computed(() => clusteringConfig.value?.is_active || false);

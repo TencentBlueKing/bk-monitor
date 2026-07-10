@@ -54,9 +54,9 @@
         >
           <div class="field-label">
             <span
-              v-if="hiddenFieldsSet.has(field)"
+              v-if="hiddenFieldsSet.has(field.field_name)"
               class="field-eye-icon bklog-icon bklog-eye-slash"
-              v-bk-tooltips="{ content: $t('隐藏') }"
+              v-bk-tooltips="{ content: $t('展示') }"
               @click="
                 e => {
                   e.stopPropagation();
@@ -67,7 +67,7 @@
             <span
               v-else
               class="field-eye-icon bklog-icon bklog-eye"
-              v-bk-tooltips="{ content: $t('展示') }"
+              v-bk-tooltips="{ content: $t('隐藏') }"
               @click="
                 e => {
                   e.stopPropagation();
@@ -125,6 +125,7 @@
 
   // import TextSegmentation from '../search-result-panel/log-result/text-segmentation';
   import { BK_LOG_STORAGE } from '@/store/store.type';
+  import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 
   export default {
     components: {
@@ -241,10 +242,11 @@
       },
 
       hiddenFields() {
-        return this.fieldList.filter(item => !this.visibleFields.some(visibleItem => item === visibleItem));
+        const visibleFieldNames = new Set(this.visibleFields.map(item => item.field_name));
+        return this.fieldList.filter(item => !visibleFieldNames.has(item.field_name));
       },
       hiddenFieldsSet() {
-        return new Set(this.hiddenFields);
+        return new Set(this.hiddenFields.map(item => item.field_name));
       },
       filedSettingConfigID() {
         // 当前索引集的显示字段ID
@@ -870,12 +872,13 @@
           }
         });
 
-        if (visible) {
+        if (visible && !displayFields.includes(field.field_name)) {
           displayFields.push(field.field_name);
         }
         this.$store.dispatch('userFieldConfigChange', { displayFields }).then(() => {
-          this.$store.commit('resetVisibleFields', displayFields);
-          this.$store.commit('updateIsSetDefaultTableColumn');
+          this.$store.commit('resetVisibleFields', { displayFieldNames: displayFields, version: 'v2' });
+          this.$store.commit('updateIsSetDefaultTableColumn', false);
+          RetrieveHelper.fire(RetrieveEvent.VISIBLE_FIELD_COLUMN_LAYOUT_CHANGE);
         });
       },
     },

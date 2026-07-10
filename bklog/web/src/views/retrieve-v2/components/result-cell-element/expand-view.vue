@@ -96,6 +96,7 @@
   import { TABLE_LOG_FIELDS_SORT_REGULAR, copyMessage } from '@/common/util';
   import { getFieldNameByField } from '@/hooks/use-field-name';
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
+  import { retrieveRowCacheService } from '@/storage';
   import { perfMeasure } from '@/utils/performance-monitor';
 
   import KvList from '../../result-comp/kv-list.vue';
@@ -122,6 +123,10 @@
       rowIndex: {
         type: Number,
       },
+      rowKey: {
+        type: String,
+        default: '',
+      },
     },
     data() {
       return {
@@ -137,7 +142,7 @@
         return this.$store.getters.visibleFields ?? [];
       },
       totalFields() {
-        return this.$store.state.indexFieldInfo.fields ?? [];
+        return this.$store.getters.filteredFieldList;
       },
       // 性能优化：使用 Set 缓存 kvShowFieldsList，提升查找性能
       kvShowFieldsSet() {
@@ -185,7 +190,7 @@
           return this.listData ?? this.data;
         }
 
-        return this.$store.state.indexSetQueryResult?.list?.[this.rowIndex] ?? this.listData ?? this.data;
+        return this.listData ?? this.data;
       },
       jsonShowData() {
         // 如果已有缓存，直接返回缓存（避免重复计算）
@@ -248,8 +253,21 @@
       },
     },
     methods: {
-      handleCopy() {
-        copyMessage(JSON.stringify(this.jsonShowData));
+      async handleCopy() {
+        try {
+          if (this.rowKey) {
+            const includeFields = this.kvListData.map(field => field.field_name).filter(Boolean);
+            const [originRow] = await retrieveRowCacheService.getCopyRows([this.rowKey], { includeFields });
+            if (originRow) {
+              copyMessage(JSON.stringify(originRow));
+              return;
+            }
+          }
+        } catch (error) {
+          console.warn('[expand-view] copy origin row failed', error);
+        }
+
+        this.$bkMessage?.({ theme: 'warning', message: this.$t('原始日志数据读取失败，请稍后重试') });
       },
       handleSearch() {
         this.activeSearchKeyword = this.searchKeyword.trim();
@@ -260,7 +278,7 @@
       },
       handleInputChange(value) {
         // 当输入框内容被手动删空时，重置搜索
-        if (!value || !value.trim()) {
+        if (!value?.trim?.()) {
           this.activeSearchKeyword = '';
         }
       },
