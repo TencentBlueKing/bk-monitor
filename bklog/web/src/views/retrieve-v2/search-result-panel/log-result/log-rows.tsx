@@ -639,6 +639,7 @@ export default defineComponent({
                 limitRow={null}
                 originalMode={true}
                 renderMeta={getRowRenderMeta(row)}
+                stateKey={getRowComponentKey(row)}
                 onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink)}
               />
             );

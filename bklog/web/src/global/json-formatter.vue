@@ -59,6 +59,10 @@
     </template>
   </div>
 </template>
+<script lang="ts">
+  const ORIGINAL_VALUE_EXPAND_STATE_CACHE_LIMIT = 500;
+  const originalValueExpandStateCache = new Map<string, Record<string, boolean>>();
+</script>
 <script setup lang="ts">
   import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
@@ -104,6 +108,11 @@
     originalMode: {
       type: Boolean,
       default: false,
+    },
+
+    stateKey: {
+      type: [String, Number],
+      default: '',
     },
 
     limitRow: {
@@ -172,6 +181,79 @@
 
     return [Object.assign({}, props.fields, { __is_virtual_root__: true })];
   });
+
+  const originalValueFieldsSignature = computed(() =>
+    fieldList.value
+      .map((item: any) => String(item.field_name) + ':' + String(item.field_type ?? ''))
+      .join('\u0001'),
+  );
+
+  const clearOriginalValueRenderCache = () => {
+    originalValuePreviewTextCache.clear();
+    originalValuePreviewSegmentCache.clear();
+    expandedOriginalValueTexts.value = {};
+    expandedOriginalValueSegments.value = {};
+  };
+
+  const getOriginalValueExpandStateKey = () => {
+    if (!isOriginalMode.value || props.stateKey === null || props.stateKey === undefined || props.stateKey === '') {
+      return '';
+    }
+
+    return String(props.stateKey);
+  };
+
+  const persistOriginalValueExpandedFields = () => {
+    const stateKey = getOriginalValueExpandStateKey();
+    if (!stateKey) return;
+
+    originalValueExpandStateCache.delete(stateKey);
+    originalValueExpandStateCache.set(stateKey, { ...expandedOriginalValueFields.value });
+
+    while (originalValueExpandStateCache.size > ORIGINAL_VALUE_EXPAND_STATE_CACHE_LIMIT) {
+      const oldestKey = originalValueExpandStateCache.keys().next().value;
+      originalValueExpandStateCache.delete(oldestKey);
+    }
+  };
+
+  const restoreOriginalValueExpandedFields = () => {
+    const stateKey = getOriginalValueExpandStateKey();
+    expandedOriginalValueFields.value = stateKey
+      ? { ...(originalValueExpandStateCache.get(stateKey) ?? {}) }
+      : {};
+  };
+
+  const resetOriginalValueState = () => {
+    expandedOriginalValueFields.value = {};
+    persistOriginalValueExpandedFields();
+    clearOriginalValueRenderCache();
+  };
+
+  const syncOriginalValueState = () => {
+    restoreOriginalValueExpandedFields();
+    clearOriginalValueRenderCache();
+  };
+
+  const pruneOriginalValueExpandedFields = () => {
+    if (!isOriginalMode.value) return;
+
+    const fieldNameSet = new Set(fieldList.value.map((item: any) => item.field_name));
+    const nextExpandedFields: Record<string, boolean> = {};
+    let hasPruned = false;
+
+    for (const fieldName of Object.keys(expandedOriginalValueFields.value)) {
+      if (fieldNameSet.has(fieldName)) {
+        nextExpandedFields[fieldName] = expandedOriginalValueFields.value[fieldName];
+      } else {
+        hasPruned = true;
+      }
+    }
+
+    if (hasPruned) {
+      expandedOriginalValueFields.value = nextExpandedFields;
+      persistOriginalValueExpandedFields();
+    }
+  };
 
   const showMoreTextAction = computed(() => {
     if (isOriginalMode.value) {
@@ -324,6 +406,7 @@
       ...expandedOriginalValueFields.value,
       [fieldName]: !expandedOriginalValueFields.value[fieldName],
     };
+    persistOriginalValueExpandedFields();
     nextTick(() => {
       resetOriginalValueRenderedFlag(fieldName);
       debounceUpdate();
@@ -501,15 +584,35 @@
   };
 
   watch(
-    // renderMeta 会在日志行异步渲染/高亮回填时更新；它只影响内容重绘，不应重置用户手动展开状态。
-    () => [props.limitRow, props.jsonValue, props.fields, isLimitExpandText.value, isOriginalMode.value],
+    () => [props.limitRow, isLimitExpandText.value],
     () => {
       showAllText.value = false;
-      expandedOriginalValueFields.value = {};
-      originalValuePreviewTextCache.clear();
-      originalValuePreviewSegmentCache.clear();
-      expandedOriginalValueTexts.value = {};
-      expandedOriginalValueSegments.value = {};
+      hasScrollY.value = false;
+      scheduleSetIsOverflowY();
+    },
+  );
+
+  watch(
+    () => [props.jsonValue, isOriginalMode.value, props.stateKey],
+    () => {
+      if (getOriginalValueExpandStateKey()) {
+        syncOriginalValueState();
+      } else {
+        resetOriginalValueState();
+      }
+      hasScrollY.value = false;
+      scheduleSetIsOverflowY();
+    },
+    {
+      immediate: true,
+    },
+  );
+
+  watch(
+    () => [originalValueFieldsSignature.value, formatJson.value, isFormatDateField.value],
+    () => {
+      pruneOriginalValueExpandedFields();
+      clearOriginalValueRenderCache();
       hasScrollY.value = false;
       scheduleSetIsOverflowY();
     },
