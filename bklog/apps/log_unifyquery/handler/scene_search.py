@@ -223,15 +223,19 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             ).values_list("result_table_id", "index_set_id")
         )
 
-    def _deal_query_result(self, result_dict: dict) -> dict:
+    def _deal_query_result(self, result_dict: dict, add_index_set_id: bool = False) -> dict:
         log_list = []
         origin_log_list = []
-        result_table_index_set_map = self._get_result_table_index_set_map(result_dict.get("result_table_id") or [])
+        result_table_index_set_map = {}
+        if add_index_set_id:
+            result_table_index_set_map = self._get_result_table_index_set_map(result_dict.get("list", []))
         for log in result_dict.get("list", []):
             log = merge_nested_data(log)
+            # 补充 index_set_id 用于给前端标记来源
             index_set_id = result_table_index_set_map.get(log.get("__result_table"))
             if index_set_id:
                 log["__index_set_id__"] = index_set_id
+
             if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
                 log = self._log_desensitize(log)
             log = self._add_cmdb_fields(log)
@@ -352,7 +356,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
 
         result = self.query_ts_raw(search_dict)
         self._init_scene_desensitize(result.get("result_table_id"))
-        result = self._deal_query_result(result)
+        result = self._deal_query_result(result, add_index_set_id=not is_export)
 
         if self.search_params.get("original_search"):
             return result

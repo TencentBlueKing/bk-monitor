@@ -837,7 +837,7 @@ class TestSceneUnifyQueryHandler(TestCase):
             "total": 1,
             "took": 5,
         }
-        result = handler._deal_query_result(raw_result)
+        result = handler._deal_query_result(raw_result, add_index_set_id=True)
         self.assertEqual(result["total"], 1)
         self.assertEqual(len(result["list"]), 1)
         self.assertEqual(result["list"][0]["index"], "my_index")
