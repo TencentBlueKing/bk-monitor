@@ -24,13 +24,16 @@
  * IN THE SOFTWARE.
  */
 
+import { isObject } from 'monitor-common/utils';
+
 import { ECondition } from '../../../components/retrieval-filter/typing';
 import { HOST_METRIC_OVER_THRESHOLD, HOST_NUMBER_FILTER_FIELDS, HOST_STATUS_MAP } from '../constants/host-list';
 import { isHostNode } from './topo-tree';
 
 import type { IValue, IWhereItem } from '../../../components/retrieval-filter/typing';
-import type { EHostQuickCategory, IHostCluster, IHostListRow } from '../types/host-list';
+import type { CompareTarget } from '../types';
 import type { IHostBaseInfo, IHostMetricInfo, IHostModule } from '../types/host';
+import type { EHostQuickCategory, IHostCluster, IHostListRow } from '../types/host-list';
 import type { IHostTopoTreeNode } from '../types/topo';
 
 /** 从模块的 topo_link 中提取集群（set 层）信息 */
@@ -82,7 +85,7 @@ export const matchTopoNode = (row: IHostListRow, node: IHostTopoTreeNode | null)
 };
 
 /** 判断主机是否命中快捷过滤分类 */
-export const matchQuickCategory = (row: IHostListRow, category: EHostQuickCategory | ''): boolean => {
+export const matchQuickCategory = (row: IHostListRow, category: '' | EHostQuickCategory): boolean => {
   switch (category) {
     case 'alarm':
       return row.totalAlarmCount > 0;
@@ -257,4 +260,50 @@ export const buildFilterOptionsMap = (rows: IHostListRow[]): Map<string, IValue[
     );
   }
   return result;
+};
+
+export const defaultFieldsSort = [
+  ['bk_cloud_id', 'bk_target_cloud_id'],
+  ['bk_host_id', 'bk_host_id'],
+  ['ip', 'bk_target_ip'],
+];
+
+/** 根据当前请求接口数据的映射规则生成id */
+export const handleCreateItemId = (
+  item: object,
+  isFilterDict = false,
+  fieldsSort?: Array<[string, string]>,
+  splitChar = '-'
+) => {
+  const localFieldsSort = fieldsSort || defaultFieldsSort;
+  let isExist = true;
+  const itemIds = [];
+  for (const set of localFieldsSort) {
+    const [itemKey, filterDictKey] = set;
+    const key = isFilterDict ? filterDictKey : itemKey;
+    let value = item[key];
+    console.log(item, key, value);
+    if (value === undefined && isExist) {
+      isExist = false;
+    }
+    value = isObject(value) ? value.value : value;
+    itemIds.push(value);
+  }
+  return isExist ? itemIds.filter(item => item !== undefined).join(splitChar) : null;
+};
+
+export const handleCreateCompares = (data: object, fieldsSort?: Array<[string, string]>): CompareTarget => {
+  const localFieldsSort = fieldsSort || defaultFieldsSort;
+  let isExist = true;
+  const result = localFieldsSort.reduce((total, cur) => {
+    const [itemKey, filterDictKey] = cur;
+    let value = data?.[itemKey];
+    if (value === undefined && isExist) {
+      isExist = false;
+    }
+    value = isObject(value) ? value.value : value;
+    total[filterDictKey] = value;
+    return total;
+  }, {});
+  return isExist ? result : null;
 };
