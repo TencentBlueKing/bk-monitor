@@ -31,9 +31,11 @@ import JsonView from '../global/json-view';
 import segmentPopInstance from '../global/utils/segment-pop-instance';
 import {
   getClickTargetElement,
+  optimizedSplit,
   setPointerCellClickTargetHandler,
   setScrollLoadCell,
 } from './hooks-helper';
+import LuceneSegment from './lucene.segment';
 import UseSegmentPropInstance from './use-segment-pop';
 
 import type { Ref } from 'vue';
@@ -204,22 +206,6 @@ export default class UseJsonFormatter {
       : val.replace(new RegExp(`(${Object.keys(map).join('|')})`, 'g'), match => map[match]);
   }
 
-  splitTextIntoChunks(value: string, chunkSize = 2000) {
-    if (!value) {
-      return [];
-    }
-
-    const chunks: string[] = [];
-    for (let index = 0; index < value.length; index += chunkSize) {
-      chunks.push(value.slice(index, index + chunkSize));
-    }
-
-    return chunks.map(text => ({
-      text,
-      isCursorText: true,
-    }));
-  }
-
   getSplitList(field: any, content: any, options: { usePrecomputedSegments?: boolean } = {}) {
     const fieldName = typeof field === 'string' ? field : field?.field_name;
     const usePrecomputedSegments = options.usePrecomputedSegments ?? true;
@@ -230,13 +216,24 @@ export default class UseJsonFormatter {
 
     /** 检索高亮分词字符串 */
     const markRegStr = '<mark>(.*?)</mark>';
-    const value = this.escapeString(String(content));
+    const value = this.escapeString(`${content}`);
+    if (this.isAnalyzed(field)) {
+      if (field.tokenize_on_chars) {
+        // 这里进来的都是开了分词的情况
+        return optimizedSplit(value, field.tokenize_on_chars);
+      }
 
-    return this.splitTextIntoChunks(value).map(item => ({
-      ...item,
-      isNotParticiple: this.isTextField(field),
-      isMark: new RegExp(markRegStr).test(item.text),
-    }));
+      return LuceneSegment.split(value, 1000);
+    }
+
+    return [
+      {
+        text: value.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
+        isNotParticiple: this.isTextField(field),
+        isMark: new RegExp(markRegStr).test(value),
+        isCursorText: true,
+      },
+    ];
   }
 
   getChildItem(item) {
@@ -334,12 +331,11 @@ export default class UseJsonFormatter {
           targetElement,
           segmentContent,
           this.getChildItem,
-          { pageSize: 1, maxAutoRenderItems: 1 },
         );
         removeScrollEvent();
 
         targetElement.append(segmentContent);
-        setListItem(1, () => {
+        setListItem(1000, () => {
           this.config.onSegmentRenderUpdate?.();
         });
 
@@ -427,10 +423,9 @@ export default class UseJsonFormatter {
           rootNode,
           segmentContent,
           this.getChildItem,
-          { pageSize: 1, maxAutoRenderItems: 1 },
         );
         removeScrollEvent();
-        setListItem(1, this.config.onSegmentRenderUpdate);
+        setListItem(600, this.config.onSegmentRenderUpdate);
       },
     });
 
