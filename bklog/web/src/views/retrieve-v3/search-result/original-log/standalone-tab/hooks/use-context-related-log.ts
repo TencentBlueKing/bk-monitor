@@ -1,14 +1,21 @@
 import { nextTick, onBeforeUnmount, ref, type Ref } from 'vue';
 
 import $http from '@/api';
+import useStore from '@/hooks/use-store';
 
 import { flattenLogParams, useCommonRelatedLog } from './use-common-related-log';
+import {
+  getRelatedLogIndexSetId,
+  getRelatedLogResolveOptions,
+  resolveRelatedLogTargetRow,
+} from './resolve-related-log-target-row';
 
 export const useContextRelatedLog = (options: {
   indexSetId: Ref<number>;
   targetRow: Ref<Record<string, any>>;
   targetFields?: Ref<string[]>;
 }) => {
+  const store = useStore();
   const common = useCommonRelatedLog(options);
   const zero = ref(true);
   const prevBegin = ref(0);
@@ -36,10 +43,15 @@ export const useContextRelatedLog = (options: {
     return data;
   };
 
+  const getDtEventTimeStamp = () => {
+    const params = flattenLogParams(options.targetRow.value);
+    return params.dtEventTimeStamp ?? options.targetRow.value?.dtEventTimeStamp;
+  };
+
   const requestContentLog = async (direction?: 'top' | 'down') => {
     requestSeq += 1;
     const currentSeq = requestSeq;
-    const dtEventTimeStamp = options.targetRow.value?.dtEventTimeStamp;
+    const dtEventTimeStamp = getDtEventTimeStamp();
     if (!options.indexSetId.value || dtEventTimeStamp === undefined || dtEventTimeStamp === null || dtEventTimeStamp === 'None') {
       return;
     }
@@ -123,8 +135,20 @@ export const useContextRelatedLog = (options: {
     await requestContentLog();
   };
 
-  const chooseRow = async (row: Record<string, any>) => {
-    options.targetRow.value = row;
+  const chooseRow = async (payload: Record<string, any> & { rowKey?: string }) => {
+    const { rowKey, ...fallbackRow } = payload;
+    if (rowKey) {
+      const resolved = await resolveRelatedLogTargetRow({
+        rowKey,
+        fallbackRow: Object.keys(fallbackRow).length ? fallbackRow : undefined,
+        ...getRelatedLogResolveOptions(store),
+      });
+      if (!resolved) return;
+      options.targetRow.value = resolved.row;
+      options.indexSetId.value = getRelatedLogIndexSetId(resolved.fullRow, store);
+    } else {
+      options.targetRow.value = payload;
+    }
     await init();
   };
 

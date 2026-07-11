@@ -96,6 +96,7 @@
   import { TABLE_LOG_FIELDS_SORT_REGULAR, copyMessage } from '@/common/util';
   import { getFieldNameByField } from '@/hooks/use-field-name';
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
+  import { retrieveRowCacheService } from '@/storage';
   import { perfMeasure } from '@/utils/performance-monitor';
 
   import KvList from '../../result-comp/kv-list.vue';
@@ -122,6 +123,10 @@
       rowIndex: {
         type: Number,
       },
+      rowKey: {
+        type: String,
+        default: '',
+      },
     },
     data() {
       return {
@@ -130,6 +135,7 @@
         activeSearchKeyword: '',
         rawRowData: null, // 非响应式数据副本
         jsonShowDataCache: null, // JSON 数据缓存
+        jsonShowDataCacheFormatDate: undefined, // 与缓存绑定的时间格式化开关状态
       };
     },
     computed: {
@@ -137,7 +143,10 @@
         return this.$store.getters.visibleFields ?? [];
       },
       totalFields() {
-        return this.$store.state.indexFieldInfo.fields ?? [];
+        return this.$store.getters.filteredFieldList;
+      },
+      isFormatDate() {
+        return this.$store.state.isFormatDate;
       },
       // 性能优化：使用 Set 缓存 kvShowFieldsList，提升查找性能
       kvShowFieldsSet() {
@@ -185,9 +194,16 @@
           return this.listData ?? this.data;
         }
 
-        return this.$store.state.indexSetQueryResult?.list?.[this.rowIndex] ?? this.listData ?? this.data;
+        return this.listData ?? this.data;
       },
       jsonShowData() {
+        const isFormatDate = this.isFormatDate;
+        // 时间格式化开关变化时，必须让缓存失效，否则会继续返回旧的未/已格式化结果
+        if (this.jsonShowDataCacheFormatDate !== isFormatDate) {
+          this.jsonShowDataCache = null;
+          this.jsonShowDataCacheFormatDate = isFormatDate;
+        }
+
         // 如果已有缓存，直接返回缓存（避免重复计算）
         if (this.jsonShowDataCache !== null) {
           return this.jsonShowDataCache;
@@ -217,6 +233,12 @@
             const fieldName = getCachedFieldName(cur);
             const fieldKey = cur.field_name;
             
+            // 时间字段统一走 tableRowDeepView，保证与「时间格式化」开关一致
+            if (['date', 'date_nanos'].includes(cur.field_type)) {
+              computedResult[fieldName] = this.tableRowDeepView(jsonList, fieldKey, cur.field_type, isFormatDate) ?? '';
+              continue;
+            }
+
             // 性能优化：简单字段直接访问，复杂字段才调用 tableRowDeepView
             if (fieldKey.indexOf('.') === -1 && fieldKey.indexOf('[') === -1) {
               // 简单字段：直接访问
@@ -233,7 +255,7 @@
               computedResult[fieldName] = value;
             } else {
               // 复杂字段（嵌套字段）：使用 tableRowDeepView
-              computedResult[fieldName] = this.tableRowDeepView(jsonList, fieldKey, cur.field_type) ?? '';
+              computedResult[fieldName] = this.tableRowDeepView(jsonList, fieldKey, cur.field_type, isFormatDate) ?? '';
             }
           }
           
@@ -248,8 +270,21 @@
       },
     },
     methods: {
-      handleCopy() {
-        copyMessage(JSON.stringify(this.jsonShowData));
+      async handleCopy() {
+        try {
+          if (this.rowKey) {
+            const includeFields = this.kvListData.map(field => field.field_name).filter(Boolean);
+            const [originRow] = await retrieveRowCacheService.getCopyRows([this.rowKey], { includeFields });
+            if (originRow) {
+              copyMessage(JSON.stringify(originRow));
+              return;
+            }
+          }
+        } catch (error) {
+          console.warn('[expand-view] copy origin row failed', error);
+        }
+
+        this.$bkMessage?.({ theme: 'warning', message: this.$t('原始日志数据读取失败，请稍后重试') });
       },
       handleSearch() {
         this.activeSearchKeyword = this.searchKeyword.trim();
@@ -260,7 +295,7 @@
       },
       handleInputChange(value) {
         // 当输入框内容被手动删空时，重置搜索
-        if (!value || !value.trim()) {
+        if (!value?.trim?.()) {
           this.activeSearchKeyword = '';
         }
       },
@@ -276,8 +311,13 @@
       data: {
         handler() {
           this.jsonShowDataCache = null;
+          this.jsonShowDataCacheFormatDate = undefined;
         },
         deep: false, // 禁止深度监听，避免性能问题
+      },
+      // 时间格式化开关变化时，强制重建 JSON 视图缓存
+      isFormatDate() {
+        this.jsonShowDataCache = null;
       },
       // 监听视图切换，清空 JSON 缓存（如果需要）
       activeExpandView(newVal) {
