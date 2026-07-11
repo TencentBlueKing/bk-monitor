@@ -37,6 +37,12 @@ import {
 } from './hooks-helper';
 import LuceneSegment from './lucene.segment';
 import UseSegmentPropInstance from './use-segment-pop';
+import {
+  ORIGINAL_VALUE_EXPANDED_TEXT_LENGTH,
+  ORIGINAL_VALUE_PREVIEW_TEXT_LENGTH,
+  stripMark,
+  truncateMarkedTextByChars,
+} from '../storage/utils/retrieve-render-meta';
 
 import type { Ref } from 'vue';
 
@@ -405,31 +411,18 @@ export default class UseJsonFormatter {
     this.editor = new JsonView(targetRoot, {
       onNodeExpand: this.handleExpandNode.bind(this),
       depth,
+      maxParseDepth: depth,
       field: this.config.field,
       segmentRender: (value: string, rootNode: HTMLElement) => {
-        const taskId = this.segmentTaskId;
-        const vlaues = this.getSplitList(this.config.field, value, { usePrecomputedSegments: false });
-        if (taskId !== this.segmentTaskId || !rootNode.isConnected) return;
-
-        const segmentContent = this.creatSegmentNodes();
-        rootNode.append(segmentContent);
-
-        if (!rootNode.classList.contains('bklog-scroll-box')) {
-          rootNode.classList.add('bklog-scroll-box');
-        }
-
-        const { setListItem, removeScrollEvent } = setScrollLoadCell(
-          vlaues,
-          rootNode,
-          segmentContent,
-          this.getChildItem,
-        );
-        removeScrollEvent();
-        setListItem(600, this.config.onSegmentRenderUpdate);
+        this.renderLeafSegment(value, rootNode);
       },
     });
 
     this.editor.initClickEvent((e) => {
+      const actionBtn = (e.target as HTMLElement).closest?.('.btn-json-leaf-more') as HTMLElement | null;
+      if (actionBtn) {
+        return;
+      }
       const validTextElement = (e.target as HTMLElement).closest?.('.valid-text') as HTMLElement | null;
       if (validTextElement) {
         this.handleSegmentClick(e, validTextElement.textContent);
@@ -437,6 +430,89 @@ export default class UseJsonFormatter {
     });
 
     return true;
+  }
+
+  /**
+   * JSON 解析模式下：对最后一个 String 叶子（不可再 parse，或已超深度）
+   * 默认展示前 1000 字符；超出显示「更多」，展开最多 16KB，支持「收起」
+   */
+  renderLeafSegment(value: string, rootNode: HTMLElement, forceExpanded = false) {
+    const taskId = this.segmentTaskId;
+    const enableLeafTruncate = !!this.config.options?.enableLeafTruncate;
+    const fullText = String(value ?? '');
+    const plainLength = stripMark(fullText).length;
+    const isTruncatable = enableLeafTruncate && plainLength > ORIGINAL_VALUE_PREVIEW_TEXT_LENGTH;
+    const isExpanded = forceExpanded || rootNode.getAttribute('data-leaf-expanded') === '1';
+
+    let renderText = fullText;
+    if (isTruncatable) {
+      renderText = isExpanded
+        ? truncateMarkedTextByChars(fullText, ORIGINAL_VALUE_EXPANDED_TEXT_LENGTH)
+        : truncateMarkedTextByChars(fullText, ORIGINAL_VALUE_PREVIEW_TEXT_LENGTH);
+      rootNode.setAttribute('data-leaf-truncatable', '1');
+      rootNode.setAttribute('data-leaf-expanded', isExpanded ? '1' : '0');
+    } else {
+      rootNode.removeAttribute('data-leaf-truncatable');
+      rootNode.removeAttribute('data-leaf-expanded');
+    }
+
+    const vlaues = this.getSplitList(this.config.field, renderText, { usePrecomputedSegments: false });
+    if (taskId !== this.segmentTaskId || !rootNode.isConnected) return;
+
+    rootNode.innerHTML = '';
+    const segmentContent = this.creatSegmentNodes();
+    rootNode.append(segmentContent);
+
+    if (!rootNode.classList.contains('bklog-scroll-box')) {
+      rootNode.classList.add('bklog-scroll-box');
+    }
+
+    const { setListItem, removeScrollEvent } = setScrollLoadCell(
+      vlaues,
+      rootNode,
+      segmentContent,
+      this.getChildItem,
+    );
+    removeScrollEvent();
+
+    // 「更多/收起」必须与分词渲染解耦：setListItem 在词元一次填满时可能不回调 next
+    if (isTruncatable) {
+      this.appendLeafMoreAction(rootNode, fullText, isExpanded);
+    }
+
+    setListItem(600, this.config.onSegmentRenderUpdate);
+  }
+
+  appendLeafMoreAction(rootNode: HTMLElement, fullText: string, isExpanded: boolean) {
+    const existing = rootNode.querySelector('.btn-json-leaf-more');
+    existing?.remove();
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn-json-leaf-more';
+    btn.textContent = isExpanded
+      ? (window.$t?.('收起') ?? '收起')
+      : (window.$t?.('更多') ?? '更多');
+    btn.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+
+    const stop = (e: Event) => {
+      e.stopPropagation();
+      e.preventDefault();
+      (e as any).stopImmediatePropagation?.();
+    };
+
+    btn.addEventListener('mousedown', stop);
+    btn.addEventListener('mouseup', stop);
+    btn.addEventListener('click', (e) => {
+      stop(e);
+      RetrieveHelper.jsonFormatter.setIsExpandNodeClick(true);
+      const nextExpanded = rootNode.getAttribute('data-leaf-expanded') !== '1';
+      rootNode.setAttribute('data-leaf-expanded', nextExpanded ? '1' : '0');
+      this.renderLeafSegment(fullText, rootNode, nextExpanded);
+    });
+
+    // 放在分词容器之后，保证始终可见
+    rootNode.append(btn);
   }
 
   setNodeExpand([currentDepth]) {

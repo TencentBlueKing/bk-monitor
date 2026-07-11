@@ -555,17 +555,29 @@
     return fieldList.value.map((f: any) => {
       const shouldFormatDate = isFormatDateField.value && (!!f.__is_virtual_root__ || isOriginalMode.value);
       const formatter = getFieldFormatter(f, shouldFormatDate);
-      const originalValueDisplayText = getOriginalValueDisplayText(f.field_name, formatter.stringValue);
-      const shouldUseOriginalValueText = isOriginalMode.value && isOriginalValueTruncated(f.field_name);
+      /**
+       * Origin 模式根级 1000 截断：
+       * - 未开启 JSON 解析：保持原逻辑，整段 VALUE 超长则截断 + 更多
+       * - 已开启 JSON 解析且可解析为对象/数组：禁止根级 slice，交由 JSON 树渲染；
+       *   1000/更多仅作用于叶子不可解析字符串（及超深度残留字符串）
+       */
+      const shouldUseOriginalValueText =
+        isOriginalMode.value
+        && isOriginalValueTruncated(f.field_name)
+        && !(formatJson.value && formatter.isJson);
       return {
         name: f.field_name,
         type: f.field_type,
         formatter: {
           ...formatter,
           isJson: shouldUseOriginalValueText ? false : formatter.isJson,
-          value: shouldUseOriginalValueText ? originalValueDisplayText : formatter.value,
-          stringValue: shouldUseOriginalValueText ? originalValueDisplayText : formatter.stringValue,
+          value: shouldUseOriginalValueText ? getOriginalValueDisplayText(f.field_name, formatter.stringValue) : formatter.value,
+          stringValue: shouldUseOriginalValueText
+            ? getOriginalValueDisplayText(f.field_name, formatter.stringValue)
+            : formatter.stringValue,
           precomputedSegments: shouldFormatDate ? undefined : getOriginalValueSegments(f.field_name),
+          // JSON 解析开启时：叶子长字符串 / 超深度残留字符串启用 1000/更多（Origin & Table 均生效）
+          enableLeafTruncate: formatJson.value,
         },
         originalValueMeta: {
           isTruncated: shouldUseOriginalValueText,
@@ -817,6 +829,21 @@
         border: 0;
         appearance: none;
       }
+    }
+
+    // JSON 解析后叶子节点「更多/收起」：Origin / Table 共用
+    .btn-json-leaf-more {
+      display: inline !important;
+      padding: 0;
+      margin: 0 4px 0 2px;
+      font: inherit;
+      line-height: inherit;
+      color: #3a84ff;
+      vertical-align: baseline;
+      cursor: pointer;
+      background: transparent;
+      border: 0;
+      appearance: none;
     }
 
     .bklog-root-field {

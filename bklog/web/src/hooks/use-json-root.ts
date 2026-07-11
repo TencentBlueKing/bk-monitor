@@ -34,6 +34,7 @@ type RootFieldOperator = {
   editor?: UseJsonFormatter;
   field: any;
   precomputedSegments?: Record<string, any[]>;
+  enableLeafTruncate?: boolean;
 };
 
 type RootField = {
@@ -44,6 +45,7 @@ type RootField = {
     value: boolean | number | object | string;
     field: any;
     precomputedSegments?: Record<string, any[]>;
+    enableLeafTruncate?: boolean;
   };
 };
 
@@ -51,19 +53,24 @@ export default ({ fields, onSegmentClick, onSegmentRenderUpdate }) => {
   const rootFieldOperator = new Map<string, RootFieldOperator>();
   let initEditPromise: Promise<any>;
 
+  const buildFormatterConfig = (value: RootFieldOperator) => ({
+    target: value.ref,
+    fields,
+    jsonValue: value.value,
+    onSegmentClick,
+    onSegmentRenderUpdate,
+    field: value.field,
+    precomputedSegments: value.precomputedSegments,
+    options: {
+      enableLeafTruncate: !!value.enableLeafTruncate,
+    },
+  });
+
   const initRootOperator = (depth) => {
     initEditPromise = new Promise((resolve) => {
       for (const value of rootFieldOperator.values()) {
         if (!value.editor) {
-          value.editor = new UseJsonFormatter({
-            target: value.ref,
-            fields,
-            jsonValue: value.value,
-            onSegmentClick,
-            onSegmentRenderUpdate,
-            field: value.field,
-            precomputedSegments: value.precomputedSegments,
-          });
+          value.editor = new UseJsonFormatter(buildFormatterConfig(value));
         }
 
         if (value.isJson && value.ref.value) {
@@ -85,15 +92,9 @@ export default ({ fields, onSegmentClick, onSegmentRenderUpdate }) => {
   const setEditor = (depth) => {
     for (const value of rootFieldOperator.values()) {
       if (!value.editor) {
-        value.editor = new UseJsonFormatter({
-          target: value.ref,
-          fields,
-          jsonValue: value.value,
-          onSegmentClick,
-          onSegmentRenderUpdate,
-          field: value.field,
-          precomputedSegments: value.precomputedSegments,
-        });
+        value.editor = new UseJsonFormatter(buildFormatterConfig(value));
+      } else {
+        value.editor.update(buildFormatterConfig(value));
       }
 
       if (value.isJson && value.ref.value) {
@@ -129,17 +130,10 @@ export default ({ fields, onSegmentClick, onSegmentRenderUpdate }) => {
           value: formatter.value,
           field: formatter.field,
           precomputedSegments: formatter.precomputedSegments,
+          enableLeafTruncate: formatter.enableLeafTruncate,
         });
 
-        rootFieldOperator.get(name).editor?.update({
-          target: formatter.ref,
-          fields,
-          jsonValue: formatter.value,
-          onSegmentClick,
-          onSegmentRenderUpdate,
-          field: formatter.field,
-          precomputedSegments: formatter.precomputedSegments,
-        });
+        rootFieldOperator.get(name).editor?.update(buildFormatterConfig(rootFieldOperator.get(name)));
       } else {
         rootFieldOperator.set(name, {
           isJson: formatter.isJson,
@@ -147,6 +141,7 @@ export default ({ fields, onSegmentClick, onSegmentRenderUpdate }) => {
           value: formatter.value,
           field: formatter.field,
           precomputedSegments: formatter.precomputedSegments,
+          enableLeafTruncate: formatter.enableLeafTruncate,
         });
       }
     }
@@ -160,13 +155,6 @@ export default ({ fields, onSegmentClick, onSegmentRenderUpdate }) => {
     }
 
     return initRootOperator(depth);
-    // .then(() => {
-    //   rootFieldOperator.values().forEach(val => {
-    //     if (val.isJson) {
-    //       val.editor?.setValue.call(val.editor, depth);
-    //     }
-    //   });
-    // });
   };
 
   const setExpand = (depth) => {

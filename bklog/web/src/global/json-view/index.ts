@@ -37,6 +37,11 @@ export type JsonViewConfig = {
   segmentRender?: (_value: string, _rootNode: HTMLElement) => void;
   batchSize?: number;
   initialBatchSize?: number;
+  /**
+   * 超过该深度后，不再把嵌套 JSON 字符串继续 parse 成树；
+   * 默认与 depth 一致（JSON 解析深度配置）
+   */
+  maxParseDepth?: number;
 };
 export default class JsonView {
   options: JsonViewConfig;
@@ -205,8 +210,11 @@ export default class JsonView {
     node.classList.add(`bklog-data-depth-${depth}`);
     node.setAttribute('data-depth', `${depth}`);
     let formatTarget = target;
+    const maxParseDepth = Number(this.options.maxParseDepth ?? this.options.depth ?? 1);
 
-    if (typeof target === 'string' && /^(\{|\[)/.test(target)) {
+    // 仅在配置的 JSON 解析深度内继续 parse 嵌套 JSON 字符串；
+    // 超出深度的可解析字符串按叶子字符串处理（由上层决定是否 1000/更多）
+    if (typeof target === 'string' && depth <= maxParseDepth && /^(\{|\[)/.test(target)) {
       try {
         formatTarget = this.JSONBigInstance.parse(target);
       } catch (e) {
@@ -217,6 +225,28 @@ export default class JsonView {
     const nodeType = typeof formatTarget;
 
     if (nodeType === 'object' && formatTarget !== null) {
+      // 超出最大解析深度的 object/array：转为字符串叶子，走 1000/更多，而不再继续展开树
+      if (depth > maxParseDepth) {
+        let overflowText = '';
+        try {
+          overflowText = JSON.stringify(formatTarget);
+        } catch {
+          overflowText = String(formatTarget);
+        }
+        node.classList.add('bklog-json-field-value');
+        if (overflowText && typeof this.options.segmentRender === 'function') {
+          const taskId = this.renderTaskId;
+          this.scheduleRender(() => {
+            if (taskId === this.renderTaskId && node.isConnected) {
+              this.options.segmentRender(overflowText, node);
+            }
+          });
+        } else {
+          node.innerHTML = `<span class="segment-content bklog-scroll-cell"><span class="valid-text">${xssFilter(overflowText || '--')}</span></span>`;
+        }
+        return node;
+      }
+
       node.append(...this.createObjectNode(formatTarget, depth));
     } else {
       node.classList.add('bklog-json-field-value');
