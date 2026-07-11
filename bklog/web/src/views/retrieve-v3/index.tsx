@@ -184,6 +184,23 @@ export default defineComponent({
         && store.getters.rawFieldList.length === 0,
     );
 
+    // 场景化模式下：字段未就绪或为空时隐藏检索结果（含趋势图）
+    const hideSearchResult = computed(
+      () => isSceneMode.value && (!isFieldListFetched.value || isFieldListEmpty.value),
+    );
+
+    /**
+     * 场景结果区从隐藏变为显示时，补发趋势图刷新。
+     * 场景化首屏常在 SearchResult 挂载前就触发过 TREND_GRAPH_SEARCH，事件会被吞掉。
+     */
+    watch(hideSearchResult, (hidden, prevHidden) => {
+      if (prevHidden && !hidden) {
+        nextTick(() => {
+          RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+        });
+      }
+    });
+
     /**
      * AI 助手关闭
      */
@@ -261,15 +278,15 @@ export default defineComponent({
         // 1. 字段列表未获取 → 显示 renderSceneEmptyTip，隐藏检索结果
         // 2. 字段列表已获取但为空 → 显示 renderFieldEmptyTip，隐藏检索结果
         // 3. 字段列表已获取且有数据 → 显示检索结果
+        // 使用 v-if 而非 v-show：避免趋势图在 display:none 容器内初始化导致尺寸为 0、切换后仍空白
         const showSceneEmptyTip = isSceneMode.value && !isFieldListFetched.value;
         const showFieldEmptyTip = isSceneMode.value && isFieldListEmpty.value;
-        const hideSearchResult = isSceneMode.value && (!isFieldListFetched.value || isFieldListEmpty.value);
 
         return [
           <V3Toolbar></V3Toolbar>,
           <V3Container>
             {renderSearchBar()}
-            <V3SearchResult v-show={!hideSearchResult}></V3SearchResult>
+            {!hideSearchResult.value && <V3SearchResult></V3SearchResult>}
             {showSceneEmptyTip && renderSceneEmptyTip()}
             {showFieldEmptyTip && renderFieldEmptyTip()}
           </V3Container>,

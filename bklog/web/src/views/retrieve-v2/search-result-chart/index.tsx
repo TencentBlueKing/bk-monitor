@@ -233,6 +233,12 @@ export default defineComponent({
     const getSeriesData = async (startTimeStamp, endTimeStamp) => {
       finishPolling.value = false;
       store.commit('retrieve/updateTrendDataLoading', true);
+      let hasMarkedReady = false;
+      const ensureTrendReady = () => {
+        if (hasMarkedReady) return;
+        hasMarkedReady = true;
+        markTrendReady();
+      };
 
       try {
         const requestInterval = handleRequestSplit(startTimeStamp, endTimeStamp); // 计算请求接口的分段间隔,单位:毫秒
@@ -273,7 +279,7 @@ export default defineComponent({
               setChartData(res?.data?.aggs, queryData.group_field, currentIsInit);
             }
             if (currentIsInit) {
-              markTrendReady();
+              ensureTrendReady();
             }
 
             if (!res?.result || requestInterval === 0) {
@@ -281,13 +287,14 @@ export default defineComponent({
             }
           } catch {
             setChartData(null, null, true); // 清空图表数据
-            markTrendReady();
+            ensureTrendReady();
             break;
           }
           result = gen.next();
         }
       } finally {
-        // 无论如何，结束时都更新状态
+        // 生成器未产出任何分段、或请求被取消时，也必须结束骨架屏，避免趋势图永久 pending
+        ensureTrendReady();
         finishPolling.value = true;
         isStart.value = false;
         store.commit('retrieve/updateTrendDataLoading', false);
@@ -484,6 +491,7 @@ export default defineComponent({
       isStart.value = false;
       store.commit('retrieve/updateTrendDataLoading', false);
       restoreChartOptions();
+      markTrendReady();
     });
 
     onMounted(() => {
