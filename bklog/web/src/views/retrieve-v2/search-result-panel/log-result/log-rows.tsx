@@ -597,6 +597,7 @@ export default defineComponent({
     };
 
     const originalColumns = computed(() => {
+      const formatDate = store.state.isFormatDate;
       return [
         {
           field: ROW_F_ORIGIN_TIME,
@@ -608,7 +609,10 @@ export default defineComponent({
           renderBodyCell: ({ row }) => {
             const timezone = store.state.indexItem.timezone;
             const fieldType = timeFieldType.value;
-            const formatValue = RetrieveHelper.formatTimeZoneValue(row[timeField.value], fieldType, timezone);
+            const rawValue = row[timeField.value];
+            const formatValue = formatDate
+              ? RetrieveHelper.formatTimeZoneValue(rawValue, fieldType, timezone)
+              : (rawValue === null || rawValue === undefined || rawValue === '' ? '--' : rawValue);
 
             return h(
               'span',

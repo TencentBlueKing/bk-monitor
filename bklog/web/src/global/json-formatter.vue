@@ -387,6 +387,14 @@
     }
   };
 
+  const resetAllWordSplitFlags = () => {
+    const root = refJsonFormatterCell.value as HTMLElement | undefined;
+    const elements = root?.querySelectorAll?.('.field-value[data-has-word-split]') ?? [];
+    for (const element of Array.from(elements) as HTMLElement[]) {
+      element.removeAttribute('data-has-word-split');
+    }
+  };
+
   const resetOriginalValueRenderedFlags = () => {
     if (!isOriginalMode.value) return;
 
@@ -626,11 +634,27 @@
   );
 
   watch(
-    () => [originalValueFieldsSignature.value, formatJson.value, isFormatDateField.value],
+    () => [originalValueFieldsSignature.value, formatJson.value],
     () => {
       pruneOriginalValueExpandedFields();
       clearOriginalValueRenderCache();
       hasScrollY.value = false;
+      scheduleSetIsOverflowY();
+    },
+  );
+
+  watch(
+    () => isFormatDateField.value,
+    () => {
+      // 时间格式化开关变化后，必须清掉分词标记并强制重渲染；
+      // 否则 DOM 仍保留旧的 data-has-word-split 文本，看起来像开关失效。
+      pruneOriginalValueExpandedFields();
+      clearOriginalValueRenderCache();
+      resetAllWordSplitFlags();
+      hasScrollY.value = false;
+      if (isResolved.value) {
+        debounceUpdate();
+      }
       scheduleSetIsOverflowY();
     },
   );
