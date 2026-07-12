@@ -101,6 +101,23 @@ export default defineComponent({
       () => isSceneMode.value && (!isFieldListFetched.value || isFieldListEmpty.value),
     );
 
+    // 场景化模式下：字段未就绪或为空时隐藏检索结果（含趋势图）
+    const hideSearchResult = computed(
+      () => isSceneMode.value && (!isFieldListFetched.value || isFieldListEmpty.value),
+    );
+
+    /**
+     * 场景结果区从隐藏变为显示时，补发趋势图刷新。
+     * 场景化首屏常在 SearchResult 挂载前就触发过 TREND_GRAPH_SEARCH，事件会被吞掉。
+     */
+    watch(hideSearchResult, (hidden, prevHidden) => {
+      if (prevHidden && !hidden) {
+        nextTick(() => {
+          RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+        });
+      }
+    });
+
     /**
      * 场景结果区从隐藏变为显示时，补发趋势图刷新。
      * 场景化首屏常在 SearchResult 挂载前就触发过 TREND_GRAPH_SEARCH，事件会被吞掉。
