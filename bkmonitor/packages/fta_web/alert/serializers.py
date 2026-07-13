@@ -17,6 +17,10 @@ from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument
 from bkmonitor.utils.request import get_request
 from core.drf_resource import resource
+from fta_web.alert.handlers.fulltext import (
+    MAX_FULLTEXT_VALUES,
+    MAX_QUERY_STRING_LENGTH,
+)
 from fta_web.models.alert import AlertFeedback, AlertSuggestion, SearchFavorite
 
 
@@ -66,11 +70,22 @@ class SearchFavoriteSerializer(serializers.ModelSerializer):
 
 class SearchConditionSerializer(serializers.Serializer):
     key = serializers.CharField(label="匹配字段")
-    value = serializers.ListField(label="匹配值")
+    value = serializers.ListField(
+        label="匹配值",
+        child=serializers.CharField(allow_blank=True, max_length=MAX_QUERY_STRING_LENGTH),
+    )
     method = serializers.ChoiceField(
         label="匹配方法", choices=["eq", "neq", "include", "exclude", "gt", "gte", "lt", "lte"], default="eq"
     )
     condition = serializers.ChoiceField(label="复合条件", choices=["and", "or", ""], default="")
+
+    def validate(self, attrs):
+        # 全字段检索条件限制条数，避免放大 wildcard should 子句
+        if attrs.get("key") == "query_string":
+            values = attrs.get("value") or []
+            if len(values) > MAX_FULLTEXT_VALUES:
+                attrs["value"] = values[:MAX_FULLTEXT_VALUES]
+        return attrs
 
 
 class AlertIDField(serializers.CharField):
@@ -112,7 +127,9 @@ class AllowedBizIdsField(serializers.ListField):
 class AlertSearchSerializer(BaseSearchSerializer):
     status = serializers.ListField(label="状态", required=False, child=serializers.CharField())
     conditions = SearchConditionSerializer(label="搜索条件", many=True, default=[])
-    query_string = serializers.CharField(label="查询字符串", default="", allow_blank=True)
+    query_string = serializers.CharField(
+        label="查询字符串", default="", allow_blank=True, max_length=MAX_QUERY_STRING_LENGTH
+    )
     start_time = serializers.IntegerField(label="开始时间")
     end_time = serializers.IntegerField(label="结束时间")
     username = serializers.CharField(required=False, label="负责人")
@@ -123,7 +140,9 @@ class ActionSearchSerializer(BaseSearchSerializer):
     status = serializers.ListField(label="状态", required=False, child=serializers.CharField())
     start_time = serializers.IntegerField(label="开始时间", required=False)
     end_time = serializers.IntegerField(label="结束时间", required=False)
-    query_string = serializers.CharField(label="查询字符串", default="", allow_blank=True)
+    query_string = serializers.CharField(
+        label="查询字符串", default="", allow_blank=True, max_length=MAX_QUERY_STRING_LENGTH
+    )
     conditions = SearchConditionSerializer(label="搜索条件", many=True, default=[])
     username = serializers.CharField(required=False, label="负责人")
 
@@ -131,7 +150,9 @@ class ActionSearchSerializer(BaseSearchSerializer):
 class EventSearchSerializer(serializers.Serializer):
     alert_id = AlertIDField(label="告警ID")
     ordering = serializers.ListField(label="排序", child=serializers.CharField(), default=[])
-    query_string = serializers.CharField(label="查询字符串", default="", allow_blank=True)
+    query_string = serializers.CharField(
+        label="查询字符串", default="", allow_blank=True, max_length=MAX_QUERY_STRING_LENGTH
+    )
 
 
 class AlertSuggestionSerializer(serializers.ModelSerializer):

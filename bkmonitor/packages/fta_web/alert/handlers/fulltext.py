@@ -20,10 +20,14 @@ from elasticsearch_dsl import Q
 MIN_FULLTEXT_TERM_LENGTH = 2
 # 纯数字（ID / 业务号）允许更短
 MIN_DIGIT_TERM_LENGTH = 1
+# 短于此长度（非数字）不做 leading-wildcard，仅 prefix，降低 ES 成本
+SHORT_KEYWORD_CONTAINS_MIN_LENGTH = 3
 # 单条全字段检索词最大长度（超长直接无命中，防止异常大 payload）
 MAX_FULLTEXT_TERM_LENGTH = 128
-# conditions.query_string.value 最多处理条数（本 PR 放大了每条的 should 子句）
+# conditions.query_string.value / include value 最多处理条数
 MAX_FULLTEXT_VALUES = 10
+# 顶层 query_string / 条件单值在 serializer 层的硬上限（略宽于检索门禁，给结构化语法留空间）
+MAX_QUERY_STRING_LENGTH = 512
 
 _BARE_BOOLEAN_RE = re.compile(r"\b(AND|OR|NOT)\b", re.IGNORECASE)
 _FIELD_SEP_RE = re.compile(r"(?<!\\):")
@@ -131,16 +135,70 @@ def build_keyword_contains_query(es_field: str, term: str) -> Q:
     return Q("wildcard", **{es_field: {"value": pattern, "case_insensitive": True}})
 
 
+def build_keyword_prefix_query(es_field: str, term: str) -> Q:
+    """Keyword 前缀匹配（无 leading wildcard），短词场景使用。"""
+    return Q("prefix", **{es_field: {"value": term, "case_insensitive": True}})
+
+
 def build_keyword_id_query(es_field: str, term: str) -> Q:
     """数字 ID：精确 term OR 前缀 prefix，禁止 leading wildcard。"""
     return Q("term", **{es_field: term}) | Q("prefix", **{es_field: term})
 
 
+def build_keyword_fuzzy_query(es_field: str, term: str) -> Q:
+    """
+    Keyword 模糊策略：
+    - 纯数字：term | prefix（仅适合 ID 类字段调用方自行过滤）
+    - 短词（< SHORT_KEYWORD_CONTAINS_MIN_LENGTH）：仅 prefix
+    - 其它：*term* contains
+    """
+    if term.isdigit():
+        return build_keyword_id_query(es_field, term)
+    if len(term) < SHORT_KEYWORD_CONTAINS_MIN_LENGTH:
+        return build_keyword_prefix_query(es_field, term)
+    return build_keyword_contains_query(es_field, term)
+
+
 def build_text_contains_query(es_field: str, term: str) -> Q:
     """Text 字段：分词匹配 OR 前缀短语（近似包含）。"""
     match_q = Q("match", **{es_field: {"query": term, "operator": "and"}})
+    if len(term) < SHORT_KEYWORD_CONTAINS_MIN_LENGTH:
+        # 短词不做 phrase_prefix 膨胀
+        return match_q
     prefix_q = Q("match_phrase_prefix", **{es_field: {"query": term, "max_expansions": 50}})
     return match_q | prefix_q
+
+
+def build_field_contains_query(es_field: str, value) -> Q | None:
+    """
+    单字段 include/exclude 共用：转义、长度门禁、数字/短词降级。
+
+    用于 parse_condition_item(include/exclude)，与全字段 Keyword 策略对齐。
+    """
+    if value is None:
+        return None
+    term = unescape_lucene_literals(str(value).strip())
+    if not term or len(term) > MAX_FULLTEXT_TERM_LENGTH:
+        return None
+    if term.isdigit():
+        return build_keyword_id_query(es_field, term)
+    if len(term) < MIN_FULLTEXT_TERM_LENGTH:
+        return None
+    return build_keyword_fuzzy_query(es_field, term)
+
+
+def build_field_contains_queries(es_field: str, values) -> Q | None:
+    """多值 include/exclude：限条数后 OR 组合。"""
+    clauses: list[Q] = []
+    for item in iter_fulltext_condition_values(values if isinstance(values, list) else [values]):
+        q = build_field_contains_query(es_field, item)
+        if q is not None:
+            clauses.append(q)
+    if not clauses:
+        return Q("match_none")
+    if len(clauses) == 1:
+        return clauses[0]
+    return Q("bool", should=clauses, minimum_should_match=1)
 
 
 def build_fulltext_fuzzy_query(query: str, fields: list[FulltextSearchField] | None) -> Q | None:
@@ -166,7 +224,7 @@ def build_fulltext_fuzzy_query(query: str, fields: list[FulltextSearchField] | N
             if field.kind == FulltextFieldKind.TEXT:
                 should_clauses.append(build_text_contains_query(field.es_field, term))
             else:
-                should_clauses.append(build_keyword_contains_query(field.es_field, term))
+                should_clauses.append(build_keyword_fuzzy_query(field.es_field, term))
 
     if not should_clauses:
         return None

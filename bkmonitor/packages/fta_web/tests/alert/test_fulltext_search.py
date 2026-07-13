@@ -8,16 +8,18 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.handlers.fulltext import (
     MAX_FULLTEXT_TERM_LENGTH,
     MAX_FULLTEXT_VALUES,
+    SHORT_KEYWORD_CONTAINS_MIN_LENGTH,
     FulltextFieldKind,
     FulltextSearchField,
     build_bare_fulltext_query,
     build_enum_display_term_query,
+    build_field_contains_queries,
     build_fulltext_fuzzy_query,
     build_keyword_contains_query,
+    build_keyword_fuzzy_query,
     escape_wildcard,
     is_bare_fulltext_query,
     iter_fulltext_condition_values,
@@ -25,6 +27,8 @@ from fta_web.alert.handlers.fulltext import (
     should_apply_fulltext_term,
 )
 from fta_web.alert.handlers.incident import IncidentQueryHandler
+from fta_web.alert.handlers.alert import AlertQueryHandler
+from fta_web.alert.handlers.base import BaseQueryHandler
 
 
 class TestFulltextHelpers:
@@ -102,6 +106,29 @@ class TestFulltextHelpers:
         assert "incident_name" not in dumped
         assert "id" in dumped
         assert "bk_biz_id" in dumped
+
+    def test_short_non_digit_uses_prefix_not_leading_wildcard(self):
+        assert SHORT_KEYWORD_CONTAINS_MIN_LENGTH == 3
+        q = build_keyword_fuzzy_query("labels", "ab")
+        dumped = str(q.to_dict())
+        assert "prefix" in dumped
+        assert "*ab*" not in dumped
+        # 长词仍 contains
+        long_q = build_keyword_fuzzy_query("labels", "abcd")
+        assert "*abcd*" in str(long_q.to_dict())
+
+    def test_include_escapes_and_limits(self):
+        q = build_field_contains_queries("labels", ["a*b", "x" * (MAX_FULLTEXT_TERM_LENGTH + 1), "ok"])
+        dumped = str(q.to_dict())
+        # a*b 转义后不应变成任意匹配
+        assert "a\\*b" in dumped or "a\\\\*b" in dumped or r"a\*b" in dumped
+        assert "wildcard" in dumped or "prefix" in dumped
+
+    def test_include_digit_no_leading_wildcard(self):
+        q = build_field_contains_queries("labels", ["1"])
+        dumped = str(q.to_dict())
+        assert "*1*" not in dumped
+        assert "term" in dumped and "prefix" in dumped
 
     def test_short_non_digit_skipped(self):
         fields = [FulltextSearchField("labels", FulltextFieldKind.KEYWORD)]

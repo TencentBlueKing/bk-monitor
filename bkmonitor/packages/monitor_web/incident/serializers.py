@@ -12,6 +12,7 @@ from datetime import datetime
 
 from rest_framework import serializers
 
+from fta_web.alert.handlers.fulltext import MAX_QUERY_STRING_LENGTH
 from fta_web.alert.serializers import SearchConditionSerializer
 
 
@@ -19,7 +20,9 @@ class IncidentSearchSerializer(serializers.Serializer):
     bk_biz_ids = serializers.ListField(label="业务ID", default=None)
     status = serializers.ListField(label="状态", required=False, child=serializers.CharField())
     conditions = SearchConditionSerializer(label="搜索条件", many=True, default=[])
-    query_string = serializers.CharField(label="查询字符串", default="", allow_blank=True)
+    query_string = serializers.CharField(
+        label="查询字符串", default="", allow_blank=True, max_length=MAX_QUERY_STRING_LENGTH
+    )
     start_time = serializers.IntegerField(label="开始时间")
     end_time = serializers.IntegerField(label="结束时间")
     ordering = serializers.ListField(label="排序", child=serializers.CharField(), default=[])

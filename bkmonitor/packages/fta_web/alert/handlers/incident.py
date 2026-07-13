@@ -212,9 +212,7 @@ class IncidentQueryHandler(BaseBizQueryHandler):
                 query_dsl = query_dsl.replace(f"({display} OR {field}:{value})", f'("{display}" OR {field}:{value})')
         return query_dsl
 
-    def build_query_string_q(
-        self, query_string: str, context=None, *, escape_colon: bool = False, literal_fulltext: bool = False
-    ):
+    def build_query_string_q(self, query_string: str, context=None, *, literal_fulltext: bool = False):
         """故障侧：UI 字面/裸词走全字段；结构化语法走 transform + 枚举中文 quoting。"""
         if not query_string or not str(query_string).strip():
             return None
@@ -233,8 +231,7 @@ class IncidentQueryHandler(BaseBizQueryHandler):
                 return bare_q
             return Q("match_none")
 
-        transform_input = query_string.replace(":", r"\:") if escape_colon else query_string
-        query_dsl = self.query_transformer.transform_query_string(transform_input, context)
+        query_dsl = self.query_transformer.transform_query_string(query_string, context)
         query_dsl = self._quote_translated_query_string(query_dsl)
         if isinstance(query_dsl, str):
             return Q("query_string", query=query_dsl)

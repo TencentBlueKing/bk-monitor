@@ -36,6 +36,7 @@ from core.errors.alert import QueryStringParseError
 from fta_web.alert.handlers.fulltext import (
     FulltextSearchField,
     build_bare_fulltext_query,
+    build_field_contains_queries,
     is_bare_fulltext_query,
     iter_fulltext_condition_values,
 )
@@ -369,7 +370,6 @@ class BaseQueryHandler:
         query_string: str,
         context=None,
         *,
-        escape_colon: bool = False,
         literal_fulltext: bool = False,
     ) -> Q | None:
         """
@@ -398,8 +398,7 @@ class BaseQueryHandler:
             # 词过短/过长且非枚举显示名：显式无命中，避免静默丢掉条件后返回业务范围内全量数据
             return Q("match_none")
 
-        transform_input = query_string.replace(":", r"\:") if escape_colon else query_string
-        query_dsl = self.query_transformer.transform_query_string(transform_input, context)
+        query_dsl = self.query_transformer.transform_query_string(query_string, context)
         if isinstance(query_dsl, str):
             return Q("query_string", query=query_dsl)
         return Q(query_dsl)
@@ -472,42 +471,20 @@ class BaseQueryHandler:
 
         处理逻辑:
         1. 包含查询(include):
-            - 单值转换为通配符查询(*value*)
-            - 多值生成多个通配符查询并通过OR组合
+            - 与全字段 Keyword 策略对齐：转义、长度门禁、数字 term/prefix、短词 prefix、长词 *value*
         2. 排除查询(exclude):
-            - 单值转换为取反的通配符查询
-            - 多值生成多个通配符查询后整体取反
+            - 同上取反
         3. 范围查询(gte/gt/lte/lt):
             - 支持大于等于、大于、小于等于、小于的范围比较
         4. 默认terms查询:
             - 直接转换为terms精确匹配查询
         """
         if condition["method"] == "include":
-            if isinstance(condition["value"], list):
-                # 如果是列表，生成多个 wildcard 查询并通过 OR 组合（大小写不敏感）
-                queries = [
-                    Q("wildcard", **{condition["key"]: {"value": f"*{value}*", "case_insensitive": True}})
-                    for value in condition["value"]
-                ]
-                return queries[0] if len(queries) == 1 else Q("bool", should=queries)
-            return Q(
-                "wildcard",
-                **{condition["key"]: {"value": f"*{condition['value']}*", "case_insensitive": True}},
-            )
+            return build_field_contains_queries(condition["key"], condition["value"])
 
         elif condition["method"] == "exclude":
-            if isinstance(condition["value"], list):
-                # 如果是列表，生成多个 wildcard 查询并通过 OR 组合后取反（大小写不敏感）
-                queries = [
-                    Q("wildcard", **{condition["key"]: {"value": f"*{value}*", "case_insensitive": True}})
-                    for value in condition["value"]
-                ]
-                return ~(queries[0] if len(queries) == 1 else Q("bool", should=queries))
-            # 生成单个取反wildcard查询
-            return ~Q(
-                "wildcard",
-                **{condition["key"]: {"value": f"*{condition['value']}*", "case_insensitive": True}},
-            )
+            q = build_field_contains_queries(condition["key"], condition["value"])
+            return ~q if q is not None else Q("match_none")
 
         elif condition["method"] in ["gte", "gt", "lte", "lt"]:
             # 范围查询：支持大于、大于等于、小于、小于等于操作
