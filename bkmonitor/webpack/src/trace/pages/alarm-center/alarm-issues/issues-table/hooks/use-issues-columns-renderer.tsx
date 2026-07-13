@@ -27,6 +27,7 @@
 import type { MaybeRef } from 'vue';
 
 import { get } from '@vueuse/core';
+import { Loading, Radio } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
 
@@ -43,12 +44,13 @@ import {
   ISSUES_REGRESSION_MAP,
   ISSUES_STATUS_MAP,
   IssueStatusEnum,
+  TrendRangeEnum,
 } from '../../constant';
 import IssueNameCell from '../components/issue-name-cell/issue-name-cell';
 
 import type { IUsePopoverTools } from '../../../components/alarm-table/hooks/use-popover';
 import type { TableColumnItem } from '../../../typings';
-import type { ImpactScopeResource, ImpactScopeResourceKeyType, IssueItem } from '../../typing';
+import type { ImpactScopeResource, ImpactScopeResourceKeyType, IssueItem, TrendRangeType } from '../../typing';
 import type { UseIssuesHandlersReturnType } from './use-issues-handlers';
 import type { SlotReturnValue } from 'tdesign-vue-next';
 
@@ -62,6 +64,12 @@ export type IssuesColumnsRendererCtx = {
   handleNameChange: (row: IssueItem, name: string) => Promise<void>;
   /** hover popover 工具（基础设施依赖） */
   hoverPopoverTools: IUsePopoverTools;
+  /** 趋势时间范围切换回调 */
+  onTrendRangeChange?: (range: TrendRangeType) => void;
+  /** 趋势数据是否加载中 */
+  trendLoading?: MaybeRef<boolean>;
+  /** 当前趋势时间范围 */
+  trendRange?: MaybeRef<TrendRangeType>;
 } & UseIssuesHandlersReturnType;
 
 /**
@@ -178,6 +186,18 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
    * @returns {SlotReturnValue} 趋势列 JSX
    */
   const renderTrendCell = (row: IssueItem): SlotReturnValue => {
+    if (get(rendererCtx.trendLoading)) {
+      return (
+        <div class='issues-trend-col is-loading'>
+          <Loading
+            loading={true}
+            mode='spin'
+            size='mini'
+            theme='primary'
+          />
+        </div>
+      ) as unknown as SlotReturnValue;
+    }
     const trend = row.trend || [];
     const effectiveTrend = trend.filter(([, count]) => count > 0);
     if (!effectiveTrend.length) {
@@ -370,13 +390,31 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
     ) as unknown as SlotReturnValue;
   };
 
+  /** 趋势列头渲染（24h / 7d 胶囊切换） */
+  const renderTrendTitle = (): SlotReturnValue => {
+    return (
+      <div class='issues-trend-header'>
+        <Radio.Group
+          modelValue={get(rendererCtx.trendRange)}
+          size='small'
+          type='capsule'
+          onUpdate:modelValue={(val: TrendRangeType) => rendererCtx.onTrendRangeChange?.(val)}
+        >
+          <Radio.Button label={TrendRangeEnum.HOURS_24}>24h</Radio.Button>
+          <Radio.Button label={TrendRangeEnum.DAYS_7}>7d</Radio.Button>
+        </Radio.Group>
+        <span class='issues-trend-header-text'>{t('趋势')}</span>
+      </div>
+    ) as unknown as SlotReturnValue;
+  };
+
   /** 列渲染配置映射表：按 colKey 定义各列的 cellRenderer / renderType / 布局等配置 */
   const columnsRendererMap: Record<string, Partial<BaseTableColumn>> = {
     name: { cellRenderer: renderIssueName },
     labels: { renderType: ExploreTableColumnTypeEnum.TAGS },
     last_alert_time: { cellRenderer: renderTimeCell },
     first_alert_time: { cellRenderer: renderTimeCell },
-    trend: { cellRenderer: renderTrendCell },
+    trend: { cellRenderer: renderTrendCell, title: renderTrendTitle },
     impact_scope: { cellRenderer: renderImpactCell },
     priority: { cellRenderer: renderPriorityCell },
     status: { cellRenderer: renderStatusCell },
