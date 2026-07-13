@@ -494,7 +494,13 @@ export default defineComponent({
     const tableList = computed<any[]>(() => Object.freeze(indexSetQueryResult.value?.list ?? []));
     const gradeOption = computed(() => store.state.indexFieldInfo.custom_config?.grade_options ?? { disabled: false });
     const indexSetType = computed(() => store.state.indexItem.isUnionIndex);
-    const limitRow = computed(() => store.state.storage[BK_LOG_STORAGE.RESULT_DISPLAY_LINES]);
+    const limitRow = computed(() => {
+      if (store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]) {
+        return 'auto';
+      }
+
+      return store.state.storage[BK_LOG_STORAGE.RESULT_DISPLAY_LINES];
+    });
 
     const bumpFieldWidthVersion = () => {
       store.commit('updateState', { fieldWidthVersion: store.state.fieldWidthVersion + 1 });
