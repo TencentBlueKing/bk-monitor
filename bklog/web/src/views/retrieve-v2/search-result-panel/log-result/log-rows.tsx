@@ -468,6 +468,11 @@ export default defineComponent({
     const localUpdateCounter = ref(0);
     const hasMoreList = ref(true);
     let renderList = Object.freeze([]);
+    let renderTaskToken = 0;
+    let paginationRequestToken = 0;
+    const isRequesting = ref(false);
+    let requestingTimer: ReturnType<typeof setTimeout> = null;
+    let skipNextLoadingEndReset = false;
     const fullRowViewerState = reactive({
       visible: false,
       rowKey: '',
@@ -529,6 +534,15 @@ export default defineComponent({
       hasMoreList.value = true;
       isFirstPageLayoutPending.value = true;
       firstPageLayoutToken += 1;
+      renderTaskToken += 1;
+      paginationRequestToken += 1;
+      requestingTimer && clearTimeout(requestingTimer);
+      requestingTimer = null;
+      isRequesting.value = false;
+      isPaginationLoading.value = false;
+      skipNextLoadingEndReset = false;
+      renderList = Object.freeze([]);
+      localUpdateCounter.value += 1;
       tableRowConfig = new WeakMap();
       tableRowConfigByKey.clear();
     };
@@ -579,6 +593,9 @@ export default defineComponent({
     const getRowCacheKey = (row, index: number) => rowKeys.value[index] ?? `${row?.dtEventTimeStamp ?? 'row'}_${index}`;
 
     const setRenderList = (length?: number) => {
+      renderTaskToken += 1;
+      const taskToken = renderTaskToken;
+      const queryKey = indexSetQueryResult.value?.row_query_key ?? '';
       const endIndex = length ?? tableDataSize.value;
 
       if (rowKeys.value.length) {
@@ -586,11 +603,18 @@ export default defineComponent({
         const keys = rowKeys.value.slice(0, lastIndex);
 
         retrieveRowCacheService.getRenderEntries(keys).then((entries) => {
-          renderList = entries.filter(Boolean).map((entry, index) => ({
+          const isCurrentTask = taskToken === renderTaskToken
+            && queryKey === (indexSetQueryResult.value?.row_query_key ?? '')
+            && keys.every((key, index) => key === rowKeys.value[index]);
+          if (!isCurrentTask) {
+            return;
+          }
+
+          renderList = entries.flatMap((entry, index) => (entry ? [{
             item: entry.row,
             renderMeta: entry.renderMeta as RetrieveRowRenderMeta | undefined,
             [ROW_KEY]: keys[index] ?? getRowCacheKey(entry.row, index),
-          }));
+          }] : []));
           localUpdateCounter.value += 1;
           nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
         });
@@ -1078,10 +1102,6 @@ export default defineComponent({
       return config;
     };
 
-    const isRequesting = ref(false);
-    let requestingTimer: any = null;
-    let skipNextLoadingEndReset = false;
-
     const debounceSetLoading = (delay = 120) => {
       requestingTimer && clearTimeout(requestingTimer);
       requestingTimer = setTimeout(() => {
@@ -1418,21 +1438,40 @@ export default defineComponent({
       }
 
       if (hasMoreList.value) {
+        paginationRequestToken += 1;
+        const requestToken = paginationRequestToken;
+        const requestQueryKey = indexSetQueryResult.value?.row_query_key ?? '';
+        const requestStartSize = rowKeys.value.length;
         isRequesting.value = true;
         isPaginationLoading.value = true;
         skipNextLoadingEndReset = true;
         return store
           .dispatch('requestIndexSetQuery', { isPagination: true })
           .then((resp) => {
+            const isCurrentRequest = requestToken === paginationRequestToken
+              && requestQueryKey === (indexSetQueryResult.value?.row_query_key ?? '')
+              && !resp?.ignored;
+            if (!isCurrentRequest) {
+              return false;
+            }
+
             const responseSize = getPaginationResponseSize(resp);
+            if (rowKeys.value.length < requestStartSize) {
+              return false;
+            }
+
             pageIndex.value += 1;
             handleResultBoxResize(false);
 
             if (responseSize !== null && responseSize < pageSize.value) {
               hasMoreList.value = false;
             }
+            return true;
           })
           .finally(() => {
+            if (requestToken !== paginationRequestToken) {
+              return;
+            }
             isPaginationLoading.value = false;
             debounceSetLoading(0);
             nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
@@ -2218,6 +2257,8 @@ export default defineComponent({
     };
 
     onBeforeUnmount(() => {
+      renderTaskToken += 1;
+      paginationRequestToken += 1;
       clearHoverOperatorHideTimer();
       popInstanceUtil.uninstallInstance();
       window.clearTimeout(columnWidthChangeTimer);
