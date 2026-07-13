@@ -28,6 +28,8 @@ export {
   buildFilterOptionsMap,
   computeCategoryStats,
   createHostListRow,
+  handleCreateCompares,
+  handleCreateItemId,
   matchKeyword,
   matchQuickCategory,
   matchTopoNode,

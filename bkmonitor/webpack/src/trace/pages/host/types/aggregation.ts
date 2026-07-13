@@ -24,6 +24,13 @@
  * IN THE SOFTWARE.
  */
 
+export interface CompareTarget {
+  bk_inst_id?: number;
+  bk_obj_id?: string;
+  bk_target_cloud_id?: number;
+  bk_target_ip?: string;
+}
+
 /** 目标对比的单个目标选项（如主机 IP） */
 export interface CompareTargetOption {
   /** 目标唯一标识 */
@@ -39,8 +46,8 @@ export interface CompareTargetOption {
 export interface MetricAggregationState {
   /** 列数：1 / 2 / 3 */
   columns: number;
-  /** 目标对比选中的目标 id 列表 */
-  compareTargets: string[];
+  /** 目标对比选中的目标 列表 */
+  compareTargets: CompareTarget[];
   /** 对比方法 */
   compareType: MetricCompareType;
   /** 高亮峰谷值 */

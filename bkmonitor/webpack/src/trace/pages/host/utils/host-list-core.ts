@@ -29,9 +29,11 @@
  * Web Worker 运行时代码在 workers/host-list.worker.raw.js（Blob 方式加载），逻辑与此文件保持同步。
  */
 
+import { isObject } from 'monitor-common/utils';
+
 import type { IValue, IWhereItem } from '../../../components/retrieval-filter/typing';
-import type { EHostQuickCategory, IHostCluster, IHostListRow } from '../types/host-list';
 import type { IHostBaseInfo, IHostMetricInfo, IHostModule } from '../types/host';
+import type { EHostQuickCategory, IHostCluster, IHostListRow } from '../types/host-list';
 import type { IHostTopoTreeNode } from '../types/topo';
 
 /** 与 constants/host-list 保持一致，内联避免 Worker 引入额外 chunk */
@@ -71,17 +73,18 @@ const extractClusters = (modules: IHostModule[]): IHostCluster[] => {
   return [...map.values()];
 };
 
-export const createHostListRow = (row: IHostBaseInfo, metric = {} as IHostMetricInfo): IHostListRow => {
+export const createHostListRow = (row: IHostBaseInfo, metric?: IHostMetricInfo): IHostListRow => {
+  const metricWithDefault = (metric ?? {}) as IHostMetricInfo;
   const modules = row.module || [];
   const bkClusters = extractClusters(modules);
-  const totalAlarmCount = (metric.alarm_count || []).reduce((pre, cur) => pre + (cur.count || 0), 0);
+  const totalAlarmCount = (metricWithDefault.alarm_count || []).reduce((pre, cur) => pre + (cur.count || 0), 0);
   return {
     ...(row ?? {}),
-    ...(metric ?? {}),
+    ...(metricWithDefault ?? {}),
     bkClusters,
     clusterNames: bkClusters.map(c => c.name).join(','),
     moduleNames: modules.map(m => m.bk_inst_name).join(','),
-    processNames: (metric.component || []).map(c => c.display_name).join(','),
+    processNames: (metricWithDefault.component || []).map(c => c.display_name).join(','),
     rowId: String(row.bk_host_id ?? `${row.bk_host_innerip}|${row.bk_cloud_id}`),
     totalAlarmCount,
   };
@@ -97,7 +100,7 @@ export const matchTopoNode = (row: IHostListRow, node: IHostTopoTreeNode | null)
   return (row.module || []).some(module => (module.topo_link || []).includes(node.id));
 };
 
-export const matchQuickCategory = (row: IHostListRow, category: EHostQuickCategory | ''): boolean => {
+export const matchQuickCategory = (row: IHostListRow, category: '' | EHostQuickCategory): boolean => {
   switch (category) {
     case 'alarm':
       return row.totalAlarmCount > 0;
@@ -261,4 +264,50 @@ export const buildFilterOptionsMap = (rows: IHostListRow[]): Map<string, IValue[
     );
   }
   return result;
+};
+
+export const defaultFieldsSort = [
+  ['bk_cloud_id', 'bk_target_cloud_id'],
+  ['bk_host_id', 'bk_host_id'],
+  ['ip', 'bk_target_ip'],
+];
+
+/** 根据当前请求接口数据的映射规则生成id */
+export const handleCreateItemId = (
+  item: object,
+  isFilterDict = false,
+  fieldsSort?: Array<[string, string]>,
+  splitChar = '-'
+) => {
+  const localFieldsSort = fieldsSort || defaultFieldsSort;
+  let isExist = true;
+  const itemIds = [];
+  for (const set of localFieldsSort) {
+    const [itemKey, filterDictKey] = set;
+    const key = isFilterDict ? filterDictKey : itemKey;
+    let value = item[key];
+    console.log(item, key, value);
+    if (value === undefined && isExist) {
+      isExist = false;
+    }
+    value = isObject(value) ? value.value : value;
+    itemIds.push(value);
+  }
+  return isExist ? itemIds.filter(item => item !== undefined).join(splitChar) : null;
+};
+
+export const handleCreateCompares = (data: object, fieldsSort?: Array<[string, string]>): CompareTarget => {
+  const localFieldsSort = fieldsSort || defaultFieldsSort;
+  let isExist = true;
+  const result = localFieldsSort.reduce((total, cur) => {
+    const [itemKey, filterDictKey] = cur;
+    let value = data?.[itemKey];
+    if (value === undefined && isExist) {
+      isExist = false;
+    }
+    value = isObject(value) ? value.value : value;
+    total[filterDictKey] = value;
+    return total;
+  }, {});
+  return isExist ? result : null;
 };

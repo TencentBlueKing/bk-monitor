@@ -28,7 +28,7 @@ import { cloneDeep } from 'lodash';
 import { getTemplateSrv } from 'monitor-pc/pages/query-template/variables/template/template-srv';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
-import type { CompareTargetOption, MetricAggregationState } from '../../../types/aggregation';
+import type { CompareTarget, MetricAggregationState } from '../../../types/aggregation';
 import type { HostViewsGraphPanel } from '../../../types/panels';
 
 /** 变量名 → 取值的扁平映射（值可为字符串、数字或数组） */
@@ -44,16 +44,13 @@ const isEmpty = (val: unknown) => val === '' || val === null || val === undefine
  * 注：当前 toolbar 无「汇聚维度」字段，$group_by 默认空（占位会被移除）。
  * 对比相关变量仅在对应对比模式下生效，否则置空。
  */
-export function buildScopedVars(
-  state: MetricAggregationState,
-  currentTarget?: CompareTargetOption | null
-): ScopedVarMap {
+export function buildScopedVars(state: MetricAggregationState, currentTarget?: CompareTarget | null): ScopedVarMap {
   return {
     interval: state.interval,
     method: state.method,
     group_by: [],
     time_shift: state.compareType === 'time' ? state.timeShift : [],
-    current_target: currentTarget?.id ?? '',
+    current_target: currentTarget,
     compare_targets: state.compareType === 'target' ? state.compareTargets : [],
   };
 }
