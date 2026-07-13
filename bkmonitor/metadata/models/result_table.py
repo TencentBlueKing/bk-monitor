@@ -22,6 +22,7 @@ from django.conf import settings
 from django.db import models, transaction
 from django.db.models import sql
 from django.db.transaction import atomic, on_commit
+from django.utils import timezone as django_timezone
 from django.utils.translation import gettext as _
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -48,6 +49,7 @@ from .storage import (
     InfluxDBStorage,
     KafkaStorage,
     RedisStorage,
+    StorageClusterRecord,
     SurrealDBStorage,
 )
 
@@ -957,8 +959,11 @@ class ResultTable(models.Model):
                     )
                     raise ValueError(_("存储[{}]暂不支持，请确认后重试").format(ex_storage_type))
 
+                ex_storage_config = dict(ex_storage_config)
+                if ex_storage_type in (ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS):
+                    ex_storage_config["create_storage_cluster_record"] = False
                 if ex_storage_type == ClusterInfo.TYPE_ES:
-                    storage_config["enable_create_index"] = False
+                    ex_storage_config["enable_create_index"] = False
                 ex_storage.create_table(
                     self.table_id, bk_tenant_id=bk_tenant_id, is_sync_db=is_sync_db, **ex_storage_config
                 )
@@ -1148,6 +1153,71 @@ class ResultTable(models.Model):
         storage_class = self.REAL_STORAGE_DICT[storage_type]
         return storage_class.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
 
+    def _get_storage_cluster_id(self, storage_type: str) -> int | None:
+        """获取 ES/Doris 存储配置中的集群 ID，不存在时返回 None。"""
+
+        if storage_type not in (ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS):
+            return None
+        storage_class = self.REAL_STORAGE_DICT[storage_type]
+        return (
+            storage_class.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
+            .values_list("storage_cluster_id", flat=True)
+            .first()
+        )
+
+    def _get_and_validate_default_cluster_storage(self):
+        """获取并校验当前默认 ES/Doris 存储配置。"""
+
+        storage_class = self.REAL_STORAGE_DICT[self.default_storage]
+        try:
+            storage = storage_class.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
+        except storage_class.DoesNotExist:
+            raise ValueError(_("结果表[{}]不存在默认存储类型[{}]的配置").format(self.table_id, self.default_storage))
+
+        try:
+            ClusterInfo.objects.get(
+                cluster_id=storage.storage_cluster_id,
+                bk_tenant_id=self.bk_tenant_id,
+                cluster_type=self.default_storage,
+            )
+        except ClusterInfo.DoesNotExist:
+            raise ValueError(
+                _("默认存储集群[{}]不存在、租户不匹配或类型不是[{}]").format(
+                    storage.storage_cluster_id, self.default_storage
+                )
+            )
+        return storage
+
+    def _delete_storage_configs(self, need_delete_storages: dict[str, Any] | None) -> None:
+        """删除明确请求的额外存储，但保留默认存储和仍承载历史数据的配置。"""
+
+        for storage_type in need_delete_storages or {}:
+            if storage_type not in self.REAL_STORAGE_DICT:
+                logger.info(
+                    "try to delete storage->[%s] for table->[%s] but storage is not supported.",
+                    storage_type,
+                    self.table_id,
+                )
+                continue
+            if storage_type == self.default_storage:
+                raise ValueError(_("默认存储[{}]不能删除").format(storage_type))
+
+            if storage_type in (ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS):
+                cluster_ids = ClusterInfo.objects.filter(
+                    bk_tenant_id=self.bk_tenant_id, cluster_type=storage_type
+                ).values_list("cluster_id", flat=True)
+                if StorageClusterRecord.objects.filter(
+                    table_id=self.table_id,
+                    bk_tenant_id=self.bk_tenant_id,
+                    cluster_id__in=cluster_ids,
+                    is_deleted=False,
+                ).exists():
+                    raise ValueError(_("存储[{}]仍有关联的有效历史数据，不能删除配置").format(storage_type))
+
+            storage_class = self.REAL_STORAGE_DICT[storage_type]
+            storage_class.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).delete()
+            logger.info("table->[%s] delete storage->[%s] config success.", self.table_id, storage_type)
+
     def get_storage_info(self, storage_type):
         """
         获取结果表一个指定存储的配置信息
@@ -1201,12 +1271,21 @@ class ResultTable(models.Model):
         :param bk_biz_id_alias: 结果表业务ID别名
         :return: True | raise Exception
         """
+        # 串行化同一个 ResultTable 的修改，并刷新调用方可能持有的旧对象状态。
+        self.__class__.objects.using(config.DATABASE_CONNECTION_NAME).select_for_update().get(pk=self.pk)
+        self.refresh_from_db(using=config.DATABASE_CONNECTION_NAME)
+
         logger.info(
             "modify: try to modify result_table,operator->[%s],table_id->[%s],bk_tenant_id->[%s]",
             operator,
             self.table_id,
             self.bk_tenant_id,
         )
+
+        old_default_storage = self.default_storage
+        old_is_enable = self.is_enable
+        old_active_cluster_id = self._get_storage_cluster_id(old_default_storage)
+        old_es_cluster_id = self._get_storage_cluster_id(ClusterInfo.TYPE_ES)
 
         # 1. 判断是否需要修改中文名
         if table_name_zh is not None:
@@ -1366,7 +1445,16 @@ class ResultTable(models.Model):
                 logger.info("table->[%s] upgrade storage->[%s] config success.", self.table_id, ex_storage_type)
                 continue
 
-            ex_storage.create_table(self.table_id, bk_tenant_id=self.bk_tenant_id, is_sync_db=True, **ex_storage_config)
+            ex_storage_config = dict(ex_storage_config)
+            if ex_storage_type in (ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS):
+                # 新建配置不代表切换默认写入目标，current 由 ResultTable 统一推进。
+                ex_storage_config["create_storage_cluster_record"] = False
+            ex_storage.create_table(
+                self.table_id,
+                bk_tenant_id=self.bk_tenant_id,
+                is_sync_db=True,
+                **ex_storage_config,
+            )
             logger.info(
                 "result_table->[%s] of bk_tenant_id->[%s] has create real ex_storage on type->[%s]",
                 self.table_id,
@@ -1374,19 +1462,8 @@ class ResultTable(models.Model):
                 ex_storage_type,
             )
 
-            # 删除额外存储配置
-            need_delete_storages = need_delete_storages or {}
-            for storage_type, delete_storage in need_delete_storages.items():
-                if storage_type not in self.REAL_STORAGE_DICT:
-                    logger.info(
-                        "try to delete storage->[%s] for table->[%s] but storage is not exists.",
-                        storage_type,
-                        self.table_id,
-                    )
-                    continue
-                ex_storage = self.REAL_STORAGE_DICT[storage_type]
-                ex_storage.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).delete()
-                logger.info("table->[%s] delete storage->[%s] config success.", self.table_id, storage_type)
+        # 删除操作与 external_storage 是否新增无关，并且不能破坏默认存储或历史查询能力。
+        self._delete_storage_configs(need_delete_storages)
 
         force_update_datalink = False
 
@@ -1462,33 +1539,9 @@ class ResultTable(models.Model):
         # 是否需要修改结果表是否启用
         if is_enable is not None:
             self.is_enable = is_enable
-            self.save()  # 这里需要保存下，下面的es索引创建逻辑会依赖is_enable的判断
             logger.info(
                 f"table_id->[{self.table_id}] of bk_tenant_id->[{self.bk_tenant_id}] is change to is_enable->[{self.is_enable}]"
             )
-
-            # 如果启用结果表，需要创建结果表的实际存储依赖
-            if is_enable:
-                # 需要判断存储方式是否有明确的结果表创建
-                # 目前只需要判断ES，influxdb，kafka和redis会有自动创建能力
-                es_query = ESStorage.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
-                if es_query.exists():
-                    es_storage = es_query.get()
-                    if not es_storage.index_exist():
-                        #   如果该table_id的index在es中不存在，说明要走初始化流程
-                        logger.info(
-                            "table_id->[%s] of bk_tenant_id->[%s] found no index in es, will create new one",
-                            es_storage.table_id,
-                            self.bk_tenant_id,
-                        )
-                        es_storage.create_index_and_aliases(es_storage.slice_gap)
-                    else:
-                        # 否则走更新流程
-                        es_storage.update_index_and_aliases(ahead_time=es_storage.slice_gap)
-
-                    logger.info(
-                        f"table_id->[{self.table_id}] of bk_tenant_id->[{self.bk_tenant_id}] is change to is_enable {self.is_enable} and es index is created"
-                    )
 
         if bk_biz_id_alias is not None:
             logger.info(
@@ -1506,6 +1559,67 @@ class ResultTable(models.Model):
 
         self.last_modify_user = operator
         self.save()
+
+        # ResultTable 已保存最终状态，此后 ES 的启用判断和数据链路都能读取到同一份默认存储配置。
+        default_cluster_storage = None
+        if self.default_storage in (ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS):
+            default_cluster_storage = self._get_and_validate_default_cluster_storage()
+
+        if self.default_storage == ClusterInfo.TYPE_ES and self.is_enable:
+            es_storage_config = external_storage.get(ClusterInfo.TYPE_ES) or {}
+            is_moving_es_cluster = (
+                old_default_storage != ClusterInfo.TYPE_ES
+                or old_es_cluster_id != default_cluster_storage.storage_cluster_id
+            )
+            es_mapping_changed = field_list is not None or any(
+                key in es_storage_config for key in ("mapping_settings", "index_settings")
+            )
+            should_prepare_es = is_moving_es_cluster or es_mapping_changed or (not old_is_enable and self.is_enable)
+            if should_prepare_es:
+                logger.info(
+                    "modify: prepare ES before applying datalink, table_id->[%s], old_default->[%s], "
+                    "old_cluster->[%s], new_cluster->[%s], mapping_changed->[%s], re_enabled->[%s]",
+                    self.table_id,
+                    old_default_storage,
+                    old_es_cluster_id,
+                    default_cluster_storage.storage_cluster_id,
+                    es_mapping_changed,
+                    not old_is_enable,
+                )
+                prepared = default_cluster_storage.update_index_and_aliases(
+                    ahead_time=0,
+                    is_moving_cluster=is_moving_es_cluster,
+                    strict=True,
+                )
+                if prepared is False:
+                    raise RuntimeError(_("结果表[{}]的ES索引或写别名未准备完成").format(self.table_id))
+
+        # 使用同一个时间点关闭所有旧 current，再创建唯一的新 current；重复修改同集群时幂等。
+        if default_cluster_storage is not None and self.is_enable:
+            switch_time = django_timezone.now()
+            switch_result = StorageClusterRecord.switch_current_cluster(
+                table_id=self.table_id,
+                bk_tenant_id=self.bk_tenant_id,
+                target_cluster_id=default_cluster_storage.storage_cluster_id,
+                target_storage_type=self.default_storage,
+                switch_time=switch_time,
+                creator=operator,
+                force_new_segment=(
+                    old_default_storage != self.default_storage
+                    or old_active_cluster_id != default_cluster_storage.storage_cluster_id
+                ),
+            )
+            switched = switch_result[1]
+            logger.info(
+                "modify: storage current reconciled, table_id->[%s], old_default->[%s], old_cluster->[%s], "
+                "new_default->[%s], new_cluster->[%s], switched->[%s]",
+                self.table_id,
+                old_default_storage,
+                old_active_cluster_id,
+                self.default_storage,
+                default_cluster_storage.storage_cluster_id,
+                switched,
+            )
 
         # 异步执行时，需要在commit之后，以保证所有操作都提交
         try:

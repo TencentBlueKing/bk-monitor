@@ -477,6 +477,22 @@ def _manage_es_storage(es_storage):
 
     start_time = time.time()
     try:
+        # ES 已不是默认存储时，保留 ESStorage 只用于历史查询和过期清理。
+        if (
+            models.ResultTable.objects.filter(
+                table_id=es_storage.table_id,
+                bk_tenant_id=es_storage.bk_tenant_id,
+            )
+            .exclude(default_storage=models.ClusterInfo.TYPE_ES)
+            .exists()
+        ):
+            logger.info(
+                "manage_es_storage:table_id->[%s] does not use ES now, only clean historical ES indices",
+                es_storage.table_id,
+            )
+            es_storage.clean_history_es_index()
+            return
+
         # 先预创建各个时间段的index，
         # 1. 同时判断各个预创建好的index是否字段与数据库的一致
         # 2. 也判断各个创建的index是否有大小需要切片的需要

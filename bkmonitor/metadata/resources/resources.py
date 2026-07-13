@@ -430,17 +430,11 @@ class ModifyResultTableResource(Resource):
         # 处理查询别名设置
         self._handle_query_alias_settings(table_id, query_alias_settings, operator, bk_tenant_id)
 
-        # 检查ES集群迁移状态
-        is_moving_cluster = self._check_es_cluster_migration(table_id, validated_request_data, bk_tenant_id)
-
         # 修改结果表信息
         result_table = self._modify_result_table(table_id, validated_request_data, bk_tenant_id)
 
         # 处理ES存储相关的逻辑
         if result_table.default_storage == models.ClusterInfo.TYPE_ES:
-            # 处理ES存储索引更新
-            self._handle_es_storage_index_update(table_id, validated_request_data, bk_tenant_id, is_moving_cluster)
-
             # 通知数据平台信息变更，目前只有es类型需要通知
             self._notify_bkdata_if_needed(table_id, result_table, bk_tenant_id)
 
@@ -477,28 +471,6 @@ class ModifyResultTableResource(Resource):
                 e,
             )
 
-    def _check_es_cluster_migration(
-        self, table_id: str, validated_request_data: dict[str, Any], bk_tenant_id: str
-    ) -> bool:
-        """检查ES集群是否发生迁移"""
-        is_moving_cluster = False
-        external_storage = validated_request_data.get("external_storage") or {}
-
-        if external_storage.get(models.ClusterInfo.TYPE_ES):
-            es_storage = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
-            if es_storage:
-                param_cluster_id = external_storage[models.ClusterInfo.TYPE_ES].get("storage_cluster_id")
-                if es_storage.storage_cluster_id != param_cluster_id:
-                    logger.info(
-                        "ModifyResultTableResource: table_id->[%s] moved es cluster from old->[%s] to new->[%s]",
-                        table_id,
-                        es_storage.storage_cluster_id,
-                        param_cluster_id,
-                    )
-                    is_moving_cluster = True
-
-        return is_moving_cluster
-
     def _modify_result_table(
         self, table_id: str, validated_request_data: dict[str, Any], bk_tenant_id: str
     ) -> models.ResultTable:
@@ -518,22 +490,6 @@ class ModifyResultTableResource(Resource):
         # 刷新一波对象，防止存在缓存等情况
         result_table.refresh_from_db()
         return result_table
-
-    def _handle_es_storage_index_update(
-        self, table_id: str, validated_request_data: dict[str, Any], bk_tenant_id: str, is_moving_cluster: bool
-    ) -> None:
-        """处理ES存储索引更新"""
-        if validated_request_data.get("field_list") is None:
-            return
-
-        es_storage = models.ESStorage.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id).first()
-        if es_storage:
-            logger.info(
-                "ModifyResultTableResource: table_id->[%s] has es storage,update index,is_moving_cluster->[%s]",
-                table_id,
-                is_moving_cluster,
-            )
-            es_storage.update_index_and_aliases(ahead_time=0, is_moving_cluster=is_moving_cluster)
 
     def _notify_bkdata_if_needed(self, table_id: str, result_table: models.ResultTable, bk_tenant_id: str) -> None:
         """如果需要，通知bkdata数据变更"""
@@ -3467,8 +3423,8 @@ class NotifyEsDataLinkAdaptNano(Resource):
 
         try:
             es_storage = models.ESStorage.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id)
-            es_storage.update_index_v2(force_rotate=force_rotate)
-            es_storage.create_or_update_aliases(force_rotate=force_rotate)
+            if es_storage.update_index_v2(force_rotate=force_rotate) is not False:
+                es_storage.create_or_update_aliases(force_rotate=force_rotate)
         except Exception as e:  # pylint: disable=broad-except
             logger.exception(
                 "NotifyEsDataLinkAdaptNano: table_id->[%s] failed to rotate index,error->[%s]", table_id, e
