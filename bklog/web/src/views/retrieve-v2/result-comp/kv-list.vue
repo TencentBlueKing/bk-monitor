@@ -84,7 +84,10 @@
               v-bk-tooltips="fieldTypePopover(field.field_name)"
               :class="getFieldIcon(field.field_name)"
             ></span>
-            <span class="field-text">{{ getFieldName(field) }}</span>
+            <span
+              class="field-text"
+              v-html="getHighlightedFieldNameHtml(field)"
+            ></span>
           </div>
           <div class="field-value">
             <span
@@ -126,6 +129,7 @@
   // import TextSegmentation from '../search-result-panel/log-result/text-segmentation';
   import { BK_LOG_STORAGE } from '@/store/store.type';
   import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
+  import { buildHighlightHtml, pageHighlightState } from '@/views/retrieve-core/page-highlight';
 
   export default {
     components: {
@@ -217,6 +221,9 @@
         showFieldAlias: state => state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
         isAllowEmptyField: state => state.storage[BK_LOG_STORAGE.TABLE_ALLOW_EMPTY_FIELD],
       }),
+      pageHighlightVersion() {
+        return pageHighlightState.version;
+      },
       apmRelation() {
         return this.$store.state.indexSetFieldConfig.apm_relation;
       },
@@ -923,6 +930,11 @@
       getFieldName(field) {
         return getFieldNameByField(field, this.$store);
       },
+      /** 展开面板字段 KEY 同样应用页面高亮 */
+      getHighlightedFieldNameHtml(field) {
+        void this.pageHighlightVersion;
+        return buildHighlightHtml({ text: String(this.getFieldName(field) ?? '') });
+      },
       // 显示或隐藏字段
       handleShowOrHiddenItem(visible, field) {
         const displayFields = [];
@@ -1028,6 +1040,11 @@
           color: #313238;
           word-break: normal;
           word-wrap: break-word;
+
+          :deep(mark.page-highlight) {
+            padding: 0 2px;
+            border-radius: 2px;
+          }
         }
 
         :deep(.bklog-ext) {

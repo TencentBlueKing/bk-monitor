@@ -243,6 +243,7 @@ export const buildHighlightHtml = ({
   pageRanges?: HighlightRange[];
 }) => mergeHighlightSegments({ text, resultRanges, pageRanges }).map((segment) => {
   const classes = [];
+  const styles: string[] = [];
   if (segment.resultHighlighted) {
     classes.push('result-highlight');
   }
@@ -250,11 +251,22 @@ export const buildHighlightHtml = ({
     classes.push('page-highlight');
     if (typeof segment.pageHighlightIndex === 'number') {
       classes.push(`page-highlight-${segment.pageHighlightIndex}`);
+      const keyword = pageHighlightState.keywords[segment.pageHighlightIndex];
+      if (keyword?.backgroundColor) {
+        styles.push(`background-color:${keyword.backgroundColor}`);
+      }
+      if (keyword?.color) {
+        styles.push(`color:${keyword.color}`);
+      }
     }
   }
 
   const content = escapeHtml(segment.text);
-  return classes.length ? `<mark class="${classes.join(' ')}">${content}</mark>` : content;
+  if (!classes.length) {
+    return content;
+  }
+  const styleAttr = styles.length ? ` style="${styles.join(';')}"` : '';
+  return `<mark class="${classes.join(' ')}"${styleAttr}>${content}</mark>`;
 }).join('');
 
 export const highlightPlainTextIntoFragment = ({

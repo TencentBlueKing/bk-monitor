@@ -26,6 +26,11 @@
           background: #e6e6e6;
           background-color: transparent;
           border-radius: 2px;
+
+          mark.page-highlight {
+            padding: 0 2px;
+            border-radius: 2px;
+          }
         }
       }
 

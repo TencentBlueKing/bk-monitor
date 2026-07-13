@@ -26,9 +26,9 @@
           ><span
             class="black-mark"
             :data-field-name="item.name"
-            >{{ getFieldName(item.name) }}</span
+            v-html="getHighlightedFieldNameHtml(item.name)"
           ></span
-        >
+        ></span>
         <span
           class="field-value"
           :data-with-intersection="true"
@@ -86,7 +86,7 @@
   import useStore from '../hooks/use-store';
   import { BK_LOG_STORAGE } from '../store/store.type';
   import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
-  import { pageHighlightState } from '../views/retrieve-core/page-highlight';
+  import { buildHighlightHtml, pageHighlightState } from '../views/retrieve-core/page-highlight';
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
@@ -551,6 +551,13 @@
 
   const getFieldName = field => fieldNameHook.getFieldName(field);
 
+  /** 根字段 KEY 同样应用页面高亮，与 VALUE 划选高亮保持一致 */
+  const getHighlightedFieldNameHtml = (fieldName: string) => {
+    // 依赖 version，确保匹配模式/关键字变化后 KEY 同步重绘
+    void pageHighlightState.version;
+    return buildHighlightHtml({ text: String(getFieldName(fieldName) ?? '') });
+  };
+
   const rootList = computed(() => {
     return fieldList.value.map((f: any) => {
       const shouldFormatDate = isFormatDateField.value && (!!f.__is_virtual_root__ || isOriginalMode.value);
@@ -878,6 +885,12 @@
           color: #16171a;
           background-color: #ebeef5;
           border-radius: 4px;
+
+          mark.page-highlight {
+            padding: 0 2px;
+            font-weight: 500;
+            border-radius: 2px;
+          }
         }
 
         &::after {

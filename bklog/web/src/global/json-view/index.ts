@@ -26,6 +26,7 @@
  */
 import { copyMessage, xssFilter } from '@/common/util';
 import RetrieveHelper from '@/views/retrieve-helper';
+import { highlightPlainTextIntoFragment } from '@/views/retrieve-core/page-highlight';
 import JSONBig from 'json-bigint';
 
 export type JsonViewConfig = {
@@ -71,7 +72,8 @@ export default class JsonView {
 
     const fieldText = document.createElement('span');
     fieldText.classList.add('bklog-json-view-text');
-    fieldText.innerText = `${name}`;
+    // KEY 与 VALUE 一样消费页面高亮状态，划选高亮可命中字段名
+    fieldText.appendChild(highlightPlainTextIntoFragment({ text: String(name) }));
 
     fieldEl.append(fieldText);
     return fieldEl;
@@ -338,10 +340,12 @@ export default class JsonView {
   }
 
   private handleMouseUp(e: MouseEvent) {
-    // 划词弹出由行级 mouseup 统一处理，JSON 解析叶子不区分文本类型；
-    // 仅在无划词时拦截冒泡，避免普通点击误触发行展开/收起。
-    const selection = window.getSelection();
-    if (selection && !selection.isCollapsed && (selection.toString()?.length ?? 0) > 0) {
+    // 与行级划词判定对齐：仅「本次拖拽划选」或「点在当前选区上」时放行冒泡；
+    // 残留选区下的普通点击仍拦截，避免误触发行展开/收起。
+    if (
+      RetrieveHelper.isMouseSelectionUpEvent(e)
+      || RetrieveHelper.isClickOnSelection(e, 2)
+    ) {
       return;
     }
     e.stopPropagation();
