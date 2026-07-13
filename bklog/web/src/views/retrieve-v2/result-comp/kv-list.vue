@@ -344,22 +344,21 @@
           }
         }
         
-        // 如果允许空字段，直接返回候选字段列表
+        // 如果允许空字段，仍需隐藏可展开 Object 父字段，再按搜索关键字过滤
         if (this.isAllowEmptyField) {
-          let result = candidateFields;
-          // 根据搜索关键字过滤（不区分大小写）
-          if (this.searchKeyword) {
-            const keyword = this.searchKeyword.toLowerCase();
-            const filteredList = [];
-            for (let i = 0; i < candidateFields.length; i++) {
-              const item = candidateFields[i];
-              if (item.field_name.toLowerCase().includes(keyword)) {
-                filteredList.push(item);
-              }
+          const filteredList = [];
+          const keyword = this.searchKeyword ? this.searchKeyword.toLowerCase() : '';
+          for (let i = 0; i < candidateFields.length; i++) {
+            const item = candidateFields[i];
+            if (this.isExpandableObjectField(item.field_name)) {
+              continue;
             }
-            result = filteredList;
+            if (keyword && !item.field_name.toLowerCase().includes(keyword)) {
+              continue;
+            }
+            filteredList.push(item);
           }
-          return result;
+          return filteredList;
         }
         
         // 步骤2：检查空值（需要调用 formatterStr）
@@ -369,6 +368,11 @@
         for (let i = 0; i < candidateFields.length; i++) {
           const item = candidateFields[i];
           const fieldName = item.field_name;
+
+          // 可解析 Object 父字段直接隐藏，避免与子字段重复，也避免与空字段 -- 歧义
+          if (this.isExpandableObjectField(fieldName)) {
+            continue;
+          }
           
           // 性能优化：先快速检查字段是否为空，避免调用 formatterStr
           let shouldSkip = false;
@@ -715,6 +719,53 @@
         }
         
         return result;
+      },
+      /**
+       * 获取 KV 字段原始值（不做 Object -> JSON.stringify）
+       * 与 parseTableRowData 路径解析保持一致，保留 Object 类型用于判断是否隐藏父字段
+       */
+      getKvRawValue(fieldName) {
+        const row = this.listData;
+        if (!row || !fieldName) return undefined;
+
+        // 优先兼容扁平 dotted key（与 parseTableRowData 一致）
+        if (Object.prototype.hasOwnProperty.call(row, fieldName)) {
+          return row[fieldName];
+        }
+
+        if (fieldName.indexOf('.') === -1 && fieldName.indexOf('[') === -1) {
+          return row[fieldName];
+        }
+
+        const keyArr = fieldName.split('.');
+        let data = row;
+        for (let index = 0; index < keyArr.length; index++) {
+          if (data === undefined || data === null) break;
+          // 数组场景交给原有 tableRowDeepView 处理
+          if (Array.isArray(data)) return undefined;
+
+          const item = keyArr[index];
+          if (data?.[item] !== undefined && data?.[item] !== null) {
+            data = data[item];
+          } else {
+            const validKey = keyArr.slice(index).join('.');
+            data = data?.[validKey];
+            break;
+          }
+        }
+        return data;
+      },
+      /** VALUE 为可解析非空 Object（非 JSON 字符串、非数组）时，KV 中隐藏该父字段 */
+      isExpandableObjectValue(value) {
+        return (
+          value !== null &&
+          typeof value === 'object' &&
+          !Array.isArray(value) &&
+          Object.keys(value).length > 0
+        );
+      },
+      isExpandableObjectField(fieldName) {
+        return this.isExpandableObjectValue(this.getKvRawValue(fieldName));
       },
       getFieldValue(field) {
         if (!field) return '--';

@@ -249,6 +249,17 @@
               continue;
             }
 
+            // 可解析 Object 父字段直接隐藏，与 KV 模式一致，避免重复展示及与空字段 -- 歧义
+            const rawValue = this.getExpandRawFieldValue(jsonList, fieldKey);
+            if (
+              rawValue !== null &&
+              typeof rawValue === 'object' &&
+              !Array.isArray(rawValue) &&
+              Object.keys(rawValue).length > 0
+            ) {
+              continue;
+            }
+
             // 性能优化：简单字段直接访问，复杂字段才调用 tableRowDeepView
             if (fieldKey.indexOf('.') === -1 && fieldKey.indexOf('[') === -1) {
               // 简单字段：直接访问
@@ -258,7 +269,7 @@
               if (value === null || value === undefined || value === '') {
                 value = '--';
               } else if (typeof value === 'object') {
-                // 对象需要序列化
+                // 数组等对象需要序列化
                 value = JSON.stringify(value);
               }
               
@@ -280,6 +291,38 @@
       },
     },
     methods: {
+      /**
+       * 获取展开面板字段原始值（不做 Object -> JSON.stringify）
+       * 仅用于 expand-view 数据组装，不改动 JsonFormatWrapper 公共组件
+       */
+      getExpandRawFieldValue(row, fieldKey) {
+        if (!row || !fieldKey) return undefined;
+
+        if (Object.prototype.hasOwnProperty.call(row, fieldKey)) {
+          return row[fieldKey];
+        }
+
+        if (fieldKey.indexOf('.') === -1 && fieldKey.indexOf('[') === -1) {
+          return row[fieldKey];
+        }
+
+        const keyArr = fieldKey.split('.');
+        let data = row;
+        for (let index = 0; index < keyArr.length; index++) {
+          if (data === undefined || data === null) break;
+          if (Array.isArray(data)) return undefined;
+
+          const item = keyArr[index];
+          if (data?.[item] !== undefined && data?.[item] !== null) {
+            data = data[item];
+          } else {
+            const validKey = keyArr.slice(index).join('.');
+            data = data?.[validKey];
+            break;
+          }
+        }
+        return data;
+      },
       async handleCopy() {
         try {
           if (this.rowKey) {

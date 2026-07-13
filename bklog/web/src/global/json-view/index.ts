@@ -250,17 +250,25 @@ export default class JsonView {
       node.append(...this.createObjectNode(formatTarget, depth));
     } else {
       node.classList.add('bklog-json-field-value');
-      if (nodeType === 'string' && typeof this.options.segmentRender === 'function' && formatTarget !== '') {
+      // string / number / boolean / bigint 叶子统一走 segmentRender，
+      // 以便消费 pageHighlightState（含大小写/精确/正则匹配模式）
+      const isPrimitiveLeaf =
+        nodeType === 'string'
+        || nodeType === 'number'
+        || nodeType === 'boolean'
+        || nodeType === 'bigint';
+      const leafText = formatTarget !== null && formatTarget !== undefined && formatTarget !== ''
+        ? String(formatTarget)
+        : '';
+      if (isPrimitiveLeaf && leafText !== '' && typeof this.options.segmentRender === 'function') {
         const taskId = this.renderTaskId;
         this.scheduleRender(() => {
           if (taskId === this.renderTaskId && node.isConnected) {
-            this.options.segmentRender(formatTarget, node);
+            this.options.segmentRender(leafText, node);
           }
         });
       } else {
-        const displayValue = formatTarget !== null && formatTarget !== undefined && formatTarget !== ''
-          ? String(formatTarget)
-          : '--';
+        const displayValue = leafText || '--';
         node.innerHTML = `<span class="segment-content bklog-scroll-cell"><span class="valid-text">${xssFilter(displayValue)}</span></span>`;
       }
     }

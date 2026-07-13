@@ -34,6 +34,8 @@ import { getFieldNameByField } from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
+import { optimizedSplit } from '@/hooks/hooks-helper';
+import LuceneSegment from '@/hooks/lucene.segment';
 import { UseSegmentProp } from '@/hooks/use-segment-pop';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
@@ -145,7 +147,7 @@ export default defineComponent({
     };
 
     const FULLTEXT_FIELD_NAME = '*';
-    const SELECTION_WORD_REGEX = /\S+/g;
+    const SELECTION_MAX_TOKENS = 1000;
 
     type SelectionToken = {
       text: string;
@@ -156,37 +158,32 @@ export default defineComponent({
 
     const stripSelectionMarkup = (value: string) => String(value ?? '').replace(/<\/?mark>/gim, '');
 
-    const tokenizeSelectionText = (value: string, extra?: Partial<SelectionToken>) => {
-      const tokens: SelectionToken[] = [];
+    /**
+     * 与字段展示分词保持一致：自定义分词符走 optimizedSplit，否则走 LuceneSegment。
+     * 避免 /\S+/g 把引号、逗号等标点粘连进可补全 token。
+     */
+    const tokenizeSelectionText = (
+      value: string,
+      extra?: Partial<SelectionToken>,
+      field?: Record<string, any>,
+    ) => {
       const text = stripSelectionMarkup(value);
-      let lastIndex = 0;
-      let match: RegExpExecArray | null;
-      SELECTION_WORD_REGEX.lastIndex = 0;
-
-      while ((match = SELECTION_WORD_REGEX.exec(text)) !== null) {
-        if (match.index > lastIndex) {
-          tokens.push({
-            text: text.slice(lastIndex, match.index),
-            isCursorText: false,
-          });
-        }
-
-        tokens.push({
-          text: match[0],
-          isCursorText: true,
-          ...extra,
-        });
-        lastIndex = match.index + match[0].length;
+      if (!text) {
+        return [] as SelectionToken[];
       }
 
-      if (lastIndex < text.length) {
-        tokens.push({
-          text: text.slice(lastIndex),
-          isCursorText: false,
-        });
+      let splitList: Array<{ text: string; isCursorText?: boolean }> = [];
+      if (field?.tokenize_on_chars) {
+        splitList = optimizedSplit(text, field.tokenize_on_chars);
+      } else {
+        splitList = LuceneSegment.split(text, SELECTION_MAX_TOKENS);
       }
 
-      return tokens;
+      return splitList.map(item => ({
+        text: item.text,
+        isCursorText: Boolean(item.isCursorText),
+        ...extra,
+      }));
     };
 
     const getFieldPlainText = (row: Record<string, any>, field: Record<string, any>) => {
@@ -198,7 +195,11 @@ export default defineComponent({
       return stripSelectionMarkup(String(rawValue));
     };
 
-    const getFieldSegmentTokens = (row: Record<string, any>, field: Record<string, any>) => tokenizeSelectionText(getFieldPlainText(row, field));
+    const getFieldSegmentTokens = (row: Record<string, any>, field: Record<string, any>) =>
+      tokenizeSelectionText(getFieldPlainText(row, field), {
+        fieldName: field.field_name,
+        tokenType: 'field-value',
+      }, field);
 
     const getOriginSegmentTokens = (row: Record<string, any>) => {
       const tokens: SelectionToken[] = [];
@@ -219,7 +220,7 @@ export default defineComponent({
         tokens.push(...tokenizeSelectionText(getFieldPlainText(row, field), {
           fieldName: field.field_name,
           tokenType: 'field-value',
-        }));
+        }, field));
       });
 
       return tokens;
@@ -236,6 +237,12 @@ export default defineComponent({
       return (startElement?.closest?.('[data-field-name]') ?? endElement?.closest?.('[data-field-name]')) as HTMLElement | null;
     };
 
+    /**
+     * 将划选范围补全到完整分词边界：
+     * 1) 命中连续 token 区间
+     * 2) 去掉两端分词符号（引号、逗号等）
+     * 3) 同一字段内拼接中间分隔符（如 2026-07-13），得到完整补全结果
+     */
     const completeSelectionByTokens = (selectionText: string, tokens: SelectionToken[]) => {
       if (!selectionText || !tokens.length) {
         return [];
@@ -254,7 +261,8 @@ export default defineComponent({
 
       const selectionEnd = selectionStart + normalizedSelection.length;
       let cursor = 0;
-      const selectedTokenIndexes = new Set<number>();
+      let rangeStart = -1;
+      let rangeEnd = -1;
       for (let i = 0; i < tokens.length; i++) {
         const token = tokens[i];
         const tokenStart = cursor;
@@ -262,27 +270,66 @@ export default defineComponent({
         cursor = tokenEnd;
 
         if (selectionStart < tokenEnd && selectionEnd > tokenStart) {
-          selectedTokenIndexes.add(i);
+          if (rangeStart < 0) {
+            rangeStart = i;
+          }
+          rangeEnd = i;
         }
       }
 
-      if (!selectedTokenIndexes.size) {
+      if (rangeStart < 0 || rangeEnd < 0) {
         return [];
       }
 
-      const completedTokens: SelectionToken[] = [];
-      const appendedTokenSet = new Set<string>();
-      for (const index of Array.from(selectedTokenIndexes).sort((a, b) => a - b)) {
-        const token = tokens[index];
-        if (!token?.isCursorText) {
-          continue;
+      const flushGroup = (start: number, end: number, bucket: SelectionToken[], dedupeSet: Set<string>) => {
+        let from = start;
+        let to = end;
+        while (from <= to && !tokens[from].isCursorText) {
+          from += 1;
+        }
+        while (to >= from && !tokens[to].isCursorText) {
+          to -= 1;
+        }
+        if (from > to) {
+          return;
         }
 
-        const tokenKey = [token.fieldName ?? '', token.tokenType ?? '', token.text].join('__');
-        if (!appendedTokenSet.has(tokenKey)) {
-          appendedTokenSet.add(tokenKey);
-          completedTokens.push(token);
+        const firstCursor = tokens.slice(from, to + 1).find(item => item.isCursorText);
+        if (!firstCursor || firstCursor.tokenType === 'field-name') {
+          return;
         }
+
+        const text = tokens.slice(from, to + 1).map(item => item.text).join('');
+        if (!text) {
+          return;
+        }
+
+        const tokenKey = [firstCursor.fieldName ?? '', firstCursor.tokenType ?? '', text].join('__');
+        if (dedupeSet.has(tokenKey)) {
+          return;
+        }
+        dedupeSet.add(tokenKey);
+        bucket.push({
+          text,
+          isCursorText: true,
+          fieldName: firstCursor.fieldName,
+          tokenType: firstCursor.tokenType ?? 'field-value',
+        });
+      };
+
+      const completedTokens: SelectionToken[] = [];
+      const appendedTokenSet = new Set<string>();
+      let groupStart = rangeStart;
+      for (let i = rangeStart; i <= rangeEnd; i++) {
+        if (tokens[i].tokenType === 'field-name') {
+          if (i > groupStart) {
+            flushGroup(groupStart, i - 1, completedTokens, appendedTokenSet);
+          }
+          groupStart = i + 1;
+        }
+      }
+      if (groupStart <= rangeEnd) {
+        flushGroup(groupStart, rangeEnd, completedTokens, appendedTokenSet);
       }
 
       return completedTokens;

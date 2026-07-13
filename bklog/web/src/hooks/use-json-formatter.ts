@@ -433,8 +433,9 @@ export default class UseJsonFormatter {
   }
 
   /**
-   * JSON 解析模式下：对最后一个 String 叶子（不可再 parse，或已超深度）
-   * 默认展示前 1000 字符；超出显示「更多」，展开最多 16KB，支持「收起」
+   * JSON 解析模式下：对叶子节点（string / number / boolean / bigint，
+   * 或不可再 parse / 已超深度的残留字符串）做分词渲染并消费页面高亮状态。
+   * 长字符串默认展示前 1000 字符；超出显示「更多」，展开最多 16KB，支持「收起」
    */
   renderLeafSegment(value: string, rootNode: HTMLElement, forceExpanded = false) {
     const taskId = this.segmentTaskId;
