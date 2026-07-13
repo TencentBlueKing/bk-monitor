@@ -1210,6 +1210,20 @@ class IndexSetTag(models.Model):
         return tag.tag_id
 
     @classmethod
+    def is_doris_tag(cls, tag_ids, space_uid: str = "") -> bool:
+        """兼容全局和空间级 Doris 用户标签。"""
+        tag_ids = [tag_id for tag_id in tag_ids or [] if tag_id]
+        if not tag_ids:
+            return False
+
+        return cls.objects.filter(
+            tag_id__in=tag_ids,
+            space_uid__in=["", space_uid],
+            name="Doris",
+            tag_type=TAG_TYPE_USER,
+        ).exists()
+
+    @classmethod
     def batch_get_tags(cls, tag_ids: set):
         tags = cls.objects.filter(tag_id__in=tag_ids).values(
             "space_uid", "name", "value", "color", "tag_id", "tag_type"

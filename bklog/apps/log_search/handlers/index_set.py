@@ -1510,7 +1510,7 @@ class IndexSetHandler(APIModel):
     def update_alias_settings(self, alias_settings):
         # 纳秒字段别名不支持用户修改
         alias_settings = [alias for alias in alias_settings if alias.get("field_name") != "dtEventTimeStampNanos"]
-        is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(self.data.tag_ids)
+        is_doris = IndexSetTag.is_doris_tag(self.data.tag_ids, self.data.space_uid)
         multi_execute_func = MultiExecuteFunc()
         if not is_doris:
             query_alias_mappings, alias_field_map = self.get_rt_alias_settings(self.index_set_id, alias_settings)
@@ -1927,7 +1927,7 @@ class BaseIndexSetHandler:
             parent_index_set.query_alias_settings if parent_index_set else index_set.query_alias_settings
         )
         # Doris路由或图表分析路由
-        is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(index_set.tag_ids)
+        is_doris = IndexSetTag.is_doris_tag(index_set.tag_ids, index_set.space_uid)
         doris_table_id = index_set.doris_table_id
         if is_doris or is_analysis:
             if not doris_table_id:
