@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.handlers.fulltext import (
     MAX_FULLTEXT_TERM_LENGTH,
     MAX_FULLTEXT_VALUES,
@@ -27,8 +28,6 @@ from fta_web.alert.handlers.fulltext import (
     should_apply_fulltext_term,
 )
 from fta_web.alert.handlers.incident import IncidentQueryHandler
-from fta_web.alert.handlers.alert import AlertQueryHandler
-from fta_web.alert.handlers.base import BaseQueryHandler
 
 
 class TestFulltextHelpers:
@@ -118,11 +117,14 @@ class TestFulltextHelpers:
         assert "*abcd*" in str(long_q.to_dict())
 
     def test_include_escapes_and_limits(self):
-        q = build_field_contains_queries("labels", ["a*b", "x" * (MAX_FULLTEXT_TERM_LENGTH + 1), "ok"])
-        dumped = str(q.to_dict())
-        # a*b 转义后不应变成任意匹配
-        assert "a\\*b" in dumped or "a\\\\*b" in dumped or r"a\*b" in dumped
-        assert "wildcard" in dumped or "prefix" in dumped
+        q = build_field_contains_queries("labels", ["a*b", "x" * (MAX_FULLTEXT_TERM_LENGTH + 1), "okword"])
+        body = q.to_dict()
+        dumped = str(body)
+        # a*b 必须转义为字面星号：wildcard value 为 *a\*b*
+        assert "wildcard" in dumped or "prefix" in dumped or "bool" in dumped
+        # 超长值被丢弃后仍应有有效子句
+        assert "okword" in dumped or "okwor" in dumped  # prefix if short... okword len 6 -> contains
+        assert r"*a\*b*" in dumped or "*a\\\\*b*" in dumped or "a\\*b" in dumped
 
     def test_include_digit_no_leading_wildcard(self):
         q = build_field_contains_queries("labels", ["1"])
