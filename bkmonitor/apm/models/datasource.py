@@ -1555,47 +1555,42 @@ class ProfileDataSource(ApmDataSourceConfigBase):
         }
 
     @classmethod
+    def _get_default_registered_kafka_cluster_name(cls, bk_tenant_id: str) -> str:
+        """
+        从 ClusterInfo 中查找该租户下已注册到 bkbase 的默认 Kafka 集群 cluster_name。
+        优先取默认集群；若默认集群未注册到 bkbase，则遍历其他 Kafka 集群；都未注册则报错。
+        """
+        # is_default_cluster 降序，默认集群排前优先使用
+        kafka_clusters = metadata_models.ClusterInfo.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            cluster_type=metadata_models.ClusterInfo.TYPE_KAFKA,
+        ).order_by("-is_default_cluster")
+        for cluster in kafka_clusters:
+            if cluster.registered_to_bkbase:
+                return cluster.cluster_name
+        raise ValueError(
+            f"no kafka cluster registered to bkbase for bk_tenant_id={bk_tenant_id}, "
+            "please contact administrator to register a kafka cluster to bkbase"
+        )
+
+    @classmethod
     def _get_default_kafka_cluster_name(cls, bk_biz_id: int, bk_tenant_id: str) -> str:
         """
         查询已注册到 bkbase 的 Kafka 集群 cluster_name，用于 V4 链路 DataId.spec.preferCluster.name。
 
-        - 多租户开启：优先取该租户默认集群；若默认集群未注册到 bkbase，则遍历其他 Kafka 集群找已注册的；
-          都未注册则报错。
-        - 多租户未开启：取 APM DataLink 配置的 kafka_cluster_id 对应集群；未配置或未注册到 bkbase 则报错。
+        - 多租户开启：取该租户下已注册到 bkbase 的默认 Kafka 集群。
+        - 多租户未开启：优先取 APM DataLink.kafka_cluster_id 对应集群；不可用时回退到默认集群；都拿不到则报错。
         """
         if settings.ENABLE_MULTI_TENANT_MODE:
-            # is_default_cluster 降序，默认集群排前优先使用
-            kafka_clusters = metadata_models.ClusterInfo.objects.filter(
-                bk_tenant_id=bk_tenant_id,
-                cluster_type=metadata_models.ClusterInfo.TYPE_KAFKA,
-            ).order_by("-is_default_cluster")
-            for cluster in kafka_clusters:
-                if cluster.registered_to_bkbase:
-                    return cluster.cluster_name
-            raise ValueError(
-                f"no kafka cluster registered to bkbase for bk_tenant_id={bk_tenant_id}, "
-                "please contact administrator to register a kafka cluster to bkbase"
-            )
+            return cls._get_default_registered_kafka_cluster_name(bk_tenant_id)
 
-        # 非多租户：走 APM 默认 DataLink.kafka_cluster_id
+        # 非多租户：优先走 DataLink.kafka_cluster_id，不可用则回退到默认集群
         data_link = DataLink.get_data_link(bk_biz_id)
-        if not data_link or not data_link.kafka_cluster_id:
-            raise ValueError(
-                f"no kafka cluster configured in DataLink for bk_biz_id={bk_biz_id}, "
-                "please contact administrator to config APM DataLink kafka_cluster_id"
-            )
-        cluster = metadata_models.ClusterInfo.objects.filter(cluster_id=data_link.kafka_cluster_id).first()
-        if not cluster:
-            raise ValueError(
-                f"kafka cluster(cluster_id={data_link.kafka_cluster_id}) configured in DataLink not found, "
-                "please contact administrator to check APM DataLink kafka_cluster_id"
-            )
-        if not cluster.registered_to_bkbase:
-            raise ValueError(
-                f"kafka cluster {cluster.cluster_name} is not registered to bkbase, "
-                "please contact administrator to register"
-            )
-        return cluster.cluster_name
+        if data_link and data_link.kafka_cluster_id:
+            cluster = metadata_models.ClusterInfo.objects.filter(cluster_id=data_link.kafka_cluster_id).first()
+            if cluster and cluster.registered_to_bkbase:
+                return cluster.cluster_name
+        return cls._get_default_registered_kafka_cluster_name(bk_tenant_id)
 
     @classmethod
     def apply_datasource(cls, bk_biz_id, app_name, **options):
