@@ -118,7 +118,7 @@ import {
 import { saveAlertContentName } from './services/alert-services';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
-import type { IssueItem, IssuePriorityType, IssuesBatchActionType } from './alarm-issues/typing';
+import type { IssueDetail, IssueItem, IssuePriorityType, IssuesBatchActionType } from './alarm-issues/typing';
 import type { AlertSavePromiseEvent } from './components/alarm-table/components/alert-content-detail/alert-content-detail';
 
 import './alarm-center.scss';
@@ -140,6 +140,8 @@ export default defineComponent({
     const apmHooks = inject<AlarmCenterApmHooks | null>(ALARM_CENTER_APM_HOOKS_KEY, null);
     /** table 选中的 rowKey 数组 */
     const selectedRowKeys = shallowRef<string[]>([]);
+    // 当前创建tapd的issue详情
+    const createTapdIssueDetail = shallowRef<IssueDetail>(null);
     /** 是否有选中行 */
     const hasSelection = computed(() => selectedRowKeys.value.length > 0);
 
@@ -860,8 +862,11 @@ export default defineComponent({
     const tapdIssueId = shallowRef('');
     const tapdIssueFirstAlarmTime = shallowRef<number | string>('');
     const issuesTapdShow = shallowRef(false);
-    const handleIssuesTapdShowChange = (show: boolean) => {
+    const handleIssuesTapdShowChange = (show: boolean, detail = null) => {
       if (show) {
+        if (detail) {
+          createTapdIssueDetail.value = detail;
+        }
         tapdBizId.value = detailBizId.value;
         tapdIssueId.value = detailId.value;
         tapdIssueFirstAlarmTime.value = issueFirstAlarmTime.value;
@@ -1235,6 +1240,7 @@ export default defineComponent({
       tapdIssueId,
       tapdIssueFirstAlarmTime,
       handleIssuesTapdShowChange,
+      createTapdIssueDetail,
     };
   },
   render() {
@@ -1536,6 +1542,7 @@ export default defineComponent({
                 key='issues-tapd'
                 bizId={this.tapdBizId}
                 firstAlarmTime={this.tapdIssueFirstAlarmTime}
+                issueDetail={this.createTapdIssueDetail}
                 issuesId={this.tapdIssueId}
                 show={this.issuesTapdShow}
                 onUpdate:show={this.handleIssuesTapdShowChange}
