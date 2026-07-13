@@ -338,8 +338,13 @@ export default class JsonView {
   }
 
   private handleMouseUp(e: MouseEvent) {
+    // 划词弹出由行级 mouseup 统一处理，JSON 解析叶子不区分文本类型；
+    // 仅在无划词时拦截冒泡，避免普通点击误触发行展开/收起。
+    const selection = window.getSelection();
+    if (selection && !selection.isCollapsed && (selection.toString()?.length ?? 0) > 0) {
+      return;
+    }
     e.stopPropagation();
-    e.preventDefault();
   }
 
   public setValue(val: any) {
