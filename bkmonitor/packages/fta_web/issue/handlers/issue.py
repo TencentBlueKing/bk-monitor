@@ -551,7 +551,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
 
         return search_result, None
 
-    def search(self, show_aggs: bool = False, show_dsl: bool = False) -> dict:
+    def search(self, show_aggs: bool = False, show_dsl: bool = False, show_trend: bool = True) -> dict:
         exc = None
         try:
             search_result, dsl = self.search_raw(show_aggs=show_aggs, show_dsl=show_dsl)
@@ -631,8 +631,11 @@ class IssueQueryHandler(BaseBizQueryHandler):
             for issue in issues:
                 issue["tapd_count"] = tapd_count_map.get(issue.get("id"), 0)
 
-        # 批量查询关联告警趋势（add_alert_trend 内部会读 self._merge_ctx 做 expand）
-        self.add_alert_trend(issues)
+        # 兼容旧客户端：默认仍同步返回趋势；新列表链路关闭趋势后改调独立接口。
+        if show_trend:
+            self.add_alert_trend(issues)
+        else:
+            self.add_alert_summary(issues)
 
         result = {"issues": issues, "total": search_result.hits.total.value}
 
@@ -1038,6 +1041,94 @@ class IssueQueryHandler(BaseBizQueryHandler):
 
             issue["anomaly_message"] = fill_result["anomaly_message_map"].get(issue_id, "--")
             issue["alert_count"] = fill_result["alert_count_map"].get(issue_id, 0)
+
+    def add_alert_summary(self, issues: list[dict]) -> None:
+        """为列表补充告警数量与异常信息，不查询趋势。"""
+        issue_ids = [issue["id"] for issue in issues if issue.get("id")]
+        if not issue_ids:
+            return
+
+        merge_ctx = getattr(self, "_merge_ctx", None)
+        if merge_ctx is not None and not merge_ctx.degraded:
+            from bkmonitor.issue_merge import IssueMergeResolver
+
+            alert_query_issue_ids = IssueMergeResolver.expand_to_full_ids(issue_ids, merge_ctx)
+        else:
+            alert_query_issue_ids = issue_ids
+
+        first_alert_times = [issue["first_alert_time"] for issue in issues if issue.get("first_alert_time")]
+        last_alert_times = [issue["last_alert_time"] for issue in issues if issue.get("last_alert_time")]
+        if not first_alert_times or not last_alert_times:
+            for issue in issues:
+                issue["alert_count"] = 0
+                issue["anomaly_message"] = "--"
+            return
+
+        fill_result = {"alert_count_map": {}, "anomaly_message_map": {}}
+        self._fill_anomaly_message(
+            alert_query_issue_ids,
+            int(min(first_alert_times)),
+            int(max(last_alert_times)),
+            fill_result,
+            merge_ctx,
+        )
+        for issue in issues:
+            issue_id = issue["id"]
+            issue["alert_count"] = fill_result["alert_count_map"].get(issue_id, 0)
+            issue["anomaly_message"] = fill_result["anomaly_message_map"].get(issue_id, "--")
+
+    def get_alert_trend(self, issue_ids: list[str]) -> dict[str, list[list[int]]]:
+        """查询指定 Issue 的趋势，响应 key 保持为原请求 ID。"""
+        from bkmonitor.issue_merge import IssueMergeResolver, MergeResolverContext
+        from fta_web.issue.resources import IssueAlertDateHistogramResultResource
+
+        merge_ctx = MergeResolverContext(self.bk_biz_ids)
+        merge_ctx.load()
+        requested_to_display = {
+            issue_id: IssueMergeResolver.resolve_display_id(issue_id, merge_ctx) for issue_id in issue_ids
+        }
+        alert_query_issue_ids = IssueMergeResolver.expand_to_full_ids(
+            list(dict.fromkeys(requested_to_display.values())), merge_ctx
+        )
+        if len(alert_query_issue_ids) > 1000:
+            raise ValueError("合并展开后的 Issue 数量不能超过 1000")
+
+        trend_start = self.trend_start_time
+        trend_end = self.trend_end_time
+        interval = self.calculate_agg_interval(trend_start, trend_end)
+        aligned_start = trend_start // interval * interval
+        aligned_end = trend_end // interval * interval + interval
+        default_time_series = [[ts * 1000, 0] for ts in range(aligned_start, aligned_end, interval)]
+
+        display_trend: dict[str, dict[int, int]] = {}
+        TREND_QUERY_BATCH_SIZE = 100
+        for index in range(0, len(alert_query_issue_ids), TREND_QUERY_BATCH_SIZE):
+            batch_issue_ids = alert_query_issue_ids[index : index + TREND_QUERY_BATCH_SIZE]
+            result = IssueAlertDateHistogramResultResource().request(
+                bk_biz_ids=self.bk_biz_ids,
+                start_time=trend_start,
+                end_time=trend_end,
+                interval=interval,
+                conditions=[{"key": "issue_id", "value": batch_issue_ids, "method": "eq"}],
+                group_by=["issue_id"],
+                bucket_size=len(batch_issue_ids),
+            )
+            for dimension_tuple, status_series in result.items():
+                if dimension_tuple == "default_time_series":
+                    continue
+                raw_issue_id = next((value for key, value in dimension_tuple if key == "issue_id"), None)
+                if raw_issue_id is None:
+                    continue
+                display_issue_id = IssueMergeResolver.resolve_display_id(raw_issue_id, merge_ctx)
+                bucket = display_trend.setdefault(display_issue_id, {})
+                for ts, count in status_series.get("ABNORMAL", {}).items():
+                    bucket[ts] = bucket.get(ts, 0) + count
+
+        return {
+            requested_id: sorted([[ts, count] for ts, count in display_trend.get(display_id, {}).items()])
+            or list(default_time_series)
+            for requested_id, display_id in requested_to_display.items()
+        }
 
     def _fill_anomaly_message(
         self,

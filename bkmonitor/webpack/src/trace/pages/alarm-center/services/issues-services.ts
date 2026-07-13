@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { issueSearch, issueTopN } from 'monitor-api/modules/issue';
+import { issueSearch, issueTopN, issueTrend } from 'monitor-api/modules/issue';
 import { type IFilterField, EFieldType } from 'trace/components/retrieval-filter/typing';
 
 import {
@@ -34,7 +34,13 @@ import {
 } from '../alarm-issues/constant';
 import { type RequestOptions, AlarmService } from './base';
 
-import type { IssueItem, IssueSearchParams, IssueSearchResponse } from '../alarm-issues/typing';
+import type {
+  IssueItem,
+  IssueSearchParams,
+  IssueSearchResponse,
+  IssueTrendParams,
+  IssueTrendResponse,
+} from '../alarm-issues/typing';
 import type {
   AnalysisFieldAggItem,
   AnalysisTopNDataResponse,
@@ -559,15 +565,29 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
         ...params,
         show_aggs: false,
         show_dsl: false,
-        trend_end_time: trendEndTime,
-        trend_start_time: trendStartTime,
+        show_trend: false,
       },
       options
     )
-      .then(({ issues, total }) => {
+      .then(async ({ issues, total }) => {
+        const issueList = (issues || []).map(issue => ({ ...issue, trend: [] as [number, number][] }));
+        if (issueList.length && trendStartTime && trendEndTime) {
+          const trendParams: IssueTrendParams = {
+            bk_biz_ids: [...new Set(issueList.map(issue => issue.bk_biz_id))],
+            issue_ids: issueList.map(issue => issue.id),
+            trend_end_time: trendEndTime,
+            trend_start_time: trendStartTime,
+          };
+          const trendMap = await issueTrend<IssueTrendParams, IssueTrendResponse>(trendParams, options).catch(
+            () => ({}) as IssueTrendResponse
+          );
+          for (const issue of issueList) {
+            issue.trend = trendMap[issue.id] || [];
+          }
+        }
         return {
           total,
-          data: issues || ([] as IssueItem[]),
+          data: issueList,
         };
       })
       .catch(() => ({
