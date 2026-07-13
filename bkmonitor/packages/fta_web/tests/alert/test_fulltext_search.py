@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import pytest
+
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.handlers.fulltext import (
     MAX_FULLTEXT_TERM_LENGTH,
@@ -106,25 +108,38 @@ class TestFulltextHelpers:
         assert "id" in dumped
         assert "bk_biz_id" in dumped
 
-    def test_short_non_digit_uses_prefix_not_leading_wildcard(self):
+    def test_ascii_short_uses_prefix_not_leading_wildcard(self):
         assert SHORT_KEYWORD_CONTAINS_MIN_LENGTH == 3
         q = build_keyword_fuzzy_query("labels", "ab")
         dumped = str(q.to_dict())
         assert "prefix" in dumped
         assert "*ab*" not in dumped
-        # 长词仍 contains
+        # 长 ASCII 仍 contains
         long_q = build_keyword_fuzzy_query("labels", "abcd")
         assert "*abcd*" in str(long_q.to_dict())
 
-    def test_include_escapes_and_limits(self):
+    def test_cjk_two_char_uses_contains(self):
+        """中文两字「分析」须 *分析* 子串命中，不可降级为 prefix。"""
+        q = build_keyword_fuzzy_query("labels", "分析")
+        dumped = str(q.to_dict())
+        assert "*分析*" in dumped
+        assert "prefix" not in dumped or "wildcard" in dumped
+
+    def test_include_escapes_and_overlength_dropped(self):
         q = build_field_contains_queries("labels", ["a*b", "x" * (MAX_FULLTEXT_TERM_LENGTH + 1), "okword"])
         body = q.to_dict()
         dumped = str(body)
         # a*b 必须转义为字面星号：wildcard value 为 *a\*b*
         assert "wildcard" in dumped or "prefix" in dumped or "bool" in dumped
-        # 超长值被丢弃后仍应有有效子句
-        assert "okword" in dumped or "okwor" in dumped  # prefix if short... okword len 6 -> contains
+        # 超长值被丢弃后仍应有有效子句；include 不截断条数
+        assert "okword" in dumped or "okwor" in dumped
         assert r"*a\*b*" in dumped or "*a\\\\*b*" in dumped or "a\\*b" in dumped
+
+    def test_include_keeps_all_values_no_silent_truncate(self):
+        values = [f"tag{i:02d}" for i in range(MAX_FULLTEXT_VALUES + 5)]
+        q = build_field_contains_queries("labels", values)
+        dumped = str(q.to_dict())
+        assert f"tag{MAX_FULLTEXT_VALUES + 4:02d}" in dumped
 
     def test_include_digit_no_leading_wildcard(self):
         q = build_field_contains_queries("labels", ["1"])
@@ -148,11 +163,17 @@ class TestFulltextHelpers:
         assert "term" in dumped
         assert "severity" in dumped
 
-    def test_iter_fulltext_condition_values_limits(self):
+    def test_iter_fulltext_condition_values_rejects_overlimit(self):
         values = [f"v{i}" for i in range(MAX_FULLTEXT_VALUES + 5)]
-        limited = iter_fulltext_condition_values(values)
-        assert len(limited) == MAX_FULLTEXT_VALUES
-        assert limited[0] == "v0"
+        with pytest.raises(ValueError):
+            iter_fulltext_condition_values(values)
+
+    def test_condition_q_rejects_overlimit_as_validation_error(self):
+        from rest_framework.exceptions import ValidationError
+
+        handler = IncidentQueryHandler.__new__(IncidentQueryHandler)
+        with pytest.raises(ValidationError):
+            handler.build_query_string_condition_q([f"v{i}" for i in range(MAX_FULLTEXT_VALUES + 1)])
 
 
 class TestIncidentAlertFulltextWhitelist:
@@ -195,6 +216,13 @@ class TestIncidentAlertFulltextWhitelist:
         assert "incident_name" in dumped
         assert "case_insensitive" in dumped
         assert "snapshot" not in dumped
+
+    def test_incident_bare_chinese_two_char_uses_contains(self):
+        handler = IncidentQueryHandler.__new__(IncidentQueryHandler)
+        q = handler.build_query_string_q("分析")
+        dumped = str(q.to_dict())
+        assert "*分析*" in dumped
+        assert "labels" in dumped
 
     def test_short_char_returns_match_none(self):
         handler = IncidentQueryHandler.__new__(IncidentQueryHandler)

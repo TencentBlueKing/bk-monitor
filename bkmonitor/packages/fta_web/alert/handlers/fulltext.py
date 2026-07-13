@@ -20,13 +20,13 @@ from elasticsearch_dsl import Q
 MIN_FULLTEXT_TERM_LENGTH = 2
 # 纯数字（ID / 业务号）允许更短
 MIN_DIGIT_TERM_LENGTH = 1
-# 短于此长度（非数字）不做 leading-wildcard，仅 prefix，降低 ES 成本
+# 纯 ASCII 短于此长度（非数字）不做 leading-wildcard，仅 prefix；中文等非 ASCII 仍走 contains
 SHORT_KEYWORD_CONTAINS_MIN_LENGTH = 3
 # 单条全字段检索词最大长度（超长直接无命中，防止异常大 payload）
 MAX_FULLTEXT_TERM_LENGTH = 128
-# conditions.query_string.value / include value 最多处理条数
+# conditions.query_string.value 最多条数（仅全字段；普通 include/exclude 不截断）
 MAX_FULLTEXT_VALUES = 10
-# 顶层 query_string / 条件单值在 serializer 层的硬上限（略宽于检索门禁，给结构化语法留空间）
+# Alert/Incident 顶层 query_string 在 serializer 层的硬上限（略宽于检索门禁，给结构化语法留空间）
 MAX_QUERY_STRING_LENGTH = 512
 
 _BARE_BOOLEAN_RE = re.compile(r"\b(AND|OR|NOT)\b", re.IGNORECASE)
@@ -145,16 +145,21 @@ def build_keyword_id_query(es_field: str, term: str) -> Q:
     return Q("term", **{es_field: term}) | Q("prefix", **{es_field: term})
 
 
+def is_ascii_term(term: str) -> bool:
+    """是否为纯 ASCII 检索词（短词 leading-wildcard 降级仅针对此类）。"""
+    return bool(term) and term.isascii()
+
+
 def build_keyword_fuzzy_query(es_field: str, term: str) -> Q:
     """
     Keyword 模糊策略：
     - 纯数字：term | prefix（仅适合 ID 类字段调用方自行过滤）
-    - 短词（< SHORT_KEYWORD_CONTAINS_MIN_LENGTH）：仅 prefix
-    - 其它：*term* contains
+    - 纯 ASCII 短词（< SHORT_KEYWORD_CONTAINS_MIN_LENGTH）：仅 prefix，降低 leading-wildcard 成本
+    - 含非 ASCII（如中文两字「分析」）或足够长的词：*term* contains，保证子串命中
     """
     if term.isdigit():
         return build_keyword_id_query(es_field, term)
-    if len(term) < SHORT_KEYWORD_CONTAINS_MIN_LENGTH:
+    if is_ascii_term(term) and len(term) < SHORT_KEYWORD_CONTAINS_MIN_LENGTH:
         return build_keyword_prefix_query(es_field, term)
     return build_keyword_contains_query(es_field, term)
 
@@ -162,8 +167,8 @@ def build_keyword_fuzzy_query(es_field: str, term: str) -> Q:
 def build_text_contains_query(es_field: str, term: str) -> Q:
     """Text 字段：分词匹配 OR 前缀短语（近似包含）。"""
     match_q = Q("match", **{es_field: {"query": term, "operator": "and"}})
-    if len(term) < SHORT_KEYWORD_CONTAINS_MIN_LENGTH:
-        # 短词不做 phrase_prefix 膨胀
+    # 仅对纯 ASCII 短词跳过 phrase_prefix，避免膨胀；中文两字仍保留
+    if is_ascii_term(term) and len(term) < SHORT_KEYWORD_CONTAINS_MIN_LENGTH:
         return match_q
     prefix_q = Q("match_phrase_prefix", **{es_field: {"query": term, "max_expansions": 50}})
     return match_q | prefix_q
@@ -171,9 +176,10 @@ def build_text_contains_query(es_field: str, term: str) -> Q:
 
 def build_field_contains_query(es_field: str, value) -> Q | None:
     """
-    单字段 include/exclude 共用：转义、长度门禁、数字/短词降级。
+    单字段 include/exclude 共用：转义、长度门禁、数字/ASCII 短词降级。
 
     用于 parse_condition_item(include/exclude)，与全字段 Keyword 策略对齐。
+    不截断多值列表——保持原契约。
     """
     if value is None:
         return None
@@ -188,9 +194,14 @@ def build_field_contains_query(es_field: str, value) -> Q | None:
 
 
 def build_field_contains_queries(es_field: str, values) -> Q | None:
-    """多值 include/exclude：限条数后 OR 组合。"""
+    """多值 include/exclude：全量 OR 组合（不截断条数）。"""
+    if values is None:
+        return Q("match_none")
+    raw_values = values if isinstance(values, list) else [values]
     clauses: list[Q] = []
-    for item in iter_fulltext_condition_values(values if isinstance(values, list) else [values]):
+    for item in raw_values:
+        if item is None:
+            continue
         q = build_field_contains_query(es_field, item)
         if q is not None:
             clauses.append(q)
@@ -199,6 +210,31 @@ def build_field_contains_queries(es_field: str, values) -> Q | None:
     if len(clauses) == 1:
         return clauses[0]
     return Q("bool", should=clauses, minimum_should_match=1)
+
+
+def ensure_fulltext_value_count(values) -> list[str]:
+    """
+    校验全字段 query_string 条件的 value 条数。
+
+    超限抛 ValueError，由上层转为 ValidationError；禁止静默截断。
+    """
+    if values is None:
+        return []
+    if not isinstance(values, list):
+        values = [values]
+    normalized: list[str] = []
+    for item in values:
+        if item is None:
+            continue
+        text = str(item).strip()
+        if not text:
+            continue
+        normalized.append(text)
+    if len(normalized) > MAX_FULLTEXT_VALUES:
+        raise ValueError(
+            f"query_string condition values exceed limit {MAX_FULLTEXT_VALUES}, got {len(normalized)}"
+        )
+    return normalized
 
 
 def build_fulltext_fuzzy_query(query: str, fields: list[FulltextSearchField] | None) -> Q | None:
@@ -274,19 +310,9 @@ def build_bare_fulltext_query(
 
 
 def iter_fulltext_condition_values(values) -> list[str]:
-    """截断 conditions.query_string.value，防止多值放大 should 子句。"""
-    if values is None:
-        return []
-    if not isinstance(values, list):
-        values = [values]
-    limited: list[str] = []
-    for item in values:
-        if item is None:
-            continue
-        text = str(item).strip()
-        if not text:
-            continue
-        limited.append(text)
-        if len(limited) >= MAX_FULLTEXT_VALUES:
-            break
-    return limited
+    """
+    规范化全字段 query_string 条件值列表。
+
+    超限抛 ValueError（禁止静默截断）。普通 include/exclude 请勿调用本函数。
+    """
+    return ensure_fulltext_value_count(values)

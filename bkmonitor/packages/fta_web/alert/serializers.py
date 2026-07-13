@@ -70,21 +70,23 @@ class SearchFavoriteSerializer(serializers.ModelSerializer):
 
 class SearchConditionSerializer(serializers.Serializer):
     key = serializers.CharField(label="匹配字段")
-    value = serializers.ListField(
-        label="匹配值",
-        child=serializers.CharField(allow_blank=True, max_length=MAX_QUERY_STRING_LENGTH),
-    )
+    # 保持松散 ListField：conditions 可含 bool/number；勿对所有条件强制 CharField(max_length)
+    value = serializers.ListField(label="匹配值")
     method = serializers.ChoiceField(
         label="匹配方法", choices=["eq", "neq", "include", "exclude", "gt", "gte", "lt", "lte"], default="eq"
     )
     condition = serializers.ChoiceField(label="复合条件", choices=["and", "or", ""], default="")
 
     def validate(self, attrs):
-        # 全字段检索条件限制条数，避免放大 wildcard should 子句
+        # 仅全字段 query_string 限制条数；超限显式失败，禁止静默截断
         if attrs.get("key") == "query_string":
-            values = attrs.get("value") or []
+            values = [v for v in (attrs.get("value") or []) if v is not None and str(v).strip()]
             if len(values) > MAX_FULLTEXT_VALUES:
-                attrs["value"] = values[:MAX_FULLTEXT_VALUES]
+                raise ValidationError(
+                    _("query_string condition values exceed limit {limit}, got {count}").format(
+                        limit=MAX_FULLTEXT_VALUES, count=len(values)
+                    )
+                )
         return attrs
 
 
@@ -140,9 +142,7 @@ class ActionSearchSerializer(BaseSearchSerializer):
     status = serializers.ListField(label="状态", required=False, child=serializers.CharField())
     start_time = serializers.IntegerField(label="开始时间", required=False)
     end_time = serializers.IntegerField(label="结束时间", required=False)
-    query_string = serializers.CharField(
-        label="查询字符串", default="", allow_blank=True, max_length=MAX_QUERY_STRING_LENGTH
-    )
+    query_string = serializers.CharField(label="查询字符串", default="", allow_blank=True)
     conditions = SearchConditionSerializer(label="搜索条件", many=True, default=[])
     username = serializers.CharField(required=False, label="负责人")
 
@@ -150,9 +150,7 @@ class ActionSearchSerializer(BaseSearchSerializer):
 class EventSearchSerializer(serializers.Serializer):
     alert_id = AlertIDField(label="告警ID")
     ordering = serializers.ListField(label="排序", child=serializers.CharField(), default=[])
-    query_string = serializers.CharField(
-        label="查询字符串", default="", allow_blank=True, max_length=MAX_QUERY_STRING_LENGTH
-    )
+    query_string = serializers.CharField(label="查询字符串", default="", allow_blank=True)
 
 
 class AlertSuggestionSerializer(serializers.ModelSerializer):

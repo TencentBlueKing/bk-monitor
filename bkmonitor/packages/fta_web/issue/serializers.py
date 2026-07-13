@@ -10,7 +10,6 @@ specific language governing permissions and limitations under the License.
 
 from rest_framework import serializers
 
-from fta_web.alert.handlers.fulltext import MAX_QUERY_STRING_LENGTH
 from fta_web.alert.serializers import BaseSearchSerializer, SearchConditionSerializer
 
 
@@ -24,9 +23,7 @@ class IssueSearchSerializer(BaseSearchSerializer):
         help_text="MY_ISSUE(我负责的) / NO_ASSIGNEE(未分派)",
     )
     conditions = SearchConditionSerializer(label="搜索条件", many=True, default=[])
-    query_string = serializers.CharField(
-        label="查询字符串", default="", allow_blank=True, max_length=MAX_QUERY_STRING_LENGTH
-    )
+    query_string = serializers.CharField(label="查询字符串", default="", allow_blank=True)
     start_time = serializers.IntegerField(label="开始时间", required=False)
     end_time = serializers.IntegerField(label="结束时间", required=False)
     # 按指纹精确过滤"同一具体问题"的全部 Issue（含已解决历史），用于详情页"该问题历史"等场景

@@ -37,8 +37,8 @@ from fta_web.alert.handlers.fulltext import (
     FulltextSearchField,
     build_bare_fulltext_query,
     build_field_contains_queries,
+    ensure_fulltext_value_count,
     is_bare_fulltext_query,
-    iter_fulltext_condition_values,
 )
 from fta_web.alert.handlers.translator import AbstractTranslator
 
@@ -404,9 +404,16 @@ class BaseQueryHandler:
         return Q(query_dsl)
 
     def build_query_string_condition_q(self, values, context=None) -> Q | None:
-        """UI conditions[key=query_string]：字面全字段，并限制 value 条数。"""
+        """UI conditions[key=query_string]：字面全字段；条数超限转为 ValidationError。"""
+        from rest_framework.exceptions import ValidationError
+
+        try:
+            normalized = ensure_fulltext_value_count(values)
+        except ValueError as exc:
+            raise ValidationError(str(exc)) from exc
+
         con_q = None
-        for query_string in iter_fulltext_condition_values(values):
+        for query_string in normalized:
             temp_q = self.build_query_string_q(query_string, context=context, literal_fulltext=True)
             if temp_q is None:
                 continue
@@ -471,7 +478,7 @@ class BaseQueryHandler:
 
         处理逻辑:
         1. 包含查询(include):
-            - 与全字段 Keyword 策略对齐：转义、长度门禁、数字 term/prefix、短词 prefix、长词 *value*
+            - 与全字段 Keyword 策略对齐：转义、长度门禁、数字 term/prefix、ASCII 短词 prefix、其它 *value*
         2. 排除查询(exclude):
             - 同上取反
         3. 范围查询(gte/gt/lte/lt):
