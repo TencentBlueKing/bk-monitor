@@ -16,10 +16,17 @@ class Command(BaseCommand):
         parser.add_argument(
             "--all", action="store_true", default=False, help="Migrate all spaces that have index sets."
         )
+        parser.add_argument(
+            "--cleanup",
+            action="store_true",
+            default=False,
+            help="Only delete all unreferenced global user tags; do not migrate any space.",
+        )
         parser.add_argument("--dry-run", action="store_true", default=False, help="Preview changes without writing.")
 
     def handle(self, *args, **options):
         dry_run = options["dry_run"]
+        cleanup = options["cleanup"]
         space_uids = self._get_space_uids(options)
 
         updated_index_sets = 0
@@ -41,7 +48,7 @@ class Command(BaseCommand):
                     f"created={result['created_tags']}"
                 )
 
-            deleted_tags = self._delete_unreferenced_global_user_tags()
+            deleted_tags = self._delete_unreferenced_global_user_tags() if cleanup else 0
 
             if dry_run:
                 transaction.set_rollback(True)
@@ -58,10 +65,14 @@ class Command(BaseCommand):
         space_uids = options["space_uids"] or []
         bk_biz_ids = options["bk_biz_ids"] or []
         migrate_all = options["all"]
+        cleanup = options["cleanup"]
 
-        mode_count = sum([bool(space_uids), bool(bk_biz_ids), migrate_all])
+        mode_count = sum([bool(space_uids), bool(bk_biz_ids), migrate_all, cleanup])
         if mode_count != 1:
-            raise CommandError("Please specify exactly one of --space-uid, --bk-biz-id, or --all.")
+            raise CommandError("Please specify exactly one of --space-uid, --bk-biz-id, --all, or --cleanup.")
+
+        if cleanup:
+            return []
 
         if migrate_all:
             return list(
