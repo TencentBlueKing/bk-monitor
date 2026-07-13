@@ -35,6 +35,7 @@ import useStore from '@/hooks/use-store';
 import useTrendChart from '@/hooks/use-trend-chart';
 import { formatAdditionalFields, getCommonFilterAddition } from '@/store/helper';
 import { BK_LOG_STORAGE } from '@/store/store.type.ts';
+import { normalizeSearchTotal } from '@/storage/utils/normalize-search-total';
 import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
 import { throttle } from 'lodash-es';
 import { useRoute, useRouter } from 'vue-router/composables';
@@ -45,7 +46,7 @@ import './index.scss';
 
 export default defineComponent({
   name: 'SearchResultChart',
-  emits: ['toggle-change', 'trend-ready'],
+  emits: ['toggle-change', 'trend-ready', 'change-total-count', 'change-queue-res'],
   setup(_props, { emit }) {
     const store = useStore();
     const route = useRoute();
@@ -93,6 +94,7 @@ export default defineComponent({
       canGoBack,
       cacheChartOptions,
       restoreChartOptions,
+      processChartDataWithWorker,
     } = useTrendChart({
       target: trendChartCanvas,
       handleChartDataZoom,
@@ -142,9 +144,25 @@ export default defineComponent({
     // 是否正在加载趋势图数据
     const loading = computed(() => store.state.retrieve.isTrendDataLoading);
 
-    // 总条数和耗时
-    const totalCount = computed(() => store.state.searchTotal);
+    // 总趋势展示总数以 Total 接口写入的 searchTotal 为准，避免 /search 截断 total 覆盖展示
+    const totalCount = computed(() => normalizeSearchTotal(store.state.searchTotal));
     const tookTime = computed(() => Number.parseFloat(store.state.tookTime).toFixed(0));
+
+    watch(
+      totalCount,
+      value => {
+        emit('change-total-count', value);
+      },
+      { immediate: true },
+    );
+
+    watch(
+      finishPolling,
+      value => {
+        emit('change-queue-res', value);
+      },
+      { immediate: true },
+    );
 
     // 汇聚周期选项
     const intervalArr = [
@@ -182,9 +200,7 @@ export default defineComponent({
         },
       });
       store.commit('retrieve/updateTrendDataLoading', true);
-      setTimeout(() => {
-        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH); // 触发趋势图刷新
-      });
+      RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH); // 触发趋势图刷新
     };
 
     // 节流后的回退操作函数
@@ -217,6 +233,12 @@ export default defineComponent({
     const getSeriesData = async (startTimeStamp, endTimeStamp) => {
       finishPolling.value = false;
       store.commit('retrieve/updateTrendDataLoading', true);
+      let hasMarkedReady = false;
+      const ensureTrendReady = () => {
+        if (hasMarkedReady) return;
+        hasMarkedReady = true;
+        markTrendReady();
+      };
 
       try {
         const requestInterval = handleRequestSplit(startTimeStamp, endTimeStamp); // 计算请求接口的分段间隔,单位:毫秒
@@ -235,9 +257,29 @@ export default defineComponent({
           const { urlStr, indexId, queryData, isInit: currentIsInit } = result.value;
           try {
             const res = await fetchTrendChartData(urlStr, indexId, queryData);
-            setChartData(res?.data?.aggs, queryData.group_field, currentIsInit);
+
+            // P3 优化：对于大数据量使用 Worker 处理
+            const totalCount = res?.data?.aggs?.group_by_histogram?.buckets?.length ?? 0;
+            if (totalCount > 100 && processChartDataWithWorker) {
+              try {
+                await processChartDataWithWorker(
+                  res?.data?.aggs,
+                  queryData.group_field,
+                  gradeOptions.value?.settings ?? [],
+                  queryData,
+                  runningInterval,
+                  store.state.indexItem.timezone,
+                  currentIsInit,
+                );
+              } catch {
+                // Worker 处理失败，降级到主线程处理
+                setChartData(res?.data?.aggs, queryData.group_field, currentIsInit);
+              }
+            } else {
+              setChartData(res?.data?.aggs, queryData.group_field, currentIsInit);
+            }
             if (currentIsInit) {
-              markTrendReady();
+              ensureTrendReady();
             }
 
             if (!res?.result || requestInterval === 0) {
@@ -245,13 +287,14 @@ export default defineComponent({
             }
           } catch {
             setChartData(null, null, true); // 清空图表数据
-            markTrendReady();
+            ensureTrendReady();
             break;
           }
           result = gen.next();
         }
       } finally {
-        // 无论如何，结束时都更新状态
+        // 生成器未产出任何分段、或请求被取消时，也必须结束骨架屏，避免趋势图永久 pending
+        ensureTrendReady();
         finishPolling.value = true;
         isStart.value = false;
         store.commit('retrieve/updateTrendDataLoading', false);
@@ -396,11 +439,11 @@ export default defineComponent({
         }
 
         try {
-          // 1. 先请求总数
-          const res = await store.dispatch('requestSearchTotal');
-          store.commit('retrieve/updateTotalCountLoaded', true); // 总数请求成功
-          // 2. 判断总数是否为0或请求是否失败
-          if (store.state.searchTotal === 0 || res.result === false) {
+          // 1. 先请求总数（stream 检索 meta 可能已写入 indexSetQueryResult.total）
+          await store.dispatch('requestSearchTotal').catch(() => ({ result: false }));
+          store.commit('retrieve/updateTotalCountLoaded', true);
+          // 2. 判断总数是否为0
+          if (!normalizeSearchTotal(store.state.searchTotal)) {
             isStart.value = false;
             store.commit('retrieve/updateTrendDataLoading', false);
             markTrendReady();
@@ -426,7 +469,7 @@ export default defineComponent({
         RetrieveEvent.INDEX_SET_ID_CHANGE,
         RetrieveEvent.AUTO_REFRESH,
         RetrieveEvent.SORT_LIST_CHANGED,
-        RetrieveEvent.SEARCH_TIME_ZONE_CHANGE
+        RetrieveEvent.SEARCH_TIME_ZONE_CHANGE,
       ],
       loadTrendData,
     );
@@ -448,6 +491,7 @@ export default defineComponent({
       isStart.value = false;
       store.commit('retrieve/updateTrendDataLoading', false);
       restoreChartOptions();
+      markTrendReady();
     });
 
     onMounted(() => {

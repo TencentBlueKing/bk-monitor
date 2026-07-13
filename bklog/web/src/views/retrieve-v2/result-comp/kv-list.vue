@@ -54,9 +54,9 @@
         >
           <div class="field-label">
             <span
-              v-if="hiddenFieldsSet.has(field)"
+              v-if="hiddenFieldsSet.has(field.field_name)"
               class="field-eye-icon bklog-icon bklog-eye-slash"
-              v-bk-tooltips="{ content: $t('隐藏') }"
+              v-bk-tooltips="{ content: $t('展示') }"
               @click="
                 e => {
                   e.stopPropagation();
@@ -67,7 +67,7 @@
             <span
               v-else
               class="field-eye-icon bklog-icon bklog-eye"
-              v-bk-tooltips="{ content: $t('展示') }"
+              v-bk-tooltips="{ content: $t('隐藏') }"
               @click="
                 e => {
                   e.stopPropagation();
@@ -84,7 +84,10 @@
               v-bk-tooltips="fieldTypePopover(field.field_name)"
               :class="getFieldIcon(field.field_name)"
             ></span>
-            <span class="field-text">{{ getFieldName(field) }}</span>
+            <span
+              class="field-text"
+              v-html="getHighlightedFieldNameHtml(field)"
+            ></span>
           </div>
           <div class="field-value">
             <span
@@ -97,7 +100,7 @@
             </span>
             <JsonFormatter
               :fields="getFieldItem(field.field_name)"
-              :json-value="listData"
+              :json-value="getFieldValue(field)"
               @menu-click="agrs => handleJsonSegmentClick(agrs, field.field_name)"
             ></JsonFormatter>
           </div>
@@ -125,6 +128,8 @@
 
   // import TextSegmentation from '../search-result-panel/log-result/text-segmentation';
   import { BK_LOG_STORAGE } from '@/store/store.type';
+  import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
+  import { buildHighlightHtml, pageHighlightState } from '@/views/retrieve-core/page-highlight';
 
   export default {
     components: {
@@ -216,6 +221,9 @@
         showFieldAlias: state => state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
         isAllowEmptyField: state => state.storage[BK_LOG_STORAGE.TABLE_ALLOW_EMPTY_FIELD],
       }),
+      pageHighlightVersion() {
+        return pageHighlightState.version;
+      },
       apmRelation() {
         return this.$store.state.indexSetFieldConfig.apm_relation;
       },
@@ -241,10 +249,11 @@
       },
 
       hiddenFields() {
-        return this.fieldList.filter(item => !this.visibleFields.some(visibleItem => item === visibleItem));
+        const visibleFieldNames = new Set(this.visibleFields.map(item => item.field_name));
+        return this.fieldList.filter(item => !visibleFieldNames.has(item.field_name));
       },
       hiddenFieldsSet() {
-        return new Set(this.hiddenFields);
+        return new Set(this.hiddenFields.map(item => item.field_name));
       },
       filedSettingConfigID() {
         // 当前索引集的显示字段ID
@@ -342,22 +351,21 @@
           }
         }
         
-        // 如果允许空字段，直接返回候选字段列表
+        // 如果允许空字段，仍需隐藏可展开 Object 父字段，再按搜索关键字过滤
         if (this.isAllowEmptyField) {
-          let result = candidateFields;
-          // 根据搜索关键字过滤（不区分大小写）
-          if (this.searchKeyword) {
-            const keyword = this.searchKeyword.toLowerCase();
-            const filteredList = [];
-            for (let i = 0; i < candidateFields.length; i++) {
-              const item = candidateFields[i];
-              if (item.field_name.toLowerCase().includes(keyword)) {
-                filteredList.push(item);
-              }
+          const filteredList = [];
+          const keyword = this.searchKeyword ? this.searchKeyword.toLowerCase() : '';
+          for (let i = 0; i < candidateFields.length; i++) {
+            const item = candidateFields[i];
+            if (this.isExpandableObjectField(item.field_name)) {
+              continue;
             }
-            result = filteredList;
+            if (keyword && !item.field_name.toLowerCase().includes(keyword)) {
+              continue;
+            }
+            filteredList.push(item);
           }
-          return result;
+          return filteredList;
         }
         
         // 步骤2：检查空值（需要调用 formatterStr）
@@ -367,6 +375,11 @@
         for (let i = 0; i < candidateFields.length; i++) {
           const item = candidateFields[i];
           const fieldName = item.field_name;
+
+          // 可解析 Object 父字段直接隐藏，避免与子字段重复，也避免与空字段 -- 歧义
+          if (this.isExpandableObjectField(fieldName)) {
+            continue;
+          }
           
           // 性能优化：先快速检查字段是否为空，避免调用 formatterStr
           let shouldSkip = false;
@@ -714,6 +727,62 @@
         
         return result;
       },
+      /**
+       * 获取 KV 字段原始值（不做 Object -> JSON.stringify）
+       * 与 parseTableRowData 路径解析保持一致，保留 Object 类型用于判断是否隐藏父字段
+       */
+      getKvRawValue(fieldName) {
+        const row = this.listData;
+        if (!row || !fieldName) return undefined;
+
+        // 优先兼容扁平 dotted key（与 parseTableRowData 一致）
+        if (Object.prototype.hasOwnProperty.call(row, fieldName)) {
+          return row[fieldName];
+        }
+
+        if (fieldName.indexOf('.') === -1 && fieldName.indexOf('[') === -1) {
+          return row[fieldName];
+        }
+
+        const keyArr = fieldName.split('.');
+        let data = row;
+        for (let index = 0; index < keyArr.length; index++) {
+          if (data === undefined || data === null) break;
+          // 数组场景交给原有 tableRowDeepView 处理
+          if (Array.isArray(data)) return undefined;
+
+          const item = keyArr[index];
+          if (data?.[item] !== undefined && data?.[item] !== null) {
+            data = data[item];
+          } else {
+            const validKey = keyArr.slice(index).join('.');
+            data = data?.[validKey];
+            break;
+          }
+        }
+        return data;
+      },
+      /** VALUE 为可解析非空 Object（非 JSON 字符串、非数组）时，KV 中隐藏该父字段 */
+      isExpandableObjectValue(value) {
+        return (
+          value !== null &&
+          typeof value === 'object' &&
+          !Array.isArray(value) &&
+          Object.keys(value).length > 0
+        );
+      },
+      isExpandableObjectField(fieldName) {
+        return this.isExpandableObjectValue(this.getKvRawValue(fieldName));
+      },
+      getFieldValue(field) {
+        if (!field) return '--';
+
+        if (field.field_name.indexOf('.') === -1 && field.field_name.indexOf('[') === -1) {
+          return this.listData?.[field.field_name];
+        }
+
+        return this.tableRowDeepView(this.listData, field.field_name, field.field_type, false) ?? '--';
+      },
       getFieldType(fieldName) {
         return this.fieldItemMapByName[fieldName]?.field_type || '';
       },
@@ -861,6 +930,11 @@
       getFieldName(field) {
         return getFieldNameByField(field, this.$store);
       },
+      /** 展开面板字段 KEY 同样应用页面高亮 */
+      getHighlightedFieldNameHtml(field) {
+        void this.pageHighlightVersion;
+        return buildHighlightHtml({ text: String(this.getFieldName(field) ?? '') });
+      },
       // 显示或隐藏字段
       handleShowOrHiddenItem(visible, field) {
         const displayFields = [];
@@ -870,12 +944,13 @@
           }
         });
 
-        if (visible) {
+        if (visible && !displayFields.includes(field.field_name)) {
           displayFields.push(field.field_name);
         }
         this.$store.dispatch('userFieldConfigChange', { displayFields }).then(() => {
-          this.$store.commit('resetVisibleFields', displayFields);
-          this.$store.commit('updateIsSetDefaultTableColumn');
+          this.$store.commit('resetVisibleFields', { displayFieldNames: displayFields, version: 'v2' });
+          this.$store.commit('updateIsSetDefaultTableColumn', false);
+          RetrieveHelper.fire(RetrieveEvent.VISIBLE_FIELD_COLUMN_LAYOUT_CHANGE);
         });
       },
     },
@@ -965,6 +1040,11 @@
           color: #313238;
           word-break: normal;
           word-wrap: break-word;
+
+          :deep(mark.page-highlight) {
+            padding: 0 2px;
+            border-radius: 2px;
+          }
         }
 
         :deep(.bklog-ext) {

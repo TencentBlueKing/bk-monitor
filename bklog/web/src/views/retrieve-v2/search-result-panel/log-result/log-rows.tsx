@@ -26,11 +26,16 @@
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, reactive, ref, watch, type Ref } from 'vue';
 
 import { getRowFieldValue, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR, xssFilter } from '@/common/util';
+import { getInputQueryDefaultItem } from '@/views/retrieve-v2/search-bar/utils/const.common';
 // import { perfStart, perfEnd } from '@/utils/performance-monitor';
 import JsonFormatter from '@/global/json-formatter.vue';
+import type { RetrieveRowRenderMeta } from '@/storage/utils/retrieve-render-meta';
+import { getFieldNameByField } from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
+import { optimizedSplit } from '@/hooks/hooks-helper';
+import LuceneSegment from '@/hooks/lucene.segment';
 import { UseSegmentProp } from '@/hooks/use-segment-pop';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
@@ -41,6 +46,8 @@ import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
 import ExpandView from '../../components/result-cell-element/expand-view.vue';
 import OperatorTools from '../../components/result-cell-element/operator-tools.vue';
 import RetrieveLoader from '@/skeleton/retrieve-loader.vue';
+import { retrieveFieldCacheService, retrieveRowCacheService } from '@/storage';
+import FullRowViewer from './full-row-viewer.vue';
 import ScrollTop from '../../components/scroll-top/index';
 import useTextAction from '../../hooks/use-text-action';
 import LogCell from './log-cell';
@@ -61,6 +68,8 @@ import useLazyRender from './use-lazy-render';
 import useHeaderRender from './use-render-header';
 
 import './log-rows.scss';
+
+const FullRowViewerComponent = FullRowViewer as any;
 
 type RowConfig = {
   expand?: boolean;
@@ -90,12 +99,12 @@ export default defineComponent({
     const refLoadMoreElement: Ref<HTMLElement> = ref();
     const refResultRowBox: Ref<HTMLElement> = ref();
     const refSegmentContent: Ref<HTMLElement> = ref();
-    const { handleOperation, getObjectValue } = useTextAction(emit, 'origin');
+    const { handleOperation, getObjectValue, handleAddCondition } = useTextAction(emit, 'origin');
 
     let savedSelection: Range = null;
     let mousedownOnRow = false;
     let hoverOperatorHideTimer: ReturnType<typeof setTimeout> = null;
-    const layoutTimers: ReturnType<typeof setTimeout>[] = [];
+    const layoutTimers: number[] = [];
 
     const hoverOperatorState = reactive({
       visible: false,
@@ -113,18 +122,325 @@ export default defineComponent({
         theme: 'segment-light',
         placement: 'bottom',
         appendTo: document.body,
+        popperOptions: {
+          strategy: 'fixed',
+        },
       },
     });
+
+    const getSelectionReferenceRect = (range: Range, e: MouseEvent) => {
+      const rects = Array.from(range.getClientRects()).filter(rect => rect.width && rect.height);
+
+      if (!rects.length) {
+        return range.getBoundingClientRect();
+      }
+
+      return rects.reduce((closestRect, rect) => {
+        const getDistance = (targetRect: DOMRect) => {
+          const offsetX = e.clientX < targetRect.left ? targetRect.left - e.clientX : Math.max(e.clientX - targetRect.right, 0);
+          const offsetY = e.clientY < targetRect.top ? targetRect.top - e.clientY : Math.max(e.clientY - targetRect.bottom, 0);
+          return offsetX ** 2 + offsetY ** 2;
+        };
+
+        return getDistance(rect) < getDistance(closestRect) ? rect : closestRect;
+      }, rects[rects.length - 1]);
+    };
+
+    const FULLTEXT_FIELD_NAME = '*';
+    const SELECTION_MAX_TOKENS = 1000;
+
+    type SelectionToken = {
+      text: string;
+      isCursorText: boolean;
+      fieldName?: string;
+      tokenType?: 'field-name' | 'field-value';
+    };
+
+    const stripSelectionMarkup = (value: string) => String(value ?? '').replace(/<\/?mark>/gim, '');
+
+    /**
+     * 与字段展示分词保持一致：自定义分词符走 optimizedSplit，否则走 LuceneSegment。
+     * 避免 /\S+/g 把引号、逗号等标点粘连进可补全 token。
+     */
+    const tokenizeSelectionText = (
+      value: string,
+      extra?: Partial<SelectionToken>,
+      field?: Record<string, any>,
+    ) => {
+      const text = stripSelectionMarkup(value);
+      if (!text) {
+        return [] as SelectionToken[];
+      }
+
+      let splitList: Array<{ text: string; isCursorText?: boolean }> = [];
+      if (field?.tokenize_on_chars) {
+        splitList = optimizedSplit(text, field.tokenize_on_chars);
+      } else {
+        splitList = LuceneSegment.split(text, SELECTION_MAX_TOKENS);
+      }
+
+      return splitList.map(item => ({
+        text: item.text,
+        isCursorText: Boolean(item.isCursorText),
+        ...extra,
+      }));
+    };
+
+    const getFieldPlainText = (row: Record<string, any>, field: Record<string, any>) => {
+      const rawValue = getRowFieldValue(row, field);
+      if (rawValue === null || rawValue === undefined || rawValue === '') {
+        return '--';
+      }
+
+      return stripSelectionMarkup(String(rawValue));
+    };
+
+    const getFieldSegmentTokens = (row: Record<string, any>, field: Record<string, any>) =>
+      tokenizeSelectionText(getFieldPlainText(row, field), {
+        fieldName: field.field_name,
+        tokenType: 'field-value',
+      }, field);
+
+    const getOriginSegmentTokens = (row: Record<string, any>) => {
+      const tokens: SelectionToken[] = [];
+      const fields = visibleFields.value.length ? visibleFields.value : filteredFieldList.value;
+
+      fields.forEach((field, index) => {
+        if (index > 0) {
+          tokens.push({ text: ' ', isCursorText: false });
+        }
+
+        tokens.push({
+          text: field.field_name,
+          isCursorText: true,
+          fieldName: field.field_name,
+          tokenType: 'field-name',
+        });
+        tokens.push({ text: ' ', isCursorText: false });
+        tokens.push(...tokenizeSelectionText(getFieldPlainText(row, field), {
+          fieldName: field.field_name,
+          tokenType: 'field-value',
+        }, field));
+      });
+
+      return tokens;
+    };
+
+    const getSelectionTextByRange = (range: Range) => stripSelectionMarkup(range?.toString?.() ?? '');
+
+    const getSelectionAnchorElement = (range: Range) => {
+      const startNode = range?.startContainer as Node | null;
+      const endNode = range?.endContainer as Node | null;
+      const startElement = startNode instanceof Element ? startNode : startNode?.parentElement;
+      const endElement = endNode instanceof Element ? endNode : endNode?.parentElement;
+
+      return (startElement?.closest?.('[data-field-name]') ?? endElement?.closest?.('[data-field-name]')) as HTMLElement | null;
+    };
+
+    /**
+     * 将划选范围补全到完整分词边界：
+     * 1) 命中连续 token 区间
+     * 2) 去掉两端分词符号（引号、逗号等）
+     * 3) 同一字段内拼接中间分隔符（如 2026-07-13），得到完整补全结果
+     */
+    const completeSelectionByTokens = (selectionText: string, tokens: SelectionToken[]) => {
+      if (!selectionText || !tokens.length) {
+        return [];
+      }
+
+      const normalizedSelection = stripSelectionMarkup(selectionText);
+      if (!normalizedSelection) {
+        return [];
+      }
+
+      const plainText = tokens.map(item => item.text).join('');
+      const selectionStart = plainText.indexOf(normalizedSelection);
+      if (selectionStart < 0) {
+        return [];
+      }
+
+      const selectionEnd = selectionStart + normalizedSelection.length;
+      let cursor = 0;
+      let rangeStart = -1;
+      let rangeEnd = -1;
+      for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+        const tokenStart = cursor;
+        const tokenEnd = tokenStart + token.text.length;
+        cursor = tokenEnd;
+
+        if (selectionStart < tokenEnd && selectionEnd > tokenStart) {
+          if (rangeStart < 0) {
+            rangeStart = i;
+          }
+          rangeEnd = i;
+        }
+      }
+
+      if (rangeStart < 0 || rangeEnd < 0) {
+        return [];
+      }
+
+      const flushGroup = (start: number, end: number, bucket: SelectionToken[], dedupeSet: Set<string>) => {
+        let from = start;
+        let to = end;
+        while (from <= to && !tokens[from].isCursorText) {
+          from += 1;
+        }
+        while (to >= from && !tokens[to].isCursorText) {
+          to -= 1;
+        }
+        if (from > to) {
+          return;
+        }
+
+        const firstCursor = tokens.slice(from, to + 1).find(item => item.isCursorText);
+        if (!firstCursor || firstCursor.tokenType === 'field-name') {
+          return;
+        }
+
+        const text = tokens.slice(from, to + 1).map(item => item.text).join('');
+        if (!text) {
+          return;
+        }
+
+        const tokenKey = [firstCursor.fieldName ?? '', firstCursor.tokenType ?? '', text].join('__');
+        if (dedupeSet.has(tokenKey)) {
+          return;
+        }
+        dedupeSet.add(tokenKey);
+        bucket.push({
+          text,
+          isCursorText: true,
+          fieldName: firstCursor.fieldName,
+          tokenType: firstCursor.tokenType ?? 'field-value',
+        });
+      };
+
+      const completedTokens: SelectionToken[] = [];
+      const appendedTokenSet = new Set<string>();
+      let groupStart = rangeStart;
+      for (let i = rangeStart; i <= rangeEnd; i++) {
+        if (tokens[i].tokenType === 'field-name') {
+          if (i > groupStart) {
+            flushGroup(groupStart, i - 1, completedTokens, appendedTokenSet);
+          }
+          groupStart = i + 1;
+        }
+      }
+      if (groupStart <= rangeEnd) {
+        flushGroup(groupStart, rangeEnd, completedTokens, appendedTokenSet);
+      }
+
+      return completedTokens;
+    };
+
+    const getFieldByName = (fieldName: string) => {
+      if (!fieldName) {
+        return undefined;
+      }
+
+      return filteredFieldList.value.find(item => item.field_name === fieldName)
+        ?? visibleFields.value.find(item => item.field_name === fieldName)
+        ?? fullColumns.value.find(item => item.field_name === fieldName);
+    };
+
+    const addSelectionToCurrentSearch = (selectionRange: Range, row: Record<string, any>) => {
+      const selectionText = getSelectionTextByRange(selectionRange);
+      if (!selectionText) {
+        return;
+      }
+
+      const targetElement = getSelectionAnchorElement(selectionRange);
+      const targetFieldName = targetElement?.getAttribute('data-field-name') ?? '';
+      const fulltextFieldItem = getInputQueryDefaultItem();
+
+      if (showCtxType.value === 'table') {
+        const targetField = getFieldByName(targetFieldName);
+        if (!targetField) {
+          handleAddCondition(FULLTEXT_FIELD_NAME, fulltextFieldItem.operator, [selectionText]);
+          return;
+        }
+
+        const completedTokens = completeSelectionByTokens(selectionText, getFieldSegmentTokens(row, targetField));
+        if (!completedTokens.length) {
+          handleAddCondition(targetField.field_name, 'is', [selectionText]);
+          return;
+        }
+
+        completedTokens.forEach(token => {
+          handleAddCondition(targetField.field_name, 'is', [token.text]);
+        });
+        return;
+      }
+
+      const conditions: Array<{ field: string; operator: string; value: string[] }> = [];
+      const appendedConditionKeys = new Set<string>();
+      const fieldNameSet = new Set(filteredFieldList.value.map(item => item.field_name));
+      const originTokens = completeSelectionByTokens(selectionText, getOriginSegmentTokens(row));
+
+      originTokens.forEach((token) => {
+        if (!token.text || token.tokenType === 'field-name' || fieldNameSet.has(token.text)) {
+          return;
+        }
+
+        const field = getFieldByName(token.fieldName ?? '');
+        const plainText = field ? getFieldPlainText(row, field) : '';
+        const operator = field && plainText === token.text ? 'is' : fulltextFieldItem.operator;
+        const conditionField = operator === 'is' && field ? field.field_name : FULLTEXT_FIELD_NAME;
+        const conditionKey = [conditionField, operator, token.text].join('__');
+        if (!appendedConditionKeys.has(conditionKey)) {
+          appendedConditionKeys.add(conditionKey);
+          conditions.push({
+            field: conditionField,
+            operator,
+            value: [token.text],
+          });
+        }
+      });
+
+      if (!conditions.length) {
+        handleAddCondition(FULLTEXT_FIELD_NAME, fulltextFieldItem.operator, [selectionText]);
+        return;
+      }
+
+      conditions.forEach(item => {
+        handleAddCondition(item.field, item.operator, item.value);
+      });
+    };
+
+    const setSelectionPopTargetHandler = (rect: DOMRect) => {
+      let virtualTarget = document.body.querySelector('.bklog-selection-pop-target') as HTMLElement;
+      if (!virtualTarget) {
+        virtualTarget = document.createElement('span');
+        virtualTarget.className = 'bklog-selection-pop-target';
+        virtualTarget.style.setProperty('position', 'fixed');
+        virtualTarget.style.setProperty('visibility', 'hidden');
+        virtualTarget.style.setProperty('pointer-events', 'none');
+        virtualTarget.style.setProperty('z-index', '-1');
+        document.body.appendChild(virtualTarget);
+      }
+
+      virtualTarget.style.setProperty('left', `${rect.left}px`);
+      virtualTarget.style.setProperty('top', `${rect.top}px`);
+      virtualTarget.style.setProperty('width', `${Math.max(rect.width, 1)}px`);
+      virtualTarget.style.setProperty('height', `${Math.max(rect.height, 1)}px`);
+
+      return virtualTarget;
+    };
 
     const useSegmentPop = new UseSegmentProp({
       delineate: true,
       aiBluekingEnabled: store.state.features.isAiAssistantActive,
       stopPropagation: true,
       highlightEnabled: true,
+      allowDelineateSearch: true,
       onclick: (...args) => {
         const type = args[1];
         if (type === 'add-to-ai') {
           props.handleClickTools(type, savedSelection?.toString() ?? '');
+        } else if (type === 'is' && savedSelection && hoverOperatorState.row) {
+          addSelectionToCurrentSearch(savedSelection, hoverOperatorState.row);
         } else {
           handleOperation(type, { value: savedSelection?.toString() ?? '', operation: type });
         }
@@ -143,7 +459,8 @@ export default defineComponent({
     const pageSize = ref(50);
     const isRending = ref(false);
 
-    const tableRowConfig = new WeakMap();
+    let tableRowConfig = new WeakMap();
+    const tableRowConfigByKey = new Map();
     const isPageLoading = ref(RetrieveHelper.isSearching);
     const isPaginationLoading = ref(false);
     // 前端本地分页loadmore触发器
@@ -151,24 +468,37 @@ export default defineComponent({
     const localUpdateCounter = ref(0);
     const hasMoreList = ref(true);
     let renderList = Object.freeze([]);
+    const fullRowViewerState = reactive({
+      visible: false,
+      rowKey: '',
+      rowData: null as Record<string, any> | null,
+      truncatedFields: [] as string[],
+    });
     const indexFieldInfo = computed(() => store.state.indexFieldInfo);
     const filteredFieldList = computed(() => store.getters.filteredFieldList);
     const indexSetQueryResult = computed(() => store.state.indexSetQueryResult);
     const visibleFields = computed(() => store.getters.visibleFields);
     const indexSetOperatorConfig = computed(() => store.state.indexSetOperatorConfig);
     const tableShowRowIndex = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX]);
+    const showFieldAlias = computed(() => store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]);
     const unionIndexItemList = computed(() => store.getters.unionIndexItemList);
     const timeField = computed(() => indexFieldInfo.value.time_field);
     const timeFieldType = computed(() => indexFieldInfo.value.time_field_type);
     const isLoading = computed(() => indexSetQueryResult.value.is_loading || indexFieldInfo.value.is_loading);
     const kvShowFieldsList = computed(() => filteredFieldList.value?.map(f => f.field_name));
     const userSettingConfig = computed(() => store.state.retrieve.catchFieldCustomConfig);
-    const tableDataSize = computed(() => indexSetQueryResult.value?.list?.length ?? 0);
+    const fieldScope = computed(() => indexFieldInfo.value.field_scope || store.state.indexId || 'default');
+    const rowKeys = computed<string[]>(() => indexSetQueryResult.value?.row_keys ?? []);
+    const tableDataSize = computed(() => rowKeys.value.length || (indexSetQueryResult.value?.list?.length ?? 0));
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
     const tableList = computed<any[]>(() => Object.freeze(indexSetQueryResult.value?.list ?? []));
     const gradeOption = computed(() => store.state.indexFieldInfo.custom_config?.grade_options ?? { disabled: false });
     const indexSetType = computed(() => store.state.indexItem.isUnionIndex);
     const limitRow = computed(() => store.state.storage[BK_LOG_STORAGE.RESULT_DISPLAY_LINES]);
+
+    const bumpFieldWidthVersion = () => {
+      store.commit('updateState', { fieldWidthVersion: store.state.fieldWidthVersion + 1 });
+    };
 
     const exceptionMsg = computed(() => {
       if (/^cancel$/gi.test(indexSetQueryResult.value?.exception_msg)) {
@@ -193,6 +523,8 @@ export default defineComponent({
       hasMoreList.value = true;
       isFirstPageLayoutPending.value = true;
       firstPageLayoutToken += 1;
+      tableRowConfig = new WeakMap();
+      tableRowConfigByKey.clear();
     };
 
     const { addEvent } = useRetrieveEvent();
@@ -238,14 +570,34 @@ export default defineComponent({
       store.dispatch('requestIndexSetQuery', { from: 'auto_refresh' });
     });
 
+    const getRowCacheKey = (row, index: number) => rowKeys.value[index] ?? `${row?.dtEventTimeStamp ?? 'row'}_${index}`;
+
     const setRenderList = (length?: number) => {
-      const arr: Record<string, any>[] = [];
       const endIndex = length ?? tableDataSize.value;
-      const lastIndex = endIndex <= tableList.value.length ? endIndex : tableList.value.length;
+
+      if (rowKeys.value.length) {
+        const lastIndex = Math.min(endIndex, rowKeys.value.length);
+        const keys = rowKeys.value.slice(0, lastIndex);
+
+        retrieveRowCacheService.getRenderEntries(keys).then((entries) => {
+          renderList = entries.filter(Boolean).map((entry, index) => ({
+            item: entry.row,
+            renderMeta: entry.renderMeta as RetrieveRowRenderMeta | undefined,
+            [ROW_KEY]: keys[index] ?? getRowCacheKey(entry.row, index),
+          }));
+          localUpdateCounter.value += 1;
+          nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
+        });
+        return;
+      }
+
+      const arr: Record<string, any>[] = [];
+      const lastIndex = Math.min(endIndex, tableList.value.length);
       for (let i = 0; i < lastIndex; i++) {
         arr.push({
           item: tableList.value[i],
-          [ROW_KEY]: `${tableList.value[i].dtEventTimeStamp}_${i}`,
+          renderMeta: undefined as RetrieveRowRenderMeta | undefined,
+          [ROW_KEY]: `${tableList.value[i]?.dtEventTimeStamp ?? 'row'}_${i}`,
         });
       }
 
@@ -257,7 +609,44 @@ export default defineComponent({
     const resultContainerIdSelector = `#${resultContainerId.value}`;
 
 
+    const rowComponentMetaMap = new WeakMap<
+      Record<string, any>,
+      { renderMeta?: RetrieveRowRenderMeta; rowKey?: string }
+    >();
+
+    const setRowComponentMeta = (row: Record<string, any> | undefined, rowKey?: string, renderMeta?: RetrieveRowRenderMeta) => {
+      if (row && typeof row === 'object') {
+        rowComponentMetaMap.set(row, { rowKey, renderMeta });
+      }
+    };
+
+    const getRowRenderMeta = (row?: Record<string, any>) => row ? rowComponentMetaMap.get(row)?.renderMeta : undefined;
+    const getRowComponentKey = (row: Record<string, any> | undefined) => row ? rowComponentMetaMap.get(row)?.rowKey : undefined;
+
+    const shouldShowFullRowAction = (row: Record<string, any>) => {
+      const meta = getRowRenderMeta(row);
+      return !!meta?.hasTruncatedField;
+    };
+
+    const openFullRowViewer = (row: Record<string, any>, rowIndex: number) => {
+      const rowKey = getRowComponentKey(row) || rowKeys.value[rowIndex] || '';
+      const meta = getRowRenderMeta(row);
+      fullRowViewerState.rowKey = rowKey;
+      fullRowViewerState.rowData = row;
+      fullRowViewerState.truncatedFields = meta?.truncatedFields ?? [];
+      if (fullRowViewerState.visible) {
+        fullRowViewerState.visible = false;
+        nextTick(() => {
+          fullRowViewerState.visible = true;
+        });
+        return;
+      }
+
+      fullRowViewerState.visible = true;
+    };
+
     const originalColumns = computed(() => {
+      const formatDate = store.state.isFormatDate;
       return [
         {
           field: ROW_F_ORIGIN_TIME,
@@ -269,7 +658,10 @@ export default defineComponent({
           renderBodyCell: ({ row }) => {
             const timezone = store.state.indexItem.timezone;
             const fieldType = timeFieldType.value;
-            const formatValue = RetrieveHelper.formatTimeZoneValue(row[timeField.value], fieldType, timezone);
+            const rawValue = row[timeField.value];
+            const formatValue = formatDate
+              ? RetrieveHelper.formatTimeZoneValue(rawValue, fieldType, timezone)
+              : (rawValue === null || rawValue === undefined || rawValue === '' ? '--' : rawValue);
 
             return h(
               'span',
@@ -297,7 +689,10 @@ export default defineComponent({
                 class='bklog-column-wrapper'
                 fields={visibleFields.value}
                 jsonValue={row}
-                limitRow={limitRow.value}
+                limitRow={null}
+                originalMode={true}
+                renderMeta={getRowRenderMeta(row)}
+                stateKey={getRowComponentKey(row)}
                 onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink)}
               />
             );
@@ -310,7 +705,7 @@ export default defineComponent({
       return {
         field: field.field_name,
         key: field.field_name,
-        title: field.field_name,
+        title: getFieldNameByField(field, store),
         width: field.width,
         minWidth: field.minWidth,
         field_type: field.field_type,
@@ -323,6 +718,7 @@ export default defineComponent({
               fields={field}
               jsonValue={getRowFieldValue(row, field)}
               limitRow={limitRow.value}
+              renderMeta={getRowRenderMeta(row)}
               onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink, { row, field })}
             />
           );
@@ -424,6 +820,8 @@ export default defineComponent({
     // 性能优化：使用 computed 缓存列配置，避免每次渲染都重新计算
     const getFieldColumns = computed(() => {
       columnLayoutVersion.value;
+      // 别名开关变化时重建 title / header 文案，不改 column key
+      showFieldAlias.value;
 
       if (showCtxType.value === 'table') {
         const columnList: Record<string, any>[] = [];
@@ -464,7 +862,7 @@ export default defineComponent({
         .closest('.bklog-row-container')
         ?.querySelector('.bklog-row-observe .expand-view-wrapper');
       if (expandTarget) {
-        RetrieveHelper.highlightElement(expandTarget);
+        RetrieveHelper.highlightElement(expandTarget as HTMLElement);
       }
     };
 
@@ -563,6 +961,20 @@ export default defineComponent({
     };
 
     const { renderHead } = useHeaderRender();
+    const getFallbackRenderFields = (fields: Record<string, any>[] = []) => {
+      const renderableFields = fields.filter(field =>
+        field?.field_name
+        && field.field_type !== '__virtual__'
+        && !field.is_virtual_obj_node,
+      );
+      const preferredFields = ['log', 'body']
+        .map(fieldName => renderableFields.find(field => field.field_name === fieldName))
+        .filter(Boolean);
+
+      return preferredFields.length
+        ? preferredFields
+        : renderableFields.slice(0, 4);
+    };
     // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     const setFullColumns = () => {
       /** 清空所有字段后所展示的默认字段  顺序: 时间字段，log字段，索引字段 */
@@ -589,12 +1001,27 @@ export default defineComponent({
         const sortB = b.field_name.replace(TABLE_LOG_FIELDS_SORT_REGULAR, 'z');
         return sortA.localeCompare(sortB);
       });
-      const sortFieldsList = [...dataFields, ...logFields, ...sortIndexSetFieldsList];
+      let sortFieldsList = [...dataFields, ...logFields, ...sortIndexSetFieldsList];
+      if (!sortFieldsList.length) {
+        sortFieldsList = getFallbackRenderFields(filteredFields);
+      }
       if (isUnionSearch.value && indexSetOperatorConfig.value?.isShowSourceField) {
         sortFieldsList.unshift(LOG_SOURCE_F());
       }
 
-      setDefaultTableWidth(sortFieldsList, tableList.value);
+      if (rowKeys.value.length) {
+        retrieveRowCacheService
+          .getRows(rowKeys.value.slice(0, Math.min(rowKeys.value.length, 50)))
+          .then((rows) => {
+            const widthSnapshot = setDefaultTableWidth(sortFieldsList, rows, retrieveFieldCacheService.getUserWidthConfig(fieldScope.value));
+            retrieveFieldCacheService.setComputedWidths(fieldScope.value, sortFieldsList);
+            if (Object.keys(widthSnapshot).length) bumpFieldWidthVersion();
+          });
+      } else {
+        const widthSnapshot = setDefaultTableWidth(sortFieldsList, tableList.value, retrieveFieldCacheService.getUserWidthConfig(fieldScope.value));
+        retrieveFieldCacheService.setComputedWidths(fieldScope.value, sortFieldsList);
+        if (Object.keys(widthSnapshot).length) bumpFieldWidthVersion();
+      }
       fullColumns.value = sortFieldsList;
     };
 
@@ -605,14 +1032,17 @@ export default defineComponent({
       }, {});
     };
 
-    const createRowConfigRef = (index: number) => {
+    const createRowConfigRef = (index: number, rowKey?: string) => {
       const rowIndex = index >= 0 ? index : -1;
-      const rowKey = `${ROW_KEY}_${rowIndex}`;
       return ref({
-        [ROW_KEY]: rowKey,
+        [ROW_KEY]: rowKey || `${ROW_KEY}_${rowIndex}`,
         [ROW_INDEX]: rowIndex,
         ...getRowConfigWithCache(),
       });
+    };
+
+    const getRowConfigKey = (row, index: number) => {
+      return getRowComponentKey(row) || rowKeys.value[index] || '';
     };
 
     const ensureTableRowConfig = (row, index: number) => {
@@ -620,11 +1050,22 @@ export default defineComponent({
         return createRowConfigRef(index);
       }
 
-      let config = tableRowConfig.get(row);
+      const rowKey = getRowConfigKey(row, index);
+      let config = rowKey ? tableRowConfigByKey.get(rowKey) : tableRowConfig.get(row);
       if (!config) {
-        config = createRowConfigRef(index);
-        tableRowConfig.set(row, config);
-      } else if (index >= 0 && config.value[ROW_INDEX] !== index) {
+        config = createRowConfigRef(index, rowKey);
+        if (rowKey) {
+          tableRowConfigByKey.set(rowKey, config);
+        }
+      } else {
+        if (rowKey && config.value[ROW_KEY] !== rowKey) {
+          config.value[ROW_KEY] = rowKey;
+        }
+      }
+
+      tableRowConfig.set(row, config);
+
+      if (index >= 0 && config.value[ROW_INDEX] !== index) {
         config.value[ROW_INDEX] = index;
       }
 
@@ -667,6 +1108,7 @@ export default defineComponent({
             kv-show-fields-list={kvShowFieldsList.value}
             list-data={row}
             row-index={realRowIndex}
+            row-key={getRowComponentKey(row) || rowKeys.value[realRowIndex] || ''}
             onValue-click={(type, content, isLink, field, depth, isNestedField) => {
               return handleIconClick(type, content, field, row, isLink, depth, isNestedField);
             }}
@@ -753,23 +1195,55 @@ export default defineComponent({
       computeRect(refResultRowBox.value);
     };
 
+    let visibleFieldsLayoutToken = 0;
+    const refreshVisibleFieldsColumnLayout = async () => {
+      const layoutToken = ++visibleFieldsLayoutToken;
+      if (!visibleFields.value.length) {
+        setFullColumns();
+        triggerColumnLayoutReflow();
+        handleResultBoxResize();
+        return;
+      }
+
+      const layoutRows = rowKeys.value.length
+        ? await retrieveRowCacheService.getRows(rowKeys.value.slice(0, Math.min(rowKeys.value.length, 10)))
+        : tableList.value;
+      if (layoutToken !== visibleFieldsLayoutToken) {
+        return;
+      }
+
+      const fieldsWidthConfig = {
+        ...retrieveFieldCacheService.getUserWidthConfig(fieldScope.value),
+        ...(userSettingConfig.value.fieldsWidth ?? {}),
+      };
+      const widthSnapshot = setDefaultTableWidth(visibleFields.value, layoutRows, fieldsWidthConfig);
+      retrieveFieldCacheService.setComputedWidths(fieldScope.value, visibleFields.value);
+      if (Object.keys(widthSnapshot).length) bumpFieldWidthVersion();
+      triggerColumnLayoutReflow();
+      handleResultBoxResize();
+    };
+    addEvent(RetrieveEvent.VISIBLE_FIELD_COLUMN_LAYOUT_CHANGE, refreshVisibleFieldsColumnLayout);
+
+    watch(
+      () => [
+        indexFieldInfo.value.field_meta_version,
+        filteredFieldList.value.length,
+        visibleFields.value.length,
+        showCtxType.value,
+      ],
+      ([, filteredLength, visibleLength, currentShowCtxType]) => {
+        if (currentShowCtxType === 'table' && filteredLength > 0 && visibleLength === 0) {
+          refreshVisibleFieldsColumnLayout();
+        }
+      },
+    );
+
     watch(
       () => [props.contentType],
       () => {
         showCtxType.value = props.contentType;
         pageIndex.value = 1;
         setRenderList(50);
-        handleResultBoxResize();
-      },
-    );
-
-    watch(
-      () => [visibleFields.value.length],
-      () => {
-        if (!visibleFields.value.length) {
-          setFullColumns();
-        }
-
         handleResultBoxResize();
       },
     );
@@ -840,42 +1314,55 @@ export default defineComponent({
       markColumnWidthChanging();
 
       const width = w > 40 ? w : 40;
-      const longFiels = visibleFields.value.filter(
+      const currentFields = visibleFields.value.length ? visibleFields.value : fullColumns.value;
+      const field = currentFields.find(item => item.field_name === col.field);
+      if (!field) return;
+
+      const longFiels = currentFields.filter(
         item => item.width >= 800 || item.field_name === 'log' || item.field_type === 'text',
       );
       const logField = longFiels.find(item => item.field_name === 'log');
       const targetField = longFiels.length
         ? longFiels
-        : visibleFields.value.filter(item => item.field_name !== col.field);
+        : currentFields.filter(item => item.field_name !== col.field);
 
       if (width < col.width && targetField.length) {
+        const widthDiff = col.width - width;
         if (logField) {
-          logField.width += width;
+          logField.width += widthDiff;
         } else {
-          const avgWidth = (col.width - width) / targetField.length;
+          const avgWidth = widthDiff / targetField.length;
           for (const field of targetField) {
             field.width += avgWidth;
           }
         }
       }
 
-      const sourceObj = visibleFields.value.reduce((acc, curField) => {
+      const sourceObj = currentFields.reduce((acc, curField) => {
         acc[curField.field_name] = curField.width;
         return acc;
       }, {});
       const { fieldsWidth } = userSettingConfig.value;
-      const newFieldsWidthObj = Object.assign(fieldsWidth, sourceObj, {
+      const newFieldsWidthObj = {
+        ...fieldsWidth,
+        ...sourceObj,
         [col.field]: Math.ceil(width),
-      });
+      };
 
-      const field = visibleFields.value.find(item => item.field_name === col.field);
       field.width = width;
 
       store.dispatch('userFieldConfigChange', {
         fieldsWidth: newFieldsWidthObj,
       });
+      retrieveFieldCacheService.setUserWidths(fieldScope.value, newFieldsWidthObj);
+      bumpFieldWidthVersion();
 
-      store.commit('updateVisibleFields', visibleFields.value);
+      if (visibleFields.value.length) {
+        store.commit('updateVisibleFields', visibleFields.value);
+      } else {
+        fullColumns.value = [...currentFields];
+      }
+      triggerColumnLayoutReflow();
       preserveHorizontalScrollAfterColumnResize(prevScrollLeft);
     };
 
@@ -903,6 +1390,12 @@ export default defineComponent({
       // tableDataSize.value === 0 用于判定是否是第一次渲染导致触发的请求
       // visibleFields.value 在字段重置时会清空，所以需要判断
       if (isRequesting.value || tableDataSize.value === 0 || visibleFields.value.length === 0) {
+        return Promise.resolve(false);
+      }
+
+      // 首屏（流式）检索进行中时，row_keys 是渐进写入的部分数据，此时不能触发后端分页，
+      // 否则会因“未满一屏”误判而在首屏完成前反复发起 append 请求。
+      if (indexSetQueryResult.value.is_loading && !indexSetQueryResult.value.is_pagination_loading) {
         return Promise.resolve(false);
       }
 
@@ -953,8 +1446,12 @@ export default defineComponent({
     const afterScrollTop = () => {
       pageIndex.value = 1;
       const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
-      renderList = renderList.slice(0, maxLength);
-      localUpdateCounter.value += 1;
+      if (rowKeys.value.length) {
+        setRenderList(maxLength);
+      } else {
+        renderList = renderList.slice(0, maxLength);
+        localUpdateCounter.value += 1;
+      }
     };
 
     // 监听滚动条滚动位置
@@ -1142,7 +1639,7 @@ export default defineComponent({
 
 
     const showHeader = computed(() => {
-      return showCtxType.value === 'table' && tableList.value.length > 0;
+      return showCtxType.value === 'table' && tableDataSize.value > 0;
     });
 
     const hasResultException = computed(() => {
@@ -1244,9 +1741,10 @@ export default defineComponent({
     };
 
     const allColumns = computed(() => {
-      return [...leftColumns.value, ...getFieldColumns.value].filter(
+      const columns = [...leftColumns.value, ...getFieldColumns.value].filter(
         item => !(item as any).disabled,
       );
+      return columns;
     });
 
     const clearHoverOperatorHideTimer = () => {
@@ -1333,24 +1831,32 @@ export default defineComponent({
           onMouseenter={activateHoverOperator}
           onMouseleave={deactivateHoverOperator}
         >
-          {/** @ts-expect-error */}
-          <OperatorTools
-            handle-click={(type, event) => {
-              if (type === 'ai') {
-                handleRowAIClcik(event, hoverOperatorState.row, hoverOperatorState.rowIndex);
-                return;
-              }
-              props.handleClickTools(
-                type,
-                hoverOperatorState.row,
-                indexSetOperatorConfig.value,
-                ensureTableRowConfig(hoverOperatorState.row, hoverOperatorState.rowIndex).value[ROW_INDEX] + 1,
-              );
-            }}
-            index={hoverOperatorState.row[ROW_INDEX]}
-            operator-config={indexSetOperatorConfig.value}
-            row-data={hoverOperatorState.row}
-          />
+          <div class='bklog-row-hover-operator-content'>
+            {/** @ts-expect-error */}
+            <OperatorTools
+              handle-click={(type, event) => {
+                if (type === 'ai') {
+                  handleRowAIClcik(event, hoverOperatorState.row, hoverOperatorState.rowIndex);
+                  return;
+                }
+                if (type === 'fullRow') {
+                  openFullRowViewer(hoverOperatorState.row, hoverOperatorState.rowIndex);
+                  return;
+                }
+                props.handleClickTools(
+                  type,
+                  hoverOperatorState.row,
+                  indexSetOperatorConfig.value,
+                  ensureTableRowConfig(hoverOperatorState.row, hoverOperatorState.rowIndex).value[ROW_INDEX] + 1,
+                  getRowConfigKey(hoverOperatorState.row, hoverOperatorState.rowIndex),
+                );
+              }}
+              index={hoverOperatorState.row[ROW_INDEX]}
+              operator-config={indexSetOperatorConfig.value}
+              row-data={hoverOperatorState.row}
+              show-full-row={shouldShowFullRowAction(hoverOperatorState.row)}
+            />
+          </div>
         </div>
       );
     };
@@ -1417,15 +1923,19 @@ export default defineComponent({
         const selection = window.getSelection();
         if (selection.rangeCount > 0) {
           savedSelection = selection.getRangeAt(0);
+          const rect = getSelectionReferenceRect(savedSelection, e);
+          const target = setSelectionPopTargetHandler(rect);
+          popInstanceUtil.uninstallInstance();
+          popInstanceUtil.show(target, true, true);
         }
-        popInstanceUtil.show(e.target);
         return;
       }
 
       const target = e.target as HTMLElement;
       const expandCell = target.closest('.bklog-row-observe')?.querySelector('.expand-view-wrapper');
 
-      if (target.classList.contains('valid-text') || expandCell?.contains(target)) {
+      const interactiveTarget = target.closest('a, button, input, textarea, [role="button"], .bk-link-text');
+      if (interactiveTarget || expandCell?.contains(target)) {
         RetrieveHelper.setMousedownEvent(null);
         return;
       }
@@ -1461,7 +1971,9 @@ export default defineComponent({
       }
 
       return renderList.map((row, rowIndex) => {
-        const logLevel = gradeOption.value.disabled ? '' : RetrieveHelper.getLogLevel(row.item, gradeOption.value);
+        const renderRow = row.item as Record<string, any>;
+        setRowComponentMeta(renderRow, row[ROW_KEY], row.renderMeta);
+        const logLevel = gradeOption.value.disabled ? '' : RetrieveHelper.getLogLevel(renderRow, gradeOption.value);
 
         return [
           <RowRender
@@ -1475,11 +1987,11 @@ export default defineComponent({
             ]}
             row-index={rowIndex}
             on-row-mousedown={handleRowMousedown}
-            on-row-mouseenter={e => handleRowMouseenter(e, row.item, rowIndex)}
+            on-row-mouseenter={e => handleRowMouseenter(e, renderRow, rowIndex)}
             on-row-mouseleave={handleRowMouseleave}
-            on-row-mouseup={e => handleRowMouseup(e, row.item, rowIndex)}
+            on-row-mouseup={e => handleRowMouseup(e, renderRow, rowIndex)}
           >
-            {renderRowCells(row.item, rowIndex)}
+            {renderRowCells(renderRow, rowIndex)}
           </RowRender>,
         ];
       });
@@ -1651,6 +2163,19 @@ export default defineComponent({
       );
     };
 
+    const renderFullRowViewer = () => (
+      <FullRowViewerComponent
+        visible={fullRowViewerState.visible}
+        rowKey={fullRowViewerState.rowKey}
+        rowData={fullRowViewerState.rowData}
+        fields={visibleFields.value.length ? visibleFields.value : fullColumns.value}
+        truncatedFields={fullRowViewerState.truncatedFields}
+        onUpdate:visible={(value: boolean) => {
+          fullRowViewerState.visible = value;
+        }}
+      />
+    );
+
     const renderDelineatePopContent = () => {
       return <div style='display: none;'>{useSegmentPop.createSegmentContent(refSegmentContent)}</div>;
     };
@@ -1668,50 +2193,28 @@ export default defineComponent({
       renderList = Object.freeze([]);
     });
 
-    return {
-      refRootElement,
-      refResultRowBox,
-      isTableLoading,
-      renderDelineatePopContent,
-      renderRowVNode,
-      renderScrollTop,
-      renderScrollXBar,
-      renderLoader,
-      renderHeadVNode,
-      renderHoverOperatorOverlay,
-      renderFirstPageSkeleton,
-      getExceptionRender,
-      tableDataSize,
-      resultContainerId,
-      hasScrollX,
-      showHeader,
-      isRequesting,
-      exceptionMsg,
-      localUpdateCounter,
-    };
-  },
-  render() {
-    return (
+    return () => (
       <div
-        ref='refRootElement'
+        ref={refRootElement}
         class='bklog-result-container'
       >
-        {this.renderHeadVNode()}
+        {renderHeadVNode()}
         <div
-          id={this.resultContainerId}
-          ref='refResultRowBox'
+          id={resultContainerId.value}
+          ref={refResultRowBox}
           class='bklog-row-box'
-          data-local-update-counter={this.localUpdateCounter}
+          data-local-update-counter={localUpdateCounter.value}
         >
-          {this.renderRowVNode()}
+          {renderRowVNode()}
         </div>
-        {this.renderHoverOperatorOverlay()}
-        {this.renderFirstPageSkeleton()}
-        {this.getExceptionRender()}
-        {this.renderScrollXBar()}
-        {this.renderLoader()}
-        {this.renderScrollTop()}
-        {this.renderDelineatePopContent()}
+        {renderHoverOperatorOverlay()}
+        {renderFirstPageSkeleton()}
+        {getExceptionRender()}
+        {renderScrollXBar()}
+        {renderLoader()}
+        {renderScrollTop()}
+        {renderDelineatePopContent()}
+        {renderFullRowViewer()}
         <div class='resize-guide-line' />
       </div>
     );

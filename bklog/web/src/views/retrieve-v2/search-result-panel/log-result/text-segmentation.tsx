@@ -42,6 +42,10 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    precomputedSegments: {
+      type: Array,
+      default: undefined,
+    },
   },
   emits: ['menu-click'],
   setup(props, { emit }) {
@@ -64,6 +68,7 @@ export default defineComponent({
         autoWidth={props.autoWidth}
         isWrap={isWrap.value}
         isLimitExpandView={isLimitExpandView.value}
+        precomputedSegments={props.precomputedSegments}
         on-menu-click={handleMenuClick}
       />
     );
