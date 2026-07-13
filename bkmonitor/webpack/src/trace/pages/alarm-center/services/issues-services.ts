@@ -556,10 +556,6 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
     params: Partial<CommonFilterParams>,
     options?: RequestOptions
   ): Promise<FilterTableResponse<T>> {
-    // 计算告警趋势图时间范围：trend_end_time 跟随 end_time，trend_start_time 为往前 24 小时
-    const trendEndTime = params.end_time;
-    const trendStartTime = trendEndTime ? trendEndTime - 24 * 60 * 60 : undefined;
-
     const data = await issueSearch<Partial<IssueSearchParams>, IssueSearchResponse>(
       {
         ...params,
@@ -569,25 +565,10 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
       },
       options
     )
-      .then(async ({ issues, total }) => {
-        const issueList = (issues || []).map(issue => ({ ...issue, trend: [] as [number, number][] }));
-        if (issueList.length && trendStartTime && trendEndTime) {
-          const trendParams: IssueTrendParams = {
-            bk_biz_ids: [...new Set(issueList.map(issue => issue.bk_biz_id))],
-            issue_ids: issueList.map(issue => issue.id),
-            trend_end_time: trendEndTime,
-            trend_start_time: trendStartTime,
-          };
-          const trendMap = await issueTrend<IssueTrendParams, IssueTrendResponse>(trendParams, options).catch(
-            () => ({}) as IssueTrendResponse
-          );
-          for (const issue of issueList) {
-            issue.trend = trendMap[issue.id] || [];
-          }
-        }
+      .then(({ issues, total }) => {
         return {
           total,
-          data: issueList,
+          data: (issues || []).map(issue => ({ ...issue, trend: [] as [number, number][] })),
         };
       })
       .catch(() => ({
@@ -595,6 +576,22 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
         data: [] as IssueItem[],
       }));
     return data as FilterTableResponse<T>;
+  }
+  async getIssueTrend(
+    issues: IssueItem[],
+    trendEndTime?: number,
+    options?: RequestOptions
+  ): Promise<IssueTrendResponse> {
+    if (!(issues.length && trendEndTime)) {
+      return {};
+    }
+    const trendParams: IssueTrendParams = {
+      bk_biz_ids: [...new Set(issues.map(issue => issue.bk_biz_id))],
+      issue_ids: issues.map(issue => issue.id),
+      trend_end_time: trendEndTime,
+      trend_start_time: trendEndTime - 24 * 60 * 60,
+    };
+    return issueTrend<IssueTrendParams, IssueTrendResponse>(trendParams, options).catch(() => ({}));
   }
   async getQuickFilterList(params: Partial<CommonFilterParams>, options?: RequestOptions): Promise<QuickFilterItem[]> {
     const data = await issueSearch<Partial<IssueSearchParams>, IssueSearchResponse>(
