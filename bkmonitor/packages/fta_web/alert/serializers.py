@@ -17,10 +17,7 @@ from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument
 from bkmonitor.utils.request import get_request
 from core.drf_resource import resource
-from fta_web.alert.handlers.fulltext import (
-    MAX_FULLTEXT_VALUES,
-    MAX_QUERY_STRING_LENGTH,
-)
+from fta_web.alert.handlers.fulltext import MAX_FULLTEXT_VALUES
 from fta_web.models.alert import AlertFeedback, AlertSuggestion, SearchFavorite
 
 
@@ -68,6 +65,23 @@ class SearchFavoriteSerializer(serializers.ModelSerializer):
         fields = ["id", "name", "search_type", "params", "create_user", "create_time", "update_user", "update_time"]
 
 
+def validate_fulltext_condition_value_count(conditions):
+    value_count = sum(
+        1
+        for condition in conditions
+        if condition.get("key") == "query_string"
+        for value in (condition.get("value") or [])
+        if value is not None and str(value).strip()
+    )
+    if value_count > MAX_FULLTEXT_VALUES:
+        raise ValidationError(
+            _("query_string condition values exceed limit {limit}, got {count}").format(
+                limit=MAX_FULLTEXT_VALUES, count=value_count
+            )
+        )
+    return conditions
+
+
 class SearchConditionSerializer(serializers.Serializer):
     key = serializers.CharField(label="匹配字段")
     # 保持松散 ListField：conditions 可含 bool/number；勿对所有条件强制 CharField(max_length)
@@ -79,14 +93,7 @@ class SearchConditionSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         # 仅全字段 query_string 限制条数；超限显式失败，禁止静默截断
-        if attrs.get("key") == "query_string":
-            values = [v for v in (attrs.get("value") or []) if v is not None and str(v).strip()]
-            if len(values) > MAX_FULLTEXT_VALUES:
-                raise ValidationError(
-                    _("query_string condition values exceed limit {limit}, got {count}").format(
-                        limit=MAX_FULLTEXT_VALUES, count=len(values)
-                    )
-                )
+        validate_fulltext_condition_value_count([attrs])
         return attrs
 
 
@@ -129,12 +136,13 @@ class AllowedBizIdsField(serializers.ListField):
 class AlertSearchSerializer(BaseSearchSerializer):
     status = serializers.ListField(label="状态", required=False, child=serializers.CharField())
     conditions = SearchConditionSerializer(label="搜索条件", many=True, default=[])
-    query_string = serializers.CharField(
-        label="查询字符串", default="", allow_blank=True, max_length=MAX_QUERY_STRING_LENGTH
-    )
+    query_string = serializers.CharField(label="查询字符串", default="", allow_blank=True)
     start_time = serializers.IntegerField(label="开始时间")
     end_time = serializers.IntegerField(label="结束时间")
     username = serializers.CharField(required=False, label="负责人")
+
+    def validate_conditions(self, value):
+        return validate_fulltext_condition_value_count(value)
 
 
 class ActionSearchSerializer(BaseSearchSerializer):

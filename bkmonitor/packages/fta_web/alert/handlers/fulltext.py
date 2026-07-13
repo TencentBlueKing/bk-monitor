@@ -24,10 +24,8 @@ MIN_DIGIT_TERM_LENGTH = 1
 SHORT_KEYWORD_CONTAINS_MIN_LENGTH = 3
 # 单条全字段检索词最大长度（超长直接无命中，防止异常大 payload）
 MAX_FULLTEXT_TERM_LENGTH = 128
-# conditions.query_string.value 最多条数（仅全字段；普通 include/exclude 不截断）
+# 单次 Alert/Incident 请求中所有 conditions.query_string.value 的非空值总数上限
 MAX_FULLTEXT_VALUES = 10
-# Alert/Incident 顶层 query_string 在 serializer 层的硬上限（略宽于检索门禁，给结构化语法留空间）
-MAX_QUERY_STRING_LENGTH = 512
 
 _BARE_BOOLEAN_RE = re.compile(r"\b(AND|OR|NOT)\b", re.IGNORECASE)
 _FIELD_SEP_RE = re.compile(r"(?<!\\):")
@@ -193,9 +191,7 @@ def ensure_fulltext_value_count(values) -> list[str]:
             continue
         normalized.append(text)
     if len(normalized) > MAX_FULLTEXT_VALUES:
-        raise ValueError(
-            f"query_string condition values exceed limit {MAX_FULLTEXT_VALUES}, got {len(normalized)}"
-        )
+        raise ValueError(f"query_string condition values exceed limit {MAX_FULLTEXT_VALUES}, got {len(normalized)}")
     return normalized
 
 

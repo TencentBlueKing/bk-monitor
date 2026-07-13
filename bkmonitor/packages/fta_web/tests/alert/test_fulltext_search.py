@@ -30,6 +30,8 @@ from fta_web.alert.handlers.fulltext import (
     should_apply_fulltext_term,
 )
 from fta_web.alert.handlers.incident import IncidentQueryHandler
+from fta_web.alert.serializers import AlertSearchSerializer
+from monitor_web.incident.serializers import IncidentSearchSerializer
 
 
 class TestFulltextHelpers:
@@ -203,6 +205,50 @@ class TestExplicitIncludeExcludeBaseline:
         q = self._handler().parse_condition_item({"method": "include", "key": "labels", "value": ["a", "b"]})
         body = q.to_dict()
         assert body["bool"]["should"] == [{"wildcard": {"labels": "*a*"}}, {"wildcard": {"labels": "*b*"}}]
+
+
+class TestFulltextSearchSerializerLimits:
+    @staticmethod
+    def _condition(values):
+        return {"key": "query_string", "value": values, "method": "eq", "condition": "and"}
+
+    @staticmethod
+    def _payload(**kwargs):
+        return {
+            "bk_biz_ids": [2],
+            "conditions": [],
+            "query_string": "",
+            "start_time": 1,
+            "end_time": 2,
+            **kwargs,
+        }
+
+    @pytest.mark.parametrize("serializer_class", [AlertSearchSerializer, IncidentSearchSerializer])
+    def test_rejects_aggregate_fulltext_values_over_limit(self, serializer_class):
+        conditions = [self._condition([f"first-{index}" for index in range(6)])]
+        conditions.append(self._condition([f"second-{index}" for index in range(5)]))
+
+        serializer = serializer_class(data=self._payload(conditions=conditions))
+
+        assert serializer.is_valid() is False
+        assert "query_string condition values exceed limit 10, got 11" in str(serializer.errors["conditions"])
+
+    @pytest.mark.parametrize("serializer_class", [AlertSearchSerializer, IncidentSearchSerializer])
+    def test_accepts_aggregate_fulltext_values_at_limit(self, serializer_class):
+        conditions = [self._condition([f"first-{index}" for index in range(5)])]
+        conditions.append(self._condition([f"second-{index}" for index in range(5)]))
+
+        serializer = serializer_class(data=self._payload(conditions=conditions))
+
+        assert serializer.is_valid(), serializer.errors
+
+    @pytest.mark.parametrize("serializer_class", [AlertSearchSerializer, IncidentSearchSerializer])
+    def test_structured_query_string_keeps_baseline_length_compatibility(self, serializer_class):
+        query_string = " OR ".join(f"labels:Prod{index}" for index in range(40))
+        assert len(query_string) > 512
+        serializer = serializer_class(data=self._payload(query_string=query_string))
+
+        assert serializer.is_valid(), serializer.errors
 
 
 class TestIncidentAlertFulltextWhitelist:
