@@ -31,6 +31,8 @@ import {
   ISSUES_PRIORITY_MAP,
   ISSUES_REGRESSION_MAP,
   ISSUES_STATUS_MAP,
+  TREND_RANGE_SECONDS_MAP,
+  TrendRangeEnum,
 } from '../alarm-issues/constant';
 import { type RequestOptions, AlarmService } from './base';
 
@@ -40,6 +42,7 @@ import type {
   IssueSearchResponse,
   IssueTrendParams,
   IssueTrendResponse,
+  TrendRangeType,
 } from '../alarm-issues/typing';
 import type {
   AnalysisFieldAggItem,
@@ -91,7 +94,7 @@ const ISSUES_TABLE_COLUMNS: TableColumnItem[] = [
   },
   {
     colKey: 'trend',
-    title: window.i18n.t('24h 趋势'),
+    title: window.i18n.t('趋势'),
     width: 200,
     is_default: true,
   },
@@ -580,16 +583,18 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
   async getIssueTrend(
     issues: IssueItem[],
     trendEndTime?: number,
+    trendRange?: TrendRangeType,
     options?: RequestOptions
   ): Promise<IssueTrendResponse> {
     if (!(issues.length && trendEndTime)) {
       return {};
     }
+    const seconds = TREND_RANGE_SECONDS_MAP[trendRange] ?? TREND_RANGE_SECONDS_MAP[TrendRangeEnum.HOURS_24];
     const trendParams: IssueTrendParams = {
       bk_biz_ids: [...new Set(issues.map(issue => issue.bk_biz_id))],
       issue_ids: issues.map(issue => issue.id),
       trend_end_time: trendEndTime,
-      trend_start_time: trendEndTime - 24 * 60 * 60,
+      trend_start_time: trendEndTime - seconds,
     };
     return issueTrend<IssueTrendParams, IssueTrendResponse>(trendParams, options).catch(() => ({}));
   }
