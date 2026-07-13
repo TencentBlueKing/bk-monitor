@@ -4,6 +4,7 @@
  */
 import { manageDraftCacheService } from './services/manage-draft-cache.service';
 import { moduleLargeDataCacheService } from './services/module-large-data-cache.service';
+import { retrieveFieldAliasCacheService } from './services/retrieve-field-alias-cache.service';
 import { retrieveFieldCacheService } from './services/retrieve-field-cache.service';
 import { retrieveRowCacheService } from './services/retrieve-row-cache.service';
 import { retrieveRowProjectionService } from './services/retrieve-row-projection.service';
@@ -19,6 +20,7 @@ import { workerManagerService } from './services/worker-manager.service';
 export default {
   manageDraftCache: manageDraftCacheService,
   moduleLargeDataCache: moduleLargeDataCacheService,
+  retrieveFieldAlias: retrieveFieldAliasCacheService,
   retrieveFields: retrieveFieldCacheService,
   retrieveRows: retrieveRowCacheService,
   retrieveRowProjection: retrieveRowProjectionService,
@@ -32,6 +34,7 @@ export default {
 export {
   manageDraftCacheService,
   moduleLargeDataCacheService,
+  retrieveFieldAliasCacheService,
   retrieveFieldCacheService,
   retrieveRowCacheService,
   retrieveRowProjectionService,

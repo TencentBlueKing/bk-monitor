@@ -60,6 +60,13 @@ export const resolveFieldAliasMap = state =>
     return out;
   }, {});
 
+/** UI 展示专用：仅使用 query_alias，不影响既有 fieldAliasMap 业务语义 */
+export const resolveDisplayFieldAliasMap = state =>
+  resolveRawFieldList(state).reduce((out, field) => {
+    out[field.field_name] = field.query_alias || field.field_name;
+    return out;
+  }, {});
+
 export const buildOriginAddition = state => {
   const { addition = [] } = state.indexItem;
   const filterAddition = addition

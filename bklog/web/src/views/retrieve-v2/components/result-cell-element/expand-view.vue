@@ -97,6 +97,7 @@
   import { getFieldNameByField } from '@/hooks/use-field-name';
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
   import { retrieveRowCacheService } from '@/storage';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
   import { perfMeasure } from '@/utils/performance-monitor';
 
   import KvList from '../../result-comp/kv-list.vue';
@@ -136,6 +137,7 @@
         rawRowData: null, // 非响应式数据副本
         jsonShowDataCache: null, // JSON 数据缓存
         jsonShowDataCacheFormatDate: undefined, // 与缓存绑定的时间格式化开关状态
+        jsonShowDataCacheShowFieldAlias: undefined, // 与缓存绑定的别名显示开关状态
       };
     },
     computed: {
@@ -147,6 +149,9 @@
       },
       isFormatDate() {
         return this.$store.state.isFormatDate;
+      },
+      showFieldAlias() {
+        return this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
       },
       // 性能优化：使用 Set 缓存 kvShowFieldsList，提升查找性能
       kvShowFieldsSet() {
@@ -198,10 +203,15 @@
       },
       jsonShowData() {
         const isFormatDate = this.isFormatDate;
-        // 时间格式化开关变化时，必须让缓存失效，否则会继续返回旧的未/已格式化结果
-        if (this.jsonShowDataCacheFormatDate !== isFormatDate) {
+        const showFieldAlias = this.showFieldAlias;
+        // 时间格式化 / 别名开关变化时，必须让缓存失效
+        if (
+          this.jsonShowDataCacheFormatDate !== isFormatDate
+          || this.jsonShowDataCacheShowFieldAlias !== showFieldAlias
+        ) {
           this.jsonShowDataCache = null;
           this.jsonShowDataCacheFormatDate = isFormatDate;
+          this.jsonShowDataCacheShowFieldAlias = showFieldAlias;
         }
 
         // 如果已有缓存，直接返回缓存（避免重复计算）
@@ -312,11 +322,16 @@
         handler() {
           this.jsonShowDataCache = null;
           this.jsonShowDataCacheFormatDate = undefined;
+          this.jsonShowDataCacheShowFieldAlias = undefined;
         },
         deep: false, // 禁止深度监听，避免性能问题
       },
       // 时间格式化开关变化时，强制重建 JSON 视图缓存
       isFormatDate() {
+        this.jsonShowDataCache = null;
+      },
+      // 别名显示开关变化时，重建 JSON KEY 展示缓存
+      showFieldAlias() {
         this.jsonShowDataCache = null;
       },
       // 监听视图切换，清空 JSON 缓存（如果需要）

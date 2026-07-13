@@ -127,14 +127,14 @@ export default class FieldItem extends tsc<object> {
       .map(item => item.indexName);
   }
 
+  /** 聚合 / 请求始终使用业务主键 field_name，禁止把 UI 别名写入请求参数 */
   get agg_field() {
-    const fieldName = this.fieldItem.field_name;
-    return this.retrieveParams.showFieldAlias ? (this.fieldAliasMap[fieldName] ?? fieldName) : fieldName;
+    return this.fieldItem.field_name;
   }
 
   get computedFieldName() {
     let name = this.$store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]
-      ? this.fieldItem.query_alias || this.fieldItem.alias_name || this.fieldItem.field_name
+      ? this.fieldItem.query_alias || this.fieldItem.field_name
       : this.fieldItem.field_name;
 
     if (this.isFieldObject) {

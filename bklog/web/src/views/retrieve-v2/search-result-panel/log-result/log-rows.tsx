@@ -30,6 +30,7 @@ import { getInputQueryDefaultItem } from '@/views/retrieve-v2/search-bar/utils/c
 // import { perfStart, perfEnd } from '@/utils/performance-monitor';
 import JsonFormatter from '@/global/json-formatter.vue';
 import type { RetrieveRowRenderMeta } from '@/storage/utils/retrieve-render-meta';
+import { getFieldNameByField } from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
@@ -432,6 +433,7 @@ export default defineComponent({
     const visibleFields = computed(() => store.getters.visibleFields);
     const indexSetOperatorConfig = computed(() => store.state.indexSetOperatorConfig);
     const tableShowRowIndex = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX]);
+    const showFieldAlias = computed(() => store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]);
     const unionIndexItemList = computed(() => store.getters.unionIndexItemList);
     const timeField = computed(() => indexFieldInfo.value.time_field);
     const timeFieldType = computed(() => indexFieldInfo.value.time_field_type);
@@ -656,7 +658,7 @@ export default defineComponent({
       return {
         field: field.field_name,
         key: field.field_name,
-        title: field.field_name,
+        title: getFieldNameByField(field, store),
         width: field.width,
         minWidth: field.minWidth,
         field_type: field.field_type,
@@ -771,6 +773,8 @@ export default defineComponent({
     // 性能优化：使用 computed 缓存列配置，避免每次渲染都重新计算
     const getFieldColumns = computed(() => {
       columnLayoutVersion.value;
+      // 别名开关变化时重建 title / header 文案，不改 column key
+      showFieldAlias.value;
 
       if (showCtxType.value === 'table') {
         const columnList: Record<string, any>[] = [];
