@@ -28,10 +28,10 @@ export const HOST_PAGE_HEADER_NAV_BAR_LIST = [
     label: '主机监控',
     value: 'host',
   },
-  {
-    label: '进程监控',
-    value: 'process',
-  },
+  // {
+  //   label: '进程监控',
+  //   value: 'process',
+  // },
 ] as const;
 
 export type HostPageScene = (typeof HOST_PAGE_HEADER_NAV_BAR_LIST)[number]['value'];

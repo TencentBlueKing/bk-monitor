@@ -8,18 +8,19 @@
   flex-direction: column;
   width: 100%;
   height: 100%;
-  background: #ffffff;
+  font-family: MicrosoftYaHei, sans-serif;
+  background: #fff;
 
   &__header {
     flex: 0 0 auto;
     padding: 12px 16px 8px;
+    background: #f5f7fa;
   }
 
   &__title {
     margin-bottom: 8px;
     font-size: 14px;
-    font-weight: 500;
-    line-height: 22px;
+    font-weight: 700;
     color: #313238;
   }
 
@@ -34,8 +35,9 @@
   }
 
   &__tools-label {
+    font-family: MicrosoftYaHei, sans-serif;
     font-size: 12px;
-    color: #63656e;
+    color: #4d4f56;
   }
 
   &__tools-icons {
@@ -46,7 +48,7 @@
   &__tools-icon {
     margin-left: 12px;
     font-size: 16px;
-    color: #979ba5;
+    color: #4d4f56;
     cursor: pointer;
 
     &:hover {
@@ -57,6 +59,7 @@
   &__body {
     flex: 1;
     height: 100%;
+    padding: 8px 16px 0;
     overflow: hidden;
   }
 
@@ -80,6 +83,7 @@
         background-color: #e1ecff;
 
         .topo-node__label,
+        .topo-node__count,
         .topo-node__ip {
           color: #3a84ff;
         }
@@ -98,41 +102,41 @@
 
     &__label {
       overflow: hidden;
-      color: #313238;
       text-overflow: ellipsis;
+      color: #313238;
       white-space: nowrap;
     }
 
     &__count {
       flex-shrink: 0;
-      margin-left: auto;
       padding-left: 8px;
-      color: #3a84ff;
+      margin-left: auto;
+      font-weight: 700;
+      color: #a3b1cc;
     }
 
     &__ip {
       flex-shrink: 0;
-      color: #3a84ff;
     }
 
     &__alias {
-      overflow: hidden;
       margin-left: 6px;
-      color: #979ba5;
+      overflow: hidden;
       text-overflow: ellipsis;
+      color: #a3b1cc;
       white-space: nowrap;
     }
 
     &__compare {
       display: none;
       flex-shrink: 0;
-      margin-left: auto;
       padding: 0 8px;
+      margin-left: auto;
       font-size: 12px;
       line-height: 22px;
       color: #3a84ff;
       cursor: pointer;
-      background: #ffffff;
+      background: #fff;
       border: 1px solid #c4c6cc;
       border-radius: 2px;
 

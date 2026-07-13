@@ -48,11 +48,10 @@ export const getHostInfoList = async () => {
  * @description: 获取带指标数据的主机列表 , 这个 API 要慢一些，但是包含所有的 host 指标数据，用于主机列表补充渲染
  * @returns {Promise<IHostMetricInfo[]>} 带指标数据的主机列表
  */
-export const getHostMetricInfoList = async () => {
-  const { hosts }: { hosts: IHostMetricInfo[] } = await searchHostMetric().catch(() => {
-    return { hosts: [] };
+export const getHostMetricInfoList = async (params: { bk_host_ids: number[] }) => {
+  return await searchHostMetric(params).catch(() => {
+    return {};
   });
-  return hosts;
 };
 
 /**
@@ -71,7 +70,7 @@ export const getMockHostInfoList = async (): Promise<IHostBaseInfo[]> => {
  * @returns {Promise<IHostMetricInfo[]>} 带指标数据的主机列表
  */
 export const getMockHostMetricInfoList = async (): Promise<IHostMetricInfo[]> => {
-  await delay(800);
+  await delay(2000);
   return getMockHostMetricList();
 };
 

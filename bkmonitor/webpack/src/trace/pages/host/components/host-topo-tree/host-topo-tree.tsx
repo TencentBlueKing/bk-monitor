@@ -86,7 +86,7 @@ export default defineComponent({
 
     /** 渲染主机节点：IP + 别名 +（条件）对比按钮 */
     const renderHostNode = (node: IHostTopoHostNode) => {
-      const showCompare = ctx.selectedIsHost.value && ctx.selectedNode.value?.id !== node.id;
+      // const showCompare = ctx.selectedIsHost.value && ctx.selectedNode.value?.id !== node.id;
       return (
         <div
           class='topo-node topo-node--host'
@@ -98,20 +98,19 @@ export default defineComponent({
         >
           <span class='topo-node__ip'>{node.ip}</span>
           {node.alias_name && <span class='topo-node__alias'>{node.alias_name}</span>}
-          {showCompare && (
+          {/* {showCompare && (
             <span
               class='topo-node__compare'
               onClick={(event: MouseEvent) => handleCompare(event, node)}
             >
               {t('对比')}
             </span>
-          )}
+          )} */}
         </div>
       );
     };
 
-    const renderTreeNode = (node: ITreeSlotNode) =>
-      isHostNode(node) ? renderHostNode(node) : renderInstNode(node);
+    const renderTreeNode = (node: ITreeSlotNode) => (isHostNode(node) ? renderHostNode(node) : renderInstNode(node));
 
     return () => (
       <div class='host-topo-tree'>
@@ -147,12 +146,14 @@ export default defineComponent({
           loading={ctx.loading.value}
         >
           <Tree
-            ref={ctx.treeRef}
+            ref={instance => {
+              ctx.treeRef.value = (instance ?? null) as typeof ctx.treeRef.value;
+            }}
             children='children'
             data={ctx.displayTreeData.value}
             empty-text={t('暂无数据')}
             label='name'
-            level-line='1px solid #eaebf0'
+            level-line='1px solid #EBEEF5'
             node-content-action={nodeContentAction}
             nodeKey='id'
             prefix-icon={getPrefixIcon}

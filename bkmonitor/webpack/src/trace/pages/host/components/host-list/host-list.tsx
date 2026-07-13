@@ -51,7 +51,7 @@ export default defineComponent({
   setup(props) {
     const ctx = useHostList({ selectedNode: toRef(props, 'selectedNode') });
 
-    const hasSelection = computed(() => ctx.selectedRows.value.length > 0);
+    const hasSelection = computed(() => ctx.selectedRowKeys.value.length > 0);
 
     onMounted(() => {
       ctx.loadData();
