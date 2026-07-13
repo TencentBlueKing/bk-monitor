@@ -170,7 +170,9 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
       case 'is':
       case 'is not':
       case 'not':
-      case 'new-search-page-is': {
+      case 'new-search-page-is':
+      case 'contains match phrase':
+      case 'not contains match phrase': {
         isParamsChange = true;
         const operator = operation === 'not' ? 'is not' : operation;
         handleSearchCondition(fieldName || field, operator, actualValue, isLink, depth, isNestedField);

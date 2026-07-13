@@ -35,6 +35,7 @@ type RootFieldOperator = {
   field: any;
   precomputedSegments?: Record<string, any[]>;
   enableLeafTruncate?: boolean;
+  parsedFromJsonString?: boolean;
 };
 
 type RootField = {
@@ -46,6 +47,7 @@ type RootField = {
     field: any;
     precomputedSegments?: Record<string, any[]>;
     enableLeafTruncate?: boolean;
+    parsedFromJsonString?: boolean;
   };
 };
 
@@ -63,6 +65,7 @@ export default ({ fields, onSegmentClick, onSegmentRenderUpdate }) => {
     precomputedSegments: value.precomputedSegments,
     options: {
       enableLeafTruncate: !!value.enableLeafTruncate,
+      parsedFromJsonString: !!value.parsedFromJsonString,
     },
   });
 
@@ -131,6 +134,7 @@ export default ({ fields, onSegmentClick, onSegmentRenderUpdate }) => {
           field: formatter.field,
           precomputedSegments: formatter.precomputedSegments,
           enableLeafTruncate: formatter.enableLeafTruncate,
+          parsedFromJsonString: formatter.parsedFromJsonString,
         });
 
         rootFieldOperator.get(name).editor?.update(buildFormatterConfig(rootFieldOperator.get(name)));
@@ -142,6 +146,7 @@ export default ({ fields, onSegmentClick, onSegmentRenderUpdate }) => {
           field: formatter.field,
           precomputedSegments: formatter.precomputedSegments,
           enableLeafTruncate: formatter.enableLeafTruncate,
+          parsedFromJsonString: formatter.parsedFromJsonString,
         });
       }
     }

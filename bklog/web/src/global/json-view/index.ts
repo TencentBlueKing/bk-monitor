@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/member-ordering */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -43,11 +42,18 @@ export type JsonViewConfig = {
    * 默认与 depth 一致（JSON 解析深度配置）
    */
   maxParseDepth?: number;
+  /** 根值是否由 JSON String 解析得到；此时叶子筛选必须作用于外层字段 */
+  parsedFromJsonString?: boolean;
 };
 export default class JsonView {
   options: JsonViewConfig;
   targetEl: HTMLElement;
-  jsonNodeMap: WeakMap<HTMLElement, { target?: any; isExpand?: boolean; parentPath?: string }>;
+  jsonNodeMap: WeakMap<HTMLElement, {
+    target?: any;
+    isExpand?: boolean;
+    parentPath?: string;
+    jsonStringFieldPath?: string;
+  }>;
   JSONBigInstance: JSONBig;
   renderTaskId: number;
   timeoutHandles: Set<number>;
@@ -124,25 +130,39 @@ export default class JsonView {
     return typeof field === 'string' ? field : (field.field_name ?? '');
   }
 
-  /** 拼接 Object 多层级真实检索字段路径 */
-  private buildSearchFieldPath(parentPath: string, key: number | string) {
+  /**
+   * 计算叶子节点对应的真实检索字段：
+   * - JSON String 仅是前端展示解析，ES 中仍只有外层字段，不能构造 KEY.SubKey；
+   * - 原始 Object 才使用完整的 KEY.SubKey 路径。
+   */
+  private buildSearchFieldPath(parentPath: string, key: number | string, jsonStringFieldPath = '') {
     // 检索高亮标签只属于展示协议，不能进入字段路径和后续筛选条件。
     const { plainText: keyText } = parseResultMarkedText(key);
+    if (jsonStringFieldPath) return jsonStringFieldPath;
     if (!parentPath) return keyText;
     return parentPath.concat('.', keyText);
   }
 
-  private createObjectRow(key: number | string, value: any, depth: number, parentPath: string) {
+  private createObjectRow(
+    key: number | string,
+    value: any,
+    depth: number,
+    parentPath: string,
+    jsonStringFieldPath = '',
+  ) {
     const row = document.createElement('div');
-    const searchFieldPath = this.buildSearchFieldPath(parentPath, key);
+    const searchFieldPath = this.buildSearchFieldPath(parentPath, key, jsonStringFieldPath);
     row.classList.add('bklog-json-view-row');
     // 使用去标记后的字段名，避免后续点击和筛选携带 HTML 协议标签。
     row.setAttribute('data-field-name', parseResultMarkedText(key).plainText);
     // data-search-field-name 绑定真实检索字段（含根字段前缀）
     row.setAttribute('data-search-field-name', searchFieldPath);
+    if (jsonStringFieldPath) {
+      row.setAttribute('data-json-string-parsed', 'true');
+    }
     row.append(this.createJsonField(key));
     row.append(this.createJsonSymbol());
-    row.append(this.createJsonNodeElment(value, depth, searchFieldPath));
+    row.append(this.createJsonNodeElment(value, depth, searchFieldPath, jsonStringFieldPath));
 
     return row;
   }
@@ -153,6 +173,7 @@ export default class JsonView {
     depth: number,
     taskId: number,
     parentPath: string,
+    jsonStringFieldPath = '',
   ) {
     let startIndex = 0;
 
@@ -163,7 +184,7 @@ export default class JsonView {
       const endIndex = Math.min(startIndex + size, entries.length);
       for (let index = startIndex; index < endIndex; index += 1) {
         const [key, value] = entries[index];
-        fragment.append(this.createObjectRow(key, value, depth, parentPath));
+        fragment.append(this.createObjectRow(key, value, depth, parentPath, jsonStringFieldPath));
       }
 
       startIndex = endIndex;
@@ -177,7 +198,7 @@ export default class JsonView {
     appendChunk(this.getBatchSize(true));
   }
 
-  private createObjectChildNode(target, depth, parentPath: string) {
+  private createObjectChildNode(target, depth, parentPath: string, jsonStringFieldPath = '') {
     const node = document.createElement('div');
     node.classList.add('bklog-json-view-child');
     node.classList.add('bklog-json-view-object');
@@ -186,12 +207,12 @@ export default class JsonView {
       ? target.map((item, index) => [index, item])
       : Object.keys(target ?? {}).map(key => [key, target[key]]);
 
-    this.appendObjectRowsInChunks(node, entries, depth, this.renderTaskId, parentPath);
+    this.appendObjectRowsInChunks(node, entries, depth, this.renderTaskId, parentPath, jsonStringFieldPath);
 
     return node;
   }
 
-  private createObjectNode(target, depth, parentPath: string) {
+  private createObjectNode(target, depth, parentPath: string, jsonStringFieldPath = '') {
     const node = document.createElement('div');
     node.classList.add('bklog-json-view-object');
     const isExpand = depth <= this.activeDepth;
@@ -200,6 +221,7 @@ export default class JsonView {
       isExpand,
       target,
       parentPath,
+      jsonStringFieldPath,
     });
 
     if (typeof target === 'object' && target !== null) {
@@ -217,7 +239,7 @@ export default class JsonView {
       const child: HTMLElement[] = [];
 
       if (isExpand) {
-        child.push(this.createObjectChildNode(target, depth + 1, parentPath));
+        child.push(this.createObjectChildNode(target, depth + 1, parentPath, jsonStringFieldPath));
       }
 
       const copyItem = document.createElement('span');
@@ -228,7 +250,7 @@ export default class JsonView {
       return [node];
     }
 
-    node.append(this.createObjectChildNode(target, depth, parentPath));
+    node.append(this.createObjectChildNode(target, depth, parentPath, jsonStringFieldPath));
     return [node];
   }
 
@@ -237,13 +259,14 @@ export default class JsonView {
     node.setAttribute('data-search-field-name', fieldPath);
   }
 
-  private createJsonNodeElment(target: any, depth = 1, parentPath = '') {
+  private createJsonNodeElment(target: any, depth = 1, parentPath = '', inheritedJsonStringFieldPath = '') {
     const node = document.createElement('div');
     node.classList.add('bklog-json-view-node');
     node.classList.add(`bklog-data-depth-${depth}`);
     node.setAttribute('data-depth', `${depth}`);
     this.bindSearchFieldPath(node, parentPath);
     let formatTarget = target;
+    let jsonStringFieldPath = inheritedJsonStringFieldPath;
     const maxParseDepth = Number(this.options.maxParseDepth ?? this.options.depth ?? 1);
 
     // 仅在配置的 JSON 解析深度内继续 parse 嵌套 JSON 字符串；
@@ -251,6 +274,7 @@ export default class JsonView {
     if (typeof target === 'string' && depth <= maxParseDepth && /^(\{|\[)/.test(target)) {
       try {
         formatTarget = this.JSONBigInstance.parse(target);
+        jsonStringFieldPath = parentPath || this.getRootFieldPath();
       } catch (e) {
         console.error(e);
       }
@@ -281,7 +305,7 @@ export default class JsonView {
         return node;
       }
 
-      node.append(...this.createObjectNode(formatTarget, depth, parentPath));
+      node.append(...this.createObjectNode(formatTarget, depth, parentPath, jsonStringFieldPath));
     } else {
       node.classList.add('bklog-json-field-value');
       // string / number / boolean / bigint 叶子统一走 segmentRender，
@@ -314,7 +338,9 @@ export default class JsonView {
     this.renderTaskId += 1;
     this.clearScheduledRender();
     this.targetEl.innerHTML = '';
-    this.targetEl.append(this.createJsonNodeElment(value, 1, this.getRootFieldPath()));
+    const rootPath = this.getRootFieldPath();
+    const jsonStringFieldPath = this.options.parsedFromJsonString ? rootPath : '';
+    this.targetEl.append(this.createJsonNodeElment(value, 1, rootPath, jsonStringFieldPath));
   }
 
   private setNodeExpand = (jsonNode: HTMLElement, isExpand: boolean, target: any) => {
@@ -322,10 +348,11 @@ export default class JsonView {
     if (isExpand && !childNode) {
       const leafNode = jsonNode.closest('.bklog-json-view-node');
       const depth = Number(leafNode.getAttribute('data-depth') ?? 1);
-      const parentPath = this.jsonNodeMap.get(jsonNode)?.parentPath
+      const nodeMeta = this.jsonNodeMap.get(jsonNode);
+      const parentPath = nodeMeta?.parentPath
         ?? leafNode?.getAttribute('data-search-field-name')
         ?? this.getRootFieldPath();
-      childNode = this.createObjectChildNode(target, depth + 1, parentPath);
+      childNode = this.createObjectChildNode(target, depth + 1, parentPath, nodeMeta?.jsonStringFieldPath);
       jsonNode.append(childNode);
     }
 

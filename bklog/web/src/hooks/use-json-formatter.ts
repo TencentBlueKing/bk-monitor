@@ -163,21 +163,26 @@ export default class UseJsonFormatter {
       depth = target.closest('[data-depth]')?.getAttribute('data-depth');
     }
 
-    return { value, name, depth, searchFieldName };
+    const parsedFromJsonString = target.closest('[data-json-string-parsed="true"]') !== null;
+    return { value, name, depth, searchFieldName, parsedFromJsonString };
   }
 
   onSegmentEnumClick(val, isLink) {
-    const { name, value, depth, searchFieldName } = this.getFieldNameValue();
+    const { name, value, depth, searchFieldName, parsedFromJsonString: parsedFromNode } = this.getFieldNameValue();
     const resolvedFieldName = this.resolveFormatterSearchFieldName(name, searchFieldName);
     const activeField = this.getField(resolvedFieldName) ?? this.config.field;
     const target = ['date', 'date_nanos'].includes(activeField?.field_type)
       ? this.config.jsonValue?.[activeField?.field_name]
       : value;
 
+    const parsedFromJsonString = !!this.config.options?.parsedFromJsonString || parsedFromNode;
+    const operation = parsedFromJsonString
+      ? (val === 'not' ? 'not contains match phrase' : 'contains match phrase')
+      : (val === 'not' ? 'is not' : val);
     const option = {
       fieldName: resolvedFieldName || activeField?.field_name,
       fieldType: activeField?.field_type,
-      operation: val === 'not' ? 'is not' : val,
+      operation,
       value: target ?? value,
       depth,
     };
@@ -488,6 +493,7 @@ export default class UseJsonFormatter {
       depth,
       maxParseDepth: depth,
       field: this.config.field,
+      parsedFromJsonString: !!this.config.options?.parsedFromJsonString,
       segmentRender: (value: string, rootNode: HTMLElement) => {
         this.renderLeafSegment(value, rootNode);
       },

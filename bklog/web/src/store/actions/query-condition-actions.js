@@ -95,6 +95,8 @@ export function setQueryConditionAction({ state, dispatch }, payload) {
     const mappingKey = {
       is: val => `${field}: "${formatValue(val)}"`,
       'is not': val => `NOT ${field}: "${formatValue(val)}"`,
+      'contains match phrase': val => `${field}: "${formatValue(val)}"`,
+      'not contains match phrase': val => `NOT ${field}: "${formatValue(val)}"`,
       '=': val => `${field}: "${formatValue(val)}"`,
       '!=': val => `NOT ${field}: "${formatValue(val)}"`,
     };

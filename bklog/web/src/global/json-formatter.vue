@@ -611,6 +611,7 @@
   const getFieldFormatter = (field, formatDate) => {
     const [objValue, val] = getFieldValue(field);
     const isJsonValue = objValue !== null && typeof objValue === 'object' && objValue !== undefined;
+    const parsedFromJsonString = typeof val === 'string' && isJsonValue;
     const strVal = getDateFieldValue(field, getCellRender(val, isJsonValue), formatDate);
     return {
       ref: ref(),
@@ -618,6 +619,7 @@
       value: formatEmptyObject(getDateFieldValue(field, objValue, formatDate)),
       stringValue: strVal?.replace?.(/<\/?mark>/igm, '') ?? strVal,
       field,
+      parsedFromJsonString,
     };
   };
 
@@ -667,6 +669,7 @@
             : getOriginalValueSegments(f.field_name),
           // JSON 解析开启时：叶子长字符串 / 超深度残留字符串启用 1000/更多（Origin & Table 均生效）
           enableLeafTruncate: formatJson.value,
+          parsedFromJsonString: formatter.parsedFromJsonString,
         },
         originalValueMeta: {
           isTruncated: shouldUseOriginalValueText,
