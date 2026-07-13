@@ -38,24 +38,58 @@ class FulltextSearchField:
     kind: FulltextFieldKind
 
 
-def normalize_fulltext_term(query: str) -> str:
-    """去掉首尾空白与包裹引号，得到实际检索词。"""
+def strip_wrapping_quotes(query: str) -> str:
+    """去掉首尾空白与包裹引号。"""
     term = (query or "").strip()
     if len(term) >= 2 and ((term[0] == term[-1] == '"') or (term[0] == term[-1] == "'")):
         term = term[1:-1].strip()
     return term
 
 
+def unescape_lucene_literals(term: str) -> str:
+    """还原 \\: \\* \\? \\\\ 为字面字符，避免白名单 wildcard 残留多余反斜杠。"""
+    if not term or "\\" not in term:
+        return term
+    out: list[str] = []
+    i = 0
+    length = len(term)
+    while i < length:
+        if term[i] == "\\" and i + 1 < length and term[i + 1] in "\\:*?":
+            out.append(term[i + 1])
+            i += 2
+            continue
+        out.append(term[i])
+        i += 1
+    return "".join(out)
+
+
+def normalize_fulltext_term(query: str) -> str:
+    """去掉包裹引号并还原 Lucene 字面转义，得到实际检索词。"""
+    return unescape_lucene_literals(strip_wrapping_quotes(query))
+
+
+def is_quoted_phrase(query: str) -> bool:
+    """整段被引号包裹时，视为短语而非 Lucene 语法。"""
+    raw = (query or "").strip()
+    return len(raw) >= 2 and ((raw[0] == raw[-1] == '"') or (raw[0] == raw[-1] == "'"))
+
+
 def is_bare_fulltext_query(query: str) -> bool:
     """
     判断是否为可叠加全字段模糊的「裸词」查询。
 
-    含字段语法（field:value）、布尔运算符或分组括号时视为结构化查询，不做全字段 fuzzy 叠加。
+    - 整段引号包裹：一律视为短语裸词（走白名单），避免 "CPU AND memory" / "labels:Prod"
+      被去引号后误判为结构化语法，掉进无 fields 限制的 query_string。
+    - 未加引号且含字段语法（field:value）、布尔运算符或分组括号：视为结构化查询。
+      结构化判定在 unescape 之前，保留 \\: 不被当成 field 分隔。
     """
     raw = (query or "").strip()
     if not raw:
         return False
-    term = normalize_fulltext_term(raw)
+    if is_quoted_phrase(raw):
+        return bool(normalize_fulltext_term(raw))
+
+    term = strip_wrapping_quotes(raw)
     if not term:
         return False
     if _FIELD_SEP_RE.search(term):

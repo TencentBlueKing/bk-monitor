@@ -226,7 +226,7 @@ class IncidentQueryHandler(BaseBizQueryHandler):
             )
             if bare_q is not None:
                 return bare_q
-            return None
+            return Q("match_none")
 
         transform_input = query_string.replace(":", r"\:") if escape_colon else query_string
         query_dsl = self.query_transformer.transform_query_string(transform_input, context)

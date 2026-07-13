@@ -35,6 +35,20 @@ class TestFulltextHelpers:
         assert is_bare_fulltext_query("labels:Prod") is False
         assert is_bare_fulltext_query("CPU AND memory") is False
         assert is_bare_fulltext_query("(CPU)") is False
+        # 整段引号：即使内容含 AND / field:value，仍走白名单短语
+        assert is_bare_fulltext_query('"CPU AND memory"') is True
+        assert is_bare_fulltext_query('"labels:Prod"') is True
+
+    def test_normalize_unescapes_lucene_literals(self):
+        assert normalize_fulltext_term(r"foo\:bar") == "foo:bar"
+        assert normalize_fulltext_term('"a\\*b"') == "a*b"
+
+    def test_escaped_colon_bare_wildcard_has_no_extra_backslash(self):
+        fields = [FulltextSearchField("labels", FulltextFieldKind.KEYWORD)]
+        # foo\:bar 因 (?<!\\): 不算字段语法 → 裸词；检索值应还原为 foo:bar
+        assert is_bare_fulltext_query(r"foo\:bar") is True
+        q = build_fulltext_fuzzy_query(r"foo\:bar", fields)
+        assert q.to_dict()["wildcard"]["labels"]["value"] == "*foo:bar*"
 
     def test_should_apply_fulltext_term(self):
         assert should_apply_fulltext_term("a") is False
@@ -122,6 +136,19 @@ class TestIncidentAlertFulltextWhitelist:
         assert "incident_name" in dumped
         assert "case_insensitive" in dumped
         assert "snapshot" not in dumped
+
+    def test_short_char_returns_match_none(self):
+        handler = IncidentQueryHandler.__new__(IncidentQueryHandler)
+        q = handler.build_query_string_q("a")
+        assert q.to_dict() == {"match_none": {}}
+
+    def test_quoted_boolean_phrase_stays_on_whitelist(self):
+        handler = IncidentQueryHandler.__new__(IncidentQueryHandler)
+        q = handler.build_query_string_q('"CPU AND memory"')
+        body = q.to_dict()
+        assert "query_string" not in body
+        assert "wildcard" in str(body) or "match" in str(body)
+        assert "*CPU AND memory*" in str(body) or "CPU AND memory" in str(body)
 
     def test_incident_structured_query_skips_fuzzy(self):
         handler = IncidentQueryHandler.__new__(IncidentQueryHandler)

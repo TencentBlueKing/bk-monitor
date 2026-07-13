@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from __future__ import annotations
+
 import operator
 import time
 from abc import ABC
@@ -383,8 +385,8 @@ class BaseQueryHandler:
             )
             if bare_q is not None:
                 return bare_q
-            # 词过短且非枚举显示名：不加检索条件，避免无界 query_string / 单字符 wildcard
-            return None
+            # 词过短且非枚举显示名：显式无命中，避免静默丢掉条件后返回业务范围内全量数据
+            return Q("match_none")
 
         transform_input = query_string.replace(":", r"\:") if escape_colon else query_string
         query_dsl = self.query_transformer.transform_query_string(transform_input, context)
