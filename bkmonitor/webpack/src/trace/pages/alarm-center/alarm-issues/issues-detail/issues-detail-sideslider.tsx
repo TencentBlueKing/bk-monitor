@@ -182,7 +182,7 @@ export default defineComponent({
     };
 
     const handleCreateTapd = () => {
-      emit('createTapd', true);
+      emit('createTapd', true, detail.value);
     };
 
     const handleConditionChange = (val: IWhereItem[]) => {
