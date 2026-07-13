@@ -21,6 +21,7 @@ from fta_web.alert.handlers.fulltext import (
     build_bare_fulltext_query,
     build_enum_display_term_query,
     build_fulltext_fuzzy_query,
+    build_keyword_id_query,
     build_keyword_contains_query,
     build_keyword_fuzzy_query,
     escape_wildcard,
@@ -48,6 +49,14 @@ class TestFulltextHelpers:
         # 整段引号：即使内容含 AND / field:value，仍走白名单短语
         assert is_bare_fulltext_query('"CPU AND memory"') is True
         assert is_bare_fulltext_query('"labels:Prod"') is True
+        assert is_bare_fulltext_query(r"a\*b") is True
+
+    @pytest.mark.parametrize(
+        "query",
+        ["Prod~", "Prod^2", "+Prod", "-Prod", "/Prod.*/", "Pro*", "Pr?d", "Prod Blue"],
+    )
+    def test_lucene_syntax_is_not_bare_fulltext(self, query):
+        assert is_bare_fulltext_query(query) is False
 
     def test_normalize_unescapes_lucene_literals(self):
         assert normalize_fulltext_term(r"foo\:bar") == "foo:bar"
@@ -90,7 +99,7 @@ class TestFulltextHelpers:
         assert any("wildcard" in clause for clause in should)
         assert any("match" in clause or "bool" in clause for clause in should)
 
-    def test_digit_uses_term_prefix_on_id_fields_only(self):
+    def test_short_digit_uses_exact_term_on_id_fields_only(self):
         fields = [
             FulltextSearchField("id", FulltextFieldKind.KEYWORD),
             FulltextSearchField("bk_biz_id", FulltextFieldKind.KEYWORD),
@@ -102,13 +111,29 @@ class TestFulltextHelpers:
         dumped = str(q.to_dict())
         assert "*1*" not in dumped
         assert "wildcard" not in dumped
-        assert "prefix" in dumped
+        assert "prefix" not in dumped
         assert "term" in dumped
         assert "labels" not in dumped
         assert "assignees" not in dumped
         assert "incident_name" not in dumped
         assert "id" in dumped
         assert "bk_biz_id" in dumped
+
+    def test_document_id_prefix_requires_timestamp_length(self):
+        document_id = "1727347730"
+        document_query = build_keyword_id_query("id", document_id).to_dict()
+        assert document_query == {
+            "bool": {
+                "should": [
+                    {"term": {"id": document_id}},
+                    {"prefix": {"id": document_id}},
+                ]
+            }
+        }
+        assert build_keyword_id_query("incident_id", document_id).to_dict() == {"term": {"incident_id": document_id}}
+        assert build_keyword_id_query("event.bk_biz_id", document_id).to_dict() == {
+            "term": {"event.bk_biz_id": document_id}
+        }
 
     def test_ascii_short_uses_prefix_not_leading_wildcard(self):
         assert SHORT_KEYWORD_CONTAINS_MIN_LENGTH == 3
@@ -342,6 +367,16 @@ class TestIncidentAlertFulltextWhitelist:
         q = handler.build_query_string_q("labels:Prod")
         body = q.to_dict()
         # QueryString 语句模式仍走结构化 query_string
+        assert "query_string" in body
+        assert body["query_string"]["query"]
+
+    @pytest.mark.parametrize("handler_class", [AlertQueryHandler, IncidentQueryHandler])
+    @pytest.mark.parametrize("query", ["Prod~", "Prod^2", "+Prod", "-Prod", "/Prod.*/"])
+    def test_lucene_syntax_keeps_structured_query_string(self, handler_class, query):
+        handler = handler_class.__new__(handler_class)
+        q = handler.build_query_string_q(query)
+
+        body = q.to_dict()
         assert "query_string" in body
         assert body["query_string"]["query"]
 

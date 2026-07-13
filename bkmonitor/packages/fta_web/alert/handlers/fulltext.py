@@ -10,25 +10,26 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from enum import Enum
 
 from elasticsearch_dsl import Q
+from luqum.exceptions import ParseError
+from luqum.parser import lexer, parser
+from luqum.tree import Word
 
 # 非纯数字检索词最短长度，避免单字符 leading-wildcard 误召回与性能问题
 MIN_FULLTEXT_TERM_LENGTH = 2
 # 纯数字（ID / 业务号）允许更短
 MIN_DIGIT_TERM_LENGTH = 1
+# 文档 ID 以 10 位时间戳开头；达到该长度才允许 prefix，避免短数字近全量扫描高基数 ID
+DOCUMENT_ID_PREFIX_MIN_LENGTH = 10
 # 纯 ASCII 短于此长度（非数字）不做 leading-wildcard，仅 prefix；中文等非 ASCII 仍走 contains
 SHORT_KEYWORD_CONTAINS_MIN_LENGTH = 3
 # 单条全字段检索词最大长度（超长直接无命中，防止异常大 payload）
 MAX_FULLTEXT_TERM_LENGTH = 128
 # 单次 Alert/Incident 请求中所有 conditions.query_string.value 的非空值总数上限
 MAX_FULLTEXT_VALUES = 10
-
-_BARE_BOOLEAN_RE = re.compile(r"\b(AND|OR|NOT)\b", re.IGNORECASE)
-_FIELD_SEP_RE = re.compile(r"(?<!\\):")
 
 
 class FulltextFieldKind(str, Enum):
@@ -80,12 +81,26 @@ def is_quoted_phrase(query: str) -> bool:
     return len(raw) >= 2 and ((raw[0] == raw[-1] == '"') or (raw[0] == raw[-1] == "'"))
 
 
+def has_unescaped_wildcard(term: str) -> bool:
+    """是否包含未转义的 Lucene wildcard 操作符。"""
+    escaped = False
+    for char in term:
+        if escaped:
+            escaped = False
+        elif char == "\\":
+            escaped = True
+        elif char in "*?":
+            return True
+    return False
+
+
 def is_bare_fulltext_query(query: str) -> bool:
     """
     判断是否为可叠加全字段模糊的「裸词」查询（QueryString 语句模式）。
 
     - 整段引号包裹：一律视为短语裸词（走白名单）
-    - 未加引号且含字段语法 / 布尔 / 分组：视为结构化查询
+    - 未加引号：仅单个普通 Word 且不含 wildcard 操作符时视为裸词
+    - fuzzy / boost / regex / 一元操作符 / 布尔 / 字段 / 分组等 AST 均保留结构化语义
     """
     raw = (query or "").strip()
     if not raw:
@@ -93,16 +108,11 @@ def is_bare_fulltext_query(query: str) -> bool:
     if is_quoted_phrase(raw):
         return bool(normalize_fulltext_term(raw))
 
-    term = strip_wrapping_quotes(raw)
-    if not term:
+    try:
+        query_node = parser.parse(raw, lexer=lexer.clone())
+    except ParseError:
         return False
-    if _FIELD_SEP_RE.search(term):
-        return False
-    if _BARE_BOOLEAN_RE.search(term):
-        return False
-    if any(ch in term for ch in "()[]{}"):
-        return False
-    return True
+    return isinstance(query_node, Word) and not has_unescaped_wildcard(query_node.value)
 
 
 def should_apply_fulltext_term(term: str) -> bool:
@@ -139,8 +149,12 @@ def build_keyword_prefix_query(es_field: str, term: str) -> Q:
 
 
 def build_keyword_id_query(es_field: str, term: str) -> Q:
-    """数字 ID：精确 term OR 前缀 prefix，禁止 leading wildcard。"""
-    return Q("term", **{es_field: term}) | Q("prefix", **{es_field: term})
+    """数字 ID：实体 ID 精确匹配；文档 ID 达到时间戳长度后才补 prefix。"""
+    term_query = Q("term", **{es_field: term})
+    field_name = (es_field or "").split(".")[-1]
+    if field_name == "id" and len(term) >= DOCUMENT_ID_PREFIX_MIN_LENGTH:
+        return term_query | Q("prefix", **{es_field: term})
+    return term_query
 
 
 def is_ascii_term(term: str) -> bool:
@@ -151,7 +165,7 @@ def is_ascii_term(term: str) -> bool:
 def build_keyword_fuzzy_query(es_field: str, term: str) -> Q:
     """
     Keyword 模糊策略：
-    - 纯数字：term | prefix（仅适合 ID 类字段调用方自行过滤）
+    - 纯数字：实体 ID 精确 term；文档 id 达到时间戳长度后 term | prefix
     - 纯 ASCII 短词（< SHORT_KEYWORD_CONTAINS_MIN_LENGTH）：仅 prefix，降低 leading-wildcard 成本
     - 含非 ASCII（如中文两字「分析」）或足够长的词：*term* contains，保证子串命中
     """
@@ -200,7 +214,7 @@ def build_fulltext_fuzzy_query(query: str, fields: list[FulltextSearchField] | N
     按白名单字段类型构造全字段模糊查询（bool.should）。
 
     - 普通词：TEXT → match + phrase_prefix；KEYWORD（非 ID）→ *term* case_insensitive
-    - 纯数字：仅 ID 类 Keyword → term | prefix（无 leading wildcard，且不扫人员/标签/Text）
+    - 纯数字：仅 ID 类 Keyword → 精确 term；长文档 id 才补 prefix（且不扫人员/标签/Text）
     - 非数字：跳过 ID 类 Keyword（id / *_id），避免对数字标识做无意义的前导通配
     """
     if not fields:
