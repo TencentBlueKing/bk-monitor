@@ -33,6 +33,7 @@
           class="field-value"
           :data-with-intersection="true"
           :data-field-name="item.name"
+          :data-search-field-name="item.name"
           :ref="item.formatter.ref"
           >{{ item.formatter.stringValue }}</span
         >
@@ -141,6 +142,11 @@
   const formatJson = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]);
   const isOriginalMode = computed(() => props.originalMode);
   const limitRowNumber = computed(() => {
+    // KV 等场景传入 'auto'：不限制行高，也不展示「更多」
+    if (props.limitRow === 'auto') {
+      return 'auto';
+    }
+
     if (props.limitRow === null || props.limitRow === undefined || props.limitRow === '') {
       return null;
     }
@@ -158,13 +164,17 @@
   });
 
   const rootElementStyle = computed(() => {
+    if (limitRowNumber.value === 'auto') {
+      return undefined;
+    }
+
     if (isCurrentCellExpandText.value) {
       return {
         maxHeight: '50vh',
       };
     }
 
-    if (limitRowNumber.value !== null) {
+    if (typeof limitRowNumber.value === 'number') {
       return {
         maxHeight: `${20 * limitRowNumber.value}px`,
       };
@@ -261,7 +271,7 @@
       return false;
     }
 
-    if (limitRowNumber.value !== null && !isLimitExpandText.value) {
+    if (typeof limitRowNumber.value === 'number' && !isLimitExpandText.value) {
       return true;
     }
 
@@ -623,6 +633,7 @@
   const rootList = computed(() => {
     return fieldList.value.map((f: any) => {
       const shouldFormatDate = isFormatDateField.value && (!!f.__is_virtual_root__ || isOriginalMode.value);
+      const isDateField = ['date', 'date_nanos'].includes(f.field_type);
       const formatter = getFieldFormatter(f, shouldFormatDate);
       /**
        * Origin 模式根级 1000 截断：
@@ -635,13 +646,12 @@
         && isOriginalValueTruncated(f.field_name)
         && !(formatJson.value && formatter.isJson);
       /**
-       * precomputedSegments 策略（尽量不改变既有分词路径）：
-       * - 截断路径：必须带 mark 分词（修复高亮丢失）；日期字段仍跳过
-       * - 非截断路径：保持原 shouldFormatDate 门禁，避免 Origin+时间格式化 下分词行为被整体替换
+       * precomputedSegments 策略：
+       * 时间格式化只应让 date/date_nanos 跳过预分词（展示值已重算）。
+       * 若对 Object/文本等非时间字段也跳过，会落入 getSplitList 非 analyzed
+       * 单段 isMark 回退，把子字段命中放大成整 Column <mark>。
        */
-      const shouldSkipPrecomputedSegments = shouldUseOriginalValueText
-        ? (shouldFormatDate && ['date', 'date_nanos'].includes(f.field_type))
-        : shouldFormatDate;
+      const shouldSkipPrecomputedSegments = shouldFormatDate && isDateField;
       return {
         name: f.field_name,
         type: f.field_type,

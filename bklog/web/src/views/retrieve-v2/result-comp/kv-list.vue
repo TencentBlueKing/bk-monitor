@@ -101,6 +101,7 @@
             <JsonFormatter
               :fields="getFieldItem(field.field_name)"
               :json-value="getFieldValue(field)"
+              :limit-row="'auto'"
               @menu-click="agrs => handleJsonSegmentClick(agrs, field.field_name)"
             ></JsonFormatter>
           </div>

@@ -47,7 +47,7 @@ export type JsonViewConfig = {
 export default class JsonView {
   options: JsonViewConfig;
   targetEl: HTMLElement;
-  jsonNodeMap: WeakMap<HTMLElement, { target?: any; isExpand?: boolean }>;
+  jsonNodeMap: WeakMap<HTMLElement, { target?: any; isExpand?: boolean; parentPath?: string }>;
   JSONBigInstance: JSONBig;
   renderTaskId: number;
   timeoutHandles: Set<number>;
@@ -112,13 +112,31 @@ export default class JsonView {
     this.timeoutHandles.clear();
   }
 
-  private createObjectRow(key: number | string, value: any, depth: number) {
+  /** 根字段名：用于 Object 多层级检索字段绑定 */
+  private getRootFieldPath() {
+    const field = this.options.field;
+    if (!field) return '';
+    return typeof field === 'string' ? field : (field.field_name ?? '');
+  }
+
+  /** 拼接 Object 多层级真实检索字段路径 */
+  private buildSearchFieldPath(parentPath: string, key: number | string) {
+    const keyText = String(key);
+    if (!parentPath) return keyText;
+    return `${parentPath}.${keyText}`;
+  }
+
+  private createObjectRow(key: number | string, value: any, depth: number, parentPath: string) {
     const row = document.createElement('div');
+    const searchFieldPath = this.buildSearchFieldPath(parentPath, key);
     row.classList.add('bklog-json-view-row');
+    // data-field-name 保留当前层 key，兼容既有展示/调试语义
     row.setAttribute('data-field-name', String(key));
+    // data-search-field-name 绑定真实检索字段（含根字段前缀）
+    row.setAttribute('data-search-field-name', searchFieldPath);
     row.append(this.createJsonField(key));
     row.append(this.createJsonSymbol());
-    row.append(this.createJsonNodeElment(value, depth));
+    row.append(this.createJsonNodeElment(value, depth, searchFieldPath));
 
     return row;
   }
@@ -128,6 +146,7 @@ export default class JsonView {
     entries: Array<[number | string, any]>,
     depth: number,
     taskId: number,
+    parentPath: string,
   ) {
     let startIndex = 0;
 
@@ -138,7 +157,7 @@ export default class JsonView {
       const endIndex = Math.min(startIndex + size, entries.length);
       for (let index = startIndex; index < endIndex; index += 1) {
         const [key, value] = entries[index];
-        fragment.append(this.createObjectRow(key, value, depth));
+        fragment.append(this.createObjectRow(key, value, depth, parentPath));
       }
 
       startIndex = endIndex;
@@ -152,7 +171,7 @@ export default class JsonView {
     appendChunk(this.getBatchSize(true));
   }
 
-  private createObjectChildNode(target, depth) {
+  private createObjectChildNode(target, depth, parentPath: string) {
     const node = document.createElement('div');
     node.classList.add('bklog-json-view-child');
     node.classList.add('bklog-json-view-object');
@@ -161,12 +180,12 @@ export default class JsonView {
       ? target.map((item, index) => [index, item])
       : Object.keys(target ?? {}).map(key => [key, target[key]]);
 
-    this.appendObjectRowsInChunks(node, entries, depth, this.renderTaskId);
+    this.appendObjectRowsInChunks(node, entries, depth, this.renderTaskId, parentPath);
 
     return node;
   }
 
-  private createObjectNode(target, depth) {
+  private createObjectNode(target, depth, parentPath: string) {
     const node = document.createElement('div');
     node.classList.add('bklog-json-view-object');
     const isExpand = depth <= this.activeDepth;
@@ -174,6 +193,7 @@ export default class JsonView {
     this.jsonNodeMap.set(node, {
       isExpand,
       target,
+      parentPath,
     });
 
     if (typeof target === 'object' && target !== null) {
@@ -191,7 +211,7 @@ export default class JsonView {
       const child: HTMLElement[] = [];
 
       if (isExpand) {
-        child.push(this.createObjectChildNode(target, depth + 1));
+        child.push(this.createObjectChildNode(target, depth + 1, parentPath));
       }
 
       const copyItem = document.createElement('span');
@@ -202,15 +222,21 @@ export default class JsonView {
       return [node];
     }
 
-    node.append(this.createObjectChildNode(target, depth));
+    node.append(this.createObjectChildNode(target, depth, parentPath));
     return [node];
   }
 
-  private createJsonNodeElment(target: any, depth = 1) {
+  private bindSearchFieldPath(node: HTMLElement, fieldPath: string) {
+    if (!fieldPath) return;
+    node.setAttribute('data-search-field-name', fieldPath);
+  }
+
+  private createJsonNodeElment(target: any, depth = 1, parentPath = '') {
     const node = document.createElement('div');
     node.classList.add('bklog-json-view-node');
     node.classList.add(`bklog-data-depth-${depth}`);
     node.setAttribute('data-depth', `${depth}`);
+    this.bindSearchFieldPath(node, parentPath);
     let formatTarget = target;
     const maxParseDepth = Number(this.options.maxParseDepth ?? this.options.depth ?? 1);
 
@@ -249,7 +275,7 @@ export default class JsonView {
         return node;
       }
 
-      node.append(...this.createObjectNode(formatTarget, depth));
+      node.append(...this.createObjectNode(formatTarget, depth, parentPath));
     } else {
       node.classList.add('bklog-json-field-value');
       // string / number / boolean / bigint 叶子统一走 segmentRender，
@@ -283,7 +309,7 @@ export default class JsonView {
     this.renderTaskId += 1;
     this.clearScheduledRender();
     this.targetEl.innerHTML = '';
-    this.targetEl.append(this.createJsonNodeElment(value, 1));
+    this.targetEl.append(this.createJsonNodeElment(value, 1, this.getRootFieldPath()));
   }
 
   private setNodeExpand = (jsonNode: HTMLElement, isExpand: boolean, target: any) => {
@@ -291,7 +317,11 @@ export default class JsonView {
     if (isExpand && !childNode) {
       const leafNode = jsonNode.closest('.bklog-json-view-node');
       const depth = Number(leafNode.getAttribute('data-depth') ?? 1);
-      childNode = this.createObjectChildNode(target, depth + 1);
+      const parentPath =
+        this.jsonNodeMap.get(jsonNode)?.parentPath
+        ?? leafNode?.getAttribute('data-search-field-name')
+        ?? this.getRootFieldPath();
+      childNode = this.createObjectChildNode(target, depth + 1, parentPath);
       jsonNode.append(childNode);
     }
 

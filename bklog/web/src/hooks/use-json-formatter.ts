@@ -94,41 +94,88 @@ export default class UseJsonFormatter {
   }
 
   getField(fieldName: string) {
+    if (!fieldName) return undefined;
     return this.config.fields.find(item => item.field_name === fieldName);
+  }
+
+  /**
+   * 仅用于 json-formatter 检索字段解析：
+   * 优先使用 JSON 树构建阶段绑定的 data-search-field-name（完整路径），
+   * 再降级到 DOM field-name / 根字段绑定，避免影响 Expand KV 入口。
+   */
+  resolveFormatterSearchFieldName(domFieldName?: string | null, searchFieldName?: string | null) {
+    const normalizeArrayPath = (path: string) => path.replace(/\.\d+(?=\.|$)/g, '');
+
+    // 1) JSON 树节点已绑定完整检索路径：优先使用，不再回退到父级 object 字段
+    if (typeof searchFieldName === 'string' && searchFieldName.length > 0) {
+      const exact = this.getField(searchFieldName);
+      if (exact?.field_name) {
+        return exact.field_name;
+      }
+
+      const normalized = normalizeArrayPath(searchFieldName);
+      if (normalized && normalized !== searchFieldName) {
+        const matched = this.getField(normalized);
+        if (matched?.field_name) {
+          return matched.field_name;
+        }
+        return normalized;
+      }
+
+      return searchFieldName;
+    }
+
+    // 2) 非 JSON / 未绑定路径：沿用 DOM field-name
+    if (typeof domFieldName === 'string' && domFieldName.length > 0) {
+      const matched = this.getField(domFieldName);
+      if (matched?.field_name) {
+        return matched.field_name;
+      }
+      return domFieldName;
+    }
+
+    // 3) 最后降级到 formatter 根字段绑定
+    return this.config.field?.field_name;
   }
 
   getFieldNameValue() {
     const tippyInstance = segmentPopInstance.getInstance();
-    const target = tippyInstance.reference;
+    const target = tippyInstance.reference as HTMLElement;
     let name = target.getAttribute('data-field-name');
+    let searchFieldName = target.getAttribute('data-search-field-name');
     let value = target.getAttribute('data-field-value');
     let depth = target.getAttribute('data-field-dpth');
 
-    if (value === undefined) {
+    if (value === undefined || value === null) {
       value = target.textContent;
     }
 
-    if (name === undefined) {
+    if (!searchFieldName) {
+      searchFieldName = target.closest('[data-search-field-name]')?.getAttribute('data-search-field-name');
+    }
+
+    if (name === undefined || name === null) {
       const valueElement = tippyInstance.reference.closest('.field-value') as HTMLElement;
       name = valueElement?.getAttribute('data-field-name');
     }
 
-    if (depth === undefined) {
+    if (depth === undefined || depth === null) {
       depth = target.closest('[data-depth]')?.getAttribute('data-depth');
     }
 
-    return { value, name, depth };
+    return { value, name, depth, searchFieldName };
   }
 
   onSegmentEnumClick(val, isLink) {
-    const { name, value, depth } = this.getFieldNameValue();
-    const activeField = this.getField(name);
+    const { name, value, depth, searchFieldName } = this.getFieldNameValue();
+    const resolvedFieldName = this.resolveFormatterSearchFieldName(name, searchFieldName);
+    const activeField = this.getField(resolvedFieldName) ?? this.config.field;
     const target = ['date', 'date_nanos'].includes(activeField?.field_type)
       ? this.config.jsonValue?.[activeField?.field_name]
       : value;
 
     const option = {
-      fieldName: activeField?.field_name,
+      fieldName: resolvedFieldName || activeField?.field_name,
       fieldType: activeField?.field_type,
       operation: val === 'not' ? 'is not' : val,
       value: target ?? value,
@@ -153,8 +200,11 @@ export default class UseJsonFormatter {
       return;
     }
 
-    const valueElement = (e.target as HTMLElement).closest('.field-value') as HTMLElement;
+    const clickTarget = e.target as HTMLElement;
+    const valueElement = clickTarget.closest('.field-value') as HTMLElement;
+    const searchFieldElement = clickTarget.closest('[data-search-field-name]') as HTMLElement;
     const fieldName = valueElement?.getAttribute('data-field-name');
+    const searchFieldName = searchFieldElement?.getAttribute('data-search-field-name');
     const fieldType = valueElement?.getAttribute('data-field-type');
 
     const content = this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this));
@@ -181,11 +231,15 @@ export default class UseJsonFormatter {
     const { offsetX, offsetY } = getClickTargetElement(e);
     const target = setPointerCellClickTargetHandler(e, { offsetX, offsetY });
 
-    const depth = valueElement.closest('[data-depth]')?.getAttribute('data-depth');
+    const depth = valueElement?.closest('[data-depth]')?.getAttribute('data-depth')
+      ?? clickTarget.closest('[data-depth]')?.getAttribute('data-depth');
 
     target.setAttribute('data-field-value', value);
-    target.setAttribute('data-field-name', fieldName);
-    target.setAttribute('data-field-dpth', depth);
+    target.setAttribute('data-field-name', fieldName ?? '');
+    if (searchFieldName) {
+      target.setAttribute('data-search-field-name', searchFieldName);
+    }
+    target.setAttribute('data-field-dpth', depth ?? '');
 
     segmentPopInstance.show(target, this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this)));
   }
@@ -232,11 +286,28 @@ export default class UseJsonFormatter {
       return LuceneSegment.split(value, 1000);
     }
 
+    // 非 analyzed（含 Object stringify）：必须按 <mark> 切开，
+    // 否则任意子字段命中都会把整段 VALUE 标成 isMark，导致 Column 整块高亮。
+    if (new RegExp(markRegStr, 'i').test(value)) {
+      return value
+        .split(/(<mark>.*?<\/mark>)/gi)
+        .filter(Boolean)
+        .map((part) => {
+          const isMark = /<mark>.*?<\/mark>/i.test(part);
+          return {
+            text: part.replace(/<\/?mark>/gi, ''),
+            isMark,
+            isNotParticiple: this.isTextField(field),
+            isCursorText: true,
+          };
+        });
+    }
+
     return [
       {
-        text: value.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
+        text: value,
         isNotParticiple: this.isTextField(field),
-        isMark: new RegExp(markRegStr).test(value),
+        isMark: false,
         isCursorText: true,
       },
     ];
@@ -322,6 +393,10 @@ export default class UseJsonFormatter {
 
         targetElement.setAttribute('data-has-word-split', '1');
         targetElement.setAttribute('data-field-name', fieldName);
+        // 非 JSON 树场景：根字段即检索字段；有 JSON 绑定时空缺时降级到此值
+        if (fieldName) {
+          targetElement.setAttribute('data-search-field-name', fieldName);
+        }
         targetElement.setAttribute('data-field-type', field?.field_type);
 
         if (targetElement.hasAttribute('data-with-intersection')) {
