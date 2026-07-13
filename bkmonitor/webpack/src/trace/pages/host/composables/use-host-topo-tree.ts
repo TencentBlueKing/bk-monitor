@@ -25,8 +25,8 @@
  */
 
 import { computed, shallowRef } from 'vue';
+import { getHostTopoTreeByBizId } from '../services/host-service';
 
-import { getMockHostTopoTree } from '../mock/host-topo';
 import { isHostNode, matchTreeNode, pruneEmptyNodes } from '../utils/topo-tree';
 
 import type { IHostTopoTreeNode } from '../types';
@@ -81,7 +81,8 @@ export const useHostTopoTree = () => {
   const loadTopoTree = async () => {
     loading.value = true;
     try {
-      const data = getMockHostTopoTree();
+      const data = await getHostTopoTreeByBizId();
+      console.log('topo tree data = ', data);
       rawTreeData.value = data;
       // 根节点默认选中
       selectedNode.value = data[0] ?? null;

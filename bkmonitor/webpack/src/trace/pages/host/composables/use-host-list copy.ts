@@ -24,28 +24,36 @@
  * IN THE SOFTWARE.
  */
 
-import { type Ref, shallowRef, watch } from 'vue';
+import { type Ref, computed, shallowRef, watch } from 'vue';
 
 import { Message } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
 
 import { EMode } from '../../../components/retrieval-filter/typing';
-
 import {
   HOST_AGG_METHOD_LIST,
   HOST_FILTER_FIELDS,
   HOST_LIST_COLUMNS,
   HOST_LIST_DEFAULT_PAGE_SIZE,
 } from '../constants/host-list';
-import { getHostInfoList, getHostMetricInfoList } from '../services/host-service';
-import { useHostListWorker } from './use-host-list-worker';
+import { getMockHostInfoList, getMockHostMetricInfoList } from '../services/host-service';
+import {
+  buildFilterOptionsMap,
+  computeCategoryStats,
+  createHostListRow,
+  matchKeyword,
+  matchQuickCategory,
+  matchTopoNode,
+  matchWhere,
+  sortRows,
+} from '../utils/host-list';
 
 import type {
   IGetValueFnParams,
   IWhereItem,
   IWhereValueOptionsItem,
 } from '../../../components/retrieval-filter/typing';
-import type { EHostAggMethod, EHostQuickCategory, IHostListRow, IHostQuickCardStats } from '../types/host-list';
+import type { EHostAggMethod, EHostQuickCategory, IHostListRow } from '../types/host-list';
 import type { IHostTopoTreeNode } from '../types/topo';
 
 interface IUseHostListOptions {
@@ -64,24 +72,20 @@ const getDefaultAggMethodMap = (): Record<string, EHostAggMethod> => {
   return map;
 };
 
-const EMPTY_CATEGORY_STATS: IHostQuickCardStats = { alarm: 0, cpu: 0, disk: 0, mem: 0 };
-
 /**
  * @description 主机列表业务编排（Controller）：数据加载、拓扑联动、快捷过滤、检索过滤、
  * 关键字搜索、排序、分页、行勾选、列设置、指标聚合方式切换、复制 IP。
  * 视图层只消费这里暴露的状态与方法，保证 MVC 分层。
- * 全量数据的行转换、过滤、排序、分页切片在 Web Worker 中执行，避免超大数据阻塞主线程。
  */
 export const useHostList = (options: IUseHostListOptions) => {
   const { selectedNode } = options;
-  const hostListWorker = useHostListWorker();
 
   /** 基础数据加载中（第一屏） */
   const loading = shallowRef(false);
   /** 指标数据加载中（指标列展示骨架） */
   const metricLoading = shallowRef(false);
-  /** 全量主机行数（主线程不持有全量行对象） */
-  const rawRowCount = shallowRef(0);
+  /** 全量主机行数据（含派生字段） */
+  const rawRows = shallowRef<IHostListRow[]>([]);
 
   /** 关键字模糊搜索 */
   const keyword = shallowRef('');
@@ -109,69 +113,65 @@ export const useHostList = (options: IUseHostListOptions) => {
   /** 指标列聚合方式 */
   const aggMethodMap = shallowRef<Record<string, EHostAggMethod>>(getDefaultAggMethodMap());
 
-  /** 快捷过滤卡片统计（Worker 计算结果） */
-  const categoryStats = shallowRef<IHostQuickCardStats>({ ...EMPTY_CATEGORY_STATS });
-  /** 过滤排序后的总条数 */
-  const total = shallowRef(0);
-  /** 当前页数据（Worker 仅回传一页，避免主线程持有全量） */
-  const pagedRows = shallowRef<IHostListRow[]>([]);
+  /** 过滤候选项映射（由全量数据组合生成） */
+  const optionsMap = computed(() => buildFilterOptionsMap(rawRows.value));
+  /** 拓扑节点范围内的主机（卡片统计与后续过滤的基准集） */
+  const nodeScopedRows = computed(() => rawRows.value.filter(row => matchTopoNode(row, selectedNode.value)));
+  /** 快捷过滤卡片统计 */
+  const categoryStats = computed(() => computeCategoryStats(nodeScopedRows.value));
+  /** 过滤后的数据（快捷分类 + 检索条件 + 关键字） */
+  const filteredRows = computed(() =>
+    nodeScopedRows.value.filter(
+      row =>
+        matchQuickCategory(row, activeCategory.value) &&
+        matchWhere(row, where.value) &&
+        matchKeyword(row, keyword.value)
+    )
+  );
+  /** 排序后的数据 */
+  const sortedRows = computed(() => sortRows(filteredRows.value, sortInfo.value));
+  /** 总条数 */
+  const total = computed(() => sortedRows.value.length);
+  /** 当前页数据 */
+  const pagedRows = computed(() => {
+    const start = (page.value - 1) * pageSize.value;
+    return sortedRows.value.slice(start, start + pageSize.value);
+  });
+  /** 选中的主机行 */
+  const selectedRows = computed(() => {
+    const keySet = new Set(selectedRowKeys.value.map(String));
+    return rawRows.value.filter(row => keySet.has(row.rowId));
+  });
 
   /** retrieval-filter 字段列表（静态定义） */
   const filterFields = HOST_FILTER_FIELDS;
 
-  const getComputeParams = () => ({
-    activeCategory: activeCategory.value,
-    keyword: keyword.value,
-    page: page.value,
-    pageSize: pageSize.value,
-    selectedNode: selectedNode.value,
-    sortInfo: sortInfo.value,
-    where: where.value,
-  });
-
-  const refreshList = (immediate = false) => {
-    const params = getComputeParams();
-    if (immediate) {
-      hostListWorker.computeNow(params);
-      return;
-    }
-    hostListWorker.scheduleCompute(params);
-  };
-
-  hostListWorker.setComputeHandler(data => {
-    categoryStats.value = data.categoryStats;
-    total.value = data.total;
-    pagedRows.value = data.pagedRows;
-  });
-
-  /** 检索候选项获取函数（Worker 内基于全量数据构建的候选项映射） */
+  /** 检索候选项获取函数（适配 retrieval-filter v2 接口：fields 数组 + where 结构） */
   const getValueFn = async (params: IGetValueFnParams): Promise<IWhereValueOptionsItem> => {
-    const response = await hostListWorker.getFilterOptions(
-      params.field || '',
-      params.search || '',
-      params.limit || 200
-    );
-    return response.result;
+    // fields[0]: 当前筛选字段的 snake_case 名；where[0].value[0]: 用户输入的搜索关键词
+    const field = params.fields?.[0] || '';
+    const list = optionsMap.value.get(field) || [];
+    const search = String(params.where?.[0]?.value?.[0] || '').toLowerCase();
+    const filtered = search ? list.filter(item => String(item.name).toLowerCase().includes(search)) : list;
+    return {
+      count: filtered.length,
+      list: filtered.slice(0, params.limit || 200),
+    };
   };
 
   /** 加载数据：基础数据先渲染，指标数据后补充 */
   const loadData = async () => {
     loading.value = true;
     metricLoading.value = true;
-    let baseList: Awaited<ReturnType<typeof getHostInfoList>> = [];
     try {
-      baseList = await getHostInfoList();
-      const initResult = await hostListWorker.initBaseData(baseList);
-      rawRowCount.value = initResult.rawRowCount;
-      refreshList(true);
+      const baseList = await getMockHostInfoList();
+      rawRows.value = baseList.map(createHostListRow);
     } finally {
       loading.value = false;
     }
     try {
-      const bk_host_ids = baseList.map(row => row.bk_host_id);
-      const metricListMap = await getHostMetricInfoList({ bk_host_ids });
-      await hostListWorker.mergeMetrics(metricListMap);
-      refreshList(true);
+      const metricList = await getMockHostMetricInfoList();
+      rawRows.value = metricList.map(createHostListRow);
     } finally {
       metricLoading.value = false;
     }
@@ -227,31 +227,19 @@ export const useHostList = (options: IUseHostListOptions) => {
   };
 
   /** 复制选中主机的内网 IP（每行一个，换行分隔） */
-  const handleCopyIp = async () => {
-    if (!selectedRowKeys.value.length) {
+  const handleCopyIp = () => {
+    if (!selectedRows.value.length) {
       return;
     }
-    const response = await hostListWorker.getSelectedIps(selectedRowKeys.value.map(String));
-    const ipText = response.ips.join('\n');
-    if (!ipText) {
-      return;
-    }
+    const ipText = selectedRows.value
+      .map(row => row.bk_host_innerip)
+      .filter(Boolean)
+      .join('\n');
     copyText(ipText, (msg: string) => {
       Message({ message: msg, theme: 'error' });
     });
     Message({ message: window.i18n.t('复制成功'), theme: 'success' });
   };
-
-  watch(
-    [selectedNode, activeCategory, where, keyword, sortInfo, page, pageSize],
-    () => {
-      if (!rawRowCount.value) {
-        return;
-      }
-      refreshList();
-    },
-    { deep: true }
-  );
 
   // 切换拓扑节点：回到第一页并清空跨节点的勾选
   watch(selectedNode, () => {
@@ -263,7 +251,7 @@ export const useHostList = (options: IUseHostListOptions) => {
     // 状态
     loading,
     metricLoading,
-    rawRowCount,
+    rawRows,
     keyword,
     where,
     queryString,
@@ -280,6 +268,7 @@ export const useHostList = (options: IUseHostListOptions) => {
     categoryStats,
     pagedRows,
     total,
+    selectedRows,
     filterFields,
     aggMethodList: HOST_AGG_METHOD_LIST,
     // 方法
