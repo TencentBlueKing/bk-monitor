@@ -228,10 +228,15 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         origin_log_list = []
         result_table_index_set_map = {}
         if add_index_set_id:
-            result_table_index_set_map = self._get_result_table_index_set_map(result_dict.get("result_table_id") or [])
+            try:
+                result_table_index_set_map = self._get_result_table_index_set_map(result_dict.get("result_table_id"))
+            except Exception:
+                logger.exception("[scene_search] failed to map result_table_id to index_set_id")
+
         for log in result_dict.get("list", []):
             log = merge_nested_data(log)
-            log["__index_set_id__"] = result_table_index_set_map.get(log.get("__result_table"))  # 给前端标记来源
+            if add_index_set_id:
+                log["__index_set_id__"] = result_table_index_set_map.get(log.get("__result_table"))
             if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
                 log = self._log_desensitize(log)
             log = self._add_cmdb_fields(log)
