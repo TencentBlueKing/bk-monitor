@@ -1,3 +1,5 @@
+import { handleCreateItemId } from '../utils/host-list';
+
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -23,6 +25,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import type { IHostTopoHostNode } from '../types';
 import type { CompareTargetOption } from '../types/aggregation';
 
 /** 目标对比 - 当前主目标（mock，后续由选中主机节点提供） */
@@ -32,11 +35,66 @@ export const MOCK_CURRENT_TARGET: CompareTargetOption = {
 };
 
 /** 目标对比 - 可选目标列表（mock） */
-export const MOCK_COMPARE_TARGETS: CompareTargetOption[] = [
-  { id: '0-11.34.234.2', name: '11.34.234.2' },
-  { id: '0-234.223.22.1', name: '234.223.22.1' },
-  { id: '0-11.147.2.125', name: '11.147.2.125' },
-  { id: '0-11.147.2.126', name: '11.147.2.126' },
-  { id: '0-192.168.1.10', name: '192.168.1.10' },
-  { id: '0-192.168.1.11', name: '192.168.1.11' },
-];
+export const MOCK_COMPARE_TARGETS: IHostTopoHostNode[] = [
+  {
+    bk_host_id: 8,
+    display_name: '10.0.7.4',
+    ip: '10.0.7.4',
+    bk_host_innerip: '10.0.7.4',
+    bk_host_innerip_v6: '',
+    bk_cloud_id: 0,
+    bk_host_name: 'VM-7-4-centos',
+    os_type: 'linux',
+    bk_biz_id: 2,
+    id: '8',
+    name: '10.0.7.4',
+    alias_name: 'VM-7-4-centos',
+  },
+  {
+    bk_host_id: 58,
+    display_name: '10.0.6.4',
+    ip: '10.0.6.4',
+    bk_host_innerip: '10.0.6.4',
+    bk_host_innerip_v6: '',
+    bk_cloud_id: 0,
+    bk_host_name: 'VM-6-4-centos',
+    os_type: 'linux',
+    bk_biz_id: 2,
+    id: '58',
+    name: '10.0.6.4',
+    alias_name: 'VM-6-4-centos',
+  },
+  {
+    bk_host_id: 59,
+    display_name: '10.0.7.36',
+    ip: '10.0.7.36',
+    bk_host_innerip: '10.0.7.36',
+    bk_host_innerip_v6: '',
+    bk_cloud_id: 0,
+    bk_host_name: 'VM-7-36-centos',
+    os_type: 'linux',
+    bk_biz_id: 2,
+    id: '59',
+    name: '10.0.7.36',
+    alias_name: 'VM-7-36-centos',
+  },
+  {
+    bk_host_id: 73,
+    display_name: '10.0.7.93',
+    ip: '10.0.7.93',
+    bk_host_innerip: '10.0.7.93',
+    bk_host_innerip_v6: '',
+    bk_cloud_id: 0,
+    bk_host_name: 'VM-7-93-centos',
+    os_type: 'linux',
+    bk_biz_id: 2,
+    id: '73',
+    name: '10.0.7.93',
+    alias_name: 'VM-7-93-centos',
+  },
+].map(item => {
+  return {
+    ...item,
+    id: handleCreateItemId(item),
+  };
+});

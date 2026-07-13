@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
 
 import { Checkbox, Input, Select, Tag } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
@@ -37,6 +37,7 @@ import {
   METHOD_OPTIONS,
   TIME_SHIFT_OPTIONS,
 } from '../../constants/aggregation';
+import { handleCreateCompares, handleCreateItemId } from '../../utils/host-list';
 
 import type { CompareTargetOption, MetricAggregationState, MetricCompareType } from '../../types/aggregation';
 
@@ -56,8 +57,8 @@ export default defineComponent({
     },
     /** 目标对比 - 主目标（当前选中主机） */
     currentTarget: {
-      type: Object as PropType<CompareTargetOption | null>,
-      default: null,
+      type: String,
+      default: '',
     },
     /** 目标对比 - 可选目标列表 */
     targetList: {
@@ -71,6 +72,16 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
+
+    const localTargetValue = shallowRef<string[]>([]);
+
+    watch(
+      () => props.value.compareTargets,
+      val => {
+        localTargetValue.value = val.map(item => handleCreateItemId(item, true));
+      },
+      { immediate: true }
+    );
 
     /** 列数切换：1 → 2 → 3 → 1 循环 */
     const columnIcon = computed(() => COLUMN_ICON_MAP[props.value.columns] || COLUMN_ICON_MAP[3]);
@@ -93,31 +104,40 @@ export default defineComponent({
       COMPARE_TYPE_OPTIONS.filter(item => props.compareListEnable.includes(item.id))
     );
 
+    /** 把对比目标的 id 转换为对应的对象 */
+    const handleCompareTargetChange = (val: string[]) => {
+      const compareTargets = val.reduce((total, id) => {
+        const item = props.targetList.find(item => item.id === id);
+        const value = handleCreateCompares(item);
+        total.push({ ...value });
+        return total;
+      }, []);
+      emit('change', {
+        compareTargets,
+      });
+    };
+
     const renderCompareExtra = () => {
       if (props.value.compareType === 'target') {
         return (
           <div class='metric-toolbar__compare-target'>
-            {props.currentTarget && <Tag class='metric-toolbar__main-target'>{props.currentTarget.name}</Tag>}
+            {props.currentTarget && <Tag class='metric-toolbar__main-target'>{props.currentTarget}</Tag>}
             <span class='metric-toolbar__vs'>VS</span>
             <Select
               class='metric-toolbar__target-select'
               behavior='simplicity'
-              modelValue={props.value.compareTargets}
+              displayKey='name'
+              idKey='id'
+              list={props.targetList}
+              modelValue={localTargetValue.value}
               multipleMode='tag'
               placeholder={t('选择目标')}
               collapseTags
+              enableVirtualRender
               filterable
               multiple
-              onChange={(v: string[]) => emit('change', { compareTargets: v })}
-            >
-              {props.targetList.map(item => (
-                <Select.Option
-                  id={item.id}
-                  key={item.id}
-                  name={item.name}
-                />
-              ))}
-            </Select>
+              onChange={handleCompareTargetChange}
+            />
           </div>
         );
       }

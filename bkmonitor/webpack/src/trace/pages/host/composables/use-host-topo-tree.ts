@@ -25,11 +25,12 @@
  */
 
 import { computed, shallowRef } from 'vue';
-import { getHostTopoTreeByBizId } from '../services/host-service';
 
+import { getHostTopoTreeByBizId } from '../services/host-service';
+import { handleCreateItemId } from '../utils/host-list-core';
 import { isHostNode, matchTreeNode, pruneEmptyNodes } from '../utils/topo-tree';
 
-import type { IHostTopoTreeNode } from '../types';
+import type { IHostTopoHostNode, IHostTopoTreeNode } from '../types';
 
 /** bk-tree 实例上本 composable 需要调用的最小方法集 */
 interface ITreeInstance {
@@ -58,6 +59,34 @@ export const useHostTopoTree = () => {
     hideEmptyNode.value ? pruneEmptyNodes(rawTreeData.value) : rawTreeData.value
   );
 
+  /** 对比主机列表（过滤已选中的节主机点） */
+  const compareHostList = computed<IHostTopoHostNode[]>(() => {
+    const hostMap = new Map();
+    let currentHostId = selectedNode.value?.id;
+    if (selectedNode.value && ('id' in selectedNode.value || 'bk_host_id' in selectedNode.value)) {
+      currentHostId = handleCreateItemId(selectedNode.value);
+    }
+    const fn = (data: IHostTopoTreeNode[]) => {
+      for (const item of data) {
+        if ('children' in item) {
+          fn(item.children);
+        }
+        if ('ip' in item || 'bk_host_id' in item) {
+          const id = handleCreateItemId(item);
+          if (id !== currentHostId && !hostMap.has(id)) {
+            hostMap.set(id, {
+              ...item,
+              id,
+            });
+          }
+        }
+      }
+    };
+    fn(displayTreeData.value);
+    const hostList = Array.from(hostMap).map(item => item[1]);
+    return hostList;
+  });
+
   /** 当前选中的是否为主机（决定 hover 其他主机时是否出现「对比」按钮） */
   const selectedIsHost = computed(() => !!selectedNode.value && isHostNode(selectedNode.value));
 
@@ -71,7 +100,7 @@ export const useHostTopoTree = () => {
    */
   const searchOption = computed(() => ({
     value: searchValue.value,
-    match: (keyword: string | number | boolean, _itemText: string, item: IHostTopoTreeNode) =>
+    match: (keyword: boolean | number | string, _itemText: string, item: IHostTopoTreeNode) =>
       matchTreeNode(String(keyword), item),
     resultType: 'tree' as const,
     showChildNodes: false,
@@ -120,6 +149,7 @@ export const useHostTopoTree = () => {
     selectedIsHost,
     selectedIds,
     displayTreeData,
+    compareHostList,
     searchOption,
     loadTopoTree,
     handleRefresh,

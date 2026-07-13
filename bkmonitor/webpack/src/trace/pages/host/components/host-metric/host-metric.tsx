@@ -31,13 +31,12 @@ import { useI18n } from 'vue-i18n';
 
 import { useMetricAggregation } from '../../composables/use-metric-aggregation';
 import { useMetricGroups } from '../../composables/use-metric-groups';
-import { MOCK_COMPARE_TARGETS, MOCK_CURRENT_TARGET } from '../../mock/aggregation';
 import { buildScopedVars, DashboardPanel, useDashboardPanels } from '../dashbords';
 import GroupManageDialog from './group-manage-dialog';
 import MetricToolbar from './metric-toolbar';
 import { useHostStore } from '@/store/modules/host';
 
-import type { IHostTopoTreeNode, MetricCompareType } from '../../types';
+import type { CompareTarget, IHostTopoHostNode, IHostTopoTreeNode, MetricCompareType } from '../../types';
 import type { MetricGroupModel, MetricItemModel } from '../../types/metric-group';
 
 import './host-metric.scss';
@@ -48,6 +47,10 @@ export default defineComponent({
     selectedNode: {
       type: Object as PropType<IHostTopoTreeNode | null>,
       default: null,
+    },
+    compareHostList: {
+      type: Array as PropType<IHostTopoHostNode[]>,
+      default: () => [],
     },
   },
   setup(props) {
@@ -74,8 +77,24 @@ export default defineComponent({
     provide('refreshImmediate', refreshImmediate);
     provide('viewOptions', aggregation.viewOptions);
 
+    /** 根据选中节点类型，生成当前目标的查询参数 */
+    const currentTarget = computed<CompareTarget>(() => {
+      if ('bk_host_id' in props.selectedNode) {
+        return {
+          bk_target_ip: props.selectedNode.ip,
+          bk_target_cloud_id: props.selectedNode.bk_cloud_id,
+          bk_host_id: props.selectedNode.bk_host_id,
+        };
+      }
+
+      return {
+        bk_inst_id: props.selectedNode.bk_inst_id,
+        bk_obj_id: props.selectedNode.bk_obj_id,
+      };
+    });
+
     // 变量取值：仅请求态字段变化才会触发图表重新取数
-    const scopedVars = computed(() => buildScopedVars(aggregation.state, MOCK_CURRENT_TARGET));
+    const scopedVars = computed(() => buildScopedVars(aggregation.state, currentTarget.value));
 
     // 仪表盘分组行：按分组聚合、显隐与关键字过滤
     const { rows } = useDashboardPanels({
@@ -95,8 +114,8 @@ export default defineComponent({
       <div class='host-metric'>
         <MetricToolbar
           compareListEnable={compareListEnable.value}
-          currentTarget={MOCK_CURRENT_TARGET}
-          targetList={MOCK_COMPARE_TARGETS}
+          currentTarget={props.selectedNode.name}
+          targetList={props.compareHostList}
           value={aggregation.state}
           onChange={aggregation.updateState}
           onOpenSetting={() => (settingShow.value = true)}

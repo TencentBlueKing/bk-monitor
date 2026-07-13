@@ -121,7 +121,10 @@ export default defineComponent({
                 ),
                 main: () => (
                   <div class='host-page-content-main'>
-                    <HostContentTabs selectedNode={this.topoTree.selectedNode.value} />
+                    <HostContentTabs
+                      compareHostList={this.topoTree.compareHostList.value}
+                      selectedNode={this.topoTree.selectedNode.value}
+                    />
                   </div>
                 ),
               }}
