@@ -294,19 +294,78 @@
     return isOriginalValueExpanded(fieldName) ? $t('收起') : $t('更多');
   };
 
-  const getOriginalValueRenderText = (fieldName: string) => {
+  /**
+   * 从 renderMeta / __highlight / 字段值中取带 <mark> 的渲染文本。
+   * 仅用于 Origin 截断内容生成，避免截断后丢失检索高亮。
+   */
+  const getFieldMarkedSourceText = (fieldName: string, field: any) => {
+    // 1) renderMeta 预分词（与 Expand/表格同源，含检索高亮）
+    const metaSegments = props.renderMeta?.fieldSegments?.[fieldName];
+    if (Array.isArray(metaSegments) && metaSegments.length) {
+      const markedFromSegments = metaSegments
+        .map(segment => (segment?.isMark ? `<mark>${segment.text ?? ''}</mark>` : (segment?.text ?? '')))
+        .join('');
+      if (markedFromSegments) {
+        return markedFromSegments;
+      }
+    }
+
+    // 2) 大字段 32KB 截断文本（已保留 mark）
+    const truncatedByField = props.renderMeta?.truncatedTextByField?.[fieldName];
+    if (typeof truncatedByField === 'string' && truncatedByField) {
+      return truncatedByField;
+    }
+
+    const row = props.jsonValue !== null && typeof props.jsonValue === 'object'
+      ? props.jsonValue
+      : null;
+
+    // 3) __highlight 原始命中文本
+    if (row) {
+      const highlightValue = row.__highlight?.[fieldName];
+      const marked = Array.isArray(highlightValue) ? highlightValue[0] : highlightValue;
+      if (typeof marked === 'string' && /<\/?mark>/i.test(marked)) {
+        return marked;
+      }
+    }
+
+    // 4) 字段值本身可能已叠加 mark overlay
+    const [, val] = getFieldValue(field);
+    const renderText = getDateFieldValue(field, getCellRender(val), isFormatDateField.value);
+    return renderText?.replace?.(/<\/mark>/igm, '</mark>') ?? String(renderText ?? '');
+  };
+
+  /** 截断判定仍基于字段展示原文长度，避免因 mark 源切换改变「是否展示更多」 */
+  const getOriginalValuePlainText = (fieldName: string) => {
     const field = fieldList.value.find((item: any) => item.field_name === fieldName) ?? { field_name: fieldName };
     const [, val] = getFieldValue(field);
     const renderText = getDateFieldValue(field, getCellRender(val), isFormatDateField.value);
     return renderText?.replace?.(/<\/mark>/igm, '</mark>') ?? String(renderText ?? '');
   };
 
+  const getOriginalValueRenderText = (fieldName: string) => {
+    const field = fieldList.value.find((item: any) => item.field_name === fieldName) ?? { field_name: fieldName };
+    return getFieldMarkedSourceText(fieldName, field);
+  };
+
   const getOriginalValuePreviewInfo = (fieldName: string) => {
     if (!originalValuePreviewTextCache.has(fieldName)) {
-      const renderText = getOriginalValueRenderText(fieldName);
+      // 先按原文长度判定是否截断：绝大多数短字段到此结束，避免无谓重建 mark 文本
+      const plainText = getOriginalValuePlainText(fieldName);
+      const isTruncated = stripMark(plainText).length > ORIGINAL_VALUE_PREVIEW_TEXT_LENGTH;
+      if (!isTruncated) {
+        originalValuePreviewTextCache.set(fieldName, {
+          text: plainText,
+          isTruncated: false,
+        });
+        return originalValuePreviewTextCache.get(fieldName);
+      }
+
+      // 仅超长字段才拼接/截断带 mark 的源文本
+      const markedText = getOriginalValueRenderText(fieldName);
       originalValuePreviewTextCache.set(fieldName, {
-        text: truncateMarkedTextByChars(renderText, ORIGINAL_VALUE_PREVIEW_TEXT_LENGTH),
-        isTruncated: stripMark(renderText).length > ORIGINAL_VALUE_PREVIEW_TEXT_LENGTH,
+        text: truncateMarkedTextByChars(markedText, ORIGINAL_VALUE_PREVIEW_TEXT_LENGTH),
+        isTruncated: true,
       });
     }
 
@@ -353,6 +412,7 @@
 
     if (isOriginalValueTruncated(fieldName)) {
       if (!originalValuePreviewSegmentCache.has(fieldName)) {
+        // 基于保留 mark 的截断文本重新分词，保证 isMark 与 Expand 一致
         originalValuePreviewSegmentCache.set(fieldName, splitRenderText(getOriginalValuePreviewText(fieldName)));
       }
 
@@ -374,6 +434,8 @@
       ? getOriginalValueExpandedText(fieldName)
       : getOriginalValuePreviewText(fieldName);
 
+    // 模板初始展示去掉 mark 标签，避免出现原始 <mark> 文本闪烁；
+    // 检索高亮由 precomputedSegments.isMark 在分词渲染阶段恢复。
     return renderText?.replace?.(/<\/?mark>/igm, '') ?? fallback;
   };
 
@@ -572,6 +634,14 @@
         isOriginalMode.value
         && isOriginalValueTruncated(f.field_name)
         && !(formatJson.value && formatter.isJson);
+      /**
+       * precomputedSegments 策略（尽量不改变既有分词路径）：
+       * - 截断路径：必须带 mark 分词（修复高亮丢失）；日期字段仍跳过
+       * - 非截断路径：保持原 shouldFormatDate 门禁，避免 Origin+时间格式化 下分词行为被整体替换
+       */
+      const shouldSkipPrecomputedSegments = shouldUseOriginalValueText
+        ? (shouldFormatDate && ['date', 'date_nanos'].includes(f.field_type))
+        : shouldFormatDate;
       return {
         name: f.field_name,
         type: f.field_type,
@@ -582,7 +652,9 @@
           stringValue: shouldUseOriginalValueText
             ? getOriginalValueDisplayText(f.field_name, formatter.stringValue)
             : formatter.stringValue,
-          precomputedSegments: shouldFormatDate ? undefined : getOriginalValueSegments(f.field_name),
+          precomputedSegments: shouldSkipPrecomputedSegments
+            ? undefined
+            : getOriginalValueSegments(f.field_name),
           // JSON 解析开启时：叶子长字符串 / 超深度残留字符串启用 1000/更多（Origin & Table 均生效）
           enableLeafTruncate: formatJson.value,
         },
