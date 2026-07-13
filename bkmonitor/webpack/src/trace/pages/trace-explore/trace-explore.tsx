@@ -381,13 +381,16 @@ export default defineComponent({
       isCollapsed.value = v;
     }
 
-    function handleConditionChange(item: ConditionChangeEvent) {
+    function handleConditionChange(item: ConditionChangeEvent, isFromDimensionFilterPanel = false) {
       const { key, method: operator, value } = item;
       const isDuration = ['trace_duration', 'elapsed_time'].includes(key);
       if (filterMode.value === EMode.ui) {
-        const newWhere = mergeWhereList(where.value, [
-          { key, operator, value: isDuration ? value.split('-') : safeParseJsonValueForWhere(value) },
-        ]);
+        const newWhere = mergeWhereList(
+          where.value,
+          [{ key, operator, value: isDuration ? value.split('-') : safeParseJsonValueForWhere(value) }],
+          isFromDimensionFilterPanel
+        );
+        // TODO: 图表分析入口（仅在这个入口做）进行过滤时，同类字段做下合并
         handleWhereChange(newWhere);
         return;
       }
