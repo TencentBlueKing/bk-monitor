@@ -90,7 +90,7 @@ export default defineComponent({
     /** table上方快捷筛选操作区域（ "包含" 区域中的 复选框组）值改变后触发的回调 */
     checkboxFiltersChange: (checkboxGroupEvent: string[]) => Array.isArray(checkboxGroupEvent),
     /** 筛选条件改变后触发的回调 */
-    conditionChange: (conditionEvent: ConditionChangeEvent) => conditionEvent,
+    conditionChange: (conditionEvent: ConditionChangeEvent, _: boolean) => conditionEvent,
     /** 清除检索过滤 */
     clearRetrievalFilter: () => true,
     /** 设置url参数 */
@@ -282,7 +282,9 @@ export default defineComponent({
             tableLoading={this.tableLoading}
             onClearRetrievalFilter={() => this.$emit('clearRetrievalFilter')}
             onColumnResize={this.handleDisplayColumnResize}
-            onConditionChange={conditionEvent => this.$emit('conditionChange', conditionEvent)}
+            onConditionChange={(conditionEvent, isMergeSameKey) =>
+              this.$emit('conditionChange', conditionEvent, isMergeSameKey)
+            }
             onDisplayFieldChange={this.handleDisplayColumnFieldsChange}
             onScrollToEnd={this.handleScrollToEnd}
             onSliderShow={this.handleSliderShowChange}

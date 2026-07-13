@@ -422,7 +422,6 @@ export default defineComponent({
     /** 渲染TopK字段行 */
     function renderTopKField(list: ITopKField['list'], scene: 'popover' | 'slider') {
       if (!list.length) return <EmptyStatus type='empty' />;
-
       return (
         <div class='top-k-list'>
           {list.map((item, index) => (
