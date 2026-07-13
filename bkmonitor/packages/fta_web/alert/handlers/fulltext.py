@@ -119,3 +119,40 @@ def build_fulltext_fuzzy_query(query: str, fields: list[FulltextSearchField] | N
     if len(should_clauses) == 1:
         return should_clauses[0]
     return Q("bool", should=should_clauses, minimum_should_match=1)
+
+
+def build_enum_display_term_query(term: str, value_translate_fields: dict | None) -> Q | None:
+    """
+    裸词精确匹配枚举中文显示名时，补 term 查询（兼容旧 query_string 的「致命 => 致命 OR severity:1」）。
+
+    仅做整词相等，不做子串，避免短词误伤。
+    """
+    if not term or not value_translate_fields:
+        return None
+
+    clauses: list[Q] = []
+    for field, choices in value_translate_fields.items():
+        for value, display in choices:
+            if str(display) == term:
+                clauses.append(Q("term", **{field: value}))
+
+    if not clauses:
+        return None
+    if len(clauses) == 1:
+        return clauses[0]
+    return Q("bool", should=clauses, minimum_should_match=1)
+
+
+def build_bare_fulltext_query(
+    query: str,
+    fields: list[FulltextSearchField] | None,
+    value_translate_fields: dict | None = None,
+) -> Q | None:
+    """裸词全字段：白名单模糊 OR 枚举显示名 term。"""
+    term = normalize_fulltext_term(query)
+    fuzzy_q = build_fulltext_fuzzy_query(query, fields)
+    enum_q = build_enum_display_term_query(term, value_translate_fields)
+    if fuzzy_q is not None and enum_q is not None:
+        return fuzzy_q | enum_q
+    return fuzzy_q if fuzzy_q is not None else enum_q
+

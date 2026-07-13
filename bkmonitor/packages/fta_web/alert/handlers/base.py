@@ -33,7 +33,7 @@ from core.drf_resource import resource
 from core.errors.alert import QueryStringParseError
 from fta_web.alert.handlers.fulltext import (
     FulltextSearchField,
-    build_fulltext_fuzzy_query,
+    build_bare_fulltext_query,
     is_bare_fulltext_query,
 )
 from fta_web.alert.handlers.translator import AbstractTranslator
@@ -365,7 +365,8 @@ class BaseQueryHandler:
         """
         将 query_string 转为 ES Q。
 
-        - 配置了 FULLTEXT_SEARCH_FIELDS 且为裸词：仅走白名单全字段模糊（含 Keyword 子串 + 大小写不敏感），
+        - 配置了 FULLTEXT_SEARCH_FIELDS 且为裸词：白名单全字段模糊（Keyword 子串 + 大小写不敏感），
+          并在词等于枚举中文显示名时 OR term（兼容旧「致命 => severity:1」）；
           不再叠加无 fields 限制的 query_string，避免扫到 snapshot 等大字段。
         - 结构化语法（field:value / 布尔）：仍走 transform 后的 query_string / DSL。
         """
@@ -374,10 +375,15 @@ class BaseQueryHandler:
 
         original_query_string = query_string
         if self.FULLTEXT_SEARCH_FIELDS and is_bare_fulltext_query(original_query_string):
-            fuzzy_q = build_fulltext_fuzzy_query(original_query_string, self.FULLTEXT_SEARCH_FIELDS)
-            if fuzzy_q is not None:
-                return fuzzy_q
-            # 词过短：不加检索条件，避免无界 query_string / 单字符 wildcard
+            translate_fields = getattr(self.query_transformer, "VALUE_TRANSLATE_FIELDS", None) or {}
+            bare_q = build_bare_fulltext_query(
+                original_query_string,
+                self.FULLTEXT_SEARCH_FIELDS,
+                translate_fields,
+            )
+            if bare_q is not None:
+                return bare_q
+            # 词过短且非枚举显示名：不加检索条件，避免无界 query_string / 单字符 wildcard
             return None
 
         transform_input = query_string.replace(":", r"\:") if escape_colon else query_string

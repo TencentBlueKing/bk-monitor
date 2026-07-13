@@ -12,6 +12,8 @@ from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.handlers.fulltext import (
     FulltextFieldKind,
     FulltextSearchField,
+    build_bare_fulltext_query,
+    build_enum_display_term_query,
     build_fulltext_fuzzy_query,
     build_keyword_contains_query,
     escape_wildcard,
@@ -66,6 +68,18 @@ class TestFulltextHelpers:
     def test_short_non_digit_skipped(self):
         fields = [FulltextSearchField("labels", FulltextFieldKind.KEYWORD)]
         assert build_fulltext_fuzzy_query("a", fields) is None
+
+    def test_enum_display_term_query(self):
+        q = build_enum_display_term_query("致命", {"severity": [(1, "致命"), (2, "预警")]})
+        assert q.to_dict() == {"term": {"severity": 1}}
+
+    def test_bare_fulltext_ors_enum_and_fuzzy(self):
+        fields = [FulltextSearchField("labels", FulltextFieldKind.KEYWORD)]
+        q = build_bare_fulltext_query("致命", fields, {"severity": [(1, "致命")]})
+        dumped = str(q.to_dict())
+        assert "wildcard" in dumped
+        assert "term" in dumped
+        assert "severity" in dumped
 
 
 class TestIncidentAlertFulltextWhitelist:

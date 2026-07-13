@@ -35,7 +35,7 @@ from fta_web.alert.handlers.base import (
 from fta_web.alert.handlers.fulltext import (
     FulltextFieldKind,
     FulltextSearchField,
-    build_fulltext_fuzzy_query,
+    build_bare_fulltext_query,
     is_bare_fulltext_query,
 )
 from fta_web.alert.handlers.translator import BizTranslator
@@ -219,9 +219,13 @@ class IncidentQueryHandler(BaseBizQueryHandler):
 
         original_query_string = query_string
         if self.FULLTEXT_SEARCH_FIELDS and is_bare_fulltext_query(original_query_string):
-            fuzzy_q = build_fulltext_fuzzy_query(original_query_string, self.FULLTEXT_SEARCH_FIELDS)
-            if fuzzy_q is not None:
-                return fuzzy_q
+            bare_q = build_bare_fulltext_query(
+                original_query_string,
+                self.FULLTEXT_SEARCH_FIELDS,
+                self.query_transformer.VALUE_TRANSLATE_FIELDS,
+            )
+            if bare_q is not None:
+                return bare_q
             return None
 
         transform_input = query_string.replace(":", r"\:") if escape_colon else query_string
