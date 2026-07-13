@@ -1932,10 +1932,41 @@ export default defineComponent({
       }
 
       const target = e.target as HTMLElement;
-      const expandCell = target.closest('.bklog-row-observe')?.querySelector('.expand-view-wrapper');
+      const expandPanel = target.closest('.bklog-row-observe')?.querySelector('.expand-view-wrapper');
 
-      const interactiveTarget = target.closest('a, button, input, textarea, [role="button"], .bk-link-text');
-      if (interactiveTarget || expandCell?.contains(target)) {
+      // 仅「展开图标」或「行空白」触发行展开/收起；
+      // 分词等内容点击只响应自身下拉，不联动外层 ROW。
+      const isExpandIconClick = Boolean(target.closest('.bklog-expand-icon'));
+      const isRowContentClick = Boolean(
+        target.closest(
+          [
+            '.valid-text',
+            '.others-text',
+            '.segment-content',
+            '.field-value',
+            '.field-name',
+            '.black-mark',
+            '.bklog-json-formatter-root',
+            '.bklog-json-view-node',
+            '.bklog-json-view-row',
+            '.bklog-json-view-field',
+            '.bklog-json-view-text',
+            '.bklog-json-view-object',
+            '.bklog-word-segment',
+            '.btn-more-action',
+            '.btn-json-leaf-more',
+            '.btn-original-value-action',
+            'a',
+            'button',
+            'input',
+            'textarea',
+            '[role="button"]',
+            '.bk-link-text',
+          ].join(', '),
+        ),
+      );
+
+      if (!isExpandIconClick && (isRowContentClick || expandPanel?.contains(target))) {
         RetrieveHelper.setMousedownEvent(null);
         return;
       }

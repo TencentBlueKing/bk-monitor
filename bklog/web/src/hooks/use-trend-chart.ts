@@ -668,40 +668,74 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   };
 
   const restoreChartOptions = () => {
-    if (cachedOptions) {
-      setTimeout(() => {
-        Object.assign(options, cachedOptions);
-        chartInstance.setOption(options, { notMerge: true });
-        nextTick(() => {
-          dispatchAction({
-            type: 'takeGlobalCursor',
-            key: 'dataZoomSelect',
-            dataZoomSelectActive: true,
-          });
+    if (!cachedOptions || !chartInstance) {
+      return;
+    }
+    setTimeout(() => {
+      if (!chartInstance) {
+        return;
+      }
+      Object.assign(options, cachedOptions);
+      chartInstance.setOption(options, { notMerge: true });
+      nextTick(() => {
+        dispatchAction({
+          type: 'takeGlobalCursor',
+          key: 'dataZoomSelect',
+          dataZoomSelectActive: true,
         });
       });
+    });
+  };
+
+  const destroyChart = () => {
+    if (target.value) {
+      try {
+        removeListener(target.value, handleCanvasResize);
+      } catch {
+        // resize-detector 在节点已解绑时可能抛错，忽略即可
+      }
+      target.value.removeEventListener('dblclick', handleDblClick);
     }
+
+    if (chartInstance) {
+      chartInstance.off('dataZoom', handleDataZoom);
+      chartInstance.dispose();
+      chartInstance = null;
+    }
+
+    options.series = [];
+    xLabelMap.clear();
+  };
+
+  const initChart = () => {
+    if (!target.value || chartInstance) {
+      return Boolean(chartInstance);
+    }
+
+    chartInstance = Echarts.init(target.value);
+    chartInstance.on('dataZoom', handleDataZoom);
+    target.value.addEventListener('dblclick', handleDblClick);
+    addListener(target.value, handleCanvasResize);
+    return true;
+  };
+
+  /** 确保图表实例可用：DOM 重挂载后需 nextTick 再 init */
+  const ensureChart = async () => {
+    if (chartInstance) {
+      return true;
+    }
+    await nextTick();
+    return initChart();
   };
 
   onMounted(() => {
-    if (target.value) {
-      chartInstance = Echarts.init(target.value);
-
-      chartInstance.on('dataZoom', handleDataZoom);
-      target.value?.addEventListener('dblclick', handleDblClick);
-
-      addListener(target.value, handleCanvasResize);
-    }
-
+    initChart();
     // 初始化 Worker
     initWorker();
   });
 
   onBeforeUnmount(() => {
-    if (target.value) {
-      removeListener(target.value, handleCanvasResize);
-      target.value.removeEventListener('dblclick', handleDblClick);
-    }
+    destroyChart();
 
     // 销毁 Worker
     if (chartWorker) {
@@ -717,6 +751,9 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
     setChartData,
     appendChartData,
     clearChartData,
+    destroyChart,
+    initChart,
+    ensureChart,
     backToPreChart,
     canGoBack,
     cacheChartOptions,

@@ -95,11 +95,16 @@ export default defineComponent({
       cacheChartOptions,
       restoreChartOptions,
       processChartDataWithWorker,
+      destroyChart,
+      ensureChart,
     } = useTrendChart({
       target: trendChartCanvas,
       handleChartDataZoom,
       dynamicHeight,
     });
+
+    // 检索结果为空时销毁 ECharts，改用空态组件
+    const isChartEmpty = ref(false);
 
     // 监听store中interval变化，自动同步到chartInterval
     watch(
@@ -257,6 +262,10 @@ export default defineComponent({
           const { urlStr, indexId, queryData, isInit: currentIsInit } = result.value;
           try {
             const res = await fetchTrendChartData(urlStr, indexId, queryData);
+            // 请求返回后再次校验：索引切换/取消后丢弃旧响应，避免写回上一索引的图
+            if (isSearchingCanceled) {
+              break;
+            }
 
             // P3 优化：对于大数据量使用 Worker 处理
             const totalCount = res?.data?.aggs?.group_by_histogram?.buckets?.length ?? 0;
@@ -271,9 +280,14 @@ export default defineComponent({
                   store.state.indexItem.timezone,
                   currentIsInit,
                 );
+                if (isSearchingCanceled) {
+                  break;
+                }
               } catch {
                 // Worker 处理失败，降级到主线程处理
-                setChartData(res?.data?.aggs, queryData.group_field, currentIsInit);
+                if (!isSearchingCanceled) {
+                  setChartData(res?.data?.aggs, queryData.group_field, currentIsInit);
+                }
               }
             } else {
               setChartData(res?.data?.aggs, queryData.group_field, currentIsInit);
@@ -286,7 +300,9 @@ export default defineComponent({
               break;
             }
           } catch {
-            setChartData(null, null, true); // 清空图表数据
+            if (!isSearchingCanceled) {
+              setChartData(null, null, true); // 清空图表数据
+            }
             ensureTrendReady();
             break;
           }
@@ -420,8 +436,13 @@ export default defineComponent({
       store.commit('retrieve/updateTrendDataLoading', true); // 开始加载前，打开loading
       store.commit('retrieve/updateTotalCountLoaded', false); // 重置总数加载状态
 
+      // 先标记取消，阻断进行中的旧请求写回上一索引图表
+      isSearchingCanceled = true;
       logChartCancel?.(); // 取消上一次未完成的趋势图请求
-      setChartData(null, null, true); // 清空图表数据, 重置为初始状态
+
+      // Loading 期间退出空态，优先展示 loading，避免空态与加载态抢占
+      isChartEmpty.value = false;
+      setChartData(null, null, true); // 有实例时清空旧数据，无实例时 noop
 
       runningTimer && clearTimeout(runningTimer); // 清理上一次的定时器
 
@@ -429,10 +450,11 @@ export default defineComponent({
       runningTimer = setTimeout(async () => {
         finishPolling.value = false;
         isSearchingCanceled = false;
-        // isInit = true;
         // 若未选择索引集（无索引集或索引集为空数组），则直接关闭loading 并终止后续流程
         if (!store.state.indexItem.ids?.length) {
           isStart.value = false;
+          destroyChart();
+          isChartEmpty.value = true;
           store.commit('retrieve/updateTrendDataLoading', false);
           markTrendReady();
           return;
@@ -441,20 +463,39 @@ export default defineComponent({
         try {
           // 1. 先请求总数（stream 检索 meta 可能已写入 indexSetQueryResult.total）
           await store.dispatch('requestSearchTotal').catch(() => ({ result: false }));
+          // 切换索引期间若已发起新一轮加载，丢弃本次结果
+          if (isSearchingCanceled) {
+            return;
+          }
           store.commit('retrieve/updateTotalCountLoaded', true);
-          // 2. 判断总数是否为0
+          // 2. 结果为空：销毁 ECharts，展示标准空态
           if (!normalizeSearchTotal(store.state.searchTotal)) {
             isStart.value = false;
+            destroyChart();
+            isChartEmpty.value = true;
             store.commit('retrieve/updateTrendDataLoading', false);
             markTrendReady();
             return;
           }
-          // 3. 有数据才请求趋势图
+          // 3. 有数据：确保实例存在后再请求趋势图（空态恢复时需重新 init）
+          isChartEmpty.value = false;
+          const ready = await ensureChart();
+          if (isSearchingCanceled) {
+            return;
+          }
+          if (!ready) {
+            store.commit('retrieve/updateTrendDataLoading', false);
+            markTrendReady();
+            return;
+          }
           getSeriesData(retrieveParams.value.start_time, retrieveParams.value.end_time).catch(e => console.log(e));
         } catch (e) {
           console.error(e);
-          store.commit('retrieve/updateTrendDataLoading', false);
-          markTrendReady();
+          if (!isSearchingCanceled) {
+            setChartData(null, null, true);
+            store.commit('retrieve/updateTrendDataLoading', false);
+            markTrendReady();
+          }
         }
       });
     };
@@ -479,7 +520,8 @@ export default defineComponent({
       isSearchingCanceled = true;
       runningTimer && clearTimeout(runningTimer);
       isStart.value = false;
-      setChartData(null, null, true);
+      destroyChart();
+      isChartEmpty.value = true;
       store.commit('SET_APP_STATE', { searchTotal: 0, tookTime: 0 });
       store.commit('retrieve/updateTrendDataLoading', false);
     });
@@ -490,7 +532,10 @@ export default defineComponent({
       runningTimer && clearTimeout(runningTimer); // 清理上一次的定时器
       isStart.value = false;
       store.commit('retrieve/updateTrendDataLoading', false);
-      restoreChartOptions();
+      // 取消时若当前为空态则保持空态；有图则恢复取消前缓存
+      if (!isChartEmpty.value) {
+        restoreChartOptions();
+      }
       markTrendReady();
     });
 
@@ -604,19 +649,28 @@ export default defineComponent({
         <div class='title-wrapper'>
           {/* 1. 标题内容 */}
           {chartTitleContent()}
-          {/* 2. 加载中动画 */}
+          {/* 2. 加载中动画：有图渲染过程中保留标题区 spin，与下方 bkloading 分工 */}
           {loading.value && !isFold.value && <bk-spin class='chart-spin' />}
         </div>
         {/* 图表部分 */}
         <div
           class='echart-wrapper'
-          v-bkloading={{ isLoading: !isStart.value && loading.value, size: 'mini' }}
+          v-bkloading={{ isLoading: loading.value && !isStart.value && !isChartEmpty.value, size: 'mini' }}
           v-show={!isFold.value}
         >
-          <div
-            ref={trendChartCanvas}
-            style={{ height: `${dynamicHeight.value}px` }}
-          />
+          {isChartEmpty.value && !loading.value ? (
+            <bk-exception
+              style={{ height: `${dynamicHeight.value}px` }}
+              class='exception-wrap-item exception-part trend-chart-empty'
+              scene='part'
+              type='search-empty'
+            ><span>检索无数据</span></bk-exception>
+          ) : (
+            <div
+              ref={trendChartCanvas}
+              style={{ height: `${dynamicHeight.value}px` }}
+            />
+          )}
         </div>
       </div>
     );
