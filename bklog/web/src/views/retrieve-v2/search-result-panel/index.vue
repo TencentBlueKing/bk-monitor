@@ -151,7 +151,11 @@ const handleTrendReady = () => {
 
 const handleToggleChange = (isShow, height) => {
   isTrendChartShow.value = isShow;
-  heightNum.value = height + 4;
+  if (height <= 0) {
+    heightNum.value = isShow ? DEFAULT_TREND_CHART_EXPANDED_HEIGHT : DEFAULT_TREND_CHART_FOLDED_HEIGHT;
+  } else {
+    heightNum.value = height + 4;
+  }
   RetrieveHelper.setTrendGraphHeight(heightNum.value);
 };
 
