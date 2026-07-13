@@ -121,7 +121,6 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
   const handleUnboundWorkspace = (item: TapdWorkspaceItem) => {
     InfoBox({
       title: t('确认取消关联吗？'),
-      content: t('取消后，TAPD 侧授权不会被撤销，但蓝鲸侧不再与该 TAPD 项目关联。确认解绑吗？'),
       onConfirm: async () => {
         try {
           await unbindWorkspaceApi({
