@@ -30,7 +30,7 @@ from fta_web.alert.handlers.fulltext import (
     should_apply_fulltext_term,
 )
 from fta_web.alert.handlers.incident import IncidentQueryHandler
-from fta_web.alert.serializers import AlertSearchSerializer
+from fta_web.alert.serializers import AlertSearchSerializer, SearchConditionSerializer
 from monitor_web.incident.serializers import IncidentSearchSerializer
 
 
@@ -232,6 +232,14 @@ class TestFulltextSearchSerializerLimits:
 
         assert serializer.is_valid() is False
         assert "query_string condition values exceed limit 10, got 11" in str(serializer.errors["conditions"])
+
+    def test_shared_condition_serializer_does_not_apply_fulltext_limit(self):
+        serializer = SearchConditionSerializer(
+            data=[self._condition([f"value-{index}" for index in range(11)])],
+            many=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
 
     @pytest.mark.parametrize("serializer_class", [AlertSearchSerializer, IncidentSearchSerializer])
     def test_accepts_aggregate_fulltext_values_at_limit(self, serializer_class):

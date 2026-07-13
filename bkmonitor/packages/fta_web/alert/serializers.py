@@ -91,11 +91,6 @@ class SearchConditionSerializer(serializers.Serializer):
     )
     condition = serializers.ChoiceField(label="复合条件", choices=["and", "or", ""], default="")
 
-    def validate(self, attrs):
-        # 仅全字段 query_string 限制条数；超限显式失败，禁止静默截断
-        validate_fulltext_condition_value_count([attrs])
-        return attrs
-
 
 class AlertIDField(serializers.CharField):
     def run_validation(self, *args, **kwargs):

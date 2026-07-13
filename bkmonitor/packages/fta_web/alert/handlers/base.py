@@ -43,7 +43,7 @@ from fta_web.alert.handlers.translator import AbstractTranslator
 
 # 模块级字段映射缓存，key 为 Transformer 类对象，保证每个子类独立缓存。
 # 构建时覆盖所有支持语言的 display name，使字段解析与当前线程语言无关。
-_FIELD_MAP_CACHE: dict[type, dict[str, "QueryField"]] = {}
+_FIELD_MAP_CACHE: dict[type, dict[str, QueryField]] = {}
 ES_TERMS_QUERY_MAX_SIZE = 65536
 
 
@@ -186,7 +186,7 @@ class BaseQueryTransformer(BaseTreeTransformer):
         return str(query_tree)
 
     @classmethod
-    def _build_field_map(cls) -> dict[str, "QueryField"]:
+    def _build_field_map(cls) -> dict[str, QueryField]:
         """
         构建字段名 → QueryField 的全语言映射表，首次使用时构建一次。
 
