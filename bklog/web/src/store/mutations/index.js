@@ -5,7 +5,7 @@
 import Vue, { set } from 'vue';
 
 import { setDefaultTableWidth } from '@/common/util';
-import { retrieveFieldCacheService, storeCacheService } from '@/storage';
+import { retrieveFieldAliasCacheService, retrieveFieldCacheService, storeCacheService } from '@/storage';
 import * as pinyin from 'tiny-pinyin';
 import * as patcher56L from 'tiny-pinyin/dist/patchers/56l.js';
 
@@ -355,6 +355,12 @@ const mutations = {
       const fieldScope = payload?.field_scope || state.indexFieldInfo.field_scope || state.indexId || 'default';
       if (hasFieldPayload) {
         retrieveFieldCacheService.setMeta(fieldScope, payload);
+        // 独立别名配置：失败不得阻断字段信息主流程
+        try {
+          retrieveFieldAliasCacheService.setAliasConfig(fieldScope, payload);
+        } catch (error) {
+          console.warn('[retrieve-field-alias-cache] set alias config failed', error);
+        }
       }
       const processedData = normalizeIndexFieldInfo(payload);
       const { fieldNameIndex, queryAliasIndex, aggs_items: aggsItems, ...stateData } = processedData ?? {};
@@ -363,6 +369,9 @@ const mutations = {
       });
       if (fieldNameIndex || queryAliasIndex) {
         storeRuntimeCacheService.setFieldIndexes(fieldScope, { fieldNameIndex, queryAliasIndex });
+        // 轻量 Vuex fallback，供展示 resolver 使用；不参与业务字段配置主链路
+        set(state.indexFieldInfo, 'fieldNameIndex', fieldNameIndex ?? {});
+        set(state.indexFieldInfo, 'queryAliasIndex', queryAliasIndex ?? {});
       }
       if (aggsItems) {
         storeRuntimeCacheService.setFieldAggsItems(fieldScope, aggsItems);

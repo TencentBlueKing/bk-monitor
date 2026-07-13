@@ -10,6 +10,7 @@ import {
   buildOriginAddition,
   buildRequestAddition,
   buildRetrieveParams,
+  resolveDisplayFieldAliasMap,
   resolveFieldAliasMap,
   resolveFieldTree,
   resolveFilteredFieldList,
@@ -80,6 +81,7 @@ const getters = {
     rawFieldList: state => resolveRawFieldList(state),
     fieldTree: state => resolveFieldTree(state),
     fieldAliasMap: state => resolveFieldAliasMap(state),
+    displayFieldAliasMap: state => resolveDisplayFieldAliasMap(state),
 
 };
 

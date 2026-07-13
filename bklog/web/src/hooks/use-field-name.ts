@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { retrieveFieldCacheService } from '@/storage';
+import { retrieveFieldAliasCacheService, retrieveFieldCacheService } from '@/storage';
 import { storeRuntimeCacheService } from '../store/services/runtime-cache.service';
 import { BK_LOG_STORAGE, FieldInfoItem } from '../store/store.type';
 
@@ -36,21 +36,34 @@ import { BK_LOG_STORAGE, FieldInfoItem } from '../store/store.type';
  */
 export const getFieldNameByField = (field, store) => {
   if (store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
-    return field.query_alias || field.field_name;
+    return field?.query_alias || field?.field_name;
   }
 
-  return field.field_name;
+  return field?.field_name;
 };
 
 export default ({ store }) => {
   const getFieldScope = () => store.state.indexFieldInfo.field_scope || store.state.indexId || 'default';
-  const getIndexWithFallback = (runtimeIndex: Record<string, FieldInfoItem>, fallbackIndex: Record<string, FieldInfoItem>) =>
-    Object.keys(runtimeIndex ?? {}).length ? runtimeIndex : fallbackIndex;
+  const getIndexWithFallback = (
+    runtimeIndex: Record<string, FieldInfoItem>,
+    fallbackIndex: Record<string, FieldInfoItem>,
+  ) => (Object.keys(runtimeIndex ?? {}).length ? runtimeIndex : fallbackIndex);
+
+  /**
+   * 展示 / 反查用 index 优先级：
+   * runtime memory → retrieveFieldCache memory → alias config cache → vuex fallback
+   */
   const getStoreFieldNameIndex = (): Record<string, FieldInfoItem> => {
     const scope = getFieldScope();
     return getIndexWithFallback(
       storeRuntimeCacheService.getFieldNameIndex(scope),
-      retrieveFieldCacheService.getFieldNameIndex(scope),
+      getIndexWithFallback(
+        retrieveFieldCacheService.getFieldNameIndex(scope),
+        getIndexWithFallback(
+          retrieveFieldAliasCacheService.getFieldNameIndex(scope),
+          store.state.indexFieldInfo.fieldNameIndex ?? {},
+        ),
+      ),
     );
   };
 
@@ -58,7 +71,13 @@ export default ({ store }) => {
     const scope = getFieldScope();
     return getIndexWithFallback(
       storeRuntimeCacheService.getQueryAliasIndex(scope),
-      retrieveFieldCacheService.getQueryAliasIndex(scope),
+      getIndexWithFallback(
+        retrieveFieldCacheService.getQueryAliasIndex(scope),
+        getIndexWithFallback(
+          retrieveFieldAliasCacheService.getQueryAliasIndex(scope),
+          store.state.indexFieldInfo.queryAliasIndex ?? {},
+        ),
+      ),
     );
   };
 

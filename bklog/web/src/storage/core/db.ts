@@ -76,6 +76,26 @@ export interface RetrieveFieldWidthEntity {
   expireAt: number;
 }
 
+export interface RetrieveFieldAliasConfigEntity {
+  key: string;
+  scope: string;
+  rawFieldList: any[];
+  aliasFieldList: any[];
+  fieldNameIndex: Record<string, any>;
+  queryAliasIndex: Record<string, any>;
+  repeatAliasGroups: Record<
+    string,
+    {
+      query_alias: string;
+      source_field_names: string[];
+      virtual_field_name?: string;
+    }
+  >;
+  createdAt: number;
+  updatedAt: number;
+  expireAt: number;
+}
+
 class BkLogStorageDB extends Dexie {
   retrieveRows!: Table<RetrieveRowEntity, string>;
   keyValues!: Table<KeyValueEntity, string>;
@@ -83,6 +103,7 @@ class BkLogStorageDB extends Dexie {
   performanceRecords!: Table<PerformanceRecordEntity, number>;
   retrieveFieldMetas!: Table<RetrieveFieldMetaEntity, string>;
   retrieveFieldWidths!: Table<RetrieveFieldWidthEntity, string>;
+  retrieveFieldAliasConfigs!: Table<RetrieveFieldAliasConfigEntity, string>;
 
   constructor() {
     super('bklog-web-storage');
@@ -103,6 +124,16 @@ class BkLogStorageDB extends Dexie {
       performanceRecords: '++id, sessionId, type, timestamp, routeFullPath',
       retrieveFieldMetas: 'key, scope, updatedAt, expireAt',
       retrieveFieldWidths: 'key, scope, [scope+fieldName], fieldName, updatedAt, expireAt',
+    });
+
+    this.version(3).stores({
+      retrieveRows: 'key, queryKey, [queryKey+seq], seq, expireAt',
+      keyValues: 'key, expireAt, updatedAt',
+      apiCaches: 'key, expireAt, updatedAt',
+      performanceRecords: '++id, sessionId, type, timestamp, routeFullPath',
+      retrieveFieldMetas: 'key, scope, updatedAt, expireAt',
+      retrieveFieldWidths: 'key, scope, [scope+fieldName], fieldName, updatedAt, expireAt',
+      retrieveFieldAliasConfigs: 'key, scope, updatedAt, expireAt',
     });
   }
 }
