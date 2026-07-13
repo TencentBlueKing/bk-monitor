@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, toRefs } from 'vue';
+import { type PropType, defineComponent, toRefs } from 'vue';
 
 import { Message } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
@@ -32,6 +32,8 @@ import { useTapdAuth } from './composables/use-tapd-auth';
 import { revokeAuthApi } from './services/tapd';
 import TapdAuthDialog from './tapd-auth-dialog/tapd-auth-dialog';
 import TapdSideslider from './tapd-sideslider/tapd-sideslider';
+
+import type { IssueDetail } from '../typing/detail';
 
 export default defineComponent({
   name: 'IssuesTapd',
@@ -52,6 +54,10 @@ export default defineComponent({
     firstAlarmTime: {
       type: [Number, String],
       default: 'now-1h',
+    },
+    issueDetail: {
+      type: Object as PropType<IssueDetail>,
+      default: () => null,
     },
   },
   emits: ['update:show'],
@@ -122,6 +128,7 @@ export default defineComponent({
       <div class='display: none'>
         <TapdSideslider
           bizId={this.bizId}
+          issueDetail={this.issueDetail}
           issuesId={this.issuesId}
           show={this.createTapdSliderShow}
           workspaceList={this.workspaceList}
