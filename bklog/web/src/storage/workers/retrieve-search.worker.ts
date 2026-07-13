@@ -20,6 +20,7 @@ interface SearchStreamMessage {
   headers?: Record<string, string>;
   id: string;
   method?: string;
+  pageInstanceId?: string;
   queryKey?: string;
   startSeq?: number;
   type: 'cancel' | 'ping' | 'search-stream';
@@ -32,6 +33,8 @@ interface ActiveSearchTask {
 }
 
 const activeTasks = new Map<string, ActiveSearchTask>();
+
+const taskKey = (message: Pick<SearchStreamMessage, 'id' | 'pageInstanceId'>) => [message.pageInstanceId || 'legacy', message.id].join(':');
 
 const postMessageSafe = (payload: Record<string, any>) => {
   self.postMessage(payload);
@@ -221,7 +224,7 @@ const runSearchStream = async (message: SearchStreamMessage) => {
   const startedAt = Date.now();
   const timings: Record<string, number> = {};
   const abortController = new AbortController();
-  activeTasks.set(message.id, { abortController });
+  activeTasks.set(taskKey(message), { abortController });
 
   // logRetrieveSearchIngest('info', 'worker search stream started', {
   //   queryKey: message.queryKey,
@@ -312,7 +315,7 @@ const runSearchStream = async (message: SearchStreamMessage) => {
       timings,
     });
   } finally {
-    activeTasks.delete(message.id);
+    activeTasks.delete(taskKey(message));
   }
 };
 
@@ -331,8 +334,8 @@ self.onmessage = (event: MessageEvent<SearchStreamMessage>) => {
   }
 
   if (message.type === 'cancel') {
-    activeTasks.get(message.id)?.abortController.abort();
-    activeTasks.delete(message.id);
+    activeTasks.get(taskKey(message))?.abortController.abort();
+    activeTasks.delete(taskKey(message));
     return;
   }
 

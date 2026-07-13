@@ -4,6 +4,7 @@
  */
 import { storageHealthService } from './storage-health.service';
 import { workerManagerService } from './worker-manager.service';
+import { createRequestId, PAGE_INSTANCE_ID } from '../utils/page-instance';
 import {
   categorizeIngestError,
   computeIngestTimeout,
@@ -110,7 +111,7 @@ class RetrieveSearchWorkerService {
   cancelActiveSearch() {
     if (!this.activeRequestId) return;
     const requestId = this.activeRequestId;
-    this.activeWorker?.postMessage({ id: requestId, type: 'cancel' });
+    this.activeWorker?.postMessage({ id: requestId, pageInstanceId: PAGE_INSTANCE_ID, type: 'cancel' });
     const pending = this.pendingRequests.get(requestId);
     if (pending) {
       if (pending.timer) clearTimeout(pending.timer);
@@ -210,7 +211,7 @@ class RetrieveSearchWorkerService {
       throw new Error('IndexedDB is not usable in WebWorker search');
     }
 
-    const id = `search-stream:${Date.now()}:${Math.random().toString(16).slice(2)}`;
+    const id = createRequestId('search-stream');
     const worker = this.ensureWorker();
     this.activeRequestId = id;
     const url = buildSearchUrl(request.baseURL, request.searchPath);
@@ -230,7 +231,7 @@ class RetrieveSearchWorkerService {
       };
 
       const timer = setTimeout(() => {
-        worker.postMessage({ id, type: 'cancel' });
+        worker.postMessage({ id, pageInstanceId: PAGE_INSTANCE_ID, type: 'cancel' });
         cleanupRequest(true);
         const message = `WebWorker search stream timeout after ${timeout}ms`;
         this.recordFailure(message, 'timeout', Date.now() - startedAt, request.queryKey);
@@ -242,6 +243,7 @@ class RetrieveSearchWorkerService {
       try {
         worker.postMessage({
           id,
+          pageInstanceId: PAGE_INSTANCE_ID,
           body: request.body,
           fieldNames: request.fieldNames || [],
           headers: request.headers || {},

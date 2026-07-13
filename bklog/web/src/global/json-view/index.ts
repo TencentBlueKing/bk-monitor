@@ -26,7 +26,7 @@
  */
 import { copyMessage, xssFilter } from '@/common/util';
 import RetrieveHelper from '@/views/retrieve-helper';
-import { highlightPlainTextIntoFragment } from '@/views/retrieve-core/page-highlight';
+import { highlightPlainTextIntoFragment, parseResultMarkedText } from '@/views/retrieve-core/page-highlight';
 import JSONBig from 'json-bigint';
 
 export type JsonViewConfig = {
@@ -72,8 +72,13 @@ export default class JsonView {
 
     const fieldText = document.createElement('span');
     fieldText.classList.add('bklog-json-view-text');
-    // KEY 与 VALUE 一样消费页面高亮状态，划选高亮可命中字段名
-    fieldText.appendChild(highlightPlainTextIntoFragment({ text: String(name) }));
+    // JSON String 的命中标记可能出现在 KEY 中。解析成对象后 key 会保留标记文本，
+    // 必须在 DOM 渲染前转换成纯文本和高亮范围，避免标签泄漏。
+    const { plainText, markRanges } = parseResultMarkedText(name);
+    fieldText.appendChild(highlightPlainTextIntoFragment({
+      text: plainText,
+      resultRanges: markRanges,
+    }));
 
     fieldEl.append(fieldText);
     return fieldEl;
@@ -121,17 +126,18 @@ export default class JsonView {
 
   /** 拼接 Object 多层级真实检索字段路径 */
   private buildSearchFieldPath(parentPath: string, key: number | string) {
-    const keyText = String(key);
+    // 检索高亮标签只属于展示协议，不能进入字段路径和后续筛选条件。
+    const { plainText: keyText } = parseResultMarkedText(key);
     if (!parentPath) return keyText;
-    return `${parentPath}.${keyText}`;
+    return parentPath.concat('.', keyText);
   }
 
   private createObjectRow(key: number | string, value: any, depth: number, parentPath: string) {
     const row = document.createElement('div');
     const searchFieldPath = this.buildSearchFieldPath(parentPath, key);
     row.classList.add('bklog-json-view-row');
-    // data-field-name 保留当前层 key，兼容既有展示/调试语义
-    row.setAttribute('data-field-name', String(key));
+    // 使用去标记后的字段名，避免后续点击和筛选携带 HTML 协议标签。
+    row.setAttribute('data-field-name', parseResultMarkedText(key).plainText);
     // data-search-field-name 绑定真实检索字段（含根字段前缀）
     row.setAttribute('data-search-field-name', searchFieldPath);
     row.append(this.createJsonField(key));
@@ -280,8 +286,7 @@ export default class JsonView {
       node.classList.add('bklog-json-field-value');
       // string / number / boolean / bigint 叶子统一走 segmentRender，
       // 以便消费 pageHighlightState（含大小写/精确/正则匹配模式）
-      const isPrimitiveLeaf =
-        nodeType === 'string'
+      const isPrimitiveLeaf = nodeType === 'string'
         || nodeType === 'number'
         || nodeType === 'boolean'
         || nodeType === 'bigint';
@@ -317,8 +322,7 @@ export default class JsonView {
     if (isExpand && !childNode) {
       const leafNode = jsonNode.closest('.bklog-json-view-node');
       const depth = Number(leafNode.getAttribute('data-depth') ?? 1);
-      const parentPath =
-        this.jsonNodeMap.get(jsonNode)?.parentPath
+      const parentPath = this.jsonNodeMap.get(jsonNode)?.parentPath
         ?? leafNode?.getAttribute('data-search-field-name')
         ?? this.getRootFieldPath();
       childNode = this.createObjectChildNode(target, depth + 1, parentPath);

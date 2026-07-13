@@ -3,6 +3,7 @@
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  */
 import { retrieveRowRepository } from '../repositories/retrieve-row.repository';
+import { createRequestId, PAGE_INSTANCE_ID } from '../utils/page-instance';
 import {
   createRetrieveRowRenderMeta,
   type RetrieveRowRenderMeta,
@@ -40,10 +41,7 @@ export class RetrieveRowCacheService {
       hash = (hash * 31 + seed.charCodeAt(i)) | 0;
     }
 
-    const randomId =
-      typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(16).slice(2);
-
-    return `retrieve:${Date.now()}:${Math.abs(hash)}:${randomId}`;
+    return ['retrieve', PAGE_INSTANCE_ID, Math.abs(hash), createRequestId('query')].join(':');
   }
 
   async replaceRows(queryKey: string, rows: Record<string, any>[], options: WriteOptions = {}) {

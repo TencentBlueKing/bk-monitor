@@ -500,9 +500,10 @@ export function requestIndexSetQueryAction(
           .catch(error => {
             console.warn('[store-cache] cache search meta failed', error);
           });
+        const activeQueryKeys = await storageHealthService.getActiveQueryKeys();
         retrieveRowCacheService
           .gc({
-            excludeQueryKeys: Array.from(new Set([requestRowQueryKey, ...storageHealthService.getActiveQueryKeys()])),
+            excludeQueryKeys: Array.from(new Set([requestRowQueryKey, ...activeQueryKeys])),
           })
           .catch(error => {
             console.warn('[retrieve-search] gc rows failed', error);

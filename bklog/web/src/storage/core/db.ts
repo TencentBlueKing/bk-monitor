@@ -18,6 +18,13 @@ export interface RetrieveRowEntity {
   expireAt: number;
 }
 
+export interface ActiveRetrieveQueryEntity {
+  ownerId: string;
+  queryKey: string;
+  updatedAt: number;
+  expireAt: number;
+}
+
 export interface KeyValueEntity {
   key: string;
   value: any;
@@ -104,6 +111,7 @@ class BkLogStorageDB extends Dexie {
   retrieveFieldMetas!: Table<RetrieveFieldMetaEntity, string>;
   retrieveFieldWidths!: Table<RetrieveFieldWidthEntity, string>;
   retrieveFieldAliasConfigs!: Table<RetrieveFieldAliasConfigEntity, string>;
+  activeRetrieveQueries!: Table<ActiveRetrieveQueryEntity, string>;
 
   constructor() {
     super('bklog-web-storage');
@@ -134,6 +142,17 @@ class BkLogStorageDB extends Dexie {
       retrieveFieldMetas: 'key, scope, updatedAt, expireAt',
       retrieveFieldWidths: 'key, scope, [scope+fieldName], fieldName, updatedAt, expireAt',
       retrieveFieldAliasConfigs: 'key, scope, updatedAt, expireAt',
+    });
+
+    this.version(4).stores({
+      retrieveRows: 'key, queryKey, [queryKey+seq], seq, expireAt',
+      keyValues: 'key, expireAt, updatedAt',
+      apiCaches: 'key, expireAt, updatedAt',
+      performanceRecords: '++id, sessionId, type, timestamp, routeFullPath',
+      retrieveFieldMetas: 'key, scope, updatedAt, expireAt',
+      retrieveFieldWidths: 'key, scope, [scope+fieldName], fieldName, updatedAt, expireAt',
+      retrieveFieldAliasConfigs: 'key, scope, updatedAt, expireAt',
+      activeRetrieveQueries: 'ownerId, queryKey, updatedAt, expireAt',
     });
   }
 }

@@ -3,11 +3,11 @@
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  */
 import db from '../core/db';
+import { PAGE_INSTANCE_ID } from '../utils/page-instance';
 
 const SUPPORT_NOTICE_KEY = '__bklog_storage_support_notice__';
-const ACTIVE_QUERY_STORAGE_KEY = '__bklog_active_retrieve_query_keys__';
-const TAB_ID_STORAGE_KEY = '__bklog_storage_tab_id__';
-const ACTIVE_QUERY_TTL = 10 * 60 * 1000;
+const ACTIVE_QUERY_TTL = 5 * 60 * 1000;
+const ACTIVE_QUERY_HEARTBEAT = 60 * 1000;
 
 const getMessageInstance = () => {
   const mainComponent = (window as any).mainComponent;
@@ -29,10 +29,28 @@ const showWarning = (message: string) => {
 
 class StorageHealthService {
   private indexedDBUsable: boolean | null = null;
-  private tabId = this.createTabId();
+  private readonly pageInstanceId = PAGE_INSTANCE_ID;
   private workerFallbackNotified = false;
   private indexedDBFallbackNotified = false;
   private compatibilityNotified = false;
+  private activeQueryKey = '';
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private activeMutation = Promise.resolve();
+
+  constructor() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pagehide', () => {
+        this.stopHeartbeat();
+        void this.enqueueActiveMutation(() => this.deleteActiveOwner());
+      });
+      window.addEventListener('pageshow', (event) => {
+        if ((event as PageTransitionEvent).persisted && this.activeQueryKey) {
+          this.startHeartbeat();
+          void this.enqueueActiveMutation(() => this.persistActiveQuery(this.activeQueryKey));
+        }
+      });
+    }
+  }
 
   isIndexedDBSupported() {
     return typeof window !== 'undefined' && typeof window.indexedDB !== 'undefined';
@@ -94,66 +112,98 @@ class StorageHealthService {
   }
 
   markActiveQuery(queryKey: string) {
-    if (!queryKey) return;
-    const records = this.getActiveQueryRecords();
-    records[this.tabId] = { queryKey, updatedAt: Date.now() };
-    this.setActiveQueryRecords(records);
+    if (!queryKey) return Promise.resolve();
+    this.activeQueryKey = queryKey;
+    this.startHeartbeat();
+    return this.enqueueActiveMutation(() => this.persistActiveQuery(queryKey));
   }
 
   clearActiveQuery(queryKey?: string) {
-    const records = this.getActiveQueryRecords();
-    if (!records[this.tabId]) return;
-    if (!queryKey || records[this.tabId].queryKey === queryKey) {
-      delete records[this.tabId];
-      this.setActiveQueryRecords(records);
-    }
+    if (queryKey && this.activeQueryKey && this.activeQueryKey !== queryKey) return Promise.resolve();
+    this.activeQueryKey = '';
+    this.stopHeartbeat();
+    return this.enqueueActiveMutation(() => this.deleteActiveOwner());
   }
 
-  getActiveQueryKeys() {
+  async getActiveQueryKeys() {
+    await this.activeMutation;
+    if (!(await this.ensureIndexedDBUsable())) {
+      return this.activeQueryKey ? [this.activeQueryKey] : [];
+    }
     const now = Date.now();
-    const records = this.getActiveQueryRecords();
-    let changed = false;
-    const activeKeys = Object.keys(records).reduce((out, tabId) => {
-      const record = records[tabId];
-      if (!record?.queryKey || now - record.updatedAt > ACTIVE_QUERY_TTL) {
-        delete records[tabId];
-        changed = true;
-        return out;
-      }
-      out.push(record.queryKey);
-      return out;
-    }, [] as string[]);
-    if (changed) this.setActiveQueryRecords(records);
-    return activeKeys;
-  }
-
-  private createTabId() {
-    const existing = this.safeSessionGet(TAB_ID_STORAGE_KEY);
-    if (existing) return existing;
-    const next = typeof crypto !== 'undefined' && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `${Date.now()}:${Math.random().toString(16).slice(2)}`;
-    this.safeSessionSet(TAB_ID_STORAGE_KEY, next);
-    return next;
-  }
-
-  private getActiveQueryRecords(): Record<string, { queryKey: string; updatedAt: number }> {
     try {
-      return JSON.parse(this.safeLocalGet(ACTIVE_QUERY_STORAGE_KEY) || '{}');
+      await db.activeRetrieveQueries
+        .where('expireAt')
+        .belowOrEqual(now)
+        .delete();
+      const records = await db.activeRetrieveQueries
+        .where('expireAt')
+        .above(now)
+        .toArray();
+      return Array.from(new Set(records.map(record => record.queryKey).filter(Boolean)));
     } catch (error) {
-      console.warn('[bklog-storage] parse active query records failed', error);
-      return {};
+      console.warn('[bklog-storage] get active query keys failed', error);
+      return this.activeQueryKey ? [this.activeQueryKey] : [];
     }
   }
 
-  private setActiveQueryRecords(records: Record<string, { queryKey: string; updatedAt: number }>) {
-    this.safeLocalSet(ACTIVE_QUERY_STORAGE_KEY, JSON.stringify(records));
+  getPageInstanceId() {
+    return this.pageInstanceId;
+  }
+
+  private async deleteActiveOwner() {
+    try {
+      if (await this.ensureIndexedDBUsable()) {
+        await db.activeRetrieveQueries.delete(this.pageInstanceId);
+      }
+    } catch (error) {
+      console.warn('[bklog-storage] clear active query failed', error);
+    }
+  }
+
+  private async persistActiveQuery(queryKey: string) {
+    try {
+      if (!(await this.ensureIndexedDBUsable()) || queryKey !== this.activeQueryKey) return;
+      const now = Date.now();
+      await db.activeRetrieveQueries.put({
+        ownerId: this.pageInstanceId,
+        queryKey,
+        updatedAt: now,
+        expireAt: now + ACTIVE_QUERY_TTL,
+      });
+    } catch (error) {
+      console.warn('[bklog-storage] mark active query failed', error);
+    }
+  }
+
+  private startHeartbeat() {
+    if (this.heartbeatTimer) return;
+    this.heartbeatTimer = setInterval(() => {
+      if (this.activeQueryKey) {
+        const queryKey = this.activeQueryKey;
+        void this.enqueueActiveMutation(() => this.persistActiveQuery(queryKey));
+      }
+    }, ACTIVE_QUERY_HEARTBEAT);
+  }
+
+  private stopHeartbeat() {
+    if (!this.heartbeatTimer) return;
+    clearInterval(this.heartbeatTimer);
+    this.heartbeatTimer = null;
+  }
+
+  private enqueueActiveMutation(operation: () => Promise<void>) {
+    const task = this.activeMutation.then(operation, operation);
+    this.activeMutation = task.catch((error) => {
+      console.warn('[bklog-storage] active query mutation failed', error);
+    });
+    return task;
   }
 
   private safeSessionGet(key: string) {
     try {
       return sessionStorage.getItem(key);
-    } catch (_) {
+    } catch {
       return null;
     }
   }
@@ -161,21 +211,9 @@ class StorageHealthService {
   private safeSessionSet(key: string, value: string) {
     try {
       sessionStorage.setItem(key, value);
-    } catch (_) {}
-  }
-
-  private safeLocalGet(key: string) {
-    try {
-      return localStorage.getItem(key);
-    } catch (_) {
-      return null;
+    } catch {
+      // Storage access can be denied in private or hardened browser contexts.
     }
-  }
-
-  private safeLocalSet(key: string, value: string) {
-    try {
-      localStorage.setItem(key, value);
-    } catch (_) {}
   }
 }
 

@@ -272,14 +272,17 @@ export const buildHighlightHtml = ({
 export const highlightPlainTextIntoFragment = ({
   text,
   resultHighlighted = false,
+  resultRanges: explicitResultRanges,
   pageRanges,
 }: {
   text: string;
   resultHighlighted?: boolean;
+  resultRanges?: HighlightRange[];
   pageRanges?: HighlightRange[];
 }) => {
   const fragment = document.createDocumentFragment();
-  const resultRanges = resultHighlighted && text ? [{ start: 0, end: text.length }] : [];
+  const resultRanges = explicitResultRanges
+    ?? (resultHighlighted && text ? [{ start: 0, end: text.length }] : []);
   const segments = mergeHighlightSegments({ text, resultRanges, pageRanges });
 
   segments.forEach((segment) => {
