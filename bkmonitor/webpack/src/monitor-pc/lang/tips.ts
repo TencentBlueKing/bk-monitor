@@ -518,8 +518,6 @@ export default {
     'If not checked, only the association is retained, and the issue is not automatically closed due to document closure.',
   '请选择有权限的项目，完成蓝鲸监控关联项目的应用授权。':
     'Please select a project with permission, and complete the application authorization of the BK-Monitor project.',
-  '取消后，TAPD 侧授权不会被撤销，但蓝鲸侧不再与该 TAPD 项目关联。确认解绑吗？':
-    'After unchecking, the TAPD side authorization will not be revoked, but the BK-Monitor side will no longer be associated with the TAPD project. Are you sure to unbind?',
   '页面主要内容完成渲染的耗时第 75 分位值，数值越低体验越好。':
     'The page main content is rendered in 75th percentile, the lower the better.',
   '页面运行中发生 JSt异常比例，数值越高稳定性越差。':
