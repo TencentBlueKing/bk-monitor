@@ -805,7 +805,7 @@ class TestSceneUnifyQueryHandler(TestCase):
         "apps.log_unifyquery.handler.scene_search.IndexSetHandler.get_all_related_space_uids",
         return_value=[SPACE_UID],
     )
-    def test_deal_query_result(self, mock_local, mock_user, mock_ext_user, mock_related_space_uids):
+    def test_deal_query_result(self, mock_related_space_uids, mock_local, mock_user, mock_ext_user):
         from apps.log_search.constants import IndexSetDataType
         from apps.log_search.models import LogIndexSet, LogIndexSetData
         from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
