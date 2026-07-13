@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import pytest
 
 from fta_web.alert.handlers.alert import AlertQueryHandler
+from fta_web.alert.handlers.base import BaseQueryHandler
 from fta_web.alert.handlers.fulltext import (
     MAX_FULLTEXT_TERM_LENGTH,
     MAX_FULLTEXT_VALUES,
@@ -19,7 +20,6 @@ from fta_web.alert.handlers.fulltext import (
     FulltextSearchField,
     build_bare_fulltext_query,
     build_enum_display_term_query,
-    build_field_contains_queries,
     build_fulltext_fuzzy_query,
     build_keyword_contains_query,
     build_keyword_fuzzy_query,
@@ -118,34 +118,31 @@ class TestFulltextHelpers:
         long_q = build_keyword_fuzzy_query("labels", "abcd")
         assert "*abcd*" in str(long_q.to_dict())
 
+    def test_non_digit_skips_id_like_keyword_fields(self):
+        fields = [
+            FulltextSearchField("id", FulltextFieldKind.KEYWORD),
+            FulltextSearchField("event.bk_biz_id", FulltextFieldKind.KEYWORD),
+            FulltextSearchField("incident_id", FulltextFieldKind.KEYWORD),
+            FulltextSearchField("labels", FulltextFieldKind.KEYWORD),
+            FulltextSearchField("alert_name", FulltextFieldKind.TEXT),
+        ]
+        q = build_fulltext_fuzzy_query("分析", fields)
+        body = q.to_dict()
+        dumped = str(body)
+        assert "*分析*" in dumped
+        assert "labels" in dumped
+        assert "alert_name" in dumped
+        assert "incident_id" not in dumped
+        assert "bk_biz_id" not in dumped
+        # 顶层/子句字段名不应再扫纯 id
+        assert '"id":' not in dumped and "'id':" not in dumped
+
     def test_cjk_two_char_uses_contains(self):
         """中文两字「分析」须 *分析* 子串命中，不可降级为 prefix。"""
         q = build_keyword_fuzzy_query("labels", "分析")
         dumped = str(q.to_dict())
         assert "*分析*" in dumped
         assert "prefix" not in dumped or "wildcard" in dumped
-
-    def test_include_escapes_and_overlength_dropped(self):
-        q = build_field_contains_queries("labels", ["a*b", "x" * (MAX_FULLTEXT_TERM_LENGTH + 1), "okword"])
-        body = q.to_dict()
-        dumped = str(body)
-        # a*b 必须转义为字面星号：wildcard value 为 *a\*b*
-        assert "wildcard" in dumped or "prefix" in dumped or "bool" in dumped
-        # 超长值被丢弃后仍应有有效子句；include 不截断条数
-        assert "okword" in dumped or "okwor" in dumped
-        assert r"*a\*b*" in dumped or "*a\\\\*b*" in dumped or "a\\*b" in dumped
-
-    def test_include_keeps_all_values_no_silent_truncate(self):
-        values = [f"tag{i:02d}" for i in range(MAX_FULLTEXT_VALUES + 5)]
-        q = build_field_contains_queries("labels", values)
-        dumped = str(q.to_dict())
-        assert f"tag{MAX_FULLTEXT_VALUES + 4:02d}" in dumped
-
-    def test_include_digit_no_leading_wildcard(self):
-        q = build_field_contains_queries("labels", ["1"])
-        dumped = str(q.to_dict())
-        assert "*1*" not in dumped
-        assert "term" in dumped and "prefix" in dumped
 
     def test_short_non_digit_skipped(self):
         fields = [FulltextSearchField("labels", FulltextFieldKind.KEYWORD)]
@@ -174,6 +171,38 @@ class TestFulltextHelpers:
         handler = IncidentQueryHandler.__new__(IncidentQueryHandler)
         with pytest.raises(ValidationError):
             handler.build_query_string_condition_q([f"v{i}" for i in range(MAX_FULLTEXT_VALUES + 1)])
+
+
+class TestExplicitIncludeExcludeBaseline:
+    """显式字段 include/exclude 须保持基线 *value* 子串，与全字段检索策略解耦。"""
+
+    def _handler(self):
+        return BaseQueryHandler.__new__(BaseQueryHandler)
+
+    def test_include_digit_is_substring_wildcard(self):
+        q = self._handler().parse_condition_item({"method": "include", "key": "labels", "value": ["123"]})
+        assert q.to_dict() == {"wildcard": {"labels": "*123*"}}
+
+    def test_include_short_ascii_is_substring_wildcard(self):
+        q = self._handler().parse_condition_item({"method": "include", "key": "labels", "value": ["ab"]})
+        assert q.to_dict() == {"wildcard": {"labels": "*ab*"}}
+
+    def test_include_single_char_is_substring_wildcard(self):
+        q = self._handler().parse_condition_item({"method": "include", "key": "labels", "value": ["a"]})
+        assert q.to_dict() == {"wildcard": {"labels": "*a*"}}
+
+    def test_include_mid_string_pattern(self):
+        q = self._handler().parse_condition_item({"method": "include", "key": "alert_name", "value": "中间"})
+        assert q.to_dict() == {"wildcard": {"alert_name": "*中间*"}}
+
+    def test_exclude_digit_uses_substring_wildcard(self):
+        q = self._handler().parse_condition_item({"method": "exclude", "key": "labels", "value": ["123"]})
+        assert q.to_dict() == {"bool": {"must_not": [{"wildcard": {"labels": "*123*"}}]}}
+
+    def test_include_multi_value_or(self):
+        q = self._handler().parse_condition_item({"method": "include", "key": "labels", "value": ["a", "b"]})
+        body = q.to_dict()
+        assert body["bool"]["should"] == [{"wildcard": {"labels": "*a*"}}, {"wildcard": {"labels": "*b*"}}]
 
 
 class TestIncidentAlertFulltextWhitelist:

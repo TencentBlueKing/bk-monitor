@@ -174,44 +174,6 @@ def build_text_contains_query(es_field: str, term: str) -> Q:
     return match_q | prefix_q
 
 
-def build_field_contains_query(es_field: str, value) -> Q | None:
-    """
-    单字段 include/exclude 共用：转义、长度门禁、数字/ASCII 短词降级。
-
-    用于 parse_condition_item(include/exclude)，与全字段 Keyword 策略对齐。
-    不截断多值列表——保持原契约。
-    """
-    if value is None:
-        return None
-    term = unescape_lucene_literals(str(value).strip())
-    if not term or len(term) > MAX_FULLTEXT_TERM_LENGTH:
-        return None
-    if term.isdigit():
-        return build_keyword_id_query(es_field, term)
-    if len(term) < MIN_FULLTEXT_TERM_LENGTH:
-        return None
-    return build_keyword_fuzzy_query(es_field, term)
-
-
-def build_field_contains_queries(es_field: str, values) -> Q | None:
-    """多值 include/exclude：全量 OR 组合（不截断条数）。"""
-    if values is None:
-        return Q("match_none")
-    raw_values = values if isinstance(values, list) else [values]
-    clauses: list[Q] = []
-    for item in raw_values:
-        if item is None:
-            continue
-        q = build_field_contains_query(es_field, item)
-        if q is not None:
-            clauses.append(q)
-    if not clauses:
-        return Q("match_none")
-    if len(clauses) == 1:
-        return clauses[0]
-    return Q("bool", should=clauses, minimum_should_match=1)
-
-
 def ensure_fulltext_value_count(values) -> list[str]:
     """
     校验全字段 query_string 条件的 value 条数。
@@ -241,8 +203,9 @@ def build_fulltext_fuzzy_query(query: str, fields: list[FulltextSearchField] | N
     """
     按白名单字段类型构造全字段模糊查询（bool.should）。
 
-    - 普通词：TEXT → match + phrase_prefix；KEYWORD → *term* case_insensitive
+    - 普通词：TEXT → match + phrase_prefix；KEYWORD（非 ID）→ *term* case_insensitive
     - 纯数字：仅 ID 类 Keyword → term | prefix（无 leading wildcard，且不扫人员/标签/Text）
+    - 非数字：跳过 ID 类 Keyword（id / *_id），避免对数字标识做无意义的前导通配
     """
     if not fields:
         return None
@@ -257,6 +220,8 @@ def build_fulltext_fuzzy_query(query: str, fields: list[FulltextSearchField] | N
                 should_clauses.append(build_keyword_id_query(field.es_field, term))
     else:
         for field in fields:
+            if field.kind == FulltextFieldKind.KEYWORD and is_id_like_keyword_field(field.es_field):
+                continue
             if field.kind == FulltextFieldKind.TEXT:
                 should_clauses.append(build_text_contains_query(field.es_field, term))
             else:

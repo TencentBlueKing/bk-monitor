@@ -36,7 +36,6 @@ from core.errors.alert import QueryStringParseError
 from fta_web.alert.handlers.fulltext import (
     FulltextSearchField,
     build_bare_fulltext_query,
-    build_field_contains_queries,
     ensure_fulltext_value_count,
     is_bare_fulltext_query,
 )
@@ -478,20 +477,28 @@ class BaseQueryHandler:
 
         处理逻辑:
         1. 包含查询(include):
-            - 与全字段 Keyword 策略对齐：转义、长度门禁、数字 term/prefix、ASCII 短词 prefix、其它 *value*
+            - 单值转换为通配符查询(*value*)
+            - 多值生成多个通配符查询并通过OR组合
         2. 排除查询(exclude):
-            - 同上取反
+            - 单值转换为取反的通配符查询
+            - 多值生成多个通配符查询后整体取反
         3. 范围查询(gte/gt/lte/lt):
             - 支持大于等于、大于、小于等于、小于的范围比较
         4. 默认terms查询:
             - 直接转换为terms精确匹配查询
         """
         if condition["method"] == "include":
-            return build_field_contains_queries(condition["key"], condition["value"])
+            # 显式字段「包含」保持基线 *value* 子串语义，勿与全字段检索策略耦合
+            if isinstance(condition["value"], list):
+                queries = [Q("wildcard", **{condition["key"]: f"*{value}*"}) for value in condition["value"]]
+                return queries[0] if len(queries) == 1 else Q("bool", should=queries)
+            return Q("wildcard", **{condition["key"]: f"*{condition['value']}*"})
 
         elif condition["method"] == "exclude":
-            q = build_field_contains_queries(condition["key"], condition["value"])
-            return ~q if q is not None else Q("match_none")
+            if isinstance(condition["value"], list):
+                queries = [Q("wildcard", **{condition["key"]: f"*{value}*"}) for value in condition["value"]]
+                return ~(queries[0] if len(queries) == 1 else Q("bool", should=queries))
+            return ~Q("wildcard", **{condition["key"]: f"*{condition['value']}*"})
 
         elif condition["method"] in ["gte", "gt", "lte", "lt"]:
             # 范围查询：支持大于、大于等于、小于、小于等于操作
