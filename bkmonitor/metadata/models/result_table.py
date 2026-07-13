@@ -19,7 +19,7 @@ from typing import Any, Self
 
 import pydantic
 from django.conf import settings
-from django.db import models, transaction
+from django.db import models
 from django.db.models import sql
 from django.db.transaction import atomic, on_commit
 from django.utils import timezone as django_timezone
@@ -3461,7 +3461,7 @@ class ESFieldQueryAliasOption(BaseModel):
             raise
 
     @staticmethod
-    @transaction.atomic
+    @atomic(config.DATABASE_CONNECTION_NAME)
     def manage_query_alias_settings(
         table_id: str,
         query_alias_settings: list[dict[str, Any]],

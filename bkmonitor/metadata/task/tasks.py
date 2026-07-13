@@ -455,7 +455,7 @@ def _clean_disable_es_storage(es_storage):
     metrics.report_all()
 
 
-def _manage_es_storage(es_storage):
+def _manage_es_storage(es_storage: models.ESStorage):
     """
     NOTE: 针对结果表校验使用的es集群状态，不要统一校验
     """
