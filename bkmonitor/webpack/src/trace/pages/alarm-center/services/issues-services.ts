@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { issueSearch, issueTopN } from 'monitor-api/modules/issue';
+import { issueSearch, issueTopN, issueTrend } from 'monitor-api/modules/issue';
 import { type IFilterField, EFieldType } from 'trace/components/retrieval-filter/typing';
 
 import {
@@ -34,7 +34,13 @@ import {
 } from '../alarm-issues/constant';
 import { type RequestOptions, AlarmService } from './base';
 
-import type { IssueItem, IssueSearchParams, IssueSearchResponse } from '../alarm-issues/typing';
+import type {
+  IssueItem,
+  IssueSearchParams,
+  IssueSearchResponse,
+  IssueTrendParams,
+  IssueTrendResponse,
+} from '../alarm-issues/typing';
 import type {
   AnalysisFieldAggItem,
   AnalysisTopNDataResponse,
@@ -550,24 +556,19 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
     params: Partial<CommonFilterParams>,
     options?: RequestOptions
   ): Promise<FilterTableResponse<T>> {
-    // 计算告警趋势图时间范围：trend_end_time 跟随 end_time，trend_start_time 为往前 24 小时
-    const trendEndTime = params.end_time;
-    const trendStartTime = trendEndTime ? trendEndTime - 24 * 60 * 60 : undefined;
-
     const data = await issueSearch<Partial<IssueSearchParams>, IssueSearchResponse>(
       {
         ...params,
         show_aggs: false,
         show_dsl: false,
-        trend_end_time: trendEndTime,
-        trend_start_time: trendStartTime,
+        show_trend: false,
       },
       options
     )
       .then(({ issues, total }) => {
         return {
           total,
-          data: issues || ([] as IssueItem[]),
+          data: (issues || []).map(issue => ({ ...issue, trend: [] as [number, number][] })),
         };
       })
       .catch(() => ({
@@ -575,6 +576,22 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
         data: [] as IssueItem[],
       }));
     return data as FilterTableResponse<T>;
+  }
+  async getIssueTrend(
+    issues: IssueItem[],
+    trendEndTime?: number,
+    options?: RequestOptions
+  ): Promise<IssueTrendResponse> {
+    if (!(issues.length && trendEndTime)) {
+      return {};
+    }
+    const trendParams: IssueTrendParams = {
+      bk_biz_ids: [...new Set(issues.map(issue => issue.bk_biz_id))],
+      issue_ids: issues.map(issue => issue.id),
+      trend_end_time: trendEndTime,
+      trend_start_time: trendEndTime - 24 * 60 * 60,
+    };
+    return issueTrend<IssueTrendParams, IssueTrendResponse>(trendParams, options).catch(() => ({}));
   }
   async getQuickFilterList(params: Partial<CommonFilterParams>, options?: RequestOptions): Promise<QuickFilterItem[]> {
     const data = await issueSearch<Partial<IssueSearchParams>, IssueSearchResponse>(

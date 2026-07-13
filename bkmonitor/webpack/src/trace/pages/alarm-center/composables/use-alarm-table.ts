@@ -30,8 +30,9 @@ import { commonPageSizeGet } from 'monitor-common/utils';
 import { getOperatorDisabled } from '../utils';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
+import type { IssuesService } from '../services/issues-services';
 import type { IssueItem } from '../alarm-issues/typing';
-import type { ActionTableItem, AlertTableItem, IncidentTableItem } from '../typings';
+import { AlarmType, type ActionTableItem, type AlertTableItem, type IncidentTableItem } from '../typings';
 
 export function useAlarmTable() {
   const alarmStore = useAlarmCenterStore();
@@ -65,15 +66,30 @@ export function useAlarmTable() {
 
     loading.value = true;
     data.value = [];
-    const res = await alarmStore.alarmService.getFilterTableList(
-      {
-        ...alarmStore.commonFilterParams,
-        page_size: pageSize.value,
-        page: page.value,
-        ordering: ordering.value ? [ordering.value] : [],
-      },
-      { signal }
-    );
+    const params = {
+      ...alarmStore.commonFilterParams,
+      page_size: pageSize.value,
+      page: page.value,
+      ordering: ordering.value ? [ordering.value] : [],
+    };
+    const res = await alarmStore.alarmService.getFilterTableList(params, { signal });
+    // Issues 列表先渲染，再异步回填趋势，趋势请求不占用列表 loading。
+    if (alarmStore.alarmType === AlarmType.ISSUES) {
+      if (signal.aborted) return;
+      total.value = res.total;
+      data.value = res.data;
+      loading.value = false;
+      const trendMap = await (alarmStore.alarmService as IssuesService).getIssueTrend(
+        data.value as IssueItem[],
+        params.end_time,
+        { signal }
+      );
+      if (signal.aborted) return;
+      for (const issue of data.value as IssueItem[]) {
+        issue.trend = trendMap[issue.id] || [];
+      }
+      return;
+    }
     // 获取告警关联事件数 和 关联告警信息
     await alarmStore.alarmService
       .getAlterRelevance(res.data as (ActionTableItem | AlertTableItem | IncidentTableItem)[], { signal })
