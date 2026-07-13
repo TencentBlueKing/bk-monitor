@@ -54,6 +54,7 @@ from fta_web.alert.handlers.base import (
     BaseQueryTransformer,
     QueryField,
 )
+from fta_web.alert.handlers.fulltext import FulltextFieldKind, FulltextSearchField
 from fta_web.alert.handlers.translator import (
     BizTranslator,
     CategoryTranslator,
@@ -606,6 +607,16 @@ class AlertQueryHandler(BaseBizQueryHandler):
     """
 
     query_transformer = AlertQueryTransformer
+    # 产品锁定对照故障：ID、名称、内容、标签、负责人、关注人、所属业务
+    FULLTEXT_SEARCH_FIELDS = [
+        FulltextSearchField("id", FulltextFieldKind.KEYWORD),
+        FulltextSearchField("alert_name", FulltextFieldKind.TEXT),
+        FulltextSearchField("event.description", FulltextFieldKind.TEXT),
+        FulltextSearchField("labels", FulltextFieldKind.KEYWORD),
+        FulltextSearchField("appointee", FulltextFieldKind.KEYWORD),
+        FulltextSearchField("follower", FulltextFieldKind.KEYWORD),
+        FulltextSearchField("event.bk_biz_id", FulltextFieldKind.KEYWORD),
+    ]
 
     # 导出时需要排除的无用字段（这些字段会在处理过程中被移除）
     EXCLUDED_EXPORT_FIELDS = {"action_id", "action_name", "module_id", "set_id"}
@@ -1055,11 +1066,12 @@ class AlertQueryHandler(BaseBizQueryHandler):
             con_q = None
             for query_string in condition["value"]:
                 if query_string.strip():
-                    query_dsl = self.query_transformer.transform_query_string(query_string, self.query_context)
-                    if isinstance(query_dsl, str):
-                        temp_q = Q("query_string", query=query_dsl)
-                    else:
-                        temp_q = Q(query_dsl)
+                    # UI 全字段：转义冒号后按裸词处理，叠加 Keyword 包含模糊
+                    temp_q = self.build_query_string_q(
+                        query_string, context=self.query_context, escape_colon=True
+                    )
+                    if temp_q is None:
+                        continue
 
                     if con_q is None:
                         con_q = temp_q

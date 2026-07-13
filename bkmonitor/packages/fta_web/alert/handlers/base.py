@@ -31,6 +31,11 @@ from bkmonitor.utils.request import get_request, get_request_username
 from constants.alert import EventTargetType
 from core.drf_resource import resource
 from core.errors.alert import QueryStringParseError
+from fta_web.alert.handlers.fulltext import (
+    FulltextSearchField,
+    build_fulltext_fuzzy_query,
+    is_bare_fulltext_query,
+)
 from fta_web.alert.handlers.translator import AbstractTranslator
 
 # 模块级字段映射缓存，key 为 Transformer 类对象，保证每个子类独立缓存。
@@ -238,6 +243,8 @@ class BaseQueryTransformer(BaseTreeTransformer):
 class BaseQueryHandler:
     # query_string 语法树自定义解析类
     query_transformer = None
+    # 全字段裸词检索白名单；空列表表示不启用（Event/Action 等保持原行为）
+    FULLTEXT_SEARCH_FIELDS: list[FulltextSearchField] = []
 
     class DurationOption:
         # 关于时间差的选项
@@ -354,20 +361,40 @@ class BaseQueryHandler:
 
         return search_object
 
+    def build_query_string_q(self, query_string: str, context=None, *, escape_colon: bool = False) -> Q | None:
+        """
+        将 query_string 转为 ES Q。
+
+        - 配置了 FULLTEXT_SEARCH_FIELDS 且为裸词：仅走白名单全字段模糊（含 Keyword 子串 + 大小写不敏感），
+          不再叠加无 fields 限制的 query_string，避免扫到 snapshot 等大字段。
+        - 结构化语法（field:value / 布尔）：仍走 transform 后的 query_string / DSL。
+        """
+        if not query_string or not str(query_string).strip():
+            return None
+
+        original_query_string = query_string
+        if self.FULLTEXT_SEARCH_FIELDS and is_bare_fulltext_query(original_query_string):
+            fuzzy_q = build_fulltext_fuzzy_query(original_query_string, self.FULLTEXT_SEARCH_FIELDS)
+            if fuzzy_q is not None:
+                return fuzzy_q
+            # 词过短：不加检索条件，避免无界 query_string / 单字符 wildcard
+            return None
+
+        transform_input = query_string.replace(":", r"\:") if escape_colon else query_string
+        query_dsl = self.query_transformer.transform_query_string(transform_input, context)
+        if isinstance(query_dsl, str):
+            return Q("query_string", query=query_dsl)
+        return Q(query_dsl)
+
     def add_query_string(self, search_object: Search, query_string: str = None, context=None):
         """
         处理 query_string
         """
         query_string = self.query_string if query_string is None else query_string
 
-        if query_string.strip():
-            query_dsl = self.query_transformer.transform_query_string(query_string, context)
-            if isinstance(query_dsl, str):
-                # 如果 query_dsl 是字符串，就使用 query_string 查询
-                search_object = search_object.query("query_string", query=query_dsl)
-            else:
-                # 如果 query_dsl 是字典，就使用 filter 查询
-                search_object = search_object.query(query_dsl)
+        query_q = self.build_query_string_q(query_string, context)
+        if query_q is not None:
+            search_object = search_object.query(query_q)
         return search_object
 
     def add_conditions(self, search_object: Search, conditions: list = None):
@@ -429,18 +456,30 @@ class BaseQueryHandler:
         """
         if condition["method"] == "include":
             if isinstance(condition["value"], list):
-                # 如果是列表，生成多个 wildcard 查询并通过 OR 组合
-                queries = [Q("wildcard", **{condition["key"]: f"*{value}*"}) for value in condition["value"]]
+                # 如果是列表，生成多个 wildcard 查询并通过 OR 组合（大小写不敏感）
+                queries = [
+                    Q("wildcard", **{condition["key"]: {"value": f"*{value}*", "case_insensitive": True}})
+                    for value in condition["value"]
+                ]
                 return queries[0] if len(queries) == 1 else Q("bool", should=queries)
-            return Q("wildcard", **{condition["key"]: f"*{condition['value']}*"})
+            return Q(
+                "wildcard",
+                **{condition["key"]: {"value": f"*{condition['value']}*", "case_insensitive": True}},
+            )
 
         elif condition["method"] == "exclude":
             if isinstance(condition["value"], list):
-                # 如果是列表，生成多个 wildcard 查询并通过 OR 组合后取反
-                queries = [Q("wildcard", **{condition["key"]: f"*{value}*"}) for value in condition["value"]]
+                # 如果是列表，生成多个 wildcard 查询并通过 OR 组合后取反（大小写不敏感）
+                queries = [
+                    Q("wildcard", **{condition["key"]: {"value": f"*{value}*", "case_insensitive": True}})
+                    for value in condition["value"]
+                ]
                 return ~(queries[0] if len(queries) == 1 else Q("bool", should=queries))
             # 生成单个取反wildcard查询
-            return ~Q("wildcard", **{condition["key"]: f"*{condition['value']}*"})
+            return ~Q(
+                "wildcard",
+                **{condition["key"]: {"value": f"*{condition['value']}*", "case_insensitive": True}},
+            )
 
         elif condition["method"] in ["gte", "gt", "lte", "lt"]:
             # 范围查询：支持大于、大于等于、小于、小于等于操作
