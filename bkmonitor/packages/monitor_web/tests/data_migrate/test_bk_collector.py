@@ -1,7 +1,14 @@
 from types import SimpleNamespace
 
+import pytest
+
 from bkmonitor.utils.local import local
 from monitor_web.data_migrate import bk_collector
+
+
+@pytest.fixture(autouse=True)
+def mock_refresh_biz_ping_conf(monkeypatch):
+    monkeypatch.setattr(bk_collector, "_refresh_biz_ping_conf", lambda **kwargs: None)
 
 
 def _application(bk_biz_id=2, app_name="demo"):
@@ -1122,6 +1129,7 @@ def test_check_biz_bk_collector_proxy_config_delivery_waits_when_failed_with_pen
 def test_refresh_biz_bk_collector_configs_checks_delivery_after_refresh(monkeypatch):
     custom_report_calls = []
     delivery_check_calls = []
+    ping_server_calls = []
 
     def fake_refresh_custom_report(**kwargs):
         custom_report_calls.append(kwargs)
@@ -1137,6 +1145,7 @@ def test_refresh_biz_bk_collector_configs_checks_delivery_after_refresh(monkeypa
         fake_refresh_custom_report,
     )
     monkeypatch.setattr(bk_collector, "check_biz_bk_collector_proxy_config_delivery", fake_check_delivery)
+    monkeypatch.setattr(bk_collector, "_refresh_biz_ping_conf", lambda **kwargs: ping_server_calls.append(kwargs))
 
     result = bk_collector.refresh_biz_bk_collector_proxy_configs(
         bk_tenant_id="system",
@@ -1165,6 +1174,30 @@ def test_refresh_biz_bk_collector_configs_checks_delivery_after_refresh(monkeypa
     assert result["delivery_check"]["result"] is True
     assert result["result"] is True
     assert "details" not in result
+    assert ping_server_calls == [{"bk_tenant_id": "system", "bk_biz_ids": [2], "plugin_name": bk_collector.PLUGIN_NAME}]
+
+
+def test_refresh_biz_bk_collector_configs_ignores_ping_server_failure(monkeypatch):
+    monkeypatch.setattr(
+        bk_collector.CustomReportSubscription,
+        "refresh_collector_custom_conf",
+        lambda **kwargs: {"summary": {"failed_count": 0}, "details": []},
+    )
+    monkeypatch.setattr(
+        bk_collector,
+        "_refresh_biz_ping_conf",
+        lambda **kwargs: (_ for _ in ()).throw(RuntimeError("ping server refresh failed")),
+    )
+
+    result = bk_collector.refresh_biz_bk_collector_proxy_configs(
+        bk_tenant_id="system",
+        bk_biz_ids=[2],
+        config_types=[bk_collector.CUSTOM_REPORT],
+        check_delivery=False,
+    )
+
+    assert result["result"] is True
+    assert result["message"] == "refresh completed, proxy config delivery check skipped"
 
 
 def test_refresh_biz_bk_collector_configs_drops_delivery_check_details_by_default(monkeypatch):
@@ -1601,6 +1634,11 @@ def test_refresh_biz_bk_collector_configs_dry_run_and_local_context_restore(monk
 
     monkeypatch.setattr(
         bk_collector.CustomReportSubscription, "refresh_collector_custom_conf", fake_refresh_custom_report
+    )
+    monkeypatch.setattr(
+        bk_collector,
+        "_refresh_biz_ping_conf",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("dry-run should not refresh ping server config")),
     )
 
     local.username = "origin"

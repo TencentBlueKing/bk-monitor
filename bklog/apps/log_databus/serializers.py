@@ -37,7 +37,8 @@ from apps.log_databus.constants import (
     ArchiveInstanceType,
     ClusterTypeEnum,
     CollectorBatchOperationType,
-    CollectorSourceEnum, ContainerCollectorType,
+    CollectorSourceEnum,
+    ContainerCollectorType,
     Environment,
     EsSourceType,
     EtlConfig,
@@ -393,6 +394,8 @@ class BcsContainerConfigSerializer(serializers.Serializer):
     enable_stdout = serializers.BooleanField(required=False, label=_("是否采集标准输出"), default=False)
     conditions = PluginConditionSerializer(label=_("过滤条件"), required=False)
     multiline = MultilineSerializer(label=_("段日志配置"), required=False)
+    # 是否增量采集（false=从文件头部开始采集）。不设 default，未传则不落库、不影响现状
+    tail_files = serializers.BooleanField(required=False, label=_("是否增量采集"))
 
 
 class PlatformIndexVisibilitySerializer(serializers.Serializer):
