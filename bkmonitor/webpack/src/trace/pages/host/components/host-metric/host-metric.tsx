@@ -31,7 +31,6 @@ import { useI18n } from 'vue-i18n';
 
 import { useMetricAggregation } from '../../composables/use-metric-aggregation';
 import { useMetricGroups } from '../../composables/use-metric-groups';
-import { MOCK_COMPARE_TARGETS } from '../../mock/aggregation';
 import { buildScopedVars, DashboardPanel, useDashboardPanels } from '../dashbords';
 import GroupManageDialog from './group-manage-dialog';
 import MetricToolbar from './metric-toolbar';
@@ -49,9 +48,9 @@ export default defineComponent({
       type: Object as PropType<IHostTopoTreeNode | null>,
       default: null,
     },
-    hostList: {
+    compareHostList: {
       type: Array as PropType<IHostTopoHostNode[]>,
-      default: () => MOCK_COMPARE_TARGETS,
+      default: () => [],
     },
   },
   setup(props) {
@@ -116,7 +115,7 @@ export default defineComponent({
         <MetricToolbar
           compareListEnable={compareListEnable.value}
           currentTarget={props.selectedNode.name}
-          targetList={props.hostList}
+          targetList={props.compareHostList}
           value={aggregation.state}
           onChange={aggregation.updateState}
           onOpenSetting={() => (settingShow.value = true)}

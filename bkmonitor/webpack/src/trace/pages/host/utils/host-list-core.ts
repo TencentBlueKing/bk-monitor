@@ -286,7 +286,6 @@ export const handleCreateItemId = (
     const [itemKey, filterDictKey] = set;
     const key = isFilterDict ? filterDictKey : itemKey;
     let value = item[key];
-    console.log(item, key, value);
     if (value === undefined && isExist) {
       isExist = false;
     }

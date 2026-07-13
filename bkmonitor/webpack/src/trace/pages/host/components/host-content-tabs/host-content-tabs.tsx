@@ -46,6 +46,11 @@ export default defineComponent({
       type: Object as PropType<IHostTopoTreeNode | null>,
       default: null,
     },
+    /** 对比主机列表 */
+    compareHostList: {
+      type: Array as PropType<IHostTopoHostNode[]>,
+      default: () => [],
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -78,7 +83,12 @@ export default defineComponent({
         case 'metric':
         case 'system':
           // 指标汇聚（topo）与系统指标（host）视觉一致，复用同一组件
-          return <HostMetric selectedNode={props.selectedNode} />;
+          return (
+            <HostMetric
+              compareHostList={props.compareHostList}
+              selectedNode={props.selectedNode}
+            />
+          );
         case 'process':
           return <HostProcess host={props.selectedNode as IHostTopoHostNode} />;
         default:

@@ -104,6 +104,7 @@ export default defineComponent({
       COMPARE_TYPE_OPTIONS.filter(item => props.compareListEnable.includes(item.id))
     );
 
+    /** 把对比目标的 id 转换为对应的对象 */
     const handleCompareTargetChange = (val: string[]) => {
       const compareTargets = val.reduce((total, id) => {
         const item = props.targetList.find(item => item.id === id);
@@ -125,22 +126,18 @@ export default defineComponent({
             <Select
               class='metric-toolbar__target-select'
               behavior='simplicity'
+              displayKey='name'
+              idKey='id'
+              list={props.targetList}
               modelValue={localTargetValue.value}
               multipleMode='tag'
               placeholder={t('选择目标')}
               collapseTags
+              enableVirtualRender
               filterable
               multiple
               onChange={handleCompareTargetChange}
-            >
-              {props.targetList.map(item => (
-                <Select.Option
-                  id={item.id}
-                  key={item.id}
-                  name={item.name}
-                />
-              ))}
-            </Select>
+            />
           </div>
         );
       }
