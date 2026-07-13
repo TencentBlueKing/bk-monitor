@@ -97,8 +97,12 @@ def create_virtual_es_route():
         cluster_id=ES_CLUSTER_ID,
         source_type="bkdata",
         index_set="virtual_es",
-        need_create_index=True,
     )
+
+
+def test_log_router_serializers_do_not_expose_need_create_index():
+    assert "need_create_index" not in CreateOrUpdateLogRouter.RequestSerializer().fields
+    assert "need_create_index" not in BulkCreateOrUpdateLogRouter.RequestSerializer.TableInfoSerializer().fields
 
 
 @pytest.mark.django_db(databases="__all__")

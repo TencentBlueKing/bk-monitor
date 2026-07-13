@@ -1574,7 +1574,8 @@ class ResultTable(models.Model):
             es_mapping_changed = field_list is not None or any(
                 key in es_storage_config for key in ("mapping_settings", "index_settings")
             )
-            should_prepare_es = is_moving_es_cluster or es_mapping_changed or (not old_is_enable and self.is_enable)
+            is_re_enabling = not old_is_enable and self.is_enable
+            should_prepare_es = is_moving_es_cluster or es_mapping_changed or is_re_enabling
             if should_prepare_es:
                 logger.info(
                     "modify: prepare ES before applying datalink, table_id->[%s], old_default->[%s], "
@@ -1586,11 +1587,17 @@ class ResultTable(models.Model):
                     es_mapping_changed,
                     not old_is_enable,
                 )
-                prepared = default_cluster_storage.update_index_and_aliases(
-                    ahead_time=0,
-                    is_moving_cluster=is_moving_es_cluster,
-                    strict=True,
-                )
+                if is_re_enabling and not default_cluster_storage.index_exist():
+                    prepared = default_cluster_storage.create_index_and_aliases(
+                        ahead_time=default_cluster_storage.slice_gap,
+                        strict=True,
+                    )
+                else:
+                    prepared = default_cluster_storage.update_index_and_aliases(
+                        ahead_time=default_cluster_storage.slice_gap if is_re_enabling else 0,
+                        is_moving_cluster=is_moving_es_cluster,
+                        strict=True,
+                    )
                 if prepared is False:
                     raise RuntimeError(_("结果表[{}]的ES索引或写别名未准备完成").format(self.table_id))
 

@@ -164,6 +164,75 @@ def test_same_cluster_modify_is_idempotent(storage_switch_records, mocker):
     assert models.StorageClusterRecord.objects.filter(table_id=TABLE_ID, bk_tenant_id=TENANT_ID).count() == 1
 
 
+def test_reenable_es_updates_existing_index_before_datalink(storage_switch_records, mocker):
+    result_table = storage_switch_records["result_table"]
+    result_table.is_enable = False
+    result_table.save(update_fields=["is_enable"])
+    events = []
+
+    def prepare_es(*args, **kwargs):
+        events.append("prepare_es")
+        return True
+
+    def apply_datalink(*args, **kwargs):
+        events.append("apply_datalink")
+
+    mocker.patch.object(models.ESStorage, "index_exist", autospec=True, return_value=True)
+    create_mock = mocker.patch.object(models.ESStorage, "create_index_and_aliases", autospec=True)
+    update_mock = mocker.patch.object(
+        models.ESStorage,
+        "update_index_and_aliases",
+        autospec=True,
+        side_effect=prepare_es,
+    )
+    mocker.patch.object(models.ResultTable, "apply_datalink", autospec=True, side_effect=apply_datalink)
+
+    result_table.modify(operator="admin", is_enable=True)
+
+    assert events == ["prepare_es", "apply_datalink"]
+    create_mock.assert_not_called()
+    assert update_mock.call_args.kwargs == {
+        "ahead_time": storage_switch_records["es_storage"].slice_gap,
+        "is_moving_cluster": False,
+        "strict": True,
+    }
+
+
+def test_reenable_es_creates_missing_index_before_datalink(storage_switch_records, mocker):
+    result_table = storage_switch_records["result_table"]
+    result_table.is_enable = False
+    result_table.save(update_fields=["is_enable"])
+    events = []
+
+    mocker.patch.object(models.ESStorage, "index_exist", autospec=True, return_value=False)
+
+    def create_index(*args, **kwargs):
+        events.append("create_index")
+        return True
+
+    create_mock = mocker.patch.object(
+        models.ESStorage,
+        "create_index_and_aliases",
+        autospec=True,
+        side_effect=create_index,
+    )
+    update_mock = mocker.patch.object(models.ESStorage, "update_index_and_aliases", autospec=True)
+
+    def apply_datalink(*args, **kwargs):
+        events.append("apply_datalink")
+
+    mocker.patch.object(models.ResultTable, "apply_datalink", autospec=True, side_effect=apply_datalink)
+
+    result_table.modify(operator="admin", is_enable=True)
+
+    assert events == ["create_index", "apply_datalink"]
+    update_mock.assert_not_called()
+    assert create_mock.call_args.kwargs == {
+        "ahead_time": storage_switch_records["es_storage"].slice_gap,
+        "strict": True,
+    }
+
+
 def test_es_cluster_a_to_b_to_a_creates_new_segment_on_switch_back(storage_switch_records, mocker):
     result_table = storage_switch_records["result_table"]
     mocker.patch.object(models.ResultTable, "apply_datalink", autospec=True)

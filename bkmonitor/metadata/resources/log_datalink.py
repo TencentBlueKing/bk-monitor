@@ -687,7 +687,6 @@ class CreateOrUpdateLogRouter(Resource):
         index_set = serializers.CharField(required=False, allow_blank=True, label="索引集规则")
         source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
         bkbase_table_id = serializers.CharField(required=False, label="计算平台结果表ID")
-        need_create_index = serializers.BooleanField(required=False, label="是否需要创建索引")
         storage_type = serializers.ChoiceField(
             required=False,
             choices=[models.ClusterInfo.TYPE_ES, models.ClusterInfo.TYPE_DORIS],
@@ -806,7 +805,6 @@ class BulkCreateOrUpdateLogRouter(Resource):
             source_type = serializers.CharField(required=False, allow_blank=True, label="数据源类型")
             bkbase_table_id = serializers.CharField(required=False, label="计算平台结果表ID")
             origin_table_id = serializers.CharField(required=False, label="原始结果表ID")
-            need_create_index = serializers.BooleanField(required=False, label="是否创建索引")
             storage_type = serializers.ChoiceField(
                 required=False,
                 choices=[models.ClusterInfo.TYPE_ES, models.ClusterInfo.TYPE_DORIS],
