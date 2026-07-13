@@ -16,7 +16,7 @@ from enum import Enum
 from elasticsearch_dsl import Q
 from luqum.exceptions import ParseError
 from luqum.parser import lexer, parser
-from luqum.tree import Word
+from luqum.tree import Phrase, Word
 
 # 非纯数字检索词最短长度，避免单字符 leading-wildcard 误召回与性能问题
 MIN_FULLTEXT_TERM_LENGTH = 2
@@ -75,10 +75,21 @@ def normalize_fulltext_term(query: str) -> str:
     return unescape_lucene_literals(strip_wrapping_quotes(query))
 
 
-def is_quoted_phrase(query: str) -> bool:
-    """整段被引号包裹时，视为短语而非 Lucene 语法。"""
+def is_single_quoted_phrase(query: str) -> bool:
+    """单引号不是 Lucene 短语语法，仅兼容恰好一对单引号包裹的字面短语。"""
     raw = (query or "").strip()
-    return len(raw) >= 2 and ((raw[0] == raw[-1] == '"') or (raw[0] == raw[-1] == "'"))
+    if len(raw) < 2 or raw[0] != raw[-1] or raw[0] != "'":
+        return False
+
+    escaped = False
+    for char in raw[1:-1]:
+        if escaped:
+            escaped = False
+        elif char == "\\":
+            escaped = True
+        elif char == "'":
+            return False
+    return True
 
 
 def has_unescaped_wildcard(term: str) -> bool:
@@ -98,20 +109,20 @@ def is_bare_fulltext_query(query: str) -> bool:
     """
     判断是否为可叠加全字段模糊的「裸词」查询（QueryString 语句模式）。
 
-    - 整段引号包裹：一律视为短语裸词（走白名单）
+    - 双引号短语：仅根 AST 为 Phrase 时视为裸词
+    - 单引号短语：兼容恰好一对单引号包裹的字面输入
     - 未加引号：仅单个普通 Word 且不含 wildcard 操作符时视为裸词
     - fuzzy / boost / regex / 一元操作符 / 布尔 / 字段 / 分组等 AST 均保留结构化语义
     """
     raw = (query or "").strip()
     if not raw:
         return False
-    if is_quoted_phrase(raw):
-        return bool(normalize_fulltext_term(raw))
-
     try:
         query_node = parser.parse(raw, lexer=lexer.clone())
     except ParseError:
-        return False
+        return is_single_quoted_phrase(raw) and bool(normalize_fulltext_term(raw))
+    if isinstance(query_node, Phrase):
+        return bool(normalize_fulltext_term(raw))
     return isinstance(query_node, Word) and not has_unescaped_wildcard(query_node.value)
 
 

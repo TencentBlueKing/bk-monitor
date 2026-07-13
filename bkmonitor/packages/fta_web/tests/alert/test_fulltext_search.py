@@ -49,11 +49,25 @@ class TestFulltextHelpers:
         # 整段引号：即使内容含 AND / field:value，仍走白名单短语
         assert is_bare_fulltext_query('"CPU AND memory"') is True
         assert is_bare_fulltext_query('"labels:Prod"') is True
+        assert is_bare_fulltext_query("'CPU AND memory'") is True
         assert is_bare_fulltext_query(r"a\*b") is True
 
     @pytest.mark.parametrize(
         "query",
-        ["Prod~", "Prod^2", "+Prod", "-Prod", "/Prod.*/", "Pro*", "Pr?d", "Prod Blue"],
+        [
+            "Prod~",
+            "Prod^2",
+            "+Prod",
+            "-Prod",
+            "/Prod.*/",
+            "Pro*",
+            "Pr?d",
+            "Prod Blue",
+            '"Prod" AND "Blue"',
+            '"Prod" OR "Blue"',
+            '"Prod" "Blue"',
+            "'Prod' AND 'Blue'",
+        ],
     )
     def test_lucene_syntax_is_not_bare_fulltext(self, query):
         assert is_bare_fulltext_query(query) is False
@@ -371,7 +385,10 @@ class TestIncidentAlertFulltextWhitelist:
         assert body["query_string"]["query"]
 
     @pytest.mark.parametrize("handler_class", [AlertQueryHandler, IncidentQueryHandler])
-    @pytest.mark.parametrize("query", ["Prod~", "Prod^2", "+Prod", "-Prod", "/Prod.*/"])
+    @pytest.mark.parametrize(
+        "query",
+        ["Prod~", "Prod^2", "+Prod", "-Prod", "/Prod.*/", '"Prod" AND "Blue"', '"Prod" OR "Blue"'],
+    )
     def test_lucene_syntax_keeps_structured_query_string(self, handler_class, query):
         handler = handler_class.__new__(handler_class)
         q = handler.build_query_string_q(query)
