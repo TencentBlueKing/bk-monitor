@@ -51,7 +51,9 @@ export default defineComponent({
     const showRowIndex = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_ROW_INDEX]);
     const expandTextView = computed(() => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
     const isShowSourceField = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_SOURCE_FIELD]);
+    const isShowCollectorField = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_COLLECTOR_FIELD]);
     const isUnionSearch = computed(() => store.getters.isUnionSearch);
+    const isSceneMode = computed(() => store.getters.isSceneMode);
     const isFormatDate = computed(() => store.state.isFormatDate);
 
     const sortStatus = ref<undefined | 'asc' | 'desc'>(undefined);
@@ -315,6 +317,17 @@ export default defineComponent({
             >
               <span class='switch-label'>{$t('时间格式化')}</span>
             </bk-checkbox>
+            {isSceneMode.value && (
+              <bk-checkbox
+                style='margin: 0 12px 0 0'
+                class='bklog-option-item'
+                theme='primary'
+                value={isShowCollectorField.value}
+                on-change={val => handleStorageChange(val, BK_LOG_STORAGE.TABLE_SHOW_COLLECTOR_FIELD)}
+              >
+                <span class='switch-label'>{$t('来源采集项')}</span>
+              </bk-checkbox>
+            )}
           </div>
         </bk-popover>
       </div>
