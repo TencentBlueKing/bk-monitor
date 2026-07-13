@@ -772,7 +772,6 @@ class AlertTracesResource(Resource):
         ).get("data", [])
 
         # 组装返回结构
-        slow_trace_error_msg: str = _("耗时较长")
         processed_traces: list[dict[str, Any]] = []
         for trace in traces:
             trace_id: str = trace.get("trace_id", "")
@@ -780,9 +779,6 @@ class AlertTracesResource(Resource):
                 continue
 
             is_error: bool = trace.get("error", False)
-            error_msg: str = (
-                trace_err_msg_map.get(trace_id, "") if is_error else trace.get("error_msg", slow_trace_error_msg) or ""
-            )
             processed_traces.append(
                 {
                     "app_name": apm_target["app_name"],
@@ -791,25 +787,15 @@ class AlertTracesResource(Resource):
                     "root_span_name": trace.get("root_span_name", ""),
                     "root_service_span_name": trace.get("root_service_span_name", ""),
                     "error": is_error,
-                    "error_msg": error_msg,
+                    "error_msg": trace_err_msg_map.get(trace_id, "") if is_error else _("耗时较长"),
                     # min_start_time（开始时间）｜trace_duration（耗时），单位为毫秒。
                     "min_start_time": trace.get("min_start_time", 0),
                     "trace_duration": trace.get("trace_duration", 0),
                 }
             )
 
-        # 按错误有详情、错误无详情、耗时较长、其他正常 Trace 的顺序展示。
-        processed_traces.sort(
-            key=lambda trace: (
-                0
-                if trace["error"] and trace["error_msg"]
-                else 1
-                if trace["error"]
-                else 2
-                if trace["error_msg"] == slow_trace_error_msg
-                else 3
-            )
-        )
+        # 错误 Trace 优先于耗时 Trace，两类 Trace 内部均按耗时降序展示。
+        processed_traces.sort(key=lambda trace: (not trace["error"], -trace["trace_duration"]))
         return {"query_config": query_config, "list": processed_traces}
 
     @classmethod
