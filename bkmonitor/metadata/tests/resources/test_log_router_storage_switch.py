@@ -255,6 +255,69 @@ def test_bulk_switch_creates_missing_virtual_target_storage(route_storage_record
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_bulk_create_and_update_virtual_route_with_options(route_storage_records):
+    table_id = "99101_bklog.bulk_index_set"
+
+    BulkCreateOrUpdateLogRouter().request(
+        bk_tenant_id=TENANT_ID,
+        space_type="bkcc",
+        space_id=SPACE_ID,
+        data_label="",
+        table_info=[
+            {
+                "table_id": table_id,
+                "storage_type": models.ClusterInfo.TYPE_ES,
+                "origin_table_id": ENTITY_TABLE_ID,
+                "index_set": "bulk_es",
+                "source_type": "bkdata",
+                "options": [{"name": "route_option", "value": "before"}],
+            }
+        ],
+    )
+
+    virtual_rt = models.ResultTable.objects.get(bk_tenant_id=TENANT_ID, table_id=table_id)
+    virtual_es = models.ESStorage.objects.get(bk_tenant_id=TENANT_ID, table_id=table_id)
+    option = models.ResultTableOption.objects.get(
+        bk_tenant_id=TENANT_ID,
+        table_id=table_id,
+        name="route_option",
+    )
+    assert virtual_rt.default_storage == models.ClusterInfo.TYPE_ES
+    assert virtual_es.origin_table_id == ENTITY_TABLE_ID
+    assert virtual_es.index_set == "bulk_es"
+    assert virtual_es.need_create_index is False
+    assert option.value == "before"
+    assert not models.StorageClusterRecord.objects.filter(bk_tenant_id=TENANT_ID, table_id=table_id).exists()
+
+    BulkCreateOrUpdateLogRouter().request(
+        bk_tenant_id=TENANT_ID,
+        space_type="bkcc",
+        space_id=SPACE_ID,
+        data_label="",
+        table_info=[
+            {
+                "table_id": table_id,
+                "storage_type": models.ClusterInfo.TYPE_ES,
+                "options": [{"name": "route_option", "value": "after"}],
+            }
+        ],
+    )
+
+    virtual_es.refresh_from_db()
+    option.refresh_from_db()
+    assert virtual_es.index_set == "bulk_es"
+    assert option.value == "after"
+    assert (
+        models.ResultTableOption.objects.filter(
+            bk_tenant_id=TENANT_ID,
+            table_id=table_id,
+            name="route_option",
+        ).count()
+        == 1
+    )
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_route_cluster_mismatch_rolls_back_alias_and_storage_switch(route_storage_records):
     create_virtual_es_route()
     models.ResultTable.objects.filter(bk_tenant_id=TENANT_ID, table_id=ENTITY_TABLE_ID).update(
