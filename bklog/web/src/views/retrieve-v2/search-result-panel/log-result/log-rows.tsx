@@ -546,7 +546,7 @@ export default defineComponent({
           const collectorName = rowIndexSetId !== null
             ? flatIndexSetList.value.find(
               item => item.index_set_id === String(rowIndexSetId),
-            )?.collector_config_name ?? '--'
+            )?.index_set_name ?? '--'
             : '--';
           const hanldeSoureClick = (event) => {
             event.stopPropagation();

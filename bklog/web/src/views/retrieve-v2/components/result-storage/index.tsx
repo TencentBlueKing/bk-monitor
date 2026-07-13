@@ -319,7 +319,7 @@ export default defineComponent({
             </bk-checkbox>
             {isSceneMode.value && (
               <bk-checkbox
-                style='margin: 0 12px 0 0'
+                style='margin: 8px 12px 0 0'
                 class='bklog-option-item'
                 theme='primary'
                 value={isShowCollectorField.value}
