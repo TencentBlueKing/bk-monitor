@@ -961,7 +961,7 @@
 <style lang="scss" scoped>
   /* stylelint-disable no-descending-specificity */
   .kv-list-wrapper {
-    max-height: 50vh;
+    max-height: 100vh;
     overflow-y: auto;
     font-family: var(--table-fount-family);
     font-size: var(--table-fount-size);
