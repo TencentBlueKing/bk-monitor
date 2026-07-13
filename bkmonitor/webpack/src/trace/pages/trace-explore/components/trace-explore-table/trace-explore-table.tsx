@@ -27,6 +27,7 @@ import {
   type PropType,
   computed,
   defineComponent,
+  nextTick,
   onBeforeUnmount,
   onMounted,
   reactive,
@@ -185,6 +186,8 @@ export default defineComponent({
   setup(props, { emit }) {
     /** 滚动容器元素 */
     let scrollContainer: HTMLElement = null;
+    /** 触底加载前记录的滚动位置，数据追加后还原以避免仍停在底部重复触发 */
+    let scrollTopBeforeLoad: null | number = null;
     /** 滚动结束后回调逻辑执行计时器  */
     let scrollPointerEventsTimer = null;
     /** 统计弹窗 tippy 实例 */
@@ -315,15 +318,16 @@ export default defineComponent({
 
     /**
      * @description 滚动触底加载更多
+     * @param onlyNoScrollBar 为 true 时仅处理无滚动条场景（大屏内容未撑满视口），避免数据追加后仍粘在底部而重复触发
      */
-    const handleScrollToEnd = (target?: HTMLElement) => {
+    const handleScrollToEnd = (target?: HTMLElement, onlyNoScrollBar = false) => {
       if (!props.tableHasScrollLoading || !target) {
         return;
       }
       const { scrollHeight, scrollTop, clientHeight } = target;
       const isEnd = !!scrollTop && Math.abs(scrollHeight - scrollTop - clientHeight) < 1;
       const noScrollBar = scrollHeight < clientHeight + 1;
-      const shouldRequest = noScrollBar || isEnd;
+      const shouldRequest = onlyNoScrollBar ? noScrollBar : noScrollBar || isEnd;
       if (!shouldRequest) return;
       if (
         !(
@@ -332,12 +336,12 @@ export default defineComponent({
           props.tableLoading[ExploreTableLoadingEnum.SCROLL]
         )
       ) {
+        // 记录触底前的滚动位置，请求完成后还原
+        if (isEnd) {
+          scrollTopBeforeLoad = scrollTop;
+        }
         emit('scrollToEnd');
       }
-      target.scrollTo({
-        top: scrollHeight - 100,
-        behavior: 'smooth',
-      });
     };
 
     /**
@@ -602,14 +606,24 @@ export default defineComponent({
           // 如果是新数据（长度变小或完全不同），清空缓存重新缓存
           if (!oldData?.length || newData.length < oldData.length) {
             clearCache();
+            scrollTopBeforeLoad = null;
           }
           cacheRows(newData as Record<string, unknown>[]);
         } else {
           clearCache();
         }
-        requestAnimationFrame(() => {
-          // 触底加载逻辑兼容屏幕过大或dpr很小的边际场景处理
-          handleScrollToEnd(document.querySelector(props.scrollContainerSelector));
+        nextTick(() => {
+          requestAnimationFrame(() => {
+            const container = document.querySelector(props.scrollContainerSelector) as HTMLElement | null;
+            if (!container) return;
+            // 触底加载完成后还原滚动位置，避免浏览器粘在底部继续触发下一页
+            if (scrollTopBeforeLoad !== null) {
+              container.scrollTop = scrollTopBeforeLoad;
+              scrollTopBeforeLoad = null;
+            }
+            // 仅无滚动条时自动补全，兼容屏幕过大或 dpr 很小的场景
+            handleScrollToEnd(container, true);
+          });
         });
       },
       { immediate: true }
