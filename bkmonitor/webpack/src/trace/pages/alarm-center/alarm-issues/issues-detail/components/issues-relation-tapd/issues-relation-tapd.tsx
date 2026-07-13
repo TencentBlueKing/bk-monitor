@@ -27,13 +27,12 @@ import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
 import EmptyStatus from 'trace/components/empty-status/empty-status';
 import OverflowTips from 'trace/directive/overflow-tips';
-import tapdLogo from 'trace/static/img/issues/tapd-logo.png';
 import { useI18n } from 'vue-i18n';
 
 import { useTapdIssueActivities } from '../../../issues-tapd/composables/use-tapd-issue-activities';
-import { TapdLinkModeEnum } from '../../../issues-tapd/constant';
 import { getTapdRelations } from '../../../services/relation-tapd';
 import BasicCard from '../basic-card/basic-card';
+import RelationTapdItem from './relation-tapd-item';
 
 import type { TapdRelationItem } from '../../../services/relation-tapd';
 import type { IssueDetail } from '../../../typing';
@@ -123,40 +122,10 @@ export default defineComponent({
 
         {!this.loading &&
           this.list.map(item => (
-            <div
-              key={item.relation_id}
-              class='tapd-item'
-            >
-              <div class='tapd-item-left'>
-                <img
-                  alt=''
-                  src={tapdLogo}
-                />
-              </div>
-              <div class='tapd-item-right'>
-                <div class='tapd-item-right-top'>
-                  <div class='tapd-id'>#TAPD-{item.tapd_id}</div>
-                  <div
-                    class='tapd-name'
-                    v-overflow-tips
-                  >
-                    {item.tapd_title}
-                  </div>
-                </div>
-                <div class='tapd-item-right-bottom'>
-                  <span class='link-mode'>
-                    {`${item.link_mode === TapdLinkModeEnum.LINK ? this.t('关联已有单据') : this.t('新建单据')} · `}
-                    {item.sync_status ? undefined : this.t('状态不同步')}
-                  </span>
-                  {item.sync_status ? (
-                    <>
-                      <span class='icon-monitor icon-change' />
-                      <span class='sync-status'>{this.t('状态同步')}</span>
-                    </>
-                  ) : undefined}
-                </div>
-              </div>
-            </div>
+            <RelationTapdItem
+              key={item.tapd_id}
+              value={item}
+            />
           ))}
       </BasicCard>
     );

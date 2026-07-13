@@ -18,6 +18,7 @@ from django.db.models import Q
 
 from metadata import models
 from metadata.models.constants import DataIdCreatedFromSystem
+from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
 logger = logging.getLogger(__name__)
 
@@ -42,10 +43,26 @@ class Command(BaseCommand):
         bk_biz_id: int = options["bk_biz_id"]
 
         # 填充index_set
-        self.fill_esstorage_index_set(options["dry_run"])
+        index_set_table_ids = self.fill_esstorage_index_set(bk_tenant_id, bk_biz_id, options["dry_run"])
 
         # 补充rt options
-        self.fill_rt_options(bk_tenant_id, bk_biz_id, options["dry_run"])
+        option_table_ids = self.fill_rt_options(bk_tenant_id, bk_biz_id, options["dry_run"])
+
+        # 指定业务时立即刷新路由；全量执行时等待定时任务刷新
+        if bk_biz_id != 0 and not options["dry_run"]:
+            table_id_list = sorted(set(index_set_table_ids) | set(option_table_ids))
+            if table_id_list:
+                self.refresh_routes(bk_tenant_id, table_id_list)
+
+    def refresh_routes(self, bk_tenant_id: str, table_id_list: list[str]):
+        """刷新路由
+
+        Args:
+            bk_tenant_id: 租户 ID
+            table_id_list: 结果表 ID 列表
+        """
+        client = SpaceTableIDRedis()
+        client.push_es_table_id_detail(bk_tenant_id, table_id_list=table_id_list, is_publish=True)
 
     @classmethod
     def _query_table_options(
@@ -63,23 +80,21 @@ class Command(BaseCommand):
 
     def fill_rt_options(self, bk_tenant_id: str, bk_biz_id: int, dry_run: bool = True):
         # 查询所有实体表
-        table_ids: list[str] = list(
-            models.ESStorage.objects.filter(
-                Q(origin_table_id__isnull=True) | Q(origin_table_id=""),
-                need_create_index=True,
-                bk_tenant_id=bk_tenant_id,
-            ).values_list("table_id", flat=True)
+        es_storage_queryset = models.ESStorage.objects.filter(
+            Q(origin_table_id__isnull=True) | Q(origin_table_id=""),
+            need_create_index=True,
+            bk_tenant_id=bk_tenant_id,
         )
 
         # 如果业务非0，则按业务过滤
         if bk_biz_id > 0:
-            table_ids = [table_id for table_id in table_ids if table_id.startswith(f"{bk_biz_id}_")]
+            es_storage_queryset = es_storage_queryset.filter(table_id__startswith=f"{bk_biz_id}_")
         elif bk_biz_id < 0:
-            table_ids = [
-                table_id
-                for table_id in table_ids
-                if table_id.startswith(f"{bk_biz_id}_") or table_id.startswith(f"space_{abs(bk_biz_id)}_")
-            ]
+            es_storage_queryset = es_storage_queryset.filter(
+                Q(table_id__startswith=f"{bk_biz_id}_") | Q(table_id__startswith=f"space_{abs(bk_biz_id)}_")
+            )
+
+        table_ids: list[str] = list(es_storage_queryset.values_list("table_id", flat=True))
 
         # 查询所有实体表的options
         batch_size = 500
@@ -167,38 +182,32 @@ class Command(BaseCommand):
                 batch_size,
             )
             for origin_table_id, virtual_table_ids in origin_to_virtual_table_ids.items():
-                for virtual_table_id in virtual_table_ids:
-                    # 如果虚拟表有time_field option，则直接使用虚拟表的time_field option
-                    if (virtual_table_id, "time_field") in virtual_table_options:
-                        time_field_options.append(
-                            models.ResultTableOption(
-                                bk_tenant_id=bk_tenant_id,
-                                table_id=origin_table_id,
-                                name="time_field",
-                                value=virtual_table_options[(virtual_table_id, "time_field")].value,
-                                value_type="dict",
-                                creator="system",
-                            )
-                        )
-                        logger.info(
-                            f"create time_field option from virtual table: {origin_table_id} -> {virtual_table_options[(virtual_table_id, 'time_field')].value}"
-                        )
-                        break
-                    else:
-                        # 如果没有关联的虚拟表有time_field option，则使用dtEventTimeStamp作为time_field
-                        time_field_options.append(
-                            models.ResultTableOption(
-                                bk_tenant_id=bk_tenant_id,
-                                table_id=origin_table_id,
-                                name="time_field",
-                                value='{"name":"dtEventTimeStamp","type":"date","unit":"millisecond"}',
-                                value_type="dict",
-                                creator="system",
-                            )
-                        )
-                        logger.info(
-                            f'create time_field option by default: {origin_table_id} -> {{"name":"dtEventTimeStamp","type":"date","unit":"millisecond"}}'
-                        )
+                source_option = next(
+                    (
+                        virtual_table_options[(virtual_table_id, "time_field")]
+                        for virtual_table_id in virtual_table_ids
+                        if (virtual_table_id, "time_field") in virtual_table_options
+                    ),
+                    None,
+                )
+                if source_option:
+                    time_field_value = source_option.value
+                    logger.info(f"create time_field option from virtual table: {origin_table_id} -> {time_field_value}")
+                else:
+                    # 如果没有关联的虚拟表有time_field option，则使用dtEventTimeStamp作为time_field
+                    time_field_value = '{"name":"dtEventTimeStamp","type":"date","unit":"millisecond"}'
+                    logger.info(f"create time_field option by default: {origin_table_id} -> {time_field_value}")
+
+                time_field_options.append(
+                    models.ResultTableOption(
+                        bk_tenant_id=bk_tenant_id,
+                        table_id=origin_table_id,
+                        name="time_field",
+                        value=time_field_value,
+                        value_type="dict",
+                        creator="system",
+                    )
+                )
                 time_field_table_ids.append(origin_table_id)
 
         # 创建time_field options
@@ -211,26 +220,38 @@ class Command(BaseCommand):
         else:
             logger.info("no time_field options to create")
 
-    def fill_esstorage_index_set(self, dry_run: bool = True):
+        return table_ids
+
+    def fill_esstorage_index_set(self, bk_tenant_id: str, bk_biz_id: int, dry_run: bool = True):
         """填充esstorage的index_set
 
         1. 找出index_set为空的实体表, 排除索引集表
         2. 将table_id中的点替换成下划线, 更新esstorage的index_set
 
         Args:
+            bk_tenant_id: 租户 ID
+            bk_biz_id: 业务 ID
             dry_run: 是否只统计待修复数量，不写入数据库
         """
 
         # 找出index_set为空的实体表，排除索引集表
-        ess = (
+        es_storage_queryset = (
             models.ESStorage.objects.filter(Q(index_set__isnull=True) | Q(index_set=""))
             .filter(Q(origin_table_id__isnull=True) | Q(origin_table_id=""))
-            .filter(need_create_index=True)
+            .filter(need_create_index=True, bk_tenant_id=bk_tenant_id)
             .exclude(table_id__startswith="bklog_index_set_")
         )
+
+        if bk_biz_id > 0:
+            es_storage_queryset = es_storage_queryset.filter(table_id__startswith=f"{bk_biz_id}_")
+        elif bk_biz_id < 0:
+            es_storage_queryset = es_storage_queryset.filter(
+                Q(table_id__startswith=f"{bk_biz_id}_") | Q(table_id__startswith=f"space_{abs(bk_biz_id)}_")
+            )
+
         update_objects: list[models.ESStorage] = []
         table_ids: list[str] = []
-        for ess in ess:
+        for ess in es_storage_queryset:
             ess.index_set = ess.table_id.replace(".", "_")
             update_objects.append(ess)
             table_ids.append(ess.table_id)

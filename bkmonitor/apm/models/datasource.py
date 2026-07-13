@@ -1555,6 +1555,44 @@ class ProfileDataSource(ApmDataSourceConfigBase):
         }
 
     @classmethod
+    def _get_default_registered_kafka_cluster_name(cls, bk_tenant_id: str) -> str:
+        """
+        从 ClusterInfo 中查找该租户下已注册到 bkbase 的默认 Kafka 集群 cluster_name。
+        优先取默认集群；若默认集群未注册到 bkbase，则遍历其他 Kafka 集群；都未注册则报错。
+        """
+        # is_default_cluster 降序，默认集群排前优先使用
+        kafka_clusters = metadata_models.ClusterInfo.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            cluster_type=metadata_models.ClusterInfo.TYPE_KAFKA,
+        ).order_by("-is_default_cluster")
+        for cluster in kafka_clusters:
+            if cluster.registered_to_bkbase:
+                return cluster.cluster_name
+        raise ValueError(
+            f"no kafka cluster registered to bkbase for bk_tenant_id={bk_tenant_id}, "
+            "please contact administrator to register a kafka cluster to bkbase"
+        )
+
+    @classmethod
+    def _get_default_kafka_cluster_name(cls, bk_biz_id: int, bk_tenant_id: str) -> str:
+        """
+        查询已注册到 bkbase 的 Kafka 集群 cluster_name，用于 V4 链路 DataId.spec.preferCluster.name。
+
+        - 多租户开启：取该租户下已注册到 bkbase 的默认 Kafka 集群。
+        - 多租户未开启：优先取 APM DataLink.kafka_cluster_id 对应集群；不可用时回退到默认集群；都拿不到则报错。
+        """
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            return cls._get_default_registered_kafka_cluster_name(bk_tenant_id)
+
+        # 非多租户：优先走 DataLink.kafka_cluster_id，不可用则回退到默认集群
+        data_link = DataLink.get_data_link(bk_biz_id)
+        if data_link and data_link.kafka_cluster_id:
+            cluster = metadata_models.ClusterInfo.objects.filter(cluster_id=data_link.kafka_cluster_id).first()
+            if cluster and cluster.registered_to_bkbase:
+                return cluster.cluster_name
+        return cls._get_default_registered_kafka_cluster_name(bk_tenant_id)
+
+    @classmethod
     def apply_datasource(cls, bk_biz_id, app_name, **options):
         option = options["option"]
         profile_bk_biz_id = bk_biz_id
@@ -1587,11 +1625,13 @@ class ProfileDataSource(ApmDataSourceConfigBase):
         if use_v4:
             # V4 声明式链路：轮询可能长达 5 分钟，不可放入事务内
             # 先生成 DataId 名称并持久化，防止 provider() 中途失败后重试时生成不同随机后缀导致孤儿资源
+            prefer_kafka_cluster_name = cls._get_default_kafka_cluster_name(bk_biz_id, bk_tenant_id)
             provider = BkDataDorisV4Provider.from_datasource_instance(
                 obj,
                 bk_tenant_id=bk_tenant_id,
                 maintainer=maintainer,
                 operator=global_user,
+                prefer_kafka_cluster_name=prefer_kafka_cluster_name,
             )
             data_id_name = compose_profile_data_id_name(provider.data_biz_id, obj.app_name)
             obj.bkdata_datalink_config = {
@@ -1668,8 +1708,13 @@ class ProfileDataSource(ApmDataSourceConfigBase):
             apm_maintainers = ",".join(settings.APM_APP_BKDATA_MAINTAINER)
             global_user = get_global_user(bk_tenant_id=bk_tenant_id)
             maintainer = global_user if not apm_maintainers else f"{global_user},{apm_maintainers}"
+            prefer_kafka_cluster_name = cls._get_default_kafka_cluster_name(bk_biz_id, bk_tenant_id)
             provider = BkDataDorisV4Provider.from_datasource_instance(
-                instance, bk_tenant_id=bk_tenant_id, maintainer=maintainer, operator=global_user
+                instance,
+                bk_tenant_id=bk_tenant_id,
+                maintainer=maintainer,
+                operator=global_user,
+                prefer_kafka_cluster_name=prefer_kafka_cluster_name,
             )
             provider.apply()
         else:

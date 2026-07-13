@@ -242,6 +242,7 @@ ai_agent
 .tico/
 
 # ai code editor
+.agents
 .codex
 .claude/
 CLAUDE.local.md

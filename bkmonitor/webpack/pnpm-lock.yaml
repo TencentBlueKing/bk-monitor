@@ -418,6 +418,9 @@ importers:
       '@blueking/login-modal':
         specifier: ^1.0.6
         version: 1.0.6
+      '@blueking/login-userinfo':
+        specifier: 0.0.16
+        version: 0.0.16(vue@2.7.16)
       '@blueking/notice-component-vue2':
         specifier: ^2.0.7
         version: 2.0.7(dompurify@3.4.2)
@@ -1641,6 +1644,11 @@ packages:
 
   '@blueking/login-modal@1.0.6':
     resolution: {integrity: sha512-zjDHiCNY2Aydo9BcFiGiiw8uodPkCSK+SthXQZQQ/8Bq4nHnz+Hkuo8rnPrwuDIgB2E2C6X+T5+6jDXqTwrZyg==}
+
+  '@blueking/login-userinfo@0.0.16':
+    resolution: {integrity: sha512-78ijRCj1+Oal+qP6/T6s21Ww9IZbPu/7OmVnDPfF6+OrW6JQAu2n6yk9Bv4eG5ARDlG3hrLb0R1LzhlJZ52JaQ==}
+    peerDependencies:
+      vue: ^3
 
   '@blueking/monitor-alarm-center@0.0.13':
     resolution: {integrity: sha512-kEFElyeArues/UWaWLNiIakoKehos4e2irduVQdgpo+lvvg4+oPVrUfYdCEKc+T8QvkFWVlxRhP78ggIYiZncQ==}
@@ -6317,6 +6325,9 @@ packages:
   js-calendar@1.2.3:
     resolution: {integrity: sha512-dAA1/Zbp4+c5E+ARCVTIuKepXsNLzSYfzvOimiYD4S5eeP9QuplSHLcdhfqFSwyM1o1u6ku6RRRCyaZ0YAjiBw==}
 
+  js-cookie@3.0.8:
+    resolution: {integrity: sha512-yeJd4aNAdYZQjaon2bpD/Gb0B/omw7HQOsynXXcOiWVCacbBcPlgn8S/d1X6blFSaHao7ozqtW7NZW19xpCtIw==}
+
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
 
@@ -10837,6 +10848,12 @@ snapshots:
       - vue
 
   '@blueking/login-modal@1.0.6': {}
+
+  '@blueking/login-userinfo@0.0.16(vue@2.7.16)':
+    dependencies:
+      js-cookie: 3.0.8
+      tippy.js: 6.3.7
+      vue: 2.7.16
 
   '@blueking/monitor-alarm-center@0.0.13(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)(highlight.js@11.11.1)(typescript@5.9.3)':
     dependencies:
@@ -15946,6 +15963,8 @@ snapshots:
   js-base64@2.6.4: {}
 
   js-calendar@1.2.3: {}
+
+  js-cookie@3.0.8: {}
 
   js-tokens@4.0.0: {}
 

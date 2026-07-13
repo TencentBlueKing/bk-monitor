@@ -168,7 +168,7 @@ export default defineComponent({
   },
   emits: {
     /** 筛选条件改变后触发的回调 */
-    conditionChange: (conditionEvent: ConditionChangeEvent) => conditionEvent,
+    conditionChange: (conditionEvent: ConditionChangeEvent, _: boolean) => conditionEvent,
     /** 清除检索过滤 */
     clearRetrievalFilter: () => true,
     /** 显示列字段变化 */
@@ -448,7 +448,7 @@ export default defineComponent({
      * @description 字段分析统计弹窗改变filter条件回调
      */
     const handleConditionChange = (value: ConditionChangeEvent) => {
-      emit('conditionChange', value);
+      emit('conditionChange', value, true);
     };
 
     /**
