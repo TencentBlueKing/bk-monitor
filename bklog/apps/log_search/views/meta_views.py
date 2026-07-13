@@ -42,8 +42,9 @@ from apps.utils.local import get_request_username
 
 class MetaViewSet(APIViewSet):
     serializer_class = serializers.Serializer
+    refresh_user_info = False
 
-    @list_route(methods=["GET"], url_path="mine")
+    @list_route(methods=["GET"], url_path="mine", refresh_user_info=True)
     def list_user(self, request):
         """
         @api {get} /meta/mine/ 获取我的信息

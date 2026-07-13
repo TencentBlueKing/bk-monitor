@@ -76,7 +76,8 @@ class UserLocalMiddleware(MiddlewareMixin):
             return None
 
         timezone_from_headers = get_timezone_from_headers(request)
-        user_info = self._get_user_info(user=request.user.username)
+        refresh_user_info = getattr(view, "initkwargs", {}).get("refresh_user_info", False)
+        user_info = self._get_user_info(user=request.user.username, refresh=refresh_user_info)
         tzname = timezone_from_headers or user_info.get("time_zone", settings.TIME_ZONE)
         set_local_param("time_zone", tzname)
         timezone.activate(pytz.timezone(tzname))
