@@ -37,6 +37,7 @@ from fta_web.alert.handlers.fulltext import (
     FulltextSearchField,
     build_bare_fulltext_query,
     is_bare_fulltext_query,
+    iter_fulltext_condition_values,
 )
 from fta_web.alert.handlers.translator import AbstractTranslator
 
@@ -363,20 +364,29 @@ class BaseQueryHandler:
 
         return search_object
 
-    def build_query_string_q(self, query_string: str, context=None, *, escape_colon: bool = False) -> Q | None:
+    def build_query_string_q(
+        self,
+        query_string: str,
+        context=None,
+        *,
+        escape_colon: bool = False,
+        literal_fulltext: bool = False,
+    ) -> Q | None:
         """
         将 query_string 转为 ES Q。
 
-        - 配置了 FULLTEXT_SEARCH_FIELDS 且为裸词：白名单全字段模糊（Keyword 子串 + 大小写不敏感），
-          并在词等于枚举中文显示名时 OR term（兼容旧「致命 => severity:1」）；
-          不再叠加无 fields 限制的 query_string，避免扫到 snapshot 等大字段。
-        - 结构化语法（field:value / 布尔）：仍走 transform 后的 query_string / DSL。
+        - UI 全字段（literal_fulltext=True）：整段按字面文本走白名单模糊，不解析冒号/布尔。
+        - QueryString 语句模式裸词：白名单模糊 + 枚举显示名 term；禁止无 fields 的 query_string。
+        - QueryString 结构化语法（field:value / 布尔）：仍走 transform 后的 query_string / DSL。
         """
         if not query_string or not str(query_string).strip():
             return None
 
         original_query_string = query_string
-        if self.FULLTEXT_SEARCH_FIELDS and is_bare_fulltext_query(original_query_string):
+        use_fulltext = self.FULLTEXT_SEARCH_FIELDS and (
+            literal_fulltext or is_bare_fulltext_query(original_query_string)
+        )
+        if use_fulltext:
             translate_fields = getattr(self.query_transformer, "VALUE_TRANSLATE_FIELDS", None) or {}
             bare_q = build_bare_fulltext_query(
                 original_query_string,
@@ -385,7 +395,7 @@ class BaseQueryHandler:
             )
             if bare_q is not None:
                 return bare_q
-            # 词过短且非枚举显示名：显式无命中，避免静默丢掉条件后返回业务范围内全量数据
+            # 词过短/过长且非枚举显示名：显式无命中，避免静默丢掉条件后返回业务范围内全量数据
             return Q("match_none")
 
         transform_input = query_string.replace(":", r"\:") if escape_colon else query_string
@@ -393,6 +403,16 @@ class BaseQueryHandler:
         if isinstance(query_dsl, str):
             return Q("query_string", query=query_dsl)
         return Q(query_dsl)
+
+    def build_query_string_condition_q(self, values, context=None) -> Q | None:
+        """UI conditions[key=query_string]：字面全字段，并限制 value 条数。"""
+        con_q = None
+        for query_string in iter_fulltext_condition_values(values):
+            temp_q = self.build_query_string_q(query_string, context=context, literal_fulltext=True)
+            if temp_q is None:
+                continue
+            con_q = temp_q if con_q is None else (con_q | temp_q)
+        return con_q
 
     def add_query_string(self, search_object: Search, query_string: str = None, context=None):
         """

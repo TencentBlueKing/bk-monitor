@@ -1063,22 +1063,8 @@ class AlertQueryHandler(BaseBizQueryHandler):
             condition["value"] = [exploded_ip(v) for v in condition["value"]]
 
         elif condition["key"] == "query_string":
-            con_q = None
-            for query_string in condition["value"]:
-                if query_string.strip():
-                    # UI 全字段：转义冒号后按裸词处理，叠加 Keyword 包含模糊
-                    temp_q = self.build_query_string_q(
-                        query_string, context=self.query_context, escape_colon=True
-                    )
-                    if temp_q is None:
-                        continue
-
-                    if con_q is None:
-                        con_q = temp_q
-                    else:
-                        con_q = con_q | temp_q
-
-            return con_q
+            # UI 全字段：按字面文本走白名单（foo:bar / CPU AND memory 不解析为 Lucene）
+            return self.build_query_string_condition_q(condition.get("value"), context=self.query_context)
         return super().parse_condition_item(condition)
 
     def add_biz_condition(self, search_object):

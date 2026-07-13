@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.handlers.fulltext import (
+    MAX_FULLTEXT_TERM_LENGTH,
+    MAX_FULLTEXT_VALUES,
     FulltextFieldKind,
     FulltextSearchField,
     build_bare_fulltext_query,
@@ -18,6 +20,7 @@ from fta_web.alert.handlers.fulltext import (
     build_keyword_contains_query,
     escape_wildcard,
     is_bare_fulltext_query,
+    iter_fulltext_condition_values,
     normalize_fulltext_term,
     should_apply_fulltext_term,
 )
@@ -55,6 +58,7 @@ class TestFulltextHelpers:
         assert should_apply_fulltext_term("ab") is True
         assert should_apply_fulltext_term("1") is True
         assert should_apply_fulltext_term("分析") is True
+        assert should_apply_fulltext_term("x" * (MAX_FULLTEXT_TERM_LENGTH + 1)) is False
 
     def test_escape_wildcard(self):
         assert escape_wildcard("a*b?c\\d") == "a\\*b\\?c\\\\d"
@@ -79,6 +83,26 @@ class TestFulltextHelpers:
         assert any("wildcard" in clause for clause in should)
         assert any("match" in clause or "bool" in clause for clause in should)
 
+    def test_digit_uses_term_prefix_on_id_fields_only(self):
+        fields = [
+            FulltextSearchField("id", FulltextFieldKind.KEYWORD),
+            FulltextSearchField("bk_biz_id", FulltextFieldKind.KEYWORD),
+            FulltextSearchField("labels", FulltextFieldKind.KEYWORD),
+            FulltextSearchField("assignees", FulltextFieldKind.KEYWORD),
+            FulltextSearchField("incident_name", FulltextFieldKind.TEXT),
+        ]
+        q = build_fulltext_fuzzy_query("1", fields)
+        dumped = str(q.to_dict())
+        assert "*1*" not in dumped
+        assert "wildcard" not in dumped
+        assert "prefix" in dumped
+        assert "term" in dumped
+        assert "labels" not in dumped
+        assert "assignees" not in dumped
+        assert "incident_name" not in dumped
+        assert "id" in dumped
+        assert "bk_biz_id" in dumped
+
     def test_short_non_digit_skipped(self):
         fields = [FulltextSearchField("labels", FulltextFieldKind.KEYWORD)]
         assert build_fulltext_fuzzy_query("a", fields) is None
@@ -94,6 +118,12 @@ class TestFulltextHelpers:
         assert "wildcard" in dumped
         assert "term" in dumped
         assert "severity" in dumped
+
+    def test_iter_fulltext_condition_values_limits(self):
+        values = [f"v{i}" for i in range(MAX_FULLTEXT_VALUES + 5)]
+        limited = iter_fulltext_condition_values(values)
+        assert len(limited) == MAX_FULLTEXT_VALUES
+        assert limited[0] == "v0"
 
 
 class TestIncidentAlertFulltextWhitelist:
@@ -125,7 +155,7 @@ class TestIncidentAlertFulltextWhitelist:
 
     def test_incident_build_query_string_q_bare_uses_whitelist_only(self):
         handler = IncidentQueryHandler.__new__(IncidentQueryHandler)
-        q = handler.build_query_string_q("分析", escape_colon=True)
+        q = handler.build_query_string_q("分析")
         body = q.to_dict()
         dumped = str(body)
         # 裸词不应再走无界 query_string
@@ -150,18 +180,35 @@ class TestIncidentAlertFulltextWhitelist:
         assert "wildcard" in str(body) or "match" in str(body)
         assert "*CPU AND memory*" in str(body) or "CPU AND memory" in str(body)
 
-    def test_incident_structured_query_skips_fuzzy(self):
+    def test_ui_literal_fulltext_for_colon_and_boolean(self):
+        """UI 模式：foo:bar / CPU AND memory 按字面走白名单，不落入无界 query_string。"""
+        handler = IncidentQueryHandler.__new__(IncidentQueryHandler)
+        for text in ["foo:bar", "CPU AND memory"]:
+            q = handler.build_query_string_q(text, literal_fulltext=True)
+            body = q.to_dict()
+            assert "query_string" not in body, text
+            dumped = str(body)
+            assert "wildcard" in dumped or "match" in dumped
+            assert "labels" in dumped
+
+    def test_ui_condition_helper_uses_literal(self):
+        handler = IncidentQueryHandler.__new__(IncidentQueryHandler)
+        q = handler.build_query_string_condition_q(["foo:bar"])
+        assert "query_string" not in q.to_dict()
+        assert "*foo:bar*" in str(q.to_dict())
+
+    def test_querystring_mode_keeps_structured_syntax(self):
         handler = IncidentQueryHandler.__new__(IncidentQueryHandler)
         q = handler.build_query_string_q("labels:Prod")
         body = q.to_dict()
-        # 结构化查询仍走 query_string，不叠加全字段 wildcard 白名单展开
+        # QueryString 语句模式仍走结构化 query_string
         assert "query_string" in body
         assert body["query_string"]["query"]
 
     def test_alert_build_query_string_q_includes_appointee_follower(self):
         handler = AlertQueryHandler.__new__(AlertQueryHandler)
         handler.query_context = None
-        q = handler.build_query_string_q("Prod", escape_colon=True)
+        q = handler.build_query_string_q("Prod")
         dumped = str(q.to_dict())
         assert "appointee" in dumped
         assert "follower" in dumped
@@ -169,3 +216,12 @@ class TestIncidentAlertFulltextWhitelist:
         assert "case_insensitive" in dumped
         assert "assignee" not in {f.es_field for f in AlertQueryHandler.FULLTEXT_SEARCH_FIELDS}
 
+    def test_digit_query_on_handlers_avoids_leading_wildcard(self):
+        handler = IncidentQueryHandler.__new__(IncidentQueryHandler)
+        q = handler.build_query_string_q("1")
+        dumped = str(q.to_dict())
+        assert "*1*" not in dumped
+        assert "wildcard" not in dumped
+        assert "assignees" not in dumped
+        assert "handlers" not in dumped
+        assert "labels" not in dumped

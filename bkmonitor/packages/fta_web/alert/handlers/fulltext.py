@@ -20,6 +20,10 @@ from elasticsearch_dsl import Q
 MIN_FULLTEXT_TERM_LENGTH = 2
 # 纯数字（ID / 业务号）允许更短
 MIN_DIGIT_TERM_LENGTH = 1
+# 单条全字段检索词最大长度（超长直接无命中，防止异常大 payload）
+MAX_FULLTEXT_TERM_LENGTH = 128
+# conditions.query_string.value 最多处理条数（本 PR 放大了每条的 should 子句）
+MAX_FULLTEXT_VALUES = 10
 
 _BARE_BOOLEAN_RE = re.compile(r"\b(AND|OR|NOT)\b", re.IGNORECASE)
 _FIELD_SEP_RE = re.compile(r"(?<!\\):")
@@ -76,12 +80,10 @@ def is_quoted_phrase(query: str) -> bool:
 
 def is_bare_fulltext_query(query: str) -> bool:
     """
-    判断是否为可叠加全字段模糊的「裸词」查询。
+    判断是否为可叠加全字段模糊的「裸词」查询（QueryString 语句模式）。
 
-    - 整段引号包裹：一律视为短语裸词（走白名单），避免 "CPU AND memory" / "labels:Prod"
-      被去引号后误判为结构化语法，掉进无 fields 限制的 query_string。
-    - 未加引号且含字段语法（field:value）、布尔运算符或分组括号：视为结构化查询。
-      结构化判定在 unescape 之前，保留 \\: 不被当成 field 分隔。
+    - 整段引号包裹：一律视为短语裸词（走白名单）
+    - 未加引号且含字段语法 / 布尔 / 分组：视为结构化查询
     """
     raw = (query or "").strip()
     if not raw:
@@ -102,12 +104,20 @@ def is_bare_fulltext_query(query: str) -> bool:
 
 
 def should_apply_fulltext_term(term: str) -> bool:
-    """最短词长门禁：非数字 ≥2，纯数字 ≥1。"""
+    """最短/最长词长门禁。"""
     if not term:
+        return False
+    if len(term) > MAX_FULLTEXT_TERM_LENGTH:
         return False
     if term.isdigit():
         return len(term) >= MIN_DIGIT_TERM_LENGTH
     return len(term) >= MIN_FULLTEXT_TERM_LENGTH
+
+
+def is_id_like_keyword_field(es_field: str) -> bool:
+    """纯数字检索仅打在 ID/业务号类 Keyword，避免对 labels/人员做 *1* leading-wildcard。"""
+    name = (es_field or "").split(".")[-1]
+    return name == "id" or name.endswith("_id")
 
 
 def escape_wildcard(value: str) -> str:
@@ -121,6 +131,11 @@ def build_keyword_contains_query(es_field: str, term: str) -> Q:
     return Q("wildcard", **{es_field: {"value": pattern, "case_insensitive": True}})
 
 
+def build_keyword_id_query(es_field: str, term: str) -> Q:
+    """数字 ID：精确 term OR 前缀 prefix，禁止 leading wildcard。"""
+    return Q("term", **{es_field: term}) | Q("prefix", **{es_field: term})
+
+
 def build_text_contains_query(es_field: str, term: str) -> Q:
     """Text 字段：分词匹配 OR 前缀短语（近似包含）。"""
     match_q = Q("match", **{es_field: {"query": term, "operator": "and"}})
@@ -132,8 +147,8 @@ def build_fulltext_fuzzy_query(query: str, fields: list[FulltextSearchField] | N
     """
     按白名单字段类型构造全字段模糊查询（bool.should）。
 
-    - TEXT → match + match_phrase_prefix
-    - KEYWORD → wildcard + case_insensitive
+    - 普通词：TEXT → match + phrase_prefix；KEYWORD → *term* case_insensitive
+    - 纯数字：仅 ID 类 Keyword → term | prefix（无 leading wildcard，且不扫人员/标签/Text）
     """
     if not fields:
         return None
@@ -142,11 +157,16 @@ def build_fulltext_fuzzy_query(query: str, fields: list[FulltextSearchField] | N
         return None
 
     should_clauses: list[Q] = []
-    for field in fields:
-        if field.kind == FulltextFieldKind.TEXT:
-            should_clauses.append(build_text_contains_query(field.es_field, term))
-        else:
-            should_clauses.append(build_keyword_contains_query(field.es_field, term))
+    if term.isdigit():
+        for field in fields:
+            if field.kind == FulltextFieldKind.KEYWORD and is_id_like_keyword_field(field.es_field):
+                should_clauses.append(build_keyword_id_query(field.es_field, term))
+    else:
+        for field in fields:
+            if field.kind == FulltextFieldKind.TEXT:
+                should_clauses.append(build_text_contains_query(field.es_field, term))
+            else:
+                should_clauses.append(build_keyword_contains_query(field.es_field, term))
 
     if not should_clauses:
         return None
@@ -162,6 +182,8 @@ def build_enum_display_term_query(term: str, value_translate_fields: dict | None
     仅做整词相等，不做子串，避免短词误伤。
     """
     if not term or not value_translate_fields:
+        return None
+    if len(term) > MAX_FULLTEXT_TERM_LENGTH:
         return None
 
     clauses: list[Q] = []
@@ -182,11 +204,31 @@ def build_bare_fulltext_query(
     fields: list[FulltextSearchField] | None,
     value_translate_fields: dict | None = None,
 ) -> Q | None:
-    """裸词全字段：白名单模糊 OR 枚举显示名 term。"""
+    """裸词/UI 字面全字段：白名单模糊 OR 枚举显示名 term。"""
     term = normalize_fulltext_term(query)
+    if len(term) > MAX_FULLTEXT_TERM_LENGTH:
+        return None
     fuzzy_q = build_fulltext_fuzzy_query(query, fields)
     enum_q = build_enum_display_term_query(term, value_translate_fields)
     if fuzzy_q is not None and enum_q is not None:
         return fuzzy_q | enum_q
     return fuzzy_q if fuzzy_q is not None else enum_q
 
+
+def iter_fulltext_condition_values(values) -> list[str]:
+    """截断 conditions.query_string.value，防止多值放大 should 子句。"""
+    if values is None:
+        return []
+    if not isinstance(values, list):
+        values = [values]
+    limited: list[str] = []
+    for item in values:
+        if item is None:
+            continue
+        text = str(item).strip()
+        if not text:
+            continue
+        limited.append(text)
+        if len(limited) >= MAX_FULLTEXT_VALUES:
+            break
+    return limited

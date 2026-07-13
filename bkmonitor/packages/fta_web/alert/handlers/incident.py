@@ -212,13 +212,18 @@ class IncidentQueryHandler(BaseBizQueryHandler):
                 query_dsl = query_dsl.replace(f"({display} OR {field}:{value})", f'("{display}" OR {field}:{value})')
         return query_dsl
 
-    def build_query_string_q(self, query_string: str, context=None, *, escape_colon: bool = False):
-        """故障侧：裸词走全字段模糊；结构化语法走 transform + 枚举中文 quoting。"""
+    def build_query_string_q(
+        self, query_string: str, context=None, *, escape_colon: bool = False, literal_fulltext: bool = False
+    ):
+        """故障侧：UI 字面/裸词走全字段；结构化语法走 transform + 枚举中文 quoting。"""
         if not query_string or not str(query_string).strip():
             return None
 
         original_query_string = query_string
-        if self.FULLTEXT_SEARCH_FIELDS and is_bare_fulltext_query(original_query_string):
+        use_fulltext = self.FULLTEXT_SEARCH_FIELDS and (
+            literal_fulltext or is_bare_fulltext_query(original_query_string)
+        )
+        if use_fulltext:
             bare_q = build_bare_fulltext_query(
                 original_query_string,
                 self.FULLTEXT_SEARCH_FIELDS,
@@ -234,6 +239,7 @@ class IncidentQueryHandler(BaseBizQueryHandler):
         if isinstance(query_dsl, str):
             return Q("query_string", query=query_dsl)
         return Q(query_dsl)
+
 
     @classmethod
     def _build_fuzzy_query(cls, query_string: str, fields: list[str] | None = None):
@@ -270,18 +276,8 @@ class IncidentQueryHandler(BaseBizQueryHandler):
 
     def parse_condition_item(self, condition: dict) -> Q:
         if condition["key"] == "query_string":
-            con_q = None
-            for query_string in condition["value"]:
-                if query_string.strip():
-                    # UI 全字段：转义冒号后按裸词处理，并叠加 Keyword 包含模糊
-                    temp_q = self.build_query_string_q(query_string, escape_colon=True)
-                    if temp_q is None:
-                        continue
-                    if con_q is None:
-                        con_q = temp_q
-                    else:
-                        con_q = con_q | temp_q
-            return con_q
+            # UI 全字段：按字面文本走白名单（foo:bar / CPU AND memory 不解析为 Lucene）
+            return self.build_query_string_condition_q(condition.get("value"))
         if condition["key"] in self.TEXT_CONDITION_FIELDS and condition["method"] in ["include", "exclude"]:
             return self._build_text_condition_query(condition)
 
