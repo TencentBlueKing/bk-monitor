@@ -44,6 +44,11 @@ const traceHeaderProps = {
     type: String,
     default: true,
   },
+  /** 跨业务打开时的目标业务 ID */
+  bizId: {
+    type: [Number, String],
+    default: undefined,
+  },
   traceId: {
     type: String,
     default: '',
@@ -80,6 +85,11 @@ export default defineComponent({
           props.appName
         }&search_type=accurate&sceneMode=trace&trace_id=${traceId}`;
         text = location.href.replace(location.hash, hash);
+        if (props.bizId != null && props.bizId !== '') {
+          const url = new URL(text);
+          url.searchParams.set('bizId', String(props.bizId));
+          text = url.toString();
+        }
       }
       copyText(text, (msg: string) => {
         Message({
@@ -136,7 +146,7 @@ export default defineComponent({
             fillBackFieldMap={{
               trace_id: this.traceId,
               app_name: this.appName,
-              bk_biz_id: (window.bk_biz_id || window.cc_biz_id) as string,
+              bk_biz_id: String(this.bizId ?? window.bk_biz_id ?? window.cc_biz_id),
             }}
             tips={{
               content: getAIBluekingShortcutTips(AI_BLUEKING_SHORTCUTS_ID.TRACING_ANALYSIS),
