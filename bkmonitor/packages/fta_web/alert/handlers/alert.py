@@ -607,6 +607,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
     """
 
     query_transformer = AlertQueryTransformer
+    FULLTEXT_BIZ_ID_FIELD = "event.bk_biz_id"
     # 产品锁定对照故障：ID、名称、内容、标签、负责人、关注人、所属业务
     FULLTEXT_SEARCH_FIELDS = [
         FulltextSearchField("id", FulltextFieldKind.KEYWORD),

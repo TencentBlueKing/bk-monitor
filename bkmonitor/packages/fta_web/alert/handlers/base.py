@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
+import logging
 import operator
 import time
 from abc import ABC
@@ -27,10 +28,12 @@ from luqum.exceptions import ParseError
 from luqum.parser import lexer, parser
 from luqum.tree import AndOperation, FieldGroup, SearchField, Word
 
+from bkm_space.api import SpaceApi
 from bkmonitor.utils.elasticsearch.handler import BaseTreeTransformer
 from bkmonitor.utils.ip import exploded_ip
-from bkmonitor.utils.request import get_request, get_request_username
+from bkmonitor.utils.request import get_request, get_request_tenant_id, get_request_username
 from constants.alert import EventTargetType
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import resource
 from core.errors.alert import QueryStringParseError
 from fta_web.alert.handlers.fulltext import (
@@ -38,6 +41,8 @@ from fta_web.alert.handlers.fulltext import (
     build_bare_fulltext_query,
     ensure_fulltext_value_count,
     is_bare_fulltext_query,
+    normalize_fulltext_term,
+    should_apply_fulltext_term,
 )
 from fta_web.alert.handlers.translator import AbstractTranslator
 
@@ -45,6 +50,7 @@ from fta_web.alert.handlers.translator import AbstractTranslator
 # 构建时覆盖所有支持语言的 display name，使字段解析与当前线程语言无关。
 _FIELD_MAP_CACHE: dict[type, dict[str, QueryField]] = {}
 ES_TERMS_QUERY_MAX_SIZE = 65536
+logger = logging.getLogger(__name__)
 
 
 def build_es_terms_query(field: str, values: list, chunk_size: int = ES_TERMS_QUERY_MAX_SIZE):
@@ -249,6 +255,33 @@ class BaseQueryHandler:
     # 全字段裸词检索白名单；空列表表示不启用（Event/Action 等保持原行为）
     FULLTEXT_SEARCH_FIELDS: list[FulltextSearchField] = []
 
+    def build_additional_fulltext_query(self, query_strings: Iterable[str]) -> Q | None:
+        """构造非 ES 文档字段派生出的全文检索分支，默认不扩展。"""
+        return None
+
+    def build_bare_fulltext_query_q(self, query_strings: Iterable[str]) -> Q | None:
+        """合并多个字面全文检索词，并只构造一次派生全文分支。"""
+        query_strings = list(query_strings or [])
+        additional_q = self.build_additional_fulltext_query(query_strings)
+        if additional_q is not None and additional_q.name == "match_all":
+            return additional_q
+
+        translate_fields = getattr(self.query_transformer, "VALUE_TRANSLATE_FIELDS", None) or {}
+        query_q = None
+        for query_string in query_strings:
+            temp_q = build_bare_fulltext_query(
+                query_string,
+                self.FULLTEXT_SEARCH_FIELDS,
+                translate_fields,
+            )
+            if temp_q is None:
+                continue
+            query_q = temp_q if query_q is None else (query_q | temp_q)
+
+        if additional_q is not None:
+            query_q = additional_q if query_q is None else (query_q | additional_q)
+        return query_q
+
     class DurationOption:
         # 关于时间差的选项
         FILTER = {
@@ -386,12 +419,7 @@ class BaseQueryHandler:
             literal_fulltext or is_bare_fulltext_query(original_query_string)
         )
         if use_fulltext:
-            translate_fields = getattr(self.query_transformer, "VALUE_TRANSLATE_FIELDS", None) or {}
-            bare_q = build_bare_fulltext_query(
-                original_query_string,
-                self.FULLTEXT_SEARCH_FIELDS,
-                translate_fields,
-            )
+            bare_q = self.build_bare_fulltext_query_q([original_query_string])
             if bare_q is not None:
                 return bare_q
             # 词过短/过长且非枚举显示名：显式无命中，避免静默丢掉条件后返回业务范围内全量数据
@@ -411,12 +439,17 @@ class BaseQueryHandler:
         except ValueError as exc:
             raise ValidationError(str(exc)) from exc
 
+        if self.FULLTEXT_SEARCH_FIELDS:
+            con_q = self.build_bare_fulltext_query_q(normalized)
+            if con_q is not None or not normalized:
+                return con_q
+            return Q("match_none")
+
         con_q = None
         for query_string in normalized:
             temp_q = self.build_query_string_q(query_string, context=context, literal_fulltext=True)
-            if temp_q is None:
-                continue
-            con_q = temp_q if con_q is None else (con_q | temp_q)
+            if temp_q is not None:
+                con_q = temp_q if con_q is None else (con_q | temp_q)
         return con_q
 
     def add_query_string(self, search_object: Search, query_string: str = None, context=None):
@@ -773,6 +806,7 @@ class BaseQueryHandler:
 
 class BaseBizQueryHandler(BaseQueryHandler, ABC):
     ES_TERMS_QUERY_MAX_SIZE = ES_TERMS_QUERY_MAX_SIZE
+    FULLTEXT_BIZ_ID_FIELD: str | None = None
 
     def __init__(
         self,
@@ -813,6 +847,77 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
 
     def build_es_terms_query(self, field: str, values: list):
         return build_es_terms_query(field, values, chunk_size=self.ES_TERMS_QUERY_MAX_SIZE)
+
+    def get_fulltext_biz_scope_ids(self) -> set[int] | None:
+        """返回业务名称全文检索可扫描的显式业务范围；None 表示当前租户全量空间。"""
+        bk_biz_ids = getattr(self, "bk_biz_ids", None)
+        if not bk_biz_ids:
+            return None
+        scope_ids = set(getattr(self, "authorized_bizs", None) or []) | set(
+            getattr(self, "unauthorized_bizs", None) or []
+        )
+        scope_ids.discard(-1)
+        return scope_ids
+
+    def get_fulltext_biz_name_entries(self) -> list[tuple[int, str]]:
+        """按请求缓存当前租户与业务范围内的标准化业务名称。"""
+        if hasattr(self, "_fulltext_biz_name_entries"):
+            return self._fulltext_biz_name_entries
+
+        # __new__ 构造的轻量单测/调试对象不具备业务上下文，保持原全文检索行为。
+        if not hasattr(self, "bk_biz_ids"):
+            self._fulltext_biz_name_entries = []
+            return self._fulltext_biz_name_entries
+
+        try:
+            tenant_id = get_request_tenant_id()
+            spaces = SpaceApi.list_spaces_dict(using_cache=True)
+        except Exception:  # NOCC:broad-except(空间名称是全文检索的可降级分支)
+            logger.exception("load spaces for business name fulltext search failed")
+            self._fulltext_biz_name_entries = []
+            return self._fulltext_biz_name_entries
+
+        scope_ids = self.get_fulltext_biz_scope_ids()
+        entries = []
+        for space in spaces:
+            biz_id = space.get("bk_biz_id")
+            if biz_id is None or (scope_ids is not None and biz_id not in scope_ids):
+                continue
+            space_tenant_id = space.get("bk_tenant_id") or DEFAULT_TENANT_ID
+            name = space.get("space_name")
+            if space_tenant_id != tenant_id or not name:
+                continue
+            entries.append((biz_id, str(name).casefold()))
+
+        self._fulltext_biz_name_entries = entries
+        return self._fulltext_biz_name_entries
+
+    def build_additional_fulltext_query(self, query_strings: Iterable[str]) -> Q | None:
+        """将业务名称子串命中转换为业务 ID 精确查询，不对 ES 执行名称通配。"""
+        if not self.FULLTEXT_BIZ_ID_FIELD or not hasattr(self, "bk_biz_ids"):
+            return None
+
+        terms = []
+        for query_string in query_strings:
+            term = normalize_fulltext_term(query_string)
+            if not should_apply_fulltext_term(term) or term.isdigit():
+                continue
+            terms.append(term.casefold())
+        if not terms:
+            return None
+
+        matched_ids = {
+            biz_id
+            for biz_id, name in self.get_fulltext_biz_name_entries()
+            if any(term in name for term in terms)
+        }
+        if not matched_ids:
+            return None
+
+        scope_ids = self.get_fulltext_biz_scope_ids()
+        if scope_ids is not None and matched_ids == scope_ids:
+            return Q("match_all")
+        return self.build_es_terms_query(self.FULLTEXT_BIZ_ID_FIELD, sorted(matched_ids))
 
     def get_biz_filter_ids(self) -> list[int] | None:
         """返回用于「按业务过滤」的已解析业务 ID 列表（-1 哨兵已展开为实际授权业务集）。

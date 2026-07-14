@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 
+from fta_web.alert.handlers import base as base_handler_module
 from fta_web.alert.handlers.alert import AlertQueryHandler
 from fta_web.alert.handlers.base import BaseQueryHandler
 from fta_web.alert.handlers.fulltext import (
@@ -417,3 +418,239 @@ class TestIncidentAlertFulltextWhitelist:
         assert "assignees" not in dumped
         assert "handlers" not in dumped
         assert "labels" not in dumped
+
+
+class TestBusinessNameFulltext:
+    SPACES = [
+        {"bk_biz_id": 1, "bk_tenant_id": "tenant-a", "space_name": "Monitoring Platform"},
+        {"bk_biz_id": 2, "bk_tenant_id": "tenant-a", "space_name": "监控项目"},
+        {"bk_biz_id": -4, "bk_tenant_id": "tenant-a", "space_name": "蓝盾监控"},
+        {"bk_biz_id": 3, "bk_tenant_id": "tenant-b", "space_name": "Monitoring Other"},
+        {"bk_biz_id": 5, "bk_tenant_id": "tenant-a", "space_name": "Straße Service"},
+        {"bk_biz_id": 6, "bk_tenant_id": "tenant-a", "space_name": None},
+    ]
+
+    @staticmethod
+    def _make_handler(handler_class, bk_biz_ids=None, authorized_bizs=None, unauthorized_bizs=None):
+        handler = handler_class.__new__(handler_class)
+        handler.bk_biz_ids = bk_biz_ids
+        handler.authorized_bizs = authorized_bizs
+        handler.unauthorized_bizs = unauthorized_bizs or []
+        handler.query_context = None
+        return handler
+
+    @staticmethod
+    def _walk_dsl(value):
+        if isinstance(value, dict):
+            yield value
+            for child in value.values():
+                yield from TestBusinessNameFulltext._walk_dsl(child)
+        elif isinstance(value, list):
+            for child in value:
+                yield from TestBusinessNameFulltext._walk_dsl(child)
+
+    @classmethod
+    def _terms_values(cls, dsl, field):
+        return [node["terms"][field] for node in cls._walk_dsl(dsl) if node.get("terms", {}).get(field)]
+
+    @pytest.fixture(autouse=True)
+    def setup_space_api(self, monkeypatch):
+        class FakeSpaceApi:
+            calls = 0
+
+            @classmethod
+            def list_spaces_dict(cls, using_cache=True):
+                cls.calls += 1
+                return list(self.SPACES)
+
+        monkeypatch.setattr(base_handler_module, "SpaceApi", FakeSpaceApi, raising=False)
+        monkeypatch.setattr(base_handler_module, "get_request_tenant_id", lambda: "tenant-a", raising=False)
+        self.space_api = FakeSpaceApi
+
+    @pytest.mark.parametrize(
+        ("handler_class", "field"),
+        [
+            (AlertQueryHandler, "event.bk_biz_id"),
+            (IncidentQueryHandler, "bk_biz_id"),
+        ],
+    )
+    def test_bare_query_matches_business_name_case_insensitively(self, handler_class, field):
+        handler = self._make_handler(handler_class)
+
+        body = handler.build_query_string_q("MONITORING").to_dict()
+
+        assert self._terms_values(body, field) == [[1]]
+        assert "labels" in str(body)
+        assert self.space_api.calls == 1
+
+    def test_business_name_uses_unicode_casefold_and_tenant_isolation(self):
+        handler = self._make_handler(IncidentQueryHandler)
+
+        body = handler.build_query_string_q("STRASSE").to_dict()
+
+        assert self._terms_values(body, "bk_biz_id") == [[5]]
+        assert 3 not in sum(self._terms_values(body, "bk_biz_id"), [])
+
+    def test_business_name_supports_non_cmdb_negative_ids(self):
+        handler = self._make_handler(AlertQueryHandler)
+
+        body = handler.build_query_string_q("蓝盾").to_dict()
+
+        assert self._terms_values(body, "event.bk_biz_id") == [[-4]]
+
+    def test_empty_space_tenant_uses_default_tenant(self, monkeypatch):
+        spaces = [{"bk_biz_id": 8, "bk_tenant_id": None, "space_name": "Legacy Space"}]
+
+        class LegacySpaceApi:
+            @classmethod
+            def list_spaces_dict(cls, using_cache=True):
+                return spaces
+
+        monkeypatch.setattr(base_handler_module, "SpaceApi", LegacySpaceApi, raising=False)
+        monkeypatch.setattr(base_handler_module, "get_request_tenant_id", lambda: "system", raising=False)
+        handler = self._make_handler(IncidentQueryHandler)
+
+        body = handler.build_query_string_q("legacy").to_dict()
+
+        assert self._terms_values(body, "bk_biz_id") == [[8]]
+
+    def test_explicit_business_scope_is_applied_before_name_matching(self):
+        handler = self._make_handler(
+            AlertQueryHandler,
+            bk_biz_ids=[1, 2],
+            authorized_bizs=[1],
+            unauthorized_bizs=[2],
+        )
+
+        body = handler.build_query_string_q("蓝盾").to_dict()
+
+        assert not self._terms_values(body, "event.bk_biz_id")
+        assert "labels" in str(body)
+
+    def test_partial_business_scope_only_adds_matched_ids(self):
+        handler = self._make_handler(
+            AlertQueryHandler,
+            bk_biz_ids=[1, 2],
+            authorized_bizs=[1, 2],
+        )
+
+        body = handler.build_query_string_q("monitoring").to_dict()
+
+        assert self._terms_values(body, "event.bk_biz_id") == [[1]]
+
+    def test_all_business_marker_only_scans_authorized_scope(self):
+        handler = self._make_handler(
+            IncidentQueryHandler,
+            bk_biz_ids=[-1],
+            authorized_bizs=[-1, 2, -4],
+            unauthorized_bizs=[-1],
+        )
+
+        body = handler.build_query_string_q("监控").to_dict()
+
+        assert body == {"match_all": {}}
+
+    def test_all_business_marker_keeps_explicit_unauthorized_business(self, monkeypatch):
+        spaces = list(self.SPACES) + [
+            {"bk_biz_id": 7, "bk_tenant_id": "tenant-a", "space_name": "External Team"}
+        ]
+
+        class ExplicitSpaceApi:
+            @classmethod
+            def list_spaces_dict(cls, using_cache=True):
+                return spaces
+
+        monkeypatch.setattr(base_handler_module, "SpaceApi", ExplicitSpaceApi, raising=False)
+        handler = self._make_handler(
+            AlertQueryHandler,
+            bk_biz_ids=[-1, 7],
+            authorized_bizs=[1, 2],
+            unauthorized_bizs=[-1, 7],
+        )
+
+        body = handler.build_query_string_q("external").to_dict()
+
+        assert self._terms_values(body, "event.bk_biz_id") == [[7]]
+
+    def test_ui_values_union_business_ids_into_one_terms_query(self):
+        handler = self._make_handler(IncidentQueryHandler)
+
+        body = handler.build_query_string_condition_q(["MONITORING", "监控"]).to_dict()
+
+        assert self._terms_values(body, "bk_biz_id") == [[-4, 1, 2]]
+        assert self.space_api.calls == 1
+
+    def test_structured_and_numeric_queries_do_not_scan_business_names(self):
+        handler = self._make_handler(AlertQueryHandler)
+
+        structured = handler.build_query_string_q("labels:Prod").to_dict()
+        numeric = handler.build_query_string_q("1").to_dict()
+
+        assert "query_string" in structured
+        assert not self._terms_values(numeric, "event.bk_biz_id")
+        assert self.space_api.calls == 0
+
+    def test_space_lookup_failure_degrades_only_business_name_branch(self, monkeypatch):
+        class FailingSpaceApi:
+            @classmethod
+            def list_spaces_dict(cls, using_cache=True):
+                raise RuntimeError("space cache unavailable")
+
+        monkeypatch.setattr(base_handler_module, "SpaceApi", FailingSpaceApi, raising=False)
+        handler = self._make_handler(IncidentQueryHandler)
+
+        body = handler.build_query_string_q("monitoring").to_dict()
+
+        assert "labels" in str(body)
+        assert not self._terms_values(body, "bk_biz_id")
+
+    def test_tenant_lookup_failure_degrades_only_business_name_branch(self, monkeypatch):
+        def raise_tenant_error():
+            raise RuntimeError("tenant context unavailable")
+
+        monkeypatch.setattr(base_handler_module, "get_request_tenant_id", raise_tenant_error, raising=False)
+        handler = self._make_handler(IncidentQueryHandler)
+
+        body = handler.build_query_string_q("monitoring").to_dict()
+
+        assert "labels" in str(body)
+        assert not self._terms_values(body, "bk_biz_id")
+
+    def test_large_business_matches_use_existing_terms_chunking(self, monkeypatch):
+        spaces = [
+            {"bk_biz_id": index, "bk_tenant_id": "tenant-a", "space_name": f"monitoring-{index}"}
+            for index in range(1, 6)
+        ]
+
+        class LargeSpaceApi:
+            @classmethod
+            def list_spaces_dict(cls, using_cache=True):
+                return spaces
+
+        monkeypatch.setattr(base_handler_module, "SpaceApi", LargeSpaceApi, raising=False)
+        handler = self._make_handler(AlertQueryHandler)
+        handler.ES_TERMS_QUERY_MAX_SIZE = 2
+
+        body = handler.build_query_string_q("monitoring").to_dict()
+
+        assert self._terms_values(body, "event.bk_biz_id") == [[1, 2], [3, 4], [5]]
+
+    def test_more_than_one_thousand_business_matches_are_not_rejected(self, monkeypatch):
+        spaces = [
+            {"bk_biz_id": index, "bk_tenant_id": "tenant-a", "space_name": f"monitoring-{index}"}
+            for index in range(1, 1002)
+        ]
+
+        class LargeSpaceApi:
+            @classmethod
+            def list_spaces_dict(cls, using_cache=True):
+                return spaces
+
+        monkeypatch.setattr(base_handler_module, "SpaceApi", LargeSpaceApi, raising=False)
+        handler = self._make_handler(IncidentQueryHandler)
+
+        body = handler.build_query_string_q("monitoring").to_dict()
+
+        terms_values = self._terms_values(body, "bk_biz_id")
+        assert len(terms_values) == 1
+        assert len(terms_values[0]) == 1001

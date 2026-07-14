@@ -35,7 +35,6 @@ from fta_web.alert.handlers.base import (
 from fta_web.alert.handlers.fulltext import (
     FulltextFieldKind,
     FulltextSearchField,
-    build_bare_fulltext_query,
     is_bare_fulltext_query,
 )
 from fta_web.alert.handlers.translator import BizTranslator
@@ -103,6 +102,7 @@ class IncidentQueryHandler(BaseBizQueryHandler):
     """
 
     query_transformer = IncidentQueryTransformer
+    FULLTEXT_BIZ_ID_FIELD = "bk_biz_id"
     TEXT_CONDITION_FIELDS = {"incident_name", "incident_reason"}
     # 产品锁定：ID、名称、原因、标签、负责人、处理人、所属业务
     FULLTEXT_SEARCH_FIELDS = [
@@ -222,11 +222,7 @@ class IncidentQueryHandler(BaseBizQueryHandler):
             literal_fulltext or is_bare_fulltext_query(original_query_string)
         )
         if use_fulltext:
-            bare_q = build_bare_fulltext_query(
-                original_query_string,
-                self.FULLTEXT_SEARCH_FIELDS,
-                self.query_transformer.VALUE_TRANSLATE_FIELDS,
-            )
+            bare_q = self.build_bare_fulltext_query_q([original_query_string])
             if bare_q is not None:
                 return bare_q
             return Q("match_none")
