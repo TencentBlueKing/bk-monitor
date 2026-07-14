@@ -139,6 +139,7 @@
     },
     mixins: [tableRowDeepViewMixin],
     inheritAttrs: false,
+    inject: ['handleRelatedTraceClick'],
     props: {
       data: {
         type: Object,
@@ -210,6 +211,7 @@
         batchThreshold: 100, // 启用分批渲染的字段数量阈值（超过此值才分批处理）
         skeletonStartTime: null, // 骨架屏开始显示的时间
         skeletonMinDuration: 200, // 骨架屏最小显示时长（ms），避免闪烁
+        isMonitorApm: window.__IS_MONITOR_APM__,
       };
     },
     computed: {
@@ -748,6 +750,15 @@
           : '';
       },
       handleJsonSegmentClick({ isLink, option }, fieldName) {
+        if (this.isMonitorApm && isLink && option.operation === 'trace-view') {
+          const { app_name: appName, bk_biz_id: bkBizId } = this.apmRelation.extra;
+          this.handleRelatedTraceClick({
+            appName,
+            bkBizId,
+            traceId: option.value,
+          });
+          return;
+        }
         // 为了兼容旧的逻辑，先这么写吧
         // 找时间梳理下这块，写的太随意了
         const { operation, value, depth, isNestedField } = option;
@@ -792,6 +803,14 @@
           if (this.apmRelation.is_active) {
             const { app_name: appName, bk_biz_id: bkBizId } = this.apmRelation.extra;
             path = `/?bizId=${bkBizId}#/trace/home?app_name=${appName}&search_type=accurate&trace_id=${traceIdValue}`;
+            if (this.isMonitorApm) {
+              this.handleRelatedTraceClick({
+                appName,
+                bkBizId,
+                traceId: traceIdValue,
+              });
+              return;
+            }
           } else {
             this.$bkMessage({
               theme: 'warning',
