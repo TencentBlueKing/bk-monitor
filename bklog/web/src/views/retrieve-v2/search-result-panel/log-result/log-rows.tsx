@@ -26,11 +26,13 @@
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, reactive, ref, watch, type Ref } from 'vue';
 
 import { getRowFieldValue, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR, xssFilter } from '@/common/util';
+import { getInputQueryDefaultItem } from '@/views/retrieve-v2/search-bar/utils/const.common';
 // import { perfStart, perfEnd } from '@/utils/performance-monitor';
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
+import UseJsonFormatter from '@/hooks/use-json-formatter';
 import { UseSegmentProp } from '@/hooks/use-segment-pop';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
@@ -90,7 +92,7 @@ export default defineComponent({
     const refLoadMoreElement: Ref<HTMLElement> = ref();
     const refResultRowBox: Ref<HTMLElement> = ref();
     const refSegmentContent: Ref<HTMLElement> = ref();
-    const { handleOperation, getObjectValue } = useTextAction(emit, 'origin');
+    const { handleOperation, getObjectValue, handleAddCondition } = useTextAction(emit, 'origin');
 
     let savedSelection: Range = null;
     let mousedownOnRow = false;
@@ -116,15 +118,267 @@ export default defineComponent({
       },
     });
 
+    const getSelectionReferenceRect = (range: Range, e: MouseEvent) => {
+      const rects = Array.from(range.getClientRects()).filter(rect => rect.width && rect.height);
+
+      if (!rects.length) {
+        return range.getBoundingClientRect();
+      }
+
+      return rects.reduce((closestRect, rect) => {
+        const getDistance = (targetRect: DOMRect) => {
+          const offsetX = e.clientX < targetRect.left ? targetRect.left - e.clientX : Math.max(e.clientX - targetRect.right, 0);
+          const offsetY = e.clientY < targetRect.top ? targetRect.top - e.clientY : Math.max(e.clientY - targetRect.bottom, 0);
+          return offsetX ** 2 + offsetY ** 2;
+        };
+
+        return getDistance(rect) < getDistance(closestRect) ? rect : closestRect;
+      }, rects[rects.length - 1]);
+    };
+
+    const FULLTEXT_FIELD_NAME = '*';
+
+    type SelectionToken = {
+      text: string;
+      isCursorText: boolean;
+      fieldName?: string;
+      tokenType?: 'field-name' | 'field-value';
+    };
+
+    const stripSelectionMarkup = (value: string) => String(value ?? '').replace(/<\/?mark>/gim, '');
+
+    const getFieldPlainText = (row: Record<string, any>, field: Record<string, any>) => {
+      const rawValue = getRowFieldValue(row, field);
+      if (rawValue === null || rawValue === undefined || rawValue === '') {
+        return '--';
+      }
+
+      return stripSelectionMarkup(String(rawValue));
+    };
+
+    /** 复用检索结果 JsonFormatter 的分词规则，保证划词补齐边界与页面展示一致。 */
+    const getFieldSegmentTokens = (row: Record<string, any>, field: Record<string, any>): SelectionToken[] => {
+      const formatter = new UseJsonFormatter({
+        target: ref(null),
+        fields: [field],
+        jsonValue: row,
+        field,
+        onSegmentClick: () => {},
+      });
+
+      return formatter.getSplitList(field, getFieldPlainText(row, field)).map(token => ({
+        text: token.text,
+        isCursorText: token.isCursorText,
+      }));
+    };
+
+    const getOriginSegmentTokens = (row: Record<string, any>) => {
+      const tokens: SelectionToken[] = [];
+      const fields = visibleFields.value.length ? visibleFields.value : filteredFieldList.value;
+
+      fields.forEach((field, index) => {
+        if (index > 0) {
+          tokens.push({ text: ' ', isCursorText: false });
+        }
+
+        tokens.push({
+          text: field.field_name,
+          isCursorText: true,
+          fieldName: field.field_name,
+          tokenType: 'field-name',
+        });
+        tokens.push({ text: ' ', isCursorText: false });
+        tokens.push(...getFieldSegmentTokens(row, field).map(token => ({
+          ...token,
+          fieldName: field.field_name,
+          tokenType: 'field-value' as const,
+        })));
+      });
+
+      return tokens;
+    };
+
+    const getSelectionTextByRange = (range: Range) => stripSelectionMarkup(range?.toString?.() ?? '');
+
+    const getSelectionAnchorElement = (range: Range) => {
+      const startNode = range?.startContainer as Node | null;
+      const endNode = range?.endContainer as Node | null;
+      const startElement = startNode instanceof Element ? startNode : startNode?.parentElement;
+      const endElement = endNode instanceof Element ? endNode : endNode?.parentElement;
+
+      return (
+        startElement?.closest?.('[data-search-field-name], [data-field-name]')
+        ?? endElement?.closest?.('[data-search-field-name], [data-field-name]')
+      ) as HTMLElement | null;
+    };
+
+    const completeSelectionByTokens = (selectionText: string, tokens: SelectionToken[]) => {
+      if (!selectionText || !tokens.length) {
+        return [];
+      }
+
+      const normalizedSelection = stripSelectionMarkup(selectionText);
+      if (!normalizedSelection) {
+        return [];
+      }
+
+      const plainText = tokens.map(item => item.text).join('');
+      const selectionStart = plainText.indexOf(normalizedSelection);
+      if (selectionStart < 0) {
+        return [];
+      }
+
+      const selectionEnd = selectionStart + normalizedSelection.length;
+      let cursor = 0;
+      const selectedTokenIndexes = new Set<number>();
+      for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+        const tokenStart = cursor;
+        const tokenEnd = tokenStart + token.text.length;
+        cursor = tokenEnd;
+
+        if (selectionStart < tokenEnd && selectionEnd > tokenStart) {
+          selectedTokenIndexes.add(i);
+        }
+      }
+
+      if (!selectedTokenIndexes.size) {
+        return [];
+      }
+
+      const completedTokens: SelectionToken[] = [];
+      const appendedTokenSet = new Set<string>();
+      for (const index of Array.from(selectedTokenIndexes).sort((a, b) => a - b)) {
+        const token = tokens[index];
+        if (!token?.isCursorText) {
+          continue;
+        }
+
+        const tokenKey = [token.fieldName ?? '', token.tokenType ?? '', token.text].join('__');
+        if (!appendedTokenSet.has(tokenKey)) {
+          appendedTokenSet.add(tokenKey);
+          completedTokens.push(token);
+        }
+      }
+
+      return completedTokens;
+    };
+
+    const getFieldByName = (fieldName: string) => {
+      if (!fieldName) {
+        return undefined;
+      }
+
+      return filteredFieldList.value.find(item => item.field_name === fieldName)
+        ?? visibleFields.value.find(item => item.field_name === fieldName)
+        ?? fullColumns.value.find(item => item.field_name === fieldName);
+    };
+
+    const addSelectionToCurrentSearch = (selectionRange: Range, row: Record<string, any>) => {
+      const selectionText = getSelectionTextByRange(selectionRange);
+      if (!selectionText) {
+        return;
+      }
+
+      const targetElement = getSelectionAnchorElement(selectionRange);
+      const targetFieldName = targetElement?.getAttribute('data-search-field-name')
+        ?? targetElement?.getAttribute('data-field-name')
+        ?? '';
+      const targetField = getFieldByName(targetFieldName);
+      const fulltextFieldItem = getInputQueryDefaultItem();
+
+      // 时间格式化只影响展示；划选时间值时仍使用当前行中的原始时间戳。
+      if (targetField && ['date', 'date_nanos'].includes(targetField.field_type)) {
+        const rawValue = getObjectValue(row, targetField);
+        handleAddCondition(targetField.field_name, 'is', [stripSelectionMarkup(String(rawValue))]);
+        return;
+      }
+
+      if (showCtxType.value === 'table') {
+        if (!targetField) {
+          handleAddCondition(FULLTEXT_FIELD_NAME, fulltextFieldItem.operator, [selectionText]);
+          return;
+        }
+
+        const completedTokens = completeSelectionByTokens(selectionText, getFieldSegmentTokens(row, targetField));
+        if (!completedTokens.length) {
+          handleAddCondition(targetField.field_name, 'is', [selectionText]);
+          return;
+        }
+
+        completedTokens.forEach((token) => {
+          handleAddCondition(targetField.field_name, 'is', [token.text]);
+        });
+        return;
+      }
+
+      const conditions: Array<{ field: string; operator: string; value: string[] }> = [];
+      const appendedConditionKeys = new Set<string>();
+      const fieldNameSet = new Set(filteredFieldList.value.map(item => item.field_name));
+      const originTokens = completeSelectionByTokens(selectionText, getOriginSegmentTokens(row));
+
+      originTokens.forEach((token) => {
+        if (!token.text || token.tokenType === 'field-name' || fieldNameSet.has(token.text)) {
+          return;
+        }
+
+        const field = getFieldByName(token.fieldName ?? '');
+        const plainText = field ? getFieldPlainText(row, field) : '';
+        const operator = field && plainText === token.text ? 'is' : fulltextFieldItem.operator;
+        const conditionField = operator === 'is' && field ? field.field_name : FULLTEXT_FIELD_NAME;
+        const conditionKey = [conditionField, operator, token.text].join('__');
+        if (!appendedConditionKeys.has(conditionKey)) {
+          appendedConditionKeys.add(conditionKey);
+          conditions.push({
+            field: conditionField,
+            operator,
+            value: [token.text],
+          });
+        }
+      });
+
+      if (!conditions.length) {
+        handleAddCondition(FULLTEXT_FIELD_NAME, fulltextFieldItem.operator, [selectionText]);
+        return;
+      }
+
+      conditions.forEach((item) => {
+        handleAddCondition(item.field, item.operator, item.value);
+      });
+    };
+
+    const setSelectionPopTargetHandler = (rect: DOMRect) => {
+      let virtualTarget = document.body.querySelector('.bklog-selection-pop-target') as HTMLElement;
+      if (!virtualTarget) {
+        virtualTarget = document.createElement('span');
+        virtualTarget.className = 'bklog-selection-pop-target';
+        virtualTarget.style.setProperty('position', 'fixed');
+        virtualTarget.style.setProperty('visibility', 'hidden');
+        virtualTarget.style.setProperty('pointer-events', 'none');
+        virtualTarget.style.setProperty('z-index', '-1');
+        document.body.appendChild(virtualTarget);
+      }
+
+      virtualTarget.style.setProperty('left', `${rect.left}px`);
+      virtualTarget.style.setProperty('top', `${rect.top}px`);
+      virtualTarget.style.setProperty('width', `${Math.max(rect.width, 1)}px`);
+      virtualTarget.style.setProperty('height', `${Math.max(rect.height, 1)}px`);
+
+      return virtualTarget;
+    };
+
     const useSegmentPop = new UseSegmentProp({
       delineate: true,
       aiBluekingEnabled: store.state.features.isAiAssistantActive,
       stopPropagation: true,
       highlightEnabled: true,
+      allowDelineateSearch: true,
       onclick: (...args) => {
         const type = args[1];
         if (type === 'add-to-ai') {
           props.handleClickTools(type, savedSelection?.toString() ?? '');
+        } else if (type === 'is' && savedSelection && hoverOperatorState.row) {
+          addSelectionToCurrentSearch(savedSelection, hoverOperatorState.row);
         } else {
           handleOperation(type, { value: savedSelection?.toString() ?? '', operation: type });
         }
@@ -1417,8 +1671,11 @@ export default defineComponent({
         const selection = window.getSelection();
         if (selection.rangeCount > 0) {
           savedSelection = selection.getRangeAt(0);
+          const rect = getSelectionReferenceRect(savedSelection, e);
+          const target = setSelectionPopTargetHandler(rect);
+          popInstanceUtil.uninstallInstance();
+          popInstanceUtil.show(target, true, true);
         }
-        popInstanceUtil.show(e.target);
         return;
       }
 
