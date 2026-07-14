@@ -34,6 +34,8 @@ CHUNK_SIZE = 5000
 _MIN_SOFT_TTL = 86400
 # NewSeries 算法类型标识(= AlgorithmModel.AlgorithmChoices.NewSeries)
 NEW_SERIES_TYPE = "NewSeries"
+# 新状态至少积累 5 个非空、非 partial 的有效检测周期，第 6 个有效周期开始告警。
+BASELINE_CYCLES = 5
 
 
 class NewSeriesSerializer(BaseNewSeriesSerializer):
@@ -54,8 +56,8 @@ class NewSeries(BasicAlgorithmsCollection):
     pre_detect 在批检测前一次性读旧态、写新态(item 内相同 threshold 的多 level 只读写一次)；
     extra_context 逐点注入 is_new_series 布尔，复用基类表达式机制产出异常点。
 
-    基线：策略首次拉取作为基线批次。首个非空批次只灌库不告警；首个空批次由 detect 调度层标记基线完成。
-    threshold=0 复用历史状态键，非零 threshold 使用隔离状态键。
+    基线：新状态前 5 个非空、非 partial 批次只灌库不告警，第 6 个有效批次开始检测。
+    threshold=0 复用历史 seen/完成态，非零 threshold 使用隔离状态；各 threshold 独立累计进度。
     """
 
     config_serializer = NewSeriesSerializer
@@ -178,19 +180,28 @@ class NewSeries(BasicAlgorithmsCollection):
         return bool(client.exists(done_key) or client.exists(learn_key))
 
     @classmethod
+    def _advance_baseline(cls, item, sig, threshold, soft_ttl):
+        progress_key = key.NEW_SERIES_BASELINE_PROGRESS_KEY.get_key(
+            strategy_id=item.strategy.id,
+            item_id=item.id,
+            dimension_signature=sig,
+            threshold=cls.threshold_token(threshold),
+        )
+        client = key.NEW_SERIES_BASELINE_PROGRESS_KEY.client
+        pipe = client.pipeline(transaction=True)
+        pipe.incr(progress_key)
+        pipe.expire(progress_key, soft_ttl)
+        progress = int(pipe.execute()[0])
+        if progress >= BASELINE_CYCLES:
+            # 完成态写失败时把进度稳定在门槛，后续有效批次继续重试且仍不告警。
+            client.set(progress_key, BASELINE_CYCLES, ex=soft_ttl)
+            cls._mark_baseline_done(item, sig, threshold, soft_ttl)
+        return progress
+
+    @classmethod
     def bootstrap_empty_batch(cls, item):
-        if not cls.has_new_series(item):
-            return False
-        try:
-            sig = cls._dimension_signature(item)
-            thresholds = {int(config.get("threshold", 0)) for config in cls._item_new_series_configs(item)}
-            for threshold in thresholds:
-                cls._mark_baseline_done(item, sig, threshold, cls._soft_ttl(item, threshold))
-            return True
-        except Exception as e:  # noqa  空批次基线标记失败不应打断 detect 主流程。
-            metrics.NEW_SERIES_PROCESS_COUNT.labels(strategy_id=metrics.TOTAL_TAG, type="failure").inc()
-            logger.exception("[detect][new_series] strategy(%s) empty baseline failed: %s", item.strategy.id, e)
-            return False
+        # 保留调度层调用接口；空批次不是有效学习周期，不创建或推进任何状态。
+        return cls.has_new_series(item)
 
     def _range_display(self):
         if self.detect_range % 86400 == 0:
@@ -247,6 +258,11 @@ class NewSeries(BasicAlgorithmsCollection):
         # 防御性重置：保证每次 pre_detect 从干净 map 起步(当前框架每批新建实例，此处为冗余防御)。
         self._fire_by_dp = {}
         item = data_points[0].item
+        # access 仅在 partial 查询时按需透传 is_partial=True；跨进程后不能依赖 item.query 运行态。
+        if getattr(data_points[0], "is_partial", False):
+            self._fire_by_dp = {id(data_point): False for data_point in data_points}
+            return
+
         is_log_count = self._is_log_count_item(item)
         invalid_count = sum(1 for dp in data_points if self._numeric_value(dp) is None)
         if invalid_count:
@@ -262,24 +278,6 @@ class NewSeries(BasicAlgorithmsCollection):
         eligible_data_points = [
             dp for dp in data_points if self._is_eligible(dp, is_log_count=is_log_count, threshold=self.threshold)
         ]
-        if not eligible_data_points:
-            sig = self._dimension_signature(item)
-            try:
-                self._mark_baseline_done(
-                    item, sig, self.threshold, self._soft_ttl(item, self.threshold, self.detect_range)
-                )
-            except Exception as e:  # noqa  基线写失败时安全不报，由指标暴露，下一批继续尝试。
-                metrics.NEW_SERIES_PROCESS_COUNT.labels(strategy_id=metrics.TOTAL_TAG, type="failure").inc()
-                logger.exception(
-                    "[detect][new_series] strategy(%s) item(%s) threshold(%s) baseline failed: %s",
-                    item.strategy.id,
-                    item.id,
-                    self.threshold,
-                    e,
-                )
-            self._fire_by_dp = {id(data_point): False for data_point in data_points}
-            return
-
         sig = self._dimension_signature(item)
         cache = getattr(item, "_new_series_cache", None)
         # 保留原始列表对象本身，既按真实批次身份复用，又防止对象回收后 id 被下一批复用。
@@ -290,7 +288,7 @@ class NewSeries(BasicAlgorithmsCollection):
         cache_key = (sig, self.threshold)
         entries = cache["entries"]
         if cache_key not in entries:
-            # 相同阈值的多 level 复用快照，不同阈值各自读写隔离状态。
+            # 相同阈值的多 level 复用快照和进度，不同阈值各自读写隔离状态。
             entries[cache_key] = self._read_and_write(eligible_data_points, item, sig)
 
         entry = entries[cache_key]
@@ -374,25 +372,28 @@ class NewSeries(BasicAlgorithmsCollection):
 
             soft_ttl = max(eff_detect_range * 2, _MIN_SOFT_TTL)
 
-            # 3) 写新态：分块 zadd，score=max(本批最大ts, 旧态)。跨批取 max(等价 ZADD GT)，
-            #    防止迟到/补数的更旧时间戳把 last_seen 倒退(Redis<6.2 无 ZADD GT，故内存取 max)。
-            first_chunk = fps[:CHUNK_SIZE]
-            first_mapping = {fp: max(latest[fp], seen_before.get(fp, 0)) for fp in first_chunk}
-            # 首次创建和常规续期统一使用事务流水线，使第一批 ZADD 与 EXPIRE 原子提交，不产生无 TTL 新键。
-            pipe = client.pipeline(transaction=True)
-            pipe.zadd(seen_key, first_mapping)
-            pipe.expire(seen_key, soft_ttl)
-            pipe.execute()
-            for i in range(CHUNK_SIZE, len(fps), CHUNK_SIZE):
-                chunk = fps[i : i + CHUNK_SIZE]
-                client.zadd(seen_key, {fp: max(latest[fp], seen_before.get(fp, 0)) for fp in chunk})
-            metrics.NEW_SERIES_PROCESS_COUNT.labels(strategy_id=metrics.TOTAL_TAG, type="seen_write").inc(len(fps))
+            # 3) 写新态：仅满足阈值的数据点进入 seen；没有满足阈值的数据点时仍可推进有效周期。
+            if fps:
+                first_chunk = fps[:CHUNK_SIZE]
+                first_mapping = {fp: max(latest[fp], seen_before.get(fp, 0)) for fp in first_chunk}
+                # 首次创建和常规续期统一使用事务流水线，使第一批 ZADD 与 EXPIRE 原子提交，不产生无 TTL 新键。
+                pipe = client.pipeline(transaction=True)
+                pipe.zadd(seen_key, first_mapping)
+                pipe.expire(seen_key, soft_ttl)
+                pipe.execute()
+                for i in range(CHUNK_SIZE, len(fps), CHUNK_SIZE):
+                    chunk = fps[i : i + CHUNK_SIZE]
+                    client.zadd(seen_key, {fp: max(latest[fp], seen_before.get(fp, 0)) for fp in chunk})
+                metrics.NEW_SERIES_PROCESS_COUNT.labels(strategy_id=metrics.TOTAL_TAG, type="seen_write").inc(len(fps))
 
-            # 4) 标记基线完成。新版本不再写 learn_start，避免 baseline_done 失败时留下可被识别为完成态的 legacy key。
-            self._mark_baseline_done(item, sig, self.threshold, soft_ttl)
+                # 4) 热路径内存安全阀：缓存超 2*max_series 时分批 trim。
+                self._safety_trim(client, seen_key, strategy_id, eff_max_series)
 
-            # 5) 热路径内存安全阀：缓存超 2*max_series 时分批 trim(主清理交周期任务，这里仅防两次清理间爆量)。
-            self._safety_trim(client, seen_key, strategy_id, eff_max_series)
+            # 5) seen 写成功后推进学习。存量完成态不创建进度，但继续续期，避免活跃策略意外重新学习。
+            if baseline_done:
+                self._mark_baseline_done(item, sig, self.threshold, soft_ttl)
+            else:
+                self._advance_baseline(item, sig, self.threshold, soft_ttl)
 
             return {"seen_before": seen_before, "baseline_batch": not baseline_done}
         except Exception as e:  # noqa  失败安全分支：不冒泡到 detect 主流程，不误报，由 metric 暴露。
