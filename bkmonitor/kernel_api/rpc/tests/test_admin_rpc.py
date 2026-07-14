@@ -77,6 +77,10 @@ from kernel_api.rpc.functions.admin.storage import (
     _serialize_bkbase_item,
     _serialize_doris_storage,
 )
+from kernel_api.rpc.functions.admin.storage_cluster_history import (
+    resolve_storage_history_table_id,
+    serialize_storage_cluster_record,
+)
 from kernel_api.rpc.functions.admin.uptime_check import _build_subscription_detail_payload, _summarize_subscription
 from kernel_api.rpc.registry import KernelRPCRegistry
 from monitor_web.models.collecting import CollectConfigMeta, DeploymentConfigVersion
@@ -2760,6 +2764,41 @@ def test_storage_functions_registered():
     assert (
         "data_link_name" in KernelRPCRegistry.get_function_detail("admin.bkbase_result_table.detail")["params_schema"]
     )
+
+
+@pytest.mark.parametrize(
+    ("cluster_type", "storage_type"),
+    [("elasticsearch", "es"), ("doris", "doris"), ("kafka", "unknown")],
+)
+def test_storage_cluster_record_exposes_related_cluster_type(cluster_type, storage_type):
+    record = SimpleNamespace(
+        table_id="3_bklog.demo",
+        cluster_id=7,
+        is_current=False,
+        is_deleted=False,
+        enable_time=None,
+        disable_time=None,
+        delete_time=None,
+        creator="admin",
+        create_time=None,
+    )
+    cluster = SimpleNamespace(
+        cluster_id=7,
+        cluster_name=f"history-{cluster_type}",
+        display_name="历史集群",
+        cluster_type=cluster_type,
+    )
+
+    item = serialize_storage_cluster_record(record, cluster)
+
+    assert item["storage_type"] == storage_type
+    assert item["cluster"]["cluster_type"] == cluster_type
+
+
+def test_storage_history_uses_origin_table_id_for_virtual_es_and_doris_storage():
+    storage = SimpleNamespace(table_id="3_bklog.demo_virtual", origin_table_id="3_bklog.demo")
+
+    assert resolve_storage_history_table_id(storage) == "3_bklog.demo"
 
 
 def test_doris_storage_serializer_parses_field_config_mapping():
