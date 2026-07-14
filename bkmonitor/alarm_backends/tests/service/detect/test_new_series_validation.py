@@ -12,6 +12,7 @@ import pytest
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.strategy.new_strategy import Strategy
+from bkmonitor.strategy.serializers import NewSeriesSerializer
 
 validate = Strategy.Serializer.validate_new_series
 
@@ -126,8 +127,6 @@ def test_allow_cross_item_different_level():
 
 def test_effective_delay_always_equals_detect_range():
     # NewSeries 不设独立宽限期：effective_delay 一律归一化为 detect_range(缺省/更小/更大输入都被覆盖)。
-    from bkmonitor.strategy.serializers import NewSeriesSerializer
-
     # 缺省 -> detect_range
     s = NewSeriesSerializer(data={"detect_range": 3600})
     s.is_valid(raise_exception=True)
@@ -140,3 +139,31 @@ def test_effective_delay_always_equals_detect_range():
     s = NewSeriesSerializer(data={"detect_range": 3600, "effective_delay": 604800})
     s.is_valid(raise_exception=True)
     assert s.validated_data["effective_delay"] == 3600
+
+
+def test_new_series_threshold_defaults_to_zero_and_accepts_negative_integer():
+    serializer = NewSeriesSerializer(data={"detect_range": 3600})
+    serializer.is_valid(raise_exception=True)
+    assert serializer.validated_data["threshold"] == 0
+
+    serializer = NewSeriesSerializer(data={"detect_range": 3600, "threshold": -2})
+    serializer.is_valid(raise_exception=True)
+    assert serializer.validated_data["threshold"] == -2
+
+
+@pytest.mark.parametrize("threshold", [True, 1.5, "1.5"])
+def test_new_series_threshold_rejects_non_integer(threshold):
+    serializer = NewSeriesSerializer(data={"detect_range": 3600, "threshold": threshold})
+    with pytest.raises(ValidationError):
+        serializer.is_valid(raise_exception=True)
+
+
+@pytest.mark.parametrize("threshold", [True, 1.5, "invalid"])
+def test_validate_new_series_rejects_invalid_threshold(threshold):
+    ns = {
+        "type": "NewSeries",
+        "level": 1,
+        "config": {"detect_range": 86400, "max_series": 100000, "threshold": threshold},
+    }
+    with pytest.raises(ValidationError):
+        validate(_attrs([ns], [_qc()]))

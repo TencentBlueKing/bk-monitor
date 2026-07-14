@@ -55,6 +55,8 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
   formData = {
     /** 告警级别 */
     level: 1,
+    /** 告警阈值 */
+    threshold: 0,
     /** 时间 */
     date: 1,
     /** 时间单位 */
@@ -73,6 +75,7 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
         effective_delay: detectRange,
         max_series: 100000,
         detect_range: detectRange,
+        threshold: Number(this.formData.threshold),
       },
     };
   }
@@ -102,6 +105,13 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
 
   rules = {
     level: [{ required: true, message: this.$t('必填项'), trigger: 'change' }],
+    threshold: [
+      {
+        validator: this.checkThreshold,
+        message: this.$t('阈值不能为空且必须为整数'),
+        trigger: 'change',
+      },
+    ],
     date: [
       {
         validator: this.checkDate,
@@ -149,6 +159,7 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
         this.unitList[this.unitList.length - 1];
       this.formData = {
         level: this.data.level,
+        threshold: this.data.config?.threshold ?? 0,
         date: Math.max(1, Math.round(detectRange / unit.seconds)),
         unit: unit.id,
       };
@@ -176,6 +187,10 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
 
   checkDate(value) {
     return value && value > 0;
+  }
+
+  checkThreshold(value) {
+    return value !== null && value !== undefined && String(value).trim() !== '' && Number.isInteger(Number(value));
   }
 
   @Emit('dataChange')
@@ -223,6 +238,33 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
                 </bk-option>
               ))}
             </bk-select>
+          </bk-form-item>
+          <bk-form-item
+            error-display-type='normal'
+            label={this.$t('告警阈值')}
+            property='threshold'
+            required
+          >
+            <div class='threshold-condition'>
+              <span class='threshold-operator'>{this.$t('大于')}</span>
+              <bk-input
+                class='inline-input input-arrow threshold-input'
+                v-model={this.formData.threshold}
+                behavior='simplicity'
+                precision={0}
+                readonly={this.readonly}
+                show-controls={false}
+                type='number'
+                onChange={this.emitLocalData}
+              />
+              <span>{this.$t('个新增维度值')}</span>
+            </div>
+            <i18n
+              class='threshold-rule'
+              path='触发规则：仅当对应数据值大于{0}时触发告警'
+            >
+              <span>{this.formData.threshold}</span>
+            </i18n>
           </bk-form-item>
           <bk-form-item
             error-display-type='normal'
