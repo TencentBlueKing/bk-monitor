@@ -71,6 +71,7 @@ from kernel_api.rpc.functions.admin import space as admin_space
 from kernel_api.rpc.functions.admin import kafka_sample as kafka_sample_module
 from kernel_api.rpc.functions.admin import storage as admin_storage
 from kernel_api.rpc.functions.admin.storage import (
+    _build_doris_relations,
     get_doris_storage_latest_records,
     get_doris_storage_physical_metadata,
     _serialize_bkbase_item,
@@ -2768,6 +2769,7 @@ def test_doris_storage_serializer_parses_field_config_mapping():
             table_id="3_bklog.demo",
             bk_tenant_id="system",
             bkbase_table_id="592_bklog_demo",
+            origin_table_id="3_bklog.origin",
             source_type="log",
             index_set="3_bklog_demo",
             table_type="primary_table",
@@ -2779,7 +2781,71 @@ def test_doris_storage_serializer_parses_field_config_mapping():
     )
 
     assert item["field_config_mapping"]["ip"]["type"] == "keyword"
+    assert item["origin_table_id"] == "3_bklog.origin"
     assert warnings == []
+
+
+def test_doris_virtual_storage_relation_resolves_physical_table_in_same_tenant():
+    physical_storage = SimpleNamespace(
+        table_id="3_bklog.demo",
+        bk_tenant_id="system",
+        bkbase_table_id="592_bklog_demo",
+        origin_table_id=None,
+        source_type="log",
+        index_set="3_bklog_demo",
+        table_type="primary_table",
+        field_config_mapping=None,
+        expire_days=30,
+        storage_cluster_id=4,
+    )
+    virtual_storage = SimpleNamespace(
+        **{**physical_storage.__dict__, "table_id": "3_bklog.demo_virtual", "origin_table_id": "3_bklog.demo"}
+    )
+    queryset = Mock()
+    queryset.first.return_value = physical_storage
+
+    with (
+        patch.object(_doris_storage_manager(), "filter", return_value=queryset) as storage_filter,
+        patch.object(admin_storage, "_load_result_table_map", return_value={}),
+        patch.object(admin_storage, "_load_cluster_map", return_value={}),
+    ):
+        relations = _build_doris_relations(virtual_storage, "system")
+
+    storage_filter.assert_called_once_with(bk_tenant_id="system", table_id="3_bklog.demo")
+    assert relations["physical_table"]["doris_storage"]["table_id"] == "3_bklog.demo"
+    assert relations["virtual_tables"] == []
+
+
+def test_doris_physical_storage_relation_lists_virtual_tables_in_same_tenant():
+    physical_storage = SimpleNamespace(
+        table_id="3_bklog.demo",
+        bk_tenant_id="system",
+        bkbase_table_id="592_bklog_demo",
+        origin_table_id=None,
+        source_type="log",
+        index_set="3_bklog_demo",
+        table_type="primary_table",
+        field_config_mapping=None,
+        expire_days=30,
+        storage_cluster_id=4,
+    )
+    virtual_storage = SimpleNamespace(
+        **{**physical_storage.__dict__, "table_id": "3_bklog.demo_virtual", "origin_table_id": "3_bklog.demo"}
+    )
+    queryset = Mock()
+    queryset.order_by.return_value = [virtual_storage]
+
+    with (
+        patch.object(_doris_storage_manager(), "filter", return_value=queryset) as storage_filter,
+        patch.object(admin_storage, "_load_result_table_map", return_value={}),
+        patch.object(admin_storage, "_load_cluster_map", return_value={}),
+    ):
+        relations = _build_doris_relations(physical_storage, "system")
+
+    storage_filter.assert_called_once_with(bk_tenant_id="system", origin_table_id="3_bklog.demo")
+    queryset.order_by.assert_called_once_with("table_id")
+    assert relations["physical_table"] is None
+    assert [item["doris_storage"]["table_id"] for item in relations["virtual_tables"]] == ["3_bklog.demo_virtual"]
 
 
 def test_bkbase_result_table_serializer_keeps_model_fields():

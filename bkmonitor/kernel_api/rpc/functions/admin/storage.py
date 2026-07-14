@@ -60,6 +60,7 @@ DORIS_STORAGE_FIELDS = [
     "table_id",
     "bk_tenant_id",
     "bkbase_table_id",
+    "origin_table_id",
     "source_type",
     "index_set",
     "table_type",
@@ -234,19 +235,35 @@ def _load_cluster_map(bk_tenant_id: str | None, cluster_ids: list[int | None]) -
     return {cluster.cluster_id: cluster for cluster in queryset}
 
 
-def _table_id_filter(queryset: Any, table_id: str, field: str = "table_id") -> Any:
+def _table_id_filter(
+    queryset: Any, table_id: str, field: str = "table_id", related_fields: tuple[str, ...] = ()
+) -> Any:
     if not table_id:
         return queryset
-    return queryset.filter(
-        Q(**{field: table_id}) | Q(**{f"{field}__startswith": table_id}) | Q(**{f"{field}__contains": table_id})
-    )
+    query = Q()
+    for candidate_field in (field, *related_fields):
+        query |= (
+            Q(**{candidate_field: table_id})
+            | Q(**{f"{candidate_field}__startswith": table_id})
+            | Q(**{f"{candidate_field}__contains": table_id})
+        )
+    return queryset.filter(query)
 
 
 def _base_storage_queryset(
-    model_cls: Any, params: dict[str, Any], bk_tenant_id: str | None, table_field: str = "table_id"
+    model_cls: Any,
+    params: dict[str, Any],
+    bk_tenant_id: str | None,
+    table_field: str = "table_id",
+    related_table_fields: tuple[str, ...] = (),
 ):
     queryset = filter_by_bk_tenant_id(model_cls.objects.all(), bk_tenant_id)
-    queryset = _table_id_filter(queryset, str(params.get("table_id") or "").strip(), table_field)
+    queryset = _table_id_filter(
+        queryset,
+        str(params.get("table_id") or "").strip(),
+        table_field,
+        related_fields=related_table_fields,
+    )
     table_ids = _table_ids_by_data_filters(params, bk_tenant_id)
     if table_ids is not None:
         if bk_tenant_id is None:
@@ -279,6 +296,33 @@ def _serialize_doris_item(
         "storage_cluster": _serialize_cluster(
             get_scoped_map_value(cluster_map, storage.bk_tenant_id, storage.storage_cluster_id)
         ),
+    }
+
+
+def _build_doris_relations(storage: Any, bk_tenant_id: str) -> dict[str, Any]:
+    if storage.origin_table_id:
+        physical_storage = models.DorisStorage.objects.filter(
+            bk_tenant_id=bk_tenant_id, table_id=storage.origin_table_id
+        ).first()
+        if not physical_storage:
+            return {"physical_table": None, "virtual_tables": []}
+        result_table_map = _load_result_table_map(bk_tenant_id, [physical_storage.table_id])
+        cluster_map = _load_cluster_map(bk_tenant_id, [physical_storage.storage_cluster_id])
+        return {
+            "physical_table": _serialize_doris_item(physical_storage, result_table_map, cluster_map),
+            "virtual_tables": [],
+        }
+
+    virtual_storages = list(
+        models.DorisStorage.objects.filter(bk_tenant_id=bk_tenant_id, origin_table_id=storage.table_id).order_by(
+            "table_id"
+        )
+    )
+    result_table_map = _load_result_table_map(bk_tenant_id, [item.table_id for item in virtual_storages])
+    cluster_map = _load_cluster_map(bk_tenant_id, [item.storage_cluster_id for item in virtual_storages])
+    return {
+        "physical_table": None,
+        "virtual_tables": [_serialize_doris_item(item, result_table_map, cluster_map) for item in virtual_storages],
     }
 
 
@@ -352,10 +396,10 @@ def _paginate_list_response(
 @KernelRPCRegistry.register(
     FUNC_DORIS_STORAGE_LIST,
     summary="Admin 查询 DorisStorage 列表",
-    description="只读分页查询 DorisStorage，字段按 DorisStorage 模型原样返回。",
+    description="只读分页查询 DorisStorage，显式返回 origin_table_id，并支持按实体/虚拟关系检索。",
     params_schema={
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
-        "table_id": "可选，DorisStorage.table_id",
+        "table_id": "可选，匹配 DorisStorage.table_id / origin_table_id",
         "bk_data_id": "可选，通过 DataSourceResultTable 关联过滤",
         "data_label": "可选，通过 ResultTable.data_label 关联过滤",
         "storage_cluster_id": "可选，Doris 集群 ID",
@@ -367,7 +411,9 @@ def _paginate_list_response(
 )
 def list_doris_storages(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_page_list_bk_tenant_id(params)
-    queryset = _base_storage_queryset(models.DorisStorage, params, bk_tenant_id)
+    queryset = _base_storage_queryset(
+        models.DorisStorage, params, bk_tenant_id, related_table_fields=("origin_table_id",)
+    )
     return _paginate_list_response(
         params=params,
         queryset=queryset,
@@ -385,7 +431,7 @@ def list_doris_storages(params: dict[str, Any]) -> dict[str, Any]:
 @KernelRPCRegistry.register(
     FUNC_DORIS_STORAGE_DETAIL,
     summary="Admin 查询 DorisStorage 详情",
-    description="只读查询 DorisStorage 原始配置、ResultTable 和 ClusterInfo。",
+    description="只读查询 DorisStorage 原始配置、ResultTable、ClusterInfo 和同租户实体/虚拟表关系。",
     params_schema={"bk_tenant_id": "可选，租户 ID", "table_id": "必填，DorisStorage.table_id"},
     example_params={"bk_tenant_id": "system", "table_id": "3_bklog.demo"},
 )
@@ -400,6 +446,7 @@ def get_doris_storage_detail(params: dict[str, Any]) -> dict[str, Any]:
         _load_cluster_map(bk_tenant_id, [storage.storage_cluster_id]),
     )
     data["doris_storage"] = _serialize_doris_storage(storage, warnings)
+    data["relations"] = _build_doris_relations(storage, bk_tenant_id)
     return build_response(
         operation="doris_storage.detail",
         func_name=FUNC_DORIS_STORAGE_DETAIL,
