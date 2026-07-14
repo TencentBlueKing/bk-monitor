@@ -570,7 +570,7 @@
 
   const convertToObject = val => {
     if (typeof val === 'string' && formatJson.value) {
-      if (/^(\{|\[)/.test(val)) {
+      if (/^\s*(\{|\[)/.test(val)) {
         try {
           return bigJson.parse(val);
         } catch (e) {
@@ -676,7 +676,7 @@
        * Origin 模式根级 1000 截断：
        * - 未开启 JSON 解析：保持原逻辑，整段 VALUE 超长则截断 + 更多
        * - 已开启 JSON 解析且可解析为对象/数组：禁止根级 slice，交由 JSON 树渲染；
-       *   1000/更多仅作用于叶子不可解析字符串（及超深度残留字符串）
+       *   1000/更多仅作用于叶子不可解析字符串
        */
       const shouldUseOriginalValueText =
         isOriginalMode.value
@@ -702,7 +702,7 @@
           precomputedSegments: shouldSkipPrecomputedSegments
             ? undefined
             : getOriginalValueSegments(f),
-          // JSON 解析开启时：叶子长字符串 / 超深度残留字符串启用 1000/更多（Origin & Table 均生效）
+          // JSON 解析开启时：叶子长字符串启用 1000/更多（Origin & Table 均生效）
           enableLeafTruncate: formatJson.value,
           parsedFromJsonString: formatter.parsedFromJsonString,
           resolveFieldDisplayName: (fieldName: string) => fieldNameHook.getFieldName(fieldName),

@@ -491,7 +491,6 @@ export default class UseJsonFormatter {
     this.editor = new JsonView(targetRoot, {
       onNodeExpand: this.handleExpandNode.bind(this),
       depth,
-      maxParseDepth: depth,
       field: this.config.field,
       parsedFromJsonString: !!this.config.options?.parsedFromJsonString,
       resolveFieldDisplayName: this.config.options?.resolveFieldDisplayName,
@@ -516,7 +515,7 @@ export default class UseJsonFormatter {
 
   /**
    * JSON 解析模式下：对叶子节点（string / number / boolean / bigint，
-   * 或不可再 parse / 已超深度的残留字符串）做分词渲染并消费页面高亮状态。
+   * 或不可继续 parse 的字符串）做分词渲染并消费页面高亮状态。
    * 长字符串默认展示前 1000 字符；超出显示「更多」，展开最多 16KB，支持「收起」
    */
   renderLeafSegment(value: string, rootNode: HTMLElement, forceExpanded = false) {
@@ -541,8 +540,13 @@ export default class UseJsonFormatter {
 
     const leafFieldName = rootNode.getAttribute('data-search-field-name') || this.config.field?.field_name;
     const leafField = this.getField(leafFieldName) ?? leafFieldName ?? this.config.field;
+    // JSON String 解析出的所有叶子都绑定外层真实字段用于检索，但外层字段的
+    // precomputedSegments 表示整段原始 JSON，不能复用于单个叶子。否则每个
+    // ip/name/port 都会重复渲染完整 JSON。叶子应基于自身 value 重新分词。
+    const isParsedFromJsonStringLeaf = !!this.config.options?.parsedFromJsonString
+      || rootNode.closest('[data-json-string-parsed="true"]') !== null;
     const vlaues = this.getSplitList(leafField, renderText, {
-      usePrecomputedSegments: !isTruncatable,
+      usePrecomputedSegments: !isTruncatable && !isParsedFromJsonStringLeaf,
     });
     if (taskId !== this.segmentTaskId || !rootNode.isConnected) return;
 

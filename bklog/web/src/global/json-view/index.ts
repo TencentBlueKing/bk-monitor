@@ -37,11 +37,6 @@ export type JsonViewConfig = {
   segmentRender?: (_value: string, _rootNode: HTMLElement) => void;
   batchSize?: number;
   initialBatchSize?: number;
-  /**
-   * 超过该深度后，不再把嵌套 JSON 字符串继续 parse 成树；
-   * 默认与 depth 一致（JSON 解析深度配置）
-   */
-  maxParseDepth?: number;
   /** 根值是否由 JSON String 解析得到；此时叶子筛选必须作用于外层字段 */
   parsedFromJsonString?: boolean;
   /** 将真实字段路径转换为展示别名；返回原路径时沿用 JSON 原始 KEY。 */
@@ -274,11 +269,10 @@ export default class JsonView {
     this.bindSearchFieldPath(node, parentPath);
     let formatTarget = target;
     let jsonStringFieldPath = inheritedJsonStringFieldPath;
-    const maxParseDepth = Number(this.options.maxParseDepth ?? this.options.depth ?? 1);
-
-    // 仅在配置的 JSON 解析深度内继续 parse 嵌套 JSON 字符串；
-    // 超出深度的可解析字符串按叶子字符串处理（由上层决定是否 1000/更多）
-    if (typeof target === 'string' && depth <= maxParseDepth && /^(\{|\[)/.test(target)) {
+    // Parsing depth controls expansion only. Every created node must still recognize
+    // Object/Array values (including JSON strings), so increasing depth can expand
+    // Nested fields that were initially collapsed. Children remain lazily rendered.
+    if (typeof target === 'string' && /^\s*(\{|\[)/.test(target)) {
       try {
         formatTarget = this.JSONBigInstance.parse(target);
         jsonStringFieldPath = parentPath || this.getRootFieldPath();
@@ -290,28 +284,6 @@ export default class JsonView {
     const nodeType = typeof formatTarget;
 
     if (nodeType === 'object' && formatTarget !== null) {
-      // 超出最大解析深度的 object/array：转为字符串叶子，走 1000/更多，而不再继续展开树
-      if (depth > maxParseDepth) {
-        let overflowText = '';
-        try {
-          overflowText = JSON.stringify(formatTarget);
-        } catch {
-          overflowText = String(formatTarget);
-        }
-        node.classList.add('bklog-json-field-value');
-        if (overflowText && typeof this.options.segmentRender === 'function') {
-          const taskId = this.renderTaskId;
-          this.scheduleRender(() => {
-            if (taskId === this.renderTaskId && node.isConnected) {
-              this.options.segmentRender(overflowText, node);
-            }
-          });
-        } else {
-          node.innerHTML = `<span class="segment-content bklog-scroll-cell"><span class="valid-text">${xssFilter(overflowText || '--')}</span></span>`;
-        }
-        return node;
-      }
-
       node.append(...this.createObjectNode(formatTarget, depth, parentPath, jsonStringFieldPath));
     } else {
       node.classList.add('bklog-json-field-value');
@@ -440,19 +412,33 @@ export default class JsonView {
   }
 
   public expand(depth: number) {
-    this.activeDepth = depth;
-    for (const element of this.targetEl.querySelectorAll('[data-depth]')) {
-      const elementDepth = element.getAttribute('data-depth');
+    const targetDepth = Math.max(0, Number(depth) || 0);
+    this.activeDepth = targetDepth;
+
+    const updateElementExpandState = (element: Element, isNextExpand: boolean) => {
       const objectElement = element.children[0] as HTMLElement;
+      if (!objectElement?.classList.contains('bklog-json-view-object')) return;
 
-      if (objectElement?.classList.contains('bklog-json-view-object')) {
-        const { target, isExpand } = this.jsonNodeMap.get(objectElement);
-        const isNextExpand = depth >= Number(elementDepth);
+      const nodeMeta = this.jsonNodeMap.get(objectElement);
+      if (!nodeMeta || nodeMeta.isExpand === isNextExpand) return;
 
-        if (isNextExpand !== isExpand) {
-          this.setNodeExpand(objectElement, isNextExpand, target);
-          this.jsonNodeMap.get(objectElement).isExpand = isNextExpand;
-        }
+      this.setNodeExpand(objectElement, isNextExpand, nodeMeta.target);
+      nodeMeta.isExpand = isNextExpand;
+    };
+
+    // querySelectorAll returns a static collection. Query depth by depth so that
+    // Nested children created by the previous expansion are handled in this pass.
+    for (let currentDepth = 1; currentDepth <= targetDepth; currentDepth += 1) {
+      const selector = `[data-depth="${currentDepth}"]`;
+      for (const element of this.targetEl.querySelectorAll(selector)) {
+        updateElementExpandState(element, true);
+      }
+    }
+
+    // Collapse already rendered nodes that exceed the new depth.
+    for (const element of this.targetEl.querySelectorAll('[data-depth]')) {
+      if (Number(element.getAttribute('data-depth')) > targetDepth) {
+        updateElementExpandState(element, false);
       }
     }
   }
