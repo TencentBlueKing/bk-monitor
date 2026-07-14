@@ -578,6 +578,10 @@ const handleBatchInputChange = (isShow) => {
 };
 
 const formatDateTimeField = (value, fieldType) => {
+  if (!store.state.isFormatDate) {
+    return value;
+  }
+
   const timezone = store.state.indexItem.timezone;
   return RetrieveHelper.formatTimeZoneValue(value, fieldType, timezone);
 };

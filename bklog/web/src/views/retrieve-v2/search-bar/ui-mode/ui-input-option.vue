@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Ref, computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 // @ts-ignore
-import { formatDateTimeField, getCharLength, getOsCommandLabel, getRegExp } from '@/common/util';
+import { formatDateTimeField as formatDateTimeValue, getCharLength, getOsCommandLabel, getRegExp } from '@/common/util';
 import { bkIcon } from 'bk-magic-vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -33,6 +33,10 @@ const props = defineProps({
 
 const emit = defineEmits(['save', 'cancel', 'batch-input-change']);
 const store = useStore();
+
+const formatDateTimeField = (value, fieldType) => {
+  return store.state.isFormatDate ? formatDateTimeValue(value, fieldType) : value;
+};
 const { t } = useLocale();
 
 const indexFieldInfo = computed(() => store.state.indexFieldInfo);
