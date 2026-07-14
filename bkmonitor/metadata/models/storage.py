@@ -5964,9 +5964,17 @@ class DorisStorage(models.Model, StorageResultTable):
             "source": source,
         }
 
-    def get_doris_connection_config(self) -> dict[str, Any]:
+    def get_doris_connection_config(self, storage_cluster_id: int | None = None) -> dict[str, Any]:
         """通过 storage_cluster_id 获取 Doris MySQL 协议连接信息。"""
-        cluster = self.get_effective_storage().storage_cluster
+        effective_storage = self.get_effective_storage()
+        if storage_cluster_id is None:
+            cluster = effective_storage.storage_cluster
+        else:
+            cluster = ClusterInfo.objects.get(
+                bk_tenant_id=effective_storage.bk_tenant_id,
+                cluster_id=storage_cluster_id,
+                cluster_type=ClusterInfo.TYPE_DORIS,
+            )
         return {
             "host": cluster.domain_name,
             "port": cluster.port,
@@ -6094,7 +6102,10 @@ class DorisStorage(models.Model, StorageResultTable):
             connection.close()
 
     def query_latest_physical_storage_records(
-        self, limit: int = 1, order_field: str = "dtEventTimeStamp"
+        self,
+        limit: int = 1,
+        order_field: str = "dtEventTimeStamp",
+        storage_cluster_id: int | None = None,
     ) -> dict[str, Any]:
         """
         从 Doris 物理表按时间字段倒序拉取最新 N 条原始数据。
@@ -6183,7 +6194,7 @@ class DorisStorage(models.Model, StorageResultTable):
 
         connection_config = None
         try:
-            connection_config = self.get_doris_connection_config()
+            connection_config = self.get_doris_connection_config(storage_cluster_id=storage_cluster_id)
             result["storage_cluster"] = self._serialize_storage_cluster(connection_config)
         except Exception as error:  # pylint: disable=broad-except
             errors.append(
@@ -6214,7 +6225,7 @@ class DorisStorage(models.Model, StorageResultTable):
 
         return result
 
-    def query_physical_storage_metadata(self) -> dict[str, Any]:
+    def query_physical_storage_metadata(self, storage_cluster_id: int | None = None) -> dict[str, Any]:
         """
         查询 DorisStorage 关联物理表的原始元信息。
 
@@ -6325,7 +6336,7 @@ class DorisStorage(models.Model, StorageResultTable):
 
         connection_config = None
         try:
-            connection_config = self.get_doris_connection_config()
+            connection_config = self.get_doris_connection_config(storage_cluster_id=storage_cluster_id)
             result["storage_cluster"] = self._serialize_storage_cluster(connection_config)
         except Exception as error:  # pylint: disable=broad-except
             errors.append(

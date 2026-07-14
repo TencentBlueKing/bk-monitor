@@ -31,7 +31,10 @@ from kernel_api.rpc.functions.admin.common import (
     serialize_model,
     serialize_value,
 )
-from kernel_api.rpc.functions.admin.storage_cluster_history import build_storage_cluster_records
+from kernel_api.rpc.functions.admin.storage_cluster_history import (
+    build_storage_cluster_records,
+    resolve_runtime_storage_cluster,
+)
 from metadata import models
 
 FUNC_DORIS_STORAGE_LIST = "admin.doris_storage.list"
@@ -462,14 +465,26 @@ def get_doris_storage_detail(params: dict[str, Any]) -> dict[str, Any]:
     FUNC_DORIS_STORAGE_PHYSICAL_METADATA,
     summary="Admin 查询 DorisStorage 物理表元信息",
     description="inspect 级别能力，查询 DorisStorage 关联 DorisBinding 和真实 Doris 物理表 information_schema / SHOW CREATE TABLE。",
-    params_schema={"bk_tenant_id": "可选，租户 ID", "table_id": "必填，DorisStorage.table_id"},
+    params_schema={
+        "bk_tenant_id": "可选，租户 ID",
+        "table_id": "必填，DorisStorage.table_id",
+        "storage_cluster_id": "可选，当前集群或同一实体表迁移历史中的 Doris 集群 ID，默认当前集群",
+    },
     example_params={"bk_tenant_id": "system", "table_id": "3_bklog.demo"},
 )
 def get_doris_storage_physical_metadata(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_bk_tenant_id(params)
     table_id = _require_doris_table_id(params)
     storage = _get_doris_storage_or_raise(bk_tenant_id, table_id)
-    data = _serialize_runtime_payload(storage.query_physical_storage_metadata())
+    runtime_cluster = resolve_runtime_storage_cluster(
+        storage,
+        bk_tenant_id,
+        params.get("storage_cluster_id"),
+        models.ClusterInfo.TYPE_DORIS,
+    )
+    data = _serialize_runtime_payload(
+        storage.query_physical_storage_metadata(storage_cluster_id=runtime_cluster.cluster_id)
+    )
     response = build_response(
         operation="doris_storage.physical_metadata",
         func_name=FUNC_DORIS_STORAGE_PHYSICAL_METADATA,
@@ -487,6 +502,7 @@ def get_doris_storage_physical_metadata(params: dict[str, Any]) -> dict[str, Any
     params_schema={
         "bk_tenant_id": "可选，租户 ID",
         "table_id": "必填，DorisStorage.table_id",
+        "storage_cluster_id": "可选，当前集群或同一实体表迁移历史中的 Doris 集群 ID，默认当前集群",
         "limit": "可选，默认 1，最大 100",
         "order_field": "可选，默认 dtEventTimeStamp",
     },
@@ -500,8 +516,18 @@ def get_doris_storage_latest_records(params: dict[str, Any]) -> dict[str, Any]:
     if not order_field:
         raise CustomException(message="order_field 不能为空")
     storage = _get_doris_storage_or_raise(bk_tenant_id, table_id)
+    runtime_cluster = resolve_runtime_storage_cluster(
+        storage,
+        bk_tenant_id,
+        params.get("storage_cluster_id"),
+        models.ClusterInfo.TYPE_DORIS,
+    )
     data = _serialize_runtime_payload(
-        storage.query_latest_physical_storage_records(limit=limit, order_field=order_field)
+        storage.query_latest_physical_storage_records(
+            limit=limit,
+            order_field=order_field,
+            storage_cluster_id=runtime_cluster.cluster_id,
+        )
     )
     response = build_response(
         operation="doris_storage.latest_records",
