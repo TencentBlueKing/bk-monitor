@@ -1422,6 +1422,11 @@ export default defineComponent({
                                       this.alarmStore.residentCondition.length > 0
                                     : this.alarmStore.queryString !== ''
                                 }
+                                tableSettings={{
+                                  checked: this.storageColumns,
+                                  fields: this.allTableFields,
+                                  disabled: this.lockedTableFields,
+                                }}
                                 columns={this.tableSourceColumns}
                                 data={this.data as IssueItem[]}
                                 headerAffixedTop={issuesTableAffixed}
@@ -1454,6 +1459,9 @@ export default defineComponent({
                                     this.fieldsWidthConfig = { ...this.fieldsWidthConfig, ...ctx.columnsWidth };
                                 }}
                                 onCurrentPageChange={this.handleCurrentPageChange}
+                                onDisplayColFieldsChange={displayColFields => {
+                                  this.storageColumns = displayColFields;
+                                }}
                                 onImpactScopeClick={this.handleImpactScopeClick}
                                 onPageSizeChange={this.handlePageSizeChange}
                                 onPriorityChange={this.handleIssuesPriorityChange}
