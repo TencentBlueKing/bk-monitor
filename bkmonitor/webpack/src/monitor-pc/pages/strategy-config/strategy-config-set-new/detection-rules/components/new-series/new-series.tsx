@@ -257,7 +257,6 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
                 type='number'
                 onChange={this.emitLocalData}
               />
-              <span>{this.$t('个新增维度值')}</span>
             </div>
             <i18n
               class='threshold-rule'
