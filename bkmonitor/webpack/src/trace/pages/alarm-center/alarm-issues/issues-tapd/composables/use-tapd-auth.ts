@@ -33,13 +33,15 @@ import { getUserWorkspaceApi, rebindWorkspaceApi, unbindWorkspaceApi } from '../
 
 import type { TapdWorkspaceItem } from '../typing';
 
+type UseTapdAuthEmit = (event: 'update:loading', loading: boolean) => void;
+
 interface UseTapdAuthOptions {
   bizId: Ref<number | string>;
   issuesId: Ref<string>;
   show: Ref<boolean>;
 }
 
-export function useTapdAuth(options: UseTapdAuthOptions) {
+export function useTapdAuth(options: UseTapdAuthOptions, emit?: UseTapdAuthEmit) {
   const { t } = useI18n();
   const { show, bizId, issuesId } = options;
   const authDialogShow = shallowRef(false);
@@ -53,9 +55,9 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
   /** 项目关联链接 */
   const installUrl = shallowRef('');
   const revokeAuthLoading = shallowRef(false);
-  const loading = shallowRef(false);
 
   const getAuth = async () => {
+    emit?.('update:loading', true);
     installUrl.value = '';
     /** 授权成功后跳转的参数 */
     const successUrlParams = new URLSearchParams({
@@ -73,7 +75,6 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
       alarmType: 'issues',
     });
     try {
-      loading.value = true;
       const data = await getUserWorkspaceApi({
         bk_biz_id: bizId.value,
         success_url: `${window.location.search}#/trace/alarm-center?${successUrlParams.toString()}`,
@@ -99,14 +100,13 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
       createTapdSliderShow.value = false;
       authDialogShow.value = true;
     }
-    loading.value = false;
+    emit?.('update:loading', false);
   };
 
   watch(
     () => show.value,
     val => {
       if (val) {
-        authDialogShow.value = true;
         getAuth();
       } else {
         createTapdSliderShow.value = false;
@@ -178,7 +178,6 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
   };
 
   return {
-    loading,
     authDialogShow,
     createTapdSliderShow,
     workspaceList,

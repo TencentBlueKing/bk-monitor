@@ -55,13 +55,12 @@ export default defineComponent({
       default: () => null,
     },
   },
-  emits: ['update:show'],
+  emits: ['update:show', 'update:loading'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const { show, bizId, issuesId } = toRefs(props);
 
     const {
-      loading,
       authDialogShow,
       createTapdSliderShow,
       workspaceList,
@@ -70,7 +69,7 @@ export default defineComponent({
       revokeAuthLoading,
       handleWorkspaceSelect,
       handleAddWorkspace,
-    } = useTapdAuth({ show, bizId, issuesId });
+    } = useTapdAuth({ show, bizId, issuesId }, emit);
 
     const handleShowChange = (val: boolean) => emit('update:show', val);
 
@@ -104,7 +103,6 @@ export default defineComponent({
     };
 
     return {
-      loading,
       createTapdSliderShow,
       authDialogShow,
       workspaceList,
@@ -134,7 +132,6 @@ export default defineComponent({
         <TapdAuthDialog
           authUrl={this.authUrl}
           isAuth={this.isAuth}
-          loading={this.loading}
           revokeAuthLoading={this.revokeAuthLoading}
           show={this.authDialogShow}
           workspaceList={this.workspaceList}

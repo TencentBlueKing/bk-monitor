@@ -89,7 +89,7 @@ import type { SelectOptions } from '@blueking/tdesign-ui/.';
 
 const ALARM_CENTER_SHOW_FAVORITE = 'ALARM_CENTER_SHOW_FAVORITE';
 
-import { Alert, Message, Sideslider } from 'bkui-vue';
+import { Alert, Loading, Message, Sideslider } from 'bkui-vue';
 import dayjs from 'dayjs';
 import difference from 'lodash/difference';
 import intersection from 'lodash/intersection';
@@ -143,6 +143,7 @@ export default defineComponent({
     const route = useRoute();
     const alarmStore = useAlarmCenterStore();
     const appStore = useAppStore();
+    const pageLoading = shallowRef(false);
     const apmHooks = inject<AlarmCenterApmHooks | null>(ALARM_CENTER_APM_HOOKS_KEY, null);
     /** table 选中的 rowKey 数组 */
     const selectedRowKeys = shallowRef<string[]>([]);
@@ -874,8 +875,6 @@ export default defineComponent({
       issuesTapdShow.value = show;
     };
 
-    /** */
-
     /**
      * @method autoShowAlertDialog 自动打开告警确认 | 告警屏蔽 dialog
      * @description 当移动端的 告警通知 中点击 告警确认 | 告警屏蔽，进入页面时，需要自动打开 告警确认 | 告警屏蔽 dialog
@@ -1114,6 +1113,7 @@ export default defineComponent({
       setUrlParams();
     });
     return {
+      pageLoading,
       apmHooks,
       isFirstInit,
       quickFilterList,
@@ -1265,7 +1265,11 @@ export default defineComponent({
         : undefined;
     };
     return (
-      <div class='alarm-center-page'>
+      <Loading
+        class='alarm-center-page'
+        loading={this.pageLoading}
+        zIndex={9999}
+      >
         <div
           style={{ display: this.isShowFavorite ? 'block' : 'none' }}
           class='alarm-center-favorite-box'
@@ -1557,6 +1561,9 @@ export default defineComponent({
                 issueDetail={this.createTapdIssueDetail}
                 issuesId={this.tapdIssueId}
                 show={this.issuesTapdShow}
+                onUpdate:loading={loading => {
+                  this.pageLoading = loading;
+                }}
                 onUpdate:show={this.handleIssuesTapdShowChange}
               />,
             ]
@@ -1640,7 +1647,7 @@ export default defineComponent({
             renderFavoriteQuery: renderFavoriteQuery(this.favoriteType),
           }}
         </EditFavorite>
-      </div>
+      </Loading>
     );
   },
 });
