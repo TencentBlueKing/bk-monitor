@@ -143,7 +143,8 @@ class Command(BaseCommand):
 
     def _delete_unreferenced_global_user_tags(self):
         referenced_tag_ids = set()
-        for tag_ids in LogIndexSet.objects.values_list("tag_ids", flat=True).iterator():
+        # 软删除模型只重写了几个常用方法，这里需要手动过滤 is_deleted=False
+        for tag_ids in LogIndexSet.objects.filter(is_deleted=False).values_list("tag_ids", flat=True).iterator():
             referenced_tag_ids.update(str(tag_id) for tag_id in tag_ids if tag_id)
 
         global_user_tag_ids = set(
