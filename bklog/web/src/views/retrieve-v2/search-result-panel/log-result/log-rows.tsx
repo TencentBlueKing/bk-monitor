@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, h, nextTick, onBeforeUnmount, ref, watch, type Ref } from 'vue';
+import { computed, defineComponent, h, nextTick, onBeforeUnmount, ref, watch, type Ref, inject } from 'vue';
 
 import { getRowFieldValue, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR, xssFilter } from '@/common/util';
 // import { perfStart, perfEnd } from '@/utils/performance-monitor';
@@ -127,6 +127,8 @@ export default defineComponent({
         }
       },
     });
+
+    const handleRelatedTraceClick = inject<any>('handleRelatedTraceClick');
 
     const pageIndex = ref(1);
     // 前端本地分页
@@ -574,6 +576,16 @@ export default defineComponent({
 
     // 替换原有的handleMenuClick
     const handleMenuClick = (option, isLink, fieldOption?: { row: any; field: any }) => {
+      if (window.__IS_MONITOR_APM__ && isLink && option.operation === 'trace-view') {
+        const apmRelation = store.state.indexSetFieldConfig?.apm_relation;
+        const { app_name: appName, bk_biz_id: bkBizId } = apmRelation.extra;
+        handleRelatedTraceClick({
+          appName,
+          bkBizId,
+          traceId: option.value,
+        });
+        return;
+      }
       const timeTypes = ['date', 'date_nanos'];
 
       handleOperation(option.operation, {
