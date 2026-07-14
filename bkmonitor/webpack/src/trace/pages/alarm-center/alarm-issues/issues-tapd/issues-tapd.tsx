@@ -50,11 +50,6 @@ export default defineComponent({
       type: String,
       default: '',
     },
-    /** issues 第一个告警产生时间 (秒级时间戳) */
-    firstAlarmTime: {
-      type: [Number, String],
-      default: 'now-1h',
-    },
     issueDetail: {
       type: Object as PropType<IssueDetail>,
       default: () => null,
@@ -63,7 +58,7 @@ export default defineComponent({
   emits: ['update:show'],
   setup(props, { emit }) {
     const { t } = useI18n();
-    const { show, bizId, issuesId, firstAlarmTime } = toRefs(props);
+    const { show, bizId, issuesId } = toRefs(props);
 
     const {
       loading,
@@ -75,7 +70,7 @@ export default defineComponent({
       revokeAuthLoading,
       handleWorkspaceSelect,
       handleAddWorkspace,
-    } = useTapdAuth({ show, bizId, issuesId, firstAlarmTime });
+    } = useTapdAuth({ show, bizId, issuesId });
 
     const handleShowChange = (val: boolean) => emit('update:show', val);
 
