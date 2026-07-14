@@ -819,8 +819,8 @@ class IssueQueryHandler(BaseBizQueryHandler):
         cleaned["status_display"] = str(status_display.get(cleaned.get("status"), cleaned.get("status", "")))
         cleaned["priority_display"] = str(priority_display.get(cleaned.get("priority"), cleaned.get("priority", "")))
         # is_resolved 基于当前状态判断（而非 resolved_time 是否存在），避免重开/合并成员残留 resolved_time 误判；
-        # 已归档(ARCHIVED)不视为"已解决"（归档是终态分流，resolved_time 仍可能保留），故显式排除
-        cleaned["is_resolved"] = cleaned.get("status") == IssueStatus.RESOLVED
+        # RESOLVED 与 ARCHIVED 均视为"已解决"（归档为终态，对用户而言已结案）
+        cleaned["is_resolved"] = cleaned.get("status") in (IssueStatus.RESOLVED, IssueStatus.ARCHIVED)
 
         # impact_scope 添加 display_name
         impact_scope = data.get("impact_scope") or {}

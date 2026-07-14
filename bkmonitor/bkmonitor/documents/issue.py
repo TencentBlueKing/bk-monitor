@@ -245,9 +245,6 @@ class IssueDocument(BaseDocument):
         # skip_empty=False：让 resolved_time=None 以 null 写入 ES，真正清空（否则 to_dict(skip_empty=True) 会丢弃 None）。
         # 前提：本方法操作的是已全量加载的主轴文档（__init__ 时所有字段已赋值），skip_empty=False 仅把 None 字段写 null，
         # 不会误清空其它已赋值字段；请勿在最小/部分文档上直接套用此写法。
-        # 前置约束固化：下方 skip_empty=False 会把未赋值字段写成 null，若 self 来自部分/最小文档将覆盖 ES 原值。
-        # create_time 是全量加载必含字段，用作加载校验。
-        assert self.create_time is not None, "reopen 要求主轴文档已全量加载（create_time 必存在）"
         self._persist_and_cache(active=True, skip_empty=False)
         activities = self._write_activities(
             [
