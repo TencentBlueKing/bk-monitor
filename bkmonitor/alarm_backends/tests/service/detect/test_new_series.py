@@ -38,6 +38,7 @@ def _isolate_keys():
         redis_cluster.STRATEGY_ROUTER_CACHE,
         redis_cluster.STRATEGY_NODE_MAP,
     )
+    use_fake_cache_router()
     yield
     (
         redis_cluster.DEFAULT_NODE,
@@ -68,20 +69,24 @@ def make_item(
     ]
     # item.algorithms 必须是真实 list(检测器写侧据此取 max(detect_range)/max(max_series))
     item.algorithms = [{"type": "NewSeries", "config": c} for c in (ns_configs or [default_config()])]
+    item.query.is_partial = False
     # 让 _new_series_cache 这类动态属性走真实 dict，而非 MagicMock 自动属性
     item._new_series_cache = None
     item.name = "new-series-item"
     return item
 
 
-def make_dp(fingerprint, timestamp, item, value=1):
+def make_dp(fingerprint, timestamp, item, value=1, is_partial=False):
+    accessed_data = {
+        "value": value,
+        "values": {"_result_": value},
+        "time": timestamp,
+        "record_id": f"{fingerprint}.{timestamp}",
+    }
+    if is_partial:
+        accessed_data["is_partial"] = True
     dp = DataPoint(
-        accessed_data={
-            "value": value,
-            "values": {"_result_": value},
-            "time": timestamp,
-            "record_id": f"{fingerprint}.{timestamp}",
-        },
+        accessed_data=accessed_data,
         item=item,
     )
     return dp
@@ -143,6 +148,17 @@ def baseline_done(item, threshold=0):
         )
         cache_key = key.NEW_SERIES_THRESHOLD_BASELINE_DONE_KEY
     return cache_key.client.exists(done_key) == 1
+
+
+def baseline_progress(item, threshold=0):
+    progress_key = key.NEW_SERIES_BASELINE_PROGRESS_KEY.get_key(
+        strategy_id=item.strategy.id,
+        item_id=item.id,
+        dimension_signature=signature(item),
+        threshold=NewSeries.threshold_token(threshold),
+    )
+    value = key.NEW_SERIES_BASELINE_PROGRESS_KEY.client.get(progress_key)
+    return int(value or 0)
 
 
 def seed_baseline(item, threshold):
@@ -207,14 +223,15 @@ def test_log_count_zero_bucket_bootstraps_baseline_for_later_real_point():
     detector.pre_detect([zero_bucket])
 
     assert len(detector.detect(zero_bucket)) == 0
-    assert baseline_done(item) is True
+    assert baseline_progress(item) == 1
+    assert baseline_done(item) is False
     assert seen_score(item, "log-pattern") is None
 
     next_detector = NewSeries(config=default_config())
     real_bucket = make_dp("log-pattern", 100000060, item, value=1)
     next_detector.pre_detect([real_bucket])
 
-    assert len(next_detector.detect(real_bucket)) == 1
+    assert len(next_detector.detect(real_bucket)) == 0
     assert int(seen_score(item, "log-pattern")) == 100000060
 
 
@@ -230,7 +247,9 @@ def test_metric_zero_value_does_not_alert_or_mark_seen_at_default_threshold():
 
     assert len(detector.detect(zero_metric)) == 0
     assert seen_score(item, "metric-zero") is None
+    assert learn_start_exists(item)
     assert baseline_done(item)
+    assert baseline_progress(item) == 0
 
 
 def test_threshold_boundary_and_non_numeric_values_are_ineligible():
@@ -281,7 +300,9 @@ def test_threshold_zero_reuses_legacy_state_keys():
     detector.pre_detect([dp])
 
     assert int(seen_score(item, "legacy", 0)) == 100000000
+    assert learn_start_exists(item)
     assert baseline_done(item, 0)
+    assert baseline_progress(item, 0) == 0
 
 
 def test_first_seen_write_sets_ttl_in_transaction_pipeline():
@@ -327,6 +348,19 @@ def test_multi_level_cache_isolated_by_threshold_and_reused_in_zero_hundred_zero
     assert seen_score(item, "shared", 100) is None
 
 
+def test_same_threshold_levels_advance_baseline_once_per_batch():
+    use_fake_cache_router()
+    config = default_config(threshold=100)
+    item = make_item(ns_configs=[config, config])
+    batch = [make_dp("below", 100000000, item, value=50)]
+
+    NewSeries(config=config).pre_detect(batch)
+    NewSeries(config=config).pre_detect(batch)
+
+    assert baseline_progress(item, 100) == 1
+    assert not baseline_done(item, 100)
+
+
 def test_nonempty_batch_without_eligible_points_bootstraps_only_current_threshold_group():
     use_fake_cache_router()
     zero = default_config(threshold=0)
@@ -336,7 +370,9 @@ def test_nonempty_batch_without_eligible_points_bootstraps_only_current_threshol
 
     NewSeries(config=hundred).pre_detect([dp])
 
-    assert baseline_done(item, 100)
+    assert baseline_progress(item, 100) == 1
+    assert not baseline_done(item, 100)
+    assert baseline_progress(item, 0) == 0
     assert not baseline_done(item, 0)
     assert seen_score(item, "below", 100) is None
 
@@ -346,33 +382,42 @@ def test_below_threshold_is_not_seen_then_first_eligible_value_alerts_and_equal_
     config = default_config(threshold=10)
     item = make_item(ns_configs=[config])
 
-    below = make_dp("candidate", 100000000, item, value=9)
-    below_detector = NewSeries(config=config)
-    below_detector.pre_detect([below])
-    assert len(below_detector.detect(below)) == 0
-    assert seen_score(item, "candidate", 10) is None
+    for cycle in range(5):
+        item._new_series_cache = None
+        below = make_dp("candidate", 100000000 + cycle * 60, item, value=9)
+        below_detector = NewSeries(config=config)
+        below_detector.pre_detect([below])
+        assert len(below_detector.detect(below)) == 0
+        assert seen_score(item, "candidate", 10) is None
 
-    eligible = make_dp("candidate", 100000060, item, value=11)
+    assert baseline_progress(item, 10) == 5
+    assert baseline_done(item, 10)
+
+    item._new_series_cache = None
+    eligible = make_dp("candidate", 100000300, item, value=11)
     eligible_detector = NewSeries(config=config)
     eligible_detector.pre_detect([eligible])
     assert len(eligible_detector.detect(eligible)) == 1
-    assert int(seen_score(item, "candidate", 10)) == 100000060
+    assert int(seen_score(item, "candidate", 10)) == 100000300
 
-    equal = make_dp("candidate", 100000120, item, value=10)
+    item._new_series_cache = None
+    equal = make_dp("candidate", 100000360, item, value=10)
     equal_detector = NewSeries(config=config)
     equal_detector.pre_detect([equal])
     assert len(equal_detector.detect(equal)) == 0
-    assert int(seen_score(item, "candidate", 10)) == 100000060
+    assert int(seen_score(item, "candidate", 10)) == 100000300
 
 
-def test_physical_empty_batch_bootstraps_all_unique_threshold_groups():
+def test_physical_empty_batch_does_not_advance_threshold_groups():
     use_fake_cache_router()
     item = make_item(ns_configs=[default_config(threshold=0), default_config(threshold=100)])
 
     assert NewSeries.bootstrap_empty_batch(item)
 
-    assert baseline_done(item, 0)
-    assert baseline_done(item, 100)
+    assert baseline_progress(item, 0) == 0
+    assert baseline_progress(item, 100) == 0
+    assert not baseline_done(item, 0)
+    assert not baseline_done(item, 100)
 
 
 def test_log_count_zero_bucket_filtered_across_shared_multi_level():
@@ -445,7 +490,6 @@ def test_periodic_clean_uses_threshold_group_limits_without_refreshing_positive_
     assert 0 < client.ttl(threshold_key) <= 2345
 
 
-@pytest.mark.django_db
 class TestNewSeries:
     def test_config_validate(self):
         # detect_range 必填，缺失则抛 InvalidAlgorithmsConfig
@@ -504,51 +548,77 @@ class TestNewSeries:
         assert len(detector.detect(dp2)) == 0
         assert int(seen_score(item, "dimD")) == 100000000
         assert int(seen_score(item, "dimE")) == 100000000
-        assert baseline_done(item)
+        assert baseline_progress(item) == 1
+        assert not baseline_done(item)
 
-    def test_first_non_empty_batch_is_baseline_only_then_next_new_dimension_alerts(self):
+    def test_first_five_effective_batches_are_baseline_then_sixth_new_dimension_alerts(self):
         item = make_item()
-        detector = NewSeries(config=default_config(detect_range=86400))
-        baseline_dp = make_dp("baseline", 100000000, item)
-        detector.pre_detect([baseline_dp])
-        assert len(detector.detect(baseline_dp)) == 0
+        for cycle in range(5):
+            item._new_series_cache = None
+            detector = NewSeries(config=default_config(detect_range=86400))
+            baseline_dp = make_dp(f"baseline-{cycle}", 100000000 + cycle * 60, item)
+            detector.pre_detect([baseline_dp])
+            assert len(detector.detect(baseline_dp)) == 0
+            assert baseline_progress(item) == cycle + 1
 
+        assert baseline_done(item)
         item._new_series_cache = None
         detector2 = NewSeries(config=default_config(detect_range=86400))
-        new_dp = make_dp("new-after-baseline", 100000060, item)
+        new_dp = make_dp("new-after-baseline", 100000300, item)
         detector2.pre_detect([new_dp])
         assert len(detector2.detect(new_dp)) == 1
 
-    def test_empty_first_pull_marks_baseline_done_and_next_new_dimension_alerts(self):
+    def test_empty_first_pull_does_not_advance_baseline(self):
         item = make_item()
         NewSeries.bootstrap_empty_batch(item)
-        assert baseline_done(item)
+        assert baseline_progress(item) == 0
+        assert not baseline_done(item)
 
         detector = NewSeries(config=default_config(detect_range=86400))
         dp = make_dp("first-real-dim", 100000000, item)
         detector.pre_detect([dp])
-        assert len(detector.detect(dp)) == 1
+        assert len(detector.detect(dp)) == 0
+        assert baseline_progress(item) == 1
+
+    def test_partial_batch_does_not_advance_or_write_seen(self):
+        item = make_item()
+        detector = NewSeries(config=default_config())
+        dp = make_dp("partial", 100000000, item, is_partial=True)
+
+        detector.pre_detect([dp])
+
+        assert len(detector.detect(dp)) == 0
+        assert baseline_progress(item) == 0
+        assert not baseline_done(item)
+        assert seen_score(item, "partial") is None
 
     def test_baseline_done_failure_does_not_leave_legacy_completion_state(self):
         item = make_item()
+        for cycle in range(4):
+            item._new_series_cache = None
+            detector = NewSeries(config=default_config(detect_range=86400))
+            detector.pre_detect([make_dp(f"baseline-{cycle}", 100000000 + cycle * 60, item)])
+
+        item._new_series_cache = None
         detector = NewSeries(config=default_config(detect_range=86400))
-        failed_dp = make_dp("failed-baseline", 100000000, item)
+        failed_dp = make_dp("failed-baseline", 100000240, item)
 
         with mock.patch.object(NewSeries, "_mark_baseline_done", side_effect=RuntimeError("redis timeout")):
             detector.pre_detect([failed_dp])
 
         assert not baseline_done(item)
+        assert baseline_progress(item) == 5
         assert not learn_start_exists(item)
         assert len(detector.detect(failed_dp)) == 0
 
         item._new_series_cache = None
         detector2 = NewSeries(config=default_config(detect_range=86400))
-        next_dp = make_dp("next-baseline", 100000060, item)
+        next_dp = make_dp("next-baseline", 100000300, item)
         detector2.pre_detect([next_dp])
         assert len(detector2.detect(next_dp)) == 0
         assert baseline_done(item)
 
-    def test_detect_process_empty_batch_bootstraps_new_series_item(self):
+    def test_detect_process_empty_batch_does_not_advance_new_series_item(self):
         from alarm_backends.service.detect.process import DetectProcess
 
         item = make_item()
@@ -559,7 +629,8 @@ class TestNewSeries:
 
         process.handle_data(item)
 
-        assert baseline_done(item)
+        assert baseline_progress(item) == 0
+        assert not baseline_done(item)
         item.detect.assert_called_once_with([])
 
     def test_empty_batch_does_not_bootstrap_non_new_series_item(self):

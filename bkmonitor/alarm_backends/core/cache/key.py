@@ -444,7 +444,20 @@ NEW_SERIES_LEARN_START_KEY = register_key_with_config(
     }
 )
 
-# 新维度值检测-基线完成标记：首次拉取成功写入此 key 后完成基线。空批次也写此 key；非空批次 seen 写成功后再写。
+# 新维度值检测-学习进度：记录已完成的有效周期数。threshold=0 和非零阈值统一使用带 threshold token 的新 key；
+# 既有 seen/baseline_done/learn_start key 保持不变，以兼容存量策略。
+NEW_SERIES_BASELINE_PROGRESS_KEY = register_key_with_config(
+    {
+        "label": "[detect]新维度值检测-学习有效周期数(type:String)(value: 已完成有效周期数)",
+        "key_type": "string",
+        "key_tpl": f"{KEY_PREFIX}.detect.new_series.baseline_progress.{{strategy_id}}.{{item_id}}."
+        "{dimension_signature}.{threshold}",
+        "ttl": TTL_NOT_SET,
+        "backend": "service",
+    }
+)
+
+# 新维度值检测-基线完成标记：累计足够的有效周期后写入此 key。空批次和 partial 批次不写。
 # 旧 NEW_SERIES_LEARN_START_KEY 存在时也视为已完成基线，用于兼容存量策略。
 NEW_SERIES_BASELINE_DONE_KEY = register_key_with_config(
     {
