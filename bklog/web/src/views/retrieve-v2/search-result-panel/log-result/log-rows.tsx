@@ -352,11 +352,20 @@ export default defineComponent({
       }
 
       const targetElement = getSelectionAnchorElement(selectionRange);
-      const targetFieldName = targetElement?.getAttribute('data-field-name') ?? '';
+      const targetFieldName = targetElement?.getAttribute('data-search-field-name')
+        ?? targetElement?.getAttribute('data-field-name')
+        ?? '';
+      const targetField = getFieldByName(targetFieldName);
       const fulltextFieldItem = getInputQueryDefaultItem();
 
+      // 划选命中时间字段时，selectionText 是格式化后的展示值；检索条件必须使用行数据中的原始值。
+      if (targetField && ['date', 'date_nanos'].includes(targetField.field_type)) {
+        const rawValue = getObjectValue(row, targetField);
+        handleAddCondition(targetField.field_name, 'is', [String(rawValue).replace(/<\/?mark>/gim, '')]);
+        return;
+      }
+
       if (showCtxType.value === 'table') {
-        const targetField = getFieldByName(targetFieldName);
         if (!targetField) {
           handleAddCondition(FULLTEXT_FIELD_NAME, fulltextFieldItem.operator, [selectionText]);
           return;
@@ -751,7 +760,10 @@ export default defineComponent({
                 originalMode={true}
                 renderMeta={getRowRenderMeta(row)}
                 stateKey={getRowComponentKey(row)}
-                onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink)}
+                onMenu-click={({ option, isLink }) => handleMenuClick(option, isLink, {
+                  row,
+                  field: getFieldByName(option.fieldName),
+                })}
               />
             );
           },
@@ -1001,17 +1013,20 @@ export default defineComponent({
     };
 
     // 替换原有的handleMenuClick
-    const handleMenuClick = (option, isLink, fieldOption?: { row: any; field: any }) => {
+    const handleMenuClick = (option, isLink, fieldOption?: { row: any; field?: any }) => {
       const timeTypes = ['date', 'date_nanos'];
+      const field = fieldOption?.field ?? getFieldByName(option.fieldName);
+      const fieldType = field?.field_type ?? option.fieldType;
 
       handleOperation(option.operation, {
         ...option,
-        value: timeTypes.includes(fieldOption?.field.field_type ?? null)
-          ? `${getObjectValue(fieldOption?.row, fieldOption?.field)}`.replace(/<\/?mark>/gim, '')
+        // 时间格式化只影响展示；构造检索条件时必须回取当前行中的原始时间戳。
+        value: timeTypes.includes(fieldType) && fieldOption?.row && field
+          ? String(getObjectValue(fieldOption.row, field)).replace(/<\/?mark>/gim, '')
           : option.value,
         fieldName: option.fieldName,
         operation: option.operation,
-        field: fieldOption?.field,
+        field,
         isLink,
         depth: option.depth,
         displayFieldNames: option.displayFieldNames,
