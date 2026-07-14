@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 from elasticsearch_dsl import Search
+from rest_framework.exceptions import ValidationError
 
 from fta_web.alert.handlers import base as base_handler_module
 from fta_web.alert.handlers.alert import AlertQueryHandler
@@ -471,6 +472,15 @@ class TestBusinessNameFulltext:
         return handler
 
     @staticmethod
+    def _mock_spaces(monkeypatch, spaces):
+        class FakeSpaceApi:
+            @classmethod
+            def list_spaces_dict(cls, using_cache=True):
+                return spaces
+
+        monkeypatch.setattr(base_handler_module, "SpaceApi", FakeSpaceApi, raising=False)
+
+    @staticmethod
     def _walk_dsl(value):
         if isinstance(value, dict):
             yield value
@@ -582,9 +592,7 @@ class TestBusinessNameFulltext:
         assert body == {"match_all": {}}
 
     def test_all_business_marker_keeps_explicit_unauthorized_business(self, monkeypatch):
-        spaces = list(self.SPACES) + [
-            {"bk_biz_id": 7, "bk_tenant_id": "tenant-a", "space_name": "External Team"}
-        ]
+        spaces = list(self.SPACES) + [{"bk_biz_id": 7, "bk_tenant_id": "tenant-a", "space_name": "External Team"}]
 
         class ExplicitSpaceApi:
             @classmethod
@@ -666,22 +674,101 @@ class TestBusinessNameFulltext:
 
         assert self._terms_values(body, "event.bk_biz_id") == [[1, 2], [3, 4], [5]]
 
-    def test_more_than_one_thousand_business_matches_are_not_rejected(self, monkeypatch):
+    @pytest.mark.parametrize(
+        ("handler_class", "field"),
+        [
+            (AlertQueryHandler, "event.bk_biz_id"),
+            (IncidentQueryHandler, "bk_biz_id"),
+        ],
+    )
+    def test_one_thousand_business_matches_are_allowed(self, monkeypatch, handler_class, field):
+        spaces = [
+            {"bk_biz_id": index, "bk_tenant_id": "tenant-a", "space_name": f"monitoring-{index}"}
+            for index in range(1, 1001)
+        ]
+
+        self._mock_spaces(monkeypatch, spaces)
+        handler = self._make_handler(handler_class)
+
+        body = handler.build_query_string_q("monitoring").to_dict()
+
+        terms_values = self._terms_values(body, field)
+        assert len(terms_values) == 1
+        assert len(terms_values[0]) == 1000
+
+    @pytest.mark.parametrize("handler_class", [AlertQueryHandler, IncidentQueryHandler])
+    def test_more_than_one_thousand_business_matches_are_rejected(self, monkeypatch, handler_class):
         spaces = [
             {"bk_biz_id": index, "bk_tenant_id": "tenant-a", "space_name": f"monitoring-{index}"}
             for index in range(1, 1002)
         ]
 
-        class LargeSpaceApi:
-            @classmethod
-            def list_spaces_dict(cls, using_cache=True):
-                return spaces
+        self._mock_spaces(monkeypatch, spaces)
+        handler = self._make_handler(handler_class)
 
-        monkeypatch.setattr(base_handler_module, "SpaceApi", LargeSpaceApi, raising=False)
+        with pytest.raises(ValidationError, match="业务名称匹配范围过大"):
+            handler.build_query_string_q("monitoring")
+
+    def test_over_limit_neq_is_rejected_before_negation(self, monkeypatch):
+        spaces = [
+            {"bk_biz_id": index, "bk_tenant_id": "tenant-a", "space_name": f"monitoring-{index}"}
+            for index in range(1, 1002)
+        ]
+        self._mock_spaces(monkeypatch, spaces)
+        handler = self._make_handler(AlertQueryHandler)
+        condition = {
+            "key": "query_string",
+            "value": ["monitoring"],
+            "method": "neq",
+            "condition": "and",
+        }
+
+        with pytest.raises(ValidationError, match="业务名称匹配范围过大"):
+            handler.add_conditions(Search(), [condition])
+
+    def test_multiple_values_use_combined_business_match_limit(self, monkeypatch):
+        spaces = [
+            {"bk_biz_id": index, "bk_tenant_id": "tenant-a", "space_name": f"alpha-{index}"} for index in range(1, 502)
+        ] + [
+            {"bk_biz_id": index, "bk_tenant_id": "tenant-a", "space_name": f"beta-{index}"}
+            for index in range(502, 1002)
+        ]
+
+        self._mock_spaces(monkeypatch, spaces)
         handler = self._make_handler(IncidentQueryHandler)
 
-        body = handler.build_query_string_q("monitoring").to_dict()
+        with pytest.raises(ValidationError, match="业务名称匹配范围过大"):
+            handler.build_query_string_condition_q(["alpha", "beta"])
 
-        terms_values = self._terms_values(body, "bk_biz_id")
-        assert len(terms_values) == 1
-        assert len(terms_values[0]) == 1001
+    def test_explicit_business_scope_is_applied_before_business_match_limit(self, monkeypatch):
+        spaces = [
+            {"bk_biz_id": index, "bk_tenant_id": "tenant-a", "space_name": f"monitoring-{index}"}
+            for index in range(1, 1002)
+        ]
+
+        self._mock_spaces(monkeypatch, spaces)
+        scope = list(range(1, 1001))
+        handler = self._make_handler(
+            AlertQueryHandler,
+            bk_biz_ids=scope,
+            authorized_bizs=scope,
+        )
+
+        assert handler.build_query_string_q("monitoring").to_dict() == {"match_all": {}}
+
+    def test_explicit_business_scope_over_limit_is_rejected_before_match_all(self, monkeypatch):
+        spaces = [
+            {"bk_biz_id": index, "bk_tenant_id": "tenant-a", "space_name": f"monitoring-{index}"}
+            for index in range(1, 1002)
+        ]
+
+        self._mock_spaces(monkeypatch, spaces)
+        scope = list(range(1, 1002))
+        handler = self._make_handler(
+            AlertQueryHandler,
+            bk_biz_ids=scope,
+            authorized_bizs=scope,
+        )
+
+        with pytest.raises(ValidationError, match="业务名称匹配范围过大"):
+            handler.build_query_string_q("monitoring")
