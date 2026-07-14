@@ -62,7 +62,7 @@ class Command(BaseCommand):
             table_id_list: 结果表 ID 列表
         """
         client = SpaceTableIDRedis()
-        client.push_es_table_id_detail(bk_tenant_id, table_id_list=table_id_list, is_publish=True)
+        client.push_table_id_detail(bk_tenant_id=bk_tenant_id, table_id_list=table_id_list, is_publish=True)
 
     @classmethod
     def _query_table_options(

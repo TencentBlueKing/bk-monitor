@@ -266,7 +266,8 @@ def delete_restore_indices(restore_id):
 
 
 def update_time_series_metrics(time_series_metrics):
-    data_id_list, table_id_list = [], []
+    data_id_list: list[int] = []
+    table_ids_by_tenant: dict[str, set[str]] = {}
     for time_series_group in time_series_metrics:
         try:
             is_updated = time_series_group.update_time_series_metrics()
@@ -278,7 +279,8 @@ def update_time_series_metrics(time_series_metrics):
             # 记录是否有更新，如果有更新则推送到redis
             if is_updated:
                 data_id_list.append(time_series_group.bk_data_id)
-                table_id_list.append(time_series_group.table_id)
+                bk_tenant_id = time_series_group.bk_tenant_id or DEFAULT_TENANT_ID
+                table_ids_by_tenant.setdefault(bk_tenant_id, set()).add(time_series_group.table_id)
         except Exception as e:
             logger.error(
                 "data_id->[%s], table_id->[%s] try to update ts metrics from redis failed, error->[%s], "
@@ -293,12 +295,22 @@ def update_time_series_metrics(time_series_metrics):
             logger.info("time_series_group->[%s] metric update from redis success.", time_series_group.bk_data_id)
 
     # 仅当指标有变动的结果表存在时，才进行路由配置更新
-    if table_id_list:
+    if table_ids_by_tenant:
         from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
         space_client = SpaceTableIDRedis()
-        space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=True)
-        logger.info("metric updated of table_id: %s", json.dumps(table_id_list))
+        for bk_tenant_id, table_ids in table_ids_by_tenant.items():
+            sorted_table_ids = sorted(table_ids)
+            space_client.push_table_id_detail(
+                bk_tenant_id=bk_tenant_id,
+                table_id_list=sorted_table_ids,
+                is_publish=True,
+            )
+            logger.info(
+                "metric updated of bk_tenant_id: %s, table_id: %s",
+                bk_tenant_id,
+                json.dumps(sorted_table_ids),
+            )
 
 
 # todo: es 索引管理，迁移至BMW
@@ -586,13 +598,25 @@ def push_and_publish_space_router(
     from metadata.models.space.ds_rt import get_space_table_id_data_id
     from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
-    # 获取空间下的结果表，如果不存在，则获取空间下的所有
-    if not table_id_list:
-        table_id_list = list(get_space_table_id_data_id(space_type, space_id).keys())
+    target_space = None
+    if space_type and space_id:
+        target_space = models.Space.objects.get(space_type_id=space_type, space_id=space_id)
+
+    # 指定空间时只获取该空间的结果表；未指定空间时由后续逻辑按租户全量刷新。
+    if not table_id_list and target_space:
+        table_id_list = list(
+            get_space_table_id_data_id(
+                space_type,
+                space_id,
+                bk_tenant_id=target_space.bk_tenant_id,
+            ).keys()
+        )
+    elif table_id_list is None:
+        table_id_list = []
 
     space_client = SpaceTableIDRedis()
     # 更新空间下的结果表相关数据
-    if space_type and space_id:
+    if target_space:
         # 更新相关数据到 redis
         space_client.push_space_table_ids(space_type=space_type, space_id=space_id, is_publish=True)
     else:
@@ -610,9 +634,51 @@ def push_and_publish_space_router(
                 push_redis_keys.append(f"{space.space_type_id}__{space.space_id}")
         RedisTools.publish(SPACE_TO_RESULT_TABLE_CHANNEL, push_redis_keys)
 
-    # 更新数据
-    space_client.push_data_label_table_ids(table_id_list=table_id_list, is_publish=True)
-    space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=True)
+    # 更新结果表详情和 data_label 路由。没有明确空间时，按 ResultTable 的租户拆分，避免同名 RT 串租户。
+    table_ids_by_tenant: dict[str, set[str]] = {}
+    if target_space:
+        table_ids_by_tenant[target_space.bk_tenant_id or DEFAULT_TENANT_ID] = set(table_id_list)
+    elif table_id_list:
+        # 兼容只有 Storage、没有 ResultTable 的早期路由。
+        tenant_aware_models = [
+            (models.ResultTable, "table_id"),
+            (models.ESStorage, "table_id"),
+            (models.DorisStorage, "table_id"),
+            (models.InfluxDBStorage, "table_id"),
+            (models.AccessVMRecord, "result_table_id"),
+        ]
+        for model, table_id_field in tenant_aware_models:
+            rows = model.objects.filter(**{f"{table_id_field}__in": table_id_list}).values_list(
+                "bk_tenant_id",
+                table_id_field,
+            )
+            for bk_tenant_id, table_id in rows:
+                table_ids_by_tenant.setdefault(bk_tenant_id or DEFAULT_TENANT_ID, set()).add(table_id)
+    else:
+        tenant_ids = set(models.Space.objects.values_list("bk_tenant_id", flat=True)) | set(
+            models.ResultTable.objects.values_list("bk_tenant_id", flat=True)
+        )
+        tenant_ids.update(models.ESStorage.objects.values_list("bk_tenant_id", flat=True))
+        tenant_ids.update(models.DorisStorage.objects.values_list("bk_tenant_id", flat=True))
+        tenant_ids.update(models.InfluxDBStorage.objects.values_list("bk_tenant_id", flat=True))
+        tenant_ids.update(models.AccessVMRecord.objects.values_list("bk_tenant_id", flat=True))
+        tenant_ids.update(models.RecordRule.objects.values_list("bk_tenant_id", flat=True))
+        if not tenant_ids:
+            tenant_ids.add(DEFAULT_TENANT_ID)
+        table_ids_by_tenant = {bk_tenant_id or DEFAULT_TENANT_ID: set() for bk_tenant_id in tenant_ids}
+
+    for bk_tenant_id, tenant_table_ids in table_ids_by_tenant.items():
+        sorted_table_ids = sorted(tenant_table_ids)
+        space_client.push_data_label_table_ids(
+            bk_tenant_id=bk_tenant_id,
+            table_id_list=sorted_table_ids,
+            is_publish=True,
+        )
+        space_client.push_table_id_detail(
+            bk_tenant_id=bk_tenant_id,
+            table_id_list=sorted_table_ids,
+            is_publish=True,
+        )
 
     logger.info("push and publish space_type: %s, space_id: %s router successfully", space_type, space_id)
 

@@ -433,13 +433,13 @@ class ModifyResultTableResource(Resource):
         # 修改结果表信息
         result_table = self._modify_result_table(table_id, validated_request_data, bk_tenant_id)
 
-        # 处理ES存储相关的逻辑
+        # 只有 ES 结果表需要通知数据平台。
         if result_table.default_storage == models.ClusterInfo.TYPE_ES:
-            # 通知数据平台信息变更，目前只有es类型需要通知
             self._notify_bkdata_if_needed(table_id, result_table, bk_tenant_id)
 
-            # 推送路由 (关联的虚拟RT）
-            self._push_es_route(result_table, bk_tenant_id)
+        if result_table.default_storage in {models.ClusterInfo.TYPE_ES, models.ClusterInfo.TYPE_DORIS}:
+            # ES/Doris 切换后都需要刷新实体表及关联虚拟表，由统一入口按最终 default_storage 组装路由。
+            self._push_result_table_routes(result_table, bk_tenant_id)
 
         return result_table.to_json()
 
@@ -494,7 +494,7 @@ class ModifyResultTableResource(Resource):
     def _notify_bkdata_if_needed(self, table_id: str, result_table: models.ResultTable, bk_tenant_id: str) -> None:
         """如果需要，通知bkdata数据变更"""
         bk_data_id = models.DataSourceResultTable.objects.get(table_id=table_id, bk_tenant_id=bk_tenant_id).bk_data_id
-        ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
+        ds = models.DataSource.objects.get(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id)
 
         # 如果数据源没有接入BKDATA，则不需要通知bkdata
         if ds.created_from != DataIdCreatedFromSystem.BKDATA.value:
@@ -525,21 +525,31 @@ class ModifyResultTableResource(Resource):
         except Exception as e:  # pylint: disable=broad-except
             logger.warning("notify_log_data_id_changed error, table_id->[%s],error->[%s]", table_id, e)
 
-    def _push_es_route(self, result_table: models.ResultTable, bk_tenant_id: str) -> None:
-        """推送ES路由信息"""
-        # 获取关联的虚拟RT列表
-        virtual_rt_list = list(
-            models.ESStorage.objects.filter(origin_table_id=result_table.table_id).values_list("table_id", flat=True)
-        )
-        table_ids = [result_table.table_id] + virtual_rt_list
+    def _push_result_table_routes(self, result_table: models.ResultTable, bk_tenant_id: str) -> None:
+        """推送实体结果表及同租户下关联的 ES/Doris 虚拟结果表路由。"""
+
+        es_virtual_table_ids = models.ESStorage.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            origin_table_id=result_table.table_id,
+        ).values_list("table_id", flat=True)
+        doris_virtual_table_ids = models.DorisStorage.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            origin_table_id=result_table.table_id,
+        ).values_list("table_id", flat=True)
+        virtual_table_ids = sorted(set(chain(es_virtual_table_ids, doris_virtual_table_ids)))
+        table_ids = [result_table.table_id, *virtual_table_ids]
 
         logger.info(
-            "ModifyResultTableResource: all things done, now try to push es route,table_id->[%s]",
+            "ModifyResultTableResource: result table modified, now push routes for table_ids->[%s]",
             json.dumps(table_ids),
         )
 
         client = SpaceTableIDRedis()
-        client.push_es_table_id_detail(table_id_list=table_ids, bk_tenant_id=bk_tenant_id)
+        client.push_table_id_detail(
+            bk_tenant_id=bk_tenant_id,
+            table_id_list=table_ids,
+            is_publish=True,
+        )
 
 
 class AccessBkDataByResultTableResource(Resource):

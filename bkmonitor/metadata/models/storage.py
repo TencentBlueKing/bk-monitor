@@ -2443,8 +2443,8 @@ class ESStorage(models.Model, StorageResultTable):
             logger.info(
                 "create_table: table_id->[%s] under bk_tenant_id->[%s] push detail start", table_id, bk_tenant_id
             )
-            SpaceTableIDRedis().push_es_table_id_detail(
-                table_id_list=[table_id], is_publish=True, bk_tenant_id=bk_tenant_id
+            SpaceTableIDRedis().push_table_id_detail(
+                bk_tenant_id=bk_tenant_id, table_id_list=[table_id], is_publish=True
             )
         except Exception as e:  # pylint: disable=broad-except
             logger.error("table_id: %s push detail failed, error: %s", table_id, e)

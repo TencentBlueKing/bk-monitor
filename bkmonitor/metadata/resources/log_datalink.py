@@ -445,7 +445,7 @@ def _create_es_router(
         space_id=space.space_id,
         is_publish=True,
     )
-    SpaceTableIDRedis().push_es_table_id_detail(table_id_list=[table_id], is_publish=True, bk_tenant_id=bk_tenant_id)
+    SpaceTableIDRedis().push_table_id_detail(bk_tenant_id=bk_tenant_id, table_id_list=[table_id], is_publish=True)
 
     if data_label:
         logger.info(
@@ -517,7 +517,7 @@ def _create_doris_router(
     )
 
     logger.info("create_doris_router: create doris datalink related records successfully,now try to push router")
-    SpaceTableIDRedis().push_doris_table_id_detail(table_id_list=[table_id], is_publish=True, bk_tenant_id=bk_tenant_id)
+    SpaceTableIDRedis().push_table_id_detail(bk_tenant_id=bk_tenant_id, table_id_list=[table_id], is_publish=True)
     SpaceTableIDRedis().push_space_table_ids(
         space_type=space.space_type_id,
         space_id=space.space_id,
@@ -601,7 +601,7 @@ def _update_es_router(
             push_and_publish_es_aliases(bk_tenant_id=bk_tenant_id, data_label=old_data_label)
 
     logger.info("update_es_router: try to push es detail router for table_id->[%s]", table_id)
-    SpaceTableIDRedis().push_es_table_id_detail(table_id_list=[table_id], bk_tenant_id=bk_tenant_id, is_publish=True)
+    SpaceTableIDRedis().push_table_id_detail(bk_tenant_id=bk_tenant_id, table_id_list=[table_id], is_publish=True)
 
 
 def _update_doris_router(
@@ -657,7 +657,7 @@ def _update_doris_router(
     logger.info(
         "update_doris_router:update doris router for table_id->[%s] successfully,now try to push router", table_id
     )
-    SpaceTableIDRedis().push_doris_table_id_detail(table_id_list=[table_id], bk_tenant_id=bk_tenant_id, is_publish=True)
+    SpaceTableIDRedis().push_table_id_detail(bk_tenant_id=bk_tenant_id, table_id_list=[table_id], is_publish=True)
 
     if need_refresh_data_label:
         logger.info(
@@ -841,11 +841,6 @@ class BulkCreateOrUpdateLogRouter(Resource):
 
         # 批量处理所有表信息
         processed_table_ids = []
-        table_ids_by_storage = {
-            models.ClusterInfo.TYPE_ES: [],
-            models.ClusterInfo.TYPE_DORIS: [],
-        }
-
         with atomic(config.DATABASE_CONNECTION_NAME):
             table_mapping = {
                 table.table_id: table
@@ -926,8 +921,6 @@ class BulkCreateOrUpdateLogRouter(Resource):
                         )
 
                     processed_table_ids.append(table_id)
-                    table_ids_by_storage[storage_type].append(table_id)
-
                     logger.info("CreateOrUpdateLogDataLink: processed table_id [%s]", table_id)
                 except Exception as e:
                     logger.error(
@@ -942,8 +935,7 @@ class BulkCreateOrUpdateLogRouter(Resource):
             self._cleanup_excess_data_label_config(bk_tenant_id, data_label, processed_table_ids)
 
         self._push_space_routes(space_type, space_id)
-        self._push_es_routes(bk_tenant_id, table_ids_by_storage[models.ClusterInfo.TYPE_ES])
-        self._push_doris_routes(bk_tenant_id, table_ids_by_storage[models.ClusterInfo.TYPE_DORIS])
+        self._push_table_routes(bk_tenant_id, processed_table_ids)
         if data_label and processed_table_ids:
             self._push_data_label_route(bk_tenant_id, data_label)
 
@@ -1029,23 +1021,13 @@ class BulkCreateOrUpdateLogRouter(Resource):
                     space_type=related_space.space_type_id, space_id=related_space.space_id, is_publish=True
                 )
 
-    def _push_es_routes(self, bk_tenant_id: str, table_ids: list[str]) -> None:
-        """推送 ES 结果表详情路由。"""
+    def _push_table_routes(self, bk_tenant_id: str, table_ids: list[str]) -> None:
+        """推送当前默认存储对应的结果表详情路由。"""
 
         if not table_ids:
             return
-        logger.info("CreateOrUpdateLogDataLink: pushing ES routes for %d tables", len(table_ids))
-        SpaceTableIDRedis().push_es_table_id_detail(table_id_list=table_ids, is_publish=True, bk_tenant_id=bk_tenant_id)
-
-    def _push_doris_routes(self, bk_tenant_id: str, table_ids: list[str]) -> None:
-        """推送 Doris 结果表详情路由。"""
-
-        if not table_ids:
-            return
-        logger.info("CreateOrUpdateLogDataLink: pushing Doris routes for %d tables", len(table_ids))
-        SpaceTableIDRedis().push_doris_table_id_detail(
-            table_id_list=table_ids, is_publish=True, bk_tenant_id=bk_tenant_id
-        )
+        logger.info("CreateOrUpdateLogDataLink: pushing routes for %d tables", len(table_ids))
+        SpaceTableIDRedis().push_table_id_detail(bk_tenant_id=bk_tenant_id, table_id_list=table_ids, is_publish=True)
 
     def _push_data_label_route(self, bk_tenant_id: str, data_label: str) -> None:
         """推送 data_label 路由并保持现有别名通知行为。"""

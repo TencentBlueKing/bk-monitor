@@ -8,8 +8,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
+from unittest.mock import patch
+
 import pytest
 
+from metadata import models
 from metadata.models.space import ds_rt
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
@@ -50,17 +54,39 @@ def test_get_table_info_for_influxdb_and_vm(create_and_delete_record):
 
 
 def test_compose_es_table_id_detail(create_and_delete_record):
-    client = SpaceTableIDRedis()
-    data = client._compose_es_table_id_detail()
+    models.ClusterInfo.objects.update_or_create(
+        cluster_id=1,
+        defaults={
+            "bk_tenant_id": "system",
+            "cluster_name": "test_es",
+            "cluster_type": models.ClusterInfo.TYPE_ES,
+            "domain_name": "es.example.com",
+            "port": 9200,
+            "description": "",
+            "is_default_cluster": False,
+        },
+    )
+    with (
+        patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset,
+        patch("metadata.utils.redis_tools.RedisTools.publish"),
+    ):
+        SpaceTableIDRedis().push_table_id_detail(
+            bk_tenant_id="system",
+            table_id_list=[DEFAULT_LOG_ES_TABLE_ID, DEFAULT_EVENT_ES_TABLE_ID],
+            is_publish=False,
+        )
+
+    data = {key: json.loads(value) for key, value in mock_hmset.call_args.args[1].items()}
 
     log_data = data[DEFAULT_LOG_ES_TABLE_ID]
     assert log_data["db"] == DEFAULT_LOG_ES_TABLE_ID.split(".")[0]
 
-    assert f"{DEFAULT_EVENT_ES_TABLE_ID}" in data
-    event_data = data[f"{DEFAULT_EVENT_ES_TABLE_ID}"]
+    event_table_id = f"{DEFAULT_EVENT_ES_TABLE_ID}.__default__"
+    assert event_table_id in data
+    event_data = data[event_table_id]
     assert event_data["db"] == DEFAULT_EVENT_ES_TABLE_ID
 
     # 校验必要 key 存在
     for key in ["db", "measurement", "storage_id"]:
         assert key in data[DEFAULT_LOG_ES_TABLE_ID]
-        assert key in data[f"{DEFAULT_EVENT_ES_TABLE_ID}"]
+        assert key in data[event_table_id]

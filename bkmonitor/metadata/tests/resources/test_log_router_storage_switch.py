@@ -79,8 +79,7 @@ def route_storage_records(mocker):
 
     mocker.patch("metadata.resources.log_datalink.get_request_tenant_id", return_value=TENANT_ID)
     mocker.patch.object(SpaceTableIDRedis, "push_space_table_ids")
-    mocker.patch.object(SpaceTableIDRedis, "push_es_table_id_detail")
-    mocker.patch.object(SpaceTableIDRedis, "push_doris_table_id_detail")
+    mocker.patch.object(SpaceTableIDRedis, "push_table_id_detail")
     mocker.patch.object(SpaceTableIDRedis, "push_data_label_table_ids")
     mocker.patch("metadata.resources.log_datalink.push_and_publish_es_aliases")
     return entity

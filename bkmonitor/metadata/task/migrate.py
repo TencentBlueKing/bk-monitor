@@ -58,8 +58,8 @@ def migrate_nano_log_tables(bk_tenant_id: str, table_ids: list[str]):
             bk_tenant_id=bk_tenant_id, data_label_list=list(need_refresh_data_labels), is_publish=True
         )
     if need_refresh_table_ids:
-        SpaceTableIDRedis().push_es_table_id_detail(
-            table_id_list=list(need_refresh_table_ids), is_publish=True, bk_tenant_id=bk_tenant_id
+        SpaceTableIDRedis().push_table_id_detail(
+            bk_tenant_id=bk_tenant_id, table_id_list=list(need_refresh_table_ids), is_publish=True
         )
 
     return migrate_results
@@ -273,7 +273,7 @@ def migrate_nano_log_table(
         SpaceTableIDRedis().push_data_label_table_ids(
             bk_tenant_id=bk_tenant_id, data_label_list=virtual_data_labels, is_publish=True
         )
-        SpaceTableIDRedis().push_es_table_id_detail(
+        SpaceTableIDRedis().push_table_id_detail(
             bk_tenant_id=bk_tenant_id, table_id_list=need_refresh_table_ids, is_publish=True
         )
 

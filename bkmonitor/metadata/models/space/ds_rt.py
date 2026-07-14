@@ -35,8 +35,7 @@ def get_result_tables_by_data_ids(
     if table_id_list:
         query_filter &= Q(table_id__in=table_id_list)
 
-    if settings.ENABLE_MULTI_TENANT_MODE:
-        query_filter &= Q(bk_tenant_id=bk_tenant_id)
+    query_filter &= Q(bk_tenant_id=bk_tenant_id)
 
     qs = models.DataSourceResultTable.objects.filter(query_filter).values("bk_data_id", "table_id")
     return {data["table_id"]: data["bk_data_id"] for data in qs}
@@ -111,12 +110,19 @@ def get_table_info_for_influxdb_and_vm(bk_tenant_id: str, table_id_list: list | 
         for data in influxdb_tables
     }
     # 获取proxy关联的集群信息
+    influxdb_proxy_storage_ids = {
+        detail["influxdb_proxy_storage_id"]
+        for detail in influxdb_table_map.values()
+        if detail["influxdb_proxy_storage_id"] is not None
+    }
     storage_cluster_map = {
         data["id"]: {
             "proxy_cluster_id": data["proxy_cluster_id"],
             "instance_cluster_name": data["instance_cluster_name"],
         }
-        for data in models.InfluxDBProxyStorage.objects.values("id", "proxy_cluster_id", "instance_cluster_name")
+        for data in models.InfluxDBProxyStorage.objects.filter(id__in=influxdb_proxy_storage_ids).values(
+            "id", "proxy_cluster_id", "instance_cluster_name"
+        )
     }
     table_id_info = {}
     # 进行数据的匹配
@@ -198,22 +204,22 @@ def get_space_table_id_data_id(
     # 如果结果表存在，则直接过滤对应的数据
     if table_id_list:
         logger.info("get_space_table_id_data_id: try to get data with table_id_list->[%s]", table_id_list)
-        if settings.ENABLE_MULTI_TENANT_MODE:  # 若开启多租户,则需要携带租户信息进行过滤
-            # Q: 为什么不在结果表生成时,在table_id中拼接租户属性，从而做到结果表全局唯一？
-            # A: 外部导入的插件,如redis_exporter、mongodb_exporter以及一些内置采集,结果表命名相对固定,使用额外字段过滤更为稳定安全
-            logger.info("get_space_table_id_data_id: try to get data with bk_tenant_id->[%s]", bk_tenant_id)
-            qs = models.DataSourceResultTable.objects.filter(table_id__in=table_id_list, bk_tenant_id=bk_tenant_id)
-        else:
-            qs = models.DataSourceResultTable.objects.filter(table_id__in=table_id_list)
+        # Q: 为什么不在结果表生成时,在table_id中拼接租户属性，从而做到结果表全局唯一？
+        # A: 外部导入的插件,如redis_exporter、mongodb_exporter以及一些内置采集,结果表命名相对固定,使用额外字段过滤更为稳定安全
+        logger.info("get_space_table_id_data_id: try to get data with bk_tenant_id->[%s]", bk_tenant_id)
+        qs = models.DataSourceResultTable.objects.filter(table_id__in=table_id_list, bk_tenant_id=bk_tenant_id)
 
         return {
             data["table_id"]: data["bk_data_id"]
             for data in qs.exclude(bk_data_id__in=exclude_data_id_list).values("bk_data_id", "table_id")
         }
 
-    # 这里理论上不用携带租户信息进行查询,因为space_uid是全租户唯一的
     # 否则，查询空间下的所有数据源，再过滤对应的结果表
-    sp_ds = models.SpaceDataSource.objects.filter(space_type_id=space_type, space_id=space_id)
+    sp_ds = models.SpaceDataSource.objects.filter(
+        space_type_id=space_type,
+        space_id=space_id,
+        bk_tenant_id=bk_tenant_id,
+    )
 
     # 获取是否授权数据
     if from_authorization is not None:
@@ -238,6 +244,7 @@ def get_space_table_id_data_id(
         filter_data=data_ids,
         value_func="values",
         value_field_list=["bk_data_id", "table_id"],
+        other_filter={"bk_tenant_id": bk_tenant_id},
     )
     return {data["table_id"]: data["bk_data_id"] for data in _filter_data}
 
@@ -257,31 +264,25 @@ def get_measurement_type_by_table_id(
         table_id_data_id,
     )
 
-    if settings.ENABLE_MULTI_TENANT_MODE:
-        logger.info("get_measurement_type_by_table_id: try to get data with bk_tenant_id->[%s]", bk_tenant_id)
-        qs = models.ResultTableOption.objects.filter(
-            table_id__in=table_ids, name=models.DataSourceOption.OPTION_IS_SPLIT_MEASUREMENT, bk_tenant_id=bk_tenant_id
-        ).values("table_id", "name", "value")
-    else:
-        qs = models.ResultTableOption.objects.filter(
-            table_id__in=table_ids, name=models.DataSourceOption.OPTION_IS_SPLIT_MEASUREMENT
-        ).values("table_id", "name", "value")
+    logger.info("get_measurement_type_by_table_id: try to get data with bk_tenant_id->[%s]", bk_tenant_id)
+    qs = models.ResultTableOption.objects.filter(
+        table_id__in=table_ids,
+        name=models.DataSourceOption.OPTION_IS_SPLIT_MEASUREMENT,
+        bk_tenant_id=bk_tenant_id,
+    ).values("table_id", "name", "value")
 
     rto_dict = {rto["table_id"]: json.loads(rto["value"]) for rto in qs}
 
     # 过滤数据源对应的 etl_config
     data_etl_dict = {
         d["bk_data_id"]: d["etl_config"]
-        for d in models.DataSource.objects.filter(bk_data_id__in=table_id_data_id.values()).values(
-            "bk_data_id", "etl_config"
-        )
+        for d in models.DataSource.objects.filter(
+            bk_data_id__in=table_id_data_id.values(), bk_tenant_id=bk_tenant_id
+        ).values("bk_data_id", "etl_config")
     }
     # 获取到对应的类型
     measurement_type_dict = {}
-    if settings.ENABLE_MULTI_TENANT_MODE:  # 若开启多租户,则需要携带租户信息进行过滤
-        table_id_cutter = models.ResultTable.get_table_id_cutter(table_ids=table_ids, bk_tenant_id=bk_tenant_id)
-    else:
-        table_id_cutter = models.ResultTable.get_table_id_cutter(table_ids=table_ids)
+    table_id_cutter = models.ResultTable.get_table_id_cutter(table_ids=table_ids, bk_tenant_id=bk_tenant_id)
 
     for table in table_list:
         table_id, schema_type = table["table_id"], table["schema_type"]
@@ -332,26 +333,17 @@ def get_cluster_data_ids(
     # 如果指定结果表, 则仅过滤结果表对应的数据源
     data_id_list = []
     if table_id_list:
-        if settings.ENABLE_MULTI_TENANT_MODE:
-            data_id_list.extend(
-                list(
-                    models.DataSourceResultTable.objects.filter(
-                        table_id__in=table_id_list, bk_tenant_id=bk_tenant_id
-                    ).values_list("bk_data_id", flat=True)
-                )
+        data_id_list.extend(
+            list(
+                models.DataSourceResultTable.objects.filter(
+                    table_id__in=table_id_list, bk_tenant_id=bk_tenant_id
+                ).values_list("bk_data_id", flat=True)
             )
-        else:
-            data_id_list.extend(
-                list(
-                    models.DataSourceResultTable.objects.filter(table_id__in=table_id_list).values_list(
-                        "bk_data_id", flat=True
-                    )
-                )
-            )
+        )
     # 如果集群存在，则获取集群下的内置和自定义数据源
-    elif cluster_id_list:  # 集群ID全租户唯一
+    elif cluster_id_list:
         metric_data_ids = (
-            models.BCSClusterInfo.objects.filter(cluster_id__in=cluster_id_list)
+            models.BCSClusterInfo.objects.filter(cluster_id__in=cluster_id_list, bk_tenant_id=bk_tenant_id)
             .exclude(
                 status__in=[
                     models.BCSClusterInfo.CLUSTER_STATUS_DELETED,
@@ -367,16 +359,16 @@ def get_cluster_data_ids(
     # 过滤到集群的数据源，仅包含两类，集群内置和集群自定义
     data_id_cluster_id = {
         data["K8sMetricDataID"]: data["cluster_id"]
-        for data in models.BCSClusterInfo.objects.filter(K8sMetricDataID__in=data_id_list).values(
-            "K8sMetricDataID", "cluster_id"
-        )
+        for data in models.BCSClusterInfo.objects.filter(
+            K8sMetricDataID__in=data_id_list, bk_tenant_id=bk_tenant_id
+        ).values("K8sMetricDataID", "cluster_id")
     }
     data_id_cluster_id.update(
         {
             data["CustomMetricDataID"]: data["cluster_id"]
-            for data in models.BCSClusterInfo.objects.filter(CustomMetricDataID__in=data_id_list).values(
-                "CustomMetricDataID", "cluster_id"
-            )
+            for data in models.BCSClusterInfo.objects.filter(
+                CustomMetricDataID__in=data_id_list, bk_tenant_id=bk_tenant_id
+            ).values("CustomMetricDataID", "cluster_id")
         }
     )
     return data_id_cluster_id
@@ -395,14 +387,14 @@ def get_table_id_cluster_id(table_id_list: list | set, bk_tenant_id: str = DEFAU
     # 过滤到集群的数据源，仅包含两类，集群内置和集群自定义
     data_id_cluster_id = {
         data["K8sMetricDataID"]: data["cluster_id"]
-        for data in models.BCSClusterInfo.objects.filter(K8sMetricDataID__in=data_ids).values(
-            "K8sMetricDataID", "cluster_id"
-        )
+        for data in models.BCSClusterInfo.objects.filter(
+            K8sMetricDataID__in=data_ids, bk_tenant_id=bk_tenant_id
+        ).values("K8sMetricDataID", "cluster_id")
     }
     data_id_cluster_id.update(
         {
             data["CustomMetricDataID"]: data["cluster_id"]
-            for data in models.BCSClusterInfo.objects.filter(CustomMetricDataID__in=data_ids)
+            for data in models.BCSClusterInfo.objects.filter(CustomMetricDataID__in=data_ids, bk_tenant_id=bk_tenant_id)
             .exclude(
                 status__in=[
                     models.BCSClusterInfo.CLUSTER_STATUS_DELETED,

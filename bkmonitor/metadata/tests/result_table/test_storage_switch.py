@@ -368,7 +368,7 @@ def test_new_non_default_es_uses_requested_cluster_without_advancing_current(sto
     )
     mocker.patch.object(models.ResultTable, "apply_datalink", autospec=True)
     mocker.patch(
-        "metadata.models.space.space_table_id_redis.SpaceTableIDRedis.push_es_table_id_detail",
+        "metadata.models.space.space_table_id_redis.SpaceTableIDRedis.push_table_id_detail",
         return_value=None,
     )
 

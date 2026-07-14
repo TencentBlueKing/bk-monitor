@@ -251,7 +251,9 @@ class ResultTable(models.Model):
         logger.info("get_table_id_cutter: table_ids->[%s],bk_tenant_id->[%s]", table_ids, bk_tenant_id)
         table_id_data_id_map = {
             dr["table_id"]: dr["bk_data_id"]
-            for dr in DataSourceResultTable.objects.filter(table_id__in=table_ids).values("table_id", "bk_data_id")
+            for dr in DataSourceResultTable.objects.filter(table_id__in=table_ids, bk_tenant_id=bk_tenant_id).values(
+                "table_id", "bk_data_id"
+            )
         }
         data_id_option_map = {
             dso["bk_data_id"]: dso["value"]
