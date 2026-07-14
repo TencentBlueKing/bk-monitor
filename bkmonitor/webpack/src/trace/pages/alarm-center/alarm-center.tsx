@@ -102,7 +102,7 @@ import { useIssuesImpactScopeDrawer } from './alarm-issues/components/issues-imp
 import IssuesImpactScopeDrawer from './alarm-issues/components/issues-impact-scope-drawer/issues-impact-scope-drawer';
 import { useIssuesDialogs } from './alarm-issues/components/issues-operation-dialogs/hooks/use-issues-dialogs';
 import IssuesOperationDialogs from './alarm-issues/components/issues-operation-dialogs/issues-operation-dialogs';
-import { IssuesBatchActionEnum } from './alarm-issues/constant';
+import { IssuesBatchActionEnum, TREND_RANGE_SECONDS_MAP, TrendRangeEnum } from './alarm-issues/constant';
 import { useIssuesMergeActions } from './alarm-issues/hooks/use-issues-merge-actions';
 import IssuesDetailSideSlider from './alarm-issues/issues-detail/issues-detail-sideslider';
 import IssuesMergeSplitSideslider from './alarm-issues/issues-merge-split/issues-merge-split-sideslider';
@@ -118,7 +118,13 @@ import {
 import { saveAlertContentName } from './services/alert-services';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
-import type { IssueItem, IssuePriorityType, IssuesBatchActionType } from './alarm-issues/typing';
+import type {
+  IssueDetail,
+  IssueItem,
+  IssuePriorityType,
+  IssuesBatchActionType,
+  TrendRangeType,
+} from './alarm-issues/typing';
 import type { AlertSavePromiseEvent } from './components/alarm-table/components/alert-content-detail/alert-content-detail';
 
 import './alarm-center.scss';
@@ -140,6 +146,8 @@ export default defineComponent({
     const apmHooks = inject<AlarmCenterApmHooks | null>(ALARM_CENTER_APM_HOOKS_KEY, null);
     /** table 选中的 rowKey 数组 */
     const selectedRowKeys = shallowRef<string[]>([]);
+    // 当前创建tapd的issue详情
+    const createTapdIssueDetail = shallowRef<IssueDetail>(null);
     /** 是否有选中行 */
     const hasSelection = computed(() => selectedRowKeys.value.length > 0);
 
@@ -157,7 +165,8 @@ export default defineComponent({
       handleQuickFilteringOperation,
     } = useQuickFilter();
 
-    const { data, loading, total, page, pageSize, ordering, enabledSpaces, wxCsLink } = useAlarmTable();
+    const { data, loading, total, page, pageSize, ordering, enabledSpaces, wxCsLink, trendRange, trendLoading } =
+      useAlarmTable();
 
     /** 表格分页配置 */
     const pagination = computed(() => ({
@@ -367,7 +376,8 @@ export default defineComponent({
         .filter(item => selectedIds.has(item.id))
         .map(item => ({ bk_biz_id: item.bk_biz_id, issue_id: item.id }));
       const { end_time: trendEndTime } = alarmStore.timeRangeTimestamp;
-      const trendStartTime = trendEndTime ? trendEndTime - 24 * 60 * 60 : undefined;
+      const seconds = TREND_RANGE_SECONDS_MAP[trendRange.value] ?? TREND_RANGE_SECONDS_MAP[TrendRangeEnum.HOURS_24];
+      const trendStartTime = trendEndTime ? trendEndTime - seconds : undefined;
       await exportIssues({ issues, trend_start_time: trendStartTime, trend_end_time: trendEndTime });
     };
 
@@ -617,6 +627,7 @@ export default defineComponent({
         currentPage: page.value,
         sortOrder: ordering.value,
         showResidentBtn: String(showResidentBtn.value),
+        issuesTrendRange: trendRange.value,
         ...detailUrlParams,
       };
     });
@@ -672,6 +683,8 @@ export default defineComponent({
         lastQuickFilterCategoryData,
         /** issue 相关参数 */
         issueFirstAlarmTime: queryIssueFirstAlarmTime,
+        /** Issues 趋势时间范围 */
+        issuesTrendRange,
         /** 以下是兼容事件中心的URL参数 */
         searchType,
         condition,
@@ -725,6 +738,9 @@ export default defineComponent({
         detailId.value = (queryDetailId as string) || '';
         detailBizId.value = queryDetailBizId ? Number(queryDetailBizId) : null;
         issueFirstAlarmTime.value = (queryIssueFirstAlarmTime as string) || '';
+        if (issuesTrendRange) {
+          trendRange.value = String(issuesTrendRange) as TrendRangeType;
+        }
         if (JSON.parse((queryTapdAuth as string) || 'false')) {
           // 打开 issues 详情
           alarmDetailShow.value = true;
@@ -860,8 +876,11 @@ export default defineComponent({
     const tapdIssueId = shallowRef('');
     const tapdIssueFirstAlarmTime = shallowRef<number | string>('');
     const issuesTapdShow = shallowRef(false);
-    const handleIssuesTapdShowChange = (show: boolean) => {
+    const handleIssuesTapdShowChange = (show: boolean, detail = null) => {
       if (show) {
+        if (detail) {
+          createTapdIssueDetail.value = detail;
+        }
         tapdBizId.value = detailBizId.value;
         tapdIssueId.value = detailId.value;
         tapdIssueFirstAlarmTime.value = issueFirstAlarmTime.value;
@@ -1162,6 +1181,8 @@ export default defineComponent({
       defaultFavoriteId,
       alarmDetailDefaultTab,
       showResidentBtn,
+      trendRange,
+      trendLoading,
       issueFirstAlarmTime,
       impactScopeDrawerShow,
       impactScopeResourceKey,
@@ -1235,6 +1256,7 @@ export default defineComponent({
       tapdIssueId,
       tapdIssueFirstAlarmTime,
       handleIssuesTapdShowChange,
+      createTapdIssueDetail,
     };
   },
   render() {
@@ -1427,6 +1449,8 @@ export default defineComponent({
                                 scrollContainerSelector={`.${CONTENT_SCROLL_ELEMENT_CLASS_NAME}`}
                                 selectedRowKeys={this.selectedRowKeys}
                                 sort={this.ordering}
+                                trendLoading={this.trendLoading}
+                                trendRange={this.trendRange}
                                 onAction={(type: IssuesBatchActionType, id: string) =>
                                   this.handleIssuesDialogShow(type, id)
                                 }
@@ -1453,6 +1477,10 @@ export default defineComponent({
                                 onShowDetail={this.handleIssuesShowDetail}
                                 onSortChange={sort => this.handleSortChange(sort as string)}
                                 onSplitClick={this.handleIssuesSplitClick}
+                                onTrendRangeChange={(range: TrendRangeType) => {
+                                  this.trendRange = range;
+                                  this.handleCurrentPageChange(1);
+                                }}
                               />
                             </IssuesToolbar>
                           ) : (
@@ -1536,6 +1564,7 @@ export default defineComponent({
                 key='issues-tapd'
                 bizId={this.tapdBizId}
                 firstAlarmTime={this.tapdIssueFirstAlarmTime}
+                issueDetail={this.createTapdIssueDetail}
                 issuesId={this.tapdIssueId}
                 show={this.issuesTapdShow}
                 onUpdate:show={this.handleIssuesTapdShowChange}

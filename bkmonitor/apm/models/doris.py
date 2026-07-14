@@ -588,6 +588,8 @@ class BkDataDorisV4Provider:
     maintainer: str
     operator: str
     data_biz_id: int = 0  # 仅用于 DataId 命名（通过 get_tenant_datalink_biz_id 获取）
+    # DataId.spec.preferCluster.name，来自默认 Kafka 集群的 cluster_name（ClusterInfo）。
+    prefer_kafka_cluster_name: str | None = None
 
     config: DorisStorageConfig = field(default_factory=DorisStorageConfig.read)
     _obj: Optional["ProfileDataSource"] = None
@@ -599,6 +601,7 @@ class BkDataDorisV4Provider:
         bk_tenant_id: str,
         maintainer: str,
         operator: str,
+        prefer_kafka_cluster_name: str | None = None,
     ) -> "BkDataDorisV4Provider":
         """从 ProfileDataSource 实例构造 V4 Provider"""
         from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
@@ -612,6 +615,7 @@ class BkDataDorisV4Provider:
             maintainer=maintainer,
             operator=operator,
             data_biz_id=datalink_biz_ids.data_biz_id,
+            prefer_kafka_cluster_name=prefer_kafka_cluster_name,
             _obj=obj,
         )
 
@@ -687,6 +691,12 @@ class BkDataDorisV4Provider:
                 "alias": name,
                 "bizId": self.bk_biz_id,
                 "maintainers": self._maintainers_list(),
+                "preferCluster": {
+                    "kind": "KafkaChannel",
+                    **self._tenant_kwargs,
+                    "namespace": _V4_NAMESPACE,
+                    "name": self.prefer_kafka_cluster_name,
+                },
                 "eventType": "log",
             },
         }

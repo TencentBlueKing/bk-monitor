@@ -13,6 +13,7 @@ export const listIssueActivities = request('GET', 'fta/issue/issue/activities/')
 export const listIssueHistory = request('GET', 'fta/issue/issue/history/');
 export const issueDetail = request('GET', 'fta/issue/issue/detail/');
 export const issueSearch = request('POST', 'fta/issue/issue/search/');
+export const issueTrend = request('POST', 'fta/issue/issue/trend/');
 export const issueTopN = request('POST', 'fta/issue/issue/top_n/');
 export const exportIssue = request('POST', 'fta/issue/issue/export/');
 export const listRecentAssignees = request('POST', 'fta/issue/issue/recent_assignees/');
@@ -48,6 +49,7 @@ export default {
   listIssueHistory,
   issueDetail,
   issueSearch,
+  issueTrend,
   issueTopN,
   exportIssue,
   listRecentAssignees,
@@ -65,5 +67,5 @@ export default {
   searchTapdItems,
   unbindWorkspace,
   rebindWorkspace,
-  revokeAuth
+  revokeAuth,
 };

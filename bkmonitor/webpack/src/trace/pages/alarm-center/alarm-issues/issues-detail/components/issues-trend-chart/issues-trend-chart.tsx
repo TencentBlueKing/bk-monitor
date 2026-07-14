@@ -141,7 +141,6 @@ export default defineComponent({
   render() {
     return (
       <BasicCard
-        width='560px'
         class='issues-trend-chart'
         v-slots={{
           header: () => (

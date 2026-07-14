@@ -1440,6 +1440,68 @@ def add_new_migrate_data_id_routes(data_id_infos: dict[int, dict[str, Any]]):
             continue
 
 
+def _build_profiling_migrate_route(
+    *, source_route: dict[str, Any], data_id: int, migrate_route_name: str, migrate_stream_to_id: int
+) -> dict[str, Any]:
+    migrate_route = deepcopy(source_route)
+    migrate_route["name"] = migrate_route_name
+    source_stream_to = source_route.get("stream_to")
+    if not isinstance(source_stream_to, dict):
+        raise ValueError(f"data_id({data_id}) source gse router stream_to config is invalid")
+
+    if "pulsar" in source_stream_to:
+        pulsar_config = source_stream_to.get("pulsar")
+        topic_name = None
+        if isinstance(pulsar_config, dict):
+            topic_name = pulsar_config.get("topic_name") or pulsar_config.get("name")
+        if not topic_name:
+            raise ValueError(f"data_id({data_id}) source pulsar router topic_name is empty")
+        migrate_route["stream_to"] = {
+            "stream_to_id": migrate_stream_to_id,
+            ClusterInfo.TYPE_KAFKA: {"topic_name": topic_name},
+        }
+    else:
+        migrate_route["stream_to"]["stream_to_id"] = migrate_stream_to_id
+    return migrate_route
+
+
+def _is_gse_route_stream_type(route: dict[str, Any], stream_type: str) -> bool:
+    stream_to = route.get("stream_to")
+    return isinstance(stream_to, dict) and isinstance(stream_to.get(stream_type), dict)
+
+
+def _build_profiling_kafka_route(
+    *, source_route: dict[str, Any], data_id: int, kafka_stream_to_id: int
+) -> dict[str, Any]:
+    """将 profiling 存量路由转换为 Kafka 路由，保持 topic_name 不变。"""
+
+    kafka_route = deepcopy(source_route)
+    source_stream_to = source_route.get("stream_to")
+    if not isinstance(source_stream_to, dict):
+        raise ValueError(f"data_id({data_id}) source gse router stream_to config is invalid")
+
+    topic_name = None
+    if isinstance(source_stream_to.get(ClusterInfo.TYPE_KAFKA), dict):
+        topic_name = source_stream_to[ClusterInfo.TYPE_KAFKA].get("topic_name")
+    elif isinstance(source_stream_to.get("pulsar"), dict):
+        pulsar_config = source_stream_to["pulsar"]
+        topic_name = pulsar_config.get("topic_name") or pulsar_config.get("name")
+    if not topic_name:
+        raise ValueError(f"data_id({data_id}) source gse router topic_name is empty")
+
+    route_name = str(source_route.get("name") or "")
+    if not route_name:
+        raise ValueError(f"data_id({data_id}) source gse router name is empty")
+    if "_pulsar_" in route_name:
+        route_name = route_name.replace("_pulsar_", "_kafka_", 1)
+    kafka_route["name"] = route_name
+    kafka_route["stream_to"] = {
+        "stream_to_id": kafka_stream_to_id,
+        ClusterInfo.TYPE_KAFKA: {"topic_name": topic_name},
+    }
+    return kafka_route
+
+
 def add_profiling_migrate_data_id_route(
     *,
     bk_tenant_id: str,
@@ -1450,8 +1512,9 @@ def add_profiling_migrate_data_id_route(
 ) -> dict[str, Any]:
     """为 profiling dataid 添加迁移双写路由。
 
-    Profiling 的 topic 只存在于 GSE 路由中，因此这里以存量非迁移 route 为模板，
-    只替换 name 和 stream_to_id，保留 topic 等 stream_to 细节。
+    Profiling 的 topic 只存在于 GSE 路由中，因此这里以存量非迁移 route 为模板。
+    Kafka 源路由保留原 stream_to 细节并替换 stream_to_id；Pulsar 源路由则保留
+    topic_name，将 stream_to 转换为目标 Kafka 配置格式。
     """
 
     bk_tenant_id = bk_tenant_id.strip()
@@ -1476,9 +1539,12 @@ def add_profiling_migrate_data_id_route(
     if source_route is None:
         raise ValueError(f"data_id({data_id}) source gse router config not found")
 
-    migrate_route = deepcopy(source_route)
-    migrate_route["name"] = migrate_route_name
-    migrate_route.setdefault("stream_to", {})["stream_to_id"] = cluster.gse_stream_to_id
+    migrate_route = _build_profiling_migrate_route(
+        source_route=source_route,
+        data_id=data_id,
+        migrate_route_name=migrate_route_name,
+        migrate_stream_to_id=cluster.gse_stream_to_id,
+    )
 
     replaced = False
     new_route_config = []
@@ -1518,6 +1584,102 @@ def add_profiling_migrate_data_id_route(
     return result
 
 
+def replace_profiling_data_id_route(
+    *,
+    bk_tenant_id: str,
+    bk_biz_id: int,
+    app_name: str,
+    kafka_cluster_name: str,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    """将 profiling dataid 存量 GSE 路由原地替换为指定 Kafka 集群。
+
+    该操作可重入：优先刷新已有正式 Kafka 路由；若尚未存在，则从 Pulsar 路由保留
+    topic 并生成 Kafka 路由。更新成功后清理存量 Pulsar 和迁移双写路由。
+    """
+
+    bk_tenant_id = bk_tenant_id.strip()
+    app_name = app_name.strip()
+    kafka_cluster_name = kafka_cluster_name.strip()
+    profile_datasource = ProfileDataSource.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
+    if profile_datasource is None or profile_datasource.bk_data_id <= 0:
+        raise ValueError(f"profile datasource not found: bk_biz_id={bk_biz_id}, app_name={app_name}")
+
+    cluster = _get_kafka_cluster(bk_tenant_id=bk_tenant_id, kafka_cluster_name=kafka_cluster_name)
+    if cluster.gse_stream_to_id == -1:
+        raise ValueError(f"kafka cluster({cluster.cluster_name}) gse_stream_to_id is not initialized")
+
+    data_id = profile_datasource.bk_data_id
+    route_group = _query_gse_route_group(data_id)
+    exist_route_config = route_group.get("route") or []
+    if not exist_route_config:
+        raise ValueError(f"data_id({data_id}) gse router config is empty")
+
+    migrate_route_name = PROFILING_MIGRATE_ROUTE_NAME_TEMPLATE.format(data_id=data_id)
+    formal_routes = [route for route in exist_route_config if route.get("name") != migrate_route_name]
+    source_route = next(
+        (route for route in formal_routes if _is_gse_route_stream_type(route, ClusterInfo.TYPE_KAFKA)),
+        None,
+    )
+    if source_route is None:
+        source_route = next(
+            (route for route in formal_routes if _is_gse_route_stream_type(route, "pulsar")),
+            exist_route_config[0],
+        )
+    kafka_route = _build_profiling_kafka_route(
+        source_route=source_route,
+        data_id=data_id,
+        kafka_stream_to_id=cluster.gse_stream_to_id,
+    )
+    new_route_config = [kafka_route]
+    deleted_route_names = sorted(
+        {
+            route_name
+            for route in exist_route_config
+            if (route_name := route.get("name"))
+            and route_name != kafka_route["name"]
+            and (route_name == migrate_route_name or _is_gse_route_stream_type(route, "pulsar"))
+        }
+    )
+
+    result = {
+        "bk_tenant_id": bk_tenant_id,
+        "bk_biz_id": bk_biz_id,
+        "app_name": app_name,
+        "bk_data_id": data_id,
+        "kafka_cluster_name": cluster.cluster_name,
+        "kafka_stream_to_id": cluster.gse_stream_to_id,
+        "route_name": kafka_route["name"],
+        "deleted_route_names": deleted_route_names,
+        "updated": not dry_run,
+        "before": deepcopy(exist_route_config),
+        "after": new_route_config,
+    }
+    if dry_run:
+        return result
+
+    try:
+        api.gse.update_route(
+            condition={"channel_id": data_id, "plat_name": config.DEFAULT_GSE_API_PLAT_NAME},
+            operation={"operator_name": settings.COMMON_USERNAME},
+            specification={"route": new_route_config},
+        )
+    except BKAPIError as error:
+        raise ValueError(f"data_id({data_id}) update gse router failed, error:({error})") from error
+
+    if deleted_route_names:
+        delete_params = {
+            "condition": {"channel_id": data_id, "plat_name": "tgdp"},
+            "operation": {"operator_name": settings.COMMON_USERNAME, "method": "specification"},
+            "specification": {"route": deleted_route_names},
+        }
+        try:
+            _delete_gse_route_with_fallback(delete_params)
+        except BKAPIError as error:
+            raise ValueError(f"data_id({data_id}) delete old gse router failed, error:({error})") from error
+    return result
+
+
 def _get_migrate_kafka_cluster(*, bk_tenant_id: str, migrate_cluster_name: str) -> ClusterInfo:
     if migrate_cluster_name.startswith("migrate_"):
         cluster_names = [migrate_cluster_name]
@@ -1535,6 +1697,17 @@ def _get_migrate_kafka_cluster(*, bk_tenant_id: str, migrate_cluster_name: str) 
         if cluster is not None:
             return cluster
     raise ValueError(f"kafka cluster({migrate_cluster_name}) not found in tenant({bk_tenant_id})")
+
+
+def _get_kafka_cluster(*, bk_tenant_id: str, kafka_cluster_name: str) -> ClusterInfo:
+    cluster = ClusterInfo.objects.filter(
+        bk_tenant_id=bk_tenant_id,
+        cluster_type=ClusterInfo.TYPE_KAFKA,
+        cluster_name=kafka_cluster_name,
+    ).first()
+    if cluster is None:
+        raise ValueError(f"kafka cluster({kafka_cluster_name}) not found in tenant({bk_tenant_id})")
+    return cluster
 
 
 def _query_gse_route_group(data_id: int) -> dict[str, Any]:
