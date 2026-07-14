@@ -31,6 +31,7 @@ from kernel_api.rpc.functions.admin.common import (
     serialize_model,
     serialize_value,
 )
+from kernel_api.rpc.functions.admin.storage_cluster_history import build_storage_cluster_records
 from metadata import models
 
 FUNC_DORIS_STORAGE_LIST = "admin.doris_storage.list"
@@ -431,7 +432,7 @@ def list_doris_storages(params: dict[str, Any]) -> dict[str, Any]:
 @KernelRPCRegistry.register(
     FUNC_DORIS_STORAGE_DETAIL,
     summary="Admin 查询 DorisStorage 详情",
-    description="只读查询 DorisStorage 原始配置、ResultTable、ClusterInfo 和同租户实体/虚拟表关系。",
+    description="只读查询 DorisStorage 原始配置、ResultTable、ClusterInfo、同租户实体/虚拟表关系和跨 ES/Doris 集群迁移记录。",
     params_schema={"bk_tenant_id": "可选，租户 ID", "table_id": "必填，DorisStorage.table_id"},
     example_params={"bk_tenant_id": "system", "table_id": "3_bklog.demo"},
 )
@@ -447,6 +448,7 @@ def get_doris_storage_detail(params: dict[str, Any]) -> dict[str, Any]:
     )
     data["doris_storage"] = _serialize_doris_storage(storage, warnings)
     data["relations"] = _build_doris_relations(storage, bk_tenant_id)
+    data["storage_cluster_records"] = build_storage_cluster_records(storage, bk_tenant_id)
     return build_response(
         operation="doris_storage.detail",
         func_name=FUNC_DORIS_STORAGE_DETAIL,

@@ -35,14 +35,13 @@ import type { TapdWorkspaceItem } from '../typing';
 
 interface UseTapdAuthOptions {
   bizId: Ref<number | string>;
-  firstAlarmTime: Ref<number | string>;
   issuesId: Ref<string>;
   show: Ref<boolean>;
 }
 
 export function useTapdAuth(options: UseTapdAuthOptions) {
   const { t } = useI18n();
-  const { show, bizId, issuesId, firstAlarmTime } = options;
+  const { show, bizId, issuesId } = options;
   const authDialogShow = shallowRef(false);
   const createTapdSliderShow = shallowRef(false);
   /** 项目列表 */
@@ -71,7 +70,6 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
       detailBizId: `${bizId.value}`,
       detailId: `${issuesId.value}`,
       showDetail: 'true',
-      issueFirstAlarmTime: `${firstAlarmTime.value}`,
       alarmType: 'issues',
     });
     try {
