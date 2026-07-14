@@ -535,12 +535,14 @@ export function requestIndexSetQueryAction(
         });
       }
 
-      // 明确的失败/无权限：权威清零总数
-      state.searchTotal = 0;
+      // 首屏失败时权威清零；分页失败应保留已经成功加载的结果与总趋势总数。
+      if (!payload.isPagination) {
+        state.searchTotal = 0;
+      }
       commit('updateIndexSetQueryResult', {
         exception_msg: message,
         is_error: !result,
-        total: 0,
+        total: payload.isPagination ? cachedQueryResult.total : 0,
       });
 
       return {
@@ -558,22 +560,25 @@ export function requestIndexSetQueryAction(
         return;
       }
 
-      state.searchTotal = 0;
-      retrieveRowCacheService.clearMemory();
-      commit('updateSqlQueryFieldList', []);
-      if (!isSearchRequestCanceled(e)) {
-        commit('updateIndexSetQueryResult', {
-          is_error: true,
-          exception_msg: e?.message ?? e?.toString(),
-          total: 0,
-        });
-      }
-
       if (isSearchRequestCanceled(e)) {
+        // load-more 被后续检索取消属于控制流，不是“检索无数据”。保留已有行缓存与总数，
+        // 否则快速滚动触发的请求竞态会把一个正常结果集清空成 0。
         cachedQueryResult.is_loading = false;
         cachedQueryResult.is_pagination_loading = false;
         commit('updateIndexSetQueryResult', cachedQueryResult);
+        return { result: false, ignored: true, reason: 'request-canceled' };
       }
+
+      if (!payload.isPagination) {
+        state.searchTotal = 0;
+        retrieveRowCacheService.clearMemory();
+      }
+      commit('updateSqlQueryFieldList', []);
+      commit('updateIndexSetQueryResult', {
+        is_error: true,
+        exception_msg: e?.message ?? e?.toString(),
+        total: payload.isPagination ? cachedQueryResult.total : 0,
+      });
     })
     .finally(() => {
       if (!isStaleSearchResponse && isCurrentSearchRequest()) {

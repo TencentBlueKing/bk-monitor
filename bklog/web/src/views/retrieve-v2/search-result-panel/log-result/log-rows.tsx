@@ -470,6 +470,7 @@ export default defineComponent({
     let renderList = Object.freeze([]);
     let renderTaskToken = 0;
     let paginationRequestToken = 0;
+    let paginationRequestPromise: Promise<boolean> | null = null;
     const isRequesting = ref(false);
     let requestingTimer: ReturnType<typeof setTimeout> = null;
     let skipNextLoadingEndReset = false;
@@ -536,6 +537,7 @@ export default defineComponent({
       firstPageLayoutToken += 1;
       renderTaskToken += 1;
       paginationRequestToken += 1;
+      paginationRequestPromise = null;
       requestingTimer && clearTimeout(requestingTimer);
       requestingTimer = null;
       isRequesting.value = false;
@@ -1414,6 +1416,12 @@ export default defineComponent({
     };
 
     const loadMoreTableData = () => {
+      // IntersectionObserver 与 wheel 预加载可能在同一帧命中。Promise 锁用于保证后端分页严格单飞，
+      // 不依赖会被渲染定时器重置的 isRequesting，避免后一请求取消前一请求。
+      if (paginationRequestPromise) {
+        return paginationRequestPromise;
+      }
+
       // tableDataSize.value === 0 用于判定是否是第一次渲染导致触发的请求
       // visibleFields.value 在字段重置时会清空，所以需要判断
       if (isRequesting.value || tableDataSize.value === 0 || visibleFields.value.length === 0) {
@@ -1428,6 +1436,8 @@ export default defineComponent({
 
       if (pageIndex.value * pageSize.value < tableDataSize.value) {
         hasMoreList.value = true;
+        requestingTimer && clearTimeout(requestingTimer);
+        requestingTimer = null;
         isRequesting.value = true;
         pageIndex.value += 1;
         const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
@@ -1443,10 +1453,12 @@ export default defineComponent({
         const requestToken = paginationRequestToken;
         const requestQueryKey = indexSetQueryResult.value?.row_query_key ?? '';
         const requestStartSize = rowKeys.value.length;
+        requestingTimer && clearTimeout(requestingTimer);
+        requestingTimer = null;
         isRequesting.value = true;
         isPaginationLoading.value = true;
         skipNextLoadingEndReset = true;
-        return store
+        const currentPromise = store
           .dispatch('requestIndexSetQuery', { isPagination: true })
           .then((resp) => {
             const isCurrentRequest = requestToken === paginationRequestToken
@@ -1473,10 +1485,13 @@ export default defineComponent({
             if (requestToken !== paginationRequestToken) {
               return;
             }
+            paginationRequestPromise = null;
             isPaginationLoading.value = false;
             debounceSetLoading(0);
             nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
           });
+        paginationRequestPromise = currentPromise;
+        return currentPromise;
       }
 
       return Promise.resolve(false);
