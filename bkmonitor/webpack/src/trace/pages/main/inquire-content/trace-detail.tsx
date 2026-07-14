@@ -103,6 +103,11 @@ const TraceDetailProps = {
     type: String,
     default: true,
   },
+  /** 跨业务打开时的目标业务 ID，缺省则使用当前 window 业务 */
+  bizId: {
+    type: [Number, String],
+    default: undefined,
+  },
   traceID: {
     type: String,
     default: '',
@@ -145,6 +150,13 @@ export default defineComponent({
     let searchCancelFn = () => {};
     const { t } = useI18n();
     const store = useTraceStore();
+    /** 跨业务场景优先使用 props.bizId */
+    const resolveBizId = () => {
+      if (props.bizId != null && props.bizId !== '' && !Number.isNaN(+props.bizId)) {
+        return +props.bizId;
+      }
+      return window.bk_biz_id || window.cc_biz_id;
+    };
     const spanDetailQueryStore = useSpanDetailQueryStore();
     /** 缓存不同tab下的过滤选项 */
     const cacheFilterToolsValues = {
@@ -584,7 +596,7 @@ export default defineComponent({
         contentLoading.value = true;
         if (state.activePanel === 'topo') handleResize();
         const params = {
-          bk_biz_id: window.bk_biz_id,
+          bk_biz_id: resolveBizId(),
           app_name: props.appName,
           trace_id: traceId,
           displays,
@@ -842,7 +854,7 @@ export default defineComponent({
       const { trace_id: traceId } = traceData.value;
       enabledTimeAlignment.value = v;
       const params = {
-        bk_biz_id: window.bk_biz_id,
+        bk_biz_id: resolveBizId(),
         app_name: props.appName,
         trace_id: traceId,
         enabled_time_alignment: enabledTimeAlignment.value,
@@ -863,9 +875,9 @@ export default defineComponent({
       const endMs = toUnixMilliseconds(end_time);
       let url = '';
       if (unionList) {
-        url = `${window.bk_log_search_url}#/retrieve?bizId=${window.bk_biz_id}&search_mode=${search_mode}&keyword=${keyword}&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}&unionList=${unionList}`;
+        url = `${window.bk_log_search_url}#/retrieve?bizId=${resolveBizId()}&search_mode=${search_mode}&keyword=${keyword}&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}&unionList=${unionList}`;
       } else {
-        url = `${window.bk_log_search_url}#/retrieve/${indexId}?bizId=${window.bk_biz_id}&search_mode=${search_mode}&keyword=${keyword}&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}`;
+        url = `${window.bk_log_search_url}#/retrieve/${indexId}?bizId=${resolveBizId()}&search_mode=${search_mode}&keyword=${keyword}&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}`;
       }
       window.open(url, '_blank');
     };

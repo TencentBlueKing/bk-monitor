@@ -197,6 +197,71 @@ export default defineComponent({
 
     /** 展示侧栏详情 */
     const showSlideDetail = shallowRef(null);
+    /** 打开跨业务详情前缓存的业务上下文，关闭时还原 */
+    let cachedBizContext: { bizId: number; spaceUid?: string } | null = null;
+
+    const switchBizContextIfNeeded = (bizId?: number) => {
+      if (bizId == null || Number.isNaN(+bizId)) return;
+      const targetBizId = +bizId;
+      const currentBizId = +(window.bk_biz_id || window.cc_biz_id);
+      if (targetBizId === currentBizId) return;
+
+      cachedBizContext = {
+        bizId: currentBizId,
+        spaceUid: window.space_uid,
+      };
+      window.bk_biz_id = targetBizId;
+      window.cc_biz_id = targetBizId;
+      const space = window.space_list?.find(item => +item.bk_biz_id === targetBizId);
+      if (space?.space_uid) {
+        window.space_uid = `${space.space_uid}`;
+      }
+    };
+
+    const restoreBizContextIfNeeded = () => {
+      if (!cachedBizContext) return;
+      window.bk_biz_id = cachedBizContext.bizId;
+      window.cc_biz_id = cachedBizContext.bizId;
+      if (cachedBizContext.spaceUid != null) {
+        window.space_uid = cachedBizContext.spaceUid;
+      } else {
+        const space = window.space_list?.find(item => +item.bk_biz_id === cachedBizContext.bizId);
+        if (space?.space_uid) {
+          window.space_uid = `${space.space_uid}`;
+        }
+      }
+      cachedBizContext = null;
+    };
+
+    /** 宿主通过 bridgeProps.slideDetail 打开 Trace 详情侧边窗 */
+    watch(
+      () => bridgeProps?.slideDetail as { appName?: string; bizId?: number; traceId?: string } | null,
+      val => {
+        if (!val?.traceId) {
+          showSlideDetail.value = null;
+          return;
+        }
+        // 仅切换业务上下文；appName 经 slideDetail 传给侧栏，不改 store，避免触发表格/图表重新请求
+        switchBizContextIfNeeded(val.bizId);
+        showSlideDetail.value = {
+          type: 'trace',
+          id: val.traceId,
+          bizId: val.bizId,
+          appName: val.appName,
+        };
+      },
+      {
+        deep: true,
+        immediate: true,
+      }
+    );
+
+    /** 侧边窗关闭：清空本地状态、还原业务并通知宿主（不改 store.appName，避免触发 getExploreList） */
+    function handleSliderClose() {
+      showSlideDetail.value = null;
+      restoreBizContextIfNeeded();
+      apmHooks?.onSliderClose?.();
+    }
 
     const commonParams = shallowRef<ICommonParams>({
       app_name: '',
@@ -987,6 +1052,7 @@ export default defineComponent({
       getMetricList,
       handleGetResidentSettingUserConfig,
       handleSetResidentSettingUserConfig,
+      handleSliderClose,
     };
   },
   render() {
@@ -1104,6 +1170,7 @@ export default defineComponent({
                         onClearRetrievalFilter={this.handleClearRetrievalFilter}
                         onConditionChange={this.handleConditionChange}
                         onSetUrlParams={this.setUrlParams}
+                        onSliderClose={this.handleSliderClose}
                       />
                     </div>
                   ),

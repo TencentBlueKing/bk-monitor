@@ -48,6 +48,11 @@ export default defineComponent({
     appName: {
       type: String,
     },
+    /** 跨业务打开时的目标业务 ID（仅用于本侧边窗请求，不切换全局 window 业务） */
+    bizId: {
+      type: Number,
+      default: undefined,
+    },
     /** 当前选中的 traceID */
     traceId: {
       type: String,
@@ -63,6 +68,14 @@ export default defineComponent({
 
     /** TraceDetail 组件实例 */
     const traceDetailRef = deepRef<InstanceType<typeof TraceDetail>>(null);
+
+    /** 当前详情请求应使用的业务 ID */
+    const resolveBizId = () => {
+      if (props.bizId != null && !Number.isNaN(+props.bizId)) {
+        return +props.bizId;
+      }
+      return +(window.bk_biz_id || window.cc_biz_id);
+    };
 
     watch(
       () => props.isShow,
@@ -93,6 +106,7 @@ export default defineComponent({
       store.setTraceDetail(true);
       store.setTraceLoaidng(true);
       const params: any = {
+        bk_biz_id: resolveBizId(),
         app_name: props.appName,
         trace_id: props.traceId,
       };
@@ -136,7 +150,7 @@ export default defineComponent({
     };
   },
   render() {
-    const { isShow, appName, traceId } = this.$props;
+    const { isShow, appName, bizId, traceId } = this.$props;
     const { handleSliderClose } = this;
     return (
       <Sideslider
@@ -146,6 +160,7 @@ export default defineComponent({
           header: () => (
             <TraceDetailHeader
               appName={appName}
+              bizId={bizId}
               fullscreen={this.fullscreen}
               traceId={traceId}
               isInTable
@@ -162,6 +177,7 @@ export default defineComponent({
           <TraceDetail
             ref='traceDetailRef'
             appName={appName}
+            bizId={bizId}
             traceID={traceId}
             isInTable
           />
