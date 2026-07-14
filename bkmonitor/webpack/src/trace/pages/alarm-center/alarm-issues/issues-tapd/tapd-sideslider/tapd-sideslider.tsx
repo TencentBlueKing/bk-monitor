@@ -131,7 +131,7 @@ export default defineComponent({
           confirmLoading.value = true;
           const success = await linkIssueToTapdApi(params as TLinkIssueToTapdApiParams).catch(() => null);
           Message({
-            type: success ? 'success' : 'error',
+            theme: success ? 'success' : 'error',
             message: success ? window.i18n.t('关联单据成功') : window.i18n.t('关联单据失败'),
           });
           if (success) {
@@ -170,7 +170,7 @@ export default defineComponent({
           confirmLoading.value = true;
           const success = await createTapdApi(params as TCreateTapdApiParams).catch(() => null);
           Message({
-            type: success ? 'success' : 'error',
+            theme: success ? 'success' : 'error',
             message: success ? window.i18n.t('创建单据成功') : window.i18n.t('创建单据失败'),
           });
           if (success) {
