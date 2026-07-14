@@ -158,23 +158,43 @@ class IssueQueryHandler(BaseBizQueryHandler):
         # Issue 跨天存在，使用全量索引查询
         search_object = IssueDocument.search(all_indices=True)
 
-        # 时间范围过滤：
-        # - end_time 约束 create_time（该时间前已创建）
-        # - start_time 约束 resolved_time（在该时间之后才解决）
-        # 分片模式下，按 resolved_time 唯一归属分片，避免同一 Issue 被多分片重复计数：
-        #   非最后分片：resolved_time ∈ [start, end)，仅覆盖"已解决且解决在本分片内"的 Issue
-        #   最后分片  ：resolved_time >= start OR 未解决，承接"未解决的 Issue"（~exists 只在此处出现一次）
+        # 时间范围过滤（按状态分流，分片结构保持不变）：
+        # - 活跃（PENDING_REVIEW/UNRESOLVED）：不受时间限制
+        # - 已解决 RESOLVED：按 resolved_time 过滤
+        # - 已归档 ARCHIVED：按 update_time（归档时写入）过滤
         if is_time_partitioned and not is_finally_partition:
+            # 非最终分片有硬上界 end_time（分片边界）：create_time 必须 <= end_time。
+            # 已解决/已归档分别按各自 close 时间归属分片（与最终/非分片分支一致，避免归档 Issue 漏计）。
             if end_time:
                 search_object = search_object.filter("range", create_time={"lte": end_time})
             if start_time and end_time:
-                search_object = search_object.filter("range", resolved_time={"gte": start_time, "lt": end_time})
+                resolved_range = {"gte": start_time, "lt": end_time}
+                archived_range = {"gte": start_time, "lt": end_time}
+                # 不需要增加对 Q("terms", status=IssueStatus.ACTIVE_STATUSES) 的过滤，因为最后一个分片会走到else分支。
+                search_object = search_object.filter(
+                    Q("bool", must=[Q("term", status=IssueStatus.RESOLVED), Q("range", resolved_time=resolved_range)])
+                    | Q("bool", must=[Q("term", status=IssueStatus.ARCHIVED), Q("range", update_time=archived_range)])
+                )
         else:
+            # 最后分片/非分片：活跃不受时间限制；已解决/已归档按 close_time 过滤
+            # 非分片（主列表/TopN/Export）带 end_time 上界 [start, end)；最后分片 end_time 为 None 无上界
             if end_time:
                 search_object = search_object.filter("range", create_time={"lte": end_time})
-            if start_time:
+
+            if start_time or end_time:
+                resolved_range = {}
+                archived_range = {}
+                if start_time:
+                    resolved_range["gte"] = start_time
+                    archived_range["gte"] = start_time
+                if end_time and not is_finally_partition:
+                    resolved_range["lt"] = end_time
+                    archived_range["lt"] = end_time
+
                 search_object = search_object.filter(
-                    Q("range", resolved_time={"gte": start_time}) | ~Q("exists", field="resolved_time")
+                    Q("terms", status=IssueStatus.ACTIVE_STATUSES)
+                    | Q("bool", must=[Q("term", status=IssueStatus.RESOLVED), Q("range", resolved_time=resolved_range)])
+                    | Q("bool", must=[Q("term", status=IssueStatus.ARCHIVED), Q("range", update_time=archived_range)])
                 )
 
         # 业务权限过滤
@@ -784,6 +804,8 @@ class IssueQueryHandler(BaseBizQueryHandler):
         resolved_time = cleaned.get("resolved_time")
 
         if create_time:
+            # 时长：带 resolved_time（已解决/已归档，归档保留 resolved_time）按解决时刻计算并冻结；
+            # 其余（活跃/重开，resolved_time 已清空）按实时计算
             if resolved_time:
                 duration_seconds = int(resolved_time) - int(create_time)
             else:
@@ -796,7 +818,9 @@ class IssueQueryHandler(BaseBizQueryHandler):
         priority_display = dict(IssuePriority.CHOICES)
         cleaned["status_display"] = str(status_display.get(cleaned.get("status"), cleaned.get("status", "")))
         cleaned["priority_display"] = str(priority_display.get(cleaned.get("priority"), cleaned.get("priority", "")))
-        cleaned["is_resolved"] = resolved_time is not None
+        # is_resolved 基于当前状态判断（而非 resolved_time 是否存在），避免重开/合并成员残留 resolved_time 误判；
+        # 已归档(ARCHIVED)不视为"已解决"（归档是终态分流，resolved_time 仍可能保留），故显式排除
+        cleaned["is_resolved"] = cleaned.get("status") == IssueStatus.RESOLVED
 
         # impact_scope 添加 display_name
         impact_scope = data.get("impact_scope") or {}
