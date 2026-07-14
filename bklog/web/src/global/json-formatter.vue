@@ -286,7 +286,7 @@
   });
 
   const isShowOverflowY = computed(() => {
-    return showMoreAction.value && showAllText.value;
+    return (showMoreAction.value && showAllText.value) || isLimitExpandText.value;
   });
 
 
