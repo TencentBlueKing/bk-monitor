@@ -100,7 +100,7 @@ class CleanResult:
     @staticmethod
     def clean_new_series_seen_cache(strategy_range=None):
         """
-        清理新维度值检测(NewSeries)的已见维度集合缓存：按 max_series 上限把每条 seen-zset 收口。
+        清理新维度值检测(NewSeries)的已见维度集合缓存：按阈值分组的 max_series 上限收口各 seen-zset。
         热路径只读写不淘汰(仅 2*max_series 安全阀)，故由本周期任务按 10w 上限做主清理。
         逐条 zremrangebyrank 分批删(每批 5000)，不下"一条删百万成员"的长命令。
         另：对无 TTL(ttl==-1)的 seen-zset 补设软 TTL，兜住"首写后 expire 前崩溃"导致的无 TTL 残留泄漏。
@@ -126,41 +126,56 @@ class CleanResult:
                     continue
 
                 ns_configs = [(algorithm.get("config") or {}) for algorithm in ns_algorithms]
-                # max_series / detect_range 取各 NewSeries 算法配置的最大值(最宽松)，与 detector 写侧口径一致
-                max_series = max(int(c.get("max_series", 100000)) for c in ns_configs)
-                max_detect_range = max(int(c.get("detect_range", 0) or 0) for c in ns_configs)
-                soft_ttl = max(max_detect_range * 2, 86400)
 
                 # seen key 含维度签名(配置层 agg_dimension 的稳定 md5)，与 detector 口径一致
                 query_configs = item.get("query_configs") or []
                 agg_dimension = query_configs[0].get("agg_dimension") if query_configs else None
                 dimension_signature = NewSeries.signature_from_agg_dimension(agg_dimension)
 
-                seen_key = key.NEW_SERIES_SEEN_KEY.get_key(
-                    strategy_id=strategy["id"], item_id=item["id"], dimension_signature=dimension_signature
-                )
-                # 兜底：无 TTL 残留(ttl==-1) -> 补设软 TTL，防止首写崩溃后永久驻留
-                if client.ttl(seen_key) == -1:
-                    client.expire(seen_key, soft_ttl)
+                threshold_groups = {}
+                for config in ns_configs:
+                    threshold_groups.setdefault(int(config.get("threshold", 0)), []).append(config)
 
-                card = client.zcard(seen_key)
-                if card <= max_series:
-                    continue
+                for threshold, group_configs in threshold_groups.items():
+                    # 每个阈值组独立使用组内最宽松配置，与 detector 写侧口径一致。
+                    max_series = max(int(c.get("max_series", 100000)) for c in group_configs)
+                    max_detect_range = max(int(c.get("detect_range", 0) or 0) for c in group_configs)
+                    soft_ttl = max(max_detect_range * 2, 86400)
+                    params = {
+                        "strategy_id": strategy["id"],
+                        "item_id": item["id"],
+                        "dimension_signature": dimension_signature,
+                    }
+                    if threshold == 0:
+                        seen_cache_key = key.NEW_SERIES_SEEN_KEY
+                    else:
+                        seen_cache_key = key.NEW_SERIES_THRESHOLD_SEEN_KEY
+                        params["threshold"] = NewSeries.threshold_token(threshold)
+                    seen_key = seen_cache_key.get_key(**params)
 
-                # 分批删最旧(score 升序=last_seen 最旧)，收口到 max_series
-                excess = card - max_series
-                removed = 0
-                while removed < excess:
-                    step = min(5000, excess - removed)
-                    client.zremrangebyrank(seen_key, 0, step - 1)
-                    removed += step
-                logger.info(
-                    "clean_new_series_seen_cache strategy(%s) item(%s) trimmed %s -> %s",
-                    strategy["id"],
-                    item["id"],
-                    card,
-                    max_series,
-                )
+                    # 正常正 TTL 不续期；仅修复历史异常的无 TTL key。
+                    if client.ttl(seen_key) == -1:
+                        client.expire(seen_key, soft_ttl)
+
+                    card = client.zcard(seen_key)
+                    if card <= max_series:
+                        continue
+
+                    # 分批删最旧(score 升序=last_seen 最旧)，收口到组内 max_series。
+                    excess = card - max_series
+                    removed = 0
+                    while removed < excess:
+                        step = min(5000, excess - removed)
+                        client.zremrangebyrank(seen_key, 0, step - 1)
+                        removed += step
+                    logger.info(
+                        "clean_new_series_seen_cache strategy(%s) item(%s) threshold(%s) trimmed %s -> %s",
+                        strategy["id"],
+                        item["id"],
+                        threshold,
+                        card,
+                        max_series,
+                    )
 
     @staticmethod
     def clean_md5_to_dimension_cache():

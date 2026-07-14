@@ -418,6 +418,20 @@ NEW_SERIES_SEEN_KEY = register_key_with_config(
     }
 )
 
+# 非零阈值使用独立已见集合。threshold 由 detector 归一化为仅含字母和数字的稳定 token，
+# threshold=0 永久使用 NEW_SERIES_SEEN_KEY，避免升级时丢失已积累状态。
+NEW_SERIES_THRESHOLD_SEEN_KEY = register_key_with_config(
+    {
+        "label": "[detect]新维度值检测-阈值隔离已见维度集合(type:SortedSet)"
+        "(score: 维度最近出现时间戳(int), member: 维度指纹(record_id 前段))",
+        "key_type": "sorted_set",
+        "key_tpl": f"{KEY_PREFIX}.detect.new_series.threshold_seen.{{strategy_id}}.{{item_id}}."
+        "{dimension_signature}.{threshold}",
+        "ttl": TTL_NOT_SET,
+        "backend": "service",
+    }
+)
+
 # 新维度值检测-学习起点：历史兼容 key。旧版本用它记录 wall-clock 学习起点；新版本只用它判断旧策略已完成基线。
 # 与 seen key 同维度签名、同写入续期、一起过期。
 NEW_SERIES_LEARN_START_KEY = register_key_with_config(
@@ -437,6 +451,18 @@ NEW_SERIES_BASELINE_DONE_KEY = register_key_with_config(
         "label": "[detect]新维度值检测-基线完成标记(type:String)(value: 1)",
         "key_type": "string",
         "key_tpl": f"{KEY_PREFIX}.detect.new_series.baseline_done.{{strategy_id}}.{{item_id}}.{{dimension_signature}}",
+        "ttl": TTL_NOT_SET,
+        "backend": "service",
+    }
+)
+
+# 非零阈值的基线完成标记。threshold=0 继续使用旧 baseline_done/learn_start 两类 key。
+NEW_SERIES_THRESHOLD_BASELINE_DONE_KEY = register_key_with_config(
+    {
+        "label": "[detect]新维度值检测-阈值隔离基线完成标记(type:String)(value: 1)",
+        "key_type": "string",
+        "key_tpl": f"{KEY_PREFIX}.detect.new_series.threshold_baseline_done.{{strategy_id}}.{{item_id}}."
+        "{dimension_signature}.{threshold}",
         "ttl": TTL_NOT_SET,
         "backend": "service",
     }
