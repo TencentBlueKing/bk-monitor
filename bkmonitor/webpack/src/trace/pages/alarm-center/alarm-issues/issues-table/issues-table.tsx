@@ -37,6 +37,7 @@ import ExploreTableEmpty from '@/pages/trace-explore/components/trace-explore-ta
 
 import type { ColumnResizeContext, TableColumnItem, TablePagination } from '../../typings';
 import type { ImpactScopeEvent, IssueItem, IssuePriorityType, IssuesBatchActionType, TrendRangeType } from '../typing';
+import type { BkUiSettings } from '@blueking/tdesign-ui';
 import type { SelectOptions, SlotReturnValue } from 'tdesign-vue-next';
 
 import './issues-table.scss';
@@ -100,6 +101,10 @@ export default defineComponent({
       type: Function as PropType<(id: string, name: string) => Promise<void>>,
       default: () => () => Promise.resolve(),
     },
+    /** 表格设置属性类型 */
+    tableSettings: {
+      type: Object as PropType<Omit<BkUiSettings, 'hasCheckAll'>>,
+    },
     /** 趋势时间范围 */
     trendRange: {
       type: String as PropType<TrendRangeType>,
@@ -137,11 +142,20 @@ export default defineComponent({
     clearFilter: () => true,
     /** 列宽拖拽变化回调 */
     columnResizeChange: (context: ColumnResizeContext) => context && typeof context.columnsWidth === 'object',
+    /** 显示列字段变化 */
+    displayColFieldsChange: (displayColFields: string[]) => Array.isArray(displayColFields),
     /** 趋势时间范围变化 */
     trendRangeChange: (range: TrendRangeType) => typeof range === 'string',
   },
   setup(props, { emit }) {
     const tableRef = useTemplateRef<InstanceType<typeof CommonTable>>('tableRef');
+
+    /** 表格设置 */
+    const settings = computed(() => ({
+      ...props.tableSettings,
+      hasCheckAll: true,
+      showRowSize: false,
+    }));
 
     /** 图表联动组管理 */
     const { chartGroupId } = useEchartsGroupConnect(() => props.data);
@@ -205,6 +219,7 @@ export default defineComponent({
 
     return {
       transformedColumns,
+      settings,
     };
   },
   render() {
@@ -237,8 +252,10 @@ export default defineComponent({
           pagination={this.pagination}
           selectedRowKeys={this.selectedRowKeys}
           sort={this.sort}
+          tableSettings={this.settings}
           onColumnResizeChange={context => this.$emit('columnResizeChange', context)}
           onCurrentPageChange={page => this.$emit('currentPageChange', page)}
+          onDisplayColFieldsChange={displayColFields => this.$emit('displayColFieldsChange', displayColFields)}
           onPageSizeChange={pageSize => this.$emit('pageSizeChange', pageSize)}
           onSelectChange={(keys, options) => this.$emit('selectionChange', (keys ?? []) as string[], options)}
           onSortChange={sort => this.$emit('sortChange', sort)}

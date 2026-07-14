@@ -335,6 +335,11 @@ class ApplicationConfig(BkCollectorConfig):
         license_config = self.get_license_config()
         queue_config = self.get_queue_config()
         attribute_config = self.get_config(ConfigTypes.DB_CONFIG, DEFAULT_APM_APPLICATION_ATTRIBUTE_CONFIG)
+        drop_rules = attribute_config.setdefault("drop", [])
+        for field in self.get_drop_fields_config():
+            rule = {"predicate_key": field, "keys": [field]}
+            if rule not in drop_rules:
+                drop_rules.append(rule)
         attribute_config_logs = self.get_config(
             ConfigTypes.ATTRIBUTES_CONFIG_LOGS, DEFAULT_APM_APPLICATION_LOGS_ATTRIBUTE_CONFIG
         )
@@ -409,6 +414,18 @@ class ApplicationConfig(BkCollectorConfig):
             config["instance_configs"] = self.update_all_configs(old_instance_configs, all_instance_configs, "id")
 
         return config
+
+    def get_drop_fields_config(self) -> list[str]:
+        params = {"bk_biz_id": self._application.bk_biz_id, "app_name": self._application.app_name}
+        if self.config_cache:
+            json_value = self.config_cache.get_normal_type_value(**params, config_type=ConfigTypes.DROP_FIELDS_CONFIG)
+        else:
+            json_value = NormalTypeValueConfig.get_app_value(**params, config_type=ConfigTypes.DROP_FIELDS_CONFIG)
+
+        if not json_value:
+            return []
+
+        return json.loads(json_value)
 
     def get_metrics_filter_config(self) -> dict:
         params = {"bk_biz_id": self._application.bk_biz_id, "app_name": self._application.app_name}

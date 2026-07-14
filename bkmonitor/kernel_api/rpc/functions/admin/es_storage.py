@@ -38,6 +38,7 @@ from kernel_api.rpc.functions.admin.common import (
     serialize_option,
     serialize_value,
 )
+from kernel_api.rpc.functions.admin.storage_cluster_history import build_storage_cluster_records
 from metadata import models
 
 FUNC_ES_STORAGE_LIST = "admin.es_storage.list"
@@ -94,17 +95,6 @@ RESULT_TABLE_SUMMARY_FIELDS = [
     "is_deleted",
 ]
 CLUSTER_SUMMARY_FIELDS = ["cluster_id", "cluster_name", "display_name", "cluster_type"]
-STORAGE_CLUSTER_RECORD_FIELDS = [
-    "table_id",
-    "cluster_id",
-    "is_current",
-    "is_deleted",
-    "enable_time",
-    "disable_time",
-    "delete_time",
-    "creator",
-    "create_time",
-]
 RESULT_TABLE_OPTION_NAMES = {
     models.ResultTableOption.OPTION_ES_DOCUMENT_ID,
     models.ResultTableOption.OPTION_CUSTOM_REPORT_DIMENSION_VALUES,
@@ -283,23 +273,6 @@ def _get_es_storage_or_raise(bk_tenant_id: str, table_id: str):
         return models.ESStorage.objects.get(bk_tenant_id=bk_tenant_id, table_id=table_id)
     except models.ESStorage.DoesNotExist as error:
         raise CustomException(message=f"未找到 ESStorage: table_id={table_id}") from error
-
-
-def _serialize_storage_cluster_record(record: Any, cluster_map: dict[int, Any]) -> dict[str, Any]:
-    item = serialize_model(record, STORAGE_CLUSTER_RECORD_FIELDS)
-    item["cluster"] = _serialize_cluster_summary(cluster_map.get(record.cluster_id))
-    return item
-
-
-def _build_storage_cluster_records(es_storage: Any, bk_tenant_id: str) -> list[dict[str, Any]]:
-    record_table_id = es_storage.origin_table_id if _is_virtual_es_storage(es_storage) else es_storage.table_id
-    records = list(
-        models.StorageClusterRecord.objects.filter(bk_tenant_id=bk_tenant_id, table_id=record_table_id).order_by(
-            "-create_time"
-        )
-    )
-    cluster_map = _load_cluster_map(bk_tenant_id, [record.cluster_id for record in records])
-    return [_serialize_storage_cluster_record(record, cluster_map) for record in records]
 
 
 def _build_physical_table(es_storage: Any, bk_tenant_id: str) -> dict[str, Any] | None:
@@ -765,7 +738,7 @@ def get_es_storage_detail(params: dict[str, Any]) -> dict[str, Any]:
         "storage_cluster": _serialize_cluster_summary(cluster),
         "physical_table": _build_physical_table(es_storage, bk_tenant_id),
         "virtual_tables": _build_virtual_tables(es_storage, bk_tenant_id),
-        "storage_cluster_records": _build_storage_cluster_records(es_storage, bk_tenant_id),
+        "storage_cluster_records": build_storage_cluster_records(es_storage, bk_tenant_id),
         "result_table_options": _build_result_table_options(table_id, bk_tenant_id),
         "field_aliases": _build_field_aliases(table_id, bk_tenant_id, warnings),
     }

@@ -8,7 +8,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 from datetime import timedelta
+from unittest.mock import patch
 from django.utils import timezone
 
 import pytest
@@ -21,19 +23,43 @@ base_time = timezone.datetime(2020, 1, 1, tzinfo=timezone.utc)
 
 @pytest.fixture
 def create_or_delete_records(mocker):
-    models.ESStorage.objects.create(table_id="1001_bklog.stdout", storage_cluster_id=11)
+    models.ClusterInfo.objects.create(
+        bk_tenant_id="system",
+        cluster_id=11,
+        cluster_name="es-current",
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        domain_name="es-current.example.com",
+        port=9200,
+        description="",
+        is_default_cluster=False,
+    )
+    models.ClusterInfo.objects.create(
+        bk_tenant_id="system",
+        cluster_id=12,
+        cluster_name="es-history",
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        domain_name="es-history.example.com",
+        port=9200,
+        description="",
+        is_default_cluster=False,
+    )
+    models.ESStorage.objects.create(
+        table_id="1001_bklog.stdout", storage_cluster_id=11, index_set="bklog_index_set_1001"
+    )
     models.ResultTable.objects.create(
         table_id="1001_bklog.stdout",
         table_name_zh="stdout",
         data_label="bklog_index_set_1001",
         labels={"scene": "log"},
         is_custom_table=False,
+        default_storage=models.ClusterInfo.TYPE_ES,
     )
 
     models.ESStorage.objects.create(
         table_id="1001_bklog.stdout_fake",
         storage_cluster_id=11,
         origin_table_id="1001_bklog.stdout",
+        index_set="bklog_index_set_fake",
     )
     models.ResultTable.objects.create(
         table_id="1001_bklog.stdout_fake",
@@ -41,6 +67,7 @@ def create_or_delete_records(mocker):
         data_label="bklog_index_set_1001",
         labels={"scene": "log-fake"},
         is_custom_table=False,
+        default_storage=models.ClusterInfo.TYPE_ES,
     )
 
     # 日志链路必备的两个查询Option： need_add_time & time_field
@@ -113,17 +140,30 @@ def create_or_delete_records(mocker):
     models.ESFieldQueryAliasOption.objects.filter(table_id="1001_bklog.stdout").delete()
 
 
+def _push_table_id_details(table_ids: list[str]) -> dict[str, dict]:
+    with (
+        patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset,
+        patch("metadata.utils.redis_tools.RedisTools.publish"),
+    ):
+        SpaceTableIDRedis().push_table_id_detail(
+            bk_tenant_id="system",
+            table_id_list=table_ids,
+            is_publish=False,
+        )
+
+    return {key.split("|")[0]: json.loads(value) for key, value in mock_hmset.call_args.args[1].items()}
+
+
 @pytest.mark.django_db(databases="__all__")
 def test_compose_es_table_detail(create_or_delete_records):
     """
     测试生成ES结果表详情路由
     """
-    client = SpaceTableIDRedis()
-    res = client._compose_es_table_id_detail(table_id_list=["1001_bklog.stdout"], bk_tenant_id="system")
+    res = _push_table_id_details(["1001_bklog.stdout"])
     expected = {
         "1001_bklog.stdout": {
             "storage_id": 11,
-            "db": None,
+            "db": "bklog_index_set_1001",
             "measurement": "__default__",
             "source_type": "log",
             "options": {
@@ -132,8 +172,22 @@ def test_compose_es_table_detail(create_or_delete_records):
             },
             "storage_type": "elasticsearch",
             "storage_cluster_records": [
-                {"enable_time": 1572652800, "storage_id": 12},
-                {"enable_time": 1575244800, "storage_id": 11},
+                {
+                    "enable_time": 1575244800,
+                    "storage_id": 11,
+                    "storage_type": "elasticsearch",
+                    "db": "bklog_index_set_1001",
+                    "measurement": "__default__",
+                    "source_type": "log",
+                },
+                {
+                    "enable_time": 1572652800,
+                    "storage_id": 12,
+                    "storage_type": "elasticsearch",
+                    "db": "bklog_index_set_1001",
+                    "measurement": "__default__",
+                    "source_type": "log",
+                },
             ],
             "data_label": "bklog_index_set_1001",
             "labels": {"scene": "log"},
@@ -152,12 +206,11 @@ def test_compose_es_table_detail_for_fake_rt(create_or_delete_records):
     """
     测试虚拟RT的路由生成
     """
-    client = SpaceTableIDRedis()
-    res = client._compose_es_table_id_detail(table_id_list=["1001_bklog.stdout_fake"], bk_tenant_id="system")
+    res = _push_table_id_details(["1001_bklog.stdout_fake"])
     expected = {
         "1001_bklog.stdout_fake": {
             "storage_id": 11,
-            "db": None,
+            "db": "bklog_index_set_fake",
             "measurement": "__default__",
             "source_type": "log",
             "options": {
@@ -166,8 +219,22 @@ def test_compose_es_table_detail_for_fake_rt(create_or_delete_records):
             },
             "storage_type": "elasticsearch",
             "storage_cluster_records": [
-                {"enable_time": 1572652800, "storage_id": 12},
-                {"enable_time": 1575244800, "storage_id": 11},
+                {
+                    "enable_time": 1575244800,
+                    "storage_id": 11,
+                    "storage_type": "elasticsearch",
+                    "db": "bklog_index_set_fake",
+                    "measurement": "__default__",
+                    "source_type": "log",
+                },
+                {
+                    "enable_time": 1572652800,
+                    "storage_id": 12,
+                    "storage_type": "elasticsearch",
+                    "db": "bklog_index_set_fake",
+                    "measurement": "__default__",
+                    "source_type": "log",
+                },
             ],
             "data_label": "bklog_index_set_1001",
             "labels": {"scene": "log-fake"},

@@ -13,6 +13,7 @@ import json
 from unittest.mock import call, patch
 
 import pytest
+from django.utils import timezone
 
 from metadata import models
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
@@ -25,6 +26,7 @@ origin_doris_table_id_new = "2_bklog.test_doris_origin_new"
 
 non_exist_es_table_id = "2_bklog.test_es_non_exists"
 exist_es_table_id = "2_bklog.test_es_exists"
+origin_es_table_id = "2_bklog.test_es_origin"
 
 
 @pytest.fixture
@@ -39,6 +41,24 @@ def create_or_delete_records(mocker):
         table_id=exist_es_table_id,
         bk_biz_id=1001,
         is_custom_table=False,
+    )
+    models.ResultTable.objects.create(
+        table_id=origin_doris_table_id,
+        bk_biz_id=1001,
+        is_custom_table=False,
+        default_storage=models.ClusterInfo.TYPE_DORIS,
+    )
+    models.ResultTable.objects.create(
+        table_id=origin_doris_table_id_new,
+        bk_biz_id=1001,
+        is_custom_table=False,
+        default_storage=models.ClusterInfo.TYPE_DORIS,
+    )
+    models.ResultTable.objects.create(
+        table_id=origin_es_table_id,
+        bk_biz_id=1001,
+        is_custom_table=False,
+        default_storage=models.ClusterInfo.TYPE_ES,
     )
 
     # Space
@@ -90,9 +110,48 @@ def create_or_delete_records(mocker):
         is_default_cluster=False,
         cluster_id=10037,
     )
+    models.ESStorage.objects.create(
+        table_id=origin_es_table_id,
+        storage_cluster_id=10036,
+        source_type="bkdata",
+        index_set="origin_es",
+    )
+    models.StorageClusterRecord.objects.bulk_create(
+        [
+            models.StorageClusterRecord(
+                table_id=origin_doris_table_id,
+                cluster_id=10034,
+                is_current=True,
+                enable_time=timezone.now(),
+                creator="system",
+            ),
+            models.StorageClusterRecord(
+                table_id=origin_doris_table_id_new,
+                cluster_id=10035,
+                is_current=True,
+                enable_time=timezone.now(),
+                creator="system",
+            ),
+            models.StorageClusterRecord(
+                table_id=origin_es_table_id,
+                cluster_id=10036,
+                is_current=True,
+                enable_time=timezone.now(),
+                creator="system",
+            ),
+        ]
+    )
     yield
     models.ResultTable.objects.filter(
-        table_id__in=[non_exist_doris_table_id, exist_doris_table_id, non_exist_es_table_id, exist_es_table_id]
+        table_id__in=[
+            non_exist_doris_table_id,
+            exist_doris_table_id,
+            origin_doris_table_id,
+            origin_doris_table_id_new,
+            origin_es_table_id,
+            non_exist_es_table_id,
+            exist_es_table_id,
+        ]
     ).delete()
     models.ResultTableField.objects.filter(
         table_id__in=[non_exist_doris_table_id, exist_doris_table_id, non_exist_es_table_id, exist_es_table_id]
@@ -100,7 +159,12 @@ def create_or_delete_records(mocker):
     models.DorisStorage.objects.filter(
         table_id__in=[non_exist_doris_table_id, exist_doris_table_id, origin_doris_table_id, origin_doris_table_id_new]
     ).delete()
-    models.ESStorage.objects.filter(table_id__in=[non_exist_es_table_id, exist_es_table_id]).delete()
+    models.ESStorage.objects.filter(
+        table_id__in=[non_exist_es_table_id, exist_es_table_id, origin_es_table_id]
+    ).delete()
+    models.StorageClusterRecord.objects.filter(
+        table_id__in=[origin_doris_table_id, origin_doris_table_id_new, origin_es_table_id]
+    ).delete()
     models.ClusterInfo.objects.all().delete()
     models.Space.objects.all().delete()
 
@@ -129,17 +193,39 @@ def test_create_or_update_log_doris_router_resource_for_bkcc(create_or_delete_re
             )
             CreateOrUpdateLogRouter().request(**create_params)
             expected_space_router = {"bkcc__2": '{"2_bklog.test_doris_non_exists":{"filters":[]}}'}
-            expected_rt_detail_router = {
-                non_exist_doris_table_id: '{"db":"2_bklog_pure_doris,2_bklog_doris_log","measurement":"doris",'
-                '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839","labels":{},"field_alias":{}}'
+            storage_record_enable_timestamp = int(
+                models.StorageClusterRecord.objects.get(table_id=origin_doris_table_id).enable_time.timestamp()
+            )
+            expected_rt_detail = {
+                "storage_type": "bk_sql",
+                "storage_id": 10034,
+                "storage_name": "default_doris",
+                "cluster_name": "default_doris",
+                "db": "2_bklog_pure_doris,2_bklog_doris_log",
+                "measurement": "doris",
+                "storage_cluster_records": [
+                    {
+                        "storage_id": 10034,
+                        "storage_type": "bk_sql",
+                        "storage_name": "default_doris",
+                        "cluster_name": "default_doris",
+                        "db": "2_bklog_pure_doris,2_bklog_doris_log",
+                        "measurement": "doris",
+                        "enable_time": storage_record_enable_timestamp,
+                    }
+                ],
+                "data_label": "bkdata_index_set_7839",
+                "labels": {},
+                "field_alias": {},
             }
 
             # 创建流程,先推送RT详情路由,再推送空间路由
-            mock_hmset_to_redis.assert_has_calls(
-                [
-                    call("bkmonitorv3:spaces:result_table_detail", expected_rt_detail_router),
-                    call("bkmonitorv3:spaces:space_to_result_table", expected_space_router),
-                ]
+            detail_call, space_call = mock_hmset_to_redis.call_args_list[:2]
+            assert detail_call.args[0] == "bkmonitorv3:spaces:result_table_detail"
+            assert json.loads(detail_call.args[1][non_exist_doris_table_id]) == expected_rt_detail
+            assert space_call == call(
+                "bkmonitorv3:spaces:space_to_result_table",
+                expected_space_router,
             )
 
             mock_publish.assert_has_calls(
@@ -160,6 +246,7 @@ def test_create_or_update_log_doris_router_resource_for_bkcc(create_or_delete_re
             assert result_table_ins.data_label == "bkdata_index_set_7839"
             assert result_table_ins.default_storage == "doris"
             assert result_table_ins.bk_biz_id == 2
+            assert not models.StorageClusterRecord.objects.filter(table_id=non_exist_doris_table_id).exists()
 
     actual_storage = GetResultTableStorageResult().request(
         bk_tenant_id="system",
@@ -207,19 +294,12 @@ def test_create_or_update_log_doris_router_resource_for_bkcc(create_or_delete_re
     with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
         with patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish:
             space_client = SpaceTableIDRedis()
-            space_client.push_doris_table_id_detail(
+            space_client.push_table_id_detail(
                 bk_tenant_id="system", table_id_list=[non_exist_doris_table_id], is_publish=True
             )
-            expected_rt_detail_router = {
-                non_exist_doris_table_id: '{"db":"2_bklog_pure_doris,2_bklog_doris_log","measurement":"doris",'
-                '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839","labels":{},"field_alias":{}}'
-            }
-
-            mock_hmset_to_redis.assert_has_calls(
-                [
-                    call("bkmonitorv3:spaces:result_table_detail", expected_rt_detail_router),
-                ]
-            )
+            redis_key, redis_values = mock_hmset_to_redis.call_args.args
+            assert redis_key == "bkmonitorv3:spaces:result_table_detail"
+            assert json.loads(redis_values[non_exist_doris_table_id]) == expected_rt_detail
 
             mock_publish.assert_has_calls(
                 [
@@ -248,17 +328,35 @@ def test_create_or_update_log_doris_router_resource_for_bkcc(create_or_delete_re
                 storage_cluster_id=10035,
             )
             CreateOrUpdateLogRouter().request(**modify_params)
-            expected_rt_detail_router = {
-                non_exist_doris_table_id: '{"db":"2_bklog_pure_doris","measurement":"doris",'
-                '"storage_type":"bk_sql","data_label":"bkdata_index_set_7839","labels":{},"field_alias":{}}'
+            modified_storage_record_enable_timestamp = int(
+                models.StorageClusterRecord.objects.get(table_id=origin_doris_table_id_new).enable_time.timestamp()
+            )
+            modified_rt_detail = {
+                "storage_type": "bk_sql",
+                "storage_id": 10035,
+                "storage_name": "custom_doris",
+                "cluster_name": "custom_doris",
+                "db": "2_bklog_pure_doris",
+                "measurement": "doris",
+                "storage_cluster_records": [
+                    {
+                        "storage_id": 10035,
+                        "storage_type": "bk_sql",
+                        "storage_name": "custom_doris",
+                        "cluster_name": "custom_doris",
+                        "db": "2_bklog_pure_doris",
+                        "measurement": "doris",
+                        "enable_time": modified_storage_record_enable_timestamp,
+                    }
+                ],
+                "data_label": "bkdata_index_set_7839",
+                "labels": {},
+                "field_alias": {},
             }
 
-            # 创建流程,先推送RT详情路由,再推送空间路由
-            mock_hmset_to_redis.assert_has_calls(
-                [
-                    call("bkmonitorv3:spaces:result_table_detail", expected_rt_detail_router),
-                ]
-            )
+            redis_key, redis_values = mock_hmset_to_redis.call_args.args
+            assert redis_key == "bkmonitorv3:spaces:result_table_detail"
+            assert json.loads(redis_values[non_exist_doris_table_id]) == modified_rt_detail
 
             mock_publish.assert_has_calls(
                 [
@@ -291,7 +389,7 @@ def test_create_or_update_log_es_router_resource_for_bkcc(create_or_delete_recor
         source_type="bkdata",
         bkbase_table_id="2_bklog_pure_es,2_bklog_es_log",
         storage_type="elasticsearch",
-        origin_table_id=non_exist_es_table_id,
+        origin_table_id=origin_es_table_id,
     )
 
     with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
@@ -299,50 +397,61 @@ def test_create_or_update_log_es_router_resource_for_bkcc(create_or_delete_recor
             CreateOrUpdateLogRouter().request(**create_params)
 
             storage_record_enable_timestamp = int(
-                models.StorageClusterRecord.objects.get(table_id=non_exist_es_table_id).enable_time.timestamp()
+                models.StorageClusterRecord.objects.get(table_id=origin_es_table_id).enable_time.timestamp()
             )
             expected_space_router = {"bkcc__2": '{"2_bklog.test_es_non_exists":{"filters":[]}}'}
 
-            detail_string = (
-                '{"storage_id":3,"db":"2_bklog_pure_es,2_bklog_es_log",'
-                '"measurement":"__default__","source_type":"bkdata","options":{},'
-                '"storage_type":"elasticsearch","storage_cluster_records":[{'
-                '"storage_id":3,"enable_time":1747130440}],'
-                '"data_label":"bkdata_index_set_6788","labels":{},"field_alias":{}}'
-            )
-
-            detail_string = detail_string.replace(
-                '"enable_time":1747130440', f'"enable_time":{storage_record_enable_timestamp}'
-            )
-
-            expected_rt_detail_router = {non_exist_es_table_id: detail_string}
+            expected_rt_detail = {
+                "storage_id": 10036,
+                "db": "2_bklog_pure_es,2_bklog_es_log",
+                "measurement": "__default__",
+                "source_type": "bkdata",
+                "options": {},
+                "storage_type": "elasticsearch",
+                "storage_cluster_records": [
+                    {
+                        "storage_id": 10036,
+                        "storage_type": "elasticsearch",
+                        "db": "2_bklog_pure_es,2_bklog_es_log",
+                        "measurement": "__default__",
+                        "source_type": "bkdata",
+                        "enable_time": storage_record_enable_timestamp,
+                    }
+                ],
+                "data_label": "bkdata_index_set_6788",
+                "labels": {},
+                "field_alias": {},
+            }
 
             # 创建流程,先推送RT详情路由,再推送空间路由
-
-            mock_hmset_to_redis.assert_has_calls(
-                [
-                    call("bkmonitorv3:spaces:result_table_detail", expected_rt_detail_router),
-                    call("bkmonitorv3:spaces:space_to_result_table", expected_space_router),
-                    call(
-                        "bkmonitorv3:spaces:data_label_to_result_table",
-                        {"bkdata_index_set_6788": '["2_bklog.test_es_non_exists"]'},
-                    ),
-                ]
+            first_detail_call, space_call, second_detail_call, data_label_call = mock_hmset_to_redis.call_args_list
+            for detail_call in [first_detail_call, second_detail_call]:
+                assert detail_call.args[0] == "bkmonitorv3:spaces:result_table_detail"
+                assert json.loads(detail_call.args[1][non_exist_es_table_id]) == expected_rt_detail
+            assert space_call == call(
+                "bkmonitorv3:spaces:space_to_result_table",
+                expected_space_router,
+            )
+            assert data_label_call == call(
+                "bkmonitorv3:spaces:data_label_to_result_table",
+                {"bkdata_index_set_6788": '["2_bklog.test_es_non_exists"]'},
             )
 
             mock_publish.assert_has_calls(
                 [
                     call("bkmonitorv3:spaces:result_table_detail:channel", [non_exist_es_table_id]),
                     call("bkmonitorv3:spaces:space_to_result_table:channel", ["bkcc__2"]),
+                    call("bkmonitorv3:spaces:result_table_detail:channel", [non_exist_es_table_id]),
                     call("bkmonitorv3:spaces:data_label_to_result_table:channel", ["bkdata_index_set_6788"]),
                 ]
             )
 
             es_storage_ins = models.ESStorage.objects.get(table_id=non_exist_es_table_id)
             assert es_storage_ins.index_set == "2_bklog_pure_es,2_bklog_es_log"
-            assert es_storage_ins.storage_cluster_id == 3
+            assert es_storage_ins.storage_cluster_id == 10036
             assert es_storage_ins.source_type == "bkdata"
-            assert es_storage_ins.origin_table_id == non_exist_es_table_id
+            assert es_storage_ins.origin_table_id == origin_es_table_id
+            assert not models.StorageClusterRecord.objects.filter(table_id=non_exist_es_table_id).exists()
 
             result_table_ins = models.ResultTable.objects.get(table_id=non_exist_es_table_id)
             assert result_table_ins.data_label == "bkdata_index_set_6788"
@@ -372,13 +481,15 @@ def test_create_or_update_log_es_router_resource_for_bkcc(create_or_delete_recor
     with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
         with patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish:
             space_client = SpaceTableIDRedis()
-            space_client.push_es_table_id_detail(table_id_list=[non_exist_es_table_id], is_publish=True)
-
-            mock_hmset_to_redis.assert_has_calls(
-                [
-                    call("bkmonitorv3:spaces:result_table_detail", expected_rt_detail_router),
-                ]
+            space_client.push_table_id_detail(
+                table_id_list=[non_exist_es_table_id],
+                is_publish=True,
+                bk_tenant_id="system",
             )
+
+            redis_key, redis_values = mock_hmset_to_redis.call_args.args
+            assert redis_key == "bkmonitorv3:spaces:result_table_detail"
+            assert json.loads(redis_values[non_exist_es_table_id]) == expected_rt_detail
 
             mock_publish.assert_has_calls(
                 [
@@ -400,24 +511,24 @@ def test_create_or_update_log_es_router_resource_for_bkcc(create_or_delete_recor
         with patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish:
             CreateOrUpdateLogRouter().request(**modify_params)
 
-            detail_string = (
-                '{"source_type":"bkdata","storage_id":3,"db":"2_bklog_pure_es",'
-                '"measurement":"__default__","storage_type":"elasticsearch","options":{},'
-                '"storage_cluster_records":[{"storage_id":3,"enable_time":1747130440}]}'
-            )
+            modified_rt_detail = {
+                **expected_rt_detail,
+                "db": "2_bklog_pure_es",
+                "storage_cluster_records": [
+                    {
+                        "storage_id": 10036,
+                        "storage_type": "elasticsearch",
+                        "db": "2_bklog_pure_es",
+                        "measurement": "__default__",
+                        "source_type": "bkdata",
+                        "enable_time": storage_record_enable_timestamp,
+                    }
+                ],
+            }
 
-            detail_string = detail_string.replace(
-                '"enable_time":1747130440', f'"enable_time":{storage_record_enable_timestamp}'
-            )
-
-            expected_rt_detail_router = {non_exist_es_table_id: detail_string}
-
-            # 创建流程,先推送RT详情路由,再推送空间路由
-            mock_hmset_to_redis.assert_has_calls(
-                [
-                    call("bkmonitorv3:spaces:result_table_detail", expected_rt_detail_router),
-                ]
-            )
+            redis_key, redis_values = mock_hmset_to_redis.call_args.args
+            assert redis_key == "bkmonitorv3:spaces:result_table_detail"
+            assert json.loads(redis_values[non_exist_es_table_id]) == modified_rt_detail
 
             mock_publish.assert_has_calls(
                 [
@@ -427,7 +538,7 @@ def test_create_or_update_log_es_router_resource_for_bkcc(create_or_delete_recor
 
             es_storage_ins = models.ESStorage.objects.get(table_id=non_exist_es_table_id)
             assert es_storage_ins.index_set == "2_bklog_pure_es"
-            assert es_storage_ins.storage_cluster_id == 3
+            assert es_storage_ins.storage_cluster_id == 10036
             assert es_storage_ins.source_type == "bkdata"
 
             result_table_ins = models.ResultTable.objects.get(table_id=non_exist_es_table_id)
