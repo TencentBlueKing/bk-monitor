@@ -1178,13 +1178,15 @@ export const parseTableRowData = (
  * @returns {String} 字段值
  */
 export const getRowFieldValue = (row, field) => {
-  if (field.is_virtual_alias_field) {
-    const fieldList = [field.field_name, ...field.source_field_names];
-    for (const fieldName of fieldList) {
-      const value = parseTableRowData(row, fieldName, field.field_type, false, null);
-      if (value !== undefined && value !== null && value !== '') {
-        return value ?? '--';
-      }
+  const showFieldAlias = store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS];
+  const fieldList = showFieldAlias
+    ? [field.query_alias, field.field_name, ...(field.is_virtual_alias_field ? (field.source_field_names || []) : [])]
+    : [field.field_name];
+
+  for (const fieldName of [...new Set(fieldList.filter(Boolean))]) {
+    const value = parseTableRowData(row, fieldName, field.field_type, false, null);
+    if (value !== undefined && value !== null && value !== '') {
+      return value ?? '--';
     }
   }
 

@@ -74,6 +74,7 @@
         :total-fields="totalFields"
         :visible-fields="visibleFields"
         :search-keyword="activeSearchKeyword"
+        :render-meta="renderMeta"
         @value-click="
           (type, content, isLink, field, depth) => $emit('value-click', type, content, isLink, field, depth)
         "
@@ -127,6 +128,10 @@
       rowKey: {
         type: String,
         default: '',
+      },
+      renderMeta: {
+        type: Object,
+        default: null,
       },
     },
     data() {

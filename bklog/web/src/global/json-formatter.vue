@@ -406,9 +406,38 @@
     return expandedOriginalValueTexts.value[fieldName];
   };
 
-  const getOriginalValueSegments = (fieldName: string) => {
+  const getAliasAwareSegments = (field: any, segments: Record<string, any[]> | undefined) => {
+    if (!segments || !store.state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]) {
+      return segments;
+    }
+
+    const mappedSegments = { ...segments };
+    let hasMappedAlias = false;
+
+    // 接口 list 的别名值以 query_alias 为 key；formatter/JSON 树则按真实字段路径消费。
+    // 这里覆盖当前列及 Object 子字段，确保 alias segments 优先于未高亮的真实字段 segments。
+    for (const aliasFieldName of Object.keys(segments)) {
+      const sourceFieldName = fieldNameHook.changeFieldName(aliasFieldName);
+      if (sourceFieldName !== aliasFieldName && Array.isArray(segments[aliasFieldName])) {
+        mappedSegments[sourceFieldName] = segments[aliasFieldName];
+        hasMappedAlias = true;
+      }
+    }
+
+    const aliasFieldName = field.query_alias || (field.is_virtual_alias_field ? field.field_name : '');
+    if (aliasFieldName && Array.isArray(segments[aliasFieldName])) {
+      mappedSegments[field.field_name] = segments[aliasFieldName];
+      hasMappedAlias = true;
+    }
+
+    return hasMappedAlias ? mappedSegments : segments;
+  };
+
+  const getOriginalValueSegments = (field: any) => {
+    const fieldName = field.field_name;
+    const aliasAwareSegments = getAliasAwareSegments(field, props.renderMeta?.fieldSegments);
     if (!isOriginalMode.value) {
-      return props.renderMeta?.fieldSegments;
+      return aliasAwareSegments;
     }
 
     if (expandedOriginalValueFields.value[fieldName]) {
@@ -421,7 +450,7 @@
       }
 
       return {
-        ...props.renderMeta?.fieldSegments,
+        ...aliasAwareSegments,
         [fieldName]: expandedOriginalValueSegments.value[fieldName],
       };
     }
@@ -433,12 +462,12 @@
       }
 
       return {
-        ...props.renderMeta?.fieldSegments,
+        ...aliasAwareSegments,
         [fieldName]: originalValuePreviewSegmentCache.get(fieldName),
       };
     }
 
-    return props.renderMeta?.fieldSegments;
+    return aliasAwareSegments;
   };
 
   const getOriginalValueDisplayText = (fieldName: string, fallback: any) => {
@@ -672,10 +701,11 @@
             : formatter.stringValue,
           precomputedSegments: shouldSkipPrecomputedSegments
             ? undefined
-            : getOriginalValueSegments(f.field_name),
+            : getOriginalValueSegments(f),
           // JSON 解析开启时：叶子长字符串 / 超深度残留字符串启用 1000/更多（Origin & Table 均生效）
           enableLeafTruncate: formatJson.value,
           parsedFromJsonString: formatter.parsedFromJsonString,
+          resolveFieldDisplayName: (fieldName: string) => fieldNameHook.getFieldName(fieldName),
         },
         originalValueMeta: {
           isTruncated: shouldUseOriginalValueText,

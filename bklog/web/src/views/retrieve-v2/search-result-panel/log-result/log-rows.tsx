@@ -1133,6 +1133,7 @@ export default defineComponent({
             data={row}
             kv-show-fields-list={kvShowFieldsList.value}
             list-data={row}
+            render-meta={getRowRenderMeta(row)}
             row-index={realRowIndex}
             row-key={getRowComponentKey(row) || rowKeys.value[realRowIndex] || ''}
             onValue-click={(type, content, isLink, field, depth, isNestedField) => {

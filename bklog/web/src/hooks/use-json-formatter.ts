@@ -494,6 +494,7 @@ export default class UseJsonFormatter {
       maxParseDepth: depth,
       field: this.config.field,
       parsedFromJsonString: !!this.config.options?.parsedFromJsonString,
+      resolveFieldDisplayName: this.config.options?.resolveFieldDisplayName,
       segmentRender: (value: string, rootNode: HTMLElement) => {
         this.renderLeafSegment(value, rootNode);
       },
@@ -538,7 +539,11 @@ export default class UseJsonFormatter {
       rootNode.removeAttribute('data-leaf-expanded');
     }
 
-    const vlaues = this.getSplitList(this.config.field, renderText, { usePrecomputedSegments: false });
+    const leafFieldName = rootNode.getAttribute('data-search-field-name') || this.config.field?.field_name;
+    const leafField = this.getField(leafFieldName) ?? leafFieldName ?? this.config.field;
+    const vlaues = this.getSplitList(leafField, renderText, {
+      usePrecomputedSegments: !isTruncatable,
+    });
     if (taskId !== this.segmentTaskId || !rootNode.isConnected) return;
 
     rootNode.innerHTML = '';

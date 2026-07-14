@@ -44,6 +44,8 @@ export type JsonViewConfig = {
   maxParseDepth?: number;
   /** 根值是否由 JSON String 解析得到；此时叶子筛选必须作用于外层字段 */
   parsedFromJsonString?: boolean;
+  /** 将真实字段路径转换为展示别名；返回原路径时沿用 JSON 原始 KEY。 */
+  resolveFieldDisplayName?: (_fieldPath: string) => string;
 };
 export default class JsonView {
   options: JsonViewConfig;
@@ -72,7 +74,7 @@ export default class JsonView {
     this.activeDepth = Number(this.options.depth ?? 1);
   }
 
-  private createJsonField(name: number | string) {
+  private createJsonField(name: number | string, fieldPath = '') {
     const fieldEl = document.createElement('span');
     fieldEl.classList.add('bklog-json-view-field');
 
@@ -81,9 +83,11 @@ export default class JsonView {
     // JSON String 的命中标记可能出现在 KEY 中。解析成对象后 key 会保留标记文本，
     // 必须在 DOM 渲染前转换成纯文本和高亮范围，避免标签泄漏。
     const { plainText, markRanges } = parseResultMarkedText(name);
+    const displayName = fieldPath ? this.options.resolveFieldDisplayName?.(fieldPath) : undefined;
+    const displayText = displayName && displayName !== fieldPath ? displayName : plainText;
     fieldText.appendChild(highlightPlainTextIntoFragment({
-      text: plainText,
-      resultRanges: markRanges,
+      text: displayText,
+      resultRanges: displayText === plainText ? markRanges : [],
     }));
 
     fieldEl.append(fieldText);
@@ -160,7 +164,10 @@ export default class JsonView {
     if (jsonStringFieldPath) {
       row.setAttribute('data-json-string-parsed', 'true');
     }
-    row.append(this.createJsonField(key));
+    // JSON String 解析出的子 KEY 只是展示结构，并不是真实字段路径。
+    // 它们的筛选仍绑定外层真实字段，但不能被外层字段别名替换。
+    const displayFieldPath = jsonStringFieldPath ? '' : searchFieldPath;
+    row.append(this.createJsonField(key, displayFieldPath));
     row.append(this.createJsonSymbol());
     row.append(this.createJsonNodeElment(value, depth, searchFieldPath, jsonStringFieldPath));
 

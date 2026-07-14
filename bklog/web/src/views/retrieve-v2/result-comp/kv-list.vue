@@ -102,6 +102,7 @@
               :fields="getFieldItem(field.field_name)"
               :json-value="getFieldValue(field)"
               :limit-row="limitRow"
+              :render-meta="renderMeta"
               @menu-click="agrs => handleJsonSegmentClick(agrs, field.field_name)"
             ></JsonFormatter>
           </div>
@@ -122,6 +123,7 @@
 <script>
   // import { getTextPxWidth, TABLE_FOUNT_FAMILY } from '@/common/util';
   import JsonFormatter from '@/global/json-formatter.vue';
+  import { getRowFieldValue } from '@/common/util';
   import { getFieldNameByField } from '@/hooks/use-field-name';
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
   import _escape from 'lodash/escape';
@@ -171,6 +173,10 @@
       searchKeyword: {
         type: String,
         default: '',
+      },
+      renderMeta: {
+        type: Object,
+        default: null,
       },
     },
     data() {
@@ -781,11 +787,7 @@
       getFieldValue(field) {
         if (!field) return '--';
 
-        if (field.field_name.indexOf('.') === -1 && field.field_name.indexOf('[') === -1) {
-          return this.listData?.[field.field_name];
-        }
-
-        return this.tableRowDeepView(this.listData, field.field_name, field.field_type, false) ?? '--';
+        return getRowFieldValue(this.listData, field);
       },
       getFieldType(fieldName) {
         return this.fieldItemMapByName[fieldName]?.field_type || '';
