@@ -179,8 +179,8 @@ export class LineChart
     if (this.customMenuList) return this.customMenuList;
     const [target] = this.panel.targets;
     return target?.datasource === 'time_series'
-      ? ['save', 'more', 'fullscreen', 'explore', 'area', 'drill-down', 'relate-alert']
-      : ['screenshot', 'area'];
+      ? ['save', 'more', 'fullscreen', 'explore', 'set', 'area', 'drill-down', 'relate-alert']
+      : ['screenshot', 'set', 'area'];
   }
 
   // 是否显示添加指标到策略选项
