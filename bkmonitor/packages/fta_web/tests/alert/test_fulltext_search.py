@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import pytest
+from elasticsearch_dsl import Search
 
 from fta_web.alert.handlers import base as base_handler_module
 from fta_web.alert.handlers.alert import AlertQueryHandler
@@ -351,6 +352,36 @@ class TestIncidentAlertFulltextWhitelist:
         handler = IncidentQueryHandler.__new__(IncidentQueryHandler)
         q = handler.build_query_string_q("a")
         assert q.to_dict() == {"match_none": {}}
+
+    @pytest.mark.parametrize("handler_class", [AlertQueryHandler, IncidentQueryHandler])
+    def test_invalid_fulltext_neq_stays_match_none(self, handler_class):
+        handler = handler_class.__new__(handler_class)
+        handler.query_context = None
+        condition = {
+            "key": "query_string",
+            "value": ["a"],
+            "method": "neq",
+            "condition": "and",
+        }
+
+        body = handler.add_conditions(Search(), [condition]).to_dict()
+
+        assert body["query"]["bool"]["filter"] == [{"match_none": {}}]
+
+    @pytest.mark.parametrize("handler_class", [AlertQueryHandler, IncidentQueryHandler])
+    def test_valid_fulltext_neq_is_still_negated(self, handler_class):
+        handler = handler_class.__new__(handler_class)
+        handler.query_context = None
+        condition = {
+            "key": "query_string",
+            "value": ["分析"],
+            "method": "neq",
+            "condition": "and",
+        }
+
+        body = handler.add_conditions(Search(), [condition]).to_dict()
+
+        assert body["query"]["bool"]["filter"][0]["bool"]["must_not"]
 
     def test_quoted_boolean_phrase_stays_on_whitelist(self):
         handler = IncidentQueryHandler.__new__(IncidentQueryHandler)

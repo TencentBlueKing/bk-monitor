@@ -479,7 +479,9 @@ class BaseQueryHandler:
             q = self.parse_condition_item(condition)
             if q is None:
                 continue
-            if condition["method"] == "neq":
+            # 非法全文词用 match_none 防止条件被静默丢弃；不得再取反为 match_all。
+            invalid_fulltext = condition["key"] == "query_string" and q.name == "match_none"
+            if condition["method"] == "neq" and not invalid_fulltext:
                 q = ~q
             if cond_q is None:
                 cond_q = q
