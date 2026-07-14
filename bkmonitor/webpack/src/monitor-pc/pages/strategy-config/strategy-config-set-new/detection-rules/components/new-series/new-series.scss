@@ -34,28 +34,22 @@
     }
   }
 
-  .threshold-condition {
+  .threshold-interval {
     display: flex;
     align-items: center;
+    color: #63656e;
 
-    .threshold-operator {
-      padding: 0 16px;
-      line-height: 32px;
-      background: #f5f7fa;
-      border: 1px solid #c4c6cc;
-      border-radius: 2px;
-    }
+    > .date-input {
+      width: auto;
+      margin-left: 3px;
 
-    .threshold-input {
-      width: 218px;
-      margin: 0 8px;
+      .bk-input-number {
+        width: 60px;
+      }
     }
   }
 
-  .threshold-rule {
-    display: block;
-    margin-top: 8px;
-    font-size: 12px;
+  .threshold-tip {
     color: #3a84ff;
   }
 
