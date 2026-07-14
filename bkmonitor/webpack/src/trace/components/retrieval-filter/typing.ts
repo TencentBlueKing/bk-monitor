@@ -31,6 +31,8 @@ export enum EFieldType {
   all = 'all',
   // 布尔类型tag输入框
   boolean = 'boolean',
+  // 级联选择器
+  cascade = 'cascade',
   // 日期类型 (TODO)
   date = 'date',
   // 是否为耗时组件
@@ -47,8 +49,6 @@ export enum EFieldType {
   numberInput = 'number_input',
   // textarea 输入框
   text = 'text',
-  // 树形选择器
-  treeSelect = 'tree_select',
 }
 
 export enum EMethod {
@@ -443,7 +443,7 @@ export const RETRIEVAL_FILTER_PROPS = {
   },
   // ui 模式下已选条件tag的value显示值格式化
   tagValueDisplayFormatter: {
-    type: Function as PropType<(val: boolean | number | string) => JSX.Element | string>,
+    type: Function as PropType<(val: boolean | number | string, fieldId: string) => JSX.Element | string>,
     default: (val, _fieldId) => `${val}`,
   },
 };
@@ -514,7 +514,7 @@ export const UI_SELECTOR_PROPS = {
   },
   // ui 模式下已选条件tag的value显示值格式化
   tagValueDisplayFormatter: {
-    type: Function as PropType<(val: boolean | number | string) => JSX.Element | string>,
+    type: Function as PropType<(val: boolean | number | string, fieldId: string) => JSX.Element | string>,
     default: (val, _fieldId) => `${val}`,
   },
 };
@@ -828,7 +828,7 @@ export const KV_TAG_PROPS = {
   },
   // ui 模式下已选条件tag的value显示值格式化
   tagValueDisplayFormatter: {
-    type: Function as PropType<(val: boolean | number | string) => JSX.Element | string>,
+    type: Function as PropType<(val: boolean | number | string, fieldId: string) => JSX.Element | string>,
     default: (val, _fieldId) => `${val}`,
   },
 };

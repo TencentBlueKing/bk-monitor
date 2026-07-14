@@ -101,6 +101,7 @@ export default defineComponent({
           isShowFavorite={false}
           isShowResident={false}
           isSingleMode={true}
+          loadDelay={0}
           queryString={props.queryString}
           tagValueDisplayFormatter={tagValueDisplayFormatter}
           where={props.where}

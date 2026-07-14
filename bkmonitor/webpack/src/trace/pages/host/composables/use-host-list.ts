@@ -30,7 +30,6 @@ import { Message } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
 
 import { EMode } from '../../../components/retrieval-filter/typing';
-
 import {
   HOST_AGG_METHOD_LIST,
   HOST_FILTER_FIELDS,
@@ -146,11 +145,9 @@ export const useHostList = (options: IUseHostListOptions) => {
 
   /** 检索候选项获取函数（Worker 内基于全量数据构建的候选项映射） */
   const getValueFn = async (params: IGetValueFnParams): Promise<IWhereValueOptionsItem> => {
-    const response = await hostListWorker.getFilterOptions(
-      params.field || '',
-      params.search || '',
-      params.limit || 200
-    );
+    const field = params.fields?.[0] || '';
+    const search = String(params.where?.[0]?.value?.[0] || '').toLowerCase();
+    const response = await hostListWorker.getFilterOptions(field, search, params.limit || 200);
     return response.result;
   };
 
