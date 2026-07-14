@@ -86,14 +86,16 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
     return store
       .dispatch('setQueryCondition', { field, operator, value, isLink, depth, isNestedField })
       .then(([newSearchList, searchMode, isNewSearchPage]) => {
+        if (isLink) {
+          const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
+          window.open(openUrl, '_blank', 'noopener,noreferrer');
+          return;
+        }
+
         setRouteParams();
         if (from === 'origin') {
           RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
           RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
-        }
-        if (isLink) {
-          const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
-          window.open(openUrl, '_blank', 'noopener,noreferrer');
         }
       });
   };
@@ -170,7 +172,9 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
       case 'is':
       case 'is not':
       case 'not':
-      case 'new-search-page-is': {
+      case 'new-search-page-is':
+      case 'contains match phrase':
+      case 'not contains match phrase': {
         isParamsChange = true;
         const operator = operation === 'not' ? 'is not' : operation;
         handleSearchCondition(fieldName || field, operator, actualValue, isLink, depth, isNestedField);

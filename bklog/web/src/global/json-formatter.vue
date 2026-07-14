@@ -4,11 +4,14 @@
     :class="[
       'bklog-json-formatter-root',
       {
-        'is-wrap-line': isWrap,
-        'is-inline': !isWrap,
+        'is-wrap-line': !isOriginalMode && isWrap,
+        'is-inline': !isOriginalMode && !isWrap,
+        'is-original-wrap-line': isOriginalMode && isWrap,
         'is-json': formatJson,
         'is-hidden': !isRowIntersecting && isResolved,
         'show-all-word': showAllWords,
+        'is-original-mode': isOriginalMode,
+        'is-overflow-y': isShowOverflowY,
       },
     ]"
     :style="rootElementStyle"
@@ -24,16 +27,28 @@
           ><span
             class="black-mark"
             :data-field-name="item.name"
-            >{{ getFieldName(item.name) }}</span
+            v-html="getHighlightedFieldNameHtml(item.name)"
           ></span
-        >
+        ></span>
         <span
           class="field-value"
           :data-with-intersection="true"
           :data-field-name="item.name"
+          :data-search-field-name="item.name"
           :ref="item.formatter.ref"
           >{{ item.formatter.stringValue }}</span
         >
+        <button
+          v-if="isOriginalMode && item.originalValueMeta?.isTruncated"
+          class="btn-original-value-action"
+          type="button"
+          :aria-expanded="isOriginalValueExpanded(item.name)"
+          @click="handleOriginalValueActionClick($event, item.name)"
+          @mousedown="stopOriginalValueActionEvent"
+          @mouseup="stopOriginalValueActionEvent"
+        >
+          {{ getOriginalValueActionText(item.name) }}
+        </button>
       </span>
     </template>
     <template v-if="showMoreAction">
@@ -47,6 +62,10 @@
     </template>
   </div>
 </template>
+<script lang="ts">
+  const ORIGINAL_VALUE_EXPAND_STATE_CACHE_LIMIT = 500;
+  const originalValueExpandStateCache = new Map<string, Record<string, boolean>>();
+</script>
 <script setup lang="ts">
   import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
@@ -58,10 +77,18 @@
   import useRetrieveEvent from '@/hooks/use-retrieve-event';
   import JSONBig from 'json-bigint';
   import { debounce, isEmpty } from 'lodash-es';
+  import {
+    ORIGINAL_VALUE_EXPANDED_TEXT_LENGTH,
+    ORIGINAL_VALUE_PREVIEW_TEXT_LENGTH,
+    splitRenderText,
+    stripMark,
+    truncateMarkedTextByChars,
+  } from '../storage/utils/retrieve-render-meta';
   import useJsonRoot from '../hooks/use-json-root';
   import useStore from '../hooks/use-store';
   import { BK_LOG_STORAGE } from '../store/store.type';
   import RetrieveHelper, { RetrieveEvent } from '../views/retrieve-helper';
+  import { buildHighlightHtml, pageHighlightState } from '../views/retrieve-core/page-highlight';
 
   const emit = defineEmits(['menu-click']);
   const store = useStore();
@@ -76,6 +103,20 @@
       type: [Array, Object],
       default: () => [],
     },
+    renderMeta: {
+      type: Object,
+      default: null,
+    },
+
+    originalMode: {
+      type: Boolean,
+      default: false,
+    },
+
+    stateKey: {
+      type: [String, Number],
+      default: '',
+    },
 
     limitRow: {
       type: [Number, String, null],
@@ -84,9 +125,14 @@
   });
 
   const bigJson = JSONBig({ useNativeBigInt: true });
-  const formatCounter = ref(0);
+  const fieldNameHook = useFieldNameHook({ store });
   const refJsonFormatterCell = ref();
   const showAllText = ref(false);
+  const expandedOriginalValueFields = ref<Record<string, boolean>>({});
+  const originalValuePreviewTextCache = new Map<string, { text: string; isTruncated: boolean }>();
+  const originalValuePreviewSegmentCache = new Map<string, any[]>();
+  const expandedOriginalValueTexts = ref<Record<string, string>>({});
+  const expandedOriginalValueSegments = ref<Record<string, any[]>>({});
   const hasScrollY = ref(false);
   const isRowIntersecting = inject('isRowIntersecting', ref(false));
   const isResolved = ref(isRowIntersecting.value);
@@ -95,7 +141,13 @@
   const isWrap = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_LINE_IS_WRAP]);
   const isLimitExpandText = computed(() => store.state.storage[BK_LOG_STORAGE.IS_LIMIT_EXPAND_VIEW]);
   const formatJson = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]);
+  const isOriginalMode = computed(() => props.originalMode);
   const limitRowNumber = computed(() => {
+    // KV 等场景传入 'auto'：不限制行高，也不展示「更多」
+    if (props.limitRow === 'auto') {
+      return 'auto';
+    }
+
     if (props.limitRow === null || props.limitRow === undefined || props.limitRow === '') {
       return null;
     }
@@ -113,13 +165,17 @@
   });
 
   const rootElementStyle = computed(() => {
+    if (limitRowNumber.value === 'auto') {
+      return undefined;
+    }
+
     if (isCurrentCellExpandText.value) {
       return {
         maxHeight: '50vh',
       };
     }
 
-    if (limitRowNumber.value !== null) {
+    if (typeof limitRowNumber.value === 'number') {
       return {
         maxHeight: `${20 * limitRowNumber.value}px`,
       };
@@ -138,8 +194,85 @@
     return [Object.assign({}, props.fields, { __is_virtual_root__: true })];
   });
 
+  const originalValueFieldsSignature = computed(() =>
+    fieldList.value
+      .map((item: any) => String(item.field_name) + ':' + String(item.field_type ?? ''))
+      .join('\u0001'),
+  );
+
+  const clearOriginalValueRenderCache = () => {
+    originalValuePreviewTextCache.clear();
+    originalValuePreviewSegmentCache.clear();
+    expandedOriginalValueTexts.value = {};
+    expandedOriginalValueSegments.value = {};
+  };
+
+  const getOriginalValueExpandStateKey = () => {
+    if (!isOriginalMode.value || props.stateKey === null || props.stateKey === undefined || props.stateKey === '') {
+      return '';
+    }
+
+    return String(props.stateKey);
+  };
+
+  const persistOriginalValueExpandedFields = () => {
+    const stateKey = getOriginalValueExpandStateKey();
+    if (!stateKey) return;
+
+    originalValueExpandStateCache.delete(stateKey);
+    originalValueExpandStateCache.set(stateKey, { ...expandedOriginalValueFields.value });
+
+    while (originalValueExpandStateCache.size > ORIGINAL_VALUE_EXPAND_STATE_CACHE_LIMIT) {
+      const oldestKey = originalValueExpandStateCache.keys().next().value;
+      originalValueExpandStateCache.delete(oldestKey);
+    }
+  };
+
+  const restoreOriginalValueExpandedFields = () => {
+    const stateKey = getOriginalValueExpandStateKey();
+    expandedOriginalValueFields.value = stateKey
+      ? { ...(originalValueExpandStateCache.get(stateKey) ?? {}) }
+      : {};
+  };
+
+  const resetOriginalValueState = () => {
+    expandedOriginalValueFields.value = {};
+    persistOriginalValueExpandedFields();
+    clearOriginalValueRenderCache();
+  };
+
+  const syncOriginalValueState = () => {
+    restoreOriginalValueExpandedFields();
+    clearOriginalValueRenderCache();
+  };
+
+  const pruneOriginalValueExpandedFields = () => {
+    if (!isOriginalMode.value) return;
+
+    const fieldNameSet = new Set(fieldList.value.map((item: any) => item.field_name));
+    const nextExpandedFields: Record<string, boolean> = {};
+    let hasPruned = false;
+
+    for (const fieldName of Object.keys(expandedOriginalValueFields.value)) {
+      if (fieldNameSet.has(fieldName)) {
+        nextExpandedFields[fieldName] = expandedOriginalValueFields.value[fieldName];
+      } else {
+        hasPruned = true;
+      }
+    }
+
+    if (hasPruned) {
+      expandedOriginalValueFields.value = nextExpandedFields;
+      persistOriginalValueExpandedFields();
+    }
+  };
+
   const showMoreTextAction = computed(() => {
-    if (limitRowNumber.value !== null && !isLimitExpandText.value) {
+    if (isOriginalMode.value) {
+      return false;
+    }
+
+    if (typeof limitRowNumber.value === 'number' && !isLimitExpandText.value) {
       return true;
     }
 
@@ -152,6 +285,11 @@
     return !showMoreTextAction.value || showAllText.value;
   });
 
+  const isShowOverflowY = computed(() => {
+    return showMoreAction.value && showAllText.value;
+  });
+
+
   const btnText = computed(() => {
     if (showAllText.value) {
       return ` ...${$t('收起')}`;
@@ -160,8 +298,215 @@
     return ` ...${$t('更多')}`;
   });
 
+  const stopOriginalValueActionEvent = (e: MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  };
+
+  const isOriginalValueExpanded = (fieldName: string) => !!expandedOriginalValueFields.value[fieldName];
+
+  const getOriginalValueActionText = (fieldName: string) => {
+    return isOriginalValueExpanded(fieldName) ? $t('收起') : $t('更多');
+  };
+
+  /**
+   * 从 renderMeta / __highlight / 字段值中取带 <mark> 的渲染文本。
+   * 仅用于 Origin 截断内容生成，避免截断后丢失检索高亮。
+   */
+  const getFieldMarkedSourceText = (fieldName: string, field: any) => {
+    // 1) renderMeta 预分词（与 Expand/表格同源，含检索高亮）
+    const metaSegments = props.renderMeta?.fieldSegments?.[fieldName];
+    if (Array.isArray(metaSegments) && metaSegments.length) {
+      const markedFromSegments = metaSegments
+        .map(segment => (segment?.isMark ? `<mark>${segment.text ?? ''}</mark>` : (segment?.text ?? '')))
+        .join('');
+      if (markedFromSegments) {
+        return markedFromSegments;
+      }
+    }
+
+    // 2) 大字段 32KB 截断文本（已保留 mark）
+    const truncatedByField = props.renderMeta?.truncatedTextByField?.[fieldName];
+    if (typeof truncatedByField === 'string' && truncatedByField) {
+      return truncatedByField;
+    }
+
+    const row = props.jsonValue !== null && typeof props.jsonValue === 'object'
+      ? props.jsonValue
+      : null;
+
+    // 3) __highlight 原始命中文本
+    if (row) {
+      const highlightValue = row.__highlight?.[fieldName];
+      const marked = Array.isArray(highlightValue) ? highlightValue[0] : highlightValue;
+      if (typeof marked === 'string' && /<\/?mark>/i.test(marked)) {
+        return marked;
+      }
+    }
+
+    // 4) 字段值本身可能已叠加 mark overlay
+    const [, val] = getFieldValue(field);
+    const renderText = getDateFieldValue(field, getCellRender(val), isFormatDateField.value);
+    return renderText?.replace?.(/<\/mark>/igm, '</mark>') ?? String(renderText ?? '');
+  };
+
+  /** 截断判定仍基于字段展示原文长度，避免因 mark 源切换改变「是否展示更多」 */
+  const getOriginalValuePlainText = (fieldName: string) => {
+    const field = fieldList.value.find((item: any) => item.field_name === fieldName) ?? { field_name: fieldName };
+    const [, val] = getFieldValue(field);
+    const renderText = getDateFieldValue(field, getCellRender(val), isFormatDateField.value);
+    return renderText?.replace?.(/<\/mark>/igm, '</mark>') ?? String(renderText ?? '');
+  };
+
+  const getOriginalValueRenderText = (fieldName: string) => {
+    const field = fieldList.value.find((item: any) => item.field_name === fieldName) ?? { field_name: fieldName };
+    return getFieldMarkedSourceText(fieldName, field);
+  };
+
+  const getOriginalValuePreviewInfo = (fieldName: string) => {
+    if (!originalValuePreviewTextCache.has(fieldName)) {
+      // 先按原文长度判定是否截断：绝大多数短字段到此结束，避免无谓重建 mark 文本
+      const plainText = getOriginalValuePlainText(fieldName);
+      const isTruncated = stripMark(plainText).length > ORIGINAL_VALUE_PREVIEW_TEXT_LENGTH;
+      if (!isTruncated) {
+        originalValuePreviewTextCache.set(fieldName, {
+          text: plainText,
+          isTruncated: false,
+        });
+        return originalValuePreviewTextCache.get(fieldName);
+      }
+
+      // 仅超长字段才拼接/截断带 mark 的源文本
+      const markedText = getOriginalValueRenderText(fieldName);
+      originalValuePreviewTextCache.set(fieldName, {
+        text: truncateMarkedTextByChars(markedText, ORIGINAL_VALUE_PREVIEW_TEXT_LENGTH),
+        isTruncated: true,
+      });
+    }
+
+    return originalValuePreviewTextCache.get(fieldName);
+  };
+
+  const getOriginalValuePreviewText = (fieldName: string) => getOriginalValuePreviewInfo(fieldName)?.text;
+
+  const isOriginalValueTruncated = (fieldName: string) => !!getOriginalValuePreviewInfo(fieldName)?.isTruncated;
+
+  const getOriginalValueExpandedText = (fieldName: string) => {
+    if (!expandedOriginalValueTexts.value[fieldName]) {
+      expandedOriginalValueTexts.value = {
+        ...expandedOriginalValueTexts.value,
+        [fieldName]: truncateMarkedTextByChars(
+          getOriginalValueRenderText(fieldName),
+          ORIGINAL_VALUE_EXPANDED_TEXT_LENGTH,
+        ),
+      };
+    }
+
+    return expandedOriginalValueTexts.value[fieldName];
+  };
+
+  const getOriginalValueSegments = (fieldName: string) => {
+    if (!isOriginalMode.value) {
+      return props.renderMeta?.fieldSegments;
+    }
+
+    if (expandedOriginalValueFields.value[fieldName]) {
+      if (!expandedOriginalValueSegments.value[fieldName]) {
+        const expandedText = getOriginalValueExpandedText(fieldName);
+        expandedOriginalValueSegments.value = {
+          ...expandedOriginalValueSegments.value,
+          [fieldName]: splitRenderText(expandedText),
+        };
+      }
+
+      return {
+        ...props.renderMeta?.fieldSegments,
+        [fieldName]: expandedOriginalValueSegments.value[fieldName],
+      };
+    }
+
+    if (isOriginalValueTruncated(fieldName)) {
+      if (!originalValuePreviewSegmentCache.has(fieldName)) {
+        // 基于保留 mark 的截断文本重新分词，保证 isMark 与 Expand 一致
+        originalValuePreviewSegmentCache.set(fieldName, splitRenderText(getOriginalValuePreviewText(fieldName)));
+      }
+
+      return {
+        ...props.renderMeta?.fieldSegments,
+        [fieldName]: originalValuePreviewSegmentCache.get(fieldName),
+      };
+    }
+
+    return props.renderMeta?.fieldSegments;
+  };
+
+  const getOriginalValueDisplayText = (fieldName: string, fallback: any) => {
+    if (!isOriginalMode.value) {
+      return fallback;
+    }
+
+    const renderText = expandedOriginalValueFields.value[fieldName]
+      ? getOriginalValueExpandedText(fieldName)
+      : getOriginalValuePreviewText(fieldName);
+
+    // 模板初始展示去掉 mark 标签，避免出现原始 <mark> 文本闪烁；
+    // 检索高亮由 precomputedSegments.isMark 在分词渲染阶段恢复。
+    return renderText?.replace?.(/<\/?mark>/igm, '') ?? fallback;
+  };
+
+  const resetOriginalValueRenderedFlag = (fieldName: string) => {
+    const root = refJsonFormatterCell.value as HTMLElement | undefined;
+    const elements = root?.querySelectorAll?.('.field-value[data-field-name]') ?? [];
+    for (const element of Array.from(elements) as HTMLElement[]) {
+      if (element.getAttribute('data-field-name') === fieldName) {
+        element.removeAttribute('data-has-word-split');
+      }
+    }
+  };
+
+  const resetAllWordSplitFlags = () => {
+    const root = refJsonFormatterCell.value as HTMLElement | undefined;
+    const elements = root?.querySelectorAll?.('.field-value[data-has-word-split]') ?? [];
+    for (const element of Array.from(elements) as HTMLElement[]) {
+      element.removeAttribute('data-has-word-split');
+    }
+  };
+
+  const resetOriginalValueRenderedFlags = () => {
+    if (!isOriginalMode.value) return;
+
+    const root = refJsonFormatterCell.value as HTMLElement | undefined;
+    const elements = root?.querySelectorAll?.('.field-value[data-field-name][data-has-word-split]') ?? [];
+    for (const element of Array.from(elements) as HTMLElement[]) {
+      const fieldName = element.getAttribute('data-field-name');
+      if (fieldName && isOriginalValueTruncated(fieldName)) {
+        element.removeAttribute('data-has-word-split');
+      }
+    }
+  };
+
+  const handleOriginalValueActionClick = (e: MouseEvent, fieldName: string) => {
+    stopOriginalValueActionEvent(e);
+    RetrieveHelper.jsonFormatter.setIsExpandNodeClick(true);
+    expandedOriginalValueFields.value = {
+      ...expandedOriginalValueFields.value,
+      [fieldName]: !expandedOriginalValueFields.value[fieldName],
+    };
+    persistOriginalValueExpandedFields();
+    nextTick(() => {
+      resetOriginalValueRenderedFlag(fieldName);
+      debounceUpdate();
+      scheduleSetIsOverflowY();
+      RetrieveHelper.fire(RetrieveEvent.RESULT_ROW_BOX_RESIZE);
+    });
+  };
+
   let mousedownItem = null;
   const handleMouseDown = e => {
+    e.stopPropagation();
+    e.preventDefault();
+    e.stopImmediatePropagation();
     mousedownItem = e.target;
   };
 
@@ -170,6 +515,7 @@
     e.preventDefault();
     e.stopImmediatePropagation();
     if (mousedownItem === e.target) {
+      RetrieveHelper.jsonFormatter.setIsExpandNodeClick(true);
       showAllText.value = !showAllText.value;
       scheduleSetIsOverflowY();
     }
@@ -213,17 +559,12 @@
   };
 
   const getDateFieldValue = (field, content, formatDate) => {
-    if (content === null || content === undefined || content === '' || content === '--') {
-      return '--';
-    }
-
     if (formatDate && ['date_nanos', 'date'].includes(field.field_type)) {
       const timezone = store.state.indexItem.timezone;
-      const formatValue = RetrieveHelper.formatTimeZoneValue(content, field.field_type, timezone);
-      return formatValue === 'Invalid Date' ? content : formatValue;
+      return RetrieveHelper.formatTimeZoneValue(content, field.field_type, timezone);
     }
 
-    return content;
+    return content !== null && content !== undefined && content !== '' ? content : '--';
   };
 
   const getFieldValue = field => {
@@ -248,8 +589,12 @@
     return [props.jsonValue, props.jsonValue];
   };
 
-  const getCellRender = (val: unknown) => {
-    if (typeof val === 'object') {
+  const getCellRender = (val: unknown, isJson = false) => {
+    if (val !== null && typeof val === 'object') {
+      if (isJson) {
+        return Array.isArray(val) ? '[...]' : '{...}';
+      }
+
       try {
         return JSON.stringify(val, null, 2);
       } catch (e) {
@@ -267,33 +612,77 @@
     }
 
     return val;
-  }
+  };
 
   const getFieldFormatter = (field, formatDate) => {
     const [objValue, val] = getFieldValue(field);
-    const strVal = getDateFieldValue(field, getCellRender(val), formatDate);
+    const isJsonValue = objValue !== null && typeof objValue === 'object' && objValue !== undefined;
+    const parsedFromJsonString = typeof val === 'string' && isJsonValue;
+    const strVal = getDateFieldValue(field, getCellRender(val, isJsonValue), formatDate);
     return {
       ref: ref(),
-      isJson: typeof objValue === 'object' && objValue !== undefined,
+      isJson: isJsonValue,
       value: formatEmptyObject(getDateFieldValue(field, objValue, formatDate)),
       stringValue: strVal?.replace?.(/<\/?mark>/igm, '') ?? strVal,
       field,
+      parsedFromJsonString,
     };
   };
 
-  const getFieldName = field => {
-    const { getFieldName } = useFieldNameHook({ store });
-    return getFieldName(field);
+  const getFieldName = field => fieldNameHook.getFieldName(field);
+
+  /** 根字段 KEY 同样应用页面高亮，与 VALUE 划选高亮保持一致 */
+  const getHighlightedFieldNameHtml = (fieldName: string) => {
+    // 依赖 version，确保匹配模式/关键字变化后 KEY 同步重绘
+    void pageHighlightState.version;
+    return buildHighlightHtml({ text: String(getFieldName(fieldName) ?? '') });
   };
 
   const rootList = computed(() => {
-    formatCounter.value++;
-    return fieldList.value.map((f: any) => ({
-      name: f.field_name,
-      type: f.field_type,
-      formatter: getFieldFormatter(f, isFormatDateField.value && !!f.__is_virtual_root__),
-      __is_virtual_root__: !!f.__is_virtual_root__,
-    }));
+    return fieldList.value.map((f: any) => {
+      const shouldFormatDate = isFormatDateField.value && (!!f.__is_virtual_root__ || isOriginalMode.value);
+      const isDateField = ['date', 'date_nanos'].includes(f.field_type);
+      const formatter = getFieldFormatter(f, shouldFormatDate);
+      /**
+       * Origin 模式根级 1000 截断：
+       * - 未开启 JSON 解析：保持原逻辑，整段 VALUE 超长则截断 + 更多
+       * - 已开启 JSON 解析且可解析为对象/数组：禁止根级 slice，交由 JSON 树渲染；
+       *   1000/更多仅作用于叶子不可解析字符串（及超深度残留字符串）
+       */
+      const shouldUseOriginalValueText =
+        isOriginalMode.value
+        && isOriginalValueTruncated(f.field_name)
+        && !(formatJson.value && formatter.isJson);
+      /**
+       * precomputedSegments 策略：
+       * 时间格式化只应让 date/date_nanos 跳过预分词（展示值已重算）。
+       * 若对 Object/文本等非时间字段也跳过，会落入 getSplitList 非 analyzed
+       * 单段 isMark 回退，把子字段命中放大成整 Column <mark>。
+       */
+      const shouldSkipPrecomputedSegments = shouldFormatDate && isDateField;
+      return {
+        name: f.field_name,
+        type: f.field_type,
+        formatter: {
+          ...formatter,
+          isJson: shouldUseOriginalValueText ? false : formatter.isJson,
+          value: shouldUseOriginalValueText ? getOriginalValueDisplayText(f.field_name, formatter.stringValue) : formatter.value,
+          stringValue: shouldUseOriginalValueText
+            ? getOriginalValueDisplayText(f.field_name, formatter.stringValue)
+            : formatter.stringValue,
+          precomputedSegments: shouldSkipPrecomputedSegments
+            ? undefined
+            : getOriginalValueSegments(f.field_name),
+          // JSON 解析开启时：叶子长字符串 / 超深度残留字符串启用 1000/更多（Origin & Table 均生效）
+          enableLeafTruncate: formatJson.value,
+          parsedFromJsonString: formatter.parsedFromJsonString,
+        },
+        originalValueMeta: {
+          isTruncated: shouldUseOriginalValueText,
+        },
+        __is_virtual_root__: !!f.__is_virtual_root__,
+      };
+    });
   });
 
   const depth = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT_DEPTH]);
@@ -319,10 +708,63 @@
   };
 
   watch(
-    () => [props.limitRow, props.jsonValue, props.fields, isLimitExpandText.value, isFormatDateField.value],
+    () => [props.limitRow, isLimitExpandText.value],
     () => {
       showAllText.value = false;
       hasScrollY.value = false;
+      scheduleSetIsOverflowY();
+    },
+  );
+
+  watch(
+    () => [props.jsonValue, originalValueFieldsSignature.value, isOriginalMode.value],
+    () => {
+      if (isOriginalMode.value) return;
+
+      showAllText.value = false;
+      hasScrollY.value = false;
+      scheduleSetIsOverflowY();
+    },
+  );
+
+  watch(
+    () => [props.jsonValue, isOriginalMode.value, props.stateKey],
+    () => {
+      if (getOriginalValueExpandStateKey()) {
+        syncOriginalValueState();
+      } else {
+        resetOriginalValueState();
+      }
+      hasScrollY.value = false;
+      scheduleSetIsOverflowY();
+    },
+    {
+      immediate: true,
+    },
+  );
+
+  watch(
+    () => [originalValueFieldsSignature.value, formatJson.value],
+    () => {
+      pruneOriginalValueExpandedFields();
+      clearOriginalValueRenderCache();
+      hasScrollY.value = false;
+      scheduleSetIsOverflowY();
+    },
+  );
+
+  watch(
+    () => isFormatDateField.value,
+    () => {
+      // 时间格式化开关变化后，必须清掉分词标记并强制重渲染；
+      // 否则 DOM 仍保留旧的 data-has-word-split 文本，看起来像开关失效。
+      pruneOriginalValueExpandedFields();
+      clearOriginalValueRenderCache();
+      resetAllWordSplitFlags();
+      hasScrollY.value = false;
+      if (isResolved.value) {
+        debounceUpdate();
+      }
       scheduleSetIsOverflowY();
     },
   );
@@ -337,9 +779,10 @@
   );
 
   watch(
-    () => [formatCounter.value],
+    () => [props.jsonValue, props.fields, props.renderMeta, formatJson.value, pageHighlightState.version, expandedOriginalValueFields.value],
     () => {
       if (isResolved.value) {
+        resetOriginalValueRenderedFlags();
         debounceUpdate();
       }
     },
@@ -379,9 +822,17 @@
     color: var(--table-fount-color);
     text-align: left;
 
+    &.is-overflow-y {
+      overflow-y: auto;
+
+      .btn-more-action {
+        position: relative;
+      }
+    }
+
     .bklog-scroll-box {
-      max-height: 50vh;
-      overflow: auto;
+      max-height: none;
+      overflow: visible;
       transform: translateZ(0); /* 强制开启GPU加速 */
       will-change: transform;
     }
@@ -400,6 +851,18 @@
       padding: 1px 2px;
     }
 
+    mark.result-highlight {
+      background-color: #faeeb1;
+    }
+
+    mark.page-highlight {
+      border-radius: 4px;
+    }
+
+    mark.result-highlight.page-highlight {
+      box-shadow: inset 0 -2px 0 rgb(255 128 0 / 70%);
+    }
+
     .btn-more-action {
       position: absolute;
       right: 4px;
@@ -407,6 +870,86 @@
       color: #3a84ff;
       cursor: pointer;
       background-color: #fff;
+    }
+
+    &.is-original-mode {
+      overflow: visible;
+      max-height: none !important;
+      white-space: normal;
+
+      > .bklog-root-field {
+        display: inline !important;
+        max-width: none;
+        margin-right: 8px;
+        white-space: normal;
+        word-break: break-all;
+        vertical-align: baseline;
+      }
+
+      .field-name,
+      .field-value,
+      .field-value[data-with-intersection] {
+        display: inline !important;
+        white-space: normal;
+      }
+
+      .field-value .segment-content,
+      .field-value .bklog-scroll-cell,
+      .field-value span,
+      .field-value mark,
+      .valid-text {
+        white-space: normal;
+      }
+
+      .field-value,
+      .field-value[data-with-intersection] {
+        max-height: none !important;
+        overflow: visible !important;
+        word-break: break-all;
+        overflow-wrap: anywhere;
+      }
+
+      &.is-original-wrap-line {
+        display: block;
+
+        > .bklog-root-field {
+          display: block !important;
+          margin-right: 0;
+        }
+      }
+
+      .btn-more-action {
+        display: none;
+      }
+
+      .btn-original-value-action {
+        display: inline !important;
+        padding: 0;
+        margin: 0 4px 0 2px;
+        font: inherit;
+        line-height: inherit;
+        color: #3a84ff;
+        vertical-align: baseline;
+        cursor: pointer;
+        background: transparent;
+        border: 0;
+        appearance: none;
+      }
+    }
+
+    // JSON 解析后叶子节点「更多/收起」：Origin / Table 共用
+    .btn-json-leaf-more {
+      display: inline !important;
+      padding: 0;
+      margin: 0 4px 0 2px;
+      font: inherit;
+      line-height: inherit;
+      color: #3a84ff;
+      vertical-align: baseline;
+      cursor: pointer;
+      background: transparent;
+      border: 0;
+      appearance: none;
     }
 
     .bklog-root-field {
@@ -441,6 +984,12 @@
           color: #16171a;
           background-color: #ebeef5;
           border-radius: 4px;
+
+          mark.page-highlight {
+            padding: 0 2px;
+            font-weight: 500;
+            border-radius: 2px;
+          }
         }
 
         &::after {
@@ -477,22 +1026,32 @@
       }
     }
 
-    &.show-all-word {
-      .bklog-root-field {
-        .field-value {
-          max-height: 50vh;
-          overflow: auto;
+    &:not(.is-original-mode).show-all-word {
+      // 非 JSON 文本展开时，保留字段值容器滚动，避免超长普通文本撑开表格行。
+      &:not(.is-json) {
+        .bklog-root-field {
+          .field-value {
+            max-height: 50vh;
+            overflow: auto;
 
-          &::-webkit-scrollbar {
-            width: 6px;
-            background: #fff;
-          }
+            &::-webkit-scrollbar {
+              width: 6px;
+              background: #fff;
+            }
 
-          &::-webkit-scrollbar-thumb {
-            background: #dcdee5;
-            border-radius: 2px;
+            &::-webkit-scrollbar-thumb {
+              background: #dcdee5;
+              border-radius: 2px;
+            }
           }
         }
+      }
+
+      // JSON 格式化后的超大 value 只由最内层分词容器负责滚动加载。
+      // KV 展开模式外层已有 .kv-list-wrapper 滚动，避免 field-value 再产生第三层滚动条。
+      .bklog-scroll-box {
+        max-height: 50vh;
+        overflow: auto;
       }
     }
 
@@ -524,7 +1083,9 @@
         cursor: pointer;
 
         &.focus-text,
-        &:hover {
+        &:hover,
+        &.focus-text *,
+        &:hover * {
           color: #3a84ff;
         }
       }
@@ -537,9 +1098,42 @@
 
     &.is-inline {
       .bklog-root-field {
-        display: inline-flex;
+        display: inline;
         word-break: break-all;
-        vertical-align: top; // 确保顶部对齐，避免基线对齐问题
+        vertical-align: baseline;
+
+        .field-name,
+        .field-value {
+          display: inline;
+          white-space: normal;
+        }
+
+        .field-name[data-is-virtual-root='true'] {
+          display: none;
+        }
+
+        // Table 非换行模式复用 Origin 的 JSON 渲染内容，只将外层流式排布改成 inline；
+        // 不能隐藏 .bklog-json-view-icon-text，否则收起态的 {...}/[...] 会丢失。
+        .field-value > .bklog-json-view-node,
+        .field-value > .bklog-json-view-node > .bklog-json-view-object,
+        .field-value > .bklog-json-view-node > .bklog-json-view-object > .bklog-json-view-icon-expand,
+        .field-value > .bklog-json-view-node > .bklog-json-view-object > .bklog-json-view-icon-text,
+        .field-value > .bklog-json-view-node > .bklog-json-view-object > .bklog-json-view-copy {
+          display: inline-block;
+          white-space: normal;
+          vertical-align: baseline;
+        }
+
+        .field-value > .bklog-json-view-node > .bklog-json-view-object > .bklog-json-view-icon-expand {
+          vertical-align: middle;
+        }
+
+        .bklog-json-field-value,
+        .segment-content,
+        .bklog-scroll-cell {
+          display: inline;
+          white-space: normal;
+        }
 
         .segment-content {
           word-break: break-all;

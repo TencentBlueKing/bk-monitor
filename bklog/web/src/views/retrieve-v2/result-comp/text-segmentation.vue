@@ -6,6 +6,7 @@
   import { BK_LOG_STORAGE } from '../../../store/store.type';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
+  import RetrieveHelper from '@/views/retrieve-helper';
   import { debounce } from 'lodash-es';
 
   const emit = defineEmits(['menu-click']);
@@ -82,8 +83,15 @@
     e.stopPropagation();
     e.preventDefault();
     e.stopImmediatePropagation();
+    RetrieveHelper.jsonFormatter.setIsExpandNodeClick(true);
 
     showAll.value = !showAll.value;
+  };
+
+  const handleMorePointerEvent = e => {
+    e.stopPropagation();
+    e.preventDefault();
+    e.stopImmediatePropagation();
   };
 
   const debounceSetSegmentTag = debounce(() => {
@@ -99,6 +107,8 @@
         ? {
             text: btnText.value,
             onClick: handleClickMore,
+            onMouseDown: handleMorePointerEvent,
+            onMouseUp: handleMorePointerEvent,
             attributes: {
               class: `btn-more-action ${!showAll.value ? 'show-all' : ''}`,
             },
