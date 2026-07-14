@@ -34,29 +34,19 @@
     }
   }
 
-  .threshold-condition {
+  .threshold-interval {
     display: flex;
     align-items: center;
+    color: #63656e;
 
-    .threshold-operator {
-      padding: 0 16px;
-      line-height: 32px;
-      background: #f5f7fa;
-      border: 1px solid #c4c6cc;
-      border-radius: 2px;
+    > .date-input {
+      width: auto;
+      margin-left: 3px;
+
+      .bk-input-number {
+        width: 60px;
+      }
     }
-
-    .threshold-input {
-      width: 218px;
-      margin: 0 8px;
-    }
-  }
-
-  .threshold-rule {
-    display: block;
-    margin-top: 8px;
-    font-size: 12px;
-    color: #3a84ff;
   }
 
   .select-method {
@@ -64,21 +54,6 @@
   }
 
   .dimension-alert {
-    margin-top: 10px;
-    background: #f5f7fa;
-    border: none;
-
-    .icon-info {
-      color: #979ba5;
-    }
-
-    .bk-alert-wraper {
-      align-items: center;
-    }
-
-    .bk-alert-title {
-      font-size: 12px;
-      color: #4d4f56;
-    }
+    color: #3a84ff;
   }
 }

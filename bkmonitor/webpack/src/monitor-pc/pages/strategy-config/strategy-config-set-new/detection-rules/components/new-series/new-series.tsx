@@ -105,17 +105,17 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
 
   rules = {
     level: [{ required: true, message: this.$t('必填项'), trigger: 'change' }],
-    threshold: [
-      {
-        validator: this.checkThreshold,
-        message: this.$t('阈值不能为空且必须为整数'),
-        trigger: 'change',
-      },
-    ],
     date: [
       {
         validator: this.checkDate,
         message: this.$t('时间不能为空且必须大于0'),
+        trigger: 'change',
+      },
+    ],
+    threshold: [
+      {
+        validator: this.checkThreshold,
+        message: this.$t('阈值不能为空且必须大于等于0'),
         trigger: 'change',
       },
     ],
@@ -190,7 +190,7 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
   }
 
   checkThreshold(value) {
-    return value !== null && value !== undefined && String(value).trim() !== '' && Number.isInteger(Number(value));
+    return value !== '' && value !== null && value !== undefined && value >= 0;
   }
 
   @Emit('dataChange')
@@ -245,25 +245,30 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
             property='threshold'
             required
           >
-            <div class='threshold-condition'>
-              <span class='threshold-operator'>{this.$t('大于')}</span>
+            <i18n
+              class='threshold-interval'
+              path='大于 {0} 个新增维度值'
+            >
               <bk-input
-                class='inline-input input-arrow threshold-input'
-                v-model={this.formData.threshold}
+                class='inline-input input-arrow date-input'
                 behavior='simplicity'
+                min={0}
                 precision={0}
                 readonly={this.readonly}
                 show-controls={false}
                 type='number'
-                onChange={this.emitLocalData}
+                value={this.formData.threshold}
+                onChange={val => {
+                  this.formData.threshold = val;
+                  this.emitLocalData();
+                }}
               />
-            </div>
-            <i18n
-              class='threshold-rule'
-              path='触发规则：仅当对应数据值大于{0}时触发告警'
-            >
-              <span>{this.formData.threshold}</span>
             </i18n>
+            <div class='dimension-alert'>
+              {this.$t('触发规则：仅当新增维度值数量大于{threshold}时触发告警', {
+                threshold: this.formData.threshold,
+              })}
+            </div>
           </bk-form-item>
           <bk-form-item
             error-display-type='normal'
@@ -274,14 +279,17 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
             <div class='date-interval'>
               <bk-input
                 class='inline-input input-arrow date-input'
-                v-model={this.formData.date}
                 behavior='simplicity'
                 min={1}
                 precision={0}
                 readonly={this.readonly}
                 show-controls={false}
                 type='number'
-                onChange={this.emitLocalData}
+                value={this.formData.date}
+                onChange={val => {
+                  this.formData.date = val;
+                  this.emitLocalData();
+                }}
               />
               <bk-select
                 class='inline-select unit-select'
@@ -299,14 +307,6 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
                 ))}
               </bk-select>
             </div>
-            <bk-alert
-              class='dimension-alert'
-              title={this.$t(
-                '每次检测任务出现新的维度值 {dimensions} 时，都会倒推过去 {window} 内是否出现过相同维度值，如果没有则告警，出现过则不告警。',
-                { dimensions: this.dimensionNames || this.$t('维度组合'), window: this.windowText }
-              )}
-              type='info'
-            />
           </bk-form-item>
         </bk-form>
       </div>
