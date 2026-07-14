@@ -1,3 +1,26 @@
+"""
+将全局用户索引集标签按空间迁移
+
+用法:
+    # 按 space_uid 迁移，多个空间使用逗号分隔
+    python manage.py migrate_index_set_user_tags --space_uid=bkcc__2,bkci__demo
+
+    # 按业务 ID 迁移，多个业务使用逗号分隔
+    python manage.py migrate_index_set_user_tags --bk_biz_id=2,3
+
+    # 全量迁移所有包含索引集的空间
+    python manage.py migrate_index_set_user_tags --all
+
+    # 清理未被引用的全局用户标签（仅清理，不执行迁移）
+    python manage.py migrate_index_set_user_tags --cleanup
+
+    # 预演以上任一操作，不写入数据
+    python manage.py migrate_index_set_user_tags --all --dry_run
+
+说明:
+    --space_uid、--bk_biz_id、--all 和 --cleanup 四种模式必须且只能指定一种。
+"""
+
 from django.core.management import BaseCommand, CommandError
 from django.db import transaction
 
@@ -9,10 +32,8 @@ class Command(BaseCommand):
     help = "Migrate user index-set tags to space scope"
 
     def add_arguments(self, parser):
-        parser.add_argument("--space-uid", action="append", dest="space_uids", help="The space_uid to migrate.")
-        parser.add_argument(
-            "--bk-biz-id", action="append", dest="bk_biz_ids", type=int, help="The bk_biz_id to migrate."
-        )
+        parser.add_argument("--space_uid", dest="space_uids", help="Comma-separated space_uids to migrate.")
+        parser.add_argument("--bk_biz_id", dest="bk_biz_ids", help="Comma-separated bk_biz_ids to migrate.")
         parser.add_argument(
             "--all", action="store_true", default=False, help="Migrate all spaces that have index sets."
         )
@@ -22,7 +43,7 @@ class Command(BaseCommand):
             default=False,
             help="Only delete all unreferenced global user tags; do not migrate any space.",
         )
-        parser.add_argument("--dry-run", action="store_true", default=False, help="Preview changes without writing.")
+        parser.add_argument("--dry_run", action="store_true", default=False, help="Preview changes without writing.")
 
     def handle(self, *args, **options):
         dry_run = options["dry_run"]
@@ -62,14 +83,14 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("Dry-run finished, no changes were written."))
 
     def _get_space_uids(self, options):
-        space_uids = options["space_uids"] or []
-        bk_biz_ids = options["bk_biz_ids"] or []
+        space_uids = self._parse_space_or_biz(options["space_uids"], is_biz=False)
+        bk_biz_ids = self._parse_space_or_biz(options["bk_biz_ids"], is_biz=True)
         migrate_all = options["all"]
         cleanup = options["cleanup"]
 
         mode_count = sum([bool(space_uids), bool(bk_biz_ids), migrate_all, cleanup])
         if mode_count != 1:
-            raise CommandError("Please specify exactly one of --space-uid, --bk-biz-id, --all, or --cleanup.")
+            raise CommandError("Please specify exactly one of --space_uid, --bk_biz_id, --all, or --cleanup.")
 
         if cleanup:
             return []
@@ -93,6 +114,16 @@ class Command(BaseCommand):
         if not all(space_uids):
             raise CommandError("space_uid cannot be empty.")
         return list(dict.fromkeys(space_uids))
+
+    @staticmethod
+    def _parse_space_or_biz(value, is_biz):
+        if not value:
+            return []
+        try:
+            values = [item.strip() for item in value.split(",")]
+            return [int(item) for item in values] if is_biz else values
+        except (AttributeError, TypeError, ValueError):
+            raise CommandError("无效的业务或空间列表，请输入有效的逗号分隔值。")
 
     def _migrate_space(self, space_uid):
         index_sets = LogIndexSet.objects.filter(space_uid=space_uid)
