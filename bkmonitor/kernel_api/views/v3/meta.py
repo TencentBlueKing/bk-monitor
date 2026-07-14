@@ -494,22 +494,6 @@ class QueryVmRtBySpaceViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("GET", resource.QueryVmRtBySpace)]
 
 
-class CreateEsRouterViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("POST", resource.CreateEsRouter)]
-
-
-class UpdateEsRouterViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("POST", resource.UpdateEsRouter)]
-
-
-class CreateDorisRouterViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("POST", resource.CreateDorisRouter)]
-
-
-class UpdateDorisRouterViewSet(MetaViewSet):
-    resource_routes = [ResourceRoute("POST", resource.UpdateDorisRouter)]
-
-
 class AddBkDataTableIdsViewSet(MetaViewSet):
     resource_routes = [ResourceRoute("POST", resource.AddBkDataTableIdsResource)]
 

@@ -14,9 +14,8 @@
 | index_set            | str        | 否  | 索引集规则                          |
 | source_type          | str        | 否  | 数据源类型                          |
 | bkbase_table_id      | str        | 否  | 计算平台结果表 ID                     |
-| need_create_index    | bool       | 否  | 是否需要创建索引                       |
 | storage_type         | str        | 否  | 存储类型，可选值：`es`、`doris`，默认为 `es` |
-| origin_table_id      | str        | 否  | 原始结果表 ID                       |
+| origin_table_id      | str        | 否  | 关联实体结果表 ID；新建时必填，更新时可继承已有关联    |
 | options              | list[dict] | 否  | 结果表 option 列表，默认为空列表           |
 | query_alias_settings | list[dict] | 否  | 查询别名设置列表                       |
 
@@ -47,9 +46,8 @@
     "cluster_id": 1,
     "index_set": "my_index_set_*",
     "source_type": "log",
-    "need_create_index": true,
     "storage_type": "es",
-    "origin_table_id": "",
+    "origin_table_id": "my_entity.base",
     "options": [
         {
             "name": "retention",
