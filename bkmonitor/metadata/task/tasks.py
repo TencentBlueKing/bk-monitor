@@ -266,7 +266,6 @@ def delete_restore_indices(restore_id):
 
 
 def update_time_series_metrics(time_series_metrics):
-    data_id_list: list[int] = []
     table_ids_by_tenant: dict[str, set[str]] = {}
     for time_series_group in time_series_metrics:
         try:
@@ -278,8 +277,7 @@ def update_time_series_metrics(time_series_metrics):
             )
             # 记录是否有更新，如果有更新则推送到redis
             if is_updated:
-                data_id_list.append(time_series_group.bk_data_id)
-                bk_tenant_id = time_series_group.bk_tenant_id or DEFAULT_TENANT_ID
+                bk_tenant_id = time_series_group.bk_tenant_id
                 table_ids_by_tenant.setdefault(bk_tenant_id, set()).add(time_series_group.table_id)
         except Exception as e:
             logger.error(
@@ -600,7 +598,15 @@ def push_and_publish_space_router(
 
     target_space = None
     if space_type and space_id:
-        target_space = models.Space.objects.get(space_type_id=space_type, space_id=space_id)
+        try:
+            target_space = models.Space.objects.get(space_type_id=space_type, space_id=space_id)
+        except models.Space.DoesNotExist:
+            logger.warning(
+                "push_and_publish_space_router: space not found, space_type->[%s], space_id->[%s], skip",
+                space_type,
+                space_id,
+            )
+            return
 
     # 指定空间时只获取该空间的结果表；未指定空间时由后续逻辑按租户全量刷新。
     if not table_id_list and target_space:
@@ -637,7 +643,7 @@ def push_and_publish_space_router(
     # 更新结果表详情和 data_label 路由。没有明确空间时，按 ResultTable 的租户拆分，避免同名 RT 串租户。
     table_ids_by_tenant: dict[str, set[str]] = {}
     if target_space:
-        table_ids_by_tenant[target_space.bk_tenant_id or DEFAULT_TENANT_ID] = set(table_id_list)
+        table_ids_by_tenant[target_space.bk_tenant_id] = set(table_id_list)
     elif table_id_list:
         # 兼容只有 Storage、没有 ResultTable 的早期路由。
         tenant_aware_models = [
@@ -653,7 +659,7 @@ def push_and_publish_space_router(
                 table_id_field,
             )
             for bk_tenant_id, table_id in rows:
-                table_ids_by_tenant.setdefault(bk_tenant_id or DEFAULT_TENANT_ID, set()).add(table_id)
+                table_ids_by_tenant.setdefault(bk_tenant_id, set()).add(table_id)
     else:
         tenant_ids = set(models.Space.objects.values_list("bk_tenant_id", flat=True)) | set(
             models.ResultTable.objects.values_list("bk_tenant_id", flat=True)
@@ -665,7 +671,7 @@ def push_and_publish_space_router(
         tenant_ids.update(models.RecordRule.objects.values_list("bk_tenant_id", flat=True))
         if not tenant_ids:
             tenant_ids.add(DEFAULT_TENANT_ID)
-        table_ids_by_tenant = {bk_tenant_id or DEFAULT_TENANT_ID: set() for bk_tenant_id in tenant_ids}
+        table_ids_by_tenant = {bk_tenant_id: set() for bk_tenant_id in tenant_ids}
 
     for bk_tenant_id, tenant_table_ids in table_ids_by_tenant.items():
         sorted_table_ids = sorted(tenant_table_ids)

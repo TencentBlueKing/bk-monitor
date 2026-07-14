@@ -9,6 +9,8 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+import logging
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -16,6 +18,7 @@ import pytest
 from metadata import models
 from metadata.models.space import ds_rt
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
+from metadata.task.tasks import push_and_publish_space_router
 
 from .conftest import (
     DEFAULT_DATA_ID,
@@ -25,6 +28,33 @@ from .conftest import (
 )
 
 pytestmark = pytest.mark.django_db(databases="__all__")
+
+
+def test_push_and_publish_space_router_returns_when_space_not_found(caplog):
+    with (
+        patch("metadata.task.tasks.models.Space.objects.get", side_effect=models.Space.DoesNotExist),
+        patch("metadata.models.space.space_table_id_redis.SpaceTableIDRedis") as space_redis,
+        caplog.at_level(logging.WARNING),
+    ):
+        push_and_publish_space_router(space_type="bkcc", space_id="not-exist")
+
+    space_redis.assert_not_called()
+    assert "space not found, space_type->[bkcc], space_id->[not-exist], skip" in caplog.text
+
+
+def test_push_and_publish_space_router_does_not_fallback_empty_tenant():
+    target_space = SimpleNamespace(bk_tenant_id="")
+    with (
+        patch("metadata.task.tasks.models.Space.objects.get", return_value=target_space),
+        patch.object(SpaceTableIDRedis, "push_space_table_ids"),
+        patch.object(SpaceTableIDRedis, "push_data_label_table_ids"),
+        pytest.raises(ValueError, match="bk_tenant_id is required"),
+    ):
+        push_and_publish_space_router(
+            space_type="bkcc",
+            space_id="empty-tenant",
+            table_id_list=["empty.tenant"],
+        )
 
 
 @pytest.mark.parametrize(

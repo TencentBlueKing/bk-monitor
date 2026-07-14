@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from django.core.management.base import BaseCommand, CommandError
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 
 from constants.common import DEFAULT_TENANT_ID
 from metadata import models
@@ -68,7 +68,7 @@ class Command(BaseCommand):
 
     def filter_vm_records(
         self, src_vm_names: str | None = None, src_vm_ids: str | None = None, data_ids: str | None = None
-    ) -> list:
+    ) -> QuerySet[models.AccessVMRecord]:
         """过滤集群或者数据源对应的结果表记录"""
         # 按照参数场景进行操作，返回创建的vm记录
         if data_ids:
