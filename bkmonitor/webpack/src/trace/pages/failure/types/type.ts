@@ -440,6 +440,12 @@ export interface IEntityData {
   };
 }
 
+/** 实体信息 - extracted_info.entities 中每个实体项的关键字段 */
+export interface IEntityInfo {
+  display_name: string;
+  jump_target: string;
+}
+
 export interface IEventsAnalysis {
   $index?: number;
   _sub_count?: number; // 子事件条数
@@ -452,10 +458,25 @@ export interface IEventsAnalysis {
   type?: string; // 事件所属类型
   unit?: string; // 事件主标题单位
 }
-
 export interface IEventsContentsData {
   [key: string]: string;
 }
+
+/** 单个 sub_panel 的 extracted_info */
+export interface IExtractedInfo {
+  entities: Record<string, IEntityInfo>;
+}
+
+/** 各 sub_panel 的 extracted_info 映射 */
+export interface IExtractedInfoList {
+  alerts_analysis?: IExtractedInfo;
+  events_analysis?: IExtractedInfo;
+  logs_analysis?: IExtractedInfo;
+  suggestion?: IExtractedInfo;
+  summary?: IExtractedInfo;
+  trace_analysis?: IExtractedInfo;
+}
+
 export interface IFilterSearch {
   aggregate_bys: string[];
   bk_biz_id: number;
@@ -490,7 +511,6 @@ export interface IIncident {
   status_alias: string;
   update_time: number;
 }
-
 export interface IListItem {
   icon?: string;
   key?: string;
@@ -514,7 +534,6 @@ export interface IncidentPropagationGraph {
   edges: IEdge[];
   entities: IEntityData[];
 }
-
 export interface ISnapshot {
   alerts: number[];
   bk_biz_id: number[];
@@ -529,7 +548,6 @@ export interface ISnapshot {
   status: string;
   update_time?: any;
 }
-
 export interface ISnapshotContent {
   alerts: number;
   anomaly_time: number;
@@ -604,6 +622,7 @@ export interface ISnapshotContent {
     };
   };
 }
+
 export interface IStrategyMapItem {
   alerts?: string[];
   strategy_id?: number;
@@ -614,6 +633,7 @@ export interface ISummaryList {
   logs_analysis?: string;
   trace_analysis?: string;
 }
+
 export interface ITagInfoType {
   bk_biz_id: number;
   bk_biz_name: string;
@@ -625,6 +645,7 @@ export interface ITraceAnalysis {
   log_count: number;
   pattern: string;
 }
+
 export interface IUserName {
   id: string;
   name: string;

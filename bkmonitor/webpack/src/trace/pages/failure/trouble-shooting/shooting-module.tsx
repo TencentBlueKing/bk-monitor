@@ -31,6 +31,7 @@ import MarkdownViewer from '../../../components/markdown-editor/viewer';
 import { EVENTS_TYPE_MAP } from '../constant';
 import { handleEndTime } from '../failure-topo/utils';
 import { TRACE_FIELD_CONFIG } from '../utils';
+import { replaceEntityInText } from './entity-replace';
 
 import type {
   IAlertData,
@@ -38,6 +39,7 @@ import type {
   IContentList,
   IEventsAnalysis,
   IEventsContentsData,
+  IExtractedInfoList,
   ILogAnalysis,
   IStrategyMapItem,
   ISummaryList,
@@ -172,6 +174,7 @@ export function createShootingModule(
     bkzIds: string[];
     contentList: IContentList;
     eventsData: IEventsAnalysis[];
+    extractedInfoList: IExtractedInfoList;
     goAlertList: (list: IAlertData[]) => void;
     goDetail: (data: IStrategyMapItem) => void;
     handleMouseEnter: (e: MouseEvent, index: number, type: OverflowPopType) => void;
@@ -312,7 +315,12 @@ export function createShootingModule(
    * @returns {JSX.Element} 配置内容元素
    */
   const renderDisposalSlot = () => {
-    return <MarkdownViewer value={options.contentList?.suggestion} />;
+    return (
+      <MarkdownViewer
+        class='markdown-viewer-has-link'
+        value={replaceEntityInText(options.contentList?.suggestion, options.extractedInfoList?.suggestion)}
+      />
+    );
   };
 
   // 告警异常维度分析标题
@@ -538,7 +546,10 @@ export function createShootingModule(
         {/* 事件分析总结区域 */}
         <div class='card-summary'>
           <div class='card-summary-title'>{$t('事件分析总结：')}</div>
-          <MarkdownViewer value={options.summaryList.events_analysis} />
+          <MarkdownViewer
+            class='markdown-viewer-has-link'
+            value={replaceEntityInText(options.summaryList.events_analysis, options.extractedInfoList?.events_analysis)}
+          />
         </div>
         {/* 事件分析详情折叠面板 */}
         {len > 0 && (
@@ -592,7 +603,10 @@ export function createShootingModule(
         {/* 日志分析总结区域 */}
         <div class='card-summary'>
           <div class='card-summary-title'>{$t('日志分析总结：')}</div>
-          <MarkdownViewer value={options.summaryList.logs_analysis} />
+          <MarkdownViewer
+            class='markdown-viewer-has-link'
+            value={replaceEntityInText(options.summaryList.logs_analysis, options.extractedInfoList?.logs_analysis)}
+          />
         </div>
         {/* 日志分析详情折叠面板 */}
         {len > 0 && (
@@ -699,7 +713,10 @@ export function createShootingModule(
         {/* Trace分析总结区域 */}
         <div class='card-summary'>
           <div class='card-summary-title'>{$t('Trace 分析总结：')}</div>
-          <MarkdownViewer value={options.summaryList.trace_analysis} />
+          <MarkdownViewer
+            class='markdown-viewer-has-link'
+            value={replaceEntityInText(options.summaryList.trace_analysis, options.extractedInfoList?.trace_analysis)}
+          />
         </div>
         {/* Trace分析详情折叠面板 */}
         {len > 0 && (
