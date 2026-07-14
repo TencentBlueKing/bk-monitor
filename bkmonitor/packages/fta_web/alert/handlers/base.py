@@ -50,6 +50,7 @@ from fta_web.alert.handlers.translator import AbstractTranslator
 # 构建时覆盖所有支持语言的 display name，使字段解析与当前线程语言无关。
 _FIELD_MAP_CACHE: dict[type, dict[str, QueryField]] = {}
 ES_TERMS_QUERY_MAX_SIZE = 65536
+MAX_FULLTEXT_BIZ_MATCHES = 1000
 logger = logging.getLogger(__name__)
 
 
@@ -808,6 +809,7 @@ class BaseQueryHandler:
 
 class BaseBizQueryHandler(BaseQueryHandler, ABC):
     ES_TERMS_QUERY_MAX_SIZE = ES_TERMS_QUERY_MAX_SIZE
+    MAX_FULLTEXT_BIZ_MATCHES = MAX_FULLTEXT_BIZ_MATCHES
     FULLTEXT_BIZ_ID_FIELD: str | None = None
 
     def __init__(
@@ -908,11 +910,15 @@ class BaseBizQueryHandler(BaseQueryHandler, ABC):
         if not terms:
             return None
 
-        matched_ids = {
-            biz_id
-            for biz_id, name in self.get_fulltext_biz_name_entries()
-            if any(term in name for term in terms)
-        }
+        matched_ids = set()
+        for biz_id, name in self.get_fulltext_biz_name_entries():
+            if not any(term in name for term in terms):
+                continue
+            matched_ids.add(biz_id)
+            if len(matched_ids) > self.MAX_FULLTEXT_BIZ_MATCHES:
+                from rest_framework.exceptions import ValidationError
+
+                raise ValidationError(_("业务名称匹配范围过大，请缩小业务范围或使用更具体的关键词"))
         if not matched_ids:
             return None
 
