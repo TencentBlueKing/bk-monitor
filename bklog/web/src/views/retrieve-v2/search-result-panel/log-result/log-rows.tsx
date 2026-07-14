@@ -602,21 +602,46 @@ export default defineComponent({
 
       if (rowKeys.value.length) {
         const lastIndex = Math.min(endIndex, rowKeys.value.length);
-        const keys = rowKeys.value.slice(0, lastIndex);
+        const targetKeys = rowKeys.value.slice(0, lastIndex);
+        const reusableLength = Math.min(renderList.length, lastIndex);
+        const canReusePrefix = Array.from({ length: reusableLength }).every(
+          (_, index) => renderList[index]?.[ROW_KEY] === targetKeys[index],
+        );
 
-        retrieveRowCacheService.getRenderEntries(keys).then((entries) => {
+        // 本地分页回到较短列表时直接裁剪，不重新读取 IndexedDB 和重建已有行。
+        if (canReusePrefix && renderList.length >= lastIndex) {
+          if (renderList.length !== lastIndex) {
+            renderList = renderList.slice(0, lastIndex);
+            localUpdateCounter.value += 1;
+          }
+          return;
+        }
+
+        // 后端分页只读取并追加新增区间。旧实现每次都重新读取 0..N 行，
+        // 同时替换所有 row 对象，600 行后会导致整表重复 diff、布局和绘制。
+        const startIndex = canReusePrefix ? renderList.length : 0;
+        const keysToLoad = targetKeys.slice(startIndex);
+        if (!keysToLoad.length) {
+          return;
+        }
+
+        retrieveRowCacheService.getRenderEntries(keysToLoad).then((entries) => {
           const isCurrentTask = taskToken === renderTaskToken
             && queryKey === (indexSetQueryResult.value?.row_query_key ?? '')
-            && keys.every((key, index) => key === rowKeys.value[index]);
+            && targetKeys.every((key, index) => key === rowKeys.value[index])
+            && (!startIndex || Array.from({ length: startIndex }).every(
+              (_, index) => renderList[index]?.[ROW_KEY] === targetKeys[index],
+            ));
           if (!isCurrentTask) {
             return;
           }
 
-          renderList = entries.flatMap((entry, index) => (entry ? [{
+          const nextRows = entries.flatMap((entry, index) => (entry ? [{
             item: entry.row,
             renderMeta: entry.renderMeta as RetrieveRowRenderMeta | undefined,
-            [ROW_KEY]: keys[index] ?? getRowCacheKey(entry.row, index),
+            [ROW_KEY]: keysToLoad[index] ?? getRowCacheKey(entry.row, startIndex + index),
           }] : []));
+          renderList = startIndex ? renderList.concat(nextRows) : nextRows;
           localUpdateCounter.value += 1;
           nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
         });
@@ -634,6 +659,7 @@ export default defineComponent({
       }
 
       renderList = arr;
+      localUpdateCounter.value += 1;
     };
 
     const searchContainerHeight = ref(52);
@@ -1158,7 +1184,6 @@ export default defineComponent({
 
       setRenderList(null);
       debounceSetLoading();
-      localUpdateCounter.value += 1;
 
       if (tableDataSize.value <= pageSize.value) {
         nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
@@ -1443,8 +1468,6 @@ export default defineComponent({
         const maxLength = Math.min(pageSize.value * pageIndex.value, tableDataSize.value);
         setRenderList(maxLength);
         debounceSetLoading(0);
-        nextTick(RetrieveHelper.updateMarkElement.bind(RetrieveHelper));
-        localUpdateCounter.value += 1;
         return Promise.resolve(false);
       }
 
