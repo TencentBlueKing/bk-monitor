@@ -49,11 +49,30 @@
     }
   }
 
+  .threshold-tip {
+    color: #3a84ff;
+  }
+
   .select-method {
     margin: 0 4px;
   }
 
   .dimension-alert {
-    color: #3a84ff;
+    margin-top: 10px;
+    background: #f5f7fa;
+    border: none;
+
+    .icon-info {
+      color: #979ba5;
+    }
+
+    .bk-alert-wraper {
+      align-items: center;
+    }
+
+    .bk-alert-title {
+      font-size: 12px;
+      color: #4d4f56;
+    }
   }
 }

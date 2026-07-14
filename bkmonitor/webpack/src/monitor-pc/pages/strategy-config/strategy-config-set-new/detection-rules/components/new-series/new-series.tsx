@@ -264,7 +264,7 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
                 }}
               />
             </i18n>
-            <div class='dimension-alert'>
+            <div class='threshold-tip'>
               {this.$t('触发规则：仅当新增维度值数量大于{threshold}时触发告警', {
                 threshold: this.formData.threshold,
               })}
@@ -307,6 +307,14 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
                 ))}
               </bk-select>
             </div>
+            <bk-alert
+              class='dimension-alert'
+              title={this.$t(
+                '每次检测任务出现新的维度值 {dimensions} 时，都会倒推过去 {window} 内是否出现过相同维度值，如果没有则告警，出现过则不告警。',
+                { dimensions: this.dimensionNames || this.$t('维度组合'), window: this.windowText }
+              )}
+              type='info'
+            />
           </bk-form-item>
         </bk-form>
       </div>
