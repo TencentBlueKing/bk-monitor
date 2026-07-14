@@ -55,7 +55,10 @@ const extractClusters = modules => {
     const index = (module.topo_link || []).findIndex(id => id.startsWith('set'));
     if (index > -1) {
       const id = module.topo_link[index];
-      const name = (module.topo_link_display && module.topo_link_display[index]) || (module.bk_obj_name_map && module.bk_obj_name_map.set) || id;
+      const name =
+        (module.topo_link_display && module.topo_link_display[index]) ||
+        (module.bk_obj_name_map && module.bk_obj_name_map.set) ||
+        id;
       if (!map.has(id)) {
         map.set(id, { id, name });
       }
@@ -228,6 +231,7 @@ const buildFilterOptionsMap = rows => {
     bk_inst_name: new Map(),
     display_name: new Map(),
   };
+
   for (const row of rows) {
     if (row.bk_host_innerip) setMap.bk_host_innerip.set(row.bk_host_innerip, row.bk_host_innerip);
     if (row.bk_host_name) setMap.bk_host_name.set(row.bk_host_name, row.bk_host_name);
@@ -252,6 +256,9 @@ const buildFilterOptionsMap = rows => {
       [...valueMap.entries()].map(([id, name]) => ({ id, name }))
     );
   }
+  // todo 处理集群模块
+  const clusterModuleTreeList = [];
+  result.set('cluster_module', clusterModuleTreeList);
   return result;
 };
 

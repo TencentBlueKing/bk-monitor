@@ -27,13 +27,14 @@
 import { computed, defineComponent, nextTick, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { promiseTimeout, useDebounceFn, useEventListener } from '@vueuse/core';
-import { Button, Checkbox, Input, Radio, Select, Tree } from 'bkui-vue';
+import { Button, Checkbox, Input, Radio, Select } from 'bkui-vue';
 import { random } from 'monitor-common/utils';
 import { detectOperatingSystem } from 'monitor-common/utils/navigator';
 import OverflowTips from 'trace/directive/overflow-tips';
 import { useI18n } from 'vue-i18n';
 
 import EmptyStatus from '../empty-status/empty-status';
+import CascadeSelector from './cascade-selector';
 import TimeConsuming from './time-consuming';
 import {
   type IFilterField,
@@ -146,8 +147,9 @@ export default defineComponent({
     const isNumberInput = computed(() => {
       return checkedItem.value?.type === EFieldType.numberInput;
     });
-    const isTreeSelect = computed(() => {
-      return checkedItem.value?.type === EFieldType.treeSelect;
+    /** 是否为级联选择器类型（业务拓扑等树形字段） */
+    const isCascade = computed(() => {
+      return checkedItem.value?.type === EFieldType.cascade;
     });
 
     const enterSelectionDebounce = useDebounceFn((isFocus = false) => {
@@ -572,7 +574,7 @@ export default defineComponent({
       isDurationKey,
       isTextarea,
       numberInputValue,
-      isTreeSelect,
+      isCascade,
       getValueFnProxy,
       handleValueChange,
       handleTimeConsumingValueChange,
@@ -688,22 +690,14 @@ export default defineComponent({
                           />
                         );
                       }
-                      if (this.isTreeSelect) {
+                      if (this.isCascade) {
                         return (
-                          <Select
-                            display-key='name'
-                            id-key='id'
-                            multiple-mode='tag'
-                            custom-content
-                            multiple
-                          >
-                            <Tree
-                              children='children'
-                              data={[]}
-                              label='name'
-                              show-checkbox
-                            />
-                          </Select>
+                          <CascadeSelector
+                            getValueFn={this.getValueFnProxy}
+                            modelValue={this.values}
+                            fieldInfo={this.valueSelectorFieldInfo}
+                            onUpdate:modelValue={this.handleValueChange}
+                          />
                         );
                       }
                       return (
