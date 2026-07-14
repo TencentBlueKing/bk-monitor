@@ -11,6 +11,7 @@
         'is-hidden': !isRowIntersecting && isResolved,
         'show-all-word': showAllWords,
         'is-original-mode': isOriginalMode,
+        'is-overflow-y': isShowOverflowY,
       },
     ]"
     :style="rootElementStyle"
@@ -283,6 +284,11 @@
   const showAllWords = computed(() => {
     return !showMoreTextAction.value || showAllText.value;
   });
+
+  const isShowOverflowY = computed(() => {
+    return showMoreAction.value && showAllText.value;
+  });
+
 
   const btnText = computed(() => {
     if (showAllText.value) {
@@ -815,6 +821,14 @@
     line-height: 20px;
     color: var(--table-fount-color);
     text-align: left;
+
+    &.is-overflow-y {
+      overflow-y: auto;
+
+      .btn-more-action {
+        position: relative;
+      }
+    }
 
     .bklog-scroll-box {
       max-height: none;
