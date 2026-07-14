@@ -445,7 +445,7 @@
         const expandedText = getOriginalValueExpandedText(fieldName);
         expandedOriginalValueSegments.value = {
           ...expandedOriginalValueSegments.value,
-          [fieldName]: splitRenderText(expandedText),
+          [fieldName]: splitRenderText(expandedText, field),
         };
       }
 
@@ -458,7 +458,7 @@
     if (isOriginalValueTruncated(fieldName)) {
       if (!originalValuePreviewSegmentCache.has(fieldName)) {
         // 基于保留 mark 的截断文本重新分词，保证 isMark 与 Expand 一致
-        originalValuePreviewSegmentCache.set(fieldName, splitRenderText(getOriginalValuePreviewText(fieldName)));
+        originalValuePreviewSegmentCache.set(fieldName, splitRenderText(getOriginalValuePreviewText(fieldName), field));
       }
 
       return {

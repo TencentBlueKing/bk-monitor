@@ -8,6 +8,7 @@ import { normalizeStorageValue } from '../utils/normalize-storage-value';
 import {
   createRetrieveRowRenderMeta,
   DEFAULT_HIGHLIGHT_FIELD,
+  type RetrieveRenderFieldMeta,
   type RetrieveRowRenderMeta,
 } from '../utils/retrieve-render-meta';
 
@@ -169,6 +170,7 @@ interface RetrieveRowRenderOverlay {
 }
 
 interface WriteRowsOptions {
+  fieldMetadata?: Record<string, RetrieveRenderFieldMeta>;
   ttl?: number;
   fieldNames?: string[];
   batchRows?: number;
@@ -269,6 +271,7 @@ export class RetrieveRowStreamWriter {
       copyExcludedFields: this.options.copyExcludedFields ?? [],
       renderOverlay,
       renderMeta: createRetrieveRowRenderMeta(normalizedOriginRow, normalizedRenderRow, {
+        fieldMetadata: this.options.fieldMetadata,
         fieldNames: this.options.fieldNames,
         highlightField,
       }),
@@ -409,6 +412,7 @@ export class RetrieveRowRepository {
         renderMeta:
           options.renderMetas?.[index]
           ?? createRetrieveRowRenderMeta(row, renderRow, {
+            fieldMetadata: options.fieldMetadata,
             fieldNames: options.fieldNames,
             highlightField,
           }),

@@ -3,6 +3,9 @@
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
  */
 
+import LuceneSegment from '@/hooks/lucene.segment';
+import { optimizedSplit } from '@/hooks/hooks-helper';
+
 export interface RetrieveTextSegment {
   text: string;
   isMark: boolean;
@@ -19,7 +22,15 @@ export interface RetrieveRowRenderMeta {
   truncatedTextByField?: Record<string, string>;
 }
 
+export interface RetrieveRenderFieldMeta {
+  field_name?: string;
+  is_analyzed?: boolean;
+  field_type?: string;
+  tokenize_on_chars?: string;
+}
+
 interface RetrieveRowRenderMetaOptions {
+  fieldMetadata?: Record<string, RetrieveRenderFieldMeta>;
   highlightField?: string;
   precomputeSegments?: boolean;
   /** 仅为即将渲染/复制/高亮使用的字段预计算，避免为整行所有字段生成重复派生数据 */
@@ -31,8 +42,6 @@ export const LARGE_FIELD_TEXT_LENGTH = 32 * 1024;
 export const ORIGINAL_VALUE_PREVIEW_TEXT_LENGTH = 1000;
 export const ORIGINAL_VALUE_EXPANDED_TEXT_LENGTH = 16 * 1024;
 export const DEFAULT_HIGHLIGHT_FIELD = '__highlight';
-const SEGMENT_MAX_TOKENS = 500;
-const SEGMENT_CHUNK_SIZE = 200;
 const LARGE_FIELD_PREVIEW_SUFFIX = '...';
 const textEncoder = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null;
 
@@ -252,54 +261,38 @@ const collectHighlightFields = (
 
 /**
  * Pre-split text once after the API response is available.
- * Rendering code can consume these segments directly and avoid LuceneSegment.split on hot paths.
+ * 输出契约与上云稳定版 getSplitList 保持一致：
+ * - analyzed 字段按自定义分隔符或 Lucene 规则切词；
+ * - 非 analyzed/未知字段不做内部切词，但整个字段值仍是可点击词元；
+ * - 存在 <mark> 时仅按高亮边界拆段，每段仍可点击，避免扩大高亮范围。
  */
-export const splitRenderText = (value: any): RetrieveTextSegment[] => {
+export const splitRenderText = (
+  value: any,
+  field?: RetrieveRenderFieldMeta,
+): RetrieveTextSegment[] => {
   const text = stringifyValue(value);
-  const output: RetrieveTextSegment[] = [];
-  const segments = String(text ?? '').split(/(<mark>.*?<\/mark>)/gi);
-  let count = 0;
 
-  for (const segment of segments) {
-    if (!segment) continue;
-    const isMark = /<mark>.*?<\/mark>/i.test(segment);
-    const cleanText = stripMark(segment);
-
-    if (isMark) {
-      output.push({ text: cleanText, isMark: true, isCursorText: true });
-      count += 1;
-      continue;
-    }
-
-    if (count >= SEGMENT_MAX_TOKENS) {
-      for (let i = 0; i < cleanText.length; i += SEGMENT_CHUNK_SIZE) {
-        output.push({
-          text: cleanText.slice(i, i + SEGMENT_CHUNK_SIZE),
-          isMark: false,
-          isCursorText: false,
-          isBlobWord: true,
-        });
-      }
-      continue;
-    }
-
-    const parts = cleanText.split(/([\s:.,_[\]{}()"'=/\\-]+)/).filter(Boolean);
-    for (const part of parts) {
-      if (count >= SEGMENT_MAX_TOKENS) {
-        output.push({ text: part, isMark: false, isCursorText: false, isBlobWord: true });
-        continue;
-      }
-
-      output.push({
-        text: part,
-        isMark: false,
-        isCursorText: !/^[\s:.,_[\]{}()"'=/\\-]+$/.test(part),
-      });
-      count += 1;
-    }
+  if (!text) {
+    return [];
   }
 
-  return output;
+  if (field?.is_analyzed) {
+    return field.tokenize_on_chars
+      ? optimizedSplit(text, field.tokenize_on_chars) as RetrieveTextSegment[]
+      : LuceneSegment.split(text, 1000);
+  }
+
+  return text
+    .split(/(<mark>.*?<\/mark>)/gi)
+    .filter(Boolean)
+    .map(segment => ({
+      text: stripMark(segment),
+      isMark: /<mark>.*?<\/mark>/i.test(segment),
+      isCursorText: true,
+      // 与稳定版一致：text 类型关闭分词时整体可点击；该标记只影响样式，
+      // 不能用于 keyword/path 等字段，否则会丢失点击能力。
+      isNotParticiple: field?.field_type === 'text',
+    }));
 };
 
 export const createRetrieveRowRenderMeta = (
@@ -357,7 +350,7 @@ export const createRetrieveRowRenderMeta = (
 
     // Store the pre-tokenized render value for every field that may be rendered.
     if (precomputeSegments) {
-      fieldSegments[fieldName] = splitRenderText(truncatedRenderText);
+      fieldSegments[fieldName] = splitRenderText(truncatedRenderText, options.fieldMetadata?.[fieldName]);
     }
   });
 

@@ -24,6 +24,7 @@ import RequestPool from '../request-pool.ts';
 
 let dateFieldSortList = [];
 let currentRetrieveRowQueryKey = '';
+const fieldInfoRequestPromises = new Map();
 
 const getCookie = name => {
   const matched = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
@@ -98,6 +99,23 @@ const applySearchStreamProgress = ({
   }
 };
 
+const getRenderFieldMetadata = state => {
+  const fieldScope = state.indexFieldInfo.field_scope || state.indexId || 'default';
+  const fieldNameIndex = retrieveFieldCacheService.getFieldNameIndex(fieldScope);
+
+  return Object.keys(fieldNameIndex).reduce((output, fieldName) => {
+    const field = fieldNameIndex[fieldName];
+    if (!field || typeof field !== 'object') return output;
+    output[fieldName] = {
+      field_name: field.field_name || fieldName,
+      field_type: field.field_type,
+      is_analyzed: field.is_analyzed ?? false,
+      tokenize_on_chars: field.tokenize_on_chars || '',
+    };
+    return output;
+  }, {});
+};
+
 const getProjectionFieldNames = state => {
   const fieldScope = state.indexFieldInfo.field_scope || state.indexId || 'default';
   const cachedFields = retrieveFieldCacheService.getFieldList(fieldScope, false);
@@ -118,7 +136,7 @@ const getProjectionFieldNames = state => {
   );
 };
 
-export function requestIndexSetFieldInfoAction({ commit, state, getters }) {
+function requestIndexSetFieldInfoActionImpl({ commit, state, getters }) {
   const { ids = [], start_time = '', end_time = '', isUnionIndex } = state.indexItem;
   commit('resetIndexFieldInfo');
   commit('updataOperatorDictionary', {});
@@ -193,7 +211,7 @@ export function requestIndexSetFieldInfoAction({ commit, state, getters }) {
         ? { cancelToken: requestCancelToken }
         : { catchIsShowMessage: false, cancelToken: requestCancelToken },
     )
-    .then(res => {
+    .then(async res => {
       const normalizedFields = normalizeRetrieveFields(res.data ?? {});
       if (res.data) {
         res.data.fields = normalizedFields;
@@ -220,6 +238,9 @@ export function requestIndexSetFieldInfoAction({ commit, state, getters }) {
           default_sort_list: defaultSortList,
         }),
       );
+      // updateIndexFieldInfo 已同步写入内存缓存；继续等待 IndexedDB 持久化，
+      // 保证 fields action resolve 后 search/worker 看到的是完整字段语义。
+      await retrieveFieldCacheService.waitForMetaPersistence(fieldScope);
       commit('updataOperatorDictionary', res.data ?? {});
       commit('updateNotTextTypeFields', res.data ?? {});
       commit('updateIndexSetFieldConfig', res.data ?? {});
@@ -245,8 +266,26 @@ export function requestIndexSetFieldInfoAction({ commit, state, getters }) {
     });
 }
 
-export function requestIndexSetQueryAction(
-  { commit, state, getters },
+export function requestIndexSetFieldInfoAction(context) {
+  const { state } = context;
+  const key = JSON.stringify({
+    ids: state.indexItem?.ids ?? [],
+    start_time: state.indexItem?.start_time ?? '',
+    end_time: state.indexItem?.end_time ?? '',
+    isUnionIndex: !!state.indexItem?.isUnionIndex,
+    retrieve_type: state.indexItem?.retrieve_type ?? '',
+  });
+  const existing = fieldInfoRequestPromises.get(key);
+  if (existing) return existing;
+
+  const request = Promise.resolve(requestIndexSetFieldInfoActionImpl(context))
+    .finally(() => fieldInfoRequestPromises.delete(key));
+  fieldInfoRequestPromises.set(key, request);
+  return request;
+}
+
+export async function requestIndexSetQueryAction(
+  { commit, state, getters, dispatch },
   payload = {
     isPagination: false,
     cancelToken: null,
@@ -289,6 +328,21 @@ export function requestIndexSetQueryAction(
     });
     return;
   }
+
+  // /search 写入 IndexedDB 前必须拿到 fields 元数据。字段元数据决定 analyzed、
+  // tokenize_on_chars 以及最终点击粒度，不能在检索返回后再补齐。
+  const fieldScope = state.indexFieldInfo.field_scope || state.indexId || 'default';
+  const hasFieldMetadata = retrieveFieldCacheService.getFieldList(fieldScope, false).length > 0;
+  if (!hasFieldMetadata) {
+    const fieldResponse = await dispatch('requestIndexSetFieldInfo');
+    if (!fieldResponse?.data?.fields?.length) {
+      return { result: false, ignored: true, reason: 'index-set-field-not-found' };
+    }
+  }
+  // fields 可能已由初始化入口写入内存但仍在持久化；search 也必须等待该阶段完成。
+  await retrieveFieldCacheService.waitForMetaPersistence(
+    state.indexFieldInfo.field_scope || state.indexId || 'default',
+  );
 
   const retrieveParams = getters.retrieveParams;
   const shouldSkipEmptySceneSearch = isSceneRetrieve(state)
@@ -426,6 +480,7 @@ export function requestIndexSetQueryAction(
     .searchStream({
       baseURL: baseUrl,
       body: queryData,
+      fieldMetadata: getRenderFieldMetadata(state),
       fieldNames: getProjectionFieldNames(state),
       headers: searchHeaders,
       onProgress: progress => {

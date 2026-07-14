@@ -16,6 +16,7 @@ import { sanitizeBidi } from '../utils/sanitize-bidi';
 
 interface SearchStreamMessage {
   body?: Record<string, any>;
+  fieldMetadata?: Record<string, any>;
   fieldNames?: string[];
   headers?: Record<string, string>;
   id: string;
@@ -103,10 +104,12 @@ const ingestJsonEnvelopeRows = async (
   const writeStartedAt = Date.now();
   const rowKeys = message.writeMode === 'append'
     ? await retrieveRowRepository.appendRows(message.queryKey!, originRows, message.startSeq || 0, {
+      fieldMetadata: message.fieldMetadata || {},
       fieldNames: message.fieldNames || [],
       renderRows,
     })
     : await retrieveRowRepository.replaceRows(message.queryKey!, originRows, message.startSeq || 0, {
+      fieldMetadata: message.fieldMetadata || {},
       fieldNames: message.fieldNames || [],
       renderRows,
     });
@@ -140,6 +143,7 @@ const ingestNDJSONStream = async (
   }
 
   const writer = retrieveRowRepository.createStreamWriter(message.queryKey!, message.startSeq || 0, {
+    fieldMetadata: message.fieldMetadata || {},
     fieldNames: message.fieldNames || [],
     writeMode: message.writeMode || 'replace',
   });

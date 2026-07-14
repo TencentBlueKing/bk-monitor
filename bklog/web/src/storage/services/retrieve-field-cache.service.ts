@@ -41,6 +41,7 @@ const toMetaCache = (scope: string, entity: RetrieveFieldMetaEntity): FieldMetaC
 
 class RetrieveFieldCacheService {
   private metaMemory = new Map<string, FieldMetaCache>();
+  private metaPersistence = new Map<string, Promise<void>>();
   private widthMemory = new Map<string, Record<string, FieldWidthSnapshot>>();
 
   setMeta(scope: string | number, payload: Record<string, any>) {
@@ -67,10 +68,22 @@ class RetrieveFieldCacheService {
         ),
       );
     }
-    retrieveFieldRepository.setMeta(cacheScope, meta).catch(error => {
-      console.warn('[retrieve-field-cache] persist meta failed', error);
-    });
+    const persistence = retrieveFieldRepository
+      .setMeta(cacheScope, meta)
+      .catch(error => {
+        console.warn('[retrieve-field-cache] persist meta failed', error);
+      })
+      .finally(() => {
+        if (this.metaPersistence.get(cacheScope) === persistence) {
+          this.metaPersistence.delete(cacheScope);
+        }
+      });
+    this.metaPersistence.set(cacheScope, persistence);
     return cacheValue;
+  }
+
+  async waitForMetaPersistence(scope: string | number) {
+    await this.metaPersistence.get(getScope(scope));
   }
 
   getMetaSync(scope: string | number) {

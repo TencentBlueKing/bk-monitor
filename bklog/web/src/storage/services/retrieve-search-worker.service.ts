@@ -15,6 +15,7 @@ import {
 export interface SearchStreamRequest {
   baseURL: string;
   body: Record<string, any>;
+  fieldMetadata?: Record<string, any>;
   fieldNames?: string[];
   headers?: Record<string, string>;
   onProgress?: (progress: SearchStreamProgress) => void;
@@ -245,6 +246,7 @@ class RetrieveSearchWorkerService {
           id,
           pageInstanceId: PAGE_INSTANCE_ID,
           body: request.body,
+          fieldMetadata: request.fieldMetadata || {},
           fieldNames: request.fieldNames || [],
           headers: request.headers || {},
           method: 'POST',
