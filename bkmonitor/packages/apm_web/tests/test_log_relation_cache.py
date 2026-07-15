@@ -1,7 +1,7 @@
 """APM 服务关联 K8S 日志索引缓存测试。"""
 
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -59,6 +59,21 @@ class FailingRedisCache(FakeRedisCache):
         raise ConnectionError(key)
 
 
+class FakeLogRelationCache:
+    """记录日志关联列表结果缓存的读写。"""
+
+    def __init__(self) -> None:
+        self.data: dict[str, list[dict[str, Any]]] = {}
+        self.read_keys: list[str] = []
+
+    def get_value(self, key: str) -> list[dict[str, Any]] | None:
+        self.read_keys.append(key)
+        return self.data.get(key)
+
+    def set_value(self, key: str, value: list[dict[str, Any]]) -> None:
+        self.data[key] = value
+
+
 def test_get_k8s_related_log_indexes_empty_workloads(monkeypatch: pytest.MonkeyPatch) -> None:
     entity_set = FakeEntitySet({"service-a": []})
     monkeypatch.setattr(task_handler, "EntitySet", lambda *_args, **_kwargs: entity_set)
@@ -78,21 +93,18 @@ def test_get_k8s_related_log_indexes_dedup(monkeypatch: pytest.MonkeyPatch) -> N
             "service-b": [WORKLOAD.copy()],
         }
     )
-    query_lists: list[list[dict[str, Any]]] = []
+    workload_query_lists: list[list[dict[str, Any]]] = []
 
     def query_relations(query_list: list[dict[str, Any]], **_kwargs: Any) -> list[SimpleNamespace]:
-        query_lists.append(query_list)
-        source_info: dict[str, Any] = query_list[0]["source_info"]
+        if "apm_service_name" in query_list[0]["source_info"]:
+            return [SimpleNamespace(source_info=query["source_info"], nodes=[]) for query in query_list]
+
+        workload_query_lists.append(query_list)
         datasource_node = SimpleNamespace(source_info=SimpleNamespace(to_source_info=lambda: {"bk_data_id": "1001"}))
-        return [SimpleNamespace(source_info=source_info, nodes=[datasource_node])]
+        return [SimpleNamespace(source_info=query_list[0]["source_info"], nodes=[datasource_node])]
 
     monkeypatch.setattr(task_handler, "EntitySet", lambda *_args, **_kwargs: entity_set)
     monkeypatch.setattr(task_handler.RelationQ, "query", query_relations)
-    monkeypatch.setattr(
-        ServiceLogTaskHandler,
-        "_query_service_related_indexes",
-        lambda *_args, **_kwargs: {},
-    )
     monkeypatch.setattr(ServiceLogHandler, "list_tables_by_data_ids", lambda *_args: ["2_bklog.demo"])
     monkeypatch.setattr(
         task_handler,
@@ -104,8 +116,8 @@ def test_get_k8s_related_log_indexes_dedup(monkeypatch: pytest.MonkeyPatch) -> N
 
     expected_indexes = [{"index_set_id": 100, "bk_biz_id": BK_BIZ_ID}]
     assert result == {"service-a": expected_indexes, "service-b": expected_indexes}
-    assert len(query_lists) == 1
-    assert len(query_lists[0]) == 1
+    assert len(workload_query_lists) == 1
+    assert len(workload_query_lists[0]) == 1
 
 
 def test_get_k8s_related_log_indexes_deduplicates_query_paths(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -127,6 +139,50 @@ def test_get_k8s_related_log_indexes_deduplicates_query_paths(monkeypatch: pytes
     assert ServiceLogTaskHandler.get_k8s_related_log_indexes(BK_BIZ_ID, APP_NAME) == {
         "service-a": [{"index_set_id": 100, "bk_biz_id": BK_BIZ_ID}]
     }
+
+
+def test_get_k8s_related_log_indexes_keeps_partial_results_and_logs_failures(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    entity_set = FakeEntitySet({"service-a": [WORKLOAD.copy()]})
+
+    def query_relations(query_list: list[dict[str, Any]], **_kwargs: Any) -> list[SimpleNamespace | None]:
+        source_info: dict[str, Any] = query_list[0]["source_info"]
+        if "apm_service_name" not in source_info:
+            return [None]
+
+        datasource_node = SimpleNamespace(source_info=SimpleNamespace(to_source_info=lambda: {"bk_data_id": "1001"}))
+        return [SimpleNamespace(source_info=source_info, nodes=[datasource_node])]
+
+    monkeypatch.setattr(task_handler, "EntitySet", lambda *_args, **_kwargs: entity_set)
+    monkeypatch.setattr(task_handler.RelationQ, "query", query_relations)
+    monkeypatch.setattr(ServiceLogHandler, "list_tables_by_data_ids", lambda *_args: ["2_bklog.demo"])
+    monkeypatch.setattr(
+        task_handler,
+        "get_biz_index_sets_with_cache",
+        lambda **_kwargs: [{"index_set_id": 100, "indices": [{"result_table_id": "2_bklog.demo"}]}],
+    )
+
+    with caplog.at_level("WARNING", logger="apm"):
+        result = ServiceLogTaskHandler.get_k8s_related_log_indexes(BK_BIZ_ID, APP_NAME)
+
+    assert result == {"service-a": [{"index_set_id": 100, "bk_biz_id": BK_BIZ_ID}]}
+    assert "relation query partially failed" in caplog.text
+    assert "failed=1, total=2" in caplog.text
+
+
+@pytest.mark.parametrize("query_result", [[None], []])
+def test_get_k8s_related_log_indexes_raises_when_all_queries_fail(
+    monkeypatch: pytest.MonkeyPatch,
+    query_result: list[None],
+) -> None:
+    entity_set = FakeEntitySet({"service-a": [WORKLOAD.copy()]})
+    monkeypatch.setattr(task_handler, "EntitySet", lambda *_args, **_kwargs: entity_set)
+    monkeypatch.setattr(task_handler.RelationQ, "query", lambda *_args, **_kwargs: query_result)
+
+    with pytest.raises(RuntimeError, match="all relation queries failed"):
+        ServiceLogTaskHandler.get_k8s_related_log_indexes(BK_BIZ_ID, APP_NAME)
 
 
 def test_get_k8s_related_log_indexes_custom_workload_uses_service_path(
@@ -288,6 +344,50 @@ def test_cache_invalid_data_replaced(monkeypatch: pytest.MonkeyPatch, invalid_ca
     assert redis_cache.expirations[cache_key] == 24 * 60 * 60
 
 
+def test_cache_query_failure_keeps_existing_cache_and_continues(monkeypatch: pytest.MonkeyPatch) -> None:
+    failed_app_name = "failed-app"
+    succeeded_app_name = "succeeded-app"
+    failed_cache_key = ApmCacheKey.APP_SERVICE_K8S_RELATED_LOG_INDEXES_KEY.format(
+        bk_biz_id=BK_BIZ_ID, app_name=failed_app_name
+    )
+    succeeded_cache_key = ApmCacheKey.APP_SERVICE_K8S_RELATED_LOG_INDEXES_KEY.format(
+        bk_biz_id=BK_BIZ_ID, app_name=succeeded_app_name
+    )
+    old_cache = {"service-old": [{"index_set_id": 100, "bk_biz_id": BK_BIZ_ID, "updated_at": 1}]}
+    redis_cache = FakeRedisCache({failed_cache_key: compress_and_serialize(old_cache)})
+    applications = [
+        SimpleNamespace(bk_biz_id=BK_BIZ_ID, app_name=failed_app_name, bk_tenant_id="tenant-a"),
+        SimpleNamespace(bk_biz_id=BK_BIZ_ID, app_name=succeeded_app_name, bk_tenant_id="tenant-b"),
+    ]
+    tenant_ids: list[str] = []
+
+    def get_related_indexes(_bk_biz_id: int, app_name: str) -> dict[str, list[dict[str, Any]]]:
+        if app_name == failed_app_name:
+            raise RuntimeError("all relation queries failed")
+
+        return {"service-a": [{"index_set_id": 200, "bk_biz_id": BK_BIZ_ID}]}
+
+    monkeypatch.setattr(
+        tasks,
+        "Application",
+        SimpleNamespace(objects=SimpleNamespace(filter=lambda **_kwargs: applications)),
+    )
+    monkeypatch.setattr(tasks, "caches", {"redis": redis_cache})
+    monkeypatch.setattr(tasks, "set_local_tenant_id", tenant_ids.append)
+    monkeypatch.setattr(tasks.time, "time", lambda: 123)
+    monkeypatch.setattr(tasks.ServiceLogTaskHandler, "get_k8s_related_log_indexes", get_related_indexes)
+
+    tasks.cache_application_k8s_related_indexes()
+
+    assert deserialize_and_decompress(redis_cache.data[failed_cache_key]) == old_cache
+    assert failed_cache_key not in redis_cache.expirations
+    assert deserialize_and_decompress(redis_cache.data[succeeded_cache_key]) == {
+        "service-a": [{"index_set_id": 200, "bk_biz_id": BK_BIZ_ID, "updated_at": 123}]
+    }
+    assert redis_cache.expirations[succeeded_cache_key] == 24 * 60 * 60
+    assert tenant_ids == ["tenant-a", "tenant-b"]
+
+
 def test_list_indexes_by_relation_cache_hit(monkeypatch: pytest.MonkeyPatch) -> None:
     cache_key = ApmCacheKey.APP_SERVICE_K8S_RELATED_LOG_INDEXES_KEY.format(bk_biz_id=BK_BIZ_ID, app_name=APP_NAME)
     expected = [{"index_set_id": 100, "bk_biz_id": BK_BIZ_ID, "updated_at": 123}]
@@ -405,3 +505,108 @@ def test_process_metric_relations_skips_cache_for_service_without_workload(
         )
         == []
     )
+
+
+def test_log_relation_list_reuses_cache_across_time_ranges(monkeypatch: pytest.MonkeyPatch) -> None:
+    result = [{"index_set_id": 100}]
+    relation_calls: list[tuple[Any, ...]] = []
+    result_cache = FakeLogRelationCache()
+
+    def process_relation(*args: Any) -> list[dict[str, Any]]:
+        relation_calls.append(args)
+        return result
+
+    monkeypatch.setattr(log_resources, "using_cache", lambda *_args, **_kwargs: result_cache)
+    monkeypatch.setattr(log_resources, "get_biz_index_sets_with_cache", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(log_resources, "process_relation", process_relation)
+    monkeypatch.setattr(log_resources, "process_datasource", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(log_resources, "process_metric_relations", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(log_resources, "process_span_host", lambda *_args, **_kwargs: [])
+
+    first_result = log_resources.log_relation_list(BK_BIZ_ID, APP_NAME, "service-a", start_time=1, end_time=2)
+    second_result = log_resources.log_relation_list(BK_BIZ_ID, APP_NAME, "service-a", start_time=3, end_time=4)
+
+    assert first_result == result
+    assert second_result == result
+    assert len(relation_calls) == 1
+    assert result_cache.read_keys[0] == result_cache.read_keys[1]
+
+
+def test_log_info_accepts_but_does_not_forward_time_range(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[int, str, str | None]] = []
+    entity_set = FakeEntitySet({"service-a": [WORKLOAD.copy()]})
+
+    def list_indexes_by_relation(
+        bk_biz_id: int,
+        app_name: str,
+        service_name: str | None,
+    ) -> list[dict[str, Any]]:
+        calls.append((bk_biz_id, app_name, service_name))
+        return [{"index_set_id": 100, "bk_biz_id": bk_biz_id}]
+
+    monkeypatch.setattr(ServiceLogHandler, "get_log_datasource", lambda **_kwargs: None)
+    monkeypatch.setattr(ServiceLogHandler, "get_log_relations", lambda **_kwargs: [])
+    monkeypatch.setattr(ServiceLogHandler, "list_indexes_by_relation", list_indexes_by_relation)
+    monkeypatch.setattr(log_resources, "EntitySet", lambda *_args, **_kwargs: entity_set)
+    serializer = log_resources.LogInfoResource.RequestSerializer(
+        data={
+            "bk_biz_id": BK_BIZ_ID,
+            "app_name": APP_NAME,
+            "service_name": "service-a",
+            "start_time": 1,
+            "end_time": 2,
+        }
+    )
+
+    assert serializer.is_valid(), serializer.errors
+    validated_request_data = cast(dict[str, Any], serializer.validated_data)
+    assert log_resources.LogInfoResource().perform_request(validated_request_data) is True
+    assert calls == [(BK_BIZ_ID, APP_NAME, "service-a")]
+
+
+def test_log_info_skips_stale_cache_for_service_without_workload(monkeypatch: pytest.MonkeyPatch) -> None:
+    entity_set = FakeEntitySet({"service-a": []})
+    monkeypatch.setattr(ServiceLogHandler, "get_log_datasource", lambda **_kwargs: None)
+    monkeypatch.setattr(ServiceLogHandler, "get_log_relations", lambda **_kwargs: [])
+    monkeypatch.setattr(
+        ServiceLogHandler,
+        "list_indexes_by_relation",
+        lambda *_args, **_kwargs: pytest.fail("无 workload 的服务不应读取历史关联索引缓存"),
+    )
+    monkeypatch.setattr(log_resources, "EntitySet", lambda *_args, **_kwargs: entity_set)
+
+    assert (
+        log_resources.LogInfoResource().perform_request(
+            {"bk_biz_id": BK_BIZ_ID, "app_name": APP_NAME, "service_name": "service-a"}
+        )
+        is False
+    )
+
+
+def test_log_info_workload_query_error_returns_false(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    def raise_topology_query_error(*_args: Any, **_kwargs: Any) -> None:
+        raise ValueError("topology query failed")
+
+    monkeypatch.setattr(ServiceLogHandler, "get_log_datasource", lambda **_kwargs: None)
+    monkeypatch.setattr(ServiceLogHandler, "get_log_relations", lambda **_kwargs: [])
+    monkeypatch.setattr(
+        ServiceLogHandler,
+        "list_indexes_by_relation",
+        lambda *_args, **_kwargs: pytest.fail("workload 查询失败后不应继续读取关联索引缓存"),
+    )
+    monkeypatch.setattr(
+        log_resources,
+        "EntitySet",
+        raise_topology_query_error,
+    )
+
+    with caplog.at_level("ERROR", logger="apm"):
+        result = log_resources.LogInfoResource().perform_request(
+            {"bk_biz_id": BK_BIZ_ID, "app_name": APP_NAME, "service_name": "service-a"}
+        )
+
+    assert result is False
+    assert "[LOG_INFO] workload query failed" in caplog.text

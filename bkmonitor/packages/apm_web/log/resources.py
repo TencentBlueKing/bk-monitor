@@ -202,7 +202,7 @@ def process_metric_relations(
     indexes_mapping: dict[int, list[dict[str, Any]]],
     overwrite_method: Callable[..., list[dict]] | None = None,
 ) -> list[dict[str, Any]]:
-    """根据应用关联指标反查关联日志索引集。"""
+    """根据服务 workload 关系从缓存获取容器日志索引集。"""
     if not service_name:
         return []
 
@@ -210,9 +210,11 @@ def process_metric_relations(
     if not EntitySet(bk_biz_id, app_name, [service_name]).get_workloads(service_name):
         return []
 
-    relations: list[dict[str, Any]] = ServiceLogHandler.list_indexes_by_relation(bk_biz_id, app_name, service_name)
+    related_indexes: list[dict[str, Any]] = ServiceLogHandler.list_indexes_by_relation(
+        bk_biz_id, app_name, service_name
+    )
     index_infos: list[dict[str, Any]] = _find_index_infos_from_cache(
-        bk_biz_id, [relation["index_set_id"] for relation in relations], indexes_mapping
+        bk_biz_id, [index["index_set_id"] for index in related_indexes], indexes_mapping
     )
     for index_info in index_infos:
         index_info["addition"] = (
@@ -227,8 +229,6 @@ def _generate_cache_key(
     app_name: str,
     service_name: str | None,
     extra_info: dict[str, Any] | None,
-    start_time: int | None,
-    end_time: int | None,
 ) -> str:
     """生成日志关联列表的缓存 key。
 
@@ -236,8 +236,6 @@ def _generate_cache_key(
     :param app_name: 应用名称。
     :param extra_info: 额外过滤信息，如 span_id / trace_id。
     :param service_name: 服务名称。
-    :param start_time: 开始时间戳。
-    :param end_time: 结束时间戳。
     :return: 缓存 key。
     """
 
@@ -246,10 +244,6 @@ def _generate_cache_key(
         key_parts.append(service_name)
 
     key_parts.append(count_md5(extra_info))
-    if start_time and end_time and service_name:
-        # 应用关联日志无需按时间范围缓存。
-        key_parts.append(str((start_time // FIVE_MIN_SECONDS) * FIVE_MIN_SECONDS))
-        key_parts.append(str((end_time // FIVE_MIN_SECONDS) * FIVE_MIN_SECONDS))
 
     return "-".join(key_parts + ["log_relation_list"])
 
@@ -293,11 +287,11 @@ def log_relation_list(
     :param app_name: 应用名称。
     :param service_name: 服务名称。
     :param extra_info: 额外过滤信息，如 {"span_id": "xxx"} 或 {"trace_id": "yyy"}。
-    :param start_time: 开始时间戳。
-    :param end_time: 结束时间戳。
+    :param start_time: 开始时间戳，仅保留接口兼容，不参与关联结果查询。
+    :param end_time: 结束时间戳，仅保留接口兼容，不参与关联结果查询。
     :return: 去重后的索引集信息列表，is_app_datasource=True 的排在最前。
     """
-    cache_key: str = _generate_cache_key(bk_biz_id, app_name, service_name, extra_info, start_time, end_time)
+    cache_key: str = _generate_cache_key(bk_biz_id, app_name, service_name, extra_info)
     cache_call = using_cache(CacheType.APM(FIVE_MIN_SECONDS))
     cached: list[dict] | None = cache_call.get_value(cache_key)
     if cached:
@@ -351,10 +345,10 @@ class LogInfoResource(Resource, HostIndexQueryMixin):
         start_time = serializers.IntegerField(label="开始时间", required=False)
         end_time = serializers.IntegerField(label="结束时间", required=False)
 
-    def perform_request(self, data):
-        bk_biz_id = data["bk_biz_id"]
-        app_name = data["app_name"]
-        service_name = data.get("service_name")
+    def perform_request(self, validated_request_data: dict[str, Any]) -> bool:
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        app_name = validated_request_data["app_name"]
+        service_name = validated_request_data.get("service_name")
 
         # 1.是否开启了日志
         if ServiceLogHandler.get_log_datasource(bk_biz_id=bk_biz_id, app_name=app_name):
@@ -367,6 +361,21 @@ class LogInfoResource(Resource, HostIndexQueryMixin):
             return True
 
         # 3. 是否有关联的 pod 日志
+        if not service_name:
+            return False
+
+        try:
+            if not EntitySet(bk_biz_id, app_name, [service_name]).get_workloads(service_name):
+                return False
+        except Exception:  # pylint: disable=broad-except
+            logger.exception(
+                "[LOG_INFO] workload query failed: bk_biz_id=%s, app_name=%s, service_name=%s",
+                bk_biz_id,
+                app_name,
+                service_name,
+            )
+            return False
+
         return bool(
             ServiceLogHandler.list_indexes_by_relation(
                 bk_biz_id=bk_biz_id,
@@ -391,12 +400,12 @@ class LogRelationListResource(Resource, HostIndexQueryMixin):
         start_time = serializers.IntegerField(label="开始时间", required=False)
         end_time = serializers.IntegerField(label="结束时间", required=False)
 
-    def perform_request(self, data):
+    def perform_request(self, validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
         extra_info: dict[str, str] = {}
-        span_id = data.pop("span_id", None)
-        trace_id = data.pop("trace_id", None)
+        span_id = validated_request_data.pop("span_id", None)
+        trace_id = validated_request_data.pop("trace_id", None)
         if span_id:
             extra_info["span_id"] = span_id
         if trace_id:
             extra_info["trace_id"] = trace_id
-        return log_relation_list(extra_info=extra_info or None, **data)
+        return log_relation_list(extra_info=extra_info or None, **validated_request_data)
