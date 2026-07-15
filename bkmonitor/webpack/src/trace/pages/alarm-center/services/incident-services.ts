@@ -346,19 +346,21 @@ export class IncidentService extends AlarmService<AlarmType.INCIDENT> {
     return [...INCIDENT_TABLE_COLUMNS];
   }
   get analysisDefaultSettingsFields(): string[] {
-    return ['incident_name', 'incident_type', 'operator', 'duration'];
+    return ['incident_name', 'status', 'level', 'assignees'];
   }
   get analysisFields(): string[] {
-    return ['incident_name', 'incident_type', 'operator', 'duration', 'strategy_name', 'operate_target_string'];
+    return ['incident_name', 'incident_reason', 'status', 'level', 'assignees', 'handlers', 'labels', 'bk_biz_id'];
   }
   get analysisFieldsMap(): Record<string, string> {
     return {
       incident_name: window.i18n.t('故障名称'),
-      incident_type: window.i18n.t('故障类型'),
-      operator: window.i18n.t('负责人'),
-      duration: window.i18n.t('处理时长'),
-      strategy_name: window.i18n.t('策略名称'),
-      operate_target_string: window.i18n.t('执行对象'),
+      incident_reason: window.i18n.t('故障原因'),
+      status: window.i18n.t('故障状态'),
+      level: window.i18n.t('故障级别'),
+      assignees: window.i18n.t('负责人'),
+      handlers: window.i18n.t('处理人'),
+      labels: window.i18n.t('标签'),
+      bk_biz_id: window.i18n.t('业务ID'),
     };
   }
   get filterFields(): IFilterField[] {
