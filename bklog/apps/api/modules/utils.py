@@ -235,6 +235,11 @@ else:
             # saas直查已通过日志鉴权逻辑，默认使用超级权限
             params = update_bkdata_auth_info(params)
 
+        # no_request 为 True 时，统一用 admin 身份，先不使用多租户的虚拟用户
+        if params.get("no_request"):
+            params["bk_username"] = "admin"
+            params["operator"] = "admin"
+
         params = add_esb_info_before_request(params)
         params = add_app_info_before_request(params)
         params = adapt_non_bkcc(params)
