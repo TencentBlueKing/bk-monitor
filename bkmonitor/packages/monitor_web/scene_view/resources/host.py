@@ -519,7 +519,7 @@ class GetHostProcessListResource(Resource):
                 "status": process["status"],
                 # 运行时指标按进程名(display_name)索引，通过 runtime_metric_map 映射 UI→TSDB 字段名
                 "pid": host_runtime.get(process["name"], {}).get(runtime_metric_map["pid"]),
-                "protocol": process.get("protocol"),
+                "protocol": GetHostOrTopoNodeDetailResource.protocol_map.get(process.get("protocol")),
                 "bindIp": process.get("bindIp"),
                 "port": process.get("port"),
                 "portStatus": host_port_status.get(process["name"]),
