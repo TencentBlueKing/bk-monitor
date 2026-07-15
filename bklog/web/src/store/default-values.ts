@@ -412,6 +412,7 @@ export const getStorageOptions = (values?: any) => {
     [BK_LOG_STORAGE.LAST_INDEX_SET_ID]: {},
     [BK_LOG_STORAGE.COMMON_SPACE_ID_LIST]: [],
     [BK_LOG_STORAGE.TABLE_SHOW_SOURCE_FIELD]: false,
+    [BK_LOG_STORAGE.TABLE_SHOW_COLLECTOR_FIELD]: false,
     [BK_LOG_STORAGE.RESULT_DISPLAY_LINES]: 3,
     [BK_LOG_STORAGE.SCENE_DISPLAY_FIELDS]: {},
     ...storage,
