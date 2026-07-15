@@ -789,14 +789,15 @@ def push_and_publish_space_router(
 
     if settings.ENABLE_MULTI_TENANT_MODE:  # 若开启多租户模式，则以空间粒度推送路由
         for space in space_list:
-            tid_ds = get_space_table_id_data_id(space["space_type"], space["space_id"])
+            tid_ds = get_space_table_id_data_id(
+                space["space_type"], space["space_id"], bk_tenant_id=space["bk_tenant_id"]
+            )
             space_tid_list = list(tid_ds.keys())
             space_client = SpaceTableIDRedis()
             space_client.push_table_id_detail(
+                bk_tenant_id=space["bk_tenant_id"],
                 table_id_list=space_tid_list,
                 is_publish=is_publish,
-                include_es_table_ids=True,
-                bk_tenant_id=space["bk_tenant_id"],
             )
             space_client.push_data_label_table_ids(
                 table_id_list=space_tid_list,
@@ -811,8 +812,16 @@ def push_and_publish_space_router(
                 table_id_list.extend(tid_ds.keys())
 
         space_client = SpaceTableIDRedis()
-        space_client.push_data_label_table_ids(table_id_list=table_id_list, is_publish=is_publish)
-        space_client.push_table_id_detail(table_id_list=table_id_list, is_publish=is_publish, include_es_table_ids=True)
+        space_client.push_data_label_table_ids(
+            bk_tenant_id=DEFAULT_TENANT_ID,
+            table_id_list=table_id_list,
+            is_publish=is_publish,
+        )
+        space_client.push_table_id_detail(
+            bk_tenant_id=DEFAULT_TENANT_ID,
+            table_id_list=table_id_list,
+            is_publish=is_publish,
+        )
 
 
 @atomic(config.DATABASE_CONNECTION_NAME)

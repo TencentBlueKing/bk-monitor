@@ -379,10 +379,9 @@ def refresh_routes(params: dict[str, Any]) -> dict[str, Any]:
     if REFRESH_TARGET_TABLE in refresh_targets and table_ids:
         try:
             route_client.push_table_id_detail(
-                table_id_list=table_ids,
-                include_es_table_ids=True,
-                is_publish=True,
                 bk_tenant_id=bk_tenant_id,
+                table_id_list=table_ids,
+                is_publish=True,
             )
             _mark_refresh_result(refresh_results, "result_table_detail", table_ids, success=True)
         except Exception as error:  # pylint: disable=broad-except

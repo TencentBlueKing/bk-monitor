@@ -43,10 +43,6 @@ export default defineComponent({
       type: Boolean,
       required: true,
     },
-    loading: {
-      type: Boolean,
-      default: false,
-    },
     authUrl: {
       type: String,
       default: '',
@@ -86,24 +82,10 @@ export default defineComponent({
 
     const handleWorkspaceClick = (item: TapdWorkspaceItem) => {
       if (item.loading) return;
-      console.log('click');
       emit('select', item);
     };
 
     const renderWorkspaceList = () => {
-      if (props.loading) {
-        return (
-          <div class='workspace-list'>
-            {new Array(4).fill(0).map((_, index) => (
-              <div
-                key={index}
-                class='workspace-item skeleton-element'
-              />
-            ))}
-          </div>
-        );
-      }
-
       if (!props.authUrl && !props.isAuth) {
         return <span>{t('您没有权限访问该业务的 TAPD 关联功能')}</span>;
       }

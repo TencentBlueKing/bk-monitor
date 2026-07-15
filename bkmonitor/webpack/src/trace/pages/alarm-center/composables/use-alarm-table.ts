@@ -23,15 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref as deepRef, onMounted, onScopeDispose, shallowRef, watchEffect } from 'vue';
+import { ref as deepRef, onMounted, onScopeDispose, shallowRef, watch, watchEffect } from 'vue';
 
 import { commonPageSizeGet } from 'monitor-common/utils';
 
+import { TrendRangeEnum } from '../alarm-issues/constant';
+import { type ActionTableItem, type AlertTableItem, type IncidentTableItem, AlarmType } from '../typings';
 import { getOperatorDisabled } from '../utils';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
-import type { IssueItem } from '../alarm-issues/typing';
-import type { ActionTableItem, AlertTableItem, IncidentTableItem } from '../typings';
+import type { IssueItem, TrendRangeType } from '../alarm-issues/typing';
+import type { IssuesService } from '../services/issues-services';
 
 export function useAlarmTable() {
   const alarmStore = useAlarmCenterStore();
@@ -47,12 +49,18 @@ export function useAlarmTable() {
   const ordering = shallowRef('');
   /** 是否加载中 */
   const loading = shallowRef(false);
+  /** Issues 趋势时间范围（默认 24h） */
+  const trendRange = shallowRef<TrendRangeType>(TrendRangeEnum.HOURS_24);
+  /** Issues 趋势数据是否加载中 */
+  const trendLoading = shallowRef(false);
   /** 已开启故障分析功能的空间 bizId 列表（incident 场景专用） */
   const enabledSpaces = deepRef<number[]>([]);
   /** BK助手链接 */
   const wxCsLink = shallowRef('');
   /** 请求中止控制器 */
   let abortController: AbortController | null = null;
+  /** 趋势请求中止控制器 */
+  let trendAbortController: AbortController | null = null;
 
   const effectFunc = async () => {
     // 中止上一次未完成的请求
@@ -65,15 +73,13 @@ export function useAlarmTable() {
 
     loading.value = true;
     data.value = [];
-    const res = await alarmStore.alarmService.getFilterTableList(
-      {
-        ...alarmStore.commonFilterParams,
-        page_size: pageSize.value,
-        page: page.value,
-        ordering: ordering.value ? [ordering.value] : [],
-      },
-      { signal }
-    );
+    const params = {
+      ...alarmStore.commonFilterParams,
+      page_size: pageSize.value,
+      page: page.value,
+      ordering: ordering.value ? [ordering.value] : [],
+    };
+    const res = await alarmStore.alarmService.getFilterTableList(params, { signal });
     // 获取告警关联事件数 和 关联告警信息
     await alarmStore.alarmService
       .getAlterRelevance(res.data as (ActionTableItem | AlertTableItem | IncidentTableItem)[], { signal })
@@ -94,11 +100,41 @@ export function useAlarmTable() {
     enabledSpaces.value = (res.enabled_spaces ?? []).map(Number);
     wxCsLink.value = res.wx_cs_link ?? '';
     loading.value = false;
+    fetchTrendData();
   };
+  /**
+   * @description 单独请求 Issues 趋势数据并回填到当前列表行
+   */
+  const fetchTrendData = async () => {
+    if (alarmStore.alarmType !== AlarmType.ISSUES) return;
+    const issues = data.value as IssueItem[];
+    if (!issues.length) return;
+    const endTime = alarmStore.commonFilterParams.end_time;
+    if (!endTime) return;
+
+    if (trendAbortController) trendAbortController.abort();
+    const controller = new AbortController();
+    trendAbortController = controller;
+    const { signal } = controller;
+
+    trendLoading.value = true;
+    const trendMap = await (alarmStore.alarmService as IssuesService).getIssueTrend(issues, endTime, trendRange.value, {
+      signal,
+    });
+    if (signal.aborted) return;
+    for (const issue of issues) {
+      issue.trend = trendMap[issue.id] || [];
+    }
+    if (trendAbortController === controller) {
+      trendLoading.value = false;
+    }
+  };
+
   // 由于在 setup(create) | BeforeMount 时机可能需要获取路由参数对变量进行初始化
   // 如果不在 onMounted 时机进行 watchEffect 可能会导致 effect 首次执行是错误的且是非必要的
   onMounted(() => {
     watchEffect(effectFunc);
+    watch(trendRange, fetchTrendData);
   });
 
   onScopeDispose(() => {
@@ -106,6 +142,10 @@ export function useAlarmTable() {
     if (abortController) {
       abortController.abort();
       abortController = null;
+    }
+    if (trendAbortController) {
+      trendAbortController.abort();
+      trendAbortController = null;
     }
     pageSize.value = commonPageSizeGet() ?? 50;
     page.value = 1;
@@ -115,6 +155,8 @@ export function useAlarmTable() {
     ordering.value = '';
     enabledSpaces.value = [];
     wxCsLink.value = '';
+    trendRange.value = TrendRangeEnum.HOURS_24;
+    trendLoading.value = false;
   });
   return {
     pageSize,
@@ -125,5 +167,7 @@ export function useAlarmTable() {
     ordering,
     enabledSpaces,
     wxCsLink,
+    trendRange,
+    trendLoading,
   };
 }

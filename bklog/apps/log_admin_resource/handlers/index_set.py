@@ -108,6 +108,8 @@ def _serialize_index_set(index_set, indexes=None, bk_biz_id=None):
         "is_group": index_set.is_group,
         "support_doris": index_set.support_doris,
         "tag_ids": _normalize_list(index_set.tag_ids),
+        "created_at": index_set.created_at.isoformat() if index_set.created_at else None,
+        "created_by": index_set.created_by,
         "updated_at": index_set.updated_at.isoformat() if index_set.updated_at else None,
         "result_table_ids": [item.result_table_id for item in indexes],
         "index_count": len(indexes),

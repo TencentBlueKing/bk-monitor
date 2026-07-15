@@ -32,6 +32,11 @@ from fta_web.alert.handlers.base import (
     BaseQueryTransformer,
     QueryField,
 )
+from fta_web.alert.handlers.fulltext import (
+    FulltextFieldKind,
+    FulltextSearchField,
+    is_bare_fulltext_query,
+)
 from fta_web.alert.handlers.translator import BizTranslator
 from fta_web.alert.utils import search_time_init
 
@@ -97,7 +102,19 @@ class IncidentQueryHandler(BaseBizQueryHandler):
     """
 
     query_transformer = IncidentQueryTransformer
+    FULLTEXT_BIZ_ID_FIELD = "bk_biz_id"
     TEXT_CONDITION_FIELDS = {"incident_name", "incident_reason"}
+    # 产品锁定：ID、名称、原因、标签、负责人、处理人、所属业务
+    FULLTEXT_SEARCH_FIELDS = [
+        FulltextSearchField("id", FulltextFieldKind.KEYWORD),
+        FulltextSearchField("incident_id", FulltextFieldKind.KEYWORD),
+        FulltextSearchField("incident_name", FulltextFieldKind.TEXT),
+        FulltextSearchField("incident_reason", FulltextFieldKind.TEXT),
+        FulltextSearchField("labels", FulltextFieldKind.KEYWORD),
+        FulltextSearchField("assignees", FulltextFieldKind.KEYWORD),
+        FulltextSearchField("handlers", FulltextFieldKind.KEYWORD),
+        FulltextSearchField("bk_biz_id", FulltextFieldKind.KEYWORD),
+    ]
 
     # “我的故障” 状态名称
     MINE_STATUS_NAME = "MY_INCIDENT"
@@ -195,22 +212,34 @@ class IncidentQueryHandler(BaseBizQueryHandler):
                 query_dsl = query_dsl.replace(f"({display} OR {field}:{value})", f'("{display}" OR {field}:{value})')
         return query_dsl
 
+    def build_query_string_q(self, query_string: str, context=None, *, literal_fulltext: bool = False):
+        """故障侧：UI 字面/裸词走全字段；结构化语法走 transform + 枚举中文 quoting。"""
+        if not query_string or not str(query_string).strip():
+            return None
+
+        original_query_string = query_string
+        use_fulltext = self.FULLTEXT_SEARCH_FIELDS and (
+            literal_fulltext or is_bare_fulltext_query(original_query_string)
+        )
+        if use_fulltext:
+            bare_q = self.build_bare_fulltext_query_q([original_query_string])
+            if bare_q is not None:
+                return bare_q
+            return Q("match_none")
+
+        query_dsl = self.query_transformer.transform_query_string(query_string, context)
+        query_dsl = self._quote_translated_query_string(query_dsl)
+        if isinstance(query_dsl, str):
+            return Q("query_string", query=query_dsl)
+        return Q(query_dsl)
+
+
     @classmethod
     def _build_fuzzy_query(cls, query_string: str, fields: list[str] | None = None):
-        """构造故障前缀模糊查询，不传 fields 时默认查询全字段。"""
+        """单字段 Text 条件的前缀模糊；全字段检索请走 FULLTEXT_SEARCH_FIELDS。"""
         query_string = query_string.strip().strip('"').strip("'")
-        if not query_string:
+        if not query_string or not fields:
             return None
-
-        if fields is None:
-            fields = [
-                field.es_field
-                for field in cls.query_transformer.query_fields
-                if field.searchable and field.es_field
-            ]
-        if not fields:
-            return None
-
         return Q("multi_match", query=query_string, fields=fields, type="phrase_prefix", lenient=True)
 
     @classmethod
@@ -234,34 +263,14 @@ class IncidentQueryHandler(BaseBizQueryHandler):
 
         query = queries[0] if len(queries) == 1 else Q("bool", should=queries, minimum_should_match=1)
 
-
         if condition["method"] == "exclude":
             return ~query
         return query
 
     def parse_condition_item(self, condition: dict) -> Q:
         if condition["key"] == "query_string":
-            con_q = None
-            for query_string in condition["value"]:
-                if query_string.strip():
-                    original_query_string = query_string
-                    query_string = query_string.replace(":", r"\:")
-                    query_dsl = self.query_transformer.transform_query_string(query_string)
-                    query_dsl = self._quote_translated_query_string(query_dsl)
-                    if isinstance(query_dsl, str):
-                        temp_q = Q("query_string", query=query_dsl)
-                    else:
-                        temp_q = Q(query_dsl)
-
-                    fuzzy_q = self._build_fuzzy_query(original_query_string)
-                    if fuzzy_q is not None:
-                        temp_q = temp_q | fuzzy_q
-
-                    if con_q is None:
-                        con_q = temp_q
-                    else:
-                        con_q = con_q | temp_q
-            return con_q
+            # UI 全字段：按字面文本走白名单（foo:bar / CPU AND memory 不解析为 Lucene）
+            return self.build_query_string_condition_q(condition.get("value"))
         if condition["key"] in self.TEXT_CONDITION_FIELDS and condition["method"] in ["include", "exclude"]:
             return self._build_text_condition_query(condition)
 

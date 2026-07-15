@@ -30,17 +30,19 @@ import { getTapdFieldsApi } from '../../components/tapd-field-form/service/issue
 import { TapdLinkModeEnum } from '../constant';
 import useUserConfig from '@/hooks/useUserConfig';
 
+import type { IssueDetail } from '../../typing/detail';
 import type { CreateTapdDefaultSetting, TapdLinkModeType, TapdWorkspaceItem } from '../typing';
 
 interface UseTapdSidesliderOptions {
   bizId: Ref<number | string>;
+  issueDetail: Ref<IssueDetail>;
   issuesId: Ref<string>;
   show: Ref<boolean>;
   workspaceList: Ref<TapdWorkspaceItem[]>;
 }
 
 export function useTapdSideslider(options: UseTapdSidesliderOptions) {
-  const { show, bizId, workspaceList } = options;
+  const { show, bizId, workspaceList, issueDetail } = options;
 
   /** 已关联 TAPD 项目数量 */
   const count = shallowRef(1);
@@ -76,6 +78,28 @@ export function useTapdSideslider(options: UseTapdSidesliderOptions) {
   /** 用户配置 hook */
   const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
 
+  const setTapdFieldDefatultValue = () => {
+    const defaultPriorityLabelMap = {
+      P0: 'High',
+      P1: 'Middle',
+      P2: 'Low',
+    };
+    const defaultPriorityLabel =
+      tapdFields.value
+        .find(item => item.field_id === 'priority_label')
+        ?.options?.find(option => option.id === defaultPriorityLabelMap?.[issueDetail.value?.priority])?.id || '';
+    if (issueDetail.value) {
+      const defaultValue = {
+        name: issueDetail.value?.name || '',
+        owner: issueDetail.value?.assignee || [],
+      };
+      if (defaultPriorityLabel) {
+        defaultValue.priority_label = defaultPriorityLabel;
+      }
+      tapdFieldValue.value = defaultValue;
+    }
+  };
+
   /**
    * @description 获取tapd单据字段
    */
@@ -89,6 +113,7 @@ export function useTapdSideslider(options: UseTapdSidesliderOptions) {
       bk_biz_id: bizId.value as number,
     });
     tapdFields.value = fields;
+    setTapdFieldDefatultValue();
     tapdFieldFormLoading.value = false;
   };
 

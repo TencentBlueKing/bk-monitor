@@ -240,8 +240,12 @@ class IssueDocument(BaseDocument):
             raise self._status_transition_error("重新打开", "仅「已解决」状态")
         old_status = self.status
         self.status = IssueStatus.UNRESOLVED
+        self.resolved_time = None
         self.update_time = int(time.time())
-        self._persist_and_cache(active=True)
+        # skip_empty=False：让 resolved_time=None 以 null 写入 ES，真正清空（否则 to_dict(skip_empty=True) 会丢弃 None）。
+        # 前提：本方法操作的是已全量加载的主轴文档（__init__ 时所有字段已赋值），skip_empty=False 仅把 None 字段写 null，
+        # 不会误清空其它已赋值字段；请勿在最小/部分文档上直接套用此写法。
+        self._persist_and_cache(active=True, skip_empty=False)
         activities = self._write_activities(
             [
                 (IssueActivityType.STATUS_CHANGE, old_status, IssueStatus.UNRESOLVED, operator, None),
@@ -260,8 +264,13 @@ class IssueDocument(BaseDocument):
         old_status = self.status
         self.status = target_status
         self.update_time = int(time.time())
-        # 恢复后若目标状态为活跃状态则写回缓存
-        self._persist_and_cache(active=target_status in IssueStatus.ACTIVE_STATUSES)
+        if target_status in IssueStatus.ACTIVE_STATUSES:
+            # 恢复到活跃态：清空 resolved_time（与 reopen 一致），skip_empty=False 真正写 null
+            self.resolved_time = None
+            self._persist_and_cache(active=True, skip_empty=False)
+        else:
+            # 恢复到已解决态：保留 resolved_time
+            self._persist_and_cache(active=target_status in IssueStatus.ACTIVE_STATUSES)
         activities = self._write_activities(
             [
                 (IssueActivityType.STATUS_CHANGE, old_status, target_status, operator, None),
@@ -657,13 +666,29 @@ class IssueDocument(BaseDocument):
             )
 
         # ② 批量 UPDATE 物理状态（assignee 不动）
-        update_docs = [cls(id=mid, status=target_status, update_time=now) for mid in member_ids]
+        # 终态 RESOLVED 同步 resolved_time，保证合并成员与主轴一致参与"按解决时间过滤"；
+        # ARCHIVED 不写 resolved_time（归档时间走 update_time，级联已同步）；
+        # 活跃态（reopen/restore 回到活跃）需显式清空成员 resolved_time，使其与主轴 reopen() 语义一致：
+        #   用 skip_empty=False 确保 resolved_time=None 被写入 ES（否则 to_dict 默认 skip_empty=True
+        #   会丢弃 None，使成员残留旧值，误导"按解决时间过滤"与冻结时长计算）。
+        #   成员是最小文档（仅 id/status/update_time/resolved_time 已赋值），to_dict(skip_empty=False)
+        #   只序列化已赋值字段，不会清空其它 ES 字段，故此处安全。
+        if target_status in IssueStatus.ACTIVE_STATUSES:
+            extra = {"resolved_time": None}
+            skip_empty = False
+        elif target_status == IssueStatus.RESOLVED:
+            extra = {"resolved_time": now}
+            skip_empty = True
+        else:  # ARCHIVED：不碰 resolved_time，归档时间走 update_time
+            extra = {}
+            skip_empty = True
+        update_docs = [cls(id=mid, status=target_status, update_time=now, **extra) for mid in member_ids]
         try:
-            cls.bulk_create(update_docs, action=BulkActionType.UPDATE)
+            cls.bulk_create(update_docs, action=BulkActionType.UPDATE, skip_empty=skip_empty)
         except Exception as e:
             logger.warning("[issue-merge] bulk_follow_status update failed, retrying once: %s", e)
             try:
-                cls.bulk_create(update_docs, action=BulkActionType.UPDATE)
+                cls.bulk_create(update_docs, action=BulkActionType.UPDATE, skip_empty=skip_empty)
             except Exception as e2:
                 logger.error(
                     "[issue-merge] bulk_follow_status update retry failed (member_ids=%s): %s",
@@ -813,17 +838,20 @@ class IssueDocument(BaseDocument):
             logger.exception("Failed to get pre_archive_status from activity log, issue_id=%s", self.id)
         return IssueStatus.PENDING_REVIEW
 
-    def _persist_and_cache(self, active: bool) -> None:
+    def _persist_and_cache(self, active: bool, skip_empty: bool = True) -> None:
         """
         UPSERT ES + 缓存处理。
         失败重试 1 次；仍失败则 raise IssueDocumentWriteError。
+
+        skip_empty: 透传给 bulk_create。默认 True（跳过 None 字段，做增量更新）；
+        置 False 时 None 字段会以 null 写入 ES，用于显式清空某字段（如 reopen 清空 resolved_time）。
         """
         try:
-            IssueDocument.bulk_create([self], action=BulkActionType.UPSERT)
+            IssueDocument.bulk_create([self], action=BulkActionType.UPSERT, skip_empty=skip_empty)
         except Exception as e:
             logger.warning("IssueDocument UPSERT failed, retrying once, issue_id=%s: %s", self.id, e)
             try:
-                IssueDocument.bulk_create([self], action=BulkActionType.UPSERT)
+                IssueDocument.bulk_create([self], action=BulkActionType.UPSERT, skip_empty=skip_empty)
             except Exception as e2:
                 logger.error("IssueDocument UPSERT retry failed, issue_id=%s: %s", self.id, e2)
                 raise IssueDocumentWriteError(f"IssueDocument write failed: issue_id={self.id}") from e2

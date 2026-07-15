@@ -41,7 +41,13 @@
       margin: 16px 0 8px;
 
       .issues-trend-chart {
-        flex-shrink: 0;
+        flex: 1;
+        min-width: 0;
+      }
+
+      .dimension-stats {
+        flex: 1;
+        min-width: 0;
       }
     }
 

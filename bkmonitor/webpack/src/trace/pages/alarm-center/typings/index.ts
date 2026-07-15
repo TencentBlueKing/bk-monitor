@@ -59,8 +59,6 @@ export interface AlarmUrlParams {
   filterMode: EMode;
   /** 开始时间 */
   from: string;
-  /** issue 首次告警时间 (用于issues详情) */
-  issueFirstAlarmTime?: string;
   /** 查询字符串 */
   queryString: string;
   /** 快速筛选值 */

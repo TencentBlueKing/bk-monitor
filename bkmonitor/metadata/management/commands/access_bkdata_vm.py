@@ -138,7 +138,12 @@ class Command(BaseCommand):
         for _, data_id_and_time in table_ids.items():
             self._refresh_consul(data_id_and_time["bk_data_id"])
         # 刷新 redis
-        self._refresh_redis(space_type, space_id, list(table_ids.keys()))
+        self._refresh_redis(
+            bk_tenant_id=bk_tenant_id,
+            space_type=space_type,
+            space_id=space_id,
+            table_id_list=list(table_ids.keys()),
+        )
 
         # 创建空间对应的记录
         models.SpaceVMInfo.objects.get_or_create(
@@ -320,14 +325,18 @@ class Command(BaseCommand):
         models.DataSource.objects.get(bk_data_id=data_id).refresh_consul_config()
         self.stdout.write("refresh consul config success")
 
-    def _refresh_redis(self, space_type: str, space_id: str, table_id_list: list[str]):
+    def _refresh_redis(self, *, bk_tenant_id: str, space_type: str, space_id: str, table_id_list: list[str]) -> None:
         """刷新 redis 配置"""
         self.stdout.write("start refresh router redis config")
 
         # 推送数据
         client = SpaceTableIDRedis()
         client.push_space_table_ids(space_type, space_id, is_publish=True)
-        client.push_data_label_table_ids(table_id_list=table_id_list)
-        client.push_table_id_detail(table_id_list=table_id_list)
+        client.push_data_label_table_ids(bk_tenant_id=bk_tenant_id, table_id_list=table_id_list)
+        client.push_table_id_detail(
+            bk_tenant_id=bk_tenant_id,
+            table_id_list=table_id_list,
+            is_publish=False,
+        )
 
         self.stdout.write("refresh router redis config success")
