@@ -37,6 +37,7 @@ from apps.decorators import user_operation_record
 from apps.exceptions import CreateOrUpdateLogRouterException
 from apps.feature_toggle.handlers.toggle import feature_switch
 from apps.iam import Permission, ResourceEnum
+from apps.log_databus.constants import DORIS_CLUSTER_TYPE, STORAGE_CLUSTER_TYPE
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import CollectorConfig
 from apps.log_desensitize.constants import (
@@ -1954,8 +1955,16 @@ class BaseIndexSetHandler:
         )
         # Doris路由或图表分析路由
         is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(index_set.tag_ids)
+        # 是否是人为手动接入 (doris、图表分析旧的接入方式)
+        is_use_es_storage_cluster = True
 
-        if is_doris:
+        if storage_cluster_id := index_set.storage_cluster_id:
+            cluster_info = StorageHandler(storage_cluster_id).get_cluster_info_by_id()
+            storage_cluster_type = cluster_info.get("cluster_type") or STORAGE_CLUSTER_TYPE
+            if storage_cluster_type == DORIS_CLUSTER_TYPE:
+                is_use_es_storage_cluster = False
+
+        if is_doris or (is_analysis and is_use_es_storage_cluster):
             for doris_table_id in db_doris_table_id.split(","):
                 doris_table_info = {
                     "storage_type": "doris",
