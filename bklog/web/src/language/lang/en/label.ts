@@ -985,4 +985,5 @@ export default {
   清空查询: 'Clear Query',
   场景: 'Scene',
   个人设置: 'Personal Settings',
+  未启动: 'Not Started',
 };
