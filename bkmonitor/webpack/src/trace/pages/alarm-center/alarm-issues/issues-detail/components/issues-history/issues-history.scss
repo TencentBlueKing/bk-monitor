@@ -16,11 +16,15 @@
       border-radius: 6px;
 
       .item-title {
+        overflow: hidden;
+        text-overflow: ellipsis;
         color: #3974ff;
+        white-space: nowrap;
         cursor: pointer;
       }
 
       .item-time {
+        flex-shrink: 0;
         color: #8f9fbd;
         text-decoration: underline dotted;
         cursor: pointer;
