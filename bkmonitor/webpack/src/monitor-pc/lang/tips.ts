@@ -518,8 +518,6 @@ export default {
     'If not checked, only the association is retained, and the issue is not automatically closed due to document closure.',
   '请选择有权限的项目，完成蓝鲸监控关联项目的应用授权。':
     'Please select a project with permission, and complete the application authorization of the BK-Monitor project.',
-  '取消后，TAPD 侧授权不会被撤销，但蓝鲸侧不再与该 TAPD 项目关联。确认解绑吗？':
-    'After unchecking, the TAPD side authorization will not be revoked, but the BK-Monitor side will no longer be associated with the TAPD project. Are you sure to unbind?',
   '页面主要内容完成渲染的耗时第 75 分位值，数值越低体验越好。':
     'The page main content is rendered in 75th percentile, the lower the better.',
   '页面运行中发生 JSt异常比例，数值越高稳定性越差。':
@@ -528,4 +526,7 @@ export default {
     'The proportion of failed API requests, including HTTP non-success status codes, request timeouts, or network exceptions.',
   'JS 错误的View数 / 总View数 × 100%': 'JS Error View Count / Total View Count × 100%',
   '失败接口请求次数 / 接口请求总次数 × 100%': 'Failed API Request Count / Total API Request Count × 100%',
+
+  '触发规则：仅当新增维度值数量大于{threshold}时触发告警':
+    'Trigger rule: alarm is triggered only when the number of new dimension values is greater than {threshold}',
 };

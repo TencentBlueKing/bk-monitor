@@ -58,11 +58,6 @@ export default defineComponent({
       type: String,
       default: '',
     },
-    /** issues 第一个告警产生时间 (秒级时间戳) */
-    firstAlarmTime: {
-      type: [Number, String],
-      default: 'now-1h',
-    },
     /** issues BizId */
     issueBizId: {
       type: Number,
@@ -91,10 +86,10 @@ export default defineComponent({
     const impactScopeResourceKey = shallowRef<'' | ImpactScopeResourceKeyType>('');
     const impactScopeDrawerShow = shallowRef(false);
     /** 初始化默认查询时间范围 */
-    const initTimeRange = () => {
-      const firstAlarmTime = props.firstAlarmTime || 'now-1h';
-      const time = Number(firstAlarmTime);
-      timeRange.value = [Number.isNaN(time) ? firstAlarmTime : time * 1000, 'now'];
+    const initTimeRange = (firstAlertTime?: number) => {
+      const timeValue = firstAlertTime ?? 'now-1h';
+      const time = Number(timeValue);
+      timeRange.value = [Number.isNaN(time) ? timeValue : time * 1000, 'now'];
     };
 
     const { run, signal } = useRequestAbort<IssueDetail>(issueDetail);
@@ -111,15 +106,15 @@ export default defineComponent({
         id: props.issueId,
       });
       if (signal?.aborted) return;
+      initTimeRange(res.first_alert_time);
       detail.value = res;
       loading.value = false;
     };
 
     watch(
-      () => [props.issueBizId, props.issueId, props.firstAlarmTime],
+      () => [props.issueBizId, props.issueId],
       () => {
         if (props.show) {
-          initTimeRange();
           getIssueDetailData();
         } else {
           detail.value = undefined;
@@ -182,7 +177,7 @@ export default defineComponent({
     };
 
     const handleCreateTapd = () => {
-      emit('createTapd', true);
+      emit('createTapd', true, detail.value);
     };
 
     const handleConditionChange = (val: IWhereItem[]) => {

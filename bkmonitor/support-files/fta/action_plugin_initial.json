@@ -909,6 +909,12 @@
                         "value": "action_name",
                         "type": "string",
                         "format": "jmespath"
+                    },
+                    {
+                        "key": "source",
+                        "value": "execute_config.source || 'bk_monitor'",
+                        "type": "string",
+                        "format": "jmespath"
                     }
                 ],
                 "outputs": [

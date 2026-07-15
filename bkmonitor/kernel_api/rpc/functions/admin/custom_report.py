@@ -628,7 +628,9 @@ def refresh_custom_report_metrics(params: dict[str, Any]) -> dict[str, Any]:
     if is_updated:
         from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
-        SpaceTableIDRedis().push_table_id_detail(table_id_list=[group.table_id], is_publish=True)
+        SpaceTableIDRedis().push_table_id_detail(
+            bk_tenant_id=bk_tenant_id, table_id_list=[group.table_id], is_publish=True
+        )
     metric_count_after = models.TimeSeriesMetric.objects.filter(group_id=group_id).count()
 
     return build_response(

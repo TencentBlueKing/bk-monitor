@@ -117,6 +117,10 @@ enum BK_LOG_STORAGE {
    * 表格是否展示日志来源
    */
   TABLE_SHOW_SOURCE_FIELD = '_19',
+  /**
+   * 表格是否展示来源采集项
+   */
+  TABLE_SHOW_COLLECTOR_FIELD = '_22',
 
   /**
    * 文本溢出（省略设置）start | end | center

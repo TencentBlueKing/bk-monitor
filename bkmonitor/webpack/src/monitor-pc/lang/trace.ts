@@ -103,4 +103,5 @@ export default {
   关联单据: 'Relate Ticket',
   关联已有单据: 'Relate Existing Ticket',
   状态不同步: 'Status is not synced',
+  状态同步: 'Status Synced',
 };

@@ -518,6 +518,14 @@ export default defineComponent({
         }
       },
     );
+    watch(
+      () => [props.data.length, props.loading] as [number, boolean],
+      ([newLen, loadingVal], [oldLen]) => {
+        if (!loadingVal && newLen !== oldLen) {
+          scheduleInitMenuPop(1000);
+        }
+      },
+    );
     /**
      * 刷新值
      */ const handleFreshValue = () => {

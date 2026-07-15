@@ -30,7 +30,7 @@ import mergeIcon from '../../../static/img/issues/merge.png';
 import splitIcon from '../../../static/img/issues/split.png';
 import statusIcon from '../../../static/img/issues/status.png';
 
-import type { IssuePriorityType, IssueStatusType, MapEntry } from './typing';
+import type { IssuePriorityType, IssueStatusType, MapEntry, TrendRangeType } from './typing';
 
 // ===================== 枚举常量 =====================
 
@@ -364,3 +364,19 @@ export const TapdTypeMap = [
   { label: window.i18n.t('缺陷'), value: TapdTypeEnum.BUG },
   // { label: window.i18n.t('任务'), value: TapdTypeEnum.TASK },
 ];
+
+// ===================== 趋势范围 =====================
+
+/** Issues 趋势时间范围枚举 */
+export const TrendRangeEnum = {
+  /** 24 小时 */
+  HOURS_24: '24h',
+  /** 7 天 */
+  DAYS_7: '7d',
+} as const;
+
+/** Issues 趋势时间范围 → 秒数映射 */
+export const TREND_RANGE_SECONDS_MAP: Record<TrendRangeType, number> = {
+  [TrendRangeEnum.HOURS_24]: 24 * 60 * 60,
+  [TrendRangeEnum.DAYS_7]: 7 * 24 * 60 * 60,
+};

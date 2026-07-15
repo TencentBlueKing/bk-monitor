@@ -42,6 +42,7 @@ import {
 import TapdRelation from '../tapd-relation/tapd-relation';
 import TapdBasicForm from './components/tapd-basic-form';
 
+import type { IssueDetail } from '../../typing/detail';
 import type { TapdWorkspaceItem } from '../typing';
 
 import './tapd-sideslider.scss';
@@ -65,6 +66,10 @@ export default defineComponent({
       type: Array as PropType<TapdWorkspaceItem[]>,
       default: () => [],
     },
+    issueDetail: {
+      type: Object as PropType<IssueDetail>,
+      default: () => null,
+    },
   },
   emits: ['update:show', 'addWorkspace', 'revokeAuth'],
   setup(props, { emit }) {
@@ -75,7 +80,7 @@ export default defineComponent({
 
     const tapdIssueActivities = useTapdIssueActivities();
 
-    const { show, bizId, issuesId, workspaceList } = toRefs(props);
+    const { show, bizId, issuesId, workspaceList, issueDetail } = toRefs(props);
 
     const {
       count,
@@ -95,7 +100,7 @@ export default defineComponent({
       handleFieldValueChange,
       handleLinkTapdIdsChange,
       handleLinkTapdItemsChange,
-    } = useTapdSideslider({ show, bizId, workspaceList, issuesId });
+    } = useTapdSideslider({ show, bizId, workspaceList, issuesId, issueDetail });
 
     const handleShowChange = (isShow: boolean) => emit('update:show', isShow);
     const handleAddWorkspace = () => emit('addWorkspace');
@@ -126,7 +131,7 @@ export default defineComponent({
           confirmLoading.value = true;
           const success = await linkIssueToTapdApi(params as TLinkIssueToTapdApiParams).catch(() => null);
           Message({
-            type: success ? 'success' : 'error',
+            theme: success ? 'success' : 'error',
             message: success ? window.i18n.t('关联单据成功') : window.i18n.t('关联单据失败'),
           });
           if (success) {
@@ -165,7 +170,7 @@ export default defineComponent({
           confirmLoading.value = true;
           const success = await createTapdApi(params as TCreateTapdApiParams).catch(() => null);
           Message({
-            type: success ? 'success' : 'error',
+            theme: success ? 'success' : 'error',
             message: success ? window.i18n.t('创建单据成功') : window.i18n.t('创建单据失败'),
           });
           if (success) {

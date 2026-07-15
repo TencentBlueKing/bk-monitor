@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import pytest
 from django.core.management import CommandError, call_command
 
@@ -31,9 +31,18 @@ def test_switch_vm_cluster_error():
 
 
 def test_switch_vm_cluster_success(create_and_delete_record):
+    other_tenant_record = models.AccessVMRecord.objects.create(
+        bk_tenant_id="other-tenant",
+        result_table_id=DEFAULT_NAME,
+        vm_cluster_id=DEFAULT_VM_CLUSTER_ID,
+        bk_base_data_id=-1,
+        vm_result_table_id=DEFAULT_NAME,
+    )
     params = {"src_vm_ids": DEFAULT_VM_CLUSTER_ID, "dst_vm_id": DEFAULT_VM_CLUSTER_ID_ONE}
     call_command("switch_vm_cluster", **params)
     # 校验vm记录中使用的集群ID，已经切换为DEFAULT_VM_CLUSTER_ID_ONE
     obj = models.AccessVMRecord.objects.filter(result_table_id=DEFAULT_NAME)
     assert obj.exists()
     assert obj.first().vm_cluster_id == DEFAULT_VM_CLUSTER_ID_ONE
+    other_tenant_record.refresh_from_db()
+    assert other_tenant_record.vm_cluster_id == DEFAULT_VM_CLUSTER_ID

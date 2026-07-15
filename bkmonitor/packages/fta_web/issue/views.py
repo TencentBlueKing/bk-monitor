@@ -26,6 +26,7 @@ class IssueViewSet(ResourceViewSet):
     # 只读接口使用 VIEW_EVENT 权限，写操作使用 MANAGE_EVENT 权限
     READ_ONLY_ENDPOINTS = [
         "issue/search",
+        "issue/trend",
         "issue/detail",
         "issue/activities",
         "issue/history",
@@ -181,6 +182,7 @@ class IssueViewSet(ResourceViewSet):
     resource_routes = [
         # Issue 列表查询
         ResourceRoute("POST", resource.issue.search_issue, endpoint="issue/search"),
+        ResourceRoute("POST", resource.issue.issue_trend, endpoint="issue/trend"),
         # Issue TopN 统计
         ResourceRoute("POST", resource.issue.issue_top_n, endpoint="issue/top_n"),
         # Issue 详情（元数据）

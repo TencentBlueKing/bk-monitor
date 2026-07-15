@@ -2570,10 +2570,11 @@ class DataLink(models.Model):
 
     @classmethod
     def check_component_immutable_fields(cls, existing_config: dict[str, Any], config: dict[str, Any]) -> None:
-        """检查指定组件中配置后不允许修改的字段。
+        """检查并恢复指定组件中配置后不允许修改的字段。
 
         只有 BKBase 已有配置与本次配置都包含目标字段时才比较；缺失字段继续按原有
-        merge 补缺逻辑处理，避免影响首次下发或历史组件字段不完整的场景。
+        merge 补缺逻辑处理，避免影响首次下发或历史组件字段不完整的场景。字段值
+        冲突时保留 BKBase 已有值并记录告警，不阻断组件其他配置的变更。
         """
         kind = config.get("kind")
         if not kind:
@@ -2587,10 +2588,17 @@ class DataLink(models.Model):
             if existing_value == current_value:
                 continue
 
-            raise ValueError(
-                "merge_component_config: immutable component field changed,"
-                f"kind->[{kind}],field->[{immutable_field.display_path}],"
-                f"existing_value->[{existing_value}],current_value->[{current_value}]"
+            field_parent = config
+            for key in immutable_field.field_path[:-1]:
+                field_parent = field_parent[key]
+            field_parent[immutable_field.field_path[-1]] = existing_value
+            logger.warning(
+                "merge_component_config: immutable component field changed,keep existing value,"
+                "kind->[%s],field->[%s],existing_value->[%s],current_value->[%s]",
+                kind,
+                immutable_field.display_path,
+                existing_value,
+                current_value,
             )
 
     def get_existing_component_config(

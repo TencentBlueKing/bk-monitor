@@ -34,6 +34,7 @@ from monitor_web.data_migrate.data_rebuilder import (
     rebuild_k8s_data,
     rebuild_system_data,
     rebuild_uptime_check,
+    replace_profiling_data_id_route,
     update_migrate_data_id_routes,
 )
 from monitor_web.data_migrate.subscription_tasks import stop_biz_subscription_tasks
@@ -119,6 +120,9 @@ class Command(BaseCommand):
             "  根据 Profiling 存量 GSE 路由添加迁移双写路由:\n"
             "    python manage.py data_migrate add-profiling-migrate-data-id-route --bk-tenant-id tencent --bk-biz-id 18901 --app-name demo-app --migrate-cluster-name migrate_apm-kafka-public-1 --dry-run\n"
             "\n"
+            "  将 Profiling 存量 GSE 路由原地替换为正式 Kafka 路由:\n"
+            "    python manage.py data_migrate replace-profiling-data-id-route --bk-tenant-id tencent --bk-biz-id 18901 --app-name demo-app --kafka-cluster-name apm-kafka-public-1 --dry-run\n"
+            "\n"
             "  根据导入阶段记录开启被关闭的策略:\n"
             "    python manage.py data_migrate enable-closed-strategies --bk-biz-ids 18901\n"
             "\n"
@@ -189,6 +193,7 @@ class Command(BaseCommand):
                 "add-migrate-data-id-routes",
                 "update-migrate-data-id-routes",
                 "add-profiling-migrate-data-id-route",
+                "replace-profiling-data-id-route",
                 "enable-closed-strategies",
                 "apply-sequences",
                 "replace-tenant-id",
@@ -233,7 +238,7 @@ class Command(BaseCommand):
             type=int,
             help=(
                 "单个业务 ID；仅 partial-export、partial-import、partial-rebuild、"
-                "add-profiling-migrate-data-id-route 动作需要"
+                "add-profiling-migrate-data-id-route、replace-profiling-data-id-route 动作需要"
             ),
         )
         parser.add_argument(
@@ -253,7 +258,10 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             "--bk-tenant-id",
-            help=("租户 ID；仅 rebuild、partial-export、partial-rebuild、add-profiling-migrate-data-id-route 动作需要"),
+            help=(
+                "租户 ID；仅 rebuild、partial-export、partial-rebuild、"
+                "add-profiling-migrate-data-id-route、replace-profiling-data-id-route 动作需要"
+            ),
         )
         parser.add_argument(
             "--bcs-cluster-ids",
@@ -271,7 +279,10 @@ class Command(BaseCommand):
             nargs="+",
             help="APM 应用名列表；仅 partial-export、partial-rebuild 动作需要",
         )
-        parser.add_argument("--app-name", help="APM 应用名；仅 add-profiling-migrate-data-id-route 动作需要")
+        parser.add_argument(
+            "--app-name",
+            help="APM 应用名；仅 add-profiling-migrate-data-id-route、replace-profiling-data-id-route 动作需要",
+        )
         parser.add_argument(
             "--migrate-cluster-name",
             help="迁移 Kafka 集群名称；仅 add-profiling-migrate-data-id-route 动作需要",
@@ -337,7 +348,7 @@ class Command(BaseCommand):
         parser.add_argument("--bk-data-id", type=int, help="数据 ID；仅 update-migrate-data-id-routes 动作需要")
         parser.add_argument(
             "--kafka-cluster-name",
-            help="迁移前 Kafka 集群名称；仅 update-migrate-data-id-routes 动作需要",
+            help=("Kafka 集群名称；仅 update-migrate-data-id-routes、replace-profiling-data-id-route 动作需要"),
         )
         parser.add_argument(
             "--operator",
@@ -356,7 +367,7 @@ class Command(BaseCommand):
                 "disable-biz-bk-collector-subscription-checks、stop-biz-bk-collector、"
                 "refresh-biz-bk-collector-configs、retry-biz-bk-collector-config-delivery、"
                 "migrate-system-event-strategies、add-profiling-migrate-data-id-route、"
-                "repair-plugin-dashboard-result-table 动作需要"
+                "replace-profiling-data-id-route、repair-plugin-dashboard-result-table 动作需要"
             ),
         )
         parser.add_argument(
@@ -441,6 +452,7 @@ class Command(BaseCommand):
             "add-migrate-data-id-routes": self._handle_add_migrate_data_id_routes,
             "update-migrate-data-id-routes": self._handle_update_migrate_data_id_routes,
             "add-profiling-migrate-data-id-route": self._handle_add_profiling_migrate_data_id_route,
+            "replace-profiling-data-id-route": self._handle_replace_profiling_data_id_route,
             "enable-closed-strategies": self._handle_enable_closed_strategies,
             "apply-sequences": self._handle_apply_sequences,
             "replace-tenant-id": self._handle_replace_tenant_id,
@@ -764,6 +776,28 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS("add profiling migrate data id route dry-run completed"))
         else:
             self.stdout.write(self.style.SUCCESS("add profiling migrate data id route completed"))
+
+    def _handle_replace_profiling_data_id_route(self, options) -> None:
+        action_name = "replace-profiling-data-id-route"
+        bk_tenant_id = self._load_bk_tenant_id(options.get("bk_tenant_id"), action_name=action_name)
+        bk_biz_id = self._load_bk_biz_id(options.get("bk_biz_id"), action_name=action_name)
+        app_name = self._load_app_name(options.get("app_name"), action_name=action_name)
+        kafka_cluster_name = self._load_kafka_cluster_name(options.get("kafka_cluster_name"), action_name=action_name)
+        try:
+            route_change = replace_profiling_data_id_route(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id=bk_biz_id,
+                app_name=app_name,
+                kafka_cluster_name=kafka_cluster_name,
+                dry_run=options.get("dry_run", False),
+            )
+        except ValueError as error:
+            raise CommandError(str(error)) from error
+        self.stdout.write(json.dumps(route_change, ensure_ascii=False, indent=2, sort_keys=True))
+        if options.get("dry_run", False):
+            self.stdout.write(self.style.SUCCESS("replace profiling data id route dry-run completed"))
+        else:
+            self.stdout.write(self.style.SUCCESS("replace profiling data id route completed"))
 
     def _handle_enable_closed_strategies(self, options) -> None:
         bk_biz_ids = self._load_non_zero_biz_ids(options.get("bk_biz_ids"), action_name="enable-closed-strategies")

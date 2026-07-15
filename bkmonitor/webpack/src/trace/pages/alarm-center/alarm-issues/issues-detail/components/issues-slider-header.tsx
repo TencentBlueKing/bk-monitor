@@ -272,7 +272,7 @@ export default defineComponent({
                     >
                       {this.$t('TAPD 单据')}
                     </div>
-                    <div class='create-tapd-menu-item disabled'>Github Issue</div>
+                    {/* <div class='create-tapd-menu-item disabled'>Github Issue</div> */}
                   </div>
                 ),
               }}

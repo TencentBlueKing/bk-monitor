@@ -35,14 +35,14 @@ import type { TapdWorkspaceItem } from '../typing';
 
 interface UseTapdAuthOptions {
   bizId: Ref<number | string>;
-  firstAlarmTime: Ref<number | string>;
   issuesId: Ref<string>;
   show: Ref<boolean>;
 }
 
 export function useTapdAuth(options: UseTapdAuthOptions) {
   const { t } = useI18n();
-  const { show, bizId, issuesId, firstAlarmTime } = options;
+  const { show, bizId, issuesId } = options;
+  const pageLoading = shallowRef(false);
   const authDialogShow = shallowRef(false);
   const createTapdSliderShow = shallowRef(false);
   /** 项目列表 */
@@ -54,9 +54,9 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
   /** 项目关联链接 */
   const installUrl = shallowRef('');
   const revokeAuthLoading = shallowRef(false);
-  const loading = shallowRef(false);
 
   const getAuth = async () => {
+    pageLoading.value = true;
     installUrl.value = '';
     /** 授权成功后跳转的参数 */
     const successUrlParams = new URLSearchParams({
@@ -71,16 +71,19 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
       detailBizId: `${bizId.value}`,
       detailId: `${issuesId.value}`,
       showDetail: 'true',
-      issueFirstAlarmTime: `${firstAlarmTime.value}`,
       alarmType: 'issues',
     });
     try {
-      loading.value = true;
-      const data = await getUserWorkspaceApi({
-        bk_biz_id: bizId.value,
-        success_url: `${window.location.search}#/trace/alarm-center?${successUrlParams.toString()}`,
-        error_url: `${window.location.search}#/trace/alarm-center?${errorUrlParams.toString()}`,
-      });
+      const data = await getUserWorkspaceApi(
+        {
+          bk_biz_id: bizId.value,
+          success_url: `${window.location.search}#/trace/alarm-center?${successUrlParams.toString()}`,
+          error_url: `${window.location.search}#/trace/alarm-center?${errorUrlParams.toString()}`,
+        },
+        {
+          needMessage: false,
+        }
+      );
       const list = data.items || [];
       workspaceList.splice(0, workspaceList.length, ...list.map(item => ({ ...item, loading: false })));
       installUrl.value = data.install_url;
@@ -93,22 +96,27 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
         window.open(errData.auth_url, '_self');
       }
     }
-    /** 如果有已关联的项目,展示创建单据侧栏，否则展示授权弹窗 */
-    if (workspaceList.find(item => item.is_bound === 'bound')) {
-      createTapdSliderShow.value = true;
-      authDialogShow.value = false;
-    } else {
-      createTapdSliderShow.value = false;
-      authDialogShow.value = true;
+    /**
+     * 如果有授权链接，一直展示授权引导loading效果，需要跳转到TAPD页面进行授权
+     * 没有授权链接表示用户已经授权或者没有权限授权，直接展示后续内容
+     */
+    if (!authUrl.value) {
+      pageLoading.value = false;
+      /** 如果有已关联的项目,展示创建单据侧栏，否则展示授权弹窗 */
+      if (workspaceList.find(item => item.is_bound === 'bound')) {
+        createTapdSliderShow.value = true;
+        authDialogShow.value = false;
+      } else {
+        createTapdSliderShow.value = false;
+        authDialogShow.value = true;
+      }
     }
-    loading.value = false;
   };
 
   watch(
     () => show.value,
     val => {
       if (val) {
-        authDialogShow.value = true;
         getAuth();
       } else {
         createTapdSliderShow.value = false;
@@ -121,7 +129,6 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
   const handleUnboundWorkspace = (item: TapdWorkspaceItem) => {
     InfoBox({
       title: t('确认取消关联吗？'),
-      content: t('取消后，TAPD 侧授权不会被撤销，但蓝鲸侧不再与该 TAPD 项目关联。确认解绑吗？'),
       onConfirm: async () => {
         try {
           await unbindWorkspaceApi({
@@ -181,7 +188,7 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
   };
 
   return {
-    loading,
+    pageLoading,
     authDialogShow,
     createTapdSliderShow,
     workspaceList,

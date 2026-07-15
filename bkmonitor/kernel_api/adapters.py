@@ -35,7 +35,7 @@ API_FIELD_FORMATED_MAPPINGS = {
 class ApiRenderer(MonitorJSONRenderer):
     def format_field(self, result, level=0):
         if level != 0:
-            if isinstance(result, (list, tuple)):
+            if isinstance(result, list | tuple):
                 result = [self.format_field(i, level - 1) for i in result]
             elif isinstance(result, dict):
                 result = {
@@ -46,6 +46,13 @@ class ApiRenderer(MonitorJSONRenderer):
 
     def get_result(self, data, renderer_context=None):
         result = super().get_result(data, renderer_context)
+        request = renderer_context.get("request") if renderer_context else None
+        if isinstance(result, dict):
+            from bkmonitor.utils.request import get_mcp_trace_id
+
+            trace_id = get_mcp_trace_id(request)
+            if trace_id:
+                result.setdefault("trace_id", trace_id)
         return self.format_field(result, -1)
 
 
@@ -76,7 +83,7 @@ class SerializerFieldFormatedMeta(type):
         if source_mappings:
             for attr, source in list(source_mappings.items()):
                 field = attrs.get(attr)
-                if not isinstance(field, (serializers.Field, django_models.Field)):
+                if not isinstance(field, serializers.Field | django_models.Field):
                     continue
                 if field.source != attr:
                     continue

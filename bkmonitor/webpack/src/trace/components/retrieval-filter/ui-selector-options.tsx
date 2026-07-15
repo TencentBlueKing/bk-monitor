@@ -523,6 +523,13 @@ export default defineComponent({
       }
     }
 
+    /** 文本输入框键盘事件：Ctrl/Cmd + Enter 触发确认 */
+    function handleTextAreaKeydown(_v, event: KeyboardEvent) {
+      if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+        handleConfirm();
+      }
+    }
+
     return {
       checkedItem,
       queryString,
@@ -556,6 +563,7 @@ export default defineComponent({
       defaultOptions,
       handleClearSearch,
       handleMethodChange,
+      handleTextAreaKeydown,
       t,
     };
   },
@@ -575,6 +583,7 @@ export default defineComponent({
                 placeholder={this.t('请输入')}
                 rows={15}
                 type={'textarea'}
+                onKeydown={this.handleTextAreaKeydown}
               />
             </div>
           </div>,

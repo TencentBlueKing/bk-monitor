@@ -1710,6 +1710,13 @@ GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST = [
     for biz_id in _graph_relation_bkbase_sync_biz_id_white_list_env.split(",")
     if biz_id.strip().isdigit()
 ]
+# 图关系 v1beta3 查询业务灰度白名单，默认关闭，避免写侧灰度自动触发查询切流
+_graph_relation_query_v1beta3_biz_id_white_list_env = os.getenv("GRAPH_RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST", "")
+GRAPH_RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST = [
+    int(biz_id.strip())
+    for biz_id in _graph_relation_query_v1beta3_biz_id_white_list_env.split(",")
+    if biz_id.strip().isdigit()
+]
 
 # 特殊的可以不被禁用的BCS集群ID
 ALWAYS_RUNNING_FAKE_BCS_CLUSTER_ID_LIST = []

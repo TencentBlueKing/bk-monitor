@@ -40,6 +40,7 @@ from apps.log_search.models import ProjectInfo, Space, UserMetaConf
 from apps.utils import APIModel
 from apps.utils.local import get_request, get_request_tenant_id, get_request_username
 from apps.utils.log import logger
+from apps.utils.user_info import get_user_info
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import space_uid_to_bk_biz_id
 
@@ -196,10 +197,10 @@ class MetaHandler(APIModel):
         return module
 
     @classmethod
-    def get_user(cls):
+    def get_user(cls, refresh=False):
         request = get_request()
         username = request.user.username
-        data = request.user_info
+        data = get_user_info(user=username, refresh=True) if refresh else request.user_info
         return {
             "username": username,
             "language": data.get("language", "zh-cn"),

@@ -111,6 +111,8 @@ export default class DetectionRulesDisplay extends tsc<IProps, IEvents> {
         detect_range: 86400,
         effective_delay: 86400,
         max_series: 100000,
+        threshold: 0,
+        threshold_method: 'gt',
       },
     },
     {

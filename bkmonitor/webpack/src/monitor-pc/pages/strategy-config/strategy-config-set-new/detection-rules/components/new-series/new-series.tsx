@@ -55,6 +55,8 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
   formData = {
     /** 告警级别 */
     level: 1,
+    /** 告警阈值 */
+    threshold: 0,
     /** 时间 */
     date: 1,
     /** 时间单位 */
@@ -73,6 +75,7 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
         effective_delay: detectRange,
         max_series: 100000,
         detect_range: detectRange,
+        threshold: Number(this.formData.threshold),
       },
     };
   }
@@ -106,6 +109,13 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
       {
         validator: this.checkDate,
         message: this.$t('时间不能为空且必须大于0'),
+        trigger: 'change',
+      },
+    ],
+    threshold: [
+      {
+        validator: this.checkThreshold,
+        message: this.$t('阈值不能为空且必须大于等于0'),
         trigger: 'change',
       },
     ],
@@ -149,6 +159,7 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
         this.unitList[this.unitList.length - 1];
       this.formData = {
         level: this.data.level,
+        threshold: this.data.config?.threshold ?? 0,
         date: Math.max(1, Math.round(detectRange / unit.seconds)),
         unit: unit.id,
       };
@@ -176,6 +187,10 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
 
   checkDate(value) {
     return value && value > 0;
+  }
+
+  checkThreshold(value) {
+    return value !== '' && value !== null && value !== undefined && value >= 0;
   }
 
   @Emit('dataChange')
@@ -226,6 +241,37 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
           </bk-form-item>
           <bk-form-item
             error-display-type='normal'
+            label={this.$t('告警阈值')}
+            property='threshold'
+            required
+          >
+            <i18n
+              class='threshold-interval'
+              path='大于 {0} 个新增维度值'
+            >
+              <bk-input
+                class='inline-input input-arrow date-input'
+                behavior='simplicity'
+                min={0}
+                precision={0}
+                readonly={this.readonly}
+                show-controls={false}
+                type='number'
+                value={this.formData.threshold}
+                onChange={val => {
+                  this.formData.threshold = val;
+                  this.emitLocalData();
+                }}
+              />
+            </i18n>
+            <div class='threshold-tip'>
+              {this.$t('触发规则：仅当新增维度值数量大于{threshold}时触发告警', {
+                threshold: this.formData.threshold,
+              })}
+            </div>
+          </bk-form-item>
+          <bk-form-item
+            error-display-type='normal'
             label={this.$t('检测周期')}
             property='date'
             required
@@ -233,14 +279,17 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
             <div class='date-interval'>
               <bk-input
                 class='inline-input input-arrow date-input'
-                v-model={this.formData.date}
                 behavior='simplicity'
                 min={1}
                 precision={0}
                 readonly={this.readonly}
                 show-controls={false}
                 type='number'
-                onChange={this.emitLocalData}
+                value={this.formData.date}
+                onChange={val => {
+                  this.formData.date = val;
+                  this.emitLocalData();
+                }}
               />
               <bk-select
                 class='inline-select unit-select'
