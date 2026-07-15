@@ -200,7 +200,7 @@ def get_process_info(bk_biz_id: int, hosts: list[Host], limit_port_num: int = No
             "id": pp.bk_process_id,
             "bk_host_id": pp.bk_host_id,
             "name": pp.bk_process_name,
-            "protocol": pp.protocol,
+            "protocol": str(pp.protocol),
             "ports": ports,
             "status": status,
             "bindIp": pp.bind_ip,
