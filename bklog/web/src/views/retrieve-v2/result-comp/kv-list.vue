@@ -122,7 +122,7 @@
 
 <script>
   // import { getTextPxWidth, TABLE_FOUNT_FAMILY } from '@/common/util';
-  import { copyMessage } from '@/common/util';
+  import { copyMessage, getRowFieldValue } from '@/common/util';
   import JsonFormatter from '@/global/json-formatter.vue';
   import { getFieldNameByField } from '@/hooks/use-field-name';
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
@@ -761,11 +761,12 @@
        * @param { Object } field 字段对象
        */
       handleCopyFieldValue(field) {
-        const value = this.listData[field.field_name];
-        if (value === null || value === undefined || value === '') {
+        const value = getRowFieldValue(this.data, field);
+        if (value === '--' || value === null || value === undefined || value === '') {
           return;
         }
-        const copyValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
+        const rawValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
+        const copyValue = rawValue.replace(/<\/?mark>/g, '');
         copyMessage(copyValue);
       },
 
