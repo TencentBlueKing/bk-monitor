@@ -12,6 +12,7 @@ import jsCookie from 'js-cookie';
 import { debounce } from 'lodash-es';
 
 import { getOsCommandLabel } from '@/common/util';
+import { join } from '@/global/utils/path';
 import useFieldEgges from '@/hooks/use-field-egges';
 import { storeRuntimeCacheService } from '@/store/services/runtime-cache.service';
 import { FieldInfoItem } from '@/store/store.type';
@@ -585,7 +586,10 @@ const handleFavoriteClick = (item) => {
 const handleSQLReadmeClick = () => {
   const lang = /^en/.test(jsCookie.get('blueking_language')) ? 'EN' : 'ZH';
   window.open(
-    `${(window as any).BK_DOC_URL}/markdown/${lang}/LogSearch/4.6/UserGuide/ProductFeatures/data-visualization/query_string.md`,
+    join(
+      (window as any).BK_DOC_URL,
+      `/markdown/${lang}/LogSearch/4.6/UserGuide/ProductFeatures/data-visualization/query_string.md`,
+    ),
     '_blank',
   );
 };

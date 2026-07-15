@@ -360,6 +360,7 @@ export default defineComponent({
             activeScene={activeScene.value}
             filterValues={filterValues.value}
             displayFields={currentDisplayFields.value}
+            isSticky={props.isSticky}
             on-scene-change={handleSceneChange}
             on-filter-change={handleFilterChange}
             on-clear={handleClear}

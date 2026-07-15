@@ -32,6 +32,7 @@ export const ROW_F_ORIGIN_CTX = '__component_origin_content';
 export const ROW_F_JSON = '__component_format_json';
 export const ROW_IS_IN_SECTION = '__component_is_in_section';
 export const ROW_SOURCE = '__component_row_source';
+export const ROW_COLLECTOR = '__component_row_collector';
 // 搜索框查询条件
 export const SECTION_SEARCH_INPUT = '.search-bar-wrapper';
 
@@ -53,6 +54,25 @@ export const LOG_SOURCE_F = () => {
     is_editable: false,
     minWidth: 0,
     tag: 'union-source',
+    width: 230,
+  };
+};
+
+export const COLLECTOR_SOURCE_F = () => {
+  return {
+    description: null,
+    es_doc_values: false,
+    field_alias: '',
+    field_name: (window as any).$t('来源采集项'),
+    field_operator: [],
+    field_type: 'keyword',
+    filterExpand: false,
+    filterVisible: false,
+    is_analyzed: false,
+    is_display: false,
+    is_editable: false,
+    minWidth: 0,
+    tag: 'collector-source',
     width: 230,
   };
 };

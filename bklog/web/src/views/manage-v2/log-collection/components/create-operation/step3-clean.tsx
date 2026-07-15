@@ -278,6 +278,7 @@ export default defineComponent({
     const separatorRegexp = computed(() => formData.value.etl_params.separator_regexp);
 
     onMounted(() => {
+      getTemplate();
       // 清洗列表进入
       if (props.isCleanField) {
         if (isEditCleanItem.value) {
@@ -294,7 +295,6 @@ export default defineComponent({
       }
       const id = isUpdate.value ? route.params.collectorId : route.query.collectorId;
       setDetail(id);
-      getTemplate();
     });
     /**
      * 当为清洗列表 - 创建/编辑清洗的时候，获取采集项下拉框内容

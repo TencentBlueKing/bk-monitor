@@ -20,8 +20,7 @@
 | index_set            | str        | 否  | 索引集规则                                                |
 | source_type          | str        | 否  | 数据源类型                                                |
 | bkbase_table_id      | str        | 否  | 计算平台结果表ID（Doris存储时使用）                                |
-| origin_table_id      | str        | 否  | 原始结果表ID                                              |
-| need_create_index    | bool       | 否  | 是否创建索引（ES存储时使用）                                      |
+| origin_table_id      | str        | 否  | 关联实体结果表ID；新建时必填，更新时可继承已有关联                           |
 | storage_type         | str        | 否  | 存储类型，可选值：`elasticsearch`、`doris`，默认为 `elasticsearch` |
 | is_enable            | bool       | 否  | 是否启用                                                 |
 | query_alias_settings | list[dict] | 否  | 查询别名设置列表                                             |
@@ -57,7 +56,7 @@
             "index_set": "2_bklog.test_index_01*",
             "source_type": "log",
             "storage_type": "elasticsearch",
-            "need_create_index": true,
+            "origin_table_id": "2_bklog.entity_01",
             "is_enable": true,
             "query_alias_settings": [
                 {
@@ -72,7 +71,7 @@
             "index_set": "2_bklog.test_index_02*",
             "source_type": "log",
             "storage_type": "elasticsearch",
-            "need_create_index": true,
+            "origin_table_id": "2_bklog.entity_02",
             "is_enable": true
         }
     ]

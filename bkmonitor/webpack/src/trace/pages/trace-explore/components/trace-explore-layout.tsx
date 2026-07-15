@@ -36,7 +36,7 @@ export default defineComponent({
   props: {
     minWidth: {
       type: Number,
-      default: 200,
+      default: 150,
     },
     maxWidth: {
       type: Number,

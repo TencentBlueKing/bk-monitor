@@ -56,7 +56,6 @@ def es_storage():
     es_storage_ins.warm_phase_days = 0
 
     es_storage_ins.is_mapping_same = mock.Mock(return_value=True)
-
     # 使用 patch.object 来模拟 now 属性
     with mock.patch.object(ESStorage, "now", new_callable=mock.PropertyMock) as mock_now:
         # 定义 now 属性返回的模拟值
@@ -174,6 +173,47 @@ def test_create_or_update_aliases_index_not_ready(es_storage, mock_es_client):
     assert first_call_args["actions"][0]["add"]["index"] == PAST_AVAILABLE_INDEX
 
     assert mock_es_client.indices.update_aliases.call_count == 1
+
+
+def test_is_index_ready_rejects_empty_health_response(es_storage, mock_es_client):
+    es_storage.es_client = mock_es_client
+    mock_es_client.cluster.health.return_value = {"indices": {}}
+
+    assert ESStorage.is_index_ready.__wrapped__(es_storage, EXPECTED_FUTURE_INDEX) is False
+
+
+def test_create_or_update_aliases_strict_mode_raises_when_index_not_ready(es_storage, mock_es_client):
+    es_storage.es_client = mock_es_client
+    es_storage.is_index_ready = mock.Mock(side_effect=RetryError(mock.Mock()))
+    mock_es_client.indices.get_alias.side_effect = NotFoundError
+
+    with pytest.raises(RetryError):
+        es_storage.create_or_update_aliases(ahead_time=0, strict=True)
+
+    mock_es_client.indices.update_aliases.assert_not_called()
+
+
+def test_update_aliases_rejects_unacknowledged_response(es_storage, mock_es_client):
+    es_storage.es_client = mock_es_client
+    es_storage.is_index_ready = mock.Mock(return_value=True)
+    mock_es_client.indices.update_aliases.return_value = {"acknowledged": False}
+
+    with pytest.raises(RuntimeError, match="未被集群确认"):
+        ESStorage._update_aliases_with_retry.__wrapped__(
+            es_storage,
+            actions=[{"add": {"index": EXPECTED_FUTURE_INDEX, "alias": EXPECTED_CURRENT_ALIAS}}],
+            new_index_name=EXPECTED_FUTURE_INDEX,
+        )
+
+
+def test_strict_mode_ignores_diagnostic_alias_read_failure(es_storage, mock_es_client):
+    es_storage.es_client = mock_es_client
+    es_storage.is_index_ready = mock.Mock(return_value=True)
+    es_storage._update_aliases_with_retry = mock.Mock(return_value=None)
+    mock_es_client.indices.get_alias.side_effect = [NotFoundError, RuntimeError("diagnostic read failed")]
+
+    assert es_storage.create_or_update_aliases(ahead_time=0, strict=True) is True
+    es_storage._update_aliases_with_retry.assert_called_once()
 
 
 @pytest.mark.django_db(databases="__all__")

@@ -230,7 +230,7 @@ NEW_SERIES_PROCESS_TIME = Histogram(
 
 NEW_SERIES_PROCESS_COUNT = Counter(
     name="bkmonitor_new_series_process_count",
-    documentation="NewSeries 处理计数(type: seen_write/trim/over_limit/failure)",
+    documentation="NewSeries 处理计数(type: seen_write/trim/over_limit/invalid_value/failure)",
     labelnames=("strategy_id", "type"),
 )
 

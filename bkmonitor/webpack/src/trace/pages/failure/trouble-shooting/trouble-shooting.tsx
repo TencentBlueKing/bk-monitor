@@ -42,6 +42,7 @@ import { useRoute } from 'vue-router';
 
 import MarkdownViewer from '../../../components/markdown-editor/viewer';
 import { checkOverflow } from '../utils';
+import { replaceEntityInText } from './entity-replace';
 import { createShootingModule } from './shooting-module';
 
 import type { IncidentDetailData } from '../failure-topo/types';
@@ -50,6 +51,7 @@ import type {
   IContentList,
   IEventsAnalysis,
   IEventsContentsData,
+  IExtractedInfoList,
   IListItem,
   IStrategyMapItem,
   ISummaryList,
@@ -77,6 +79,8 @@ export default defineComponent({
     const contentList: IContentList = reactive({});
     // 总结信息汇总
     const summaryList: ISummaryList = reactive({});
+    // 实体信息映射 - 按 sub_panel 存储 extracted_info
+    const extractedInfoList: IExtractedInfoList = reactive({});
     // 事件分析数据整理
     const eventsData = shallowRef<IEventsAnalysis[]>([]);
     const loadingList = reactive({
@@ -301,12 +305,14 @@ export default defineComponent({
             contentList[key] = res.contents || '';
           }
           summaryList[key] = res.individual_summary || '';
+          extractedInfoList[key] = res.extracted_info || undefined;
           const { sub_panels } = props.panelConfig;
           loadingList[key] = sub_panels[key].status === 'running';
         })
         .catch(() => {
           contentList[key] = '';
           summaryList[key] = '';
+          extractedInfoList[key] = undefined;
           loadingList[key] = false;
         });
     };
@@ -362,6 +368,7 @@ export default defineComponent({
       contentList,
       eventsData,
       summaryList,
+      extractedInfoList,
       loadingList,
       showList,
       subPanels,
@@ -390,6 +397,7 @@ export default defineComponent({
       contentList: this.contentList,
       eventsData: this.eventsData,
       summaryList: this.summaryList,
+      extractedInfoList: this.extractedInfoList,
       activeIndex: this.activeIndex,
       popoverState: type === 'main' ? this.popoverState : this.sliderPopoverState,
       handleMouseEnter: type === 'main' ? this.handleMouseEnter : this.handleSliderMouseEnter,
@@ -435,7 +443,14 @@ export default defineComponent({
       if (this.subPanels.summary.status === 'failed') {
         return this.renderEmpty(this.subPanels.summary);
       }
-      return !this.loadingList.summary && <MarkdownViewer value={this.contentList?.summary} />;
+      return (
+        !this.loadingList.summary && (
+          <MarkdownViewer
+            class='markdown-viewer-has-link'
+            value={replaceEntityInText(this.contentList?.summary, this.extractedInfoList?.summary)}
+          />
+        )
+      );
     };
 
     return (

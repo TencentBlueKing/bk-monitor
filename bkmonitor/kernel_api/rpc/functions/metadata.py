@@ -759,10 +759,9 @@ def refresh_unify_query_redis_route(params: dict[str, Any]) -> dict[str, Any]:
 
     if resolved_table_ids:
         space_client.push_table_id_detail(
+            bk_tenant_id=bk_tenant_id,
             table_id_list=resolved_table_ids,
             is_publish=True,
-            include_es_table_ids=True,
-            bk_tenant_id=bk_tenant_id,
         )
 
     if resolved_table_ids or resolved_data_labels:

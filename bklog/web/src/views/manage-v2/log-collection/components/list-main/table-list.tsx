@@ -30,7 +30,7 @@ import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import * as authorityMap from '@/common/authority-map';
 import tippy, { type Instance } from 'tippy.js';
-import { tenantManager } from '@/views/retrieve-core/tenant-manager';
+import { tenantManager, UserInfoLoadedEventData } from '@/views/retrieve-core/tenant-manager';
 import axios from 'axios';
 import {
   formatBytes,
@@ -234,6 +234,17 @@ export default defineComponent({
     const originalOrderMap = ref<Map<number | string, number>>(new Map());
     // 用户信息映射（username -> display_name）
     const userDisplayNameMap = ref<Map<string, string>>(new Map());
+
+    /** 监听用户信息更新事件，更新显示名称映射 */
+    const handleUserInfoUpdated = (data: UserInfoLoadedEventData) => {
+      const newMap = new Map(userDisplayNameMap.value);
+      for (const [bkUsername, userInfo] of data.userInfo.entries()) {
+        if (userInfo?.display_name) {
+          newMap.set(bkUsername, userInfo.display_name);
+        }
+      }
+      userDisplayNameMap.value = newMap;
+    };
     // 全量标签列表（用于标签管理）
     const selectLabelList = ref<Array<{ tag_id: number; name: string; color: string; is_built_in?: boolean }>>([]);
     // 标签过滤下拉选项列表
@@ -1261,6 +1272,8 @@ export default defineComponent({
     };
 
     onMounted(() => {
+      // 监听用户信息更新事件
+      tenantManager.on('userInfoUpdated', handleUserInfoUpdated);
       getCollectorFieldEnums();
       fetchLabelList();
       nextTick(() => {
@@ -1276,6 +1289,7 @@ export default defineComponent({
     });
 
     onBeforeUnmount(() => {
+      tenantManager.off('userInfoUpdated', handleUserInfoUpdated);
       destroyTippyInstances();
       // 清除状态轮询定时器
       stopCollectStatusTimer();
@@ -1471,21 +1485,8 @@ export default defineComponent({
           }
         }
         if (userIds.size > 0) {
-          tenantManager
-            .batchGetUserDisplayInfo(Array.from(userIds))
-            .then((userMap) => {
-              // 更新用户信息映射（创建新 Map 以确保响应式更新）
-              const newMap = new Map(userDisplayNameMap.value);
-              for (const [userId, userInfo] of userMap.entries()) {
-                if (userInfo?.display_name) {
-                  newMap.set(userId, userInfo.display_name);
-                }
-              }
-              userDisplayNameMap.value = newMap;
-            })
-            .catch((error) => {
-              console.log('批量获取用户信息失败:', error);
-            });
+          // 触发批量获取请求，通过 userInfoUpdated 事件监听来更新显示名称
+          tenantManager.batchGetUserDisplayInfo(Array.from(userIds));
         }
       } catch (error) {
         listLoading.value = false;

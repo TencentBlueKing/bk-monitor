@@ -89,7 +89,7 @@ import type { SelectOptions } from '@blueking/tdesign-ui/.';
 
 const ALARM_CENTER_SHOW_FAVORITE = 'ALARM_CENTER_SHOW_FAVORITE';
 
-import { Alert, Message, Sideslider } from 'bkui-vue';
+import { Alert, Loading, Message, Sideslider } from 'bkui-vue';
 import dayjs from 'dayjs';
 import difference from 'lodash/difference';
 import intersection from 'lodash/intersection';
@@ -143,6 +143,7 @@ export default defineComponent({
     const route = useRoute();
     const alarmStore = useAlarmCenterStore();
     const appStore = useAppStore();
+    const pageLoading = shallowRef(false);
     const apmHooks = inject<AlarmCenterApmHooks | null>(ALARM_CENTER_APM_HOOKS_KEY, null);
     /** table 选中的 rowKey 数组 */
     const selectedRowKeys = shallowRef<string[]>([]);
@@ -446,9 +447,6 @@ export default defineComponent({
     const editFavoriteData = shallowRef<IFavoriteGroup['favorites'][number]>(null);
     const editFavoriteShow = shallowRef(false);
 
-    /** issue 第一个告警时间（用于确认告警详情默认时间范围） */
-    const issueFirstAlarmTime = shallowRef<number | string>('');
-
     const { impactScopeDrawerShow, impactScopeResourceKey, impactScopeResource, handleImpactScopeClick } =
       useIssuesImpactScopeDrawer();
 
@@ -605,8 +603,6 @@ export default defineComponent({
           detailBizId: detailBizId.value,
           /** 是否展示详情 */
           showDetail: JSON.stringify(alarmDetailShow.value),
-          /** issue 首次告警时间 */
-          issueFirstAlarmTime: String(issueFirstAlarmTime.value),
         };
       }
 
@@ -681,8 +677,6 @@ export default defineComponent({
         tapdIssueId: queryTapdIssueId,
         /** 最后一次操作的快速过滤条件分类数据 */
         lastQuickFilterCategoryData,
-        /** issue 相关参数 */
-        issueFirstAlarmTime: queryIssueFirstAlarmTime,
         /** Issues 趋势时间范围 */
         issuesTrendRange,
         /** 以下是兼容事件中心的URL参数 */
@@ -737,7 +731,6 @@ export default defineComponent({
         alarmDetailShow.value = JSON.parse((showDetail as string) || 'false');
         detailId.value = (queryDetailId as string) || '';
         detailBizId.value = queryDetailBizId ? Number(queryDetailBizId) : null;
-        issueFirstAlarmTime.value = (queryIssueFirstAlarmTime as string) || '';
         if (issuesTrendRange) {
           trendRange.value = String(issuesTrendRange) as TrendRangeType;
         }
@@ -746,7 +739,6 @@ export default defineComponent({
           alarmDetailShow.value = true;
           detailId.value = (queryTapdIssueId as string) || '';
           detailBizId.value = queryTapdBizId ? Number(queryTapdBizId) : null;
-          issueFirstAlarmTime.value = (queryIssueFirstAlarmTime as string) || '';
           // 打开 TAPD 弹窗
           issuesTapdShow.value = true;
           tapdBizId.value = Number(queryTapdBizId) || null;
@@ -786,7 +778,6 @@ export default defineComponent({
      */
     const handleIssuesShowDetail = (item: IssueItem) => {
       detailId.value = item.id;
-      issueFirstAlarmTime.value = item.first_alert_time;
       detailBizId.value = item.bk_biz_id;
       handleDetailShowChange(true);
     };
@@ -856,7 +847,6 @@ export default defineComponent({
       let index = data.value.findIndex(item => item.id === detailId.value);
       index = index === -1 ? 0 : index;
       const target = (data.value as IssueItem[])[index === 0 ? data.value.length - 1 : index - 1];
-      issueFirstAlarmTime.value = target.first_alert_time;
       detailBizId.value = target.bk_biz_id;
       detailId.value = target.id;
     };
@@ -866,7 +856,6 @@ export default defineComponent({
       let index = data.value.findIndex(item => item.id === detailId.value);
       index = index === -1 ? 0 : index;
       const target = (data.value as IssueItem[])[index === data.value.length - 1 ? 0 : index + 1];
-      issueFirstAlarmTime.value = target.first_alert_time;
       detailBizId.value = target.bk_biz_id;
       detailId.value = target.id;
     };
@@ -874,7 +863,6 @@ export default defineComponent({
     /** issues Tapd展示 */
     const tapdBizId = shallowRef<number | string>(null);
     const tapdIssueId = shallowRef('');
-    const tapdIssueFirstAlarmTime = shallowRef<number | string>('');
     const issuesTapdShow = shallowRef(false);
     const handleIssuesTapdShowChange = (show: boolean, detail = null) => {
       if (show) {
@@ -883,12 +871,9 @@ export default defineComponent({
         }
         tapdBizId.value = detailBizId.value;
         tapdIssueId.value = detailId.value;
-        tapdIssueFirstAlarmTime.value = issueFirstAlarmTime.value;
       }
       issuesTapdShow.value = show;
     };
-
-    /** */
 
     /**
      * @method autoShowAlertDialog 自动打开告警确认 | 告警屏蔽 dialog
@@ -1128,6 +1113,7 @@ export default defineComponent({
       setUrlParams();
     });
     return {
+      pageLoading,
       apmHooks,
       isFirstInit,
       quickFilterList,
@@ -1183,7 +1169,6 @@ export default defineComponent({
       showResidentBtn,
       trendRange,
       trendLoading,
-      issueFirstAlarmTime,
       impactScopeDrawerShow,
       impactScopeResourceKey,
       impactScopeResource,
@@ -1254,7 +1239,6 @@ export default defineComponent({
       issuesTapdShow,
       tapdBizId,
       tapdIssueId,
-      tapdIssueFirstAlarmTime,
       handleIssuesTapdShowChange,
       createTapdIssueDetail,
     };
@@ -1281,7 +1265,11 @@ export default defineComponent({
         : undefined;
     };
     return (
-      <div class='alarm-center-page'>
+      <Loading
+        class='alarm-center-page'
+        loading={this.pageLoading}
+        zIndex={9999}
+      >
         <div
           style={{ display: this.isShowFavorite ? 'block' : 'none' }}
           class='alarm-center-favorite-box'
@@ -1438,6 +1426,11 @@ export default defineComponent({
                                       this.alarmStore.residentCondition.length > 0
                                     : this.alarmStore.queryString !== ''
                                 }
+                                tableSettings={{
+                                  checked: this.storageColumns,
+                                  fields: this.allTableFields,
+                                  disabled: this.lockedTableFields,
+                                }}
                                 columns={this.tableSourceColumns}
                                 data={this.data as IssueItem[]}
                                 headerAffixedTop={issuesTableAffixed}
@@ -1470,6 +1463,9 @@ export default defineComponent({
                                     this.fieldsWidthConfig = { ...this.fieldsWidthConfig, ...ctx.columnsWidth };
                                 }}
                                 onCurrentPageChange={this.handleCurrentPageChange}
+                                onDisplayColFieldsChange={displayColFields => {
+                                  this.storageColumns = displayColFields;
+                                }}
                                 onImpactScopeClick={this.handleImpactScopeClick}
                                 onPageSizeChange={this.handlePageSizeChange}
                                 onPriorityChange={this.handleIssuesPriorityChange}
@@ -1536,7 +1532,6 @@ export default defineComponent({
             [
               <IssuesDetailSideSlider
                 key='issues-detail'
-                firstAlarmTime={this.issueFirstAlarmTime}
                 issueBizId={this.detailBizId}
                 issueId={this.detailId}
                 show={this.alarmDetailShow}
@@ -1563,10 +1558,12 @@ export default defineComponent({
               <IssuesTapd
                 key='issues-tapd'
                 bizId={this.tapdBizId}
-                firstAlarmTime={this.tapdIssueFirstAlarmTime}
                 issueDetail={this.createTapdIssueDetail}
                 issuesId={this.tapdIssueId}
                 show={this.issuesTapdShow}
+                onUpdate:loading={loading => {
+                  this.pageLoading = loading;
+                }}
                 onUpdate:show={this.handleIssuesTapdShowChange}
               />,
             ]
@@ -1650,7 +1647,7 @@ export default defineComponent({
             renderFavoriteQuery: renderFavoriteQuery(this.favoriteType),
           }}
         </EditFavorite>
-      </div>
+      </Loading>
     );
   },
 });

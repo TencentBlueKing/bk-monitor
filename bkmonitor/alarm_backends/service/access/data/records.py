@@ -226,6 +226,10 @@ class DataRecord(base.BaseRecord):
             standard_prop[prop] = clean_value
         self.data.update(standard_prop)
 
+        # partial 只在异常查询批次出现；按需透传，避免给正常大批量数据增加字段开销。
+        if self._item.query.is_partial:
+            self.data["is_partial"] = True
+
         # SLI(access) - 记录当前处理时间，用于 SLI 统计各模块间处理延迟场景
         self.data["access_time"] = time.time()
         return self

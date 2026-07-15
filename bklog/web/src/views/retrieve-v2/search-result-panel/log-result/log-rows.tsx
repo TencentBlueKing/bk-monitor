@@ -53,7 +53,9 @@ import useTextAction from '../../hooks/use-text-action';
 import LogCell from './log-cell';
 import LogResultException from './log-result-exception';
 import {
+  COLLECTOR_SOURCE_F,
   LOG_SOURCE_F,
+  ROW_COLLECTOR,
   ROW_EXPAND,
   ROW_F_ORIGIN_CTX,
   ROW_F_ORIGIN_TIME,
@@ -529,6 +531,9 @@ export default defineComponent({
       return indexSetQueryResult.value?.exception_msg || $t('检索结果为空');
     });
     const isShowSourceField = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_SOURCE_FIELD]);
+    const isShowCollectorField = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_COLLECTOR_FIELD]);
+    const flatIndexSetList = computed(() => store.state.retrieve.flatIndexSetList);
+    const isSceneMode = computed(() => store.getters.isSceneMode);
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
     const columnLayoutVersion = ref(0);
@@ -838,8 +843,9 @@ export default defineComponent({
       const expandColumnWidth = 36;
       const rowIndexColumnWidth = tableShowRowIndex.value ? 50 : 0;
       const sourceColumnWidth = isShowSourceField.value && indexSetType.value ? 230 : 0;
+      const collectorColumnWidth = isShowCollectorField.value && isSceneMode.value ? 230 : 0;
 
-      return expandColumnWidth + rowIndexColumnWidth + sourceColumnWidth;
+      return expandColumnWidth + rowIndexColumnWidth + sourceColumnWidth + collectorColumnWidth;
     };
 
     const getFieldsAvailableWidth = () => offsetWidth.value - getFixedColumnsWidth() - TABLE_WIDTH_SAFE_GAP;
@@ -994,6 +1000,31 @@ export default defineComponent({
           return <span onClick={hanldeSoureClick}>{indeSetName}</span>;
         },
       },
+      {
+        field: '',
+        key: ROW_COLLECTOR,
+        title: '来源采集项',
+        width: 230,
+        align: 'left',
+        resize: false,
+        fixed: 'left',
+        disabled: !(isShowCollectorField.value && isSceneMode.value),
+        renderBodyCell: ({ row }) => {
+          const rowIndexSetId = row.__index_set_id__;
+          const collectorName = rowIndexSetId !== null
+            ? flatIndexSetList.value.find(
+              item => item.index_set_id === String(rowIndexSetId),
+            )?.index_set_name ?? '--'
+            : '--';
+          const hanldeSoureClick = (event) => {
+            event.stopPropagation();
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          };
+
+          return <span onClick={hanldeSoureClick}>{collectorName}</span>;
+        },
+      },
     ]);
 
     const handleRowAIClcik = (e: MouseEvent, row: any, rowIndex: number) => {
@@ -1080,6 +1111,9 @@ export default defineComponent({
       }
       if (isUnionSearch.value && indexSetOperatorConfig.value?.isShowSourceField) {
         sortFieldsList.unshift(LOG_SOURCE_F());
+      }
+      if (isSceneMode.value && isShowCollectorField.value) {
+        sortFieldsList.unshift(COLLECTOR_SOURCE_F());
       }
 
       if (rowKeys.value.length) {
@@ -1243,7 +1277,7 @@ export default defineComponent({
 
 
     watch(
-      () => [tableShowRowIndex.value, isShowSourceField.value, indexSetType.value],
+      () => [tableShowRowIndex.value, isShowSourceField.value, indexSetType.value, isShowCollectorField.value, isSceneMode.value],
       () => {
         computeRect();
       },

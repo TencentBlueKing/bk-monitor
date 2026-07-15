@@ -76,6 +76,11 @@
               "
             ></span>
             <span
+              class="field-copy-icon bklog-icon bklog-data-copy"
+              v-bk-tooltips="{ content: $t('复制') }"
+              @click="e => { e.stopPropagation(); handleCopyFieldValue(field); }"
+            ></span>
+            <span
               :style="{
                 backgroundColor: getFieldIconColor(field.field_type),
                 color: getFieldIconTextColor(field.field_type),
@@ -122,6 +127,7 @@
 
 <script>
   // import { getTextPxWidth, TABLE_FOUNT_FAMILY } from '@/common/util';
+  import { copyMessage } from '@/common/util';
   import JsonFormatter from '@/global/json-formatter.vue';
   import { getRowFieldValue } from '@/common/util';
   import { getFieldNameByField } from '@/hooks/use-field-name';
@@ -826,6 +832,19 @@
       },
 
       /**
+       * @desc 复制字段值
+       * @param { Object } field 字段对象
+       */
+      handleCopyFieldValue(field) {
+        const value = this.listData[field.field_name];
+        if (value === null || value === undefined || value === '') {
+          return;
+        }
+        const copyValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
+        copyMessage(copyValue);
+      },
+
+      /**
        * @desc 关联跳转
        * @param { string } field
        */
@@ -1015,10 +1034,27 @@
           align-items: center;
           justify-content: center;
           width: 12px;
-          margin-right: 8px;
+          margin-right: 4px;
           font-size: 12px;
           color: #4d4f56;
           border-radius: 2px;
+          cursor: pointer;
+
+          &:hover {
+            color: #3a84ff;
+          }
+        }
+
+        .field-copy-icon {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 12px;
+          margin-right: 4px;
+          font-size: 12px;
+          color: #4d4f56;
+          border-radius: 2px;
+          cursor: pointer;
 
           &:hover {
             color: #3a84ff;

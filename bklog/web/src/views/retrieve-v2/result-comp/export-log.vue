@@ -473,6 +473,15 @@
           }
         }
       },
+      // 联合查询索引集组变化时重置状态
+      unionIndexList: {
+        handler(newVal) {
+          if (this.isUnionSearch && newVal?.length) {
+            this.resetComponentState();
+          }
+        },
+        immediate: true,
+      },
       retrieveType(newVal, oldVal) {
         if (oldVal === 'scene' && newVal !== 'scene') {
           this.resetComponentState();
@@ -487,6 +496,13 @@
         // 当 displayTasks 为空时，手动关闭 popover
         if (this.displayTasks.length === 0 && this.$refs.downloadProgressPopover) {
           this.$refs.downloadProgressPopover.hide();
+        }
+      },
+      showHistoryExport(val) {
+        // 当下载历史弹窗打开时，拉取最新数据
+        if (val) {
+          this.initDateRange();
+          this.getTableList(true);
         }
       },
     },
@@ -612,7 +628,7 @@
                 message: this.$t('任务提交成功，下载完成将会收到邮件通知。可前往下载历史查看下载状态'),
               });
               // 更新时间范围拉取最新数据
-              this.initDateRange();
+              this.initDateRange(true);
               this.getTableList(true);
             } else {
               this.$bkMessage({
@@ -715,7 +731,7 @@
                 message: this.$t('任务提交成功，下载完成将会收到邮件通知。可前往下载历史查看下载状态'),
               });
               // 更新时间范围拉取最新数据
-              this.initDateRange();
+              this.initDateRange(true);
               this.getTableList(true);
             }
           })
@@ -751,8 +767,15 @@
       /**
        * @desc: 初始化时间范围（最近3月）
        */
-      initDateRange() {
+      /**
+       * @desc: 初始化时间范围（最近3月）
+       * @param { boolean } extendEndTime - 是否延长查询截止时间
+       */
+      initDateRange(extendEndTime = false) {
         const end = new Date();
+        if (extendEndTime) {
+          end.setTime(end.getTime() + 3000);
+        }
         const start = new Date();
         start.setTime(start.getTime() - 3600 * 1000 * 24 * 90);
         this.exportDateRange = [start, end];
