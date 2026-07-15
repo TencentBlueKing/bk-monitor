@@ -52,6 +52,7 @@ def get_agent_status(bk_biz_id: int, hosts: list[Host]) -> dict[int, int]:
     data_source = data_source_class(
         bk_biz_id=bk_biz_id,
         interval=180,
+        # usage: CPU 使用率（%），仅用于判定主机最近三分钟是否有数据上报（有上报即视为 Agent 正常）
         metrics=[{"field": "usage", "method": "AVG", "alias": "A"}],
         table="system.cpu_summary",
         group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id"],
@@ -143,6 +144,25 @@ def get_process_info(bk_biz_id: int, hosts: list[Host], limit_port_num: int = No
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表
     :param limit_port_num: 限制端口数量
+    :return: 以 bk_host_id 为 key 的进程信息字典，value 为该主机下的进程实例列表
+        e.g.:
+            {
+                11: [
+                    {
+                        "id": 43,                       # 占位值，host.py 中按 "进程名@主机IP" 覆盖
+                        "bk_host_id": 11,
+                        "name": "p1",
+                        "protocol": "1",
+                        "ports": [80, 8080],
+                        "status": 0,                     # AGENT_STATUS
+                        "bindIp": "127.0.0.1",
+                        "port": 80,
+                        "startCommand": "/usr/bin/p1 -c /etc/p1.conf",
+                        "user": "root",
+                    }
+                ]
+            }
+
     """
     pp_info = defaultdict(list)
 
@@ -174,12 +194,19 @@ def get_process_info(bk_biz_id: int, hosts: list[Host], limit_port_num: int = No
         else:
             status = AGENT_STATUS.UNKNOWN
 
+        # id 由 host.py 的 get_host_process_list 按 "进程名@主机IP" 格式组装（前端 ProcessItem.id 契约）。
+        # 此处保留原始 bk_process_id 占位，维持 pp_instance["id"] 赋值结构，供 host.py 覆盖。
         pp_instance = {
+            "id": pp.bk_process_id,
             "bk_host_id": pp.bk_host_id,
             "name": pp.bk_process_name,
             "protocol": pp.protocol,
             "ports": ports,
             "status": status,
+            "bindIp": pp.bind_ip,
+            "port": int(ports[0]) if ports else "",
+            "startCommand": pp.start_cmd,
+            "user": pp.user,
         }
         pp_info[pp.bk_host_id].append(pp_instance)
 
@@ -223,6 +250,148 @@ def get_process_status(bk_biz_id: int, hosts: list[Host]) -> dict[int, dict[str,
     return result
 
 
+def get_process_runtime_metrics(bk_biz_id: int, hosts: list[Host]) -> dict[str, dict]:
+    """
+    查询进程运行时指标 (system.proc)
+
+    返回各进程指标字段的运行时数据，按主机 + 进程(display_name) 两级聚合：
+    - 指标字段（AVG）：cpu_usage_pct, mem_res, mem_usage_pct, uptime
+    - 维度字段（按列名读取，不可 AVG 聚合）：pid, username
+
+    :param bk_biz_id: 业务ID
+    :param hosts: 主机列表
+    :return: 以 bk_host_id 为一级 key、进程 display_name（进程名）为二级 key 的运行时指标字典，
+        三级 key 为指标字段（cpu_usage_pct/mem_res/mem_usage_pct/uptime）与维度字段（pid/username）
+        e.g.:
+            {
+                11: {
+                    "nginx": {"cpu_usage_pct": 2.5, "mem_res": 102400, "mem_usage_pct": 10.0, "uptime": 3600, "pid": 1001, "username": "root"},
+                    "redis": {"cpu_usage_pct": 5.0, "mem_res": 204800, "mem_usage_pct": 20.0, "uptime": 7200, "pid": 2002, "username": "redis"}
+                }
+            }
+    """
+    try:
+        ip_to_host_id = {(host.bk_host_innerip, host.bk_cloud_id): host.bk_host_id for host in hosts}
+        bk_host_ids = {host.bk_host_id for host in hosts}
+
+        # system.proc 指标字段（可 AVG 聚合）
+        # - cpu_usage_pct: 进程 CPU 使用率（%）
+        # - mem_res:       进程使用的物理内存（字节）
+        # - mem_usage_pct: 进程内存使用率（%）
+        # - uptime:        进程运行时长（秒）
+        METRIC_FIELDS = ["cpu_usage_pct", "mem_res", "mem_usage_pct", "uptime"]
+        # system.proc 维度字段（按列名直接读取，不可 AVG 聚合；user 对应 username，无 user/mem_rss 字段）
+        # - pid:     进程 ID
+        # - username: 进程所属用户名
+        DIM_FIELDS = ["pid", "username"]
+
+        # 按主机初始化结果结构，兼容 bk_host_id 与 bk_target_ip 两种查询维度
+        result = defaultdict(lambda: defaultdict(dict))
+
+        def get_metric_data(field):
+            # 每个线程写入独立的临时 dict，避免多线程并发写同一 defaultdict 的竞态
+            _local = defaultdict(lambda: defaultdict(dict))
+            data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
+            data_source = data_source_class(
+                bk_biz_id=bk_biz_id,
+                interval=180,
+                metrics=[{"field": field, "method": "AVG", "alias": "A"}],
+                table="system.proc",
+                group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"] + DIM_FIELDS,
+            )
+            query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
+            now = int(time.time()) * 1000
+            # 查询最近三分钟的进程运行时数据
+            records = query.query_data(start_time=now - 180000, end_time=now, instant=True)
+            for record in records:
+                if record.get("_result_") is None:
+                    continue
+
+                if record.get("bk_host_id"):
+                    bk_host_id = int(record["bk_host_id"])
+                else:
+                    bk_host_id = ip_to_host_id.get((record.get("bk_target_ip"), int(record.get("bk_target_cloud_id"))))
+
+                if bk_host_id in bk_host_ids and record.get("display_name"):
+                    display_name = record["display_name"]
+                    _local[bk_host_id][display_name][field] = record.get("_result_")
+
+                    # 维度字段：直接按列名读取（pid/username 为 dimension，不能进 metrics 做 AVG）
+                    for dim in DIM_FIELDS:
+                        dim_val = record.get(dim)
+                        if dim_val is not None:
+                            _local[bk_host_id][display_name][dim] = dim_val
+            return _local
+
+        # 根据指标字段数量并发请求，单字段失败仅丢弃该字段（设计文档 §1 稳健性要求）。
+        # apply_async 的异常仅在 AsyncResult.get() 时抛出，故逐字段 try/except 捕获。
+        # 合并在主线程顺序执行，规避多线程写共享 result 的竞态。
+        pool = ThreadPool()
+        futures = [pool.apply_async(get_metric_data, args=(field,)) for field in METRIC_FIELDS]
+        pool.close()
+        for field, future in zip(METRIC_FIELDS, futures):
+            try:
+                field_data = future.get()
+            except Exception as e:
+                logger.warning("get_process_runtime_metrics field %s failed, skip: %s", field, e)
+                continue
+            for host_id, proc_map in field_data.items():
+                for proc_name, metrics in proc_map.items():
+                    result[host_id][proc_name].update(metrics)
+        pool.join()
+
+        return result
+    except Exception as e:
+        # 设计文档 §1：TSDB 查询异常兜底，runtime_data={}，CMDB 基础字段照常返回
+        logger.warning("get_process_runtime_metrics failed, degrade to empty: %s", e)
+        return {}
+
+
+def get_process_port_health(bk_biz_id: int, hosts: list[Host]) -> dict[int, dict[str, int | None]]:
+    """
+    查询进程端口健康状态 (port_health)
+
+    :param bk_biz_id: 业务ID
+    :param hosts: 主机列表
+    :return: {bk_host_id: {bk_process_name: 0/1/None}}
+    """
+    try:
+        ip_to_host_id = {(host.bk_host_innerip, host.bk_cloud_id): host.bk_host_id for host in hosts}
+        bk_host_ids = {host.bk_host_id for host in hosts}
+
+        # 查询进程端口健康数据
+        data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
+        data_source = data_source_class(
+            bk_biz_id=bk_biz_id,
+            interval=180,
+            metrics=[{"field": "port_health", "method": "AVG", "alias": "A"}],
+            table="system.proc_port",
+            group_by=(["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"]),
+        )
+        query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
+        now = int(time.time()) * 1000
+        # 仅判定最近三分钟内端口健康状态，使用 instant 查询取窗口聚合的单点
+        records = query.query_data(start_time=now - 180000, end_time=now, instant=True)
+
+        result = defaultdict(dict)
+        for record in records:
+            if record.get("_result_") is None:
+                continue
+
+            if record.get("bk_host_id"):
+                bk_host_id = int(record["bk_host_id"])
+            else:
+                bk_host_id = ip_to_host_id.get((record.get("bk_target_ip"), int(record.get("bk_target_cloud_id") or 0)))
+
+            if bk_host_id in bk_host_ids and record.get("display_name"):
+                result[bk_host_id][record["display_name"]] = record["_result_"]
+        return result
+    except Exception as e:
+        # 设计文档 §1：TSDB 查询异常兜底，port_health={}，CMDB 基础字段照常返回
+        logger.warning("get_process_port_health failed, degrade to empty: %s", e)
+        return {}
+
+
 def get_host_performance_data(bk_biz_id: int, hosts: list[Host] = None) -> dict[int, dict] | dict[tuple, dict]:
     """
     :summary 按主机查询主机性能信息(五分钟负载/CPU使用率/磁盘空间使用率/磁盘IO使用率/应用内存使用率)
@@ -245,7 +414,9 @@ def get_host_performance_data(bk_biz_id: int, hosts: list[Host] = None) -> dict[
         for host in hosts
     }
 
-    def get_metric_data(metric, _data):
+    def get_metric_data(metric):
+        # 每个线程写入独立的临时 dict，避免多线程并发写同一 data 的竞态
+        local = {}
         data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
         data_source = data_source_class(
             bk_biz_id=bk_biz_id,
@@ -267,7 +438,8 @@ def get_host_performance_data(bk_biz_id: int, hosts: list[Host] = None) -> dict[
                 bk_host_id = ip_to_host_id.get((record["bk_target_ip"], int(record["bk_target_cloud_id"])))
 
             if bk_host_id in bk_host_ids:
-                _data[bk_host_id][metric["field"]] = round(record["_result_"] * metric.get("ratio", 1), 2)
+                local[bk_host_id] = round(record["_result_"] * metric.get("ratio", 1), 2)
+        return local
 
     metrics = [
         {"field": "cpu_load", "result_table_id": "system.load", "metric_field": "load5"},
@@ -278,11 +450,21 @@ def get_host_performance_data(bk_biz_id: int, hosts: list[Host] = None) -> dict[
         {"field": "psc_mem_usage", "result_table_id": "system.mem", "metric_field": "psc_pct_used"},
     ]
 
-    # 根据请求总数并发请求
+    # 根据请求总数并发请求，单指标失败仅丢弃该指标（不影响其余指标）。
+    # apply_async 的异常仅在 AsyncResult.get() 时抛出，故逐指标 try/except 捕获，
+    # 避免旧实现只 pool.join() 静默吞掉线程异常、返回不完整性能数据的问题。
+    # 合并在主线程顺序执行，规避多线程写共享 data 的竞态。
     pool = ThreadPool()
-    for m in metrics:
-        pool.apply_async(get_metric_data, args=(m, data))
+    futures = [pool.apply_async(get_metric_data, args=(m,)) for m in metrics]
     pool.close()
+    for metric, future in zip(metrics, futures):
+        try:
+            metric_data = future.get()
+        except Exception as e:
+            logger.warning("get_host_performance_data metric %s failed, skip: %s", metric["field"], e)
+            continue
+        for host_id, value in metric_data.items():
+            data[host_id][metric["field"]] = value
     pool.join()
 
     return data

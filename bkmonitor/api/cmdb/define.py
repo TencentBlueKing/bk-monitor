@@ -595,6 +595,8 @@ class Process:
         port="",
         protocol="",
         process_template_id=0,
+        user="",
+        start_cmd="",
         **kwargs,
     ):
         """
@@ -606,6 +608,8 @@ class Process:
         :param str service_instance_id: 服务实例ID
         :param str process_template_id: 进程模板ID
         :param str bk_host_id: 主机ID
+        :param str user: 启动用户
+        :param str start_cmd: 启动命令（→ 前端 startCommand）
         """
         self.bk_process_id = int(bk_process_id)
         self.bk_process_name = bk_process_name
@@ -616,6 +620,8 @@ class Process:
         self.process_template_id = int(process_template_id)
         self.bk_host_id = int(bk_host_id)
         self.protocol = protocol
+        self.user = user
+        self.start_cmd = start_cmd
 
     def __eq__(self, other):
         return self.bk_process_id == other.bk_process_id

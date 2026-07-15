@@ -26,6 +26,7 @@ from bkmonitor.utils.request import get_request
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
 from monitor_web.constants import AGENT_STATUS
+from monitor_web.scene_view.resources.view import GetSceneViewResource
 
 
 class GetHostProcessPortStatusResource(Resource):
@@ -485,8 +486,52 @@ class GetHostProcessListResource(Resource):
         if host.bk_host_id not in processes:
             return []
 
+        # PHASE 1: Query port health directly (moved up from get_process_info so other
+        # callers are unaffected) and merge into response per design spec.
+        port_statuses = resource.cc.get_process_port_health(bk_biz_id, hosts=[host])
+        host_port_status = port_statuses.get(host.bk_host_id, {})
+
+        # PHASE 2: Query runtime metrics per design spec and merge into response.
+        # - 指标字段(cpu_usage_pct/mem_usage_pct/mem_res/uptime) 与维度字段(pid/username) 来自 system.proc
+        # - proc_exists status 已在 get_process_info 中用于 status 字段
+        # - portStatus 已在本 Resource 的 Phase 1 直接查询并合并
+        # - TSDB 查询异常时 get_process_runtime_metrics 返回 {}，CMDB 基础字段照常返回
+        runtime_data = resource.cc.get_process_runtime_metrics(bk_biz_id, hosts=[host])
+        # 返回结构：{bk_host_id: {display_name(进程名): {field: value, pid: pid, username: username}}}
+        host_runtime = runtime_data.get(host.bk_host_id, {})
+
+        # UI 字段名 → system.proc 指标字段名 映射
+        # 用于 get_host_process_list 将 TSDB 运行时指标映射到前端 ProcessItem 字段
+        runtime_metric_map = {
+            "cpuUsage": "cpu_usage_pct",
+            "memRss": "mem_res",
+            "memUsage": "mem_usage_pct",
+            "uptime": "uptime",
+            "pid": "pid",
+            "user": "username",
+        }
+
         return [
-            {"status": process["status"], "name": process["name"], "id": process["name"]}
+            {
+                # id 格式：进程名@主机IP（前端 ProcessItem.id 契约，用于选中/去重 key）
+                "id": f"{process['name']}@{host.ip}",
+                "name": process["name"],
+                "status": process["status"],
+                # 运行时指标按进程名(display_name)索引，通过 runtime_metric_map 映射 UI→TSDB 字段名
+                "pid": host_runtime.get(process["name"], {}).get(runtime_metric_map["pid"]),
+                "protocol": process.get("protocol"),
+                "bindIp": process.get("bindIp"),
+                "port": process.get("port"),
+                "portStatus": host_port_status.get(process["name"]),
+                "user": process.get("user") or host_runtime.get(process["name"], {}).get(runtime_metric_map["user"]),
+                "hostIp": host.ip,
+                # Performance / resource metrics from system.proc (TSDB only)
+                "cpuUsage": host_runtime.get(process["name"], {}).get(runtime_metric_map["cpuUsage"]),
+                "memRss": host_runtime.get(process["name"], {}).get(runtime_metric_map["memRss"]),
+                "memUsage": host_runtime.get(process["name"], {}).get(runtime_metric_map["memUsage"]),
+                "uptime": host_runtime.get(process["name"], {}).get(runtime_metric_map["uptime"]),
+                "startCommand": process.get("startCommand"),
+            }
             for process in processes[host.bk_host_id]
         ]
 
@@ -542,3 +587,95 @@ class GetHostInfoResource(Resource):
             "bk_host_id": host.bk_host_id,
             "bk_os_type": settings.OS_TYPE_NAME_DICT.get(int(host.bk_os_type)) if host.bk_os_type else "",
         }
+
+
+class GetHostViewsPanelsResource(Resource):
+    """
+    获取主机场景视图的 panels 列表
+    复用 GetSceneViewResource 逻辑，仅提取 panels 返回。
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+
+        def validate_bk_biz_id(self, value):
+            return validate_bk_biz_id(value)
+
+    def perform_request(self, validated_request_data):
+        params = {
+            "bk_biz_id": validated_request_data["bk_biz_id"],
+            "scene_id": "host",
+            "type": "detail",
+            "id": "host",
+        }
+        view_config = GetSceneViewResource().request(params)
+        return view_config["panels"]
+
+
+class GetHostViewsPanelsOrderResource(Resource):
+    """
+    获取主机场景视图的 order 列表
+    复用 GetSceneViewResource 逻辑，仅提取 order 返回。
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+
+        def validate_bk_biz_id(self, value):
+            return validate_bk_biz_id(value)
+
+    def perform_request(self, validated_request_data):
+        params = {
+            "bk_biz_id": validated_request_data["bk_biz_id"],
+            "scene_id": "host",
+            "type": "detail",
+            "id": "host",
+        }
+        view_config = GetSceneViewResource().request(params)
+        return view_config["order"]
+
+
+class GetProcessViewsPanelsResource(Resource):
+    """
+    获取进程场景视图的 panels 列表
+    复用 GetSceneViewResource 逻辑，仅提取 panels 返回。
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+
+        def validate_bk_biz_id(self, value):
+            return validate_bk_biz_id(value)
+
+    def perform_request(self, validated_request_data):
+        params = {
+            "bk_biz_id": validated_request_data["bk_biz_id"],
+            "scene_id": "host",
+            "type": "detail",
+            "id": "process",
+        }
+        view_config = GetSceneViewResource().request(params)
+        return view_config["panels"]
+
+
+class GetProcessViewsPanelsOrderResource(Resource):
+    """
+    获取进程场景视图的 order 列表
+    复用 GetSceneViewResource 逻辑，仅提取 order 返回。
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+
+        def validate_bk_biz_id(self, value):
+            return validate_bk_biz_id(value)
+
+    def perform_request(self, validated_request_data):
+        params = {
+            "bk_biz_id": validated_request_data["bk_biz_id"],
+            "scene_id": "host",
+            "type": "detail",
+            "id": "process",
+        }
+        view_config = GetSceneViewResource().request(params)
+        return view_config["order"]
