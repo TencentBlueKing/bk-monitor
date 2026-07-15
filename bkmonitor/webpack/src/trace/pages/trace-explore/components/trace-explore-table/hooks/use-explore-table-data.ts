@@ -150,6 +150,10 @@ export const useExploreTableData = (options: UseExploreTableDataOptions): UseExp
    * @description: 获取 table 表格数据
    */
   const getExploreList = async (loadingType = ExploreTableLoadingEnum.BODY_SKELETON) => {
+    // 触底加载进行中时忽略重复触发
+    if (loadingType === ExploreTableLoadingEnum.SCROLL && tableLoading[ExploreTableLoadingEnum.SCROLL]) {
+      return;
+    }
     if (abortController) {
       abortController.abort();
       abortController = null;

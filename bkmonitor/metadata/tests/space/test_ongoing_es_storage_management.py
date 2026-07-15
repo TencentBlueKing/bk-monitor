@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import json
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -23,8 +24,8 @@ base_time = timezone.datetime(2020, 1, 1, tzinfo=timezone.utc)
 
 @pytest.fixture
 def create_or_delete_records(mocker):
-    models.ESStorage.objects.create(table_id="1001_bklog.stdout", storage_cluster_id=11)
-    models.ESStorage.objects.create(table_id="test_system_event", storage_cluster_id=11)
+    models.ESStorage.objects.create(table_id="1001_bklog.stdout", storage_cluster_id=11, index_set="bklog_stdout")
+    models.ESStorage.objects.create(table_id="test_system_event", storage_cluster_id=11, index_set="test_system_event")
     models.ClusterInfo.objects.create(
         cluster_id=11,
         cluster_name="test_es_1",
@@ -41,6 +42,7 @@ def create_or_delete_records(mocker):
         data_label="bklog_index_set_1001",
         labels={"scene": "log"},
         is_custom_table=False,
+        default_storage=models.ClusterInfo.TYPE_ES,
     )
     models.ClusterInfo.objects.create(
         cluster_id=12,
@@ -84,77 +86,76 @@ def create_or_delete_records(mocker):
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_compose_es_table_id_detail_v2(create_or_delete_records):
-    client = SpaceTableIDRedis()
-
-    enable_timestamp = int(
-        models.StorageClusterRecord.objects.get(cluster_id=11, table_id="1001_bklog.stdout").enable_time.timestamp()
-    )
-    enable_timestamp_12 = int(
-        models.StorageClusterRecord.objects.get(cluster_id=12, table_id="1001_bklog.stdout").enable_time.timestamp()
-    )
-    data = client._compose_es_table_id_detail(table_id_list=["1001_bklog.stdout"])
-    # 构建 expected
-    expected_json = {
-        "storage_id": 11,
-        "db": None,
-        "measurement": "__default__",
-        "source_type": "log",
-        "options": {},
-        "storage_type": "elasticsearch",
-        "storage_cluster_records": [
-            {"storage_id": 13, "enable_time": 0},
-            {"storage_id": 12, "enable_time": enable_timestamp_12},
-            {"storage_id": 11, "enable_time": enable_timestamp},
-        ],
-        "data_label": "bklog_index_set_1001",
-        "labels": {"scene": "log"},
-        "field_alias": {},
-    }
-    expected = {"1001_bklog.stdout": expected_json}
-    assert data == expected
-
-    event_detail = client._compose_es_table_id_detail(table_id_list=["test_system_event"])
-    expected_json = {
-        "storage_id": 11,
-        "db": None,
-        "measurement": "__default__",
-        "source_type": "log",
-        "options": {},
-        "storage_type": "elasticsearch",
-        "storage_cluster_records": [],
-        "data_label": "",
-        "labels": {},
-        "field_alias": {},
-    }
-    expected = {"test_system_event": expected_json}
-    assert event_detail == expected
-
-
-@pytest.mark.django_db(databases="__all__")
-def test_push_es_table_id_details(create_or_delete_records):
+def test_push_es_details_through_unified_entry(create_or_delete_records):
     with patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis") as mock_hmset_to_redis:
         with patch("metadata.utils.redis_tools.RedisTools.publish") as mock_publish:
             client = SpaceTableIDRedis()
 
             table_id = "1001_bklog.stdout"
 
-            client.push_es_table_id_detail(table_id_list=["1001_bklog.stdout", "test_system_event"], is_publish=True)
+            client.push_table_id_detail(
+                bk_tenant_id="system",
+                table_id_list=["1001_bklog.stdout", "test_system_event"],
+                is_publish=True,
+            )
 
+            redis_key, redis_values = mock_hmset_to_redis.call_args.args
+            details = {key: json.loads(value) for key, value in redis_values.items()}
             expected = {
-                "1001_bklog.stdout": '{"storage_id":11,"db":null,"measurement":"__default__",'
-                '"source_type":"log","options":{},"storage_type":"elasticsearch",'
-                '"storage_cluster_records":[{"storage_id":13,"enable_time":0},'
-                '{"storage_id":12,"enable_time":1572652800},'
-                '{"storage_id":11,"enable_time":1575244800}],"data_label":"bklog_index_set_1001","labels":{"scene":"log"},"field_alias":{}}',
-                "test_system_event.__default__": '{"storage_id":11,"db":null,"measurement":"__default__",'
-                '"source_type":"log","options":{},'
-                '"storage_type":"elasticsearch",'
-                '"storage_cluster_records":[],"data_label":"","labels":{},"field_alias":{}}',
+                "1001_bklog.stdout": {
+                    "storage_id": 11,
+                    "db": "bklog_stdout",
+                    "measurement": "__default__",
+                    "source_type": "log",
+                    "options": {},
+                    "storage_type": "elasticsearch",
+                    "storage_cluster_records": [
+                        {
+                            "storage_id": 11,
+                            "storage_type": "elasticsearch",
+                            "db": "bklog_stdout",
+                            "measurement": "__default__",
+                            "source_type": "log",
+                            "enable_time": 1575244800,
+                        },
+                        {
+                            "storage_id": 12,
+                            "storage_type": "elasticsearch",
+                            "db": "bklog_stdout",
+                            "measurement": "__default__",
+                            "source_type": "log",
+                            "enable_time": 1572652800,
+                        },
+                        {
+                            "storage_id": 13,
+                            "storage_type": "elasticsearch",
+                            "db": "bklog_stdout",
+                            "measurement": "__default__",
+                            "source_type": "log",
+                            "enable_time": 0,
+                        },
+                    ],
+                    "data_label": "bklog_index_set_1001",
+                    "labels": {"scene": "log"},
+                    "field_alias": {},
+                },
+                "test_system_event.__default__": {
+                    "storage_id": 11,
+                    "db": "test_system_event",
+                    "measurement": "__default__",
+                    "source_type": "log",
+                    "options": {},
+                    "storage_type": "elasticsearch",
+                    "storage_cluster_records": [],
+                    "data_label": "",
+                    "labels": {},
+                    "field_alias": {},
+                },
             }
 
             # 验证 RedisTools.hmset_to_redis 是否被正确调用
-            mock_hmset_to_redis.assert_called_once_with("bkmonitorv3:spaces:result_table_detail", expected)
+            assert redis_key == "bkmonitorv3:spaces:result_table_detail"
+            assert details == expected
 
             # 验证 RedisTools.publish 是否被正确调用
             mock_publish.assert_called_once_with(

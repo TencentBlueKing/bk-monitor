@@ -1,0 +1,126 @@
+.issues-relation-tapd-item {
+  display: flex;
+  align-items: center;
+  height: 56px;
+  padding: 0 8px 0 12px;
+  margin-bottom: 8px;
+  background: #f2f6fc;
+  border-radius: 6px;
+
+  &:first-of-type {
+    margin-top: 16px;
+  }
+
+  &.tapd-item-skeleton {
+    width: 100%;
+    height: 56px;
+  }
+
+  .tapd-item-left {
+    width: 32px;
+    height: 32px;
+
+    & > img {
+      width: 32px;
+      height: 32px;
+    }
+  }
+
+  .tapd-item-right {
+    flex: 1;
+    margin-left: 8px;
+    overflow: hidden;
+
+    .tapd-item-right-top {
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+      line-height: 20px;
+
+      .tapd-id {
+        font-family: Menlo, monospace;
+        font-weight: 700;
+        color: #8f9fbd;
+        white-space: nowrap;
+      }
+
+      .link-mode {
+        margin: 0 0 0 auto;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-weight: 400;
+        color: #8f9fbd;
+        white-space: nowrap;
+        transform: scale(0.83);
+        transform-origin: right center;
+      }
+    }
+
+    .tapd-item-right-bottom {
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+      line-height: 20px;
+
+      .tapd-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 12px;
+        font-weight: 500;
+        color: #313238;
+        white-space: nowrap;
+      }
+
+      .icon-fenxiang {
+        display: none;
+        margin-right: 4px;
+        margin-left: 4px;
+        font-size: 12px;
+        color: #3a84ff;
+      }
+
+      .sync-status-wrap {
+        display: flex;
+        align-items: center;
+        margin: 0 0 0 auto;
+        white-space: nowrap;
+
+        .icon-change {
+          font-size: 20px;
+        }
+
+        &.green {
+          color: #21a380;
+        }
+
+        &.yellow {
+          position: relative;
+          color: #faa41e;
+
+          .split {
+            width: 1px;
+            height: 12px;
+            background: #faa41e;
+            transform: rotate(23deg) translate(9px, -5px);
+          }
+        }
+      }
+    }
+  }
+
+  &:hover {
+    background: #e1ecff;
+
+    .tapd-item-right .tapd-item-right-bottom {
+      .tapd-name {
+        color: #3a84ff;
+        cursor: pointer;
+      }
+
+      .icon-fenxiang {
+        display: inline-block;
+        cursor: pointer;
+      }
+    }
+  }
+}

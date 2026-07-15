@@ -16,6 +16,7 @@ from metadata import models
 from metadata.models.constants import EsSourceType
 from metadata.task import clean_disable_es_storage, manage_es_storage
 from metadata.task.config_refresh import manage_disable_es_storage, refresh_es_storage
+from metadata.task.tasks import _manage_es_storage
 
 
 @pytest.fixture
@@ -182,3 +183,42 @@ def test_manage_disable_es_storage(create_or_delete_records, mocker):
 
     assert log_message_found
     assert log_message_found_es2
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_manage_non_default_es_storage_only_cleans_history(mocker):
+    table_id = "6001_test_bklog.table"
+    es_storage = models.ESStorage.objects.create(
+        table_id=table_id,
+        source_type=EsSourceType.LOG.value,
+        storage_cluster_id=6,
+        need_create_index=True,
+    )
+    models.ResultTable.objects.create(
+        table_id=table_id,
+        is_enable=True,
+        is_deleted=False,
+        table_name_zh="test_6001",
+        is_custom_table=True,
+        schema_type="free",
+        default_storage=models.ClusterInfo.TYPE_DORIS,
+        bk_biz_id=0,
+    )
+
+    history_clean = mocker.patch.object(es_storage, "clean_history_es_index")
+    forbidden_methods = [
+        "index_exist",
+        "create_index_and_aliases",
+        "update_index_and_aliases",
+        "create_snapshot",
+        "clean_index_v2",
+        "clean_snapshot",
+        "reallocate_index",
+    ]
+    forbidden_mocks = [mocker.patch.object(es_storage, method) for method in forbidden_methods]
+
+    _manage_es_storage(es_storage)
+
+    history_clean.assert_called_once_with()
+    for method_mock in forbidden_mocks:
+        method_mock.assert_not_called()

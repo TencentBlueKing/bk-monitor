@@ -1994,6 +1994,10 @@ class Strategy(AbstractConfig):
                 agg_interval = query_config.get("agg_interval")
                 for algorithm in ns_algorithms:
                     config = algorithm.get("config") or {}
+                    try:
+                        serializers.IntegerField().run_validation(config.get("threshold", 0))
+                    except ValidationError:
+                        raise ValidationError(detail=_("新维度值检测的告警阈值必须为整数"))
                     detect_range = config.get("detect_range")
                     # 下界硬校验：拦截 degenerate 值(否则运行期会永久漏报/冷启动失效误报风暴)
                     if detect_range is None or int(detect_range) < 1:

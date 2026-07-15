@@ -32,11 +32,9 @@ from django_prometheus.middleware import (
 )
 from django_prometheus.utils import Time, TimeSince
 
-from apps.api import BKLoginApi
-from apps.exceptions import ApiRequestError, ApiResultError
-from apps.utils.cache import cache_five_minute
 from apps.utils.local import activate_request, set_local_param
 from apps.utils.prometheus import BkLogMetrics
+from apps.utils.user_info import get_user_info
 
 HOSTNAME = socket.gethostname()
 STAGE = os.getenv("BKPAAS_ENVIRONMENT", "dev")
@@ -76,21 +74,13 @@ class UserLocalMiddleware(MiddlewareMixin):
             return None
 
         timezone_from_headers = get_timezone_from_headers(request)
-        user_info = self._get_user_info(user=request.user.username)
+        user_info = get_user_info(user=request.user.username)
         tzname = timezone_from_headers or user_info.get("time_zone", settings.TIME_ZONE)
         set_local_param("time_zone", tzname)
         timezone.activate(pytz.timezone(tzname))
         request.session["bluking_timezone"] = tzname
         # 注入用户信息
         request.user_info = user_info
-
-    @staticmethod
-    @cache_five_minute("{user}_user_info")
-    def _get_user_info(*, user):
-        try:
-            return BKLoginApi.get_user({"username": user})
-        except (ApiRequestError, ApiResultError):
-            return {}
 
 
 class BkLogMetricsBeforeMiddleware(PrometheusBeforeMiddleware):

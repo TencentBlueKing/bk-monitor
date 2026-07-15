@@ -34,6 +34,25 @@
     }
   }
 
+  .threshold-interval {
+    display: flex;
+    align-items: center;
+    color: #63656e;
+
+    > .date-input {
+      width: auto;
+      margin-left: 3px;
+
+      .bk-input-number {
+        width: 60px;
+      }
+    }
+  }
+
+  .threshold-tip {
+    color: #3a84ff;
+  }
+
   .select-method {
     margin: 0 4px;
   }

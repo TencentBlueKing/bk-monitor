@@ -339,7 +339,10 @@ export default defineComponent({
         .then(res => {
           if (res.code === 0) {
             clusterList.value = res.data;
-            formData.value.bcs_cluster_id = clusterList.value[0]?.cluster_id || '';
+            // 编辑/克隆场景下，bcs_cluster_id 由详情数据决定，不使用集群列表的默认值
+            if (!(props.isEdit || props.isClone)) {
+              formData.value.bcs_cluster_id = clusterList.value[0]?.cluster_id || '';
+            }
           }
         })
         .catch(err => {
@@ -1306,6 +1309,8 @@ export default defineComponent({
     ) => {
       const { params, ...rect } = requestData;
       // const { data_encoding, params, target_object_type, target_node_type, target_nodes, ...rect } = requestData;
+      // Node 采集模式下，需要清空 namespaces、workload、containerName 等容器筛选字段，与旧版保持一致
+      const isNode = collectorType.value === 'node_log_config';
       const newConfig = (configs || []).map(item => {
         const { data_encoding, container, params: itemParams, collector_type, namespaces, label_selector, annotation_selector,
           noQuestParams, containerNameList } = item;
@@ -1314,17 +1319,23 @@ export default defineComponent({
 
         // 根据排除操作符决定使用 container_name 还是 container_name_exclude
         const containerKey = noQuestParams?.containerExclude === '!=' ? 'container_name_exclude' : 'container_name';
-        const containerNameValue = (containerNameList || []).join(',');
+        // Node 采集模式下，容器名清空
+        const containerNameValue = isNode ? '' : (containerNameList || []).join(',');
 
         // 根据排除操作符决定使用 namespaces 还是 namespaces_exclude
         const namespacesKey = noQuestParams?.namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespaces';
-        const namespacesValue = JSON.stringify(namespaces) === '["*"]' ? [] : (namespaces || []);
+        // Node 采集模式下，namespaces 清空为 []
+        const namespacesValue = isNode ? [] : (JSON.stringify(namespaces) === '["*"]' ? [] : (namespaces || []));
+
+        // Node 采集模式下，workload_type 和 workload_name 清空
+        const workload_type = isNode ? '' : (container?.workload_type || '');
+        const workload_name = isNode ? '' : (container?.workload_name || '');
 
         return {
           data_encoding,
           container: {
-            workload_type: container?.workload_type || '',
-            workload_name: container?.workload_name || '',
+            workload_type,
+            workload_name,
             [containerKey]: containerNameValue,
           },
           params: {

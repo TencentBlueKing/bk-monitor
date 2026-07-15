@@ -54,6 +54,7 @@ from fta_web.alert.handlers.base import (
     BaseQueryTransformer,
     QueryField,
 )
+from fta_web.alert.handlers.fulltext import FulltextFieldKind, FulltextSearchField
 from fta_web.alert.handlers.translator import (
     BizTranslator,
     CategoryTranslator,
@@ -606,6 +607,17 @@ class AlertQueryHandler(BaseBizQueryHandler):
     """
 
     query_transformer = AlertQueryTransformer
+    FULLTEXT_BIZ_ID_FIELD = "event.bk_biz_id"
+    # 产品锁定对照故障：ID、名称、内容、标签、负责人、关注人、所属业务
+    FULLTEXT_SEARCH_FIELDS = [
+        FulltextSearchField("id", FulltextFieldKind.KEYWORD),
+        FulltextSearchField("alert_name", FulltextFieldKind.TEXT),
+        FulltextSearchField("event.description", FulltextFieldKind.TEXT),
+        FulltextSearchField("labels", FulltextFieldKind.KEYWORD),
+        FulltextSearchField("appointee", FulltextFieldKind.KEYWORD),
+        FulltextSearchField("follower", FulltextFieldKind.KEYWORD),
+        FulltextSearchField("event.bk_biz_id", FulltextFieldKind.KEYWORD),
+    ]
 
     # 导出时需要排除的无用字段（这些字段会在处理过程中被移除）
     EXCLUDED_EXPORT_FIELDS = {"action_id", "action_name", "module_id", "set_id"}
@@ -1052,21 +1064,8 @@ class AlertQueryHandler(BaseBizQueryHandler):
             condition["value"] = [exploded_ip(v) for v in condition["value"]]
 
         elif condition["key"] == "query_string":
-            con_q = None
-            for query_string in condition["value"]:
-                if query_string.strip():
-                    query_dsl = self.query_transformer.transform_query_string(query_string, self.query_context)
-                    if isinstance(query_dsl, str):
-                        temp_q = Q("query_string", query=query_dsl)
-                    else:
-                        temp_q = Q(query_dsl)
-
-                    if con_q is None:
-                        con_q = temp_q
-                    else:
-                        con_q = con_q | temp_q
-
-            return con_q
+            # UI 全字段：按字面文本走白名单（foo:bar / CPU AND memory 不解析为 Lucene）
+            return self.build_query_string_condition_q(condition.get("value"), context=self.query_context)
         return super().parse_condition_item(condition)
 
     def add_biz_condition(self, search_object):
