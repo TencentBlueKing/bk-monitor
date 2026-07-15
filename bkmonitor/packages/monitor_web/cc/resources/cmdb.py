@@ -254,7 +254,7 @@ def get_process_runtime_metrics(bk_biz_id: int, hosts: list[Host]) -> dict[str, 
     """
     查询进程运行时指标 (system.proc)
 
-    返回各进程指标字段的运行时数据，按主机 + 进程(display_name) 两级聚合：
+    返回各进程指标字段的运行时数据：
     - 指标字段（AVG）：cpu_usage_pct, mem_res, mem_usage_pct, uptime
     - 维度字段（按列名读取，不可 AVG 聚合）：pid, username
 
@@ -354,6 +354,7 @@ def get_process_port_health(bk_biz_id: int, hosts: list[Host]) -> dict[int, dict
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表
     :return: {bk_host_id: {bk_process_name: 0/1/None}}
+        其中 0=Normal(健康), 1=Abnormal(异常), None=未知/未解析
     """
     try:
         ip_to_host_id = {(host.bk_host_innerip, host.bk_cloud_id): host.bk_host_id for host in hosts}
@@ -384,7 +385,9 @@ def get_process_port_health(bk_biz_id: int, hosts: list[Host]) -> dict[int, dict
                 bk_host_id = ip_to_host_id.get((record.get("bk_target_ip"), int(record.get("bk_target_cloud_id") or 0)))
 
             if bk_host_id in bk_host_ids and record.get("display_name"):
-                result[bk_host_id][record["display_name"]] = record["_result_"]
+                # TSDB port_health: 1=健康, 0=异常；前端 PROCESS_PORT_STATUS_MAP: 0=Normal(绿), 1=Abnormal(红)
+                # 在此做枚举映射并二值化为 int，避免透传浮点导致前端 MAP 落灰
+                result[bk_host_id][record["display_name"]] = 0 if record["_result_"] else 1
         return result
     except Exception as e:
         # 设计文档 §1：TSDB 查询异常兜底，port_health={}，CMDB 基础字段照常返回
