@@ -200,28 +200,26 @@ def process_metric_relations(
     app_name: str,
     service_name: str | None,
     indexes_mapping: dict[int, list[dict[str, Any]]],
-    start_time: int,
-    end_time: int,
     overwrite_method: Callable[..., list[dict]] | None = None,
-):
+) -> list[dict[str, Any]]:
     """根据应用关联指标反查关联日志索引集。"""
     if not service_name:
         return []
 
-    # 服务没有关联容器时提前返回，减少非必要查询和缓存访问。
+    # 保留服务级 workload 前置判断，避免返回已经解除容器关联的历史缓存。
     if not EntitySet(bk_biz_id, app_name, [service_name]).get_workloads(service_name):
         return []
 
-    result = []
-    relations = ServiceLogHandler.list_indexes_by_relation(bk_biz_id, app_name, service_name, start_time, end_time)
-    for r in relations:
-        index_infos: list[dict] = _find_index_infos_from_cache(bk_biz_id, [r["index_set_id"]], indexes_mapping)
-        for index_info in index_infos:
-            index_info["addition"] = r["addition"]
-            if overwrite_method:
-                index_info["addition"] = overwrite_method(overwrite_key=DEFAULT_APM_LOG_SEARCH_FIELD_NAME)
-            result.append(index_info)
-    return result
+    relations: list[dict[str, Any]] = ServiceLogHandler.list_indexes_by_relation(bk_biz_id, app_name, service_name)
+    index_infos: list[dict[str, Any]] = _find_index_infos_from_cache(
+        bk_biz_id, [relation["index_set_id"] for relation in relations], indexes_mapping
+    )
+    for index_info in index_infos:
+        index_info["addition"] = (
+            overwrite_method(overwrite_key=DEFAULT_APM_LOG_SEARCH_FIELD_NAME) if overwrite_method else []
+        )
+
+    return index_infos
 
 
 def _generate_cache_key(
@@ -312,7 +310,7 @@ def log_relation_list(
     tasks: list[tuple[Callable[..., list[dict]], tuple]] = [
         (process_relation, (*common_args, overwrite_method)),
         (process_datasource, (*common_args, overwrite_method)),
-        (process_metric_relations, (*common_args, start_time, end_time, overwrite_method)),
+        (process_metric_relations, (*common_args, overwrite_method)),
         (process_span_host, (*common_args, processed_extra_info, overwrite_method)),
     ]
 
@@ -369,13 +367,13 @@ class LogInfoResource(Resource, HostIndexQueryMixin):
             return True
 
         # 3. 是否有关联的 pod 日志
-        start_time = data.get("start_time")
-        end_time = data.get("end_time")
-        if ServiceLogHandler.list_indexes_by_relation(
-            bk_biz_id=bk_biz_id, app_name=app_name, service_name=service_name, start_time=start_time, end_time=end_time
-        ):
-            return True
-        return False
+        return bool(
+            ServiceLogHandler.list_indexes_by_relation(
+                bk_biz_id=bk_biz_id,
+                app_name=app_name,
+                service_name=service_name,
+            )
+        )
 
 
 class LogRelationListResource(Resource, HostIndexQueryMixin):

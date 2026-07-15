@@ -9,23 +9,38 @@ specific language governing permissions and limitations under the License.
 """
 
 import itertools
-import time
+import logging
 from collections import defaultdict
+from typing import Any
 
-from apm_web.constants import DataStatus, ServiceRelationLogTypeChoices
+from django.core.cache import caches
+
+from apm_web.constants import ApmCacheKey, DataStatus, ServiceRelationLogTypeChoices
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.models import LogServiceRelation
-from apm_web.topo.handle.relation.define import (
-    SourceDatasource,
-    SourceK8sPod,
-    SourceService,
-    SourceSystem,
-)
-from apm_web.topo.handle.relation.query import RelationQ
-from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.cache import CacheType, using_cache
+from bkmonitor.utils.common_utils import deserialize_and_decompress
+from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import FIVE_MIN_SECONDS
 from core.drf_resource import api
+
+logger = logging.getLogger("apm")
+
+
+def deserialize_service_related_log_indexes(cached_data: bytes) -> dict[str, list[dict[str, Any]]]:
+    """反序列化并校验服务关联日志索引缓存。"""
+    service_indexes: Any = deserialize_and_decompress(cached_data)
+    if not isinstance(service_indexes, dict):
+        raise TypeError("invalid service related log indexes cache structure")
+
+    for service_name, indexes in service_indexes.items():
+        if not isinstance(service_name, str) or not isinstance(indexes, list):
+            raise TypeError("invalid service related log indexes cache structure")
+
+        if any(not isinstance(index, dict) or index.get("index_set_id") is None for index in indexes):
+            raise TypeError("invalid service related log indexes cache structure")
+
+    return service_indexes
 
 
 @using_cache(CacheType.APM(FIVE_MIN_SECONDS))
@@ -44,12 +59,8 @@ class ServiceLogHandler:
 
     # ES 查询最大的服务数量
     SERVICE_MAX_SIZE = 1000
-    # 通过 unifyquery 接口关联日志索引集的最大数量
-    LOG_RELATION_BY_UNIFY_QUERY = 10
     # log 默认查询语句最大 value 数量
     LOG_DEFAULT_QUERY_CONDITION_MAX_SIZE = 20
-
-    ONE_HOUR_SECONDS = 3600
 
     @classmethod
     def get_log_count_mapping(cls, bk_biz_id, app_name, start_time, end_time):
@@ -206,56 +217,34 @@ class ServiceLogHandler:
             )
         )
 
-    @classmethod
-    def list_indexes_by_relation(cls, bk_biz_id, app_name, service_name, start_time=None, end_time=None):
-        """
-        通过关联查询获取服务的 dataId 关联并拼接默认查询
-        """
-        if not service_name:
+    @staticmethod
+    def list_indexes_by_relation(
+        bk_biz_id: int,
+        app_name: str,
+        service_name: str | None,
+    ) -> list[dict[str, Any]]:
+        """从缓存获取服务关联的 K8S 日志索引集。"""
+        if not service_name or "redis" not in caches:
             return []
 
-        if not start_time or not end_time:
-            end_time = int(time.time())
-            start_time = end_time - cls.ONE_HOUR_SECONDS
+        cache_key: str = ApmCacheKey.APP_SERVICE_K8S_RELATED_LOG_INDEXES_KEY.format(
+            bk_biz_id=bk_biz_id, app_name=app_name
+        )
+        try:
+            cached_data: bytes | None = caches["redis"].get(cache_key)
+            if not cached_data:
+                return []
 
-        datasource_infos = defaultdict(list)
-        data_ids = set()
-        paths = [(SourceK8sPod, (SourceDatasource, SourceK8sPod)), (SourceSystem, (SourceDatasource, SourceSystem))]
-        relation_qs = []
-        for path_item in paths:
-            relation_qs += RelationQ.generate_q(
-                bk_biz_id=bk_biz_id,
-                source_info=SourceService(
-                    apm_application_name=app_name,
-                    apm_service_name=service_name,
-                ),
-                target_type=SourceDatasource,
-                start_time=start_time,
-                end_time=end_time,
-                path_resource=[path_item[0]],
+            service_indexes = deserialize_service_related_log_indexes(cached_data)
+            return service_indexes.get(service_name, [])
+        except Exception:  # noqa
+            logger.exception(
+                "[LIST_INDEXES_BY_RELATION] cache read failed: %s-%s-%s",
+                bk_biz_id,
+                app_name,
+                service_name,
             )
-        relations = RelationQ.query(relation_qs, fill_with_empty=True)
-        for index, r in enumerate(relations):
-            if not r:
-                continue
-            for n in r.nodes:
-                source_info = n.source_info.to_source_info()
-                bk_data_id = source_info.get("bk_data_id")
-                if bk_data_id and bk_data_id not in data_ids and len(data_ids) <= cls.LOG_RELATION_BY_UNIFY_QUERY:
-                    datasource_infos[paths[index][-1]].append(SourceDatasource(bk_data_id=bk_data_id))
-                    data_ids.add(bk_data_id)
-
-        if not datasource_infos:
             return []
-
-        res = []
-        table_id_list = cls.list_tables_by_data_ids(list(data_ids))
-        full_indexes = get_biz_index_sets_with_cache(bk_biz_id=bk_biz_id)  # 这里也会返回业务下关联项目的索引集
-        for index in full_indexes:
-            indices = index.get("indices") or []
-            if indices and len(indices) == 1 and indices[0].get("result_table_id") in table_id_list:
-                res.append({"index_set_id": index["index_set_id"], "addition": []})
-        return res
 
     @classmethod
     def list_tables_by_data_ids(cls, data_ids: list[int | str]) -> list[str]:

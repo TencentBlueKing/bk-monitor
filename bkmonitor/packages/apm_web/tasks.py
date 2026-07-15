@@ -12,6 +12,7 @@ import json
 import time
 from datetime import datetime, timedelta
 from enum import Enum
+from typing import Any
 
 from celery import shared_task
 from django.conf import settings
@@ -21,6 +22,8 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext as _
 
 from apm_web.constants import ApmCacheKey
+from apm_web.handlers.log_handler import deserialize_service_related_log_indexes
+from apm_web.handlers.task_handler import ServiceLogTaskHandler
 from apm_web.handlers.metric_group import MetricHelper
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.models import Application
@@ -29,7 +32,7 @@ from apm_web.serializers import ApplicationCacheSerializer
 from apm_web.strategy.builtin.registry import BuiltinStrategyTemplateRegistry
 from apm_web.strategy.handler import StrategyTemplateHandler
 from monitor.models import GlobalConfig
-from bkmonitor.utils.common_utils import compress_and_serialize, get_local_ip, deserialize_and_decompress
+from bkmonitor.utils.common_utils import compress_and_serialize, deserialize_and_decompress, get_local_ip
 from bkmonitor.utils.custom_report_tools import custom_report_tool
 from bkmonitor.utils.tenant import set_local_tenant_id
 from bkmonitor.utils.time_tools import strftime_local
@@ -226,6 +229,57 @@ def application_create_check():
     logger.info(f"[CreateCheck] found {len(apps)} app were created and not datasource")
     for app in apps:
         app.sync_datasource()
+
+
+@shared_task(ignore_result=True)
+def cache_application_k8s_related_indexes() -> None:
+    """刷新启用 APM 应用的服务关联 K8S 日志索引缓存。"""
+    logger.info("[CACHE_APPLICATION_K8S_RELATED_INDEXES] task start")
+    if "redis" not in caches:
+        logger.info("[CACHE_APPLICATION_K8S_RELATED_INDEXES] no redis cache, task stopped")
+        return
+
+    cache_agent: Any = caches["redis"]
+    for application in Application.objects.filter(is_enabled=True):
+        try:
+            set_local_tenant_id(application.bk_tenant_id)
+            cache_key: str = ApmCacheKey.APP_SERVICE_K8S_RELATED_LOG_INDEXES_KEY.format(
+                bk_biz_id=application.bk_biz_id, app_name=application.app_name
+            )
+            related_indexes: dict[str, list[dict[str, Any]]] = ServiceLogTaskHandler.get_k8s_related_log_indexes(
+                application.bk_biz_id, application.app_name
+            )
+            cached_data: bytes | None = cache_agent.get(cache_key)
+            try:
+                merged_indexes: dict[str, list[dict[str, Any]]] = (
+                    deserialize_service_related_log_indexes(cached_data) if cached_data else {}
+                )
+            except Exception:  # noqa
+                logger.exception(
+                    f"[CACHE_APPLICATION_K8S_RELATED_INDEXES] invalid cache data replaced: "
+                    f"{application.bk_biz_id}-{application.app_name}"
+                )
+                merged_indexes = {}
+
+            updated_at: int = int(time.time())
+            for service_name, fresh_indexes in related_indexes.items():
+                index_map: dict[str, dict[str, Any]] = {
+                    str(index["index_set_id"]): index for index in merged_indexes.get(service_name, [])
+                }
+                index_map.update(
+                    {str(index["index_set_id"]): {**index, "updated_at": updated_at} for index in fresh_indexes}
+                )
+
+                merged_indexes[service_name] = list(index_map.values())
+
+            cache_agent.set(cache_key, compress_and_serialize(merged_indexes), timeout=24 * 60 * 60)
+        except Exception:  # noqa
+            logger.exception(
+                f"[CACHE_APPLICATION_K8S_RELATED_INDEXES] refresh data failed: "
+                f"{application.bk_biz_id}-{application.app_name}"
+            )
+
+    logger.info("[CACHE_APPLICATION_K8S_RELATED_INDEXES] task finished")
 
 
 @shared_task(ignore_result=True)
