@@ -22,11 +22,19 @@ export interface RetrieveRowRenderMeta {
   truncatedTextByField?: Record<string, string>;
 }
 
+export type RetrieveSegmentationMode = 'analyzed' | 'whole-value' | 'serialized-composite' | 'nested-force';
+
 export interface RetrieveRenderFieldMeta {
   field_name?: string;
   is_analyzed?: boolean;
   field_type?: string;
   tokenize_on_chars?: string;
+  is_virtual_obj_node?: boolean;
+  parent_field_name?: string | null;
+  child_field_names?: string[];
+  children_count?: number;
+  source_field_names?: string[];
+  query_alias?: string;
 }
 
 interface RetrieveRowRenderMetaOptions {
@@ -259,38 +267,70 @@ const collectHighlightFields = (
   return output;
 };
 
+interface SplitRenderTextOptions {
+  forceSplit?: boolean;
+  /** value 已被 stringify/截断时，由调用方保留其原始 Object/Array 语义。 */
+  isSerializedComposite?: boolean;
+}
+
+const isCompositeValue = (value: any) => value !== null && typeof value === 'object';
+
+export const resolveSegmentationMode = (
+  value: any,
+  field?: RetrieveRenderFieldMeta,
+  options: SplitRenderTextOptions = {},
+): RetrieveSegmentationMode => {
+  if (options.forceSplit) return 'nested-force';
+  if (
+    options.isSerializedComposite
+    || isCompositeValue(value)
+    || field?.field_type === 'object'
+    || field?.is_virtual_obj_node
+  ) return 'serialized-composite';
+  if (field?.is_analyzed) return 'analyzed';
+  return 'whole-value';
+};
+
+/** 按 mark 边界切分后再分词，避免 Lucene/自定义分隔符吞掉标签或扩大高亮范围。 */
+const splitMarkedText = (
+  text: string,
+  splitter: (_plainText: string) => RetrieveTextSegment[],
+): RetrieveTextSegment[] => text
+  .split(/(<mark>.*?<\/mark>)/gis)
+  .filter(Boolean)
+  .flatMap(part => {
+    const marked = /^<mark>[\s\S]*<\/mark>$/i.test(part);
+    const plainText = stripMark(part);
+    return splitter(plainText).map(segment => ({ ...segment, isMark: marked || segment.isMark }));
+  });
+
 /**
- * Pre-split text once after the API response is available.
- * 输出契约与上云稳定版 getSplitList 保持一致：
- * - analyzed 字段按自定义分隔符或 Lucene 规则切词；
- * - 非 analyzed/未知字段不做内部切词，但整个字段值仍是可点击词元；
- * - 存在 <mark> 时仅按高亮边界拆段，每段仍可点击，避免扩大高亮范围。
+ * 统一 Worker、缓存回退及长字段展开的展示层分词语义。
+ * Object/Array 的序列化文本必须拆出 JSON 标点和有效 KEY/VALUE；普通 keyword/path 仍保持整值。
  */
 export const splitRenderText = (
   value: any,
   field?: RetrieveRenderFieldMeta,
+  options: SplitRenderTextOptions = {},
 ): RetrieveTextSegment[] => {
   const text = stringifyValue(value);
+  if (!text) return [];
 
-  if (!text) {
-    return [];
-  }
-
-  if (field?.is_analyzed) {
-    return field.tokenize_on_chars
-      ? optimizedSplit(text, field.tokenize_on_chars) as RetrieveTextSegment[]
-      : LuceneSegment.split(text, 1000);
+  const mode = resolveSegmentationMode(value, field, options);
+  if (mode !== 'whole-value') {
+    const splitter = mode === 'analyzed' && field?.tokenize_on_chars
+      ? (plainText: string) => optimizedSplit(plainText, field.tokenize_on_chars) as RetrieveTextSegment[]
+      : (plainText: string) => LuceneSegment.split(plainText, 1000);
+    return splitMarkedText(text, splitter);
   }
 
   return text
-    .split(/(<mark>.*?<\/mark>)/gi)
+    .split(/(<mark>.*?<\/mark>)/gis)
     .filter(Boolean)
     .map(segment => ({
       text: stripMark(segment),
-      isMark: /<mark>.*?<\/mark>/i.test(segment),
+      isMark: /<mark>[\s\S]*?<\/mark>/i.test(segment),
       isCursorText: true,
-      // 与稳定版一致：text 类型关闭分词时整体可点击；该标记只影响样式，
-      // 不能用于 keyword/path 等字段，否则会丢失点击能力。
       isNotParticiple: field?.field_type === 'text',
     }));
 };
@@ -350,7 +390,10 @@ export const createRetrieveRowRenderMeta = (
 
     // Store the pre-tokenized render value for every field that may be rendered.
     if (precomputeSegments) {
-      fieldSegments[fieldName] = splitRenderText(truncatedRenderText, options.fieldMetadata?.[fieldName]);
+      fieldSegments[fieldName] = splitRenderText(truncatedRenderText, options.fieldMetadata?.[fieldName], {
+        // value 可能因高亮覆盖/32KB 截断已成为字符串，必须从原始值保留复合类型。
+        isSerializedComposite: isCompositeValue(rawValue) || isCompositeValue(value),
+      });
     }
   });
 

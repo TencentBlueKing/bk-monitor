@@ -75,6 +75,7 @@
         :visible-fields="visibleFields"
         :search-keyword="activeSearchKeyword"
         :render-meta="renderMeta"
+        :row-key="rowKey"
         @value-click="
           (type, content, isLink, field, depth) => $emit('value-click', type, content, isLink, field, depth)
         "
@@ -161,6 +162,20 @@
       // 性能优化：使用 Set 缓存 kvShowFieldsList，提升查找性能
       kvShowFieldsSet() {
         return new Set(this.kvShowFieldsList);
+      },
+      /** 存在子字段的父路径集合，与 kv-list 保持一致 */
+      fieldsWithChildrenSet() {
+        const set = new Set();
+        const fields = this.totalFields || [];
+        for (let i = 0; i < fields.length; i++) {
+          const name = fields[i]?.field_name;
+          if (!name || name.indexOf('.') === -1) continue;
+          let idx = -1;
+          while ((idx = name.indexOf('.', idx + 1)) !== -1) {
+            set.add(name.slice(0, idx));
+          }
+        }
+        return set;
       },
       kvListData() {
         // 性能监控：记录过滤和排序耗时
@@ -254,14 +269,8 @@
               continue;
             }
 
-            // 可解析 Object 父字段直接隐藏，与 KV 模式一致，避免重复展示及与空字段 -- 歧义
-            const rawValue = this.getExpandRawFieldValue(jsonList, fieldKey);
-            if (
-              rawValue !== null &&
-              typeof rawValue === 'object' &&
-              !Array.isArray(rawValue) &&
-              Object.keys(rawValue).length > 0
-            ) {
+            // 可解析 Object 父字段隐藏（与 KV 一致）；flattened / 无子字段 Object 不隐藏
+            if (this.shouldHideExpandableObjectParent(cur, jsonList)) {
               continue;
             }
 
@@ -296,6 +305,22 @@
       },
     },
     methods: {
+      /**
+       * flattened 或无子字段的 Object 不隐藏；有子字段的可解析 Object 父字段才隐藏
+       */
+      shouldHideExpandableObjectParent(field, row) {
+        if (!field?.field_name) return false;
+        if (field.field_type === 'flattened') return false;
+        if (!this.fieldsWithChildrenSet.has(field.field_name)) return false;
+
+        const rawValue = this.getExpandRawFieldValue(row, field.field_name);
+        return (
+          rawValue !== null &&
+          typeof rawValue === 'object' &&
+          !Array.isArray(rawValue) &&
+          Object.keys(rawValue).length > 0
+        );
+      },
       /**
        * 获取展开面板字段原始值（不做 Object -> JSON.stringify）
        * 仅用于 expand-view 数据组装，不改动 JsonFormatWrapper 公共组件

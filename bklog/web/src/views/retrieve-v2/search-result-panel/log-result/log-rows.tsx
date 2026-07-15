@@ -25,7 +25,7 @@
  */
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, reactive, ref, watch, type Ref } from 'vue';
 
-import { getRowFieldValue, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR, xssFilter } from '@/common/util';
+import { getRowFieldValue, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
 import { getInputQueryDefaultItem } from '@/views/retrieve-v2/search-bar/utils/const.common';
 // import { perfStart, perfEnd } from '@/utils/performance-monitor';
 import JsonFormatter from '@/global/json-formatter.vue';
@@ -42,6 +42,7 @@ import useWheel from '@/hooks/use-wheel';
 
 import PopInstanceUtil from '@/global/pop-instance-util';
 import { BK_LOG_STORAGE } from '@/store/store.type';
+import { buildHighlightHtml, pageHighlightState, parseResultMarkedText } from '@/views/retrieve-core/page-highlight';
 import RetrieveHelper, { RetrieveEvent } from '../../../retrieve-helper';
 import ExpandView from '../../components/result-cell-element/expand-view.vue';
 import OperatorTools from '../../components/result-cell-element/operator-tools.vue';
@@ -719,6 +720,8 @@ export default defineComponent({
 
     const originalColumns = computed(() => {
       const formatDate = store.state.isFormatDate;
+      // 依赖划词高亮 version，确保时间列在关键字变化后同步重绘
+      void pageHighlightState.version;
       return [
         {
           field: ROW_F_ORIGIN_TIME,
@@ -730,17 +733,29 @@ export default defineComponent({
           renderBodyCell: ({ row }) => {
             const timezone = store.state.indexItem.timezone;
             const fieldType = timeFieldType.value;
-            const rawValue = row[timeField.value];
+            const fieldName = timeField.value;
+            const rawValue = row[fieldName];
             const formatValue = formatDate
               ? RetrieveHelper.formatTimeZoneValue(rawValue, fieldType, timezone)
               : (rawValue === null || rawValue === undefined || rawValue === '' ? '--' : rawValue);
+            // formatTimeZoneValue 可能返回 <mark>格式化时间</mark>，需先解析再渲染，避免标签被 escape
+            const { plainText, markRanges } = parseResultMarkedText(formatValue);
+            const displayText = plainText || String(formatValue ?? '');
 
             return h(
               'span',
               {
                 class: 'time-field',
+                // 划词添加到本次检索时，通过 data-field-name 定位真实时间字段
+                attrs: {
+                  'data-field-name': fieldName,
+                },
                 domProps: {
-                  innerHTML: xssFilter(formatValue),
+                  // resultRanges 还原检索结果 mark；同时叠加页面划词高亮
+                  innerHTML: buildHighlightHtml({
+                    text: displayText,
+                    resultRanges: markRanges,
+                  }),
                 },
               },
               [],
@@ -2079,7 +2094,7 @@ export default defineComponent({
             '.field-value',
             '.field-name',
             '.black-mark',
-            '.bklog-json-formatter-root',
+            '.bklog-root-field',
             '.bklog-json-view-node',
             '.bklog-json-view-row',
             '.bklog-json-view-field',
@@ -2370,6 +2385,7 @@ export default defineComponent({
           ref={refResultRowBox}
           class='bklog-row-box'
           data-local-update-counter={localUpdateCounter.value}
+          data-page-highlight-version={pageHighlightState.version}
         >
           {renderRowVNode()}
         </div>

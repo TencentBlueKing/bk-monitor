@@ -111,6 +111,12 @@ const getRenderFieldMetadata = state => {
       field_type: field.field_type,
       is_analyzed: field.is_analyzed ?? false,
       tokenize_on_chars: field.tokenize_on_chars || '',
+      is_virtual_obj_node: !!field.is_virtual_obj_node,
+      parent_field_name: field.parent_field_name || field.parentFieldName || null,
+      child_field_names: field.child_field_names || [],
+      children_count: field.children_count || 0,
+      source_field_names: field.source_field_names || [],
+      query_alias: field.query_alias || '',
     };
     return output;
   }, {});

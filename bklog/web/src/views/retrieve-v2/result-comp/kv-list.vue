@@ -127,11 +127,11 @@
 
 <script>
   // import { getTextPxWidth, TABLE_FOUNT_FAMILY } from '@/common/util';
-  import { copyMessage } from '@/common/util';
+  import { copyMessage, getRowFieldValue } from '@/common/util';
   import JsonFormatter from '@/global/json-formatter.vue';
-  import { getRowFieldValue } from '@/common/util';
   import { getFieldNameByField } from '@/hooks/use-field-name';
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
+  import { retrieveRowCacheService } from '@/storage';
   import _escape from 'lodash/escape';
   import { mapGetters, mapState } from 'vuex';
 
@@ -139,6 +139,33 @@
   import { BK_LOG_STORAGE } from '@/store/store.type';
   import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
   import { buildHighlightHtml, pageHighlightState } from '@/views/retrieve-core/page-highlight';
+
+  const stripMarkTags = value => String(value)
+    .replace(/<mark>/gi, '')
+    .replace(/<\/mark>/gi, '');
+
+  const stripMarkFromCopyValue = (value) => {
+    if (typeof value === 'string') return stripMarkTags(value);
+    if (Array.isArray(value)) return value.map(item => stripMarkFromCopyValue(item));
+    if (value && Object.prototype.toString.call(value) === '[object Object]') {
+      return Object.keys(value).reduce((output, key) => {
+        output[key] = stripMarkFromCopyValue(value[key]);
+        return output;
+      }, {});
+    }
+    return value;
+  };
+
+  const stringifyCopyValue = (value) => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'bigint') return value.toString();
+    try {
+      return JSON.stringify(value, (_key, val) => (typeof val === 'bigint' ? val.toString() : val));
+    } catch {
+      return String(value);
+    }
+  };
 
   export default {
     components: {
@@ -183,6 +210,10 @@
       renderMeta: {
         type: Object,
         default: null,
+      },
+      rowKey: {
+        type: String,
+        default: '',
       },
     },
     data() {
@@ -255,6 +286,20 @@
         }
         return map;
       },
+      /** 存在子字段的父路径集合，例如 meta.platform_tags.account_channel → meta / meta.platform_tags */
+      fieldsWithChildrenSet() {
+        const set = new Set();
+        const fields = this.totalFields || [];
+        for (let i = 0; i < fields.length; i++) {
+          const name = fields[i]?.field_name;
+          if (!name || name.indexOf('.') === -1) continue;
+          let idx = -1;
+          while ((idx = name.indexOf('.', idx + 1)) !== -1) {
+            set.add(name.slice(0, idx));
+          }
+        }
+        return set;
+      },
       fieldKeyMap() {
         return this.totalFields
           .filter(item => this.kvShowFieldsSet.has(item.field_name))
@@ -303,13 +348,14 @@
     mounted() {
       // 根据预估字段数量决定处理策略
       const estimatedFieldCount = this.kvShowFieldsList ? this.kvShowFieldsList.length : this.totalFields.length;
-      
+
       if (estimatedFieldCount < this.batchThreshold) {
         // 字段数量 < 100，数据量小，直接同步处理，避免异步导致的闪烁
         this.isCalculating = false; // 不显示骨架屏
         // 直接同步执行计算和渲染
         this.showFieldListCache = this.calcShowFieldList();
         this.renderList = this.showFieldListCache.slice(0, this.initialRenderCount);
+
         } else {
           // 字段数量 >= 100，使用异步处理，避免阻塞主线程
           // 记录骨架屏开始显示的时间
@@ -355,6 +401,7 @@
     methods: {
       calcShowFieldList() {
         // 原 showFieldList 逻辑完整迁移为 method
+        const startTime = Date.now();
         const kvShowFieldsSet = this.kvShowFieldsSet;
         const emptyValues = ['--', '{}', '[]'];
         const totalFields = this.totalFields;
@@ -387,6 +434,8 @@
         // 步骤2：检查空值（需要调用 formatterStr）
         const list = [];
         const rowData = this.listData;
+        let skippedExpandableObject = 0;
+        let skippedEmpty = 0;
         
         for (let i = 0; i < candidateFields.length; i++) {
           const item = candidateFields[i];
@@ -394,6 +443,7 @@
 
           // 可解析 Object 父字段直接隐藏，避免与子字段重复，也避免与空字段 -- 歧义
           if (this.isExpandableObjectField(fieldName)) {
+            skippedExpandableObject += 1;
             continue;
           }
           
@@ -470,6 +520,7 @@
           }
           
           if (shouldSkip) {
+            skippedEmpty += 1;
             continue;
           }
           
@@ -538,6 +589,7 @@
             if (isDefinitelyEmpty) {
               formattedValue = '--';
               this.formattedValueCache.set(fieldName, formattedValue);
+              skippedEmpty += 1;
               continue; // 直接跳过，不加入列表
             }
             
@@ -547,6 +599,8 @@
           
           if (!emptyValues.includes(formattedValue)) {
             list.push(item);
+          } else {
+            skippedEmpty += 1;
           }
         }
 
@@ -787,7 +841,14 @@
           Object.keys(value).length > 0
         );
       },
+      /**
+       * 可展开 Object 父字段：有子字段时隐藏，避免与子字段重复。
+       * flattened 或无子字段的 Object 不隐藏，否则内容会整段丢失（如 body）。
+       */
       isExpandableObjectField(fieldName) {
+        const fieldType = this.getFieldType(fieldName);
+        if (fieldType === 'flattened') return false;
+        if (!this.fieldsWithChildrenSet.has(fieldName)) return false;
         return this.isExpandableObjectValue(this.getKvRawValue(fieldName));
       },
       getFieldValue(field) {
@@ -832,16 +893,38 @@
       },
 
       /**
-       * @desc 复制字段值
+       * @desc 复制字段值（优先取 IndexedDB 原始数据，与整行复制逻辑一致）
        * @param { Object } field 字段对象
        */
-      handleCopyFieldValue(field) {
-        const value = this.listData[field.field_name];
-        if (value === null || value === undefined || value === '') {
+      async handleCopyFieldValue(field) {
+        if (!field) return;
+
+        const includeFields = [
+          field.field_name,
+          field.query_alias,
+          ...(field.is_virtual_alias_field ? (field.source_field_names || []) : []),
+        ].filter(Boolean);
+
+        try {
+          if (this.rowKey) {
+            const [originRow] = await retrieveRowCacheService.getCopyRows([this.rowKey], { includeFields });
+            if (originRow) {
+              const originValue = getRowFieldValue(originRow, field);
+              if (originValue !== null && originValue !== undefined && originValue !== '' && originValue !== '--') {
+                copyMessage(stringifyCopyValue(originValue));
+                return;
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('[kv-list] copy origin field value failed', error);
+        }
+
+        const fallbackValue = stripMarkFromCopyValue(getRowFieldValue(this.listData, field));
+        if (fallbackValue === null || fallbackValue === undefined || fallbackValue === '' || fallbackValue === '--') {
           return;
         }
-        const copyValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
-        copyMessage(copyValue);
+        copyMessage(stringifyCopyValue(fallbackValue));
       },
 
       /**

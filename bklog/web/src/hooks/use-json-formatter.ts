@@ -40,6 +40,7 @@ import UseSegmentPropInstance from './use-segment-pop';
 import {
   ORIGINAL_VALUE_EXPANDED_TEXT_LENGTH,
   ORIGINAL_VALUE_PREVIEW_TEXT_LENGTH,
+  splitRenderText,
   stripMark,
   truncateMarkedTextByChars,
 } from '../storage/utils/retrieve-render-meta';
@@ -282,6 +283,9 @@ export default class UseJsonFormatter {
     /** 检索高亮分词字符串 */
     const markRegStr = '<mark>(.*?)</mark>';
     const value = this.escapeString(`${content}`);
+    if (field?.field_type === 'object' || field?.is_virtual_obj_node) {
+      return splitRenderText(value, field, { isSerializedComposite: true });
+    }
     if (this.isAnalyzed(field)) {
       if (field.tokenize_on_chars) {
         // 这里进来的都是开了分词的情况

@@ -328,20 +328,25 @@ export default class UseTextSegmentation {
   }
 
   private getSplitList(field: any, content: any, forceSplit = false) {
-    if (Array.isArray(this.options.precomputedSegments)) {
+    // forceSplit 是当前嵌套展示上下文，旧缓存未携带该模式时不能覆盖运行时判断。
+    if (!forceSplit && Array.isArray(this.options.precomputedSegments)) {
       return this.options.precomputedSegments;
     }
 
     /** 检索高亮分词字符串 */
-    const value = this.escapeString(`${content}`);
+    const value = this.escapeString(String(content));
 
+    // JSON 解析关闭后的虚拟 Object 是序列化复合值：标点不可点，KEY/VALUE 可点。
     if (this.isVirtualObjField(field)) {
-      return this.convertVirtaulObjToArray();
+      const rawValue = this.options.data?.[field.field_name] ?? content;
+      const serializedValue = rawValue !== null && typeof rawValue === 'object'
+        ? JSON.stringify(rawValue)
+        : value;
+      return LuceneSegment.split(serializedValue, 1000);
     }
 
     if (this.isAnalyzed(field) || forceSplit) {
-      if (field.tokenize_on_chars) {
-        // 这里进来的都是开了分词的情况
+      if (this.isAnalyzed(field) && field.tokenize_on_chars) {
         return optimizedSplit(value, field.tokenize_on_chars);
       }
 
