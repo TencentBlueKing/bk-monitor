@@ -74,7 +74,7 @@ class TestUnifyQueryMappingHandler(TestCase):
             scenario_id="log",
             storage_cluster_id=1,
             only_search=True,
-            index_set=SimpleNamespace(fields_snapshot={}, tag_ids=[]),
+            index_set=SimpleNamespace(fields_snapshot={}, tag_ids=[], space_uid=""),
         )
         handler.get_all_index_fields = lambda: [
             {
