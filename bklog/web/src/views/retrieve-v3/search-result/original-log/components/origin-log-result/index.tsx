@@ -25,7 +25,8 @@
  */
 import { defineComponent, ref, watch, computed, onMounted, onBeforeUnmount } from 'vue';
 
-import { readBlobRespToJson, parseBigNumberList, xssFilter } from '@/common/util';
+import axios from 'axios';
+import { readBlobRespToJson, parseBigNumberList } from '@/common/util';
 
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
@@ -35,7 +36,9 @@ import SearchBar from '@/views/retrieve-v2/search-bar/index.vue';
 import DOMPurify from 'dompurify';
 import { cloneDeep, debounce } from 'lodash-es';
 import RetrieveHelper from '@/views/retrieve-helper';
+import { buildHighlightHtml, parseResultMarkedText } from '@/views/retrieve-core/page-highlight';
 import { retrieveRowCacheService } from '@/storage';
+import type { RetrieveRowRenderMeta } from '@/storage/utils/retrieve-render-meta';
 
 import RenderJsonCell from './render-json-cell';
 import { axiosInstance } from '@/api';
@@ -65,10 +68,12 @@ export default defineComponent({
     const searchBarRef = ref<any>();
     const tableRef = ref<HTMLElement>();
     const logList = ref<any[]>([]);
+    const renderMetaList = ref<(RetrieveRowRenderMeta | undefined)[]>([]);
     const cachedRowKeys = ref<string[]>([]);
     const choosedIndex = ref(props.logIndex);
     const listLoading = ref(false);
     const isCollapsed = ref(false);
+    const exceptionMsg = ref('');
 
     const fieldsMap = computed(() => store.getters.rawFieldList.reduce((dataMap, item) => {
       dataMap[item.field_name] = item;
@@ -104,6 +109,7 @@ export default defineComponent({
     let total = 0;
     let isUnmounted = false;
     let requestSeq = 0;
+    let abortController: AbortController | null = null;
     let scrollIntoViewTimer: ReturnType<typeof setTimeout> | null = null;
 
     const isMonitorApm = window.__IS_MONITOR_APM__;
@@ -118,14 +124,40 @@ export default defineComponent({
       },
     );
 
+    const setExceptionMsg = (message = '') => {
+      exceptionMsg.value = message || '';
+    };
+
+    const isRequestCanceled = (error: any) =>
+      axios.isCancel(error)
+      || error?.code === 'ERR_CANCELED'
+      || error?.name === 'CanceledError'
+      || error?.name === 'AbortError';
+
+    /** 取消进行中的检索请求，保证永远只有最后一次生效 */
+    const cancelPendingRequest = () => {
+      if (!abortController) {
+        return;
+      }
+      abortController.abort();
+      abortController = null;
+    };
+
     const requestLogList = (isManualSearch = true) => {
+      // 新请求发起前先取消旧请求，避免乱序回写
+      cancelPendingRequest();
+      const controller = new AbortController();
+      abortController = controller;
       const currentRequestSeq = ++requestSeq;
+
       listLoading.value = true;
+      if (begin === 0) {
+        setExceptionMsg('');
+      }
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
       const searchUrl = store.getters.isSceneMode
         ? '/search/scene/search/'
         : `/search/index_set/${props.indexSetId}/search/`;
-      // size = props.logIndex > 50 ? props.logIndex + 20 : 50;
       const requestData = {
         ...requestOtherparams,
         sort_list: store.state.indexFieldInfo.default_sort_list.filter(item => item.length > 0 && !!item[1]) || [],
@@ -139,6 +171,7 @@ export default defineComponent({
         baseURL: baseUrl,
         responseType: 'blob',
         data: requestData,
+        signal: controller.signal,
         headers: {},
       };
       if (store.state.isExternal) {
@@ -148,21 +181,22 @@ export default defineComponent({
       }
       axiosInstance(params)
         .then((resp: any) => {
-          if (isUnmounted || currentRequestSeq !== requestSeq) {
+          if (isUnmounted || currentRequestSeq !== requestSeq || controller.signal.aborted) {
             return;
           }
           if (resp.data && !resp.message) {
-            readBlobRespToJson(resp.data).then(({ code, data, result, permission }) => {
-              if (isUnmounted || currentRequestSeq !== requestSeq) {
+            readBlobRespToJson(resp.data).then(({ code, data, result, message, permission }) => {
+              if (isUnmounted || currentRequestSeq !== requestSeq || controller.signal.aborted) {
                 return;
               }
               if (code === '9900403') {
                 store.commit('updateState', {
                   authDialogData: {
-                    apply_url: data.apply_url,
+                    apply_url: data?.apply_url,
                     apply_data: permission,
                   },
                 });
+                setExceptionMsg(message || t('无权限'));
                 return;
               }
               if (result) {
@@ -170,15 +204,48 @@ export default defineComponent({
                 total = data.total.toNumber();
                 const list = parseBigNumberList(data.list);
                 logList.value.push(...list);
+                renderMetaList.value.push(...list.map(() => undefined));
+                setExceptionMsg('');
                 if (isManualSearch) {
+                  // 本地重新检索后不再复用外部缓存 rowKey
+                  cachedRowKeys.value = [];
                   choosedIndex.value = -1;
                   handleChooseRow(0, list[0]);
                 }
+                return;
               }
+
+              // 检索失败：首屏清空并回显错误；分页失败保留已加载数据
+              if (begin === 0) {
+                logList.value = [];
+                renderMetaList.value = [];
+                cachedRowKeys.value = [];
+                total = 0;
+              }
+              setExceptionMsg(message || t('检索失败'));
             });
           }
         })
+        .catch((error: any) => {
+          // 主动取消不视为失败，也不回写异常态
+          if (isRequestCanceled(error) || controller.signal.aborted || currentRequestSeq !== requestSeq) {
+            return;
+          }
+          if (isUnmounted) {
+            return;
+          }
+          if (begin === 0) {
+            logList.value = [];
+            renderMetaList.value = [];
+            cachedRowKeys.value = [];
+            total = 0;
+          }
+          setExceptionMsg(error?.message || error?.response?.message || t('检索失败'));
+        })
         .finally(() => {
+          if (abortController === controller) {
+            abortController = null;
+          }
           if (!isUnmounted && currentRequestSeq === requestSeq) {
             listLoading.value = false;
           }
@@ -373,7 +440,10 @@ export default defineComponent({
 
     const handleReset = () => {
       logList.value = [];
+      renderMetaList.value = [];
+      cachedRowKeys.value = [];
       begin = 0;
+      setExceptionMsg('');
     };
 
     // 添加样式函数
@@ -400,7 +470,14 @@ export default defineComponent({
     };
 
     const renderTimeCell = (row: any) => {
-      return xssFilter(RetrieveHelper.formatDateValue(row[timeField.value], timeFieldType.value));
+      const formatValue = RetrieveHelper.formatDateValue(row[timeField.value], timeFieldType.value);
+      // formatDateValue 可能返回 <mark>格式化时间</mark>，需解析后渲染，避免标签被当作纯文本
+      const { plainText, markRanges } = parseResultMarkedText(formatValue);
+      const displayText = plainText || String(formatValue ?? '');
+      return buildHighlightHtml({
+        text: displayText,
+        resultRanges: markRanges,
+      });
     };
 
     onMounted(() => {
@@ -410,12 +487,14 @@ export default defineComponent({
     onBeforeUnmount(() => {
       isUnmounted = true;
       requestSeq += 1;
+      cancelPendingRequest();
       handleScrollContent.cancel();
       if (scrollIntoViewTimer) {
         clearTimeout(scrollIntoViewTimer);
         scrollIntoViewTimer = null;
       }
       logList.value = [];
+      renderMetaList.value = [];
       removeSegmentLightStyle();
     });
 
@@ -456,17 +535,28 @@ export default defineComponent({
             requestOtherparams.addition = addition;
           }
         }
-        // 设置外部数据
+        // 设置外部数据：优先读 IndexedDB 渲染行（含检索高亮 overlay），避免初次丢失 mark
         const outerLogResult = store.state.indexSetQueryResult;
         total = outerLogResult.total;
+        setExceptionMsg(outerLogResult.is_error ? (outerLogResult.exception_msg || '') : '');
         const rowKeys = outerLogResult.row_keys ?? [];
         cachedRowKeys.value = rowKeys;
         if (rowKeys.length) {
-          const cachedRows = await retrieveRowCacheService.getRows(rowKeys);
-          logList.value = cachedRows.length === rowKeys.length ? cachedRows : (outerLogResult.list ?? []).slice();
+          const cachedEntries = await retrieveRowCacheService.getRenderEntries(rowKeys);
+          const renderRows = cachedEntries.map(entry => entry?.row).filter(Boolean);
+          if (renderRows.length === rowKeys.length) {
+            logList.value = renderRows;
+            renderMetaList.value = cachedEntries.map(entry => entry?.renderMeta);
+          } else {
+            // 渲染行不完整时回退原始行，避免列表空白
+            const cachedRows = await retrieveRowCacheService.getRows(rowKeys);
+            logList.value = cachedRows.length === rowKeys.length ? cachedRows : (outerLogResult.list ?? []).slice();
+            renderMetaList.value = logList.value.map(() => undefined);
+          }
         } else {
           cachedRowKeys.value = [];
           logList.value = (outerLogResult.list ?? []).slice();
+          renderMetaList.value = logList.value.map(() => undefined);
         }
         begin = logList.value.length;
         if (scrollIntoViewTimer) {
@@ -571,12 +661,43 @@ export default defineComponent({
                           fields={visibleFields.value}
                           jsonValue={row}
                           limitRow={null}
+                          renderMeta={renderMetaList.value[index]}
                           onMenu-click={handleMenuClick}
                         ></JsonFormatter>
                       </RenderJsonCell>
                     </td>
                   </tr>
                 ))}
+              {!listLoading.value && !logList.value.length && exceptionMsg.value && (
+                <tr>
+                  <td
+                    colspan={3}
+                    style='padding: 24px 16px; border-bottom: none;'
+                  >
+                    <bk-exception
+                      scene='part'
+                      type='500'
+                    >
+                      <span>{exceptionMsg.value}</span>
+                    </bk-exception>
+                  </td>
+                </tr>
+              )}
+              {!listLoading.value && !logList.value.length && !exceptionMsg.value && (
+                <tr>
+                  <td
+                    colspan={3}
+                    style='padding: 24px 16px; border-bottom: none;'
+                  >
+                    <bk-exception
+                      scene='part'
+                      type='empty'
+                    >
+                      <span>{t('检索结果为空')}</span>
+                    </bk-exception>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
