@@ -438,6 +438,8 @@ class IndexSetHandler(APIModel):
         is_platform_index=None,
         platform_index_visibility=None,
         platform_index_filter=None,
+        doris_table_id=None,
+        support_doris=False,
     ):
         # 创建索引
         index_set_handler = cls.get_index_set_handler(scenario_id)
@@ -468,6 +470,8 @@ class IndexSetHandler(APIModel):
             is_platform_index=is_platform_index,
             platform_index_visibility=platform_index_visibility,
             platform_index_filter=platform_index_filter,
+            doris_table_id=doris_table_id,
+            support_doris=support_doris,
         ).create_index_set()
 
         # add user_operation_record
@@ -522,6 +526,8 @@ class IndexSetHandler(APIModel):
         is_platform_index=None,
         platform_index_visibility=None,
         platform_index_filter=None,
+        doris_table_id=None,
+        support_doris=False,
     ):
         index_set_handler = self.get_index_set_handler(self.scenario_id)
         view_roles = []
@@ -546,6 +552,8 @@ class IndexSetHandler(APIModel):
             is_platform_index=is_platform_index,
             platform_index_visibility=platform_index_visibility,
             platform_index_filter=platform_index_filter,
+            doris_table_id=doris_table_id,
+            support_doris=support_doris,
         ).update_index_set(self.data)
 
         # add user_operation_record
@@ -1700,6 +1708,8 @@ class BaseIndexSetHandler:
         is_platform_index=None,
         platform_index_visibility=None,
         platform_index_filter=None,
+        doris_table_id=None,
+        support_doris=False,
     ):
         super().__init__()
 
@@ -1744,6 +1754,10 @@ class BaseIndexSetHandler:
         self.is_platform_index = is_platform_index
         self.platform_index_visibility = platform_index_visibility
         self.platform_index_filter = platform_index_filter
+
+        # doris 采集项适配 sql 分析和 grep 查询
+        self.doris_table_id = doris_table_id
+        self.support_doris = support_doris
 
     @staticmethod
     def init_time_field(scenario_id, time_field, time_field_type, time_field_unit, action=None):
@@ -1844,6 +1858,8 @@ class BaseIndexSetHandler:
             is_platform_index=True if self.is_platform_index else False,
             platform_index_visibility=self.platform_index_visibility if self.is_platform_index else None,
             platform_index_filter=self.platform_index_filter if self.is_platform_index else None,
+            doris_table_id=self.doris_table_id if self.doris_table_id else None,
+            support_doris=self.support_doris if self.doris_table_id else False,
         )
         logger.info(
             f"[create_index_set][{self.index_set_obj.index_set_id}]index_set_name => {self.index_set_name}, indexes => {len(self.indexes)}"
@@ -1864,11 +1880,9 @@ class BaseIndexSetHandler:
             )
 
         from apps.log_databus.handlers.collector.base import CollectorHandler
+
         self.parent_index_set_ids = CollectorHandler.obtain_parent_index_set_ids(
-            self.parent_index_set_ids,
-            self.parent_index_set_names,
-            space_uid=self.space_uid,
-            is_update=False
+            self.parent_index_set_ids, self.parent_index_set_names, space_uid=self.space_uid, is_update=False
         )
 
         # 将索引集添加到归属索引集(索引组)中
@@ -1882,8 +1896,12 @@ class BaseIndexSetHandler:
         return self.index_set_obj
 
     @staticmethod
-    def get_rt_id(index_set_id, result_table_id):
-        return f"bklog_index_set_{index_set_id}_{result_table_id.replace('.', '_')}.__default__"
+    def get_rt_id(index_set_id, result_table_id, is_analysis=False):
+        if not is_analysis:
+            ending = "__default__"
+        else:
+            ending = "__analysis__"
+        return f"bklog_index_set_{index_set_id}_{result_table_id.replace('.', '_')}.{ending}"
 
     @staticmethod
     def get_data_label(index_set_id, clustered_rt=False, pattern_rt=False):
@@ -1922,6 +1940,12 @@ class BaseIndexSetHandler:
         rt_alias_mappings=None,
     ):
         table_info_list = []
+
+        # 如果是分析场景且数据库中 doris_table_id 为空, 则不创建该路由, 返回空列表
+        db_doris_table_id = index_set.doris_table_id
+        if is_analysis and not db_doris_table_id:
+            return table_info_list
+
         # 索引组场景下使用索引组ID生成table_id，否则使用当前索引集ID
         effective_index_set_id = parent_index_set.index_set_id if parent_index_set else index_set.index_set_id
         # 索引组场景下使用索引组别名配置
@@ -1930,11 +1954,9 @@ class BaseIndexSetHandler:
         )
         # Doris路由或图表分析路由
         is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(index_set.tag_ids)
-        doris_table_id = index_set.doris_table_id
-        if is_doris or is_analysis:
-            if not doris_table_id:
-                return table_info_list
-            for doris_table_id in doris_table_id.split(","):
+
+        if is_doris:
+            for doris_table_id in db_doris_table_id.split(","):
                 doris_table_info = {
                     "storage_type": "doris",
                     "bkbase_table_id": doris_table_id.rsplit(".", maxsplit=1)[0],
@@ -1956,7 +1978,7 @@ class BaseIndexSetHandler:
             time_field = obj.time_field or index_set.time_field
             time_field_type = obj.time_field_type or index_set.time_field_type
             table_info = {
-                "table_id": cls.get_rt_id(effective_index_set_id, obj.result_table_id),
+                "table_id": cls.get_rt_id(effective_index_set_id, obj.result_table_id, is_analysis),
                 "index_set": obj.result_table_id.replace(".", "_"),
                 "source_type": obj.scenario_id,
                 "cluster_id": obj.storage_cluster_id,
@@ -2138,6 +2160,11 @@ class BaseIndexSetHandler:
             )
             self.index_set_obj.platform_index_filter = self.platform_index_filter if self.is_platform_index else None
 
+        # doris 采集项适配 sql 分析和 grep 查询
+        if self.doris_table_id:
+            self.index_set_obj.doris_table_id = self.doris_table_id
+            self.index_set_obj.support_doris = self.support_doris
+
         self.index_set_obj.save()
 
         if old_storage_cluster_id:
@@ -2204,11 +2231,9 @@ class BaseIndexSetHandler:
             )
 
         from apps.log_databus.handlers.collector.base import CollectorHandler
+
         self.parent_index_set_ids = CollectorHandler.obtain_parent_index_set_ids(
-            self.parent_index_set_ids,
-            self.parent_index_set_names,
-            space_uid=self.space_uid,
-            is_update=True
+            self.parent_index_set_ids, self.parent_index_set_names, space_uid=self.space_uid, is_update=True
         )
 
         # 更新归属索引集

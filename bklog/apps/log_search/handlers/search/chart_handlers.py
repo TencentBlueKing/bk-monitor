@@ -44,7 +44,7 @@ from opentelemetry import trace
 
 from apps.api import BkDataQueryApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SQL
+from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH, UNIFY_QUERY_SQL
 from apps.log_search import metrics
 from apps.log_search.constants import (
     SQL_CONDITION_MAPPINGS,
@@ -61,6 +61,7 @@ from apps.log_search.exceptions import (
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import LogIndexSet
 from apps.log_search.utils import add_highlight_mark
+from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.chart import UnifyQueryChartHandler
 from apps.utils.grep_syntax_parse import grep_parser
 from apps.utils.local import get_request_app_code, get_request_username
@@ -81,6 +82,8 @@ class ChartHandler:
             raise BaseSearchIndexSetException(
                 BaseSearchIndexSetException.MESSAGE.format(index_set_id=self.index_set_id)
             )
+        self.space_uid = self.data.space_uid
+        self.bk_biz_id = space_uid_to_bk_biz_id(self.space_uid)
 
     @classmethod
     def get_instance(cls, index_set_id, mode):
@@ -413,15 +416,26 @@ class ChartHandler:
         return field_name
 
     @classmethod
-    def get_order_by_clause(cls, index_set_id, sort_list, alias_mappings):
+    def get_order_by_clause(cls, index_set_id, sort_list, alias_mappings, bk_biz_id):
         """
         获取排序条件
         :param index_set_id: 索引集ID
         :param sort_list: 排序字段
         :param alias_mappings: 别名
+        :param bk_biz_id: 业务ID
         """
         if not sort_list:
-            sort_list = SearchHandler(index_set_id, {}).sort_list
+            if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, bk_biz_id):
+                now_time = arrow.now()
+                params = {
+                    "index_set_ids": [index_set_id],
+                    "bk_biz_id": bk_biz_id,
+                    "start_time": now_time.shift(days=-1).format("YYYY-MM-DD HH:mm:ss"),
+                    "end_time": now_time.format("YYYY-MM-DD HH:mm:ss"),
+                }
+                sort_list = UnifyQueryHandler(params).origin_order_by
+            else:
+                sort_list = SearchHandler(index_set_id, {}).sort_list
         # 构建 ORDER BY 子句
         order_by_clause = ""
         for field, direction in sort_list:
@@ -649,6 +663,7 @@ class SQLChartHandler(ChartHandler):
                 index_set_id=self.index_set_id,
                 sort_list=params.get("sort_list", []),
                 alias_mappings=alias_mappings,
+                bk_biz_id=self.bk_biz_id,
             )
             sql_str += order_by_clause
         if with_pagination:
