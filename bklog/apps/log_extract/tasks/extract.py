@@ -301,6 +301,9 @@ class LogExtractUtils:
         Tasks.objects.filter(task_id=task_id).update(download_status=constants.DownloadStatus.DISTRIBUTING.value)
         task = Tasks.objects.get(task_id=task_id)
         extract_link: ExtractLink = ExtractLink.objects.filter(link_id=task.link_id).first()
+        # 跨租户，需要确保执行人有权限
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            operator = extract_link.operator
         transit_servers, transit_server_packing_file_path, transit_server_file_path = self._get_transit_server(
             extract_link, task_id=task_id
         )
@@ -335,6 +338,10 @@ class LogExtractUtils:
         operator = self.operator
         bk_biz_id = self.bk_biz_id
         Tasks.objects.filter(task_id=task_id).update(download_status=constants.DownloadStatus.DISTRIBUTING.value)
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            task = Tasks.objects.get(task_id=task_id)
+            extract_link: ExtractLink = task.get_link()
+            operator = extract_link.operator
         task_instance_id = self.task_instance_id
         query_result = self._poll_status(
             task_instance_id, operator, bk_biz_id, is_platform=settings.ENABLE_MULTI_TENANT_MODE
@@ -417,7 +424,7 @@ class LogExtractUtils:
     def _bkrepo_upload(self):
         # 如果是提取链路bkrepo类型 需要上传bkrepo
         transit_server, *_ = self.distribution_ip
-        cos_pack_file_name = get_packed_file_name(task_id=self.task_id)
+        cos_pack_file_name = self.pack_file_name
         full_file_path = os.path.join(transit_server.target_dir, cos_pack_file_name)
         BKREPOStorage().export_upload(file_path=full_file_path, file_name=cos_pack_file_name)
         os.remove(full_file_path)

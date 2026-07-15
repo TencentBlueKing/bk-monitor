@@ -85,6 +85,7 @@ const logPluginConfig = {
       window.BK_USER_URL = '\${BK_USER_URL}'
       window.BK_IAM_URL = '\${BK_IAM_URL}'
       window.TGPA_SDK_DOC_URL = '\${TGPA_SDK_DOC_URL}'
+      window.SHOW_PERSONAL_SETTINGS = \${SHOW_PERSONAL_SETTINGS}
     </script>`,
 };
 if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {

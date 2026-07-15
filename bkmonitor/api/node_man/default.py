@@ -17,6 +17,7 @@ from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.commons.tools import batch_request
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.request import get_request_username
+from bkmonitor.utils.serializers import TenantIdField
 from bkmonitor.utils.user import get_admin_username
 from constants.cmdb import TargetNodeType
 from core.drf_resource import APIResource
@@ -663,7 +664,7 @@ class GetProxiesResource(NodeManAPIGWResource):
 
     @property
     def action(self):
-        if self.use_apigw:
+        if self.use_apigw and settings.ENABLE_MULTI_TENANT_MODE:
             return "system/api/host/proxies/"
         return "api/host/proxies/"
 
@@ -681,7 +682,7 @@ class GetProxiesByBizResource(NodeManAPIGWResource):
 
     @property
     def action(self):
-        if self.use_apigw:
+        if self.use_apigw and settings.ENABLE_MULTI_TENANT_MODE:
             return "system/api/host/biz_proxies/"
         return "api/host/biz_proxies/"
 
@@ -710,7 +711,7 @@ class PluginOperate(NodeManAPIGWResource):
 
     @property
     def action(self):
-        if self.use_apigw:
+        if self.use_apigw and settings.ENABLE_MULTI_TENANT_MODE:
             return "system/api/plugin/operate/"
         return "api/plugin/operate/"
 
@@ -740,7 +741,7 @@ class PluginSearch(NodeManAPIGWResource):
 
     @property
     def action(self):
-        if self.use_apigw:
+        if self.use_apigw and settings.ENABLE_MULTI_TENANT_MODE:
             return "system/api/plugin/search/"
         return "api/plugin/search/"
 
@@ -760,6 +761,26 @@ class PluginSearch(NodeManAPIGWResource):
 
     def full_request_data(self, validated_request_data):
         return super().full_request_data(validated_request_data)
+
+
+class JobDetailResource(NodeManAPIGWResource):
+    """
+    【节点管理2.0】任务详情接口
+    """
+
+    @property
+    def action(self):
+        if self.use_apigw and settings.ENABLE_MULTI_TENANT_MODE:
+            return "system/api/job/{id}/details/"
+        return "api/job/{id}/details/"
+
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        id = serializers.IntegerField(required=True, label="任务ID")
+        page = serializers.IntegerField(required=False, label="页数", default=1)
+        pagesize = serializers.IntegerField(required=False, label="数量", default=100)
+        conditions = serializers.ListField(required=False, label="搜索条件")
 
 
 def adapter_nodeman_bk_cloud_id(instance):
@@ -808,6 +829,7 @@ class FetchSubscriptionStatistic(NodeManAPIGWResource):
 
 class BatchTaskResultResource(Resource):
     class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = TenantIdField(required=True, label="租户ID", prefer_request_tenant=False)
         subscription_id = serializers.IntegerField(required=True, label="订阅配置id")
         task_id_list = serializers.ListField(required=False, label="任务id列表")
         need_detail = serializers.BooleanField(default=False, label="是否需要详细log")

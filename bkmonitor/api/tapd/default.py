@@ -9,12 +9,15 @@ specific language governing permissions and limitations under the License.
 """
 
 import base64
+import contextvars
 
 from django.conf import settings
 from rest_framework import serializers
 
 from core.drf_resource import APIResource
 from core.errors.api import BKAPIError
+
+tapd_access_token = contextvars.ContextVar("tapd_access_token", default="")
 
 
 class TapdAPIResource(APIResource):
@@ -25,11 +28,22 @@ class TapdAPIResource(APIResource):
     IS_STANDARD_FORMAT = False
 
     def get_headers(self):
+        access_token = tapd_access_token.get()
+        if access_token:
+            return {"Authorization": f"Bearer {access_token}"}
+
         credentials = f"{settings.TAPD_APP_ID}:{settings.TAPD_APP_SECRET}"
         encoded_str = base64.b64encode(credentials.encode("utf-8")).decode("utf-8")
-        headers = {"Authorization": f"Basic {encoded_str}"}
+        return {"Authorization": f"Basic {encoded_str}"}
 
-        return headers
+    def perform_request(self, validated_request_data):
+        # access_token 非实际请求参数，仅用于认证 header，弹出避免污染 querystring/body
+        access_token = validated_request_data.pop("access_token", "")
+        token = tapd_access_token.set(access_token)
+        try:
+            return super().perform_request(validated_request_data)
+        finally:
+            tapd_access_token.reset(token)
 
     def render_response_data(self, validated_request_data, response_data):
         status = response_data.get("status") if isinstance(response_data, dict) else None
@@ -48,6 +62,34 @@ class TapdAPIResource(APIResource):
 class GetGrantedWorkspacesResource(TapdAPIResource):
     """
     获取已授权的项目列表
+    示例：
+        {
+            "status": 1,
+            "data": {
+                "list": [
+                    {
+                        "OpenOrganizationApp": {
+                            "workspace_id": "10104801",
+                            "type": "1",
+                            "created": "2024-04-02 16:10:30"
+                        }
+                    },
+                    {
+                        "OpenOrganizationApp": {
+                            "workspace_id": "10028191",
+                            "type": "1",
+                            "created": "2023-06-15 20:00:13"
+                        }
+                    }
+                ],
+                "pager": {
+                    "count": 3,
+                    "page": 1,
+                    "limit": 30
+                }
+            },
+            "info": "success"
+        }
     """
 
     action = "app_auth/get_granted_workspaces"
@@ -71,11 +113,77 @@ class GetGrantedWorkspacesResource(TapdAPIResource):
             required=False,
             help_text="设置获取的字段，多个字段间以逗号隔开。例如：fields=id,name,created",
         )
+        access_token = serializers.CharField(
+            label="用户态访问令牌", required=False, help_text="传入则用 Bearer Token 认证（用户级）"
+        )
+
+
+class GetParticipantProjects(TapdAPIResource):
+    """
+    获取当前用户参与的项目列表（用户态 OAuth）
+    仅支持 Bearer Token 认证，不支持 Basic Auth。
+    示例：
+        {
+            "status": 1,
+            "data": [
+                {
+                    "Workspace": {
+                        "id": "755",
+                        "name": "TAPD平台",
+                        "pretty_name": "tapd",
+                        "category": "product",
+                        "status": "normal",
+                        "description": "研发管理平台",
+                        "begin_date": "2006-04-13",
+                        "end_date": "2017-09-27",
+                        "external_on": "1",
+                        "creator": "",
+                        "created": "2007-05-01 00:00:00"
+                    }
+                }
+            ],
+            "info": "success"
+        }
+    """
+
+    action = "workspaces/get_participant_projects"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        status = serializers.CharField(
+            label="项目状态",
+            required=False,
+            default="normal",
+            help_text="项目状态过滤，多个状态用逗号隔开，例如 normal,suspend,closed，默认为normal",
+        )
+        access_token = serializers.CharField(
+            label="用户态访问令牌", required=True, help_text="必须传入 OAuth Access Token（用户级）"
+        )
 
 
 class GetWorkspaceInfoResource(TapdAPIResource):
     """
     根据项目ID（workspace_id）获取项目信息
+    示例：
+        {
+            "status": 1,
+            "data": {
+                "Workspace": {
+                    "id": "10104801",
+                    "name": "TAPD 乌云",
+                    "pretty_name": "tapd_security",
+                    "category": "product",
+                    "status": "normal",
+                    "description": "",
+                    "begin_date": null,
+                    "end_date": null,
+                    "external_on": "0",
+                    "creator": "",
+                    "created": "2015-03-27 16:02:02"
+                }
+            },
+            "info": "success"
+        }
     """
 
     action = "workspaces/get_workspace_info"
@@ -83,6 +191,9 @@ class GetWorkspaceInfoResource(TapdAPIResource):
 
     class RequestSerializer(serializers.Serializer):
         workspace_id = serializers.IntegerField(label="项目ID")
+        access_token = serializers.CharField(
+            label="用户态访问令牌", required=False, help_text="传入则用 Bearer Token 认证（用户级）"
+        )
 
 
 class AddStoryResource(TapdAPIResource):
@@ -121,6 +232,7 @@ class AddBugResource(TapdAPIResource):
         description = serializers.CharField(label="缺陷详细描述")
         current_owner = serializers.CharField(label="处理人", help_text="支持多成员，如：aaa;bbb;")
         priority_label = serializers.CharField(label="优先级", required=False)
+        te = serializers.CharField(label="测试人员", required=False)
         severity = serializers.CharField(label="严重程度", required=False)
         cc = serializers.CharField(label="抄送人", required=False)
         iteration_id = serializers.CharField(label="迭代ID", required=False)
@@ -368,3 +480,56 @@ class GetTasksResource(TapdAPIResource):
         fields = serializers.CharField(
             label="设置获取的字段", required=False, help_text="设置获取的字段，多个字段间以','逗号隔开"
         )
+
+
+class GetStoryFieldsInfo(TapdAPIResource):
+    """
+    获取需求所有字段信息
+    """
+
+    action = "stories/get_fields_info"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        workspace_id = serializers.IntegerField(label="项目ID")
+
+
+class GetBugFieldsInfo(TapdAPIResource):
+    """
+    获取缺陷所有字段信息
+    """
+
+    action = "bugs/get_fields_info"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        workspace_id = serializers.IntegerField(label="项目ID")
+
+
+class UserOauthTokenResource(TapdAPIResource):
+    """
+    用户态 OAuth — 用 code 换取 access_token
+    认证方式：Basic Auth (client_id:client_secret)
+    """
+
+    action = "tokens/request_token"
+    method = "POST"
+
+    def before_request(self, kwargs):
+        """把默认 JSON body 改为 form（OAuth 2.0 协议要求 token endpoint 用 form-urlencoded）。
+        requests 对 dict 形式的 data 会自动 urlencode 并设置 Content-Type，无需手动处理。"""
+        kwargs["data"] = kwargs.pop("json", None) or {}
+        return kwargs
+
+    class RequestSerializer(serializers.Serializer):
+        grant_type = serializers.CharField(label="授权类型", default="authorization_code")
+        code = serializers.CharField(label="授权码", required=True)
+        redirect_uri = serializers.CharField(label="回调地址", required=True)
+
+    class ResponseSerializer(serializers.Serializer):
+        access_token = serializers.CharField(label="访问令牌")
+        expires_in = serializers.IntegerField(label="过期时长（秒）", required=False, default=7200)
+        token_type = serializers.CharField(label="Token 类型", required=False, default="Bearer")
+        scope = serializers.CharField(label="权限范围", required=False)
+        resource = serializers.DictField(label="授权用户信息", required=False)
+        now = serializers.CharField(label="服务器当前时间", required=False)

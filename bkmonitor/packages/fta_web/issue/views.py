@@ -8,11 +8,16 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from django.urls import reverse
+
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import IAMPermission
 from bkmonitor.iam.resource import ResourceEnum
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource import resource
+from core.drf_resource.exceptions import CustomException
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from fta_web.issue.utils.tapd import generate_auth_url, normalize_redirect_url
 
 
 class IssueViewSet(ResourceViewSet):
@@ -21,6 +26,7 @@ class IssueViewSet(ResourceViewSet):
     # 只读接口使用 VIEW_EVENT 权限，写操作使用 MANAGE_EVENT 权限
     READ_ONLY_ENDPOINTS = [
         "issue/search",
+        "issue/trend",
         "issue/detail",
         "issue/activities",
         "issue/history",
@@ -30,11 +36,31 @@ class IssueViewSet(ResourceViewSet):
         "issue/merge_sources",
         "issue/alert_enrich",
         "tapd/workspace",
+        "issue/get_tapd_fields",
+        "issue/search_tapd_items",
+        "issue/tapd_relations",
     ]
 
     # 允许不传业务 ID 的接口（由业务层自行限制数据范围）
     # 新增支持「无业务 ID」的接口时，只需在此处追加 endpoint 名称即可
     NO_BIZ_REQUIRED_ENDPOINTS = ["issue/search", "issue/top_n", "issue/recent_assignees"]
+
+    # 所有 TAPD 相关接口，均需前置校验 TAPD 用户态授权（Redis tapd_uat:{tenant}:{user}）
+    # 新增 TAPD 接口时，只需在此处追加 endpoint 名称即可
+    TAPD_ENDPOINTS = [
+        "tapd/workspace",
+        "tapd/user_workspace",
+        "tapd/unbind_workspace",
+        "tapd/rebind_workspace",
+        # “取消用户态授权”不需要进行tapd权限状态检查
+        # "tapd/revoke_auth",
+        "issue/get_tapd_fields",
+        "issue/search_tapd_items",
+        "issue/create_tapd",
+        "issue/link_tapd",
+        # 此接口没有涉及到tapd 相关接口调用，不用做授权检查
+        # "issue/tapd_relations",
+    ]
 
     class IssueBusinessActionPermission(IAMPermission):
         """
@@ -78,16 +104,85 @@ class IssueViewSet(ResourceViewSet):
                 super().has_permission(request, view)  # 无权限时 raise PermissionDeniedError
             return True
 
+    class TAPDAuthPermission(IAMPermission):
+        """校验用户是否持有有效 TAPD 用户态 token（Redis tapd_uat:{tenant}:{user}）。
+
+        覆盖所有 TAPD 相关接口（见 TAPD_ENDPOINTS）：
+        - 已授权（token 有效）：放行；
+        - 未授权：
+          * 携带 success_url（当前仅 tapd/user_workspace）→ 返回 403 + auth_url，前端跳转授权页；
+          * 其余接口无回调地址参数 → 返回 403 提示未授权，前端自行引导授权。
+        """
+
+        def has_permission(self, request, view) -> bool:
+            # 非 TAPD 接口不校验
+            if getattr(view, "action", "") not in getattr(view, "TAPD_ENDPOINTS", []):
+                return True
+
+            body = request.data or {}
+            bk_biz_id = body.get("bk_biz_id")
+            if not bk_biz_id:
+                return True  # 参数不完整，交由后续序列化器校验
+
+            # 检查 Redis tapd_uat:{tenant_id}:{username} 中是否有有效 token
+            from fta_web.issue.utils.tapd import get_tapd_token
+
+            bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+            username = request.user.username
+            token_data = get_tapd_token(bk_tenant_id=bk_tenant_id, username=username)
+            if token_data and token_data.get("access_token"):
+                return True
+
+            # 未授权处理：
+            # - tapd/user_workspace 携带 success_url/error_url，可生成完整 auth_url 引导跳转授权页
+            # - 其余 TAPD 接口无回调地址参数，返回 403 提示未授权，前端自行引导授权
+            success_url = body.get("success_url")
+            error_url = body.get("error_url") or success_url
+            if success_url:
+                # URL 补全：前端可传路径或全 URL，路径自动补 / 前缀和域名
+                success_url = normalize_redirect_url(success_url, request)
+                error_url = normalize_redirect_url(error_url, request)
+                # 构建 OAuth 回调地址（绝对 URL）
+                backend_callback = request.build_absolute_uri(reverse("fta_web:tapd_user_oauth_callback"))
+                auth_url = generate_auth_url(
+                    int(bk_biz_id),
+                    bk_tenant_id,
+                    initiator=username,
+                    success_url=success_url,
+                    error_url=error_url,
+                    backend_callback=backend_callback,
+                )
+                exc = CustomException(
+                    message="TAPD 用户态授权未生效",
+                    data={"auth_url": auth_url},
+                    code=403,
+                )
+            else:
+                exc = CustomException(
+                    message="TAPD 用户态授权未生效，请先完成授权",
+                    data={},
+                    code=403,
+                )
+            # 使用 CustomException（非 DRF PermissionDenied）以保证
+            # MonitorJSONRenderer 能输出 {"result":false, "code":403, "data":{...}}
+            exc.status_code = 200
+            raise exc
+
     def get_permissions(self):
         # 查询变更记录为只读操作，使用 VIEW_EVENT 权限
         # 其余写操作（指派、解决、改优先级、添加跟进）使用 MANAGE_EVENT 权限
-        if self.action in self.READ_ONLY_ENDPOINTS:
-            return [self.IssueBusinessActionPermission([ActionEnum.VIEW_EVENT])]
-        return [self.IssueBusinessActionPermission([ActionEnum.MANAGE_EVENT])]
+        base_perm = self.IssueBusinessActionPermission(
+            [ActionEnum.VIEW_EVENT if self.action in self.READ_ONLY_ENDPOINTS else ActionEnum.MANAGE_EVENT]
+        )
+        # 所有 TAPD 相关接口需前置校验 TAPD 用户态授权
+        if self.action in self.TAPD_ENDPOINTS:
+            return [base_perm, self.TAPDAuthPermission(actions=[])]
+        return [base_perm]
 
     resource_routes = [
         # Issue 列表查询
         ResourceRoute("POST", resource.issue.search_issue, endpoint="issue/search"),
+        ResourceRoute("POST", resource.issue.issue_trend, endpoint="issue/trend"),
         # Issue TopN 统计
         ResourceRoute("POST", resource.issue.issue_top_n, endpoint="issue/top_n"),
         # Issue 详情（元数据）
@@ -128,4 +223,22 @@ class IssueViewSet(ResourceViewSet):
         ResourceRoute("POST", resource.issue.alert_issue_enrich, endpoint="issue/alert_enrich"),
         # 获取已授权的tapd项目列表
         ResourceRoute("POST", resource.issue.list_tapd_workspace, endpoint="tapd/workspace"),
+        # 查询当前用户可见的 TAPD 项目列表（含 install_url）
+        ResourceRoute("POST", resource.issue.list_user_tapd_workspace, endpoint="tapd/user_workspace"),
+        # 解绑 TAPD 项目（删除本地 binding + 写入 tombstone）
+        ResourceRoute("POST", resource.issue.unbind_tapd_workspace, endpoint="tapd/unbind_workspace"),
+        # 重新关联 TAPD 项目（删除 tombstone + 恢复 binding）
+        ResourceRoute("POST", resource.issue.rebind_tapd_workspace, endpoint="tapd/rebind_workspace"),
+        # 撤销 TAPD 用户态授权（仅清除 token，保留 binding）
+        ResourceRoute("POST", resource.issue.revoke_tapd_user_auth, endpoint="tapd/revoke_auth"),
+        # 获取 TAPD 单据的字段
+        ResourceRoute("POST", resource.issue.get_tapd_fields, endpoint="issue/get_tapd_fields"),
+        # 查询已有TAPD单据
+        ResourceRoute("POST", resource.issue.search_tapd_items, endpoint="issue/search_tapd_items"),
+        # 创建TAPD单据
+        ResourceRoute("POST", resource.issue.create_tapd, endpoint="issue/create_tapd"),
+        # 指定 Issue 关联指定 TAPD 单据
+        ResourceRoute("POST", resource.issue.link_issue_to_tapd, endpoint="issue/link_tapd"),
+        # 获取指定Issue关联的TAPD单据信息
+        ResourceRoute("POST", resource.issue.list_issue_tapd_relations, endpoint="issue/tapd_relations"),
     ]

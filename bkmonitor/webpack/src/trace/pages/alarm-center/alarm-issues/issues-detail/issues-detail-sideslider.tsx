@@ -58,11 +58,6 @@ export default defineComponent({
       type: String,
       default: '',
     },
-    /** issues 第一个告警产生时间 (秒级时间戳) */
-    firstAlarmTime: {
-      type: [Number, String],
-      default: 'now-1h',
-    },
     /** issues BizId */
     issueBizId: {
       type: Number,
@@ -73,7 +68,7 @@ export default defineComponent({
       default: true,
     },
   },
-  emits: ['update:show', 'next', 'previous'],
+  emits: ['update:show', 'next', 'previous', 'createTapd'],
   setup(props, { emit }) {
     const detail = shallowRef<IssueDetail>(undefined);
     const loading = shallowRef(false);
@@ -91,10 +86,10 @@ export default defineComponent({
     const impactScopeResourceKey = shallowRef<'' | ImpactScopeResourceKeyType>('');
     const impactScopeDrawerShow = shallowRef(false);
     /** 初始化默认查询时间范围 */
-    const initTimeRange = () => {
-      const firstAlarmTime = props.firstAlarmTime || 'now-1h';
-      const time = Number(firstAlarmTime);
-      timeRange.value = [Number.isNaN(time) ? firstAlarmTime : time * 1000, 'now'];
+    const initTimeRange = (firstAlertTime?: number) => {
+      const timeValue = firstAlertTime ?? 'now-1h';
+      const time = Number(timeValue);
+      timeRange.value = [Number.isNaN(time) ? timeValue : time * 1000, 'now'];
     };
 
     const { run, signal } = useRequestAbort<IssueDetail>(issueDetail);
@@ -111,15 +106,15 @@ export default defineComponent({
         id: props.issueId,
       });
       if (signal?.aborted) return;
+      initTimeRange(res.first_alert_time);
       detail.value = res;
       loading.value = false;
     };
 
     watch(
-      () => [props.issueBizId, props.issueId, props.firstAlarmTime],
+      () => [props.issueBizId, props.issueId],
       () => {
         if (props.show) {
-          initTimeRange();
           getIssueDetailData();
         } else {
           detail.value = undefined;
@@ -179,6 +174,10 @@ export default defineComponent({
     /** 全屏切换 */
     const handleToggleFullscreen = (value: boolean) => {
       isFullscreen.value = value;
+    };
+
+    const handleCreateTapd = () => {
+      emit('createTapd', true, detail.value);
     };
 
     const handleConditionChange = (val: IWhereItem[]) => {
@@ -269,6 +268,7 @@ export default defineComponent({
       handleImmediateRefresh,
       handleRefreshChange,
       handleToggleFullscreen,
+      handleCreateTapd,
       handleConditionChange,
       handleQueryStringChange,
       handleFilterModeChange,
@@ -309,6 +309,7 @@ export default defineComponent({
               isFullscreen={this.isFullscreen}
               loading={this.loading}
               showStepBtn={this.showStepBtn}
+              onCreateTapdSliderShowChange={this.handleCreateTapd}
               onNameChange={this.handleNameChange}
               onNext={this.handleNext}
               onPrevious={this.handlePrevious}

@@ -13,6 +13,7 @@ export const listIssueActivities = request('GET', 'fta/issue/issue/activities/')
 export const listIssueHistory = request('GET', 'fta/issue/issue/history/');
 export const issueDetail = request('GET', 'fta/issue/issue/detail/');
 export const issueSearch = request('POST', 'fta/issue/issue/search/');
+export const issueTrend = request('POST', 'fta/issue/issue/trend/');
 export const issueTopN = request('POST', 'fta/issue/issue/top_n/');
 export const exportIssue = request('POST', 'fta/issue/issue/export/');
 export const listRecentAssignees = request('POST', 'fta/issue/issue/recent_assignees/');
@@ -21,7 +22,18 @@ export const splitIssue = request('POST', 'fta/issue/issue/split/');
 export const listMergeSources = request('GET', 'fta/issue/issue/merge_sources/');
 export const alertIssueEnrich = request('POST', 'fta/issue/issue/alert_enrich/');
 export const listTapdWorkspace = request('POST', 'fta/issue/tapd/workspace/');
+export const getTapdFields = request('POST', 'fta/issue/issue/get_tapd_fields/');
+export const searchTAPDItems = request('POST', 'fta/issue/issue/search_tapd_items/');
+export const createTapd = request('POST', 'fta/issue/issue/create_tapd/');
+export const listIssueTapdRelations = request('POST', 'fta/issue/issue/tapd_relations/');
+export const linkIssueToTapd = request('POST', 'fta/issue/issue/link_tapd/');
 
+/** 获取用户 TAPD 工作空间列表 */
+export const getUserWorkspace = request('POST', '/fta/issue/tapd/user_workspace/');
+export const searchTapdItems = request('POST', '/fta/issue/issue/search_tapd_items/');
+export const unbindWorkspace = request('POST', '/fta/issue/tapd/unbind_workspace/');
+export const rebindWorkspace = request('POST', '/fta/issue/tapd/rebind_workspace/');
+export const revokeAuth = request('POST', '/fta/issue/tapd/revoke_auth/');
 
 export default {
   assignIssue,
@@ -37,6 +49,7 @@ export default {
   listIssueHistory,
   issueDetail,
   issueSearch,
+  issueTrend,
   issueTopN,
   exportIssue,
   listRecentAssignees,
@@ -45,4 +58,14 @@ export default {
   listMergeSources,
   alertIssueEnrich,
   listTapdWorkspace,
+  getTapdFields,
+  searchTAPDItems,
+  createTapd,
+  listIssueTapdRelations,
+  linkIssueToTapd,
+  getUserWorkspace,
+  searchTapdItems,
+  unbindWorkspace,
+  rebindWorkspace,
+  revokeAuth,
 };

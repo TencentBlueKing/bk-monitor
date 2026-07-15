@@ -30,6 +30,7 @@ import { EventEmitter } from './event';
 
 // 用户信息接口定义
 interface UserDisplayInfo {
+  bk_username: string;
   login_name: string;
   full_name: string;
   display_name: string;
@@ -52,7 +53,7 @@ export class TenantManager extends EventEmitter<TenantManagerEvent> {
   private tenantId: string | null | undefined;
   // 用户信息缓存：租户ID -> 用户信息
   private userCache: Map<string, UserDisplayInfo> = new Map();
-  // 分组映射：分组名称 -> 该分组下的人员 login_name 集合
+  // 分组映射：分组名称 -> 该分组下的人员 bk_username 集合
   private groupMap: Map<string, Set<string>> = new Map();
   // 默认分组名称
   private readonly DEFAULT_GROUP = 'default';
@@ -102,17 +103,17 @@ export class TenantManager extends EventEmitter<TenantManagerEvent> {
 
   /**
    * 将用户添加到指定分组
-   * @param loginName 用户登录名
+   * @param bkUsername 用户名
    * @param group 分组名称
    */
-  private addUserToGroup(loginName: string, group: string): void {
+  private addUserToGroup(bkUsername: string, group: string): void {
     if (!this.groupMap.has(group)) {
       this.groupMap.set(group, new Set());
     }
-    this.groupMap.get(group)!.add(loginName);
+    this.groupMap.get(group)!.add(bkUsername);
 
     // 更新用户信息中的 groups 字段
-    const userInfo = this.userCache.get(loginName);
+    const userInfo = this.userCache.get(bkUsername);
     if (userInfo) {
       if (!userInfo.groups) {
         userInfo.groups = [];
@@ -159,6 +160,7 @@ export class TenantManager extends EventEmitter<TenantManagerEvent> {
     // 非多租户环境，直接返回租户ID作为用户名
     if (!this.isMultiTenant()) {
       const userInfo: UserDisplayInfo = {
+        bk_username: tenantId,
         login_name: tenantId,
         full_name: tenantId,
         display_name: tenantId,
@@ -186,6 +188,7 @@ export class TenantManager extends EventEmitter<TenantManagerEvent> {
     // 注意：这里先添加到分组，即使数据还没加载完成
     this.addUserToGroup(tenantId, group);
     return {
+      bk_username: tenantId,
       login_name: tenantId,
       full_name: tenantId,
       display_name: tenantId,
@@ -206,6 +209,7 @@ export class TenantManager extends EventEmitter<TenantManagerEvent> {
     if (!this.isMultiTenant()) {
       tenantIds.forEach((id) => {
         const userInfo: UserDisplayInfo = {
+          bk_username: id,
           login_name: id,
           full_name: id,
           display_name: id,
@@ -247,6 +251,7 @@ export class TenantManager extends EventEmitter<TenantManagerEvent> {
     // 对于未缓存的ID，先返回默认值，并添加到分组
     uncachedIds.forEach((id) => {
       const userInfo: UserDisplayInfo = {
+        bk_username: id,
         login_name: id,
         full_name: id,
         display_name: id,
@@ -407,38 +412,38 @@ export class TenantManager extends EventEmitter<TenantManagerEvent> {
     };
 
     try {
-      const response = await requestJson<{ data: UserDisplayInfo[] }>({
+      const response = await requestJson<UserDisplayInfo[]>({
         url,
         method: 'GET',
         headers,
       });
 
       // 处理响应结果
-      // response.data 是 { data: UserDisplayInfo[] }，所以需要 response.data.data
+      // response.data 直接就是 UserDisplayInfo[] 数组
       const loadedTenantIds: string[] = [];
-      if (response.data?.data && Array.isArray(response.data.data)) {
-        response.data.data.forEach((userInfo: UserDisplayInfo) => {
-          if (userInfo.login_name) {
-            const loginName = userInfo.login_name;
-            const wasCached = this.userCache.has(loginName);
-            const cachedUserInfo = this.userCache.get(loginName);
+      if (response.data && Array.isArray(response.data)) {
+        response.data.forEach((userInfo: UserDisplayInfo) => {
+          if (userInfo.bk_username) {
+            const bkUsername = userInfo.bk_username;
+            const wasCached = this.userCache.has(bkUsername);
+            const cachedUserInfo = this.userCache.get(bkUsername);
             
             // 如果用户已缓存，保留原有的 groups 信息
             if (cachedUserInfo && cachedUserInfo.groups) {
               userInfo.groups = cachedUserInfo.groups;
             }
             
-            this.userCache.set(loginName, userInfo);
+            this.userCache.set(bkUsername, userInfo);
             
             // 如果用户有 groups 信息，确保用户存在于这些分组中
             if (userInfo.groups && Array.isArray(userInfo.groups)) {
               userInfo.groups.forEach((group) => {
-                this.addUserToGroup(loginName, group);
+                this.addUserToGroup(bkUsername, group);
               });
             }
             
             if (!wasCached) {
-              loadedTenantIds.push(loginName);
+              loadedTenantIds.push(bkUsername);
             }
           }
         });
@@ -492,40 +497,40 @@ export class TenantManager extends EventEmitter<TenantManagerEvent> {
     };
 
     try {
-      const response = await requestJson<{ data: UserDisplayInfo }>({
+      const response = await requestJson<UserDisplayInfo>({
         url,
         method: 'GET',
         headers,
       });
 
-      // response.data 是 { data: UserDisplayInfo }，所以需要 response.data.data
-      if (response.data?.data && response.data.data.login_name) {
-        const userInfo = response.data.data;
-        const loginName = userInfo.login_name;
-        const wasCached = this.userCache.has(loginName);
-        const cachedUserInfo = this.userCache.get(loginName);
+      // response.data 直接就是 UserDisplayInfo 对象
+      if (response.data && response.data.bk_username) {
+        const userInfo = response.data;
+        const bkUsername = userInfo.bk_username;
+        const wasCached = this.userCache.has(bkUsername);
+        const cachedUserInfo = this.userCache.get(bkUsername);
         
         // 如果用户已缓存，保留原有的 groups 信息
         if (cachedUserInfo && cachedUserInfo.groups) {
           userInfo.groups = cachedUserInfo.groups;
         }
         
-        this.userCache.set(loginName, userInfo);
+        this.userCache.set(bkUsername, userInfo);
         
         // 如果用户有 groups 信息，确保用户存在于这些分组中
         if (userInfo.groups && Array.isArray(userInfo.groups)) {
           userInfo.groups.forEach((group) => {
-            this.addUserToGroup(loginName, group);
+            this.addUserToGroup(bkUsername, group);
           });
         }
 
         // 如果是新加载的用户信息，触发事件
         if (!wasCached) {
           const loadedUserInfo = new Map<string, UserDisplayInfo>();
-          loadedUserInfo.set(loginName, userInfo);
+          loadedUserInfo.set(bkUsername, userInfo);
 
           this.emit('userInfoUpdated', {
-            tenantIds: [loginName],
+            tenantIds: [bkUsername],
             userInfo: loadedUserInfo,
           } as UserInfoLoadedEventData);
         }
@@ -539,17 +544,17 @@ export class TenantManager extends EventEmitter<TenantManagerEvent> {
   /**
    * 获取指定分组下的所有用户信息
    * @param group 分组名称，默认为 'default'
-   * @returns 用户信息Map（login_name -> 用户信息）
+   * @returns 用户信息Map（bk_username -> 用户信息）
    */
   getUsersByGroup(group: string = this.DEFAULT_GROUP): Map<string, UserDisplayInfo> {
     const result = new Map<string, UserDisplayInfo>();
-    const loginNames = this.groupMap.get(group);
+    const bkUsernames = this.groupMap.get(group);
     
-    if (loginNames) {
-      loginNames.forEach((loginName) => {
-        const userInfo = this.userCache.get(loginName);
+    if (bkUsernames) {
+      bkUsernames.forEach((bkUsername) => {
+        const userInfo = this.userCache.get(bkUsername);
         if (userInfo) {
-          result.set(loginName, userInfo);
+          result.set(bkUsername, userInfo);
         }
       });
     }
@@ -561,7 +566,7 @@ export class TenantManager extends EventEmitter<TenantManagerEvent> {
    * 获取所有用户信息
    * 如果当前有执行中的请求，等待任务执行完再返回；如果没有则直接返回
    * @param group 可选的分组名称，如果指定则只返回该分组下的用户信息
-   * @returns Promise，返回用户信息的Map（login_name -> 用户信息）
+   * @returns Promise，返回用户信息的Map（bk_username -> 用户信息）
    */
   async getAllUserInfo(group?: string): Promise<Map<string, UserDisplayInfo>> {
     // 如果没有正在进行的请求，直接返回

@@ -24,19 +24,20 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, useTemplateRef } from 'vue';
+import { type PropType, computed, defineComponent, toRef, useTemplateRef } from 'vue';
 
 import CommonTable from '../../components/alarm-table/components/common-table/common-table';
 import { usePopover } from '../../components/alarm-table/hooks/use-popover';
 import { useEchartsGroupConnect } from '../../composables/use-echarts-group';
 import { useTableScrollOptimize } from '../../composables/use-table-scroll-optimize';
-import { ENDED_STATUS_SET } from '../constant';
+import { ENDED_STATUS_SET, TrendRangeEnum } from '../constant';
 import { useIssuesColumnsRenderer } from './hooks/use-issues-columns-renderer';
 import { useIssuesHandlers } from './hooks/use-issues-handlers';
 import ExploreTableEmpty from '@/pages/trace-explore/components/trace-explore-table/components/explore-table-empty';
 
 import type { ColumnResizeContext, TableColumnItem, TablePagination } from '../../typings';
-import type { ImpactScopeEvent, IssueItem, IssuePriorityType, IssuesBatchActionType } from '../typing';
+import type { ImpactScopeEvent, IssueItem, IssuePriorityType, IssuesBatchActionType, TrendRangeType } from '../typing';
+import type { BkUiSettings } from '@blueking/tdesign-ui';
 import type { SelectOptions, SlotReturnValue } from 'tdesign-vue-next';
 
 import './issues-table.scss';
@@ -100,6 +101,20 @@ export default defineComponent({
       type: Function as PropType<(id: string, name: string) => Promise<void>>,
       default: () => () => Promise.resolve(),
     },
+    /** 表格设置属性类型 */
+    tableSettings: {
+      type: Object as PropType<Omit<BkUiSettings, 'hasCheckAll'>>,
+    },
+    /** 趋势时间范围 */
+    trendRange: {
+      type: String as PropType<TrendRangeType>,
+      default: TrendRangeEnum.HOURS_24,
+    },
+    /** 趋势数据加载中 */
+    trendLoading: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: {
     /** 页码变化 */
@@ -127,9 +142,20 @@ export default defineComponent({
     clearFilter: () => true,
     /** 列宽拖拽变化回调 */
     columnResizeChange: (context: ColumnResizeContext) => context && typeof context.columnsWidth === 'object',
+    /** 显示列字段变化 */
+    displayColFieldsChange: (displayColFields: string[]) => Array.isArray(displayColFields),
+    /** 趋势时间范围变化 */
+    trendRangeChange: (range: TrendRangeType) => typeof range === 'string',
   },
   setup(props, { emit }) {
     const tableRef = useTemplateRef<InstanceType<typeof CommonTable>>('tableRef');
+
+    /** 表格设置 */
+    const settings = computed(() => ({
+      ...props.tableSettings,
+      hasCheckAll: true,
+      showRowSize: false,
+    }));
 
     /** 图表联动组管理 */
     const { chartGroupId } = useEchartsGroupConnect(() => props.data);
@@ -174,6 +200,9 @@ export default defineComponent({
       handleImpactScopeClick,
       handleSplitClick,
       handleNameChange: (row, name) => props.nameChange(row.id, name),
+      trendRange: toRef(props, 'trendRange'),
+      trendLoading: toRef(props, 'trendLoading'),
+      onTrendRangeChange: (range: TrendRangeType) => emit('trendRangeChange', range),
     });
 
     /** 转换后的列配置 */
@@ -190,6 +219,7 @@ export default defineComponent({
 
     return {
       transformedColumns,
+      settings,
     };
   },
   render() {
@@ -222,8 +252,10 @@ export default defineComponent({
           pagination={this.pagination}
           selectedRowKeys={this.selectedRowKeys}
           sort={this.sort}
+          tableSettings={this.settings}
           onColumnResizeChange={context => this.$emit('columnResizeChange', context)}
           onCurrentPageChange={page => this.$emit('currentPageChange', page)}
+          onDisplayColFieldsChange={displayColFields => this.$emit('displayColFieldsChange', displayColFields)}
           onPageSizeChange={pageSize => this.$emit('pageSizeChange', pageSize)}
           onSelectChange={(keys, options) => this.$emit('selectionChange', (keys ?? []) as string[], options)}
           onSortChange={sort => this.$emit('sortChange', sort)}

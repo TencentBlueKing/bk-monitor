@@ -32,6 +32,9 @@ import type {
   IssuePriorityEnum,
   IssuesBatchActionEnum,
   IssueStatusEnum,
+  TapdTypeEnum,
+  TAPDWorkspaceBoundEnum,
+  TrendRangeEnum,
   TrendStatusEnum,
 } from '../constant';
 import type { GetEnumTypeTool } from 'monitor-pc/pages/query-template/typings/constants';
@@ -55,6 +58,15 @@ export type IssuesBatchActionType = GetEnumTypeTool<typeof IssuesBatchActionEnum
 
 /** Issues 状态类型 */
 export type IssueStatusType = GetEnumTypeTool<typeof IssueStatusEnum>;
+
+/** Tapd单据类型 */
+export type TapdType = GetEnumTypeTool<typeof TapdTypeEnum>;
+
+/** TAPD工作空间绑定类型 */
+export type TAPDWorkspaceBoundType = GetEnumTypeTool<typeof TAPDWorkspaceBoundEnum>;
+
+/** Issues 趋势时间范围类型 */
+export type TrendRangeType = GetEnumTypeTool<typeof TrendRangeEnum>;
 
 /** Issues 趋势状态类型 */
 export type TrendStatusType = GetEnumTypeTool<typeof TrendStatusEnum>;

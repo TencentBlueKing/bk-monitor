@@ -1,0 +1,113 @@
+.tapd-auth-dialog {
+  .bk-dialog-content {
+    padding: 0 48px;
+    margin-top: 36px;
+    margin-bottom: 48px;
+  }
+
+  .bk-modal-footer {
+    display: none;
+  }
+
+  .tapd-auth-dialog-header {
+    display: flex;
+    align-items: center;
+
+    .dialog-title {
+      margin-right: 8px;
+      font-size: 20px;
+      color: #313238;
+    }
+
+    .dialog-desc {
+      padding-left: 8px;
+      font-size: 14px;
+      color: #979ba5;
+      border-left: 1px solid #dcdee5;
+    }
+  }
+
+  .tapd-auth-dialog-content {
+    .tapd-relation-workspace-alert {
+      color: #4d4f56;
+      background: #f0f5ff;
+      border-color: #a3c5fd;
+    }
+
+    .search-wrapper {
+      margin-top: 12px;
+    }
+
+    .workspace-list {
+      max-height: 300px;
+      margin-top: 12px;
+      overflow-y: auto;
+
+      .workspace-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 48px;
+        padding-left: 16px;
+        cursor: pointer;
+        background: #f5f7fa;
+        border-radius: 4px;
+
+        .workspace-name {
+          font-size: 13px;
+          font-weight: 500;
+          color: #313238;
+        }
+
+        .workspace-btn {
+          min-width: 60px;
+          height: 28px;
+          padding: 0 12px;
+          margin-right: 12px;
+          font-size: 12px;
+          line-height: 28px;
+          border-radius: 999px;
+        }
+
+        .revoke-relation {
+          display: none;
+          gap: 4px;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+          padding: 0 16px;
+          font-size: 12px;
+          color: #fff;
+          background: #3a84ff;
+        }
+
+        .workspace-item-loading {
+          width: 20px;
+          height: 20px;
+          margin-right: 12px;
+        }
+
+        & + .workspace-item {
+          margin-top: 8px;
+        }
+
+        &:hover {
+          background-color: #f0f1f5;
+
+          .workspace-btn.bound {
+            display: none;
+          }
+
+          .revoke-relation {
+            display: flex;
+          }
+        }
+      }
+    }
+
+    .dialog-footer-btn {
+      width: 100%;
+      margin-top: 24px;
+    }
+  }
+}

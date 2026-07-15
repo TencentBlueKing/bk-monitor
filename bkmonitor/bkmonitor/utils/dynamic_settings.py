@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+import logging
 
 from django.conf import settings
 from django.core.cache import caches
@@ -19,6 +20,7 @@ from bkmonitor.utils.cache import InstanceCache
 
 locmem_cache = None
 redis_cache = None
+logger = logging.getLogger(__name__)
 
 # 初始化 locmem 缓存（内存缓存，第一层）
 try:
@@ -94,8 +96,12 @@ class DynamicSettings:
                     locmem.set(name, deserialized_value, self.__cache_expires__)
                 return deserialized_value
 
-        # 第三层：从数据库获取
-        value = self._global_config_model.get(name, value)
+        # 第三层：从数据库获取。DB 异常时只使用默认值，不缓存，避免短暂抖动污染后续读取。
+        try:
+            value = self._global_config_model.get(name, value, raise_exception=True)
+        except Exception:
+            logger.warning("get dynamic setting %s from db failed, using default without cache", name, exc_info=True)
+            return value
 
         # 同时写入两层缓存
         if locmem:

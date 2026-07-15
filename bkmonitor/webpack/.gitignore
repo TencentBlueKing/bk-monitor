@@ -115,3 +115,5 @@ skills-lock.json
 AGENTS.md
 
 .pnpm-store
+.opencode/
+.pnpm-store/

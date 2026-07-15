@@ -482,7 +482,7 @@ export default class MaskingSetting extends tsc<IProps> {
         spaceUid: this.spaceUid,
       },
     });
-    window.open(href, '_blank');
+    window.open(href, '_blank', 'noopener,noreferrer');
   }
 
   handleCreateRule() {

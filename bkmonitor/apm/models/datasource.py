@@ -78,6 +78,7 @@ class ApmDataSourceConfigBase(models.Model):
     bk_data_id = models.IntegerField("数据id", default=-1)
     result_table_id = models.CharField("结果表id", max_length=128, default="")
     shared_datasource_id = models.IntegerField("共享数据源 ID", null=True, default=None)
+    backup_link_info = models.JSONField("备份链路信息", default=dict)
 
     class Meta:
         abstract = True
@@ -225,6 +226,26 @@ class ApmDataSourceConfigBase(models.Model):
         self.result_table_id = shared_info["result_table_id"]
         self.shared_datasource_id = shared_info["shared_datasource_id"]
 
+    def _get_backup_link_info(self) -> dict[str, Any]:
+        """获取需要备份的独占链路字段。"""
+        return {
+            "bk_data_id": self.bk_data_id,
+            "result_table_id": self.result_table_id,
+        }
+
+    def backup_exclusive_link_info(self) -> None:
+        """记录当前独占链路字段，用于迁出共享时恢复。"""
+        self.backup_link_info = self._get_backup_link_info()
+
+    def recover_link_info(self) -> None:
+        """从备份中恢复独占链路字段。"""
+        link_info: dict[str, Any] = self.backup_link_info
+        if not link_info:
+            return
+
+        self.bk_data_id = link_info["bk_data_id"]
+        self.result_table_id = link_info["result_table_id"]
+
     def reset_link_info(self) -> None:
         """重置当前数据源链路信息为未创建状态。
 
@@ -247,10 +268,15 @@ class ApmDataSourceConfigBase(models.Model):
 
         is_shared: bool = options.get("is_shared", False)
 
-        # 更新应用时判断模式变化：迁入（独占 → 共享，停用独占资源）或迁出（共享 → 独占，释放共享池占用），随后 reset_link_info，再复用既有创建流程
+        # 模式变化时先停用当前链路；迁入共享前备份独占 RT，迁出独占时仅恢复已有独占备份。
         if obj.result_table_id != "" and obj.is_shared != is_shared:
+            if is_shared:
+                obj.backup_exclusive_link_info()
             cls.stop(bk_biz_id, app_name)
             obj.reset_link_info()
+            if not is_shared and obj.backup_link_info:
+                obj.recover_link_info()
+            obj.save()
 
         if is_shared:
             obj._apply_shared_datasource(**options)
@@ -823,9 +849,18 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
     def to_link_info(self) -> dict[str, Any]:
         """导出链路元数据字典（含 Trace 特有字段）。"""
-        info = super().to_link_info()
+        info: dict[str, Any] = super().to_link_info()
         info["index_set_id"] = self.index_set_id
         info["index_set_name"] = self.index_set_name
+        info["bkdata_datalink_config"] = self.bkdata_datalink_config
+        return info
+
+    def _get_backup_link_info(self) -> dict[str, Any]:
+        """获取需要备份的 Trace 独占链路字段。
+
+        index_set 在迁入共享时会删除，迁出独占时按结果表重新创建，因此不写入备份。
+        """
+        info: dict[str, Any] = super()._get_backup_link_info()
         info["bkdata_datalink_config"] = self.bkdata_datalink_config
         return info
 
@@ -835,6 +870,14 @@ class TraceDataSource(ApmDataSourceConfigBase):
         self.index_set_id = shared_info.get("index_set_id")
         self.index_set_name = shared_info.get("index_set_name")
         self.bkdata_datalink_config = shared_info.get("bkdata_datalink_config") or {}
+
+    def recover_link_info(self) -> None:
+        """恢复 Trace 独占链路字段。"""
+        super().recover_link_info()
+        link_info: dict[str, Any] = self.backup_link_info
+        if not link_info:
+            return
+        self.bkdata_datalink_config = link_info["bkdata_datalink_config"]
 
     def reset_link_info(self) -> None:
         """重置当前数据源链路信息为未创建状态（含 Trace 特有字段）。"""
@@ -985,9 +1028,13 @@ class TraceDataSource(ApmDataSourceConfigBase):
                 "elasticsearch": params["default_storage_config"],
             }
             resource.metadata.modify_result_table(params)
+            self.index_set_id = index_set_id
+            self.index_set_name = index_set_name
+            update_fields: list[str] = ["index_set_id", "index_set_name"]
             if use_bkbase_v4_link and not self.is_bkbase_v4_link():
                 self.bkdata_datalink_config = {"version": 4}
-                self.save(update_fields=["bkdata_datalink_config"])
+                update_fields.append("bkdata_datalink_config")
+            self.save(update_fields=update_fields)
 
             return
 
@@ -1508,6 +1555,44 @@ class ProfileDataSource(ApmDataSourceConfigBase):
         }
 
     @classmethod
+    def _get_default_registered_kafka_cluster_name(cls, bk_tenant_id: str) -> str:
+        """
+        从 ClusterInfo 中查找该租户下已注册到 bkbase 的默认 Kafka 集群 cluster_name。
+        优先取默认集群；若默认集群未注册到 bkbase，则遍历其他 Kafka 集群；都未注册则报错。
+        """
+        # is_default_cluster 降序，默认集群排前优先使用
+        kafka_clusters = metadata_models.ClusterInfo.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            cluster_type=metadata_models.ClusterInfo.TYPE_KAFKA,
+        ).order_by("-is_default_cluster")
+        for cluster in kafka_clusters:
+            if cluster.registered_to_bkbase:
+                return cluster.cluster_name
+        raise ValueError(
+            f"no kafka cluster registered to bkbase for bk_tenant_id={bk_tenant_id}, "
+            "please contact administrator to register a kafka cluster to bkbase"
+        )
+
+    @classmethod
+    def _get_default_kafka_cluster_name(cls, bk_biz_id: int, bk_tenant_id: str) -> str:
+        """
+        查询已注册到 bkbase 的 Kafka 集群 cluster_name，用于 V4 链路 DataId.spec.preferCluster.name。
+
+        - 多租户开启：取该租户下已注册到 bkbase 的默认 Kafka 集群。
+        - 多租户未开启：优先取 APM DataLink.kafka_cluster_id 对应集群；不可用时回退到默认集群；都拿不到则报错。
+        """
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            return cls._get_default_registered_kafka_cluster_name(bk_tenant_id)
+
+        # 非多租户：优先走 DataLink.kafka_cluster_id，不可用则回退到默认集群
+        data_link = DataLink.get_data_link(bk_biz_id)
+        if data_link and data_link.kafka_cluster_id:
+            cluster = metadata_models.ClusterInfo.objects.filter(cluster_id=data_link.kafka_cluster_id).first()
+            if cluster and cluster.registered_to_bkbase:
+                return cluster.cluster_name
+        return cls._get_default_registered_kafka_cluster_name(bk_tenant_id)
+
+    @classmethod
     def apply_datasource(cls, bk_biz_id, app_name, **options):
         option = options["option"]
         profile_bk_biz_id = bk_biz_id
@@ -1540,11 +1625,13 @@ class ProfileDataSource(ApmDataSourceConfigBase):
         if use_v4:
             # V4 声明式链路：轮询可能长达 5 分钟，不可放入事务内
             # 先生成 DataId 名称并持久化，防止 provider() 中途失败后重试时生成不同随机后缀导致孤儿资源
+            prefer_kafka_cluster_name = cls._get_default_kafka_cluster_name(bk_biz_id, bk_tenant_id)
             provider = BkDataDorisV4Provider.from_datasource_instance(
                 obj,
                 bk_tenant_id=bk_tenant_id,
                 maintainer=maintainer,
                 operator=global_user,
+                prefer_kafka_cluster_name=prefer_kafka_cluster_name,
             )
             data_id_name = compose_profile_data_id_name(provider.data_biz_id, obj.app_name)
             obj.bkdata_datalink_config = {
@@ -1560,7 +1647,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
             obj.save()
 
             essentials = provider.provider()
-            # provider() 成功后，补全 resource_name
+            # provider() 成功后，补全 resource_names（bk_data_id 已在 provider() 内部持久化）
             resource_names = provider.get_resource_names(bk_data_id=essentials["bk_data_id"])
             bkdata_datalink_config = {
                 "version": 4,
@@ -1621,8 +1708,13 @@ class ProfileDataSource(ApmDataSourceConfigBase):
             apm_maintainers = ",".join(settings.APM_APP_BKDATA_MAINTAINER)
             global_user = get_global_user(bk_tenant_id=bk_tenant_id)
             maintainer = global_user if not apm_maintainers else f"{global_user},{apm_maintainers}"
+            prefer_kafka_cluster_name = cls._get_default_kafka_cluster_name(bk_biz_id, bk_tenant_id)
             provider = BkDataDorisV4Provider.from_datasource_instance(
-                instance, bk_tenant_id=bk_tenant_id, maintainer=maintainer, operator=global_user
+                instance,
+                bk_tenant_id=bk_tenant_id,
+                maintainer=maintainer,
+                operator=global_user,
+                prefer_kafka_cluster_name=prefer_kafka_cluster_name,
             )
             provider.apply()
         else:

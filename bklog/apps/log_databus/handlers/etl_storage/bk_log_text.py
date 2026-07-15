@@ -156,7 +156,13 @@ class BkLogTextEtlStorage(EtlStorage):
             {
                 "input_id": "iter_item",
                 "output_id": "log",
-                "operator": {"type": "assign", "key_index": "data", "alias": "log", "output_type": "string"},
+                "operator": {
+                    "type": "assign",
+                    "key_index": "data",
+                    "alias": "log",
+                    "output_type": "string",
+                    "default_value": None,
+                },
             }
         )
 

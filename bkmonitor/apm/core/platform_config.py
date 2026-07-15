@@ -12,8 +12,8 @@ import base64
 import gzip
 import logging
 
-from jinja2.sandbox import SandboxedEnvironment as Environment
 from django.conf import settings
+from jinja2.sandbox import SandboxedEnvironment as Environment
 from kubernetes import client
 from opentelemetry import trace
 
@@ -27,9 +27,10 @@ from apm.constants import (
 from apm.models import BcsClusterDefaultApplicationRelation
 from apm.models.subscription_config import SubscriptionConfig
 from bkmonitor.utils.bcs import BcsKubeClient
-from bkmonitor.utils.bk_collector_config import BkCollectorConfig, BkCollectorClusterConfig
+from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig, BkCollectorConfig
 from bkmonitor.utils.cipher import get_bk_data_token_aes_key
 from bkmonitor.utils.common_utils import count_md5
+from bkmonitor.utils.new_env import is_biz_id_need_managed
 from constants.apm import SpanKindKey
 from constants.bk_collector import BkCollectorComp
 from constants.common import DEFAULT_TENANT_ID
@@ -79,6 +80,9 @@ class PlatformConfig(BkCollectorConfig):
         #    2.1 从集群中获取模版配置
         #    2.2 获取到模板，则下发，否则忽略该集群
         """
+
+        from metadata.models.bcs.cluster import BCSClusterInfo
+
         cluster_mapping = BkCollectorClusterConfig.get_cluster_mapping()
 
         if settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
@@ -86,7 +90,21 @@ class PlatformConfig(BkCollectorConfig):
             for cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
                 cluster_mapping[cluster_id] = [0]
 
+        # 获取BCS集群与业务ID的映射关系
+        bcs_cluster_to_biz_ids: dict[str, int] = {}
+        for bcs_cluster in BCSClusterInfo.objects.all().only("cluster_id", "bk_biz_id"):
+            bcs_cluster_to_biz_ids[bcs_cluster.cluster_id] = bcs_cluster.bk_biz_id
+
         for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
+            # 如果集群不在BCS集群中，则不下发该集群的配置
+            if cluster_id not in bcs_cluster_to_biz_ids:
+                continue
+
+            # 如果集群对应业务不需要管理，则不下发该集群的配置
+            bk_biz_id = bcs_cluster_to_biz_ids[cluster_id]
+            if not is_biz_id_need_managed(bk_biz_id):
+                continue
+
             try:
                 platform_config_tpl = BkCollectorClusterConfig.platform_config_tpl(cluster_id)
                 if platform_config_tpl is None:
@@ -425,6 +443,7 @@ class PlatformConfig(BkCollectorConfig):
             "nodes": [{"bk_host_id": bk_host_id} for bk_host_id in bk_host_ids],
         }
         subscription_params = {
+            "bk_tenant_id": bk_tenant_id,
             "scope": scope,
             "steps": [
                 {

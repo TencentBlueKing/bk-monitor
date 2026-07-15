@@ -52,7 +52,7 @@ from bkmonitor.dataflow.task.intelligent_detect import (
     MultivariateAnomalyIntelligentModelDetectTask,
     StrategyIntelligentModelDetectTask,
 )
-from bkmonitor.models import ActionConfig, AlgorithmChoiceConfig, AlgorithmModel, ItemModel, StrategyModel
+from bkmonitor.models import AlgorithmChoiceConfig, AlgorithmModel, ItemModel, StrategyModel
 from bkmonitor.models.external_iam import ExternalPermissionApplyRecord
 from bkmonitor.strategy.new_strategy import QueryConfig, Strategy, get_metric_id
 from bkmonitor.strategy.serializers import MultivariateAnomalyDetectionSerializer
@@ -72,7 +72,7 @@ from constants.dataflow import ConsumingMode
 from core.drf_resource import api, resource
 from core.errors.bkmonitor.dataflow import DataFlowNotExists
 from core.prometheus import metrics
-from fta_web.tasks import run_init_builtin_action_config
+from fta_web.tasks import has_builtin_quick_solution_actions, run_init_builtin_action_config
 from monitor_web.commons.cc.utils import CmdbUtil
 from monitor_web.commons.data_access import PluginDataAccessor
 from monitor_web.constants import (
@@ -152,7 +152,7 @@ def run_init_builtin(bk_biz_id: int, username: str | None = None):
         if (
             settings.ENABLE_DEFAULT_STRATEGY
             and int(bk_biz_id) > 0
-            and not ActionConfig.origin_objects.filter(bk_biz_id=bk_biz_id, is_builtin=True).exists()
+            and not has_builtin_quick_solution_actions(bk_biz_id)
         ):
             logger.warning("[run_init_builtin] home run_init_builtin_action_config: bk_biz_id -> %s", bk_biz_id)
             # 如果当前页面没有出现内置套餐，则会进行快捷套餐的初始化

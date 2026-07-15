@@ -56,6 +56,8 @@ INSTALLED_APPS += (  # noqa: F405,F821
     "alarm_backends",
     "apm",
     "apm_ebpf",
+    "rum",
+    "rum_web",
     "core.drf_resource",
     "ai_whale",
 )
@@ -151,6 +153,8 @@ DEFAULT_CRONTAB = [
     # clean detect result cache
     ("alarm_backends.core.detect_result.tasks.clean_expired_detect_result", "0 */2 * * *", "global"),
     ("alarm_backends.core.detect_result.tasks.clean_md5_to_dimension_cache", "0 23 * * *", "global"),
+    # clean new series(新维度值检测) seen cache: 按 max_series 收口
+    ("alarm_backends.core.detect_result.tasks.clean_new_series_seen_cache", "0 */2 * * *", "global"),
     # 定期清理超时未执行任务
     ("alarm_backends.service.fta_action.tasks.check_timeout_actions", "* * * * *", "global"),
     # 定期清理mysql内半个月前的数据
@@ -184,6 +188,8 @@ DEFAULT_CRONTAB = [
     ("metadata.task.sync_space.refresh_bkcc_space_name", "*/6 * * * *", "global"),
     # metadata 全量刷新 ResourceDefinition/RelationDefinition 到 Redis 兜底任务，每10分钟一次
     ("metadata.task.entity_relation.refresh_entity_definition_to_redis", "*/10 * * * *", "global"),
+    # rum k8s 批量配置下发: 每5分钟触发，获取全部数据进行批量调度
+    ("rum.task.tasks.refresh_rum_config_to_k8s", "*/10 * * * *", "global"),
 ]
 
 if BCS_API_GATEWAY_HOST:  # noqa: F821

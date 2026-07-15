@@ -1,0 +1,78 @@
+.new-series-wrap {
+  .bk-select {
+    border: none;
+    border-bottom: 1px solid #c4c6cc;
+
+    &.is-focus {
+      box-shadow: none;
+    }
+  }
+
+  .level-select {
+    width: 400px;
+
+    .bk-select-prefix-icon {
+      top: 0;
+      left: 0;
+    }
+  }
+
+  .date-interval {
+    display: flex;
+
+    .date-input {
+      width: auto;
+
+      .bk-input-number {
+        width: 60px;
+      }
+    }
+
+    .unit-select {
+      min-width: 64px;
+      margin-left: 8px;
+    }
+  }
+
+  .threshold-interval {
+    display: flex;
+    align-items: center;
+    color: #63656e;
+
+    > .date-input {
+      width: auto;
+      margin-left: 3px;
+
+      .bk-input-number {
+        width: 60px;
+      }
+    }
+  }
+
+  .threshold-tip {
+    color: #3a84ff;
+  }
+
+  .select-method {
+    margin: 0 4px;
+  }
+
+  .dimension-alert {
+    margin-top: 10px;
+    background: #f5f7fa;
+    border: none;
+
+    .icon-info {
+      color: #979ba5;
+    }
+
+    .bk-alert-wraper {
+      align-items: center;
+    }
+
+    .bk-alert-title {
+      font-size: 12px;
+      color: #4d4f56;
+    }
+  }
+}

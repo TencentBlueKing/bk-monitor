@@ -63,3 +63,27 @@ def clean_md5_to_dimension_cache():
         CleanResult.clean_md5_to_dimension_cache()
     except Exception as e:
         logger.exception(e)
+
+
+def clean_new_series_seen_cache():
+    # 任务分发：按 CacheRouter 分片，与 clean_expired_detect_result 同范式
+    strategy_score_list = list(CacheRouter.objects.values_list("strategy_score", flat=1).order_by("strategy_score"))
+    if len(strategy_score_list) < 2:
+        return async_clean_new_series_seen_cache((0, 2**20))
+
+    strategy_score_list.append(0)
+    strategy_score_list = sorted(set(strategy_score_list))
+    for s_range in list(zip(strategy_score_list, strategy_score_list[1:])):
+        async_clean_new_series_seen_cache.delay(strategy_range=s_range)
+    return None
+
+
+@app.task(ignore_result=True, queue="celery_cron")
+def async_clean_new_series_seen_cache(strategy_range=None):
+    # 任务负载
+    logger.info("clean_new_series_seen_cache(%s-%s) start", *strategy_range)
+    try:
+        CleanResult.clean_new_series_seen_cache(strategy_range=strategy_range)
+    except Exception as e:
+        logger.exception("clean_new_series_seen_cache(%s-%s) Error: %s", *strategy_range, e)
+    logger.info("clean_new_series_seen_cache(%s-%s) done", *strategy_range)

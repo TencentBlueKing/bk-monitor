@@ -218,6 +218,22 @@ DETECT_PROCESS_DATA_COUNT = Counter(
     labelnames=("strategy_id", "type"),
 )
 
+# 新维度值检测(NewSeries)自监控：失败安全分支会静默不报，故指标是能力闭环的一部分。
+NEW_SERIES_PROCESS_TIME = Histogram(
+    name="bkmonitor_new_series_pre_detect_time",
+    documentation="NewSeries pre_detect(读旧态+写新态)耗时",
+    labelnames=("strategy_id",),
+    # 显式桶覆盖到 60s(整次 strategy detect 锁顶): 包装类默认桶顶=30s, 超 30s 全塌进 +Inf,
+    # p95/p99 会饱和、分不清 31s 与 59s(恰是锁危险区)。低端保留亚秒分辨率(现实最坏 ~7s)。
+    buckets=(0.1, 0.5, 1.0, 2.5, 5.0, 7.5, 10.0, 15.0, 20.0, 30.0, 45.0, 60.0, INF),
+)
+
+NEW_SERIES_PROCESS_COUNT = Counter(
+    name="bkmonitor_new_series_process_count",
+    documentation="NewSeries 处理计数(type: seen_write/trim/over_limit/invalid_value/failure)",
+    labelnames=("strategy_id", "type"),
+)
+
 # trigger
 TRIGGER_PROCESS_TIME = Histogram(
     name="bkmonitor_trigger_process_time",
@@ -439,6 +455,10 @@ ISSUE_LLM_TITLE_TOTAL = Counter(
     #   - invalid_output：输出校验不过（多行/禁项/空）
     #   - name_changed：CAS 失败（用户已改名），放弃写入
     #   - name_duplicated：业务内标题撞名，保留默认名
+    #   仅运维显式补偿路径（regenerate_issue_llm_title）产生的额外取值：
+    #   - not_found：Issue 不存在或业务归属不匹配
+    #   - skipped_user_renamed：已被真实用户手工改名，跳过（不覆盖用户标题）
+    #   - no_alert：Issue 无关联告警，无重跑素材
     # examples_source 取值 strategy|biz|static：自动 few-shot 是否生效及其层级；
     # auto 桶（strategy/biz）违例率劣化是 few-shot 漂移信号，回退 = 停周期任务等缓存过期
     labelnames=("bk_biz_id", "result", "examples_source"),

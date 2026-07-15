@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from dateutil import tz
 
-from metadata.models import StorageClusterRecord
+from metadata.models import ClusterInfo, StorageClusterRecord
 from metadata.models.storage import ESStorage
 
 
@@ -93,6 +93,25 @@ def create_or_delete_records(mocker):
     """
     创建测试用的 StorageClusterRecord 数据
     """
+    for cluster_id in (1, 2, 3):
+        ClusterInfo.objects.create(
+            cluster_id=cluster_id,
+            cluster_name=f"es-{cluster_id}",
+            cluster_type=ClusterInfo.TYPE_ES,
+            domain_name="127.0.0.1",
+            port=9200,
+            description="",
+            is_default_cluster=False,
+        )
+    ClusterInfo.objects.create(
+        cluster_id=4,
+        cluster_name="doris-4",
+        cluster_type=ClusterInfo.TYPE_DORIS,
+        domain_name="127.0.0.1",
+        port=9030,
+        description="",
+        is_default_cluster=False,
+    )
     record1 = StorageClusterRecord.objects.create(
         table_id="2_bklog_rt_create",
         cluster_id=1,
@@ -105,15 +124,23 @@ def create_or_delete_records(mocker):
         is_deleted=False,
         is_current=False,
     )
-    record2 = StorageClusterRecord.objects.create(
+    record3 = StorageClusterRecord.objects.create(
         table_id="2_bklog_rt_create",
         cluster_id=3,
+        is_deleted=False,
+        is_current=False,
+    )
+    record4 = StorageClusterRecord.objects.create(
+        table_id="2_bklog_rt_create",
+        cluster_id=4,
         is_deleted=False,
         is_current=False,
     )
     yield
     record1.delete()
     record2.delete()
+    record3.delete()
+    record4.delete()
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -124,7 +151,7 @@ def test_clean_index_v2(mock_get_client, es_storage, create_or_delete_records, m
     """
 
     # 根据 cluster_id 返回对应的 mock 客户端
-    def mock_get_client_by_cluster_id(cluster_id):
+    def mock_get_client_by_cluster_id(cluster_id, **kwargs):
         return mock_es_clients[cluster_id]
 
     mock_get_client.side_effect = mock_get_client_by_cluster_id
@@ -152,3 +179,8 @@ def test_clean_index_v2(mock_get_client, es_storage, create_or_delete_records, m
 
     record3 = StorageClusterRecord.objects.get(cluster_id=3)
     assert record3.is_deleted is True
+
+    # Doris 共用 StorageClusterRecord，但不能交给 ES 客户端清理。
+    record4 = StorageClusterRecord.objects.get(cluster_id=4)
+    assert record4.is_deleted is False
+    assert [call.kwargs["cluster_id"] for call in mock_get_client.call_args_list] == [1, 2, 3]

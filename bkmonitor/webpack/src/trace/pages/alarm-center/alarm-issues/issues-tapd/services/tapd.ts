@@ -1,0 +1,69 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+import {
+  getUserWorkspace,
+  rebindWorkspace,
+  revokeAuth,
+  searchTapdItems,
+  unbindWorkspace,
+} from 'monitor-api/modules/issue';
+
+import type {
+  GetUserWorkspaceData,
+  GetUserWorkspaceRequest,
+  RebindWorkspaceRequest,
+  RevokeAuthRequest,
+  UnbindWorkspaceRequest,
+} from '../typing';
+import type { RequestConfig } from 'monitor-api/base';
+
+/** 获取用户 TAPD 工作空间列表 */
+export const getUserWorkspaceApi = (
+  params: GetUserWorkspaceRequest,
+  options?: RequestConfig
+): Promise<GetUserWorkspaceData> => {
+  return getUserWorkspace(params, options);
+};
+
+/** 用户取消关联项目 */
+export const unbindWorkspaceApi = (params: UnbindWorkspaceRequest, options?: RequestConfig) => {
+  return unbindWorkspace(params, options);
+};
+
+/** 用户重新关联项目 */
+export const rebindWorkspaceApi = (params: RebindWorkspaceRequest, options?: RequestConfig) => {
+  return rebindWorkspace(params, options);
+};
+
+/** 用户取消授权 */
+export const revokeAuthApi = (params: RevokeAuthRequest, options?: RequestConfig) => {
+  return revokeAuth(params, options);
+};
+
+export const searchTapdItemsApi = (params, options?: RequestConfig) => {
+  return searchTapdItems(params, options);
+};

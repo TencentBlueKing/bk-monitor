@@ -32,6 +32,7 @@ import pytz
 import ujson
 from django.conf import settings
 from django.core.cache import cache
+from django.db.models import F
 from django.utils.translation import gettext as _
 
 from apps.api import BcsApi, BkLogApi, MonitorApi
@@ -113,6 +114,7 @@ from apps.log_search.handlers.es.indices_optimizer_context_tail import (
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.pre_search_handlers import PreSearchHandlers
 from apps.log_search.models import (
+    AsyncTask,
     IndexSetFieldsConfig,
     LogIndexSet,
     LogIndexSetData,
@@ -1243,7 +1245,7 @@ class SearchHandler:
             result_size += scroll_size
             yield self._deal_query_result(scroll_result)
 
-    def multi_get_slice_data(self, pre_file_name, export_file_type):
+    def multi_get_slice_data(self, pre_file_name, export_file_type, async_task_id=None):
         collector_config = CollectorConfig.objects.filter(index_set_id=self.index_set_id).first()
         if collector_config:
             storage_shards_nums = collector_config.storage_shards_nums
@@ -1260,12 +1262,15 @@ class SearchHandler:
                 "slice_max": slice_max,
                 "file_name": f"{pre_file_name}_slice_{idx}",
                 "export_file_type": export_file_type,
+                "async_task_id": async_task_id,
             }
             multi_execute_func.append(result_key=idx, func=self.get_slice_data, params=body, multi_func_params=True)
         result = multi_execute_func.run(return_exception=True)
         return result
 
-    def get_slice_data(self, slice_id: int, slice_max: int, file_name: str, export_file_type: str):
+    def get_slice_data(
+        self, slice_id: int, slice_max: int, file_name: str, export_file_type: str, async_task_id: int = None
+    ):
         """
         get_slice_data
         @param slice_id:
@@ -1280,15 +1285,22 @@ class SearchHandler:
         # 文件路径
         file_path = f"{ASYNC_DIR}/{file_name}_cluster_{self.storage_cluster_id}.{export_file_type}"
 
-        def content_generator():
-            yield from result.get("hits", {}).get("hits", [])
+        def result_batch_generator():
+            yield result.get("hits", {}).get("hits", [])
             for res in generate_result:
                 origin_result_list = res.get("hits", {}).get("hits", [])
-                yield from origin_result_list
+                yield origin_result_list
 
         with open(file_path, "a+", encoding="utf-8") as f:
-            for content in content_generator():
-                f.write(f"{ujson.dumps(content, ensure_ascii=False)}\n")
+            for result_batch in result_batch_generator():
+                if not result_batch:
+                    continue
+                for content in result_batch:
+                    f.write(f"{ujson.dumps(content, ensure_ascii=False)}\n")
+                if async_task_id:
+                    AsyncTask.objects.filter(id=async_task_id).update(
+                        exported_count=F("exported_count") + len(result_batch)
+                    )
         return file_path
 
     def slice_pre_get_result(self, size: int, slice_id: int, slice_max: int):
@@ -1941,23 +1953,30 @@ class SearchHandler:
 
     @staticmethod
     def init_time_field(index_set_id: int, scenario_id: str = None) -> tuple:
+        log_index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         if not scenario_id:
-            scenario_id = LogIndexSet.objects.filter(index_set_id=index_set_id).first().scenario_id
+            scenario_id = log_index_set_obj.scenario_id
         # get timestamp field
-        if scenario_id in [Scenario.BKDATA, Scenario.LOG]:
-            return "dtEventTimeStamp", TimeFieldTypeEnum.DATE.value, TimeFieldUnitEnum.SECOND.value
+        if not log_index_set_obj.is_group and scenario_id in [Scenario.BKDATA, Scenario.LOG]:
+            return "dtEventTimeStamp", TimeFieldTypeEnum.DATE.value, TimeFieldUnitEnum.MILLISECOND.value
         else:
-            log_index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
             time_field = log_index_set_obj.time_field
             time_field_type = log_index_set_obj.time_field_type
             time_field_unit = log_index_set_obj.time_field_unit
             if time_field:
                 return time_field, time_field_type, time_field_unit
+            if log_index_set_obj.is_group:
+                child_index_set_ids = log_index_set_obj.get_child_index_set_ids()
+                if not child_index_set_ids:
+                    raise BaseSearchIndexSetException(
+                        BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id)
+                    )
+                return SearchHandler.init_time_field(child_index_set_ids[0])
             index_set_obj: LogIndexSetData = LogIndexSetData.objects.filter(index_set_id=index_set_id).first()
             if not index_set_obj:
                 raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id))
             time_field = index_set_obj.time_field
-            return time_field, TimeFieldTypeEnum.DATE.value, TimeFieldUnitEnum.SECOND.value
+            return time_field, TimeFieldTypeEnum.DATE.value, TimeFieldUnitEnum.MILLISECOND.value
 
     def _init_sort(self) -> list:
         if self.only_for_agg:
@@ -2773,6 +2792,11 @@ class UnionSearchHandler:
         time_fields_type = set()
         time_fields_unit = set()
         for index_set_obj in index_set_objs:
+            (
+                index_set_obj.time_field,
+                index_set_obj.time_field_type,
+                index_set_obj.time_field_unit,
+            ) = SearchHandler.init_time_field(index_set_obj.index_set_id, index_set_obj.scenario_id)
             if not index_set_obj.time_field or not index_set_obj.time_field_type or not index_set_obj.time_field_unit:
                 raise SearchUnKnowTimeField()
             time_fields.add(index_set_obj.time_field)
@@ -2941,6 +2965,11 @@ class UnionSearchHandler:
         time_fields_type = set()
         time_fields_unit = set()
         for index_set_obj in index_set_objs:
+            (
+                index_set_obj.time_field,
+                index_set_obj.time_field_type,
+                index_set_obj.time_field_unit,
+            ) = SearchHandler.init_time_field(index_set_obj.index_set_id, index_set_obj.scenario_id)
             if not index_set_obj.time_field or not index_set_obj.time_field_type or not index_set_obj.time_field_unit:
                 raise SearchUnKnowTimeField()
             time_fields.add(index_set_obj.time_field)
@@ -3178,6 +3207,11 @@ class UnionSearchHandler:
 
         # 处理时间字段
         for index_set_obj in index_set_objs:
+            (
+                index_set_obj.time_field,
+                index_set_obj.time_field_type,
+                index_set_obj.time_field_unit,
+            ) = SearchHandler.init_time_field(index_set_obj.index_set_id, index_set_obj.scenario_id)
             if not index_set_obj.time_field or not index_set_obj.time_field_type or not index_set_obj.time_field_unit:
                 raise SearchUnKnowTimeField()
             union_time_fields.add(index_set_obj.time_field)
@@ -3330,6 +3364,11 @@ class UnionSearchHandler:
 
         # 处理时间字段
         for index_set_obj in index_set_objs:
+            (
+                index_set_obj.time_field,
+                index_set_obj.time_field_type,
+                index_set_obj.time_field_unit,
+            ) = SearchHandler.init_time_field(index_set_obj.index_set_id, index_set_obj.scenario_id)
             if not index_set_obj.time_field or not index_set_obj.time_field_type or not index_set_obj.time_field_unit:
                 raise SearchUnKnowTimeField()
             union_time_fields.add(index_set_obj.time_field)

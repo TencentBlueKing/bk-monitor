@@ -421,6 +421,7 @@ export default {
   '是否删除该分组?': 'Do you want to delete this group?',
   '确认删除该查询模板？': 'Delete this query template?',
   '确认删除该告警模板？': 'Delete this alarm template?',
+  '确认取消关联吗？': 'Are you sure you want to disassociate?',
 
   '你确认要启用？': 'Are you sure you want to enable ?',
   '你确认要停用？': 'Are you sure you want to disable ?',
@@ -553,8 +554,14 @@ export default {
   克隆模板成功: 'Cloned template successfully',
   解除关联成功: 'Unassociation successful',
   解除关联失败: 'Unassociation failed',
+
+  // RUM
+  '确认停用该应用？': 'Confirm to disable the application?',
+  '确认删除该应用？': 'Confirm to delete the application?',
+  '确认启用该应用？': 'Confirm to enable the application?',
   评论发送失败: 'Comment sending failed',
 
   '已拆分为独立 Issue': 'Split into independent Issue',
   issue合并成功: 'Issue merged successfully',
+  取消授权成功: 'Authorization cancelled successfully',
 };

@@ -302,7 +302,17 @@ class K8sCollectorHandler(CollectorHandler):
         # 更新归属索引集
         index_set = LogIndexSet.objects.filter(index_set_id=self.data.index_set_id).first()
         if index_set:
-            IndexSetHandler(index_set.index_set_id).update_parent_index_sets(data.get("parent_index_set_ids", []))
+            parent_index_set_ids = data.get("parent_index_set_ids")
+            parent_index_set_names = data.get("parent_index_set_names")
+
+            parent_index_set_ids = CollectorHandler.obtain_parent_index_set_ids(
+                parent_index_set_ids,
+                parent_index_set_names,
+                bk_biz_id=bk_biz_id,
+                is_update=True,
+            )
+
+            IndexSetHandler(index_set.index_set_id).update_parent_index_sets(parent_index_set_ids)
 
         # collector_config_name更改后更新索引集名称
         if _collector_config_name != self.data.collector_config_name and self.data.index_set_id:
@@ -545,8 +555,19 @@ class K8sCollectorHandler(CollectorHandler):
 
             # 创建索引集，并添加到归属索引集中
             index_set = self.data.create_index_set()
-            if data.get("parent_index_set_ids"):
-                IndexSetHandler(index_set.index_set_id).add_to_parent_index_sets(data["parent_index_set_ids"])
+
+            parent_index_set_ids = data.get("parent_index_set_ids")
+            parent_index_set_names = data.get("parent_index_set_names")
+
+            parent_index_set_ids = CollectorHandler.obtain_parent_index_set_ids(
+                parent_index_set_ids,
+                parent_index_set_names,
+                bk_biz_id=data["bk_biz_id"],
+                is_update=False,
+            )
+
+            if parent_index_set_ids:
+                IndexSetHandler(index_set.index_set_id).add_to_parent_index_sets(parent_index_set_ids)
 
             if self.data.yaml_config_enabled:
                 # yaml 模式，先反序列化解出来，再保存
@@ -1187,6 +1208,7 @@ class K8sCollectorHandler(CollectorHandler):
                             if config.get("conditions")
                             else {"type": "match", "match_type": "include", "match_content": ""},
                             **config.get("multiline", {}),
+                            **({"tail_files": config["tail_files"]} if "tail_files" in config else {}),
                         },
                         workload_type=workload_type,
                         workload_name=workload_name,
@@ -1213,6 +1235,7 @@ class K8sCollectorHandler(CollectorHandler):
                             if config.get("conditions")
                             else {"type": "match", "match_type": "include", "match_content": ""},
                             **config.get("multiline", {}),
+                            **({"tail_files": config["tail_files"]} if "tail_files" in config else {}),
                         },
                         workload_type=workload_type,
                         workload_name=workload_name,
@@ -1488,6 +1511,7 @@ class K8sCollectorHandler(CollectorHandler):
                             if conf.get("conditions")
                             else {"type": "match", "match_type": "include", "match_content": ""},
                             **conf.get("multiline", {}),
+                            **({"tail_files": conf["tail_files"]} if "tail_files" in conf else {}),
                         },
                         "container": {
                             "workload_type": conf["container"].get("workload_type", ""),
@@ -1521,6 +1545,7 @@ class K8sCollectorHandler(CollectorHandler):
                             if conf.get("conditions")
                             else {"type": "match", "match_type": "include", "match_content": ""},
                             **conf.get("multiline", {}),
+                            **({"tail_files": conf["tail_files"]} if "tail_files" in conf else {}),
                         },
                         "container": {
                             "workload_type": conf["container"].get("workload_type", ""),
@@ -1661,6 +1686,14 @@ class K8sCollectorHandler(CollectorHandler):
         if edge_transport_params:
             ext_options = request_params.get("extOptions") or {}
             ext_options["output.kafka"] = edge_transport_params
+            request_params["extOptions"] = ext_options
+
+        # 用户显式配置从头采集（tail_files=False）时，通过 extOptions 透传给 sidecar 生成的子配置，
+        # 在最终序列化时覆盖 tail_files，使存量+新增容器都从文件头部开始采集。
+        # 仅当严格为 False 时注入；缺失 / True / None 一律不处理，保证存量采集项行为不变。
+        if container_config.params.get("tail_files") is False:
+            ext_options = request_params.get("extOptions") or {}
+            ext_options["tail_files"] = False
             request_params["extOptions"] = ext_options
 
         name = self._generate_bklog_config_name(container_config.id)

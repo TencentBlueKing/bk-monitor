@@ -29,16 +29,39 @@
       :content-type="contentType"
       :handle-click-tools="handleClickTools"
     ></LogRows>
+    <RealTimeLog
+      :is-show="isShowRealTimeLog"
+      :log-params="logDialog.data"
+      :retrieve-params="retrieveParams"
+      :target-fields="targetFields"
+      :indexSetId="logDialog.indexSetId"
+      :row-index="currentIndex"
+      @close-dialog="hideDialog"
+    />
+    <ContextLog
+      :is-show="isShowContextLog"
+      :log-params="logDialog.data"
+      :retrieve-params="retrieveParams"
+      :target-fields="targetFields"
+      :indexSetId="logDialog.indexSetId"
+      :row-index="currentIndex"
+      @close-dialog="hideDialog"
+    />
     <!-- <AiAssitant ref="refAiAssitant" @close="handleAiClose"></AiAssitant> -->
   </div>
 </template>
 
 <script>
+import { parseTableRowData } from '@/common/util';
+import ContextLog from '@/views/retrieve-v3/search-result/original-log/context-log/index.tsx';
+import RealTimeLog from '@/views/retrieve-v3/search-result/original-log/real-time-log';
 import LogRows from './log-rows.tsx';
 import RetrieveHelper from '@/views/retrieve-helper';
 export default {
   components: {
+    ContextLog,
     LogRows,
+    RealTimeLog,
   },
   props: {
     contentType: {
@@ -50,6 +73,19 @@ export default {
       default: () => ({}),
     },
   },
+  data() {
+    return {
+      targetFields: [],
+      isShowRealTimeLog: false,
+      isShowContextLog: false,
+      logDialog: {
+        type: '',
+        data: {},
+        indexSetId: 0,
+      },
+      currentIndex: 0,
+    };
+  },
   computed: {
     isExternal() {
       return !this.$store.getters.isAiAssistantActive;
@@ -59,32 +95,15 @@ export default {
     // handleAiClose() {
     //   this.$el.querySelector(".ai-active")?.classList.remove("ai-active");
     // },
-    openRelatedLogTab(type, index) {
-      const retrieveParams = this.$store.getters.retrieveParams || {};
-      const routeQuery = {
-        ...this.$route.query,
-        indexId: this.$store.getters.indexId || this.$route.params.indexId,
-        bizId: this.$store.getters.bkBizId,
-        spaceUid: this.$store.getters.spaceUid,
-        rowIndex: Math.max(0, index - 1),
-        begin: retrieveParams.begin ?? 0,
-        size: retrieveParams.size ?? 50,
-        start_time: retrieveParams.start_time,
-        end_time: retrieveParams.end_time,
-        keyword: retrieveParams.keyword,
-        search_mode: retrieveParams.search_mode,
-        addition: JSON.stringify(retrieveParams.addition || []),
-        sort_list: JSON.stringify(retrieveParams.sort_list || []),
-        ip_chooser: JSON.stringify(retrieveParams.ip_chooser || {}),
-        host_scopes: JSON.stringify(retrieveParams.host_scopes || {}),
-        interval: retrieveParams.interval,
-        time_zone: retrieveParams.time_zone,
-      };
-      const route = this.$router.resolve({
-        name: type === 'realTimeLog' ? 'retrieve-real-time-tab' : 'retrieve-context-tab',
-        query: routeQuery,
-      });
-      window.open(route.href, '_blank', 'noopener,noreferrer');
+    openLogDialog(row, type, indexSetId) {
+      this.logDialog.data = row;
+      this.logDialog.type = type;
+      this.logDialog.indexSetId = indexSetId;
+      if (type === 'realTimeLog') {
+        this.isShowRealTimeLog = true;
+      } else {
+        this.isShowContextLog = true;
+      }
     },
     openWebConsole(row) {
       // (('cluster', 'container_id'),
@@ -129,23 +148,82 @@ export default {
     handleClickTools(event, row, config, index) {
       if (event === 'ai') {
         RetrieveHelper.aiAssitantHelper.openAiAssitant(true, {
-            space_uid: this.$store.getters.spaceUid,
-            index_set_id: this.$store.getters.indexId,
-            log: row,
-            index,
-          });
-          return;
-        }
+          space_uid: this.$store.getters.spaceUid,
+          index_set_id: this.$store.getters.indexId,
+          log: row,
+          index,
+        });
+        return;
+      }
 
-        if (event === 'add-to-ai') {
-          RetrieveHelper.aiAssitantHelper.setCiteText(row);
-          return;
-        }
+      if (event === 'add-to-ai') {
+        RetrieveHelper.aiAssitantHelper.setCiteText(row);
+        return;
+      }
       if (['realTimeLog', 'contextLog'].includes(event)) {
-        this.openRelatedLogTab(event, index);
+        this.currentIndex = index - 1;
+        const contextFields = config.contextAndRealtime?.extra?.context_fields;
+        const timeField = this.$store.state.indexFieldInfo.time_field;
+        const dialogNewParams = {
+          dtEventTimeStamp: row.dtEventTimeStamp,
+        };
+        const { targetFields = [] } = config.indexSetValue || {};
+        this.targetFields = targetFields ?? [];
+
+        if (Array.isArray(contextFields) && contextFields.length) {
+          const targetContextFields = Array.from(new Set([...contextFields, timeField].filter(Boolean)));
+          targetContextFields.forEach((field) => {
+            if (field === 'bk_host_id') {
+              if (row[field]) dialogNewParams[field] = row[field];
+            } else {
+              dialogNewParams[field] = parseTableRowData(row, field, '', this.$store.state.isFormatDate, '');
+            }
+          });
+        } else {
+          Object.assign(dialogNewParams, row);
+        }
+        this.openLogDialog(dialogNewParams, event, this.getIndexSetIdByRow(row));
       } else if (event === 'webConsole') this.openWebConsole(row);
       else if (event === 'logSource') this.$store.dispatch('changeShowUnionSource');
     },
+    getIndexSetIdByRow(row = {}) {
+      const rowIndexSetId = row.__index_set_id__ ?? row.index_set_id;
+      if (rowIndexSetId !== undefined && rowIndexSetId !== null && rowIndexSetId !== '') {
+        return Number(rowIndexSetId);
+      }
+
+      // 场景化检索模式下，row.__index_set_id__ 可能不存在，
+      // 需要通过 row.__result_table 在 flatIndexSetList 的 indices 中查找匹配的 result_table_id，取其 index_set_id
+      if (this.$store.getters.isSceneMode && row.__result_table) {
+        const flatIndexSetList = this.$store.state.retrieve.flatIndexSetList;
+        for (const indexSet of flatIndexSetList) {
+          const matchedIndex = (indexSet.indices || []).find(
+            index => index.result_table_id === row.__result_table
+          );
+          if (matchedIndex) {
+            return matchedIndex.index_set_id;
+          }
+        }
+      }
+
+      const storeIndexId = this.$store.getters.indexId;
+      if (storeIndexId !== undefined && storeIndexId !== null && storeIndexId !== '') {
+        return Number(storeIndexId);
+      }
+
+      return Number(this.$route.params.indexId || 0);
+    },
+    hideDialog() {
+      this.logDialog.type = '';
+      this.logDialog.data = {};
+      this.logDialog.indexSetId = 0;
+      this.targetFields = [];
+      this.isShowContextLog = false;
+      this.isShowRealTimeLog = false;
+    },
+  },
+  beforeUnmount() {
+    this.hideDialog();
   },
 };
 </script>

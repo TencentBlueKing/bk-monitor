@@ -1,0 +1,125 @@
+/* 可编辑字段组件样式 */
+.editable-field {
+  display: flex;
+  flex-direction: column;
+
+  @keyframes btn-loading {
+    0% {
+      transform: rotate(0deg);
+    }
+
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  .editable-field-wrap {
+    display: flex;
+    align-items: center;
+  }
+
+  &-label {
+    display: inline-block;
+    width: 80px;
+    margin-right: 8px;
+    font-size: 12px;
+    color: #979ba5;
+    text-align: right;
+  }
+
+  &-content {
+    flex: 1;
+
+    &.skeleton-element {
+      width: 120px;
+      height: 20px;
+    }
+  }
+
+  .error-msg {
+    padding-left: 90px;
+    line-height: 20px;
+    color: #ea3636;
+  }
+
+  &-view-mode {
+    display: flex;
+    align-items: center;
+    cursor: default;
+
+    .suffix {
+      margin-left: 4px;
+      color: #979ba5;
+    }
+
+    .editable-field-value {
+      font-size: 12px;
+      color: #313238;
+    }
+
+    .editable-field-icon {
+      align-items: center;
+      margin-left: 6px;
+      font-size: 12px;
+      color: #979ba5;
+
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+  }
+
+  &-edit-mode {
+    display: flex;
+    align-items: center;
+
+    .edit-item {
+      width: 160px;
+    }
+
+    .bk-select-trigger {
+      height: 32px;
+    }
+
+    .action-btns {
+      display: flex;
+      gap: 6px;
+      margin-left: 4px;
+
+      .confirm {
+        font-size: 24px;
+        color: #2dcb56;
+        cursor: pointer;
+      }
+
+      .close {
+        font-size: 24px;
+        color: #979ba5;
+        cursor: pointer;
+      }
+    }
+
+    .action-loading {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      margin-left: 5px;
+      border: 2px solid #c4c6cc;
+      border-right: 2px solid transparent;
+      border-radius: 50%;
+      animation: btn-loading 1s linear infinite;
+    }
+  }
+
+  &.is-editable {
+    .editable-field-label {
+      .text {
+        border-bottom: 1px dashed rgb(151 155 165);
+      }
+    }
+
+    .editable-field-view-mode {
+      cursor: pointer;
+    }
+  }
+}

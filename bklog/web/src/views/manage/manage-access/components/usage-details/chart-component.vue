@@ -301,7 +301,7 @@
         );
       },
       goToGuide() {
-        window.open(this.retrieveTimeGuide, '_blank');
+        window.open(this.retrieveTimeGuide, '_blank', 'noopener,noreferrer');
       },
     },
   };

@@ -1614,11 +1614,17 @@ class IncidentResultsResource(IncidentBaseResource):
         raw_results = self.get_remote_analysis_results(incident, bk_biz_id=validated_request_data["bk_biz_id"])
 
         if "incident_diagnosis" in raw_results and isinstance(raw_results["incident_diagnosis"], dict):
-            diagnosis_result = {"status": None, "enabled": None, "sub_panels": {}}
+            diagnosis_result = {
+                "status": None,
+                "enabled": None,
+                "sub_panels": {},
+                "extracted_info": raw_results["incident_diagnosis"].get("extracted_info", {}),
+            }
             for sub_panel_name, sub_panel in raw_results["incident_diagnosis"].get("sub_panels", {}).items():
                 diagnosis_result["sub_panels"][sub_panel_name] = {
                     "status": sub_panel["status"],
                     "message": sub_panel["message"] if sub_panel.get("message") else "",
+                    "extracted_info": sub_panel.get("extracted_info", {}),
                     "enabled": True
                     if sub_panel.get("status") == "running"
                     or (sub_panel.get("is_show", True) and self._content_valid(sub_panel.get("content")))
@@ -1674,7 +1680,8 @@ class IncidentDiagnosisResource(IncidentBaseResource):
         incident = self.get_incident_document(str(validated_request_data["id"]))
         bk_biz_ids = validated_request_data["bk_biz_ids"]
         raw_results = self.get_remote_analysis_results(incident, bk_biz_id=bk_biz_ids[0] if bk_biz_ids else None)
-        raw_content = raw_results.get(panel, {}).get("sub_panels", {}).get(sub_panel, {}).get("content")
+        raw_sub_panel = raw_results.get(panel, {}).get("sub_panels", {}).get(sub_panel, {})
+        raw_content = raw_sub_panel.get("content")
         # 设置默认返回
         display_panel = sub_panel
         content = []
@@ -1718,10 +1725,11 @@ class IncidentDiagnosisResource(IncidentBaseResource):
         else:
             content = raw_content
         diagnosis_result = {"sub_panel": display_panel, "contents": content}
-        display_content = raw_results.get(panel, {}).get("sub_panels", {}).get(sub_panel, {}).get("display")
-        individual_summary_content = (
-            raw_results.get(panel, {}).get("sub_panels", {}).get(sub_panel, {}).get("individual_summary")
-        )
+        extracted_info = raw_sub_panel.get("extracted_info") or raw_results.get(panel, {}).get("extracted_info")
+        display_content = raw_sub_panel.get("display")
+        individual_summary_content = raw_sub_panel.get("individual_summary")
+        if extracted_info:
+            diagnosis_result.update({"extracted_info": extracted_info})
         if display_content:
             diagnosis_result.update({"display": display_content})
         if individual_summary_content:

@@ -26,7 +26,7 @@
 
 import { type PropType, computed, defineComponent, nextTick, shallowRef, useTemplateRef } from 'vue';
 
-import { Input, Loading } from 'bkui-vue';
+import { Button, Input, Loading, Popover } from 'bkui-vue';
 import { EditLine } from 'bkui-vue/lib/icon';
 import { renameIssue } from 'monitor-api/modules/issue';
 import { useI18n } from 'vue-i18n';
@@ -67,6 +67,7 @@ export default defineComponent({
     previous: () => true,
     next: () => true,
     nameChange: (_val: string) => true,
+    createTapdSliderShowChange: () => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -89,6 +90,8 @@ export default defineComponent({
     const isEdit = shallowRef(false);
     /** 编辑名称的加载状态 */
     const editNameLoading = shallowRef(false);
+    /** 创建单据Popover */
+    const createTapdPopover = useTemplateRef<InstanceType<typeof Popover>>('createTapdPopover');
 
     /**
      * 处理编辑名称
@@ -168,6 +171,11 @@ export default defineComponent({
       }
     };
 
+    const handleCreateTapdSliderShowChange = () => {
+      emit('createTapdSliderShowChange');
+      createTapdPopover.value.hide();
+    };
+
     return {
       editName,
       isEdit,
@@ -177,6 +185,7 @@ export default defineComponent({
       handleBtnClick,
       handleEditName,
       handleNameBlur,
+      handleCreateTapdSliderShowChange,
     };
   },
   render() {
@@ -186,6 +195,7 @@ export default defineComponent({
           <div class='level-tag skeleton-element' />
           <div class='issues-detail-title skeleton-element' />
           <div class='issues-detail-head-btn-group'>
+            <div class='btn-item skeleton-element' />
             <div class='btn-item skeleton-element' />
             <div class='btn-item skeleton-element' />
           </div>
@@ -250,6 +260,35 @@ export default defineComponent({
                 <span class='btn-text'>{item.title}</span>
               </div>
             ))}
+          <div class='btn-group-item create-tapd'>
+            <Popover
+              ref='createTapdPopover'
+              v-slots={{
+                content: () => (
+                  <div class='create-tapd-menu-popover-content'>
+                    <div
+                      class='create-tapd-menu-item'
+                      onClick={this.handleCreateTapdSliderShowChange}
+                    >
+                      {this.$t('TAPD 单据')}
+                    </div>
+                    {/* <div class='create-tapd-menu-item disabled'>Github Issue</div> */}
+                  </div>
+                ),
+              }}
+              arrow={false}
+              theme='light create-tapd-menu-popover'
+              trigger='click'
+            >
+              <Button
+                class='create-tapd-btn'
+                theme='primary'
+              >
+                <span>{this.$t('创建单据')}</span>
+                <i class='icon-monitor icon-arrow-down' />
+              </Button>
+            </Popover>
+          </div>
         </div>
       </div>
     );

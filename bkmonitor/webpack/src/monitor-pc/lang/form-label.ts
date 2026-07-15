@@ -147,6 +147,7 @@ export default {
   语音拨打顺序: 'Voice Call Order',
   串行: 'Serial',
   并行: 'Parallel',
+  检测周期: 'Detection Cycle',
 
   // 专业表单 - 图表相关
   已选图表: 'Selected charts',
@@ -453,6 +454,7 @@ export default {
   周: 'Week',
   年: 'Year',
   天: 'Day',
+  维度组合: 'Dimension combinations',
   昨天: 'Yesterday',
   一: 'One',
   二: 'Two',
@@ -1712,6 +1714,8 @@ export default {
   // '采集配置名称/ID': 'Collection configuration name/ID',
   '搜素 ID、名称': 'Search ID, Name',
   '主机&云平台': 'Host & Cloud Platform',
+  '前端监控 - RUM': 'Frontend Monitoring - RUM',
+  RUM: 'RUM',
   指标选择器: 'Metric Selector',
 
   // 日历
@@ -2010,9 +2014,15 @@ export default {
   数据后保留小数位: 'Data decimal places',
   '{0} 位': '{0} decimal places',
   Y轴最小值自适应: 'Y-axis minimum value adaptive',
+
+  // RUM
+  页面加载: 'Page load',
+  'API 请求': 'API request',
   动作: 'Action',
   Issue聚合: 'Issue aggregation',
   生效告警级别: 'Effective alarm level',
   操作时间: 'Operation time',
   影响范围维度: 'Impact scope dimension',
+
+  单据类型: 'Ticket type',
 };

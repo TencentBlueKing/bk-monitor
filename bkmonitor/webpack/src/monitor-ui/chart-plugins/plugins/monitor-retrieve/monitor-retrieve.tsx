@@ -27,7 +27,6 @@ import Vue from 'vue';
 
 import { Component, Inject, InjectReactive } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-import dayjs from 'dayjs';
 
 import {
   i18n,
@@ -37,11 +36,13 @@ import {
   MonitorApmLog as Log,
   logStore,
 } from '@blueking/monitor-apm-log/main';
+import dayjs from 'dayjs';
 import { serviceLogInfo, serviceRelationList } from 'monitor-api/modules/apm_log';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
 
 import type { IViewOptions } from '../../typings';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
+import ApmTraceExplore from '../apm-trace-explore';
 
 import './monitor-retrieve.scss';
 import '@blueking/monitor-apm-log/css/main.css';
@@ -65,6 +66,8 @@ export default class MonitorRetrieve extends tsc<void> {
   bklogContentDom: HTMLElement | null = null;
   bklogContentScrollTop = 0;
   showQuickJump = true;
+  /** 打开 ApmTraceExplore Trace 详情侧边窗 */
+  slideDetail: { appName: string; bizId?: number; traceId: string } | null = null;
 
   async created() {
     initWindowState();
@@ -78,6 +81,22 @@ export default class MonitorRetrieve extends tsc<void> {
     }
 
     this.bklogContentDom?.removeEventListener('scroll', this.handleBklogContentScroll);
+  }
+
+  handleRelatedTraceClick(data: { appName: string; bkBizId: number; traceId: string }) {
+    if (!data?.traceId) {
+      return;
+    }
+
+    this.slideDetail = {
+      appName: data.appName,
+      bizId: data.bkBizId,
+      traceId: data.traceId,
+    };
+  }
+
+  handleSliderClose() {
+    this.slideDetail = null;
   }
 
   async init() {
@@ -106,6 +125,7 @@ export default class MonitorRetrieve extends tsc<void> {
               timezone: this.timezone,
               refreshImmediate: this.refreshImmediate,
               handleChartDataZoom: this.handleChartDataZoom,
+              handleRelatedTraceClick: this.handleRelatedTraceClick,
             },
           }),
       });
@@ -178,9 +198,9 @@ export default class MonitorRetrieve extends tsc<void> {
       );
       window.open(url, '_blank');
     } else {
-      const { indexId, unionList, start_time, end_time, addition, search_mode, keyword } = this.$route.query;
-      const startMs = this.toUnixMilliseconds(start_time);
-      const endMs = this.toUnixMilliseconds(end_time);
+      const { from, to, indexId, unionList, start_time, end_time, addition, search_mode, keyword } = this.$route.query;
+      const startMs = this.toUnixMilliseconds(start_time || from);
+      const endMs = this.toUnixMilliseconds(end_time || to);
       let url = '';
       if (unionList) {
         url = `${window.bk_log_search_url}#/retrieve?bizId=${window.bk_biz_id}&search_mode=${search_mode}&keyword=${keyword}&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}&unionList=${unionList}`;
@@ -215,8 +235,8 @@ export default class MonitorRetrieve extends tsc<void> {
       <div class='monitor-retrieve'>
         {this.showQuickJump && (
           <div
-            class='quick-jump-container'
             style={{ top: `${14 - this.bklogContentScrollTop}px` }}
+            class='quick-jump-container'
           >
             <bk-button
               class='quick-jump'
@@ -268,6 +288,13 @@ export default class MonitorRetrieve extends tsc<void> {
         ) : (
           <div id='main' />
         )}
+        {/* 关联 trace 详情侧边窗 */}
+        <div style='height: 1px;width: 1px;overflow: hidden;'>
+          <ApmTraceExplore
+            slideDetail={this.slideDetail}
+            onSliderClose={this.handleSliderClose}
+          />
+        </div>
       </div>
     );
   }

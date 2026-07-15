@@ -45,6 +45,7 @@ import App from './pages/app';
 import router from './router/router';
 import Authority from './store/modules/authority';
 import store from './store/store';
+import { dispatchApmK8sCacheFlush } from 'monitor-pc/pages/monitor-k8s/monitor-k8s-apm';
 import 'monitor-pc/common/global-login';
 
 import './static/scss/global.scss';
@@ -82,6 +83,8 @@ if (window.__POWERED_BY_BK_WEWEB__) {
   Vue.prototype.$bus = new Vue();
   Vue.prototype.$api = Api;
   Vue.prototype.$authorityStore = Authority;
+  /** 在 APM 作为微应用嵌入 monitor-pc 时，向父页面注册一个「离开前回调 */
+  window.__BK_WEWEB_DATA__?.registerApmLeaveHandler?.(dispatchApmK8sCacheFlush);
 } else {
   Api.model
     .enhancedContext({

@@ -26,7 +26,7 @@ paths:
         pluginConfigs: []
         authConfig:
           userVerifiedRequired: true
-          appVerifiedRequired: true
+          appVerifiedRequired: false
           resourcePermissionRequired: true
   /mcp/get_index_set_fields/:
     get:
@@ -61,7 +61,7 @@ paths:
         pluginConfigs: []
         authConfig:
           userVerifiedRequired: true
-          appVerifiedRequired: true
+          appVerifiedRequired: false
           resourcePermissionRequired: true
   /mcp/search_logs/:
     post:
@@ -104,6 +104,19 @@ paths:
                   type: string
                   default: '"level:ERROR"'
                   description: 'Log search query string. Supports field-based queries and keyword searches. Use field mappings from get_index_set_fields to construct valid queries. Examples: level:ERROR, status:500 AND path:/api/*, exception、log:"trace_id=f549a94f6a39c330922cefe8f14a0e39 span_id=e144582eec852645". 日志查询字符串。支持基于字段的查询和关键字搜索。使用 get_index_set_fields 中的字段映射构建有效查询。示例:level:ERROR、status:500 AND path:/api/*、exception、log:"trace_id=f549a94f6a39c330922cefe8f14a0e39 span_id=e144582eec852645"'
+                conditions:
+                  type: string
+                  description: 'Structured filter conditions, combined with query_string using AND relation. Ideal for precise field-level filtering. Format: {"field_list": [{"field_name": "level", "op": "eq", "value": ["ERROR", "WARN"]}], "condition_list": ["and"]}. op supports eq/ne/req(regex) etc.; value is a list (multi-value defaults to OR); condition_list length = field_list.length - 1. Optional, omit if not needed. 结构化过滤条件,与 query_string 为 AND 关系,适合精确的字段级过滤。格式: {"field_list": [{"field_name": "level", "op": "eq", "value": ["ERROR", "WARN"]}], "condition_list": ["and"]}。op 支持 eq/ne/req(正则) 等;value 为多值列表(默认 OR 关系);condition_list 长度为 field_list.length - 1。可选,如不需要可省略。'
+                keep_columns:
+                  type: string
+                  description: 'List of output fields to keep, used to trim the response and reduce data size (avoid LLM context overflow). Format: JSON array, e.g. ["dtEventTimeStamp", "log", "level"]. Optional, returns all fields if omitted. 需要保留的输出字段列表,用于裁剪返回内容、降低数据量(避免 LLM 上下文超限)。格式: JSON 数组,例如 ["dtEventTimeStamp", "log", "level"]。可选,省略则返回全部字段。'
+                order_by:
+                  type: string
+                  description: 'Result sort fields. Format: JSON array, "-" prefix means descending. e.g. ["-dtEventTimeStamp"] sorts by time descending (newest first). Optional. 结果排序字段列表。格式: JSON 数组,"-" 前缀表示降序。例如 ["-dtEventTimeStamp"] 表示按时间倒序(最新在前)。可选。'
+                offset:
+                  type: string
+                  default: '0'
+                  description: 'Offset for pagination, used with limit to fetch subsequent pages (e.g. page 1 offset=0, page 2 offset=limit). Default: 0. 分页偏移量,与 limit 配合翻页(例如第1页 offset=0,第2页 offset=limit)。默认值: 0。'
         required: false
         description: ''
       x-bk-apigateway-resource:
@@ -120,7 +133,7 @@ paths:
         pluginConfigs: []
         authConfig:
           userVerifiedRequired: true
-          appVerifiedRequired: true
+          appVerifiedRequired: false
           resourcePermissionRequired: true
   /mcp/search_index_set_context/:
     post:
@@ -191,7 +204,7 @@ paths:
         pluginConfigs: []
         authConfig:
           userVerifiedRequired: true
-          appVerifiedRequired: true
+          appVerifiedRequired: false
           resourcePermissionRequired: true
   /mcp/analyze_field/:
     post:
@@ -264,7 +277,7 @@ paths:
         pluginConfigs: []
         authConfig:
           userVerifiedRequired: true
-          appVerifiedRequired: true
+          appVerifiedRequired: false
           resourcePermissionRequired: true
   /mcp/search_log_clustering_pattern/:
     post:
@@ -325,5 +338,5 @@ paths:
         pluginConfigs: []
         authConfig:
           userVerifiedRequired: true
-          appVerifiedRequired: true
+          appVerifiedRequired: false
           resourcePermissionRequired: true

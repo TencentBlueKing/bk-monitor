@@ -48,6 +48,7 @@ export default {
   修改告警风暴开关: 'Edit Alarm-storm',
   修改通知升级: 'Edit Notification Upgrade',
   修改算法: 'Modify Algorithm',
+  分享策略: 'Share Rule',
   修改检测规则: 'Modify Detection Rule',
   批量删除策略: 'Delete Rules',
   批量修改状态: 'Edit State',
@@ -82,6 +83,7 @@ export default {
   进程端口: 'Process Port',
   时序预测: 'Forecasting',
   离群检测: 'Outlier Detection',
+  新维度值检测: 'New Dimension Value Detection',
   查看告警策略: 'View Rule',
   修改生效时间段: 'Edit Effective Time Period',
   // 管理端
@@ -147,7 +149,6 @@ export default {
   自定义时间: 'Custom time',
   用户操作: 'User Operation',
   语音: 'Voice',
-
   'Issue 名称': 'Issue Name',
   '策略 ID': 'Strategy ID',
   是否回归: 'Whether to return',

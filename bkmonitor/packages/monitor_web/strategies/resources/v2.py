@@ -58,6 +58,7 @@ from bkmonitor.strategy.new_strategy import (
     parse_metric_id,
 )
 from bkmonitor.utils.cache import CacheType
+from bkmonitor.utils.metric_id import build_metric_id_filter_queries
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username, get_source_app
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.time_format import duration_string, parse_duration
@@ -1518,12 +1519,7 @@ class GetMetricListV2Resource(Resource):
             queries: list[Q] = []
             for metric_id in filter_dict["metric_id"]:
                 metric: dict = parse_metric_id(metric_id)
-
-                if "index_set_id" in metric:
-                    metric["related_id"] = metric["index_set_id"]
-                    del metric["index_set_id"]
-                if metric:
-                    queries.append(Q(**metric))
+                queries.extend(build_metric_id_filter_queries(metric))
 
             found_metric = False
             if queries:
@@ -2344,6 +2340,9 @@ class UpdatePartialStrategyV2Resource(Resource):
         """更新检测算法。"""
         for item in strategy.items:
             item.algorithms = [Algorithm(strategy.id, item.id, **data) for data in algorithms]
+        # NewSeries 保存层硬校验(防 partial_update 旁路绕过 Strategy.Serializer.validate)：落库前校验合并结果
+        Strategy.Serializer.validate_new_series(strategy.to_dict())
+        for item in strategy.items:
             item.save_algorithms()
 
         return None, [], []

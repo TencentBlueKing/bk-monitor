@@ -118,6 +118,38 @@ def build_doris_binding(*, annotations=None, storage_config=None):
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_create_table_rolls_back_and_reraises_when_cluster_record_creation_fails(mocker):
+    table_id = "2_bklog.doris_create_failure"
+    cluster = models.ClusterInfo.objects.create(
+        bk_tenant_id="system",
+        cluster_id=1101,
+        cluster_name="doris_create_failure",
+        cluster_type=models.ClusterInfo.TYPE_DORIS,
+        domain_name="doris.service.consul",
+        port=9030,
+        description="",
+        is_default_cluster=False,
+        version="2.1",
+    )
+    mocker.patch.object(
+        storage_models.StorageClusterRecord.objects,
+        "update_or_create",
+        side_effect=RuntimeError("create storage cluster record failed"),
+    )
+
+    with pytest.raises(RuntimeError, match="create storage cluster record failed"):
+        models.DorisStorage.create_table(
+            table_id=table_id,
+            bk_tenant_id="system",
+            storage_cluster_id=cluster.cluster_id,
+            field_config_mapping={},
+        )
+
+    assert not models.DorisStorage.objects.filter(table_id=table_id, bk_tenant_id="system").exists()
+    assert not models.StorageClusterRecord.objects.filter(table_id=table_id, bk_tenant_id="system").exists()
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_get_doris_connection_config_from_storage_cluster(doris_storage):
     connection_config = doris_storage.get_doris_connection_config()
 

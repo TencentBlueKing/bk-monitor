@@ -184,13 +184,13 @@ export default defineComponent({
               class='tool-tips-list-title'
               v-slots={{
                 slot0: () => <span class='weight'>{total_count}</span>,
-                type: () => entity.entity_type,
+                type: () => entity.properties?.entity_show_type,
                 slot1: () => <span class='weight error-color'>{anomaly_count}</span>,
               }}
               keypath={
                 (anomaly_count as number) > 0
-                  ? '共 {slot0} 个 {type}节点，其中 {slot1} 个异常'
-                  : '共 {slot0} 个 {type}节点'
+                  ? '共 {slot0} 个 {type} 节点，其中 {slot1} 个异常'
+                  : '共 {slot0} 个 {type} 节点'
               }
               tag='span'
             />

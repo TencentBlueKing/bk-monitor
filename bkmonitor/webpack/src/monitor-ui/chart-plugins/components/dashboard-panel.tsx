@@ -25,7 +25,6 @@
  */
 import { Component, Emit, InjectReactive, Prop, ProvideReactive, Watch, Inject } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
-
 import { connect, disconnect } from 'echarts/core';
 import bus from 'monitor-common/utils/event-bus';
 import { random } from 'monitor-common/utils/utils';
@@ -35,13 +34,11 @@ import { type DashboardColumnType, type IGridPos, type IPanelModel, type ZrClick
 import ChartCollect from './chart-collect/chart-collect';
 import ChartWrapper from './chart-wrapper';
 import type { TimeRangeType } from 'monitor-pc/components/time-range/time-range';
-import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 import type { ITableItem, SceneType } from 'monitor-pc/pages/monitor-k8s/typings';
 
 import './dashboard-panel.scss';
 /** 接收图表当前页面跳转事件 */
 export const UPDATE_SCENES_TAB_DATA = 'UPDATE_SCENES_TAB_DATA';
-const ALARM_CENTER_DASHBOARD_IDS = ['service-default-alarm_center', 'alarm_center'];
 interface IDashboardPanelEvents {
   onLintToDetail: ITableItem<'link'>;
   onBackToOverview: () => void;
@@ -132,24 +129,7 @@ export default class DashboardPanel extends tsc<IDashboardPanelProps, IDashboard
     this.handleUpdateLayout();
     this.handleConnectEcharts();
   }
-  @Watch('timeRange', { immediate: true })
-  handleGlobalTimeRangeChange(val: TimeRangeType) {
-    if (ALARM_CENTER_DASHBOARD_IDS.includes(this.dashboardId)) {
-      return;
-    }
-    window.LOCAL_OLD_TIME_RANGE = val;
-  }
-  @Watch('dashboardId', { immediate: true })
-  handleDashboardIdChange() {
-    if (ALARM_CENTER_DASHBOARD_IDS.includes(this.dashboardId)) {
-      this.handleTimeRangeChange(['now-7d', 'now']);
-    } else {
-      if (!window.LOCAL_OLD_TIME_RANGE) {
-        window.LOCAL_OLD_TIME_RANGE = DEFAULT_TIME_RANGE;
-      }
-      this.handleTimeRangeChange(window.LOCAL_OLD_TIME_RANGE);
-    }
-  }
+
   mounted() {
     // 等待所以子视图实例创建完进行视图示例的关联 暂定5000ms 后期进行精细化配置
     this.handleConnectEcharts();

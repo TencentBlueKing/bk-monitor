@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,11 +7,15 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from datetime import datetime
 
 from rest_framework import serializers
 
-from fta_web.alert.serializers import SearchConditionSerializer
+from fta_web.alert.serializers import (
+    SearchConditionSerializer,
+    validate_fulltext_condition_value_count,
+)
 
 
 class IncidentSearchSerializer(serializers.Serializer):
@@ -25,6 +28,7 @@ class IncidentSearchSerializer(serializers.Serializer):
     ordering = serializers.ListField(label="排序", child=serializers.CharField(), default=[])
 
     def validate_conditions(self, value):
+        validate_fulltext_condition_value_count(value)
         for condition in value:
             # 对时间字段进行转换 统一转换成时间戳
             # 时间可能是 2025-09-10 10:00:00 或者 纯时间戳
@@ -40,7 +44,7 @@ class IncidentSearchSerializer(serializers.Serializer):
 
                     except ValueError:
                         raise serializers.ValidationError(
-                            f'{condition["key"]}字段值必须是字符串时间戳10位或者文本日期格式，当前值为：{condition_value}'
+                            f"{condition['key']}字段值必须是字符串时间戳10位或者文本日期格式，当前值为：{condition_value}"
                         )
 
         return value

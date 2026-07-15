@@ -425,6 +425,14 @@ ADVANCED_OPTIONS = OrderedDict(
         ("BKBASE_REDIS_LOCK_NAME", slz.CharField(label="计算平台Redis锁名称", default="watch_bkbase_meta_redis_lock")),
         ("ENABLE_SYNC_BKBASE_METADATA_TO_DB", slz.BooleanField(label="是否同步bkbase元数据至DB", default=False)),
         (
+            "GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST",
+            slz.ListField(label="自动同步计算平台图关系链路业务白名单", default=[]),
+        ),
+        (
+            "GRAPH_RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST",
+            slz.ListField(label="图关系 v1beta3 查询灰度业务白名单", default=[]),
+        ),
+        (
             "ACCESS_DATA_BATCH_PROCESS_THRESHOLD",
             slz.IntegerField(label="access数据批量处理触发阈值(0为不触发)", default=0),
         ),
@@ -478,15 +486,30 @@ ADVANCED_OPTIONS = OrderedDict(
         # RUM 配置
         ("RUM_ENABLED", slz.BooleanField(label="RUM总开关", default=False)),
         ("RUM_ACCESS_URL", slz.CharField(label="RUM接收端URL", default="", allow_blank=True)),
+        ("RUM_KAFKA_CLUSTER_ID", slz.IntegerField(label="RUM默认Kafka集群ID", default=None, allow_null=True)),
+        ("RUM_ELASTICSEARCH_CLUSTER_ID", slz.IntegerField(label="RUM默认ES集群ID", default=None, allow_null=True)),
+        ("RUM_APP_DEFAULT_ES_STORAGE_CLUSTER", slz.IntegerField(label="RUM应用默认集群ID", default=-1)),
+        ("RUM_APP_DEFAULT_ES_RETENTION", slz.IntegerField(label="RUM应用默认过期时间", default=7)),
+        ("RUM_APP_DEFAULT_ES_SLICE_LIMIT", slz.IntegerField(label="RUM应用ES索引集默认切分大小", default=100)),
+        ("RUM_APP_DEFAULT_ES_REPLICAS", slz.IntegerField(label="RUM应用默认副本数", default=0)),
+        ("RUM_APP_DEFAULT_ES_SHARDS", slz.IntegerField(label="RUM应用默认索引分片数", default=3)),
         ("COLLECTING_UPGRADE_WITH_UPDATE_BIZ", slz.ListField(label="采集升级使用订阅更新模式的业务列表", default=[0])),
         ("EXCLUDE_WORKER_TASKS", slz.ListField(label="排除特定的worker任务(需要重启alarm-beat生效)", default=[])),
         (
-            "BCS_DISCOVER_BCS_CLUSTER_BIZ_BLACK_LIST",
-            slz.ListField(label="BCS集群自动发现任务黑名单业务ID列表", default=[]),
+            "NEW_ENV_BIZ_BLACK_LIST",
+            slz.ListField(label="新环境业务黑名单业务ID列表", default=[]),
         ),
         (
-            "BCS_DISCOVER_BCS_CLUSTER_BIZ_WHITE_LIST",
-            slz.ListField(label="BCS集群自动发现任务白名单业务ID列表", default=[]),
+            "NEW_ENV_BIZ_WHITE_LIST",
+            slz.ListField(label="新环境业务白名单业务ID列表", default=[]),
+        ),
+        (
+            "NEW_ENV_CLUSTER_BLACK_LIST",
+            slz.ListField(label="新环境集群黑名单业务ID列表", default=[]),
+        ),
+        (
+            "NEW_ENV_CLUSTER_WHITE_LIST",
+            slz.ListField(label="新环境集群白名单业务ID列表", default=[]),
         ),
         (
             "ALARM_CACHE_REFRESH_BIZ_CONCURRENT",
@@ -655,6 +678,10 @@ STANDARD_CONFIGS = OrderedDict(
             slz.DictField(label=_("APM metrics维度补充功能应用白名单"), default={}),
         ),
         (
+            "APM_RESOURCE_FILTER_LOGS_ENABLED_APPS",
+            slz.DictField(label=_("APM logs维度补充功能应用白名单"), default={}),
+        ),
+        (
             "APM_BMW_DEPLOY_BIZ_ID",
             slz.IntegerField(label=_("APM BMW 模块部署集群所属的业务 ID(用来查询指标)"), default=0),
         ),
@@ -791,6 +818,11 @@ STANDARD_CONFIGS = OrderedDict(
                 label=_("APM 自定义指标 V2 开启的白名单，支持业务ID(整业务)或'业务ID-应用名'(单应用)格式"), default=[]
             ),
         ),
+        # RUM
+        ("RUM_ACCESS_URL", slz.CharField(label=_("RUM接入链接"), default="", allow_blank=True)),
+        ("RUM_FUNC_INTRODUCTION_URL", slz.CharField(label=_("RUM产品白皮书"), default="", allow_blank=True)),
+        # RUM新版灰度配置
+        ("RUM_BIZ_LIST", slz.ListField(label=_("RUM 新版灰度配置"), default=[])),
     ]
 )
 

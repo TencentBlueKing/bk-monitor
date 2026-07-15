@@ -72,6 +72,7 @@ export default {
   告警流控: 'Alarm flow control',
   事件忽略: 'Ignore related event',
   套餐: 'Package',
+  '大于 {0} 个新增维度值': 'Greater than {0} new dimension values',
 
   // "[功能名称] (enable)"
   是否开启通知: 'Notify (enable)',
@@ -206,6 +207,7 @@ export default {
   '下降{0}%时触发告警': 'Trigger an alarm when falling {0}%',
   '{0}上升{1}%或下降{2}%': '{0} rises {1}% or falls {2}%',
   这个告警我有经验: 'I have experience with this alarm',
+  '次/秒': 'times/second',
   已归档: 'Archived',
 
   // Issue 拆分合并

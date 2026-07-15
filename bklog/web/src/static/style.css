@@ -296,6 +296,9 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-share:before {
 	content: "\e212";
 }
+.bklog-return:before {
+	content: "\e278";
+}
 .bklog-star-line:before {
 	content: "\e194";
 }
@@ -476,7 +479,7 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-arrow-down-filled:before {
 	content: "\e1a8";
 }
-.bklog-*:before {
+.bklog-match-all:before {
 	content: "\e1ad";
 }
 .bklog-buer:before {
@@ -845,6 +848,15 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 .bklog-trpc:before {
 	content: "\e247";
 }
+.bklog-quanxianzhongxin:before {
+	content: "\e27c";
+}
+.bklog-tuichu:before {
+	content: "\e27d";
+}
+.bklog-yonghu:before {
+	content: "\e27e";
+}
 .bklog-wangluo-line:before {
 	content: "\e24d";
 }
@@ -916,4 +928,25 @@ url("fonts/iconcool.eot?#iefix") format("embedded-opentype");
 }
 .bklog-file-wenjian:before {
 	content: "\e26c";
+}
+.bklog-3fang-jisuanpingtai:before {
+	content: "\e275";
+}
+.bklog-3fang-zidingyishangbao:before {
+	content: "\e273";
+}
+.bklog-3fang-es:before {
+	content: "\e270";
+}
+.bklog-zhujicaiji-zhujirizhi:before {
+	content: "\e272";
+}
+.bklog-zhujicaiji-windows-event-rizhi:before {
+	content: "\e276";
+}
+.bklog-k8s-wenjiancaiji:before {
+	content: "\e271";
+}
+.bklog-k8s-biaozhunshuchu:before {
+	content: "\e274";
 }

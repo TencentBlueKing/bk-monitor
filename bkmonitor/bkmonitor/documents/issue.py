@@ -240,8 +240,12 @@ class IssueDocument(BaseDocument):
             raise self._status_transition_error("重新打开", "仅「已解决」状态")
         old_status = self.status
         self.status = IssueStatus.UNRESOLVED
+        self.resolved_time = None
         self.update_time = int(time.time())
-        self._persist_and_cache(active=True)
+        # skip_empty=False：让 resolved_time=None 以 null 写入 ES，真正清空（否则 to_dict(skip_empty=True) 会丢弃 None）。
+        # 前提：本方法操作的是已全量加载的主轴文档（__init__ 时所有字段已赋值），skip_empty=False 仅把 None 字段写 null，
+        # 不会误清空其它已赋值字段；请勿在最小/部分文档上直接套用此写法。
+        self._persist_and_cache(active=True, skip_empty=False)
         activities = self._write_activities(
             [
                 (IssueActivityType.STATUS_CHANGE, old_status, IssueStatus.UNRESOLVED, operator, None),
@@ -260,8 +264,13 @@ class IssueDocument(BaseDocument):
         old_status = self.status
         self.status = target_status
         self.update_time = int(time.time())
-        # 恢复后若目标状态为活跃状态则写回缓存
-        self._persist_and_cache(active=target_status in IssueStatus.ACTIVE_STATUSES)
+        if target_status in IssueStatus.ACTIVE_STATUSES:
+            # 恢复到活跃态：清空 resolved_time（与 reopen 一致），skip_empty=False 真正写 null
+            self.resolved_time = None
+            self._persist_and_cache(active=True, skip_empty=False)
+        else:
+            # 恢复到已解决态：保留 resolved_time
+            self._persist_and_cache(active=target_status in IssueStatus.ACTIVE_STATUSES)
         activities = self._write_activities(
             [
                 (IssueActivityType.STATUS_CHANGE, old_status, target_status, operator, None),
@@ -425,8 +434,18 @@ class IssueDocument(BaseDocument):
         self._persist_and_cache(active=self.status in IssueStatus.ACTIVE_STATUSES)
         return self._write_activities(activities)
 
-    def rename(self, new_name: str, operator: str) -> list:
-        """重命名 Issue"""
+    def rename(self, new_name: str, operator: str, enforce_unique: bool = True, content: str | None = None) -> list:
+        """重命名 Issue。
+
+        enforce_unique：是否强制业务内标题唯一。
+        - 用户改名（默认 True）：人手填重名是误操作，撞名抛 IssueNameDuplicatedError 拦下。
+        - 系统自动标题（False）：同类错误天然生成相同标题（标题描述错误，不含实例维度），
+          实例区分交由 issue 的结构化维度，允许重名；不应被给用户用的唯一性约束卡回默认名。
+
+        content：写入 NAME_CHANGE 活动日志的附加内容（默认 None）。用于 LLM 标题生成路径
+          记录改名来源/审计人——rename operator 固定为 ``system``（保证"是否系统改名"判据稳定），
+          真实发起人另记于此，避免把审计人写进 operator 污染下游三态判别。用户手工改名不传。
+        """
         IssueMergeResolver.assert_not_frozen(self.id)
         new_name = new_name.strip()
         old_name = self.name
@@ -434,22 +453,25 @@ class IssueDocument(BaseDocument):
         if new_name == old_name:
             return self._read_activities()
 
-        dup_search = (
-            IssueDocument.search(all_indices=True)
-            .filter("term", bk_biz_id=str(self.bk_biz_id))
-            .filter("term", **{"name.raw": new_name})
-            .exclude("term", **{"_id": self.id})
-            .params(size=1)
-        )
-        if dup_search.execute().hits:
-            raise IssueNameDuplicatedError(f"Issue name already exists, bk_biz_id={self.bk_biz_id}, name={new_name}")
+        if enforce_unique:
+            dup_search = (
+                IssueDocument.search(all_indices=True)
+                .filter("term", bk_biz_id=str(self.bk_biz_id))
+                .filter("term", **{"name.raw": new_name})
+                .exclude("term", **{"_id": self.id})
+                .params(size=1)
+            )
+            if dup_search.execute().hits:
+                raise IssueNameDuplicatedError(
+                    f"Issue name already exists, bk_biz_id={self.bk_biz_id}, name={new_name}"
+                )
 
         self.name = new_name
         self.update_time = int(time.time())
         self._persist_and_cache(active=self.status in IssueStatus.ACTIVE_STATUSES)
         return self._write_activities(
             [
-                (IssueActivityType.NAME_CHANGE, old_name, new_name, operator, None),
+                (IssueActivityType.NAME_CHANGE, old_name, new_name, operator, content),
             ]
         )
 
@@ -644,13 +666,29 @@ class IssueDocument(BaseDocument):
             )
 
         # ② 批量 UPDATE 物理状态（assignee 不动）
-        update_docs = [cls(id=mid, status=target_status, update_time=now) for mid in member_ids]
+        # 终态 RESOLVED 同步 resolved_time，保证合并成员与主轴一致参与"按解决时间过滤"；
+        # ARCHIVED 不写 resolved_time（归档时间走 update_time，级联已同步）；
+        # 活跃态（reopen/restore 回到活跃）需显式清空成员 resolved_time，使其与主轴 reopen() 语义一致：
+        #   用 skip_empty=False 确保 resolved_time=None 被写入 ES（否则 to_dict 默认 skip_empty=True
+        #   会丢弃 None，使成员残留旧值，误导"按解决时间过滤"与冻结时长计算）。
+        #   成员是最小文档（仅 id/status/update_time/resolved_time 已赋值），to_dict(skip_empty=False)
+        #   只序列化已赋值字段，不会清空其它 ES 字段，故此处安全。
+        if target_status in IssueStatus.ACTIVE_STATUSES:
+            extra = {"resolved_time": None}
+            skip_empty = False
+        elif target_status == IssueStatus.RESOLVED:
+            extra = {"resolved_time": now}
+            skip_empty = True
+        else:  # ARCHIVED：不碰 resolved_time，归档时间走 update_time
+            extra = {}
+            skip_empty = True
+        update_docs = [cls(id=mid, status=target_status, update_time=now, **extra) for mid in member_ids]
         try:
-            cls.bulk_create(update_docs, action=BulkActionType.UPDATE)
+            cls.bulk_create(update_docs, action=BulkActionType.UPDATE, skip_empty=skip_empty)
         except Exception as e:
             logger.warning("[issue-merge] bulk_follow_status update failed, retrying once: %s", e)
             try:
-                cls.bulk_create(update_docs, action=BulkActionType.UPDATE)
+                cls.bulk_create(update_docs, action=BulkActionType.UPDATE, skip_empty=skip_empty)
             except Exception as e2:
                 logger.error(
                     "[issue-merge] bulk_follow_status update retry failed (member_ids=%s): %s",
@@ -800,17 +838,20 @@ class IssueDocument(BaseDocument):
             logger.exception("Failed to get pre_archive_status from activity log, issue_id=%s", self.id)
         return IssueStatus.PENDING_REVIEW
 
-    def _persist_and_cache(self, active: bool) -> None:
+    def _persist_and_cache(self, active: bool, skip_empty: bool = True) -> None:
         """
         UPSERT ES + 缓存处理。
         失败重试 1 次；仍失败则 raise IssueDocumentWriteError。
+
+        skip_empty: 透传给 bulk_create。默认 True（跳过 None 字段，做增量更新）；
+        置 False 时 None 字段会以 null 写入 ES，用于显式清空某字段（如 reopen 清空 resolved_time）。
         """
         try:
-            IssueDocument.bulk_create([self], action=BulkActionType.UPSERT)
+            IssueDocument.bulk_create([self], action=BulkActionType.UPSERT, skip_empty=skip_empty)
         except Exception as e:
             logger.warning("IssueDocument UPSERT failed, retrying once, issue_id=%s: %s", self.id, e)
             try:
-                IssueDocument.bulk_create([self], action=BulkActionType.UPSERT)
+                IssueDocument.bulk_create([self], action=BulkActionType.UPSERT, skip_empty=skip_empty)
             except Exception as e2:
                 logger.error("IssueDocument UPSERT retry failed, issue_id=%s: %s", self.id, e2)
                 raise IssueDocumentWriteError(f"IssueDocument write failed: issue_id={self.id}") from e2
@@ -859,7 +900,8 @@ class IssueDocument(BaseDocument):
         批量写 IssueActivityDocument，返回该 Issue 全部活动日志（含本次新增）。
 
         activity_tuples 每项格式为 (activity_type, from_value, to_value, operator, content)，
-        其中 content 仅 COMMENT 类型使用，其余传 None。
+        其中 content 主要用于 COMMENT 类型；NAME_CHANGE 走 LLM 标题生成路径时也用它记录来源/审计人，
+        其余类型传 None。
         """
         if now is None:
             now = int(time.time())

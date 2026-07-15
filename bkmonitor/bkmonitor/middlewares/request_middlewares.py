@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -17,7 +16,7 @@ from django.utils.deprecation import MiddlewareMixin
 from audit.instance import push_event
 from bkmonitor.utils.common_utils import fetch_biz_id_from_request
 from bkmonitor.utils.local import local
-from bkmonitor.utils.request import is_ajax_request
+from bkmonitor.utils.request import MCP_TRACEPARENT_ATTR, ensure_mcp_trace_context, get_mcp_trace_id, is_ajax_request
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +28,7 @@ class RequestProvider(MiddlewareMixin):
 
     def process_request(self, request):
         local.current_request = _get_request()
+        ensure_mcp_trace_context(request)
         return None
 
     def process_view(self, request, view_func, view_args, view_kwargs):
@@ -50,6 +50,13 @@ class RequestProvider(MiddlewareMixin):
             return None
 
     def process_response(self, request, response):
+        trace_id = get_mcp_trace_id(request)
+        if trace_id:
+            response["X-Bk-Trace-Id"] = trace_id
+            response["X-Bkapi-Trace-Id"] = trace_id
+            traceparent = getattr(request, MCP_TRACEPARENT_ATTR, "")
+            if traceparent:
+                response["Traceparent"] = traceparent
         push_event(request)
         local.clear()
         response["X-Content-Type-Options"] = "nosniff"

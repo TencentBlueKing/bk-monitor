@@ -1929,7 +1929,7 @@ import fieldTable from './field-table';
           confirmFn: () => {
             const id = this.curCollect.bkdata_data_id;
             const jumpUrl = `${window.BKDATA_URL}/#/data-hub-detail/clean/list/${id}/index`;
-            window.open(jumpUrl, '_blank');
+            window.open(jumpUrl, '_blank', 'noopener,noreferrer');
             this.$emit('change-submit', true);
             // 前往高级清洗刷新页
             this.$emit('change-clean');
@@ -2477,7 +2477,7 @@ import fieldTable from './field-table';
               },
             ],
           });
-          window.open(res.data.apply_url);
+          window.open(res.data.apply_url, '_blank', 'noopener,noreferrer');
         } catch (err) {
           console.warn(err);
         } finally {
@@ -2485,7 +2485,7 @@ import fieldTable from './field-table';
         }
       },
       handleOpenDocument() {
-        window.open(this.docUrl, '_blank');
+        window.open(this.docUrl, '_blank', 'noopener,noreferrer');
       },
       /** 切换匹配模式 */
       handleSelectConfig(id) {

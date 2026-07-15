@@ -75,7 +75,6 @@ import { type TraceExploreApmHooks, BRIDGE_PROPS_KEY, TRACE_EXPLORE_APM_HOOKS_KE
 import { getFilterByCheckboxFilter, safeParseJsonValueForWhere, tryURLDecodeParse } from './utils';
 
 import type { ConditionChangeEvent, ExploreFieldList, IApplicationItem, ICommonParams } from './typing';
-const TRACE_EXPLORE_SHOW_FAVORITE = 'TRACE_EXPLORE_SHOW_FAVORITE';
 /** trace检索默认选择的应用 */
 const TRACE_EXPLORE_DEFAULT_APPLICATION = 'TRACE_EXPLORE_DEFAULT_APPLICATION';
 /** 应用置顶列表 */
@@ -117,6 +116,10 @@ export default defineComponent({
     const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
     const { handleGetUserConfig: handleGetThumbtackUserConfig, handleSetUserConfig: handleSetThumbtackUserConfig } =
       useUserConfig();
+    const {
+      handleGetUserConfig: handleGetResidentSettingUserConfig,
+      handleSetUserConfig: handleSetResidentSettingUserConfig,
+    } = useUserConfig();
     const {
       saveKey: saveTableFieldsKey,
       config: tableFieldsConfig,
@@ -194,6 +197,71 @@ export default defineComponent({
 
     /** 展示侧栏详情 */
     const showSlideDetail = shallowRef(null);
+    /** 打开跨业务详情前缓存的业务上下文，关闭时还原 */
+    let cachedBizContext: { bizId: number; spaceUid?: string } | null = null;
+
+    const switchBizContextIfNeeded = (bizId?: number) => {
+      if (bizId == null || Number.isNaN(+bizId)) return;
+      const targetBizId = +bizId;
+      const currentBizId = +(window.bk_biz_id || window.cc_biz_id);
+      if (targetBizId === currentBizId) return;
+
+      cachedBizContext = {
+        bizId: currentBizId,
+        spaceUid: window.space_uid,
+      };
+      window.bk_biz_id = targetBizId;
+      window.cc_biz_id = targetBizId;
+      const space = window.space_list?.find(item => +item.bk_biz_id === targetBizId);
+      if (space?.space_uid) {
+        window.space_uid = `${space.space_uid}`;
+      }
+    };
+
+    const restoreBizContextIfNeeded = () => {
+      if (!cachedBizContext) return;
+      window.bk_biz_id = cachedBizContext.bizId;
+      window.cc_biz_id = cachedBizContext.bizId;
+      if (cachedBizContext.spaceUid != null) {
+        window.space_uid = cachedBizContext.spaceUid;
+      } else {
+        const space = window.space_list?.find(item => +item.bk_biz_id === cachedBizContext.bizId);
+        if (space?.space_uid) {
+          window.space_uid = `${space.space_uid}`;
+        }
+      }
+      cachedBizContext = null;
+    };
+
+    /** 宿主通过 bridgeProps.slideDetail 打开 Trace 详情侧边窗 */
+    watch(
+      () => bridgeProps?.slideDetail as { appName?: string; bizId?: number; traceId?: string } | null,
+      val => {
+        if (!val?.traceId) {
+          showSlideDetail.value = null;
+          return;
+        }
+        // 仅切换业务上下文；appName 经 slideDetail 传给侧栏，不改 store，避免触发表格/图表重新请求
+        switchBizContextIfNeeded(val.bizId);
+        showSlideDetail.value = {
+          type: 'trace',
+          id: val.traceId,
+          bizId: val.bizId,
+          appName: val.appName,
+        };
+      },
+      {
+        deep: true,
+        immediate: true,
+      }
+    );
+
+    /** 侧边窗关闭：清空本地状态、还原业务并通知宿主（不改 store.appName，避免触发 getExploreList） */
+    function handleSliderClose() {
+      showSlideDetail.value = null;
+      restoreBizContextIfNeeded();
+      apmHooks?.onSliderClose?.();
+    }
 
     const commonParams = shallowRef<ICommonParams>({
       app_name: '',
@@ -382,13 +450,16 @@ export default defineComponent({
       isCollapsed.value = v;
     }
 
-    function handleConditionChange(item: ConditionChangeEvent) {
+    function handleConditionChange(item: ConditionChangeEvent, isFromDimensionFilterPanel = false) {
       const { key, method: operator, value } = item;
       const isDuration = ['trace_duration', 'elapsed_time'].includes(key);
       if (filterMode.value === EMode.ui) {
-        const newWhere = mergeWhereList(where.value, [
-          { key, operator, value: isDuration ? value.split('-') : safeParseJsonValueForWhere(value) },
-        ]);
+        const newWhere = mergeWhereList(
+          where.value,
+          [{ key, operator, value: isDuration ? value.split('-') : safeParseJsonValueForWhere(value) }],
+          isFromDimensionFilterPanel
+        );
+        // TODO: 图表分析入口（仅在这个入口做）进行过滤时，同类字段做下合并
         handleWhereChange(newWhere);
         return;
       }
@@ -483,7 +554,6 @@ export default defineComponent({
 
     /** 获取所有的用户相关配置（默认应用，收藏栏显隐，应用置顶列表） */
     async function getAllUserConfig() {
-      isShowFavorite.value = JSON.parse(localStorage.getItem(TRACE_EXPLORE_SHOW_FAVORITE) || 'false');
       await Promise.all([
         handleGetUserConfig<string>(TRACE_EXPLORE_DEFAULT_APPLICATION).then(res => {
           defaultApplication.value = res;
@@ -495,7 +565,9 @@ export default defineComponent({
     }
 
     onMounted(async () => {
-      getUrlParams();
+      if (!apmHooks) {
+        getUrlParams();
+      }
       await getAllUserConfig();
       await getApplicationList();
       await getViewConfig();
@@ -813,7 +885,6 @@ export default defineComponent({
     }
     function handleFavoriteShowChange(isShow: boolean) {
       isShowFavorite.value = isShow;
-      localStorage.setItem(TRACE_EXPLORE_SHOW_FAVORITE, JSON.stringify(isShow));
     }
 
     function handleCreateApp() {
@@ -979,6 +1050,9 @@ export default defineComponent({
       handleSetCommonWhereToFavoriteCache,
       handleSelectMetric,
       getMetricList,
+      handleGetResidentSettingUserConfig,
+      handleSetResidentSettingUserConfig,
+      handleSliderClose,
     };
   },
   render() {
@@ -1027,6 +1101,8 @@ export default defineComponent({
                 fields={this.retrievalFields as any[]}
                 filterMode={this.filterMode}
                 getValueFn={this.getRetrievalFilterValueData}
+                handleGetUserConfig={this.handleGetResidentSettingUserConfig}
+                handleSetUserConfig={this.handleSetResidentSettingUserConfig}
                 isDefaultResidentSetting={this.isDefaultResidentSetting}
                 isShowClear={true}
                 isShowCopy={true}
@@ -1094,6 +1170,7 @@ export default defineComponent({
                         onClearRetrievalFilter={this.handleClearRetrievalFilter}
                         onConditionChange={this.handleConditionChange}
                         onSetUrlParams={this.setUrlParams}
+                        onSliderClose={this.handleSliderClose}
                       />
                     </div>
                   ),

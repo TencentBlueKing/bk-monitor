@@ -41,7 +41,14 @@
     align-items: center;
 
     .tool-btns {
+      display: flex;
       flex: 1;
+      gap: 8px;
+      align-items: center;
+
+      .bklog-link-guanlian {
+        margin-right: 4px;
+      }
     }
 
     .tool-search-select {
@@ -326,6 +333,32 @@
   }
 }
 
+// 采集项来源标签样式
+.space-tag-wrapper {
+  display: inline-block;
+  cursor: pointer;
+
+  .space-tag {
+    display: inline-flex;
+    height: 22px;
+    padding: 0 8px;
+    align-items: center;
+    border-radius: 4px;
+
+    &.current {
+      color: #1768EF;
+      background-color: #E1ECFF;
+      border: 1px solid #A3C5FD;
+    }
+
+    &.related {
+      color: #E38B02;
+      background-color: #FDEED8;
+      border: 1px solid #F9D090;
+    }
+  }
+}
+
 .v2-log-collection-table-main {
   .cluster-select-filter {
     border: none;
@@ -392,5 +425,16 @@
 
   td.index-set-name-cell {
     padding: 4px 8px 4px 10px!important;
+  }
+}
+.related-space-tip-content {
+  padding: 2px 0;
+  font-size: 12px;
+  line-height: 1.6;
+  width: 156px;
+  .link-to-space {
+    color: #a2c3fa;
+    cursor: pointer;
+    margin: 0 4px;
   }
 }

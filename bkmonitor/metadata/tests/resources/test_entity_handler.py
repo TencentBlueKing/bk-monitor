@@ -12,6 +12,7 @@ import json
 from unittest.mock import patch
 
 import pytest
+from django.test import override_settings
 from rest_framework.exceptions import ValidationError
 
 from core.errors.metadata import EntityNotFoundError, UnsupportedKindError
@@ -586,3 +587,88 @@ class TestEntityHandlerRedisSync:
 
         assert result["metadata"]["name"] == "test_err"
         assert ResourceDefinition.objects.filter(name="test_err").exists()
+
+    @override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST=[2])
+    @patch("metadata.resources.entity_relation.transaction.on_commit", side_effect=lambda func: func())
+    @patch("alarm_backends.service.scheduler.app.app.send_task")
+    @patch("metadata.resources.entity_relation.RedisTools")
+    def test_apply_changed_definition_schedules_bkbase_sync(
+        self, mock_redis, mock_send_task, mock_on_commit, cleanup_definition_data
+    ):
+        """ResourceDefinition / RelationDefinition 变更后投递 BKBase 图定义同步任务"""
+        handler = EntityHandler(model_class=ResourceDefinition)
+
+        handler.apply(
+            metadata={"namespace": NAMESPACE_ALL, "name": "test_bkbase_sync"},
+            spec={"fields": []},
+        )
+
+        mock_send_task.assert_called_once_with(
+            "metadata.sync_graph_definition_to_bkbase",
+            kwargs={
+                "namespace": NAMESPACE_ALL,
+                "kind": "ResourceDefinition",
+                "name": "test_bkbase_sync",
+                "generation": 1,
+                "action": "apply",
+            },
+            queue="celery_metadata_task_worker",
+        )
+
+    @override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST=[])
+    @patch("metadata.resources.entity_relation.transaction.on_commit", side_effect=lambda func: func())
+    @patch("alarm_backends.service.scheduler.app.app.send_task")
+    @patch("metadata.resources.entity_relation.RedisTools")
+    def test_apply_changed_definition_does_not_schedule_bkbase_sync_when_whitelist_empty(
+        self, mock_redis, mock_send_task, mock_on_commit, cleanup_definition_data
+    ):
+        """白名单为空时不投递 BKBase 图定义同步任务"""
+        handler = EntityHandler(model_class=ResourceDefinition)
+
+        handler.apply(
+            metadata={"namespace": NAMESPACE_ALL, "name": "test_bkbase_sync_empty_whitelist"},
+            spec={"fields": []},
+        )
+
+        mock_send_task.assert_not_called()
+        mock_on_commit.assert_not_called()
+
+    @override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST=[2])
+    @patch("metadata.resources.entity_relation.transaction.on_commit", side_effect=lambda func: func())
+    @patch("alarm_backends.service.scheduler.app.app.send_task")
+    @patch("metadata.resources.entity_relation.RedisTools")
+    def test_apply_changed_definition_does_not_schedule_bkbase_sync_for_non_whitelisted_namespace(
+        self, mock_redis, mock_send_task, mock_on_commit, cleanup_definition_data
+    ):
+        """业务 namespace 不在白名单时不投递 BKBase 图定义同步任务"""
+        handler = EntityHandler(model_class=ResourceDefinition)
+
+        handler.apply(
+            metadata={"namespace": "bkcc__3", "name": "test_bkbase_sync_non_whitelist"},
+            spec={"fields": []},
+        )
+
+        mock_send_task.assert_not_called()
+        mock_on_commit.assert_not_called()
+
+    @override_settings(GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST=[2])
+    @patch("alarm_backends.service.scheduler.app.app.send_task")
+    @patch("metadata.resources.entity_relation.RedisTools")
+    def test_apply_unchanged_definition_does_not_schedule_bkbase_sync(
+        self, mock_redis, mock_send_task, cleanup_definition_data
+    ):
+        """重复 apply 相同内容时不投递 BKBase 图定义同步任务"""
+        handler = EntityHandler(model_class=ResourceDefinition)
+
+        handler.apply(
+            metadata={"namespace": NAMESPACE_ALL, "name": "test_bkbase_noop"},
+            spec={"fields": []},
+        )
+        mock_send_task.reset_mock()
+
+        handler.apply(
+            metadata={"namespace": NAMESPACE_ALL, "name": "test_bkbase_noop"},
+            spec={"fields": []},
+        )
+
+        mock_send_task.assert_not_called()

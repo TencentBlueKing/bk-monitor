@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 import copy
 import logging
@@ -51,7 +49,7 @@ from monitor_web.strategies.constant import EVENT_METRIC_ID
 logger = logging.getLogger(__name__)
 
 
-class StrategyConfig(object):
+class StrategyConfig:
     # 需要的字段
     STRATEGY_FIELDS = [
         "id",
@@ -238,7 +236,7 @@ class StrategyConfig(object):
             # 对id,name做特殊处理，增加前缀
             model_name = model_obj.__class__.__name__
             if field in ["id", "name"] and model_name in cls.INSTANCE_DISPLAY_NAME:
-                key = "{}_{}".format(cls.INSTANCE_DISPLAY_NAME[model_name], field)
+                key = f"{cls.INSTANCE_DISPLAY_NAME[model_name]}_{field}"
                 dict_obj[key] = value
 
     @staticmethod
@@ -457,9 +455,7 @@ class StrategyConfig(object):
                     api.metadata.full_cmdb_node_info(table_id=rt_query.result_table_id)
                 except Exception:  # noqa
                     logger.exception(
-                        "create cmdb node info error, strategy_id({}), result_table_id({})".format(
-                            self.id, rt_query.result_table_id
-                        )
+                        f"create cmdb node info error, strategy_id({self.id}), result_table_id({rt_query.result_table_id})"
                     )
                     continue
 
@@ -505,7 +501,9 @@ class StrategyConfig(object):
                 if settings.IS_ACCESS_BK_DATA:
                     # 如果开启了计算平台功能，不运行这里的逻辑即可，不进行报错，后续的逻辑需要继续
                     return
-                raise Exception(_("主机性能指标按CMDB动态节点聚合暂不可用(原因：维度未使用云区域ID + IP，目标又选择了CMDB节点)"))
+                raise Exception(
+                    _("主机性能指标按CMDB动态节点聚合暂不可用(原因：维度未使用云区域ID + IP，目标又选择了CMDB节点)")
+                )
 
             origin_result_table_id = (
                 sql_instance.extend_fields.get("origin_config", {}).get("result_table_id")
@@ -650,8 +648,12 @@ class StrategyConfig(object):
         agg_dimension = data_source_dict["agg_dimension"]
         if "bk_target_ip" not in agg_dimension:
             agg_dimension.append("bk_target_ip")
-        if "bk_target_cloud_id" not in agg_dimension:
-            agg_dimension.append("bk_target_cloud_id")
+        if "bk_cloud_id" in agg_dimension and "bk_target_cloud_id" not in agg_dimension:
+            host_cloud_dimension = "bk_cloud_id"
+        else:
+            host_cloud_dimension = "bk_target_cloud_id"
+        if host_cloud_dimension not in agg_dimension:
+            agg_dimension.append(host_cloud_dimension)
 
     def create_item(self, item):
         item.pop("id", None)

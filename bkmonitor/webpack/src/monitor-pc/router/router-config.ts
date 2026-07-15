@@ -191,6 +191,16 @@ export const getRouteConfig = () => {
               // isBeta: window.platform?.te === false,
               canStore: true,
             },
+            {
+              name: 'RUM',
+              icon: 'icon-monitor icon-RUM menu-icon',
+              navName: 'RUM',
+              id: 'rum',
+              path: '/trace/rum',
+              href: '#/trace/rum',
+              usePath: true,
+              canStore: true,
+            },
           ],
         },
         {

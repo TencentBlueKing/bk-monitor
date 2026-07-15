@@ -165,6 +165,7 @@ export default class QueryStatement extends tsc<IProps> {
             .request('unionSearch/unionCreateLabel', {
               data: {
                 name: this.verifyData.labelEditName.trim(),
+                space_uid: this.$store.state.spaceUid,
               },
             })
             .then(res => {

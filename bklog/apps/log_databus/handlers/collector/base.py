@@ -53,6 +53,7 @@ from apps.log_databus.constants import (
     BULK_CLUSTER_INFOS_LIMIT,
     CACHE_KEY_CLUSTER_INFO,
     COLLECTOR_SCENARIO_TO_SCENE,
+    DORIS_CLUSTER_TYPE,
     META_DATA_ENCODING,
     ArchiveInstanceType,
     CollectStatus,
@@ -104,6 +105,7 @@ from apps.log_search.constants import (
     LogAccessTypeEnum,
 )
 from apps.log_search.handlers.biz import BizHandler
+from apps.log_search.handlers.index_group import IndexGroupHandler
 from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.models import (
     TAG_TYPE_SCENE,
@@ -122,6 +124,7 @@ from apps.utils.local import get_local_param, get_request_username, get_request_
 from apps.utils.log import logger
 from apps.utils.thread import MultiExecuteFunc
 from apps.utils.time_handler import format_user_time_zone
+from bkm_space.utils import bk_biz_id_to_space_uid
 
 COLLECTOR_RE = re.compile(r".*\d{6,8}$")
 
@@ -546,6 +549,7 @@ class CollectorHandler:
         sort_fields=None,
         target_fields=None,
         parent_index_set_ids=None,
+        parent_index_set_names=None,
         is_platform_index=None,
         platform_index_visibility=None,
         platform_index_filter=None,
@@ -583,6 +587,13 @@ class CollectorHandler:
 
         # 更新归属索引集
         if self.data.index_set_id:
+            parent_index_set_ids = CollectorHandler.obtain_parent_index_set_ids(
+                parent_index_set_ids,
+                parent_index_set_names,
+                bk_biz_id=self.data.bk_biz_id,
+                is_update=True,
+            )
+
             IndexSetHandler(self.data.index_set_id).update_parent_index_sets(parent_index_set_ids)
 
         custom_config = get_custom(self.data.custom_type)
@@ -1336,6 +1347,10 @@ class CollectorHandler:
 
     def indices_info(self):
         result_table_id = self.data.table_id
+        storage_cluster_type = self.data.storage_cluster_type
+        # doris 集群无索引相关信息
+        if storage_cluster_type == DORIS_CLUSTER_TYPE:
+            return []
         if not result_table_id:
             raise CollectNotSuccess
         result = EsRoute(scenario_id=Scenario.LOG, indices=result_table_id).cat_indices()
@@ -1422,6 +1437,7 @@ class CollectorHandler:
         target_fields=None,
         collector_scenario_id=CollectorScenarioEnum.CUSTOM.value,
         parent_index_set_ids=None,
+        parent_index_set_names=None,
         is_platform_index=None,
         platform_index_visibility=None,
         platform_index_filter=None,
@@ -1498,6 +1514,14 @@ class CollectorHandler:
 
             # 创建索引集，并添加到归属索引集中
             index_set = self.data.create_index_set()
+
+            parent_index_set_ids = CollectorHandler.obtain_parent_index_set_ids(
+                parent_index_set_ids,
+                parent_index_set_names,
+                bk_biz_id=bk_biz_id,
+                is_update=False,
+            )
+
             if parent_index_set_ids:
                 IndexSetHandler(index_set.index_set_id).add_to_parent_index_sets(parent_index_set_ids)
 
@@ -1848,3 +1872,49 @@ class CollectorHandler:
         if is_pattern_rt:
             return f"{result_table_id}__pattern"
         return result_table_id
+
+    @staticmethod
+    def get_or_create_parent_index_set_ids_by_parent_index_set_names(
+        parent_index_set_names,
+        bk_biz_id: int | None = None,
+        space_uid: str | None = None
+    ) -> list | None:
+        if parent_index_set_names is None:
+            return None
+
+        if not parent_index_set_names:
+            return []
+
+        if not space_uid:
+            if bk_biz_id is None:
+                return None
+            space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+
+        return IndexGroupHandler.get_or_create_index_group_ids_by_index_group_names(
+            space_uid=space_uid,
+            index_groups_names=parent_index_set_names,
+        )
+
+    @staticmethod
+    def obtain_parent_index_set_ids(
+        parent_index_set_ids,
+        parent_index_set_names,
+        bk_biz_id: int | None = None,
+        space_uid: str | None = None,
+        is_update: bool = False,
+    ) -> list | None:
+        if not is_update:
+            if not parent_index_set_ids and parent_index_set_names:
+                return CollectorHandler.get_or_create_parent_index_set_ids_by_parent_index_set_names(
+                    parent_index_set_names,
+                    bk_biz_id=bk_biz_id,
+                    space_uid=space_uid,
+                )
+        else:
+            if parent_index_set_ids is None and parent_index_set_names is not None:
+                return CollectorHandler.get_or_create_parent_index_set_ids_by_parent_index_set_names(
+                    parent_index_set_names,
+                    bk_biz_id=bk_biz_id,
+                    space_uid=space_uid,
+                )
+        return parent_index_set_ids

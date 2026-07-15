@@ -24,19 +24,33 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, ref, watch } from 'vue';
+import { computed, defineComponent, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 
 import draggable from 'vuedraggable';
 
+import axios from 'axios';
 import http from '@/api';
 import { messageWarn } from '@/common/bkmagic';
 import BklogPopover from '@/components/bklog-popover';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-import { SceneType, type FilterFieldConfig, type FilterValues, type SceneConfig, type SceneDimensionValuesResponse } from './types';
+import { SceneType, type FilterFieldConfig, type FilterValues, type SceneDimensionValuesResponse, type SceneConfig, type FieldCandidateCondition, type ListFieldCandidatesParams } from './types';
 import { getOperatorDisplay, getDefaultOp } from './scene-config';
 
 import './filter-panel.scss';
+
+/** 联想状态 */
+interface SuggestionState {
+  visible: boolean;
+  loading: boolean;
+  items: string[];
+  count: number;
+  page: number;
+  keyword: string;
+  currentFieldKey: string;
+  /** 已选中的项 */
+  selectedItems: Set<string>;
+}
 
 export default defineComponent({
   name: 'FilterPanel',
@@ -54,6 +68,10 @@ export default defineComponent({
       type: Array as () => Array<[string, string]> | null,
       default: null,
     },
+    isSticky: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['scene-change', 'filter-change', 'clear', 'display-fields-change', 'operator-change'],
   setup(props, { emit }) {
@@ -70,6 +88,9 @@ export default defineComponent({
     const translateLabel = (label: string, skipI18n?: boolean) => (skipI18n ? label : t(label));
 
     const apiOptions = ref<Record<string, { loading: boolean; options: Array<{ id: string; name: string }> }>>({});
+
+    /** 标签输入框组件引用 */
+    const tagInputRefs = ref<Record<string, any>>({});
 
     const currentScene = computed<SceneConfig | undefined>(() => sceneConfigs.value
       .find((scene: { type: string; }) => scene.type === props.activeScene),
@@ -298,6 +319,332 @@ export default defineComponent({
       return apiOptions.value[fieldName];
     };
 
+    // 容器场景全量集群列表缓存
+    const fullClusterList = ref<Array<{ id: string; name: string }>>([]);
+
+    // 获取容器场景全量集群列表
+    const fetchFullClusterList = async () => {
+      if (fullClusterList.value.length > 0) return;
+
+      try {
+        const res = await http.request('retrieve/getSceneDimensionValues', {
+          data: {
+            bk_biz_id: store.state.bkBizId,
+            scene: SceneType.Container,
+            dimension_key: 'cluster_id',
+          },
+        });
+
+        const data = (res.data ?? res) as SceneDimensionValuesResponse;
+        const values = data.values ?? [];
+        fullClusterList.value = values.map(v => ({ id: v, name: v }));
+      } catch (err) {
+        console.error('fetchFullClusterList error:', err);
+      }
+    };
+
+    // 监听场景变化，容器场景下预加载全量集群列表
+    watch(
+      () => props.activeScene,
+      (newScene) => {
+        if (newScene === SceneType.Container) {
+          // 切换到容器场景时，预加载全量集群列表
+          fetchFullClusterList();
+        }
+      },
+      { immediate: true },
+    );
+
+    // ============ 标签输入联想功能 ============
+    /** 联想状态 */
+    const suggestionState = reactive<SuggestionState>({
+      visible: false,
+      loading: false,
+      items: [],
+      count: 0,
+      page: 1,
+      keyword: '',
+      currentFieldKey: '',
+      selectedItems: new Set<string>(),
+    });
+
+    /** 防抖定时器 */
+    let suggestionDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    /** 请求取消执行函数 */
+    let suggestionCancelExecutor: (() => void) | null = null;
+
+    /** 重置联想状态 */
+    const resetSuggestionState = () => {
+      suggestionState.visible = false;
+      suggestionState.items = [];
+      suggestionState.count = 0;
+      suggestionState.page = 1;
+      suggestionState.keyword = '';
+      suggestionState.currentFieldKey = '';
+      suggestionState.selectedItems.clear();
+
+      // 清理防抖定时器
+      if (suggestionDebounceTimer) {
+        clearTimeout(suggestionDebounceTimer);
+        suggestionDebounceTimer = null;
+      }
+      // 取消未完成的请求
+      if (suggestionCancelExecutor) {
+        suggestionCancelExecutor();
+        suggestionCancelExecutor = null;
+      }
+    };
+
+    /** 构建联想请求的 conditions 参数 */
+    const buildSuggestionConditions = (): FieldCandidateCondition[] => {
+      const conditions: FieldCandidateCondition[] = [];
+      const currentFields = currentScene.value?.fields ?? [];
+
+      for (const f of currentFields) {
+        if (f.key === suggestionState.currentFieldKey) continue;
+        // 容器场景下跳过 path 字段
+        if (props.activeScene === SceneType.Container && f.key === 'path') continue;
+        // 只处理 free_input 类型的字段
+        if (f.choicesType !== 'free_input') continue;
+        const fieldValue = props.filterValues[f.key];
+        const val = fieldValue?.value;
+        if (val == null || val === '' || (Array.isArray(val) && val.length === 0)) continue;
+
+        const valueArray = Array.isArray(val) ? val.map(String) : [String(val)];
+        // 只有 op 为 eq 时才传递 condition
+        if (fieldValue.op === 'eq') {
+          conditions.push({
+            key: f.key,
+            method: 'eq',
+            value: valueArray,
+          });
+        }
+      }
+
+      return conditions;
+    };
+
+    /** 渲染联想弹窗内容 */
+    const renderSuggestionDropdown = (fieldKey: string) => {
+      if (suggestionState.items.length === 0) {
+        return <li class='field-suggestion-empty' onMousedown={(e: MouseEvent) => e.preventDefault()}>{t('暂无数据')}</li>;
+      }
+      return suggestionState.items.map((item, index) => {
+        const isSelected = suggestionState.selectedItems.has(item);
+        return (
+          <li
+            key={`${fieldKey}-${index}-${item}`}
+            title={item}
+            class={['field-suggestion-item', { 'is-selected': isSelected }]}
+            onMousedown={(e: MouseEvent) => {
+              e.preventDefault();
+            }}
+            onClick={(e: MouseEvent) => {
+              handleSelectSuggestion(item);
+            }}
+          >
+            <div class='suggestion-item-content'>{item}</div>
+            {isSelected && <i class='bk-icon icon-check-1 suggestion-item-check' />}
+          </li>
+        );
+      }).concat(
+        suggestionState.items.length < suggestionState.count && suggestionState.loading
+          ? [
+              <li key={`${fieldKey}-loading`} class='field-suggestion-loading' onMousedown={(e: MouseEvent) => e.preventDefault()}>
+                {t('loading...')}
+              </li>,
+            ]
+          : [],
+      );
+    };
+
+    /** 请求字段联想数据 */
+    const fetchFieldCandidates = async (inputValue: string, loadMore = false) => {
+      // 容器场景下 path 字段不调用联想接口
+      if (props.activeScene === SceneType.Container && suggestionState.currentFieldKey === 'path') {
+        return;
+      }
+      // 清除防抖定时器
+      if (suggestionDebounceTimer) {
+        clearTimeout(suggestionDebounceTimer);
+        suggestionDebounceTimer = null;
+      }
+
+      // 如果不是加载更多且关键词没变且不是首次加载，直接返回
+      if (!loadMore && inputValue === suggestionState.keyword && suggestionState.page > 1) {
+        return;
+      }
+
+      // 取消上一个未完成的请求
+      if (suggestionCancelExecutor) {
+        suggestionCancelExecutor();
+        suggestionCancelExecutor = null;
+      }
+
+      suggestionDebounceTimer = setTimeout(async () => {
+        if (!suggestionState.visible) return;
+
+        if (!loadMore) {
+          suggestionState.page = 1;
+          suggestionState.items = [];
+        }
+        suggestionState.loading = true;
+
+        const params: ListFieldCandidatesParams = {
+          space_uid: store.state.indexItem.spaceUid,
+          bk_biz_id: store.state.bkBizId,
+          scene: props.activeScene,
+          resource_type: suggestionState.currentFieldKey,
+          conditions: buildSuggestionConditions(),
+          query_string: inputValue,
+          page: suggestionState.page,
+          page_size: 100,
+        };
+
+        // 容器场景：必传 bcs_cluster_ids
+        if (props.activeScene === SceneType.Container) {
+          const clusterIdValue = props.filterValues.cluster_id?.value;
+          let clusterIds: string[] = [];
+
+          if (clusterIdValue) {
+            // 有选中的集群 ID，使用选中的值
+            clusterIds = Array.isArray(clusterIdValue) ? clusterIdValue.map(String) : [String(clusterIdValue)];
+          } else {
+            // 没有选中集群 ID，使用全量集群列表
+            clusterIds = fullClusterList.value.map(opt => String(opt.id));
+          }
+
+          params.bcs_cluster_ids = clusterIds;
+        }
+
+        // 主机场景：必传 table_id_conditions、start_time、end_time
+        if (props.activeScene === SceneType.Host) {
+          const retrieveParams = store.getters.retrieveParams;
+          params.table_id_conditions = [
+            [
+              {
+                field_name: 'scene',
+                value: ['host'],
+                op: 'eq',
+              }
+            ]
+          ];
+          params.start_time = retrieveParams.start_time;
+          params.end_time = retrieveParams.end_time;
+        }
+
+        const cancelToken = new axios.CancelToken((c) => {
+          suggestionCancelExecutor = c;
+        });
+
+        try {
+          const res = await http.request('retrieve/listSceneFieldCandidates', {
+            data: params,
+          }, { cancelToken });
+
+          const data = res.data ?? res;
+          suggestionState.items = [...suggestionState.items, ...(data.items ?? [])];
+          suggestionState.count = data.count ?? 0;
+          suggestionState.keyword = inputValue;
+        } catch (err: any) {
+          if (axios.isCancel(err)) {
+            return;
+          }
+          console.error('fetchFieldCandidates error:', err);
+          suggestionState.items = [];
+          suggestionState.count = 0;
+        } finally {
+          suggestionState.loading = false;
+        }
+      }, 300);
+    };
+
+    /** 处理联想项点击 */
+    const handleSelectSuggestion = (item: string) => {
+      // 切换选中状态
+      if (suggestionState.selectedItems.has(item)) {
+        suggestionState.selectedItems.delete(item);
+      } else {
+        suggestionState.selectedItems.add(item);
+      }
+      // 更新标签输入框的值
+      const currentTags = [...suggestionState.selectedItems];
+      handleTagChange(suggestionState.currentFieldKey, currentTags);
+      // 清空标签输入框的文本值
+      const tagInputRef = tagInputRefs.value[suggestionState.currentFieldKey];
+      if (tagInputRef?.clearInput) {
+        tagInputRef.clearInput();
+      }
+    };
+
+    /** 处理加载更多 */
+    const handleLoadMoreSuggestions = () => {
+      if (suggestionState.loading || suggestionState.items.length >= suggestionState.count) {
+        return;
+      }
+      suggestionState.loading = true;
+      suggestionState.page += 1;
+      fetchFieldCandidates(suggestionState.keyword, true);
+    };
+
+    /** 标签输入框聚焦处理 */
+    const handleTagInputFocus = (fieldKey: string) => {
+      // 如果是同一个字段，不做处理
+      if (suggestionState.currentFieldKey === fieldKey) {
+        return;
+      }
+      // 清除联想状态
+      resetSuggestionState();
+      // 设置当前字段并显示弹窗
+      suggestionState.currentFieldKey = fieldKey;
+      suggestionState.visible = true;
+      // 同步已有标签到 selectedItems
+      const existingTags = localTagValues.value[fieldKey] ?? [];
+      suggestionState.selectedItems = new Set(existingTags);
+      // 触发首次请求（空输入）
+      fetchFieldCandidates('', false);
+    };
+
+    /** 标签输入框内容变化处理 */
+    const handleTagInputChange = (inputValue: string) => {
+      // 重新请求联想数据
+      fetchFieldCandidates(inputValue, false);
+    };
+
+    /** 点击 tag-input-wrapper 容器外部时关闭弹窗 */
+    const handleDocumentMouseDown = (e: MouseEvent) => {
+      // 如果弹窗不可见，不需要处理
+      if (!suggestionState.visible) {
+        return;
+      }
+      // 点击在任何 tag-input-wrapper 容器内部都不关闭弹窗
+      if ((e.target as HTMLElement).closest('.tag-input-wrapper')) {
+        return;
+      }
+
+      resetSuggestionState();
+    };
+
+    /** 绑定/解绑全局 mousedown 事件 */
+    const bindMouseDownEvent = () => {
+      document.addEventListener('mousedown', handleDocumentMouseDown);
+    };
+
+    const unbindMouseDownEvent = () => {
+      document.removeEventListener('mousedown', handleDocumentMouseDown);
+    };
+
+    // 组件卸载时清理
+    onBeforeUnmount(() => {
+      resetSuggestionState();
+      unbindMouseDownEvent();
+    });
+
+    // 组件挂载时绑定事件
+    onMounted(() => {
+      bindMouseDownEvent();
+    });
+
     // 标签输入本地缓存
     const localTagValues = ref<Record<string, string[]>>({});
 
@@ -351,6 +698,9 @@ export default defineComponent({
 
     const handleTagChange = (fieldName: string, tags: string[]) => {
       localTagValues.value = { ...localTagValues.value, [fieldName]: tags };
+      if (suggestionState.currentFieldKey === fieldName && suggestionState.visible) {
+        suggestionState.selectedItems = new Set(tags);
+      }
       handleFieldChange(fieldName, tags);
     };
 
@@ -361,7 +711,7 @@ export default defineComponent({
 
     const renderSceneTabBar = () => (
       <div class='scene-tab-bar'>
-        {sceneConfigs.value.map(scene => (
+        {sceneConfigs.value.map((scene: SceneConfig) => (
           <div
             class={[
               'scene-tab-item',
@@ -528,20 +878,41 @@ export default defineComponent({
           </div>
           <div class={['field-input', 'is-fixed-layout', { 'is-active': isFieldActive }]}>
             <div class='field-input-placeholder' />
-            <bk-tag-input
-              value={getLocalTagValues(field.key)}
-              placeholder={field.placeholder}
-              allow-create={true}
-              has-delete-icon={true}
-              allow-next-focus={true}
-              clearable={true}
-              free-paste={true}
-              collapse-tags={true}
-              on-change={(tags: string[]) => handleTagChange(field.key, tags)}
-              on-removeAll={() => handleTagClear(field.key)}
-              on-focus={() => setActiveField(field.key)}
-              on-blur={() => deactivateField(field.key)}
-            />
+            <div class='tag-input-wrapper'>
+              <bk-tag-input
+                ref={(el: any) => { tagInputRefs.value[field.key] = el; }}
+                value={getLocalTagValues(field.key)}
+                placeholder={field.placeholder}
+                allow-create={true}
+                has-delete-icon={true}
+                allow-next-focus={true}
+                clearable={true}
+                free-paste={true}
+                collapse-tags={true}
+                on-change={(tags: string[]) => handleTagChange(field.key, tags)}
+                on-removeAll={() => handleTagClear(field.key)}
+                on-focus={() => {
+                  setActiveField(field.key);
+                  handleTagInputFocus(field.key);
+                }}
+                on-inputchange={(inputValue: string) => handleTagInputChange(inputValue)}
+              />
+              {/* 联想弹窗 */}
+              {suggestionState.visible && suggestionState.currentFieldKey === field.key && (
+                <ul
+                  class='field-suggestion-dropdown'
+                  v-bkloading={{ isLoading: suggestionState.loading }}
+                  on-scroll={(e: Event) => {
+                    const target = e.target as HTMLElement;
+                    if (target.scrollTop + target.clientHeight >= target.scrollHeight - 50) {
+                      handleLoadMoreSuggestions();
+                    }
+                  }}
+                >
+                  {renderSuggestionDropdown(field.key)}
+                </ul>
+              )}
+            </div>
           </div>
         </div>
       );
@@ -631,7 +1002,11 @@ export default defineComponent({
     );
 
     return () => (
-      <div class='scene-filter-panel' v-bkloading={{ isLoading: sceneLoading.value }}>
+      <div
+        class='scene-filter-panel'
+        v-bkloading={{ isLoading: sceneLoading.value }}
+        style={{ opacity: props.isSticky ? 0 : 1 }}
+      >
         <div class='scene-filter-top'>
           <div class='top-left'>
             {renderSceneTabBar()}

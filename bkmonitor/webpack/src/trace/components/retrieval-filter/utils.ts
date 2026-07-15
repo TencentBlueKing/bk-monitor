@@ -159,34 +159,120 @@ export function isNumeric(str) {
 }
 
 /**
+ * 从 where 项中移除指定值；若无剩余值则从列表中删除该项
+ */
+function removeWhereValue(list: IWhereItem[], whereItem: IWhereItem, value: number | string) {
+  const valueStr = (whereItem.value || []).map(String);
+  const valueIndex = valueStr.indexOf(String(value));
+  if (valueIndex === -1) {
+    return;
+  }
+
+  if (valueStr.length === 1) {
+    const index = list.findIndex(v => v === whereItem);
+    if (index !== -1) {
+      list.splice(index, 1);
+    }
+  } else {
+    whereItem.value.splice(valueIndex, 1);
+    if (whereItem.value.length === 1 && whereItem.options) {
+      // 只剩一个值时，删除 OR 关系
+      delete whereItem.options.group_relation;
+    }
+  }
+}
+
+/**
+ * 将值追加到已有 where 项（多选 OR）
+ */
+function appendWhereValue(whereItem: IWhereItem, values: number[] | string[]) {
+  const valueStr = (whereItem.value || []).map(String);
+  if (valueStr.includes(String(values[0]))) {
+    return;
+  }
+
+  if (whereItem.options?.group_relation === DEFAULT_GROUP_RELATION) {
+    Object.assign(whereItem, {
+      value: [...whereItem.value, ...values],
+    });
+  } else {
+    Object.assign(whereItem, {
+      value: [...whereItem.value, ...values],
+      options: {
+        ...whereItem.options,
+        group_relation: DEFAULT_GROUP_RELATION,
+      },
+    });
+  }
+}
+
+/**
  * @description 合并where条件 （不相同的条件往后添加）
  * @param source
  * @param target
+ * @param isMergeSameKey 同类字段（同 key 的 eq/ne）做合并：添加过滤/排除时先从对立项移除，再追加或新增
  * @returns
  */
-export function mergeWhereList(source: IWhereItem[], target: IWhereItem[]) {
+export function mergeWhereList(source: IWhereItem[], target: IWhereItem[], isMergeSameKey = false) {
+  const cloneSource = structuredClone(source);
   let result: IWhereItem[] = [];
-  const sourceMap: Map<string, IWhereItem> = new Map();
-  for (const item of source) {
-    sourceMap.set(item.key, item);
-  }
   const localTarget = [];
-  for (const item of target) {
-    const sourceItem = sourceMap.get(item.key);
-    if (
-      !(
-        sourceItem?.key === item.key &&
-        (sourceItem?.method || null) === (item?.method || null) &&
-        JSON.stringify(sourceItem.value) === JSON.stringify(item.value) &&
-        (sourceItem?.options?.is_wildcard || null) === (item?.options?.is_wildcard || null) &&
-        (sourceItem?.options?.group_relation || null) === (item?.options?.group_relation || null) &&
-        (sourceItem?.operator || null) === (item?.operator || null)
-      )
-    ) {
-      localTarget.push(item);
+  if (
+    isMergeSameKey &&
+    source.length &&
+    target.length &&
+    [EMethod.eq, EMethod.ne].includes(target[0].operator as EMethod)
+  ) {
+    const item = target[0];
+    const equalSourceItem = cloneSource.find(v => v.key === item.key && v.operator === EMethod.eq);
+    const neSourceItem = cloneSource.find(v => v.key === item.key && v.operator === EMethod.ne);
+    const selectedValue = item.value[0];
+
+    if (item.operator === EMethod.eq) {
+      // 1）添加过滤：字段排除项已存在，将选中值从排除项中移除，然后继续判断过滤项
+      if (neSourceItem) {
+        removeWhereValue(cloneSource, neSourceItem, selectedValue);
+      }
+      // 2～3）过滤项不存在则新增；已存在则追加选中值（多选）
+      if (equalSourceItem) {
+        appendWhereValue(equalSourceItem, item.value);
+      } else {
+        localTarget.push(item);
+      }
+    } else {
+      // 1）添加排除：字段过滤项已存在，将选中值从过滤项中移除，然后继续判断排除项
+      if (equalSourceItem) {
+        removeWhereValue(cloneSource, equalSourceItem, selectedValue);
+      }
+      // 2～3）排除项不存在则新增；已存在则追加选中值（排除多项）
+      if (neSourceItem) {
+        appendWhereValue(neSourceItem, item.value);
+      } else {
+        localTarget.push(item);
+      }
+    }
+  } else {
+    const sourceMap: Map<string, IWhereItem> = new Map();
+    for (const item of cloneSource) {
+      sourceMap.set(item.key, item);
+    }
+    for (const item of target) {
+      const sourceItem = sourceMap.get(item.key);
+      if (
+        !(
+          sourceItem?.key === item.key &&
+          (sourceItem?.method || null) === (item?.method || null) &&
+          JSON.stringify(sourceItem.value) === JSON.stringify(item.value) &&
+          (sourceItem?.options?.is_wildcard || null) === (item?.options?.is_wildcard || null) &&
+          (sourceItem?.options?.group_relation || null) === (item?.options?.group_relation || null) &&
+          (sourceItem?.operator || null) === (item?.operator || null)
+        )
+      ) {
+        localTarget.push(item);
+      }
     }
   }
-  result = [...source, ...localTarget];
+  result = [...cloneSource, ...localTarget];
   return result;
 }
 export function onClickOutside(element, callback, { once = false } = {}) {

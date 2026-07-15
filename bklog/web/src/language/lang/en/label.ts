@@ -48,6 +48,8 @@ export default {
   昨天: 'Yesterday',
   前天: 'The day before yesterday',
   本周: 'This week',
+  本月: 'This month',
+  上月: 'Last month',
   展开: 'Expand',
   收起: 'Collapse',
   业务: 'Business',
@@ -982,4 +984,7 @@ export default {
   客户端: 'Client',
   清空查询: 'Clear Query',
   场景: 'Scene',
+  个人设置: 'Personal Settings',
+  来源采集项: 'Source Collection Item',
+  未启动: 'Not Started',
 };

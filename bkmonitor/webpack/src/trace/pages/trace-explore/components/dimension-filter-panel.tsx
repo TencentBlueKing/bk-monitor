@@ -178,6 +178,7 @@ export default defineComponent({
           theme: 'light statistics-dimension-popover-cls',
           arrow: true,
           interactive: true,
+          zIndex: 1000,
           offset: [0, 8],
           appendTo: () => document.body,
           popperOptions: {
@@ -217,7 +218,7 @@ export default defineComponent({
     }
 
     function handleConditionChange(value: ConditionChangeEvent) {
-      emit('conditionChange', value);
+      emit('conditionChange', value, true);
     }
 
     function handleClose() {

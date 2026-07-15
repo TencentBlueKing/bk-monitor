@@ -128,6 +128,7 @@ def get_core_context(request):
         "BK_CC_URL": settings.BK_CC_URL,
         "BK_CI_URL": settings.BK_CI_URL,
         "BK_BCS_URL": settings.BK_BCS_HOST,
+        "BK_IAM_URL": settings.BK_IAM_SAAS_HOST,
         # 蓝鲸平台URL
         "BK_URL": settings.BK_URL,
         "BK_PAAS_HOST": settings.BK_PAAS_HOST,
@@ -162,6 +163,11 @@ def get_core_context(request):
         # 全局配置资源链接
         "BK_SHARED_RES_URL": settings.BK_SHARED_RES_URL,
         "FOOTER_VERSION": settings.VERSION,
+        # RUM 配置
+        "BKAPP_RUM_SDK": settings.BKAPP_RUM_SDK,
+        "BKAPP_RUM_ENDPOINT": settings.BKAPP_RUM_ENDPOINT,
+        "BKAPP_RUM_TOKEN": settings.BKAPP_RUM_TOKEN,
+        "BKAPP_RUM_ENABLED": str(settings.BKAPP_RUM_ENABLED).lower(),
     }
 
 
@@ -199,6 +205,8 @@ def get_basic_context(request, space_list: list[dict[str, Any]], bk_biz_id: int)
             "ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST": settings.ENABLE_AIOPS_EVENT_CENTER_BIZ_LIST,
             # 用户管理网关接口
             "BK_USER_WEB_API_URL": settings.BK_USER_WEB_API_URL,
+            # RUM 是否开启
+            "RUM_BIZ_LIST": settings.RUM_BIZ_LIST,
         }
     )
 

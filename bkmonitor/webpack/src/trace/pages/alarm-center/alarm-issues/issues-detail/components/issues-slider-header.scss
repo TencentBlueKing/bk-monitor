@@ -82,16 +82,23 @@
       background-color: #fff;
 
       &.is-focused:not(.is-readonly) {
+        /* stylelint-disable selector-class-pattern */
         .bk-input--text {
           background-color: #fff;
         }
+
+        /* stylelint-enable selector-class-pattern */
       }
 
       &:hover {
         background-color: #fff;
+
+        /* stylelint-disable selector-class-pattern, no-descending-specificity */
         .bk-input--text {
           background-color: #fff;
         }
+
+        /* stylelint-enable selector-class-pattern, no-descending-specificity */
       }
     }
 
@@ -125,17 +132,24 @@
   }
 
   .skeleton-element {
+    &.level-tag {
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+    }
+
     &.issues-detail-title {
       flex: 1;
-      height: 40px;
+      height: 36px;
       margin: 6px 8px;
     }
 
     &.btn-item {
-      width: 68px;
-      height: 42px;
+      width: 64px;
+      height: 36px;
       padding: 0;
-      margin-left: 5px;
+      margin-left: 8px;
+      border-radius: 4px;
     }
   }
 
@@ -143,6 +157,7 @@
     display: flex;
     align-items: center;
     height: 100%;
+    padding-right: 16px;
     line-height: 20px;
 
     .btn-group-item {
@@ -159,6 +174,12 @@
       &:hover {
         background: #f5f7fa;
       }
+
+      &.create-tapd {
+        &:hover {
+          background: #fff;
+        }
+      }
     }
 
     .btn-item-icon {
@@ -172,6 +193,42 @@
     .icon-back-left,
     .icon-back-right {
       font-size: 24px;
+    }
+
+    .create-tapd-btn {
+      padding: 0 16px;
+      border-radius: 4px;
+    }
+  }
+}
+
+.create-tapd-menu-popover.bk-popover.bk-pop2-content {
+  padding: 4px 0;
+
+  .create-tapd-menu-popover-content {
+    .create-tapd-menu-item {
+      display: flex;
+      align-items: center;
+      min-width: 102px;
+      height: 32px;
+      padding: 0 12px;
+      font-size: 12px;
+      font-weight: 400;
+      color: #4d4f56;
+
+      &.disabled {
+        color: #aaa;
+        cursor: not-allowed;
+      }
+
+      &:not(.disabled) {
+        cursor: pointer;
+
+        &:hover {
+          color: #3a84ff;
+          background-color: #eaf3ff;
+        }
+      }
     }
   }
 }

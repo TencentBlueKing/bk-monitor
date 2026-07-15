@@ -237,7 +237,7 @@ ITSM 流程套餐使用通用的 `ActionProcessor` 处理器（位于 `alarm_bac
     },
     {
       "key": "url",
-      "value": "{{itsm_site_url}}#/ticket/detail?id={{id}}",
+      "value": "{{itsm_site_url}}/#/ticket/detail?id={{id}}",
       "format": "jinja2"
     }
   ],
@@ -837,4 +837,3 @@ ITSM 流程套餐的实现方式展示了系统的扩展性：
 - 通过 `finished_rule` 和 `success_rule` 可以自定义完成条件
 
 这种设计使得系统可以轻松支持其他类型的处理套餐（如标准运维、作业平台等），而无需修改核心代码。
-

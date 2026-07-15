@@ -158,6 +158,11 @@
     pointer-events: none;
     z-index: 999;
     padding: 7px 14px;
+
+    &--aggregated {
+      padding: 12px 14px 7px;
+    }
+
     color: #fff;
     background: #333;
     border: 1px solid #454547;
@@ -186,6 +191,23 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+    }
+
+    .info-aggregate-title {
+      padding-bottom: 6px;
+      margin-bottom: 4px;
+      font-size: 14px;
+      line-height: 22px;
+      border-bottom: 1px solid #63656e;
+
+      &__weight {
+        font-weight: 700;
+      }
+
+      &__error-color {
+        color: #ff5656;
+        font-weight: 700;
       }
     }
   }

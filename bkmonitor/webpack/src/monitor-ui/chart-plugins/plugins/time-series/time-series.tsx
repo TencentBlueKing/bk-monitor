@@ -179,8 +179,8 @@ export class LineChart
     if (this.customMenuList) return this.customMenuList;
     const [target] = this.panel.targets;
     return target?.datasource === 'time_series'
-      ? ['save', 'more', 'fullscreen', 'explore', 'area', 'drill-down', 'relate-alert']
-      : ['screenshot', 'area'];
+      ? ['save', 'more', 'fullscreen', 'explore', 'set', 'area', 'drill-down', 'relate-alert']
+      : ['screenshot', 'set', 'area'];
   }
 
   // 是否显示添加指标到策略选项
@@ -394,9 +394,11 @@ export class LineChart
         }
         params.end_time = params.end_time + dTime;
       }
-      if (this.bkBizId) {
+      // 关联 Trace 打开侧边窗时可能临时切换了 window 业务，优先使用最新 bizId
+      const latestBizId = window.bk_biz_id || window.cc_biz_id || this.bkBizId;
+      if (latestBizId) {
         params = Object.assign({}, params, {
-          bk_biz_id: this.bkBizId,
+          bk_biz_id: latestBizId,
         });
       }
       const promiseList = [];
@@ -406,31 +408,46 @@ export class LineChart
         params.end_time - params.start_time,
         this.panel.collect_interval
       );
+      // 关联 Trace 场景下 app_name 也可能已切换，优先使用当前 filters 中的最新值
+      const latestAppName =
+        this.viewOptions?.filters?.app_name || (this.viewOptions as any)?.app_name || this.customScopedVars?.app_name;
       const variablesService = new VariablesService({
         ...this.viewOptions,
+        filters: {
+          ...this.viewOptions.filters,
+          ...(latestAppName ? { app_name: latestAppName } : {}),
+        },
         interval,
         ...(this.viewOptions?.groupByVariables || {}),
         ...this.customScopedVars,
+        ...(latestAppName ? { app_name: latestAppName } : {}),
       });
       for (const time_shift of timeShiftList) {
         const noTransformVariables = this.panel?.options?.time_series?.noTransformVariables;
         const list = this.panel.targets.map(item => {
+          const transformedData = variablesService.transformVariables(
+            item.data,
+            {
+              ...this.viewOptions.filters,
+              ...(this.viewOptions.filters?.current_target || {}),
+              ...this.viewOptions,
+              ...this.viewOptions.variables,
+              ...(this.viewOptions?.groupByVariables || {}),
+              time_shift,
+              interval,
+              ...this.customScopedVars,
+              ...(latestAppName ? { app_name: latestAppName } : {}),
+            },
+            noTransformVariables
+          );
           const newParams = {
-            ...variablesService.transformVariables(
-              item.data,
-              {
-                ...this.viewOptions.filters,
-                ...(this.viewOptions.filters?.current_target || {}),
-                ...this.viewOptions,
-                ...this.viewOptions.variables,
-                ...(this.viewOptions?.groupByVariables || {}),
-                time_shift,
-                interval,
-                ...this.customScopedVars,
-              },
-              noTransformVariables
-            ),
+            ...transformedData,
             ...params,
+            // 保证 dynamicUnifyQuery 等接口始终使用最新 app_name / bk_biz_id
+            ...(latestAppName || transformedData.app_name
+              ? { app_name: transformedData.app_name || latestAppName }
+              : {}),
+            bk_biz_id: latestBizId || transformedData.bk_biz_id || params.bk_biz_id,
             down_sample_range: this.downSampleRangeComputed(
               this.downSampleRange as string,
               [params.start_time, params.end_time],
@@ -615,7 +632,7 @@ export class LineChart
               splitNumber: this.height < 120 ? 2 : 4,
               minInterval: 1,
               scale: this.height < 120 ? false : canScale,
-              max: v => Math.max(v.max, +maxThreshold),
+              max: v => Math.max(v.max + (Math.abs(v.max - v.min) || Math.abs(v.max) || 1) * 0.1, +maxThreshold),
               min: v => {
                 let min = Math.min(v.min, +minThreshold);
                 // 柱状图y轴不能以最小值作为起始点

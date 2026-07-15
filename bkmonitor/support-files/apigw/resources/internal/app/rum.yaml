@@ -1,0 +1,199 @@
+paths:
+  /app/rum/create_rum_application/:
+    post:
+      operationId: create_rum_application
+      description: 创建RUM应用
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /rum_api/v1/rum_application/create_application/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: create rum application
+  /app/rum/delete_rum_application/:
+    post:
+      operationId: delete_rum_application
+      description: 删除RUM应用
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /rum_api/v1/rum_application/delete_application/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: delete rum application
+  /app/rum/list_rum_application/:
+    get:
+      operationId: list_rum_application
+      description: 获取RUM应用列表
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /rum_api/v1/rum_application/list_application/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: list rum application
+  /app/rum/detail_rum_application/:
+    get:
+      operationId: detail_rum_application
+      description: 获取RUM应用详情
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /rum_api/v1/rum_application/detail_application/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get rum application detail
+  /app/rum/start_rum_application/:
+    get:
+      operationId: start_rum_application
+      description: 启动RUM应用
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /rum_api/v1/rum_application/start_application/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: start rum application
+  /app/rum/stop_rum_application/:
+    get:
+      operationId: stop_rum_application
+      description: 停止RUM应用
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /rum_api/v1/rum_application/stop_application/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: stop rum application
+  /app/rum/apply_rum_datasource/:
+    post:
+      operationId: apply_rum_datasource
+      description: 创建或更新RUM数据源
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /rum_api/v1/rum_application/apply_datasource/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: apply rum datasource
+  /app/rum/query_rum_bk_data_token/:
+    get:
+      operationId: query_rum_bk_data_token
+      description: 查询RUM数据上报Token
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /rum_api/v1/rum_application/query_bk_data_token_info/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query rum bk data token
+  /app/rum/query_rum_application_config/:
+    get:
+      operationId: query_rum_application_config
+      description: 获取RUM应用配置
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /rum_api/v1/rum_application/application_config/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: query rum application config
+  /app/rum/release_rum_app_config/:
+    post:
+      operationId: release_rum_app_config
+      description: 下发RUM应用配置
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /rum_api/v1/rum_application/release_app_config/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: release rum app config
+  /app/rum/delete_rum_app_config/:
+    post:
+      operationId: delete_rum_app_config
+      description: 删除RUM应用配置
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /rum_api/v1/rum_application/delete_app_config/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: delete rum app config

@@ -1,0 +1,24 @@
+.field-form-edit-user-chooser {
+  position: relative;
+
+  &.is-error {
+    .bk-user-selector .tags-container {
+      border-color: #ea3636;
+      transition: all 0.15s;
+    }
+  }
+
+  .err-msg {
+    position: absolute;
+    bottom: -18px;
+    left: 0;
+    display: inline-block;
+    font-size: 12px;
+    line-height: 12px;
+    color: #ea3636;
+  }
+
+  .bk-user-selector .tags-container.focused {
+    z-index: 2;
+  }
+}

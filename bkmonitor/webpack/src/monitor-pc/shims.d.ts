@@ -82,12 +82,11 @@ declare global {
     __BK_WEWEB_DATA__: Record<string, any>;
     __POWERED_BY_BK_WEWEB__?: boolean;
     agent_setup_url: string;
-    // APM 监控相关
-    APM_QUERY_STRING?: string;
-    LOCAL_OLD_TIME_RANGE?: [string, string];
     // ai小鲸鱼 api base url
     ai_xiao_jing_base_url?: string;
     AJAX_URL_PREFIX: string;
+    // APM 监控相关
+    APM_QUERY_STRING?: string;
     bk_bcs_url: string;
     bk_biz_id: number | string;
     bk_biz_list: IBizItem[];
@@ -98,15 +97,16 @@ declare global {
     bk_doc_version: string;
     bk_docs_site_url: string;
     bk_domain: string;
+    bk_iam_url?: string;
     bk_job_url: string;
     bk_log_search_url: string;
     bk_nodeman_host: string;
     bk_paas_host: string;
-    bk_user_site_url: string;
     bk_shared_res_url: string;
     // 多租户租户id
     bk_tenant_id?: string;
     bk_url: string;
+    bk_user_site_url: string;
     // 多租户用户中心接口地址
     bk_user_web_api_url?: string;
     bkchat_manage_url: string;
@@ -140,6 +140,7 @@ declare global {
     is_superuser: boolean;
     job_url: string;
     k8s_v2_biz_list?: number[]; // 开启 k8s v2 版本的业务列表
+    LOCAL_OLD_TIME_RANGE?: [string, string];
     mail_report_biz: string;
     // 以下为日志全局变量配置
     mainComponent: any;
@@ -149,6 +150,10 @@ declare global {
     page_title: string;
     rawDocument: Document;
     rawWindow: Window;
+    /*
+     * 灰度开启 RUM 监控业务列表
+     */
+    rum_biz_list?: number[];
     show_realtime_strategy: boolean;
     site_url: string;
     slimit: number;
@@ -174,6 +179,13 @@ declare global {
       ce: boolean; // 社区版
       ee: boolean; // 企业版
       te: boolean; // 内部版
+    };
+    // RUM 监控ot sdk 配置
+    rum?: {
+      enabled?: boolean;
+      endpoint?: string;
+      sdk?: string;
+      token?: string;
     };
   }
   namespace VueTsxSupport.JSX {

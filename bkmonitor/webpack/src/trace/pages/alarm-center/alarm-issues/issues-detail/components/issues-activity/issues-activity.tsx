@@ -41,6 +41,7 @@ import {
 } from '../../../constant';
 import { followUpIssues } from '../../../services/issues-operations';
 import BasicCard from '../basic-card/basic-card';
+import RelationTapdItem from '../issues-relation-tapd/relation-tapd-item';
 import { useAppStore } from '@/store/modules/app';
 
 import type { IssueActivityItem, IssueDetail } from '../../../typing';
@@ -485,6 +486,35 @@ export default defineComponent({
     };
 
     /**
+     * 渲染 TAPD 关联/创建活动
+     */
+    const renderTapdActivity = (item: IssueActivityItem, showLine = true) => {
+      let tapdItem = null;
+      try {
+        tapdItem = typeof item.content === 'string' ? JSON.parse(item.content) : item.content;
+      } catch (e) {
+        console.error(e);
+      }
+      return renderActivityItem({
+        extCls: 'comment-activity-item',
+        icon: <i class='icon-monitor icon-a-useryonghu' />,
+        title: (
+          <div class='title-row'>
+            <span>{item.activity_type === IssueActiveNodeTypeEnum.TAPD_LINK ? t('关联已有单据') : t('创建单据')}</span>
+            {renderActivityItemTime(item, true)}
+          </div>
+        ),
+        content: (
+          <RelationTapdItem
+            style='margin: 0'
+            value={tapdItem}
+          />
+        ),
+        showLine,
+      });
+    };
+
+    /**
      * 渲染状态流转
      */
     const renderStatusActivity = (item: IssueActivityItem, showLine = true) => {
@@ -651,6 +681,10 @@ export default defineComponent({
           return renderNameChangeActivity(item, showLine);
         case IssueActiveNodeTypeEnum.CREATE:
           return renderFirstActivity(item, showLine);
+        case IssueActiveNodeTypeEnum.TAPD_LINK:
+          return renderTapdActivity(item, showLine);
+        case IssueActiveNodeTypeEnum.CREATE_TAPD:
+          return renderTapdActivity(item, showLine);
         // case IssueActiveNodeTypeEnum.SPLIT_FROM:
         //   return renderSplitActivity(item);
         // case IssueActiveNodeTypeEnum.MERGED_INTO:

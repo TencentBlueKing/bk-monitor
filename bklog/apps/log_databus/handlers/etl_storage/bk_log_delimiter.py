@@ -238,7 +238,13 @@ class BkLogDelimiterEtlStorage(EtlStorage):
                 {
                     "input_id": "iter_item",
                     "output_id": "log",
-                    "operator": {"type": "assign", "key_index": "data", "alias": "log", "output_type": "string"},
+                    "operator": {
+                        "type": "assign",
+                        "key_index": "data",
+                        "alias": "log",
+                        "output_type": "string",
+                        "default_value": None,
+                    },
                 },
                 {
                     "input_id": "iter_item",
@@ -280,6 +286,7 @@ class BkLogDelimiterEtlStorage(EtlStorage):
                         "key_index": str(field["field_index"] - 1),
                         "alias": field["field_name"],
                         "output_type": self._get_output_type(field["field_type"]),
+                        "default_value": None,
                     },
                 }
             )

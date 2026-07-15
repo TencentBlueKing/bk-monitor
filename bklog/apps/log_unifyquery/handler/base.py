@@ -359,23 +359,30 @@ class UnifyQueryHandler:
 
     @staticmethod
     def init_time_field(index_set_id: int, scenario_id: str = None) -> tuple:
+        log_index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         if not scenario_id:
-            scenario_id = LogIndexSet.objects.filter(index_set_id=index_set_id).first().scenario_id
+            scenario_id = log_index_set_obj.scenario_id
         # get timestamp field
-        if scenario_id in [Scenario.BKDATA, Scenario.LOG]:
-            return "dtEventTimeStamp", TimeFieldTypeEnum.DATE.value, TimeFieldUnitEnum.SECOND.value
+        if not log_index_set_obj.is_group and scenario_id in [Scenario.BKDATA, Scenario.LOG]:
+            return "dtEventTimeStamp", TimeFieldTypeEnum.DATE.value, TimeFieldUnitEnum.MILLISECOND.value
         else:
-            log_index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
             time_field = log_index_set_obj.time_field
             time_field_type = log_index_set_obj.time_field_type
             time_field_unit = log_index_set_obj.time_field_unit
             if time_field:
                 return time_field, time_field_type, time_field_unit
+            if log_index_set_obj.is_group:
+                child_index_set_ids = log_index_set_obj.get_child_index_set_ids()
+                if not child_index_set_ids:
+                    raise BaseSearchIndexSetException(
+                        BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id)
+                    )
+                return UnifyQueryHandler.init_time_field(child_index_set_ids[0])
             index_set_obj: LogIndexSetData = LogIndexSetData.objects.filter(index_set_id=index_set_id).first()
             if not index_set_obj:
                 raise BaseSearchIndexSetException(BaseSearchIndexSetException.MESSAGE.format(index_set_id=index_set_id))
             time_field = index_set_obj.time_field
-            return time_field, TimeFieldTypeEnum.DATE.value, TimeFieldUnitEnum.SECOND.value
+            return time_field, TimeFieldTypeEnum.DATE.value, TimeFieldUnitEnum.MILLISECOND.value
 
     def _deal_addition(self, ip_field):
         addition_ip_list: list = []
@@ -533,6 +540,10 @@ class UnifyQueryHandler:
         )
 
     def _init_desensitize(self) -> bool:
+        # 查询原始日志时不进行脱敏  original_search参数不由用户传入
+        if self.search_params.get("original_search", False):
+            return False
+
         is_desensitize = self.search_params.get("is_desensitize", True)
 
         if not is_desensitize:

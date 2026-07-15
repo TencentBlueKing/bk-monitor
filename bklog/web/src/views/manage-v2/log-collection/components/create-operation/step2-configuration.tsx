@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted, ref, onBeforeMount } from 'vue';
+import { computed, defineComponent, onMounted, ref, onBeforeMount, nextTick } from 'vue';
 
 import LogIpSelector, { toTransformNode, toSelectorNode } from '@/components/log-ip-selector/log-ip-selector'; // 日志IP选择器组件
 import useLocale from '@/hooks/use-locale';
@@ -339,7 +339,10 @@ export default defineComponent({
         .then(res => {
           if (res.code === 0) {
             clusterList.value = res.data;
-            formData.value.bcs_cluster_id = clusterList.value[0]?.cluster_id || '';
+            // 编辑/克隆场景下，bcs_cluster_id 由详情数据决定，不使用集群列表的默认值
+            if (!(props.isEdit || props.isClone)) {
+              formData.value.bcs_cluster_id = clusterList.value[0]?.cluster_id || '';
+            }
           }
         })
         .catch(err => {
@@ -694,9 +697,8 @@ export default defineComponent({
         emit('detail', res.data);
         // 更新 store 中的当前采集配置
         store.commit('collect/setCurCollect', res.data);
-        setTimeout(() => {
-          isConfigChange.value = false;
-        }, 2000);
+        await nextTick();
+        isConfigChange.value = false;
       } catch (err) {
         console.log('获取采集配置详情失败:', err);
       } finally {
@@ -859,6 +861,7 @@ export default defineComponent({
               clearable={false}
               loading={linkListLoading.value}
               disabled={isUpdate.value}
+              searchable={true}
               value={formData.value.bcs_cluster_id}
               on-selected={val => {
                 isConfigChange.value = true;
@@ -1306,6 +1309,8 @@ export default defineComponent({
     ) => {
       const { params, ...rect } = requestData;
       // const { data_encoding, params, target_object_type, target_node_type, target_nodes, ...rect } = requestData;
+      // Node 采集模式下，需要清空 namespaces、workload、containerName 等容器筛选字段，与旧版保持一致
+      const isNode = collectorType.value === 'node_log_config';
       const newConfig = (configs || []).map(item => {
         const { data_encoding, container, params: itemParams, collector_type, namespaces, label_selector, annotation_selector,
           noQuestParams, containerNameList } = item;
@@ -1314,17 +1319,23 @@ export default defineComponent({
 
         // 根据排除操作符决定使用 container_name 还是 container_name_exclude
         const containerKey = noQuestParams?.containerExclude === '!=' ? 'container_name_exclude' : 'container_name';
-        const containerNameValue = (containerNameList || []).join(',');
+        // Node 采集模式下，容器名清空
+        const containerNameValue = isNode ? '' : (containerNameList || []).join(',');
 
         // 根据排除操作符决定使用 namespaces 还是 namespaces_exclude
         const namespacesKey = noQuestParams?.namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespaces';
-        const namespacesValue = JSON.stringify(namespaces) === '["*"]' ? [] : (namespaces || []);
+        // Node 采集模式下，namespaces 清空为 []
+        const namespacesValue = isNode ? [] : (JSON.stringify(namespaces) === '["*"]' ? [] : (namespaces || []));
+
+        // Node 采集模式下，workload_type 和 workload_name 清空
+        const workload_type = isNode ? '' : (container?.workload_type || '');
+        const workload_name = isNode ? '' : (container?.workload_name || '');
 
         return {
           data_encoding,
           container: {
-            workload_type: container?.workload_type || '',
-            workload_name: container?.workload_name || '',
+            workload_type,
+            workload_name,
             [containerKey]: containerNameValue,
           },
           params: {

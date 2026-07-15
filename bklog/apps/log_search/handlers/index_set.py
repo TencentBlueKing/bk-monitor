@@ -37,7 +37,6 @@ from apps.decorators import user_operation_record
 from apps.exceptions import CreateOrUpdateLogRouterException
 from apps.feature_toggle.handlers.toggle import feature_switch
 from apps.iam import Permission, ResourceEnum
-from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import CollectorConfig
 from apps.log_desensitize.constants import (
@@ -90,6 +89,7 @@ from apps.log_search.exceptions import (
 from apps.log_search.handlers.search.mapping_handlers import MappingHandlers
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import (
+    TAG_TYPE_INNER,
     TAG_TYPE_SCENE,
     TAG_TYPE_USER,
     IndexSetCustomConfig,
@@ -434,6 +434,7 @@ class IndexSetHandler(APIModel):
         sort_fields=None,
         bcs_cluster_id=None,
         parent_index_set_ids=None,
+        parent_index_set_names=None,
         is_platform_index=None,
         platform_index_visibility=None,
         platform_index_filter=None,
@@ -463,6 +464,7 @@ class IndexSetHandler(APIModel):
             sort_fields=sort_fields,
             bcs_cluster_id=bcs_cluster_id,
             parent_index_set_ids=parent_index_set_ids,
+            parent_index_set_names=parent_index_set_names,
             is_platform_index=is_platform_index,
             platform_index_visibility=platform_index_visibility,
             platform_index_filter=platform_index_filter,
@@ -516,6 +518,7 @@ class IndexSetHandler(APIModel):
         sort_fields=None,
         bcs_cluster_id=None,
         parent_index_set_ids=None,
+        parent_index_set_names=None,
         is_platform_index=None,
         platform_index_visibility=None,
         platform_index_filter=None,
@@ -539,6 +542,7 @@ class IndexSetHandler(APIModel):
             sort_fields=sort_fields,
             bcs_cluster_id=bcs_cluster_id,
             parent_index_set_ids=parent_index_set_ids,
+            parent_index_set_names=parent_index_set_names,
             is_platform_index=is_platform_index,
             platform_index_visibility=platform_index_visibility,
             platform_index_filter=platform_index_filter,
@@ -1033,13 +1037,16 @@ class IndexSetHandler(APIModel):
         """
         索引集添加标签
         """
-        if not IndexSetTag.objects.filter(tag_id=tag_id).exists():
-            raise IndexSetTagNotExistException(IndexSetTagNotExistException.MESSAGE.format(tag_id=tag_id))
-
         if tag_id in self._get_protected_tag_ids():
             raise IndexSetInnerTagOperatorException()
 
         index_set_obj = self._get_data()
+        if not IndexSetTag.objects.filter(
+            tag_id=tag_id,
+            tag_type=TAG_TYPE_USER,
+            space_uid__in=["", index_set_obj.space_uid],
+        ).exists():
+            raise IndexSetTagNotExistException(IndexSetTagNotExistException.MESSAGE.format(tag_id=tag_id))
 
         tag_ids = list(index_set_obj.tag_ids)
 
@@ -1075,22 +1082,29 @@ class IndexSetHandler(APIModel):
         """
         创建标签
         """
+        space_uid = params.get("space_uid", "")
         if (
             params["name"] in list(InnerTag.get_dict_choices().values())
-            or IndexSetTag.objects.filter(name=params["name"], tag_type=TAG_TYPE_USER).exists()
+            or IndexSetTag.objects.filter(
+                space_uid__in=["", space_uid], name=params["name"], tag_type=TAG_TYPE_USER
+            ).exists()
         ):
             raise IndexSetTagNameExistException(IndexSetTagNameExistException.MESSAGE.format(name=params["name"]))
 
-        obj = IndexSetTag.objects.create(name=params["name"], color=params["color"], tag_type=TAG_TYPE_USER)
+        obj = IndexSetTag.objects.create(
+            space_uid=space_uid, name=params["name"], color=params["color"], tag_type=TAG_TYPE_USER
+        )
 
         return model_to_dict(obj)
 
     @staticmethod
-    def tag_list():
+    def tag_list(space_uid: str):
         """
         标签列表 — 仅返回用户自定义标签和系统内置标签，不包含场景维度标签
         """
-        objs = IndexSetTag.objects.exclude(tag_type="scene")
+        objs = IndexSetTag.objects.filter(
+            Q(tag_type=TAG_TYPE_USER, space_uid__in=["", space_uid]) | Q(tag_type=TAG_TYPE_INNER)
+        )
 
         ret = list()
 
@@ -1108,7 +1122,7 @@ class IndexSetHandler(APIModel):
         获取受保护（不可由用户操作）的标签 ID 列表，包括系统内置标签和场景维度标签
         """
         return list(
-            IndexSetTag.objects.filter(tag_type__in=["inner", "scene"]).values_list("tag_id", flat=True)
+            IndexSetTag.objects.filter(tag_type__in=[TAG_TYPE_INNER, TAG_TYPE_SCENE]).values_list("tag_id", flat=True)
         )
 
     @staticmethod
@@ -1638,7 +1652,7 @@ class IndexSetHandler(APIModel):
             parent_index_sets = LogIndexSet.objects.filter(index_set_id__in=parent_index_set_ids, is_group=True)
             BaseIndexSetHandler.sync_router(list(parent_index_sets))
 
-    def update_parent_index_sets(self, new_parent_index_set_ids: list):
+    def update_parent_index_sets(self, new_parent_index_set_ids: list | None):
         """
         更新归属索引集
         """
@@ -1682,6 +1696,7 @@ class BaseIndexSetHandler:
         sort_fields=None,
         bcs_cluster_id=None,
         parent_index_set_ids=None,
+        parent_index_set_names=None,
         is_platform_index=None,
         platform_index_visibility=None,
         platform_index_filter=None,
@@ -1708,6 +1723,7 @@ class BaseIndexSetHandler:
         self.is_editable = is_editable
         self.bcs_cluster_id = bcs_cluster_id
         self.parent_index_set_ids = parent_index_set_ids
+        self.parent_index_set_names = parent_index_set_names
 
         # time_field
         self.time_field, self.time_field_type, self.time_field_unit = self.init_time_field(
@@ -1846,6 +1862,14 @@ class BaseIndexSetHandler:
                 time_field_type=index.get("time_field_type") or self.time_field_type,
                 time_field_unit=index.get("time_field_unit") or self.time_field_unit,
             )
+
+        from apps.log_databus.handlers.collector.base import CollectorHandler
+        self.parent_index_set_ids = CollectorHandler.obtain_parent_index_set_ids(
+            self.parent_index_set_ids,
+            self.parent_index_set_names,
+            space_uid=self.space_uid,
+            is_update=False
+        )
 
         # 将索引集添加到归属索引集(索引组)中
         if self.parent_index_set_ids:
@@ -2178,6 +2202,14 @@ class BaseIndexSetHandler:
                 time_field_type=index.get("time_field_type") or self.time_field_type,
                 time_field_unit=index.get("time_field_unit") or self.time_field_unit,
             )
+
+        from apps.log_databus.handlers.collector.base import CollectorHandler
+        self.parent_index_set_ids = CollectorHandler.obtain_parent_index_set_ids(
+            self.parent_index_set_ids,
+            self.parent_index_set_names,
+            space_uid=self.space_uid,
+            is_update=True
+        )
 
         # 更新归属索引集
         IndexSetHandler(index_set_id=self.index_set_obj.index_set_id).update_parent_index_sets(

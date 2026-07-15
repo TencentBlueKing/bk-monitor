@@ -61,6 +61,11 @@ export const allRouteConfig: IRouteConfig[] = [
     route: 'profiling',
   },
   {
+    id: 'rum',
+    name: 'RUM',
+    route: 'rum',
+  },
+  {
     id: 'report',
     name: 'route-订阅配置',
     route: 'report',
@@ -74,6 +79,11 @@ export const allRouteConfig: IRouteConfig[] = [
     id: 'host',
     name: 'route-主机监控',
     route: 'host',
+  },
+  {
+    id: 'rum',
+    name: 'route-RUM',
+    route: 'rum',
   },
 ];
 

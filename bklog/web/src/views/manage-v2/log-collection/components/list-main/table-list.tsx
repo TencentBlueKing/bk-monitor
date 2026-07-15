@@ -25,11 +25,12 @@
  */
 
 import { defineComponent, onBeforeUnmount, onMounted, ref, nextTick, watch, computed, type PropType } from 'vue';
+import { useRouter, useRoute } from 'vue-router/composables';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import * as authorityMap from '@/common/authority-map';
 import tippy, { type Instance } from 'tippy.js';
-import { tenantManager } from '@/views/retrieve-core/tenant-manager';
+import { tenantManager, UserInfoLoadedEventData } from '@/views/retrieve-core/tenant-manager';
 import axios from 'axios';
 import {
   formatBytes,
@@ -40,6 +41,7 @@ import {
   GLOBAL_CATEGORIES_ENUM,
   COLLECTOR_SCENARIO_ENUM,
   STATUS_ENUM_FILTER,
+  IS_RELATED_SPACE_ENUM,
 } from '../../utils';
 import { projectManages } from '@/common/util';
 import useResizeObserver from '@/hooks/use-resize-observe';
@@ -49,9 +51,11 @@ import { useCollectList } from '../../hook/useCollectList';
 import TagMore from '../common-comp/tag-more';
 import type { IListItemData } from '../../type';
 import StopTypeDialog from './stop-type-dialog';
+import AddExistingCollectDialog from './add-existing-collect-dialog';
 import TableComponent from '../common-comp/table-component';
 import ClusterFilter from '@/views/retrieve-v2/search-result-panel/log-clustering/components/finger-tools/cluster-filter.tsx';
 import '@/views/retrieve-v2/search-result-panel/log-clustering/components/finger-tools/cluster-filter.scss';
+import BklogPopover from '@/components/bklog-popover';
 import './table-list.scss';
 
 const CancelToken = axios.CancelToken;
@@ -202,6 +206,8 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useLocale();
     const store = useStore();
+    const router = useRouter();
+    const route = useRoute();
     const showStopTypeDialog = ref(false);
     const showCollectIssuedSlider = ref(false);
     const currentRow = ref<ITableRowData>({} as ITableRowData);
@@ -228,6 +234,17 @@ export default defineComponent({
     const originalOrderMap = ref<Map<number | string, number>>(new Map());
     // 用户信息映射（username -> display_name）
     const userDisplayNameMap = ref<Map<string, string>>(new Map());
+
+    /** 监听用户信息更新事件，更新显示名称映射 */
+    const handleUserInfoUpdated = (data: UserInfoLoadedEventData) => {
+      const newMap = new Map(userDisplayNameMap.value);
+      for (const [bkUsername, userInfo] of data.userInfo.entries()) {
+        if (userInfo?.display_name) {
+          newMap.set(bkUsername, userInfo.display_name);
+        }
+      }
+      userDisplayNameMap.value = newMap;
+    };
     // 全量标签列表（用于标签管理）
     const selectLabelList = ref<Array<{ tag_id: number; name: string; color: string; is_built_in?: boolean }>>([]);
     // 标签过滤下拉选项列表
@@ -262,7 +279,7 @@ export default defineComponent({
     // 过滤条件
     const conditions = ref<IFilterCondition[]>([]);
     // 表格过滤值（用于设置默认选中状态）
-    const filterValue = ref<Record<string, string | (string | number)[]>>({
+    const filterValue = ref<Record<string, string |(string | number)[]>>({
       log_access_type: '',
       collector_scenario_id: '',
       storage_display_name: '',
@@ -270,6 +287,7 @@ export default defineComponent({
       created_by: '',
       updated_by: '',
       tags: [],
+      is_related_space: '',
     });
 
     const pagination = ref({
@@ -479,7 +497,7 @@ export default defineComponent({
 
     const buildParentIndexSets = (ids: Array<number | string>) => {
       const indexSetMap = new Map((props.indexGroupList || []).map(item => [String(item.index_set_id), item]));
-      return ids.map(id => {
+      return ids.map((id) => {
         const matched = indexSetMap.get(String(id));
         return {
           index_set_id: id,
@@ -510,7 +528,7 @@ export default defineComponent({
         },
       };
 
-      tableList.value = tableList.value.map(item => {
+      tableList.value = tableList.value.map((item) => {
         if (getRowUniqueId(item) !== rowId) {
           return item;
         }
@@ -598,7 +616,9 @@ export default defineComponent({
     };
 
     const isSameIndexSetIds = (sourceIds: Array<number | string>, targetIds: Array<number | string>) => {
-      return sourceIds.map(String).sort().join(',') === targetIds.map(String).sort().join(',');
+      return sourceIds.map(String).sort()
+        .join(',') === targetIds.map(String).sort()
+        .join(',');
     };
 
     const handleParentIndexSetSubmit = async (row: ITableRowData) => {
@@ -665,7 +685,7 @@ export default defineComponent({
     };
 
     const waitIndexSetSelectPopoverClosed = () => {
-      return new Promise(resolve => {
+      return new Promise((resolve) => {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             window.setTimeout(resolve, 80);
@@ -802,21 +822,32 @@ export default defineComponent({
       );
     };
 
+    // 表格设置字段（根据 indexSetId 是否为 'all' 决定是否显示"采集项来源"）
+    const settingFields = computed(() => {
+      const indexSetId = (props.indexSet as IListItemData)?.index_set_id;
+      if (indexSetId === 'all') {
+        return SETTING_FIELDS.filter(field => field.id !== 'is_related_space');
+      }
+      return SETTING_FIELDS;
+    });
+
     // 所有列定义
-    const allColumns = computed(() => [
-      {
-        title: t('数据ID'),
-        colKey: 'bk_data_id',
-        width: 100,
-        ellipsis: true,
-        fixed: 'left',
-      },
-      {
-        title: t('采集名'),
-        colKey: 'name',
-        sorter: true,
-        sortType: 'all',
-        cell: (h, { row }: { row: ITableRowData }) => (
+    const allColumns = computed(() => {
+      const indexSetId = (props.indexSet as IListItemData)?.index_set_id;
+      return [
+        {
+          title: t('数据ID'),
+          colKey: 'bk_data_id',
+          width: 100,
+          ellipsis: true,
+          fixed: 'left',
+        },
+        {
+          title: t('采集名'),
+          colKey: 'name',
+          sorter: true,
+          sortType: 'all',
+          cell: (h, { row }: { row: ITableRowData }) => (
           <span
             class='link'
             on-click={() => {
@@ -828,75 +859,100 @@ export default defineComponent({
             {row.storage_cluster_id === -1 && <span class='link-tag'>{t('未完成')}</span>}
             {row.name}
           </span>
-        ),
-        fixed: 'left',
-        width: 220,
-        ellipsis: true,
-      },
-      {
-        title: t('日用量'),
-        colKey: 'daily_usage',
-        sorter: true,
-        sortType: 'all',
-        width: 100,
-        cell: (h, { row }: { row: ITableRowData }) => <span>{formatBytes(row.daily_usage)}</span>,
-      },
-      {
-        title: t('总用量'),
-        colKey: 'total_usage',
-        sorter: true,
-        sortType: 'all',
-        width: 100,
-        cell: (h, { row }: { row: ITableRowData }) => <span>{formatBytes(row.total_usage)}</span>,
-      },
-      {
-        title: t('存储名'),
-        colKey: 'bk_data_name',
-        width: 180,
-        ellipsis: true,
-      },
-      {
-        title: t('所属索引集'),
-        colKey: 'index_set_name',
-        className: 'index-set-name-cell',
-        width: 240,
-        cell: (h, { row }: { row: ITableRowData }) => renderParentIndexSetCell(row),
-      },
-      {
-        title: t('接入类型'),
-        colKey: 'log_access_type',
-        width: 140,
-        cell: (h, { row }: { row: ITableRowData }) => <span>{row.log_access_type_name || '--'}</span>,
-        filter: getColumnsFilter(GLOBAL_CATEGORIES_ENUM),
-      },
-      {
-        title: t('日志类型'),
-        colKey: 'collector_scenario_id',
-        width: 100,
-        cell: (h, { row }: { row: ITableRowData }) => <span>{row.collector_scenario_name || '--'}</span>,
-        filter: getColumnsFilter(COLLECTOR_SCENARIO_ENUM),
-      },
-      {
-        title: t('集群名'),
-        colKey: 'storage_display_name',
-        minWidth: 140,
-        ellipsis: true,
-        filter: getColumnsFilter(IFilterValues.value.storage_display_name),
-      },
-      {
-        title: t('过期时间'),
-        colKey: 'retention',
-        cell: (h, { row }: { row: ITableRowData }) => (
+          ),
+          fixed: 'left',
+          width: 220,
+          ellipsis: true,
+        },
+        {
+          title: t('日用量'),
+          colKey: 'daily_usage',
+          sorter: true,
+          sortType: 'all',
+          width: 100,
+          cell: (h, { row }: { row: ITableRowData }) => <span>{formatBytes(row.daily_usage)}</span>,
+        },
+        {
+          title: t('总用量'),
+          colKey: 'total_usage',
+          sorter: true,
+          sortType: 'all',
+          width: 100,
+          cell: (h, { row }: { row: ITableRowData }) => <span>{formatBytes(row.total_usage)}</span>,
+        },
+        {
+          title: t('存储名'),
+          colKey: 'bk_data_name',
+          width: 180,
+          ellipsis: true,
+        },
+        {
+          title: t('所属索引集'),
+          colKey: 'index_set_name',
+          className: 'index-set-name-cell',
+          width: 240,
+          cell: (h, { row }: { row: ITableRowData }) => renderParentIndexSetCell(row),
+        },
+        ...(indexSetId !== 'all'
+          ? [
+            {
+              title: t('采集项来源'),
+              colKey: 'is_related_space',
+              width: 120,
+              cell: (h, { row }: { row: ITableRowData }) => (
+                <span class='space-tag-wrapper'>
+                  {!row.is_related_space && <span class='space-tag current'>{t('当前空间')}</span>}
+                  {row.is_related_space && (
+                    <span
+                      class='space-tag related'
+                      v-bk-tooltips={{
+                        content: t('关联空间') + (row?.space_name ? `: ${row?.space_name}` : ''),
+                      }}
+                    >
+                      {t('关联空间')}
+                    </span>
+                  )}
+                </span>
+              ),
+              filter: getColumnsFilter(IS_RELATED_SPACE_ENUM),
+            },
+          ]
+          : []),
+        {
+          title: t('接入类型'),
+          colKey: 'log_access_type',
+          width: 140,
+          cell: (h, { row }: { row: ITableRowData }) => <span>{row.log_access_type_name || '--'}</span>,
+          filter: getColumnsFilter(GLOBAL_CATEGORIES_ENUM),
+        },
+        {
+          title: t('日志类型'),
+          colKey: 'collector_scenario_id',
+          width: 100,
+          cell: (h, { row }: { row: ITableRowData }) => <span>{row.collector_scenario_name || '--'}</span>,
+          filter: getColumnsFilter(COLLECTOR_SCENARIO_ENUM),
+        },
+        {
+          title: t('集群名'),
+          colKey: 'storage_display_name',
+          minWidth: 140,
+          ellipsis: true,
+          filter: getColumnsFilter(IFilterValues.value.storage_display_name),
+        },
+        {
+          title: t('过期时间'),
+          colKey: 'retention',
+          cell: (h, { row }: { row: ITableRowData }) => (
           <span class={{ 'text-disabled': row.status === 'stop' }}>
             {row.retention ? `${row.retention} ${t('天')}` : '--'}
           </span>
-        ),
-        width: 100,
-      },
-      {
-        title: (h) => {
-          const isActive = filterValue.value.tags.length > 0;
-          return (
+          ),
+          width: 100,
+        },
+        {
+          title: (h) => {
+            const isActive = filterValue.value.tags.length > 0;
+            return (
             <ClusterFilter
               title={t('标签')}
               searchable
@@ -908,11 +964,11 @@ export default defineComponent({
               on-selected={(v: string[]) => handleTagSelectChange(v)}
               on-submit={(v: string[]) => handleTagSubmit(v)}
             />
-          );
-        },
-        colKey: 'tags',
-        showTips: false,
-        cell: (h, { row }: { row: ITableRowData }) => (
+            );
+          },
+          colKey: 'tags',
+          showTips: false,
+          cell: (h, { row }: { row: ITableRowData }) => (
           <TagMore
             mode='label'
             tags={row.tags || []}
@@ -922,56 +978,57 @@ export default defineComponent({
             on-refresh-label-list={() => fetchLabelList()}
             on-update-tags={(newTags) => handleUpdateTags(row, newTags)}
           />
-        ),
-        width: 200,
-      },
-      {
-        title: t('采集状态'),
-        colKey: 'status',
-        width: 100,
-        cell: (h, { row }: { row: ITableRowData }) => renderStatus(row),
-        filter: getColumnsFilter(STATUS_ENUM_FILTER),
-      },
-      {
-        title: t('创建人'),
-        colKey: 'created_by',
-        width: 100,
-        cell: (h, { row }: { row: ITableRowData }) => getName(row.created_by),
-        filter: getColumnsFilter(IFilterValues.value.created_by),
-      },
-      {
-        title: t('创建时间'),
-        colKey: 'created_at',
-        sorter: true,
-        sortType: 'all',
-        width: 200,
-        ellipsis: true,
-      },
-      {
-        title: t('更新人'),
-        width: 100,
-        colKey: 'updated_by',
-        cell: (h, { row }: { row: ITableRowData }) => getName(row.updated_by),
-        filter: getColumnsFilter(IFilterValues.value.updated_by),
-      },
-      {
-        title: t('更新时间'),
-        colKey: 'updated_at',
-        sorter: true,
-        sortType: 'all',
-        width: 200,
-        ellipsis: true,
-      },
-      {
-        title: t('操作'),
-        colKey: 'operation',
-        width: 110,
-        fixed: 'right',
-        cell: (h, { row }: { row: ITableRowData }) => {
-          const isBkDataOrEs = ['bkdata', 'es'].includes(row.log_access_type);
-          const editKey = isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.MANAGE_COLLECTION_AUTH;
-          const searchKey = isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.SEARCH_LOG_AUTH;
-          return (
+          ),
+          width: 200,
+        },
+        {
+          title: t('采集状态'),
+          colKey: 'status',
+          width: 100,
+          cell: (h, { row }: { row: ITableRowData }) => renderStatus(row),
+          filter: getColumnsFilter(STATUS_ENUM_FILTER),
+        },
+        {
+          title: t('创建人'),
+          colKey: 'created_by',
+          width: 100,
+          cell: (h, { row }: { row: ITableRowData }) => getName(row.created_by),
+          filter: getColumnsFilter(IFilterValues.value.created_by),
+        },
+        {
+          title: t('创建时间'),
+          colKey: 'created_at',
+          sorter: true,
+          sortType: 'all',
+          width: 200,
+          ellipsis: true,
+        },
+        {
+          title: t('更新人'),
+          width: 100,
+          colKey: 'updated_by',
+          cell: (h, { row }: { row: ITableRowData }) => getName(row.updated_by),
+          filter: getColumnsFilter(IFilterValues.value.updated_by),
+        },
+        {
+          title: t('更新时间'),
+          colKey: 'updated_at',
+          sorter: true,
+          sortType: 'all',
+          width: 200,
+          ellipsis: true,
+        },
+        {
+          title: t('操作'),
+          colKey: 'operation',
+          width: 110,
+          fixed: 'right',
+          cell: (h, { row }: { row: ITableRowData }) => {
+            const isBkDataOrEs = ['bkdata', 'es'].includes(row.log_access_type);
+            const editKey = isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.MANAGE_COLLECTION_AUTH;
+            const searchKey = isBkDataOrEs ? authorityMap.MANAGE_INDICES_AUTH : authorityMap.SEARCH_LOG_AUTH;
+            const isRelatedSpace = !!row.is_related_space;
+            return (
             <div class='table-operation'>
               <span
                 class={{
@@ -983,17 +1040,36 @@ export default defineComponent({
               >
                 {t('检索')}
               </span>
-              <span
-                class={{
-                  link: true,
-                  disabled: !getOperatorCanClick(row, 'edit'),
-                }}
-                v-cursor={{ active: !row.permission?.[editKey] }}
-                on-click={() => handleEditOperation(row, 'edit')}
-              >
-                {t('编辑')}
-              </span>
-              <span class='bk-icon icon-more more-btn table-more-btn' />
+              {isRelatedSpace ? (
+                <BklogPopover
+                  options={{
+                    placement: 'top',
+                    theme: 'dark',
+                    appendTo: document.body,
+                  } as any}
+                  trigger='hover'
+                  content={() => renderRelatedSpaceTipContent(row)}
+                >
+                  <span
+                    class={{ link: true, disabled: true }}
+                    v-cursor={{ active: !row.permission?.[editKey] }}
+                  >
+                    {t('编辑')}
+                    </span>
+                </BklogPopover>
+              ) : (
+                <span
+                  class={{
+                    link: true,
+                    disabled: !getOperatorCanClick(row, 'edit'),
+                  }}
+                  v-cursor={{ active: !row.permission?.[editKey] }}
+                  on-click={() => handleEditOperation(row, 'edit')}
+                >
+                  {t('编辑')}
+                </span>
+              )}
+              {!isRelatedSpace && <span class='bk-icon icon-more more-btn table-more-btn' />}
               <div
                 style={{ display: 'none' }}
                 class='row-menu-popover'
@@ -1015,10 +1091,11 @@ export default defineComponent({
                 </div>
               </div>
             </div>
-          );
+            );
+          },
         },
-      },
-    ]);
+      ];
+    });
 
     /**
      * 销毁所有 tippy 实例
@@ -1064,10 +1141,12 @@ export default defineComponent({
           created_by: '',
           updated_by: '',
           tags: [],
+          is_related_space: '',
         };
         tagSelect.value = ['all'];
         searchKey.value = '';
         reloadList();
+        getCollectorFieldEnums();
       },
     );
 
@@ -1130,7 +1209,11 @@ export default defineComponent({
 
     /** 获取全量标签列表 */
     const fetchLabelList = () => {
-      $http.request('unionSearch/unionLabelList').then(res => {
+      $http.request('unionSearch/unionLabelList', {
+        query: {
+          space_uid: spaceUid.value,
+        },
+      }).then(res => {
         selectLabelList.value = res.data || [];
         // 构建过滤列表："全部"选项 + 非内置标签
         const notBuiltInList = (res.data || [])
@@ -1189,6 +1272,8 @@ export default defineComponent({
     };
 
     onMounted(() => {
+      // 监听用户信息更新事件
+      tenantManager.on('userInfoUpdated', handleUserInfoUpdated);
       getCollectorFieldEnums();
       fetchLabelList();
       nextTick(() => {
@@ -1204,6 +1289,7 @@ export default defineComponent({
     });
 
     onBeforeUnmount(() => {
+      tenantManager.off('userInfoUpdated', handleUserInfoUpdated);
       destroyTippyInstances();
       // 清除状态轮询定时器
       stopCollectStatusTimer();
@@ -1231,7 +1317,7 @@ export default defineComponent({
             index_set_ids: indexSetIds,
           },
         })
-        .then(res => {
+        .then((res) => {
           const usageMap = new Map<number | string, IStorageUsageItem>();
           // 构建使用量映射表，提高查找效率
           for (const item of res.data || []) {
@@ -1241,7 +1327,7 @@ export default defineComponent({
           }
 
           // 更新表格数据
-          tableList.value = tableList.value.map(item => {
+          tableList.value = tableList.value.map((item) => {
             const usageInfo = usageMap.get(Number(item.index_set_id));
             if (usageInfo) {
               const { index_set_id: _id, ...rest } = usageInfo;
@@ -1253,7 +1339,7 @@ export default defineComponent({
             return item;
           });
         })
-        .catch(error => {
+        .catch((error) => {
           console.log('获取存储用量失败:', error);
         });
     };
@@ -1280,13 +1366,13 @@ export default defineComponent({
             collector_config_id_list: collectorConfigIdList,
           },
         })
-        .then(res => {
+        .then((res) => {
           if (isUnmounted || !res.result) {
             stopCollectStatusTimer();
             return;
           }
           const isHasRunning = res.data.filter(item => item.status === 'running').length > 0;
-          tableList.value = tableList.value.map(item => {
+          tableList.value = tableList.value.map((item) => {
             const info = res.data.find(val => val.collector_id === item.collector_config_id);
             const { status_name, status } = info || {};
             return {
@@ -1340,6 +1426,9 @@ export default defineComponent({
         const indexSetId = (props.indexSet as IListItemData)?.index_set_id;
         if (indexSetId && indexSetId !== 'all') {
           params.parent_index_set_id = indexSetId;
+          params.include_related_spaces = true;
+        } else {
+          params.include_related_spaces = false;
         }
 
         const res = await $http.request(
@@ -1348,14 +1437,14 @@ export default defineComponent({
             data: params,
           },
           {
-            cancelToken: new CancelToken(c => {
+            cancelToken: new CancelToken((c) => {
               listInterfaceCancel.value = c;
               isCancelToken.value = true;
             }),
           },
         );
         listLoading.value = false;
-        tableList.value = ((res.data?.list || []) as ITableRowData[]).map(item => {
+        tableList.value = ((res.data?.list || []) as ITableRowData[]).map((item) => {
           const localParentIndexSet = getLocalParentIndexSet(item);
           if (!localParentIndexSet) {
             return item;
@@ -1396,23 +1485,11 @@ export default defineComponent({
           }
         }
         if (userIds.size > 0) {
-          tenantManager
-            .batchGetUserDisplayInfo(Array.from(userIds))
-            .then(userMap => {
-              // 更新用户信息映射（创建新 Map 以确保响应式更新）
-              const newMap = new Map(userDisplayNameMap.value);
-              for (const [userId, userInfo] of userMap.entries()) {
-                if (userInfo?.display_name) {
-                  newMap.set(userId, userInfo.display_name);
-                }
-              }
-              userDisplayNameMap.value = newMap;
-            })
-            .catch(error => {
-              console.log('批量获取用户信息失败:', error);
-            });
+          // 触发批量获取请求，通过 userInfoUpdated 事件监听来更新显示名称
+          tenantManager.batchGetUserDisplayInfo(Array.from(userIds));
         }
       } catch (error) {
+        listLoading.value = false;
         !isCancelToken.value && console.log('获取列表数据失败:', error, isCancelToken.value);
       }
     };
@@ -1447,8 +1524,12 @@ export default defineComponent({
      */
     const getCollectorFieldEnums = async () => {
       try {
+        const indexSetId = (props.indexSet as IListItemData)?.index_set_id;
         const res = await $http.request('collect/collectorFieldEnums', {
-          query: { space_uid: spaceUid.value },
+          query: {
+            space_uid: spaceUid.value,
+            include_related_spaces: indexSetId !== 'all',
+          },
         });
         if (res.data) {
           const createdByList = res.data.created_by || [];
@@ -1521,7 +1602,7 @@ export default defineComponent({
         .request(requestConfig.api, {
           params: requestConfig.params,
         })
-        .then(res => {
+        .then((res) => {
           if (res.result) {
             showMessage(t('删除成功'));
             reloadList();
@@ -1555,7 +1636,7 @@ export default defineComponent({
               collector_config_id: row.collector_config_id,
             },
           })
-          .then(res => {
+          .then((res) => {
             if (res.result) {
               reloadList();
             }
@@ -1592,14 +1673,14 @@ export default defineComponent({
               collector_config_id: row.collector_config_id,
             },
           })
-          .then(res => {
+          .then((res) => {
             if (res.data?.check_record_id) {
               isShowDetection.value = true;
               const checkRecordId = res.data.check_record_id;
               handleCollectorCheck(checkRecordId);
             }
           })
-          .catch(error => {
+          .catch((error) => {
             console.log('一键检测失败:', error);
           });
         return;
@@ -1661,6 +1742,68 @@ export default defineComponent({
     };
 
     /**
+     * 跳转到关联空间的采集项管理页面
+     * @param row - 表格行数据
+     */
+    const handleJumpToRelatedSpace = (row: ITableRowData) => {
+      // 1. 获取权限 key
+      const isBkDataOrEs = ['bkdata', 'es'].includes(row.log_access_type);
+      const editKey = isBkDataOrEs
+        ? authorityMap.MANAGE_INDICES_AUTH
+        : authorityMap.MANAGE_COLLECTION_AUTH;
+
+      // 2. 检查权限
+      if (!row.permission?.[editKey]) {
+        // 无权限，拉起申请弹窗
+        operateHandler(row, 'edit', row.log_access_type, props.indexSet.index_set_id);
+        return;
+      }
+
+      // 3. 有权限，手动构建路由并跳转（使用 row.space_uid）
+      const routeData = router.resolve({
+        name: 'collectEdit',
+        params: {
+          // bkdata/es 类型没有 collector_config_id，使用 index_set_id
+          collectorId: String(
+            isBkDataOrEs ? (row.index_set_id ?? '') : (row.collector_config_id ?? '')
+          ),
+        },
+        query: {
+          typeKey: String(row.log_access_type),
+          spaceUid: String(row.space_uid), // 使用 row.space_uid
+          backRoute: route.name,
+        },
+      });
+
+      window.open(routeData.href, '_blank', 'noopener,noreferrer');
+    };
+
+    /**
+     * 渲染关联空间提示弹窗内容
+     * @param row - 表格行数据
+     */
+    const renderRelatedSpaceTipContent = (row: ITableRowData) => {
+      return (
+        <div class='related-space-tip-content'>
+          <div>{t('关联空间的索引集，无法编辑')}</div>
+          <div>
+            <i18n path='请{0}编辑。'>
+                <span
+                  class='link-to-space'
+                  on-click={() => {
+                    handleJumpToRelatedSpace(row);
+                  }}
+                >
+                {t('前往对应的空间')}
+                <i class='bklog-icon bklog-jump'></i>
+              </span>
+            </i18n>
+          </div>
+        </div>
+      );
+    };
+
+    /**
      * 处理表格过滤变化
      * @param filters - 过滤对象
      */
@@ -1680,7 +1823,12 @@ export default defineComponent({
       for (const key of Object.keys(filters || {})) {
         const value = filters[key];
         if (key === 'tags') continue; // tags 由 ClusterFilter 单独管理
-        if (value) {
+        if (key === 'is_related_space') {
+          // 采集项来源过滤，使用 collector_source 作为 key
+          if (value) {
+            newConditions.push({ key: 'collector_source', value: [value as string] });
+          }
+        } else if (value) {
           newConditions.push({
             key,
             value: [value as string],
@@ -1805,6 +1953,25 @@ export default defineComponent({
             >
               {t('采集项')}
             </bk-button>
+            <AddExistingCollectDialog
+              indexSetId={(props.indexSet as IListItemData)?.index_set_id ?? ''}
+              spaceUid={spaceUid.value}
+              on-confirm={() => {
+                reloadList();
+                emit('refresh-index-group');
+              }}
+            >
+              <bk-button
+                outline={true}
+                theme='primary'
+                v-cursor={{ active: isAllowedCreate }}
+                disabled={!collectProject.value || isLoading.value || isAllowedCreate === null}
+                v-show={(props.indexSet as IListItemData)?.index_set_id !== 'all'}
+              >
+                <i class='bklog-icon bklog-link-guanlian' />
+                {t('关联采集项管理')}
+              </bk-button>
+            </AddExistingCollectDialog>
           </div>
           <bk-input
             class='tool-search-select'
@@ -1843,7 +2010,7 @@ export default defineComponent({
             filterValue={filterValue.value}
             on-empty-click={handleEmptyOperation}
             colKeyMap={FIELD_ID_TO_COL_KEY_MAP}
-            settingFields={SETTING_FIELDS}
+            settingFields={settingFields.value}
             emptyType={emptyType.value}
           />
 
