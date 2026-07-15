@@ -178,6 +178,78 @@ class GetMainlineObjectTopo(CMDBBaseResource):
 class ListServiceInstanceDetail(CMDBBaseResource):
     """
     查询服务实例详情
+
+     API 网关返回示例：
+    {
+          "result": true,
+          "code": 0,
+          "message": "success",
+          "permission": null,
+          "data": {
+            "count": 1,
+            "info": [
+              {
+                "bk_biz_id": 1,
+                "id": 49,
+                "name": "p1_81",
+                "service_template_id": 50,
+                "bk_host_id": 11,
+                "bk_module_id": 56,
+                "creator": "admin",
+                "modifier": "admin",
+                "create_time": "2019-07-22T09:54:50.906+08:00",
+                "last_time": "2019-07-22T09:54:50.906+08:00",
+                "bk_supplier_account": "0",
+                "service_category_id": 22,
+                "process_instances": [
+                  {
+                    "process": {
+                      "proc_num": 0,
+                      "stop_cmd": "",
+                      "restart_cmd": "",
+                      "face_stop_cmd": "",
+                      "bk_process_id": 43,
+                      "bk_func_name": "p1",
+                      "work_path": "",
+                      "priority": 0,
+                      "reload_cmd": "",
+                      "bk_process_name": "p1",
+                      "pid_file": "",
+                      "auto_start": false,
+                      "last_time": "2019-07-22T09:54:50.927+08:00",
+                      "create_time": "2019-07-22T09:54:50.927+08:00",
+                      "bk_biz_id": 3,
+                      "start_cmd": "",
+                      "user": "",
+                      "timeout": 0,
+                      "description": "",
+                      "bk_supplier_account": "0",
+                      "bk_start_param_regex": "",
+                      "bind_info": [
+                        {
+                          "enable": true,
+                          "ip": "127.0.0.1",
+                          "port": "80",
+                          "protocol": "1",
+                          "template_row_id": 1234
+                        }
+                      ]
+                    },
+                    "relation": {
+                      "bk_biz_id": 1,
+                      "bk_process_id": 43,
+                      "service_instance_id": 49,
+                      "process_template_id": 48,
+                      "bk_host_id": 11,
+                      "bk_supplier_account": "0"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+
     """
 
     # 分页接口，上层缓存封装，因此这里实时获取

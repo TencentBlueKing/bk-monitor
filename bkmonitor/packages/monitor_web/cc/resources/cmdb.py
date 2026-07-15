@@ -52,6 +52,7 @@ def get_agent_status(bk_biz_id: int, hosts: list[Host]) -> dict[int, int]:
     data_source = data_source_class(
         bk_biz_id=bk_biz_id,
         interval=180,
+        # usage: CPU 使用率（%），仅用于判定主机最近三分钟是否有数据上报（有上报即视为 Agent 正常）
         metrics=[{"field": "usage", "method": "AVG", "alias": "A"}],
         table="system.cpu_summary",
         group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id"],
@@ -143,6 +144,25 @@ def get_process_info(bk_biz_id: int, hosts: list[Host], limit_port_num: int = No
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表
     :param limit_port_num: 限制端口数量
+    :return: 以 bk_host_id 为 key 的进程信息字典，value 为该主机下的进程实例列表
+        e.g.:
+            {
+                11: [
+                    {
+                        "id": 43,                       # 占位值，host.py 中按 "进程名@主机IP" 覆盖
+                        "bk_host_id": 11,
+                        "name": "p1",
+                        "protocol": "1",
+                        "ports": [80, 8080],
+                        "status": 0,                     # AGENT_STATUS
+                        "bindIp": "127.0.0.1",
+                        "port": 80,
+                        "startCommand": "/usr/bin/p1 -c /etc/p1.conf",
+                        "user": "root",
+                    }
+                ]
+            }
+
     """
     pp_info = defaultdict(list)
 
@@ -174,12 +194,23 @@ def get_process_info(bk_biz_id: int, hosts: list[Host], limit_port_num: int = No
         else:
             status = AGENT_STATUS.UNKNOWN
 
+        # Phase 1: Extract new CMDB fields for process list enrichment (REQ-20260707-001-S02).
+        # id 由 host.py 的 get_host_process_list 按 "进程名@主机IP" 格式组装（前端 ProcessItem.id 契约）。
+        # 此处保留原始 bk_process_id 占位，维持 pp_instance["id"] 赋值结构，供 host.py 覆盖。
         pp_instance = {
+            "id": pp.bk_process_id,
             "bk_host_id": pp.bk_host_id,
             "name": pp.bk_process_name,
             "protocol": pp.protocol,
             "ports": ports,
             "status": status,
+            # DESIGN: From host_view_split_S02_process_fields_DESIGN.md
+            # Phase 1: new fields from raw CMDB JSON
+            "bindIp": pp.bind_ip,
+            "port": int(ports[0]) if ports else "",
+            "startCommand": pp.start_cmd,
+            # user 为 CMDB 配置值，host.py 合并处用 TSDB username 兜底（design/S02 §1/§2）
+            "user": pp.user,
         }
         pp_info[pp.bk_host_id].append(pp_instance)
 
@@ -221,6 +252,158 @@ def get_process_status(bk_biz_id: int, hosts: list[Host]) -> dict[int, dict[str,
         if bk_host_id in bk_host_ids and record.get("display_name"):
             result[bk_host_id][record["display_name"]] = AGENT_STATUS.ON if record["_result_"] else AGENT_STATUS.OFF
     return result
+
+
+def get_process_runtime_metrics(bk_biz_id: int, hosts: list[Host]) -> dict[str, dict]:
+    """
+    查询进程运行时指标 (system.proc)
+
+    返回各进程指标字段的运行时数据，按主机 + 进程(display_name) 两级聚合：
+    - 指标字段（AVG）：cpu_usage_pct, mem_res, mem_usage_pct, uptime
+    - 维度字段（按列名读取，不可 AVG 聚合）：pid, username
+
+    见 design/S02-process-fields-design-update.md §4.2 / §5。
+
+    :param bk_biz_id: 业务ID
+    :param hosts: 主机列表
+    :return: 以 bk_host_id 为一级 key、进程 display_name（进程名）为二级 key 的运行时指标字典，
+        三级 key 为指标字段（cpu_usage_pct/mem_res/mem_usage_pct/uptime）与维度字段（pid/username）
+        e.g.:
+            {
+                11: {
+                    "nginx": {"cpu_usage_pct": 2.5, "mem_res": 102400, "mem_usage_pct": 10.0, "uptime": 3600, "pid": 1001, "username": "root"},
+                    "redis": {"cpu_usage_pct": 5.0, "mem_res": 204800, "mem_usage_pct": 20.0, "uptime": 7200, "pid": 2002, "username": "redis"}
+                }
+            }
+    """
+    try:
+        ip_to_host_id = {(host.bk_host_innerip, host.bk_cloud_id): host.bk_host_id for host in hosts}
+        bk_host_ids = {host.bk_host_id for host in hosts}
+
+        # system.proc 指标字段（可 AVG 聚合）
+        # - cpu_usage_pct: 进程 CPU 使用率（%）
+        # - mem_res:       进程使用的物理内存（字节）
+        # - mem_usage_pct: 进程内存使用率（%）
+        # - uptime:        进程运行时长（秒）
+        METRIC_FIELDS = ["cpu_usage_pct", "mem_res", "mem_usage_pct", "uptime"]
+        # system.proc 维度字段（按列名直接读取，不可 AVG 聚合；user 对应 username，无 user/mem_rss 字段）
+        # - pid:     进程 ID
+        # - username: 进程所属用户名
+        DIM_FIELDS = ["pid", "username"]
+
+        # 按主机初始化结果结构，兼容 bk_host_id 与 bk_target_ip 两种查询维度
+        result = defaultdict(lambda: defaultdict(dict))
+
+        def get_metric_data(field, _data):
+            data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
+            data_source = data_source_class(
+                bk_biz_id=bk_biz_id,
+                interval=180,
+                metrics=[{"field": field, "method": "AVG", "alias": "A"}],
+                table="system.proc",
+                group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"] + DIM_FIELDS,
+            )
+            query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
+            now = int(time.time()) * 1000
+            # 查询最近三分钟的进程运行时数据
+            records = query.query_data(start_time=now - 180000, end_time=now, instant=True)
+            for record in records:
+                if record.get("_result_") is None:
+                    continue
+
+                if record.get("bk_host_id"):
+                    bk_host_id = int(record["bk_host_id"])
+                else:
+                    bk_host_id = ip_to_host_id.get((record.get("bk_target_ip"), int(record.get("bk_target_cloud_id"))))
+
+                if bk_host_id in bk_host_ids and record.get("display_name"):
+                    display_name = record["display_name"]
+                    _data[bk_host_id][display_name][field] = record.get("_result_")
+
+                    # 维度字段：直接按列名读取（pid/username 为 dimension，不能进 metrics 做 AVG）
+                    for dim in DIM_FIELDS:
+                        dim_val = record.get(dim)
+                        if dim_val is not None:
+                            _data[bk_host_id][display_name][dim] = dim_val
+
+        # 根据指标字段数量并发请求
+        pool = ThreadPool()
+        futures = []
+        for field in METRIC_FIELDS:
+            futures.append(pool.apply_async(get_metric_data, args=(field, result)))
+        pool.close()
+        # 按字段降级：单个指标查询失败时仅丢弃该字段，不影响其余字段（设计文档 §1 稳健性要求）。
+        # apply_async 的异常仅在 AsyncResult.get() 时抛出，故逐字段 try/except 捕获。
+        for field, future in zip(METRIC_FIELDS, futures):
+            try:
+                future.get()
+            except Exception as e:
+                logger.warning("get_process_runtime_metrics field %s failed, skip: %s", field, e)
+        pool.join()
+
+        return result
+    except Exception as e:
+        # 设计文档 §1：TSDB 查询异常兜底，runtime_data={}，CMDB 基础字段照常返回
+        logger.warning("get_process_runtime_metrics failed, degrade to empty: %s", e)
+        return {}
+
+
+def get_process_port_health(bk_biz_id: int, hosts: list[Host]) -> dict[int, dict[str, int | None]]:
+    """
+    查询进程端口健康状态 (port_health)
+
+    与 get_process_status 类似，但查询的是 `system.proc_port` 中的 `port_health` 指标，
+    而非 `proc_exists`。返回每个进程的端口健康状态：0 = 不健康，1 = 健康，None = 未知/未解析。
+
+    PERFORMANCE NOTE:
+        Phase 2 should consider merging this query with get_process_status into a single
+        UnifyQuery that fetches both `proc_exists` and `port_health` metrics together,
+        reducing TSDB round-trips from 2 to 1 per process-list request.
+
+    :param bk_biz_id: 业务ID
+    :param hosts: 主机列表
+    :return: {bk_host_id: {bk_process_name: 0/1/None}}
+    """
+    try:
+        ip_to_host_id = {(host.bk_host_innerip, host.bk_cloud_id): host.bk_host_id for host in hosts}
+        bk_host_ids = {host.bk_host_id for host in hosts}
+
+        # 查询进程端口健康数据
+        data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
+        data_source = data_source_class(
+            bk_biz_id=bk_biz_id,
+            interval=180,
+            # port_health: 端口健康状态（0=不健康，1=健康），用于判定进程端口健康度
+            metrics=[{"field": "port_health", "method": "AVG", "alias": "A"}],
+            table="system.proc_port",
+            group_by=(["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"]),
+        )
+        query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
+        now = int(time.time()) * 1000
+        # 仅判定最近三分钟内端口健康状态，使用 instant 查询取窗口聚合的单点
+        # TODO: [REQ-20260707-001-S02] Add timeout guard (>3s should degrade to None per design doc)
+        records = query.query_data(start_time=now - 180000, end_time=now, instant=True)
+
+        result = defaultdict(dict)
+        for record in records:
+            if record.get("_result_") is None:
+                continue
+
+            if record.get("bk_host_id"):
+                bk_host_id = int(record["bk_host_id"])
+            else:
+                bk_host_id = ip_to_host_id.get((record.get("bk_target_ip"), int(record.get("bk_target_cloud_id") or 0)))
+
+            if bk_host_id in bk_host_ids and record.get("display_name"):
+                # port_health metric raw values are 0 or 1.
+                # AVG with instant=True returns a float aggregate; coerce to int binary.
+                val = 1 if record["_result_"] else 0
+                result[bk_host_id][record["display_name"]] = val
+        return result
+    except Exception as e:
+        # 设计文档 §1：TSDB 查询异常兜底，port_health={}，CMDB 基础字段照常返回
+        logger.warning("get_process_port_health failed, degrade to empty: %s", e)
+        return {}
 
 
 def get_host_performance_data(bk_biz_id: int, hosts: list[Host] = None) -> dict[int, dict] | dict[tuple, dict]:

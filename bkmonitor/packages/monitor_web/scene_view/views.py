@@ -16,6 +16,12 @@ from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from monitor_web.scene_view.resources.host import (
+    GetHostViewsPanelsResource,
+    GetHostViewsPanelsOrderResource,
+    GetProcessViewsPanelsResource,
+    GetProcessViewsPanelsOrderResource,
+)
 
 
 class SceneViewViewSet(ResourceViewSet):
@@ -286,4 +292,9 @@ class SceneViewViewSet(ResourceViewSet):
             resource.scene_view.get_custom_metric_target_list,
             endpoint="get_custom_metric_target_list",
         ),
+        # === S-01: Host 页面接口拆分 — panels/order 独立接口 ===
+        ResourceRoute("POST", GetHostViewsPanelsResource, endpoint="get_host_views_panels"),
+        ResourceRoute("POST", GetHostViewsPanelsOrderResource, endpoint="get_host_metric_group_panel_order"),
+        ResourceRoute("POST", GetProcessViewsPanelsResource, endpoint="get_process_views_panels"),
+        ResourceRoute("POST", GetProcessViewsPanelsOrderResource, endpoint="get_process_metric_group_panel_order"),
     ]
