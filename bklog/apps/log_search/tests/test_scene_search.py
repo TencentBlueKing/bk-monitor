@@ -825,13 +825,13 @@ class TestSceneUnifyQueryHandler(TestCase):
         )
 
         raw_result = {
-            "result_table_id": ["2_bklog.test_container_stdout"],
+            "result_table_id": ["bklog_index_set_123_2_bklog_test_container_stdout.__default__"],
             "list": [
                 {
                     "log": "test error",
                     "__index": "my_index",
                     "__doc_id": "doc1",
-                    "__result_table": "2_bklog.test_container_stdout",
+                    "__result_table": "bklog_index_set_123_2_bklog_test_container_stdout.__default__",
                 },
             ],
             "total": 1,
@@ -895,6 +895,7 @@ class TestSceneUnifyQueryHandler(TestCase):
                 "2_bklog.scene_source_table",
                 "3_bklog.related_scene_source_table",
                 "4_bklog.other_scene_source_table",
+                "bklog_index_set_101_2_bklog_scene_source_table.__default__",
             ]
         )
 
@@ -903,6 +904,7 @@ class TestSceneUnifyQueryHandler(TestCase):
             {
                 "2_bklog.scene_source_table": 101,
                 "3_bklog.related_scene_source_table": 102,
+                "bklog_index_set_101_2_bklog_scene_source_table.__default__": 101,
             },
         )
         mock_related_space_uids.assert_called_once_with(SPACE_UID)
