@@ -15,16 +15,6 @@ class TestIndexSetTagSpace(TestCase):
     create_tag_path = "/api/v1/index_set/tag/"
     tag_list_path = "/api/v1/index_set/tag/list/"
 
-    def test_doris_tag_detection_supports_global_and_current_space_tags(self):
-        global_tag = IndexSetTag.objects.create(name="Doris")
-        space_tag = IndexSetTag.objects.create(space_uid="bkcc__2", name="Doris")
-        other_space_tag = IndexSetTag.objects.create(space_uid="bkcc__3", name="Doris")
-
-        self.assertTrue(IndexSetTag.is_doris_tag([str(global_tag.tag_id)], "bkcc__2"))
-        self.assertTrue(IndexSetTag.is_doris_tag([str(space_tag.tag_id)], "bkcc__2"))
-        self.assertFalse(IndexSetTag.is_doris_tag([str(other_space_tag.tag_id)], "bkcc__2"))
-        self.assertFalse(IndexSetTag.is_doris_tag([], "bkcc__2"))
-
     def test_user_tag_can_use_same_name_in_different_spaces(self):
         space_a = "bkcc__2"
         space_b = "bkcc__3"

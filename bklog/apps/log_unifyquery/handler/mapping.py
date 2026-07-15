@@ -46,6 +46,7 @@ from apps.log_search.constants import (
     DorisFieldTypeEnum,
 )
 from apps.log_search.models import (
+    TAG_TYPE_INNER,
     IndexSetFieldsConfig,
     LogIndexSet,
     LogIndexSetData,
@@ -225,7 +226,9 @@ class UnifyQueryMappingHandler:
         # doris需要映射字段类型，根据新的类型获取操作列表
         indices_list = self.indices.split(",")
 
-        is_doris = IndexSetTag.is_doris_tag(self.index_set.tag_ids, self.index_set.space_uid) or DORIS_CLUSTER_TYPE in {
+        is_doris = str(IndexSetTag.get_tag_id("Doris", tag_type=TAG_TYPE_INNER)) in list(
+            self.index_set.tag_ids
+        ) or DORIS_CLUSTER_TYPE in {
             storage_cluster_type
             for storage_cluster_type in CollectorConfig.get_storage_cluster_type_map_by_table_ids(indices_list).values()
         }
