@@ -108,7 +108,9 @@ class BkLogJsonEtlStorage(EtlStorage):
 
         if built_in_config.get("option") and isinstance(built_in_config["option"], dict):
             option = dict(built_in_config["option"], **option)
-        result_table_fields = self.get_result_table_fields(fields, etl_params, built_in_config, es_version=es_version)
+        result_table_fields = self.get_result_table_fields(
+            fields, etl_params, built_in_config, es_version=es_version, storage_cluster_type=storage_cluster_type
+        )
 
         result_table_config = {
             "option": option,

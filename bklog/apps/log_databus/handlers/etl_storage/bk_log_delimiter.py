@@ -163,7 +163,9 @@ class BkLogDelimiterEtlStorage(EtlStorage):
             logger.error(f"[etl][delimiter]separator_field_list => {separator_field_list}")
 
         option["separator_field_list"] = separator_field_list
-        result_table_fields = self.get_result_table_fields(fields, etl_params, built_in_config, es_version=es_version)
+        result_table_fields = self.get_result_table_fields(
+            fields, etl_params, built_in_config, es_version=es_version, storage_cluster_type=storage_cluster_type
+        )
 
         result_table_config = {
             "option": option,

@@ -889,7 +889,9 @@ class EtlStorage:
                 result["analyzer"][analyzer_name]["tokenizer"] = "standard"
         return result
 
-    def get_result_table_fields(self, fields, etl_params, built_in_config, es_version="5.X"):
+    def get_result_table_fields(
+        self, fields, etl_params, built_in_config, es_version="5.X", storage_cluster_type=STORAGE_CLUSTER_TYPE
+    ):
         """
         META
         """
@@ -997,8 +999,10 @@ class EtlStorage:
             if not is_match_variate(target_field):
                 raise ValidationError(_("字段名不符合变量规则"))
 
-            if field["field_type"] == FieldDataTypeEnum.FLATTENED.value and is_version_less_than(
-                es_version, MIN_FLATTENED_SUPPORT_VERSION
+            if (
+                storage_cluster_type == STORAGE_CLUSTER_TYPE
+                and field["field_type"] == FieldDataTypeEnum.FLATTENED.value
+                and is_version_less_than(es_version, MIN_FLATTENED_SUPPORT_VERSION)
             ):
                 raise ValidationError(_(f"ES版本{es_version}不支持 flattened 字段类型"))
 
