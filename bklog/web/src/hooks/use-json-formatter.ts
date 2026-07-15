@@ -35,11 +35,9 @@ import JsonView from '../global/json-view';
 import segmentPopInstance from '../global/utils/segment-pop-instance';
 import {
   getClickTargetElement,
-  optimizedSplit,
   setPointerCellClickTargetHandler,
   setScrollLoadCell,
 } from './hooks-helper';
-import LuceneSegment from './lucene.segment';
 import UseSegmentPropInstance from './use-segment-pop';
 import {
   ORIGINAL_VALUE_EXPANDED_TEXT_LENGTH,
@@ -75,6 +73,7 @@ export type PrecomputedSegments = Record<string, Array<{
   isCursorText?: boolean;
   isBlobWord?: boolean;
   isNotParticiple?: boolean;
+  resultRanges?: HighlightRange[];
 }>>;
 export default class UseJsonFormatter {
   editor?: JsonView;
@@ -284,46 +283,11 @@ export default class UseJsonFormatter {
       return precomputedSegments;
     }
 
-    /** 检索高亮分词字符串 */
-    const markRegStr = '<mark>(.*?)</mark>';
     const value = this.escapeString(`${content}`);
-    if (field?.field_type === 'object' || field?.is_virtual_obj_node) {
-      return splitRenderText(value, field, { isSerializedComposite: true });
-    }
-    if (this.isAnalyzed(field)) {
-      if (field.tokenize_on_chars) {
-        // 这里进来的都是开了分词的情况
-        return optimizedSplit(value, field.tokenize_on_chars);
-      }
-
-      return LuceneSegment.split(value, 1000);
-    }
-
-    // 非 analyzed（含 Object stringify）：必须按 <mark> 切开，
-    // 否则任意子字段命中都会把整段 VALUE 标成 isMark，导致 Column 整块高亮。
-    if (new RegExp(markRegStr, 'i').test(value)) {
-      return value
-        .split(/(<mark>.*?<\/mark>)/gi)
-        .filter(Boolean)
-        .map((part) => {
-          const isMark = /<mark>.*?<\/mark>/i.test(part);
-          return {
-            text: part.replace(/<\/?mark>/gi, ''),
-            isMark,
-            isNotParticiple: this.isTextField(field),
-            isCursorText: true,
-          };
-        });
-    }
-
-    return [
-      {
-        text: value,
-        isNotParticiple: this.isTextField(field),
-        isMark: false,
-        isCursorText: true,
-      },
-    ];
+    // 统一走 splitRenderText：分词边界与无 mark 时一致，<mark> 仅映射为 resultRanges
+    return splitRenderText(value, field, {
+      isSerializedComposite: field?.field_type === 'object' || field?.is_virtual_obj_node,
+    });
   }
 
   getChildItem(item, pageRanges?: HighlightRange[]) {
@@ -334,27 +298,21 @@ export default class UseJsonFormatter {
 
     const text = item.text?.length ? item.text : '""';
     const textNode = document.createElement('span');
+    const resultRanges = item.resultRanges?.length
+      ? item.resultRanges
+      : (item.isMark ? [{ start: 0, end: text.length }] : undefined);
 
-    if (item.isMark) {
+    if (!(item.isNotParticiple || item.isBlobWord) && item.isCursorText) {
       textNode.classList.add('valid-text');
-      textNode.appendChild(highlightPlainTextIntoFragment({
-        text: text.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
-        resultHighlighted: true,
-        pageRanges,
-      }));
-      return textNode;
+    } else if (item.isNotParticiple || item.isBlobWord) {
+      textNode.classList.add('others-text');
     }
 
-    if (!(item.isNotParticiple || item.isBlobWord)) {
-      if (item.isCursorText) {
-        textNode.classList.add('valid-text');
-      }
-      textNode.appendChild(highlightPlainTextIntoFragment({ text, pageRanges }));
-      return textNode;
-    }
-
-    textNode.classList.add('others-text');
-    textNode.appendChild(highlightPlainTextIntoFragment({ text, pageRanges }));
+    textNode.appendChild(highlightPlainTextIntoFragment({
+      text: text.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
+      resultRanges,
+      pageRanges,
+    }));
     return textNode;
   }
 

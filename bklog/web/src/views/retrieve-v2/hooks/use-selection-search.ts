@@ -27,9 +27,9 @@
 import { computed, type Ref } from 'vue';
 
 import { getRowFieldValue, isNestedField } from '@/common/util';
-import { optimizedSplit } from '@/hooks/hooks-helper';
 import LuceneSegment from '@/hooks/lucene.segment';
 import useStore from '@/hooks/use-store';
+import { splitRenderText } from '@/storage/utils/retrieve-render-meta';
 import { getInputQueryDefaultItem } from '@/views/retrieve-v2/search-bar/utils/const.common';
 
 export const FULLTEXT_FIELD_NAME = '*';
@@ -120,7 +120,8 @@ export default (options: UseSelectionSearchOptions) => {
   };
 
   /**
-   * 与字段展示分词保持一致：自定义分词符走 optimizedSplit，否则走 LuceneSegment。
+   * 与字段展示分词保持一致：优先走 splitRenderText（whole-value / analyzed 等），
+   * 无字段元信息时退化为 LuceneSegment。
    */
   const tokenizeSelectionText = (
     value: string,
@@ -132,12 +133,9 @@ export default (options: UseSelectionSearchOptions) => {
       return [] as SelectionToken[];
     }
 
-    let splitList: Array<{ text: string; isCursorText?: boolean }> = [];
-    if (field?.tokenize_on_chars) {
-      splitList = optimizedSplit(text, field.tokenize_on_chars);
-    } else {
-      splitList = LuceneSegment.split(text, SELECTION_MAX_TOKENS);
-    }
+    const splitList = field
+      ? splitRenderText(text, field)
+      : LuceneSegment.split(text, SELECTION_MAX_TOKENS);
 
     return splitList.map(item => ({
       text: item.text,
@@ -390,10 +388,10 @@ export default (options: UseSelectionSearchOptions) => {
   };
 
   /**
-   * 划选检索目标解析（以 Fields 列表为权威，不直接依据 Value 运行时类型）：
-   * 1) 简单叶子字段：KEY = VALUE
-   * 2) Fields 无子字段映射的文本/JSON 字符串字段：KEY 包含 VALUE
-   * 3) Object + Fields 声明 KEY.SubKey：KEY.SubKey = VALUE
+   * 划选检索目标解析（以 Fields 列表为权威）：
+   * 1) 简单叶子字段整段划选：KEY = VALUE
+   * 2) String/JSON String 部分划选：KEY 包含（由上游 string 分支处理分词，此处仅给出字段）
+   * 3) Object + Fields 声明 KEY.SubKey：KEY.SubKey = VALUE（可补全）
    * 4) Nested + Fields 声明 KEY.SubKey：KEY.SubKey = VALUE，并透传 isNestedField/depth
    */
   const resolveSelectionSearchTarget = (
@@ -895,33 +893,31 @@ export default (options: UseSelectionSearchOptions) => {
   };
 
   /**
-   * Fields 列表未声明子字段，且 VALUE 为 JSON String（或 DOM 标记为 JSON String 解析）。
-   * 此类字段划词统一走「包含」，而不是 KEY.SubKey 等值。
+   * 运行时 VALUE 为 String（含 JSON String）：Fields 无子字段映射。
    */
-  const isJsonStringFieldByList = (
-    field: Record<string, any> | undefined,
-    row: Record<string, any>,
-    targetElement?: HTMLElement | null,
-  ) => {
+  const isStringRuntimeValue = (field: Record<string, any> | undefined, row: Record<string, any>) => {
     if (!isLeafQueryableField(field) || hasMappedChildFields(field.field_name)) {
       return false;
     }
-
-    if (targetElement?.closest?.('[data-json-string-parsed="true"]') != null
-      || targetElement?.getAttribute?.('data-json-string-parsed') === 'true') {
-      return true;
-    }
-
-    const rawValue = getRowFieldValue(row, field);
-    if (typeof rawValue === 'string' && /^\s*[{\[]/.test(rawValue)) {
-      return true;
-    }
-
-    const plain = getFieldPlainText(row, field);
-    return /^\s*[{\[]/.test(plain) && /[}\]]\s*$/.test(plain);
+    return typeof getRowFieldValue(row, field) === 'string';
   };
 
-  const resolveJsonStringFieldContext = (range: Range, row: Record<string, any>) => {
+  /**
+   * 运行时 VALUE 为 Object/Array，或 Fields 声明了结构化子字段。
+   * 此类即便 UI 以字符串/JSON 树展示，划词仍允许补全。
+   */
+  const isObjectRuntimeValue = (field: Record<string, any> | undefined, row: Record<string, any>) => {
+    if (!field) {
+      return false;
+    }
+    if (hasMappedChildFields(field.field_name) || isStructField(field)) {
+      return true;
+    }
+    const rawValue = getRowFieldValue(row, field);
+    return rawValue !== null && typeof rawValue === 'object';
+  };
+
+  const resolveStringFieldContext = (range: Range, row: Record<string, any>) => {
     const targetElement = getSelectionAnchorElement(range);
     const candidatePath = normalizeArrayFieldPath(
       targetElement?.getAttribute('data-search-field-name')
@@ -929,13 +925,12 @@ export default (options: UseSelectionSearchOptions) => {
       ?? '',
     );
 
-    // JSON String 解析节点上的 data-search-field-name 已是外层真实字段
     const directField = getFieldByName(candidatePath);
-    if (isJsonStringFieldByList(directField, row, targetElement)) {
+    // JSON String 解析节点：data-search-field-name 已是外层字段，且原始 VALUE 为 string
+    if (isStringRuntimeValue(directField, row)) {
       return directField;
     }
 
-    // 兜底：相交路径中找 JSON String 外层字段
     const paths = [...new Set(
       collectIntersectedSearchNodes(range)
         .map(resolveFieldPathFromElement)
@@ -945,13 +940,11 @@ export default (options: UseSelectionSearchOptions) => {
 
     for (const path of paths) {
       const field = getFieldByName(path);
-      if (isJsonStringFieldByList(field, row, targetElement)) {
+      if (isStringRuntimeValue(field, row)) {
         return field;
       }
-      // 若路径落在虚构子路径上，回退父级
-      const parentPath = getParentFieldPath(path);
-      const parentField = getFieldByName(parentPath);
-      if (isJsonStringFieldByList(parentField, row, targetElement)) {
+      const parentField = getFieldByName(getParentFieldPath(path));
+      if (isStringRuntimeValue(parentField, row)) {
         return parentField;
       }
     }
@@ -959,63 +952,28 @@ export default (options: UseSelectionSearchOptions) => {
     return undefined;
   };
 
-  /** 从 JSON String 中提取可补齐原子（KEY + 字符串 VALUE） */
-  const extractJsonStringAtoms = (jsonText: string) => {
-    const atoms = new Set<string>();
-    const stringRegex = /"((?:\\.|[^"\\])*)"/g;
-    let match = stringRegex.exec(jsonText);
-    while (match) {
-      const atom = match[1].replace(/\\"/g, '"').trim();
-      if (atom) {
-        atoms.add(atom);
-      }
-      match = stringRegex.exec(jsonText);
-    }
-    return [...atoms];
-  };
+  /**
+   * 仅对划选文本本身分词（与渲染分词一致），不做相对整段 VALUE 的边界补全。
+   */
+  const tokenizeSelectionTextOnly = (selectionText: string, field: Record<string, any>) =>
+    tokenizeSelectionText(selectionText, {
+      fieldName: field.field_name,
+      tokenType: 'field-value',
+    }, field).filter(token => token.isCursorText && token.text);
 
   /**
-   * 将划选碎片补齐为 JSON 原子词：
-   * - ina → China（VALUE 后缀）
-   * - onlin → online_cnt（KEY 前缀）
+   * 字段整段 VALUE 的可检索分词（与渲染分词一致）。
    */
-  const completeFragmentsAgainstJsonAtoms = (fragments: string[], atoms: string[]) => {
-    const completed: string[] = [];
-    const seen = new Set<string>();
-
-    fragments.forEach((raw) => {
-      const fragment = sanitizeSelectionFragment(raw);
-      if (!fragment || fragment.length < 2) {
-        return;
-      }
-
-      const exact = atoms.find(atom => atom === fragment);
-      const endHits = atoms.filter(atom => atom !== fragment && atom.endsWith(fragment));
-      const startHits = atoms.filter(atom => atom !== fragment && atom.startsWith(fragment));
-      const includeHits = atoms.filter(atom =>
-        atom !== fragment
-        && atom.includes(fragment)
-        && fragment.length >= Math.min(4, atom.length));
-
-      const hit = exact
-        ?? endHits.sort((a, b) => a.length - b.length)[0]
-        ?? startHits.sort((a, b) => a.length - b.length)[0]
-        ?? includeHits.sort((a, b) => a.length - b.length)[0];
-
-      if (hit && !seen.has(hit)) {
-        seen.add(hit);
-        completed.push(hit);
-      }
-    });
-
-    return completed;
-  };
+  const getFieldCursorTokens = (row: Record<string, any>, field: Record<string, any>) =>
+    getFieldSegmentTokens(row, field).filter(token => token.isCursorText && token.text);
 
   /**
-   * JSON String 字段划词 → 外层字段「包含」多个补齐分词。
-   * 例：body 中划选 ina","onlin → body contains China / body contains online_cnt
+   * String / JSON String：
+   * - 划选整段 VALUE → KEY is VALUE
+   * - VALUE 分词仅 1 个（如 /var/log/messages）→ 部分划选不做补全，contains 划选原文
+   * - VALUE 分词多个（如 Jul 15 18:02:01）→ 部分划选按原文分词边界补齐后 contains
    */
-  const resolveJsonStringContainsConditions = (
+  const resolveStringContainsConditions = (
     range: Range,
     row: Record<string, any>,
     field: Record<string, any>,
@@ -1026,50 +984,59 @@ export default (options: UseSelectionSearchOptions) => {
     }
 
     const plain = getFieldPlainText(row, field);
-    const atoms = extractJsonStringAtoms(plain);
-    if (!atoms.length) {
-      return [];
-    }
-
-    const kvPairs = parseJsonKvPairsFromText(selectionText);
-    const { leading, trailing } = extractBoundaryOrphans(selectionText, kvPairs);
-    const boundaryParts = selectionText
-      .split(/"\s*,\s*"?|,\s*"/)
-      .map(sanitizeSelectionFragment)
-      .filter(Boolean);
-
-    const tokenCompleted = completeSelectionByTokens(
-      selectionText,
-      tokenizeSelectionText(plain, {
-        fieldName: field.field_name,
-        tokenType: 'field-value',
-      }, field),
-    ).map(token => token.text);
-
-    const fragments = [
-      ...boundaryParts,
-      leading,
-      trailing,
-      ...kvPairs.flatMap(pair => [pair.key, pair.value]),
-      ...tokenCompleted,
-    ].filter(Boolean);
-
-    const completedTokens = completeFragmentsAgainstJsonAtoms(fragments, atoms);
-    if (!completedTokens.length) {
-      return [];
-    }
-
-    return completedTokens.map(token => ({
+    const nestedFlag = resolveIsNestedSearchField(field.field_name, row);
+    const base = {
       field: field.field_name,
+      depth: getFieldPathDepth(field.field_name),
+      isNestedField: nestedFlag ? 'true' : 'false',
+    };
+
+    // 整段划选 → 等值
+    if (plain === selectionText) {
+      return [{
+        ...base,
+        operator: 'is',
+        value: [plain],
+      }];
+    }
+
+    const fieldCursorTokens = getFieldCursorTokens(row, field);
+    // 补全仅当「原始 VALUE 渲染分词」> 1；单 token（如 /var/log/messages）划选原文不补全
+    const shouldCompleteByTokens = fieldCursorTokens.length > 1;
+
+    if (!shouldCompleteByTokens) {
+      return [{
+        ...base,
+        operator: 'contains match phrase',
+        value: [selectionText],
+      }];
+    }
+
+    // 多 token VALUE：结合原文分词边界补齐
+    const fieldTokens = getFieldSegmentTokens(row, field);
+    const completedTokens = completeSelectionByTokens(selectionText, fieldTokens)
+      .filter(token => token.isCursorText && token.text);
+
+    if (completedTokens.length) {
+      return completedTokens.map(token => ({
+        ...base,
+        operator: 'contains match phrase',
+        value: [token.text],
+      }));
+    }
+
+    // 补齐失败时，退化为对划选文本自身分词（仍不跨越整段 VALUE 乱补）
+    const fallbackTokens = tokenizeSelectionTextOnly(selectionText, field);
+    const values = fallbackTokens.length ? fallbackTokens.map(token => token.text) : [selectionText];
+    return values.map(token => ({
+      ...base,
       operator: 'contains match phrase',
       value: [token],
-      depth: getFieldPathDepth(field.field_name),
-      isNestedField: 'false',
     }));
   };
 
   /**
-   * 跨字段划选智能解析：
+   * 跨字段划选智能解析（仅 Object/Nested，允许补全）：
    * 1) DOM 相交叶子：必须有 VALUE 重叠证据才采纳（仅擦到 KEY 前缀则丢弃）
    * 2) 完整 "key":"value" / key:value → 补齐完整字段值
    * 3) leading VALUE 截断碎片 → 补齐；trailing 残缺 KEY → 丢弃
@@ -1096,9 +1063,18 @@ export default (options: UseSelectionSearchOptions) => {
 
     const uniquePaths = [...new Set(pathInfos.map(item => item.path))];
     const anchorPath = getSelectionAnchorElement(range)?.getAttribute('data-search-field-name') ?? '';
+    const anchorField = getFieldByName(anchorPath);
+    // 补全仅针对 Object 类型（含 Fields 子字段 / 运行时 object）；String/JSON String 不走此分支
+    const objectContextField = [anchorField, ...uniquePaths.map(path => getFieldByName(path))]
+      .find(field => isObjectRuntimeValue(field, row));
+    if (!objectContextField) {
+      return [];
+    }
+
     const parentHint = inferParentHintFromPaths(uniquePaths)
       || getParentFieldPath(anchorPath)
       || (hasMappedChildFields(anchorPath) ? anchorPath : '')
+      || objectContextField.field_name
       || '';
 
     const conditions: SelectionCondition[] = [];
@@ -1237,6 +1213,44 @@ export default (options: UseSelectionSearchOptions) => {
   ) => {
     const depth = conditionOptions.depth;
     const isNested = conditionOptions.isNestedField ?? 'false';
+
+    // String VALUE：仅当原始 VALUE 渲染分词 > 1 时才按边界补全
+    if (operator !== 'is' && isStringRuntimeValue(field, row)) {
+      const plain = getFieldPlainText(row, field);
+      if (plain !== selectionText) {
+        const fieldCursorTokens = getFieldCursorTokens(row, field);
+        if (fieldCursorTokens.length <= 1) {
+          // 单 token：划选原文 contains，不补全（如 messa → 不扩成 messages）
+          handleAddCondition(field.field_name, operator, [selectionText], false, depth, isNested);
+          return;
+        }
+
+        // 多 token：相对原文分词边界补齐
+        const completedTokens = completeSelectionByTokens(selectionText, getFieldSegmentTokens(row, field))
+          .filter(token => token.isCursorText && token.text);
+        if (completedTokens.length) {
+          completedTokens.forEach((token) => {
+            handleAddCondition(field.field_name, operator, [token.text], false, depth, isNested);
+          });
+          return;
+        }
+
+        const fallbackTokens = tokenizeSelectionTextOnly(selectionText, field);
+        const values = fallbackTokens.length ? fallbackTokens.map(token => token.text) : [selectionText];
+        values.forEach((token) => {
+          handleAddCondition(field.field_name, operator, [token], false, depth, isNested);
+        });
+        return;
+      }
+    }
+
+    // 非 String 或整段等值：分词数 > 1 才做边界补全，否则保持划选原文
+    const fieldCursorTokens = getFieldCursorTokens(row, field);
+    if (operator !== 'is' && fieldCursorTokens.length <= 1 && getFieldPlainText(row, field) !== selectionText) {
+      handleAddCondition(field.field_name, operator, [selectionText], false, depth, isNested);
+      return;
+    }
+
     const completedTokens = completeSelectionByTokens(selectionText, getFieldSegmentTokens(row, field));
     if (!completedTokens.length) {
       handleAddCondition(field.field_name, operator, [selectionText], false, depth, isNested);
@@ -1254,22 +1268,17 @@ export default (options: UseSelectionSearchOptions) => {
       return;
     }
 
-    // JSON String 字段（Fields 无子字段映射）：划词补齐为多个「包含」条件
-    // 例：body 中划选 ina","onlin → body contains China / body contains online_cnt
-    const jsonStringField = resolveJsonStringFieldContext(selectionRange, row);
-    if (jsonStringField) {
-      const jsonContainsConditions = resolveJsonStringContainsConditions(
-        selectionRange,
-        row,
-        jsonStringField,
-      );
-      if (jsonContainsConditions.length) {
-        applySelectionConditions(jsonContainsConditions);
+    // String / JSON String：按 VALUE 分词数量决定「原文 contains」或「分词补齐 contains」
+    const stringField = resolveStringFieldContext(selectionRange, row);
+    if (stringField) {
+      const stringConditions = resolveStringContainsConditions(selectionRange, row, stringField);
+      if (stringConditions.length) {
+        applySelectionConditions(stringConditions);
         return;
       }
     }
 
-    // Object/Nested 跨字段划选：按 VALUE 证据拆 KEY.SubKey 等值条件
+    // Object/Nested（含以字符串形式展示的 Object）：跨字段补全为 KEY.SubKey 等值
     const multiFieldConditions = resolveMultiFieldSelectionConditions(selectionRange, row);
     if (multiFieldConditions.length >= 1) {
       applySelectionConditions(multiFieldConditions);
@@ -1361,10 +1370,24 @@ export default (options: UseSelectionSearchOptions) => {
         && parentPath
         && (hasMappedChildFields(parentPath) || isStructField(getFieldByName(parentPath))),
       );
+      // 单 token VALUE：不把 messa 补成整段 /var/log/messages
+      const isSingleTokenField = Boolean(field && getFieldCursorTokens(row, field).length <= 1);
+      const useRawSelection = Boolean(
+        field
+        && isSingleTokenField
+        && selectionText
+        && plainText !== selectionText
+        && plainText.includes(selectionText),
+      );
+      const valueText = useRawSelection ? selectionText : token.text;
+
       let operator = fulltextFieldItem.operator;
       let conditionField = FULLTEXT_FIELD_NAME;
 
-      if (field && isLeafQueryableField(field) && plainText === token.text) {
+      if (useRawSelection && field && isLeafQueryableField(field)) {
+        operator = 'contains match phrase';
+        conditionField = field.field_name;
+      } else if (field && isLeafQueryableField(field) && plainText === token.text) {
         operator = 'is';
         conditionField = field.field_name;
       } else if (field && isLeafQueryableField(field) && isMappedChildLeaf) {
@@ -1380,13 +1403,13 @@ export default (options: UseSelectionSearchOptions) => {
         conditionField = field.field_name;
       }
 
-      const conditionKey = [conditionField, operator, token.text, nestedFlag ? '1' : '0'].join('__');
+      const conditionKey = [conditionField, operator, valueText, nestedFlag ? '1' : '0'].join('__');
       if (!appendedConditionKeys.has(conditionKey)) {
         appendedConditionKeys.add(conditionKey);
         conditions.push({
           field: conditionField,
           operator,
-          value: [token.text],
+          value: [valueText],
           depth: field ? getFieldPathDepth(field.field_name) : undefined,
           isNestedField: nestedFlag ? 'true' : 'false',
         });

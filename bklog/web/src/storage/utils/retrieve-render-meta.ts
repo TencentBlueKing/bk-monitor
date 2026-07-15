@@ -5,6 +5,10 @@
 
 import LuceneSegment from '@/hooks/lucene.segment';
 import { optimizedSplit } from '@/hooks/hooks-helper';
+import {
+  parseResultMarkedText,
+  type HighlightRange,
+} from '@/views/retrieve-core/page-highlight';
 
 export interface RetrieveTextSegment {
   text: string;
@@ -12,6 +16,8 @@ export interface RetrieveTextSegment {
   isCursorText: boolean;
   isBlobWord?: boolean;
   isNotParticiple?: boolean;
+  /** 检索结果 <mark> 映射到本分词内的局部高亮范围，不影响点击单元边界 */
+  resultRanges?: HighlightRange[];
 }
 
 export interface RetrieveRowRenderMeta {
@@ -291,22 +297,10 @@ export const resolveSegmentationMode = (
   return 'whole-value';
 };
 
-/** 按 mark 边界切分后再分词，避免 Lucene/自定义分隔符吞掉标签或扩大高亮范围。 */
-const splitMarkedText = (
-  text: string,
-  splitter: (_plainText: string) => RetrieveTextSegment[],
-): RetrieveTextSegment[] => text
-  .split(/(<mark>.*?<\/mark>)/gis)
-  .filter(Boolean)
-  .flatMap(part => {
-    const marked = /^<mark>[\s\S]*<\/mark>$/i.test(part);
-    const plainText = stripMark(part);
-    return splitter(plainText).map(segment => ({ ...segment, isMark: marked || segment.isMark }));
-  });
-
 /**
  * 统一 Worker、缓存回退及长字段展开的展示层分词语义。
  * Object/Array 的序列化文本必须拆出 JSON 标点和有效 KEY/VALUE；普通 keyword/path 仍保持整值。
+ * 检索/划词高亮的 <mark> 不得作为分词边界，仅映射为 token 内 resultRanges。
  */
 export const splitRenderText = (
   value: any,
@@ -317,22 +311,22 @@ export const splitRenderText = (
   if (!text) return [];
 
   const mode = resolveSegmentationMode(value, field, options);
-  if (mode !== 'whole-value') {
-    const splitter = mode === 'analyzed' && field?.tokenize_on_chars
-      ? (plainText: string) => optimizedSplit(plainText, field.tokenize_on_chars) as RetrieveTextSegment[]
-      : (plainText: string) => LuceneSegment.split(plainText, 1000);
-    return splitMarkedText(text, splitter);
-  }
-
-  return text
-    .split(/(<mark>.*?<\/mark>)/gis)
-    .filter(Boolean)
-    .map(segment => ({
-      text: stripMark(segment),
-      isMark: /<mark>[\s\S]*?<\/mark>/i.test(segment),
+  if (mode === 'whole-value') {
+    const { plainText, markRanges } = parseResultMarkedText(text);
+    return [{
+      text: plainText,
+      isMark: markRanges.length > 0,
       isCursorText: true,
       isNotParticiple: field?.field_type === 'text',
-    }));
+      resultRanges: markRanges,
+    }];
+  }
+
+  // analyzed / serialized-composite / nested-force：底层分词已按纯文本切分并映射 mark
+  if (mode === 'analyzed' && field?.tokenize_on_chars) {
+    return optimizedSplit(text, field.tokenize_on_chars) as RetrieveTextSegment[];
+  }
+  return LuceneSegment.split(text, 1000);
 };
 
 export const createRetrieveRowRenderMeta = (

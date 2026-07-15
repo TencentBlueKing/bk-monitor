@@ -210,7 +210,10 @@ export default defineComponent({
             const text = item.text?.length ? item.text : '""';
             child.appendChild(highlightPlainTextIntoFragment({
               text,
-              resultHighlighted: item.isMark,
+              resultRanges: item.resultRanges?.length
+                ? item.resultRanges
+                : undefined,
+              resultHighlighted: !item.resultRanges?.length && item.isMark,
               pageRanges: typeof index === 'number' ? segmentPageRanges[index] : undefined,
             }));
             return child;

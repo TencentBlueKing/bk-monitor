@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 import segmentPopInstance from '../global/utils/segment-pop-instance';
-import { getClickTargetElement, optimizedSplit, setPointerCellClickTargetHandler } from './hooks-helper';
-import LuceneSegment from './lucene.segment';
+import { getClickTargetElement, setPointerCellClickTargetHandler } from './hooks-helper';
 import UseSegmentPropInstance from './use-segment-pop';
+import { splitRenderText } from '../storage/utils/retrieve-render-meta';
 
 import type { Ref } from 'vue';
 
@@ -45,6 +45,7 @@ export type WordListItem = {
   isMark: boolean;
   isCursorText: boolean;
   isBlobWord?: boolean;
+  resultRanges?: Array<{ start: number; end: number; keywordIndex?: number }>;
   startIndex?: number;
   endIndex?: number;
   left?: number;
@@ -333,7 +334,6 @@ export default class UseTextSegmentation {
       return this.options.precomputedSegments;
     }
 
-    /** 检索高亮分词字符串 */
     const value = this.escapeString(String(content));
 
     // JSON 解析关闭后的虚拟 Object 是序列化复合值：标点不可点，KEY/VALUE 可点。
@@ -342,25 +342,9 @@ export default class UseTextSegmentation {
       const serializedValue = rawValue !== null && typeof rawValue === 'object'
         ? JSON.stringify(rawValue)
         : value;
-      return LuceneSegment.split(serializedValue, 1000);
+      return splitRenderText(serializedValue, field, { isSerializedComposite: true });
     }
 
-    if (this.isAnalyzed(field) || forceSplit) {
-      if (this.isAnalyzed(field) && field.tokenize_on_chars) {
-        return optimizedSplit(value, field.tokenize_on_chars);
-      }
-
-      return LuceneSegment.split(value, 1000);
-    }
-    const markRegStr = '<mark>(.*?)</mark>';
-    const formatValue = value.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
-    const isMark = new RegExp(markRegStr).test(value);
-    return [
-      {
-        text: formatValue,
-        isCursorText: true,
-        isMark,
-      },
-    ];
+    return splitRenderText(value, field, { forceSplit });
   }
 }
