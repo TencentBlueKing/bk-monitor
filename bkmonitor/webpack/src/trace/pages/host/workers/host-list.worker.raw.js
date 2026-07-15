@@ -232,6 +232,11 @@ const buildFilterOptionsMap = rows => {
     display_name: new Map(),
   };
 
+  /** 拓扑节点 ID → 名称 映射（用于去重合并） */
+  const topoNameMap = {};
+  /** 每行主机对应的拓扑路径列表（二维数组） */
+  const topoList = [];
+
   for (const row of rows) {
     if (row.bk_host_innerip) setMap.bk_host_innerip.set(row.bk_host_innerip, row.bk_host_innerip);
     if (row.bk_host_name) setMap.bk_host_name.set(row.bk_host_name, row.bk_host_name);
@@ -243,7 +248,17 @@ const buildFilterOptionsMap = rows => {
       setMap.bk_cluster.set(cluster.id, cluster.name);
     }
     for (const module of row.module || []) {
-      if (module.bk_inst_name) setMap.bk_inst_name.set(module.bk_inst_name, module.bk_inst_name);
+      if (module.bk_inst_name) {
+        setMap.bk_inst_name.set(module.bk_inst_name, module.bk_inst_name);
+      }
+      const topo = module.topo_link.map((id, index) => {
+        topoNameMap[id] = module.topo_link_display[index];
+        return {
+          id,
+          name: module.topo_link_display[index],
+        };
+      });
+      topoList.push(topo);
     }
     for (const component of row.component || []) {
       if (component.display_name) setMap.display_name.set(component.display_name, component.display_name);
@@ -256,8 +271,34 @@ const buildFilterOptionsMap = rows => {
       [...valueMap.entries()].map(([id, name]) => ({ id, name }))
     );
   }
-  // todo 处理集群模块
+  // 处理集群模块
   const clusterModuleTreeList = [];
+  /** 拓扑节点 ID → 树节点 映射（用于去重合并相同路径的节点） */
+  const nodeMap = {};
+  /** 创建树节点（id + name + children） */
+  const createNode = data => ({
+    id: data.id,
+    name: data.name,
+    children: [],
+  });
+  for (let i = 0; i < topoList.length; i++) {
+    const pathList = topoList[i];
+    let parentNode = null;
+
+    for (let j = 0; j < pathList.length; j++) {
+      const nodeData = pathList[j];
+      if (!nodeMap[nodeData.id]) {
+        nodeMap[nodeData.id] = createNode(nodeData);
+        if (parentNode) {
+          parentNode.children.push(nodeMap[nodeData.id]);
+        } else {
+          clusterModuleTreeList.push(nodeMap[nodeData.id]);
+        }
+      }
+      parentNode = nodeMap[nodeData.id];
+    }
+  }
+  
   result.set('cluster_module', clusterModuleTreeList);
   return result;
 };

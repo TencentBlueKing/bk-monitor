@@ -24,8 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent } from 'vue';
-import { shallowRef } from 'vue';
+import { type PropType, defineComponent, shallowRef } from 'vue';
 
 import { Cascader } from 'bkui-vue';
 
@@ -56,7 +55,7 @@ export default defineComponent({
     },
   },
   emits: {
-    'update:modelValue': (_value: (number | string | string[])[]) => true,
+    'update:modelValue': (_value: string[][]) => true,
     toggle: (_value: boolean) => true,
   },
   setup(props, { emit }) {
@@ -72,8 +71,8 @@ export default defineComponent({
       emit('toggle', val);
       if (val) {
         const res = await props.getValueFn({
-          where: [],
-          fields: [props.fieldInfo.field],
+          search: '',
+          field: props.fieldInfo.field,
         });
 
         list.value = res.list;
