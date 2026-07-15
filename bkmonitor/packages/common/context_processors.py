@@ -128,6 +128,7 @@ def get_core_context(request):
         "BK_CC_URL": settings.BK_CC_URL,
         "BK_CI_URL": settings.BK_CI_URL,
         "BK_BCS_URL": settings.BK_BCS_HOST,
+        "BK_IAM_URL": settings.BK_IAM_SAAS_HOST,
         # 蓝鲸平台URL
         "BK_URL": settings.BK_URL,
         "BK_PAAS_HOST": settings.BK_PAAS_HOST,

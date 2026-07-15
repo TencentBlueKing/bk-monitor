@@ -160,7 +160,7 @@ class BaseDocument(Document):
         index = cls.build_index_name_by_time(start_time, end_time, days)
         return super().search(using=using, index=index).params(ignore_unavailable=True)
 
-    def prepare_action(self, action=BulkActionType.CREATE):
+    def prepare_action(self, action=BulkActionType.CREATE, skip_empty: bool = True):
         data = {
             "_op_type": action,
             "_index": self._get_index(),
@@ -173,22 +173,22 @@ class BaseDocument(Document):
         if action == BulkActionType.UPDATE:
             # update 参数需要特殊处理
             # 参考：https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html#bulk-update
-            data["doc"] = self.to_dict()
+            data["doc"] = self.to_dict(skip_empty=skip_empty)
         elif action == BulkActionType.UPSERT:
             # 如果存在，就增量更新；如果不存在，就直接插入
             # 参考：https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html#doc_as_upsert
             data["_op_type"] = BulkActionType.UPDATE
-            data["doc"] = self.to_dict()
+            data["doc"] = self.to_dict(skip_empty=skip_empty)
             data["doc_as_upsert"] = True
         else:
-            data["_source"] = self.to_dict() if action != BulkActionType.DELETE else None
+            data["_source"] = self.to_dict(skip_empty=skip_empty) if action != BulkActionType.DELETE else None
         return data
 
     @classmethod
-    def bulk_create(cls, documents, parallel=False, action=BulkActionType.CREATE, **kwargs):
+    def bulk_create(cls, documents, parallel=False, action=BulkActionType.CREATE, skip_empty: bool = True, **kwargs):
         actions = []
         for doc in documents:
-            actions.append(doc.prepare_action(action))
+            actions.append(doc.prepare_action(action, skip_empty=skip_empty))
         params = dict(actions=actions, request_timeout=cls.ES_REQUEST_TIMEOUT, **kwargs)
         if parallel:
             return cls().parallel_bulk(**params)

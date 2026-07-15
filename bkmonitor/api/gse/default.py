@@ -255,9 +255,15 @@ class AddRoute(GseBaseResource):
                     biz_id = serializers.IntegerField(required=False, label="兼容字段，业务ID")
 
                 class PulsarStorageSerializer(serializers.Serializer):
-                    name = serializers.CharField(required=True, label="Pulsar的Topic")
+                    name = serializers.CharField(required=False, label="Pulsar的Topic")
+                    topic_name = serializers.CharField(required=False, label="Pulsar的Topic（兼容字段）")
                     tenant = serializers.CharField(required=False, label="tenant名称")
                     namespace = serializers.CharField(required=False, label="Pulsar的namespace名称")
+
+                    def validate(self, attrs):
+                        if not attrs.get("name") and not attrs.get("topic_name"):
+                            raise serializers.ValidationError("name or topic_name is required")
+                        return attrs
 
                 stream_to_id = serializers.IntegerField(required=True, label="数据接收端配置ID")
                 kafka = KafkaStorageSerializer(required=False, label="Kafka存储信息")
@@ -321,9 +327,15 @@ class UpdateRoute(GseBaseResource):
                         biz_id = serializers.IntegerField(required=False, label="兼容字段，业务ID")
 
                     class PulsarStorageSerializer(serializers.Serializer):
-                        name = serializers.CharField(required=True, label="Pulsar的Topic")
+                        name = serializers.CharField(required=False, label="Pulsar的Topic")
+                        topic_name = serializers.CharField(required=False, label="Pulsar的Topic（兼容字段）")
                         tenant = serializers.CharField(required=False, label="tenant名称")
                         namespace = serializers.CharField(required=False, label="Pulsar的namespace名称")
+
+                        def validate(self, attrs):
+                            if not attrs.get("name") and not attrs.get("topic_name"):
+                                raise serializers.ValidationError("name or topic_name is required")
+                            return attrs
 
                     stream_to_id = serializers.IntegerField(required=True, label="数据接收端配置ID")
                     kafka = KafkaStorageSerializer(required=False, label="Kafka存储信息")

@@ -9,6 +9,7 @@ from monitor_web.data_migrate.handler import (
 )
 from monitor_web.data_migrate.data_export import export_biz_data_to_directory, upload_export_directory_to_storage
 from monitor_web.data_migrate.data_import import import_biz_data_from_directory
+from monitor_web.data_migrate.plugin_dashboard_result_table import repair_plugin_dashboard_result_table_id
 from monitor_web.data_migrate.partial import (
     PARTIAL_DATA_ID_INFOS_FILE,
     export_partial_data_to_directory,
@@ -56,6 +57,7 @@ __all__ = [
     "precheck_partial_import_directory",
     "replace_cluster_id_in_directory",
     "replace_tenant_id_in_directory",
+    "repair_plugin_dashboard_result_table_id",
     "restore_disabled_models_in_directory",
     "refresh_biz_bk_collector_proxy_configs",
     "retry_biz_bk_collector_proxy_config_delivery",

@@ -14,6 +14,7 @@ from typing import Any, ClassVar
 
 from django.core.management import BaseCommand, CommandError
 
+from apm.core.application_config import ApplicationConfig
 from apm.core.handlers.application_hepler import ApplicationHelper
 from apm.models import ApmApplication, TraceDataSource
 from apm.resources import ApplyDatasourceResource
@@ -188,6 +189,8 @@ class Command(BaseCommand):
                 "shared_datasource_types": shared_datasource_types,
             }
         )
+        ApplicationConfig(context.application).refresh()
+        ApplicationConfig.refresh_k8s([context.application])
 
         self.stdout.write(
             self.style.SUCCESS(

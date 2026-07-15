@@ -120,6 +120,32 @@
   }
 
   // ===================== 趋势列 =====================
+  .issues-trend-header {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+
+    .bk-radio-capsule {
+      padding: 3px;
+      border-radius: 4px;
+
+      .bk-radio-button-label {
+        width: 28px;
+        height: 18px;
+        padding: 0;
+        font-weight: 500;
+        line-height: 18px;
+        border-radius: 2px;
+      }
+    }
+
+    .issues-trend-header-text {
+      flex-shrink: 0;
+      font-size: 12px;
+      color: #111214;
+    }
+  }
+
   .issues-trend-col {
     &.is-empty {
       display: flex;
@@ -132,6 +158,13 @@
         font-size: 12px;
         color: #c1cde6;
       }
+    }
+
+    &.is-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 40px;
     }
   }
 
@@ -302,6 +335,10 @@
 
       &:not(.is-empty) {
         opacity: $ended-opacity-icon;
+      }
+
+      &.is-loading {
+        opacity: 1;
       }
     }
 

@@ -9,14 +9,17 @@ specific language governing permissions and limitations under the License.
 """
 
 import time
-
+from types import SimpleNamespace
 from unittest import mock
+
 import pytest
 
 from alarm_backends.core.cache import key
+from alarm_backends.core.storage import redis_cluster
 from alarm_backends.service.detect import DataPoint
 from alarm_backends.service.detect.strategy.new_series import NewSeries
 from bkmonitor.utils.common_utils import count_md5
+from constants.data_source import DataSourceLabel, DataTypeLabel
 
 ITEM_ID = 1
 AGG_DIMENSION = ["bk_target_ip", "bk_target_cloud_id"]
@@ -28,34 +31,74 @@ _UID = [8000]
 @pytest.fixture(autouse=True)
 def _isolate_keys():
     _UID[0] += 1
+    # use_fake_cache_router() 会改写 redis_cluster 的三个进程级全局；这里 setup 存旧值、teardown 恢复，
+    # 避免泄漏到后续用例(同一 pytest 进程共享模块状态)形成顺序依赖或掩盖真实路由问题。
+    saved = (
+        redis_cluster.DEFAULT_NODE,
+        redis_cluster.STRATEGY_ROUTER_CACHE,
+        redis_cluster.STRATEGY_NODE_MAP,
+    )
+    use_fake_cache_router()
     yield
+    (
+        redis_cluster.DEFAULT_NODE,
+        redis_cluster.STRATEGY_ROUTER_CACHE,
+        redis_cluster.STRATEGY_NODE_MAP,
+    ) = saved
 
 
-def make_item(strategy_id=None, item_id=ITEM_ID, agg_dimension=None, agg_interval=60, ns_configs=None):
+def make_item(
+    strategy_id=None,
+    item_id=ITEM_ID,
+    agg_dimension=None,
+    agg_interval=60,
+    ns_configs=None,
+    data_source_label=None,
+    data_type_label=None,
+):
     item = mock.MagicMock()
     item.strategy.id = _UID[0] if strategy_id is None else strategy_id
     item.id = item_id
     item.query_configs = [
-        {"agg_dimension": AGG_DIMENSION if agg_dimension is None else agg_dimension, "agg_interval": agg_interval}
+        {
+            "agg_dimension": AGG_DIMENSION if agg_dimension is None else agg_dimension,
+            "agg_interval": agg_interval,
+            "data_source_label": data_source_label,
+            "data_type_label": data_type_label,
+        }
     ]
     # item.algorithms 必须是真实 list(检测器写侧据此取 max(detect_range)/max(max_series))
     item.algorithms = [{"type": "NewSeries", "config": c} for c in (ns_configs or [default_config()])]
+    item.query.is_partial = False
     # 让 _new_series_cache 这类动态属性走真实 dict，而非 MagicMock 自动属性
     item._new_series_cache = None
     item.name = "new-series-item"
     return item
 
 
-def make_dp(fingerprint, timestamp, item):
+def make_dp(fingerprint, timestamp, item, value=1, is_partial=False):
+    accessed_data = {
+        "value": value,
+        "values": {"_result_": value},
+        "time": timestamp,
+        "record_id": f"{fingerprint}.{timestamp}",
+    }
+    if is_partial:
+        accessed_data["is_partial"] = True
     dp = DataPoint(
-        accessed_data={"value": 1, "time": timestamp, "record_id": f"{fingerprint}.{timestamp}"},
+        accessed_data=accessed_data,
         item=item,
     )
     return dp
 
 
-def default_config(detect_range=86400, effective_delay=86400, max_series=100000):
-    return {"detect_range": detect_range, "effective_delay": effective_delay, "max_series": max_series}
+def default_config(detect_range=86400, effective_delay=86400, max_series=100000, threshold=0):
+    return {
+        "detect_range": detect_range,
+        "effective_delay": effective_delay,
+        "max_series": max_series,
+        "threshold": threshold,
+    }
 
 
 def signature(item):
@@ -71,18 +114,55 @@ def seed_learned(item, ago=10):
     key.NEW_SERIES_LEARN_START_KEY.client.set(learn_key, int(time.time()) - 86400 - ago)
 
 
-def seen_score(item, fingerprint):
+def seen_score(item, fingerprint, threshold=0):
     sig = signature(item)
-    seen_key = key.NEW_SERIES_SEEN_KEY.get_key(strategy_id=item.strategy.id, item_id=item.id, dimension_signature=sig)
-    return key.NEW_SERIES_SEEN_KEY.client.zscore(seen_key, fingerprint)
+    if threshold == 0:
+        seen_key = key.NEW_SERIES_SEEN_KEY.get_key(
+            strategy_id=item.strategy.id, item_id=item.id, dimension_signature=sig
+        )
+        cache_key = key.NEW_SERIES_SEEN_KEY
+    else:
+        seen_key = key.NEW_SERIES_THRESHOLD_SEEN_KEY.get_key(
+            strategy_id=item.strategy.id,
+            item_id=item.id,
+            dimension_signature=sig,
+            threshold=NewSeries.threshold_token(threshold),
+        )
+        cache_key = key.NEW_SERIES_THRESHOLD_SEEN_KEY
+    return cache_key.client.zscore(seen_key, fingerprint)
 
 
-def baseline_done(item):
+def baseline_done(item, threshold=0):
     sig = signature(item)
-    done_key = key.NEW_SERIES_BASELINE_DONE_KEY.get_key(
-        strategy_id=item.strategy.id, item_id=item.id, dimension_signature=sig
+    if threshold == 0:
+        done_key = key.NEW_SERIES_BASELINE_DONE_KEY.get_key(
+            strategy_id=item.strategy.id, item_id=item.id, dimension_signature=sig
+        )
+        cache_key = key.NEW_SERIES_BASELINE_DONE_KEY
+    else:
+        done_key = key.NEW_SERIES_THRESHOLD_BASELINE_DONE_KEY.get_key(
+            strategy_id=item.strategy.id,
+            item_id=item.id,
+            dimension_signature=sig,
+            threshold=NewSeries.threshold_token(threshold),
+        )
+        cache_key = key.NEW_SERIES_THRESHOLD_BASELINE_DONE_KEY
+    return cache_key.client.exists(done_key) == 1
+
+
+def baseline_progress(item, threshold=0):
+    progress_key = key.NEW_SERIES_BASELINE_PROGRESS_KEY.get_key(
+        strategy_id=item.strategy.id,
+        item_id=item.id,
+        dimension_signature=signature(item),
+        threshold=NewSeries.threshold_token(threshold),
     )
-    return key.NEW_SERIES_BASELINE_DONE_KEY.client.exists(done_key) == 1
+    value = key.NEW_SERIES_BASELINE_PROGRESS_KEY.client.get(progress_key)
+    return int(value or 0)
+
+
+def seed_baseline(item, threshold):
+    NewSeries._mark_baseline_done(item, signature(item), threshold, 86400)
 
 
 def learn_start_exists(item):
@@ -93,7 +173,323 @@ def learn_start_exists(item):
     return key.NEW_SERIES_LEARN_START_KEY.client.exists(learn_key) == 1
 
 
-@pytest.mark.django_db
+def use_fake_cache_router():
+    node = SimpleNamespace(id="fake-default", cache_type="RedisCache", host="127.0.0.1", port=6379, password=None)
+    redis_cluster.DEFAULT_NODE = node
+    redis_cluster.STRATEGY_ROUTER_CACHE = [SimpleNamespace(strategy_score=10**12, node=node)]
+    redis_cluster.STRATEGY_NODE_MAP = {}
+
+
+def test_detector_serializer_preserves_nonzero_threshold():
+    assert NewSeries(config=default_config(threshold=-2)).threshold == -2
+
+
+def test_log_count_zero_bucket_does_not_alert_or_mark_seen():
+    use_fake_cache_router()
+    item = make_item(data_source_label=DataSourceLabel.BK_LOG_SEARCH, data_type_label=DataTypeLabel.LOG)
+    seed_learned(item)
+
+    detector = NewSeries(config=default_config())
+    zero_bucket = make_dp("log-pattern", 100000000, item, value=0)
+
+    detector.pre_detect([zero_bucket])
+
+    assert len(detector.detect(zero_bucket)) == 0
+    assert seen_score(item, "log-pattern") is None
+
+
+def test_log_count_zero_bucket_does_not_consume_later_real_point():
+    use_fake_cache_router()
+    item = make_item(data_source_label=DataSourceLabel.BK_LOG_SEARCH, data_type_label=DataTypeLabel.LOG)
+    seed_learned(item)
+
+    detector = NewSeries(config=default_config())
+    zero_bucket = make_dp("log-pattern", 100000000, item, value=0)
+    real_bucket = make_dp("log-pattern", 100000060, item, value=1)
+
+    detector.pre_detect([zero_bucket, real_bucket])
+
+    assert len(detector.detect(zero_bucket)) == 0
+    assert len(detector.detect(real_bucket)) == 1
+    assert int(seen_score(item, "log-pattern")) == 100000060
+
+
+def test_log_count_zero_bucket_bootstraps_baseline_for_later_real_point():
+    use_fake_cache_router()
+    item = make_item(data_source_label=DataSourceLabel.BK_LOG_SEARCH, data_type_label=DataTypeLabel.LOG)
+
+    detector = NewSeries(config=default_config())
+    zero_bucket = make_dp("log-pattern", 100000000, item, value=0)
+    detector.pre_detect([zero_bucket])
+
+    assert len(detector.detect(zero_bucket)) == 0
+    assert baseline_progress(item) == 1
+    assert baseline_done(item) is False
+    assert seen_score(item, "log-pattern") is None
+
+    next_detector = NewSeries(config=default_config())
+    real_bucket = make_dp("log-pattern", 100000060, item, value=1)
+    next_detector.pre_detect([real_bucket])
+
+    assert len(next_detector.detect(real_bucket)) == 0
+    assert int(seen_score(item, "log-pattern")) == 100000060
+
+
+def test_metric_zero_value_does_not_alert_or_mark_seen_at_default_threshold():
+    use_fake_cache_router()
+    item = make_item()
+    seed_learned(item)
+
+    detector = NewSeries(config=default_config())
+    zero_metric = make_dp("metric-zero", 100000000, item, value=0)
+
+    detector.pre_detect([zero_metric])
+
+    assert len(detector.detect(zero_metric)) == 0
+    assert seen_score(item, "metric-zero") is None
+    assert learn_start_exists(item)
+    assert baseline_done(item)
+    assert baseline_progress(item) == 0
+
+
+def test_threshold_boundary_and_non_numeric_values_are_ineligible():
+    use_fake_cache_router()
+    config = default_config(threshold=10)
+    item = make_item(ns_configs=[config])
+    seed_baseline(item, 10)
+    detector = NewSeries(config=config)
+    below = make_dp("below", 100000000, item, value=9)
+    equal = make_dp("equal", 100000000, item, value=10)
+    invalid = make_dp("invalid", 100000000, item, value="not-a-number")
+
+    detector.pre_detect([below, equal, invalid])
+
+    assert all(len(detector.detect(dp)) == 0 for dp in (below, equal, invalid))
+    assert seen_score(item, "below", 10) is None
+    assert seen_score(item, "equal", 10) is None
+    assert seen_score(item, "invalid", 10) is None
+
+
+def test_negative_threshold_accepts_metric_but_never_log_synthetic_zero():
+    use_fake_cache_router()
+    config = default_config(threshold=-1)
+    metric_item = make_item(ns_configs=[config])
+    seed_baseline(metric_item, -1)
+    metric_zero = make_dp("metric-zero", 100000000, metric_item, value=0)
+    NewSeries(config=config).pre_detect([metric_zero])
+    assert int(seen_score(metric_item, "metric-zero", -1)) == 100000000
+
+    log_item = make_item(
+        ns_configs=[config], data_source_label=DataSourceLabel.BK_LOG_SEARCH, data_type_label=DataTypeLabel.LOG
+    )
+    seed_baseline(log_item, -1)
+    log_zero = make_dp("log-zero", 100000000, log_item, value=0)
+    log_detector = NewSeries(config=config)
+    log_detector.pre_detect([log_zero])
+    assert len(log_detector.detect(log_zero)) == 0
+    assert seen_score(log_item, "log-zero", -1) is None
+
+
+def test_threshold_zero_reuses_legacy_state_keys():
+    use_fake_cache_router()
+    item = make_item()
+    seed_learned(item)
+    detector = NewSeries(config=default_config(threshold=0))
+    dp = make_dp("legacy", 100000000, item, value=1)
+
+    detector.pre_detect([dp])
+
+    assert int(seen_score(item, "legacy", 0)) == 100000000
+    assert learn_start_exists(item)
+    assert baseline_done(item, 0)
+    assert baseline_progress(item, 0) == 0
+
+
+def test_first_seen_write_sets_ttl_in_transaction_pipeline():
+    use_fake_cache_router()
+    item = make_item()
+    seed_learned(item)
+    detector = NewSeries(config=default_config())
+    dp = make_dp("atomic", 100000000, item, value=1)
+    client = key.NEW_SERIES_SEEN_KEY.client
+
+    with mock.patch.object(client, "pipeline", wraps=client.pipeline) as pipeline:
+        detector.pre_detect([dp])
+
+    assert pipeline.call_args_list
+    assert all(call == mock.call(transaction=True) for call in pipeline.call_args_list)
+    seen_key = key.NEW_SERIES_SEEN_KEY.get_key(
+        strategy_id=item.strategy.id, item_id=item.id, dimension_signature=signature(item)
+    )
+    assert client.ttl(seen_key) > 0
+
+
+def test_multi_level_cache_isolated_by_threshold_and_reused_in_zero_hundred_zero_order():
+    use_fake_cache_router()
+    zero = default_config(threshold=0)
+    hundred = default_config(threshold=100)
+    item = make_item(ns_configs=[zero, hundred, zero])
+    seed_learned(item)
+    seed_baseline(item, 100)
+    dp = make_dp("shared", 100000000, item, value=50)
+    d_zero_first = NewSeries(config=zero)
+    d_hundred = NewSeries(config=hundred)
+    d_zero_second = NewSeries(config=zero)
+    batch = [dp]
+
+    d_zero_first.pre_detect(batch)
+    d_hundred.pre_detect(batch)
+    d_zero_second.pre_detect(batch)
+
+    assert len(d_zero_first.detect(dp)) == 1
+    assert len(d_hundred.detect(dp)) == 0
+    assert len(d_zero_second.detect(dp)) == 1
+    assert int(seen_score(item, "shared", 0)) == 100000000
+    assert seen_score(item, "shared", 100) is None
+
+
+def test_same_threshold_levels_advance_baseline_once_per_batch():
+    use_fake_cache_router()
+    config = default_config(threshold=100)
+    item = make_item(ns_configs=[config, config])
+    batch = [make_dp("below", 100000000, item, value=50)]
+
+    NewSeries(config=config).pre_detect(batch)
+    NewSeries(config=config).pre_detect(batch)
+
+    assert baseline_progress(item, 100) == 1
+    assert not baseline_done(item, 100)
+
+
+def test_nonempty_batch_without_eligible_points_bootstraps_only_current_threshold_group():
+    use_fake_cache_router()
+    zero = default_config(threshold=0)
+    hundred = default_config(threshold=100)
+    item = make_item(ns_configs=[zero, hundred])
+    dp = make_dp("below", 100000000, item, value=50)
+
+    NewSeries(config=hundred).pre_detect([dp])
+
+    assert baseline_progress(item, 100) == 1
+    assert not baseline_done(item, 100)
+    assert baseline_progress(item, 0) == 0
+    assert not baseline_done(item, 0)
+    assert seen_score(item, "below", 100) is None
+
+
+def test_below_threshold_is_not_seen_then_first_eligible_value_alerts_and_equal_value_does_not_refresh():
+    use_fake_cache_router()
+    config = default_config(threshold=10)
+    item = make_item(ns_configs=[config])
+
+    for cycle in range(5):
+        item._new_series_cache = None
+        below = make_dp("candidate", 100000000 + cycle * 60, item, value=9)
+        below_detector = NewSeries(config=config)
+        below_detector.pre_detect([below])
+        assert len(below_detector.detect(below)) == 0
+        assert seen_score(item, "candidate", 10) is None
+
+    assert baseline_progress(item, 10) == 5
+    assert baseline_done(item, 10)
+
+    item._new_series_cache = None
+    eligible = make_dp("candidate", 100000300, item, value=11)
+    eligible_detector = NewSeries(config=config)
+    eligible_detector.pre_detect([eligible])
+    assert len(eligible_detector.detect(eligible)) == 1
+    assert int(seen_score(item, "candidate", 10)) == 100000300
+
+    item._new_series_cache = None
+    equal = make_dp("candidate", 100000360, item, value=10)
+    equal_detector = NewSeries(config=config)
+    equal_detector.pre_detect([equal])
+    assert len(equal_detector.detect(equal)) == 0
+    assert int(seen_score(item, "candidate", 10)) == 100000300
+
+
+def test_physical_empty_batch_does_not_advance_threshold_groups():
+    use_fake_cache_router()
+    item = make_item(ns_configs=[default_config(threshold=0), default_config(threshold=100)])
+
+    assert NewSeries.bootstrap_empty_batch(item)
+
+    assert baseline_progress(item, 0) == 0
+    assert baseline_progress(item, 100) == 0
+    assert not baseline_done(item, 0)
+    assert not baseline_done(item, 100)
+
+
+def test_log_count_zero_bucket_filtered_across_shared_multi_level():
+    # 多 level 共享同一 seen-zset 时，日志关键字批次内 0 桶 + 真实点混合：
+    # 0 桶两个 level 都不报、真实点两个 level 都报，且 seen 只按真实点写一次。
+    use_fake_cache_router()
+    item = make_item(data_source_label=DataSourceLabel.BK_LOG_SEARCH, data_type_label=DataTypeLabel.LOG)
+    seed_learned(item)
+
+    d1 = NewSeries(config=default_config())
+    d2 = NewSeries(config=default_config())
+    zero_bucket = make_dp("log-pattern", 100000000, item, value=0)
+    real_bucket = make_dp("log-pattern", 100000060, item, value=1)
+    batch = [zero_bucket, real_bucket]
+
+    d1.pre_detect(batch)  # 读干净态 + 只按真实点写
+    d2.pre_detect(batch)  # 复用 d1 快照(干净态)，不被写污染
+
+    assert len(d1.detect(zero_bucket)) == 0
+    assert len(d2.detect(zero_bucket)) == 0
+    assert len(d1.detect(real_bucket)) == 1
+    assert len(d2.detect(real_bucket)) == 1
+    assert int(seen_score(item, "log-pattern")) == 100000060
+
+
+def test_periodic_clean_uses_threshold_group_limits_without_refreshing_positive_ttl():
+    from alarm_backends.core.detect_result.clean import CleanResult
+
+    use_fake_cache_router()
+    sid = _UID[0]
+    iid = 8
+    sig = count_md5(sorted(AGG_DIMENSION))
+    legacy_key = key.NEW_SERIES_SEEN_KEY.get_key(strategy_id=sid, item_id=iid, dimension_signature=sig)
+    threshold_key = key.NEW_SERIES_THRESHOLD_SEEN_KEY.get_key(
+        strategy_id=sid,
+        item_id=iid,
+        dimension_signature=sig,
+        threshold=NewSeries.threshold_token(100),
+    )
+    client = key.NEW_SERIES_SEEN_KEY.client
+    client.zadd(legacy_key, {f"legacy-{i}": i for i in range(5)})
+    client.zadd(threshold_key, {f"threshold-{i}": i for i in range(5)})
+    client.expire(legacy_key, 1234)
+    client.expire(threshold_key, 2345)
+    strategy = {
+        "id": sid,
+        "items": [
+            {
+                "id": iid,
+                "algorithms": [
+                    {"type": "NewSeries", "config": default_config(max_series=4, threshold=0)},
+                    {"type": "NewSeries", "config": default_config(max_series=2, threshold=100)},
+                ],
+                "query_configs": [{"agg_dimension": AGG_DIMENSION, "agg_interval": 60}],
+            }
+        ],
+    }
+    with (
+        mock.patch("alarm_backends.core.detect_result.clean.StrategyCacheManager.get_strategy_ids", return_value=[sid]),
+        mock.patch(
+            "alarm_backends.core.detect_result.clean.StrategyCacheManager.get_strategy_by_ids",
+            return_value=[strategy],
+        ),
+    ):
+        CleanResult.clean_new_series_seen_cache()
+
+    assert client.zcard(legacy_key) == 4
+    assert client.zcard(threshold_key) == 2
+    assert 0 < client.ttl(legacy_key) <= 1234
+    assert 0 < client.ttl(threshold_key) <= 2345
+
+
 class TestNewSeries:
     def test_config_validate(self):
         # detect_range 必填，缺失则抛 InvalidAlgorithmsConfig
@@ -152,51 +548,77 @@ class TestNewSeries:
         assert len(detector.detect(dp2)) == 0
         assert int(seen_score(item, "dimD")) == 100000000
         assert int(seen_score(item, "dimE")) == 100000000
-        assert baseline_done(item)
+        assert baseline_progress(item) == 1
+        assert not baseline_done(item)
 
-    def test_first_non_empty_batch_is_baseline_only_then_next_new_dimension_alerts(self):
+    def test_first_five_effective_batches_are_baseline_then_sixth_new_dimension_alerts(self):
         item = make_item()
-        detector = NewSeries(config=default_config(detect_range=86400))
-        baseline_dp = make_dp("baseline", 100000000, item)
-        detector.pre_detect([baseline_dp])
-        assert len(detector.detect(baseline_dp)) == 0
+        for cycle in range(5):
+            item._new_series_cache = None
+            detector = NewSeries(config=default_config(detect_range=86400))
+            baseline_dp = make_dp(f"baseline-{cycle}", 100000000 + cycle * 60, item)
+            detector.pre_detect([baseline_dp])
+            assert len(detector.detect(baseline_dp)) == 0
+            assert baseline_progress(item) == cycle + 1
 
+        assert baseline_done(item)
         item._new_series_cache = None
         detector2 = NewSeries(config=default_config(detect_range=86400))
-        new_dp = make_dp("new-after-baseline", 100000060, item)
+        new_dp = make_dp("new-after-baseline", 100000300, item)
         detector2.pre_detect([new_dp])
         assert len(detector2.detect(new_dp)) == 1
 
-    def test_empty_first_pull_marks_baseline_done_and_next_new_dimension_alerts(self):
+    def test_empty_first_pull_does_not_advance_baseline(self):
         item = make_item()
         NewSeries.bootstrap_empty_batch(item)
-        assert baseline_done(item)
+        assert baseline_progress(item) == 0
+        assert not baseline_done(item)
 
         detector = NewSeries(config=default_config(detect_range=86400))
         dp = make_dp("first-real-dim", 100000000, item)
         detector.pre_detect([dp])
-        assert len(detector.detect(dp)) == 1
+        assert len(detector.detect(dp)) == 0
+        assert baseline_progress(item) == 1
+
+    def test_partial_batch_does_not_advance_or_write_seen(self):
+        item = make_item()
+        detector = NewSeries(config=default_config())
+        dp = make_dp("partial", 100000000, item, is_partial=True)
+
+        detector.pre_detect([dp])
+
+        assert len(detector.detect(dp)) == 0
+        assert baseline_progress(item) == 0
+        assert not baseline_done(item)
+        assert seen_score(item, "partial") is None
 
     def test_baseline_done_failure_does_not_leave_legacy_completion_state(self):
         item = make_item()
+        for cycle in range(4):
+            item._new_series_cache = None
+            detector = NewSeries(config=default_config(detect_range=86400))
+            detector.pre_detect([make_dp(f"baseline-{cycle}", 100000000 + cycle * 60, item)])
+
+        item._new_series_cache = None
         detector = NewSeries(config=default_config(detect_range=86400))
-        failed_dp = make_dp("failed-baseline", 100000000, item)
+        failed_dp = make_dp("failed-baseline", 100000240, item)
 
         with mock.patch.object(NewSeries, "_mark_baseline_done", side_effect=RuntimeError("redis timeout")):
             detector.pre_detect([failed_dp])
 
         assert not baseline_done(item)
+        assert baseline_progress(item) == 5
         assert not learn_start_exists(item)
         assert len(detector.detect(failed_dp)) == 0
 
         item._new_series_cache = None
         detector2 = NewSeries(config=default_config(detect_range=86400))
-        next_dp = make_dp("next-baseline", 100000060, item)
+        next_dp = make_dp("next-baseline", 100000300, item)
         detector2.pre_detect([next_dp])
         assert len(detector2.detect(next_dp)) == 0
         assert baseline_done(item)
 
-    def test_detect_process_empty_batch_bootstraps_new_series_item(self):
+    def test_detect_process_empty_batch_does_not_advance_new_series_item(self):
         from alarm_backends.service.detect.process import DetectProcess
 
         item = make_item()
@@ -207,7 +629,8 @@ class TestNewSeries:
 
         process.handle_data(item)
 
-        assert baseline_done(item)
+        assert baseline_progress(item) == 0
+        assert not baseline_done(item)
         item.detect.assert_called_once_with([])
 
     def test_empty_batch_does_not_bootstrap_non_new_series_item(self):
@@ -357,8 +780,9 @@ class TestNewSeries:
         d1 = NewSeries(config=default_config())
         d2 = NewSeries(config=default_config())
         dp = make_dp("dimG", 100000000, item)
-        d1.pre_detect([dp])  # 读干净态(空) + 写
-        d2.pre_detect([dp])  # 复用 d1 的快照(干净态)，不被 d1 的写污染
+        batch = [dp]
+        d1.pre_detect(batch)  # 读干净态(空) + 写
+        d2.pre_detect(batch)  # 复用 d1 的快照(干净态)，不被 d1 的写污染
         # 两个 level 都应判 dimG 为新
         assert len(d1.detect(dp)) == 1
         assert len(d2.detect(dp)) == 1

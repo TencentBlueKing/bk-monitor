@@ -170,3 +170,18 @@
     }
   }
 }
+
+.markdown-viewer-has-link {
+  .toastui-editor-contents {
+    // 通用链接样式：确保所有层级 <a> 标签颜色为 #3a84ff
+    a {
+      color: #3a84ff;
+      text-decoration: none;
+      cursor: pointer;
+
+      &:hover {
+        color: #3a84ff;
+      }
+    }
+  }
+}

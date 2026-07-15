@@ -203,7 +203,10 @@ export default defineComponent({
 
     const tabList = computed(() => [
       { name: $t('单选'), id: 'single', render: renderIndexSetList },
-      { name: $t('多选'), id: 'union', render: renderIndexSetList },
+      // 根据 isExternal 状态决定是否显示多选 tab
+      ...(!window.IS_EXTERNAL
+        ? [{ name: $t('多选'), id: 'union', render: renderIndexSetList }]
+        : []),
       // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
       { name: $t('历史记录'), id: 'history', render: renderHistoryList },
       { name: $t('我的收藏'), id: 'favorite', render: renderFavoriteList },

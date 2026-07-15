@@ -67,7 +67,14 @@ export default defineComponent({
     const traceStore = useTraceExploreStore();
     const empty = ref(true);
     const loading = ref(true);
-    const bizId = computed(() => useAppStore().bizId || 0);
+    const injectedBizId = inject<Ref<number | string> | undefined>('bizId', undefined);
+    const bizId = computed(() => {
+      const fromInject = injectedBizId?.value;
+      if (fromInject != null && fromInject !== '' && !Number.isNaN(+fromInject)) {
+        return +fromInject;
+      }
+      return +(useAppStore().bizId || window.bk_biz_id || window.cc_biz_id || 0);
+    });
 
     const serviceName = inject<Ref<string>>('serviceName');
     const appName = inject<Ref<string>>('appName');
@@ -102,11 +109,12 @@ export default defineComponent({
       loading.value = false;
       if (data && empty.value) {
         empty.value = false;
+        const targetBizId = bizId.value || window.bk_biz_id;
         const spaceUid =
-          window.space_list.find(item => +item.bk_biz_id === +window.bk_biz_id)?.space_uid || window.bk_biz_id;
+          window.space_list.find(item => +item.bk_biz_id === +targetBizId)?.space_uid || targetBizId;
         window.space_uid = `${spaceUid}`;
         initMonitorState({
-          bkBizId: window.bk_biz_id,
+          bkBizId: targetBizId,
           spaceUid,
         });
         initGlobalComponents();

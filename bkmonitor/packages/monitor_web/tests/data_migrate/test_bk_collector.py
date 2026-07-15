@@ -1,7 +1,14 @@
 from types import SimpleNamespace
 
+import pytest
+
 from bkmonitor.utils.local import local
 from monitor_web.data_migrate import bk_collector
+
+
+@pytest.fixture(autouse=True)
+def mock_refresh_biz_ping_conf(monkeypatch):
+    monkeypatch.setattr(bk_collector, "_refresh_biz_ping_conf", lambda **kwargs: None)
 
 
 def _application(bk_biz_id=2, app_name="demo"):
@@ -307,13 +314,13 @@ def test_install_biz_bk_collector_skips_all_when_no_agent(monkeypatch):
     assert result["summary"][bk_collector.INSTALL]["skipped_count"] == 1
 
 
-def test_stop_biz_bk_collector_skips_hosts_without_agent(monkeypatch):
+def test_stop_biz_bk_collector_skips_hosts_with_non_running_agent(monkeypatch):
     calls = []
 
     monkeypatch.setattr(
         bk_collector.BkCollectorConfig,
         "get_target_host_ids_by_biz_id",
-        classmethod(lambda cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False: [101, 102]),
+        classmethod(lambda cls, bk_tenant_id, bk_biz_id, only_current_bk_biz_id=False: [101, 102, 103]),
     )
     monkeypatch.setattr(
         bk_collector.api.node_man,
@@ -328,6 +335,11 @@ def test_stop_biz_bk_collector_skips_hosts_without_agent(monkeypatch):
                 {
                     "bk_host_id": 102,
                     "status": "NOT_INSTALLED",
+                    "plugin_status": [{"name": "bk-collector", "version": "1.2.3"}],
+                },
+                {
+                    "bk_host_id": 103,
+                    "status": "UNKNOWN",
                     "plugin_status": [{"name": "bk-collector", "version": "1.2.3"}],
                 },
             ]
@@ -346,13 +358,13 @@ def test_stop_biz_bk_collector_skips_hosts_without_agent(monkeypatch):
 
     result = bk_collector.stop_biz_bk_collector(bk_tenant_id="system", bk_biz_ids=[2], operator="admin", dry_run=False)
 
-    # 102 虽装有 bk-collector，但 Agent 未安装，跳过并只停止 101
+    # 102 和 103 虽装有 bk-collector，但 Agent 状态均非 RUNNING，跳过并只停止 101。
     assert calls[0]["bk_host_id"] == [101]
     stop_detail = result["details"][bk_collector.STOP][0]
     assert stop_detail["stop_host_ids"] == [101]
-    assert stop_detail["skipped_host_ids"] == [102]
-    assert stop_detail["skipped_hosts"][0]["reason"] == bk_collector.SKIP_REASON_AGENT_NOT_INSTALLED
-    assert result["skip_summary"]["host_count"] == 1
+    assert stop_detail["skipped_host_ids"] == [102, 103]
+    assert {host["reason"] for host in stop_detail["skipped_hosts"]} == {bk_collector.SKIP_REASON_AGENT_NOT_RUNNING}
+    assert result["skip_summary"]["host_count"] == 2
 
 
 def test_stop_biz_bk_collector_can_disable_agent_skip(monkeypatch):
@@ -396,7 +408,7 @@ def test_stop_biz_bk_collector_can_disable_agent_skip(monkeypatch):
         bk_tenant_id="system", bk_biz_ids=[2], operator="admin", dry_run=False, skip_hosts_without_agent=False
     )
 
-    # 关闭 Agent 跳过后，只要装有 bk-collector 就会被停止，不再因 Agent 未安装跳过
+    # 关闭 Agent 状态过滤后，只要装有 bk-collector 就会被停止。
     assert calls[0]["bk_host_id"] == [101, 102]
     stop_detail = result["details"][bk_collector.STOP][0]
     assert stop_detail["stop_host_ids"] == [101, 102]
@@ -589,11 +601,11 @@ def test_stop_biz_bk_collector_dry_run_only_stops_installed_hosts(monkeypatch):
     stop_detail = result["details"][bk_collector.STOP][0]
     assert stop_detail["stop_host_ids"] == [101]
     assert stop_detail["skipped_host_ids"] == [102, 103]
-    # 102 已上报但未装 bk-collector；103 节点管理未返回，视为 Agent 未安装
+    # 102 Agent 正常但未装 bk-collector；103 节点管理未返回，视为 Agent 非 RUNNING。
     skip_reason_by_host = {host["bk_host_id"]: host["reason"] for host in stop_detail["skipped_hosts"]}
     assert skip_reason_by_host == {
         102: bk_collector.SKIP_REASON_BK_COLLECTOR_NOT_INSTALLED,
-        103: bk_collector.SKIP_REASON_AGENT_NOT_INSTALLED,
+        103: bk_collector.SKIP_REASON_AGENT_NOT_RUNNING,
     }
     assert result["summary"][bk_collector.STOP]["planned_count"] == 1
     assert result["skip_summary"]["host_count"] == 2
@@ -1117,6 +1129,7 @@ def test_check_biz_bk_collector_proxy_config_delivery_waits_when_failed_with_pen
 def test_refresh_biz_bk_collector_configs_checks_delivery_after_refresh(monkeypatch):
     custom_report_calls = []
     delivery_check_calls = []
+    ping_server_calls = []
 
     def fake_refresh_custom_report(**kwargs):
         custom_report_calls.append(kwargs)
@@ -1132,6 +1145,7 @@ def test_refresh_biz_bk_collector_configs_checks_delivery_after_refresh(monkeypa
         fake_refresh_custom_report,
     )
     monkeypatch.setattr(bk_collector, "check_biz_bk_collector_proxy_config_delivery", fake_check_delivery)
+    monkeypatch.setattr(bk_collector, "_refresh_biz_ping_conf", lambda **kwargs: ping_server_calls.append(kwargs))
 
     result = bk_collector.refresh_biz_bk_collector_proxy_configs(
         bk_tenant_id="system",
@@ -1160,6 +1174,30 @@ def test_refresh_biz_bk_collector_configs_checks_delivery_after_refresh(monkeypa
     assert result["delivery_check"]["result"] is True
     assert result["result"] is True
     assert "details" not in result
+    assert ping_server_calls == [{"bk_tenant_id": "system", "bk_biz_ids": [2], "plugin_name": bk_collector.PLUGIN_NAME}]
+
+
+def test_refresh_biz_bk_collector_configs_ignores_ping_server_failure(monkeypatch):
+    monkeypatch.setattr(
+        bk_collector.CustomReportSubscription,
+        "refresh_collector_custom_conf",
+        lambda **kwargs: {"summary": {"failed_count": 0}, "details": []},
+    )
+    monkeypatch.setattr(
+        bk_collector,
+        "_refresh_biz_ping_conf",
+        lambda **kwargs: (_ for _ in ()).throw(RuntimeError("ping server refresh failed")),
+    )
+
+    result = bk_collector.refresh_biz_bk_collector_proxy_configs(
+        bk_tenant_id="system",
+        bk_biz_ids=[2],
+        config_types=[bk_collector.CUSTOM_REPORT],
+        check_delivery=False,
+    )
+
+    assert result["result"] is True
+    assert result["message"] == "refresh completed, proxy config delivery check skipped"
 
 
 def test_refresh_biz_bk_collector_configs_drops_delivery_check_details_by_default(monkeypatch):
@@ -1596,6 +1634,11 @@ def test_refresh_biz_bk_collector_configs_dry_run_and_local_context_restore(monk
 
     monkeypatch.setattr(
         bk_collector.CustomReportSubscription, "refresh_collector_custom_conf", fake_refresh_custom_report
+    )
+    monkeypatch.setattr(
+        bk_collector,
+        "_refresh_biz_ping_conf",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("dry-run should not refresh ping server config")),
     )
 
     local.username = "origin"

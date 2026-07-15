@@ -297,6 +297,8 @@ export default defineComponent({
           multiline_pattern: '',
           multiline_max_lines: '50',
           multiline_timeout: '2',
+          // 采集范围：true-仅采集下发后的日志，false-采集全量日志
+          tail_files: true,
           // winlog 相关字段在 IContainerCollectionParams 中，但 IContainerConfigItem.params 类型是 IHostCollectionParams
           // 这里使用类型断言来兼容实际使用场景
           winlog_name: [],
@@ -499,6 +501,26 @@ export default defineComponent({
                 </bk-select>
               </div>
             )}
+            {/* 采集范围 */}
+            <div class='item-content-child small-width'>
+              <div class='item-content-title'>{t('采集范围')}</div>
+              <bk-radio-group
+                value={item.params?.tail_files ?? true}
+                on-change={(val: boolean) => {
+                  const updatedItem = {
+                    ...item,
+                    params: {
+                      ...item.params,
+                      tail_files: val,
+                    },
+                  };
+                  handleDataChange(updatedItem, ind);
+                }}
+              >
+                <bk-radio class='mr-24' value={true}>{t('仅采集下发后的日志')}</bk-radio>
+                <bk-radio value={false}>{t('采集全量日志')}</bk-radio>
+              </bk-radio-group>
+            </div>
             {/* 日志过滤配置 */}
             <div class='item-content-child'>
               <div class='item-content-title'>{t('日志过滤')}</div>

@@ -75,6 +75,7 @@ export default defineComponent({
     const params = computed<IViewOptions>(() => {
       return {
         app_name: store.appName,
+        bk_biz_id: window.bk_biz_id || window.cc_biz_id,
       };
     });
 
@@ -90,6 +91,7 @@ export default defineComponent({
     const getChartPanels = async () => {
       const params = {
         app_name: store.appName,
+        bk_biz_id: window.bk_biz_id || window.cc_biz_id,
       };
       if (window.source_app === 'apm') {
         Object.assign(params, {

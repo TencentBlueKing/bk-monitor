@@ -33,16 +33,17 @@ import { getUserWorkspaceApi, rebindWorkspaceApi, unbindWorkspaceApi } from '../
 
 import type { TapdWorkspaceItem } from '../typing';
 
+type UseTapdAuthEmit = (event: 'update:loading', loading: boolean) => void;
+
 interface UseTapdAuthOptions {
   bizId: Ref<number | string>;
-  firstAlarmTime: Ref<number | string>;
   issuesId: Ref<string>;
   show: Ref<boolean>;
 }
 
-export function useTapdAuth(options: UseTapdAuthOptions) {
+export function useTapdAuth(options: UseTapdAuthOptions, emit?: UseTapdAuthEmit) {
   const { t } = useI18n();
-  const { show, bizId, issuesId, firstAlarmTime } = options;
+  const { show, bizId, issuesId } = options;
   const authDialogShow = shallowRef(false);
   const createTapdSliderShow = shallowRef(false);
   /** 项目列表 */
@@ -54,9 +55,9 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
   /** 项目关联链接 */
   const installUrl = shallowRef('');
   const revokeAuthLoading = shallowRef(false);
-  const loading = shallowRef(false);
 
   const getAuth = async () => {
+    emit?.('update:loading', true);
     installUrl.value = '';
     /** 授权成功后跳转的参数 */
     const successUrlParams = new URLSearchParams({
@@ -71,11 +72,9 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
       detailBizId: `${bizId.value}`,
       detailId: `${issuesId.value}`,
       showDetail: 'true',
-      issueFirstAlarmTime: `${firstAlarmTime.value}`,
       alarmType: 'issues',
     });
     try {
-      loading.value = true;
       const data = await getUserWorkspaceApi({
         bk_biz_id: bizId.value,
         success_url: `${window.location.search}#/trace/alarm-center?${successUrlParams.toString()}`,
@@ -101,14 +100,13 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
       createTapdSliderShow.value = false;
       authDialogShow.value = true;
     }
-    loading.value = false;
+    emit?.('update:loading', false);
   };
 
   watch(
     () => show.value,
     val => {
       if (val) {
-        authDialogShow.value = true;
         getAuth();
       } else {
         createTapdSliderShow.value = false;
@@ -121,7 +119,6 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
   const handleUnboundWorkspace = (item: TapdWorkspaceItem) => {
     InfoBox({
       title: t('确认取消关联吗？'),
-      content: t('取消后，TAPD 侧授权不会被撤销，但蓝鲸侧不再与该 TAPD 项目关联。确认解绑吗？'),
       onConfirm: async () => {
         try {
           await unbindWorkspaceApi({
@@ -181,7 +178,6 @@ export function useTapdAuth(options: UseTapdAuthOptions) {
   };
 
   return {
-    loading,
     authDialogShow,
     createTapdSliderShow,
     workspaceList,

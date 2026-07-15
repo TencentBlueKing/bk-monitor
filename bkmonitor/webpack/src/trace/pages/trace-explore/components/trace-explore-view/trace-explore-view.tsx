@@ -82,7 +82,7 @@ export default defineComponent({
     },
     /** 是否展示详情 */
     showSlideDetail: {
-      type: Object as PropType<{ id: string; type: 'span' | 'trace' }>,
+      type: Object as PropType<{ appName?: string; bizId?: number; id: string; type: 'span' | 'trace' }>,
       default: null,
     },
   },
@@ -90,11 +90,13 @@ export default defineComponent({
     /** table上方快捷筛选操作区域（ "包含" 区域中的 复选框组）值改变后触发的回调 */
     checkboxFiltersChange: (checkboxGroupEvent: string[]) => Array.isArray(checkboxGroupEvent),
     /** 筛选条件改变后触发的回调 */
-    conditionChange: (conditionEvent: ConditionChangeEvent) => conditionEvent,
+    conditionChange: (conditionEvent: ConditionChangeEvent, _: boolean) => conditionEvent,
     /** 清除检索过滤 */
     clearRetrievalFilter: () => true,
     /** 设置url参数 */
     setUrlParams: () => true,
+    /** Trace / Span 详情侧边窗关闭 */
+    sliderClose: () => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -106,6 +108,10 @@ export default defineComponent({
     const sliderMode = shallowRef<'' | 'span' | 'trace'>('');
     /** 打开抽屉所需的数据Id(traceId/spanId) */
     const activeSliderId = shallowRef('');
+    /** 跨业务打开详情时的目标业务 ID */
+    const activeSliderBizId = shallowRef<number | undefined>(undefined);
+    /** 关联 Trace 打开时的目标应用名（不写回 store，避免污染宿主图表） */
+    const activeSliderAppName = shallowRef<string | undefined>(undefined);
     const { mode, appName } = storeToRefs(store);
     const {
       displayColumnFields,
@@ -147,9 +153,15 @@ export default defineComponent({
      * @description TraceId/SpanId 点击触发回调
      *
      */
-    const handleSliderShowChange = (openMode: '' | 'span' | 'trace', activeId: string) => {
+    const handleSliderShowChange = (
+      openMode: '' | 'span' | 'trace',
+      activeId: string,
+      options?: { appName?: string; bizId?: number }
+    ) => {
       activeSliderId.value = activeId;
       sliderMode.value = openMode;
+      activeSliderBizId.value = openMode ? options?.bizId : undefined;
+      activeSliderAppName.value = openMode ? options?.appName : undefined;
     };
 
     /**
@@ -157,6 +169,7 @@ export default defineComponent({
      */
     const handleTraceSliderClose = () => {
       handleSliderShowChange('', '');
+      emit('sliderClose');
 
       // 关闭 trace 侧滑时清理 `incident_query`，避免一直保留导致重复触发自动打开逻辑
       if (!route.query.incident_query) return;
@@ -227,7 +240,7 @@ export default defineComponent({
       () => props.showSlideDetail,
       val => {
         if (!val) return;
-        handleSliderShowChange(val.type, val.id);
+        handleSliderShowChange(val.type, val.id, { appName: val.appName, bizId: val.bizId });
       },
       {
         immediate: true,
@@ -246,6 +259,8 @@ export default defineComponent({
       sortContainer,
       sliderMode,
       activeSliderId,
+      activeSliderBizId,
+      activeSliderAppName,
       getCustomFieldsConfig,
       handleDisplayColumnFieldsChange,
       handleDisplayColumnResize,
@@ -282,7 +297,9 @@ export default defineComponent({
             tableLoading={this.tableLoading}
             onClearRetrievalFilter={() => this.$emit('clearRetrievalFilter')}
             onColumnResize={this.handleDisplayColumnResize}
-            onConditionChange={conditionEvent => this.$emit('conditionChange', conditionEvent)}
+            onConditionChange={(conditionEvent, isMergeSameKey) =>
+              this.$emit('conditionChange', conditionEvent, isMergeSameKey)
+            }
             onDisplayFieldChange={this.handleDisplayColumnFieldsChange}
             onScrollToEnd={this.handleScrollToEnd}
             onSliderShow={this.handleSliderShowChange}
@@ -293,7 +310,8 @@ export default defineComponent({
           <div>
             {this.sliderMode === 'trace' && (
               <ExploreTraceSlider
-                appName={this.appName}
+                appName={this.activeSliderAppName || this.appName}
+                bizId={this.activeSliderBizId}
                 isShow={this.sliderMode === 'trace'}
                 traceId={this.activeSliderId}
                 onSliderClose={this.handleTraceSliderClose}
@@ -304,7 +322,10 @@ export default defineComponent({
                 appName={this.appName}
                 isShow={this.sliderMode === 'span'}
                 spanId={this.activeSliderId}
-                onSliderClose={() => this.handleSliderShowChange('', '')}
+                onSliderClose={() => {
+                  this.handleSliderShowChange('', '');
+                  this.$emit('sliderClose');
+                }}
               />
             )}
           </div>
