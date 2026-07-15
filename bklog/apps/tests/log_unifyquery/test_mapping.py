@@ -92,7 +92,7 @@ class TestUnifyQueryMappingHandler(TestCase):
         ]
 
         with (
-            patch("apps.log_unifyquery.handler.mapping.IndexSetTag.is_doris_tag", return_value=False),
+            patch("apps.log_unifyquery.handler.mapping.IndexSetTag.get_tag_id", return_value=-1),
             patch(
                 "apps.log_unifyquery.handler.mapping.CollectorConfig.get_storage_cluster_type_map_by_table_ids",
                 return_value={},
