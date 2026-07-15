@@ -351,14 +351,6 @@ def get_process_port_health(bk_biz_id: int, hosts: list[Host]) -> dict[int, dict
     """
     查询进程端口健康状态 (port_health)
 
-    与 get_process_status 类似，但查询的是 `system.proc_port` 中的 `port_health` 指标，
-    而非 `proc_exists`。返回每个进程的端口健康状态：0 = 不健康，1 = 健康，None = 未知/未解析。
-
-    PERFORMANCE NOTE:
-        Phase 2 should consider merging this query with get_process_status into a single
-        UnifyQuery that fetches both `proc_exists` and `port_health` metrics together,
-        reducing TSDB round-trips from 2 to 1 per process-list request.
-
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表
     :return: {bk_host_id: {bk_process_name: 0/1/None}}
