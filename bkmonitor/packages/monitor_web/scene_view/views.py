@@ -292,7 +292,6 @@ class SceneViewViewSet(ResourceViewSet):
             resource.scene_view.get_custom_metric_target_list,
             endpoint="get_custom_metric_target_list",
         ),
-        # === S-01: Host 页面接口拆分 — panels/order 独立接口 ===
         ResourceRoute("POST", GetHostViewsPanelsResource, endpoint="get_host_views_panels"),
         ResourceRoute("POST", GetHostViewsPanelsOrderResource, endpoint="get_host_metric_group_panel_order"),
         ResourceRoute("POST", GetProcessViewsPanelsResource, endpoint="get_process_views_panels"),

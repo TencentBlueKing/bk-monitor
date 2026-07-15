@@ -46,7 +46,6 @@ class HostPerformanceResource(CacheResource):
                     "ports": process["ports"],
                     "protocol": process["protocol"],
                     "status": process["status"],
-                    # REQ-20260707-001-S02: 新增 CMDB 配置侧字段（与 get_process_info 返回对齐）
                     "id": process.get("id"),
                     "bindIp": process.get("bindIp"),
                     "port": process.get("port"),
@@ -389,7 +388,6 @@ class SearchHostMetricResource(Resource):
                 {
                     "display_name": process["name"],
                     "status": process["status"],
-                    # REQ-20260707-001-S02: 新增 CMDB 配置侧字段（与 get_process_info 返回对齐）
                     "id": process.get("id"),
                     "bindIp": process.get("bindIp"),
                     "port": process.get("port"),

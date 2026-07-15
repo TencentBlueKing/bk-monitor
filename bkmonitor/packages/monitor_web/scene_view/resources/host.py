@@ -488,12 +488,10 @@ class GetHostProcessListResource(Resource):
 
         # PHASE 1: Query port health directly (moved up from get_process_info so other
         # callers are unaffected) and merge into response per design spec.
-        # DESIGN: portStatus 来自 system.proc_port 的 port_health 指标，可空(None=未知/未解析)
         port_statuses = resource.cc.get_process_port_health(bk_biz_id, hosts=[host])
         host_port_status = port_statuses.get(host.bk_host_id, {})
 
         # PHASE 2: Query runtime metrics per design spec and merge into response.
-        # DESIGN: From design/S02-process-fields-design-update.md
         # - 指标字段(cpu_usage_pct/mem_usage_pct/mem_res/uptime) 与维度字段(pid/username) 来自 system.proc
         # - proc_exists status 已在 get_process_info 中用于 status 字段
         # - portStatus 已在本 Resource 的 Phase 1 直接查询并合并
@@ -502,7 +500,7 @@ class GetHostProcessListResource(Resource):
         # 返回结构：{bk_host_id: {display_name(进程名): {field: value, pid: pid, username: username}}}
         host_runtime = runtime_data.get(host.bk_host_id, {})
 
-        # UI 字段名 → system.proc 指标字段名 映射（design/S02 §2）
+        # UI 字段名 → system.proc 指标字段名 映射
         # 用于 get_host_process_list 将 TSDB 运行时指标映射到前端 ProcessItem 字段
         runtime_metric_map = {
             "cpuUsage": "cpu_usage_pct",
@@ -525,9 +523,7 @@ class GetHostProcessListResource(Resource):
                 "bindIp": process.get("bindIp"),
                 "port": process.get("port"),
                 "portStatus": host_port_status.get(process["name"]),
-                # 设计文档 §2：user 为 CMDB 优先、TSDB(username) 兜底
                 "user": process.get("user") or host_runtime.get(process["name"], {}).get(runtime_metric_map["user"]),
-                # UI 契约字段 (from frontend-api-wiki.md / api-field-mapping.md)
                 "hostIp": host.ip,
                 # Performance / resource metrics from system.proc (TSDB only)
                 "cpuUsage": host_runtime.get(process["name"], {}).get(runtime_metric_map["cpuUsage"]),
@@ -595,9 +591,8 @@ class GetHostInfoResource(Resource):
 
 class GetHostViewsPanelsResource(Resource):
     """
-    获取主机场景视图的 panels 列表（S-01: Host 页面接口拆分）
+    获取主机场景视图的 panels 列表
     复用 GetSceneViewResource 逻辑，仅提取 panels 返回。
-    # DESIGN: From host_view_split_S01_panels_order_DESIGN.md
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -619,9 +614,8 @@ class GetHostViewsPanelsResource(Resource):
 
 class GetHostViewsPanelsOrderResource(Resource):
     """
-    获取主机场景视图的 order 列表（S-01: Host 页面接口拆分）
+    获取主机场景视图的 order 列表
     复用 GetSceneViewResource 逻辑，仅提取 order 返回。
-    # DESIGN: From host_view_split_S01_panels_order_DESIGN.md
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -643,9 +637,8 @@ class GetHostViewsPanelsOrderResource(Resource):
 
 class GetProcessViewsPanelsResource(Resource):
     """
-    获取进程场景视图的 panels 列表（S-01: Host 页面接口拆分）
+    获取进程场景视图的 panels 列表
     复用 GetSceneViewResource 逻辑，仅提取 panels 返回。
-    # DESIGN: From host_view_split_S01_panels_order_DESIGN.md
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -667,9 +660,8 @@ class GetProcessViewsPanelsResource(Resource):
 
 class GetProcessViewsPanelsOrderResource(Resource):
     """
-    获取进程场景视图的 order 列表（S-01: Host 页面接口拆分）
+    获取进程场景视图的 order 列表
     复用 GetSceneViewResource 逻辑，仅提取 order 返回。
-    # DESIGN: From host_view_split_S01_panels_order_DESIGN.md
     """
 
     class RequestSerializer(serializers.Serializer):
