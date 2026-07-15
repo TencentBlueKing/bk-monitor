@@ -26,7 +26,6 @@
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, reactive, ref, watch, type Ref } from 'vue';
 
 import { getRowFieldValue, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR } from '@/common/util';
-import { getInputQueryDefaultItem } from '@/views/retrieve-v2/search-bar/utils/const.common';
 // import { perfStart, perfEnd } from '@/utils/performance-monitor';
 import JsonFormatter from '@/global/json-formatter.vue';
 import type { RetrieveRowRenderMeta } from '@/storage/utils/retrieve-render-meta';
@@ -34,8 +33,6 @@ import { getFieldNameByField } from '@/hooks/use-field-name';
 import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
-import { optimizedSplit } from '@/hooks/hooks-helper';
-import LuceneSegment from '@/hooks/lucene.segment';
 import { UseSegmentProp } from '@/hooks/use-segment-pop';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
@@ -50,6 +47,7 @@ import RetrieveLoader from '@/skeleton/retrieve-loader.vue';
 import { retrieveFieldCacheService, retrieveRowCacheService } from '@/storage';
 import FullRowViewer from './full-row-viewer.vue';
 import ScrollTop from '../../components/scroll-top/index';
+import useSelectionSearch from '../../hooks/use-selection-search';
 import useTextAction from '../../hooks/use-text-action';
 import LogCell from './log-cell';
 import LogResultException from './log-result-exception';
@@ -149,277 +147,14 @@ export default defineComponent({
       }, rects[rects.length - 1]);
     };
 
-    const FULLTEXT_FIELD_NAME = '*';
-    const SELECTION_MAX_TOKENS = 1000;
-
-    type SelectionToken = {
-      text: string;
-      isCursorText: boolean;
-      fieldName?: string;
-      tokenType?: 'field-name' | 'field-value';
-    };
-
-    const stripSelectionMarkup = (value: string) => String(value ?? '').replace(/<\/?mark>/gim, '');
-
-    /**
-     * 与字段展示分词保持一致：自定义分词符走 optimizedSplit，否则走 LuceneSegment。
-     * 避免 /\S+/g 把引号、逗号等标点粘连进可补全 token。
-     */
-    const tokenizeSelectionText = (
-      value: string,
-      extra?: Partial<SelectionToken>,
-      field?: Record<string, any>,
-    ) => {
-      const text = stripSelectionMarkup(value);
-      if (!text) {
-        return [] as SelectionToken[];
-      }
-
-      let splitList: Array<{ text: string; isCursorText?: boolean }> = [];
-      if (field?.tokenize_on_chars) {
-        splitList = optimizedSplit(text, field.tokenize_on_chars);
-      } else {
-        splitList = LuceneSegment.split(text, SELECTION_MAX_TOKENS);
-      }
-
-      return splitList.map(item => ({
-        text: item.text,
-        isCursorText: Boolean(item.isCursorText),
-        ...extra,
-      }));
-    };
-
-    const getFieldPlainText = (row: Record<string, any>, field: Record<string, any>) => {
-      const rawValue = getRowFieldValue(row, field);
-      if (rawValue === null || rawValue === undefined || rawValue === '') {
-        return '--';
-      }
-
-      return stripSelectionMarkup(String(rawValue));
-    };
-
-    const getFieldSegmentTokens = (row: Record<string, any>, field: Record<string, any>) =>
-      tokenizeSelectionText(getFieldPlainText(row, field), {
-        fieldName: field.field_name,
-        tokenType: 'field-value',
-      }, field);
-
-    const getOriginSegmentTokens = (row: Record<string, any>) => {
-      const tokens: SelectionToken[] = [];
-      const fields = visibleFields.value.length ? visibleFields.value : filteredFieldList.value;
-
-      fields.forEach((field, index) => {
-        if (index > 0) {
-          tokens.push({ text: ' ', isCursorText: false });
-        }
-
-        tokens.push({
-          text: field.field_name,
-          isCursorText: true,
-          fieldName: field.field_name,
-          tokenType: 'field-name',
-        });
-        tokens.push({ text: ' ', isCursorText: false });
-        tokens.push(...tokenizeSelectionText(getFieldPlainText(row, field), {
-          fieldName: field.field_name,
-          tokenType: 'field-value',
-        }, field));
-      });
-
-      return tokens;
-    };
-
-    const getSelectionTextByRange = (range: Range) => stripSelectionMarkup(range?.toString?.() ?? '');
-
-    const getSelectionAnchorElement = (range: Range) => {
-      const startNode = range?.startContainer as Node | null;
-      const endNode = range?.endContainer as Node | null;
-      const startElement = startNode instanceof Element ? startNode : startNode?.parentElement;
-      const endElement = endNode instanceof Element ? endNode : endNode?.parentElement;
-
-      return (startElement?.closest?.('[data-field-name]') ?? endElement?.closest?.('[data-field-name]')) as HTMLElement | null;
-    };
-
-    /**
-     * 将划选范围补全到完整分词边界：
-     * 1) 命中连续 token 区间
-     * 2) 去掉两端分词符号（引号、逗号等）
-     * 3) 同一字段内拼接中间分隔符（如 2026-07-13），得到完整补全结果
-     */
-    const completeSelectionByTokens = (selectionText: string, tokens: SelectionToken[]) => {
-      if (!selectionText || !tokens.length) {
-        return [];
-      }
-
-      const normalizedSelection = stripSelectionMarkup(selectionText);
-      if (!normalizedSelection) {
-        return [];
-      }
-
-      const plainText = tokens.map(item => item.text).join('');
-      const selectionStart = plainText.indexOf(normalizedSelection);
-      if (selectionStart < 0) {
-        return [];
-      }
-
-      const selectionEnd = selectionStart + normalizedSelection.length;
-      let cursor = 0;
-      let rangeStart = -1;
-      let rangeEnd = -1;
-      for (let i = 0; i < tokens.length; i++) {
-        const token = tokens[i];
-        const tokenStart = cursor;
-        const tokenEnd = tokenStart + token.text.length;
-        cursor = tokenEnd;
-
-        if (selectionStart < tokenEnd && selectionEnd > tokenStart) {
-          if (rangeStart < 0) {
-            rangeStart = i;
-          }
-          rangeEnd = i;
-        }
-      }
-
-      if (rangeStart < 0 || rangeEnd < 0) {
-        return [];
-      }
-
-      const flushGroup = (start: number, end: number, bucket: SelectionToken[], dedupeSet: Set<string>) => {
-        let from = start;
-        let to = end;
-        while (from <= to && !tokens[from].isCursorText) {
-          from += 1;
-        }
-        while (to >= from && !tokens[to].isCursorText) {
-          to -= 1;
-        }
-        if (from > to) {
-          return;
-        }
-
-        const firstCursor = tokens.slice(from, to + 1).find(item => item.isCursorText);
-        if (!firstCursor || firstCursor.tokenType === 'field-name') {
-          return;
-        }
-
-        const text = tokens.slice(from, to + 1).map(item => item.text).join('');
-        if (!text) {
-          return;
-        }
-
-        const tokenKey = [firstCursor.fieldName ?? '', firstCursor.tokenType ?? '', text].join('__');
-        if (dedupeSet.has(tokenKey)) {
-          return;
-        }
-        dedupeSet.add(tokenKey);
-        bucket.push({
-          text,
-          isCursorText: true,
-          fieldName: firstCursor.fieldName,
-          tokenType: firstCursor.tokenType ?? 'field-value',
-        });
-      };
-
-      const completedTokens: SelectionToken[] = [];
-      const appendedTokenSet = new Set<string>();
-      let groupStart = rangeStart;
-      for (let i = rangeStart; i <= rangeEnd; i++) {
-        if (tokens[i].tokenType === 'field-name') {
-          if (i > groupStart) {
-            flushGroup(groupStart, i - 1, completedTokens, appendedTokenSet);
-          }
-          groupStart = i + 1;
-        }
-      }
-      if (groupStart <= rangeEnd) {
-        flushGroup(groupStart, rangeEnd, completedTokens, appendedTokenSet);
-      }
-
-      return completedTokens;
-    };
-
-    const getFieldByName = (fieldName: string) => {
-      if (!fieldName) {
-        return undefined;
-      }
-
-      return filteredFieldList.value.find(item => item.field_name === fieldName)
-        ?? visibleFields.value.find(item => item.field_name === fieldName)
-        ?? fullColumns.value.find(item => item.field_name === fieldName);
-    };
-
-    const addSelectionToCurrentSearch = (selectionRange: Range, row: Record<string, any>) => {
-      const selectionText = getSelectionTextByRange(selectionRange);
-      if (!selectionText) {
-        return;
-      }
-
-      const targetElement = getSelectionAnchorElement(selectionRange);
-      const targetFieldName = targetElement?.getAttribute('data-search-field-name')
-        ?? targetElement?.getAttribute('data-field-name')
-        ?? '';
-      const targetField = getFieldByName(targetFieldName);
-      const fulltextFieldItem = getInputQueryDefaultItem();
-
-      // 划选命中时间字段时，selectionText 是格式化后的展示值；检索条件必须使用行数据中的原始值。
-      if (targetField && ['date', 'date_nanos'].includes(targetField.field_type)) {
-        const rawValue = getObjectValue(row, targetField);
-        handleAddCondition(targetField.field_name, 'is', [String(rawValue).replace(/<\/?mark>/gim, '')]);
-        return;
-      }
-
-      if (showCtxType.value === 'table') {
-        if (!targetField) {
-          handleAddCondition(FULLTEXT_FIELD_NAME, fulltextFieldItem.operator, [selectionText]);
-          return;
-        }
-
-        const completedTokens = completeSelectionByTokens(selectionText, getFieldSegmentTokens(row, targetField));
-        if (!completedTokens.length) {
-          handleAddCondition(targetField.field_name, 'is', [selectionText]);
-          return;
-        }
-
-        completedTokens.forEach(token => {
-          handleAddCondition(targetField.field_name, 'is', [token.text]);
-        });
-        return;
-      }
-
-      const conditions: Array<{ field: string; operator: string; value: string[] }> = [];
-      const appendedConditionKeys = new Set<string>();
-      const fieldNameSet = new Set(filteredFieldList.value.map(item => item.field_name));
-      const originTokens = completeSelectionByTokens(selectionText, getOriginSegmentTokens(row));
-
-      originTokens.forEach((token) => {
-        if (!token.text || token.tokenType === 'field-name' || fieldNameSet.has(token.text)) {
-          return;
-        }
-
-        const field = getFieldByName(token.fieldName ?? '');
-        const plainText = field ? getFieldPlainText(row, field) : '';
-        const operator = field && plainText === token.text ? 'is' : fulltextFieldItem.operator;
-        const conditionField = operator === 'is' && field ? field.field_name : FULLTEXT_FIELD_NAME;
-        const conditionKey = [conditionField, operator, token.text].join('__');
-        if (!appendedConditionKeys.has(conditionKey)) {
-          appendedConditionKeys.add(conditionKey);
-          conditions.push({
-            field: conditionField,
-            operator,
-            value: [token.text],
-          });
-        }
-      });
-
-      if (!conditions.length) {
-        handleAddCondition(FULLTEXT_FIELD_NAME, fulltextFieldItem.operator, [selectionText]);
-        return;
-      }
-
-      conditions.forEach(item => {
-        handleAddCondition(item.field, item.operator, item.value);
-      });
-    };
+    const fullColumns = ref([]);
+    const showCtxType = ref(props.contentType);
+    const { stripSelectionMarkup, getFieldByName, addSelectionToCurrentSearch } = useSelectionSearch({
+      handleAddCondition,
+      getObjectValue,
+      fullColumns,
+      showCtxType,
+    });
 
     const setSelectionPopTargetHandler = (rect: DOMRect) => {
       let virtualTarget = document.body.querySelector('.bklog-selection-pop-target') as HTMLElement;
@@ -544,8 +279,6 @@ export default defineComponent({
     const isShowCollectorField = computed(() => store.state.storage[BK_LOG_STORAGE.TABLE_SHOW_COLLECTOR_FIELD]);
     const flatIndexSetList = computed(() => store.state.retrieve.flatIndexSetList);
     const isSceneMode = computed(() => store.getters.isSceneMode);
-    const fullColumns = ref([]);
-    const showCtxType = ref(props.contentType);
     const columnLayoutVersion = ref(0);
     const isFirstPageLayoutPending = ref(false);
     let firstPageLayoutToken = 0;
