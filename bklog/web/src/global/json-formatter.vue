@@ -877,8 +877,8 @@
     }
 
     mark {
-      border-radius: 4px;
-      padding: 1px 2px;
+      border-radius: 2px;
+      padding: 1px 0px;
     }
 
     mark.result-highlight {
@@ -886,7 +886,7 @@
     }
 
     mark.page-highlight {
-      border-radius: 4px;
+      border-radius: 2px;
     }
 
     mark.result-highlight.page-highlight {
@@ -1013,7 +1013,7 @@
           font-weight: 500;
           color: #16171a;
           background-color: #ebeef5;
-          border-radius: 4px;
+          border-radius: 2px;
 
           mark.page-highlight {
             padding: 0 2px;
