@@ -156,6 +156,50 @@ export const collectPageHighlightRanges = (text: string, keywords = pageHighligh
     .sort((a, b) => a.start - b.start || b.end - a.end || (a.keywordIndex ?? 0) - (b.keywordIndex ?? 0));
 };
 
+/**
+ * 在分词拼接后的完整文本上匹配页面高亮，再映射回每个分词的局部范围。
+ * 用于跨分词连续划选（如 mirrors.tencent.com/tgingame）保持同一关键词的完整高亮，含中间标点。
+ * 拼接文本需与渲染文本一致（空串展示为 ""）。
+ */
+export const buildSegmentPageHighlightRanges = (
+  segments: Array<{ text?: string } | string>,
+  keywords = pageHighlightState.keywords,
+): HighlightRange[][] => {
+  const texts = segments.map((segment) => {
+    const text = typeof segment === 'string' ? segment : String(segment?.text ?? '');
+    return text.length ? text : '""';
+  });
+
+  if (!texts.length) {
+    return [];
+  }
+
+  const globalRanges = collectPageHighlightRanges(texts.join(''), keywords);
+  if (!globalRanges.length) {
+    return texts.map(() => []);
+  }
+
+  const perSegmentRanges: HighlightRange[][] = texts.map(() => []);
+  let offset = 0;
+
+  texts.forEach((text, index) => {
+    const start = offset;
+    const end = offset + text.length;
+    globalRanges.forEach((range) => {
+      if (range.end > start && range.start < end) {
+        perSegmentRanges[index].push({
+          start: Math.max(0, range.start - start),
+          end: Math.min(text.length, range.end - start),
+          keywordIndex: range.keywordIndex,
+        });
+      }
+    });
+    offset = end;
+  });
+
+  return perSegmentRanges;
+};
+
 export const parseResultMarkedText = (value: unknown) => {
   const source = String(value ?? '');
   const markRanges: HighlightRange[] = [];

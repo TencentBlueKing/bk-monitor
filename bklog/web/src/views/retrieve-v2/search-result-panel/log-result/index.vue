@@ -244,11 +244,21 @@ export default {
     this.contentType = localStorage.getItem('SEARCH_STORAGE_ACTIVE_TAB') || 'table';
     RetrieveHelper.setMarkInstance();
 
-    this.highlightTriggerHandler = ({ event, value }) => {
-      if (event === 'mark' && !this.highlightValue.includes(value)) {
-        this.highlightValue.push(value);
-        RetrieveHelper.highLightKeywords(this.highlightValue.filter(w => w.length > 0));
+    this.highlightTriggerHandler = ({ event, value, values }) => {
+      if (event !== 'mark') {
+        return;
       }
+
+      const nextValues = (Array.isArray(values) ? values : value != null ? [value] : [])
+        .map(item => String(item ?? '').trim())
+        .filter(item => item.length > 0 && !this.highlightValue.includes(item));
+
+      if (!nextValues.length) {
+        return;
+      }
+
+      this.highlightValue.push(...nextValues);
+      RetrieveHelper.highLightKeywords(this.highlightValue.filter(w => w.length > 0));
     };
     RetrieveHelper.on(RetrieveEvent.HILIGHT_TRIGGER, this.highlightTriggerHandler);
 

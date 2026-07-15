@@ -24,7 +24,11 @@
  * IN THE SOFTWARE.
  */
 import RetrieveHelper from '@/views/retrieve-helper';
-import { highlightPlainTextIntoFragment } from '@/views/retrieve-core/page-highlight';
+import {
+  buildSegmentPageHighlightRanges,
+  highlightPlainTextIntoFragment,
+  type HighlightRange,
+} from '@/views/retrieve-core/page-highlight';
 
 import JsonView from '../global/json-view';
 // import jsonEditorTask, { EditorTask } from '../global/utils/json-editor-task';
@@ -322,7 +326,7 @@ export default class UseJsonFormatter {
     ];
   }
 
-  getChildItem(item) {
+  getChildItem(item, pageRanges?: HighlightRange[]) {
     if (item.text === '\n') {
       const brNode = document.createElement('br');
       return brNode;
@@ -336,6 +340,7 @@ export default class UseJsonFormatter {
       textNode.appendChild(highlightPlainTextIntoFragment({
         text: text.replace(/<mark>/g, '').replace(/<\/mark>/g, ''),
         resultHighlighted: true,
+        pageRanges,
       }));
       return textNode;
     }
@@ -344,12 +349,12 @@ export default class UseJsonFormatter {
       if (item.isCursorText) {
         textNode.classList.add('valid-text');
       }
-      textNode.appendChild(highlightPlainTextIntoFragment({ text }));
+      textNode.appendChild(highlightPlainTextIntoFragment({ text, pageRanges }));
       return textNode;
     }
 
     textNode.classList.add('others-text');
-    textNode.appendChild(highlightPlainTextIntoFragment({ text }));
+    textNode.appendChild(highlightPlainTextIntoFragment({ text, pageRanges }));
     return textNode;
   }
 
@@ -415,12 +420,13 @@ export default class UseJsonFormatter {
         targetElement.innerHTML = '';
 
         const segmentContent = this.creatSegmentNodes();
+        const segmentPageRanges = buildSegmentPageHighlightRanges(vlaues);
 
         const { setListItem, removeScrollEvent } = setScrollLoadCell(
           vlaues,
           targetElement,
           segmentContent,
-          this.getChildItem,
+          (item, index) => this.getChildItem(item, segmentPageRanges[index]),
         );
         removeScrollEvent();
 
@@ -562,11 +568,12 @@ export default class UseJsonFormatter {
       rootNode.classList.add('bklog-scroll-box');
     }
 
+    const segmentPageRanges = buildSegmentPageHighlightRanges(vlaues);
     const { setListItem, removeScrollEvent } = setScrollLoadCell(
       vlaues,
       rootNode,
       segmentContent,
-      this.getChildItem,
+      (item, index) => this.getChildItem(item, segmentPageRanges[index]),
     );
     removeScrollEvent();
 

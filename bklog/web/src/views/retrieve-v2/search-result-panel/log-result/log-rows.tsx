@@ -453,6 +453,15 @@ export default defineComponent({
           props.handleClickTools(type, savedSelection?.toString() ?? '');
         } else if (type === 'is' && savedSelection && hoverOperatorState.row) {
           addSelectionToCurrentSearch(savedSelection, hoverOperatorState.row);
+        } else if (type === 'highlight') {
+          // 仅划词弹层「高亮」：保留整串关键词；跨分词命中由渲染侧拼接匹配保证完整高亮
+          const selectionText = stripSelectionMarkup(savedSelection?.toString() ?? '').trim();
+          if (selectionText) {
+            RetrieveHelper.fire(RetrieveEvent.HILIGHT_TRIGGER, {
+              event: 'mark',
+              value: selectionText,
+            });
+          }
         } else {
           handleOperation(type, { value: savedSelection?.toString() ?? '', operation: type });
         }

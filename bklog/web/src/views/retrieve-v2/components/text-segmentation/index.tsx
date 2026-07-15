@@ -41,7 +41,7 @@ import useLocale from '@/hooks/use-locale';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import UseTextSegmentation from '@/hooks/use-text-segmentation';
 import RetrieveHelper from '@/views/retrieve-helper';
-import { highlightPlainTextIntoFragment, pageHighlightState } from '@/views/retrieve-core/page-highlight';
+import { highlightPlainTextIntoFragment, pageHighlightState, buildSegmentPageHighlightRanges, type HighlightRange } from '@/views/retrieve-core/page-highlight';
 import { debounce } from 'lodash-es';
 
 import type { WordListItem } from '@/hooks/use-text-segmentation';
@@ -113,6 +113,7 @@ export default defineComponent({
     });
 
     let wordList: WordListItem[];
+    let segmentPageRanges: HighlightRange[][] = [];
     let renderMoreItems: (size?, next?) => void = null;
 
     const getTagName = item => {
@@ -174,6 +175,7 @@ export default defineComponent({
       const { setListItem, removeScrollEvent } = cellScrollInstance;
       renderMoreItems = setListItem;
       removeScrollEventFn = removeScrollEvent;
+      segmentPageRanges = buildSegmentPageHighlightRanges(wordList);
 
       // 这里面有做前500的分词，后面分段数据都是按照200分段，差不多一行左右的宽度文本
       // 这里默认渲染前500跟分词 + 10 - 20行溢出
@@ -192,7 +194,7 @@ export default defineComponent({
           refContent.value,
           refSegmentContent.value,
           // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
-          (item: WordListItem) => {
+          (item: WordListItem, index?: number) => {
             const child = document.createElement(getTagName(item));
             child.classList.add(item.isCursorText ? 'valid-text' : 'others-text');
 
@@ -209,6 +211,7 @@ export default defineComponent({
             child.appendChild(highlightPlainTextIntoFragment({
               text,
               resultHighlighted: item.isMark,
+              pageRanges: typeof index === 'number' ? segmentPageRanges[index] : undefined,
             }));
             return child;
           },

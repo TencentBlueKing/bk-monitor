@@ -173,7 +173,7 @@ export const setScrollLoadCell = (
   wordList: unknown[],
   rootElement: HTMLElement,
   contentElement: HTMLElement,
-  renderFn: (_item: unknown) => HTMLElement,
+  renderFn: (_item: unknown, _index?: number) => HTMLElement,
   options: { pageSize?: number; maxAutoRenderItems?: number } = {},
 ) => {
   let startIndex = 0;
@@ -212,8 +212,9 @@ export const setScrollLoadCell = (
 
     const fragment = document.createDocumentFragment();
     const pageItems = wordList.slice(startIndex, startIndex + (size ?? pageSize));
-    for (const item of pageItems) {
-      const child = renderFn?.(item) ?? defaultRenderFn(item);
+    for (let i = 0; i < pageItems.length; i++) {
+      const item = pageItems[i];
+      const child = renderFn?.(item, startIndex + i) ?? defaultRenderFn(item);
 
       fragment.appendChild(child);
     }
