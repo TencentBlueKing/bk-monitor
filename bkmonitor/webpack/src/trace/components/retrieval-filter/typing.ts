@@ -814,6 +814,10 @@ export const QS_SELECTOR_OPTIONS_EMITS = {
   select: (_v: string) => true,
 } as const;
 export const KV_TAG_PROPS = {
+  fieldInfo: {
+    type: Object as PropType<IFilterField>,
+    default: () => null,
+  },
   value: {
     type: Object as PropType<IFilterItem>,
     default: () => null,

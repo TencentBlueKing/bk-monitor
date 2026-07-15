@@ -348,23 +348,27 @@ export default defineComponent({
             <span class='add-text'>{this.t('添加条件')}</span>
           </div>
         </div>
-        {this.localValue.map((item, index) => (
-          <KvTag
-            key={`${index}_kv`}
-            hasTagHidden={this.hasTagHidden}
-            tagValueDisplayFormatter={this.tagValueDisplayFormatter}
-            value={item}
-            onDelete={() => this.handleDeleteTag(index)}
-            onHide={() => this.handleHideTag(index)}
-            onUpdate={event => this.handleUpdateTag(event, index)}
-          >
-            {{
-              value: this.getIsDuration(item.key.id)
-                ? () => <span class='value-name'>{getDurationDisplay(item.value.map(item => item.id))}</span>
-                : undefined,
-            }}
-          </KvTag>
-        ))}
+        {this.localValue.map((item, index) => {
+          const fieldInfo = this.fields.find(field => field.name === item.key.id) || null;
+          return (
+            <KvTag
+              key={`${index}_kv`}
+              fieldInfo={fieldInfo}
+              hasTagHidden={this.hasTagHidden}
+              tagValueDisplayFormatter={this.tagValueDisplayFormatter}
+              value={item}
+              onDelete={() => this.handleDeleteTag(index)}
+              onHide={() => this.handleHideTag(index)}
+              onUpdate={event => this.handleUpdateTag(event, index)}
+            >
+              {{
+                value: this.getIsDuration(item.key.id)
+                  ? () => <span class='value-name'>{getDurationDisplay(item.value.map(item => item.id))}</span>
+                  : undefined,
+              }}
+            </KvTag>
+          );
+        })}
         {this.hasShortcutKey && (
           <div class={['kv-placeholder', { 'is-en': isEn }]}>
             <AutoWidthInput
