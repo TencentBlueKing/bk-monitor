@@ -150,13 +150,15 @@ export default defineComponent({
     let searchCancelFn = () => {};
     const { t } = useI18n();
     const store = useTraceStore();
-    /** 跨业务场景优先使用 props.bizId */
-    const resolveBizId = () => {
+    /** 跨业务场景优先使用 props.bizId，供 SpanDetails 等子树 inject */
+    const resolvedBizId = computed(() => {
       if (props.bizId != null && props.bizId !== '' && !Number.isNaN(+props.bizId)) {
         return +props.bizId;
       }
-      return window.bk_biz_id || window.cc_biz_id;
-    };
+      return +(window.bk_biz_id || window.cc_biz_id);
+    });
+    const resolveBizId = () => resolvedBizId.value;
+    provide('bizId', resolvedBizId);
     const spanDetailQueryStore = useSpanDetailQueryStore();
     /** 缓存不同tab下的过滤选项 */
     const cacheFilterToolsValues = {
@@ -272,8 +274,8 @@ export default defineComponent({
       }
       return '';
     });
-    /* 当前应用名称 */
-    const appName = computed(() => store.traceData.appName);
+    /* 当前应用名称：优先 props.appName（关联 trace 侧滑场景） */
+    const appName = computed(() => props.appName || store.traceData.appName);
     provide('traceId', currentTraceId);
     provide('appName', appName);
     /**
@@ -1377,6 +1379,8 @@ export default defineComponent({
           </div>
         )}
         <SpanDetails
+          appName={this.appName}
+          bizId={this.bizId}
           isFullscreen={this.isFullscreen}
           show={this.showSpanDetails}
           spanDetails={this.spanDetails as Span}
