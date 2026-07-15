@@ -65,6 +65,8 @@ export interface TraceExploreApmHooks {
   onQueryStringChange?: (queryString: string) => void;
   /** 筛选模式（UI / 语句）变更时回调，将新的模式通知宿主 */
   onFilterModeChange?: (mode: EMode) => void;
+  /** Trace / Span 详情侧边窗关闭时回调，通知宿主清空 slideDetail */
+  onSliderClose?: () => void;
 }
 
 /** provide/inject key —— TraceExplore 用此 key 获取 APM 回调钩子 */
@@ -89,6 +91,7 @@ export default defineComponent({
     provide('handleExploreChartZoomChange', handleExploreChartZoomChange);
     provide(APM_SERVICE_NAME_KEY, bridgeProps.viewOptions.filters.service_name);
 
+    // 只同步检索相关字段；勿 deep watch 整个 bridgeProps，否则 slideDetail 开/关也会误触发表格/图表请求
     watch(
       bridgeProps,
       () => {
@@ -106,6 +109,7 @@ export default defineComponent({
       onConditionChange: condition => bridgeEmit('conditionChange', condition),
       onQueryStringChange: queryString => bridgeEmit('queryStringChange', queryString),
       onFilterModeChange: mode => bridgeEmit('filterModeChange', mode),
+      onSliderClose: () => bridgeEmit('sliderClose'),
     };
     provide(TRACE_EXPLORE_APM_HOOKS_KEY, apmHooks);
   },

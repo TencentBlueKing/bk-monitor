@@ -756,6 +756,13 @@ class CreateDemoActionResource(Resource):
         # 支持传入 alert_id，关联真实告警
         alert_id = validated_request_data.get("alert_id")
         alerts = [alert_id] if alert_id else []
+        # 获取 source 参数，如果前端未传则使用默认值 "bk_monitor_debug"
+        # 注意：这是调试任务，需要明确标记为调试来源
+        source = validated_request_data.get("source", "bk_monitor_debug")
+        # 将 source 参数注入到 execute_config 中，确保后续配置可以读取到
+        if "execute_config" not in action_config:
+            action_config["execute_config"] = {}
+        action_config["execute_config"]["source"] = source
 
         demo_action = ActionInstance.objects.create(
             signal="demo",

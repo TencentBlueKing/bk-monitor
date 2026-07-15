@@ -77,20 +77,23 @@ export function useIssuesTable(options: UseIssuesTableOptions) {
 
     loading.value = true;
     data.value = [];
-    const res = await service.getFilterTableList<IssueItem>(
-      {
-        ...filterParams.value,
-        page_size: pageSize.value,
-        page: page.value,
-        ordering: ordering.value ? [ordering.value] : [],
-      },
-      { signal }
-    );
+    const params = {
+      ...filterParams.value,
+      page_size: pageSize.value,
+      page: page.value,
+      ordering: ordering.value ? [ordering.value] : [],
+    };
+    const res = await service.getFilterTableList<IssueItem>(params, { signal });
     // 检查请求是否已被中止，确保不会更新过期数据
     if (signal.aborted) return;
     total.value = res.total;
     data.value = res.data;
     loading.value = false;
+    const trendMap = await service.getIssueTrend(data.value, params.end_time, { signal });
+    if (signal.aborted) return;
+    for (const issue of data.value) {
+      issue.trend = trendMap[issue.id] || [];
+    }
   };
 
   onMounted(() => {

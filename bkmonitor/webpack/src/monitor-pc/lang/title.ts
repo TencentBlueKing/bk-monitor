@@ -290,4 +290,5 @@ export default {
   蓝鲸监控关联项目: 'Blue Whale Monitoring Associated Project',
   新建单据: 'New Ticket',
   关联已有: 'Associate existing',
+  主机异常检测: 'Host Abnormal Detection',
 };

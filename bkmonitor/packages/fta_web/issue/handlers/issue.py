@@ -158,23 +158,43 @@ class IssueQueryHandler(BaseBizQueryHandler):
         # Issue 跨天存在，使用全量索引查询
         search_object = IssueDocument.search(all_indices=True)
 
-        # 时间范围过滤：
-        # - end_time 约束 create_time（该时间前已创建）
-        # - start_time 约束 resolved_time（在该时间之后才解决）
-        # 分片模式下，按 resolved_time 唯一归属分片，避免同一 Issue 被多分片重复计数：
-        #   非最后分片：resolved_time ∈ [start, end)，仅覆盖"已解决且解决在本分片内"的 Issue
-        #   最后分片  ：resolved_time >= start OR 未解决，承接"未解决的 Issue"（~exists 只在此处出现一次）
+        # 时间范围过滤（按状态分流，分片结构保持不变）：
+        # - 活跃（PENDING_REVIEW/UNRESOLVED）：不受时间限制
+        # - 已解决 RESOLVED：按 resolved_time 过滤
+        # - 已归档 ARCHIVED：按 update_time（归档时写入）过滤
         if is_time_partitioned and not is_finally_partition:
+            # 非最终分片有硬上界 end_time（分片边界）：create_time 必须 <= end_time。
+            # 已解决/已归档分别按各自 close 时间归属分片（与最终/非分片分支一致，避免归档 Issue 漏计）。
             if end_time:
                 search_object = search_object.filter("range", create_time={"lte": end_time})
             if start_time and end_time:
-                search_object = search_object.filter("range", resolved_time={"gte": start_time, "lt": end_time})
+                resolved_range = {"gte": start_time, "lt": end_time}
+                archived_range = {"gte": start_time, "lt": end_time}
+                # 不需要增加对 Q("terms", status=IssueStatus.ACTIVE_STATUSES) 的过滤，因为最后一个分片会走到else分支。
+                search_object = search_object.filter(
+                    Q("bool", must=[Q("term", status=IssueStatus.RESOLVED), Q("range", resolved_time=resolved_range)])
+                    | Q("bool", must=[Q("term", status=IssueStatus.ARCHIVED), Q("range", update_time=archived_range)])
+                )
         else:
+            # 最后分片/非分片：活跃不受时间限制；已解决/已归档按 close_time 过滤
+            # 非分片（主列表/TopN/Export）带 end_time 上界 [start, end)；最后分片 end_time 为 None 无上界
             if end_time:
                 search_object = search_object.filter("range", create_time={"lte": end_time})
-            if start_time:
+
+            if start_time or end_time:
+                resolved_range = {}
+                archived_range = {}
+                if start_time:
+                    resolved_range["gte"] = start_time
+                    archived_range["gte"] = start_time
+                if end_time and not is_finally_partition:
+                    resolved_range["lt"] = end_time
+                    archived_range["lt"] = end_time
+
                 search_object = search_object.filter(
-                    Q("range", resolved_time={"gte": start_time}) | ~Q("exists", field="resolved_time")
+                    Q("terms", status=IssueStatus.ACTIVE_STATUSES)
+                    | Q("bool", must=[Q("term", status=IssueStatus.RESOLVED), Q("range", resolved_time=resolved_range)])
+                    | Q("bool", must=[Q("term", status=IssueStatus.ARCHIVED), Q("range", update_time=archived_range)])
                 )
 
         # 业务权限过滤
@@ -551,7 +571,7 @@ class IssueQueryHandler(BaseBizQueryHandler):
 
         return search_result, None
 
-    def search(self, show_aggs: bool = False, show_dsl: bool = False) -> dict:
+    def search(self, show_aggs: bool = False, show_dsl: bool = False, show_trend: bool = True) -> dict:
         exc = None
         try:
             search_result, dsl = self.search_raw(show_aggs=show_aggs, show_dsl=show_dsl)
@@ -631,8 +651,11 @@ class IssueQueryHandler(BaseBizQueryHandler):
             for issue in issues:
                 issue["tapd_count"] = tapd_count_map.get(issue.get("id"), 0)
 
-        # 批量查询关联告警趋势（add_alert_trend 内部会读 self._merge_ctx 做 expand）
-        self.add_alert_trend(issues)
+        # 兼容旧客户端：默认仍同步返回趋势；新列表链路关闭趋势后改调独立接口。
+        if show_trend:
+            self.add_alert_trend(issues)
+        else:
+            self.add_alert_summary(issues)
 
         result = {"issues": issues, "total": search_result.hits.total.value}
 
@@ -781,6 +804,8 @@ class IssueQueryHandler(BaseBizQueryHandler):
         resolved_time = cleaned.get("resolved_time")
 
         if create_time:
+            # 时长：带 resolved_time（已解决/已归档，归档保留 resolved_time）按解决时刻计算并冻结；
+            # 其余（活跃/重开，resolved_time 已清空）按实时计算
             if resolved_time:
                 duration_seconds = int(resolved_time) - int(create_time)
             else:
@@ -793,7 +818,9 @@ class IssueQueryHandler(BaseBizQueryHandler):
         priority_display = dict(IssuePriority.CHOICES)
         cleaned["status_display"] = str(status_display.get(cleaned.get("status"), cleaned.get("status", "")))
         cleaned["priority_display"] = str(priority_display.get(cleaned.get("priority"), cleaned.get("priority", "")))
-        cleaned["is_resolved"] = resolved_time is not None
+        # is_resolved 基于当前状态判断（而非 resolved_time 是否存在），避免重开/合并成员残留 resolved_time 误判；
+        # RESOLVED 与 ARCHIVED 均视为"已解决"（归档为终态，对用户而言已结案）
+        cleaned["is_resolved"] = cleaned.get("status") in (IssueStatus.RESOLVED, IssueStatus.ARCHIVED)
 
         # impact_scope 添加 display_name
         impact_scope = data.get("impact_scope") or {}
@@ -1038,6 +1065,94 @@ class IssueQueryHandler(BaseBizQueryHandler):
 
             issue["anomaly_message"] = fill_result["anomaly_message_map"].get(issue_id, "--")
             issue["alert_count"] = fill_result["alert_count_map"].get(issue_id, 0)
+
+    def add_alert_summary(self, issues: list[dict]) -> None:
+        """为列表补充告警数量与异常信息，不查询趋势。"""
+        issue_ids = [issue["id"] for issue in issues if issue.get("id")]
+        if not issue_ids:
+            return
+
+        merge_ctx = getattr(self, "_merge_ctx", None)
+        if merge_ctx is not None and not merge_ctx.degraded:
+            from bkmonitor.issue_merge import IssueMergeResolver
+
+            alert_query_issue_ids = IssueMergeResolver.expand_to_full_ids(issue_ids, merge_ctx)
+        else:
+            alert_query_issue_ids = issue_ids
+
+        first_alert_times = [issue["first_alert_time"] for issue in issues if issue.get("first_alert_time")]
+        last_alert_times = [issue["last_alert_time"] for issue in issues if issue.get("last_alert_time")]
+        if not first_alert_times or not last_alert_times:
+            for issue in issues:
+                issue["alert_count"] = 0
+                issue["anomaly_message"] = "--"
+            return
+
+        fill_result = {"alert_count_map": {}, "anomaly_message_map": {}}
+        self._fill_anomaly_message(
+            alert_query_issue_ids,
+            int(min(first_alert_times)),
+            int(max(last_alert_times)),
+            fill_result,
+            merge_ctx,
+        )
+        for issue in issues:
+            issue_id = issue["id"]
+            issue["alert_count"] = fill_result["alert_count_map"].get(issue_id, 0)
+            issue["anomaly_message"] = fill_result["anomaly_message_map"].get(issue_id, "--")
+
+    def get_alert_trend(self, issue_ids: list[str]) -> dict[str, list[list[int]]]:
+        """查询指定 Issue 的趋势，响应 key 保持为原请求 ID。"""
+        from bkmonitor.issue_merge import IssueMergeResolver, MergeResolverContext
+        from fta_web.issue.resources import IssueAlertDateHistogramResultResource
+
+        merge_ctx = MergeResolverContext(self.bk_biz_ids)
+        merge_ctx.load()
+        requested_to_display = {
+            issue_id: IssueMergeResolver.resolve_display_id(issue_id, merge_ctx) for issue_id in issue_ids
+        }
+        alert_query_issue_ids = IssueMergeResolver.expand_to_full_ids(
+            list(dict.fromkeys(requested_to_display.values())), merge_ctx
+        )
+        if len(alert_query_issue_ids) > 1000:
+            raise ValueError("合并展开后的 Issue 数量不能超过 1000")
+
+        trend_start = self.trend_start_time
+        trend_end = self.trend_end_time
+        interval = self.calculate_agg_interval(trend_start, trend_end)
+        aligned_start = trend_start // interval * interval
+        aligned_end = trend_end // interval * interval + interval
+        default_time_series = [[ts * 1000, 0] for ts in range(aligned_start, aligned_end, interval)]
+
+        display_trend: dict[str, dict[int, int]] = {}
+        TREND_QUERY_BATCH_SIZE = 100
+        for index in range(0, len(alert_query_issue_ids), TREND_QUERY_BATCH_SIZE):
+            batch_issue_ids = alert_query_issue_ids[index : index + TREND_QUERY_BATCH_SIZE]
+            result = IssueAlertDateHistogramResultResource().request(
+                bk_biz_ids=self.bk_biz_ids,
+                start_time=trend_start,
+                end_time=trend_end,
+                interval=interval,
+                conditions=[{"key": "issue_id", "value": batch_issue_ids, "method": "eq"}],
+                group_by=["issue_id"],
+                bucket_size=len(batch_issue_ids),
+            )
+            for dimension_tuple, status_series in result.items():
+                if dimension_tuple == "default_time_series":
+                    continue
+                raw_issue_id = next((value for key, value in dimension_tuple if key == "issue_id"), None)
+                if raw_issue_id is None:
+                    continue
+                display_issue_id = IssueMergeResolver.resolve_display_id(raw_issue_id, merge_ctx)
+                bucket = display_trend.setdefault(display_issue_id, {})
+                for ts, count in status_series.get("ABNORMAL", {}).items():
+                    bucket[ts] = bucket.get(ts, 0) + count
+
+        return {
+            requested_id: sorted([[ts, count] for ts, count in display_trend.get(display_id, {}).items()])
+            or list(default_time_series)
+            for requested_id, display_id in requested_to_display.items()
+        }
 
     def _fill_anomaly_message(
         self,

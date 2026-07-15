@@ -138,6 +138,7 @@ class NewSeriesSerializer(serializers.Serializer):
     effective_delay = serializers.IntegerField(label="生效延迟", required=False)
     max_series = serializers.IntegerField(label="最大序列数", required=False, default=100000)
     detect_range = serializers.IntegerField(label="检测范围", required=True)
+    threshold = serializers.IntegerField(label="告警阈值", required=False, default=0)
 
     def validate(self, attrs):
         # effective_delay 一律归一化为 detect_range：宽限时长 = 检测窗口。

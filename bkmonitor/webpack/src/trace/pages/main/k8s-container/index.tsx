@@ -44,10 +44,17 @@ export default defineComponent({
     const serviceName = inject<Ref<string>>('serviceName');
     const appName = inject<Ref<string>>('appName');
     const spanId = inject<Ref<string>>('spanId', ref(''));
+    const injectedBizId = inject<Ref<number | string> | undefined>('bizId', undefined);
 
     const traceStore = useTraceExploreStore();
     const timeRange = computed(() => handleTransformToTimestampMs(traceStore.timeRange as DateValue));
-    const bizId = computed(() => useAppStore().bizId || 0);
+    const bizId = computed(() => {
+      const fromInject = injectedBizId?.value;
+      if (fromInject != null && fromInject !== '' && !Number.isNaN(+fromInject)) {
+        return +fromInject;
+      }
+      return +(useAppStore().bizId || window.bk_biz_id || window.cc_biz_id || 0);
+    });
     const isExceptionGuide = computed(
       () =>
         props.sceneData?.overview_panels?.length === 1 && props.sceneData?.overview_panels[0].type === 'exception-guide'

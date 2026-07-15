@@ -794,6 +794,8 @@ class AlertTracesResource(Resource):
                 }
             )
 
+        # 错误 Trace 优先于耗时 Trace，两类 Trace 内部均按耗时降序展示。
+        processed_traces.sort(key=lambda trace: (not trace["error"], -trace["trace_duration"]))
         return {"query_config": query_config, "list": processed_traces}
 
     @classmethod

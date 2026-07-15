@@ -441,16 +441,64 @@ class SearchIssueResource(Resource):
         page_size = serializers.IntegerField(label="每页大小", min_value=0, max_value=500, default=10)
         show_aggs = serializers.BooleanField(label="展示聚合统计信息", default=True)
         show_dsl = serializers.BooleanField(label="返回ES DSL查询语句", default=False)
+        show_trend = serializers.BooleanField(label="展示趋势", default=True)
         trend_start_time = serializers.IntegerField(label="趋势图起始时间", required=False)
         trend_end_time = serializers.IntegerField(label="趋势图结束时间", required=False)
 
     def perform_request(self, validated_request_data: dict) -> dict:
         show_aggs = validated_request_data.pop("show_aggs")
         show_dsl = validated_request_data.pop("show_dsl")
+        show_trend = validated_request_data.pop("show_trend")
         handler = IssueQueryHandler(**validated_request_data)
-        result = handler.search(show_aggs=show_aggs, show_dsl=show_dsl)
+        result = handler.search(show_aggs=show_aggs, show_dsl=show_dsl, show_trend=show_trend)
 
         return result
+
+
+class IssueTrendResource(Resource):
+    """按指定 Issue ID 批量查询趋势。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_ids = serializers.ListField(
+            label="业务ID", child=serializers.IntegerField(), min_length=1, max_length=500
+        )
+        issue_ids = serializers.ListField(label="Issue ID 列表", child=IssueIDField(), min_length=1, max_length=500)
+        trend_start_time = serializers.IntegerField(label="趋势图起始时间", min_value=1)
+        trend_end_time = serializers.IntegerField(label="趋势图结束时间", min_value=1)
+
+        def validate(self, attrs):
+            if -1 in attrs["bk_biz_ids"]:
+                raise serializers.ValidationError({"bk_biz_ids": "不支持全业务哨兵 -1"})
+            duration = attrs["trend_end_time"] - attrs["trend_start_time"]
+            if duration <= 0:
+                raise serializers.ValidationError({"trend_end_time": "必须大于趋势图起始时间"})
+            if duration > 7 * 24 * 60 * 60:
+                raise serializers.ValidationError({"trend_end_time": "趋势时间范围不能超过 7 天"})
+            return attrs
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        bk_biz_ids = list(dict.fromkeys(validated_request_data["bk_biz_ids"]))
+        requested_ids = list(dict.fromkeys(validated_request_data["issue_ids"]))
+        hits = (
+            IssueDocument.search(all_indices=True)
+            .filter("terms", _id=requested_ids)
+            .filter("terms", bk_biz_id=bk_biz_ids)
+            .source(False)
+            .params(size=len(requested_ids))
+            .execute()
+            .hits
+        )
+        allowed_ids = {hit.meta.id for hit in hits}
+        issue_ids = [issue_id for issue_id in requested_ids if issue_id in allowed_ids]
+        if not issue_ids:
+            return {}
+
+        handler = IssueQueryHandler(
+            bk_biz_ids=bk_biz_ids,
+            trend_start_time=validated_request_data["trend_start_time"],
+            trend_end_time=validated_request_data["trend_end_time"],
+        )
+        return handler.get_alert_trend(issue_ids)
 
 
 class IssueDetailResource(Resource):
@@ -611,11 +659,12 @@ class IssueAlertDateHistogramResultResource(Resource):
     def perform_request(self, validated_request_data: dict) -> dict:
         interval = validated_request_data.pop("interval", "auto")
         group_by = validated_request_data.pop("group_by", None)
+        bucket_size = validated_request_data.pop("bucket_size", 100)
         start_time = validated_request_data.get("start_time")
         end_time = validated_request_data.get("end_time")
 
         handler = AlertQueryHandler(**validated_request_data)
-        results = handler.date_histogram(interval=interval, group_by=group_by)
+        results = handler.date_histogram(interval=interval, group_by=group_by, bucket_size=bucket_size)
 
         if not results:
             return {"default_time_series": {"start_time": start_time, "end_time": end_time, "interval": interval}}

@@ -25,7 +25,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, onMounted, provide, reactive, ref, shallowRef, watch } from 'vue';
+import { type PropType, type Ref, computed, defineComponent, inject, onMounted, provide, reactive, ref, shallowRef, watch } from 'vue';
 
 import { Button, Exception, Loading, Message, Popover, Sideslider, Switcher, Tab } from 'bkui-vue';
 import { EnlargeLine } from 'bkui-vue/lib/icon';
@@ -113,6 +113,10 @@ export default defineComponent({
     isPageLoading: { type: Boolean, default: false },
     activeTab: { type: String, default: 'BasicInfo' },
     defaultExpand: { type: Boolean, default: false } /* 是否默认展开所有详情项 */,
+    /** 跨业务场景优先使用的业务 ID（与 TraceDetail 对齐） */
+    bizId: { type: [Number, String], default: undefined },
+    /** 优先使用的应用名（与 TraceDetail 对齐） */
+    appName: { type: String, default: undefined },
   },
   emits: ['show', 'prevNextClicked'],
   setup(props, { emit }) {
@@ -141,8 +145,14 @@ export default defineComponent({
     /** 原始数据 */
     const originalData = ref<null | Record<string, any>>(null);
 
-    /* 当前应用名称 */
-    const appName = computed(() => store.traceData.appName);
+    /** TraceDetail 等上级注入的业务 / 应用上下文 */
+    const injectedBizId = inject<Ref<number | string> | undefined>('bizId', undefined);
+    const injectedAppName = inject<Ref<string> | undefined>('appName', undefined);
+
+    /* 当前应用名称：props → inject → store → spanDetails */
+    const appName = computed(
+      () => props.appName || injectedAppName?.value || store.traceData.appName || props.spanDetails?.app_name || ''
+    );
 
     const spanStatus = computed<{ alias: string; icon: string }>(() => {
       const statusMap = {
@@ -158,7 +168,17 @@ export default defineComponent({
 
     const ellipsisDirection = computed(() => store.ellipsisDirection);
 
-    const bizId = computed(() => useAppStore().bizId || 0);
+    /** 跨业务优先 props/inject，避免仅依赖 appStore（窗口切换业务时 store 不会同步） */
+    const bizId = computed(() => {
+      if (props.bizId != null && props.bizId !== '' && !Number.isNaN(+props.bizId)) {
+        return +props.bizId;
+      }
+      const fromInject = injectedBizId?.value;
+      if (fromInject != null && fromInject !== '' && !Number.isNaN(+fromInject)) {
+        return +fromInject;
+      }
+      return +(useAppStore().bizId || window.bk_biz_id || window.cc_biz_id || 0);
+    });
 
     const spans = computed(() => store.spanGroupTree);
 
@@ -210,6 +230,7 @@ export default defineComponent({
     // 服务、应用 名在日志 tab 里能用到
     provide('serviceName', serviceNameProvider);
     provide('appName', appName);
+    provide('bizId', bizId);
 
     // 用于关联日志跳转信息
     const traceId = ref('');
@@ -1163,8 +1184,8 @@ export default defineComponent({
         const result = await getSceneView({
           scene_id: 'apm_trace',
           id: activeTab.value.toLowerCase(),
-          bk_biz_id: window.bk_biz_id,
-          apm_app_name: props.spanDetails.app_name,
+          bk_biz_id: bizId.value,
+          apm_app_name: appName.value,
           apm_service_name: props.spanDetails.service_name,
           apm_span_id: props.spanDetails.span_id,
         }).catch(console.log);
@@ -1188,8 +1209,8 @@ export default defineComponent({
           {
             scene_id: 'apm_trace',
             id: 'host',
-            bk_biz_id: window.bk_biz_id,
-            apm_app_name: props.spanDetails.app_name,
+            bk_biz_id: bizId.value,
+            apm_app_name: appName.value,
             apm_service_name: props.spanDetails.service_name,
             apm_span_id: props.spanDetails.span_id,
           },
@@ -1211,8 +1232,8 @@ export default defineComponent({
           {
             scene_id: 'apm_trace',
             id: 'container',
-            bk_biz_id: window.bk_biz_id,
-            apm_app_name: props.spanDetails.app_name,
+            bk_biz_id: bizId.value,
+            apm_app_name: appName.value,
             apm_service_name: props.spanDetails.service_name,
             apm_span_id: props.spanDetails.span_id,
             start_time: startTime,
@@ -1252,9 +1273,9 @@ export default defineComponent({
           const endMs = toUnixMilliseconds(end_time);
           let url = '';
           if (unionList) {
-            url = `${window.bk_log_search_url}#/retrieve?bizId=${window.bk_biz_id}&search_mode=${search_mode}&keyword=${keyword}&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}&unionList=${unionList}`;
+            url = `${window.bk_log_search_url}#/retrieve?bizId=${bizId.value}&search_mode=${search_mode}&keyword=${keyword}&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}&unionList=${unionList}`;
           } else {
-            url = `${window.bk_log_search_url}#/retrieve/${indexId}?bizId=${window.bk_biz_id}&search_mode=${search_mode}&keyword=${keyword}&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}`;
+            url = `${window.bk_log_search_url}#/retrieve/${indexId}?bizId=${bizId.value}&search_mode=${search_mode}&keyword=${keyword}&start_time=${startMs}&end_time=${endMs}&addition=${addition || ''}`;
           }
           window.open(url, '_blank');
           return;

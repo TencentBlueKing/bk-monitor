@@ -264,6 +264,44 @@ def test_add_profiling_migrate_data_id_route_handler_requires_app_name():
         )
 
 
+def test_replace_profiling_data_id_route_handler_passes_arguments(monkeypatch):
+    received = {}
+
+    def fake_replace_profiling_data_id_route(**kwargs):
+        received.update(kwargs)
+        return {
+            "bk_biz_id": kwargs["bk_biz_id"],
+            "app_name": kwargs["app_name"],
+            "bk_data_id": 7788,
+            "before": [],
+            "after": [],
+        }
+
+    monkeypatch.setattr(
+        data_migrate_command,
+        "replace_profiling_data_id_route",
+        fake_replace_profiling_data_id_route,
+    )
+
+    data_migrate_command.Command()._handle_replace_profiling_data_id_route(
+        {
+            "bk_tenant_id": " target-tenant ",
+            "bk_biz_id": 2,
+            "app_name": " demo ",
+            "kafka_cluster_name": " apm-kafka-public-1 ",
+            "dry_run": True,
+        }
+    )
+
+    assert received == {
+        "bk_tenant_id": "target-tenant",
+        "bk_biz_id": 2,
+        "app_name": "demo",
+        "kafka_cluster_name": "apm-kafka-public-1",
+        "dry_run": True,
+    }
+
+
 def test_partial_export_handler_uses_independent_export_helper(monkeypatch, tmp_path):
     received = {}
 

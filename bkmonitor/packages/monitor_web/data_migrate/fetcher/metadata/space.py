@@ -12,13 +12,21 @@ def get_metadata_space_fetcher(bk_biz_id: int | None) -> list[FetcherResultType]
     - ``SpaceDataSource``、``SpaceResource`` 通过 ``space_type_id + space_id`` 关联回空间主表
     - ``SpaceStickyInfo`` 为用户级空间置顶配置，不带业务字段，单独全量导出
 
-    当前按业务维度过滤 ``Space`` 时，仅收敛 BKCC 空间，即 ``space_type_id='bkcc'`` 且 ``space_id=str(bk_biz_id)``。
-    这是 Metadata Space 与业务 ID 之间最稳定的直接映射。
+    按业务维度过滤 ``Space`` 时，需先将业务 ID 还原为真实空间：
+    - 正数业务 ID 对应 ``bkcc__<bk_biz_id>``
+    - 负数业务 ID 对应 ``Space`` 主键取反后的非 BKCC 空间
     """
     if bk_biz_id is None:
         space_filters = None
+    elif bk_biz_id == 0:
+        # 保留原有的平台业务查询语义。
+        space_filters = {"space_type_id": "bkcc", "space_id": "0"}
     else:
-        space_filters = {"space_type_id": "bkcc", "space_id": str(bk_biz_id)}
+        space_info = Space.objects.get_space_info_by_biz_id(bk_biz_id=int(bk_biz_id))
+        space_filters = {
+            "space_type_id": space_info["space_type"],
+            "space_id": str(space_info["space_id"]),
+        }
 
     return [
         # (SpaceType, None, None),

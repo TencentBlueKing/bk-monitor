@@ -28,6 +28,7 @@ import { ref as deepRef, defineComponent, onBeforeUnmount, onMounted, watch } fr
 import { type Viewer, Editor } from '@toast-ui/editor';
 import codeSyntaxHighlight from '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight-all';
 
+import entityLinkPlugin from './entityLinkPlugin';
 import fixUrlPlugin from './fixUrlPlugin';
 
 import type { EditorPlugin } from '@toast-ui/editor/types/editor';
@@ -69,7 +70,7 @@ export default defineComponent<MarkdownViewerProps>({
         initialValue: props.value,
         height: props.height,
         viewer: true,
-        plugins: [fixUrlPlugin as EditorPlugin, codeSyntaxHighlight],
+        plugins: [fixUrlPlugin as EditorPlugin, entityLinkPlugin as EditorPlugin, codeSyntaxHighlight],
       });
     };
 

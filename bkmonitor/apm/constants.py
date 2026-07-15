@@ -543,6 +543,7 @@ class ConfigTypes:
 
     DB_SLOW_COMMAND_CONFIG = "db_slow_command_config"
     DB_CONFIG = "db_config"
+    DROP_FIELDS_CONFIG = "drop_fields_config"
     ATTRIBUTES_CONFIG_LOGS = "attributes_config_logs"
     CODE_RELABEL_CONFIG = "code_relabel_config"
 
@@ -559,6 +560,7 @@ class ConfigTypes:
             (cls.QUEUE_PROFILES_BATCH_SIZE, _("每批Profile发送大小")),
             (cls.DB_SLOW_COMMAND_CONFIG, _("db慢命令配置")),
             (cls.DB_CONFIG, _("db配置")),
+            (cls.DROP_FIELDS_CONFIG, _("后台 drop 字段配置")),
             (cls.ATTRIBUTES_CONFIG_LOGS, _("attributes 配置(logs)")),
             (cls.CODE_RELABEL_CONFIG, _("返回码重定义配置")),
             (cls.ALL_APP_CONFIG, _("app全量配置")),

@@ -441,6 +441,7 @@ export default {
   企业微信: 'WeChat Work',
   邮件: 'Email',
   个人中心: 'Personal center',
+  个人设置: 'Personal settings',
   全文: 'Full text',
   请输入搜索内容: 'Please enter search content',
   检索无数据: 'No search results',

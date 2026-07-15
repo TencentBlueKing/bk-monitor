@@ -8,7 +8,7 @@ import copy
 import csv
 import json
 from io import StringIO
-from typing import Any, Dict, List
+from typing import Any
 
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
@@ -25,7 +25,10 @@ from apps.log_search.constants import (
     MAX_RESULT_WINDOW,
     OPERATORS,
     FieldBuiltInEnum,
+    IndexSetDataType,
 )
+from apps.log_search.handlers.index_set import IndexSetHandler
+from apps.log_search.models import LogIndexSet, LogIndexSetData
 from apps.log_unifyquery.constants import BASE_OP_MAP, SEARCH_AFTER_KEY
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
@@ -49,7 +52,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         # Bypass parent __init__ entirely — it requires index_set_ids.
         self.search_params: dict[str, Any] = params
         self.space_uid: str = params["space_uid"]
-        self.table_id_conditions: List[List[Dict]] = params["table_id_conditions"]
+        self.table_id_conditions: list[list[dict]] = params["table_id_conditions"]
         self.bk_biz_id = params.get("bk_biz_id")
 
         # query string — reuse parent's _enhance + QueryStringBuilder
@@ -179,11 +182,13 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
                 condition_list.append("and")
 
             if operator in BASE_OP_MAP:
-                field_list.append({
-                    "field_name": field,
-                    "op": BASE_OP_MAP[operator],
-                    "value": value if isinstance(value, list) else (value.split(",") if value else []),
-                })
+                field_list.append(
+                    {
+                        "field_name": field,
+                        "op": BASE_OP_MAP[operator],
+                        "value": value if isinstance(value, list) else (value.split(",") if value else []),
+                    }
+                )
             else:
                 new_field_list, new_condition_list = transform_advanced_addition(
                     {"field": field, "operator": operator, "value": value}
@@ -200,11 +205,38 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
     # Override _deal_query_result to handle missing index_set_ids
     # ------------------------------------------------------------------
 
-    def _deal_query_result(self, result_dict: dict) -> dict:
+    def _get_result_table_index_set_map(self, result_table_ids: list[str]) -> dict[str, int]:
+        """将当前空间及其关联空间内的结果表映射为索引集。"""
+        result_table_ids = {result_table_id for result_table_id in result_table_ids if result_table_id}
+        if not result_table_ids:
+            return {}
+
+        space_uids = IndexSetHandler.get_all_related_space_uids(self.space_uid)
+        index_set_ids = LogIndexSet.objects.filter(space_uid__in=space_uids, is_group=False).values_list(
+            "index_set_id", flat=True
+        )
+        return dict(
+            LogIndexSetData.objects.filter(
+                index_set_id__in=index_set_ids,
+                result_table_id__in=result_table_ids,
+                type=IndexSetDataType.RESULT_TABLE.value,
+            ).values_list("result_table_id", "index_set_id")
+        )
+
+    def _deal_query_result(self, result_dict: dict, add_index_set_id: bool = False) -> dict:
         log_list = []
         origin_log_list = []
+        result_table_index_set_map = {}
+        if add_index_set_id:
+            try:
+                result_table_index_set_map = self._get_result_table_index_set_map(result_dict.get("result_table_id"))
+            except Exception:
+                logger.exception("[scene_search] failed to map result_table_id to index_set_id")
+
         for log in result_dict.get("list", []):
             log = merge_nested_data(log)
+            if add_index_set_id:
+                log["__index_set_id__"] = result_table_index_set_map.get(log.get("__result_table"))
             if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
                 log = self._log_desensitize(log)
             log = self._add_cmdb_fields(log)
@@ -249,14 +281,16 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             del log["__highlight"]
             log_list.append(log)
 
-        result_dict.update({
-            "aggregations": {},
-            "aggs": {},
-            "list": log_list,
-            "origin_log_list": origin_log_list,
-            "total": result_dict.get("total", 0),
-            "took": result_dict.get("took", 0),
-        })
+        result_dict.update(
+            {
+                "aggregations": {},
+                "aggs": {},
+                "list": log_list,
+                "origin_log_list": origin_log_list,
+                "total": result_dict.get("total", 0),
+                "took": result_dict.get("took", 0),
+            }
+        )
         return result_dict
 
     # ------------------------------------------------------------------
@@ -323,7 +357,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
 
         result = self.query_ts_raw(search_dict)
         self._init_scene_desensitize(result.get("result_table_id"))
-        result = self._deal_query_result(result)
+        result = self._deal_query_result(result, add_index_set_id=not is_export)
 
         if self.search_params.get("original_search"):
             return result
@@ -355,7 +389,9 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
                     break
                 try:
                     tag = IndexSetTag.objects.get(
-                        name=cond["field_name"], value=values[0], tag_type=TAG_TYPE_SCENE,
+                        name=cond["field_name"],
+                        value=values[0],
+                        tag_type=TAG_TYPE_SCENE,
                     )
                     tag_ids.add(str(tag.tag_id))
                 except IndexSetTag.DoesNotExist:
@@ -364,7 +400,8 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             if not all_found or not tag_ids:
                 continue
             for idx_set in LogIndexSet.objects.filter(
-                space_uid=self.space_uid, is_active=True,
+                space_uid=self.space_uid,
+                is_active=True,
             ).values("index_set_id", "tag_ids"):
                 idx_tag_ids = {str(t) for t in idx_set["tag_ids"] if t}
                 if tag_ids.issubset(idx_tag_ids):
@@ -376,7 +413,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _map_result_tables_to_index_sets(rt_ids: List[str]) -> List[int]:
+    def _map_result_tables_to_index_sets(rt_ids: list[str]) -> list[int]:
         """Map unify-query result_table_id list to index_set_id list.
 
         result_table_id may arrive as the real result table id (e.g. ``2_bklog.xxx``)
@@ -404,7 +441,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             )
         return list(index_set_ids)
 
-    def verify_result_table_search_permission(self, result_table_ids: List[str]) -> None:
+    def verify_result_table_search_permission(self, result_table_ids: list[str]) -> None:
         """Verify current user has SEARCH_LOG permission on every index set hit.
 
         Called after ts/raw returns, using the response's ``result_table_id`` list.
@@ -443,9 +480,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         # 这里一次性批量查出名称塞进 attribute，兼顾本地求值（_bk_iam_path_）与申请展示（name），
         # 且避免逐资源反查 DB。
         name_map = dict(
-            LogIndexSet.objects.filter(index_set_id__in=index_set_ids).values_list(
-                "index_set_id", "index_set_name"
-            )
+            LogIndexSet.objects.filter(index_set_id__in=index_set_ids).values_list("index_set_id", "index_set_name")
         )
 
         def _build_indices_attribute(index_set_id) -> dict:
@@ -489,7 +524,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
 
         self._rt_perm_verified = True
 
-    def _init_scene_desensitize(self, result_table_ids: List[str]) -> None:
+    def _init_scene_desensitize(self, result_table_ids: list[str]) -> None:
         """按命中的结果表懒加载并合并脱敏配置。
 
         场景化检索没有单一 index_set_id，且 ts/raw 返回的每行不携带来源结果表标记。
@@ -592,41 +627,45 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
                     tokenize_on_chars = "".join(tokenize_on_chars)
                 elif not isinstance(tokenize_on_chars, str):
                     tokenize_on_chars = ""
-                field_list.append({
-                    "field_name": item.get("field_name", ""),
-                    "field_type": ft,
-                    "field_alias": item.get("field_alias", ""),
-                    "query_alias": item.get("alias_name", ""),
-                    "is_display": True,
-                    "is_editable": True,
-                    "tag": item.get("tag", ""),
-                    "origin_field": item.get("origin_field", ""),
-                    "es_doc_values": item.get("is_agg", ft != "text"),
-                    "is_analyzed": item.get("is_analyzed", ft == "text"),
-                    "field_operator": OPERATORS.get(ft, []),
-                    "is_case_sensitive": item.get("is_case_sensitive", False),
-                    "tokenize_on_chars": tokenize_on_chars,
-                    "description": item.get("description", ""),
-                })
+                field_list.append(
+                    {
+                        "field_name": item.get("field_name", ""),
+                        "field_type": ft,
+                        "field_alias": item.get("field_alias", ""),
+                        "query_alias": item.get("alias_name", ""),
+                        "is_display": True,
+                        "is_editable": True,
+                        "tag": item.get("tag", ""),
+                        "origin_field": item.get("origin_field", ""),
+                        "es_doc_values": item.get("is_agg", ft != "text"),
+                        "is_analyzed": item.get("is_analyzed", ft == "text"),
+                        "field_operator": OPERATORS.get(ft, []),
+                        "is_case_sensitive": item.get("is_case_sensitive", False),
+                        "tokenize_on_chars": tokenize_on_chars,
+                        "description": item.get("description", ""),
+                    }
+                )
         elif isinstance(raw_fields, dict):
             for field_name, field_info in raw_fields.items():
                 ft = field_info.get("type", "object")
-                field_list.append({
-                    "field_name": field_name,
-                    "field_type": ft,
-                    "field_alias": field_info.get("alias", ""),
-                    "query_alias": "",
-                    "is_display": True,
-                    "is_editable": True,
-                    "tag": "",
-                    "origin_field": "",
-                    "es_doc_values": ft != "text",
-                    "is_analyzed": ft == "text",
-                    "field_operator": OPERATORS.get(ft, []),
-                    "is_case_sensitive": False,
-                    "tokenize_on_chars": "",
-                    "description": field_info.get("description", ""),
-                })
+                field_list.append(
+                    {
+                        "field_name": field_name,
+                        "field_type": ft,
+                        "field_alias": field_info.get("alias", ""),
+                        "query_alias": "",
+                        "is_display": True,
+                        "is_editable": True,
+                        "tag": "",
+                        "origin_field": "",
+                        "es_doc_values": ft != "text",
+                        "is_analyzed": ft == "text",
+                        "field_operator": OPERATORS.get(ft, []),
+                        "is_case_sensitive": False,
+                        "tokenize_on_chars": "",
+                        "description": field_info.get("description", ""),
+                    }
+                )
 
         for field in field_list:
             tag = "metric"
@@ -645,22 +684,26 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
 
         analyze = UnifyQueryMappingHandler.analyze_fields(field_list)
         ctx_active = bool(analyze.get("context_search_usable"))
-        config_list.append({
-            "name": "context_and_realtime",
-            "is_active": ctx_active,
-            "extra": (
-                {"reason": "", "context_fields": analyze.get("context_fields", [])}
-                if ctx_active
-                else {"reason": analyze.get("usable_reason", "")}
-            ),
-        })
+        config_list.append(
+            {
+                "name": "context_and_realtime",
+                "is_active": ctx_active,
+                "extra": (
+                    {"reason": "", "context_fields": analyze.get("context_fields", [])}
+                    if ctx_active
+                    else {"reason": analyze.get("usable_reason", "")}
+                ),
+            }
+        )
 
         bkm_active = ("ip" in field_name_set) or ("serverIp" in field_name_set)
-        config_list.append({
-            "name": "bkmonitor",
-            "is_active": bkm_active,
-            "extra": {} if bkm_active else {"reason": _("缺少字段, ip 和 serverIp 不能同时为空")},
-        })
+        config_list.append(
+            {
+                "name": "bkmonitor",
+                "is_active": bkm_active,
+                "extra": {} if bkm_active else {"reason": _("缺少字段, ip 和 serverIp 不能同时为空")},
+            }
+        )
 
         bcs_domain = getattr(settings, "BCS_WEB_CONSOLE_DOMAIN", "") or ""
         if not bcs_domain:
@@ -671,18 +714,15 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
                 ("__ext.io_tencent_bcs_cluster", "__ext.container_id"),
                 ("__ext.bk_bcs_cluster_id", "__ext.container_id"),
             )
-            bcs_active = any(
-                c in field_name_set and ci in field_name_set for c, ci in container_field_pairs
-            )
-            bcs_extra = (
-                {} if bcs_active
-                else {"reason": _("{} 不能同时为空").format(container_field_pairs)}
-            )
-        config_list.append({
-            "name": "bcs_web_console",
-            "is_active": bcs_active,
-            "extra": bcs_extra,
-        })
+            bcs_active = any(c in field_name_set and ci in field_name_set for c, ci in container_field_pairs)
+            bcs_extra = {} if bcs_active else {"reason": _("{} 不能同时为空").format(container_field_pairs)}
+        config_list.append(
+            {
+                "name": "bcs_web_console",
+                "is_active": bcs_active,
+                "extra": bcs_extra,
+            }
+        )
 
         result = {
             "fields": field_list,
@@ -900,9 +940,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
                 fields = [field["field_alias"] for field in result_schema]
                 csv_writer.writerow(fields)
                 header_written = True
-            apply_desensitize = (
-                self.field_configs or self.text_fields_field_configs
-            ) and self.is_desensitize
+            apply_desensitize = (self.field_configs or self.text_fields_field_configs) and self.is_desensitize
             for record in search_result["list"]:
                 if apply_desensitize:
                     # export_chart_data 不走 _deal_query_result，需显式逐行脱敏

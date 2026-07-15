@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type Ref, computed, defineComponent, inject, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
+import { type Ref, computed, defineComponent, inject, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 
 import { Dialog, Form, Input, Loading, Message, Popover, Progress, Tag } from 'bkui-vue';
 import { editIncident, incidentAlertAggregate } from 'monitor-api/modules/incident';
@@ -310,6 +310,14 @@ export default defineComponent({
       chatGroupDialog.alertIds.splice(0, chatGroupDialog.alertIds.length, id);
       chatGroupDialog.show = true;
     };
+
+    // 监听弹窗变化，自动回填故障原因
+    watch(isShowResolve, val => {
+      if (val) {
+        incidentReason.value = incidentDetailData.value?.incident_reason || '';
+      }
+    });
+
     return {
       DialogFn,
       incidentDetailData,
