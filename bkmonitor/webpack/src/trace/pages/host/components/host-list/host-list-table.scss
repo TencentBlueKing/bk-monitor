@@ -1,0 +1,183 @@
+.host-list-table {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+
+  &__body {
+    flex: 1;
+    min-height: 0;
+  }
+
+  &__pagination {
+    flex: 0 0 auto;
+    padding: 0 16px;
+    background: #fff;
+  }
+
+  // 36 行高，显示更多内容
+  .t-table td,
+  .t-table th {
+    height: 36px;
+    font-size: 12px;
+  }
+}
+
+/** 主机蓝链 */
+.host-table-ip {
+  overflow: hidden;
+  color: #3a84ff;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/** 采集状态圆点 */
+.host-table-status {
+  display: flex;
+  align-items: center;
+
+  &__dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 6px;
+    border-radius: 50%;
+  }
+}
+
+/** 未恢复告警色块 */
+.host-table-alarm {
+  display: inline-block;
+  min-width: 20px;
+  padding: 0 6px;
+  font-size: 12px;
+  line-height: 18px;
+  color: #fff;
+  text-align: center;
+  border-radius: 2px;
+}
+
+/** 指标列：数值 + 贴边进度条 */
+.host-table-metric {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+
+  &__value {
+    font-size: 12px;
+    line-height: 16px;
+    color: #313238;
+  }
+
+  &__bar {
+    width: 100%;
+    height: 2px;
+    margin-top: 6px;
+    overflow: hidden;
+    background: transparent;
+  }
+
+  &__bar-inner {
+    height: 100%;
+    border-radius: 1px;
+    transition: width 0.3s;
+  }
+
+  &__empty {
+    color: #c4c6cc;
+  }
+}
+
+/** 指标列表头：聚合方式 + 标题 */
+.host-table-metric-header {
+  display: flex;
+  flex-direction: column;
+  line-height: 16px;
+
+  &__agg {
+    width: fit-content;
+    font-size: 12px;
+    color: #3a84ff;
+    cursor: pointer;
+  }
+
+  &__title {
+    color: #313238;
+  }
+}
+
+/** 进程标签 */
+.host-table-process {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  overflow: hidden;
+
+  &__tag {
+    flex: 0 0 auto;
+    padding: 0 8px;
+    font-size: 12px;
+    line-height: 22px;
+    border-radius: 2px;
+
+    &.is-normal {
+      color: #63656e;
+      background: #f0f1f5;
+    }
+
+    &.is-abnormal {
+      color: #ea3636;
+      background: #fedddc;
+    }
+  }
+
+  &__empty {
+    color: #c4c6cc;
+  }
+}
+
+/** 指标加载骨架 */
+.host-table-skeleton {
+  width: 60%;
+  height: 14px;
+  background: linear-gradient(90deg, #f0f1f5 25%, #e1e3e8 37%, #f0f1f5 63%);
+  background-size: 400% 100%;
+  border-radius: 2px;
+  animation: host-table-skeleton-loading 1.4s ease infinite;
+}
+
+@keyframes host-table-skeleton-loading {
+  0% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+/** 聚合方式下拉菜单 */
+.host-table-agg-popover {
+  .host-table-agg-menu {
+    padding: 4px 0;
+
+    &__item {
+      padding: 0 16px;
+      font-size: 12px;
+      line-height: 32px;
+      color: #63656e;
+      cursor: pointer;
+
+      &:hover {
+        color: #3a84ff;
+        background: #f5f7fa;
+      }
+
+      &.is-active {
+        color: #3a84ff;
+      }
+    }
+  }
+}

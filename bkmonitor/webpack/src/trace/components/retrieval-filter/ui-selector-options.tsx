@@ -34,6 +34,7 @@ import OverflowTips from 'trace/directive/overflow-tips';
 import { useI18n } from 'vue-i18n';
 
 import EmptyStatus from '../empty-status/empty-status';
+import CascadeSelector from './cascade-selector';
 import TimeConsuming from './time-consuming';
 import {
   type IFilterField,
@@ -51,9 +52,11 @@ import {
 import {
   DEFAULT_GROUP_RELATION,
   fieldTypeMap,
+  getCascadeValueSplit,
   GROUP_RELATION_KEY,
   isNumeric,
   NOT_VALUE_METHODS,
+  setCascadeValueSplit,
   WILDCARD_KEY,
 } from './utils';
 import ValueTagSelector from './value-tag-selector';
@@ -73,6 +76,8 @@ export default defineComponent({
     // const searchInputRef = useTemplateRef<InstanceType<typeof Input>>('searchInput');
     const valueSelectorRef = useTemplateRef<HTMLDivElement>('valueSelector');
     const allInputRef = useTemplateRef<HTMLDivElement>('allInput');
+    const numberInputRef =
+      useTemplateRef<InstanceType<typeof Input>>('numberInput'); /** 数字输入框模板引用（numberInput 类型专用） */
     const searchValue = shallowRef('');
     const searchLocalFields = shallowRef<IFilterField[]>([]);
     const cursorIndex = shallowRef(0);
@@ -103,6 +108,10 @@ export default defineComponent({
       method: '',
       value: [],
     });
+    /** 数字输入框绑定值（numberInput 类型字段使用原生数字输入，而非 tag 选择） */
+    const numberInputValue = shallowRef<number>(null);
+    /** 级联选择器绑定值 */
+    const cascadeSelectorValue = shallowRef<string[][]>([]);
     /* 是否为数字类型 */
     const isTypeInteger = computed(() => checkedItem.value?.type === EFieldType.integer);
     /* 是否输入了非数字 */
@@ -137,6 +146,14 @@ export default defineComponent({
     /* 是否选择了全文检索或者同类型的输入形式 */
     const isTextarea = computed(() => {
       return checkedItem.value?.name === '*' || [EFieldType.all, EFieldType.text].includes(checkedItem.value?.type);
+    });
+    /** 是否为 numberInput 数字输入框类型（直接输入数值，不走候选项列表） */
+    const isNumberInput = computed(() => {
+      return checkedItem.value?.type === EFieldType.numberInput;
+    });
+    /** 是否为级联选择器类型（业务拓扑等树形字段） */
+    const isCascade = computed(() => {
+      return checkedItem.value?.type === EFieldType.cascade;
     });
 
     const enterSelectionDebounce = useDebounceFn((isFocus = false) => {
@@ -223,6 +240,8 @@ export default defineComponent({
       isWildcard.value = false;
       groupRelation.value = DEFAULT_GROUP_RELATION;
       rightFocus.value = false;
+      numberInputValue.value = null;
+      cascadeSelectorValue.value = [];
       cacheCheckedName.value = '';
       timeConsumingValue.value = {
         key: '',
@@ -244,6 +263,12 @@ export default defineComponent({
     ) {
       checkedItem.value = JSON.parse(JSON.stringify(item));
       values.value = value || [];
+      if (isNumberInput.value && values.value.length) {
+        numberInputValue.value = isNumeric(values.value?.[0]?.id) ? values.value[0].id : null;
+      }
+      if (isCascade.value && values.value.length) {
+        cascadeSelectorValue.value = values.value.map(item => getCascadeValueSplit(item.id));
+      }
       /* 耗时字段特殊处理 */
       if (isDurationKey.value) {
         // method.value = 'between';
@@ -268,6 +293,7 @@ export default defineComponent({
         if (isFocus) {
           nextTick(() => {
             valueSelectorRef.value?.focusFn?.();
+            numberInputRef.value?.focus?.();
             rightFocus.value = true;
           });
         }
@@ -292,10 +318,13 @@ export default defineComponent({
         emit('confirm', value);
         return;
       }
+
       if (
         noValueMethods.value.includes(method.value) ||
         values.value.length ||
-        (isDurationKey.value && timeConsumingValue.value.value.length)
+        (isDurationKey.value && timeConsumingValue.value.value.length) ||
+        (isNumberInput.value && isNumeric(numberInputValue.value)) ||
+        (isCascade.value && cascadeSelectorValue.value.length)
       ) {
         const methodName = checkedItem.value.methods.find(item => item.value === method.value)?.alias;
         const opt = {};
@@ -307,7 +336,7 @@ export default defineComponent({
         }
         const value: IFilterItem = {
           key: { id: checkedItem.value.name, name: checkedItem.value.alias },
-          method: { id: method.value as any, name: methodName || '=' },
+          method: { id: method.value, name: methodName || '=' },
           value: values.value,
           condition: { id: ECondition.and, name: 'AND' },
           options: opt,
@@ -319,6 +348,21 @@ export default defineComponent({
             value.value = timeConsumingValue.value.value.map(item => ({ id: item, name: item }));
             emit('confirm', value);
           }
+          return;
+        }
+        if (isNumberInput.value) {
+          value.value = [{ id: numberInputValue.value, name: numberInputValue.value }];
+          emit('confirm', value);
+          return;
+        }
+        if (isCascade.value) {
+          value.value = cascadeSelectorValue.value.map(item => {
+            return {
+              id: setCascadeValueSplit(item),
+              name: item.join(`/`),
+            };
+          });
+          emit('confirm', value);
           return;
         }
         emit('confirm', value);
@@ -334,6 +378,12 @@ export default defineComponent({
     }
     function handleTimeConsumingValueChange(v) {
       timeConsumingValue.value = v;
+    }
+    function handleNumberInputChange(v: number) {
+      numberInputValue.value = v;
+    }
+    function handleCascadeSelectorChange(v: string[][]) {
+      cascadeSelectorValue.value = v;
     }
 
     function handleKeydownEvent(event: KeyboardEvent) {
@@ -539,11 +589,15 @@ export default defineComponent({
       searchLocalFields,
       cursorIndex,
       isMacSystem,
+      isNumberInput,
       placeholderStr,
       timeConsumingValue,
       notValueOfMethod,
       isDurationKey,
       isTextarea,
+      numberInputValue,
+      cascadeSelectorValue,
+      isCascade,
       getValueFnProxy,
       handleValueChange,
       handleTimeConsumingValueChange,
@@ -556,6 +610,8 @@ export default defineComponent({
       defaultOptions,
       handleClearSearch,
       handleMethodChange,
+      handleNumberInputChange,
+      handleCascadeSelectorChange,
       t,
     };
   },
@@ -629,34 +685,69 @@ export default defineComponent({
                     )}
                   </div>
                   <div class='form-item-content mt-6'>
-                    {this.isDurationKey ? (
-                      <TimeConsuming
-                        key={this.rightRefreshKey}
-                        fieldInfo={
-                          {
-                            field: this.checkedItem.name,
-                          } as any
-                        }
-                        styleType={'form'}
-                        value={this.timeConsumingValue as INormalWhere}
-                        onChange={this.handleTimeConsumingValueChange}
-                      />
-                    ) : (
-                      <ValueTagSelector
-                        key={this.rightRefreshKey}
-                        ref='valueSelector'
-                        fieldInfo={this.valueSelectorFieldInfo}
-                        getValueFn={this.getValueFnProxy}
-                        limit={this.limit}
-                        loadDelay={this.loadDelay}
-                        placeholder={''}
-                        value={this.values}
-                        autoFocus
-                        onChange={this.handleValueChange}
-                        onSelectorBlur={this.handleValueSelectorBlur}
-                        onSelectorFocus={this.handleSelectorFocus}
-                      />
-                    )}
+                    {(() => {
+                      if (this.isDurationKey) {
+                        return (
+                          <TimeConsuming
+                            key={this.rightRefreshKey}
+                            fieldInfo={
+                              {
+                                field: this.checkedItem.name,
+                              } as any
+                            }
+                            styleType={'form'}
+                            value={this.timeConsumingValue as INormalWhere}
+                            onChange={this.handleTimeConsumingValueChange}
+                          />
+                        );
+                      }
+                      if (this.isNumberInput) {
+                        return (
+                          <Input
+                            key={this.rightRefreshKey}
+                            ref='numberInput'
+                            modelValue={this.numberInputValue}
+                            type={'number'}
+                            onBlur={this.handleValueSelectorBlur}
+                            onFocus={this.handleSelectorFocus}
+                            onUpdate:modelValue={this.handleNumberInputChange}
+                          />
+                        );
+                      }
+                      if (this.isCascade) {
+                        return (
+                          <CascadeSelector
+                            fieldInfo={this.valueSelectorFieldInfo}
+                            getValueFn={this.getValueFnProxy}
+                            modelValue={this.cascadeSelectorValue}
+                            onToggle={v => {
+                              if (v) {
+                                this.handleSelectorFocus();
+                              } else {
+                                this.handleValueSelectorBlur();
+                              }
+                            }}
+                            onUpdate:modelValue={this.handleCascadeSelectorChange}
+                          />
+                        );
+                      }
+                      return (
+                        <ValueTagSelector
+                          key={this.rightRefreshKey}
+                          ref='valueSelector'
+                          fieldInfo={this.valueSelectorFieldInfo}
+                          getValueFn={this.getValueFnProxy}
+                          limit={this.limit}
+                          loadDelay={this.loadDelay}
+                          placeholder={''}
+                          value={this.values}
+                          autoFocus
+                          onChange={this.handleValueChange}
+                          onSelectorBlur={this.handleValueSelectorBlur}
+                          onSelectorFocus={this.handleSelectorFocus}
+                        />
+                      );
+                    })()}
                   </div>
                   {this.isIntegerError ? <div class='error-msg'>{this.t('仅支持输入数值类型')}</div> : undefined}
                 </div>

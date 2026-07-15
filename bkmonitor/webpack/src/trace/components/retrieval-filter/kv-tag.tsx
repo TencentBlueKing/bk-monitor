@@ -28,8 +28,8 @@ import { computed, defineComponent, shallowRef, watch } from 'vue';
 
 import { promiseTimeout } from '@vueuse/core';
 
-import { type IFilterItem, KV_TAG_EMITS, KV_TAG_PROPS, NOT_TYPE_METHODS } from './typing';
-import { NULL_VALUE_NAME } from './utils';
+import { type EMethod, type IFilterItem, EFieldType, KV_TAG_EMITS, KV_TAG_PROPS, NOT_TYPE_METHODS } from './typing';
+import { getCascadeValueSplit, NULL_VALUE_NAME } from './utils';
 
 import './kv-tag.scss';
 
@@ -49,10 +49,17 @@ export default defineComponent({
       }
       return false;
     });
-    const tipContent = computed(
-      () =>
-        `<div style="max-width: 600px;">${props.value.key.id} ${props.value.method.name} ${props.value.value.map(v => v.id).join(' OR ')}<div>`
-    );
+    const tipContent = computed(() => {
+      return `${props.value.key.id} ${props.value.method.id} ${props.value.value
+        .map(v => {
+          let id = v.id;
+          if (props.fieldInfo?.type === EFieldType.cascade) {
+            id = getCascadeValueSplit(String(id))?.join('');
+          }
+          return props.tagValueDisplayFormatter(id, props.value.key.id);
+        })
+        .join(` ${props.groupRelation || 'OR'} `)}`;
+    });
 
     watch(
       () => props.value,
@@ -142,7 +149,7 @@ export default defineComponent({
             allowHTML: true,
             content: (
               <div style='max-width: 600px; word-break: break-all; word-wrap: break-word; white-space: normal'>
-                {`${this.value.key.id} ${this.value.method.id} ${this.value.value.map(v => v.id).join(` ${this.groupRelation || 'OR'} `)}`}
+                {this.tipContent}
               </div>
             ),
           }}
@@ -153,7 +160,9 @@ export default defineComponent({
                 ? this.localValue.key.id
                 : `${this.localValue.key.name} (${this.localValue.key.id})`}
             </span>
-            <span class={['key-method', { 'red-text': NOT_TYPE_METHODS.includes(this.localValue.method.id) }]}>
+            <span
+              class={['key-method', { 'red-text': NOT_TYPE_METHODS.includes(this.localValue.method.id as EMethod) }]}
+            >
               {this.localValue.method.name}
             </span>
           </div>
@@ -175,7 +184,9 @@ export default defineComponent({
                     key={`${index}_key`}
                     class='value-name'
                   >
-                    {['string', 'number', 'boolean'].includes(typeof item.name) ? `${item.name}` : NULL_VALUE_NAME}
+                    {['string', 'number', 'boolean'].includes(typeof item.name)
+                      ? this.tagValueDisplayFormatter(item.name, this.localValue.key.id)
+                      : NULL_VALUE_NAME}
                   </span>,
                 ])}
                 {this.hideCount > 0 && <span class='value-condition'>{`+${this.hideCount}`}</span>}

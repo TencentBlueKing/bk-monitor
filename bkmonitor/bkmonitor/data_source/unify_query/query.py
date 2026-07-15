@@ -147,6 +147,28 @@ class UnifyQuery:
     def process_unify_query_data(cls, params: dict, data: dict, end_time: int = None) -> list[dict[str, Any]]:
         """
         处理统一查询模块返回值
+
+        示例（基于 data 入参）:
+            data = {
+                "series": [{
+                    "name": "_result0",
+                    "metric_name": "system.cpu_summary.usage",
+                    "columns": ["_time", "_value", "bk_target_ip"],
+                    "types": ["time", "double", "string"],
+                    "group_keys": ["bk_target_ip"],
+                    "group_values": ["127.0.1.10"],
+                    "values": [
+                        [1657848000, 12.5, "127.0.1.11"],
+                        [1657848060, 13.1, "127.0.1.12"]
+                    ]
+                }]
+            }
+
+            # 返回：
+            [
+                {"bk_target_ip": "127.0.1.10", "_time_": 1657848000000, "_result_": 12.5},
+                {"bk_target_ip": "127.0.1.11", "_time_": 1657848060000, "_result_": 13.1}
+            ]
         """
         records = []
 
@@ -180,6 +202,20 @@ class UnifyQuery:
 
     @classmethod
     def extract_unify_query_series_dimensions(cls, row: dict[str, Any]) -> dict[str, Any]:
+        """
+        从 series 的 group_keys/group_values 中提取维度字典。
+
+        逻辑：
+            - group_keys 与 group_values 一一对应（按索引对齐），组成 {维度名: 维度值}
+            - 维度名可能带多表关联后缀 "_tableN"（RE_DIMENSION_SUFFIX = r"_table\\d+$"），
+              如 "bk_target_ip_table0"，此处将其剥离还原为原始维度名 "bk_target_ip"
+            - 若 group_values 长度不足（index 越界），维度值记为 None
+
+        入参 row 示例：
+            {"group_keys": ["bk_target_ip"], "group_values": ["127.0.1.12"]}
+        返回示例：
+            {"bk_target_ip": "127.0.1.10"}
+        """
         dimensions = {}
         group_values = row.get("group_values") or []
         for index, group_key in enumerate(row.get("group_keys") or []):
@@ -197,6 +233,21 @@ class UnifyQuery:
 
     @classmethod
     def get_unify_query_series_metric_field(cls, row: dict[str, Any], params: dict[str, Any]) -> str:
+        """
+        解析 series 对应的指标字段名（用于 series_stat 的 key 与 records 的 _result_ 对齐）。
+
+        逻辑：
+            - reference_names：汇总 params["query_list"] 中所有 reference_name（如 a0/a1/a2/a3）
+            - columns：取 series 的列名，排除时间列 "_time"
+            - 取首列 column 判定：
+                * 若为 "_result"/"_value" 或命中 reference_names → 归一化为 "_result_"
+                  （多指标查询时各指标列名即 reference_name，统一回退为 _result_ 便于聚合）
+                * 否则（如普通维度指标列）直接返回该列名
+            - 无列时：回退取 query_list[0].reference_name；仍无则兜底 "_result_"
+
+        返回示例：
+            "_result_" 或 "bk_target_ip"
+        """
         reference_names = {
             query["reference_name"] for query in params.get("query_list") or [] if query.get("reference_name")
         }
@@ -214,6 +265,16 @@ class UnifyQuery:
 
     @classmethod
     def process_unify_query_series_stat(cls, params: dict[str, Any], data: dict[str, Any]) -> dict:
+        """
+        聚合各 series 的统计数据（avg/max/min/count 等），以 (维度, 指标) 为 key 归并。
+
+        返回示例：
+            {
+                (("bk_target_ip", "127.0.1.11"), "_result_"): {
+                    "avg": 12.8, "max": 13.1, "min": 12.5, "count": 2
+                }
+            }
+        """
         series_stat = {}
         for row in data.get("series") or []:
             stat = row.get("stat") or {}
@@ -401,6 +462,34 @@ class UnifyQuery:
     ) -> tuple[list[dict], bool, dict]:
         """
         使用统一查询模块进行查询
+
+        :param start_time: 查询起始时间（秒级时间戳）
+        :param end_time: 查询结束时间（秒级时间戳）
+        :param limit: 单序列最大点数
+        :param slimit: 最大序列数
+        :param offset: 分页偏移
+        :param down_sample_range: 降采样区间
+        :param time_alignment: 是否时间对齐
+        :param instant: 是否瞬时查询
+        :param not_time_align: 是否关闭时间对齐
+        :return: (records, is_partial, series_stat) 三元组
+                 - records: 处理后的记录列表（同 process_unify_query_data 返回）
+                 - is_partial: 是否仅返回了部分数据
+                 - series_stat: 按 (维度, 指标) 聚合的统计，无统计时为 {}
+
+        返回示例：
+            (
+                [
+                    {"bk_target_ip": "127.0.1.12", "_time_": 1657848000000, "_result_": 12.5},
+                    {"bk_target_ip": "127.0.1.10", "_time_": 1657848060000, "_result_": 13.1}
+                ],
+                False,
+                {
+                    ({"bk_target_ip": "127.0.1.11"}, "_result_"): {
+                        "avg": 12.8, "max": 13.1, "min": 12.5, "count": 2
+                    }
+                }
+            )
         """
         is_partial = False
         params = self.get_unify_query_params(start_time, end_time, time_alignment, not_time_align=not_time_align)
@@ -572,6 +661,46 @@ class UnifyQuery:
         with_series_stat: bool = False,
         **kwargs,
     ) -> tuple[list[dict], dict]:
+        """
+        内部统一查询入口：根据配置选择统一查询模块或原始数据源拉取时序数据，
+        返回处理后的记录列表与（可选的）序列统计信息。
+
+        :param start_time: 查询起始时间（秒级时间戳）
+        :param end_time: 查询结束时间（秒级时间戳）
+        :param limit: 单序列最大点数
+        :param slimit: 最大序列数
+        :param offset: 分页偏移
+        :param down_sample_range: 降采样区间
+        :param not_time_align: 是否关闭时间对齐
+        :param args: 透传位置参数
+        :param with_series_stat: 是否返回序列统计（avg/max/min/count 等）
+        :param kwargs: 透传关键字参数（如 instant、time_alignment）
+        :return: (records, series_stat) 二元组
+                 - records: 处理后的记录列表（同 process_unify_query_data 返回）
+                 - series_stat: with_series_stat=True 时的序列统计，否则为 {}
+
+        返回示例（with_series_stat=False）:
+            (
+                [
+                    {"bk_target_ip": "127.0.1.12", "_time_": 1657848000000, "_result_": 12.5},
+                    {"bk_target_ip": "127.0.1.10", "_time_": 1657848060000, "_result_": 13.1}
+                ],
+                {}
+            )
+
+        返回示例（with_series_stat=True）:
+            (
+                [
+                    {"bk_target_ip": "127.0.1.11", "_time_": 1657848000000, "_result_": 12.5},
+                    {"bk_target_ip": "127.0.1.12", "_time_": 1657848060000, "_result_": 13.1}
+                ],
+                {
+                    ({"bk_target_ip": "127.0.1.10"}, "_result_"): {
+                        "avg": 12.8, "max": 13.1, "min": 12.5, "count": 2
+                    }
+                }
+            )
+        """
         self.is_partial = False
         if not self.data_sources:
             return [], {}

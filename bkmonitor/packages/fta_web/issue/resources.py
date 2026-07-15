@@ -856,7 +856,8 @@ class ReopenIssueResource(Resource):
     def perform_request(self, validated_request_data: dict) -> dict:
         operator = get_request_username()
 
-        def _action(bk_biz_id, issue_id):
+        def _action(bk_biz_id: int, issue_id: str) -> dict:
+            # operator 由主线程 get_request_username() 按值捕获，worker 线程内稳定可用
             return api.issue.reopen(
                 bk_biz_id=bk_biz_id,
                 issue_id=issue_id,

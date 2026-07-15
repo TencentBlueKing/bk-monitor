@@ -42,6 +42,12 @@ export const fieldTypeMap = {
     color: '#60A087',
     bgColor: '#DDEBE6',
   },
+  number_input: {
+    name: window.i18n.t('数字'),
+    icon: 'icon-monitor icon-number1',
+    color: '#60A087',
+    bgColor: '#DDEBE6',
+  },
   long: {
     name: window.i18n.t('数字'),
     icon: 'icon-monitor icon-number1',
@@ -410,3 +416,21 @@ export const DEFAULT_GROUP_RELATION = 'OR';
 /* 空值的id和name */
 export const NULL_VALUE_NAME = `- ${window.i18n.t('空')} -`;
 export const NULL_VALUE_ID = '';
+
+
+/** 将级联选择器的二维数组值序列化为 JSON 字符串（用于存储到 filter item 的 id） */
+export const setCascadeValueSplit = (value: string[]): string => {
+  try {
+    return JSON.stringify(value);
+  } catch (_error) {
+    return '';
+  }
+}
+/** 将级联选择器存储的 JSON 字符串反序列化为二维数组 */
+export const getCascadeValueSplit = (value: string): string[] => {
+  try {
+    return JSON.parse(value);
+  } catch (_error) {
+    return [];
+  }
+}

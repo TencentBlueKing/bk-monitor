@@ -1,0 +1,152 @@
+// 主机 hover 提示：保留换行展示「IP / 主机名」两行（弹层挂载在 body，需全局样式）
+.host-topo-tooltips {
+  white-space: pre-line;
+}
+
+.host-topo-tree {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  font-family: MicrosoftYaHei, sans-serif;
+  background: #fff;
+
+  &__header {
+    flex: 0 0 auto;
+    padding: 12px 16px 8px;
+    background: #f5f7fa;
+  }
+
+  &__title {
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #313238;
+  }
+
+  &__search {
+    margin-bottom: 8px;
+  }
+
+  &__tools {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__tools-label {
+    font-family: MicrosoftYaHei, sans-serif;
+    font-size: 12px;
+    color: #4d4f56;
+  }
+
+  &__tools-icons {
+    display: flex;
+    align-items: center;
+  }
+
+  &__tools-icon {
+    margin-left: 12px;
+    font-size: 16px;
+    color: #4d4f56;
+    cursor: pointer;
+
+    &:hover {
+      color: #3a84ff;
+    }
+  }
+
+  &__body {
+    flex: 1;
+    height: 100%;
+    padding: 8px 16px 0;
+    overflow: hidden;
+  }
+
+  // bk-tree 内部样式定制（本项目 scss 为全局，非 scoped）
+  .bk-tree {
+    height: 100%;
+    overflow: auto;
+
+    .bk-node-content {
+      flex: 1;
+      overflow: hidden;
+      font-size: 12px;
+    }
+
+    .bk-node-row {
+      &:hover {
+        background-color: #f5f7fa;
+      }
+
+      &.is-selected {
+        background-color: #e1ecff;
+
+        .topo-node__label,
+        .topo-node__count,
+        .topo-node__ip {
+          color: #3a84ff;
+        }
+      }
+    }
+  }
+
+  // 自定义节点内容
+  .topo-node {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    padding-right: 16px;
+    line-height: 20px;
+
+    &__label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #313238;
+      white-space: nowrap;
+    }
+
+    &__count {
+      flex-shrink: 0;
+      padding-left: 8px;
+      margin-left: auto;
+      font-weight: 700;
+      color: #a3b1cc;
+    }
+
+    &__ip {
+      flex-shrink: 0;
+    }
+
+    &__alias {
+      margin-left: 6px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #a3b1cc;
+      white-space: nowrap;
+    }
+
+    &__compare {
+      display: none;
+      flex-shrink: 0;
+      padding: 0 8px;
+      margin-left: auto;
+      font-size: 12px;
+      line-height: 22px;
+      color: #3a84ff;
+      cursor: pointer;
+      background: #fff;
+      border: 1px solid #c4c6cc;
+      border-radius: 2px;
+
+      &:hover {
+        border-color: #3a84ff;
+      }
+    }
+  }
+
+  .bk-node-row:hover .topo-node__compare {
+    display: inline-flex;
+  }
+}

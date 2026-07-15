@@ -1,0 +1,110 @@
+.metric-group-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 16px 0;
+  overflow: hidden;
+  background: #f5f7fa;
+
+  &__item {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    height: 40px;
+    padding: 0 16px;
+    cursor: pointer;
+
+    &:hover {
+      background: #eaebf0;
+    }
+
+    &.is-active {
+      color: #3a84ff;
+      background: #e1ecff;
+    }
+
+    &.is-all {
+      font-weight: 700;
+    }
+
+    &.is-ungroup {
+      margin-top: auto;
+    }
+  }
+
+  &__flag {
+    margin-right: 8px;
+    font-size: 16px;
+  }
+
+  &__drag {
+    margin-right: 4px;
+    font-size: 16px;
+    color: #c4c6cc;
+    cursor: move;
+  }
+
+  &__name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__count {
+    display: flex;
+    column-gap: 8px;
+    margin-left: 8px;
+    font-size: 12px;
+    color: #979ba5;
+
+    &-item {
+      display: inline-flex;
+      align-items: center;
+      column-gap: 2px;
+
+      .icon-monitor {
+        font-size: 12px;
+      }
+    }
+  }
+
+  &__filter {
+    display: flex;
+    column-gap: 10px;
+    align-items: center;
+    padding: 8px 16px;
+  }
+
+  &__add-btn {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    background: #3a84ff;
+    border-radius: 2px;
+
+    .icon-monitor {
+      font-size: 16px;
+      color: #fff;
+    }
+  }
+
+  &__custom {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  &__add-form {
+    padding: 4px 0;
+  }
+
+  &__add-title {
+    margin-bottom: 8px;
+    font-weight: 700;
+    color: #313238;
+  }
+}
