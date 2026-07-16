@@ -3,14 +3,7 @@
 import { computed, defineAsyncComponent, watch, ref } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
-// #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-const LogIpSelector = defineAsyncComponent(() =>
-  import(/* webpackChunkName: 'log-ip-selector' */ '@/components/log-ip-selector/log-ip-selector'),
-);
-// #endif
-// #if MONITOR_APP === 'apm' || MONITOR_APP === 'trace'
-// #code const LogIpSelector = () => null;
-// #endif
+
 const props = defineProps({
   isShow: {
     type: Boolean,
@@ -29,6 +22,15 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['change', 'input', 'update:isShow']);
+
+// #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
+const LogIpSelector = defineAsyncComponent(() =>
+  import(/* webpackChunkName: 'log-ip-selector' */ '@/components/log-ip-selector/log-ip-selector'),
+);
+// #else
+// #code const LogIpSelector = () => null;
+// #endif
+
 const { $t } = useLocale();
 
 const propIsShow = computed(() => props.isShow);

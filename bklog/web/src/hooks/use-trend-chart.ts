@@ -484,7 +484,7 @@ export default ({ target, handleChartDataZoom, dynamicHeight }: TrandChartOption
   };
 
   const cachedBatch = computed(() => store.state.storage[BK_LOG_STORAGE.CACHED_BATCH_LIST] || []);
-  const canGoBack = computed(() => cachedBatch.value.length > 1);
+  const canGoBack = computed(() => cachedBatch.value.length > 1 && !window.__IS_MONITOR_COMPONENT__);
 
   const handleDataZoom = debounce((event) => {
     const [batch] = event.batch;

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, h, nextTick, onBeforeUnmount, ref, watch, type Ref, inject } from 'vue';
+import { computed, defineComponent, h, nextTick, onBeforeUnmount, ref, watch, type Ref, inject, reactive } from 'vue';
 
 import { getRowFieldValue, setDefaultTableWidth, TABLE_LOG_FIELDS_SORT_REGULAR, xssFilter } from '@/common/util';
 import { getInputQueryDefaultItem } from '@/views/retrieve-v2/search-bar/utils/const.common';

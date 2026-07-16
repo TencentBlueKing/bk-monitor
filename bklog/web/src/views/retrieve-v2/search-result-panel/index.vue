@@ -10,6 +10,13 @@ import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import NoIndexSet from '../result-comp/no-index-set';
 import LogResult from './log-result/index';
 
+const DEFAULT_FIELDS_WIDTH = 200;
+
+const props = defineProps({
+  activeTab: { type: String, default: '' },
+});
+const emit = defineEmits(['update:active-tab']);
+
 // #if MONITOR_APP !== 'trace'
 const SearchResultChart = defineAsyncComponent(() =>
   import(/* webpackChunkName: 'retrieve-search-result-chart' */ '../search-result-chart/index.tsx'),
@@ -33,13 +40,6 @@ const LogClustering = defineAsyncComponent(() =>
 // #else
 // #code const LogClustering = () => null;
 // #endif
-
-const DEFAULT_FIELDS_WIDTH = 200;
-
-const props = defineProps({
-  activeTab: { type: String, default: '' },
-});
-const emit = defineEmits(['update:active-tab']);
 
 const store = useStore();
 const isFilterLoading = computed(() => store.state.indexFieldInfo.is_loading);
