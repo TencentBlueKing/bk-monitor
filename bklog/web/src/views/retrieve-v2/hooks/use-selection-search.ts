@@ -581,7 +581,7 @@ export default (options: UseSelectionSearchOptions) => {
   /**
    * 将短 KEY（如 io_kubernetes_workload_name）解析为 Fields 中的完整路径。
    */
-  const resolveFieldByKeyHint = (keyHint: string, parentHint = '') => {
+  const resolveFieldByKeyHint = (keyHint: string, parentHint = '', row?: Record<string, any>, valueHint = '') => {
     if (!keyHint) {
       return undefined;
     }
@@ -610,20 +610,22 @@ export default (options: UseSelectionSearchOptions) => {
       }
     }
 
-    // 全局按末级 KEY 匹配（优先更长路径）
-    const suffix = `.${normalizedHint}`;
-    let matched: Record<string, any> | undefined;
+    // 跨边界划选时 KEY 往往只有尾部。先按 KEY 相似度筛选，再用 VALUE 片段消歧，避免 dsa-1 误命中所有值为 dsa 的字段。
+    const keyText = normalizedHint.toLowerCase().replace(/^_+/, '');
+    const candidates: Array<{ field: Record<string, any>; score: number }> = [];
     iterateFieldPools((field) => {
-      if (!isLeafQueryableField(field)) {
-        return;
-      }
-      if (field.field_name === normalizedHint || field.field_name.endsWith(suffix)) {
-        if (!matched || field.field_name.length > matched.field_name.length) {
-          matched = field;
-        }
-      }
+      if (!isLeafQueryableField(field)) return;
+      const leaf = field.field_name.split('.').pop()?.toLowerCase() ?? '';
+      const keyScore = leaf === keyText ? 1000 : leaf.endsWith(keyText) ? 800 : leaf.includes(keyText) ? 500 : 0;
+      if (!keyScore) return;
+      const plain = row ? getFieldPlainText(row, field) : '';
+      const valueScore = valueHint && plain && plain !== '--'
+        ? (plain === valueHint ? 300 : plain.startsWith(valueHint) ? 200 : plain.includes(valueHint) ? 50 : 0)
+        : 0;
+      candidates.push({ field, score: keyScore + valueScore });
     });
-    return matched;
+    candidates.sort((a, b) => b.score - a.score || b.field.field_name.length - a.field.field_name.length);
+    return candidates[0]?.field;
   };
 
   /**
@@ -643,6 +645,15 @@ export default (options: UseSelectionSearchOptions) => {
     if (!plainText || plainText === '--' || !selectionText) {
       return false;
     }
+    // 短值是更长 VALUE 的前缀时，不算 VALUE 重叠：
+    // `_pod":"dsa-1` 不能把实际值为 `dsa` 的 container_name/labels.app 等字段带入。
+    const selectionFragments = selectionText
+      .split(/(?:["'\s|,:{}]|\[|\])+/)
+      .map(item => item.trim())
+      .filter(Boolean);
+    if (selectionFragments.some(fragment => fragment.length > plainText.length && fragment.startsWith(plainText))) {
+      return false;
+    }
     if (selectionText.includes(plainText) || plainText === selectionText) {
       return true;
     }
@@ -654,7 +665,7 @@ export default (options: UseSelectionSearchOptions) => {
 
     // 提取划选中的候选 value 碎片（去掉 JSON 标点）
     const fragments = selectionText
-      .split(/["'\s|,:{}\[\]]+/)
+      .split(/(?:["'\s|,:{}]|\[|\])+/)
       .map(item => item.trim())
       .filter(item => item.length >= minLen);
 
@@ -803,6 +814,23 @@ export default (options: UseSelectionSearchOptions) => {
         quotedRegex.lastIndex,
       );
       match = quotedRegex.exec(selectionText);
+    }
+
+    // 跨边界划选允许 VALUE 尚未选到结束引号，例如选中内容以 "_pod":"dsa-1 结尾。
+    const partialQuotedRegex = /"([^"\\]+)"\s*:\s*"((?:\\.|[^"\\])*)$/g;
+    match = partialQuotedRegex.exec(selectionText);
+    while (match) {
+      pushPair(match[1], match[2].replace(/\\"/g, '"'), match.index, partialQuotedRegex.lastIndex);
+      match = partialQuotedRegex.exec(selectionText);
+    }
+
+    // 选区可能从 KEY 的左引号之后开始：`_pod":"dsa-1`。
+    // 注意：这里是正则字面量，空白必须写成 `\s`，不能写成 `\\s`。
+    const partialKeyQuotedRegex = /(?:^|[\s|,{[])_?([A-Za-z0-9_.-]+)"?\s*:\s*"((?:\\.|[^"\\])*)$/g;
+    match = partialKeyQuotedRegex.exec(selectionText);
+    while (match) {
+      pushPair(match[1], match[2].replace(/\\"/g, '"'), match.index + match[0].indexOf(match[1]), partialKeyQuotedRegex.lastIndex);
+      match = partialKeyQuotedRegex.exec(selectionText);
     }
 
     // json-view 渲染：key:value（无引号 KEY）
@@ -1042,6 +1070,25 @@ export default (options: UseSelectionSearchOptions) => {
    * 3) leading VALUE 截断碎片 → 补齐；trailing 残缺 KEY → 丢弃
    * 4) 跨边界场景下，即使只解析出 1 条有效条件也返回（如只补齐 container_id）
    */
+  const resolvePartialValueTokens = (field: Record<string, any>, row: Record<string, any>, valueHint: string) => {
+    const plain = getFieldPlainText(row, field);
+    if (!plain || plain === '--' || !valueHint) return '';
+    const fullTokens = getFieldSegmentTokens(row, field).filter(token => token.isCursorText && token.text);
+    const selectedTokens = tokenizeSelectionText(valueHint).filter(token => token.isCursorText && token.text);
+    if (!fullTokens.length || !selectedTokens.length) return '';
+    let matched = -1;
+    for (let i = 0; i <= fullTokens.length - selectedTokens.length; i++) {
+      if (selectedTokens.every((token, j) => fullTokens[i + j].text.startsWith(token.text))) {
+        matched = i + selectedTokens.length - 1;
+        break;
+      }
+    }
+    if (matched < 0) return '';
+    const endToken = fullTokens[matched].text;
+    const end = plain.indexOf(endToken) + endToken.length;
+    return endToken && end > endToken.length ? plain.slice(0, end) : endToken;
+  };
+
   const resolveMultiFieldSelectionConditions = (
     range: Range,
     row: Record<string, any>,
@@ -1079,38 +1126,115 @@ export default (options: UseSelectionSearchOptions) => {
 
     const conditions: SelectionCondition[] = [];
     const appendedFields = new Set<string>();
+    // 一旦解析出 KV，KEY 是唯一字段判定依据；禁止再用相交 DOM/value 全局反查，
+    // 否则同值字段（如 container_name、labels.app）会被误加进来。
+    const kvPairs = parseJsonKvPairsFromText(selectionText);
+
+    /**
+     * 根据字段完整 VALUE 与本次命中的 VALUE 计算操作符。
+     *
+     * 不能仅因为字段最终补全出了完整 VALUE 就使用 is：Object/Nested 的 VALUE
+     * 可能被渲染为多个可检索分词，例如 `dsa-17841304550` -> [`dsa`, `17841304550`]。
+     * 此时点击/划选其中一个分词，应保留命中的分词并使用 contains match phrase。
+     * 只有命中完整 VALUE（例如 `FieldName1: Field Value` 中的完整值）才使用 is。
+     */
+    const resolveFieldSelectionOperator = (
+      field: Record<string, any>,
+      selectedValue: string,
+    ): { value: string; operator: string } => {
+      const plain = getFieldPlainText(row, field);
+      const value = stripSelectionMarkup(selectedValue).trim();
+      if (!value || value === '--') {
+        return { value: '', operator: 'is' };
+      }
+      if (plain === value) {
+        return { value: plain, operator: 'is' };
+      }
+
+      const tokenCount = getFieldCursorTokens(row, field).length;
+      // 多分词字段：命中单个/部分分词只能表达包含关系，不能表达字段等值。
+      if (tokenCount > 1) {
+        return { value, operator: 'contains match phrase' };
+      }
+
+      // 单分词字段的部分划选也不能误升级为等值。
+      return { value, operator: 'contains match phrase' };
+    };
 
     const pushFieldValue = (field?: Record<string, any>, rawValue?: string) => {
       if (!isLeafQueryableField(field)) {
         return;
       }
-      const plain = rawValue && rawValue !== '--'
+      const selectedValue = rawValue && rawValue !== '--'
         ? stripSelectionMarkup(rawValue)
         : getFieldPlainText(row, field);
-      if (!plain || plain === '--') {
+      const resolved = resolveFieldSelectionOperator(field, selectedValue);
+      if (!resolved.value) {
         return;
       }
       if (appendedFields.has(field.field_name)) {
         return;
       }
       appendedFields.add(field.field_name);
-      conditions.push(buildConditionFromFieldWithRow(field, plain, row, 'is'));
+      conditions.push(buildConditionFromFieldWithRow(field, resolved.value, row, resolved.operator));
+    };
+
+    // 同一个字段只能生成一个条件。DOM 命中和文本 KV 解析可能同时命中同一叶子字段，
+    // 显式 KV（尤其是部分 VALUE）优先级更高，需要替换此前由 DOM 推断出的条件。
+    const setFieldCondition = (field: Record<string, any>, value: string, operator: string) => {
+      if (!isLeafQueryableField(field) || !value || value === '--') {
+        return;
+      }
+      const index = conditions.findIndex(item => item.field === field.field_name);
+      const condition = buildConditionFromFieldWithRow(field, value, row, operator);
+      if (index >= 0) {
+        conditions.splice(index, 1, condition);
+      } else {
+        conditions.push(condition);
+      }
+      appendedFields.add(field.field_name);
+    };
+
+    /**
+     * 从 selection 中提取当前 DOM 字段真正命中的 VALUE。
+     * 不能直接把整段字段 VALUE 传给 pushFieldValue，否则点击 `dsa` 会被
+     * 当成完整值 `dsa-17841304550`，最终错误生成 `is`。
+     */
+    const getSelectedFieldValue = (field: Record<string, any>) => {
+      const plain = getFieldPlainText(row, field);
+      if (!plain || plain === '--') return '';
+      if (selectionText.includes(plain)) return plain;
+
+      const selectedTokens = getFieldCursorTokens(row, field)
+        .filter(token => selectionText.includes(token.text));
+      if (selectedTokens.length) {
+        return selectedTokens.map(token => token.text).join(' ');
+      }
+
+      // DOM 命中有时拿到的是截断文本（例如 dsa-178），保留命中片段，
+      // 由 resolveFieldSelectionOperator 按字段分词数决定 contains/is。
+      const fragments = tokenizeSelectionText(selectionText)
+        .filter(token => token.isCursorText && token.text && plain.includes(token.text));
+      return fragments.map(token => token.text).join(' ');
     };
 
     // 1) DOM 相交叶子：必须有 VALUE 证据；只碰到 KEY/KEY 前缀则丢弃
-    uniquePaths.forEach((path) => {
-      const field = getFieldByName(path);
-      if (!isLeafQueryableField(field)) {
-        return;
-      }
-      const plain = getFieldPlainText(row, field);
-      if (hasFieldValueOverlap(selectionText, plain)) {
-        pushFieldValue(field, plain);
-      }
-    });
+    if (!kvPairs.length) {
+      uniquePaths.forEach((path) => {
+        const field = getFieldByName(path);
+        if (!isLeafQueryableField(field)) {
+          return;
+        }
+        const plain = getFieldPlainText(row, field);
+        if (hasFieldValueOverlap(selectionText, plain)) {
+          pushFieldValue(field, getSelectedFieldValue(field));
+        }
+      });
+    }
 
-    // 相交到 object/nested 父节点，且有效叶子不足时，按 VALUE/完整 KV 回落
-    if (conditions.length < 2) {
+    // 相交到 object/nested 父节点，且有效叶子不足时，按 VALUE/完整 KV 回落。
+    // 已解析出 KV 时必须以 KEY 唯一解析结果为准，禁止再按 VALUE 扩散到同值字段。
+    if (!kvPairs.length && conditions.length < 2) {
       uniquePaths.forEach((path) => {
         const field = getFieldByName(path);
         if (!(hasMappedChildFields(path) || isStructField(field))) {
@@ -1134,7 +1258,6 @@ export default (options: UseSelectionSearchOptions) => {
     }
 
     // 2) 文本 KV + 边界 orphan
-    const kvPairs = parseJsonKvPairsFromText(selectionText);
     const { leading, trailing } = extractBoundaryOrphans(selectionText, kvPairs);
 
     if (leading && !isDanglingFieldKeyPrefix(row, parentHint, leading)) {
@@ -1142,19 +1265,23 @@ export default (options: UseSelectionSearchOptions) => {
     }
 
     kvPairs.forEach((pair) => {
-      const field = resolveFieldByKeyHint(pair.key, parentHint);
+      const field = resolveFieldByKeyHint(pair.key, parentHint, row, pair.value);
       if (!field) {
         return;
       }
-      // 完整/部分 value 都补齐为行内完整值
       const plain = getFieldPlainText(row, field);
-      if (plain && plain !== '--') {
-        pushFieldValue(field, plain);
+      const partialValue = resolvePartialValueTokens(field, row, pair.value);
+      if (partialValue && partialValue !== plain) {
+        setFieldCondition(field, partialValue, 'contains match phrase');
         return;
       }
-      // 行内无值时退化用解析出的 value
+      // 必须优先使用 selection 中实际解析出的 VALUE，而不是直接使用行内完整 VALUE。
+      // 例如 `io_kubernetes_workload_name: dsa` 对完整值
+      // `dsa-17841304550` 应生成 contains match phrase dsa，而不是 is 完整值。
       if (pair.value) {
         pushFieldValue(field, pair.value);
+      } else if (plain && plain !== '--') {
+        pushFieldValue(field, plain);
       }
     });
 
@@ -1165,8 +1292,8 @@ export default (options: UseSelectionSearchOptions) => {
       }
     }
 
-    // 3) 仍不足时：用 parent 子字段 VALUE 命中补齐（不含纯 KEY 前缀）
-    if (conditions.length < 2) {
+    // 3) 仍不足时：用 parent 子字段 VALUE 命中补齐（不含纯 KEY 前缀）。
+    if (!kvPairs.length && conditions.length < 2) {
       const scopeParent = parentHint || uniquePaths.find(path => hasMappedChildFields(path)) || '';
       if (scopeParent && hasMappedChildFields(scopeParent)) {
         listChildLeafFields(scopeParent).forEach((child) => {

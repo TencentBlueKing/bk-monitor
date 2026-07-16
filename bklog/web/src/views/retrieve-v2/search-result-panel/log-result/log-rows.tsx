@@ -184,6 +184,12 @@ export default defineComponent({
       allowDelineateSearch: true,
       onclick: (...args) => {
         const type = args[1];
+        // 复制只处理剪贴板，不参与任何检索条件添加；显式提前返回，避免后续事件链误落到“添加到本次检索”。
+        if (type === 'copy') {
+          handleOperation('copy', { value: stripSelectionMarkup(savedSelection?.toString() ?? '') });
+          popInstanceUtil.hide();
+          return;
+        }
         if (type === 'add-to-ai') {
           props.handleClickTools(type, savedSelection?.toString() ?? '');
         } else if (type === 'is' && savedSelection && hoverOperatorState.row) {
