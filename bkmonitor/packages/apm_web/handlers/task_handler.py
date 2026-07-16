@@ -126,7 +126,7 @@ class ServiceLogTaskHandler:
 
         def _query_chunk(
             workload_chunk: list[dict[str, str]],
-        ) -> tuple[dict[WorkloadKey, set[int | str]], int]:
+        ) -> tuple[dict[WorkloadKey, set[int]], int]:
             source_infos: list[Source] = []
             for workload in workload_chunk:
                 source_type = cls.WORKLOAD_SOURCE_TYPE_MAP[workload["kind"]]
@@ -149,7 +149,7 @@ class ServiceLogTaskHandler:
                 path_resource=[SourceK8sPod],
             )
 
-            related_data_ids: defaultdict[WorkloadKey, set[int | str]] = defaultdict(set)
+            related_data_ids: defaultdict[WorkloadKey, set[int]] = defaultdict(set)
             relations, failed_count = cls._query_relations(relation_qs)
             for relation in relations:
                 workload = cls._workload_from_relation_source_info(relation.source_info)
@@ -161,7 +161,7 @@ class ServiceLogTaskHandler:
 
             return dict(related_data_ids), failed_count
 
-        related_data_ids: dict[WorkloadKey, set[int | str]] = {}
+        related_data_ids: dict[WorkloadKey, set[int]] = {}
         failed_count: int = 0
         with ThreadPool(min(len(workload_chunks), cls.QUERY_CONCURRENCY_PER_PATH)) as pool:
             for chunk_result, chunk_failed_count in pool.imap_unordered(_query_chunk, workload_chunks):
@@ -179,7 +179,7 @@ class ServiceLogTaskHandler:
         end_time = int(time.time())
         start_time = end_time - cls.QUERY_TIME_RANGE_SECONDS
 
-        def _query_chunk(service_name_chunk: list[str]) -> tuple[dict[str, set[int | str]], int]:
+        def _query_chunk(service_name_chunk: list[str]) -> tuple[dict[str, set[int]], int]:
             source_infos: list[Source] = [
                 SourceService(apm_application_name=app_name, apm_service_name=service_name)
                 for service_name in service_name_chunk
@@ -193,7 +193,7 @@ class ServiceLogTaskHandler:
                 path_resource=[SourceK8sPod],
             )
 
-            related_data_ids: defaultdict[str, set[int | str]] = defaultdict(set)
+            related_data_ids: defaultdict[str, set[int]] = defaultdict(set)
             relations, failed_count = cls._query_relations(relation_qs)
             for relation in relations:
                 service_name = relation.source_info.get("apm_service_name")
@@ -204,7 +204,7 @@ class ServiceLogTaskHandler:
 
             return dict(related_data_ids), failed_count
 
-        related_data_ids: dict[str, set[int | str]] = {}
+        related_data_ids: dict[str, set[int]] = {}
         failed_count: int = 0
         with ThreadPool(min(len(service_name_chunks), cls.QUERY_CONCURRENCY_PER_PATH)) as pool:
             for chunk_result, chunk_failed_count in pool.imap_unordered(_query_chunk, service_name_chunks):
@@ -273,37 +273,31 @@ class ServiceLogTaskHandler:
         return None
 
     @staticmethod
-    def _get_relation_data_ids(nodes: list[Node]) -> set[int | str]:
+    def _get_relation_data_ids(nodes: list[Node]) -> set[int]:
         """从关系节点提取有效的 data_id。"""
-        data_ids: set[int | str] = set()
+        data_ids: set[int] = set()
         for node in nodes:
-            bk_data_id = node.source_info.to_source_info().get("bk_data_id")
-            if bk_data_id:
-                data_ids.add(bk_data_id)
+            bk_data_id: str = str(node.source_info.to_source_info().get("bk_data_id"))
+            if bk_data_id.isdigit():
+                data_ids.add(int(bk_data_id))
 
         return data_ids
 
     @staticmethod
     def _convert_data_ids_to_indexes(
         bk_biz_id: int,
-        related_data_ids: dict[RelationKey, set[int | str]],
+        related_data_ids: dict[RelationKey, set[int]],
     ) -> dict[RelationKey, list[dict[str, Any]]]:
         """将各关系源关联的 data_id 转换为日志索引集。"""
-        if not any(related_data_ids.values()):
+        all_data_ids: set[int] = set().union(*related_data_ids.values())
+        if not all_data_ids:
             return {}
 
+        data_id_rt_map: dict[int, set[str]] = ServiceLogHandler.get_data_id_rt_map(list(all_data_ids))
         full_indexes: list[dict[str, Any]] = get_biz_index_sets_with_cache(bk_biz_id=bk_biz_id)
-        table_ids_cache: dict[frozenset[int | str], set[str]] = {}
         related_indexes: dict[RelationKey, list[dict[str, Any]]] = {}
         for relation_key, data_ids in related_data_ids.items():
-            if not data_ids:
-                continue
-
-            data_id_key = frozenset(data_ids)
-            if data_id_key not in table_ids_cache:
-                table_ids_cache[data_id_key] = set(ServiceLogHandler.list_tables_by_data_ids(list(data_ids)))
-
-            table_ids = table_ids_cache[data_id_key]
+            table_ids: set[str] = {table_id for data_id in data_ids for table_id in data_id_rt_map.get(data_id, set())}
             if not table_ids:
                 continue
 

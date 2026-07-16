@@ -22,7 +22,6 @@ from apm_web.handlers.log_handler import ServiceLogHandler, get_biz_index_sets_w
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.constants import DEFAULT_APM_LOG_SEARCH_FIELD_NAME
 from apm_web.models import LogServiceRelation
-from apm_web.strategy.dispatch import EntitySet
 from bkmonitor.utils.cache import CacheType, using_cache
 from constants.apm import Vendor, FIVE_MIN_SECONDS
 from core.drf_resource import Resource, api
@@ -206,10 +205,6 @@ def process_metric_relations(
     if not service_name:
         return []
 
-    # 保留服务级 workload 前置判断，避免返回已经解除容器关联的历史缓存。
-    if not EntitySet(bk_biz_id, app_name, [service_name]).get_workloads(service_name):
-        return []
-
     related_indexes: list[dict[str, Any]] = ServiceLogHandler.list_indexes_by_relation(
         bk_biz_id, app_name, service_name
     )
@@ -346,43 +341,9 @@ class LogInfoResource(Resource, HostIndexQueryMixin):
         end_time = serializers.IntegerField(label="结束时间", required=False)
 
     def perform_request(self, validated_request_data: dict[str, Any]) -> bool:
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        app_name = validated_request_data["app_name"]
-        service_name = validated_request_data.get("service_name")
-
-        # 1.是否开启了日志
-        if ServiceLogHandler.get_log_datasource(bk_biz_id=bk_biz_id, app_name=app_name):
-            return True
-
-        # 2. 是否手动关联了日志索引集
-        if ServiceLogHandler.get_log_relations(
-            bk_biz_id=bk_biz_id, app_name=app_name, service_names=[service_name] if service_name else None
-        ):
-            return True
-
-        # 3. 是否有关联的 pod 日志
-        if not service_name:
-            return False
-
-        try:
-            if not EntitySet(bk_biz_id, app_name, [service_name]).get_workloads(service_name):
-                return False
-        except Exception:  # pylint: disable=broad-except
-            logger.exception(
-                "[LOG_INFO] workload query failed: bk_biz_id=%s, app_name=%s, service_name=%s",
-                bk_biz_id,
-                app_name,
-                service_name,
-            )
-            return False
-
-        return bool(
-            ServiceLogHandler.list_indexes_by_relation(
-                bk_biz_id=bk_biz_id,
-                app_name=app_name,
-                service_name=service_name,
-            )
-        )
+        span_id = validated_request_data.pop("span_id", None)
+        extra_info: dict[str, str] | None = {"span_id": span_id} if span_id else None
+        return bool(log_relation_list(extra_info=extra_info, **validated_request_data))
 
 
 class LogRelationListResource(Resource, HostIndexQueryMixin):

@@ -272,7 +272,20 @@ def cache_application_k8s_related_indexes() -> None:
 
                 merged_indexes[service_name] = list(index_map.values())
 
-            cache_agent.set(cache_key, compress_and_serialize(merged_indexes), timeout=24 * 60 * 60)
+            all_indexes: list[dict[str, Any]] = [
+                index for service_indexes in merged_indexes.values() for index in service_indexes
+            ]
+            index_set_count: int = len({str(index["index_set_id"]) for index in all_indexes})
+            refreshed_index_count: int = sum(index.get("updated_at") == updated_at for index in all_indexes)
+            if merged_indexes:
+                cache_agent.set(cache_key, compress_and_serialize(merged_indexes), timeout=24 * 60 * 60)
+
+            logger.info(
+                f"[CACHE_APPLICATION_K8S_RELATED_INDEXES] refresh data succeeded: "
+                f"bk_biz_id={application.bk_biz_id}, app_name={application.app_name}, "
+                f"service_count={len(merged_indexes)}, index_set_count={index_set_count}, "
+                f"refreshed_index_count={refreshed_index_count}"
+            )
         except Exception:  # noqa
             logger.exception(
                 f"[CACHE_APPLICATION_K8S_RELATED_INDEXES] refresh data failed: "

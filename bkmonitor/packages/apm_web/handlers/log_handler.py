@@ -246,15 +246,19 @@ class ServiceLogHandler:
             )
             return []
 
-    @classmethod
-    def list_tables_by_data_ids(cls, data_ids: list[int | str]) -> list[str]:
-        """通过 data_id 列表获取对应的 result_table_id 列表"""
+    @staticmethod
+    def get_data_id_rt_map(data_ids: list[int]) -> dict[int, set[str]]:
+        """获取 data_id 与 result_table_id 的映射。"""
 
         # 这里直接从 metadata 查询，是为了解决跨业务关联的场景
         # data_id -> table_id -> index_set_id
         # 这里待 metadata 有相关接口后，需要改为走 api 形式查询，去掉模块之间的依赖
         from metadata import models
 
-        return list(
-            models.DataSourceResultTable.objects.filter(bk_data_id__in=data_ids).values_list("table_id", flat=True)
-        )
+        data_id_rt_map: defaultdict[int, set[str]] = defaultdict(set)
+        for data_id, result_table_id in models.DataSourceResultTable.objects.filter(  # pyright: ignore[reportAttributeAccessIssue]
+            bk_data_id__in=data_ids
+        ).values_list("bk_data_id", "table_id"):
+            data_id_rt_map[data_id].add(result_table_id)
+
+        return dict(data_id_rt_map)
