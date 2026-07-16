@@ -35,6 +35,7 @@ class VisibleEnum:
 
 
 GLOBAL_CONFIG_BK_BIZ_ID = 0
+APM_GLOBAL_CONFIG_KEY = "APM_GLOBAL"
 # 获取需要增加事务的DB链接名
 DATABASE_CONNECTION_NAME = getattr(settings, "METADATA_DEFAULT_DATABASE_NAME", "monitor_api")
 
