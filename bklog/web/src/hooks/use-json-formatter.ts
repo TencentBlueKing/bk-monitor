@@ -75,6 +75,32 @@ export type PrecomputedSegments = Record<string, Array<{
   isNotParticiple?: boolean;
   resultRanges?: HighlightRange[];
 }>>;
+
+/** 分词点击上下文：在 show tippy 时写入，避免共享 virtual-target / taskEventManager 串台导致多次点击结果漂移 */
+type SegmentClickContext = {
+  name: string;
+  searchFieldName: string;
+  value: string;
+  depth: string;
+  segmentRole: string;
+  parsedFromJsonString: boolean;
+  rootFieldName: string;
+  rootFieldType: string;
+  isVirtualObjNode: boolean;
+  jsonValue: any;
+};
+
+let activeSegmentClickContext: SegmentClickContext | null = null;
+
+const SEGMENT_VIRTUAL_TARGET_ATTRS = [
+  'data-field-value',
+  'data-field-name',
+  'data-search-field-name',
+  'data-segment-field-name',
+  'data-field-dpth',
+  'data-segment-field-role',
+] as const;
+
 export default class UseJsonFormatter {
   editor?: JsonView;
   config: FormatterConfig;
@@ -150,7 +176,7 @@ export default class UseJsonFormatter {
       || target.getAttribute('data-search-field-name');
     let value = target.getAttribute('data-field-value');
     let depth = target.getAttribute('data-field-dpth');
-    const segmentRole = target.getAttribute('data-segment-field-role');
+    const segmentRole = target.getAttribute('data-segment-field-role') || '';
 
     if (value === undefined || value === null) {
       value = target.textContent;
@@ -174,6 +200,12 @@ export default class UseJsonFormatter {
     return { value, name, depth, searchFieldName, parsedFromJsonString, segmentRole };
   }
 
+  private clearVirtualTargetSegmentAttrs(target: HTMLElement) {
+    SEGMENT_VIRTUAL_TARGET_ATTRS.forEach((attr) => {
+      target.removeAttribute(attr);
+    });
+  }
+
   /**
    * JSON 展示树中的 value 可能来自 Object 的叶子节点，而 formatter 的根字段是
    * __ext 这样的虚拟 object。点击分词时不能再用根字段兜底，否则会把条件生成为
@@ -191,76 +223,163 @@ export default class UseJsonFormatter {
     }, value);
   }
 
-  private isJsonObjectLeaf(field: any, searchFieldName: string, parsedFromNode: boolean) {
-    if (!searchFieldName || !field?.field_name || field.field_name === searchFieldName) return false;
-    const rootField = this.config.field;
-    const isObjectRoot = rootField?.field_type === 'object' || rootField?.is_virtual_obj_node;
-    const isLeaf = field.field_type !== 'object' && field.field_type !== 'nested' && field.field_type !== '__virtual__';
-    return isLeaf && (isObjectRoot || parsedFromNode);
-  }
-
-  private getObjectLeafValue(fieldName: string, fallback: any) {
-    // Object 列的 jsonValue 通常已经是 __ext 对象本身，因此同时尝试完整路径
-    // 和去掉根字段后的相对路径；JSON String 场景则回退到当前叶子展示值。
-    const rootName = this.config.field?.field_name;
+  private getObjectLeafValueFromContext(ctx: SegmentClickContext, fieldName: string, fallback: any) {
+    const rootName = ctx.rootFieldName;
     const relativePath = rootName && fieldName.startsWith(`${rootName}.`)
       ? fieldName.slice(rootName.length + 1)
       : fieldName;
-    const rawValue = this.getPathValue(this.config.jsonValue, fieldName)
-      ?? this.getPathValue(this.config.jsonValue, relativePath);
+    const rawValue = this.getPathValue(ctx.jsonValue, fieldName)
+      ?? this.getPathValue(ctx.jsonValue, relativePath);
     return rawValue === undefined || rawValue === null ? fallback : rawValue;
   }
 
-  private getObjectLeafTokenCount(field: any, fieldName: string, fallback: any) {
-    const rawValue = this.getObjectLeafValue(fieldName, fallback);
-    const text = this.escapeString(String(rawValue ?? '')).replace(/<\/?mark>/g, '');
-    if (!text) return 0;
+  private resolveClickFullPlainValue(
+    ctx: SegmentClickContext,
+    fieldName: string,
+    field: Record<string, any> | undefined,
+    selectedValue: string,
+  ) {
+    if (['date', 'date_nanos'].includes(field?.field_type)) {
+      const raw = this.getPathValue(ctx.jsonValue, field?.field_name || fieldName)
+        ?? ctx.jsonValue?.[field?.field_name || fieldName];
+      return this.escapeString(String(raw ?? selectedValue ?? '')).replace(/<\/?mark>/g, '');
+    }
 
-    return this.getSplitList(field, text, { usePrecomputedSegments: false })
-      .filter(item => String(item.text ?? '').length > 0)
-      .length;
+    const leafValue = this.getObjectLeafValueFromContext(ctx, fieldName, undefined);
+    if (leafValue !== undefined && leafValue !== null) {
+      return this.escapeString(String(leafValue)).replace(/<\/?mark>/g, '');
+    }
+
+    // 根字段整段 VALUE（如 log / keyword 列）
+    if (!fieldName || fieldName === ctx.rootFieldName) {
+      const rootValue = typeof ctx.jsonValue === 'string' || typeof ctx.jsonValue === 'number'
+        ? ctx.jsonValue
+        : undefined;
+      if (rootValue !== undefined && rootValue !== null) {
+        return this.escapeString(String(rootValue)).replace(/<\/?mark>/g, '');
+      }
+    }
+
+    return '';
+  }
+
+  private isObjectLeafClickContext(
+    ctx: SegmentClickContext,
+    field: Record<string, any> | undefined,
+    resolvedFieldName: string,
+  ) {
+    const isObjectRoot = ctx.rootFieldType === 'object' || ctx.isVirtualObjNode;
+    const isChildPath = Boolean(
+      resolvedFieldName
+      && ctx.rootFieldName
+      && resolvedFieldName !== ctx.rootFieldName
+      && resolvedFieldName.startsWith(`${ctx.rootFieldName}.`),
+    );
+    const isLeaf = Boolean(
+      field
+      && field.field_type !== 'object'
+      && field.field_type !== 'nested'
+      && field.field_type !== '__virtual__',
+    );
+    // DOM 挂在父级 Object（name=__ext）而检索路径已解析到子叶子
+    const domIsParentObject = Boolean(
+      isObjectRoot
+      && isLeaf
+      && ctx.name
+      && resolvedFieldName
+      && ctx.name !== resolvedFieldName,
+    );
+
+    return ctx.parsedFromJsonString || isChildPath || domIsParentObject;
+  }
+
+  /**
+   * 操作符判定（多次点击必须稳定）：
+   * - KEY → contains
+   * - 命中完整 VALUE → is
+   * - 命中部分分词 → contains
+   */
+  private resolveSegmentClickOperation(
+    val: string,
+    ctx: SegmentClickContext,
+    field: Record<string, any> | undefined,
+    resolvedFieldName: string,
+    selectedValue: string,
+  ) {
+    if (ctx.segmentRole === 'key') {
+      return val === 'not' ? 'not contains match phrase' : 'contains match phrase';
+    }
+
+    if (val !== 'is' && val !== 'not') {
+      return val;
+    }
+
+    const selected = this.escapeString(String(selectedValue ?? '')).replace(/<\/?mark>/g, '').trim();
+    const fullPlain = this.resolveClickFullPlainValue(ctx, resolvedFieldName, field, selected).trim();
+
+    // Object/JSON 叶子或任意「部分命中」：完整等值用 is，否则 contains
+    if (this.isObjectLeafClickContext(ctx, field, resolvedFieldName) || (fullPlain && selected && fullPlain !== selected)) {
+      if (fullPlain && selected && fullPlain === selected) {
+        return val === 'not' ? 'is not' : 'is';
+      }
+      return val === 'not' ? 'not contains match phrase' : 'contains match phrase';
+    }
+
+    if (ctx.parsedFromJsonString) {
+      return val === 'not' ? 'not contains match phrase' : 'contains match phrase';
+    }
+
+    return val === 'not' ? 'is not' : 'is';
   }
 
   onSegmentEnumClick(val, isLink) {
-    const { name, value, depth, searchFieldName, parsedFromJsonString: parsedFromNode, segmentRole } = this.getFieldNameValue();
-    const resolvedFieldName = this.resolveFormatterSearchFieldName(name, searchFieldName);
+    // 优先使用 show tippy 时捕获的上下文，避免共享 virtual-target 残留属性 / 错误 formatter 实例污染结果
+    const fallback = this.getFieldNameValue();
+    const ctx: SegmentClickContext = activeSegmentClickContext ?? {
+      name: fallback.name ?? '',
+      searchFieldName: fallback.searchFieldName ?? '',
+      value: String(fallback.value ?? ''),
+      depth: fallback.depth ?? '',
+      segmentRole: fallback.segmentRole ?? '',
+      parsedFromJsonString: !!this.config.options?.parsedFromJsonString || !!fallback.parsedFromJsonString,
+      rootFieldName: this.config.field?.field_name ?? '',
+      rootFieldType: this.config.field?.field_type ?? '',
+      isVirtualObjNode: !!this.config.field?.is_virtual_obj_node,
+      jsonValue: this.config.jsonValue,
+    };
+
+    const resolvedFieldName = this.resolveFormatterSearchFieldName(ctx.name, ctx.searchFieldName);
     const activeField = this.getField(resolvedFieldName) ?? this.config.field;
-    const isObjectLeaf = this.isJsonObjectLeaf(activeField, resolvedFieldName, parsedFromNode);
+    const selectedValue = ctx.value;
     const target = ['date', 'date_nanos'].includes(activeField?.field_type)
-      ? this.config.jsonValue?.[activeField?.field_name]
-      : value;
+      ? (this.getPathValue(ctx.jsonValue, activeField?.field_name)
+        ?? ctx.jsonValue?.[activeField?.field_name]
+        ?? selectedValue)
+      : selectedValue;
 
-    const parsedFromJsonString = !!this.config.options?.parsedFromJsonString || parsedFromNode;
-    let operation = parsedFromJsonString
-      ? (val === 'not' ? 'not contains match phrase' : 'contains match phrase')
-      : (val === 'not' ? 'is not' : val);
-
-    // 点击 JSON KEY 时，KEY 本身不是叶子值：按“父级 KEY 包含此 KEY”生成条件。
-    // 例如点击 __ext.labels.app 的 app，生成 __ext.labels contains match phrase app；
-    // 点击 cluster，则生成 __ext contains match phrase cluster。
-    if (segmentRole === 'key') {
-      operation = val === 'not' ? 'not contains match phrase' : 'contains match phrase';
-    }
-
-    // Object 子字段按「该叶子的完整值是否只有一个分词」决定等于/包含。
-    // 例如 cluster -> [BCS,K8S,41982] 为包含；pod_uid -> 一个 token 为等于。
-    if (isObjectLeaf && (val === 'is' || val === 'not')) {
-      const tokenCount = this.getObjectLeafTokenCount(activeField, resolvedFieldName, value);
-      operation = tokenCount <= 1
-        ? (val === 'not' ? 'is not' : 'is')
-        : (val === 'not' ? 'not contains match phrase' : 'contains match phrase');
-    }
+    const operation = this.resolveSegmentClickOperation(
+      val,
+      ctx,
+      activeField,
+      resolvedFieldName,
+      selectedValue,
+    );
 
     const option = {
       fieldName: resolvedFieldName || activeField?.field_name,
       fieldType: activeField?.field_type,
       operation,
-      value: target ?? value,
-      depth,
+      value: target ?? selectedValue,
+      depth: ctx.depth,
     };
 
     this.config.onSegmentClick?.({ option, isLink });
     segmentPopInstance.hide();
+
+    // 添加/排除检索后清空选区，避免残留划选让下次点击误走划词链路
+    if (val === 'is' || val === 'not' || val === 'new-search-page-is') {
+      window.getSelection()?.removeAllRanges();
+    }
   }
 
   isValidTraceId(traceId) {
@@ -314,15 +433,32 @@ export default class UseJsonFormatter {
     const depth = valueElement?.closest('[data-depth]')?.getAttribute('data-depth')
       ?? clickTarget.closest('[data-depth]')?.getAttribute('data-depth');
 
-    target.setAttribute('data-field-value', value);
+    // 共享 virtual-target 必须先清空再写入，否则上次 KEY role / 字段路径会残留，导致同词多次点击结果漂移
+    this.clearVirtualTargetSegmentAttrs(target);
+    target.setAttribute('data-field-value', String(value ?? ''));
     target.setAttribute('data-field-name', fieldName ?? '');
-    if (searchFieldName) {
-      target.setAttribute('data-search-field-name', searchFieldName);
-      target.setAttribute('data-segment-field-name', searchFieldName);
-    }
+    target.setAttribute('data-search-field-name', searchFieldName ?? '');
+    target.setAttribute('data-segment-field-name', searchFieldName ?? '');
     target.setAttribute('data-field-dpth', depth ?? '');
-    if (segmentRole) target.setAttribute('data-segment-field-role', segmentRole);
+    if (segmentRole) {
+      target.setAttribute('data-segment-field-role', segmentRole);
+    }
 
+    activeSegmentClickContext = {
+      name: fieldName ?? '',
+      searchFieldName: searchFieldName ?? '',
+      value: String(value ?? ''),
+      depth: depth ?? '',
+      segmentRole: segmentRole ?? '',
+      parsedFromJsonString: !!this.config.options?.parsedFromJsonString
+        || clickTarget.closest('[data-json-string-parsed="true"]') != null,
+      rootFieldName: this.config.field?.field_name ?? '',
+      rootFieldType: this.config.field?.field_type ?? '',
+      isVirtualObjNode: !!this.config.field?.is_virtual_obj_node,
+      jsonValue: this.config.jsonValue,
+    };
+
+    // 再次注册当前实例回调，确保 taskEventManager.activeKey 指向本次点击的 formatter
     segmentPopInstance.show(target, this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this)));
   }
 

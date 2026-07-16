@@ -133,9 +133,17 @@ export default class UseTextSegmentation {
       ? this.options.data?.[activeField?.field_name]
       : currentValue;
 
+    const selected = this.getCellValue(currentValue);
+    const fullPlain = this.getCellValue(this.options?.content ?? '');
+    let operation = val === 'not' ? 'is not' : val;
+    // 与 JSON 分词点击一致：完整 VALUE → is；部分分词 → contains，保证同词多次点击稳定
+    if ((val === 'is' || val === 'not') && fullPlain && selected && fullPlain !== selected) {
+      operation = val === 'not' ? 'not contains match phrase' : 'contains match phrase';
+    }
+
     const option = {
       fieldName: activeField?.field_name,
-      operation: val === 'not' ? 'is not' : val,
+      operation,
       value: this.getCellValue(target ?? currentValue),
       depth,
       isNestedField,
@@ -143,6 +151,10 @@ export default class UseTextSegmentation {
 
     this.onSegmentClick?.({ option, isLink });
     segmentPopInstance.hide();
+
+    if (val === 'is' || val === 'not' || val === 'new-search-page-is') {
+      window.getSelection()?.removeAllRanges();
+    }
   }
 
   private isValidTraceId(traceId) {

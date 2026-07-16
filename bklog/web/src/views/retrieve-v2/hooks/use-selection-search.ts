@@ -192,9 +192,13 @@ export default (options: UseSelectionSearchOptions) => {
     const startElement = startNode instanceof Element ? startNode : startNode?.parentElement;
     const endElement = endNode instanceof Element ? endNode : endNode?.parentElement;
 
-    // 优先取 JSON 树绑定的完整检索路径（含 KEY.SubKey），再回退到 data-field-name
+    // 优先取分词叶子路径（Origin 未展开 JSON 时挂在 valid-text 上），
+    // 再回退 JSON 树 data-search-field-name / data-field-name。
+    // 若不优先 segment，同一次划词会因边界落在不同节点而在根字段/叶子字段之间漂移。
     return (
-      startElement?.closest?.('[data-search-field-name]')
+      startElement?.closest?.('[data-segment-field-name]')
+      ?? endElement?.closest?.('[data-segment-field-name]')
+      ?? startElement?.closest?.('[data-search-field-name]')
       ?? endElement?.closest?.('[data-search-field-name]')
       ?? startElement?.closest?.('[data-field-name]')
       ?? endElement?.closest?.('[data-field-name]')
@@ -285,11 +289,29 @@ export default (options: UseSelectionSearchOptions) => {
 
     const normalizedSelection = stripSelectionMarkup(selectionText);
 
-    return candidates.find(field => getFieldPlainText(row, field) === normalizedSelection)
-      ?? candidates.find((field) => {
-        const plainText = getFieldPlainText(row, field);
-        return Boolean(plainText) && plainText !== '--' && plainText.includes(normalizedSelection);
-      });
+    // 稳定排序后再取最优命中，避免字段池遍历顺序变化导致同词命中不同 KEY
+    const scored = candidates.map((field) => {
+      const plainText = getFieldPlainText(row, field);
+      if (!plainText || plainText === '--') {
+        return { field, score: -1 };
+      }
+      if (plainText === normalizedSelection) {
+        return { field, score: 1000 + plainText.length };
+      }
+      if (plainText.startsWith(normalizedSelection)) {
+        return { field, score: 800 + normalizedSelection.length };
+      }
+      if (plainText.includes(normalizedSelection)) {
+        return { field, score: 400 + normalizedSelection.length };
+      }
+      return { field, score: -1 };
+    }).filter(item => item.score >= 0);
+
+    scored.sort((a, b) => b.score - a.score
+      || b.field.field_name.length - a.field.field_name.length
+      || a.field.field_name.localeCompare(b.field.field_name));
+
+    return scored[0]?.field;
   };
 
   /**
@@ -451,22 +473,14 @@ export default (options: UseSelectionSearchOptions) => {
     if (isLeafQueryableField(targetField)) {
       const plainText = getFieldPlainText(row, targetField);
       const nestedFlag = resolveIsNestedSearchField(targetField.field_name, row);
-      const parentPath = getParentFieldPath(targetField.field_name);
-      const isMappedChildLeaf = Boolean(
-        parentPath
-        && (hasMappedChildFields(parentPath) || isStructField(getFieldByName(parentPath))),
-      );
 
-      if (plainText === selectionText || isMappedChildLeaf) {
+      // 与点击分词 / resolveFieldSelectionOperator 对齐：完整 VALUE → is，否则 contains。
+      // 禁止再对 mapped child 无条件 is，否则同词多次划选会在等于/包含间漂移。
+      if (plainText === selectionText) {
         return buildTarget(targetField, targetField.field_name, 'is', nestedFlag);
       }
 
-      if (!hasMappedChildFields(targetField.field_name)) {
-        const operator = targetField.field_type === 'text' ? 'is' : 'contains match phrase';
-        return buildTarget(targetField, targetField.field_name, operator, nestedFlag);
-      }
-
-      return buildTarget(targetField, targetField.field_name, 'is', nestedFlag);
+      return buildTarget(targetField, targetField.field_name, 'contains match phrase', nestedFlag);
     }
 
     if (isStructField(targetField)) {
@@ -569,13 +583,17 @@ export default (options: UseSelectionSearchOptions) => {
   };
 
   const resolveFieldPathFromElement = (el: HTMLElement) => {
+    const segmentPath = el.getAttribute('data-segment-field-name')
+      ?? el.closest?.('[data-segment-field-name]')?.getAttribute('data-segment-field-name')
+      ?? '';
     const searchPath = el.getAttribute('data-search-field-name')
       ?? el.closest?.('[data-search-field-name]')?.getAttribute('data-search-field-name')
       ?? '';
     const fieldPath = el.getAttribute('data-field-name')
       ?? el.closest?.('[data-field-name]')?.getAttribute('data-field-name')
       ?? '';
-    return searchPath || fieldPath;
+    // 分词叶子路径优先，避免未展开 JSON 场景下始终回落到根字段（如 __ext）
+    return segmentPath || searchPath || fieldPath;
   };
 
   /**
@@ -948,7 +966,8 @@ export default (options: UseSelectionSearchOptions) => {
   const resolveStringFieldContext = (range: Range, row: Record<string, any>) => {
     const targetElement = getSelectionAnchorElement(range);
     const candidatePath = normalizeArrayFieldPath(
-      targetElement?.getAttribute('data-search-field-name')
+      targetElement?.getAttribute('data-segment-field-name')
+      ?? targetElement?.getAttribute('data-search-field-name')
       ?? targetElement?.getAttribute('data-field-name')
       ?? '',
     );
@@ -1234,6 +1253,8 @@ export default (options: UseSelectionSearchOptions) => {
 
     // 相交到 object/nested 父节点，且有效叶子不足时，按 VALUE/完整 KV 回落。
     // 已解析出 KV 时必须以 KEY 唯一解析结果为准，禁止再按 VALUE 扩散到同值字段。
+    // 注意：部分 VALUE 命中时必须带上 selection 原文，不能直接塞完整 plain，
+    // 否则同词（如 lobby）会因命中多个同值字段而每次 KEY/operator 不一致。
     if (!kvPairs.length && conditions.length < 2) {
       uniquePaths.forEach((path) => {
         const field = getFieldByName(path);
@@ -1250,8 +1271,12 @@ export default (options: UseSelectionSearchOptions) => {
               new RegExp(`"${escapedKey}"\\s*:\\s*"`).test(selectionText)
               || new RegExp(`(?:^|[\\s|{[,])${escapedKey}\\s*:\\s*\\S+`).test(selectionText)
             );
-          if (valueHit || completeKvHit) {
+          if (completeKvHit) {
             pushFieldValue(child, plain);
+            return;
+          }
+          if (valueHit) {
+            pushFieldValue(child, getSelectedFieldValue(child) || selectionText);
           }
         });
       });
@@ -1389,9 +1414,80 @@ export default (options: UseSelectionSearchOptions) => {
     });
   };
 
+  /**
+   * 单分词划选：若 Range 只命中一个带 data-segment-field-name 的叶子，直接按该路径解析。
+   * 避免未展开 JSON 时回落到根字段后再按 VALUE 反查，导致同词多次 KEY 漂移。
+   */
+  const resolveSingleSegmentLeafCondition = (
+    range: Range,
+    row: Record<string, any>,
+    selectionText: string,
+  ): SelectionCondition[] => {
+    const startNode = range.startContainer as Node;
+    const endNode = range.endContainer as Node;
+    const startEl = (startNode instanceof Element ? startNode : startNode.parentElement);
+    const endEl = (endNode instanceof Element ? endNode : endNode.parentElement);
+    const startSegment = startEl?.closest?.('[data-segment-field-name]') as HTMLElement | null;
+    const endSegment = endEl?.closest?.('[data-segment-field-name]') as HTMLElement | null;
+    const startPath = startSegment?.getAttribute('data-segment-field-name') ?? '';
+    const endPath = endSegment?.getAttribute('data-segment-field-name') ?? '';
+
+    if (!startPath || !endPath || startPath !== endPath) {
+      return [];
+    }
+
+    const segmentRole = startSegment?.getAttribute('data-segment-field-role')
+      || endSegment?.getAttribute('data-segment-field-role')
+      || '';
+    const field = getFieldByName(startPath);
+    const parentPath = getParentFieldPath(startPath);
+    const parentField = getFieldByName(parentPath);
+
+    // KEY 分词：父级字段 contains KEY 文本
+    if (segmentRole === 'key') {
+      const keyField = isLeafQueryableField(parentField)
+        ? parentField
+        : (parentPath ? { field_name: parentPath, field_type: 'object' } : undefined);
+      const conditionField = keyField?.field_name || parentPath || startPath;
+      if (!conditionField) {
+        return [];
+      }
+      const nestedFlag = resolveIsNestedSearchField(conditionField, row);
+      return [{
+        field: conditionField,
+        operator: 'contains match phrase',
+        value: [selectionText],
+        depth: getFieldPathDepth(conditionField),
+        isNestedField: nestedFlag ? 'true' : 'false',
+      }];
+    }
+
+    if (!isLeafQueryableField(field)) {
+      return [];
+    }
+
+    const plain = getFieldPlainText(row, field);
+    const nestedFlag = resolveIsNestedSearchField(field.field_name, row);
+    const operator = plain === selectionText ? 'is' : 'contains match phrase';
+    return [{
+      field: field.field_name,
+      operator,
+      value: [selectionText],
+      depth: getFieldPathDepth(field.field_name),
+      isNestedField: nestedFlag ? 'true' : 'false',
+    }];
+  };
+
   const addSelectionToCurrentSearch = (selectionRange: Range, row: Record<string, any>) => {
     const selectionText = getSelectionTextByRange(selectionRange);
     if (!selectionText) {
+      return;
+    }
+
+    // 单叶子分词命中：路径与操作符一次定死，避免后续分支因 DOM 边界抖动而漂移
+    const singleSegmentConditions = resolveSingleSegmentLeafCondition(selectionRange, row, selectionText);
+    if (singleSegmentConditions.length) {
+      applySelectionConditions(singleSegmentConditions);
       return;
     }
 
@@ -1491,12 +1587,6 @@ export default (options: UseSelectionSearchOptions) => {
 
       const plainText = field ? getFieldPlainText(row, field) : '';
       const nestedFlag = field ? resolveIsNestedSearchField(field.field_name, row) : false;
-      const parentPath = field ? getParentFieldPath(field.field_name) : '';
-      const isMappedChildLeaf = Boolean(
-        field
-        && parentPath
-        && (hasMappedChildFields(parentPath) || isStructField(getFieldByName(parentPath))),
-      );
       // 单 token VALUE：不把 messa 补成整段 /var/log/messages
       const isSingleTokenField = Boolean(field && getFieldCursorTokens(row, field).length <= 1);
       const useRawSelection = Boolean(
@@ -1517,16 +1607,14 @@ export default (options: UseSelectionSearchOptions) => {
       } else if (field && isLeafQueryableField(field) && plainText === token.text) {
         operator = 'is';
         conditionField = field.field_name;
-      } else if (field && isLeafQueryableField(field) && isMappedChildLeaf) {
-        operator = 'is';
-        conditionField = field.field_name;
       } else if (
         field
         && isLeafQueryableField(field)
         && !hasMappedChildFields(field.field_name)
         && plainText.includes(token.text)
       ) {
-        operator = field.field_type === 'text' ? 'is' : 'contains match phrase';
+        // 部分分词统一 contains，避免同词多次在 is/contains 间漂移
+        operator = 'contains match phrase';
         conditionField = field.field_name;
       }
 

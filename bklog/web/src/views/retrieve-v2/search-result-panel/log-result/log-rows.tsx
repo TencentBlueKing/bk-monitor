@@ -208,7 +208,12 @@ export default defineComponent({
         }
         popInstanceUtil.hide();
 
-        if (savedSelection) {
+        // 添加到检索后必须清空选区：若还原划选，下次点击会被判定为“点在选区上”
+        // 从而误走划词链路，表现为同词多次操作 KEY/操作符漂移。
+        if (type === 'is' || type === 'not' || type === 'new-search-page-is') {
+          window.getSelection()?.removeAllRanges();
+          savedSelection = null;
+        } else if (savedSelection) {
           const selection = window.getSelection();
           selection.removeAllRanges();
           selection.addRange(savedSelection);
