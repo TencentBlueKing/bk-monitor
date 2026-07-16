@@ -37,11 +37,14 @@ from apps.api import (
     BkDataMetaApi,
     TransferApi,
 )
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import NEW_CLASS_ALERT_NEW_SERIES
 from apps.log_clustering.constants import (
     AGGS_FIELD_PREFIX,
     DEFAULT_NEW_CLS_HOURS,
     NOT_NEED_EDIT_NODES,
     PatternEnum,
+    SIGNATURE_FIELD,
     StorageTypeEnum,
 )
 from apps.log_clustering.exceptions import (
@@ -1626,9 +1629,27 @@ class DataFlowHandler(BaseAiopsHandler):
         return logical_physical_map
 
     @classmethod
+    def _build_clustered_signature_alias_setting(
+        cls, clustering_config: ClusteringConfig, logical_physical_map: dict | None = None
+    ) -> dict:
+        """
+        聚类结果表 signature 读别名：query_alias=signature -> 物理字段 __dist_{pattern_level}
+        供 NewSeries agg_dimension / 页面展示使用。在线路已统一为单敏感度 LEVEL_05。
+        """
+        dist_logical = f"{AGGS_FIELD_PREFIX}_{PatternEnum.LEVEL_05.value}"
+        if logical_physical_map is not None:
+            field_name = logical_physical_map.get(dist_logical, dist_logical.lower())
+        else:
+            field_name = dist_logical
+        return {"field_name": field_name, "query_alias": SIGNATURE_FIELD}
+
+    @classmethod
     def _build_clustered_doris_alias_settings(cls, index_set: LogIndexSet, clustering_config: ClusteringConfig) -> list:
         logical_physical_map = cls._build_clustered_doris_logical_physical_map(clustering_config)
-        fixed_alias_settings = [{"field_name": DEFAULT_TIME_FIELD.lower(), "query_alias": DEFAULT_TIME_FIELD}]
+        fixed_alias_settings = [
+            {"field_name": DEFAULT_TIME_FIELD.lower(), "query_alias": DEFAULT_TIME_FIELD},
+            cls._build_clustered_signature_alias_setting(clustering_config, logical_physical_map),
+        ]
 
         inherited_alias_settings = []
         for alias_setting in index_set.query_alias_settings or []:
@@ -1715,8 +1736,17 @@ class DataFlowHandler(BaseAiopsHandler):
                 clustering_config.clustered_rt,
             ),
         }
-        if index_set.query_alias_settings:
-            route_params["query_alias_settings"] = copy.deepcopy(index_set.query_alias_settings)
+        signature_alias = cls._build_clustered_signature_alias_setting(clustering_config)
+        merged_alias_settings = []
+        seen_query_alias = set()
+        for alias_setting in (signature_alias, *(index_set.query_alias_settings or [])):
+            query_alias = alias_setting.get("query_alias")
+            if not query_alias or query_alias in seen_query_alias:
+                continue
+            seen_query_alias.add(query_alias)
+            merged_alias_settings.append(copy.deepcopy(alias_setting))
+        if merged_alias_settings:
+            route_params["query_alias_settings"] = merged_alias_settings
         return route_params
 
     @classmethod
@@ -1879,6 +1909,7 @@ class DataFlowHandler(BaseAiopsHandler):
         bk_biz_id: int,
         index_set_id: int,
         clustering_config: ClusteringConfig,
+        include_agg: bool = True,
     ):
         """
         初始化 create_log_count_aggregation_flow
@@ -1897,6 +1928,7 @@ class DataFlowHandler(BaseAiopsHandler):
             log_count_signatures=log_count_signatures,
             table_name_no_id=table_name_no_id,
             result_table_id=result_table_id,
+            include_agg=include_agg,
             agg=RealTimeCls(
                 fields="",
                 table_name=f"bklog_{index_set_id}_agg",
@@ -1924,6 +1956,20 @@ class DataFlowHandler(BaseAiopsHandler):
 
         return log_count_aggregation_flow
 
+    @staticmethod
+    def _should_include_log_count_agg(clustering_config: ClusteringConfig) -> bool:
+        """存量 IntelligentDetect 或灰度关闭时保留日志数量聚合分支。"""
+        if clustering_config.new_cls_strategy_output or clustering_config.new_cls_pattern_rt:
+            return True
+        flow_config = clustering_config.log_count_aggregation_flow or {}
+        if flow_config.get("include_agg") is False:
+            return False
+        return not FeatureToggleObject.switch(
+            NEW_CLASS_ALERT_NEW_SERIES,
+            biz_id=clustering_config.bk_biz_id,
+            default=True,
+        )
+
     def create_log_count_aggregation_flow(self, index_set_id):
         """
         create_log_count_aggregation_flow
@@ -1933,12 +1979,14 @@ class DataFlowHandler(BaseAiopsHandler):
         clustering_config = ClusteringConfig.get_by_index_set_id(index_set_id=index_set_id)
         self.conf = get_online_clustering_config(clustering_config.bk_biz_id)
         result_table_id = clustering_config.predict_flow["clustering_predict"]["result_table_id"]
+        include_agg = self._should_include_log_count_agg(clustering_config)
         log_count_aggregation_flow_dict = asdict(
             self._init_log_count_aggregation_flow(
                 result_table_id=result_table_id,
                 bk_biz_id=clustering_config.bk_biz_id,  # 当前业务id
                 index_set_id=clustering_config.index_set_id,
                 clustering_config=clustering_config,
+                include_agg=include_agg,
             )
         )
         log_count_aggregation_flow = self._render_template(
@@ -1958,7 +2006,9 @@ class DataFlowHandler(BaseAiopsHandler):
 
         clustering_config.log_count_aggregation_flow = log_count_aggregation_flow_dict
         clustering_config.log_count_aggregation_flow_id = result["flow_id"]
-        clustering_config.new_cls_pattern_rt = log_count_aggregation_flow_dict["agg"]["result_table_id"]
+        clustering_config.new_cls_pattern_rt = (
+            log_count_aggregation_flow_dict["agg"]["result_table_id"] if include_agg else ""
+        )
         clustering_config.signature_pattern_rt = log_count_aggregation_flow_dict["pattern"]["result_table_id"]
         clustering_config.save()
         return result
