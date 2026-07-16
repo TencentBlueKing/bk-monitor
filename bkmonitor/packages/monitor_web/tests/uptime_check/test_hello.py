@@ -7,3 +7,13 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
+from monitor_web.uptime_check.constants import UPTIME_CHECK_DB, UPTIME_DATA_SOURCE_LABEL
+
+
+class TestUptimeCheckConstants:
+    def test_uptime_check_db_constant(self):
+        assert UPTIME_CHECK_DB == "uptimecheck"
+
+    def test_uptime_data_source_label(self):
+        assert UPTIME_DATA_SOURCE_LABEL == "bk_monitor"
