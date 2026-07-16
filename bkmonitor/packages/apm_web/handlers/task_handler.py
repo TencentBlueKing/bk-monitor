@@ -33,7 +33,7 @@ class ServiceLogTaskHandler:
 
     QUERY_TIME_RANGE_SECONDS = 30 * 60
     QUERY_CHUNK_SIZE = 5
-    QUERY_CONCURRENCY_PER_PATH = 2
+    QUERY_CONCURRENCY_PER_PATH = 4
 
     WORKLOAD_SOURCE_TYPE_MAP: dict[str, type[Source]] = {
         "Deployment": SourceK8sDeployment,
