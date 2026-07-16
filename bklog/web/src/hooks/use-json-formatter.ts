@@ -125,7 +125,13 @@ export default class UseJsonFormatter {
 
   getField(fieldName: string) {
     if (!fieldName) return undefined;
-    return this.config.fields.find(item => item.field_name === fieldName);
+    const matched = this.config.fields?.find?.(item => item.field_name === fieldName);
+    if (matched) return matched;
+    // 动态新增 Visible 字段时，fields 列表可能尚未同步；根字段绑定始终可用
+    if (this.config.field?.field_name === fieldName) {
+      return this.config.field;
+    }
+    return undefined;
   }
 
   /**
@@ -690,7 +696,9 @@ export default class UseJsonFormatter {
     for (const element of target.querySelectorAll(valueSelector)) {
       if (!element.getAttribute('data-has-word-split')) {
         const text = textValue ?? element.textContent;
-        const field = this.getField(fieldName);
+        // getField 已含根字段回退；此处再兜底一次，避免动态 Visible 时 Object 整段不分词
+        const field = this.getField(fieldName)
+          ?? (this.config.field?.field_name === fieldName || !fieldName ? this.config.field : undefined);
         const vlaues = this.getSplitList(field, text);
         const targetElement = element as HTMLElement;
 
@@ -700,7 +708,7 @@ export default class UseJsonFormatter {
         if (fieldName) {
           targetElement.setAttribute('data-search-field-name', fieldName);
         }
-        targetElement.setAttribute('data-field-type', field?.field_type);
+        targetElement.setAttribute('data-field-type', field?.field_type ?? '');
 
         if (targetElement.hasAttribute('data-with-intersection')) {
           targetElement.style.setProperty('min-height', [targetElement.offsetHeight, 'px'].join(''));

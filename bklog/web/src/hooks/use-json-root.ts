@@ -53,9 +53,16 @@ type RootField = {
   };
 };
 
-export default ({ fields, onSegmentClick, onSegmentRenderUpdate }) => {
+export default ({ fields: initialFields, onSegmentClick, onSegmentRenderUpdate }) => {
   const rootFieldOperator = new Map<string, RootFieldOperator>();
   let initEditPromise: Promise<any>;
+  // json-formatter 仅在 setup 时传入 fieldList 快照；后续 Visible 增删字段必须随 rootList 同步，
+  // 否则新增 Object 字段 getField 失败，分词会退化成整段 JSON。
+  let fields = Array.isArray(initialFields) ? initialFields : [];
+
+  const syncFieldsFromRootList = (rootFieldList: RootField[]) => {
+    fields = rootFieldList.map(item => item.formatter.field).filter(Boolean);
+  };
 
   const buildFormatterConfig = (value: RootFieldOperator) => ({
     target: value.ref,
@@ -127,6 +134,8 @@ export default ({ fields, onSegmentClick, onSegmentRenderUpdate }) => {
   };
 
   const updateRootFieldOperator = (rootFieldList: RootField[], depth: number) => {
+    syncFieldsFromRootList(rootFieldList);
+
     for (const fieldItem of rootFieldList) {
       const { name, formatter } = fieldItem;
       if (rootFieldOperator.has(name)) {
