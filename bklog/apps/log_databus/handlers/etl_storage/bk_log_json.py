@@ -20,6 +20,7 @@ the project delivered to anyone in the future.
 """
 
 import copy
+import json
 
 from apps.log_databus.constants import DORIS_CLUSTER_TYPE, EtlConfig, STORAGE_CLUSTER_TYPE
 from apps.log_databus.handlers.etl_storage import EtlStorage
@@ -277,9 +278,22 @@ class BkLogJsonEtlStorage(EtlStorage):
 
         return data_link_config
 
+    @staticmethod
+    def _decode_transfer_field_name(field_name):
+        """还原 Transfer 为表达字面字段名而保存的 JSON 字符串。"""
+        if not isinstance(field_name, str) or not field_name.startswith('"') or not field_name.endswith('"'):
+            return field_name
+
+        try:
+            decoded_field_name = json.loads(field_name)
+        except json.JSONDecodeError:
+            return field_name
+
+        return decoded_field_name if isinstance(decoded_field_name, str) else field_name
+
     def _to_bkdata_assign_json(self, field):
         alias_name = field.get("alias_name")
-        field_name = field.get("field_name")
+        field_name = self._decode_transfer_field_name(field.get("field_name"))
         return {
             "key": field_name,
             "assign_to": alias_name if alias_name else field_name,
