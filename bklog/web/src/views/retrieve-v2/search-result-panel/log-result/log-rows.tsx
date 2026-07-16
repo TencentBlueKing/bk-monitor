@@ -149,11 +149,21 @@ export default defineComponent({
 
     const fullColumns = ref([]);
     const showCtxType = ref(props.contentType);
+    /**
+     * 划词「添加到本次检索」入口。
+     *
+     * enableMinimalTokenCompletion（默认 true / DEFAULT_ENABLE_MINIMAL_TOKEN_COMPLETION）：
+     * - true：Value 按渲染分词补齐到最小可检索单位（lob→lobby；lobby-178→lobby + 17841059990）
+     * - false：Value 直接使用完整划选原文 selectionText，不做最小分词补齐
+     *
+     * 关闭示例：useSelectionSearch({ ..., enableMinimalTokenCompletion: false })
+     */
     const { stripSelectionMarkup, getFieldByName, addSelectionToCurrentSearch } = useSelectionSearch({
       handleAddCondition,
       getObjectValue,
       fullColumns,
       showCtxType,
+      // enableMinimalTokenCompletion: false, // 如需关闭最小分词补齐、直接使用 selectionText，取消注释
     });
 
     const setSelectionPopTargetHandler = (rect: DOMRect) => {
