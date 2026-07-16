@@ -513,19 +513,18 @@ export default (options: UseSelectionSearchOptions) => {
       }
 
       // 1) 优先：相对完整 VALUE 的 Lucene 分词做相交补齐（与渲染/检索边界一致）
+      // 单 token 也要补齐：Repl → ReplicaSet；多 token：0a2bddc9-5 → [0a2bddc9, 5657]
       const luceneTokens = getFieldLuceneTokens(row, field);
-      const luceneCursorCount = luceneTokens.filter(token => token.isCursorText && token.text).length;
-      if (luceneCursorCount > 1) {
+      if (luceneTokens.some(token => token.isCursorText && token.text)) {
         const minimal = extractMinimalIntersectingCursorTokens(raw, luceneTokens);
         if (minimal.length) {
           return minimal.map(token => token.text);
         }
       }
 
-      // 2) 回退：展示层多分词（analyzed 等）
+      // 2) 回退：展示层分词（analyzed / 预分词等）
       const fieldTokens = getFieldSegmentTokens(row, field);
-      const displayCursorCount = fieldTokens.filter(token => token.isCursorText && token.text).length;
-      if (displayCursorCount > 1) {
+      if (fieldTokens.some(token => token.isCursorText && token.text)) {
         const minimal = extractMinimalIntersectingCursorTokens(raw, fieldTokens);
         if (minimal.length) {
           return minimal.map(token => token.text);
@@ -1196,6 +1195,17 @@ export default (options: UseSelectionSearchOptions) => {
       }];
     }
 
+    // JSON 树跨 KEY:VALUE 划选（如 rkload_type:Replic）时，selection 不在 VALUE 内，
+    // 留给后续 KV 分支只解析冒号后的 VALUE，避免把 key:value 整段当 String contains。
+    if (
+      plain
+      && plain !== '--'
+      && !plain.includes(selectionText)
+      && /[A-Za-z0-9_.-]+\s*:\s*\S/.test(selectionText)
+    ) {
+      return [];
+    }
+
     const values = resolveSelectionValues(selectionText, field, row);
     return values.map(token => ({
       ...base,
@@ -1545,6 +1555,18 @@ export default (options: UseSelectionSearchOptions) => {
       return [];
     }
 
+    // JSON 树行容器同时挂了 data-segment-field-name，跨 KEY/VALUE 划选时 start/end
+    // 会落在同一 row 上。若继续走本分支，会把行 textContent
+    // （如 io_kubernetes_workload_type:ReplicaSet）误当成 Value。
+    // 此类场景交给后续 KV 解析（key:value → 仅补齐 VALUE）。
+    const startInJsonKey = Boolean(startEl?.closest?.('.bklog-json-view-field'));
+    const endInJsonKey = Boolean(endEl?.closest?.('.bklog-json-view-field'));
+    const startInJsonValue = Boolean(startEl?.closest?.('.bklog-json-field-value, .bklog-json-view-node'));
+    const endInJsonValue = Boolean(endEl?.closest?.('.bklog-json-field-value, .bklog-json-view-node'));
+    if ((startInJsonKey && endInJsonValue) || (startInJsonValue && endInJsonKey)) {
+      return [];
+    }
+
     const segmentRole = startSegment?.getAttribute('data-segment-field-role')
       || endSegment?.getAttribute('data-segment-field-role')
       || '';
@@ -1594,19 +1616,22 @@ export default (options: UseSelectionSearchOptions) => {
     }
 
     // 最小分词：相对完整 VALUE 的 Lucene 边界补齐（0a2bddc9-5 → 0a2bddc9 + 5657）
-    // 若 Lucene 未命中且划选落在单一 valid-text 内，再回退该节点全文（lob → lobby）
+    // 若 Lucene 未命中且划选落在同一 .valid-text 内，再回退该节点全文（lob → lobby）。
+    // 注意：不能用 row/[data-segment-field-name] 的 textContent（含 KEY:VALUE）。
     let values = enableMinimalTokenCompletion
       ? resolveSelectionValues(selectionText, field, row)
       : [selectionText];
 
+    const startValidText = startEl?.closest?.('.valid-text') as HTMLElement | null;
+    const endValidText = endEl?.closest?.('.valid-text') as HTMLElement | null;
     if (
       enableMinimalTokenCompletion
       && values.length === 1
       && values[0] === selectionText
-      && startSegment
-      && startSegment === endSegment
+      && startValidText
+      && startValidText === endValidText
     ) {
-      const segmentText = stripSelectionMarkup(startSegment.textContent ?? '').trim();
+      const segmentText = stripSelectionMarkup(startValidText.textContent ?? '').trim();
       if (segmentText && segmentText !== selectionText && segmentText.includes(selectionText)) {
         values = [segmentText];
       }
