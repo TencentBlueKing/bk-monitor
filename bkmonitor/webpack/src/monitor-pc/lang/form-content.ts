@@ -72,7 +72,7 @@ export default {
   告警流控: 'Alarm flow control',
   事件忽略: 'Ignore related event',
   套餐: 'Package',
-  '大于 {0} 个新增维度值': 'Greater than {0} new dimension values',
+  '大于 {0}': 'Greater than {0}',
 
   // "[功能名称] (enable)"
   是否开启通知: 'Notify (enable)',
