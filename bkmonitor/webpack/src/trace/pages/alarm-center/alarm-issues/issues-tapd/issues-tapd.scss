@@ -1,0 +1,52 @@
+.issues-tapd {
+  .issues-tapd-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+    width: 100%;
+    height: 100%;
+
+    .issues-tapd-loading-mask {
+      width: 100%;
+      height: 100%;
+      background-color: #fff;
+      opacity: 0.9;
+    }
+
+    .issues-tapd-loading-content {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 39px 36px;
+      background-color: #fff;
+      border-radius: 6px;
+      box-shadow: 0 6px 20px 0 #1a2e4d24;
+      transform: translate(-50%, -50%);
+
+      .loading-spin {
+        width: 32px;
+        height: 32px;
+        margin-bottom: 18px;
+      }
+
+      .loading-title {
+        margin-bottom: 18px;
+        font-size: 16px;
+        font-weight: 500;
+        line-height: 24px;
+        color: #1f2938;
+      }
+
+      .loading-desc {
+        font-size: 13px;
+        line-height: 20px;
+        color: #6e7a8f;
+      }
+    }
+  }
+}

@@ -206,22 +206,34 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
     # ------------------------------------------------------------------
 
     def _get_result_table_index_set_map(self, result_table_ids: list[str]) -> dict[str, int]:
-        """将当前空间及其关联空间内的结果表映射为索引集。"""
-        result_table_ids = {result_table_id for result_table_id in result_table_ids if result_table_id}
-        if not result_table_ids:
-            return {}
+        """构建结果表到索引集的映射：虚拟表直接解析，普通表查询当前及关联空间。"""
+        result_table_index_set_map = {}
+        physical_result_table_ids = set()
+
+        data_label_prefix = "bklog_index_set_"
+        for result_table_id in result_table_ids:
+            if result_table_id.startswith(data_label_prefix):
+                try:
+                    index_set_id = result_table_id.removeprefix(data_label_prefix).split("_", 1)[0]
+                    result_table_index_set_map[result_table_id] = int(index_set_id)
+                    continue
+                except ValueError:
+                    pass
+            physical_result_table_ids.add(result_table_id)
 
         space_uids = IndexSetHandler.get_all_related_space_uids(self.space_uid)
         index_set_ids = LogIndexSet.objects.filter(space_uid__in=space_uids, is_group=False).values_list(
             "index_set_id", flat=True
         )
-        return dict(
+        result_table_index_set_map.update(
             LogIndexSetData.objects.filter(
                 index_set_id__in=index_set_ids,
-                result_table_id__in=result_table_ids,
+                result_table_id__in=physical_result_table_ids,
                 type=IndexSetDataType.RESULT_TABLE.value,
             ).values_list("result_table_id", "index_set_id")
         )
+
+        return result_table_index_set_map
 
     def _deal_query_result(self, result_dict: dict, add_index_set_id: bool = False) -> dict:
         log_list = []

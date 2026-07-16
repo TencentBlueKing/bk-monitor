@@ -2,7 +2,6 @@ import datetime
 
 import pytest
 from django.utils import timezone
-from rest_framework.exceptions import ValidationError
 
 from metadata import models
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
@@ -81,7 +80,6 @@ def route_storage_records(mocker):
     mocker.patch.object(SpaceTableIDRedis, "push_space_table_ids")
     mocker.patch.object(SpaceTableIDRedis, "push_table_id_detail")
     mocker.patch.object(SpaceTableIDRedis, "push_data_label_table_ids")
-    mocker.patch("metadata.resources.log_datalink.push_and_publish_es_aliases")
     return entity
 
 
@@ -210,7 +208,7 @@ def test_single_virtual_route_can_switch_es_to_doris_and_back(route_storage_reco
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_bulk_switch_creates_missing_virtual_target_storage(route_storage_records):
+def test_bulk_switch_does_not_inherit_origin_from_es_storage(route_storage_records):
     create_virtual_es_route()
     models.ResultTable.objects.filter(bk_tenant_id=TENANT_ID, table_id=ENTITY_TABLE_ID).update(
         default_storage=models.ClusterInfo.TYPE_DORIS
@@ -238,7 +236,7 @@ def test_bulk_switch_creates_missing_virtual_target_storage(route_storage_record
             {
                 "table_id": VIRTUAL_TABLE_ID,
                 "storage_type": models.ClusterInfo.TYPE_DORIS,
-                # 切换时允许沿已有 ES 路由继承 origin_table_id。
+                "cluster_id": DORIS_CLUSTER_ID,
                 "bkbase_table_id": "99101_bklog_virtual",
                 "index_set": "virtual_doris",
                 "source_type": "bkdata",
@@ -249,7 +247,7 @@ def test_bulk_switch_creates_missing_virtual_target_storage(route_storage_record
     virtual_rt = models.ResultTable.objects.get(bk_tenant_id=TENANT_ID, table_id=VIRTUAL_TABLE_ID)
     virtual_doris = models.DorisStorage.objects.get(bk_tenant_id=TENANT_ID, table_id=VIRTUAL_TABLE_ID)
     assert virtual_rt.default_storage == models.ClusterInfo.TYPE_DORIS
-    assert virtual_doris.origin_table_id == ENTITY_TABLE_ID
+    assert virtual_doris.origin_table_id in (None, "")
     assert virtual_doris.storage_cluster_id == DORIS_CLUSTER_ID
     assert not models.StorageClusterRecord.objects.filter(
         bk_tenant_id=TENANT_ID,
@@ -321,13 +319,13 @@ def test_bulk_create_and_update_virtual_route_with_options(route_storage_records
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_route_cluster_mismatch_rolls_back_alias_and_storage_switch(route_storage_records):
+def test_invalid_target_cluster_rolls_back_alias_and_storage_switch(route_storage_records):
     create_virtual_es_route()
     models.ResultTable.objects.filter(bk_tenant_id=TENANT_ID, table_id=ENTITY_TABLE_ID).update(
         default_storage=models.ClusterInfo.TYPE_DORIS
     )
 
-    with pytest.raises(ValidationError, match="does not match origin storage cluster"):
+    with pytest.raises(ValueError, match="Doris.*配置有误"):
         CreateOrUpdateLogRouter().request(
             bk_tenant_id=TENANT_ID,
             space_type="bkcc",
@@ -349,41 +347,77 @@ def test_route_cluster_mismatch_rolls_back_alias_and_storage_switch(route_storag
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_entity_storage_and_current_record_mismatch_rejects_virtual_switch(route_storage_records):
+def test_entity_current_record_mismatch_does_not_block_virtual_switch(route_storage_records):
     create_virtual_es_route()
     models.ResultTable.objects.filter(bk_tenant_id=TENANT_ID, table_id=ENTITY_TABLE_ID).update(
         default_storage=models.ClusterInfo.TYPE_DORIS
     )
 
-    with pytest.raises(ValidationError, match="current storage record.*does not match"):
-        CreateOrUpdateLogRouter().request(
-            bk_tenant_id=TENANT_ID,
-            space_type="bkcc",
-            space_id=SPACE_ID,
-            table_id=VIRTUAL_TABLE_ID,
-            storage_type=models.ClusterInfo.TYPE_DORIS,
-            origin_table_id=ENTITY_TABLE_ID,
-        )
+    CreateOrUpdateLogRouter().request(
+        bk_tenant_id=TENANT_ID,
+        space_type="bkcc",
+        space_id=SPACE_ID,
+        table_id=VIRTUAL_TABLE_ID,
+        storage_type=models.ClusterInfo.TYPE_DORIS,
+        origin_table_id=ENTITY_TABLE_ID,
+    )
 
     virtual_rt = models.ResultTable.objects.get(bk_tenant_id=TENANT_ID, table_id=VIRTUAL_TABLE_ID)
-    assert virtual_rt.default_storage == models.ClusterInfo.TYPE_ES
-    assert not models.DorisStorage.objects.filter(bk_tenant_id=TENANT_ID, table_id=VIRTUAL_TABLE_ID).exists()
+    virtual_doris = models.DorisStorage.objects.get(bk_tenant_id=TENANT_ID, table_id=VIRTUAL_TABLE_ID)
+    assert virtual_rt.default_storage == models.ClusterInfo.TYPE_DORIS
+    assert virtual_doris.storage_cluster_id == DORIS_CLUSTER_ID
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_create_virtual_route_requires_origin_table(route_storage_records):
-    invalid_table_id = "99101_bklog.missing_origin"
+def test_create_direct_es_route_without_origin_table(route_storage_records):
+    table_id = "99101_bklog.direct_es"
 
-    with pytest.raises(ValidationError, match="must reference an origin result table"):
-        CreateOrUpdateLogRouter().request(
-            bk_tenant_id=TENANT_ID,
-            space_type="bkcc",
-            space_id=SPACE_ID,
-            table_id=invalid_table_id,
-            storage_type=models.ClusterInfo.TYPE_ES,
-        )
+    CreateOrUpdateLogRouter().request(
+        bk_tenant_id=TENANT_ID,
+        space_type="bkcc",
+        space_id=SPACE_ID,
+        table_id=table_id,
+        storage_type=models.ClusterInfo.TYPE_ES,
+        cluster_id=ES_CLUSTER_ID,
+        index_set="direct_es",
+    )
 
-    assert not models.ResultTable.objects.filter(bk_tenant_id=TENANT_ID, table_id=invalid_table_id).exists()
+    result_table = models.ResultTable.objects.get(bk_tenant_id=TENANT_ID, table_id=table_id)
+    es_storage = models.ESStorage.objects.get(bk_tenant_id=TENANT_ID, table_id=table_id)
+    assert result_table.default_storage == models.ClusterInfo.TYPE_ES
+    assert es_storage.origin_table_id in (None, "")
+    assert es_storage.storage_cluster_id == ES_CLUSTER_ID
+    assert not models.StorageClusterRecord.objects.filter(bk_tenant_id=TENANT_ID, table_id=table_id).exists()
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_direct_route_can_switch_storage_without_origin_table(route_storage_records):
+    table_id = "99101_bklog.direct_switch"
+    CreateOrUpdateLogRouter().request(
+        bk_tenant_id=TENANT_ID,
+        space_type="bkcc",
+        space_id=SPACE_ID,
+        table_id=table_id,
+        storage_type=models.ClusterInfo.TYPE_ES,
+        cluster_id=ES_CLUSTER_ID,
+    )
+
+    CreateOrUpdateLogRouter().request(
+        bk_tenant_id=TENANT_ID,
+        space_type="bkcc",
+        space_id=SPACE_ID,
+        table_id=table_id,
+        storage_type=models.ClusterInfo.TYPE_DORIS,
+        cluster_id=DORIS_CLUSTER_ID,
+        bkbase_table_id="99101_bklog_direct_switch",
+    )
+
+    result_table = models.ResultTable.objects.get(bk_tenant_id=TENANT_ID, table_id=table_id)
+    doris_storage = models.DorisStorage.objects.get(bk_tenant_id=TENANT_ID, table_id=table_id)
+    assert result_table.default_storage == models.ClusterInfo.TYPE_DORIS
+    assert doris_storage.origin_table_id in (None, "")
+    assert doris_storage.storage_cluster_id == DORIS_CLUSTER_ID
+    assert not models.StorageClusterRecord.objects.filter(bk_tenant_id=TENANT_ID, table_id=table_id).exists()
 
 
 @pytest.mark.django_db(databases="__all__")

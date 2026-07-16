@@ -57,6 +57,7 @@ class InnerTag(ChoicesEnum):
     BKDATA = "bkdata"
     BCS = "bcs"
     CLUSTERING = "clustering"
+    DORIS = "Doris"
 
     _choices_labels = (
         (TRACE, _("trace")),
@@ -67,6 +68,7 @@ class InnerTag(ChoicesEnum):
         (BKDATA, _("计算平台")),
         (BCS, _("BCS")),
         (CLUSTERING, _("数据指纹")),
+        (DORIS, _("Doris")),
     )
 
 

@@ -102,6 +102,11 @@ class Config:
             "schedule": crontab(minute="*/10"),
             "enabled": True,
         },
+        "apm_web.tasks.cache_application_k8s_related_indexes": {
+            "task": "apm_web.tasks.cache_application_k8s_related_indexes",
+            "schedule": crontab(minute=0, hour="*/2"),
+            "enabled": True,
+        },
         "monitor_web.tasks.refresh_dashboard_strategy_snapshot": {
             "task": "monitor_web.tasks.refresh_dashboard_strategy_snapshot",
             "schedule": crontab(minute="*/60"),
