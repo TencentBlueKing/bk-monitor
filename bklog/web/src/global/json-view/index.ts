@@ -156,6 +156,11 @@ export default class JsonView {
     row.setAttribute('data-field-name', parseResultMarkedText(key).plainText);
     // data-search-field-name 绑定真实检索字段（含根字段前缀）
     row.setAttribute('data-search-field-name', searchFieldPath);
+    // JSON 字符串解析仅改变分词点击的叶子归属；划词仍读取 data-search-field-name。
+    const segmentFieldPath = jsonStringFieldPath
+      ? [parentPath, parseResultMarkedText(key).plainText].filter(Boolean).join('.')
+      : searchFieldPath;
+    row.setAttribute('data-segment-field-name', segmentFieldPath);
     if (jsonStringFieldPath) {
       row.setAttribute('data-json-string-parsed', 'true');
     }
@@ -164,7 +169,8 @@ export default class JsonView {
     const displayFieldPath = jsonStringFieldPath ? '' : searchFieldPath;
     row.append(this.createJsonField(key, displayFieldPath));
     row.append(this.createJsonSymbol());
-    row.append(this.createJsonNodeElment(value, depth, searchFieldPath, jsonStringFieldPath));
+    // JSON 字符串的展示路径继续向下传递，保证 labels.app 不会退化成 labels。
+    row.append(this.createJsonNodeElment(value, depth, segmentFieldPath, jsonStringFieldPath));
 
     return row;
   }
@@ -266,9 +272,9 @@ export default class JsonView {
     node.classList.add('bklog-json-view-node');
     node.classList.add(`bklog-data-depth-${depth}`);
     node.setAttribute('data-depth', `${depth}`);
-    this.bindSearchFieldPath(node, parentPath);
     let formatTarget = target;
     let jsonStringFieldPath = inheritedJsonStringFieldPath;
+    this.bindSearchFieldPath(node, jsonStringFieldPath || parentPath);
     // Parsing depth controls expansion only. Every created node must still recognize
     // Object/Array values (including JSON strings), so increasing depth can expand
     // Nested fields that were initially collapsed. Children remain lazily rendered.

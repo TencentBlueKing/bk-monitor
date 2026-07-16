@@ -146,16 +146,19 @@ export default class UseJsonFormatter {
     const tippyInstance = segmentPopInstance.getInstance();
     const target = tippyInstance.reference as HTMLElement;
     let name = target.getAttribute('data-field-name');
-    let searchFieldName = target.getAttribute('data-search-field-name');
+    let searchFieldName = target.getAttribute('data-segment-field-name')
+      || target.getAttribute('data-search-field-name');
     let value = target.getAttribute('data-field-value');
     let depth = target.getAttribute('data-field-dpth');
+    const segmentRole = target.getAttribute('data-segment-field-role');
 
     if (value === undefined || value === null) {
       value = target.textContent;
     }
 
     if (!searchFieldName) {
-      searchFieldName = target.closest('[data-search-field-name]')?.getAttribute('data-search-field-name');
+      searchFieldName = target.closest('[data-segment-field-name]')?.getAttribute('data-segment-field-name')
+        || target.closest('[data-search-field-name]')?.getAttribute('data-search-field-name');
     }
 
     if (name === undefined || name === null) {
@@ -168,21 +171,86 @@ export default class UseJsonFormatter {
     }
 
     const parsedFromJsonString = target.closest('[data-json-string-parsed="true"]') !== null;
-    return { value, name, depth, searchFieldName, parsedFromJsonString };
+    return { value, name, depth, searchFieldName, parsedFromJsonString, segmentRole };
+  }
+
+  /**
+   * JSON 展示树中的 value 可能来自 Object 的叶子节点，而 formatter 的根字段是
+   * __ext 这样的虚拟 object。点击分词时不能再用根字段兜底，否则会把条件生成为
+   * __ext 包含 token。这里仅给「JSON/Object 叶子」计算真实字段和操作符，普通字段
+   * 继续沿用原有逻辑，避免影响划词和非 JSON 场景。
+   */
+  private getPathValue(value: any, path: string) {
+    if (value === null || value === undefined || !path) return undefined;
+    if (typeof value !== 'object') return undefined;
+    if (Object.prototype.hasOwnProperty.call(value, path)) return value[path];
+
+    return path.split('.').reduce((current, part) => {
+      if (current === null || current === undefined) return undefined;
+      return Object.prototype.hasOwnProperty.call(current, part) ? current[part] : undefined;
+    }, value);
+  }
+
+  private isJsonObjectLeaf(field: any, searchFieldName: string, parsedFromNode: boolean) {
+    if (!searchFieldName || !field?.field_name || field.field_name === searchFieldName) return false;
+    const rootField = this.config.field;
+    const isObjectRoot = rootField?.field_type === 'object' || rootField?.is_virtual_obj_node;
+    const isLeaf = field.field_type !== 'object' && field.field_type !== 'nested' && field.field_type !== '__virtual__';
+    return isLeaf && (isObjectRoot || parsedFromNode);
+  }
+
+  private getObjectLeafValue(fieldName: string, fallback: any) {
+    // Object 列的 jsonValue 通常已经是 __ext 对象本身，因此同时尝试完整路径
+    // 和去掉根字段后的相对路径；JSON String 场景则回退到当前叶子展示值。
+    const rootName = this.config.field?.field_name;
+    const relativePath = rootName && fieldName.startsWith(`${rootName}.`)
+      ? fieldName.slice(rootName.length + 1)
+      : fieldName;
+    const rawValue = this.getPathValue(this.config.jsonValue, fieldName)
+      ?? this.getPathValue(this.config.jsonValue, relativePath);
+    return rawValue === undefined || rawValue === null ? fallback : rawValue;
+  }
+
+  private getObjectLeafTokenCount(field: any, fieldName: string, fallback: any) {
+    const rawValue = this.getObjectLeafValue(fieldName, fallback);
+    const text = this.escapeString(String(rawValue ?? '')).replace(/<\/?mark>/g, '');
+    if (!text) return 0;
+
+    return this.getSplitList(field, text, { usePrecomputedSegments: false })
+      .filter(item => String(item.text ?? '').length > 0)
+      .length;
   }
 
   onSegmentEnumClick(val, isLink) {
-    const { name, value, depth, searchFieldName, parsedFromJsonString: parsedFromNode } = this.getFieldNameValue();
+    const { name, value, depth, searchFieldName, parsedFromJsonString: parsedFromNode, segmentRole } = this.getFieldNameValue();
     const resolvedFieldName = this.resolveFormatterSearchFieldName(name, searchFieldName);
     const activeField = this.getField(resolvedFieldName) ?? this.config.field;
+    const isObjectLeaf = this.isJsonObjectLeaf(activeField, resolvedFieldName, parsedFromNode);
     const target = ['date', 'date_nanos'].includes(activeField?.field_type)
       ? this.config.jsonValue?.[activeField?.field_name]
       : value;
 
     const parsedFromJsonString = !!this.config.options?.parsedFromJsonString || parsedFromNode;
-    const operation = parsedFromJsonString
+    let operation = parsedFromJsonString
       ? (val === 'not' ? 'not contains match phrase' : 'contains match phrase')
       : (val === 'not' ? 'is not' : val);
+
+    // 点击 JSON KEY 时，KEY 本身不是叶子值：按“父级 KEY 包含此 KEY”生成条件。
+    // 例如点击 __ext.labels.app 的 app，生成 __ext.labels contains match phrase app；
+    // 点击 cluster，则生成 __ext contains match phrase cluster。
+    if (segmentRole === 'key') {
+      operation = val === 'not' ? 'not contains match phrase' : 'contains match phrase';
+    }
+
+    // Object 子字段按「该叶子的完整值是否只有一个分词」决定等于/包含。
+    // 例如 cluster -> [BCS,K8S,41982] 为包含；pod_uid -> 一个 token 为等于。
+    if (isObjectLeaf && (val === 'is' || val === 'not')) {
+      const tokenCount = this.getObjectLeafTokenCount(activeField, resolvedFieldName, value);
+      operation = tokenCount <= 1
+        ? (val === 'not' ? 'is not' : 'is')
+        : (val === 'not' ? 'not contains match phrase' : 'contains match phrase');
+    }
+
     const option = {
       fieldName: resolvedFieldName || activeField?.field_name,
       fieldType: activeField?.field_type,
@@ -211,9 +279,12 @@ export default class UseJsonFormatter {
 
     const clickTarget = e.target as HTMLElement;
     const valueElement = clickTarget.closest('.field-value') as HTMLElement;
-    const searchFieldElement = clickTarget.closest('[data-search-field-name]') as HTMLElement;
+    const searchFieldElement = (clickTarget.closest('[data-segment-field-name]')
+      || clickTarget.closest('[data-search-field-name]')) as HTMLElement;
     const fieldName = valueElement?.getAttribute('data-field-name');
-    const searchFieldName = searchFieldElement?.getAttribute('data-search-field-name');
+    const searchFieldName = searchFieldElement?.getAttribute('data-segment-field-name')
+      || searchFieldElement?.getAttribute('data-search-field-name');
+    const segmentRole = searchFieldElement?.getAttribute('data-segment-field-role');
     const fieldType = valueElement?.getAttribute('data-field-type');
 
     const content = this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this));
@@ -247,8 +318,10 @@ export default class UseJsonFormatter {
     target.setAttribute('data-field-name', fieldName ?? '');
     if (searchFieldName) {
       target.setAttribute('data-search-field-name', searchFieldName);
+      target.setAttribute('data-segment-field-name', searchFieldName);
     }
     target.setAttribute('data-field-dpth', depth ?? '');
+    if (segmentRole) target.setAttribute('data-segment-field-role', segmentRole);
 
     segmentPopInstance.show(target, this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this)));
   }
@@ -324,6 +397,121 @@ export default class UseJsonFormatter {
     return segmentNode;
   };
 
+  /**
+   * Origin 模式下 JSON 解析开关关闭时，仍然保持原始字符串的渲染方式，
+   * 但为 JSON 中的 KEY/VALUE 分词补充真实叶子字段路径。这样不会改变展示，
+   * 也不会把 data-search-field-name（划词语义）改成子字段路径。
+   */
+  private getJsonSegmentRanges(text: string, rootFieldName: string) {
+    const ranges: Array<{ start: number; end: number; fieldName: string; role?: 'key' | 'value' }> = [];
+    let cursor = 0;
+
+    const skipSpace = () => {
+      while (/\s/.test(text[cursor] ?? '')) cursor += 1;
+    };
+    const readString = () => {
+      const start = cursor;
+      cursor += 1;
+      while (cursor < text.length) {
+        if (text[cursor] === '\\') {
+          cursor += 2;
+        } else if (text[cursor] === '"') {
+          cursor += 1;
+          return { start, end: cursor, contentStart: start + 1, contentEnd: cursor - 1 };
+        } else {
+          cursor += 1;
+        }
+      }
+      return undefined;
+    };
+    const readPrimitive = () => {
+      const start = cursor;
+      while (cursor < text.length && !/[\s,}\]]/.test(text[cursor])) cursor += 1;
+      return { start, end: cursor };
+    };
+    const readValue = (path: string) => {
+      skipSpace();
+      if (text[cursor] === '"') {
+        const stringRange = readString();
+        if (stringRange) {
+          ranges.push({ start: stringRange.contentStart, end: stringRange.contentEnd, fieldName: path });
+        }
+        return;
+      }
+      if (text[cursor] === '{') {
+        cursor += 1;
+        skipSpace();
+        while (cursor < text.length && text[cursor] !== '}') {
+          const key = readString();
+          if (!key) return;
+          skipSpace();
+          if (text[cursor] !== ':') return;
+          cursor += 1;
+          const childPath = `${path}.${text.slice(key.contentStart, key.contentEnd)}`;
+          // KEY 的查询字段是其父级路径，值为 KEY 文本本身；不要把 KEY 当作叶子值。
+          ranges.push({ start: key.contentStart, end: key.contentEnd, fieldName: path, role: 'key' });
+          skipSpace();
+          readValue(childPath);
+          skipSpace();
+          if (text[cursor] === ',') {
+            cursor += 1;
+            skipSpace();
+          } else break;
+        }
+        if (text[cursor] === '}') cursor += 1;
+        return;
+      }
+      if (text[cursor] === '[') {
+        cursor += 1;
+        let index = 0;
+        skipSpace();
+        while (cursor < text.length && text[cursor] !== ']') {
+          readValue(`${path}.${index}`);
+          index += 1;
+          skipSpace();
+          if (text[cursor] === ',') {
+            cursor += 1;
+            skipSpace();
+          } else break;
+        }
+        if (text[cursor] === ']') cursor += 1;
+        return;
+      }
+      const primitive = readPrimitive();
+      if (primitive.end > primitive.start) ranges.push({ ...primitive, fieldName: path });
+    };
+
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed === null || typeof parsed !== 'object') return [];
+      skipSpace();
+      readValue(rootFieldName);
+    } catch {
+      return [];
+    }
+    return ranges;
+  }
+
+  private bindRawJsonSegmentFields(target: HTMLElement, text: string, rootFieldName: string) {
+    const ranges = this.getJsonSegmentRanges(text, rootFieldName);
+    if (!ranges.length) return;
+
+    let offset = 0;
+    const segments = Array.from(target.querySelectorAll('.segment-content .valid-text')) as HTMLElement[];
+    for (const segment of segments) {
+      const segmentText = segment.textContent ?? '';
+      const start = text.indexOf(segmentText, offset);
+      if (start < 0) continue;
+      const end = start + segmentText.length;
+      const range = ranges.find(item => start < item.end && end > item.start);
+      if (range) {
+        segment.setAttribute('data-segment-field-name', range.fieldName);
+        if (range.role) segment.setAttribute('data-segment-field-role', range.role);
+      }
+      offset = end;
+    }
+  }
+
   initStringAsValue(text?: string, appendText?: SegmentAppendText) {
     let root = this.getTargetRoot() as HTMLElement;
     if (root) {
@@ -333,6 +521,13 @@ export default class UseJsonFormatter {
 
       const fieldName = (root.querySelector('.field-name .black-mark') as HTMLElement)?.getAttribute('data-field-name');
       this.setNodeValueWordSplit(root, fieldName, '.field-value', text, appendText);
+      // 未执行 JSON 解析时，setNodeValueWordSplit 仍按原始整段文本渲染。
+      // 仅给可定位到的 JSON KEY/VALUE token 增加分词专用字段路径，
+      // data-search-field-name 继续保留根字段，确保划词逻辑不变。
+      if (text && fieldName && /^\s*[\[{]/.test(text)) {
+        const valueElement = root.querySelector('.field-value') as HTMLElement;
+        if (valueElement) this.bindRawJsonSegmentFields(valueElement, text, fieldName);
+      }
     }
   }
 
