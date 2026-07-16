@@ -94,3 +94,27 @@ def test_get_incident_diagnosis_resource_supports_optional_bk_biz_id():
 
     assert 'bk_biz_id = serializers.IntegerField(label="业务ID", required=False)' in resource_source
     assert 'incident_id = serializers.IntegerField(label="故障ID", required=True)' in resource_source
+
+
+def test_incident_list_returns_bkci_enabled_space_as_monitor_negative_biz_id():
+    source = (PROJECT_ROOT / "packages/monitor_web/incident/resources.py").read_text(encoding="utf-8")
+
+    resource_start = source.index("class IncidentListResource")
+    resource_end = source.index("class ExportIncidentResource", resource_start)
+    resource_source = source[resource_start:resource_end]
+
+    assert "def get_enabled_space_bk_biz_id" in resource_source
+    assert 'scope_identity.get("space")' in resource_source
+    assert "return -int(space_id)" in resource_source
+    assert 'result["enabled_spaces"].append(self.get_enabled_space_bk_biz_id(item))' in resource_source
+
+
+def test_bk_incident_api_keeps_standard_scope_ids_when_converting_lists():
+    source = (PROJECT_ROOT / "api/bk_incident/default.py").read_text(encoding="utf-8")
+
+    resource_start = source.index("class IncidentBaseResource")
+    resource_end = source.index("class GetTemplateListResource", resource_start)
+    resource_source = source[resource_start:resource_end]
+
+    assert "def is_standard_scope_id" in resource_source
+    assert "if self.is_standard_scope_id(bk_biz_id)" in resource_source

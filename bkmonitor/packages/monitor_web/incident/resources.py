@@ -439,6 +439,16 @@ class IncidentListResource(IncidentBaseResource):
     def __init__(self):
         super().__init__()
 
+    @staticmethod
+    def get_enabled_space_bk_biz_id(config_item: dict):
+        """将 BKFara scope 配置转换回监控前端使用的 bk_biz_id 协议。"""
+        scope_identity = config_item.get("content", {}).get("scope_identity") or {}
+        space = scope_identity.get("space") if isinstance(scope_identity, dict) else {}
+        space_id = space.get("id") if isinstance(space, dict) else None
+        if space_id not in (None, "") and (space.get("space_type_id") or "").lower() != "bkcc":
+            return -int(space_id)
+        return config_item.get("scope_value")
+
     class RequestSerializer(IncidentSearchSerializer):
         level = serializers.ListField(required=False, label="故障级别", default=[])
         assignee = serializers.ListField(required=False, label="故障负责人", default=[])
@@ -468,7 +478,7 @@ class IncidentListResource(IncidentBaseResource):
             )
             for item in general_config_data.get("objects", []):
                 if item.get("content", {}).get("enabled", False):
-                    result["enabled_spaces"].append(item.get("scope_value"))
+                    result["enabled_spaces"].append(self.get_enabled_space_bk_biz_id(item))
         result["wx_cs_link"] = bk_data_robot_link_list_search(settings.BK_DATA_ROBOT_LINK_LIST, "icon-kefu")
         return result
 
