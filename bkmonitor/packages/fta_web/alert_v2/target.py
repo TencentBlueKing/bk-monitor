@@ -122,7 +122,7 @@ class BaseTarget(abc.ABC):
         bk_biz_id: int,
         relation_qs: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
-        data_ids: set[str] = set()
+        data_ids: set[int] = set()
         relations: list[Relation] = RelationQ.query(relation_qs, fill_with_empty=True)
         for r in relations:
             if not r:
@@ -130,12 +130,13 @@ class BaseTarget(abc.ABC):
 
             for n in r.nodes:
                 source_info: dict[str, Any] = n.source_info.to_source_info()
-                bk_data_id: str | None = source_info.get("bk_data_id")
-                if bk_data_id and bk_data_id not in data_ids and len(data_ids) < cls._MAX_LOG_RELATION_NUM:
-                    data_ids.add(bk_data_id)
+                bk_data_id: str = str(source_info.get("bk_data_id"))
+                if bk_data_id.isdigit() and len(data_ids) < cls._MAX_LOG_RELATION_NUM:
+                    data_ids.add(int(bk_data_id))
 
         log_targets: list[dict[str, Any]] = []
-        tables: list[str] = ServiceLogHandler.list_tables_by_data_ids(list(data_ids))
+        data_id_rt_map: dict[int, set[str]] = ServiceLogHandler.get_data_id_rt_map(list(data_ids))
+        tables: set[str] = set().union(*data_id_rt_map.values())
         for index_set in get_biz_index_sets_with_cache(bk_biz_id=bk_biz_id):
             indices: list[dict[str, Any]] = index_set.get("indices") or []
             if indices and len(indices) == 1 and indices[0].get("result_table_id") in tables:

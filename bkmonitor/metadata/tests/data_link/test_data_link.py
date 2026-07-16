@@ -847,7 +847,7 @@ def test_merge_component_config_merges_config_fields_and_drops_runtime_fields():
     assert merged_config["spec"]["storage_config"] == {"override": "new"}
 
 
-def test_merge_component_config_blocks_immutable_result_table_biz_id_change():
+def test_merge_component_config_keeps_existing_result_table_biz_id_on_conflict(caplog):
     existing_config = {
         "kind": DataLinkKind.RESULTTABLE.value,
         "metadata": {
@@ -871,8 +871,13 @@ def test_merge_component_config_blocks_immutable_result_table_biz_id_change():
         },
     }
 
-    with pytest.raises(ValueError, match=r"spec\.bizId"):
-        DataLink.merge_component_config(existing_config, config)
+    with caplog.at_level("WARNING", logger="metadata"):
+        merged_config = DataLink.merge_component_config(existing_config, config)
+
+    assert merged_config["spec"]["bizId"] == 1
+    assert "immutable component field changed,keep existing value" in caplog.text
+    assert "field->[spec.bizId]" in caplog.text
+    assert "existing_value->[1],current_value->[2]" in caplog.text
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -950,7 +955,7 @@ def test_apply_data_link_merges_existing_component_config_before_apply(create_or
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_apply_data_link_blocks_result_table_biz_id_change_before_apply(create_or_delete_records, mocker):
+def test_apply_data_link_keeps_existing_result_table_biz_id_on_conflict(create_or_delete_records, mocker, caplog):
     ds = models.DataSource.objects.get(bk_data_id=50010)
     rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
     bkbase_data_name = utils.compose_bkdata_data_id_name(ds.data_name)
@@ -982,13 +987,13 @@ def test_apply_data_link_blocks_result_table_biz_id_change_before_apply(create_o
         )
 
     mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
-    with (
-        patch("metadata.models.data_link.data_link.api.bkdata.get_data_link", side_effect=_get_data_link),
-        patch.object(
-            DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
-        ) as mock_apply_with_retry,
-    ):
-        with pytest.raises(ValueError, match=r"spec\.bizId"):
+    with caplog.at_level("WARNING", logger="metadata"):
+        with (
+            patch("metadata.models.data_link.data_link.api.bkdata.get_data_link", side_effect=_get_data_link),
+            patch.object(
+                DataLink, "apply_data_link_with_retry", return_value={"status": "success"}
+            ) as mock_apply_with_retry,
+        ):
             data_link_ins.apply_data_link(
                 bk_biz_id=1001,
                 data_source=ds,
@@ -996,7 +1001,11 @@ def test_apply_data_link_blocks_result_table_biz_id_change_before_apply(create_o
                 storage_cluster_name="vm-plat",
             )
 
-    mock_apply_with_retry.assert_not_called()
+    mock_apply_with_retry.assert_called_once()
+    configs = mock_apply_with_retry.call_args.args[0]
+    result_table_config = next(config for config in configs if config["kind"] == DataLinkKind.RESULTTABLE.value)
+    assert result_table_config["spec"]["bizId"] == 1
+    assert "immutable component field changed,keep existing value" in caplog.text
 
 
 @pytest.mark.django_db(databases="__all__")

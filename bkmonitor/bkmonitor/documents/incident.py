@@ -123,8 +123,8 @@ class IncidentDocument(IncidentBaseDocument):
 
     id = field.Keyword(required=True)
     incident_id = field.Keyword(required=True)
-    incident_name = field.Text()  # 故障名称
-    incident_reason = field.Text()  # 故障原因
+    incident_name = field.Text(fields={"raw": field.Keyword(ignore_above=8191)})  # 故障名称
+    incident_reason = field.Text(fields={"raw": field.Keyword(ignore_above=8191)})  # 故障原因
     status = field.Keyword()  # 故障状态
     status_order = field.Keyword()  # 故障状态排序字段
     level = field.Keyword()  # 故障级别

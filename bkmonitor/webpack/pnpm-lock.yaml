@@ -170,8 +170,8 @@ importers:
         specifier: 0.0.13
         version: 0.0.13(@lezer/highlight@1.2.3)(@lezer/lr@1.4.10)(highlight.js@11.11.1)(typescript@5.9.3)
       '@blueking/monitor-trace-explore':
-        specifier: 0.0.31
-        version: 0.0.31(highlight.js@11.11.1)(typescript@5.9.3)
+        specifier: 0.0.32
+        version: 0.0.32(highlight.js@11.11.1)(typescript@5.9.3)
       '@blueking/search-select-v3':
         specifier: 0.0.1-beta.10
         version: 0.0.1-beta.10(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.112(highlight.js@11.11.1)(vue@2.7.16))(vue@2.7.16)
@@ -543,8 +543,8 @@ importers:
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/monitor-apm-log':
-        specifier: 2.3.29
-        version: 2.3.29
+        specifier: 2.3.30
+        version: 2.3.30
       '@blueking/monitor-resource-topo':
         specifier: 0.0.1-beta.36
         version: 0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)
@@ -1653,8 +1653,8 @@ packages:
   '@blueking/monitor-alarm-center@0.0.13':
     resolution: {integrity: sha512-kEFElyeArues/UWaWLNiIakoKehos4e2irduVQdgpo+lvvg4+oPVrUfYdCEKc+T8QvkFWVlxRhP78ggIYiZncQ==}
 
-  '@blueking/monitor-apm-log@2.3.29':
-    resolution: {integrity: sha512-SpJwO+uWYCJKH2mjBj9XvFU8hjxcv1UlZPlXmO04jTsGMdaWccDsvLrgwIx+BdWLFEAPJwnvgueGFZf9sUALog==}
+  '@blueking/monitor-apm-log@2.3.30':
+    resolution: {integrity: sha512-I7Et9Zye9Eus8mNnPdNs6ODgdfu2bihtepiajY+zUry+xjHBwePOSuY28mHmO+4D18M9R2qDeG1d63cEuh2GGg==}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36':
     resolution: {integrity: sha512-Bfe2w5AnFKX35zuu9Y0f4B6e4nkEjRRFvnvXfi5xxfzNkSmhjk4plWh+iOgxUJF6BA3qyCkhSCszjjzLUeheFw==}
@@ -1662,8 +1662,8 @@ packages:
       '@blueking/bkui-library': ^0.0.0-beta.4
       vue: ^3
 
-  '@blueking/monitor-trace-explore@0.0.31':
-    resolution: {integrity: sha512-+D/jHkkkVxERE6A7hNx4RG9J6PKjvkHNptWF1N1QCGHrqA+JicFhxzTbCz0SCVt6juuxv1PAcjTDhQeBxOVGew==}
+  '@blueking/monitor-trace-explore@0.0.32':
+    resolution: {integrity: sha512-1p4fuyCdwu7l7QirryXPsBTbKpMKL4fK0ERMgNZz9EtJcJl7iSRokw3/R+Bd+nBqxu+Yx1zfET0qYRZwtuvjhA==}
 
   '@blueking/monitor-trace-log@2.0.25':
     resolution: {integrity: sha512-6E/I1hzqvTpSpN0FwqVSAgO/ZxIaRlExXUSfOrMFaucvPEjjm84H0iaAeacrbCiQEbmuZ1p8WoD3g2Z4CdPfaA==}
@@ -10870,14 +10870,14 @@ snapshots:
       - highlight.js
       - typescript
 
-  '@blueking/monitor-apm-log@2.3.29': {}
+  '@blueking/monitor-apm-log@2.3.30': {}
 
   '@blueking/monitor-resource-topo@0.0.1-beta.36(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
       vue: 2.7.16
 
-  '@blueking/monitor-trace-explore@0.0.31(highlight.js@11.11.1)(typescript@5.9.3)':
+  '@blueking/monitor-trace-explore@0.0.32(highlight.js@11.11.1)(typescript@5.9.3)':
     dependencies:
       '@blueking/tdesign-ui': 0.0.1(vue@3.5.30(typescript@5.9.3))
       bkui-vue: 2.0.2-beta.68(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3))

@@ -423,8 +423,8 @@ def test_create_or_update_log_es_router_resource_for_bkcc(create_or_delete_recor
                 "field_alias": {},
             }
 
-            # 创建流程,先推送RT详情路由,再推送空间路由
-            first_detail_call, space_call, second_detail_call, data_label_call = mock_hmset_to_redis.call_args_list
+            # ESStorage 创建时会先推送一次详情；资源外层统一刷新详情后，再刷新空间和 data_label 路由。
+            first_detail_call, second_detail_call, space_call, data_label_call = mock_hmset_to_redis.call_args_list
             for detail_call in [first_detail_call, second_detail_call]:
                 assert detail_call.args[0] == "bkmonitorv3:spaces:result_table_detail"
                 assert json.loads(detail_call.args[1][non_exist_es_table_id]) == expected_rt_detail
@@ -440,8 +440,8 @@ def test_create_or_update_log_es_router_resource_for_bkcc(create_or_delete_recor
             mock_publish.assert_has_calls(
                 [
                     call("bkmonitorv3:spaces:result_table_detail:channel", [non_exist_es_table_id]),
-                    call("bkmonitorv3:spaces:space_to_result_table:channel", ["bkcc__2"]),
                     call("bkmonitorv3:spaces:result_table_detail:channel", [non_exist_es_table_id]),
+                    call("bkmonitorv3:spaces:space_to_result_table:channel", ["bkcc__2"]),
                     call("bkmonitorv3:spaces:data_label_to_result_table:channel", ["bkdata_index_set_6788"]),
                 ]
             )
