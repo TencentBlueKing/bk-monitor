@@ -74,3 +74,6 @@ UNIFY_QUERY_SEARCH_CLUSTERING = "unify_query_search_clustering"
 
 # 场景化检索按业务灰度开关
 SCENE_SEARCH = "scene_search"
+
+# 外部用户 PO+IAM OR 决策灰度开关（关闭时回退为纯 legacy PO 鉴权）
+EXTERNAL_PERMISSION_OR_DECISION = "external_permission_or_decision"
