@@ -23,12 +23,11 @@ import copy
 
 from django.conf import settings
 
-from apps.api import TransferApi
 from apps.constants import UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_clustering.tasks.flow import update_clustering_clean
-from apps.log_databus.constants import DORIS_CLUSTER_TYPE, STORAGE_CLUSTER_TYPE
+from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.handlers.collector import CollectorHandler
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
@@ -153,7 +152,7 @@ class TransferEtlHandler(EtlHandler):
 
         # 1. meta-创建/修改结果表
         etl_storage = EtlStorage.get_instance(etl_config=etl_config)
-        result_table_update_or_create_info = etl_storage.update_or_create_result_table(
+        etl_storage.update_or_create_result_table(
             self.data,
             table_id=table_id,
             storage_cluster_id=storage_cluster_id,
@@ -175,21 +174,6 @@ class TransferEtlHandler(EtlHandler):
         if not view_roles:
             view_roles = []
 
-        doris_table_id = None
-
-        if storage_cluster_type == DORIS_CLUSTER_TYPE and result_table_update_or_create_info:
-            storage_config = (
-                TransferApi.get_result_table_storage(
-                    {
-                        "result_table_list": result_table_update_or_create_info["table_id"],
-                        "storage_type": storage_cluster_type,
-                    }
-                )
-                .get(result_table_update_or_create_info["table_id"], {})
-                .get("storage_config", {})
-            )
-            doris_table_id = storage_config.get("bkbase_table_id")
-
         # 2. 创建索引集
         index_set = self._update_or_create_index_set(
             etl_config,
@@ -201,8 +185,6 @@ class TransferEtlHandler(EtlHandler):
             is_platform_index=is_platform_index,
             platform_index_visibility=platform_index_visibility,
             platform_index_filter=platform_index_filter,
-            doris_table_id=doris_table_id if doris_table_id else None,
-            support_doris=True if doris_table_id else False,
         )
 
         # 3. 更新完结果表之后, 如果存在fields的snapshot, 清理一次

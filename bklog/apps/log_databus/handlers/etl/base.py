@@ -329,8 +329,6 @@ class EtlHandler:
         is_platform_index=None,
         platform_index_visibility=None,
         platform_index_filter=None,
-        doris_table_id=None,
-        support_doris=False,
     ):
         """
         创建索引集
@@ -364,8 +362,6 @@ class EtlHandler:
                 is_platform_index=is_platform_index,
                 platform_index_visibility=platform_index_visibility,
                 platform_index_filter=platform_index_filter,
-                doris_table_id=doris_table_id,
-                support_doris=support_doris,
             )
         else:
             if not view_roles:
@@ -386,8 +382,6 @@ class EtlHandler:
                 is_platform_index=is_platform_index,
                 platform_index_visibility=platform_index_visibility,
                 platform_index_filter=platform_index_filter,
-                doris_table_id=doris_table_id,
-                support_doris=support_doris,
             )
             self.data.index_set_id = index_set.index_set_id
         self.data.etl_config = etl_config
