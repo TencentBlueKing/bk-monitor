@@ -318,8 +318,40 @@
     // 1) renderMeta 预分词（与 Expand/表格同源，含检索高亮）
     const metaSegments = props.renderMeta?.fieldSegments?.[fieldName];
     if (Array.isArray(metaSegments) && metaSegments.length) {
+      // 不能用 isMark 直接包裹整个 segment：whole-value 字段的 segment
+      // 可能是几 KB 的纯文本，而 isMark 只表示“segment 内存在命中”。
+      // 必须使用 resultRanges 恢复命中的局部范围，否则点击“更多”后会把
+      // 命中点之后的整段内容误认为检索命中（尤其是 Origin 模式）。
       const markedFromSegments = metaSegments
-        .map(segment => (segment?.isMark ? `<mark>${segment.text ?? ''}</mark>` : (segment?.text ?? '')))
+        .map((segment) => {
+          const text = String(segment?.text ?? '');
+          const ranges = Array.isArray(segment?.resultRanges)
+            ? segment.resultRanges
+                .map(range => ({
+                  start: Math.max(0, Math.min(text.length, Number(range?.start))),
+                  end: Math.max(0, Math.min(text.length, Number(range?.end))),
+                }))
+                .filter(range => range.end > range.start)
+                .sort((a, b) => a.start - b.start || a.end - b.end)
+            : [];
+
+          if (!ranges.length) {
+            // 兼容旧缓存：旧数据没有 resultRanges 时才回退到 isMark。
+            return segment?.isMark ? `<mark>${text}</mark>` : text;
+          }
+
+          let result = '';
+          let cursor = 0;
+          ranges.forEach((range) => {
+            // 防止重叠 range 产生非法/嵌套 mark；重叠命中合并为一个连续范围。
+            const start = Math.max(cursor, range.start);
+            if (range.end <= start) return;
+            result += text.slice(cursor, start);
+            result += `<mark>${text.slice(start, range.end)}</mark>`;
+            cursor = range.end;
+          });
+          return result + text.slice(cursor);
+        })
         .join('');
       if (markedFromSegments) {
         return markedFromSegments;
@@ -1016,7 +1048,7 @@
           border-radius: 2px;
 
           mark.page-highlight {
-            padding: 0 2px;
+            padding: 0;
             font-weight: 500;
             border-radius: 2px;
           }

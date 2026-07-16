@@ -1167,7 +1167,7 @@
           word-wrap: break-word;
 
           :deep(mark.page-highlight) {
-            padding: 0 2px;
+            padding: 0;
             border-radius: 2px;
           }
         }
