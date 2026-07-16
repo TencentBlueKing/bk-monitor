@@ -1,10 +1,11 @@
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
 from constants.data_source import DataSourceLabel
 from fta_web.alert_v2 import target as target_module
-from fta_web.alert_v2.target import DefaultTarget, HostTarget
+from fta_web.alert_v2.target import BaseTarget, DefaultTarget, HostTarget
 
 
 def test_default_target_merges_addition_for_non_clustering_alert(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -118,5 +119,43 @@ def test_log_host_target_prefers_origin_log_strategy_without_event_ip(
             "index_set_name": "origin",
             "addition": [],
             "keyword": '(message: "failed") AND (ip: "127.0.0.1")',
+        }
+    ]
+
+
+def test_list_related_log_targets_uses_data_id_rt_map(monkeypatch: pytest.MonkeyPatch) -> None:
+    data_id_queries: list[list[int]] = []
+    relation = SimpleNamespace(
+        nodes=[
+            SimpleNamespace(source_info=SimpleNamespace(to_source_info=lambda: {"bk_data_id": "1001"})),
+            SimpleNamespace(source_info=SimpleNamespace(to_source_info=lambda: {"bk_data_id": "invalid"})),
+        ]
+    )
+
+    def get_data_id_rt_map(data_ids: list[int]) -> dict[int, set[str]]:
+        data_id_queries.append(data_ids)
+        return {1001: {"2_bklog.demo"}}
+
+    monkeypatch.setattr(target_module.RelationQ, "query", lambda *_args, **_kwargs: [relation])
+    monkeypatch.setattr(target_module.ServiceLogHandler, "get_data_id_rt_map", get_data_id_rt_map)
+    monkeypatch.setattr(
+        target_module,
+        "get_biz_index_sets_with_cache",
+        lambda **_kwargs: [
+            {
+                "index_set_id": 100,
+                "indices": [{"result_table_id": "2_bklog.demo"}],
+            }
+        ],
+    )
+
+    result: list[dict[str, Any]] = BaseTarget._list_related_log_targets(2, [{}])
+
+    assert data_id_queries == [[1001]]
+    assert result == [
+        {
+            "index_set_id": 100,
+            "indices": [{"result_table_id": "2_bklog.demo"}],
+            "addition": [],
         }
     ]
