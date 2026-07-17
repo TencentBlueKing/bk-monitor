@@ -24,9 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { copyMessage, formatDate } from '@/common/util';
+import { copyMessage, formatDate, getRowFieldValue } from '@/common/util';
 import useStore from '@/hooks/use-store';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
+import { formatSqlContainsWildcardValue, isContainsOperator, isSqlSearchMode } from '@/views/retrieve-v2/search-bar/utils/sql-contains-wildcard';
 import { bkMessage } from 'bk-magic-vue';
 import { useRoute, useRouter } from 'vue-router/composables';
 
@@ -59,10 +61,23 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
     isLink: boolean,
     depth?: number,
     isNestedField?: string,
+    fullPlain?: string,
   ) => {
     const fieldName = typeof field === 'string' ? field : field?.field_name;
-    const searchValue = value === '--' ? [] : [value];
-    handleAddCondition(fieldName, operator, searchValue, isLink, depth, isNestedField);
+    if (value === '--') {
+      handleAddCondition(fieldName, operator, [], isLink, depth, isNestedField);
+      return;
+    }
+
+    // 语句模式包含：按完整 VALUE 位置补 *，且不加引号（引号在 setQueryCondition 侧已去掉）
+    let nextValue = value;
+    if (
+      isSqlSearchMode(store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE])
+      && isContainsOperator(operator)
+    ) {
+      nextValue = formatSqlContainsWildcardValue(value, fullPlain);
+    }
+    handleAddCondition(fieldName, operator, [nextValue], isLink, depth, isNestedField);
   };
 
   // 设置路由参数
@@ -143,7 +158,8 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
       fieldName,
       operation,
       displayFieldNames,
-    } = params;
+      fullPlain: fullPlainFromParams,
+    } = params as typeof params & { fullPlain?: string };
 
     // 获取实际值
     let actualValue = value;
@@ -177,7 +193,28 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
       case 'not contains match phrase': {
         isParamsChange = true;
         const operator = operation === 'not' ? 'is not' : operation;
-        handleSearchCondition(fieldName || field, operator, actualValue, isLink, depth, isNestedField);
+        let fullPlain = fullPlainFromParams;
+        if (
+          fullPlain === undefined
+          && isContainsOperator(operator)
+          && field
+          && row
+          && typeof field === 'object'
+        ) {
+          const raw = getRowFieldValue(row, field);
+          fullPlain = raw === null || raw === undefined || raw === ''
+            ? undefined
+            : String(raw).replace(/<\/?mark>/gim, '');
+        }
+        handleSearchCondition(
+          fieldName || field,
+          operator,
+          actualValue,
+          isLink,
+          depth,
+          isNestedField,
+          fullPlain,
+        );
         break;
       }
       case 'display':

@@ -377,11 +377,20 @@ export default class UseJsonFormatter {
       selectedValue,
     );
 
+    const fullPlain = this.resolveClickFullPlainValue(
+      ctx,
+      resolvedFieldName || activeField?.field_name || '',
+      activeField,
+      selectedValue,
+    );
+
     const option = {
       fieldName: resolvedFieldName || activeField?.field_name,
       fieldType: activeField?.field_type,
       operation,
+      // 语句模式包含的 * 通配由 use-text-action 按 fullPlain 位置统一补齐
       value: target ?? selectedValue,
+      fullPlain,
       depth: ctx.depth,
     };
 

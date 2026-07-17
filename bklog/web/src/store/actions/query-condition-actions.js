@@ -92,11 +92,17 @@ export function setQueryConditionAction({ state, dispatch }, payload) {
       return formatResult;
     };
 
+    // 包含关系：语句模式使用 KEY: *Value / Value* / *Value*，Value 不加引号（由上游按位置补 *）
+    const formatContainsSql = (val) => {
+      const text = Array.isArray(val) ? val[0] : val;
+      return formatJsonString(text);
+    };
+
     const mappingKey = {
       is: val => `${field}: "${formatValue(val)}"`,
       'is not': val => `NOT ${field}: "${formatValue(val)}"`,
-      'contains match phrase': val => `${field}: "${formatValue(val)}"`,
-      'not contains match phrase': val => `NOT ${field}: "${formatValue(val)}"`,
+      'contains match phrase': val => `${field}: ${formatContainsSql(val)}`,
+      'not contains match phrase': val => `NOT ${field}: ${formatContainsSql(val)}`,
       '=': val => `${field}: "${formatValue(val)}"`,
       '!=': val => `NOT ${field}: "${formatValue(val)}"`,
     };

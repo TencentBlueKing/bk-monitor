@@ -29,8 +29,10 @@ import { computed, type Ref } from 'vue';
 import { getRowFieldValue, isNestedField } from '@/common/util';
 import LuceneSegment from '@/hooks/lucene.segment';
 import useStore from '@/hooks/use-store';
+import { BK_LOG_STORAGE } from '@/store/store.type';
 import { splitRenderText } from '@/storage/utils/retrieve-render-meta';
 import { getInputQueryDefaultItem } from '@/views/retrieve-v2/search-bar/utils/const.common';
+import { formatSqlContainsValues } from '@/views/retrieve-v2/search-bar/utils/sql-contains-wildcard';
 
 export const FULLTEXT_FIELD_NAME = '*';
 const SELECTION_MAX_TOKENS = 1000;
@@ -1907,16 +1909,49 @@ export default (options: UseSelectionSearchOptions) => {
     return [];
   };
 
-  const applySelectionConditions = (conditions: SelectionCondition[]) => {
+  /** 语句模式包含：按完整 VALUE 位置补 *；UI 模式保持原值 */
+  const resolveAddConditionValues = (
+    operator: string,
+    values: string[],
+    fullPlain?: string,
+  ) => formatSqlContainsValues(
+    operator,
+    values,
+    fullPlain,
+    store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE],
+  );
+
+  const emitAddCondition = (
+    fieldName: string,
+    operator: string,
+    values: string[],
+    options: {
+      isLink?: boolean;
+      depth?: string | number;
+      isNestedField?: string;
+      fullPlain?: string;
+    } = {},
+  ) => {
+    const nextValues = resolveAddConditionValues(operator, values, options.fullPlain);
+    return handleAddCondition(
+      fieldName,
+      operator,
+      nextValues,
+      options.isLink ?? false,
+      options.depth,
+      options.isNestedField,
+    );
+  };
+
+  const applySelectionConditions = (conditions: SelectionCondition[], row?: Record<string, any>) => {
     conditions.forEach((item) => {
-      handleAddCondition(
-        item.field,
-        item.operator,
-        item.value,
-        false,
-        item.depth,
-        item.isNestedField,
-      );
+      const field = getFieldByName(item.field);
+      const fullPlain = row && field ? getFieldPlainText(row, field) : undefined;
+      emitAddCondition(item.field, item.operator, item.value, {
+        depth: item.depth,
+        isNestedField: item.isNestedField,
+        fullPlain,
+      });
     });
   };
 
@@ -1933,7 +1968,11 @@ export default (options: UseSelectionSearchOptions) => {
 
     // 整段等值：保持 is + 完整 VALUE
     if (operator === 'is' && plain === selectionText) {
-      handleAddCondition(field.field_name, operator, [plain], false, depth, isNested);
+      emitAddCondition(field.field_name, operator, [plain], {
+        depth,
+        isNestedField: isNested,
+        fullPlain: plain,
+      });
       return;
     }
 
@@ -1942,12 +1981,20 @@ export default (options: UseSelectionSearchOptions) => {
       const values = resolveSelectionValues(selectionText, field, row);
       const finalOperator = plain === selectionText ? 'is' : (operator === 'is' ? 'contains match phrase' : operator);
       values.forEach((token) => {
-        handleAddCondition(field.field_name, finalOperator, [token], false, depth, isNested);
+        emitAddCondition(field.field_name, finalOperator, [token], {
+          depth,
+          isNestedField: isNested,
+          fullPlain: plain,
+        });
       });
       return;
     }
 
-    handleAddCondition(field.field_name, operator, [selectionText], false, depth, isNested);
+    emitAddCondition(field.field_name, operator, [selectionText], {
+      depth,
+      isNestedField: isNested,
+      fullPlain: plain,
+    });
   };
 
   /**
@@ -2083,7 +2130,7 @@ export default (options: UseSelectionSearchOptions) => {
       const domConditions = resolveDomKeyStrippedSelectionConditions(selectionRange, row);
       if (domConditions !== null) {
         if (domConditions.length) {
-          applySelectionConditions(domConditions);
+          applySelectionConditions(domConditions, row);
         }
         return;
       }
@@ -2092,7 +2139,7 @@ export default (options: UseSelectionSearchOptions) => {
     // 单叶子分词命中：路径与操作符一次定死，避免后续分支因 DOM 边界抖动而漂移
     const singleSegmentConditions = resolveSingleSegmentLeafCondition(selectionRange, row, selectionText);
     if (singleSegmentConditions.length) {
-      applySelectionConditions(singleSegmentConditions);
+      applySelectionConditions(singleSegmentConditions, row);
       return;
     }
 
@@ -2101,7 +2148,7 @@ export default (options: UseSelectionSearchOptions) => {
     if (stringField) {
       const stringConditions = resolveStringContainsConditions(selectionRange, row, stringField);
       if (stringConditions.length) {
-        applySelectionConditions(stringConditions);
+        applySelectionConditions(stringConditions, row);
         return;
       }
     }
@@ -2109,7 +2156,7 @@ export default (options: UseSelectionSearchOptions) => {
     // Object/Nested（含以字符串形式展示的 Object）：跨字段补全为 KEY.SubKey 等值
     const multiFieldConditions = resolveMultiFieldSelectionConditions(selectionRange, row);
     if (multiFieldConditions.length >= 1) {
-      applySelectionConditions(multiFieldConditions);
+      applySelectionConditions(multiFieldConditions, row);
       return;
     }
 
@@ -2124,13 +2171,14 @@ export default (options: UseSelectionSearchOptions) => {
 
     if (targetField && ['date', 'date_nanos'].includes(targetField.field_type)) {
       const rawValue = getObjectValue(row, targetField);
-      handleAddCondition(
+      emitAddCondition(
         targetField.field_name,
         'is',
         [String(rawValue).replace(/<\/?mark>/gim, '')],
-        false,
-        conditionOptions.depth,
-        conditionOptions.isNestedField,
+        {
+          depth: conditionOptions.depth,
+          isNestedField: conditionOptions.isNestedField,
+        },
       );
       return;
     }
@@ -2147,20 +2195,23 @@ export default (options: UseSelectionSearchOptions) => {
     }
 
     if (resolved.fieldName && resolved.operator === 'contains match phrase') {
-      handleAddCondition(
+      const fullPlain = targetField ? getFieldPlainText(row, targetField) : undefined;
+      emitAddCondition(
         resolved.fieldName,
         fulltextFieldItem.operator,
         [selectionText],
-        false,
-        conditionOptions.depth,
-        conditionOptions.isNestedField,
+        {
+          depth: conditionOptions.depth,
+          isNestedField: conditionOptions.isNestedField,
+          fullPlain,
+        },
       );
       return;
     }
 
     if (showCtxType.value === 'table') {
       if (!targetField) {
-        handleAddCondition(FULLTEXT_FIELD_NAME, fulltextFieldItem.operator, [selectionText]);
+        emitAddCondition(FULLTEXT_FIELD_NAME, fulltextFieldItem.operator, [selectionText]);
         return;
       }
 
@@ -2245,11 +2296,11 @@ export default (options: UseSelectionSearchOptions) => {
     });
 
     if (!conditions.length) {
-      handleAddCondition(FULLTEXT_FIELD_NAME, fulltextFieldItem.operator, [selectionText]);
+      emitAddCondition(FULLTEXT_FIELD_NAME, fulltextFieldItem.operator, [selectionText]);
       return;
     }
 
-    applySelectionConditions(conditions);
+    applySelectionConditions(conditions, row);
   };
 
   return {

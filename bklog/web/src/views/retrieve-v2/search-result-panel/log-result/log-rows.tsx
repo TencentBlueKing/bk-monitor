@@ -158,8 +158,7 @@ export default defineComponent({
      *   （bernetes_pod bcs-k8s-wat → pod contains bcs-k8s-watch；
      *    bbc-kw9zb log I07 → pod contains 6bcff65bbc-kw9zb + log contains I0717）
      *   Text/String 的 JSON 展示（data-json-text-value）：只移除外层 KEY，原文 contains，不补齐不拆分
-     *
-     * ：： TODO 语句模式需要考虑补齐之后增加 * 支持前|后包含关系
+     *   语句模式包含：按完整 VALUE 位置生成 KEY: Value* / *Value / *Value*（不加引号）
      */
     const { stripSelectionMarkup, getFieldByName, addSelectionToCurrentSearch } = useSelectionSearch({
       handleAddCondition,
