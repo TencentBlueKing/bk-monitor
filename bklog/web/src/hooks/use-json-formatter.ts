@@ -354,7 +354,13 @@ export default class UseJsonFormatter {
       jsonValue: this.config.jsonValue,
     };
 
-    const resolvedFieldName = this.resolveFormatterSearchFieldName(ctx.name, ctx.searchFieldName);
+    // Text/String JSON：检索字段固定外层根字段；Object/Nested 解析叶子路径
+    const isObjectRoot = ctx.rootFieldType === 'object'
+      || ctx.rootFieldType === 'nested'
+      || ctx.isVirtualObjNode;
+    const resolvedFieldName = ctx.parsedFromJsonString && ctx.rootFieldName && !isObjectRoot
+      ? ctx.rootFieldName
+      : this.resolveFormatterSearchFieldName(ctx.name, ctx.searchFieldName);
     const activeField = this.getField(resolvedFieldName) ?? this.config.field;
     const selectedValue = ctx.value;
     const target = ['date', 'date_nanos'].includes(activeField?.field_type)
@@ -407,10 +413,30 @@ export default class UseJsonFormatter {
     const searchFieldElement = (clickTarget.closest('[data-segment-field-name]')
       || clickTarget.closest('[data-search-field-name]')) as HTMLElement;
     const fieldName = valueElement?.getAttribute('data-field-name');
-    const searchFieldName = searchFieldElement?.getAttribute('data-segment-field-name')
-      || searchFieldElement?.getAttribute('data-search-field-name');
-    const segmentRole = searchFieldElement?.getAttribute('data-segment-field-role');
-    const fieldType = valueElement?.getAttribute('data-field-type');
+    const fieldType = valueElement?.getAttribute('data-field-type')
+      || this.config.field?.field_type
+      || '';
+    // Object/Nested 始终走叶子 segment 路径，即使 DOM 误带了 data-json-text-value
+    const isObjectLikeField = fieldType === 'object'
+      || fieldType === 'nested'
+      || !!this.config.field?.is_virtual_obj_node;
+    const isJsonTextValue = !isObjectLikeField && (
+      valueElement?.getAttribute('data-json-text-value') === 'true'
+      || !!this.config.options?.parsedFromJsonString
+      || clickTarget.closest('[data-json-text-value="true"]') != null
+      || clickTarget.closest('[data-json-string-parsed="true"]') != null
+    );
+    // Text/String JSON：检索字段固定为外层字段；Object 使用叶子 segment 路径
+    const searchFieldName = isJsonTextValue
+      ? (valueElement?.getAttribute('data-search-field-name')
+        || valueElement?.getAttribute('data-field-name')
+        || this.config.field?.field_name
+        || '')
+      : (searchFieldElement?.getAttribute('data-segment-field-name')
+        || searchFieldElement?.getAttribute('data-search-field-name'));
+    const segmentRole = isJsonTextValue
+      ? ''
+      : searchFieldElement?.getAttribute('data-segment-field-role');
 
     const content = this.getSegmentContent(this.keyRef, this.onSegmentEnumClick.bind(this));
     const traceView = content.value.querySelector('[data-item-id="trace-view"]') as HTMLElement;
@@ -668,7 +694,18 @@ export default class UseJsonFormatter {
       // data-search-field-name 继续保留根字段，确保划词逻辑不变。
       if (text && fieldName && /^\s*[\[{]/.test(text)) {
         const valueElement = root.querySelector('.field-value') as HTMLElement;
-        if (valueElement) this.bindRawJsonSegmentFields(valueElement, text, fieldName);
+        if (valueElement) {
+          const field = this.getField(fieldName)
+            ?? (this.config.field?.field_name === fieldName ? this.config.field : undefined);
+          const isObjectLikeField = field?.field_type === 'object'
+            || field?.field_type === 'nested'
+            || !!field?.is_virtual_obj_node;
+          // 仅 Text/String 的 JSON 外观打标；Object/Nested 依赖 data-segment-field-name 做叶子 KEY/VALUE 解析
+          if (!isObjectLikeField) {
+            valueElement.setAttribute('data-json-text-value', 'true');
+          }
+          this.bindRawJsonSegmentFields(valueElement, text, fieldName);
+        }
       }
     }
   }
@@ -709,6 +746,13 @@ export default class UseJsonFormatter {
           targetElement.setAttribute('data-search-field-name', fieldName);
         }
         targetElement.setAttribute('data-field-type', field?.field_type ?? '');
+        // 仅 Text/String 解析出的 JSON 外观打标；Object/Nested 绝不打此标
+        const isObjectLikeField = field?.field_type === 'object'
+          || field?.field_type === 'nested'
+          || !!field?.is_virtual_obj_node;
+        if (this.config.options?.parsedFromJsonString && !isObjectLikeField) {
+          targetElement.setAttribute('data-json-text-value', 'true');
+        }
 
         if (targetElement.hasAttribute('data-with-intersection')) {
           targetElement.style.setProperty('min-height', [targetElement.offsetHeight, 'px'].join(''));

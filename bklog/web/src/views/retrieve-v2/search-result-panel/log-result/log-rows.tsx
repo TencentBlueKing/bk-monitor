@@ -153,17 +153,20 @@ export default defineComponent({
      * 划词「添加到本次检索」入口。
      *
      * enableMinimalTokenCompletion（默认 true / DEFAULT_ENABLE_MINIMAL_TOKEN_COMPLETION）：
-     * - true：Value 按渲染分词补齐到最小可检索单位（lob→lobby；lobby-178→lobby + 17841059990）
-     * - false：Value 直接使用完整划选原文 selectionText，不做最小分词补齐
+     * - true：Value 按渲染分词补齐并拆成最小可检索单位（lob→lobby；lobby-178→[lobby, 17841059990]）
+     * - false：DOM 剥离 KEY 后，对 VALUE 补齐到分词边界但不拆分
+     *   （bernetes_pod bcs-k8s-wat → pod contains bcs-k8s-watch；
+     *    bbc-kw9zb log I07 → pod contains 6bcff65bbc-kw9zb + log contains I0717）
+     *   Text/String 的 JSON 展示（data-json-text-value）：只移除外层 KEY，原文 contains，不补齐不拆分
      *
-     * 关闭示例：useSelectionSearch({ ..., enableMinimalTokenCompletion: false })
+     * ：： TODO 语句模式需要考虑补齐之后增加 * 支持前|后包含关系
      */
     const { stripSelectionMarkup, getFieldByName, addSelectionToCurrentSearch } = useSelectionSearch({
       handleAddCondition,
       getObjectValue,
       fullColumns,
       showCtxType,
-      // enableMinimalTokenCompletion: false, // 如需关闭最小分词补齐、直接使用 selectionText，取消注释
+      enableMinimalTokenCompletion: false,
     });
 
     const setSelectionPopTargetHandler = (rect: DOMRect) => {

@@ -37,13 +37,17 @@ const SELECTION_MAX_TOKENS = 1000;
 const STRUCT_FIELD_TYPES = new Set(['object', 'nested']);
 
 /**
- * 划词 Value 默认开启「最小分词补齐」。
- * - true：按渲染分词边界，把划选补齐/拆成最小可检索分词（如 lob → lobby；lobby-178 → [lobby, 17841059990]）
- * - false：Value 直接使用划选原文 selectionText，不做最小分词补齐
+ * 划词 Value「最小分词」策略。
+ * - true：按渲染分词边界，把划选补齐并拆成最小可检索分词（如 lob → lobby；lobby-178 → [lobby, 17841059990]）
+ * - false：先按 DOM 区分 KEY/VALUE（丢弃 KEY 文本），再对 VALUE 按分词边界补齐，但不拆成多个条件
+ *   （如 bcs-k8s-wat → bcs-k8s-watch；lobby-178 → lobby-17841059990）
  *
  * 入口配置：useSelectionSearch({ enableMinimalTokenCompletion: false })
  */
 export const DEFAULT_ENABLE_MINIMAL_TOKEN_COMPLETION = true;
+
+/** Text/String 字段以 JSON 结构展示时的 DOM 标识：检索只认外层字段，不做子 KEY 补齐/拆分 */
+export const JSON_TEXT_VALUE_ATTR = 'data-json-text-value';
 
 export type SelectionToken = {
   text: string;
@@ -83,8 +87,8 @@ type UseSelectionSearchOptions = {
   fullColumns: Ref<Record<string, any>[]>;
   showCtxType: Ref<string>;
   /**
-   * 是否开启划词 Value「最小分词补齐」（默认 true）。
-   * false 时回退为直接使用完整 selectionText。
+   * 是否开启划词 Value「最小分词拆分」（默认 true）。
+   * false：DOM 剥离 KEY 后对 VALUE 补齐到分词边界，但不拆成多个条件。
    * @see DEFAULT_ENABLE_MINIMAL_TOKEN_COMPLETION
    */
   enableMinimalTokenCompletion?: boolean;
@@ -119,7 +123,7 @@ export const getFieldPathDepth = (fieldName: string, fallbackDepth?: string | nu
 export default (options: UseSelectionSearchOptions) => {
   const store = useStore();
   const { handleAddCondition, getObjectValue, fullColumns, showCtxType } = options;
-  // 划词 Value：默认最小分词补齐；传 false 可关闭并直接使用 selectionText
+  // 划词 Value：默认最小分词拆分；传 false 时补齐但不拆分，并剥离 KEY
   const enableMinimalTokenCompletion = options.enableMinimalTokenCompletion
     ?? DEFAULT_ENABLE_MINIMAL_TOKEN_COMPLETION;
 
@@ -218,11 +222,338 @@ export default (options: UseSelectionSearchOptions) => {
 
   const getSelectionTextByRange = (range: Range) => stripSelectionMarkup(range?.toString?.() ?? '');
 
+  /** 取文本节点落在 Range 内的子串 */
+  const getTextNodeSliceInRange = (node: Node, range: Range) => {
+    if (node.nodeType !== Node.TEXT_NODE) {
+      return '';
+    }
+    const full = node.textContent ?? '';
+    if (!full) {
+      return '';
+    }
+
+    let start = 0;
+    let end = full.length;
+    if (node === range.startContainer) {
+      start = range.startOffset;
+    }
+    if (node === range.endContainer) {
+      end = range.endOffset;
+    }
+
+    // 节点完全在选区外时 intersectsNode 已过滤；边界节点按 offset 切片
+    if (start >= end) {
+      return '';
+    }
+    return stripSelectionMarkup(full.slice(start, end));
+  };
+
+  /** Object/Nested 字段（含虚拟 Object 根）绝不能走 Text JSON 原文 contains 分支 */
+  const isObjectLikeFieldElement = (el: Element | null) => {
+    if (!el) {
+      return false;
+    }
+    const fieldValue = el.closest?.('.field-value') as HTMLElement | null;
+    const fieldType = fieldValue?.getAttribute('data-field-type')
+      || el.closest?.('[data-field-type]')?.getAttribute('data-field-type')
+      || '';
+    if (fieldType === 'object' || fieldType === 'nested') {
+      return true;
+    }
+    const rootName = fieldValue?.getAttribute('data-field-name')
+      || fieldValue?.getAttribute('data-search-field-name')
+      || '';
+    const field = getFieldByName(rootName);
+    return Boolean(field && (isStructField(field) || field.is_virtual_obj_node));
+  };
+
+  const isJsonTextValueElement = (el: Element | null) => {
+    if (!el || isObjectLikeFieldElement(el)) {
+      return false;
+    }
+    return el.closest(`[${JSON_TEXT_VALUE_ATTR}="true"]`) != null
+      || el.closest('[data-json-string-parsed="true"]') != null;
+  };
+
+  const resolveRootFieldNameFromElement = (el: Element | null) => {
+    if (!el) {
+      return '';
+    }
+    const jsonTextRoot = el.closest(`[${JSON_TEXT_VALUE_ATTR}="true"]`) as HTMLElement | null;
+    if (jsonTextRoot) {
+      return jsonTextRoot.getAttribute('data-search-field-name')
+        || jsonTextRoot.getAttribute('data-field-name')
+        || '';
+    }
+    const fieldValue = el.closest('.field-value') as HTMLElement | null;
+    if (fieldValue) {
+      return fieldValue.getAttribute('data-search-field-name')
+        || fieldValue.getAttribute('data-field-name')
+        || '';
+    }
+    return el.closest('[data-field-name]')?.getAttribute('data-field-name') ?? '';
+  };
+
+  type DomSelectionPiece = {
+    role: 'key' | 'value';
+    fieldName: string;
+    text: string;
+    isJsonTextValue: boolean;
+  };
+
+  /**
+   * Object 扁平 JSON 中，分词连接符（- : _）夹在两个同路径 VALUE valid-text 之间时保留；
+   * KEY/VALUE 之间的 ":"" 等结构符前后路径不同或触及 key role，予以丢弃。
+   */
+  const resolveNearbyValueSegmentPath = (textNode: Node): string => {
+    const asValidText = (node: Node | null): HTMLElement | null => {
+      if (!node) return null;
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const el = node as Element;
+        if (el.classList?.contains('valid-text')) return el as HTMLElement;
+        return (el.querySelector?.('.valid-text') as HTMLElement | null) ?? null;
+      }
+      return node.parentElement?.closest?.('.valid-text') as HTMLElement | null;
+    };
+
+    const findSiblingValidText = (direction: 'previousSibling' | 'nextSibling') => {
+      // 连接符常包在 <span><span>-</span></span>，从当前节点向上找有兄弟的祖先
+      let anchor: Node | null = textNode;
+      for (let depth = 0; depth < 4 && anchor; depth++) {
+        let sibling: Node | null = (anchor as ChildNode)[direction];
+        while (sibling) {
+          const hit = asValidText(sibling);
+          if (hit) return hit;
+          sibling = (sibling as ChildNode)[direction];
+        }
+        anchor = anchor.parentElement;
+        // 不超过 field-value / segment-content
+        if (anchor && (
+          (anchor as Element).classList?.contains('field-value')
+          || (anchor as Element).classList?.contains('segment-content')
+        )) {
+          break;
+        }
+      }
+      return null;
+    };
+
+    const prev = findSiblingValidText('previousSibling');
+    const next = findSiblingValidText('nextSibling');
+    if (!prev || !next) {
+      return '';
+    }
+    if (prev.getAttribute('data-segment-field-role') === 'key'
+      || next.getAttribute('data-segment-field-role') === 'key') {
+      return '';
+    }
+    const prevPath = prev.getAttribute('data-segment-field-name') ?? '';
+    const nextPath = next.getAttribute('data-segment-field-name') ?? '';
+    if (!prevPath || !nextPath || prevPath !== nextPath) {
+      return '';
+    }
+    return prevPath;
+  };
+
+  /**
+   * 按 DOM 解析划选碎片：区分字段 KEY 与 VALUE。
+   * - .field-name / 根字段名 → KEY（不进入检索 Value）
+   * - .valid-text / .field-value 内容 → VALUE
+   * - data-json-text-value：内部 JSON KEY 仍视为 Value 文本，检索字段固定为外层字段
+   * - Object：按 data-segment-field-name / role=key 解析叶子 KEY/VALUE
+   */
+  const collectDomSelectionPieces = (range: Range): DomSelectionPiece[] => {
+    const root = (range.commonAncestorContainer instanceof Element
+      ? range.commonAncestorContainer
+      : range.commonAncestorContainer?.parentElement)
+      ?? null;
+    if (!root) {
+      return [];
+    }
+
+    const scope = root.closest?.('.bklog-json-formatter-root, .bklog-column-wrapper, .bklog-json-view-object')
+      ?? root;
+    const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
+    const pieces: DomSelectionPiece[] = [];
+
+    let node = walker.nextNode();
+    while (node) {
+      let intersects = false;
+      try {
+        intersects = range.intersectsNode(node);
+      } catch {
+        intersects = false;
+      }
+      if (!intersects) {
+        node = walker.nextNode();
+        continue;
+      }
+
+      const text = getTextNodeSliceInRange(node, range);
+      if (!text) {
+        node = walker.nextNode();
+        continue;
+      }
+
+      const el = node.parentElement;
+      if (!el || el.closest?.('.btn-more-action, .btn-original-value-action')) {
+        node = walker.nextNode();
+        continue;
+      }
+
+      const isJsonTextValue = isJsonTextValueElement(el);
+      const inFieldName = Boolean(el.closest?.('.field-name'));
+      const inValidText = Boolean(el.closest?.('.valid-text'));
+      const inSegmentKey = Boolean(el.closest?.('[data-segment-field-role="key"]'));
+      const inJsonViewKey = Boolean(el.closest?.('.bklog-json-view-field'));
+
+      // 根字段 KEY（.field-name）：始终剥离
+      if (inFieldName) {
+        const fieldName = el.closest?.('[data-field-name]')?.getAttribute('data-field-name')
+          || resolveRootFieldNameFromElement(el.closest?.('.bklog-root-field') ?? el)
+          || '';
+        pieces.push({ role: 'key', fieldName, text, isJsonTextValue });
+        node = walker.nextNode();
+        continue;
+      }
+
+      // Text/String JSON 内部：整段当作外层字段 VALUE（含引号/冒号），不做子字段解析
+      if (isJsonTextValue) {
+        pieces.push({
+          role: 'value',
+          fieldName: resolveRootFieldNameFromElement(el),
+          text,
+          isJsonTextValue: true,
+        });
+        node = walker.nextNode();
+        continue;
+      }
+
+      // Object/Nested：忽略 JSON 结构符；同叶子 VALUE 之间的连接符（- : _ 等）保留
+      if (!inValidText && !inJsonViewKey) {
+        const nearby = resolveNearbyValueSegmentPath(node);
+        if (nearby) {
+          pieces.push({
+            role: 'value',
+            fieldName: nearby,
+            text,
+            isJsonTextValue: false,
+          });
+        }
+        node = walker.nextNode();
+        continue;
+      }
+
+      // Object JSON KEY（data-segment-field-role=key / json-view key）：剥离不进 Value
+      // role=key 时 segment 常挂父路径（如 __ext）；真实叶子由紧随 VALUE 的 data-segment-field-name 决定
+      if (inSegmentKey || inJsonViewKey) {
+        const fieldName = el.closest?.('[data-segment-field-name]')?.getAttribute('data-segment-field-name')
+          || el.closest?.('[data-search-field-name]')?.getAttribute('data-search-field-name')
+          || resolveRootFieldNameFromElement(el);
+        pieces.push({ role: 'key', fieldName, text, isJsonTextValue: false });
+        node = walker.nextNode();
+        continue;
+      }
+
+      // Object VALUE：优先叶子 segment 路径（如 __ext.io_kubernetes_pod）
+      const segmentPath = el.closest?.('[data-segment-field-name]')?.getAttribute('data-segment-field-name') ?? '';
+      const fieldName = segmentPath
+        || el.closest?.('[data-search-field-name]')?.getAttribute('data-search-field-name')
+        || resolveRootFieldNameFromElement(el);
+      pieces.push({
+        role: 'value',
+        fieldName,
+        text,
+        isJsonTextValue: false,
+      });
+      node = walker.nextNode();
+    }
+
+    return pieces;
+  };
+
+  /** 合并连续同字段 VALUE 碎片（跨过被剥离的 KEY） */
+  const mergeDomValueFragments = (pieces: DomSelectionPiece[]) => {
+    const result: Array<{ fieldName: string; text: string; isJsonTextValue: boolean }> = [];
+    pieces.forEach((piece) => {
+      if (piece.role !== 'value' || !piece.text) {
+        return;
+      }
+      const last = result[result.length - 1];
+      if (
+        last
+        && last.fieldName === piece.fieldName
+        && last.isJsonTextValue === piece.isJsonTextValue
+      ) {
+        last.text += piece.text;
+        return;
+      }
+      result.push({
+        fieldName: piece.fieldName,
+        text: piece.text,
+        isJsonTextValue: piece.isJsonTextValue,
+      });
+    });
+    return result
+      .map(item => ({ ...item, text: item.text.trim() }))
+      .filter(item => item.text);
+  };
+
+  /**
+   * 对单个 VALUE 碎片做「补齐到分词边界、不拆分」。
+   * 例：bcs-k8s-wat → bcs-k8s-watch；bbc-kw9zb → 6bcff65bbc-kw9zb
+   */
+  const completeValueWithoutSplit = (
+    valueText: string,
+    field?: Record<string, any>,
+    row?: Record<string, any>,
+  ) => {
+    const raw = stripSelectionMarkup(valueText).trim();
+    if (!raw) {
+      return '';
+    }
+    if (!field || !row) {
+      return raw;
+    }
+
+    const plain = getFieldPlainText(row, field);
+    if (plain === raw) {
+      return plain;
+    }
+
+    const luceneTokens = getFieldLuceneTokens(row, field);
+    if (luceneTokens.some(token => token.isCursorText && token.text)) {
+      const completed = completeSelectionByTokens(raw, luceneTokens);
+      if (completed.length) {
+        return completed.map(token => token.text).join('');
+      }
+    }
+
+    const fieldTokens = getFieldSegmentTokens(row, field);
+    if (fieldTokens.some(token => token.isCursorText && token.text)) {
+      const completed = completeSelectionByTokens(raw, fieldTokens);
+      if (completed.length) {
+        return completed.map(token => token.text).join('');
+      }
+    }
+
+    return raw;
+  };
+
   const getSelectionAnchorElement = (range: Range) => {
     const startNode = range?.startContainer as Node | null;
     const endNode = range?.endContainer as Node | null;
     const startElement = startNode instanceof Element ? startNode : startNode?.parentElement;
     const endElement = endNode instanceof Element ? endNode : endNode?.parentElement;
+
+    // Text/String JSON：锚定外层 field-value，避免落到 data-segment-field-name 子路径
+    const jsonTextRoot = (
+      startElement?.closest?.(`[${JSON_TEXT_VALUE_ATTR}="true"]`)
+      ?? endElement?.closest?.(`[${JSON_TEXT_VALUE_ATTR}="true"]`)
+    ) as HTMLElement | null;
+    if (jsonTextRoot) {
+      return jsonTextRoot;
+    }
 
     // 优先取分词叶子路径（Origin 未展开 JSON 时挂在 valid-text 上），
     // 再回退 JSON 树 data-search-field-name / data-field-name。
@@ -485,9 +816,10 @@ export default (options: UseSelectionSearchOptions) => {
   /**
    * 划词 Value 解析：
    * - enableMinimalTokenCompletion=true（默认）：相对字段完整 VALUE 的 Lucene 分词边界，
-   *   把划选补齐到相交的最小 cursor token。
-   *   例：划选 0a2bddc9-5 → [0a2bddc9, 5657]（完整值为 0a2bddc9-5657-...）
-   * - false：直接返回 [selectionText]
+   *   把划选补齐并拆成相交的最小 cursor token。
+   *   例：划选 0a2bddc9-5 → [0a2bddc9, 5657]；lobby-178 → [lobby, 17841059990]
+   * - false：补齐到分词边界，但不拆分（单条 Value）。
+   *   例：bcs-k8s-wat → [bcs-k8s-watch]；lobby-178 → [lobby-17841059990]
    *
    * 注意：不能用 keyword 的 whole-value 展示分词（整段 1 token）做补齐判断，
    * 否则会把 0a2bddc9-5 原样当作 Value，无法拆到 0a2bddc9 / 5657。
@@ -502,8 +834,10 @@ export default (options: UseSelectionSearchOptions) => {
       return [];
     }
 
+    // 补齐不拆分：合并相交分词为一整段 Value
     if (!enableMinimalTokenCompletion) {
-      return [raw];
+      const completed = completeValueWithoutSplit(raw, field, row);
+      return completed ? [completed] : [];
     }
 
     if (field && row) {
@@ -1166,7 +1500,8 @@ export default (options: UseSelectionSearchOptions) => {
   /**
    * String / JSON String：
    * - 划选整段 VALUE → KEY is VALUE
-   * - 部分划选：按 enableMinimalTokenCompletion 决定 Value 是最小分词还是 selectionText 原文
+   * - Text/String 以 JSON 展示（data-json-text-value）：剥离外层 KEY 后原文 contains，不做补齐/拆分
+   * - 普通 String 部分划选：按 enableMinimalTokenCompletion 决定拆分或补齐不拆分
    */
   const resolveStringContainsConditions = (
     range: Range,
@@ -1195,6 +1530,33 @@ export default (options: UseSelectionSearchOptions) => {
       }];
     }
 
+    const anchor = getSelectionAnchorElement(range);
+    const isJsonTextValue = isJsonTextValueElement(anchor)
+      || isJsonTextValueElement(
+        (range.commonAncestorContainer instanceof Element
+          ? range.commonAncestorContainer
+          : range.commonAncestorContainer?.parentElement),
+      );
+
+    // Text/String JSON：只移除外层字段 KEY，剩余原文直接 contains
+    if (isJsonTextValue) {
+      const pieces = collectDomSelectionPieces(range);
+      const valueText = mergeDomValueFragments(pieces)
+        .filter(item => item.fieldName === field.field_name || !item.fieldName)
+        .map(item => item.text)
+        .join('')
+        .trim()
+        || selectionText.replace(new RegExp(`^${field.field_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*`), '').trim();
+      if (!valueText) {
+        return [];
+      }
+      return [{
+        ...base,
+        operator: plain === valueText ? 'is' : 'contains match phrase',
+        value: [valueText],
+      }];
+    }
+
     // JSON 树跨 KEY:VALUE 划选（如 rkload_type:Replic）时，selection 不在 VALUE 内，
     // 留给后续 KV 分支只解析冒号后的 VALUE，避免把 key:value 整段当 String contains。
     if (
@@ -1215,31 +1577,95 @@ export default (options: UseSelectionSearchOptions) => {
   };
 
   /**
+   * enableMinimalTokenCompletion=false：
+   * 按 DOM 收集 VALUE 碎片（剥离 KEY），对每个字段 VALUE 补齐最小分词但不拆分。
+   * 返回 null 表示未命中 DOM 策略，交给后续分支；返回 [] 表示应中止（如只划到 KEY）。
+   * 例：
+   * - bernetes_pod bcs-k8s-wat → __ext.io_kubernetes_pod contains bcs-k8s-watch
+   * - bbc-kw9zb log I07 → pod contains 6bcff65bbc-kw9zb + log contains I0717
+   */
+  const resolveDomKeyStrippedSelectionConditions = (
+    range: Range,
+    row: Record<string, any>,
+  ): SelectionCondition[] | null => {
+    const pieces = collectDomSelectionPieces(range);
+    if (!pieces.length) {
+      return null;
+    }
+
+    const hasKeyPiece = pieces.some(item => item.role === 'key');
+    const valueFrags = mergeDomValueFragments(pieces);
+
+    // 只划到 KEY：不添加检索条件
+    if (hasKeyPiece && !valueFrags.length) {
+      return [];
+    }
+
+    if (!valueFrags.length) {
+      return null;
+    }
+
+    // 纯 VALUE、单字段且未擦到 KEY 时，交给后续单叶子/字符串分支，避免重复路径抖动
+    if (!hasKeyPiece && valueFrags.length === 1 && !valueFrags[0].isJsonTextValue) {
+      return null;
+    }
+
+    const conditions: SelectionCondition[] = [];
+    const seen = new Set<string>();
+
+    valueFrags.forEach((frag) => {
+      if (!frag.fieldName) {
+        return;
+      }
+
+      // Text/String JSON：外层字段 + 原文，不做补齐
+      if (frag.isJsonTextValue) {
+        const field = getFieldByName(frag.fieldName) ?? { field_name: frag.fieldName, field_type: 'text' };
+        const plain = getFieldByName(frag.fieldName) ? getFieldPlainText(row, field) : '';
+        const operator = plain && plain === frag.text ? 'is' : 'contains match phrase';
+        const key = [field.field_name, operator, frag.text].join('__');
+        if (seen.has(key)) {
+          return;
+        }
+        seen.add(key);
+        conditions.push(buildConditionFromFieldWithRow(field, frag.text, row, operator));
+        return;
+      }
+
+      let field = getFieldByName(frag.fieldName);
+      if (!isLeafQueryableField(field)) {
+        field = findLeafFieldBySelection(row, frag.fieldName, frag.text)
+          ?? findLeafFieldByPartialValue(row, getParentFieldPath(frag.fieldName) || frag.fieldName, frag.text);
+      }
+      if (!isLeafQueryableField(field)) {
+        return;
+      }
+
+      const plain = getFieldPlainText(row, field);
+      const completed = completeValueWithoutSplit(frag.text, field, row);
+      if (!completed) {
+        return;
+      }
+      const operator = plain === completed ? 'is' : 'contains match phrase';
+      const key = [field.field_name, operator, completed].join('__');
+      if (seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      conditions.push(buildConditionFromFieldWithRow(field, completed, row, operator));
+    });
+
+    const deduped = dedupeSelectionConditions(conditions);
+    return deduped.length ? deduped : null;
+  };
+
+  /**
    * 跨字段划选智能解析（仅 Object/Nested，允许补全）：
    * 1) DOM 相交叶子：必须有 VALUE 重叠证据才采纳（仅擦到 KEY 前缀则丢弃）
    * 2) 完整 "key":"value" / key:value → 补齐完整字段值
    * 3) leading VALUE 截断碎片 → 补齐；trailing 残缺 KEY → 丢弃
    * 4) 跨边界场景下，即使只解析出 1 条有效条件也返回（如只补齐 container_id）
    */
-  const resolvePartialValueTokens = (field: Record<string, any>, row: Record<string, any>, valueHint: string) => {
-    const plain = getFieldPlainText(row, field);
-    if (!plain || plain === '--' || !valueHint) return '';
-    const fullTokens = getFieldSegmentTokens(row, field).filter(token => token.isCursorText && token.text);
-    const selectedTokens = tokenizeSelectionText(valueHint).filter(token => token.isCursorText && token.text);
-    if (!fullTokens.length || !selectedTokens.length) return '';
-    let matched = -1;
-    for (let i = 0; i <= fullTokens.length - selectedTokens.length; i++) {
-      if (selectedTokens.every((token, j) => fullTokens[i + j].text.startsWith(token.text))) {
-        matched = i + selectedTokens.length - 1;
-        break;
-      }
-    }
-    if (matched < 0) return '';
-    const endToken = fullTokens[matched].text;
-    const end = plain.indexOf(endToken) + endToken.length;
-    return endToken && end > endToken.length ? plain.slice(0, end) : endToken;
-  };
-
   const resolveMultiFieldSelectionConditions = (
     range: Range,
     row: Record<string, any>,
@@ -1384,8 +1810,7 @@ export default (options: UseSelectionSearchOptions) => {
         }
         const plain = getFieldPlainText(row, field);
         if (hasFieldValueOverlap(selectionText, plain)) {
-          // 最小分词模式直接用 selectionText，由 resolveSelectionValues 拆最小单位；
-          // 关闭时沿用 getSelectedFieldValue 的旧拼接结果。
+          // true：用 selectionText 拆最小单位；false：用命中片段补齐不拆分
           pushFieldValue(
             field,
             enableMinimalTokenCompletion ? selectionText : (getSelectedFieldValue(field) || selectionText),
@@ -1438,18 +1863,10 @@ export default (options: UseSelectionSearchOptions) => {
         return;
       }
       const plain = getFieldPlainText(row, field);
-      // 关闭最小分词时：部分 VALUE 仍走前缀补齐到截断点（旧行为）
-      if (!enableMinimalTokenCompletion && pair.value && pair.value !== plain) {
-        const partialValue = resolvePartialValueTokens(field, row, pair.value);
-        if (partialValue && partialValue !== plain) {
-          setFieldCondition(field, partialValue, 'contains match phrase');
-          return;
-        }
-      }
       // 必须优先使用 selection 中实际解析出的 VALUE，而不是直接使用行内完整 VALUE。
       // 例如 `io_kubernetes_workload_name: dsa` 对完整值
       // `dsa-17841304550` 应生成 contains match phrase dsa，而不是 is 完整值。
-      // 开启最小分词时 pushFieldValue 内部会拆成最小 token。
+      // true：pushFieldValue 拆最小 token；false：补齐到边界但不拆分。
       if (pair.value) {
         pushFieldValue(field, pair.value);
       } else if (plain && plain !== '--') {
@@ -1546,6 +1963,12 @@ export default (options: UseSelectionSearchOptions) => {
     const endNode = range.endContainer as Node;
     const startEl = (startNode instanceof Element ? startNode : startNode.parentElement);
     const endEl = (endNode instanceof Element ? endNode : endNode.parentElement);
+
+    // Text/String JSON：单叶子也归属外层字段，原文 contains，不做补齐/拆分
+    if (isJsonTextValueElement(startEl) || isJsonTextValueElement(endEl)) {
+      return [];
+    }
+
     const startSegment = startEl?.closest?.('[data-segment-field-name]') as HTMLElement | null;
     const endSegment = endEl?.closest?.('[data-segment-field-name]') as HTMLElement | null;
     const startPath = startSegment?.getAttribute('data-segment-field-name') ?? '';
@@ -1615,18 +2038,13 @@ export default (options: UseSelectionSearchOptions) => {
       }];
     }
 
-    // 最小分词：相对完整 VALUE 的 Lucene 边界补齐（0a2bddc9-5 → 0a2bddc9 + 5657）
-    // 若 Lucene 未命中且划选落在同一 .valid-text 内，再回退该节点全文（lob → lobby）。
-    // 注意：不能用 row/[data-segment-field-name] 的 textContent（含 KEY:VALUE）。
-    let values = enableMinimalTokenCompletion
-      ? resolveSelectionValues(selectionText, field, row)
-      : [selectionText];
+    // true：拆最小分词；false：补齐到边界但不拆分
+    let values = resolveSelectionValues(selectionText, field, row);
 
     const startValidText = startEl?.closest?.('.valid-text') as HTMLElement | null;
     const endValidText = endEl?.closest?.('.valid-text') as HTMLElement | null;
     if (
-      enableMinimalTokenCompletion
-      && values.length === 1
+      values.length === 1
       && values[0] === selectionText
       && startValidText
       && startValidText === endValidText
@@ -1650,14 +2068,25 @@ export default (options: UseSelectionSearchOptions) => {
    * 划词「添加到本次检索」主入口。
    *
    * Value 解析配置 enableMinimalTokenCompletion（默认 true）：
-   * - true：按渲染分词把划选补齐/拆成最小可检索分词单位后再生成条件
-   * - false：Value 直接使用完整 selectionText（关闭最小分词补齐）
-   * 在 useSelectionSearch({ enableMinimalTokenCompletion: false }) 关闭。
+   * - true：按渲染分词把划选补齐并拆成最小可检索分词单位后再生成条件
+   * - false：DOM 剥离 KEY 文本后，对 VALUE 补齐到分词边界（不拆分）
+   * 在 useSelectionSearch({ enableMinimalTokenCompletion: false }) 关闭拆分。
    */
   const addSelectionToCurrentSearch = (selectionRange: Range, row: Record<string, any>) => {
     const selectionText = getSelectionTextByRange(selectionRange);
     if (!selectionText) {
       return;
+    }
+
+    // false：优先 DOM 解析 KEY/VALUE（跨字段、擦到字段名时剥离 KEY 并补齐 VALUE）
+    if (!enableMinimalTokenCompletion) {
+      const domConditions = resolveDomKeyStrippedSelectionConditions(selectionRange, row);
+      if (domConditions !== null) {
+        if (domConditions.length) {
+          applySelectionConditions(domConditions);
+        }
+        return;
+      }
     }
 
     // 单叶子分词命中：路径与操作符一次定死，避免后续分支因 DOM 边界抖动而漂移
@@ -1828,7 +2257,7 @@ export default (options: UseSelectionSearchOptions) => {
     stripSelectionMarkup,
     getFieldByName,
     addSelectionToCurrentSearch,
-    /** 当前是否开启划词 Value 最小分词补齐 */
+    /** 当前是否开启划词 Value 最小分词拆分（false=补齐不拆分 + 剥离 KEY） */
     enableMinimalTokenCompletion,
   };
 };

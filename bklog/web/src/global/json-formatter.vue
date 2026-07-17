@@ -35,6 +35,8 @@
           :data-with-intersection="true"
           :data-field-name="item.name"
           :data-search-field-name="item.name"
+          :data-field-type="item.type"
+          :data-json-text-value="item.formatter.parsedFromJsonString && item.type !== 'object' && item.type !== 'nested' ? 'true' : undefined"
           :ref="item.formatter.ref"
           >{{ item.formatter.stringValue }}</span
         >
@@ -675,10 +677,14 @@
     return val;
   };
 
-  const getFieldFormatter = (field, formatDate) => {
+    const getFieldFormatter = (field, formatDate) => {
     const [objValue, val] = getFieldValue(field);
     const isJsonValue = objValue !== null && typeof objValue === 'object' && objValue !== undefined;
-    const parsedFromJsonString = typeof val === 'string' && isJsonValue;
+    // 仅 String/Text 等非 Object 字段「看起来像 JSON」时才算 parsedFromJsonString
+    const isObjectLikeField = field?.field_type === 'object'
+      || field?.field_type === 'nested'
+      || !!field?.is_virtual_obj_node;
+    const parsedFromJsonString = !isObjectLikeField && typeof val === 'string' && isJsonValue;
     const strVal = getDateFieldValue(field, getCellRender(val, isJsonValue), formatDate);
     return {
       ref: ref(),
