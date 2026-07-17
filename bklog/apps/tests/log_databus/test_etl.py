@@ -198,6 +198,30 @@ FIELDS_ERROR_BUILT = [
     }
 ]
 
+FIELDS_ERROR_RESERVED = [
+    {
+        "field_name": "signature",
+        "field_type": "string",
+        "alias_name": "",
+        "is_time": False,
+        "is_analyzed": False,
+        "is_dimension": True,
+        "is_delete": False,
+    }
+]
+
+FIELDS_ERROR_RESERVED_ALIAS = [
+    {
+        "field_name": "message",
+        "field_type": "string",
+        "alias_name": "signature",
+        "is_time": False,
+        "is_analyzed": False,
+        "is_dimension": True,
+        "is_delete": False,
+    }
+]
+
 # 整形不可以分词
 FIELDS_ERROR_ANALYZED = [
     {
@@ -461,7 +485,7 @@ ETL_PREVIEW_V4_JSON_EXPECTED = [
 ]
 
 # V4版本正则表达式清洗测试数据
-ETL_PREVIEW_V4_REGEXP_INPUT = '192.168.1.1 [25/Oct/2023:10:30:45 +0800] "GET /api/test HTTP/1.1" - status:200 user:admin up_status:ok ms:150 up:192.168.1.2 rs:1 rid:req-123 realip:192.168.1.3 host:example.com region:us-west service:api agent:Mozilla/5.0 up_stream:backend upstream_response_time:0.150 refer:https://example.com http_x_forwarded_for:192.168.1.4 original_host:api.example.com project_id:12345 tag:prod'
+ETL_PREVIEW_V4_REGEXP_INPUT = '127.0.0.1 [25/Oct/2023:10:30:45 +0800] "GET /api/test HTTP/1.1" - status:200 user:admin up_status:ok ms:150 up:127.0.0.2 rs:1 rid:req-123 realip:127.0.0.3 host:example.com region:us-west service:api agent:Mozilla/5.0 up_stream:backend upstream_response_time:0.150 refer:https://example.com http_x_forwarded_for:127.0.1.10 original_host:api.example.com project_id:12345 tag:prod'
 ETL_PREVIEW_V4_REGEXP_PARAMS = {
     "separator_regexp": '(?P<remote_addr>\\d+\\.\\d+\\.\\d+\\.\\d+) \\[(?P<logdate>[\\s\\S]+)\\] "(?P<request_method>[\\S]+) (?P<request_uri>[\\S]+) (?P<request_version>.*)" - status\\:(?P<status>\\d+) user:(?P<user>.*) up_status:(?P<up_status>.*) ms:(?P<ms>\\d+) up:(?P<up>.*) rs:(?P<rs>\\d+) rid:(?P<rid>.*) realip:(?P<realip>.*) host:(?P<host>.*) region:(?P<region>.*) service:(?P<service>.*) agent:(?P<agent>.*) up_stream:(?P<up_stream>.*)upstream_response_time:(?P<upstream_response_time>.*?) refer:(?P<refer>.*) http_x_forwarded_for:(?P<http_x_forwarded_for>.*) original_host:(?P<original_host>.*) project_id:(?P<project_id>.*) tag:(?P<route_tag>.*)',
     "retain_original_text": True,
@@ -484,7 +508,7 @@ ETL_PREVIEW_V4_REGEXP_API_RESPONSE = {
     "rules_output": [
         {
             "value": {
-                "remote_addr": "192.168.1.1",
+                "remote_addr": "127.0.0.1",
                 "logdate": "25/Oct/2023:10:30:45 +0800",
                 "request_method": "GET",
                 "request_uri": "/api/test",
@@ -493,10 +517,10 @@ ETL_PREVIEW_V4_REGEXP_API_RESPONSE = {
                 "user": "admin",
                 "up_status": "ok",
                 "ms": "150",
-                "up": "192.168.1.2",
+                "up": "127.0.0.2",
                 "rs": "1",
                 "rid": "req-123",
-                "realip": "192.168.1.3",
+                "realip": "127.0.0.3",
                 "host": "example.com",
                 "region": "us-west",
                 "service": "api",
@@ -504,7 +528,7 @@ ETL_PREVIEW_V4_REGEXP_API_RESPONSE = {
                 "up_stream": "backend",
                 "upstream_response_time": "0.150",
                 "refer": "https://example.com",
-                "http_x_forwarded_for": "192.168.1.4",
+                "http_x_forwarded_for": "127.0.1.10",
                 "original_host": "api.example.com",
                 "project_id": "12345",
                 "route_tag": "prod",
@@ -539,7 +563,7 @@ ETL_PREVIEW_V4_REGEXP_API_RESPONSE = {
     ]
 }
 ETL_PREVIEW_V4_REGEXP_EXPECTED = [
-    {"field_index": 1, "field_name": "remote_addr", "value": "192.168.1.1"},
+    {"field_index": 1, "field_name": "remote_addr", "value": "127.0.0.1"},
     {"field_index": 2, "field_name": "logdate", "value": "25/Oct/2023:10:30:45 +0800"},
     {"field_index": 3, "field_name": "request_method", "value": "GET"},
     {"field_index": 4, "field_name": "request_uri", "value": "/api/test"},
@@ -548,10 +572,10 @@ ETL_PREVIEW_V4_REGEXP_EXPECTED = [
     {"field_index": 7, "field_name": "user", "value": "admin"},
     {"field_index": 8, "field_name": "up_status", "value": "ok"},
     {"field_index": 9, "field_name": "ms", "value": "150"},
-    {"field_index": 10, "field_name": "up", "value": "192.168.1.2"},
+    {"field_index": 10, "field_name": "up", "value": "127.0.0.2"},
     {"field_index": 11, "field_name": "rs", "value": "1"},
     {"field_index": 12, "field_name": "rid", "value": "req-123"},
-    {"field_index": 13, "field_name": "realip", "value": "192.168.1.3"},
+    {"field_index": 13, "field_name": "realip", "value": "127.0.0.3"},
     {"field_index": 14, "field_name": "host", "value": "example.com"},
     {"field_index": 15, "field_name": "region", "value": "us-west"},
     {"field_index": 16, "field_name": "service", "value": "api"},
@@ -559,7 +583,7 @@ ETL_PREVIEW_V4_REGEXP_EXPECTED = [
     {"field_index": 18, "field_name": "up_stream", "value": "backend"},
     {"field_index": 19, "field_name": "upstream_response_time", "value": "0.150"},
     {"field_index": 20, "field_name": "refer", "value": "https://example.com"},
-    {"field_index": 21, "field_name": "http_x_forwarded_for", "value": "192.168.1.4"},
+    {"field_index": 21, "field_name": "http_x_forwarded_for", "value": "127.0.1.10"},
     {"field_index": 22, "field_name": "original_host", "value": "api.example.com"},
     {"field_index": 23, "field_name": "project_id", "value": "12345"},
     {"field_index": 24, "field_name": "route_tag", "value": "prod"},
@@ -675,6 +699,11 @@ class TestEtl(TestCase):
             etl_param["fields"] = FIELDS_ERROR_BUILT
             CollectorEtlStorageSerializer(data=etl_param).is_valid(raise_exception=True)
 
+        for fields in (FIELDS_ERROR_RESERVED, FIELDS_ERROR_RESERVED_ALIAS):
+            with self.assertRaises(ValidationError):
+                etl_param["fields"] = fields
+                CollectorEtlStorageSerializer(data=etl_param).is_valid(raise_exception=True)
+
         with self.assertRaises(ValidationError):
             etl_param["fields"] = FIELDS_ERROR_ANALYZED
             CollectorEtlStorageSerializer(data=etl_param).is_valid(raise_exception=True)
@@ -736,9 +765,9 @@ class TestEtl(TestCase):
         # 直接对比 build_result_table_id 的派生值，避免依赖被 mock 覆盖的 params["table_id"]。
         from apps.log_databus.handlers.collector.base import CollectorHandler
 
-        expected_index_set = CollectorHandler.build_result_table_id(
-            collector_config.bk_biz_id, TABLE_ID
-        ).replace(".", "_")
+        expected_index_set = CollectorHandler.build_result_table_id(collector_config.bk_biz_id, TABLE_ID).replace(
+            ".", "_"
+        )
         self.assertEqual(
             result["params"]["default_storage_config"]["index_set"],
             expected_index_set,
