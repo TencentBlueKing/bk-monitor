@@ -112,6 +112,7 @@ from apps.log_trace.handlers.proto.proto import Proto
 from apps.models import model_to_dict
 from apps.utils import APIModel
 from apps.utils.bk_data_auth import BkDataAuthHandler
+from apps.utils.db import array_hash
 from apps.utils.local import (
     get_local_param,
     get_request_app_code,
@@ -203,16 +204,20 @@ class IndexSetHandler(APIModel):
         collector_config_ids = [
             index_set["collector_config_id"] for index_set in index_sets if index_set["collector_config_id"]
         ]
-        collector_config_map = {
-            collector_config["collector_config_id"]: collector_config
-            for collector_config in CollectorConfig.objects.filter(collector_config_id__in=collector_config_ids).values(
-                "collector_config_id", "collector_scenario_id", "storage_cluster_type"
-            )
-        }
+        collector_scenario_map = array_hash(
+            data=CollectorConfig.objects.filter(collector_config_id__in=collector_config_ids).values(
+                "collector_config_id", "collector_scenario_id"
+            ),
+            key="collector_config_id",
+            value="collector_scenario_id",
+        )
         for index_set in index_sets:
-            collector_config = collector_config_map.get(index_set["collector_config_id"]) or {}
-            index_set["collector_scenario_id"] = collector_config.get("collector_scenario_id")
-            index_set["storage_cluster_type"] = collector_config.get("storage_cluster_type")
+            index_set["collector_scenario_id"] = collector_scenario_map.get(index_set["collector_config_id"])
+            index_set["support_doris"] = (
+                index_set["support_doris"]
+                if index_set["support_doris"]
+                else LogIndexSet.get_is_support_doris(index_set["index_set_id"])
+            )
         # 不分组，直接返回
         if not is_group:
             return index_sets

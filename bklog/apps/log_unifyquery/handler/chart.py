@@ -16,8 +16,6 @@ from io import StringIO
 from django.conf import settings
 
 from apps.api import UnifyQueryApi
-from apps.log_databus.constants import DORIS_CLUSTER_TYPE
-from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import MAX_RESULT_WINDOW, MAX_ASYNC_COUNT
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 
@@ -35,10 +33,8 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
 
             table_id = f"bklog_index_set_{index_info['index_set_id']}_analysis"
 
-            if index_set_obj and (collector_config_id := index_set_obj.collector_config_id):
-                collector_config_obj = CollectorConfig.objects.filter(collector_config_id=collector_config_id).first()
-                if collector_config_obj and collector_config_obj.storage_cluster_type == DORIS_CLUSTER_TYPE:
-                    table_id = f"bklog_index_set_{index_info['index_set_id']}"
+            if index_set_obj and index_set_obj.is_support_doris():
+                table_id = f"bklog_index_set_{index_info['index_set_id']}"
 
             query_dict = {
                 "data_source": settings.UNIFY_QUERY_DATA_SOURCE,

@@ -41,7 +41,7 @@ from apps.constants import SpacePropertyEnum
 from apps.exceptions import BizNotExistError
 from apps.feature_toggle.handlers.toggle import feature_switch
 from apps.log_clustering.constants import PatternEnum, YearOnYearEnum
-from apps.log_databus.constants import EsSourceType
+from apps.log_databus.constants import DORIS_CLUSTER_TYPE, EsSourceType, STORAGE_CLUSTER_TYPE
 from apps.log_search.constants import (
     DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
     DEFAULT_TIME_FIELD,
@@ -703,6 +703,49 @@ class LogIndexSet(SoftDeleteModel):
         """
         fields["usable_reason"] = str(fields.get("usable_reason", ""))
         return fields
+
+    def is_support_doris(self) -> bool:
+        return self.support_doris_check(self)
+
+    @classmethod
+    def get_is_support_doris(cls, index_set_id: int):
+        index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+        if not index_set_obj:
+            return False
+        else:
+            return cls.support_doris_check(index_set_obj)
+
+    @staticmethod
+    def support_doris_check(index_set_obj):
+        from apps.log_databus.models import CollectorConfig
+
+        if index_set_obj.is_group:
+            child_index_set_ids = index_set_obj.get_child_index_set_ids()
+            collector_config_ids = [
+                collector_config_id
+                for collector_config_id in LogIndexSet.objects.filter(index_set_id__in=child_index_set_ids).values_list(
+                    "collector_config_id", flat=True
+                )
+                if collector_config_id
+            ]
+            if not child_index_set_ids or len(child_index_set_ids) != len(collector_config_ids):
+                return False
+            storage_cluster_types = set(
+                CollectorConfig.objects.filter(collector_config_id__in=collector_config_ids).values_list(
+                    "storage_cluster_type", flat=True
+                )
+            )
+            if STORAGE_CLUSTER_TYPE not in storage_cluster_types:
+                return True
+        else:
+            if not index_set_obj.collector_config_id:
+                return False
+            collector_config_obj = CollectorConfig.objects.filter(
+                collector_config_id=index_set_obj.collector_config_id
+            ).first()
+            if collector_config_obj and collector_config_obj.storage_cluster_type == DORIS_CLUSTER_TYPE:
+                return True
+        return False
 
     class Meta:
         ordering = ("-orders", "-index_set_id")

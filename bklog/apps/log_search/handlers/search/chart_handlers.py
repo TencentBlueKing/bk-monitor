@@ -61,8 +61,8 @@ from apps.log_search.exceptions import (
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import LogIndexSet
 from apps.log_search.utils import add_highlight_mark
-from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.chart import UnifyQueryChartHandler
+from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
 from apps.utils.grep_syntax_parse import grep_parser
 from apps.utils.local import get_request_app_code, get_request_username
 from apps.utils.log import logger
@@ -426,14 +426,7 @@ class ChartHandler:
         """
         if not sort_list:
             if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, bk_biz_id):
-                now_time = arrow.now()
-                params = {
-                    "index_set_ids": [index_set_id],
-                    "bk_biz_id": bk_biz_id,
-                    "start_time": now_time.shift(days=-1).format("YYYY-MM-DD HH:mm:ss"),
-                    "end_time": now_time.format("YYYY-MM-DD HH:mm:ss"),
-                }
-                sort_list = UnifyQueryHandler(params).origin_order_by
+                sort_list = UnifyQueryMappingHandler.get_sort_list_by_index_id(index_set_id)
             else:
                 sort_list = SearchHandler(index_set_id, {}).sort_list
         # 构建 ORDER BY 子句
