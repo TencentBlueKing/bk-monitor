@@ -529,7 +529,13 @@ DEFAULT_PLATFORM_API_NAME_CONFIG = {
     ],
 }
 
-DEFAULT_APM_PLATFORM_AS_INT_CONFIG = {"as_int": ["attributes.http.status_code"]}
+DEFAULT_APM_PLATFORM_ATTRIBUTE_CONFIG = {
+    "as_int": ["attributes.http.status_code"],
+    "as_string": [
+        "attributes.trpc.status_type",
+        "attributes.trpc.status_code",
+    ],
+}
 
 
 class ConfigTypes:
