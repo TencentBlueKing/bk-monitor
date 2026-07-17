@@ -28,9 +28,10 @@ from blueapps.account.models import User
 from django.conf import settings
 from django.test import TestCase, override_settings
 
+from apps.log_databus.constants import DORIS_CLUSTER_TYPE, STORAGE_CLUSTER_TYPE
 from apps.log_databus.models import CollectorConfig, DataLinkConfig
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
-from apps.log_search.models import IndexSetTag, LogIndexSet, LogIndexSetData, Scenario
+from apps.log_search.models import IndexSetTag, LogIndexSet, LogIndexSetData, Scenario, TAG_TYPE_INNER
 from apps.tests.utils import FakeRedis
 from bkm_space.define import Space
 
@@ -1409,13 +1410,16 @@ class TestSyncRouter(TestCase):
     """
 
     def _ensure_doris_tag(self) -> str:
-        """确保 Doris 标签存在，返回其 tag_id 字符串。"""
-        return str(IndexSetTag.get_tag_id("Doris"))
+        """确保 Doris 标签存在，返回其 tag_id 字符串。
+        Doris 标签的 tag_type 默认为 TAG_TYPE_USER。
+        """
+        return str(IndexSetTag.get_tag_id("Doris", tag_type=TAG_TYPE_INNER))
 
     def _build_native_doris_index_set(self, **extra) -> LogIndexSet:
         """创建一个原生 Doris 采集项：
         - 无 Doris 标签
         - doris_table_id 为空，support_doris=False（原生 Doris 自带 sql/grep，不需要额外标识）
+        - storage_cluster_type="doris"（原生 Doris 采集项标识）
         - 有 LogIndexSetData（走 ES 接入流程）
         """
         params = dict(
@@ -1441,6 +1445,7 @@ class TestSyncRouter(TestCase):
             collector_config_name="native_doris_cc",
             collector_scenario_id="log",
             category_id="other_rt",
+            storage_cluster_type=DORIS_CLUSTER_TYPE,
         )
         return index_set
 
@@ -1448,6 +1453,7 @@ class TestSyncRouter(TestCase):
         """创建一个存量 ES + Doris 采集项（开启了 sql/grep）：
         - 无 Doris 标签
         - doris_table_id 有值，support_doris=True（开启了 sql/grep 能力）
+        - storage_cluster_type="elasticsearch"（普通采集项标识）
         - 有 LogIndexSetData（ES 历史数据）
         """
         params = dict(
@@ -1471,6 +1477,7 @@ class TestSyncRouter(TestCase):
             collector_config_name="es_doris_cc",
             collector_scenario_id="log",
             category_id="other_rt",
+            storage_cluster_type=STORAGE_CLUSTER_TYPE,
         )
         return index_set
 
@@ -1478,7 +1485,8 @@ class TestSyncRouter(TestCase):
         """创建一个手动接入 Doris 集群的采集项（开启了 sql/grep）：
         - 有 Doris 标签
         - doris_table_id 有值，support_doris=True（开启了 sql/grep 能力）
-        - 无 LogIndexSetData（不走 ES 路由）
+        - storage_cluster_type="elasticsearch"（跟 ES 采集项一样，手动接入 Doris 集群）
+        - 有 CollectorConfig 记录（采集项）
 
         注意：tag_ids 必须传列表而非字符串，防止 tag_id 值拼接导致的匹配失败。
         """
@@ -1492,7 +1500,19 @@ class TestSyncRouter(TestCase):
             support_doris=True,
         )
         params.update(extra)
-        return LogIndexSet.objects.create(**params)
+        index_set = LogIndexSet.objects.create(**params)
+        # refresh_from_db 确保 tag_ids 经过 from_db_value 转换（避免 list("14") 拆字问题）
+        index_set.refresh_from_db()
+        # 手动接入 Doris 也有采集项，storage_cluster_type 为 elasticsearch
+        CollectorConfig.objects.create(
+            table_id="591_manual",
+            bk_biz_id=2,
+            collector_config_name="manual_doris_cc",
+            collector_scenario_id="log",
+            category_id="other_rt",
+            storage_cluster_type=STORAGE_CLUSTER_TYPE,
+        )
+        return index_set
 
     # ==================================================================
     # 场景 1：原生 Doris 采集项
