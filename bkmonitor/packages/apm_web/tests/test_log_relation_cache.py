@@ -60,6 +60,22 @@ class FailingRedisCache(FakeRedisCache):
         raise ConnectionError(key)
 
 
+class FakeApplicationQuerySet:
+    """模拟按应用名称前缀排除的 QuerySet。"""
+
+    def __init__(self, applications: list[SimpleNamespace]) -> None:
+        self.applications = applications
+        self.excluded_app_name_prefixes: list[str] = []
+
+    def exclude(self, *, app_name__startswith: str) -> list[SimpleNamespace]:
+        self.excluded_app_name_prefixes.append(app_name__startswith)
+        return [
+            application
+            for application in self.applications
+            if not application.app_name.startswith(app_name__startswith)
+        ]
+
+
 class FakeLogRelationCache:
     """记录日志关联列表结果缓存的读写。"""
 
@@ -316,6 +332,36 @@ def test_get_k8s_related_log_indexes_partial_relation_uses_service_path(
     assert query_lists[0][0]["source_info"]["apm_service_name"] == "service-a"
 
 
+def test_cache_excludes_bkapp_ai_applications(monkeypatch: pytest.MonkeyPatch) -> None:
+    applications = [
+        SimpleNamespace(bk_biz_id=BK_BIZ_ID, app_name="bkapp_ai0us0_agent", bk_tenant_id="tenant-ai"),
+        SimpleNamespace(bk_biz_id=BK_BIZ_ID, app_name="bkapp_ai_other", bk_tenant_id="tenant-similar"),
+        SimpleNamespace(bk_biz_id=BK_BIZ_ID, app_name=APP_NAME, bk_tenant_id="tenant-normal"),
+    ]
+    application_queryset = FakeApplicationQuerySet(applications)
+    queried_app_names: list[str] = []
+    tenant_ids: list[str] = []
+
+    def get_related_indexes(_bk_biz_id: int, app_name: str) -> dict[str, list[dict[str, Any]]]:
+        queried_app_names.append(app_name)
+        return {}
+
+    monkeypatch.setattr(
+        tasks,
+        "Application",
+        SimpleNamespace(objects=SimpleNamespace(filter=lambda **_kwargs: application_queryset)),
+    )
+    monkeypatch.setattr(tasks, "caches", {"redis": FakeRedisCache()})
+    monkeypatch.setattr(tasks, "set_local_tenant_id", tenant_ids.append)
+    monkeypatch.setattr(tasks.ServiceLogTaskHandler, "get_k8s_related_log_indexes", get_related_indexes)
+
+    tasks.cache_application_k8s_related_indexes()
+
+    assert application_queryset.excluded_app_name_prefixes == ["bkapp_ai0us0"]
+    assert queried_app_names == ["bkapp_ai_other", APP_NAME]
+    assert tenant_ids == ["tenant-similar", "tenant-normal"]
+
+
 def test_cache_merge_append_only(monkeypatch: pytest.MonkeyPatch) -> None:
     cache_key = ApmCacheKey.APP_SERVICE_K8S_RELATED_LOG_INDEXES_KEY.format(bk_biz_id=BK_BIZ_ID, app_name=APP_NAME)
     old_cache = {
@@ -328,10 +374,11 @@ def test_cache_merge_append_only(monkeypatch: pytest.MonkeyPatch) -> None:
     redis_cache = FakeRedisCache({cache_key: compress_and_serialize(old_cache)})
     application = SimpleNamespace(bk_biz_id=BK_BIZ_ID, app_name=APP_NAME, bk_tenant_id="tenant-a")
     application_filters: list[dict[str, Any]] = []
+    application_queryset = FakeApplicationQuerySet([application])
 
-    def filter_applications(**kwargs: Any) -> list[SimpleNamespace]:
+    def filter_applications(**kwargs: Any) -> FakeApplicationQuerySet:
         application_filters.append(kwargs)
-        return [application]
+        return application_queryset
 
     application_model = SimpleNamespace(objects=SimpleNamespace(filter=filter_applications))
     tenant_ids: list[str] = []
@@ -368,6 +415,7 @@ def test_cache_merge_append_only(monkeypatch: pytest.MonkeyPatch) -> None:
     }
     assert tenant_ids == ["tenant-a"]
     assert application_filters == [{"is_enabled": True}]
+    assert application_queryset.excluded_app_name_prefixes == ["bkapp_ai0us0"]
     assert redis_cache.expirations[cache_key] == 24 * 60 * 60
     assert (
         "[CACHE_APPLICATION_K8S_RELATED_INDEXES] refresh data succeeded: "
@@ -389,7 +437,8 @@ def test_cache_invalid_data_replaced(monkeypatch: pytest.MonkeyPatch, invalid_ca
     cache_key = ApmCacheKey.APP_SERVICE_K8S_RELATED_LOG_INDEXES_KEY.format(bk_biz_id=BK_BIZ_ID, app_name=APP_NAME)
     redis_cache = FakeRedisCache({cache_key: invalid_cache_data})
     application = SimpleNamespace(bk_biz_id=BK_BIZ_ID, app_name=APP_NAME, bk_tenant_id="tenant-a")
-    application_model = SimpleNamespace(objects=SimpleNamespace(filter=lambda **_kwargs: [application]))
+    application_queryset = FakeApplicationQuerySet([application])
+    application_model = SimpleNamespace(objects=SimpleNamespace(filter=lambda **_kwargs: application_queryset))
 
     monkeypatch.setattr(tasks, "Application", application_model)
     monkeypatch.setattr(tasks, "caches", {"redis": redis_cache})
@@ -417,7 +466,7 @@ def test_cache_empty_merged_indexes_is_not_written(monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr(
         tasks,
         "Application",
-        SimpleNamespace(objects=SimpleNamespace(filter=lambda **_kwargs: [application])),
+        SimpleNamespace(objects=SimpleNamespace(filter=lambda **_kwargs: FakeApplicationQuerySet([application]))),
     )
     monkeypatch.setattr(tasks, "caches", {"redis": redis_cache})
     monkeypatch.setattr(tasks, "set_local_tenant_id", lambda _tenant_id: None)
@@ -455,7 +504,7 @@ def test_cache_query_failure_keeps_existing_cache_and_continues(monkeypatch: pyt
     monkeypatch.setattr(
         tasks,
         "Application",
-        SimpleNamespace(objects=SimpleNamespace(filter=lambda **_kwargs: applications)),
+        SimpleNamespace(objects=SimpleNamespace(filter=lambda **_kwargs: FakeApplicationQuerySet(applications))),
     )
     monkeypatch.setattr(tasks, "caches", {"redis": redis_cache})
     monkeypatch.setattr(tasks, "set_local_tenant_id", tenant_ids.append)
