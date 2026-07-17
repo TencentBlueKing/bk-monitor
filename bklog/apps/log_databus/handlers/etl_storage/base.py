@@ -153,7 +153,7 @@ class EtlStorage:
         es_version: str,
         storage_cluster_type: str,
     ) -> None:
-        """按清洗类型扩展结果表配置。"""
+        """在通用结果表参数组装完成后，允许具体清洗类型追加字段或 mapping 配置。"""
 
     @staticmethod
     def _is_v4_reserved_field(field_name: str) -> bool:
@@ -1270,6 +1270,8 @@ class EtlStorage:
 
         params.update(result_table_config)
 
+        # 基类只提供扩展时机，不感知 __ext_json 等清洗类型私有语义。
+        # 此处已有完整 field_list 和 mapping_settings，子类可以在异步下发前做最终定制。
         self.customize_result_table_config(
             params=params,
             etl_params=etl_params,

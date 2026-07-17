@@ -410,6 +410,8 @@ class EtlConfig:
 
 
 class ExtJsonOverflowStrategy(TextChoices):
+    """后台结果表策略；普通采集接口只开放 expand_depth，不允许用户选择 SOURCE_ONLY。"""
+
     FLATTENED = "flattened", _("超出解析层级的对象按 flattened 索引")
     SOURCE_ONLY = "source_only", _("仅保留在 _source 中")
 

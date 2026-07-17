@@ -65,13 +65,16 @@ class BkLogJsonEtlStorage(EtlStorage):
         storage_cluster_type: str,
     ) -> None:
         current_config = current_result_table_config.get("option", {}).get("ext_json_config")
+        # “键不存在”表示旧调用方从未启用该能力；显式传入空对象则表示启用并使用新配置默认值。
         has_new_config = "ext_json_config" in etl_params
 
         if not etl_params.get("retain_extra_json"):
+            # 关闭未定义字段时同步清理请求态和 RT option，避免后续回显出已经失效的层级配置。
             etl_params.pop("ext_json_config", None)
             params["option"].pop("ext_json_config", None)
             return
 
+        # 新旧配置均不存在时保持存量“无限展开”语义，不能把缺省值归一化成新配置默认深度 2。
         if not has_new_config and current_config is None:
             return
 
@@ -93,6 +96,7 @@ class BkLogJsonEtlStorage(EtlStorage):
             effective_config = current_effective_config
         effective_config = self._normalize_ext_json_config(effective_config)
 
+        # 灰度只限制新增或变更；关闭实验开关后，已有配置仍需在普通采集项更新中继续生效。
         is_config_change = current_config is None or effective_config != current_effective_config
         if (
             has_new_config
@@ -101,6 +105,7 @@ class BkLogJsonEtlStorage(EtlStorage):
         ):
             raise ValidationError(_("当前业务未开启未定义JSON字段动态解析层级实验特性"))
 
+        # expand_depth=null 不会生成 flattened mapping，仍是无限展开，因此无需校验 flattened 版本门槛。
         if (
             effective_config["overflow_strategy"] == ExtJsonOverflowStrategy.FLATTENED
             and effective_config["expand_depth"] is not None
@@ -108,6 +113,7 @@ class BkLogJsonEtlStorage(EtlStorage):
         ):
             raise ValidationError(_(f"ES版本{es_version}不支持 flattened 字段类型"))
 
+        # 同时回写本次清洗参数与 RT option，保证异步下发和后续配置回显使用同一份归一化配置。
         etl_params["ext_json_config"] = effective_config
         params["option"]["ext_json_config"] = effective_config
 
@@ -119,10 +125,13 @@ class BkLogJsonEtlStorage(EtlStorage):
             raise ValidationError(_("未找到 __ext_json 结果表字段"))
 
         if effective_config["overflow_strategy"] == ExtJsonOverflowStrategy.SOURCE_ONLY:
+            # 后台应急路径：关闭整个 __ext_json 的索引解析，但原始对象仍保留在 ES _source 中。
             ext_json_field["option"]["es_enabled"] = False
         elif effective_config["expand_depth"] is not None:
             depth = effective_config["expand_depth"]
             path_suffix = r"\.[^.]+" * depth
+            # dynamic_templates 按顺序匹配，因此必须放在通用模板之前；正则只命中第 N 层的 object，
+            # 命中后整棵子树由 flattened 承载，不再为更深层 key 扩展独立 mapping。
             params["default_storage_config"]["mapping_settings"]["dynamic_templates"].insert(
                 0,
                 {
