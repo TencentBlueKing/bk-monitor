@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import logging
 import operator
 import time
 from collections import defaultdict
@@ -39,6 +40,8 @@ from fta_web.alert.handlers.fulltext import (
 )
 from fta_web.alert.handlers.translator import BizTranslator
 from fta_web.alert.utils import search_time_init
+
+logger = logging.getLogger("bkmonitor")
 
 
 class IncidentQueryTransformer(BaseQueryTransformer):
@@ -76,8 +79,8 @@ class IncidentQueryTransformer(BaseQueryTransformer):
     query_fields = [
         QueryField("id", _lazy("故障ID")),
         QueryField("incident_id", _lazy("故障主键")),
-        QueryField("incident_name", _lazy("故障名称")),
-        QueryField("incident_reason", _lazy("故障原因")),
+        QueryField("incident_name", _lazy("故障名称"), agg_field="incident_name.raw", is_char=True),
+        QueryField("incident_reason", _lazy("故障原因"), agg_field="incident_reason.raw", is_char=True),
         QueryField("bk_biz_id", _lazy("业务ID")),
         QueryField("status", _lazy("故障状态")),
         QueryField("status_order", _lazy("故障状态排序字段")),
@@ -104,6 +107,22 @@ class IncidentQueryHandler(BaseBizQueryHandler):
     query_transformer = IncidentQueryTransformer
     FULLTEXT_BIZ_ID_FIELD = "bk_biz_id"
     TEXT_CONDITION_FIELDS = {"incident_name", "incident_reason"}
+    TOP_N_ALLOWED_FIELDS = frozenset(
+        {
+            "id",
+            "incident_id",
+            "incident_name",
+            "incident_reason",
+            "bk_biz_id",
+            "status",
+            "status_order",
+            "level",
+            "assignees",
+            "handlers",
+            "labels",
+            "alert_count",
+        }
+    )
     # 产品锁定：ID、名称、原因、标签、负责人、处理人、所属业务
     FULLTEXT_SEARCH_FIELDS = [
         FulltextSearchField("id", FulltextFieldKind.KEYWORD),
@@ -523,8 +542,22 @@ class IncidentQueryHandler(BaseBizQueryHandler):
         }
         return result
 
+    def filter_top_n_fields(self, fields: list) -> list:
+        """过滤不可聚合或未登记的字段。"""
+        allowed = []
+        dropped = []
+        for field in fields or []:
+            actual_field = field.lstrip("+-")
+            if actual_field in self.TOP_N_ALLOWED_FIELDS:
+                allowed.append(field)
+            else:
+                dropped.append(actual_field)
+        if dropped:
+            logger.warning("incident top_n drop unsupported fields: %s", ",".join(sorted(set(dropped))))
+        return allowed
+
     def top_n(self, fields: list, size=10, translators: dict = None) -> dict:
-        return super().top_n(fields, size, translators)
+        return super().top_n(self.filter_top_n_fields(fields), size, translators)
 
 
 class IncidentAlertQueryHandler(AlertQueryHandler):

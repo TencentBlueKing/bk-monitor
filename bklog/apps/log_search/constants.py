@@ -57,6 +57,7 @@ class InnerTag(ChoicesEnum):
     BKDATA = "bkdata"
     BCS = "bcs"
     CLUSTERING = "clustering"
+    DORIS = "Doris"
 
     _choices_labels = (
         (TRACE, _("trace")),
@@ -67,6 +68,7 @@ class InnerTag(ChoicesEnum):
         (BKDATA, _("计算平台")),
         (BCS, _("BCS")),
         (CLUSTERING, _("数据指纹")),
+        (DORIS, _("Doris")),
     )
 
 
@@ -1352,6 +1354,7 @@ RT_RESERVED_WORD_EXAC = [
     "filename",
     "items",
     "utctime",
+    "signature",
     "__dist_01",
     "__dist_03",
     "__dist_05",

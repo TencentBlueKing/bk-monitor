@@ -84,6 +84,8 @@
         align-items: center;
         margin: 0 0 0 auto;
         white-space: nowrap;
+        transform: scale(0.83);
+        transform-origin: right center;
 
         .icon-change {
           font-size: 20px;
@@ -99,9 +101,9 @@
 
           .split {
             width: 1px;
-            height: 12px;
+            height: 11px;
             background: #faa41e;
-            transform: rotate(23deg) translate(9px, -5px);
+            transform: rotate(23deg) translate(9.5px, -5px);
           }
         }
       }

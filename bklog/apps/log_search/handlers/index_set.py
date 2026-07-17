@@ -1510,7 +1510,7 @@ class IndexSetHandler(APIModel):
     def update_alias_settings(self, alias_settings):
         # 纳秒字段别名不支持用户修改
         alias_settings = [alias for alias in alias_settings if alias.get("field_name") != "dtEventTimeStampNanos"]
-        is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(self.data.tag_ids)
+        is_doris = str(IndexSetTag.get_tag_id("Doris", tag_type=TAG_TYPE_INNER)) in list(self.data.tag_ids)
         multi_execute_func = MultiExecuteFunc()
         if not is_doris:
             query_alias_mappings, alias_field_map = self.get_rt_alias_settings(self.index_set_id, alias_settings)
@@ -1818,7 +1818,7 @@ class BaseIndexSetHandler:
         tag_ids = []
         if self.bcs_cluster_id:
             # 为k8s容器添加默认标签
-            tag_id = IndexSetTag.get_tag_id(name=self.bcs_cluster_id)
+            tag_id = IndexSetTag.get_tag_id(name=self.bcs_cluster_id, space_uid=self.space_uid)
             tag_ids.append(str(tag_id))
 
         # 创建索引集
@@ -1927,7 +1927,7 @@ class BaseIndexSetHandler:
             parent_index_set.query_alias_settings if parent_index_set else index_set.query_alias_settings
         )
         # Doris路由或图表分析路由
-        is_doris = str(IndexSetTag.get_tag_id("Doris")) in list(index_set.tag_ids)
+        is_doris = str(IndexSetTag.get_tag_id("Doris", tag_type=TAG_TYPE_INNER)) in list(index_set.tag_ids)
         doris_table_id = index_set.doris_table_id
         if is_doris or is_analysis:
             if not doris_table_id:
@@ -2122,7 +2122,7 @@ class BaseIndexSetHandler:
 
         # 标签
         if self.bcs_cluster_id:
-            tag_id = IndexSetTag.get_tag_id(name=self.bcs_cluster_id)
+            tag_id = IndexSetTag.get_tag_id(name=self.bcs_cluster_id, space_uid=self.space_uid)
             tag_ids = list(self.index_set_obj.tag_ids)
             if str(tag_id) not in tag_ids:
                 tag_ids.append(str(tag_id))

@@ -426,17 +426,25 @@ def test_func_registered_in_kernel_rpc_registry():
 # ---------- nodeman domain ----------
 
 
-def test_nodeman_register_adds_readonly_status_op():
+def test_nodeman_register_adds_readonly_evidence_ops():
     from kernel_api.rpc.functions.bkm_cli.platform_catalog import nodeman
 
     nodeman.register()  # autouse isolated_catalog 已 reset，catalog 为空，可重注册
     domain = PlatformSourceCatalog.get_domain("nodeman")
     assert domain is not None
     assert "readonly" in domain.audit_tags
+    assert set(domain.operations) == {
+        "get_subscription_summary",
+        "fetch_subscription_statistic",
+        "get_subscription_instance_status",
+        "get_subscription_task_instances",
+        "search_host_plugin_status",
+    }
     op = domain.operations["get_subscription_instance_status"]
     assert op.id.startswith("get_")
     assert op.params_guard is nodeman.guard_subscription_instance_status
     assert op.required_params == ["subscription_id_list"]
+    assert domain.operations["search_host_plugin_status"].cache_bypass_method == "refresh"
 
 
 def test_nodeman_guard_rejects_unknown_keys():
@@ -452,16 +460,384 @@ def test_nodeman_guard_requires_nonempty_int_list():
     from kernel_api.rpc.functions.bkm_cli.platform_catalog import nodeman
     from kernel_api.rpc.functions.bkm_cli.platform_catalog._catalog import ParamsGuardRejected
 
-    for bad in ({}, {"subscription_id_list": []}, {"subscription_id_list": ["x"]}, {"subscription_id_list": [True]}):
+    for bad in (
+        {},
+        {"subscription_id_list": []},
+        {"subscription_id_list": ["x"]},
+        {"subscription_id_list": [True]},
+        {"subscription_id_list": [1.5]},
+    ):
         with pytest.raises(ParamsGuardRejected):
             nodeman.guard_subscription_instance_status(bad)
 
 
-def test_nodeman_guard_normalizes_ids_and_flag():
+def test_nodeman_guard_normalizes_ids_and_forces_task_detail_off():
+    from kernel_api.rpc.functions.bkm_cli.platform_catalog import nodeman
+    from kernel_api.rpc.functions.bkm_cli.platform_catalog._catalog import ParamsGuardRejected
+
+    out = nodeman.guard_subscription_instance_status({"subscription_id_list": ["12", 13]})
+    assert out == {"subscription_id_list": [12, 13], "show_task_detail": False}
+
+    with pytest.raises(ParamsGuardRejected):
+        nodeman.guard_subscription_instance_status({"subscription_id_list": [12], "show_task_detail": True})
+
+
+def test_nodeman_instance_status_projection_drops_task_steps_and_unknown_fields():
     from kernel_api.rpc.functions.bkm_cli.platform_catalog import nodeman
 
-    out = nodeman.guard_subscription_instance_status({"subscription_id_list": ["12", 13], "show_task_detail": True})
-    assert out == {"subscription_id_list": [12, 13], "show_task_detail": True}
+    raw = [
+        {
+            "subscription_id": 12,
+            "unknown": "drop-me",
+            "instances": [
+                {
+                    "instance_id": "host|instance|host|101",
+                    "status": "FAILED",
+                    "create_time": "2026-07-15 10:00:00",
+                    "instance_info": {
+                        "host": {
+                            "bk_host_id": 101,
+                            "bk_biz_id": 2,
+                            "bk_cloud_id": 0,
+                            "bk_host_innerip": "127.0.0.1",
+                            "password": "must-not-return",
+                        },
+                        "service": {"id": 3, "name": "mysql", "secret": "must-not-return"},
+                        "credentials": {"token": "must-not-return"},
+                    },
+                    "running_task": {"id": 99, "is_auto_trigger": True, "private": "drop-me"},
+                    "last_task": {
+                        "id": 98,
+                        "steps": [
+                            {
+                                "log": "password=must-not-return",
+                                "target_hosts": [
+                                    {"sub_steps": [{"inputs": {"instance_info": {"password": "must-not-return"}}}]}
+                                ],
+                            }
+                        ],
+                    },
+                    "host_statuses": [
+                        {
+                            "name": "bkmonitorbeat",
+                            "status": "RUNNING",
+                            "version": "3.0.0",
+                            "private": "drop-me",
+                        }
+                    ],
+                }
+            ],
+        }
+    ]
+
+    assert nodeman.project_subscription_instance_status(raw, None) == [
+        {
+            "subscription_id": 12,
+            "instances": [
+                {
+                    "instance_id": "host|instance|host|101",
+                    "status": "FAILED",
+                    "create_time": "2026-07-15 10:00:00",
+                    "instance_info": {
+                        "host": {
+                            "bk_host_id": 101,
+                            "bk_biz_id": 2,
+                            "bk_cloud_id": 0,
+                            "bk_host_innerip": "127.0.0.1",
+                        },
+                        "service": {"id": 3, "name": "mysql"},
+                    },
+                    "running_task": {"id": 99, "is_auto_trigger": True},
+                    "last_task": {"id": 98},
+                    "host_statuses": [{"name": "bkmonitorbeat", "status": "RUNNING", "version": "3.0.0"}],
+                }
+            ],
+        }
+    ]
+
+
+def test_nodeman_subscription_summary_guard_and_projection_are_fail_closed():
+    from kernel_api.rpc.functions.bkm_cli.platform_catalog import nodeman
+    from kernel_api.rpc.functions.bkm_cli.platform_catalog._catalog import ParamsGuardRejected
+
+    assert nodeman.guard_subscription_summary({"subscription_id_list": ["12", 13]}) == {
+        "subscription_id_list": [12, 13]
+    }
+    with pytest.raises(ParamsGuardRejected):
+        nodeman.guard_subscription_summary({"subscription_id_list": [12], "show_deleted": True})
+
+    raw = [
+        {
+            "id": 12,
+            "name": "mysql exporter",
+            "enable": True,
+            "category": "policy",
+            "plugin_name": "mysql_exporter",
+            "bk_biz_scope": [2],
+            "pid": -1,
+            "scope": {
+                "bk_biz_id": 2,
+                "object_type": "HOST",
+                "node_type": "INSTANCE",
+                "nodes": [
+                    {"bk_host_id": 101},
+                    {"ip": "127.0.0.1", "instance_info": {"password": "must-not-return"}},
+                ],
+            },
+            "target_hosts": [{"ip": "127.0.0.1", "password": "must-not-return"}],
+            "steps": [
+                {
+                    "id": "mysql_exporter",
+                    "type": "PLUGIN",
+                    "config": {
+                        "job_type": "MAIN_INSTALL_PLUGIN",
+                        "plugin_name": "mysql_exporter",
+                        "plugin_version": "2.3",
+                        "is_version_sensitive": False,
+                        "config_templates": [
+                            {
+                                "name": "config.yaml",
+                                "version": "2",
+                                "os": "linux",
+                                "cpu_arch": "x86_64",
+                                "is_main": True,
+                                "content": "password=must-not-return",
+                            }
+                        ],
+                        "secret": "must-not-return",
+                    },
+                    "params": {"context": {"password": "must-not-return"}},
+                }
+            ],
+        }
+    ]
+
+    assert nodeman.project_subscription_summary(raw, None) == [
+        {
+            "id": 12,
+            "name": "mysql exporter",
+            "enable": True,
+            "category": "policy",
+            "plugin_name": "mysql_exporter",
+            "bk_biz_scope": [2],
+            "pid": -1,
+            "scope": {
+                "bk_biz_id": 2,
+                "object_type": "HOST",
+                "node_type": "INSTANCE",
+                "node_count": 2,
+            },
+            "target_host_count": 1,
+            "steps": [
+                {
+                    "id": "mysql_exporter",
+                    "type": "PLUGIN",
+                    "config": {
+                        "job_type": "MAIN_INSTALL_PLUGIN",
+                        "plugin_name": "mysql_exporter",
+                        "plugin_version": "2.3",
+                        "is_version_sensitive": False,
+                        "config_templates": [
+                            {
+                                "name": "config.yaml",
+                                "version": "2",
+                                "os": "linux",
+                                "cpu_arch": "x86_64",
+                                "is_main": True,
+                            }
+                        ],
+                    },
+                }
+            ],
+        }
+    ]
+
+
+def test_nodeman_subscription_statistic_projection_has_fixed_fields():
+    from kernel_api.rpc.functions.bkm_cli.platform_catalog import nodeman
+
+    assert nodeman.guard_subscription_statistic({"subscription_id_list": ["12"]}) == {"subscription_id_list": [12]}
+    raw = [
+        {
+            "subscription_id": 12,
+            "instances": 3,
+            "status": [{"status": "SUCCESS", "count": 2, "unknown": "drop-me"}],
+            "versions": [{"name": "bkmonitorbeat", "version": "3.0.0", "count": 3, "unknown": "drop-me"}],
+            "unknown": "drop-me",
+        }
+    ]
+    assert nodeman.project_subscription_statistic(raw, None) == [
+        {
+            "subscription_id": 12,
+            "instances": 3,
+            "status": [{"status": "SUCCESS", "count": 2}],
+            "versions": [{"name": "bkmonitorbeat", "version": "3.0.0", "count": 3}],
+        }
+    ]
+
+
+def test_nodeman_task_instances_guard_forces_safe_flags_and_bounds_page_size():
+    from kernel_api.rpc.functions.bkm_cli.platform_catalog import nodeman
+    from kernel_api.rpc.functions.bkm_cli.platform_catalog._catalog import ParamsGuardRejected
+
+    assert nodeman.guard_subscription_task_instances(
+        {"subscription_id": "12", "task_id_list": ["8", 9], "page": 2, "pagesize": 200}
+    ) == {
+        "subscription_id": 12,
+        "task_id_list": [8, 9],
+        "need_detail": False,
+        "need_aggregate_all_tasks": False,
+        "need_out_of_scope_snapshots": False,
+        "page": 2,
+        "pagesize": 200,
+    }
+    assert nodeman.guard_subscription_task_instances({"subscription_id": 12})["need_aggregate_all_tasks"] is True
+    with pytest.raises(ParamsGuardRejected):
+        nodeman.guard_subscription_task_instances({"subscription_id": 12, "need_detail": True})
+    with pytest.raises(ParamsGuardRejected):
+        nodeman.guard_subscription_task_instances({"subscription_id": 12, "pagesize": 1001})
+
+
+def test_nodeman_task_instances_projection_drops_steps_logs_and_full_instance_info():
+    from kernel_api.rpc.functions.bkm_cli.platform_catalog import nodeman
+
+    raw = {
+        "total": 1,
+        "status_counter": {
+            "FAILED": 1,
+            "PART_FAILED": 2,
+            "TERMINATED": 3,
+            "REMOVED": 4,
+            "FILTERED": 5,
+            "IGNORED": 6,
+            "total": 21,
+            "unknown": "drop-me",
+        },
+        "list": [
+            {
+                "task_id": 8,
+                "record_id": 9,
+                "instance_id": "host|instance|host|101",
+                "create_time": "2026-07-15 10:00:00",
+                "start_time": "2026-07-15 10:00:01",
+                "finish_time": "2026-07-15 10:00:02",
+                "status": "FAILED",
+                "pipeline_id": "pipeline-1",
+                "instance_info": {
+                    "host": {
+                        "bk_host_id": 101,
+                        "bk_cloud_id": [{"id": 0, "name": "直连区域"}],
+                        "password": "must-not-return",
+                    },
+                    "service": {"id": 3, "secret": "must-not-return"},
+                },
+                "steps": [{"log": "token=must-not-return", "inputs": {"password": "must-not-return"}}],
+            }
+        ],
+    }
+    assert nodeman.project_subscription_task_instances(raw, None) == {
+        "total": 1,
+        "status_counter": {
+            "FAILED": 1,
+            "PART_FAILED": 2,
+            "TERMINATED": 3,
+            "REMOVED": 4,
+            "FILTERED": 5,
+            "IGNORED": 6,
+            "total": 21,
+        },
+        "list": [
+            {
+                "task_id": 8,
+                "record_id": 9,
+                "instance_id": "host|instance|host|101",
+                "create_time": "2026-07-15 10:00:00",
+                "start_time": "2026-07-15 10:00:01",
+                "finish_time": "2026-07-15 10:00:02",
+                "status": "FAILED",
+                "pipeline_id": "pipeline-1",
+                "instance_info": {
+                    "host": {"bk_host_id": 101, "bk_cloud_id": 0},
+                    "service": {"id": 3},
+                },
+            }
+        ],
+    }
+
+
+def test_nodeman_host_plugin_guard_requires_host_ids_and_bounds_page_size():
+    from kernel_api.rpc.functions.bkm_cli.platform_catalog import nodeman
+    from kernel_api.rpc.functions.bkm_cli.platform_catalog._catalog import ParamsGuardRejected
+
+    assert nodeman.guard_host_plugin_status({"bk_host_id": ["101", 102]}) == {
+        "bk_host_id": [101, 102],
+        "page": 1,
+        "pagesize": 100,
+    }
+    for bad in ({}, {"bk_host_id": []}, {"bk_host_id": [101], "pagesize": 1001}, {"bk_biz_id": [2]}):
+        with pytest.raises(ParamsGuardRejected):
+            nodeman.guard_host_plugin_status(bad)
+
+
+def test_nodeman_host_plugin_projection_drops_job_and_permission_details():
+    from kernel_api.rpc.functions.bkm_cli.platform_catalog import nodeman
+
+    raw = {
+        "total": 1,
+        "list": [
+            {
+                "bk_biz_id": 2,
+                "bk_host_id": 101,
+                "bk_cloud_id": 0,
+                "bk_host_name": "demo",
+                "inner_ip": "127.0.0.1",
+                "inner_ipv6": "::1",
+                "os_type": "LINUX",
+                "cpu_arch": "x86_64",
+                "node_type": "AGENT",
+                "node_from": "NODE_MAN",
+                "status": "RUNNING",
+                "version": "1.7.19",
+                "status_display": "正常",
+                "bk_cloud_name": "直连区域",
+                "bk_biz_name": "demo biz",
+                "job_result": {"job_id": 9, "log": "must-not-return"},
+                "operate_permission": True,
+                "plugin_status": [
+                    {
+                        "name": "bkmonitorbeat",
+                        "status": "RUNNING",
+                        "version": "3.0.0",
+                        "host_id": 101,
+                        "unknown": "drop-me",
+                    }
+                ],
+            }
+        ],
+    }
+    assert nodeman.project_host_plugin_status(raw, None) == {
+        "total": 1,
+        "list": [
+            {
+                "bk_biz_id": 2,
+                "bk_host_id": 101,
+                "bk_cloud_id": 0,
+                "bk_host_name": "demo",
+                "inner_ip": "127.0.0.1",
+                "inner_ipv6": "::1",
+                "os_type": "LINUX",
+                "cpu_arch": "x86_64",
+                "node_type": "AGENT",
+                "node_from": "NODE_MAN",
+                "status": "RUNNING",
+                "version": "1.7.19",
+                "status_display": "正常",
+                "bk_cloud_name": "直连区域",
+                "bk_biz_name": "demo biz",
+                "plugin_status": [{"name": "bkmonitorbeat", "status": "RUNNING", "version": "3.0.0", "host_id": 101}],
+            }
+        ],
+    }
 
 
 def test_describe_includes_required_params():

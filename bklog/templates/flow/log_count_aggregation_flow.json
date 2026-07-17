@@ -11,6 +11,7 @@
         "y": 217
       }
     },
+    {% if log_count_aggregation.include_agg %}
     {
       "bk_biz_id": {{log_count_aggregation.bk_biz_id}},
       "sql": "SELECT COUNT(*) as log_count, '__dist_05' as sensitivity, signature FROM {{log_count_aggregation.result_table_id}}, lateral table(udf_single_signature_format_java(log_signature)) as T(signature) {{log_count_aggregation.agg.filter_rule}} GROUP BY signature{% if log_count_aggregation.agg.groups %}, {{log_count_aggregation.agg.groups}}{% endif %}",
@@ -73,6 +74,7 @@
         "y": 172
       }
     },
+    {% endif %}
     {
       "bk_biz_id": {{log_count_aggregation.bk_biz_id}},
       "sql": "SELECT signature, pattern as log_pattern, log FROM {{log_count_aggregation.result_table_id}}, lateral table (udf_single_signature_format_java (log_signature)) as T (signature)",

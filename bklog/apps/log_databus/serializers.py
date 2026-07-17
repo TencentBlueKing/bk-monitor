@@ -947,9 +947,9 @@ class CollectorEtlFieldsSerializer(TokenizeOnCharsSerializer):
             if not field.get("is_built_in", False):
                 if field.get("alias_name"):
                     if field["alias_name"].lower() in built_in_keys:
-                        raise ValidationError(_("字段别名不能与标准字段重复") + f":{field['alias_name']}")
+                        raise ValidationError(_("字段名与保留字段冲突，请更换字段名") + f"：{field['alias_name']}")
                 elif field["field_name"].lower() in built_in_keys:
-                    raise ValidationError(_("字段名称不能与标准字段重复") + f":{field['field_name']}")
+                    raise ValidationError(_("字段名与保留字段冲突，请更换字段名") + f"：{field['field_name']}")
 
                 # 时间字段
                 if field["is_time"]:
