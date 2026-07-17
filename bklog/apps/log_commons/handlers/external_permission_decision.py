@@ -11,6 +11,7 @@ decide() 与具体资源类型无关，供 04/05 等后续能力复用。
 from dataclasses import dataclass, field
 
 from django.conf import settings
+from django.utils import timezone
 
 from apps.constants import ExternalPermissionActionEnum
 from apps.iam.handlers.actions import ActionEnum
@@ -174,4 +175,94 @@ class ExternalLogSearchPermissionDecision:
             execution_user=execution_user,
             audit_user=external_user,
             reason="" if allowed else "legacy_and_iam_denied_or_unavailable",
+        )
+
+
+class ExternalLogExtractPermissionDecision:
+    """外部日志提取场景 legacy(PO) OR strategy 决策组件。
+
+    复用 TAPD3 的 decide() 通用 OR 决策矩阵，与 LogSearch 保持一致的 CheckResult/DecisionResult 契约。
+
+    PO 日志提取路径依赖两种授权来源：
+      - legacy: ExternalPermission.log_extract 在有效期内（expire_time > now）
+      - strategy: Strategies 表中 user_list 包含当前 external_user
+
+    两者满足其一即可放行入口；入口放行后，具体的文件浏览/任务创建仍需经过 Strategies
+    内部的主机/拓扑/目录/文件类型硬校验（不参与 OR）。
+    """
+
+    @classmethod
+    def legacy_check(cls, *, space_uid, external_user):
+        """查 ExternalPermission.log_extract 是否未过期。
+
+        与 TAPD3 LogSearch 不同，此处直接查 expire_time > now 而非遍历 action_id 列表，
+        因为 log_extract 只有一个 action_id，且不需要 resource 级权限判定。
+        """
+        has_log_extract = ExternalPermission.objects.filter(
+            authorized_user=external_user,
+            space_uid=space_uid,
+            action_id=ExternalPermissionActionEnum.LOG_EXTRACT.value,
+            expire_time__gt=timezone.now(),
+        ).exists()
+        return CheckResult(
+            allowed=has_log_extract,
+            source="legacy",
+            detail="legacy_valid" if has_log_extract else "legacy_expired_or_missing",
+        )
+
+    @classmethod
+    def strategy_check(cls, *, bk_biz_id, external_user):
+        """查 Strategies 表中 external_user 是否有可用策略。
+
+        user_list 存储格式为 ",user1,user2,"，使用 ",{external_user}," 锚定匹配
+        天然防止字符串包含误匹配（如 user="alice" 不会匹配到 "alice_2"）。
+        """
+        from apps.log_extract.models import Strategies
+
+        has_strategy = Strategies.objects.filter(
+            bk_biz_id=bk_biz_id,
+            user_list__contains=f",{external_user},",
+        ).exclude(operator="").exists()
+        return CheckResult(
+            allowed=has_strategy,
+            source="strategy",
+            detail="strategy_found" if has_strategy else "no_strategy",
+        )
+
+    @classmethod
+    def decide(cls, *, external_user, execution_user, legacy_result, strategy_result):
+        """日志提取 OR 决策矩阵，复用 TAPD3 同款 decide() 逻辑。
+
+        与 LogSearch 的区别：第二个判据是 strategy_result（策略表中 user_list 包含外部用户），
+        而非 iam_result（IAM 权限中心查询）。
+        """
+        legacy_allowed = legacy_result.allowed
+        strategy_allowed = strategy_result.allowed
+
+        # source="error" 侧的 resources 恒为空集，不可被当作允许/扩权依据
+        if legacy_result.source == "error":
+            legacy_allowed = None
+        if strategy_result.source == "error":
+            strategy_allowed = None
+
+        warning = legacy_result.source == "error" or strategy_result.source == "error"
+
+        if legacy_allowed is True and strategy_allowed is True:
+            decision_source, allowed = "both", True
+        elif legacy_allowed is True:
+            decision_source, allowed = "legacy", True
+        elif strategy_allowed is True:
+            decision_source, allowed = "strategy", True
+        else:
+            decision_source, allowed = "none", False
+
+        return DecisionResult(
+            allowed=allowed,
+            resources=set(),
+            decision_source=decision_source,
+            warning=warning,
+            authorization_subject=external_user,
+            execution_user=execution_user,
+            audit_user=external_user,
+            reason="" if allowed else "legacy_and_strategy_denied_or_unavailable",
         )

@@ -34,7 +34,10 @@ from apps.constants import (
 )
 from apps.iam import ActionEnum
 from apps.iam.handlers.permission import Permission
-from apps.log_commons.handlers.external_permission_decision import ExternalLogSearchPermissionDecision
+from apps.log_commons.handlers.external_permission_decision import (
+    ExternalLogExtractPermissionDecision,
+    ExternalLogSearchPermissionDecision,
+)
 from apps.log_commons.models import (
     AuthorizerSettings,
     ExternalPermission,
@@ -676,8 +679,58 @@ def dispatch_external_proxy(request):
                         },
                         status=403,
                     )
+            elif (
+                target_action_id == ExternalPermissionActionEnum.LOG_EXTRACT.value
+                and RequestProcessor.is_or_decision_enabled(space_uid)
+            ):
+                action_id = target_action_id
+                bk_biz_id = int(space_uid_to_bk_biz_id(space_uid))
+
+                # ===== legacy(PO) OR strategy 决策：subject 恒为 external_user =====
+                legacy_result = ExternalLogExtractPermissionDecision.legacy_check(
+                    space_uid=space_uid,
+                    external_user=external_user,
+                )
+                strategy_result = ExternalLogExtractPermissionDecision.strategy_check(
+                    bk_biz_id=bk_biz_id,
+                    external_user=external_user,
+                )
+                decision_result = ExternalLogExtractPermissionDecision.decide(
+                    external_user=external_user,
+                    execution_user=authorizer,
+                    legacy_result=legacy_result,
+                    strategy_result=strategy_result,
+                )
+                decision_source = decision_result.decision_source
+                decision_warning = decision_result.warning
+                allow_resources_result = {"allowed": True, "resources": []}
+
+                if not decision_result.allowed:
+                    return JsonResponse(
+                        {
+                            "result": False,
+                            "message": f"external_user:{external_user} has no log extract permission "
+                            f"(legacy={legacy_result.allowed}, strategy={strategy_result.allowed}).",
+                        },
+                        status=403,
+                    )
+                # legacy 允许但 strategy 也允许（both），或仅有 strategy 允许时，
+                # 需要确保有可用 authorizer 作为执行代理
+                if decision_source in ("strategy", "both") and not authorizer:
+                    logger.warning(
+                        "strategy allowed but no authorizer configured for space_uid=%s, external_user=%s, "
+                        "reject to avoid anonymous proxy execution",
+                        space_uid, external_user,
+                    )
+                    return JsonResponse(
+                        {
+                            "result": False,
+                            "message": f"空间(ID:{space_uid})未配置代理执行人，暂不支持该访问方式",
+                        },
+                        status=403,
+                    )
             else:
-                # 纯 legacy 判定（灰度关闭或非 log_search 能力），与老版本逐行等价
+                # 纯 legacy 判定（灰度关闭或非 log_search/log_extract 能力），与老版本逐行等价
                 if not external_user_allowed_action_id_list:
                     return JsonResponse(
                         {

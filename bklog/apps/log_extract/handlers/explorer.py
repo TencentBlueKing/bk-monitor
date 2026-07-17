@@ -28,10 +28,8 @@ from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apps.api import CCApi
-from apps.constants import ExternalPermissionActionEnum
 from apps.exceptions import ApiResultError
 from apps.iam import ActionEnum, Permission
-from apps.log_commons.models import ExternalPermission
 from apps.log_extract import constants, exceptions
 from apps.log_extract.constants import (
     BATCH_GET_JOB_INSTANCE_IP_LOG_IP_LIST_SIZE,
@@ -51,7 +49,6 @@ from bkm_ipchooser.constants import CommonEnum, TemplateType
 from bkm_ipchooser.handlers import topo_handler
 from bkm_ipchooser.query import resource
 from bkm_ipchooser.tools import topo_tool
-from bkm_space.utils import bk_biz_id_to_space_uid
 
 
 class ExplorerHandler:
@@ -481,18 +478,11 @@ class ExplorerHandler:
         @return: user_auth，根据topo和module选择的策略dict
         """
         user_auth = {"auth_topo": {"bizs": [], "sets": [], "modules": []}, "auth_modules": []}
-        kwargs = {"user_list__contains": f",{self.request_user},", "bk_biz_id": bk_biz_id}
-        # 增加外部用户权限处理
+        # 外部用户：策略查询主体切换为真实外部用户，不依赖 ExternalPermission 做策略ID过滤
         if self.external_user:
-            space_uid = bk_biz_id_to_space_uid(bk_biz_id)
-            allowed_resources_result = ExternalPermission.get_resources(
-                action_id=ExternalPermissionActionEnum.LOG_EXTRACT.value,
-                space_uid=space_uid,
-                authorized_user=self.external_user,
-            )
-            if not allowed_resources_result.get("resources", []):
-                raise exceptions.ExplorerStrategiesFailed
-            kwargs["strategy_id__in"] = allowed_resources_result["resources"]
+            kwargs = {"user_list__contains": f",{self.external_user},", "bk_biz_id": bk_biz_id}
+        else:
+            kwargs = {"user_list__contains": f",{self.request_user},", "bk_biz_id": bk_biz_id}
         auth_modules = []
         auth_topo = []
         strategies = Strategies.objects.filter(**kwargs).values("select_type", "modules")
@@ -937,20 +927,15 @@ class ExplorerHandler:
         """
         获取用户可查看的策略列表
         """
-        qs = Strategies.objects.filter(bk_biz_id=bk_biz_id, user_list__contains=f",{request_user},").exclude(
-            operator=""
-        )
-        # 增加外部用户权限处理
+        # 外部用户：策略查询主体切换为真实外部用户
         if external_user:
-            space_uid = bk_biz_id_to_space_uid(bk_biz_id)
-            allowed_resources_result = ExternalPermission.get_resources(
-                action_id=ExternalPermissionActionEnum.LOG_EXTRACT.value,
-                space_uid=space_uid,
-                authorized_user=external_user,
-            )
-            if not allowed_resources_result.get("resources", []):
-                raise exceptions.ExplorerStrategiesFailed
-            qs = qs.filter(strategy_id__in=allowed_resources_result["resources"])
+            qs = Strategies.objects.filter(
+                bk_biz_id=bk_biz_id, user_list__contains=f",{external_user},"
+            ).exclude(operator="")
+        else:
+            qs = Strategies.objects.filter(
+                bk_biz_id=bk_biz_id, user_list__contains=f",{request_user},"
+            ).exclude(operator="")
         strategies = qs.values(
             "strategy_id", "select_type", "modules", "visible_dir", "file_type", "operator", "strategy_name"
         ).all()
