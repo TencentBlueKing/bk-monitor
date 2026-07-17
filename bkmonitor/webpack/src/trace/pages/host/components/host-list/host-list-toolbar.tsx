@@ -64,12 +64,12 @@ export default defineComponent({
       <div class='host-list-toolbar'>
         <div class='host-list-toolbar__buttons'>
           {/* 指标对比：本期占位，勾选主机后激活的能力后续接入 */}
-          <Button
+          {/* <Button
             v-bk-tooltips={{ content: t('功能开发中'), delay: 300 }}
             disabled
           >
             {t('指标对比')}
-          </Button>
+          </Button> */}
           <Button
             disabled={!props.hasSelection}
             onClick={() => emit('copyIp')}

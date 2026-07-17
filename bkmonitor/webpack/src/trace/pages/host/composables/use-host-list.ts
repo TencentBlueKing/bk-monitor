@@ -222,8 +222,14 @@ export const useHostList = (options: IUseHostListOptions) => {
     pageSize.value = value;
     resetPage();
   };
-  const handleSelectChange = (keys: (number | string)[]) => {
-    selectedRowKeys.value = keys;
+  const handleSelectChange = async (keys: (number | string)[], isAcrossPage: boolean) => {
+    if (isAcrossPage) {
+      // 跨页全选：从 Worker 取当前过滤条件下的全量行 key（表格 rowKey=id）
+      const response = await hostListWorker.getFilteredRowKeys(getComputeParams());
+      selectedRowKeys.value = response.rowKeys;
+      return;
+    }
+    selectedRowKeys.value = keys.map(String);
   };
   const handleColumnsChange = (columns: string[]) => {
     visibleColumns.value = columns;

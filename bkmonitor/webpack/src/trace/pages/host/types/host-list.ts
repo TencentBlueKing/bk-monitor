@@ -56,8 +56,6 @@ export type EHostQuickCategory = 'alarm' | 'cpu' | 'disk' | 'mem';
 
 /** 快捷过滤卡片配置 */
 export interface IHostQuickCard {
-  /** 图标字体类名（icon-monitor） */
-  icon: string;
   /** 分类 key */
   key: EHostQuickCategory;
   /** 卡片名称（i18n key） */
@@ -74,6 +72,8 @@ export type EHostAggMethod = 'avg' | 'max' | 'min';
 export interface IHostStatusConfig {
   /** 圆点颜色 */
   color: string;
+  /** 圆点背景色 */
+  backgroundColor: string;
   /** 状态名称（i18n key） */
   name: string;
 }

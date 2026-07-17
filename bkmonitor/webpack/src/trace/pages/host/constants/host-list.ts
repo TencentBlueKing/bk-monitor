@@ -41,18 +41,18 @@ export const HOST_METRIC_OVER_THRESHOLD = 80;
 
 /** 采集状态 → 展示配置（圆点颜色 + 名称，和其他模块保持一致） */
 export const HOST_STATUS_MAP: Record<number, IHostStatusConfig> = {
-  [-1]: { name: '未知', color: '#c4c6cc' },
-  0: { name: '正常', color: '#2dcb56' },
-  2: { name: '无Agent', color: '#c4c6cc' },
-  3: { name: '无数据上报', color: '#ea3636' },
+  [-1]: { name: '未知', color: '#c4c6cc', backgroundColor: '#979BA5' },
+  0: { name: '正常', color: '#2dcb56', backgroundColor: '#DAF6E5' },
+  2: { name: '无Agent', color: '#c4c6cc', backgroundColor: '#979ba529' },
+  3: { name: '无数据上报', color: '#ea3636', backgroundColor: '#FFEBEB' },
 };
 
 /** 快捷过滤卡片列表（点击整卡过滤，再次点击取消） */
 export const HOST_QUICK_CARD_LIST: IHostQuickCard[] = [
-  { key: 'alarm', icon: 'icon-gaojing', name: '告警中的主机' },
-  { key: 'cpu', icon: 'icon-CPU', name: 'CPU使用率超80%' },
-  { key: 'mem', icon: 'icon-neicun', name: '应用内存使用率超80%' },
-  { key: 'disk', icon: 'icon-cipan', name: '磁盘空间使用率超80%' },
+  { key: 'alarm', name: '告警中的主机' },
+  { key: 'cpu', name: 'CPU使用率超80%' },
+  { key: 'mem', name: '应用内存使用率超80%' },
+  { key: 'disk', name: '磁盘空间使用率超80%' },
 ];
 
 /** 指标聚合方式列表（蓝字可点切换，参考容器监控） */
@@ -81,7 +81,7 @@ export interface IHostColumnConfig {
   /** 是否可排序 */
   sortable?: boolean;
   /** 单元格渲染类型，驱动表格 View 选择渲染器 */
-  type: 'alarm' | 'cluster' | 'ip' | 'metric' | 'module' | 'process' | 'status' | 'text';
+  type: 'alarm' | 'cluster' | 'ip' | 'metric' | 'module' | 'process' | 'status' | 'text' | 'checkbox';
   /** 列宽 */
   width?: number;
 }
@@ -90,6 +90,7 @@ export interface IHostColumnConfig {
  * 主机列表全部列配置（默认勾选项对齐设计稿主视图，其余可在「字段设置」中开启）。
  */
 export const HOST_LIST_COLUMNS: IHostColumnConfig[] = [
+  { id: 'id', name: 'ID', type: 'checkbox', checked: true, disabled: true, width: 80 },
   { id: 'host_display_name', name: '主机', type: 'ip', checked: true, disabled: true, minWidth: 140 },
   { id: 'bk_host_innerip', name: '内网IP', type: 'text', checked: true, minWidth: 130 },
   { id: 'bk_host_innerip_v6', name: '内网IPv6', type: 'text', checked: false, minWidth: 180 },
