@@ -412,436 +412,31 @@ POST /rum/rum_api/rum_query/span_detail/
 ```json
 {
     "rum_tree": {
-        "spans": [
-            {
-                "id": "3e2ea0cf24104297",
-                "app_name": "rum-demo",
-                "traceID": "145eecb04f9d0ea9ddd2a23d5894cebd",
-                "spanID": "3e2ea0cf24104297",
-                "duration": 23071,
-                "flags": 0,
-                "color": "#96C989",
-                "logs": [
-                    {
-                        "timestamp": 1784172549564571,
-                        "fields": [
-                            {
-                                "key": "helloworld.kind",
-                                "value": 2,
-                                "type": "string",
-                                "query_key": "events.attributes.helloworld.kind",
-                                "query_value": 2
-                            },
-                            {
-                                "key": "helloworld.step",
-                                "value": "traces_span_event_demo",
-                                "type": "string",
-                                "query_key": "events.attributes.helloworld.step",
-                                "query_value": "traces_span_event_demo"
-                            },
-                            {
-                                "key": "message",
-                                "value": "Before do_something",
-                                "type": "string",
-                                "query_key": "events.name.message",
-                                "query_value": "Before do_something"
-                            }
-                        ]
-                    },
-                    {
-                        "timestamp": 1784172549587605,
-                        "fields": [
-                            {
-                                "key": "helloworld.kind",
-                                "value": 2,
-                                "type": "string",
-                                "query_key": "events.attributes.helloworld.kind",
-                                "query_value": 2
-                            },
-                            {
-                                "key": "helloworld.step",
-                                "value": "traces_span_event_demo",
-                                "type": "string",
-                                "query_key": "events.attributes.helloworld.step",
-                                "query_value": "traces_span_event_demo"
-                            },
-                            {
-                                "key": "message",
-                                "value": "After do_something",
-                                "type": "string",
-                                "query_key": "events.name.message",
-                                "query_value": "After do_something"
-                            }
-                        ]
-                    }
-                ],
-                "operationName": "span_event_demo/do_something",
-                "service_name": "srv_test_one_01",
-                "startTime": 1784172549564548,
-                "kind": 1,
-                "tags": [
-                    {
-                        "key": "span.kind",
-                        "value": "internal",
-                        "type": "string"
-                    }
-                ],
-                "error": false,
-                "message": "",
-                "attributes": [
-                    {
-                        "type": "string",
-                        "key": "apdex_type",
-                        "value": "satisfied",
-                        "query_key": "attributes.apdex_type",
-                        "query_value": "satisfied"
-                    },
-                    {
-                        "type": "string",
-                        "key": "span.kind",
-                        "value": "1(内部(internal))",
-                        "query_key": "kind",
-                        "query_value": 1
-                    },
-                    {
-                        "type": "string",
-                        "key": "span.trace_state",
-                        "value": "map[]",
-                        "query_key": "trace_state",
-                        "query_value": "map[]"
-                    },
-                    {
-                        "type": "string",
-                        "key": "span.status_code",
-                        "value": "0(UNSET)",
-                        "query_key": "status.code",
-                        "query_value": 0
-                    },
-                    {
-                        "type": "string",
-                        "key": "span.status_message",
-                        "value": "",
-                        "query_key": "status.message",
-                        "query_value": ""
-                    }
-                ],
-                "resource": [
-                    {
-                        "type": "string",
-                        "key": "bk.instance.id",
-                        "value": "python:srv_test_one_01:::",
-                        "query_key": "resource.bk.instance.id",
-                        "query_value": "python:srv_test_one_01:::"
-                    },
-                    {
-                        "type": "string",
-                        "key": "host.name",
-                        "value": "VM-117-185-tencentos",
-                        "query_key": "resource.host.name",
-                        "query_value": "VM-117-185-tencentos"
-                    },
-                    {
-                        "type": "string",
-                        "key": "os.type",
-                        "value": "linux",
-                        "query_key": "resource.os.type",
-                        "query_value": "linux"
-                    },
-                    {
-                        "type": "string",
-                        "key": "os.version",
-                        "value": "6.6.47-12.tl4.x86_64",
-                        "query_key": "resource.os.version",
-                        "query_value": "6.6.47-12.tl4.x86_64"
-                    },
-                    {
-                        "type": "string",
-                        "key": "process.command",
-                        "value": "/app/main.py",
-                        "query_key": "resource.process.command",
-                        "query_value": "/app/main.py"
-                    },
-                    {
-                        "type": "string",
-                        "key": "process.command_args",
-                        "value": [
-                            "/app/main.py"
-                        ],
-                        "query_key": "resource.process.command_args",
-                        "query_value": [
-                            "/app/main.py"
-                        ]
-                    },
-                    {
-                        "type": "string",
-                        "key": "process.command_line",
-                        "value": "/app/main.py",
-                        "query_key": "resource.process.command_line",
-                        "query_value": "/app/main.py"
-                    },
-                    {
-                        "type": "string",
-                        "key": "process.executable.name",
-                        "value": "/.venv/bin/python",
-                        "query_key": "resource.process.executable.name",
-                        "query_value": "/.venv/bin/python"
-                    },
-                    {
-                        "type": "string",
-                        "key": "process.executable.path",
-                        "value": "/.venv/bin",
-                        "query_key": "resource.process.executable.path",
-                        "query_value": "/.venv/bin"
-                    },
-                    {
-                        "type": "string",
-                        "key": "process.parent_pid",
-                        "value": 0,
-                        "query_key": "resource.process.parent_pid",
-                        "query_value": 0
-                    },
-                    {
-                        "type": "string",
-                        "key": "process.pid",
-                        "value": 1,
-                        "query_key": "resource.process.pid",
-                        "query_value": 1
-                    },
-                    {
-                        "type": "string",
-                        "key": "process.runtime.description",
-                        "value": "3.11.14 (main, Jan 13 2026, 03:12:14) [GCC 14.2.0]",
-                        "query_key": "resource.process.runtime.description",
-                        "query_value": "3.11.14 (main, Jan 13 2026, 03:12:14) [GCC 14.2.0]"
-                    },
-                    {
-                        "type": "string",
-                        "key": "process.runtime.name",
-                        "value": "cpython",
-                        "query_key": "resource.process.runtime.name",
-                        "query_value": "cpython"
-                    },
-                    {
-                        "type": "string",
-                        "key": "process.runtime.version",
-                        "value": "3.11.14",
-                        "query_key": "resource.process.runtime.version",
-                        "query_value": "3.11.14"
-                    },
-                    {
-                        "type": "string",
-                        "key": "service.name",
-                        "value": "srv_test_one_01",
-                        "query_key": "resource.service.name",
-                        "query_value": "srv_test_one_01"
-                    },
-                    {
-                        "type": "string",
-                        "key": "telemetry.sdk.language",
-                        "value": "python",
-                        "query_key": "resource.telemetry.sdk.language",
-                        "query_value": "python"
-                    },
-                    {
-                        "type": "string",
-                        "key": "telemetry.sdk.name",
-                        "value": "opentelemetry",
-                        "query_key": "resource.telemetry.sdk.name",
-                        "query_value": "opentelemetry"
-                    },
-                    {
-                        "type": "string",
-                        "key": "telemetry.sdk.version",
-                        "value": "1.40.0",
-                        "query_key": "resource.telemetry.sdk.version",
-                        "query_value": "1.40.0"
-                    }
-                ],
-                "events": [
-                    {
-                        "name": "Before do_something",
-                        "timestamp": 1784172549564571,
-                        "duration": 23,
-                        "attributes": [
-                            {
-                                "type": "string",
-                                "key": "helloworld.kind",
-                                "value": 2,
-                                "query_key": "events.attributes.helloworld.kind",
-                                "query_value": 2
-                            },
-                            {
-                                "type": "string",
-                                "key": "helloworld.step",
-                                "value": "traces_span_event_demo",
-                                "query_key": "events.attributes.helloworld.step",
-                                "query_value": "traces_span_event_demo"
-                            }
-                        ]
-                    },
-                    {
-                        "name": "After do_something",
-                        "timestamp": 1784172549587605,
-                        "duration": 23057,
-                        "attributes": [
-                            {
-                                "type": "string",
-                                "key": "helloworld.kind",
-                                "value": 2,
-                                "query_key": "events.attributes.helloworld.kind",
-                                "query_value": 2
-                            },
-                            {
-                                "type": "string",
-                                "key": "helloworld.step",
-                                "value": "traces_span_event_demo",
-                                "query_key": "events.attributes.helloworld.step",
-                                "query_value": "traces_span_event_demo"
-                            }
-                        ]
-                    }
-                ],
-                "icon": "http://bkmonitor.bkop.woa.com/static/monitor/img/apm/other.svg",
-                "processID": "p1"
-            }
-        ],
-        "processes": {
-            "p1": {
-                "serviceName": "srv_test_one_01",
-                "tags": [
-                    {
-                        "key": "bk.instance.id",
-                        "value": "python:srv_test_one_01:::",
-                        "type": "string",
-                        "query_key": "resource.bk.instance.id",
-                        "query_value": "python:srv_test_one_01:::"
-                    },
-                    {
-                        "key": "host.name",
-                        "value": "VM-117-185-tencentos",
-                        "type": "string",
-                        "query_key": "resource.host.name",
-                        "query_value": "VM-117-185-tencentos"
-                    },
-                    {
-                        "key": "os.type",
-                        "value": "linux",
-                        "type": "string",
-                        "query_key": "resource.os.type",
-                        "query_value": "linux"
-                    },
-                    {
-                        "key": "os.version",
-                        "value": "6.6.47-12.tl4.x86_64",
-                        "type": "string",
-                        "query_key": "resource.os.version",
-                        "query_value": "6.6.47-12.tl4.x86_64"
-                    },
-                    {
-                        "key": "process.command",
-                        "value": "/app/main.py",
-                        "type": "string",
-                        "query_key": "resource.process.command",
-                        "query_value": "/app/main.py"
-                    },
-                    {
-                        "key": "process.command_args",
-                        "value": [
-                            "/app/main.py"
-                        ],
-                        "type": "string",
-                        "query_key": "resource.process.command_args",
-                        "query_value": [
-                            "/app/main.py"
-                        ]
-                    },
-                    {
-                        "key": "process.command_line",
-                        "value": "/app/main.py",
-                        "type": "string",
-                        "query_key": "resource.process.command_line",
-                        "query_value": "/app/main.py"
-                    },
-                    {
-                        "key": "process.executable.name",
-                        "value": "/.venv/bin/python",
-                        "type": "string",
-                        "query_key": "resource.process.executable.name",
-                        "query_value": "/.venv/bin/python"
-                    },
-                    {
-                        "key": "process.executable.path",
-                        "value": "/.venv/bin",
-                        "type": "string",
-                        "query_key": "resource.process.executable.path",
-                        "query_value": "/.venv/bin"
-                    },
-                    {
-                        "key": "process.parent_pid",
-                        "value": 0,
-                        "type": "string",
-                        "query_key": "resource.process.parent_pid",
-                        "query_value": 0
-                    },
-                    {
-                        "key": "process.pid",
-                        "value": 1,
-                        "type": "string",
-                        "query_key": "resource.process.pid",
-                        "query_value": 1
-                    },
-                    {
-                        "key": "process.runtime.description",
-                        "value": "3.11.14 (main, Jan 13 2026, 03:12:14) [GCC 14.2.0]",
-                        "type": "string",
-                        "query_key": "resource.process.runtime.description",
-                        "query_value": "3.11.14 (main, Jan 13 2026, 03:12:14) [GCC 14.2.0]"
-                    },
-                    {
-                        "key": "process.runtime.name",
-                        "value": "cpython",
-                        "type": "string",
-                        "query_key": "resource.process.runtime.name",
-                        "query_value": "cpython"
-                    },
-                    {
-                        "key": "process.runtime.version",
-                        "value": "3.11.14",
-                        "type": "string",
-                        "query_key": "resource.process.runtime.version",
-                        "query_value": "3.11.14"
-                    },
-                    {
-                        "key": "service.name",
-                        "value": "srv_test_one_01",
-                        "type": "string",
-                        "query_key": "resource.service.name",
-                        "query_value": "srv_test_one_01"
-                    },
-                    {
-                        "key": "telemetry.sdk.language",
-                        "value": "python",
-                        "type": "string",
-                        "query_key": "resource.telemetry.sdk.language",
-                        "query_value": "python"
-                    },
-                    {
-                        "key": "telemetry.sdk.name",
-                        "value": "opentelemetry",
-                        "type": "string",
-                        "query_key": "resource.telemetry.sdk.name",
-                        "query_value": "opentelemetry"
-                    },
-                    {
-                        "key": "telemetry.sdk.version",
-                        "value": "1.40.0",
-                        "type": "string",
-                        "query_key": "resource.telemetry.sdk.version",
-                        "query_value": "1.40.0"
-                    }
-                ]
-            }
-        }
+        "spans": [{
+          "id": "f3318599c774e21e",
+          "span_name": "POST /query/ts",
+          "span_type": "http",
+          "view_url": "/order/submit",
+          "kind": 1,
+          "duration": 100,
+          "start_time": 1784269780001041,
+          "result": "success",
+          "app_name": "rum-demo",
+          "release_version": "1.2.0",
+          "session_id": "session-1783492607893-5d7a11b3ef8368",
+          "user_id": "xiaoming",
+          "end_time": 1784269780001042,
+          "trace_id": "e010dae8b9759c375fa31d99d3f49101",
+          "parent_span_id": "g8899599c774e21e",
+          "parent_span_name": "routeChange",
+          "attributes": [{
+            "type": "string",
+            "key": "lcp.element_url",
+            "value": "/static/img/hero.jpg",
+            "query_key": "attributes.lcp.element_url",
+            "query_value": "/static/img/hero.jpg"
+          }]
+        }]
     },
     "origin_data": {
       "bk_biz_id": "2",
@@ -894,8 +489,8 @@ POST /rum/rum_api/rum_query/view_detail/
 
 Tips：
 - `span_classify` 对比 apm 新增加了 `filter_operator` 字段，供 `仅慢节点` 使用
-- `rum_tree` 对比 apm 的 `trace_tree` 去除了 `processes` 字段，感觉没有用途
-- `rum_tree` -> `spans` 缺少 SDK 版本字段
+- `view_tree` 对比 apm 的 `trace_tree` 去除了 `processes` 字段，感觉没有用途
+- `view_tree` -> `spans` 缺少 SDK 版本字段
 ```json
 {
   "id": "view-1783493293590-804a03375b189",
@@ -908,7 +503,7 @@ Tips：
     "count": 6,
     "icon": "mc-time"
   }],
-  "rum_tree": {
+  "view_tree": {
     "spans": [{
       "id": "f3318599c774e21e",
       "span_name": "POST /query/ts",
@@ -935,7 +530,7 @@ Tips：
       }]
     }]
   },
-  "rum_info": {
+  "view_info": {
     "start_time": 1784269780001041,
     "end_time": 1784269780001326,
     "duration": 100,
@@ -971,10 +566,61 @@ POST /rum/rum_api/rum_query/session_detail/
 
 ### 7.2 Response
 
-- 同 `view_detail` 接口返回一致
-
 ```json
-{}
+{
+  "id": "8e51aa34-fb8b-49e7-b957-430320eee7a0",
+  "original_data": [],
+  "session_tree": {
+    "views": [
+      {
+        "id": "view-1783493293590-804a03375b189",
+        "url": "/login",
+        "vital": {
+          "lcp": 1200,
+          "fcp": 500,
+          "ttfb": 120
+        },
+        "spans": [
+          {
+            "id": "f3318599c774e21e",
+            "span_name": "POST /query/ts",
+            "span_type": "http",
+            "view_url": "/order/submit",
+            "kind": 1,
+            "duration": 100,
+            "start_time": 1784269780001041,
+            "result": "success",
+            "app_name": "rum-demo",
+            "release_version": "1.2.0",
+            "session_id": "session-1783492607893-5d7a11b3ef8368",
+            "user_id": "xiaoming",
+            "end_time": 1784269780001042,
+            "trace_id": "e010dae8b9759c375fa31d99d3f49101",
+            "parent_span_id": "g8899599c774e21e",
+            "parent_span_name": "routeChange",
+            "attributes": [
+              {
+                "type": "string",
+                "key": "lcp.element_url",
+                "value": "/static/img/hero.jpg",
+                "query_key": "attributes.lcp.element_url",
+                "query_value": "/static/img/hero.jpg"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "session_info": {
+    "user_id": "xiaoming",
+    "browser_name": "Chrome 89",
+    "entry_view": "/login",
+    "geo.country": "中国",
+    "geo.city": "广东",
+    "network_effective_type": "4G"
+  }
+}
 ```
 
 ## 8 span_link_context - Span 链路上下文（document、http、longtask、action、error）
