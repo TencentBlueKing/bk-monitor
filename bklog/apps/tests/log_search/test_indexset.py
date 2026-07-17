@@ -29,7 +29,8 @@ from django.conf import settings
 from django.test import TestCase, override_settings
 
 from apps.log_databus.models import CollectorConfig, DataLinkConfig
-from apps.log_search.models import LogIndexSet, LogIndexSetData
+from apps.log_search.handlers.index_set import BaseIndexSetHandler
+from apps.log_search.models import IndexSetTag, LogIndexSet, LogIndexSetData, Scenario
 from apps.tests.utils import FakeRedis
 from bkm_space.define import Space
 
@@ -44,7 +45,16 @@ SCENARIO_ID_BKDATA = "bkdata"
 OVERRIDE_MIDDLEWARE = "apps.tests.middlewares.OverrideMiddleware"
 
 CLUSTER_INFO = [
-    {"cluster_config": {"cluster_id": 1, "cluster_name": "", "display_name": "", "port": 123, "domain_name": "", "version": "7.x"}}
+    {
+        "cluster_config": {
+            "cluster_id": 1,
+            "cluster_name": "",
+            "display_name": "",
+            "port": 123,
+            "domain_name": "",
+            "version": "7.x",
+        }
+    }
 ]
 CLUSTER_INFO_WITH_AUTH = [
     {
@@ -1379,3 +1389,311 @@ class TestCustomCreateIdempotent(TestCase):
 
         collector = CollectorConfig.objects.get(collector_config_id=result["collector_config_id"])
         self.assertEqual(collector.data_link_id, data_link.data_link_id)
+
+
+class TestSyncRouter(TestCase):
+    """
+    回归测试：sync_router / get_index_set_table_info_list 的路由创建逻辑。
+
+    三种采集项类型：
+      1. 原生 Doris 采集项
+         —— ES 一样的接入流程，storage_cluster_type="doris"，没有 Doris 标签
+         —— doris_table_id 为空（在采集项创建阶段不设置）
+         —— 默认路由走 ES（__default__），analysis 路由不创建（__default__ 已支持 sql/grep）
+      2. 存量 ES + Doris 采集项（更新后启用 Doris）
+         —— 无 Doris 标签，但 doris_table_id 有值
+         —— 默认路由走 ES（__default__），analysis 路由走 Doris（__analysis__）
+      3. 手动接入 Doris 集群的采集项
+         —— 有 Doris 标签，doris_table_id 有值
+         —— 默认路由走 Doris（__doris__），analysis 路由走 Doris（__analysis__）
+    """
+
+    def _ensure_doris_tag(self) -> str:
+        """确保 Doris 标签存在，返回其 tag_id 字符串。"""
+        return str(IndexSetTag.get_tag_id("Doris"))
+
+    def _build_native_doris_index_set(self, **extra) -> LogIndexSet:
+        """创建一个原生 Doris 采集项：
+        - 无 Doris 标签
+        - doris_table_id 为空，support_doris=False（原生 Doris 自带 sql/grep，不需要额外标识）
+        - 有 LogIndexSetData（走 ES 接入流程）
+        """
+        params = dict(
+            index_set_name="native_doris",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.LOG,
+            doris_table_id=None,
+            support_doris=False,
+        )
+        params.update(extra)
+        index_set = LogIndexSet.objects.create(**params)
+        # 原生 Doris 同样有 ES 层面的 LogIndexSetData
+        LogIndexSetData.objects.create(
+            index_set_id=index_set.index_set_id,
+            result_table_id="591_native",
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+        )
+        # CollectorConfig 记录，避免 ES 路由中 collector_config.is_nanos 报错
+        CollectorConfig.objects.create(
+            table_id="591_native",
+            bk_biz_id=2,
+            collector_config_name="native_doris_cc",
+            collector_scenario_id="log",
+            category_id="other_rt",
+        )
+        return index_set
+
+    def _build_es_doris_index_set(self, **extra) -> LogIndexSet:
+        """创建一个存量 ES + Doris 采集项（开启了 sql/grep）：
+        - 无 Doris 标签
+        - doris_table_id 有值，support_doris=True（开启了 sql/grep 能力）
+        - 有 LogIndexSetData（ES 历史数据）
+        """
+        params = dict(
+            index_set_name="es_doris",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.LOG,
+            doris_table_id="db.doris_table_1",
+            support_doris=True,
+        )
+        params.update(extra)
+        index_set = LogIndexSet.objects.create(**params)
+        LogIndexSetData.objects.create(
+            index_set_id=index_set.index_set_id,
+            result_table_id="591_xx",
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+        )
+        CollectorConfig.objects.create(
+            table_id="591_xx",
+            bk_biz_id=2,
+            collector_config_name="es_doris_cc",
+            collector_scenario_id="log",
+            category_id="other_rt",
+        )
+        return index_set
+
+    def _build_manual_doris_index_set(self, **extra) -> LogIndexSet:
+        """创建一个手动接入 Doris 集群的采集项（开启了 sql/grep）：
+        - 有 Doris 标签
+        - doris_table_id 有值，support_doris=True（开启了 sql/grep 能力）
+        - 无 LogIndexSetData（不走 ES 路由）
+
+        注意：tag_ids 必须传列表而非字符串，防止 tag_id 值拼接导致的匹配失败。
+        """
+        doris_tag_id = self._ensure_doris_tag()
+        params = dict(
+            index_set_name="manual_doris",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.BKDATA,
+            tag_ids=[doris_tag_id],
+            doris_table_id="db.doris_table_1,db.doris_table_2",
+            support_doris=True,
+        )
+        params.update(extra)
+        return LogIndexSet.objects.create(**params)
+
+    # ==================================================================
+    # 场景 1：原生 Doris 采集项
+    # ==================================================================
+
+    def test_native_doris_default(self):
+        """
+        原生 Doris —— get_index_set_table_info_list(is_analysis=False)
+        期望：走 ES 路由分支，返回 __default__ 后缀条目
+        """
+        index_set = self._build_native_doris_index_set()
+        result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False)
+        self.assertEqual(len(result), 1)
+        info = result[0]
+        self.assertEqual(
+            info["table_id"],
+            f"bklog_index_set_{index_set.index_set_id}_591_native.__default__",
+        )
+        self.assertEqual(info["source_type"], Scenario.LOG)
+
+    def test_native_doris_analysis_empty(self):
+        """
+        原生 Doris —— get_index_set_table_info_list(is_analysis=True)
+        期望：doris_table_id 为空 → 返回空列表（不创建 analysis 路由）
+        """
+        index_set = self._build_native_doris_index_set()
+        result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=True)
+        self.assertEqual(result, [])
+
+    def test_native_doris_sync_router_only_default(self):
+        """
+        原生 Doris —— sync_router 只注册一次（默认路由），不注册 analysis 路由
+        """
+        index_set = self._build_native_doris_index_set()
+        append_calls = []
+
+        def _capture_append(result_key, func, params=None, use_request=True, multi_func_params=False):
+            append_calls.append((result_key, func, params))
+
+        with patch("apps.utils.thread.MultiExecuteFunc.append", side_effect=_capture_append):
+            with patch("apps.utils.thread.MultiExecuteFunc.run", return_value={}):
+                BaseIndexSetHandler.sync_router(index_set)
+
+        self.assertEqual(len(append_calls), 1)
+        key, func, params = append_calls[0]
+        self.assertEqual(key, f"bklog_index_set_{index_set.index_set_id}")
+        self.assertTrue(callable(func))
+        self.assertEqual(params["data_label"], f"bklog_index_set_{index_set.index_set_id}")
+        for info in params["table_info"]:
+            self.assertTrue(info["table_id"].endswith(".__default__"))
+            self.assertTrue(info["is_enable"])
+
+    # ==================================================================
+    # 场景 2：存量 ES + Doris 采集项
+    # ==================================================================
+
+    def test_es_doris_default(self):
+        """
+        存量 ES + Doris —— get_index_set_table_info_list(is_analysis=False)
+        期望：走 ES 路由分支，返回 __default__ 后缀条目
+        """
+        index_set = self._build_es_doris_index_set()
+        result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False)
+        self.assertEqual(len(result), 1)
+        info = result[0]
+        self.assertEqual(
+            info["table_id"],
+            f"bklog_index_set_{index_set.index_set_id}_591_xx.__default__",
+        )
+        self.assertEqual(info["source_type"], Scenario.LOG)
+
+    def test_es_doris_analysis(self):
+        """
+        存量 ES + Doris —— get_index_set_table_info_list(is_analysis=True)
+        期望：is_analysis=True 且 doris_table_id 有值 → 返回 Doris 条目，后缀 __analysis__
+        """
+        index_set = self._build_es_doris_index_set()
+        result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=True)
+        self.assertEqual(len(result), 1)
+        info = result[0]
+        self.assertEqual(info["storage_type"], "doris")
+        self.assertEqual(info["source_type"], "bkdata")
+        self.assertTrue(info["table_id"].endswith(".__analysis__"))
+
+    def test_es_doris_sync_router_both(self):
+        """
+        存量 ES + Doris —— sync_router 注册两次路由：
+          - data_label=bklog_index_set_{id}           → ES 条目（__default__）
+          - data_label=bklog_index_set_{id}_analysis   → Doris 条目（__analysis__）
+        """
+        index_set = self._build_es_doris_index_set()
+        append_calls = []
+
+        def _capture_append(result_key, func, params=None, use_request=True, multi_func_params=False):
+            append_calls.append((result_key, func, params))
+
+        with patch("apps.utils.thread.MultiExecuteFunc.append", side_effect=_capture_append):
+            with patch("apps.utils.thread.MultiExecuteFunc.run", return_value={}):
+                BaseIndexSetHandler.sync_router(index_set)
+
+        self.assertEqual(len(append_calls), 2)
+
+        # 默认路由 → ES
+        key0, _, params0 = append_calls[0]
+        self.assertEqual(key0, f"bklog_index_set_{index_set.index_set_id}")
+        for info in params0["table_info"]:
+            self.assertTrue(info["table_id"].endswith(".__default__"))
+            self.assertEqual(info["source_type"], Scenario.LOG)
+            self.assertTrue(info["is_enable"])
+
+        # Analysis 路由 → Doris
+        key1, _, params1 = append_calls[1]
+        self.assertEqual(key1, f"bklog_index_set_{index_set.index_set_id}_analysis")
+        for info in params1["table_info"]:
+            self.assertTrue(info["table_id"].endswith(".__analysis__"))
+            self.assertEqual(info["storage_type"], "doris")
+            self.assertEqual(info["source_type"], "bkdata")
+            self.assertTrue(info["is_enable"])
+
+    # ==================================================================
+    # 场景 3：手动接入 Doris 集群的采集项
+    # ==================================================================
+
+    def test_manual_doris_default(self):
+        """
+        手动接入 Doris —— get_index_set_table_info_list(is_analysis=False)
+        期望：返回 Doris 条目，后缀 __doris__
+        """
+        index_set = self._build_manual_doris_index_set()
+        result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False)
+        self.assertEqual(len(result), 2)
+        for info in result:
+            self.assertEqual(info["storage_type"], "doris")
+            self.assertEqual(info["source_type"], "bkdata")
+            self.assertTrue(info["table_id"].endswith(".__doris__"))
+
+    def test_manual_doris_analysis(self):
+        """
+        手动接入 Doris —— get_index_set_table_info_list(is_analysis=True)
+        期望：is_doris=True + doris_table_id 有值 → 返回 Doris 条目，后缀 __analysis__
+        """
+        index_set = self._build_manual_doris_index_set()
+        result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=True)
+        self.assertEqual(len(result), 2)
+        for info in result:
+            self.assertEqual(info["storage_type"], "doris")
+            self.assertEqual(info["source_type"], "bkdata")
+            self.assertTrue(info["table_id"].endswith(".__analysis__"))
+
+    def test_manual_doris_sync_router_both(self):
+        """
+        手动接入 Doris —— sync_router 注册两次路由：
+          - data_label=bklog_index_set_{id}           → Doris 条目（__doris__）
+          - data_label=bklog_index_set_{id}_analysis   → Doris 条目（__analysis__）
+        """
+        index_set = self._build_manual_doris_index_set()
+        append_calls = []
+
+        def _capture_append(result_key, func, params=None, use_request=True, multi_func_params=False):
+            append_calls.append((result_key, func, params))
+
+        with patch("apps.utils.thread.MultiExecuteFunc.append", side_effect=_capture_append):
+            with patch("apps.utils.thread.MultiExecuteFunc.run", return_value={}):
+                BaseIndexSetHandler.sync_router(index_set)
+
+        self.assertEqual(len(append_calls), 2)
+
+        # 默认路由 → Doris（__doris__）
+        key0, _, params0 = append_calls[0]
+        self.assertEqual(key0, f"bklog_index_set_{index_set.index_set_id}")
+        for info in params0["table_info"]:
+            self.assertTrue(info["table_id"].endswith(".__doris__"))
+            self.assertEqual(info["storage_type"], "doris")
+            self.assertTrue(info["is_enable"])
+
+        # Analysis 路由 → Doris（__analysis__）
+        key1, _, params1 = append_calls[1]
+        self.assertEqual(key1, f"bklog_index_set_{index_set.index_set_id}_analysis")
+        for info in params1["table_info"]:
+            self.assertTrue(info["table_id"].endswith(".__analysis__"))
+            self.assertEqual(info["storage_type"], "doris")
+            self.assertEqual(info["source_type"], "bkdata")
+            self.assertTrue(info["is_enable"])
+
+    # ==================================================================
+    # 边界情况
+    # ==================================================================
+
+    def test_doris_table_info_no_doris_table_id(self):
+        """
+        有 Doris 标签但 doris_table_id 为空 —— 无论是否 analysis
+        期望：返回空列表（不创建路由）
+        """
+        doris_tag_id = self._ensure_doris_tag()
+        index_set = LogIndexSet.objects.create(
+            index_set_name="doris_no_table",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.BKDATA,
+            tag_ids=[doris_tag_id],
+            doris_table_id=None,
+        )
+
+        self.assertEqual(BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False), [])
+        self.assertEqual(BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=True), [])
