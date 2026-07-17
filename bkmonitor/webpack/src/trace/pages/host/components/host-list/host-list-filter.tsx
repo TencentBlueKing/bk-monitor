@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, defineComponent, toRef } from 'vue';
 
 import RetrievalFilter from '../../../../components/retrieval-filter/retrieval-filter';
-import { HOST_FILTER_FIELDS_ENUM } from '../../constants/constants';
+import { useHostListFilter } from '../../composables/use-host-list-filter';
 
 import type {
   EMode,
@@ -67,6 +67,11 @@ export default defineComponent({
       type: Function as PropType<(params: IGetValueFnParams) => Promise<IWhereValueOptionsItem>>,
       required: true,
     },
+    // 集群模块等字段的完整选项映射（字段 -> 选项树），用于已选条件 tag 的名称还原
+    filterOptionsMap: {
+      type: Object,
+      default: () => ({}),
+    },
   },
   emits: {
     whereChange: (_v: IWhereItem[]) => true,
@@ -75,21 +80,9 @@ export default defineComponent({
     search: () => true,
   },
   setup(props, { emit }) {
-    const tagValueDisplayFormatter = (val, fieldId) => {
-      if (
-        [
-          HOST_FILTER_FIELDS_ENUM.cpuLoad,
-          HOST_FILTER_FIELDS_ENUM.cpuUsage,
-          HOST_FILTER_FIELDS_ENUM.diskInUse,
-          HOST_FILTER_FIELDS_ENUM.ioUtil,
-          HOST_FILTER_FIELDS_ENUM.memUsage,
-          HOST_FILTER_FIELDS_ENUM.pscMemUsage,
-        ].includes(fieldId)
-      ) {
-        return `${val}%`;
-      }
-      return val;
-    };
+    const ctx = useHostListFilter({
+      filterOptionsMap: toRef(props, 'filterOptionsMap'),
+    });
     return () => (
       <div class='host-list-filter'>
         <RetrievalFilter
@@ -103,7 +96,7 @@ export default defineComponent({
           isSingleMode={true}
           loadDelay={0}
           queryString={props.queryString}
-          tagValueDisplayFormatter={tagValueDisplayFormatter}
+          tagValueDisplayFormatter={ctx.tagValueDisplayFormatter}
           where={props.where}
           onModeChange={(v: EMode) => emit('modeChange', v)}
           onQueryStringChange={(v: string) => emit('queryStringChange', v)}

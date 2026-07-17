@@ -104,10 +104,7 @@ export const useHostListWorker = () => {
   const worker = shallowRef<Worker | null>(null);
   let requestSeq = 0;
   let latestComputeId = 0;
-  const pendingRequests = new Map<
-    number,
-    { reject: (reason?: unknown) => void; resolve: (value: unknown) => void }
-  >();
+  const pendingRequests = new Map<number, { reject: (reason?: unknown) => void; resolve: (value: unknown) => void }>();
 
   const ensureWorker = () => {
     if (worker.value) {
@@ -192,6 +189,11 @@ export const useHostListWorker = () => {
       type: 'GET_FILTER_OPTIONS',
     });
 
+  const getFilterOptionsMap = () =>
+    postRequest<Extract<WorkerResponse, { type: 'GET_FILTER_OPTIONS_MAP_DONE' }>>({
+      type: 'GET_FILTER_OPTIONS_MAP',
+    });
+
   const getSelectedIps = (rowKeys: string[]) =>
     postRequest<Extract<WorkerResponse, { type: 'GET_SELECTED_IPS_DONE' }>>({
       rowKeys,
@@ -212,5 +214,6 @@ export const useHostListWorker = () => {
     mergeMetrics,
     scheduleCompute,
     setComputeHandler,
+    getFilterOptionsMap,
   };
 };
