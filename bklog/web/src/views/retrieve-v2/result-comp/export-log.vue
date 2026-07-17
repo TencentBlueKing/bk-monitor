@@ -259,6 +259,7 @@
   import exportHistory from './export-history';
   import { axiosInstance } from '@/api';
   import { BK_LOG_STORAGE } from '@/store/store.type';
+  import { getEffectiveSearchTotal } from '@/storage/utils/normalize-search-total';
   import BklogPopover from '@/components/bklog-popover';
   import TaskItem from './TaskItem';
   import {
@@ -380,14 +381,15 @@
     computed: {
       ...mapState({
         totalCount: state => {
-          if (state.searchTotal > 0) {
-            return state.searchTotal;
+          const effectiveTotal = getEffectiveSearchTotal(state);
+          if (effectiveTotal > 0) {
+            return effectiveTotal;
           }
 
           return state.retrieve.trendDataCount;
         },
         queueStatus: state => state.retrieve.isTotalCountLoaded,
-        totalFields: state => state.indexFieldInfo.fields ?? [],
+        totalFields: (_state, getters) => getters.filteredFieldList,
         visibleFields: state => state.visibleFields ?? [],
         showFieldAlias: state => state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
         retrieveType: state => state.indexItem?.retrieve_type,

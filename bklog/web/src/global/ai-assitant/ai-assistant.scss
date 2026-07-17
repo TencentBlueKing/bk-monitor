@@ -49,6 +49,71 @@
         }
       }
     }
+
+    // AI 小鲸头部图标的 tooltip 由 bkTooltips 指令创建，并通过 boundary=parent 挂载在组件容器内。
+    // 在 AI 组件异步加载或外部全局 popper 样式加载顺序异常时，.bk-popper 会退化成普通文本，导致“新增会话”等提示样式异常。
+    // 这里补充一层容器内 fallback，避免影响业务其他 tippy/bk popover。
+    .bk-popper,
+    .ai-blueking-popper {
+      display: none;
+      padding: 4px 8px;
+      font-size: 12px;
+      line-height: 18px;
+      color: #ffffff;
+      word-break: keep-all;
+      white-space: nowrap;
+      background: #333333;
+      border-radius: 4px;
+
+      &.light {
+        color: #63656e;
+        background: #ffffff;
+        box-shadow: 0 0 6px 0 #dcdee5;
+      }
+
+      &[data-show] {
+        display: block;
+      }
+
+      .bk-popper-arrow,
+      .ai-blueking-popper-arrow {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        visibility: hidden;
+        background: inherit;
+
+        &::before {
+          position: absolute;
+          width: 8px;
+          height: 8px;
+          visibility: visible;
+          content: '';
+          background: inherit;
+          transform: rotate(45deg);
+        }
+      }
+
+      &[data-popper-placement^='top'] > .bk-popper-arrow,
+      &[data-popper-placement^='top'] > .ai-blueking-popper-arrow {
+        bottom: -4px;
+      }
+
+      &[data-popper-placement^='bottom'] > .bk-popper-arrow,
+      &[data-popper-placement^='bottom'] > .ai-blueking-popper-arrow {
+        top: -4px;
+      }
+
+      &[data-popper-placement^='left'] > .bk-popper-arrow,
+      &[data-popper-placement^='left'] > .ai-blueking-popper-arrow {
+        right: -4px;
+      }
+
+      &[data-popper-placement^='right'] > .bk-popper-arrow,
+      &[data-popper-placement^='right'] > .ai-blueking-popper-arrow {
+        left: -4px;
+      }
+    }
   }
 }
 
