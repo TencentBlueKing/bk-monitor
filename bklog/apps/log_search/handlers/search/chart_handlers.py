@@ -676,8 +676,6 @@ class SQLChartHandler(ChartHandler):
         """
         :param params: 查询相关参数
         """
-        if not self.data.support_doris:
-            raise IndexSetDorisQueryException()
         alias_mappings = params["alias_mappings"]
         grep_field = params.get("grep_field")
         grep_query = params.get("grep_query")
@@ -697,6 +695,8 @@ class SQLChartHandler(ChartHandler):
                 query_handler = UnifyQueryChartHandler(params)
                 result = query_handler.get_chart_data()
             else:
+                if not self.data.support_doris:
+                    raise IndexSetDorisQueryException()
                 # 执行 doris 查询
                 result = self.fetch_query_data(sql)
             trace_params.update({"total_records": result["total_records"], "time_taken": result["time_taken"]})
@@ -716,9 +716,6 @@ class SQLChartHandler(ChartHandler):
         :param params: 查询相关参数
         :return: dict，包含总数和耗时
         """
-        if not self.data.support_doris:
-            raise IndexSetDorisQueryException()
-
         sql = self.generate_grep_query_sql(
             params,
             select_clause="COUNT(*) AS total",
@@ -739,6 +736,8 @@ class SQLChartHandler(ChartHandler):
                 total = result["list"][0]["total"] if result["list"] else 0
                 time_taken = result["time_taken"]
             else:
+                if not self.data.support_doris:
+                    raise IndexSetDorisQueryException()
                 # 执行 doris 查询
                 result = self.fetch_query_data(sql)
                 total = result["list"][0]["total"] if result["list"] else 0

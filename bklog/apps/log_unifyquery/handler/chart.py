@@ -16,6 +16,8 @@ from io import StringIO
 from django.conf import settings
 
 from apps.api import UnifyQueryApi
+from apps.log_databus.constants import DORIS_CLUSTER_TYPE
+from apps.log_databus.models import CollectorConfig
 from apps.log_search.constants import MAX_RESULT_WINDOW, MAX_ASYNC_COUNT
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 
@@ -29,13 +31,22 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
         # 拼接查询参数列表
         query_list = []
         for index, index_info in enumerate(self.index_info_list):
+            index_set_obj = index_info.get("index_set_obj")
+
+            table_id = f"bklog_index_set_{index_info['index_set_id']}_analysis"
+
+            if index_set_obj and (collector_config_id := index_set_obj.collector_config_id):
+                collector_config_obj = CollectorConfig.objects.filter(collector_config_id=collector_config_id).first()
+                if collector_config_obj and collector_config_obj.storage_cluster_type == DORIS_CLUSTER_TYPE:
+                    table_id = f"bklog_index_set_{index_info['index_set_id']}"
+
             query_dict = {
                 "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
                 "reference_name": self.generate_reference_name(index),
                 "conditions": self._transform_additions(index_info),
                 "query_string": self.query_string,
                 "sql": self.sql,
-                "table_id": f"bklog_index_set_{index_info['index_set_id']}_analysis",
+                "table_id": table_id,
             }
 
             query_list.append(query_dict)
