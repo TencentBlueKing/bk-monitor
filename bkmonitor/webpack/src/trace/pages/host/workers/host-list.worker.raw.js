@@ -72,6 +72,7 @@ const createHostListRow = (row, metric = {}) => {
   const bkClusters = extractClusters(modules);
   const totalAlarmCount = (metric.alarm_count || []).reduce((pre, cur) => pre + (cur.count || 0), 0);
   return Object.assign({}, row || {}, metric || {}, {
+    id: `${row.bk_host_innerip}`, // 使用内网 IP 作为唯一标识
     bkClusters,
     clusterNames: bkClusters.map(c => c.name).join(','),
     moduleNames: modules.map(m => m.bk_inst_name).join(','),
@@ -331,15 +332,25 @@ const optionsMapToRecord = map => {
   return record;
 };
 
-const runCompute = params => {
-  const nodeScopedRows = rawRows.filter(row => matchTopoNode(row, params.selectedNode));
-  const categoryStats = computeCategoryStats(nodeScopedRows);
-  const filteredRows = nodeScopedRows.filter(
+/** 快捷分类 + where + keyword 过滤 */
+const filterByConditions = (rows, params) =>
+  rows.filter(
     row =>
       matchQuickCategory(row, params.activeCategory) &&
       matchWhere(row, params.where) &&
       matchKeyword(row, params.keyword)
   );
+
+/** 拓扑 + 条件过滤后的全量行（不含分页） */
+const getFilteredRows = params => {
+  const nodeScopedRows = rawRows.filter(row => matchTopoNode(row, params.selectedNode));
+  return filterByConditions(nodeScopedRows, params);
+};
+
+const runCompute = params => {
+  const nodeScopedRows = rawRows.filter(row => matchTopoNode(row, params.selectedNode));
+  const categoryStats = computeCategoryStats(nodeScopedRows);
+  const filteredRows = filterByConditions(nodeScopedRows, params);
   const sortedRows = sortRows(filteredRows, params.sortInfo);
   const total = sortedRows.length;
   const start = (params.page - 1) * params.pageSize;
@@ -399,8 +410,9 @@ self.onmessage = event => {
     }
     case 'GET_SELECTED_IPS': {
       const keySet = new Set(message.rowKeys.map(String));
+      // 表格 rowKey 为 id（内网 IP），同时兼容历史 rowId
       const ips = rawRows
-        .filter(row => keySet.has(row.rowId))
+        .filter(row => keySet.has(String(row.id)) || keySet.has(String(row.rowId)))
         .map(row => row.bk_host_innerip)
         .filter(Boolean);
       self.postMessage({
@@ -416,6 +428,16 @@ self.onmessage = event => {
         filterOptionsMap: optionsMapToRecord(filterOptionsMap),
         requestId: message.requestId,
         type: 'GET_FILTER_OPTIONS_MAP_DONE',
+      });
+      break;
+    }
+    case 'GET_FILTERED_ROW_KEYS': {
+      // 跨页全选：返回当前过滤条件下的全量行 key（与表格 rowKey=id 一致）
+      const rowKeys = getFilteredRows(message.params).map(row => row.id);
+      self.postMessage({
+        requestId: message.requestId,
+        rowKeys,
+        type: 'GET_FILTERED_ROW_KEYS_DONE',
       });
       break;
     }

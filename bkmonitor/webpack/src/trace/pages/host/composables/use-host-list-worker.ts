@@ -57,7 +57,8 @@ type WorkerResponse =
       type: 'COMPUTE_DONE';
     }
   | { requestId: number; result: { count: number; list: IValue[] }; type: 'GET_FILTER_OPTIONS_DONE' }
-  | { ips: string[]; requestId: number; type: 'GET_SELECTED_IPS_DONE' };
+  | { ips: string[]; requestId: number; type: 'GET_SELECTED_IPS_DONE' }
+  | { requestId: number; rowKeys: string[]; type: 'GET_FILTERED_ROW_KEYS_DONE' };
 
 /** Worker postMessage 仅接受可结构化克隆的纯对象，需剥离 Vue 响应式代理 */
 const cloneWorkerPayload = <T>(value: T): T => JSON.parse(JSON.stringify(toRaw(value)));
@@ -200,6 +201,13 @@ export const useHostListWorker = () => {
       type: 'GET_SELECTED_IPS',
     });
 
+  /** 跨页全选：取当前过滤条件下的全量行 key（与表格 rowKey=id 一致） */
+  const getFilteredRowKeys = (params: IHostListComputeParams) =>
+    postRequest<Extract<WorkerResponse, { type: 'GET_FILTERED_ROW_KEYS_DONE' }>>({
+      params: serializeComputeParams(params),
+      type: 'GET_FILTERED_ROW_KEYS',
+    });
+
   onScopeDispose(() => {
     worker.value?.terminate();
     worker.value = null;
@@ -209,6 +217,7 @@ export const useHostListWorker = () => {
   return {
     computeNow,
     getFilterOptions,
+    getFilteredRowKeys,
     getSelectedIps,
     initBaseData,
     mergeMetrics,

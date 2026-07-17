@@ -1,18 +1,26 @@
 .host-list-table {
   display: flex;
-  flex-direction: column;
   flex: 1;
+  flex-direction: column;
   min-height: 0;
 
   &__body {
     flex: 1;
     min-height: 0;
+
+    .t-table__header {
+      font-family: 'Microsoft YaHei', sans-serif;
+    }
   }
 
   &__pagination {
     flex: 0 0 auto;
     padding: 0 16px;
     background: #fff;
+
+    .bk-pagination-limit {
+      flex: 1;
+    }
   }
 
   // 36 行高，显示更多内容
@@ -26,8 +34,8 @@
 /** 主机蓝链 */
 .host-table-ip {
   overflow: hidden;
-  color: #3a84ff;
   text-overflow: ellipsis;
+  color: #3a84ff;
   white-space: nowrap;
   cursor: pointer;
 }
@@ -37,11 +45,19 @@
   display: flex;
   align-items: center;
 
-  &__dot {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
+  &__dot-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 13px;
+    height: 13px;
     margin-right: 6px;
+    border-radius: 50%;
+  }
+
+  &__dot {
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
   }
 }
@@ -98,7 +114,9 @@
 
   &__agg {
     width: fit-content;
-    font-size: 12px;
+    width: 16px;
+    height: 12px;
+    margin-bottom: 6px;
     color: #3a84ff;
     cursor: pointer;
   }
