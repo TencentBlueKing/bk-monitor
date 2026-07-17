@@ -278,9 +278,9 @@ export default defineComponent({
     const gradeOption = computed(() => store.state.indexFieldInfo.custom_config?.grade_options ?? { disabled: false });
     const indexSetType = computed(() => store.state.indexItem.isUnionIndex);
     const limitRow = computed(() => {
-      if (store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]) {
-        return 'auto';
-      }
+      // if (store.state.storage[BK_LOG_STORAGE.TABLE_JSON_FORMAT]) {
+      //   return 'auto';
+      // }
 
       return store.state.storage[BK_LOG_STORAGE.RESULT_DISPLAY_LINES];
     });

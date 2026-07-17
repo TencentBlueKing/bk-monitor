@@ -884,11 +884,13 @@
     color: var(--table-fount-color);
     text-align: left;
 
-    &.is-overflow-y {
-      overflow-y: auto;
+    &:not(.is-json) {
+      &.is-overflow-y {
+        overflow-y: auto;
 
-      .btn-more-action {
-        position: relative;
+        .btn-more-action {
+          position: relative;
+        }
       }
     }
 
