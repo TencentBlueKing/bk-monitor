@@ -22,13 +22,118 @@ the project delivered to anyone in the future.
 import copy
 import json
 
-from apps.log_databus.constants import DORIS_CLUSTER_TYPE, EtlConfig, STORAGE_CLUSTER_TYPE
+from django.utils.translation import gettext_lazy as _
+
+from apps.exceptions import ValidationError
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import EXT_JSON_EXPAND_DEPTH
+from apps.log_databus.constants import (
+    DEFAULT_EXT_JSON_EXPAND_DEPTH,
+    DORIS_CLUSTER_TYPE,
+    EXT_JSON_EXPAND_DEPTH_CHOICES,
+    MIN_FLATTENED_SUPPORT_VERSION,
+    STORAGE_CLUSTER_TYPE,
+    EtlConfig,
+    ExtJsonOverflowStrategy,
+)
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.etl_storage.utils.transfer import preview
+from apps.log_databus.utils.es_config import is_version_less_than
 
 
 class BkLogJsonEtlStorage(EtlStorage):
     etl_config = EtlConfig.BK_LOG_JSON
+
+    @staticmethod
+    def _normalize_ext_json_config(config: dict | None) -> dict:
+        config = config or {}
+        expand_depth = config.get("expand_depth")
+        overflow_strategy = config.get("overflow_strategy", ExtJsonOverflowStrategy.FLATTENED)
+        if expand_depth is not None and expand_depth not in EXT_JSON_EXPAND_DEPTH_CHOICES:
+            raise ValidationError(_("动态解析层级仅支持 1、2、3 或 null"))
+        if overflow_strategy not in ExtJsonOverflowStrategy.values:
+            raise ValidationError(_("不支持的未定义JSON字段溢出策略"))
+        return {"expand_depth": expand_depth, "overflow_strategy": overflow_strategy}
+
+    def customize_result_table_config(
+        self,
+        params: dict,
+        etl_params: dict,
+        current_result_table_config: dict,
+        enable_v4: bool,
+        es_version: str,
+        storage_cluster_type: str,
+    ) -> None:
+        current_config = current_result_table_config.get("option", {}).get("ext_json_config")
+        has_new_config = "ext_json_config" in etl_params
+
+        if not etl_params.get("retain_extra_json"):
+            etl_params.pop("ext_json_config", None)
+            params["option"].pop("ext_json_config", None)
+            return
+
+        if not has_new_config and current_config is None:
+            return
+
+        if not enable_v4:
+            raise ValidationError(_("未定义JSON字段动态解析层级仅支持 V4 数据链路"))
+        if storage_cluster_type != STORAGE_CLUSTER_TYPE:
+            raise ValidationError(_("未定义JSON字段动态解析层级仅支持 Elasticsearch 存储"))
+
+        current_effective_config = self._normalize_ext_json_config(current_config)
+        if has_new_config:
+            requested_config = etl_params["ext_json_config"] or {}
+            effective_config = {
+                "expand_depth": requested_config.get("expand_depth", DEFAULT_EXT_JSON_EXPAND_DEPTH),
+                "overflow_strategy": requested_config.get(
+                    "overflow_strategy", current_effective_config["overflow_strategy"]
+                ),
+            }
+        else:
+            effective_config = current_effective_config
+        effective_config = self._normalize_ext_json_config(effective_config)
+
+        is_config_change = current_config is None or effective_config != current_effective_config
+        if (
+            has_new_config
+            and is_config_change
+            and not FeatureToggleObject.switch(EXT_JSON_EXPAND_DEPTH, etl_params.get("bk_biz_id"))
+        ):
+            raise ValidationError(_("当前业务未开启未定义JSON字段动态解析层级实验特性"))
+
+        if (
+            effective_config["overflow_strategy"] == ExtJsonOverflowStrategy.FLATTENED
+            and effective_config["expand_depth"] is not None
+            and is_version_less_than(es_version, MIN_FLATTENED_SUPPORT_VERSION)
+        ):
+            raise ValidationError(_(f"ES版本{es_version}不支持 flattened 字段类型"))
+
+        etl_params["ext_json_config"] = effective_config
+        params["option"]["ext_json_config"] = effective_config
+
+        ext_json_field = next(
+            (field for field in params["field_list"] if field["field_name"] == "__ext_json"),
+            None,
+        )
+        if not ext_json_field:
+            raise ValidationError(_("未找到 __ext_json 结果表字段"))
+
+        if effective_config["overflow_strategy"] == ExtJsonOverflowStrategy.SOURCE_ONLY:
+            ext_json_field["option"]["es_enabled"] = False
+        elif effective_config["expand_depth"] is not None:
+            depth = effective_config["expand_depth"]
+            path_suffix = r"\.[^.]+" * depth
+            params["default_storage_config"]["mapping_settings"]["dynamic_templates"].insert(
+                0,
+                {
+                    f"ext_json_objects_at_depth_{depth}_as_flattened": {
+                        "path_match": f"^__ext_json{path_suffix}$",
+                        "match_pattern": "regex",
+                        "match_mapping_type": "object",
+                        "mapping": {"type": "flattened"},
+                    }
+                },
+            )
 
     def etl_preview(self, data, etl_params=None) -> list:
         """

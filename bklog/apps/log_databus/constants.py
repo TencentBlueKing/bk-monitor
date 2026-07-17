@@ -409,6 +409,15 @@ class EtlConfig:
     CUSTOM = "custom"
 
 
+class ExtJsonOverflowStrategy(TextChoices):
+    FLATTENED = "flattened", _("超出解析层级的对象按 flattened 索引")
+    SOURCE_ONLY = "source_only", _("仅保留在 _source 中")
+
+
+EXT_JSON_EXPAND_DEPTH_CHOICES = (1, 2, 3)
+DEFAULT_EXT_JSON_EXPAND_DEPTH = 2
+
+
 class MetadataTypeEnum(ChoicesEnum):
     PATH = "path"
 
