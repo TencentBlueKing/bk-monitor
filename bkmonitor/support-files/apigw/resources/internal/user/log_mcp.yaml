@@ -66,7 +66,7 @@ paths:
   /mcp/search_logs/:
     post:
       operationId: search_logs
-      description: 'Execute log search with time range and filters, similar to ES search. Use after list_index_sets and get_index_set_fields. IMPORTANT: start_time/end_time are Unix timestamps (seconds). If not specified, use current timestamp (now()) as end_time, calculate start_time (e.g. last 1h). NOT historical timestamps. 执行日志查询。在list_index_sets和get_index_set_fields后使用。重要:如未指定时间,用当前时间戳作为end_time并计算start_time(如最近1h)。不用历史时间戳。'
+      description: 'Execute log search with time range and filters, similar to ES search. Use after list_index_sets and get_index_set_fields. To drill down from search_log_clustering_pattern, filter __dist_{pattern_level} by the returned signature; the request will automatically query the clustered table. IMPORTANT: start_time/end_time are Unix timestamps (seconds). If not specified, use current timestamp (now()) as end_time, calculate start_time (e.g. last 1h). NOT historical timestamps. 执行日志查询。在list_index_sets和get_index_set_fields后使用。从search_log_clustering_pattern下钻时,使用返回的signature过滤__dist_{pattern_level},接口会自动查询聚类表。重要:如未指定时间,用当前时间戳作为end_time并计算start_time(如最近1h)。不用历史时间戳。'
       tags:
       - log_mcp
       requestBody:
@@ -105,8 +105,30 @@ paths:
                   default: '"level:ERROR"'
                   description: 'Log search query string. Supports field-based queries and keyword searches. Use field mappings from get_index_set_fields to construct valid queries. Examples: level:ERROR, status:500 AND path:/api/*, exception、log:"trace_id=f549a94f6a39c330922cefe8f14a0e39 span_id=e144582eec852645". 日志查询字符串。支持基于字段的查询和关键字搜索。使用 get_index_set_fields 中的字段映射构建有效查询。示例:level:ERROR、status:500 AND path:/api/*、exception、log:"trace_id=f549a94f6a39c330922cefe8f14a0e39 span_id=e144582eec852645"'
                 conditions:
-                  type: string
-                  description: 'Structured filter conditions, combined with query_string using AND relation. Ideal for precise field-level filtering. Format: {"field_list": [{"field_name": "level", "op": "eq", "value": ["ERROR", "WARN"]}], "condition_list": ["and"]}. op supports eq/ne/req(regex) etc.; value is a list (multi-value defaults to OR); condition_list length = field_list.length - 1. Optional, omit if not needed. 结构化过滤条件,与 query_string 为 AND 关系,适合精确的字段级过滤。格式: {"field_list": [{"field_name": "level", "op": "eq", "value": ["ERROR", "WARN"]}], "condition_list": ["and"]}。op 支持 eq/ne/req(正则) 等;value 为多值列表(默认 OR 关系);condition_list 长度为 field_list.length - 1。可选,如不需要可省略。'
+                  type: object
+                  description: 'Structured filter conditions, combined with query_string using AND relation. Ideal for precise field-level filtering. Format: {"field_list": [{"field_name": "level", "op": "eq", "value": ["ERROR", "WARN"]}], "condition_list": ["and"]}. For clustering drill-down, map pattern_level "05" to field_name "__dist_05" and use the returned signature as value. op supports eq/ne/req(regex) etc.; value is a list (multi-value defaults to OR); condition_list length = field_list.length - 1. Optional, omit if not needed. 结构化过滤条件,与 query_string 为 AND 关系,适合精确的字段级过滤。格式: {"field_list": [{"field_name": "level", "op": "eq", "value": ["ERROR", "WARN"]}], "condition_list": ["and"]}。聚类下钻时,将pattern_level "05"映射为字段"__dist_05",并把返回的signature作为value。op支持eq/ne/req(正则)等;value为多值列表(默认OR关系);condition_list长度为field_list.length - 1。可选,如不需要可省略。'
+                  properties:
+                    field_list:
+                      type: array
+                      items:
+                        type: object
+                        required:
+                        - field_name
+                        - op
+                        - value
+                        properties:
+                          field_name:
+                            type: string
+                          op:
+                            type: string
+                          value:
+                            type: array
+                            items:
+                              type: string
+                    condition_list:
+                      type: array
+                      items:
+                        type: string
                 keep_columns:
                   type: string
                   description: 'List of output fields to keep, used to trim the response and reduce data size (avoid LLM context overflow). Format: JSON array, e.g. ["dtEventTimeStamp", "log", "level"]. Optional, returns all fields if omitted. 需要保留的输出字段列表,用于裁剪返回内容、降低数据量(避免 LLM 上下文超限)。格式: JSON 数组,例如 ["dtEventTimeStamp", "log", "level"]。可选,省略则返回全部字段。'
@@ -282,7 +304,7 @@ paths:
   /mcp/search_log_clustering_pattern/:
     post:
       operationId: search_log_clustering_pattern
-      description: 'Search log clustering patterns by sensitivity level (pattern_level: 01/03/05/07/09, higher=more fine-grained). Groups similar log messages into patterns to identify templates and anomalies. Must use after list_index_sets to get index_set_id. Timestamps must be calculated dynamically. ⚠️ Time span ≤1 day (86400s). For >1 day, split into batch queries (each ≤24h) then merge. 按敏感度(01/03/05/07/09,数值越高越细粒度)查询日志聚类模式,识别日志模板和异常。必须在 list_index_sets 后使用获取 index_set_id。时间戳需动态计算。⚠️ 查询跨度≤1天(86400秒),超过需分批查询(每批≤24h)后合并。'
+      description: 'Search log clustering patterns by sensitivity level (pattern_level: 01/03/05/07/09, higher=more fine-grained). Groups similar log messages into patterns to identify templates and anomalies. To inspect matching raw logs, call search_logs with an eq condition on __dist_{pattern_level} using the returned signature. Must use after list_index_sets to get index_set_id. Timestamps must be calculated dynamically. ⚠️ Time span ≤1 day (86400s). For >1 day, split into batch queries (each ≤24h) then merge. 按敏感度(01/03/05/07/09,数值越高越细粒度)查询日志聚类模式,识别日志模板和异常。查看模式对应的原始日志时,调用search_logs并使用返回的signature对__dist_{pattern_level}做eq过滤。必须在list_index_sets后使用获取index_set_id。时间戳需动态计算。⚠️ 查询跨度≤1天(86400秒),超过需分批查询(每批≤24h)后合并。'
       tags:
       - log_mcp
       requestBody:
@@ -292,17 +314,23 @@ paths:
               type: object
               required:
               - bk_biz_id
-              - keyword
+              - index_set_id
+              - start_time
+              - end_time
+              - pattern_level
+              - show_new_pattern
               properties:
                 size:
-                  type: string
+                  type: integer
+                  default: 10
                   description: 'Maximum number of pattern records to return. Controls result size and prevents excessive data transfer. Default: 10. 返回的最大模式记录数。用于控制结果集大小,避免数据量过大。默认值: 10。'
                 begin:
-                  type: string
+                  type: integer
+                  default: 0
                   description: 'Offset number for pagination. Starting position for result retrieval. Default: 0. 分页偏移数。结果检索的起始位置。默认值: 0。'
                 keyword:
                   type: string
-                  default: '"*"'
+                  default: '*'
                   description: 'Search keyword for filtering patterns. Supports wildcard queries. Default: "*" (all patterns). 用于过滤模式的搜索关键字。支持通配符查询。默认值: "*"(所有模式)。'
                 end_time:
                   type: string
@@ -316,12 +344,24 @@ paths:
                 index_set_id:
                   type: string
                   description: Index set ID. Must be obtained from list_index_sets tool. 索引集ID,必须从 list_index_sets 工具获取。
-                "pattern_level\t":
+                pattern_level:
                   type: string
+                  enum:
+                  - '01'
+                  - '03'
+                  - '05'
+                  - '07'
+                  - '09'
                   description: 'Clustering sensitivity level. Controls how fine-grained the clustering is. Valid values: "01" (coarsest), "03", "05", "07", "09" (finest). Higher values create more detailed pattern groups. 聚类敏感度级别。控制聚类的细粒度程度。有效值: "01"(最粗粒度)、"03"、"05"、"07"、"09"(最细粒度)。数值越高,创建的模式分组越详细。'
                 show_new_pattern:
-                  type: string
+                  type: boolean
                   description: 'Whether to show only newly discovered patterns. true: Return only new patterns that haven''t been reviewed; false: Return all patterns including reviewed ones. 是否只显示新发现的模式。'
+                group_by:
+                  type: array
+                  default: []
+                  items:
+                    type: string
+                  description: 'Optional field names used to group clustering patterns. Obtain valid names from get_index_set_fields. 用于对聚类模式分组的可选字段名,有效字段请从get_index_set_fields获取。'
         required: false
         description: ''
       x-bk-apigateway-resource:

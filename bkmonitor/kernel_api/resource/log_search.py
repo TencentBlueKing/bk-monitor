@@ -19,6 +19,22 @@ from kernel_api.serializers.mixins import TimeSpanValidationPassThroughSerialize
 
 logger = logging.getLogger(__name__)
 
+CLUSTERING_FIELD_PREFIX = "__dist"
+CLUSTERING_QUERY_FIELD = "__dist_05"
+
+
+def get_log_unify_query_table(
+    index_set_id: int | str, conditions: dict[str, Any] | None = None, query_string: str | None = None
+) -> str:
+    """根据查询条件选择日志索引集的普通表或聚类表。"""
+    field_list = (conditions or {}).get("field_list") or []
+    has_clustering_condition = any(
+        isinstance(condition, dict) and str(condition.get("field_name", "")).startswith(CLUSTERING_FIELD_PREFIX)
+        for condition in field_list
+    )
+    suffix = "_clustered" if has_clustering_condition or CLUSTERING_QUERY_FIELD in (query_string or "") else ""
+    return f"bklog_index_set_{index_set_id}{suffix}"
+
 
 class GetIndexSetListResource(Resource):
     """
@@ -114,7 +130,7 @@ class SearchLogResource(Resource):
         )
 
         # 构造 unify_query.query_raw 请求参数
-        table_id = f"bklog_index_set_{index_set_id}"  # 日志索引集规则
+        table_id = get_log_unify_query_table(index_set_id, conditions, query_string)
         space_uid = bk_biz_id_to_space_uid(bk_biz_id)  # 业务ID转SPACE_UID，用于构建Headers
 
         query_item = {
@@ -279,7 +295,7 @@ class FieldAnalyzeResource(Resource):
         )
 
         # 构建查询参数
-        table_id = f"bklog_index_set_{index_set_id}"
+        table_id = get_log_unify_query_table(index_set_id, conditions, query_string)
         space_uid = bk_biz_id_to_space_uid(bk_biz_id)
         aggregation_function = self._build_aggregation_function(field_name, group_by)
         query_item = self._build_query_item(table_id, field_name, query_string, conditions, aggregation_function, limit)
@@ -316,6 +332,9 @@ class SearchLogClusteringPatternResource(Resource):
             label="敏感度：01 03 05 07 09",
         )
         show_new_pattern = serializers.BooleanField(required=True, label="只显示新类")
+        group_by = serializers.ListField(
+            child=serializers.CharField(), required=False, default=list, label="聚类模式分组字段"
+        )
 
     def perform_request(self, validated_request_data):
         index_set_id = validated_request_data.get("index_set_id")

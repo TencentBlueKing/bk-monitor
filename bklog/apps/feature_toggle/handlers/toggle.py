@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -44,10 +43,17 @@ def feature_switch(featue):
     return True
 
 
-class Toggle(object):
+class Toggle:
     def __init__(
-        self, name="", status="", alias="", description="", is_viewed=True, feature_config=None, biz_id_white_list=None,
-            biz_id_black_list=None
+        self,
+        name="",
+        status="",
+        alias="",
+        description="",
+        is_viewed=True,
+        feature_config=None,
+        biz_id_white_list=None,
+        biz_id_black_list=None,
     ):
         self.name = name
         self.status = status
@@ -59,17 +65,17 @@ class Toggle(object):
         self.biz_id_black_list = biz_id_black_list
 
 
-class FeatureToggleObject(object):
+class FeatureToggleObject:
     """
     特性开关表
     同一个变量读取顺序为: settings-->db-->plugins
     """
 
     @classmethod
-    def switch(cls, name, biz_id=None):
+    def switch(cls, name, biz_id=None, default=False):
         """
         获取开关状态
-        1. 当获取不到对应开关返回False
+        1. 当获取不到对应开关返回default
         2. 当开关状态返回为off返回False
         3. 当开关状态返回为debug且开关具有白名单配置时，如果传入的业务id处于白名单中则返回True，不传入业务id或者不在白名单中返回false
         4. 当开关状态返回为debug且环境不为预发布或者测试环境返回False
@@ -77,12 +83,13 @@ class FeatureToggleObject(object):
         Args:
             name: [str] toggle name
             biz_id: [int] 业务id
+            default: [bool] 未配置开关时的默认值
         Returns:
             True or False
         """
         toggle = cls.toggle(name=name)
         if not toggle:
-            return False
+            return default
 
         if toggle.status == "off":
             return False
