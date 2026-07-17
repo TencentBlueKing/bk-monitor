@@ -359,7 +359,8 @@ export default defineComponent({
           value.value = cascadeSelectorValue.value.map(item => {
             return {
               id: setCascadeValueSplit(item),
-              name: item.join(`/`),
+              // 级联值 name 统一使用 setCascadeValueSplit 编码，与回填/展示逻辑保持一致（原实现为 item.join('/')）
+              name: setCascadeValueSplit(item),
             };
           });
           emit('confirm', value);

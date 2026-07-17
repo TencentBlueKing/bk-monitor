@@ -294,6 +294,25 @@ export const qsSelectorOptionsDescMap = {
   ],
 };
 
+/**
+ * 检索过滤已选条件 tag 的 value 展示格式化函数类型
+ * @param val 原始值
+ * @param params.isTips 是否为悬浮提示场景
+ * @param params.key 字段 id
+ * @param params.value 候选项（含 id / name）
+ */
+export type TTagValueDisplayFormatter = (
+  val: boolean | number | string,
+  params?: {
+    isTips: boolean;
+    key: string;
+    value: {
+      id: number | string;
+      name: number | string;
+    };
+  }
+) => JSX.Element | string;
+
 export const RETRIEVAL_FILTER_PROPS = {
   // 字段列表
   fields: {
@@ -443,7 +462,7 @@ export const RETRIEVAL_FILTER_PROPS = {
   },
   // ui 模式下已选条件tag的value显示值格式化
   tagValueDisplayFormatter: {
-    type: Function as PropType<(val: boolean | number | string, fieldId: string) => JSX.Element | string>,
+    type: Function as PropType<TTagValueDisplayFormatter>,
     default: (val, _fieldId) => `${val}`,
   },
 };
@@ -514,7 +533,7 @@ export const UI_SELECTOR_PROPS = {
   },
   // ui 模式下已选条件tag的value显示值格式化
   tagValueDisplayFormatter: {
-    type: Function as PropType<(val: boolean | number | string, fieldId: string) => JSX.Element | string>,
+    type: Function as PropType<TTagValueDisplayFormatter>,
     default: (val, _fieldId) => `${val}`,
   },
 };
@@ -832,7 +851,7 @@ export const KV_TAG_PROPS = {
   },
   // ui 模式下已选条件tag的value显示值格式化
   tagValueDisplayFormatter: {
-    type: Function as PropType<(val: boolean | number | string, fieldId: string) => JSX.Element | string>,
+    type: Function as PropType<TTagValueDisplayFormatter>,
     default: (val, _fieldId) => `${val}`,
   },
 };

@@ -118,6 +118,9 @@ export const useHostList = (options: IUseHostListOptions) => {
   /** retrieval-filter 字段列表（静态定义） */
   const filterFields = HOST_FILTER_FIELDS;
 
+  /** 集群模块等字段的完整选项映射（字段 -> 选项树），用于已选条件 tag 的名称还原 */
+  const filterOptionsMap = shallowRef<Record<string, unknown>>({});
+
   const getComputeParams = () => ({
     activeCategory: activeCategory.value,
     keyword: keyword.value,
@@ -161,6 +164,12 @@ export const useHostList = (options: IUseHostListOptions) => {
       const initResult = await hostListWorker.initBaseData(baseList);
       rawRowCount.value = initResult.rawRowCount;
       refreshList(true);
+      // 拉取 filterOptionsMap 供集群模块字段展示名称映射
+      const filterOptionsMapResult = (await hostListWorker.getFilterOptionsMap()) as Record<
+        string,
+        Record<string, unknown>
+      >;
+      filterOptionsMap.value = filterOptionsMapResult.filterOptionsMap;
     } finally {
       loading.value = false;
     }
@@ -279,6 +288,7 @@ export const useHostList = (options: IUseHostListOptions) => {
     total,
     filterFields,
     aggMethodList: HOST_AGG_METHOD_LIST,
+    filterOptionsMap,
     // 方法
     getValueFn,
     loadData,

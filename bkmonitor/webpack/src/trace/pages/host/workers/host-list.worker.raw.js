@@ -166,6 +166,22 @@ const matchWhereItem = (row, item) => {
         return origin === target;
     }
   }
+  // 集群模块字段：行数据 module.topo_link 为拓扑路径数组，候选项值为 JSON 编码的路径数组，需解析后逐条包含匹配
+  if (['cluster_module'].includes(item.key)) {
+    const curValue = item.value.map(v => {
+      try {
+        return JSON.parse(v);
+      } catch (_e) {
+        return [];
+      }
+    });
+    const originValue = row?.module?.map(r => r.topo_link);
+    return curValue.some(val => {
+      return originValue.some(a => {
+        return val.every(v => a.includes(v));
+      });
+    });
+  }
   const rowValues = getRowFieldValues(row, item.key).map(v => String(v));
   const matchValues = values.map(v => String(v));
   switch (method) {
@@ -298,7 +314,8 @@ const buildFilterOptionsMap = rows => {
       parentNode = nodeMap[nodeData.id];
     }
   }
-  
+
+  // 追加集群模块字段的选项树
   result.set('cluster_module', clusterModuleTreeList);
   return result;
 };
@@ -390,6 +407,15 @@ self.onmessage = event => {
         ips,
         requestId: message.requestId,
         type: 'GET_SELECTED_IPS_DONE',
+      });
+      break;
+    }
+    // 返回完整 filterOptionsMap，供主线程构建字段展示名称映射
+    case 'GET_FILTER_OPTIONS_MAP': {
+      self.postMessage({
+        filterOptionsMap: optionsMapToRecord(filterOptionsMap),
+        requestId: message.requestId,
+        type: 'GET_FILTER_OPTIONS_MAP_DONE',
       });
       break;
     }
