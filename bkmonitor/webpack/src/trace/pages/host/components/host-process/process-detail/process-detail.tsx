@@ -42,8 +42,7 @@ import { useI18n } from 'vue-i18n';
 import { useMetricAggregation } from '../../../composables/use-metric-aggregation';
 import { useProcessMetric } from '../../../composables/use-process-metric';
 import { formatProcessUptimeDetail, PROCESS_DETAIL_TABS, PROCESS_PORT_STATUS_MAP } from '../../../constants/process';
-import { MOCK_COMPARE_TARGETS, MOCK_CURRENT_TARGET } from '../../../mock/aggregation';
-import { buildScopedVars, createGraphApi, DashboardPanel } from '../../dashbords';
+import { buildScopedVars, DashboardPanel } from '../../dashbords';
 import GroupManageDialog from '../../host-metric/group-manage-dialog';
 import MetricToolbar from '../../host-metric/metric-toolbar';
 import RefreshRate from '@/components/refresh-rate/refresh-rate';
@@ -51,9 +50,9 @@ import TimeRange from '@/components/time-range/time-range';
 import { getDefaultTimezone } from '@/i18n/dayjs';
 
 import type { ProcessDetailTab } from '../../../constants/process';
-import type { MetricGroupModel, MetricItemModel } from '../../../types/metric-group';
 import type { ProcessItem } from '../../../types/process';
 import type { TimeRangeType } from '@/components/time-range/utils';
+import type { CompareTarget, IHostTopoHostNode, IHostTopoTreeNode } from '@/pages/host/types';
 
 import './process-detail.scss';
 
@@ -69,6 +68,14 @@ export default defineComponent({
     process: {
       type: Object as PropType<null | ProcessItem>,
       default: null,
+    },
+    selectedNode: {
+      type: Object as PropType<IHostTopoTreeNode | null>,
+      default: null,
+    },
+    compareHostList: {
+      type: Array as PropType<IHostTopoHostNode[]>,
+      default: () => [],
     },
   },
   emits: {
@@ -111,10 +118,25 @@ export default defineComponent({
       keyword: () => aggregation.state.keyword,
       ungroupTitle: () => t('未分组'),
     });
-    // 图表取数 API（mock，与系统指标同款签名）
-    const graphApi = createGraphApi();
+
+    /** 根据选中节点类型，生成当前目标的查询参数 */
+    const currentTarget = computed<CompareTarget>(() => {
+      if ('bk_host_id' in props.selectedNode) {
+        return {
+          bk_target_ip: props.selectedNode.ip,
+          bk_target_cloud_id: props.selectedNode.bk_cloud_id,
+          bk_host_id: props.selectedNode.bk_host_id,
+        };
+      }
+
+      return {
+        bk_inst_id: props.selectedNode.bk_inst_id,
+        bk_obj_id: props.selectedNode.bk_obj_id,
+      };
+    });
+
     // 变量取值：仅请求态字段变化才会触发图表重新取数
-    const scopedVars = computed(() => buildScopedVars(aggregation.state, MOCK_CURRENT_TARGET));
+    const scopedVars = computed(() => buildScopedVars(aggregation.state, currentTarget.value));
 
     /** 当前二级 Tab，默认指标视图 */
     const activeTab = shallowRef<ProcessDetailTab>('metric');
@@ -133,10 +155,6 @@ export default defineComponent({
     );
 
     const handleClose = () => emit('update:show', false);
-
-    const handleSaveGroups = (groups: MetricGroupModel[], metrics: MetricItemModel[]) => {
-      metricCtrl.setData(groups, metrics);
-    };
 
     /** 详情标题：进程名 / 主机 IP */
     const detailTitle = computed(() => {
@@ -231,24 +249,24 @@ export default defineComponent({
     const renderMetric = () => (
       <div class='process-detail__metric'>
         <MetricToolbar
-          currentTarget={MOCK_CURRENT_TARGET}
-          targetList={MOCK_COMPARE_TARGETS}
+          currentTarget={props.selectedNode.name}
+          targetList={props.compareHostList}
           value={aggregation.state}
           onChange={aggregation.updateState}
           onOpenSetting={() => (settingShow.value = true)}
         />
         <DashboardPanel
           class='process-detail__charts'
-          api={graphApi}
           columns={aggregation.state.columns}
           rows={metricCtrl.rows.value}
           scopedVars={scopedVars.value}
         />
         <GroupManageDialog
-          groups={metricCtrl.groups.value}
           isShow={settingShow.value}
-          metrics={metricCtrl.metrics.value}
-          onSave={handleSaveGroups}
+          orderData={metricCtrl.orderData.value}
+          submitLoading={metricCtrl.loading.value}
+          onReset={metricCtrl.handleReset}
+          onSave={metricCtrl.handleSave}
           onUpdate:isShow={(v: boolean) => (settingShow.value = v)}
         />
       </div>

@@ -142,11 +142,13 @@ export default defineComponent({
 
     return () => (
       <PrimaryTable
+        height='100%'
         class='metric-table'
         columns={columns.value}
         data={props.rows}
         dragSort={props.draggable ? 'row-handler' : undefined}
         rowKey='id'
+        scroll={{ type: 'virtual' }}
         selectedRowKeys={props.selectedIds}
         onDragSort={(ctx: { newData: MetricItemModel[] }) => emit('dragSort', ctx.newData)}
         onSelectChange={(ids: string[]) => emit('selectChange', ids)}

@@ -27,15 +27,37 @@
 import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
 
 import { Button, Dialog, Input, PopConfirm, Select } from 'bkui-vue';
-import { cloneDeep } from 'lodash';
 import { useI18n } from 'vue-i18n';
 
-import { MOCK_METRIC_GROUPS, MOCK_METRICS } from '../../mock/metric-groups';
 import { type MetricGroupModel, type MetricItemModel, UNGROUP_ID } from '../../types/metric-group';
 import MetricGroupList, { GROUP_ID_ALL } from './metric-group-list';
 import MetricTable, { type HiddenFilter } from './metric-table';
 
+import type { MetricGroupPanelOrder } from '../../types/panel-order';
+
 import './group-manage-dialog.scss';
+/** 将 groups + metrics 反向转换为 MetricGroupPanelOrder[]（供保存时提交） */
+export const convertToOrderData = (
+  groups: MetricGroupModel[],
+  metrics: MetricItemModel[],
+  ungroupTitle: string
+): MetricGroupPanelOrder[] => {
+  const groupMap = new Map<string, MetricItemModel[]>();
+  for (const m of metrics) {
+    const list = groupMap.get(m.groupId) ?? [];
+    list.push(m);
+    groupMap.set(m.groupId, list);
+  }
+
+  const orderedIds = [...groups.map(g => g.id), UNGROUP_ID];
+  return orderedIds
+    .filter(id => groupMap.has(id))
+    .map(id => ({
+      id,
+      title: id === UNGROUP_ID ? ungroupTitle : groups.find(g => g.id === id)?.title || '',
+      panels: (groupMap.get(id) ?? []).map(m => ({ id: m.id, title: m.title, hidden: m.hidden })),
+    }));
+};
 
 export default defineComponent({
   name: 'GroupManageDialog',
@@ -45,23 +67,32 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-    /** 已生效的分组 */
-    groups: {
-      type: Array as PropType<MetricGroupModel[]>,
+    /** 后端返回的分组与指标排序配置 */
+    orderData: {
+      type: Array as PropType<MetricGroupPanelOrder[]>,
       default: () => [],
     },
-    /** 已生效的指标 */
-    metrics: {
-      type: Array as PropType<MetricItemModel[]>,
-      default: () => [],
+    submitLoading: {
+      type: Boolean,
+      default: false,
     },
   },
   emits: {
-    save: (_groups: MetricGroupModel[], _metrics: MetricItemModel[]) => true,
     'update:isShow': (_v: boolean) => true,
+    success: () => true,
+    reset: () => true,
+    save: (_value: MetricGroupPanelOrder[]) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
+
+    const generateGroupsAndMetrics = (order: MetricGroupPanelOrder[]) => {
+      const groups = order.filter(g => g.id !== UNGROUP_ID).map(group => ({ id: group.id, title: group.title }));
+      const metrics = order.flatMap(group =>
+        group.panels.map(panel => ({ groupId: group.id, id: panel.id, title: panel.title, hidden: panel.hidden }))
+      );
+      return { groups, metrics };
+    };
 
     // 工作副本：编辑期间不影响已生效数据，保存时再提交
     const localGroups = shallowRef<MetricGroupModel[]>([]);
@@ -72,12 +103,17 @@ export default defineComponent({
     const hiddenFilter = shallowRef<HiddenFilter>('all');
     const moveTargetValue = shallowRef('');
 
+    const unGroup = computed(
+      () => props.orderData.find(g => g.id === UNGROUP_ID) || { id: UNGROUP_ID, title: t('未分组的指标') }
+    );
+
     watch(
       () => props.isShow,
       show => {
         if (show) {
-          localGroups.value = cloneDeep(props.groups);
-          localMetrics.value = cloneDeep(props.metrics);
+          const { groups, metrics } = generateGroupsAndMetrics(props.orderData);
+          localGroups.value = groups;
+          localMetrics.value = metrics;
           activeGroupId.value = GROUP_ID_ALL;
           selectedIds.value = [];
           tableKeyword.value = '';
@@ -90,13 +126,13 @@ export default defineComponent({
     /** 「所属分组」下拉可选项（含未分组） */
     const groupOptions = computed(() => [
       ...localGroups.value.map(g => ({ id: g.id, name: g.title })),
-      { id: UNGROUP_ID, name: t('未分组的指标') },
+      { id: UNGROUP_ID, name: unGroup.value?.title },
     ]);
 
     /** 当前作用域标题 */
     const scopeTitle = computed(() => {
       if (activeGroupId.value === GROUP_ID_ALL) return t('全部指标');
-      if (activeGroupId.value === UNGROUP_ID) return t('未分组的指标');
+      if (activeGroupId.value === UNGROUP_ID) return unGroup.value?.title;
       return localGroups.value.find(g => g.id === activeGroupId.value)?.title || '';
     });
 
@@ -170,26 +206,28 @@ export default defineComponent({
     const handleClose = () => emit('update:isShow', false);
 
     const handleSave = () => {
-      emit('save', cloneDeep(localGroups.value), cloneDeep(localMetrics.value));
-      handleClose();
+      emit('save', convertToOrderData(localGroups.value, localMetrics.value, unGroup.value.title));
     };
 
     const handleReset = () => {
-      localGroups.value = cloneDeep(MOCK_METRIC_GROUPS);
-      localMetrics.value = cloneDeep(MOCK_METRICS);
-      activeGroupId.value = GROUP_ID_ALL;
-      selectedIds.value = [];
+      emit('reset');
     };
 
     const renderFooter = () => (
-      <div class='group-manage-dialog__footer'>
+      <div class='group-manage-dialog-footer'>
         <Button
+          loading={props.submitLoading}
           theme='primary'
           onClick={handleSave}
         >
           {t('保存')}
         </Button>
-        <Button onClick={handleReset}>{t('恢复默认')}</Button>
+        <Button
+          loading={props.submitLoading}
+          onClick={handleReset}
+        >
+          {t('恢复默认')}
+        </Button>
         <Button onClick={handleClose}>{t('取消')}</Button>
       </div>
     );
@@ -197,13 +235,14 @@ export default defineComponent({
     return () => (
       <Dialog
         width={960}
+        class='group-manage-dialog'
         v-slots={{ footer: renderFooter }}
         isShow={props.isShow}
         title={t('视图分组管理')}
         onClosed={handleClose}
       >
-        <div class='group-manage-dialog'>
-          <div class='group-manage-dialog__aside'>
+        <div class='group-manage-dialog-content'>
+          <div class='group-manage-wrap'>
             <MetricGroupList
               activeGroupId={activeGroupId.value}
               groups={localGroups.value}
@@ -213,40 +252,41 @@ export default defineComponent({
               onReorder={handleReorderGroups}
             />
           </div>
-          <div class='group-manage-dialog__main'>
-            <div class='group-manage-dialog__header'>
-              <span class='group-manage-dialog__title'>{scopeTitle.value}</span>
+          <div class='group-metric-wrap'>
+            <div class='group-metric-wrap-header'>
+              <span class='group-title'>{scopeTitle.value}</span>
               {isRealGroup.value && (
                 <PopConfirm
                   width={320}
                   v-slots={{
                     content: () => (
-                      <div class='group-manage-dialog__delete-confirm'>
-                        <div class='group-manage-dialog__delete-title'>{t('确认删除该分组？')}</div>
-                        <div class='group-manage-dialog__delete-name'>
+                      <div class='group-delete-confirm'>
+                        <div class='group-delete-name'>
                           {t('分组名称')}：{scopeTitle.value}
                         </div>
-                        <div class='group-manage-dialog__delete-tip'>
-                          {t('分组删除后，相关指标将被移动到 <未分组的指标>')}
+                        <div class='group-delete-tip'>
+                          {t('分组删除后，相关指标将被移动到 {name}', { name: t(unGroup.value.title) })}
                         </div>
                       </div>
                     ),
                   }}
+                  title={t('确认删除该分组？')}
                   trigger='click'
                   onConfirm={handleDeleteGroup}
                 >
                   <Button
                     size='small'
                     theme='danger'
+                    outline
                   >
                     {t('删除分组')}
                   </Button>
                 </PopConfirm>
               )}
             </div>
-            <div class='group-manage-dialog__operations'>
+            <div class='group-metric-wrap-operations'>
               <Select
-                class='group-manage-dialog__batch-move'
+                class='group-metric-batch-move'
                 disabled={!selectedIds.value.length}
                 modelValue={moveTargetValue.value}
                 placeholder={t('批量移动至')}
@@ -261,25 +301,27 @@ export default defineComponent({
                 ))}
               </Select>
               <Input
-                class='group-manage-dialog__search'
+                class='group-metric-search'
                 v-model={tableKeyword.value}
                 placeholder={t('搜索 指标名称')}
                 type='search'
                 clearable
               />
             </div>
-            <MetricTable
-              draggable={draggable.value}
-              groupOptions={groupOptions.value}
-              hiddenFilter={hiddenFilter.value}
-              rows={scopedRows.value}
-              selectedIds={selectedIds.value}
-              onChangeGroup={handleChangeGroup}
-              onDragSort={handleDragSort}
-              onHiddenFilterChange={(v: HiddenFilter) => (hiddenFilter.value = v)}
-              onSelectChange={(ids: string[]) => (selectedIds.value = ids)}
-              onToggleHidden={handleToggleHidden}
-            />
+            <div class='group-metric-wrap-table'>
+              <MetricTable
+                draggable={draggable.value}
+                groupOptions={groupOptions.value}
+                hiddenFilter={hiddenFilter.value}
+                rows={scopedRows.value}
+                selectedIds={selectedIds.value}
+                onChangeGroup={handleChangeGroup}
+                onDragSort={handleDragSort}
+                onHiddenFilterChange={(v: HiddenFilter) => (hiddenFilter.value = v)}
+                onSelectChange={(ids: string[]) => (selectedIds.value = ids)}
+                onToggleHidden={handleToggleHidden}
+              />
+            </div>
           </div>
         </div>
       </Dialog>

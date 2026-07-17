@@ -47,6 +47,10 @@ export default defineComponent({
       type: Object as PropType<IHostTopoHostNode | null>,
       default: null,
     },
+    compareHostList: {
+      type: Array as PropType<IHostTopoHostNode[]>,
+      default: () => [],
+    },
   },
   setup(props) {
     const { t } = useI18n();
@@ -88,7 +92,9 @@ export default defineComponent({
           onSortChange={ctx.handleSortChange}
         />
         <ProcessDetail
+          compareHostList={props.compareHostList}
           process={activeProcess.value}
+          selectedNode={props.host}
           show={detailShow.value}
           onUpdate:show={(v: boolean) => (detailShow.value = v)}
         />
