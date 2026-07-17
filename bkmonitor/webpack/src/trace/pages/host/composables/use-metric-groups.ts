@@ -23,40 +23,122 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { ref as deepRef } from 'vue';
+import { type MaybeRefOrGetter, computed, toValue } from 'vue';
+import { shallowRef } from 'vue';
 
-import { cloneDeep } from 'lodash';
+import { updateSceneView } from 'monitor-api/modules/scene_view';
+import { useI18n } from 'vue-i18n';
 
-import { MOCK_METRIC_GROUPS, MOCK_METRICS } from '../mock/metric-groups';
+import { getHostMetricGroupPanelOrderApi, getHostViewsPanelsApi } from '../services/graph-service';
 
-import type { MetricGroupModel, MetricItemModel } from '../types/metric-group';
+import type { DashboardRow } from '../components/dashbords/typings/dashboard';
+import type { HostViewsRowPanel, MetricGroupPanelOrder } from '../types';
 
 export type MetricGroupsController = ReturnType<typeof useMetricGroups>;
+interface UseHostMetricOptions {
+  /** 关键字过滤（按指标标题） */
+  keyword: MaybeRefOrGetter<string>;
+  /** 未分组标题（i18n 文案由调用方传入） */
+  ungroupTitle: MaybeRefOrGetter<string>;
+}
 
 /**
  * 指标分组与指标数据控制器。
- * 持有分组与指标的「已生效」数据，供「视图分组管理」编辑、图表后续消费。
+ * 持有后端返回的 DashboardRow[]（展示用）与 MetricGroupPanelOrder[]（管理用）。
  */
-export function useMetricGroups() {
-  const groups = deepRef<MetricGroupModel[]>(cloneDeep(MOCK_METRIC_GROUPS));
-  const metrics = deepRef<MetricItemModel[]>(cloneDeep(MOCK_METRICS));
+export function useMetricGroups(options: UseHostMetricOptions) {
+  const { t } = useI18n();
+  const loading = shallowRef(false);
 
-  /** 覆盖写入分组与指标（用于 Dialog 保存） */
-  const setData = (nextGroups: MetricGroupModel[], nextMetrics: MetricItemModel[]) => {
-    groups.value = nextGroups;
-    metrics.value = nextMetrics;
+  const settingShow = shallowRef(false);
+  /** 后端返回的原始面板分组数据（getHostViewsPanelsApi） */
+  const panels = shallowRef<HostViewsRowPanel[]>([]);
+  /** 后端返回的分组与指标排序配置（getHostMetricGroupPanelOrderApi，供 GroupManageDialog 使用） */
+  const orderData = shallowRef<MetricGroupPanelOrder[]>([]);
+
+  const load = async (needCache = true) => {
+    loading.value = true;
+    try {
+      const [panelsRes, orderRes] = await Promise.all([
+        getHostViewsPanelsApi(),
+        getHostMetricGroupPanelOrderApi(needCache),
+      ]);
+      panels.value = panelsRes;
+      orderData.value = orderRes;
+    } finally {
+      loading.value = false;
+    }
   };
 
-  /** 恢复默认（mock 初始数据） */
-  const resetDefault = () => {
-    groups.value = cloneDeep(MOCK_METRIC_GROUPS);
-    metrics.value = cloneDeep(MOCK_METRICS);
+  /** 保存 */
+  const handleSave = async (value: MetricGroupPanelOrder[]) => {
+    try {
+      loading.value = true;
+      await updateSceneView({
+        scene_id: 'host', // 场景分类
+        type: 'detail',
+        id: 'host',
+        name: t('主机'),
+        config: {
+          order: value,
+        }, // 设置配置
+      });
+      await load();
+      settingShow.value = false;
+    } finally {
+      loading.value = false;
+    }
   };
+
+  /** 恢复默认 */
+  const handleReset = async () => {
+    try {
+      loading.value = true;
+      await updateSceneView({
+        scene_id: 'host', // 场景分类
+        type: 'detail',
+        id: 'host',
+        name: t('主机'),
+        config: {
+          order: [],
+        }, // 设置配置
+      });
+      await load(false);
+      settingShow.value = false;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  /** 仪表盘分组行：仅按关键字过滤面板，空分组不展示 */
+  const rows = computed<DashboardRow[]>(() => {
+    const keyword = toValue(options.keyword).trim().toLowerCase();
+
+    const result: DashboardRow[] = [];
+    for (const row of panels.value) {
+      const filteredPanels = keyword
+        ? row.panels.filter(panel => panel.title.toLowerCase().includes(keyword))
+        : row.panels;
+
+      if (filteredPanels.length) {
+        result.push({
+          id: row.id,
+          title: row.title,
+          panels: filteredPanels,
+        });
+      }
+    }
+
+    return result;
+  });
 
   return {
-    groups,
-    metrics,
-    resetDefault,
-    setData,
+    rows,
+    orderData,
+    loading,
+    settingShow,
+    handleSave,
+    handleReset,
+    load,
   };
 }

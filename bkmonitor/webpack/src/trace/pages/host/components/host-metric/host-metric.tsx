@@ -23,21 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-import { type PropType, computed, defineComponent, provide, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, onMounted, provide } from 'vue';
 
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 
 import { useMetricAggregation } from '../../composables/use-metric-aggregation';
 import { useMetricGroups } from '../../composables/use-metric-groups';
-import { buildScopedVars, DashboardPanel, useDashboardPanels } from '../dashbords';
+import { buildScopedVars, DashboardPanel } from '../dashbords';
 import GroupManageDialog from './group-manage-dialog';
 import MetricToolbar from './metric-toolbar';
 import { useHostStore } from '@/store/modules/host';
 
 import type { CompareTarget, IHostTopoHostNode, IHostTopoTreeNode, MetricCompareType } from '../../types';
-import type { MetricGroupModel, MetricItemModel } from '../../types/metric-group';
 
 import './host-metric.scss';
 
@@ -55,10 +53,12 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
-    // 汇聚状态：由本容器持有，向 Toolbar（受控）与图表（props）统一分发
     const aggregation = useMetricAggregation();
-    // 分组与指标数据：图表渲染与「视图分组管理」的单一数据源
-    const groupsCtrl = useMetricGroups();
+    // 分组与指标数据：后端返回的 DashboardRow[]（展示）与 MetricGroupModel[]（管理）
+    const groupsCtrl = useMetricGroups({
+      keyword: () => aggregation.state.keyword,
+      ungroupTitle: () => t('未分组'),
+    });
 
     // 是否选中的是主机或者是服务实例
     const isCheckedHost = computed(() => {
@@ -96,19 +96,9 @@ export default defineComponent({
     // 变量取值：仅请求态字段变化才会触发图表重新取数
     const scopedVars = computed(() => buildScopedVars(aggregation.state, currentTarget.value));
 
-    // 仪表盘分组行：按分组聚合、显隐与关键字过滤
-    const { rows } = useDashboardPanels({
-      groups: () => groupsCtrl.groups.value,
-      metrics: () => groupsCtrl.metrics.value,
-      keyword: () => aggregation.state.keyword,
-      ungroupTitle: () => t('未分组'),
+    onMounted(() => {
+      groupsCtrl.load();
     });
-
-    const settingShow = shallowRef(false);
-
-    const handleSave = (groups: MetricGroupModel[], metrics: MetricItemModel[]) => {
-      groupsCtrl.setData(groups, metrics);
-    };
 
     return () => (
       <div class='host-metric'>
@@ -118,20 +108,21 @@ export default defineComponent({
           targetList={props.compareHostList}
           value={aggregation.state}
           onChange={aggregation.updateState}
-          onOpenSetting={() => (settingShow.value = true)}
+          onOpenSetting={() => (groupsCtrl.settingShow.value = true)}
         />
         <DashboardPanel
           class='host-metric__charts'
           columns={aggregation.state.columns}
-          rows={rows.value}
+          rows={groupsCtrl.rows.value}
           scopedVars={scopedVars.value}
         />
         <GroupManageDialog
-          groups={groupsCtrl.groups.value}
-          isShow={settingShow.value}
-          metrics={groupsCtrl.metrics.value}
-          onSave={handleSave}
-          onUpdate:isShow={(v: boolean) => (settingShow.value = v)}
+          isShow={groupsCtrl.settingShow.value}
+          orderData={groupsCtrl.orderData.value}
+          submitLoading={groupsCtrl.loading.value}
+          onReset={groupsCtrl.handleReset}
+          onSave={groupsCtrl.handleSave}
+          onUpdate:isShow={(v: boolean) => (groupsCtrl.settingShow.value = v)}
         />
       </div>
     );

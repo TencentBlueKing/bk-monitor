@@ -1,76 +1,92 @@
-.group-manage-dialog {
-  display: flex;
-  height: 572px;
-  margin: -18px -24px 0;
-  border-top: 1px solid #dcdee5;
-
-  &__aside {
-    flex-shrink: 0;
-    width: 280px;
-    height: 100%;
-    overflow: hidden;
-    border-right: 1px solid #dcdee5;
+.bk-dialog.group-manage-dialog {
+  .bk-dialog-content {
+    padding: 24px;
+    margin: 0;
   }
 
-  &__main {
-    display: flex;
-    flex: 1;
-    flex-direction: column;
-    height: 100%;
-    padding: 16px;
-    overflow: hidden;
-  }
-
-  &__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16px;
-  }
-
-  &__title {
-    font-size: 14px;
-    font-weight: 700;
-    color: #313238;
-  }
-
-  &__operations {
-    display: flex;
-    column-gap: 12px;
-    margin-bottom: 12px;
-  }
-
-  &__batch-move {
-    width: 120px;
-  }
-
-  &__search {
-    flex: 1;
-  }
-
-  &__footer {
+  .group-manage-dialog-footer {
     display: flex;
     column-gap: 8px;
     justify-content: flex-end;
   }
 
-  &__delete-confirm {
-    padding: 2px 0;
-  }
+  .group-manage-dialog-content {
+    display: flex;
+    height: 572px;
+    border: 1px solid #dcdee5;
+    border-radius: 4px;
 
-  &__delete-title {
-    margin-bottom: 8px;
-    font-size: 16px;
-    font-weight: 700;
-    color: #313238;
-  }
+    .group-manage-wrap {
+      flex-shrink: 0;
+      width: 280px;
+      height: 100%;
+      overflow: hidden;
+      border-right: 1px solid #dcdee5;
+    }
 
-  &__delete-name {
-    margin-bottom: 4px;
-    color: #63656e;
-  }
+    .group-metric-wrap {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      height: 100%;
+      padding: 16px 16px 0;
+      overflow: hidden;
 
-  &__delete-tip {
-    color: #979ba5;
+      .group-metric-wrap-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+
+      .group-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: #313238;
+      }
+
+      .group-metric-wrap-operations {
+        display: flex;
+        column-gap: 12px;
+        margin-bottom: 12px;
+
+        .group-metric-batch-move {
+          width: 120px;
+        }
+
+        .group-metric-search {
+          flex: 1;
+        }
+      }
+
+      .group-metric-wrap-table {
+        flex: 1;
+        overflow: hidden;
+
+        .metric-table {
+          height: 100%;
+        }
+      }
+    }
+
+    .group-delete-confirm {
+      padding: 2px 0;
+    }
+
+    .group-delete-title {
+      margin-bottom: 8px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #313238;
+    }
+
+    .group-delete-name {
+      margin-bottom: 4px;
+      color: #63656e;
+    }
+
+    .group-delete-tip {
+      color: #979ba5;
+    }
   }
 }

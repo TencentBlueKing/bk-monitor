@@ -90,7 +90,12 @@ export default defineComponent({
             />
           );
         case 'process':
-          return <HostProcess host={props.selectedNode as IHostTopoHostNode} />;
+          return (
+            <HostProcess
+              compareHostList={props.compareHostList}
+              host={props.selectedNode as IHostTopoHostNode}
+            />
+          );
         default:
           return null;
       }

@@ -26,11 +26,10 @@
 
 import { type PropType, computed, defineComponent } from 'vue';
 
-import { Message } from 'bkui-vue';
-import { copyText } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
 
 import { getNodeDisplayName, isHostNode } from '../../utils/topo-tree';
+import TemporaryShareNew from '@/components/temporary-share/temporary-share-new';
 
 import type { IHostTopoTreeNode } from '../../types';
 
@@ -58,23 +57,12 @@ export default defineComponent({
       return `${prefix}：${getNodeDisplayName(node)}`;
     });
 
-    /** 生成可定位到当前选中对象的分享链接 */
-    const buildLocateUrl = (node: IHostTopoTreeNode) => {
-      const url = new URL(window.location.href);
-      url.searchParams.set('target_type', isHostNode(node) ? 'host' : 'node');
-      url.searchParams.set('target_id', node.id);
-      return url.toString();
-    };
-
-    const handleShare = () => {
-      const node = props.selectedNode;
-      if (!node) {
-        return;
-      }
-      copyText(buildLocateUrl(node), (msg: string) => {
-        Message({ message: msg, theme: 'error' });
-      });
-      Message({ message: t('复制成功'), theme: 'success' });
+    const formatShareTokenParams = params => {
+      params.data.name = 'host';
+      params.data.path = '/trace/host/:id?';
+      params.data.params = {};
+      params.data.query = {};
+      return params;
     };
 
     return () => {
@@ -83,12 +71,11 @@ export default defineComponent({
       }
       return (
         <div class='host-location-bar'>
-          <i class='icon-monitor icon-dingwei1 host-location-bar__locate' />
-          <span class='host-location-bar__text'>{locationText.value}</span>
-          <i
-            class='icon-monitor icon-fenxiang host-location-bar__share'
-            v-bk-tooltips={{ content: t('复制定位链接') }}
-            onClick={handleShare}
+          <i class='icon-monitor icon-dingwei' />
+          <span class='host-location-bar-text'>{locationText.value}</span>
+          <TemporaryShareNew
+            formatTokenParams={formatShareTokenParams}
+            type='host'
           />
         </div>
       );
