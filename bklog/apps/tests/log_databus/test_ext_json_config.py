@@ -124,14 +124,13 @@ class TestExtJsonResultTableConfig(SimpleTestCase):
         )
         return params, etl_params
 
-    def test_generates_exact_flattened_template_for_each_depth(self):
+    def test_generates_flattened_template_for_each_depth(self):
         for depth in (1, 2, 3):
             params, etl_params = self._customize(ext_json_config={"expand_depth": depth})
             template = params["default_storage_config"]["mapping_settings"]["dynamic_templates"][0]
             rule = template[f"ext_json_objects_at_depth_{depth}_as_flattened"]
-            expected_path_suffix = r"\.[^.]+" * depth
-            self.assertEqual(rule["path_match"], f"^__ext_json{expected_path_suffix}$")
-            self.assertEqual(rule["match_pattern"], "regex")
+            self.assertEqual(rule["path_match"], "__ext_json" + ".*" * depth)
+            self.assertNotIn("match_pattern", rule)
             self.assertEqual(rule["match_mapping_type"], "object")
             self.assertEqual(rule["mapping"], {"type": "flattened"})
             self.assertEqual(etl_params["ext_json_config"]["overflow_strategy"], "flattened")

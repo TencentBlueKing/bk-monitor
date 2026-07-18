@@ -126,17 +126,16 @@ class BkLogJsonEtlStorage(EtlStorage):
             ext_json_field["option"]["es_enabled"] = False
         elif effective_config["expand_depth"] is not None:
             depth = effective_config["expand_depth"]
-            path_suffix = r"\.[^.]+" * depth
-            # dynamic_templates 按顺序匹配，因此必须放在通用模板之前；正则只命中第 N 层的 object，
-            # 命中后整棵子树由 flattened 承载，不再为更深层 key 扩展独立 mapping。
+            path_match = "__ext_json" + ".*" * depth
+            # dynamic_templates 按顺序匹配，因此必须放在通用模板之前。通配符本身也能匹配更深路径，
+            # 但第 N 层 object 一旦映射为 flattened，ES 就不会继续为其子树创建独立 mapping。
             # 该列表由基类 update_or_create_result_table 统一初始化，这里只追加 JSON 清洗的专属规则。
             dynamic_templates = params["default_storage_config"]["mapping_settings"]["dynamic_templates"]
             dynamic_templates.insert(
                 0,
                 {
                     f"ext_json_objects_at_depth_{depth}_as_flattened": {
-                        "path_match": f"^__ext_json{path_suffix}$",
-                        "match_pattern": "regex",
+                        "path_match": path_match,
                         "match_mapping_type": "object",
                         "mapping": {"type": "flattened"},
                     }
