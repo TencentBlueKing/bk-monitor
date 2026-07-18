@@ -11,11 +11,11 @@ def forwards_func(apps, schema_editor):
         name=EXT_JSON_EXPAND_DEPTH,
         defaults={
             "alias": "动态 JSON 解析层级",
-            "status": "debug",
+            "status": "off",
             "is_viewed": True,
             "biz_id_white_list": [],
             "biz_id_black_list": [],
-            "description": "__ext_json 动态解析层级按业务灰度，白名单业务可配置",
+            "description": "__ext_json 动态解析层级实验特性，默认关闭，可按业务灰度开启",
         },
     )
 

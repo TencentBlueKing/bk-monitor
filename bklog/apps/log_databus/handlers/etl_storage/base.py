@@ -149,7 +149,6 @@ class EtlStorage:
         params: dict,
         etl_params: dict,
         current_result_table_config: dict,
-        enable_v4: bool,
         es_version: str,
         storage_cluster_type: str,
     ) -> None:
@@ -1276,7 +1275,6 @@ class EtlStorage:
             params=params,
             etl_params=etl_params,
             current_result_table_config=current_result_table_config,
-            enable_v4=enable_v4,
             es_version=es_version,
             storage_cluster_type=storage_cluster_type,
         )

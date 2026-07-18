@@ -105,7 +105,6 @@ class TestExtJsonResultTableConfig(SimpleTestCase):
         ext_json_config_marker=True,
         ext_json_config=None,
         current_config=None,
-        enable_v4=True,
         es_version="7.10.0",
         storage_cluster_type="elasticsearch",
     ):
@@ -120,7 +119,6 @@ class TestExtJsonResultTableConfig(SimpleTestCase):
             params=params,
             etl_params=etl_params,
             current_result_table_config=current,
-            enable_v4=enable_v4,
             es_version=es_version,
             storage_cluster_type=storage_cluster_type,
         )
@@ -199,9 +197,8 @@ class TestExtJsonResultTableConfig(SimpleTestCase):
             params["default_storage_config"]["mapping_settings"]["dynamic_templates"][0],
         )
 
-    def test_rejects_unsupported_link_storage_and_es_version(self):
+    def test_rejects_unsupported_storage_and_es_version(self):
         cases = (
-            {"enable_v4": False},
             {"storage_cluster_type": "doris"},
             {"es_version": "7.2.0"},
         )
@@ -217,7 +214,6 @@ class TestExtJsonResultTableConfig(SimpleTestCase):
             params=params,
             etl_params=etl_params,
             current_result_table_config={"option": {}},
-            enable_v4=True,
             es_version="7.10.0",
             storage_cluster_type="elasticsearch",
         )
@@ -329,6 +325,19 @@ class TestExtJsonResultTableUpdate(SimpleTestCase):
         self.assertNotIn("force_rotate", params)
         self.assertNotIn("is_sync", params)
         feature_toggle_switch.assert_called_once_with("ext_json_expand_depth", 2)
+
+    def test_update_payload_supports_legacy_data_link(self):
+        self.instance.enable_v4 = False
+
+        params, _ = self._run_update(
+            {
+                "retain_extra_json": True,
+                "ext_json_config": {"expand_depth": 2},
+            }
+        )
+
+        first_template = params["default_storage_config"]["mapping_settings"]["dynamic_templates"][0]
+        self.assertIn("ext_json_objects_at_depth_2_as_flattened", first_template)
 
     def test_disabling_extra_json_clears_existing_config_on_update_path(self):
         params, feature_toggle_switch = self._run_update(

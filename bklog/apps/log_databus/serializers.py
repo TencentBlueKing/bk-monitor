@@ -1031,7 +1031,7 @@ class CollectorEtlStorageSerializer(CollectorETLParamsFieldSerializer, PlatformI
     def validate(self, attrs):
         attrs = super().validate(attrs)
 
-        # 接口层只校验用户可见的清洗配置关系；V4、存储类型和 ES 版本依赖运行态信息，在 RT 组装阶段校验。
+        # 接口层只校验用户可见的清洗配置关系；存储类型和 ES 版本依赖运行态信息，在 RT 组装阶段校验。
         ext_json_config = attrs.get("etl_params", {}).get("ext_json_config")
         if ext_json_config is not None:
             if attrs["etl_config"] != EtlConfig.BK_LOG_JSON:

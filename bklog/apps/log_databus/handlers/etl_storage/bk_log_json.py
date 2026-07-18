@@ -60,7 +60,6 @@ class BkLogJsonEtlStorage(EtlStorage):
         params: dict,
         etl_params: dict,
         current_result_table_config: dict,
-        enable_v4: bool,
         es_version: str,
         storage_cluster_type: str,
     ) -> None:
@@ -78,8 +77,6 @@ class BkLogJsonEtlStorage(EtlStorage):
         if not has_new_config and current_config is None:
             return
 
-        if not enable_v4:
-            raise ValidationError(_("未定义JSON字段动态解析层级仅支持 V4 数据链路"))
         if storage_cluster_type != STORAGE_CLUSTER_TYPE:
             raise ValidationError(_("未定义JSON字段动态解析层级仅支持 Elasticsearch 存储"))
 
@@ -132,7 +129,9 @@ class BkLogJsonEtlStorage(EtlStorage):
             path_suffix = r"\.[^.]+" * depth
             # dynamic_templates 按顺序匹配，因此必须放在通用模板之前；正则只命中第 N 层的 object，
             # 命中后整棵子树由 flattened 承载，不再为更深层 key 扩展独立 mapping。
-            params["default_storage_config"]["mapping_settings"]["dynamic_templates"].insert(
+            # 该列表由基类 update_or_create_result_table 统一初始化，这里只追加 JSON 清洗的专属规则。
+            dynamic_templates = params["default_storage_config"]["mapping_settings"]["dynamic_templates"]
+            dynamic_templates.insert(
                 0,
                 {
                     f"ext_json_objects_at_depth_{depth}_as_flattened": {
