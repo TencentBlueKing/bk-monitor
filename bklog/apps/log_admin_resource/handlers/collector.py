@@ -417,6 +417,7 @@ def _serialize_result_table_storage(result_table_storage):
         return {
             "storage_cluster_id": None,
             "retention": None,
+            "allocation_min_days": None,
             "storage_shards_nums": None,
             "storage_shards_size": None,
             "storage_replies": None,
@@ -428,6 +429,7 @@ def _serialize_result_table_storage(result_table_storage):
     return {
         "storage_cluster_id": cluster_config.get("cluster_id"),
         "retention": storage_config.get("retention"),
+        "allocation_min_days": storage_config.get("warm_phase_days"),
         "storage_shards_nums": index_settings.get("number_of_shards"),
         "storage_shards_size": _first_not_none(
             storage_config.get("storage_shards_size"),

@@ -28,6 +28,8 @@ def list_storage_clusters(params):
 
 def _serialize_cluster(cluster):
     cluster_config = cluster.get("cluster_config") or {}
+    custom_option = cluster_config.get("custom_option") or {}
+    hot_warm_config = custom_option.get("hot_warm_config") or {}
     cluster_id = _first_not_none(
         cluster.get("storage_cluster_id"),
         cluster.get("cluster_id"),
@@ -46,6 +48,14 @@ def _serialize_cluster(cluster):
         "cluster_name": cluster_name,
         "domain_name": _first_not_none(cluster.get("domain_name"), cluster_config.get("domain_name")),
         "is_active": _first_not_none(cluster.get("is_active"), cluster_config.get("is_active"), True),
+        "hot_warm_enabled": bool(
+            _first_not_none(
+                cluster.get("hot_warm_enabled"),
+                cluster.get("enable_hot_warm"),
+                hot_warm_config.get("is_enabled"),
+                False,
+            )
+        ),
     }
 
 
