@@ -124,6 +124,8 @@ const ENUM_METHODS = [
   { value: 'eq', alias: '=' },
   { value: 'ne', alias: '!=' },
 ];
+/** 文本类字段过滤操作符：仅支持「包含」模糊匹配（用于主机 ID / IP 等文本字段） */
+const TEXT_METHODS = [{ value: 'include', alias: window.i18n.t('包含') }];
 
 /**
  * retrieval-filter 过滤字段定义（候选项由前端全量数据动态提供，见 getValueFn）。
@@ -134,35 +136,35 @@ export const HOST_FILTER_FIELDS: IFilterField[] = [
     name: HOST_FILTER_FIELDS_ENUM.bkHostId,
     alias: window.i18n.t('主机'),
     type: EFieldType.text,
-    methods: ENUM_METHODS,
+    methods: TEXT_METHODS,
     isEnableOptions: false,
   },
   {
     name: HOST_FILTER_FIELDS_ENUM.bkHostInnerIpV6,
     alias: window.i18n.t('内网IPv6'),
     type: EFieldType.text,
-    methods: ENUM_METHODS,
+    methods: TEXT_METHODS,
     isEnableOptions: false,
   },
   {
     name: HOST_FILTER_FIELDS_ENUM.bkHostOuterIpV6,
     alias: window.i18n.t('外网IPv6'),
     type: EFieldType.text,
-    methods: ENUM_METHODS,
+    methods: TEXT_METHODS,
     isEnableOptions: false,
   },
   {
     name: HOST_FILTER_FIELDS_ENUM.bkHostInnerIp,
     alias: window.i18n.t('内网IP'),
     type: EFieldType.text,
-    methods: ENUM_METHODS,
+    methods: TEXT_METHODS,
     isEnableOptions: false,
   },
   {
     name: HOST_FILTER_FIELDS_ENUM.bkHostOuterIp,
     alias: window.i18n.t('外网IP'),
     type: EFieldType.text,
-    methods: ENUM_METHODS,
+    methods: TEXT_METHODS,
     isEnableOptions: false,
   },
   {

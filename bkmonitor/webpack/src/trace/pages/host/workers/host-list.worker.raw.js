@@ -166,6 +166,36 @@ const matchWhereItem = (row, item) => {
         return origin === target;
     }
   }
+  // 集群模块字段：行数据 module.topo_link 为拓扑路径数组，候选项值为 JSON 编码的路径数组，需解析后逐条包含匹配
+  if (['cluster_module'].includes(item.key)) {
+    const curValue = item.value.map(v => {
+      try {
+        return JSON.parse(v);
+      } catch (_e) {
+        return [];
+      }
+    });
+    const originValue = row?.module?.map(r => r.topo_link);
+    return curValue.some(val => {
+      return originValue.some(a => {
+        return val.every(v => a.includes(v));
+      });
+    });
+  }
+  // 主机 ID / IP 类文本字段：使用 includes 包含模糊匹配（而非枚举精确匹配）
+  if (
+    ['bk_host_id', 'bk_host_innerip_v6', 'bk_host_outerip_v6', 'bk_host_innerip', 'bk_host_outerip'].includes(item.key)
+  ) {
+    const curValue = row?.[item.key];
+    if (curValue && ['number', 'string'].includes(typeof curValue)) {
+      return `${curValue}`.includes(item.value?.[0] || '');
+    }
+    return false;
+  }
+  // 通配符 key '*'：对整行做全文关键字搜索
+  if (item.key === '*') {
+    return matchKeyword(row, item.value?.[0] || '');
+  }
   const rowValues = getRowFieldValues(row, item.key).map(v => String(v));
   const matchValues = values.map(v => String(v));
   switch (method) {
@@ -298,7 +328,7 @@ const buildFilterOptionsMap = rows => {
       parentNode = nodeMap[nodeData.id];
     }
   }
-  
+
   result.set('cluster_module', clusterModuleTreeList);
   return result;
 };
