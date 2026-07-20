@@ -23,7 +23,7 @@
     "@blueking/login-modal": "^1.0.6",
     "@blueking/login-userinfo": "0.0.16",
     "@blueking/notice-component-vue2": "^2.0.7",
-    "@blueking/open-telemetry": "^0.0.19",
+    "@blueking/open-telemetry": "^0.0.21",
     "@blueking/platform-config": "^1.0.5",
     "@blueking/search-select-v3": "0.0.1-beta.10",
     "apm": "workspace:*",
