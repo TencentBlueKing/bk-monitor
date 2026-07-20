@@ -3129,18 +3129,16 @@ def tapd_app_install_callback(request):
 def tapd_user_oauth_callback(request):
     """TAPD 用户态 OAuth 回调。
 
-    Query params: code, state（signed_state）
+    Query params: code, state（signed_state）, error（用户取消授权时由 TAPD 回传）
     1. state 为自包含 signed_state → 验签、验过期（不依赖 session）
-    2. 用 code 换取 access_token（UserOauthTokenResource），redirect_uri 取 payload 中的 backend_callback
-    3. 加密 token → 存入 Redis（TTL = expires_in），key = tapd_uat:{tenant}:{user}
-    4. 302 重定向前端 success_url
+    2. 若携带 error 参数（如 error=access_denied）→ 用户主动取消授权，重定向到 error_url 友好提示
+    3. 用 code 换取 access_token（UserOauthTokenResource），redirect_uri 取 payload 中的 backend_callback
+    4. 加密 token → 存入 Redis（TTL = expires_in），key = tapd_uat:{tenant}:{user}
+    5. 302 重定向前端 success_url
     """
     code = request.query_params.get("code", "")
     state = request.query_params.get("state", "")
-
-    if not code or not state:
-        # 缺少必要参数，回退到根路径
-        return HttpResponseRedirect(request.build_absolute_uri("/"))
+    error = request.query_params.get("error", "")
 
     # 1) 解析并验签 signed_state（自包含 payload，不依赖 session）
     try:
@@ -3155,12 +3153,28 @@ def tapd_user_oauth_callback(request):
     success_url = payload.get("success_url", "")
     error_url = payload.get("error_url") or success_url or request.build_absolute_uri("/")
 
+    # 2) 用户主动取消授权：TAPD 重定向回 redirect_uri 并携带 error=access_denied
+    #    属正常业务分支，重定向到 error_url 展示友好提示（如"您已取消授权"），不当作系统错误
+    if error:
+        logger.info(
+            "TAPD user oauth canceled by user, bk_biz_id=%s, error=%s, error_description=%s",
+            bk_biz_id,
+            error,
+            request.query_params.get("error_description", "").replace("\r", "").replace("\n", ""),
+        )
+        return HttpResponseRedirect(error_url)
+
+    # 缺少 code 参数（非取消场景），回退到 error_url
+    if not code:
+        logger.warning("missing code in TAPD user oauth callback, bk_biz_id=%s", bk_biz_id)
+        return HttpResponseRedirect(error_url)
+
     # 校验失败统一处理：记日志 + 重定向到 error_url
     def _fail(log_msg, *args):
         logger.warning(log_msg, *args)
         return HttpResponseRedirect(error_url)
 
-    # 2) 校验 username + backend_callback
+    # 3) 校验 username + backend_callback
     if not username:
         return _fail("missing initiator in signed_state payload, bk_biz_id=%s", bk_biz_id)
 
@@ -3177,7 +3191,7 @@ def tapd_user_oauth_callback(request):
     if not backend_callback:
         return _fail("missing backend_callback in signed_state payload, bk_biz_id=%s", bk_biz_id)
 
-    # 3) code 换 token（Basic Auth，client_id:client_secret）
+    # 4) code 换 token（Basic Auth，client_id:client_secret）
     # redirect_uri 必须和 authorize 时传给 TAPD 的一致（即 backend_callback）
     try:
         token_resp = api.tapd.user_oauth_token(
@@ -3196,7 +3210,7 @@ def tapd_user_oauth_callback(request):
     if not access_token:
         return _fail("empty access_token from TAPD")
 
-    # 4) 存 Redis（AESCipher 加密），key 按 (tenant, username)
+    # 5) 存 Redis（AESCipher 加密），key 按 (tenant, username)
     save_tapd_token(
         tenant_id=tenant_id,
         username=username,
@@ -3204,5 +3218,5 @@ def tapd_user_oauth_callback(request):
         expires_in=expires_in,
     )
 
-    # 5) 302 重定向到 success_url（含 # 的前端地址）
+    # 6) 302 重定向到 success_url（含 # 的前端地址）
     return HttpResponseRedirect(success_url)
