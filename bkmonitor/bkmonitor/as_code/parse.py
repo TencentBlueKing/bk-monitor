@@ -541,6 +541,24 @@ def get_errors(records) -> dict[str, str]:
     return errors
 
 
+def save_notice_and_action_records(records, app: str) -> None:
+    """保存通知组/套餐，并用 update 补写 as_code 元数据。
+
+    序列化器在 save 时会强制清空 hash/snippet（兼容 UI 编辑路径），因此业务字段与
+    as_code 元数据需分两步写入。业务 save 已通过 auto_now 刷新修改时间，元数据
+    update 不再二次刷新时间戳。
+    """
+    for record in records:
+        slz = record["obj"]
+        slz.save()
+        type(slz.instance).objects.filter(pk=slz.instance.pk).update(
+            path=record["path"],
+            app=app,
+            hash=record["hash"],
+            snippet=record["snippet"],
+        )
+
+
 def import_code_config(bk_biz_id: int, app: str, configs: dict[str, str], overwrite: bool = False, incremental=False):
     # 配置分类
     rule_configs = {}
@@ -627,13 +645,7 @@ def import_code_config(bk_biz_id: int, app: str, configs: dict[str, str], overwr
     if errors:
         return errors
 
-    for record in chain(notice_records, action_records):
-        record["obj"].save()
-        record["obj"].instance.path = record["path"]
-        record["obj"].instance.app = app
-        record["obj"].instance.hash = record["hash"]
-        record["obj"].instance.snippet = record["snippet"]
-        record["obj"].instance.save()
+    save_notice_and_action_records(chain(notice_records, action_records), app)
 
     # 策略关联通知组及动作配置
     notice_group_ids = {}
