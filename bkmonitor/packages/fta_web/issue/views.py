@@ -35,6 +35,7 @@ class IssueViewSet(ResourceViewSet):
         "issue/recent_assignees",
         "issue/merge_sources",
         "issue/alert_enrich",
+        "issue/log_content",
         "tapd/workspace",
         "issue/get_tapd_fields",
         "issue/search_tapd_items",
@@ -221,6 +222,8 @@ class IssueViewSet(ResourceViewSet):
         ResourceRoute("GET", resource.issue.list_merge_sources, endpoint="issue/merge_sources"),
         # alert.issue_id → 主 Issue 展示信息 enrich（前端按需调用，模块解耦）
         ResourceRoute("POST", resource.issue.alert_issue_enrich, endpoint="issue/alert_enrich"),
+        # 批量查询 Issue 关联日志内容（针对日志类别告警）
+        ResourceRoute("POST", resource.issue.issue_log_content, endpoint="issue/log_content"),
         # 获取已授权的tapd项目列表
         ResourceRoute("POST", resource.issue.list_tapd_workspace, endpoint="tapd/workspace"),
         # 查询当前用户可见的 TAPD 项目列表（含 install_url）

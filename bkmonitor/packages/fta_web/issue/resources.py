@@ -24,6 +24,7 @@ from rest_framework import serializers, exceptions
 from rest_framework.decorators import api_view
 
 from bkm_space.utils import bk_biz_id_to_space_uid
+from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.documents.issue import (
     IssueActivityDocument,
@@ -32,13 +33,15 @@ from bkmonitor.documents.issue import (
     IssueNotFoundError,
 )
 from bkmonitor.issue_merge import IssueFrozenError, IssueMergeResolver
-from bkmonitor.models import TapdWorkspaceBinding, TapdWorkspaceManualUnbind
+from bkmonitor.models import QueryConfigModel, TapdWorkspaceBinding, TapdWorkspaceManualUnbind
 from bkmonitor.models.issue import IssueMergeRelation, IssueTapdRelation
+from bkmonitor.utils.event_related_info import get_alert_relation_info
 from bkmonitor.utils.request import get_request_username, get_request
 from django.db import transaction
 from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id, bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.user import set_local_username
+from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.issue import IssuePriority, IssueStatus, IssueActivityType
 from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
@@ -1456,6 +1459,141 @@ class AlertIssueEnrichResource(Resource):
             }
             for iid in issue_ids
         }
+
+
+class IssueLogContentResource(Resource):
+    """批量查询 Issue 关联日志内容（针对日志类别告警）"""
+
+    # 日志类别告警的数据源与数据类型组合（与 get_alert_relation_info 保持一致）
+    LOG_DATA_SOURCE_TYPES = frozenset(
+        {
+            (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
+            (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
+            (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.TIME_SERIES),
+            (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
+            (DataSourceLabel.BK_FTA, DataTypeLabel.EVENT),
+        }
+    )
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_ids = serializers.ListField(
+            label="业务ID", child=serializers.IntegerField(), min_length=1, max_length=500
+        )
+        issue_ids = serializers.ListField(label="Issue ID 列表", child=IssueIDField(), min_length=1, max_length=500)
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        bk_biz_ids = list(dict.fromkeys(validated_request_data["bk_biz_ids"]))
+        issue_ids = list(dict.fromkeys(validated_request_data["issue_ids"]))
+
+        # 初始化结果：所有请求的 issue_id 默认返回空内容，后续按实际查询结果覆盖
+        log_contents: dict[str, dict] = {issue_id: {"log_content": ""} for issue_id in issue_ids}
+
+        # 1. 获取 strategy_id
+        issue_hits = (
+            IssueDocument.search(all_indices=True)
+            .filter("terms", _id=issue_ids)
+            .filter("terms", bk_biz_id=bk_biz_ids)
+            .source(["strategy_id"])
+            .params(size=len(issue_ids))
+            .execute()
+            .hits
+        )
+        if not issue_hits:
+            return log_contents
+
+        issue_meta: dict[str, dict] = {}
+        strategy_ids: set[str] = set()
+        for hit in issue_hits:
+            issue_id = hit.meta.id
+            strategy_id = str(hit.strategy_id)
+            issue_meta[issue_id] = {"strategy_id": strategy_id}
+            strategy_ids.add(strategy_id)
+
+        # 2. 查询 QueryConfigModel，识别日志类别策略，并预取 query_config 供步骤5复用
+        query_configs = QueryConfigModel.objects.filter(strategy_id__in=list(strategy_ids)).values(
+            "strategy_id", "data_source_label", "data_type_label"
+        )
+        log_strategy_ids: set[str] = set()
+        strategy_query_config_map: dict[str, dict] = {}
+        for qc in query_configs:
+            strategy_id = str(qc["strategy_id"])
+            strategy_query_config_map[strategy_id] = {
+                "data_source_label": qc["data_source_label"],
+                "data_type_label": qc["data_type_label"],
+            }
+            if (qc["data_source_label"], qc["data_type_label"]) in self.LOG_DATA_SOURCE_TYPES:
+                log_strategy_ids.add(strategy_id)
+
+        # 筛选出日志类别的 issue
+        log_issue_ids = [issue_id for issue_id, meta in issue_meta.items() if meta["strategy_id"] in log_strategy_ids]
+        if not log_issue_ids:
+            return log_contents
+
+        # 3. 查询每个 issue 最新告警（top_hits 聚合，按 begin_time 降序取最新一条）
+        search_object = AlertDocument.search(all_indices=True).filter("terms", issue_id=log_issue_ids)
+        issue_agg = search_object.aggs.bucket("issues", "terms", field="issue_id", size=len(log_issue_ids))
+        issue_agg.metric(
+            "latest_alert",
+            "top_hits",
+            size=1,
+            sort=[{"begin_time": {"order": "desc"}}],
+            _source=["id", "event", "extra_info", "begin_time", "latest_time"],
+        )
+        try:
+            alert_data = search_object[:0].execute()
+        except Exception:
+            logger.exception("IssueLogContentResource AlertDocument query failed")
+            return log_contents
+
+        # 4. 构建 issue_id -> AlertDocument 映射（直接从 top_hits _source 构造）
+        issue_alert_map: dict[str, AlertDocument] = {}
+        for issue_bucket in alert_data.aggs.issues.buckets:
+            if not hasattr(issue_bucket, "latest_alert") or not issue_bucket.latest_alert:
+                continue
+            hits = issue_bucket.latest_alert.hits
+            if not hits or not hits.hits:
+                continue
+            hit = hits.hits[0]
+            source = hit.to_dict().get("_source", {})
+            try:
+                issue_alert_map[issue_bucket.key] = AlertDocument(**source)
+            except Exception:
+                logger.warning(
+                    "IssueLogContentResource: failed to construct AlertDocument, issue_id=%s",
+                    issue_bucket.key,
+                )
+
+        if not issue_alert_map:
+            return log_contents
+
+        # 5. 并发获取日志内容（传入步骤2预取的 query_config，避免 get_alert_relation_info 内部重复查 DB）
+        def _fetch_log_content(_issue_id: str, _alert: AlertDocument, _query_config) -> tuple[str, dict]:
+            try:
+                full_content = get_alert_relation_info(_alert, length_limit=False, query_config=_query_config) or ""
+            except Exception:
+                logger.exception("IssueLogContentResource get_alert_relation_info failed")
+                full_content = ""
+            return _issue_id, {"log_content": full_content}
+
+        with ThreadPoolExecutor(max_workers=min(10, len(issue_alert_map))) as pool:
+            futures = [
+                pool.submit(
+                    _fetch_log_content,
+                    issue_id,
+                    alert,
+                    strategy_query_config_map.get(issue_meta[issue_id]["strategy_id"]),
+                )
+                for issue_id, alert in issue_alert_map.items()
+            ]
+            for future in as_completed(futures):
+                try:
+                    issue_id, log_content = future.result()
+                except Exception:
+                    logger.exception("IssueLogContentResource future.result() failed")
+                    continue
+                log_contents[issue_id] = log_content
+
+        return log_contents
 
 
 class ListTapdWorkspaceResource(Resource):
