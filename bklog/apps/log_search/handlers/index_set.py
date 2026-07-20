@@ -213,11 +213,7 @@ class IndexSetHandler(APIModel):
         )
         for index_set in index_sets:
             index_set["collector_scenario_id"] = collector_scenario_map.get(index_set["collector_config_id"])
-            index_set["support_doris"] = (
-                index_set["support_doris"]
-                if index_set["support_doris"]
-                else LogIndexSet.get_is_support_doris(index_set["index_set_id"])
-            )
+            index_set["support_doris"] = LogIndexSet.get_is_support_doris(index_set["index_set_id"])
         # 不分组，直接返回
         if not is_group:
             return index_sets
