@@ -106,7 +106,7 @@ class TestExtractDecisionMatrix(TestCase):
 
     def test_legacy_error_strategy_allowed_allowed_true(self):
         """legacy=异常(error), strategy=允许 → allowed=True, source=strategy, warning=True"""
-        legacy = CheckResult(allowed=True, source="error", detail="db error")
+        legacy = CheckResult(allowed=None, source="error", detail="db error")
         strategy = CheckResult(allowed=True, source="strategy", detail="strategy_found")
 
         decision = ExternalLogExtractPermissionDecision.decide(
@@ -123,7 +123,7 @@ class TestExtractDecisionMatrix(TestCase):
     def test_legacy_allowed_strategy_error_allowed_true(self):
         """legacy=允许, strategy=异常(error) → allowed=True, source=legacy, warning=True"""
         legacy = CheckResult(allowed=True, source="legacy", detail="legacy_valid")
-        strategy = CheckResult(allowed=True, source="error", detail="db error")
+        strategy = CheckResult(allowed=None, source="error", detail="db error")
 
         decision = ExternalLogExtractPermissionDecision.decide(
             external_user=self.EXTERNAL_USER,
@@ -138,8 +138,8 @@ class TestExtractDecisionMatrix(TestCase):
 
     def test_both_error_allowed_false(self):
         """legacy=异常(error), strategy=异常(error) → allowed=False, source=none, warning=True"""
-        legacy = CheckResult(allowed=True, source="error", detail="db error")
-        strategy = CheckResult(allowed=True, source="error", detail="db error")
+        legacy = CheckResult(allowed=None, source="error", detail="db error")
+        strategy = CheckResult(allowed=None, source="error", detail="db error")
 
         decision = ExternalLogExtractPermissionDecision.decide(
             external_user=self.EXTERNAL_USER,

@@ -145,11 +145,13 @@ class TestExternalToggleOffBehavior(TestCase):
             "log_adapter.home.views.render", return_value=HttpResponseForbidden()
         ), patch(
             "log_adapter.home.views.get_toggle_data", return_value={}
-        ):
+        ), patch(
+            "log_adapter.home.views.Permission"
+        ) as mock_perm_cls:
             from log_adapter.home.views import external
             external(request)
             # 关键断言：开关 off 时不应调用 IAM Permission（只有 PO filter）
-            self.assertFalse(hasattr(self, "_iam_called"), "开关 off 时不应调用 IAM")
+            mock_perm_cls.assert_not_called()
 
 
 import json

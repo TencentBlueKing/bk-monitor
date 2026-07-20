@@ -155,6 +155,13 @@ class ExternalLogSearchPermissionDecision:
         """
         legacy_allowed = legacy_result.allowed
         iam_allowed = iam_result.allowed
+
+        # source="error" 侧的判定结果不可被当作允许/扩权依据
+        if legacy_result.source == "error":
+            legacy_allowed = None
+        if iam_result.source == "error":
+            iam_allowed = None
+
         warning = legacy_result.source == "error" or iam_result.source == "error"
 
         if legacy_allowed is True and iam_allowed is True:

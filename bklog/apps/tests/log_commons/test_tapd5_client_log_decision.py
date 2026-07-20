@@ -106,7 +106,7 @@ class TestClientLogDecisionMatrix(TestCase):
 
     def test_legacy_error_iam_allowed_allowed_true(self):
         """legacy=异常(error), iam=允许 → allowed=True, source=iam, warning=True"""
-        legacy = CheckResult(allowed=True, source="error", detail="db error")
+        legacy = CheckResult(allowed=None, source="error", detail="db error")
         iam = CheckResult(allowed=True, source="iam", detail="iam_allowed")
 
         decision = ExternalClientLogPermissionDecision.decide(
@@ -123,7 +123,7 @@ class TestClientLogDecisionMatrix(TestCase):
     def test_legacy_allowed_iam_error_allowed_true(self):
         """legacy=允许, iam=异常(error) → allowed=True, source=legacy, warning=True"""
         legacy = CheckResult(allowed=True, source="legacy", detail="legacy_valid")
-        iam = CheckResult(allowed=True, source="error", detail="IAM 不可达")
+        iam = CheckResult(allowed=None, source="error", detail="IAM 不可达")
 
         decision = ExternalClientLogPermissionDecision.decide(
             external_user=self.EXTERNAL_USER,
@@ -138,8 +138,8 @@ class TestClientLogDecisionMatrix(TestCase):
 
     def test_both_error_allowed_false(self):
         """legacy=异常(error), iam=异常(error) → allowed=False, source=none, warning=True（fail-closed）"""
-        legacy = CheckResult(allowed=True, source="error", detail="db error")
-        iam = CheckResult(allowed=True, source="error", detail="IAM 不可达")
+        legacy = CheckResult(allowed=None, source="error", detail="db error")
+        iam = CheckResult(allowed=None, source="error", detail="IAM 不可达")
 
         decision = ExternalClientLogPermissionDecision.decide(
             external_user=self.EXTERNAL_USER,

@@ -9,6 +9,8 @@
   - batch_iam_allowed_resources()
   - 三身份字段 (authorization_subject / execution_user / audit_user) 分离
 """
+import socket
+import unittest
 from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
@@ -223,6 +225,28 @@ class TestDecideMatrix(TestCase):
         )
         # error 侧 resources 是 set()，合并后应等于 {1, 2}
         self.assertEqual(decision.resources, {1, 2})
+
+    # ── GAP8: decide() 对 source="error" 且 allowed=True 的防御 ──
+
+    def test_decide_resists_error_source_with_true_allowed(self):
+        """GAP8 / §3.2 #6(已修复)：decide() 接收到 source="error" 但 allowed=True 时，应重置 allowed=None。
+
+        TAPD3 的 decide() 现已与 TAPD4/5 对齐：当 CheckResult.source="error" 时
+        重置 allowed=None。若调用方因 bug 传入 CheckResult(allowed=True, source="error")，
+        decide() 不会将其当作正常的 allowed=True 放行。
+        """
+        legacy = CheckResult(allowed=True, resources={1}, source="error", detail="db error")
+        iam = CheckResult(allowed=False, resources=set(), source="iam")
+
+        decision = ExternalLogSearchPermissionDecision.decide(
+            external_user=self.EXTERNAL_USER,
+            execution_user=self.EXECUTION_USER,
+            legacy_result=legacy,
+            iam_result=iam,
+        )
+        # 当 source="error" 时，即使 allowed=True 也不应放行
+        self.assertFalse(decision.allowed,
+                         "source=error 时不应放行，应行为 fail-closed")
 
     # ── 三身份验证辅助 ──
 
@@ -508,6 +532,29 @@ class TestIamCheckResource(TestCase):
                          "异常侧 resources 必须为空，防止被 decide() union 误放大")
         self.assertIn("IAM 不可达", result.detail)
 
+    @patch("apps.log_commons.handlers.external_permission_decision.space_uid_to_bk_biz_id", return_value=100)
+    @patch("apps.log_commons.handlers.external_permission_decision.ResourceEnum")
+    @patch("apps.log_commons.handlers.external_permission_decision.Permission")
+    def test_iam_is_allowed_timeout_returns_error(self, mock_perm_cls, _mock_resource_enum, _mock_s2b):
+        """IAM is_allowed 超时（socket.timeout，不抛显式异常）→ fail-closed, source=error
+        
+        覆盖 GAP2：socket.timeout 不会显式抛出到调用方，但若 IAM SDK 底层因 timeout
+        返回空结果或被 try/except 捕获，应确保行为与显式异常一致：allowed=None, resources=set()。
+        """
+        mock_perm_instance = mock_perm_cls.return_value
+        mock_perm_instance.is_allowed.side_effect = socket.timeout("IAM 超时无响应")
+
+        result = ExternalLogSearchPermissionDecision.iam_check_resource(
+            space_uid=self.SPACE_UID,
+            external_user=self.EXTERNAL_USER,
+            resource_id=self.RESOURCE_ID,
+        )
+
+        self.assertIsNone(result.allowed,
+                          "timeout 时 allowed 必须为 None，防止误放行")
+        self.assertEqual(result.source, "error")
+        self.assertEqual(result.resources, set(),
+                         "timeout 时 resources 必须为空")
 
 # ──────────────────────────────────────────────
 #  batch_iam_allowed_resources() 单测

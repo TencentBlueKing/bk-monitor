@@ -636,7 +636,9 @@ class SearchViewSet(APIViewSet):
         """
         request_user = get_request_external_username() or get_request_username()
         data = self.params_valid(SearchExportSerializer)
-        if "is_desensitize" in data and not data["is_desensitize"] and request.user.is_superuser:
+        # 外部用户（经 PO 代理）强制开启脱敏，即使 authorizer 是超管也不能跳过脱敏
+        external_user = get_request_external_username()
+        if "is_desensitize" in data and not data["is_desensitize"] and request.user.is_superuser and not external_user:
             data["is_desensitize"] = False
         else:
             data["is_desensitize"] = True
