@@ -6,22 +6,25 @@ from apps.log_admin_resource.handlers.collector import (
     _serialize_result_table_storage,
 )
 from apps.log_databus.handlers.etl.transfer import TransferEtlHandler
+from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import CollectorConfig
 
 
 TARGET_FIELDS = (
     "storage_cluster_id",
     "retention",
+    "allocation_min_days",
     "storage_shards_nums",
     "storage_replies",
-    "storage_shards_size",
 )
+HOT_WARM_RELATED_FIELDS = {"storage_cluster_id", "retention", "allocation_min_days"}
 
 MIN_VALUES = {
+    "storage_cluster_id": 1,
     "retention": 1,
+    "allocation_min_days": 1,
     "storage_shards_nums": 1,
     "storage_replies": 0,
-    "storage_shards_size": 1,
 }
 
 STATUS_NAMES = {
@@ -38,7 +41,8 @@ def preview_collector_storage(params):
     collector_config_ids = _parse_collector_config_ids(params)
     target = _parse_target(params)
     collectors = _get_collectors(collector_config_ids)
-    items = [_build_preview_item(collector, target) for collector in collectors]
+    cluster_hot_warm_cache = {}
+    items = [_build_preview_item(collector, target, cluster_hot_warm_cache) for collector in collectors]
     return {"summary": _summarize_items(items), "items": items}
 
 
@@ -48,10 +52,11 @@ def apply_collector_storage(params):
     target = _parse_target(params)
     expected_before = params.get("expected_before") or {}
     collectors = _get_collectors(collector_config_ids)
+    cluster_hot_warm_cache = {}
 
     items = []
     for collector in collectors:
-        item = _build_preview_item(collector, target)
+        item = _build_preview_item(collector, target, cluster_hot_warm_cache)
         expected = expected_before.get(str(collector.collector_config_id)) or expected_before.get(
             collector.collector_config_id
         )
@@ -97,6 +102,11 @@ def _parse_collector_config_ids(params):
 
 def _parse_target(params):
     target = (params or {}).get("target") or {}
+    if not isinstance(target, dict):
+        raise ValidationError("target must be an object")
+    unsupported_fields = sorted(set(target) - set(TARGET_FIELDS))
+    if unsupported_fields:
+        raise ValidationError("unsupported target fields: {}".format(", ".join(unsupported_fields)))
     parsed = {}
     for field in TARGET_FIELDS:
         if target.get(field) in (None, ""):
@@ -122,7 +132,7 @@ def _get_collectors(collector_config_ids):
     return [collector_map[collector_config_id] for collector_config_id in collector_config_ids]
 
 
-def _build_preview_item(collector, target):
+def _build_preview_item(collector, target, cluster_hot_warm_cache):
     primary_index_set, primary_index_data = _get_primary_index_set(collector.collector_config_id)
     table_id = collector.table_id or (primary_index_data.result_table_id if primary_index_data else None)
     storage, storage_warning = _get_result_table_storage(
@@ -132,7 +142,6 @@ def _build_preview_item(collector, target):
     before = _merge_storage_snapshot(_serialize_result_table_storage(storage), collector)
     after = dict(before)
     after.update(target)
-    diff = _build_diff(before, after, target)
     warnings = []
     if storage_warning:
         warnings.append(storage_warning)
@@ -140,6 +149,17 @@ def _build_preview_item(collector, target):
         warnings.append({"code": "collector_not_active", "message": "collector is not active"})
     if primary_index_set is None:
         warnings.append({"code": "primary_index_set_not_found", "message": "primary index set not found"})
+
+    storage_cluster_id = after.get("storage_cluster_id")
+    if storage_cluster_id and HOT_WARM_RELATED_FIELDS.intersection(target):
+        try:
+            hot_warm_enabled = _get_cluster_hot_warm_enabled(storage_cluster_id, cluster_hot_warm_cache)
+        except Exception as err:  # noqa: BLE001
+            warnings.append({"code": "storage_cluster_query_failed", "message": str(err)})
+        else:
+            _apply_hot_warm_rules(before, after, target, hot_warm_enabled, warnings)
+
+    diff = _build_diff(before, after, target)
 
     status = "blocked" if warnings else "unchanged"
     if status != "blocked" and diff:
@@ -171,6 +191,7 @@ def _merge_storage_snapshot(storage, collector):
     return {
         "storage_cluster_id": storage.get("storage_cluster_id"),
         "retention": storage.get("retention"),
+        "allocation_min_days": storage.get("allocation_min_days"),
         "storage_shards_nums": _first_not_none(storage.get("storage_shards_nums"), collector.storage_shards_nums),
         "storage_replies": _first_not_none(storage.get("storage_replies"), collector.storage_replies),
         "storage_shards_size": _first_not_none(storage.get("storage_shards_size"), collector.storage_shards_size),
@@ -179,8 +200,11 @@ def _merge_storage_snapshot(storage, collector):
 
 def _build_diff(before, after, target):
     diff = []
+    changed_fields = set(target)
+    if before.get("allocation_min_days") != after.get("allocation_min_days"):
+        changed_fields.add("allocation_min_days")
     for field in TARGET_FIELDS:
-        if field not in target:
+        if field not in changed_fields:
             continue
         if before.get(field) == after.get(field):
             continue
@@ -195,26 +219,75 @@ def _get_expected_before_mismatch(before, expected):
 
 
 def _apply_one_collector(collector, target):
-    original_storage_shards_size = collector.storage_shards_size
-    storage_shards_size_changed = "storage_shards_size" in target
-    if storage_shards_size_changed:
-        CollectorConfig.objects.filter(collector_config_id=collector.collector_config_id).update(
-            storage_shards_size=target["storage_shards_size"]
-        )
-    try:
-        TransferEtlHandler(collector_config_id=collector.collector_config_id).patch_update(
-            storage_cluster_id=target.get("storage_cluster_id"),
-            retention=target.get("retention"),
-            allocation_min_days=None,
-            storage_replies=target.get("storage_replies"),
-            es_shards=target.get("storage_shards_nums"),
-        )
-    except Exception:
-        if storage_shards_size_changed:
-            CollectorConfig.objects.filter(collector_config_id=collector.collector_config_id).update(
-                storage_shards_size=original_storage_shards_size
+    TransferEtlHandler(collector_config_id=collector.collector_config_id).patch_update(
+        storage_cluster_id=target.get("storage_cluster_id"),
+        retention=target.get("retention"),
+        allocation_min_days=target.get("allocation_min_days"),
+        storage_replies=target.get("storage_replies"),
+        es_shards=target.get("storage_shards_nums"),
+    )
+
+
+def _get_cluster_hot_warm_enabled(storage_cluster_id, cache):
+    storage_cluster_id = int(storage_cluster_id)
+    if storage_cluster_id not in cache:
+        cluster_info = StorageHandler(storage_cluster_id).get_cluster_info_by_id()
+        cluster_config = cluster_info.get("cluster_config") or {}
+        custom_option = cluster_config.get("custom_option") or {}
+        hot_warm_config = custom_option.get("hot_warm_config") or {}
+        cache[storage_cluster_id] = bool(hot_warm_config.get("is_enabled", False))
+    return cache[storage_cluster_id]
+
+
+def _apply_hot_warm_rules(before, after, target, hot_warm_enabled, warnings):
+    cluster_changed = "storage_cluster_id" in target and before.get("storage_cluster_id") != after.get(
+        "storage_cluster_id"
+    )
+    if not hot_warm_enabled:
+        if "allocation_min_days" in target:
+            warnings.append(
+                {
+                    "code": "hot_data_days_not_supported",
+                    "message": "allocation_min_days is only supported by hot-warm storage clusters",
+                }
             )
-        raise
+        elif cluster_changed and before.get("allocation_min_days"):
+            after["allocation_min_days"] = 0
+        return
+
+    allocation_min_days = after.get("allocation_min_days")
+    retention = after.get("retention")
+    if cluster_changed and "allocation_min_days" not in target:
+        warnings.append(
+            {
+                "code": "hot_data_days_required",
+                "message": "allocation_min_days is required when switching to a hot-warm storage cluster",
+            }
+        )
+        return
+    if not allocation_min_days:
+        warnings.append(
+            {
+                "code": "hot_data_days_required",
+                "message": "allocation_min_days is required for a hot-warm storage cluster",
+            }
+        )
+        return
+    if not retention:
+        warnings.append(
+            {
+                "code": "retention_required_for_hot_data",
+                "message": "retention is required when allocation_min_days is configured",
+            }
+        )
+        return
+    if allocation_min_days >= retention:
+        warnings.append(
+            {
+                "code": "invalid_hot_data_days",
+                "message": "allocation_min_days must be greater than or equal to 1 and less than retention",
+            }
+        )
 
 
 def _summarize_items(items):

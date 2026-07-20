@@ -408,7 +408,7 @@ export class TenantManager extends EventEmitter<TenantManagerEvent> {
     }
 
     const headers: Record<string, string> = {
-      'x-bk-tenant-id': this.tenantId!,
+      'X-Bk-Tenant-Id': this.tenantId!,
     };
 
     try {
@@ -416,6 +416,7 @@ export class TenantManager extends EventEmitter<TenantManagerEvent> {
         url,
         method: 'GET',
         headers,
+        skipTraceparent: true,
       });
 
       // 处理响应结果
@@ -493,7 +494,7 @@ export class TenantManager extends EventEmitter<TenantManagerEvent> {
   private async fetchSingleUserInfo(tenantId: string): Promise<void> {
     const url = `${this.API_BASE_URL}/${tenantId}/display_info/`;
     const headers: Record<string, string> = {
-      'x-bk-tenant-id': this.tenantId!,
+      'X-Bk-Tenant-Id': this.tenantId!,
     };
 
     try {
@@ -501,12 +502,15 @@ export class TenantManager extends EventEmitter<TenantManagerEvent> {
         url,
         method: 'GET',
         headers,
+        skipTraceparent: true,
       });
 
       // response.data 直接就是 UserDisplayInfo 对象
-      if (response.data && response.data.bk_username) {
+      // 单个获取接口返回数据中不含 bk_username，使用传入的 tenantId
+      if (response.data) {
         const userInfo = response.data;
-        const bkUsername = userInfo.bk_username;
+        userInfo.bk_username = tenantId;
+        const bkUsername = tenantId;
         const wasCached = this.userCache.has(bkUsername);
         const cachedUserInfo = this.userCache.get(bkUsername);
         

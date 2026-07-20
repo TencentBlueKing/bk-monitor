@@ -26,11 +26,11 @@
 import { BkOpenTelemetry } from '@blueking/open-telemetry';
 
 // 初始化蓝鲸 RUM 上报 SDK，仅在后端下发 window.rum.enabled 且提供 endpoint 时启用
-export const initOpenTelemetry = () => {
+export const initOpenTelemetry = (): BkOpenTelemetry => {
   if (!window.rum?.enabled || !window.rum.endpoint) return;
   // 构造后默认 autoStart，采集页面访问、接口、资源、JS 错误、Web Vitals 等并通过 OTLP 上报
   return new BkOpenTelemetry({
-    app: {
+    application: {
       name: 'bk-monitor',
       environment: process.env.NODE_ENV,
       version: window.footer_version,
@@ -39,8 +39,29 @@ export const initOpenTelemetry = () => {
       endpoint: window.rum.endpoint,
       token: window.rum.token,
     },
-    user: {
-      id: window.username,
+    tracking: {
+      view: {
+        getPathGroup: url => {
+          const parsed = new URL(url, window.location.href);
+          const hashLocation = parsed.hash.replace(/^#!?/, '');
+
+          const pathname = hashLocation.startsWith('/')
+            ? new URL(hashLocation, parsed.origin).pathname
+            : parsed.pathname;
+
+          return pathname.replace(/\/[0-9a-f]{8}-[0-9a-f-]{27,}/gi, '/:id').replace(/\/\d+(?=\/|$)/g, '/:id');
+        },
+      },
+      beforeSend: span => {
+        if (span.name === 'browser.resource') {
+          if (span.attributes?.['resource.url']?.toString().includes('commons/fetch_robot_info/')) {
+            return false;
+          }
+        }
+      },
+    },
+    context: {
+      user: { id: window.username },
     },
   });
 };

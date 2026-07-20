@@ -229,9 +229,10 @@ class BkLogRegexpEtlStorage(EtlStorage):
             ]
         )
 
-        # 4. 从iter_item提取data字段作为原文
-        rules.extend(
-            [
+        # 4. 从iter_item提取data：正则解析始终需要 iter_string；log 仅在保留原文或失败日志时写出
+        # 与 JSON 清洗对齐：retain_original_text / enable_retain_content 任一为真才 assign log
+        if etl_params.get("retain_original_text") or etl_params.get("enable_retain_content"):
+            rules.append(
                 {
                     "input_id": "iter_item",
                     "output_id": "log",
@@ -242,17 +243,18 @@ class BkLogRegexpEtlStorage(EtlStorage):
                         "output_type": "string",
                         "default_value": None,
                     },
+                }
+            )
+        rules.append(
+            {
+                "input_id": "iter_item",
+                "output_id": "iter_string",
+                "operator": {
+                    "type": "get",
+                    "key_index": [{"type": "key", "value": "data"}],
+                    "missing_strategy": None,
                 },
-                {
-                    "input_id": "iter_item",
-                    "output_id": "iter_string",
-                    "operator": {
-                        "type": "get",
-                        "key_index": [{"type": "key", "value": "data"}],
-                        "missing_strategy": None,
-                    },
-                },
-            ]
+            }
         )
 
         # 4.1. 提取 flat_field=True 的内置字段（从iter_item提取）
