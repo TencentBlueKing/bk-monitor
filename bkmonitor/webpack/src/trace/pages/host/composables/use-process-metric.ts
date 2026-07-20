@@ -24,16 +24,18 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRefOrGetter, computed, ref as deepRef, shallowRef, toValue } from 'vue';
+import { type MaybeRefOrGetter, computed, toValue } from 'vue';
+import { shallowRef } from 'vue';
 
-import { toProcessPanelId } from '../mock/process-metric';
-import { getProcessMetricGroupPanelOrder, getProcessViewsPanels } from '../services/graph-service';
-import { UNGROUP_ID } from '../types/metric-group';
+import { updateSceneView } from 'monitor-api/modules/scene_view';
+import { useI18n } from 'vue-i18n';
 
-import type { MetricGroupModel, MetricItemModel } from '../types/metric-group';
-import type { HostViewsGraphPanel } from '../types/panels';
+import { getProcessMetricGroupPanelOrderApi, getProcessViewsPanelsApi } from '../services/graph-service';
+
 import type { DashboardRow } from '../components/dashbords';
+import type { HostViewsRowPanel, MetricGroupPanelOrder } from '../types';
 
+export type ProcessMetricController = ReturnType<typeof useProcessMetric>;
 interface UseProcessMetricOptions {
   /** 关键字过滤（按指标标题） */
   keyword: MaybeRefOrGetter<string>;
@@ -43,89 +45,96 @@ interface UseProcessMetricOptions {
 
 /**
  * 进程指标视图数据控制器。
- * 取数走带缓存的 `getProcessViewsPanels`（图表面板）与 `getProcessMetricGroupPanelOrder`（分组/顺序/显隐）：
- * - 由「排序配置」派生分组与指标，供 Toolbar 搜索、视图分组管理消费；
- * - 由「视图面板」提供图表 JSON，按分组顺序与显隐拼装仪表盘行。
+ * 持有后端返回的 DashboardRow[]（展示用）与 MetricGroupPanelOrder[]（管理用）。
  */
 export function useProcessMetric(options: UseProcessMetricOptions) {
+  const { t } = useI18n();
   const loading = shallowRef(false);
-  /** 分组（不含「未分组」，与系统指标一致由渲染时置底） */
-  const groups = deepRef<MetricGroupModel[]>([]);
-  /** 指标（含「未分组」归属，order 即展示顺序） */
-  const metrics = deepRef<MetricItemModel[]>([]);
-  /** 指标 id → 图表面板 JSON 映射 */
-  const panelMap = shallowRef<Record<string, HostViewsGraphPanel>>({});
+  /** 后端返回的原始面板分组数据（getProcessViewsPanelsApi） */
+  const panels = shallowRef<HostViewsRowPanel[]>([]);
+  /** 后端返回的分组与指标排序配置（getProcessMetricGroupPanelOrderApi，供 GroupManageDialog 使用） */
+  const orderData = shallowRef<MetricGroupPanelOrder[]>([]);
 
-  /** 仅首次拉取构建一次（service 层已做缓存，这里避免重复拼装） */
-  let loaded = false;
-
-  const load = async () => {
-    if (loaded) return;
+  const load = async (needCache = true) => {
     loading.value = true;
     try {
-      const [panels, order] = await Promise.all([getProcessViewsPanels(), getProcessMetricGroupPanelOrder()]);
-      const nextPanelMap: Record<string, HostViewsGraphPanel> = {};
-      for (const row of panels) {
-        for (const panel of row.panels) {
-          nextPanelMap[panel.id] = panel;
-        }
-      }
-      panelMap.value = nextPanelMap;
-      groups.value = order.filter(group => group.id !== UNGROUP_ID).map(group => ({ id: group.id, title: group.title }));
-      metrics.value = order.flatMap(group =>
-        group.panels.map(panel => ({ groupId: group.id, id: panel.id, title: panel.title, hidden: panel.hidden }))
-      );
-      loaded = true;
+      const [panelsRes, orderRes] = await Promise.all([
+        getProcessViewsPanelsApi(),
+        getProcessMetricGroupPanelOrderApi(needCache),
+      ]);
+      panels.value = panelsRes;
+      orderData.value = orderRes;
     } finally {
       loading.value = false;
     }
   };
 
-  /** 覆盖写入分组与指标（供「视图分组管理」保存） */
-  const setData = (nextGroups: MetricGroupModel[], nextMetrics: MetricItemModel[]) => {
-    groups.value = nextGroups;
-    metrics.value = nextMetrics;
+  /** 保存 */
+  const handleSave = async (value: MetricGroupPanelOrder[]) => {
+    try {
+      loading.value = true;
+      await updateSceneView({
+        scene_id: 'host',
+        type: 'detail',
+        id: 'process',
+        name: t('进程'),
+        config: {
+          order: value,
+        },
+      });
+      await load();
+    } finally {
+      loading.value = false;
+    }
   };
 
-  /** 仪表盘分组行：按分组聚合可见且命中关键字的指标，未分组置底，空分组不展示 */
+  /** 恢复默认 */
+  const handleReset = async () => {
+    try {
+      loading.value = true;
+      await updateSceneView({
+        scene_id: 'host',
+        type: 'detail',
+        id: 'process',
+        name: t('进程'),
+        config: {
+          order: [],
+        },
+      });
+      await load(false);
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  /** 仪表盘分组行：仅按关键字过滤面板，空分组不展示 */
   const rows = computed<DashboardRow[]>(() => {
     const keyword = toValue(options.keyword).trim().toLowerCase();
-    const matchKeyword = (metric: MetricItemModel) => !keyword || metric.title.toLowerCase().includes(keyword);
 
-    const groupedMetrics = new Map<string, MetricItemModel[]>();
-    for (const metric of metrics.value) {
-      if (metric.hidden || !matchKeyword(metric)) continue;
-      const list = groupedMetrics.get(metric.groupId) ?? [];
-      list.push(metric);
-      groupedMetrics.set(metric.groupId, list);
-    }
+    const result: DashboardRow[] = [];
+    for (const row of panels.value) {
+      const filteredPanels = keyword
+        ? row.panels.filter(panel => panel.title.toLowerCase().includes(keyword))
+        : row.panels;
 
-    const orderedGroups: MetricGroupModel[] = [
-      ...groups.value,
-      { id: UNGROUP_ID, title: toValue(options.ungroupTitle) },
-    ];
-
-    return orderedGroups.reduce<DashboardRow[]>((rowList, group) => {
-      const groupMetrics = groupedMetrics.get(group.id);
-      if (groupMetrics?.length) {
-        rowList.push({
-          id: group.id,
-          title: group.title,
-          panels: groupMetrics
-            .map(metric => panelMap.value[toProcessPanelId(metric.id)])
-            .filter((panel): panel is HostViewsGraphPanel => Boolean(panel)),
+      if (filteredPanels.length) {
+        result.push({
+          id: row.id,
+          title: row.title,
+          panels: filteredPanels,
         });
       }
-      return rowList;
-    }, []);
+    }
+
+    return result;
   });
 
   return {
-    loading,
-    groups,
-    metrics,
     rows,
+    orderData,
+    loading,
+    handleSave,
+    handleReset,
     load,
-    setData,
   };
 }

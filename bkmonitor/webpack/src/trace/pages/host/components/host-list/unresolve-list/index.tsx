@@ -24,9 +24,42 @@
  * IN THE SOFTWARE.
  */
 
-export { default as DashboardPanel } from './components/dashboard-panel';
-export { createGraphApi } from './services/graph-api';
-export type { DashboardRow } from './typings/dashboard';
+import { type PropType, defineComponent } from 'vue';
 
-export { buildScopedVars } from './variables/resolve';
-export type { ScopedVarMap } from './variables/resolve';
+import { useI18n } from 'vue-i18n';
+
+import type { IHostAlarmCount } from '../../../types/host';
+
+import './index.scss';
+
+export default defineComponent({
+  name: 'UnresolveList',
+  props: {
+    list: {
+      type: Array as PropType<IHostAlarmCount[]>,
+      default: () => [],
+    },
+  },
+  setup(props) {
+    const { t } = useI18n();
+    const statusMap: Record<number, string> = {
+      1: t('致命') as string,
+      2: t('预警') as string,
+      3: t('提醒') as string,
+    };
+
+    return () => (
+      <ul class='unresolve-list'>
+        {props.list.map(item => (
+          <li
+            key={item.level}
+            class='unresolve-list__item'
+          >
+            <span class={['unresolve-list__status', `unresolve-list__status--${item.level}`]} />
+            <span class='unresolve-list__name'>{`${statusMap[item.level] || ''}(${item.count || 0})`}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  },
+});

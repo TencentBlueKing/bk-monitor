@@ -67,14 +67,14 @@ export default defineComponent({
       ctx.handleSelectNode(node);
     };
 
-    const handleCompare = (event: MouseEvent, target: IHostTopoHostNode) => {
-      // 阻止冒泡，避免触发节点选中
-      event.stopPropagation();
-      const source = ctx.selectedNode.value;
-      if (source && isHostNode(source)) {
-        emit('compare', { source, target });
-      }
-    };
+    // const handleCompare = (event: MouseEvent, target: IHostTopoHostNode) => {
+    //   // 阻止冒泡，避免触发节点选中
+    //   event.stopPropagation();
+    //   const source = ctx.selectedNode.value;
+    //   if (source && isHostNode(source)) {
+    //     emit('compare', { source, target });
+    //   }
+    // };
 
     /** 渲染实例节点：名称 + 右侧主机数量 */
     const renderInstNode = (node: ITreeSlotNode) => (
@@ -157,7 +157,10 @@ export default defineComponent({
             node-content-action={nodeContentAction}
             nodeKey='id'
             prefix-icon={getPrefixIcon}
-            search={ctx.searchOption.value}
+            search={{
+              value: ctx.searchValue.value,
+              showChildNodes: true,
+            }}
             selected={ctx.selectedIds.value}
             show-node-type-icon={false}
             virtual-render

@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, shallowRef } from 'vue';
+import { type PropType, defineComponent, onMounted, shallowRef, useTemplateRef } from 'vue';
 
 import { Cascader } from 'bkui-vue';
 
@@ -59,6 +59,8 @@ export default defineComponent({
     toggle: (_value: boolean) => true,
   },
   setup(props, { emit }) {
+    /** 级联组件实例引用，用于自动展开面板 */
+    const cascaderRef = useTemplateRef<InstanceType<typeof Cascader>>('cascader');
     /** 级联数据列表（下拉选项） */
     const list = shallowRef([]);
     /** 选中值变化时同步给父组件 */
@@ -66,21 +68,27 @@ export default defineComponent({
       emit('update:modelValue', val);
     };
 
-    /** 下拉展开/收起时加载数据 */
-    const handleToggle = async (val: boolean) => {
-      emit('toggle', val);
-      if (val) {
-        const res = await props.getValueFn({
-          search: '',
-          field: props.fieldInfo.field,
-        });
+    // 挂载即请求级联数据填充选项，并自动展开级联面板（点击 .bk-cascader-name 触发），免去用户手动展开
+    onMounted(async () => {
+      const res = await props.getValueFn({
+        search: '',
+        field: props.fieldInfo.field,
+      });
 
-        list.value = res.list;
-      }
+      list.value = res.list;
+      setTimeout(() => {
+        cascaderRef.value?.$el?.querySelector('.bk-cascader-name')?.click?.();
+      }, 200);
+    });
+
+    /** 下拉展开/收起时加载数据 */
+    const handleToggle = (val: boolean) => {
+      emit('toggle', val);
     };
 
     return {
       list,
+
       handleValueChange,
       handleToggle,
     };
@@ -88,6 +96,7 @@ export default defineComponent({
   render() {
     return (
       <Cascader
+        ref='cascader'
         popoverOptions={{
           boundary: 'parent',
         }}

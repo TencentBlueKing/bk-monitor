@@ -8,6 +8,7 @@
     display: flex;
     flex: 0 0 auto;
     column-gap: 9px;
+    color: #313238;
   }
 
   &__tab {
@@ -18,14 +19,16 @@
     height: 42px;
     padding: 0 24px;
     font-size: 14px;
-    font-weight: 500;
-    color: #4d4f56;
     cursor: pointer;
     background: #eaebf0;
     border-radius: 6px 6px 0 0;
 
     &-icon {
-      font-size: 16px;
+      font-size: 12px;
+    }
+
+    .icon-mc-list {
+      font-size: 10px;
     }
 
     &.is-active {
@@ -40,11 +43,7 @@
     flex: 1;
     flex-direction: column;
     min-height: 0;
-
-    // padding: 16px;
     overflow: hidden;
-
-    // background: #ffffff;
   }
 
   .is-host-list {

@@ -81,6 +81,7 @@ export default defineComponent({
             <HostListFilter
               fields={ctx.filterFields}
               filterMode={ctx.filterMode.value}
+              filterOptionsMap={ctx.filterOptionsMap.value}
               getValueFn={ctx.getValueFn}
               queryString={ctx.queryString.value}
               where={ctx.where.value}

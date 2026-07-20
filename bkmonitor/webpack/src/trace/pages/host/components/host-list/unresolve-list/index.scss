@@ -1,0 +1,37 @@
+.unresolve-list {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+
+  &__item {
+    display: flex;
+    align-items: center;
+    width: 120px;
+    padding: 10px 6px;
+    color: #fff;
+  }
+
+  &__status {
+    flex: 0 0 14px;
+    height: 14px;
+    margin-right: 8px;
+    border-radius: 50%;
+
+    &--1 {
+      background: #ea3636;
+    }
+
+    &--2 {
+      background: #ff8000;
+    }
+
+    &--3 {
+      background: #ffd000;
+    }
+  }
+
+  &__name {
+    font-size: 12px;
+    line-height: 14px;
+  }
+}

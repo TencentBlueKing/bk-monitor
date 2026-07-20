@@ -56,7 +56,12 @@ export default defineComponent({
           if (props.fieldInfo?.type === EFieldType.cascade) {
             id = getCascadeValueSplit(String(id))?.join('');
           }
-          return props.tagValueDisplayFormatter(id, props.value.key.id);
+          // 传入完整参数对象：value 为候选项，key 为字段 id，isTips 标记悬浮提示场景
+          return props.tagValueDisplayFormatter(id, {
+            value: v,
+            key: props.value.key.id,
+            isTips: true,
+          });
         })
         .join(` ${props.groupRelation || 'OR'} `)}`;
     });
@@ -185,7 +190,12 @@ export default defineComponent({
                     class='value-name'
                   >
                     {['string', 'number', 'boolean'].includes(typeof item.name)
-                      ? this.tagValueDisplayFormatter(item.name, this.localValue.key.id)
+                      // tag 展示场景：isTips=false，集群模块字段会被还原为可读名称路径
+                      ? this.tagValueDisplayFormatter(item.name, {
+                          key: this.localValue.key.id,
+                          value: item,
+                          isTips: false,
+                        })
                       : NULL_VALUE_NAME}
                   </span>,
                 ])}

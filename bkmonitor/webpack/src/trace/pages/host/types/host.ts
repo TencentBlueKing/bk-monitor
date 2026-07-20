@@ -61,6 +61,7 @@ export type IHostComponent = {
 
 /** 带指标数据的主机列表项 */
 export interface IHostMetricInfo extends IHostBaseInfo {
+  id: string;
   alarm_count: IHostAlarmCount[];
   bk_host_innerip_v6: string;
   bk_host_outerip_v6: string;

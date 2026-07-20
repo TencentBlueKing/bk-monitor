@@ -31,6 +31,10 @@ import { useI18n } from 'vue-i18n';
 import { HOST_QUICK_CARD_LIST } from '../../constants/host-list';
 
 import type { EHostQuickCategory, IHostQuickCardStats } from '../../types/host-list';
+import AlarmHostIcon from '../../../../static/img/alarm-host.png';
+import CpuUsageIcon from '../../../../static/img/cpu-usage.png';
+import DiskUsageIcon from '../../../../static/img/disk-usage.png';
+import MemoryUsageIcon from '../../../../static/img/memory-usage.png';
 
 import './host-stat-cards.scss';
 
@@ -55,6 +59,21 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
 
+    const getIcon = (key: EHostQuickCategory) => {
+      switch (key) {
+        case 'alarm':
+          return AlarmHostIcon;
+        case 'cpu':
+          return CpuUsageIcon;
+        case 'mem':
+          return MemoryUsageIcon;
+        case 'disk':
+          return DiskUsageIcon;
+        default:
+          return '';
+      }
+    };
+
     return () => (
       <div class='host-stat-cards'>
         {HOST_QUICK_CARD_LIST.map(card => (
@@ -63,7 +82,12 @@ export default defineComponent({
             class={['host-stat-cards__item', { 'is-active': props.activeKey === card.key }]}
             onClick={() => emit('cardClick', card.key)}
           >
-            <i class={['icon-monitor', card.icon, 'host-stat-cards__icon']} />
+            <div class='host-stat-cards__active-bar' />
+            <img
+              src={getIcon(card.key)}
+              alt={card.name}
+              class='host-stat-cards__icon'
+            />
             <div class='host-stat-cards__desc'>
               <span class='host-stat-cards__name'>{t(card.name)}</span>
               <span class='host-stat-cards__num'>{props.stats[card.key] ?? 0}</span>

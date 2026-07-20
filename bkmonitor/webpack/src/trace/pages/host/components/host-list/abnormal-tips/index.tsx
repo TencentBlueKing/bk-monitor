@@ -24,61 +24,71 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent } from 'vue';
+import { defineComponent } from 'vue';
 
+import { docCookies, LANGUAGE_COOKIE_KEY } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
 
-import { getNodeDisplayName, isHostNode } from '../../utils/topo-tree';
-import TemporaryShareNew from '@/components/temporary-share/temporary-share-new';
+import { useDocumentLink } from '@/hooks/documentLink';
 
-import type { IHostTopoTreeNode } from '../../types';
-
-import './host-location-bar.scss';
+import './index.scss';
 
 export default defineComponent({
-  name: 'HostLocationBar',
+  name: 'AbnormalTips',
   props: {
-    /** 当前选中的节点 / 主机 */
-    selectedNode: {
-      type: Object as PropType<IHostTopoTreeNode | null>,
-      default: null,
+    tipsText: {
+      type: String,
+      default: '',
+    },
+    linkText: {
+      type: String,
+      default: '',
+    },
+    linkUrl: {
+      type: String,
+      default: '',
+    },
+    docLink: {
+      type: String,
+      default: '',
     },
   },
   setup(props) {
     const { t } = useI18n();
+    const { handleGotoLink } = useDocumentLink();
+    const isEn = docCookies.getItem(LANGUAGE_COOKIE_KEY) === 'en';
 
-    /** 当前定位文案：节点：xxx / 主机：xxx */
-    const locationText = computed(() => {
-      const node = props.selectedNode;
-      if (!node) {
-        return '';
-      }
-      const prefix = isHostNode(node) ? t('主机') : t('节点');
-      return `${prefix}：${getNodeDisplayName(node)}`;
-    });
-
-    const formatShareTokenParams = params => {
-      params.data.name = 'host';
-      params.data.path = '/trace/host/:id?';
-      params.data.params = {};
-      params.data.query = {};
-      return params;
+    const handleOpenLink = (url: string) => {
+      if (!url) return;
+      window.open(url, '_blank');
     };
 
-    return () => {
-      if (!props.selectedNode) {
-        return null;
-      }
-      return (
-        <div class='host-location-bar'>
-          <i class='icon-monitor icon-dingwei' />
-          <span class='host-location-bar-text'>{locationText.value}</span>
-          <TemporaryShareNew
-            formatTokenParams={formatShareTokenParams}
-            type='host'
-          />
+    return () => (
+      <div class='abnormal-tips-wrap'>
+        <div class={['abnormal-tips-wrap__content', { 'is-en': isEn }]}>
+          <span class='abnormal-tips-wrap__text'>{props.tipsText}</span>
+          <div>
+            {props.linkUrl && props.linkText ? (
+              <span
+                class='abnormal-tips-wrap__link'
+                onClick={() => handleOpenLink(props.linkUrl)}
+              >
+                {props.linkText}
+                <span class='icon-monitor icon-mc-link' />
+              </span>
+            ) : null}
+            {props.docLink ? (
+              <span
+                class='abnormal-tips-wrap__link'
+                onClick={() => handleGotoLink(props.docLink)}
+              >
+                {t('查看文档')}
+                <span class='icon-monitor icon-mc-link' />
+              </span>
+            ) : null}
+          </div>
         </div>
-      );
-    };
+      </div>
+    );
   },
 });
