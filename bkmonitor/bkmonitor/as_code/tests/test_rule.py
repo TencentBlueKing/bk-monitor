@@ -182,6 +182,7 @@ def test_convert_rules_skips_cmdb_when_hash_unchanged(cmdb_apis):
         path="cpu_simple.yaml",
         hash=_config_hash(code_config),
         name="CPU单核使用率",
+        app="app1",
     )
 
     with _mock_strategies([old_strategy]):
@@ -209,12 +210,14 @@ def test_convert_rules_loads_cmdb_once_on_partial_change(cmdb_apis):
             path="cpu_simple.yaml",
             hash=_config_hash(unchanged_config),
             name="CPU单核使用率",
+            app="app1",
         ),
         SimpleNamespace(
             id=2,
             path="issue_config.yaml",
             hash="outdated-hash",
             name="issue_config",
+            app="app1",
         ),
     ]
 
