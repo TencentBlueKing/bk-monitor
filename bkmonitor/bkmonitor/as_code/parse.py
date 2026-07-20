@@ -603,7 +603,7 @@ def import_code_config(bk_biz_id: int, app: str, configs: dict[str, str], overwr
         record["obj"].save()
 
     duty_rules = {}
-    for duty_rule in DutyRule.objects.filter(bk_biz_id=bk_biz_id).only("name", "id", "path"):
+    for duty_rule in DutyRule.objects.filter(bk_biz_id=bk_biz_id).only("name", "id", "path", "app"):
         if duty_rule.path and duty_rule.app == app:
             duty_rules[duty_rule.path] = duty_rule.id
         duty_rules[duty_rule.name] = duty_rule.id
@@ -637,7 +637,7 @@ def import_code_config(bk_biz_id: int, app: str, configs: dict[str, str], overwr
 
     # 策略关联通知组及动作配置
     notice_group_ids = {}
-    all_user_groups = UserGroup.objects.filter(bk_biz_id__in=[bk_biz_id, 0]).only("id", "path", "name")
+    all_user_groups = UserGroup.objects.filter(bk_biz_id__in=[bk_biz_id, 0]).only("id", "path", "name", "app")
     for user_group in all_user_groups:
         if user_group.path and user_group.app == app:
             notice_group_ids[user_group.path] = user_group.id
@@ -651,7 +651,9 @@ def import_code_config(bk_biz_id: int, app: str, configs: dict[str, str], overwr
     except ActionPlugin.DoesNotExist:
         # 如果不存在直接忽略
         itsm_plugin_id = 0
-    all_actions = ActionConfig.objects.filter(bk_biz_id__in=[bk_biz_id, 0]).only("id", "path", "name", "plugin_id")
+    all_actions = ActionConfig.objects.filter(bk_biz_id__in=[bk_biz_id, 0]).only(
+        "id", "path", "name", "plugin_id", "app"
+    )
     for action in all_actions:
         if action.path and action.app == app:
             action_ids[action.path] = action.id
