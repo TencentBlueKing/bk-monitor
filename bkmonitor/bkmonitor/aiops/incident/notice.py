@@ -378,6 +378,9 @@ class IncidentNoticeHelper:
     def _get_process_url(cls, incident: IncidentDocument) -> str:
         """构建 BKFara 故障分析过程 URL。"""
         extra_info = incident.extra_info or {}
+        if extra_info.get("notice_source") != "bkfara":
+            return ""
+
         scope_id = extra_info.get("scope_id")
         task_id = extra_info.get("task_id")
         if not scope_id or task_id in (None, ""):

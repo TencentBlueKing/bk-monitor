@@ -11,7 +11,7 @@ class TestIncidentNoticeProcessUrlTemplate(SimpleTestCase):
     def test_get_process_url_formats_bkfara_process_fields(self):
         incident = SimpleNamespace(
             incident_id=114490,
-            extra_info={"scope_id": "bkcc_555", "task_id": "task 123"},
+            extra_info={"notice_source": "bkfara", "scope_id": "bkcc_555", "task_id": "task 123"},
         )
 
         with mock.patch(
@@ -26,7 +26,12 @@ class TestIncidentNoticeProcessUrlTemplate(SimpleTestCase):
         )
 
     def test_get_process_url_returns_empty_when_bkfara_process_fields_are_missing(self):
-        incident = SimpleNamespace(incident_id=114490, extra_info={"scope_id": "bkcc_555"})
+        incident = SimpleNamespace(incident_id=114490, extra_info={"notice_source": "bkfara", "scope_id": "bkcc_555"})
+
+        self.assertEqual(IncidentNoticeHelper._get_process_url(incident), "")
+
+    def test_get_process_url_returns_empty_for_non_bkfara_incident(self):
+        incident = SimpleNamespace(incident_id=114490, extra_info={"scope_id": "bkcc_555", "task_id": 123})
 
         self.assertEqual(IncidentNoticeHelper._get_process_url(incident), "")
 
