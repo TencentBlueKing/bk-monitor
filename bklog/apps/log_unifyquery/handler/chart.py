@@ -33,7 +33,7 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
 
             table_id = f"bklog_index_set_{index_info['index_set_id']}_analysis"
 
-            if index_set_obj and index_set_obj.is_support_doris():
+            if index_set_obj and index_set_obj.is_support_doris(is_include_es=False):
                 table_id = f"bklog_index_set_{index_info['index_set_id']}"
 
             query_dict = {

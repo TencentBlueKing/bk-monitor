@@ -44,7 +44,7 @@ from opentelemetry import trace
 
 from apps.api import BkDataQueryApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH, UNIFY_QUERY_SQL
+from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SQL
 from apps.log_search import metrics
 from apps.log_search.constants import (
     SQL_CONDITION_MAPPINGS,
@@ -84,6 +84,7 @@ class ChartHandler:
             )
         self.space_uid = self.data.space_uid
         self.bk_biz_id = space_uid_to_bk_biz_id(self.space_uid)
+        self.is_support_doris = self.data.is_support_doris()
 
     @classmethod
     def get_instance(cls, index_set_id, mode):
@@ -425,7 +426,7 @@ class ChartHandler:
         :param bk_biz_id: 业务ID
         """
         if not sort_list:
-            if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, bk_biz_id):
+            if FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
                 sort_list = UnifyQueryMappingHandler.get_sort_list_by_index_id(index_set_id)
             else:
                 sort_list = SearchHandler(index_set_id, {}).sort_list
@@ -669,6 +670,8 @@ class SQLChartHandler(ChartHandler):
         """
         :param params: 查询相关参数
         """
+        if not self.is_support_doris:
+            raise IndexSetDorisQueryException()
         alias_mappings = params["alias_mappings"]
         grep_field = params.get("grep_field")
         grep_query = params.get("grep_query")
@@ -688,8 +691,6 @@ class SQLChartHandler(ChartHandler):
                 query_handler = UnifyQueryChartHandler(params)
                 result = query_handler.get_chart_data()
             else:
-                if not self.data.support_doris:
-                    raise IndexSetDorisQueryException()
                 # 执行 doris 查询
                 result = self.fetch_query_data(sql)
             trace_params.update({"total_records": result["total_records"], "time_taken": result["time_taken"]})
@@ -709,6 +710,8 @@ class SQLChartHandler(ChartHandler):
         :param params: 查询相关参数
         :return: dict，包含总数和耗时
         """
+        if not self.is_support_doris:
+            raise IndexSetDorisQueryException()
         sql = self.generate_grep_query_sql(
             params,
             select_clause="COUNT(*) AS total",
@@ -729,8 +732,6 @@ class SQLChartHandler(ChartHandler):
                 total = result["list"][0]["total"] if result["list"] else 0
                 time_taken = result["time_taken"]
             else:
-                if not self.data.support_doris:
-                    raise IndexSetDorisQueryException()
                 # 执行 doris 查询
                 result = self.fetch_query_data(sql)
                 total = result["list"][0]["total"] if result["list"] else 0

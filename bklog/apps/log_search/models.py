@@ -704,19 +704,22 @@ class LogIndexSet(SoftDeleteModel):
         fields["usable_reason"] = str(fields.get("usable_reason", ""))
         return fields
 
-    def is_support_doris(self) -> bool:
-        return self.support_doris_check(self)
+    def is_support_doris(self, is_include_es: bool = True) -> bool:
+        return self.support_doris_check(self, is_include_es=is_include_es)
 
     @classmethod
-    def get_is_support_doris(cls, index_set_id: int):
+    def get_is_support_doris(cls, index_set_id: int, is_include_es: bool = True):
         index_set_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         if not index_set_obj:
             return False
         else:
-            return cls.support_doris_check(index_set_obj)
+            return cls.support_doris_check(index_set_obj, is_include_es)
 
     @staticmethod
-    def support_doris_check(index_set_obj):
+    def support_doris_check(index_set_obj, is_include_es: bool = True):
+        if index_set_obj.support_doris and is_include_es:
+            return True
+
         from apps.log_databus.models import CollectorConfig
 
         if index_set_obj.is_group:
