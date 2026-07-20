@@ -682,6 +682,12 @@ class AlertQueryHandler(BaseBizQueryHandler):
         }
 
     def _check_search_response_completeness(self, search_result):
+        if getattr(search_result, "timed_out", False):
+            self._mark_partial(
+                code="alert_search_timeout",
+                scopes=["alerts", "total", "overview", "aggs"],
+            )
+
         failed_shards = getattr(getattr(search_result, "_shards", None), "failed", 0)
         if failed_shards:
             self._mark_partial(
@@ -1419,6 +1425,12 @@ class AlertQueryHandler(BaseBizQueryHandler):
         )
 
         search_result = action_search.execute()
+        if getattr(search_result, "timed_out", False):
+            self._mark_partial(
+                code="notice_way_action_timeout",
+                scopes=partial_scopes or ["alerts", "total", "overview", "aggs"],
+            )
+
         failed_shards = getattr(getattr(search_result, "_shards", None), "failed", 0)
         if failed_shards:
             self._mark_partial(
@@ -1481,6 +1493,12 @@ class AlertQueryHandler(BaseBizQueryHandler):
         search_object = search_object[:0]
         search_object.aggs.bucket("alert_ids", "terms", field="id", size=self.NOTICE_WAY_CANDIDATE_LIMIT)
         result = search_object.execute()
+        if getattr(result, "timed_out", False):
+            self._mark_partial(
+                code="notice_way_candidate_timeout",
+                scopes=["alerts", "total", "overview", "aggs"],
+            )
+
         failed_shards = getattr(getattr(result, "_shards", None), "failed", 0)
         if failed_shards:
             self._mark_partial(

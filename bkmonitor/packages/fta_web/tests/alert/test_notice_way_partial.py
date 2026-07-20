@@ -291,6 +291,28 @@ def test_failed_alert_shards_mark_whole_query_partial(monkeypatch):
     ]
 
 
+def test_timed_out_alert_search_marks_whole_query_partial(monkeypatch):
+    handler = make_handler()
+    search_result = SimpleNamespace(
+        hits=SimpleNamespace(total=SimpleNamespace(value=12, relation="eq")),
+        timed_out=True,
+        _shards=SimpleNamespace(failed=0),
+    )
+    monkeypatch.setattr(handler, "search_raw", lambda *args: (search_result, None))
+    monkeypatch.setattr(handler, "handle_hit_list", lambda result: [])
+    monkeypatch.setattr(handler, "handle_operator", lambda alerts: None)
+
+    result = handler.search(show_overview=False, show_aggs=False)
+
+    assert result["total_relation"] == "gte"
+    assert result["partial_reasons"] == [
+        {
+            "code": "alert_search_timeout",
+            "scopes": ["alerts", "total", "overview", "aggs"],
+        }
+    ]
+
+
 def test_failed_candidate_shards_mark_filter_result_partial(monkeypatch):
     handler = make_handler()
     buckets = [SimpleNamespace(key="1")]
@@ -314,6 +336,29 @@ def test_failed_candidate_shards_mark_filter_result_partial(monkeypatch):
     ]
 
 
+def test_timed_out_candidate_search_marks_filter_result_partial(monkeypatch):
+    handler = make_handler()
+    buckets = [SimpleNamespace(key="1")]
+    result = SimpleNamespace(
+        aggs=FakeAggregations(buckets),
+        timed_out=True,
+        _shards=SimpleNamespace(failed=0),
+    )
+    search = FakeSearch(result)
+    monkeypatch.setattr(handler, "get_search_object", lambda: search)
+    monkeypatch.setattr(handler, "add_conditions", lambda search_object: search_object)
+    monkeypatch.setattr(handler, "add_query_string", lambda search_object: search_object)
+
+    handler._collect_current_alert_ids()
+
+    assert handler.partial_reasons == [
+        {
+            "code": "notice_way_candidate_timeout",
+            "scopes": ["alerts", "total", "overview", "aggs"],
+        }
+    ]
+
+
 def test_failed_action_shards_use_caller_partial_scope(monkeypatch):
     handler = make_handler()
     result = SimpleNamespace(
@@ -331,6 +376,27 @@ def test_failed_action_shards_use_caller_partial_scope(monkeypatch):
             "code": "notice_way_action_shard_failure",
             "scopes": ["aggs.notice_way"],
             "failed_shards": 1,
+        }
+    ]
+
+
+def test_timed_out_action_search_uses_caller_partial_scope(monkeypatch):
+    handler = make_handler()
+    result = SimpleNamespace(
+        aggregations=SimpleNamespace(per_alert=SimpleNamespace(buckets=[])),
+        timed_out=True,
+        _shards=SimpleNamespace(failed=0),
+    )
+    search = FakeSearch(result)
+    search.aggs = SimpleNamespace(bucket=lambda *args, **kwargs: SimpleNamespace(metric=lambda *args, **kwargs: None))
+    monkeypatch.setattr(alert_handler.ActionInstanceDocument, "search", lambda **kwargs: search)
+
+    handler._query_alert_notice_ways(alert_ids={"1"}, partial_scopes=["aggs.notice_way"])
+
+    assert handler.partial_reasons == [
+        {
+            "code": "notice_way_action_timeout",
+            "scopes": ["aggs.notice_way"],
         }
     ]
 
