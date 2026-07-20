@@ -24,6 +24,11 @@ MCP_REQUESTS_HAS_DATA_FALSE = "false"
 # MCP未知值标识
 MCP_REQUESTS_UNKNOWN = "unknown"
 
+# 运营数据 MCP 的 IAM 权限动作 ID。
+# 鉴权收敛逻辑（按固定运营业务校验，见 AuthenticationMiddleware._handle_mcp_auth）会引用此常量，
+# 避免在多处硬编码字符串。
+OPERATION_MCP_PERMISSION_ACTION = "using_operation_mcp"
+
 # MCP Server 名称格式: {apigw_name}-{stage}-{suffix}
 # apigw_name 可含连字符（如 bk-monitor / bkmonitorv3），stage 取值见 _MCP_SERVER_STAGES
 # 约定全部使用小写、连字符分隔；正则不开启 IGNORECASE 以避免与下方字典查找的大小写不一致。
@@ -49,7 +54,7 @@ MCP_SERVER_SUFFIX_TO_PERMISSION_ACTION = {
     "event-query": "using_log_mcp",
     "alarm": "using_alarm_mcp",
     "relation-query": "using_metrics_mcp",
-    "operation": "using_operation_mcp",
+    "operation": OPERATION_MCP_PERMISSION_ACTION,
     # SSE 协议 MCP Server
     "event": "using_log_mcp",
     "log": "using_log_mcp",

@@ -541,6 +541,10 @@ ADVANCED_OPTIONS = OrderedDict(
             "OPERATION_MCP_STAT_BIZ_IDS",
             slz.JSONField(label="运营MCP按指标族的统计业务ID(形如{default:id,logbeat:id})", default={}),
         ),
+        (
+            "OPERATION_MCP_AUTH_BIZ_ID",
+            slz.IntegerField(label="运营MCP鉴权收敛业务ID(>0时忽略调用方传入,统一在该业务上校验)", default=0),
+        ),
     ]
 )
 

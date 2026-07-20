@@ -108,23 +108,28 @@ class MCPPermission(BusinessActionPermission):
     根据请求头中的 X-Bkapi-Permission-Action 动态选择对应的权限动作
     """
 
-    def __init__(self, action: ActionMeta | None = None):
+    def __init__(self, action: ActionMeta | None = None, biz_id: int | None = None):
         """
         初始化MCP权限检查
         :param action: 权限动作，如果不提供则使用默认的 USING_DASHBOARD_MCP
+        :param biz_id: 鉴权业务ID覆盖。传入(>0)时忽略 request.biz_id，统一在该业务上做权限校验，
+                       用于将"平台总量类"MCP(如运营数据 MCP)的鉴权收敛到固定的运营/平台业务，
+                       避免用户用自有业务权限解锁全平台数据；不传则沿用 request.biz_id。
         """
         action = action if action is not None else ActionEnum.USING_DASHBOARD_MCP
-        logger.info(f"MCPPermission: action: {action.id}")
+        self.biz_id_override = biz_id
+        logger.info(f"MCPPermission: action: {action.id}, biz_id_override: {biz_id}")
         super().__init__([action])
 
     def has_permission(self, request, view):
-        # 尝试从request中读取bk_biz_id / biz_id
-        if not hasattr(request, "biz_id") or not request.biz_id:
+        # 优先使用显式传入的鉴权业务（鉴权收敛场景），否则回退到 request 中的 bk_biz_id / biz_id
+        biz_id = self.biz_id_override or getattr(request, "biz_id", None)
+        if not biz_id:
             # 如果没有 biz_id，抛出异常
             logger.error("MCPPermission: Missing biz_id for MCP permission check")
             raise PermissionDeniedError("Missing biz_id for MCP permission check")
-        logger.info(f"MCPPermission: biz_id: {request.biz_id},skip_check: {request.skip_check}")
-        self.resources = [ResourceEnum.BUSINESS.create_instance(request.biz_id)]
+        logger.info(f"MCPPermission: biz_id: {biz_id}, skip_check: {request.skip_check}")
+        self.resources = [ResourceEnum.BUSINESS.create_instance(biz_id)]
         logger.info("MCPPermission: Calling IAMPermission.has_permission")
         return IAMPermission.has_permission(self, request, view)
 

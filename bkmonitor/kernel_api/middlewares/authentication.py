@@ -303,7 +303,10 @@ class AuthenticationMiddleware(MiddlewareMixin):
         # 导入放在这里避免循环依赖
         from bkmonitor.iam.action import get_action_by_id
         from bkmonitor.iam.drf import MCPPermission
-        from constants.mcp import get_mcp_permission_action_by_server_name
+        from constants.mcp import (
+            OPERATION_MCP_PERMISSION_ACTION,
+            get_mcp_permission_action_by_server_name,
+        )
 
         # 提取MCP服务名称（用于指标上报）
         mcp_server_name = request.META.get("HTTP_X_BKAPI_MCP_SERVER_NAME", "")
@@ -501,7 +504,33 @@ class AuthenticationMiddleware(MiddlewareMixin):
                     )
                     # 如果找不到对应的权限，使用默认权限
 
-            permission = MCPPermission(action=action)
+            # 运营数据 MCP 鉴权收敛：运营数据为平台总量，bk_biz_id 仅用于鉴权范围。
+            # 若部署方配置了固定的运营/平台业务(OPERATION_MCP_AUTH_BIZ_ID > 0)，
+            # 则忽略调用方传入的 bk_biz_id，统一在该业务上校验权限，
+            # 避免"用户用自有业务的 using_operation_mcp 权限解锁全平台运营数据"。
+            # 未配置时保持按调用方业务校验的旧行为，但打醒目告警提示存在越权风险（fail-open）。
+            auth_biz_id_override = None
+            if permission_action_id == OPERATION_MCP_PERMISSION_ACTION:
+                fixed_auth_biz_id = int(getattr(settings, "OPERATION_MCP_AUTH_BIZ_ID", 0) or 0)
+                if fixed_auth_biz_id > 0:
+                    auth_biz_id_override = fixed_auth_biz_id
+                    logger.info(
+                        "[%s] event=auth_biz_converged permission_action=%s caller_biz_id=%s auth_biz_id=%s",
+                        MCP_AUTH_LOG_TAG,
+                        permission_action_id,
+                        request.biz_id,
+                        auth_biz_id_override,
+                    )
+                else:
+                    logger.warning(
+                        "[%s] event=auth_biz_not_converged permission_action=%s caller_biz_id=%s "
+                        "reason=OPERATION_MCP_AUTH_BIZ_ID_unset risk=cross_biz_platform_data_exposure",
+                        MCP_AUTH_LOG_TAG,
+                        permission_action_id,
+                        request.biz_id,
+                    )
+
+            permission = MCPPermission(action=action, biz_id=auth_biz_id_override)
             # 创建一个简单的 mock view 对象
             mock_view = type("MockView", (), {"kwargs": {}})()
 
