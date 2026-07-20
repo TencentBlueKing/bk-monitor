@@ -313,6 +313,31 @@ def test_timed_out_alert_search_marks_whole_query_partial(monkeypatch):
     ]
 
 
+def test_notice_way_neq_allows_partial_result_from_final_alert_search(monkeypatch):
+    handler = make_handler()
+    monkeypatch.setattr(handler, "_get_alert_ids_by_notice_way", lambda notice_ways: ["1"])
+    handler.parse_condition_item(
+        {
+            "key": "notice_way",
+            "origin_key": "notice_way",
+            "value": ["voice"],
+            "method": "neq",
+        }
+    )
+    search_result = SimpleNamespace(
+        hits=SimpleNamespace(total=SimpleNamespace(value=12, relation="eq")),
+        _shards=SimpleNamespace(failed=1),
+    )
+    monkeypatch.setattr(handler, "search_raw", lambda *args: (search_result, None))
+    monkeypatch.setattr(handler, "handle_hit_list", lambda result: [])
+    monkeypatch.setattr(handler, "handle_operator", lambda alerts: None)
+
+    result = handler.search(show_overview=False, show_aggs=False)
+
+    assert result["total_relation"] == "gte"
+    assert result["partial_reasons"][0]["code"] == "alert_search_shard_failure"
+
+
 def test_failed_candidate_shards_mark_filter_result_partial(monkeypatch):
     handler = make_handler()
     buckets = [SimpleNamespace(key="1")]
