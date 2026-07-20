@@ -1,0 +1,56 @@
+@mixin tool-btn($color: #3a84ff) {
+  display: flex;
+  align-items: center;
+  min-width: 44px;
+  height: 22px;
+  padding-right: 6px;
+  margin-left: 8px;
+  background-color: $color;
+  border-radius: 2px;
+
+  &:hover {
+    cursor: pointer;
+  }
+}
+
+.alarm-tools {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  font-size: 12px;
+  color: white;
+
+  &-strategy {
+    @include tool-btn;
+
+    .tool-icon {
+      margin: 0 4px;
+      font-size: 14px;
+    }
+  }
+
+  &-alarm {
+    @include tool-btn(#ea3636);
+
+    .tool-icon {
+      margin: -2px 4px 0;
+      font-size: 16px;
+
+      &::before {
+        transform: scale(0.9);
+      }
+    }
+
+    .icon-mc-chart-alert {
+      font-size: 10px;
+    }
+
+    &.is-disabled {
+      background-color: #dcdee5;
+
+      &:hover {
+        cursor: default;
+      }
+    }
+  }
+}

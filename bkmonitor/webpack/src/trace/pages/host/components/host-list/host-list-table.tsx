@@ -24,11 +24,23 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, shallowRef, useTemplateRef, ref, watch } from 'vue';
+import {
+  type PropType,
+  computed,
+  defineComponent,
+  nextTick,
+  onBeforeUnmount,
+  shallowRef,
+  useTemplateRef,
+  ref,
+  watch,
+} from 'vue';
 
 import { type BkUiSettings, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
 import { useResizeObserver } from '@vueuse/core';
 import { Pagination, Popover } from 'bkui-vue';
+import { openAlarmCenter } from 'monitor-common/utils/alarm-center-router';
+import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 import { useI18n } from 'vue-i18n';
 
 import {
@@ -39,19 +51,31 @@ import {
 } from '../../constants/host-list';
 
 import type { EHostAggMethod, IHostListRow } from '../../types/host-list';
+import type { IHostAlarmCount, IHostComponent } from '../../types/host';
 import AcrossPageSelection, {
   SelectType,
   type SelectTypeEnum,
 } from '../../../../components/across-page-selection/across-page-selection';
+import AbnormalTips from './abnormal-tips/index';
+import UnresolveList from './unresolve-list/index';
+import TagOverflow from '../../../../components/tag-overflow/tag-overflow';
 import BkCheckbox from 'bkui-vue/lib/checkbox';
 
 import './host-list-table.scss';
 
-/** 告警等级 → 色块背景色 */
+/** 告警等级 → 色块背景色（对齐 performance-table alarmColorMap） */
 const ALARM_LEVEL_COLOR: Record<number, string> = {
   1: '#ea3636',
-  2: '#F59500',
-  3: '#DCDEE5',
+  2: '#ff8000',
+  3: '#ffd000',
+};
+
+/** 进程状态 tip 配置（对齐 performance-table componentStatusMap） */
+type IProcessTipsConfig = {
+  tipsText?: string;
+  linkText?: string;
+  linkUrl?: string;
+  docLink?: string;
 };
 
 /** 指标进度条颜色阈值 */
@@ -60,17 +84,20 @@ const getProgressColor = (value: number) => {
   return '#2CAF5E';
 };
 
-/** 取告警色块背景色：取有告警数且等级最高（level 最小）的颜色，否则灰色 */
-const getAlarmColor = (row: IHostListRow) => {
-  if (!row.totalAlarmCount) {
-    return '#dcdee5';
+/**
+ * 取告警色块背景色：取有告警数且等级最高（level 最小）的颜色
+ * 对齐 performance-table getStatusLabelBgColor
+ */
+const getAlarmColor = (alarmCount: IHostAlarmCount[]) => {
+  if (!alarmCount?.length) {
+    return '';
   }
-  const top = (row.alarm_count || []).reduce<null | { color: string; level: number }>((min, cur) => {
+  const top = alarmCount.reduce<null | { color: string; level: number }>((min, cur) => {
     return cur.count && (!min || cur.level < min.level)
-      ? { color: ALARM_LEVEL_COLOR[cur.level], level: cur.level }
+      ? { color: ALARM_LEVEL_COLOR[cur.level] || '', level: cur.level }
       : min;
   }, null);
-  return top?.color || '#dcdee5';
+  return top?.color || '';
 };
 
 export default defineComponent({
@@ -136,19 +163,153 @@ export default defineComponent({
     aggMethodChange: (_metricKey: string, _method: EHostAggMethod) => true,
   },
   setup(props, { emit }) {
-    const { t } = useI18n();
+    const { t, locale } = useI18n();
     const bodyRef = useTemplateRef<HTMLElement>('body');
+    const tipsContentRef = useTemplateRef<HTMLElement>('tipsContent');
+    const unresolveContentRef = useTemplateRef<HTMLElement>('unresolveContent');
 
     const totalSelected = ref<SelectTypeEnum>(SelectType.UN_SELECTED);
     const checkedRowsMap = ref<Record<string, boolean>>({});
     /** 表格体最大高度（自适应屏幕，表内滚动，表头/分页不滚走） */
     const bodyHeight = shallowRef(400);
+    /** 进程异常 tip 数据 */
+    const tipsData = shallowRef<IProcessTipsConfig>({
+      tipsText: '',
+      linkText: '',
+      linkUrl: '',
+      docLink: '',
+    });
+    /** 未恢复告警 tip 列表 */
+    const unresolveList = shallowRef<IHostAlarmCount[]>([]);
+    let tipsPopoverInstance: Instance | null = null;
+    let unresolvePopoverInstance: Instance | null = null;
+
+    const nodeManHost = window.bk_nodeman_host || '';
+    const componentStatusMap: Record<number, IProcessTipsConfig> = {
+      1: {
+        tipsText: t('原因:查看进程本身问题或者检查进程配置是否正常') as string,
+        docLink: 'processMonitor',
+      },
+      2: {
+        tipsText: t('原因:bkmonitorbeat进程采集器未安装或者状态异常') as string,
+        linkText: t('前往节点管理处理') as string,
+        linkUrl: `${nodeManHost}#/plugin-manager/list`,
+      },
+      3: {},
+    };
+
     useResizeObserver(bodyRef, entries => {
       const height = entries[0]?.contentRect?.height;
       if (height) {
         bodyHeight.value = height;
       }
     });
+
+    const destroyTipsPopover = () => {
+      tipsPopoverInstance?.hide();
+      tipsPopoverInstance?.destroy();
+      tipsPopoverInstance = null;
+    };
+
+    const destroyUnresolvePopover = () => {
+      unresolvePopoverInstance?.hide(100);
+      unresolvePopoverInstance?.destroy();
+      unresolvePopoverInstance = null;
+    };
+
+    onBeforeUnmount(() => {
+      destroyTipsPopover();
+      destroyUnresolvePopover();
+    });
+
+    /** 未恢复告警 hover 弹窗（对齐 performance-table handleUnresolveEnter） */
+    const handleUnresolveEnter = async (row: IHostListRow, e: MouseEvent) => {
+      if (!row.alarm_count?.length || !unresolveContentRef.value) {
+        return;
+      }
+      const target = e.currentTarget as SingleTarget;
+      unresolveList.value = row.alarm_count;
+      destroyUnresolvePopover();
+      await nextTick();
+      if (!unresolveContentRef.value) return;
+      unresolvePopoverInstance = tippy(target, {
+        content: unresolveContentRef.value,
+        trigger: 'manual',
+        placement: 'right',
+        theme: 'dark',
+        arrow: true,
+        maxWidth: 520,
+        appendTo: () => document.body,
+        onHidden: instance => {
+          if (unresolvePopoverInstance !== instance) return;
+          instance.destroy();
+          unresolvePopoverInstance = null;
+        },
+      });
+      unresolvePopoverInstance.show(100);
+    };
+
+    const handleUnresolveLeave = () => {
+      destroyUnresolvePopover();
+    };
+
+    /** 点击告警数跳转告警中心（对齐 performance-table handleGoEventCenter） */
+    const handleGoEventCenter = (row: IHostListRow) => {
+      if (!row.bk_host_innerip || !row.totalAlarmCount) return;
+      const localeStr = String(locale.value || '').toLowerCase();
+      const isZh = ['zh', 'zhcn', 'zh-cn'].includes(localeStr.replace('_', '-'));
+      openAlarmCenter({
+        from: 'now-7d',
+        to: 'now',
+        queryString: isZh ? `目标IP : ${row.bk_host_innerip}` : `ip : ${row.bk_host_innerip}`,
+        activeFilterId: 'NOT_SHIELDED_ABNORMAL',
+      });
+    };
+
+    /**
+     * 进程状态 tip（对齐 performance-table handleTipsMouseenter）
+     * Thread：异常(1) / 无数据(2)；noProcess：暂无进程引导
+     */
+    const handleTipsMouseenter = (e: MouseEvent, item: Partial<IHostComponent>, type: 'Thread' | 'noProcess') => {
+      if (type === 'Thread' && [1, 2].includes(item.status as number)) {
+        const config = componentStatusMap[item.status as number] || {};
+        tipsData.value = {
+          tipsText: config.tipsText || '',
+          linkText: config.linkText || '',
+          linkUrl: config.linkUrl || '',
+          docLink: config.docLink || '',
+        };
+      } else if (type === 'noProcess') {
+        tipsData.value = {
+          tipsText: t('若添加进程，请前往配置平台 - 业务拓扑，在对应模块下新增') as string,
+          linkText: '',
+          linkUrl: '',
+          docLink: 'processPortMonitor',
+        };
+      } else {
+        return;
+      }
+
+      if (tipsPopoverInstance || !tipsContentRef.value) {
+        return;
+      }
+
+      tipsPopoverInstance = tippy(e.currentTarget as SingleTarget, {
+        content: tipsContentRef.value,
+        trigger: 'mouseenter',
+        placement: 'top',
+        theme: 'dark',
+        arrow: true,
+        interactive: true,
+        appendTo: () => document.body,
+        onHidden: instance => {
+          if (tipsPopoverInstance !== instance) return;
+          instance.destroy();
+          tipsPopoverInstance = null;
+        },
+      });
+      tipsPopoverInstance.show();
+    };
 
     /** 排序转换为 tdesign 数组形式 */
     const tableSort = computed<TableSort>(() => {
@@ -224,10 +385,14 @@ export default defineComponent({
       if (props.metricLoading && !row.alarm_count) {
         return <div class='host-table-skeleton' />;
       }
+      const hasAlarm = !!row.totalAlarmCount;
       return (
         <span
-          style={{ backgroundColor: getAlarmColor(row) }}
-          class='host-table-alarm'
+          style={{ backgroundColor: getAlarmColor(row.alarm_count) || undefined }}
+          class={['host-table-alarm', { 'host-table-alarm--unresolve': hasAlarm }]}
+          onClick={() => handleGoEventCenter(row)}
+          onMouseenter={e => hasAlarm && handleUnresolveEnter(row, e)}
+          onMouseleave={() => hasAlarm && handleUnresolveLeave()}
         >
           {row.totalAlarmCount >= 0 ? row.totalAlarmCount : '--'}
         </span>
@@ -257,20 +422,37 @@ export default defineComponent({
 
     const renderProcessCell = (row: IHostListRow) => {
       const components = row.component || [];
-      if (!components.length) {
-        return <span class='host-table-process__empty'>--</span>;
-      }
       return (
-        <div class='host-table-process'>
-          {components.map((item, index) => (
-            <span
-              key={`${item.display_name}_${index}`}
-              class={['host-table-process__tag', item.status === 1 ? 'is-abnormal' : 'is-normal']}
-            >
-              {item.display_name}
-            </span>
-          ))}
-        </div>
+        <TagOverflow
+          class='host-table-process'
+          getLabel={(item: IHostComponent) => item.display_name}
+          list={components}
+          overflowClass='host-table-process__tag host-table-process__tag--3'
+          recalcKey={props.visibleColumns.join(',')}
+        >
+          {{
+            default: ({ item, index }: { index: number; item: IHostComponent }) => (
+              <span
+                key={`${item.display_name}__${index}`}
+                class={[
+                  'host-table-process__tag',
+                  item.status === -1 ? 'host-table-process__tag--default' : `host-table-process__tag--${item.status}`,
+                ]}
+                onMouseenter={e => handleTipsMouseenter(e, item, 'Thread')}
+              >
+                {item.display_name}
+              </span>
+            ),
+            empty: () => (
+              <span
+                class='host-table-process__empty'
+                onMouseenter={e => handleTipsMouseenter(e, {}, 'noProcess')}
+              >
+                {t('暂无进程')}
+              </span>
+            ),
+          }}
+        </TagOverflow>
       );
     };
 
@@ -458,6 +640,19 @@ export default defineComponent({
           onChange={(v: number) => emit('pageChange', v)}
           onLimitChange={(v: number) => emit('pageSizeChange', v)}
         />
+        <div v-show={false}>
+          <div ref='tipsContent'>
+            <AbnormalTips
+              docLink={tipsData.value.docLink}
+              linkText={tipsData.value.linkText}
+              linkUrl={tipsData.value.linkUrl}
+              tipsText={tipsData.value.tipsText}
+            />
+          </div>
+          <div ref='unresolveContent'>
+            <UnresolveList list={unresolveList.value} />
+          </div>
+        </div>
       </div>
     );
   },
