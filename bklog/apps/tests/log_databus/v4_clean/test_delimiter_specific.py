@@ -104,14 +104,40 @@ class TestDelimiterIndexMapping(TestCase):
 
 
 class TestDelimiterLogField(TestCase):
-    """log 字段始终输出"""
+    """log 字段按 retain_original_text / enable_retain_content 条件输出，与 JSON 对齐"""
 
     def setUp(self):
         self.storage = BkLogDelimiterEtlStorage()
 
-    def test_log_always_generated(self):
-        """分隔符类型 log assign 规则始终生成"""
+    def test_log_not_generated_when_discard_original_and_failure(self):
+        """丢弃原文且未保留失败日志时，不应生成 log assign"""
         etl_params = {"separator": "|", "retain_original_text": False}
+        fields = [make_field("ip", field_index=1)]
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
+        rules = result["clean_rules"]
+        assert_rule_absent(self, rules, "log")
+        # 切分链路仍需要 iter_string
+        assert_rule_exists(self, rules, "iter_string", operator_type="get")
+
+    def test_log_generated_when_retain_original_text(self):
+        """retain_original_text=True 时应生成 log assign"""
+        etl_params = {"separator": "|", "retain_original_text": True}
+        fields = [make_field("ip", field_index=1)]
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
+        rules = result["clean_rules"]
+        log_rules = find_rules_by_output(rules, "log")
+        self.assertEqual(len(log_rules), 1)
+        self.assertEqual(log_rules[0]["input_id"], "iter_item")
+
+    def test_log_generated_when_enable_retain_content(self):
+        """enable_retain_content=True 时应生成 log assign"""
+        etl_params = {
+            "separator": "|",
+            "retain_original_text": False,
+            "enable_retain_content": True,
+        }
         fields = [make_field("ip", field_index=1)]
         config = get_fresh_config()
         result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
