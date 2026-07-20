@@ -76,3 +76,6 @@ UNIFY_QUERY_SEARCH_CLUSTERING = "unify_query_search_clustering"
 
 # 场景化检索按业务灰度开关
 SCENE_SEARCH = "scene_search"
+
+# __ext_json 动态解析层级按业务灰度开关
+EXT_JSON_EXPAND_DEPTH = "ext_json_expand_depth"

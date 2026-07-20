@@ -55,6 +55,7 @@ const buildRequestConfig = (
   method: 'POST' | 'GET' | 'PUT' = 'POST',
   appendHeaders?: Record<string, string>,
   signal?: AbortSignal,
+  skipTraceparent?: boolean,
 ) => {
   // URL 处理（对应 axios 拦截器中的 URL 检查）
   // 如果URL是外部API（如 /api/bk-user-web），直接使用，不拼接 baseURL
@@ -93,8 +94,10 @@ const buildRequestConfig = (
   }
 
   // 监控上层并没有使用 OT 这里直接自己生成traceparent id（对应 axios 拦截器）
-  const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
-  headers.Traceparent = traceparent;
+  if (!skipTraceparent) {
+    const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
+    headers.Traceparent = traceparent;
+  }
 
   // 构建 fetch 配置（对应 axios withCredentials: true）
   const fetchConfig: RequestInit = {
@@ -124,9 +127,10 @@ export const request = (args: {
   method?: 'POST' | 'GET' | 'PUT';
   headers?: Record<string, string>;
   signal?: AbortSignal;
+  skipTraceparent?: boolean;
 }) => {
-  const { url, params = {}, method = 'POST', headers = {}, signal } = args;
-  const { url: fullUrl, config } = buildRequestConfig(url, params, method, headers, signal);
+  const { url, params = {}, method = 'POST', headers = {}, signal, skipTraceparent } = args;
+  const { url: fullUrl, config } = buildRequestConfig(url, params, method, headers, signal, skipTraceparent);
   return fetch(fullUrl, config);
 };
 

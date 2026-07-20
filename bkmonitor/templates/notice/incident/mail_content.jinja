@@ -54,8 +54,11 @@
                 <span class="field-value">{{ assignees }}</span>
             </div>
             <div class="field">
-                <span class="field-label">详情：</span>
-                <a href="{{ url }}" class="link">点击查看故障详情</a>
+                <span class="field-label">查看结果：</span>
+                <a href="{{ url }}" class="link">查看结果</a>
+                {% if process_url %}
+                <a href="{{ process_url }}" class="link">分析过程</a>
+                {% endif %}
             </div>
         </div>
         <div class="footer">
