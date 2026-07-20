@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, ref, watch, nextTick } from 'vue';
+import { computed, defineComponent, ref, watch, nextTick, onBeforeUnmount } from 'vue';
 
 import { deepClone, contextHighlightColor } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
@@ -94,6 +94,13 @@ export default defineComponent({
     };
 
     let fieldConfigPopoverInstance: any = null;
+
+    onBeforeUnmount(() => {
+      fieldConfigPopoverInstance?.hide();
+      fieldConfigPopoverInstance?.destroy?.();
+      fieldConfigPopoverInstance = null;
+    });
+
 
     watch(ignoreCase, () => {
       emit('handle-filter', 'ignoreCase', ignoreCase.value);
