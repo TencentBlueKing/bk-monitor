@@ -11,10 +11,11 @@ specific language governing permissions and limitations under the License.
 import logging
 from collections import Counter
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, wait
 import hashlib
 import json
 import re
+from threading import BoundedSemaphore
 import time
 
 from django.http import HttpResponseRedirect
@@ -1464,6 +1465,14 @@ class AlertIssueEnrichResource(Resource):
 class IssueLogContentResource(Resource):
     """批量查询 Issue 关联日志内容（针对日志类别告警）"""
 
+    BATCH_TIMEOUT = 10
+    MAX_CONCURRENT_QUERIES = 10
+    EXECUTOR = ThreadPoolExecutor(
+        max_workers=MAX_CONCURRENT_QUERIES,
+        thread_name_prefix="issue-log-content",
+    )
+    QUERY_SLOTS = BoundedSemaphore(MAX_CONCURRENT_QUERIES)
+
     # 日志类别告警的数据源与数据类型组合（与 get_alert_relation_info 保持一致）
     LOG_DATA_SOURCE_TYPES = frozenset(
         {
@@ -1479,7 +1488,7 @@ class IssueLogContentResource(Resource):
         bk_biz_ids = serializers.ListField(
             label="业务ID", child=serializers.IntegerField(), min_length=1, max_length=500
         )
-        issue_ids = serializers.ListField(label="Issue ID 列表", child=IssueIDField(), min_length=1, max_length=500)
+        issue_ids = serializers.ListField(label="Issue ID 列表", child=IssueIDField(), min_length=1, max_length=10)
 
     def perform_request(self, validated_request_data: dict) -> dict:
         bk_biz_ids = list(dict.fromkeys(validated_request_data["bk_biz_ids"]))
@@ -1493,7 +1502,7 @@ class IssueLogContentResource(Resource):
             IssueDocument.search(all_indices=True)
             .filter("terms", _id=issue_ids)
             .filter("terms", bk_biz_id=bk_biz_ids)
-            .source(["strategy_id"])
+            .source(["strategy_id", "first_alert_time"])
             .params(size=len(issue_ids))
             .execute()
             .hits
@@ -1506,7 +1515,10 @@ class IssueLogContentResource(Resource):
         for hit in issue_hits:
             issue_id = hit.meta.id
             strategy_id = str(hit.strategy_id)
-            issue_meta[issue_id] = {"strategy_id": strategy_id}
+            issue_meta[issue_id] = {
+                "strategy_id": strategy_id,
+                "first_alert_time": int(getattr(hit, "first_alert_time", 0) or 0),
+            }
             strategy_ids.add(strategy_id)
 
         # 2. 查询 QueryConfigModel，识别日志类别策略，并预取 query_config 供步骤5复用
@@ -1530,7 +1542,13 @@ class IssueLogContentResource(Resource):
             return log_contents
 
         # 3. 查询每个 issue 最新告警（top_hits 聚合，按 begin_time 降序取最新一条）
-        search_object = AlertDocument.search(all_indices=True).filter("terms", issue_id=log_issue_ids)
+        start_time = min(
+            issue_meta[issue_id]["first_alert_time"] or IssueDocument.parse_timestamp_by_id(issue_id)
+            for issue_id in log_issue_ids
+        )
+        search_object = AlertDocument.search(start_time=start_time, end_time=int(time.time())).filter(
+            "terms", issue_id=log_issue_ids
+        )
         issue_agg = search_object.aggs.bucket("issues", "terms", field="issue_id", size=len(log_issue_ids))
         issue_agg.metric(
             "latest_alert",
@@ -1567,31 +1585,53 @@ class IssueLogContentResource(Resource):
             return log_contents
 
         # 5. 并发获取日志内容（传入步骤2预取的 query_config，避免 get_alert_relation_info 内部重复查 DB）
+        deadline = time.monotonic() + self.BATCH_TIMEOUT
+
         def _fetch_log_content(_issue_id: str, _alert: AlertDocument, _query_config) -> tuple[str, dict]:
             try:
-                full_content = get_alert_relation_info(_alert, length_limit=False, query_config=_query_config) or ""
-            except Exception:
-                logger.exception("IssueLogContentResource get_alert_relation_info failed")
-                full_content = ""
-            return _issue_id, {"log_content": full_content}
+                if time.monotonic() >= deadline:
+                    return _issue_id, {"log_content": ""}
+                try:
+                    full_content = get_alert_relation_info(_alert, length_limit=False, query_config=_query_config) or ""
+                except Exception:
+                    logger.exception("IssueLogContentResource get_alert_relation_info failed")
+                    full_content = ""
+                return _issue_id, {"log_content": full_content}
+            finally:
+                self.QUERY_SLOTS.release()
 
-        with ThreadPoolExecutor(max_workers=min(10, len(issue_alert_map))) as pool:
-            futures = [
-                pool.submit(
+        futures = {}
+        skipped_count = 0
+        for issue_id, alert in issue_alert_map.items():
+            if not self.QUERY_SLOTS.acquire(blocking=False):
+                skipped_count += 1
+                continue
+            try:
+                future = self.EXECUTOR.submit(
                     _fetch_log_content,
                     issue_id,
                     alert,
                     strategy_query_config_map.get(issue_meta[issue_id]["strategy_id"]),
                 )
-                for issue_id, alert in issue_alert_map.items()
-            ]
-            for future in as_completed(futures):
-                try:
-                    issue_id, log_content = future.result()
-                except Exception:
-                    logger.exception("IssueLogContentResource future.result() failed")
-                    continue
-                log_contents[issue_id] = log_content
+            except Exception:
+                self.QUERY_SLOTS.release()
+                raise
+            futures[future] = issue_id
+
+        done, pending = wait(futures, timeout=max(0, deadline - time.monotonic()))
+        for future in done:
+            try:
+                issue_id, log_content = future.result()
+            except Exception:
+                logger.exception("IssueLogContentResource future.result() failed")
+                continue
+            log_contents[issue_id] = log_content
+        if pending or skipped_count:
+            logger.warning(
+                "IssueLogContentResource batch limited, pending_count=%s, skipped_count=%s",
+                len(pending),
+                skipped_count,
+            )
 
         return log_contents
 

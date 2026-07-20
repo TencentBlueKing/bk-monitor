@@ -18,6 +18,198 @@ from bkmonitor.issue_merge import (
 )
 
 
+class TestIssueLogContentResource:
+    @staticmethod
+    def _issue_ids(count: int) -> list[str]:
+        return [f"1700000000{i:02d}" for i in range(count)]
+
+    @staticmethod
+    def _prepare_resource(monkeypatch, issue_ids: list[str], *, with_alert: bool = False):
+        from types import SimpleNamespace
+        from unittest.mock import MagicMock
+
+        from constants.data_source import DataSourceLabel, DataTypeLabel
+        from fta_web.issue import resources
+
+        issue_hits = []
+        for issue_id in issue_ids:
+            hit = MagicMock()
+            hit.meta.id = issue_id
+            hit.strategy_id = 1001
+            hit.first_alert_time = int(issue_id[:10]) - 60
+            issue_hits.append(hit)
+
+        issue_search = MagicMock()
+        issue_search.filter.return_value = issue_search
+        issue_search.source.return_value = issue_search
+        issue_search.params.return_value = issue_search
+        issue_search.execute.return_value = SimpleNamespace(hits=issue_hits)
+        monkeypatch.setattr(resources.IssueDocument, "search", lambda **kwargs: issue_search)
+
+        query_configs = MagicMock()
+        query_configs.values.return_value = [
+            {
+                "strategy_id": 1001,
+                "data_source_label": DataSourceLabel.BK_LOG_SEARCH,
+                "data_type_label": DataTypeLabel.LOG,
+            }
+        ]
+        query_config_model = MagicMock()
+        query_config_model.objects.filter.return_value = query_configs
+        monkeypatch.setattr(resources, "QueryConfigModel", query_config_model)
+
+        buckets = []
+        if with_alert:
+            for index, issue_id in enumerate(issue_ids):
+                bucket = MagicMock()
+                bucket.key = issue_id
+                alert_hit = MagicMock()
+                alert_hit.to_dict.return_value = {"_source": {"id": f"1700000000{index:03d}"}}
+                bucket.latest_alert.hits.hits = [alert_hit]
+                buckets.append(bucket)
+
+        alert_result = MagicMock()
+        alert_result.aggs.issues.buckets = buckets
+        alert_search = MagicMock()
+        alert_search.filter.return_value = alert_search
+        alert_search.aggs.bucket.return_value = MagicMock()
+        alert_search.__getitem__.return_value.execute.return_value = alert_result
+        return resources, alert_search
+
+    def test_serializer_rejects_more_than_ten_issues(self):
+        from fta_web.issue.resources import IssueLogContentResource
+
+        serializer = IssueLogContentResource.RequestSerializer(
+            data={"bk_biz_ids": [2], "issue_ids": self._issue_ids(11)}
+        )
+
+        assert not serializer.is_valid()
+        assert "issue_ids" in serializer.errors
+
+    def test_alert_search_uses_issue_time_range(self, monkeypatch):
+        issue_ids = ["170000000000", "170000010000"]
+        resources, alert_search = self._prepare_resource(monkeypatch, issue_ids)
+        captured = {}
+
+        def _search(**kwargs):
+            captured.update(kwargs)
+            return alert_search
+
+        monkeypatch.setattr(resources.AlertDocument, "search", _search)
+        monkeypatch.setattr(resources.time, "time", lambda: 1_700_001_000)
+
+        resources.IssueLogContentResource().perform_request({"bk_biz_ids": [2], "issue_ids": issue_ids})
+
+        assert captured == {"start_time": 1_699_999_940, "end_time": 1_700_001_000}
+
+    def test_alert_search_falls_back_to_issue_id_time(self, monkeypatch):
+        issue_ids = ["170000000000"]
+        resources, alert_search = self._prepare_resource(monkeypatch, issue_ids)
+        captured = {}
+
+        resources.IssueDocument.search().execute().hits[0].first_alert_time = 0
+
+        def _search(**kwargs):
+            captured.update(kwargs)
+            return alert_search
+
+        monkeypatch.setattr(resources.AlertDocument, "search", _search)
+        monkeypatch.setattr(resources.time, "time", lambda: 1_700_001_000)
+
+        resources.IssueLogContentResource().perform_request({"bk_biz_ids": [2], "issue_ids": issue_ids})
+
+        assert captured == {"start_time": 1_700_000_000, "end_time": 1_700_001_000}
+
+    def test_batch_timeout_does_not_wait_for_slow_log_query(self, monkeypatch):
+        import threading
+        import time
+
+        issue_ids = self._issue_ids(1)
+        resources, alert_search = self._prepare_resource(monkeypatch, issue_ids, with_alert=True)
+        monkeypatch.setattr(resources.AlertDocument, "search", lambda **kwargs: alert_search)
+        monkeypatch.setattr(resources.IssueLogContentResource, "BATCH_TIMEOUT", 0.01, raising=False)
+
+        release = threading.Event()
+
+        def _slow_query(*args, **kwargs):
+            release.wait(timeout=1)
+            return "late log"
+
+        monkeypatch.setattr(resources, "get_alert_relation_info", _slow_query)
+        original_submit = resources.IssueLogContentResource.EXECUTOR.submit
+        submitted_futures = []
+
+        def _capture_submit(*args, **kwargs):
+            future = original_submit(*args, **kwargs)
+            submitted_futures.append(future)
+            return future
+
+        monkeypatch.setattr(resources.IssueLogContentResource.EXECUTOR, "submit", _capture_submit)
+
+        try:
+            started_at = time.monotonic()
+            result = resources.IssueLogContentResource().perform_request({"bk_biz_ids": [2], "issue_ids": issue_ids})
+
+            assert time.monotonic() - started_at < 0.1
+            assert result == {issue_ids[0]: {"log_content": ""}}
+        finally:
+            release.set()
+            for future in submitted_futures:
+                future.result(timeout=1)
+
+    def test_repeated_timeouts_share_global_concurrency_limit(self, monkeypatch):
+        import threading
+
+        issue_ids = self._issue_ids(10)
+        resources, alert_search = self._prepare_resource(monkeypatch, issue_ids, with_alert=True)
+        monkeypatch.setattr(resources.AlertDocument, "search", lambda **kwargs: alert_search)
+        monkeypatch.setattr(resources.IssueLogContentResource, "BATCH_TIMEOUT", 0.05, raising=False)
+
+        release = threading.Event()
+        lock = threading.Lock()
+        active = 0
+        max_active = 0
+
+        def _slow_query(*args, **kwargs):
+            nonlocal active, max_active
+            with lock:
+                active += 1
+                max_active = max(max_active, active)
+            try:
+                release.wait(timeout=1)
+                return "late log"
+            finally:
+                with lock:
+                    active -= 1
+
+        monkeypatch.setattr(resources, "get_alert_relation_info", _slow_query)
+        original_submit = resources.IssueLogContentResource.EXECUTOR.submit
+        submitted = 0
+        submitted_futures = []
+
+        def _counting_submit(*args, **kwargs):
+            nonlocal submitted
+            submitted += 1
+            future = original_submit(*args, **kwargs)
+            submitted_futures.append(future)
+            return future
+
+        monkeypatch.setattr(resources.IssueLogContentResource.EXECUTOR, "submit", _counting_submit)
+
+        try:
+            resource = resources.IssueLogContentResource()
+            resource.perform_request({"bk_biz_ids": [2], "issue_ids": issue_ids})
+            submitted_after_first_request = submitted
+            resource.perform_request({"bk_biz_ids": [2], "issue_ids": issue_ids})
+            assert max_active <= 10
+            assert submitted <= 10
+            assert submitted == submitted_after_first_request
+        finally:
+            release.set()
+            for future in submitted_futures:
+                future.result(timeout=1)
+
+
 class TestListMergeSourcesAnomalyMessage:
     """``_fetch_member_anomaly_messages`` 行为：
 
