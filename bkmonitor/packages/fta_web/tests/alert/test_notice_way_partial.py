@@ -98,6 +98,58 @@ def test_strict_query_rejects_partial_result(monkeypatch):
         handler._collect_current_alert_ids()
 
 
+def test_partial_notice_way_neq_is_rejected(monkeypatch):
+    handler = make_handler(allow_partial=True)
+
+    def get_partial_alert_ids(notice_ways):
+        handler._mark_partial(
+            code="notice_way_candidate_limit",
+            scopes=["alerts", "total", "overview", "aggs"],
+            scanned_candidate_count=10000,
+            candidate_limit=10000,
+        )
+        return ["1"]
+
+    monkeypatch.setattr(handler, "_get_alert_ids_by_notice_way", get_partial_alert_ids)
+
+    with pytest.raises(ValidationError, match="排除条件"):
+        handler.parse_condition_item(
+            {
+                "key": "notice_way",
+                "origin_key": "notice_way",
+                "value": ["voice"],
+                "method": "neq",
+            }
+        )
+
+
+def test_partial_notice_way_neq_is_rejected_when_reason_was_already_recorded(monkeypatch):
+    handler = make_handler(allow_partial=True)
+    reason = {
+        "code": "notice_way_candidate_limit",
+        "scopes": ["alerts", "total", "overview", "aggs"],
+        "scanned_candidate_count": 10000,
+        "candidate_limit": 10000,
+    }
+    handler.partial_reasons = [reason]
+
+    def get_partial_alert_ids(notice_ways):
+        handler._mark_partial(**reason)
+        return ["1"]
+
+    monkeypatch.setattr(handler, "_get_alert_ids_by_notice_way", get_partial_alert_ids)
+
+    with pytest.raises(ValidationError, match="排除条件"):
+        handler.parse_condition_item(
+            {
+                "key": "notice_way",
+                "origin_key": "notice_way",
+                "value": ["voice"],
+                "method": "neq",
+            }
+        )
+
+
 def test_search_response_marks_total_as_lower_bound(monkeypatch):
     handler = make_handler()
     handler._mark_partial(
@@ -306,3 +358,20 @@ def test_search_includes_partial_reason_discovered_while_handling_aggregations(m
 
     assert result["is_partial"] is True
     assert result["partial_reasons"][0]["code"] == "notice_way_aggregation_candidate_limit"
+
+
+@pytest.mark.parametrize("alert_ids", [set(), {"1"}])
+def test_notice_way_aggregation_inherits_main_aggregation_partial_state(alert_ids):
+    handler = make_handler()
+    handler.partial_reasons = [
+        {
+            "code": "alert_search_shard_failure",
+            "scopes": ["alerts", "total", "overview", "aggs"],
+            "failed_shards": 1,
+        }
+    ]
+    handler._notice_ways_cache = {}
+
+    aggregation = handler.handle_aggs_notice_way(alert_ids)
+
+    assert aggregation["is_partial"] is True

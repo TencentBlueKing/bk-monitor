@@ -1032,6 +1032,8 @@ class AlertQueryHandler(BaseBizQueryHandler):
         elif condition["origin_key"] == "notice_way":
             # 通知类型过滤：查询 ActionInstanceDocument 获取匹配的 alert_id
             alert_ids = self._get_alert_ids_by_notice_way(condition["value"])
+            if condition["method"] == "neq" and any("alerts" in reason["scopes"] for reason in self.partial_reasons):
+                raise ValidationError(_lazy("通知方式排除条件无法返回部分结果，请缩小时间范围或增加过滤条件"))
             if not alert_ids:
                 alert_ids = [0]
             return Q("terms", id=alert_ids)
@@ -1519,6 +1521,9 @@ class AlertQueryHandler(BaseBizQueryHandler):
         ]
         notice_way_count = defaultdict(int)
         alert_notice_ways = {}
+        is_partial = any(
+            "aggs" in reason["scopes"] or "aggs.notice_way" in reason["scopes"] for reason in self.partial_reasons
+        )
 
         try:
             if not alert_ids:
@@ -1534,6 +1539,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
                         }
                         for way_key in notice_ways
                     ],
+                    "is_partial": is_partial,
                 }
 
             # 优先复用 notice_way 过滤阶段已查询的缓存，避免重复查询 action 索引
@@ -1570,7 +1576,9 @@ class AlertQueryHandler(BaseBizQueryHandler):
                 for way_key in notice_ways
             ],
         }
-        result["is_partial"] = any("aggs.notice_way" in reason["scopes"] for reason in self.partial_reasons)
+        result["is_partial"] = any(
+            "aggs" in reason["scopes"] or "aggs.notice_way" in reason["scopes"] for reason in self.partial_reasons
+        )
         return result
 
     @classmethod
