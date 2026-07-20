@@ -2,19 +2,89 @@
   flex: 1;
   min-height: 0;
 
-  // 36 行高，显示更多内容
-  .t-table td,
+  // 表头 42px，数据行 56px
   .t-table th {
-    height: 36px;
+    height: 42px;
+    font-size: 12px;
+    background: #f5f7fa;
+  }
+
+  .t-table td {
+    height: 56px;
     font-size: 12px;
   }
+}
+
+/** 进程名列：LOGO + 名称 + 副标题 */
+.process-table-name {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  overflow: hidden;
+
+  &__logo {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: #e1ecff;
+    border-radius: 6px;
+    box-shadow: 0 2px 2px rgb(58 132 255 / 4%);
+  }
+
+  &__logo-text {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: #3a84ff;
+  }
+
+  &__info {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  &__title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: #3a84ff;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  &__subtitle {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    color: #979ba5;
+    white-space: nowrap;
+  }
+}
+
+/** 实例数列：蓝色加粗 */
+.process-table-instance {
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: #3a84ff;
 }
 
 /** 蓝色链接（进程名 / 主机 IP） */
 .process-table-link {
   overflow: hidden;
-  color: #3a84ff;
   text-overflow: ellipsis;
+  color: #3a84ff;
   white-space: nowrap;
   cursor: pointer;
 }
@@ -40,8 +110,8 @@
   }
 }
 
-/** 物理内存列：值 + 占比 + 贴边进度条 */
-.process-table-memory {
+/** CPU 列：值 + 变化值 + 4px 圆角进度条 */
+.process-table-cpu {
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -54,28 +124,79 @@
   }
 
   &__value {
+    font-family: Arial, sans-serif;
     font-size: 12px;
-    line-height: 16px;
-    color: #313238;
+    font-weight: 700;
+    color: #4d4f56;
   }
 
-  &__percent {
+  &__change {
+    font-family: Arial, sans-serif;
     font-size: 12px;
-    line-height: 16px;
-    color: #979ba5;
+    font-weight: 400;
+    white-space: nowrap;
   }
 
   &__bar {
     width: 100%;
-    height: 2px;
-    margin-top: 6px;
+    height: 4px;
+    margin-top: 4px;
     overflow: hidden;
-    background: transparent;
+    background: #f0f1f5;
+    border-radius: 999px;
   }
 
   &__bar-inner {
     height: 100%;
-    border-radius: 1px;
+    border-radius: 999px;
+    transition: width 0.3s;
+  }
+
+  &__empty {
+    color: #c4c6cc;
+  }
+}
+
+/** 内存 / 文件句柄列：值 + 占比 + 4px 圆角进度条 */
+.process-table-memory,
+.process-table-file-handle {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+
+  &__row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
+  &__value {
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: #4d4f56;
+  }
+
+  &__percent {
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    color: #8f9fbd;
+  }
+
+  &__bar {
+    width: 100%;
+    height: 4px;
+    margin-top: 4px;
+    overflow: hidden;
+    background: #f0f1f5;
+    border-radius: 999px;
+  }
+
+  &__bar-inner {
+    height: 100%;
+    border-radius: 999px;
     transition: width 0.3s;
   }
 
