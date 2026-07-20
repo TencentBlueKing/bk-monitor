@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from itertools import chain
 
 import xxhash
@@ -52,6 +53,8 @@ from constants.action import ActionPluginType
 from core.drf_resource import api
 
 logger = logging.getLogger(__name__)
+
+GRAFANA_SYNC_MAX_WORKERS = 5
 
 
 def convert_notices(
@@ -333,10 +336,19 @@ def sync_grafana_dashboards(bk_biz_id: int, dashboards: dict[str, dict]):
     同步Grafana仪表盘配置
     """
     org_id = get_or_create_org(bk_biz_id)["id"]
-    folders = api.grafana.search_folder_or_dashboard(type="dash-folder", org_id=org_id)["data"]
-    folder_names_to_ids = {folder["title"].replace("/", "-"): folder["id"] for folder in folders}
 
-    datasources: list = api.grafana.get_all_data_source(org_id=org_id)["data"]
+    # 目录和数据源互不依赖，并行获取可减少一次 Grafana API 往返等待。
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        folders_future = executor.submit(
+            api.grafana.search_folder_or_dashboard,
+            type="dash-folder",
+            org_id=org_id,
+        )
+        datasources_future = executor.submit(api.grafana.get_all_data_source, org_id=org_id)
+        folders = folders_future.result()["data"]
+        datasources: list = datasources_future.result()["data"]
+
+    folder_names_to_ids = {folder["title"].replace("/", "-"): folder["id"] for folder in folders}
 
     # 获取数据源信息
     datasource_types = {}
@@ -351,27 +363,19 @@ def sync_grafana_dashboards(bk_biz_id: int, dashboards: dict[str, dict]):
         datasource_uids[data_source["uid"]] = record
 
     # 获取数据源映射，并检查uid是否存在
-    datasource_mapping = dashboards.pop("datasources.yaml", {})
+    datasource_mapping = dashboards.get("datasources.yaml", {})
     for uid in datasource_mapping.values():
         if uid not in datasource_uids:
             raise ValueError(f"datasource({uid}) is not exist")
 
+    dashboard_imports = []
     for path, dashboard in dashboards.items():
-        if "/" in path:
-            folder, path = path.split("/")
-        else:
-            folder = ""
+        if path == "datasources.yaml":
+            continue
 
-        if not folder:
-            folder_id = 0
-        elif folder in folder_names_to_ids:
-            folder_id = folder_names_to_ids[folder]
-        else:
-            result = api.grafana.create_folder(org_id=org_id, title=folder)
-            if not result["result"]:
-                raise ValueError(f"create folder{folder} failed, {result['message']}")
-            folder_id = result["data"]["id"]
-            folder_names_to_ids[folder] = folder_id
+        folder, separator, _ = path.partition("/")
+        if not separator:
+            folder = ""
 
         inputs = []
         for input_field in dashboard.get("__inputs", []):
@@ -389,10 +393,57 @@ def sync_grafana_dashboards(bk_biz_id: int, dashboards: dict[str, dict]):
                 datasource = datasource_types[input_field["pluginId"]]
             inputs.append({"name": input_field["name"], **datasource})
 
-        dashboard.pop("id", None)
+        dashboard_config = dashboard.copy()
+        dashboard_config.pop("id", None)
+        dashboard_imports.append((folder, dashboard_config, inputs))
+
+    # 每个缺失目录只创建一次；不同目录之间不存在依赖，可并行创建。
+    missing_folders = list(
+        dict.fromkeys(folder for folder, _, _ in dashboard_imports if folder and folder not in folder_names_to_ids)
+    )
+
+    def create_folder(folder: str) -> tuple[str, int]:
+        result = api.grafana.create_folder(org_id=org_id, title=folder)
+        if not result["result"]:
+            raise ValueError(f"create folder{folder} failed, {result['message']}")
+        return folder, result["data"]["id"]
+
+    if missing_folders:
+        with ThreadPoolExecutor(max_workers=min(GRAFANA_SYNC_MAX_WORKERS, len(missing_folders))) as executor:
+            folder_names_to_ids.update(executor.map(create_folder, missing_folders))
+
+    def import_dashboard(dashboard_import: tuple[str, dict, list]) -> None:
+        folder, dashboard, inputs = dashboard_import
+        if not folder:
+            folder_id = 0
+        elif folder in folder_names_to_ids:
+            folder_id = folder_names_to_ids[folder]
+        else:
+            raise ValueError(f"folder({folder}) is not exist")
         api.grafana.import_dashboard(
-            dashboard=dashboard, org_id=org_id, inputs=inputs, overwrite=True, folderId=folder_id
+            dashboard=dashboard,
+            org_id=org_id,
+            inputs=inputs,
+            overwrite=True,
+            folderId=folder_id,
         )
+
+    # 指向同一 Grafana 仪表盘实体（相同 uid，或同目录同 title）的导入必须串行，
+    # 否则并发 overwrite 会触发版本冲突。这里按唯一键分组，组内顺序执行、组间并发，
+    # 保持与串行版“后者覆盖前者”一致的语义。
+    import_groups: dict[object, list[tuple[str, dict, list]]] = {}
+    for dashboard_import in dashboard_imports:
+        folder, dashboard, _ = dashboard_import
+        key = dashboard.get("uid") or (folder, dashboard.get("title"))
+        import_groups.setdefault(key, []).append(dashboard_import)
+
+    def import_dashboard_group(group: list[tuple[str, dict, list]]) -> None:
+        for dashboard_import in group:
+            import_dashboard(dashboard_import)
+
+    if import_groups:
+        with ThreadPoolExecutor(max_workers=min(GRAFANA_SYNC_MAX_WORKERS, len(import_groups))) as executor:
+            list(executor.map(import_dashboard_group, import_groups.values()))
 
 
 def convert_assign_groups(
