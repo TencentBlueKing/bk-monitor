@@ -25,10 +25,24 @@
  */
 import { BkOpenTelemetry } from '@blueking/open-telemetry';
 
+/** 机器人信息轮询接口：不采集、不计入页面活动窗口 */
+const ROBOT_INFO_URL = 'commons/fetch_robot_info/';
+
+/** hash / history 路由统一归一为低基数 path group */
+const getPathGroup = (url: string): string => {
+  const parsed = new URL(url, window.location.href);
+  const hashLocation = parsed.hash.replace(/^#!?/, '');
+
+  const pathname = hashLocation.startsWith('/') ? new URL(hashLocation, parsed.origin).pathname : parsed.pathname;
+
+  return pathname.replace(/\/[0-9a-f]{8}-[0-9a-f-]{27,}/gi, '/:id').replace(/\/\d+(?=\/|$)/g, '/:id');
+};
+
 // 初始化蓝鲸 RUM 上报 SDK，仅在后端下发 window.rum.enabled 且提供 endpoint 时启用
-export const initOpenTelemetry = (): BkOpenTelemetry => {
+export const initOpenTelemetry = (): BkOpenTelemetry | undefined => {
   if (!window.rum?.enabled || !window.rum.endpoint) return;
-  // 构造后默认 autoStart，采集页面访问、接口、资源、JS 错误、Web Vitals 等并通过 OTLP 上报
+
+  // 构造后默认 autoStart；session.sampleRate 默认 1（全量）
   return new BkOpenTelemetry({
     application: {
       name: 'bk-monitor',
@@ -38,30 +52,42 @@ export const initOpenTelemetry = (): BkOpenTelemetry => {
     transport: {
       endpoint: window.rum.endpoint,
       token: window.rum.token,
+      // 仅上报 Trace，关闭 Metric / Log
+      signals: {
+        metrics: false,
+        logs: false,
+      },
+    },
+    privacy: {
+      // 脱敏 URL 中的常见敏感查询参数
+      redactUrl: url => url.replace(/([?&](?:token|bk_ticket|access_token)=)[^&]+/gi, '$1***'),
     },
     tracking: {
       view: {
-        getPathGroup: url => {
-          const parsed = new URL(url, window.location.href);
-          const hashLocation = parsed.hash.replace(/^#!?/, '');
-
-          const pathname = hashLocation.startsWith('/')
-            ? new URL(hashLocation, parsed.origin).pathname
-            : parsed.pathname;
-
-          return pathname.replace(/\/[0-9a-f]{8}-[0-9a-f-]{27,}/gi, '/:id').replace(/\/\d+(?=\/|$)/g, '/:id');
-        },
+        getPathGroup,
+        // 轮询类请求不延长 View Loading Time
+        excludedActivityUrls: [ROBOT_INFO_URL],
       },
-      beforeSend: span => {
-        if (span.name === 'browser.resource') {
-          if (span.attributes?.['resource.url']?.toString().includes('commons/fetch_robot_info/')) {
-            return false;
-          }
-        }
+      request: {
+        excludedUrls: [ROBOT_INFO_URL],
       },
+      blankScreen: {
+        // SPA 挂载根节点，避免对整页 body 误判白屏
+        rootSelector: '#app',
+      },
+      longTask: true,
     },
     context: {
       user: { id: window.username },
+      attributes: {
+        // 事件上报时读取，覆盖异步就绪后的业务 ID
+        page: () => ({
+          bizId: window.cc_biz_id || window.bk_biz_id,
+        }),
+        metric: () => ({
+          bizId: window.cc_biz_id || window.bk_biz_id,
+        }),
+      },
     },
   });
 };
