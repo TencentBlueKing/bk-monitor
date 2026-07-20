@@ -30,13 +30,14 @@ import { Message, ResizeLayout } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 
+import AlarmTools from './components/alarm-tools/index';
 import HostContentTabs from './components/host-content-tabs/host-content-tabs';
 import HostLocationBar from './components/host-location-bar/host-location-bar';
 import HostTopoTree from './components/host-topo-tree/host-topo-tree';
 import { useHostTopoTree } from './composables/use-host-topo-tree';
 import { HOST_PAGE_HEADER_NAV_BAR_LIST } from './constants/constants';
-import CommonHeader from '@/components/common-header/common-header';
-import { useHostStore } from '@/store/modules/host';
+import CommonHeader from '../../components/common-header/common-header';
+import { useHostStore } from '../../store/modules/host';
 
 import type { IHostTopoHostNode } from './types';
 
@@ -103,9 +104,11 @@ export default defineComponent({
                     </li>
                   ))}
                 </ul>
+
                 {this.scene === 'host' && <HostLocationBar selectedNode={this.topoTree.selectedNode.value} />}
               </div>
             ),
+            accessGuide: () => <AlarmTools />,
           }}
         </CommonHeader>
         <div class='host-page-content'>

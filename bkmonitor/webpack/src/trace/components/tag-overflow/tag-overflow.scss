@@ -1,0 +1,46 @@
+.tag-overflow {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  word-break: keep-all;
+  white-space: nowrap;
+
+  &__badge {
+    display: inline-block;
+    max-width: 100%;
+    padding: 3px 7px;
+    margin-left: 6px;
+    font-size: 12px;
+    line-height: 16px;
+    color: #63656e;
+    text-align: center;
+    vertical-align: middle;
+    white-space: nowrap;
+    cursor: pointer;
+    background: #fafbfd;
+    border: 1px solid #dcdee5;
+    border-radius: 2px;
+  }
+
+  &__measure {
+    position: fixed;
+    top: -9999px;
+    left: -9999px;
+    pointer-events: none;
+    visibility: hidden;
+    word-break: keep-all;
+    white-space: nowrap;
+  }
+
+  &__more-panel {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-width: 360px;
+    padding: 4px 0;
+  }
+
+  &__more-panel-item {
+    max-width: 100%;
+  }
+}

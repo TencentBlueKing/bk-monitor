@@ -62,16 +62,21 @@
   }
 }
 
-/** 未恢复告警色块 */
+/** 未恢复告警色块（对齐 performance-table .status-label） */
 .host-table-alarm {
   display: inline-block;
   min-width: 20px;
-  padding: 0 6px;
+  padding: 2px 7px;
   font-size: 12px;
   line-height: 18px;
   color: #fff;
   text-align: center;
+  background: #dcdee5;
   border-radius: 2px;
+
+  &--unresolve:hover {
+    cursor: pointer;
+  }
 }
 
 /** 指标列：数值 + 贴边进度条 */
@@ -126,32 +131,55 @@
   }
 }
 
-/** 进程标签 */
+/** 进程标签状态色（布局与溢出由 TagOverflow 负责） */
 .host-table-process {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 4px;
-  overflow: hidden;
-
   &__tag {
-    flex: 0 0 auto;
-    padding: 0 8px;
+    display: inline-block;
+    max-width: 100%;
+    padding: 3px 7px;
+    margin-left: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-size: 12px;
-    line-height: 22px;
+    line-height: 16px;
+    vertical-align: middle;
+    text-align: center;
+    white-space: nowrap;
+    cursor: default;
+    background: #fafbfd;
+    border: 1px solid #dcdee5;
     border-radius: 2px;
 
-    &.is-normal {
-      color: #63656e;
-      background: #f0f1f5;
-    }
-
-    &.is-abnormal {
-      color: #ea3636;
-      background: #fedddc;
+    /* stylelint-disable-next-line selector-class-pattern */
+    & ~ .host-table-process__tag {
+      margin-left: 6px;
     }
   }
 
+  /* 1 异常 / 2 无数据 / 3 正常 */
+  &__tag--1 {
+    color: #ea3636;
+    border: 1px solid #fd9c9c;
+  }
+
+  &__tag--2 {
+    color: #c4c6cc;
+    border: 1px solid #dcdee5;
+  }
+
+  &__tag--3 {
+    color: #63656e;
+    border: 1px solid #dcdee5;
+  }
+
+  &__tag--default {
+    color: #63656e;
+    border: 1px solid #dcdee5;
+  }
+
   &__empty {
+    font-size: 12px;
+    line-height: 22px;
     color: #c4c6cc;
   }
 }
