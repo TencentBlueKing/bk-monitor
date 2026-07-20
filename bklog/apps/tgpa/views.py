@@ -26,8 +26,9 @@ from apps.api import TGPATaskApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum
-from apps.iam.handlers.drf import ViewBusinessPermission, BusinessActionPermission
+from apps.iam.handlers.drf import BusinessActionPermission
 from apps.tgpa.constants import FEATURE_TOGGLE_TGPA_TASK
+from apps.utils.local import get_request_external_username
 from apps.tgpa.handlers.base import TGPACollectorConfigHandler
 from apps.tgpa.handlers.report import TGPAReportHandler
 from apps.tgpa.handlers.search import TGPASearchHandler
@@ -204,7 +205,7 @@ class TGPATaskViewSet(APIViewSet):
             return [BusinessActionPermission([ActionEnum.CREATE_CLIENT_LOG_TASK])]
         if self.action in ("get_download_url", "download_file"):
             return [BusinessActionPermission([ActionEnum.DOWNLOAD_CLIENT_LOG])]
-        return [ViewBusinessPermission()]
+        return [BusinessActionPermission([ActionEnum.VIEW_CLIENT_LOG])]
 
     def list(self, request, *args, **kwargs):
         """
@@ -216,12 +217,15 @@ class TGPATaskViewSet(APIViewSet):
     def create(self, request, *args, **kwargs):
         """
         创建日志拉取任务
+
+        审计身份：创建人使用真实用户名（外部PO用户走代理时为 external_user 本人，
+        内部用户为 request.user），不写成内部授权人(authorizer)，与身份三分离原则一致。
         """
         params = self.params_valid(CreateTGPATaskSerializer)
         params["cc_id"] = params.pop("bk_biz_id")
         params["logpath"] = params.pop("log_path")
         params["taskName"] = params.pop("task_name")
-        params["username"] = request.user.username
+        params["username"] = get_request_external_username() or request.user.username
         TGPATaskApi.create_single_user_log_task_v2(params)
         return Response()
 
@@ -304,7 +308,7 @@ class TGPAReportViewSet(APIViewSet):
     """客户端日志上报"""
 
     def get_permissions(self):
-        return [ViewBusinessPermission()]
+        return [BusinessActionPermission([ActionEnum.VIEW_CLIENT_LOG])]
 
     def list(self, request, *args, **kwargs):
         """
@@ -317,6 +321,9 @@ class TGPAReportViewSet(APIViewSet):
     def sync_report(self, request, *args, **kwargs):
         """
         同步客户端日志上报文件
+
+        审计身份：created_by 使用真实用户名（外部PO用户走代理时为 external_user 本人，
+        内部用户为 request.user），不写成内部授权人(authorizer)，与身份三分离原则一致。
         """
         params = self.params_valid(SyncReportSerializer)
         bk_biz_id = params["bk_biz_id"]
@@ -327,7 +334,7 @@ class TGPAReportViewSet(APIViewSet):
             bk_biz_id=bk_biz_id,
             openid_list=params.get("openid_list"),
             file_name_list=params.get("file_name_list"),
-            created_by=request.user.username,
+            created_by=get_request_external_username() or request.user.username,
         )
         fetch_and_process_tgpa_reports.delay(sync_record_obj.id, params)
 

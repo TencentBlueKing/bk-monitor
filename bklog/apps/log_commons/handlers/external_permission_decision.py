@@ -266,3 +266,96 @@ class ExternalLogExtractPermissionDecision:
             audit_user=external_user,
             reason="" if allowed else "legacy_and_strategy_denied_or_unavailable",
         )
+
+
+class ExternalClientLogPermissionDecision:
+    """TAPD5: 外部客户端日志(TGPA) legacy(PO) OR iam(VIEW_CLIENT_LOG) 决策组件。
+
+    复用 TAPD3/4 的 decide() 通用 OR 决策矩阵与 CheckResult/DecisionResult 契约。
+
+    客户端日志的"查看"鉴权是业务(bk_biz_id)维度、无资源级颗粒度（不同于 LOG_SEARCH 的索引集级鉴权），
+    因此本决策组件不涉及 resources 集合运算，decide() 的 resources 恒为空集，
+    与 ExternalLogExtractPermissionDecision 保持同样的"业务级布尔判定"结构：
+      - legacy: ExternalPermission 表中 action_id=client_log 在有效期内，且 view_set/view_action 命中
+      - iam: 以 external_user 本人身份查 IAM 的 VIEW_CLIENT_LOG（bk_biz_id 维度资源）
+    两者满足其一即可放行。
+    """
+
+    @classmethod
+    def legacy_check(cls, *, space_uid, external_user, view_set, view_action):
+        """legacy(PO) 判断，subject 恒为 external_user。
+
+        与 TAPD3 LogSearch 的 legacy_check 不同，客户端日志不需要 resource_id 级别判定，
+        只需确认 external_user 名下存在有效的 client_log 授权，且当前 view_set/view_action
+        属于 ViewSetActionEnum 中挂载 client_log 的接口范围。
+        """
+        action_ids = list(
+            ExternalPermission.get_authorizer_permission(space_uid=space_uid, authorizer=external_user).get(
+                space_uid, []
+            )
+        )
+        if ExternalPermissionActionEnum.CLIENT_LOG.value not in action_ids:
+            return CheckResult(allowed=False, source="legacy", detail="no_legacy_action")
+
+        if not ExternalPermission.is_action_valid(
+            view_set=view_set, view_action=view_action, action_id=ExternalPermissionActionEnum.CLIENT_LOG.value
+        ):
+            return CheckResult(allowed=False, source="legacy", detail="action_not_match")
+
+        return CheckResult(allowed=True, source="legacy", detail="legacy_valid")
+
+    @classmethod
+    def iam_check(cls, *, space_uid, external_user):
+        """IAM 判断，subject 恒为 external_user，查 VIEW_CLIENT_LOG（业务维度资源）。"""
+        try:
+            bk_biz_id = space_uid_to_bk_biz_id(space_uid)
+            resource = ResourceEnum.BUSINESS.create_simple_instance(
+                instance_id=bk_biz_id, attribute={"space_uid": space_uid}
+            )
+            allowed = Permission(username=external_user, bk_tenant_id=settings.BK_APP_TENANT_ID).is_allowed(
+                ActionEnum.VIEW_CLIENT_LOG, [resource], raise_exception=False
+            )
+            return CheckResult(allowed=allowed, source="iam", detail="iam_allowed" if allowed else "iam_denied")
+        except Exception as err:  # pylint: disable=broad-except
+            logger.exception(
+                "ExternalClientLogPermissionDecision.iam_check failed, external_user=%s, space_uid=%s, error=%s",
+                external_user, space_uid, err,
+            )
+            return CheckResult(allowed=None, source="error", detail=str(err))
+
+    @classmethod
+    def decide(cls, *, external_user, execution_user, legacy_result, iam_result):
+        """客户端日志 OR 决策矩阵，复用 TAPD3/4 同款 decide() 逻辑。
+
+        resources 恒为空集：客户端日志鉴权是业务维度的布尔放行，不涉及资源集合运算。
+        """
+        legacy_allowed = legacy_result.allowed
+        iam_allowed = iam_result.allowed
+
+        # source="error" 侧的判定结果不可被当作允许/扩权依据
+        if legacy_result.source == "error":
+            legacy_allowed = None
+        if iam_result.source == "error":
+            iam_allowed = None
+
+        warning = legacy_result.source == "error" or iam_result.source == "error"
+
+        if legacy_allowed is True and iam_allowed is True:
+            decision_source, allowed = "both", True
+        elif legacy_allowed is True:
+            decision_source, allowed = "legacy", True
+        elif iam_allowed is True:
+            decision_source, allowed = "iam", True
+        else:
+            decision_source, allowed = "none", False
+
+        return DecisionResult(
+            allowed=allowed,
+            resources=set(),
+            decision_source=decision_source,
+            warning=warning,
+            authorization_subject=external_user,
+            execution_user=execution_user,
+            audit_user=external_user,
+            reason="" if allowed else "legacy_and_iam_denied_or_unavailable",
+        )

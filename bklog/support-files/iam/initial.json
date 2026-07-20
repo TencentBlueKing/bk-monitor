@@ -579,6 +579,35 @@
                 "description_en":""
             }
         },
+        {
+            "operation":"upsert_action",
+            "data":{
+                "id":"view_client_log",
+                "name":"客户端日志查看",
+                "name_en":"View Client Log",
+                "type":"view",
+                "version":1,
+                "related_resource_types":[
+                    {
+                        "system_id":"bk_monitorv3",
+                        "id":"space",
+                        "selection_mode":"instance",
+                        "related_instance_selections":[
+                            {
+                                "system_id":"bk_monitorv3",
+                                "id":"space_list"
+                            }
+                        ],
+                        "ignore_iam_path":true
+                    }
+                ],
+                "related_actions":[
+
+                ],
+                "description":"",
+                "description_en":""
+            }
+        },
 
         {
             "operation":"upsert_action_groups",
@@ -659,6 +688,9 @@
                             "name":"客户端日志",
                             "name_en":"Client Log",
                             "actions":[
+                                {
+                                    "id":"view_client_log"
+                                },
                                 {
                                     "id":"download_client_log"
                                 },
@@ -782,6 +814,9 @@
                             "id":"manage_extract_config_v2"
                         },
                         {
+                            "id":"view_client_log"
+                        },
+                        {
                             "id":"download_client_log"
                         },
                         {
@@ -807,6 +842,9 @@
                         },
                         {
                             "id":"view_dashboard_v2"
+                        },
+                        {
+                            "id":"view_client_log"
                         },
                         {
                             "id":"download_client_log"

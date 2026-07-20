@@ -35,6 +35,7 @@ from apps.constants import (
 from apps.iam import ActionEnum
 from apps.iam.handlers.permission import Permission
 from apps.log_commons.handlers.external_permission_decision import (
+    ExternalClientLogPermissionDecision,
     ExternalLogExtractPermissionDecision,
     ExternalLogSearchPermissionDecision,
 )
@@ -729,8 +730,58 @@ def dispatch_external_proxy(request):
                         },
                         status=403,
                     )
+            elif (
+                target_action_id == ExternalPermissionActionEnum.CLIENT_LOG.value
+                and RequestProcessor.is_or_decision_enabled(space_uid)
+            ):
+                action_id = target_action_id
+
+                # ===== legacy(PO) OR iam(VIEW_CLIENT_LOG) 决策：subject 恒为 external_user =====
+                legacy_result = ExternalClientLogPermissionDecision.legacy_check(
+                    space_uid=space_uid,
+                    external_user=external_user,
+                    view_set=view_set,
+                    view_action=view_action,
+                )
+                iam_result = ExternalClientLogPermissionDecision.iam_check(
+                    space_uid=space_uid, external_user=external_user
+                )
+                decision_result = ExternalClientLogPermissionDecision.decide(
+                    external_user=external_user,
+                    execution_user=authorizer,
+                    legacy_result=legacy_result,
+                    iam_result=iam_result,
+                )
+                decision_source = decision_result.decision_source
+                decision_warning = decision_result.warning
+                allow_resources_result = {"allowed": True, "resources": []}
+
+                if not decision_result.allowed:
+                    return JsonResponse(
+                        {
+                            "result": False,
+                            "message": f"external_user:{external_user} has no client log permission "
+                            f"(legacy={legacy_result.allowed}, iam={iam_result.allowed}).",
+                        },
+                        status=403,
+                    )
+                # 内部授权人仅作代理执行身份：若最终放行来源包含iam(iam/both)且该空间未配置authorizer，
+                # 则无可用execution_user，必须拒绝而非静默匿名执行(request.user停留匿名态)
+                if decision_source in ("iam", "both") and not authorizer:
+                    logger.warning(
+                        "iam-only allowed but no authorizer configured for space_uid=%s, external_user=%s, "
+                        "reject to avoid anonymous proxy execution",
+                        space_uid, external_user,
+                    )
+                    return JsonResponse(
+                        {
+                            "result": False,
+                            "message": f"空间(ID:{space_uid})未配置代理执行人，暂不支持该访问方式",
+                        },
+                        status=403,
+                    )
             else:
-                # 纯 legacy 判定（灰度关闭或非 log_search/log_extract 能力），与老版本逐行等价
+                # 纯 legacy 判定（灰度关闭或非 log_search/log_extract/client_log 能力），与老版本逐行等价
                 if not external_user_allowed_action_id_list:
                     return JsonResponse(
                         {
