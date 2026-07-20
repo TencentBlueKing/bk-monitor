@@ -203,26 +203,14 @@ def convert_actions(
     return records
 
 
-def convert_rules(
+def _load_cmdb_target_mappings(
     bk_biz_id: int,
-    app: str,
-    configs: dict[str, dict],
-    snippets: dict[str, dict],
-    notice_group_ids: dict[str, int],
-    action_ids: dict[str, int],
-    overwrite: bool = False,
-) -> list[dict]:
+) -> tuple[dict[str, dict], dict[str, dict], dict[str, dict], dict[str, dict]]:
     """
-    1. 渲染snippet配置, sort_keys，计算xxhash (path, snippet, md5, config)
-    2. db查询，对应path的md5差异比对
-    3. 配置检查 check
-    4. 配置转换 convert
-    5. 配置写入 save
-    """
-    strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "hash", "name")
-    path_strategies = {strategy.path: strategy for strategy in strategies.filter(app=app)}
-    name_strategies = {strategy.name.lower(): strategy for strategy in strategies}
+    拉取策略 target 解析所需的 CMDB 映射。
 
+    包含拓扑节点、服务模板、集群模板、动态分组，均为远程调用，应仅在确有变更配置时执行。
+    """
     topo_nodes: dict[str, dict] = {}
     for topo_link in api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id).convert_to_topo_link().values():
         topo_link = list(reversed(topo_link[:-1]))
@@ -244,17 +232,31 @@ def convert_rules(
         dynamic_group["name"]: {"dynamic_group_id": dynamic_group["id"]}
         for dynamic_group in api.cmdb.search_dynamic_group(bk_biz_id=bk_biz_id, bk_obj_id="host")
     }
-    parser = StrategyConfigParser(
-        bk_biz_id=bk_biz_id,
-        notice_group_ids=notice_group_ids,
-        action_ids=action_ids,
-        topo_nodes=topo_nodes,
-        service_templates=service_templates,
-        set_templates=set_templates,
-        dynamic_groups=dynamic_groups,
-    )
+    return topo_nodes, service_templates, set_templates, dynamic_groups
 
-    records = []
+
+def convert_rules(
+    bk_biz_id: int,
+    app: str,
+    configs: dict[str, dict],
+    snippets: dict[str, dict],
+    notice_group_ids: dict[str, int],
+    action_ids: dict[str, int],
+    overwrite: bool = False,
+) -> list[dict]:
+    """
+    1. 渲染snippet配置, sort_keys，计算xxhash (path, snippet, md5, config)
+    2. db查询，对应path的md5差异比对
+    3. 配置检查 check
+    4. 配置转换 convert
+    5. 配置写入 save
+    """
+    strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "hash", "name")
+    path_strategies = {strategy.path: strategy for strategy in strategies.filter(app=app)}
+    name_strategies = {strategy.name.lower(): strategy for strategy in strategies}
+
+    # 先完成 snippet 渲染与 hash 比对；全部未变更时跳过 CMDB 远程调用
+    pending: list[tuple[str, dict, str, str, StrategyModel | None]] = []
     for path, config in configs.items():
         snippet = snippets.get(config.pop("snippet", ""), "")
         if snippet:
@@ -266,6 +268,24 @@ def convert_rules(
         if old_strategy and hash_str == old_strategy.hash:
             continue
 
+        pending.append((path, config, snippet, hash_str, old_strategy))
+
+    if not pending:
+        return []
+
+    topo_nodes, service_templates, set_templates, dynamic_groups = _load_cmdb_target_mappings(bk_biz_id)
+    parser = StrategyConfigParser(
+        bk_biz_id=bk_biz_id,
+        notice_group_ids=notice_group_ids,
+        action_ids=action_ids,
+        topo_nodes=topo_nodes,
+        service_templates=service_templates,
+        set_templates=set_templates,
+        dynamic_groups=dynamic_groups,
+    )
+
+    records = []
+    for path, config, snippet, hash_str, old_strategy in pending:
         schema_error = parse_error = validate_error = obj = None
         try:
             config = parser.check(config)

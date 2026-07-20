@@ -10,9 +10,11 @@ specific language governing permissions and limitations under the License.
 
 import json
 from copy import deepcopy
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
+import xxhash
 import yaml
 from schema import SchemaError
 
@@ -22,7 +24,7 @@ from bkmonitor.as_code.parse_yaml import StrategyConfigParser
 from bkmonitor.as_code.schema import StrategySchema
 from bkmonitor.strategy.new_strategy import Strategy
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 DATA_PATH = "bkmonitor/as_code/tests/data/"
 
@@ -78,6 +80,8 @@ def patch_cmdb_apis():
     search_dynamic_group = mock.patch("bkmonitor.as_code.parse.api.cmdb.search_dynamic_group").start()
     search_dynamic_group.side_effect = lambda *args, **kwargs: []
 
+    return get_topo_tree, get_dynamic_query, search_dynamic_group
+
 
 def test_strategy_parse_issue_config():
     parser = make_parser(notice_group_ids={"ops.yaml": 1})
@@ -107,18 +111,29 @@ def test_strategy_parse_issue_config_absent_and_null():
     assert config_with_null_issue["issue_config"] is None
 
 
+def _mock_empty_strategies():
+    """mock 业务下无存量策略，避免 convert_rules 前置查库受多库限制影响。"""
+    strategies_qs = mock.MagicMock()
+    strategies_qs.filter.return_value = []
+    strategies_qs.__iter__.side_effect = lambda: iter([])
+    filter_qs = mock.MagicMock()
+    filter_qs.only.return_value = strategies_qs
+    return mock.patch("bkmonitor.as_code.parse.StrategyModel.objects.filter", return_value=filter_qs)
+
+
 def test_convert_rules_passes_issue_config():
-    patch_cmdb_apis()
+    get_topo_tree, get_dynamic_query, search_dynamic_group = patch_cmdb_apis()
     code_config = load_rule_config("issue_config.yaml")
 
-    records = convert_rules(
-        bk_biz_id=2,
-        app="app1",
-        configs={"issue_config.yaml": code_config},
-        snippets={},
-        notice_group_ids={"ops.yaml": 1},
-        action_ids={},
-    )
+    with _mock_empty_strategies():
+        records = convert_rules(
+            bk_biz_id=2,
+            app="app1",
+            configs={"issue_config.yaml": code_config},
+            snippets={},
+            notice_group_ids={"ops.yaml": 1},
+            action_ids={},
+        )
 
     assert len(records) == 1
     assert records[0]["validate_error"] is None
@@ -133,6 +148,39 @@ def test_convert_rules_passes_issue_config():
         ],
         "alert_levels": [1, 2],
     }
+    # 有变更配置时仍需拉取 CMDB 映射
+    get_topo_tree.assert_called_once_with(bk_biz_id=2)
+    assert get_dynamic_query.call_count == 2
+    search_dynamic_group.assert_called_once_with(bk_biz_id=2, bk_obj_id="host")
+
+
+def test_convert_rules_skips_cmdb_when_hash_unchanged():
+    """全部策略 hash 未变更时，不应发起 CMDB 远程调用。"""
+    get_topo_tree, get_dynamic_query, search_dynamic_group = patch_cmdb_apis()
+    code_config = load_rule_config("cpu_simple.yaml")
+    hash_str = xxhash.xxh3_128_hexdigest(json.dumps(code_config))
+    old_strategy = SimpleNamespace(id=1, path="cpu_simple.yaml", hash=hash_str, name="CPU单核使用率")
+
+    strategies_qs = mock.MagicMock()
+    strategies_qs.filter.return_value = [old_strategy]
+    strategies_qs.__iter__.side_effect = lambda: iter([old_strategy])
+    filter_qs = mock.MagicMock()
+    filter_qs.only.return_value = strategies_qs
+
+    with mock.patch("bkmonitor.as_code.parse.StrategyModel.objects.filter", return_value=filter_qs):
+        records = convert_rules(
+            bk_biz_id=2,
+            app="app1",
+            configs={"cpu_simple.yaml": deepcopy(code_config)},
+            snippets={},
+            notice_group_ids={"ops.yaml": 1},
+            action_ids={},
+        )
+
+    assert records == []
+    get_topo_tree.assert_not_called()
+    get_dynamic_query.assert_not_called()
+    search_dynamic_group.assert_not_called()
 
 
 def test_strategy_unparse_issue_config_round_trip():
