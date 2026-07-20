@@ -1491,20 +1491,8 @@ class TestSyncRouter(TestCase):
         注意：tag_ids 必须传列表而非字符串，防止 tag_id 值拼接导致的匹配失败。
         """
         doris_tag_id = self._ensure_doris_tag()
-        params = dict(
-            index_set_name="manual_doris",
-            space_uid="bkcc__2",
-            scenario_id=Scenario.BKDATA,
-            tag_ids=[doris_tag_id],
-            doris_table_id="db.doris_table_1,db.doris_table_2",
-            support_doris=True,
-        )
-        params.update(extra)
-        index_set = LogIndexSet.objects.create(**params)
-        # refresh_from_db 确保 tag_ids 经过 from_db_value 转换（避免 list("14") 拆字问题）
-        index_set.refresh_from_db()
         # 手动接入 Doris 也有采集项，storage_cluster_type 为 elasticsearch
-        CollectorConfig.objects.create(
+        collector_config_obj = CollectorConfig.objects.create(
             table_id="591_manual",
             bk_biz_id=2,
             collector_config_name="manual_doris_cc",
@@ -1512,7 +1500,24 @@ class TestSyncRouter(TestCase):
             category_id="other_rt",
             storage_cluster_type=STORAGE_CLUSTER_TYPE,
         )
-        return index_set
+        params = dict(
+            index_set_name="manual_doris",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.BKDATA,
+            tag_ids=[doris_tag_id],
+            doris_table_id="db.doris_table_1,db.doris_table_2",
+            support_doris=True,
+            collector_config_id=collector_config_obj.collector_config_id,
+        )
+        params.update(extra)
+        index_set_obj = LogIndexSet.objects.create(**params)
+        # refresh_from_db 确保 tag_ids 经过 from_db_value 转换（避免 list("14") 拆字问题）
+        index_set_obj.refresh_from_db()
+
+        collector_config_obj.index_set_id = index_set_obj.index_set_id
+        collector_config_obj.save()
+
+        return index_set_obj
 
     # ==================================================================
     # 场景 1：原生 Doris 采集项
