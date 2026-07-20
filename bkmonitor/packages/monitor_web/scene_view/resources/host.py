@@ -509,6 +509,7 @@ class GetHostProcessListResource(Resource):
             "uptime": "uptime",
             "pid": "pid",
             "user": "username",
+            "fdNum": "fd_num",
         }
 
         return [
@@ -530,6 +531,7 @@ class GetHostProcessListResource(Resource):
                 "memRss": host_runtime.get(process["name"], {}).get(runtime_metric_map["memRss"]),
                 "memUsage": host_runtime.get(process["name"], {}).get(runtime_metric_map["memUsage"]),
                 "uptime": host_runtime.get(process["name"], {}).get(runtime_metric_map["uptime"]),
+                "fdNum": host_runtime.get(process["name"], {}).get(runtime_metric_map["fdNum"]),
                 "startCommand": process.get("startCommand"),
             }
             for process in processes[host.bk_host_id]

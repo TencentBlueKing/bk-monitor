@@ -279,7 +279,8 @@ def get_process_runtime_metrics(bk_biz_id: int, hosts: list[Host]) -> dict[str, 
         # - mem_res:       进程使用的物理内存（字节）
         # - mem_usage_pct: 进程内存使用率（%）
         # - uptime:        进程运行时长（秒）
-        METRIC_FIELDS = ["cpu_usage_pct", "mem_res", "mem_usage_pct", "uptime"]
+        # - fd_num:        进程文件句柄数（2026-07-20 新增）
+        METRIC_FIELDS = ["cpu_usage_pct", "mem_res", "mem_usage_pct", "uptime", "fd_num"]
         # system.proc 维度字段（按列名直接读取，不可 AVG 聚合；user 对应 username，无 user/mem_rss 字段）
         # - pid:     进程 ID
         # - username: 进程所属用户名
