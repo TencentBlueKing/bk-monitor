@@ -84,7 +84,7 @@ class ChartHandler:
             )
         self.space_uid = self.data.space_uid
         self.bk_biz_id = space_uid_to_bk_biz_id(self.space_uid)
-        self.is_support_doris = self.data.is_support_doris()
+        self.is_support_doris = self.data.support_doris if self.data.support_doris else self.data.is_native_doris()
 
     @classmethod
     def get_instance(cls, index_set_id, mode):

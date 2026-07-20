@@ -211,9 +211,15 @@ class IndexSetHandler(APIModel):
             key="collector_config_id",
             value="collector_scenario_id",
         )
+        index_set_ids = [index_set["index_set_id"] for index_set in index_sets]
+        is_id_to_is_native_doris_map = LogIndexSet.batch_get_is_native_doris(index_set_ids)
         for index_set in index_sets:
             index_set["collector_scenario_id"] = collector_scenario_map.get(index_set["collector_config_id"])
-            index_set["support_doris"] = LogIndexSet.get_is_support_doris(index_set["index_set_id"])
+            index_set["support_doris"] = (
+                index_set["support_doris"]
+                if index_set["support_doris"]
+                else is_id_to_is_native_doris_map.get(index_set["index_set_id"], False)
+            )
         # 不分组，直接返回
         if not is_group:
             return index_sets
