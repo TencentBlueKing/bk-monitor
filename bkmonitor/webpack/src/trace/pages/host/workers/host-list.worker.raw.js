@@ -183,6 +183,20 @@ const matchWhereItem = (row, item) => {
       });
     });
   }
+  // 主机 ID / IP 类文本字段：使用 includes 包含模糊匹配（而非枚举精确匹配）
+  if (
+    ['bk_host_id', 'bk_host_innerip_v6', 'bk_host_outerip_v6', 'bk_host_innerip', 'bk_host_outerip'].includes(item.key)
+  ) {
+    const curValue = row?.[item.key];
+    if (curValue && ['number', 'string'].includes(typeof curValue)) {
+      return `${curValue}`.includes(item.value?.[0] || '');
+    }
+    return false;
+  }
+  // 通配符 key '*'：对整行做全文关键字搜索
+  if (item.key === '*') {
+    return matchKeyword(row, item.value?.[0] || '');
+  }
   const rowValues = getRowFieldValues(row, item.key).map(v => String(v));
   const matchValues = values.map(v => String(v));
   switch (method) {
