@@ -1177,7 +1177,7 @@ class StrategyCacheManager(CacheManager):
         # 遍历变更策略以确定受影响的业务和待删除的策略
         for history in histories:
             # 变更的策略，需要判定is_enabled变化
-            if history.operate != "delete":
+            if history.operate not in ("delete", "bulk_delete"):
                 # 本次增量更新的业务列表
                 target_biz_set.add(history.content["bk_biz_id"])
                 # 判断策略是否启用
