@@ -30,6 +30,7 @@
       <button
         :class="['handle-item', { 'is-disable': !isActiveLog }]"
         type="button"
+        v-bk-tooltips="{ allowHtml: true, content: '#realTimeLog-html', delay: 500, disabled: isActiveLog }"
         @click.stop="handleCheckClick('realTimeLog', isActiveLog)"
         @mouseup.stop
       >
@@ -40,6 +41,7 @@
       <button
         :class="['handle-item', { 'is-disable': !isActiveLog }]"
         type="button"
+        v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html', delay: 500, disabled: isActiveLog }"
         @click.stop="handleCheckClick('contextLog', isActiveLog)"
         @mouseup.stop
       >
@@ -83,39 +85,30 @@
           <span class="handle-label ai-label">AI</span>
         </button>
       </template>
-      <div v-show="false">
-        <div id="realTimeLog-html">
-          <span>
-            <span
-              v-if="!isActiveLog"
-              class="bk-icon icon-exclamation-circle-shape"
-            ></span>
-            <span>{{ toolMessage.realTimeLog }}</span>
-          </span>
-        </div>
-      </div>
-      <div v-show="false">
-        <div id="contextLog-html">
-          <span>
-            <span
-              v-if="!isActiveLog"
-              class="bk-icon icon-exclamation-circle-shape"
-            ></span>
-            <span>{{ toolMessage.contextLog }}</span>
-          </span>
-        </div>
-      </div>
     </template>
     <template v-else>
       <button
         :class="['handle-item', { 'is-disable': !isActiveLog }]"
         type="button"
+        v-bk-tooltips="{ allowHtml: true, content: '#contextLog-html', delay: 500, disabled: isActiveLog }"
         @click.stop="handleCheckClick('contextLog', isActiveLog)"
         @mouseup.stop
       >
         <span class="icon bklog-icon bklog-shangxiawen" />
         <span class="handle-label">{{ $t('上下文') }}</span>
       </button>
+      <template v-if="showTraceInput">
+        <span class="handle-divider" />
+        <button
+          class="handle-item"
+          type="button"
+          @click.stop="handleCheckClick('trace_id', true)"
+          @mouseup.stop
+        >
+          <span class="icon bklog-icon bklog-tracing" />
+          <span class="handle-label">Trace</span>
+        </button>
+      </template>
       <template v-if="showFullRow">
         <span class="handle-divider" />
         <button
@@ -129,6 +122,28 @@
         </button>
       </template>
     </template>
+    <div v-show="false">
+      <div id="realTimeLog-html">
+        <span>
+          <span
+            v-if="!isActiveLog"
+            class="bk-icon icon-exclamation-circle-shape"
+          ></span>
+          <span>{{ toolMessage.realTimeLog }}</span>
+        </span>
+      </div>
+    </div>
+    <div v-show="false">
+      <div id="contextLog-html">
+        <span>
+          <span
+            v-if="!isActiveLog"
+            class="bk-icon icon-exclamation-circle-shape"
+          ></span>
+          <span>{{ toolMessage.contextLog }}</span>
+        </span>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -188,9 +203,14 @@
           }
         );
       },
+      /** 当前行存在可解析的 Trace ID 时才展示入口 */
       showTraceInput() {
-        return this.$store.state.indexSetFieldConfig?.apm_relation?.is_active ?? false;
-      }
+        const isApmActive = this.$store.state.indexSetFieldConfig?.apm_relation?.is_active ?? false;
+        if (!isApmActive) {
+          return false;
+        }
+        return !!this.getTraceIdFromRowData();
+      },
     },
     methods: {
       normalizeTraceSearchText(value) {
@@ -214,6 +234,11 @@
           const matchedTraceId = this.getTraceIdFromText(traceId);
           if (matchedTraceId) {
             return matchedTraceId;
+          }
+          // 专用字段存在时，优先信任字段值（兼容高亮标签等包装）
+          const cleanedTraceId = this.normalizeTraceSearchText(traceId).trim();
+          if (cleanedTraceId) {
+            return cleanedTraceId;
           }
         }
 
