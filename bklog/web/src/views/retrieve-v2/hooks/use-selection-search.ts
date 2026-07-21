@@ -600,9 +600,9 @@ export default (options: UseSelectionSearchOptions) => {
 
   /**
    * 字段类型优先的划词 Value / Operator 解析（优先级高于 JSON 展示形态）。
-   * UI：
-   * 1) keyword/flattened → 原文 contains（转义保留字）
-   * 2) text → 最小分词补齐 contains（含 JSON 外观的 text）
+   * UI（最终以 resolveAddToSearch → buildUiCondition 为准）：
+   * 1) keyword/flattened → 完整值 is(=)；部分值 contains
+   * 2) text → 最小分词补齐 contains（含 JSON 外观的 text）；完整值 is
    * 3) 其他 → 完整 FieldValue + is(=)
    */
   const resolveSelectionByFieldType = (
@@ -619,9 +619,9 @@ export default (options: UseSelectionSearchOptions) => {
     const plain = field && row ? getFieldPlainText(row, field) : '';
 
     if (isKeywordLikeField(fieldType)) {
-      // 原文不做补齐；转义在 emit（UI）/ SQL 格式化时统一处理，避免双重转义
+      // 原文不做补齐；完整 VALUE → 等值，部分 → contains（UI 由 buildUiCondition 落到 = / contains）
       return {
-        operator: 'contains match phrase',
+        operator: plain && plain === raw ? 'is' : 'contains',
         values: [raw],
       };
     }

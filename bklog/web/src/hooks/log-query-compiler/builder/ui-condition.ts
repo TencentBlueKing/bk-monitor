@@ -10,7 +10,10 @@ import type { AstNode, SelectionContext } from '../types';
 
 /**
  * UI Condition Builder：输出 addition 可用的 field/operator/value。
- * 与 setQueryCondition 对齐，不在此做 SQL 字符串拼装。
+ * 操作符必须落在字段 field_operator 内（与后端 OPERATORS 对齐）：
+ * - keyword/flattened：完整值 → `=` / `!=`；部分值 → `contains` / `not contains`
+ * - text：完整值 → `is` / `is not`；部分值 → `contains match phrase` / …
+ * 不在此做 SQL 字符串拼装。
  */
 export const buildUiCondition = (
   ast: AstNode,
@@ -25,6 +28,8 @@ export const buildUiCondition = (
 
   const fieldType = leaf.fieldType || ctx.fieldType;
   const negative = Boolean(leaf.negative);
+  const full = ctx.fullText && ctx.fullText !== '--' ? String(ctx.fullText) : '';
+  const isExactValue = Boolean(full && full === value);
 
   if (leaf.type === 'Global' || !leaf.field) {
     return {
@@ -34,17 +39,20 @@ export const buildUiCondition = (
     };
   }
 
+  // keyword/flattened：必须用 `=` / `contains`，禁止输出 text 专用的 contains match phrase，
+  // 否则标签靠 mapping 显示「包含」，编辑回填却因不在 field_operator 内回退成 `=`。
   if (isKeywordLikeField(fieldType)) {
     return {
       field,
-      operator: negative ? 'not contains match phrase' : 'contains match phrase',
+      operator: isExactValue
+        ? (negative ? '!=' : '=')
+        : (negative ? 'not contains' : 'contains'),
       value: [value],
     };
   }
 
   if (isTextLikeField(fieldType)) {
-    const full = ctx.fullText;
-    const operator = full && full === value
+    const operator = isExactValue
       ? (negative ? 'is not' : 'is')
       : (negative ? 'not contains match phrase' : 'contains match phrase');
     return { field, operator, value: [value] };
@@ -53,7 +61,7 @@ export const buildUiCondition = (
   return {
     field,
     operator: negative ? 'is not' : 'is',
-    value: [ctx.fullText && ctx.fullText !== '--' ? ctx.fullText : value],
+    value: [full || value],
   };
 };
 
