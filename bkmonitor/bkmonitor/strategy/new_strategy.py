@@ -3088,6 +3088,7 @@ class Strategy(AbstractConfig):
                     create_user=cls._get_username(),
                     strategy_id=strategy_id,
                     operate="delete",
+                    status=True,
                 )
             )
         StrategyHistoryModel.objects.bulk_create(histories, batch_size=100)
