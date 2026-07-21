@@ -16,9 +16,11 @@ import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
+from bkmonitor.strategy.history import MIN_CLEAN_STRATEGY_HISTORY_DAYS
+
 
 def test_command_passes_cleanup_options_and_prints_deleted_count():
-    """命令应将参数传给业务层，并输出实际删除数量。"""
+    """带 --execute 时应真正删除，并将参数传给业务层。"""
     stdout = StringIO()
 
     with mock.patch(
@@ -30,6 +32,7 @@ def test_command_passes_cleanup_options_and_prints_deleted_count():
             days=30,
             batch_size=200,
             keep_latest_snapshots=3,
+            execute=True,
             stdout=stdout,
         )
 
@@ -37,37 +40,36 @@ def test_command_passes_cleanup_options_and_prints_deleted_count():
     assert params.days == 30
     assert params.batch_size == 200
     assert params.keep_latest_snapshots == 3
+    assert params.dry_run is False
     assert "deleted 42 records" in stdout.getvalue()
 
 
-def test_command_uses_business_defaults():
-    """未指定可选参数时应使用业务层默认值。"""
-    with mock.patch(
-        "bkmonitor.management.commands.clean_strategy_history.clean_strategy_history",
-        return_value=0,
-    ) as clean:
-        call_command("clean_strategy_history", days=30, stdout=StringIO())
-
-    params = clean.call_args.args[0]
-    assert params.batch_size == 1000
-    assert params.keep_latest_snapshots == 1
-    assert params.dry_run is False
-
-
-def test_command_dry_run_passes_option_and_reports_matched_count():
-    """dry-run 应传入业务层，并明确输出预计删除数量。"""
+def test_command_defaults_to_dry_run_without_execute():
+    """未传 --execute 时应默认 dry-run，不删除。"""
     stdout = StringIO()
 
     with mock.patch(
         "bkmonitor.management.commands.clean_strategy_history.clean_strategy_history",
         return_value=42,
     ) as clean:
-        call_command("clean_strategy_history", days=30, dry_run=True, stdout=stdout)
+        call_command("clean_strategy_history", days=30, stdout=stdout)
 
     params = clean.call_args.args[0]
+    assert params.batch_size == 1000
+    assert params.keep_latest_snapshots == 1
     assert params.dry_run is True
     assert "would delete 42 records" in stdout.getvalue()
     assert "deleted 42 records" not in stdout.getvalue()
+
+
+def test_command_rejects_days_below_minimum_retention():
+    """命令层拒绝低于最小保留天数的 --days。"""
+    with pytest.raises(CommandError, match=rf"days must be >= {MIN_CLEAN_STRATEGY_HISTORY_DAYS}"):
+        call_command(
+            "clean_strategy_history",
+            days=MIN_CLEAN_STRATEGY_HISTORY_DAYS - 1,
+            stdout=StringIO(),
+        )
 
 
 @pytest.mark.parametrize(
