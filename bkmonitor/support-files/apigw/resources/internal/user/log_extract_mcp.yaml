@@ -126,8 +126,10 @@ paths:
                   type: array
                   minItems: 1
                   items: {type: string}
-                filter_type: {type: string, enum: ['', line_range, match_word, tail_line, match_range]}
-                filter_content: {type: object}
+                filter_type: {type: string, enum: ['', line_range, match_word, tail_line, match_range], description: Empty means no filtering. 空字符串表示不过滤。}
+                filter_content:
+                  type: object
+                  description: "Parameters by filter_type: '' -> {}; line_range -> {start_line:int, end_line:int}; match_word -> {keyword:string, keyword_type:keyword_or|keyword_and|keyword_not}; tail_line -> {line_num:positive int}; match_range -> {start:string, end:string}. 各过滤类型按上述结构传参。"
                 remark: {type: string, maxLength: 255}
                 preview_directory: {type: string}
                 preview_ip_list:
