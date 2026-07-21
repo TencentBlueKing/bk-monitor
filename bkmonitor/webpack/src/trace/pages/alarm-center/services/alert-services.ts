@@ -45,7 +45,6 @@ import {
   AlarmStatusIconMap,
 } from '../typings';
 import { type RequestOptions, AlarmService } from './base';
-import { getPartialResultState } from './partial-result';
 import { type IFilterField, EFieldType } from '@/components/retrieval-filter/typing';
 const ALERT_TABLE_COLUMNS = [
   {
@@ -851,14 +850,12 @@ export class AlertService extends AlarmService {
     const data = await searchAlert(
       {
         ...paramsClone,
-        allow_partial: true,
         show_overview: false, // 是否展示概览
         show_aggs: false, // 是否展示聚合
       },
       options
     )
-      .then(response => {
-        const { alerts, total } = response;
+      .then(({ alerts, total }) => {
         // 将后端queryConfig相关数转换组装为前端定义统一的 QueryConfig 格式
         for (const alert of alerts || []) {
           const sourceQueryConfigs = alert.items?.[0]?.query_configs || [];
@@ -895,13 +892,11 @@ export class AlertService extends AlarmService {
         return {
           total,
           data: alerts || [],
-          ...getPartialResultState(response),
         };
       })
       .catch(() => ({
         total: 0,
         data: [],
-        ...getPartialResultState({}),
       }));
     return data;
   }
@@ -921,7 +916,6 @@ export class AlertService extends AlarmService {
     const data = await searchAlert(
       {
         ...paramsClone,
-        allow_partial: true,
         page_size: 0, // 不返回告警列表数据
         show_overview: true, // 是否展示概览
         show_aggs: true, // 是否展示聚合
@@ -983,7 +977,6 @@ export class AlertService extends AlarmService {
             if (item.id === 'notice_way') {
               return {
                 ...item,
-                isPartial: item.is_partial === true,
                 children: item.children.map(child => ({
                   ...child,
                   ...AlarmNoticeWayIconMap[child.id],
