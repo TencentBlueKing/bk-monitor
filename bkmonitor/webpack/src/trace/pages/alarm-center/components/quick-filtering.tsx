@@ -199,7 +199,10 @@ export default defineComponent({
                 >
                   {node.data.name}
                 </span>
-                <span class='item-count'>{node.data.count}</span>
+                <span class='item-count'>
+                  {filterGroup.isPartial ? '≥' : ''}
+                  {node.data.count}
+                </span>
               </div>
             ),
           }}
@@ -269,7 +272,13 @@ export default defineComponent({
                 class='filter-item'
               >
                 <div class='filter-group-header'>
-                  <div class='filter-group-title'>{item.name}</div>
+                  <div
+                    class='filter-group-title'
+                    title={item.isPartial ? this.t('统计结果不完整') : ''}
+                  >
+                    {item.name}
+                    {item.isPartial ? `（${this.t('统计不完整')}）` : ''}
+                  </div>
                   <i
                     class='icon-monitor icon-a-Clearqingkong'
                     onClick={() => this.handleClearFilter(item)}

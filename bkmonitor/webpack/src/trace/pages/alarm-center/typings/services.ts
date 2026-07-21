@@ -287,6 +287,7 @@ export type CommonCondition = {
 };
 
 export type CommonFilterParams = {
+  allow_partial?: boolean;
   bk_biz_id: number;
   bk_biz_ids: number[];
   conditions: CommonCondition[];
@@ -304,7 +305,16 @@ export type FilterTableResponse<T> = {
   data: T[];
   enabled_spaces?: number[];
   greyed_spaces?: number[];
+  isPartial?: boolean;
+  partialReasons?: Array<{
+    candidate_limit?: number;
+    code: string;
+    failed_shards?: number;
+    scanned_candidate_count?: number;
+    scopes: string[];
+  }>;
   total: number;
+  totalRelation?: 'eq' | 'gte';
   wx_cs_link?: string;
 };
 
@@ -479,6 +489,7 @@ export type QuickFilterItem = {
   /** icon颜色 */
   iconColor?: string;
   id: string;
+  isPartial?: boolean;
   /** 名称 */
   name: string;
   /** 文本颜色 */

@@ -43,6 +43,9 @@ export function useAlarmTable() {
   const page = shallowRef(1);
   /** 总条数 */
   const total = shallowRef(0);
+  /** 查询结果完整性 */
+  const isPartial = shallowRef(false);
+  const totalRelation = shallowRef<'eq' | 'gte'>('eq');
   /** 表格数据（深响应式，支持直接修改行对象属性后触发重新渲染） */
   const data = deepRef<(ActionTableItem | AlertTableItem | IncidentTableItem | IssueItem)[]>([]);
   /** 排序字段 */
@@ -73,6 +76,8 @@ export function useAlarmTable() {
 
     loading.value = true;
     data.value = [];
+    isPartial.value = false;
+    totalRelation.value = 'eq';
     const params = {
       ...alarmStore.commonFilterParams,
       page_size: pageSize.value,
@@ -96,6 +101,8 @@ export function useAlarmTable() {
     // 检查请求是否已被中止，确保不会更新过期数据
     if (signal.aborted) return;
     total.value = res.total;
+    isPartial.value = res.isPartial ?? false;
+    totalRelation.value = res.totalRelation ?? 'eq';
     data.value = res.data;
     enabledSpaces.value = (res.enabled_spaces ?? []).map(Number);
     wxCsLink.value = res.wx_cs_link ?? '';
@@ -150,6 +157,8 @@ export function useAlarmTable() {
     pageSize.value = commonPageSizeGet() ?? 50;
     page.value = 1;
     total.value = 0;
+    isPartial.value = false;
+    totalRelation.value = 'eq';
     data.value = [];
     loading.value = false;
     ordering.value = '';
@@ -162,6 +171,8 @@ export function useAlarmTable() {
     pageSize,
     page,
     total,
+    isPartial,
+    totalRelation,
     data,
     loading,
     ordering,
