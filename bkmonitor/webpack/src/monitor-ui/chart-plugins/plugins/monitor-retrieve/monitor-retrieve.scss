@@ -7,6 +7,10 @@
   --table-fount-size: 13px;
   --table-fount-color: #313238;
 
+  .v3-bklog-content {
+    max-height: calc(100vh - 120px - var(--notice-alert-height));
+  }
+
   .bklog-icon {
     font-size: 16px;
   }
