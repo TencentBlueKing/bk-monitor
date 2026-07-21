@@ -659,13 +659,13 @@ importers:
         version: 0.1.8(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3))
       '@blueking/date-picker':
         specifier: 3.0.6
-        version: 3.0.6(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.68(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(dayjs@1.11.20)(vue@3.5.30(typescript@5.9.3))
+        version: 3.0.6(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(dayjs@1.11.20)(vue@3.5.30(typescript@5.9.3))
       '@blueking/fork-resize-detector':
         specifier: ^0.0.2
         version: 0.0.2
       '@blueking/ip-selector':
         specifier: 0.3.0-beta.51
-        version: 0.3.0-beta.51(bkui-vue@2.0.2-beta.68(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(vue@3.5.30(typescript@5.9.3))
+        version: 0.3.0-beta.51(bkui-vue@2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(vue@3.5.30(typescript@5.9.3))
       '@blueking/login-modal':
         specifier: ^1.0.6
         version: 1.0.6
@@ -721,8 +721,8 @@ importers:
         specifier: workspace:*
         version: link:../apm
       bkui-vue:
-        specifier: 2.0.2-beta.68
-        version: 2.0.2-beta.68(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3))
+        specifier: 2.0.2-beta.97
+        version: 2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3))
       d3-array:
         specifier: ^3.2.4
         version: 3.2.4
@@ -4001,6 +4001,12 @@ packages:
 
   bkui-vue@2.0.2-beta.68:
     resolution: {integrity: sha512-uxd/o+O4axEbcT4b7rrMziCzndR+Rq5C3CZWwtFzpgM9WlkJ6xKBgZcv8aSvwMlxAzXWueB5qG8l6xIMsFaTUw==}
+    peerDependencies:
+      highlight.js: ~11.5.0
+      vue: ^3.2.0
+
+  bkui-vue@2.0.2-beta.97:
+    resolution: {integrity: sha512-nub6lSf5VWQ3dg0NeY4H5i/fcTYrW7F/tWgxMJsGwx8BkJ+8hIhS5374dx+pelPEuueFUAmWziJtGh5DFgCCig==}
     peerDependencies:
       highlight.js: ~11.5.0
       vue: ^3.2.0
@@ -10766,19 +10772,19 @@ snapshots:
       dayjs: 1.11.20
       vue: 2.7.16
 
-  '@blueking/date-picker@3.0.6(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.68(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(dayjs@1.11.20)(vue@3.5.30(typescript@5.9.3))':
+  '@blueking/date-picker@3.0.6(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(dayjs@1.11.20)(vue@3.5.30(typescript@5.9.3))':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
-      bkui-vue: 2.0.2-beta.68(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3))
+      bkui-vue: 2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3))
       dayjs: 1.11.20
       vue: 3.5.30(typescript@5.9.3)
 
   '@blueking/fork-resize-detector@0.0.2': {}
 
-  '@blueking/functional-dependency@0.0.1-beta.12(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.68(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(vue@3.5.30(typescript@5.9.3))':
+  '@blueking/functional-dependency@0.0.1-beta.12(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(vue@3.5.30(typescript@5.9.3))':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
-      bkui-vue: 2.0.2-beta.68(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3))
+      bkui-vue: 2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3))
       vue: 3.5.30(typescript@5.9.3)
 
   '@blueking/functional-dependency@0.0.1-beta.12(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)':
@@ -10797,10 +10803,10 @@ snapshots:
       bkui-vue: 2.0.2-beta.112(highlight.js@11.11.1)(vue@2.7.16)
       vue: 2.7.16
 
-  '@blueking/ip-selector@0.3.0-beta.51(bkui-vue@2.0.2-beta.68(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(vue@3.5.30(typescript@5.9.3))':
+  '@blueking/ip-selector@0.3.0-beta.51(bkui-vue@2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(vue@3.5.30(typescript@5.9.3))':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
-      '@blueking/functional-dependency': 0.0.1-beta.12(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.68(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(vue@3.5.30(typescript@5.9.3))
+      '@blueking/functional-dependency': 0.0.1-beta.12(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)))(vue@3.5.30(typescript@5.9.3))
       vue-i18n: 8.14.1(vue@3.5.30(typescript@5.9.3))
     transitivePeerDependencies:
       - bkui-vue
@@ -13559,6 +13565,20 @@ snapshots:
       vue-types: 4.1.1(vue@3.5.30(typescript@5.9.3))
 
   bkui-vue@2.0.2-beta.68(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)):
+    dependencies:
+      '@floating-ui/dom': 1.5.4
+      '@popperjs/core': 2.11.8
+      date-fns: 2.30.0
+      dompurify: 3.4.2
+      highlight.js: 11.11.1
+      js-calendar: 1.2.3
+      json-formatter-js: 2.3.4
+      lodash: 4.18.1
+      tinycolor2: 1.6.0
+      vue: 3.5.30(typescript@5.9.3)
+      vue-types: 4.1.1(vue@3.5.30(typescript@5.9.3))
+
+  bkui-vue@2.0.2-beta.97(highlight.js@11.11.1)(vue@3.5.30(typescript@5.9.3)):
     dependencies:
       '@floating-ui/dom': 1.5.4
       '@popperjs/core': 2.11.8
