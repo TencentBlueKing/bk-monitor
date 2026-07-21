@@ -25,10 +25,10 @@
  */
 
 import { copyMessage, formatDate, getRowFieldValue } from '@/common/util';
+import { resolveAddToSearch } from '@/hooks/log-query-compiler';
 import useStore from '@/hooks/use-store';
-import { BK_LOG_STORAGE } from '@/store/store.type';
+import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '@/store/store.type';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
-import { formatSqlContainsWildcardValue, isContainsOperator, isSqlSearchMode } from '@/views/retrieve-v2/search-bar/utils/sql-contains-wildcard';
 import { bkMessage } from 'bk-magic-vue';
 import { useRoute, useRouter } from 'vue-router/composables';
 
@@ -39,6 +39,11 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
   const store = useStore();
   const router = useRouter();
   const route = useRoute();
+
+  const getSearchMode = (): 'ui' | 'sql' => {
+    const mode = SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]];
+    return mode === 'sql' ? 'sql' : 'ui';
+  };
 
   // 处理高亮操作
   const handleHighlight = (value: string, fieldType?: string) => {
@@ -53,7 +58,9 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
     copyMessage(value);
   };
 
-  // 处理搜索条件操作
+  /**
+   * 点击分词「添加到本次检索」：统一走 resolveAddToSearch（UI + 语句）。
+   */
   const handleSearchCondition = (
     field: any,
     operator: string,
@@ -64,20 +71,38 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
     fullPlain?: string,
   ) => {
     const fieldName = typeof field === 'string' ? field : field?.field_name;
+    const fieldType = typeof field === 'string'
+      ? (store.getters.filteredFieldList?.find?.(item => item.field_name === field)?.field_type
+        ?? store.getters.visibleFields?.find?.(item => item.field_name === field)?.field_type)
+      : field?.field_type;
+
     if (value === '--') {
       handleAddCondition(fieldName, operator, [], isLink, depth, isNestedField);
       return;
     }
 
-    // 语句模式包含：按完整 VALUE 位置补 *，且不加引号（引号在 setQueryCondition 侧已去掉）
-    let nextValue = value;
-    if (
-      isSqlSearchMode(store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE])
-      && isContainsOperator(operator)
-    ) {
-      nextValue = formatSqlContainsWildcardValue(value, fullPlain);
-    }
-    handleAddCondition(fieldName, operator, [nextValue], isLink, depth, isNestedField);
+    const payload = resolveAddToSearch({
+      field: fieldName || '*',
+      value,
+      fieldType,
+      fullText: fullPlain,
+      operatorHint: operator,
+      searchMode: getSearchMode(),
+    });
+
+    handleAddCondition(
+      payload.field,
+      payload.operator,
+      payload.value,
+      isLink,
+      depth,
+      isNestedField,
+      {
+        fullPlain: payload.fullPlain,
+        fieldType: payload.fieldType,
+        queryString: payload.queryString,
+      },
+    );
   };
 
   // 设置路由参数
@@ -96,10 +121,28 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
     });
   };
 
-  // 添加条件
-  const handleAddCondition = (field, operator, value, isLink = false, depth, isNestedField = 'false') => {
+  // 添加条件（meta.queryString 优先：语句模式由 Compiler 生成）
+  const handleAddCondition = (
+    field,
+    operator,
+    value,
+    isLink = false,
+    depth?,
+    isNestedField = 'false',
+    meta: { fullPlain?: string; fieldType?: string; queryString?: string } = {},
+  ) => {
     return store
-      .dispatch('setQueryCondition', { field, operator, value, isLink, depth, isNestedField })
+      .dispatch('setQueryCondition', {
+        field,
+        operator,
+        value,
+        isLink,
+        depth,
+        isNestedField,
+        fullPlain: meta.fullPlain,
+        fieldType: meta.fieldType,
+        queryString: meta.queryString,
+      })
       .then(([newSearchList, searchMode, isNewSearchPage]) => {
         if (isLink) {
           const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
@@ -192,11 +235,10 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
       case 'contains match phrase':
       case 'not contains match phrase': {
         isParamsChange = true;
-        const operator = operation === 'not' ? 'is not' : operation;
+        const nextOperator = operation === 'not' ? 'is not' : operation;
         let fullPlain = fullPlainFromParams;
         if (
           fullPlain === undefined
-          && isContainsOperator(operator)
           && field
           && row
           && typeof field === 'object'
@@ -208,7 +250,7 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
         }
         handleSearchCondition(
           fieldName || field,
-          operator,
+          nextOperator,
           actualValue,
           isLink,
           depth,
@@ -237,10 +279,10 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
     if (typeof obj === 'object' && obj !== null) {
       if (field.is_virtual_alias_field) {
         const fieldList = [field.field_name, ...field.source_field_names];
-        for (const fieldName of fieldList) {
-          const value = obj?.[fieldName];
-          if (value !== undefined && value !== null && value !== '') {
-            return value;
+        for (const name of fieldList) {
+          const val = obj?.[name];
+          if (val !== undefined && val !== null && val !== '') {
+            return val;
           }
         }
       }

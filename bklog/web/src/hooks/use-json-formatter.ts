@@ -46,6 +46,10 @@ import {
   stripMark,
   truncateMarkedTextByChars,
 } from '../storage/utils/retrieve-render-meta';
+import {
+  isKeywordLikeFieldType,
+  isTextFieldType,
+} from '@/views/retrieve-v2/search-bar/utils/sql-contains-wildcard';
 
 import type { Ref } from 'vue';
 
@@ -300,10 +304,11 @@ export default class UseJsonFormatter {
   }
 
   /**
-   * 操作符判定（多次点击必须稳定）：
+   * 操作符判定（字段类型优先，多次点击必须稳定）：
+   * - keyword/flattened → contains（划词/点击分词原文）
+   * - text → 完整 VALUE 用 is，否则 contains（分词本身即最小单位）
+   * - 其他 → is（Value 侧补齐为完整 FieldValue）
    * - KEY → contains
-   * - 命中完整 VALUE → is
-   * - 命中部分分词 → contains
    */
   private resolveSegmentClickOperation(
     val: string,
@@ -322,8 +327,29 @@ export default class UseJsonFormatter {
 
     const selected = this.escapeString(String(selectedValue ?? '')).replace(/<\/?mark>/g, '').trim();
     const fullPlain = this.resolveClickFullPlainValue(ctx, resolvedFieldName, field, selected).trim();
+    const fieldType = field?.field_type ?? ctx.rootFieldType;
 
-    // Object/JSON 叶子或任意「部分命中」：完整等值用 is，否则 contains
+    // 其他类型（非 text / keyword / flattened）：统一等值
+    if (
+      fieldType
+      && !isTextFieldType(fieldType)
+      && !isKeywordLikeFieldType(fieldType)
+      && fieldType !== 'string'
+      && fieldType !== 'object'
+      && fieldType !== 'nested'
+      && fieldType !== '__virtual__'
+    ) {
+      return val === 'not' ? 'is not' : 'is';
+    }
+
+    if (isKeywordLikeFieldType(fieldType)) {
+      if (fullPlain && selected && fullPlain === selected) {
+        return val === 'not' ? 'is not' : 'is';
+      }
+      return val === 'not' ? 'not contains match phrase' : 'contains match phrase';
+    }
+
+    // text / string / object 叶子：完整等值用 is，否则 contains
     if (this.isObjectLeafClickContext(ctx, field, resolvedFieldName) || (fullPlain && selected && fullPlain !== selected)) {
       if (fullPlain && selected && fullPlain === selected) {
         return val === 'not' ? 'is not' : 'is';
@@ -331,7 +357,8 @@ export default class UseJsonFormatter {
       return val === 'not' ? 'not contains match phrase' : 'contains match phrase';
     }
 
-    if (ctx.parsedFromJsonString) {
+    // text 字段即便以 JSON 展示，点击分词仍按 contains（语句模式再格式化为引号短语）
+    if (ctx.parsedFromJsonString || isTextFieldType(fieldType)) {
       return val === 'not' ? 'not contains match phrase' : 'contains match phrase';
     }
 
@@ -363,11 +390,34 @@ export default class UseJsonFormatter {
       : this.resolveFormatterSearchFieldName(ctx.name, ctx.searchFieldName);
     const activeField = this.getField(resolvedFieldName) ?? this.config.field;
     const selectedValue = ctx.value;
-    const target = ['date', 'date_nanos'].includes(activeField?.field_type)
+    const fieldType = activeField?.field_type;
+    const fullPlain = this.resolveClickFullPlainValue(
+      ctx,
+      resolvedFieldName || activeField?.field_name || '',
+      activeField,
+      selectedValue,
+    );
+
+    let target = ['date', 'date_nanos'].includes(fieldType)
       ? (this.getPathValue(ctx.jsonValue, activeField?.field_name)
         ?? ctx.jsonValue?.[activeField?.field_name]
         ?? selectedValue)
       : selectedValue;
+
+    // 其他类型：Value 统一补齐为完整 FieldValue
+    if (
+      fieldType
+      && !isTextFieldType(fieldType)
+      && !isKeywordLikeFieldType(fieldType)
+      && fieldType !== 'string'
+      && fieldType !== 'object'
+      && fieldType !== 'nested'
+      && fieldType !== '__virtual__'
+      && fullPlain
+      && fullPlain !== '--'
+    ) {
+      target = fullPlain;
+    }
 
     const operation = this.resolveSegmentClickOperation(
       val,
@@ -377,18 +427,11 @@ export default class UseJsonFormatter {
       selectedValue,
     );
 
-    const fullPlain = this.resolveClickFullPlainValue(
-      ctx,
-      resolvedFieldName || activeField?.field_name || '',
-      activeField,
-      selectedValue,
-    );
-
     const option = {
       fieldName: resolvedFieldName || activeField?.field_name,
-      fieldType: activeField?.field_type,
+      fieldType,
       operation,
-      // 语句模式包含的 * 通配由 use-text-action 按 fullPlain 位置统一补齐
+      // 语句模式格式化（通配 / 引号）由 use-text-action 按字段类型统一处理
       value: target ?? selectedValue,
       fullPlain,
       depth: ctx.depth,

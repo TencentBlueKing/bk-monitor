@@ -4,6 +4,7 @@
  */
 import DOMPurify from 'dompurify';
 
+import { compileFieldValueToQueryString } from '@/hooks/log-query-compiler';
 import { storeCacheService } from '@/storage';
 
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../store.type.ts';
@@ -22,8 +23,9 @@ export function setQueryConditionAction({ state, dispatch }, payload) {
   const isNewSearchPage = newQueryList[0].operator === 'new-search-page-is';
   const from = newQueryList[0].from ?? 'origin';
 
-  const getTargetField = field => state.visibleFields?.find(item => item.field_name === field);
-  const getFieldType = field => getTargetField(field)?.field_type ?? '';
+  const getTargetField = field => state.visibleFields?.find(item => item.field_name === field)
+    ?? state.indexFieldInfo?.fields?.find?.(item => item.field_name === field);
+  const getFieldType = (field, fallbackType) => getTargetField(field)?.field_type ?? fallbackType ?? '';
 
   const getAdditionMappingOperator = ({ operator, field, value }) => {
     let mappingKey = {
@@ -71,43 +73,27 @@ export function setQueryConditionAction({ state, dispatch }, payload) {
     return mappingKey[operator] ?? operator;
   };
 
-  const formatJsonString = (formatResult) => {
-    if (typeof formatResult === 'string') {
-      return DOMPurify.sanitize(formatResult);
+  /**
+   * 语句模式兜底：上游未带 queryString 时，统一走 Compiler。
+   */
+  const buildSqlQueryFragment = ({ field, operator, value, fieldType, fullPlain }) => {
+    const raw = Array.isArray(value) ? value[0] : value;
+    const textType = getFieldType(field, fieldType);
+    const safeValue = typeof raw === 'string' ? DOMPurify.sanitize(raw) : raw;
+
+    if (field === '*' || !field) {
+      const inner = String(safeValue ?? '').replace(/["\\]/g, '\\$&');
+      const neg = ['is not', 'not contains match phrase', 'not contains', '!='].includes(operator);
+      return neg ? `NOT "${inner}"` : `"${inner}"`;
     }
-    return formatResult;
-  };
 
-  const getSqlAdditionMappingOperator = ({ operator, field }) => {
-    const textType = getFieldType(field);
-    const formatValue = (value) => {
-      let formatResult = value;
-      if (['text', 'string', 'keyword'].includes(textType)) {
-        if (Array.isArray(formatResult)) {
-          formatResult = formatResult.map(formatJsonString);
-        } else {
-          formatResult = formatJsonString(formatResult);
-        }
-      }
-      return formatResult;
-    };
-
-    // 包含关系：语句模式使用 KEY: *Value / Value* / *Value*，Value 不加引号（由上游按位置补 *）
-    const formatContainsSql = (val) => {
-      const text = Array.isArray(val) ? val[0] : val;
-      return formatJsonString(text);
-    };
-
-    const mappingKey = {
-      is: val => `${field}: "${formatValue(val)}"`,
-      'is not': val => `NOT ${field}: "${formatValue(val)}"`,
-      'contains match phrase': val => `${field}: ${formatContainsSql(val)}`,
-      'not contains match phrase': val => `NOT ${field}: ${formatContainsSql(val)}`,
-      '=': val => `${field}: "${formatValue(val)}"`,
-      '!=': val => `NOT ${field}: "${formatValue(val)}"`,
-    };
-
-    return mappingKey[operator] ?? operator;
+    return compileFieldValueToQueryString({
+      field,
+      value: String(safeValue ?? ''),
+      fieldType: textType,
+      fullText: fullPlain,
+      operatorHint: operator,
+    });
   };
 
   const searchValueIsExist = (newSearchValue, targetSearchMode) => {
@@ -141,10 +127,19 @@ export function setQueryConditionAction({ state, dispatch }, payload) {
         newSearchValue = Object.assign({ field, value }, { operator: mapOperator });
       }
       if (searchMode === 'sql') {
-        if (targetField?.is_virtual_obj_node) {
-          newSearchValue = `"${value[0]}"`;
+        if (item.queryString) {
+          newSearchValue = item.queryString;
+        } else if (targetField?.is_virtual_obj_node) {
+          const inner = String(value?.[0] ?? '').replace(/"/g, '\\"');
+          newSearchValue = `"${inner}"`;
         } else {
-          newSearchValue = getSqlAdditionMappingOperator({ field, operator })?.(value);
+          newSearchValue = buildSqlQueryFragment({
+            field,
+            operator,
+            value,
+            fieldType: item.fieldType,
+            fullPlain: item.fullPlain,
+          });
         }
       }
       const isExist = searchValueIsExist(newSearchValue, searchMode);

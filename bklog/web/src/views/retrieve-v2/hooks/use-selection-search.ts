@@ -29,10 +29,14 @@ import { computed, type Ref } from 'vue';
 import { getRowFieldValue, isNestedField } from '@/common/util';
 import LuceneSegment from '@/hooks/lucene.segment';
 import useStore from '@/hooks/use-store';
-import { BK_LOG_STORAGE } from '@/store/store.type';
+import {
+  isKeywordLikeField,
+  isTextLikeField,
+  resolveAddToSearch,
+} from '@/hooks/log-query-compiler';
+import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '@/store/store.type';
 import { splitRenderText } from '@/storage/utils/retrieve-render-meta';
 import { getInputQueryDefaultItem } from '@/views/retrieve-v2/search-bar/utils/const.common';
-import { formatSqlContainsValues } from '@/views/retrieve-v2/search-bar/utils/sql-contains-wildcard';
 
 export const FULLTEXT_FIELD_NAME = '*';
 const SELECTION_MAX_TOKENS = 1000;
@@ -48,7 +52,7 @@ const STRUCT_FIELD_TYPES = new Set(['object', 'nested']);
  */
 export const DEFAULT_ENABLE_MINIMAL_TOKEN_COMPLETION = true;
 
-/** Text/String 字段以 JSON 结构展示时的 DOM 标识：检索只认外层字段，不做子 KEY 补齐/拆分 */
+/** Text/String 字段以 JSON 结构展示时的 DOM 标识：检索只认外层字段；Value 仍按外层 field_type 解析 */
 export const JSON_TEXT_VALUE_ATTR = 'data-json-text-value';
 
 export type SelectionToken = {
@@ -81,6 +85,7 @@ type HandleAddCondition = (
   isLink?: boolean,
   depth?: string | number,
   isNestedField?: string,
+  meta?: { fullPlain?: string; fieldType?: string; queryString?: string },
 ) => any;
 
 type UseSelectionSearchOptions = {
@@ -502,8 +507,42 @@ export default (options: UseSelectionSearchOptions) => {
   };
 
   /**
+   * text 最小分词补齐：相交 cursor token 拼成连续片段，并保留首尾紧邻引号。
+   * 例：划选 read": 13979 → "thread": 139798551451328
+   */
+  const completeTextMinimalTokenSpan = (selectionText: string, tokens: SelectionToken[]) => {
+    const range = findSelectionTokenRange(selectionText, tokens);
+    if (!range) {
+      return '';
+    }
+
+    let from = range.rangeStart;
+    let to = range.rangeEnd;
+    while (from <= to && !tokens[from].isCursorText) {
+      from += 1;
+    }
+    while (to >= from && !tokens[to].isCursorText) {
+      to -= 1;
+    }
+    if (from > to) {
+      return '';
+    }
+
+    // 保留首个分词前紧邻的 "，以及末个分词后紧邻的 "
+    while (from > 0 && tokens[from - 1].text === '"') {
+      from -= 1;
+    }
+    while (to < tokens.length - 1 && tokens[to + 1].text === '"') {
+      to += 1;
+    }
+
+    return tokens.slice(from, to + 1).map(item => item.text).join('');
+  };
+
+  /**
    * 对单个 VALUE 碎片做「补齐到分词边界、不拆分」。
    * 例：bcs-k8s-wat → bcs-k8s-watch；bbc-kw9zb → 6bcff65bbc-kw9zb
+   * text：额外保留紧邻引号（"thread": 13979…）
    */
   const completeValueWithoutSplit = (
     valueText: string,
@@ -523,8 +562,15 @@ export default (options: UseSelectionSearchOptions) => {
       return plain;
     }
 
+    const preferTextSpan = isTextLikeField(field.field_type);
     const luceneTokens = getFieldLuceneTokens(row, field);
     if (luceneTokens.some(token => token.isCursorText && token.text)) {
+      if (preferTextSpan) {
+        const textSpan = completeTextMinimalTokenSpan(raw, luceneTokens);
+        if (textSpan) {
+          return textSpan;
+        }
+      }
       const completed = completeSelectionByTokens(raw, luceneTokens);
       if (completed.length) {
         return completed.map(token => token.text).join('');
@@ -533,6 +579,12 @@ export default (options: UseSelectionSearchOptions) => {
 
     const fieldTokens = getFieldSegmentTokens(row, field);
     if (fieldTokens.some(token => token.isCursorText && token.text)) {
+      if (preferTextSpan) {
+        const textSpan = completeTextMinimalTokenSpan(raw, fieldTokens);
+        if (textSpan) {
+          return textSpan;
+        }
+      }
       const completed = completeSelectionByTokens(raw, fieldTokens);
       if (completed.length) {
         return completed.map(token => token.text).join('');
@@ -540,6 +592,50 @@ export default (options: UseSelectionSearchOptions) => {
     }
 
     return raw;
+  };
+
+  /**
+   * 字段类型优先的划词 Value / Operator 解析（优先级高于 JSON 展示形态）。
+   * UI：
+   * 1) keyword/flattened → 原文 contains（转义保留字）
+   * 2) text → 最小分词补齐 contains（含 JSON 外观的 text）
+   * 3) 其他 → 完整 FieldValue + is(=)
+   */
+  const resolveSelectionByFieldType = (
+    selectionText: string,
+    field?: Record<string, any>,
+    row?: Record<string, any>,
+  ): { operator: string; values: string[] } => {
+    const raw = stripSelectionMarkup(selectionText).trim();
+    if (!raw) {
+      return { operator: 'contains match phrase', values: [] };
+    }
+
+    const fieldType = field?.field_type;
+    const plain = field && row ? getFieldPlainText(row, field) : '';
+
+    if (isKeywordLikeField(fieldType)) {
+      // 原文不做补齐；转义在 emit（UI）/ SQL 格式化时统一处理，避免双重转义
+      return {
+        operator: 'contains match phrase',
+        values: [raw],
+      };
+    }
+
+    if (isTextLikeField(fieldType)) {
+      const completed = field && row ? completeValueWithoutSplit(raw, field, row) : raw;
+      const value = completed || raw;
+      return {
+        operator: plain && plain === value ? 'is' : 'contains match phrase',
+        values: [value],
+      };
+    }
+
+    // 其他类型：补齐为完整 FieldValue，操作符 =
+    if (field && row && plain && plain !== '--') {
+      return { operator: 'is', values: [plain] };
+    }
+    return { operator: 'is', values: [raw] };
   };
 
   const getSelectionAnchorElement = (range: Range) => {
@@ -1501,9 +1597,10 @@ export default (options: UseSelectionSearchOptions) => {
 
   /**
    * String / JSON String：
-   * - 划选整段 VALUE → KEY is VALUE
-   * - Text/String 以 JSON 展示（data-json-text-value）：剥离外层 KEY 后原文 contains，不做补齐/拆分
-   * - 普通 String 部分划选：按 enableMinimalTokenCompletion 决定拆分或补齐不拆分
+   * 字段类型优先（高于 JSON 外观）：
+   * - text：最小分词补齐 contains（即便 data-json-text-value）
+   * - keyword/flattened：划词原文 contains
+   * - 其他：完整 VALUE is
    */
   const resolveStringContainsConditions = (
     range: Range,
@@ -1540,7 +1637,7 @@ export default (options: UseSelectionSearchOptions) => {
           : range.commonAncestorContainer?.parentElement),
       );
 
-    // Text/String JSON：只移除外层字段 KEY，剩余原文直接 contains
+    // JSON 外观：先剥离外层 KEY，再按字段类型解析（text 必须最小分词补齐）
     if (isJsonTextValue) {
       const pieces = collectDomSelectionPieces(range);
       const valueText = mergeDomValueFragments(pieces)
@@ -1552,22 +1649,36 @@ export default (options: UseSelectionSearchOptions) => {
       if (!valueText) {
         return [];
       }
-      return [{
+      const resolved = resolveSelectionByFieldType(valueText, field, row);
+      return resolved.values.map(token => ({
         ...base,
-        operator: plain === valueText ? 'is' : 'contains match phrase',
-        value: [valueText],
-      }];
+        operator: resolved.operator,
+        value: [token],
+      }));
     }
 
     // JSON 树跨 KEY:VALUE 划选（如 rkload_type:Replic）时，selection 不在 VALUE 内，
     // 留给后续 KV 分支只解析冒号后的 VALUE，避免把 key:value 整段当 String contains。
+    // text 字段即使内容像 JSON，仍按 text 最小分词处理，不走此短路。
     if (
-      plain
+      !isTextLikeField(field.field_type)
+      && plain
       && plain !== '--'
       && !plain.includes(selectionText)
       && /[A-Za-z0-9_.-]+\s*:\s*\S/.test(selectionText)
     ) {
       return [];
+    }
+
+    // 字段类型优先
+    if (isKeywordLikeField(field.field_type) || isTextLikeField(field.field_type)
+      || (field.field_type && !['object', 'nested', 'text', 'keyword', 'flattened', 'string'].includes(field.field_type))) {
+      const resolved = resolveSelectionByFieldType(selectionText, field, row);
+      return resolved.values.map(token => ({
+        ...base,
+        operator: resolved.operator,
+        value: [token],
+      }));
     }
 
     const values = resolveSelectionValues(selectionText, field, row);
@@ -1620,17 +1731,18 @@ export default (options: UseSelectionSearchOptions) => {
         return;
       }
 
-      // Text/String JSON：外层字段 + 原文，不做补齐
+      // Text/String JSON：字段类型优先（text 最小分词补齐，keyword 原文，其他完整值）
       if (frag.isJsonTextValue) {
         const field = getFieldByName(frag.fieldName) ?? { field_name: frag.fieldName, field_type: 'text' };
-        const plain = getFieldByName(frag.fieldName) ? getFieldPlainText(row, field) : '';
-        const operator = plain && plain === frag.text ? 'is' : 'contains match phrase';
-        const key = [field.field_name, operator, frag.text].join('__');
-        if (seen.has(key)) {
-          return;
-        }
-        seen.add(key);
-        conditions.push(buildConditionFromFieldWithRow(field, frag.text, row, operator));
+        const resolved = resolveSelectionByFieldType(frag.text, field, row);
+        resolved.values.forEach((token) => {
+          const key = [field.field_name, resolved.operator, token].join('__');
+          if (seen.has(key)) {
+            return;
+          }
+          seen.add(key);
+          conditions.push(buildConditionFromFieldWithRow(field, token, row, resolved.operator));
+        });
         return;
       }
 
@@ -1643,18 +1755,19 @@ export default (options: UseSelectionSearchOptions) => {
         return;
       }
 
-      const plain = getFieldPlainText(row, field);
-      const completed = completeValueWithoutSplit(frag.text, field, row);
-      if (!completed) {
-        return;
-      }
-      const operator = plain === completed ? 'is' : 'contains match phrase';
-      const key = [field.field_name, operator, completed].join('__');
-      if (seen.has(key)) {
-        return;
-      }
-      seen.add(key);
-      conditions.push(buildConditionFromFieldWithRow(field, completed, row, operator));
+      // 字段类型优先覆盖「一律补齐」旧逻辑
+      const resolved = resolveSelectionByFieldType(frag.text, field, row);
+      resolved.values.forEach((token) => {
+        if (!token) {
+          return;
+        }
+        const key = [field.field_name, resolved.operator, token].join('__');
+        if (seen.has(key)) {
+          return;
+        }
+        seen.add(key);
+        conditions.push(buildConditionFromFieldWithRow(field, token, row, resolved.operator));
+      });
     });
 
     const deduped = dedupeSelectionConditions(conditions);
@@ -1909,18 +2022,16 @@ export default (options: UseSelectionSearchOptions) => {
     return [];
   };
 
-  /** 语句模式包含：按完整 VALUE 位置补 *；UI 模式保持原值 */
-  const resolveAddConditionValues = (
-    operator: string,
-    values: string[],
-    fullPlain?: string,
-  ) => formatSqlContainsValues(
-    operator,
-    values,
-    fullPlain,
-    store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE],
-  );
+  const getSearchMode = (): 'ui' | 'sql' => {
+    const mode = SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]];
+    return mode === 'sql' ? 'sql' : 'ui';
+  };
 
+  /**
+   * 划词「添加到本次检索」统一出口：字段类型解析完成后，一律走 resolveAddToSearch。
+   * - 语句模式 → queryString
+   * - UI 模式 → uiCondition
+   */
   const emitAddCondition = (
     fieldName: string,
     operator: string,
@@ -1930,16 +2041,33 @@ export default (options: UseSelectionSearchOptions) => {
       depth?: string | number;
       isNestedField?: string;
       fullPlain?: string;
+      fieldType?: string;
     } = {},
   ) => {
-    const nextValues = resolveAddConditionValues(operator, values, options.fullPlain);
+    const fieldType = options.fieldType ?? getFieldByName(fieldName)?.field_type;
+    const rawValue = values?.[0] ?? '';
+
+    const payload = resolveAddToSearch({
+      field: fieldName || FULLTEXT_FIELD_NAME,
+      value: rawValue,
+      fieldType,
+      fullText: options.fullPlain,
+      operatorHint: operator,
+      searchMode: getSearchMode(),
+    });
+
     return handleAddCondition(
-      fieldName,
-      operator,
-      nextValues,
+      payload.field,
+      payload.operator,
+      payload.value,
       options.isLink ?? false,
       options.depth,
       options.isNestedField,
+      {
+        fullPlain: payload.fullPlain,
+        fieldType: payload.fieldType,
+        queryString: payload.queryString,
+      },
     );
   };
 
@@ -1951,6 +2079,7 @@ export default (options: UseSelectionSearchOptions) => {
         depth: item.depth,
         isNestedField: item.isNestedField,
         fullPlain,
+        fieldType: field?.field_type,
       });
     });
   };
@@ -1959,41 +2088,22 @@ export default (options: UseSelectionSearchOptions) => {
     row: Record<string, any>,
     field: Record<string, any>,
     selectionText: string,
-    operator = 'is',
+    _operator = 'is',
     conditionOptions: { depth?: string | number; isNestedField?: string } = {},
   ) => {
     const depth = conditionOptions.depth;
     const isNested = conditionOptions.isNestedField ?? 'false';
     const plain = getFieldPlainText(row, field);
 
-    // 整段等值：保持 is + 完整 VALUE
-    if (operator === 'is' && plain === selectionText) {
-      emitAddCondition(field.field_name, operator, [plain], {
+    // 字段类型优先
+    const resolved = resolveSelectionByFieldType(selectionText, field, row);
+    resolved.values.forEach((token) => {
+      emitAddCondition(field.field_name, resolved.operator, [token], {
         depth,
         isNestedField: isNested,
         fullPlain: plain,
+        fieldType: field.field_type,
       });
-      return;
-    }
-
-    // 部分划选：按配置解析为最小分词或 selectionText 原文
-    if (operator !== 'is' || plain !== selectionText) {
-      const values = resolveSelectionValues(selectionText, field, row);
-      const finalOperator = plain === selectionText ? 'is' : (operator === 'is' ? 'contains match phrase' : operator);
-      values.forEach((token) => {
-        emitAddCondition(field.field_name, finalOperator, [token], {
-          depth,
-          isNestedField: isNested,
-          fullPlain: plain,
-        });
-      });
-      return;
-    }
-
-    emitAddCondition(field.field_name, operator, [selectionText], {
-      depth,
-      isNestedField: isNested,
-      fullPlain: plain,
     });
   };
 
@@ -2011,7 +2121,7 @@ export default (options: UseSelectionSearchOptions) => {
     const startEl = (startNode instanceof Element ? startNode : startNode.parentElement);
     const endEl = (endNode instanceof Element ? endNode : endNode.parentElement);
 
-    // Text/String JSON：单叶子也归属外层字段，原文 contains，不做补齐/拆分
+    // Text JSON：单叶子也归属外层字段；具体 Value 由 string/JSON 分支按字段类型补齐
     if (isJsonTextValueElement(startEl) || isJsonTextValueElement(endEl)) {
       return [];
     }
@@ -2073,38 +2183,24 @@ export default (options: UseSelectionSearchOptions) => {
       return [];
     }
 
-    const plain = getFieldPlainText(row, field);
     const nestedFlag = resolveIsNestedSearchField(field.field_name, row);
-    if (plain === selectionText) {
-      return [{
-        field: field.field_name,
-        operator: 'is',
-        value: [plain],
-        depth: getFieldPathDepth(field.field_name),
-        isNestedField: nestedFlag ? 'true' : 'false',
-      }];
-    }
-
-    // true：拆最小分词；false：补齐到边界但不拆分
-    let values = resolveSelectionValues(selectionText, field, row);
-
-    const startValidText = startEl?.closest?.('.valid-text') as HTMLElement | null;
-    const endValidText = endEl?.closest?.('.valid-text') as HTMLElement | null;
-    if (
-      values.length === 1
-      && values[0] === selectionText
-      && startValidText
-      && startValidText === endValidText
-    ) {
-      const segmentText = stripSelectionMarkup(startValidText.textContent ?? '').trim();
-      if (segmentText && segmentText !== selectionText && segmentText.includes(selectionText)) {
-        values = [segmentText];
+    // 单分词 DOM 命中：若 valid-text 能提供更完整片段则优先（keyword 仍保持原文）
+    let effectiveSelection = selectionText;
+    if (!isKeywordLikeField(field.field_type)) {
+      const startValidText = startEl?.closest?.('.valid-text') as HTMLElement | null;
+      const endValidText = endEl?.closest?.('.valid-text') as HTMLElement | null;
+      if (startValidText && startValidText === endValidText) {
+        const segmentText = stripSelectionMarkup(startValidText.textContent ?? '').trim();
+        if (segmentText && segmentText !== selectionText && segmentText.includes(selectionText)) {
+          effectiveSelection = segmentText;
+        }
       }
     }
 
-    return values.map(token => ({
+    const resolved = resolveSelectionByFieldType(effectiveSelection, field, row);
+    return resolved.values.map(token => ({
       field: field.field_name,
-      operator: plain === token ? 'is' : 'contains match phrase',
+      operator: resolved.operator,
       value: [token],
       depth: getFieldPathDepth(field.field_name),
       isNestedField: nestedFlag ? 'true' : 'false',
@@ -2114,10 +2210,12 @@ export default (options: UseSelectionSearchOptions) => {
   /**
    * 划词「添加到本次检索」主入口。
    *
+   * 解析阶段（本文件）：按字段类型得到 field / operator / value
+   * 输出阶段：emitAddCondition → resolveAddToSearch（UI + 语句统一）
+   *
    * Value 解析配置 enableMinimalTokenCompletion（默认 true）：
    * - true：按渲染分词把划选补齐并拆成最小可检索分词单位后再生成条件
    * - false：DOM 剥离 KEY 文本后，对 VALUE 补齐到分词边界（不拆分）
-   * 在 useSelectionSearch({ enableMinimalTokenCompletion: false }) 关闭拆分。
    */
   const addSelectionToCurrentSearch = (selectionRange: Range, row: Record<string, any>) => {
     const selectionText = getSelectionTextByRange(selectionRange);
@@ -2244,55 +2342,37 @@ export default (options: UseSelectionSearchOptions) => {
         }
       }
 
-      const plainText = field ? getFieldPlainText(row, field) : '';
       const nestedFlag = field ? resolveIsNestedSearchField(field.field_name, row) : false;
-      // 单 token VALUE：不把 messa 补成整段 /var/log/messages
-      const isSingleTokenField = Boolean(field && getFieldCursorTokens(row, field).length <= 1);
-      const useRawSelection = Boolean(
-        field
-        && isSingleTokenField
-        && selectionText
-        && plainText !== selectionText
-        && plainText.includes(selectionText),
-      );
-      const rawValueText = useRawSelection ? selectionText : token.text;
-      const valueList = field && isLeafQueryableField(field)
-        ? resolveSelectionValues(rawValueText, field, row)
-        : [rawValueText];
 
-      let operator = fulltextFieldItem.operator;
-      let conditionField = FULLTEXT_FIELD_NAME;
-
-      if (useRawSelection && field && isLeafQueryableField(field)) {
-        operator = 'contains match phrase';
-        conditionField = field.field_name;
-      } else if (field && isLeafQueryableField(field) && plainText === token.text) {
-        operator = 'is';
-        conditionField = field.field_name;
-      } else if (
-        field
-        && isLeafQueryableField(field)
-        && !hasMappedChildFields(field.field_name)
-        && plainText.includes(token.text)
-      ) {
-        // 部分分词统一 contains，避免同词多次在 is/contains 间漂移
-        operator = 'contains match phrase';
-        conditionField = field.field_name;
+      if (field && isLeafQueryableField(field)) {
+        // 字段类型优先
+        const resolvedByType = resolveSelectionByFieldType(token.text, field, row);
+        resolvedByType.values.forEach((valueText) => {
+          const conditionKey = [field.field_name, resolvedByType.operator, valueText, nestedFlag ? '1' : '0'].join('__');
+          if (!appendedConditionKeys.has(conditionKey)) {
+            appendedConditionKeys.add(conditionKey);
+            conditions.push({
+              field: field.field_name,
+              operator: resolvedByType.operator,
+              value: [valueText],
+              depth: getFieldPathDepth(field.field_name),
+              isNestedField: nestedFlag ? 'true' : 'false',
+            });
+          }
+        });
+        return;
       }
 
-      valueList.forEach((valueText) => {
-        const conditionKey = [conditionField, operator, valueText, nestedFlag ? '1' : '0'].join('__');
-        if (!appendedConditionKeys.has(conditionKey)) {
-          appendedConditionKeys.add(conditionKey);
-          conditions.push({
-            field: conditionField,
-            operator,
-            value: [valueText],
-            depth: field ? getFieldPathDepth(field.field_name) : undefined,
-            isNestedField: nestedFlag ? 'true' : 'false',
-          });
-        }
-      });
+      const valueText = token.text;
+      const conditionKey = [FULLTEXT_FIELD_NAME, fulltextFieldItem.operator, valueText, '0'].join('__');
+      if (!appendedConditionKeys.has(conditionKey)) {
+        appendedConditionKeys.add(conditionKey);
+        conditions.push({
+          field: FULLTEXT_FIELD_NAME,
+          operator: fulltextFieldItem.operator,
+          value: [valueText],
+        });
+      }
     });
 
     if (!conditions.length) {

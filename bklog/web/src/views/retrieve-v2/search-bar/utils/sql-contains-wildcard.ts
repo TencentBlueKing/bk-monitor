@@ -4,16 +4,23 @@
  *
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
  *
- * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * 兼容层：语句模式工具统一委托给 @/hooks/log-query-compiler。
+ * 新代码请直接使用 compile / compileFieldValue / escapeQueryValue。
  */
 
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '@/store/store.type';
+import {
+  applyPositionalWildcard,
+  compileFieldValue,
+  escapeQueryValue,
+  isKeywordLikeField,
+  isTextLikeField,
+} from '@/hooks/log-query-compiler';
 
-const CONTAINS_OPERATORS = new Set(['contains match phrase', 'not contains match phrase']);
+const CONTAINS_OPERATORS = new Set(['contains match phrase', 'not contains match phrase', 'contains', 'not contains']);
 
-/**
- * 当前是否为语句模式（SQL）。
- */
+export const KEYWORD_LIKE_FIELD_TYPES = new Set(['keyword', 'flattened']);
+
 export const isSqlSearchMode = (storageSearchType?: number | string) => {
   if (storageSearchType === undefined || storageSearchType === null || storageSearchType === '') {
     return false;
@@ -23,61 +30,89 @@ export const isSqlSearchMode = (storageSearchType?: number | string) => {
 
 export const isContainsOperator = (operator?: string) => CONTAINS_OPERATORS.has(String(operator ?? ''));
 
-/**
- * 语句模式「包含」通配：按划选/点击值在完整 VALUE 中的位置补 *
- * - 前缀（Valuexxxx）→ Value*
- * - 后缀（xxxxValue）→ *Value
- * - 中间（xxxValuexxx）→ *Value*
- *
- * Value 本身不做引号包裹，内容是什么就用什么。
- */
-export const formatSqlContainsWildcardValue = (selectedValue: string, fullPlainValue?: string) => {
-  const selected = String(selectedValue ?? '');
-  if (!selected) {
-    return selected;
-  }
-  // 已带通配则不再二次包裹
-  if (selected.includes('*')) {
-    return selected;
-  }
+export const isKeywordLikeFieldType = (fieldType?: string) => isKeywordLikeField(fieldType);
 
-  const plain = String(fullPlainValue ?? '');
-  // 无完整 VALUE 上下文（如全文 *）：按中间包含
-  if (!plain || plain === '--') {
-    return `*${selected}*`;
-  }
-  // 与完整 VALUE 相等时不应走 contains；若仍调用则不加 *
-  if (plain === selected) {
-    return selected;
-  }
+export const isTextFieldType = (fieldType?: string) => isTextLikeField(fieldType);
 
-  if (plain.startsWith(selected)) {
-    return `${selected}*`;
-  }
-  if (plain.endsWith(selected)) {
-    return `*${selected}`;
-  }
-  if (plain.includes(selected)) {
-    return `*${selected}*`;
-  }
+/** @deprecated 使用 escapeQueryValue */
+export const escapeEsReservedChars = (
+  value: string,
+  options: { keepWildcards?: boolean } = {},
+) => escapeQueryValue(value, options);
 
-  // 完整 VALUE 中未直接命中时，按中间包含处理
-  return `*${selected}*`;
-};
+/** @deprecated 使用 applyPositionalWildcard */
+export const formatSqlContainsWildcardValue = (selectedValue: string, fullPlainValue?: string) =>
+  applyPositionalWildcard(selectedValue, fullPlainValue);
 
-/**
- * 语句模式 + 包含操作时，把 value 列表格式化为带 * 的检索片段。
- */
 export const formatSqlContainsValues = (
   operator: string,
   values: string[],
   fullPlainValue: string | undefined,
   storageSearchType?: number | string,
+  fieldType?: string,
 ) => {
   if (!isSqlSearchMode(storageSearchType) || !isContainsOperator(operator)) {
     return values;
   }
-  return (values ?? []).map(item => formatSqlContainsWildcardValue(item, fullPlainValue));
+  if (fieldType && !isKeywordLikeFieldType(fieldType)) {
+    return values;
+  }
+  return (values ?? []).map((item) => {
+    const escaped = escapeQueryValue(item, { keepWildcards: true });
+    return applyPositionalWildcard(escaped, fullPlainValue);
+  });
 };
 
-export { BK_LOG_STORAGE, SEARCH_MODE_DIC };
+/**
+ * 语句模式字段类型格式化 —— 委托 Compiler，返回仍兼容旧 operator/value 结构。
+ * 完整 query string 请直接用 compileFieldValue。
+ */
+export const resolveSqlFieldTypeFormat = (params: {
+  fieldType?: string;
+  operator: string;
+  values: string[];
+  fullPlainValue?: string;
+  isNegative?: boolean;
+  field?: string;
+}): { operator: string; values: string[]; queryString?: string } => {
+  const { fieldType, operator, values, fullPlainValue, field } = params;
+  const isNegative = params.isNegative
+    || ['is not', 'not contains match phrase', 'not contains', '!='].includes(operator);
+  const raw = values?.[0] ?? '';
+
+  const queryString = compileFieldValue({
+    field: field || '_field',
+    value: raw,
+    fieldType,
+    fullText: fullPlainValue,
+    operatorHint: operator,
+    negative: isNegative,
+  }).queryString;
+
+  if (isTextFieldType(fieldType)) {
+    return {
+      operator: isNegative ? 'is not' : 'is',
+      values: [raw],
+      queryString,
+    };
+  }
+
+  if (isKeywordLikeFieldType(fieldType)) {
+    const escaped = escapeQueryValue(raw, { keepWildcards: true });
+    const wild = applyPositionalWildcard(escaped, fullPlainValue);
+    return {
+      operator: isNegative ? 'not contains match phrase' : 'contains match phrase',
+      values: [wild],
+      queryString,
+    };
+  }
+
+  const full = fullPlainValue && fullPlainValue !== '--' ? fullPlainValue : raw;
+  return {
+    operator: isNegative ? 'is not' : 'is',
+    values: full ? [full] : values,
+    queryString,
+  };
+};
+
+export { BK_LOG_STORAGE, SEARCH_MODE_DIC, compileFieldValue, escapeQueryValue };

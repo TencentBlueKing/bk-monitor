@@ -152,13 +152,10 @@ export default defineComponent({
     /**
      * 划词「添加到本次检索」入口。
      *
-     * enableMinimalTokenCompletion（默认 true / DEFAULT_ENABLE_MINIMAL_TOKEN_COMPLETION）：
-     * - true：Value 按渲染分词补齐并拆成最小可检索单位（lob→lobby；lobby-178→[lobby, 17841059990]）
-     * - false：DOM 剥离 KEY 后，对 VALUE 补齐到分词边界但不拆分
-     *   （bernetes_pod bcs-k8s-wat → pod contains bcs-k8s-watch；
-     *    bbc-kw9zb log I07 → pod contains 6bcff65bbc-kw9zb + log contains I0717）
-     *   Text/String 的 JSON 展示（data-json-text-value）：只移除外层 KEY，原文 contains，不补齐不拆分
-     *   语句模式包含：按完整 VALUE 位置生成 KEY: Value* / *Value / *Value*（不加引号）
+     * SelectionRange
+     *   → addSelectionToCurrentSearch（字段类型 / 最小分词补齐）
+     *   → emitAddCondition → resolveAddToSearch（UI + 语句统一）
+     *   → handleAddCondition / setQueryCondition
      */
     const { stripSelectionMarkup, getFieldByName, addSelectionToCurrentSearch } = useSelectionSearch({
       handleAddCondition,
