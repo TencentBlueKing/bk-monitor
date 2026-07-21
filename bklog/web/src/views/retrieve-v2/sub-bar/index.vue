@@ -61,8 +61,10 @@ const timeSettingRef = ref(null);
 const isShowClusterSetting = ref(false);
 const indexSetParams = computed(() => store.state.indexItem);
 
-// 索引集列表
-const indexSetList = computed(() => store.state.retrieve.flatIndexSetList); // indexSetList
+// 树形索引集列表（选择面板渲染用，避免子节点被摊平到根级导致重复）
+const indexSetList = computed(() => store.state.retrieve.indexSetList);
+// 扁平索引集列表（按 unique_id / index_set_id 查找用）
+const flatIndexSetList = computed(() => store.state.retrieve.flatIndexSetList);
 
 // 索引集选择结果
 const indexSetValue = computed(() => store.state.indexItem.ids);
@@ -101,7 +103,7 @@ const isMonitorTraceComponent = window.__IS_MONITOR_TRACE__;
 // 如果不是采集下发和自定义上报则不展示
 const hasCollectorConfigId = computed(() => {
   const indexSetId = route.params?.indexId;
-  const currentIndexSet = indexSetList.value.find(item => item.index_set_id == indexSetId);
+  const currentIndexSet = flatIndexSetList.value.find(item => item.index_set_id == indexSetId);
   return currentIndexSet?.collector_config_id;
 });
 
@@ -345,7 +347,7 @@ const handleIndexSetValueChange = (values, type, id) => {
   }
 
   store.commit('updateStorage', storage);
-  const items = indexSetList.value.filter(item => (values ?? []).includes(item.unique_id));
+  const items = flatIndexSetList.value.filter(item => (values ?? []).includes(item.unique_id));
   const idxIdList = [];
   const idexPidList = [];
   values.forEach((v) => {
