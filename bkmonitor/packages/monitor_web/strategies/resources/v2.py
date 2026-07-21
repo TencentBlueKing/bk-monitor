@@ -2556,16 +2556,18 @@ class UpdatePartialStrategyV2Resource(Resource):
                 )
             )
 
-        for update_data in updates_data.values():
-            update_data["cls"].objects.bulk_update(update_data["objs"], update_data["keys"])
+        # 批量更新/创建与成功历史写入放在同一事务，避免中途失败后配置已改但无历史。
+        with transaction.atomic():
+            for update_data in updates_data.values():
+                update_data["cls"].objects.bulk_update(update_data["objs"], update_data["keys"])
 
-        for create_data in create_datas.values():
-            create_data["cls"].objects.bulk_create(create_data["objs"])
+            for create_data in create_datas.values():
+                create_data["cls"].objects.bulk_create(create_data["objs"])
 
-        StrategyHistoryModel.objects.bulk_create(history)
+            StrategyHistoryModel.objects.bulk_create(history)
 
-        # 编辑后需要重置AsCode相关配置
-        strategies.update(hash="", snippet="")
+            # 编辑后需要重置AsCode相关配置
+            strategies.update(hash="", snippet="")
 
         return params["ids"]
 

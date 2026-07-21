@@ -125,6 +125,7 @@ def test_bulk_update_creates_success_history_with_bulk_update_type():
 
 
 def test_bulk_update_does_not_create_success_history_when_update_fails():
+    """中途 bulk_update 失败时不应写入成功历史；事务保证与配置更新一并回滚。"""
     strategy_id = 1001
     strategy_queryset = mock.Mock()
 
