@@ -23,7 +23,7 @@ from typing import Any
 import arrow
 import xxhash
 from django.conf import settings
-from django.db import transaction
+from django.db import router, transaction
 from django.db.models import Model, QuerySet
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -3075,7 +3075,7 @@ class Strategy(AbstractConfig):
         IssueConfig.delete(self.id)
 
     @classmethod
-    @transaction.atomic
+    @transaction.atomic(using=router.db_for_write(StrategyModel))
     def delete_by_strategy_ids(cls, strategy_ids: list[int]):
         """
         批量删除策略

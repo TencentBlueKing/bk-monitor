@@ -10,11 +10,11 @@ specific language governing permissions and limitations under the License.
 """
 
 from contextlib import ExitStack
-from contextlib import contextmanager
 from types import SimpleNamespace
 from unittest import mock
 
 import pytest
+from django.db import connections
 
 from alarm_backends.core.cache.strategy import StrategyCacheManager
 from bkmonitor.models import AlgorithmModel
@@ -57,6 +57,30 @@ def test_bulk_delete_does_not_create_success_history_when_delete_fails():
 
     strategy_filter.return_value.delete.assert_called_once_with()
     bulk_create_history.assert_not_called()
+
+
+@pytest.mark.django_db(databases=("default", "monitor_api"), transaction=True)
+def test_bulk_delete_opens_transaction_on_monitor_api():
+    """批量删除必须在实际承载策略模型写入的 monitor_api 库开启事务。"""
+    transaction_state = {}
+
+    def inspect_transaction():
+        transaction_state.update(
+            default=connections["default"].in_atomic_block,
+            monitor_api=connections["monitor_api"].in_atomic_block,
+        )
+        raise RuntimeError("stop after inspecting transaction")
+
+    with (
+        mock.patch.object(StrategyModel.objects, "filter") as strategy_filter,
+        mock.patch.object(Strategy, "_get_username", return_value="admin"),
+    ):
+        strategy_filter.return_value.delete.side_effect = inspect_transaction
+
+        with pytest.raises(RuntimeError, match="stop after inspecting transaction"):
+            Strategy.delete_by_strategy_ids([1001])
+
+    assert transaction_state == {"default": False, "monitor_api": True}
 
 
 @pytest.mark.django_db
@@ -152,23 +176,16 @@ def test_bulk_update_does_not_create_success_history_when_update_fails():
     bulk_create_history.assert_not_called()
 
 
-def test_bulk_update_starts_transaction_before_processing_updates():
-    """直接写库的局部更新方法也必须位于批量更新事务中。"""
-    transaction_state = {"active": False}
+@pytest.mark.django_db(databases=("default", "monitor_api"), transaction=True)
+def test_bulk_update_opens_transaction_on_monitor_api_before_processing_updates():
+    """直接写库的局部更新方法必须位于 monitor_api 事务中。"""
     strategy_queryset = mock.Mock()
     strategy = mock.Mock(id=1001, instance=mock.Mock(), items=[])
     strategy.to_dict.return_value = {"bk_biz_id": 2, "id": 1001, "labels": ["updated"]}
 
-    @contextmanager
-    def tracked_atomic():
-        transaction_state["active"] = True
-        try:
-            yield
-        finally:
-            transaction_state["active"] = False
-
     def update_labels(_strategy, _labels):
-        assert transaction_state["active"] is True
+        assert connections["default"].in_atomic_block is False
+        assert connections["monitor_api"].in_atomic_block is True
         return None, [], []
 
     with (
@@ -179,7 +196,6 @@ def test_bulk_update_starts_transaction_before_processing_updates():
         mock.patch.object(UpdatePartialStrategyV2Resource, "get_relations", return_value=([], {})),
         mock.patch.object(UpdatePartialStrategyV2Resource, "get_action_configs", return_value={}),
         mock.patch.object(UpdatePartialStrategyV2Resource, "update_labels", side_effect=update_labels),
-        mock.patch("monitor_web.strategies.resources.v2.transaction.atomic", side_effect=tracked_atomic),
         mock.patch("monitor_web.strategies.resources.v2.get_global_user", return_value="admin"),
     ):
         UpdatePartialStrategyV2Resource().perform_request(

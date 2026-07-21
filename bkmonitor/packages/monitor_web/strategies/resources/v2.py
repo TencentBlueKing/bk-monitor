@@ -14,7 +14,7 @@ from typing import Any
 import arrow
 import pytz
 from django.conf import settings
-from django.db import transaction
+from django.db import router, transaction
 from django.db.models import Count, ExpressionWrapper, F, Q, QuerySet, fields
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
@@ -2498,7 +2498,7 @@ class UpdatePartialStrategyV2Resource(Resource):
                 create_datas[f"extra_{key}_relation"]["objs"].extend(data["objs"])
 
     def perform_request(self, params):
-        with transaction.atomic():
+        with transaction.atomic(using=router.db_for_write(StrategyModel)):
             return self._perform_request(params)
 
     def _perform_request(self, params):
