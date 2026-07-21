@@ -29,6 +29,7 @@ from apps.log_databus.constants import (
     REGISTERED_SYSTEM_DEFAULT,
     VisibleEnum,
 )
+from apps.exceptions import ValidationError
 from apps.log_databus.exceptions import (
     StorageNotExistException,
     StorageNotPermissionException,
@@ -275,15 +276,15 @@ class TestDorisVisibleConfigSerializer(TestCase):
         serializer = DorisVisibleConfigUpdateSerializer(
             data={"cluster_id": 10, "bk_biz_id": OWNER_BIZ, "visible_config": {"visible_type": "multi_biz"}}
         )
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("visible_config", serializer.errors)
+        with self.assertRaises(ValidationError):
+            serializer.is_valid()
 
     def test_biz_attr_requires_bk_biz_labels(self):
         serializer = DorisVisibleConfigUpdateSerializer(
             data={"cluster_id": 10, "bk_biz_id": OWNER_BIZ, "visible_config": {"visible_type": "biz_attr"}}
         )
-        self.assertFalse(serializer.is_valid())
-        self.assertIn("visible_config", serializer.errors)
+        with self.assertRaises(ValidationError):
+            serializer.is_valid()
 
     def test_valid_all_biz(self):
         serializer = DorisVisibleConfigUpdateSerializer(
