@@ -18,9 +18,6 @@ from django.http import QueryDict
 from rest_framework.exceptions import ValidationError
 
 from kernel_api.resource import alert
-from monitor_web.shield.resources.backend_resources import ShieldListSerializer
-from monitor_web.shield.serializers import StrategySerializer as StrategyShieldSerializer
-from monitor_web.strategies.resources.v2 import UpdatePartialStrategyV2Resource
 
 
 def test_business_scoped_serializer_preserves_backend_fields():
@@ -546,20 +543,6 @@ def test_ensure_duty_rules_belong_to_current_or_public_biz(monkeypatch):
         alert.ensure_duty_rules_belong_to_biz(2, [1, 3])
 
 
-@pytest.mark.parametrize("action_count", [0, 2])
-def test_update_notice_group_list_updates_all_relations(action_count):
-    actions = [SimpleNamespace(user_groups=[], instance=SimpleNamespace(id=index + 1)) for index in range(action_count)]
-    notice = SimpleNamespace(user_groups=[], instance=SimpleNamespace(id=100))
-    strategy = SimpleNamespace(actions=actions, notice=notice)
-
-    _, fields, relations = UpdatePartialStrategyV2Resource.update_notice_group_list(strategy, [7, 8])
-
-    assert fields == ["user_groups"]
-    assert [relation.id for relation in relations] == [*range(1, action_count + 1), 100]
-    assert all(action.user_groups == [7, 8] for action in actions)
-    assert notice.user_groups == [7, 8]
-
-
 def test_get_alarm_strategy_honors_convert_dashboard(monkeypatch):
     class FakeQuerySet:
         def filter(self, **_kwargs):
@@ -689,21 +672,29 @@ def test_update_action_config_rejects_plugin_change(monkeypatch):
         )
 
 
-def test_shield_serializers_preserve_source():
-    list_serializer = ShieldListSerializer(data={"bk_biz_id": 2, "source": "mcp"})
-    create_serializer = StrategyShieldSerializer(
-        data={
-            "bk_biz_id": 2,
-            "category": "strategy",
-            "begin_time": "2026-07-20 20:00:00",
-            "end_time": "2026-07-20 21:00:00",
-            "dimension_config": {"id": [1]},
-            "shield_notice": False,
-            "source": "mcp",
-        }
-    )
+def test_search_alarm_shields_filters_source_without_changing_backend_serializer(monkeypatch):
+    captured = {}
 
-    assert list_serializer.is_valid(), list_serializer.errors
-    assert create_serializer.is_valid(), create_serializer.errors
-    assert list_serializer.validated_data["source"] == "mcp"
-    assert create_serializer.validated_data["source"] == "mcp"
+    class FakeQuerySet:
+        def filter(self, **_kwargs):
+            return self
+
+        def values_list(self, *_args, **_kwargs):
+            return [11, 12]
+
+    fake_resource = SimpleNamespace(
+        shield=SimpleNamespace(
+            shield_list=SimpleNamespace(
+                request=lambda **kwargs: captured.update(kwargs)
+                or {"count": 2, "shield_list": [{"id": 11}, {"id": 12}]}
+            )
+        )
+    )
+    monkeypatch.setattr(alert, "resource", fake_resource)
+    monkeypatch.setattr(alert, "Shield", SimpleNamespace(objects=FakeQuerySet()))
+
+    result = alert.SearchAlarmShieldsResource().perform_request({"bk_biz_id": 2, "source": "mcp"})
+
+    assert result["count"] == 2
+    assert "source" not in captured
+    assert {"key": "id", "value": [11, 12]} in captured["conditions"]

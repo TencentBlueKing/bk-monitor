@@ -19,7 +19,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.documents import AlertDocument
-from bkmonitor.models import ActionConfig, DutyRule, StrategyModel, UserGroup
+from bkmonitor.models import ActionConfig, DutyRule, Shield, StrategyModel, UserGroup
 from bkmonitor.strategy.new_strategy import Strategy, get_metric_id
 from core.drf_resource import Resource, resource
 from fta_web.alert.resources import AlertTopNResource as FtaAlertTopNResource
@@ -649,7 +649,19 @@ class SearchAlarmShieldsResource(Resource):
     RequestSerializer = BusinessScopedSerializer
 
     def perform_request(self, validated_request_data):
-        return resource.shield.shield_list.request(**validated_request_data)
+        request_data = dict(validated_request_data)
+        # 底层 ShieldListSerializer 未声明 source；MCP 侧自行按 source 收敛到 id 条件，避免改原始 API。
+        source = request_data.pop("source", None)
+        if source is not None and source != "":
+            shield_ids = list(
+                Shield.objects.filter(bk_biz_id=request_data["bk_biz_id"], source=source).values_list("id", flat=True)
+            )
+            if not shield_ids:
+                return {"count": 0, "shield_list": []}
+            conditions = list(request_data.get("conditions") or [])
+            conditions.append({"key": "id", "value": shield_ids})
+            request_data["conditions"] = conditions
+        return resource.shield.shield_list.request(**request_data)
 
 
 class GetAlarmShieldResource(Resource):
@@ -732,6 +744,8 @@ class CreateAlarmShieldResource(Resource):
 
     def perform_request(self, validated_request_data):
         request_data = remove_confirm(validated_request_data)
+        # 底层创建 serializer 未声明 source；创建后由 MCP 回写模型字段，避免改原始 API 契约。
+        source = request_data.pop("source", None)
         shield_resource = resource.shield.add_shield
         if request_data["category"] == "strategy":
             strategy_ids = serializers.ListField(
@@ -756,7 +770,20 @@ class CreateAlarmShieldResource(Resource):
                 raise ValidationError({"dimension_config": "alert_id 或 alert_ids 必须提供一个"})
             for target_alert_id in target_alert_ids:
                 ensure_alert_belongs_to_biz(request_data["bk_biz_id"], target_alert_id)
-        return shield_resource.request(**request_data)
+
+        existing_ids = set(Shield.objects.filter(bk_biz_id=request_data["bk_biz_id"]).values_list("id", flat=True))
+        result = shield_resource.request(**request_data)
+        if source not in (None, ""):
+            created_ids = list(
+                Shield.objects.filter(bk_biz_id=request_data["bk_biz_id"])
+                .exclude(id__in=existing_ids)
+                .values_list("id", flat=True)
+            )
+            if not created_ids and isinstance(result, dict) and result.get("id"):
+                created_ids = [result["id"]]
+            if created_ids:
+                Shield.objects.filter(id__in=created_ids, bk_biz_id=request_data["bk_biz_id"]).update(source=source)
+        return result
 
 
 class UpdateAlarmShieldResource(Resource):
@@ -841,9 +868,12 @@ class UpdateNoticeGroupResource(Resource):
         id = serializers.IntegerField(required=True, label="告警组ID")
 
     def perform_request(self, validated_request_data):
+        from bkmonitor.models import DutyArrange, UserGroup
         from kernel_api.views.v4.notice_group import SaveUserGroupResource, SearchUserGroupDetailResource
 
         request_data = remove_confirm(validated_request_data)
+        # 底层 SaveUserGroup 对空 duty_arranges 是 no-op；MCP 侧显式 [] 表示清空，保存后再补一次同步。
+        clear_duty_arranges = "duty_arranges" in request_data and request_data["duty_arranges"] == []
         current_group = SearchUserGroupDetailResource().request(id=request_data["id"])
         if not current_group or current_group["bk_biz_id"] != request_data["bk_biz_id"]:
             raise ValidationError({"id": f"业务 {request_data['bk_biz_id']} 下不存在告警组: {request_data['id']}"})
@@ -871,7 +901,23 @@ class UpdateNoticeGroupResource(Resource):
         ).run_validation(request_data.get("duty_rules") or [])
         ensure_duty_rules_belong_to_biz(request_data["bk_biz_id"], duty_rules)
         request_data["duty_rules"] = duty_rules
-        return SaveUserGroupResource().request(**request_data)
+        result = SaveUserGroupResource().request(**request_data)
+        if clear_duty_arranges:
+            user_group = UserGroup.objects.filter(id=request_data["id"], bk_biz_id=request_data["bk_biz_id"]).first()
+            if user_group:
+                DutyArrange.bulk_create([], user_group)
+        return result
+
+
+def attach_action_config_is_enabled(config: dict[str, Any]) -> dict[str, Any]:
+    """在 MCP 响应当中补充 is_enabled，不改动底层 action_config API 返回结构。"""
+
+    if "is_enabled" in config:
+        return config
+    action_config = ActionConfig.objects.filter(id=config["id"], bk_biz_id=config["bk_biz_id"]).first()
+    if action_config is not None:
+        config["is_enabled"] = action_config.is_enabled
+    return config
 
 
 class SearchActionConfigsResource(Resource):
@@ -882,7 +928,19 @@ class SearchActionConfigsResource(Resource):
     def perform_request(self, validated_request_data):
         from kernel_api.views.v4.action_config import ListActionConfigResource
 
-        return ListActionConfigResource().request(**validated_request_data)
+        result = ListActionConfigResource().request(**validated_request_data)
+        items = result.get("data") or []
+        if not items:
+            return result
+        enabled_map = dict(
+            ActionConfig.objects.filter(
+                id__in=[item["id"] for item in items],
+                bk_biz_id=validated_request_data["bk_biz_id"],
+            ).values_list("id", "is_enabled")
+        )
+        for item in items:
+            item["is_enabled"] = enabled_map.get(item["id"], True)
+        return result
 
 
 class GetMCPActionConfigResource(Resource):
@@ -894,7 +952,8 @@ class GetMCPActionConfigResource(Resource):
     def perform_request(self, validated_request_data):
         from kernel_api.views.v4.action_config import GetActionConfigResource
 
-        return GetActionConfigResource().request(**validated_request_data)
+        config = GetActionConfigResource().request(**validated_request_data)
+        return attach_action_config_is_enabled(config)
 
 
 class UpdateMCPActionConfigResource(Resource):
@@ -911,7 +970,9 @@ class UpdateMCPActionConfigResource(Resource):
         from kernel_api.views.v4.action_config import EditActionConfigResource, GetActionConfigResource
 
         request_data = remove_confirm(validated_request_data)
-        current_config = GetActionConfigResource().request(id=request_data["id"], bk_biz_id=request_data["bk_biz_id"])
+        current_config = attach_action_config_is_enabled(
+            GetActionConfigResource().request(id=request_data["id"], bk_biz_id=request_data["bk_biz_id"])
+        )
         if "plugin_id" in request_data and int(request_data["plugin_id"]) != int(current_config["plugin_id"]):
             raise ValidationError({"plugin_id": "处理套餐类型不允许修改"})
         request_data["plugin_id"] = current_config["plugin_id"]
@@ -919,4 +980,5 @@ class UpdateMCPActionConfigResource(Resource):
             current_config["execute_config"],
             request_data["execute_config"],
         )
-        return EditActionConfigResource().request(**request_data)
+        # EditActionConfigResource 本身已支持写入 is_enabled，这里只是透传，不改其响应契约。
+        return attach_action_config_is_enabled(EditActionConfigResource().request(**request_data))
