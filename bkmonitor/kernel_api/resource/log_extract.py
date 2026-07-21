@@ -22,7 +22,7 @@ class SearchLogExtractHostsResource(Resource):
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
-        result = api.log_extract.query_log_extract_hosts(
+        result = api.log_search.query_log_extract_hosts(
             scope_list=[{"scope_type": "biz", "scope_id": str(bk_biz_id)}],
             node_list=[{"object_id": "biz", "instance_id": bk_biz_id}],
             search_condition={"ip": validated_request_data["ip"]},
@@ -73,7 +73,7 @@ class SearchLogExtractFilesResource(Resource):
 
     def perform_request(self, validated_request_data):
         limit = validated_request_data.pop("limit")
-        files = api.log_extract.list_log_extract_files(**validated_request_data) or []
+        files = api.log_search.list_log_extract_files(**validated_request_data) or []
         return {
             "total": len(files),
             "files": files[:limit],
@@ -115,7 +115,7 @@ class CreateLogExtractTaskMCPResource(Resource):
             "preview_end_time": "",
             "preview_is_search_child": False,
         }
-        result = api.log_extract.create_log_extract_task(**request_data)
+        result = api.log_search.create_log_extract_task(**request_data)
         return {"task_id": result["task_id"], "status": "QUEUED", "poll_after_seconds": 5}
 
 
@@ -141,7 +141,7 @@ class GetLogExtractTaskMCPResource(Resource):
         task_id = serializers.IntegerField(required=True, min_value=1)
 
     def perform_request(self, validated_request_data):
-        result = api.log_extract.get_log_extract_task(**validated_request_data)
+        result = api.log_search.get_log_extract_task(**validated_request_data)
         if int(result.get("bk_biz_id", 0)) != validated_request_data["bk_biz_id"]:
             raise serializers.ValidationError("task does not belong to the requested business")
 
@@ -166,5 +166,5 @@ class GetLogExtractDownloadUrlMCPResource(Resource):
         task_id = serializers.IntegerField(required=True, min_value=1)
 
     def perform_request(self, validated_request_data):
-        download_url = api.log_extract.get_log_extract_download_url(**validated_request_data, is_url="1")
+        download_url = api.log_search.get_log_extract_download_url(**validated_request_data, is_url="1")
         return {"task_id": validated_request_data["task_id"], "download_url": download_url}

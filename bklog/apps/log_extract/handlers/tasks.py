@@ -149,7 +149,7 @@ class TasksHandler:
         else:
             extract_link = ExtractLink.objects.filter(link_id=link_id).first()
         if not extract_link:
-            raise exceptions.TaskNotHaveExtractLink
+            raise exceptions.TaskExtractLinkNotExist
         # K8S部署情况下禁止使用内网链路, 所以已有的内网链路不能创建任务
         if extract_link.link_type == ExtractLinkType.COMMON.value and settings.IS_K8S_DEPLOY_MODE:
             raise exceptions.TaskCannotCreateByCommonLink

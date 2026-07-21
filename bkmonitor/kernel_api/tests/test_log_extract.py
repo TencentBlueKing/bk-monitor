@@ -27,7 +27,7 @@ def test_search_hosts_builds_scoped_exact_ip_query(monkeypatch):
             ],
         }
     )
-    monkeypatch.setattr(api.log_extract, "query_log_extract_hosts", query_hosts)
+    monkeypatch.setattr(api.log_search, "query_log_extract_hosts", query_hosts)
 
     result = SearchLogExtractHostsResource().perform_request({"bk_biz_id": 7, "ip": "10.0.0.1"})
 
@@ -45,7 +45,7 @@ def test_search_hosts_builds_scoped_exact_ip_query(monkeypatch):
 
 def test_search_files_limits_mcp_response(monkeypatch):
     list_files = Mock(return_value=[{"path": "/a"}, {"path": "/b"}, {"path": "/c"}])
-    monkeypatch.setattr(api.log_extract, "list_log_extract_files", list_files)
+    monkeypatch.setattr(api.log_search, "list_log_extract_files", list_files)
     request_data = {
         "bk_biz_id": 7,
         "ip_list": [{"bk_host_id": 101, "ip": "10.0.0.1", "bk_cloud_id": 2}],
@@ -65,7 +65,7 @@ def test_search_files_limits_mcp_response(monkeypatch):
 
 def test_create_task_hides_link_and_fills_preview_fields(monkeypatch):
     create_task = Mock(return_value={"task_id": 123})
-    monkeypatch.setattr(api.log_extract, "create_log_extract_task", create_task)
+    monkeypatch.setattr(api.log_search, "create_log_extract_task", create_task)
     request_data = {
         "bk_biz_id": 7,
         "ip_list": [{"bk_host_id": 101, "ip": "10.0.0.1", "bk_cloud_id": 2}],
@@ -90,7 +90,7 @@ def test_create_task_hides_link_and_fills_preview_fields(monkeypatch):
 )
 def test_get_task_normalizes_status(monkeypatch, raw_status, expected):
     monkeypatch.setattr(
-        api.log_extract,
+        api.log_search,
         "get_log_extract_task",
         Mock(return_value={"task_id": 123, "bk_biz_id": 7, "download_status": raw_status}),
     )
@@ -102,7 +102,7 @@ def test_get_task_normalizes_status(monkeypatch, raw_status, expected):
 
 def test_get_task_rejects_business_mismatch(monkeypatch):
     monkeypatch.setattr(
-        api.log_extract,
+        api.log_search,
         "get_log_extract_task",
         Mock(return_value={"task_id": 123, "bk_biz_id": 8, "download_status": "downloadable"}),
     )
