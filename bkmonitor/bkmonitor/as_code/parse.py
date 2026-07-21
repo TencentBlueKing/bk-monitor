@@ -70,9 +70,9 @@ def convert_notices(
     5. 配置写入 save
     """
 
-    user_groups = list(UserGroup.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "hash", "name", "app"))
-    path_user_groups = {user_group.path: user_group for user_group in user_groups if user_group.app == app}
-    name_user_groups = {user_group.name.lower(): user_group for user_group in user_groups}
+    user_groups = UserGroup.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "hash", "name", "app")
+    path_user_groups = {user_group.path: user_group for user_group in user_groups.filter(app=app)}
+    name_user_groups = {user_group.name.lower(): user_group for user_group in user_groups} if overwrite else {}
 
     parser = NoticeGroupConfigParser(bk_biz_id=bk_biz_id, duty_rules=duty_rules, overwrite=overwrite)
     records = []
@@ -143,9 +143,9 @@ def convert_actions(
     动作配置转换导入
     """
 
-    actions = list(ActionConfig.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "hash", "name", "app"))
-    path_actions = {action.path: action for action in actions if action.app == app}
-    name_actions = {action.name.lower(): action for action in actions}
+    actions = ActionConfig.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "hash", "name", "app")
+    path_actions = {action.path: action for action in actions.filter(app=app)}
+    name_actions = {action.name.lower(): action for action in actions} if overwrite else {}
 
     parser = ActionConfigParser(bk_biz_id=bk_biz_id, action_plugins=ActionPlugin.objects.all())
 
@@ -251,9 +251,9 @@ def convert_rules(
     4. 配置转换 convert
     5. 配置写入 save
     """
-    strategies = list(StrategyModel.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "hash", "name", "app"))
-    path_strategies = {strategy.path: strategy for strategy in strategies if strategy.app == app}
-    name_strategies = {strategy.name.lower(): strategy for strategy in strategies}
+    strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "hash", "name", "app")
+    path_strategies = {strategy.path: strategy for strategy in strategies.filter(app=app)}
+    name_strategies = {strategy.name.lower(): strategy for strategy in strategies} if overwrite else {}
 
     # 先完成 snippet 渲染与 hash 比对；全部未变更时跳过 CMDB 远程调用
     pending: list[tuple[str, dict, str, str, StrategyModel | None]] = []
@@ -411,9 +411,9 @@ def convert_assign_groups(
     4. 配置转换 convert
     5. 配置写入 save
     """
-    rule_groups = list(AlertAssignGroup.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "hash", "name", "app"))
-    path_rule_groups = {rule_group.path: rule_group for rule_group in rule_groups if rule_group.app == app}
-    name_rule_groups = {rule_group.name.lower(): rule_group for rule_group in rule_groups}
+    rule_groups = AlertAssignGroup.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "hash", "name", "app")
+    path_rule_groups = {rule_group.path: rule_group for rule_group in rule_groups.filter(app=app)}
+    name_rule_groups = {rule_group.name.lower(): rule_group for rule_group in rule_groups} if overwrite else {}
 
     parser = AssignGroupRuleParser(bk_biz_id=bk_biz_id, notice_group_ids=notice_group_ids, action_ids=action_ids)
 
@@ -477,9 +477,9 @@ def convert_duty_rules(
     """
     转换轮值规则
     """
-    duty_rules = list(DutyRule.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "code_hash", "name", "app"))
-    path_duty_rules = {rule.path: rule for rule in duty_rules if rule.app == app}
-    name_rules = {duty_rule.name.lower(): duty_rule for duty_rule in duty_rules}
+    duty_rules = DutyRule.objects.filter(bk_biz_id=bk_biz_id).only("id", "path", "code_hash", "name", "app")
+    path_duty_rules = {rule.path: rule for rule in duty_rules.filter(app=app)}
+    name_rules = {duty_rule.name.lower(): duty_rule for duty_rule in duty_rules} if overwrite else {}
     parser = DutyRuleParser(bk_biz_id)
     records = []
     for path, config in configs.items():

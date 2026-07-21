@@ -9,12 +9,15 @@ specific language governing permissions and limitations under the License.
 """
 
 import inspect
+import json
 
 import pytest
+import xxhash
 from django.db import connections
 from django.test.utils import CaptureQueriesContext
 
 from bkmonitor.as_code import parse
+from bkmonitor.as_code.parse import convert_notices
 from bkmonitor.models import ActionConfig, DutyRule, UserGroup
 
 pytestmark = pytest.mark.django_db(databases="__all__")
@@ -63,6 +66,24 @@ def test_import_code_config_only_includes_app():
     assert '.only("name", "id", "path", "app")' in source
     assert '.only("id", "path", "name", "app")' in source
     assert '"plugin_id", "app"' in source
+
+
+def test_convert_notices_uses_database_app_matching(seeded_as_code_resources):
+    """app 路径匹配应遵循数据库 collation，而不是 Python 的大小写敏感比较。"""
+    group = UserGroup.objects.get(bk_biz_id=BK_BIZ_ID, path="notice-0.yaml")
+    group.app = APP.upper()
+    group.hash = xxhash.xxh3_128_hexdigest(json.dumps({}))
+    group.save(update_fields=["app", "hash"])
+
+    records = convert_notices(
+        bk_biz_id=BK_BIZ_ID,
+        app=APP,
+        configs={"notice-0.yaml": {}},
+        snippets={},
+        duty_rules={},
+    )
+
+    assert records == []
 
 
 def test_duty_rule_mapping_with_app_has_no_n_plus_one(seeded_as_code_resources):
