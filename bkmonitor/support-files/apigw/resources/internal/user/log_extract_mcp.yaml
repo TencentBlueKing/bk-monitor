@@ -2,7 +2,7 @@ paths:
   /mcp/search_log_extract_hosts/:
     post:
       operationId: search_log_extract_hosts
-      description: Resolve an exact IPv4 address to hosts that the current user may access under log-extraction policies. Call this before file search or task creation. If multiple hosts are returned, ask the user to choose a cloud area. 根据精确 IP 查询当前用户有日志提取权限的主机，并补充主机ID和管控区域；存在多个候选时必须让用户选择。
+      description: Query hosts accessible under log-extraction policies. Parameters and response follow the BK Log query-hosts API. 查询日志提取策略下可访问的主机，参数和返回值透传日志平台主机查询接口。
       tags: [log_extract_mcp]
       requestBody:
         required: true
@@ -10,14 +10,35 @@ paths:
           application/json:
             schema:
               type: object
-              required: [bk_biz_id, ip]
+              required: [node_list]
               properties:
-                bk_biz_id:
-                  type: integer
-                  description: Business ID. 业务ID。
-                ip:
-                  type: string
-                  description: Exact IPv4 address supplied by the user. 用户提供的精确 IPv4 地址。
+                all_scope: {type: boolean, default: false}
+                scope_list:
+                  type: array
+                  items:
+                    type: object
+                    required: [scope_type, scope_id]
+                    properties:
+                      scope_type: {type: string, description: Scope type, normally biz.}
+                      scope_id: {type: string, description: Business or scope ID.}
+                node_list:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [object_id, instance_id]
+                    properties:
+                      object_id: {type: string}
+                      instance_id: {type: integer}
+                search_condition:
+                  type: object
+                  description: Host filters supported by BK Log, such as an exact ip.
+                search_content: {type: string, description: Fuzzy host search content.}
+                conditions:
+                  type: array
+                  items: {type: object}
+                start: {type: integer, minimum: 0, default: 0}
+                page_size: {type: integer, minimum: -1, maximum: 500, default: -1}
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false
@@ -37,7 +58,7 @@ paths:
   /mcp/search_log_extract_files/:
     post:
       operationId: search_log_extract_files
-      description: Search files on resolved hosts within directories allowed by the user's log-extraction policies. Use host information returned by search_log_extract_hosts. 查询已解析主机上允许提取的文件。
+      description: Query extractable files on selected hosts. Parameters and response follow the BK Log list-file API. 查询可提取文件，参数和返回值透传日志平台文件查询接口。
       tags: [log_extract_mcp]
       requestBody:
         required: true
@@ -45,25 +66,24 @@ paths:
           application/json:
             schema:
               type: object
-              required: [bk_biz_id, ip_list, path]
+              required: [bk_biz_id, ip_list, path, is_search_child, time_range]
               properties:
                 bk_biz_id: {type: integer, description: Business ID. 业务ID。}
                 ip_list:
                   type: array
-                  maxItems: 20
+                  minItems: 1
                   items:
                     type: object
-                    required: [bk_host_id, ip, bk_cloud_id]
+                    description: Provide bk_host_id, or provide both ip and bk_cloud_id.
                     properties:
                       bk_host_id: {type: integer}
                       ip: {type: string}
                       bk_cloud_id: {type: integer}
                 path: {type: string, description: Directory or file path to inspect. 查询路径。}
-                is_search_child: {type: boolean, default: false, description: Search child directories recursively. 是否递归查询。}
-                time_range: {type: string, enum: [1d, 1w, 1m, all, custom], default: 1d}
+                is_search_child: {type: boolean, description: Search child directories recursively. 是否递归查询。}
+                time_range: {type: string, enum: [1d, 1w, 1m, all, custom]}
                 start_time: {type: string, description: Required for custom range, format YYYY-MM-DD HH:mm:ss.}
                 end_time: {type: string, description: Required for custom range, format YYYY-MM-DD HH:mm:ss.}
-                limit: {type: integer, minimum: 1, maximum: 100, default: 100}
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false
@@ -83,7 +103,7 @@ paths:
   /mcp/create_log_extract_task/:
     post:
       operationId: create_log_extract_task
-      description: Create an asynchronous log-extraction task. This causes jobs to run on target hosts and MUST only be called after the user explicitly confirms the hosts, file paths, and optional filter. 创建异步日志提取任务；会在目标主机执行作业，只能在用户明确确认目标和文件后调用。
+      description: Create an asynchronous log-extraction task. This runs jobs on target hosts and MUST only be called after explicit user confirmation. Parameters and response follow the BK Log create-task API. 创建异步日志提取任务，参数和返回值透传日志平台任务创建接口。
       tags: [log_extract_mcp]
       requestBody:
         required: true
@@ -91,28 +111,32 @@ paths:
           application/json:
             schema:
               type: object
-              required: [bk_biz_id, ip_list, file_path]
+              required: [bk_biz_id, file_path, filter_type, filter_content, preview_directory, preview_ip_list, preview_time_range, preview_is_search_child]
               properties:
                 bk_biz_id: {type: integer, description: Business ID. 业务ID。}
+                target_node_type: {type: string, description: Target node type; defaults to INSTANCE in BK Log.}
                 ip_list:
                   type: array
-                  minItems: 1
-                  maxItems: 20
-                  items:
-                    type: object
-                    required: [bk_host_id, ip, bk_cloud_id]
-                    properties:
-                      bk_host_id: {type: integer}
-                      ip: {type: string}
-                      bk_cloud_id: {type: integer}
+                  items: {type: object}
+                target_nodes:
+                  type: array
+                  items: {type: object}
                 file_path:
                   type: array
                   minItems: 1
-                  maxItems: 10
                   items: {type: string}
-                filter_type: {type: string, enum: ['', line_range, match_word, tail_line, match_range], default: ''}
-                filter_content: {type: object, default: {}}
-                remark: {type: string, maxLength: 255, default: ''}
+                filter_type: {type: string, enum: ['', line_range, match_word, tail_line, match_range]}
+                filter_content: {type: object}
+                remark: {type: string, maxLength: 255}
+                preview_directory: {type: string}
+                preview_ip_list:
+                  type: array
+                  items: {type: object}
+                preview_time_range: {type: string, enum: [1d, 1w, 1m, all, custom]}
+                preview_start_time: {type: string}
+                preview_end_time: {type: string}
+                preview_is_search_child: {type: boolean}
+                link_id: {type: integer, nullable: true, description: Extraction link ID; BK Log selects its default when omitted.}
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false
@@ -132,7 +156,7 @@ paths:
   /mcp/get_log_extract_task/:
     get:
       operationId: get_log_extract_task
-      description: Get normalized status for a log-extraction task. Poll using poll_after_seconds returned at creation. 查询日志提取任务状态。
+      description: Get a log-extraction task. The response follows the BK Log task-detail API; inspect download_status to determine progress. 查询日志提取任务，返回值透传日志平台任务详情接口。
       tags: [log_extract_mcp]
       parameters:
       - {in: query, name: bk_biz_id, required: true, schema: {type: integer}, description: Business ID. 业务ID。}
@@ -156,7 +180,7 @@ paths:
   /mcp/get_log_extract_download_url/:
     post:
       operationId: get_log_extract_download_url
-      description: Get a download URL only after get_log_extract_task reports SUCCEEDED. The URL is sensitive and must not be logged or fetched into model context. 任务成功后获取下载地址；不得将文件内容读入模型上下文。
+      description: Get the download URL after the task becomes downloadable. The raw response follows BK Log; the URL is sensitive and must not be logged or fetched into model context. 获取任务下载地址，返回值透传日志平台下载接口。
       tags: [log_extract_mcp]
       requestBody:
         required: true

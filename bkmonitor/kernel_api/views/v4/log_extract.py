@@ -1,4 +1,4 @@
-"""Log extraction MCP API routes."""
+"""日志提取 MCP 接口路由。"""
 
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from kernel_api.resource.log_extract import (

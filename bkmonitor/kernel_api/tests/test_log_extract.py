@@ -1,111 +1,84 @@
 from unittest.mock import Mock
 
 import pytest
-from rest_framework import serializers
 
 from core.drf_resource import api
 from kernel_api.resource.log_extract import (
     CreateLogExtractTaskResource,
+    GetLogExtractDownloadUrlResource,
     GetLogExtractTaskResource,
     SearchLogExtractFilesResource,
     SearchLogExtractHostsResource,
 )
 
 
-def test_search_hosts_builds_scoped_exact_ip_query(monkeypatch):
-    query_hosts = Mock(
-        return_value={
-            "total": 1,
-            "data": [
-                {
-                    "host_id": 101,
-                    "ip": "10.0.0.1",
-                    "host_name": "app-1",
-                    "cloud_area": {"id": 2, "name": "cloud-2"},
-                    "alive": 1,
-                }
-            ],
-        }
-    )
-    monkeypatch.setattr(api.log_search, "query_log_extract_hosts", query_hosts)
-
-    result = SearchLogExtractHostsResource().perform_request({"bk_biz_id": 7, "ip": "10.0.0.1"})
-
-    assert result["resolution"] == "RESOLVED"
-    assert result["hosts"][0]["bk_host_id"] == 101
-    assert result["hosts"][0]["bk_cloud_id"] == 2
-    query_hosts.assert_called_once_with(
-        scope_list=[{"scope_type": "biz", "scope_id": "7"}],
-        node_list=[{"object_id": "biz", "instance_id": 7}],
-        search_condition={"ip": "10.0.0.1"},
-        start=0,
-        page_size=20,
-    )
-
-
-def test_search_files_limits_mcp_response(monkeypatch):
-    list_files = Mock(return_value=[{"path": "/a"}, {"path": "/b"}, {"path": "/c"}])
-    monkeypatch.setattr(api.log_search, "list_log_extract_files", list_files)
-    request_data = {
-        "bk_biz_id": 7,
-        "ip_list": [{"bk_host_id": 101, "ip": "10.0.0.1", "bk_cloud_id": 2}],
-        "path": "/data/logs",
-        "is_search_child": False,
-        "time_range": "1d",
-        "start_time": "",
-        "end_time": "",
-        "limit": 2,
-    }
-
-    result = SearchLogExtractFilesResource().perform_request(request_data)
-
-    assert result == {"total": 3, "files": [{"path": "/a"}, {"path": "/b"}], "truncated": True}
-    assert "limit" not in list_files.call_args.kwargs
-
-
-def test_create_task_hides_link_and_fills_preview_fields(monkeypatch):
-    create_task = Mock(return_value={"task_id": 123})
-    monkeypatch.setattr(api.log_search, "create_log_extract_task", create_task)
-    request_data = {
-        "bk_biz_id": 7,
-        "ip_list": [{"bk_host_id": 101, "ip": "10.0.0.1", "bk_cloud_id": 2}],
-        "file_path": ["/data/logs/app.log", "/data/logs/error.log"],
-        "filter_type": "",
-        "filter_content": {},
-        "remark": "mcp",
-    }
-
-    result = CreateLogExtractTaskResource().perform_request(request_data)
-
-    assert result == {"task_id": 123, "status": "QUEUED", "poll_after_seconds": 5}
-    payload = create_task.call_args.kwargs
-    assert payload["preview_directory"] == "/data/logs"
-    assert payload["preview_ip_list"] == [{"bk_host_id": 101, "ip": "10.0.0.1", "bk_cloud_id": 2}]
-    assert "link_id" not in payload
-
-
 @pytest.mark.parametrize(
-    ("raw_status", "expected"),
-    [("init", "QUEUED"), ("packing", "RUNNING"), ("downloadable", "SUCCEEDED"), ("failed", "FAILED")],
+    ("resource_class", "api_name", "request_data", "response"),
+    [
+        (
+            SearchLogExtractHostsResource,
+            "query_log_extract_hosts",
+            {
+                "scope_list": [{"scope_type": "biz", "scope_id": "7"}],
+                "node_list": [{"object_id": "biz", "instance_id": 7}],
+                "search_condition": {"ip": "10.0.0.1"},
+                "start": 0,
+                "page_size": 20,
+            },
+            {"total": 1, "data": [{"host_id": 101, "ip": "10.0.0.1"}]},
+        ),
+        (
+            SearchLogExtractFilesResource,
+            "list_log_extract_files",
+            {
+                "bk_biz_id": 7,
+                "ip_list": [{"bk_host_id": 101}],
+                "path": "/data/logs",
+                "is_search_child": False,
+                "time_range": "1d",
+            },
+            [{"path": "/data/logs/app.log"}],
+        ),
+        (
+            CreateLogExtractTaskResource,
+            "create_log_extract_task",
+            {
+                "bk_biz_id": 7,
+                "ip_list": [{"bk_host_id": 101}],
+                "file_path": ["/data/logs/app.log"],
+                "filter_type": "",
+                "filter_content": {},
+                "preview_directory": "/data/logs",
+                "preview_ip_list": [{"bk_host_id": 101}],
+                "preview_time_range": "1d",
+                "preview_is_search_child": False,
+                "link_id": 1,
+            },
+            {"task_id": 123},
+        ),
+        (
+            GetLogExtractTaskResource,
+            "get_log_extract_task",
+            {"bk_biz_id": 7, "task_id": 123},
+            {"task_id": 123, "bk_biz_id": 7, "download_status": "downloadable"},
+        ),
+    ],
 )
-def test_get_task_normalizes_status(monkeypatch, raw_status, expected):
-    monkeypatch.setattr(
-        api.log_search,
-        "get_log_extract_task",
-        Mock(return_value={"task_id": 123, "bk_biz_id": 7, "download_status": raw_status}),
-    )
+def test_log_extract_resource_passes_through(monkeypatch, resource_class, api_name, request_data, response):
+    api_resource = Mock(return_value=response)
+    monkeypatch.setattr(api.log_search, api_name, api_resource)
 
-    result = GetLogExtractTaskResource().perform_request({"bk_biz_id": 7, "task_id": 123})
+    result = resource_class().perform_request(request_data)
 
-    assert result["status"] == expected
+    assert result == response
+    api_resource.assert_called_once_with(**request_data)
 
 
-def test_get_task_rejects_business_mismatch(monkeypatch):
-    monkeypatch.setattr(
-        api.log_search,
-        "get_log_extract_task",
-        Mock(return_value={"task_id": 123, "bk_biz_id": 8, "download_status": "downloadable"}),
-    )
+def test_get_download_url_passes_through(monkeypatch):
+    api_resource = Mock(return_value="https://example.com/download")
+    monkeypatch.setattr(api.log_search, "get_log_extract_download_url", api_resource)
 
-    with pytest.raises(serializers.ValidationError):
-        GetLogExtractTaskResource().perform_request({"bk_biz_id": 7, "task_id": 123})
+    result = GetLogExtractDownloadUrlResource().perform_request({"bk_biz_id": 7, "task_id": 123})
+
+    assert result == "https://example.com/download"
+    api_resource.assert_called_once_with(bk_biz_id=7, task_id=123, is_url="1")
