@@ -51,6 +51,23 @@ def test_command_uses_business_defaults():
     params = clean.call_args.args[0]
     assert params.batch_size == 1000
     assert params.keep_latest_snapshots == 1
+    assert params.dry_run is False
+
+
+def test_command_dry_run_passes_option_and_reports_matched_count():
+    """dry-run 应传入业务层，并明确输出预计删除数量。"""
+    stdout = StringIO()
+
+    with mock.patch(
+        "bkmonitor.management.commands.clean_strategy_history.clean_strategy_history",
+        return_value=42,
+    ) as clean:
+        call_command("clean_strategy_history", days=30, dry_run=True, stdout=stdout)
+
+    params = clean.call_args.args[0]
+    assert params.dry_run is True
+    assert "would delete 42 records" in stdout.getvalue()
+    assert "deleted 42 records" not in stdout.getvalue()
 
 
 @pytest.mark.parametrize(

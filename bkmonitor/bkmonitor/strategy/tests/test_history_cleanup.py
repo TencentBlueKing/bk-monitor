@@ -158,6 +158,23 @@ def test_cleanup_is_idempotent(monkeypatch):
     assert set(StrategyHistoryModel.objects.values_list("id", flat=True)) == {kept_snapshot.id}
 
 
+def test_dry_run_returns_matched_count_without_deleting_histories(monkeypatch):
+    """dry-run 应返回预计删除数量，同时保持数据库内容不变。"""
+    now = timezone.make_aware(datetime(2026, 7, 21, 12, 0, 0))
+    monkeypatch.setattr("bkmonitor.strategy.history.timezone.now", lambda: now)
+    strategy = _create_strategy("dry-run")
+    removable = _create_history(strategy.id, now - timedelta(days=40))
+    kept_snapshot = _create_history(strategy.id, now - timedelta(days=35), operate="bulk_update")
+
+    matched = clean_strategy_history(CleanStrategyHistoryParams(days=30, dry_run=True))
+
+    assert matched == 1
+    assert set(StrategyHistoryModel.objects.values_list("id", flat=True)) == {
+        removable.id,
+        kept_snapshot.id,
+    }
+
+
 def test_keep_latest_snapshots_retains_multiple_successful_versions(monkeypatch):
     """keep_latest_snapshots>1 时应保留全局最近多条成功快照。"""
     now = timezone.make_aware(datetime(2026, 7, 21, 12, 0, 0))
