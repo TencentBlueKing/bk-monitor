@@ -943,6 +943,8 @@ import { mapGetters } from 'vuex';
             record_parse_failure: etlParams.enable_retain_content,
             path_regexp: etlParams.path_regexp,
             metadata_fields: etlParams.metadata_fields,
+            // 透传清洗步骤配置的 expand_depth；不携带 overflow_strategy
+            ...this.pickExtJsonConfigPayload(etlParams),
           },
           fields,
           assessment_config: {
@@ -963,6 +965,7 @@ import { mapGetters } from 'vuex';
             enable_retain_content: etlParams.enable_retain_content,
             record_parse_failure: etlParams.enable_retain_content,
             path_regexp: etlParams.path_regexp,
+            ...this.pickExtJsonConfigPayload(etlParams),
           };
           if (etl_config === 'bk_log_delimiter') {
             payload.separator = etlParams.separator;
@@ -973,6 +976,20 @@ import { mapGetters } from 'vuex';
           data.etl_params = payload;
         }
         return data;
+      },
+      /** 仅透传公开的 expand_depth，避免覆盖后台隐藏策略 */
+      pickExtJsonConfigPayload(etlParams = {}) {
+        if (!etlParams.retain_extra_json || !etlParams.ext_json_config) {
+          return {};
+        }
+        if (!('expand_depth' in etlParams.ext_json_config)) {
+          return {};
+        }
+        return {
+          ext_json_config: {
+            expand_depth: etlParams.ext_json_config.expand_depth ?? null,
+          },
+        };
       },
       checkStorageReplies() {
         return this.formData.storage_replies <= this.replicasMax;
