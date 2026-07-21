@@ -36,6 +36,7 @@ def test_strategy_history_operate_choices_include_bulk_operations():
     assert choices["bulk_delete"] == "批量删除"
 
 
+@pytest.mark.django_db
 def test_bulk_delete_does_not_create_success_history_when_delete_fails():
     """中途删除失败时不应写入成功历史；事务保证与主表删除一并回滚。"""
     strategy_id = 1001
@@ -57,6 +58,7 @@ def test_bulk_delete_does_not_create_success_history_when_delete_fails():
     bulk_create_history.assert_not_called()
 
 
+@pytest.mark.django_db
 def test_bulk_delete_creates_success_history_after_all_data_is_deleted():
     strategy_ids = [1001, 1002]
     delete_models = (
