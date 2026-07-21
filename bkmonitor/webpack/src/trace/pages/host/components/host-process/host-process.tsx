@@ -114,17 +114,9 @@ export default defineComponent({
           onSortChange={this.handleSortChange}
         />
         <ProcessDetail
-<<<<<<< HEAD
-          compareHostList={props.compareHostList}
-          process={activeProcess.value}
-          selectedNode={props.host}
-          show={detailShow.value}
-          onUpdate:show={(v: boolean) => (detailShow.value = v)}
-=======
           process={this.activeProcess}
           show={this.detailShow}
           onUpdate:show={(v: boolean) => (this.detailShow = v)}
->>>>>>> ca7be03ed (feat: 进程列表表格对齐新版设计稿 --story=136308029)
         />
       </Loading>
     );
