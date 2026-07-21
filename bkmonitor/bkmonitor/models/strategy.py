@@ -439,6 +439,8 @@ class StrategyHistoryModel(Model):
             ("delete", _lazy("删除")),
             ("create", _lazy("创建")),
             ("update", _lazy("更新")),
+            ("bulk_update", _lazy("批量更新")),
+            ("bulk_delete", _lazy("批量删除")),
         ),
         db_index=True,
         max_length=12,

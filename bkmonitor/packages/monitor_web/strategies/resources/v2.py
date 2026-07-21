@@ -2550,7 +2550,7 @@ class UpdatePartialStrategyV2Resource(Resource):
                 StrategyHistoryModel(
                     create_user=username,
                     strategy_id=strategy.id,
-                    operate="update",
+                    operate="bulk_update",
                     status=True,
                     content=strategy.to_dict(),
                 )
