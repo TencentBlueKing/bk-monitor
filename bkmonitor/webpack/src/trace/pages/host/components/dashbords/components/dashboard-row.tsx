@@ -92,24 +92,19 @@ export default defineComponent({
     return (
       <div class='dashboard-row'>
         <div
-          class='dashboard-row__header'
+          class={['dashboard-row-header', { 'is-collapsed': !this.expanded }]}
           onClick={this.toggle}
         >
           <i
-            class={[
-              'icon-monitor',
-              'icon-mc-triangle-down',
-              'dashboard-row__arrow',
-              { 'is-collapsed': !this.expanded },
-            ]}
+            class={['icon-monitor', 'icon-mc-arrow-down', 'dashboard-row-arrow', { 'is-collapsed': !this.expanded }]}
           />
-          <span class='dashboard-row__title'>{this.row.title}</span>
-          <span class='dashboard-row__count'>({this.row.panels.length})</span>
+          <span class='dashboard-row-title'>{this.row.title}</span>
+          <span class='dashboard-row-count'>({this.row.panels.length})</span>
         </div>
         {this.expanded && (
           <div
             style={this.gridStyle}
-            class='dashboard-row__grid'
+            class='dashboard-row-grid'
           >
             {this.row.panels.map(panel => (
               <ChartLazy

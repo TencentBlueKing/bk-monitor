@@ -26,12 +26,14 @@
 
 import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
 
-import { Button, Dialog, Input, PopConfirm, Select } from 'bkui-vue';
+import { Button, Dialog, Input, Popover, Select } from 'bkui-vue';
+import { debounce } from 'lodash';
 import { useI18n } from 'vue-i18n';
 
 import { type MetricGroupModel, type MetricItemModel, UNGROUP_ID } from '../../types/metric-group';
 import MetricGroupList, { GROUP_ID_ALL } from './metric-group-list';
-import MetricTable, { type HiddenFilter } from './metric-table';
+import MetricTable from './metric-table';
+import EmptyStatus from '@/components/empty-status/empty-status';
 
 import type { MetricGroupPanelOrder } from '../../types/panel-order';
 
@@ -100,8 +102,9 @@ export default defineComponent({
     const activeGroupId = shallowRef<string>(GROUP_ID_ALL);
     const selectedIds = shallowRef<string[]>([]);
     const tableKeyword = shallowRef('');
-    const hiddenFilter = shallowRef<HiddenFilter>('all');
     const moveTargetValue = shallowRef('');
+
+    const deleteGroupShow = shallowRef(false);
 
     const unGroup = computed(
       () => props.orderData.find(g => g.id === UNGROUP_ID) || { id: UNGROUP_ID, title: t('未分组的指标') }
@@ -117,7 +120,6 @@ export default defineComponent({
           activeGroupId.value = GROUP_ID_ALL;
           selectedIds.value = [];
           tableKeyword.value = '';
-          hiddenFilter.value = 'all';
           moveTargetValue.value = '';
         }
       }
@@ -139,6 +141,12 @@ export default defineComponent({
     /** 是否为可删除的真实分组 */
     const isRealGroup = computed(() => activeGroupId.value !== GROUP_ID_ALL && activeGroupId.value !== UNGROUP_ID);
 
+    const handleTableKeywordChange = (keyword: string) => {
+      tableKeyword.value = keyword;
+    };
+
+    const handleTableKeywordChangeDebounced = debounce(handleTableKeywordChange, 200);
+
     /** 表格当前展示行 */
     const scopedRows = computed(() => {
       let list = localMetrics.value;
@@ -147,13 +155,11 @@ export default defineComponent({
       }
       const key = tableKeyword.value.trim().toLowerCase();
       if (key) list = list.filter(m => m.title.toLowerCase().includes(key));
-      if (hiddenFilter.value === 'visible') list = list.filter(m => !m.hidden);
-      if (hiddenFilter.value === 'hidden') list = list.filter(m => m.hidden);
       return list;
     });
 
-    /** 仅在未做关键字/显示筛选时允许拖拽，避免顺序歧义 */
-    const draggable = computed(() => !tableKeyword.value.trim() && hiddenFilter.value === 'all');
+    /** 仅在未做关键字筛选时允许拖拽，避免顺序歧义 */
+    const draggable = computed(() => !tableKeyword.value.trim());
 
     const updateMetric = (id: string, patch: Partial<MetricItemModel>) => {
       localMetrics.value = localMetrics.value.map(m => (m.id === id ? { ...m, ...patch } : m));
@@ -194,6 +200,19 @@ export default defineComponent({
 
     const handleReorderGroups = (next: MetricGroupModel[]) => {
       localGroups.value = next;
+    };
+
+    /** 全局点击事件，关闭所有操作弹窗 */
+    const documentClickFn = () => {
+      deleteGroupShow.value = false;
+    };
+    const handleDeleteGroupShowChange = (show: boolean) => {
+      deleteGroupShow.value = show;
+      if (show) {
+        document.addEventListener('click', documentClickFn);
+      } else {
+        document.removeEventListener('click', documentClickFn);
+      }
     };
 
     const handleDeleteGroup = () => {
@@ -256,32 +275,63 @@ export default defineComponent({
             <div class='group-metric-wrap-header'>
               <span class='group-title'>{scopeTitle.value}</span>
               {isRealGroup.value && (
-                <PopConfirm
+                <Popover
                   width={320}
                   v-slots={{
                     content: () => (
-                      <div class='group-delete-confirm'>
-                        <div class='group-delete-name'>
-                          {t('分组名称')}：{scopeTitle.value}
+                      <div class='delete-host-group-confirm-popover-content'>
+                        <div class='delete-host-group-info'>
+                          <div class='info-icon'>
+                            <i class='icon-monitor icon-mc-chart-alert' />
+                          </div>
+                          <div class='info-text'>
+                            <div class='group-delete-title'>{t('确认删除该分组？')}</div>
+                            <div class='group-delete-name'>
+                              {t('分组名称')}：{scopeTitle.value}
+                            </div>
+                            <div class='group-delete-tip'>
+                              {t('分组删除后，相关指标将被移动到 <{name}>', { name: t(unGroup.value.title) })}
+                            </div>
+                          </div>
                         </div>
-                        <div class='group-delete-tip'>
-                          {t('分组删除后，相关指标将被移动到 {name}', { name: t(unGroup.value.title) })}
+                        <div class='delete-host-group-btns'>
+                          <Button
+                            size='small'
+                            theme='primary'
+                            onClick={handleDeleteGroup}
+                          >
+                            {t('删除')}
+                          </Button>
+                          <Button
+                            size='small'
+                            outline
+                            onClick={e => {
+                              e.stopPropagation();
+                              handleDeleteGroupShowChange(false);
+                            }}
+                          >
+                            {t('取消')}
+                          </Button>
                         </div>
                       </div>
                     ),
                   }}
-                  title={t('确认删除该分组？')}
-                  trigger='click'
-                  onConfirm={handleDeleteGroup}
+                  isShow={deleteGroupShow.value}
+                  theme='light delete-host-group-confirm-popover'
+                  trigger='manual'
                 >
                   <Button
                     size='small'
                     theme='danger'
                     outline
+                    onClick={e => {
+                      e.stopPropagation();
+                      handleDeleteGroupShowChange(true);
+                    }}
                   >
                     {t('删除分组')}
                   </Button>
-                </PopConfirm>
+                </Popover>
               )}
             </div>
             <div class='group-metric-wrap-operations'>
@@ -302,25 +352,35 @@ export default defineComponent({
               </Select>
               <Input
                 class='group-metric-search'
-                v-model={tableKeyword.value}
+                modelValue={tableKeyword.value}
                 placeholder={t('搜索 指标名称')}
                 type='search'
                 clearable
+                onInput={handleTableKeywordChangeDebounced}
               />
             </div>
             <div class='group-metric-wrap-table'>
               <MetricTable
                 draggable={draggable.value}
                 groupOptions={groupOptions.value}
-                hiddenFilter={hiddenFilter.value}
                 rows={scopedRows.value}
                 selectedIds={selectedIds.value}
                 onChangeGroup={handleChangeGroup}
                 onDragSort={handleDragSort}
-                onHiddenFilterChange={(v: HiddenFilter) => (hiddenFilter.value = v)}
                 onSelectChange={(ids: string[]) => (selectedIds.value = ids)}
                 onToggleHidden={handleToggleHidden}
-              />
+              >
+                {{
+                  empty: () => (
+                    <EmptyStatus
+                      type={tableKeyword.value ? 'search-empty' : 'empty'}
+                      onOperation={() => {
+                        tableKeyword.value = '';
+                      }}
+                    />
+                  ),
+                }}
+              </MetricTable>
             </div>
           </div>
         </div>
