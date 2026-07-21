@@ -2278,7 +2278,9 @@ class UpdatePartialStrategyV2Resource(Resource):
 
         strategy.notice.user_groups = notice_group_list
 
-        return StrategyActionConfigRelation, ["user_groups"], [action.instance, strategy.notice.instance]
+        relations = [action.instance for action in strategy.actions]
+        relations.append(strategy.notice.instance)
+        return StrategyActionConfigRelation, ["user_groups"], relations
 
     @staticmethod
     def update_trigger_config(strategy: Strategy, trigger_config: dict):
