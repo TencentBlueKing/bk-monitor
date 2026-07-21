@@ -72,6 +72,85 @@ class GetIndexSetFieldListResource(Resource):
         return result
 
 
+class ListLogScenesResource(Resource):
+    """获取业务可用的日志场景及场景维度定义。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        logger.info("ListLogScenesResource: list log scenes, bk_biz_id->[%s]", bk_biz_id)
+        return api.log_search.list_scenes(bk_biz_id=bk_biz_id)
+
+
+class GetSceneLogFieldsResource(Resource):
+    """获取场景路由条件命中结果表的聚合字段信息。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        # 禁止空外层和空 AND 分组，避免 [] 或 [[]] 导致宽泛选表；条件内容由日志平台校验。
+        table_id_conditions = serializers.ListField(
+            child=serializers.ListField(allow_empty=False),
+            required=True,
+            allow_empty=False,
+            label="结果表路由条件，外层为 OR，内层为 AND",
+        )
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        table_id_conditions = validated_request_data["table_id_conditions"]
+        logger.info(
+            "GetSceneLogFieldsResource: get scene fields, bk_biz_id->[%s], condition_groups->[%s]",
+            bk_biz_id,
+            len(table_id_conditions),
+        )
+        return api.log_search.scene_fields(
+            space_uid=bk_biz_id_to_space_uid(bk_biz_id),
+            bk_biz_id=bk_biz_id,
+            table_id_conditions=table_id_conditions,
+        )
+
+
+class SearchSceneLogResource(Resource):
+    """按日志场景和维度检索日志，由日志平台负责选表、细粒度鉴权和脱敏。"""
+
+    class RequestSerializer(TimeSpanValidationPassThroughSerializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        # 禁止空外层和空 AND 分组，避免 [] 或 [[]] 导致宽泛选表；条件内容由日志平台校验。
+        table_id_conditions = serializers.ListField(
+            child=serializers.ListField(allow_empty=False),
+            required=True,
+            allow_empty=False,
+            label="结果表路由条件，外层为 OR，内层为 AND",
+        )
+        keyword = serializers.CharField(required=False, default="*", allow_blank=True, label="查询字符串")
+        start_time = serializers.CharField(required=True, label="开始时间")
+        end_time = serializers.CharField(required=True, label="结束时间")
+        size = serializers.IntegerField(required=False, default=10, min_value=1, max_value=50, label="返回条数")
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        table_id_conditions = validated_request_data["table_id_conditions"]
+
+        request_data = {
+            "space_uid": bk_biz_id_to_space_uid(bk_biz_id),
+            "bk_biz_id": bk_biz_id,
+            "table_id_conditions": table_id_conditions,
+            "keyword": validated_request_data.get("keyword") or "*",
+            "start_time": validated_request_data["start_time"],
+            "end_time": validated_request_data["end_time"],
+            "size": validated_request_data.get("size", 10),
+        }
+
+        logger.info(
+            "SearchSceneLogResource: search scene logs, bk_biz_id->[%s], condition_groups->[%s]",
+            bk_biz_id,
+            len(table_id_conditions),
+        )
+        return api.log_search.scene_search(**request_data)
+
+
 class SearchLogResource(Resource):
     """
     日志查询服务 -- 日志查询 (用于 AI MCP 请求)

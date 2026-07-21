@@ -146,6 +146,52 @@ class SearchIndexSetResource(LogSearchAPIGWResource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
 
 
+class ListScenesResource(LogSearchAPIGWResource):
+    """场景化日志检索场景列表。"""
+
+    action = "/scene/scenes/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+
+
+class SceneFieldsResource(LogSearchAPIGWResource):
+    """场景化日志检索字段列表。"""
+
+    action = "/scene/fields/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        space_uid = serializers.CharField(label="空间UID")
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        table_id_conditions = serializers.ListField(label="结果表路由条件")
+        start_time = serializers.CharField(required=False, default="", allow_blank=True, label="开始时间")
+        end_time = serializers.CharField(required=False, default="", allow_blank=True, label="结束时间")
+        scope = serializers.CharField(required=False, default="default", label="字段配置范围")
+
+
+class SceneSearchResource(LogSearchAPIGWResource):
+    """场景化日志检索。"""
+
+    action = "/scene/search/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        space_uid = serializers.CharField(label="空间UID")
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        table_id_conditions = serializers.ListField(label="结果表路由条件")
+        scene_filter_values = serializers.ListField(required=False, default=list, label="场景维度过滤条件")
+        keyword = serializers.CharField(required=False, default="*", allow_blank=True, label="查询字符串")
+        addition = serializers.ListField(required=False, default=list, label="日志字段过滤条件")
+        start_time = serializers.CharField(label="开始时间")
+        end_time = serializers.CharField(label="结束时间")
+        begin = serializers.IntegerField(required=False, default=0, min_value=0, label="偏移量")
+        size = serializers.IntegerField(required=False, default=10, min_value=1, max_value=10000, label="返回条数")
+        sort_list = serializers.ListField(required=False, default=list, label="排序字段")
+        is_desensitize = serializers.BooleanField(required=False, default=True, label="是否脱敏")
+
+
 class SearchIndexSetLogResource(IndexSetResource):
     """
     搜索索引集日志内容

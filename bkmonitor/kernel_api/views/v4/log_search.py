@@ -16,6 +16,9 @@ from kernel_api.resource.log_search import (
     SearchIndexSetContextResource,
     FieldAnalyzeResource,
     SearchLogClusteringPatternResource,
+    GetSceneLogFieldsResource,
+    ListLogScenesResource,
+    SearchSceneLogResource,
 )
 
 
@@ -27,7 +30,10 @@ class LogSearchViewSet(ResourceViewSet):
     resource_routes = [
         ResourceRoute("GET", GetIndexSetListResource, endpoint="get_index_set_list"),
         ResourceRoute("GET", GetIndexSetFieldListResource, endpoint="get_index_set_field_list"),
+        ResourceRoute("GET", ListLogScenesResource, endpoint="list_log_scenes"),
+        ResourceRoute("POST", GetSceneLogFieldsResource, endpoint="get_scene_log_fields"),
         ResourceRoute("POST", SearchLogResource, endpoint="search_log"),
+        ResourceRoute("POST", SearchSceneLogResource, endpoint="search_scene_log"),
         ResourceRoute("POST", FieldAnalyzeResource, endpoint="field_analyze"),
         ResourceRoute("POST", SearchIndexSetContextResource, endpoint="search_index_set_context"),
         ResourceRoute("POST", SearchLogClusteringPatternResource, endpoint="search_log_clustering_pattern"),

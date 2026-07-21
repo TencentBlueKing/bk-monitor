@@ -228,6 +228,140 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+  /mcp/list_log_scenes/:
+    get:
+      operationId: list_log_scenes
+      description: 'List log scenes available to a business and their dimension definitions. Call this before get_scene_log_fields or search_logs_by_scene. Dimensions with choices_type static or dynamic are routing dimensions. Dimensions with choices_type free_input are log content fields and should be used in keyword. 获取业务可用的日志场景及维度定义。应在 get_scene_log_fields 或 search_logs_by_scene 前调用。choices_type 为 static/dynamic 的维度是路由维度；free_input 维度是日志内容字段，应用于 keyword。'
+      tags:
+      - log_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: integer
+        required: true
+        description: Business ID in BlueKing Monitor. 业务 ID。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/log_search/list_log_scenes/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/get_scene_log_fields/:
+    post:
+      operationId: get_scene_log_fields
+      description: 'Get the merged field mappings for log tables matched by table_id_conditions. Call list_log_scenes first and build conditions from its scene and static/dynamic dimensions. The outer array is OR and each inner array is AND. Empty outer arrays and empty inner groups are rejected to avoid broad table selection; condition content is validated by the log platform. Use the returned fields to construct keyword for search_logs_by_scene. 获取 table_id_conditions 命中结果表的聚合字段信息。外层数组为 OR，内层数组为 AND。为避免宽泛选表，不允许空外层数组或空内层分组；条件内容由日志平台校验。'
+      tags:
+      - log_mcp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - table_id_conditions
+              properties:
+                bk_biz_id:
+                  type: integer
+                  description: Business ID. 业务 ID。
+                table_id_conditions:
+                  type: array
+                  minItems: 1
+                  description: 'Result-table routing conditions. Outer array is OR and inner array is AND. Empty arrays and groups are rejected to avoid broad table selection. Example: [[{"field_name":"scene","value":["k8s"],"op":"eq"},{"field_name":"cluster_id","value":["BCS-K8S-00000"],"op":"eq"}]]. 结果表路由条件，外层 OR、内层 AND，不允许空数组或空分组。'
+                  items:
+                    type: array
+                    minItems: 1
+                    items:
+                      type: object
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_search/get_scene_log_fields/
+          matchSubpath: false
+          timeout: 63
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+  /mcp/search_logs_by_scene/:
+    post:
+      operationId: search_logs_by_scene
+      description: 'Search logs by table_id_conditions without requiring an index_set_id. Call list_log_scenes and get_scene_log_fields first. Empty outer arrays and empty inner groups are rejected to avoid broad table selection; condition content is validated by the log platform. Express free_input dimensions and ordinary log field filters in keyword. Query span must not exceed 1 day. The caller cannot disable desensitization. 通过 table_id_conditions 检索日志，无需索引集 ID。为避免宽泛选表，不允许空外层数组或空内层分组；条件内容由日志平台校验。free_input 维度及普通日志字段过滤通过 keyword 表达。查询跨度不得超过一天，且调用方不能关闭脱敏。'
+      tags:
+      - log_mcp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - table_id_conditions
+              - start_time
+              - end_time
+              properties:
+                bk_biz_id:
+                  type: integer
+                  description: Business ID. 业务 ID。
+                table_id_conditions:
+                  type: array
+                  minItems: 1
+                  description: 'Result-table routing conditions. Outer array is OR and inner array is AND. Empty arrays and groups are rejected to avoid broad table selection. Example: [[{"field_name":"scene","value":["k8s"],"op":"eq"},{"field_name":"cluster_id","value":["BCS-K8S-00000"],"op":"eq"}]]. 结果表路由条件，外层 OR、内层 AND，不允许空数组或空分组。'
+                  items:
+                    type: array
+                    minItems: 1
+                    items:
+                      type: object
+                keyword:
+                  type: string
+                  default: '*'
+                  description: Log query string constructed with fields returned by get_scene_log_fields, for example level:ERROR. 使用 get_scene_log_fields 返回字段构造的日志查询字符串。
+                start_time:
+                  type: string
+                  description: Start Unix timestamp in seconds or milliseconds. 开始时间戳，秒或毫秒。
+                end_time:
+                  type: string
+                  description: End Unix timestamp in seconds or milliseconds. 结束时间戳，秒或毫秒。
+                size:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  default: 10
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_search/search_scene_log/
+          matchSubpath: false
+          timeout: 63
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
   /mcp/analyze_field/:
     post:
       operationId: analyze_field
