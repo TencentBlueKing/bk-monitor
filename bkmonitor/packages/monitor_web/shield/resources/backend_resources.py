@@ -64,7 +64,6 @@ class ShieldListSerializer(serializers.Serializer):
     time_range = serializers.CharField(required=False, label="时间范围", allow_blank=True, allow_null=True)
     page = serializers.IntegerField(required=False, label="页码")
     page_size = serializers.IntegerField(required=False, label="每页条数")
-    source = serializers.CharField(required=False, label="屏蔽来源")
 
 
 from django.db.models.query_utils import DeferredAttribute

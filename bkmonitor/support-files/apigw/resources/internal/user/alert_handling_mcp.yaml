@@ -78,7 +78,7 @@ paths:
   /mcp/get_alarm_strategy/:
     post:
       operationId: get_alarm_strategy
-      description: Get one alarm strategy by an exact strategy_id or strategy_name condition. Call search_alarm_strategies first. A unique match returns the complete strategy; zero or multiple matches return candidate summaries and do not write data. 通过精确的策略ID或策略名称条件获取单个告警策略。应先调用search_alarm_strategies。唯一命中返回完整策略，零命中或多命中仅返回候选摘要。
+      description: Get one alarm strategy by an exact strategy_id or strategy_name condition. A unique match returns the complete raw strategy plus microsecond-precision config_version for update_alarm_strategy; zero or multiple matches return candidate summaries. convert_dashboard defaults to false so query configs and internal IDs remain writable. 通过精确策略ID或名称获取单个策略。唯一命中返回完整原始配置及微秒精度config_version，供update_alarm_strategy并发校验；默认不转换仪表盘配置，以保留可写查询配置和内部ID。
       tags:
       - alert_handling_mcp
       requestBody:
@@ -124,8 +124,8 @@ paths:
                   description: Include full notice group details. 是否补充告警组详情。
                 convert_dashboard:
                   type: boolean
-                  default: true
-                  description: Convert dashboard configuration. 是否转换仪表盘配置。
+                  default: false
+                  description: Convert dashboard configuration. Keep false when the result will be submitted to update_alarm_strategy so raw query configs and internal IDs are preserved. 是否转换仪表盘配置；用于完整更新时保持false，以保留原始查询配置和内部ID。
         required: true
       x-bk-apigateway-resource:
         isPublic: false
@@ -146,7 +146,7 @@ paths:
   /mcp/create_alarm_strategy/:
     post:
       operationId: create_alarm_strategy
-      description: Create a single-metric alarm strategy after checking duplicate strategies with search_alarm_strategies and resolving notice_group_ids/action_config_ids from discovery tools. The simplified payload is converted to the complete strategy schema and validated before saving. This is a production write and requires explicit confirm=true. 创建单指标告警策略。创建前先查重并通过发现工具获取告警组和处理套餐ID。简化参数会转换为完整策略并在保存前校验。生产写操作，必须显式传confirm=true。
+      description: Create an alarm strategy after checking duplicates with search_alarm_strategies and resolving notice_group_ids/action_config_ids from discovery tools. Use the simplified metric/detect/notice_group_ids payload for common single time-series threshold strategies. For log keyword strategies (data_source_label=bk_log_search, data_type_label=log), submit the complete items/detects/notice structure with query_configs.query_string and index_set_id instead of the simplified metric payload. This is a production write and requires explicit confirm=true. 创建告警策略。创建前先查重并解析告警组/处理套餐ID。常见单指标阈值可用简化metric/detect/notice_group_ids；日志关键字策略（bk_log_search+log）必须提交完整items/detects/notice，并在query_configs中提供query_string与index_set_id。生产写操作，必须显式传confirm=true。
       tags:
       - alert_handling_mcp
       requestBody:
@@ -158,9 +158,6 @@ paths:
               - bk_biz_id
               - name
               - scenario
-              - metric
-              - detect
-              - notice_group_ids
               - confirm
               properties:
                 bk_biz_id:
@@ -191,10 +188,16 @@ paths:
                       description: Data type, such as time_series, event, or log. 数据类型。
                     result_table_id:
                       type: string
-                      description: Result table ID. 结果表ID。
+                      description: Result table ID. For log keyword strategies prefer the complete items path and keep this blank or from get_alarm_strategy. 结果表ID；日志关键字策略建议走完整items路径。
                     metric_field:
                       type: string
-                      description: Metric field. 指标字段。
+                      description: Metric field for time-series strategies. Not the primary field for log keyword strategies. 时序策略的指标字段；日志关键字策略不以该字段为主。
+                    index_set_id:
+                      type: integer
+                      description: Log index set ID for bk_log_search strategies. Prefer discovering it via log MCP list_index_sets. 日志索引集ID；建议通过日志MCP的list_index_sets发现。
+                    query_string:
+                      type: string
+                      description: Log keyword query string for bk_log_search log strategies, for example level:ERROR AND path:/api/*. Prefer the complete items path when creating log keyword strategies. 日志关键字检索语句；创建日志关键字策略时建议走完整items路径。
                     agg_method:
                       type: string
                       default: AVG
@@ -220,7 +223,22 @@ paths:
                       type: string
                       default: a
                       description: Query alias. 查询别名。
-                  description: Metric query definition. Additional data-source-specific fields may be provided. 指标查询定义，可补充数据源特有字段。
+                  description: Simplified metric query for common time-series threshold strategies. For log keyword strategies, prefer items[].query_configs with query_string and index_set_id. 简化指标定义，适用于常见时序阈值；日志关键字策略请优先使用完整items.query_configs。
+                items:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                  description: Complete monitoring items. Required for log keyword strategy creation together with detects and notice. 完整监控项；创建日志关键字策略时与detects、notice一起提交。
+                detects:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                  description: Complete detection rules used with the full items path. 完整检测规则，与完整items路径一起使用。
+                notice:
+                  type: object
+                  description: Complete notice configuration used with the full items path. 完整通知配置，与完整items路径一起使用。
                 detect:
                   type: object
                   required:
@@ -327,7 +345,7 @@ paths:
   /mcp/update_alarm_strategy/:
     post:
       operationId: update_alarm_strategy
-      description: Partially update one or more alarm strategies. First use search_alarm_strategies and get_alarm_strategy to identify and read the current complete configuration. Nested notice/actions/algorithms data must retain required existing fields. This is a production write and requires confirm=true. 局部更新一个或多个告警策略。必须先通过search_alarm_strategies和get_alarm_strategy定位并读取原配置，嵌套对象需保留原有必填字段。生产写操作，必须confirm=true。
+      description: Fully update one existing alarm strategy. You MUST first call get_alarm_strategy, preserve the complete returned configuration, internal IDs and config_version, modify only the requested fields, then submit with confirm=true. Supports PromQL/time-series query changes and log keyword strategies (bk_log_search + log) by editing query_configs.query_string and index_set_id. Query-derived metric_id is synchronized with changed PromQL/physical query fields while unchanged special metric IDs are preserved. A stale config_version is rejected to prevent concurrent overwrite. This never creates a missing strategy. 使用完整配置更新单个已有告警策略。必须先调用get_alarm_strategy，保留全部配置、内部ID和config_version后仅改指定字段。支持修改PromQL/时序查询，也支持日志关键字策略通过query_configs.query_string与index_set_id修改检索语句；旧config_version会被拒绝，且不会自动创建策略。
       tags:
       - alert_handling_mcp
       requestBody:
@@ -337,61 +355,215 @@ paths:
               type: object
               required:
               - bk_biz_id
-              - ids
-              - edit_data
+              - id
+              - name
+              - type
+              - source
+              - scenario
+              - is_enabled
+              - is_invalid
+              - invalid_type
+              - items
+              - detects
+              - notice
+              - actions
+              - labels
+              - app
+              - path
+              - priority
+              - priority_group_key
+              - metric_type
+              - issue_config
+              - update_time
+              - config_version
               - confirm
               properties:
                 bk_biz_id:
                   type: string
-                  description: Business ID. 业务ID。
-                ids:
+                  description: Business ID. Must match the strategy returned by get_alarm_strategy. 业务ID，必须与原策略一致。
+                id:
+                  type: string
+                  description: Existing strategy ID from get_alarm_strategy. Required; this tool never creates a new strategy. 已有策略ID，必须来自get_alarm_strategy。
+                name:
+                  type: string
+                  description: Complete strategy name. 完整策略名称。
+                type:
+                  type: string
+                  default: monitor
+                  description: Strategy type. 策略类型。
+                source:
+                  type: string
+                  description: Strategy source. Preserve the current value. 策略来源，需保留原值。
+                scenario:
+                  type: string
+                  description: Monitoring scenario. 监控场景。
+                is_enabled:
+                  type: boolean
+                  description: Whether the strategy is enabled. 是否启用。
+                is_invalid:
+                  type: boolean
+                  description: Whether the strategy is invalid. 是否失效。
+                invalid_type:
+                  type: string
+                  description: Invalid reason/type. 失效类型。
+                items:
                   type: array
                   minItems: 1
                   items:
-                    type: string
-                  description: Strategy IDs resolved from search_alarm_strategies. 策略ID列表。
-                edit_data:
-                  type: object
-                  minProperties: 1
-                  properties:
-                    is_enabled:
-                      type: boolean
-                    notice_group_list:
-                      type: array
-                      items:
+                    type: object
+                    required:
+                    - id
+                    - name
+                    - query_configs
+                    - algorithms
+                    - no_data_config
+                    - target
+                    properties:
+                      id:
                         type: string
-                    labels:
-                      type: object
-                    trigger_config:
-                      type: object
-                    recovery_config:
-                      type: object
-                    alarm_interval:
-                      type: integer
-                      description: Notice interval. The backend currently interprets this legacy field in minutes. 通知间隔，后端当前按分钟解释该兼容字段。
-                    send_recovery_alarm:
-                      type: boolean
-                    message_template:
-                      type: string
-                    no_data_config:
-                      type: object
-                    target:
-                      type: array
-                      items:
+                        description: Existing item ID. Preserve it from get_alarm_strategy. 监控项ID，需保留原值。
+                      name:
+                        type: string
+                      expression:
+                        type: string
+                        description: Metric expression using query aliases. 指标计算表达式。
+                      origin_sql:
+                        type: string
+                      functions:
                         type: array
                         items:
                           type: object
-                    actions:
-                      type: array
-                      items:
+                      metric_type:
+                        type: string
+                      query_configs:
+                        type: array
+                        minItems: 1
+                        items:
+                          type: object
+                          required:
+                          - id
+                          - alias
+                          - data_source_label
+                          - data_type_label
+                          properties:
+                            id:
+                              type: string
+                              description: Existing query config ID. Preserve it when editing. 查询配置ID。
+                            alias:
+                              type: string
+                              description: Query alias referenced by expression. 查询别名。
+                            data_source_label:
+                              type: string
+                            data_type_label:
+                              type: string
+                            metric_id:
+                              type: string
+                              description: Metric ID. 指标ID。
+                            result_table_id:
+                              type: string
+                            metric_field:
+                              type: string
+                            promql:
+                              type: string
+                              description: PromQL query for Prometheus data sources. Prometheus数据源的PromQL。
+                            index_set_id:
+                              type: integer
+                              description: Log index set ID for bk_log_search strategies. Preserve when only changing the keyword query. 日志检索索引集ID；仅改关键字时需原样保留。
+                            query_string:
+                              type: string
+                              description: Log keyword query string for bk_log_search + log strategies, for example level:ERROR AND status:500. This is the primary editable field for log keyword alarms. 日志关键字检索语句（bk_log_search+log），是日志关键字告警的主要可编辑字段。
+                            time_field:
+                              type: string
+                              description: Log time field, commonly dtEventTimeStamp. Preserve unless intentionally changing. 日志时间字段，常见为dtEventTimeStamp；无改动时保留原值。
+                            agg_method:
+                              type: string
+                              description: Aggregation method such as AVG/MAX/SUM. 聚合方法。
+                            agg_interval:
+                              type: integer
+                              description: Aggregation interval in seconds. 聚合周期（秒）。
+                            agg_dimension:
+                              type: array
+                              items:
+                                type: string
+                            agg_condition:
+                              type: array
+                              items:
+                                type: object
+                            functions:
+                              type: array
+                              items:
+                                type: object
+                        description: Complete query configurations. For log keyword strategies edit query_string/index_set_id; for Prometheus edit promql; preserve other data-source-specific fields. 完整查询配置。日志关键字改query_string/index_set_id，Prometheus改promql，其余数据源特有字段必须保留。
+                      algorithms:
+                        type: array
+                        items:
+                          type: object
+                        description: Complete detection algorithm configurations. 完整检测算法配置。
+                      no_data_config:
                         type: object
-                    notice:
-                      type: object
-                    algorithms:
-                      type: array
-                      items:
+                      target:
+                        type: array
+                        items:
+                          type: array
+                          items:
+                            type: object
+                  description: Complete monitoring items from get_alarm_strategy. Supports editing PromQL, log keyword query_string, expression and aggregation. 完整监控项；可改PromQL、日志关键字query_string、expression和聚合配置。
+                detects:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required:
+                    - id
+                    - level
+                    - trigger_config
+                    - recovery_config
+                    properties:
+                      id:
+                        type: string
+                      level:
+                        type: integer
+                      expression:
+                        type: string
+                      connector:
+                        type: string
+                      trigger_config:
                         type: object
-                  description: Partial update data. Supported keys are is_enabled, notice_group_list, labels, trigger_config, recovery_config, alarm_interval, send_recovery_alarm, message_template, no_data_config, target, actions, notice, and algorithms. 局部更新数据。
+                      recovery_config:
+                        type: object
+                  description: Complete trigger and recovery rules. 完整触发与恢复规则。
+                notice:
+                  type: object
+                  description: Complete notice configuration from get_alarm_strategy. 完整通知配置。
+                actions:
+                  type: array
+                  items:
+                    type: object
+                  description: Complete action configurations; empty array is allowed. 完整处理套餐配置，可为空数组。
+                labels:
+                  type: array
+                  items:
+                    type: string
+                app:
+                  type: string
+                path:
+                  type: string
+                priority:
+                  type: integer
+                  nullable: true
+                priority_group_key:
+                  type: string
+                metric_type:
+                  type: string
+                issue_config:
+                  type: object
+                  nullable: true
+                update_time:
+                  type: string
+                  description: Display update time returned by get_alarm_strategy. get_alarm_strategy返回的展示更新时间。
+                config_version:
+                  type: string
+                  description: Microsecond-precision concurrency version from get_alarm_strategy. Stale values are rejected. get_alarm_strategy返回的微秒精度并发版本，旧值会被拒绝。
                 confirm:
                   type: boolean
                   enum:
@@ -711,7 +883,27 @@ paths:
                   description: Complete end time. 完整结束时间。
                 cycle_config:
                   type: object
-                  description: Complete cycle configuration from get_alarm_shield. 从详情回填的完整周期配置。
+                  properties:
+                    type:
+                      type: integer
+                      enum:
+                      - 1
+                      - 2
+                      - 3
+                      - 4
+                    begin_time:
+                      type: string
+                    end_time:
+                      type: string
+                    day_list:
+                      type: array
+                      items:
+                        type: integer
+                    week_list:
+                      type: array
+                      items:
+                        type: integer
+                  description: Cycle configuration patch merged with the current shield detail. Omitted keys keep their current values. 周期配置会与当前详情递归合并，未传字段保留原值。
                 shield_notice:
                   type: boolean
                   description: Whether shield notifications are enabled. 是否启用屏蔽通知。
@@ -875,7 +1067,7 @@ paths:
   /mcp/update_alarm_notice_group/:
     post:
       operationId: update_alarm_notice_group
-      description: Update an existing notice group. Read the complete group first via search_alarm_notice_groups and the returned detail context, then preserve required name, alert_notice, action_notice, duty, channel, and mention fields that the user did not change. Changing a shared group affects every linked strategy. Production write; confirm=true is required. 更新已有告警组。写入前必须读取完整配置并回填未修改的必填通知、轮值、渠道和提醒字段。共享告警组变更会影响所有关联策略。生产写操作，必须confirm=true。
+      description: Update an existing notice group. Only id, bk_biz_id and confirm are always required; omitted top-level fields are filled from current detail. Provided nested lists/objects such as alert_notice, action_notice and duty_arranges replace the complete current block, so read with_detail=true first. duty_arranges=[] explicitly clears schedules. duty_rules must belong to the current or public business. mention_type is internal and cannot be set. Changing a shared group affects every linked strategy. Production write requires confirm=true. 更新已有告警组。仅id、bk_biz_id、confirm固定必填，未传顶层字段会从当前详情补齐；传入的通知、轮值等嵌套列表/对象按整块替换，因此必须先with_detail=true读取。duty_arranges=[]表示清空排班，duty_rules仅允许当前或公共业务，mention_type不可设置。
       tags:
       - alert_handling_mcp
       requestBody:
@@ -886,9 +1078,6 @@ paths:
               required:
               - id
               - bk_biz_id
-              - name
-              - alert_notice
-              - action_notice
               - confirm
               properties:
                 id:
@@ -920,20 +1109,22 @@ paths:
                   type: array
                   items:
                     type: object
-                  description: Complete alert notice configuration from the current group. 完整告警通知配置。
+                  description: Complete replacement of alert notice configuration. 告警通知完整替换。
                 action_notice:
                   type: array
                   items:
                     type: object
-                  description: Complete action notice configuration from the current group. 完整处理通知配置。
+                  description: Complete replacement of action notice configuration. 处理通知完整替换。
                 duty_arranges:
                   type: array
                   items:
                     type: object
+                  description: Complete replacement of schedules; [] explicitly clears all schedules. 排班完整替换，空数组表示清空。
                 duty_rules:
                   type: array
                   items:
                     type: string
+                  description: Duty rule IDs from the current or public business. 当前或公共业务的轮值规则ID。
                 duty_notice:
                   type: object
                 path:
@@ -942,8 +1133,6 @@ paths:
                   type: array
                   items:
                     type: object
-                mention_type:
-                  type: integer
                 confirm:
                   type: boolean
                   enum:
@@ -969,7 +1158,7 @@ paths:
   /mcp/search_alarm_action_configs/:
     get:
       operationId: search_alarm_action_configs
-      description: List action configs in one business. The backend does not provide name/plugin filters; when needed, filter returned data by name or plugin_id (2 means HTTP callback). Use before get_alarm_action_config or strategy writes. 查询业务下的处理套餐。后端不支持名称或类型入参筛选，需要时在返回结果中按name或plugin_id二次过滤，plugin_id=2表示HTTP回调。
+      description: List action configs in one business, including is_enabled. The backend does not provide name/plugin filters; when needed, filter returned data by name or plugin_id. Use before get_alarm_action_config or strategy writes. 查询业务下的处理套餐并返回is_enabled。后端不支持名称或类型入参筛选，需要时在结果中按name或plugin_id二次过滤。
       tags:
       - alert_handling_mcp
       parameters:
@@ -1029,7 +1218,7 @@ paths:
   /mcp/get_alarm_action_config/:
     get:
       operationId: get_alarm_action_config
-      description: Get one action config by ID in a business. Call search_alarm_action_configs first. This complete object is required before update_alarm_action_config so unmodified nested fields can be preserved. 获取业务下单个处理套餐详情。必须先调用search_alarm_action_configs。更新前应读取本完整对象以保留未修改的嵌套字段。
+      description: Get one action config by ID in a business, including is_enabled and complete execute_config. Call search_alarm_action_configs first. plugin_id is returned for context but is immutable in update_alarm_action_config. 获取业务下单个处理套餐详情，包含is_enabled和完整execute_config。plugin_id仅用于识别类型，更新时不可修改。
       tags:
       - alert_handling_mcp
       parameters:
@@ -1064,7 +1253,7 @@ paths:
   /mcp/update_alarm_action_config/:
     post:
       operationId: update_alarm_action_config
-      description: Update an existing action config. Call get_alarm_action_config first and preserve the complete execute_config when changing nested URL/header/body/auth/retry fields. plugin_id 2 is HTTP callback. Production write; confirm=true is required. 更新已有处理套餐。修改URL、Header、Body、认证或重试等嵌套字段前必须先读取详情并回填完整execute_config。plugin_id=2为HTTP回调。生产写操作，必须confirm=true。
+      description: Update an existing action config. Call get_alarm_action_config first. name, desc, execute_config and is_enabled are complete editable values; plugin_id is immutable. Nested dictionaries in execute_config are recursively merged with current detail while arrays replace the complete array, preventing omitted headers/auth/body/retry fields from being lost. Production write requires confirm=true. 更新已有处理套餐。必须先读取详情；name、desc、execute_config、is_enabled为完整可编辑值，plugin_id不可修改。execute_config字典递归合并，数组整组替换，避免遗漏字段被默认值覆盖。
       tags:
       - alert_handling_mcp
       requestBody:
@@ -1075,6 +1264,10 @@ paths:
               required:
               - id
               - bk_biz_id
+              - name
+              - desc
+              - execute_config
+              - is_enabled
               - confirm
               properties:
                 id:
@@ -1085,20 +1278,13 @@ paths:
                   description: Business ID. 业务ID。
                 name:
                   type: string
-                plugin_id:
-                  type: integer
-                  enum:
-                  - 1
-                  - 2
-                  - 3
-                  - 4
-                  - 5
-                  - 6
-                  description: Plugin type. 1=notification, 2=HTTP callback, 3=Job, 4/6=Standard Ops, 5=Process Service. 插件类型。
                 desc:
                   type: string
                 execute_config:
                   type: object
+                  required:
+                  - template_detail
+                  - timeout
                   properties:
                     template_detail:
                       type: object
@@ -1107,7 +1293,10 @@ paths:
                       type: string
                     timeout:
                       type: integer
-                  description: Complete execution configuration from get_alarm_action_config. 从详情读取并回填的完整执行配置。
+                  description: Execution configuration merged with current detail. Dictionaries merge recursively; arrays replace. 与当前详情合并的执行配置，字典递归合并、数组替换。
+                is_enabled:
+                  type: boolean
+                  description: Whether the action config is enabled. 处理套餐是否启用。
                 confirm:
                   type: boolean
                   enum:
