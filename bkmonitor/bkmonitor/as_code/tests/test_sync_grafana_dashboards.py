@@ -258,6 +258,59 @@ def test_import_dashboard_same_folder_same_title_serialized(monkeypatch):
     assert state["max_active"] == 1
 
 
+def test_import_dashboard_different_uids_same_folder_same_title_serialized(monkeypatch):
+    """即使 uid 不同，同目录同 title 的仪表盘仍指向冲突实体，必须串行导入。"""
+    lock = threading.Lock()
+    state = {"active": 0, "max_active": 0}
+
+    def on_import(**kwargs):
+        with lock:
+            state["active"] += 1
+            state["max_active"] = max(state["max_active"], state["active"])
+        time.sleep(0.02)
+        with lock:
+            state["active"] -= 1
+
+    grafana, _, _ = _make_grafana(folders=[{"title": "ops", "id": 7}], on_import=on_import)
+    monkeypatch.setattr(parse, "get_or_create_org", lambda bk_biz_id: {"id": 11})
+    monkeypatch.setattr(parse.api, "grafana", grafana)
+
+    dashboards = {
+        "ops/a.json": {"uid": "uid-a", "title": "dup"},
+        "ops/b.json": {"uid": "uid-b", "title": "dup"},
+    }
+    parse.sync_grafana_dashboards(2, dashboards)
+
+    assert state["max_active"] == 1
+
+
+def test_import_dashboard_transitive_conflicts_serialized(monkeypatch):
+    """UID 与 title 冲突关系可传递时，整个连通分组必须串行导入。"""
+    lock = threading.Lock()
+    state = {"active": 0, "max_active": 0}
+
+    def on_import(**kwargs):
+        with lock:
+            state["active"] += 1
+            state["max_active"] = max(state["max_active"], state["active"])
+        time.sleep(0.02)
+        with lock:
+            state["active"] -= 1
+
+    grafana, _, _ = _make_grafana(folders=[{"title": "ops", "id": 7}], on_import=on_import)
+    monkeypatch.setattr(parse, "get_or_create_org", lambda bk_biz_id: {"id": 11})
+    monkeypatch.setattr(parse.api, "grafana", grafana)
+
+    dashboards = {
+        "ops/a.json": {"uid": "shared-uid", "title": "first"},
+        "ops/b.json": {"uid": "shared-uid", "title": "bridge"},
+        "ops/c.json": {"uid": "other-uid", "title": "bridge"},
+    }
+    parse.sync_grafana_dashboards(2, dashboards)
+
+    assert state["max_active"] == 1
+
+
 def test_import_dashboard_distinct_entities_run_concurrently(monkeypatch):
     """不同实体（不同 uid）应能并发导入：两个线程需同时到达屏障。"""
     barrier = threading.Barrier(2, timeout=2)

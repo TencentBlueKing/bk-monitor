@@ -429,13 +429,43 @@ def sync_grafana_dashboards(bk_biz_id: int, dashboards: dict[str, dict]):
         )
 
     # 指向同一 Grafana 仪表盘实体（相同 uid，或同目录同 title）的导入必须串行，
-    # 否则并发 overwrite 会触发版本冲突。这里按唯一键分组，组内顺序执行、组间并发，
-    # 保持与串行版“后者覆盖前者”一致的语义。
-    import_groups: dict[object, list[tuple[str, dict, list]]] = {}
-    for dashboard_import in dashboard_imports:
-        folder, dashboard, _ = dashboard_import
-        key = dashboard.get("uid") or (folder, dashboard.get("title"))
-        import_groups.setdefault(key, []).append(dashboard_import)
+    # 否则并发 overwrite 会触发版本冲突。两类冲突关系可能传递，因此用并查集求连通分组，
+    # 组内保持原始顺序执行，延续串行版“后者覆盖前者”的语义。
+    parents = list(range(len(dashboard_imports)))
+
+    def find(index: int) -> int:
+        while parents[index] != index:
+            parents[index] = parents[parents[index]]
+            index = parents[index]
+        return index
+
+    def union(left: int, right: int) -> None:
+        left_root = find(left)
+        right_root = find(right)
+        if left_root != right_root:
+            parents[left_root] = right_root
+
+    uid_owners: dict[str, int] = {}
+    title_owners: dict[tuple[str, object], int] = {}
+    for index, (folder, dashboard, _) in enumerate(dashboard_imports):
+        uid = dashboard.get("uid")
+        if uid:
+            if uid in uid_owners:
+                union(index, uid_owners[uid])
+            else:
+                uid_owners[uid] = index
+
+        title = dashboard.get("title")
+        if title is not None:
+            title_key = (folder, title)
+            if title_key in title_owners:
+                union(index, title_owners[title_key])
+            else:
+                title_owners[title_key] = index
+
+    import_groups: dict[int, list[tuple[str, dict, list]]] = {}
+    for index, dashboard_import in enumerate(dashboard_imports):
+        import_groups.setdefault(find(index), []).append(dashboard_import)
 
     def import_dashboard_group(group: list[tuple[str, dict, list]]) -> None:
         for dashboard_import in group:
