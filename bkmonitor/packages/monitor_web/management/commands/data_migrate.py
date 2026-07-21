@@ -25,6 +25,7 @@ from monitor_web.data_migrate.data_rebuilder import (
     DEFAULT_KAFKA_CLUSTER_NAMES,
     add_new_migrate_data_id_routes,
     add_profiling_migrate_data_id_route,
+    disable_enabled_strategies,
     enable_closed_strategies_from_application_config,
     find_biz_custom_report_data_ids,
     rebuild_bklog_data_source_route,
@@ -126,6 +127,9 @@ class Command(BaseCommand):
             "  根据导入阶段记录开启被关闭的策略:\n"
             "    python manage.py data_migrate enable-closed-strategies --bk-biz-ids 18901\n"
             "\n"
+            "  关闭老环境中已启用的策略，并记录策略 ID 供新环境恢复:\n"
+            "    python manage.py data_migrate disable-enabled-strategies --bk-biz-ids 18901 --dry-run\n"
+            "\n"
             "  恢复自增游标:\n"
             "    python manage.py data_migrate apply-sequences --directory /tmp/bkmonitor-data-migrate-20260307120000\n"
             "\n"
@@ -194,6 +198,7 @@ class Command(BaseCommand):
                 "update-migrate-data-id-routes",
                 "add-profiling-migrate-data-id-route",
                 "replace-profiling-data-id-route",
+                "disable-enabled-strategies",
                 "enable-closed-strategies",
                 "apply-sequences",
                 "replace-tenant-id",
@@ -227,6 +232,7 @@ class Command(BaseCommand):
                 "业务 ID 列表；export/import 中 0 代表全局数据；"
                 "rebuild 支持正数和负数业务 ID，负数业务会跳过内置系统数据、拨测和采集插件重建；"
                 "find-custom-report-data-ids 支持正数和负数业务 ID；"
+                "disable-enabled-strategies 支持正数和负数业务 ID；"
                 "enable-closed-strategies 支持正数和负数业务 ID；"
                 "stop-biz-subscription-tasks 会跳过负数业务 ID；"
                 "migrate-system-event-strategies/migrate-gather-up-strategies/migrate-builtin-strategies "
@@ -367,7 +373,8 @@ class Command(BaseCommand):
                 "disable-biz-bk-collector-subscription-checks、stop-biz-bk-collector、"
                 "refresh-biz-bk-collector-configs、retry-biz-bk-collector-config-delivery、"
                 "migrate-system-event-strategies、add-profiling-migrate-data-id-route、"
-                "replace-profiling-data-id-route、repair-plugin-dashboard-result-table 动作需要"
+                "replace-profiling-data-id-route、disable-enabled-strategies、"
+                "repair-plugin-dashboard-result-table 动作需要"
             ),
         )
         parser.add_argument(
@@ -453,6 +460,7 @@ class Command(BaseCommand):
             "update-migrate-data-id-routes": self._handle_update_migrate_data_id_routes,
             "add-profiling-migrate-data-id-route": self._handle_add_profiling_migrate_data_id_route,
             "replace-profiling-data-id-route": self._handle_replace_profiling_data_id_route,
+            "disable-enabled-strategies": self._handle_disable_enabled_strategies,
             "enable-closed-strategies": self._handle_enable_closed_strategies,
             "apply-sequences": self._handle_apply_sequences,
             "replace-tenant-id": self._handle_replace_tenant_id,
@@ -805,6 +813,22 @@ class Command(BaseCommand):
         self.stdout.write(json.dumps(enable_results, ensure_ascii=False, indent=2, sort_keys=True))
         enabled_count = sum(result["enabled_count"] for result in enable_results.values())
         self.stdout.write(self.style.SUCCESS(f"enable closed strategies completed: {enabled_count}"))
+
+    def _handle_disable_enabled_strategies(self, options) -> None:
+        action_name = "disable-enabled-strategies"
+        bk_biz_ids = self._load_non_zero_biz_ids(options.get("bk_biz_ids"), action_name=action_name)
+        dry_run = options.get("dry_run", False)
+        disable_results = disable_enabled_strategies(
+            bk_biz_ids=bk_biz_ids,
+            dry_run=dry_run,
+        )
+        self.stdout.write(json.dumps(disable_results, ensure_ascii=False, indent=2, sort_keys=True))
+        result_count_key = "enabled_count" if dry_run else "disabled_count"
+        result_count = sum(result[result_count_key] for result in disable_results.values())
+        if dry_run:
+            self.stdout.write(self.style.SUCCESS(f"disable enabled strategies dry-run completed: {result_count}"))
+        else:
+            self.stdout.write(self.style.SUCCESS(f"disable enabled strategies completed: {result_count}"))
 
     def _handle_apply_sequences(self, options):
         directory = self._load_directory(options, action_name="apply-sequences")

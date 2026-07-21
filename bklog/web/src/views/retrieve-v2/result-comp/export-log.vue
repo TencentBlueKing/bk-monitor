@@ -668,20 +668,15 @@
           file_type: this.documentType,
         };
         axiosInstance
-          .post(downRequestUrl, data)
+          .post(downRequestUrl, data, {
+            responseType: 'blob',
+          })
           .then(res => {
-            if (typeof res !== 'string') {
-              this.$bkMessage({
-                theme: 'error',
-                message: this.$t('导出失败'),
-              });
-              return;
-            }
             const lightName = this.indexSetList.find(item => item.index_set_id === this.routerIndexSet)?.lightenName;
             const downloadName = lightName
               ? `bk_log_search_${lightName.substring(2, lightName.length - 1)}.${this.documentType}`
               : `bk_log_search.${this.documentType}`;
-            blobDownload(res, downloadName);
+            blobDownload(res.data, downloadName);
           })
           .finally(() => {
             this.isShowExportDialog = false;

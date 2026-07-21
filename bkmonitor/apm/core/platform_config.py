@@ -19,7 +19,7 @@ from opentelemetry import trace
 
 from apm.constants import (
     DEFAULT_APM_ATTRIBUTE_CONFIG,
-    DEFAULT_APM_PLATFORM_AS_INT_CONFIG,
+    DEFAULT_APM_PLATFORM_ATTRIBUTE_CONFIG,
     DEFAULT_PLATFORM_API_NAME_CONFIG,
     DEFAULT_PLATFORM_LICENSE_CONFIG,
     GLOBAL_CONFIG_BK_BIZ_ID,
@@ -146,7 +146,7 @@ class PlatformConfig(BkCollectorConfig):
         """attribute_config 信息"""
 
         attribute_config = DEFAULT_APM_ATTRIBUTE_CONFIG
-        attribute_config.update(DEFAULT_APM_PLATFORM_AS_INT_CONFIG)
+        attribute_config.update(DEFAULT_APM_PLATFORM_ATTRIBUTE_CONFIG)
         if settings.APM_IS_DISTRIBUTE_PLATFORM_API_NAME_CONFIG:
             attribute_config.update(DEFAULT_PLATFORM_API_NAME_CONFIG)
         return attribute_config

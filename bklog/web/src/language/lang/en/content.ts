@@ -1053,6 +1053,28 @@ export default {
   展示空字段: 'Display Empty Field',
   '在日志采集中，若您的日志中产生新的JSON字段，我们会自动采集并合入 __ext_json 字段中，您可以通过 __ext_json.xxx 检索该数据':
     'When collecting logs, if new JSON fields are generated in your logs, we will automatically collect and merge them into the __ext_json field, and you can use __ext_json.xxx to retrieve the data',
+  '解析层级越大，可直接检索的字段越多，但也更容易达到 ES 字段数量上限。':
+    'A larger parse depth enables more fields for direct search, but is also more likely to hit the ES field limit.',
+  '只展开 __ext_json 下第一层字段': 'Only expand the first-level fields under __ext_json',
+  '展开到第二层，推荐': 'Expand to the second level (recommended)',
+  '展开到第三层': 'Expand to the third level',
+  '保持完整动态展开，存在字段膨胀风险':
+    'Keep full dynamic expansion; there is a risk of field explosion',
+  '无限解析可能产生大量动态字段，达到 ES 字段上限后，相关日志可能写入失败。建议仅在字段结构稳定时使用。':
+    'Unlimited parsing may generate a large number of dynamic fields. After the ES field limit is reached, related logs may fail to write. It is recommended only when the field structure is stable.',
+  查看解析示例: 'View parse example',
+  'service 内部不再继续生成字段。': 'No more fields will be generated inside service.',
+  'labels 内部不再继续生成字段。': 'No more fields will be generated inside labels.',
+  '无限模式下将完整展开动态字段。': 'In unlimited mode, dynamic fields will be fully expanded.',
+  '更深层级的对象将按动态对象字段处理，不再继续展开。':
+    'Deeper objects will be treated as dynamic object fields and will not be expanded further.',
+  '确认调整动态字段解析层级？': 'Confirm adjusting the dynamic field parse depth?',
+  '调整后系统将创建新的 ES 索引，仅影响配置生效后写入的数据。历史索引不会改变，因此不同时间段可检索的字段可能不完全一致。':
+    'After the change, the system will create a new ES index. Only data written after the configuration takes effect will be affected. Historical indexes will not change, so searchable fields may differ across time ranges.',
+  '动态字段解析层级已生效，新写入数据将按 {n} 解析。':
+    'The dynamic field parse depth is now in effect. Newly written data will be parsed at {n}.',
+  '配置未生效，创建新索引失败，请重试或联系管理员。':
+    'The configuration did not take effect. Failed to create a new index. Please retry or contact the administrator.',
   过期时间不能大于存储天数: 'The expiration time cannot be greater than the storage days',
   '确定 ⌘/Ctrl + Enter': 'Confirm Ctrl + Enter',
   收藏成功: 'Favorite successfully',

@@ -331,24 +331,25 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
     column: BaseTableColumn,
     renderCtx: TableCellRenderContext
   ): SlotReturnValue => {
-    if (!row.assignee?.length) {
-      return (
-        <div
-          class='issues-assignee-unassigned-col'
-          onClick={() => rendererCtx.handleAssignClick(row)}
-        >
+    return (
+      <div
+        class='issues-assignee-col'
+        onClick={() => rendererCtx.handleAssignClick(row)}
+      >
+        {row.assignee?.length ? (
+          (renderCtx.cellRenderHandleMap[ExploreTableColumnTypeEnum.USER_TAGS]?.(
+            row,
+            column,
+            renderCtx
+          ) as SlotReturnValue)
+        ) : (
           <div class='assignee-tag-wrapper'>
             <span class='assignee-unassigned'>{t('未指派')}</span>
             <i class='icon-monitor icon-mc-arrow-down' />
           </div>
-        </div>
-      ) as unknown as SlotReturnValue;
-    }
-    return renderCtx.cellRenderHandleMap[ExploreTableColumnTypeEnum.USER_TAGS]?.(
-      row,
-      column,
-      renderCtx
-    ) as SlotReturnValue;
+        )}
+      </div>
+    ) as unknown as SlotReturnValue;
   };
 
   /**
