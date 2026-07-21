@@ -378,8 +378,10 @@ export default defineComponent({
         emit('choose-row', { rowKey });
         return;
       }
-      if (fallbackRow) {
-        emit('choose-row', fallbackRow);
+      // 本地重新检索后不再复用外部缓存 rowKey，需用当前列表行数据驱动上下文/实时日志更新
+      const row = fallbackRow || logList.value[index];
+      if (row) {
+        emit('choose-row', row);
       }
     };
 
