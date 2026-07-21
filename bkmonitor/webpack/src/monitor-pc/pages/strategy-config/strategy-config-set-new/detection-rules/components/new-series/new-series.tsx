@@ -247,7 +247,7 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
           >
             <i18n
               class='threshold-interval'
-              path='大于 {0}'
+              path='大于 {0} 新增数据值'
             >
               <bk-input
                 class='inline-input input-arrow date-input'
@@ -265,7 +265,7 @@ export default class NewSeries extends tsc<NewSeriesProps, NewSeriesEvent> {
               />
             </i18n>
             <div class='threshold-tip'>
-              {this.$t('触发规则：仅当对应数据值大于{threshold}时触发告警', {
+              {this.$t('触发规则：仅当对应数据值大于 {threshold} 时触发告警', {
                 threshold: this.formData.threshold,
               })}
             </div>
