@@ -60,7 +60,11 @@ export type PositionalWildcardOptions = {
   tokenCount?: number;
 };
 
-/** 按字符串在完整 VALUE 中的字符位置判定（部分划词兜底） */
+/**
+ * 按字符串在完整 VALUE 中的字符位置判定（部分划词兜底）。
+ * 仅用 === / startsWith / endsWith（先比长度），禁止 includes 扫全量；
+ * 对极端超大 VALUE（数 MB）复杂度约 O(|selected|)，不会扫全文。
+ */
 const resolveWildcardAffixByChar = (
   selected: string,
   plain: string,
@@ -68,13 +72,19 @@ const resolveWildcardAffixByChar = (
   if (!plain || plain === '--') {
     return { prefix: true, suffix: true };
   }
-  if (plain === selected) {
+  const selectedLen = selected.length;
+  const plainLen = plain.length;
+  if (!selectedLen) {
+    return { prefix: true, suffix: true };
+  }
+  // 长度不等时 === 必为 false，避免超长串无谓逐字比较
+  if (plainLen === selectedLen && plain === selected) {
     return { prefix: false, suffix: false };
   }
-  if (plain.startsWith(selected)) {
+  if (selectedLen < plainLen && plain.startsWith(selected)) {
     return { prefix: false, suffix: true };
   }
-  if (plain.endsWith(selected)) {
+  if (selectedLen < plainLen && plain.endsWith(selected)) {
     return { prefix: true, suffix: false };
   }
   return { prefix: true, suffix: true };
