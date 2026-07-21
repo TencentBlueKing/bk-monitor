@@ -3075,9 +3075,12 @@ class Strategy(AbstractConfig):
         IssueConfig.delete(self.id)
 
     @classmethod
+    @transaction.atomic
     def delete_by_strategy_ids(cls, strategy_ids: list[int]):
         """
         批量删除策略
+
+        删除与成功历史写入放在同一事务中，避免中途失败后主表已删但无删除历史。
         """
         from bkmonitor.models.issue import StrategyIssueConfig
 
