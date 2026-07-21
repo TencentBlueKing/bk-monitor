@@ -461,6 +461,10 @@ class GetHostProcessListResource(Resource):
         bk_host_id = serializers.IntegerField(required=False)
         bk_target_ip = serializers.CharField(required=False)
         bk_target_cloud_id = serializers.IntegerField(required=False)
+        # 时间范围（秒级 Unix 时间戳，可选）。传入时约束 TSDB 运行时指标查询区间，
+        # 不传则保持默认"最近三分钟"行为（向后兼容）
+        start_time = serializers.IntegerField(required=False, label="开始时间(秒级时间戳)")
+        end_time = serializers.IntegerField(required=False, label="结束时间(秒级时间戳)")
 
     def perform_request(self, params):
         if not params.get("bk_host_id") and (
@@ -496,7 +500,12 @@ class GetHostProcessListResource(Resource):
         # - proc_exists status 已在 get_process_info 中用于 status 字段
         # - portStatus 已在本 Resource 的 Phase 1 直接查询并合并
         # - TSDB 查询异常时 get_process_runtime_metrics 返回 {}，CMDB 基础字段照常返回
-        runtime_data = resource.cc.get_process_runtime_metrics(bk_biz_id, hosts=[host])
+        runtime_data = resource.cc.get_process_runtime_metrics(
+            bk_biz_id,
+            hosts=[host],
+            start_time=params.get("start_time"),
+            end_time=params.get("end_time"),
+        )
         # 返回结构：{bk_host_id: {display_name(进程名): {field: value, pid: pid, username: username}}}
         host_runtime = runtime_data.get(host.bk_host_id, {})
 

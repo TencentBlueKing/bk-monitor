@@ -250,23 +250,27 @@ def get_process_status(bk_biz_id: int, hosts: list[Host]) -> dict[int, dict[str,
     return result
 
 
-def get_process_runtime_metrics(bk_biz_id: int, hosts: list[Host]) -> dict[str, dict]:
+def get_process_runtime_metrics(
+    bk_biz_id: int, hosts: list[Host], start_time: int = None, end_time: int = None
+) -> dict[str, dict]:
     """
     查询进程运行时指标 (system.proc)
 
     返回各进程指标字段的运行时数据：
-    - 指标字段（AVG）：cpu_usage_pct, mem_res, mem_usage_pct, uptime
+    - 指标字段（AVG）：cpu_usage_pct, mem_res, mem_usage_pct, uptime, fd_num
     - 维度字段（按列名读取，不可 AVG 聚合）：pid, username
 
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表
+    :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）。与 end_time 同时传入时约束查询区间。
+    :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传或仅传一个时退化为默认"最近三分钟"。
     :return: 以 bk_host_id 为一级 key、进程 display_name（进程名）为二级 key 的运行时指标字典，
-        三级 key 为指标字段（cpu_usage_pct/mem_res/mem_usage_pct/uptime）与维度字段（pid/username）
+        三级 key 为指标字段（cpu_usage_pct/mem_res/mem_usage_pct/uptime/fd_num）与维度字段（pid/username）
         e.g.:
             {
                 11: {
-                    "nginx": {"cpu_usage_pct": 2.5, "mem_res": 102400, "mem_usage_pct": 10.0, "uptime": 3600, "pid": 1001, "username": "root"},
-                    "redis": {"cpu_usage_pct": 5.0, "mem_res": 204800, "mem_usage_pct": 20.0, "uptime": 7200, "pid": 2002, "username": "redis"}
+                    "nginx": {"cpu_usage_pct": 2.5, "mem_res": 102400, "mem_usage_pct": 10.0, "uptime": 3600, "fd_num": 64, "pid": 1001, "username": "root"},
+                    "redis": {"cpu_usage_pct": 5.0, "mem_res": 204800, "mem_usage_pct": 20.0, "uptime": 7200, "fd_num": 128, "pid": 2002, "username": "redis"}
                 }
             }
     """
@@ -301,9 +305,16 @@ def get_process_runtime_metrics(bk_biz_id: int, hosts: list[Host]) -> dict[str, 
                 group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"] + DIM_FIELDS,
             )
             query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
-            now = int(time.time()) * 1000
-            # 查询最近三分钟的进程运行时数据
-            records = query.query_data(start_time=now - 180000, end_time=now, instant=True)
+            # 时间范围：start_time/end_time 同时传入（秒级）时按区间查询，否则默认最近三分钟
+            if start_time and end_time:
+                query_start = int(start_time) * 1000
+                query_end = int(end_time) * 1000
+            else:
+                now = int(time.time()) * 1000
+                query_start = now - 180000
+                query_end = now
+            # 查询进程运行时数据（instant=True 取窗口聚合单值）
+            records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
             for record in records:
                 if record.get("_result_") is None:
                     continue
