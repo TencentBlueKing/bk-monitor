@@ -127,7 +127,7 @@ class SearchSceneLogResource(Resource):
         keyword = serializers.CharField(required=False, default="*", allow_blank=True, label="查询字符串")
         start_time = serializers.CharField(required=True, label="开始时间")
         end_time = serializers.CharField(required=True, label="结束时间")
-        size = serializers.IntegerField(required=False, default=10, min_value=1, max_value=50, label="返回条数")
+        size = serializers.IntegerField(required=False, default=10, label="返回条数")
 
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
