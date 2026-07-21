@@ -37,6 +37,7 @@ def test_strategy_history_operate_choices_include_bulk_operations():
 
 
 def test_bulk_delete_does_not_create_success_history_when_delete_fails():
+    """中途删除失败时不应写入成功历史；事务保证与主表删除一并回滚。"""
     strategy_id = 1001
 
     def raise_delete_error():
