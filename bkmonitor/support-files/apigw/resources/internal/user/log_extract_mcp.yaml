@@ -10,8 +10,9 @@ paths:
           application/json:
             schema:
               type: object
-              required: [node_list]
+              required: [bk_biz_id, node_list]
               properties:
+                bk_biz_id: {type: integer, description: Business ID. 业务ID。}
                 all_scope: {type: boolean, default: false}
                 scope_list:
                   type: array

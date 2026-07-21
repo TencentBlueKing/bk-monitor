@@ -19,6 +19,7 @@ from kernel_api.resource.log_extract import (
             SearchLogExtractHostsResource,
             "query_log_extract_hosts",
             {
+                "bk_biz_id": 7,
                 "scope_list": [{"scope_type": "biz", "scope_id": "7"}],
                 "node_list": [{"object_id": "biz", "instance_id": 7}],
                 "search_condition": {"ip": "10.0.0.1"},

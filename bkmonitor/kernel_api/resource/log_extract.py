@@ -9,6 +9,7 @@ class SearchLogExtractHostsResource(Resource):
     """查询用户日志提取策略允许访问的主机。"""
 
     class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True)
         all_scope = serializers.BooleanField(required=False, default=False)
         scope_list = serializers.ListField(child=serializers.DictField(), required=False, default=list)
         node_list = serializers.ListField(child=serializers.DictField())
