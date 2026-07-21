@@ -81,7 +81,7 @@ class SearchLogExtractFilesResource(Resource):
         }
 
 
-class CreateLogExtractTaskMCPResource(Resource):
+class CreateLogExtractTaskResource(Resource):
     """Create an asynchronous log-extraction task using the server-side default link."""
 
     class RequestSerializer(serializers.Serializer):
@@ -119,7 +119,7 @@ class CreateLogExtractTaskMCPResource(Resource):
         return {"task_id": result["task_id"], "status": "QUEUED", "poll_after_seconds": 5}
 
 
-class GetLogExtractTaskMCPResource(Resource):
+class GetLogExtractTaskResource(Resource):
     """Get a normalized log-extraction task status."""
 
     STATUS_MAPPING = {
@@ -158,7 +158,7 @@ class GetLogExtractTaskMCPResource(Resource):
         }
 
 
-class GetLogExtractDownloadUrlMCPResource(Resource):
+class GetLogExtractDownloadUrlResource(Resource):
     """Get a short-lived download URL for a completed extraction task."""
 
     class RequestSerializer(serializers.Serializer):

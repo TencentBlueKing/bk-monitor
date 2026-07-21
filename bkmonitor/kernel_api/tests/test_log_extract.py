@@ -5,8 +5,8 @@ from rest_framework import serializers
 
 from core.drf_resource import api
 from kernel_api.resource.log_extract import (
-    CreateLogExtractTaskMCPResource,
-    GetLogExtractTaskMCPResource,
+    CreateLogExtractTaskResource,
+    GetLogExtractTaskResource,
     SearchLogExtractFilesResource,
     SearchLogExtractHostsResource,
 )
@@ -75,7 +75,7 @@ def test_create_task_hides_link_and_fills_preview_fields(monkeypatch):
         "remark": "mcp",
     }
 
-    result = CreateLogExtractTaskMCPResource().perform_request(request_data)
+    result = CreateLogExtractTaskResource().perform_request(request_data)
 
     assert result == {"task_id": 123, "status": "QUEUED", "poll_after_seconds": 5}
     payload = create_task.call_args.kwargs
@@ -95,7 +95,7 @@ def test_get_task_normalizes_status(monkeypatch, raw_status, expected):
         Mock(return_value={"task_id": 123, "bk_biz_id": 7, "download_status": raw_status}),
     )
 
-    result = GetLogExtractTaskMCPResource().perform_request({"bk_biz_id": 7, "task_id": 123})
+    result = GetLogExtractTaskResource().perform_request({"bk_biz_id": 7, "task_id": 123})
 
     assert result["status"] == expected
 
@@ -108,4 +108,4 @@ def test_get_task_rejects_business_mismatch(monkeypatch):
     )
 
     with pytest.raises(serializers.ValidationError):
-        GetLogExtractTaskMCPResource().perform_request({"bk_biz_id": 7, "task_id": 123})
+        GetLogExtractTaskResource().perform_request({"bk_biz_id": 7, "task_id": 123})
