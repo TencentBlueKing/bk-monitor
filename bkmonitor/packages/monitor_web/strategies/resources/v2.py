@@ -2551,6 +2551,7 @@ class UpdatePartialStrategyV2Resource(Resource):
                     create_user=username,
                     strategy_id=strategy.id,
                     operate="update",
+                    status=True,
                     content=strategy.to_dict(),
                 )
             )
