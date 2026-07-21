@@ -114,6 +114,8 @@ else:
     SESSION_ENGINE = "django.contrib.sessions.backends.cache"
     INSTALLED_APPS += ("version_log",)
 
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
 # 设置pyinstrument的profiler开关
 PYINSTRUMENT_URL_ARGUMENT = "bk-log-profile"
 
