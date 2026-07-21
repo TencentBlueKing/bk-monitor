@@ -3091,8 +3091,6 @@ class Strategy(AbstractConfig):
                     status=True,
                 )
             )
-        StrategyHistoryModel.objects.bulk_create(histories, batch_size=100)
-
         StrategyModel.objects.filter(id__in=strategy_ids).delete()
         RelationModel.objects.filter(strategy_id__in=strategy_ids).delete()
         DetectModel.objects.filter(strategy_id__in=strategy_ids).delete()
@@ -3101,6 +3099,8 @@ class Strategy(AbstractConfig):
         QueryConfigModel.objects.filter(strategy_id__in=strategy_ids).delete()
         StrategyLabel.objects.filter(strategy_id__in=strategy_ids).delete()
         StrategyIssueConfig.objects.filter(strategy_id__in=strategy_ids).delete()
+
+        StrategyHistoryModel.objects.bulk_create(histories, batch_size=100)
 
     @classmethod
     def from_models(cls, strategies: list[StrategyModel] | QuerySet) -> list["Strategy"]:
