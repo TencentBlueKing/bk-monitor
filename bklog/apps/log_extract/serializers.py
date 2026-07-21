@@ -35,7 +35,6 @@ from apps.log_extract.constants import (
     LogExtractNodeInstanceType,
     LogExtractTargetNodeTypeEnum,
 )
-from apps.log_extract.models import ExtractLink
 from apps.log_search.constants import CCInstanceType, InstanceTypeEnum
 from apps.utils.base_crypt import BaseCrypt
 from apps.utils.drf import GeneralSerializer
@@ -251,11 +250,6 @@ class CreateTaskSerializer(serializers.Serializer):
                 raise serializers.ValidationError(_("biz 类型节点对象不能与其他类型节点对象同时存在"))
 
         return attrs
-
-    def validate_link_id(self, value):
-        if ExtractLink.objects.filter(link_id=value).exists():
-            return value
-        raise serializers.ValidationError(_("提取链路不存在"))
 
     def validate_file_path(self, value):
         if len(value) > settings.CSTONE_DOWNLOAD_FILES_LIMIT:
