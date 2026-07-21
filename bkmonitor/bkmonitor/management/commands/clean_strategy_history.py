@@ -40,6 +40,11 @@ class Command(BaseCommand):
             default=1,
             help="每个策略额外保留的最近成功快照数量，默认 1",
         )
+        parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="仅统计预计删除数量，不执行删除",
+        )
 
     def handle(self, *_args, **options) -> None:
         try:
@@ -47,6 +52,7 @@ class Command(BaseCommand):
                 days=options["days"],
                 batch_size=options["batch_size"],
                 keep_latest_snapshots=options["keep_latest_snapshots"],
+                dry_run=options["dry_run"],
             )
         except ValueError as exc:
             raise CommandError(str(exc)) from exc
@@ -54,7 +60,12 @@ class Command(BaseCommand):
         self.stdout.write(
             "clean strategy history start: "
             f"days={params.days}, batch_size={params.batch_size}, "
-            f"keep_latest_snapshots={params.keep_latest_snapshots}"
+            f"keep_latest_snapshots={params.keep_latest_snapshots}, dry_run={params.dry_run}"
         )
-        deleted = clean_strategy_history(params)
-        self.stdout.write(self.style.SUCCESS(f"clean strategy history done: deleted {deleted} records"))
+        matched = clean_strategy_history(params)
+        if params.dry_run:
+            self.stdout.write(
+                self.style.WARNING(f"clean strategy history dry-run done: would delete {matched} records")
+            )
+        else:
+            self.stdout.write(self.style.SUCCESS(f"clean strategy history done: deleted {matched} records"))

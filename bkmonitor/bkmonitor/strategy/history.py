@@ -32,10 +32,19 @@ class CleanStrategyHistoryParams:
     校验逻辑集中在此类中：days、batch_size、keep_latest_snapshots 均须为正整数。
     """
 
-    def __init__(self, days: int, batch_size: int = 1000, keep_latest_snapshots: int = 1):
+    def __init__(
+        self,
+        days: int,
+        batch_size: int = 1000,
+        keep_latest_snapshots: int = 1,
+        dry_run: bool = False,
+    ):
         self.days = self._require_positive_int("days", days)
         self.batch_size = self._require_positive_int("batch_size", batch_size)
         self.keep_latest_snapshots = self._require_positive_int("keep_latest_snapshots", keep_latest_snapshots)
+        if not isinstance(dry_run, bool):
+            raise ValueError("dry_run must be a boolean")
+        self.dry_run = dry_run
 
     @staticmethod
     def _require_positive_int(name: str, value: object) -> int:
@@ -193,6 +202,9 @@ def clean_strategy_history(params: CleanStrategyHistoryParams) -> int:
         )
         if keep_history_ids:
             queryset = queryset.exclude(id__in=keep_history_ids)
-        deleted += _delete_queryset_in_batches(queryset, params.batch_size)
+        if params.dry_run:
+            deleted += queryset.count()
+        else:
+            deleted += _delete_queryset_in_batches(queryset, params.batch_size)
 
     return deleted

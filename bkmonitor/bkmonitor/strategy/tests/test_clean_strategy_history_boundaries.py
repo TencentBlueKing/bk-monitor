@@ -392,6 +392,11 @@ class TestCleanStrategyHistoryBoundaryMatrix:
             with pytest.raises(ValueError, match="must be a positive integer"):
                 CleanStrategyHistoryParams(**kwargs)
 
+    def test_params_reject_non_boolean_dry_run(self):
+        """dry_run 只接受布尔值，避免字符串参数误触真实删除。"""
+        with pytest.raises(ValueError, match="dry_run must be a boolean"):
+            CleanStrategyHistoryParams(days=30, dry_run="true")
+
     def test_no_old_histories_returns_zero(self, monkeypatch):
         """没有过期历史时返回 0。"""
         _freeze_now(monkeypatch)
