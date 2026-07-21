@@ -43,7 +43,7 @@ def handle_streaming_response_with_metrics(
     metrics_reporter: AIMetricsReporter,
 ):
     """处理流式响应（带指标统计）"""
-    logger.info(f"Starting streaming chat completion with kwargs: {execute_kwargs}")
+    logger.info(f"Starting streaming chat completion with execute_kwargs keys: {list(execute_kwargs.keys())}")
 
     # 创建指标跟踪器
     metrics_tracker = StreamingMetricsTracker(
@@ -62,7 +62,8 @@ def handle_streaming_response_with_metrics(
     def streaming_generator():
         try:
             for chunk in agent_instance.execute(validated_kwargs):
-                logger.info(f"CreateChatCompletionResource: Yielding chunk: {chunk}")
+                # 安全修复: 不记录 LLM 响应块内容到日志，防止敏感数据泄露
+                logger.debug(f"CreateChatCompletionResource: Yielding chunk")
                 yield chunk
         except Exception as error:
             logger.error(f"CreateChatCompletionResource: Error in streaming generator: {error}")
