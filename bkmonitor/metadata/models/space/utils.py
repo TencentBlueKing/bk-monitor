@@ -341,7 +341,7 @@ def create_space(
     try:
         if space_type_id == SpaceTypes.BKCI.value:
             # 正常创建空间前不会存在，直接创建
-            authorize_data_id_list(space_type_id, space_id, BKCI_AUTHORIZED_DATA_ID_LIST)
+            authorize_data_id_list(bk_tenant_id, space_type_id, space_id, BKCI_AUTHORIZED_DATA_ID_LIST)
     except Exception as e:
         logger.error(
             "authorize space datasource error, space_type: %s, space_id: %s, data_ids: %s, error: %s",
@@ -354,8 +354,8 @@ def create_space(
     # 针对 bksaas 授权使用的集群及 PaaS 特定的数据源
     try:
         if space_type_id == SpaceTypes.BKSAAS.value:
-            authorize_data_id_list(space_type_id, space_id, settings.BKPAAS_AUTHORIZED_DATA_ID_LIST)
-            create_bksaas_space_resource(space_type_id, space_id, creator)
+            authorize_data_id_list(bk_tenant_id, space_type_id, space_id, settings.BKPAAS_AUTHORIZED_DATA_ID_LIST)
+            create_bksaas_space_resource(bk_tenant_id, space_type_id, space_id, creator)
     except Exception as e:
         logger.error(
             "create space datasource error, space_type: %s, space_id: %s, error: %s",
@@ -402,24 +402,48 @@ def create_space(
 
 
 def bulk_create_space_data_source(
-    space_type: str, space_id: str, data_id_list: list, from_authorization: bool | None = True
+    bk_tenant_id: str,
+    space_type: str,
+    space_id: str,
+    data_id_list: list,
+    from_authorization: bool | None = True,
 ):
-    """批量创建空间和数据源关系"""
+    """批量创建空间和数据源关系
+
+    Args:
+        bk_tenant_id: 租户 ID
+        space_type: 空间类型
+        space_id: 空间 ID
+        data_id_list: 数据源 ID 列表
+        from_authorization: 是否来源于授权
+    """
     bulk_create_records = []
     for data_id in data_id_list:
         bulk_create_records.append(
             SpaceDataSource(
-                space_type_id=space_type, space_id=space_id, bk_data_id=data_id, from_authorization=from_authorization
+                bk_tenant_id=bk_tenant_id,
+                space_type_id=space_type,
+                space_id=space_id,
+                bk_data_id=data_id,
+                from_authorization=from_authorization,
             )
         )
     # 批量创建
     SpaceDataSource.objects.bulk_create(bulk_create_records, batch_size=BULK_CREATE_BATCH_SIZE)
 
 
-def authorize_data_id_list(space_type: str, space_id: str, data_id_list: list):
-    """针对指定类型授权特定的数据源"""
+def authorize_data_id_list(bk_tenant_id: str, space_type: str, space_id: str, data_id_list: list):
+    """针对指定类型授权特定的数据源
+
+    Args:
+        bk_tenant_id: 租户 ID
+        space_type: 空间类型
+        space_id: 空间 ID
+        data_id_list: 待授权的数据源 ID 列表
+    """
     logger.info(
-        "start to authorize data id, space_type: %s, space_id: %s, data_id_list: %s",
+        "start to authorize data id, bk_tenant_id: %s, space_type: %s, space_id: %s, data_id_list: %s",
+        bk_tenant_id,
         space_type,
         space_id,
         json.dumps(data_id_list),
@@ -431,7 +455,9 @@ def authorize_data_id_list(space_type: str, space_id: str, data_id_list: list):
     ).values_list("bk_data_id", flat=True)
     need_created_data_ids = set(data_id_list) - set(used_data_ids)
     try:
-        bulk_create_space_data_source(space_type, space_id, list(need_created_data_ids), from_authorization=True)
+        bulk_create_space_data_source(
+            bk_tenant_id, space_type, space_id, list(need_created_data_ids), from_authorization=True
+        )
     except Exception as e:
         logger.error(
             "bulk create space datasource failed, data_id_list: %s, error: %s", json.dumps(need_created_data_ids), e
@@ -442,9 +468,21 @@ def authorize_data_id_list(space_type: str, space_id: str, data_id_list: list):
 
 
 @atomic(config.DATABASE_CONNECTION_NAME)
-def create_bksaas_space_resource(space_type: str, space_id: str, creator: str):
-    """创建蓝鲸应用类型关联的空间资源"""
-    logger.info("create and authorize bksaas space resource, space_type: %s, space_id: %s", space_type, space_id)
+def create_bksaas_space_resource(bk_tenant_id: str, space_type: str, space_id: str, creator: str):
+    """创建蓝鲸应用类型关联的空间资源
+
+    Args:
+        bk_tenant_id: 租户 ID
+        space_type: 空间类型
+        space_id: 空间 ID
+        creator: 创建者
+    """
+    logger.info(
+        "create and authorize bksaas space resource, bk_tenant_id: %s, space_type: %s, space_id: %s",
+        bk_tenant_id,
+        space_type,
+        space_id,
+    )
     # 通过蓝鲸应用的空间 ID 获取使用的集群信息
     cluster_namespaces = api.bk_paas.get_app_cluster_namespace(app_code=space_id)
     if not cluster_namespaces:
@@ -492,7 +530,7 @@ def create_bksaas_space_resource(space_type: str, space_id: str, creator: str):
     )
     # 然后进行批量授权
     try:
-        bulk_create_space_data_source(space_type, space_id, ks8_metric_data_ids, from_authorization=True)
+        bulk_create_space_data_source(bk_tenant_id, space_type, space_id, ks8_metric_data_ids, from_authorization=True)
     except Exception as e:
         logger.error(
             "bulk create space datasource of k8s metric failed, data_id_list: %s, error: %s",
@@ -598,8 +636,9 @@ def merge_space(src_space_type_id: str, src_space_id: str, dst_space_type_id, ds
     if diff_resource_ids:
         raise ValueError(_("绑定的资源类型下的资源不一致，不能合并"))
 
-    # 1. 查询源空间
+    # 1. 查询源空间与目标空间
     src_space_obj = Space.objects.get(space_type_id=src_space_type_id, space_id=src_space_id)
+    dst_space_obj = Space.objects.get(space_type_id=dst_space_type_id, space_id=dst_space_id)
     # 2. 查询空间下关联的 data id
     src_space_data_ids = SpaceDataSource.objects.filter(
         space_type_id=src_space_type_id, space_id=src_space_id, from_authorization=False
@@ -610,10 +649,14 @@ def merge_space(src_space_type_id: str, src_space_id: str, dst_space_type_id, ds
 
     # 3. 更新 data id 授权范围, 去除相同的 data id
     added_space_data_source = []
-    for d in set(src_space_data_ids) - set(dst_space_data_ids):
+    for data_id in set(src_space_data_ids) - set(dst_space_data_ids):
         added_space_data_source.append(
             SpaceDataSource(
-                space_type_id=dst_space_type_id, space_id=dst_space_id, bk_data_id=d.bk_data_id, from_authorization=True
+                bk_tenant_id=dst_space_obj.bk_tenant_id,
+                space_type_id=dst_space_type_id,
+                space_id=dst_space_id,
+                bk_data_id=data_id,
+                from_authorization=True,
             )
         )
     if added_space_data_source:
@@ -834,21 +877,47 @@ def create_bkcc_spaces(biz_list: list[dict], create_builtin_data_link_delay: boo
 
 @atomic(config.DATABASE_CONNECTION_NAME)
 def create_bkcc_space_data_source(biz_data_id_dict: dict):
-    """批量创建空间和数据源的关系"""
+    """批量创建空间和数据源的关系
+
+    Args:
+        biz_data_id_dict: 业务与数据源的映射，格式为 ``{biz_id: [bk_data_id, ...]}``。
+
+    Note:
+        BKCC 空间的 ``space_id`` 即业务 ID，租户信息从 Space 表按 ``space_id`` 反查获取，
+        查不到对应 Space 的业务会跳过创建，避免写入错误的默认租户。
+    """
+    # 收集本次待处理的业务 ID（排除 0 业务及空数据源）
+    biz_ids = [str(biz_id) for biz_id, data_ids in biz_data_id_dict.items() if biz_id != 0 and data_ids]
+    # 从 Space 表批量反查业务对应的租户信息，格式为 {space_id: bk_tenant_id}
+    space_tenant_map = dict(
+        Space.objects.filter(space_type_id=SpaceTypes.BKCC.value, space_id__in=biz_ids).values_list(
+            "space_id", "bk_tenant_id"
+        )
+    )
+
     space_data_source, data_id_list = [], []
     # 添加归属空间的 data id 关联
     for biz_id, data_ids in biz_data_id_dict.items():
         # 忽略 0 业务的数据源，不创建
         if biz_id == 0 or not data_ids:
             continue
+        space_id = str(biz_id)
+        # 无对应 Space 时跳过，避免写入默认租户导致数据错误
+        if space_id not in space_tenant_map:
+            logger.warning(
+                "create_bkcc_space_data_source: space not found for bkcc space_id->[%s], skip create", space_id
+            )
+            continue
+        bk_tenant_id = space_tenant_map[space_id]
         data_id_list.extend(data_ids)
         for id in set(data_ids):
             space_data_source.append(
                 SpaceDataSource(
                     creator=SYSTEM_USERNAME,
                     updater=SYSTEM_USERNAME,
+                    bk_tenant_id=bk_tenant_id,
                     space_type_id=SpaceTypes.BKCC.value,
-                    space_id=str(biz_id),
+                    space_id=space_id,
                     bk_data_id=id,
                 )
             )
@@ -858,14 +927,24 @@ def create_bkcc_space_data_source(biz_data_id_dict: dict):
     set_data_source_space_type(data_id_list, SpaceTypes.BKCC.value)
 
 
-def add_cluster_data_id_list(space_type_id: str, space_id: str, cluster_data_id_list: list, is_shared: bool) -> list:
+def add_cluster_data_id_list(
+    bk_tenant_id: str, space_type_id: str, space_id: str, cluster_data_id_list: list, is_shared: bool
+) -> list:
     """添加集群下的data id
 
     针对共享集群时，data id为授权项目访问
+
+    Args:
+        bk_tenant_id: 租户 ID
+        space_type_id: 空间类型
+        space_id: 空间 ID
+        cluster_data_id_list: 集群数据源 ID 列表
+        is_shared: 是否为共享集群
     """
     item = {
         "creator": SYSTEM_USERNAME,
         "updater": SYSTEM_USERNAME,
+        "bk_tenant_id": bk_tenant_id,
         "space_type_id": space_type_id,
         "space_id": space_id,
         "from_authorization": True,
@@ -900,6 +979,7 @@ def compose_bcs_space_data_source(
     item = {
         "creator": SYSTEM_USERNAME,
         "updater": SYSTEM_USERNAME,
+        "bk_tenant_id": bk_tenant_id,
         "space_type_id": space_type_id,
         "space_id": space_id,
         "from_authorization": True,
