@@ -33,12 +33,12 @@ import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import SearchBar from '@/views/retrieve-v2/search-bar/index.vue';
-import DOMPurify from 'dompurify';
 import { cloneDeep, debounce } from 'lodash-es';
 import RetrieveHelper from '@/views/retrieve-helper';
 import { buildHighlightHtml, parseResultMarkedText } from '@/views/retrieve-core/page-highlight';
 import { retrieveRowCacheService } from '@/storage';
 import type { RetrieveRowRenderMeta } from '@/storage/utils/retrieve-render-meta';
+import { resolveAddToSearch } from '@/hooks/log-query-compiler';
 
 import RenderJsonCell from './render-json-cell';
 import { axiosInstance } from '@/api';
@@ -252,87 +252,6 @@ export default defineComponent({
         });
     };
 
-    const getAdditionMappingOperator = (operator: string, field: string, value: string[], depth: number) => {
-      let mappingKey = {
-        // is is not 值映射
-        is: '=',
-        'is not': '!=',
-      };
-
-      /** text类型字段类型的下钻映射 */
-      const textMappingKey = {
-        is: 'contains match phrase',
-        'is not': 'not contains match phrase',
-      };
-
-      /** keyword 类型字段类型的下钻映射 */
-      const keywordMappingKey = {
-        is: 'contains',
-        'is not': 'not contains',
-      };
-
-      const boolMapping = {
-        is: `is ${value[0]}`,
-        'is not': `is ${/true/i.test(value[0]) ? 'false' : 'true'}`,
-      };
-
-      const targetField = store.state.visibleFields?.find(item => item.field_name === field);
-
-      const textType = targetField?.field_type ?? '';
-      const isVirtualObjNode = targetField?.is_virtual_obj_node ?? false;
-
-      if (isVirtualObjNode && textType === 'object') {
-        mappingKey = textMappingKey;
-      }
-
-      if (textType === 'text') {
-        mappingKey = textMappingKey;
-      }
-
-      if (textType === 'boolean') {
-        mappingKey = boolMapping;
-        if (value.length) {
-          value.splice(0, value.length);
-        }
-      }
-
-      if (depth > 1 && textType === 'keyword') {
-        mappingKey = keywordMappingKey;
-      }
-      return mappingKey[operator] ?? operator; // is is not 值映射
-    };
-
-    const formatJsonString = (formatResult: string) => {
-      if (typeof formatResult === 'string') {
-        return DOMPurify.sanitize(formatResult);
-      }
-
-      return formatResult;
-    };
-
-    const getSqlAdditionMappingOperator = (operator: string, field: string, fieldType: string, value: string) => {
-      const formatValue = (value: string | string[]) => {
-        let formatResult = value;
-        if (['text', 'string', 'keyword'].includes(fieldType)) {
-          if (Array.isArray(formatResult)) {
-            formatResult = formatResult.map(formatJsonString);
-          } else {
-            formatResult = formatJsonString(formatResult);
-          }
-        }
-
-        return formatResult;
-      };
-
-      const mappingKey = {
-        // is is not 值映射
-        is: `${field}: "${formatValue(value)}"`,
-        'is not': `NOT ${field}: "${formatValue(value)}"`,
-      };
-
-      return mappingKey[operator] ?? operator; // is is not 值映射
-    };
-
     const getValidUISearchValue = (searchValue: any[]) => searchValue.reduce((addtions, item) => {
       if (!item.disabled) {
         addtions.push({
@@ -347,6 +266,10 @@ export default defineComponent({
       return addtions;
     }, []);
 
+    /**
+     * 分词「添加到本次检索」：统一走 resolveAddToSearch（UI + 语句）。
+     * 旧 getSqlAdditionMappingOperator 仅映射 is/is not，遇到 contains match phrase 会原样回填。
+     */
     const handleMenuClick = (data: {
       option: {
         depth: number;
@@ -354,23 +277,28 @@ export default defineComponent({
         fieldType: string;
         operation: string;
         value: string;
+        fullPlain?: string;
       };
       isLink: boolean;
     }) => {
+      const searchMode = requestOtherparams.search_mode === 'sql' ? 'sql' : 'ui';
+      const payload = resolveAddToSearch({
+        field: data.option.fieldName || '*',
+        value: data.option.value ?? '',
+        fieldType: data.option.fieldType,
+        fullText: data.option.fullPlain,
+        operatorHint: data.option.operation,
+        searchMode,
+      });
+
       let isNeedRefresh = false;
-      if (requestOtherparams.search_mode === 'ui') {
-        const operator = getAdditionMappingOperator(
-          data.option.operation,
-          data.option.fieldName,
-          [data.option.value],
-          data.option.depth,
-        );
+      if (searchMode === 'ui') {
         const searchItem = {
           disabled: false,
-          field: data.option.fieldName,
-          field_type: data.option.fieldType,
-          operator,
-          value: [data.option.value],
+          field: payload.field,
+          field_type: payload.fieldType ?? data.option.fieldType,
+          operator: payload.operator,
+          value: payload.value,
           relation: 'OR',
           showAll: true,
         };
@@ -379,12 +307,10 @@ export default defineComponent({
         requestOtherparams.addition = getValidUISearchValue(searchValue);
         requestOtherparams.keyword = '*';
       } else {
-        const searchItem = getSqlAdditionMappingOperator(
-          data.option.operation,
-          data.option.fieldName,
-          data.option.fieldType,
-          data.option.value,
-        );
+        const searchItem = payload.queryString || '';
+        if (!searchItem) {
+          return;
+        }
         isNeedRefresh = searchBarRef.value.addValue(searchItem);
         const searchValue = searchBarRef.value.getValue();
         requestOtherparams.addition = [];
