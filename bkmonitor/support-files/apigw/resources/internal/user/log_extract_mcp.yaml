@@ -1,0 +1,185 @@
+paths:
+  /mcp/search_log_extract_hosts/:
+    post:
+      operationId: search_log_extract_hosts
+      description: Resolve an exact IPv4 address to hosts that the current user may access under log-extraction policies. Call this before file search or task creation. If multiple hosts are returned, ask the user to choose a cloud area. 根据精确 IP 查询当前用户有日志提取权限的主机，并补充主机ID和管控区域；存在多个候选时必须让用户选择。
+      tags: [log_extract_mcp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bk_biz_id, ip]
+              properties:
+                bk_biz_id:
+                  type: integer
+                  description: Business ID. 业务ID。
+                ip:
+                  type: string
+                  description: Exact IPv4 address supplied by the user. 用户提供的精确 IPv4 地址。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_extract/search_hosts/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+
+  /mcp/search_log_extract_files/:
+    post:
+      operationId: search_log_extract_files
+      description: Search files on resolved hosts within directories allowed by the user's log-extraction policies. Use host information returned by search_log_extract_hosts. 查询已解析主机上允许提取的文件。
+      tags: [log_extract_mcp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bk_biz_id, ip_list, path]
+              properties:
+                bk_biz_id: {type: integer, description: Business ID. 业务ID。}
+                ip_list:
+                  type: array
+                  maxItems: 20
+                  items:
+                    type: object
+                    required: [bk_host_id, ip, bk_cloud_id]
+                    properties:
+                      bk_host_id: {type: integer}
+                      ip: {type: string}
+                      bk_cloud_id: {type: integer}
+                path: {type: string, description: Directory or file path to inspect. 查询路径。}
+                is_search_child: {type: boolean, default: false, description: Search child directories recursively. 是否递归查询。}
+                time_range: {type: string, enum: [1d, 1w, 1m, all, custom], default: 1d}
+                start_time: {type: string, description: Required for custom range, format YYYY-MM-DD HH:mm:ss.}
+                end_time: {type: string, description: Required for custom range, format YYYY-MM-DD HH:mm:ss.}
+                limit: {type: integer, minimum: 1, maximum: 100, default: 100}
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_extract/search_files/
+          matchSubpath: false
+          timeout: 60
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+
+  /mcp/create_log_extract_task/:
+    post:
+      operationId: create_log_extract_task
+      description: Create an asynchronous log-extraction task. This causes jobs to run on target hosts and MUST only be called after the user explicitly confirms the hosts, file paths, and optional filter. 创建异步日志提取任务；会在目标主机执行作业，只能在用户明确确认目标和文件后调用。
+      tags: [log_extract_mcp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bk_biz_id, ip_list, file_path]
+              properties:
+                bk_biz_id: {type: integer, description: Business ID. 业务ID。}
+                ip_list:
+                  type: array
+                  minItems: 1
+                  maxItems: 20
+                  items:
+                    type: object
+                    required: [bk_host_id, ip, bk_cloud_id]
+                    properties:
+                      bk_host_id: {type: integer}
+                      ip: {type: string}
+                      bk_cloud_id: {type: integer}
+                file_path:
+                  type: array
+                  minItems: 1
+                  maxItems: 10
+                  items: {type: string}
+                filter_type: {type: string, enum: ['', line_range, match_word, tail_line, match_range], default: ''}
+                filter_content: {type: object, default: {}}
+                remark: {type: string, maxLength: 255, default: ''}
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_extract/create_task/
+          matchSubpath: false
+          timeout: 60
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+
+  /mcp/get_log_extract_task/:
+    get:
+      operationId: get_log_extract_task
+      description: Get normalized status for a log-extraction task. Poll using poll_after_seconds returned at creation. 查询日志提取任务状态。
+      tags: [log_extract_mcp]
+      parameters:
+      - {in: query, name: bk_biz_id, required: true, schema: {type: integer}, description: Business ID. 业务ID。}
+      - {in: query, name: task_id, required: true, schema: {type: integer}, description: Log extraction task ID. 日志提取任务ID。}
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/log_extract/get_task/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+
+  /mcp/get_log_extract_download_url/:
+    post:
+      operationId: get_log_extract_download_url
+      description: Get a download URL only after get_log_extract_task reports SUCCEEDED. The URL is sensitive and must not be logged or fetched into model context. 任务成功后获取下载地址；不得将文件内容读入模型上下文。
+      tags: [log_extract_mcp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bk_biz_id, task_id]
+              properties:
+                bk_biz_id: {type: integer, description: Business ID. 业务ID。}
+                task_id: {type: integer, description: Log extraction task ID. 日志提取任务ID。}
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_extract/get_download_url/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true

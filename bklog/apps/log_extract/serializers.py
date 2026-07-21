@@ -198,7 +198,7 @@ class CreateTaskSerializer(serializers.Serializer):
     preview_start_time = serializers.CharField(label=_("预览开始时间"), max_length=20, default="", required=False)
     preview_end_time = serializers.CharField(label=_("预览结束时间"), max_length=20, default="", required=False)
     preview_is_search_child = serializers.BooleanField(label=_("预览是否搜索子目录"))
-    link_id = serializers.IntegerField(label=_("提取链路id"))
+    link_id = serializers.IntegerField(label=_("提取链路id"), required=False, allow_null=True)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)

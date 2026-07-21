@@ -134,7 +134,6 @@ class TestTasks(TestCase):
         for index, params in enumerate(CREATE_PARAMS_LIST):
             params["filter_type"] = ALLOWED_FILTER_TYPES[random.randint(0, 3)]
             params["filter_content"] = FILTER_CONTENT[params["filter_type"]]
-            params["link_id"] = 1
             params.update(CLONE_PARAM)
             host_info_list = []
             for ip in params["ip_list"]:
