@@ -28,6 +28,9 @@ import { getMockProcessList } from '../mock/process-list';
 
 import type { ProcessItem } from '../types';
 
+/** 模拟接口延迟，还原真实请求的网络耗时场景 */
+const delay = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+
 /**
  * @description 获取选中主机的进程列表（当前返回 mock，后续可零改动替换为真实接口）。
  */
@@ -37,5 +40,7 @@ export const getHostProcessList = async (_params: {
   end_time: number;
   start_time: number;
 }): Promise<ProcessItem[]> => {
+  // 模拟 600~1200ms 的异步网络延迟，使 Loading 等真实交互状态可被触发
+  await delay(600 + Math.random() * 600);
   return getMockProcessList();
 };

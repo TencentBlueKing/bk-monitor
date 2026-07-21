@@ -30,14 +30,8 @@ import { type BkUiSettings, type TableSort, PrimaryTable } from '@blueking/tdesi
 import { useResizeObserver } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 
-import {
-  type IProcessColumnConfig,
-  formatMemRss,
-  formatUptime,
-  getProcessMemColor,
-  PROCESS_LIST_COLUMNS,
-  PROCESS_PORT_STATUS_MAP,
-} from '../../constants/process';
+import { type IProcessColumnConfig, PROCESS_LIST_COLUMNS } from '../../constants/process';
+import { useProcessColumnsRenderer } from './hooks/use-process-columns-renderer';
 
 import type { ProcessItem } from '../../types/process';
 
@@ -72,6 +66,7 @@ export default defineComponent({
     const bodyRef = useTemplateRef<HTMLElement>('body');
     /** 表格体最大高度（自适应屏幕，表内滚动） */
     const bodyHeight = shallowRef(400);
+    /** 监听容器高度变化，动态调整表格最大高度 */
     useResizeObserver(bodyRef, entries => {
       const height = entries[0]?.contentRect?.height;
       if (height) {
@@ -96,85 +91,12 @@ export default defineComponent({
       checked: props.visibleColumns,
     }));
 
-    // --- 单元格渲染器 ---
-    const renderNameCell = (row: ProcessItem) => (
-      <span
-        class='process-table-link'
-        onClick={() => emit('rowClick', row)}
-      >
-        {row.name || '--'}
-      </span>
-    );
+    /** 列渲染器 hook（含各列单元格自定义渲染逻辑） */
+    const { buildColumn } = useProcessColumnsRenderer({
+      onRowClick: row => emit('rowClick', row),
+    });
 
-    const renderPortCell = (row: ProcessItem) => {
-      const config = PROCESS_PORT_STATUS_MAP[row.portStatus];
-      return (
-        <div class='process-table-port'>
-          <span
-            style={{ backgroundColor: config?.color || '#c4c6cc' }}
-            class='process-table-port__dot'
-          />
-          <span class='process-table-port__text'>{`${row.protocol} ${row.bindIp}:${row.port}`}</span>
-        </div>
-      );
-    };
-
-    const renderHostCell = (row: ProcessItem) => <span class='process-table-link'>{row.hostIp || '--'}</span>;
-
-    const renderCpuCell = (row: ProcessItem) => <span>{row.cpuUsage >= 0 ? `${row.cpuUsage}%` : '--'}</span>;
-
-    const renderMemoryCell = (row: ProcessItem) => {
-      if (!(row.memRss > 0)) {
-        return <span class='process-table-memory__empty'>--</span>;
-      }
-      return (
-        <div class='process-table-memory'>
-          <div class='process-table-memory__row'>
-            <span class='process-table-memory__value'>{formatMemRss(row.memRss)}</span>
-            <span class='process-table-memory__percent'>{`${row.memUsage}%`}</span>
-          </div>
-          <div class='process-table-memory__bar'>
-            <div
-              style={{ width: `${Math.min(row.memUsage, 100)}%`, backgroundColor: getProcessMemColor(row.memUsage) }}
-              class='process-table-memory__bar-inner'
-            />
-          </div>
-        </div>
-      );
-    };
-
-    const renderUptimeCell = (row: ProcessItem) => <span>{formatUptime(row.uptime)}</span>;
-
-    /** 构建某一列的 tdesign 配置 */
-    const buildColumn = (config: IProcessColumnConfig) => {
-      const base: Record<string, unknown> = {
-        colKey: config.id,
-        title: t(config.name),
-        minWidth: config.minWidth,
-        sorter: config.sortable,
-        ellipsis: config.type === 'text' || config.type === 'port',
-      };
-      base.cell = (_: unknown, { row }: { row: ProcessItem }) => {
-        switch (config.type) {
-          case 'name':
-            return renderNameCell(row);
-          case 'port':
-            return renderPortCell(row);
-          case 'host':
-            return renderHostCell(row);
-          case 'cpu':
-            return renderCpuCell(row);
-          case 'memory':
-            return renderMemoryCell(row);
-          case 'uptime':
-            return renderUptimeCell(row);
-          default:
-            return <span>{(row[config.id as keyof ProcessItem] ?? '--') as string}</span>;
-        }
-      };
-      return base;
-    };
-
+    /** 当前可见列的完整 tdesign 列配置 */
     const tableColumns = computed(() =>
       props.visibleColumns
         .map(id => PROCESS_LIST_COLUMNS.find(column => column.id === id))
@@ -182,32 +104,46 @@ export default defineComponent({
         .map(buildColumn)
     );
 
+    /**
+     * @description tdesign 排序变化回调，转换为 `-key` / `key` 字符串格式发出
+     * @param {TableSort} sortEvent - 排序事件对象
+     */
     const handleSortChange = (sortEvent: TableSort) => {
       const target = Array.isArray(sortEvent) ? sortEvent[0] : sortEvent;
       emit('sortChange', target?.sortBy ? `${target.descending ? '-' : ''}${target.sortBy}` : '');
     };
 
-    return () => (
+    return {
+      bodyHeight,
+      tableSettings,
+      tableColumns,
+      tableSort,
+      handleSortChange,
+    };
+  },
+  render() {
+    return (
       <div
         ref='body'
         class='process-table'
       >
         <PrimaryTable
-          bkUiSettings={tableSettings.value}
-          columns={tableColumns.value}
-          data={props.data}
+          bkUiSettings={this.tableSettings}
+          columns={this.tableColumns}
+          data={this.data}
           disableDataPage={true}
           hover={true}
-          maxHeight={bodyHeight.value}
+          maxHeight={this.bodyHeight}
           needCustomScroll={false}
           resizable={true}
           rowKey='id'
           showSortColumnBgColor={true}
           size='small'
-          sort={tableSort.value}
+          sort={this.tableSort}
           tableLayout='fixed'
-          onDisplayColumnsChange={(cols: string[]) => emit('columnsChange', cols)}
-          onSortChange={handleSortChange}
+          // @ts-expect-error
+          onDisplayColumnsChange={(cols: string[]) => this.$emit('columnsChange', cols)}
+          onSortChange={this.handleSortChange}
         />
       </div>
     );

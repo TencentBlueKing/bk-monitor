@@ -49,18 +49,30 @@ export interface IProcessColumnConfig {
   /** 是否可排序 */
   sortable?: boolean;
   /** 单元格渲染类型，驱动表格 View 选择渲染器 */
-  type: 'cpu' | 'host' | 'memory' | 'name' | 'port' | 'text' | 'uptime';
+  type:
+    | 'connectionCount'
+    | 'cpu'
+    | 'fileHandle'
+    | 'host'
+    | 'instanceCount'
+    | 'memory'
+    | 'name'
+    | 'port'
+    | 'text'
+    | 'uptime'
+    | 'uptimeRange';
 }
 
-/** 进程列表全部列配置（对齐设计稿主视图） */
+/** 进程列表全部列配置（对齐设计稿 8 列） */
 export const PROCESS_LIST_COLUMNS: IProcessColumnConfig[] = [
-  { id: 'name', name: '进程名', type: 'name', checked: true, disabled: true, minWidth: 160 },
-  { id: 'port', name: '端口', type: 'port', checked: true, minWidth: 170 },
-  { id: 'user', name: '用户', type: 'text', checked: true, minWidth: 120 },
-  { id: 'hostIp', name: '主机', type: 'host', checked: true, minWidth: 160 },
-  { id: 'cpuUsage', name: '占用CPU', type: 'cpu', checked: true, sortable: true, minWidth: 120 },
-  { id: 'memRss', name: '物理内存（RSS）', type: 'memory', checked: true, sortable: true, minWidth: 160 },
-  { id: 'uptime', name: '运行时长', type: 'uptime', checked: true, sortable: true, minWidth: 120 },
+  { id: 'name', name: '进程名', type: 'name', checked: true, disabled: true, minWidth: 220 },
+  { id: 'instanceCount', name: '实例数', type: 'instanceCount', checked: true, minWidth: 100 },
+  { id: 'user', name: '运行用户', type: 'text', checked: true, minWidth: 120 },
+  { id: 'cpuUsage', name: 'CPU 总占用', type: 'cpu', checked: true, sortable: true, minWidth: 160 },
+  { id: 'memRss', name: 'RSS 总内存', type: 'memory', checked: true, sortable: true, minWidth: 160 },
+  { id: 'connectionCount', name: '连接数', type: 'connectionCount', checked: true, minWidth: 100 },
+  { id: 'fileHandleCount', name: '文件句柄', type: 'fileHandle', checked: true, minWidth: 160 },
+  { id: 'uptimeRange', name: '运行时长范围', type: 'uptimeRange', checked: true, sortable: true, minWidth: 140 },
 ];
 
 /** 内存使用率进度条颜色阈值（与主机列表指标列一致） */
@@ -68,6 +80,47 @@ export const getProcessMemColor = (value: number): string => {
   if (value >= 95) return '#ea3636';
   if (value > 85) return '#ff8000';
   return '#2dcb56';
+};
+
+/**
+ * CPU 进度条颜色（对齐设计稿：高占用行用橙色 warn，其余用绿色 success）
+ * @param cpuUsage CPU 占用百分比
+ */
+export const getCpuBarColor = (cpuUsage: number): string => {
+  if (cpuUsage >= 20) return '#f59500';
+  return '#21a380';
+};
+
+/**
+ * 内存进度条颜色（表格展示用，对齐设计稿与 CPU 颜色保持一致）
+ * @param cpuUsage CPU 占用百分比（用于决定整行颜色基调）
+ */
+export const getMemBarColor = (cpuUsage: number): string => {
+  if (cpuUsage >= 20) return '#f59500';
+  return '#21a380';
+};
+
+/**
+ * 文件句柄进度条颜色（表格展示用，对齐设计稿与 CPU 颜色保持一致）
+ * @param cpuUsage CPU 占用百分比（用于决定整行颜色基调）
+ */
+export const getFileHandleBarColor = (cpuUsage: number): string => {
+  if (cpuUsage >= 20) return '#f59500';
+  return '#21a380';
+};
+
+/** CPU 变化值展示文案 */
+export const formatCpuChange = (percent: number, status: 'falling' | 'rising' | 'stable'): string => {
+  if (status === 'stable') return '稳定';
+  const sign = percent > 0 ? '+' : '';
+  return `${sign}${percent}%`;
+};
+
+/** CPU 变化值颜色 */
+export const getCpuChangeColor = (status: 'falling' | 'rising' | 'stable'): string => {
+  if (status === 'rising') return '#e38b02';
+  if (status === 'falling') return '#21a380';
+  return '#8f9fbd';
 };
 
 /** 物理内存 RSS 字节数 → 展示文案（如 92 MiB） */
@@ -114,9 +167,7 @@ export const formatProcessUptimeDetail = (seconds: number): string => {
   if (!(seconds > 0)) {
     return '--';
   }
-  const startTime = dayjs()
-    .subtract(seconds, 'second')
-    .format('YYYY-MM-DD HH:mm:ss');
+  const startTime = dayjs().subtract(seconds, 'second').format('YYYY-MM-DD HH:mm:ss');
   const days = seconds / 86400;
   const duration = days >= 1 ? `${+days.toFixed(2)}d` : `${+(seconds / 3600).toFixed(2)}h`;
   return `${duration} (${startTime})`;

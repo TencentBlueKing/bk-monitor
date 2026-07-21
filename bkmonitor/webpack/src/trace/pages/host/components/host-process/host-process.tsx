@@ -54,49 +54,77 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
-    const ctx = useProcessList({ host: toRef(props, 'host') });
+    /** 进程列表数据 hook（含加载状态、搜索、排序） */
+    const { loading, keyword, displayList, sortInfo, handleKeywordChange, handleSortChange } = useProcessList({
+      host: toRef(props, 'host'),
+    });
 
     /** 展示列（默认勾选项对齐设计稿，可在「字段设置」中调整） */
     const visibleColumns = shallowRef<string[]>(PROCESS_LIST_COLUMNS.filter(c => c.checked).map(c => c.id));
-
-    /** 进程详情抽屉（点击进程名打开） */
+    /** 进程详情抽屉显隐状态（点击进程名打开） */
     const detailShow = shallowRef(false);
+    /** 当前选中展示的进程详情 */
     const activeProcess = shallowRef<null | ProcessItem>(null);
 
+    /**
+     * @description 点击进程行，打开进程详情抽屉
+     * @param {ProcessItem} row - 被点击的进程数据
+     */
     const handleRowClick = (row: ProcessItem) => {
       activeProcess.value = row;
       detailShow.value = true;
     };
 
-    return () => (
+    return {
+      t,
+      loading: loading,
+      keyword: keyword,
+      displayList: displayList,
+      sortInfo: sortInfo,
+      visibleColumns,
+      detailShow,
+      activeProcess,
+      handleRowClick,
+      handleKeywordChange,
+      handleSortChange,
+    };
+  },
+  render() {
+    return (
       <Loading
         class='host-process'
-        loading={ctx.loading.value}
+        loading={this.loading}
       >
         <div class='host-process__search'>
           <Input
-            modelValue={ctx.keyword.value}
-            placeholder={t('输入 进程名 / PID')}
+            modelValue={this.keyword}
+            placeholder={this.t('输入 进程名 / PID')}
             type='search'
             clearable
-            onClear={() => ctx.handleKeywordChange('')}
-            onInput={(v: string) => ctx.handleKeywordChange(v)}
+            onClear={() => this.handleKeywordChange('')}
+            onInput={(v: string) => this.handleKeywordChange(v)}
           />
         </div>
         <ProcessTable
-          data={ctx.displayList.value}
-          sort={ctx.sortInfo.value}
-          visibleColumns={visibleColumns.value}
-          onColumnsChange={(cols: string[]) => (visibleColumns.value = cols)}
-          onRowClick={handleRowClick}
-          onSortChange={ctx.handleSortChange}
+          data={this.displayList}
+          sort={this.sortInfo}
+          visibleColumns={this.visibleColumns}
+          onColumnsChange={(cols: string[]) => (this.visibleColumns = cols)}
+          onRowClick={this.handleRowClick}
+          onSortChange={this.handleSortChange}
         />
         <ProcessDetail
+<<<<<<< HEAD
           compareHostList={props.compareHostList}
           process={activeProcess.value}
           selectedNode={props.host}
           show={detailShow.value}
           onUpdate:show={(v: boolean) => (detailShow.value = v)}
+=======
+          process={this.activeProcess}
+          show={this.detailShow}
+          onUpdate:show={(v: boolean) => (this.detailShow = v)}
+>>>>>>> ca7be03ed (feat: 进程列表表格对齐新版设计稿 --story=136308029)
         />
       </Loading>
     );
