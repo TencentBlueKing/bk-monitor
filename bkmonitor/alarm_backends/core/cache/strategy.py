@@ -1332,7 +1332,7 @@ class StrategyCacheManager(CacheManager):
         change_records = histories.values("operate", "strategy_id", "content", "create_time")
         for change_record in change_records:
             changed_time = change_record["create_time"].timestamp()
-            if change_record["operate"] == "delete":
+            if change_record["operate"] in ("delete", "bulk_delete"):
                 sync_aiops_strategy_signal("deleted", change_record["strategy_id"], changed_time)
             else:
                 # check strategy use aiops

@@ -371,7 +371,7 @@ class TestCleanStrategyHistoryBoundaryMatrix:
         kept = _create_history(strategy.id, OLD)
         stdout = StringIO()
 
-        call_command(CMD, days=DAYS, batch_size=1, keep_latest_snapshots=1, stdout=stdout)
+        call_command(CMD, days=DAYS, batch_size=1, keep_latest_snapshots=1, execute=True, stdout=stdout)
 
         assert "deleted 1 records" in stdout.getvalue()
         assert not StrategyHistoryModel.objects.filter(id=old.id).exists()
