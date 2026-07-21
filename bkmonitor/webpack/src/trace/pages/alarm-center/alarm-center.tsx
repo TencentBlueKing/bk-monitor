@@ -157,36 +157,8 @@ export default defineComponent({
       handleQuickFilteringOperation,
     } = useQuickFilter();
 
-    const {
-      data,
-      isPartial,
-      totalRelation,
-      loading,
-      total,
-      page,
-      pageSize,
-      ordering,
-      enabledSpaces,
-      wxCsLink,
-      trendRange,
-      trendLoading,
-    } = useAlarmTable();
-
-    const partialWarningTitle = computed(() => {
-      if (alarmStore.alarmType !== AlarmType.ALERT) {
-        return '';
-      }
-      if (isPartial.value) {
-        return t(
-          '当前查询结果不完整，仅展示已扫描范围内的部分结果，实际数量至少为 {0} 条。请缩小时间范围或增加筛选条件。',
-          [total.value]
-        );
-      }
-      if (totalRelation.value === 'gte') {
-        return t('当前查询匹配至少 {0} 条，页面展示的总数为下界。', [total.value]);
-      }
-      return '';
-    });
+    const { data, loading, total, page, pageSize, ordering, enabledSpaces, wxCsLink, trendRange, trendLoading } =
+      useAlarmTable();
 
     /** 表格分页配置 */
     const pagination = computed(() => ({
@@ -1136,7 +1108,6 @@ export default defineComponent({
       isCollapsed,
       pagination,
       data,
-      partialWarningTitle,
       loading,
       total,
       page,
@@ -1409,13 +1380,6 @@ export default defineComponent({
                   default: () => {
                     return (
                       <div class={CONTENT_SCROLL_ELEMENT_CLASS_NAME}>
-                        {this.partialWarningTitle && (
-                          <Alert
-                            style={{ margin: '8px 0' }}
-                            theme='warning'
-                            title={this.partialWarningTitle}
-                          />
-                        )}
                         {this.alarmStore.alarmType !== AlarmType.ISSUES && (
                           <div class='chart-trend'>
                             <AlarmTrendChart total={this.total} />
