@@ -38,6 +38,7 @@ class BaseSerializer(serializers.Serializer):
     description = serializers.CharField(required=False, label="屏蔽原因", allow_blank=True)
     is_quick = serializers.BooleanField(required=False, label="是否是快捷屏蔽", default=False)
     label = serializers.CharField(required=False, label="标签", default="", allow_blank=True)
+    source = serializers.CharField(required=False, label="屏蔽来源", default="", allow_blank=True)
 
 
 class ScopeSerializer(BaseSerializer):

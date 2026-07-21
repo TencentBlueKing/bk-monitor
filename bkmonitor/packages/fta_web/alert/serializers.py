@@ -135,6 +135,7 @@ class AlertSearchSerializer(BaseSearchSerializer):
     start_time = serializers.IntegerField(label="开始时间")
     end_time = serializers.IntegerField(label="结束时间")
     username = serializers.CharField(required=False, label="负责人")
+    allow_partial = serializers.BooleanField(label="是否允许返回部分结果", default=True)
 
     def validate_conditions(self, value):
         return validate_fulltext_condition_value_count(value)
