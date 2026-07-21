@@ -89,6 +89,11 @@ class TestGetMcpPermissionActionByServerName:
             ("bk-monitor-prod-profiling-query", "using_apm_mcp"),
             ("bkmonitorv3-stage-log-query", "using_log_mcp"),
             ("BKMonitorV3-Prod-Dashboard-Edit", "using_dashboard_mcp"),  # 大小写不敏感
+            ("bkmonitorv3-prod-alarm-handling", "using_alarm_handling_mcp"),
+            ("bkmonitorv3-stage-alarm-handling", "using_alarm_handling_mcp"),
+            ("BKMonitorV3-Prod-Alarm-Handling", "using_alarm_handling_mcp"),
+            ("bkmonitorv3-prod-alarm", "using_alarm_mcp"),
+            ("bkmonitorv3-prod-alerts", "using_alarm_mcp"),
         ],
     )
     def test_known_actions(self, server_name, expected_action):

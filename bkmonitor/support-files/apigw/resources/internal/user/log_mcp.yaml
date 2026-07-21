@@ -75,17 +75,15 @@ paths:
             schema:
               type: object
               required:
-              - limit
               - end_time
               - bk_biz_id
               - start_time
               - index_set_id
-              - query_string
               properties:
                 limit:
-                  type: string
-                  default: '5'
-                  description: 'Maximum number of log records to return. Used to control result size and prevent excessive data transfer. Default: 500. 返回的最大日志记录数。用于控制结果集大小，避免数据量过大。默认值: 500。'
+                  type: integer
+                  default: 10
+                  description: 'Maximum number of log records to return. Used to control result size and prevent excessive data transfer. Default: 10. 返回的最大日志记录数。用于控制结果集大小，避免数据量过大。默认值: 10。'
                 end_time:
                   type: string
                   default: 请动态计算
@@ -102,8 +100,8 @@ paths:
                   description: Index set ID. Must be obtained from list_index_sets tool. 索引集ID,必须从 list_index_sets 工具获取。
                 query_string:
                   type: string
-                  default: '"level:ERROR"'
-                  description: 'Log search query string. Supports field-based queries and keyword searches. Use field mappings from get_index_set_fields to construct valid queries. Examples: level:ERROR, status:500 AND path:/api/*, exception、log:"trace_id=f549a94f6a39c330922cefe8f14a0e39 span_id=e144582eec852645". 日志查询字符串。支持基于字段的查询和关键字搜索。使用 get_index_set_fields 中的字段映射构建有效查询。示例:level:ERROR、status:500 AND path:/api/*、exception、log:"trace_id=f549a94f6a39c330922cefe8f14a0e39 span_id=e144582eec852645"'
+                  default: '*'
+                  description: 'Log search query string. Supports field-based queries and keyword searches. Use field mappings from get_index_set_fields to construct valid queries. Examples: level:ERROR, status:500 AND path:/api/*, exception、log:"trace_id=<trace_id> span_id=<span_id>". Default: "*". 日志查询字符串。支持基于字段的查询和关键字搜索。使用 get_index_set_fields 中的字段映射构建有效查询。示例:level:ERROR、status:500 AND path:/api/*、exception、log:"trace_id=<trace_id> span_id=<span_id>"。默认值:"*"。'
                 conditions:
                   type: object
                   description: 'Structured filter conditions, combined with query_string using AND relation. Ideal for precise field-level filtering. Format: {"field_list": [{"field_name": "level", "op": "eq", "value": ["ERROR", "WARN"]}], "condition_list": ["and"]}. For clustering drill-down, map pattern_level "05" to field_name "__dist_05" and use the returned signature as value. op supports eq/ne/req(regex) etc.; value is a list (multi-value defaults to OR); condition_list length = field_list.length - 1. Optional, omit if not needed. 结构化过滤条件,与 query_string 为 AND 关系,适合精确的字段级过滤。格式: {"field_list": [{"field_name": "level", "op": "eq", "value": ["ERROR", "WARN"]}], "condition_list": ["and"]}。聚类下钻时,将pattern_level "05"映射为字段"__dist_05",并把返回的signature作为value。op支持eq/ne/req(正则)等;value为多值列表(默认OR关系);condition_list长度为field_list.length - 1。可选,如不需要可省略。'
@@ -130,14 +128,18 @@ paths:
                       items:
                         type: string
                 keep_columns:
-                  type: string
-                  description: 'List of output fields to keep, used to trim the response and reduce data size (avoid LLM context overflow). Format: JSON array, e.g. ["dtEventTimeStamp", "log", "level"]. Optional, returns all fields if omitted. 需要保留的输出字段列表,用于裁剪返回内容、降低数据量(避免 LLM 上下文超限)。格式: JSON 数组,例如 ["dtEventTimeStamp", "log", "level"]。可选,省略则返回全部字段。'
+                  type: array
+                  items:
+                    type: string
+                  description: 'List of output fields to keep, used to trim the response and reduce data size (avoid LLM context overflow). Pass a JSON array, e.g. ["dtEventTimeStamp", "log", "level"]; do not serialize it as a string. Optional, returns all fields if omitted. 需要保留的输出字段列表,用于裁剪返回内容、降低数据量。请直接传 JSON 数组,例如 ["dtEventTimeStamp", "log", "level"],不要序列化为字符串。可选,省略则返回全部字段。'
                 order_by:
-                  type: string
-                  description: 'Result sort fields. Format: JSON array, "-" prefix means descending. e.g. ["-dtEventTimeStamp"] sorts by time descending (newest first). Optional. 结果排序字段列表。格式: JSON 数组,"-" 前缀表示降序。例如 ["-dtEventTimeStamp"] 表示按时间倒序(最新在前)。可选。'
+                  type: array
+                  items:
+                    type: string
+                  description: 'Result sort fields. Pass a JSON array; "-" prefix means descending. e.g. ["-dtEventTimeStamp"] sorts by time descending (newest first). Do not serialize the array as a string. Optional. 结果排序字段列表。请直接传 JSON 数组,"-" 前缀表示降序。例如 ["-dtEventTimeStamp"] 表示按时间倒序。不要序列化为字符串。可选。'
                 offset:
-                  type: string
-                  default: '0'
+                  type: integer
+                  default: 0
                   description: 'Offset for pagination, used with limit to fetch subsequent pages (e.g. page 1 offset=0, page 2 offset=limit). Default: 0. 分页偏移量,与 limit 配合翻页(例如第1页 offset=0,第2页 offset=limit)。默认值: 0。'
         required: false
         description: ''
