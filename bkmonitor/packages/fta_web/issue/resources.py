@@ -23,6 +23,7 @@ from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import serializers, exceptions
 from rest_framework.decorators import api_view
+from rest_framework.response import Response
 
 from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.documents.alert import AlertDocument
@@ -54,7 +55,7 @@ from fta_web.issue.handlers.issue import (
     IssueQueryHandler,
 )
 from fta_web.issue.serializers import IssueSearchSerializer
-from fta_web.constants import TapdWorkspaceBindStatus
+from fta_web.constants import TapdWorkspaceBindStatus, TAPD_WEBHOOK_SUPPORTED_TYPES
 from fta_web.issue.utils.tapd import (
     save_tapd_token,
     verify_signed_state,
@@ -65,6 +66,7 @@ from fta_web.issue.utils.tapd import (
     delete_tapd_token,
     generate_auth_url,
 )
+from fta_web.issue.utils.update_issue_status_from_tapd import update_issue_status_from_tapd
 
 logger = logging.getLogger("root")
 
@@ -3399,3 +3401,60 @@ def tapd_user_oauth_callback(request):
 
     # 6) 302 重定向到 success_url（含 # 的前端地址）
     return HttpResponseRedirect(success_url)
+
+
+@api_view(["POST"])
+@csrf_exempt
+def tapd_status_update_callback(request):
+    """TAPD Webhook 回调 — 根据tapd的状态实时同步issue状态。
+
+    TAPD 单据状态变更时推送 update 事件（story::update、bug::update、task::update）。
+    本接口仅处理 story/bug 类型且 status 字段发生变更的事件，其余事件直接忽略。
+
+    始终返回 HTTP 200，避免 TAPD 重试。异常仅记录日志，不影响响应。
+    """
+    try:
+        data = request.data or {}
+
+        # 1) 解析事件类型
+        event = data.get("event", "")
+        if "::update" not in event:
+            return Response({"result": True, "message": "ignored non-update event"}, status=200)
+
+        tapd_type = event.split("::")[0].lower()
+        if tapd_type not in TAPD_WEBHOOK_SUPPORTED_TYPES:
+            return Response({"result": True, "message": f"ignored unsupported type: {tapd_type}"}, status=200)
+
+        # 2) 检查 status 是否在变更字段中
+        change_fields = data.get("change_fields", "")
+        changed_field_set = {f.strip() for f in change_fields.split(",") if f.strip()}
+        if "status" not in changed_field_set:
+            return Response({"result": True, "message": "status not changed, skip"}, status=200)
+
+        # 3) 提取 workspace_id 和 tapd_id
+        workspace_id = data.get("workspace_id")
+        tapd_id = str(data.get("id", ""))
+
+        if workspace_id is None or not tapd_id:
+            logger.warning("TAPD webhook missing workspace_id or id, data=%s", _sanitize_for_log(data))
+            return Response({"result": True, "message": "missing workspace_id or tapd id"}, status=200)
+
+        # 4) TAPD 单据状态变更 → 关联 Issue 流转为已解决
+        update_issue_status_from_tapd(
+            workspace_id=workspace_id,
+            tapd_id=tapd_id,
+            tapd_type=tapd_type,
+        )
+
+        logger.info(
+            "tapd_status_update_callback processed: event=%s, workspace_id=%s, tapd_id=%s, tapd_type=%s",
+            event,
+            workspace_id,
+            tapd_id,
+            tapd_type,
+        )
+        return Response({"result": True, "message": "ok"}, status=200)
+
+    except Exception as e:
+        logger.exception("tapd_status_update_callback error: %s", e)
+        return Response({"result": False, "message": "internal error"}, status=200)
