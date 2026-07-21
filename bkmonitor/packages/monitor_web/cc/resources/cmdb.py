@@ -194,6 +194,12 @@ def get_process_info(bk_biz_id: int, hosts: list[Host], limit_port_num: int = No
         else:
             status = AGENT_STATUS.UNKNOWN
 
+        # proc_num 兜底：若配置实例数 < 1 但进程状态已知（非 UNKNOWN，即 ON/OFF），
+        # 说明实际存在运行实例，按 1 处理，避免前端实例数显示异常
+        proc_num = pp.proc_num
+        if proc_num < 1 and status != AGENT_STATUS.UNKNOWN:
+            proc_num = 1
+
         # id 由 host.py 的 get_host_process_list 按 "进程名@主机IP" 格式组装（前端 ProcessItem.id 契约）。
         # 此处保留原始 bk_process_id 占位，维持 pp_instance["id"] 赋值结构，供 host.py 覆盖。
         pp_instance = {
@@ -207,6 +213,7 @@ def get_process_info(bk_biz_id: int, hosts: list[Host], limit_port_num: int = No
             "port": int(ports[0]) if ports else "",
             "startCommand": pp.start_cmd,
             "user": pp.user,
+            "proc_num": proc_num,
         }
         pp_info[pp.bk_host_id].append(pp_instance)
 
@@ -215,7 +222,7 @@ def get_process_info(bk_biz_id: int, hosts: list[Host], limit_port_num: int = No
 
 def get_process_status(bk_biz_id: int, hosts: list[Host]) -> dict[int, dict[str, int]]:
     """
-    查询进程状态
+    查询进程状态，1为存活
     """
     ip_to_host_id = {(host.bk_host_innerip, host.bk_cloud_id): host.bk_host_id for host in hosts}
     bk_host_ids = {host.bk_host_id for host in hosts}
@@ -306,7 +313,7 @@ def get_process_runtime_metrics(
             )
             query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
             # 时间范围：start_time/end_time 同时传入（秒级）时按区间查询，否则默认最近三分钟
-            if start_time and end_time:
+            if start_time is not None and end_time is not None:
                 query_start = int(start_time) * 1000
                 query_end = int(end_time) * 1000
             else:
