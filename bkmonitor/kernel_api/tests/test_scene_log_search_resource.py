@@ -175,3 +175,5 @@ def test_scene_log_mcp_gateway_paths_match_kernel_api_routes():
         gateway_resource = gateway_paths[public_path][method]["x-bk-apigateway-resource"]
         assert gateway_resource["backend"]["method"] == method
         assert gateway_resource["backend"]["path"] == backend_path
+        assert gateway_resource["authConfig"]["userVerifiedRequired"] is True
+        assert gateway_resource["authConfig"]["appVerifiedRequired"] is False

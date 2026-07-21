@@ -255,7 +255,7 @@ paths:
         pluginConfigs: []
         authConfig:
           userVerifiedRequired: true
-          appVerifiedRequired: true
+          appVerifiedRequired: false
           resourcePermissionRequired: true
   /mcp/get_scene_log_fields/:
     post:
@@ -299,7 +299,7 @@ paths:
         pluginConfigs: []
         authConfig:
           userVerifiedRequired: true
-          appVerifiedRequired: true
+          appVerifiedRequired: false
           resourcePermissionRequired: true
   /mcp/search_logs_by_scene/:
     post:
@@ -360,7 +360,7 @@ paths:
         pluginConfigs: []
         authConfig:
           userVerifiedRequired: true
-          appVerifiedRequired: true
+          appVerifiedRequired: false
           resourcePermissionRequired: true
   /mcp/analyze_field/:
     post:
