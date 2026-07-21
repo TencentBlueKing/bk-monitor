@@ -981,9 +981,9 @@
                         "type": "string",
                         "format": "jmespath"
                     },
-                  {
+                    {
                         "key": "message",
-                        "value": "response.message || ''",
+                        "value": "response.message",
                         "type": "string",
                         "format": "jmespath"
                     }

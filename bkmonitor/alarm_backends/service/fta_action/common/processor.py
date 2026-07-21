@@ -183,7 +183,7 @@ class ActionProcessor(BaseActionProcessor):
                 self.set_finished(
                     ActionStatus.FAILURE,
                     message=_("{}阶段出错，第三方任务返回执行失败: {}").format(
-                        current_step_name, outputs.get("message")
+                        current_step_name, outputs.get("message","--")
                     ),
                     retry_func=config.get("function", "execute"),
                     kwargs=kwargs,
