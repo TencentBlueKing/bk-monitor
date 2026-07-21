@@ -112,45 +112,6 @@ class GetSceneLogFieldsResource(Resource):
         )
 
 
-class SearchSceneLogResource(Resource):
-    """按日志场景和维度检索日志，由日志平台负责选表、细粒度鉴权和脱敏。"""
-
-    class RequestSerializer(TimeSpanValidationPassThroughSerializer):
-        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        # 禁止空外层和空 AND 分组，避免 [] 或 [[]] 导致宽泛选表；条件内容由日志平台校验。
-        table_id_conditions = serializers.ListField(
-            child=serializers.ListField(allow_empty=False),
-            required=True,
-            allow_empty=False,
-            label="结果表路由条件，外层为 OR，内层为 AND",
-        )
-        keyword = serializers.CharField(required=False, default="*", allow_blank=True, label="查询字符串")
-        start_time = serializers.CharField(required=True, label="开始时间")
-        end_time = serializers.CharField(required=True, label="结束时间")
-        size = serializers.IntegerField(required=False, default=10, label="返回条数")
-
-    def perform_request(self, validated_request_data):
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        table_id_conditions = validated_request_data["table_id_conditions"]
-
-        request_data = {
-            "space_uid": bk_biz_id_to_space_uid(bk_biz_id),
-            "bk_biz_id": bk_biz_id,
-            "table_id_conditions": table_id_conditions,
-            "keyword": validated_request_data.get("keyword") or "*",
-            "start_time": validated_request_data["start_time"],
-            "end_time": validated_request_data["end_time"],
-            "size": validated_request_data.get("size", 10),
-        }
-
-        logger.info(
-            "SearchSceneLogResource: search scene logs, bk_biz_id->[%s], condition_groups->[%s]",
-            bk_biz_id,
-            len(table_id_conditions),
-        )
-        return api.log_search.scene_search(**request_data)
-
-
 class SearchLogResource(Resource):
     """
     日志查询服务 -- 日志查询 (用于 AI MCP 请求)
@@ -158,7 +119,17 @@ class SearchLogResource(Resource):
 
     class RequestSerializer(TimeSpanValidationPassThroughSerializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        index_set_id = serializers.IntegerField(required=True, label="索引集ID")
+        target_type = serializers.ChoiceField(
+            choices=["index_set", "scene"], required=False, default="index_set", label="检索目标类型"
+        )
+        index_set_id = serializers.IntegerField(required=False, allow_null=True, label="索引集ID")
+        # 场景检索的结果表路由条件。禁止空外层和空 AND 分组，避免 [] 或 [[]] 导致宽泛选表。
+        table_id_conditions = serializers.ListField(
+            child=serializers.ListField(allow_empty=False),
+            required=False,
+            allow_empty=False,
+            label="结果表路由条件，外层为 OR，内层为 AND",
+        )
         query_string = serializers.CharField(required=False, default="*", label="查询字符串(检索语法)")
         # 结构化过滤条件，与 query_string 可同时使用（AND 关系），适合精确的字段级过滤。
         # 格式：{"field_list": [{"field_name": "level", "op": "eq", "value": ["ERROR", "WARN"]}], "condition_list": ["and"]}
@@ -186,9 +157,57 @@ class SearchLogResource(Resource):
         start_time = serializers.CharField(required=True, label="开始时间")
         end_time = serializers.CharField(required=True, label="结束时间")
         offset = serializers.IntegerField(required=False, default=0, min_value=0, label="偏移量(分页用)")
-        limit = serializers.IntegerField(required=False, default=10, label="返回条数")
+        limit = serializers.IntegerField(required=False, default=10, min_value=1, label="返回条数")
+
+        def validate(self, attrs):
+            attrs = super().validate(attrs)
+            target_type = attrs.get("target_type", "index_set")
+            index_set_id = attrs.get("index_set_id")
+            table_id_conditions = attrs.get("table_id_conditions")
+
+            if target_type == "index_set":
+                if index_set_id is None:
+                    raise serializers.ValidationError(
+                        {"index_set_id": "index_set_id is required when target_type is index_set."}
+                    )
+                return attrs
+
+            if not table_id_conditions:
+                raise serializers.ValidationError(
+                    {"table_id_conditions": "table_id_conditions is required when target_type is scene."}
+                )
+
+            return attrs
 
     def perform_request(self, validated_request_data):
+        if validated_request_data.get("target_type", "index_set") == "scene":
+            return self._search_by_scene(validated_request_data)
+        return self._search_by_index_set(validated_request_data)
+
+    @staticmethod
+    def _search_by_scene(validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        table_id_conditions = validated_request_data["table_id_conditions"]
+        limit = validated_request_data.get("limit", 10)
+
+        logger.info(
+            "SearchLogResource: search scene logs, bk_biz_id->[%s], condition_groups->[%s], limit->[%s]",
+            bk_biz_id,
+            len(table_id_conditions),
+            limit,
+        )
+        return api.log_search.scene_search(
+            space_uid=bk_biz_id_to_space_uid(bk_biz_id),
+            bk_biz_id=bk_biz_id,
+            table_id_conditions=table_id_conditions,
+            keyword=validated_request_data.get("query_string") or "*",
+            start_time=validated_request_data["start_time"],
+            end_time=validated_request_data["end_time"],
+            size=limit,
+        )
+
+    @staticmethod
+    def _search_by_index_set(validated_request_data):
         index_set_id = validated_request_data.get("index_set_id")
         bk_biz_id = validated_request_data.get("bk_biz_id")
         query_string = validated_request_data.get("query_string", "*")
