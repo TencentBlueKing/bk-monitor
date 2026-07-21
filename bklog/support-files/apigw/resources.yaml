@@ -265,72 +265,6 @@ paths:
           appVerifiedRequired: true
           resourcePermissionRequired: true
         descriptionEn:
-  /scene/scenes/:
-    get:
-      operationId: scene_search_scenes
-      description: 场景化日志检索-场景及维度定义
-      tags:
-      - 场景化检索
-      x-bk-apigateway-resource:
-        isPublic: false
-        allowApplyPermission: true
-        matchSubpath: false
-        backend:
-          name: default
-          method: get
-          path: /api/v1/search/scene/scenes/
-          matchSubpath: false
-          timeout: 60
-        pluginConfigs: []
-        authConfig:
-          userVerifiedRequired: false
-          appVerifiedRequired: true
-          resourcePermissionRequired: true
-        descriptionEn: Scene-based log search scene and dimension definitions
-  /scene/fields/:
-    post:
-      operationId: scene_search_fields
-      description: 场景化日志检索-聚合字段列表
-      tags:
-      - 场景化检索
-      x-bk-apigateway-resource:
-        isPublic: false
-        allowApplyPermission: true
-        matchSubpath: false
-        backend:
-          name: default
-          method: post
-          path: /api/v1/search/scene/fields/
-          matchSubpath: false
-          timeout: 60
-        pluginConfigs: []
-        authConfig:
-          userVerifiedRequired: false
-          appVerifiedRequired: true
-          resourcePermissionRequired: true
-        descriptionEn: Scene-based log search merged field mappings
-  /scene/search/:
-    post:
-      operationId: scene_search
-      description: 场景化日志检索-日志内容
-      tags:
-      - 场景化检索
-      x-bk-apigateway-resource:
-        isPublic: false
-        allowApplyPermission: true
-        matchSubpath: false
-        backend:
-          name: default
-          method: post
-          path: /api/v1/search/scene/search/
-          matchSubpath: false
-          timeout: 60
-        pluginConfigs: []
-        authConfig:
-          userVerifiedRequired: false
-          appVerifiedRequired: true
-          resourcePermissionRequired: true
-        descriptionEn: Scene-based log search
   /search_history/:
     get:
       operationId: search_history
@@ -3431,6 +3365,50 @@ paths:
           name: default
           method: post
           path: /api/v1/search/scene/search/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /scene/scenes/:
+    get:
+      operationId: scene_search_scenes
+      description: 场景化日志检索-场景及维度定义
+      tags:
+      - 场景化
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/search/scene/scenes/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /scene/fields/:
+    post:
+      operationId: scene_search_fields
+      description: 场景化日志检索-字段列表
+      tags:
+      - 场景化
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/search/scene/fields/
           matchSubpath: false
           timeout: 0
         pluginConfigs: []
