@@ -695,12 +695,26 @@ export default defineComponent({
       const tableId = props.isClone
         ? currentCollect.value.collector_config_name_en
         : (formData.value.table_id || currentCollect.value.collector_config_name_en);
+      // 仅透传公开的 expand_depth，避免覆盖后台隐藏的 overflow_strategy
+      const submitEtlParams = (() => {
+        if (!etl_params) return etl_params;
+        const { ext_json_config: extJsonConfig, ...rest } = etl_params as any;
+        if (!rest.retain_extra_json || !extJsonConfig || !('expand_depth' in extJsonConfig)) {
+          return rest;
+        }
+        return {
+          ...rest,
+          ext_json_config: {
+            expand_depth: extJsonConfig.expand_depth ?? null,
+          },
+        };
+      })();
       const data = {
         collector_config_id: collectorConfigId,
         retention: Number(retention),
         allocation_min_days: Number(allocation_min_days),
         storage_replies: Number(storage_replies),
-        etl_params,
+        etl_params: submitEtlParams,
         es_shards: Number(es_shards),
         fields,
         etl_config,
