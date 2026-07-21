@@ -2,7 +2,7 @@ paths:
   /mcp/search_log_extract_hosts/:
     post:
       operationId: search_log_extract_hosts
-      description: Query hosts accessible under log-extraction policies. Parameters and response follow the BK Log query-hosts API. 查询日志提取策略下可访问的主机，参数和返回值透传日志平台主机查询接口。
+      description: Query hosts accessible under log-extraction policies. In the response, host_id/cloud_id are the bk_host_id/bk_cloud_id used by subsequent tools. 查询日志提取策略下可访问的主机；返回结果中的 host_id/cloud_id 即后续工具使用的 bk_host_id/bk_cloud_id。
       tags: [log_extract_mcp]
       requestBody:
         required: true
@@ -10,12 +10,12 @@ paths:
           application/json:
             schema:
               type: object
-              required: [bk_biz_id, node_list]
+              required: [bk_biz_id, scope_list, node_list]
               properties:
                 bk_biz_id: {type: integer, description: Business ID. 业务ID。}
-                all_scope: {type: boolean, default: false}
                 scope_list:
                   type: array
+                  minItems: 1
                   items:
                     type: object
                     required: [scope_type, scope_id]

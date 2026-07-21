@@ -10,8 +10,7 @@ class SearchLogExtractHostsResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True)
-        all_scope = serializers.BooleanField(required=False, default=False)
-        scope_list = serializers.ListField(child=serializers.DictField(), required=False, default=list)
+        scope_list = serializers.ListField(child=serializers.DictField(), min_length=1)
         node_list = serializers.ListField(child=serializers.DictField())
         search_condition = serializers.DictField(required=False)
         search_content = serializers.CharField(required=False, allow_blank=True)
