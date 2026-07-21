@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from contextlib import ExitStack
+from contextlib import contextmanager
 from types import SimpleNamespace
 from unittest import mock
 
@@ -92,6 +93,7 @@ def test_bulk_delete_creates_success_history_after_all_data_is_deleted():
     assert operations.mock_calls[-1] == mock.call.create_history(histories, batch_size=100)
 
 
+@pytest.mark.django_db
 def test_bulk_update_creates_success_history_with_bulk_update_type():
     strategy_id = 1001
     strategy_queryset = mock.Mock()
@@ -124,6 +126,7 @@ def test_bulk_update_creates_success_history_with_bulk_update_type():
     strategy_queryset.update.assert_called_once_with(hash="", snippet="")
 
 
+@pytest.mark.django_db
 def test_bulk_update_does_not_create_success_history_when_update_fails():
     """中途 bulk_update 失败时不应写入成功历史；事务保证与配置更新一并回滚。"""
     strategy_id = 1001
@@ -147,6 +150,41 @@ def test_bulk_update_does_not_create_success_history_when_update_fails():
             )
 
     bulk_create_history.assert_not_called()
+
+
+def test_bulk_update_starts_transaction_before_processing_updates():
+    """直接写库的局部更新方法也必须位于批量更新事务中。"""
+    transaction_state = {"active": False}
+    strategy_queryset = mock.Mock()
+    strategy = mock.Mock(id=1001, instance=mock.Mock(), items=[])
+    strategy.to_dict.return_value = {"bk_biz_id": 2, "id": 1001, "labels": ["updated"]}
+
+    @contextmanager
+    def tracked_atomic():
+        transaction_state["active"] = True
+        try:
+            yield
+        finally:
+            transaction_state["active"] = False
+
+    def update_labels(_strategy, _labels):
+        assert transaction_state["active"] is True
+        return None, [], []
+
+    with (
+        mock.patch.object(StrategyModel.objects, "filter", return_value=strategy_queryset),
+        mock.patch.object(StrategyModel.objects, "bulk_update"),
+        mock.patch.object(StrategyHistoryModel.objects, "bulk_create"),
+        mock.patch.object(Strategy, "from_models", return_value=[strategy]),
+        mock.patch.object(UpdatePartialStrategyV2Resource, "get_relations", return_value=([], {})),
+        mock.patch.object(UpdatePartialStrategyV2Resource, "get_action_configs", return_value={}),
+        mock.patch.object(UpdatePartialStrategyV2Resource, "update_labels", side_effect=update_labels),
+        mock.patch("monitor_web.strategies.resources.v2.transaction.atomic", side_effect=tracked_atomic),
+        mock.patch("monitor_web.strategies.resources.v2.get_global_user", return_value="admin"),
+    ):
+        UpdatePartialStrategyV2Resource().perform_request(
+            {"bk_biz_id": 2, "edit_data": {"labels": {"labels": ["updated"]}}, "ids": [1001]}
+        )
 
 
 def test_strategy_cache_handles_bulk_update_and_bulk_delete_histories():
