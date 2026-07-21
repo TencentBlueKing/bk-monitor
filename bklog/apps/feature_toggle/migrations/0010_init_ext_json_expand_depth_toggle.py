@@ -1,4 +1,12 @@
-"""初始化 __ext_json 动态解析层级实验开关。"""
+"""初始化 __ext_json 动态解析层级实验开关。
+
+- status=debug：仅 biz_id_white_list 内业务可见「动态字段解析层级」配置
+- is_viewed=True：通过 /meta/index_html_environment/ 透传给前端
+  window.FEATURE_TOGGLE.ext_json_expand_depth
+  window.FEATURE_TOGGLE_WHITE_LIST.ext_json_expand_depth
+  window.FEATURE_TOGGLE_BLACK_LIST.ext_json_expand_depth
+- 不控制「JSON 字段动态新增」开关本身，仅控制解析层级实验入口
+"""
 
 from django.db import migrations
 
@@ -11,11 +19,11 @@ def forwards_func(apps, schema_editor):
         name=EXT_JSON_EXPAND_DEPTH,
         defaults={
             "alias": "动态 JSON 解析层级",
-            "status": "off",
+            "status": "debug",
             "is_viewed": True,
-            "biz_id_white_list": [],
+            "biz_id_white_list": [2],
             "biz_id_black_list": [],
-            "description": "__ext_json 动态解析层级实验特性，默认关闭，可按业务灰度开启",
+            "description": "__ext_json 动态解析层级实验特性，按业务灰度开启；不控制 JSON 字段动态新增开关",
         },
     )
 

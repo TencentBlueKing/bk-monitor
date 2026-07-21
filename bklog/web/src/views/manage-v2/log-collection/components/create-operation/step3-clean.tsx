@@ -203,7 +203,6 @@ export default defineComponent({
     const spaceUid = computed(() => store.getters.spaceUid);
     const mySpaceList = computed(() => store.state.mySpaceList);
 
-    const showCardConfig = computed(() => (!props.isTempField ? cardConfig.slice(0, -1) : cardConfig));
     /**
      * 分隔符
      */
@@ -298,11 +297,12 @@ export default defineComponent({
       isFeatureToggleOn(EXT_JSON_EXPAND_DEPTH_TOGGLE, [String(bkBizId.value), String(spaceUid.value)]),
     );
 
+    /** 仅控制「动态字段解析层级」，不影响「JSON 字段动态新增」 */
     const showExpandDepthConfig = computed(
       () =>
+        isExtJsonExpandDepthEnabled.value &&
         cleaningMode.value === 'bk_log_json' &&
-        !!formData.value.etl_params.retain_extra_json &&
-        isExtJsonExpandDepthEnabled.value,
+        !!formData.value.etl_params?.retain_extra_json,
     );
 
     const expandDepthOptions = computed(() => [
@@ -353,8 +353,9 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
     });
 
     const initExpandDepthFromEtlParams = (etlParams: any = {}, { resetOrigin = true } = {}) => {
-      const retainExtraJson = !!etlParams.retain_extra_json;
-      const publicConfig = pickPublicExtJsonConfig(etlParams.ext_json_config);
+      const params = etlParams && typeof etlParams === 'object' ? etlParams : {};
+      const retainExtraJson = !!params.retain_extra_json;
+      const publicConfig = pickPublicExtJsonConfig(params.ext_json_config);
       const hadConfig = !!publicConfig;
       const select = retainExtraJson
         ? toExpandDepthSelect(hadConfig ? publicConfig.expand_depth : null)
@@ -370,8 +371,8 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
       expandDepthInited.value = true;
     };
 
-    const handleRetainExtraJsonChange = (val: boolean) => {
-      formData.value.etl_params.retain_extra_json = val;
+    /** 仅同步层级选择缓存；开关本身仍走原有 retain_extra_json 赋值逻辑 */
+    const syncExpandDepthOnRetainExtraJsonChange = (val: boolean) => {
       if (!expandDepthInited.value || !isExtJsonExpandDepthEnabled.value) {
         return;
       }
@@ -388,7 +389,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
     };
 
     const needConfirmExpandDepthChange = () => {
-      if (!isExtJsonExpandDepthEnabled.value || !formData.value.etl_params.retain_extra_json) {
+      if (!isExtJsonExpandDepthEnabled.value || !formData.value.etl_params?.retain_extra_json) {
         return false;
       }
       if (!isUpdate.value && !props.isCleanField) {
@@ -1479,6 +1480,62 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         )}
       </div>
     );
+    /** 动态字段解析层级：独立渲染，避免影响「JSON 字段动态新增」 */
+    const renderExpandDepthConfig = () => (
+      <div class='label-form-box expand-depth-form-box'>
+        <span class='label-title no-require'>{t('动态字段解析层级（实验）')}</span>
+        <div class='form-box expand-depth-config'>
+          <bk-select
+            class='expand-depth-select'
+            clearable={false}
+            value={expandDepthSelect.value}
+            on-selected={handleExpandDepthSelected}
+            style='width: 300px;'
+          >
+            {expandDepthOptions.value.map(option => (
+              <bk-option
+                id={option.id}
+                key={option.id}
+                name={option.name}
+              >
+                <div class='expand-depth-option'>
+                  <span
+                    class='expand-depth-option-name'
+                    style='margin-right: 10px;'
+                  >
+                    {option.name}
+                  </span>
+                  <span class='expand-depth-option-desc'>{option.desc}</span>
+                </div>
+              </bk-option>
+            ))}
+          </bk-select>
+          <p class='expand-depth-tips'>
+            {t('解析层级越大，可直接检索的字段越多，但也更容易达到 ES 字段数量上限。')}
+          </p>
+          {expandDepthSelect.value === UNLIMITED_EXPAND_DEPTH && (
+            <bk-alert
+              class='expand-depth-alert'
+              type='warning'
+              title={t(
+                '无限解析可能产生大量动态字段，达到 ES 字段上限后，相关日志可能写入失败。建议仅在字段结构稳定时使用。',
+              )}
+            />
+          )}
+          <bk-button
+            class='expand-depth-example-btn'
+            text
+            theme='primary'
+            on-click={() => {
+              expandDepthExampleVisible.value = true;
+            }}
+          >
+            {t('查看解析示例')}
+          </bk-button>
+        </div>
+      </div>
+    );
+
     /** 高级设置 */
     const renderAdvanced = () => (
       <div class='advanced-setting'>
@@ -1586,7 +1643,14 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
                 size='large'
                 theme='primary'
                 value={formData.value.etl_params.retain_extra_json}
-                on-change={handleRetainExtraJsonChange}
+                on-change={(val: boolean) => {
+                  // 整体替换 etl_params，确保 Vue2 能触发 showExpandDepthConfig 更新
+                  formData.value.etl_params = {
+                    ...formData.value.etl_params,
+                    retain_extra_json: val,
+                  };
+                  syncExpandDepthOnRetainExtraJsonChange(val);
+                }}
               />
               <InfoTips
                 class='ml-12'
@@ -1595,81 +1659,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             </div>
           </div>
         )}
-        {showExpandDepthConfig.value && (
-          <div class='label-form-box expand-depth-form-box'>
-            <span class='label-title no-require'>{t('动态字段解析层级（实验）')}</span>
-            <div class='form-box expand-depth-config'>
-              <bk-select
-                class='expand-depth-select'
-                clearable={false}
-                value={expandDepthSelect.value}
-                on-selected={handleExpandDepthSelected}
-                style='width: 300px;'
-              >
-                {expandDepthOptions.value.map(option => (
-                  <bk-option
-                    id={option.id}
-                    key={option.id}
-                    name={option.name}
-                  >
-                    <div class='expand-depth-option'>
-                      <span class='expand-depth-option-name' style="margin-right: 10px;">{option.name}</span>
-                      <span class='expand-depth-option-desc'>{option.desc}</span>
-                    </div>
-                  </bk-option>
-                ))}
-              </bk-select>
-              <p class='expand-depth-tips'>
-                {t('解析层级越大，可直接检索的字段越多，但也更容易达到 ES 字段数量上限。')}
-              </p>
-              {expandDepthSelect.value === UNLIMITED_EXPAND_DEPTH && (
-                <bk-alert
-                  class='expand-depth-alert'
-                  type='warning'
-                  title={t(
-                    '无限解析可能产生大量动态字段，达到 ES 字段上限后，相关日志可能写入失败。建议仅在字段结构稳定时使用。',
-                  )}
-                />
-              )}
-              <bk-button
-                class='expand-depth-example-btn'
-                text
-                theme='primary'
-                on-click={() => {
-                  expandDepthExampleVisible.value = true;
-                }}
-              >
-                {t('查看解析示例')}
-              </bk-button>
-            </div>
-          </div>
-        )}
-        <bk-dialog
-          ext-cls='expand-depth-example-dialog'
-          mask-close={true}
-          show-footer={false}
-          title={t('解析示例')}
-          value={expandDepthExampleVisible.value}
-          width={640}
-          on-cancel={() => {
-            expandDepthExampleVisible.value = false;
-          }}
-          on-value-change={(val: boolean) => {
-            expandDepthExampleVisible.value = val;
-          }}
-        >
-          <div class='expand-depth-example-content'>
-            <div class='example-block'>
-              <div class='example-label'>{t('输入')}</div>
-              <pre class='example-code'>{expandDepthExampleInput}</pre>
-            </div>
-            <div class='example-block'>
-              <div class='example-label'>{expandDepthExampleTitle.value}</div>
-              <pre class='example-code'>{expandDepthExampleResult.value}</pre>
-              <p class='example-note'>{expandDepthExampleNote.value}</p>
-            </div>
-          </div>
-        </bk-dialog>
+        {showExpandDepthConfig.value ? renderExpandDepthConfig() : null}
         <div class='label-form-box'>
           <span class='label-title no-require'>{t('路径元数据')}</span>
           <div class='form-box mt-5'>
@@ -1812,23 +1802,35 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
         </div>
       );
     };
-    const cardConfig = [
-      {
-        title: t('清洗设置'),
-        key: 'cleanSetting',
-        renderFn: renderSetting,
-      },
-      {
-        title: t('高级设置'),
-        key: 'advancedSetting',
-        renderFn: renderAdvanced,
-      },
-      {
-        title: t('可见范围设置'),
-        key: 'visibilitySettings',
-        renderFn: renderVisibility,
-      },
-    ];
+    // 显式收集卡片内依赖，避免 Vue2 下嵌套 renderFn 漏追踪导致开关变更后高级设置不刷新
+    const cardConfig = computed(() => {
+      void cleaningMode.value;
+      void formData.value.etl_params?.retain_extra_json;
+      void formData.value.log_reporting_time;
+      void enableMetaData.value;
+      void isExtJsonExpandDepthEnabled.value;
+      void expandDepthSelect.value;
+      return [
+        {
+          title: t('清洗设置'),
+          key: 'cleanSetting',
+          renderFn: renderSetting,
+        },
+        {
+          title: t('高级设置'),
+          key: 'advancedSetting',
+          renderFn: renderAdvanced,
+        },
+        {
+          title: t('可见范围设置'),
+          key: 'visibilitySettings',
+          renderFn: renderVisibility,
+        },
+      ];
+    });
+    const showCardConfig = computed(() =>
+      !props.isTempField ? cardConfig.value.slice(0, -1) : cardConfig.value,
+    );
     /**
      * 提交前的相关检验
      * @param callback
@@ -1900,7 +1902,7 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
       handleSubmitValidate(async () => {
         isChangingExpandDepth.value =
           isExtJsonExpandDepthEnabled.value &&
-          !!formData.value.etl_params.retain_extra_json &&
+          !!formData.value.etl_params?.retain_extra_json &&
           isExpandDepthChanged(
             expandDepthSelect.value,
             originExpandDepthSelect.value,
@@ -2084,6 +2086,34 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             showReportLogSlider.value = value;
           }}
         />
+        {expandDepthExampleVisible.value && (
+          <bk-dialog
+            ext-cls='expand-depth-example-dialog'
+            mask-close={true}
+            show-footer={false}
+            title={t('解析示例')}
+            value={expandDepthExampleVisible.value}
+            width={640}
+            on-cancel={() => {
+              expandDepthExampleVisible.value = false;
+            }}
+            on-value-change={(val: boolean) => {
+              expandDepthExampleVisible.value = val;
+            }}
+          >
+            <div class='expand-depth-example-content'>
+              <div class='example-block'>
+                <div class='example-label'>{t('输入')}</div>
+                <pre class='example-code'>{expandDepthExampleInput}</pre>
+              </div>
+              <div class='example-block'>
+                <div class='example-label'>{expandDepthExampleTitle.value}</div>
+                <pre class='example-code'>{expandDepthExampleResult.value}</pre>
+                <p class='example-note'>{expandDepthExampleNote.value}</p>
+              </div>
+            </div>
+          </bk-dialog>
+        )}
         <div class='classify-btns-fixed'>
           {!props.isTempField && !props.isCleanField && (
             <bk-button

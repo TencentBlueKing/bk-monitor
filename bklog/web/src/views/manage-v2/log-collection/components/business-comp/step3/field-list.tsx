@@ -520,7 +520,9 @@ export default defineComponent({
     );
     watch(
       () => [props.data.length, props.loading] as [number, boolean],
-      ([newLen, loadingVal], [oldLen]) => {
+      (newVal, oldVal) => {
+        const [newLen, loadingVal] = newVal;
+        const oldLen = oldVal?.[0];
         if (!loadingVal && newLen !== oldLen) {
           scheduleInitMenuPop(1000);
         }
