@@ -1590,10 +1590,11 @@ export default (options: UseSelectionSearchOptions) => {
     }, field).filter(token => token.isCursorText && token.text);
 
   /**
-   * 字段整段 VALUE 的可检索分词（与渲染分词一致）。
+   * 字段整段 VALUE 的可检索分词（与 Origin/JSON 渲染分词对齐：强制 Lucene）。
+   * keyword whole-value 展示会把整段黏成 1 token，导致 Object 叶子多分词位置误判。
    */
   const getFieldCursorTokens = (row: Record<string, any>, field: Record<string, any>) =>
-    getFieldSegmentTokens(row, field).filter(token => token.isCursorText && token.text);
+    getFieldLuceneTokens(row, field).filter(token => token.isCursorText && token.text);
 
   /**
    * String / JSON String：
@@ -2042,17 +2043,34 @@ export default (options: UseSelectionSearchOptions) => {
       isNestedField?: string;
       fullPlain?: string;
       fieldType?: string;
+      isSoleToken?: boolean;
+      tokenIndex?: number;
+      tokenCount?: number;
     } = {},
   ) => {
     const fieldType = options.fieldType ?? getFieldByName(fieldName)?.field_type;
     const rawValue = values?.[0] ?? '';
+    const fullPlain = options.fullPlain;
+    const tokenCount = options.tokenCount;
+    const tokenIndex = options.tokenIndex;
+    // keyword/flattened：唯一分词整段命中时不加通配
+    const isSoleToken = Boolean(
+      options.isSoleToken
+      || (typeof tokenCount === 'number' && tokenCount === 1 && (
+        !fullPlain || fullPlain === '--' || String(rawValue) === String(fullPlain)
+      ))
+      || (fullPlain && fullPlain !== '--' && String(rawValue) === String(fullPlain)),
+    );
 
     const payload = resolveAddToSearch({
       field: fieldName || FULLTEXT_FIELD_NAME,
       value: rawValue,
       fieldType,
-      fullText: options.fullPlain,
+      fullText: fullPlain,
       operatorHint: operator,
+      isSoleToken,
+      tokenIndex,
+      tokenCount,
       searchMode: getSearchMode(),
     });
 
@@ -2071,15 +2089,51 @@ export default (options: UseSelectionSearchOptions) => {
     );
   };
 
+  /**
+   * 在字段分词列表中定位命中项：精确匹配优先，其次包含关系（部分划词）。
+   * Object 叶子多分词必须用 Lucene 切分后的列表，才能与 DOM .valid-text 位置对齐。
+   */
+  const resolveTokenPositionInField = (
+    tokens: Array<{ text?: string }>,
+    rawValue: string,
+  ): { tokenIndex?: number; tokenCount: number; isSoleToken: boolean } => {
+    const tokenCount = tokens.length;
+    const value = String(rawValue ?? '').replace(/<\/?mark>/gim, '').trim();
+    if (!tokenCount) {
+      return { tokenCount: 0, isSoleToken: false };
+    }
+    let tokenIndex = tokens.findIndex(item => String(item?.text ?? '') === value);
+    if (tokenIndex < 0 && value) {
+      tokenIndex = tokens.findIndex((item) => {
+        const text = String(item?.text ?? '');
+        return Boolean(text) && (text.includes(value) || value.includes(text));
+      });
+    }
+    const exactSole = tokenCount === 1
+      && tokenIndex === 0
+      && String(tokens[0]?.text ?? '') === value;
+    return {
+      tokenIndex: tokenIndex >= 0 ? tokenIndex : undefined,
+      tokenCount,
+      isSoleToken: exactSole,
+    };
+  };
+
   const applySelectionConditions = (conditions: SelectionCondition[], row?: Record<string, any>) => {
     conditions.forEach((item) => {
       const field = getFieldByName(item.field);
       const fullPlain = row && field ? getFieldPlainText(row, field) : undefined;
+      const tokens = row && field ? getFieldCursorTokens(row, field) : [];
+      const rawValue = item.value?.[0] ?? '';
+      const pos = resolveTokenPositionInField(tokens, rawValue);
       emitAddCondition(item.field, item.operator, item.value, {
         depth: item.depth,
         isNestedField: item.isNestedField,
         fullPlain,
         fieldType: field?.field_type,
+        isSoleToken: pos.isSoleToken,
+        tokenIndex: pos.tokenIndex,
+        tokenCount: pos.tokenCount,
       });
     });
   };
@@ -2094,15 +2148,20 @@ export default (options: UseSelectionSearchOptions) => {
     const depth = conditionOptions.depth;
     const isNested = conditionOptions.isNestedField ?? 'false';
     const plain = getFieldPlainText(row, field);
+    const tokens = getFieldCursorTokens(row, field);
 
     // 字段类型优先
     const resolved = resolveSelectionByFieldType(selectionText, field, row);
     resolved.values.forEach((token) => {
+      const pos = resolveTokenPositionInField(tokens, token);
       emitAddCondition(field.field_name, resolved.operator, [token], {
         depth,
         isNestedField: isNested,
         fullPlain: plain,
         fieldType: field.field_type,
+        isSoleToken: pos.isSoleToken,
+        tokenIndex: pos.tokenIndex,
+        tokenCount: pos.tokenCount,
       });
     });
   };

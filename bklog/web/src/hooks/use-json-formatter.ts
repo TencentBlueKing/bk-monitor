@@ -92,6 +92,11 @@ type SegmentClickContext = {
   rootFieldType: string;
   isVirtualObjNode: boolean;
   jsonValue: any;
+  /** 真实点击的 .valid-text（tippy reference 是 body 虚拟节点，不能用来算分词位置） */
+  tokenEl?: HTMLElement | null;
+  tokenIndex?: number;
+  tokenCount?: number;
+  isSoleToken?: boolean;
 };
 
 let activeSegmentClickContext: SegmentClickContext | null = null;
@@ -260,7 +265,13 @@ export default class UseJsonFormatter {
       return this.escapeString(String(leafValue)).replace(/<\/?mark>/g, '');
     }
 
-    // 根字段整段 VALUE（如 log / keyword 列）
+    // 根字段整段 VALUE（如 log / keyword 列）：优先按字段名从行数据取
+    const pathValue = this.getPathValue(ctx.jsonValue, fieldName)
+      ?? (fieldName ? ctx.jsonValue?.[fieldName] : undefined);
+    if (pathValue !== undefined && pathValue !== null && typeof pathValue !== 'object') {
+      return this.escapeString(String(pathValue)).replace(/<\/?mark>/g, '');
+    }
+
     if (!fieldName || fieldName === ctx.rootFieldName) {
       const rootValue = typeof ctx.jsonValue === 'string' || typeof ctx.jsonValue === 'number'
         ? ctx.jsonValue
@@ -271,6 +282,70 @@ export default class UseJsonFormatter {
     }
 
     return '';
+  }
+
+  /**
+   * 解析点击分词在「当前叶子字段 VALUE」可检索分词列表中的位置。
+   *
+   * 注意：
+   * 1) tippy.reference 是 body 上的 virtual-target，必须传入真实 .valid-text
+   * 2) Object/JSON 下 path 可能在节点自身或祖先，过滤统一用 closest
+   * 3) 扫描根用 segment-content（含全部兄弟分词），再按叶子 path 过滤；
+   *    不能拿单个 valid-text 当 root（querySelectorAll 不含自身）
+   */
+  private resolveValidTokenPosition(clickEl?: HTMLElement | null): {
+    tokenIndex?: number;
+    tokenCount?: number;
+    isSoleToken: boolean;
+  } {
+    if (!clickEl) {
+      return { isSoleToken: false };
+    }
+
+    const active = (clickEl.classList?.contains('valid-text')
+      ? clickEl
+      : clickEl.closest('.valid-text')) as HTMLElement | null;
+    if (!active) {
+      return { isSoleToken: false };
+    }
+
+    const resolvePath = (node: HTMLElement) => node.getAttribute('data-segment-field-name')
+      || node.closest?.('[data-segment-field-name]')?.getAttribute('data-segment-field-name')
+      || '';
+    const resolveRole = (node: HTMLElement) => node.getAttribute('data-segment-field-role')
+      || node.closest?.('[data-segment-field-role]')?.getAttribute('data-segment-field-role')
+      || '';
+
+    const fieldPath = resolvePath(active);
+    const segmentRole = resolveRole(active);
+
+    // 扫描根：整段分词容器，保证能看到同一叶子下的兄弟 .valid-text
+    const scanRoot = (active.closest('.segment-content')
+      || active.closest('.bklog-json-field-value')
+      || active.closest('.field-value')
+      || active.closest('[data-field-name][data-has-word-split]')
+      || active.parentElement) as HTMLElement | null;
+    if (!scanRoot) {
+      return { isSoleToken: false };
+    }
+
+    const allTokens = Array.from(scanRoot.querySelectorAll('.valid-text')) as HTMLElement[];
+    const tokens = fieldPath
+      ? allTokens.filter(node => resolvePath(node) === fieldPath && resolveRole(node) === segmentRole)
+      : allTokens;
+
+    const tokenCount = tokens.length;
+    if (!tokenCount) {
+      // 过滤后为空时，至少把当前节点视为唯一分词，避免默认 *value*
+      return { tokenIndex: 0, tokenCount: 1, isSoleToken: true };
+    }
+
+    const tokenIndex = tokens.findIndex(node => node === active || node.contains(active));
+    return {
+      tokenIndex: tokenIndex >= 0 ? tokenIndex : undefined,
+      tokenCount,
+      isSoleToken: tokenCount === 1,
+    };
   }
 
   private isObjectLeafClickContext(
@@ -398,6 +473,22 @@ export default class UseJsonFormatter {
       selectedValue,
     );
 
+    const tippyTarget = segmentPopInstance.getInstance()?.reference as HTMLElement | undefined;
+    // tippy.reference 是 body 虚拟节点：优先用点击时缓存的真实 .valid-text / 预计算位置
+    const tokenPos = (typeof ctx.tokenCount === 'number' && ctx.tokenCount > 0)
+      ? {
+        tokenIndex: ctx.tokenIndex,
+        tokenCount: ctx.tokenCount,
+        isSoleToken: Boolean(ctx.isSoleToken),
+      }
+      : this.resolveValidTokenPosition(ctx.tokenEl || tippyTarget);
+    const selectedPlain = String(selectedValue ?? '').replace(/<\/?mark>/g, '').trim();
+    const normalizedFullPlain = String(fullPlain ?? '').replace(/<\/?mark>/g, '').trim();
+    const isSoleToken = tokenPos.isSoleToken
+      || (Boolean(normalizedFullPlain)
+        && normalizedFullPlain !== '--'
+        && normalizedFullPlain === selectedPlain);
+
     let target = ['date', 'date_nanos'].includes(fieldType)
       ? (this.getPathValue(ctx.jsonValue, activeField?.field_name)
         ?? ctx.jsonValue?.[activeField?.field_name]
@@ -429,11 +520,18 @@ export default class UseJsonFormatter {
 
     const option = {
       fieldName: resolvedFieldName || activeField?.field_name,
-      fieldType,
+      // 叶子字段优先用 store/fields 精确类型；找不到时再退父级
+      fieldType: this.getField(resolvedFieldName)?.field_type
+        ?? activeField?.field_type
+        ?? fieldType,
       operation,
       // 语句模式格式化（通配 / 引号）由 use-text-action 按字段类型统一处理
       value: target ?? selectedValue,
-      fullPlain,
+      fullPlain: normalizedFullPlain
+        || (isSoleToken ? selectedPlain : ''),
+      isSoleToken,
+      tokenIndex: tokenPos.tokenIndex,
+      tokenCount: tokenPos.tokenCount,
       depth: ctx.depth,
     };
 
@@ -528,6 +626,10 @@ export default class UseJsonFormatter {
       target.setAttribute('data-segment-field-role', segmentRole);
     }
 
+    // tippy 挂在 body 虚拟节点上：分词位置必须在点击当下用真实 .valid-text 预计算
+    const tokenEl = (clickTarget.closest('.valid-text') as HTMLElement | null) || clickTarget;
+    const tokenPos = this.resolveValidTokenPosition(tokenEl);
+
     activeSegmentClickContext = {
       name: fieldName ?? '',
       searchFieldName: searchFieldName ?? '',
@@ -540,6 +642,10 @@ export default class UseJsonFormatter {
       rootFieldType: this.config.field?.field_type ?? '',
       isVirtualObjNode: !!this.config.field?.is_virtual_obj_node,
       jsonValue: this.config.jsonValue,
+      tokenEl,
+      tokenIndex: tokenPos.tokenIndex,
+      tokenCount: tokenPos.tokenCount,
+      isSoleToken: tokenPos.isSoleToken,
     };
 
     // 再次注册当前实例回调，确保 taskEventManager.activeKey 指向本次点击的 formatter

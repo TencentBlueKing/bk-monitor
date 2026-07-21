@@ -78,6 +78,15 @@ export interface SelectionContext {
   text: string;
   /** 字段完整 VALUE（用于通配位置、最小分词补齐上下文） */
   fullText?: string;
+  /**
+   * 命中分词是否为该字段 VALUE 的唯一可检索分词。
+   * keyword/flattened 语句模式：为 true 时不加前后 *。
+   */
+  isSoleToken?: boolean;
+  /** 命中分词在字段分词列表中的下标（0-based） */
+  tokenIndex?: number;
+  /** 字段可检索分词总数 */
+  tokenCount?: number;
   /** 列名（展示） */
   column?: string;
   /** 检索字段名 */

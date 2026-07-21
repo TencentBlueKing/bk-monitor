@@ -41,8 +41,11 @@ export const escapeEsReservedChars = (
 ) => escapeQueryValue(value, options);
 
 /** @deprecated 使用 applyPositionalWildcard */
-export const formatSqlContainsWildcardValue = (selectedValue: string, fullPlainValue?: string) =>
-  applyPositionalWildcard(selectedValue, fullPlainValue);
+export const formatSqlContainsWildcardValue = (
+  selectedValue: string,
+  fullPlainValue?: string,
+  options?: { isSoleToken?: boolean; tokenIndex?: number; tokenCount?: number },
+) => applyPositionalWildcard(selectedValue, fullPlainValue, options);
 
 export const formatSqlContainsValues = (
   operator: string,
@@ -50,6 +53,7 @@ export const formatSqlContainsValues = (
   fullPlainValue: string | undefined,
   storageSearchType?: number | string,
   fieldType?: string,
+  options?: { isSoleToken?: boolean; tokenIndex?: number; tokenCount?: number },
 ) => {
   if (!isSqlSearchMode(storageSearchType) || !isContainsOperator(operator)) {
     return values;
@@ -58,8 +62,16 @@ export const formatSqlContainsValues = (
     return values;
   }
   return (values ?? []).map((item) => {
-    const escaped = escapeQueryValue(item, { keepWildcards: true });
-    return applyPositionalWildcard(escaped, fullPlainValue);
+    // 先按原文判定通配，再转义字面量（与 buildContainsQuery 一致）
+    const pattern = applyPositionalWildcard(item, fullPlainValue, options);
+    if (pattern === item || !pattern.includes('*')) {
+      return escapeQueryValue(pattern, { keepWildcards: true });
+    }
+    const hasPrefix = pattern.startsWith('*');
+    const hasSuffix = pattern.endsWith('*');
+    const core = pattern.slice(hasPrefix ? 1 : 0, hasSuffix ? -1 : undefined);
+    const escaped = escapeQueryValue(core, { keepWildcards: true });
+    return `${hasPrefix ? '*' : ''}${escaped}${hasSuffix ? '*' : ''}`;
   });
 };
 
@@ -87,6 +99,11 @@ export const resolveSqlFieldTypeFormat = (params: {
     fullText: fullPlainValue,
     operatorHint: operator,
     negative: isNegative,
+    isSoleToken: Boolean(
+      fullPlainValue
+      && fullPlainValue !== '--'
+      && String(raw) === String(fullPlainValue),
+    ),
   }).queryString;
 
   if (isTextFieldType(fieldType)) {
@@ -98,8 +115,12 @@ export const resolveSqlFieldTypeFormat = (params: {
   }
 
   if (isKeywordLikeFieldType(fieldType)) {
-    const escaped = escapeQueryValue(raw, { keepWildcards: true });
-    const wild = applyPositionalWildcard(escaped, fullPlainValue);
+    const isSoleToken = Boolean(
+      fullPlainValue
+      && fullPlainValue !== '--'
+      && String(raw) === String(fullPlainValue),
+    );
+    const wild = applyPositionalWildcard(raw, fullPlainValue, { isSoleToken });
     return {
       operator: isNegative ? 'not contains match phrase' : 'contains match phrase',
       values: [wild],

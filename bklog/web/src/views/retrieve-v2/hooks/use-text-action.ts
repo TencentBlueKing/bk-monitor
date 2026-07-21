@@ -69,24 +69,44 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
     depth?: number,
     isNestedField?: string,
     fullPlain?: string,
+    isSoleToken?: boolean,
+    tokenMeta?: { tokenIndex?: number; tokenCount?: number },
   ) => {
     const fieldName = typeof field === 'string' ? field : field?.field_name;
-    const fieldType = typeof field === 'string'
-      ? (store.getters.filteredFieldList?.find?.(item => item.field_name === field)?.field_type
-        ?? store.getters.visibleFields?.find?.(item => item.field_name === field)?.field_type)
-      : field?.field_type;
+    // 始终按字段名从 store 取类型，避免 Object 叶子落到父级 object 类型
+    const fieldType = (fieldName
+      ? (store.getters.filteredFieldList?.find?.(item => item.field_name === fieldName)?.field_type
+        ?? store.getters.visibleFields?.find?.(item => item.field_name === fieldName)?.field_type
+        ?? store.state.indexFieldInfo?.fields?.find?.(item => item.field_name === fieldName)?.field_type)
+      : undefined)
+      ?? (typeof field === 'object' ? field?.field_type : undefined);
 
     if (value === '--') {
       handleAddCondition(fieldName, operator, [], isLink, depth, isNestedField);
       return;
     }
 
+    const normalizedValue = String(value ?? '').replace(/<\/?mark>/gim, '').trim();
+    const normalizedFull = fullPlain && fullPlain !== '--'
+      ? String(fullPlain).replace(/<\/?mark>/gim, '').trim()
+      : '';
+    const soleByValue = Boolean(normalizedFull && normalizedFull === normalizedValue);
+    const soleByToken = Boolean(
+      isSoleToken
+      || (typeof tokenMeta?.tokenCount === 'number' && tokenMeta.tokenCount === 1 && (
+        !normalizedFull || soleByValue
+      )),
+    );
+
     const payload = resolveAddToSearch({
       field: fieldName || '*',
-      value,
+      value: normalizedValue,
       fieldType,
-      fullText: fullPlain,
+      fullText: normalizedFull || (soleByToken ? normalizedValue : undefined),
       operatorHint: operator,
+      isSoleToken: soleByToken || soleByValue,
+      tokenIndex: tokenMeta?.tokenIndex ?? (soleByToken || soleByValue ? 0 : undefined),
+      tokenCount: tokenMeta?.tokenCount ?? (soleByToken || soleByValue ? 1 : undefined),
       searchMode: getSearchMode(),
     });
 
@@ -202,14 +222,28 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
       operation,
       displayFieldNames,
       fullPlain: fullPlainFromParams,
-    } = params as typeof params & { fullPlain?: string };
+      isSoleToken: isSoleTokenFromParams,
+      tokenIndex: tokenIndexFromParams,
+      tokenCount: tokenCountFromParams,
+    } = params as typeof params & {
+      fullPlain?: string;
+      isSoleToken?: boolean;
+      tokenIndex?: number;
+      tokenCount?: number;
+    };
 
-    // 获取实际值
-    let actualValue = value;
+    // 获取实际值：分词点击带 value；单元格菜单带 content。二者并存时优先 value（分词原文）。
+    let actualValue = value ?? content;
     let isParamsChange = false;
     if (field && row) {
-      actualValue = ['date', 'date_nanos'].includes(field.field_type) ? row[field.field_name] : content;
-      actualValue = String(actualValue)
+      if (['date', 'date_nanos'].includes(field.field_type)) {
+        actualValue = row[field.field_name];
+      } else if (value !== undefined && value !== null && value !== '') {
+        actualValue = value;
+      } else if (content !== undefined && content !== null) {
+        actualValue = content;
+      }
+      actualValue = String(actualValue ?? '')
         .replace(/<mark>/g, '')
         .replace(/<\/mark>/g, '');
     }
@@ -237,8 +271,21 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
         isParamsChange = true;
         const nextOperator = operation === 'not' ? 'is not' : operation;
         let fullPlain = fullPlainFromParams;
+        // '' 也视为缺失：Object 叶子 fullPlain 解析失败时用行数据回填
         if (
-          fullPlain === undefined
+          (fullPlain === undefined || fullPlain === null || fullPlain === '')
+          && fieldName
+          && row
+        ) {
+          const leafField = typeof field === 'object' && field?.field_name === fieldName
+            ? field
+            : { field_name: fieldName };
+          const raw = getRowFieldValue(row, leafField);
+          fullPlain = raw === null || raw === undefined || raw === ''
+            ? undefined
+            : String(raw).replace(/<\/?mark>/gim, '');
+        } else if (
+          (fullPlain === undefined || fullPlain === null || fullPlain === '')
           && field
           && row
           && typeof field === 'object'
@@ -248,6 +295,17 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
             ? undefined
             : String(raw).replace(/<\/?mark>/gim, '');
         }
+        const normalizedActual = String(actualValue ?? '').replace(/<\/?mark>/gim, '').trim();
+        const normalizedFull = fullPlain
+          ? String(fullPlain).replace(/<\/?mark>/gim, '').trim()
+          : '';
+        const isSoleToken = Boolean(
+          isSoleTokenFromParams
+          || (typeof tokenCountFromParams === 'number'
+            && tokenCountFromParams === 1
+            && (!normalizedFull || normalizedFull === normalizedActual))
+          || (normalizedFull && normalizedFull === normalizedActual),
+        );
         handleSearchCondition(
           fieldName || field,
           nextOperator,
@@ -256,6 +314,11 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
           depth,
           isNestedField,
           fullPlain,
+          isSoleToken,
+          {
+            tokenIndex: tokenIndexFromParams ?? (isSoleToken ? 0 : undefined),
+            tokenCount: tokenCountFromParams ?? (isSoleToken ? 1 : undefined),
+          },
         );
         break;
       }

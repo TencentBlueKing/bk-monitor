@@ -30,14 +30,19 @@ const buildLeaf = (
     return `${neg}"${inner}"`;
   }
 
-  // keyword / flattened：wildcard contains
+  // keyword / flattened：按字段分词位置补通配（唯一分词不加 *）
   if (node.matchMode === 'wildcard') {
+    const wildOpts = {
+      isSoleToken: Boolean(ctx.isSoleToken),
+      tokenIndex: ctx.tokenIndex,
+      tokenCount: ctx.tokenCount,
+    };
     if (!options.escape) {
-      const wild = applyPositionalWildcard(value, ctx.fullText);
+      const wild = applyPositionalWildcard(value, ctx.fullText, wildOpts);
       return `${neg}${node.field}: ${wild}`;
     }
     try {
-      return `${neg}${buildContainsQuery(node.field, value, ctx.fullText)}`;
+      return `${neg}${buildContainsQuery(node.field, value, ctx.fullText, wildOpts)}`;
     } catch {
       // 含 <> 无法进 wildcard：降级为引号短语
       return `${neg}${buildPhraseQuery(node.field, value)}`;

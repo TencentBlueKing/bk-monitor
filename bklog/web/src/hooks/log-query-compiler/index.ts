@@ -12,6 +12,7 @@ export {
   escapeQueryStringPhraseLiteral,
   escapeQueryStringWildcardLiteral,
   applyPositionalWildcard,
+  resolveWildcardAffix,
   buildContainsQuery,
   buildPhraseQuery,
 } from './lexer/escape';

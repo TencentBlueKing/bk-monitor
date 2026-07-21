@@ -41,25 +41,130 @@ export const escapeQueryStringWildcardLiteral = (value: string): string => {
 export const escapeQueryStringPhraseLiteral = (value: string): string =>
   String(value ?? '').replace(/["\\]/g, '\\$&');
 
-/** 按完整 VALUE 位置补通配（不转义；转义须先行） */
-export const applyPositionalWildcard = (selectedValue: string, fullPlainValue?: string): string => {
+export type PositionalWildcardOptions = {
+  /**
+   * 当前命中分词是字段 VALUE 的唯一可检索分词。
+   * 语句模式 keyword/flattened：输出 KEY: Value（无前后 *）。
+   */
+  isSoleToken?: boolean;
+  /**
+   * 命中分词在字段「可检索分词列表」中的下标（0-based）。
+   * 与 tokenCount 同时提供时，优先生效：
+   * - 唯一 → 无 *
+   * - 首位 → value*
+   * - 末位 → *value
+   * - 中间 → *value*
+   */
+  tokenIndex?: number;
+  /** 字段可检索分词总数 */
+  tokenCount?: number;
+};
+
+/** 按字符串在完整 VALUE 中的字符位置判定（部分划词兜底） */
+const resolveWildcardAffixByChar = (
+  selected: string,
+  plain: string,
+): { prefix: boolean; suffix: boolean } => {
+  if (!plain || plain === '--') {
+    return { prefix: true, suffix: true };
+  }
+  if (plain === selected) {
+    return { prefix: false, suffix: false };
+  }
+  if (plain.startsWith(selected)) {
+    return { prefix: false, suffix: true };
+  }
+  if (plain.endsWith(selected)) {
+    return { prefix: true, suffix: false };
+  }
+  return { prefix: true, suffix: true };
+};
+
+/**
+ * 按字段分词列表位置判定前后通配。
+ * 优先 tokenIndex/tokenCount；无分词元信息时回退到字符位置。
+ */
+export const resolveWildcardAffix = (
+  selectedValue: string,
+  fullPlainValue?: string,
+  options?: PositionalWildcardOptions,
+): { prefix: boolean; suffix: boolean } => {
+  const selected = String(selectedValue ?? '');
+  if (!selected || selected.includes('*')) {
+    return { prefix: false, suffix: false };
+  }
+
+  if (options?.isSoleToken) {
+    return { prefix: false, suffix: false };
+  }
+
+  const plain = String(fullPlainValue ?? '');
+  const count = options?.tokenCount;
+  const index = options?.tokenIndex;
+
+  if (
+    typeof count === 'number'
+    && count > 0
+    && typeof index === 'number'
+    && index >= 0
+    && index < count
+  ) {
+    // 字段只有一个分词：整词不加 *；部分划词按字符位置补通配
+    if (count === 1) {
+      if (!plain || plain === '--' || plain === selected) {
+        return { prefix: false, suffix: false };
+      }
+      return resolveWildcardAffixByChar(selected, plain);
+    }
+    // 首位 / 中间 / 末位
+    if (index === 0) {
+      return { prefix: false, suffix: true };
+    }
+    if (index === count - 1) {
+      return { prefix: true, suffix: false };
+    }
+    return { prefix: true, suffix: true };
+  }
+
+  // 无分词位置元信息：回退字符位置 / 整值相等
+  return resolveWildcardAffixByChar(selected, plain);
+};
+
+/** 按完整 VALUE 位置补通配（不转义；转义须在判定之后） */
+export const applyPositionalWildcard = (
+  selectedValue: string,
+  fullPlainValue?: string,
+  options?: PositionalWildcardOptions,
+): string => {
   const selected = String(selectedValue ?? '');
   if (!selected) return selected;
   if (selected.includes('*')) return selected;
 
-  const plain = String(fullPlainValue ?? '');
-  if (!plain || plain === '--') return `*${selected}*`;
-  if (plain === selected) return selected;
-  if (plain.startsWith(selected)) return `${selected}*`;
-  if (plain.endsWith(selected)) return `*${selected}`;
-  if (plain.includes(selected)) return `*${selected}*`;
-  return `*${selected}*`;
+  const { prefix, suffix } = resolveWildcardAffix(selected, fullPlainValue, options);
+  return `${prefix ? '*' : ''}${selected}${suffix ? '*' : ''}`;
 };
 
-export const buildContainsQuery = (field: string, selectedText: string, fullPlain?: string): string => {
-  const escapedValue = escapeQueryStringWildcardLiteral(selectedText);
-  const wild = applyPositionalWildcard(escapedValue, fullPlain);
-  return `${field}: ${wild}`;
+/**
+ * keyword/flattened 语句片段。
+ * 先按原文判定通配位置，再转义字面量，避免 a:b 全值被误写成 *a\:b*。
+ */
+export const buildContainsQuery = (
+  field: string,
+  selectedText: string,
+  fullPlain?: string,
+  options?: PositionalWildcardOptions,
+): string => {
+  const selected = String(selectedText ?? '');
+  if (!selected) {
+    return `${field}: `;
+  }
+  if (selected.includes('*')) {
+    return `${field}: ${selected}`;
+  }
+
+  const { prefix, suffix } = resolveWildcardAffix(selected, fullPlain, options);
+  const escapedValue = escapeQueryStringWildcardLiteral(selected);
+  return `${field}: ${prefix ? '*' : ''}${escapedValue}${suffix ? '*' : ''}`;
 };
 
 export const buildPhraseQuery = (field: string, selectedText: string): string => {

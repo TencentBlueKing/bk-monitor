@@ -278,16 +278,46 @@ export default defineComponent({
         operation: string;
         value: string;
         fullPlain?: string;
+        isSoleToken?: boolean;
+        tokenIndex?: number;
+        tokenCount?: number;
       };
       isLink: boolean;
     }) => {
       const searchMode = requestOtherparams.search_mode === 'sql' ? 'sql' : 'ui';
+      const fieldName = data.option.fieldName || '*';
+      const fieldType = fieldsMap.value[fieldName]?.field_type
+        ?? store.state.indexFieldInfo?.fields?.find?.(item => item.field_name === fieldName)?.field_type
+        ?? data.option.fieldType;
+      const rawValue = String(data.option.value ?? '').replace(/<\/?mark>/gim, '').trim();
+      let fullPlain = String(data.option.fullPlain ?? '').replace(/<\/?mark>/gim, '').trim();
+      if (!fullPlain || fullPlain === '--') {
+        // 本地检索结果行里回填叶子完整 VALUE
+        const row = logList.value[choosedIndex.value];
+        const fromRow = row ? (row[fieldName]
+          ?? fieldName.split('.').reduce((cur: any, key: string) => (cur == null ? undefined : cur[key]), row))
+          : undefined;
+        fullPlain = fromRow == null || fromRow === ''
+          ? ''
+          : String(fromRow).replace(/<\/?mark>/gim, '').trim();
+      }
+      const soleByValue = Boolean(fullPlain && fullPlain === rawValue);
+      const isSoleToken = Boolean(
+        data.option.isSoleToken
+        || (typeof data.option.tokenCount === 'number'
+          && data.option.tokenCount === 1
+          && (!fullPlain || soleByValue))
+        || soleByValue,
+      );
       const payload = resolveAddToSearch({
-        field: data.option.fieldName || '*',
-        value: data.option.value ?? '',
-        fieldType: data.option.fieldType,
-        fullText: data.option.fullPlain,
+        field: fieldName,
+        value: rawValue,
+        fieldType,
+        fullText: fullPlain || (isSoleToken ? rawValue : undefined),
         operatorHint: data.option.operation,
+        isSoleToken,
+        tokenIndex: data.option.tokenIndex ?? (isSoleToken ? 0 : undefined),
+        tokenCount: data.option.tokenCount ?? (isSoleToken ? 1 : undefined),
         searchMode,
       });
 
@@ -296,7 +326,7 @@ export default defineComponent({
         const searchItem = {
           disabled: false,
           field: payload.field,
-          field_type: payload.fieldType ?? data.option.fieldType,
+          field_type: payload.fieldType ?? fieldType,
           operator: payload.operator,
           value: payload.value,
           relation: 'OR',

@@ -838,6 +838,10 @@ export default defineComponent({
         isLink,
         depth: option.depth,
         displayFieldNames: option.displayFieldNames,
+        fullPlain: option.fullPlain,
+        isSoleToken: option.isSoleToken,
+        tokenIndex: option.tokenIndex,
+        tokenCount: option.tokenCount,
       });
     };
 

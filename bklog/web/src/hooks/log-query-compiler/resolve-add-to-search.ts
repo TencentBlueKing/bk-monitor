@@ -16,6 +16,12 @@ export type AddToSearchInput = {
   fieldType?: string;
   fullText?: string;
   operatorHint?: string;
+  /** keyword/flattened：字段唯一分词时语句模式不加 * */
+  isSoleToken?: boolean;
+  /** 命中分词在字段分词列表中的下标 */
+  tokenIndex?: number;
+  /** 字段可检索分词总数 */
+  tokenCount?: number;
   /** ui | sql；也可传 storage SEARCH_TYPE 对应的 dic 值 */
   searchMode: AddToSearchMode;
 };
@@ -43,12 +49,25 @@ const isNegativeOperator = (operator?: string) =>
  */
 export const resolveAddToSearch = (input: AddToSearchInput): AddToSearchPayload => {
   const field = String(input.field ?? '');
-  const value = String(input.value ?? '');
+  const value = String(input.value ?? '').replace(/<\/?mark>/gim, '').trim();
   const fieldType = input.fieldType;
-  const fullPlain = input.fullText;
+  const fullPlainRaw = input.fullText == null ? '' : String(input.fullText).replace(/<\/?mark>/gim, '').trim();
+  const fullPlain = fullPlainRaw && fullPlainRaw !== '--' ? fullPlainRaw : undefined;
   const operatorHint = input.operatorHint || 'contains match phrase';
   const negative = isNegativeOperator(operatorHint);
   const isFulltext = !field || field === '*';
+
+  // keyword/flattened：唯一分词 / 整值相等 → 强制无通配
+  const soleByValue = Boolean(fullPlain && fullPlain === value);
+  const soleByTokenMeta = Boolean(
+    input.isSoleToken
+    || (typeof input.tokenCount === 'number' && input.tokenCount === 1 && (
+      !fullPlain || soleByValue || !value
+    )),
+  );
+  const isSoleToken = soleByTokenMeta || soleByValue;
+  const tokenCount = input.tokenCount ?? (isSoleToken ? 1 : undefined);
+  const tokenIndex = input.tokenIndex ?? (isSoleToken ? 0 : undefined);
 
   if (isFulltext) {
     const inner = escapeQueryStringPhraseLiteral(value);
@@ -75,9 +94,12 @@ export const resolveAddToSearch = (input: AddToSearchInput): AddToSearchPayload 
     field,
     value,
     fieldType,
-    fullText: fullPlain,
+    fullText: fullPlain || (isSoleToken ? value : undefined),
     operatorHint,
     negative,
+    isSoleToken,
+    tokenIndex,
+    tokenCount,
   });
 
   if (input.searchMode === 'sql') {

@@ -117,6 +117,10 @@ export const compileFieldValue = (params: {
   fullText?: string;
   operatorHint?: string;
   negative?: boolean;
+  /** keyword/flattened：字段唯一分词时语句模式不加 * */
+  isSoleToken?: boolean;
+  tokenIndex?: number;
+  tokenCount?: number;
 }): CompileResult => compile({
   text: params.value,
   field: params.field,
@@ -124,6 +128,9 @@ export const compileFieldValue = (params: {
   fieldType: params.fieldType as SelectionContext['fieldType'],
   fullText: params.fullText,
   operatorHint: params.operatorHint,
+  isSoleToken: params.isSoleToken,
+  tokenIndex: params.tokenIndex,
+  tokenCount: params.tokenCount,
 }, 'query-string', {
   tokenizerMode: 'phrase',
   negative: params.negative,
