@@ -1600,6 +1600,7 @@ class IssueLogContentResource(Resource):
             finally:
                 self.QUERY_SLOTS.release()
 
+        fetch_log_content_with_local = ThreadPool.get_func_with_local(_fetch_log_content)
         futures = {}
         skipped_count = 0
         for issue_id, alert in issue_alert_map.items():
@@ -1608,7 +1609,7 @@ class IssueLogContentResource(Resource):
                 continue
             try:
                 future = self.EXECUTOR.submit(
-                    _fetch_log_content,
+                    fetch_log_content_with_local,
                     issue_id,
                     alert,
                     strategy_query_config_map.get(issue_meta[issue_id]["strategy_id"]),

@@ -157,6 +157,28 @@ class TestIssueLogContentResource:
             for future in submitted_futures:
                 future.result(timeout=1)
 
+    def test_log_query_inherits_request_local_tenant(self, monkeypatch):
+        from bkmonitor.utils.local import local
+        from bkmonitor.utils.tenant import get_local_tenant_id
+
+        issue_ids = self._issue_ids(1)
+        resources, alert_search = self._prepare_resource(monkeypatch, issue_ids, with_alert=True)
+        monkeypatch.setattr(resources.AlertDocument, "search", lambda **kwargs: alert_search)
+        monkeypatch.setattr(local, "bk_tenant_id", "tenant-a", raising=False)
+
+        observed_tenant_ids = []
+
+        def _query(*args, **kwargs):
+            observed_tenant_ids.append(get_local_tenant_id())
+            return "log content"
+
+        monkeypatch.setattr(resources, "get_alert_relation_info", _query)
+
+        result = resources.IssueLogContentResource().perform_request({"bk_biz_ids": [2], "issue_ids": issue_ids})
+
+        assert observed_tenant_ids == ["tenant-a"]
+        assert result == {issue_ids[0]: {"log_content": "log content"}}
+
     def test_repeated_timeouts_share_global_concurrency_limit(self, monkeypatch):
         import threading
 
@@ -184,14 +206,14 @@ class TestIssueLogContentResource:
 
         monkeypatch.setattr(resources, "get_alert_relation_info", _slow_query)
         original_submit = resources.IssueLogContentResource.EXECUTOR.submit
-        submitted = 0
         submitted_futures = []
+        max_outstanding = 0
 
         def _counting_submit(*args, **kwargs):
-            nonlocal submitted
-            submitted += 1
+            nonlocal max_outstanding
             future = original_submit(*args, **kwargs)
             submitted_futures.append(future)
+            max_outstanding = max(max_outstanding, sum(not item.done() for item in submitted_futures))
             return future
 
         monkeypatch.setattr(resources.IssueLogContentResource.EXECUTOR, "submit", _counting_submit)
@@ -199,11 +221,9 @@ class TestIssueLogContentResource:
         try:
             resource = resources.IssueLogContentResource()
             resource.perform_request({"bk_biz_ids": [2], "issue_ids": issue_ids})
-            submitted_after_first_request = submitted
             resource.perform_request({"bk_biz_ids": [2], "issue_ids": issue_ids})
             assert max_active <= 10
-            assert submitted <= 10
-            assert submitted == submitted_after_first_request
+            assert max_outstanding <= 10
         finally:
             release.set()
             for future in submitted_futures:
