@@ -146,7 +146,7 @@ paths:
   /mcp/create_alarm_strategy/:
     post:
       operationId: create_alarm_strategy
-      description: Create a single-metric alarm strategy after checking duplicate strategies with search_alarm_strategies and resolving notice_group_ids/action_config_ids from discovery tools. The simplified payload is converted to the complete strategy schema and validated before saving. This is a production write and requires explicit confirm=true. 创建单指标告警策略。创建前先查重并通过发现工具获取告警组和处理套餐ID。简化参数会转换为完整策略并在保存前校验。生产写操作，必须显式传confirm=true。
+      description: Create an alarm strategy after checking duplicates with search_alarm_strategies and resolving notice_group_ids/action_config_ids from discovery tools. Use the simplified metric/detect/notice_group_ids payload for common single time-series threshold strategies. For log keyword strategies (data_source_label=bk_log_search, data_type_label=log), submit the complete items/detects/notice structure with query_configs.query_string and index_set_id instead of the simplified metric payload. This is a production write and requires explicit confirm=true. 创建告警策略。创建前先查重并解析告警组/处理套餐ID。常见单指标阈值可用简化metric/detect/notice_group_ids；日志关键字策略（bk_log_search+log）必须提交完整items/detects/notice，并在query_configs中提供query_string与index_set_id。生产写操作，必须显式传confirm=true。
       tags:
       - alert_handling_mcp
       requestBody:
@@ -158,9 +158,6 @@ paths:
               - bk_biz_id
               - name
               - scenario
-              - metric
-              - detect
-              - notice_group_ids
               - confirm
               properties:
                 bk_biz_id:
@@ -191,10 +188,16 @@ paths:
                       description: Data type, such as time_series, event, or log. 数据类型。
                     result_table_id:
                       type: string
-                      description: Result table ID. 结果表ID。
+                      description: Result table ID. For log keyword strategies prefer the complete items path and keep this blank or from get_alarm_strategy. 结果表ID；日志关键字策略建议走完整items路径。
                     metric_field:
                       type: string
-                      description: Metric field. 指标字段。
+                      description: Metric field for time-series strategies. Not the primary field for log keyword strategies. 时序策略的指标字段；日志关键字策略不以该字段为主。
+                    index_set_id:
+                      type: integer
+                      description: Log index set ID for bk_log_search strategies. Prefer discovering it via log MCP list_index_sets. 日志索引集ID；建议通过日志MCP的list_index_sets发现。
+                    query_string:
+                      type: string
+                      description: Log keyword query string for bk_log_search log strategies, for example level:ERROR AND path:/api/*. Prefer the complete items path when creating log keyword strategies. 日志关键字检索语句；创建日志关键字策略时建议走完整items路径。
                     agg_method:
                       type: string
                       default: AVG
@@ -220,7 +223,22 @@ paths:
                       type: string
                       default: a
                       description: Query alias. 查询别名。
-                  description: Metric query definition. Additional data-source-specific fields may be provided. 指标查询定义，可补充数据源特有字段。
+                  description: Simplified metric query for common time-series threshold strategies. For log keyword strategies, prefer items[].query_configs with query_string and index_set_id. 简化指标定义，适用于常见时序阈值；日志关键字策略请优先使用完整items.query_configs。
+                items:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                  description: Complete monitoring items. Required for log keyword strategy creation together with detects and notice. 完整监控项；创建日志关键字策略时与detects、notice一起提交。
+                detects:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                  description: Complete detection rules used with the full items path. 完整检测规则，与完整items路径一起使用。
+                notice:
+                  type: object
+                  description: Complete notice configuration used with the full items path. 完整通知配置，与完整items路径一起使用。
                 detect:
                   type: object
                   required:
@@ -327,7 +345,7 @@ paths:
   /mcp/update_alarm_strategy/:
     post:
       operationId: update_alarm_strategy
-      description: Fully update one existing alarm strategy. You MUST first call get_alarm_strategy, preserve the complete returned configuration, internal IDs and config_version, modify only the requested fields, then submit with confirm=true. Query-derived metric_id is synchronized with changed PromQL/physical query fields while unchanged special metric IDs are preserved. A stale microsecond-precision config_version is rejected to prevent concurrent overwrite. This supports changing query_configs, expression, aggregation, algorithms, targets, detection rules, notice and actions; it never creates a missing strategy. 使用完整配置更新单个已有告警策略。必须先调用get_alarm_strategy，保留全部配置、内部ID和config_version，仅修改指定字段后提交。修改PromQL/物理查询字段时同步metric_id，未变更的特殊指标ID保持原值；旧config_version会被拒绝，且不会自动创建策略。
+      description: Fully update one existing alarm strategy. You MUST first call get_alarm_strategy, preserve the complete returned configuration, internal IDs and config_version, modify only the requested fields, then submit with confirm=true. Supports PromQL/time-series query changes and log keyword strategies (bk_log_search + log) by editing query_configs.query_string and index_set_id. Query-derived metric_id is synchronized with changed PromQL/physical query fields while unchanged special metric IDs are preserved. A stale config_version is rejected to prevent concurrent overwrite. This never creates a missing strategy. 使用完整配置更新单个已有告警策略。必须先调用get_alarm_strategy，保留全部配置、内部ID和config_version后仅改指定字段。支持修改PromQL/时序查询，也支持日志关键字策略通过query_configs.query_string与index_set_id修改检索语句；旧config_version会被拒绝，且不会自动创建策略。
       tags:
       - alert_handling_mcp
       requestBody:
@@ -448,6 +466,15 @@ paths:
                             promql:
                               type: string
                               description: PromQL query for Prometheus data sources. Prometheus数据源的PromQL。
+                            index_set_id:
+                              type: integer
+                              description: Log index set ID for bk_log_search strategies. Preserve when only changing the keyword query. 日志检索索引集ID；仅改关键字时需原样保留。
+                            query_string:
+                              type: string
+                              description: Log keyword query string for bk_log_search + log strategies, for example level:ERROR AND status:500. This is the primary editable field for log keyword alarms. 日志关键字检索语句（bk_log_search+log），是日志关键字告警的主要可编辑字段。
+                            time_field:
+                              type: string
+                              description: Log time field, commonly dtEventTimeStamp. Preserve unless intentionally changing. 日志时间字段，常见为dtEventTimeStamp；无改动时保留原值。
                             agg_method:
                               type: string
                               description: Aggregation method such as AVG/MAX/SUM. 聚合方法。
@@ -466,7 +493,7 @@ paths:
                               type: array
                               items:
                                 type: object
-                        description: Complete query configurations. Preserve data-source-specific fields not being changed. 完整查询配置，必须保留未修改的数据源特有字段。
+                        description: Complete query configurations. For log keyword strategies edit query_string/index_set_id; for Prometheus edit promql; preserve other data-source-specific fields. 完整查询配置。日志关键字改query_string/index_set_id，Prometheus改promql，其余数据源特有字段必须保留。
                       algorithms:
                         type: array
                         items:
@@ -480,7 +507,7 @@ paths:
                           type: array
                           items:
                             type: object
-                  description: Complete monitoring items from get_alarm_strategy. 可修改query_configs、expression、聚合配置等，但需提交完整监控项。
+                  description: Complete monitoring items from get_alarm_strategy. Supports editing PromQL, log keyword query_string, expression and aggregation. 完整监控项；可改PromQL、日志关键字query_string、expression和聚合配置。
                 detects:
                   type: array
                   minItems: 1
