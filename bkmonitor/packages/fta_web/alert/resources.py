@@ -1555,7 +1555,6 @@ class SearchAlertResource(Resource):
     """
 
     class RequestSerializer(AlertSearchSerializer):
-        allow_partial = serializers.BooleanField(label="是否允许返回部分结果", default=False)
         ordering = serializers.ListField(label="排序", child=serializers.CharField(), default=[])
         page = serializers.IntegerField(label="页数", min_value=1, default=1)
         page_size = serializers.IntegerField(label="每页大小", min_value=0, max_value=5000, default=10)

@@ -171,7 +171,7 @@ def test_search_response_marks_total_as_lower_bound(monkeypatch):
     assert result["partial_reasons"][0]["code"] == "notice_way_candidate_limit"
 
 
-def test_search_alert_defaults_to_complete_results():
+def test_search_alert_defaults_to_partial_result_metadata():
     serializer = SearchAlertResource.RequestSerializer(
         data={
             "bk_biz_ids": [2],
@@ -179,6 +179,23 @@ def test_search_alert_defaults_to_complete_results():
             "query_string": "",
             "start_time": 1711900800,
             "end_time": 1711987200,
+        }
+    )
+
+    serializer.is_valid(raise_exception=True)
+
+    assert serializer.validated_data["allow_partial"] is True
+
+
+def test_search_alert_can_explicitly_require_complete_results():
+    serializer = SearchAlertResource.RequestSerializer(
+        data={
+            "bk_biz_ids": [2],
+            "conditions": [],
+            "query_string": "",
+            "start_time": 1711900800,
+            "end_time": 1711987200,
+            "allow_partial": False,
         }
     )
 
