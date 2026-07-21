@@ -40,7 +40,6 @@
         v-if="isDorisEnabled"
         :active-tab="clusterType"
         :is-doris-enabled="isDorisEnabled"
-        :disabled="operateType !== 'add' && !!editStorageClusterID"
         @tab-click="handleClusterTypeChange"
       />
       <cluster-table

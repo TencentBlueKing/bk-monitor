@@ -52,11 +52,6 @@ export const initOpenTelemetry = (): BkOpenTelemetry | undefined => {
     transport: {
       endpoint: window.rum.endpoint,
       token: window.rum.token,
-      // 仅上报 Trace，关闭 Metric / Log
-      signals: {
-        metrics: false,
-        logs: false,
-      },
     },
     privacy: {
       // 脱敏 URL 中的常见敏感查询参数
@@ -79,15 +74,6 @@ export const initOpenTelemetry = (): BkOpenTelemetry | undefined => {
     },
     context: {
       user: { id: window.username },
-      attributes: {
-        // 事件上报时读取，覆盖异步就绪后的业务 ID
-        page: () => ({
-          bizId: window.cc_biz_id || window.bk_biz_id,
-        }),
-        metric: () => ({
-          bizId: window.cc_biz_id || window.bk_biz_id,
-        }),
-      },
     },
   });
 };

@@ -473,7 +473,6 @@ export default defineComponent({
         <ClusterTypeTabs
           activeTab={activeTab.value}
           isDorisEnabled={isDorisEnabled.value}
-          disabled={isEditMode.value && !!clusterSelect.value}
           on-tab-click={handleTabClick}
         />
 

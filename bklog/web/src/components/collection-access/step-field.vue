@@ -592,26 +592,6 @@
               </bk-button>
             </div>
           </bk-form-item>
-          <bk-dialog
-            v-model="expandDepthExampleVisible"
-            ext-cls="expand-depth-example-dialog"
-            :mask-close="true"
-            :show-footer="false"
-            :title="$t('解析示例')"
-            width="640"
-          >
-            <div class="expand-depth-example-content">
-              <div class="example-block">
-                <div class="example-label">{{ $t('输入') }}</div>
-                <pre class="example-code">{{ expandDepthExampleInput }}</pre>
-              </div>
-              <div class="example-block">
-                <div class="example-label">{{ expandDepthExampleTitle }}</div>
-                <pre class="example-code">{{ expandDepthExampleResult }}</pre>
-                <p class="example-note">{{ expandDepthExampleNote }}</p>
-              </div>
-            </div>
-          </bk-dialog>
           <bk-form-item
             ext-cls="en-bk-form"
             :desc="$t('定义元数据并补充至日志中，可通过元数据进行过滤筛选')"
@@ -989,6 +969,26 @@
           </div>
         </div>
       </bk-dialog>
+      <bk-dialog
+        v-model="expandDepthExampleVisible"
+        ext-cls="expand-depth-example-dialog"
+        :mask-close="true"
+        :show-footer="false"
+        :title="$t('解析示例')"
+        width="640"
+      >
+        <div class="expand-depth-example-content">
+          <div class="example-block">
+            <div class="example-label">{{ $t('输入') }}</div>
+            <pre class="example-code">{{ expandDepthExampleInput }}</pre>
+          </div>
+          <div class="example-block">
+            <div class="example-label">{{ expandDepthExampleTitle }}</div>
+            <pre class="example-code">{{ expandDepthExampleResult }}</pre>
+            <p class="example-note">{{ expandDepthExampleNote }}</p>
+          </div>
+        </div>
+      </bk-dialog>
     </div>
   </section>
 </template>
@@ -1340,11 +1340,12 @@
           String(this.$store.state.spaceUid),
         ]);
       },
+      /** 仅控制「动态字段解析层级」，不影响「JSON 字段动态新增」 */
       showExpandDepthConfig() {
         return (
+          this.isExtJsonExpandDepthEnabled &&
           this.params.etl_config === 'bk_log_json' &&
-          !!this.formData.etl_params.retain_extra_json &&
-          this.isExtJsonExpandDepthEnabled
+          !!this.formData.etl_params?.retain_extra_json
         );
       },
       expandDepthOptions() {
@@ -2738,8 +2739,9 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
       },
       /** 从 etl_params 回填解析层级；存量无配置时展示无限，不主动改写 */
       initExpandDepthFromEtlParams(etlParams = {}, { resetOrigin = true } = {}) {
-        const retainExtraJson = !!etlParams.retain_extra_json;
-        const publicConfig = pickPublicExtJsonConfig(etlParams.ext_json_config);
+        const params = etlParams && typeof etlParams === 'object' ? etlParams : {};
+        const retainExtraJson = !!params.retain_extra_json;
+        const publicConfig = pickPublicExtJsonConfig(params.ext_json_config);
         const hadConfig = !!publicConfig;
         const select = retainExtraJson
           ? toExpandDepthSelect(hadConfig ? publicConfig.expand_depth : null)
@@ -2770,7 +2772,7 @@ __ext_json.service.labels   ${this.$t('动态对象字段')}`;
         this.sessionLastExpandDepth = val;
       },
       needConfirmExpandDepthChange() {
-        if (!this.isExtJsonExpandDepthEnabled || !this.formData.etl_params.retain_extra_json) {
+        if (!this.isExtJsonExpandDepthEnabled || !this.formData.etl_params?.retain_extra_json) {
           return false;
         }
         // 仅已生效的采集项调整层级时需要确认
