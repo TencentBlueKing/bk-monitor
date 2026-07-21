@@ -9,14 +9,18 @@ specific language governing permissions and limitations under the License.
 """
 
 # -*- coding: utf-8 -*-
+import hashlib
+import json
+from copy import deepcopy
 from typing import Any
 
+from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.documents import AlertDocument
-from bkmonitor.models import ActionConfig, StrategyModel, UserGroup
-from bkmonitor.strategy.new_strategy import Strategy
+from bkmonitor.models import ActionConfig, DutyRule, StrategyModel, UserGroup
+from bkmonitor.strategy.new_strategy import Strategy, get_metric_id
 from core.drf_resource import Resource, resource
 from fta_web.alert.resources import AlertTopNResource as FtaAlertTopNResource
 from fta_web.alert.resources import ListAlertTagsResource  # noqa
@@ -74,6 +78,24 @@ class ShieldNoticeConfigSerializer(serializers.Serializer):
         return normalize_shield_notice_config({"notice_receiver": receivers})["notice_receiver"]
 
 
+class ActionExecuteConfigSerializer(serializers.Serializer):
+    template_detail = serializers.JSONField(required=True)
+    template_id = serializers.CharField(required=False, allow_blank=True)
+    timeout = serializers.IntegerField(required=True, min_value=60, max_value=7 * 24 * 60 * 60)
+
+
+def merge_nested_dict(current: dict[str, Any], updates: dict[str, Any]) -> dict[str, Any]:
+    """递归合并字典；数组和标量按请求值完整替换。"""
+
+    merged = deepcopy(current)
+    for key, value in updates.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = merge_nested_dict(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
 def remove_confirm(validated_request_data: dict[str, Any]) -> dict[str, Any]:
     request_data = dict(validated_request_data)
     request_data.pop("confirm", None)
@@ -87,6 +109,19 @@ def ensure_strategy_ids_belong_to_biz(bk_biz_id: int, strategy_ids: list[int]) -
     missing_ids = set(strategy_ids) - existing_ids
     if missing_ids:
         raise ValidationError({"ids": f"业务 {bk_biz_id} 下不存在策略: {sorted(missing_ids)}"})
+
+
+def get_strategy_config_version(config: dict[str, Any]) -> str:
+    version_data = dict(config)
+    version_data.pop("config_version", None)
+    serialized = json.dumps(
+        version_data,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    )
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
 def ensure_strategy_relations_belong_to_biz(bk_biz_id: int, request_data: dict[str, Any]) -> None:
@@ -152,6 +187,18 @@ def ensure_strategy_relations_belong_to_biz(bk_biz_id: int, request_data: dict[s
         )
 
 
+def ensure_duty_rules_belong_to_biz(bk_biz_id: int, duty_rule_ids: list[int]) -> None:
+    existing_ids = set(
+        DutyRule.objects.filter(
+            bk_biz_id__in=[0, bk_biz_id],
+            id__in=duty_rule_ids,
+        ).values_list("id", flat=True)
+    )
+    missing_ids = set(duty_rule_ids) - existing_ids
+    if missing_ids:
+        raise ValidationError({"duty_rules": f"业务 {bk_biz_id} 下不存在轮值规则: {sorted(missing_ids)}"})
+
+
 def ensure_alert_belongs_to_biz(bk_biz_id: int, alert_id: str | int) -> AlertDocument:
     alert = AlertDocument.get(alert_id)
     alert_event = getattr(alert, "event", None)
@@ -183,6 +230,51 @@ def normalize_shield_notice_config(notice_config: dict[str, Any]) -> dict[str, A
             raise ValidationError({"notice_config.notice_receiver": "通知接收人必须包含 type 和 id"})
     normalized_config["notice_receiver"] = normalized_receivers
     return normalized_config
+
+
+def normalize_strategy_metric_ids(
+    request_data: dict[str, Any],
+    current_config: dict[str, Any],
+) -> None:
+    """根据完整查询配置重算可推导的 metric_id，避免与 PromQL/物理指标字段不一致。"""
+
+    metric_identity_fields = (
+        "data_source_label",
+        "data_type_label",
+        "result_table_id",
+        "index_set_id",
+        "metric_field",
+        "custom_event_name",
+        "alert_name",
+        "bkmonitor_strategy_id",
+        "promql",
+    )
+    current_query_configs = {
+        str(query_config.get("id")): query_config
+        for item in current_config.get("items") or []
+        for query_config in item.get("query_configs") or []
+        if query_config.get("id")
+    }
+    for item in request_data.get("items") or []:
+        query_configs = item.get("query_configs") if isinstance(item, dict) else None
+        if not isinstance(query_configs, list) or not query_configs:
+            raise ValidationError({"items.query_configs": "必须提供非空查询配置数组"})
+        for query_config in query_configs:
+            if not isinstance(query_config, dict):
+                raise ValidationError({"items.query_configs": "查询配置必须为对象"})
+            if not query_config.get("data_source_label") or not query_config.get("data_type_label"):
+                raise ValidationError({"items.query_configs": "查询配置必须包含 data_source_label 和 data_type_label"})
+            current_query_config = current_query_configs.get(str(query_config.get("id")))
+            if current_query_config and all(
+                query_config.get(field, "") == current_query_config.get(field, "") for field in metric_identity_fields
+            ):
+                query_config["metric_id"] = current_query_config.get("metric_id", "")
+                continue
+            metric_config = dict(query_config)
+            metric_config.pop("metric_id", None)
+            metric_id = get_metric_id(**metric_config)
+            if metric_id:
+                query_config["metric_id"] = metric_id
 
 
 def build_strategy_from_simplified_request(request_data: dict[str, Any]) -> dict[str, Any]:
@@ -401,7 +493,7 @@ class GetAlarmStrategyResource(Resource):
         )
         with_user_group = serializers.BooleanField(required=False, default=True)
         with_user_group_detail = serializers.BooleanField(required=False, default=False)
-        convert_dashboard = serializers.BooleanField(required=False, default=True)
+        convert_dashboard = serializers.BooleanField(required=False, default=False)
 
     @staticmethod
     def _candidate(strategy: StrategyModel) -> dict[str, Any]:
@@ -433,11 +525,13 @@ class GetAlarmStrategyResource(Resource):
             strategy = Strategy.from_models([strategies.first()])[0]
             strategy.restore()
             config = strategy.to_dict(convert_dashboard=validated_request_data["convert_dashboard"])
+            config_version = get_strategy_config_version(config)
             if validated_request_data["with_user_group"]:
                 Strategy.fill_user_groups(
                     [config],
                     with_detail=validated_request_data["with_user_group_detail"],
                 )
+            config["config_version"] = config_version
             return config
         return {
             "total": total,
@@ -478,22 +572,75 @@ class CreateAlarmStrategyResource(Resource):
 
 
 class UpdateAlarmStrategyResource(Resource):
-    """批量更新告警策略局部配置（用于 AI MCP 请求）。"""
+    """使用完整配置更新单个告警策略（用于 AI MCP 请求）。"""
 
     class RequestSerializer(ConfirmedBusinessScopedSerializer):
-        ids = serializers.ListField(
+        id = serializers.IntegerField(required=True, label="策略ID")
+        name = serializers.CharField(required=True, label="策略名称")
+        type = serializers.CharField(required=True, label="策略类型")
+        source = serializers.CharField(required=True, label="策略来源")
+        scenario = serializers.CharField(required=True, label="监控场景")
+        is_enabled = serializers.BooleanField(required=True, label="是否启用")
+        is_invalid = serializers.BooleanField(required=True, label="是否失效")
+        invalid_type = serializers.CharField(required=True, allow_blank=True, label="失效类型")
+        items = serializers.ListField(
             required=True,
             allow_empty=False,
-            child=serializers.IntegerField(),
-            label="策略ID列表",
+            child=serializers.DictField(),
+            label="监控项完整配置",
         )
-        edit_data = serializers.DictField(required=True, allow_empty=False, label="待修改数据")
+        detects = serializers.ListField(
+            required=True,
+            allow_empty=False,
+            child=serializers.DictField(),
+            label="检测规则完整配置",
+        )
+        notice = serializers.DictField(required=True, label="通知完整配置")
+        actions = serializers.ListField(
+            required=True,
+            allow_empty=True,
+            child=serializers.DictField(),
+            label="处理套餐完整配置",
+        )
+        labels = serializers.ListField(
+            required=True,
+            allow_empty=True,
+            child=serializers.CharField(),
+            label="策略标签",
+        )
+        app = serializers.CharField(required=True, allow_blank=True, label="应用名称")
+        path = serializers.CharField(required=True, allow_blank=True, label="配置路径")
+        priority = serializers.IntegerField(required=True, allow_null=True, label="优先级")
+        priority_group_key = serializers.CharField(
+            required=True,
+            allow_blank=True,
+            label="优先级分组",
+        )
+        metric_type = serializers.CharField(required=True, allow_blank=True, label="指标类型")
+        issue_config = serializers.JSONField(required=True, allow_null=True, label="故障聚合配置")
+        update_time = serializers.CharField(required=True, label="读取策略时的更新时间")
+        config_version = serializers.CharField(required=True, label="策略并发版本")
 
     def perform_request(self, validated_request_data):
         request_data = remove_confirm(validated_request_data)
-        ensure_strategy_ids_belong_to_biz(request_data["bk_biz_id"], request_data["ids"])
-        ensure_strategy_relations_belong_to_biz(request_data["bk_biz_id"], request_data["edit_data"])
-        return resource.strategies.update_partial_strategy_v2.request(**request_data)
+        with transaction.atomic():
+            try:
+                current_strategy = StrategyModel.objects.select_for_update().get(
+                    bk_biz_id=request_data["bk_biz_id"],
+                    id=request_data["id"],
+                )
+            except StrategyModel.DoesNotExist:
+                raise ValidationError({"id": f"业务 {request_data['bk_biz_id']} 下不存在策略: {request_data['id']}"})
+            current_strategy_obj = Strategy.from_models([current_strategy])[0]
+            current_strategy_obj.restore()
+            current_config = current_strategy_obj.to_dict(convert_dashboard=False)
+            if request_data["config_version"] != get_strategy_config_version(current_config):
+                raise ValidationError(
+                    {"config_version": "策略已被其他操作更新，请重新调用 get_alarm_strategy 后再修改"}
+                )
+            normalize_strategy_metric_ids(request_data, current_config)
+            ensure_strategy_relations_belong_to_biz(request_data["bk_biz_id"], request_data)
+            return resource.strategies.save_strategy_v2.request(**request_data)
 
 
 class SearchAlarmShieldsResource(Resource):
@@ -512,7 +659,10 @@ class GetAlarmShieldResource(Resource):
         id = serializers.IntegerField(required=True, label="屏蔽ID")
 
     def perform_request(self, validated_request_data):
-        return ensure_shield_belongs_to_biz(validated_request_data["bk_biz_id"], validated_request_data["id"])
+        shield = ensure_shield_belongs_to_biz(validated_request_data["bk_biz_id"], validated_request_data["id"])
+        if shield.get("notice_config"):
+            shield["notice_config"] = normalize_shield_notice_config(shield["notice_config"])
+        return shield
 
 
 class CreateAlarmShieldResource(Resource):
@@ -627,6 +777,10 @@ class UpdateAlarmShieldResource(Resource):
         request_data = remove_confirm(validated_request_data)
         shield = ensure_shield_belongs_to_biz(request_data["bk_biz_id"], request_data["id"])
         request_data.setdefault("description", shield.get("description", ""))
+        request_data["cycle_config"] = merge_nested_dict(
+            shield.get("cycle_config") or {},
+            request_data["cycle_config"],
+        )
         if shield["category"] == "strategy":
             request_data.setdefault("level", shield["dimension_config"].get("level", []))
         if request_data.get("shield_notice"):
@@ -706,11 +860,17 @@ class UpdateNoticeGroupResource(Resource):
             "duty_notice",
             "path",
             "mention_list",
-            "mention_type",
         )
         for field in writable_fields:
             if field not in request_data and field in current_group:
                 request_data[field] = current_group[field]
+        request_data.pop("mention_type", None)
+        duty_rules = serializers.ListField(
+            child=serializers.IntegerField(),
+            allow_empty=True,
+        ).run_validation(request_data.get("duty_rules") or [])
+        ensure_duty_rules_belong_to_biz(request_data["bk_biz_id"], duty_rules)
+        request_data["duty_rules"] = duty_rules
         return SaveUserGroupResource().request(**request_data)
 
 
@@ -742,12 +902,21 @@ class UpdateMCPActionConfigResource(Resource):
 
     class RequestSerializer(ConfirmedBusinessScopedSerializer):
         id = serializers.IntegerField(required=True, label="处理套餐ID")
+        name = serializers.CharField(required=True, label="处理套餐名称")
+        desc = serializers.CharField(required=True, allow_blank=True, label="描述")
+        execute_config = ActionExecuteConfigSerializer(required=True, label="完整执行配置")
+        is_enabled = serializers.BooleanField(required=True, label="是否启用")
 
     def perform_request(self, validated_request_data):
         from kernel_api.views.v4.action_config import EditActionConfigResource, GetActionConfigResource
 
         request_data = remove_confirm(validated_request_data)
         current_config = GetActionConfigResource().request(id=request_data["id"], bk_biz_id=request_data["bk_biz_id"])
-        for field in ("name", "plugin_id", "desc", "execute_config"):
-            request_data.setdefault(field, current_config[field])
+        if "plugin_id" in request_data and int(request_data["plugin_id"]) != int(current_config["plugin_id"]):
+            raise ValidationError({"plugin_id": "处理套餐类型不允许修改"})
+        request_data["plugin_id"] = current_config["plugin_id"]
+        request_data["execute_config"] = merge_nested_dict(
+            current_config["execute_config"],
+            request_data["execute_config"],
+        )
         return EditActionConfigResource().request(**request_data)

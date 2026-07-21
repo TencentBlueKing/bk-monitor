@@ -1001,8 +1001,7 @@ class UserGroupDetailSlz(UserGroupSlz):
         super().save(**kwargs)
 
         # step 3 save duty arranges and delete old relation
-        if duty_arranges:
-            DutyArrange.bulk_create(duty_arranges, self.instance)
+        DutyArrange.bulk_create(duty_arranges, self.instance)
 
         # step 3 save duty arranges and delete old relation
         self.save_duty_rule_relations()
