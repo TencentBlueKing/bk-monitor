@@ -144,6 +144,16 @@ class EtlStorage:
         """
         raise NotImplementedError(_("V4版本clean_rules构建功能暂未实现"))
 
+    def customize_result_table_config(
+        self,
+        params: dict,
+        etl_params: dict,
+        current_result_table_config: dict,
+        es_version: str,
+        storage_cluster_type: str,
+    ) -> None:
+        """在通用结果表参数组装完成后，允许具体清洗类型追加字段或 mapping 配置。"""
+
     @staticmethod
     def _is_v4_reserved_field(field_name: str) -> bool:
         return field_name.lower() in V4_RESERVED_FIELD_NAMES
@@ -155,7 +165,7 @@ class EtlStorage:
                 continue
             field_name = field.get("alias_name") or field["field_name"]
             if cls._is_v4_reserved_field(field_name):
-                raise ValidationError(_("字段名与V4清洗保留字段冲突，请更换字段名") + f"：{field_name}")
+                raise ValidationError(_("字段名与保留字段冲突，请更换字段名") + f"：{field_name}")
 
     @staticmethod
     def _get_path_regexp(etl_params: dict, built_in_config: dict) -> str:
@@ -1207,8 +1217,10 @@ class EtlStorage:
 
         # 获取结果表是否已经创建，如果创建则选择更新
         table_id = ""
+        current_result_table_config = {}
         try:
-            table_id = TransferApi.get_result_table({"table_id": params["table_id"]}).get("table_id")
+            current_result_table_config = TransferApi.get_result_table({"table_id": params["table_id"]})
+            table_id = current_result_table_config.get("table_id")
         except ApiResultError:
             pass
 
@@ -1256,6 +1268,16 @@ class EtlStorage:
         self.add_metadata_path_configs(etl_path_regexp, result_table_config)
 
         params.update(result_table_config)
+
+        # 基类只提供扩展时机，不感知 __ext_json 等清洗类型私有语义。
+        # 此处已有完整 field_list 和 mapping_settings，子类可以在异步下发前做最终定制。
+        self.customize_result_table_config(
+            params=params,
+            etl_params=etl_params,
+            current_result_table_config=current_result_table_config,
+            es_version=es_version,
+            storage_cluster_type=storage_cluster_type,
+        )
 
         # 用户清洗字段可能与内置 scenario 字段同名（如 Windows 事件采集的 winEventProviderName），
         # field_list 重复会导致下发 metadata 时 table_id+field_name 唯一键冲突，modify_result_table 整体失败。

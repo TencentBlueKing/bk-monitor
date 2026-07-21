@@ -240,7 +240,7 @@ def cache_application_k8s_related_indexes() -> None:
         return
 
     cache_agent: Any = caches["redis"]
-    for application in Application.objects.filter(is_enabled=True):
+    for application in Application.objects.filter(is_enabled=True).exclude(app_name__startswith="bkapp_ai0us0"):
         try:
             set_local_tenant_id(application.bk_tenant_id)
             cache_key: str = ApmCacheKey.APP_SERVICE_K8S_RELATED_LOG_INDEXES_KEY.format(

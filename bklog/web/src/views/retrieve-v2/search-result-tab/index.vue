@@ -50,9 +50,9 @@ const isAiopsToggle = computed(() => {
 
 const isExternal = computed(() => window.IS_EXTERNAL === true);
 const isSceneMode = computed(() => store.getters.isSceneMode);
-const isChartEnable = computed(() => !store.getters.isUnionSearch && indexSetItems.value?.[0]?.support_doris && !isSceneMode.value && !isExternal.value);
-const isGrepEnable = computed(() => !store.getters.isUnionSearch && indexSetItems.value?.[0]?.support_doris && !isSceneMode.value && !isExternal.value);
-
+const isDorisStorage = computed(() => indexSetItems.value?.[0]?.support_doris || indexSetItems.value?.[0]?.storage_cluster_type === 'doris');
+const isChartEnable = computed(() => !store.getters.isUnionSearch && isDorisStorage.value && !isSceneMode.value && !isExternal.value);
+const isGrepEnable = computed(() => !store.getters.isUnionSearch && isDorisStorage.value && !isSceneMode.value && !isExternal.value);
 // 可切换Tab数组
 const panelList = computed(() => {
   return [

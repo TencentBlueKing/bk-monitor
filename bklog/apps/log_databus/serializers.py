@@ -39,9 +39,11 @@ from apps.log_databus.constants import (
     CollectorBatchOperationType,
     CollectorSourceEnum,
     ContainerCollectorType,
+    DEFAULT_EXT_JSON_EXPAND_DEPTH,
     Environment,
     EsSourceType,
     EtlConfig,
+    EXT_JSON_EXPAND_DEPTH_CHOICES,
     KafkaInitialOffsetEnum,
     LabelSelectorOperator,
     MetadataTypeEnum,
@@ -867,6 +869,18 @@ class CollectorMetadataSerializer(serializers.Serializer):
     )
 
 
+class ExtJsonConfigSerializer(serializers.Serializer):
+    """公开的 __ext_json 动态解析配置；兜底策略不对普通接口开放。"""
+
+    expand_depth = serializers.ChoiceField(
+        label=_("动态解析层级"),
+        choices=EXT_JSON_EXPAND_DEPTH_CHOICES,
+        required=False,
+        allow_null=True,
+        default=DEFAULT_EXT_JSON_EXPAND_DEPTH,
+    )
+
+
 class CollectorEtlParamsSerializer(serializers.Serializer):
     separator_regexp = serializers.CharField(label=_("正则表达式"), required=False, allow_null=True, allow_blank=True)
     is_grok = serializers.BooleanField(label=_("是否使用grok"), required=False)
@@ -884,6 +898,7 @@ class CollectorEtlParamsSerializer(serializers.Serializer):
         trim_whitespace=False,
     )
     retain_extra_json = serializers.BooleanField(label=_("是否保留未定义JSON字段"), required=False, default=False)
+    ext_json_config = ExtJsonConfigSerializer(label=_("未定义JSON字段解析配置"), required=False)
     enable_retain_content = serializers.BooleanField(label=_("是否保留失败日志"), required=False, default=True)
     record_parse_failure = serializers.BooleanField(label=_("是否记录清洗失败标记"), required=False, default=True)
     path_regexp = serializers.CharField(
@@ -947,9 +962,9 @@ class CollectorEtlFieldsSerializer(TokenizeOnCharsSerializer):
             if not field.get("is_built_in", False):
                 if field.get("alias_name"):
                     if field["alias_name"].lower() in built_in_keys:
-                        raise ValidationError(_("字段别名不能与标准字段重复") + f":{field['alias_name']}")
+                        raise ValidationError(_("字段名与保留字段冲突，请更换字段名") + f"：{field['alias_name']}")
                 elif field["field_name"].lower() in built_in_keys:
-                    raise ValidationError(_("字段名称不能与标准字段重复") + f":{field['field_name']}")
+                    raise ValidationError(_("字段名与保留字段冲突，请更换字段名") + f"：{field['field_name']}")
 
                 # 时间字段
                 if field["is_time"]:
@@ -1015,6 +1030,14 @@ class CollectorEtlStorageSerializer(CollectorETLParamsFieldSerializer, PlatformI
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+
+        # 接口层只校验用户可见的清洗配置关系；存储类型和 ES 版本依赖运行态信息，在 RT 组装阶段校验。
+        ext_json_config = attrs.get("etl_params", {}).get("ext_json_config")
+        if ext_json_config is not None:
+            if attrs["etl_config"] != EtlConfig.BK_LOG_JSON:
+                raise ValidationError(_("动态解析层级仅支持 JSON 清洗"))
+            if not attrs["etl_params"].get("retain_extra_json"):
+                raise ValidationError(_("配置动态解析层级前需开启保留未定义JSON字段"))
 
         if attrs.get("need_assessment", False) and not attrs.get("assessment_config"):
             raise ValidationError(_("评估配置不能为空"))

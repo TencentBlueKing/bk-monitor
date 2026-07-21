@@ -30,6 +30,8 @@ SCENARIO_BKDATA = "scenario_bkdata"
 BKDATA_SUPER_TOKEN = "bkdata_super_token"
 # AIOPS相关配置
 BKDATA_CLUSTERING_TOGGLE = "bkdata_aiops_toggle"
+# 新类告警切换 NewSeries 灰度开关（未配置时由调用方默认开启）
+NEW_CLASS_ALERT_NEW_SERIES = "new_class_alert_new_series"
 # es相关配置
 BKLOG_ES_CONFIG = "bklog_es_config"
 # 新人指引相关配置
@@ -74,3 +76,6 @@ UNIFY_QUERY_SEARCH_CLUSTERING = "unify_query_search_clustering"
 
 # 场景化检索按业务灰度开关
 SCENE_SEARCH = "scene_search"
+
+# __ext_json 动态解析层级按业务灰度开关
+EXT_JSON_EXPAND_DEPTH = "ext_json_expand_depth"
