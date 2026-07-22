@@ -408,7 +408,9 @@ class TestGenerateIssueLlmTitleBranches:
         monkeypatch.setattr(prom_metrics, "report_all", lambda *a, **kw: None)
         fake_issue = types.SimpleNamespace(
             name="默认名",
-            rename=lambda title, operator, enforce_unique=True: self.renames.append((title, operator, enforce_unique)),
+            rename=lambda title, operator, enforce_unique=True, content=None: self.renames.append(
+                (title, operator, enforce_unique)
+            ),
         )
         self.fake_issue = fake_issue
         monkeypatch.setattr(it.IssueDocument, "get_issue_or_raise", classmethod(lambda cls, *a, **kw: fake_issue))
@@ -429,6 +431,41 @@ class TestGenerateIssueLlmTitleBranches:
         self.monkeypatch.setattr(settings, "ISSUE_LLM_TITLE_SHADOW", False, raising=False)
         self._run()
         assert self.renames == [("svc 调用 demo 失败：ErrX(1)", "system", False)]
+
+    def test_apply_returns_written_title(self):
+        self.monkeypatch.setattr(settings, "ISSUE_LLM_TITLE_SHADOW", False, raising=False)
+
+        result = self.it._apply_llm_title(
+            issue_id="issue1",
+            bk_biz_id=2,
+            alert_id="17000000001",
+            expected_name="默认名",
+            apply_regression_prefix=False,
+            audit_operator="system",
+        )
+
+        assert result == ("ok", "static", "svc 调用 demo 失败：ErrX(1)")
+
+    def test_merge_freeze_race_is_classified_as_skipped_member(self):
+        from bkmonitor.issue_merge import IssueFrozenError
+
+        self.monkeypatch.setattr(settings, "ISSUE_LLM_TITLE_SHADOW", False, raising=False)
+
+        def _raise_frozen(*args, **kwargs):
+            raise IssueFrozenError(issue_id="issue1", conflicting_main_issue_id="main-issue")
+
+        self.fake_issue.rename = _raise_frozen
+
+        result = self.it._apply_llm_title(
+            issue_id="issue1",
+            bk_biz_id=2,
+            alert_id="17000000001",
+            expected_name="默认名",
+            apply_regression_prefix=False,
+            audit_operator="system",
+        )
+
+        assert result == ("skipped_merged_member", "static", None)
 
     def test_cas_name_changed_no_write(self):
         self.monkeypatch.setattr(settings, "ISSUE_LLM_TITLE_SHADOW", False, raising=False)
@@ -480,6 +517,548 @@ class TestGenerateIssueLlmTitleBranches:
         )
         self._run()
         assert calls == [] and self.renames == []
+
+
+class _CounterRecorder:
+    def __init__(self):
+        self.calls = []
+        self._labels = None
+
+    def labels(self, **labels):
+        self._labels = labels
+        return self
+
+    def inc(self):
+        self.calls.append(self._labels)
+
+
+class TestGenerateIssueLlmTitleAlertRetry:
+    def test_alert_not_found_has_specific_result(self, monkeypatch):
+        from alarm_backends.service.fta_action.tasks import issue_tasks as it
+        from core.errors.alert import AlertNotFoundError
+
+        def _raise_not_found(cls, alert_id):
+            raise AlertNotFoundError({"alert_id": alert_id})
+
+        monkeypatch.setattr(it.AlertDocument, "get", classmethod(_raise_not_found))
+
+        result = it._apply_llm_title(
+            issue_id="issue1",
+            bk_biz_id=2,
+            alert_id="17000000001",
+            expected_name="默认名",
+            apply_regression_prefix=False,
+            audit_operator="system",
+        )
+
+        assert result == ("alert_not_found", "static", None)
+
+    def test_other_alert_lookup_error_is_not_retryable(self, monkeypatch):
+        from alarm_backends.service.fta_action.tasks import issue_tasks as it
+
+        def _raise_error(cls, alert_id):
+            raise RuntimeError("query failed")
+
+        monkeypatch.setattr(it.AlertDocument, "get", classmethod(_raise_error))
+
+        result = it._apply_llm_title(
+            issue_id="issue1",
+            bk_biz_id=2,
+            alert_id="17000000001",
+            expected_name="默认名",
+            apply_regression_prefix=False,
+            audit_operator="system",
+        )
+
+        assert result == ("alert_error", "static", None)
+
+    def test_first_alert_miss_schedules_one_second_retry_without_final_result(self, monkeypatch):
+        from alarm_backends.service.fta_action.tasks import issue_tasks as it
+        from core.prometheus import metrics as prom_metrics
+
+        monkeypatch.setattr(it, "_apply_llm_title", lambda **kwargs: ("alert_not_found", "static", None))
+        scheduled = []
+        monkeypatch.setattr(it.generate_issue_llm_title, "apply_async", lambda **kwargs: scheduled.append(kwargs))
+        lookup_results = _CounterRecorder()
+        final_results = _CounterRecorder()
+        monkeypatch.setattr(prom_metrics, "ISSUE_LLM_TITLE_ALERT_LOOKUP_TOTAL", lookup_results, raising=False)
+        monkeypatch.setattr(prom_metrics, "ISSUE_LLM_TITLE_TOTAL", final_results)
+        monkeypatch.setattr(prom_metrics, "report_all", lambda: None)
+
+        it.generate_issue_llm_title("issue1", 2, "默认名", "17000000001")
+
+        assert scheduled == [
+            {
+                "kwargs": {
+                    "issue_id": "issue1",
+                    "bk_biz_id": 2,
+                    "default_name": "默认名",
+                    "alert_id": "17000000001",
+                    "alert_retry_attempt": 1,
+                },
+                "countdown": 1,
+            }
+        ]
+        assert lookup_results.calls == [{"bk_biz_id": "2", "result": "retry_scheduled"}]
+        assert final_results.calls == []
+
+    def test_second_alert_miss_schedules_three_second_retry(self, monkeypatch):
+        from alarm_backends.service.fta_action.tasks import issue_tasks as it
+        from core.prometheus import metrics as prom_metrics
+
+        monkeypatch.setattr(it, "_apply_llm_title", lambda **kwargs: ("alert_not_found", "static", None))
+        scheduled = []
+        monkeypatch.setattr(it.generate_issue_llm_title, "apply_async", lambda **kwargs: scheduled.append(kwargs))
+        monkeypatch.setattr(prom_metrics, "ISSUE_LLM_TITLE_TOTAL", _CounterRecorder())
+        monkeypatch.setattr(prom_metrics, "report_all", lambda: None)
+
+        it.generate_issue_llm_title("issue1", 2, "默认名", "17000000001", alert_retry_attempt=1)
+
+        assert scheduled == [
+            {
+                "kwargs": {
+                    "issue_id": "issue1",
+                    "bk_biz_id": 2,
+                    "default_name": "默认名",
+                    "alert_id": "17000000001",
+                    "alert_retry_attempt": 2,
+                },
+                "countdown": 3,
+            }
+        ]
+
+    def test_final_alert_miss_records_exhausted_and_one_final_result(self, monkeypatch):
+        from alarm_backends.service.fta_action.tasks import issue_tasks as it
+        from core.prometheus import metrics as prom_metrics
+
+        monkeypatch.setattr(it, "_apply_llm_title", lambda **kwargs: ("alert_not_found", "static", None))
+        scheduled = []
+        monkeypatch.setattr(it.generate_issue_llm_title, "apply_async", lambda **kwargs: scheduled.append(kwargs))
+        lookup_results = _CounterRecorder()
+        final_results = _CounterRecorder()
+        monkeypatch.setattr(prom_metrics, "ISSUE_LLM_TITLE_ALERT_LOOKUP_TOTAL", lookup_results, raising=False)
+        monkeypatch.setattr(prom_metrics, "ISSUE_LLM_TITLE_TOTAL", final_results)
+        monkeypatch.setattr(prom_metrics, "report_all", lambda: None)
+
+        it.generate_issue_llm_title("issue1", 2, "默认名", "17000000001", alert_retry_attempt=2)
+
+        assert scheduled == []
+        assert lookup_results.calls == [{"bk_biz_id": "2", "result": "retry_exhausted"}]
+        assert final_results.calls == [{"bk_biz_id": "2", "result": "alert_not_found", "examples_source": "static"}]
+
+    def test_retry_schedule_failure_records_terminal_result(self, monkeypatch):
+        from alarm_backends.service.fta_action.tasks import issue_tasks as it
+        from core.prometheus import metrics as prom_metrics
+
+        monkeypatch.setattr(it, "_apply_llm_title", lambda **kwargs: ("alert_not_found", "static", None))
+
+        def _raise_schedule_error(**kwargs):
+            raise RuntimeError("broker unavailable")
+
+        monkeypatch.setattr(it.generate_issue_llm_title, "apply_async", _raise_schedule_error)
+        lookup_results = _CounterRecorder()
+        final_results = _CounterRecorder()
+        monkeypatch.setattr(prom_metrics, "ISSUE_LLM_TITLE_ALERT_LOOKUP_TOTAL", lookup_results, raising=False)
+        monkeypatch.setattr(prom_metrics, "ISSUE_LLM_TITLE_TOTAL", final_results)
+        monkeypatch.setattr(prom_metrics, "report_all", lambda: None)
+
+        it.generate_issue_llm_title("issue1", 2, "默认名", "17000000001")
+
+        assert lookup_results.calls == [{"bk_biz_id": "2", "result": "retry_schedule_error"}]
+        assert final_results.calls == [
+            {"bk_biz_id": "2", "result": "retry_schedule_error", "examples_source": "static"}
+        ]
+
+    @pytest.mark.parametrize(
+        ("alert_retry_attempt", "expected_lookup_result"),
+        [(0, "first_attempt_success"), (1, "retry_recovered")],
+    )
+    def test_successful_alert_lookup_is_classified_by_attempt(
+        self, monkeypatch, alert_retry_attempt, expected_lookup_result
+    ):
+        from alarm_backends.service.fta_action.tasks import issue_tasks as it
+        from core.prometheus import metrics as prom_metrics
+
+        monkeypatch.setattr(it, "_apply_llm_title", lambda **kwargs: ("empty_log", "static", None))
+        lookup_results = _CounterRecorder()
+        final_results = _CounterRecorder()
+        monkeypatch.setattr(prom_metrics, "ISSUE_LLM_TITLE_ALERT_LOOKUP_TOTAL", lookup_results, raising=False)
+        monkeypatch.setattr(prom_metrics, "ISSUE_LLM_TITLE_TOTAL", final_results)
+        monkeypatch.setattr(prom_metrics, "report_all", lambda: None)
+
+        it.generate_issue_llm_title("issue1", 2, "默认名", "17000000001", alert_retry_attempt=alert_retry_attempt)
+
+        assert lookup_results.calls == [{"bk_biz_id": "2", "result": expected_lookup_result}]
+        assert final_results.calls == [{"bk_biz_id": "2", "result": "empty_log", "examples_source": "static"}]
+
+    def test_alert_lookup_error_is_not_retried_and_records_error(self, monkeypatch):
+        from alarm_backends.service.fta_action.tasks import issue_tasks as it
+        from core.prometheus import metrics as prom_metrics
+
+        monkeypatch.setattr(it, "_apply_llm_title", lambda **kwargs: ("alert_error", "static", None))
+        scheduled = []
+        monkeypatch.setattr(it.generate_issue_llm_title, "apply_async", lambda **kwargs: scheduled.append(kwargs))
+        lookup_results = _CounterRecorder()
+        final_results = _CounterRecorder()
+        monkeypatch.setattr(prom_metrics, "ISSUE_LLM_TITLE_ALERT_LOOKUP_TOTAL", lookup_results, raising=False)
+        monkeypatch.setattr(prom_metrics, "ISSUE_LLM_TITLE_TOTAL", final_results)
+        monkeypatch.setattr(prom_metrics, "report_all", lambda: None)
+
+        it.generate_issue_llm_title("issue1", 2, "默认名", "17000000001")
+
+        assert scheduled == []
+        assert lookup_results.calls == [{"bk_biz_id": "2", "result": "error"}]
+        assert final_results.calls == [{"bk_biz_id": "2", "result": "alert_error", "examples_source": "static"}]
+
+
+class TestRegenerateIssueLlmTitle:
+    def test_inspection_reports_eligible_without_writing(self, monkeypatch):
+        from alarm_backends.service.fta_action.tasks import issue_tasks as it
+
+        issue = types.SimpleNamespace(
+            name="策略名",
+            strategy_name="策略名",
+            dimension_values={},
+            is_regression=False,
+            status="pending_review",
+        )
+        monkeypatch.setattr(it.IssueDocument, "get_issue_or_raise", classmethod(lambda cls, *args, **kwargs: issue))
+        monkeypatch.setattr(it, "_active_merge_main_issue_id", lambda issue_id, bk_biz_id: None)
+        monkeypatch.setattr(it, "_latest_name_change_operator", lambda issue_id: None)
+        monkeypatch.setattr(it, "_latest_alert_id_for_issue", lambda issue_id: "17000000001")
+        monkeypatch.setattr(
+            it,
+            "_apply_llm_title",
+            lambda **kwargs: pytest.fail("inspection must not call the LLM or write a title"),
+        )
+
+        result = it.inspect_issue_llm_title_regeneration("issue1", 2)
+
+        assert result == {
+            "issue_id": "issue1",
+            "bk_biz_id": 2,
+            "safe_to_regenerate": True,
+            "result": "eligible",
+            "old_name": "策略名",
+            "default_name": "策略名",
+            "title_source": "default",
+            "alert_id": "17000000001",
+            "is_regression": False,
+        }
+
+    def test_success_uses_applied_title_without_immediate_issue_reread(self, monkeypatch):
+        from alarm_backends.service.fta_action.tasks import issue_tasks as it
+        from core.prometheus import metrics as prom_metrics
+
+        issue = types.SimpleNamespace(
+            name="策略名",
+            strategy_name="策略名",
+            dimension_values={},
+            is_regression=False,
+            status="pending_review",
+        )
+        issue_reads = []
+
+        def _get_issue(cls, *args, **kwargs):
+            issue_reads.append(1)
+            return issue
+
+        monkeypatch.setattr(it.IssueDocument, "get_issue_or_raise", classmethod(_get_issue))
+        monkeypatch.setattr(it, "_active_merge_main_issue_id", lambda issue_id, bk_biz_id: None)
+        monkeypatch.setattr(it, "_latest_name_change_operator", lambda issue_id: None)
+        monkeypatch.setattr(it, "_latest_alert_id_for_issue", lambda issue_id: "17000000001")
+        monkeypatch.setattr(it, "_apply_llm_title", lambda **kwargs: ("ok", "static", "生成标题"))
+        monkeypatch.setattr(prom_metrics, "ISSUE_LLM_TITLE_TOTAL", _CounterRecorder())
+        monkeypatch.setattr(prom_metrics, "report_all", lambda: None)
+
+        result = it.regenerate_issue_llm_title("issue1", 2, operator="operator")
+
+        assert result["new_name"] == "生成标题"
+        assert len(issue_reads) == 1
+
+    def test_inactive_issue_is_skipped_before_llm(self, monkeypatch):
+        from alarm_backends.service.fta_action.tasks import issue_tasks as it
+        from core.prometheus import metrics as prom_metrics
+
+        issue = types.SimpleNamespace(
+            name="策略名",
+            strategy_name="策略名",
+            dimension_values={},
+            is_regression=False,
+            status="resolved",
+        )
+        monkeypatch.setattr(it.IssueDocument, "get_issue_or_raise", classmethod(lambda cls, *args, **kwargs: issue))
+        monkeypatch.setattr(it, "_latest_alert_id_for_issue", lambda issue_id: "17000000001")
+        apply_calls = []
+        monkeypatch.setattr(
+            it,
+            "_apply_llm_title",
+            lambda **kwargs: apply_calls.append(kwargs) or ("ok", "static", "生成标题"),
+        )
+        monkeypatch.setattr(prom_metrics, "ISSUE_LLM_TITLE_TOTAL", _CounterRecorder())
+        monkeypatch.setattr(prom_metrics, "report_all", lambda: None)
+
+        result = it.regenerate_issue_llm_title("issue1", 2, operator="operator")
+
+        assert result["result"] == "skipped_inactive"
+        assert apply_calls == []
+
+    def test_user_name_change_is_skipped_even_when_current_name_is_default(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        from alarm_backends.service.fta_action.tasks import issue_tasks as it
+        from core.prometheus import metrics as prom_metrics
+
+        issue = types.SimpleNamespace(
+            name="策略名",
+            strategy_name="策略名",
+            dimension_values={},
+            is_regression=False,
+            status="pending_review",
+        )
+        monkeypatch.setattr(it.IssueDocument, "get_issue_or_raise", classmethod(lambda cls, *args, **kwargs: issue))
+        monkeypatch.setattr(it, "_active_merge_main_issue_id", lambda issue_id, bk_biz_id: None)
+        activity_search = MagicMock()
+        activity_search.filter.return_value = activity_search
+        activity_search.sort.return_value = activity_search
+        activity_search.params.return_value = activity_search
+        activity_search.execute.return_value = types.SimpleNamespace(hits=[types.SimpleNamespace(operator="alice")])
+        monkeypatch.setattr(
+            it.IssueActivityDocument,
+            "search",
+            classmethod(lambda cls, **kwargs: activity_search),
+        )
+        monkeypatch.setattr(it, "_latest_alert_id_for_issue", lambda issue_id: "17000000001")
+        apply_calls = []
+        monkeypatch.setattr(
+            it,
+            "_apply_llm_title",
+            lambda **kwargs: apply_calls.append(kwargs) or ("ok", "static", "生成标题"),
+        )
+        monkeypatch.setattr(prom_metrics, "ISSUE_LLM_TITLE_TOTAL", _CounterRecorder())
+        monkeypatch.setattr(prom_metrics, "report_all", lambda: None)
+
+        result = it.regenerate_issue_llm_title("issue1", 2, operator="operator")
+
+        assert result["result"] == "skipped_user_renamed"
+        assert apply_calls == []
+
+    def test_unknown_non_default_title_is_skipped_before_llm(self, monkeypatch):
+        from alarm_backends.service.fta_action.tasks import issue_tasks as it
+        from core.prometheus import metrics as prom_metrics
+
+        issue = types.SimpleNamespace(
+            name="来源未知的标题",
+            strategy_name="策略名",
+            dimension_values={},
+            is_regression=False,
+            status="pending_review",
+        )
+        monkeypatch.setattr(it.IssueDocument, "get_issue_or_raise", classmethod(lambda cls, *args, **kwargs: issue))
+        monkeypatch.setattr(it, "_active_merge_main_issue_id", lambda issue_id, bk_biz_id: None)
+        monkeypatch.setattr(it, "_latest_name_change_operator", lambda issue_id: None)
+        monkeypatch.setattr(
+            it,
+            "_latest_alert_id_for_issue",
+            lambda issue_id: pytest.fail("unknown title must be rejected before querying an alert"),
+        )
+        monkeypatch.setattr(
+            it,
+            "_apply_llm_title",
+            lambda **kwargs: pytest.fail("unknown title must not call the LLM"),
+        )
+        monkeypatch.setattr(prom_metrics, "ISSUE_LLM_TITLE_TOTAL", _CounterRecorder())
+        monkeypatch.setattr(prom_metrics, "report_all", lambda: None)
+
+        result = it.regenerate_issue_llm_title("issue1", 2, operator="operator")
+
+        assert result["result"] == "skipped_user_renamed"
+        assert result["title_source"] == "unknown"
+
+    def test_missing_alert_is_skipped_before_llm(self, monkeypatch):
+        from alarm_backends.service.fta_action.tasks import issue_tasks as it
+        from core.prometheus import metrics as prom_metrics
+
+        issue = types.SimpleNamespace(
+            name="策略名",
+            strategy_name="策略名",
+            dimension_values={},
+            is_regression=False,
+            status="pending_review",
+        )
+        monkeypatch.setattr(it.IssueDocument, "get_issue_or_raise", classmethod(lambda cls, *args, **kwargs: issue))
+        monkeypatch.setattr(it, "_active_merge_main_issue_id", lambda issue_id, bk_biz_id: None)
+        monkeypatch.setattr(it, "_latest_name_change_operator", lambda issue_id: None)
+        monkeypatch.setattr(it, "_latest_alert_id_for_issue", lambda issue_id: None)
+        monkeypatch.setattr(
+            it,
+            "_apply_llm_title",
+            lambda **kwargs: pytest.fail("missing alert must not call the LLM"),
+        )
+        monkeypatch.setattr(prom_metrics, "ISSUE_LLM_TITLE_TOTAL", _CounterRecorder())
+        monkeypatch.setattr(prom_metrics, "report_all", lambda: None)
+
+        result = it.regenerate_issue_llm_title("issue1", 2, operator="operator")
+
+        assert result["result"] == "no_alert"
+
+    def test_explicit_unrelated_alert_is_skipped_before_llm(self, monkeypatch):
+        from alarm_backends.service.fta_action.tasks import issue_tasks as it
+        from core.prometheus import metrics as prom_metrics
+
+        issue = types.SimpleNamespace(
+            name="策略名",
+            strategy_name="策略名",
+            dimension_values={},
+            is_regression=False,
+            status="pending_review",
+        )
+        monkeypatch.setattr(it.IssueDocument, "get_issue_or_raise", classmethod(lambda cls, *args, **kwargs: issue))
+        monkeypatch.setattr(it, "_active_merge_main_issue_id", lambda issue_id, bk_biz_id: None)
+        monkeypatch.setattr(it, "_latest_name_change_operator", lambda issue_id: None)
+        monkeypatch.setattr(
+            it.AlertDocument,
+            "get",
+            classmethod(lambda cls, alert_id: types.SimpleNamespace(issue_id="another-issue")),
+        )
+        monkeypatch.setattr(
+            it,
+            "_apply_llm_title",
+            lambda **kwargs: pytest.fail("unrelated alert must not call the LLM"),
+        )
+        monkeypatch.setattr(prom_metrics, "ISSUE_LLM_TITLE_TOTAL", _CounterRecorder())
+        monkeypatch.setattr(prom_metrics, "report_all", lambda: None)
+
+        result = it.regenerate_issue_llm_title("issue1", 2, alert_id="alert-from-another-issue", operator="operator")
+
+        assert result["result"] == "no_alert"
+        assert result["eligibility_check"] == "alert_relationship"
+
+    def test_name_change_query_error_fails_closed(self, monkeypatch):
+        from alarm_backends.service.fta_action.tasks import issue_tasks as it
+        from core.prometheus import metrics as prom_metrics
+
+        issue = types.SimpleNamespace(
+            name="策略名",
+            strategy_name="策略名",
+            dimension_values={},
+            is_regression=False,
+            status="pending_review",
+        )
+        monkeypatch.setattr(it.IssueDocument, "get_issue_or_raise", classmethod(lambda cls, *args, **kwargs: issue))
+        monkeypatch.setattr(it, "_active_merge_main_issue_id", lambda issue_id, bk_biz_id: None)
+        monkeypatch.setattr(
+            it,
+            "_latest_name_change_operator",
+            lambda issue_id: (_ for _ in ()).throw(RuntimeError("activity unavailable")),
+        )
+        apply_calls = []
+        monkeypatch.setattr(
+            it,
+            "_apply_llm_title",
+            lambda **kwargs: apply_calls.append(kwargs) or ("ok", "static", "生成标题"),
+        )
+        monkeypatch.setattr(prom_metrics, "ISSUE_LLM_TITLE_TOTAL", _CounterRecorder())
+        monkeypatch.setattr(prom_metrics, "report_all", lambda: None)
+
+        result = it.regenerate_issue_llm_title("issue1", 2, operator="operator")
+
+        assert result["result"] == "eligibility_error"
+        assert apply_calls == []
+
+    def test_active_merge_member_is_skipped_before_llm(self, monkeypatch):
+        from alarm_backends.service.fta_action.tasks import issue_tasks as it
+        from core.prometheus import metrics as prom_metrics
+
+        issue = types.SimpleNamespace(
+            name="策略名",
+            strategy_name="策略名",
+            dimension_values={},
+            is_regression=False,
+            status="pending_review",
+        )
+        monkeypatch.setattr(it.IssueDocument, "get_issue_or_raise", classmethod(lambda cls, *args, **kwargs: issue))
+        monkeypatch.setattr(it, "_latest_name_change_operator", lambda issue_id: None)
+        monkeypatch.setattr(it, "_active_merge_main_issue_id", lambda issue_id, bk_biz_id: "main-issue", raising=False)
+        monkeypatch.setattr(it, "_latest_alert_id_for_issue", lambda issue_id: "17000000001")
+        apply_calls = []
+        monkeypatch.setattr(
+            it,
+            "_apply_llm_title",
+            lambda **kwargs: apply_calls.append(kwargs) or ("ok", "static", "生成标题"),
+        )
+        monkeypatch.setattr(prom_metrics, "ISSUE_LLM_TITLE_TOTAL", _CounterRecorder())
+        monkeypatch.setattr(prom_metrics, "report_all", lambda: None)
+
+        result = it.regenerate_issue_llm_title("issue1", 2, operator="operator")
+
+        assert result["result"] == "skipped_merged_member"
+        assert result["main_issue_id"] == "main-issue"
+        assert apply_calls == []
+
+    def test_merge_relation_query_error_fails_closed(self, monkeypatch):
+        from alarm_backends.service.fta_action.tasks import issue_tasks as it
+        from core.prometheus import metrics as prom_metrics
+
+        issue = types.SimpleNamespace(
+            name="策略名",
+            strategy_name="策略名",
+            dimension_values={},
+            is_regression=False,
+            status="pending_review",
+        )
+        monkeypatch.setattr(it.IssueDocument, "get_issue_or_raise", classmethod(lambda cls, *args, **kwargs: issue))
+        monkeypatch.setattr(
+            it,
+            "_active_merge_main_issue_id",
+            lambda issue_id, bk_biz_id: (_ for _ in ()).throw(RuntimeError("database unavailable")),
+        )
+        apply_calls = []
+        monkeypatch.setattr(
+            it,
+            "_apply_llm_title",
+            lambda **kwargs: apply_calls.append(kwargs) or ("ok", "static", "生成标题"),
+        )
+        monkeypatch.setattr(prom_metrics, "ISSUE_LLM_TITLE_TOTAL", _CounterRecorder())
+        monkeypatch.setattr(prom_metrics, "report_all", lambda: None)
+
+        result = it.regenerate_issue_llm_title("issue1", 2, operator="operator")
+
+        assert result["result"] == "eligibility_error"
+        assert apply_calls == []
+
+    def test_alert_query_error_is_not_reported_as_no_alert(self, monkeypatch):
+        from alarm_backends.service.fta_action.tasks import issue_tasks as it
+        from core.prometheus import metrics as prom_metrics
+
+        issue = types.SimpleNamespace(
+            name="策略名",
+            strategy_name="策略名",
+            dimension_values={},
+            is_regression=False,
+            status="pending_review",
+        )
+        monkeypatch.setattr(it.IssueDocument, "get_issue_or_raise", classmethod(lambda cls, *args, **kwargs: issue))
+        monkeypatch.setattr(it, "_active_merge_main_issue_id", lambda issue_id, bk_biz_id: None)
+        monkeypatch.setattr(it, "_latest_name_change_operator", lambda issue_id: None)
+        monkeypatch.setattr(
+            it.AlertDocument,
+            "search",
+            classmethod(lambda cls, **kwargs: (_ for _ in ()).throw(RuntimeError("alert unavailable"))),
+        )
+        apply_calls = []
+        monkeypatch.setattr(
+            it,
+            "_apply_llm_title",
+            lambda **kwargs: apply_calls.append(kwargs) or ("ok", "static", "生成标题"),
+        )
+        monkeypatch.setattr(prom_metrics, "ISSUE_LLM_TITLE_TOTAL", _CounterRecorder())
+        monkeypatch.setattr(prom_metrics, "report_all", lambda: None)
+
+        result = it.regenerate_issue_llm_title("issue1", 2, operator="operator")
+
+        assert result["result"] == "eligibility_error"
+        assert apply_calls == []
 
 
 class TestRefreshExamplesGate:

@@ -27,6 +27,8 @@ class FakeIssueSearch:
         self.filters: list[tuple[str, dict]] = []
         self.sort_args: dict | None = None
         self.params_kwargs: dict = {}
+        self.extra_kwargs: dict = {}
+        self.slice_arg = None
 
     def filter(self, lookup, **kwargs):
         self.filters.append((lookup, kwargs))
@@ -38,6 +40,14 @@ class FakeIssueSearch:
 
     def params(self, **kwargs):
         self.params_kwargs.update(kwargs)
+        return self
+
+    def extra(self, **kwargs):
+        self.extra_kwargs.update(kwargs)
+        return self
+
+    def __getitem__(self, item):
+        self.slice_arg = item
         return self
 
     def execute(self):
@@ -69,6 +79,8 @@ class StubSearch:
         self.filter_calls: list[tuple[str, dict]] = []
         self.sort_arg = None
         self.params_kwargs: dict = {}
+        self.extra_kwargs: dict = {}
+        self.slice_arg = None
 
     def filter(self, lookup, **kwargs):
         self.filter_calls.append((lookup, kwargs))
@@ -80,6 +92,14 @@ class StubSearch:
 
     def params(self, **kwargs):
         self.params_kwargs.update(kwargs)
+        return self
+
+    def extra(self, **kwargs):
+        self.extra_kwargs.update(kwargs)
+        return self
+
+    def __getitem__(self, item):
+        self.slice_arg = item
         return self
 
     def execute(self):
@@ -94,6 +114,8 @@ def test_inspect_issue_registered_as_bkm_cli_op():
     assert op.risk_level == "low"
     assert detail is not None
     assert "readonly" in op.audit_tags
+    assert "list_llm_title_candidates" in op.params_schema["operation"]
+    assert "list_llm_title_candidates" in detail["params_schema"]["operation"]
 
 
 def test_inspect_issue_rejects_unknown_operation():
@@ -283,6 +305,144 @@ def test_inspect_issue_list_activities_with_biz_validates_ownership(monkeypatch)
     issue_module.inspect_issue({"operation": "list_activities", "issue_id": "i-1", "bk_biz_id": 2})
 
     assert seen["called"] == ("i-1", 2)
+
+
+# ---------- list_llm_title_candidates ----------
+
+
+def test_list_llm_title_candidates_returns_only_safe_candidates(monkeypatch):
+    def _issue(issue_id, name="策略名"):
+        return SimpleNamespace(
+            meta=SimpleNamespace(id=issue_id),
+            name=name,
+            strategy_name="策略名",
+            strategy_id="strategy-1",
+            dimension_values={},
+            is_regression=False,
+            status="pending_review",
+            create_time=1776380000,
+        )
+
+    stub = StubSearch(
+        hits=[
+            _issue("i-candidate"),
+            _issue("i-user"),
+            _issue("i-merged"),
+            _issue("i-no-alert"),
+            _issue("i-title-changed", name="已经生成的标题"),
+        ],
+        total=12,
+    )
+    monkeypatch.setattr("bkmonitor.documents.issue.IssueDocument.search", staticmethod(lambda **kw: stub))
+    monkeypatch.setattr(
+        issue_module,
+        "_latest_name_change_operators",
+        lambda issue_ids: {"i-user": "alice"},
+        raising=False,
+    )
+    monkeypatch.setattr(
+        issue_module,
+        "_active_merge_main_issue_ids",
+        lambda issue_ids, bk_biz_id: {"i-merged": "main-issue"},
+        raising=False,
+    )
+    monkeypatch.setattr(
+        issue_module,
+        "_latest_alert_ids",
+        lambda issue_ids: {
+            "i-candidate": "alert-1",
+            "i-user": "alert-2",
+            "i-merged": "alert-3",
+        },
+        raising=False,
+    )
+
+    payload = issue_module.inspect_issue(
+        {
+            "operation": "list_llm_title_candidates",
+            "bk_biz_id": 2,
+            "offset": 5,
+            "limit": 5,
+        }
+    )
+
+    assert stub.filter_calls == [
+        ("term", {"bk_biz_id": "2"}),
+        ("terms", {"status": ["pending_review", "unresolved"]}),
+    ]
+    assert stub.slice_arg == slice(5, 10, None)
+    assert payload["operation"] == "list_llm_title_candidates"
+    assert payload["scanned_count"] == 5
+    assert payload["candidate_count"] == 1
+    assert payload["total_active"] == 12
+    assert payload["offset"] == 5
+    assert payload["next_offset"] == 10
+    assert payload["truncated"] is True
+    assert payload["excluded_counts"] == {
+        "title_changed": 1,
+        "user_renamed": 1,
+        "merged_member": 1,
+        "no_alert": 1,
+    }
+    assert payload["candidates"] == [
+        {
+            "issue_id": "i-candidate",
+            "name": "策略名",
+            "default_name": "策略名",
+            "status": "pending_review",
+            "strategy_id": "strategy-1",
+            "strategy_name": "策略名",
+            "create_time": 1776380000,
+            "alert_id": "alert-1",
+            "safe_to_regenerate": True,
+            "candidate_reason": "active_default_title_safe",
+        }
+    ]
+
+
+def test_llm_title_candidate_batch_queries_use_latest_collapsed_hits(monkeypatch):
+    activity_stub = StubSearch(
+        hits=[SimpleNamespace(issue_id="i-1", operator="alice")],
+    )
+    alert_stub = StubSearch(
+        hits=[SimpleNamespace(meta=SimpleNamespace(id="alert-1"), issue_id="i-1")],
+    )
+    monkeypatch.setattr(
+        "bkmonitor.documents.issue.IssueActivityDocument.search", staticmethod(lambda **kwargs: activity_stub)
+    )
+    monkeypatch.setattr("bkmonitor.documents.alert.AlertDocument.search", staticmethod(lambda **kwargs: alert_stub))
+
+    assert issue_module._latest_name_change_operators(["i-1", "i-2"]) == {"i-1": "alice"}
+    assert issue_module._latest_alert_ids(["i-1", "i-2"]) == {"i-1": "alert-1"}
+
+    assert activity_stub.filter_calls == [
+        ("terms", {"issue_id": ["i-1", "i-2"]}),
+        ("term", {"activity_type": "name_change"}),
+    ]
+    assert activity_stub.sort_arg == {"time": {"order": "desc"}}
+    assert activity_stub.extra_kwargs == {"collapse": {"field": "issue_id"}}
+    assert activity_stub.params_kwargs == {"size": 2}
+    assert alert_stub.filter_calls == [("terms", {"issue_id": ["i-1", "i-2"]})]
+    assert alert_stub.sort_arg == {"begin_time": {"order": "desc"}}
+    assert alert_stub.extra_kwargs == {"collapse": {"field": "issue_id"}}
+    assert alert_stub.params_kwargs == {"size": 2}
+
+
+def test_llm_title_candidate_dependency_error_returns_no_partial_candidates(monkeypatch):
+    monkeypatch.setattr(
+        "bkmonitor.documents.issue.IssueActivityDocument.search",
+        staticmethod(lambda **kwargs: (_ for _ in ()).throw(RuntimeError("activity unavailable"))),
+    )
+
+    with pytest.raises(CustomException, match="未返回候选"):
+        issue_module._latest_name_change_operators(["i-1"])
+
+
+def test_list_llm_title_candidates_requires_biz_and_non_negative_offset():
+    with pytest.raises(CustomException, match="bk_biz_id"):
+        issue_module.inspect_issue({"operation": "list_llm_title_candidates"})
+    with pytest.raises(CustomException, match="offset 不能小于 0"):
+        issue_module.inspect_issue({"operation": "list_llm_title_candidates", "bk_biz_id": 2, "offset": -1})
 
 
 # ---------- limit guards ----------
