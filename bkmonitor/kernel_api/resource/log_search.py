@@ -195,7 +195,7 @@ class SearchLogResource(Resource):
         start_time = serializers.CharField(required=True, label="开始时间")
         end_time = serializers.CharField(required=True, label="结束时间")
         offset = serializers.IntegerField(required=False, default=0, min_value=0, label="偏移量(分页用)")
-        limit = serializers.IntegerField(required=False, default=10, min_value=1, label="返回条数")
+        limit = serializers.IntegerField(required=False, default=10, min_value=1, max_value=10000, label="返回条数")
 
         def validate(self, attrs):
             attrs = super().validate(attrs)
@@ -226,24 +226,38 @@ class SearchLogResource(Resource):
     def _search_by_scene(validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
         table_id_conditions = validated_request_data["table_id_conditions"]
+        offset = validated_request_data.get("offset", 0)
         limit = validated_request_data.get("limit", 10)
+        order_by = validated_request_data.get("order_by") or []
+        sort_list = [
+            [field_name[1:], "desc"] if field_name.startswith("-") else [field_name, "asc"] for field_name in order_by
+        ]
 
         logger.info(
-            "SearchLogResource: search scene logs, bk_biz_id->[%s], condition_groups->[%s], limit->[%s]",
+            "SearchLogResource: search scene logs, bk_biz_id->[%s], condition_groups->[%s], offset->[%s], limit->[%s]",
             bk_biz_id,
             len(table_id_conditions),
+            offset,
             limit,
         )
-        return api.log_search.scene_search(
+        result = api.log_search.scene_search(
             space_uid=bk_biz_id_to_space_uid(bk_biz_id),
             bk_biz_id=bk_biz_id,
             table_id_conditions=table_id_conditions,
             keyword=validated_request_data.get("query_string") or "*",
             start_time=validated_request_data["start_time"],
             end_time=validated_request_data["end_time"],
+            begin=offset,
             size=limit,
+            sort_list=sort_list,
             record_history=False,
         )
+        items = result.get("list") or []
+        return {
+            "items": items,
+            "total": result.get("total", 0),
+            "took": result.get("took", 0),
+        }
 
     @staticmethod
     def _search_by_index_set(validated_request_data):

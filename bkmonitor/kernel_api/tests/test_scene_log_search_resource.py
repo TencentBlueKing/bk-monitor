@@ -91,7 +91,21 @@ def test_scene_resources_validate_condition_structure(serializer_class, request_
 
 
 def test_search_log_resource_routes_scene_request_to_log_platform(monkeypatch):
-    platform_result = Mock()
+    platform_result = {
+        "list": [
+            {
+                "dtEventTimeStamp": "1710000000000",
+                "log": "large log content",
+                "resource": {"cluster_id": "BCS-K8S-00000"},
+            }
+        ],
+        "origin_log_list": [{"log": "duplicated log content"}],
+        "fields": {"log": {"max_length": 1024}},
+        "aggregations": {},
+        "total": 21,
+        "took": 12,
+        "raw_took": 8,
+    }
     scene_search = Mock(return_value=platform_result)
     monkeypatch.setattr(api.log_search, "scene_search", scene_search)
     monkeypatch.setattr("kernel_api.resource.log_search.bk_biz_id_to_space_uid", lambda bk_biz_id: "bkcc__2")
@@ -101,6 +115,8 @@ def test_search_log_resource_routes_scene_request_to_log_platform(monkeypatch):
             target_type="scene",
             table_id_conditions=SCENE_CONDITIONS,
             query_string="level:ERROR",
+            offset=20,
+            order_by=["-dtEventTimeStamp", "log"],
             limit=100,
         )
     )
@@ -112,10 +128,22 @@ def test_search_log_resource_routes_scene_request_to_log_platform(monkeypatch):
         keyword="level:ERROR",
         start_time="1710000000",
         end_time="1710003600",
+        begin=20,
         size=100,
+        sort_list=[["dtEventTimeStamp", "desc"], ["log", "asc"]],
         record_history=False,
     )
-    assert result is platform_result
+    assert result == {
+        "items": [
+            {
+                "dtEventTimeStamp": "1710000000000",
+                "log": "large log content",
+                "resource": {"cluster_id": "BCS-K8S-00000"},
+            }
+        ],
+        "total": 21,
+        "took": 12,
+    }
 
 
 def test_list_log_scenes_resource_calls_log_platform(monkeypatch):

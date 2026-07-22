@@ -66,7 +66,7 @@ paths:
   /mcp/search_logs/:
     post:
       operationId: search_logs
-      description: 'Execute log search by index set or scene. For target_type=index_set (default), provide index_set_id after list_index_sets and get_index_set_fields. For target_type=scene, provide table_id_conditions after list_log_scenes and get_scene_log_fields; conditions, keep_columns, order_by, and offset are ignored in scene mode. Parameters belonging to the inactive target type are ignored. To drill down from search_log_clustering_pattern, use target_type=index_set and filter __dist_{pattern_level} by the returned signature. IMPORTANT: start_time/end_time are Unix timestamps calculated dynamically, and the query span must not exceed 1 day. 按索引集或场景执行日志查询。target_type=index_set（默认）时提供 index_set_id；target_type=scene 时提供 table_id_conditions。非当前模式的参数会被忽略；场景模式会忽略 conditions、keep_columns、order_by 和 offset。时间戳需动态计算，查询跨度不得超过一天。'
+      description: 'Execute log search by index set or scene. For target_type=index_set (default), provide index_set_id after list_index_sets and get_index_set_fields. For target_type=scene, provide table_id_conditions after list_log_scenes and get_scene_log_fields; conditions and keep_columns are ignored in scene mode, while offset and order_by are supported for pagination and stable multi-field sorting. Parameters belonging to the inactive target type are ignored. To drill down from search_log_clustering_pattern, use target_type=index_set and filter __dist_{pattern_level} by the returned signature. IMPORTANT: start_time/end_time are Unix timestamps calculated dynamically, and the query span must not exceed 1 day. 按索引集或场景执行日志查询。target_type=index_set（默认）时提供 index_set_id；target_type=scene 时提供 table_id_conditions。场景模式暂不处理 conditions 和 keep_columns，但支持使用 offset 和 order_by 分页及多字段稳定排序。时间戳需动态计算，查询跨度不得超过一天。'
       tags:
       - log_mcp
       requestBody:
@@ -89,6 +89,7 @@ paths:
                 limit:
                   type: integer
                   minimum: 1
+                  maximum: 10000
                   default: 10
                   description: 'Maximum number of log records to return. 返回的最大日志记录数。'
                 end_time:
@@ -163,14 +164,19 @@ paths:
                       items:
                         type: string
                 keep_columns:
-                  type: string
-                  description: 'List of output fields to keep, used to trim the response and reduce data size (avoid LLM context overflow). Format: JSON array, e.g. ["dtEventTimeStamp", "log", "level"]. Optional, returns all fields if omitted. 需要保留的输出字段列表,用于裁剪返回内容、降低数据量(避免 LLM 上下文超限)。格式: JSON 数组,例如 ["dtEventTimeStamp", "log", "level"]。可选,省略则返回全部字段。'
+                  type: array
+                  items:
+                    type: string
+                  description: 'Output fields to keep for index-set search. Ignored in scene mode until the log platform supports native field projection. Example: ["dtEventTimeStamp", "log", "level"]. 索引集检索需要保留的输出字段列表。场景模式暂不生效，等待日志平台原生支持字段裁剪。'
                 order_by:
-                  type: string
-                  description: 'Result sort fields. Format: JSON array, "-" prefix means descending. e.g. ["-dtEventTimeStamp"] sorts by time descending (newest first). Optional. 结果排序字段列表。格式: JSON 数组,"-" 前缀表示降序。例如 ["-dtEventTimeStamp"] 表示按时间倒序(最新在前)。可选。'
+                  type: array
+                  items:
+                    type: string
+                  description: 'Result sort fields. A "-" prefix means descending. Use multiple fields when deterministic pagination is required, e.g. ["-dtEventTimeStamp", "log"]. Optional. 结果排序字段列表，"-" 前缀表示降序。需要稳定分页时可传多个字段，例如 ["-dtEventTimeStamp", "log"]。可选。'
                 offset:
-                  type: string
-                  default: '0'
+                  type: integer
+                  minimum: 0
+                  default: 0
                   description: 'Offset for pagination, used with limit to fetch subsequent pages (e.g. page 1 offset=0, page 2 offset=limit). Default: 0. 分页偏移量,与 limit 配合翻页(例如第1页 offset=0,第2页 offset=limit)。默认值: 0。'
         required: false
         description: ''
