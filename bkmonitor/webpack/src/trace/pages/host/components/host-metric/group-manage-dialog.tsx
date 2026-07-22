@@ -26,11 +26,12 @@
 
 import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
 
-import { Button, Dialog, Input, Popover, Select } from 'bkui-vue';
+import { Button, Dialog, Input, Popover } from 'bkui-vue';
 import { debounce } from 'lodash';
 import { useI18n } from 'vue-i18n';
 
 import { type MetricGroupModel, type MetricItemModel, UNGROUP_ID } from '../../types/metric-group';
+import GroupSelect from './group-select';
 import MetricGroupList, { GROUP_ID_ALL } from './metric-group-list';
 import MetricTable from './metric-table';
 import EmptyStatus from '@/components/empty-status/empty-status';
@@ -87,7 +88,6 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
-
     const generateGroupsAndMetrics = (order: MetricGroupPanelOrder[]) => {
       const groups = order.filter(g => g.id !== UNGROUP_ID).map(group => ({ id: group.id, title: group.title }));
       const metrics = order.flatMap(group =>
@@ -102,8 +102,6 @@ export default defineComponent({
     const activeGroupId = shallowRef<string>(GROUP_ID_ALL);
     const selectedIds = shallowRef<string[]>([]);
     const tableKeyword = shallowRef('');
-    const moveTargetValue = shallowRef('');
-
     const deleteGroupShow = shallowRef(false);
 
     const unGroup = computed(
@@ -120,7 +118,6 @@ export default defineComponent({
           activeGroupId.value = GROUP_ID_ALL;
           selectedIds.value = [];
           tableKeyword.value = '';
-          moveTargetValue.value = '';
         }
       }
     );
@@ -190,7 +187,6 @@ export default defineComponent({
       const ids = new Set(selectedIds.value);
       localMetrics.value = localMetrics.value.map(m => (ids.has(m.id) ? { ...m, groupId } : m));
       selectedIds.value = [];
-      moveTargetValue.value = '';
     };
 
     const handleAddGroup = (name: string) => {
@@ -335,27 +331,33 @@ export default defineComponent({
               )}
             </div>
             <div class='group-metric-wrap-operations'>
-              <Select
-                class='group-metric-batch-move'
+              <GroupSelect
                 disabled={!selectedIds.value.length}
-                modelValue={moveTargetValue.value}
-                placeholder={t('批量移动至')}
+                groupOptions={groupOptions.value}
+                onAddGroup={handleAddGroup}
                 onChange={handleBatchMove}
               >
-                {groupOptions.value.map(item => (
-                  <Select.Option
-                    id={item.id}
-                    key={item.id}
-                    name={item.name}
-                  />
-                ))}
-              </Select>
+                {{
+                  trigger: () => (
+                    <Button
+                      disabled={!selectedIds.value.length}
+                      outline
+                    >
+                      <span>{t('批量移动至')}</span>
+                      <i class='icon-monitor icon-arrow-down' />
+                    </Button>
+                  ),
+                }}
+              </GroupSelect>
               <Input
                 class='group-metric-search'
                 modelValue={tableKeyword.value}
                 placeholder={t('搜索 指标名称')}
                 type='search'
                 clearable
+                onClear={() => {
+                  tableKeyword.value = '';
+                }}
                 onInput={handleTableKeywordChangeDebounced}
               />
             </div>
@@ -365,6 +367,7 @@ export default defineComponent({
                 groupOptions={groupOptions.value}
                 rows={scopedRows.value}
                 selectedIds={selectedIds.value}
+                onAddGroup={handleAddGroup}
                 onChangeGroup={handleChangeGroup}
                 onDragSort={handleDragSort}
                 onSelectChange={(ids: string[]) => (selectedIds.value = ids)}

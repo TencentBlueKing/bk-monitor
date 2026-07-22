@@ -57,6 +57,7 @@
     align-items: center;
     height: 40px;
     padding: 0 16px;
+    color: #313238;
     cursor: pointer;
 
     &:hover {
@@ -94,7 +95,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: 14px;
-    color: #313238;
     white-space: nowrap;
   }
 
