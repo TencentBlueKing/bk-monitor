@@ -711,6 +711,35 @@ def test_sync_bkbase_es_cluster_schema_only_when_not_empty():
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_sync_bkbase_es_cluster_schema_create_normalizes():
+    """新建集群时 schema 也应被规范化（strip/lower）后存入数据库。"""
+    es_config = next(
+        config for config in BKBASE_V4_KIND_STORAGE_CONFIGS if config["cluster_type"] == models.ClusterInfo.TYPE_ES
+    )
+    cluster_data = {
+        "kind": "ElasticSearch",
+        "metadata": {"namespace": "bklog", "name": "es_schema_create", "labels": {}, "annotations": {}},
+        "spec": {
+            "host": "es_schema_create.test",
+            "port": 9200,
+            "schema": " HTTPS ",
+            "user": "testuser",
+            "password": "testpwd",
+        },
+    }
+
+    sync_bkbase_cluster_info(
+        bk_tenant_id="system",
+        cluster_data=cluster_data,
+        field_mappings=es_config["field_mappings"],
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        update=False,
+    )
+    cluster = models.ClusterInfo.objects.get(cluster_name="es_schema_create")
+    assert cluster.schema == "https"
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_sync_bkbase_doris_cluster_custom_option(create_or_delete_records):
     doris_config = next(
         config for config in BKBASE_V4_KIND_STORAGE_CONFIGS if config["cluster_type"] == models.ClusterInfo.TYPE_DORIS
