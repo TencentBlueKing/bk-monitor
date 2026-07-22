@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type Ref, shallowRef, watch } from 'vue';
+import { type Ref, type ShallowRef, shallowRef, watch } from 'vue';
 
 import { Message } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
@@ -48,8 +48,12 @@ import type { EHostAggMethod, EHostQuickCategory, IHostListRow, IHostQuickCardSt
 import type { IHostTopoTreeNode } from '../types/topo';
 
 interface IUseHostListOptions {
+  activeCategory: ShallowRef<'' | EHostQuickCategory>;
+  filterExpanded: ShallowRef<boolean>;
+  keyword: ShallowRef<string>;
   /** 当前选中的拓扑节点（页面层注入），用于联动过滤主机列表 */
   selectedNode: Ref<IHostTopoTreeNode | null>;
+  where: ShallowRef<IWhereItem[]>;
 }
 
 /** 指标列聚合方式默认值（全部默认 avg） */
@@ -72,7 +76,8 @@ const EMPTY_CATEGORY_STATS: IHostQuickCardStats = { alarm: 0, cpu: 0, disk: 0, m
  * 全量数据的行转换、过滤、排序、分页切片在 Web Worker 中执行，避免超大数据阻塞主线程。
  */
 export const useHostList = (options: IUseHostListOptions) => {
-  const { selectedNode } = options;
+  const { selectedNode, where, filterExpanded, activeCategory, keyword } = options;
+
   const hostListWorker = useHostListWorker();
 
   /** 基础数据加载中（第一屏） */
@@ -81,20 +86,11 @@ export const useHostList = (options: IUseHostListOptions) => {
   const metricLoading = shallowRef(false);
   /** 全量主机行数（主线程不持有全量行对象） */
   const rawRowCount = shallowRef(0);
-
-  /** 关键字模糊搜索 */
-  const keyword = shallowRef('');
-  /** retrieval-filter ui 模式 where 条件 */
-  const where = shallowRef<IWhereItem[]>([]);
   /** retrieval-filter 语句模式 */
   const queryString = shallowRef('');
   /** retrieval-filter 模式 */
   const filterMode = shallowRef<EMode>(EMode.ui);
-  /** 高级过滤是否展开 */
-  const filterExpanded = shallowRef(false);
 
-  /** 当前激活的快捷过滤分类（空为不过滤） */
-  const activeCategory = shallowRef<'' | EHostQuickCategory>('');
   /** 排序（tdesign 字符串格式：`-key` 倒序 / `key` 正序） */
   const sortInfo = shallowRef('');
   /** 当前页码 */
