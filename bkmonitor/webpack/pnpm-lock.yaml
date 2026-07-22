@@ -425,8 +425,8 @@ importers:
         specifier: ^2.0.7
         version: 2.0.7(dompurify@3.4.2)
       '@blueking/open-telemetry':
-        specifier: ^0.0.22
-        version: 0.0.22
+        specifier: ^0.0.25
+        version: 0.0.25
       '@blueking/platform-config':
         specifier: ^1.0.5
         version: 1.0.5
@@ -1676,8 +1676,8 @@ packages:
     peerDependencies:
       dompurify: '>=2.5.4'
 
-  '@blueking/open-telemetry@0.0.22':
-    resolution: {integrity: sha512-wyFlrykN4sMYdE18yt1mHCCpauXZOjotUk+Svq+Is/JkFvptfPWPEL+6V5FR7KzZUM4phVC/4PbYGcsuXCbd4Q==}
+  '@blueking/open-telemetry@0.0.25':
+    resolution: {integrity: sha512-gdav1nAQ8UPd4ge/4P5JO7FNcHK/N8oDZ6aGMQzFb7k3tS9SXxdzglkBxXshoV0dpeAIk16NeE1T/Qgfa5CgYA==}
 
   '@blueking/platform-config@1.0.5':
     resolution: {integrity: sha512-z88WCgnPJ1V5XzFMcftEEwDVz3Cvfn7VWv+mRlfh+LfBBDJyUrwX4uhkMYr06kP+35NPIky8ZdETFb2VWDoMyg==}
@@ -10862,7 +10862,7 @@ snapshots:
     dependencies:
       dompurify: 3.4.2
 
-  '@blueking/open-telemetry@0.0.22':
+  '@blueking/open-telemetry@0.0.25':
     dependencies:
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/context-zone': 2.7.1(@opentelemetry/api@1.9.1)
