@@ -143,7 +143,10 @@ class TasksHandler:
     ):
         request_user = get_request_external_username() or get_request_username()
         if link_id is None:
-            extract_link: ExtractLink = ExtractLink.objects.filter(is_enable=True).first()
+            extract_links = ExtractLink.objects.filter(is_enable=True)
+            if settings.IS_K8S_DEPLOY_MODE:
+                extract_links = extract_links.exclude(link_type=ExtractLinkType.COMMON.value)
+            extract_link: ExtractLink = extract_links.first()
             if extract_link:
                 link_id = extract_link.link_id
         else:

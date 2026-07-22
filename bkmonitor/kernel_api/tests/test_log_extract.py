@@ -36,7 +36,8 @@ from kernel_api.resource.log_extract import (
     ],
 )
 def test_list_allowed_paths_builds_request(monkeypatch, request_data, expected_request):
-    response = {"ip_list": [{"bk_host_id": 101}], "strategies": [{"visible_dir": "/data/logs"}]}
+    strategies = [{"file_path": "/data/logs", "file_type": ["log"]}]
+    response = {"ip_list": [{"bk_host_id": 101}], "strategies": strategies}
     api_resource = Mock(return_value=response)
     monkeypatch.setattr(api.log_search, "list_log_extract_allowed_paths", api_resource)
 

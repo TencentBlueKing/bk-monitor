@@ -77,7 +77,7 @@ paths:
   /mcp/list_log_extract_allowed_paths/:
     post:
       operationId: list_log_extract_allowed_paths
-      description: List the directories and file types allowed by log-extraction policies for selected hosts, topology nodes, or a service template. Returns ip_list, allowed_dir_file_list, bk_os_type, and operator. Call this before search_log_extract_files; it does not execute a remote JOB. 查询所选主机、动态拓扑节点或服务模板允许的目录及文件类型，返回 ip_list、allowed_dir_file_list、bk_os_type 和 operator；应在文件搜索前调用，本工具不会执行远程 JOB。
+      description: List the directories and file types allowed by log-extraction policies for selected hosts, topology nodes, or a service template. Returns {ip_list, strategies}; ip_list contains the resolved concrete hosts and can be passed to search_log_extract_files, while each strategies item contains file_path, file_type, operator, and strategy_name. Call this before file search; it does not execute a remote JOB. 查询所选主机、动态拓扑节点或服务模板允许的目录及文件类型，返回 {ip_list, strategies}；ip_list 是解析后的具体主机，可直接传给 search_log_extract_files，strategies 每项包含 file_path、file_type、operator 和 strategy_name。本工具不会执行远程 JOB。
       tags: [log_extract_mcp]
       requestBody:
         required: true

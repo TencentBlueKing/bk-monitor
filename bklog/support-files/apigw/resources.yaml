@@ -287,6 +287,50 @@ paths:
           appVerifiedRequired: true
           resourcePermissionRequired: true
         descriptionEn:
+  /log_extract/explorer/trees/:
+    post:
+      operationId: log_extract_list_topology
+      description: 根据日志提取策略查询用户可访问的拓扑
+      tags:
+      - 日志提取
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/log_extract/explorer/trees/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn: List topology accessible for log extraction
+  /log_extract/explorer/strategies/:
+    post:
+      operationId: log_extract_list_allowed_paths
+      description: 查询日志提取策略允许访问的目录及文件类型
+      tags:
+      - 日志提取
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/log_extract/explorer/strategies/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn: List paths allowed for log extraction
   /log_extract/explorer/query_hosts/:
     post:
       operationId: log_extract_query_hosts
