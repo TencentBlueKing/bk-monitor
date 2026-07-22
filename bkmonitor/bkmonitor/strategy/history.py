@@ -22,7 +22,7 @@ from bkmonitor.models import StrategyHistoryModel
 from bkmonitor.models import StrategyModel
 
 SNAPSHOT_OPERATIONS = ("create", "update", "bulk_update")
-DELETE_OPERATIONS = ("delete", "bulk_delete")
+DELETE_OPERATIONS = ("delete",)
 LEGACY_SNAPSHOT_OPERATION = "update"
 STRATEGY_ID_CHUNK_SIZE = 500
 # 管理命令允许的最小保留天数；业务层 CleanStrategyHistoryParams 仍只要求正整数，便于单测构造窗口。

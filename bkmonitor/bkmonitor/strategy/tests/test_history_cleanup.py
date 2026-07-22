@@ -97,8 +97,8 @@ def test_compat_cleanup_keeps_legacy_bulk_update_without_displacing_confirmed_sn
     assert not StrategyHistoryModel.objects.filter(id=confirmed_failure.id).exists()
 
 
-def test_compat_cleanup_keeps_latest_legacy_bulk_delete_for_deleted_strategy(monkeypatch):
-    """兼容清理为已删除策略保留最新旧批量删除记录，不依赖 status。"""
+def test_compat_cleanup_keeps_latest_delete_for_deleted_strategy(monkeypatch):
+    """兼容清理为已删除策略保留最新删除记录，不依赖 status。"""
     now = timezone.make_aware(datetime(2026, 7, 21, 12, 0, 0))
     monkeypatch.setattr("bkmonitor.strategy.history.timezone.now", lambda: now)
     deleted_strategy_id = 900099
@@ -214,7 +214,7 @@ def test_existing_strategy_keeps_latest_successful_snapshot(monkeypatch):
     old_create = _create_history(strategy.id, now - timedelta(days=40), operate="create")
     kept_snapshot = _create_history(strategy.id, now - timedelta(days=35), operate="bulk_update")
     failed_update = _create_history(strategy.id, now - timedelta(days=34), status=False)
-    stale_delete = _create_history(strategy.id, now - timedelta(days=33), operate="bulk_delete")
+    stale_delete = _create_history(strategy.id, now - timedelta(days=33), operate="delete")
 
     deleted = clean_strategy_history(CleanStrategyHistoryParams(days=30, batch_size=2))
 
@@ -233,7 +233,7 @@ def test_deleted_strategy_keeps_latest_snapshot_and_latest_delete(monkeypatch):
     kept_snapshot = _create_history(strategy_id, now - timedelta(days=40), operate="bulk_update")
     old_delete = _create_history(strategy_id, now - timedelta(days=38), operate="delete")
     # 修复前的删除历史没有回写成功状态，删除事实仍需按时间保留最新一条。
-    kept_delete = _create_history(strategy_id, now - timedelta(days=35), operate="bulk_delete", status=False)
+    kept_delete = _create_history(strategy_id, now - timedelta(days=35), operate="delete", status=False)
     failed_update = _create_history(strategy_id, now - timedelta(days=34), status=False)
 
     deleted = clean_strategy_history(CleanStrategyHistoryParams(days=30, batch_size=2))

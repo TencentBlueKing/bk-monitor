@@ -3094,7 +3094,7 @@ class Strategy(AbstractConfig):
                 StrategyHistoryModel(
                     create_user=cls._get_username(),
                     strategy_id=strategy_id,
-                    operate="bulk_delete",
+                    operate="delete",
                     status=True,
                 )
             )

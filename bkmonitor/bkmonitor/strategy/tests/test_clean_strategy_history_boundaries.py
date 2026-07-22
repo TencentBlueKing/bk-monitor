@@ -203,7 +203,7 @@ class TestCleanStrategyHistoryBoundaryMatrix:
         old_snap = _create_history(deleted_id, OLDEST, operate="update")
         kept_snap = _create_history(deleted_id, OLDER, operate="bulk_update")
         old_delete = _create_history(deleted_id, OLD - timedelta(minutes=2), operate="delete", status=False)
-        kept_delete = _create_history(deleted_id, OLD, operate="bulk_delete", status=False)
+        kept_delete = _create_history(deleted_id, OLD, operate="delete", status=False)
 
         deleted = clean_strategy_history(_params())
 
@@ -442,7 +442,7 @@ class TestCleanStrategyHistoryBoundaryMatrix:
         deleted_old_snap = _create_history(deleted_id, OLDEST, operate="update")
         deleted_kept_snap = _create_history(deleted_id, OLDER, operate="update")
         deleted_old_del = _create_history(deleted_id, OLD - timedelta(minutes=1), operate="delete", status=False)
-        deleted_kept_del = _create_history(deleted_id, OLD, operate="bulk_delete", status=False)
+        deleted_kept_del = _create_history(deleted_id, OLD, operate="delete", status=False)
 
         zero_old = _create_history(0, OLDEST, operate="create")
         zero_kept = _create_history(0, OLD, operate="create")

@@ -31,11 +31,11 @@ from bkmonitor.strategy.new_strategy import Strategy
 from monitor_web.strategies.resources.v2 import UpdatePartialStrategyV2Resource
 
 
-def test_strategy_history_operate_choices_include_bulk_operations():
+def test_strategy_history_operate_choices_include_only_bulk_update():
     choices = dict(StrategyHistoryModel._meta.get_field("operate").choices)
 
     assert choices["bulk_update"] == "批量更新"
-    assert choices["bulk_delete"] == "批量删除"
+    assert "bulk_delete" not in choices
 
 
 @pytest.mark.django_db
@@ -110,7 +110,7 @@ def test_bulk_delete_opens_transaction_on_runtime_routed_database():
 
 
 @pytest.mark.django_db
-def test_bulk_delete_creates_success_history_after_all_data_is_deleted():
+def test_bulk_delete_creates_delete_histories_after_all_data_is_deleted():
     strategy_ids = [1001, 1002]
     delete_models = (
         StrategyModel,
@@ -137,8 +137,8 @@ def test_bulk_delete_creates_success_history_after_all_data_is_deleted():
 
     histories = bulk_create_history.call_args.args[0]
     assert [(history.strategy_id, history.operate, history.status) for history in histories] == [
-        (1001, "bulk_delete", True),
-        (1002, "bulk_delete", True),
+        (1001, "delete", True),
+        (1002, "delete", True),
     ]
     assert operations.mock_calls[-1] == mock.call.create_history(histories, batch_size=100)
 
@@ -229,7 +229,7 @@ def test_bulk_update_opens_transaction_on_monitor_api_before_processing_updates(
         )
 
 
-def test_strategy_cache_handles_bulk_update_and_bulk_delete_histories():
+def test_strategy_cache_handles_bulk_update_and_delete_histories():
     histories = [
         SimpleNamespace(
             strategy_id=1001,
@@ -241,7 +241,7 @@ def test_strategy_cache_handles_bulk_update_and_bulk_delete_histories():
             operate="bulk_update",
             content={"bk_biz_id": 3, "is_enabled": False},
         ),
-        SimpleNamespace(strategy_id=1003, operate="bulk_delete", content={}),
+        SimpleNamespace(strategy_id=1003, operate="delete", content={}),
     ]
 
     with mock.patch.object(StrategyCacheManager, "get_strategy_by_id", return_value=None):
