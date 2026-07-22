@@ -16,6 +16,7 @@ from io import StringIO
 import pytest
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.db import router
 from django.utils import timezone
 
 from bkmonitor.models import StrategyHistoryModel
@@ -288,6 +289,18 @@ class TestCleanStrategyHistoryBoundaryMatrix:
 
         assert deleted == 4
         assert list(StrategyHistoryModel.objects.filter(id__in=row_ids).values_list("id", flat=True)) == [row_ids[-1]]
+
+    def test_keyset_delete_preserves_explicit_database_alias(self, monkeypatch):
+        """删除必须沿用传入 queryset 的数据库，不能重新经过写路由。"""
+        strategy = _create_strategy("explicit-database-alias")
+        history = _create_history(strategy.id, OLD)
+        queryset = StrategyHistoryModel.objects.using("monitor_api").filter(id=history.id)
+        monkeypatch.setattr(router, "db_for_write", lambda *_args, **_kwargs: "default")
+
+        deleted = _delete_queryset_in_batches(queryset, batch_size=1)
+
+        assert deleted == 1
+        assert not StrategyHistoryModel.objects.using("monitor_api").filter(id=history.id).exists()
 
     def test_window_outside_latest_recoverable_allows_deleting_all_old_snapshots(self, monkeypatch):
         """窗口外已有更新成功快照时，过期旧快照可全部删除。"""

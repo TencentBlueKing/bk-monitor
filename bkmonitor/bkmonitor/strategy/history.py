@@ -190,7 +190,7 @@ def _delete_queryset_in_batches(queryset: QuerySet, batch_size: int) -> int:
         if not history_ids:
             return deleted
 
-        deleted_count, _ = model._default_manager.filter(pk__in=history_ids).delete()
+        deleted_count, _ = model._default_manager.using(queryset.db).filter(pk__in=history_ids).delete()
         deleted += deleted_count
         last_pk = history_ids[-1]
 
