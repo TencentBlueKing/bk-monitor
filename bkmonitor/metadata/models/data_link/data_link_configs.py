@@ -1748,6 +1748,10 @@ class ClusterConfig(models.Model):
             dict[str, Any]: 集群配置
         """
 
+        schema = cluster.schema.strip().lower() if cluster.schema else "http"
+        if schema not in ("http", "https"):
+            schema = "http"
+
         config = {
             "kind": DataLinkKind.ELASTICSEARCH.value,
             "metadata": {
@@ -1757,7 +1761,7 @@ class ClusterConfig(models.Model):
             "spec": {
                 "host": cluster.domain_name,
                 "port": cluster.port,
-                "schema": cluster.schema if cluster.schema in ("http", "https") else "http",
+                "schema": schema,
                 "user": cluster.username,
                 "password": cluster.password,
             },

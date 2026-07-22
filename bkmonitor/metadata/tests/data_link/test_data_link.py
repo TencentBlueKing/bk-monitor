@@ -7317,6 +7317,9 @@ def test_surrealdb_cluster_config_uses_cluster_version():
     [
         ("http", "http"),
         ("https", "https"),
+        ("HTTP", "http"),
+        (" HTTPS ", "https"),
+        ("ftp", "http"),
         ("", "http"),
         (None, "http"),
     ],
