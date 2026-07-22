@@ -131,7 +131,7 @@ paths:
   /mcp/search_log_extract_files/:
     post:
       operationId: search_log_extract_files
-      description: Query extractable files on selected hosts. Parameters and response follow the BK Log list-file API. 查询可提取文件，参数和返回值透传日志平台文件查询接口。
+      description: This tool creates a real BK JOB and runs a file-discovery script on every selected host, waiting synchronously for up to 60 seconds. The script creates and removes temporary files under /tmp but does not modify the files being searched. Call list_log_extract_allowed_paths first, narrow the hosts and path, and avoid repeated exploratory calls. Each host returns at most 500 file records. 本工具会创建真实的蓝鲸作业，在每台目标主机执行文件发现脚本，并同步等待最长 60 秒。脚本会在 /tmp 创建并清理临时文件，但不会修改被搜索的文件。请先调用 list_log_extract_allowed_paths，缩小主机和目录范围后再调用，避免反复试探；每台主机最多返回 500 条文件记录。
       tags: [log_extract_mcp]
       requestBody:
         required: true
@@ -145,6 +145,7 @@ paths:
                 ip_list:
                   type: array
                   minItems: 1
+                  maxItems: 10
                   items:
                     type: object
                     description: Provide bk_host_id, or provide both ip and bk_cloud_id.

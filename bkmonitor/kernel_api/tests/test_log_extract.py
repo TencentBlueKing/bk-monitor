@@ -125,6 +125,21 @@ def test_search_hosts_keeps_selected_nodes(monkeypatch):
     api_resource.assert_called_once_with(scope_list=[{"scope_type": "biz", "scope_id": "7"}], node_list=node_list)
 
 
+def test_search_files_rejects_more_than_ten_hosts():
+    serializer = SearchLogExtractFilesResource.RequestSerializer(
+        data={
+            "bk_biz_id": 7,
+            "ip_list": [{"bk_host_id": host_id} for host_id in range(11)],
+            "path": "/data/logs",
+            "is_search_child": False,
+            "time_range": "1d",
+        }
+    )
+
+    assert not serializer.is_valid()
+    assert "ip_list" in serializer.errors
+
+
 def test_get_download_url_passes_through(monkeypatch):
     api_resource = Mock(return_value="https://example.com/download")
     monkeypatch.setattr(api.log_search, "get_log_extract_download_url", api_resource)

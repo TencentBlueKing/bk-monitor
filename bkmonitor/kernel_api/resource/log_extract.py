@@ -58,7 +58,7 @@ class SearchLogExtractFilesResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True)
-        ip_list = serializers.ListField(child=serializers.DictField(), min_length=1)
+        ip_list = serializers.ListField(child=serializers.DictField(), min_length=1, max_length=10)
         path = serializers.CharField(required=True)
         is_search_child = serializers.BooleanField(required=True)
         time_range = serializers.CharField(required=True)
