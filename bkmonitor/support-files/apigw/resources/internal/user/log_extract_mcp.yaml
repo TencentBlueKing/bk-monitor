@@ -53,13 +53,9 @@ paths:
                     properties:
                       object_id: {type: string}
                       instance_id: {type: integer}
-                search_condition:
-                  type: object
-                  description: Host filters supported by BK Log, such as an exact ip.
-                search_content: {type: string, description: Fuzzy host search content.}
-                conditions:
-                  type: array
-                  items: {type: object}
+                search_content:
+                  type: string
+                  description: Fuzzy search across internal IPv4, internal IPv6, host name, operating-system type, and operating-system name. 对内网 IPv4、内网 IPv6、主机名、操作系统类型和操作系统名称进行模糊搜索。
                 start: {type: integer, minimum: 0, default: 0}
                 page_size: {type: integer, minimum: -1, maximum: 500, default: -1}
       x-bk-apigateway-resource:

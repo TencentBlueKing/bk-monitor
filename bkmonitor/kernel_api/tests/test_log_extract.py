@@ -102,14 +102,14 @@ def test_search_hosts_builds_business_scope_and_defaults_to_business_root(monkey
     monkeypatch.setattr(api.log_search, "query_log_extract_hosts", api_resource)
 
     result = SearchLogExtractHostsResource().perform_request(
-        {"bk_biz_id": 7, "search_condition": {"ip": "10.0.0.1"}, "start": 0, "page_size": 20}
+        {"bk_biz_id": 7, "search_content": "10.0.0.1", "start": 0, "page_size": 20}
     )
 
     assert result == response
     api_resource.assert_called_once_with(
         scope_list=[{"scope_type": "biz", "scope_id": "7"}],
         node_list=[{"object_id": "biz", "instance_id": 7}],
-        search_condition={"ip": "10.0.0.1"},
+        search_content="10.0.0.1",
         start=0,
         page_size=20,
     )

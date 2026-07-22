@@ -26,9 +26,7 @@ class SearchLogExtractHostsResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True)
         node_list = serializers.ListField(child=serializers.DictField(), required=False, min_length=1)
-        search_condition = serializers.DictField(required=False)
         search_content = serializers.CharField(required=False, allow_blank=True)
-        conditions = serializers.ListField(child=serializers.DictField(), required=False)
         start = serializers.IntegerField(required=False, default=0, min_value=0)
         page_size = serializers.IntegerField(required=False, default=-1, min_value=-1, max_value=500)
 
