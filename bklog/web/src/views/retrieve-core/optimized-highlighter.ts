@@ -586,9 +586,7 @@ export default class OptimizedHighlighter {
         separateWordSearch: false,
         done: resolve ?? (() => {}),
         each: (element: HTMLElement) => {
-          if (element.parentElement?.classList.contains('valid-text')) {
-            element.classList.add('valid-text');
-          }
+          // 禁止给内层 mark 打 valid-text：closest 会命中残缺片段，污染点击/划词解析
           const colors = this.getColors(element.textContent);
           if (colors.backgroundColor) {
             element.style.backgroundColor = colors.backgroundColor;
@@ -656,10 +654,7 @@ export default class OptimizedHighlighter {
           resolve?.();
         },
         each: (element: HTMLElement) => {
-          if (element.parentElement?.classList.contains('valid-text')) {
-            element.classList.add('valid-text');
-          }
-
+          // 禁止给内层 mark 打 valid-text：closest 会命中残缺片段，污染点击/划词解析
           // 初始颜色设置，后续会在 processConsecutiveMarks 中统一处理
           const matchedText = element.textContent || '';
           const matchedKeywordItem = this.currentKeywords.find((k) => {
@@ -707,9 +702,7 @@ export default class OptimizedHighlighter {
         resolve?.();
       },
       each: (element: HTMLElement) => {
-        if (element.parentElement?.classList.contains('valid-text')) {
-          element.classList.add('valid-text');
-        }
+        // 禁止给内层 mark 打 valid-text：closest 会命中残缺片段，污染点击/划词解析
         const colors = this.getColors(element.textContent);
         if (colors.backgroundColor) {
           element.style.backgroundColor = colors.backgroundColor;

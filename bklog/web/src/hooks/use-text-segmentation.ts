@@ -24,7 +24,11 @@
  * IN THE SOFTWARE.
  */
 import segmentPopInstance from '../global/utils/segment-pop-instance';
-import { getClickTargetElement, setPointerCellClickTargetHandler } from './hooks-helper';
+import {
+  getClickTargetElement,
+  resolveOuterValidText,
+  setPointerCellClickTargetHandler,
+} from './hooks-helper';
 import UseSegmentPropInstance from './use-segment-pop';
 import { splitRenderText } from '../storage/utils/retrieve-render-meta';
 
@@ -81,7 +85,7 @@ export default class UseTextSegmentation {
   }
 
   getTextCellClickHandler(e: MouseEvent) {
-    const validTextElement = (e.target as HTMLElement).closest?.('.valid-text') as HTMLElement | null;
+    const validTextElement = resolveOuterValidText(e.target as HTMLElement);
     if (validTextElement) {
       const { offsetY, offsetX } = getClickTargetElement(e);
       const offsetTarget = setPointerCellClickTargetHandler(e, { offsetY, offsetX });

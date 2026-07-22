@@ -323,3 +323,37 @@ export const setPointerCellClickTargetHandler = (e: MouseEvent, { offsetY = 0, o
 
   return virtualTarget;
 };
+
+/**
+ * 归一到最外层 .valid-text。
+ * 页面高亮 / 检索高亮会在分词内部插入 mark/span；若 inner 节点也被打上 valid-text，
+ * closest 会命中内层，导致点击分词取到残缺文本、tokenIndex 膨胀，划词 start/end 漂移。
+ */
+export const resolveOuterValidText = (el: Element | null | undefined): HTMLElement | null => {
+  if (!el) {
+    return null;
+  }
+  let current = (el.classList?.contains('valid-text')
+    ? el
+    : el.closest?.('.valid-text')) as HTMLElement | null;
+  if (!current) {
+    return null;
+  }
+  let parent = current.parentElement?.closest?.('.valid-text') as HTMLElement | null;
+  while (parent) {
+    current = parent;
+    parent = current.parentElement?.closest?.('.valid-text') as HTMLElement | null;
+  }
+  return current;
+};
+
+/** 仅保留最外层 .valid-text，过滤高亮产生的内层同名节点 */
+export const listOuterValidTextNodes = (root: ParentNode | null | undefined): HTMLElement[] => {
+  if (!root) {
+    return [];
+  }
+  return Array.from(root.querySelectorAll('.valid-text')).filter((node) => {
+    const el = node as HTMLElement;
+    return !el.parentElement?.closest?.('.valid-text');
+  }) as HTMLElement[];
+};

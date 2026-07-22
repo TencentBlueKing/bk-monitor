@@ -1842,8 +1842,11 @@ export default defineComponent({
         const selection = window.getSelection();
         if (selection.rangeCount > 0) {
           // cloneRange + 固化文本：弹层点击/高亮重绘后 live Range 可能失效或 toString 漂移
+          // 必须在 mouseup 当下固化，避免后续点击分词/检索刷新冲掉 DOM 后解析漂移
           savedSelection = selection.getRangeAt(0).cloneRange();
           savedSelectionText = stripSelectionMarkup(savedSelection.toString());
+          hoverOperatorState.row = item;
+          hoverOperatorState.rowIndex = rowIndex;
           const rect = getSelectionReferenceRect(savedSelection, e);
           const target = setSelectionPopTargetHandler(rect);
           popInstanceUtil.uninstallInstance();

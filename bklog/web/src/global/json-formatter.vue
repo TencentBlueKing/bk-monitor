@@ -524,6 +524,7 @@
     for (const element of Array.from(elements) as HTMLElement[]) {
       if (element.getAttribute('data-field-name') === fieldName) {
         element.removeAttribute('data-has-word-split');
+        element.removeAttribute('data-word-split-source');
       }
     }
   };
@@ -533,6 +534,7 @@
     const elements = root?.querySelectorAll?.('.field-value[data-has-word-split]') ?? [];
     for (const element of Array.from(elements) as HTMLElement[]) {
       element.removeAttribute('data-has-word-split');
+      element.removeAttribute('data-word-split-source');
     }
   };
 
@@ -545,6 +547,7 @@
       const fieldName = element.getAttribute('data-field-name');
       if (fieldName && isOriginalValueTruncated(fieldName)) {
         element.removeAttribute('data-has-word-split');
+        element.removeAttribute('data-word-split-source');
       }
     }
   };
@@ -850,7 +853,10 @@
     () => [props.jsonValue, props.fields, props.renderMeta, formatJson.value, pageHighlightState.version, expandedOriginalValueFields.value],
     () => {
       if (isResolved.value) {
-        resetOriginalValueRenderedFlags();
+        // 内容 / 高亮版本变化后必须清掉分词标记再重绘。
+        // 否则 Vue 可能已用新的 stringValue 冲掉 segment DOM，但 data-has-word-split 仍残留，
+        // setNodeValueWordSplit 跳过重建 → 划词/点击分词丢失 valid-text 与 segment 属性，解析漂移。
+        resetAllWordSplitFlags();
         debounceUpdate();
       }
     },

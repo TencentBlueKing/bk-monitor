@@ -27,6 +27,8 @@
 import { computed, type Ref } from 'vue';
 
 import { getRowFieldValue, isNestedField } from '@/common/util';
+import { normalizeArrayFieldPath, resolveMappedFieldPath } from '@/hooks/field-path';
+import { resolveOuterValidText } from '@/hooks/hooks-helper';
 import LuceneSegment from '@/hooks/lucene.segment';
 import useStore from '@/hooks/use-store';
 import {
@@ -109,7 +111,7 @@ type UseSelectionSearchOptions = {
 
 export const stripSelectionMarkup = (value: string) => String(value ?? '').replace(/<\/?mark>/gim, '');
 
-export const normalizeArrayFieldPath = (path: string) => path.replace(/\.\d+(?=\.|$)/g, '');
+export { normalizeArrayFieldPath };
 
 export const isStructField = (field?: Record<string, any> | null) =>
   Boolean(field && (STRUCT_FIELD_TYPES.has(field.field_type) || field.is_virtual_obj_node));
@@ -152,6 +154,17 @@ export default (options: UseSelectionSearchOptions) => {
     return filteredFieldList.value.find(item => item.field_name === fieldName || item.field_name === normalizedName)
       ?? visibleFields.value.find(item => item.field_name === fieldName || item.field_name === normalizedName)
       ?? fullColumns.value.find(item => item.field_name === fieldName || item.field_name === normalizedName);
+  };
+
+  /**
+   * 将任意 DOM / JSON 深路径收敛为 Fields 列表中真实存在的最长前缀。
+   * 例：列表有 __ext_json.name 时，__ext_json.name.first_name → __ext_json.name
+   */
+  const clampToMappedFieldName = (fieldName: string, fallback = '') => {
+    if (!fieldName || fieldName === FULLTEXT_FIELD_NAME) {
+      return fieldName || fallback;
+    }
+    return resolveMappedFieldPath(fieldName, getFieldByName, fallback || fieldName);
   };
 
   /**
@@ -323,10 +336,12 @@ export default (options: UseSelectionSearchOptions) => {
       if (!node) return null;
       if (node.nodeType === Node.ELEMENT_NODE) {
         const el = node as Element;
-        if (el.classList?.contains('valid-text')) return el as HTMLElement;
-        return (el.querySelector?.('.valid-text') as HTMLElement | null) ?? null;
+        if (el.classList?.contains('valid-text')) {
+          return resolveOuterValidText(el);
+        }
+        return resolveOuterValidText(el.querySelector?.('.valid-text') as Element | null);
       }
-      return node.parentElement?.closest?.('.valid-text') as HTMLElement | null;
+      return resolveOuterValidText(node.parentElement);
     };
 
     const findSiblingValidText = (direction: 'previousSibling' | 'nextSibling') => {
@@ -458,7 +473,8 @@ export default (options: UseSelectionSearchOptions) => {
       }
 
       // Object JSON KEY（data-segment-field-role=key / json-view key）：剥离不进 Value
-      // role=key 时 segment 常挂父路径（如 __ext）；真实叶子由紧随 VALUE 的 data-segment-field-name 决定
+      // role=key 时 segment 已绑定 KEY 自身完整路径并按 Fields 列表收敛
+      // （如 application → __ext_json.deployment.application；node → __ext_json.deployment.pod）
       if (inSegmentKey || inJsonViewKey) {
         const fieldName = el.closest?.('[data-segment-field-name]')?.getAttribute('data-segment-field-name')
           || el.closest?.('[data-search-field-name]')?.getAttribute('data-search-field-name')
@@ -510,28 +526,6 @@ export default (options: UseSelectionSearchOptions) => {
     return result
       .map(item => ({ ...item, text: item.text.trim() }))
       .filter(item => item.text);
-  };
-
-  /**
-   * 归一到最外层 .valid-text，避免检索高亮给内层 mark 也打上 valid-text 后
-   * closest 命中内层，导致同词划选 start/end 不一致、DOM 补齐失效。
-   */
-  const resolveOuterValidText = (el: Element | null): HTMLElement | null => {
-    if (!el) {
-      return null;
-    }
-    let current = (el.classList?.contains('valid-text')
-      ? el
-      : el.closest?.('.valid-text')) as HTMLElement | null;
-    if (!current) {
-      return null;
-    }
-    let parent = current.parentElement?.closest?.('.valid-text') as HTMLElement | null;
-    while (parent) {
-      current = parent;
-      parent = current.parentElement?.closest?.('.valid-text') as HTMLElement | null;
-    }
-    return current;
   };
 
   /** 区间内是否包含可检索分词 */
@@ -1205,9 +1199,12 @@ export default (options: UseSelectionSearchOptions) => {
     selectionText: string,
     targetElement: HTMLElement | null,
   ): SelectionSearchTarget => {
-    const searchFieldName = targetElement?.getAttribute('data-search-field-name') ?? '';
+    const searchFieldName = targetElement?.getAttribute('data-search-field-name')
+      ?? targetElement?.getAttribute('data-segment-field-name')
+      ?? '';
     const domFieldName = targetElement?.getAttribute('data-field-name') ?? '';
-    const candidateFieldName = searchFieldName || domFieldName;
+    // DOM 可能挂了未映射深路径，先收敛到 Fields 列表再解析
+    const candidateFieldName = clampToMappedFieldName(searchFieldName || domFieldName, FULLTEXT_FIELD_NAME);
     const depthFromDom = targetElement?.closest?.('[data-depth]')?.getAttribute('data-depth');
 
     const buildTarget = (
@@ -1376,8 +1373,8 @@ export default (options: UseSelectionSearchOptions) => {
     const fieldPath = el.getAttribute('data-field-name')
       ?? el.closest?.('[data-field-name]')?.getAttribute('data-field-name')
       ?? '';
-    // 分词叶子路径优先，避免未展开 JSON 场景下始终回落到根字段（如 __ext）
-    return segmentPath || searchPath || fieldPath;
+    // 分词叶子路径优先，再收敛到 Fields 列表真实字段，避免未映射深路径进入检索
+    return clampToMappedFieldName(segmentPath || searchPath || fieldPath);
   };
 
   /**
@@ -1938,9 +1935,11 @@ export default (options: UseSelectionSearchOptions) => {
         return;
       }
 
+      const mappedFragName = clampToMappedFieldName(frag.fieldName, frag.fieldName);
+
       // Text/String JSON：字段类型优先（text 最小分词补齐，keyword 原文，其他完整值）
       if (frag.isJsonTextValue) {
-        const field = getFieldByName(frag.fieldName) ?? { field_name: frag.fieldName, field_type: 'text' };
+        const field = getFieldByName(mappedFragName) ?? { field_name: mappedFragName, field_type: 'text' };
         const resolved = resolveSelectionByFieldType(frag.text, field, row);
         resolved.values.forEach((token) => {
           const key = [field.field_name, resolved.operator, token].join('__');
@@ -1953,10 +1952,10 @@ export default (options: UseSelectionSearchOptions) => {
         return;
       }
 
-      let field = getFieldByName(frag.fieldName);
+      let field = getFieldByName(mappedFragName);
       if (!isLeafQueryableField(field)) {
-        field = findLeafFieldBySelection(row, frag.fieldName, frag.text)
-          ?? findLeafFieldByPartialValue(row, getParentFieldPath(frag.fieldName) || frag.fieldName, frag.text);
+        field = findLeafFieldBySelection(row, mappedFragName, frag.text)
+          ?? findLeafFieldByPartialValue(row, getParentFieldPath(mappedFragName) || mappedFragName, frag.text);
       }
       if (!isLeafQueryableField(field)) {
         return;
@@ -2254,7 +2253,10 @@ export default (options: UseSelectionSearchOptions) => {
       tokenCount?: number;
     } = {},
   ) => {
-    const fieldType = options.fieldType ?? getFieldByName(fieldName)?.field_type;
+    // 出口回归：Field 必须落在 Fields 列表中，禁止未映射深路径进入检索
+    const mappedFieldName = clampToMappedFieldName(fieldName, FULLTEXT_FIELD_NAME);
+    const mappedField = getFieldByName(mappedFieldName);
+    const fieldType = options.fieldType ?? mappedField?.field_type;
     const rawValue = values?.[0] ?? '';
     const fullPlain = options.fullPlain;
     const tokenCount = options.tokenCount;
@@ -2269,7 +2271,7 @@ export default (options: UseSelectionSearchOptions) => {
     );
 
     const payload = resolveAddToSearch({
-      field: fieldName || FULLTEXT_FIELD_NAME,
+      field: mappedFieldName || FULLTEXT_FIELD_NAME,
       value: rawValue,
       fieldType,
       fullText: fullPlain,
@@ -2280,13 +2282,18 @@ export default (options: UseSelectionSearchOptions) => {
       searchMode: getSearchMode(),
     });
 
+    const depth = options.depth ?? (mappedFieldName && mappedFieldName !== FULLTEXT_FIELD_NAME
+      ? getFieldPathDepth(mappedFieldName)
+      : options.depth);
+    const isNestedField = options.isNestedField;
+
     return handleAddCondition(
       payload.field,
       payload.operator,
       payload.value,
       options.isLink ?? false,
-      options.depth,
-      options.isNestedField,
+      depth,
+      isNestedField,
       {
         fullPlain: payload.fullPlain,
         fieldType: payload.fieldType,
@@ -2372,12 +2379,13 @@ export default (options: UseSelectionSearchOptions) => {
 
   const applySelectionConditions = (conditions: SelectionCondition[], row?: Record<string, any>) => {
     conditions.forEach((item) => {
-      const field = getFieldByName(item.field);
+      const mappedName = clampToMappedFieldName(item.field, item.field);
+      const field = getFieldByName(mappedName);
       const fullPlain = row && field ? getFieldPlainText(row, field) : undefined;
       const rawValue = item.value?.[0] ?? '';
       const pos = resolveSelectionTokenMeta(row, field, rawValue, fullPlain);
-      emitAddCondition(item.field, item.operator, item.value, {
-        depth: item.depth,
+      emitAddCondition(mappedName, item.operator, item.value, {
+        depth: item.depth ?? (mappedName ? getFieldPathDepth(mappedName) : item.depth),
         isNestedField: item.isNestedField,
         fullPlain,
         fieldType: field?.field_type,
@@ -2436,8 +2444,11 @@ export default (options: UseSelectionSearchOptions) => {
 
     const startSegment = startEl?.closest?.('[data-segment-field-name]') as HTMLElement | null;
     const endSegment = endEl?.closest?.('[data-segment-field-name]') as HTMLElement | null;
-    const startPath = startSegment?.getAttribute('data-segment-field-name') ?? '';
-    const endPath = endSegment?.getAttribute('data-segment-field-name') ?? '';
+    const startPathRaw = startSegment?.getAttribute('data-segment-field-name') ?? '';
+    const endPathRaw = endSegment?.getAttribute('data-segment-field-name') ?? '';
+    // 未映射深路径（如 __ext_json.name.first_name）回溯到 Fields 中的最长前缀
+    const startPath = clampToMappedFieldName(startPathRaw);
+    const endPath = clampToMappedFieldName(endPathRaw);
 
     if (!startPath || !endPath || startPath !== endPath) {
       return [];

@@ -41,6 +41,11 @@ export type JsonViewConfig = {
   parsedFromJsonString?: boolean;
   /** 将真实字段路径转换为展示别名；返回原路径时沿用 JSON 原始 KEY。 */
   resolveFieldDisplayName?: (_fieldPath: string) => string;
+  /**
+   * 将 JSON 深路径收敛为 Fields 列表中真实存在的最长前缀。
+   * 例：__ext_json.name.first_name → __ext_json.name（若 first_name 未声明）
+   */
+  resolveMappedFieldPath?: (_fieldPath: string) => string;
 };
 export default class JsonView {
   options: JsonViewConfig;
@@ -142,6 +147,12 @@ export default class JsonView {
     return parentPath.concat('.', keyText);
   }
 
+  /** DOM 绑定前按 Fields 列表收敛路径，避免挂上无效深路径 */
+  private clampMappedFieldPath(fieldPath: string) {
+    if (!fieldPath) return fieldPath;
+    return this.options.resolveMappedFieldPath?.(fieldPath) ?? fieldPath;
+  }
+
   private createObjectRow(
     key: number | string,
     value: any,
@@ -150,16 +161,19 @@ export default class JsonView {
     jsonStringFieldPath = '',
   ) {
     const row = document.createElement('div');
-    const searchFieldPath = this.buildSearchFieldPath(parentPath, key, jsonStringFieldPath);
+    const rawSearchFieldPath = this.buildSearchFieldPath(parentPath, key, jsonStringFieldPath);
+    // JSON String：检索字段固定外层；Object：按 Fields 列表收敛（未映射子路径回溯到最长前缀）
+    const searchFieldPath = this.clampMappedFieldPath(rawSearchFieldPath);
     row.classList.add('bklog-json-view-row');
     // 使用去标记后的字段名，避免后续点击和筛选携带 HTML 协议标签。
     row.setAttribute('data-field-name', parseResultMarkedText(key).plainText);
-    // data-search-field-name 绑定真实检索字段（含根字段前缀）
+    // data-search-field-name 绑定真实可检索字段（已回归 Fields 列表）
     row.setAttribute('data-search-field-name', searchFieldPath);
-    // JSON 字符串解析仅改变分词点击的叶子归属；划词仍读取 data-search-field-name。
-    const segmentFieldPath = jsonStringFieldPath
+    // Object 深路径同样收敛，禁止挂上 Fields 未声明的 __ext_json.name.first_name。
+    const rawSegmentFieldPath = jsonStringFieldPath
       ? [parentPath, parseResultMarkedText(key).plainText].filter(Boolean).join('.')
-      : searchFieldPath;
+      : rawSearchFieldPath;
+    const segmentFieldPath = this.clampMappedFieldPath(rawSegmentFieldPath);
     row.setAttribute('data-segment-field-name', segmentFieldPath);
     if (jsonStringFieldPath) {
       row.setAttribute('data-json-string-parsed', 'true');
@@ -169,8 +183,12 @@ export default class JsonView {
     const displayFieldPath = jsonStringFieldPath ? '' : searchFieldPath;
     row.append(this.createJsonField(key, displayFieldPath));
     row.append(this.createJsonSymbol());
-    // JSON 字符串的展示路径继续向下传递，保证 labels.app 不会退化成 labels。
-    row.append(this.createJsonNodeElment(value, depth, segmentFieldPath, jsonStringFieldPath));
+    // 子节点继续用未收敛的展示路径向下展开，保证 JSON 树结构完整；
+    // 每个子行会再次 clamp，最终 DOM 属性只保留 Fields 映射字段。
+    const childParentPath = jsonStringFieldPath
+      ? rawSegmentFieldPath
+      : (rawSearchFieldPath || parentPath);
+    row.append(this.createJsonNodeElment(value, depth, childParentPath, jsonStringFieldPath));
 
     return row;
   }
@@ -264,7 +282,7 @@ export default class JsonView {
 
   private bindSearchFieldPath(node: HTMLElement, fieldPath: string) {
     if (!fieldPath) return;
-    node.setAttribute('data-search-field-name', fieldPath);
+    node.setAttribute('data-search-field-name', this.clampMappedFieldPath(fieldPath));
   }
 
   private createJsonNodeElment(target: any, depth = 1, parentPath = '', inheritedJsonStringFieldPath = '') {
