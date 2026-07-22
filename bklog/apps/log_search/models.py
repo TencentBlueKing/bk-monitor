@@ -1371,7 +1371,10 @@ class AsyncTask(OperateRecordModel):
         ]
         count = cls.objects.filter(created_by=username, export_status__in=running_status).count()
         print(count)
-        if cls.objects.filter(created_by=username, export_status__in=running_status).count() >= 3:
+        if (
+            cls.objects.filter(created_by=username, export_status__in=running_status).count()
+            >= MAX_CONCURRENT_EXPORT_TASKS
+        ):
             raise ConcurrentExportLimitException(
                 ConcurrentExportLimitException.MESSAGE.format(limit_count=MAX_CONCURRENT_EXPORT_TASKS)
             )
