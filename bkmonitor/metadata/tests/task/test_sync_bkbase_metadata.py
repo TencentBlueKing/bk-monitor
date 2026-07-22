@@ -698,6 +698,17 @@ def test_sync_bkbase_es_cluster_schema_only_when_not_empty():
     cluster.refresh_from_db()
     assert cluster.schema == "https"
 
+    cluster_data["spec"]["schema"] = "HTTPS"
+    sync_bkbase_cluster_info(
+        bk_tenant_id="system",
+        cluster_data=cluster_data,
+        field_mappings=es_config["field_mappings"],
+        cluster_type=models.ClusterInfo.TYPE_ES,
+        update=True,
+    )
+    cluster.refresh_from_db()
+    assert cluster.schema == "https"
+
 
 @pytest.mark.django_db(databases="__all__")
 def test_sync_bkbase_doris_cluster_custom_option(create_or_delete_records):
