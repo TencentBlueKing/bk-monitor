@@ -30,6 +30,8 @@ import { Cascader } from 'bkui-vue';
 
 import type { IFieldItem, TGetValueFn } from './typing';
 
+import './cascade-selector.scss';
+
 /**
  * 级联选择器组件（基于 bkui-vue Cascader）
  * 用于业务拓扑等树形结构字段的值选择，支持多选、搜索、浮动模式。
@@ -97,6 +99,7 @@ export default defineComponent({
     return (
       <Cascader
         ref='cascader'
+        class='retrieval-filter-cascade-selector'
         popoverOptions={{
           boundary: 'parent',
         }}

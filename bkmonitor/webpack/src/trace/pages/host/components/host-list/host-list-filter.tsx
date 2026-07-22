@@ -26,6 +26,8 @@
 
 import { type PropType, defineComponent, toRef } from 'vue';
 
+import { useI18n } from 'vue-i18n';
+
 import RetrievalFilter from '../../../../components/retrieval-filter/retrieval-filter';
 import { useHostListFilter } from '../../composables/use-host-list-filter';
 
@@ -80,6 +82,7 @@ export default defineComponent({
     search: () => true,
   },
   setup(props, { emit }) {
+    const { t } = useI18n();
     const ctx = useHostListFilter({
       filterOptionsMap: toRef(props, 'filterOptionsMap'),
     });
@@ -95,6 +98,7 @@ export default defineComponent({
           isShowResident={false}
           isSingleMode={true}
           loadDelay={0}
+          placeholder={t('/ 快速唤起，请输入')}
           queryString={props.queryString}
           tagValueDisplayFormatter={ctx.tagValueDisplayFormatter}
           where={props.where}

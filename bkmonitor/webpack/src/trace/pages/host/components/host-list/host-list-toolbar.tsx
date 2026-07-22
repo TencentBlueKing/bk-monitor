@@ -93,7 +93,7 @@ export default defineComponent({
             v-bk-tooltips={{ content: t('高级筛选'), delay: 300 }}
             onClick={() => emit('toggleFilter')}
           >
-            <i class='icon-monitor icon-filter' />
+            <i class={`icon-monitor ${props.filterExpanded ? 'icon-filter-fill' : 'icon-filter'}`} />
           </Button>
         </div>
       </div>
