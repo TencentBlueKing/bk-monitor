@@ -11,12 +11,14 @@ specific language governing permissions and limitations under the License.
 import logging
 from collections import defaultdict
 
+from django.core.cache import caches
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.utils.alert_drilling import normalize_histogram_quantile_group_by
+from bkmonitor.utils.common_utils import deserialize_and_decompress
 from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
@@ -53,7 +55,51 @@ class GetCustomTsMetricGroups(Resource):
     class RequestSerializer(CustomMetricBaseRequestSerializer):
         pass
 
+    @classmethod
+    def _get_service_metric_whitelist(cls, params: dict) -> set[str] | None:
+        """
+        APM 场景下，从缓存中获取当前服务下有数据的指标白名单。
+        返回 None 表示无需过滤（非 APM 场景或缓存不可用）；返回空集合表示该服务下无任何指标。
+        """
+        if not params.get("is_apm_scenario"):
+            return None
+
+        apm_app_name = params.get("apm_app_name")
+        apm_service_name = params.get("apm_service_name")
+        bk_biz_id = params.get("bk_biz_id")
+        if not (apm_app_name and apm_service_name and bk_biz_id):
+            return None
+
+        if "redis" not in caches:
+            return None
+
+        try:
+            from apm_web.models import Application
+            from apm_web.constants import ApmCacheKey
+
+            application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=apm_app_name)
+            cache_key = ApmCacheKey.APP_SCOPE_NAME_KEY.format(
+                bk_biz_id=bk_biz_id, application_id=application.application_id
+            )
+            cached_data = caches["redis"].get(cache_key)
+            if not cached_data:
+                return None
+
+            monitor_info_mapping = deserialize_and_decompress(cached_data) or {}
+            service_metric_info = monitor_info_mapping.get(apm_service_name)
+            if service_metric_info is None:
+                # 缓存中没有该服务的数据，返回空集合（不展示任何指标）
+                return set()
+
+            return set(service_metric_info.keys())
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning("[GetCustomTsMetricGroups] failed to get service metric whitelist: %s", e)
+            return None
+
     def perform_request(self, params: dict) -> dict[str, list]:
+        # APM 场景：从缓存获取当前服务下有数据的指标白名单
+        service_metric_whitelist = self._get_service_metric_whitelist(params)
+
         # 从 metadata 获取指标分组列表
         request_params = {
             "group_id": params["time_series_group_id"],
@@ -73,11 +119,13 @@ class GetCustomTsMetricGroups(Resource):
             metrics = []
             for metric_data in metric_list:
                 metric_name = metric_data.get("metric_name", "")
-                # 过滤内置指标（APM 场景）
-                if params.get("is_apm_scenario") and any(
-                    [str(metric_name).startswith("apm_"), str(metric_name).startswith("bk_apm_")]
-                ):
-                    continue
+                if params.get("is_apm_scenario"):
+                    if any([str(metric_name).startswith("apm_"), str(metric_name).startswith("bk_apm_")]):
+                        # 过滤内置指标（APM 场景）
+                        continue
+                    elif service_metric_whitelist is not None and metric_name not in service_metric_whitelist:
+                        # 只展示缓存中当前服务下有数据的指标（APM 场景）
+                        continue
 
                 field_config = metric_data.get("field_config", {})
                 # 如果指标隐藏或禁用，则不展示
@@ -139,7 +187,11 @@ class GetCustomTsMetricAggInfo(Resource):
         result = api.metadata.query_time_series_metric(**request_params)
         metric_list = result.get("metrics", [])
         scope_ids = list(
-            dict.fromkeys(metric_data.get("scope", {}).get("id") for metric_data in metric_list if metric_data.get("scope", {}).get("id"))
+            dict.fromkeys(
+                metric_data.get("scope", {}).get("id")
+                for metric_data in metric_list
+                if metric_data.get("scope", {}).get("id")
+            )
         )
 
         # 计算维度交集和并集
@@ -171,7 +223,9 @@ class GetCustomTsMetricAggInfo(Resource):
             "common_dimensions": [
                 {"name": d, "alias": dim_alias_map[d] if d in dim_alias_map else d} for d in sorted(common_dims)
             ],
-            "all_dimensions": [{"name": d, "alias": dim_alias_map[d] if d in dim_alias_map else d} for d in sorted(all_dims)],
+            "all_dimensions": [
+                {"name": d, "alias": dim_alias_map[d] if d in dim_alias_map else d} for d in sorted(all_dims)
+            ],
         }
 
 
@@ -633,7 +687,7 @@ class GetCustomTsGraphConfig(Resource):
         metric_result = api.metadata.query_time_series_metric(
             group_id=params["time_series_group_id"],
             page=1,
-            page_size=-1, # 获取所有指标
+            page_size=-1,  # 获取所有指标
             conditions=conditions,
         )
 
