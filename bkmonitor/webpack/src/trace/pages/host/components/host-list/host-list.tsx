@@ -27,6 +27,8 @@
 import { type PropType, computed, defineComponent, onMounted, toRef } from 'vue';
 
 import { Loading } from 'bkui-vue';
+import { storeToRefs } from 'pinia';
+import { useHostStore } from 'trace/store/modules/host';
 
 import { useHostList } from '../../composables/use-host-list';
 import HostListFilter from './host-list-filter';
@@ -49,7 +51,14 @@ export default defineComponent({
     },
   },
   setup(props) {
-    const ctx = useHostList({ selectedNode: toRef(props, 'selectedNode') });
+    const { where, filterExpanded, activeCategory, keyword } = storeToRefs(useHostStore());
+    const ctx = useHostList({
+      selectedNode: toRef(props, 'selectedNode'),
+      where,
+      filterExpanded,
+      activeCategory,
+      keyword,
+    });
 
     const hasSelection = computed(() => ctx.selectedRowKeys.value.length > 0);
 

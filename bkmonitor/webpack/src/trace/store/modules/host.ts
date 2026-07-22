@@ -33,6 +33,8 @@ import { handleTransformToTimestamp } from '@/components/time-range/utils';
 import { getDefaultTimezone } from '@/i18n/dayjs';
 
 import type { HostPageScene } from '@/pages/host/constants/constants';
+import type { EHostQuickCategory } from '@/pages/host/types/host-list';
+import type { IWhereItem } from 'trace/components/retrieval-filter/typing';
 const REFRESH_EFFECT_KEY = '__REFRESH_EFFECT_KEY__';
 
 export const useHostStore = defineStore('host', () => {
@@ -43,6 +45,15 @@ export const useHostStore = defineStore('host', () => {
   const refreshId = shallowRef(random(4));
   // 主机监控 场景 host | process
   const scene = shallowRef<HostPageScene>('host');
+
+  /** retrieval-filter ui 模式 where 条件 */
+  const where = shallowRef<IWhereItem[]>([]);
+  /** 主机列表高级过滤是否展开 */
+  const filterExpanded = shallowRef(false);
+  /** 当前激活的快捷过滤分类（空为不过滤） */
+  const activeCategory = shallowRef<'' | EHostQuickCategory>('');
+  /** 关键字模糊搜索 */
+  const keyword = shallowRef('');
 
   const timeRangeTimestamp = computed(() => {
     const [start, end] = handleTransformToTimestamp(timeRange.value);
@@ -102,5 +113,9 @@ export const useHostStore = defineStore('host', () => {
     refreshImmediate,
     timeRangeTimestamp,
     scene,
+    where,
+    filterExpanded,
+    activeCategory,
+    keyword,
   };
 });
