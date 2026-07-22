@@ -40,12 +40,6 @@ from kernel_api.resource.log_extract import (
             },
             {"task_id": 123},
         ),
-        (
-            GetLogExtractTaskResource,
-            "get_log_extract_task",
-            {"bk_biz_id": 7, "task_id": 123},
-            {"task_id": 123, "bk_biz_id": 7, "download_status": "downloadable"},
-        ),
     ],
 )
 def test_log_extract_resource_passes_through(monkeypatch, resource_class, api_name, request_data, response):
@@ -154,6 +148,44 @@ def test_search_files_rejects_more_than_ten_hosts():
 
     assert not serializer.is_valid()
     assert "ip_list" in serializer.errors
+
+
+@pytest.mark.parametrize(
+    ("raw_state", "process_info", "state", "terminal", "downloadable", "error"),
+    [
+        ("init", None, "pending", False, False, None),
+        ("packing", None, "running", False, False, None),
+        ("downloadable", None, "downloadable", True, True, None),
+        ("failed", "packing failed", "failed", True, False, "packing failed"),
+        ("expired", None, "expired", True, False, None),
+        ("new_status", None, "unknown", True, False, "Unsupported BK Log task status: new_status"),
+    ],
+)
+def test_get_task_normalizes_polling_state(
+    monkeypatch, raw_state, process_info, state, terminal, downloadable, error
+):
+    api_resource = Mock(
+        return_value={
+            "task_id": 123,
+            "bk_biz_id": 7,
+            "download_status": raw_state,
+            "task_process_info": process_info,
+        }
+    )
+    monkeypatch.setattr(api.log_search, "get_log_extract_task", api_resource)
+
+    result = GetLogExtractTaskResource().perform_request({"bk_biz_id": 7, "task_id": 123})
+
+    assert result == {
+        "task_id": 123,
+        "bk_biz_id": 7,
+        "state": state,
+        "raw_state": raw_state,
+        "terminal": terminal,
+        "downloadable": downloadable,
+        "error": error,
+    }
+    api_resource.assert_called_once_with(bk_biz_id=7, task_id=123)
 
 
 def test_get_download_url_passes_through(monkeypatch):

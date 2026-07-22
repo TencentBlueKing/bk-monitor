@@ -232,7 +232,7 @@ paths:
   /mcp/get_log_extract_task/:
     get:
       operationId: get_log_extract_task
-      description: Get a log-extraction task. The response follows the BK Log task-detail API; inspect download_status to determine progress. 查询日志提取任务，返回值透传日志平台任务详情接口。
+      description: Get the stable polling state of a log-extraction task as {task_id, bk_biz_id, state, raw_state, terminal, downloadable, error}. state is one of pending, running, downloadable, failed, expired, or unknown. Stop polling when terminal is true, and call get_log_extract_download_url only when downloadable is true. 查询日志提取任务的稳定轮询状态，返回 {task_id, bk_biz_id, state, raw_state, terminal, downloadable, error}；state 为 pending、running、downloadable、failed、expired 或 unknown。terminal 为 true 时停止轮询，仅当 downloadable 为 true 时调用下载地址工具。
       tags: [log_extract_mcp]
       parameters:
       - {in: query, name: bk_biz_id, required: true, schema: {type: integer}, description: Business ID. 业务ID。}

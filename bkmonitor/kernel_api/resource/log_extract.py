@@ -6,6 +6,20 @@ from core.drf_resource import Resource, api
 
 
 FILE_SEARCH_RESULT_LIMIT = 100
+TASK_STATE_BY_DOWNLOAD_STATUS = {
+    "init": "pending",
+    "pipeline": "running",
+    "packing": "running",
+    "distributing": "running",
+    "distributing_packing": "running",
+    "uploading": "running",
+    "cstone_uploading": "running",
+    "cos_upload": "running",
+    "downloadable": "downloadable",
+    "failed": "failed",
+    "expired": "expired",
+}
+TERMINAL_TASK_STATES = {"downloadable", "failed", "expired", "unknown"}
 
 
 def build_business_scope(bk_biz_id):
@@ -109,7 +123,24 @@ class GetLogExtractTaskResource(Resource):
         task_id = serializers.IntegerField(required=True, min_value=1)
 
     def perform_request(self, validated_request_data):
-        return api.log_search.get_log_extract_task(**validated_request_data)
+        task = api.log_search.get_log_extract_task(**validated_request_data)
+        raw_state = task.get("download_status")
+        state = TASK_STATE_BY_DOWNLOAD_STATUS.get(raw_state, "unknown")
+        error = None
+        if state == "failed":
+            error = task.get("task_process_info") or "Log extraction task failed."
+        elif state == "unknown":
+            error = f"Unsupported BK Log task status: {raw_state}"
+
+        return {
+            "task_id": task.get("task_id", validated_request_data["task_id"]),
+            "bk_biz_id": task.get("bk_biz_id", validated_request_data["bk_biz_id"]),
+            "state": state,
+            "raw_state": raw_state,
+            "terminal": state in TERMINAL_TASK_STATES,
+            "downloadable": state == "downloadable",
+            "error": error,
+        }
 
 
 class GetLogExtractDownloadUrlResource(Resource):
