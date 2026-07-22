@@ -106,7 +106,6 @@
             <JsonFormatter
               :fields="getFieldItem(field.field_name)"
               :json-value="getFieldValue(field)"
-              :limit-row="limitRow"
               :render-meta="renderMeta"
               @menu-click="agrs => handleJsonSegmentClick(agrs, field.field_name)"
             ></JsonFormatter>
@@ -324,9 +323,6 @@
       hasMoreData() {
         return this.renderCount < this.showFieldListCache.length;
       },
-      limitRow() {
-        return this.formatJson ? 'auto' : undefined;
-      }
     },
     watch: {
       isAllowEmptyField() {
