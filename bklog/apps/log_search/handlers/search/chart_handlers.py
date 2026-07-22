@@ -43,8 +43,7 @@ from luqum.tree import (
 from opentelemetry import trace
 
 from apps.api import BkDataQueryApi
-from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SQL
+
 from apps.log_search import metrics
 from apps.log_search.constants import (
     SQL_CONDITION_MAPPINGS,
@@ -58,7 +57,6 @@ from apps.log_search.exceptions import (
     IndexSetDorisQueryException,
     SQLQueryException,
 )
-from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import LogIndexSet
 from apps.log_search.utils import add_highlight_mark
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
@@ -427,19 +425,16 @@ class ChartHandler:
         :param bk_biz_id: 业务ID
         """
         if not sort_list:
-            if FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
-                sort_list = UnifyQueryMappingHandler.get_sort_list_by_index_id(index_set_id)
-                if not sort_list:
-                    now_time = arrow.now()
-                    params = {
-                        "index_set_ids": [index_set_id],
-                        "bk_biz_id": bk_biz_id,
-                        "start_time": now_time.shift(days=-1).format("YYYY-MM-DD HH:mm:ss"),
-                        "end_time": now_time.format("YYYY-MM-DD HH:mm:ss"),
-                    }
-                    sort_list = UnifyQueryHandler(params).origin_order_by
-            else:
-                sort_list = SearchHandler(index_set_id, {}).sort_list
+            sort_list = UnifyQueryMappingHandler.get_sort_list_by_index_id(index_set_id)
+            if not sort_list:
+                now_time = arrow.now()
+                params = {
+                    "index_set_ids": [index_set_id],
+                    "bk_biz_id": bk_biz_id,
+                    "start_time": now_time.shift(days=-1).format("YYYY-MM-DD HH:mm:ss"),
+                    "end_time": now_time.format("YYYY-MM-DD HH:mm:ss"),
+                }
+                sort_list = UnifyQueryHandler(params).origin_order_by
         # 构建 ORDER BY 子句
         order_by_clause = ""
         for field, direction in sort_list:
@@ -631,21 +626,8 @@ class SQLChartHandler(ChartHandler):
         alias_mappings = params["alias_mappings"]
         grep_field = params.get("grep_field")
         grep_query = params.get("grep_query")
-        bk_biz_id = space_uid_to_bk_biz_id(self.data.space_uid)
 
         where_conditions = []
-        # 非 UnifyQuery，需要将查询条件转换为WHERE子句
-        if not FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
-            where_conditions.append(
-                self.generate_sql(
-                    addition=params["addition"],
-                    start_time=params["start_time"],
-                    end_time=params["end_time"],
-                    keyword=params.get("keyword"),
-                    action=SQLGenerateMode.WHERE_CLAUSE.value,
-                    alias_mappings=alias_mappings,
-                )
-            )
         # 将grep语句转换为WHERE子句
         if grep_query and grep_field:
             grep_nodes = grep_parser(grep_query)
@@ -656,10 +638,9 @@ class SQLChartHandler(ChartHandler):
             )
             where_conditions.append(grep_where_clause)
 
-        # 生成最终的SQL语句，非 UnifyQuery 需要加上FROM子句
+        # 生成最终的SQL语句（查询已统一走 UnifyQuery，由 UnifyQuery 自行处理
+        # 查询条件、FROM 子句和表路由，此处只传递 grep 过滤条件）
         sql_str = f"SELECT {select_clause}"
-        if not FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
-            sql_str += f" FROM {self.data.doris_table_id}"
         if where_conditions:
             sql_str += f" WHERE {' AND '.join(where_conditions)}"
         if with_order_by:
