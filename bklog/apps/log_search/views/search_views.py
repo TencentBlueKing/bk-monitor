@@ -37,7 +37,7 @@ from io import BytesIO
 from apps.constants import NotifyType, UserOperationActionEnum, UserOperationTypeEnum
 from apps.decorators import user_operation_record
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH, UNIFY_QUERY_SQL
+from apps.feature_toggle.plugins.constants import UNIFY_QUERY_SEARCH
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import (
@@ -2027,14 +2027,12 @@ class SearchViewSet(APIViewSet):
         params = self.params_valid(ChartSerializer)
         bk_biz_id = space_uid_to_bk_biz_id(self.get_object().space_uid)
 
-        if FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
-            params["index_set_ids"] = [index_set_id]
-            params["bk_biz_id"] = bk_biz_id
-            query_handler = UnifyQueryChartHandler(params)
-            result = query_handler.get_chart_data()
-        else:
-            instance = ChartHandler.get_instance(index_set_id=index_set_id, mode=params["query_mode"])
-            result = instance.get_chart_data(params)
+        params["index_set_ids"] = [index_set_id]
+        params["bk_biz_id"] = bk_biz_id
+
+        query_handler = UnifyQueryChartHandler(params)
+        result = query_handler.get_chart_data()
+
         return Response(result)
 
     @detail_route(methods=["POST"], url_path="export_chart_data")
@@ -2047,6 +2045,7 @@ class SearchViewSet(APIViewSet):
         """
         params = self.params_valid(ChartSerializer)
         bk_biz_id = space_uid_to_bk_biz_id(self.get_object().space_uid)
+
         params["index_set_ids"] = [index_set_id]
         params["bk_biz_id"] = bk_biz_id
 
@@ -2077,23 +2076,15 @@ class SearchViewSet(APIViewSet):
         }
         """
         params = self.params_valid(UISearchSerializer)
-        params["sql"] = params["sql"] or f"{SQL_PREFIX} {SQL_SUFFIX}"
         bk_biz_id = space_uid_to_bk_biz_id(self.get_object().space_uid)
 
-        if FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
-            params["index_set_ids"] = [index_set_id]
-            params["bk_biz_id"] = bk_biz_id
-            query_handler = UnifyQueryChartHandler(params)
-            data = query_handler.generate_sql()
-        else:
-            data = ChartHandler.generate_sql(
-                addition=params["addition"],
-                start_time=params["start_time"],
-                end_time=params["end_time"],
-                sql_param=params["sql"],
-                keyword=params["keyword"],
-                alias_mappings=params["alias_mappings"],
-            )
+        params["sql"] = params["sql"] or f"{SQL_PREFIX} {SQL_SUFFIX}"
+        params["index_set_ids"] = [index_set_id]
+        params["bk_biz_id"] = bk_biz_id
+
+        query_handler = UnifyQueryChartHandler(params)
+        data = query_handler.generate_sql()
+
         return Response(data)
 
     @list_route(methods=["POST"], url_path="generate_querystring")

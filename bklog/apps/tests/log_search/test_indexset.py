@@ -1430,22 +1430,28 @@ class TestSyncRouter(TestCase):
             support_doris=False,
         )
         params.update(extra)
-        index_set = LogIndexSet.objects.create(**params)
-        # 原生 Doris 同样有 ES 层面的 LogIndexSetData
-        LogIndexSetData.objects.create(
-            index_set_id=index_set.index_set_id,
-            result_table_id="591_native",
-            scenario_id=Scenario.LOG,
-            bk_biz_id=2,
-        )
-        # CollectorConfig 记录，避免 ES 路由中 collector_config.is_nanos 报错
-        CollectorConfig.objects.create(
+
+        # 先创建 CollectorConfig 记录，再创建 LogIndexSet 并双向关联
+        collector_config = CollectorConfig.objects.create(
             table_id="591_native",
             bk_biz_id=2,
             collector_config_name="native_doris_cc",
             collector_scenario_id="log",
             category_id="other_rt",
             storage_cluster_type=DORIS_CLUSTER_TYPE,
+        )
+        params["collector_config_id"] = collector_config.collector_config_id
+        index_set = LogIndexSet.objects.create(**params)
+
+        collector_config.index_set_id = index_set.index_set_id
+        collector_config.save(update_fields=["index_set_id"])
+
+        # 原生 Doris 同样有 ES 层面的 LogIndexSetData
+        LogIndexSetData.objects.create(
+            index_set_id=index_set.index_set_id,
+            result_table_id="591_native",
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
         )
         return index_set
 
@@ -1464,20 +1470,26 @@ class TestSyncRouter(TestCase):
             support_doris=True,
         )
         params.update(extra)
-        index_set = LogIndexSet.objects.create(**params)
-        LogIndexSetData.objects.create(
-            index_set_id=index_set.index_set_id,
-            result_table_id="591_xx",
-            scenario_id=Scenario.LOG,
-            bk_biz_id=2,
-        )
-        CollectorConfig.objects.create(
+
+        collector_config = CollectorConfig.objects.create(
             table_id="591_xx",
             bk_biz_id=2,
             collector_config_name="es_doris_cc",
             collector_scenario_id="log",
             category_id="other_rt",
             storage_cluster_type=STORAGE_CLUSTER_TYPE,
+        )
+        params["collector_config_id"] = collector_config.collector_config_id
+        index_set = LogIndexSet.objects.create(**params)
+
+        collector_config.index_set_id = index_set.index_set_id
+        collector_config.save(update_fields=["index_set_id"])
+
+        LogIndexSetData.objects.create(
+            index_set_id=index_set.index_set_id,
+            result_table_id="591_xx",
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
         )
         return index_set
 
@@ -1523,12 +1535,20 @@ class TestSyncRouter(TestCase):
     # 场景 1：原生 Doris 采集项
     # ==================================================================
 
+    def _assert_native_doris_identity(self, index_set: LogIndexSet):
+        """断言索引集被正确识别为原生 Doris 采集项"""
+        self.assertTrue(index_set.is_native_doris())
+        # 原生 Doris 不依赖 Doris 标签，而是通过 storage_cluster_type 识别
+        doris_tag_id = self._ensure_doris_tag()
+        self.assertNotIn(doris_tag_id, [str(t) for t in (index_set.tag_ids or [])])
+
     def test_native_doris_default(self):
         """
         原生 Doris —— get_index_set_table_info_list(is_analysis=False)
         期望：走 ES 路由分支，返回 __default__ 后缀条目
         """
         index_set = self._build_native_doris_index_set()
+        self._assert_native_doris_identity(index_set)
         result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False)
         self.assertEqual(len(result), 1)
         info = result[0]
@@ -1544,6 +1564,7 @@ class TestSyncRouter(TestCase):
         期望：doris_table_id 为空 → 返回空列表（不创建 analysis 路由）
         """
         index_set = self._build_native_doris_index_set()
+        self._assert_native_doris_identity(index_set)
         result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=True)
         self.assertEqual(result, [])
 
@@ -1552,6 +1573,7 @@ class TestSyncRouter(TestCase):
         原生 Doris —— sync_router 只注册一次（默认路由），不注册 analysis 路由
         """
         index_set = self._build_native_doris_index_set()
+        self._assert_native_doris_identity(index_set)
         append_calls = []
 
         def _capture_append(result_key, func, params=None, use_request=True, multi_func_params=False):
@@ -1574,12 +1596,19 @@ class TestSyncRouter(TestCase):
     # 场景 2：存量 ES + Doris 采集项
     # ==================================================================
 
+    def _assert_legacy_es_doris_identity(self, index_set: LogIndexSet):
+        """断言索引集被正确识别为存量 ES（非原生 Doris）采集项"""
+        self.assertFalse(index_set.is_native_doris())
+        # 存量 ES 采集项有 doris_table_id 但 storage_cluster_type 不是 doris
+        self.assertIsNotNone(index_set.doris_table_id)
+
     def test_es_doris_default(self):
         """
         存量 ES + Doris —— get_index_set_table_info_list(is_analysis=False)
         期望：走 ES 路由分支，返回 __default__ 后缀条目
         """
         index_set = self._build_es_doris_index_set()
+        self._assert_legacy_es_doris_identity(index_set)
         result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False)
         self.assertEqual(len(result), 1)
         info = result[0]
@@ -1641,12 +1670,21 @@ class TestSyncRouter(TestCase):
     # 场景 3：手动接入 Doris 集群的采集项
     # ==================================================================
 
+    def _assert_manual_doris_identity(self, index_set: LogIndexSet):
+        """断言索引集被正确识别为手动接入 Doris（非原生 Doris）采集项"""
+        self.assertFalse(index_set.is_native_doris())
+        # 手动接入 Doris 应有 Doris 标签和 doris_table_id
+        doris_tag_id = self._ensure_doris_tag()
+        self.assertIn(doris_tag_id, [str(t) for t in (index_set.tag_ids or [])])
+        self.assertIsNotNone(index_set.doris_table_id)
+
     def test_manual_doris_default(self):
         """
         手动接入 Doris —— get_index_set_table_info_list(is_analysis=False)
         期望：返回 Doris 条目，后缀 __doris__
         """
         index_set = self._build_manual_doris_index_set()
+        self._assert_manual_doris_identity(index_set)
         result = BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False)
         self.assertEqual(len(result), 2)
         for info in result:
@@ -1722,3 +1760,68 @@ class TestSyncRouter(TestCase):
 
         self.assertEqual(BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False), [])
         self.assertEqual(BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=True), [])
+
+    # ==================================================================
+    # 查询链路决策断言（is_native_doris + UNIFY_QUERY_SQL toggle）
+    # ==================================================================
+
+    def _assert_query_path(self, index_set, toggle_on, expect_unify_query):
+        """
+        辅助方法：模拟 ChartHandler 的查询链路决策逻辑，验证是否进入 UnifyQuery 路径。
+
+        ChartHandler 中的决策逻辑为：
+            if self.is_native_doris or FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
+                # UnifyQuery 路径
+            else:
+                # 直连 Doris 路径
+
+        参数：
+            index_set: LogIndexSet 实例
+            toggle_on: UNIFY_QUERY_SQL 开关是否开启
+            expect_unify_query: 是否期望走 UnifyQuery 路径
+        """
+        is_native = index_set.is_native_doris()
+
+        if is_native:
+            # 原生 Doris：无论 toggle 状态，都走 UnifyQuery
+            self.assertTrue(
+                expect_unify_query,
+                "原生 Doris 始终走 UnifyQuery 路径，不应期望直连 Doris",
+            )
+        else:
+            # 非原生：仅 toggle=ON 时走 UnifyQuery
+            self.assertEqual(
+                toggle_on,
+                expect_unify_query,
+                "非原生 Doris 仅在 toggle=ON 时走 UnifyQuery",
+            )
+
+    def test_query_path_native_doris_toggle_on(self):
+        """原生 Doris + UNIFY_QUERY_SQL=ON → 走 UnifyQuery 路径"""
+        index_set = self._build_native_doris_index_set()
+        self._assert_query_path(index_set, toggle_on=True, expect_unify_query=True)
+
+    def test_query_path_native_doris_toggle_off(self):
+        """原生 Doris + UNIFY_QUERY_SQL=OFF → 仍走 UnifyQuery 路径（is_native_doris 短路）"""
+        index_set = self._build_native_doris_index_set()
+        self._assert_query_path(index_set, toggle_on=False, expect_unify_query=True)
+
+    def test_query_path_es_doris_toggle_on(self):
+        """存量 ES + Doris + UNIFY_QUERY_SQL=ON → 走 UnifyQuery 路径"""
+        index_set = self._build_es_doris_index_set()
+        self._assert_query_path(index_set, toggle_on=True, expect_unify_query=True)
+
+    def test_query_path_es_doris_toggle_off(self):
+        """存量 ES + Doris + UNIFY_QUERY_SQL=OFF → 走直连 Doris 路径"""
+        index_set = self._build_es_doris_index_set()
+        self._assert_query_path(index_set, toggle_on=False, expect_unify_query=False)
+
+    def test_query_path_manual_doris_toggle_on(self):
+        """手动接入 Doris + UNIFY_QUERY_SQL=ON → 走 UnifyQuery 路径"""
+        index_set = self._build_manual_doris_index_set()
+        self._assert_query_path(index_set, toggle_on=True, expect_unify_query=True)
+
+    def test_query_path_manual_doris_toggle_off(self):
+        """手动接入 Doris + UNIFY_QUERY_SQL=OFF → 走直连 Doris 路径"""
+        index_set = self._build_manual_doris_index_set()
+        self._assert_query_path(index_set, toggle_on=False, expect_unify_query=False)

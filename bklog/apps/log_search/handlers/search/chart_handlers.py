@@ -61,6 +61,7 @@ from apps.log_search.exceptions import (
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import LogIndexSet
 from apps.log_search.utils import add_highlight_mark
+from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.chart import UnifyQueryChartHandler
 from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
 from apps.utils.grep_syntax_parse import grep_parser
@@ -428,6 +429,15 @@ class ChartHandler:
         if not sort_list:
             if FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
                 sort_list = UnifyQueryMappingHandler.get_sort_list_by_index_id(index_set_id)
+                if not sort_list:
+                    now_time = arrow.now()
+                    params = {
+                        "index_set_ids": [index_set_id],
+                        "bk_biz_id": bk_biz_id,
+                        "start_time": now_time.shift(days=-1).format("YYYY-MM-DD HH:mm:ss"),
+                        "end_time": now_time.format("YYYY-MM-DD HH:mm:ss"),
+                    }
+                    sort_list = UnifyQueryHandler(params).origin_order_by
             else:
                 sort_list = SearchHandler(index_set_id, {}).sort_list
         # 构建 ORDER BY 子句
@@ -683,16 +693,15 @@ class SQLChartHandler(ChartHandler):
         trace_params = {"sql": sql}
         try:
             bk_biz_id = space_uid_to_bk_biz_id(self.data.space_uid)
-            if FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
-                params["index_set_ids"] = [self.index_set_id]
-                params["bk_biz_id"] = bk_biz_id
-                params["sql"] = sql
-                # 执行 UnifyQuery 查询
-                query_handler = UnifyQueryChartHandler(params)
-                result = query_handler.get_chart_data()
-            else:
-                # 执行 doris 查询
-                result = self.fetch_query_data(sql)
+
+            params["index_set_ids"] = [self.index_set_id]
+            params["bk_biz_id"] = bk_biz_id
+            params["sql"] = sql
+
+            # 执行 UnifyQuery 查询
+            query_handler = UnifyQueryChartHandler(params)
+            result = query_handler.get_chart_data()
+
             trace_params.update({"total_records": result["total_records"], "time_taken": result["time_taken"]})
         finally:
             self.add_doris_query_trace(**trace_params)
@@ -722,20 +731,17 @@ class SQLChartHandler(ChartHandler):
 
         try:
             bk_biz_id = space_uid_to_bk_biz_id(self.data.space_uid)
-            if FeatureToggleObject.switch(UNIFY_QUERY_SQL, bk_biz_id):
-                params["index_set_ids"] = [self.index_set_id]
-                params["bk_biz_id"] = bk_biz_id
-                params["sql"] = sql
-                # 执行 UnifyQuery 查询
-                query_handler = UnifyQueryChartHandler(params)
-                result = query_handler.get_chart_data()
-                total = result["list"][0]["total"] if result["list"] else 0
-                time_taken = result["time_taken"]
-            else:
-                # 执行 doris 查询
-                result = self.fetch_query_data(sql)
-                total = result["list"][0]["total"] if result["list"] else 0
-                time_taken = result["time_taken"]
+
+            params["index_set_ids"] = [self.index_set_id]
+            params["bk_biz_id"] = bk_biz_id
+            params["sql"] = sql
+
+            # 执行 UnifyQuery 查询
+            query_handler = UnifyQueryChartHandler(params)
+            result = query_handler.get_chart_data()
+
+            total = result["list"][0]["total"] if result["list"] else 0
+            time_taken = result["time_taken"]
             trace_params.update({"time_taken": time_taken})
         finally:
             self.add_doris_query_trace(**trace_params)
