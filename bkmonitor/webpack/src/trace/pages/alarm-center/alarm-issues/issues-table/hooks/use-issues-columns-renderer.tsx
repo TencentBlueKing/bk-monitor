@@ -37,6 +37,7 @@ import {
   type TableCellRenderContext,
   ExploreTableColumnTypeEnum,
 } from '../../../../trace-explore/components/trace-explore-table/typing';
+import { isEllipsisActiveLine } from '../../../../trace-explore/components/trace-explore-table/utils/dom-helper';
 import MiniBarChart from '../../components/mini-bar-chart/mini-bar-chart';
 import {
   IMPACT_SCOPE_SORT_ORDER_MAP,
@@ -149,8 +150,20 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
             <i class='icon-monitor icon-alert-line' />
             <span class='issues-alert-count-number'>{row.alert_count}</span>
           </span>
-          <span class={['issues-name-exception-text', renderCtx.isEnabledCellEllipsis(column)]}>
-            {row.anomaly_message}
+          <span
+            class='issues-name-exception-text'
+            onMouseenter={e => {
+              const el = e.target as HTMLElement;
+              const { isEllipsisActive, content } = isEllipsisActiveLine(el);
+              if (isEllipsisActive) {
+                rendererCtx.hoverPopoverTools.showPopover(e, content, {
+                  theme: 'max-width-40vw text-wrap',
+                });
+              }
+            }}
+            onMouseleave={() => rendererCtx.hoverPopoverTools.clearPopoverTimer()}
+          >
+            {row.log_content || row.anomaly_message || '--'}
           </span>
         </div>
       </div>
