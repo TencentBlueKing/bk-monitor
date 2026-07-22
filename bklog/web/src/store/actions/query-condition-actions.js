@@ -4,8 +4,12 @@
  */
 import DOMPurify from 'dompurify';
 
-import { compileFieldValueToQueryString } from '@/hooks/log-query-compiler';
+import {
+  compileFieldValueToQueryString,
+  escapeQueryStringPhraseLiteral,
+} from '@/hooks/log-query-compiler';
 import { storeCacheService } from '@/storage';
+
 
 import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '../store.type.ts';
 
@@ -82,7 +86,8 @@ export function setQueryConditionAction({ state, dispatch }, payload) {
     const safeValue = typeof raw === 'string' ? DOMPurify.sanitize(raw) : raw;
 
     if (field === '*' || !field) {
-      const inner = String(safeValue ?? '').replace(/["\\]/g, '\\$&');
+      // 与 resolveAddToSearch / Builder 同一套短语转义，避免旁路二次实现
+      const inner = escapeQueryStringPhraseLiteral(String(safeValue ?? ''));
       const neg = ['is not', 'not contains match phrase', 'not contains', '!='].includes(operator);
       return neg ? `NOT "${inner}"` : `"${inner}"`;
     }

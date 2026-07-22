@@ -75,12 +75,48 @@ const buildNode = (
   return buildLeaf(node, ctx, options);
 };
 
-/** Query String Builder（语句模式主输出） */
+/**
+ * 仅压缩「引号外」空白；保留短语内部空白与 `\ ` 转义空格。
+ * 禁止对整串做 /\s+/g，否则会破坏 `"a  b"` / 换行字面量。
+ */
+const collapseOutsideQuotes = (input: string): string => {
+  let result = '';
+  let i = 0;
+  let inQuote = false;
+  while (i < input.length) {
+    const ch = input[i];
+    if (ch === '\\' && i + 1 < input.length) {
+      result += ch + input[i + 1];
+      i += 2;
+      continue;
+    }
+    if (ch === '"') {
+      inQuote = !inQuote;
+      result += ch;
+      i += 1;
+      continue;
+    }
+    if (!inQuote && (ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r')) {
+      if (result && !result.endsWith(' ')) {
+        result += ' ';
+      }
+      while (i < input.length && /\s/.test(input[i])) {
+        i += 1;
+      }
+      continue;
+    }
+    result += ch;
+    i += 1;
+  }
+  return result.trim();
+};
+
+/** Query String Builder（语句模式主输出；转义仅在 leaf 发生一次） */
 export const buildQueryString = (
   ast: AstNode,
   ctx: SelectionContext,
   options: QueryCompilerOptions,
-): string => buildNode(ast, ctx, options).replace(/\s+/g, ' ').trim();
+): string => collapseOutsideQuotes(buildNode(ast, ctx, options));
 
 export {
   escapeQueryStringPhraseLiteral,

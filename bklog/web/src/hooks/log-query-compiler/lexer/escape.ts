@@ -6,19 +6,16 @@
  */
 
 /**
- * Query String 保留字（用于 wildcard term 内部字面量）。
+ * Query String 保留字（wildcard term 内部字面量）。
  *
- * 与 Lucene/ES query_string 对齐；刻意排除连字符 `-`：
- * 词内连字符（bk-system）转义为 bk\-system 会导致匹配副作用，
- * 产品约定保持原文：key: *bk-system*。
- *
+ * 与 Lucene/ES query_string、后端 ES_RESERVED_CHARACTERS 对齐（含 `-`）。
  * 必须单次 replace，避免把本次插入的反斜杠再次转义。
  */
-const QUERY_STRING_WILDCARD_RESERVED = /&&|\|\||[+\-=!(){}[\]^"~*?:\\/ ]/g;
+export const QUERY_STRING_RESERVED = /&&|\|\||[+\-=!(){}[\]^"~*?:\\/ ]/g;
 
 /**
  * 转义即将放进 wildcard term 内部的用户字面量。
- * 例：a:b"c → a\:b\"c ；空格 → \ 
+ * 例：a:b"c → a\:b\"c ；cs-k8s → cs\-k8s ；字面量 * → \*
  *
  * Query String 无法可靠转义 < 和 >，遇到则抛错，由 Builder 降级为 phrase。
  */
@@ -27,8 +24,7 @@ export const escapeQueryStringWildcardLiteral = (value: string): string => {
   if (/[<>]/.test(text)) {
     throw new Error('Query String 不支持包含 < 或 > 的字面量 wildcard');
   }
-  // 去掉字符类中的 `-`：产品要求 bk-system 不转义
-  return text.replace(/&&|\|\||[+ =!(){}[\]^"~*?:\\/]/g, '\\$&');
+  return text.replace(QUERY_STRING_RESERVED, '\\$&');
 };
 
 /**
@@ -93,6 +89,9 @@ const resolveWildcardAffixByChar = (
 /**
  * 按字段分词列表位置判定前后通配。
  * 优先 tokenIndex/tokenCount；无分词元信息时回退到字符位置。
+ *
+ * 注意：用户字面量中的 `*` 不是「已处理过的通配」，仍按位置补前后 *，
+ * 字面量 `*` 在 buildContainsQuery 内转义为 `\*`。
  */
 export const resolveWildcardAffix = (
   selectedValue: string,
@@ -100,7 +99,7 @@ export const resolveWildcardAffix = (
   options?: PositionalWildcardOptions,
 ): { prefix: boolean; suffix: boolean } => {
   const selected = String(selectedValue ?? '');
-  if (!selected || selected.includes('*')) {
+  if (!selected) {
     return { prefix: false, suffix: false };
   }
 
@@ -148,7 +147,6 @@ export const applyPositionalWildcard = (
 ): string => {
   const selected = String(selectedValue ?? '');
   if (!selected) return selected;
-  if (selected.includes('*')) return selected;
 
   const { prefix, suffix } = resolveWildcardAffix(selected, fullPlainValue, options);
   return `${prefix ? '*' : ''}${selected}${suffix ? '*' : ''}`;
@@ -156,7 +154,8 @@ export const applyPositionalWildcard = (
 
 /**
  * keyword/flattened 语句片段。
- * 先按原文判定通配位置，再转义字面量，避免 a:b 全值被误写成 *a\:b*。
+ * 先按原文判定通配位置，再转义字面量（含字面量 * → \*），最后只包一层位置通配。
+ * 禁止「先转义再判定」或「先包 * 再整体转义」，避免重复解析/二次转义。
  */
 export const buildContainsQuery = (
   field: string,
@@ -167,9 +166,6 @@ export const buildContainsQuery = (
   const selected = String(selectedText ?? '');
   if (!selected) {
     return `${field}: `;
-  }
-  if (selected.includes('*')) {
-    return `${field}: ${selected}`;
   }
 
   const { prefix, suffix } = resolveWildcardAffix(selected, fullPlain, options);
@@ -193,6 +189,21 @@ export const escapeQueryValue = (
   if (options.quoted) {
     return escapeQueryStringPhraseLiteral(value);
   }
+
+  // keepWildcards：仅保留首尾意图通配 `*`，核心字面量仍走单次转义
+  if (options.keepWildcards) {
+    const text = String(value ?? '');
+    const hasPrefix = text.startsWith('*');
+    const hasSuffix = text.length > 1 && text.endsWith('*');
+    const core = text.slice(hasPrefix ? 1 : 0, hasSuffix ? -1 : undefined);
+    try {
+      const escaped = escapeQueryStringWildcardLiteral(core);
+      return `${hasPrefix ? '*' : ''}${escaped}${hasSuffix ? '*' : ''}`;
+    } catch {
+      return escapeQueryStringPhraseLiteral(value);
+    }
+  }
+
   try {
     return escapeQueryStringWildcardLiteral(value);
   } catch {
@@ -201,4 +212,5 @@ export const escapeQueryValue = (
   }
 };
 
-export { QUERY_STRING_WILDCARD_RESERVED };
+/** @deprecated 使用 QUERY_STRING_RESERVED */
+export const QUERY_STRING_WILDCARD_RESERVED = QUERY_STRING_RESERVED;

@@ -62,16 +62,9 @@ export const formatSqlContainsValues = (
     return values;
   }
   return (values ?? []).map((item) => {
-    // 先按原文判定通配，再转义字面量（与 buildContainsQuery 一致）
+    // 先按原文判定通配，再单次转义（与 buildContainsQuery 一致；keepWildcards 保留首尾 *）
     const pattern = applyPositionalWildcard(item, fullPlainValue, options);
-    if (pattern === item || !pattern.includes('*')) {
-      return escapeQueryValue(pattern, { keepWildcards: true });
-    }
-    const hasPrefix = pattern.startsWith('*');
-    const hasSuffix = pattern.endsWith('*');
-    const core = pattern.slice(hasPrefix ? 1 : 0, hasSuffix ? -1 : undefined);
-    const escaped = escapeQueryValue(core, { keepWildcards: true });
-    return `${hasPrefix ? '*' : ''}${escaped}${hasSuffix ? '*' : ''}`;
+    return escapeQueryValue(pattern, { keepWildcards: true });
   });
 };
 

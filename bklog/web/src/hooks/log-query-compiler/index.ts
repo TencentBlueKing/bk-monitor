@@ -15,6 +15,7 @@ export {
   resolveWildcardAffix,
   buildContainsQuery,
   buildPhraseQuery,
+  QUERY_STRING_RESERVED,
 } from './lexer/escape';
 export { normalizeInput } from './lexer/normalize';
 export {

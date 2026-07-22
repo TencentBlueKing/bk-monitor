@@ -17,6 +17,7 @@ import { tokenize } from './lexer/tokenizer';
 import { parseTokens } from './parser/parser';
 import {
   DEFAULT_COMPILER_OPTIONS,
+  type AstNode,
   type CompileResult,
   type CompilerOutputMode,
   type QueryCompilerOptions,
@@ -105,8 +106,10 @@ export const compileToQueryString = (
 }).queryString;
 
 /**
- * 从「已解析的 field + value + fieldType」直接编译（跳过 Smart 拆词与深度 Normalize）。
+ * 从「已解析的 field + value + fieldType」直接编译（跳过 Smart 拆词与 Lexer/Parser）。
  * 适用于：划词最小分词补齐之后、点击分词、Tag 添加等上游已完成 Value 语义的场景。
+ *
+ * 转义只发生在 Builder 一次，禁止再次 tokenize 已转义串（避免重复解析/二次转义）。
  *
  * 返回完整 CompileResult：语句模式用 queryString，UI 模式用 uiCondition。
  */
@@ -121,22 +124,62 @@ export const compileFieldValue = (params: {
   isSoleToken?: boolean;
   tokenIndex?: number;
   tokenCount?: number;
-}): CompileResult => compile({
-  text: params.value,
-  field: params.field,
-  column: params.field,
-  fieldType: params.fieldType as SelectionContext['fieldType'],
-  fullText: params.fullText,
-  operatorHint: params.operatorHint,
-  isSoleToken: params.isSoleToken,
-  tokenIndex: params.tokenIndex,
-  tokenCount: params.tokenCount,
-}, 'query-string', {
-  tokenizerMode: 'phrase',
-  negative: params.negative,
-  detectField: false,
-  normalizeMode: 'light',
-});
+}): CompileResult => {
+  const opts = mergeOptions('query-string', {
+    tokenizerMode: 'phrase',
+    negative: params.negative,
+    detectField: false,
+    normalizeMode: 'light',
+    wildcardForKeyword: true,
+  });
+
+  // 仅轻量 Normalize：不走 Lexer/Parser，避免对已解析 Value 重复拆词再拼接
+  const value = normalizeInputLight(String(params.value ?? ''));
+  const ctx = normalizeSelectionContext({
+    text: value,
+    field: params.field,
+    column: params.field,
+    fieldType: params.fieldType as SelectionContext['fieldType'],
+    fullText: params.fullText,
+    operatorHint: params.operatorHint,
+    isSoleToken: params.isSoleToken,
+    tokenIndex: params.tokenIndex,
+    tokenCount: params.tokenCount,
+  });
+
+  if (!value) {
+    return {
+      queryString: '',
+      ast: { type: 'Root', children: [] },
+      tokens: [],
+      options: opts,
+    };
+  }
+
+  let ast: AstNode = {
+    type: 'Root',
+    children: [{
+      type: 'Phrase',
+      field: params.field,
+      fieldType: ctx.fieldType,
+      value,
+      valueKind: 'Phrase',
+      matchMode: 'phrase',
+    }],
+  };
+
+  ast = analyzeSemantics(ast, ctx, opts);
+  ast = resolveFields(ast, ctx);
+  ast = mapOperatorHint(ast, ctx);
+
+  return {
+    queryString: buildQueryString(ast, ctx, opts),
+    uiCondition: buildUiCondition(ast, ctx),
+    ast,
+    tokens: [],
+    options: opts,
+  };
+};
 
 /** 仅取语句模式 query string（兼容旧调用） */
 export const compileFieldValueToQueryString = (
