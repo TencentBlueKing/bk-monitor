@@ -156,6 +156,19 @@ class ListScenesResource(LogSearchAPIGWResource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
 
 
+class SceneDimensionValuesResource(LogSearchAPIGWResource):
+    """场景化日志检索动态维度值列表。"""
+
+    action = "/scene/dimension_values/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+        scene = serializers.CharField(label="场景标识")
+        dimension_key = serializers.CharField(label="维度字段名")
+        filters = serializers.ListField(required=False, default=list, label="级联筛选条件")
+
+
 class SceneFieldsResource(LogSearchAPIGWResource):
     """场景化日志检索字段列表。"""
 

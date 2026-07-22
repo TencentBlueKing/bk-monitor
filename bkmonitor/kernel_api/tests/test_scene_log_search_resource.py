@@ -6,7 +6,12 @@ import pytest
 from django.test import override_settings
 
 from core.drf_resource import api
-from kernel_api.resource.log_search import GetSceneLogFieldsResource, ListLogScenesResource, SearchLogResource
+from kernel_api.resource.log_search import (
+    GetSceneLogFieldsResource,
+    ListLogScenesResource,
+    ListSceneDimensionValuesResource,
+    SearchLogResource,
+)
 
 
 SCENE_CONDITIONS = [[{"field_name": "scene", "value": ["k8s"], "op": "eq"}]]
@@ -121,6 +126,25 @@ def test_list_log_scenes_resource_calls_log_platform(monkeypatch):
     result = ListLogScenesResource().perform_request({"bk_biz_id": 2})
 
     list_scenes.assert_called_once_with(bk_biz_id=2)
+    assert result is platform_result
+
+
+def test_list_scene_dimension_values_resource_calls_log_platform(monkeypatch):
+    platform_result = {"dimension_key": "cluster_id", "values": ["BCS-K8S-00000"]}
+    scene_dimension_values = Mock(return_value=platform_result)
+    monkeypatch.setattr(api.log_search, "scene_dimension_values", scene_dimension_values)
+    request_data = {
+        "bk_biz_id": 2,
+        "scene": "k8s",
+        "dimension_key": "cluster_id",
+        "filters": [{"field_name": "stream", "value": ["stdout"], "op": "eq"}],
+    }
+    serializer = ListSceneDimensionValuesResource.RequestSerializer(data=request_data)
+    assert serializer.is_valid(), serializer.errors
+
+    result = ListSceneDimensionValuesResource().perform_request(serializer.validated_data)
+
+    scene_dimension_values.assert_called_once_with(**request_data)
     assert result is platform_result
 
 

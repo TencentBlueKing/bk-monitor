@@ -90,6 +90,38 @@ class ListLogScenesResource(Resource):
         return api.log_search.list_scenes(bk_biz_id=bk_biz_id)
 
 
+class ListSceneDimensionValuesResource(Resource):
+    """获取场景动态路由维度的合法值列表。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        scene = serializers.CharField(required=True, label="场景标识")
+        dimension_key = serializers.CharField(required=True, label="维度字段名")
+        filters = serializers.ListField(
+            child=SceneRouteConditionSerializer(), required=False, default=list, label="级联筛选条件"
+        )
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        scene = validated_request_data["scene"]
+        dimension_key = validated_request_data["dimension_key"]
+        filters = validated_request_data["filters"]
+        logger.info(
+            "ListSceneDimensionValuesResource: list dimension values, "
+            "bk_biz_id->[%s], scene->[%s], dimension_key->[%s], filter_count->[%s]",
+            bk_biz_id,
+            scene,
+            dimension_key,
+            len(filters),
+        )
+        return api.log_search.scene_dimension_values(
+            bk_biz_id=bk_biz_id,
+            scene=scene,
+            dimension_key=dimension_key,
+            filters=filters,
+        )
+
+
 class GetSceneLogFieldsResource(Resource):
     """获取场景路由条件命中结果表的聚合字段信息。"""
 

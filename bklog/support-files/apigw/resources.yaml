@@ -3417,3 +3417,25 @@ paths:
           appVerifiedRequired: true
           resourcePermissionRequired: true
         descriptionEn:
+  /scene/dimension_values/:
+    post:
+      operationId: scene_search_dimension_values
+      description: 场景化日志检索-动态维度值列表
+      tags:
+      - 场景化
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/search/scene/dimension_values/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:

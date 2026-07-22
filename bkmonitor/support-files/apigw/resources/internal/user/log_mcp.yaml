@@ -264,7 +264,7 @@ paths:
   /mcp/list_log_scenes/:
     get:
       operationId: list_log_scenes
-      description: 'List log scenes available to a business and their dimension definitions. Call this before get_scene_log_fields or scene-mode search_logs. Dimensions with choices_type static or dynamic are routing dimensions. Dimensions with choices_type free_input are log content fields and should be used in query_string. 获取业务可用的日志场景及维度定义。应在 get_scene_log_fields 或场景模式 search_logs 前调用。choices_type 为 static/dynamic 的维度是路由维度；free_input 维度是日志内容字段，应用于 query_string。'
+      description: 'List log scenes available to a business and their dimension definitions. Call this before get_scene_log_fields or scene-mode search_logs. Dimensions with choices_type static or dynamic are routing dimensions; call list_scene_dimension_values to resolve values for dynamic dimensions. Dimensions with choices_type free_input are log content fields and should be used in query_string. 获取业务可用的日志场景及维度定义。应在 get_scene_log_fields 或场景模式 search_logs 前调用。choices_type 为 static/dynamic 的维度是路由维度；dynamic 维度应调用 list_scene_dimension_values 获取合法值；free_input 维度是日志内容字段，应用于 query_string。'
       tags:
       - log_mcp
       parameters:
@@ -290,10 +290,78 @@ paths:
           userVerifiedRequired: true
           appVerifiedRequired: false
           resourcePermissionRequired: true
+  /mcp/list_scene_dimension_values/:
+    post:
+      operationId: list_scene_dimension_values
+      description: 'List valid values for a dynamic scene routing dimension. Call list_log_scenes first, then call this tool for dimensions whose choices_type is dynamic. Use previously selected routing dimensions as filters for cascading lookup. The returned values can be used to build table_id_conditions for get_scene_log_fields and scene-mode search_logs. 获取场景动态路由维度的合法值。先调用 list_log_scenes，再对 choices_type 为 dynamic 的维度调用本工具；可通过 filters 传入已选路由维度进行级联查询。返回值用于构造 get_scene_log_fields 和场景模式 search_logs 的 table_id_conditions。'
+      tags:
+      - log_mcp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - bk_biz_id
+              - scene
+              - dimension_key
+              properties:
+                bk_biz_id:
+                  type: integer
+                  description: Business ID. 业务 ID。
+                scene:
+                  type: string
+                  description: 'Scene identifier returned by list_log_scenes, such as k8s or bk_paas. list_log_scenes 返回的场景标识，例如 k8s 或 bk_paas。'
+                dimension_key:
+                  type: string
+                  description: 'Dynamic dimension key returned by list_log_scenes, such as cluster_id. list_log_scenes 返回的动态维度字段名，例如 cluster_id。'
+                filters:
+                  type: array
+                  default: []
+                  description: 'Previously selected routing dimensions for cascading lookup. 已选路由维度，用于级联查询。'
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - field_name
+                    - value
+                    - op
+                    properties:
+                      field_name:
+                        type: string
+                      value:
+                        type: array
+                        items:
+                          type: string
+                      op:
+                        type: string
+                        enum:
+                        - eq
+                        - ne
+                        - req
+                        - nreq
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_search/list_scene_dimension_values/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
   /mcp/get_scene_log_fields/:
     post:
       operationId: get_scene_log_fields
-      description: 'Get the merged field mappings for log tables matched by table_id_conditions. Call list_log_scenes first and build conditions from its scene and static/dynamic dimensions. The outer array is OR and each inner array is AND. Empty outer arrays and empty inner groups are rejected to avoid broad table selection; condition content is validated by the log platform. Use the returned fields to construct query_string for scene-mode search_logs. 获取 table_id_conditions 命中结果表的聚合字段信息。外层数组为 OR，内层数组为 AND。使用返回字段构造场景模式 search_logs 的 query_string。'
+      description: 'Get the merged field mappings for log tables matched by table_id_conditions. Call list_log_scenes first, resolve dynamic dimensions with list_scene_dimension_values, and build conditions from the scene and routing dimensions. The outer array is OR and each inner array is AND. Empty outer arrays and empty inner groups are rejected to avoid broad table selection. Use the returned fields to construct query_string for scene-mode search_logs. 获取 table_id_conditions 命中结果表的聚合字段信息。先调用 list_log_scenes，并通过 list_scene_dimension_values 获取动态维度值；外层数组为 OR，内层数组为 AND。使用返回字段构造场景模式 search_logs 的 query_string。'
       tags:
       - log_mcp
       requestBody:
