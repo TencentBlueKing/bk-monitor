@@ -256,7 +256,7 @@ paths:
   /mcp/get_log_extract_download_url/:
     post:
       operationId: get_log_extract_download_url
-      description: Get the download URL after the task becomes downloadable. The raw response follows BK Log; the URL is sensitive and must not be logged or fetched into model context. 获取任务下载地址，返回值透传日志平台下载接口。
+      description: Get the raw download URL after the task becomes downloadable. The URL is returned as a normal MCP result and may enter the host or model context. Call this tool only after the user explicitly requests the download; avoid quoting, repeatedly requesting, or actively logging the URL. 任务可下载后获取原始下载地址。该地址会作为普通 MCP 结果返回，可能进入 Host 或模型上下文。仅在用户明确要求下载后调用，避免复述、重复请求或主动记录该地址。
       tags: [log_extract_mcp]
       requestBody:
         required: true
