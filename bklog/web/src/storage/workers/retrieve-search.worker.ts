@@ -35,6 +35,17 @@ interface ActiveSearchTask {
 
 const activeTasks = new Map<string, ActiveSearchTask>();
 
+// 与 api/index.js axios 拦截器一致：监控上层未使用 OT，自行生成 traceparent
+const random = (n = 8, str = 'abcdefghijklmnopqrstuvwxyz0123456789') => {
+  let result = '';
+  for (let i = 0; i < n; i++) {
+    result += str[Math.floor(Math.random() * str.length)];
+  }
+  return result;
+};
+
+const createTraceparent = () => `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
+
 const taskKey = (message: Pick<SearchStreamMessage, 'id' | 'pageInstanceId'>) => [message.pageInstanceId || 'legacy', message.id].join(':');
 
 const postMessageSafe = (payload: Record<string, any>) => {
@@ -250,6 +261,7 @@ const runSearchStream = async (message: SearchStreamMessage) => {
       headers: {
         'Content-Type': 'application/json',
         ...(message.headers || {}),
+        Traceparent: createTraceparent(),
       },
       method: message.method || 'POST',
       signal: abortController.signal,
