@@ -1,7 +1,6 @@
-import { computed, defineComponent, nextTick, ref, watch } from 'vue';
+import { defineComponent, ref, watch } from 'vue';
 
-import RelatedLogLayout from '../standalone-tab/related-log-layout';
-import { useRealtimeRelatedLog } from '../standalone-tab/hooks/use-realtime-related-log';
+import { RealTimeLogDialogPanel } from '../standalone-tab/related-log-dialog-panel';
 
 import '../standalone-tab/index.scss';
 import './index.scss';
@@ -16,6 +15,10 @@ export default defineComponent({
     retrieveParams: {
       type: Object,
       required: true,
+    },
+    rowKey: {
+      type: String,
+      default: '',
     },
     logParams: {
       type: Object,
@@ -36,37 +39,18 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const visible = ref(false);
-    const indexSetId = computed(() => props.indexSetId);
-    const rowIndex = computed(() => props.rowIndex);
-    const retrieveParams = computed(() => props.retrieveParams || {});
-    const targetFields = computed(() => props.targetFields as string[]);
-    const targetRow = ref<Record<string, any>>({});
-
-    const viewModel = useRealtimeRelatedLog({
-      indexSetId,
-      targetRow,
-      targetFields,
-    });
-
-    const init = async () => {
-      if (!props.isShow || !props.indexSetId || !props.logParams || !Object.keys(props.logParams).length) {
-        return;
-      }
-
-      targetRow.value = props.logParams as Record<string, any>;
-      await nextTick();
-      await viewModel.init();
-    };
+    /** 每次打开递增，强制销毁并重建 panel，避免复用旧状态/缓存 */
+    const mountKey = ref(0);
 
     watch(
-      () => [props.isShow, props.indexSetId, props.logParams],
-      async () => {
-        visible.value = props.isShow;
-        if (props.isShow) {
-          await init();
-        } else {
-          viewModel.dispose();
+      () => [props.isShow, props.rowKey] as const,
+      ([show]) => {
+        if (show) {
+          mountKey.value += 1;
+          visible.value = true;
+          return;
         }
+        visible.value = false;
       },
       { immediate: true },
     );
@@ -76,7 +60,6 @@ export default defineComponent({
     };
 
     const handleAfterLeave = () => {
-      viewModel.dispose();
       emit('close-dialog');
     };
 
@@ -96,18 +79,15 @@ export default defineComponent({
         }}
       >
         {visible.value && (
-          <div class='standalone-related-log-page dialog-related-log-page'>
-            <RelatedLogLayout
-              title={viewModel.t('实时日志')}
-              viewModel={{
-                ...viewModel,
-                indexSetId,
-                rowIndex,
-                retrieveParams,
-              }}
-              isRealTime
-            />
-          </div>
+          <RealTimeLogDialogPanel
+            key={mountKey.value}
+            indexSetId={props.indexSetId}
+            logParams={props.logParams}
+            retrieveParams={props.retrieveParams}
+            rowIndex={props.rowIndex}
+            rowKey={props.rowKey}
+            targetFields={props.targetFields as string[]}
+          />
         )}
       </bk-dialog>
     );

@@ -5,4 +5,6 @@
  * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
  */
 
-export { DEFAULT_MENU_LISTS as MENU_LISTS } from '@/store/menu-config';
+import { DEFAULT_MENU_LISTS } from '@/store/menu-config';
+
+export const MENU_LISTS = DEFAULT_MENU_LISTS;

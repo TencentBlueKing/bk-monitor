@@ -24,10 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineAsyncComponent, defineComponent, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, defineComponent, nextTick, ref, watch } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
+import AiAssitant from '@/global/ai-assitant/index';
 
 import { BK_LOG_STORAGE } from '../../store/store.type';
 import V3Container from './container';
@@ -44,91 +45,12 @@ import './index.scss';
 import './media.scss';
 import './segment-pop.scss';
 
-let aiAssitantModulePromise: Promise<any> | null = null;
-
-const loadAiAssitantModule = () => {
-  if (!aiAssitantModulePromise) {
-    aiAssitantModulePromise = import(/* webpackChunkName: 'retrieve-ai-assistant' */ '@/global/ai-assitant/index');
-  }
-
-  return aiAssitantModulePromise;
-};
-
-const AiAssitant = defineAsyncComponent(loadAiAssitantModule);
-
-const scheduleIdleTask = (callback: () => void, timeout = 4000) => {
-  if (typeof window === 'undefined') {
-    return undefined;
-  }
-
-  if ('requestIdleCallback' in window) {
-    return window.requestIdleCallback(callback, { timeout });
-  }
-
-  return window.setTimeout(callback, Math.min(timeout, 2000));
-};
-
-const cancelIdleTask = (taskId?: number) => {
-  if (typeof taskId !== 'number' || typeof window === 'undefined') {
-    return;
-  }
-
-  if ('cancelIdleCallback' in window) {
-    window.cancelIdleCallback(taskId);
-    return;
-  }
-
-  window.clearTimeout(taskId);
-};
-
 export default defineComponent({
   name: 'RetrieveV3',
   setup() {
     const store = useStore();
     const { t } = useLocale();
     const aiAssitantRef = RetrieveHelper.aiAssitantHelper.getAiAssitantInstance();
-    const shouldMountAiAssitant = ref(false);
-    let aiPreloadIdleTask: number | undefined;
-    let aiPreloadDelayTimer: ReturnType<typeof setTimeout> | undefined;
-
-    const preloadAiAssitant = () => {
-      if (!store.state.features.isAiAssistantActive) {
-        return;
-      }
-
-      loadAiAssitantModule().catch((error) => {
-        console.warn('[RetrieveV3] preload ai assistant failed', error);
-        aiAssitantModulePromise = null;
-      });
-    };
-
-    const scheduleAiAssitantPreload = () => {
-      if (!store.state.features.isAiAssistantActive || aiPreloadDelayTimer || aiPreloadIdleTask) {
-        return;
-      }
-
-      aiPreloadDelayTimer = window.setTimeout(() => {
-        aiPreloadDelayTimer = undefined;
-        aiPreloadIdleTask = scheduleIdleTask(() => {
-          aiPreloadIdleTask = undefined;
-          preloadAiAssitant();
-        }, 5000);
-      }, 3000);
-    };
-
-    RetrieveHelper.aiAssitantHelper.setAiAssitantMountLoader(async () => {
-      await loadAiAssitantModule();
-      shouldMountAiAssitant.value = true;
-      await nextTick();
-    });
-
-    onBeforeUnmount(() => {
-      RetrieveHelper.aiAssitantHelper.setAiAssitantMountLoader(undefined);
-      cancelIdleTask(aiPreloadIdleTask);
-      if (aiPreloadDelayTimer) {
-        window.clearTimeout(aiPreloadDelayTimer);
-      }
-    });
 
     const {
       isSearchContextStickyTop,
@@ -168,21 +90,28 @@ export default defineComponent({
       },
     );
 
-    watch(
-      () => [store.state.features.isAiAssistantActive, isPreApiLoaded.value],
-      ([isAiAssistantActive, isLoaded]) => {
-        if (isAiAssistantActive && isLoaded) {
-          scheduleAiAssitantPreload();
-        }
-      },
-      { immediate: true },
-    );
-
     // 字段列表已请求完成但返回为空
     const isFieldListEmpty = computed(
       () => isFieldListFetched.value
-        && store.state.indexFieldInfo.fields?.length === 0,
+        && store.getters.rawFieldList.length === 0,
     );
+
+    // 场景化模式下：字段未就绪或为空时隐藏检索结果（含趋势图）
+    const hideSearchResult = computed(
+      () => isSceneMode.value && (!isFieldListFetched.value || isFieldListEmpty.value),
+    );
+
+    /**
+     * 场景结果区从隐藏变为显示时，补发趋势图刷新。
+     * 场景化首屏常在 SearchResult 挂载前就触发过 TREND_GRAPH_SEARCH，事件会被吞掉。
+     */
+    watch(hideSearchResult, (hidden, prevHidden) => {
+      if (prevHidden && !hidden) {
+        nextTick(() => {
+          RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+        });
+      }
+    });
 
     /**
      * AI 助手关闭
@@ -196,7 +125,7 @@ export default defineComponent({
      * @returns
      */
     const renderAiAssitant = () => {
-      if (!store.state.features.isAiAssistantActive || !shouldMountAiAssitant.value) {
+      if (!store.state.features.isAiAssistantActive) {
         return null;
       }
 
@@ -261,15 +190,15 @@ export default defineComponent({
         // 1. 字段列表未获取 → 显示 renderSceneEmptyTip，隐藏检索结果
         // 2. 字段列表已获取但为空 → 显示 renderFieldEmptyTip，隐藏检索结果
         // 3. 字段列表已获取且有数据 → 显示检索结果
+        // 使用 v-if 而非 v-show：避免趋势图在 display:none 容器内初始化导致尺寸为 0、切换后仍空白
         const showSceneEmptyTip = isSceneMode.value && !isFieldListFetched.value;
         const showFieldEmptyTip = isSceneMode.value && isFieldListEmpty.value;
-        const hideSearchResult = isSceneMode.value && (!isFieldListFetched.value || isFieldListEmpty.value);
 
         return [
           <V3Toolbar></V3Toolbar>,
           <V3Container>
             {renderSearchBar()}
-            <V3SearchResult v-show={!hideSearchResult}></V3SearchResult>
+            {!hideSearchResult.value && <V3SearchResult></V3SearchResult>}
             {showSceneEmptyTip && renderSceneEmptyTip()}
             {showFieldEmptyTip && renderFieldEmptyTip()}
           </V3Container>,

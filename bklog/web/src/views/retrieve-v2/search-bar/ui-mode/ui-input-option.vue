@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Ref, computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 // @ts-ignore
-import { formatDateTimeField, getCharLength, getOsCommandLabel, getRegExp } from '@/common/util';
+import { formatDateTimeField as formatDateTimeValue, getCharLength, getOsCommandLabel, getRegExp } from '@/common/util';
 import { bkIcon } from 'bk-magic-vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -11,6 +11,7 @@ import { Props } from 'tippy.js';
 
 import PopInstanceUtil from '@/global/pop-instance-util';
 import useFieldEgges from '@/hooks/use-field-egges';
+import { storeRuntimeCacheService } from '@/store/services/runtime-cache.service';
 import { BK_LOG_STORAGE, FieldInfoItem } from '@/store/store.type';
 import BatchInput from '../../components/batch-input';
 import FuzzyMatchMode from './fuzzy-match-mode.vue';
@@ -31,17 +32,23 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['save', 'cancel', 'batch-input-change']);
+const store = useStore();
+
+const formatDateTimeField = (value, fieldType) => {
+  return store.state.isFormatDate ? formatDateTimeValue(value, fieldType) : value;
+};
+const { t } = useLocale();
 
 const indexFieldInfo = computed(() => store.state.indexFieldInfo);
 const fieldTypeMap = computed(() => store.state.globals.fieldTypeMap);
-const isNotIpSelectShow = computed(() => indexFieldInfo.value.fields?.some(item => item.field_name === '__ext.container_id'),
+const currentFieldList = computed<FieldInfoItem[]>(() => store.getters.filteredFieldList ?? []);
+const rawFieldList = computed<FieldInfoItem[]>(() => store.getters.rawFieldList ?? []);
+const isNotIpSelectShow = computed(() => rawFieldList.value.some(item => item.field_name === '__ext.container_id'),
 );
 
 const svgImg = ref({ imgUpDownKey, imgEnterKey });
 const isArrowDown = ref(true);
 
-const store = useStore();
-const { t } = useLocale();
 const searchValue = ref('');
 const refConditionInput: Ref<HTMLInputElement | null> = ref(null);
 const refFullTexarea: Ref<HTMLElement | null> = ref(null);
@@ -183,7 +190,7 @@ const getFieldWeight = (field: FieldInfoItem) => {
 
 const fieldList = computed(() => {
   let list = [fullTextField.value];
-  list = list.concat(indexFieldInfo.value.fields);
+  list = list.concat(currentFieldList.value);
   if (!isNotIpSelectShow.value) {
     list.push({
       field_name: '_ip-select_',
@@ -433,7 +440,7 @@ const restoreFieldAndCondition = () => {
 /**
    * 接口返回结果是否为空
    */
-const isFieldListEmpty = computed(() => !indexFieldInfo.value.fields.length);
+const isFieldListEmpty = computed(() => !indexFieldInfo.value.is_loading && !currentFieldList.value.length);
 const isSearchEmpty = computed(() => !isFieldListEmpty.value && !filterFieldList.value.length);
 const exceptionType = computed(() => (isFieldListEmpty.value ? 'empty' : 'search-empty'));
 
@@ -680,7 +687,7 @@ const isComposing = ref(false);
    * 获取当前选中字段的匹配列表
    */
 const activeItemMatchList = computed(() => {
-  return (store.state.indexFieldInfo.aggs_items[activeFieldItem.value.field_name] ?? []).filter(
+  return (fieldAggsItems.value[activeFieldItem.value.field_name] ?? []).filter(
     item => !(condition.value.value ?? []).includes(item),
   );
 });
@@ -690,7 +697,7 @@ const activeItemMatchList = computed(() => {
    * 判定是搜索为空还是数据为空
    */
 const conditionValueEmptyType = computed(() => {
-  if (!(store.state.indexFieldInfo.aggs_items[activeFieldItem.value.field_name] ?? []).length) {
+  if (!(fieldAggsItems.value[activeFieldItem.value.field_name] ?? []).length) {
     return 'empty';
   }
 
@@ -699,6 +706,11 @@ const conditionValueEmptyType = computed(() => {
   }
 
   return 'empty';
+});
+
+const fieldAggsItems = computed(() => {
+  store.state.fieldAggsItemsVersion;
+  return storeRuntimeCacheService.getFieldAggsItems(store.state.indexId || 'default');
 });
 
 const currentEditTagIndex: Ref<number | null> = ref(null);

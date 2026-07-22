@@ -222,11 +222,14 @@ export default defineComponent({
       reset: () => {
         isPolling.value = true;
         highlightList.value = [];
+        colorHighlightList.value = [];
         interval.value = cloneDeep(baseInterval);
         ignoreCase.value = false;
         filterKey.value = [];
+        catchFilterKey.value = [];
         showType.value = 'log';
         filterType.value = 'include';
+        intervalSwitcher.value = true;
         fieldConfigPopoverInstance?.hide();
       },
       getHighlightControl: () => highlightControlRef.value,

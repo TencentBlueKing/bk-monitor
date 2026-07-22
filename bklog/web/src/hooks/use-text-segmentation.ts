@@ -24,9 +24,13 @@
  * IN THE SOFTWARE.
  */
 import segmentPopInstance from '../global/utils/segment-pop-instance';
-import { getClickTargetElement, optimizedSplit, setPointerCellClickTargetHandler } from './hooks-helper';
-import LuceneSegment from './lucene.segment';
+import {
+  getClickTargetElement,
+  resolveOuterValidText,
+  setPointerCellClickTargetHandler,
+} from './hooks-helper';
 import UseSegmentPropInstance from './use-segment-pop';
+import { splitRenderText } from '../storage/utils/retrieve-render-meta';
 
 import type { Ref } from 'vue';
 
@@ -36,6 +40,7 @@ export type FormatterConfig = {
     content: boolean | number | string;
     field: any;
     data: any;
+    precomputedSegments?: WordListItem[];
   };
 };
 
@@ -44,6 +49,7 @@ export type WordListItem = {
   isMark: boolean;
   isCursorText: boolean;
   isBlobWord?: boolean;
+  resultRanges?: Array<{ start: number; end: number; keywordIndex?: number }>;
   startIndex?: number;
   endIndex?: number;
   left?: number;
@@ -60,7 +66,7 @@ export default class UseTextSegmentation {
   onSegmentClick: (...args) => void;
   clickValue: string;
   keyRef: any;
-  options = {
+  options: FormatterConfig['options'] = {
     field: null,
     content: '',
     data: {},
@@ -79,10 +85,11 @@ export default class UseTextSegmentation {
   }
 
   getTextCellClickHandler(e: MouseEvent) {
-    if ((e.target as HTMLElement).classList.contains('valid-text')) {
+    const validTextElement = resolveOuterValidText(e.target as HTMLElement);
+    if (validTextElement) {
       const { offsetY, offsetX } = getClickTargetElement(e);
       const offsetTarget = setPointerCellClickTargetHandler(e, { offsetY, offsetX });
-      this.handleSegmentClick(offsetTarget, (e.target as HTMLElement).textContent);
+      this.handleSegmentClick(offsetTarget, validTextElement.textContent);
     }
   }
 
@@ -103,7 +110,7 @@ export default class UseTextSegmentation {
   }
 
   formatValue() {
-    return this.escapeString(this.options.content)
+    return this.escapeString(`${this.options.content}`)
       .replace(/<mark>/g, '')
       .replace(/<\/mark>/g, '');
   }
@@ -130,9 +137,17 @@ export default class UseTextSegmentation {
       ? this.options.data?.[activeField?.field_name]
       : currentValue;
 
+    const selected = this.getCellValue(currentValue);
+    const fullPlain = this.getCellValue(this.options?.content ?? '');
+    let operation = val === 'not' ? 'is not' : val;
+    // 与 JSON 分词点击一致：完整 VALUE → is；部分分词 → contains，保证同词多次点击稳定
+    if ((val === 'is' || val === 'not') && fullPlain && selected && fullPlain !== selected) {
+      operation = val === 'not' ? 'not contains match phrase' : 'contains match phrase';
+    }
+
     const option = {
       fieldName: activeField?.field_name,
-      operation: val === 'not' ? 'is not' : val,
+      operation,
       value: this.getCellValue(target ?? currentValue),
       depth,
       isNestedField,
@@ -140,6 +155,10 @@ export default class UseTextSegmentation {
 
     this.onSegmentClick?.({ option, isLink });
     segmentPopInstance.hide();
+
+    if (val === 'is' || val === 'not' || val === 'new-search-page-is') {
+      window.getSelection()?.removeAllRanges();
+    }
   }
 
   private isValidTraceId(traceId) {
@@ -199,7 +218,7 @@ export default class UseTextSegmentation {
   }
 
   private convertVirtaulObjToArray() {
-    const target = this.options.data[this.options.field.field_name] ?? this.convertJsonStrToObj(this.options.content);
+    const target = this.options.data[this.options.field.field_name] ?? this.convertJsonStrToObj(`${this.options.content}`);
 
     const convertObjToArray = (root: object, isValue = false) => {
       const result: Record<string, any>[] = [];
@@ -326,30 +345,22 @@ export default class UseTextSegmentation {
   }
 
   private getSplitList(field: any, content: any, forceSplit = false) {
-    /** 检索高亮分词字符串 */
-    const value = this.escapeString(`${content}`);
+    // forceSplit 是当前嵌套展示上下文，旧缓存未携带该模式时不能覆盖运行时判断。
+    if (!forceSplit && Array.isArray(this.options.precomputedSegments)) {
+      return this.options.precomputedSegments;
+    }
 
+    const value = this.escapeString(String(content));
+
+    // JSON 解析关闭后的虚拟 Object 是序列化复合值：标点不可点，KEY/VALUE 可点。
     if (this.isVirtualObjField(field)) {
-      return this.convertVirtaulObjToArray();
+      const rawValue = this.options.data?.[field.field_name] ?? content;
+      const serializedValue = rawValue !== null && typeof rawValue === 'object'
+        ? JSON.stringify(rawValue)
+        : value;
+      return splitRenderText(serializedValue, field, { isSerializedComposite: true });
     }
 
-    if (this.isAnalyzed(field) || forceSplit) {
-      if (field.tokenize_on_chars) {
-        // 这里进来的都是开了分词的情况
-        return optimizedSplit(value, field.tokenize_on_chars);
-      }
-
-      return LuceneSegment.split(value, 1000);
-    }
-    const markRegStr = '<mark>(.*?)</mark>';
-    const formatValue = value.replace(/<mark>/g, '').replace(/<\/mark>/g, '');
-    const isMark = new RegExp(markRegStr).test(value);
-    return [
-      {
-        text: formatValue,
-        isCursorText: true,
-        isMark,
-      },
-    ];
+    return splitRenderText(value, field, { forceSplit });
   }
 }

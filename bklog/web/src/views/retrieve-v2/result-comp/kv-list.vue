@@ -54,9 +54,9 @@
         >
           <div class="field-label">
             <span
-              v-if="hiddenFieldsSet.has(field)"
+              v-if="hiddenFieldsSet.has(field.field_name)"
               class="field-eye-icon bklog-icon bklog-eye-slash"
-              v-bk-tooltips="{ content: $t('隐藏') }"
+              v-bk-tooltips="{ content: $t('展示') }"
               @click="
                 e => {
                   e.stopPropagation();
@@ -67,7 +67,7 @@
             <span
               v-else
               class="field-eye-icon bklog-icon bklog-eye"
-              v-bk-tooltips="{ content: $t('展示') }"
+              v-bk-tooltips="{ content: $t('隐藏') }"
               @click="
                 e => {
                   e.stopPropagation();
@@ -89,7 +89,10 @@
               v-bk-tooltips="fieldTypePopover(field.field_name)"
               :class="getFieldIcon(field.field_name)"
             ></span>
-            <span class="field-text">{{ getFieldName(field) }}</span>
+            <span
+              class="field-text"
+              v-html="getHighlightedFieldNameHtml(field)"
+            ></span>
           </div>
           <div class="field-value">
             <span
@@ -102,7 +105,8 @@
             </span>
             <JsonFormatter
               :fields="getFieldItem(field.field_name)"
-              :json-value="listData"
+              :json-value="getFieldValue(field)"
+              :render-meta="renderMeta"
               @menu-click="agrs => handleJsonSegmentClick(agrs, field.field_name)"
             ></JsonFormatter>
           </div>
@@ -126,11 +130,41 @@
   import JsonFormatter from '@/global/json-formatter.vue';
   import { getFieldNameByField } from '@/hooks/use-field-name';
   import tableRowDeepViewMixin from '@/mixins/table-row-deep-view-mixin';
+  import { retrieveRowCacheService } from '@/storage';
   import _escape from 'lodash/escape';
   import { mapGetters, mapState } from 'vuex';
 
   // import TextSegmentation from '../search-result-panel/log-result/text-segmentation';
   import { BK_LOG_STORAGE } from '@/store/store.type';
+  import RetrieveHelper, { RetrieveEvent } from '@/views/retrieve-helper';
+  import { buildHighlightHtml, pageHighlightState } from '@/views/retrieve-core/page-highlight';
+
+  const stripMarkTags = value => String(value)
+    .replace(/<mark>/gi, '')
+    .replace(/<\/mark>/gi, '');
+
+  const stripMarkFromCopyValue = (value) => {
+    if (typeof value === 'string') return stripMarkTags(value);
+    if (Array.isArray(value)) return value.map(item => stripMarkFromCopyValue(item));
+    if (value && Object.prototype.toString.call(value) === '[object Object]') {
+      return Object.keys(value).reduce((output, key) => {
+        output[key] = stripMarkFromCopyValue(value[key]);
+        return output;
+      }, {});
+    }
+    return value;
+  };
+
+  const stringifyCopyValue = (value) => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'bigint') return value.toString();
+    try {
+      return JSON.stringify(value, (_key, val) => (typeof val === 'bigint' ? val.toString() : val));
+    } catch {
+      return String(value);
+    }
+  };
 
   export default {
     components: {
@@ -169,6 +203,14 @@
         default: () => {},
       },
       searchKeyword: {
+        type: String,
+        default: '',
+      },
+      renderMeta: {
+        type: Object,
+        default: null,
+      },
+      rowKey: {
         type: String,
         default: '',
       },
@@ -222,6 +264,9 @@
         showFieldAlias: state => state.storage[BK_LOG_STORAGE.SHOW_FIELD_ALIAS],
         isAllowEmptyField: state => state.storage[BK_LOG_STORAGE.TABLE_ALLOW_EMPTY_FIELD],
       }),
+      pageHighlightVersion() {
+        return pageHighlightState.version;
+      },
       apmRelation() {
         return this.$store.state.indexSetFieldConfig.apm_relation;
       },
@@ -240,6 +285,20 @@
         }
         return map;
       },
+      /** 存在子字段的父路径集合，例如 meta.platform_tags.account_channel → meta / meta.platform_tags */
+      fieldsWithChildrenSet() {
+        const set = new Set();
+        const fields = this.totalFields || [];
+        for (let i = 0; i < fields.length; i++) {
+          const name = fields[i]?.field_name;
+          if (!name || name.indexOf('.') === -1) continue;
+          let idx = -1;
+          while ((idx = name.indexOf('.', idx + 1)) !== -1) {
+            set.add(name.slice(0, idx));
+          }
+        }
+        return set;
+      },
       fieldKeyMap() {
         return this.totalFields
           .filter(item => this.kvShowFieldsSet.has(item.field_name))
@@ -247,10 +306,11 @@
       },
 
       hiddenFields() {
-        return this.fieldList.filter(item => !this.visibleFields.some(visibleItem => item === visibleItem));
+        const visibleFieldNames = new Set(this.visibleFields.map(item => item.field_name));
+        return this.fieldList.filter(item => !visibleFieldNames.has(item.field_name));
       },
       hiddenFieldsSet() {
-        return new Set(this.hiddenFields);
+        return new Set(this.hiddenFields.map(item => item.field_name));
       },
       filedSettingConfigID() {
         // 当前索引集的显示字段ID
@@ -284,13 +344,14 @@
     mounted() {
       // 根据预估字段数量决定处理策略
       const estimatedFieldCount = this.kvShowFieldsList ? this.kvShowFieldsList.length : this.totalFields.length;
-      
+
       if (estimatedFieldCount < this.batchThreshold) {
         // 字段数量 < 100，数据量小，直接同步处理，避免异步导致的闪烁
         this.isCalculating = false; // 不显示骨架屏
         // 直接同步执行计算和渲染
         this.showFieldListCache = this.calcShowFieldList();
         this.renderList = this.showFieldListCache.slice(0, this.initialRenderCount);
+
         } else {
           // 字段数量 >= 100，使用异步处理，避免阻塞主线程
           // 记录骨架屏开始显示的时间
@@ -336,6 +397,7 @@
     methods: {
       calcShowFieldList() {
         // 原 showFieldList 逻辑完整迁移为 method
+        const startTime = Date.now();
         const kvShowFieldsSet = this.kvShowFieldsSet;
         const emptyValues = ['--', '{}', '[]'];
         const totalFields = this.totalFields;
@@ -348,31 +410,38 @@
           }
         }
         
-        // 如果允许空字段，直接返回候选字段列表
+        // 如果允许空字段，仍需隐藏可展开 Object 父字段，再按搜索关键字过滤
         if (this.isAllowEmptyField) {
-          let result = candidateFields;
-          // 根据搜索关键字过滤（不区分大小写）
-          if (this.searchKeyword) {
-            const keyword = this.searchKeyword.toLowerCase();
-            const filteredList = [];
-            for (let i = 0; i < candidateFields.length; i++) {
-              const item = candidateFields[i];
-              if (item.field_name.toLowerCase().includes(keyword)) {
-                filteredList.push(item);
-              }
+          const filteredList = [];
+          const keyword = this.searchKeyword ? this.searchKeyword.toLowerCase() : '';
+          for (let i = 0; i < candidateFields.length; i++) {
+            const item = candidateFields[i];
+            if (this.isExpandableObjectField(item.field_name)) {
+              continue;
             }
-            result = filteredList;
+            if (keyword && !item.field_name.toLowerCase().includes(keyword)) {
+              continue;
+            }
+            filteredList.push(item);
           }
-          return result;
+          return filteredList;
         }
         
         // 步骤2：检查空值（需要调用 formatterStr）
         const list = [];
         const rowData = this.listData;
+        let skippedExpandableObject = 0;
+        let skippedEmpty = 0;
         
         for (let i = 0; i < candidateFields.length; i++) {
           const item = candidateFields[i];
           const fieldName = item.field_name;
+
+          // 可解析 Object 父字段直接隐藏，避免与子字段重复，也避免与空字段 -- 歧义
+          if (this.isExpandableObjectField(fieldName)) {
+            skippedExpandableObject += 1;
+            continue;
+          }
           
           // 性能优化：先快速检查字段是否为空，避免调用 formatterStr
           let shouldSkip = false;
@@ -447,6 +516,7 @@
           }
           
           if (shouldSkip) {
+            skippedEmpty += 1;
             continue;
           }
           
@@ -515,6 +585,7 @@
             if (isDefinitelyEmpty) {
               formattedValue = '--';
               this.formattedValueCache.set(fieldName, formattedValue);
+              skippedEmpty += 1;
               continue; // 直接跳过，不加入列表
             }
             
@@ -524,6 +595,8 @@
           
           if (!emptyValues.includes(formattedValue)) {
             list.push(item);
+          } else {
+            skippedEmpty += 1;
           }
         }
 
@@ -720,6 +793,65 @@
         
         return result;
       },
+      /**
+       * 获取 KV 字段原始值（不做 Object -> JSON.stringify）
+       * 与 parseTableRowData 路径解析保持一致，保留 Object 类型用于判断是否隐藏父字段
+       */
+      getKvRawValue(fieldName) {
+        const row = this.listData;
+        if (!row || !fieldName) return undefined;
+
+        // 优先兼容扁平 dotted key（与 parseTableRowData 一致）
+        if (Object.prototype.hasOwnProperty.call(row, fieldName)) {
+          return row[fieldName];
+        }
+
+        if (fieldName.indexOf('.') === -1 && fieldName.indexOf('[') === -1) {
+          return row[fieldName];
+        }
+
+        const keyArr = fieldName.split('.');
+        let data = row;
+        for (let index = 0; index < keyArr.length; index++) {
+          if (data === undefined || data === null) break;
+          // 数组场景交给原有 tableRowDeepView 处理
+          if (Array.isArray(data)) return undefined;
+
+          const item = keyArr[index];
+          if (data?.[item] !== undefined && data?.[item] !== null) {
+            data = data[item];
+          } else {
+            const validKey = keyArr.slice(index).join('.');
+            data = data?.[validKey];
+            break;
+          }
+        }
+        return data;
+      },
+      /** VALUE 为可解析非空 Object（非 JSON 字符串、非数组）时，KV 中隐藏该父字段 */
+      isExpandableObjectValue(value) {
+        return (
+          value !== null &&
+          typeof value === 'object' &&
+          !Array.isArray(value) &&
+          Object.keys(value).length > 0
+        );
+      },
+      /**
+       * 可展开 Object 父字段：有子字段时隐藏，避免与子字段重复。
+       * flattened 或无子字段的 Object 不隐藏，否则内容会整段丢失（如 body）。
+       */
+      isExpandableObjectField(fieldName) {
+        const fieldType = this.getFieldType(fieldName);
+        if (fieldType === 'flattened') return false;
+        if (!this.fieldsWithChildrenSet.has(fieldName)) return false;
+        return this.isExpandableObjectValue(this.getKvRawValue(fieldName));
+      },
+      getFieldValue(field) {
+        if (!field) return '--';
+
+        return getRowFieldValue(this.listData, field);
+      },
       getFieldType(fieldName) {
         return this.fieldItemMapByName[fieldName]?.field_type || '';
       },
@@ -757,17 +889,38 @@
       },
 
       /**
-       * @desc 复制字段值
+       * @desc 复制字段值（优先取 IndexedDB 原始数据，与整行复制逻辑一致）
        * @param { Object } field 字段对象
        */
-      handleCopyFieldValue(field) {
-        const value = getRowFieldValue(this.data, field);
-        if (value === '--' || value === null || value === undefined || value === '') {
+      async handleCopyFieldValue(field) {
+        if (!field) return;
+
+        const includeFields = [
+          field.field_name,
+          field.query_alias,
+          ...(field.is_virtual_alias_field ? (field.source_field_names || []) : []),
+        ].filter(Boolean);
+
+        try {
+          if (this.rowKey) {
+            const [originRow] = await retrieveRowCacheService.getCopyRows([this.rowKey], { includeFields });
+            if (originRow) {
+              const originValue = getRowFieldValue(originRow, field);
+              if (originValue !== null && originValue !== undefined && originValue !== '' && originValue !== '--') {
+                copyMessage(stringifyCopyValue(originValue));
+                return;
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('[kv-list] copy origin field value failed', error);
+        }
+
+        const fallbackValue = stripMarkFromCopyValue(getRowFieldValue(this.listData, field));
+        if (fallbackValue === null || fallbackValue === undefined || fallbackValue === '' || fallbackValue === '--') {
           return;
         }
-        const rawValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
-        const copyValue = rawValue.replace(/<\/?mark>/g, '');
-        copyMessage(copyValue);
+        copyMessage(stringifyCopyValue(fallbackValue));
       },
 
       /**
@@ -881,6 +1034,11 @@
       getFieldName(field) {
         return getFieldNameByField(field, this.$store);
       },
+      /** 展开面板字段 KEY 同样应用页面高亮 */
+      getHighlightedFieldNameHtml(field) {
+        void this.pageHighlightVersion;
+        return buildHighlightHtml({ text: String(this.getFieldName(field) ?? '') });
+      },
       // 显示或隐藏字段
       handleShowOrHiddenItem(visible, field) {
         const displayFields = [];
@@ -890,12 +1048,13 @@
           }
         });
 
-        if (visible) {
+        if (visible && !displayFields.includes(field.field_name)) {
           displayFields.push(field.field_name);
         }
         this.$store.dispatch('userFieldConfigChange', { displayFields }).then(() => {
-          this.$store.commit('resetVisibleFields', displayFields);
-          this.$store.commit('updateIsSetDefaultTableColumn');
+          this.$store.commit('resetVisibleFields', { displayFieldNames: displayFields, version: 'v2' });
+          this.$store.commit('updateIsSetDefaultTableColumn', false);
+          RetrieveHelper.fire(RetrieveEvent.VISIBLE_FIELD_COLUMN_LAYOUT_CHANGE);
         });
       },
     },
@@ -905,7 +1064,7 @@
 <style lang="scss" scoped>
   /* stylelint-disable no-descending-specificity */
   .kv-list-wrapper {
-    max-height: 50vh;
+    max-height: 100vh;
     overflow-y: auto;
     font-family: var(--table-fount-family);
     font-size: var(--table-fount-size);
@@ -1002,6 +1161,11 @@
           color: #313238;
           word-break: normal;
           word-wrap: break-word;
+
+          :deep(mark.page-highlight) {
+            padding: 0;
+            border-radius: 2px;
+          }
         }
 
         :deep(.bklog-ext) {

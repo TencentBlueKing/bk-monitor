@@ -31,19 +31,17 @@
     ></LogRows>
     <RealTimeLog
       :is-show="isShowRealTimeLog"
-      :log-params="logDialog.data"
+      :row-key="logDialog.rowKey"
       :retrieve-params="retrieveParams"
       :target-fields="targetFields"
-      :indexSetId="logDialog.indexSetId"
       :row-index="currentIndex"
       @close-dialog="hideDialog"
     />
     <ContextLog
       :is-show="isShowContextLog"
-      :log-params="logDialog.data"
+      :row-key="logDialog.rowKey"
       :retrieve-params="retrieveParams"
       :target-fields="targetFields"
-      :indexSetId="logDialog.indexSetId"
       :row-index="currentIndex"
       @close-dialog="hideDialog"
     />
@@ -52,7 +50,6 @@
 </template>
 
 <script>
-import { parseTableRowData } from '@/common/util';
 import ContextLog from '@/views/retrieve-v3/search-result/original-log/context-log/index.tsx';
 import RealTimeLog from '@/views/retrieve-v3/search-result/original-log/real-time-log';
 import LogRows from './log-rows.tsx';
@@ -80,8 +77,7 @@ export default {
       isShowContextLog: false,
       logDialog: {
         type: '',
-        data: {},
-        indexSetId: 0,
+        rowKey: '',
       },
       currentIndex: 0,
     };
@@ -95,10 +91,9 @@ export default {
     // handleAiClose() {
     //   this.$el.querySelector(".ai-active")?.classList.remove("ai-active");
     // },
-    openLogDialog(row, type, indexSetId) {
-      this.logDialog.data = row;
+    openLogDialog(type, rowKey) {
       this.logDialog.type = type;
-      this.logDialog.indexSetId = indexSetId;
+      this.logDialog.rowKey = rowKey;
       if (type === 'realTimeLog') {
         this.isShowRealTimeLog = true;
       } else {
@@ -145,7 +140,7 @@ export default {
           console.warn(e);
         });
     },
-    handleClickTools(event, row, config, index) {
+    handleClickTools(event, row, config, index, rowKey) {
       if (event === 'ai') {
         RetrieveHelper.aiAssitantHelper.openAiAssitant(true, {
           space_uid: this.$store.getters.spaceUid,
@@ -162,61 +157,15 @@ export default {
       }
       if (['realTimeLog', 'contextLog'].includes(event)) {
         this.currentIndex = index - 1;
-        const contextFields = config.contextAndRealtime?.extra?.context_fields;
-        const timeField = this.$store.state.indexFieldInfo.time_field;
-        const dialogNewParams = {
-          dtEventTimeStamp: row.dtEventTimeStamp,
-        };
         const { targetFields = [] } = config.indexSetValue || {};
         this.targetFields = targetFields ?? [];
-
-        if (Array.isArray(contextFields) && contextFields.length) {
-          const targetContextFields = Array.from(new Set([...contextFields, timeField].filter(Boolean)));
-          targetContextFields.forEach((field) => {
-            if (field === 'bk_host_id') {
-              if (row[field]) dialogNewParams[field] = row[field];
-            } else {
-              dialogNewParams[field] = parseTableRowData(row, field, '', this.$store.state.isFormatDate, '');
-            }
-          });
-        } else {
-          Object.assign(dialogNewParams, row);
-        }
-        this.openLogDialog(dialogNewParams, event, this.getIndexSetIdByRow(row));
+        this.openLogDialog(event, rowKey || '');
       } else if (event === 'webConsole') this.openWebConsole(row);
       else if (event === 'logSource') this.$store.dispatch('changeShowUnionSource');
     },
-    getIndexSetIdByRow(row = {}) {
-      const rowIndexSetId = row.__index_set_id__ ?? row.index_set_id;
-      if (rowIndexSetId !== undefined && rowIndexSetId !== null && rowIndexSetId !== '') {
-        return Number(rowIndexSetId);
-      }
-
-      // 场景化检索模式下，row.__index_set_id__ 可能不存在，
-      // 需要通过 row.__result_table 在 flatIndexSetList 的 indices 中查找匹配的 result_table_id，取其 index_set_id
-      if (this.$store.getters.isSceneMode && row.__result_table) {
-        const flatIndexSetList = this.$store.state.retrieve.flatIndexSetList;
-        for (const indexSet of flatIndexSetList) {
-          const matchedIndex = (indexSet.indices || []).find(
-            index => index.result_table_id === row.__result_table
-          );
-          if (matchedIndex) {
-            return matchedIndex.index_set_id;
-          }
-        }
-      }
-
-      const storeIndexId = this.$store.getters.indexId;
-      if (storeIndexId !== undefined && storeIndexId !== null && storeIndexId !== '') {
-        return Number(storeIndexId);
-      }
-
-      return Number(this.$route.params.indexId || 0);
-    },
     hideDialog() {
       this.logDialog.type = '';
-      this.logDialog.data = {};
-      this.logDialog.indexSetId = 0;
+      this.logDialog.rowKey = '';
       this.targetFields = [];
       this.isShowContextLog = false;
       this.isShowRealTimeLog = false;

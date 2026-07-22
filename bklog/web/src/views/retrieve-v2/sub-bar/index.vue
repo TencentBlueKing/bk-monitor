@@ -210,8 +210,9 @@ const handleIndexSetSelected = async (payload) => {
 
     store.commit('updateSqlQueryFieldList', []);
     store.commit('updateIndexSetQueryResult', {
-      origin_log_list: [],
-      list: [],
+      row_keys: [],
+      row_query_key: '',
+      cached_count: 0,
       exception_msg: '',
       is_error: false,
     });
