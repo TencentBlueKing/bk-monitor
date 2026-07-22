@@ -61,6 +61,30 @@ def test_search_log_serializer_requires_target(request_data):
     assert not serializer.is_valid()
 
 
+@override_settings(MCP_MAX_TIME_SPAN_SECONDS=86400)
+@pytest.mark.parametrize(
+    "serializer_class, request_data",
+    [
+        (
+            SearchLogResource.RequestSerializer,
+            build_search_request(
+                target_type="scene",
+                table_id_conditions=[[{"field_name": "scene", "value": ["k8s"], "op": "like"}]],
+            ),
+        ),
+        (
+            GetSceneLogFieldsResource.RequestSerializer,
+            {"bk_biz_id": 2, "table_id_conditions": [[{"value": ["k8s"], "op": "eq"}]]},
+        ),
+    ],
+    ids=["search-invalid-op", "fields-missing-field-name"],
+)
+def test_scene_resources_validate_condition_structure(serializer_class, request_data):
+    serializer = serializer_class(data=request_data)
+
+    assert not serializer.is_valid()
+
+
 def test_search_log_resource_routes_scene_request_to_log_platform(monkeypatch):
     platform_result = Mock()
     scene_search = Mock(return_value=platform_result)

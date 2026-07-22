@@ -114,6 +114,25 @@ paths:
                     minItems: 1
                     items:
                       type: object
+                      additionalProperties: false
+                      required:
+                      - field_name
+                      - value
+                      - op
+                      properties:
+                        field_name:
+                          type: string
+                        value:
+                          type: array
+                          items:
+                            type: string
+                        op:
+                          type: string
+                          enum:
+                          - eq
+                          - ne
+                          - req
+                          - nreq
                 query_string:
                   type: string
                   default: '*'
@@ -299,6 +318,25 @@ paths:
                     minItems: 1
                     items:
                       type: object
+                      additionalProperties: false
+                      required:
+                      - field_name
+                      - value
+                      - op
+                      properties:
+                        field_name:
+                          type: string
+                        value:
+                          type: array
+                          items:
+                            type: string
+                        op:
+                          type: string
+                          enum:
+                          - eq
+                          - ne
+                          - req
+                          - nreq
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false

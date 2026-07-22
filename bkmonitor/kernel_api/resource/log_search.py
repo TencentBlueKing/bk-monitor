@@ -23,6 +23,12 @@ CLUSTERING_FIELD_PREFIX = "__dist"
 CLUSTERING_QUERY_FIELD = "__dist_05"
 
 
+class SceneRouteConditionSerializer(serializers.Serializer):
+    field_name = serializers.CharField(required=True, label="路由字段名")
+    value = serializers.ListField(child=serializers.CharField(), required=True, label="路由字段值")
+    op = serializers.ChoiceField(choices=["eq", "ne", "req", "nreq"], required=True, label="匹配操作符")
+
+
 def get_log_unify_query_table(
     index_set_id: int | str, conditions: dict[str, Any] | None = None, query_string: str | None = None
 ) -> str:
@@ -89,9 +95,9 @@ class GetSceneLogFieldsResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        # 禁止空外层和空 AND 分组，避免 [] 或 [[]] 导致宽泛选表；条件内容由日志平台校验。
+        # 禁止空外层和空 AND 分组，并在 MCP 边界校验条件结构，避免宽泛选表或无效请求。
         table_id_conditions = serializers.ListField(
-            child=serializers.ListField(allow_empty=False),
+            child=serializers.ListField(child=SceneRouteConditionSerializer(), allow_empty=False),
             required=True,
             allow_empty=False,
             label="结果表路由条件，外层为 OR，内层为 AND",
@@ -125,7 +131,7 @@ class SearchLogResource(Resource):
         index_set_id = serializers.IntegerField(required=False, allow_null=True, label="索引集ID")
         # 场景检索的结果表路由条件。禁止空外层和空 AND 分组，避免 [] 或 [[]] 导致宽泛选表。
         table_id_conditions = serializers.ListField(
-            child=serializers.ListField(allow_empty=False),
+            child=serializers.ListField(child=SceneRouteConditionSerializer(), allow_empty=False),
             required=False,
             allow_empty=False,
             label="结果表路由条件，外层为 OR，内层为 AND",
