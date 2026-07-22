@@ -52,7 +52,9 @@ export const resolveAddToSearch = (input: AddToSearchInput): AddToSearchPayload 
   const value = String(input.value ?? '').replace(/<\/?mark>/gim, '').trim();
   const fieldType = input.fieldType;
   const fullPlainRaw = input.fullText == null ? '' : String(input.fullText).replace(/<\/?mark>/gim, '').trim();
-  const fullPlain = fullPlainRaw && fullPlainRaw !== '--' ? fullPlainRaw : undefined;
+  const fullPlain = fullPlainRaw && fullPlainRaw !== '--' && fullPlainRaw !== '[object Object]'
+    ? fullPlainRaw
+    : undefined;
   const operatorHint = input.operatorHint || 'contains match phrase';
   const negative = isNegativeOperator(operatorHint);
   const isFulltext = !field || field === '*';

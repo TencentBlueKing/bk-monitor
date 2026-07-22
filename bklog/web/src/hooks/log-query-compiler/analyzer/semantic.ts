@@ -57,7 +57,7 @@ export const analyzeSemantics = (
       } else if (isNumberLikeField(fieldType) || isDateLikeField(fieldType) || fieldType === 'boolean' || fieldType === 'ip') {
         // 其他类型：补齐为完整 FieldValue（由 resolver 写入）
         next.matchMode = 'term';
-        if (ctx.fullText && ctx.fullText !== '--') {
+        if (ctx.fullText && ctx.fullText !== '--' && ctx.fullText !== '[object Object]') {
           next.value = ctx.fullText;
         }
       } else {

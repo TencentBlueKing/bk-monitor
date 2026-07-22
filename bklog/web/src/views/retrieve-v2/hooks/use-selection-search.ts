@@ -44,6 +44,8 @@ const SELECTION_MAX_TOKENS = 1000;
 const PARTIAL_TOKEN_MATCH_MAX_LEN = 256;
 /** 字段 VALUE 超过该长度时跳过全量 Lucene 切分，通配改走字符前后缀判定 */
 const LARGE_FIELD_SKIP_TOKENIZE_LEN = 64 * 1024;
+/** 截断尾巴 / indexOf 失败时，围绕划选做局部二次分词的窗口半径 */
+const LOCAL_RETOKENIZE_WINDOW = 512;
 const STRUCT_FIELD_TYPES = new Set(['object', 'nested']);
 
 /**
@@ -511,21 +513,177 @@ export default (options: UseSelectionSearchOptions) => {
   };
 
   /**
+   * 归一到最外层 .valid-text，避免检索高亮给内层 mark 也打上 valid-text 后
+   * closest 命中内层，导致同词划选 start/end 不一致、DOM 补齐失效。
+   */
+  const resolveOuterValidText = (el: Element | null): HTMLElement | null => {
+    if (!el) {
+      return null;
+    }
+    let current = (el.classList?.contains('valid-text')
+      ? el
+      : el.closest?.('.valid-text')) as HTMLElement | null;
+    if (!current) {
+      return null;
+    }
+    let parent = current.parentElement?.closest?.('.valid-text') as HTMLElement | null;
+    while (parent) {
+      current = parent;
+      parent = current.parentElement?.closest?.('.valid-text') as HTMLElement | null;
+    }
+    return current;
+  };
+
+  /** 区间内是否包含可检索分词 */
+  const tokenRangeHasCursor = (
+    tokens: SelectionToken[],
+    rangeStart: number,
+    rangeEnd: number,
+  ) => {
+    for (let i = rangeStart; i <= rangeEnd; i++) {
+      if (tokens[i]?.isCursorText && tokens[i].text) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  /**
+   * MAX_TOKENS 截断后的尾巴整段 isCursorText=false，会导致补齐失败。
+   * 仅对与划选相交的非 cursor 大块做二次 Lucene 切分（局部修复，不影响渲染）。
+   */
+  const expandIntersectingNonCursorBlobs = (
+    tokens: SelectionToken[],
+    selectionText: string,
+  ): SelectionToken[] => {
+    const normalizedSelection = stripSelectionMarkup(selectionText);
+    if (!normalizedSelection || !tokens.length) {
+      return tokens;
+    }
+
+    const plainText = tokens.map(item => item.text).join('');
+    let searchFrom = 0;
+    const expandIndexes = new Set<number>();
+
+    while (searchFrom <= plainText.length) {
+      const selectionStart = plainText.indexOf(normalizedSelection, searchFrom);
+      if (selectionStart < 0) {
+        break;
+      }
+      const selectionEnd = selectionStart + normalizedSelection.length;
+      let cursor = 0;
+      for (let i = 0; i < tokens.length; i++) {
+        const tokenStart = cursor;
+        const tokenEnd = tokenStart + tokens[i].text.length;
+        cursor = tokenEnd;
+        if (
+          selectionStart < tokenEnd
+          && selectionEnd > tokenStart
+          && !tokens[i].isCursorText
+          && tokens[i].text.length > 1
+        ) {
+          expandIndexes.add(i);
+        }
+      }
+      searchFrom = selectionStart + 1;
+    }
+
+    if (!expandIndexes.size) {
+      return tokens;
+    }
+
+    const result: SelectionToken[] = [];
+    tokens.forEach((token, index) => {
+      if (!expandIndexes.has(index)) {
+        result.push(token);
+        return;
+      }
+      // 超大尾巴不做全量二次切分（避免卡顿），交给 completeByLocalRetokenize 局部窗口处理
+      if (token.text.length >= LARGE_FIELD_SKIP_TOKENIZE_LEN) {
+        result.push(token);
+        return;
+      }
+      const subTokens = LuceneSegment.split(
+        token.text,
+        Math.max(SELECTION_MAX_TOKENS, token.text.length + 1),
+      ).map(item => ({
+        text: item.text,
+        isCursorText: item.isCursorText,
+        fieldName: token.fieldName,
+        tokenType: token.tokenType ?? 'field-value',
+      }));
+      if (subTokens.some(item => item.isCursorText && item.text)) {
+        result.push(...subTokens);
+      } else {
+        result.push(token);
+      }
+    });
+    return result;
+  };
+
+  /**
+   * 围绕划选在完整 VALUE 中的命中位置做局部二次分词补齐。
+   * 覆盖：全量 token 截断尾巴、indexOf 首命中落在不可点块、短窗口内边界补齐。
+   */
+  const completeByLocalRetokenize = (plain: string, selectionText: string, preferTextSpan: boolean) => {
+    const raw = stripSelectionMarkup(selectionText).trim();
+    if (!raw || !plain || plain === '--') {
+      return '';
+    }
+
+    let searchFrom = 0;
+    while (searchFrom <= plain.length) {
+      const hitStart = plain.indexOf(raw, searchFrom);
+      if (hitStart < 0) {
+        break;
+      }
+      const hitEnd = hitStart + raw.length;
+      const windowStart = Math.max(0, hitStart - LOCAL_RETOKENIZE_WINDOW);
+      const windowEnd = Math.min(plain.length, hitEnd + LOCAL_RETOKENIZE_WINDOW);
+      const windowText = plain.slice(windowStart, windowEnd);
+      // 窗口已有界，使用更高上限避免小窗内再次触发 MAX_TOKENS 截断尾巴
+      const localTokens: SelectionToken[] = LuceneSegment.split(
+        windowText,
+        Math.max(SELECTION_MAX_TOKENS, windowText.length + 1),
+      ).map(item => ({
+        text: item.text,
+        isCursorText: item.isCursorText,
+        tokenType: 'field-value' as const,
+      }));
+
+      if (preferTextSpan) {
+        const textSpan = completeTextMinimalTokenSpan(raw, localTokens);
+        if (textSpan) {
+          return textSpan;
+        }
+      }
+      const completed = completeSelectionByTokens(raw, localTokens);
+      if (completed.length) {
+        return completed.map(token => token.text).join('');
+      }
+      searchFrom = hitStart + 1;
+    }
+
+    return '';
+  };
+
+  /**
    * text 最小分词补齐：相交 cursor token 拼成连续片段，并保留首尾紧邻引号。
    * 例：划选 read": 13979 → "thread": 139798551451328
    */
   const completeTextMinimalTokenSpan = (selectionText: string, tokens: SelectionToken[]) => {
-    const range = findSelectionTokenRange(selectionText, tokens);
+    const prepared = expandIntersectingNonCursorBlobs(tokens, selectionText);
+    const range = findSelectionTokenRange(selectionText, prepared);
     if (!range) {
       return '';
     }
 
     let from = range.rangeStart;
     let to = range.rangeEnd;
-    while (from <= to && !tokens[from].isCursorText) {
+    while (from <= to && !prepared[from].isCursorText) {
       from += 1;
     }
-    while (to >= from && !tokens[to].isCursorText) {
+    while (to >= from && !prepared[to].isCursorText) {
       to -= 1;
     }
     if (from > to) {
@@ -533,14 +691,14 @@ export default (options: UseSelectionSearchOptions) => {
     }
 
     // 保留首个分词前紧邻的 "，以及末个分词后紧邻的 "
-    while (from > 0 && tokens[from - 1].text === '"') {
+    while (from > 0 && prepared[from - 1].text === '"') {
       from -= 1;
     }
-    while (to < tokens.length - 1 && tokens[to + 1].text === '"') {
+    while (to < prepared.length - 1 && prepared[to + 1].text === '"') {
       to += 1;
     }
 
-    return tokens.slice(from, to + 1).map(item => item.text).join('');
+    return prepared.slice(from, to + 1).map(item => item.text).join('');
   };
 
   /**
@@ -567,32 +725,38 @@ export default (options: UseSelectionSearchOptions) => {
     }
 
     const preferTextSpan = isTextLikeField(field.field_type);
-    const luceneTokens = getFieldLuceneTokens(row, field);
-    if (luceneTokens.some(token => token.isCursorText && token.text)) {
+    const tryCompleteWithTokens = (tokens: SelectionToken[]) => {
+      if (!tokens.length) {
+        return '';
+      }
+      // completeTextMinimalTokenSpan / completeSelectionByTokens 内部会展开截断尾巴
       if (preferTextSpan) {
-        const textSpan = completeTextMinimalTokenSpan(raw, luceneTokens);
+        const textSpan = completeTextMinimalTokenSpan(raw, tokens);
         if (textSpan) {
           return textSpan;
         }
       }
-      const completed = completeSelectionByTokens(raw, luceneTokens);
+      const completed = completeSelectionByTokens(raw, tokens);
       if (completed.length) {
         return completed.map(token => token.text).join('');
       }
+      return '';
+    };
+
+    const luceneHit = tryCompleteWithTokens(getFieldLuceneTokens(row, field));
+    if (luceneHit) {
+      return luceneHit;
     }
 
-    const fieldTokens = getFieldSegmentTokens(row, field);
-    if (fieldTokens.some(token => token.isCursorText && token.text)) {
-      if (preferTextSpan) {
-        const textSpan = completeTextMinimalTokenSpan(raw, fieldTokens);
-        if (textSpan) {
-          return textSpan;
-        }
-      }
-      const completed = completeSelectionByTokens(raw, fieldTokens);
-      if (completed.length) {
-        return completed.map(token => token.text).join('');
-      }
+    const fieldHit = tryCompleteWithTokens(getFieldSegmentTokens(row, field));
+    if (fieldHit) {
+      return fieldHit;
+    }
+
+    // 截断尾巴 / 全量 token 匹配失败：围绕划选做局部二次分词
+    const localHit = completeByLocalRetokenize(plain, raw, preferTextSpan);
+    if (localHit) {
+      return localHit;
     }
 
     return raw;
@@ -781,6 +945,8 @@ export default (options: UseSelectionSearchOptions) => {
 
   /**
    * 定位划选文本在 token 序列中的相交区间 [rangeStart, rangeEnd]。
+   * 同一子串多次出现时，优先返回与 isCursorText 分词相交的命中，避免首个
+   * 命中落在截断尾巴（isCursorText=false）导致补齐被跳过。
    */
   const findSelectionTokenRange = (selectionText: string, tokens: SelectionToken[]) => {
     const normalizedSelection = stripSelectionMarkup(selectionText);
@@ -789,33 +955,47 @@ export default (options: UseSelectionSearchOptions) => {
     }
 
     const plainText = tokens.map(item => item.text).join('');
-    const selectionStart = plainText.indexOf(normalizedSelection);
-    if (selectionStart < 0) {
-      return null;
-    }
+    let searchFrom = 0;
+    let fallback: { rangeStart: number; rangeEnd: number; normalizedSelection: string } | null = null;
 
-    const selectionEnd = selectionStart + normalizedSelection.length;
-    let cursor = 0;
-    let rangeStart = -1;
-    let rangeEnd = -1;
-    for (let i = 0; i < tokens.length; i++) {
-      const token = tokens[i];
-      const tokenStart = cursor;
-      const tokenEnd = tokenStart + token.text.length;
-      cursor = tokenEnd;
-
-      if (selectionStart < tokenEnd && selectionEnd > tokenStart) {
-        if (rangeStart < 0) {
-          rangeStart = i;
-        }
-        rangeEnd = i;
+    while (searchFrom <= plainText.length) {
+      const selectionStart = plainText.indexOf(normalizedSelection, searchFrom);
+      if (selectionStart < 0) {
+        break;
       }
+
+      const selectionEnd = selectionStart + normalizedSelection.length;
+      let cursor = 0;
+      let rangeStart = -1;
+      let rangeEnd = -1;
+      for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+        const tokenStart = cursor;
+        const tokenEnd = tokenStart + token.text.length;
+        cursor = tokenEnd;
+
+        if (selectionStart < tokenEnd && selectionEnd > tokenStart) {
+          if (rangeStart < 0) {
+            rangeStart = i;
+          }
+          rangeEnd = i;
+        }
+      }
+
+      if (rangeStart >= 0 && rangeEnd >= 0) {
+        const hit = { rangeStart, rangeEnd, normalizedSelection };
+        if (tokenRangeHasCursor(tokens, rangeStart, rangeEnd)) {
+          return hit;
+        }
+        if (!fallback) {
+          fallback = hit;
+        }
+      }
+
+      searchFrom = selectionStart + 1;
     }
 
-    if (rangeStart < 0 || rangeEnd < 0) {
-      return null;
-    }
-    return { rangeStart, rangeEnd, normalizedSelection };
+    return fallback;
   };
 
   /**
@@ -823,7 +1003,8 @@ export default (options: UseSelectionSearchOptions) => {
    * 例：lobby-178 → [lobby, 17841059990]；lob → [lobby]
    */
   const extractMinimalIntersectingCursorTokens = (selectionText: string, tokens: SelectionToken[]) => {
-    const range = findSelectionTokenRange(selectionText, tokens);
+    const prepared = expandIntersectingNonCursorBlobs(tokens, selectionText);
+    const range = findSelectionTokenRange(selectionText, prepared);
     if (!range) {
       return [] as SelectionToken[];
     }
@@ -831,7 +1012,7 @@ export default (options: UseSelectionSearchOptions) => {
     const result: SelectionToken[] = [];
     const seen = new Set<string>();
     for (let i = range.rangeStart; i <= range.rangeEnd; i++) {
-      const token = tokens[i];
+      const token = prepared[i];
       if (!token.isCursorText || !token.text || token.tokenType === 'field-name') {
         continue;
       }
@@ -854,7 +1035,8 @@ export default (options: UseSelectionSearchOptions) => {
    * 将划选范围补全到完整分词边界（可跨相邻 token 拼接，兼容旧行为）。
    */
   const completeSelectionByTokens = (selectionText: string, tokens: SelectionToken[]) => {
-    const range = findSelectionTokenRange(selectionText, tokens);
+    const prepared = expandIntersectingNonCursorBlobs(tokens, selectionText);
+    const range = findSelectionTokenRange(selectionText, prepared);
     if (!range) {
       return [] as SelectionToken[];
     }
@@ -864,22 +1046,22 @@ export default (options: UseSelectionSearchOptions) => {
     const flushGroup = (start: number, end: number, bucket: SelectionToken[], dedupeSet: Set<string>) => {
       let from = start;
       let to = end;
-      while (from <= to && !tokens[from].isCursorText) {
+      while (from <= to && !prepared[from].isCursorText) {
         from += 1;
       }
-      while (to >= from && !tokens[to].isCursorText) {
+      while (to >= from && !prepared[to].isCursorText) {
         to -= 1;
       }
       if (from > to) {
         return;
       }
 
-      const firstCursor = tokens.slice(from, to + 1).find(item => item.isCursorText);
+      const firstCursor = prepared.slice(from, to + 1).find(item => item.isCursorText);
       if (!firstCursor || firstCursor.tokenType === 'field-name') {
         return;
       }
 
-      const text = tokens.slice(from, to + 1).map(item => item.text).join('');
+      const text = prepared.slice(from, to + 1).map(item => item.text).join('');
       if (!text) {
         return;
       }
@@ -901,7 +1083,7 @@ export default (options: UseSelectionSearchOptions) => {
     const appendedTokenSet = new Set<string>();
     let groupStart = rangeStart;
     for (let i = rangeStart; i <= rangeEnd; i++) {
-      if (tokens[i].tokenType === 'field-name') {
+      if (prepared[i].tokenType === 'field-name') {
         if (i > groupStart) {
           flushGroup(groupStart, i - 1, completedTokens, appendedTokenSet);
         }
@@ -967,7 +1149,24 @@ export default (options: UseSelectionSearchOptions) => {
         }
       }
 
-      // 3) 对划选文本自身强制 Lucene 拆分（避免 keyword whole-value 把原文黏成 1 token）
+      // 3) 截断尾巴 / 全量匹配失败：局部二次分词后再抽最小相交分词
+      const localCompleted = completeByLocalRetokenize(plain, raw, true);
+      if (localCompleted && localCompleted !== raw) {
+        const localTokens = LuceneSegment.split(localCompleted, SELECTION_MAX_TOKENS)
+          .filter(item => item.isCursorText && item.text)
+          .map(item => ({
+            text: item.text,
+            isCursorText: true,
+            fieldName: field.field_name,
+            tokenType: 'field-value' as const,
+          }));
+        if (localTokens.length) {
+          return localTokens.map(token => token.text);
+        }
+        return [localCompleted];
+      }
+
+      // 4) 对划选文本自身强制 Lucene 拆分（避免 keyword whole-value 把原文黏成 1 token）
       const selfTokens = tokenizeSelectionText(raw, {
         fieldName: field.field_name,
         tokenType: 'field-value',
@@ -1611,8 +1810,11 @@ export default (options: UseSelectionSearchOptions) => {
     range: Range,
     row: Record<string, any>,
     field: Record<string, any>,
+    selectionTextOverride?: string,
   ): SelectionCondition[] => {
-    const selectionText = getSelectionTextByRange(range);
+    const selectionText = stripSelectionMarkup(
+      selectionTextOverride ?? getSelectionTextByRange(range),
+    );
     if (!selectionText) {
       return [];
     }
@@ -2291,13 +2493,19 @@ export default (options: UseSelectionSearchOptions) => {
 
     const nestedFlag = resolveIsNestedSearchField(field.field_name, row);
     // 单分词 DOM 命中：若 valid-text 能提供更完整片段则优先（keyword 仍保持原文）
+    // 必须归一到外层 valid-text，避免高亮 mark 内层同名 class 干扰
     let effectiveSelection = selectionText;
     if (!isKeywordLikeField(field.field_type)) {
-      const startValidText = startEl?.closest?.('.valid-text') as HTMLElement | null;
-      const endValidText = endEl?.closest?.('.valid-text') as HTMLElement | null;
+      const startValidText = resolveOuterValidText(startEl);
+      const endValidText = resolveOuterValidText(endEl);
       if (startValidText && startValidText === endValidText) {
         const segmentText = stripSelectionMarkup(startValidText.textContent ?? '').trim();
-        if (segmentText && segmentText !== selectionText && segmentText.includes(selectionText)) {
+        const normalizedSelection = stripSelectionMarkup(selectionText).trim();
+        if (
+          segmentText
+          && segmentText !== normalizedSelection
+          && segmentText.includes(normalizedSelection)
+        ) {
           effectiveSelection = segmentText;
         }
       }
@@ -2323,8 +2531,15 @@ export default (options: UseSelectionSearchOptions) => {
    * - true：按渲染分词把划选补齐并拆成最小可检索分词单位后再生成条件
    * - false：DOM 剥离 KEY 文本后，对 VALUE 补齐到分词边界（不拆分）
    */
-  const addSelectionToCurrentSearch = (selectionRange: Range, row: Record<string, any>) => {
-    const selectionText = getSelectionTextByRange(selectionRange);
+  const addSelectionToCurrentSearch = (
+    selectionRange: Range,
+    row: Record<string, any>,
+    frozenSelectionText?: string,
+  ) => {
+    // 优先使用 mouseup 时固化的原文，避免弹层点击 / 高亮重绘后 live Range 文本漂移
+    const selectionText = stripSelectionMarkup(
+      frozenSelectionText || getSelectionTextByRange(selectionRange),
+    );
     if (!selectionText) {
       return;
     }
@@ -2350,7 +2565,12 @@ export default (options: UseSelectionSearchOptions) => {
     // String / JSON String：按 VALUE 分词数量决定「原文 contains」或「分词补齐 contains」
     const stringField = resolveStringFieldContext(selectionRange, row);
     if (stringField) {
-      const stringConditions = resolveStringContainsConditions(selectionRange, row, stringField);
+      const stringConditions = resolveStringContainsConditions(
+        selectionRange,
+        row,
+        stringField,
+        selectionText,
+      );
       if (stringConditions.length) {
         applySelectionConditions(stringConditions, row);
         return;

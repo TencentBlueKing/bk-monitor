@@ -28,7 +28,9 @@ export const buildUiCondition = (
 
   const fieldType = leaf.fieldType || ctx.fieldType;
   const negative = Boolean(leaf.negative);
-  const full = ctx.fullText && ctx.fullText !== '--' ? String(ctx.fullText) : '';
+  const fullRaw = ctx.fullText && ctx.fullText !== '--' ? String(ctx.fullText) : '';
+  // 防御污染的对象字符串，避免 Object 路径回填后把检索值落成 [object Object]
+  const full = fullRaw && fullRaw !== '[object Object]' ? fullRaw : '';
   const isExactValue = Boolean(full && full === value);
 
   if (leaf.type === 'Global' || !leaf.field) {

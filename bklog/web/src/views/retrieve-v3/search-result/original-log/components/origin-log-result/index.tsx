@@ -267,8 +267,67 @@ export default defineComponent({
     }, []);
 
     /**
+     * UI 操作符落地映射（与 setQueryCondition.getAdditionMappingOperator 对齐）。
+     * resolveAddToSearch 对非 text/keyword 等值会输出语义操作符 `is`，
+     * 本地 SearchBar 不经 store，必须在此把 `is` → `=`，否则会把「等于」错落成 is。
+     */
+    const getAdditionMappingOperator = (
+      operator: string,
+      field: string,
+      value: string[],
+      depth: number,
+      isNestedField = 'false',
+    ) => {
+      let mappingKey: Record<string, string> = {
+        is: '=',
+        'is not': '!=',
+      };
+
+      const textMappingKey = {
+        is: 'contains match phrase',
+        'is not': 'not contains match phrase',
+      };
+
+      const keywordMappingKey = {
+        is: 'contains',
+        'is not': 'not contains',
+      };
+
+      const boolMapping = {
+        is: `is ${value[0]}`,
+        'is not': `is ${/true/i.test(value[0]) ? 'false' : 'true'}`,
+      };
+
+      const targetField = fieldsMap.value[field]
+        ?? store.state.visibleFields?.find?.(item => item.field_name === field)
+        ?? store.state.indexFieldInfo?.fields?.find?.(item => item.field_name === field);
+      const textType = targetField?.field_type ?? '';
+      const isVirtualObjNode = targetField?.is_virtual_obj_node ?? false;
+
+      if (isVirtualObjNode && textType === 'object') {
+        mappingKey = textMappingKey;
+      }
+
+      if (textType === 'text') {
+        mappingKey = textMappingKey;
+      }
+
+      if (textType === 'boolean') {
+        mappingKey = boolMapping;
+        if (value.length) {
+          value.splice(0, value.length);
+        }
+      }
+
+      if ((depth > 1 || isNestedField === 'true') && textType === 'keyword') {
+        mappingKey = keywordMappingKey;
+      }
+      return mappingKey[operator] ?? operator;
+    };
+
+    /**
      * 分词「添加到本次检索」：统一走 resolveAddToSearch（UI + 语句）。
-     * 旧 getSqlAdditionMappingOperator 仅映射 is/is not，遇到 contains match phrase 会原样回填。
+     * UI 模式再经 getAdditionMappingOperator 落地，与 log-rows → setQueryCondition 一致。
      */
     const handleMenuClick = (data: {
       option: {
@@ -290,16 +349,24 @@ export default defineComponent({
         ?? store.state.indexFieldInfo?.fields?.find?.(item => item.field_name === fieldName)?.field_type
         ?? data.option.fieldType;
       const rawValue = String(data.option.value ?? '').replace(/<\/?mark>/gim, '').trim();
-      let fullPlain = String(data.option.fullPlain ?? '').replace(/<\/?mark>/gim, '').trim();
-      if (!fullPlain || fullPlain === '--') {
-        // 本地检索结果行里回填叶子完整 VALUE
+      /** 对象/数组不能 String()，否则会得到 "[object Object]" */
+      const toScalarPlain = (val: any): string => {
+        if (val === undefined || val === null || val === '') return '';
+        if (typeof val === 'object') {
+          if (val._isBigNumber) return String(val).replace(/<\/?mark>/gim, '').trim();
+          return '';
+        }
+        return String(val).replace(/<\/?mark>/gim, '').trim();
+      };
+      let fullPlain = toScalarPlain(data.option.fullPlain);
+      // 已污染的 "[object Object]" 视为缺失，回退行数据或放弃完整值
+      if (!fullPlain || fullPlain === '--' || fullPlain === '[object Object]') {
+        // 本地检索结果行里回填叶子完整 VALUE（仅标量）
         const row = logList.value[choosedIndex.value];
         const fromRow = row ? (row[fieldName]
           ?? fieldName.split('.').reduce((cur: any, key: string) => (cur == null ? undefined : cur[key]), row))
           : undefined;
-        fullPlain = fromRow == null || fromRow === ''
-          ? ''
-          : String(fromRow).replace(/<\/?mark>/gim, '').trim();
+        fullPlain = toScalarPlain(fromRow);
       }
       const soleByValue = Boolean(fullPlain && fullPlain === rawValue);
       const isSoleToken = Boolean(
@@ -323,12 +390,19 @@ export default defineComponent({
 
       let isNeedRefresh = false;
       if (searchMode === 'ui') {
+        const uiValue = [...(payload.value ?? [])];
+        const operator = getAdditionMappingOperator(
+          payload.operator,
+          payload.field,
+          uiValue,
+          data.option.depth ?? 0,
+        );
         const searchItem = {
           disabled: false,
           field: payload.field,
           field_type: payload.fieldType ?? fieldType,
-          operator: payload.operator,
-          value: payload.value,
+          operator,
+          value: uiValue,
           relation: 'OR',
           showAll: true,
         };

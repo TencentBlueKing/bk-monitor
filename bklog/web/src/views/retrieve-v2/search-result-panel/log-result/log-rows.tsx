@@ -103,6 +103,8 @@ export default defineComponent({
     const { handleOperation, getObjectValue, handleAddCondition } = useTextAction(emit, 'origin');
 
     let savedSelection: Range = null;
+    /** mouseup 时固化的划选原文，避免弹层点击后 live Range 文本漂移 */
+    let savedSelectionText = '';
     let mousedownOnRow = false;
     let hoverOperatorHideTimer: ReturnType<typeof setTimeout> = null;
     const layoutTimers: number[] = [];
@@ -193,19 +195,20 @@ export default defineComponent({
       allowDelineateSearch: true,
       onclick: (...args) => {
         const type = args[1];
+        const selectionValue = savedSelectionText || stripSelectionMarkup(savedSelection?.toString() ?? '');
         // 复制只处理剪贴板，不参与任何检索条件添加；显式提前返回，避免后续事件链误落到“添加到本次检索”。
         if (type === 'copy') {
-          handleOperation('copy', { value: stripSelectionMarkup(savedSelection?.toString() ?? '') });
+          handleOperation('copy', { value: selectionValue });
           popInstanceUtil.hide();
           return;
         }
         if (type === 'add-to-ai') {
-          props.handleClickTools(type, savedSelection?.toString() ?? '');
+          props.handleClickTools(type, selectionValue);
         } else if (type === 'is' && savedSelection && hoverOperatorState.row) {
-          addSelectionToCurrentSearch(savedSelection, hoverOperatorState.row);
+          addSelectionToCurrentSearch(savedSelection, hoverOperatorState.row, savedSelectionText);
         } else if (type === 'highlight') {
           // 仅划词弹层「高亮」：保留整串关键词；跨分词命中由渲染侧拼接匹配保证完整高亮
-          const selectionText = stripSelectionMarkup(savedSelection?.toString() ?? '').trim();
+          const selectionText = selectionValue.trim();
           if (selectionText) {
             RetrieveHelper.fire(RetrieveEvent.HILIGHT_TRIGGER, {
               event: 'mark',
@@ -213,7 +216,7 @@ export default defineComponent({
             });
           }
         } else {
-          handleOperation(type, { value: savedSelection?.toString() ?? '', operation: type });
+          handleOperation(type, { value: selectionValue, operation: type });
         }
         popInstanceUtil.hide();
 
@@ -222,6 +225,7 @@ export default defineComponent({
         if (type === 'is' || type === 'not' || type === 'new-search-page-is') {
           window.getSelection()?.removeAllRanges();
           savedSelection = null;
+          savedSelectionText = '';
         } else if (savedSelection) {
           const selection = window.getSelection();
           selection.removeAllRanges();
@@ -1816,6 +1820,7 @@ export default defineComponent({
 
       RetrieveHelper.setMousedownEvent(e);
       savedSelection = null;
+      savedSelectionText = '';
     };
 
     const handleRowMouseup = (e: MouseEvent, item: any, rowIndex: number) => {
@@ -1836,7 +1841,9 @@ export default defineComponent({
         RetrieveHelper.setMousedownEvent(null);
         const selection = window.getSelection();
         if (selection.rangeCount > 0) {
-          savedSelection = selection.getRangeAt(0);
+          // cloneRange + 固化文本：弹层点击/高亮重绘后 live Range 可能失效或 toString 漂移
+          savedSelection = selection.getRangeAt(0).cloneRange();
+          savedSelectionText = stripSelectionMarkup(savedSelection.toString());
           const rect = getSelectionReferenceRect(savedSelection, e);
           const target = setSelectionPopTargetHandler(rect);
           popInstanceUtil.uninstallInstance();

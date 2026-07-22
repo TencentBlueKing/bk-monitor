@@ -252,6 +252,8 @@ export const useCommonRelatedLog = (options: RelatedLogCommonOptions) => {
     clearTimeout(filterCheckTimer);
     clearTimeout(filterResetTimer);
     clearTimeout(highlightTimer);
+    // 卸载时清掉日志缓存，避免残留 query 占用
+    resetLogs();
   };
 
   onBeforeUnmount(disposeCommon);

@@ -248,28 +248,49 @@ export default class UseJsonFormatter {
     return rawValue === undefined || rawValue === null ? fallback : rawValue;
   }
 
+  /**
+   * 将行内取值转为检索用完整 VALUE 文本。
+   * 对象/数组禁止 String()（会变成 "[object Object]"），标量叶子才回填。
+   */
+  private toScalarPlainValue(value: any): string {
+    if (value === undefined || value === null || value === '') return '';
+    if (typeof value === 'object') {
+      // BigNumber 等伪对象按字符串输出
+      if (value._isBigNumber) {
+        return this.escapeString(String(value)).replace(/<\/?mark>/g, '');
+      }
+      return '';
+    }
+    return this.escapeString(String(value)).replace(/<\/?mark>/g, '');
+  }
+
   private resolveClickFullPlainValue(
     ctx: SegmentClickContext,
     fieldName: string,
     field: Record<string, any> | undefined,
     selectedValue: string,
   ) {
+    // KEY 分词：检索值就是 KEY 文本本身，不能用父级 Object 整段回填
+    if (ctx.segmentRole === 'key') {
+      return '';
+    }
+
     if (['date', 'date_nanos'].includes(field?.field_type)) {
       const raw = this.getPathValue(ctx.jsonValue, field?.field_name || fieldName)
         ?? ctx.jsonValue?.[field?.field_name || fieldName];
-      return this.escapeString(String(raw ?? selectedValue ?? '')).replace(/<\/?mark>/g, '');
+      return this.toScalarPlainValue(raw ?? selectedValue ?? '');
     }
 
     const leafValue = this.getObjectLeafValueFromContext(ctx, fieldName, undefined);
     if (leafValue !== undefined && leafValue !== null) {
-      return this.escapeString(String(leafValue)).replace(/<\/?mark>/g, '');
+      return this.toScalarPlainValue(leafValue);
     }
 
     // 根字段整段 VALUE（如 log / keyword 列）：优先按字段名从行数据取
     const pathValue = this.getPathValue(ctx.jsonValue, fieldName)
       ?? (fieldName ? ctx.jsonValue?.[fieldName] : undefined);
-    if (pathValue !== undefined && pathValue !== null && typeof pathValue !== 'object') {
-      return this.escapeString(String(pathValue)).replace(/<\/?mark>/g, '');
+    if (pathValue !== undefined && pathValue !== null) {
+      return this.toScalarPlainValue(pathValue);
     }
 
     if (!fieldName || fieldName === ctx.rootFieldName) {
@@ -277,7 +298,7 @@ export default class UseJsonFormatter {
         ? ctx.jsonValue
         : undefined;
       if (rootValue !== undefined && rootValue !== null) {
-        return this.escapeString(String(rootValue)).replace(/<\/?mark>/g, '');
+        return this.toScalarPlainValue(rootValue);
       }
     }
 

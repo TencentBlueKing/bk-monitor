@@ -1,8 +1,6 @@
-import { computed, defineComponent, nextTick, ref, watch } from 'vue';
+import { defineComponent, ref, watch } from 'vue';
 
-import RelatedLogLayout from '../standalone-tab/related-log-layout';
-import { useContextRelatedLog } from '../standalone-tab/hooks/use-context-related-log';
-import { useRelatedLogRowResolver } from '../standalone-tab/hooks/use-related-log-row-resolver';
+import { ContextLogDialogPanel } from '../standalone-tab/related-log-dialog-panel';
 
 import '../standalone-tab/index.scss';
 import './index.scss';
@@ -41,46 +39,18 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const visible = ref(false);
-    const indexSetId = ref(props.indexSetId);
-    const rowIndex = computed(() => props.rowIndex);
-    const retrieveParams = computed(() => props.retrieveParams || {});
-    const targetFields = computed(() => props.targetFields as string[]);
-    const targetRow = ref<Record<string, any>>({});
-
-    const viewModel = useContextRelatedLog({
-      indexSetId,
-      targetRow,
-      targetFields,
-    });
-
-    const { resolveByRowKey } = useRelatedLogRowResolver({
-      targetRow,
-      indexSetId,
-    });
-
-    const init = async () => {
-      if (!props.isShow || !props.rowKey) {
-        return;
-      }
-
-      const ready = await resolveByRowKey(props.rowKey, props.logParams as Record<string, any>);
-      if (!ready) {
-        return;
-      }
-
-      await nextTick();
-      await viewModel.init();
-    };
+    /** 每次打开递增，强制销毁并重建 panel，避免复用旧状态/缓存 */
+    const mountKey = ref(0);
 
     watch(
-      () => [props.isShow, props.rowKey],
-      async () => {
-        visible.value = props.isShow;
-        if (props.isShow) {
-          await init();
-        } else {
-          viewModel.dispose();
+      () => [props.isShow, props.rowKey] as const,
+      ([show]) => {
+        if (show) {
+          mountKey.value += 1;
+          visible.value = true;
+          return;
         }
+        visible.value = false;
       },
       { immediate: true },
     );
@@ -90,7 +60,6 @@ export default defineComponent({
     };
 
     const handleAfterLeave = () => {
-      viewModel.dispose();
       emit('close-dialog');
     };
 
@@ -110,17 +79,15 @@ export default defineComponent({
         }}
       >
         {visible.value && (
-          <div class='standalone-related-log-page dialog-related-log-page'>
-            <RelatedLogLayout
-              title={viewModel.t('上下文')}
-              viewModel={{
-                ...viewModel,
-                indexSetId: computed(() => indexSetId.value),
-                rowIndex,
-                retrieveParams,
-              }}
-            />
-          </div>
+          <ContextLogDialogPanel
+            key={mountKey.value}
+            indexSetId={props.indexSetId}
+            logParams={props.logParams}
+            retrieveParams={props.retrieveParams}
+            rowIndex={props.rowIndex}
+            rowKey={props.rowKey}
+            targetFields={props.targetFields as string[]}
+          />
         )}
       </bk-dialog>
     );

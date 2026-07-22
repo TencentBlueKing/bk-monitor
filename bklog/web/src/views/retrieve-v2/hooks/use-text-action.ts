@@ -35,6 +35,20 @@ import { useRoute, useRouter } from 'vue-router/composables';
 import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
 import { getConditionRouterParams } from '../search-result-panel/panel-util';
 
+/** 对象/数组不能 String()，否则会得到 "[object Object]" */
+const formatScalarFullPlain = (raw: any): string | undefined => {
+  if (raw === null || raw === undefined || raw === '') {
+    return undefined;
+  }
+  if (typeof raw === 'object') {
+    if (raw._isBigNumber) {
+      return String(raw).replace(/<\/?mark>/gim, '');
+    }
+    return undefined;
+  }
+  return String(raw).replace(/<\/?mark>/gim, '');
+};
+
 export default (emit?: (_event: string, ..._args: any[]) => void, from?: string) => {
   const store = useStore();
   const router = useRouter();
@@ -281,9 +295,8 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
             ? field
             : { field_name: fieldName };
           const raw = getRowFieldValue(row, leafField);
-          fullPlain = raw === null || raw === undefined || raw === ''
-            ? undefined
-            : String(raw).replace(/<\/?mark>/gim, '');
+          // 对象/数组禁止 String() → "[object Object]"
+          fullPlain = formatScalarFullPlain(raw);
         } else if (
           (fullPlain === undefined || fullPlain === null || fullPlain === '')
           && field
@@ -291,9 +304,7 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
           && typeof field === 'object'
         ) {
           const raw = getRowFieldValue(row, field);
-          fullPlain = raw === null || raw === undefined || raw === ''
-            ? undefined
-            : String(raw).replace(/<\/?mark>/gim, '');
+          fullPlain = formatScalarFullPlain(raw);
         }
         const normalizedActual = String(actualValue ?? '').replace(/<\/?mark>/gim, '').trim();
         const normalizedFull = fullPlain
