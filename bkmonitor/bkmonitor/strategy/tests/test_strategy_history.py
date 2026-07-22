@@ -17,6 +17,7 @@ import pytest
 from django.db import connections
 
 from alarm_backends.core.cache.strategy import StrategyCacheManager
+from bkmonitor.db_routers import UsingDB
 from bkmonitor.models import AlgorithmModel
 from bkmonitor.models import DetectModel
 from bkmonitor.models import ItemModel
@@ -81,6 +82,31 @@ def test_bulk_delete_opens_transaction_on_monitor_api():
             Strategy.delete_by_strategy_ids([1001])
 
     assert transaction_state == {"default": False, "monitor_api": True}
+
+
+@pytest.mark.django_db(databases=("default", "monitor_api"), transaction=True)
+def test_bulk_delete_opens_transaction_on_runtime_routed_database():
+    """动态路由覆盖时，事务必须与实际写入的数据库保持一致。"""
+    transaction_state = {}
+
+    def inspect_transaction():
+        transaction_state.update(
+            default=connections["default"].in_atomic_block,
+            monitor_api=connections["monitor_api"].in_atomic_block,
+        )
+        raise RuntimeError("stop after inspecting transaction")
+
+    with (
+        mock.patch.object(StrategyModel.objects, "filter") as strategy_filter,
+        mock.patch.object(Strategy, "_get_username", return_value="admin"),
+    ):
+        strategy_filter.return_value.delete.side_effect = inspect_transaction
+
+        with pytest.raises(RuntimeError, match="stop after inspecting transaction"):
+            with UsingDB("default"):
+                Strategy.delete_by_strategy_ids([1001])
+
+    assert transaction_state == {"default": True, "monitor_api": False}
 
 
 @pytest.mark.django_db

@@ -3075,8 +3075,12 @@ class Strategy(AbstractConfig):
         IssueConfig.delete(self.id)
 
     @classmethod
-    @transaction.atomic(using=router.db_for_write(StrategyModel))
     def delete_by_strategy_ids(cls, strategy_ids: list[int]):
+        with transaction.atomic(using=router.db_for_write(StrategyModel)):
+            return cls._delete_by_strategy_ids(strategy_ids)
+
+    @classmethod
+    def _delete_by_strategy_ids(cls, strategy_ids: list[int]):
         """
         批量删除策略
 
