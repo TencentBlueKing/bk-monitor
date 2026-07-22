@@ -896,12 +896,18 @@
     color: var(--table-fount-color);
     text-align: left;
 
-    &:not(.is-json) {
-      &.is-overflow-y {
-        overflow-y: auto;
+    &.is-overflow-y {
+      overflow-y: auto;
 
-        .btn-more-action {
-          position: relative;
+      .btn-more-action {
+        position: relative;
+      }
+
+      .bklog-root-field {
+        display: block;
+
+        .field-value {
+          display: block;
         }
       }
     }
