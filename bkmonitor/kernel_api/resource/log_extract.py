@@ -1,5 +1,8 @@
 """日志提取 MCP 资源。"""
 
+import ntpath
+import posixpath
+
 from rest_framework import serializers
 
 from core.drf_resource import Resource, api
@@ -24,6 +27,21 @@ TERMINAL_TASK_STATES = {"downloadable", "failed", "expired", "unknown"}
 
 def build_business_scope(bk_biz_id):
     return [{"scope_type": "biz", "scope_id": str(bk_biz_id)}]
+
+
+def build_bklog_target_nodes(target_nodes):
+    return [
+        {
+            "bk_obj_id": node.get("object_id", node.get("bk_obj_id")),
+            "bk_inst_id": node.get("instance_id", node.get("bk_inst_id")),
+        }
+        for node in target_nodes
+    ]
+
+
+def get_preview_directory(file_path):
+    path_module = ntpath if "\\" in file_path else posixpath
+    return path_module.dirname(file_path) or file_path
 
 
 class ListLogExtractTopologyResource(Resource):
@@ -52,7 +70,13 @@ class SearchLogExtractHostsResource(Resource):
         bk_biz_id = params.pop("bk_biz_id")
         params["scope_list"] = build_business_scope(bk_biz_id)
         params.setdefault("node_list", [{"object_id": "biz", "instance_id": bk_biz_id}])
-        return api.log_search.query_log_extract_hosts(**params)
+        result = api.log_search.query_log_extract_hosts(**params)
+        for host in result.get("data", []):
+            if "host_id" in host:
+                host.setdefault("bk_host_id", host["host_id"])
+            if "cloud_id" in host:
+                host.setdefault("bk_cloud_id", host["cloud_id"])
+        return result
 
 
 class ListLogExtractAllowedPathsResource(Resource):
@@ -67,7 +91,10 @@ class ListLogExtractAllowedPathsResource(Resource):
         target_nodes = serializers.ListField(child=serializers.DictField(), required=False, min_length=1)
 
     def perform_request(self, validated_request_data):
-        return api.log_search.list_log_extract_allowed_paths(**validated_request_data)
+        params = validated_request_data.copy()
+        if "target_nodes" in params:
+            params["target_nodes"] = build_bklog_target_nodes(params["target_nodes"])
+        return api.log_search.list_log_extract_allowed_paths(**params)
 
 
 class SearchLogExtractFilesResource(Resource):
@@ -96,23 +123,32 @@ class CreateLogExtractTaskResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True)
-        target_node_type = serializers.CharField(required=False)
+        target_node_type = serializers.ChoiceField(
+            choices=("INSTANCE", "TOPO", "SERVICE_TEMPLATE"), required=False, default="INSTANCE"
+        )
         ip_list = serializers.ListField(child=serializers.DictField(), required=False)
         target_nodes = serializers.ListField(child=serializers.DictField(), required=False)
         file_path = serializers.ListField(child=serializers.CharField(), min_length=1)
         filter_type = serializers.CharField(allow_blank=True)
         filter_content = serializers.DictField()
         remark = serializers.CharField(required=False, allow_blank=True)
-        preview_directory = serializers.CharField(required=True)
-        preview_ip_list = serializers.ListField(child=serializers.DictField())
-        preview_time_range = serializers.CharField(required=True)
+        preview_directory = serializers.CharField(required=False)
+        preview_ip_list = serializers.ListField(child=serializers.DictField(), required=False)
+        preview_time_range = serializers.ChoiceField(choices=("1d", "1w", "1m", "all", "custom"), required=False)
         preview_start_time = serializers.CharField(required=False, allow_blank=True)
         preview_end_time = serializers.CharField(required=False, allow_blank=True)
-        preview_is_search_child = serializers.BooleanField(required=True)
+        preview_is_search_child = serializers.BooleanField(required=False)
         link_id = serializers.IntegerField(required=False, allow_null=True)
 
     def perform_request(self, validated_request_data):
-        return api.log_search.create_log_extract_task(**validated_request_data)
+        params = validated_request_data.copy()
+        if "target_nodes" in params:
+            params["target_nodes"] = build_bklog_target_nodes(params["target_nodes"])
+        params.setdefault("preview_directory", get_preview_directory(params["file_path"][0]))
+        params.setdefault("preview_ip_list", [])
+        params.setdefault("preview_time_range", "all")
+        params.setdefault("preview_is_search_child", False)
+        return api.log_search.create_log_extract_task(**params)
 
 
 class GetLogExtractTaskResource(Resource):

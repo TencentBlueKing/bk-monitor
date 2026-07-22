@@ -23,23 +23,6 @@ from kernel_api.resource.log_extract import (
             {"bk_biz_id": 7, "ip_list": [{"bk_host_id": 101}]},
             {"ip_list": [{"bk_host_id": 101}], "strategies": [{"visible_dir": "/data/logs"}]},
         ),
-        (
-            CreateLogExtractTaskResource,
-            "create_log_extract_task",
-            {
-                "bk_biz_id": 7,
-                "ip_list": [{"bk_host_id": 101}],
-                "file_path": ["/data/logs/app.log"],
-                "filter_type": "",
-                "filter_content": {},
-                "preview_directory": "/data/logs",
-                "preview_ip_list": [{"bk_host_id": 101}],
-                "preview_time_range": "1d",
-                "preview_is_search_child": False,
-                "link_id": 1,
-            },
-            {"task_id": 123},
-        ),
     ],
 )
 def test_log_extract_resource_passes_through(monkeypatch, resource_class, api_name, request_data, response):
@@ -69,17 +52,21 @@ def test_list_allowed_paths_passes_through_topology_nodes(monkeypatch):
     request_data = {
         "bk_biz_id": 7,
         "target_node_type": "TOPO",
-        "target_nodes": [{"bk_obj_id": "module", "bk_inst_id": 42}],
+        "target_nodes": [{"object_id": "module", "instance_id": 42}],
     }
 
     result = ListLogExtractAllowedPathsResource().perform_request(request_data)
 
     assert result == response
-    api_resource.assert_called_once_with(**request_data)
+    api_resource.assert_called_once_with(
+        bk_biz_id=7,
+        target_node_type="TOPO",
+        target_nodes=[{"bk_obj_id": "module", "bk_inst_id": 42}],
+    )
 
 
 def test_search_hosts_builds_business_scope_and_defaults_to_business_root(monkeypatch):
-    response = {"total": 1, "data": [{"host_id": 101, "ip": "10.0.0.1"}]}
+    response = {"total": 1, "data": [{"host_id": 101, "cloud_id": 0, "ip": "10.0.0.1"}]}
     api_resource = Mock(return_value=response)
     monkeypatch.setattr(api.log_search, "query_log_extract_hosts", api_resource)
 
@@ -87,7 +74,8 @@ def test_search_hosts_builds_business_scope_and_defaults_to_business_root(monkey
         {"bk_biz_id": 7, "search_content": "10.0.0.1", "start": 0, "page_size": 20}
     )
 
-    assert result == response
+    assert result["data"][0]["bk_host_id"] == 101
+    assert result["data"][0]["bk_cloud_id"] == 0
     api_resource.assert_called_once_with(
         scope_list=[{"scope_type": "biz", "scope_id": "7"}],
         node_list=[{"object_id": "biz", "instance_id": 7}],
@@ -148,6 +136,35 @@ def test_search_files_rejects_more_than_ten_hosts():
 
     assert not serializer.is_valid()
     assert "ip_list" in serializer.errors
+
+
+def test_create_task_translates_nodes_and_defaults_preview_metadata(monkeypatch):
+    api_resource = Mock(return_value={"task_id": 123})
+    monkeypatch.setattr(api.log_search, "create_log_extract_task", api_resource)
+    request_data = {
+        "bk_biz_id": 7,
+        "target_node_type": "TOPO",
+        "target_nodes": [{"object_id": "module", "instance_id": 42}],
+        "file_path": ["/data/logs/app.log"],
+        "filter_type": "",
+        "filter_content": {},
+    }
+
+    result = CreateLogExtractTaskResource().perform_request(request_data)
+
+    assert result == {"task_id": 123}
+    api_resource.assert_called_once_with(
+        bk_biz_id=7,
+        target_node_type="TOPO",
+        target_nodes=[{"bk_obj_id": "module", "bk_inst_id": 42}],
+        file_path=["/data/logs/app.log"],
+        filter_type="",
+        filter_content={},
+        preview_directory="/data/logs",
+        preview_ip_list=[],
+        preview_time_range="all",
+        preview_is_search_child=False,
+    )
 
 
 @pytest.mark.parametrize(

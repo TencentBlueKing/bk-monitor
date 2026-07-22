@@ -2,7 +2,7 @@ paths:
   /mcp/list_log_extract_topology/:
     post:
       operationId: list_log_extract_topology
-      description: List topology nodes that the current user may access through log-extraction policies. Use a returned node with search_log_extract_hosts when the user refers to a set or module. 查询当前用户在日志提取策略下可访问的拓扑；当用户提到集群或模块时，将返回的节点传给主机搜索工具。
+      description: List topology nodes that the current user may access through log-extraction policies. Returned nodes use object_id and instance_id and can be passed directly to subsequent tools. 查询当前用户在日志提取策略下可访问的拓扑；返回节点使用 object_id 和 instance_id，可直接传给后续工具。
       tags: [log_extract_mcp]
       requestBody:
         required: true
@@ -32,7 +32,7 @@ paths:
   /mcp/search_log_extract_hosts/:
     post:
       operationId: search_log_extract_hosts
-      description: Query hosts accessible under log-extraction policies. Omit node_list to search from the authorized business root, or pass nodes returned by list_log_extract_topology. In the response, host_id/cloud_id are the bk_host_id/bk_cloud_id used by subsequent tools. 查询日志提取策略下可访问的主机；不传 node_list 时从授权业务根节点查询，也可传入拓扑工具返回的节点；返回结果中的 host_id/cloud_id 即后续工具使用的 bk_host_id/bk_cloud_id。
+      description: Query hosts accessible under log-extraction policies. Omit node_list to search from the authorized business root, or pass nodes returned by list_log_extract_topology. Response hosts include bk_host_id and bk_cloud_id for direct use by subsequent tools. 查询日志提取策略下可访问的主机；不传 node_list 时从授权业务根节点查询，也可传入拓扑工具返回的节点；返回主机包含 bk_host_id 和 bk_cloud_id，可直接用于后续工具。
       tags: [log_extract_mcp]
       requestBody:
         required: true
@@ -77,7 +77,7 @@ paths:
   /mcp/list_log_extract_allowed_paths/:
     post:
       operationId: list_log_extract_allowed_paths
-      description: List the directories and file types allowed by log-extraction policies for selected hosts, topology nodes, or a service template. Call this before search_log_extract_files; it does not execute a remote JOB. 查询所选主机、动态拓扑节点或服务模板的日志提取策略允许目录及文件类型；应在文件搜索前调用，本工具不会执行远程 JOB。
+      description: List the directories and file types allowed by log-extraction policies for selected hosts, topology nodes, or a service template. Returns ip_list, allowed_dir_file_list, bk_os_type, and operator. Call this before search_log_extract_files; it does not execute a remote JOB. 查询所选主机、动态拓扑节点或服务模板允许的目录及文件类型，返回 ip_list、allowed_dir_file_list、bk_os_type 和 operator；应在文件搜索前调用，本工具不会执行远程 JOB。
       tags: [log_extract_mcp]
       requestBody:
         required: true
@@ -108,10 +108,10 @@ paths:
                   minItems: 1
                   items:
                     type: object
-                    required: [bk_obj_id, bk_inst_id]
+                    required: [object_id, instance_id]
                     properties:
-                      bk_obj_id: {type: string, enum: [biz, set, module, host, SERVICE_TEMPLATE]}
-                      bk_inst_id: {type: integer}
+                      object_id: {type: string, enum: [biz, set, module, host, SERVICE_TEMPLATE]}
+                      instance_id: {type: integer}
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false
@@ -177,7 +177,7 @@ paths:
   /mcp/create_log_extract_task/:
     post:
       operationId: create_log_extract_task
-      description: Create an asynchronous log-extraction task. This runs jobs on target hosts and MUST only be called after explicit user confirmation. Parameters and response follow the BK Log create-task API. 创建异步日志提取任务，参数和返回值透传日志平台任务创建接口。
+      description: Create an asynchronous log-extraction task and return {task_id}. This runs jobs on target hosts and MUST only be called after explicit user confirmation. Host and topology identifiers can be copied from preceding tools; omitted preview metadata is derived by the service. 创建异步日志提取任务并返回 {task_id}，仅在用户明确确认后调用；主机和拓扑标识可复用前序工具结果，未提供的预览元数据由服务端生成。
       tags: [log_extract_mcp]
       requestBody:
         required: true
@@ -185,16 +185,33 @@ paths:
           application/json:
             schema:
               type: object
-              required: [bk_biz_id, file_path, filter_type, filter_content, preview_directory, preview_ip_list, preview_time_range, preview_is_search_child]
+              required: [bk_biz_id, file_path, filter_type, filter_content]
               properties:
                 bk_biz_id: {type: integer, description: Business ID. 业务ID。}
-                target_node_type: {type: string, description: Target node type; defaults to INSTANCE in BK Log.}
+                target_node_type:
+                  type: string
+                  enum: [INSTANCE, TOPO, SERVICE_TEMPLATE]
+                  default: INSTANCE
+                  description: INSTANCE accepts ip_list or host target_nodes; TOPO and SERVICE_TEMPLATE require target_nodes.
                 ip_list:
                   type: array
-                  items: {type: object}
+                  minItems: 1
+                  items:
+                    type: object
+                    description: Provide bk_host_id, or provide both ip and bk_cloud_id.
+                    properties:
+                      bk_host_id: {type: integer}
+                      ip: {type: string}
+                      bk_cloud_id: {type: integer}
                 target_nodes:
                   type: array
-                  items: {type: object}
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [object_id, instance_id]
+                    properties:
+                      object_id: {type: string, enum: [biz, set, module, host, SERVICE_TEMPLATE]}
+                      instance_id: {type: integer}
                 file_path:
                   type: array
                   minItems: 1
@@ -202,16 +219,31 @@ paths:
                 filter_type: {type: string, enum: ['', line_range, match_word, tail_line, match_range], description: Empty means no filtering. 空字符串表示不过滤。}
                 filter_content:
                   type: object
-                  description: "Parameters by filter_type: '' -> {}; line_range -> {start_line:int, end_line:int}; match_word -> {keyword:string, keyword_type:keyword_or|keyword_and|keyword_not}; tail_line -> {line_num:positive int}; match_range -> {start:string, end:string}. 各过滤类型按上述结构传参。"
+                  description: "Fields by filter_type: '' -> {}; line_range -> start_line/end_line; match_word -> keyword/keyword_type; tail_line -> line_num; match_range -> start/end. The selected combination is validated by BK Log. 各过滤类型使用对应字段，具体组合由日志平台校验。"
+                  properties:
+                    start_line: {type: integer, minimum: 0}
+                    end_line: {type: integer, minimum: 0}
+                    keyword: {type: string, minLength: 1, maxLength: 64}
+                    keyword_type: {type: string, enum: [keyword_or, keyword_and, keyword_not]}
+                    line_num: {type: integer, minimum: 1}
+                    start: {type: string, minLength: 1, maxLength: 64}
+                    end: {type: string, minLength: 1, maxLength: 64}
                 remark: {type: string, maxLength: 255}
-                preview_directory: {type: string}
+                preview_directory: {type: string, description: Optional display metadata; defaults to the parent directory of the first file path.}
                 preview_ip_list:
                   type: array
-                  items: {type: object}
-                preview_time_range: {type: string, enum: [1d, 1w, 1m, all, custom]}
+                  description: Optional display metadata; defaults to an empty list. Explicit items require ip and bk_cloud_id.
+                  items:
+                    type: object
+                    required: [ip, bk_cloud_id]
+                    properties:
+                      bk_host_id: {type: integer}
+                      ip: {type: string}
+                      bk_cloud_id: {type: integer}
+                preview_time_range: {type: string, enum: [1d, 1w, 1m, all, custom], default: all}
                 preview_start_time: {type: string}
                 preview_end_time: {type: string}
-                preview_is_search_child: {type: boolean}
+                preview_is_search_child: {type: boolean, default: false}
                 link_id: {type: integer, nullable: true, description: Extraction link ID; BK Log selects its default when omitted.}
       x-bk-apigateway-resource:
         isPublic: false
