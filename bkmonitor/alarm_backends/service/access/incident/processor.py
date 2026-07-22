@@ -111,7 +111,8 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
         if not incident_document.extra_info:
             incident_document.extra_info = {}
         incident_document.extra_info["notice_source"] = cls.BKFARA_NOTICE_SOURCE
-        incident_document.extra_info.update(process_info or {})
+        for key, value in (process_info or {}).items():
+            incident_document.extra_info[key] = value
 
     def update_remote_incident_detail(
         self,

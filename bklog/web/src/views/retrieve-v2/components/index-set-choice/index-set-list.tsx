@@ -189,7 +189,10 @@ export default defineComponent({
       // 检索 / Tag 过滤时必须精确命中，禁止把同组无关节点一并展开
       const shouldExpandAllSiblings = !isSearching && !isTagFiltering;
 
-      const processedList = props.list.map((item: any) => {
+      // 只处理根节点；若误传入扁平列表，跳过 is_child_node 避免与分组内子节点重复渲染
+      const rootList = (props.list as IndexSetItem[]).filter((item: any) => !item.is_child_node);
+
+      const processedList = rootList.map((item: any) => {
         const isShownNode = checkNodeShouldShow(item);
         const children = item.children?.length ? processChildren(item.children, item) : item.children;
         const hasVisibleChild = children?.some((child: any) => child.is_shown_node) ?? false;
@@ -216,6 +219,27 @@ export default defineComponent({
           has_no_data_child: nextChildren?.every((child: any) => hasNoDataTag(child)) ?? false,
         };
       });
+
+      // 检索时：同一 index_set_id 既在分组下命中、又以独立根节点存在时，优先保留分组内展示，隐藏根级重复项
+      if (isSearching) {
+        const shownChildIdSet = new Set<string>();
+        for (const item of processedList) {
+          for (const child of item.children ?? []) {
+            if (child.is_shown_node) {
+              shownChildIdSet.add(`${child.index_set_id}`);
+            }
+          }
+        }
+
+        if (shownChildIdSet.size > 0) {
+          for (const item of processedList) {
+            const isGroupRoot = item.children?.length > 0 || item.is_group;
+            if (!isGroupRoot && item.is_shown_node && shownChildIdSet.has(`${item.index_set_id}`)) {
+              item.is_shown_node = false;
+            }
+          }
+        }
+      }
 
       return processedList.sort((a, b) => sortBySelectedAndData(a, b, true));
     });
