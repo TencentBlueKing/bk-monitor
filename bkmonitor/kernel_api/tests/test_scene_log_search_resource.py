@@ -49,7 +49,6 @@ def test_normalize_timestamp_to_milliseconds(timestamp, expected):
             target_type="scene",
             index_set_id=375,
             table_id_conditions=SCENE_CONDITIONS,
-            conditions={"field_list": [], "condition_list": []},
             keep_columns=["log"],
             order_by=["-dtEventTimeStamp"],
             offset=10,
@@ -78,6 +77,25 @@ def test_search_log_serializer_requires_target(request_data):
     serializer = SearchLogResource.RequestSerializer(data=request_data)
 
     assert not serializer.is_valid()
+
+
+@override_settings(MCP_MAX_TIME_SPAN_SECONDS=86400)
+def test_search_log_serializer_rejects_conditions_for_scene():
+    serializer = SearchLogResource.RequestSerializer(
+        data=build_search_request(
+            target_type="scene",
+            table_id_conditions=SCENE_CONDITIONS,
+            conditions={
+                "field_list": [{"field_name": "level", "op": "eq", "value": ["ERROR"]}],
+                "condition_list": [],
+            },
+        )
+    )
+
+    assert not serializer.is_valid()
+    assert serializer.errors == {
+        "conditions": ["conditions is not supported when target_type is scene; use query_string instead."]
+    }
 
 
 @override_settings(MCP_MAX_TIME_SPAN_SECONDS=86400)

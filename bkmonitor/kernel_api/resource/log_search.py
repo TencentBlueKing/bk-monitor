@@ -183,7 +183,8 @@ class SearchLogResource(Resource):
             label="结果表路由条件，外层为 OR，内层为 AND",
         )
         query_string = serializers.CharField(required=False, default="*", label="查询字符串(检索语法)")
-        # 结构化过滤条件，与 query_string 可同时使用（AND 关系），适合精确的字段级过滤。
+        # 索引集检索的结构化过滤条件，与 query_string 可同时使用（AND 关系），适合精确的字段级过滤。
+        # 场景检索暂不支持该参数，请使用 query_string 表达日志过滤条件。
         # 格式：{"field_list": [{"field_name": "level", "op": "eq", "value": ["ERROR", "WARN"]}], "condition_list": ["and"]}
         # field_list: 字段筛选规则列表，op 支持 eq/ne/req(正则) 等；value 为多值列表(默认 OR 关系)。
         # condition_list: 逻辑运算符列表，长度为 field_list.length - 1，例如 ["and", "or"]。
@@ -227,6 +228,11 @@ class SearchLogResource(Resource):
             if not table_id_conditions:
                 raise serializers.ValidationError(
                     {"table_id_conditions": "table_id_conditions is required when target_type is scene."}
+                )
+
+            if attrs.get("conditions") is not None:
+                raise serializers.ValidationError(
+                    {"conditions": "conditions is not supported when target_type is scene; use query_string instead."}
                 )
 
             return attrs
