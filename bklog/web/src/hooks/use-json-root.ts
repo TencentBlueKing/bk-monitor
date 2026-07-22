@@ -33,6 +33,8 @@ type RootFieldOperator = {
   value: boolean | number | object | string;
   /** 展示文本（可含时间格式化）；检索回取仍用 value 原始值 */
   stringValue?: string;
+  /** 分词字段归属解析用完整原文（可长于 1000 截断展示） */
+  segmentResolveText?: string;
   editor?: UseJsonFormatter;
   field: any;
   precomputedSegments?: Record<string, any[]>;
@@ -48,6 +50,7 @@ type RootField = {
     ref: Ref<HTMLElement>;
     value: boolean | number | object | string;
     stringValue?: string;
+    segmentResolveText?: string;
     field: any;
     precomputedSegments?: Record<string, any[]>;
     enableLeafTruncate?: boolean;
@@ -79,6 +82,7 @@ export default ({ fields: initialFields, onSegmentClick, onSegmentRenderUpdate }
       enableLeafTruncate: !!value.enableLeafTruncate,
       parsedFromJsonString: !!value.parsedFromJsonString,
       resolveFieldDisplayName: value.resolveFieldDisplayName,
+      segmentResolveText: value.segmentResolveText,
     },
   });
 
@@ -151,6 +155,7 @@ export default ({ fields: initialFields, onSegmentClick, onSegmentRenderUpdate }
           ref: formatter.ref,
           value: formatter.value,
           stringValue: formatter.stringValue,
+          segmentResolveText: formatter.segmentResolveText,
           field: formatter.field,
           precomputedSegments: formatter.precomputedSegments,
           enableLeafTruncate: formatter.enableLeafTruncate,
@@ -165,6 +170,7 @@ export default ({ fields: initialFields, onSegmentClick, onSegmentRenderUpdate }
           ref: formatter.ref,
           value: formatter.value,
           stringValue: formatter.stringValue,
+          segmentResolveText: formatter.segmentResolveText,
           field: formatter.field,
           precomputedSegments: formatter.precomputedSegments,
           enableLeafTruncate: formatter.enableLeafTruncate,

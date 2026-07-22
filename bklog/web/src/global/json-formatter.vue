@@ -86,6 +86,7 @@
     stripMark,
     truncateMarkedTextByChars,
   } from '../storage/utils/retrieve-render-meta';
+  import { clearWordSplitSourceCache } from '../hooks/use-json-formatter';
   import useJsonRoot from '../hooks/use-json-root';
   import useStore from '../hooks/use-store';
   import { BK_LOG_STORAGE } from '../store/store.type';
@@ -467,6 +468,12 @@
     return hasMappedAlias ? mappedSegments : segments;
   };
 
+  /**
+   * 分词字段归属解析用的完整原文（与 1000 截断展示同源、仅去掉 mark）。
+   * 截断后的 DOM 仍是此前缀，偏移可对齐；JSON.parse 必须用完整串，不能用截断串。
+   */
+  const getSegmentResolveText = (fieldName: string) => stripMark(getOriginalValueRenderText(fieldName));
+
   const getOriginalValueSegments = (field: any) => {
     const fieldName = field.field_name;
     const aliasAwareSegments = getAliasAwareSegments(field, props.renderMeta?.fieldSegments);
@@ -518,13 +525,19 @@
     return renderText?.replace?.(/<\/?mark>/igm, '') ?? fallback;
   };
 
+  const resetWordSplitFlag = (element: HTMLElement) => {
+    element.removeAttribute('data-has-word-split');
+    // 兼容历史大段 Attr；完整 source 改由 data-field-name + Field / segmentResolveText 读取
+    element.removeAttribute('data-word-split-source');
+    clearWordSplitSourceCache(element);
+  };
+
   const resetOriginalValueRenderedFlag = (fieldName: string) => {
     const root = refJsonFormatterCell.value as HTMLElement | undefined;
     const elements = root?.querySelectorAll?.('.field-value[data-field-name]') ?? [];
     for (const element of Array.from(elements) as HTMLElement[]) {
       if (element.getAttribute('data-field-name') === fieldName) {
-        element.removeAttribute('data-has-word-split');
-        element.removeAttribute('data-word-split-source');
+        resetWordSplitFlag(element);
       }
     }
   };
@@ -533,8 +546,7 @@
     const root = refJsonFormatterCell.value as HTMLElement | undefined;
     const elements = root?.querySelectorAll?.('.field-value[data-has-word-split]') ?? [];
     for (const element of Array.from(elements) as HTMLElement[]) {
-      element.removeAttribute('data-has-word-split');
-      element.removeAttribute('data-word-split-source');
+      resetWordSplitFlag(element);
     }
   };
 
@@ -546,8 +558,7 @@
     for (const element of Array.from(elements) as HTMLElement[]) {
       const fieldName = element.getAttribute('data-field-name');
       if (fieldName && isOriginalValueTruncated(fieldName)) {
-        element.removeAttribute('data-has-word-split');
-        element.removeAttribute('data-word-split-source');
+        resetWordSplitFlag(element);
       }
     }
   };
@@ -715,10 +726,11 @@
       const isDateField = ['date', 'date_nanos'].includes(f.field_type);
       const formatter = getFieldFormatter(f, shouldFormatDate);
       /**
-       * Origin 模式根级 1000 截断：
-       * - 未开启 JSON 解析：保持原逻辑，整段 VALUE 超长则截断 + 更多
+       * Origin 模式根级 1000 截断（最高优先级，不可移除）：
+       * - 未开启 JSON 解析：整段 VALUE 超长则截断 + 更多，分词只渲染前 1000
        * - 已开启 JSON 解析且可解析为对象/数组：禁止根级 slice，交由 JSON 树渲染；
        *   1000/更多仅作用于叶子不可解析字符串
+       * - 截断展示时，KEY/VALUE 字段归属仍用完整原文解析（segmentResolveText）
        */
       const shouldUseOriginalValueText =
         isOriginalMode.value
@@ -741,6 +753,8 @@
           stringValue: shouldUseOriginalValueText
             ? getOriginalValueDisplayText(f.field_name, formatter.stringValue)
             : formatter.stringValue,
+          // 与截断展示同源的完整原文：仅用于分词→字段路径绑定，不参与 DOM 截断渲染
+          segmentResolveText: getSegmentResolveText(f.field_name),
           precomputedSegments: shouldSkipPrecomputedSegments
             ? undefined
             : getOriginalValueSegments(f),

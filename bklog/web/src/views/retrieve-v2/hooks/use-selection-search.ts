@@ -29,6 +29,10 @@ import { computed, type Ref } from 'vue';
 import { getRowFieldValue, isNestedField } from '@/common/util';
 import { normalizeArrayFieldPath, resolveMappedFieldPath } from '@/hooks/field-path';
 import { resolveOuterValidText } from '@/hooks/hooks-helper';
+import {
+  findJsonSegmentRangeAtOffset,
+  getJsonSegmentRanges,
+} from '@/hooks/json-segment-ranges';
 import LuceneSegment from '@/hooks/lucene.segment';
 import useStore from '@/hooks/use-store';
 import {
@@ -84,6 +88,8 @@ export type SelectionCondition = {
   value: string[];
   depth?: string | number;
   isNestedField?: string;
+  /** 仅截断尾巴路径显式透传；常规 Field:分词 仍以 Fields 元信息为准 */
+  fieldType?: string;
 };
 
 type HandleAddCondition = (
@@ -817,12 +823,14 @@ export default (options: UseSelectionSearchOptions) => {
 
     // 优先取分词叶子路径（Origin 未展开 JSON 时挂在 valid-text 上），
     // 再回退 JSON 树 data-search-field-name / data-field-name。
-    // 若不优先 segment，同一次划词会因边界落在不同节点而在根字段/叶子字段之间漂移。
+    // 截断尾巴 .blob-text 不得抢占已有 segment / search-field。
     return (
       startElement?.closest?.('[data-segment-field-name]')
       ?? endElement?.closest?.('[data-segment-field-name]')
       ?? startElement?.closest?.('[data-search-field-name]')
       ?? endElement?.closest?.('[data-search-field-name]')
+      ?? startElement?.closest?.('.blob-text[data-field-name], .blob-text[data-search-field-name]')
+      ?? endElement?.closest?.('.blob-text[data-field-name], .blob-text[data-search-field-name]')
       ?? startElement?.closest?.('[data-field-name]')
       ?? endElement?.closest?.('[data-field-name]')
     ) as HTMLElement | null;
@@ -2383,12 +2391,14 @@ export default (options: UseSelectionSearchOptions) => {
       const field = getFieldByName(mappedName);
       const fullPlain = row && field ? getFieldPlainText(row, field) : undefined;
       const rawValue = item.value?.[0] ?? '';
+      // fieldType 仅截断尾巴显式透传时覆盖；常规分词仍以 Fields 为准
+      const fieldType = item.fieldType ?? field?.field_type;
       const pos = resolveSelectionTokenMeta(row, field, rawValue, fullPlain);
       emitAddCondition(mappedName, item.operator, item.value, {
         depth: item.depth ?? (mappedName ? getFieldPathDepth(mappedName) : item.depth),
         isNestedField: item.isNestedField,
         fullPlain,
-        fieldType: field?.field_type,
+        fieldType,
         isSoleToken: pos.isSoleToken,
         tokenIndex: pos.tokenIndex,
         tokenCount: pos.tokenCount,
@@ -2421,6 +2431,234 @@ export default (options: UseSelectionSearchOptions) => {
         tokenCount: pos.tokenCount,
       });
     });
+  };
+
+  /** 计算 Range 起点相对容器纯文本的字符偏移 */
+  const getRangeStartOffsetInContainer = (range: Range, container: HTMLElement | null) => {
+    if (!container || !range?.startContainer) {
+      return -1;
+    }
+    try {
+      const preRange = document.createRange();
+      preRange.selectNodeContents(container);
+      preRange.setEnd(range.startContainer, range.startOffset);
+      return stripSelectionMarkup(preRange.toString()).length;
+    } catch {
+      return -1;
+    }
+  };
+
+  /**
+   * 仅处理 MAX_TOKENS 截断长文本尾巴（.blob-text）划词。
+   *
+   * 硬门槛（不满足立即 []，禁止影响已有 Field:分词1 分词2）：
+   * 1) 起止都落在同一个 .blob-text
+   * 2) 不落在 .valid-text / [data-segment-field-name]
+   * 3) blob 带 data-blob-text-offset
+   * 4) 选区不与任何已绑定 KEY/VALUE 分词相交
+   *
+   * UI / 语句统一走 applySelectionConditions → resolveAddToSearch。
+   */
+  const resolveTruncatedBlobSelectionConditions = (
+    range: Range,
+    row: Record<string, any>,
+    selectionText: string,
+  ): SelectionCondition[] => {
+    const startNode = range.startContainer as Node;
+    const endNode = range.endContainer as Node;
+    const startEl = (startNode instanceof Element ? startNode : startNode?.parentElement) as Element | null;
+    const endEl = (endNode instanceof Element ? endNode : endNode?.parentElement) as Element | null;
+
+    const startBlob = startEl?.closest?.('.blob-text') as HTMLElement | null;
+    const endBlob = endEl?.closest?.('.blob-text') as HTMLElement | null;
+    if (!startBlob || !endBlob || startBlob !== endBlob) {
+      return [];
+    }
+    if (startEl?.closest?.('.valid-text') || endEl?.closest?.('.valid-text')) {
+      return [];
+    }
+    if (
+      startEl?.closest?.('[data-segment-field-name]')
+      || endEl?.closest?.('[data-segment-field-name]')
+    ) {
+      return [];
+    }
+    if (startBlob.getAttribute('data-blob-text-offset') == null) {
+      return [];
+    }
+
+    try {
+      const segmentRoot = startBlob.closest('.segment-content, .field-value') ?? startBlob.parentElement;
+      if (segmentRoot) {
+        const boundNodes = segmentRoot.querySelectorAll('.valid-text, [data-segment-field-name]');
+        for (let i = 0; i < boundNodes.length; i++) {
+          if (range.intersectsNode(boundNodes[i])) {
+            return [];
+          }
+        }
+      }
+    } catch {
+      return [];
+    }
+
+    const rootFieldName = startBlob.getAttribute('data-search-field-name')
+      || startBlob.getAttribute('data-field-name')
+      || '';
+    if (!rootFieldName) {
+      return [];
+    }
+
+    const rootField = getFieldByName(rootFieldName)
+      ?? {
+        field_name: rootFieldName,
+        field_type: startBlob.getAttribute('data-field-type') || 'text',
+      };
+    const fieldType = startBlob.getAttribute('data-field-type') || rootField.field_type || '';
+    rootField.field_type = fieldType || rootField.field_type;
+
+    const withType = (conditions: SelectionCondition[]) => conditions.map(item => ({
+      ...item,
+      fieldType: item.fieldType || fieldType,
+    }));
+
+    // Text/String JSON 外观：截断尾巴仍归属外层字段
+    if (
+      startBlob.closest(`[${JSON_TEXT_VALUE_ATTR}="true"]`) != null
+      || isStringRuntimeValue(rootField, row)
+    ) {
+      const resolved = resolveSelectionByFieldType(selectionText, rootField, row);
+      const nestedFlag = resolveIsNestedSearchField(rootField.field_name, row);
+      return withType(resolved.values.map(token => ({
+        field: rootField.field_name,
+        operator: resolved.operator,
+        value: [token],
+        depth: getFieldPathDepth(rootField.field_name),
+        isNestedField: nestedFlag ? 'true' : 'false',
+        fieldType,
+      })));
+    }
+
+    const plain = getFieldPlainText(row, rootField);
+    const blobBase = Number(startBlob.getAttribute('data-blob-text-offset'));
+    const localOffset = getRangeStartOffsetInContainer(range, startBlob);
+    const absOffset = Number.isFinite(blobBase) && localOffset >= 0
+      ? blobBase + localOffset
+      : getRangeStartOffsetInContainer(range, startBlob.closest('.field-value') as HTMLElement | null);
+
+    // 偏移 → JSON 叶子路径
+    if (absOffset >= 0 && plain && plain !== '--' && /^\s*[\[{]/.test(plain)) {
+      const jsonRange = findJsonSegmentRangeAtOffset(
+        getJsonSegmentRanges(plain, rootFieldName),
+        absOffset,
+      );
+      if (jsonRange?.fieldName) {
+        const mappedPath = clampToMappedFieldName(jsonRange.fieldName, rootFieldName);
+        if (jsonRange.role === 'key') {
+          const nestedFlag = resolveIsNestedSearchField(mappedPath, row);
+          const keyField = getFieldByName(mappedPath);
+          const keyValues = resolveSelectionValues(selectionText, keyField, row);
+          return withType((keyValues.length ? keyValues : [selectionText]).map(token => ({
+            field: mappedPath,
+            operator: 'contains match phrase',
+            value: [token],
+            depth: getFieldPathDepth(mappedPath),
+            isNestedField: nestedFlag ? 'true' : 'false',
+            fieldType: keyField?.field_type || fieldType || 'object',
+          })));
+        }
+
+        let leafField = getFieldByName(mappedPath);
+        if (!isLeafQueryableField(leafField)) {
+          leafField = findLeafFieldBySelection(row, mappedPath, selectionText)
+            ?? findLeafFieldByPartialValue(
+              row,
+              getParentFieldPath(mappedPath) || rootFieldName,
+              selectionText,
+            )
+            ?? leafField;
+        }
+        const targetField = isLeafQueryableField(leafField)
+          ? leafField
+          : {
+            field_name: mappedPath,
+            field_type: getFieldByName(mappedPath)?.field_type || fieldType || 'keyword',
+          };
+        const resolved = resolveSelectionByFieldType(selectionText, targetField, row);
+        const nestedFlag = resolveIsNestedSearchField(targetField.field_name, row);
+        return withType(resolved.values.map(token => ({
+          field: targetField.field_name,
+          operator: resolved.operator,
+          value: [token],
+          depth: getFieldPathDepth(targetField.field_name),
+          isNestedField: nestedFlag ? 'true' : 'false',
+          fieldType: targetField.field_type || fieldType,
+        })));
+      }
+    }
+
+    // 局部窗口 KV
+    const blobText = stripSelectionMarkup(startBlob.textContent ?? '');
+    const localWindow = blobText && selectionText && blobText.includes(selectionText)
+      ? blobText
+      : selectionText;
+    const kvPairs = parseJsonKvPairsFromText(localWindow);
+    if (kvPairs.length) {
+      const conditions: SelectionCondition[] = [];
+      const seen = new Set<string>();
+      kvPairs.forEach((pair) => {
+        const field = resolveFieldByKeyHint(pair.key, rootFieldName, row, pair.value);
+        if (!isLeafQueryableField(field)) {
+          return;
+        }
+        const resolved = resolveSelectionByFieldType(pair.value, field, row);
+        resolved.values.forEach((token) => {
+          const key = [field.field_name, resolved.operator, token].join('__');
+          if (seen.has(key)) return;
+          seen.add(key);
+          conditions.push({
+            ...buildConditionFromFieldWithRow(field, token, row, resolved.operator),
+            fieldType: field.field_type,
+          });
+        });
+      });
+      if (conditions.length) {
+        return dedupeSelectionConditions(conditions);
+      }
+    }
+
+    const leafByValue = findLeafFieldByPartialValue(row, rootFieldName, selectionText)
+      ?? findLeafFieldBySelection(row, rootFieldName, selectionText);
+    if (isLeafQueryableField(leafByValue)) {
+      const resolved = resolveSelectionByFieldType(selectionText, leafByValue, row);
+      return withType(resolved.values.map(token => ({
+        ...buildConditionFromFieldWithRow(leafByValue, token, row, resolved.operator),
+        fieldType: leafByValue.field_type,
+      })));
+    }
+
+    // 回落根字段；Object/Nested 禁止整段 JSON is
+    const nestedFlag = resolveIsNestedSearchField(rootField.field_name, row);
+    if (isStructField(rootField)) {
+      const values = resolveSelectionValues(selectionText, rootField, row);
+      return withType((values.length ? values : [selectionText]).map(token => ({
+        field: rootField.field_name,
+        operator: 'contains match phrase',
+        value: [token],
+        depth: getFieldPathDepth(rootField.field_name),
+        isNestedField: nestedFlag ? 'true' : 'false',
+        fieldType,
+      })));
+    }
+
+    const resolved = resolveSelectionByFieldType(selectionText, rootField, row);
+    return withType(resolved.values.map(token => ({
+      field: rootField.field_name,
+      operator: resolved.operator,
+      value: [token],
+      depth: getFieldPathDepth(rootField.field_name),
+      isNestedField: nestedFlag ? 'true' : 'false',
+      fieldType,
+    })));
   };
 
   /**
@@ -2592,6 +2830,17 @@ export default (options: UseSelectionSearchOptions) => {
     const multiFieldConditions = resolveMultiFieldSelectionConditions(selectionRange, row);
     if (multiFieldConditions.length >= 1) {
       applySelectionConditions(multiFieldConditions, row);
+      return;
+    }
+
+    // 仅当上述 Field:分词1 分词2 均未命中，且选区完全落在 MAX_TOKENS 截断尾巴时才介入
+    const blobConditions = resolveTruncatedBlobSelectionConditions(
+      selectionRange,
+      row,
+      selectionText,
+    );
+    if (blobConditions.length) {
+      applySelectionConditions(blobConditions, row);
       return;
     }
 

@@ -52,6 +52,7 @@ import {
   setPointerCellClickTargetHandler,
   setScrollLoadCell,
 } from './hooks-helper';
+import { getJsonSegmentRanges } from './json-segment-ranges';
 import useStore from './use-store';
 import UseSegmentPropInstance from './use-segment-pop';
 
@@ -104,6 +105,18 @@ type SegmentClickContext = {
 };
 
 let activeSegmentClickContext: SegmentClickContext | null = null;
+
+/**
+ * 分词重建比对缓存：禁止把大段原文写入 data-* Attr（DOM 属性拷贝开销极大）。
+ * 需要完整 source 时按 data-field-name + Field / segmentResolveText 读取。
+ */
+const wordSplitSourceByElement = new WeakMap<HTMLElement, string>();
+
+export const clearWordSplitSourceCache = (element?: HTMLElement | null) => {
+  if (element) {
+    wordSplitSourceByElement.delete(element);
+  }
+};
 
 const SEGMENT_VIRTUAL_TARGET_ATTRS = [
   'data-field-value',
@@ -783,6 +796,14 @@ export default class UseJsonFormatter {
       textNode.classList.add('valid-text');
     } else if (item.isNotParticiple || item.isBlobWord) {
       textNode.classList.add('others-text');
+    } else if (!item.isCursorText) {
+      // MAX_TOKENS 截断尾巴：整段不可点长文本，单独标记，不改动 valid-text KEY/VALUE 分词
+      const plain = text.replace(/<\/?mark>/g, '');
+      if (plain.length > 1) {
+        textNode.classList.add('blob-text');
+      } else {
+        textNode.classList.add('others-text');
+      }
     }
 
     textNode.appendChild(highlightPlainTextIntoFragment({
@@ -805,123 +826,84 @@ export default class UseJsonFormatter {
    * Origin 模式下 JSON 解析开关关闭时，仍然保持原始字符串的渲染方式，
    * 但为 JSON 中的 KEY/VALUE 分词补充真实叶子字段路径。这样不会改变展示，
    * 也不会把 data-search-field-name（划词语义）改成子字段路径。
+   *
+   * 额外：仅为 MAX_TOKENS 截断尾巴（.blob-text）绑定根字段元信息与偏移，
+   * 不改动已有 .valid-text 的 segment 绑定逻辑。
    */
-  private getJsonSegmentRanges(text: string, rootFieldName: string) {
-    const ranges: Array<{ start: number; end: number; fieldName: string; role?: 'key' | 'value' }> = [];
-    let cursor = 0;
-
-    const skipSpace = () => {
-      while (/\s/.test(text[cursor] ?? '')) cursor += 1;
-    };
-    const readString = () => {
-      const start = cursor;
-      cursor += 1;
-      while (cursor < text.length) {
-        if (text[cursor] === '\\') {
-          cursor += 2;
-        } else if (text[cursor] === '"') {
-          cursor += 1;
-          return { start, end: cursor, contentStart: start + 1, contentEnd: cursor - 1 };
-        } else {
-          cursor += 1;
-        }
-      }
-      return undefined;
-    };
-    const readPrimitive = () => {
-      const start = cursor;
-      while (cursor < text.length && !/[\s,}\]]/.test(text[cursor])) cursor += 1;
-      return { start, end: cursor };
-    };
-    const readValue = (path: string) => {
-      skipSpace();
-      if (text[cursor] === '"') {
-        const stringRange = readString();
-        if (stringRange) {
-          ranges.push({ start: stringRange.contentStart, end: stringRange.contentEnd, fieldName: path });
-        }
-        return;
-      }
-      if (text[cursor] === '{') {
-        cursor += 1;
-        skipSpace();
-        while (cursor < text.length && text[cursor] !== '}') {
-          const key = readString();
-          if (!key) return;
-          skipSpace();
-          if (text[cursor] !== ':') return;
-          cursor += 1;
-          const childPath = `${path}.${text.slice(key.contentStart, key.contentEnd)}`;
-          // KEY 绑定自身完整路径（如 __ext_json.deployment.application），再由 clamp 收敛到 Fields 最长前缀；
-          // 未声明子键（如 __ext_json.deployment.pod.node）会回溯到 __ext_json.deployment.pod。
-          ranges.push({
-            start: key.contentStart,
-            end: key.contentEnd,
-            fieldName: childPath,
-            role: 'key',
-          });
-          skipSpace();
-          readValue(childPath);
-          skipSpace();
-          if (text[cursor] === ',') {
-            cursor += 1;
-            skipSpace();
-          } else break;
-        }
-        if (text[cursor] === '}') cursor += 1;
-        return;
-      }
-      if (text[cursor] === '[') {
-        cursor += 1;
-        let index = 0;
-        skipSpace();
-        while (cursor < text.length && text[cursor] !== ']') {
-          readValue(`${path}.${index}`);
-          index += 1;
-          skipSpace();
-          if (text[cursor] === ',') {
-            cursor += 1;
-            skipSpace();
-          } else break;
-        }
-        if (text[cursor] === ']') cursor += 1;
-        return;
-      }
-      const primitive = readPrimitive();
-      if (primitive.end > primitive.start) ranges.push({ ...primitive, fieldName: path });
-    };
-
-    try {
-      const parsed = JSON.parse(text);
-      if (parsed === null || typeof parsed !== 'object') return [];
-      skipSpace();
-      readValue(rootFieldName);
-    } catch {
-      return [];
-    }
-    return ranges;
-  }
-
-  private bindRawJsonSegmentFields(target: HTMLElement, text: string, rootFieldName: string) {
-    const ranges = this.getJsonSegmentRanges(text, rootFieldName);
-    if (!ranges.length) return;
+  private annotateTruncatedBlobSpans(target: HTMLElement, text: string, rootFieldName: string) {
+    const field = this.getField(rootFieldName)
+      ?? (this.config.field?.field_name === rootFieldName ? this.config.field : undefined);
+    const fieldType = field?.field_type ?? target.getAttribute('data-field-type') ?? '';
+    const segmentRoot = target.querySelector('.segment-content') as HTMLElement | null;
+    if (!segmentRoot) return;
 
     let offset = 0;
-    const segments = listOuterValidTextNodes(target.querySelector('.segment-content') ?? target);
-    for (const segment of segments) {
+    const children = Array.from(segmentRoot.children) as HTMLElement[];
+    for (const segment of children) {
+      if (!(segment instanceof HTMLElement) || segment.classList.contains('last-placeholder')) {
+        continue;
+      }
       const segmentText = segment.textContent ?? '';
       const start = text.indexOf(segmentText, offset);
-      if (start < 0) continue;
-      const end = start + segmentText.length;
-      const range = ranges.find(item => start < item.end && end > item.start);
-      if (range) {
-        // DOM 绑定即收敛：未映射深路径回溯到 Fields 最长前缀
-        const mappedPath = this.clampToMappedFieldPath(range.fieldName, rootFieldName);
-        segment.setAttribute('data-segment-field-name', mappedPath);
-        if (range.role) segment.setAttribute('data-segment-field-role', range.role);
+      if (start < 0) {
+        continue;
       }
-      offset = end;
+      // 只给 getChildItem 已标记的截断尾巴补元信息，绝不把普通 others-text 提升为 blob
+      if (segment.classList.contains('blob-text')) {
+        segment.setAttribute('data-blob-text-offset', String(start));
+        segment.setAttribute('data-field-name', rootFieldName);
+        segment.setAttribute('data-search-field-name', rootFieldName);
+        if (fieldType) {
+          segment.setAttribute('data-field-type', fieldType);
+        }
+      }
+      offset = start + segmentText.length;
     }
+  }
+
+  /**
+   * 解析 JSON KEY/VALUE 区间：优先用完整原文（segmentResolveText），
+   * 截断展示串仅用于 DOM 分词偏移对齐（其为完整原文前缀）。
+   */
+  private resolveJsonSegmentRanges(displayText: string, rootFieldName: string) {
+    const resolveText = String(this.config.options?.segmentResolveText ?? '').replace(/<\/?mark>/gim, '');
+    const candidates = [resolveText, displayText].filter((item, index, list) => {
+      if (!item || !/^\s*[\[{]/.test(item)) return false;
+      return list.indexOf(item) === index;
+    });
+    for (const candidate of candidates) {
+      const ranges = getJsonSegmentRanges(candidate, rootFieldName);
+      if (ranges.length) {
+        return ranges;
+      }
+    }
+    return [];
+  }
+
+  private bindRawJsonSegmentFields(target: HTMLElement, displayText: string, rootFieldName: string) {
+    // ranges 来自完整原文；offset 按截断展示串计算（前 1000 与原文前缀对齐）
+    const ranges = this.resolveJsonSegmentRanges(displayText, rootFieldName);
+    if (ranges.length) {
+      let offset = 0;
+      const segments = listOuterValidTextNodes(target.querySelector('.segment-content') ?? target);
+      for (const segment of segments) {
+        const segmentText = segment.textContent ?? '';
+        const start = displayText.indexOf(segmentText, offset);
+        if (start < 0) continue;
+        const end = start + segmentText.length;
+        const range = ranges.find(item => start < item.end && end > item.start);
+        if (range) {
+          // DOM 绑定即收敛：未映射深路径回溯到 Fields 最长前缀
+          const mappedPath = this.clampToMappedFieldPath(range.fieldName, rootFieldName);
+          segment.setAttribute('data-segment-field-name', mappedPath);
+          if (range.role) segment.setAttribute('data-segment-field-role', range.role);
+        }
+        offset = end;
+      }
+    }
+
+    // 仅标注截断长文本尾巴，不影响上述 valid-text KEY/VALUE 绑定
+    this.annotateTruncatedBlobSpans(target, displayText, rootFieldName);
   }
 
   initStringAsValue(text?: string, appendText?: SegmentAppendText) {
@@ -936,7 +918,11 @@ export default class UseJsonFormatter {
       // 未执行 JSON 解析时，setNodeValueWordSplit 仍按原始整段文本渲染。
       // 仅给可定位到的 JSON KEY/VALUE token 增加分词专用字段路径，
       // data-search-field-name 继续保留根字段，确保划词逻辑不变。
-      if (text && fieldName && /^\s*[\[{]/.test(text)) {
+      const resolveText = String(this.config.options?.segmentResolveText ?? text ?? '')
+        .replace(/<\/?mark>/gim, '');
+      const lookLikeJson = text && /^\s*[\[{]/.test(text)
+        || !!resolveText && /^\s*[\[{]/.test(resolveText);
+      if (text && fieldName && lookLikeJson) {
         const valueElement = root.querySelector('.field-value') as HTMLElement;
         if (valueElement) {
           const field = this.getField(fieldName)
@@ -977,7 +963,7 @@ export default class UseJsonFormatter {
     for (const element of target.querySelectorAll(valueSelector)) {
       const targetElement = element as HTMLElement;
       const nextText = String(textValue ?? targetElement.textContent ?? '');
-      const prevText = targetElement.getAttribute('data-word-split-source') ?? '';
+      const prevText = wordSplitSourceByElement.get(targetElement) ?? '';
       const hasSplit = targetElement.hasAttribute('data-has-word-split');
       const hasSegmentDom = Boolean(targetElement.querySelector('.segment-content, .valid-text'));
       // 内容变化、或 Vue 冲掉了分词 DOM 但标志残留时，必须重建，否则划词/点击解析漂移
@@ -988,13 +974,16 @@ export default class UseJsonFormatter {
 
       const text = nextText;
       targetElement.removeAttribute('data-has-word-split');
+      // 兼容历史 DOM：曾把大段原文写入 Attr，重建时清掉
+      targetElement.removeAttribute('data-word-split-source');
       // getField 已含根字段回退；此处再兜底一次，避免动态 Visible 时 Object 整段不分词
       const field = this.getField(fieldName)
         ?? (this.config.field?.field_name === fieldName || !fieldName ? this.config.field : undefined);
       const vlaues = this.getSplitList(field, text);
 
       targetElement.setAttribute('data-has-word-split', '1');
-      targetElement.setAttribute('data-word-split-source', text);
+      // 原文只进内存 WeakMap，禁止写入 DOM Attr
+      wordSplitSourceByElement.set(targetElement, text);
       targetElement.setAttribute('data-field-name', fieldName);
       // 非 JSON 树场景：根字段即检索字段；有 JSON 绑定时空缺时降级到此值
       if (fieldName) {
@@ -1029,7 +1018,16 @@ export default class UseJsonFormatter {
       removeScrollEvent();
 
       targetElement.append(segmentContent);
-      setListItem(1000, () => {
+      const plainText = String(text ?? '').replace(/<\/?mark>/gim, '');
+      // 必须覆盖 MAX_TOKENS 截断尾巴（通常为第 1001 个 token），否则 blob 不进 DOM
+      setListItem(Math.max(1000, vlaues.length), () => {
+        if (fieldName && plainText) {
+          if (/^\s*[\[{]/.test(plainText)) {
+            this.bindRawJsonSegmentFields(targetElement, plainText, fieldName);
+          } else {
+            this.annotateTruncatedBlobSpans(targetElement, plainText, fieldName);
+          }
+        }
         this.config.onSegmentRenderUpdate?.();
       });
 
@@ -1275,6 +1273,7 @@ export default class UseJsonFormatter {
       if (target?.hasAttribute('data-has-word-split')) {
         target.removeAttribute('data-has-word-split');
         target.removeAttribute('data-word-split-source');
+        clearWordSplitSourceCache(target);
       }
 
       if (target && typeof this.config.jsonValue === 'string') {

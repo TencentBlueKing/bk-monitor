@@ -1866,6 +1866,7 @@ export default defineComponent({
           [
             '.valid-text',
             '.others-text',
+            '.blob-text',
             '.segment-content',
             '.field-value',
             '.field-name',
