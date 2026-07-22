@@ -12,6 +12,7 @@ class TestClusteringMonitorHandler(TestCase):
         self.handler = ClusteringMonitorHandler.__new__(ClusteringMonitorHandler)
         self.handler.index_set_id = 123
         self.handler.index_set = SimpleNamespace(index_set_name="test-index-set", time_field="dtEventTimeStamp")
+        self.handler.log_index_set_data = {"result_table_id": "2_bklog.rt_create"}
         self.handler.clustering_config = SimpleNamespace(
             new_cls_index_set_id=None,
             new_cls_strategy_output="",
@@ -45,7 +46,7 @@ class TestClusteringMonitorHandler(TestCase):
         self.assertEqual(query_config["data_source_label"], "bk_log_search")
         self.assertEqual(query_config["data_type_label"], "log")
         self.assertEqual(query_config["index_set_id"], 123)
-        self.assertEqual(query_config["result_table_id"], "")
+        self.assertEqual(query_config["result_table_id"], "2_bklog.rt_create")
         self.assertEqual(query_config["agg_dimension"], ["signature", "service_name"])
         self.assertEqual(
             query_config["agg_condition"],
@@ -76,8 +77,8 @@ class TestClusteringMonitorHandler(TestCase):
             0
         ]
 
-        self.assertEqual(new_class_query["result_table_id"], "")
-        self.assertEqual(normal_query["result_table_id"], "")
+        self.assertEqual(new_class_query["result_table_id"], "2_bklog.rt_create")
+        self.assertEqual(normal_query["result_table_id"], "2_bklog.rt_create")
         different_fields = {"agg_dimension"}
         self.assertEqual(
             {key: value for key, value in new_class_query.items() if key not in different_fields},
