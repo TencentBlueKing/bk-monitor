@@ -153,7 +153,12 @@ class StorageHandler:
         return False
 
     def get_cluster_groups(
-        self, bk_biz_id, cluster_query_type=ClusterTypeEnum.ES.value, is_default=True, enable_archive=False
+        self,
+        bk_biz_id,
+        cluster_query_type=ClusterTypeEnum.ES.value,
+        is_default=True,
+        enable_archive=False,
+        cluster_id=None,
     ):
         """
         获取集群列表
@@ -161,6 +166,7 @@ class StorageHandler:
         :param cluster_query_type: 集群类型
         :param is_default: 是否查询公共集群
         :param enable_archive: 是否只查询可归档集群
+        :param cluster_id: 可选集群ID
         :return:
         """
         multi_execute_func = MultiExecuteFunc()
@@ -177,7 +183,10 @@ class StorageHandler:
             cluster_types.append(DORIS_CLUSTER_TYPE)
 
         for cluster_type in cluster_types:
-            multi_execute_func.append(cluster_type, TransferApi.get_cluster_info, {"cluster_type": cluster_type})
+            params = {"cluster_type": cluster_type}
+            if cluster_id:
+                params["cluster_id"] = cluster_id
+            multi_execute_func.append(cluster_type, TransferApi.get_cluster_info, params)
 
         result = multi_execute_func.run()
 

@@ -1,3 +1,4 @@
+from apps.log_databus.constants import REGISTERED_SYSTEM_DEFAULT
 from apps.log_databus.handlers.storage import StorageHandler
 
 
@@ -9,8 +10,10 @@ def list_storage_clusters(params):
     cluster_id = _to_int(params.get("storage_cluster_id") or params.get("cluster_id"), default=None)
     keyword = str(params.get("keyword") or "").strip().lower()
 
-    clusters = StorageHandler().list(bk_biz_id=bk_biz_id, cluster_id=cluster_id)
+    clusters = StorageHandler().get_cluster_groups(bk_biz_id=bk_biz_id, cluster_id=cluster_id)
     items = [_serialize_cluster(cluster) for cluster in clusters]
+    if cluster_id:
+        items = [item for item in items if item["storage_cluster_id"] == cluster_id]
     if keyword:
         items = [
             item
@@ -30,6 +33,7 @@ def _serialize_cluster(cluster):
     cluster_config = cluster.get("cluster_config") or {}
     custom_option = cluster_config.get("custom_option") or {}
     hot_warm_config = custom_option.get("hot_warm_config") or {}
+    registered_system = _first_not_none(cluster.get("registered_system"), cluster_config.get("registered_system"))
     cluster_id = _first_not_none(
         cluster.get("storage_cluster_id"),
         cluster.get("cluster_id"),
@@ -48,6 +52,7 @@ def _serialize_cluster(cluster):
         "cluster_name": cluster_name,
         "domain_name": _first_not_none(cluster.get("domain_name"), cluster_config.get("domain_name")),
         "is_active": _first_not_none(cluster.get("is_active"), cluster_config.get("is_active"), True),
+        "is_public": registered_system == REGISTERED_SYSTEM_DEFAULT,
         "hot_warm_enabled": bool(
             _first_not_none(
                 cluster.get("hot_warm_enabled"),
