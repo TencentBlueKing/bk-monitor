@@ -83,7 +83,7 @@ export function useMetricGroups(options: UseHostMetricOptions) {
           order: value,
         }, // 设置配置
       });
-      await load();
+      await load(false);
       settingShow.value = false;
     } finally {
       loading.value = false;

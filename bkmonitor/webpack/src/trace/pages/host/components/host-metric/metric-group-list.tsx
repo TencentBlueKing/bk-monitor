@@ -26,7 +26,7 @@
 
 import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
-import { Input, PopConfirm } from 'bkui-vue';
+import { Button, Input, Popover } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { type MetricGroupModel, type MetricItemModel, UNGROUP_ID } from '../../types/metric-group';
@@ -64,10 +64,11 @@ export default defineComponent({
     const { t } = useI18n();
 
     const searchKey = shallowRef('');
+    const addGroupPopoverShow = shallowRef(false);
     const newGroupName = shallowRef('');
+    const addGroupMessage = shallowRef('');
     /** 拖拽起始下标 */
     const dragIndex = shallowRef(-1);
-
     /** 统计某分组的可见/隐藏数量；scope 为 'all' 时统计全部 */
     const countOf = (scope: string) => {
       const list = scope === GROUP_ID_ALL ? props.metrics : props.metrics.filter(m => m.groupId === scope);
@@ -87,11 +88,30 @@ export default defineComponent({
       return props.groups.filter(g => g.title.toLowerCase().includes(key));
     });
 
+    /** 全局点击事件，关闭所有操作弹窗 */
+    const documentClickFn = () => {
+      addGroupPopoverShow.value = false;
+    };
+
+    const handleAddGroupShowChange = (show: boolean) => {
+      addGroupPopoverShow.value = show;
+      if (!show) {
+        newGroupName.value = '';
+        addGroupMessage.value = '';
+        document.removeEventListener('click', documentClickFn);
+      } else {
+        document.addEventListener('click', documentClickFn);
+      }
+    };
+
     const handleAddConfirm = () => {
       const name = newGroupName.value.trim();
-      if (!name) return;
+      if (!name) {
+        addGroupMessage.value = t('分组名称不能为空');
+        return;
+      }
       emit('addGroup', name);
-      newGroupName.value = '';
+      handleAddGroupShowChange(false);
     };
 
     /** 拖拽排序（仅真实分组，未受搜索影响时才允许） */
@@ -106,12 +126,12 @@ export default defineComponent({
     };
 
     const renderCount = (count: { hidden: number; visible: number }) => (
-      <div class='metric-group-list__count'>
-        <span class='metric-group-list__count-item'>
+      <div class='metric-group-list-count'>
+        <span class='metric-group-list-count-item'>
           <i class='icon-monitor icon-mc-visual' />
           {count.visible}
         </span>
-        <span class='metric-group-list__count-item'>
+        <span class='metric-group-list-count-item'>
           <i class='icon-monitor icon-mc-invisible' />
           {count.hidden}
         </span>
@@ -122,55 +142,89 @@ export default defineComponent({
 
     return () => (
       <div class='metric-group-list'>
-        <div
-          class={['metric-group-list__item', 'is-all', { 'is-active': props.activeGroupId === GROUP_ID_ALL }]}
-          onClick={() => emit('change', GROUP_ID_ALL)}
-        >
-          <i class='icon-monitor icon-all metric-group-list__flag' />
-          <span class='metric-group-list__name'>{t('全部指标')}</span>
-          {renderCount(allCount.value)}
+        <div class='all-metric-group'>
+          <div
+            class={['metric-group-list-item', { 'is-active': props.activeGroupId === GROUP_ID_ALL }]}
+            onClick={() => emit('change', GROUP_ID_ALL)}
+          >
+            <i class='icon-monitor icon-all metric-group-list-flag' />
+            <span class='metric-group-list-name'>{t('全部指标')}</span>
+            {renderCount(allCount.value)}
+          </div>
         </div>
-        <div class='metric-group-list__filter'>
-          <PopConfirm
+
+        <div class='metric-group-list-filter'>
+          <Popover
             width={280}
             v-slots={{
               content: () => (
-                <div class='metric-group-list__add-form'>
-                  <div class='metric-group-list__add-title'>{t('新建分组')}</div>
-                  <Input
-                    v-model={newGroupName.value}
-                    placeholder={t('请输入分组名称')}
-                  />
+                <div class='add-host-group-popover-content'>
+                  <div class='add-host-group-form'>
+                    <div class='metric-group-list-add-title'>{t('新建分组')}</div>
+                    <div class='form-label required'>{t('分组名称')}</div>
+                    <Input
+                      v-model={newGroupName.value}
+                      placeholder={t('请输入分组名称')}
+                    />
+                    {addGroupMessage.value && <span class='err-msg'>{addGroupMessage.value}</span>}
+                  </div>
+                  <div class='add-host-group-btns'>
+                    <Button
+                      size='small'
+                      theme='primary'
+                      onClick={handleAddConfirm}
+                    >
+                      {t('确定')}
+                    </Button>
+                    <Button
+                      size='small'
+                      outline
+                      onClick={e => {
+                        e.stopPropagation();
+                        handleAddGroupShowChange(false);
+                      }}
+                    >
+                      {t('取消')}
+                    </Button>
+                  </div>
                 </div>
               ),
             }}
-            trigger='click'
-            onConfirm={handleAddConfirm}
+            arrow={true}
+            isShow={addGroupPopoverShow.value}
+            theme='light add-host-group-popover'
+            trigger='manual'
           >
-            <div class='metric-group-list__add-btn'>
-              <i class='icon-monitor icon-mc-add' />
+            <div
+              class='metric-group-list-add-btn'
+              onClick={e => {
+                e.stopPropagation();
+                handleAddGroupShowChange(true);
+              }}
+            >
+              <i class='icon-monitor icon-plus-line' />
             </div>
-          </PopConfirm>
+          </Popover>
           <Input
             v-model={searchKey.value}
             placeholder={t('搜索 指标分组')}
             type='search'
           />
         </div>
-        <div class='metric-group-list__custom'>
+        <div class='metric-group-list-custom'>
           {renderGroups.value.map((group, index) => (
             <div
               key={group.id}
-              class={['metric-group-list__item', { 'is-active': props.activeGroupId === group.id }]}
+              class={['metric-group-list-item', { 'is-active': props.activeGroupId === group.id }]}
               draggable={draggable.value}
               onClick={() => emit('change', group.id)}
               onDragover={(e: DragEvent) => e.preventDefault()}
               onDragstart={() => (dragIndex.value = index)}
               onDrop={() => handleDrop(index)}
             >
-              {draggable.value && <i class='icon-monitor icon-mc-tuozhuai metric-group-list__drag' />}
+              {draggable.value && <i class='icon-monitor icon-mc-tuozhuai metric-group-list-drag' />}
               <span
-                class='metric-group-list__name'
+                class='metric-group-list-name'
                 v-bk-tooltips={{ content: group.title, delay: 300 }}
               >
                 {group.title}
@@ -178,13 +232,13 @@ export default defineComponent({
               {renderCount(countOf(group.id))}
             </div>
           ))}
-        </div>
-        <div
-          class={['metric-group-list__item', 'is-ungroup', { 'is-active': props.activeGroupId === UNGROUP_ID }]}
-          onClick={() => emit('change', UNGROUP_ID)}
-        >
-          <span class='metric-group-list__name'>{t('未分组的指标')}</span>
-          {renderCount(ungroupCount.value)}
+          <div
+            class={['metric-group-list-item', 'is-ungroup', { 'is-active': props.activeGroupId === UNGROUP_ID }]}
+            onClick={() => emit('change', UNGROUP_ID)}
+          >
+            <span class='metric-group-list-name'>{t('未分组的指标')}</span>
+            {renderCount(ungroupCount.value)}
+          </div>
         </div>
       </div>
     );

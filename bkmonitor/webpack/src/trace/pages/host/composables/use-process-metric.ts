@@ -82,7 +82,7 @@ export function useProcessMetric(options: UseProcessMetricOptions) {
           order: value,
         },
       });
-      await load();
+      await load(false);
     } finally {
       loading.value = false;
     }
