@@ -1596,7 +1596,17 @@ class IssueLogContentResource(Resource):
                 except Exception:
                     logger.exception("IssueLogContentResource get_alert_relation_info failed")
                     full_content = ""
-                return _issue_id, {"log_content": full_content}
+                # 日志内容后处理：如果内容是 JSON 字符串且解析后为字典且包含 log 字段，则取 log 字段的值
+                content = full_content
+                try:
+                    parsed = json.loads(full_content)
+                    if isinstance(parsed, dict) and "log" in parsed:
+                        content = parsed["log"]
+                        if not isinstance(content, str):
+                            content = json.dumps(content, ensure_ascii=False)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+                return _issue_id, {"log_content": content}
             finally:
                 self.QUERY_SLOTS.release()
 
