@@ -19,6 +19,7 @@ from bkmonitor.models import StrategyHistoryModel
 from bkmonitor.models import StrategyModel
 from bkmonitor.strategy.history import CleanStrategyHistoryParams
 from bkmonitor.strategy.history import clean_strategy_history
+from bkmonitor.strategy.history import clean_strategy_history_compat
 
 pytestmark = pytest.mark.django_db(databases=("default", "monitor_api"))
 
@@ -40,6 +41,7 @@ def _create_history(
     operate: str = "update",
     status: bool = True,
     content: dict | None = None,
+    message: str = "",
 ) -> StrategyHistoryModel:
     """创建历史并将自动生成的时间调整到指定测试时间。"""
     history = StrategyHistoryModel.objects.create(
@@ -48,10 +50,159 @@ def _create_history(
         operate=operate,
         status=status,
         content=content if content is not None else {"id": strategy_id},
+        message=message,
     )
     StrategyHistoryModel.objects.filter(id=history.id).update(create_time=create_time)
     history.create_time = create_time
     return history
+
+
+def test_compat_cleanup_keeps_legacy_bulk_update_without_displacing_confirmed_snapshot(monkeypatch):
+    """兼容快照使用独立保留名额，不能挤掉已确认成功快照。"""
+    now = timezone.make_aware(datetime(2026, 7, 21, 12, 0, 0))
+    monkeypatch.setattr("bkmonitor.strategy.history.timezone.now", lambda: now)
+    strategy = _create_strategy("legacy-bulk-status")
+
+    old_confirmed_snapshot = _create_history(strategy.id, now - timedelta(days=45))
+    kept_legacy_update = _create_history(
+        strategy.id,
+        now - timedelta(days=40),
+        status=False,
+        message="",
+    )
+    stale_legacy_delete = _create_history(
+        strategy.id,
+        now - timedelta(days=35),
+        operate="delete",
+        status=False,
+        content={},
+        message="",
+    )
+    confirmed_failure = _create_history(
+        strategy.id,
+        now - timedelta(days=34),
+        status=False,
+        message="bulk update failed",
+    )
+
+    deleted = clean_strategy_history_compat(CleanStrategyHistoryParams(days=30, batch_size=1))
+
+    assert deleted == 2
+    assert set(StrategyHistoryModel.objects.values_list("id", flat=True)) == {
+        old_confirmed_snapshot.id,
+        kept_legacy_update.id,
+    }
+    assert not StrategyHistoryModel.objects.filter(id=kept_legacy_update.id, status=True).exists()
+    assert not StrategyHistoryModel.objects.filter(id=stale_legacy_delete.id).exists()
+    assert not StrategyHistoryModel.objects.filter(id=confirmed_failure.id).exists()
+
+
+def test_compat_cleanup_keeps_latest_legacy_bulk_delete_for_deleted_strategy(monkeypatch):
+    """兼容清理为已删除策略保留最新旧批量删除记录，不依赖 status。"""
+    now = timezone.make_aware(datetime(2026, 7, 21, 12, 0, 0))
+    monkeypatch.setattr("bkmonitor.strategy.history.timezone.now", lambda: now)
+    deleted_strategy_id = 900099
+
+    snapshot = _create_history(deleted_strategy_id, now - timedelta(days=45))
+    old_delete = _create_history(
+        deleted_strategy_id,
+        now - timedelta(days=40),
+        operate="delete",
+        status=False,
+        content={},
+    )
+    kept_delete = _create_history(
+        deleted_strategy_id,
+        now - timedelta(days=35),
+        operate="delete",
+        status=False,
+        content={},
+    )
+
+    deleted = clean_strategy_history_compat(CleanStrategyHistoryParams(days=30, batch_size=1))
+
+    assert deleted == 1
+    assert set(StrategyHistoryModel.objects.values_list("id", flat=True)) == {snapshot.id, kept_delete.id}
+    assert not StrategyHistoryModel.objects.filter(id=old_delete.id).exists()
+
+
+def test_compat_cleanup_does_not_treat_recent_failed_update_as_legacy(monkeypatch):
+    """窗口内普通失败更新不能挤掉窗口外已确认成功的快照。"""
+    now = timezone.make_aware(datetime(2026, 7, 21, 12, 0, 0))
+    monkeypatch.setattr("bkmonitor.strategy.history.timezone.now", lambda: now)
+    strategy = _create_strategy("recent-failed-update")
+
+    confirmed_snapshot = _create_history(strategy.id, now - timedelta(days=40))
+    recent_failed_update = _create_history(
+        strategy.id,
+        now - timedelta(days=10),
+        status=False,
+        message="",
+    )
+
+    deleted = clean_strategy_history_compat(CleanStrategyHistoryParams(days=30))
+
+    assert deleted == 0
+    assert set(StrategyHistoryModel.objects.values_list("id", flat=True)) == {
+        confirmed_snapshot.id,
+        recent_failed_update.id,
+    }
+
+
+def test_compat_cleanup_keeps_latest_legacy_when_no_confirmed_snapshot(monkeypatch):
+    """无确认成功快照时，兼容清理仍应保留最新有内容的旧批量 update。"""
+    now = timezone.make_aware(datetime(2026, 7, 21, 12, 0, 0))
+    monkeypatch.setattr("bkmonitor.strategy.history.timezone.now", lambda: now)
+    strategy = _create_strategy("legacy-only")
+
+    older_legacy = _create_history(
+        strategy.id,
+        now - timedelta(days=45),
+        status=False,
+        message="",
+    )
+    kept_legacy = _create_history(
+        strategy.id,
+        now - timedelta(days=35),
+        status=False,
+        message="",
+    )
+
+    deleted = clean_strategy_history_compat(CleanStrategyHistoryParams(days=30, batch_size=1))
+
+    assert deleted == 1
+    assert set(StrategyHistoryModel.objects.values_list("id", flat=True)) == {kept_legacy.id}
+    assert not StrategyHistoryModel.objects.filter(id=older_legacy.id).exists()
+
+
+def test_compat_cleanup_excludes_empty_content_legacy_from_keep_slots(monkeypatch):
+    """空 content 的旧批量 update 不能占用兼容保留名额。
+
+    把空 content 行放在更新时间，若其误占名额会挤掉更早但仍可恢复的 legacy 快照。
+    """
+    now = timezone.make_aware(datetime(2026, 7, 21, 12, 0, 0))
+    monkeypatch.setattr("bkmonitor.strategy.history.timezone.now", lambda: now)
+    strategy = _create_strategy("empty-legacy-content")
+
+    kept_legacy = _create_history(
+        strategy.id,
+        now - timedelta(days=40),
+        status=False,
+        message="",
+    )
+    empty_legacy = _create_history(
+        strategy.id,
+        now - timedelta(days=35),
+        status=False,
+        content={},
+        message="",
+    )
+
+    deleted = clean_strategy_history_compat(CleanStrategyHistoryParams(days=30, batch_size=1))
+
+    assert deleted == 1
+    assert set(StrategyHistoryModel.objects.values_list("id", flat=True)) == {kept_legacy.id}
+    assert not StrategyHistoryModel.objects.filter(id=empty_legacy.id).exists()
 
 
 def test_existing_strategy_keeps_latest_successful_snapshot(monkeypatch):

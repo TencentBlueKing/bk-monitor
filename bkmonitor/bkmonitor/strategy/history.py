@@ -23,6 +23,7 @@ from bkmonitor.models import StrategyModel
 
 SNAPSHOT_OPERATIONS = ("create", "update", "bulk_update")
 DELETE_OPERATIONS = ("delete", "bulk_delete")
+LEGACY_SNAPSHOT_OPERATION = "update"
 STRATEGY_ID_CHUNK_SIZE = 500
 # 管理命令允许的最小保留天数；业务层 CleanStrategyHistoryParams 仍只要求正整数，便于单测构造窗口。
 MIN_CLEAN_STRATEGY_HISTORY_DAYS = 30
@@ -81,12 +82,17 @@ def _collect_latest_history_ids(queryset: QuerySet, limit: int = 1) -> set[int]:
     return keep_history_ids
 
 
-def _collect_keep_history_ids(strategy_ids: list[int], keep_latest_snapshots: int = 1) -> set[int]:
+def _collect_keep_history_ids(
+    strategy_ids: list[int],
+    keep_latest_snapshots: int = 1,
+    legacy_status_before: datetime | None = None,
+) -> set[int]:
     """计算一批策略必须保留的历史记录 ID。
 
     Args:
         strategy_ids: 本批需要处理的策略 ID。
         keep_latest_snapshots: 每个策略保留的最近成功快照条数。
+        legacy_status_before: 额外保留此时间之前状态未回写的旧批量更新快照。
 
     Returns:
         最近成功快照，以及已删除策略的最新删除记录 ID。
@@ -107,6 +113,20 @@ def _collect_keep_history_ids(strategy_ids: list[int], keep_latest_snapshots: in
         .exclude(content__isnull=True)
     )
     keep_history_ids = _collect_latest_history_ids(recoverable_snapshots, limit=keep_latest_snapshots)
+
+    if legacy_status_before is not None:
+        legacy_snapshots = (
+            StrategyHistoryModel.objects.filter(
+                strategy_id__in=strategy_ids,
+                operate=LEGACY_SNAPSHOT_OPERATION,
+                status=False,
+                message="",
+                create_time__lt=legacy_status_before,
+            )
+            .exclude(content={})
+            .exclude(content__isnull=True)
+        )
+        keep_history_ids.update(_collect_latest_history_ids(legacy_snapshots, limit=keep_latest_snapshots))
 
     if deleted_strategy_ids:
         delete_histories = StrategyHistoryModel.objects.filter(
@@ -175,7 +195,10 @@ def _delete_queryset_in_batches(queryset: QuerySet, batch_size: int) -> int:
         last_pk = history_ids[-1]
 
 
-def clean_strategy_history(params: CleanStrategyHistoryParams) -> int:
+def _clean_strategy_history(
+    params: CleanStrategyHistoryParams,
+    legacy_status_compat: bool = False,
+) -> int:
     """清理指定天数以前的冗余策略历史。
 
     保留最近 ``params.days`` 天的全部历史；更早的记录中，每个策略额外保留全局最近
@@ -183,6 +206,7 @@ def clean_strategy_history(params: CleanStrategyHistoryParams) -> int:
 
     Args:
         params: 清理参数，校验在 ``CleanStrategyHistoryParams`` 中完成。
+        legacy_status_compat: 是否额外保留状态未回写的旧批量更新快照。
 
     Returns:
         实际删除的历史记录数量。
@@ -197,6 +221,7 @@ def clean_strategy_history(params: CleanStrategyHistoryParams) -> int:
         keep_history_ids = _collect_keep_history_ids(
             strategy_ids,
             keep_latest_snapshots=params.keep_latest_snapshots,
+            legacy_status_before=before if legacy_status_compat else None,
         )
         queryset = StrategyHistoryModel.objects.filter(
             strategy_id__in=strategy_ids,
@@ -210,3 +235,20 @@ def clean_strategy_history(params: CleanStrategyHistoryParams) -> int:
             deleted += _delete_queryset_in_batches(queryset, params.batch_size)
 
     return deleted
+
+
+def clean_strategy_history(params: CleanStrategyHistoryParams) -> int:
+    """按标准规则清理策略历史。"""
+    return _clean_strategy_history(params)
+
+
+def clean_strategy_history_compat(params: CleanStrategyHistoryParams) -> int:
+    """兼容旧批量操作状态的临时清理入口。
+
+    旧批量更新和删除与普通操作共用 ``update/delete`` 类型，且成功状态未回写。
+    兼容模式为清理窗口外 ``status=False``、空错误消息的旧 ``update`` 记录
+    提供独立快照保留名额，避免其挤掉已确认成功快照；删除记录仍只为已删除策略
+    保留最新一条。该入口不修改历史状态，待旧数据不再需要兼容后，应弃用并恢复
+    标准清理命令。
+    """
+    return _clean_strategy_history(params, legacy_status_compat=True)

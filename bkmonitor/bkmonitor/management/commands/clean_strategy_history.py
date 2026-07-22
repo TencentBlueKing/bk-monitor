@@ -24,6 +24,12 @@ class Command(BaseCommand):
         "清理指定天数以前的策略历史，并保留最近成功快照和必要的删除记录。"
         f"默认 dry-run；真正删除需加 --execute。--days 不得小于 {MIN_CLEAN_STRATEGY_HISTORY_DAYS}。"
     )
+    command_name = "clean strategy history"
+    deprecation_warning = ""
+
+    @staticmethod
+    def cleanup(params: CleanStrategyHistoryParams) -> int:
+        return clean_strategy_history(params)
 
     def add_arguments(self, parser) -> None:
         parser.add_argument(
@@ -64,15 +70,15 @@ class Command(BaseCommand):
         if params.days < MIN_CLEAN_STRATEGY_HISTORY_DAYS:
             raise CommandError(f"days must be >= {MIN_CLEAN_STRATEGY_HISTORY_DAYS}, got {params.days}")
 
+        if self.deprecation_warning:
+            self.stdout.write(self.style.WARNING(self.deprecation_warning))
         self.stdout.write(
-            "clean strategy history start: "
+            f"{self.command_name} start: "
             f"days={params.days}, batch_size={params.batch_size}, "
             f"keep_latest_snapshots={params.keep_latest_snapshots}, dry_run={params.dry_run}"
         )
-        matched = clean_strategy_history(params)
+        matched = self.cleanup(params)
         if params.dry_run:
-            self.stdout.write(
-                self.style.WARNING(f"clean strategy history dry-run done: would delete {matched} records")
-            )
+            self.stdout.write(self.style.WARNING(f"{self.command_name} dry-run done: would delete {matched} records"))
         else:
-            self.stdout.write(self.style.SUCCESS(f"clean strategy history done: deleted {matched} records"))
+            self.stdout.write(self.style.SUCCESS(f"{self.command_name} done: deleted {matched} records"))

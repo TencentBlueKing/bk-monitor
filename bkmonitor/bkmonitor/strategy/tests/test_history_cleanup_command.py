@@ -62,6 +62,22 @@ def test_command_defaults_to_dry_run_without_execute():
     assert "deleted 42 records" not in stdout.getvalue()
 
 
+def test_compat_command_uses_safe_legacy_status_cleanup():
+    """临时兼容命令应调用兼容清理入口，并保持默认 dry-run。"""
+    stdout = StringIO()
+
+    with mock.patch(
+        "bkmonitor.management.commands.clean_strategy_history_compat.clean_strategy_history_compat",
+        return_value=7,
+    ) as clean:
+        call_command("clean_strategy_history_compat", days=30, stdout=stdout)
+
+    params = clean.call_args.args[0]
+    assert params.dry_run is True
+    assert "deprecated compatibility command" in stdout.getvalue()
+    assert "would delete 7 records" in stdout.getvalue()
+
+
 def test_command_rejects_days_below_minimum_retention():
     """命令层拒绝低于最小保留天数的 --days。"""
     with pytest.raises(CommandError, match=rf"days must be >= {MIN_CLEAN_STRATEGY_HISTORY_DAYS}"):
