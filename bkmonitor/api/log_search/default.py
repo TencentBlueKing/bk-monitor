@@ -190,6 +190,7 @@ class SceneSearchResource(LogSearchAPIGWResource):
         size = serializers.IntegerField(required=False, default=10, min_value=1, max_value=10000, label="返回条数")
         sort_list = serializers.ListField(required=False, default=list, label="排序字段")
         is_desensitize = serializers.BooleanField(required=False, default=True, label="是否脱敏")
+        record_history = serializers.BooleanField(required=False, default=True, label="是否记录搜索历史")
 
 
 class SearchIndexSetLogResource(IndexSetResource):

@@ -204,6 +204,7 @@ class SearchLogResource(Resource):
             start_time=validated_request_data["start_time"],
             end_time=validated_request_data["end_time"],
             size=limit,
+            record_history=False,
         )
 
     @staticmethod

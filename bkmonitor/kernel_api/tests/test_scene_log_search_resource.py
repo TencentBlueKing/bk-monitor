@@ -84,6 +84,7 @@ def test_search_log_resource_routes_scene_request_to_log_platform(monkeypatch):
         start_time="1710000000",
         end_time="1710003600",
         size=100,
+        record_history=False,
     )
     assert result is platform_result
 
