@@ -66,6 +66,7 @@ def test_target_request_serializer_rejects_invalid_selection(resource, request_d
     "request_data",
     [
         {"bk_biz_id": 7, "ip_list": [{"bk_host_id": 101}]},
+        {"bk_biz_id": 7, "ip_list": [{"bk_host_id": 101, "ip": None}]},
         {"bk_biz_id": 7, "ip_list": [{"ip": "10.0.0.1", "bk_cloud_id": 0}]},
         {
             "bk_biz_id": 7,
@@ -75,6 +76,7 @@ def test_target_request_serializer_rejects_invalid_selection(resource, request_d
         {
             "bk_biz_id": 7,
             "target_node_type": "TOPO",
+            "ip_list": [],
             "target_nodes": [{"object_id": "module", "instance_id": 42}],
         },
         {
@@ -86,6 +88,22 @@ def test_target_request_serializer_rejects_invalid_selection(resource, request_d
 )
 def test_allowed_paths_request_serializer_accepts_valid_selection(request_data):
     serializer = ListLogExtractAllowedPathsResource.RequestSerializer(data=request_data)
+
+    assert serializer.is_valid(), serializer.errors
+
+
+def test_create_task_request_serializer_treats_empty_alternative_as_omitted():
+    serializer = CreateLogExtractTaskResource.RequestSerializer(
+        data={
+            "bk_biz_id": 7,
+            "target_node_type": "INSTANCE",
+            "ip_list": [{"bk_host_id": 101}],
+            "target_nodes": [],
+            "file_path": ["/data/logs/app.log"],
+            "filter_type": "",
+            "filter_content": {},
+        }
+    )
 
     assert serializer.is_valid(), serializer.errors
 
@@ -110,7 +128,11 @@ def test_search_files_request_serializer_rejects_incomplete_ip():
     [
         (
             {"bk_biz_id": 7, "ip_list": [{"bk_host_id": 101}]},
-            {"bk_biz_id": 7, "ip_list": [{"bk_host_id": 101}]},
+            {
+                "bk_biz_id": 7,
+                "target_node_type": "INSTANCE",
+                "ip_list": [{"bk_host_id": 101}],
+            },
         ),
         (
             {
@@ -131,8 +153,10 @@ def test_list_allowed_paths_builds_request(monkeypatch, request_data, expected_r
     response = {"ip_list": [{"bk_host_id": 101}], "strategies": strategies}
     api_resource = Mock(return_value=response)
     monkeypatch.setattr(api.log_search, "list_log_extract_allowed_paths", api_resource)
+    serializer = ListLogExtractAllowedPathsResource.RequestSerializer(data=request_data)
 
-    result = ListLogExtractAllowedPathsResource().perform_request(request_data)
+    assert serializer.is_valid(), serializer.errors
+    result = ListLogExtractAllowedPathsResource().perform_request(serializer.validated_data)
 
     assert result == response
     api_resource.assert_called_once_with(**expected_request)
@@ -207,8 +231,10 @@ def test_create_task_translates_nodes_and_defaults_preview_metadata(monkeypatch)
         "filter_type": "",
         "filter_content": {},
     }
+    serializer = CreateLogExtractTaskResource.RequestSerializer(data=request_data)
 
-    result = CreateLogExtractTaskResource().perform_request(request_data)
+    assert serializer.is_valid(), serializer.errors
+    result = CreateLogExtractTaskResource().perform_request(serializer.validated_data)
 
     assert result == {"task_id": 123}
     api_resource.assert_called_once_with(

@@ -40,7 +40,7 @@ ALLOWED_TARGET_OBJECT_IDS = {
 
 class LogExtractIPSerializer(serializers.Serializer):
     bk_host_id = serializers.IntegerField(required=False)
-    ip = serializers.IPAddressField(required=False)
+    ip = serializers.IPAddressField(required=False, allow_null=True, allow_blank=True)
     bk_cloud_id = serializers.IntegerField(required=False)
 
     def validate(self, attrs):
@@ -140,8 +140,8 @@ class ListLogExtractAllowedPathsResource(Resource):
         target_node_type = serializers.ChoiceField(
             choices=TARGET_NODE_TYPES, required=False, default=TARGET_NODE_TYPE_INSTANCE
         )
-        ip_list = LogExtractIPSerializer(many=True, required=False, allow_empty=False)
-        target_nodes = LogExtractTargetNodeSerializer(many=True, required=False, allow_empty=False)
+        ip_list = LogExtractIPSerializer(many=True, required=False)
+        target_nodes = LogExtractTargetNodeSerializer(many=True, required=False)
 
         def validate(self, attrs):
             return validate_target_selection(attrs)
@@ -182,8 +182,8 @@ class CreateLogExtractTaskResource(Resource):
         target_node_type = serializers.ChoiceField(
             choices=TARGET_NODE_TYPES, required=False, default=TARGET_NODE_TYPE_INSTANCE
         )
-        ip_list = LogExtractIPSerializer(many=True, required=False, allow_empty=False)
-        target_nodes = LogExtractTargetNodeSerializer(many=True, required=False, allow_empty=False)
+        ip_list = LogExtractIPSerializer(many=True, required=False)
+        target_nodes = LogExtractTargetNodeSerializer(many=True, required=False)
         file_path = serializers.ListField(child=serializers.CharField(), min_length=1)
         filter_type = serializers.CharField(allow_blank=True)
         filter_content = serializers.DictField()
