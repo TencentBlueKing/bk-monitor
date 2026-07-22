@@ -31,7 +31,11 @@ class Command(BaseCommand):
             required=True,
             help=f"Issue ID，可重复传入；去重后最多 {MAX_ISSUES} 个",
         )
-        parser.add_argument("--operator", required=True, help="真实执行人，仅用于审计")
+        parser.add_argument(
+            "--operator",
+            required=True,
+            help="发起人标识；execute 时非 system 值写入 NAME_CHANGE content 审计，dry-run 仅校验非空",
+        )
         mode = parser.add_mutually_exclusive_group(required=True)
         mode.add_argument("--dry-run", action="store_true", help="只检查资格，不调用 LLM、不修改标题")
         mode.add_argument("--execute", action="store_true", help="按输入顺序串行执行安全补偿")

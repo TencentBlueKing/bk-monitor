@@ -712,6 +712,30 @@ class TestGenerateIssueLlmTitleAlertRetry:
 
 
 class TestRegenerateIssueLlmTitle:
+    def test_same_second_latest_name_changes_fail_closed(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        from alarm_backends.service.fta_action.tasks import issue_tasks as it
+
+        activity_search = MagicMock()
+        activity_search.filter.return_value = activity_search
+        activity_search.sort.return_value = activity_search
+        activity_search.params.return_value = activity_search
+        activity_search.execute.return_value = types.SimpleNamespace(
+            hits=[
+                types.SimpleNamespace(operator="system", time=1776380000),
+                types.SimpleNamespace(operator="alice", time=1776380000),
+            ]
+        )
+        monkeypatch.setattr(
+            it.IssueActivityDocument,
+            "search",
+            classmethod(lambda cls, **kwargs: activity_search),
+        )
+
+        assert it._latest_name_change_operator("issue1") == ""
+        activity_search.params.assert_called_once_with(size=2)
+
     def test_inspection_reports_eligible_without_writing(self, monkeypatch):
         from alarm_backends.service.fta_action.tasks import issue_tasks as it
 

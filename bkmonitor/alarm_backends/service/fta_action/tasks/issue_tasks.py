@@ -29,6 +29,7 @@ from bkmonitor.utils.issue_title import (
     TITLE_SOURCE_USER,
     build_issue_default_name,
     classify_issue_title_source,
+    resolve_latest_name_change_operator,
 )
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.issue import IssueActivityType, IssueStatus
@@ -914,9 +915,9 @@ def _apply_llm_title(
       （允许覆盖上次 LLM 标题，但仍防"读取后到写入前被用户并发改名"）。
     - apply_regression_prefix：是否给生成标题拼 ``[回归]`` 前缀（由调用方按 issue 回归态决定，
       不交给 LLM）。自动路径按 default_name 是否以 ``[回归]`` 开头判断，补偿路径按 issue.is_regression。
-    - audit_operator：真实发起人，仅写进 NAME_CHANGE 活动日志的 content 供审计。
+    - audit_operator：发起人标识；非 system 时写进 NAME_CHANGE 活动日志的 content 供审计。
       **rename 的 operator 固定为 ``system``**（自动派发与运维补偿都是系统/LLM 写入）：
-      三态判别（regenerate 里 ``最近 NAME_CHANGE.operator == "system"`` → LLM 改的、可覆盖）
+      标题来源判别（regenerate 里 ``最近 NAME_CHANGE.operator == "system"`` → LLM 改的、可覆盖）
       依赖它稳定；若把真实运维账号写进 operator，二次补偿会被误判为"用户手工改名"而跳过。
 
     返回 ``(result, examples_source, applied_title)``：
@@ -1067,7 +1068,7 @@ def _apply_llm_title(
     try:
         # enforce_unique=False：同类错误天然生成相同标题，允许重名（实例靠 issue 维度区分），
         # 不被给用户改名用的唯一性约束卡回默认名。详见 IssueDocument.rename。
-        # operator 固定 system（保证三态判别稳定），真实发起人记入 content 供审计。
+        # operator 固定 system（保证标题来源判别稳定），非 system 的发起人标识记入 content 供审计。
         content = None if audit_operator == "system" else f"llm_title regenerate by {audit_operator}"
         issue.rename(title, operator="system", enforce_unique=False, content=content)
     except IssueFrozenError:
@@ -1330,17 +1331,19 @@ def regenerate_issue_llm_title(issue_id: str, bk_biz_id, *, alert_id: str | None
     - **保留业务级限流**：``acquire_rate_limit_token`` 仍在核心函数内生效，防止误传大批量
       打爆 LLM 网关。
     - **失败关闭资格判别**（当前 name + 重建默认名 + 最近一次 NAME_CHANGE operator）：
-        · 当前名为默认名且不存在真实用户改名 → 允许补偿
-        · 最近改名 operator=system             → 系统标题，允许显式重跑
-        · 最近改名为真实用户（即使又改回默认名）→ 跳过（skipped_user_renamed）
+        · 当前名为默认名且不存在 NAME_CHANGE   → 允许补偿
+        · 最近改名 operator=system              → 系统写入，允许显式重跑
+        · 最近改名 operator 非空且不是 system   → 跳过（skipped_user_renamed）
+        · operator 为空（缺失或同秒并列），或非默认名且没有改名活动
+          → 来源未知，按 skipped_user_renamed 失败关闭
         · Issue 非活跃、为活跃合并成员或任一资格依赖查询失败 → 跳过
-      ``operator`` 入参仅作审计（记入 NAME_CHANGE content），**不会写进 rename operator**——
+      ``operator`` 入参仅作审计（非 system 时记入 NAME_CHANGE content），**不会写进 rename operator**——
       rename operator 恒为 system，否则传真实账号会让下次补偿把自己误判成"用户手工改名"。
     - **alert_id 可缺省**：不传则现查该 Issue 最新关联告警（日志越新越可能未过期）；显式传入时
       先验证 Alert 确实关联当前 Issue。查不到或不匹配均返回 no_alert。
 
     返回 ``{issue_id, bk_biz_id, result, old_name, new_name}``，result 取值为核心函数 label
-    或 ``skipped_user_renamed`` / ``skipped_inactive`` / ``skipped_merged_member`` /
+    或 ``skipped_user_renamed``（真实用户改名或来源未知）/ ``skipped_inactive`` / ``skipped_merged_member`` /
     ``eligibility_error`` / ``no_alert`` / ``not_found``。同样打 ISSUE_LLM_TITLE_TOTAL
     指标（result 复用，运维路径与自动路径共用观测面）。
     """
@@ -1367,7 +1370,7 @@ def regenerate_issue_llm_title(issue_id: str, bk_biz_id, *, alert_id: str | None
         }
         return _record(preflight["result"], old_name=current_name, **extra)
 
-    # Step 3: 调核心（绕闸门、保留限流）。expected_name=当前名：
+    # 资格检查通过后调用核心（绕闸门、保留限流）。expected_name=当前名：
     # 未改名时即默认名，LLM 改过时即上次标题——都允许写，仍防并发用户改名。
     result, examples_source, applied_title = _apply_llm_title(
         issue_id=issue_id,
@@ -1390,19 +1393,17 @@ def regenerate_issue_llm_title(issue_id: str, bk_biz_id, *, alert_id: str | None
 
 
 def _latest_name_change_operator(issue_id: str) -> str | None:
-    """Return the latest NAME_CHANGE operator, or None when no activity exists."""
+    """Return the latest NAME_CHANGE operator; same-second ties fail closed as unknown."""
     hits = (
         IssueActivityDocument.search(all_indices=True)
         .filter("term", issue_id=issue_id)
         .filter("term", activity_type=IssueActivityType.NAME_CHANGE)
         .sort("-time")
-        .params(size=1)
+        .params(size=2)
         .execute()
         .hits
     )
-    if not hits:
-        return None
-    return getattr(hits[0], "operator", "") or ""
+    return resolve_latest_name_change_operator(hits)
 
 
 def _active_merge_main_issue_id(issue_id: str, bk_biz_id: int) -> str | None:

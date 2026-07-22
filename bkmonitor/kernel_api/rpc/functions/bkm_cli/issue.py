@@ -4,10 +4,10 @@ Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 
-bkm-cli `inspect-issue` 后端：只读访问 IssueDocument / IssueActivityDocument / IssueMergeRelation。
+bkm-cli `inspect-issue` 后端：只读访问 IssueDocument / IssueActivityDocument / IssueMergeRelation / AlertDocument。
 
-六个 operation 复用 fta_web 内部 handler 与 Issue 标题公共规则，确保字段清洗、indices 选择、anomaly_message
-填充与 web 入口一致：
+detail / list_by_strategy / list_by_fingerprint 复用 fta_web 的字段清洗；list_llm_title_candidates
+复用 Issue 标题公共规则；其余 operation 执行受控只读查询：
 
 - detail               : IssueDocument.get_issue_or_raise + IssueQueryHandler.clean_document
                          + merge_status 字段（合并关系：main / member / none + active_members）
@@ -384,6 +384,7 @@ def _list_llm_title_candidates(params: dict[str, Any]) -> dict[str, Any]:
     for row in issue_rows:
         title_source = classify_issue_title_source(row["name"], row["default_name"], operator_map.get(row["issue_id"]))
         if title_source in {TITLE_SOURCE_USER, TITLE_SOURCE_UNKNOWN}:
+            # 保留既有返回字段名；该桶同时包含最近一次真实用户改名和标题来源未知。
             excluded_counts["user_renamed"] += 1
             continue
         title_safe_rows.append(row)
@@ -445,11 +446,12 @@ def _list_llm_title_candidates(params: dict[str, Any]) -> dict[str, Any]:
 
 
 def _latest_name_change_operators(issue_ids: list[str]) -> dict[str, str]:
-    """批量查询每个 Issue 最近一次 NAME_CHANGE operator；失败时拒绝返回候选。"""
+    """批量查询每个 Issue 最近 NAME_CHANGE operator；同秒并列按 unknown 失败关闭。"""
     if not issue_ids:
         return {}
 
     from bkmonitor.documents.issue import IssueActivityDocument
+    from bkmonitor.utils.issue_title import resolve_latest_name_change_operator
     from constants.issue import IssueActivityType
 
     try:
@@ -458,18 +460,35 @@ def _latest_name_change_operators(issue_ids: list[str]) -> dict[str, str]:
             .filter("terms", issue_id=issue_ids)
             .filter("term", activity_type=IssueActivityType.NAME_CHANGE)
             .sort({"time": {"order": "desc"}})
-            .extra(collapse={"field": "issue_id"})
+            .extra(
+                collapse={
+                    "field": "issue_id",
+                    "inner_hits": {
+                        "name": "latest_name_changes",
+                        "size": 2,
+                        "sort": [{"time": {"order": "desc"}}],
+                    },
+                }
+            )
             .params(size=len(issue_ids))
             .execute()
             .hits
         )
     except Exception as error:
         raise CustomException(message="查询 Issue 改名活动失败，未返回候选") from error
-    return {
-        str(getattr(hit, "issue_id", "")): str(getattr(hit, "operator", "") or "")
-        for hit in hits
-        if getattr(hit, "issue_id", None)
-    }
+    operator_map = {}
+    for hit in hits:
+        issue_id = str(getattr(hit, "issue_id", "") or "")
+        if not issue_id:
+            continue
+        try:
+            name_change_hits = hit.meta.inner_hits.latest_name_changes.hits.hits
+        except (AttributeError, TypeError):
+            name_change_hits = [hit]
+        operator = resolve_latest_name_change_operator(name_change_hits)
+        if operator is not None:
+            operator_map[issue_id] = operator
+    return operator_map
 
 
 def _active_merge_main_issue_ids(issue_ids: list[str], bk_biz_id: int) -> dict[str, str]:
@@ -521,10 +540,11 @@ def _list_merge_conflicts(params: dict[str, Any]) -> dict[str, Any]:
 
     返回三类（顺序与下方代码计算顺序一致，第 1/2/3 类）：
     - duplicate_active_members：同一 member_issue_id 在多行 status='active' 关系（race window）
-    - pending_split_resets    ：SQL status='split' 但对应 IssueDocument 物理状态未匹配 PENDING_REVIEW
+    - pending_split_resets    ：SQL status='split'，但 IssueDocument status!='pending_review' 或 assignee 未清空
       （deprecated：主状态变更不再触发拆分，仅历史遗留 split 关系仍可能触发；将随 reset_pending_split mode 一起移除）
     - pending_follow_resync   ：关系 active 但 member ES status ≠ 主当前 status
       （cascade follow fail-open 兜底，对应 repair_issue_merge_state --mode=follow_status_resync）
+      该桶为 best-effort；ES 查询失败会降级为空，空结果不能单独证明没有状态漂移。
 
     Args:
         bk_biz_id (必填): 业务 ID
@@ -629,6 +649,7 @@ def _list_merge_conflicts(params: dict[str, Any]) -> dict[str, Any]:
             )
             es_status_map = {h.meta.id: getattr(h, "status", None) for h in es_hits}
         except Exception:
+            # best-effort 语义：查询失败时该桶降级为空，调用方无法据此证明没有状态漂移。
             es_status_map = {}
         for main_id, member_ids in main_to_members.items():
             main_es_status = es_status_map.get(main_id)
@@ -740,11 +761,12 @@ def _extract_total(response: Any) -> int | None:
 
 KernelRPCRegistry.register_function(
     func_name="bkm_cli.inspect_issue",
-    summary="只读访问 IssueDocument / IssueActivityDocument / IssueMergeRelation",
+    summary="只读访问 IssueDocument / IssueActivityDocument / IssueMergeRelation / AlertDocument",
     description=(
-        "bkm-cli inspect-issue 后端：六个 operation 复用 fta_web IssueQueryHandler.clean_document、"
-        "IssueDocument.get_issue_or_raise；detail 注入 merge_status，list_conflicts 扫描合并/拆分状态"
-        "不一致，list_llm_title_candidates 失败关闭地发现安全补偿候选并返回 candidate_reason；"
+        "bkm-cli inspect-issue 后端：detail / list_by_strategy / list_by_fingerprint 复用 fta_web "
+        "IssueQueryHandler.clean_document，list_llm_title_candidates 复用 Issue 标题公共规则并读取关联 "
+        "AlertDocument；detail 注入 merge_status，list_conflicts 扫描合并/拆分状态不一致，"
+        "候选发现失败关闭并返回 candidate_reason；"
         "仅只读，不暴露任何写动作。"
     ),
     handler=inspect_issue,
@@ -760,7 +782,7 @@ KernelRPCRegistry.register_function(
         ),
         "strategy_id": "list_by_strategy 必填",
         "fingerprint": "list_by_fingerprint 必填",
-        "status": "可选状态过滤；string 或 list（如 ABNORMAL / RESOLVED）",
+        "status": "可选状态过滤；string 或 list（pending_review / unresolved / resolved / archived）",
         "start_time": "可选；create_time 下限（unix 秒）",
         "end_time": "可选；create_time 上限（unix 秒）",
         "since_days": f"list_conflicts 可选；默认 {_DEFAULT_CONFLICT_LOOKBACK_DAYS}，最大 {_MAX_CONFLICT_LOOKBACK_DAYS}",
@@ -771,7 +793,7 @@ KernelRPCRegistry.register_function(
         "operation": "list_by_strategy",
         "bk_biz_id": 2,
         "strategy_id": "10313",
-        "status": ["ABNORMAL"],
+        "status": ["pending_review"],
         "limit": 50,
     },
 )
@@ -779,12 +801,12 @@ KernelRPCRegistry.register_function(
 BkmCliOpRegistry.register(
     op_id="inspect-issue",
     func_name="bkm_cli.inspect_issue",
-    summary="只读访问 Issue 模块（IssueDocument / IssueActivityDocument / IssueMergeRelation）",
+    summary="只读访问 Issue 模块（IssueDocument / IssueActivityDocument / IssueMergeRelation / AlertDocument）",
     description=(
         "通过 monitor-api 服务桥读取 Issue 模块的 ES + SQL 数据：单 Issue 详情（含 merge_status）、"
         "按 strategy_id / fingerprint 列出活跃或历史 Issue、Issue activity 时序、合并/拆分状态不一致对账、"
         "LLM 标题安全补偿候选发现。"
-        "配合 read-cache-key 的 4 个 ISSUE_* keys 完整覆盖 issue fingerprint + merge 改造后的取证面。"
+        "配合 read-cache-key 的 4 个 ISSUE_* keys 提供 issue fingerprint + merge 改造后的取证入口。"
     ),
     capability_level="inspect",
     risk_level="low",
@@ -810,7 +832,7 @@ BkmCliOpRegistry.register(
         "operation": "list_by_strategy",
         "bk_biz_id": 2,
         "strategy_id": "10313",
-        "status": ["ABNORMAL"],
+        "status": ["pending_review"],
         "limit": 50,
     },
 )

@@ -10,6 +10,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
+from elasticsearch_dsl.utils import AttrDict
 
 from core.drf_resource.exceptions import CustomException
 from kernel_api.resource.bkm_cli import BkmCliOpCallResource
@@ -420,12 +421,67 @@ def test_llm_title_candidate_batch_queries_use_latest_collapsed_hits(monkeypatch
         ("term", {"activity_type": "name_change"}),
     ]
     assert activity_stub.sort_arg == {"time": {"order": "desc"}}
-    assert activity_stub.extra_kwargs == {"collapse": {"field": "issue_id"}}
+    assert activity_stub.extra_kwargs == {
+        "collapse": {
+            "field": "issue_id",
+            "inner_hits": {
+                "name": "latest_name_changes",
+                "size": 2,
+                "sort": [{"time": {"order": "desc"}}],
+            },
+        }
+    }
     assert activity_stub.params_kwargs == {"size": 2}
     assert alert_stub.filter_calls == [("terms", {"issue_id": ["i-1", "i-2"]})]
     assert alert_stub.sort_arg == {"begin_time": {"order": "desc"}}
     assert alert_stub.extra_kwargs == {"collapse": {"field": "issue_id"}}
     assert alert_stub.params_kwargs == {"size": 2}
+
+
+def test_latest_name_change_operators_fail_closed_on_same_second_tie(monkeypatch):
+    inner_hits = SimpleNamespace(
+        hits=SimpleNamespace(
+            hits=[
+                SimpleNamespace(operator="system", time=1776380000),
+                SimpleNamespace(operator="alice", time=1776380000),
+            ]
+        )
+    )
+    outer_hit = SimpleNamespace(
+        issue_id="i-1",
+        operator="system",
+        time=1776380000,
+        meta=SimpleNamespace(inner_hits=SimpleNamespace(latest_name_changes=inner_hits)),
+    )
+    activity_stub = StubSearch(hits=[outer_hit])
+    monkeypatch.setattr(
+        "bkmonitor.documents.issue.IssueActivityDocument.search", staticmethod(lambda **kwargs: activity_stub)
+    )
+
+    assert issue_module._latest_name_change_operators(["i-1"]) == {"i-1": ""}
+
+
+def test_latest_name_change_operators_read_raw_inner_hit_sources(monkeypatch):
+    inner_hits = SimpleNamespace(
+        hits=SimpleNamespace(
+            hits=[
+                AttrDict({"_source": {"operator": "system", "time": 1776380001}}),
+                AttrDict({"_source": {"operator": "alice", "time": 1776380000}}),
+            ]
+        )
+    )
+    outer_hit = SimpleNamespace(
+        issue_id="i-1",
+        operator="system",
+        time=1776380001,
+        meta=SimpleNamespace(inner_hits=SimpleNamespace(latest_name_changes=inner_hits)),
+    )
+    activity_stub = StubSearch(hits=[outer_hit])
+    monkeypatch.setattr(
+        "bkmonitor.documents.issue.IssueActivityDocument.search", staticmethod(lambda **kwargs: activity_stub)
+    )
+
+    assert issue_module._latest_name_change_operators(["i-1"]) == {"i-1": "system"}
 
 
 def test_llm_title_candidate_dependency_error_returns_no_partial_candidates(monkeypatch):

@@ -18,6 +18,31 @@ TITLE_SOURCE_UNKNOWN = "unknown"
 _NAME_DIM_VALUE_MAX_LEN = 40
 
 
+def _activity_value(activity, field: str):
+    getter = getattr(activity, "get", None)
+    source = getter("_source") if callable(getter) else getattr(activity, "_source", None)
+    if source is not None:
+        activity = source
+        getter = getattr(activity, "get", None)
+    if callable(getter):
+        return getter(field)
+    return getattr(activity, field, None)
+
+
+def resolve_latest_name_change_operator(activities) -> str | None:
+    """Resolve an operator from up to two NAME_CHANGE hits sorted by time descending.
+
+    Activity time has second precision. Two latest hits in the same second cannot
+    be ordered safely, so return an empty operator and let callers fail closed.
+    """
+    activities = list(activities)
+    if not activities:
+        return None
+    if len(activities) > 1 and _activity_value(activities[0], "time") == _activity_value(activities[1], "time"):
+        return ""
+    return str(_activity_value(activities[0], "operator") or "")
+
+
 def build_issue_default_name(strategy_name: str, dimension_values: dict, is_regression: bool) -> str:
     """生成 Issue 默认名称。
 
@@ -38,10 +63,13 @@ def build_issue_default_name(strategy_name: str, dimension_values: dict, is_regr
 
 
 def classify_issue_title_source(current_name: str, default_name: str, latest_operator: str | None) -> str:
-    """Classify whether the current title is default, system-managed, or user-managed.
+    """Classify the current title as default, system-managed, user-managed, or unknown.
 
-    A user NAME_CHANGE remains authoritative even if the user changed the title
-    back to the generated default value.
+    A non-system, non-empty latest operator remains user-managed even when the
+    current title equals the default. An empty or ambiguous latest operator is
+    unknown. With no NAME_CHANGE activity, a default title is default and a
+    non-default title is unknown. A system latest operator marks only a non-default
+    title as system-managed.
     """
     if latest_operator is not None and latest_operator != "system":
         return TITLE_SOURCE_USER if latest_operator else TITLE_SOURCE_UNKNOWN
