@@ -282,6 +282,36 @@ export default class UseJsonFormatter {
     return this.escapeString(String(value)).replace(/<\/?mark>/g, '');
   }
 
+  /**
+   * date / date_nanos：时间格式化只影响 DOM 展示。
+   * jsonValue 可能是整行 object，也可能是当前根字段的标量原始值（时间戳）。
+   * 检索条件必须回取原始值，禁止用格式化后的展示串。
+   */
+  private resolveDateFieldRawValue(
+    ctx: SegmentClickContext,
+    fieldName: string,
+    field: Record<string, any> | undefined,
+    selectedValue?: string,
+  ) {
+    const name = field?.field_name || fieldName;
+    const fromPath = this.getPathValue(ctx.jsonValue, name)
+      ?? (name ? ctx.jsonValue?.[name] : undefined);
+    if (fromPath !== undefined && fromPath !== null && fromPath !== '') {
+      return fromPath;
+    }
+
+    const jsonValue = ctx.jsonValue;
+    if (
+      typeof jsonValue === 'string'
+      || typeof jsonValue === 'number'
+      || (jsonValue && typeof jsonValue === 'object' && jsonValue._isBigNumber)
+    ) {
+      return jsonValue;
+    }
+
+    return selectedValue;
+  }
+
   private resolveClickFullPlainValue(
     ctx: SegmentClickContext,
     fieldName: string,
@@ -294,8 +324,7 @@ export default class UseJsonFormatter {
     }
 
     if (['date', 'date_nanos'].includes(field?.field_type)) {
-      const raw = this.getPathValue(ctx.jsonValue, field?.field_name || fieldName)
-        ?? ctx.jsonValue?.[field?.field_name || fieldName];
+      const raw = this.resolveDateFieldRawValue(ctx, fieldName, field, selectedValue);
       return this.toScalarPlainValue(raw ?? selectedValue ?? '');
     }
 
@@ -528,14 +557,19 @@ export default class UseJsonFormatter {
         && normalizedFullPlain === selectedPlain);
 
     let target = ['date', 'date_nanos'].includes(fieldType)
-      ? (this.getPathValue(ctx.jsonValue, activeField?.field_name)
-        ?? ctx.jsonValue?.[activeField?.field_name]
-        ?? selectedValue)
+      ? this.resolveDateFieldRawValue(
+        ctx,
+        resolvedFieldName || activeField?.field_name || '',
+        activeField,
+        selectedValue,
+      )
       : selectedValue;
 
     // 其他类型：Value 统一补齐为完整 FieldValue
+    // date/date_nanos 已在上方回取原始时间戳，且 fullPlain 同源，避免被展示串覆盖
     if (
       fieldType
+      && !['date', 'date_nanos'].includes(fieldType)
       && !isTextFieldType(fieldType)
       && !isKeywordLikeFieldType(fieldType)
       && fieldType !== 'string'

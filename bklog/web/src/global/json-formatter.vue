@@ -680,7 +680,7 @@
     return val;
   };
 
-    const getFieldFormatter = (field, formatDate) => {
+  const getFieldFormatter = (field, formatDate) => {
     const [objValue, val] = getFieldValue(field);
     const isJsonValue = objValue !== null && typeof objValue === 'object' && objValue !== undefined;
     // 仅 String/Text 等非 Object 字段「看起来像 JSON」时才算 parsedFromJsonString
@@ -692,7 +692,8 @@
     return {
       ref: ref(),
       isJson: isJsonValue,
-      value: formatEmptyObject(getDateFieldValue(field, objValue, formatDate)),
+      // value 必须保留原始值：时间格式化只影响展示；添加到检索时回取时间戳
+      value: formatEmptyObject(objValue),
       stringValue: strVal?.replace?.(/<\/?mark>/igm, '') ?? strVal,
       field,
       parsedFromJsonString,

@@ -249,9 +249,11 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
     // 获取实际值：分词点击带 value；单元格菜单带 content。二者并存时优先 value（分词原文）。
     let actualValue = value ?? content;
     let isParamsChange = false;
+    const isDateField = field && ['date', 'date_nanos'].includes(field.field_type);
     if (field && row) {
-      if (['date', 'date_nanos'].includes(field.field_type)) {
-        actualValue = row[field.field_name];
+      if (isDateField) {
+        // 时间格式化只影响展示；构造检索条件时必须回取行内原始时间戳
+        actualValue = getRowFieldValue(row, field);
       } else if (value !== undefined && value !== null && value !== '') {
         actualValue = value;
       } else if (content !== undefined && content !== null) {
@@ -285,12 +287,15 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
         isParamsChange = true;
         const nextOperator = operation === 'not' ? 'is not' : operation;
         let fullPlain = fullPlainFromParams;
-        // '' 也视为缺失：Object 叶子 fullPlain 解析失败时用行数据回填
-        if (
+        // date：fullPlain 若已是格式化展示串，强制回取行内原始时间戳（semantic/ui 会优先用 fullText）
+        if (isDateField && field && row && typeof field === 'object') {
+          fullPlain = formatScalarFullPlain(getRowFieldValue(row, field)) ?? fullPlain;
+        } else if (
           (fullPlain === undefined || fullPlain === null || fullPlain === '')
           && fieldName
           && row
         ) {
+          // '' 也视为缺失：Object 叶子 fullPlain 解析失败时用行数据回填
           const leafField = typeof field === 'object' && field?.field_name === fieldName
             ? field
             : { field_name: fieldName };

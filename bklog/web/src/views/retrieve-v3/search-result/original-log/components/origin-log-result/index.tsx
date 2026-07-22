@@ -348,7 +348,6 @@ export default defineComponent({
       const fieldType = fieldsMap.value[fieldName]?.field_type
         ?? store.state.indexFieldInfo?.fields?.find?.(item => item.field_name === fieldName)?.field_type
         ?? data.option.fieldType;
-      const rawValue = String(data.option.value ?? '').replace(/<\/?mark>/gim, '').trim();
       /** 对象/数组不能 String()，否则会得到 "[object Object]" */
       const toScalarPlain = (val: any): string => {
         if (val === undefined || val === null || val === '') return '';
@@ -358,15 +357,22 @@ export default defineComponent({
         }
         return String(val).replace(/<\/?mark>/gim, '').trim();
       };
+      const row = logList.value[choosedIndex.value];
+      const fromRow = row ? (row[fieldName]
+        ?? fieldName.split('.').reduce((cur: any, key: string) => (cur == null ? undefined : cur[key]), row))
+        : undefined;
+      // 时间格式化只影响展示；date 字段必须回取行内原始时间戳
+      const isDateField = ['date', 'date_nanos'].includes(fieldType);
+      const rawValue = isDateField && fromRow !== undefined && fromRow !== null && fromRow !== ''
+        ? toScalarPlain(fromRow)
+        : String(data.option.value ?? '').replace(/<\/?mark>/gim, '').trim();
       let fullPlain = toScalarPlain(data.option.fullPlain);
       // 已污染的 "[object Object]" 视为缺失，回退行数据或放弃完整值
-      if (!fullPlain || fullPlain === '--' || fullPlain === '[object Object]') {
-        // 本地检索结果行里回填叶子完整 VALUE（仅标量）
-        const row = logList.value[choosedIndex.value];
-        const fromRow = row ? (row[fieldName]
-          ?? fieldName.split('.').reduce((cur: any, key: string) => (cur == null ? undefined : cur[key]), row))
-          : undefined;
-        fullPlain = toScalarPlain(fromRow);
+      if (isDateField || !fullPlain || fullPlain === '--' || fullPlain === '[object Object]') {
+        const rowPlain = toScalarPlain(fromRow);
+        if (rowPlain) {
+          fullPlain = rowPlain;
+        }
       }
       const soleByValue = Boolean(fullPlain && fullPlain === rawValue);
       const isSoleToken = Boolean(

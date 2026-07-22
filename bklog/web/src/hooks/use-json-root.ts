@@ -31,6 +31,8 @@ type RootFieldOperator = {
   isJson: boolean;
   ref: Ref<HTMLElement>;
   value: boolean | number | object | string;
+  /** 展示文本（可含时间格式化）；检索回取仍用 value 原始值 */
+  stringValue?: string;
   editor?: UseJsonFormatter;
   field: any;
   precomputedSegments?: Record<string, any[]>;
@@ -45,6 +47,7 @@ type RootField = {
     isJson: boolean;
     ref: Ref<HTMLElement>;
     value: boolean | number | object | string;
+    stringValue?: string;
     field: any;
     precomputedSegments?: Record<string, any[]>;
     enableLeafTruncate?: boolean;
@@ -116,7 +119,11 @@ export default ({ fields: initialFields, onSegmentClick, onSegmentRenderUpdate }
       }
 
       if (!value.isJson) {
-        value.editor?.initStringAsValue(value.value as string);
+        // 优先用 stringValue 渲染（时间格式化后的展示串）；jsonValue 仍保留原始 value
+        const displayText = value.stringValue !== undefined && value.stringValue !== null
+          ? value.stringValue
+          : value.value;
+        value.editor?.initStringAsValue(displayText as string);
       }
     }
   };
@@ -143,6 +150,7 @@ export default ({ fields: initialFields, onSegmentClick, onSegmentRenderUpdate }
           isJson: formatter.isJson,
           ref: formatter.ref,
           value: formatter.value,
+          stringValue: formatter.stringValue,
           field: formatter.field,
           precomputedSegments: formatter.precomputedSegments,
           enableLeafTruncate: formatter.enableLeafTruncate,
@@ -156,6 +164,7 @@ export default ({ fields: initialFields, onSegmentClick, onSegmentRenderUpdate }
           isJson: formatter.isJson,
           ref: formatter.ref,
           value: formatter.value,
+          stringValue: formatter.stringValue,
           field: formatter.field,
           precomputedSegments: formatter.precomputedSegments,
           enableLeafTruncate: formatter.enableLeafTruncate,
