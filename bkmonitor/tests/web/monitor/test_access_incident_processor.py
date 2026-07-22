@@ -56,6 +56,22 @@ class _FakeIncidentDocument:
         return docs
 
 
+class _AttrDictLike:
+    """模拟 Elasticsearch DSL 的 AttrDict：支持下标赋值，不提供 update。"""
+
+    def __init__(self):
+        self.data = {}
+
+    def __bool__(self):
+        return bool(self.data)
+
+    def __getitem__(self, key):
+        return self.data[key]
+
+    def __setitem__(self, key, value):
+        self.data[key] = value
+
+
 class TestAccessIncidentProcessor(SimpleTestCase):
     def setUp(self):
         self.processor = object.__new__(AccessIncidentProcess)
@@ -64,6 +80,19 @@ class TestAccessIncidentProcessor(SimpleTestCase):
         self.processor.update_alert_incident_relations = lambda *args, **kwargs: {}
         self.processor.generate_incident_labels = lambda *args, **kwargs: None
         self.processor.generate_alert_operations = lambda *args, **kwargs: None
+
+    def test_mark_bkfara_source_persists_process_info_on_attr_dict(self):
+        incident_document = SimpleNamespace(extra_info=_AttrDictLike())
+
+        self.processor.mark_incident_source(
+            {"notice_source": "bkfara"},
+            incident_document,
+            {"scope_id": "bkcc_132", "task_id": 9876},
+        )
+
+        self.assertEqual(incident_document.extra_info["notice_source"], "bkfara")
+        self.assertEqual(incident_document.extra_info["scope_id"], "bkcc_132")
+        self.assertEqual(incident_document.extra_info["task_id"], 9876)
 
     def _base_sync_info(self):
         return {
