@@ -147,14 +147,20 @@ def test_search_log_resource_routes_scene_request_to_log_platform(monkeypatch):
 
 
 def test_list_log_scenes_resource_calls_log_platform(monkeypatch):
-    platform_result = Mock()
+    platform_result = [
+        {
+            "id": "k8s",
+            "name": "Kubernetes",
+            "dimensions": [{"key": "cluster_id", "choices_type": "dynamic"}],
+        }
+    ]
     list_scenes = Mock(return_value=platform_result)
     monkeypatch.setattr(api.log_search, "list_scenes", list_scenes)
 
     result = ListLogScenesResource().perform_request({"bk_biz_id": 2})
 
     list_scenes.assert_called_once_with(bk_biz_id=2)
-    assert result is platform_result
+    assert result == {"scenes": platform_result}
 
 
 def test_list_scene_dimension_values_resource_calls_log_platform(monkeypatch):
@@ -177,7 +183,13 @@ def test_list_scene_dimension_values_resource_calls_log_platform(monkeypatch):
 
 
 def test_get_scene_log_fields_resource_calls_log_platform(monkeypatch):
-    platform_result = Mock()
+    platform_result = {
+        "fields": [{"field_name": "log", "field_type": "text"}],
+        "time_field": "dtEventTimeStamp",
+        "display_fields": ["dtEventTimeStamp", "log"],
+        "config": [{"id": "log", "name": "Log"}],
+        "user_custom_config": {"display_fields": ["log"]},
+    }
     scene_fields = Mock(return_value=platform_result)
     monkeypatch.setattr(api.log_search, "scene_fields", scene_fields)
     monkeypatch.setattr("kernel_api.resource.log_search.bk_biz_id_to_space_uid", lambda bk_biz_id: "bkcc__2")
@@ -189,4 +201,7 @@ def test_get_scene_log_fields_resource_calls_log_platform(monkeypatch):
         bk_biz_id=2,
         table_id_conditions=SCENE_CONDITIONS,
     )
-    assert result is platform_result
+    assert result == {
+        "fields": platform_result["fields"],
+        "time_field": "dtEventTimeStamp",
+    }
