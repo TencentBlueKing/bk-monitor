@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/member-ordering */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -26,37 +25,65 @@
  */
 import { copyMessage, xssFilter } from '@/common/util';
 import RetrieveHelper from '@/views/retrieve-helper';
+import { highlightPlainTextIntoFragment, parseResultMarkedText } from '@/views/retrieve-core/page-highlight';
 import JSONBig from 'json-bigint';
 
 export type JsonViewConfig = {
-  onNodeExpand: (args: { isExpand: boolean; node: any; targetElement: HTMLElement; rootElement: HTMLElement }) => void;
+  onNodeExpand: (_args: { isExpand: boolean; node: any; targetElement: HTMLElement; rootElement: HTMLElement }) => void;
   jsonValue?: any;
   depth?: number;
   segmentRegStr?: string;
   field?: any;
-  segmentRender?: (value: string, rootNode: HTMLElement) => void;
+  segmentRender?: (_value: string, _rootNode: HTMLElement) => void;
+  batchSize?: number;
+  initialBatchSize?: number;
+  /** 根值是否由 JSON String 解析得到；此时叶子筛选必须作用于外层字段 */
+  parsedFromJsonString?: boolean;
+  /** 将真实字段路径转换为展示别名；返回原路径时沿用 JSON 原始 KEY。 */
+  resolveFieldDisplayName?: (_fieldPath: string) => string;
 };
 export default class JsonView {
   options: JsonViewConfig;
   targetEl: HTMLElement;
-  jsonNodeMap: WeakMap<HTMLElement, { target?: any; isExpand?: boolean }>;
+  jsonNodeMap: WeakMap<HTMLElement, {
+    target?: any;
+    isExpand?: boolean;
+    parentPath?: string;
+    jsonStringFieldPath?: string;
+  }>;
   JSONBigInstance: JSONBig;
+  renderTaskId: number;
+  timeoutHandles: Set<number>;
+  activeDepth: number;
 
-  rootElClick?: (...args) => void;
+  rootElClick?: (..._args) => void;
+  targetElClickHandler?: EventListener;
+  targetElMouseUpHandler?: EventListener;
   constructor(target: HTMLElement, options: JsonViewConfig) {
     this.options = { depth: 1, isExpand: false, ...options };
     this.targetEl = target;
     this.jsonNodeMap = new WeakMap();
     this.JSONBigInstance = JSONBig({ useNativeBigInt: true });
+    this.renderTaskId = 0;
+    this.timeoutHandles = new Set();
+    this.activeDepth = Number(this.options.depth ?? 1);
   }
 
-  private createJsonField(name: number | string) {
+  private createJsonField(name: number | string, fieldPath = '') {
     const fieldEl = document.createElement('span');
     fieldEl.classList.add('bklog-json-view-field');
 
     const fieldText = document.createElement('span');
     fieldText.classList.add('bklog-json-view-text');
-    fieldText.innerText = `${name}`;
+    // JSON String 的命中标记可能出现在 KEY 中。解析成对象后 key 会保留标记文本，
+    // 必须在 DOM 渲染前转换成纯文本和高亮范围，避免标签泄漏。
+    const { plainText, markRanges } = parseResultMarkedText(name);
+    const displayName = fieldPath ? this.options.resolveFieldDisplayName?.(fieldPath) : undefined;
+    const displayText = displayName && displayName !== fieldPath ? displayName : plainText;
+    fieldText.appendChild(highlightPlainTextIntoFragment({
+      text: displayText,
+      resultRanges: displayText === plainText ? markRanges : [],
+    }));
 
     fieldEl.append(fieldText);
     return fieldEl;
@@ -69,46 +96,140 @@ export default class JsonView {
     return fieldEl;
   }
 
-  private createObjectChildNode(target, depth) {
+  private getBatchSize(isInitial = false) {
+    const fallback = isInitial ? 60 : 120;
+    const optionKey = isInitial ? 'initialBatchSize' : 'batchSize';
+    const value = Number(this.options[optionKey]);
+
+    return Number.isFinite(value) && value > 0 ? value : fallback;
+  }
+
+  private scheduleRender(callback: () => void) {
+    const handle = window.setTimeout(() => {
+      this.timeoutHandles.delete(handle);
+      callback();
+    }, 0);
+
+    this.timeoutHandles.add(handle);
+    return handle;
+  }
+
+  private clearScheduledRender() {
+    for (const handle of this.timeoutHandles) {
+      window.clearTimeout(handle);
+    }
+
+    this.timeoutHandles.clear();
+  }
+
+  /** 根字段名：用于 Object 多层级检索字段绑定 */
+  private getRootFieldPath() {
+    const field = this.options.field;
+    if (!field) return '';
+    return typeof field === 'string' ? field : (field.field_name ?? '');
+  }
+
+  /**
+   * 计算叶子节点对应的真实检索字段：
+   * - JSON String 仅是前端展示解析，ES 中仍只有外层字段，不能构造 KEY.SubKey；
+   * - 原始 Object 才使用完整的 KEY.SubKey 路径。
+   */
+  private buildSearchFieldPath(parentPath: string, key: number | string, jsonStringFieldPath = '') {
+    // 检索高亮标签只属于展示协议，不能进入字段路径和后续筛选条件。
+    const { plainText: keyText } = parseResultMarkedText(key);
+    if (jsonStringFieldPath) return jsonStringFieldPath;
+    if (!parentPath) return keyText;
+    return parentPath.concat('.', keyText);
+  }
+
+  private createObjectRow(
+    key: number | string,
+    value: any,
+    depth: number,
+    parentPath: string,
+    jsonStringFieldPath = '',
+  ) {
+    const row = document.createElement('div');
+    const searchFieldPath = this.buildSearchFieldPath(parentPath, key, jsonStringFieldPath);
+    row.classList.add('bklog-json-view-row');
+    // 使用去标记后的字段名，避免后续点击和筛选携带 HTML 协议标签。
+    row.setAttribute('data-field-name', parseResultMarkedText(key).plainText);
+    // data-search-field-name 绑定真实检索字段（含根字段前缀）
+    row.setAttribute('data-search-field-name', searchFieldPath);
+    // JSON 字符串解析仅改变分词点击的叶子归属；划词仍读取 data-search-field-name。
+    const segmentFieldPath = jsonStringFieldPath
+      ? [parentPath, parseResultMarkedText(key).plainText].filter(Boolean).join('.')
+      : searchFieldPath;
+    row.setAttribute('data-segment-field-name', segmentFieldPath);
+    if (jsonStringFieldPath) {
+      row.setAttribute('data-json-string-parsed', 'true');
+    }
+    // JSON String 解析出的子 KEY 只是展示结构，并不是真实字段路径。
+    // 它们的筛选仍绑定外层真实字段，但不能被外层字段别名替换。
+    const displayFieldPath = jsonStringFieldPath ? '' : searchFieldPath;
+    row.append(this.createJsonField(key, displayFieldPath));
+    row.append(this.createJsonSymbol());
+    // JSON 字符串的展示路径继续向下传递，保证 labels.app 不会退化成 labels。
+    row.append(this.createJsonNodeElment(value, depth, segmentFieldPath, jsonStringFieldPath));
+
+    return row;
+  }
+
+  private appendObjectRowsInChunks(
+    container: HTMLElement,
+    entries: Array<[number | string, any]>,
+    depth: number,
+    taskId: number,
+    parentPath: string,
+    jsonStringFieldPath = '',
+  ) {
+    let startIndex = 0;
+
+    const appendChunk = (size: number) => {
+      if (taskId !== this.renderTaskId) return;
+
+      const fragment = document.createDocumentFragment();
+      const endIndex = Math.min(startIndex + size, entries.length);
+      for (let index = startIndex; index < endIndex; index += 1) {
+        const [key, value] = entries[index];
+        fragment.append(this.createObjectRow(key, value, depth, parentPath, jsonStringFieldPath));
+      }
+
+      startIndex = endIndex;
+      container.append(fragment);
+
+      if (startIndex < entries.length) {
+        this.scheduleRender(() => appendChunk(this.getBatchSize()));
+      }
+    };
+
+    appendChunk(this.getBatchSize(true));
+  }
+
+  private createObjectChildNode(target, depth, parentPath: string, jsonStringFieldPath = '') {
     const node = document.createElement('div');
     node.classList.add('bklog-json-view-child');
     node.classList.add('bklog-json-view-object');
-    if (Array.isArray(target)) {
-      target.forEach((item, index) => {
-        const row = document.createElement('div');
-        row.classList.add('bklog-json-view-row');
-        row.append(this.createJsonField(index));
-        row.append(this.createJsonSymbol());
-        row.append(this.createJsonNodeElment(item, depth));
 
-        node.append(row);
-      });
+    const entries: Array<[number | string, any]> = Array.isArray(target)
+      ? target.map((item, index) => [index, item])
+      : Object.keys(target ?? {}).map(key => [key, target[key]]);
 
-      return node;
-    }
-
-    for (const key of Object.keys(target ?? {})) {
-      const row = document.createElement('div');
-      row.classList.add('bklog-json-view-row');
-      row.setAttribute('data-field-name', key);
-      row.append(this.createJsonField(key));
-      row.append(this.createJsonSymbol());
-      row.append(this.createJsonNodeElment(target[key], depth));
-
-      node.append(row);
-    }
+    this.appendObjectRowsInChunks(node, entries, depth, this.renderTaskId, parentPath, jsonStringFieldPath);
 
     return node;
   }
 
-  private createObjectNode(target, depth) {
+  private createObjectNode(target, depth, parentPath: string, jsonStringFieldPath = '') {
     const node = document.createElement('div');
     node.classList.add('bklog-json-view-object');
-    const isExpand = depth <= this.options.depth;
+    const isExpand = depth <= this.activeDepth;
 
     this.jsonNodeMap.set(node, {
       isExpand,
       target,
+      parentPath,
+      jsonStringFieldPath,
     });
 
     if (typeof target === 'object' && target !== null) {
@@ -126,7 +247,7 @@ export default class JsonView {
       const child: HTMLElement[] = [];
 
       if (isExpand) {
-        child.push(this.createObjectChildNode(target, depth + 1));
+        child.push(this.createObjectChildNode(target, depth + 1, parentPath, jsonStringFieldPath));
       }
 
       const copyItem = document.createElement('span');
@@ -137,20 +258,30 @@ export default class JsonView {
       return [node];
     }
 
-    node.append(this.createObjectChildNode(target, depth));
+    node.append(this.createObjectChildNode(target, depth, parentPath, jsonStringFieldPath));
     return [node];
   }
 
-  private createJsonNodeElment(target: any, depth = 1) {
+  private bindSearchFieldPath(node: HTMLElement, fieldPath: string) {
+    if (!fieldPath) return;
+    node.setAttribute('data-search-field-name', fieldPath);
+  }
+
+  private createJsonNodeElment(target: any, depth = 1, parentPath = '', inheritedJsonStringFieldPath = '') {
     const node = document.createElement('div');
     node.classList.add('bklog-json-view-node');
     node.classList.add(`bklog-data-depth-${depth}`);
     node.setAttribute('data-depth', `${depth}`);
     let formatTarget = target;
-
-    if (typeof target === 'string' && /^(\{|\[)/.test(target)) {
+    let jsonStringFieldPath = inheritedJsonStringFieldPath;
+    this.bindSearchFieldPath(node, jsonStringFieldPath || parentPath);
+    // Parsing depth controls expansion only. Every created node must still recognize
+    // Object/Array values (including JSON strings), so increasing depth can expand
+    // Nested fields that were initially collapsed. Children remain lazily rendered.
+    if (typeof target === 'string' && /^\s*(\{|\[)/.test(target)) {
       try {
         formatTarget = this.JSONBigInstance.parse(target);
+        jsonStringFieldPath = parentPath || this.getRootFieldPath();
       } catch (e) {
         console.error(e);
       }
@@ -159,17 +290,27 @@ export default class JsonView {
     const nodeType = typeof formatTarget;
 
     if (nodeType === 'object' && formatTarget !== null) {
-      node.append(...this.createObjectNode(formatTarget, depth));
+      node.append(...this.createObjectNode(formatTarget, depth, parentPath, jsonStringFieldPath));
     } else {
       node.classList.add('bklog-json-field-value');
-      if (nodeType === 'string' && typeof this.options.segmentRender === 'function' && formatTarget !== '') {
-        setTimeout(() => {
-          this.options.segmentRender(formatTarget, node);
+      // string / number / boolean / bigint 叶子统一走 segmentRender，
+      // 以便消费 pageHighlightState（含大小写/精确/正则匹配模式）
+      const isPrimitiveLeaf = nodeType === 'string'
+        || nodeType === 'number'
+        || nodeType === 'boolean'
+        || nodeType === 'bigint';
+      const leafText = formatTarget !== null && formatTarget !== undefined && formatTarget !== ''
+        ? String(formatTarget)
+        : '';
+      if (isPrimitiveLeaf && leafText !== '' && typeof this.options.segmentRender === 'function') {
+        const taskId = this.renderTaskId;
+        this.scheduleRender(() => {
+          if (taskId === this.renderTaskId && node.isConnected) {
+            this.options.segmentRender(leafText, node);
+          }
         });
       } else {
-        const displayValue = formatTarget !== null && formatTarget !== undefined && formatTarget !== ''
-          ? String(formatTarget)
-          : '--';
+        const displayValue = leafText || '--';
         node.innerHTML = `<span class="segment-content bklog-scroll-cell"><span class="valid-text">${xssFilter(displayValue)}</span></span>`;
       }
     }
@@ -178,8 +319,13 @@ export default class JsonView {
   }
 
   private setJsonViewSchema(value: any) {
+    this.activeDepth = Number(this.options.depth ?? 1);
+    this.renderTaskId += 1;
+    this.clearScheduledRender();
     this.targetEl.innerHTML = '';
-    this.targetEl.append(this.createJsonNodeElment(value, 1));
+    const rootPath = this.getRootFieldPath();
+    const jsonStringFieldPath = this.options.parsedFromJsonString ? rootPath : '';
+    this.targetEl.append(this.createJsonNodeElment(value, 1, rootPath, jsonStringFieldPath));
   }
 
   private setNodeExpand = (jsonNode: HTMLElement, isExpand: boolean, target: any) => {
@@ -187,7 +333,11 @@ export default class JsonView {
     if (isExpand && !childNode) {
       const leafNode = jsonNode.closest('.bklog-json-view-node');
       const depth = Number(leafNode.getAttribute('data-depth') ?? 1);
-      childNode = this.createObjectChildNode(target, depth + 1);
+      const nodeMeta = this.jsonNodeMap.get(jsonNode);
+      const parentPath = nodeMeta?.parentPath
+        ?? leafNode?.getAttribute('data-search-field-name')
+        ?? this.getRootFieldPath();
+      childNode = this.createObjectChildNode(target, depth + 1, parentPath, nodeMeta?.jsonStringFieldPath);
       jsonNode.append(childNode);
     }
 
@@ -205,8 +355,8 @@ export default class JsonView {
   private handleTargetElementClick(e) {
     const targetNode = e.target as HTMLElement;
     if (
-      targetNode.classList.contains('bklog-json-view-icon-expand') ||
-      targetNode.classList.contains('bklog-json-view-icon-text')
+      targetNode.classList.contains('bklog-json-view-icon-expand')
+      || targetNode.classList.contains('bklog-json-view-icon-text')
     ) {
       const storeNode = targetNode.closest('.bklog-json-view-object') as HTMLElement;
       if (this.jsonNodeMap.get(storeNode)) {
@@ -236,8 +386,15 @@ export default class JsonView {
   }
 
   private handleMouseUp(e: MouseEvent) {
+    // 与行级划词判定对齐：仅「本次拖拽划选」或「点在当前选区上」时放行冒泡；
+    // 残留选区下的普通点击仍拦截，避免误触发行展开/收起。
+    if (
+      RetrieveHelper.isMouseSelectionUpEvent(e)
+      || RetrieveHelper.isClickOnSelection(e, 2)
+    ) {
+      return;
+    }
     e.stopPropagation();
-    e.preventDefault();
   }
 
   public setValue(val: any) {
@@ -245,34 +402,66 @@ export default class JsonView {
     this.setJsonViewSchema(val);
   }
 
-  public initClickEvent(fn?: (...args) => void) {
+  public initClickEvent(fn?: (..._args) => void) {
+    if (this.targetElClickHandler) {
+      this.targetEl.removeEventListener('click', this.targetElClickHandler);
+    }
+    if (this.targetElMouseUpHandler) {
+      this.targetEl.removeEventListener('mouseup', this.targetElMouseUpHandler);
+    }
+
     this.rootElClick = fn;
-    this.targetEl.addEventListener('click', this.handleTargetElementClick.bind(this));
-    this.targetEl.addEventListener('mouseup', this.handleMouseUp.bind(this));
+    this.targetElClickHandler = this.handleTargetElementClick.bind(this) as EventListener;
+    this.targetElMouseUpHandler = this.handleMouseUp.bind(this) as EventListener;
+    this.targetEl.addEventListener('click', this.targetElClickHandler);
+    this.targetEl.addEventListener('mouseup', this.targetElMouseUpHandler);
   }
 
   public expand(depth: number) {
-    for (const element of this.targetEl.querySelectorAll('[data-depth]')) {
-      const elementDepth = element.getAttribute('data-depth');
+    const targetDepth = Math.max(0, Number(depth) || 0);
+    this.activeDepth = targetDepth;
+
+    const updateElementExpandState = (element: Element, isNextExpand: boolean) => {
       const objectElement = element.children[0] as HTMLElement;
+      if (!objectElement?.classList.contains('bklog-json-view-object')) return;
 
-      if (objectElement?.classList.contains('bklog-json-view-object')) {
-        const { target, isExpand } = this.jsonNodeMap.get(objectElement);
-        const isNextExpand = depth >= Number(elementDepth);
+      const nodeMeta = this.jsonNodeMap.get(objectElement);
+      if (!nodeMeta || nodeMeta.isExpand === isNextExpand) return;
 
-        if (isNextExpand !== isExpand) {
-          this.setNodeExpand(objectElement, isNextExpand, target);
-          this.jsonNodeMap.get(objectElement).isExpand = isNextExpand;
-        }
+      this.setNodeExpand(objectElement, isNextExpand, nodeMeta.target);
+      nodeMeta.isExpand = isNextExpand;
+    };
+
+    // querySelectorAll returns a static collection. Query depth by depth so that
+    // Nested children created by the previous expansion are handled in this pass.
+    for (let currentDepth = 1; currentDepth <= targetDepth; currentDepth += 1) {
+      const selector = `[data-depth="${currentDepth}"]`;
+      for (const element of this.targetEl.querySelectorAll(selector)) {
+        updateElementExpandState(element, true);
+      }
+    }
+
+    // Collapse already rendered nodes that exceed the new depth.
+    for (const element of this.targetEl.querySelectorAll('[data-depth]')) {
+      if (Number(element.getAttribute('data-depth')) > targetDepth) {
+        updateElementExpandState(element, false);
       }
     }
   }
 
   public destroy() {
+    this.renderTaskId += 1;
+    this.clearScheduledRender();
     if (this.targetEl.querySelector('.bklog-json-view-node')) {
       this.targetEl.innerHTML = '';
-      this.targetEl.removeEventListener('click', this.handleTargetElementClick.bind(this));
-      this.targetEl.removeEventListener('mouseup', this.handleMouseUp.bind(this));
+      if (this.targetElClickHandler) {
+        this.targetEl.removeEventListener('click', this.targetElClickHandler);
+        this.targetElClickHandler = undefined;
+      }
+      if (this.targetElMouseUpHandler) {
+        this.targetEl.removeEventListener('mouseup', this.targetElMouseUpHandler);
+        this.targetElMouseUpHandler = undefined;
+      }
     }
   }
 }

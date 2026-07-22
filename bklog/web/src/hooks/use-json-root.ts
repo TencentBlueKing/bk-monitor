@@ -33,6 +33,10 @@ type RootFieldOperator = {
   value: boolean | number | object | string;
   editor?: UseJsonFormatter;
   field: any;
+  precomputedSegments?: Record<string, any[]>;
+  enableLeafTruncate?: boolean;
+  parsedFromJsonString?: boolean;
+  resolveFieldDisplayName?: (_fieldName: string) => string;
 };
 
 type RootField = {
@@ -42,25 +46,44 @@ type RootField = {
     ref: Ref<HTMLElement>;
     value: boolean | number | object | string;
     field: any;
+    precomputedSegments?: Record<string, any[]>;
+    enableLeafTruncate?: boolean;
+    parsedFromJsonString?: boolean;
+    resolveFieldDisplayName?: (_fieldName: string) => string;
   };
 };
 
-export default ({ fields, onSegmentClick, onSegmentRenderUpdate }) => {
+export default ({ fields: initialFields, onSegmentClick, onSegmentRenderUpdate }) => {
   const rootFieldOperator = new Map<string, RootFieldOperator>();
   let initEditPromise: Promise<any>;
+  // json-formatter 仅在 setup 时传入 fieldList 快照；后续 Visible 增删字段必须随 rootList 同步，
+  // 否则新增 Object 字段 getField 失败，分词会退化成整段 JSON。
+  let fields = Array.isArray(initialFields) ? initialFields : [];
+
+  const syncFieldsFromRootList = (rootFieldList: RootField[]) => {
+    fields = rootFieldList.map(item => item.formatter.field).filter(Boolean);
+  };
+
+  const buildFormatterConfig = (value: RootFieldOperator) => ({
+    target: value.ref,
+    fields,
+    jsonValue: value.value,
+    onSegmentClick,
+    onSegmentRenderUpdate,
+    field: value.field,
+    precomputedSegments: value.precomputedSegments,
+    options: {
+      enableLeafTruncate: !!value.enableLeafTruncate,
+      parsedFromJsonString: !!value.parsedFromJsonString,
+      resolveFieldDisplayName: value.resolveFieldDisplayName,
+    },
+  });
 
   const initRootOperator = (depth) => {
     initEditPromise = new Promise((resolve) => {
       for (const value of rootFieldOperator.values()) {
         if (!value.editor) {
-          value.editor = new UseJsonFormatter({
-            target: value.ref,
-            fields,
-            jsonValue: value.value,
-            onSegmentClick,
-            onSegmentRenderUpdate,
-            field: value.field,
-          });
+          value.editor = new UseJsonFormatter(buildFormatterConfig(value));
         }
 
         if (value.isJson && value.ref.value) {
@@ -82,14 +105,9 @@ export default ({ fields, onSegmentClick, onSegmentRenderUpdate }) => {
   const setEditor = (depth) => {
     for (const value of rootFieldOperator.values()) {
       if (!value.editor) {
-        value.editor = new UseJsonFormatter({
-          target: value.ref,
-          fields,
-          jsonValue: value.value,
-          onSegmentClick,
-          onSegmentRenderUpdate,
-          field: value.field,
-        });
+        value.editor = new UseJsonFormatter(buildFormatterConfig(value));
+      } else {
+        value.editor.update(buildFormatterConfig(value));
       }
 
       if (value.isJson && value.ref.value) {
@@ -116,6 +134,8 @@ export default ({ fields, onSegmentClick, onSegmentRenderUpdate }) => {
   };
 
   const updateRootFieldOperator = (rootFieldList: RootField[], depth: number) => {
+    syncFieldsFromRootList(rootFieldList);
+
     for (const fieldItem of rootFieldList) {
       const { name, formatter } = fieldItem;
       if (rootFieldOperator.has(name)) {
@@ -124,22 +144,23 @@ export default ({ fields, onSegmentClick, onSegmentRenderUpdate }) => {
           ref: formatter.ref,
           value: formatter.value,
           field: formatter.field,
+          precomputedSegments: formatter.precomputedSegments,
+          enableLeafTruncate: formatter.enableLeafTruncate,
+          parsedFromJsonString: formatter.parsedFromJsonString,
+          resolveFieldDisplayName: formatter.resolveFieldDisplayName,
         });
 
-        rootFieldOperator.get(name).editor?.update({
-          target: formatter.ref,
-          fields,
-          jsonValue: formatter.value,
-          onSegmentClick,
-          onSegmentRenderUpdate,
-          field: formatter.field,
-        });
+        rootFieldOperator.get(name).editor?.update(buildFormatterConfig(rootFieldOperator.get(name)));
       } else {
         rootFieldOperator.set(name, {
           isJson: formatter.isJson,
           ref: formatter.ref,
           value: formatter.value,
           field: formatter.field,
+          precomputedSegments: formatter.precomputedSegments,
+          enableLeafTruncate: formatter.enableLeafTruncate,
+          parsedFromJsonString: formatter.parsedFromJsonString,
+          resolveFieldDisplayName: formatter.resolveFieldDisplayName,
         });
       }
     }
@@ -153,13 +174,6 @@ export default ({ fields, onSegmentClick, onSegmentRenderUpdate }) => {
     }
 
     return initRootOperator(depth);
-    // .then(() => {
-    //   rootFieldOperator.values().forEach(val => {
-    //     if (val.isJson) {
-    //       val.editor?.setValue.call(val.editor, depth);
-    //     }
-    //   });
-    // });
   };
 
   const setExpand = (depth) => {

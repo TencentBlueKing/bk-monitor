@@ -25,16 +25,20 @@
  */
 import { defineComponent, ref, watch, computed, onMounted, onBeforeUnmount } from 'vue';
 
-import { parseTableRowData, readBlobRespToJson, parseBigNumberList, xssFilter } from '@/common/util';
+import axios from 'axios';
+import { readBlobRespToJson, parseBigNumberList } from '@/common/util';
 
 import JsonFormatter from '@/global/json-formatter.vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import SearchBar from '@/views/retrieve-v2/search-bar/index.vue';
-import DOMPurify from 'dompurify';
 import { cloneDeep, debounce } from 'lodash-es';
 import RetrieveHelper from '@/views/retrieve-helper';
+import { buildHighlightHtml, parseResultMarkedText } from '@/views/retrieve-core/page-highlight';
+import { retrieveRowCacheService } from '@/storage';
+import type { RetrieveRowRenderMeta } from '@/storage/utils/retrieve-render-meta';
+import { resolveAddToSearch } from '@/hooks/log-query-compiler';
 
 import RenderJsonCell from './render-json-cell';
 import { axiosInstance } from '@/api';
@@ -64,11 +68,14 @@ export default defineComponent({
     const searchBarRef = ref<any>();
     const tableRef = ref<HTMLElement>();
     const logList = ref<any[]>([]);
+    const renderMetaList = ref<(RetrieveRowRenderMeta | undefined)[]>([]);
+    const cachedRowKeys = ref<string[]>([]);
     const choosedIndex = ref(props.logIndex);
     const listLoading = ref(false);
     const isCollapsed = ref(false);
+    const exceptionMsg = ref('');
 
-    const fieldsMap = computed(() => (store.state.indexFieldInfo.fields || []).reduce((dataMap, item) => {
+    const fieldsMap = computed(() => store.getters.rawFieldList.reduce((dataMap, item) => {
       dataMap[item.field_name] = item;
       return dataMap;
     }, {}),
@@ -102,6 +109,7 @@ export default defineComponent({
     let total = 0;
     let isUnmounted = false;
     let requestSeq = 0;
+    let abortController: AbortController | null = null;
     let scrollIntoViewTimer: ReturnType<typeof setTimeout> | null = null;
 
     const isMonitorApm = window.__IS_MONITOR_APM__;
@@ -116,14 +124,40 @@ export default defineComponent({
       },
     );
 
+    const setExceptionMsg = (message = '') => {
+      exceptionMsg.value = message || '';
+    };
+
+    const isRequestCanceled = (error: any) =>
+      axios.isCancel(error)
+      || error?.code === 'ERR_CANCELED'
+      || error?.name === 'CanceledError'
+      || error?.name === 'AbortError';
+
+    /** 取消进行中的检索请求，保证永远只有最后一次生效 */
+    const cancelPendingRequest = () => {
+      if (!abortController) {
+        return;
+      }
+      abortController.abort();
+      abortController = null;
+    };
+
     const requestLogList = (isManualSearch = true) => {
+      // 新请求发起前先取消旧请求，避免乱序回写
+      cancelPendingRequest();
+      const controller = new AbortController();
+      abortController = controller;
       const currentRequestSeq = ++requestSeq;
+
       listLoading.value = true;
+      if (begin === 0) {
+        setExceptionMsg('');
+      }
       const baseUrl = process.env.NODE_ENV === 'development' ? 'api/v1' : window.AJAX_URL_PREFIX;
       const searchUrl = store.getters.isSceneMode
         ? '/search/scene/search/'
         : `/search/index_set/${props.indexSetId}/search/`;
-      // size = props.logIndex > 50 ? props.logIndex + 20 : 50;
       const requestData = {
         ...requestOtherparams,
         sort_list: store.state.indexFieldInfo.default_sort_list.filter(item => item.length > 0 && !!item[1]) || [],
@@ -137,6 +171,7 @@ export default defineComponent({
         baseURL: baseUrl,
         responseType: 'blob',
         data: requestData,
+        signal: controller.signal,
         headers: {},
       };
       if (store.state.isExternal) {
@@ -146,21 +181,22 @@ export default defineComponent({
       }
       axiosInstance(params)
         .then((resp: any) => {
-          if (isUnmounted || currentRequestSeq !== requestSeq) {
+          if (isUnmounted || currentRequestSeq !== requestSeq || controller.signal.aborted) {
             return;
           }
           if (resp.data && !resp.message) {
-            readBlobRespToJson(resp.data).then(({ code, data, result, permission }) => {
-              if (isUnmounted || currentRequestSeq !== requestSeq) {
+            readBlobRespToJson(resp.data).then(({ code, data, result, message, permission }) => {
+              if (isUnmounted || currentRequestSeq !== requestSeq || controller.signal.aborted) {
                 return;
               }
               if (code === '9900403') {
                 store.commit('updateState', {
                   authDialogData: {
-                    apply_url: data.apply_url,
+                    apply_url: data?.apply_url,
                     apply_data: permission,
                   },
                 });
+                setExceptionMsg(message || t('无权限'));
                 return;
               }
               if (result) {
@@ -168,100 +204,52 @@ export default defineComponent({
                 total = data.total.toNumber();
                 const list = parseBigNumberList(data.list);
                 logList.value.push(...list);
+                renderMetaList.value.push(...list.map(() => undefined));
+                setExceptionMsg('');
                 if (isManualSearch) {
+                  // 本地重新检索后不再复用外部缓存 rowKey
+                  cachedRowKeys.value = [];
                   choosedIndex.value = -1;
                   handleChooseRow(0, list[0]);
                 }
+                return;
               }
+
+              // 检索失败：首屏清空并回显错误；分页失败保留已加载数据
+              if (begin === 0) {
+                logList.value = [];
+                renderMetaList.value = [];
+                cachedRowKeys.value = [];
+                total = 0;
+              }
+              setExceptionMsg(message || t('检索失败'));
             });
           }
         })
+        .catch((error: any) => {
+          // 主动取消不视为失败，也不回写异常态
+          if (isRequestCanceled(error) || controller.signal.aborted || currentRequestSeq !== requestSeq) {
+            return;
+          }
+          if (isUnmounted) {
+            return;
+          }
+          if (begin === 0) {
+            logList.value = [];
+            renderMetaList.value = [];
+            cachedRowKeys.value = [];
+            total = 0;
+          }
+          setExceptionMsg(error?.message || error?.response?.message || t('检索失败'));
+        })
         .finally(() => {
+          if (abortController === controller) {
+            abortController = null;
+          }
           if (!isUnmounted && currentRequestSeq === requestSeq) {
             listLoading.value = false;
           }
         });
-    };
-
-    const getAdditionMappingOperator = (operator: string, field: string, value: string[], depth: number) => {
-      let mappingKey = {
-        // is is not 值映射
-        is: '=',
-        'is not': '!=',
-      };
-
-      /** text类型字段类型的下钻映射 */
-      const textMappingKey = {
-        is: 'contains match phrase',
-        'is not': 'not contains match phrase',
-      };
-
-      /** keyword 类型字段类型的下钻映射 */
-      const keywordMappingKey = {
-        is: 'contains',
-        'is not': 'not contains',
-      };
-
-      const boolMapping = {
-        is: `is ${value[0]}`,
-        'is not': `is ${/true/i.test(value[0]) ? 'false' : 'true'}`,
-      };
-
-      const targetField = store.state.visibleFields?.find(item => item.field_name === field);
-
-      const textType = targetField?.field_type ?? '';
-      const isVirtualObjNode = targetField?.is_virtual_obj_node ?? false;
-
-      if (isVirtualObjNode && textType === 'object') {
-        mappingKey = textMappingKey;
-      }
-
-      if (textType === 'text') {
-        mappingKey = textMappingKey;
-      }
-
-      if (textType === 'boolean') {
-        mappingKey = boolMapping;
-        if (value.length) {
-          value.splice(0, value.length);
-        }
-      }
-
-      if (depth > 1 && textType === 'keyword') {
-        mappingKey = keywordMappingKey;
-      }
-      return mappingKey[operator] ?? operator; // is is not 值映射
-    };
-
-    const formatJsonString = (formatResult: string) => {
-      if (typeof formatResult === 'string') {
-        return DOMPurify.sanitize(formatResult);
-      }
-
-      return formatResult;
-    };
-
-    const getSqlAdditionMappingOperator = (operator: string, field: string, fieldType: string, value: string) => {
-      const formatValue = (value: string | string[]) => {
-        let formatResult = value;
-        if (['text', 'string', 'keyword'].includes(fieldType)) {
-          if (Array.isArray(formatResult)) {
-            formatResult = formatResult.map(formatJsonString);
-          } else {
-            formatResult = formatJsonString(formatResult);
-          }
-        }
-
-        return formatResult;
-      };
-
-      const mappingKey = {
-        // is is not 值映射
-        is: `${field}: "${formatValue(value)}"`,
-        'is not': `NOT ${field}: "${formatValue(value)}"`,
-      };
-
-      return mappingKey[operator] ?? operator; // is is not 值映射
     };
 
     const getValidUISearchValue = (searchValue: any[]) => searchValue.reduce((addtions, item) => {
@@ -278,6 +266,10 @@ export default defineComponent({
       return addtions;
     }, []);
 
+    /**
+     * 分词「添加到本次检索」：统一走 resolveAddToSearch（UI + 语句）。
+     * 旧 getSqlAdditionMappingOperator 仅映射 is/is not，遇到 contains match phrase 会原样回填。
+     */
     const handleMenuClick = (data: {
       option: {
         depth: number;
@@ -285,23 +277,58 @@ export default defineComponent({
         fieldType: string;
         operation: string;
         value: string;
+        fullPlain?: string;
+        isSoleToken?: boolean;
+        tokenIndex?: number;
+        tokenCount?: number;
       };
       isLink: boolean;
     }) => {
+      const searchMode = requestOtherparams.search_mode === 'sql' ? 'sql' : 'ui';
+      const fieldName = data.option.fieldName || '*';
+      const fieldType = fieldsMap.value[fieldName]?.field_type
+        ?? store.state.indexFieldInfo?.fields?.find?.(item => item.field_name === fieldName)?.field_type
+        ?? data.option.fieldType;
+      const rawValue = String(data.option.value ?? '').replace(/<\/?mark>/gim, '').trim();
+      let fullPlain = String(data.option.fullPlain ?? '').replace(/<\/?mark>/gim, '').trim();
+      if (!fullPlain || fullPlain === '--') {
+        // 本地检索结果行里回填叶子完整 VALUE
+        const row = logList.value[choosedIndex.value];
+        const fromRow = row ? (row[fieldName]
+          ?? fieldName.split('.').reduce((cur: any, key: string) => (cur == null ? undefined : cur[key]), row))
+          : undefined;
+        fullPlain = fromRow == null || fromRow === ''
+          ? ''
+          : String(fromRow).replace(/<\/?mark>/gim, '').trim();
+      }
+      const soleByValue = Boolean(fullPlain && fullPlain === rawValue);
+      const isSoleToken = Boolean(
+        data.option.isSoleToken
+        || (typeof data.option.tokenCount === 'number'
+          && data.option.tokenCount === 1
+          && (!fullPlain || soleByValue))
+        || soleByValue,
+      );
+      const payload = resolveAddToSearch({
+        field: fieldName,
+        value: rawValue,
+        fieldType,
+        fullText: fullPlain || (isSoleToken ? rawValue : undefined),
+        operatorHint: data.option.operation,
+        isSoleToken,
+        tokenIndex: data.option.tokenIndex ?? (isSoleToken ? 0 : undefined),
+        tokenCount: data.option.tokenCount ?? (isSoleToken ? 1 : undefined),
+        searchMode,
+      });
+
       let isNeedRefresh = false;
-      if (requestOtherparams.search_mode === 'ui') {
-        const operator = getAdditionMappingOperator(
-          data.option.operation,
-          data.option.fieldName,
-          [data.option.value],
-          data.option.depth,
-        );
+      if (searchMode === 'ui') {
         const searchItem = {
           disabled: false,
-          field: data.option.fieldName,
-          field_type: data.option.fieldType,
-          operator,
-          value: [data.option.value],
+          field: payload.field,
+          field_type: payload.fieldType ?? fieldType,
+          operator: payload.operator,
+          value: payload.value,
           relation: 'OR',
           showAll: true,
         };
@@ -310,12 +337,10 @@ export default defineComponent({
         requestOtherparams.addition = getValidUISearchValue(searchValue);
         requestOtherparams.keyword = '*';
       } else {
-        const searchItem = getSqlAdditionMappingOperator(
-          data.option.operation,
-          data.option.fieldName,
-          data.option.fieldType,
-          data.option.value,
-        );
+        const searchItem = payload.queryString || '';
+        if (!searchItem) {
+          return;
+        }
         isNeedRefresh = searchBarRef.value.addValue(searchItem);
         const searchValue = searchBarRef.value.getValue();
         requestOtherparams.addition = [];
@@ -342,38 +367,22 @@ export default defineComponent({
       requestLogList(isManualSearch);
     };
 
-    const handleChooseRow = (index: number, row: any) => {
+    const handleChooseRow = (index: number, fallbackRow?: Record<string, any>) => {
       if (choosedIndex.value === index) {
         return;
       }
 
       choosedIndex.value = index;
-      const rowInfo = row;
-      if (!rowInfo) {
+      const rowKey = cachedRowKeys.value[index];
+      if (rowKey) {
+        emit('choose-row', { rowKey });
         return;
       }
-      const contextFields = store.state.indexSetOperatorConfig.contextAndRealtime?.extra?.context_fields;
-      const timeField = store.state.indexFieldInfo.time_field;
-      const dialogNewParams = {};
-      Object.assign(dialogNewParams, {
-        dtEventTimeStamp: rowInfo.dtEventTimeStamp,
-      });
-      if (Array.isArray(contextFields) && contextFields.length) {
-        // 传参配置指定字段。不要直接 push 到 store 配置数组，否则每次点击行都会污染全局配置并持续增长。
-        const targetContextFields = Array.from(new Set([...contextFields, timeField].filter(Boolean)));
-        targetContextFields.forEach((field) => {
-          if (field === 'bk_host_id') {
-            if (rowInfo[field]) {
-              dialogNewParams[field] = rowInfo[field];
-            }
-          } else {
-            dialogNewParams[field] = parseTableRowData(rowInfo, field, '', store.state.isFormatDate, '');
-          }
-        });
-      } else {
-        Object.assign(dialogNewParams, rowInfo);
+      // 本地重新检索后不再复用外部缓存 rowKey，需用当前列表行数据驱动上下文/实时日志更新
+      const row = fallbackRow || logList.value[index];
+      if (row) {
+        emit('choose-row', row);
       }
-      emit('choose-row', dialogNewParams);
     };
 
     const handleScrollContent = debounce((e: any) => {
@@ -389,7 +398,10 @@ export default defineComponent({
 
     const handleReset = () => {
       logList.value = [];
+      renderMetaList.value = [];
+      cachedRowKeys.value = [];
       begin = 0;
+      setExceptionMsg('');
     };
 
     // 添加样式函数
@@ -416,7 +428,14 @@ export default defineComponent({
     };
 
     const renderTimeCell = (row: any) => {
-      return xssFilter(RetrieveHelper.formatDateValue(row[timeField.value], timeFieldType.value));
+      const formatValue = RetrieveHelper.formatDateValue(row[timeField.value], timeFieldType.value);
+      // formatDateValue 可能返回 <mark>格式化时间</mark>，需解析后渲染，避免标签被当作纯文本
+      const { plainText, markRanges } = parseResultMarkedText(formatValue);
+      const displayText = plainText || String(formatValue ?? '');
+      return buildHighlightHtml({
+        text: displayText,
+        resultRanges: markRanges,
+      });
     };
 
     onMounted(() => {
@@ -426,18 +445,20 @@ export default defineComponent({
     onBeforeUnmount(() => {
       isUnmounted = true;
       requestSeq += 1;
+      cancelPendingRequest();
       handleScrollContent.cancel();
       if (scrollIntoViewTimer) {
         clearTimeout(scrollIntoViewTimer);
         scrollIntoViewTimer = null;
       }
       logList.value = [];
+      renderMetaList.value = [];
       removeSegmentLightStyle();
     });
 
     expose({
       // init: () => handleSearch(requestOtherparams.search_mode, false),
-      init: () => {
+      init: async () => {
         // 初始化搜索框
         const modeIndex = store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE];
         searchBarRef.value.setLocalMode(modeIndex);
@@ -472,13 +493,29 @@ export default defineComponent({
             requestOtherparams.addition = addition;
           }
         }
-        // 设置外部数据
+        // 设置外部数据：优先读 IndexedDB 渲染行（含检索高亮 overlay），避免初次丢失 mark
         const outerLogResult = store.state.indexSetQueryResult;
         total = outerLogResult.total;
-        logList.value = (outerLogResult.origin_log_list?.length
-          ? parseBigNumberList(outerLogResult.origin_log_list)
-          : outerLogResult.list
-        ).slice();
+        setExceptionMsg(outerLogResult.is_error ? (outerLogResult.exception_msg || '') : '');
+        const rowKeys = outerLogResult.row_keys ?? [];
+        cachedRowKeys.value = rowKeys;
+        if (rowKeys.length) {
+          const cachedEntries = await retrieveRowCacheService.getRenderEntries(rowKeys);
+          const renderRows = cachedEntries.map(entry => entry?.row).filter(Boolean);
+          if (renderRows.length === rowKeys.length) {
+            logList.value = renderRows;
+            renderMetaList.value = cachedEntries.map(entry => entry?.renderMeta);
+          } else {
+            // 渲染行不完整时回退原始行，避免列表空白
+            const cachedRows = await retrieveRowCacheService.getRows(rowKeys);
+            logList.value = cachedRows.length === rowKeys.length ? cachedRows : (outerLogResult.list ?? []).slice();
+            renderMetaList.value = logList.value.map(() => undefined);
+          }
+        } else {
+          cachedRowKeys.value = [];
+          logList.value = (outerLogResult.list ?? []).slice();
+          renderMetaList.value = logList.value.map(() => undefined);
+        }
         begin = logList.value.length;
         if (scrollIntoViewTimer) {
           clearTimeout(scrollIntoViewTimer);
@@ -556,7 +593,7 @@ export default defineComponent({
                   <tr
                     key={`${index}_${row.time}`}
                     class={{ 'is-choosed': choosedIndex.value === index }}
-                    on-click={() => handleChooseRow(index, row)}
+                    on-click={() => handleChooseRow(index)}
                   >
                     <td>
                       <div class='index-column'>
@@ -582,12 +619,43 @@ export default defineComponent({
                           fields={visibleFields.value}
                           jsonValue={row}
                           limitRow={null}
+                          renderMeta={renderMetaList.value[index]}
                           onMenu-click={handleMenuClick}
                         ></JsonFormatter>
                       </RenderJsonCell>
                     </td>
                   </tr>
                 ))}
+              {!listLoading.value && !logList.value.length && exceptionMsg.value && (
+                <tr>
+                  <td
+                    colspan={3}
+                    style='padding: 24px 16px; border-bottom: none;'
+                  >
+                    <bk-exception
+                      scene='part'
+                      type='500'
+                    >
+                      <span>{exceptionMsg.value}</span>
+                    </bk-exception>
+                  </td>
+                </tr>
+              )}
+              {!listLoading.value && !logList.value.length && !exceptionMsg.value && (
+                <tr>
+                  <td
+                    colspan={3}
+                    style='padding: 24px 16px; border-bottom: none;'
+                  >
+                    <bk-exception
+                      scene='part'
+                      type='empty'
+                    >
+                      <span>{t('检索结果为空')}</span>
+                    </bk-exception>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

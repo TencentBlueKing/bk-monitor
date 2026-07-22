@@ -133,6 +133,14 @@
     background-repeat: repeat;
     background-position: top;
     border-radius: 2px;
+
+    .trend-chart-empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100px;
+      padding: 0;
+    }
   }
 
   .bk-loading {

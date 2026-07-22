@@ -31,8 +31,7 @@ export default () => {
   const store = useStore();
 
   const alias_settings = computed(() =>
-    // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
-    (store.state.indexFieldInfo?.fields ?? {})
+    (store.getters.rawFieldList ?? [])
       .filter(f => f.query_alias)
       .map(f => ({
         field_name: f.field_name,

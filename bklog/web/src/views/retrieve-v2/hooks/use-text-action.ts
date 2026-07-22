@@ -24,8 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { copyMessage, formatDate } from '@/common/util';
+import { copyMessage, formatDate, getRowFieldValue } from '@/common/util';
+import { resolveAddToSearch } from '@/hooks/log-query-compiler';
 import useStore from '@/hooks/use-store';
+import { BK_LOG_STORAGE, SEARCH_MODE_DIC } from '@/store/store.type';
 import { RetrieveUrlResolver } from '@/store/url-resolver';
 import { bkMessage } from 'bk-magic-vue';
 import { useRoute, useRouter } from 'vue-router/composables';
@@ -37,6 +39,11 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
   const store = useStore();
   const router = useRouter();
   const route = useRoute();
+
+  const getSearchMode = (): 'ui' | 'sql' => {
+    const mode = SEARCH_MODE_DIC[store.state.storage[BK_LOG_STORAGE.SEARCH_TYPE]];
+    return mode === 'sql' ? 'sql' : 'ui';
+  };
 
   // 处理高亮操作
   const handleHighlight = (value: string, fieldType?: string) => {
@@ -51,7 +58,9 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
     copyMessage(value);
   };
 
-  // 处理搜索条件操作
+  /**
+   * 点击分词「添加到本次检索」：统一走 resolveAddToSearch（UI + 语句）。
+   */
   const handleSearchCondition = (
     field: any,
     operator: string,
@@ -59,10 +68,61 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
     isLink: boolean,
     depth?: number,
     isNestedField?: string,
+    fullPlain?: string,
+    isSoleToken?: boolean,
+    tokenMeta?: { tokenIndex?: number; tokenCount?: number },
   ) => {
     const fieldName = typeof field === 'string' ? field : field?.field_name;
-    const searchValue = value === '--' ? [] : [value];
-    handleAddCondition(fieldName, operator, searchValue, isLink, depth, isNestedField);
+    // 始终按字段名从 store 取类型，避免 Object 叶子落到父级 object 类型
+    const fieldType = (fieldName
+      ? (store.getters.filteredFieldList?.find?.(item => item.field_name === fieldName)?.field_type
+        ?? store.getters.visibleFields?.find?.(item => item.field_name === fieldName)?.field_type
+        ?? store.state.indexFieldInfo?.fields?.find?.(item => item.field_name === fieldName)?.field_type)
+      : undefined)
+      ?? (typeof field === 'object' ? field?.field_type : undefined);
+
+    if (value === '--') {
+      handleAddCondition(fieldName, operator, [], isLink, depth, isNestedField);
+      return;
+    }
+
+    const normalizedValue = String(value ?? '').replace(/<\/?mark>/gim, '').trim();
+    const normalizedFull = fullPlain && fullPlain !== '--'
+      ? String(fullPlain).replace(/<\/?mark>/gim, '').trim()
+      : '';
+    const soleByValue = Boolean(normalizedFull && normalizedFull === normalizedValue);
+    const soleByToken = Boolean(
+      isSoleToken
+      || (typeof tokenMeta?.tokenCount === 'number' && tokenMeta.tokenCount === 1 && (
+        !normalizedFull || soleByValue
+      )),
+    );
+
+    const payload = resolveAddToSearch({
+      field: fieldName || '*',
+      value: normalizedValue,
+      fieldType,
+      fullText: normalizedFull || (soleByToken ? normalizedValue : undefined),
+      operatorHint: operator,
+      isSoleToken: soleByToken || soleByValue,
+      tokenIndex: tokenMeta?.tokenIndex ?? (soleByToken || soleByValue ? 0 : undefined),
+      tokenCount: tokenMeta?.tokenCount ?? (soleByToken || soleByValue ? 1 : undefined),
+      searchMode: getSearchMode(),
+    });
+
+    handleAddCondition(
+      payload.field,
+      payload.operator,
+      payload.value,
+      isLink,
+      depth,
+      isNestedField,
+      {
+        fullPlain: payload.fullPlain,
+        fieldType: payload.fieldType,
+        queryString: payload.queryString,
+      },
+    );
   };
 
   // 设置路由参数
@@ -81,19 +141,39 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
     });
   };
 
-  // 添加条件
-  const handleAddCondition = (field, operator, value, isLink = false, depth, isNestedField = 'false') => {
+  // 添加条件（meta.queryString 优先：语句模式由 Compiler 生成）
+  const handleAddCondition = (
+    field,
+    operator,
+    value,
+    isLink = false,
+    depth?,
+    isNestedField = 'false',
+    meta: { fullPlain?: string; fieldType?: string; queryString?: string } = {},
+  ) => {
     return store
-      .dispatch('setQueryCondition', { field, operator, value, isLink, depth, isNestedField })
+      .dispatch('setQueryCondition', {
+        field,
+        operator,
+        value,
+        isLink,
+        depth,
+        isNestedField,
+        fullPlain: meta.fullPlain,
+        fieldType: meta.fieldType,
+        queryString: meta.queryString,
+      })
       .then(([newSearchList, searchMode, isNewSearchPage]) => {
+        if (isLink) {
+          const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
+          window.open(openUrl, '_blank', 'noopener,noreferrer');
+          return;
+        }
+
         setRouteParams();
         if (from === 'origin') {
           RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
           RetrieveHelper.fire(RetrieveEvent.SEARCH_VALUE_CHANGE);
-        }
-        if (isLink) {
-          const openUrl = getConditionRouterParams(newSearchList, searchMode, isNewSearchPage);
-          window.open(openUrl, '_blank', 'noopener,noreferrer');
         }
       });
   };
@@ -141,14 +221,29 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
       fieldName,
       operation,
       displayFieldNames,
-    } = params;
+      fullPlain: fullPlainFromParams,
+      isSoleToken: isSoleTokenFromParams,
+      tokenIndex: tokenIndexFromParams,
+      tokenCount: tokenCountFromParams,
+    } = params as typeof params & {
+      fullPlain?: string;
+      isSoleToken?: boolean;
+      tokenIndex?: number;
+      tokenCount?: number;
+    };
 
-    // 获取实际值
-    let actualValue = value;
+    // 获取实际值：分词点击带 value；单元格菜单带 content。二者并存时优先 value（分词原文）。
+    let actualValue = value ?? content;
     let isParamsChange = false;
     if (field && row) {
-      actualValue = ['date', 'date_nanos'].includes(field.field_type) ? row[field.field_name] : content;
-      actualValue = String(actualValue)
+      if (['date', 'date_nanos'].includes(field.field_type)) {
+        actualValue = row[field.field_name];
+      } else if (value !== undefined && value !== null && value !== '') {
+        actualValue = value;
+      } else if (content !== undefined && content !== null) {
+        actualValue = content;
+      }
+      actualValue = String(actualValue ?? '')
         .replace(/<mark>/g, '')
         .replace(/<\/mark>/g, '');
     }
@@ -170,10 +265,61 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
       case 'is':
       case 'is not':
       case 'not':
-      case 'new-search-page-is': {
+      case 'new-search-page-is':
+      case 'contains match phrase':
+      case 'not contains match phrase': {
         isParamsChange = true;
-        const operator = operation === 'not' ? 'is not' : operation;
-        handleSearchCondition(fieldName || field, operator, actualValue, isLink, depth, isNestedField);
+        const nextOperator = operation === 'not' ? 'is not' : operation;
+        let fullPlain = fullPlainFromParams;
+        // '' 也视为缺失：Object 叶子 fullPlain 解析失败时用行数据回填
+        if (
+          (fullPlain === undefined || fullPlain === null || fullPlain === '')
+          && fieldName
+          && row
+        ) {
+          const leafField = typeof field === 'object' && field?.field_name === fieldName
+            ? field
+            : { field_name: fieldName };
+          const raw = getRowFieldValue(row, leafField);
+          fullPlain = raw === null || raw === undefined || raw === ''
+            ? undefined
+            : String(raw).replace(/<\/?mark>/gim, '');
+        } else if (
+          (fullPlain === undefined || fullPlain === null || fullPlain === '')
+          && field
+          && row
+          && typeof field === 'object'
+        ) {
+          const raw = getRowFieldValue(row, field);
+          fullPlain = raw === null || raw === undefined || raw === ''
+            ? undefined
+            : String(raw).replace(/<\/?mark>/gim, '');
+        }
+        const normalizedActual = String(actualValue ?? '').replace(/<\/?mark>/gim, '').trim();
+        const normalizedFull = fullPlain
+          ? String(fullPlain).replace(/<\/?mark>/gim, '').trim()
+          : '';
+        const isSoleToken = Boolean(
+          isSoleTokenFromParams
+          || (typeof tokenCountFromParams === 'number'
+            && tokenCountFromParams === 1
+            && (!normalizedFull || normalizedFull === normalizedActual))
+          || (normalizedFull && normalizedFull === normalizedActual),
+        );
+        handleSearchCondition(
+          fieldName || field,
+          nextOperator,
+          actualValue,
+          isLink,
+          depth,
+          isNestedField,
+          fullPlain,
+          isSoleToken,
+          {
+            tokenIndex: tokenIndexFromParams ?? (isSoleToken ? 0 : undefined),
+            tokenCount: tokenCountFromParams ?? (isSoleToken ? 1 : undefined),
+          },
+        );
         break;
       }
       case 'display':
@@ -196,10 +342,10 @@ export default (emit?: (_event: string, ..._args: any[]) => void, from?: string)
     if (typeof obj === 'object' && obj !== null) {
       if (field.is_virtual_alias_field) {
         const fieldList = [field.field_name, ...field.source_field_names];
-        for (const fieldName of fieldList) {
-          const value = obj?.[fieldName];
-          if (value !== undefined && value !== null && value !== '') {
-            return value;
+        for (const name of fieldList) {
+          const val = obj?.[name];
+          if (val !== undefined && val !== null && val !== '') {
+            return val;
           }
         }
       }

@@ -25,6 +25,11 @@
  */
 import { isElement, debounce } from 'lodash-es';
 
+import {
+  mapGlobalRangesToSegments,
+  parseResultMarkedText,
+} from '@/views/retrieve-core/page-highlight';
+
 import type { Ref } from 'vue';
 
 function deepQueryShadowSelector(selector) {
@@ -84,6 +89,12 @@ export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit 
     return [];
   }
 
+  // 先剥离 <mark> 再分词，避免高亮标签破坏 token 边界；高亮范围再映射回各 token。
+  const { plainText, markRanges } = parseResultMarkedText(str);
+  if (!plainText) {
+    return [];
+  }
+
   const tokens: Record<string, any>[] = [];
   let processedLength = 0;
   const CHUNK_SIZE = 200;
@@ -97,68 +108,45 @@ export const optimizedSplit = (str: string, delimiterPattern: string, wordsplit 
       .join('|');
 
     const DELIMITER_REGEX = new RegExp(`(${regexPattern})`);
-    const MARK_REGEX = /<mark>(.*?)<\/mark>/gis;
+    const segmentSplitList = plainText.split(DELIMITER_REGEX).filter(Boolean);
+    const normalTokens = segmentSplitList.slice(0, MAX_TOKENS);
 
-    const segments = str.split(/(<mark>.*?<\/mark>)/gi);
-
-    for (const segment of segments) {
-      if (tokens.length >= MAX_TOKENS) {
-        break;
-      }
-      const isMark = MARK_REGEX.test(segment);
-
-      const segmengtSplitList = segment.replace(MARK_REGEX, '$1').split(DELIMITER_REGEX).filter(Boolean);
-      const normalTokens = segmengtSplitList.slice(0, MAX_TOKENS - tokens.length);
-
-      if (isMark) {
-        processedLength += '<mark>'.length;
-
-        if (normalTokens.length === segmengtSplitList.length) {
-          processedLength += '</mark>'.length;
-        }
-      }
-
-      for (const t of normalTokens) {
-        processedLength += t.length;
-        tokens.push({
-          text: t,
-          isMark,
-          isCursorText: !DELIMITER_REGEX.test(t),
-        });
-      }
+    for (const t of normalTokens) {
+      processedLength += t.length;
+      tokens.push({
+        text: t,
+        isMark: false,
+        isCursorText: !DELIMITER_REGEX.test(t),
+      });
     }
   }
 
-  if (processedLength < str.length) {
-    const remaining = str.slice(processedLength);
-
-    const segments = remaining.split(/(<mark>.*?<\/mark>)/gi);
-    for (const segment of segments) {
-      const MARK_REGEX = /<mark>(.*?)<\/mark>/gis;
-      const isMark = MARK_REGEX.test(segment);
-      const chunkCount = Math.ceil(segment.length / CHUNK_SIZE);
-
-      if (isMark) {
-        tokens.push({
-          text: segment.replace(MARK_REGEX, '$1'),
-          isMark: true,
-          isCursorText: false,
-          isBlobWord: false,
-        });
-      } else {
-        for (let i = 0; i < chunkCount; i++) {
-          tokens.push({
-            text: segment.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE),
-            isMark: false,
-            isCursorText: false,
-            isBlobWord: false,
-          });
-        }
-      }
+  if (processedLength < plainText.length) {
+    const remaining = plainText.slice(processedLength);
+    const chunkCount = Math.ceil(remaining.length / CHUNK_SIZE);
+    for (let i = 0; i < chunkCount; i++) {
+      tokens.push({
+        text: remaining.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE),
+        isMark: false,
+        isCursorText: false,
+        isBlobWord: false,
+      });
     }
   }
 
-  return tokens;
+  if (!markRanges.length) {
+    return tokens.map(token => ({ ...token, resultRanges: [] }));
+  }
+
+  const perTokenRanges = mapGlobalRangesToSegments(tokens, markRanges, false);
+  return tokens.map((token, index) => {
+    const resultRanges = perTokenRanges[index] ?? [];
+    return {
+      ...token,
+      isMark: resultRanges.length > 0,
+      resultRanges,
+    };
+  });
 };
 
 /**
@@ -173,12 +161,14 @@ export const setScrollLoadCell = (
   wordList: unknown[],
   rootElement: HTMLElement,
   contentElement: HTMLElement,
-  renderFn: (item: unknown) => HTMLElement,
+  renderFn: (_item: unknown, _index?: number) => HTMLElement,
+  options: { pageSize?: number; maxAutoRenderItems?: number } = {},
 ) => {
   let startIndex = 0;
   let scrollEvtAdded = false;
   let scrollHandler: EventListener | null = null;
-  const pageSize = 50;
+  const pageSize = options.pageSize ?? 50;
+  const maxAutoRenderItems = options.maxAutoRenderItems ?? Number.POSITIVE_INFINITY;
 
   const defaultRenderFn = (item: any) => {
     const child = document.createElement('span');
@@ -210,8 +200,9 @@ export const setScrollLoadCell = (
 
     const fragment = document.createDocumentFragment();
     const pageItems = wordList.slice(startIndex, startIndex + (size ?? pageSize));
-    for (const item of pageItems) {
-      const child = renderFn?.(item) ?? defaultRenderFn(item);
+    for (let i = 0; i < pageItems.length; i++) {
+      const item = pageItems[i];
+      const child = renderFn?.(item, startIndex + i) ?? defaultRenderFn(item);
 
       fragment.appendChild(child);
     }
@@ -260,7 +251,7 @@ export const setScrollLoadCell = (
       requestAnimationFrame(() => {
         if (rootElement) {
           const { offsetHeight, scrollHeight } = rootElement;
-          if (offsetHeight * 1.2 > scrollHeight) {
+          if (startIndex < maxAutoRenderItems && offsetHeight * 1.2 > scrollHeight) {
             setListItem(undefined, next);
           } else {
             next?.();
