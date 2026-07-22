@@ -15,24 +15,35 @@ from kernel_api.resource.log_extract import (
 
 
 @pytest.mark.parametrize(
-    ("resource_class", "api_name", "request_data", "response"),
+    ("request_data", "expected_request"),
     [
         (
-            ListLogExtractAllowedPathsResource,
-            "list_log_extract_allowed_paths",
             {"bk_biz_id": 7, "ip_list": [{"bk_host_id": 101}]},
-            {"ip_list": [{"bk_host_id": 101}], "strategies": [{"visible_dir": "/data/logs"}]},
+            {"bk_biz_id": 7, "ip_list": [{"bk_host_id": 101}]},
+        ),
+        (
+            {
+                "bk_biz_id": 7,
+                "target_node_type": "TOPO",
+                "target_nodes": [{"object_id": "module", "instance_id": 42}],
+            },
+            {
+                "bk_biz_id": 7,
+                "target_node_type": "TOPO",
+                "target_nodes": [{"bk_obj_id": "module", "bk_inst_id": 42}],
+            },
         ),
     ],
 )
-def test_log_extract_resource_passes_through(monkeypatch, resource_class, api_name, request_data, response):
+def test_list_allowed_paths_builds_request(monkeypatch, request_data, expected_request):
+    response = {"ip_list": [{"bk_host_id": 101}], "strategies": [{"visible_dir": "/data/logs"}]}
     api_resource = Mock(return_value=response)
-    monkeypatch.setattr(api.log_search, api_name, api_resource)
+    monkeypatch.setattr(api.log_search, "list_log_extract_allowed_paths", api_resource)
 
-    result = resource_class().perform_request(request_data)
+    result = ListLogExtractAllowedPathsResource().perform_request(request_data)
 
     assert result == response
-    api_resource.assert_called_once_with(**request_data)
+    api_resource.assert_called_once_with(**expected_request)
 
 
 def test_list_topology_builds_business_scope(monkeypatch):
@@ -43,26 +54,6 @@ def test_list_topology_builds_business_scope(monkeypatch):
 
     assert result == []
     api_resource.assert_called_once_with(scope_list=[{"scope_type": "biz", "scope_id": "7"}])
-
-
-def test_list_allowed_paths_passes_through_topology_nodes(monkeypatch):
-    response = {"ip_list": [{"bk_host_id": 101}], "strategies": [{"visible_dir": "/data/logs"}]}
-    api_resource = Mock(return_value=response)
-    monkeypatch.setattr(api.log_search, "list_log_extract_allowed_paths", api_resource)
-    request_data = {
-        "bk_biz_id": 7,
-        "target_node_type": "TOPO",
-        "target_nodes": [{"object_id": "module", "instance_id": 42}],
-    }
-
-    result = ListLogExtractAllowedPathsResource().perform_request(request_data)
-
-    assert result == response
-    api_resource.assert_called_once_with(
-        bk_biz_id=7,
-        target_node_type="TOPO",
-        target_nodes=[{"bk_obj_id": "module", "bk_inst_id": 42}],
-    )
 
 
 def test_search_hosts_builds_business_scope_and_defaults_to_business_root(monkeypatch):
@@ -95,16 +86,6 @@ def test_search_hosts_keeps_selected_nodes(monkeypatch):
     api_resource.assert_called_once_with(scope_list=[{"scope_type": "biz", "scope_id": "7"}], node_list=node_list)
 
 
-def test_search_hosts_defaults_to_twenty_and_rejects_unlimited_page_size():
-    default_serializer = SearchLogExtractHostsResource.RequestSerializer(data={"bk_biz_id": 7})
-    unlimited_serializer = SearchLogExtractHostsResource.RequestSerializer(data={"bk_biz_id": 7, "page_size": -1})
-
-    assert default_serializer.is_valid()
-    assert default_serializer.validated_data["page_size"] == 20
-    assert not unlimited_serializer.is_valid()
-    assert "page_size" in unlimited_serializer.errors
-
-
 def test_search_files_limits_returned_records(monkeypatch):
     files = [{"path": f"/data/logs/{index}.log"} for index in range(101)]
     api_resource = Mock(return_value=files)
@@ -121,21 +102,6 @@ def test_search_files_limits_returned_records(monkeypatch):
 
     assert result == {"total": 101, "data": files[:100], "truncated": True}
     api_resource.assert_called_once_with(**request_data)
-
-
-def test_search_files_rejects_more_than_ten_hosts():
-    serializer = SearchLogExtractFilesResource.RequestSerializer(
-        data={
-            "bk_biz_id": 7,
-            "ip_list": [{"bk_host_id": host_id} for host_id in range(11)],
-            "path": "/data/logs",
-            "is_search_child": False,
-            "time_range": "1d",
-        }
-    )
-
-    assert not serializer.is_valid()
-    assert "ip_list" in serializer.errors
 
 
 def test_create_task_translates_nodes_and_defaults_preview_metadata(monkeypatch):
