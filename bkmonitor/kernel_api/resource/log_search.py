@@ -32,6 +32,41 @@ def normalize_timestamp_to_milliseconds(timestamp: int | str) -> str:
     return str(timestamp)
 
 
+def project_log_items(items: list[dict[str, Any]], keep_columns: list[str] | None) -> list[dict[str, Any]]:
+    """按点分字段路径投影日志，并保留原有的嵌套 JSON 结构。"""
+    if not keep_columns:
+        return items
+
+    selection: dict[str, Any] = {}
+    for column in keep_columns:
+        parts = column.split(".")
+        current = selection
+        for index, part in enumerate(parts):
+            if index == len(parts) - 1:
+                current[part] = None
+                break
+            child = current.setdefault(part, {})
+            # 已选择整个父字段时，无需继续记录子路径。
+            if child is None:
+                break
+            current = child
+
+    def project_value(value: Any, selected_fields: dict[str, Any] | None) -> Any:
+        if selected_fields is None:
+            return value
+        if isinstance(value, list):
+            return [project_value(item, selected_fields) for item in value]
+        if not isinstance(value, dict):
+            return value
+        return {
+            field: project_value(value[field], nested_fields)
+            for field, nested_fields in selected_fields.items()
+            if field in value
+        }
+
+    return [project_value(item, selection) for item in items]
+
+
 class SceneRouteConditionSerializer(serializers.Serializer):
     field_name = serializers.CharField(required=True, label="路由字段名")
     value = serializers.ListField(child=serializers.CharField(), required=True, label="路由字段值")
@@ -189,7 +224,7 @@ class SearchLogResource(Resource):
         # field_list: 字段筛选规则列表，op 支持 eq/ne/req(正则) 等；value 为多值列表(默认 OR 关系)。
         # condition_list: 逻辑运算符列表，长度为 field_list.length - 1，例如 ["and", "or"]。
         conditions = serializers.DictField(required=False, allow_null=True, default=None, label="结构化过滤条件")
-        # 需要保留的输出字段列表，用于裁剪返回内容、降低返回数据量(避免 LLM 上下文超限)，例如 ["dtEventTimeStamp", "log", "level"]
+        # 需要保留的输出字段列表，用于裁剪返回内容、降低返回数据量(避免 LLM 上下文超限)，例如 ["dtEventTimeStamp", "log", "resource.cluster_id"]
         keep_columns = serializers.ListField(
             child=serializers.CharField(),
             required=False,
@@ -249,6 +284,7 @@ class SearchLogResource(Resource):
         offset = validated_request_data.get("offset", 0)
         limit = validated_request_data.get("limit", 10)
         order_by = validated_request_data.get("order_by") or []
+        keep_columns = validated_request_data.get("keep_columns")
         start_time = normalize_timestamp_to_milliseconds(validated_request_data["start_time"])
         end_time = normalize_timestamp_to_milliseconds(validated_request_data["end_time"])
         sort_list = [
@@ -274,9 +310,9 @@ class SearchLogResource(Resource):
             sort_list=sort_list,
             record_history=False,
         )
-        items = result.get("list") or []
+        items = project_log_items(result.get("list") or [], keep_columns)
         return {
-            "items": items,
+            "list": items,
             "total": result.get("total", 0),
             "took": result.get("took", 0),
         }
@@ -493,7 +529,7 @@ class SearchLogClusteringPatternResource(Resource):
 
     class RequestSerializer(TimeSpanValidationPassThroughSerializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
-        index_set_id = serializers.CharField(required=True, label="索引集ID")
+        index_set_id = serializers.IntegerField(required=True, label="索引集ID")
         keyword = serializers.CharField(required=False, default="*", label="搜索关键字")
         start_time = serializers.CharField(required=True, label="开始时间")
         end_time = serializers.CharField(required=True, label="结束时间")

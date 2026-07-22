@@ -44,7 +44,7 @@ paths:
       - in: query
         name: index_set_id
         schema:
-          type: string
+          type: integer
         required: true
         description: Index set ID. Must be obtained from list_index_sets tool. 索引集ID,必须从 list_index_sets 工具获取。
       x-bk-apigateway-resource:
@@ -66,7 +66,7 @@ paths:
   /mcp/search_logs/:
     post:
       operationId: search_logs
-      description: 'Execute log search by index set or scene. For target_type=index_set (default), provide index_set_id after list_index_sets and get_index_set_fields. For target_type=scene, provide table_id_conditions after list_log_scenes and get_scene_log_fields; conditions and keep_columns are ignored in scene mode, while offset and order_by are supported for pagination and stable multi-field sorting. Parameters belonging to the inactive target type are ignored. To drill down from search_log_clustering_pattern, use target_type=index_set and filter __dist_{pattern_level} by the returned signature. IMPORTANT: start_time/end_time are Unix timestamps calculated dynamically, and the query span must not exceed 1 day. 按索引集或场景执行日志查询。target_type=index_set（默认）时提供 index_set_id；target_type=scene 时提供 table_id_conditions。场景模式暂不处理 conditions 和 keep_columns，但支持使用 offset 和 order_by 分页及多字段稳定排序。时间戳需动态计算，查询跨度不得超过一天。'
+      description: 'Execute log search by index set or scene. For target_type=index_set (default), provide index_set_id after list_index_sets and get_index_set_fields. For target_type=scene, provide table_id_conditions after list_log_scenes and get_scene_log_fields; structured conditions are not supported, so use query_string for filtering. Both modes support keep_columns, offset, and order_by. To drill down from search_log_clustering_pattern, use target_type=index_set and filter __dist_{pattern_level} by the returned signature. IMPORTANT: start_time/end_time are Unix timestamps calculated dynamically, and the query span must not exceed 1 day. 按索引集或场景执行日志查询。target_type=index_set（默认）时提供 index_set_id；target_type=scene 时提供 table_id_conditions，场景模式不支持结构化 conditions，请使用 query_string 过滤。两种模式均支持 keep_columns、offset 和 order_by。时间戳需动态计算，查询跨度不得超过一天。'
       tags:
       - log_mcp
       requestBody:
@@ -167,7 +167,7 @@ paths:
                   type: array
                   items:
                     type: string
-                  description: 'Output fields to keep for index-set search. Ignored in scene mode until the log platform supports native field projection. Example: ["dtEventTimeStamp", "log", "level"]. 索引集检索需要保留的输出字段列表。场景模式暂不生效，等待日志平台原生支持字段裁剪。'
+                  description: 'Output fields to keep. Example: ["dtEventTimeStamp", "log", "resource.cluster_id"]. 需要保留的输出字段列表。'
                 order_by:
                   type: array
                   items:
@@ -241,7 +241,7 @@ paths:
                   type: string
                   description: Business ID in BlueKing Monitor. 业务ID。
                 index_set_id:
-                  type: string
+                  type: integer
                   description: Index set ID. Must be obtained from list_index_sets tool. 索引集ID,必须从 list_index_sets 工具获取。
                 iterationIndex:
                   type: string
@@ -476,7 +476,7 @@ paths:
                   type: string
                   description: 'Start timestamp in seconds (Unix timestamp). MUST calculate dynamically - DO NOT use fixed values! If user doesn''t specify time range, calculate as: end_time - 3600 (for last 1 hour) or end_time - 86400 (for last 24 hours). Example calculation in Python: import time; start_time = int(time.time()) - 3600. Example in JavaScript: Math.floor(Date.now() / 1000) - 3600. 开始时间戳(秒,Unix时间戳)。必须动态计算 - 不要使用固定值！ 如用户未指定时间范围,计算方式: end_time - 3600(最近1小时) 或 end_time - 86400(最近24小时)。Python计算示例: import time; start_time = int(time.time()) - 3600。JavaScript示例: Math.floor(Date.now() / 1000) - 3600。'
                 index_set_id:
-                  type: string
+                  type: integer
                   description: Index set ID. Must be obtained from list_index_sets tool. 索引集ID,必须从 list_index_sets 工具获取
                 query_string:
                   type: string
@@ -541,7 +541,7 @@ paths:
                   type: string
                   description: 'Start timestamp in milliseconds (Unix timestamp as string). MUST calculate dynamically - DO NOT use fixed values! If user doesn''t specify time range, calculate as: end_time - 3600000 (for last 1 hour) or end_time - 86400000 (for last 24 hours). Example calculation in Python: import time; start_time = str(int(time.time() * 1000) - 3600000). Example in JavaScript: String(Date.now() - 3600000). 开始时间戳(毫秒,Unix时间戳字符串)。必须动态计算 - 不要使用固定值！ 如用户未指定时间范围,计算方式: end_time - 3600000(最近1小时) 或 end_time - 86400000(最近24小时)。Python计算示例: import time; start_time = str(int(time.time() * 1000) - 3600000)。JavaScript示例: String(Date.now() - 3600000)。'
                 index_set_id:
-                  type: string
+                  type: integer
                   description: Index set ID. Must be obtained from list_index_sets tool. 索引集ID,必须从 list_index_sets 工具获取。
                 pattern_level:
                   type: string

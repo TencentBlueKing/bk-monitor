@@ -12,6 +12,7 @@ from kernel_api.resource.log_search import (
     ListSceneDimensionValuesResource,
     SearchLogResource,
     normalize_timestamp_to_milliseconds,
+    project_log_items,
 )
 
 
@@ -38,6 +39,27 @@ def build_search_request(**kwargs):
 )
 def test_normalize_timestamp_to_milliseconds(timestamp, expected):
     assert normalize_timestamp_to_milliseconds(timestamp) == expected
+
+
+def test_project_log_items_supports_nested_objects_and_arrays():
+    items = [
+        {
+            "dtEventTimeStamp": "1710000000000",
+            "log": "large log content",
+            "resource": {"cluster_id": "BCS-K8S-00000", "namespace": "default"},
+            "containers": [{"name": "api", "image": "example/api:v1"}],
+        }
+    ]
+
+    result = project_log_items(items, ["dtEventTimeStamp", "resource.cluster_id", "containers.name"])
+
+    assert result == [
+        {
+            "dtEventTimeStamp": "1710000000000",
+            "resource": {"cluster_id": "BCS-K8S-00000"},
+            "containers": [{"name": "api"}],
+        }
+    ]
 
 
 @override_settings(MCP_MAX_TIME_SPAN_SECONDS=86400)
@@ -147,6 +169,7 @@ def test_search_log_resource_routes_scene_request_to_log_platform(monkeypatch):
             target_type="scene",
             table_id_conditions=SCENE_CONDITIONS,
             query_string="level:ERROR",
+            keep_columns=["dtEventTimeStamp", "resource.cluster_id"],
             offset=20,
             order_by=["-dtEventTimeStamp", "log"],
             limit=100,
@@ -166,10 +189,9 @@ def test_search_log_resource_routes_scene_request_to_log_platform(monkeypatch):
         record_history=False,
     )
     assert result == {
-        "items": [
+        "list": [
             {
                 "dtEventTimeStamp": "1710000000000",
-                "log": "large log content",
                 "resource": {"cluster_id": "BCS-K8S-00000"},
             }
         ],
