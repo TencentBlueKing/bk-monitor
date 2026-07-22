@@ -9,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 import sys
-from contextlib import nullcontext
 from copy import deepcopy
 from types import ModuleType, SimpleNamespace
 
@@ -217,7 +216,6 @@ def test_update_alarm_strategy_uses_full_save(monkeypatch):
     )
     monkeypatch.setattr(alert, "resource", fake_resource)
     monkeypatch.setattr(alert, "ensure_strategy_relations_belong_to_biz", lambda _bk_biz_id, _data: None)
-    monkeypatch.setattr(alert.transaction, "atomic", lambda: nullcontext())
     monkeypatch.setattr(alert, "get_strategy_config_version", lambda _value: "version-1")
     current_strategy_config = {
         "items": [
@@ -248,9 +246,7 @@ def test_update_alarm_strategy_uses_full_save(monkeypatch):
         "StrategyModel",
         SimpleNamespace(
             DoesNotExist=type("DoesNotExist", (Exception,), {}),
-            objects=SimpleNamespace(
-                select_for_update=lambda: SimpleNamespace(get=lambda **_kwargs: SimpleNamespace(update_time=object()))
-            ),
+            objects=SimpleNamespace(get=lambda **_kwargs: SimpleNamespace(update_time=object())),
         ),
     )
 
@@ -266,16 +262,18 @@ def test_update_alarm_strategy_uses_full_save(monkeypatch):
 
 
 def test_update_alarm_strategy_rejects_stale_snapshot(monkeypatch):
-    monkeypatch.setattr(alert.transaction, "atomic", lambda: nullcontext())
     monkeypatch.setattr(alert, "get_strategy_config_version", lambda _value: "new-version")
+    monkeypatch.setattr(
+        alert.Strategy,
+        "from_models",
+        lambda _models: [SimpleNamespace(restore=lambda: None, to_dict=lambda convert_dashboard: {})],
+    )
     monkeypatch.setattr(
         alert,
         "StrategyModel",
         SimpleNamespace(
             DoesNotExist=type("DoesNotExist", (Exception,), {}),
-            objects=SimpleNamespace(
-                select_for_update=lambda: SimpleNamespace(get=lambda **_kwargs: SimpleNamespace(update_time=object()))
-            ),
+            objects=SimpleNamespace(get=lambda **_kwargs: SimpleNamespace(id=1, bk_biz_id=2)),
         ),
     )
 
@@ -300,6 +298,102 @@ def test_update_alarm_strategy_rejects_stale_snapshot(monkeypatch):
                 "confirm": True,
             }
         )
+
+
+def test_update_alarm_strategy_avoids_select_for_update(monkeypatch):
+    """BackendRouter 下 select_for_update 会因事务库不一致 500，更新路径不得调用它。"""
+
+    calls = {"select_for_update": 0, "get": 0}
+
+    class FakeManager:
+        def select_for_update(self):
+            calls["select_for_update"] += 1
+            raise AssertionError("update_alarm_strategy must not use select_for_update")
+
+        def get(self, **_kwargs):
+            calls["get"] += 1
+            return SimpleNamespace(id=1, bk_biz_id=2)
+
+    monkeypatch.setattr(
+        alert,
+        "StrategyModel",
+        SimpleNamespace(DoesNotExist=type("DoesNotExist", (Exception,), {}), objects=FakeManager()),
+    )
+    monkeypatch.setattr(
+        alert.Strategy,
+        "from_models",
+        lambda _models: [
+            SimpleNamespace(
+                restore=lambda: None,
+                to_dict=lambda convert_dashboard: {
+                    "items": [
+                        {
+                            "query_configs": [
+                                {
+                                    "id": 20,
+                                    "data_source_label": "prometheus",
+                                    "data_type_label": "time_series",
+                                    "metric_id": "avg(cpu_usage)",
+                                    "promql": "avg(cpu_usage)",
+                                }
+                            ]
+                        }
+                    ]
+                },
+            )
+        ],
+    )
+    monkeypatch.setattr(alert, "get_strategy_config_version", lambda _value: "version-1")
+    monkeypatch.setattr(alert, "ensure_strategy_relations_belong_to_biz", lambda _bk_biz_id, _data: None)
+    monkeypatch.setattr(
+        alert,
+        "resource",
+        SimpleNamespace(strategies=SimpleNamespace(save_strategy_v2=SimpleNamespace(request=lambda **kwargs: kwargs))),
+    )
+
+    result = alert.UpdateAlarmStrategyResource().perform_request(
+        {
+            "bk_biz_id": 2,
+            "id": 1,
+            "name": "CPU",
+            "type": "monitor",
+            "source": "bkmonitorv3",
+            "scenario": "os",
+            "is_enabled": True,
+            "is_invalid": False,
+            "invalid_type": "",
+            "items": [
+                {
+                    "id": 10,
+                    "query_configs": [
+                        {
+                            "id": 20,
+                            "data_source_label": "prometheus",
+                            "data_type_label": "time_series",
+                            "metric_id": "avg(cpu_usage)",
+                            "promql": "avg(cpu_usage)",
+                        }
+                    ],
+                }
+            ],
+            "detects": [{"id": 30}],
+            "notice": {"user_groups": []},
+            "actions": [],
+            "labels": [],
+            "app": "",
+            "path": "",
+            "priority": None,
+            "priority_group_key": "",
+            "metric_type": "time_series",
+            "issue_config": None,
+            "update_time": "2026-07-22 11:00:00+0800",
+            "config_version": "version-1",
+            "confirm": True,
+        }
+    )
+
+    assert calls == {"select_for_update": 0, "get": 1}
+    assert result["id"] == 1
 
 
 def test_get_alarm_strategy_returns_candidates_when_not_unique(monkeypatch):
