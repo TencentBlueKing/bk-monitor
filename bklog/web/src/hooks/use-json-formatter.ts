@@ -472,6 +472,11 @@ export default class UseJsonFormatter {
     resolvedFieldName: string,
     selectedValue: string,
   ) {
+    // 复制必须原样返回：KEY 分支会把非 not 一律改成 contains，导致「复制」误触发「添加到本次检索」
+    if (val === 'copy') {
+      return 'copy';
+    }
+
     if (ctx.segmentRole === 'key') {
       return val === 'not' ? 'not contains match phrase' : 'contains match phrase';
     }
@@ -521,6 +526,20 @@ export default class UseJsonFormatter {
   }
 
   onSegmentEnumClick(val, isLink) {
+    // 复制只走剪贴板，禁止进入字段/操作符解析（尤其 KEY 会被改写成 contains）
+    if (val === 'copy') {
+      const copyValue = activeSegmentClickContext?.value
+        ?? this.getFieldNameValue().value
+        ?? '';
+      this.config.onSegmentClick?.({
+        option: { operation: 'copy', value: String(copyValue ?? '') },
+        isLink,
+      });
+      segmentPopInstance.hide();
+      activeSegmentClickContext = null;
+      return;
+    }
+
     // 优先使用 show tippy 时捕获的上下文，避免共享 virtual-target 残留属性 / 错误 formatter 实例污染结果
     const fallback = this.getFieldNameValue();
     const ctx: SegmentClickContext = activeSegmentClickContext ?? {

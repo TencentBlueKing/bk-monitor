@@ -206,6 +206,15 @@ export default (options: UseSelectionSearchOptions) => {
       return '--';
     }
 
+    // Object/Array 必须 JSON.stringify；String(obj) → "[object Object]" 会破坏偏移解析与划词
+    if (typeof rawValue === 'object') {
+      try {
+        return stripSelectionMarkup(JSON.stringify(rawValue));
+      } catch {
+        return '--';
+      }
+    }
+
     return stripSelectionMarkup(String(rawValue));
   };
 
@@ -2117,9 +2126,23 @@ export default (options: UseSelectionSearchOptions) => {
       if (!plain || plain === '--') return '';
       if (selectionText.includes(plain)) return plain;
 
+      // keyword/flattened：划什么写什么，禁止 Lucene 切分后再用空格拼接
+      // （否则 Asia/Shanghai → Asia + Shanghai → "Asia Shanghai" → *Asia\ Shanghai*）
+      if (isKeywordLikeField(field.field_type) && plain.includes(selectionText)) {
+        return selectionText;
+      }
+
       const selectedTokens = getFieldCursorTokens(row, field)
         .filter(token => selectionText.includes(token.text));
       if (selectedTokens.length) {
+        // 多分词连续命中时保留划选原文（含 / 等分隔符），避免空格拼接破坏字面量
+        if (
+          selectedTokens.length > 1
+          && plain.includes(selectionText)
+          && selectedTokens.every(token => selectionText.includes(token.text))
+        ) {
+          return selectionText;
+        }
         return selectedTokens.map(token => token.text).join(' ');
       }
 
@@ -2538,14 +2561,23 @@ export default (options: UseSelectionSearchOptions) => {
       })));
     }
 
-    const plain = getFieldPlainText(row, rootField);
+    // 优先用已渲染的完整分词文本（含 blob）做偏移对齐；回退行内字段原文
+    const renderedPlain = stripSelectionMarkup(
+      (startBlob.closest('.segment-content') as HTMLElement | null)?.textContent
+      ?? (startBlob.closest('.field-value') as HTMLElement | null)?.textContent
+      ?? '',
+    );
+    const fieldPlain = getFieldPlainText(row, rootField);
+    const plain = (
+      renderedPlain && /^\s*[\[{]/.test(renderedPlain) ? renderedPlain : ''
+    ) || fieldPlain;
     const blobBase = Number(startBlob.getAttribute('data-blob-text-offset'));
     const localOffset = getRangeStartOffsetInContainer(range, startBlob);
     const absOffset = Number.isFinite(blobBase) && localOffset >= 0
       ? blobBase + localOffset
       : getRangeStartOffsetInContainer(range, startBlob.closest('.field-value') as HTMLElement | null);
 
-    // 偏移 → JSON 叶子路径
+    // 偏移 → JSON 叶子路径（再 clamp 到 Fields 最长前缀，如 flattened 父字段）
     if (absOffset >= 0 && plain && plain !== '--' && /^\s*[\[{]/.test(plain)) {
       const jsonRange = findJsonSegmentRangeAtOffset(
         getJsonSegmentRanges(plain, rootFieldName),
@@ -2556,7 +2588,10 @@ export default (options: UseSelectionSearchOptions) => {
         if (jsonRange.role === 'key') {
           const nestedFlag = resolveIsNestedSearchField(mappedPath, row);
           const keyField = getFieldByName(mappedPath);
-          const keyValues = resolveSelectionValues(selectionText, keyField, row);
+          // KEY 划选：keyword/flattened 仍用划选原文，禁止二次分词改写
+          const keyValues = isKeywordLikeField(keyField?.field_type)
+            ? [selectionText]
+            : resolveSelectionValues(selectionText, keyField, row);
           return withType((keyValues.length ? keyValues : [selectionText]).map(token => ({
             field: mappedPath,
             operator: 'contains match phrase',
@@ -2583,6 +2618,7 @@ export default (options: UseSelectionSearchOptions) => {
             field_name: mappedPath,
             field_type: getFieldByName(mappedPath)?.field_type || fieldType || 'keyword',
           };
+        // keyword/flattened：划什么写什么；仅做转义/通配，不拆词、不扩散整段 VALUE
         const resolved = resolveSelectionByFieldType(selectionText, targetField, row);
         const nestedFlag = resolveIsNestedSearchField(targetField.field_name, row);
         return withType(resolved.values.map(token => ({
@@ -2596,12 +2632,8 @@ export default (options: UseSelectionSearchOptions) => {
       }
     }
 
-    // 局部窗口 KV
-    const blobText = stripSelectionMarkup(startBlob.textContent ?? '');
-    const localWindow = blobText && selectionText && blobText.includes(selectionText)
-      ? blobText
-      : selectionText;
-    const kvPairs = parseJsonKvPairsFromText(localWindow);
+    // 仅当划选本身像 KV 时才解析；禁止拿整段 blob 扫出所有 key:value（会 AND 出整段 JSON）
+    const kvPairs = /:/.test(selectionText) ? parseJsonKvPairsFromText(selectionText) : [];
     if (kvPairs.length) {
       const conditions: SelectionCondition[] = [];
       const seen = new Set<string>();
@@ -2826,14 +2858,9 @@ export default (options: UseSelectionSearchOptions) => {
       }
     }
 
-    // Object/Nested（含以字符串形式展示的 Object）：跨字段补全为 KEY.SubKey 等值
-    const multiFieldConditions = resolveMultiFieldSelectionConditions(selectionRange, row);
-    if (multiFieldConditions.length >= 1) {
-      applySelectionConditions(multiFieldConditions, row);
-      return;
-    }
-
-    // 仅当上述 Field:分词1 分词2 均未命中，且选区完全落在 MAX_TOKENS 截断尾巴时才介入
+    // MAX_TOKENS 截断尾巴（.blob-text）必须先于 multiField：
+    // 否则会命中 object 父节点后按 VALUE 扩散，把 Asia/Shanghai 拆成空格拼接，
+    // 并额外 AND 上 flattened 整段 JSON。
     const blobConditions = resolveTruncatedBlobSelectionConditions(
       selectionRange,
       row,
@@ -2841,6 +2868,13 @@ export default (options: UseSelectionSearchOptions) => {
     );
     if (blobConditions.length) {
       applySelectionConditions(blobConditions, row);
+      return;
+    }
+
+    // Object/Nested（含以字符串形式展示的 Object）：跨字段补全为 KEY.SubKey 等值
+    const multiFieldConditions = resolveMultiFieldSelectionConditions(selectionRange, row);
+    if (multiFieldConditions.length >= 1) {
+      applySelectionConditions(multiFieldConditions, row);
       return;
     }
 
