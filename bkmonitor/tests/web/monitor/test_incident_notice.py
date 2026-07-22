@@ -7,6 +7,17 @@ from django.test import SimpleTestCase
 from bkmonitor.aiops.incident.notice import IncidentNoticeHelper
 
 
+class _AttrDictLike:
+    def __init__(self, data):
+        self.data = data
+
+    def __bool__(self):
+        return bool(self.data)
+
+    def to_dict(self):
+        return self.data
+
+
 class TestIncidentNoticeProcessUrlTemplate(SimpleTestCase):
     def test_get_process_url_formats_bkfara_process_fields(self):
         incident = SimpleNamespace(
@@ -34,6 +45,21 @@ class TestIncidentNoticeProcessUrlTemplate(SimpleTestCase):
         incident = SimpleNamespace(incident_id=114490, extra_info={"scope_id": "bkcc_555", "task_id": 123})
 
         self.assertEqual(IncidentNoticeHelper._get_process_url(incident), "")
+
+    def test_get_process_url_supports_elasticsearch_attr_dict(self):
+        incident = SimpleNamespace(
+            incident_id=114490,
+            extra_info=_AttrDictLike({"notice_source": "bkfara", "scope_id": "bkcc_555", "task_id": 123}),
+        )
+
+        with mock.patch(
+            "bkmonitor.aiops.incident.notice.settings.BK_INCIDENT_SAAS_HOST",
+            "https://analysis.example/",
+        ):
+            self.assertEqual(
+                IncidentNoticeHelper._get_process_url(incident),
+                "https://analysis.example/bkcc_555/record/fault/114490?incident_task_id=123",
+            )
 
 
 class TestIncidentNoticeTemplates(SimpleTestCase):
