@@ -521,7 +521,7 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
     def get_permissions(self):
         """拨测任务权限控制"""
 
-        if self.action == "list":
+        if self.action in ("list", "query", "metrics"):
             return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS, ActionEnum.VIEW_SYNTHETIC])]
         return super().get_permissions()
 
@@ -1073,6 +1073,12 @@ class UptimeCheckTaskViewSet(PermissionMixin, viewsets.ViewSet):
 
 class UptimeCheckGroupViewSet(PermissionMixin, viewsets.ViewSet):
     """拨测分组 ViewSet"""
+
+    def get_permissions(self):
+        """拨测分组权限控制：card 和 top_tasks 为只读查询，使用查看权限"""
+        if self.action in ("card", "top_tasks"):
+            return [BusinessActionPermission([ActionEnum.VIEW_BUSINESS, ActionEnum.VIEW_SYNTHETIC])]
+        return super().get_permissions()
 
     def create(self, request: Request):
         """创建分组"""

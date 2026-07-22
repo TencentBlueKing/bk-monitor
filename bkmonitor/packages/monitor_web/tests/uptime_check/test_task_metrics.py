@@ -9,106 +9,94 @@ specific language governing permissions and limitations under the License.
 """
 
 import pytest
-from bk_monitor_base.uptime_check import UptimeCheckTask
 
 from monitor_web.uptime_check.resources import UptimeCheckTaskMetricsResource
 
-
-def make_task(task_id: int, protocol: str = "HTTP", period: int = 60) -> UptimeCheckTask:
-    return UptimeCheckTask(
-        bk_tenant_id="tenant",
-        id=task_id,
-        bk_biz_id=2,
-        name=f"任务{task_id}",
-        protocol=protocol,
-        status="running",
-        config={"period": period},
-    )
-
-
-@pytest.fixture
-def patch_env(mocker):
-    mocker.patch("monitor_web.uptime_check.resources.get_request_tenant_id", return_value="tenant")
-    mocker.patch("monitor_web.uptime_check.resources._query_task_alarm_info", return_value={})
-    return mocker
+BK_BIZ_ID = 2
 
 
 @pytest.mark.django_db(databases="__all__")
 class TestTaskMetrics:
-    def test_metric_values_filled(self, patch_env, mocker):
-        mocker.patch("monitor_web.uptime_check.resources.list_tasks", return_value=[make_task(10)])
+    """集成测试：UptimeCheckTaskMetricsResource 走真实 ORM + mock ES/InfluxDB"""
+
+    def test_metric_values_filled(self, create_task, mock_third_party):
+        task = create_task(name="HTTP任务", protocol="HTTP", config={"period": 60, "url_list": ["http://a.com"]})
 
         def fake_query(metric, bk_biz_id, data_label, where, period, end_time, result):
             if metric == "available":
-                result[10]["available"] = 99.5
+                result[task.pk]["available"] = 99.5
             else:
-                result[10]["task_duration"] = 120.3
+                result[task.pk]["task_duration"] = 120.3
 
-        mocker.patch("monitor_web.uptime_check.resources._batch_query_task_metric", side_effect=fake_query)
+        mock_third_party.batch_metric.side_effect = fake_query
 
-        result = UptimeCheckTaskMetricsResource().request({"bk_biz_id": 2, "task_ids": [10]})
+        result = UptimeCheckTaskMetricsResource().request({"bk_biz_id": BK_BIZ_ID, "task_ids": [task.pk]})
 
-        assert result[10] == {
-            "task_id": 10,
-            "available": 99.5,
-            "task_duration": 120.3,
-            "available_alarm": False,
-            "task_duration_alarm": False,
-            "alarm_num": 0,
+        assert result["data"][task.pk]["available"] == 99.5
+        assert result["data"][task.pk]["task_duration"] == 120.3
+        assert result["partial"] is False
+        assert result["errors"] == []
+
+    def test_missing_task_stays_null(self, create_task, mock_third_party):
+        task = create_task()
+
+        result = UptimeCheckTaskMetricsResource().request({"bk_biz_id": BK_BIZ_ID, "task_ids": [task.pk, 99999]})
+
+        assert result["data"][99999]["available"] is None
+        assert result["data"][99999]["task_duration"] is None
+
+    def test_alarm_info_merged(self, create_task, mock_third_party):
+        task = create_task()
+        mock_third_party.alarm_info.return_value = {
+            task.pk: {"alarm_num": 2, "available_alarm": True, "task_duration_alarm": False}
         }
 
-    def test_missing_task_stays_null(self, patch_env, mocker):
-        mocker.patch("monitor_web.uptime_check.resources.list_tasks", return_value=[make_task(10)])
-        mocker.patch("monitor_web.uptime_check.resources._batch_query_task_metric")
+        result = UptimeCheckTaskMetricsResource().request({"bk_biz_id": BK_BIZ_ID, "task_ids": [task.pk]})
 
-        result = UptimeCheckTaskMetricsResource().request({"bk_biz_id": 2, "task_ids": [10, 999]})
+        assert result["data"][task.pk]["alarm_num"] == 2
+        assert result["data"][task.pk]["available_alarm"] is True
 
-        assert result[999]["task_id"] == 999
-        assert result[999]["available"] is None
-        assert result[999]["task_duration"] is None
+    def test_alarm_query_failure_partial(self, create_task, mock_third_party):
+        task = create_task()
+        mock_third_party.alarm_info.side_effect = Exception("ES down")
 
-    def test_alarm_info_merged(self, patch_env, mocker):
-        mocker.patch("monitor_web.uptime_check.resources.list_tasks", return_value=[make_task(10)])
-        mocker.patch("monitor_web.uptime_check.resources._batch_query_task_metric")
-        mocker.patch(
-            "monitor_web.uptime_check.resources._query_task_alarm_info",
-            return_value={10: {"alarm_num": 2, "available_alarm": True, "task_duration_alarm": False}},
+        result = UptimeCheckTaskMetricsResource().request({"bk_biz_id": BK_BIZ_ID, "task_ids": [task.pk]})
+
+        assert result["partial"] is True
+        assert "alarm_query_failed" in result["errors"]
+        # 降级为默认值
+        assert result["data"][task.pk]["alarm_num"] == 0
+
+    def test_metric_query_failure_degrades(self, create_task, mock_third_party):
+        task = create_task()
+        mock_third_party.batch_metric.side_effect = Exception("influxdb down")
+
+        result = UptimeCheckTaskMetricsResource().request({"bk_biz_id": BK_BIZ_ID, "task_ids": [task.pk]})
+
+        # InfluxDB 异常在线程中被捕获，指标保持 None
+        assert result["data"][task.pk]["available"] is None
+        assert result["data"][task.pk]["task_duration"] is None
+
+    def test_grouped_by_protocol_and_period(self, create_task, mock_third_party):
+        create_task(name="HTTP60", protocol="HTTP", config={"period": 60, "url_list": ["http://a.com"]})
+        create_task(name="HTTP60b", protocol="HTTP", config={"period": 60, "url_list": ["http://b.com"]})
+        _task3 = create_task(
+            name="TCP300", protocol="TCP", config={"period": 300, "port": "80", "ip_list": ["127.0.0.1"]}
         )
 
-        result = UptimeCheckTaskMetricsResource().request({"bk_biz_id": 2, "task_ids": [10, 11]})
+        from bk_monitor_base.domains.uptime_check.models import UptimeCheckTaskModel
 
-        assert result[10]["alarm_num"] == 2
-        assert result[10]["available_alarm"] is True
-        assert result[11]["alarm_num"] == 0
-
-    def test_query_failure_degrades_to_null(self, patch_env, mocker):
-        mocker.patch("monitor_web.uptime_check.resources.list_tasks", return_value=[make_task(10)])
-        mocker.patch(
-            "monitor_web.uptime_check.resources._batch_query_task_metric",
-            side_effect=Exception("influxdb down"),
+        all_ids = list(
+            UptimeCheckTaskModel.objects.filter(bk_biz_id=BK_BIZ_ID, is_deleted=False).values_list("pk", flat=True)
         )
 
-        result = UptimeCheckTaskMetricsResource().request({"bk_biz_id": 2, "task_ids": [10]})
+        UptimeCheckTaskMetricsResource().request({"bk_biz_id": BK_BIZ_ID, "task_ids": all_ids})
 
-        assert result[10]["available"] is None
-        assert result[10]["task_duration"] is None
-
-    def test_grouped_by_protocol_and_period(self, patch_env, mocker):
-        # 2种协议 x 2个周期 x 2个指标 = 每个组合各查一次
-        mocker.patch(
-            "monitor_web.uptime_check.resources.list_tasks",
-            return_value=[
-                make_task(1, protocol="HTTP", period=60),
-                make_task(2, protocol="HTTP", period=60),
-                make_task(3, protocol="TCP", period=300),
-            ],
-        )
-        batch_query = mocker.patch("monitor_web.uptime_check.resources._batch_query_task_metric")
-
-        UptimeCheckTaskMetricsResource().request({"bk_biz_id": 2, "task_ids": [1, 2, 3]})
-
-        assert batch_query.call_count == 4
-        called_labels = {(call.args[0], call.args[2], call.args[4]) for call in batch_query.call_args_list}
+        # 2种协议 x 2个指标 = 4次调用
+        assert mock_third_party.batch_metric.call_count == 4
+        called_labels = {
+            (call.args[0], call.args[2], call.args[4]) for call in mock_third_party.batch_metric.call_args_list
+        }
         assert called_labels == {
             ("available", "uptimecheck_http", 60),
             ("task_duration", "uptimecheck_http", 60),
@@ -116,10 +104,18 @@ class TestTaskMetrics:
             ("task_duration", "uptimecheck_tcp", 300),
         }
 
-    def test_empty_task_ids_rejected(self, patch_env):
+    def test_empty_task_ids_rejected(self):
         with pytest.raises(Exception):
-            UptimeCheckTaskMetricsResource().request({"bk_biz_id": 2, "task_ids": []})
+            UptimeCheckTaskMetricsResource().request({"bk_biz_id": BK_BIZ_ID, "task_ids": []})
 
-    def test_task_ids_limit(self, patch_env):
+    def test_task_ids_limit(self):
         with pytest.raises(Exception):
-            UptimeCheckTaskMetricsResource().request({"bk_biz_id": 2, "task_ids": list(range(501))})
+            UptimeCheckTaskMetricsResource().request({"bk_biz_id": BK_BIZ_ID, "task_ids": list(range(501))})
+
+    def test_alarm_query_uses_task_ids_filter(self, create_task, mock_third_party):
+        """验证 ES 告警查询传入了 task_ids 参数限定范围"""
+        task = create_task()
+
+        UptimeCheckTaskMetricsResource().request({"bk_biz_id": BK_BIZ_ID, "task_ids": [task.pk]})
+
+        mock_third_party.alarm_info.assert_called_once_with(BK_BIZ_ID, task_ids=[task.pk])

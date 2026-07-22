@@ -35,7 +35,6 @@ from bk_monitor_base.uptime_check import (
     count_groups,
     count_tasks,
     get_task,
-    list_group_task_stats,
     list_groups,
     list_nodes,
     list_tasks,
@@ -2437,8 +2436,13 @@ def _start_task_metric_threads(
     return th_list
 
 
-def _query_task_alarm_info(bk_biz_id: int) -> dict[int, dict[str, Any]]:
-    """查询业务下拨测未恢复告警，按 task_id 聚合；查询失败返回空 dict"""
+def _query_task_alarm_info(bk_biz_id: int, *, task_ids: list[int] | None = None) -> dict[int, dict[str, Any]]:
+    """查询业务下拨测未恢复告警，按 task_id 聚合；查询失败返回空 dict
+
+    Args:
+        bk_biz_id: 业务ID
+        task_ids: 可选，限定查询范围的任务ID列表。不传时查询业务下所有拨测告警。
+    """
     task_alarm_info: dict[int, dict[str, Any]] = {}
     try:
         search_object = (
@@ -2448,6 +2452,11 @@ def _query_task_alarm_info(bk_biz_id: int) -> dict[int, dict[str, Any]]:
             .filter("term", status=EventStatus.ABNORMAL)
             .source(fields=["extra_info"])
         )
+        # 限定任务范围，避免全业务扫描
+        if task_ids:
+            search_object = search_object.filter(
+                "terms", **{"extra_info.origin_alarm.data.dimensions.task_id": task_ids}
+            )
         for item in search_object.scan():
             item = item.to_dict()
             try:
@@ -2516,9 +2525,14 @@ class UptimeCheckTaskQueryResource(Resource):
         page = serializers.IntegerField(default=1, min_value=1, label="页码")
         page_size = serializers.IntegerField(default=10, min_value=1, max_value=PAGE_SIZE_LIMIT, label="每页条数")
         group_id = serializers.IntegerField(required=False, label="分组ID")
+        node_id = serializers.IntegerField(required=False, label="节点ID")
         name = serializers.CharField(required=False, allow_blank=True, label="任务名称")
-        protocol = serializers.ChoiceField(required=False, choices=["HTTP", "TCP", "UDP", "ICMP"], label="协议类型")
-        status = serializers.CharField(required=False, label="任务状态")
+        protocol = serializers.ChoiceField(
+            required=False, choices=[p.value for p in UptimeCheckTaskProtocol], label="协议类型"
+        )
+        status = serializers.ChoiceField(
+            required=False, choices=[s.value for s in UptimeCheckTaskStatus], label="任务状态"
+        )
         ordering = serializers.CharField(default="-id", label="排序字段")
         with_target = serializers.BooleanField(default=True, label="是否返回目标地址摘要")
         with_config = serializers.BooleanField(default=False, label="是否返回原始配置")
@@ -2532,12 +2546,14 @@ class UptimeCheckTaskQueryResource(Resource):
         query: dict[str, Any] = {}
         if group_id := validated_request_data.get("group_id"):
             query["group_ids"] = [group_id]
+        if node_id := validated_request_data.get("node_id"):
+            query["node_ids"] = [node_id]
         if name := validated_request_data.get("name"):
             query["name"] = name
         if protocol := validated_request_data.get("protocol"):
-            query["protocol"] = protocol
+            query["protocol"] = UptimeCheckTaskProtocol(protocol)
         if status := validated_request_data.get("status"):
-            query["status"] = status
+            query["status"] = UptimeCheckTaskStatus(status)
 
         fields = [
             "id",
@@ -2609,7 +2625,8 @@ class UptimeCheckTaskQueryResource(Resource):
                 item["config"] = task.config
             results.append(item)
 
-        return {"count": total, "results": results}
+        has_node = bool(list_nodes(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, query={"include_common": True}))
+        return {"count": total, "results": results, "has_node": has_node}
 
 
 class UptimeCheckTaskMetricsResource(Resource):
@@ -2627,13 +2644,13 @@ class UptimeCheckTaskMetricsResource(Resource):
             label="任务ID列表",
         )
 
-    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[int, dict[str, Any]]:
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         bk_tenant_id = cast(str, get_request_tenant_id())
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         task_ids: list[int] = validated_request_data["task_ids"]
 
         # 不存在的任务/无数据的任务保持 null / false / 0
-        result: dict[int, dict[str, Any]] = {
+        data: dict[int, dict[str, Any]] = {
             task_id: {
                 "task_id": task_id,
                 "available": None,
@@ -2645,6 +2662,8 @@ class UptimeCheckTaskMetricsResource(Resource):
             for task_id in task_ids
         }
 
+        errors: list[str] = []
+
         tasks = list_tasks(
             bk_tenant_id=bk_tenant_id,
             bk_biz_id=bk_biz_id,
@@ -2652,31 +2671,37 @@ class UptimeCheckTaskMetricsResource(Resource):
             fields=["id", "protocol", "status", "config"],
         )
 
-        th_list = _start_task_metric_threads(("available", "task_duration"), bk_biz_id, tasks, result)
+        th_list = _start_task_metric_threads(("available", "task_duration"), bk_biz_id, tasks, data)
 
-        # InfluxDB 线程执行期间同步查 ES 告警
-        alarm_info = _query_task_alarm_info(bk_biz_id)
-        for task_id in task_ids:
-            info = alarm_info.get(task_id)
-            if info:
-                result[task_id].update(
-                    alarm_num=info["alarm_num"],
-                    available_alarm=info["available_alarm"],
-                    task_duration_alarm=info["task_duration_alarm"],
-                )
+        # InfluxDB 线程执行期间同步查 ES 告警（限定 task_ids 范围）
+        try:
+            alarm_info = _query_task_alarm_info(bk_biz_id, task_ids=task_ids)
+            for task_id in task_ids:
+                info = alarm_info.get(task_id)
+                if info:
+                    data[task_id].update(
+                        alarm_num=info["alarm_num"],
+                        available_alarm=info["available_alarm"],
+                        task_duration_alarm=info["task_duration_alarm"],
+                    )
+        except Exception:  # noqa: BLE001
+            logger.exception("[task_metrics] ES 告警查询失败")
+            errors.append("alarm_query_failed")
 
         for th in th_list:
             th.join()
-        return result
+
+        return {"data": data, "partial": bool(errors), "errors": errors}
 
 
 class UptimeCheckGroupCardResource(Resource):
     """
-    拨测分组卡片（分组维度数据库分页，TopN 走 uptime_check_group_top_tasks）
+    拨测分组卡片（纯 DB 查询，alarm_num 和 TopN 走 uptime_check_group_top_tasks 异步加载）
     """
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        name = serializers.CharField(required=False, allow_blank=True, label="分组名称搜索")
         page = serializers.IntegerField(default=1, min_value=1, label="页码")
         page_size = serializers.IntegerField(default=10, min_value=1, max_value=PAGE_SIZE_LIMIT, label="每页条数")
 
@@ -2686,8 +2711,11 @@ class UptimeCheckGroupCardResource(Resource):
         page: int = validated_request_data["page"]
         page_size: int = validated_request_data["page_size"]
 
-        # 通过 operation 层分页查询分组
-        group_query = {"include_global": True}
+        # 构建分组查询条件
+        group_query: dict[str, Any] = {"include_global": True}
+        if name := validated_request_data.get("name"):
+            group_query["name"] = name
+
         total = count_groups(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, query=group_query)
         page_groups = list_groups(
             bk_tenant_id=bk_tenant_id,
@@ -2699,14 +2727,19 @@ class UptimeCheckGroupCardResource(Resource):
         )
         page_group_ids = [cast(int, group.id) for group in page_groups]
 
-        # 通过 operation 层聚合查询本页分组的成员任务 (task_id, protocol)
-        group_tasks = (
-            list_group_task_stats(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, group_ids=page_group_ids)
-            if page_group_ids
-            else {}
-        )
-
-        alarm_info = _query_task_alarm_info(bk_biz_id) if group_tasks else {}
+        # 通过 list_tasks 查询本页分组关联的任务
+        group_tasks: dict[int, list[tuple[int, str]]] = {gid: [] for gid in page_group_ids}
+        if page_group_ids:
+            tasks = list_tasks(
+                bk_tenant_id=bk_tenant_id,
+                bk_biz_id=bk_biz_id,
+                query={"group_ids": page_group_ids},
+                fields=["id", "protocol", "group_ids"],
+            )
+            for task in tasks:
+                for gid in task.group_ids:
+                    if gid in group_tasks:
+                        group_tasks[gid].append((cast(int, task.id), task.protocol.value))
 
         protocol_order = [
             UptimeCheckTaskProtocol.HTTP.value,
@@ -2725,7 +2758,6 @@ class UptimeCheckGroupCardResource(Resource):
                     "logo": group.logo,
                     "bk_biz_id": group.bk_biz_id,
                     "task_num": len(members),
-                    "alarm_num": sum(alarm_info.get(task_id, {}).get("alarm_num", 0) for task_id, _ in members),
                     "protocol_num": [
                         {"name": protocol, "val": protocol_counter[protocol]}
                         for protocol in protocol_order
@@ -2734,15 +2766,13 @@ class UptimeCheckGroupCardResource(Resource):
                 }
             )
 
-        # 用于给前端判断无拨测任务时是否需要先指引用户创建拨测节点
-        # 可以优化为 exists() 或 count 查询，避免加载全部节点对象，现在使用的是项目原来的处理方式
-        all_nodes = list_nodes(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, query={"include_common": True})
-        return {"count": total, "results": results, "has_node": len(all_nodes) > 0}
+        return {"count": total, "results": results}
 
 
 class UptimeCheckGroupTopTasksResource(Resource):
     """
-    拨测分组 TopN 最差任务（按可用率升序，非停用任务优先）
+    拨测分组异步增强数据：TopN 最差任务 + 告警统计
+    （按可用率升序，非停用任务优先；alarm_num 从 groups/card 移至此处异步加载）
     """
 
     class RequestSerializer(serializers.Serializer):
@@ -2756,7 +2786,9 @@ class UptimeCheckGroupTopTasksResource(Resource):
         )
         top_n = serializers.IntegerField(default=3, min_value=1, max_value=10, label="TopN数量")
 
-    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[int, list[dict[str, Any]]]:
+    def perform_request(
+        self, validated_request_data: dict[str, Any]
+    ) -> dict[str, dict[int, dict[str, Any]] | bool | list[str]]:
         bk_tenant_id = cast(str, get_request_tenant_id())
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         group_ids: list[int] = validated_request_data["group_ids"]
@@ -2779,18 +2811,39 @@ class UptimeCheckGroupTopTasksResource(Resource):
             for task in tasks
         }
 
+        # 收集本次涉及的所有 task_ids，用于限定 ES 告警查询范围
+        all_task_ids = list(task_info_map.keys())
+
+        # 并发查询 InfluxDB 指标
+        errors: list[str] = []
         th_list = _start_task_metric_threads(("available",), bk_biz_id, tasks, task_info_map)
+
+        # 查询 ES 告警信息（仅限本次涉及的任务）
+        alarm_info: dict[int, dict[str, Any]] = {}
+        try:
+            alarm_info = _query_task_alarm_info(bk_biz_id, task_ids=all_task_ids)
+        except Exception:  # noqa: BLE001
+            logger.exception("[top_tasks] ES 告警查询失败")
+            errors.append("alarm_query_failed")
+
         for th in th_list:
             th.join()
 
-        result: dict[int, list[dict[str, Any]]] = {group_id: [] for group_id in group_ids}
+        # 按分组聚合任务
+        group_items: dict[int, list[dict[str, Any]]] = {group_id: [] for group_id in group_ids}
+        group_task_ids: dict[int, list[int]] = {group_id: [] for group_id in group_ids}
         for task in tasks:
+            task_id = cast(int, task.id)
             for group_id in task.group_ids:
-                if group_id in result:
-                    result[group_id].append(task_info_map[cast(int, task.id)])
+                if group_id in group_items:
+                    group_items[group_id].append(task_info_map[task_id])
+                    group_task_ids[group_id].append(task_id)
 
+        result: dict[int, dict[str, Any]] = {}
         stoped = UptimeCheckTaskStatus.STOPED.value
-        for group_id, items in result.items():
+        for group_id in group_ids:
+            items = group_items[group_id]
+
             # 无数据(null)视为最差排最前
             running_tasks = sorted(
                 [item for item in items if item["status"] != stoped],
@@ -2799,5 +2852,13 @@ class UptimeCheckGroupTopTasksResource(Resource):
             top_tasks = running_tasks[:top_n]
             if len(top_tasks) < top_n:
                 top_tasks.extend([item for item in items if item["status"] == stoped][: top_n - len(top_tasks)])
-            result[group_id] = top_tasks
-        return result
+
+            # 按分组聚合告警数
+            group_alarm_num = sum(alarm_info.get(tid, {}).get("alarm_num", 0) for tid in group_task_ids[group_id])
+
+            result[group_id] = {
+                "top_tasks": top_tasks,
+                "alarm_num": group_alarm_num,
+            }
+
+        return {"data": result, "partial": bool(errors), "errors": errors}
