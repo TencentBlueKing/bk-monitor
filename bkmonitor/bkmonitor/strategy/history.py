@@ -23,6 +23,7 @@ from bkmonitor.models import StrategyModel
 
 SNAPSHOT_OPERATIONS = ("create", "update", "bulk_update")
 DELETE_OPERATIONS = ("delete", "bulk_delete")
+LEGACY_BULK_OPERATIONS = ("update", "delete")
 STRATEGY_ID_CHUNK_SIZE = 500
 # 管理命令允许的最小保留天数；业务层 CleanStrategyHistoryParams 仍只要求正整数，便于单测构造窗口。
 MIN_CLEAN_STRATEGY_HISTORY_DAYS = 30
@@ -172,6 +173,52 @@ def _delete_queryset_in_batches(queryset: QuerySet, batch_size: int) -> int:
 
         deleted_count, _ = model._default_manager.filter(pk__in=history_ids).delete()
         deleted += deleted_count
+        last_pk = history_ids[-1]
+
+
+def repair_legacy_bulk_strategy_history_status(batch_size: int = 1000, dry_run: bool = True) -> int:
+    """修复存量批量更新和批量删除历史的成功状态。
+
+    旧版批量操作分别使用 ``update`` 和 ``delete`` 类型，且成功后未将
+    ``status`` 从默认的 ``False`` 回写为 ``True``。这些记录以空 ``message``
+    作为操作成功的判定标准。
+
+    Args:
+        batch_size: 单批更新数量。
+        dry_run: 为 True 时仅统计匹配记录，不修改数据。
+
+    Returns:
+        dry-run 时返回匹配数，实际执行时返回成功更新数。
+    """
+    if not isinstance(batch_size, int) or isinstance(batch_size, bool) or batch_size <= 0:
+        raise ValueError("batch_size must be a positive integer")
+    if not isinstance(dry_run, bool):
+        raise ValueError("dry_run must be a boolean")
+
+    candidates = StrategyHistoryModel.objects.filter(
+        operate__in=LEGACY_BULK_OPERATIONS,
+        status=False,
+        message="",
+    )
+    if dry_run:
+        return candidates.count()
+
+    max_pk = candidates.order_by("-pk").values_list("pk", flat=True).first()
+    if max_pk is None:
+        return 0
+
+    repaired = 0
+    last_pk = None
+    while True:
+        batch = candidates.filter(pk__lte=max_pk).order_by("pk")
+        if last_pk is not None:
+            batch = batch.filter(pk__gt=last_pk)
+
+        history_ids = list(batch.values_list("pk", flat=True)[:batch_size])
+        if not history_ids:
+            return repaired
+
+        repaired += candidates.filter(pk__in=history_ids).update(status=True)
         last_pk = history_ids[-1]
 
 
