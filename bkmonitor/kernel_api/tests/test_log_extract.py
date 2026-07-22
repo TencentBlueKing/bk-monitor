@@ -15,6 +15,97 @@ from kernel_api.resource.log_extract import (
 
 
 @pytest.mark.parametrize(
+    ("resource", "request_data"),
+    [
+        (ListLogExtractAllowedPathsResource, {"bk_biz_id": 7}),
+        (ListLogExtractAllowedPathsResource, {"bk_biz_id": 7, "ip_list": [{}]}),
+        (
+            ListLogExtractAllowedPathsResource,
+            {
+                "bk_biz_id": 7,
+                "target_node_type": "TOPO",
+                "ip_list": [{"bk_host_id": 101}],
+            },
+        ),
+        (
+            ListLogExtractAllowedPathsResource,
+            {
+                "bk_biz_id": 7,
+                "target_node_type": "INSTANCE",
+                "target_nodes": [{"object_id": "module", "instance_id": 42}],
+            },
+        ),
+        (
+            CreateLogExtractTaskResource,
+            {
+                "bk_biz_id": 7,
+                "file_path": ["/data/logs/app.log"],
+                "filter_type": "",
+                "filter_content": {},
+            },
+        ),
+        (
+            CreateLogExtractTaskResource,
+            {
+                "bk_biz_id": 7,
+                "ip_list": [{}],
+                "file_path": ["/data/logs/app.log"],
+                "filter_type": "",
+                "filter_content": {},
+            },
+        ),
+    ],
+)
+def test_target_request_serializer_rejects_invalid_selection(resource, request_data):
+    serializer = resource.RequestSerializer(data=request_data)
+
+    assert not serializer.is_valid()
+
+
+@pytest.mark.parametrize(
+    "request_data",
+    [
+        {"bk_biz_id": 7, "ip_list": [{"bk_host_id": 101}]},
+        {"bk_biz_id": 7, "ip_list": [{"ip": "10.0.0.1", "bk_cloud_id": 0}]},
+        {
+            "bk_biz_id": 7,
+            "target_node_type": "INSTANCE",
+            "target_nodes": [{"object_id": "host", "instance_id": 101}],
+        },
+        {
+            "bk_biz_id": 7,
+            "target_node_type": "TOPO",
+            "target_nodes": [{"object_id": "module", "instance_id": 42}],
+        },
+        {
+            "bk_biz_id": 7,
+            "target_node_type": "SERVICE_TEMPLATE",
+            "target_nodes": [{"object_id": "SERVICE_TEMPLATE", "instance_id": 42}],
+        },
+    ],
+)
+def test_allowed_paths_request_serializer_accepts_valid_selection(request_data):
+    serializer = ListLogExtractAllowedPathsResource.RequestSerializer(data=request_data)
+
+    assert serializer.is_valid(), serializer.errors
+
+
+def test_search_files_request_serializer_rejects_incomplete_ip():
+    serializer = SearchLogExtractFilesResource.RequestSerializer(
+        data={
+            "bk_biz_id": 7,
+            "ip_list": [{"ip": "10.0.0.1"}],
+            "path": "/data/logs",
+            "is_search_child": False,
+            "time_range": "1d",
+        }
+    )
+
+    assert not serializer.is_valid()
+    assert "ip_list" in serializer.errors
+
+
+@pytest.mark.parametrize(
     ("request_data", "expected_request"),
     [
         (
@@ -145,9 +236,7 @@ def test_create_task_translates_nodes_and_defaults_preview_metadata(monkeypatch)
         ("new_status", None, "unknown", True, False, "Unsupported BK Log task status: new_status"),
     ],
 )
-def test_get_task_normalizes_polling_state(
-    monkeypatch, raw_state, process_info, state, terminal, downloadable, error
-):
+def test_get_task_normalizes_polling_state(monkeypatch, raw_state, process_info, state, terminal, downloadable, error):
     api_resource = Mock(
         return_value={
             "task_id": 123,

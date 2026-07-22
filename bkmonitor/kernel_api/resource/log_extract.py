@@ -23,6 +23,59 @@ TASK_STATE_BY_DOWNLOAD_STATUS = {
     "expired": "expired",
 }
 TERMINAL_TASK_STATES = {"downloadable", "failed", "expired", "unknown"}
+TARGET_NODE_TYPE_INSTANCE = "INSTANCE"
+TARGET_NODE_TYPE_TOPO = "TOPO"
+TARGET_NODE_TYPE_SERVICE_TEMPLATE = "SERVICE_TEMPLATE"
+TARGET_NODE_TYPES = (
+    TARGET_NODE_TYPE_INSTANCE,
+    TARGET_NODE_TYPE_TOPO,
+    TARGET_NODE_TYPE_SERVICE_TEMPLATE,
+)
+ALLOWED_TARGET_OBJECT_IDS = {
+    TARGET_NODE_TYPE_INSTANCE: {"host"},
+    TARGET_NODE_TYPE_TOPO: {"biz", "set", "module"},
+    TARGET_NODE_TYPE_SERVICE_TEMPLATE: {"SERVICE_TEMPLATE"},
+}
+
+
+class LogExtractIPSerializer(serializers.Serializer):
+    bk_host_id = serializers.IntegerField(required=False)
+    ip = serializers.IPAddressField(required=False)
+    bk_cloud_id = serializers.IntegerField(required=False)
+
+    def validate(self, attrs):
+        if "bk_host_id" in attrs or ("ip" in attrs and "bk_cloud_id" in attrs):
+            return attrs
+        raise serializers.ValidationError("bk_host_id or ip with bk_cloud_id is required.")
+
+
+class LogExtractTargetNodeSerializer(serializers.Serializer):
+    object_id = serializers.ChoiceField(choices=("biz", "set", "module", "host", "SERVICE_TEMPLATE"))
+    instance_id = serializers.IntegerField()
+
+
+def validate_target_selection(attrs):
+    target_node_type = attrs["target_node_type"]
+    ip_list = attrs.get("ip_list") or []
+    target_nodes = attrs.get("target_nodes") or []
+
+    if target_node_type == TARGET_NODE_TYPE_INSTANCE:
+        if not ip_list and not target_nodes:
+            raise serializers.ValidationError("INSTANCE requires ip_list or host target_nodes.")
+    elif not target_nodes:
+        raise serializers.ValidationError(f"{target_node_type} requires target_nodes.")
+
+    if target_nodes:
+        object_ids = {node["object_id"] for node in target_nodes}
+        allowed_object_ids = ALLOWED_TARGET_OBJECT_IDS[target_node_type]
+        if not object_ids.issubset(allowed_object_ids):
+            raise serializers.ValidationError(
+                f"{target_node_type} target_nodes only accept: {', '.join(sorted(allowed_object_ids))}."
+            )
+        if "biz" in object_ids and len(object_ids) > 1:
+            raise serializers.ValidationError("biz target_nodes cannot be combined with other object types.")
+
+    return attrs
 
 
 def build_business_scope(bk_biz_id):
@@ -85,10 +138,13 @@ class ListLogExtractAllowedPathsResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True)
         target_node_type = serializers.ChoiceField(
-            choices=("INSTANCE", "TOPO", "SERVICE_TEMPLATE"), required=False, default="INSTANCE"
+            choices=TARGET_NODE_TYPES, required=False, default=TARGET_NODE_TYPE_INSTANCE
         )
-        ip_list = serializers.ListField(child=serializers.DictField(), required=False, min_length=1)
-        target_nodes = serializers.ListField(child=serializers.DictField(), required=False, min_length=1)
+        ip_list = LogExtractIPSerializer(many=True, required=False, allow_empty=False)
+        target_nodes = LogExtractTargetNodeSerializer(many=True, required=False, allow_empty=False)
+
+        def validate(self, attrs):
+            return validate_target_selection(attrs)
 
     def perform_request(self, validated_request_data):
         params = validated_request_data.copy()
@@ -102,7 +158,7 @@ class SearchLogExtractFilesResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True)
-        ip_list = serializers.ListField(child=serializers.DictField(), min_length=1, max_length=10)
+        ip_list = LogExtractIPSerializer(many=True, allow_empty=False, max_length=10)
         path = serializers.CharField(required=True)
         is_search_child = serializers.BooleanField(required=True)
         time_range = serializers.CharField(required=True)
@@ -124,21 +180,24 @@ class CreateLogExtractTaskResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True)
         target_node_type = serializers.ChoiceField(
-            choices=("INSTANCE", "TOPO", "SERVICE_TEMPLATE"), required=False, default="INSTANCE"
+            choices=TARGET_NODE_TYPES, required=False, default=TARGET_NODE_TYPE_INSTANCE
         )
-        ip_list = serializers.ListField(child=serializers.DictField(), required=False)
-        target_nodes = serializers.ListField(child=serializers.DictField(), required=False)
+        ip_list = LogExtractIPSerializer(many=True, required=False, allow_empty=False)
+        target_nodes = LogExtractTargetNodeSerializer(many=True, required=False, allow_empty=False)
         file_path = serializers.ListField(child=serializers.CharField(), min_length=1)
         filter_type = serializers.CharField(allow_blank=True)
         filter_content = serializers.DictField()
         remark = serializers.CharField(required=False, allow_blank=True)
         preview_directory = serializers.CharField(required=False)
-        preview_ip_list = serializers.ListField(child=serializers.DictField(), required=False)
+        preview_ip_list = LogExtractIPSerializer(many=True, required=False)
         preview_time_range = serializers.ChoiceField(choices=("1d", "1w", "1m", "all", "custom"), required=False)
         preview_start_time = serializers.CharField(required=False, allow_blank=True)
         preview_end_time = serializers.CharField(required=False, allow_blank=True)
         preview_is_search_child = serializers.BooleanField(required=False)
         link_id = serializers.IntegerField(required=False, allow_null=True)
+
+        def validate(self, attrs):
+            return validate_target_selection(attrs)
 
     def perform_request(self, validated_request_data):
         params = validated_request_data.copy()

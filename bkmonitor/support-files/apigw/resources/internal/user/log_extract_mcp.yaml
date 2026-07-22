@@ -156,8 +156,8 @@ paths:
                 path: {type: string, description: Directory or file path to inspect. 查询路径。}
                 is_search_child: {type: boolean, description: Search child directories recursively. 是否递归查询。}
                 time_range: {type: string, enum: [1d, 1w, 1m, all, custom]}
-                start_time: {type: string, description: Required for custom range, format YYYY-MM-DD HH:mm:ss.}
-                end_time: {type: string, description: Required for custom range, format YYYY-MM-DD HH:mm:ss.}
+                start_time: {type: string, description: "Required for custom range, format YYYY-MM-DD HH:mm:ss."}
+                end_time: {type: string, description: "Required for custom range, format YYYY-MM-DD HH:mm:ss."}
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false
