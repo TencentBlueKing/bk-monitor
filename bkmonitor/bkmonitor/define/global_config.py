@@ -771,6 +771,8 @@ STANDARD_CONFIGS = OrderedDict(
         ("K8S_V2_BIZ_LIST", slz.ListField(label=_("K8S新版灰度配置"), default=[])),
         # APM UnifyQuery 查询业务黑名单，在此列表内的业务，检索能力不切换到 UnifyQuery。
         ("APM_UNIFY_QUERY_BLACK_BIZ_LIST", slz.ListField(label=_("APM UnifyQuery 查询业务黑名单"), default=[])),
+        # RUM UnifyQuery 查询业务黑名单，在此列表内的业务，检索能力不切换到 UnifyQuery。
+        ("RUM_UNIFY_QUERY_BLACK_BIZ_LIST", slz.ListField(label=_("RUM UnifyQuery 查询业务黑名单"), default=[])),
         # 事件 UnifyQuery 查询业务黑名单，在此列表内的业务，检索能力不切换到 UnifyQuery。
         ("EVENT_UNIFY_QUERY_BLACK_BIZ_LIST", slz.ListField(label=_("事件 UnifyQuery 查询业务黑名单"), default=[])),
         # 日志 UnifyQuery 查询业务白名单，在此列表内的业务，检索能力切换到 UnifyQuery。

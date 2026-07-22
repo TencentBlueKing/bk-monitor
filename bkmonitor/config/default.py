@@ -1813,6 +1813,9 @@ RUM_BIZ_LIST = []
 # APM UnifyQuery 查询业务黑名单
 APM_UNIFY_QUERY_BLACK_BIZ_LIST = []
 
+# RUM UnifyQuery 查询业务黑名单
+RUM_UNIFY_QUERY_BLACK_BIZ_LIST = []
+
 # 事件 UnifyQuery 查询业务黑名单
 EVENT_UNIFY_QUERY_BLACK_BIZ_LIST = []
 

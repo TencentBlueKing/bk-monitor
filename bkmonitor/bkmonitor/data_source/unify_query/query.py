@@ -234,6 +234,7 @@ class UnifyQuery:
         first_ds: DataSource = self.data_sources[0]
         if (first_ds.data_source_label, first_ds.data_type_label) in [
             (DataSourceLabel.BK_APM, DataTypeLabel.LOG),
+            (DataSourceLabel.BK_RUM, DataTypeLabel.LOG),
             (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
             (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
             (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
@@ -288,7 +289,10 @@ class UnifyQuery:
 
         # 如果是多指标，必然会走统一查询模块
         # APM 的灰度仅通过 switch_unify_query 判断
-        if len(self.data_sources) > 1 and self.data_sources[0].id != (DataSourceLabel.BK_APM, DataTypeLabel.LOG):
+        if len(self.data_sources) > 1 and self.data_sources[0].id not in (
+            (DataSourceLabel.BK_APM, DataTypeLabel.LOG),
+            (DataSourceLabel.BK_RUM, DataTypeLabel.LOG),
+        ):
             return True
 
         # 如果使用表达式，走统一查询模块

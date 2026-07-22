@@ -2986,6 +2986,21 @@ class BkMonitorAlertDataSource(BkFtaEventDataSource):
             self.filter_dict["strategy_id"] = self.strategy_id
 
 
+class BkRumDataSource(BkApmTraceDataSource):
+    data_source_label = DataSourceLabel.BK_RUM
+    data_type_label = DataTypeLabel.LOG
+
+    PRE_CALCULATE_OBJECT_FIELDS: set[str] = {}
+
+    def _fetch_black_list(self) -> list[str | int]:
+        return settings.RUM_UNIFY_QUERY_BLACK_BIZ_LIST
+
+
+class BkRumTimeSeriesDataSource(BkRumDataSource):
+    data_source_label = DataSourceLabel.BK_RUM
+    data_type_label = DataTypeLabel.TIME_SERIES
+
+
 @lru_cache_with_ttl(ttl=120)
 def judge_auto_filter(bk_biz_id: int, table_id: str) -> dict[str, Any]:
     """
@@ -3099,6 +3114,8 @@ def load_data_source(data_source_label: str, data_type_label: str) -> type[DataS
         BkFtaEventDataSource,
         BkApmTraceDataSource,
         BkApmTraceTimeSeriesDataSource,
+        BkRumDataSource,
+        BkRumTimeSeriesDataSource,
         PrometheusTimeSeriesDataSource,
     ]
 
