@@ -73,6 +73,20 @@ class TestPatternHandlerGetNewClass(SimpleTestCase):
 
         self.assertEqual(result, ("sig-1", "order"))
 
+    def test_extract_new_class_tuple_from_alert_normalizes_tag_dimensions(self):
+        alert = {
+            "dimensions": [
+                {"key": "tags.path", "value": "/tmp/svm.log"},
+                {"key": "tags.signature", "value": "sig-1"},
+            ]
+        }
+
+        result_with_group = self.handler._extract_new_class_tuple_from_alert(alert, [SIGNATURE_FIELD, "path"])
+        result_without_group = self.handler._extract_new_class_tuple_from_alert(alert, [SIGNATURE_FIELD])
+
+        self.assertEqual(result_with_group, ("sig-1", "/tmp/svm.log"))
+        self.assertEqual(result_without_group, ("sig-1",))
+
     @patch("apps.log_clustering.handlers.pattern.model_to_dict", return_value={})
     @patch("apps.log_clustering.handlers.clustering_monitor.ClusteringMonitorHandler")
     def test_update_group_fields_does_not_update_legacy_strategy(self, mock_monitor_handler_cls, _mock_model_to_dict):

@@ -11,10 +11,11 @@ specific language governing permissions and limitations under the License.
 import logging
 from collections import Counter
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, wait
 import hashlib
 import json
 import re
+from threading import BoundedSemaphore
 import time
 
 from django.http import HttpResponseRedirect
@@ -24,6 +25,7 @@ from rest_framework import serializers, exceptions
 from rest_framework.decorators import api_view
 
 from bkm_space.utils import bk_biz_id_to_space_uid
+from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
 from bkmonitor.documents.issue import (
     IssueActivityDocument,
@@ -32,13 +34,15 @@ from bkmonitor.documents.issue import (
     IssueNotFoundError,
 )
 from bkmonitor.issue_merge import IssueFrozenError, IssueMergeResolver
-from bkmonitor.models import TapdWorkspaceBinding, TapdWorkspaceManualUnbind
+from bkmonitor.models import QueryConfigModel, TapdWorkspaceBinding, TapdWorkspaceManualUnbind
 from bkmonitor.models.issue import IssueMergeRelation, IssueTapdRelation
+from bkmonitor.utils.event_related_info import get_alert_relation_info
 from bkmonitor.utils.request import get_request_username, get_request
 from django.db import transaction
 from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id, bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.user import set_local_username
+from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.issue import IssuePriority, IssueStatus, IssueActivityType
 from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
@@ -1456,6 +1460,181 @@ class AlertIssueEnrichResource(Resource):
             }
             for iid in issue_ids
         }
+
+
+class IssueLogContentResource(Resource):
+    """批量查询 Issue 关联日志内容（针对日志类别告警）"""
+
+    BATCH_TIMEOUT = 10
+    MAX_CONCURRENT_QUERIES = 10
+    EXECUTOR = ThreadPoolExecutor(
+        max_workers=MAX_CONCURRENT_QUERIES,
+        thread_name_prefix="issue-log-content",
+    )
+    QUERY_SLOTS = BoundedSemaphore(MAX_CONCURRENT_QUERIES)
+
+    # 日志类别告警的数据源与数据类型组合（与 get_alert_relation_info 保持一致）
+    LOG_DATA_SOURCE_TYPES = frozenset(
+        {
+            (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
+            (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
+            (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.TIME_SERIES),
+            (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
+            (DataSourceLabel.BK_FTA, DataTypeLabel.EVENT),
+        }
+    )
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_ids = serializers.ListField(
+            label="业务ID", child=serializers.IntegerField(), min_length=1, max_length=500
+        )
+        issue_ids = serializers.ListField(label="Issue ID 列表", child=IssueIDField(), min_length=1, max_length=10)
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        bk_biz_ids = list(dict.fromkeys(validated_request_data["bk_biz_ids"]))
+        issue_ids = list(dict.fromkeys(validated_request_data["issue_ids"]))
+
+        # 初始化结果：所有请求的 issue_id 默认返回空内容，后续按实际查询结果覆盖
+        log_contents: dict[str, dict] = {issue_id: {"log_content": ""} for issue_id in issue_ids}
+
+        # 1. 获取 strategy_id
+        issue_hits = (
+            IssueDocument.search(all_indices=True)
+            .filter("terms", _id=issue_ids)
+            .filter("terms", bk_biz_id=bk_biz_ids)
+            .source(["strategy_id", "first_alert_time"])
+            .params(size=len(issue_ids))
+            .execute()
+            .hits
+        )
+        if not issue_hits:
+            return log_contents
+
+        issue_meta: dict[str, dict] = {}
+        strategy_ids: set[str] = set()
+        for hit in issue_hits:
+            issue_id = hit.meta.id
+            strategy_id = str(hit.strategy_id)
+            issue_meta[issue_id] = {
+                "strategy_id": strategy_id,
+                "first_alert_time": int(getattr(hit, "first_alert_time", 0) or 0),
+            }
+            strategy_ids.add(strategy_id)
+
+        # 2. 查询 QueryConfigModel，识别日志类别策略，并预取 query_config 供步骤5复用
+        query_configs = QueryConfigModel.objects.filter(strategy_id__in=list(strategy_ids)).values(
+            "strategy_id", "data_source_label", "data_type_label"
+        )
+        log_strategy_ids: set[str] = set()
+        strategy_query_config_map: dict[str, dict] = {}
+        for qc in query_configs:
+            strategy_id = str(qc["strategy_id"])
+            strategy_query_config_map[strategy_id] = {
+                "data_source_label": qc["data_source_label"],
+                "data_type_label": qc["data_type_label"],
+            }
+            if (qc["data_source_label"], qc["data_type_label"]) in self.LOG_DATA_SOURCE_TYPES:
+                log_strategy_ids.add(strategy_id)
+
+        # 筛选出日志类别的 issue
+        log_issue_ids = [issue_id for issue_id, meta in issue_meta.items() if meta["strategy_id"] in log_strategy_ids]
+        if not log_issue_ids:
+            return log_contents
+
+        # 3. 查询每个 issue 最新告警（top_hits 聚合，按 begin_time 降序取最新一条）
+        start_time = min(
+            issue_meta[issue_id]["first_alert_time"] or IssueDocument.parse_timestamp_by_id(issue_id)
+            for issue_id in log_issue_ids
+        )
+        search_object = AlertDocument.search(start_time=start_time, end_time=int(time.time())).filter(
+            "terms", issue_id=log_issue_ids
+        )
+        issue_agg = search_object.aggs.bucket("issues", "terms", field="issue_id", size=len(log_issue_ids))
+        issue_agg.metric(
+            "latest_alert",
+            "top_hits",
+            size=1,
+            sort=[{"begin_time": {"order": "desc"}}],
+            _source=["id", "event", "extra_info", "begin_time", "latest_time"],
+        )
+        try:
+            alert_data = search_object[:0].execute()
+        except Exception:
+            logger.exception("IssueLogContentResource AlertDocument query failed")
+            return log_contents
+
+        # 4. 构建 issue_id -> AlertDocument 映射（直接从 top_hits _source 构造）
+        issue_alert_map: dict[str, AlertDocument] = {}
+        for issue_bucket in alert_data.aggs.issues.buckets:
+            if not hasattr(issue_bucket, "latest_alert") or not issue_bucket.latest_alert:
+                continue
+            hits = issue_bucket.latest_alert.hits
+            if not hits or not hits.hits:
+                continue
+            hit = hits.hits[0]
+            source = hit.to_dict().get("_source", {})
+            try:
+                issue_alert_map[issue_bucket.key] = AlertDocument(**source)
+            except Exception:
+                logger.warning(
+                    "IssueLogContentResource: failed to construct AlertDocument, issue_id=%s",
+                    issue_bucket.key,
+                )
+
+        if not issue_alert_map:
+            return log_contents
+
+        # 5. 并发获取日志内容（传入步骤2预取的 query_config，避免 get_alert_relation_info 内部重复查 DB）
+        deadline = time.monotonic() + self.BATCH_TIMEOUT
+
+        def _fetch_log_content(_issue_id: str, _alert: AlertDocument, _query_config) -> tuple[str, dict]:
+            try:
+                if time.monotonic() >= deadline:
+                    return _issue_id, {"log_content": ""}
+                try:
+                    full_content = get_alert_relation_info(_alert, length_limit=False, query_config=_query_config) or ""
+                except Exception:
+                    logger.exception("IssueLogContentResource get_alert_relation_info failed")
+                    full_content = ""
+                return _issue_id, {"log_content": full_content}
+            finally:
+                self.QUERY_SLOTS.release()
+
+        fetch_log_content_with_local = ThreadPool.get_func_with_local(_fetch_log_content)
+        futures = {}
+        skipped_count = 0
+        for issue_id, alert in issue_alert_map.items():
+            if not self.QUERY_SLOTS.acquire(blocking=False):
+                skipped_count += 1
+                continue
+            try:
+                future = self.EXECUTOR.submit(
+                    fetch_log_content_with_local,
+                    issue_id,
+                    alert,
+                    strategy_query_config_map.get(issue_meta[issue_id]["strategy_id"]),
+                )
+            except Exception:
+                self.QUERY_SLOTS.release()
+                raise
+            futures[future] = issue_id
+
+        done, pending = wait(futures, timeout=max(0, deadline - time.monotonic()))
+        for future in done:
+            try:
+                issue_id, log_content = future.result()
+            except Exception:
+                logger.exception("IssueLogContentResource future.result() failed")
+                continue
+            log_contents[issue_id] = log_content
+        if pending or skipped_count:
+            logger.warning(
+                "IssueLogContentResource batch limited, pending_count=%s, skipped_count=%s",
+                len(pending),
+                skipped_count,
+            )
+
+        return log_contents
 
 
 class ListTapdWorkspaceResource(Resource):
@@ -3129,18 +3308,16 @@ def tapd_app_install_callback(request):
 def tapd_user_oauth_callback(request):
     """TAPD 用户态 OAuth 回调。
 
-    Query params: code, state（signed_state）
+    Query params: code, state（signed_state）, error（用户取消授权时由 TAPD 回传）
     1. state 为自包含 signed_state → 验签、验过期（不依赖 session）
-    2. 用 code 换取 access_token（UserOauthTokenResource），redirect_uri 取 payload 中的 backend_callback
-    3. 加密 token → 存入 Redis（TTL = expires_in），key = tapd_uat:{tenant}:{user}
-    4. 302 重定向前端 success_url
+    2. 若携带 error 参数（如 error=access_denied）→ 用户主动取消授权，重定向到 error_url 友好提示
+    3. 用 code 换取 access_token（UserOauthTokenResource），redirect_uri 取 payload 中的 backend_callback
+    4. 加密 token → 存入 Redis（TTL = expires_in），key = tapd_uat:{tenant}:{user}
+    5. 302 重定向前端 success_url
     """
     code = request.query_params.get("code", "")
     state = request.query_params.get("state", "")
-
-    if not code or not state:
-        # 缺少必要参数，回退到根路径
-        return HttpResponseRedirect(request.build_absolute_uri("/"))
+    error = request.query_params.get("error", "")
 
     # 1) 解析并验签 signed_state（自包含 payload，不依赖 session）
     try:
@@ -3155,12 +3332,28 @@ def tapd_user_oauth_callback(request):
     success_url = payload.get("success_url", "")
     error_url = payload.get("error_url") or success_url or request.build_absolute_uri("/")
 
+    # 2) 用户主动取消授权：TAPD 重定向回 redirect_uri 并携带 error=access_denied
+    #    属正常业务分支，重定向到 error_url 展示友好提示（如"您已取消授权"），不当作系统错误
+    if error:
+        logger.info(
+            "TAPD user oauth canceled by user, bk_biz_id=%s, error=%s, error_description=%s",
+            bk_biz_id,
+            error,
+            request.query_params.get("error_description", "").replace("\r", "").replace("\n", ""),
+        )
+        return HttpResponseRedirect(error_url)
+
+    # 缺少 code 参数（非取消场景），回退到 error_url
+    if not code:
+        logger.warning("missing code in TAPD user oauth callback, bk_biz_id=%s", bk_biz_id)
+        return HttpResponseRedirect(error_url)
+
     # 校验失败统一处理：记日志 + 重定向到 error_url
     def _fail(log_msg, *args):
         logger.warning(log_msg, *args)
         return HttpResponseRedirect(error_url)
 
-    # 2) 校验 username + backend_callback
+    # 3) 校验 username + backend_callback
     if not username:
         return _fail("missing initiator in signed_state payload, bk_biz_id=%s", bk_biz_id)
 
@@ -3177,7 +3370,7 @@ def tapd_user_oauth_callback(request):
     if not backend_callback:
         return _fail("missing backend_callback in signed_state payload, bk_biz_id=%s", bk_biz_id)
 
-    # 3) code 换 token（Basic Auth，client_id:client_secret）
+    # 4) code 换 token（Basic Auth，client_id:client_secret）
     # redirect_uri 必须和 authorize 时传给 TAPD 的一致（即 backend_callback）
     try:
         token_resp = api.tapd.user_oauth_token(
@@ -3196,7 +3389,7 @@ def tapd_user_oauth_callback(request):
     if not access_token:
         return _fail("empty access_token from TAPD")
 
-    # 4) 存 Redis（AESCipher 加密），key 按 (tenant, username)
+    # 5) 存 Redis（AESCipher 加密），key 按 (tenant, username)
     save_tapd_token(
         tenant_id=tenant_id,
         username=username,
@@ -3204,5 +3397,5 @@ def tapd_user_oauth_callback(request):
         expires_in=expires_in,
     )
 
-    # 5) 302 重定向到 success_url（含 # 的前端地址）
+    # 6) 302 重定向到 success_url（含 # 的前端地址）
     return HttpResponseRedirect(success_url)
