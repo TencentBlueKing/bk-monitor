@@ -972,10 +972,13 @@
       <bk-dialog
         v-model="expandDepthExampleVisible"
         ext-cls="expand-depth-example-dialog"
+        header-position="left"
         :mask-close="true"
         :show-footer="false"
         :title="$t('解析示例')"
         width="640"
+        @cancel="expandDepthExampleVisible = false"
+        @value-change="val => (expandDepthExampleVisible = val)"
       >
         <div class="expand-depth-example-content">
           <div class="example-block">
