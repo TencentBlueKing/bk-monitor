@@ -1729,6 +1729,7 @@ class ClusterConfig(models.Model):
             "spec": {
                 "host": "es.db",
                 "port": 9200,
+                "schema": "https",
                 "user": "xxxx",
                 "password": "xxx"
             },
@@ -1756,6 +1757,7 @@ class ClusterConfig(models.Model):
             "spec": {
                 "host": cluster.domain_name,
                 "port": cluster.port,
+                "schema": _schema if (_schema := (cluster.schema or "").strip().lower()) in ("http", "https") else "http",
                 "user": cluster.username,
                 "password": cluster.password,
             },
@@ -1780,7 +1782,7 @@ class ClusterConfig(models.Model):
                 "annotations": {}
             },
             "spec": {
-                "host": "21.92.51.33",
+                "host": "surrealdb.example.com",
                 "port": 8080,
                 "user": "root",
                 "password": "root",
