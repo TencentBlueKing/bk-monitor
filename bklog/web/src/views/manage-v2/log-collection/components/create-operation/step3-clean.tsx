@@ -2086,34 +2086,33 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             showReportLogSlider.value = value;
           }}
         />
-        {expandDepthExampleVisible.value && (
-          <bk-dialog
-            ext-cls='expand-depth-example-dialog'
-            mask-close={true}
-            show-footer={false}
-            title={t('解析示例')}
-            value={expandDepthExampleVisible.value}
-            width={640}
-            on-cancel={() => {
-              expandDepthExampleVisible.value = false;
-            }}
-            on-value-change={(val: boolean) => {
-              expandDepthExampleVisible.value = val;
-            }}
-          >
-            <div class='expand-depth-example-content'>
-              <div class='example-block'>
-                <div class='example-label'>{t('输入')}</div>
-                <pre class='example-code'>{expandDepthExampleInput}</pre>
-              </div>
-              <div class='example-block'>
-                <div class='example-label'>{expandDepthExampleTitle.value}</div>
-                <pre class='example-code'>{expandDepthExampleResult.value}</pre>
-                <p class='example-note'>{expandDepthExampleNote.value}</p>
-              </div>
+        <bk-dialog
+          ext-cls='expand-depth-example-dialog'
+          header-position='left'
+          mask-close={true}
+          show-footer={false}
+          title={t('解析示例')}
+          value={expandDepthExampleVisible.value}
+          width={640}
+          on-cancel={() => {
+            expandDepthExampleVisible.value = false;
+          }}
+          on-value-change={(val: boolean) => {
+            expandDepthExampleVisible.value = val;
+          }}
+        >
+          <div class='expand-depth-example-content'>
+            <div class='example-block'>
+              <div class='example-label'>{t('输入')}</div>
+              <pre class='example-code'>{expandDepthExampleInput}</pre>
             </div>
-          </bk-dialog>
-        )}
+            <div class='example-block'>
+              <div class='example-label'>{expandDepthExampleTitle.value}</div>
+              <pre class='example-code'>{expandDepthExampleResult.value}</pre>
+              <p class='example-note'>{expandDepthExampleNote.value}</p>
+            </div>
+          </div>
+        </bk-dialog>
         <div class='classify-btns-fixed'>
           {!props.isTempField && !props.isCleanField && (
             <bk-button
