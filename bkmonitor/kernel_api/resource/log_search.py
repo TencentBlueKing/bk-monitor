@@ -23,6 +23,15 @@ CLUSTERING_FIELD_PREFIX = "__dist"
 CLUSTERING_QUERY_FIELD = "__dist_05"
 
 
+def normalize_timestamp_to_milliseconds(timestamp: int | str) -> str:
+    timestamp = int(timestamp)
+    if timestamp >= 1_000_000_000_000_000_000:
+        timestamp //= 1_000_000
+    elif timestamp < 1_000_000_000_000:
+        timestamp *= 1000
+    return str(timestamp)
+
+
 class SceneRouteConditionSerializer(serializers.Serializer):
     field_name = serializers.CharField(required=True, label="路由字段名")
     value = serializers.ListField(child=serializers.CharField(), required=True, label="路由字段值")
@@ -234,8 +243,8 @@ class SearchLogResource(Resource):
         offset = validated_request_data.get("offset", 0)
         limit = validated_request_data.get("limit", 10)
         order_by = validated_request_data.get("order_by") or []
-        start_time = str(int(validated_request_data["start_time"]) * 1000)
-        end_time = str(int(validated_request_data["end_time"]) * 1000)
+        start_time = normalize_timestamp_to_milliseconds(validated_request_data["start_time"])
+        end_time = normalize_timestamp_to_milliseconds(validated_request_data["end_time"])
         sort_list = [
             [field_name[1:], "desc"] if field_name.startswith("-") else [field_name, "asc"] for field_name in order_by
         ]

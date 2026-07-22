@@ -11,6 +11,7 @@ from kernel_api.resource.log_search import (
     ListLogScenesResource,
     ListSceneDimensionValuesResource,
     SearchLogResource,
+    normalize_timestamp_to_milliseconds,
 )
 
 
@@ -24,6 +25,19 @@ def build_search_request(**kwargs):
         "end_time": "1710003600",
         **kwargs,
     }
+
+
+@pytest.mark.parametrize(
+    "timestamp, expected",
+    [
+        ("1710000000", "1710000000000"),
+        ("1710000000000", "1710000000000"),
+        ("1710000000000000000", "1710000000000"),
+    ],
+    ids=["seconds", "milliseconds", "nanoseconds"],
+)
+def test_normalize_timestamp_to_milliseconds(timestamp, expected):
+    assert normalize_timestamp_to_milliseconds(timestamp) == expected
 
 
 @override_settings(MCP_MAX_TIME_SPAN_SECONDS=86400)
@@ -144,6 +158,34 @@ def test_search_log_resource_routes_scene_request_to_log_platform(monkeypatch):
         "total": 21,
         "took": 12,
     }
+
+
+@override_settings(MCP_MAX_TIME_SPAN_SECONDS=86400)
+@pytest.mark.parametrize(
+    "start_time, end_time",
+    [
+        ("1710000000000", "1710003600000"),
+        ("1710000000000000000", "1710003600000000000"),
+    ],
+    ids=["milliseconds", "nanoseconds"],
+)
+def test_search_log_resource_normalizes_scene_timestamps_to_milliseconds(monkeypatch, start_time, end_time):
+    scene_search = Mock(return_value={})
+    monkeypatch.setattr(api.log_search, "scene_search", scene_search)
+    monkeypatch.setattr("kernel_api.resource.log_search.bk_biz_id_to_space_uid", lambda bk_biz_id: "bkcc__2")
+    request_data = build_search_request(
+        target_type="scene",
+        table_id_conditions=SCENE_CONDITIONS,
+        start_time=start_time,
+        end_time=end_time,
+    )
+    serializer = SearchLogResource.RequestSerializer(data=request_data)
+    assert serializer.is_valid(), serializer.errors
+
+    SearchLogResource().perform_request(serializer.validated_data)
+
+    assert scene_search.call_args.kwargs["start_time"] == "1710000000000"
+    assert scene_search.call_args.kwargs["end_time"] == "1710003600000"
 
 
 def test_list_log_scenes_resource_calls_log_platform(monkeypatch):
