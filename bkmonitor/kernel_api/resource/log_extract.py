@@ -44,9 +44,15 @@ class LogExtractIPSerializer(serializers.Serializer):
     bk_cloud_id = serializers.IntegerField(required=False)
 
     def validate(self, attrs):
-        if "bk_host_id" in attrs or ("ip" in attrs and "bk_cloud_id" in attrs):
+        if "bk_host_id" in attrs or (attrs.get("ip") and "bk_cloud_id" in attrs):
             return attrs
         raise serializers.ValidationError("bk_host_id or ip with bk_cloud_id is required.")
+
+
+class LogExtractPreviewIPSerializer(serializers.Serializer):
+    bk_host_id = serializers.IntegerField(required=False)
+    ip = serializers.IPAddressField(required=True)
+    bk_cloud_id = serializers.IntegerField(required=True)
 
 
 class LogExtractTargetNodeSerializer(serializers.Serializer):
@@ -189,7 +195,7 @@ class CreateLogExtractTaskResource(Resource):
         filter_content = serializers.DictField()
         remark = serializers.CharField(required=False, allow_blank=True)
         preview_directory = serializers.CharField(required=False)
-        preview_ip_list = LogExtractIPSerializer(many=True, required=False)
+        preview_ip_list = LogExtractPreviewIPSerializer(many=True, required=False)
         preview_time_range = serializers.ChoiceField(choices=("1d", "1w", "1m", "all", "custom"), required=False)
         preview_start_time = serializers.CharField(required=False, allow_blank=True)
         preview_end_time = serializers.CharField(required=False, allow_blank=True)

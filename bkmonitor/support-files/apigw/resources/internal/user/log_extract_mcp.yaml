@@ -95,7 +95,7 @@ paths:
                   description: INSTANCE accepts ip_list or host target_nodes; TOPO and SERVICE_TEMPLATE require target_nodes. INSTANCE 可传 ip_list 或主机节点，TOPO 和 SERVICE_TEMPLATE 必须传 target_nodes。
                 ip_list:
                   type: array
-                  minItems: 1
+                  description: Optional; an empty array is treated as omitted. Each item requires bk_host_id, or both ip and bk_cloud_id.
                   items:
                     type: object
                     description: Provide bk_host_id, or provide both ip and bk_cloud_id.
@@ -105,7 +105,7 @@ paths:
                       bk_cloud_id: {type: integer}
                 target_nodes:
                   type: array
-                  minItems: 1
+                  description: Optional; an empty array is treated as omitted.
                   items:
                     type: object
                     required: [object_id, instance_id]
@@ -195,7 +195,7 @@ paths:
                   description: INSTANCE accepts ip_list or host target_nodes; TOPO and SERVICE_TEMPLATE require target_nodes.
                 ip_list:
                   type: array
-                  minItems: 1
+                  description: Optional; an empty array is treated as omitted. Each item requires bk_host_id, or both ip and bk_cloud_id.
                   items:
                     type: object
                     description: Provide bk_host_id, or provide both ip and bk_cloud_id.
@@ -205,7 +205,7 @@ paths:
                       bk_cloud_id: {type: integer}
                 target_nodes:
                   type: array
-                  minItems: 1
+                  description: Optional; an empty array is treated as omitted.
                   items:
                     type: object
                     required: [object_id, instance_id]

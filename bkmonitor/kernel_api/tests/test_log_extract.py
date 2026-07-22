@@ -19,6 +19,7 @@ from kernel_api.resource.log_extract import (
     [
         (ListLogExtractAllowedPathsResource, {"bk_biz_id": 7}),
         (ListLogExtractAllowedPathsResource, {"bk_biz_id": 7, "ip_list": [{}]}),
+        (ListLogExtractAllowedPathsResource, {"bk_biz_id": 7, "ip_list": [{"ip": None, "bk_cloud_id": 0}]}),
         (
             ListLogExtractAllowedPathsResource,
             {
@@ -106,6 +107,28 @@ def test_create_task_request_serializer_treats_empty_alternative_as_omitted():
     )
 
     assert serializer.is_valid(), serializer.errors
+
+
+@pytest.mark.parametrize(
+    ("preview_ip_list", "is_valid"),
+    [
+        ([{"ip": "10.0.0.1", "bk_cloud_id": 0}], True),
+        ([{"bk_host_id": 101}], False),
+    ],
+)
+def test_create_task_request_serializer_validates_preview_ip_list(preview_ip_list, is_valid):
+    serializer = CreateLogExtractTaskResource.RequestSerializer(
+        data={
+            "bk_biz_id": 7,
+            "ip_list": [{"bk_host_id": 101}],
+            "file_path": ["/data/logs/app.log"],
+            "filter_type": "",
+            "filter_content": {},
+            "preview_ip_list": preview_ip_list,
+        }
+    )
+
+    assert serializer.is_valid() is is_valid
 
 
 def test_search_files_request_serializer_rejects_incomplete_ip():
