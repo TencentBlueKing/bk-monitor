@@ -56,10 +56,23 @@ class GetCustomTsMetricGroups(Resource):
         pass
 
     @classmethod
-    def _get_service_metric_whitelist(cls, params: dict) -> set[str] | None:
+    def _get_service_scope_metric_whitelist(cls, params: dict) -> dict[str, set[str]] | None:
         """
-        APM 场景下，从缓存中获取当前服务下有数据的指标白名单。
-        返回 None 表示无需过滤（非 APM 场景或缓存不可用）；返回空集合表示该服务下无任何指标。
+        APM 场景下，从缓存中获取当前服务下有数据的 (scope_name -> metric_name 集合) 白名单。
+
+        缓存数据结构示意：
+            {
+              "service_name": {
+                "metric_field": {"monitor_name_list": ["scope_a", "scope_b"], "update_at": ...},
+                ...
+              }
+            }
+        其中 monitor_name_list 即为 scope_name 列表，因此需要按 (scope_name, metric_name) 联合过滤。
+
+        返回值语义：
+            - None: 无需过滤（非 APM 场景 / 缓存不可用）
+            - {}:  该服务在缓存中无任何指标，全部过滤
+            - {scope_name: {metric_name, ...}}: 精确白名单
         """
         if not params.get("is_apm_scenario"):
             return None
@@ -74,8 +87,8 @@ class GetCustomTsMetricGroups(Resource):
             return None
 
         try:
-            from apm_web.models import Application
             from apm_web.constants import ApmCacheKey
+            from apm_web.models import Application
 
             application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=apm_app_name)
             cache_key = ApmCacheKey.APP_SCOPE_NAME_KEY.format(
@@ -87,18 +100,24 @@ class GetCustomTsMetricGroups(Resource):
 
             monitor_info_mapping = deserialize_and_decompress(cached_data) or {}
             service_metric_info = monitor_info_mapping.get(apm_service_name)
-            if service_metric_info is None:
-                # 缓存中没有该服务的数据，返回空集合（不展示任何指标）
-                return set()
+            if not service_metric_info:
+                # 缓存中没有该服务的数据，返回空 dict（该服务下全部过滤）
+                return {}
 
-            return set(service_metric_info.keys())
+            # 反转结构：{scope_name: {metric_name, ...}}
+            scope_metric_whitelist: dict[str, set[str]] = defaultdict(set)
+            for metric_name, metric_info in service_metric_info.items():
+                monitor_name_list = (metric_info or {}).get("monitor_name_list") or []
+                for scope_name in monitor_name_list:
+                    scope_metric_whitelist[scope_name].add(metric_name)
+            return dict(scope_metric_whitelist)
         except Exception as e:  # pylint: disable=broad-except
-            logger.warning("[GetCustomTsMetricGroups] failed to get service metric whitelist: %s", e)
+            logger.warning("[GetCustomTsMetricGroups] failed to get service scope metric whitelist: %s", e)
             return None
 
     def perform_request(self, params: dict) -> dict[str, list]:
-        # APM 场景：从缓存获取当前服务下有数据的指标白名单
-        service_metric_whitelist = self._get_service_metric_whitelist(params)
+        # APM 场景：从缓存获取当前服务下 (scope_name -> metric_name 集合) 的白名单
+        scope_metric_whitelist = self._get_service_scope_metric_whitelist(params) or {}
 
         # 从 metadata 获取指标分组列表
         request_params = {
@@ -115,6 +134,8 @@ class GetCustomTsMetricGroups(Resource):
             metric_list = scope_data.get("metric_list", [])
             dimension_config = scope_data.get("dimension_config", {})
 
+            allowed_metrics_in_scope = scope_metric_whitelist.get(scope_name, set()) or set()
+
             # 构建指标列表
             metrics = []
             for metric_data in metric_list:
@@ -123,8 +144,9 @@ class GetCustomTsMetricGroups(Resource):
                     if any([str(metric_name).startswith("apm_"), str(metric_name).startswith("bk_apm_")]):
                         # 过滤内置指标（APM 场景）
                         continue
-                    elif service_metric_whitelist is not None and metric_name not in service_metric_whitelist:
-                        # 只展示缓存中当前服务下有数据的指标（APM 场景）
+
+                    if metric_name not in allowed_metrics_in_scope:
+                        # 只展示缓存中当前服务、当前 scope 下有数据的指标（APM 场景）
                         continue
 
                 field_config = metric_data.get("field_config", {})
@@ -139,6 +161,10 @@ class GetCustomTsMetricGroups(Resource):
                         "alias": field_config.get("alias", ""),
                     }
                 )
+
+            # 如果当前 scope 过滤后无任何指标，则跳过整个分组
+            if len(metrics) == 0:
+                continue
 
             # 构建公共维度列表
             common_dimensions = []
