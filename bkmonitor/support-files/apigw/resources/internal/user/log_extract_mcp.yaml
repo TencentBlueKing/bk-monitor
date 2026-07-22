@@ -1,8 +1,8 @@
 paths:
-  /mcp/search_log_extract_hosts/:
+  /mcp/list_log_extract_topology/:
     post:
-      operationId: search_log_extract_hosts
-      description: Query hosts accessible under log-extraction policies. In the response, host_id/cloud_id are the bk_host_id/bk_cloud_id used by subsequent tools. 查询日志提取策略下可访问的主机；返回结果中的 host_id/cloud_id 即后续工具使用的 bk_host_id/bk_cloud_id。
+      operationId: list_log_extract_topology
+      description: List topology nodes that the current user may access through log-extraction policies. Use a returned node with search_log_extract_hosts when the user refers to a set or module. 查询当前用户在日志提取策略下可访问的拓扑；当用户提到集群或模块时，将返回的节点传给主机搜索工具。
       tags: [log_extract_mcp]
       requestBody:
         required: true
@@ -10,21 +10,43 @@ paths:
           application/json:
             schema:
               type: object
-              required: [bk_biz_id, scope_list, node_list]
+              required: [bk_biz_id]
               properties:
                 bk_biz_id: {type: integer, description: Business ID. 业务ID。}
-                scope_list:
-                  type: array
-                  minItems: 1
-                  items:
-                    type: object
-                    required: [scope_type, scope_id]
-                    properties:
-                      scope_type: {type: string, description: Scope type, normally biz.}
-                      scope_id: {type: string, description: Business or scope ID.}
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_extract/topology/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+
+  /mcp/search_log_extract_hosts/:
+    post:
+      operationId: search_log_extract_hosts
+      description: Query hosts accessible under log-extraction policies. Omit node_list to search from the authorized business root, or pass nodes returned by list_log_extract_topology. In the response, host_id/cloud_id are the bk_host_id/bk_cloud_id used by subsequent tools. 查询日志提取策略下可访问的主机；不传 node_list 时从授权业务根节点查询，也可传入拓扑工具返回的节点；返回结果中的 host_id/cloud_id 即后续工具使用的 bk_host_id/bk_cloud_id。
+      tags: [log_extract_mcp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bk_biz_id]
+              properties:
+                bk_biz_id: {type: integer, description: Business ID. 业务ID。}
                 node_list:
                   type: array
                   minItems: 1
+                  description: Optional authorized topology nodes returned by list_log_extract_topology. Omit to use the business root.
                   items:
                     type: object
                     required: [object_id, instance_id]
@@ -48,6 +70,60 @@ paths:
           name: default
           method: post
           path: /api/v4/log_extract/search_hosts/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+
+  /mcp/list_log_extract_allowed_paths/:
+    post:
+      operationId: list_log_extract_allowed_paths
+      description: List the directories and file types allowed by log-extraction policies for selected hosts, topology nodes, or a service template. Call this before search_log_extract_files; it does not execute a remote JOB. 查询所选主机、动态拓扑节点或服务模板的日志提取策略允许目录及文件类型；应在文件搜索前调用，本工具不会执行远程 JOB。
+      tags: [log_extract_mcp]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bk_biz_id]
+              properties:
+                bk_biz_id: {type: integer, description: Business ID. 业务ID。}
+                target_node_type:
+                  type: string
+                  enum: [INSTANCE, TOPO, SERVICE_TEMPLATE]
+                  default: INSTANCE
+                  description: INSTANCE accepts ip_list or host target_nodes; TOPO and SERVICE_TEMPLATE require target_nodes. INSTANCE 可传 ip_list 或主机节点，TOPO 和 SERVICE_TEMPLATE 必须传 target_nodes。
+                ip_list:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    description: Provide bk_host_id, or provide both ip and bk_cloud_id.
+                    properties:
+                      bk_host_id: {type: integer}
+                      ip: {type: string}
+                      bk_cloud_id: {type: integer}
+                target_nodes:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [bk_obj_id, bk_inst_id]
+                    properties:
+                      bk_obj_id: {type: string, enum: [biz, set, module, host, SERVICE_TEMPLATE]}
+                      bk_inst_id: {type: integer}
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_extract/allowed_paths/
           matchSubpath: false
           timeout: 30
         pluginConfigs: []

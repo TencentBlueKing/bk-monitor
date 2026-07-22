@@ -5,6 +5,8 @@ from kernel_api.resource.log_extract import (
     CreateLogExtractTaskResource,
     GetLogExtractDownloadUrlResource,
     GetLogExtractTaskResource,
+    ListLogExtractAllowedPathsResource,
+    ListLogExtractTopologyResource,
     SearchLogExtractFilesResource,
     SearchLogExtractHostsResource,
 )
@@ -12,7 +14,9 @@ from kernel_api.resource.log_extract import (
 
 class LogExtractViewSet(ResourceViewSet):
     resource_routes = [
+        ResourceRoute("POST", ListLogExtractTopologyResource, endpoint="topology"),
         ResourceRoute("POST", SearchLogExtractHostsResource, endpoint="search_hosts"),
+        ResourceRoute("POST", ListLogExtractAllowedPathsResource, endpoint="allowed_paths"),
         ResourceRoute("POST", SearchLogExtractFilesResource, endpoint="search_files"),
         ResourceRoute("POST", CreateLogExtractTaskResource, endpoint="create_task"),
         ResourceRoute("GET", GetLogExtractTaskResource, endpoint="get_task"),

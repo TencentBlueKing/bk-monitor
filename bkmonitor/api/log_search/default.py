@@ -521,6 +521,16 @@ class QueryLogExtractHostsResource(LogSearchAPIGWResource):
     method = "POST"
 
 
+class ListLogExtractTopologyResource(LogSearchAPIGWResource):
+    action = "/log_extract/explorer/trees/"
+    method = "POST"
+
+
+class ListLogExtractAllowedPathsResource(LogSearchAPIGWResource):
+    action = "/log_extract/explorer/strategies/"
+    method = "POST"
+
+
 class ListLogExtractFilesResource(LogSearchAPIGWResource):
     action = "/log_extract/explorer/list_file/"
     method = "POST"
