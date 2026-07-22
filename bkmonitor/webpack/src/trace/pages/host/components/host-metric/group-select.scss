@@ -1,0 +1,43 @@
+.bk-popover.bk-pop2-content.add-group-select-popover.host-page {
+  .bk-select-content-wrapper {
+    .bk-select-extension {
+      height: 32px;
+
+      .add-new-group {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        color: #4d4f56;
+        cursor: pointer;
+      }
+
+      .icon-jia {
+        color: #979ba5;
+      }
+
+      .add-new-group-input {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        padding: 0 12px;
+
+        .icon-monitor {
+          cursor: pointer;
+        }
+
+        .icon-mc-check-small {
+          font-size: 26px;
+          color: #21a380;
+        }
+
+        .icon-mc-close-copy {
+          color: #ea3636;
+        }
+      }
+    }
+  }
+}

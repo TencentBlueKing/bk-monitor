@@ -27,8 +27,10 @@
 import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
 import { PrimaryTable } from '@blueking/tdesign-ui';
-import { Select, Switcher } from 'bkui-vue';
+import { Switcher } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
+
+import GroupSelect from './group-select';
 
 import type { SelectOption } from '../../types/aggregation';
 import type { MetricItemModel } from '../../types/metric-group';
@@ -62,6 +64,7 @@ export default defineComponent({
   emits: {
     changeGroup: (_payload: { groupId: string; id: string }) => true,
     dragSort: (_rows: MetricItemModel[]) => true,
+    addGroup: (_name: string) => true,
     selectChange: (_ids: string[]) => true,
     toggleHidden: (_payload: { hidden: boolean; id: string }) => true,
   },
@@ -99,21 +102,14 @@ export default defineComponent({
         title: t('所属分组'),
         width: 200,
         cell: (_h: unknown, { row }: { row: MetricItemModel }) => (
-          <Select
-            class='metric-table__group-select'
+          <GroupSelect
             behavior='simplicity'
             clearable={false}
+            groupOptions={props.groupOptions}
             modelValue={row.groupId}
+            onAddGroup={(name: string) => emit('addGroup', name)}
             onChange={(v: string) => emit('changeGroup', { groupId: v, id: row.id })}
-          >
-            {props.groupOptions.map(item => (
-              <Select.Option
-                id={item.id}
-                key={item.id}
-                name={item.name}
-              />
-            ))}
-          </Select>
+          />
         ),
       },
       {
@@ -138,7 +134,7 @@ export default defineComponent({
           />
         ),
       },
-      { colKey: 'drag', width: 40 },
+      { colKey: 'drag', width: 40, cell: () => <i class='icon-monitor icon-mc-tuozhuai metric-list-drag' /> },
     ]);
 
     const handleFilterChange = (filters: Record<string, string[]>) => {
@@ -151,7 +147,7 @@ export default defineComponent({
         class='metric-table'
         columns={columns.value as any}
         data={displayRows.value}
-        dragSort={props.draggable && !hasHiddenFilter.value && displayRows.value ? 'row' : undefined}
+        dragSort={props.draggable && !hasHiddenFilter.value && displayRows.value ? 'row-handler' : undefined}
         rowKey='id'
         scroll={{ type: 'virtual' }}
         selectedRowKeys={props.selectedIds}
