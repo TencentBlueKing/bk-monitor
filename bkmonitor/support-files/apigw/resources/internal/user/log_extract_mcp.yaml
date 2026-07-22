@@ -57,7 +57,7 @@ paths:
                   type: string
                   description: Fuzzy search across internal IPv4, internal IPv6, host name, operating-system type, and operating-system name. 对内网 IPv4、内网 IPv6、主机名、操作系统类型和操作系统名称进行模糊搜索。
                 start: {type: integer, minimum: 0, default: 0}
-                page_size: {type: integer, minimum: -1, maximum: 500, default: -1}
+                page_size: {type: integer, minimum: 1, maximum: 500, default: 20}
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false
@@ -131,7 +131,7 @@ paths:
   /mcp/search_log_extract_files/:
     post:
       operationId: search_log_extract_files
-      description: This tool creates a real BK JOB and runs a file-discovery script on every selected host, waiting synchronously for up to 60 seconds. The script creates and removes temporary files under /tmp but does not modify the files being searched. Call list_log_extract_allowed_paths first, narrow the hosts and path, and avoid repeated exploratory calls. Each host returns at most 500 file records. 本工具会创建真实的蓝鲸作业，在每台目标主机执行文件发现脚本，并同步等待最长 60 秒。脚本会在 /tmp 创建并清理临时文件，但不会修改被搜索的文件。请先调用 list_log_extract_allowed_paths，缩小主机和目录范围后再调用，避免反复试探；每台主机最多返回 500 条文件记录。
+      description: This tool creates a real BK JOB and runs a file-discovery script on every selected host, waiting synchronously for up to 60 seconds. The script creates and removes temporary files under /tmp but does not modify the files being searched. Call list_log_extract_allowed_paths first, narrow the hosts and path, and avoid repeated exploratory calls. Each host discovers at most 500 files, while this tool returns only the latest 100 records across all selected hosts as {total, data, truncated}. If truncated is true, narrow the hosts, path, or time range instead of attempting pagination, because every call creates a new JOB. 本工具会创建真实的蓝鲸作业，在每台目标主机执行文件发现脚本，并同步等待最长 60 秒。脚本会在 /tmp 创建并清理临时文件，但不会修改被搜索的文件。请先调用 list_log_extract_allowed_paths 并缩小范围。每台主机最多发现 500 个文件，本工具仅返回全部目标中最新的 100 条，结构为 {total, data, truncated}；若 truncated 为 true，应进一步缩小主机、路径或时间范围，不要尝试翻页，因为每次调用都会创建新作业。
       tags: [log_extract_mcp]
       requestBody:
         required: true

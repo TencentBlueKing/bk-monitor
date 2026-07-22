@@ -5,6 +5,9 @@ from rest_framework import serializers
 from core.drf_resource import Resource, api
 
 
+FILE_SEARCH_RESULT_LIMIT = 100
+
+
 def build_business_scope(bk_biz_id):
     return [{"scope_type": "biz", "scope_id": str(bk_biz_id)}]
 
@@ -28,7 +31,7 @@ class SearchLogExtractHostsResource(Resource):
         node_list = serializers.ListField(child=serializers.DictField(), required=False, min_length=1)
         search_content = serializers.CharField(required=False, allow_blank=True)
         start = serializers.IntegerField(required=False, default=0, min_value=0)
-        page_size = serializers.IntegerField(required=False, default=-1, min_value=-1, max_value=500)
+        page_size = serializers.IntegerField(required=False, default=20, min_value=1, max_value=500)
 
     def perform_request(self, validated_request_data):
         params = validated_request_data.copy()
@@ -66,7 +69,12 @@ class SearchLogExtractFilesResource(Resource):
         end_time = serializers.CharField(required=False, allow_blank=True)
 
     def perform_request(self, validated_request_data):
-        return api.log_search.list_log_extract_files(**validated_request_data)
+        files = api.log_search.list_log_extract_files(**validated_request_data)
+        return {
+            "total": len(files),
+            "data": files[:FILE_SEARCH_RESULT_LIMIT],
+            "truncated": len(files) > FILE_SEARCH_RESULT_LIMIT,
+        }
 
 
 class CreateLogExtractTaskResource(Resource):

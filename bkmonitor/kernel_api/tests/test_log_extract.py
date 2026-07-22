@@ -24,18 +24,6 @@ from kernel_api.resource.log_extract import (
             {"ip_list": [{"bk_host_id": 101}], "strategies": [{"visible_dir": "/data/logs"}]},
         ),
         (
-            SearchLogExtractFilesResource,
-            "list_log_extract_files",
-            {
-                "bk_biz_id": 7,
-                "ip_list": [{"bk_host_id": 101}],
-                "path": "/data/logs",
-                "is_search_child": False,
-                "time_range": "1d",
-            },
-            [{"path": "/data/logs/app.log"}],
-        ),
-        (
             CreateLogExtractTaskResource,
             "create_log_extract_task",
             {
@@ -123,6 +111,34 @@ def test_search_hosts_keeps_selected_nodes(monkeypatch):
     SearchLogExtractHostsResource().perform_request({"bk_biz_id": 7, "node_list": node_list})
 
     api_resource.assert_called_once_with(scope_list=[{"scope_type": "biz", "scope_id": "7"}], node_list=node_list)
+
+
+def test_search_hosts_defaults_to_twenty_and_rejects_unlimited_page_size():
+    default_serializer = SearchLogExtractHostsResource.RequestSerializer(data={"bk_biz_id": 7})
+    unlimited_serializer = SearchLogExtractHostsResource.RequestSerializer(data={"bk_biz_id": 7, "page_size": -1})
+
+    assert default_serializer.is_valid()
+    assert default_serializer.validated_data["page_size"] == 20
+    assert not unlimited_serializer.is_valid()
+    assert "page_size" in unlimited_serializer.errors
+
+
+def test_search_files_limits_returned_records(monkeypatch):
+    files = [{"path": f"/data/logs/{index}.log"} for index in range(101)]
+    api_resource = Mock(return_value=files)
+    monkeypatch.setattr(api.log_search, "list_log_extract_files", api_resource)
+    request_data = {
+        "bk_biz_id": 7,
+        "ip_list": [{"bk_host_id": 101}],
+        "path": "/data/logs",
+        "is_search_child": False,
+        "time_range": "1d",
+    }
+
+    result = SearchLogExtractFilesResource().perform_request(request_data)
+
+    assert result == {"total": 101, "data": files[:100], "truncated": True}
+    api_resource.assert_called_once_with(**request_data)
 
 
 def test_search_files_rejects_more_than_ten_hosts():
