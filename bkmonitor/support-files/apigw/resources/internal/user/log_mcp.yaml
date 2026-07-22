@@ -277,7 +277,7 @@ paths:
       - in: query
         name: bk_biz_id
         schema:
-          type: integer
+          type: string
         required: true
         description: Business ID in BlueKing Monitor. 业务 ID。
       x-bk-apigateway-resource:
@@ -315,7 +315,7 @@ paths:
               - dimension_key
               properties:
                 bk_biz_id:
-                  type: integer
+                  type: string
                   description: Business ID. 业务 ID。
                 scene:
                   type: string
@@ -381,7 +381,7 @@ paths:
               - table_id_conditions
               properties:
                 bk_biz_id:
-                  type: integer
+                  type: string
                   description: Business ID. 业务 ID。
                 table_id_conditions:
                   type: array

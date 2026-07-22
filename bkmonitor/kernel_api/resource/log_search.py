@@ -234,6 +234,8 @@ class SearchLogResource(Resource):
         offset = validated_request_data.get("offset", 0)
         limit = validated_request_data.get("limit", 10)
         order_by = validated_request_data.get("order_by") or []
+        start_time = str(int(validated_request_data["start_time"]) * 1000)
+        end_time = str(int(validated_request_data["end_time"]) * 1000)
         sort_list = [
             [field_name[1:], "desc"] if field_name.startswith("-") else [field_name, "asc"] for field_name in order_by
         ]
@@ -250,8 +252,8 @@ class SearchLogResource(Resource):
             bk_biz_id=bk_biz_id,
             table_id_conditions=table_id_conditions,
             keyword=validated_request_data.get("query_string") or "*",
-            start_time=validated_request_data["start_time"],
-            end_time=validated_request_data["end_time"],
+            start_time=start_time,
+            end_time=end_time,
             begin=offset,
             size=limit,
             sort_list=sort_list,
