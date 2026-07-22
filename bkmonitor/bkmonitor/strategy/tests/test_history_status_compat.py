@@ -30,7 +30,7 @@ def _create_history(*, operate: str, status: bool = False, message: str = "") ->
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(databases=("default", "monitor_api"))
 def test_repair_legacy_bulk_history_status_uses_empty_message_as_success():
     legacy_bulk_update = _create_history(operate="update")
     legacy_bulk_delete = _create_history(operate="delete")
@@ -54,7 +54,7 @@ def test_repair_legacy_bulk_history_status_uses_empty_message_as_success():
     }
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(databases=("default", "monitor_api"))
 def test_repair_legacy_bulk_history_status_dry_run_does_not_update_records():
     legacy_bulk_update = _create_history(operate="update")
     legacy_bulk_delete = _create_history(operate="delete")
