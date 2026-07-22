@@ -496,7 +496,7 @@ class GetHostProcessListResource(Resource):
         host_port_status = port_statuses.get(host.bk_host_id, {})
 
         # PHASE 2: Query runtime metrics per design spec and merge into response.
-        # - 指标字段(cpu_usage_pct/mem_usage_pct/mem_res/uptime) 与维度字段(pid/username) 来自 system.proc
+        # - 指标字段(cpu_usage_pct/mem_usage_pct/mem_res/uptime/fd_num) 来自 system.proc
         # - proc_exists status 已在 get_process_info 中用于 status 字段
         # - portStatus 已在本 Resource 的 Phase 1 直接查询并合并
         # - TSDB 查询异常时 get_process_runtime_metrics 返回 {}，CMDB 基础字段照常返回
@@ -506,7 +506,7 @@ class GetHostProcessListResource(Resource):
             start_time=params.get("start_time"),
             end_time=params.get("end_time"),
         )
-        # 返回结构：{bk_host_id: {display_name(进程名): {field: value, pid: pid, username: username}}}
+        # 返回结构：{bk_host_id: {display_name(进程名): {field: value}}}
         host_runtime = runtime_data.get(host.bk_host_id, {})
 
         # UI 字段名 → system.proc 指标字段名 映射
@@ -516,8 +516,6 @@ class GetHostProcessListResource(Resource):
             "memRss": "mem_res",
             "memUsage": "mem_usage_pct",
             "uptime": "uptime",
-            "pid": "pid",
-            "user": "username",
             "fdNum": "fd_num",
         }
 
@@ -528,12 +526,11 @@ class GetHostProcessListResource(Resource):
                 "name": process["name"],
                 "status": process["status"],
                 # 运行时指标按进程名(display_name)索引，通过 runtime_metric_map 映射 UI→TSDB 字段名
-                "pid": host_runtime.get(process["name"], {}).get(runtime_metric_map["pid"]),
                 "protocol": GetHostOrTopoNodeDetailResource.protocol_map.get(process.get("protocol")),
                 "bindIp": process.get("bindIp"),
                 "port": process.get("port"),
                 "portStatus": host_port_status.get(process["name"]),
-                "user": process.get("user") or host_runtime.get(process["name"], {}).get(runtime_metric_map["user"]),
+                "user": process.get("user"),
                 "hostIp": host.ip,
                 # Performance / resource metrics from system.proc (TSDB only)
                 "cpuUsage": host_runtime.get(process["name"], {}).get(runtime_metric_map["cpuUsage"]),
