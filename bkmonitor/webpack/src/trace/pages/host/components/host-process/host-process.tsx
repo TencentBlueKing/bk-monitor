@@ -114,7 +114,9 @@ export default defineComponent({
           onSortChange={this.handleSortChange}
         />
         <ProcessDetail
+          compareHostList={this.compareHostList}
           process={this.activeProcess}
+          selectedNode={this.host}
           show={this.detailShow}
           onUpdate:show={(v: boolean) => (this.detailShow = v)}
         />

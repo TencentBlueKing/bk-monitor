@@ -1,6 +1,6 @@
 .bk-dialog.group-manage-dialog {
   .bk-dialog-content {
-    padding: 24px;
+    padding: 20px 24px 24px;
     margin: 0;
   }
 
@@ -29,7 +29,7 @@
       flex: 1;
       flex-direction: column;
       height: 100%;
-      padding: 16px 16px 0;
+      padding: 16px;
       overflow: hidden;
 
       .group-metric-wrap-header {
@@ -40,9 +40,9 @@
       }
 
       .group-title {
-        font-size: 14px;
-        font-weight: 700;
-        color: #313238;
+        font-size: 16px;
+        line-height: 24px;
+        color: #000;
       }
 
       .group-metric-wrap-operations {
@@ -68,25 +68,73 @@
         }
       }
     }
+  }
+}
 
-    .group-delete-confirm {
-      padding: 2px 0;
+.bk-popover.bk-pop2-content.delete-host-group-confirm-popover {
+  padding: 0;
+
+  .delete-host-group-confirm-popover-content {
+    padding: 16px;
+
+    .delete-host-group-info {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+
+      .info-icon {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        background: #fff0f0;
+        border-radius: 6px;
+
+        i {
+          font-size: 24px;
+          color: #ea3636;
+        }
+      }
+
+      .info-text {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0;
+
+        .group-delete-title {
+          font-size: 16px;
+          font-weight: 500;
+          line-height: 24px;
+          color: #313238;
+        }
+
+        .group-delete-name {
+          font-size: 12px;
+          line-height: 20px;
+          color: #4e5e7a;
+        }
+
+        .group-delete-tip {
+          font-size: 12px;
+          line-height: 20px;
+          color: #4e5e7a;
+        }
+      }
     }
 
-    .group-delete-title {
-      margin-bottom: 8px;
-      font-size: 16px;
-      font-weight: 700;
-      color: #313238;
-    }
+    .delete-host-group-btns {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 16px;
 
-    .group-delete-name {
-      margin-bottom: 4px;
-      color: #63656e;
-    }
-
-    .group-delete-tip {
-      color: #979ba5;
+      .bk-button {
+        min-width: 72px;
+      }
     }
   }
 }
