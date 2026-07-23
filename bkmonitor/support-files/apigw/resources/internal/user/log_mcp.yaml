@@ -44,7 +44,7 @@ paths:
       - in: query
         name: index_set_id
         schema:
-          type: string
+          type: integer
         required: true
         description: Index set ID. Must be obtained from list_index_sets tool. 索引集ID,必须从 list_index_sets 工具获取。
       x-bk-apigateway-resource:
@@ -66,7 +66,7 @@ paths:
   /mcp/search_logs/:
     post:
       operationId: search_logs
-      description: 'Execute log search with time range and filters, similar to ES search. Use after list_index_sets and get_index_set_fields. To drill down from search_log_clustering_pattern, filter __dist_{pattern_level} by the returned signature; the request will automatically query the clustered table. IMPORTANT: start_time/end_time are Unix timestamps (seconds). If not specified, use current timestamp (now()) as end_time, calculate start_time (e.g. last 1h). NOT historical timestamps. 执行日志查询。在list_index_sets和get_index_set_fields后使用。从search_log_clustering_pattern下钻时,使用返回的signature过滤__dist_{pattern_level},接口会自动查询聚类表。重要:如未指定时间,用当前时间戳作为end_time并计算start_time(如最近1h)。不用历史时间戳。'
+      description: 'Execute log search by index set or scene. For target_type=index_set (default), provide index_set_id after list_index_sets and get_index_set_fields. For target_type=scene, provide table_id_conditions after list_log_scenes and get_scene_log_fields; structured conditions are not supported, so use query_string for filtering. Both modes support keep_columns, offset, and order_by. To drill down from search_log_clustering_pattern, use target_type=index_set and filter __dist_{pattern_level} by the returned signature. IMPORTANT: start_time/end_time are Unix timestamps calculated dynamically, and the query span must not exceed 1 day. 按索引集或场景执行日志查询。target_type=index_set（默认）时提供 index_set_id；target_type=scene 时提供 table_id_conditions，场景模式不支持结构化 conditions，请使用 query_string 过滤。两种模式均支持 keep_columns、offset 和 order_by。时间戳需动态计算，查询跨度不得超过一天。'
       tags:
       - log_mcp
       requestBody:
@@ -78,12 +78,20 @@ paths:
               - end_time
               - bk_biz_id
               - start_time
-              - index_set_id
               properties:
+                target_type:
+                  type: string
+                  enum:
+                  - index_set
+                  - scene
+                  default: index_set
+                  description: 'Search target type. index_set requires index_set_id; scene requires table_id_conditions. 检索目标类型：索引集模式需要 index_set_id，场景模式需要 table_id_conditions。'
                 limit:
                   type: integer
+                  minimum: 1
+                  maximum: 10000
                   default: 10
-                  description: 'Maximum number of log records to return. Used to control result size and prevent excessive data transfer. Default: 10. 返回的最大日志记录数。用于控制结果集大小，避免数据量过大。默认值: 10。'
+                  description: 'Maximum number of log records to return. 返回的最大日志记录数。'
                 end_time:
                   type: string
                   default: 请动态计算
@@ -96,15 +104,43 @@ paths:
                   default: 请动态计算
                   description: 'Start timestamp in seconds (Unix timestamp). MUST calculate dynamically - DO NOT use fixed values! If user doesn''t specify time range, calculate as: end_time - 3600 (for last 1 hour) or end_time - 86400 (for last 24 hours). Example calculation in Python: import time; start_time = int(time.time()) - 3600. Example in JavaScript: Math.floor(Date.now() / 1000) - 3600. 开始时间戳(秒,Unix时间戳)。必须动态计算 - 不要使用固定值！ 如用户未指定时间范围,计算方式: end_time - 3600(最近1小时) 或 end_time - 86400(最近24小时)。Python计算示例: import time; start_time = int(time.time()) - 3600。JavaScript示例: Math.floor(Date.now() / 1000) - 3600。'
                 index_set_id:
-                  type: string
-                  description: Index set ID. Must be obtained from list_index_sets tool. 索引集ID,必须从 list_index_sets 工具获取。
+                  type: integer
+                  description: 'Index set ID. Required when target_type=index_set and ignored for scene search. 索引集 ID，索引集模式必填，场景模式下会被忽略。'
+                table_id_conditions:
+                  type: array
+                  minItems: 1
+                  description: 'Result-table routing conditions required when target_type=scene. Outer array is OR and inner array is AND. Empty arrays and groups are rejected. Example: [[{"field_name":"scene","value":["k8s"],"op":"eq"},{"field_name":"cluster_id","value":["BCS-K8S-00000"],"op":"eq"}]]. 场景检索的结果表路由条件，外层 OR、内层 AND，不允许空数组或空分组。'
+                  items:
+                    type: array
+                    minItems: 1
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - field_name
+                      - value
+                      - op
+                      properties:
+                        field_name:
+                          type: string
+                        value:
+                          type: array
+                          items:
+                            type: string
+                        op:
+                          type: string
+                          enum:
+                          - eq
+                          - ne
+                          - req
+                          - nreq
                 query_string:
                   type: string
                   default: '*'
-                  description: 'Log search query string. Supports field-based queries and keyword searches. Use field mappings from get_index_set_fields to construct valid queries. Examples: level:ERROR, status:500 AND path:/api/*, exception、log:"trace_id=<trace_id> span_id=<span_id>". Default: "*". 日志查询字符串。支持基于字段的查询和关键字搜索。使用 get_index_set_fields 中的字段映射构建有效查询。示例:level:ERROR、status:500 AND path:/api/*、exception、log:"trace_id=<trace_id> span_id=<span_id>"。默认值:"*"。'
+                  description: 'Log search query string. Use fields returned by get_index_set_fields for index-set search or get_scene_log_fields for scene search. Examples: level:ERROR, status:500 AND path:/api/*, exception, log:"trace_id=f549a94f6a39c330922cefe8f14a0e39 span_id=e144582eec852645". 日志查询字符串；索引集模式使用 get_index_set_fields 返回的字段，场景模式使用 get_scene_log_fields 返回的字段。'
                 conditions:
                   type: object
-                  description: 'Structured filter conditions, combined with query_string using AND relation. Ideal for precise field-level filtering. Format: {"field_list": [{"field_name": "level", "op": "eq", "value": ["ERROR", "WARN"]}], "condition_list": ["and"]}. For clustering drill-down, map pattern_level "05" to field_name "__dist_05" and use the returned signature as value. op supports eq/ne/req(regex) etc.; value is a list (multi-value defaults to OR); condition_list length = field_list.length - 1. Optional, omit if not needed. 结构化过滤条件,与 query_string 为 AND 关系,适合精确的字段级过滤。格式: {"field_list": [{"field_name": "level", "op": "eq", "value": ["ERROR", "WARN"]}], "condition_list": ["and"]}。聚类下钻时,将pattern_level "05"映射为字段"__dist_05",并把返回的signature作为value。op支持eq/ne/req(正则)等;value为多值列表(默认OR关系);condition_list长度为field_list.length - 1。可选,如不需要可省略。'
+                  description: 'Structured filter conditions for target_type=index_set only, combined with query_string using AND relation. Scene search does not support this parameter; express scene filters in query_string instead. Format: {"field_list": [{"field_name": "level", "op": "eq", "value": ["ERROR", "WARN"]}], "condition_list": ["and"]}. For clustering drill-down, map pattern_level "05" to field_name "__dist_05" and use the returned signature as value. op supports eq/ne/req(regex) etc.; value is a list (multi-value defaults to OR); condition_list length = field_list.length - 1. Optional, omit if not needed. 仅 target_type=index_set 支持结构化过滤条件，并与 query_string 按 AND 组合。场景检索不支持该参数，请改用 query_string 表达过滤条件。格式: {"field_list": [{"field_name": "level", "op": "eq", "value": ["ERROR", "WARN"]}], "condition_list": ["and"]}。聚类下钻时,将pattern_level "05"映射为字段"__dist_05",并把返回的signature作为value。op支持eq/ne/req(正则)等;value为多值列表(默认OR关系);condition_list长度为 field_list.length - 1。可选,如不需要可省略。'
                   properties:
                     field_list:
                       type: array
@@ -131,14 +167,15 @@ paths:
                   type: array
                   items:
                     type: string
-                  description: 'List of output fields to keep, used to trim the response and reduce data size (avoid LLM context overflow). Pass a JSON array, e.g. ["dtEventTimeStamp", "log", "level"]; do not serialize it as a string. Optional, returns all fields if omitted. 需要保留的输出字段列表,用于裁剪返回内容、降低数据量。请直接传 JSON 数组,例如 ["dtEventTimeStamp", "log", "level"],不要序列化为字符串。可选,省略则返回全部字段。'
+                  description: 'Output fields to keep. Example: ["dtEventTimeStamp", "log", "resource.cluster_id"]. 需要保留的输出字段列表。'
                 order_by:
                   type: array
                   items:
                     type: string
-                  description: 'Result sort fields. Pass a JSON array; "-" prefix means descending. e.g. ["-dtEventTimeStamp"] sorts by time descending (newest first). Do not serialize the array as a string. Optional. 结果排序字段列表。请直接传 JSON 数组,"-" 前缀表示降序。例如 ["-dtEventTimeStamp"] 表示按时间倒序。不要序列化为字符串。可选。'
+                  description: 'Result sort fields. A "-" prefix means descending. Use multiple fields when deterministic pagination is required, e.g. ["-dtEventTimeStamp", "log"]. Optional. 结果排序字段列表，"-" 前缀表示降序。需要稳定分页时可传多个字段，例如 ["-dtEventTimeStamp", "log"]。可选。'
                 offset:
                   type: integer
+                  minimum: 0
                   default: 0
                   description: 'Offset for pagination, used with limit to fetch subsequent pages (e.g. page 1 offset=0, page 2 offset=limit). Default: 0. 分页偏移量,与 limit 配合翻页(例如第1页 offset=0,第2页 offset=limit)。默认值: 0。'
         required: false
@@ -204,7 +241,7 @@ paths:
                   type: string
                   description: Business ID in BlueKing Monitor. 业务ID。
                 index_set_id:
-                  type: string
+                  type: integer
                   description: Index set ID. Must be obtained from list_index_sets tool. 索引集ID,必须从 list_index_sets 工具获取。
                 iterationIndex:
                   type: string
@@ -225,6 +262,166 @@ paths:
           path: /api/v4/log_search/search_index_set_context/
           matchSubpath: false
           timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+  /mcp/list_log_scenes/:
+    get:
+      operationId: list_log_scenes
+      description: 'List log scenes available to a business and their dimension definitions. Call this before get_scene_log_fields or scene-mode search_logs. Dimensions with choices_type static or dynamic are routing dimensions; call list_scene_dimension_values to resolve values for dynamic dimensions. Dimensions with choices_type free_input are log content fields and should be used in query_string. 获取业务可用的日志场景及维度定义。应在 get_scene_log_fields 或场景模式 search_logs 前调用。choices_type 为 static/dynamic 的维度是路由维度；dynamic 维度应调用 list_scene_dimension_values 获取合法值；free_input 维度是日志内容字段，应用于 query_string。'
+      tags:
+      - log_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        schema:
+          type: string
+        required: true
+        description: Business ID in BlueKing Monitor. 业务 ID。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/log_search/list_log_scenes/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+  /mcp/list_scene_dimension_values/:
+    post:
+      operationId: list_scene_dimension_values
+      description: 'List valid values for a dynamic scene routing dimension. Call list_log_scenes first, then call this tool for dimensions whose choices_type is dynamic. Use previously selected routing dimensions as filters for cascading lookup. The returned values can be used to build table_id_conditions for get_scene_log_fields and scene-mode search_logs. 获取场景动态路由维度的合法值。先调用 list_log_scenes，再对 choices_type 为 dynamic 的维度调用本工具；可通过 filters 传入已选路由维度进行级联查询。返回值用于构造 get_scene_log_fields 和场景模式 search_logs 的 table_id_conditions。'
+      tags:
+      - log_mcp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - bk_biz_id
+              - scene
+              - dimension_key
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID. 业务 ID。
+                scene:
+                  type: string
+                  description: 'Scene identifier returned by list_log_scenes, such as k8s or bk_paas. list_log_scenes 返回的场景标识，例如 k8s 或 bk_paas。'
+                dimension_key:
+                  type: string
+                  description: 'Dynamic dimension key returned by list_log_scenes, such as cluster_id. list_log_scenes 返回的动态维度字段名，例如 cluster_id。'
+                filters:
+                  type: array
+                  default: []
+                  description: 'Previously selected routing dimensions for cascading lookup. 已选路由维度，用于级联查询。'
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                    - field_name
+                    - value
+                    - op
+                    properties:
+                      field_name:
+                        type: string
+                      value:
+                        type: array
+                        items:
+                          type: string
+                      op:
+                        type: string
+                        enum:
+                        - eq
+                        - ne
+                        - req
+                        - nreq
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_search/list_scene_dimension_values/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+  /mcp/get_scene_log_fields/:
+    post:
+      operationId: get_scene_log_fields
+      description: 'Get the merged field mappings for log tables matched by table_id_conditions. Call list_log_scenes first, resolve dynamic dimensions with list_scene_dimension_values, and build conditions from the scene and routing dimensions. The outer array is OR and each inner array is AND. Empty outer arrays and empty inner groups are rejected to avoid broad table selection. Use the returned fields to construct query_string for scene-mode search_logs. 获取 table_id_conditions 命中结果表的聚合字段信息。先调用 list_log_scenes，并通过 list_scene_dimension_values 获取动态维度值；外层数组为 OR，内层数组为 AND。使用返回字段构造场景模式 search_logs 的 query_string。'
+      tags:
+      - log_mcp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - bk_biz_id
+              - table_id_conditions
+              properties:
+                bk_biz_id:
+                  type: string
+                  description: Business ID. 业务 ID。
+                table_id_conditions:
+                  type: array
+                  minItems: 1
+                  description: 'Result-table routing conditions. Outer array is OR and inner array is AND. Empty arrays and groups are rejected to avoid broad table selection. Example: [[{"field_name":"scene","value":["k8s"],"op":"eq"},{"field_name":"cluster_id","value":["BCS-K8S-00000"],"op":"eq"}]]. 结果表路由条件，外层 OR、内层 AND，不允许空数组或空分组。'
+                  items:
+                    type: array
+                    minItems: 1
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required:
+                      - field_name
+                      - value
+                      - op
+                      properties:
+                        field_name:
+                          type: string
+                        value:
+                          type: array
+                          items:
+                            type: string
+                        op:
+                          type: string
+                          enum:
+                          - eq
+                          - ne
+                          - req
+                          - nreq
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_search/get_scene_log_fields/
+          matchSubpath: false
+          timeout: 63
         pluginConfigs: []
         authConfig:
           userVerifiedRequired: true
@@ -279,7 +476,7 @@ paths:
                   type: string
                   description: 'Start timestamp in seconds (Unix timestamp). MUST calculate dynamically - DO NOT use fixed values! If user doesn''t specify time range, calculate as: end_time - 3600 (for last 1 hour) or end_time - 86400 (for last 24 hours). Example calculation in Python: import time; start_time = int(time.time()) - 3600. Example in JavaScript: Math.floor(Date.now() / 1000) - 3600. 开始时间戳(秒,Unix时间戳)。必须动态计算 - 不要使用固定值！ 如用户未指定时间范围,计算方式: end_time - 3600(最近1小时) 或 end_time - 86400(最近24小时)。Python计算示例: import time; start_time = int(time.time()) - 3600。JavaScript示例: Math.floor(Date.now() / 1000) - 3600。'
                 index_set_id:
-                  type: string
+                  type: integer
                   description: Index set ID. Must be obtained from list_index_sets tool. 索引集ID,必须从 list_index_sets 工具获取
                 query_string:
                   type: string
@@ -344,7 +541,7 @@ paths:
                   type: string
                   description: 'Start timestamp in milliseconds (Unix timestamp as string). MUST calculate dynamically - DO NOT use fixed values! If user doesn''t specify time range, calculate as: end_time - 3600000 (for last 1 hour) or end_time - 86400000 (for last 24 hours). Example calculation in Python: import time; start_time = str(int(time.time() * 1000) - 3600000). Example in JavaScript: String(Date.now() - 3600000). 开始时间戳(毫秒,Unix时间戳字符串)。必须动态计算 - 不要使用固定值！ 如用户未指定时间范围,计算方式: end_time - 3600000(最近1小时) 或 end_time - 86400000(最近24小时)。Python计算示例: import time; start_time = str(int(time.time() * 1000) - 3600000)。JavaScript示例: String(Date.now() - 3600000)。'
                 index_set_id:
-                  type: string
+                  type: integer
                   description: Index set ID. Must be obtained from list_index_sets tool. 索引集ID,必须从 list_index_sets 工具获取。
                 pattern_level:
                   type: string

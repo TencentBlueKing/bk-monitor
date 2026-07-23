@@ -377,6 +377,31 @@ class TestSceneSearchViewSetSearch(TestCase):
         with self.assertRaises(Exception):
             vs.search(request)
 
+    @patch("apps.log_search.decorators.UserIndexSetSearchHistory.objects.create")
+    @patch("apps.log_unifyquery.handler.scene_search.SceneUnifyQueryHandler.search")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_external_username", return_value="")
+    @patch("apps.log_unifyquery.handler.scene_search.get_request_username", return_value="admin")
+    @patch("apps.log_unifyquery.handler.scene_search.get_local_param", return_value="UTC")
+    def test_search_does_not_record_history_when_disabled(
+        self, mock_local, mock_user, mock_ext_user, mock_search, mock_create_history
+    ):
+        mock_search.return_value = {
+            "list": [{"log": "test error msg"}],
+            "origin_log_list": [],
+            "total": 1,
+            "took": 10,
+        }
+        factory = APIRequestFactory()
+
+        for _ in range(2):
+            request = _make_post_request({**SEARCH_POST_BODY, "record_history": False}, factory)
+            vs = _get_viewset("search", request)
+            response = vs.search(request)
+            self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(mock_search.call_count, 2)
+        mock_create_history.assert_not_called()
+
 
 @override_settings(PRE_SEARCH_SECONDS=60, TIME_ZONE="UTC")
 class TestSceneSearchViewSetFields(TestCase):
