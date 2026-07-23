@@ -91,7 +91,7 @@ export default defineComponent({
      */
     const fieldsJsonValue = computed(() => {
       const fieldConfig = {};
-      for (const field of store.state.indexFieldInfo.fields) {
+      for (const field of store.getters.rawFieldList) {
         fieldConfig[field.field_name] = {
           type: field.field_type,
           ...(field.query_alias ? { query_alias: field.query_alias } : {}),

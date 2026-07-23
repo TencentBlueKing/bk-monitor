@@ -26,6 +26,7 @@
 import VueRouter from 'vue-router';
 
 import { handleTransformToTimestamp } from '@/components/time-range/utils';
+import { storeCacheService } from '@/storage';
 
 import { type RouteParams, BK_LOG_STORAGE, FieldInfoItemArgs } from './store.type';
 import RouteUrlResolver from './url-resolver';
@@ -79,12 +80,19 @@ const BkLogGlobalStorageKey = 'STORAGE_KEY_BKLOG_GLOBAL';
 
 export { BkLogGlobalStorageKey };
 
+const mirrorStorageToIndexedDB = (key: string, value: any) => {
+  storeCacheService.setLocalStorageMirror(key, value).catch((error) => {
+    console.warn('[store-cache] mirror localStorage failed', key, error);
+  });
+};
+
 const updateLocalstorage = (val: any) => {
   try {
     const storageValue = window.localStorage.getItem(BkLogGlobalStorageKey) ?? '{}';
     const jsonVal = JSON.parse(storageValue);
     Object.assign(jsonVal, val);
     localStorage.setItem(BkLogGlobalStorageKey, JSON.stringify(jsonVal));
+    mirrorStorageToIndexedDB(BkLogGlobalStorageKey, jsonVal);
   } catch (e) {
     console.error(e);
   }
@@ -195,6 +203,7 @@ export const getDefaultRetrieveParams = (defaultValue?) => {
 export const getDefaultDatePickerValue = () => {
   const datePickerValue = ['now-15m', 'now'];
   const format = localStorage.getItem('SEARCH_DEFAULT_TIME_FORMAT') ?? 'YYYY-MM-DD HH:mm:ss';
+  mirrorStorageToIndexedDB('SEARCH_DEFAULT_TIME_FORMAT', format);
   const [startTime, endTime] = handleTransformToTimestamp(datePickerValue as TimeRangeType, format);
 
   return { datePickerValue, start_time: startTime, end_time: endTime, format };
@@ -205,6 +214,7 @@ export const DEFAULT_DATETIME_PARAMS = getDefaultDatePickerValue();
 
 export const IndexSetQueryResult = {
   is_loading: false,
+  is_pagination_loading: false,
   exception_msg: '',
   is_error: false,
   search_count: 0,
@@ -212,15 +222,21 @@ export const IndexSetQueryResult = {
   _shards: {},
   total: 0,
   took: 0,
+  // list is intentionally kept for standalone related-log pages and non-cache flows.
+  // Main retrieve results are stored in IndexedDB and referenced by row_keys.
   list: [],
   origin_log_list: [],
+  row_keys: [],
+  row_query_key: '',
+  cached_count: 0,
   aggs: {},
   fields: [],
 };
 
 export const IndexFieldInfo = {
   is_loading: false,
-  fields: [],
+  field_scope: '',
+  field_meta_version: 0,
   display_fields: [],
   sort_list: [],
   default_sort_list: [],
@@ -229,7 +245,6 @@ export const IndexFieldInfo = {
   time_field_unit: '',
   config: [],
   config_id: 0,
-  aggs_items: {},
   last_eggs_request_token: null,
   custom_config: {
     grade_options: {
@@ -245,17 +260,6 @@ export const IndexFieldInfo = {
     fieldsWidth: {},
     filterAddition: [],
   },
-  // 重复别名扩展字段
-  // 当有多个字段别名一致的时候，自动生成一个单独字段
-  alias_field_list: [],
-  has_repeat_alias_field: false,
-  alias_mapping_field: null,
-  is_virtual_alias_field: false,
-  source_field_names: [],
-  // field_name → FieldInfoItem 索引，在 updateIndexFieldInfo 中同步构建
-  fieldNameIndex: {} as Record<string, any>,
-  // query_alias → FieldInfoItem 索引，在 updateIndexFieldInfo 中同步构建
-  queryAliasIndex: {} as Record<string, any>,
 };
 
 export const IndexsetItemParams = { ...DEFAULT_RETRIEVE_PARAMS };
@@ -377,6 +381,7 @@ export const getStorageOptions = (values?: any) => {
       if (update === true) {
         window.localStorage.setItem(BkLogGlobalStorageKey, JSON.stringify(storage));
       }
+      mirrorStorageToIndexedDB(BkLogGlobalStorageKey, storage);
     } catch (e) {
       console.error(e);
     }

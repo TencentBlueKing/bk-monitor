@@ -49,7 +49,7 @@ export default defineComponent({
     let cachedDisplayFieldNames: string[] = []; // 缓存的字段名，用于取消时恢复
     const confirmLoading = ref(false);
 
-    const totalFiels = computed(() => store.state.indexFieldInfo.fields);
+    const totalFiels = computed(() => store.getters.filteredFieldList);
     const restFieldNames = computed(() => totalFiels.value
       .map(item => item.field_name)
       .filter(field => !displayFieldNames.value.includes(field)),
