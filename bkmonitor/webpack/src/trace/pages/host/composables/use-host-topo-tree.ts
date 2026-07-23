@@ -30,7 +30,7 @@ import { getHostTopoTreeByBizId } from '../services/host-service';
 import { handleCreateItemId } from '../utils/host-list-core';
 import { isHostNode, matchTreeNode, pruneEmptyNodes } from '../utils/topo-tree';
 
-import type { IHostTopoHostNode, IHostTopoTreeNode } from '../types';
+import type { IHostTopoHostNode, IHostTopoTreeNode, IHostTopoInstNode } from '../types';
 
 /** bk-tree 实例上本 composable 需要调用的最小方法集 */
 interface ITreeInstance {
@@ -42,7 +42,7 @@ interface ITreeInstance {
  * @description 主机拓扑树业务编排：数据加载、搜索、隐藏无主机节点、展开收起、选中与对比来源。
  * 视图层（host-topo-tree）只消费这里暴露的状态与方法，保证 MVC 分层。
  */
-export const useHostTopoTree = () => {
+export const useHostTopoTree = (nodeId: string) => {
   /** bk-tree 组件实例引用，用于调用展开/收起等命令式方法 */
   const treeRef = shallowRef<ITreeInstance | null>(null);
   const loading = shallowRef(false);
@@ -106,15 +106,34 @@ export const useHostTopoTree = () => {
     showChildNodes: false,
   }));
 
+  /** 根据 id 查找节点 */
+  const findNodeById = (data: IHostTopoInstNode[], id: string) => {
+    for (const item of data) {
+      if (item.id === id) {
+        return item;
+      }
+      if (item.children) {
+        const result = findNodeById(item.children as IHostTopoInstNode[], id);
+        if (result) {
+          return result;
+        }
+      }
+    }
+    return null;
+  };
+
   /** 加载拓扑树（暂用 mock，后续替换为 getHostTopoTreeByBizId） */
   const loadTopoTree = async () => {
     loading.value = true;
     try {
       const data = await getHostTopoTreeByBizId();
-      console.log('topo tree data = ', data);
       rawTreeData.value = data;
-      // 根节点默认选中
-      selectedNode.value = data[0] ?? null;
+      if (nodeId) {
+        selectedNode.value = findNodeById(data, nodeId) ?? null;
+      } else {
+        // 根节点默认选中
+        selectedNode.value = data[0] ?? null;
+      }
     } finally {
       loading.value = false;
     }

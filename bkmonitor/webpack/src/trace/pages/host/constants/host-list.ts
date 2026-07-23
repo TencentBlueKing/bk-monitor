@@ -98,7 +98,7 @@ export const HOST_LIST_COLUMNS: IHostColumnConfig[] = [
   { id: 'bk_host_name', name: '主机名', type: 'text', checked: false, minWidth: 140 },
   { id: 'bk_os_name', name: 'OS名称', type: 'text', checked: false, minWidth: 120 },
   { id: 'bk_cloud_name', name: '管控区域', type: 'text', checked: false, minWidth: 120 },
-  { id: 'status', name: '采集状态', type: 'status', checked: true, minWidth: 110 },
+  { id: 'status', name: '采集状态', type: 'status', checked: true, minWidth: 150 },
   { id: 'bk_cluster', name: '集群名', type: 'cluster', checked: false, minWidth: 140 },
   { id: 'bk_inst_name', name: '模块名', type: 'module', checked: false, minWidth: 140 },
   { id: 'alarm_count', name: '未恢复的告警', type: 'alarm', checked: true, sortable: true, minWidth: 120 },

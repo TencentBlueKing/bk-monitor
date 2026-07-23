@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, onMounted, toRef } from 'vue';
+import { type PropType, computed, defineComponent, toRef } from 'vue';
 
 import { Loading } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
@@ -61,10 +61,6 @@ export default defineComponent({
     });
 
     const hasSelection = computed(() => ctx.selectedRowKeys.value.length > 0);
-
-    onMounted(() => {
-      ctx.loadData();
-    });
 
     return () => (
       <Loading

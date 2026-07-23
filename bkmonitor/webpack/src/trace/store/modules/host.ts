@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, customRef, ref as deepRef, onScopeDispose, watch } from 'vue';
+import { computed, customRef, ref as deepRef, onScopeDispose, watch, ref } from 'vue';
 import { shallowRef } from 'vue';
 
 import { random } from 'monitor-common/utils';
@@ -54,6 +54,9 @@ export const useHostStore = defineStore('host', () => {
   const activeCategory = shallowRef<'' | EHostQuickCategory>('');
   /** 关键字模糊搜索 */
   const keyword = shallowRef('');
+
+  /** 当前激活的 Tab */
+  const activeTab = ref('');
 
   const timeRangeTimestamp = computed(() => {
     const [start, end] = handleTransformToTimestamp(timeRange.value);
@@ -117,5 +120,6 @@ export const useHostStore = defineStore('host', () => {
     filterExpanded,
     activeCategory,
     keyword,
+    activeTab,
   };
 });

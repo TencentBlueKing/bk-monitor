@@ -27,11 +27,14 @@
 import { type PropType, computed, defineComponent } from 'vue';
 
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 
+import TemporaryShare from '../temporary-share/temporary-share';
 import { getNodeDisplayName, isHostNode } from '../../utils/topo-tree';
-import TemporaryShareNew from '@/components/temporary-share/temporary-share-new';
-
+import { storeToRefs } from 'pinia';
 import type { IHostTopoTreeNode } from '../../types';
+
+import { useHostStore } from '../../../../store/modules/host';
 
 import './host-location-bar.scss';
 
@@ -46,6 +49,8 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
+    const route = useRoute();
+    const { activeTab } = storeToRefs(useHostStore());
 
     /** 当前定位文案：节点：xxx / 主机：xxx */
     const locationText = computed(() => {
@@ -57,11 +62,22 @@ export default defineComponent({
       return `${prefix}：${getNodeDisplayName(node)}`;
     });
 
-    const formatShareTokenParams = params => {
-      params.data.name = 'host';
-      params.data.path = '/trace/host/:id?';
-      params.data.params = {};
-      params.data.query = {};
+    const formatShareTokenParams = (params: Record<string, unknown>) => {
+      const data = (params.data || {}) as Record<string, unknown>;
+      data.name = 'host';
+      data.path = '/trace/host/:id?';
+      data.params = {
+        id: props.selectedNode?.id,
+      };
+      data.query = {
+        ...route.query,
+        activeTab: activeTab.value,
+        from: params.default_time_range[0],
+        to: params.default_time_range[1],
+        shareLink: true,
+        lockSearch: params.lock_search,
+      };
+      params.data = data;
       return params;
     };
 
@@ -73,7 +89,7 @@ export default defineComponent({
         <div class='host-location-bar'>
           <i class='icon-monitor icon-dingwei' />
           <span class='host-location-bar-text'>{locationText.value}</span>
-          <TemporaryShareNew
+          <TemporaryShare
             formatTokenParams={formatShareTokenParams}
             type='host'
           />

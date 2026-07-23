@@ -44,11 +44,16 @@ export const useHostUrlParams = () => {
       filterExpanded: String(hostStore.filterExpanded),
       activeCategory: hostStore.activeCategory,
       keyword: hostStore.keyword,
+      from: hostStore.timeRange[0],
+      to: hostStore.timeRange[1],
+      timezone: hostStore.timezone,
+      refreshInterval: hostStore.refreshInterval.toString(),
     };
   });
 
-  function setUrlParams(otherParams: Record<string, unknown>) {
+  function setUrlParams(otherParams = {} as Record<string, unknown>) {
     const queryParams = {
+      ...route.query,
       ...urlParams.value,
       ...otherParams,
     };
@@ -64,11 +69,14 @@ export const useHostUrlParams = () => {
   }
 
   function getUrlParams() {
-    const { where, filterExpanded, activeCategory, keyword } = route.query;
+    const { where, filterExpanded, activeCategory, keyword, from, to, timezone, refreshInterval } = route.query;
     hostStore.where = tryURLDecodeParse(where as string, []);
     hostStore.filterExpanded = filterExpanded === 'true';
     hostStore.activeCategory = (activeCategory || '') as '' | EHostQuickCategory;
     hostStore.keyword = (keyword || '') as string;
+    hostStore.timeRange = from && to ? [from as string, to as string] : ['now-7d', 'now'];
+    hostStore.timezone = (timezone as string) || window.timezone;
+    hostStore.refreshInterval = parseInt(refreshInterval as string, 10) || -1;
   }
 
   return {
