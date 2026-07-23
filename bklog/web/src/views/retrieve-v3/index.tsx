@@ -198,7 +198,7 @@ export default defineComponent({
           <V3Toolbar></V3Toolbar>,
           <V3Container>
             {renderSearchBar()}
-            {!hideSearchResult.value && <V3SearchResult></V3SearchResult>}
+            <V3SearchResult v-show={!hideSearchResult.value}></V3SearchResult>
             {showSceneEmptyTip && renderSceneEmptyTip()}
             {showFieldEmptyTip && renderFieldEmptyTip()}
           </V3Container>,
