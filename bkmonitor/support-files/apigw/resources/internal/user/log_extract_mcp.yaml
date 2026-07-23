@@ -98,11 +98,30 @@ paths:
                   description: Optional; an empty array is treated as omitted. Each item requires bk_host_id, or both ip and bk_cloud_id.
                   items:
                     type: object
-                    description: Provide bk_host_id, or provide both ip and bk_cloud_id.
+                    description: Provide bk_host_id, or provide a non-empty IPv4/IPv6 address with bk_cloud_id. When bk_host_id is present, ip may be omitted or empty for compatibility.
                     properties:
                       bk_host_id: {type: integer}
                       ip: {type: string}
                       bk_cloud_id: {type: integer}
+                    anyOf:
+                    - title: Host ID
+                      required: [bk_host_id]
+                      properties:
+                        ip:
+                          type: string
+                          anyOf:
+                          - {maxLength: 0}
+                          - {format: ipv4}
+                          - {format: ipv6}
+                    - title: IP and cloud area
+                      required: [ip, bk_cloud_id]
+                      properties:
+                        ip:
+                          type: string
+                          minLength: 1
+                          anyOf:
+                          - {format: ipv4}
+                          - {format: ipv6}
                 target_nodes:
                   type: array
                   description: Optional; an empty array is treated as omitted.
@@ -112,6 +131,56 @@ paths:
                     properties:
                       object_id: {type: string, enum: [biz, set, module, host, SERVICE_TEMPLATE]}
                       instance_id: {type: integer}
+              oneOf:
+              - title: Static host instances
+                properties:
+                  target_node_type: {type: string, enum: [INSTANCE]}
+                  target_nodes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        object_id: {type: string, enum: [host]}
+                anyOf:
+                - required: [ip_list]
+                  properties:
+                    ip_list: {type: array, minItems: 1}
+                - required: [target_nodes]
+                  properties:
+                    target_nodes: {type: array, minItems: 1}
+              - title: Dynamic topology nodes
+                required: [target_node_type, target_nodes]
+                properties:
+                  target_node_type: {type: string, enum: [TOPO]}
+                  target_nodes:
+                    type: array
+                    minItems: 1
+                    items:
+                      type: object
+                      properties:
+                        object_id: {type: string, enum: [biz, set, module]}
+                    oneOf:
+                    - title: Entire business
+                      items:
+                        type: object
+                        properties:
+                          object_id: {type: string, enum: [biz]}
+                    - title: Sets and modules
+                      items:
+                        type: object
+                        properties:
+                          object_id: {type: string, enum: [set, module]}
+              - title: Service template nodes
+                required: [target_node_type, target_nodes]
+                properties:
+                  target_node_type: {type: string, enum: [SERVICE_TEMPLATE]}
+                  target_nodes:
+                    type: array
+                    minItems: 1
+                    items:
+                      type: object
+                      properties:
+                        object_id: {type: string, enum: [SERVICE_TEMPLATE]}
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false
@@ -148,11 +217,30 @@ paths:
                   maxItems: 10
                   items:
                     type: object
-                    description: Provide bk_host_id, or provide both ip and bk_cloud_id.
+                    description: Provide bk_host_id, or provide a non-empty IPv4/IPv6 address with bk_cloud_id. When bk_host_id is present, ip may be omitted or empty for compatibility.
                     properties:
                       bk_host_id: {type: integer}
                       ip: {type: string}
                       bk_cloud_id: {type: integer}
+                    anyOf:
+                    - title: Host ID
+                      required: [bk_host_id]
+                      properties:
+                        ip:
+                          type: string
+                          anyOf:
+                          - {maxLength: 0}
+                          - {format: ipv4}
+                          - {format: ipv6}
+                    - title: IP and cloud area
+                      required: [ip, bk_cloud_id]
+                      properties:
+                        ip:
+                          type: string
+                          minLength: 1
+                          anyOf:
+                          - {format: ipv4}
+                          - {format: ipv6}
                 path: {type: string, description: Directory or file path to inspect. 查询路径。}
                 is_search_child: {type: boolean, description: Search child directories recursively. 是否递归查询。}
                 time_range: {type: string, enum: [1d, 1w, 1m, all, custom]}
@@ -195,14 +283,33 @@ paths:
                   description: INSTANCE accepts ip_list or host target_nodes; TOPO and SERVICE_TEMPLATE require target_nodes.
                 ip_list:
                   type: array
-                  description: Optional; an empty array is treated as omitted. Each item requires bk_host_id, or both ip and bk_cloud_id.
+                  description: Optional; an empty array is treated as omitted. Each item requires bk_host_id, or both a non-empty IPv4/IPv6 address and bk_cloud_id.
                   items:
                     type: object
-                    description: Provide bk_host_id, or provide both ip and bk_cloud_id.
+                    description: Provide bk_host_id, or provide a non-empty IPv4/IPv6 address with bk_cloud_id. When bk_host_id is present, ip may be omitted or empty for compatibility.
                     properties:
                       bk_host_id: {type: integer}
                       ip: {type: string}
                       bk_cloud_id: {type: integer}
+                    anyOf:
+                    - title: Host ID
+                      required: [bk_host_id]
+                      properties:
+                        ip:
+                          type: string
+                          anyOf:
+                          - {maxLength: 0}
+                          - {format: ipv4}
+                          - {format: ipv6}
+                    - title: IP and cloud area
+                      required: [ip, bk_cloud_id]
+                      properties:
+                        ip:
+                          type: string
+                          minLength: 1
+                          anyOf:
+                          - {format: ipv4}
+                          - {format: ipv6}
                 target_nodes:
                   type: array
                   description: Optional; an empty array is treated as omitted.
@@ -245,6 +352,56 @@ paths:
                 preview_end_time: {type: string}
                 preview_is_search_child: {type: boolean, default: false}
                 link_id: {type: integer, nullable: true, description: Extraction link ID; BK Log selects its default when omitted.}
+              oneOf:
+              - title: Static host instances
+                properties:
+                  target_node_type: {type: string, enum: [INSTANCE]}
+                  target_nodes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        object_id: {type: string, enum: [host]}
+                anyOf:
+                - required: [ip_list]
+                  properties:
+                    ip_list: {type: array, minItems: 1}
+                - required: [target_nodes]
+                  properties:
+                    target_nodes: {type: array, minItems: 1}
+              - title: Dynamic topology nodes
+                required: [target_node_type, target_nodes]
+                properties:
+                  target_node_type: {type: string, enum: [TOPO]}
+                  target_nodes:
+                    type: array
+                    minItems: 1
+                    items:
+                      type: object
+                      properties:
+                        object_id: {type: string, enum: [biz, set, module]}
+                    oneOf:
+                    - title: Entire business
+                      items:
+                        type: object
+                        properties:
+                          object_id: {type: string, enum: [biz]}
+                    - title: Sets and modules
+                      items:
+                        type: object
+                        properties:
+                          object_id: {type: string, enum: [set, module]}
+              - title: Service template nodes
+                required: [target_node_type, target_nodes]
+                properties:
+                  target_node_type: {type: string, enum: [SERVICE_TEMPLATE]}
+                  target_nodes:
+                    type: array
+                    minItems: 1
+                    items:
+                      type: object
+                      properties:
+                        object_id: {type: string, enum: [SERVICE_TEMPLATE]}
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false
