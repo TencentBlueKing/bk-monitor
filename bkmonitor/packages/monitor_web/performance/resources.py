@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import logging
+
 from api.cmdb.define import Host, TopoNode
 from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.utils import time_tools
@@ -19,6 +21,8 @@ from core.drf_resource.base import Resource
 from core.drf_resource.contrib.cache import CacheResource
 from core.drf_resource.exceptions import CustomException
 from monitor_web.constants import AGENT_STATUS
+
+logger = logging.getLogger(__name__)
 
 
 class HostPerformanceResource(CacheResource):
@@ -397,6 +401,23 @@ class SearchHostMetricResource(Resource):
                 for process in result[bk_host_id]
             ]
 
+    @staticmethod
+    def get_alarm_count(bk_biz_id: int, hosts: list[Host], data: dict[int, dict]):
+        """
+        获取告警信息
+        """
+        try:
+            result = resource.cc.get_host_alarm_count(bk_biz_id=bk_biz_id, hosts=hosts)
+            for bk_host_id in result:
+                if bk_host_id not in data:
+                    continue
+                data[bk_host_id]["alarm_count"] = sorted(
+                    [{"level": level, "count": count} for level, count in result[bk_host_id].items()],
+                    key=lambda x: x["level"],
+                )
+        except Exception:  # NOCC:broad-except(设计如此:)
+            logger.exception("get_alarm_count failed, bk_biz_id=%s", bk_biz_id)
+
     def perform_request(self, params):
         bk_biz_id = params["bk_biz_id"]
         data = {
@@ -409,6 +430,7 @@ class SearchHostMetricResource(Resource):
                 "mem_usage": None,
                 "psc_mem_usage": None,
                 "component": [],
+                "alarm_count": [],
             }
             for bk_host_id in params["bk_host_ids"]
         }
@@ -419,6 +441,7 @@ class SearchHostMetricResource(Resource):
         pool.apply_async(self.get_agent_status, args=(bk_biz_id, hosts, data))
         pool.apply_async(self.get_performance_data, args=(bk_biz_id, hosts, data))
         pool.apply_async(self.get_process_status, args=(bk_biz_id, hosts, data))
+        pool.apply_async(self.get_alarm_count, args=(bk_biz_id, hosts, data))
         pool.close()
         pool.join()
         return data

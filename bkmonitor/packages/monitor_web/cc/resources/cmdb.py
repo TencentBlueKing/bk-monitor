@@ -709,17 +709,32 @@ def get_host_alarm_count(bk_biz_id: int, hosts: list[Host], days: int = 7) -> di
     支持两种匹配方式（按优先级）：
     1. event.ip + event.bk_cloud_id 匹配（传统主机告警）
     2. dimensions 中提取 ip + bk_cloud_id 匹配（K8s告警）
+    优化：传入主机时按 event.ip 做 terms 过滤，避免全索引扫描；
+         无 event.ip 的 K8s 告警（仅 dimensions 匹配）可能被遗漏，属已知权衡。
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表
     :param days: 查询范围
     :return: Dict[bk_host_id, Dict[severity, count]]
     """
+    if not hosts:
+        return {}
+
+    # 收集主机IP用于ES端过滤，避免全索引扫描
+    host_ips = set()
+    for host in hosts:
+        inner_ip = host.bk_host_innerip
+        if inner_ip:
+            host_ips.update(ip.strip() for ip in inner_ip.split(",") if ip.strip())
+
     search_object = (
         AlertDocument.search(days=days)
         .filter("term", status=EventStatus.ABNORMAL)
         .filter("term", **{"event.bk_biz_id": bk_biz_id})
         .source(["event.ip", "event.bk_cloud_id", "severity", "dimensions"])
     )
+    if host_ips:
+        search_object = search_object.filter("terms", **{"event.ip": list(host_ips)})
+
     ip_to_host_id = {(host.bk_host_innerip, host.bk_cloud_id): host.bk_host_id for host in hosts}
 
     alarm_count_info = {host.bk_host_id: {1: 0, 2: 0, 3: 0} for host in hosts}
