@@ -250,6 +250,61 @@ def get_process_status(bk_biz_id: int, hosts: list[Host]) -> dict[int, dict[str,
     return result
 
 
+def _query_proc_metrics(
+    bk_biz_id: int,
+    hosts: list[Host],
+    table: str,
+    field: str,
+    method: str,
+    start_time: int = None,
+    end_time: int = None,
+):
+    """
+    查询 system.proc / system.proc_port 指标的公共生成器。
+
+    封装 ip_to_host_id 构造、bk_cloud_id 归一化、时间范围计算、
+    UnifyQuery 查询、record 解析等公共逻辑。
+
+    :param bk_biz_id: 业务ID
+    :param hosts: 主机列表
+    :param table: TSDB 表名（system.proc / system.proc_port）
+    :param field: 指标字段名
+    :param method: 聚合方式（SUM / MAX / COUNT / MIN 等）
+    :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）
+    :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）
+    :return: 生成 (bk_host_id, display_name, value) 元组，仅包含成功匹配的记录
+    """
+    ip_to_host_id = {(host.bk_host_innerip, int(host.bk_cloud_id or -1)): host.bk_host_id for host in hosts}
+    bk_host_ids = {host.bk_host_id for host in hosts}
+
+    data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
+    data_source = data_source_class(
+        bk_biz_id=bk_biz_id,
+        interval=180,
+        metrics=[{"field": field, "method": method, "alias": "A"}],
+        table=table,
+        group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"],
+    )
+    query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
+    if start_time is not None and end_time is not None:
+        query_start = int(start_time) * 1000
+        query_end = int(end_time) * 1000
+    else:
+        now = int(time.time()) * 1000
+        query_start = now - 180000
+        query_end = now
+    records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
+    for record in records:
+        if record.get("_result_") is None:
+            continue
+        if record.get("bk_host_id"):
+            bk_host_id = int(record["bk_host_id"])
+        else:
+            bk_host_id = ip_to_host_id.get((record.get("bk_target_ip"), int(record.get("bk_target_cloud_id") or -1)))
+        if bk_host_id in bk_host_ids and record.get("display_name"):
+            yield bk_host_id, record["display_name"], record.get("_result_")
+
+
 def get_process_runtime_metrics(
     bk_biz_id: int, hosts: list[Host], start_time: int = None, end_time: int = None
 ) -> dict[str, dict]:
@@ -275,58 +330,23 @@ def get_process_runtime_metrics(
             }
     """
     try:
-        # 构造与下方回查保持一致的 bk_cloud_id 归一化(int + 0 兜底)，
-        # 否则 host.bk_cloud_id 为 None/字符串时元组键无法匹配，导致端口健康数据静默丢失
-        ip_to_host_id = {(host.bk_host_innerip, int(host.bk_cloud_id or -1)): host.bk_host_id for host in hosts}
-        bk_host_ids = {host.bk_host_id for host in hosts}
-
         # system.proc 指标字段（SUM 聚合）
         # - cpu_usage_pct: 进程 CPU 使用率（%）
         # - mem_res:       进程使用的物理内存（字节）
         # - mem_usage_pct: 进程内存使用率（%）
         # - fd_num:        进程文件句柄数
-        # 注意：uptime 已拆分至 get_process_uptime（MIN 聚合），不在此处 SUM
+        # 注意：uptime 已拆分至 get_process_uptime（MAX 聚合），不在此处 SUM
         METRIC_FIELDS = ["cpu_usage_pct", "mem_res", "mem_usage_pct", "fd_num"]
 
-        # 按主机初始化结果结构，兼容 bk_host_id 与 bk_target_ip 两种查询维度
         result = defaultdict(lambda: defaultdict(dict))
 
         def get_metric_data(field):
             # 每个线程写入独立的临时 dict，避免多线程并发写同一 defaultdict 的竞态
             _local = defaultdict(lambda: defaultdict(dict))
-            data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
-            data_source = data_source_class(
-                bk_biz_id=bk_biz_id,
-                interval=180,
-                metrics=[{"field": field, "method": "SUM", "alias": "A"}],
-                table="system.proc",
-                group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"],
-            )
-            query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
-            # 时间范围：start_time/end_time 同时传入（秒级）时按区间查询，否则默认最近三分钟
-            if start_time is not None and end_time is not None:
-                query_start = int(start_time) * 1000
-                query_end = int(end_time) * 1000
-            else:
-                now = int(time.time()) * 1000
-                query_start = now - 180000
-                query_end = now
-            # 查询进程运行时数据（instant=True 取窗口聚合单值）
-            records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
-            for record in records:
-                if record.get("_result_") is None:
-                    continue
-
-                if record.get("bk_host_id"):
-                    bk_host_id = int(record["bk_host_id"])
-                else:
-                    bk_host_id = ip_to_host_id.get(
-                        (record.get("bk_target_ip"), int(record.get("bk_target_cloud_id") or -1))
-                    )
-
-                if bk_host_id in bk_host_ids and record.get("display_name"):
-                    display_name = record["display_name"]
-                    _local[bk_host_id][display_name][field] = record.get("_result_")
+            for bk_host_id, display_name, value in _query_proc_metrics(
+                bk_biz_id, hosts, "system.proc", field, "SUM", start_time, end_time
+            ):
+                _local[bk_host_id][display_name][field] = value
             return _local
 
         # 根据指标字段数量并发请求，单字段失败仅丢弃该字段（设计文档 §1 稳健性要求）。
@@ -370,41 +390,11 @@ def get_process_uptime(
         无对应数据时该 bk_host_id 不下发（返回空 dict 兜底）。
     """
     try:
-        ip_to_host_id = {(host.bk_host_innerip, int(host.bk_cloud_id or -1)): host.bk_host_id for host in hosts}
-        bk_host_ids = {host.bk_host_id for host in hosts}
-
-        data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
-        data_source = data_source_class(
-            bk_biz_id=bk_biz_id,
-            interval=180,
-            metrics=[{"field": "uptime", "method": "MAX", "alias": "A"}],
-            table="system.proc",
-            group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"],
-        )
-        query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
-        if start_time is not None and end_time is not None:
-            query_start = int(start_time) * 1000
-            query_end = int(end_time) * 1000
-        else:
-            now = int(time.time()) * 1000
-            query_start = now - 180000
-            query_end = now
-        records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
-
         result = defaultdict(dict)
-        for record in records:
-            if record.get("_result_") is None:
-                continue
-
-            if record.get("bk_host_id"):
-                bk_host_id = int(record["bk_host_id"])
-            else:
-                bk_host_id = ip_to_host_id.get(
-                    (record.get("bk_target_ip"), int(record.get("bk_target_cloud_id") or -1))
-                )
-
-            if bk_host_id in bk_host_ids and record.get("display_name"):
-                result[bk_host_id][record["display_name"]] = record.get("_result_")
+        for bk_host_id, display_name, value in _query_proc_metrics(
+            bk_biz_id, hosts, "system.proc", "uptime", "MAX", start_time, end_time
+        ):
+            result[bk_host_id][display_name] = value
         return result
     except Exception as e:
         # TSDB 查询异常兜底，uptime 缺失不影响其他运行时指标
@@ -433,45 +423,12 @@ def get_process_instance_count(
             }
     """
     try:
-        # 构造与下方回查保持一致的 bk_cloud_id 归一化(int + 0 兜底)，
-        # 否则 host.bk_cloud_id 为 None/字符串时元组键无法匹配，导致端口健康数据静默丢失
-        ip_to_host_id = {(host.bk_host_innerip, int(host.bk_cloud_id or -1)): host.bk_host_id for host in hosts}
-        bk_host_ids = {host.bk_host_id for host in hosts}
-
-        data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
-        data_source = data_source_class(
-            bk_biz_id=bk_biz_id,
-            interval=180,
-            metrics=[{"field": "cpu_usage_pct", "method": "COUNT", "alias": "A"}],
-            table="system.proc",
-            group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"],
-        )
-        query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
-        # 时间范围：start_time/end_time 同时传入（秒级）时按区间查询，否则默认最近三分钟
-        if start_time is not None and end_time is not None:
-            query_start = int(start_time) * 1000
-            query_end = int(end_time) * 1000
-        else:
-            now = int(time.time()) * 1000
-            query_start = now - 180000
-            query_end = now
-        records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
-
-        result = defaultdict(lambda: defaultdict(int))
-        for record in records:
-            if record.get("_result_") is None:
-                continue
-
-            if record.get("bk_host_id"):
-                bk_host_id = int(record["bk_host_id"])
-            else:
-                bk_host_id = ip_to_host_id.get(
-                    (record.get("bk_target_ip"), int(record.get("bk_target_cloud_id") or -1))
-                )
-
-            if bk_host_id in bk_host_ids and record.get("display_name"):
-                # 一条有数据的 pid series 即代表一个运行实例
-                result[bk_host_id][record["display_name"]] = record.get("_result_")
+        result = defaultdict(dict)
+        for bk_host_id, display_name, value in _query_proc_metrics(
+            bk_biz_id, hosts, "system.proc", "cpu_usage_pct", "COUNT", start_time, end_time
+        ):
+            # 一条有数据的 pid series 即代表一个运行实例
+            result[bk_host_id][display_name] = value
         return result
     except Exception as e:
         # 设计文档 §1：TSDB 查询异常兜底，实例数缺失不影响其他运行时指标
@@ -494,49 +451,13 @@ def get_process_port_health(
         无对应数据(TSDB 无上报或未解析)的进程不会出现在结果中(即缺失=未知)。
     """
     try:
-        # 构造与下方回查保持一致的 bk_cloud_id 归一化(int + 0 兜底)，
-        # 否则 host.bk_cloud_id 为 None/字符串时元组键无法匹配，导致端口健康数据静默丢失
-        ip_to_host_id = {(host.bk_host_innerip, int(host.bk_cloud_id or -1)): host.bk_host_id for host in hosts}
-        bk_host_ids = {host.bk_host_id for host in hosts}
-
-        # 查询进程端口健康数据
-        data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
-        data_source = data_source_class(
-            bk_biz_id=bk_biz_id,
-            interval=180,
-            metrics=[{"field": "port_health", "method": "MIN", "alias": "A"}],
-            table="system.proc_port",
-            group_by=(["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"]),
-        )
-        query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
-
-        # 时间范围：start_time/end_time 同时传入（秒级）时按区间查询，否则默认最近三分钟
-        if start_time is not None and end_time is not None:
-            query_start = int(start_time) * 1000
-            query_end = int(end_time) * 1000
-        else:
-            now = int(time.time()) * 1000
-            query_start = now - 180000
-            query_end = now
-
-        records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
-
         result = defaultdict(dict)
-        for record in records:
-            if record.get("_result_") is None:
-                continue
-
-            if record.get("bk_host_id"):
-                bk_host_id = int(record["bk_host_id"])
-            else:
-                bk_host_id = ip_to_host_id.get(
-                    (record.get("bk_target_ip"), int(record.get("bk_target_cloud_id") or -1))
-                )
-
-            if bk_host_id in bk_host_ids and record.get("display_name"):
-                # TSDB port_health: 1=健康, 0=异常；前端 PROCESS_PORT_STATUS_MAP: 0=Normal(绿), 1=Abnormal(红)
-                # 在此做枚举映射并二值化为 int，避免透传浮点导致前端 MAP 落灰
-                result[bk_host_id][record["display_name"]] = 0 if record["_result_"] else 1
+        for bk_host_id, display_name, value in _query_proc_metrics(
+            bk_biz_id, hosts, "system.proc_port", "port_health", "MIN", start_time, end_time
+        ):
+            # TSDB port_health: 1=健康, 0=异常；前端 PROCESS_PORT_STATUS_MAP: 0=Normal(绿), 1=Abnormal(红)
+            # 在此做枚举映射并二值化为 int，避免透传浮点导致前端 MAP 落灰
+            result[bk_host_id][display_name] = 0 if value else 1
         return result
     except Exception as e:
         # 设计文档 §1：TSDB 查询异常兜底，port_health={}，CMDB 基础字段照常返回
