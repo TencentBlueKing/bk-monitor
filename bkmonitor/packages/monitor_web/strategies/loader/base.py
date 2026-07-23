@@ -56,7 +56,7 @@ class DefaultAlarmStrategyLoaderBase(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def load_strategies(self, strategies: list) -> list:
-        """加载默认配置，返回实际创建的策略配置列表 ."""
+        """加载默认配置，返回本次成功处理（新建或确认已存在）的策略配置列表 ."""
         raise NotImplementedError
 
     @abc.abstractmethod
