@@ -32,6 +32,7 @@
 - `python manage.py data_migrate partial-export ...`
 - `python manage.py data_migrate partial-import ...`
 - `python manage.py data_migrate partial-rebuild ...`
+- `python manage.py data_migrate disable-enabled-strategies ...`
 - `python manage.py data_migrate enable-closed-strategies ...`
 - `python manage.py data_migrate update-migrate-data-id-routes ...`
 - `python manage.py data_migrate disable-models ...`
@@ -134,6 +135,22 @@ python manage.py data_migrate rebuild \
 - `--bk-biz-ids` 支持正数和负数业务 ID，不支持 `0`
 - 正数业务会完整执行仪表盘、日志/APM 路由、内置系统数据、拨测、采集插件、K8S 和自定义上报重建
 - 负数业务会跳过内置系统数据、拨测和采集插件重建，只执行仪表盘、日志/APM 路由、K8S 和自定义上报重建
+
+### 关闭老环境中已启用的策略
+
+```bash
+python manage.py data_migrate disable-enabled-strategies \
+  --bk-biz-ids 2 3 \
+  --dry-run
+```
+
+说明：
+
+- 查询指定业务下当前 `is_enabled=True` 的策略
+- 非 `dry-run` 模式下，先把策略 ID 合并写入业务维度的 `ApplicationConfig.data_migrate_closed_records`，再将策略关闭
+- 已有配置中的其他模型记录和历史策略 ID 都会保留，方便迁移到新环境后回溯和重新开启
+- 配置写入和策略关闭按业务放在同一个事务中执行
+- `--bk-biz-ids` 支持正数和负数业务 ID，不支持 `0`
 
 ### 开启导入阶段关闭的策略
 

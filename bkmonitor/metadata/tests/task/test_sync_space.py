@@ -341,6 +341,7 @@ def test_sync_bcs_space(create_and_delete_record, table_id, mocker):
 
 
 def test_sync_bkcc_space_data_source(create_and_delete_record, table_id, mocker):
+    mocker.patch("alarm_backends.core.storage.redis.Cache.__new__", return_value=LockCacheMock())
     mocker.patch("redis.Redis", side_effect=mock_redis_client)
     mocker.patch("metadata.utils.redis_tools.RedisTools.push_space_to_redis", return_value=True)
 
@@ -351,13 +352,35 @@ def test_sync_bkcc_space_data_source(create_and_delete_record, table_id, mocker)
 
     mocker.patch("metadata.utils.redis_tools.RedisTools.hmset_to_redis", side_effect=mock_hmset_redis)
 
+    # 业务空间必须存在，租户信息从 Space 反查获取
+    test_bk_tenant_id = "tenant_a"
+    Space.objects.create(
+        creator=SYSTEM_USERNAME,
+        updater=SYSTEM_USERNAME,
+        space_type_id=SpaceTypes.BKCC.value,
+        space_id="1",
+        space_name="test",
+        bk_tenant_id=test_bk_tenant_id,
+    )
+
     # 测试新加
     test_create_data_id = 199
     mocker.patch("metadata.task.sync_space.get_biz_data_id", return_value={1: [test_create_data_id]})
+    mock_push_and_publish_space_router = mocker.patch("metadata.task.sync_space.push_and_publish_space_router")
 
     sync_bkcc_space_data_source()
 
-    assert SpaceDataSource.objects.filter(space_type_id="bkcc", space_id="1", bk_data_id=test_create_data_id).exists()
+    space_data_source = SpaceDataSource.objects.filter(
+        space_type_id="bkcc", space_id="1", bk_data_id=test_create_data_id
+    ).first()
+    assert space_data_source is not None
+    # 校验租户与对应 Space 一致，而非默认租户
+    assert space_data_source.bk_tenant_id == test_bk_tenant_id
+    mock_push_and_publish_space_router.assert_called_once_with(
+        space_type=SpaceTypes.BKCC.value,
+        space_id_list=["1"],
+        bk_tenant_id=test_bk_tenant_id,
+    )
 
 
 def test_sync_bkcc_space_delete_marks_related_bkci_invalid(create_and_delete_record, mocker):

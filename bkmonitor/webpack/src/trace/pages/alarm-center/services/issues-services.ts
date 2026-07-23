@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { issueSearch, issueTopN, issueTrend } from 'monitor-api/modules/issue';
+import { issueLogContent, issueSearch, issueTopN, issueTrend } from 'monitor-api/modules/issue';
 import { type IFilterField, EFieldType } from 'trace/components/retrieval-filter/typing';
 
 import {
@@ -38,6 +38,8 @@ import { type RequestOptions, AlarmService } from './base';
 
 import type {
   IssueItem,
+  IssueLogContentParams,
+  IssueLogContentResponse,
   IssueSearchParams,
   IssueSearchResponse,
   IssueTrendParams,
@@ -579,6 +581,14 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
         data: [] as IssueItem[],
       }));
     return data as FilterTableResponse<T>;
+  }
+  async getIssueLogContent(issues: IssueItem[], options?: RequestOptions): Promise<IssueLogContentResponse> {
+    if (!issues.length) return {};
+    const params: IssueLogContentParams = {
+      bk_biz_ids: [...new Set(issues.map(issue => issue.bk_biz_id))],
+      issue_ids: issues.map(issue => issue.id),
+    };
+    return issueLogContent<IssueLogContentParams, IssueLogContentResponse>(params, options).catch(() => ({}));
   }
   async getIssueTrend(
     issues: IssueItem[],

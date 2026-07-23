@@ -10,8 +10,9 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 
-from alarm_backends.service.fta_action.issue_processor import build_issue_default_name, gen_issue_fingerprint
+from alarm_backends.service.fta_action.issue_processor import gen_issue_fingerprint
 from bkmonitor.utils.common_utils import count_md5
+from bkmonitor.utils.issue_title import build_issue_default_name
 
 
 class TestGenIssueFingerprint:
@@ -679,7 +680,7 @@ class TestBackfillMatchPriority:
                 iter([i_old, i_new])
             )
             # gen_issue_fingerprint：按 agg_dims 算
-            mock_fp.side_effect = lambda sid, ad, dims: ("fp_old_catch_all" if not ad else "fp_new_md5")
+            mock_fp.side_effect = lambda sid, ad, dims: "fp_old_catch_all" if not ad else "fp_new_md5"
 
             _backfill_unlinked_alerts_for_strategy("100")
 

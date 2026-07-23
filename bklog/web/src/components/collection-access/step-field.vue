@@ -530,6 +530,7 @@
               <bk-switcher
                 v-model="formData.etl_params.retain_extra_json"
                 theme="primary"
+                @change="handleRetainExtraJsonChange"
               ></bk-switcher>
               <div class="switcher-tips">
                 <i class="bk-icon icon-info-circle" />
@@ -541,6 +542,54 @@
                   }}
                 </span>
               </div>
+            </div>
+          </bk-form-item>
+          <bk-form-item
+            v-if="showExpandDepthConfig"
+            ext-cls="en-bk-form expand-depth-form-item"
+            :icon-offset="120"
+            :label="$t('动态字段解析层级（实验）')"
+          >
+            <div class="origin-log-config expand-depth-config">
+              <bk-select
+                v-model="expandDepthSelect"
+                class="expand-depth-select"
+                :clearable="false"
+                @selected="handleExpandDepthSelected"
+              >
+                <bk-option
+                  v-for="option in expandDepthOptions"
+                  :id="option.id"
+                  :key="option.id"
+                  :name="option.name"
+                >
+                  <div class="expand-depth-option">
+                    <span class="expand-depth-option-name">{{ option.name }}</span>
+                    <span class="expand-depth-option-desc">{{ option.desc }}</span>
+                  </div>
+                </bk-option>
+              </bk-select>
+              <p class="expand-depth-tips">
+                {{ $t('解析层级越大，可直接检索的字段越多，但也更容易达到 ES 字段数量上限。') }}
+              </p>
+              <bk-alert
+                v-if="expandDepthSelect === 'unlimited'"
+                class="expand-depth-alert"
+                type="warning"
+                :title="
+                  $t(
+                    '无限解析可能产生大量动态字段，达到 ES 字段上限后，相关日志可能写入失败。建议仅在字段结构稳定时使用。',
+                  )
+                "
+              ></bk-alert>
+              <bk-button
+                class="expand-depth-example-btn"
+                text
+                theme="primary"
+                @click="expandDepthExampleVisible = true"
+              >
+                {{ $t('查看解析示例') }}
+              </bk-button>
             </div>
           </bk-form-item>
           <bk-form-item
@@ -920,18 +969,52 @@
           </div>
         </div>
       </bk-dialog>
+      <bk-dialog
+        v-model="expandDepthExampleVisible"
+        ext-cls="expand-depth-example-dialog"
+        header-position="left"
+        :mask-close="true"
+        :show-footer="false"
+        :title="$t('解析示例')"
+        width="640"
+        @cancel="expandDepthExampleVisible = false"
+        @value-change="val => (expandDepthExampleVisible = val)"
+      >
+        <div class="expand-depth-example-content">
+          <div class="example-block">
+            <div class="example-label">{{ $t('输入') }}</div>
+            <pre class="example-code">{{ expandDepthExampleInput }}</pre>
+          </div>
+          <div class="example-block">
+            <div class="example-label">{{ expandDepthExampleTitle }}</div>
+            <pre class="example-code">{{ expandDepthExampleResult }}</pre>
+            <p class="example-note">{{ expandDepthExampleNote }}</p>
+          </div>
+        </div>
+      </bk-dialog>
     </div>
   </section>
 </template>
 <script>
   import { projectManages } from '@/common/util';
-import AuthContainerPage from '@/components/common/auth-container-page';
-import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
-import SpaceSelectorMixin from '@/mixins/space-selector-mixin';
-import { mapGetters, mapState } from 'vuex';
-import * as authorityMap from '../../common/authority-map';
-import { deepEqual } from '../../common/util';
-import fieldTable from './field-table';
+  import AuthContainerPage from '@/components/common/auth-container-page';
+  import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
+  import SpaceSelectorMixin from '@/mixins/space-selector-mixin';
+  import { mapGetters, mapState } from 'vuex';
+  import * as authorityMap from '../../common/authority-map';
+  import { deepEqual } from '../../common/util';
+  import {
+    DEFAULT_EXPAND_DEPTH,
+    EXT_JSON_EXPAND_DEPTH_TOGGLE,
+    getExpandDepthLabel,
+    isExpandDepthChanged,
+    pickPublicExtJsonConfig,
+    shouldSubmitExtJsonConfig,
+    toExpandDepthSelect,
+    toSubmitExpandDepth,
+    UNLIMITED_EXPAND_DEPTH,
+  } from './ext-json-expand-depth';
+  import fieldTable from './field-table';
 
   export default {
     components: {
@@ -1151,6 +1234,33 @@ import fieldTable from './field-table';
         isDebugLoading: false,
         builtFieldShow: false,
         fieldsObjectData: [],
+        /** 动态字段解析层级下拉值：1|2|3|unlimited */
+        expandDepthSelect: DEFAULT_EXPAND_DEPTH,
+        /** 本次编辑中关闭动态新增前的最后一次层级选择 */
+        sessionLastExpandDepth: null,
+        /** 进入页面时是否已有 ext_json_config */
+        originHadExtJsonConfig: false,
+        /** 进入页面时的 retain_extra_json */
+        originRetainExtraJson: false,
+        /** 进入页面时的层级下拉值（有配置时） */
+        originExpandDepthSelect: null,
+        /** 是否已完成层级回填初始化，避免误触默认值逻辑 */
+        expandDepthInited: false,
+        /** 本次保存是否在调整解析层级（用于成功/失败文案） */
+        isChangingExpandDepth: false,
+        expandDepthExampleVisible: false,
+        expandDepthExampleInput: `{
+  "__ext_json": {
+    "trace_id": "abc123",
+    "service": {
+      "name": "order",
+      "labels": {
+        "region": "shanghai",
+        "zone": "ap-1"
+      }
+    }
+  }
+}`,
       };
     },
     computed: {
@@ -1226,6 +1336,77 @@ import fieldTable from './field-table';
           String(this.$store.state.bkBizId),
           String(this.$store.state.spaceUid),
         ]);
+      },
+      isExtJsonExpandDepthEnabled() {
+        return isFeatureToggleOn(EXT_JSON_EXPAND_DEPTH_TOGGLE, [
+          String(this.$store.state.bkBizId),
+          String(this.$store.state.spaceUid),
+        ]);
+      },
+      /** 仅控制「动态字段解析层级」，不影响「JSON 字段动态新增」 */
+      showExpandDepthConfig() {
+        return (
+          this.isExtJsonExpandDepthEnabled &&
+          this.params.etl_config === 'bk_log_json' &&
+          !!this.formData.etl_params?.retain_extra_json
+        );
+      },
+      expandDepthOptions() {
+        return [
+          {
+            id: 1,
+            name: this.$t('1 层'),
+            desc: this.$t('只展开 __ext_json 下第一层字段'),
+          },
+          {
+            id: 2,
+            name: this.$t('2 层'),
+            desc: this.$t('展开到第二层，推荐'),
+          },
+          {
+            id: 3,
+            name: this.$t('3 层'),
+            desc: this.$t('展开到第三层'),
+          },
+          {
+            id: UNLIMITED_EXPAND_DEPTH,
+            name: this.$t('无限'),
+            desc: this.$t('保持完整动态展开，存在字段膨胀风险'),
+          },
+        ];
+      },
+      expandDepthExampleTitle() {
+        if (this.expandDepthSelect === UNLIMITED_EXPAND_DEPTH) {
+          return this.$t('无限展示');
+        }
+        return this.$t('{n} 层展示', { n: this.expandDepthSelect });
+      },
+      expandDepthExampleResult() {
+        if (this.expandDepthSelect === 1) {
+          return `__ext_json.trace_id          keyword
+__ext_json.service           ${this.$t('动态对象字段')}`;
+        }
+        if (this.expandDepthSelect === 3 || this.expandDepthSelect === UNLIMITED_EXPAND_DEPTH) {
+          return `__ext_json.trace_id                 keyword
+__ext_json.service.name           keyword
+__ext_json.service.labels.region  keyword
+__ext_json.service.labels.zone    keyword`;
+        }
+        return `__ext_json.trace_id          keyword
+__ext_json.service.name     keyword
+__ext_json.service.labels   ${this.$t('动态对象字段')}`;
+      },
+      expandDepthExampleNote() {
+        if (this.expandDepthSelect === 1) {
+          return this.$t('service 内部不再继续生成字段。');
+        }
+        if (this.expandDepthSelect === 2) {
+          return this.$t('labels 内部不再继续生成字段。');
+        }
+        if (this.expandDepthSelect === UNLIMITED_EXPAND_DEPTH) {
+          return this.$t('无限模式下将完整展开动态字段。');
+        }
+        return this.$t('更深层级的对象将按动态对象字段处理，不再继续展开。');
       },
       isSetDisabled() {
         return this.isSetEdit && this.setDisabled;
@@ -1517,6 +1698,7 @@ import fieldTable from './field-table';
           visible_type,
           ...logTimeOption,
         });
+        this.initExpandDepthFromEtlParams(this.formData.etl_params);
       },
       // 高级清洗配置
       setAdvanceCleanTab(isAdvance) {
@@ -1742,9 +1924,23 @@ import fieldTable from './field-table';
           .request('collect/fieldCollection', updateData)
           .then(res => {
             if (res.code === 0) {
+              const showedDepthSuccess = this.isChangingExpandDepth;
+              // 仅后台确认索引轮转成功后，才提示层级已生效
+              if (showedDepthSuccess) {
+                const depthLabel = getExpandDepthLabel(this.expandDepthSelect, key => this.$t(key));
+                this.messageSuccess(
+                  this.$t('动态字段解析层级已生效，新写入数据将按 {n} 解析。', { n: depthLabel }),
+                );
+                this.originHadExtJsonConfig = true;
+                this.originRetainExtraJson = true;
+                this.originExpandDepthSelect = this.expandDepthSelect;
+                this.isChangingExpandDepth = false;
+              }
               // 检索页弹窗的字段清洗
               if (this.isSetEdit) {
-                this.messageSuccess(this.$t('保存成功'));
+                if (!showedDepthSuccess) {
+                  this.messageSuccess(this.$t('保存成功'));
+                }
                 this.$emit('update-log-fields');
               } else if (this.isFinishCreateStep || this.isCleanField) {
                 if (callback) {
@@ -1756,7 +1952,14 @@ import fieldTable from './field-table';
               }
             }
           })
-          .catch(() => callback?.(false))
+          .catch(() => {
+            if (this.isChangingExpandDepth) {
+              // 失败时保持页面编辑态，不把编辑值误认为已生效
+              this.messageError(this.$t('配置未生效，创建新索引失败，请重试或联系管理员。'));
+              this.isChangingExpandDepth = false;
+            }
+            callback?.(false);
+          })
           .finally(() => {
             this.isLoading = false;
             this.basicLoading = false;
@@ -1853,6 +2056,21 @@ import fieldTable from './field-table';
             // 清洗模板选择多业务时不能为空
             if (this.formData.visible_type === 'multi_biz' && !this.visibleBkBiz.length && this.isClearTemplate) {
               this.messageError(this.$t('可见类型为业务属性时，业务标签不能为空'));
+              callback?.(false);
+              return;
+            }
+            this.isChangingExpandDepth =
+              this.isExtJsonExpandDepthEnabled &&
+              !!this.formData.etl_params.retain_extra_json &&
+              isExpandDepthChanged(
+                this.expandDepthSelect,
+                this.originExpandDepthSelect,
+                this.originHadExtJsonConfig,
+                this.originRetainExtraJson,
+              );
+            const confirmed = await this.confirmExpandDepthChange();
+            if (!confirmed) {
+              this.isChangingExpandDepth = false;
               callback?.(false);
               return;
             }
@@ -1999,6 +2217,7 @@ import fieldTable from './field-table';
           ),
           fields: copyFields.filter(item => !item.is_built_in),
         });
+        this.initExpandDepthFromEtlParams(this.formData.etl_params);
 
         if (!this.copyBuiltField.length) {
           this.copyBuiltField = copyFields.filter(item => item.is_built_in);
@@ -2395,6 +2614,7 @@ import fieldTable from './field-table';
                 fields: previousStateFields,
                 ...logTimeOption,
               });
+              this.initExpandDepthFromEtlParams(this.formData.etl_params);
               if (etlParams.original_text_tokenize_on_chars) {
                 this.originParticipleState = 'custom';
                 this.defaultParticipleStr = etlParams.original_text_tokenize_on_chars;
@@ -2520,6 +2740,84 @@ import fieldTable from './field-table';
       handleChangeParticipleState(val) {
         this.formData.etl_params.original_text_tokenize_on_chars = val === 'custom' ? this.defaultParticipleStr : '';
       },
+      /** 从 etl_params 回填解析层级；存量无配置时展示无限，不主动改写 */
+      initExpandDepthFromEtlParams(etlParams = {}, { resetOrigin = true } = {}) {
+        const params = etlParams && typeof etlParams === 'object' ? etlParams : {};
+        const retainExtraJson = !!params.retain_extra_json;
+        const publicConfig = pickPublicExtJsonConfig(params.ext_json_config);
+        const hadConfig = !!publicConfig;
+        const select = retainExtraJson
+          ? toExpandDepthSelect(hadConfig ? publicConfig.expand_depth : null)
+          : DEFAULT_EXPAND_DEPTH;
+
+        this.expandDepthSelect = select;
+        this.sessionLastExpandDepth = select;
+        if (resetOrigin) {
+          this.originHadExtJsonConfig = hadConfig;
+          this.originRetainExtraJson = retainExtraJson;
+          this.originExpandDepthSelect = hadConfig ? select : UNLIMITED_EXPAND_DEPTH;
+        }
+        this.expandDepthInited = true;
+      },
+      handleRetainExtraJsonChange(val) {
+        if (!this.expandDepthInited || !this.isExtJsonExpandDepthEnabled) {
+          return;
+        }
+        if (val) {
+          this.expandDepthSelect =
+            this.sessionLastExpandDepth ?? DEFAULT_EXPAND_DEPTH;
+        } else {
+          this.sessionLastExpandDepth = this.expandDepthSelect;
+        }
+      },
+      handleExpandDepthSelected(val) {
+        this.expandDepthSelect = val;
+        this.sessionLastExpandDepth = val;
+      },
+      needConfirmExpandDepthChange() {
+        if (!this.isExtJsonExpandDepthEnabled || !this.formData.etl_params?.retain_extra_json) {
+          return false;
+        }
+        // 仅已生效的采集项调整层级时需要确认
+        if (!this.isFinishCreateStep && !this.isCleanField && !this.isSetEdit) {
+          return false;
+        }
+        return isExpandDepthChanged(
+          this.expandDepthSelect,
+          this.originExpandDepthSelect,
+          this.originHadExtJsonConfig,
+          this.originRetainExtraJson,
+        );
+      },
+      confirmExpandDepthChange() {
+        if (!this.needConfirmExpandDepthChange()) {
+          return Promise.resolve(true);
+        }
+        const h = this.$createElement;
+        return new Promise(resolve => {
+          this.$bkInfo({
+            type: 'warning',
+            title: this.$t('确认调整动态字段解析层级？'),
+            okText: this.$t('确认调整'),
+            cancelText: this.$t('取消'),
+            subHeader: h(
+              'p',
+              {
+                style: {
+                  whiteSpace: 'normal',
+                  textAlign: 'left',
+                  lineHeight: '20px',
+                },
+              },
+              this.$t(
+                '调整后系统将创建新的 ES 索引，仅影响配置生效后写入的数据。历史索引不会改变，因此不同时间段可检索的字段可能不完全一致。',
+              ),
+            ),
+            confirmFn: () => resolve(true),
+            cancelFn: () => resolve(false),
+          });
+        });
+      },
       /** 传参需要的data */
       getSubmitParams(fieldsData = null) {
         const { etl_config: etlConfig, etl_params: etlParams, visible_type } = this.formData;
@@ -2544,6 +2842,20 @@ import fieldTable from './field-table';
           record_parse_failure: etlParams.enable_retain_content,
           metadata_fields: etlParams.metadata_fields,
         };
+        if (
+          shouldSubmitExtJsonConfig({
+            retainExtraJson: !!payload.retain_extra_json,
+            featureEnabled: this.isExtJsonExpandDepthEnabled,
+            currentSelect: this.expandDepthSelect,
+            originHadConfig: this.originHadExtJsonConfig,
+            originRetainExtraJson: this.originRetainExtraJson,
+          })
+        ) {
+          // 仅提交 expand_depth，不覆盖后台隐藏的 overflow_strategy
+          payload.ext_json_config = {
+            expand_depth: toSubmitExpandDepth(this.expandDepthSelect),
+          };
+        }
         const data = {
           clean_type: etlConfig,
           etl_params: {
@@ -2641,7 +2953,10 @@ import fieldTable from './field-table';
           this.fieldsObjectData = res.data.fields.filter(item => item.field_name.includes('.'));
           this.fieldsObjectData.forEach(item => {
             let name = item.field_name.split('.')[0];
-            item.field_type = typeConversion[item.field_type];
+            // flattened 边界字段保持类型，页面展示为「动态对象字段」，不继续挂载子 mapping
+            if (item.field_type !== 'flattened') {
+              item.field_type = typeConversion[item.field_type] || item.field_type;
+            }
             item.is_objectKey = true;
             item.is_delete = false;
 
@@ -2661,6 +2976,10 @@ import fieldTable from './field-table';
       addChildrenToBuiltField(builtFieldList, item, name) {
         const field_name = name.split('.')[0].replace(/^_+|_+$/g, '');
         builtFieldList.forEach(builtField => {
+          // 动态对象边界字段（flattened）不再递归挂载内部 mapping 字段
+          if (builtField.field_type === 'flattened') {
+            return;
+          }
           if (builtField.field_type === 'object' && field_name === builtField.field_name?.split('.')[0]) {
             if (!Array.isArray(builtField.children)) {
               builtField.children = [];
@@ -2789,6 +3108,52 @@ import fieldTable from './field-table';
       top: 20px;
       font-size: 12px;
       color: #979ba5;
+    }
+
+    .expand-depth-form-item {
+      .expand-depth-config {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .expand-depth-select {
+        width: 200px;
+      }
+
+      .expand-depth-tips {
+        margin: 8px 0 0;
+        font-size: 12px;
+        line-height: 20px;
+        color: #979ba5;
+      }
+
+      .expand-depth-alert {
+        width: 520px;
+        margin-top: 12px;
+      }
+
+      .expand-depth-example-btn {
+        margin-top: 8px;
+        padding: 0;
+        font-size: 12px;
+      }
+    }
+
+    .expand-depth-option {
+      display: flex;
+      flex-direction: column;
+      padding: 2px 0;
+      line-height: 18px;
+
+      .expand-depth-option-name {
+        color: #63656e;
+      }
+
+      .expand-depth-option-desc {
+        font-size: 12px;
+        color: #979ba5;
+      }
     }
 
     .text-nav {
@@ -3270,6 +3635,40 @@ import fieldTable from './field-table';
       &.active {
         color: #3a84ff;
         border: 1px solid #3a84ff;
+      }
+    }
+  }
+
+  .expand-depth-example-dialog {
+    .expand-depth-example-content {
+      .example-block {
+        margin-bottom: 16px;
+      }
+
+      .example-label {
+        margin-bottom: 8px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #63656e;
+      }
+
+      .example-code {
+        padding: 12px;
+        margin: 0;
+        overflow: auto;
+        font-size: 12px;
+        line-height: 20px;
+        color: #63656e;
+        word-break: break-all;
+        white-space: pre-wrap;
+        background: #f5f7fa;
+        border-radius: 2px;
+      }
+
+      .example-note {
+        margin: 8px 0 0;
+        font-size: 12px;
+        color: #979ba5;
       }
     }
   }

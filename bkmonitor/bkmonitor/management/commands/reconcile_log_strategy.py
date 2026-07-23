@@ -74,9 +74,9 @@ class Command(BaseCommand):
     灰度切换 UnifyQuery 查询结果对账命令。
 
     本命令用于验证日志平台数据源切换到 unify-query 前后查询结果的一致性。
-    通过分别启用和禁用灰度开关进行查询，比较两种查询方式的结果是否一致。
+    通过临时黑名单分别强制使用日志平台数据源和 UnifyQuery，比较两种查询方式的结果是否一致。
 
-    灰度控制机制：通过 LogSearchTimeSeriesDataSource.LOG_UNIFY_QUERY_WHITE_BIZ_LIST 类成员变量控制。
+    灰度控制机制：通过 LogSearchTimeSeriesDataSource.LOG_UNIFY_QUERY_BLACK_BIZ_LIST 类成员变量控制。
 
     使用方法：
 
@@ -254,30 +254,26 @@ def execute_query(
     functions: list[dict[str, Any]],
     start_time: int,
     end_time: int,
-    enable_gray: bool,
+    use_unify_query: bool,
 ) -> list[dict[str, Any]]:
     """
     执行查询。
 
-    data_sources 在设置灰度白名单后构建，避免共享实例导致 where 被 _update_params_by_advance_method 清空。
+    data_sources 在设置临时黑名单后构建，避免共享实例导致 where 被 _update_params_by_advance_method 清空。
     """
-    def _set_ds(_biz_list: list[int] | None):
-        LogSearchTimeSeriesDataSource.LOG_UNIFY_QUERY_WHITE_BIZ_LIST = _biz_list
-
-    _set_ds([bk_biz_id] if enable_gray else [])
-    data_sources: list[DataSource] = build_data_sources(strategy)
-    uq: UnifyQuery = UnifyQuery(
-        bk_biz_id=bk_biz_id,
-        data_sources=data_sources,
-        expression=expression,
-        functions=functions,
-    )
-
+    LogSearchTimeSeriesDataSource.LOG_UNIFY_QUERY_BLACK_BIZ_LIST = [] if use_unify_query else [bk_biz_id]
     try:
+        data_sources: list[DataSource] = build_data_sources(strategy)
+        uq: UnifyQuery = UnifyQuery(
+            bk_biz_id=bk_biz_id,
+            data_sources=data_sources,
+            expression=expression,
+            functions=functions,
+        )
         records: list[dict[str, Any]] = uq.query_data(start_time=start_time, end_time=end_time)
     finally:
         # 恢复默认状态，避免对后续查询造成影响
-        _set_ds(None)
+        LogSearchTimeSeriesDataSource.LOG_UNIFY_QUERY_BLACK_BIZ_LIST = None
 
     # 移除最后一个时间点的数据（如果存在），因为日志平台数据源可能存在最后一个时间点数据不稳定的情况。
     end_time: int = time_interval_align(end_time // 1000, data_sources[0].interval) * 1000
@@ -442,11 +438,11 @@ def run_reconciliation(
                     "end_time": end_time_ms,
                 }
 
-                # 执行非灰度查询
-                ds_records: list[dict[str, Any]] = process_records(execute_query(**query_params, enable_gray=False))
+                # 执行日志平台数据源查询
+                ds_records: list[dict[str, Any]] = process_records(execute_query(**query_params, use_unify_query=False))
 
-                # 执行灰度查询
-                uq_records: list[dict[str, Any]] = process_records(execute_query(**query_params, enable_gray=True))
+                # 执行 UnifyQuery 查询
+                uq_records: list[dict[str, Any]] = process_records(execute_query(**query_params, use_unify_query=True))
 
                 # 指定 strategy_ids 时，输出查询结果到 stdout
                 if strategy_ids:

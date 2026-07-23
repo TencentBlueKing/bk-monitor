@@ -28,7 +28,8 @@ from django.utils.deprecation import MiddlewareMixin
 
 from apps.api import TransferApi
 from apps.log_admin_resource.views import AdminResourceViewSet
-from apps.log_databus.constants import ContainerCollectorType
+from apps.log_databus.constants import STORAGE_CLUSTER_TYPE, ContainerCollectorType
+from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import (
     BKDataClean,
     CollectorConfig,
@@ -51,8 +52,31 @@ METADATA_STORAGE = {
         "cluster_config": {"cluster_id": 88, "cluster_name": "metadata-es"},
         "storage_config": {
             "retention": 30,
+            "warm_phase_days": 0,
             "index_settings": {"number_of_shards": 9, "number_of_replicas": 2},
         },
+    }
+}
+HOT_WARM_METADATA_STORAGE = {
+    "2_bklog.bcs_checkinsvr": {
+        "cluster_config": {"cluster_id": 88, "cluster_name": "metadata-hot-warm-es"},
+        "storage_config": {
+            "retention": 30,
+            "warm_phase_days": 5,
+            "index_settings": {"number_of_shards": 9, "number_of_replicas": 2},
+        },
+    }
+}
+NORMAL_CLUSTER_INFO = {
+    "cluster_config": {
+        "cluster_id": 25,
+        "custom_option": {"hot_warm_config": {"is_enabled": False}},
+    }
+}
+HOT_WARM_CLUSTER_INFO = {
+    "cluster_config": {
+        "cluster_id": 25,
+        "custom_option": {"hot_warm_config": {"is_enabled": True}},
     }
 }
 
@@ -420,6 +444,7 @@ class CollectorResourceCallTest(CollectorFixtureMixin, ClearRequestLocalMixin, T
         self.assertEqual(result["chain"]["primary_index_set_id"], 755)
         self.assertEqual(result["storage"]["storage_cluster_id"], 88)
         self.assertEqual(result["storage"]["retention"], 30)
+        self.assertEqual(result["storage"]["allocation_min_days"], 0)
         self.assertEqual(result["storage"]["storage_shards_nums"], 9)
         self.assertEqual(result["storage"]["storage_replies"], 2)
         self.assertEqual(result["collector"]["storage_shards_nums"], 6)
@@ -592,7 +617,11 @@ class CollectorResourceCallTest(CollectorFixtureMixin, ClearRequestLocalMixin, T
 class CollectorStorageResourceCallTest(CollectorFixtureMixin, ClearRequestLocalMixin, TestCase):
     @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     @patch("apps.api.TransferApi.get_result_table_storage", return_value=METADATA_STORAGE)
-    def test_storage_preview_returns_diff_for_selected_collectors(self, mock_get_result_table_storage):
+    @patch("apps.log_admin_resource.handlers.collector_storage.StorageHandler")
+    def test_storage_preview_returns_diff_for_selected_collectors(
+        self, mock_storage_handler, mock_get_result_table_storage
+    ):
+        mock_storage_handler.return_value.get_cluster_info_by_id.return_value = NORMAL_CLUSTER_INFO
         content = self._call(
             "bklog.collector.storage.preview",
             {
@@ -614,6 +643,7 @@ class CollectorStorageResourceCallTest(CollectorFixtureMixin, ClearRequestLocalM
         self.assertEqual(item["collector_config_id"], 10402)
         self.assertEqual(item["before"]["storage_cluster_id"], 88)
         self.assertEqual(item["before"]["retention"], 30)
+        self.assertEqual(item["before"]["allocation_min_days"], 0)
         self.assertEqual(item["before"]["storage_shards_nums"], 9)
         self.assertEqual(item["before"]["storage_replies"], 2)
         self.assertEqual(item["after"]["storage_cluster_id"], 25)
@@ -633,11 +663,149 @@ class CollectorStorageResourceCallTest(CollectorFixtureMixin, ClearRequestLocalM
         self.assertIn("target must include", content["message"])
 
     @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    def test_storage_preview_rejects_storage_shards_size_as_a_write_target(self):
+        content = self._call(
+            "bklog.collector.storage.preview",
+            {"collector_config_ids": [10402], "target": {"storage_shards_size": 30}},
+        )
+
+        self.assertFalse(content["result"])
+        self.assertIn("unsupported target fields: storage_shards_size", content["message"])
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    def test_storage_preview_rejects_zero_hot_data_days(self):
+        content = self._call(
+            "bklog.collector.storage.preview",
+            {"collector_config_ids": [10402], "target": {"allocation_min_days": 0}},
+        )
+
+        self.assertFalse(content["result"])
+        self.assertIn("allocation_min_days must be greater than or equal to 1", content["message"])
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("apps.api.TransferApi.get_result_table_storage", return_value=METADATA_STORAGE)
+    @patch("apps.log_admin_resource.handlers.collector_storage.StorageHandler")
+    def test_storage_preview_does_not_query_cluster_for_unrelated_storage_changes(
+        self, mock_storage_handler, mock_get_result_table_storage
+    ):
+        content = self._call(
+            "bklog.collector.storage.preview",
+            {"collector_config_ids": [10402], "target": {"storage_shards_nums": 3}},
+        )
+
+        self.assertTrue(content["result"])
+        self.assertEqual(content["data"]["result"]["items"][0]["status"], "changeable")
+        mock_storage_handler.assert_not_called()
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("apps.api.TransferApi.get_result_table_storage", return_value=METADATA_STORAGE)
+    @patch("apps.log_admin_resource.handlers.collector_storage.StorageHandler")
+    def test_storage_preview_requires_hot_data_days_when_switching_to_hot_warm_cluster(
+        self, mock_storage_handler, mock_get_result_table_storage
+    ):
+        mock_storage_handler.return_value.get_cluster_info_by_id.return_value = HOT_WARM_CLUSTER_INFO
+
+        content = self._call(
+            "bklog.collector.storage.preview",
+            {
+                "collector_config_ids": [10402],
+                "target": {"storage_cluster_id": 25, "retention": 7},
+            },
+        )
+
+        self.assertTrue(content["result"])
+        item = content["data"]["result"]["items"][0]
+        self.assertEqual(item["status"], "blocked")
+        self.assertIn("hot_data_days_required", [warning["code"] for warning in item["warnings"]])
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("apps.api.TransferApi.get_result_table_storage", return_value=METADATA_STORAGE)
+    @patch("apps.log_admin_resource.handlers.collector_storage.StorageHandler")
+    def test_storage_preview_requires_hot_data_days_to_be_less_than_retention(
+        self, mock_storage_handler, mock_get_result_table_storage
+    ):
+        mock_storage_handler.return_value.get_cluster_info_by_id.return_value = HOT_WARM_CLUSTER_INFO
+
+        content = self._call(
+            "bklog.collector.storage.preview",
+            {
+                "collector_config_ids": [10402],
+                "target": {
+                    "storage_cluster_id": 25,
+                    "retention": 7,
+                    "allocation_min_days": 7,
+                },
+            },
+        )
+
+        self.assertTrue(content["result"])
+        item = content["data"]["result"]["items"][0]
+        self.assertEqual(item["status"], "blocked")
+        self.assertIn("invalid_hot_data_days", [warning["code"] for warning in item["warnings"]])
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("apps.api.TransferApi.get_result_table_storage", return_value=HOT_WARM_METADATA_STORAGE)
+    @patch("apps.log_admin_resource.handlers.collector_storage.StorageHandler")
+    def test_storage_preview_preserves_existing_hot_data_days(
+        self, mock_storage_handler, mock_get_result_table_storage
+    ):
+        mock_storage_handler.return_value.get_cluster_info_by_id.return_value = HOT_WARM_CLUSTER_INFO
+
+        content = self._call(
+            "bklog.collector.storage.preview",
+            {"collector_config_ids": [10402], "target": {"retention": 20}},
+        )
+
+        self.assertTrue(content["result"])
+        item = content["data"]["result"]["items"][0]
+        self.assertEqual(item["status"], "changeable")
+        self.assertEqual(item["after"]["allocation_min_days"], 5)
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("apps.api.TransferApi.get_result_table_storage", return_value=METADATA_STORAGE)
+    @patch("apps.log_admin_resource.handlers.collector_storage.StorageHandler")
+    def test_storage_preview_rejects_hot_data_days_for_normal_cluster(
+        self, mock_storage_handler, mock_get_result_table_storage
+    ):
+        mock_storage_handler.return_value.get_cluster_info_by_id.return_value = NORMAL_CLUSTER_INFO
+
+        content = self._call(
+            "bklog.collector.storage.preview",
+            {"collector_config_ids": [10402], "target": {"allocation_min_days": 5}},
+        )
+
+        self.assertTrue(content["result"])
+        item = content["data"]["result"]["items"][0]
+        self.assertEqual(item["status"], "blocked")
+        self.assertIn("hot_data_days_not_supported", [warning["code"] for warning in item["warnings"]])
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("apps.api.TransferApi.get_result_table_storage", return_value=HOT_WARM_METADATA_STORAGE)
+    @patch("apps.log_admin_resource.handlers.collector_storage.StorageHandler")
+    def test_storage_preview_clears_hot_data_days_when_switching_to_normal_cluster(
+        self, mock_storage_handler, mock_get_result_table_storage
+    ):
+        mock_storage_handler.return_value.get_cluster_info_by_id.return_value = NORMAL_CLUSTER_INFO
+
+        content = self._call(
+            "bklog.collector.storage.preview",
+            {"collector_config_ids": [10402], "target": {"storage_cluster_id": 25}},
+        )
+
+        self.assertTrue(content["result"])
+        item = content["data"]["result"]["items"][0]
+        self.assertEqual(item["status"], "changeable")
+        self.assertEqual(item["after"]["allocation_min_days"], 0)
+        self.assertIn("allocation_min_days", [diff["field"] for diff in item["diff"]])
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     @patch("apps.api.TransferApi.get_result_table_storage", return_value=METADATA_STORAGE)
     @patch("apps.log_admin_resource.handlers.collector_storage.TransferEtlHandler.patch_update")
+    @patch("apps.log_admin_resource.handlers.collector_storage.StorageHandler")
     def test_storage_apply_uses_existing_patch_update_after_expected_before_check(
-        self, mock_patch_update, mock_get_result_table_storage
+        self, mock_storage_handler, mock_patch_update, mock_get_result_table_storage
     ):
+        mock_storage_handler.return_value.get_cluster_info_by_id.return_value = HOT_WARM_CLUSTER_INFO
         mock_patch_update.return_value = {"storage_cluster_id": 25, "retention": 7, "es_shards": 3}
         content = self._call(
             "bklog.collector.storage.apply",
@@ -646,6 +814,7 @@ class CollectorStorageResourceCallTest(CollectorFixtureMixin, ClearRequestLocalM
                 "target": {
                     "storage_cluster_id": 25,
                     "retention": 7,
+                    "allocation_min_days": 6,
                     "storage_shards_nums": 3,
                     "storage_replies": 0,
                 },
@@ -653,6 +822,7 @@ class CollectorStorageResourceCallTest(CollectorFixtureMixin, ClearRequestLocalM
                     "10402": {
                         "storage_cluster_id": 88,
                         "retention": 30,
+                        "allocation_min_days": 0,
                         "storage_shards_nums": 9,
                         "storage_replies": 2,
                     }
@@ -668,7 +838,7 @@ class CollectorStorageResourceCallTest(CollectorFixtureMixin, ClearRequestLocalM
         mock_patch_update.assert_called_once_with(
             storage_cluster_id=25,
             retention=7,
-            allocation_min_days=None,
+            allocation_min_days=6,
             storage_replies=0,
             es_shards=3,
         )
@@ -677,7 +847,11 @@ class CollectorStorageResourceCallTest(CollectorFixtureMixin, ClearRequestLocalM
     @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     @patch("apps.api.TransferApi.get_result_table_storage", return_value=METADATA_STORAGE)
     @patch("apps.log_admin_resource.handlers.collector_storage.TransferEtlHandler.patch_update")
-    def test_storage_apply_blocks_when_expected_before_is_stale(self, mock_patch_update, mock_get_result_table_storage):
+    @patch("apps.log_admin_resource.handlers.collector_storage.StorageHandler")
+    def test_storage_apply_blocks_when_expected_before_is_stale(
+        self, mock_storage_handler, mock_patch_update, mock_get_result_table_storage
+    ):
+        mock_storage_handler.return_value.get_cluster_info_by_id.return_value = NORMAL_CLUSTER_INFO
         content = self._call(
             "bklog.collector.storage.apply",
             {
@@ -697,20 +871,74 @@ class CollectorStorageResourceCallTest(CollectorFixtureMixin, ClearRequestLocalM
 
     @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
     @patch("apps.log_admin_resource.handlers.storage_cluster.StorageHandler")
-    def test_storage_cluster_list_returns_selectable_es_clusters(self, mock_storage_handler):
-        mock_storage_handler.return_value.list.return_value = [
+    def test_storage_cluster_list_returns_business_visible_es_clusters(self, mock_storage_handler):
+        mock_storage_handler.return_value.get_cluster_groups.return_value = [
             {
                 "storage_cluster_id": 25,
-                "cluster_name": "hot-es",
-                "domain_name": "hot-es.service",
-                "is_active": True,
-            }
+                "storage_cluster_name": "public-hot-es",
+                "registered_system": "_default",
+                "enable_hot_warm": True,
+            },
+            {
+                "storage_cluster_id": 26,
+                "storage_cluster_name": "business-es",
+                "registered_system": "bk_log_search",
+                "enable_hot_warm": False,
+            },
         ]
 
-        content = self._call("bklog.storage_cluster.list", {"page": 1, "page_size": 20})
+        content = self._call("bklog.storage_cluster.list", {"bk_biz_id": 2, "page": 1, "page_size": 20})
+
+        self.assertTrue(content["result"])
+        result = content["data"]["result"]
+        self.assertEqual(result["total"], 2)
+        self.assertEqual(result["items"][0]["storage_cluster_id"], 25)
+        self.assertEqual(result["items"][0]["storage_cluster_name"], "public-hot-es")
+        self.assertTrue(result["items"][0]["is_public"])
+        self.assertTrue(result["items"][0]["hot_warm_enabled"])
+        self.assertFalse(result["items"][1]["is_public"])
+        mock_storage_handler.return_value.get_cluster_groups.assert_called_once_with(bk_biz_id=2, cluster_id=None)
+        mock_storage_handler.return_value.list.assert_not_called()
+
+    @override_settings(MIDDLEWARE=(APIGW_MIDDLEWARE,))
+    @patch("apps.log_admin_resource.handlers.storage_cluster.StorageHandler")
+    def test_storage_cluster_list_filters_visible_clusters_by_id(self, mock_storage_handler):
+        mock_storage_handler.return_value.get_cluster_groups.return_value = [
+            {
+                "storage_cluster_id": 25,
+                "storage_cluster_name": "public-es",
+                "registered_system": "_default",
+            },
+            {
+                "storage_cluster_id": 26,
+                "storage_cluster_name": "business-es",
+                "registered_system": "bk_log_search",
+            },
+        ]
+
+        content = self._call(
+            "bklog.storage_cluster.list",
+            {"bk_biz_id": 2, "storage_cluster_id": 25, "page": 1, "page_size": 20},
+        )
 
         self.assertTrue(content["result"])
         result = content["data"]["result"]
         self.assertEqual(result["total"], 1)
         self.assertEqual(result["items"][0]["storage_cluster_id"], 25)
-        self.assertEqual(result["items"][0]["storage_cluster_name"], "hot-es")
+        self.assertTrue(result["items"][0]["is_public"])
+        mock_storage_handler.return_value.get_cluster_groups.assert_called_once_with(bk_biz_id=2, cluster_id=25)
+
+
+class StorageClusterHandlerTest(TestCase):
+    @patch("apps.log_databus.handlers.storage.MultiExecuteFunc")
+    def test_get_cluster_groups_pushes_cluster_id_to_transfer_query(self, mock_multi_execute):
+        mock_multi_execute.return_value.run.return_value = {STORAGE_CLUSTER_TYPE: []}
+
+        result = StorageHandler().get_cluster_groups(bk_biz_id=2, cluster_id=25)
+
+        self.assertEqual(result, [])
+        mock_multi_execute.return_value.append.assert_called_once_with(
+            STORAGE_CLUSTER_TYPE,
+            TransferApi.get_cluster_info,
+            {"cluster_type": STORAGE_CLUSTER_TYPE, "cluster_id": 25},
+        )

@@ -1354,6 +1354,7 @@ RT_RESERVED_WORD_EXAC = [
     "filename",
     "items",
     "utctime",
+    "signature",
     "__dist_01",
     "__dist_03",
     "__dist_05",

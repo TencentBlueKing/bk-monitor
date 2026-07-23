@@ -102,6 +102,7 @@ import { useIssuesImpactScopeDrawer } from './alarm-issues/components/issues-imp
 import IssuesImpactScopeDrawer from './alarm-issues/components/issues-impact-scope-drawer/issues-impact-scope-drawer';
 import { useIssuesDialogs } from './alarm-issues/components/issues-operation-dialogs/hooks/use-issues-dialogs';
 import IssuesOperationDialogs from './alarm-issues/components/issues-operation-dialogs/issues-operation-dialogs';
+import { useIssuesTableEnhancement } from './alarm-issues/composables/use-issues-table-enhancement';
 import { IssuesBatchActionEnum, TREND_RANGE_SECONDS_MAP, TrendRangeEnum } from './alarm-issues/constant';
 import { useIssuesMergeActions } from './alarm-issues/hooks/use-issues-merge-actions';
 import IssuesDetailSideSlider from './alarm-issues/issues-detail/issues-detail-sideslider';
@@ -118,14 +119,9 @@ import {
 import { saveAlertContentName } from './services/alert-services';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
-import type {
-  IssueDetail,
-  IssueItem,
-  IssuePriorityType,
-  IssuesBatchActionType,
-  TrendRangeType,
-} from './alarm-issues/typing';
+import type { IssueItem, IssuePriorityType, IssuesBatchActionType, TrendRangeType } from './alarm-issues/typing';
 import type { AlertSavePromiseEvent } from './components/alarm-table/components/alert-content-detail/alert-content-detail';
+import type { IssuesService } from './services/issues-services';
 
 import './alarm-center.scss';
 
@@ -146,8 +142,6 @@ export default defineComponent({
     const apmHooks = inject<AlarmCenterApmHooks | null>(ALARM_CENTER_APM_HOOKS_KEY, null);
     /** table 选中的 rowKey 数组 */
     const selectedRowKeys = shallowRef<string[]>([]);
-    // 当前创建tapd的issue详情
-    const createTapdIssueDetail = shallowRef<IssueDetail>(null);
     /** 是否有选中行 */
     const hasSelection = computed(() => selectedRowKeys.value.length > 0);
 
@@ -165,8 +159,18 @@ export default defineComponent({
       handleQuickFilteringOperation,
     } = useQuickFilter();
 
-    const { data, loading, total, page, pageSize, ordering, enabledSpaces, wxCsLink, trendRange, trendLoading } =
-      useAlarmTable();
+    const { data, loading, total, page, pageSize, ordering, enabledSpaces, wxCsLink } = useAlarmTable();
+
+    const {
+      trendRange,
+      trendLoading,
+      onTrendRangeChange: handleTrendRangeChange,
+    } = useIssuesTableEnhancement({
+      data: data as Ref<IssueItem[]>,
+      serviceInstance: computed(() => alarmStore.alarmService as IssuesService),
+      endTime: computed(() => alarmStore.commonFilterParams.end_time),
+      alarmType: computed(() => alarmStore.alarmType),
+    });
 
     /** 表格分页配置 */
     const pagination = computed(() => ({
@@ -783,10 +787,9 @@ export default defineComponent({
 
     function handleDetailShowChange(show: boolean) {
       alarmDetailShow.value = show;
-      if (!show) {
-        detailId.value = '';
-        alarmDetailDefaultTab.value = '';
-      }
+      if (show) return;
+      detailId.value = '';
+      alarmDetailDefaultTab.value = '';
     }
 
     /**
@@ -863,11 +866,8 @@ export default defineComponent({
     const tapdBizId = shallowRef<number | string>(null);
     const tapdIssueId = shallowRef('');
     const issuesTapdShow = shallowRef(false);
-    const handleIssuesTapdShowChange = (show: boolean, detail = null) => {
+    const handleIssuesTapdShowChange = (show: boolean) => {
       if (show) {
-        if (detail) {
-          createTapdIssueDetail.value = detail;
-        }
         tapdBizId.value = detailBizId.value;
         tapdIssueId.value = detailId.value;
       }
@@ -1238,7 +1238,7 @@ export default defineComponent({
       tapdBizId,
       tapdIssueId,
       handleIssuesTapdShowChange,
-      createTapdIssueDetail,
+      handleTrendRangeChange,
     };
   },
   render() {
@@ -1468,7 +1468,7 @@ export default defineComponent({
                                 onSortChange={sort => this.handleSortChange(sort as string)}
                                 onSplitClick={this.handleIssuesSplitClick}
                                 onTrendRangeChange={(range: TrendRangeType) => {
-                                  this.trendRange = range;
+                                  this.handleTrendRangeChange(range);
                                   this.handleCurrentPageChange(1);
                                 }}
                               />
@@ -1552,7 +1552,6 @@ export default defineComponent({
               <IssuesTapd
                 key='issues-tapd'
                 bizId={this.tapdBizId}
-                issueDetail={this.createTapdIssueDetail}
                 issuesId={this.tapdIssueId}
                 show={this.issuesTapdShow}
                 onUpdate:show={this.handleIssuesTapdShowChange}

@@ -25,13 +25,12 @@ from django.utils.translation import gettext as _
 
 from apps.api import MonitorApi
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
-from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE
+from apps.feature_toggle.plugins.constants import BKDATA_CLUSTERING_TOGGLE, NEW_CLASS_ALERT_NEW_SERIES
 from apps.log_clustering.constants import (
-    AGG_CONDITION,
-    AGG_CONDITION_NORMAL,
-    AGG_DIMENSION,
     AGG_DIMENSION_NORMAL,
     ALARM_INTERVAL_CLUSTERING,
+    CLUSTERED_LOG_AGG_CONDITION,
+    DEFAULT_AGG_INTERVAL,
     DEFAULT_AGG_METHOD,
     DEFAULT_ALGORITHMS,
     DEFAULT_DATA_SOURCE_LABEL,
@@ -45,9 +44,16 @@ from apps.log_clustering.constants import (
     DEFAULT_NOTICE_WAY,
     DEFAULT_PATTERN_MONITOR_MSG,
     DEFAULT_SCENARIO,
+    DEFAULT_TIME_FIELD,
     DETECTS,
     ITEM_NAME_CLUSTERING,
+    ITEM_NAME_NEW_CLASS,
+    LEGACY_NEW_CLASS_AGG_CONDITION,
+    LEGACY_NEW_CLASS_AGG_DIMENSION,
+    NEW_SERIES_ALGORITHM_TYPE,
+    NEW_SERIES_THRESHOLD_CONFIG_KEY,
     PATTERN_MONITOR_MSG_BY_SWITCH,
+    SIGNATURE_FIELD,
     TRIGGER_CONFIG,
     StrategiesType,
 )
@@ -63,6 +69,7 @@ from apps.log_clustering.models import (
 from apps.log_clustering.utils.monitor import MonitorUtils
 from apps.log_search.models import LogIndexSet
 from apps.utils.local import get_external_app_code
+from apps.utils.time_handler import DAY
 
 
 class ClusteringMonitorHandler:
@@ -82,8 +89,42 @@ class ClusteringMonitorHandler:
         )
         self.conf = FeatureToggleObject.toggle(BKDATA_CLUSTERING_TOGGLE).feature_config
 
+    def _build_log_search_query_config(self, agg_dimension, agg_condition):
+        """构造日志聚类告警共用的日志检索数据源配置。"""
+        return {
+            "data_source_label": DEFAULT_DATA_SOURCE_LABEL,
+            "data_type_label": DEFAULT_DATA_TYPE_LABEL,
+            "alias": DEFAULT_EXPRESSION,
+            "agg_interval": self.conf.get("agg_interval", DEFAULT_AGG_INTERVAL),
+            "agg_dimension": agg_dimension,
+            "agg_condition": agg_condition,
+            "metric_id": f"bk_log_search.index_set.{self.index_set_id}",
+            "index_set_id": self.index_set_id,
+            "result_table_id": self.log_index_set_data["result_table_id"],
+            "query_string": "*",
+            "functions": [],
+            "time_field": DEFAULT_TIME_FIELD,
+        }
+
+    def is_new_class_new_series_enabled(self):
+        """新类告警 NewSeries 灰度开关；未配置时默认开启。"""
+        return FeatureToggleObject.switch(
+            NEW_CLASS_ALERT_NEW_SERIES,
+            biz_id=self.clustering_config.bk_biz_id,
+            default=True,
+        )
+
+    def is_legacy_new_class_strategy(self):
+        """存量 IntelligentDetect 策略或灰度关闭时继续使用旧链路。"""
+        if self.clustering_config.new_cls_strategy_output or self.clustering_config.new_cls_pattern_rt:
+            return True
+        flow_config = self.clustering_config.log_count_aggregation_flow or {}
+        if flow_config.get("include_agg") is False:
+            return False
+        return not self.is_new_class_new_series_enabled()
+
     @atomic
-    def save_new_cls_clustering_strategy(
+    def save_legacy_new_cls_clustering_strategy(
         self,
         pattern_level="",
         table_id=None,
@@ -119,8 +160,8 @@ class ClusteringMonitorHandler:
                         "result_table_id": table_id,
                         "agg_method": DEFAULT_AGG_METHOD,
                         "agg_interval": self.conf.get("agg_interval", 60),
-                        "agg_dimension": AGG_DIMENSION,
-                        "agg_condition": AGG_CONDITION,
+                        "agg_dimension": LEGACY_NEW_CLASS_AGG_DIMENSION,
+                        "agg_condition": LEGACY_NEW_CLASS_AGG_CONDITION,
                         "metric_field": metric,
                         "unit": "",
                         "metric_id": f"bk_data.{table_id}.{metric}",
@@ -166,19 +207,91 @@ class ClusteringMonitorHandler:
         }
 
         strategy_id = self.save_strategy_infos(
+            strategy_type=StrategiesType.NEW_CLS_strategy,
+            pattern_level=pattern_level,
+            request_params=request_params,
             table_id=table_id,
+        )
+
+        return {"strategy_id": strategy_id, "label_name": labels}
+
+    @atomic
+    def save_new_cls_clustering_strategy(self, pattern_level="", params=None):
+        """保存基于 NewSeries 的新类告警策略。"""
+        params = params or {}
+        label_index_set_id = self.clustering_config.new_cls_index_set_id or self.index_set_id
+        level = params.get("level", 2)
+        detect_range = params.get("interval", 30) * DAY
+        new_class_threshold = params.get("threshold", 1)
+        agg_dimension = [SIGNATURE_FIELD, *(self.clustering_config.group_fields or [])]
+
+        labels = DEFAULT_LABEL.copy()
+        labels += [f"LogClustering/Count/{label_index_set_id}"]
+
+        name = _("{} - 日志新类异常告警").format(self.index_set.index_set_name)
+        new_series_algorithm_config = {
+            "detect_range": detect_range,
+            NEW_SERIES_THRESHOLD_CONFIG_KEY: new_class_threshold,
+        }
+
+        items = [
+            {
+                "name": ITEM_NAME_NEW_CLASS,
+                "no_data_config": {**DEFAULT_NO_DATA_CONFIG, "level": level},
+                "target": [],
+                "expression": DEFAULT_EXPRESSION,
+                "functions": [],
+                "origin_sql": "",
+                "metric_type": "log",
+                "query_configs": [
+                    self._build_log_search_query_config(
+                        agg_dimension=agg_dimension,
+                        agg_condition=CLUSTERED_LOG_AGG_CONDITION,
+                    )
+                ],
+                "algorithms": [
+                    {
+                        "level": level,
+                        "type": NEW_SERIES_ALGORITHM_TYPE,
+                        "config": new_series_algorithm_config,
+                        "unit_prefix": "",
+                    }
+                ],
+            }
+        ]
+
+        notice = self.get_notice(
+            label_index_set_id=label_index_set_id,
+            user_groups=params.get("user_groups"),
+        )
+        request_params = {
+            "type": "monitor",
+            "bk_biz_id": self.bk_biz_id,
+            "scenario": DEFAULT_SCENARIO,
+            "name": name,
+            "labels": labels,
+            "is_enabled": True,
+            "items": items,
+            "detects": [{**DETECTS[0], "level": level}],
+            "actions": [],
+            "notice": notice,
+        }
+
+        # NewSeries 的 signature 维度依赖聚类结果表读别名，保存策略前确保路由已同步。
+        from apps.log_clustering.handlers.dataflow.dataflow_handler import DataFlowHandler
+
+        DataFlowHandler.sync_clustered_route(index_set_id=self.index_set_id, raise_exception=True)
+        strategy_id = self.save_strategy_infos(
             strategy_type=StrategiesType.NEW_CLS_strategy,
             pattern_level=pattern_level,
             request_params=request_params,
         )
-
         return {"strategy_id": strategy_id, "label_name": labels}
 
     @atomic
     def save_normal_clustering_strategy(
         self,
         pattern_level="",
-        table_id=None,
         params=None,
     ):
         """保存数量突增告警策略"""
@@ -204,20 +317,10 @@ class ClusteringMonitorHandler:
                 "origin_sql": "",
                 "metric_type": "log",
                 "query_configs": [
-                    {
-                        "data_source_label": DEFAULT_DATA_SOURCE_LABEL,
-                        "data_type_label": DEFAULT_DATA_TYPE_LABEL,
-                        "alias": DEFAULT_EXPRESSION,
-                        "result_table_id": table_id,
-                        "agg_interval": self.conf.get("agg_interval", 60),
-                        "agg_dimension": AGG_DIMENSION_NORMAL,
-                        "agg_condition": AGG_CONDITION_NORMAL,
-                        "metric_id": f"bk_log_search.index_set.{self.index_set_id}",
-                        "index_set_id": self.index_set_id,
-                        "query_string": "*",
-                        "functions": [],
-                        "time_field": "dtEventTimeStamp",
-                    }
+                    self._build_log_search_query_config(
+                        agg_dimension=AGG_DIMENSION_NORMAL,
+                        agg_condition=CLUSTERED_LOG_AGG_CONDITION,
+                    )
                 ],
                 "algorithms": [
                     {
@@ -253,7 +356,6 @@ class ClusteringMonitorHandler:
             "notice": notice,
         }
         strategy_id = self.save_strategy_infos(
-            table_id=table_id,
             strategy_type=StrategiesType.NORMAL_STRATEGY,
             pattern_level=pattern_level,
             request_params=request_params,
@@ -300,7 +402,7 @@ class ClusteringMonitorHandler:
         }
         return notice
 
-    def save_strategy_infos(self, table_id, strategy_type, pattern_level, request_params):
+    def save_strategy_infos(self, strategy_type, pattern_level, request_params, table_id=""):
         signature_strategy_settings, created = SignatureStrategySettings.objects.get_or_create(
             index_set_id=self.index_set_id,
             strategy_type=strategy_type,
@@ -322,12 +424,17 @@ class ClusteringMonitorHandler:
         signature_strategy_settings.strategy_id = strategy_id
         signature_strategy_settings.save()
 
-        strategy_output_rt = f"{table_id}_{strategy_id}_plan_{self.conf.get('algorithm_plan_id')}"
         if strategy_type == StrategiesType.NORMAL_STRATEGY:
-            self.clustering_config.normal_strategy_output = strategy_output_rt
+            self.clustering_config.normal_strategy_output = ""
             self.clustering_config.normal_strategy_enable = True
         else:
-            self.clustering_config.new_cls_strategy_output = strategy_output_rt
+            algorithm_type = request_params["items"][0]["algorithms"][0]["type"]
+            if algorithm_type == NEW_SERIES_ALGORITHM_TYPE:
+                self.clustering_config.new_cls_strategy_output = ""
+            else:
+                self.clustering_config.new_cls_strategy_output = (
+                    f"{table_id}_{strategy_id}_plan_{self.conf.get('algorithm_plan_id')}"
+                )
             self.clustering_config.new_cls_strategy_enable = True
 
         self.clustering_config.save(
@@ -354,18 +461,42 @@ class ClusteringMonitorHandler:
         labels = [f"LogClustering/Count/{label_index_set_id}"]
         data = {"strategy_id": strategy_id, "level": level, "user_groups": user_groups, "label_name": labels}
         if strategy_type == StrategiesType.NEW_CLS_strategy:
-            interval = ""
-            threshold = ""
-            if isinstance(algorithms_config["config"], dict):
-                interval = algorithms_config["config"].get("args", {}).get("$new_class_interval", "")
-                threshold = algorithms_config["config"].get("args", {}).get("$new_class_alert_th", "")
-            data.update({"interval": interval, "threshold": threshold})
+            if algorithms_config["type"] == NEW_SERIES_ALGORITHM_TYPE:
+                detect_range = algorithms_config["config"].get("detect_range", 0)
+                data.update(
+                    {
+                        "interval": detect_range // DAY,
+                        "threshold": algorithms_config["config"].get(NEW_SERIES_THRESHOLD_CONFIG_KEY, 0),
+                    }
+                )
+            else:
+                interval = ""
+                threshold = ""
+                if isinstance(algorithms_config["config"], dict):
+                    interval = algorithms_config["config"].get("args", {}).get("$new_class_interval", "")
+                    threshold = algorithms_config["config"].get("args", {}).get("$new_class_alert_th", "")
+                data.update({"interval": interval, "threshold": threshold})
         else:
             sensitivity = ""
             if isinstance(algorithms_config["config"], dict):
                 sensitivity = algorithms_config["config"].get("args", {}).get("$sensitivity", "")
             data.update({"sensitivity": sensitivity})
         return data
+
+    def resave_new_cls_clustering_strategy(self):
+        """按监控侧现有参数重存 NewSeries 策略，用于分组字段变更联动。"""
+        strategy_settings = SignatureStrategySettings.objects.filter(
+            index_set_id=self.index_set_id,
+            strategy_type=StrategiesType.NEW_CLS_strategy,
+            signature="",
+            is_deleted=False,
+        ).first()
+        if not strategy_settings or not strategy_settings.strategy_id:
+            return None
+        params = self.get_strategy(StrategiesType.NEW_CLS_strategy, strategy_settings.strategy_id)
+        if not params:
+            return None
+        return self.save_new_cls_clustering_strategy(params=params)
 
     @atomic
     def delete_strategy(self, strategy_type):
@@ -400,21 +531,22 @@ class ClusteringMonitorHandler:
 
     def create_or_update_clustering_strategy(self, strategy_type, params=None):
         # 创建/更新 新类或数量突增报警
-        table_id = (
-            self.clustering_config.new_cls_pattern_rt
-            if self.clustering_config.new_cls_pattern_rt
-            else self.clustering_config.log_count_aggregation_flow["log_count_aggregation"]["result_table_id"]
-        )
-
         if strategy_type == StrategiesType.NORMAL_STRATEGY:
-            result = self.save_normal_clustering_strategy(
+            result = self.save_normal_clustering_strategy(params=params)
+        elif self.is_legacy_new_class_strategy():
+            # 存量 IntelligentDetect 策略继续沿用 BKData 结果表，不在编辑时隐式迁移。
+            table_id = (
+                self.clustering_config.new_cls_pattern_rt
+                if self.clustering_config.new_cls_pattern_rt
+                else self.clustering_config.log_count_aggregation_flow["agg"]["result_table_id"]
+            )
+            result = self.save_legacy_new_cls_clustering_strategy(
                 table_id=table_id,
+                metric=DEFAULT_METRIC_CLUSTERING,
                 params=params,
             )
         else:
             result = self.save_new_cls_clustering_strategy(
-                table_id=table_id,
-                metric=DEFAULT_METRIC_CLUSTERING,
                 params=params,
             )
         return result

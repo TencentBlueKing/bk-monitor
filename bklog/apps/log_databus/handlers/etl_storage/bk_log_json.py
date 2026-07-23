@@ -20,14 +20,127 @@ the project delivered to anyone in the future.
 """
 
 import copy
+import json
 
-from apps.log_databus.constants import DORIS_CLUSTER_TYPE, EtlConfig, STORAGE_CLUSTER_TYPE
+from django.utils.translation import gettext_lazy as _
+
+from apps.exceptions import ValidationError
+from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+from apps.feature_toggle.plugins.constants import EXT_JSON_EXPAND_DEPTH
+from apps.log_databus.constants import (
+    DEFAULT_EXT_JSON_EXPAND_DEPTH,
+    DORIS_CLUSTER_TYPE,
+    EXT_JSON_EXPAND_DEPTH_CHOICES,
+    MIN_FLATTENED_SUPPORT_VERSION,
+    STORAGE_CLUSTER_TYPE,
+    EtlConfig,
+    ExtJsonOverflowStrategy,
+)
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.etl_storage.utils.transfer import preview
+from apps.log_databus.utils.es_config import is_version_less_than
 
 
 class BkLogJsonEtlStorage(EtlStorage):
     etl_config = EtlConfig.BK_LOG_JSON
+
+    @staticmethod
+    def _normalize_ext_json_config(config: dict | None) -> dict:
+        config = config or {}
+        expand_depth = config.get("expand_depth")
+        overflow_strategy = config.get("overflow_strategy", ExtJsonOverflowStrategy.FLATTENED)
+        if expand_depth is not None and expand_depth not in EXT_JSON_EXPAND_DEPTH_CHOICES:
+            raise ValidationError(_("动态解析层级仅支持 1、2、3 或 null"))
+        if overflow_strategy not in ExtJsonOverflowStrategy.values:
+            raise ValidationError(_("不支持的未定义JSON字段溢出策略"))
+        return {"expand_depth": expand_depth, "overflow_strategy": overflow_strategy}
+
+    def customize_result_table_config(
+        self,
+        params: dict,
+        etl_params: dict,
+        current_result_table_config: dict,
+        es_version: str,
+        storage_cluster_type: str,
+    ) -> None:
+        current_config = current_result_table_config.get("option", {}).get("ext_json_config")
+        # “键不存在”表示旧调用方从未启用该能力；显式传入空对象则表示启用并使用新配置默认值。
+        has_new_config = "ext_json_config" in etl_params
+
+        if not etl_params.get("retain_extra_json"):
+            # 关闭未定义字段时同步清理请求态和 RT option，避免后续回显出已经失效的层级配置。
+            etl_params.pop("ext_json_config", None)
+            params["option"].pop("ext_json_config", None)
+            return
+
+        # 新旧配置均不存在时保持存量“无限展开”语义，不能把缺省值归一化成新配置默认深度 2。
+        if not has_new_config and current_config is None:
+            return
+
+        if storage_cluster_type != STORAGE_CLUSTER_TYPE:
+            raise ValidationError(_("未定义JSON字段动态解析层级仅支持 Elasticsearch 存储"))
+
+        current_effective_config = self._normalize_ext_json_config(current_config)
+        if has_new_config:
+            requested_config = etl_params["ext_json_config"] or {}
+            effective_config = {
+                "expand_depth": requested_config.get("expand_depth", DEFAULT_EXT_JSON_EXPAND_DEPTH),
+                "overflow_strategy": requested_config.get(
+                    "overflow_strategy", current_effective_config["overflow_strategy"]
+                ),
+            }
+        else:
+            effective_config = current_effective_config
+        effective_config = self._normalize_ext_json_config(effective_config)
+
+        # 灰度只限制新增或变更；关闭实验开关后，已有配置仍需在普通采集项更新中继续生效。
+        is_config_change = current_config is None or effective_config != current_effective_config
+        if (
+            has_new_config
+            and is_config_change
+            and not FeatureToggleObject.switch(EXT_JSON_EXPAND_DEPTH, etl_params.get("bk_biz_id"))
+        ):
+            raise ValidationError(_("当前业务未开启未定义JSON字段动态解析层级实验特性"))
+
+        # expand_depth=null 不会生成 flattened mapping，仍是无限展开，因此无需校验 flattened 版本门槛。
+        if (
+            effective_config["overflow_strategy"] == ExtJsonOverflowStrategy.FLATTENED
+            and effective_config["expand_depth"] is not None
+            and is_version_less_than(es_version, MIN_FLATTENED_SUPPORT_VERSION)
+        ):
+            raise ValidationError(_(f"ES版本{es_version}不支持 flattened 字段类型"))
+
+        # 同时回写本次清洗参数与 RT option，保证异步下发和后续配置回显使用同一份归一化配置。
+        etl_params["ext_json_config"] = effective_config
+        params["option"]["ext_json_config"] = effective_config
+
+        ext_json_field = next(
+            (field for field in params["field_list"] if field["field_name"] == "__ext_json"),
+            None,
+        )
+        if not ext_json_field:
+            raise ValidationError(_("未找到 __ext_json 结果表字段"))
+
+        if effective_config["overflow_strategy"] == ExtJsonOverflowStrategy.SOURCE_ONLY:
+            # 后台应急路径：关闭整个 __ext_json 的索引解析，但原始对象仍保留在 ES _source 中。
+            ext_json_field["option"]["es_enabled"] = False
+        elif effective_config["expand_depth"] is not None:
+            depth = effective_config["expand_depth"]
+            path_match = "__ext_json" + ".*" * depth
+            # dynamic_templates 按顺序匹配，因此必须放在通用模板之前。通配符本身也能匹配更深路径，
+            # 但第 N 层 object 一旦映射为 flattened，ES 就不会继续为其子树创建独立 mapping。
+            # 该列表由基类 update_or_create_result_table 统一初始化，这里只追加 JSON 清洗的专属规则。
+            dynamic_templates = params["default_storage_config"]["mapping_settings"]["dynamic_templates"]
+            dynamic_templates.insert(
+                0,
+                {
+                    f"ext_json_objects_at_depth_{depth}_as_flattened": {
+                        "path_match": path_match,
+                        "match_mapping_type": "object",
+                        "mapping": {"type": "flattened"},
+                    }
+                },
+            )
 
     def etl_preview(self, data, etl_params=None) -> list:
         """
@@ -108,7 +221,9 @@ class BkLogJsonEtlStorage(EtlStorage):
 
         if built_in_config.get("option") and isinstance(built_in_config["option"], dict):
             option = dict(built_in_config["option"], **option)
-        result_table_fields = self.get_result_table_fields(fields, etl_params, built_in_config, es_version=es_version)
+        result_table_fields = self.get_result_table_fields(
+            fields, etl_params, built_in_config, es_version=es_version, storage_cluster_type=storage_cluster_type
+        )
 
         result_table_config = {
             "option": option,
@@ -277,9 +392,22 @@ class BkLogJsonEtlStorage(EtlStorage):
 
         return data_link_config
 
+    @staticmethod
+    def _decode_transfer_field_name(field_name):
+        """还原 Transfer 为表达字面字段名而保存的 JSON 字符串。"""
+        if not isinstance(field_name, str) or not field_name.startswith('"') or not field_name.endswith('"'):
+            return field_name
+
+        try:
+            decoded_field_name = json.loads(field_name)
+        except json.JSONDecodeError:
+            return field_name
+
+        return decoded_field_name if isinstance(decoded_field_name, str) else field_name
+
     def _to_bkdata_assign_json(self, field):
         alias_name = field.get("alias_name")
-        field_name = field.get("field_name")
+        field_name = self._decode_transfer_field_name(field.get("field_name"))
         return {
             "key": field_name,
             "assign_to": alias_name if alias_name else field_name,

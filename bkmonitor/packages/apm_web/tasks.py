@@ -240,7 +240,7 @@ def cache_application_k8s_related_indexes() -> None:
         return
 
     cache_agent: Any = caches["redis"]
-    for application in Application.objects.filter(is_enabled=True):
+    for application in Application.objects.filter(is_enabled=True).exclude(app_name__startswith="bkapp_ai0us0"):
         try:
             set_local_tenant_id(application.bk_tenant_id)
             cache_key: str = ApmCacheKey.APP_SERVICE_K8S_RELATED_LOG_INDEXES_KEY.format(
@@ -311,7 +311,9 @@ def cache_application_scope_name():
     # 获取按服务缓存的灰度应用列表
     service_cache_apps = settings.APM_SERVICE_CACHE_APPLICATIONS
 
-    for application in Application.objects.filter(is_enabled=True, is_enabled_metric=True):
+    for application in Application.objects.filter(is_enabled=True, is_enabled_metric=True).exclude(
+        app_name__startswith="bkapp_ai"
+    ):
         try:
             bk_biz_id = application.bk_biz_id
             application_id = application.application_id
