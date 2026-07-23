@@ -317,7 +317,7 @@ class TasksHandler:
 
     def partial_update(self, tasks_views, *args, **kwargs):
         instance = tasks_views.get_object()
-        if not self.is_operator_or_creator(instance.bk_biz_id, get_request_username(), instance.created_by):
+        if not self.is_operator_or_creator(instance.bk_biz_id, self.request_user, instance.created_by):
             raise exceptions.TaskUpdateFailed
         kwargs["partial"] = True
         return tasks_views.update(tasks_views.request, *args, **kwargs)
@@ -598,6 +598,11 @@ class TasksHandler:
 
     @staticmethod
     def is_operator_or_creator(bk_biz_id, request_user, task_creator):
+        # 外部请求：仅允许任务创建者本人操作，禁用 MANAGE_EXTRACT_CONFIG 管理权限旁路
+        is_external = bool(get_request_external_username())
+        if is_external:
+            return task_creator == request_user
+        # 内部请求：保持原有逻辑，有 MANAGE_EXTRACT_CONFIG 权限可访问任意任务
         has_biz_manage = Permission().is_allowed(ActionEnum.MANAGE_EXTRACT_CONFIG)
         if not has_biz_manage and task_creator != request_user:
             return False
