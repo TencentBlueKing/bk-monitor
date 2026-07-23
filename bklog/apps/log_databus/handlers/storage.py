@@ -19,6 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import copy
 import functools
 import ipaddress
 import operator
@@ -238,6 +239,7 @@ class StorageHandler:
                 "is_platform": self.is_platform_cluster(
                     i["cluster_config"]["custom_option"]["visible_config"]["visible_type"]
                 ),
+                "visible_editable": i.get("visible_editable", False),
             }
             for i in cluster_groups
             if i
@@ -546,8 +548,9 @@ class StorageHandler:
             if not cls.storage_visible(bk_biz_id, settings.BLUEKING_BK_BIZ_ID, post_visible=post_visible):
                 return False, cluster_obj
 
-            # doris 集群不可编辑
+            # doris 集群不可编辑（连接信息），但允许蓝鲸业务编辑可见范围
             cluster_obj["is_editable"] = False
+            cluster_obj["visible_editable"] = int(bk_biz_id) == int(settings.BLUEKING_BK_BIZ_ID)
             cluster_obj["auth_info"]["password"] = ""
             cluster_obj["cluster_config"]["max_retention"] = es_config["ES_PUBLIC_STORAGE_DURATION"]
             # 默认集群权重: 推荐集群 > 其他
@@ -594,8 +597,9 @@ class StorageHandler:
 
         index_sets = IndexSetHandler.get_index_set_for_storage(cluster_obj["cluster_config"]["cluster_id"])
 
-        # doris 集群不可编辑
+        # doris 集群不可编辑（连接信息），但允许归属业务编辑可见范围
         cluster_obj["is_editable"] = False
+        cluster_obj["visible_editable"] = str(custom_biz_id) == str(bk_biz_id)
         cluster_obj["auth_info"]["password"] = ""
         # 第三方es权重最高
         cluster_obj["priority"] = 0
@@ -719,6 +723,7 @@ class StorageHandler:
             cluster_info["is_platform"] = self.is_platform_cluster(
                 cluster_info["cluster_config"]["custom_option"]["visible_config"]["visible_type"]
             )
+            cluster_info.setdefault("visible_editable", False)
         return cluster_groups
 
     def _get_cluster_nodes(self, cluster_info: builtins.list[dict]):
@@ -996,6 +1001,58 @@ class StorageHandler:
             "record_object_id": self.cluster_id,
             "action": UserOperationActionEnum.UPDATE,
             "params": params,
+        }
+        user_operation_record.delay(operation_record)
+
+        return cluster_obj
+
+    def update_visible_config(self, params):
+        """
+        仅更新 Doris 集群可见范围配置
+        Doris 集群由外部（bkbase/metadata）注册，bklog 侧不创建、无域名/账号/连通性概念，
+        因此此处只允许更新 custom_option.visible_config，其余字段保持原值。
+        :param params: {"cluster_id", "bk_biz_id", "visible_config"}
+        :return:
+        """
+        bk_biz_id = int(params["bk_biz_id"])
+
+        cluster_objs = TransferApi.get_cluster_info(
+            {"cluster_type": DORIS_CLUSTER_TYPE, "cluster_id": int(self.cluster_id)}
+        )
+        if not cluster_objs:
+            raise StorageNotExistException()
+
+        cluster_config = cluster_objs[0]["cluster_config"]
+        registered_system = cluster_config.get("registered_system")
+        raw_custom_option = cluster_config.get("custom_option") or {}
+
+        # 权限校验：公共集群仅蓝鲸业务可改；非公共集群仅归属业务可改
+        if registered_system == REGISTERED_SYSTEM_DEFAULT:
+            if bk_biz_id != settings.BLUEKING_BK_BIZ_ID:
+                raise StorageNotPermissionException()
+        else:
+            if raw_custom_option.get("bk_biz_id") != bk_biz_id:
+                raise StorageNotPermissionException()
+
+        # 只覆盖 visible_config，保留其余 custom_option 字段
+        new_custom_option = copy.deepcopy(raw_custom_option)
+        new_custom_option["visible_config"] = params["visible_config"]
+
+        modify_params = {
+            "cluster_id": int(self.cluster_id),
+            "cluster_type": DORIS_CLUSTER_TYPE,
+            "custom_option": new_custom_option,
+        }
+        cluster_obj = TransferApi.modify_cluster_info(modify_params)
+
+        # add user_operation_record
+        operation_record = {
+            "username": get_request_username(),
+            "biz_id": bk_biz_id,
+            "record_type": UserOperationTypeEnum.STORAGE,
+            "record_object_id": self.cluster_id,
+            "action": UserOperationActionEnum.UPDATE,
+            "params": modify_params,
         }
         user_operation_record.delay(operation_record)
 
