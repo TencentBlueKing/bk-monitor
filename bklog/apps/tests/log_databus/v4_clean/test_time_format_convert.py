@@ -44,6 +44,9 @@ class TestConvertV3ToV4TimeFormat(TestCase):
         ("yyyy-MM-ddTHH:mm:ss.SSSZ", "%Y-%m-%dT%H:%M:%S.%3f%:z", None),
         ("yyyy-MM-ddTHH:mm:ss.SSSSSSZ", "%Y-%m-%dT%H:%M:%S.%6fZ", None),
         ("YYYY-MM-DDTHH:mm:ss.SSSSSSZ", "%Y-%m-%dT%H:%M:%S.%6fZ", None),
+        # 3 位毫秒 + 小写 z（k8s/istio RFC3339，用 %+ 兼容 Z 与偏移量）
+        ("YYYY-MM-DDTHH:mm:ss.SSSz", "%+", None),
+        ("yyyy-MM-ddTHH:mm:ss.SSSz", "%+", None),
         ("yyyy-MM-ddTHH:mm:ssZ", "%Y-%m-%dT%H:%M:%S%:z", None),
         ("yyyy-MM-ddTHH:mm:ss.SSSSSSZZ", "%Y-%m-%dT%H:%M:%S.%6f%:z", None),
         ("yyyy.MM.dd-HH.mm.ss:SSS", "%Y.%m.%d-%H.%M.%S:%3f", 0),
@@ -88,3 +91,16 @@ class TestConvertV3ToV4TimeFormat(TestCase):
         """空字符串应回退到默认"""
         result = EtlStorage._convert_v3_to_v4_time_format("")
         self.assertEqual(result["from"]["format"], "%Y-%m-%d %H:%M:%S")
+
+    def test_sssz_lowercase_z_not_fallback(self):
+        """
+        回归：`YYYY-MM-DDTHH:mm:ss.SSSz`（3 位毫秒 + 小写 z）此前未在映射表，
+        会回退默认 %Y-%m-%d %H:%M:%S 导致 Rust 侧报 'can not find pre-defined time format'。
+        修复后应命中 %+（RFC3339），不再回退。
+        """
+        for v3_fmt in ("YYYY-MM-DDTHH:mm:ss.SSSz", "yyyy-MM-ddTHH:mm:ss.SSSz"):
+            with self.subTest(v3_format=v3_fmt):
+                result = EtlStorage._convert_v3_to_v4_time_format(v3_fmt)
+                self.assertEqual(result["from"]["format"], "%+")
+                self.assertIsNone(result["from"]["zone"])
+                self.assertNotEqual(result["from"]["format"], "%Y-%m-%d %H:%M:%S")
