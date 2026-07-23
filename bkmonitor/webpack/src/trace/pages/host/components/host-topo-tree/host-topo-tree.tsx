@@ -52,7 +52,7 @@ export default defineComponent({
     /** 主机对比：source 为当前选中主机，target 为对比目标主机 */
     compare: (_payload: { source: IHostTopoHostNode; target: IHostTopoHostNode }) => true,
   },
-  setup(props, { emit }) {
+  setup(props) {
     const { t } = useI18n();
     const ctx = props.context;
 
@@ -91,7 +91,7 @@ export default defineComponent({
         <div
           class='topo-node topo-node--host'
           v-bk-tooltips={{
-            content: `${t('IP')}：${node.ip}\n${t('主机名')}：${node.alias_name || node.bk_host_name}`,
+            content: `IP：${node.ip}\n${t('主机名')}：${node.alias_name || node.bk_host_name}`,
             placement: 'right',
             extCls: 'host-topo-tooltips',
           }}
@@ -119,9 +119,9 @@ export default defineComponent({
           <Input
             class='host-topo-tree__search'
             v-model={ctx.searchValue.value}
-            clearable
             placeholder={t('搜索 IP / 主机名 / 节点名称')}
             type='search'
+            clearable
           />
           <div class='host-topo-tree__tools'>
             <Checkbox v-model={ctx.hideEmptyNode.value}>
@@ -149,6 +149,13 @@ export default defineComponent({
             ref={instance => {
               ctx.treeRef.value = (instance ?? null) as typeof ctx.treeRef.value;
             }}
+            v-slots={{
+              node: (node: ITreeSlotNode) => renderTreeNode(node),
+            }}
+            search={{
+              value: ctx.searchValue.value,
+              showChildNodes: true,
+            }}
             children='children'
             data={ctx.displayTreeData.value}
             empty-text={t('暂无数据')}
@@ -157,17 +164,10 @@ export default defineComponent({
             node-content-action={nodeContentAction}
             nodeKey='id'
             prefix-icon={getPrefixIcon}
-            search={{
-              value: ctx.searchValue.value,
-              showChildNodes: true,
-            }}
             selected={ctx.selectedIds.value}
             show-node-type-icon={false}
             virtual-render
             onNodeClick={handleNodeClick}
-            v-slots={{
-              node: (node: ITreeSlotNode) => renderTreeNode(node),
-            }}
           />
         </Loading>
       </div>

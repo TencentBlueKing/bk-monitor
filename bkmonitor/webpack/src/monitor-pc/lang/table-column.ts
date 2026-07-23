@@ -206,4 +206,13 @@ export default {
   趋势: 'Trend',
   '24h 趋势': '24h Trend',
   影响范围: 'Affected Range',
+
+  // host
+  未恢复的告警: 'Unresolved Alarms',
+  运行用户: 'Running User',
+  'CPU 总占用': 'CPU Total Usage',
+  'RSS 总内存': 'RSS Total Memory',
+  连接数: 'Connection Number',
+  文件句柄: 'File Descriptor',
+  运行时长范围: 'Running Time Range',
 };

@@ -154,4 +154,5 @@ export default {
   是否回归: 'Whether to return',
   最近告警时间: 'Recent alarm time',
   解决时间: 'resolution time',
+  批量移动至: 'Move to',
 };
