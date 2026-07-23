@@ -257,19 +257,20 @@ def get_process_runtime_metrics(
     查询进程运行时指标 (system.proc)
 
     返回各进程指标字段的运行时数据：
-    - 指标字段（SUM 聚合）：cpu_usage_pct, mem_res, mem_usage_pct, uptime, fd_num
+    - 指标字段（SUM 聚合）：cpu_usage_pct, mem_res, mem_usage_pct, fd_num
+    - uptime 因语义不可加（多实例时长求和无意义），已拆分至 get_process_uptime 单独查询（MIN 聚合）
 
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表
     :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）。与 end_time 同时传入时约束查询区间。
     :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传或仅传一个时退化为默认"最近三分钟"。
     :return: 以 bk_host_id 为一级 key、进程 display_name（进程名）为二级 key 的运行时指标字典，
-        三级 key 为指标字段（cpu_usage_pct/mem_res/mem_usage_pct/uptime/fd_num）
+        三级 key 为指标字段（cpu_usage_pct/mem_res/mem_usage_pct/fd_num）
         e.g.:
             {
                 11: {
-                    "nginx": {"cpu_usage_pct": 2.5, "mem_res": 102400, "mem_usage_pct": 10.0, "uptime": 3600, "fd_num": 64},
-                    "redis": {"cpu_usage_pct": 5.0, "mem_res": 204800, "mem_usage_pct": 20.0, "uptime": 7200, "fd_num": 128}
+                    "nginx": {"cpu_usage_pct": 2.5, "mem_res": 102400, "mem_usage_pct": 10.0, "fd_num": 64},
+                    "redis": {"cpu_usage_pct": 5.0, "mem_res": 204800, "mem_usage_pct": 20.0, "fd_num": 128}
                 }
             }
     """
@@ -283,9 +284,9 @@ def get_process_runtime_metrics(
         # - cpu_usage_pct: 进程 CPU 使用率（%）
         # - mem_res:       进程使用的物理内存（字节）
         # - mem_usage_pct: 进程内存使用率（%）
-        # - uptime:        进程运行时长（秒）
-        # - fd_num:        进程文件句柄数（2026-07-20 新增）
-        METRIC_FIELDS = ["cpu_usage_pct", "mem_res", "mem_usage_pct", "uptime", "fd_num"]
+        # - fd_num:        进程文件句柄数
+        # 注意：uptime 已拆分至 get_process_uptime（MIN 聚合），不在此处 SUM
+        METRIC_FIELDS = ["cpu_usage_pct", "mem_res", "mem_usage_pct", "fd_num"]
 
         # 按主机初始化结果结构，兼容 bk_host_id 与 bk_target_ip 两种查询维度
         result = defaultdict(lambda: defaultdict(dict))
@@ -349,6 +350,65 @@ def get_process_runtime_metrics(
     except Exception as e:
         # 设计文档 §1：TSDB 查询异常兜底，runtime_data={}，CMDB 基础字段照常返回
         logger.warning("get_process_runtime_metrics failed, degrade to empty: %s", e)
+        return {}
+
+
+def get_process_uptime(
+    bk_biz_id: int, hosts: list[Host], start_time: int = None, end_time: int = None
+) -> dict[int, dict[str, float]]:
+    """
+    查询进程运行时长（system.proc uptime，MIN 聚合）
+
+    uptime 为时长不可加（多实例求和无意义），使用 MAX 取窗口内最长运行实例的运行时长。
+    instant=True 即时计算，直接返回最新时刻的聚合值。
+
+    :param bk_biz_id: 业务ID
+    :param hosts: 主机列表
+    :param start_time: 查询起始时间（秒级 Unix 时间戳，可选）。与 end_time 同时传入时约束查询区间。
+    :param end_time: 查询结束时间（秒级 Unix 时间戳，可选）。不传或仅传一个时退化为默认"最近三分钟"。
+    :return: {bk_host_id: {display_name: uptime(秒)}}
+        无对应数据时该 bk_host_id 不下发（返回空 dict 兜底）。
+    """
+    try:
+        ip_to_host_id = {(host.bk_host_innerip, int(host.bk_cloud_id or -1)): host.bk_host_id for host in hosts}
+        bk_host_ids = {host.bk_host_id for host in hosts}
+
+        data_source_class = load_data_source(DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES)
+        data_source = data_source_class(
+            bk_biz_id=bk_biz_id,
+            interval=180,
+            metrics=[{"field": "uptime", "method": "MAX", "alias": "A"}],
+            table="system.proc",
+            group_by=["bk_host_id", "bk_target_ip", "bk_target_cloud_id", "display_name"],
+        )
+        query = UnifyQuery(data_sources=[data_source], bk_biz_id=bk_biz_id, expression="a")
+        if start_time is not None and end_time is not None:
+            query_start = int(start_time) * 1000
+            query_end = int(end_time) * 1000
+        else:
+            now = int(time.time()) * 1000
+            query_start = now - 180000
+            query_end = now
+        records = query.query_data(start_time=query_start, end_time=query_end, instant=True)
+
+        result = defaultdict(dict)
+        for record in records:
+            if record.get("_result_") is None:
+                continue
+
+            if record.get("bk_host_id"):
+                bk_host_id = int(record["bk_host_id"])
+            else:
+                bk_host_id = ip_to_host_id.get(
+                    (record.get("bk_target_ip"), int(record.get("bk_target_cloud_id") or -1))
+                )
+
+            if bk_host_id in bk_host_ids and record.get("display_name"):
+                result[bk_host_id][record["display_name"]] = record.get("_result_")
+        return result
+    except Exception as e:
+        # TSDB 查询异常兜底，uptime 缺失不影响其他运行时指标
+        logger.warning("get_process_uptime failed, degrade to empty: %s", e)
         return {}
 
 

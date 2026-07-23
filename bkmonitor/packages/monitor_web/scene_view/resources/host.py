@@ -499,6 +499,7 @@ class GetHostProcessListResource(Resource):
 
         host_port_status = resource.cc.get_process_port_health(**query_params).get(host.bk_host_id, {})
         host_runtime = resource.cc.get_process_runtime_metrics(**query_params).get(host.bk_host_id, {})
+        host_uptime = resource.cc.get_process_uptime(**query_params).get(host.bk_host_id, {})
         instance_counts = resource.cc.get_process_instance_count(**query_params).get(host.bk_host_id, {})
 
         # UI 字段名 → system.proc 指标字段名 映射
@@ -507,7 +508,6 @@ class GetHostProcessListResource(Resource):
             "cpuUsage": "cpu_usage_pct",
             "memRss": "mem_res",
             "memUsage": "mem_usage_pct",
-            "uptime": "uptime",
             "fdNum": "fd_num",
         }
 
@@ -527,7 +527,7 @@ class GetHostProcessListResource(Resource):
                 "cpuUsage": host_runtime.get(process["name"], {}).get(runtime_metric_map["cpuUsage"]),
                 "memRss": host_runtime.get(process["name"], {}).get(runtime_metric_map["memRss"]),
                 "memUsage": host_runtime.get(process["name"], {}).get(runtime_metric_map["memUsage"]),
-                "uptime": host_runtime.get(process["name"], {}).get(runtime_metric_map["uptime"]),
+                "uptime": host_uptime.get(process["name"]),
                 "fdNum": host_runtime.get(process["name"], {}).get(runtime_metric_map["fdNum"]),
                 "instanceCount": instance_counts.get(process["name"], 1),
                 "startCommand": process.get("startCommand"),
