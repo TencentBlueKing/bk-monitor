@@ -30,6 +30,7 @@ from bkmonitor.documents.issue import (
     IssueDocument,
 )
 from bkmonitor.utils.common_utils import count_md5
+from bkmonitor.utils.issue_title import build_issue_default_name
 from constants.issue import IssueActivityType, IssuePriority, IssueStatus
 from core.prometheus import metrics
 
@@ -76,35 +77,6 @@ def gen_issue_fingerprint(strategy_id: int, aggregate_dimensions: list[str], dat
             return None
         values.append(f"{key}={normalized}")
     return count_md5(values)
-
-
-# 维度值过长时截断阈值（避免列表展示拉宽），保留前 N 个字符 + "..."
-_NAME_DIM_VALUE_MAX_LEN = 40
-
-
-def build_issue_default_name(strategy_name: str, dimension_values: dict, is_regression: bool) -> str:
-    """生成 Issue 默认名称。
-
-    格式：``[回归] {strategy_name} - {v1} | {v2}``（dimension_values 非空时追加 value 后缀）
-    维度值后缀按 key 排序拼接（与 fingerprint 排序口径一致），保证同 fingerprint 名称稳定。
-    单值过长时截断为 ``{prefix}...``，避免列表页拉宽；用户后续可手工编辑覆盖。
-
-    Args:
-        strategy_name: 策略名称（来自 self.strategy.get("name")）
-        dimension_values: 维度值快照，形如 ``{"bk_host_id": "9185731"}``；空 dict 时不追加后缀
-        is_regression: 是否为回归（同 fingerprint 有 RESOLVED 历史）
-    """
-    base = f"[回归] {strategy_name}" if is_regression else strategy_name
-    if not dimension_values:
-        return base
-
-    parts = []
-    for key in sorted(dimension_values.keys()):
-        value = str(dimension_values[key])
-        if len(value) > _NAME_DIM_VALUE_MAX_LEN:
-            value = value[: _NAME_DIM_VALUE_MAX_LEN - 3] + "..."
-        parts.append(value)
-    return f"{base} - {' | '.join(parts)}"
 
 
 class IssueAggregationProcessor:

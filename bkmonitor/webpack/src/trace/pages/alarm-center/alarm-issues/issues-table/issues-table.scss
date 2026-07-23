@@ -108,6 +108,12 @@
           font-weight: 700;
         }
       }
+
+      .issues-name-exception-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
     }
   }
 
@@ -260,12 +266,23 @@
 
   // ===================== 负责人列 =====================
   .issues-assignee-cell {
-    .issues-assignee-unassigned-col {
+    .issues-assignee-col {
       display: flex;
       flex-wrap: wrap;
       gap: 4px;
       align-items: center;
       cursor: pointer;
+
+      .explore-user-tags-col {
+        height: 32px;
+
+        .item-tags {
+          .bk-tag {
+            cursor: unset;
+            border-radius: 4px !important;
+          }
+        }
+      }
 
       .assignee-tag-wrapper {
         display: inline-flex;
@@ -286,12 +303,6 @@
         .assignee-tag-wrapper {
           background-color: #f0f4fa;
         }
-      }
-    }
-
-    .explore-user-tags-col {
-      .bk-tag {
-        border-radius: 4px !important;
       }
     }
   }

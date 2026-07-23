@@ -355,7 +355,8 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     refreshKey: '',
   };
 
-  targetDetailLoading = false;
+  /** 监控目标独立异步加载，初始即展示骨架屏，避免阻塞详情主流程 */
+  targetDetailLoading = true;
   /* issue聚合 */
   issueConfig: IIssueConfig = null;
 
@@ -470,7 +471,6 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     Promise.all(promiseList)
       .then(() => {
         this.handleDisplaybackDetail();
-        this.getTargetsTableData();
       })
       .catch(err => {
         console.log(err);
@@ -690,12 +690,18 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
   }
 
   async getTargetsTableData() {
-    // 获取策略目标详情
+    if (!this.strategyId) {
+      this.targetDetailLoading = false;
+      return;
+    }
+    // 获取策略目标详情（独立异步，失败不影响详情页其他内容）
     this.targetDetailLoading = true;
     const targetDetail =
-      (await getTargetDetail({ strategy_ids: [this.strategyId] }).finally(() => {
-        this.targetDetailLoading = false;
-      })) || {};
+      (await getTargetDetail({ strategy_ids: [this.strategyId] })
+        .catch(() => ({}))
+        .finally(() => {
+          this.targetDetailLoading = false;
+        })) || {};
     const strategyTarget = targetDetail[this.strategyId] || {};
 
     // 提取目标列表和字段名称，提供默认值
@@ -764,9 +770,9 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     this.detailData = strategyDetail;
     this.detectionConfig.data = strategyDetail?.items?.[0]?.algorithms?.filter(item => !!item.type) || [];
     this.detectionConfig.unit = strategyDetail?.items?.[0]?.algorithms?.[0]?.unit_prefix || '';
-    // const targetList = strategyDetail?.items?.[0]?.target?.[0]?.[0]?.value || [];
-    // this.targetDetail = { target_detail: targetList };
     await this.handleQueryConfigData();
+    // 监控目标单独请求，不 await，避免阻塞详情主流程与整页 loading
+    this.getTargetsTableData();
     await this.handleProcessData({
       ...strategyDetail,
       targetDetail: this.targetDetail,

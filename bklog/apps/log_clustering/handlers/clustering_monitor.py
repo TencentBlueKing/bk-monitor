@@ -100,7 +100,7 @@ class ClusteringMonitorHandler:
             "agg_condition": agg_condition,
             "metric_id": f"bk_log_search.index_set.{self.index_set_id}",
             "index_set_id": self.index_set_id,
-            "result_table_id": "",
+            "result_table_id": self.log_index_set_data["result_table_id"],
             "query_string": "*",
             "functions": [],
             "time_field": DEFAULT_TIME_FIELD,

@@ -114,6 +114,8 @@ else:
     SESSION_ENGINE = "django.contrib.sessions.backends.cache"
     INSTALLED_APPS += ("version_log",)
 
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
 # 设置pyinstrument的profiler开关
 PYINSTRUMENT_URL_ARGUMENT = "bk-log-profile"
 
@@ -1345,6 +1347,9 @@ except ValueError:
 TGPA_TASK_APIGW_ROOT = os.getenv("BKAPP_TGPA_TASK_APIGATEWAY_ROOT", "")
 TGPA_TRANSCEIVER_TOOL_URL = os.getenv("BKAPP_TGPA_TRANSCEIVER_TOOL_URL", "")
 TGPA_SDK_DOC_URL = os.getenv("BKAPP_TGPA_SDK_DOC_URL", "")
+
+# 异步下载最大并发任务数
+MAX_CONCURRENT_EXPORT_TASKS = int(os.getenv("BKAPP_MAX_CONCURRENT_EXPORT_TASKS", 3))
 
 """
 以下为框架代码 请勿修改

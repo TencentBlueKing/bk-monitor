@@ -444,7 +444,8 @@ class IssueDocument(BaseDocument):
 
         content：写入 NAME_CHANGE 活动日志的附加内容（默认 None）。用于 LLM 标题生成路径
           记录改名来源/审计人——rename operator 固定为 ``system``（保证"是否系统改名"判据稳定），
-          真实发起人另记于此，避免把审计人写进 operator 污染下游三态判别。用户手工改名不传。
+          非 system 的发起人标识另记于此，避免把审计人写进 operator 污染下游标题来源判别。
+          用户手工改名不传。
         """
         IssueMergeResolver.assert_not_frozen(self.id)
         new_name = new_name.strip()

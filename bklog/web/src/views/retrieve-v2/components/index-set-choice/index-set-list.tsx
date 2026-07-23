@@ -24,9 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, type PropType, ref, set } from 'vue';
+import { computed, defineComponent, onBeforeUnmount, type PropType, ref, set } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
+import { debounce } from 'lodash-es';
 
 import * as authorityMap from '../../../../common/authority-map';
 import BklogPopover from '../../../../components/bklog-popover';
@@ -34,6 +35,9 @@ import type { IndexSetItem } from './use-choice';
 import useIndexSetList from './use-index-set-list';
 
 import './index-set-list.scss';
+
+const SEARCH_KEYS = ['index_set_name', 'index_set_id', 'bk_biz_id', 'collector_config_id'] as const;
+const NO_DATA_TAG_ID = 4;
 
 export default defineComponent({
   props: {
@@ -65,7 +69,10 @@ export default defineComponent({
     const { $t } = useLocale();
 
     const hiddenEmptyItem = ref(true);
+    /** 输入框即时值 */
     const searchText = ref('');
+    /** 参与过滤计算的关键字（防抖后更新，减少高频重算） */
+    const searchKeyword = ref('');
     const refFavoriteItemName = ref(null);
     const refFavoriteGroup = ref(null);
     const favoriteFormData = ref({
@@ -83,160 +90,162 @@ export default defineComponent({
       color: undefined,
     });
 
-    const isIncludesItem = (item: IndexSetItem) => {
-      return props.value.some((v) => {
-        return v.unique_id === item.unique_id;
-      });
+    const selectedUniqueIdSet = computed(() => new Set((props.value ?? []).map(v => v.unique_id)));
+
+    const isIncludesItem = (item: IndexSetItem) => selectedUniqueIdSet.value.has(item.unique_id);
+
+    const hasNoDataTag = (node: { tags?: { tag_id: number }[] }) =>
+      node.tags?.some(tag => tag.tag_id === NO_DATA_TAG_ID) ?? false;
+
+    const matchSearchKeyword = (node: IndexSetItem, keyword: string) => {
+      if (SEARCH_KEYS.some(key => `${node[key] ?? ''}`.toLowerCase().includes(keyword))) {
+        return true;
+      }
+      const indices = (node as IndexSetItem & { indices?: { result_table_id?: string }[] }).indices ?? [];
+      return indices.some(idc => `${idc.result_table_id ?? ''}`.toLowerCase().includes(keyword));
     };
 
     const formatList = computed(() => {
-      const filterFn = (node) => {
-        const keyword = searchText.value.toLowerCase();
-        return ['index_set_name', 'index_set_id', 'bk_biz_id', 'collector_config_id'].some(
-          key => `${node[key]}`.toLowerCase().indexOf(keyword) !== -1
-            || (node.indices ?? []).some(idc => `${idc.result_table_id}`.toLowerCase().indexOf(keyword) !== -1),
-        );
-      };
-      // 检查节点是否应该显示
+      const keyword = searchKeyword.value.trim().toLowerCase();
+      const isSearching = keyword.length > 0;
+      const activeTagId = tagItem.value.tag_id;
+      const isTagFiltering = activeTagId !== undefined;
+      const hideEmpty = hiddenEmptyItem.value;
+      const selectedSet = selectedUniqueIdSet.value;
+      const openManager = listNodeOpenManager.value;
+      const isSingle = props.type === 'single';
+
+      const isSelected = (node: IndexSetItem) => selectedSet.has(node.unique_id);
+
+      /**
+       * 节点是否展示：
+       * - 非检索时：已选中节点始终展示；其余按展开状态 / Tag / 隐藏无数据
+       * - 检索时：仅按关键字命中，并与 Tag、隐藏无数据条件取交集（精确过滤）
+       */
       const checkNodeShouldShow = (node: IndexSetItem, defaultIsShown = true) => {
-        // 如果当前节点在选中列表中，直接返回 true
-        if (isIncludesItem(node) && searchText.value.length === 0) {
+        if (!isSearching && isSelected(node)) {
           return true;
         }
 
-        let isShownNode = defaultIsShown;
+        // 检索时需遍历全部节点，不能依赖父节点展开态作为默认可见性
+        let isShownNode = isSearching ? true : defaultIsShown;
 
-        // 判定是不是已经选中Tag进行过滤
-        if (tagItem.value.tag_id !== undefined) {
-          isShownNode = node.tags.some(tag => tag.tag_id === tagItem.value.tag_id);
+        if (isTagFiltering) {
+          isShownNode = isShownNode && node.tags.some(tag => tag.tag_id === activeTagId);
         }
 
-        // 如果满足Tag标签或者当前条目为显示状态
-        // 如果启用隐藏空数据
-        if (isShownNode && hiddenEmptyItem.value && !isIncludesItem(node)) {
-          isShownNode = !node.tags.some(tag => tag.tag_id === 4);
+        if (isShownNode && hideEmpty && !isSelected(node)) {
+          isShownNode = !hasNoDataTag(node);
         }
 
-        // 继续判定检索匹配是否满足匹配条件
-        if (searchText.value.length > 0) {
-          isShownNode = filterFn(node);
+        if (isSearching) {
+          isShownNode = isShownNode && matchSearchKeyword(node, keyword);
         }
 
         return isShownNode;
       };
 
-      // 处理子节点
-      const processChildren = (children: any[], parentNode) => {
-        if (!children?.length) {
-          return [];
-        }
-
-        // 处理子节点的显示状态
-        const processedChildren = children.map(child => ({
-          ...child,
-          is_shown_node: checkNodeShouldShow(child, listNodeOpenManager.value[parentNode.unique_id] === 'opened'),
-        }));
-
-        // 对子节点进行排序
-        // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
-        return processedChildren.sort((a: any, b: any) => {
-          // 单选模式下才进行特殊排序
-          if (props.type === 'single') {
-            // 如果节点在选中列表中，优先级最高
-            const aIsSelected = isIncludesItem(a);
-            const bIsSelected = isIncludesItem(b);
-            if (aIsSelected !== bIsSelected) {
-              return aIsSelected ? -1 : 1;
-            }
-          }
-
-          // 其次按是否有数据排序
-          const aHasNoData = a.tags.some(tag => tag.tag_id === 4);
-          const bHasNoData = b.tags.some(tag => tag.tag_id === 4);
-          if (aHasNoData !== bHasNoData) {
-            return aHasNoData ? 1 : -1;
-          }
-
-          return 0;
-        });
-      };
-
-      // 处理根节点
-      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
-      const processedList = props.list.map((item: any) => {
-        const isShownNode = checkNodeShouldShow(item);
-
-        // 处理子节点
-        if (item.children?.length) {
-          item.children = processChildren(item.children, item);
-        }
-
-        const isOpenNode = item.children?.some(child => child.is_shown_node);
-        // 检查是否有子节点被选中
-        const hasSelectedChild = item.children?.some(child => isIncludesItem(child));
-
-        if (isOpenNode) {
-          for (const child of item.children) {
-            child.is_shown_node = true;
-
-            if (hiddenEmptyItem.value && !isIncludesItem(child)) {
-              // 如果启用隐藏空数据
-              child.is_shown_node = !child.tags.some(tag => tag.tag_id === 4);
-            }
-          }
-        }
-
-        return {
-          ...item,
-          is_shown_node: isShownNode || isOpenNode,
-          is_children_open: isOpenNode,
-          has_selected_child: hasSelectedChild,
-          has_no_data_child: item.children?.every(child => child.tags?.some(tag => tag.tag_id === 4)),
-        };
-      });
-
-      // 对根节点进行排序
-      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
-      return processedList.sort((a: any, b: any) => {
-        // 单选模式下才进行特殊排序
-        if (props.type === 'single') {
-          // 如果节点在选中列表中，优先级最高
-          const aIsSelected = isIncludesItem(a);
-          const bIsSelected = isIncludesItem(b);
+      const sortBySelectedAndData = (a: any, b: any, compareSelectedChild = false) => {
+        if (isSingle) {
+          const aIsSelected = isSelected(a);
+          const bIsSelected = isSelected(b);
           if (aIsSelected !== bIsSelected) {
             return aIsSelected ? -1 : 1;
           }
 
-          // 如果节点有子节点被选中，次优先级
-          const aHasSelectedChild = a.has_selected_child;
-          const bHasSelectedChild = b.has_selected_child;
-          if (aHasSelectedChild !== bHasSelectedChild) {
-            return aHasSelectedChild ? -1 : 1;
+          if (compareSelectedChild) {
+            const aHasSelectedChild = a.has_selected_child;
+            const bHasSelectedChild = b.has_selected_child;
+            if (aHasSelectedChild !== bHasSelectedChild) {
+              return aHasSelectedChild ? -1 : 1;
+            }
           }
         }
 
-        // 按是否有数据排序（所有模式都生效）
-        const aHasNoData = a.tags.some(tag => tag.tag_id === 4);
-        const bHasNoData = b.tags.some(tag => tag.tag_id === 4);
+        const aHasNoData = hasNoDataTag(a);
+        const bHasNoData = hasNoDataTag(b);
         if (aHasNoData !== bHasNoData) {
           return aHasNoData ? 1 : -1;
         }
 
         return 0;
+      };
+
+      const processChildren = (children: any[], parentNode: IndexSetItem) => {
+        if (!children?.length) {
+          return [];
+        }
+
+        const parentOpened = openManager[parentNode.unique_id] === 'opened';
+        const processedChildren = children.map(child => ({
+          ...child,
+          is_shown_node: checkNodeShouldShow(child, parentOpened),
+        }));
+
+        return processedChildren.sort((a, b) => sortBySelectedAndData(a, b));
+      };
+
+      // 非检索且非 Tag 过滤时：若因选中子节点需要展开分组，则展示同组其它子节点（浏览态）
+      // 检索 / Tag 过滤时必须精确命中，禁止把同组无关节点一并展开
+      const shouldExpandAllSiblings = !isSearching && !isTagFiltering;
+
+      // 只处理根节点；若误传入扁平列表，跳过 is_child_node 避免与分组内子节点重复渲染
+      const rootList = (props.list as IndexSetItem[]).filter((item: any) => !item.is_child_node);
+
+      const processedList = rootList.map((item: any) => {
+        const isShownNode = checkNodeShouldShow(item);
+        const children = item.children?.length ? processChildren(item.children, item) : item.children;
+        const hasVisibleChild = children?.some((child: any) => child.is_shown_node) ?? false;
+        const hasSelectedChild = children?.some((child: any) => isSelected(child)) ?? false;
+
+        let nextChildren = children;
+        if (hasVisibleChild && shouldExpandAllSiblings && children?.length) {
+          nextChildren = children.map((child: any) => {
+            let childShown = true;
+            if (hideEmpty && !isSelected(child)) {
+              childShown = !hasNoDataTag(child);
+            }
+            return childShown === child.is_shown_node ? child : { ...child, is_shown_node: childShown };
+          });
+        }
+
+        return {
+          ...item,
+          children: nextChildren,
+          is_shown_node: isShownNode || hasVisibleChild,
+          // 检索命中子节点时自动展开分组；浏览态下有可见子节点同样展开
+          is_children_open: hasVisibleChild,
+          has_selected_child: hasSelectedChild,
+          has_no_data_child: nextChildren?.every((child: any) => hasNoDataTag(child)) ?? false,
+        };
       });
+
+      // 检索时：同一 index_set_id 既在分组下命中、又以独立根节点存在时，优先保留分组内展示，隐藏根级重复项
+      if (isSearching) {
+        const shownChildIdSet = new Set<string>();
+        for (const item of processedList) {
+          for (const child of item.children ?? []) {
+            if (child.is_shown_node) {
+              shownChildIdSet.add(`${child.index_set_id}`);
+            }
+          }
+        }
+
+        if (shownChildIdSet.size > 0) {
+          for (const item of processedList) {
+            const isGroupRoot = item.children?.length > 0 || item.is_group;
+            if (!isGroupRoot && item.is_shown_node && shownChildIdSet.has(`${item.index_set_id}`)) {
+              item.is_shown_node = false;
+            }
+          }
+        }
+      }
+
+      return processedList.sort((a, b) => sortBySelectedAndData(a, b, true));
     });
 
-    const filterFullList = computed(() => formatList.value.filter((item: any) => item.is_shown_node));
-
-    const rootList = computed(() => formatList.value.filter((item: any) => !item.is_child_node));
-
-    const filterList = computed(() => rootList.value.filter((item: any) => {
-      return (
-        filterFullList.value.includes(item)
-          || (item.children ?? []).filter(child => filterFullList.value.includes(child)).length > 0
-      );
-    }),
-    );
+    /** 最终用于渲染的根节点列表（已带精确过滤后的 children.is_shown_node） */
+    const filterList = computed(() => formatList.value.filter((item: any) => item.is_shown_node));
 
     /**
      * 索引集选中操作
@@ -349,7 +358,7 @@ export default defineComponent({
       e.stopPropagation();
       let nextStatus = listNodeOpenManager.value[node.unique_id] === 'opened' ? 'closed' : 'opened';
 
-      if (searchText.value?.length > 0 && listNodeOpenManager.value[node.unique_id] !== 'forceClosed') {
+      if (searchKeyword.value?.length > 0 && listNodeOpenManager.value[node.unique_id] !== 'forceClosed') {
         nextStatus = 'forceClosed';
       }
 
@@ -388,7 +397,8 @@ export default defineComponent({
         return true;
       }
 
-      if (searchText.value?.length > 0) {
+      // 与过滤计算使用同一关键字，避免防抖窗口内展开态与列表不一致
+      if (searchKeyword.value?.length > 0) {
         return false;
       }
 
@@ -642,9 +652,9 @@ export default defineComponent({
       }
     };
 
-    const handleSearchTextChange = (val: string) => {
-      searchText.value = val;
-      if (searchText.value.length > 0) {
+    const applySearchKeyword = (val: string) => {
+      searchKeyword.value = val;
+      if (val.length > 0) {
         for (const key of Object.keys(listNodeOpenManager.value)) {
           if (listNodeOpenManager.value[key] === 'forceClosed') {
             delete listNodeOpenManager.value[key];
@@ -652,6 +662,23 @@ export default defineComponent({
         }
       }
     };
+
+    const debouncedApplySearchKeyword = debounce(applySearchKeyword, 200);
+
+    const handleSearchTextChange = (val: string) => {
+      searchText.value = val;
+      // 清空时立即生效，避免防抖导致空结果残留
+      if (!val) {
+        debouncedApplySearchKeyword.cancel();
+        applySearchKeyword('');
+        return;
+      }
+      debouncedApplySearchKeyword(val);
+    };
+
+    onBeforeUnmount(() => {
+      debouncedApplySearchKeyword.cancel();
+    });
 
     const getFilterRow = () => {
       return (

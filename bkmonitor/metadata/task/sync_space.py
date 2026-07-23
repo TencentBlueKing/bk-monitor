@@ -339,7 +339,18 @@ def sync_bkcc_space_data_source():
 
     # 组装数据，推送 redis 功能
     space_id_list = [str(biz_id) for biz_id in biz_id_list if str(biz_id) != "0"]
-    push_and_publish_space_router(space_type=SpaceTypes.BKCC.value, space_id_list=space_id_list)
+    # 按租户分组推送，避免 push_and_publish_space_router 默认仅过滤 system 租户导致多租户漏推
+    tenant_space_id_map: dict[str, list[str]] = {}
+    for space in models.Space.objects.filter(space_type_id=SpaceTypes.BKCC.value, space_id__in=space_id_list).values(
+        "space_id", "bk_tenant_id"
+    ):
+        tenant_space_id_map.setdefault(space["bk_tenant_id"], []).append(space["space_id"])
+    for bk_tenant_id, tenant_space_id_list in tenant_space_id_map.items():
+        push_and_publish_space_router(
+            space_type=SpaceTypes.BKCC.value,
+            space_id_list=tenant_space_id_list,
+            bk_tenant_id=bk_tenant_id,
+        )
     cost_time = time.time() - start_time
 
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
@@ -826,12 +837,23 @@ def push_and_publish_space_router(
 
 @atomic(config.DATABASE_CONNECTION_NAME)
 def delete_and_create_paas_space_data_id(
+    bk_tenant_id: str,
     space_type: str,
     space_id: str,
     need_delete_data_ids: set,
     need_add_data_ids: set,
 ):
+    """删除并重建空间与集群内置指标数据源的关联
+
+    Args:
+        bk_tenant_id: 租户 ID
+        space_type: 空间类型
+        space_id: 空间 ID
+        need_delete_data_ids: 需要删除的数据源 ID 集合
+        need_add_data_ids: 需要新增的数据源 ID 集合
+    """
     if need_delete_data_ids:
+        # 删除按 (space_type_id, space_id, bk_data_id) 唯一定位，无需再按租户过滤，兼容历史脏数据清理
         models.SpaceDataSource.objects.filter(
             space_type_id=space_type, space_id=space_id, bk_data_id__in=need_delete_data_ids
         ).delete()
@@ -839,7 +861,11 @@ def delete_and_create_paas_space_data_id(
     for data_id in need_add_data_ids:
         bulk_create_records.append(
             models.SpaceDataSource(
-                space_type_id=space_type, space_id=space_id, bk_data_id=data_id, from_authorization=True
+                bk_tenant_id=bk_tenant_id,
+                space_type_id=space_type,
+                space_id=space_id,
+                bk_data_id=data_id,
+                from_authorization=True,
             )
         )
 
@@ -861,9 +887,22 @@ def authorize_paas_space_cluster_data_source(space_cluster: dict):
     space_data_id_map = {}
     for space_data_id in space_data_ids:
         space_data_id_map.setdefault(space_data_id["space_id"], set()).add(space_data_id["bk_data_id"])
+    # 批量反查空间对应的租户信息，格式为 {space_id: bk_tenant_id}
+    space_tenant_map = dict(
+        models.Space.objects.filter(space_type_id=space_type, space_id__in=space_data_id_map.keys()).values_list(
+            "space_id", "bk_tenant_id"
+        )
+    )
     paas_data_id_list = settings.BKPAAS_AUTHORIZED_DATA_ID_LIST
     # 进行数据匹配
     for space_id, data_ids in space_data_id_map.items():
+        # 无对应 Space 时跳过，避免写入错误的默认租户
+        if space_id not in space_tenant_map:
+            logger.warning(
+                "authorize_paas_space_cluster_data_source: space not found for bksaas space_id->[%s], skip", space_id
+            )
+            continue
+        bk_tenant_id = space_tenant_map[space_id]
         # 匹配到需要增加的数据源
         need_create_data_ids = set(paas_data_id_list) - set(data_ids)
         try:
@@ -872,7 +911,11 @@ def authorize_paas_space_cluster_data_source(space_cluster: dict):
                 # 因为可能还会增加，更改为批量创建
                 objs = [
                     models.SpaceDataSource(
-                        space_type_id=space_type, space_id=space_id, bk_data_id=data_id, from_authorization=True
+                        bk_tenant_id=bk_tenant_id,
+                        space_type_id=space_type,
+                        space_id=space_id,
+                        bk_data_id=data_id,
+                        from_authorization=True,
                     )
                     for data_id in need_create_data_ids
                 ]
@@ -910,7 +953,9 @@ def authorize_paas_space_cluster_data_source(space_cluster: dict):
             json.dumps(need_add_data_ids),
         )
         try:
-            delete_and_create_paas_space_data_id(space_type, space_id, need_delete_data_ids, need_add_data_ids)
+            delete_and_create_paas_space_data_id(
+                bk_tenant_id, space_type, space_id, need_delete_data_ids, need_add_data_ids
+            )
         except Exception as e:
             logger.error(
                 """delete and create space data_ids failed, space_type: %s, space_id: %s,

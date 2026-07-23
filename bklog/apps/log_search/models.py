@@ -45,6 +45,7 @@ from apps.log_databus.constants import DORIS_CLUSTER_TYPE, EsSourceType
 from apps.log_search.constants import (
     DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
     DEFAULT_TIME_FIELD,
+    ExportStatus,
     INDEX_SET_NO_DATA_CHECK_INTERVAL,
     INDEX_SET_NO_DATA_CHECK_PREFIX,
     INDEX_SET_NOT_EXISTED,
@@ -76,6 +77,7 @@ from apps.log_search.constants import (
     IndexSetDataType,
 )
 from apps.log_search.exceptions import (
+    ConcurrentExportLimitException,
     CouldNotFindTemplateException,
     DefaultConfigNotAllowedDelete,
     IndexSetNameDuplicateException,
@@ -103,6 +105,7 @@ from bkm_space.api import AbstractSpaceApi
 from bkm_space.define import Space as SpaceDefine
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
+from config.default import MAX_CONCURRENT_EXPORT_TASKS
 
 
 class GlobalConfig(models.Model):
@@ -1534,6 +1537,23 @@ class AsyncTask(OperateRecordModel):
     index_set_type = models.CharField(
         _("索引集类型"), max_length=32, choices=IndexSetType.get_choices(), default=IndexSetType.SINGLE.value
     )
+
+    @classmethod
+    def check_running_count_by_user(cls, username: str):
+        running_status = [
+            ExportStatus.DOWNLOAD_LOG,
+            ExportStatus.EXPORT_PACKAGE,
+            ExportStatus.EXPORT_UPLOAD,
+        ]
+        count = cls.objects.filter(created_by=username, export_status__in=running_status).count()
+        print(count)
+        if (
+            cls.objects.filter(created_by=username, export_status__in=running_status).count()
+            >= MAX_CONCURRENT_EXPORT_TASKS
+        ):
+            raise ConcurrentExportLimitException(
+                ConcurrentExportLimitException.MESSAGE.format(limit_count=MAX_CONCURRENT_EXPORT_TASKS)
+            )
 
     class Meta:
         db_table = "export_task"

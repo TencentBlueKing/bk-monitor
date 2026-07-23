@@ -618,6 +618,11 @@ class AsyncExportTaskNotDownloadableException(BaseException):
     MESSAGE = _("异步导出任务暂不可下载")
 
 
+class ConcurrentExportLimitException(BaseException):
+    ERROR_CODE = "511"
+    MESSAGE = _("当前有多个导出任务正在下载中，同时可进行的任务数不得超过 {limit_count} 个，请稍后重试")
+
+
 # =================================================
 # Scene Search Fields Config
 # =================================================

@@ -145,11 +145,21 @@ class ActionEnum:
 
     USING_ALARM_MCP = ActionMeta(
         id="using_alarm_mcp",
-        name=_("使用告警MCP"),
-        name_en="Using Alarm MCP",
+        name=_("使用告警查询MCP"),
+        name_en="Using Alarm Query MCP",
         type="view",
         related_resource_types=[SPACE_RESOURCE],
         related_actions=[VIEW_BUSINESS.id],
+        version=1,
+    )
+
+    USING_ALARM_HANDLING_MCP = ActionMeta(
+        id="using_alarm_handling_mcp",
+        name=_("使用告警处置MCP"),
+        name_en="Using Alarm Handling MCP",
+        type="manage",
+        related_resource_types=[SPACE_RESOURCE],
+        related_actions=[USING_ALARM_MCP.id],
         version=1,
     )
 
