@@ -490,24 +490,16 @@ class GetHostProcessListResource(Resource):
         if host.bk_host_id not in processes:
             return []
 
-        # PHASE 1: Query port health directly (moved up from get_process_info so other
-        # callers are unaffected) and merge into response per design spec.
-        port_statuses = resource.cc.get_process_port_health(bk_biz_id, hosts=[host])
-        host_port_status = port_statuses.get(host.bk_host_id, {})
+        query_params = {
+            "bk_biz_id": bk_biz_id,
+            "hosts": [host],
+            "start_time": params.get("start_time"),
+            "end_time": params.get("end_time"),
+        }
 
-        # PHASE 2: Query runtime metrics per design spec and merge into response.
-        # - 指标字段(cpu_usage_pct/mem_usage_pct/mem_res/uptime/fd_num) 来自 system.proc
-        # - proc_exists status 已在 get_process_info 中用于 status 字段
-        # - portStatus 已在本 Resource 的 Phase 1 直接查询并合并
-        # - TSDB 查询异常时 get_process_runtime_metrics 返回 {}，CMDB 基础字段照常返回
-        runtime_data = resource.cc.get_process_runtime_metrics(
-            bk_biz_id,
-            hosts=[host],
-            start_time=params.get("start_time"),
-            end_time=params.get("end_time"),
-        )
-        # 返回结构：{bk_host_id: {display_name(进程名): {field: value}}}
-        host_runtime = runtime_data.get(host.bk_host_id, {})
+        host_port_status = resource.cc.get_process_port_health(**query_params).get(host.bk_host_id, {})
+        host_runtime = resource.cc.get_process_runtime_metrics(**query_params).get(host.bk_host_id, {})
+        instance_counts = resource.cc.get_process_instance_count(**query_params).get(host.bk_host_id, {})
 
         # UI 字段名 → system.proc 指标字段名 映射
         # 用于 get_host_process_list 将 TSDB 运行时指标映射到前端 ProcessItem 字段
@@ -521,8 +513,7 @@ class GetHostProcessListResource(Resource):
 
         return [
             {
-                # id 格式：进程名@主机IP（前端 ProcessItem.id 契约，用于选中/去重 key）
-                "id": f"{process['name']}@{host.ip}",
+                "id": process["id"],
                 "name": process["name"],
                 "status": process["status"],
                 # 运行时指标按进程名(display_name)索引，通过 runtime_metric_map 映射 UI→TSDB 字段名
@@ -538,7 +529,7 @@ class GetHostProcessListResource(Resource):
                 "memUsage": host_runtime.get(process["name"], {}).get(runtime_metric_map["memUsage"]),
                 "uptime": host_runtime.get(process["name"], {}).get(runtime_metric_map["uptime"]),
                 "fdNum": host_runtime.get(process["name"], {}).get(runtime_metric_map["fdNum"]),
-                "instanceCount": process.get("proc_num"),
+                "instanceCount": instance_counts.get(process["name"], 1),
                 "startCommand": process.get("startCommand"),
             }
             for process in processes[host.bk_host_id]
