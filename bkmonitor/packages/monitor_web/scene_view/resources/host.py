@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+import logging
 import time
 from urllib.parse import urljoin
 
@@ -23,10 +24,13 @@ from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.ip import is_v6
 from bkmonitor.utils.request import get_request
+from bkmonitor.utils.thread_backend import ThreadPool
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
 from monitor_web.constants import AGENT_STATUS
 from monitor_web.scene_view.resources.view import GetSceneViewResource
+
+logger = logging.getLogger(__name__)
 
 
 class GetHostProcessPortStatusResource(Resource):
@@ -497,10 +501,30 @@ class GetHostProcessListResource(Resource):
             "end_time": params.get("end_time"),
         }
 
-        host_port_status = resource.cc.get_process_port_health(**query_params).get(host.bk_host_id, {})
-        host_runtime = resource.cc.get_process_runtime_metrics(**query_params).get(host.bk_host_id, {})
-        host_uptime = resource.cc.get_process_uptime(**query_params).get(host.bk_host_id, {})
-        instance_counts = resource.cc.get_process_instance_count(**query_params).get(host.bk_host_id, {})
+        # 四次 TSDB 查询并发执行，缩短接口延迟
+        pool = ThreadPool()
+        futures = {
+            "port_status": pool.apply_async(resource.cc.get_process_port_health, kwds=query_params),
+            "runtime": pool.apply_async(resource.cc.get_process_runtime_metrics, kwds=query_params),
+            "uptime": pool.apply_async(resource.cc.get_process_uptime, kwds=query_params),
+            "instance_count": pool.apply_async(resource.cc.get_process_instance_count, kwds=query_params),
+        }
+        pool.close()
+        pool.join()
+
+        # TSDB 查询异常兜底：各函数内部已有 try/except 返回 {}，
+        # 此处再捕获一层防止未知异常导致整接口 500
+        def _safe_get(key):
+            try:
+                return futures[key].get()
+            except Exception as e:
+                logger.warning("[get_host_process_list] %s failed, degrade to empty: %s", key, e)
+                return {}
+
+        host_port_status = _safe_get("port_status").get(host.bk_host_id, {})
+        host_runtime = _safe_get("runtime").get(host.bk_host_id, {})
+        host_uptime = _safe_get("uptime").get(host.bk_host_id, {})
+        instance_counts = _safe_get("instance_count").get(host.bk_host_id, {})
 
         # UI 字段名 → system.proc 指标字段名 映射
         # 用于 get_host_process_list 将 TSDB 运行时指标映射到前端 ProcessItem 字段
