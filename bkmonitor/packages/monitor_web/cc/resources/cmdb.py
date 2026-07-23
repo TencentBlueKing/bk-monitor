@@ -300,7 +300,9 @@ def _query_proc_metrics(
         if record.get("bk_host_id"):
             bk_host_id = int(record["bk_host_id"])
         else:
-            bk_host_id = ip_to_host_id.get((record.get("bk_target_ip"), int(record.get("bk_target_cloud_id") or -1)))
+            record_cloud_id = record.get("bk_target_cloud_id")
+            cloud_id = int(record_cloud_id) if record_cloud_id is not None else -1
+            bk_host_id = ip_to_host_id.get((record.get("bk_target_ip"), cloud_id))
         if bk_host_id in bk_host_ids and record.get("display_name"):
             yield bk_host_id, record["display_name"], record.get("_result_")
 
@@ -313,7 +315,6 @@ def get_process_runtime_metrics(
 
     返回各进程指标字段的运行时数据：
     - 指标字段（SUM 聚合）：cpu_usage_pct, mem_res, mem_usage_pct, fd_num
-    - uptime 因语义不可加（多实例时长求和无意义），已拆分至 get_process_uptime 单独查询（MIN 聚合）
 
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表
@@ -377,7 +378,7 @@ def get_process_uptime(
     bk_biz_id: int, hosts: list[Host], start_time: int = None, end_time: int = None
 ) -> dict[int, dict[str, float]]:
     """
-    查询进程运行时长（system.proc uptime，MIN 聚合）
+    查询进程运行时长（system.proc uptime，MAX 聚合）
 
     uptime 为时长不可加（多实例求和无意义），使用 MAX 取窗口内最长运行实例的运行时长。
     instant=True 即时计算，直接返回最新时刻的聚合值。
@@ -406,7 +407,7 @@ def get_process_instance_count(
     bk_biz_id: int, hosts: list[Host], start_time: int = None, end_time: int = None
 ) -> dict[int, dict[str, int]]:
     """
-    查询进程真实运行实例数（按 pid 维度 COUNT 聚合）
+    查询进程真实运行实例数（COUNT 聚合统计同一进程名的运行实例数）
 
     :param bk_biz_id: 业务ID
     :param hosts: 主机列表
