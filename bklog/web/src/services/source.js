@@ -67,6 +67,12 @@ const update = {
   method: 'put',
 };
 
+// 更新 Doris 集群可见范围
+const updateVisibleConfig = {
+  url: '/databus/storage/:cluster_id/visible_config/',
+  method: 'put',
+};
+
 const info = {
   url: '/databus/storage/:cluster_id/?bk_biz_id=:bk_biz_id',
   method: 'get',
@@ -171,6 +177,7 @@ export {
   create,
   deleteEs,
   update,
+  updateVisibleConfig,
   info,
   connectivityDetect,
   getNodeAttrs,
