@@ -576,7 +576,6 @@ class Process:
         "port": "8008,8443",
         "bk_process_name": "job_java",
         "user": "",
-        "proc_num": 1,
         "priority": 1,
         "bk_biz_id": 2,
         "bk_func_id": "",
@@ -609,7 +608,7 @@ class Process:
         :param str process_template_id: 进程模板ID
         :param str bk_host_id: 主机ID
         :param str user: 启动用户
-        :param str start_cmd: 启动命令（→ 前端 startCommand）
+        :param str start_cmd: 启动命令
         """
         self.bk_process_id = int(bk_process_id)
         self.bk_process_name = bk_process_name

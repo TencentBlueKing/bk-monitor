@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
+import logging
 import time
 from urllib.parse import urljoin
 
@@ -23,10 +24,13 @@ from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.ip import is_v6
 from bkmonitor.utils.request import get_request
+from bkmonitor.utils.thread_backend import ThreadPool
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
 from monitor_web.constants import AGENT_STATUS
 from monitor_web.scene_view.resources.view import GetSceneViewResource
+
+logger = logging.getLogger(__name__)
 
 
 class GetHostProcessPortStatusResource(Resource):
@@ -461,6 +465,10 @@ class GetHostProcessListResource(Resource):
         bk_host_id = serializers.IntegerField(required=False)
         bk_target_ip = serializers.CharField(required=False)
         bk_target_cloud_id = serializers.IntegerField(required=False)
+        # 时间范围（秒级 Unix 时间戳，可选）。传入时约束 TSDB 运行时指标查询区间，
+        # 不传则保持默认"最近三分钟"行为（向后兼容）
+        start_time = serializers.IntegerField(required=False, label="开始时间(秒级时间戳)")
+        end_time = serializers.IntegerField(required=False, label="结束时间(秒级时间戳)")
 
     def perform_request(self, params):
         if not params.get("bk_host_id") and (
@@ -486,19 +494,37 @@ class GetHostProcessListResource(Resource):
         if host.bk_host_id not in processes:
             return []
 
-        # PHASE 1: Query port health directly (moved up from get_process_info so other
-        # callers are unaffected) and merge into response per design spec.
-        port_statuses = resource.cc.get_process_port_health(bk_biz_id, hosts=[host])
-        host_port_status = port_statuses.get(host.bk_host_id, {})
+        query_params = {
+            "bk_biz_id": bk_biz_id,
+            "hosts": [host],
+            "start_time": params.get("start_time"),
+            "end_time": params.get("end_time"),
+        }
 
-        # PHASE 2: Query runtime metrics per design spec and merge into response.
-        # - 指标字段(cpu_usage_pct/mem_usage_pct/mem_res/uptime) 与维度字段(pid/username) 来自 system.proc
-        # - proc_exists status 已在 get_process_info 中用于 status 字段
-        # - portStatus 已在本 Resource 的 Phase 1 直接查询并合并
-        # - TSDB 查询异常时 get_process_runtime_metrics 返回 {}，CMDB 基础字段照常返回
-        runtime_data = resource.cc.get_process_runtime_metrics(bk_biz_id, hosts=[host])
-        # 返回结构：{bk_host_id: {display_name(进程名): {field: value, pid: pid, username: username}}}
-        host_runtime = runtime_data.get(host.bk_host_id, {})
+        # 四次 TSDB 查询并发执行，缩短接口延迟
+        pool = ThreadPool()
+        futures = {
+            "port_status": pool.apply_async(resource.cc.get_process_port_health, kwds=query_params),
+            "runtime": pool.apply_async(resource.cc.get_process_runtime_metrics, kwds=query_params),
+            "uptime": pool.apply_async(resource.cc.get_process_uptime, kwds=query_params),
+            "instance_count": pool.apply_async(resource.cc.get_process_instance_count, kwds=query_params),
+        }
+        pool.close()
+        pool.join()
+
+        # TSDB 查询异常兜底：各函数内部已有 try/except 返回 {}，
+        # 此处再捕获一层防止未知异常导致整接口 500
+        def _safe_get(key):
+            try:
+                return futures[key].get()
+            except Exception as e:
+                logger.warning("[get_host_process_list] %s failed, degrade to empty: %s", key, e)
+                return {}
+
+        host_port_status = _safe_get("port_status").get(host.bk_host_id, {})
+        host_runtime = _safe_get("runtime").get(host.bk_host_id, {})
+        host_uptime = _safe_get("uptime").get(host.bk_host_id, {})
+        instance_counts = _safe_get("instance_count").get(host.bk_host_id, {})
 
         # UI 字段名 → system.proc 指标字段名 映射
         # 用于 get_host_process_list 将 TSDB 运行时指标映射到前端 ProcessItem 字段
@@ -506,30 +532,28 @@ class GetHostProcessListResource(Resource):
             "cpuUsage": "cpu_usage_pct",
             "memRss": "mem_res",
             "memUsage": "mem_usage_pct",
-            "uptime": "uptime",
-            "pid": "pid",
-            "user": "username",
+            "fdNum": "fd_num",
         }
 
         return [
             {
-                # id 格式：进程名@主机IP（前端 ProcessItem.id 契约，用于选中/去重 key）
-                "id": f"{process['name']}@{host.ip}",
+                "id": process["id"],
                 "name": process["name"],
                 "status": process["status"],
                 # 运行时指标按进程名(display_name)索引，通过 runtime_metric_map 映射 UI→TSDB 字段名
-                "pid": host_runtime.get(process["name"], {}).get(runtime_metric_map["pid"]),
                 "protocol": GetHostOrTopoNodeDetailResource.protocol_map.get(process.get("protocol")),
                 "bindIp": process.get("bindIp"),
                 "port": process.get("port"),
                 "portStatus": host_port_status.get(process["name"]),
-                "user": process.get("user") or host_runtime.get(process["name"], {}).get(runtime_metric_map["user"]),
+                "user": process.get("user"),
                 "hostIp": host.ip,
                 # Performance / resource metrics from system.proc (TSDB only)
                 "cpuUsage": host_runtime.get(process["name"], {}).get(runtime_metric_map["cpuUsage"]),
                 "memRss": host_runtime.get(process["name"], {}).get(runtime_metric_map["memRss"]),
                 "memUsage": host_runtime.get(process["name"], {}).get(runtime_metric_map["memUsage"]),
-                "uptime": host_runtime.get(process["name"], {}).get(runtime_metric_map["uptime"]),
+                "uptime": host_uptime.get(process["name"]),
+                "fdNum": host_runtime.get(process["name"], {}).get(runtime_metric_map["fdNum"]),
+                "instanceCount": instance_counts.get(process["name"], 1),
                 "startCommand": process.get("startCommand"),
             }
             for process in processes[host.bk_host_id]
