@@ -149,7 +149,7 @@ def get_process_info(bk_biz_id: int, hosts: list[Host], limit_port_num: int = No
             {
                 11: [
                     {
-                        "id": 43,                       # 占位值，host.py 中按 "进程名@主机IP" 覆盖
+                        "id": 43,
                         "bk_host_id": 11,
                         "name": "p1",
                         "protocol": "1",
@@ -194,8 +194,6 @@ def get_process_info(bk_biz_id: int, hosts: list[Host], limit_port_num: int = No
         else:
             status = AGENT_STATUS.UNKNOWN
 
-        # id 由 host.py 的 get_host_process_list 按 "进程名@主机IP" 格式组装（前端 ProcessItem.id 契约）。
-        # 此处保留原始 bk_process_id 占位，维持 pp_instance["id"] 赋值结构，供 host.py 覆盖。
         pp_instance = {
             "id": pp.bk_process_id,
             "bk_host_id": pp.bk_host_id,
