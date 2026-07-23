@@ -17,13 +17,23 @@ from django.conf import settings
 
 from apps.api import UnifyQueryApi
 from apps.log_search.constants import MAX_RESULT_WINDOW, MAX_ASYNC_COUNT
+from apps.log_search.exceptions import IndexSetDorisQueryException
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 
 
 class UnifyQueryChartHandler(UnifyQueryHandler):
     def __init__(self, params):
         self.sql = params["sql"]
+        self.table_id = None
         super().__init__(params)
+        self.index_set_obj = self.index_info_list[0]["index_set_obj"]
+        self.is_support_doris = False
+        if self.index_set_obj:
+            self.is_support_doris = (
+                self.index_set_obj.support_doris
+                if self.index_set_obj.support_doris
+                else self.index_set_obj.is_native_doris()
+            )
 
     def init_base_dict(self):
         # 拼接查询参数列表
@@ -31,10 +41,10 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
         for index, index_info in enumerate(self.index_info_list):
             index_set_obj = index_info.get("index_set_obj")
 
-            table_id = f"bklog_index_set_{index_info['index_set_id']}_analysis"
+            self.table_id = f"bklog_index_set_{index_info['index_set_id']}_analysis"
 
             if index_set_obj and index_set_obj.is_native_doris():
-                table_id = f"bklog_index_set_{index_info['index_set_id']}"
+                self.table_id = f"bklog_index_set_{index_info['index_set_id']}"
 
             query_dict = {
                 "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
@@ -42,7 +52,7 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
                 "conditions": self._transform_additions(index_info),
                 "query_string": self.query_string,
                 "sql": self.sql,
-                "table_id": table_id,
+                "table_id": self.table_id,
             }
 
             query_list.append(query_dict)
@@ -59,6 +69,9 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
         }
 
     def get_chart_data(self):
+        if not self.is_support_doris:
+            raise IndexSetDorisQueryException()
+
         start_time = time.time()
         result = UnifyQueryApi.query_ts_raw(self.base_dict)
         for record in result["list"]:
@@ -78,6 +91,9 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
         }
 
     def generate_sql(self):
+        if not self.is_support_doris:
+            raise IndexSetDorisQueryException()
+
         search_dict = copy.deepcopy(self.base_dict)
         search_dict["dry_run"] = True
         result = UnifyQueryApi.query_ts_raw(search_dict)
@@ -90,6 +106,9 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
         }
 
     def export_chart_data(self):
+        if not self.is_support_doris:
+            raise IndexSetDorisQueryException()
+
         search_params = copy.deepcopy(self.base_dict)
         search_params["limit"] = MAX_RESULT_WINDOW
         max_result_count = MAX_ASYNC_COUNT

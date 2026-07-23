@@ -59,7 +59,6 @@ from apps.log_search.exceptions import (
 )
 from apps.log_search.models import LogIndexSet
 from apps.log_search.utils import add_highlight_mark
-from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.chart import UnifyQueryChartHandler
 from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
 from apps.utils.grep_syntax_parse import grep_parser
@@ -427,14 +426,7 @@ class ChartHandler:
         if not sort_list:
             sort_list = UnifyQueryMappingHandler.get_sort_list_by_index_id(index_set_id)
             if not sort_list:
-                now_time = arrow.now()
-                params = {
-                    "index_set_ids": [index_set_id],
-                    "bk_biz_id": bk_biz_id,
-                    "start_time": now_time.shift(days=-1).format("YYYY-MM-DD HH:mm:ss"),
-                    "end_time": now_time.format("YYYY-MM-DD HH:mm:ss"),
-                }
-                sort_list = UnifyQueryHandler(params).origin_order_by
+                sort_list = LogIndexSet.get_default_sort_list(index_set_id)
         # 构建 ORDER BY 子句
         order_by_clause = ""
         for field, direction in sort_list:
@@ -464,19 +456,20 @@ class ChartHandler:
         grep_where_clause = cls.convert_to_where_clause(origin_grep_field, grep_nodes)
         return grep_where_clause
 
-    def add_doris_query_trace(self, sql=None, total_records=None, time_taken=None):
+    def add_doris_query_trace(self, sql=None, total_records=None, time_taken=None, data_label=None):
         """
         添加doris查询的trace记录
         :param sql: 执行的SQL语句
         :param total_records: 总条数
         :param time_taken: 总耗时
+        :param data_label: 数据标签
         """
         tracer = trace.get_tracer(__name__)
         with tracer.start_as_current_span("bkdata_doris_query") as span:
             span.set_attribute("index_set_id", self.index_set_id)
             span.set_attribute("user.username", get_request_username())
             span.set_attribute("space_uid", self.data.space_uid)
-            span.set_attribute("db.table", self.data.doris_table_id)
+            span.set_attribute("data_label", data_label)
             span.set_attribute("db.statement", sql)
             span.set_attribute("db.system", "doris")
             span.set_attribute("total_records", total_records)
@@ -683,7 +676,13 @@ class SQLChartHandler(ChartHandler):
             query_handler = UnifyQueryChartHandler(params)
             result = query_handler.get_chart_data()
 
-            trace_params.update({"total_records": result["total_records"], "time_taken": result["time_taken"]})
+            trace_params.update(
+                {
+                    "total_records": result["total_records"],
+                    "time_taken": result["time_taken"],
+                    "data_label": query_handler.table_id,
+                }
+            )
         finally:
             self.add_doris_query_trace(**trace_params)
         # 添加高亮标记
@@ -723,7 +722,13 @@ class SQLChartHandler(ChartHandler):
 
             total = result["list"][0]["total"] if result["list"] else 0
             time_taken = result["time_taken"]
-            trace_params.update({"time_taken": time_taken})
+            trace_params.update(
+                {
+                    "total_records": result["total_records"],
+                    "time_taken": time_taken,
+                    "data_label": query_handler.table_id,
+                }
+            )
         finally:
             self.add_doris_query_trace(**trace_params)
 

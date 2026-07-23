@@ -30,8 +30,11 @@ from django.test import TestCase, override_settings
 
 from apps.log_databus.constants import DORIS_CLUSTER_TYPE, STORAGE_CLUSTER_TYPE
 from apps.log_databus.models import CollectorConfig, DataLinkConfig
+from apps.log_search.exceptions import IndexSetDorisQueryException
 from apps.log_search.handlers.index_set import BaseIndexSetHandler
+from apps.log_search.handlers.search.chart_handlers import ChartHandler
 from apps.log_search.models import IndexSetTag, LogIndexSet, LogIndexSetData, Scenario, TAG_TYPE_INNER
+from apps.log_unifyquery.handler.chart import UnifyQueryChartHandler
 from apps.tests.utils import FakeRedis
 from bkm_space.define import Space
 
@@ -1760,3 +1763,386 @@ class TestSyncRouter(TestCase):
 
         self.assertEqual(BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=False), [])
         self.assertEqual(BaseIndexSetHandler.get_index_set_table_info_list(index_set, is_analysis=True), [])
+
+
+class TestSqlAndGrepApi(TestCase):
+    """
+    验证五个图表分析入口（Chart / Generate SQL / Export / Grep / Grep Total）
+    在四种存储场景下的能力校验、data label 选择和 UQ 执行路径。
+    """
+
+    # ==================================================================
+    # Fixtures
+    # ==================================================================
+
+    def _build_native_doris_index_set(self) -> LogIndexSet:
+        """原生 Doris：storage_cluster_type=doris，support_doris=False"""
+        collector_config = CollectorConfig.objects.create(
+            table_id="591_native",
+            bk_biz_id=2,
+            collector_config_name="native_doris_cc",
+            collector_scenario_id="log",
+            category_id="other_rt",
+            storage_cluster_type=DORIS_CLUSTER_TYPE,
+        )
+        index_set = LogIndexSet.objects.create(
+            index_set_name="native_doris",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.LOG,
+            collector_config_id=collector_config.collector_config_id,
+            doris_table_id=None,
+            support_doris=False,
+        )
+        collector_config.index_set_id = index_set.index_set_id
+        collector_config.save(update_fields=["index_set_id"])
+        LogIndexSetData.objects.create(
+            index_set_id=index_set.index_set_id,
+            result_table_id="591_native",
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+        return index_set
+
+    def _build_es_doris_index_set(self) -> LogIndexSet:
+        """存量 ES+Doris：storage_cluster_type=elasticsearch，support_doris=True"""
+        collector_config = CollectorConfig.objects.create(
+            table_id="591_xx",
+            bk_biz_id=2,
+            collector_config_name="es_doris_cc",
+            collector_scenario_id="log",
+            category_id="other_rt",
+            storage_cluster_type=STORAGE_CLUSTER_TYPE,
+        )
+        index_set = LogIndexSet.objects.create(
+            index_set_name="es_doris",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.LOG,
+            collector_config_id=collector_config.collector_config_id,
+            doris_table_id="db.doris_table_1",
+            support_doris=True,
+        )
+        collector_config.index_set_id = index_set.index_set_id
+        collector_config.save(update_fields=["index_set_id"])
+        LogIndexSetData.objects.create(
+            index_set_id=index_set.index_set_id,
+            result_table_id="591_xx",
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+        return index_set
+
+    def _build_manual_doris_index_set(self) -> LogIndexSet:
+        """手动接入 Doris：有 Doris 标签，storage_cluster_type=elasticsearch"""
+        doris_tag_id = str(IndexSetTag.get_tag_id("Doris", tag_type=TAG_TYPE_INNER))
+        collector_config = CollectorConfig.objects.create(
+            table_id="591_manual",
+            bk_biz_id=2,
+            collector_config_name="manual_doris_cc",
+            collector_scenario_id="log",
+            category_id="other_rt",
+            storage_cluster_type=STORAGE_CLUSTER_TYPE,
+        )
+        index_set = LogIndexSet.objects.create(
+            index_set_name="manual_doris",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.BKDATA,
+            tag_ids=[doris_tag_id],
+            doris_table_id="db.doris_table_1,db.doris_table_2",
+            support_doris=True,
+            collector_config_id=collector_config.collector_config_id,
+        )
+        index_set.refresh_from_db()
+        collector_config.index_set_id = index_set.index_set_id
+        collector_config.save()
+        return index_set
+
+    def _build_plain_es_index_set(self) -> LogIndexSet:
+        """普通 ES：无 doris_table_id，support_doris=False，storage_cluster_type=elasticsearch"""
+        collector_config = CollectorConfig.objects.create(
+            table_id="591_es",
+            bk_biz_id=2,
+            collector_config_name="plain_es_cc",
+            collector_scenario_id="log",
+            category_id="other_rt",
+            storage_cluster_type=STORAGE_CLUSTER_TYPE,
+        )
+        index_set = LogIndexSet.objects.create(
+            index_set_name="plain_es",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.LOG,
+            collector_config_id=collector_config.collector_config_id,
+            doris_table_id=None,
+            support_doris=False,
+        )
+        collector_config.index_set_id = index_set.index_set_id
+        collector_config.save(update_fields=["index_set_id"])
+        LogIndexSetData.objects.create(
+            index_set_id=index_set.index_set_id,
+            result_table_id="591_es",
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+        return index_set
+
+    # ==================================================================
+    # Helpers
+    # ==================================================================
+
+    def _base_params(self, index_set: LogIndexSet) -> dict:
+        return {
+            "alias_mappings": {},
+            "addition": [],
+            "start_time": 1732220441,
+            "end_time": 1732820443,
+            "keyword": "",
+            "size": 10,
+            "begin": 0,
+            "sort_list": [],
+            "sql": "SELECT * LIMIT 10",
+            "index_set_ids": [index_set.index_set_id],
+            "bk_biz_id": 2,
+        }
+
+    def _build_uq_handler(self, index_set: LogIndexSet, **overrides) -> UnifyQueryChartHandler:
+        """构造 UnifyQueryChartHandler 并 patch 掉网络调用。
+
+        UnifyQueryChartHandler.__init__ 链路深，会调用 UnifyQueryApi，
+        需要 patch 掉 _init_index_info_list 和 _transform_additions 以避免外部依赖。
+        """
+        params = self._base_params(index_set)
+        params.update(overrides)
+        with (
+            patch.object(UnifyQueryChartHandler, "_transform_additions", return_value=[]),
+            patch.object(
+                UnifyQueryChartHandler,
+                "_init_index_info_list",
+                return_value=[
+                    {
+                        "index_set_id": index_set.index_set_id,
+                        "index_set_obj": index_set,
+                        "scenario_id": index_set.scenario_id,
+                        "storage_cluster_id": index_set.storage_cluster_id or 1,
+                        "indices": "591_native",
+                        "origin_indices": "591_native",
+                        "origin_scenario_id": index_set.scenario_id,
+                    }
+                ],
+            ),
+        ):
+            return UnifyQueryChartHandler(params)
+
+    def _assert_can_chart(self, index_set: LogIndexSet, expect_table_id_suffix: str):
+        """验证 chart 入口走 UQ 且 data label 符合预期。"""
+        handler = self._build_uq_handler(index_set)
+        # 构造阶段应成功（不会抛 IndexSetDorisQueryException）
+        self.assertIsNotNone(handler)
+        self.assertTrue(handler.is_support_doris)
+        # data label 验证
+        self.assertTrue(
+            handler.table_id.endswith(expect_table_id_suffix),
+            f"期望 table_id 以 '{expect_table_id_suffix}' 结尾，实际: {handler.table_id}",
+        )
+
+    def _assert_can_generate_sql(self, index_set: LogIndexSet):
+        """验证 generate_sql 入口走 UQ（构造成功即通过）。"""
+        handler = self._build_uq_handler(index_set)
+        self.assertIsNotNone(handler)
+        self.assertTrue(handler.is_support_doris)
+
+    def _assert_can_export(self, index_set: LogIndexSet):
+        """验证 export_chart_data 入口走 UQ（构造成功即通过）。"""
+        handler = self._build_uq_handler(index_set)
+        self.assertIsNotNone(handler)
+        self.assertTrue(handler.is_support_doris)
+
+    def _assert_can_grep(self, index_set: LogIndexSet):
+        """验证 grep_query 入口走 UQ（构造 + fetch 阶段通过）。"""
+        params = self._base_params(index_set)
+        params.update({"grep_query": "error", "grep_field": "log"})
+        handler = ChartHandler.get_instance(index_set_id=index_set.index_set_id, mode="sql")
+
+        # 前提：Handler 层面的能力校验通过
+        self.assertTrue(handler.is_support_doris)
+
+        # 验证 SQL 生成不含 FROM None
+        sql = handler.generate_grep_query_sql(params)
+        self.assertIn("SELECT *", sql)
+        self.assertNotIn("FROM", sql)
+
+    def _assert_can_grep_total(self, index_set: LogIndexSet):
+        """验证 grep_query_total 入口走 UQ（构造 + fetch 阶段通过）。"""
+        params = self._base_params(index_set)
+        params.update({"grep_query": "error", "grep_field": "log"})
+        handler = ChartHandler.get_instance(index_set_id=index_set.index_set_id, mode="sql")
+        self.assertTrue(handler.is_support_doris)
+
+        sql = handler.generate_grep_query_sql(
+            params,
+            select_clause="COUNT(*) AS total",
+            with_order_by=False,
+            with_pagination=False,
+        )
+        self.assertIn("SELECT COUNT(*) AS total", sql)
+        self.assertNotIn("FROM", sql)
+
+    def _assert_rejected(self, index_set: LogIndexSet):
+        """验证普通 ES 入口被明确拒绝。"""
+        # UQ Handler 构造应成功（构造阶段不抛），但 get_chart_data() 应抛
+        handler = self._build_uq_handler(index_set)
+        self.assertFalse(handler.is_support_doris)
+        with self.assertRaises(IndexSetDorisQueryException):
+            handler.get_chart_data()
+
+        # generate_sql 同样应抛
+        with self.assertRaises(IndexSetDorisQueryException):
+            handler.generate_sql()
+
+        # export_chart_data 同样应抛（generator，需要迭代触发）
+        with self.assertRaises(IndexSetDorisQueryException):
+            list(handler.export_chart_data())
+
+        # grep 入口：ChartHandler 层面的能力校验应拒绝
+        handler = ChartHandler.get_instance(index_set_id=index_set.index_set_id, mode="sql")
+        self.assertFalse(handler.is_support_doris)
+        with self.assertRaises(IndexSetDorisQueryException):
+            handler.fetch_grep_query_data(self._base_params(index_set))
+        with self.assertRaises(IndexSetDorisQueryException):
+            handler.fetch_grep_query_total(self._base_params(index_set))
+
+    # ==================================================================
+    # Tests
+    # ==================================================================
+
+    def _run_capability_matrix(self, index_set, scenario_name, is_rejected, expect_table_id_suffix=None):
+        """执行单个场景的完整能力矩阵。"""
+        if is_rejected:
+            with self.subTest(scenario=scenario_name, entrance="普通 ES"):
+                self._assert_rejected(index_set)
+            return
+
+        with self.subTest(scenario=scenario_name, entrance="chart"):
+            self._assert_can_chart(index_set, expect_table_id_suffix)
+        with self.subTest(scenario=scenario_name, entrance="generate_sql"):
+            self._assert_can_generate_sql(index_set)
+        with self.subTest(scenario=scenario_name, entrance="export"):
+            self._assert_can_export(index_set)
+        with self.subTest(scenario=scenario_name, entrance="grep"):
+            self._assert_can_grep(index_set)
+        with self.subTest(scenario=scenario_name, entrance="grep_total"):
+            self._assert_can_grep_total(index_set)
+
+    def test_native_doris_capability(self):
+        """原生 Doris：五个入口全部允许，data label 使用默认路由（无 _analysis 后缀）"""
+        index_set = self._build_native_doris_index_set()
+        self._run_capability_matrix(
+            index_set,
+            scenario_name="原生 Doris",
+            is_rejected=False,
+            expect_table_id_suffix=f"bklog_index_set_{index_set.index_set_id}",
+        )
+
+    def test_es_doris_capability(self):
+        """存量 ES+Doris：五个入口全部允许，data label 使用 _analysis 后缀"""
+        index_set = self._build_es_doris_index_set()
+        self._run_capability_matrix(
+            index_set,
+            scenario_name="存量 ES+Doris",
+            is_rejected=False,
+            expect_table_id_suffix="_analysis",
+        )
+
+    def test_manual_doris_capability(self):
+        """手动接入 Doris：五个入口全部允许，走 _analysis 路由（非原生 Doris）"""
+        index_set = self._build_manual_doris_index_set()
+        self._run_capability_matrix(
+            index_set,
+            scenario_name="手动接入 Doris",
+            is_rejected=False,
+            expect_table_id_suffix="_analysis",
+        )
+
+    def test_plain_es_rejected(self):
+        """普通 ES：五个入口全部被明确拒绝（IndexSetDorisQueryException）"""
+        index_set = self._build_plain_es_index_set()
+        self._run_capability_matrix(
+            index_set,
+            scenario_name="普通 ES",
+            is_rejected=True,
+        )
+
+    # ==================================================================
+    # 排序兜底
+    # ==================================================================
+
+    def _assert_default_sort_after_fallback(self, index_set: LogIndexSet):
+        """验证空 sort_list 能回退到默认排序（不抛异常，且包含 ORDER BY）。"""
+        params = self._base_params(index_set)
+        params["sort_list"] = []
+        handler = ChartHandler.get_instance(index_set_id=index_set.index_set_id, mode="sql")
+
+        order_by_clause = handler.get_order_by_clause(
+            index_set_id=index_set.index_set_id,
+            sort_list=[],
+            alias_mappings={},
+            bk_biz_id=handler.bk_biz_id,
+        )
+        self.assertTrue(order_by_clause.startswith(" ORDER BY"), f"应生成 ORDER BY，实际: {order_by_clause}")
+        # 默认排序应包含时间字段
+        self.assertIn("dtEventTimeStamp", order_by_clause)
+        self.assertIn("DESC", order_by_clause)
+
+    def test_default_sort_native_doris(self):
+        """原生 Doris：空 sort_list 回退到默认时间倒序"""
+        index_set = self._build_native_doris_index_set()
+        self._assert_default_sort_after_fallback(index_set)
+
+    def test_default_sort_es_doris(self):
+        """存量 ES+Doris：空 sort_list 回退到默认时间倒序"""
+        index_set = self._build_es_doris_index_set()
+        self._assert_default_sort_after_fallback(index_set)
+
+    def test_default_sort_plain_es(self):
+        """普通 ES：空 sort_list 回退到默认时间倒序"""
+        index_set = self._build_plain_es_index_set()
+        self._assert_default_sort_after_fallback(index_set)
+
+    # ==================================================================
+    # 生成 SQL 不含 FROM
+    # ==================================================================
+
+    def test_grep_sql_no_from_for_native_doris(self):
+        """原生 Doris generate_grep_query_sql 不会生成 FROM None"""
+        index_set = self._build_native_doris_index_set()
+        params = self._base_params(index_set)
+        params.update({"grep_query": "error", "grep_field": "log"})
+        handler = ChartHandler.get_instance(index_set_id=index_set.index_set_id, mode="sql")
+        sql = handler.generate_grep_query_sql(params)
+        self.assertNotIn("FROM", sql, "UQ 查询 SQL 不应包含 FROM")
+
+    def test_grep_sql_no_from_for_es_doris(self):
+        """存量 ES+Doris generate_grep_query_sql 不会生成 FROM"""
+        index_set = self._build_es_doris_index_set()
+        params = self._base_params(index_set)
+        params.update({"grep_query": "error", "grep_field": "log"})
+        handler = ChartHandler.get_instance(index_set_id=index_set.index_set_id, mode="sql")
+        sql = handler.generate_grep_query_sql(params)
+        self.assertNotIn("FROM", sql, "UQ 查询 SQL 不应包含 FROM")
+
+    # ==================================================================
+    # UQ data label 选择
+    # ==================================================================
+
+    def test_native_doris_uq_table_id_is_default_route(self):
+        """原生 Doris 走默认路由（无 _analysis 后缀）"""
+        index_set = self._build_native_doris_index_set()
+        handler = self._build_uq_handler(index_set)
+        self.assertEqual(handler.table_id, f"bklog_index_set_{index_set.index_set_id}")
+
+    def test_es_doris_uq_table_id_is_analysis(self):
+        """存量 ES+Doris 走 _analysis 路由"""
+        index_set = self._build_es_doris_index_set()
+        handler = self._build_uq_handler(index_set)
+        self.assertEqual(handler.table_id, f"bklog_index_set_{index_set.index_set_id}_analysis")

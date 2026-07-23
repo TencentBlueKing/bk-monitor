@@ -159,6 +159,8 @@ class SearchViewSet(APIViewSet):
             "chart",
             "generate_sql",
             "grep_query",
+            "export_chart_data",
+            "grep_query_total",
             "search_log_for_code",
         ]:
             return [InstanceActionPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]

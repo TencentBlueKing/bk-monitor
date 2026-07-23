@@ -849,6 +849,37 @@ class LogIndexSet(SoftDeleteModel):
 
         return index_set_id_to_storage_map
 
+    @staticmethod
+    def get_default_sort_list(index_set_id, index_set_obj=None):
+        index_set_obj = index_set_obj or LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+
+        default_sort_list = []
+        time_field = None
+
+        if index_set_obj:
+            if index_set_obj.scenario_id in [Scenario.BKDATA, Scenario.LOG]:
+                time_field = "dtEventTimeStamp"
+            elif index_set_obj.time_field:
+                time_field = index_set_obj.time_field
+            if not time_field:
+                # 遍历 index_set_data 取任意一个不为空的时间字段
+                time_field_list = LogIndexSetData.objects.filter(index_set_id=index_set_id).values_list(
+                    "time_field", flat=True
+                )
+                for time_field in time_field_list:
+                    if time_field:
+                        time_field = time_field
+
+            if time_field:
+                if index_set_obj.scenario_id == Scenario.BKDATA:
+                    default_sort_list = [[time_field, "desc"], ["gseindex", "desc"], ["_iteration_idx", "desc"]]
+                elif index_set_obj.scenario_id == Scenario.LOG:
+                    default_sort_list = [[time_field, "desc"], ["gseIndex", "desc"], ["iterationIndex", "desc"]]
+                else:
+                    default_sort_list = [[time_field, "desc"]]
+
+        return default_sort_list
+
     class Meta:
         ordering = ("-orders", "-index_set_id")
         verbose_name = _("索引集配置")
