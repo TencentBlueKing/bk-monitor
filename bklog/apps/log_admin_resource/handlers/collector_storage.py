@@ -8,6 +8,7 @@ from apps.log_admin_resource.handlers.collector import (
 from apps.log_databus.handlers.etl.transfer import TransferEtlHandler
 from apps.log_databus.handlers.storage import StorageHandler
 from apps.log_databus.models import CollectorConfig
+from apps.utils.thread import MultiExecuteFunc
 
 
 TARGET_FIELDS = (
@@ -34,6 +35,28 @@ STATUS_NAMES = {
     "success": "执行成功",
     "failed": "执行失败",
 }
+
+MAX_STORAGE_SNAPSHOT_COLLECTORS = 30
+STORAGE_SNAPSHOT_QUERY_WORKERS = 8
+
+
+def get_collector_storage_snapshot(params):
+    params = params or {}
+    collector_config_ids = _parse_collector_config_ids(params, max_items=MAX_STORAGE_SNAPSHOT_COLLECTORS)
+    collectors = _get_collectors(collector_config_ids)
+    storage_contexts = [_get_collector_storage_context(collector) for collector in collectors]
+    storage_results = _get_collector_storage_results(collectors, storage_contexts)
+    items = [
+        _build_preview_item(
+            collector,
+            {},
+            {},
+            storage_context=storage_context,
+            storage_result=storage_result,
+        )
+        for collector, storage_context, storage_result in zip(collectors, storage_contexts, storage_results)
+    ]
+    return {"summary": _summarize_items(items), "items": items}
 
 
 def preview_collector_storage(params):
@@ -92,11 +115,13 @@ def apply_collector_storage(params):
     return {"summary": _summarize_items(items), "items": items}
 
 
-def _parse_collector_config_ids(params):
+def _parse_collector_config_ids(params, max_items=None):
     params = params or {}
     collector_config_ids = params.get("collector_config_ids") or []
     if not collector_config_ids:
         raise ValidationError("collector_config_ids is required")
+    if max_items is not None and len(collector_config_ids) > max_items:
+        raise ValidationError(f"collector_config_ids must contain at most {max_items} items")
     return [int(collector_config_id) for collector_config_id in collector_config_ids]
 
 
@@ -132,13 +157,46 @@ def _get_collectors(collector_config_ids):
     return [collector_map[collector_config_id] for collector_config_id in collector_config_ids]
 
 
-def _build_preview_item(collector, target, cluster_hot_warm_cache):
+def _get_collector_storage_context(collector):
     primary_index_set, primary_index_data = _get_primary_index_set(collector.collector_config_id)
     table_id = collector.table_id or (primary_index_data.result_table_id if primary_index_data else None)
-    storage, storage_warning = _get_result_table_storage(
-        table_id=table_id,
-        storage_cluster_type=collector.storage_cluster_type,
-    )
+    return primary_index_set, table_id
+
+
+def _get_collector_storage_results(collectors, storage_contexts):
+    executor = MultiExecuteFunc(max_workers=STORAGE_SNAPSHOT_QUERY_WORKERS)
+    for index, (collector, (_, table_id)) in enumerate(zip(collectors, storage_contexts)):
+        executor.append(
+            index,
+            _get_result_table_storage,
+            {"table_id": table_id, "storage_cluster_type": collector.storage_cluster_type},
+            multi_func_params=True,
+        )
+
+    results = executor.run(return_exception=True)
+    storage_results = []
+    for index in range(len(collectors)):
+        result = results[index]
+        if isinstance(result, Exception):
+            result = (None, {"code": "result_table_storage_query_failed", "message": str(result)})
+        storage_results.append(result)
+    return storage_results
+
+
+def _build_preview_item(
+    collector,
+    target,
+    cluster_hot_warm_cache,
+    storage_context=None,
+    storage_result=None,
+):
+    primary_index_set, table_id = storage_context or _get_collector_storage_context(collector)
+    if storage_result is None:
+        storage_result = _get_result_table_storage(
+            table_id=table_id,
+            storage_cluster_type=collector.storage_cluster_type,
+        )
+    storage, storage_warning = storage_result
     before = _merge_storage_snapshot(_serialize_result_table_storage(storage), collector)
     after = dict(before)
     after.update(target)
