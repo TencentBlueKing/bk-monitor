@@ -222,13 +222,22 @@ class BaseTarget(abc.ABC):
 
         try:
             index_infos: list[dict[str, Any]] = HostIndexQueryMixin.query_indexes(query_params)
-            if not index_infos:
-                return []
+        except Exception:
+            logger.exception(
+                "查询主机关联采集项索引失败，bk_biz_id=%s，host_target=%s",
+                self._alert.event.bk_biz_id,
+                host_target,
+            )
+            return []
 
+        if not index_infos:
+            return []
+
+        try:
             index_set_map: dict[str, dict[str, Any]] = self._biz_index_set_map
         except Exception:
             logger.exception(
-                "查询主机关联采集项日志失败，bk_biz_id=%s，host_target=%s",
+                "获取主机关联采集项的索引集元信息失败，bk_biz_id=%s，host_target=%s",
                 self._alert.event.bk_biz_id,
                 host_target,
             )
@@ -263,6 +272,9 @@ class BaseTarget(abc.ABC):
         """
         if not host_targets:
             return []
+
+        if len(host_targets) == 1:
+            return merge_log_targets(self._query_host_collector_log_targets(host_targets[0]))
 
         with ThreadPool(min(len(host_targets), 8)) as pool:
             target_groups: list[list[dict[str, Any]]] = list(

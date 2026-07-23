@@ -1,4 +1,5 @@
 import logging
+from threading import Event
 from types import SimpleNamespace
 from typing import Any
 
@@ -85,8 +86,10 @@ def test_default_target_clustering_keeps_addition_mode(monkeypatch: pytest.Monke
     ]
 
 
-def test_log_host_target_prefers_origin_log_strategy_without_event_ip(
+@pytest.mark.parametrize("event_ip", ["", "127.0.0.1"])
+def test_log_host_target_prefers_origin_log_strategy_and_skips_host_queries(
     monkeypatch: pytest.MonkeyPatch,
+    event_ip: str,
 ) -> None:
     query_config: dict[str, object] = {
         "data_source_label": DataSourceLabel.BK_LOG_SEARCH,
@@ -96,7 +99,7 @@ def test_log_host_target_prefers_origin_log_strategy_without_event_ip(
     }
     alert = SimpleNamespace(
         strategy={},
-        event=SimpleNamespace(bk_biz_id=2, ip=""),
+        event=SimpleNamespace(bk_biz_id=2, bk_host_id=1, ip=event_ip, bk_cloud_id=0),
         origin_alarm={
             "data": {
                 "dimensions": {"ip": "127.0.0.1"},
@@ -113,7 +116,15 @@ def test_log_host_target_prefers_origin_log_strategy_without_event_ip(
         lambda **_: [{"index_set_id": 100, "index_set_name": "origin"}],
     )
 
-    result: list[dict[str, object]] = HostTarget(alert).list_related_log_targets()
+    target = HostTarget(alert)
+
+    def fail_query(*_args: Any, **_kwargs: Any) -> None:
+        raise AssertionError("命中原始日志策略后不应查询主机日志")
+
+    monkeypatch.setattr(target, "_host_relation_log_targets", fail_query)
+    monkeypatch.setattr(target, "_list_related_host_collector_log_targets", fail_query)
+
+    result: list[dict[str, object]] = target.list_related_log_targets()
 
     assert result == [
         {
@@ -301,6 +312,27 @@ def test_host_collector_falls_back_to_ip_and_cloud_id_zero(monkeypatch: pytest.M
     ]
 
 
+def test_single_host_collector_query_skips_inner_thread_pool(monkeypatch: pytest.MonkeyPatch) -> None:
+    alert: Any = SimpleNamespace(event=SimpleNamespace(bk_biz_id=2))
+    target = HostTarget(alert)
+    highest_priority_target: dict[str, Any] = {"index_set_id": 200, "source": "first"}
+
+    monkeypatch.setattr(
+        target,
+        "_query_host_collector_log_targets",
+        lambda _host_target: [highest_priority_target, {"index_set_id": "200", "source": "duplicate"}],
+    )
+
+    def fail_thread_pool(*_args: Any, **_kwargs: Any) -> None:
+        raise AssertionError("单主机采集项查询不应创建内层线程池")
+
+    monkeypatch.setattr(target_module, "ThreadPool", fail_thread_pool)
+
+    result: list[dict[str, Any]] = target._list_related_host_collector_log_targets([{"bk_host_id": 1}])
+
+    assert result == [highest_priority_target]
+
+
 def test_k8s_target_merges_k8s_apm_and_collector_logs_in_priority(monkeypatch: pytest.MonkeyPatch) -> None:
     alert: Any = SimpleNamespace(
         event=SimpleNamespace(
@@ -341,7 +373,43 @@ def test_k8s_target_merges_k8s_apm_and_collector_logs_in_priority(monkeypatch: p
     assert result == [k8s_target, apm_only_target, collector_only_target]
 
 
-def test_host_collector_query_failure_does_not_break_log_targets(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_host_collector_keeps_host_input_order_when_queries_finish_out_of_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    alert: Any = SimpleNamespace(event=SimpleNamespace(bk_biz_id=2))
+    target = HostTarget(alert)
+    first_query_started = Event()
+    second_query_finished = Event()
+    completion_order: list[int] = []
+    first_host_target: dict[str, Any] = {"index_set_id": 200, "host_id": 1}
+
+    def query_host_collector_log_targets(host_target: dict[str, Any]) -> list[dict[str, Any]]:
+        bk_host_id: int = host_target["bk_host_id"]
+        if bk_host_id == 1:
+            first_query_started.set()
+            assert second_query_finished.wait(timeout=5)
+            completion_order.append(bk_host_id)
+            return [first_host_target]
+
+        assert first_query_started.wait(timeout=5)
+        completion_order.append(bk_host_id)
+        second_query_finished.set()
+        return [{"index_set_id": "200", "host_id": bk_host_id}]
+
+    monkeypatch.setattr(target, "_query_host_collector_log_targets", query_host_collector_log_targets)
+
+    result: list[dict[str, Any]] = target._list_related_host_collector_log_targets(
+        [{"bk_host_id": 1}, {"bk_host_id": 2}]
+    )
+
+    assert completion_order == [2, 1]
+    assert result == [first_host_target]
+
+
+def test_host_collector_query_failure_does_not_break_log_targets(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     alert: Any = SimpleNamespace(
         strategy={},
         event=SimpleNamespace(bk_biz_id=2, bk_host_id=1, ip="127.0.0.1", bk_cloud_id=0),
@@ -373,9 +441,11 @@ def test_host_collector_query_failure_does_not_break_log_targets(monkeypatch: py
         lambda **_: [{"index_set_id": 200, "index_set_name": "collector"}],
     )
 
-    result: list[dict[str, Any]] = target.list_related_log_targets()
+    with caplog.at_level(logging.ERROR, logger=target_module.__name__):
+        result: list[dict[str, Any]] = target.list_related_log_targets()
 
     assert sorted(queried_host_ids) == [1, 2]
+    assert "查询主机关联采集项索引失败" in caplog.text
     assert result == [
         {"index_set_id": 100, "source": "relation"},
         {
@@ -388,6 +458,7 @@ def test_host_collector_query_failure_does_not_break_log_targets(monkeypatch: py
 
 def test_host_collector_index_set_query_failure_does_not_break_log_targets(
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     alert: Any = SimpleNamespace(
         strategy={},
@@ -406,7 +477,11 @@ def test_host_collector_index_set_query_failure_does_not_break_log_targets(
     monkeypatch.setattr(target_module.HostIndexQueryMixin, "query_indexes", classmethod(query_indexes))
     monkeypatch.setattr(target_module, "get_biz_index_sets_with_cache", query_index_sets)
 
-    assert target.list_related_log_targets() == [{"index_set_id": 100, "source": "relation"}]
+    with caplog.at_level(logging.ERROR, logger=target_module.__name__):
+        result: list[dict[str, Any]] = target.list_related_log_targets()
+
+    assert "获取主机关联采集项的索引集元信息失败" in caplog.text
+    assert result == [{"index_set_id": 100, "source": "relation"}]
 
 
 def test_merge_log_targets_keeps_highest_priority_group(caplog: pytest.LogCaptureFixture) -> None:
