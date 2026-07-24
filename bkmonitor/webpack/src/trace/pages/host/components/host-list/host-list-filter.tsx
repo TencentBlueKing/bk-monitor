@@ -89,6 +89,7 @@ export default defineComponent({
     return () => (
       <div class='host-list-filter'>
         <RetrievalFilter
+          key={`${ctx.refreshKey.value}`}
           fields={props.fields}
           filterMode={props.filterMode}
           getValueFn={props.getValueFn}
