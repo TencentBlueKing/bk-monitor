@@ -244,3 +244,112 @@ def test_graph_relation_sync_dry_run_rejects_non_dry_run():
                 "params": {"bk_biz_id": 100, "dry_run": False},
             }
         )
+
+
+# ── get_report_token 上报凭证回显 ────────────────────────────────────────────
+
+
+def test_run_readonly_command_dispatches_get_report_token(mocker):
+    """分发器路由到 get_report_token：token 由 cipher.transform_data_id_to_token 计算并回显。"""
+    # mock 在 cipher 模块（_get_report_token 从那里延迟导入），而不是 commands 模块级名称
+    transform = mocker.patch(
+        "bkmonitor.utils.cipher.transform_data_id_to_token",
+        return_value="FAKE_TOKEN_V0",
+    )
+    result = run_readonly_command(
+        {
+            "command_id": "get_report_token",
+            "params": {
+                "metric_data_id": 575975,
+                "trace_data_id": 111,
+                "log_data_id": 222,
+                "bk_biz_id": 555,
+                "app_name": "app",
+            },
+        }
+    )
+    assert result["command_id"] == "get_report_token"
+    assert result["token"] == "FAKE_TOKEN_V0"
+    assert result["token_version"] == "v0"
+    assert result["metric_data_id"] == 575975
+    assert result["bk_biz_id"] == 555
+    # 非默认 dataid / app_name 均按 kwargs 原样透传给算法并回显
+    transform.assert_called_once_with(
+        metric_data_id=575975, trace_data_id=111, log_data_id=222, bk_biz_id=555, app_name="app"
+    )
+
+
+def test_get_report_token_defaults_absent_ids_to_minus_one(mocker):
+    """只传 metric_data_id 时，其余 dataid 落默认 -1、app_name 落 ""。"""
+    transform = mocker.patch("bkmonitor.utils.cipher.transform_data_id_to_token", return_value="T")
+    run_readonly_command({"command_id": "get_report_token", "params": {"metric_data_id": 575975}})
+    transform.assert_called_once_with(
+        metric_data_id=575975, trace_data_id=-1, log_data_id=-1, bk_biz_id=-1, app_name=""
+    )
+
+
+def test_get_report_token_rejects_no_data_id():
+    """一个 dataid 都不给（只给 bk_biz_id）→ 拒绝。"""
+    with pytest.raises(CustomException, match="at least one of metric_data_id"):
+        run_readonly_command({"command_id": "get_report_token", "params": {"bk_biz_id": 555}})
+
+
+def test_get_report_token_accepts_trace_only(mocker):
+    """trace-only（metric 缺省）也可取 token，不被 metric 必填误伤。"""
+    transform = mocker.patch("bkmonitor.utils.cipher.transform_data_id_to_token", return_value="T")
+    result = run_readonly_command({"command_id": "get_report_token", "params": {"trace_data_id": 888}})
+    assert result["token"] == "T"
+    assert result["metric_data_id"] == -1
+    transform.assert_called_once_with(
+        metric_data_id=-1, trace_data_id=888, log_data_id=-1, bk_biz_id=-1, app_name=""
+    )
+
+
+def test_get_report_token_rejects_non_int_metric_data_id():
+    with pytest.raises(CustomException, match="metric_data_id must be an integer"):
+        run_readonly_command({"command_id": "get_report_token", "params": {"metric_data_id": "abc"}})
+
+
+def test_get_report_token_v1_dispatches_v1_token(mocker):
+    """token_version=v1 走 transform_data_id_to_v1_token，并回显 profile_data_id。"""
+    transform_v1 = mocker.patch(
+        "bkmonitor.utils.cipher.transform_data_id_to_v1_token",
+        return_value="FAKE_TOKEN_V1",
+    )
+    result = run_readonly_command(
+        {
+            "command_id": "get_report_token",
+            "params": {"metric_data_id": 575975, "bk_biz_id": 555, "profile_data_id": 123, "token_version": "v1"},
+        }
+    )
+    assert result["token"] == "FAKE_TOKEN_V1"
+    assert result["token_version"] == "v1"
+    assert result["profile_data_id"] == 123
+    transform_v1.assert_called_once_with(
+        metric_data_id=575975, trace_data_id=-1, log_data_id=-1, profile_data_id=123, bk_biz_id=555, app_name=""
+    )
+
+
+def test_get_report_token_normalizes_token_version(mocker):
+    """token_version 大小写/空白归一：'  V1 ' → v1。"""
+    transform_v1 = mocker.patch("bkmonitor.utils.cipher.transform_data_id_to_v1_token", return_value="T")
+    result = run_readonly_command(
+        {"command_id": "get_report_token", "params": {"metric_data_id": 1, "token_version": "  V1 "}}
+    )
+    assert result["token_version"] == "v1"
+    transform_v1.assert_called_once()
+
+
+def test_get_report_token_rejects_profile_data_id_in_v0():
+    """v0 传 profile_data_id → 显式拒绝，不静默丢弃。"""
+    with pytest.raises(CustomException, match="profile_data_id is only valid"):
+        run_readonly_command(
+            {"command_id": "get_report_token", "params": {"metric_data_id": 1, "profile_data_id": 2}}
+        )
+
+
+def test_get_report_token_rejects_bad_token_version():
+    with pytest.raises(CustomException, match="token_version must be 'v0' or 'v1'"):
+        run_readonly_command(
+            {"command_id": "get_report_token", "params": {"metric_data_id": 575975, "token_version": "v2"}}
+        )

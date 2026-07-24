@@ -187,6 +187,91 @@ def _graph_relation_sync_dry_run(params: dict[str, Any]) -> dict[str, Any]:
         raise CustomException(message=str(exc)) from exc
 
 
+@_register("get_report_token")
+def _get_report_token(params: dict[str, Any]) -> dict[str, Any]:
+    """计算自定义上报 dataid 对应的 bk.data.token（上报凭证），只读回显。
+
+    动机：Prometheus/OTLP 等自描述格式（pushgateway / remotewrite / OTLP，header
+    X-BK-TOKEN）推送自定义指标时需携带 aes256 自描述 token；该 token 由 dataid(s)+biz
+    经平台 AES 密钥确定性算出（bkmonitor.utils.cipher.transform_data_id_to_token），
+    本命令只回显 token，便于配置推送客户端，免去手工推导。
+
+    约束：
+      - token 是「按 dataid 隔离的上报凭证」，非租户安全边界；命令只读、无副作用。
+      - AES 密钥仅用于计算、不回显。
+      - token_version=v0（默认）走 transform_data_id_to_token；v1 走 transform_data_id_to_v1_token
+        （多 profile_data_id 维度，bk-collector aes256Decoder 兼容解析 v0/v1）。
+
+    params：metric_data_id/trace_data_id/log_data_id/bk_biz_id(int, 默认 -1，其中至少提供一个 dataid)；
+    profile_data_id(int, 默认 -1，仅 token_version=v1)；app_name(str, 默认 "")；token_version(v0|v1, 默认 v0)。
+    """
+    import json
+
+    from bkmonitor.utils.cipher import transform_data_id_to_token, transform_data_id_to_v1_token
+
+    def _to_int(key: str, default: int = -1) -> int:
+        raw = params.get(key, default)
+        if raw in (None, ""):
+            return default
+        try:
+            return int(raw)
+        except (TypeError, ValueError) as exc:
+            raise CustomException(message=f"params.{key} must be an integer") from exc
+
+    token_version = str(params.get("token_version") or "v0").strip().lower()
+    if token_version not in ("v0", "v1"):
+        raise CustomException(message="params.token_version must be 'v0' or 'v1'")
+
+    # profile_data_id 仅 v1 有意义；v0 传入即拒绝，避免静默丢弃导致 token 不含 profile 的意外。
+    if token_version != "v1" and params.get("profile_data_id") not in (None, ""):
+        raise CustomException(message="params.profile_data_id is only valid when token_version='v1'")
+
+    # 至少提供一个 dataid（v1 含 profile），否则各 id 全落默认 -1、token 无隔离意义。
+    id_keys = ("metric_data_id", "trace_data_id", "log_data_id")
+    if token_version == "v1":
+        id_keys += ("profile_data_id",)
+    if all(params.get(k) in (None, "") for k in id_keys):
+        raise CustomException(
+            message="at least one of metric_data_id / trace_data_id / log_data_id "
+            "(or profile_data_id when token_version='v1') is required"
+        )
+
+    metric_data_id = _to_int("metric_data_id")
+    trace_data_id = _to_int("trace_data_id")
+    log_data_id = _to_int("log_data_id")
+    bk_biz_id = _to_int("bk_biz_id")
+    app_name = str(params.get("app_name") or "")
+
+    result: dict[str, Any] = {
+        "token_version": token_version,
+        "metric_data_id": metric_data_id,
+        "trace_data_id": trace_data_id,
+        "log_data_id": log_data_id,
+        "bk_biz_id": bk_biz_id,
+        "app_name": app_name,
+    }
+    if token_version == "v1":
+        profile_data_id = _to_int("profile_data_id")
+        result["profile_data_id"] = profile_data_id
+        result["token"] = transform_data_id_to_v1_token(
+            metric_data_id=metric_data_id,
+            trace_data_id=trace_data_id,
+            log_data_id=log_data_id,
+            profile_data_id=profile_data_id,
+            bk_biz_id=bk_biz_id,
+            app_name=app_name,
+        )
+    else:
+        result["token"] = transform_data_id_to_token(
+            metric_data_id=metric_data_id,
+            trace_data_id=trace_data_id,
+            log_data_id=log_data_id,
+            bk_biz_id=bk_biz_id,
+            app_name=app_name,
+        )
+    return json.loads(json.dumps(result, default=str))
+
+
 # ── get_effective_setting 辅助 ────────────────────────────────────────────────
 
 # 凭据类 name（含 token/secret/password/appsecret 等，大小写不敏感）一律脱敏。
