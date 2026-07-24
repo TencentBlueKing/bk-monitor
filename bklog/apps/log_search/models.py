@@ -1369,10 +1369,10 @@ class AsyncTask(OperateRecordModel):
             ExportStatus.EXPORT_PACKAGE,
             ExportStatus.EXPORT_UPLOAD,
         ]
-        count = cls.objects.filter(created_by=username, export_status__in=running_status).count()
-        print(count)
         if (
-            cls.objects.filter(created_by=username, export_status__in=running_status).count()
+            cls.objects.filter(created_by=username)
+            .filter(Q(export_status__in=running_status) | Q(export_status__isnull=True))
+            .count()
             >= MAX_CONCURRENT_EXPORT_TASKS
         ):
             raise ConcurrentExportLimitException(
