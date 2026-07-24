@@ -1,0 +1,18 @@
+.middle-omitted-component {
+  display: flex;
+  width: 100%;
+
+  .pre-txt {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .next-txt {
+    position: relative;
+    left: -3px;
+    display: block;
+    white-space: nowrap;
+  }
+}

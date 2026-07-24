@@ -491,4 +491,12 @@ export default {
   '参考下表接入数据，如有疑问请联系 {link}':
     'Refer to the following table for data access, if you have any questions, please contact {link}',
   被调无需选择: 'Callee does not need to be selected',
+  主机拓扑: 'Host topology',
+  '搜索 IP / 主机名 / 节点名称': 'Search IP / Host name / Node name',
+  隐藏无主机节点: 'Hide nodes without hosts',
+  指标汇聚: 'Metric aggregation',
+  未恢复的告警: 'Unrecovered alarms',
+  详情页开发中: 'Details page development in progress',
+  节点: 'Node',
+  该分享链接仅包含当前时间范围: 'The shared link only includes the current time range',
 };

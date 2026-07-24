@@ -52,6 +52,10 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
+    disabledTip: {
+      type: String,
+      default: '',
+    },
   },
   emits: ['update:timezone', 'update:modelValue'],
   setup(_, { emit }) {
@@ -70,10 +74,16 @@ export default defineComponent({
   render() {
     return (
       <DatePicker
+        v-bk-tooltips={{
+          content: this.disabledTip,
+          disabled: this.disabledTip === '',
+          placement: 'bottom',
+        }}
         class='time-range-date-picker'
         behavior='simplicity'
         modelValue={this.modelValue}
         needTimezone={this.needTimezone}
+        disabled={this.disabledTip !== ''}
         timezone={this.timezone}
         onUpdate:modelValue={this.handleChange}
         onUpdate:timezone={this.handleTimezoneChange}

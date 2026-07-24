@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, onMounted } from 'vue';
+import { defineComponent, onMounted, computed } from 'vue';
 import { watch } from 'vue';
 
 import { Message, ResizeLayout } from 'bkui-vue';
@@ -33,6 +33,7 @@ import { useI18n } from 'vue-i18n';
 
 import CommonHeader from '../../components/common-header/common-header';
 import { useHostStore } from '../../store/modules/host';
+import { useRoute } from 'vue-router';
 import AlarmTools from './components/alarm-tools/index';
 import HostContentTabs from './components/host-content-tabs/host-content-tabs';
 import HostLocationBar from './components/host-location-bar/host-location-bar';
@@ -49,15 +50,23 @@ export default defineComponent({
   name: 'HostPage',
   setup() {
     const { t } = useI18n();
+    const route = useRoute();
+    const nodeId = (route.params.id || '') as string;
+    const isLockSearch = ((route.query.lockSearch || 'false') as string) === 'true';
+    const isShareLink = ((route.query.shareLink || 'false') as string) === 'true';
     const { timeRange, timezone, refreshImmediate, refreshInterval, scene } = storeToRefs(useHostStore());
     const { urlParams, getUrlParams, setUrlParams } = useHostUrlParams();
     // 拓扑树控制器（Controller），由页面统一持有，向侧边栏与标题栏分发
-    const topoTree = useHostTopoTree();
+    const topoTree = useHostTopoTree(nodeId);
+
+    const timeRangeDisabledTip = computed(() => {
+      return isShareLink && isLockSearch ? t('该分享链接仅包含当前时间范围') : '';
+    });
 
     watch(
       () => urlParams.value,
       () => {
-        setUrlParams({});
+        setUrlParams();
       }
     );
 
@@ -82,6 +91,7 @@ export default defineComponent({
       refreshInterval,
       scene,
       topoTree,
+      timeRangeDisabledTip,
       handleCompare,
     };
   },
@@ -89,6 +99,7 @@ export default defineComponent({
     return (
       <div class='host-page'>
         <CommonHeader
+          timeRangeDisabledTip={this.timeRangeDisabledTip}
           class='host-page-header'
           hideFeature={['gotoOld']}
           refreshImmediate={this.refreshImmediate}

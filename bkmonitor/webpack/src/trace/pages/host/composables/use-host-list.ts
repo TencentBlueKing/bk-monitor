@@ -24,8 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type Ref, type ShallowRef, shallowRef, watch } from 'vue';
-
+import { type Ref, type ShallowRef, shallowRef, watch, onMounted, onBeforeUnmount } from 'vue';
 import { Message } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
 
@@ -38,6 +37,9 @@ import {
 } from '../constants/host-list';
 import { getHostInfoList, getHostMetricInfoList } from '../services/host-service';
 import { useHostListWorker } from './use-host-list-worker';
+import { storeToRefs } from 'pinia';
+import { useHostStore } from '../../../store/modules/host';
+import { useHostUrlParams } from './use-host-url-params';
 
 import type {
   IGetValueFnParams,
@@ -77,8 +79,9 @@ const EMPTY_CATEGORY_STATS: IHostQuickCardStats = { alarm: 0, cpu: 0, disk: 0, m
  */
 export const useHostList = (options: IUseHostListOptions) => {
   const { selectedNode, where, filterExpanded, activeCategory, keyword } = options;
-
+  const { setUrlParams } = useHostUrlParams();
   const hostListWorker = useHostListWorker();
+  const { timeRange, timezone, refreshImmediate, refreshInterval } = storeToRefs(useHostStore());
 
   /** 基础数据加载中（第一屏） */
   const loading = shallowRef(false);
@@ -116,6 +119,35 @@ export const useHostList = (options: IUseHostListOptions) => {
 
   /** 集群模块等字段的完整选项映射（字段 -> 选项树），用于已选条件 tag 的名称还原 */
   const filterOptionsMap = shallowRef<Record<string, unknown>>({});
+
+  let intervalTimer: ReturnType<typeof setTimeout> | null = null;
+
+  watch([timeRange, timezone, refreshImmediate], () => {
+    setUrlParams();
+    loadData();
+  });
+
+  watch(refreshInterval, () => {
+    setUrlParams();
+    handleIntervalQuery();
+  });
+
+  watch(
+    [selectedNode, activeCategory, where, keyword, sortInfo, page, pageSize],
+    () => {
+      if (!rawRowCount.value) {
+        return;
+      }
+      refreshList();
+    },
+    { deep: true }
+  );
+
+  // 切换拓扑节点：回到第一页并清空跨节点的勾选
+  watch(selectedNode, () => {
+    resetPage();
+    selectedRowKeys.value = [];
+  });
 
   const getComputeParams = () => ({
     activeCategory: activeCategory.value,
@@ -250,21 +282,26 @@ export const useHostList = (options: IUseHostListOptions) => {
     Message({ message: window.i18n.t('复制成功'), theme: 'success' });
   };
 
-  watch(
-    [selectedNode, activeCategory, where, keyword, sortInfo, page, pageSize],
-    () => {
-      if (!rawRowCount.value) {
-        return;
-      }
-      refreshList();
-    },
-    { deep: true }
-  );
+  const handleIntervalQuery = () => {
+    clearTimeout(intervalTimer);
+    if (refreshInterval.value < 0) {
+      return;
+    }
 
-  // 切换拓扑节点：回到第一页并清空跨节点的勾选
-  watch(selectedNode, () => {
-    resetPage();
-    selectedRowKeys.value = [];
+    intervalTimer = setInterval(() => {
+      loadData();
+    }, refreshInterval.value);
+  };
+
+  onMounted(() => {
+    loadData();
+    handleIntervalQuery();
+  });
+
+  onBeforeUnmount(() => {
+    if (intervalTimer) {
+      clearTimeout(intervalTimer);
+    }
   });
 
   return {
