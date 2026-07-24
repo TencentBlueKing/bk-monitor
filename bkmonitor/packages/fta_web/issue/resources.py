@@ -42,7 +42,6 @@ from django.db import transaction
 from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id, bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.user import set_local_username
-from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.issue import IssuePriority, IssueStatus, IssueActivityType
 from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
@@ -1473,17 +1472,6 @@ class IssueLogContentResource(Resource):
     )
     QUERY_SLOTS = BoundedSemaphore(MAX_CONCURRENT_QUERIES)
 
-    # 日志类别告警的数据源与数据类型组合（与 get_alert_relation_info 保持一致）
-    LOG_DATA_SOURCE_TYPES = frozenset(
-        {
-            (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
-            (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
-            (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.TIME_SERIES),
-            (DataSourceLabel.CUSTOM, DataTypeLabel.EVENT),
-            (DataSourceLabel.BK_FTA, DataTypeLabel.EVENT),
-        }
-    )
-
     class RequestSerializer(serializers.Serializer):
         bk_biz_ids = serializers.ListField(
             label="业务ID", child=serializers.IntegerField(), min_length=1, max_length=500
@@ -1521,11 +1509,10 @@ class IssueLogContentResource(Resource):
             }
             strategy_ids.add(strategy_id)
 
-        # 2. 查询 QueryConfigModel，识别日志类别策略，并预取 query_config 供步骤5复用
+        # 2. 批量预取 query_config 供步骤5复用，避免 get_alert_relation_info 内部重复查 DB
         query_configs = QueryConfigModel.objects.filter(strategy_id__in=list(strategy_ids)).values(
             "strategy_id", "data_source_label", "data_type_label"
         )
-        log_strategy_ids: set[str] = set()
         strategy_query_config_map: dict[str, dict] = {}
         for qc in query_configs:
             strategy_id = str(qc["strategy_id"])
@@ -1533,23 +1520,18 @@ class IssueLogContentResource(Resource):
                 "data_source_label": qc["data_source_label"],
                 "data_type_label": qc["data_type_label"],
             }
-            if (qc["data_source_label"], qc["data_type_label"]) in self.LOG_DATA_SOURCE_TYPES:
-                log_strategy_ids.add(strategy_id)
 
-        # 筛选出日志类别的 issue
-        log_issue_ids = [issue_id for issue_id, meta in issue_meta.items() if meta["strategy_id"] in log_strategy_ids]
-        if not log_issue_ids:
-            return log_contents
+        matched_issue_ids = list(issue_meta)
 
         # 3. 查询每个 issue 最新告警（top_hits 聚合，按 begin_time 降序取最新一条）
         start_time = min(
             issue_meta[issue_id]["first_alert_time"] or IssueDocument.parse_timestamp_by_id(issue_id)
-            for issue_id in log_issue_ids
+            for issue_id in matched_issue_ids
         )
         search_object = AlertDocument.search(start_time=start_time, end_time=int(time.time())).filter(
-            "terms", issue_id=log_issue_ids
+            "terms", issue_id=matched_issue_ids
         )
-        issue_agg = search_object.aggs.bucket("issues", "terms", field="issue_id", size=len(log_issue_ids))
+        issue_agg = search_object.aggs.bucket("issues", "terms", field="issue_id", size=len(matched_issue_ids))
         issue_agg.metric(
             "latest_alert",
             "top_hits",
