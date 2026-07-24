@@ -287,6 +287,165 @@ paths:
           appVerifiedRequired: true
           resourcePermissionRequired: true
         descriptionEn:
+  /log_extract/explorer/trees/:
+    post:
+      operationId: log_extract_list_topology
+      description: 根据日志提取策略查询用户可访问的拓扑
+      tags:
+      - 日志提取
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/log_extract/explorer/trees/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn: List topology accessible for log extraction
+  /log_extract/explorer/strategies/:
+    post:
+      operationId: log_extract_list_allowed_paths
+      description: 查询日志提取策略允许访问的目录及文件类型
+      tags:
+      - 日志提取
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/log_extract/explorer/strategies/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn: List paths allowed for log extraction
+  /log_extract/explorer/query_hosts/:
+    post:
+      operationId: log_extract_query_hosts
+      description: 根据日志提取策略查询用户可访问的主机
+      tags:
+      - 日志提取
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/log_extract/explorer/query_hosts/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn: Query hosts accessible for log extraction
+  /log_extract/explorer/list_file/:
+    post:
+      operationId: log_extract_list_file
+      description: 查询用户可提取的主机文件
+      tags:
+      - 日志提取
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/log_extract/explorer/list_file/
+          matchSubpath: false
+          timeout: 60
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn: List files accessible for log extraction
+  /log_extract/tasks/:
+    post:
+      operationId: log_extract_create_task
+      description: 创建日志提取任务
+      tags:
+      - 日志提取
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/log_extract/tasks/
+          matchSubpath: false
+          timeout: 60
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn: Create a log extraction task
+  /log_extract/tasks/{task_id}/:
+    get:
+      operationId: log_extract_get_task
+      description: 查询日志提取任务详情
+      tags:
+      - 日志提取
+      parameters:
+      - name: task_id
+        in: path
+        required: true
+        type: integer
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/log_extract/tasks/{task_id}/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn: Get a log extraction task
+  /log_extract/tasks/download/:
+    get:
+      operationId: log_extract_get_download_url
+      description: 获取日志提取任务下载地址
+      tags:
+      - 日志提取
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/log_extract/tasks/download/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn: Get the download URL for a log extraction task
   /auth/groups/:
     post:
       operationId: create_user_group
@@ -3365,6 +3524,72 @@ paths:
           name: default
           method: post
           path: /api/v1/search/scene/search/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /scene/scenes/:
+    get:
+      operationId: scene_search_scenes
+      description: 场景化日志检索-场景及维度定义
+      tags:
+      - 场景化
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v1/search/scene/scenes/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /scene/fields/:
+    post:
+      operationId: scene_search_fields
+      description: 场景化日志检索-字段列表
+      tags:
+      - 场景化
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/search/scene/fields/
+          matchSubpath: false
+          timeout: 0
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: false
+          appVerifiedRequired: true
+          resourcePermissionRequired: true
+        descriptionEn:
+  /scene/dimension_values/:
+    post:
+      operationId: scene_search_dimension_values
+      description: 场景化日志检索-动态维度值列表
+      tags:
+      - 场景化
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v1/search/scene/dimension_values/
           matchSubpath: false
           timeout: 0
         pluginConfigs: []

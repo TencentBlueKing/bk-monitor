@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import calendar
+import copy
 import logging
 import typing
 from collections import defaultdict
@@ -627,7 +628,8 @@ class GroupDutyRuleManager:
                     user_group_id=self.user_group.id,
                     first_effective_time=first_effective_time,
                     duty_rule_id=duty_rule["id"],
-                    rule_snap=duty_rule,
+                    # 刷新快照会就地更新嵌套的时间和轮转索引，不能污染其他告警组复用的规则数据。
+                    rule_snap=copy.deepcopy(duty_rule),
                 )
             )
         if new_group_rule_snaps:

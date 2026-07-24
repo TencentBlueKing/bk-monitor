@@ -88,6 +88,7 @@ class TestGetMcpPermissionActionByServerName:
             ("bkmonitorv3-prod-dashboard-edit", "using_dashboard_mcp"),
             ("bk-monitor-prod-profiling-query", "using_apm_mcp"),
             ("bkmonitorv3-stage-log-query", "using_log_mcp"),
+            ("bkmonitorv3-prod-log-extract", "using_log_mcp"),
             ("BKMonitorV3-Prod-Dashboard-Edit", "using_dashboard_mcp"),  # 大小写不敏感
             ("bkmonitorv3-prod-alarm-handling", "using_alarm_handling_mcp"),
             ("bk-monitor-prod-alarm-handling", "using_alarm_handling_mcp"),

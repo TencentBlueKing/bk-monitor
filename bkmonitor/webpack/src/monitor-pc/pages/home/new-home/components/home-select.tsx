@@ -35,7 +35,7 @@ import { SPACE_TYPE_MAP } from 'monitor-pc/common/constant';
 
 import { COMMON_ROUTE_LIST } from '../../../../router/router-config';
 import reportLogStore from '../../../../store/modules/report-log';
-import { ESearchPopoverType, ESearchType, flattenRoute, highLightContent } from '../utils';
+import { ESearchPopoverType, ESearchType, flattenRoute, splitHighlightFragments } from '../utils';
 
 import type { IDataItem, IRouteItem, ISearchItem, ISearchListItem } from '../type';
 
@@ -327,7 +327,20 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       >
         {isHost && <span class='ip-tag'>{item.bk_cloud_id}:</span>}
         <span class='item-label'>
-          <span domPropsInnerHTML={item.nameSearch} />
+          <span>
+            {splitHighlightFragments(item.name || '', this.searchValue).map(fragment =>
+              fragment.highlight ? (
+                <span
+                  key={fragment.start}
+                  class='highlight'
+                >
+                  {fragment.text}
+                </span>
+              ) : (
+                fragment.text
+              )
+            )}
+          </span>
           {isHost && <span class='ip-sub'>（{item.bk_host_name}）</span>}
           {isBcsCluster && <span class='ip-sub'>（{item.bcs_cluster_id}）</span>}
           {isHost && item.compare_hosts.length > 0 && (
@@ -500,13 +513,12 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
   /** 渲染搜索列表 */
   renderGroupList() {
     return this.searchList.map((item, ind) => {
-      const data = highLightContent(this.searchValue, item.items, ['name']);
       return (
         <div key={item.name}>
           <span class='new-home-select-item-title'>
             {item.name}（{item.items.length}）
           </span>
-          {data.map((child, key) => this.renderGroupItem(child, item.type, ind, key))}
+          {item.items.map((child, key) => this.renderGroupItem(child, item.type, ind, key))}
         </div>
       );
     });

@@ -851,6 +851,7 @@ class SpaceTableIDRedis:
                     "data_label": data_label,
                     "labels": labels,
                     "field_alias": field_alias,
+                    "options": options_map.get(table_id) or {},
                 }
             else:
                 continue
