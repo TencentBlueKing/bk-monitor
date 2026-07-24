@@ -37,6 +37,7 @@ import { useSidebarDiff } from '../../hooks/use-sidebar-diff';
 import { useSpaceSelector } from '../../hooks/use-space-selector';
 import ManageHelper from '../../manage-helper.ts';
 import EsDialog from './es-dialog.tsx';
+import { CLUSTER_TYPES } from './use-cluster-type';
 import http from '@/api';
 
 import './es-slider.scss';
@@ -56,6 +57,14 @@ export default defineComponent({
     // 编辑的集群 ID
     editClusterId: {
       type: Number,
+      default: null,
+    },
+    clusterType: {
+      type: String,
+      default: CLUSTER_TYPES.ES,
+    },
+    clusterData: {
+      type: Object,
       default: null,
     },
     onHandleCancelSlider: { type: Function },
@@ -187,6 +196,14 @@ export default defineComponent({
     const bkBizId = computed(() => store.getters.bkBizId);
     const globalsData = computed(() => store.getters['globals/globalsData']);
     const isEdit = computed(() => props.editClusterId !== null);
+    const isDoris = computed(() => props.clusterType === CLUSTER_TYPES.DORIS);
+    const isMultiTenant = computed(() => !!store.state.userMeta?.bk_tenant_id);
+    const visibleScopeOptions = computed(() => {
+      if (isMultiTenant.value) {
+        return [...visibleScopeSelectList.value, { id: 'current_tenant', name: t('当前租户可见') }];
+      }
+      return visibleScopeSelectList.value;
+    });
 
     // 冷热设置不对，禁用提交
     const invalidHotSetting = computed(() => {
@@ -199,9 +216,16 @@ export default defineComponent({
     const scopeValueType = computed(() => formData.value.visible_config.visible_type !== 'multi_biz'); // 可见范围单选判断，禁用下拉框
     const isBizAttr = computed(() => formData.value.visible_config.visible_type === 'biz_attr');
     // 提交按钮是否禁用
-    const isDisableClickSubmit = computed(
-      () => connectResult.value !== 'success' || invalidHotSetting.value || isRulesCheckSubmit.value,
-    );
+    const isDisableClickSubmit = computed(() => {
+      if (isDoris.value) {
+        const { visible_type: visibleType } = formData.value.visible_config;
+        return (
+          (visibleType === 'multi_biz' && !visibleBkBiz.value.length)
+          || (visibleType === 'biz_attr' && !bkBizLabelsList.value.length)
+        );
+      }
+      return connectResult.value !== 'success' || invalidHotSetting.value || isRulesCheckSubmit.value;
+    });
 
     // 侧边栏需要对比的formData
     const watchFormData = computed(() => ({ formData: formData.value, basicFormData: basicFormData.value }));
@@ -225,28 +249,32 @@ export default defineComponent({
     const editDataSource = async () => {
       try {
         sliderLoading.value = true;
-        const res = await http.request('/source/info', {
-          params: {
-            cluster_id: props.editClusterId,
-            bk_biz_id: bkBizId.value,
-          },
-        });
+        let clusterData = props.clusterData;
+        if (!isDoris.value) {
+          const res = await http.request('/source/info', {
+            params: {
+              cluster_id: props.editClusterId,
+              bk_biz_id: bkBizId.value,
+            },
+          });
+          clusterData = res.data;
+        }
 
         // 回填 basicFormData.value
         Object.assign(basicFormData.value, {
-          cluster_name: res.data.cluster_config.cluster_name,
-          display_name: res.data.cluster_config.display_name,
-          source_type: res.data.cluster_config.custom_option?.source_type || '',
+          cluster_name: clusterData.cluster_config.cluster_name,
+          display_name: clusterData.cluster_config.display_name,
+          source_type: clusterData.cluster_config.custom_option?.source_type || '',
           source_name:
-            res.data.cluster_config.custom_option?.source_type === 'other'
-              ? res.data.cluster_config.custom_option?.source_name
+            clusterData.cluster_config.custom_option?.source_type === 'other'
+              ? clusterData.cluster_config.custom_option?.source_name
               : '',
-          domain_name: res.data.cluster_config.domain_name,
-          port: res.data.cluster_config.port,
-          schema: res.data.cluster_config.schema,
+          domain_name: clusterData.cluster_config.domain_name,
+          port: clusterData.cluster_config.port,
+          schema: clusterData.cluster_config.schema,
           auth_info: {
-            username: res.data.auth_info.username,
-            password: res.data.auth_info.password || '******',
+            username: clusterData.auth_info.username,
+            password: clusterData.auth_info.password || '******',
           },
         });
 
@@ -255,7 +283,7 @@ export default defineComponent({
         if (!bizParentList.value.length) {
           await getBizPropertyId();
         }
-        const visibleConfig = res.data.cluster_config.custom_option?.visible_config || {};
+        const visibleConfig = clusterData.cluster_config.custom_option?.visible_config || {};
         bkBizLabelsList.value = Object.entries(
           visibleConfig.bk_biz_labels || {},
         ).reduce((pre: any[], cur) => {
@@ -289,16 +317,16 @@ export default defineComponent({
 
         // 回填 formData.value（最后设置 visible_config，避免 watch 触发时数据还未准备好）
         Object.assign(formData.value, {
-          enable_hot_warm: res.data.cluster_config.enable_hot_warm,
-          hot_attr_name: res.data.cluster_config.custom_option?.hot_warm_config?.hot_attr_name || '',
-          hot_attr_value: res.data.cluster_config.custom_option?.hot_warm_config?.hot_attr_value || '',
-          warm_attr_name: res.data.cluster_config.custom_option?.hot_warm_config?.warm_attr_name || '',
-          warm_attr_value: res.data.cluster_config.custom_option?.hot_warm_config?.warm_attr_value || '',
-          setup_config: res.data.cluster_config.custom_option?.setup_config || {},
-          admin: res.data.cluster_config.custom_option?.admin || [],
-          description: res.data.cluster_config.custom_option?.description || '',
-          enable_archive: res.data.cluster_config.custom_option?.enable_archive,
-          enable_assessment: res.data.cluster_config.custom_option?.enable_assessment,
+          enable_hot_warm: clusterData.cluster_config.enable_hot_warm,
+          hot_attr_name: clusterData.cluster_config.custom_option?.hot_warm_config?.hot_attr_name || '',
+          hot_attr_value: clusterData.cluster_config.custom_option?.hot_warm_config?.hot_attr_value || '',
+          warm_attr_name: clusterData.cluster_config.custom_option?.hot_warm_config?.warm_attr_name || '',
+          warm_attr_value: clusterData.cluster_config.custom_option?.hot_warm_config?.warm_attr_value || '',
+          setup_config: clusterData.cluster_config.custom_option?.setup_config || {},
+          admin: clusterData.cluster_config.custom_option?.admin || [],
+          description: clusterData.cluster_config.custom_option?.description || '',
+          enable_archive: clusterData.cluster_config.custom_option?.enable_archive,
+          enable_assessment: clusterData.cluster_config.custom_option?.enable_assessment,
           // 合并 basicFormData.value 的基础属性
           cluster_name: basicFormData.value.cluster_name,
           display_name: basicFormData.value.display_name,
@@ -309,16 +337,18 @@ export default defineComponent({
           schema: basicFormData.value.schema,
           auth_info: basicFormData.value.auth_info,
         });
-        
+
         // 最后设置 visible_config，此时 bkBizLabelsList 和 cacheBkBizLabelsList 已经准备好
         formData.value.visible_config = visibleConfig;
 
         initSidebarFormData();
 
-        // 若为编辑状态，则打开侧边栏后直接联通测试，通过则展开ES集群管理
-        setTimeout(() => {
-          handleTestConnect();
-        }, 0);
+        // ES 编辑状态下直接进行连通性测试，通过后展开集群管理
+        if (!isDoris.value) {
+          setTimeout(() => {
+            handleTestConnect();
+          }, 0);
+        }
       } catch (e) {
         console.warn(e);
       } finally {
@@ -446,6 +476,30 @@ export default defineComponent({
         return;
       }
       try {
+        if (isDoris.value) {
+          const visibleConfig: any = {
+            visible_type: formData.value.visible_config.visible_type,
+          };
+          if (visibleConfig.visible_type === 'multi_biz') {
+            visibleConfig.visible_bk_biz = visibleBkBiz.value.map((id: string | number) => Number(id));
+          }
+          if (visibleConfig.visible_type === 'biz_attr') {
+            visibleConfig.bk_biz_labels = filterBzID();
+          }
+
+          confirmLoading.value = true;
+          await http.request('/source/updateVisibleConfig', {
+            params: { cluster_id: props.editClusterId },
+            data: {
+              bk_biz_id: Number(bkBizId.value),
+              visible_config: visibleConfig,
+            },
+          });
+          Message({ theme: 'success', message: t('保存成功'), delay: 1500 });
+          emit('handleUpdatedTable');
+          return;
+        }
+
         await validateForm.value?.validate();
         let url = '/source/create';
         const paramsData: any = { bk_biz_id: bkBizId.value };
@@ -694,11 +748,11 @@ export default defineComponent({
     // 监听：侧滑显示/隐藏
     watch(
       () => props.showSlider,
-      async val => {
+      async (val) => {
         if (val) {
           // 先获取业务属性列表，确保在编辑模式下回填数据时 bizParentList 已经有值
           await getBizPropertyId();
-          
+
           if (isEdit.value) {
             isShowManagement.value = true;
             editDataSource();
@@ -790,7 +844,7 @@ export default defineComponent({
     // 监听：可见范围类型切换
     watch(
       () => formData.value.visible_config.visible_type,
-      val => {
+      (val) => {
         if (val !== 'multi_biz') {
           visibleList.value = [];
         } else {
@@ -807,10 +861,82 @@ export default defineComponent({
     // 监听：多业务可见列表变化时，同步 ID 列表
     watch(
       () => visibleList.value,
-      val => {
+      (val) => {
         visibleBkBiz.value = val.map((item: any) => item.id);
       },
       { deep: true },
+    );
+
+    const renderVisibleScope = () => (
+      <bk-form-item
+        style='margin-top: 4px'
+        label={t('可见范围')}
+      >
+        <bk-radio-group
+          value={formData.value.visible_config.visible_type}
+          onChange={(v: string) => (formData.value.visible_config.visible_type = v)}
+        >
+          {visibleScopeOptions.value.map(item => (
+            <bk-radio
+              key={item.id}
+              class='scope-radio'
+              value={item.id}
+            >
+              {item.name}
+            </bk-radio>
+          ))}
+        </bk-radio-group>
+
+        {/* 多空间选择 */}
+        <bk-select
+          v-show={!scopeValueType.value}
+          display-key='space_full_code_name'
+          id-key='bk_biz_id'
+          list={mySpaceList.value}
+          value={visibleBkBiz.value}
+          virtual-scroll-render={virtualscrollSpaceList}
+          display-tag
+          enable-virtual-scroll
+          multiple
+          searchable
+          onChange={(v) => {
+            visibleBkBiz.value = v;
+          }}
+        ></bk-select>
+
+        {/* 按照空间属性选择 */}
+        {isBizAttr.value && (
+          <bk-search-select
+            ref={searchSelectRef}
+            data={bizParentList.value}
+            popover-zindex={selectZIndex.value}
+            remote-method={handleRemoteMethod}
+            show-condition={false}
+            show-popover-tag-change={false}
+            values={bkBizLabelsList.value}
+            clearable
+            onChange={(val: any[]) => {
+              bkBizLabelsList.value = val;
+            }}
+            onInput-change={handleInputChange}
+            onInput-click-outside={handleClickOutside}
+            onMenu-child-select={handleChildMenuSelect}
+            onMenu-select={handleMenuSelect}
+          />
+        )}
+      </bk-form-item>
+    );
+
+    const renderManagementToggle = () => (
+      <bk-form-item>
+        <div
+          class='es-cluster-management button-text'
+          onClick={() => (isShowManagement.value = !isShowManagement.value)}
+        >
+          <span>{isDoris.value ? t('Doris集群管理') : t('ES集群管理')}</span>
+          <span class={['bk-icon icon-angle-double-down', isShowManagement.value ? 'is-show' : ''].join(' ')} />
+        </div>
+      </bk-form-item>
     );
 
     // 主渲染
@@ -860,6 +986,7 @@ export default defineComponent({
                     <bk-input
                       data-test-id='esAccessFromBox_input_fillName'
                       maxlength={50}
+                      readonly={isDoris.value}
                       value={basicFormData.value.display_name}
                       onChange={(val: string) => (basicFormData.value.display_name = val)}
                     />
@@ -881,7 +1008,10 @@ export default defineComponent({
                   </bk-form-item>
 
                   {/* 来源 + ES地址 */}
-                  <div class='form-item-container'>
+                  <div
+                    v-show={!isDoris.value}
+                    class='form-item-container'
+                  >
                     <bk-form-item
                       label={t('来源')}
                       property='source_type'
@@ -923,8 +1053,43 @@ export default defineComponent({
                     </bk-form-item>
                   </div>
 
+                  {isDoris.value && (
+                    <div class='form-item-container'>
+                      <bk-form-item
+                        label={t('地址')}
+                        property='domain_name'
+                        required
+                      >
+                        <bk-input
+                          data-test-id='esAccessFromBox_input_fillDomainName'
+                          readonly
+                          value={basicFormData.value.domain_name}
+                        />
+                      </bk-form-item>
+
+                      <bk-form-item
+                        label={t('端口')}
+                        property='port'
+                        required
+                      >
+                        <bk-input
+                          data-test-id='esAccessFromBox_input_fillPort'
+                          max={65_535}
+                          min={0}
+                          readonly
+                          show-controls={false}
+                          type='number'
+                          value={basicFormData.value.port}
+                        />
+                      </bk-form-item>
+                    </div>
+                  )}
+
                   {/* 端口 + 协议 */}
-                  <div class='form-item-container'>
+                  <div
+                    v-show={!isDoris.value}
+                    class='form-item-container'
+                  >
                     <bk-form-item
                       label={t('端口')}
                       property='port'
@@ -969,11 +1134,15 @@ export default defineComponent({
                     <bk-form-item label={t('用户名')}>
                       <bk-input
                         data-test-id='esAccessFromBox_input_fillUsername'
+                        readonly={isDoris.value}
                         value={basicFormData.value.auth_info.username}
                         onChange={(val: string) => (basicFormData.value.auth_info.username = val)}
                       />
                     </bk-form-item>
-                    <bk-form-item label={t('密码')}>
+                    <bk-form-item
+                      v-show={!isDoris.value}
+                      label={t('密码')}
+                    >
                       <bk-input
                         data-test-id='esAccessFromBox_input_fillPassword'
                         type='password'
@@ -984,115 +1153,50 @@ export default defineComponent({
                   </div>
 
                   {/* 连通性测试 */}
-                  <bk-form-item label=''>
-                    <div class='test-container'>
-                      <bk-button
-                        data-test-id='esAccessFromBox_button_connectivityTest'
-                        loading={connectLoading.value}
-                        theme='primary'
-                        type='button'
-                        onClick={handleTestConnect}
-                      >
-                        {t('连通性测试')}
-                      </bk-button>
-                      {connectResult.value === 'success' && (
-                        <div class='success-text'>
-                          <i class='bk-icon icon-check-circle-shape' />
-                          {t('连通成功！')}
-                        </div>
-                      )}
-                      {connectResult.value === 'failed' && (
-                        <div class='error-text'>
-                          <i class='bk-icon icon-close-circle-shape' />
-                          {t('连通失败！')}
-                        </div>
-                      )}
-                    </div>
-                  </bk-form-item>
+                  {!isDoris.value && (
+                    <bk-form-item label=''>
+                      <div class='test-container'>
+                        <bk-button
+                          data-test-id='esAccessFromBox_button_connectivityTest'
+                          loading={connectLoading.value}
+                          theme='primary'
+                          type='button'
+                          onClick={handleTestConnect}
+                        >
+                          {t('连通性测试')}
+                        </bk-button>
+                        {connectResult.value === 'success' && (
+                          <div class='success-text'>
+                            <i class='bk-icon icon-check-circle-shape' />
+                            {t('连通成功！')}
+                          </div>
+                        )}
+                        {connectResult.value === 'failed' && (
+                          <div class='error-text'>
+                            <i class='bk-icon icon-close-circle-shape' />
+                            {t('连通失败！')}
+                          </div>
+                        )}
+                      </div>
+                    </bk-form-item>
+                  )}
 
                   {/* 连通失败信息 */}
-                  {connectResult.value === 'failed' && !!connectFailedMessage.value && (
+                  {!isDoris.value && connectResult.value === 'failed' && !!connectFailedMessage.value && (
                     <bk-form-item label=''>
                       <div class='connect-message'>{connectFailedMessage.value}</div>
                     </bk-form-item>
                   )}
 
-                  {/* ES 集群管理折叠条 */}
-                  {connectResult.value === 'success' && (
-                    <bk-form-item>
-                      <div
-                        class='es-cluster-management button-text'
-                        onClick={() => (isShowManagement.value = !isShowManagement.value)}
-                      >
-                        <span>{t('ES集群管理')}</span>
-                        <span
-                          class={['bk-icon icon-angle-double-down', isShowManagement.value ? 'is-show' : ''].join(' ')}
-                        />
-                      </div>
-                    </bk-form-item>
-                  )}
+                  {/* Doris 集群管理不依赖连通性状态；ES 仍需连通成功后展示 */}
+                  {isDoris.value && renderManagementToggle()}
+                  {!isDoris.value && connectResult.value === 'success' && renderManagementToggle()}
 
+                  {isDoris.value && isShowManagement.value && <div>{renderVisibleScope()}</div>}
                   {/* 管理区块 */}
-                  {isShowManagement.value && connectResult.value === 'success' && (
+                  {!isDoris.value && isShowManagement.value && connectResult.value === 'success' && (
                     <div>
-                      {/* 可见范围 */}
-                      <bk-form-item
-                        style='margin-top: 4px'
-                        label={t('可见范围')}
-                      >
-                        <bk-radio-group
-                          value={formData.value.visible_config.visible_type}
-                          onChange={(v: string) => (formData.value.visible_config.visible_type = v)}
-                        >
-                          {visibleScopeSelectList.value.map(item => (
-                            <bk-radio
-                              key={item.id}
-                              class='scope-radio'
-                              value={item.id}
-                            >
-                              {item.name}
-                            </bk-radio>
-                          ))}
-                        </bk-radio-group>
-
-                        {/* 多空间选择 */}
-                        <bk-select
-                          v-show={!scopeValueType.value}
-                          display-key='space_full_code_name'
-                          id-key='bk_biz_id'
-                          list={mySpaceList.value}
-                          value={visibleBkBiz.value}
-                          virtual-scroll-render={virtualscrollSpaceList}
-                          display-tag
-                          enable-virtual-scroll
-                          multiple
-                          searchable
-                          onChange={v => {
-                            visibleBkBiz.value = v;
-                          }}
-                        ></bk-select>
-
-                        {/* 按照空间属性选择 */}
-                        {isBizAttr.value && (
-                          <bk-search-select
-                            ref={searchSelectRef}
-                            data={bizParentList.value}
-                            popover-zindex={selectZIndex.value}
-                            remote-method={handleRemoteMethod}
-                            show-condition={false}
-                            show-popover-tag-change={false}
-                            values={bkBizLabelsList.value}
-                            clearable
-                            onChange={(val: any[]) => {
-                              bkBizLabelsList.value = val;
-                            }}
-                            onInput-change={handleInputChange}
-                            onInput-click-outside={handleClickOutside}
-                            onMenu-child-select={handleChildMenuSelect}
-                            onMenu-select={handleMenuSelect}
-                          />
-                        )}
-                      </bk-form-item>
+                      {renderVisibleScope()}
 
                       {/* 过期时间 */}
                       <bk-form-item
@@ -1255,13 +1359,13 @@ export default defineComponent({
                             size='large'
                             theme='primary'
                             value={formData.value.enable_hot_warm}
-                            onChange={val => {
+                            onChange={(val) => {
                               formData.value.enable_hot_warm = val;
                               handleChangeHotWarm(val);
                             }}
                           />
-                          {isDisableHotSetting.value &&
-                            !connectLoading.value && [
+                          {isDisableHotSetting.value
+                            && !connectLoading.value && [
                               <span
                                 key='icon-info'
                                 class='bk-icon icon-info'
@@ -1280,7 +1384,7 @@ export default defineComponent({
                               >
                                 {t('查看具体的配置方法')}
                               </a>,
-                            ]}
+                          ]}
                         </div>
                       </bk-form-item>
 
