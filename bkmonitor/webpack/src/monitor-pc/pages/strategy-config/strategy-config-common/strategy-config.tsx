@@ -41,7 +41,6 @@ import {
   updatePartialStrategyV2,
 } from 'monitor-api/modules/strategies';
 import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
-import { xssFilter } from 'monitor-common/utils/xss';
 import { debounce } from 'throttle-debounce';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
@@ -51,6 +50,7 @@ import { downFile } from '../../../utils';
 // import StrategySetTarget from '../strategy-config-set/strategy-set-target/strategy-set-target.vue';
 import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
 import AlarmShieldStrategy from '../../alarm-shield/quick-alarm-shield/quick-alarm-shield-strategy.vue';
+import { getItemDescriptionTooltip } from '../../text-display-utils';
 import TableStore, { invalidTypeMap } from '../store';
 import StrategyConfigDialog from '../strategy-config-dialog/strategy-config-dialog';
 import FilterPanel from '../strategy-config-list/filter-panel';
@@ -1805,12 +1805,6 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
   handleMouseMove(e) {
     handleMouseMove(e);
   }
-  // 处理监控项tooltips
-  handleDescTips(data) {
-    const tips = data.map(item => `<div>${xssFilter(item.tip)}</div>`).join('');
-    const res = `<div class="item-description">${tips}</div>`;
-    return res;
-  }
   // 批量操作下的选项是否不可点击
   isBatchItemDisabled(option: any) {
     return (
@@ -1963,10 +1957,9 @@ export default class StrategyConfig extends tsc<IStrategyConfigProps> {
         <span
           class='table-monitor-desc'
           v-bk-tooltips={{
-            content: this.handleDescTips(props.row.itemDescription),
+            ...getItemDescriptionTooltip(props.row.itemDescription),
             delay: 200,
             boundary: 'window',
-            allowHTML: true,
           }}
         >
           {props.row.itemDescription.map((item, index) => [

@@ -30,6 +30,8 @@ import { Component as tsc } from 'vue-tsx-support';
 import { CancelToken } from 'monitor-api/index';
 import { globalSearch } from 'monitor-api/modules/search';
 
+import { splitHighlightFragments } from './text-display-utils';
+
 import './global-search-modal-new.scss';
 
 interface IGlobalSearchModalProps {
@@ -239,21 +241,6 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
   }
 
   /**
-   * @desc 匹配颜色高亮
-   * @param { Boolean } name
-   */
-  keywordscolorful(str, key, color) {
-    // 将关键字中的特殊字符先转义
-    const regKey = key.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
-    const reg = new RegExp(`(${regKey})`, 'gi');
-    if (str === key) {
-      return `<span style='color:${color};'>${str}</span>`;
-    }
-
-    return str.replace(reg, `<span style='color:${color};'>${str.match(reg) ? str.match(reg)[0] : ''}</span>`);
-  }
-
-  /**
    * @desc 删除历史搜索
    */
   handleDeleteHistory() {
@@ -265,23 +252,28 @@ export default class GlobalSearchModal extends tsc<IGlobalSearchModalProps, IGlo
    * @desc 改变搜索范围
    */
   getResultItemText(item) {
-    let innerHtml = '';
-    const titleStr = item.title;
-    if (item.is_collected) {
-      // 汇聚结果 匹配数字高亮
-      const count = titleStr.replace(/[^0-9]/gi, '');
-      innerHtml = this.keywordscolorful(item.title, count, '#EA3636');
-    } else {
-      // 单条结果 匹配搜索值高亮
-      innerHtml = this.keywordscolorful(item.title, this.searchVal, '#3a84ff');
-    }
+    const title = item.title || '';
+    const keyword = item.is_collected ? title.replace(/[^0-9]/gi, '') : this.searchVal;
+    const color = item.is_collected ? '#EA3636' : '#3a84ff';
 
     return (
       <span
         class='result-text'
-        domPropsInnerHTML={innerHtml}
-        title={item.title}
-      />
+        title={title}
+      >
+        {splitHighlightFragments(title, keyword).map(fragment =>
+          fragment.highlight ? (
+            <span
+              key={fragment.start}
+              style={{ color }}
+            >
+              {fragment.text}
+            </span>
+          ) : (
+            fragment.text
+          )
+        )}
+      </span>
     );
   }
 
