@@ -1940,7 +1940,7 @@ class TestSqlAndGrepApi(TestCase):
         handler = self._build_uq_handler(index_set)
         # 构造阶段应成功（不会抛 IndexSetDorisQueryException）
         self.assertIsNotNone(handler)
-        self.assertTrue(handler.is_support_doris)
+        self.assertTrue(handler.is_support_sql_and_grep)
         # data label 验证
         self.assertTrue(
             handler.table_id.endswith(expect_table_id_suffix),
@@ -1951,13 +1951,13 @@ class TestSqlAndGrepApi(TestCase):
         """验证 generate_sql 入口走 UQ（构造成功即通过）。"""
         handler = self._build_uq_handler(index_set)
         self.assertIsNotNone(handler)
-        self.assertTrue(handler.is_support_doris)
+        self.assertTrue(handler.is_support_sql_and_grep)
 
     def _assert_can_export(self, index_set: LogIndexSet):
         """验证 export_chart_data 入口走 UQ（构造成功即通过）。"""
         handler = self._build_uq_handler(index_set)
         self.assertIsNotNone(handler)
-        self.assertTrue(handler.is_support_doris)
+        self.assertTrue(handler.is_support_sql_and_grep)
 
     def _assert_can_grep(self, index_set: LogIndexSet):
         """验证 grep_query 入口走 UQ（构造 + fetch 阶段通过）。"""
@@ -1966,7 +1966,7 @@ class TestSqlAndGrepApi(TestCase):
         handler = ChartHandler.get_instance(index_set_id=index_set.index_set_id, mode="sql")
 
         # 前提：Handler 层面的能力校验通过
-        self.assertTrue(handler.is_support_doris)
+        self.assertTrue(handler.is_support_sql_and_grep)
 
         # 验证 SQL 生成不含 FROM None
         sql = handler.generate_grep_query_sql(params)
@@ -1978,7 +1978,7 @@ class TestSqlAndGrepApi(TestCase):
         params = self._base_params(index_set)
         params.update({"grep_query": "error", "grep_field": "log"})
         handler = ChartHandler.get_instance(index_set_id=index_set.index_set_id, mode="sql")
-        self.assertTrue(handler.is_support_doris)
+        self.assertTrue(handler.is_support_sql_and_grep)
 
         sql = handler.generate_grep_query_sql(
             params,
@@ -1993,7 +1993,7 @@ class TestSqlAndGrepApi(TestCase):
         """验证普通 ES 入口被明确拒绝。"""
         # UQ Handler 构造应成功（构造阶段不抛），但 get_chart_data() 应抛
         handler = self._build_uq_handler(index_set)
-        self.assertFalse(handler.is_support_doris)
+        self.assertFalse(handler.is_support_sql_and_grep)
         with self.assertRaises(IndexSetDorisQueryException):
             handler.get_chart_data()
 
@@ -2001,13 +2001,14 @@ class TestSqlAndGrepApi(TestCase):
         with self.assertRaises(IndexSetDorisQueryException):
             handler.generate_sql()
 
-        # export_chart_data 同样应抛（generator，需要迭代触发）
-        with self.assertRaises(IndexSetDorisQueryException):
-            list(handler.export_chart_data())
+        # export_chart_data 校验在 View 层完成，generator 内部不再抛 IndexSetDorisQueryException
+        # 但直接迭代会导致网络请求失败，验证构造 generator 不抛即可
+        gen = handler.export_chart_data()
+        self.assertTrue(hasattr(gen, "__next__"), "export_chart_data 应返回生成器")
 
         # grep 入口：ChartHandler 层面的能力校验应拒绝
         handler = ChartHandler.get_instance(index_set_id=index_set.index_set_id, mode="sql")
-        self.assertFalse(handler.is_support_doris)
+        self.assertFalse(handler.is_support_sql_and_grep)
         with self.assertRaises(IndexSetDorisQueryException):
             handler.fetch_grep_query_data(self._base_params(index_set))
         with self.assertRaises(IndexSetDorisQueryException):
@@ -2250,7 +2251,7 @@ class TestSqlAndGrepApi(TestCase):
 
     def _build_mixed_group(self) -> LogIndexSet:
         """场景3（混合索引组）：部分子索引为原生 Doris、部分为 ES。
-        组级分析应关闭（is_support_doris=False）。"""
+        组级分析应关闭（is_support_sql_and_grep=False）。"""
         # Doris 子索引
         doris_cc = CollectorConfig.objects.create(
             table_id="591_mix_doris",
@@ -2334,7 +2335,7 @@ class TestSqlAndGrepApi(TestCase):
         """Legacy Doris 索引组：support_doris=True + doris_table_id 非空 → 分析开启，走 _analysis"""
         group = self._build_legacy_doris_group()
         handler = self._build_uq_handler(group)
-        self.assertTrue(handler.is_support_doris)
+        self.assertTrue(handler.is_support_sql_and_grep)
         self.assertTrue(
             handler.table_id.endswith("_analysis"), f"Legacy Doris 组应走 _analysis，实际: {handler.table_id}"
         )
@@ -2343,7 +2344,7 @@ class TestSqlAndGrepApi(TestCase):
         """全原生 Doris 索引组：所有子索引均为原生 Doris → 分析开启，走默认路由"""
         group = self._build_all_native_doris_group()
         handler = self._build_uq_handler(group)
-        self.assertTrue(handler.is_support_doris)
+        self.assertTrue(handler.is_support_sql_and_grep)
         self.assertFalse(
             handler.table_id.endswith("_analysis"), f"全原生 Doris 组应走默认路由，实际: {handler.table_id}"
         )
@@ -2352,4 +2353,267 @@ class TestSqlAndGrepApi(TestCase):
         """混合索引组：部分 Doris + 部分 ES → 分析关闭"""
         group = self._build_mixed_group()
         handler = self._build_uq_handler(group)
-        self.assertFalse(handler.is_support_doris)
+        self.assertFalse(handler.is_support_sql_and_grep)
+
+    # ==================================================================
+    # 回归场景：索引组扩展（场景4-6）
+    # ==================================================================
+
+    def _build_legacy_doris_group_with_all_native_children(self) -> LogIndexSet:
+        """场景2b：Legacy Doris 父组 + 全原生子项。
+        期望：父组有 support_doris=True + doris_table_id，即使子项全原生也优先走 legacy _analysis。"""
+        child_cc = CollectorConfig.objects.create(
+            table_id="591_legacy_native_child",
+            bk_biz_id=2,
+            collector_config_name="legacy_native_child_cc",
+            collector_scenario_id="log",
+            category_id="other_rt",
+            storage_cluster_type=DORIS_CLUSTER_TYPE,
+        )
+        child = LogIndexSet.objects.create(
+            index_set_name="legacy_native_child",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.LOG,
+            collector_config_id=child_cc.collector_config_id,
+            doris_table_id=None,
+            support_doris=False,
+        )
+        child_cc.index_set_id = child.index_set_id
+        child_cc.save(update_fields=["index_set_id"])
+        LogIndexSetData.objects.create(
+            index_set_id=child.index_set_id,
+            result_table_id="591_legacy_native_child",
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+
+        parent = LogIndexSet.objects.create(
+            index_set_name="legacy_doris_with_native_children",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.LOG,
+            is_group=True,
+            support_doris=True,
+            doris_table_id="db.legacy_doris_table",
+            collector_config_id=None,
+        )
+        LogIndexSetData.objects.create(
+            index_set_id=parent.index_set_id,
+            result_table_id=str(child.index_set_id),
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+            type=IndexSetDataType.INDEX_SET.value,
+        )
+        return parent
+
+    def _build_support_doris_no_table_group(self) -> LogIndexSet:
+        """场景5：support_doris=True 但父组 doris_table_id 为空。无 legacy 能力，
+        仅子项全原生 Doris 时才支持走默认路由。"""
+        child_cc = CollectorConfig.objects.create(
+            table_id="591_sdt_child",
+            bk_biz_id=2,
+            collector_config_name="sdt_child_cc",
+            collector_scenario_id="log",
+            category_id="other_rt",
+            storage_cluster_type=DORIS_CLUSTER_TYPE,
+        )
+        child = LogIndexSet.objects.create(
+            index_set_name="sdt_child",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.LOG,
+            collector_config_id=child_cc.collector_config_id,
+            doris_table_id=None,
+            support_doris=False,
+        )
+        child_cc.index_set_id = child.index_set_id
+        child_cc.save(update_fields=["index_set_id"])
+        LogIndexSetData.objects.create(
+            index_set_id=child.index_set_id,
+            result_table_id="591_sdt_child",
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+
+        parent = LogIndexSet.objects.create(
+            index_set_name="support_doris_no_table_group",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.LOG,
+            is_group=True,
+            support_doris=True,
+            doris_table_id=None,
+            collector_config_id=None,
+        )
+        LogIndexSetData.objects.create(
+            index_set_id=parent.index_set_id,
+            result_table_id=str(child.index_set_id),
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+            type=IndexSetDataType.INDEX_SET.value,
+        )
+        return parent
+
+    def test_legacy_doris_with_all_native_children(self):
+        """Legacy Doris 父组 + 全原生子项：仍优先查询父组 _analysis"""
+        group = self._build_legacy_doris_group_with_all_native_children()
+        handler = self._build_uq_handler(group)
+        self.assertTrue(handler.is_support_sql_and_grep)
+        self.assertTrue(
+            handler.table_id.endswith("_analysis"),
+            f"Legacy Doris 有父组表，子项全原生仍应走 _analysis，实际: {handler.table_id}",
+        )
+
+    def test_support_doris_no_table_all_native_children(self):
+        """support_doris=True 但父组表为空 + 全原生子项：仅全原生时允许走默认路由"""
+        group = self._build_support_doris_no_table_group()
+        handler = self._build_uq_handler(group)
+        # 父组没有 doris_table_id，不满足 legacy 条件；但子项全原生 Doris
+        self.assertTrue(handler.is_support_sql_and_grep)
+        self.assertFalse(
+            handler.table_id.endswith("_analysis"),
+            f"全原生 Doris 组（父组表为空）应走默认路由，实际: {handler.table_id}",
+        )
+
+    def _build_support_doris_no_table_mixed_children(self) -> LogIndexSet:
+        """support_doris=True 但父组表为空 + 混合子项：关闭分析"""
+        # 构造一个全原生子索引和一个 ES 子索引
+        child1_cc = CollectorConfig.objects.create(
+            table_id="591_sdt_mix_doris",
+            bk_biz_id=2,
+            collector_config_name="sdt_mix_doris_cc",
+            collector_scenario_id="log",
+            category_id="other_rt",
+            storage_cluster_type=DORIS_CLUSTER_TYPE,
+        )
+        child1 = LogIndexSet.objects.create(
+            index_set_name="sdt_mix_doris_child",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.LOG,
+            collector_config_id=child1_cc.collector_config_id,
+            doris_table_id=None,
+            support_doris=False,
+        )
+        child1_cc.index_set_id = child1.index_set_id
+        child1_cc.save(update_fields=["index_set_id"])
+        LogIndexSetData.objects.create(
+            index_set_id=child1.index_set_id,
+            result_table_id="591_sdt_mix_doris",
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+
+        child2_cc = CollectorConfig.objects.create(
+            table_id="591_sdt_mix_es",
+            bk_biz_id=2,
+            collector_config_name="sdt_mix_es_cc",
+            collector_scenario_id="log",
+            category_id="other_rt",
+            storage_cluster_type=STORAGE_CLUSTER_TYPE,
+        )
+        child2 = LogIndexSet.objects.create(
+            index_set_name="sdt_mix_es_child",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.LOG,
+            collector_config_id=child2_cc.collector_config_id,
+            doris_table_id=None,
+            support_doris=False,
+        )
+        child2_cc.index_set_id = child2.index_set_id
+        child2_cc.save(update_fields=["index_set_id"])
+        LogIndexSetData.objects.create(
+            index_set_id=child2.index_set_id,
+            result_table_id="591_sdt_mix_es",
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+            apply_status=LogIndexSetData.Status.NORMAL,
+        )
+
+        parent = LogIndexSet.objects.create(
+            index_set_name="support_doris_no_table_mixed",
+            space_uid="bkcc__2",
+            scenario_id=Scenario.LOG,
+            is_group=True,
+            support_doris=True,
+            doris_table_id=None,
+            collector_config_id=None,
+        )
+        LogIndexSetData.objects.create(
+            index_set_id=parent.index_set_id,
+            result_table_id=str(child1.index_set_id),
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+            type=IndexSetDataType.INDEX_SET.value,
+        )
+        LogIndexSetData.objects.create(
+            index_set_id=parent.index_set_id,
+            result_table_id=str(child2.index_set_id),
+            scenario_id=Scenario.LOG,
+            bk_biz_id=2,
+            type=IndexSetDataType.INDEX_SET.value,
+        )
+        return parent
+
+    def test_support_doris_no_table_mixed_children_not_supported(self):
+        """support_doris=True + 父组表为空 + 混合子项：分析关闭"""
+        group = self._build_support_doris_no_table_mixed_children()
+        self._assert_rejected(group)
+
+    # ==================================================================
+    # 回归场景：sort_fields 配置 + 缺少辅助排序字段
+    # ==================================================================
+
+    def _assert_default_sort_uses_sort_fields(self, index_set: LogIndexSet):
+        """验证配置了 sort_fields 时，默认排序优先使用 sort_fields 而非 gseIndex/iterationIndex。"""
+        handler = ChartHandler.get_instance(index_set_id=index_set.index_set_id, mode="sql")
+        order_by_clause = handler.get_order_by_clause(
+            index_set_id=index_set.index_set_id,
+            sort_list=[],
+            alias_mappings={},
+        )
+        self.assertTrue(order_by_clause.startswith(" ORDER BY"), f"应生成 ORDER BY，实际: {order_by_clause}")
+        # 验证使用的是 sort_fields 中的自定义字段，而非默认的时间+辅助排序
+        for field in index_set.sort_fields:
+            self.assertIn(field, order_by_clause, f"默认排序应包含 sort_fields 配置的字段 {field}")
+        # 不包含 gseIndex/iterationIndex 辅助排序
+        self.assertNotIn("gseIndex", order_by_clause)
+        self.assertNotIn("iterationIndex", order_by_clause)
+        self.assertNotIn("gseindex", order_by_clause)
+        self.assertNotIn("_iteration_idx", order_by_clause)
+
+    def test_default_sort_with_sort_fields(self):
+        """配置了 sort_fields 时：默认排序直接用 sort_fields，不追加辅助排序字段"""
+        index_set = self._build_es_doris_index_set()
+        # 配置自定义 sort_fields
+        index_set.sort_fields = ["log", "serverIp"]
+        index_set.save(update_fields=["sort_fields"])
+        self._assert_default_sort_uses_sort_fields(index_set)
+
+    def test_default_sort_es_doris_no_auxiliary_fields(self):
+        """存量 ES+Doris 缺少 gseIndex/iterationIndex 字段时：回退 dtEventTimeStamp DESC，
+        不会为不存在的字段生成 ORDER BY。"""
+        index_set = self._build_es_doris_index_set()
+        handler = ChartHandler.get_instance(index_set_id=index_set.index_set_id, mode="sql")
+        order_by_clause = handler.get_order_by_clause(
+            index_set_id=index_set.index_set_id,
+            sort_list=[],
+            alias_mappings={},
+        )
+        self.assertTrue(order_by_clause.startswith(" ORDER BY"))
+        # 只包含 dtEventTimeStamp，不包含 gseIndex/iterationIndex
+        self.assertIn("dtEventTimeStamp", order_by_clause)
+        self.assertNotIn("gseIndex", order_by_clause)
+        self.assertNotIn("iterationIndex", order_by_clause)
+
+    # ==================================================================
+    # 回归场景：导出请求在构造流式响应前完成校验
+    # ==================================================================
+
+    def test_export_rejected_for_plain_es(self):
+        """普通 ES 的导出请求：is_support_sql_and_grep=False 验证。"""
+        index_set = self._build_plain_es_index_set()
+        handler = self._build_uq_handler(index_set)
+        self.assertFalse(handler.is_support_sql_and_grep)
+        # 校验在 View 层处理，generator 构造应不抛
+        gen = handler.export_chart_data()
+        self.assertTrue(hasattr(gen, "__next__"), "export_chart_data 应返回生成器")

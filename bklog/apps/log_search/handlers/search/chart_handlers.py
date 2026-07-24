@@ -628,8 +628,7 @@ class SQLChartHandler(ChartHandler):
             )
             where_conditions.append(grep_where_clause)
 
-        # 生成最终的SQL语句（查询已统一走 UnifyQuery，由 UnifyQuery 自行处理
-        # 查询条件、FROM 子句和表路由，此处只传递 grep 过滤条件）
+        # 生成最终的SQL语句（查询已统一走 UnifyQuery，由 UnifyQuery 自行处理查询条件、FROM 子句和表路由，此处只传递 grep 过滤条件）
         sql_str = f"SELECT {select_clause}"
         if where_conditions:
             sql_str += f" WHERE {' AND '.join(where_conditions)}"

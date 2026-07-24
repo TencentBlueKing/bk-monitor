@@ -1934,7 +1934,7 @@ class BaseIndexSetHandler:
         effective_alias_settings = (
             parent_index_set.query_alias_settings if parent_index_set else index_set.query_alias_settings
         )
-        # Doris 路由或图表分析路由
+        # Doris路由或图表分析路由
         is_doris = str(IndexSetTag.get_tag_id("Doris", tag_type=TAG_TYPE_INNER)) in list(index_set.tag_ids)
         if is_doris or is_analysis:
             db_doris_table_id = index_set.doris_table_id

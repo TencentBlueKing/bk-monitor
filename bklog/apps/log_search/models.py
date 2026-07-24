@@ -893,12 +893,7 @@ class LogIndexSet(SoftDeleteModel):
                 if index_set_obj.sort_fields:
                     return [[field, "desc"] for field in index_set_obj.sort_fields]
 
-                if index_set_obj.scenario_id == Scenario.BKDATA:
-                    default_sort_list = [[time_field, "desc"], ["gseindex", "desc"], ["_iteration_idx", "desc"]]
-                elif index_set_obj.scenario_id == Scenario.LOG:
-                    default_sort_list = [[time_field, "desc"], ["gseIndex", "desc"], ["iterationIndex", "desc"]]
-                else:
-                    default_sort_list = [[time_field, "desc"]]
+                default_sort_list = [[time_field, "desc"]]
 
         return default_sort_list
 

@@ -27,19 +27,23 @@ class UnifyQueryChartHandler(UnifyQueryHandler):
         self.sql = params["sql"]
         self.table_id = None
         super().__init__(params)
-        self.index_set_obj = self.index_info_list[0]["index_set_obj"]
+        self.index_set_obj = self.index_info_list[0].get("index_set_obj")
         self.is_support_sql_and_grep = LogIndexSet.is_support_sql_and_grep(self.index_set_ids[0], self.index_set_obj)
 
     def init_base_dict(self):
         # 拼接查询参数列表
         query_list = []
         for index, index_info in enumerate(self.index_info_list):
-            index_set_obj = index_info.get("index_set_obj")
-
             self.table_id = f"bklog_index_set_{index_info['index_set_id']}_analysis"
 
-            if index_set_obj and index_set_obj.is_native_doris():
-                self.table_id = f"bklog_index_set_{index_info['index_set_id']}"
+            index_set_obj = index_info.get("index_set_obj")
+
+            if index_set_obj:
+                is_manual_connect_doris = (
+                    True if index_set_obj.support_doris and index_set_obj.doris_table_id else False
+                )
+                if not is_manual_connect_doris and index_set_obj.is_native_doris():
+                    self.table_id = f"bklog_index_set_{index_info['index_set_id']}"
 
             query_dict = {
                 "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
