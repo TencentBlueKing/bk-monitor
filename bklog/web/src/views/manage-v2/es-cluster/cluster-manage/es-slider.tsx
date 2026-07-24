@@ -197,8 +197,9 @@ export default defineComponent({
     const globalsData = computed(() => store.getters['globals/globalsData']);
     const isEdit = computed(() => props.editClusterId !== null);
     const isDoris = computed(() => props.clusterType === CLUSTER_TYPES.DORIS);
+    const isMultiTenant = computed(() => !!store.state.userMeta?.bk_tenant_id);
     const visibleScopeOptions = computed(() => {
-      if (store.state.bk_tenant_id) {
+      if (isMultiTenant.value) {
         return [...visibleScopeSelectList.value, { id: 'current_tenant', name: t('当前租户可见') }];
       }
       return visibleScopeSelectList.value;
@@ -342,10 +343,8 @@ export default defineComponent({
 
         initSidebarFormData();
 
-        // 若为编辑状态，则打开侧边栏后直接联通测试，通过则展开ES集群管理
-        if (isDoris.value) {
-          connectResult.value = 'success';
-        } else {
+        // ES 编辑状态下直接进行连通性测试，通过后展开集群管理
+        if (!isDoris.value) {
           setTimeout(() => {
             handleTestConnect();
           }, 0);
@@ -927,6 +926,19 @@ export default defineComponent({
         )}
       </bk-form-item>
     );
+
+    const renderManagementToggle = () => (
+      <bk-form-item>
+        <div
+          class='es-cluster-management button-text'
+          onClick={() => (isShowManagement.value = !isShowManagement.value)}
+        >
+          <span>{isDoris.value ? t('Doris集群管理') : t('ES集群管理')}</span>
+          <span class={['bk-icon icon-angle-double-down', isShowManagement.value ? 'is-show' : ''].join(' ')} />
+        </div>
+      </bk-form-item>
+    );
+
     // 主渲染
     // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
     return () => (
@@ -1176,24 +1188,11 @@ export default defineComponent({
                     </bk-form-item>
                   )}
 
-                  {/* 集群管理折叠条 */}
-                  {connectResult.value === 'success' && (
-                    <bk-form-item>
-                      <div
-                        class='es-cluster-management button-text'
-                        onClick={() => (isShowManagement.value = !isShowManagement.value)}
-                      >
-                        <span>{isDoris.value ? t('Doris集群管理') : t('ES集群管理')}</span>
-                        <span
-                          class={['bk-icon icon-angle-double-down', isShowManagement.value ? 'is-show' : ''].join(' ')}
-                        />
-                      </div>
-                    </bk-form-item>
-                  )}
+                  {/* Doris 集群管理不依赖连通性状态；ES 仍需连通成功后展示 */}
+                  {isDoris.value && renderManagementToggle()}
+                  {!isDoris.value && connectResult.value === 'success' && renderManagementToggle()}
 
-                  {isDoris.value && isShowManagement.value && connectResult.value === 'success' && (
-                    <div>{renderVisibleScope()}</div>
-                  )}
+                  {isDoris.value && isShowManagement.value && <div>{renderVisibleScope()}</div>}
                   {/* 管理区块 */}
                   {!isDoris.value && isShowManagement.value && connectResult.value === 'success' && (
                     <div>

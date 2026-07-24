@@ -389,9 +389,9 @@ export default defineComponent({
     // 新建ES源
     const addDataSource = async () => {
       if (isAllowedCreate.value) {
-        showSlider.value = true;
         editClusterId.value = null;
         editClusterData.value = null;
+        showSlider.value = true;
       } else {
         try {
           tableLoading.value = true;
@@ -449,9 +449,9 @@ export default defineComponent({
         return;
       }
 
-      showSlider.value = true;
       editClusterId.value = id;
       editClusterData.value = item;
+      showSlider.value = true;
     };
 
     // 删除ES源
