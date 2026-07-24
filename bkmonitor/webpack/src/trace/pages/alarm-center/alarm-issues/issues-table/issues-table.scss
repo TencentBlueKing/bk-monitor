@@ -388,7 +388,11 @@
 
   .issues-json-popover-content {
     max-height: 50vh;
-    overflow-y: auto;
+    overflow-y: hidden;
+
+    &:hover {
+      overflow-y: auto;
+    }
 
     .vjs-tree-node {
       font-size: 12px;
