@@ -62,7 +62,13 @@ import StrategyConfigDialog from '../strategy-config-dialog/strategy-config-dial
 import FilterPanel from '../strategy-config-list/filter-panel';
 import { DetectionRuleTypeEnum, MetricDetail } from '../strategy-config-set-new/typings';
 import StrategyIpv6 from '../strategy-ipv6/strategy-ipv6';
-import { compareObjectsInArray, countElementsNotInFirstRow, handleMouseDown, handleMouseMove } from '../util';
+import {
+  compareObjectsInArray,
+  countElementsNotInFirstRow,
+  getItemDescriptionTooltip,
+  handleMouseDown,
+  handleMouseMove,
+} from '../util';
 import DeleteSubtitle from './delete-subtitle';
 import FilterPanelPopover from './filter-panel-popover';
 
@@ -1988,12 +1994,6 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   handleMouseMove(e) {
     handleMouseMove(e);
   }
-  // 处理监控项tooltips
-  handleDescTips(data) {
-    const tips = data.map(item => `<div>${item.tip}</div>`).join('');
-    const res = `<div class="item-description">${tips}</div>`;
-    return res;
-  }
   // 批量操作下的选项是否不可点击
   isBatchItemDisabled(option: any) {
     return (
@@ -2169,10 +2169,9 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
         <span
           class='table-monitor-desc'
           v-bk-tooltips={{
-            content: this.handleDescTips(props.row.itemDescription),
+            ...getItemDescriptionTooltip(props.row.itemDescription),
             delay: 200,
             boundary: 'window',
-            allowHTML: true,
           }}
         >
           {props.row.itemDescription.map((item, index) => [
