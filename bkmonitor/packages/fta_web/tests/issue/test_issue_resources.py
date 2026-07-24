@@ -179,6 +179,36 @@ class TestIssueLogContentResource:
         assert observed_tenant_ids == ["tenant-a"]
         assert result == {issue_ids[0]: {"log_content": "log content"}}
 
+    def test_bk_data_time_series_query_config_is_delegated_to_relation_info(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        from constants.data_source import DataSourceLabel, DataTypeLabel
+
+        issue_ids = self._issue_ids(1)
+        resources, alert_search = self._prepare_resource(monkeypatch, issue_ids, with_alert=True)
+        resources.QueryConfigModel.objects.filter.return_value.values.return_value = [
+            {
+                "strategy_id": 1001,
+                "data_source_label": DataSourceLabel.BK_DATA,
+                "data_type_label": DataTypeLabel.TIME_SERIES,
+            }
+        ]
+        monkeypatch.setattr(resources.AlertDocument, "search", lambda **kwargs: alert_search)
+        relation_info = MagicMock(return_value='{"log": "clustered log"}')
+        monkeypatch.setattr(resources, "get_alert_relation_info", relation_info)
+
+        result = resources.IssueLogContentResource().perform_request({"bk_biz_ids": [2], "issue_ids": issue_ids})
+
+        assert result == {issue_ids[0]: {"log_content": "clustered log"}}
+        relation_info.assert_called_once()
+        assert relation_info.call_args.kwargs == {
+            "length_limit": False,
+            "query_config": {
+                "data_source_label": DataSourceLabel.BK_DATA,
+                "data_type_label": DataTypeLabel.TIME_SERIES,
+            },
+        }
+
     def test_repeated_timeouts_share_global_concurrency_limit(self, monkeypatch):
         import threading
 
