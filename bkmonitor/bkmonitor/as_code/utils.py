@@ -151,7 +151,10 @@ def parse_metric_id(data_source_label: str, data_type_label: str, metric_id: str
             metric_field = metric_id
             data_label = ""
         return {"result_table_id": result_table_id, "metric_field": metric_field, "data_label": data_label}
-    elif data_source == (DataSourceLabel.BK_APM, DataTypeLabel.TIME_SERIES):
+    elif data_source in (
+        (DataSourceLabel.BK_APM, DataTypeLabel.TIME_SERIES),
+        (DataSourceLabel.BK_RUM, DataTypeLabel.TIME_SERIES),
+    ):
         *result_table_id, metric_field = metric_id.split(".", 2)
         result_table_id = ".".join(result_table_id)
         return {"result_table_id": result_table_id, "metric_field": metric_field}
@@ -195,7 +198,10 @@ def get_metric_id(data_source_label: str, data_type_label: str, query_config: di
             metric_id = f"{query_config['result_table_id']}.{query_config['metric_field']}"
         else:
             metric_id = query_config["metric_field"]
-    elif data_source == (DataSourceLabel.BK_APM, DataTypeLabel.TIME_SERIES):
+    elif data_source in (
+        (DataSourceLabel.BK_APM, DataTypeLabel.TIME_SERIES),
+        (DataSourceLabel.BK_RUM, DataTypeLabel.TIME_SERIES),
+    ):
         metric_id = f"{query_config['result_table_id']}.{query_config['metric_field']}"
     elif data_source == (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG):
         metric_id = query_config["result_table_id"]
