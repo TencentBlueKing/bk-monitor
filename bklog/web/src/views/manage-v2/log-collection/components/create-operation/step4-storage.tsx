@@ -43,6 +43,14 @@ import type { ISubmitOptions } from '../../type';
 
 import './step4-storage.scss';
 
+interface IStorageFieldData {
+  allocation_min_days?: number | string | null;
+  es_shards?: number | string | null;
+  retention?: number | string | null;
+  storage_replies?: number | string | null;
+  storage_shards_nums?: number | string | null;
+}
+
 export default defineComponent({
   name: 'StepStorage',
   props: {
@@ -87,6 +95,8 @@ export default defineComponent({
       retention: 7,
       es_shards: 3,
       allocation_min_days: 0,
+    };
+    const createCleanDefaults = () => ({
       // 清洗相关字段默认值，与旧版保持一致
       etl_config: 'bk_log_text',
       etl_params: {
@@ -99,13 +109,21 @@ export default defineComponent({
         metadata_fields: [],
       },
       fields: [],
-    };
+    });
+    const normalizeStorageFields = (data: IStorageFieldData = {}) => ({
+      retention: data.retention ?? STORAGE_DEFAULTS.retention,
+      allocation_min_days: data.allocation_min_days ?? STORAGE_DEFAULTS.allocation_min_days,
+      storage_replies: data.storage_replies ?? STORAGE_DEFAULTS.storage_replies,
+      es_shards: data.storage_shards_nums ?? data.es_shards ?? STORAGE_DEFAULTS.es_shards,
+    });
 
     const storageFormRef = ref(null);
     const formData = ref({
       ...STORAGE_DEFAULTS,
+      ...createCleanDefaults(),
       need_assessment: false,
       ...props.configData,
+      ...normalizeStorageFields(props.configData),
     });
     const cleanStash = ref({});
     /**
@@ -328,9 +346,9 @@ export default defineComponent({
       formData.value = {
         ...formData.value,
         storage_cluster_id: row.storage_cluster_id,
-        retention: setupConfig?.retention_days_default || 7,
-        storage_replies: setupConfig?.number_of_replicas_default || 1,
-        es_shards: setupConfig?.es_shards_default || 3,
+        retention: setupConfig?.retention_days_default ?? STORAGE_DEFAULTS.retention,
+        storage_replies: setupConfig?.number_of_replicas_default ?? STORAGE_DEFAULTS.storage_replies,
+        es_shards: setupConfig?.es_shards_default ?? STORAGE_DEFAULTS.es_shards,
         allocation_min_days: 0,
       };
     };
@@ -340,12 +358,7 @@ export default defineComponent({
      */
     const handleChooseCluster = row => {
       if (row.storage_cluster_id !== clusterSelect.value) {
-        // 编辑场景首次进入且已有集群配置时，不覆盖已有值，仅更新max限制
-        // 未完成的采集项没有 storage_cluster_id，首次选择集群时应使用集群默认值
-        const isEditWithExistingCluster = !clusterSelect.value && props.isEdit && props.configData.storage_cluster_id;
-        if (!isEditWithExistingCluster) {
-          handleSelectStorageCluster(row);
-        }
+        handleSelectStorageCluster(row);
       }
       clusterSelect.value = row.storage_cluster_id;
       clusterData.value = row;
@@ -410,14 +423,14 @@ export default defineComponent({
           .then(res => {
             if (res?.data) {
               store.commit('collect/setCurCollect', res.data);
-              const { storage_cluster_id, storage_shards_nums, storage_cluster_type } = res.data;
+              const { storage_cluster_id, storage_cluster_type } = res.data;
               if (storage_cluster_type) {
                 clusterType = storage_cluster_type;
               }
               formData.value = {
                 ...formData.value,
                 ...res.data,
-                es_shards: storage_shards_nums ?? formData.value.es_shards,
+                ...normalizeStorageFields(res.data),
               };
               clusterSelect.value = storage_cluster_id;
             }
@@ -425,8 +438,9 @@ export default defineComponent({
       }
       await handleTabClick(clusterType ?? activeTab.value, true);
       if (!isCustomReport.value) {
-        getCleanStash();
+        await getCleanStash();
       }
+      saveInitialFormData();
     });
 
     /**
@@ -514,7 +528,7 @@ export default defineComponent({
               }}
               on-blur={val => {
                 if (val === '') {
-                  formData.value.retention = clusterData.value?.setup_config?.retention_days_default || 7;
+                  formData.value.retention = clusterData.value?.setup_config?.retention_days_default ?? STORAGE_DEFAULTS.retention;
                 }
               }}
             >
@@ -539,7 +553,7 @@ export default defineComponent({
                   }}
                   on-blur={val => {
                     if (val === '') {
-                      formData.value.allocation_min_days = clusterData.value?.setup_config?.retention_days_default || 7;
+                      formData.value.allocation_min_days = clusterData.value?.setup_config?.retention_days_default ?? STORAGE_DEFAULTS.retention;
                     }
                   }}
                 >
@@ -563,7 +577,7 @@ export default defineComponent({
                 }}
                 on-blur={val => {
                   if (val === '') {
-                    formData.value.storage_replies = clusterData.value?.setup_config?.number_of_replicas_default || 1;
+                    formData.value.storage_replies = clusterData.value?.setup_config?.number_of_replicas_default ?? STORAGE_DEFAULTS.storage_replies;
                   }
                 }}
               />
@@ -582,7 +596,7 @@ export default defineComponent({
                 }}
                 on-blur={val => {
                   if (val === '') {
-                    formData.value.es_shards = clusterData.value?.setup_config?.es_shards_default || 3;
+                    formData.value.es_shards = clusterData.value?.setup_config?.es_shards_default ?? STORAGE_DEFAULTS.es_shards;
                   }
                 }}
               />
@@ -789,14 +803,9 @@ export default defineComponent({
       formData.value = {
         ...formData.value,
         ...props.configData,
-        retention: props.configData.retention ?? formData.value.retention,
-        allocation_min_days: props.configData.allocation_min_days ?? formData.value.allocation_min_days,
-        storage_replies: props.configData.storage_replies ?? formData.value.storage_replies,
-        es_shards: props.configData.storage_shards_nums || props.configData.es_shards || formData.value.es_shards,
+        ...normalizeStorageFields(props.configData),
       };
       clusterSelect.value = props.configData.storage_cluster_id;
-      // 保存初始表单数据快照
-      saveInitialFormData();
     };
     // watch(
     //   () => props.isEdit || props.isClone,
